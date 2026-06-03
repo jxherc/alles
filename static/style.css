@@ -818,6 +818,86 @@ code {
 }
 .mem-item:hover .mem-actions { opacity: 1; }
 
+/* ── settings list rows (mcp, personas, webhooks, etc.) ── */
+.settings-list-row {
+  display: flex; align-items: center; gap: 0.5rem;
+  padding: 0.28rem 0; font-size: 0.78rem;
+}
+.settings-row-empty { font-size: 0.72rem; color: var(--faint); padding: 0.2rem 0 0.4rem; }
+.status-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.row-name { color: var(--text); flex-shrink: 0; }
+.row-meta { color: var(--muted); font-size: 0.7rem; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ── calendar ── */
+.cal-month-label {
+  font-size: 0.7rem; color: var(--muted); letter-spacing: 0.04em; font-weight: 500;
+  padding: 0.75rem 0 0.3rem; text-transform: lowercase;
+}
+.cal-event {
+  display: flex; align-items: flex-start; gap: 1rem;
+  padding: 0.5rem 0; border-bottom: 1px solid var(--faint);
+  cursor: pointer; transition: background 0.15s; position: relative;
+}
+.cal-event:hover { background: var(--panel); margin: 0 -1.5rem; padding: 0.5rem 1.5rem; }
+.cal-event:last-child { border-bottom: none; }
+.cal-date { flex-shrink: 0; text-align: right; width: 64px; }
+.cal-day { display: block; font-size: 0.78rem; color: var(--text); }
+.cal-time { display: block; font-size: 0.68rem; color: var(--muted); letter-spacing: 0.03em; }
+.cal-info { flex: 1; min-width: 0; }
+.cal-title { font-size: 0.82rem; color: var(--text); }
+.cal-desc { font-size: 0.72rem; color: var(--muted); margin-top: 0.1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cal-del { opacity: 0; transition: opacity 0.15s; }
+.cal-event:hover .cal-del { opacity: 1; }
+
+/* ── gallery ── */
+.gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 0.5rem;
+}
+.gallery-item {
+  position: relative; aspect-ratio: 1;
+  overflow: hidden; border-radius: 3px;
+  border: 1px solid var(--faint); cursor: pointer;
+}
+.gallery-item img {
+  width: 100%; height: 100%; object-fit: cover;
+  transition: transform 0.2s;
+}
+.gallery-item:hover img { transform: scale(1.03); }
+.gallery-overlay {
+  position: absolute; inset: 0;
+  background: rgba(0,0,0,0.6);
+  display: flex; flex-direction: column; justify-content: flex-end;
+  padding: 0.5rem;
+  opacity: 0; transition: opacity 0.2s;
+}
+.gallery-item:hover .gallery-overlay { opacity: 1; }
+.gallery-prompt {
+  font-size: 0.68rem; color: #fff;
+  line-height: 1.4; margin-bottom: 0.3rem;
+}
+
+/* ── slash autocomplete ── */
+.slash-popup {
+  position: fixed; z-index: 400;
+  background: var(--bg); border: 1px solid var(--faint); border-radius: 3px;
+  max-height: 200px; overflow-y: auto;
+  animation: rise 0.12s ease forwards;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+}
+.slash-item {
+  display: flex; align-items: baseline; gap: 0.6rem;
+  padding: 0.4rem 0.85rem; cursor: pointer;
+  transition: background 0.1s;
+}
+.slash-item:hover, .slash-item.selected { background: var(--panel); }
+.slash-name { font-size: 0.78rem; color: var(--accent); font-weight: 500; white-space: nowrap; }
+.slash-desc { font-size: 0.72rem; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* shared page empty state */
+.page-empty { padding: 1rem 0; font-size: 0.75rem; color: var(--faint); }
+
 /* empty state */
 .empty-sessions {
   padding: 1rem 1.1rem;

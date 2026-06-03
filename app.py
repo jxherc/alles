@@ -18,6 +18,12 @@ from routes import (
     mcp as mcp_routes,
     notes as notes_routes,
     tasks as tasks_routes,
+    calendar as calendar_routes,
+    gallery as gallery_routes,
+    cookbook as cookbook_routes,
+    personas as personas_routes,
+    webhooks as webhook_routes,
+    api_tokens as token_routes,
 )
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s  %(name)s  %(message)s")
@@ -84,6 +90,12 @@ app.include_router(shell_routes.router)
 app.include_router(mcp_routes.router)
 app.include_router(notes_routes.router)
 app.include_router(tasks_routes.router)
+app.include_router(calendar_routes.router)
+app.include_router(gallery_routes.router)
+app.include_router(cookbook_routes.router)
+app.include_router(personas_routes.router)
+app.include_router(webhook_routes.router)
+app.include_router(token_routes.router)
 
 
 # static files — no-cache so JS/CSS always reloads

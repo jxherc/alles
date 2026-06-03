@@ -36,6 +36,8 @@
       <div class="nav-item active" data-view="chat">chat</div>
       <div class="nav-item" data-view="notes">notes</div>
       <div class="nav-item" data-view="tasks">tasks</div>
+      <div class="nav-item" data-view="calendar">calendar</div>
+      <div class="nav-item" data-view="gallery">gallery</div>
       <div class="nav-item" data-view="memory">memory</div>
       <div class="nav-item" data-view="settings">settings</div>
     </nav>
@@ -91,6 +93,28 @@
       <div class="page-view-footer">
         <input type="text" id="task-add-input" placeholder="add a task...">
         <button class="btn primary" id="task-add-btn">add</button>
+      </div>
+    </div>
+
+    <!-- ── calendar view ── -->
+    <div class="page-view" id="calendar-view" style="display:none">
+      <div class="page-view-head">
+        <span class="page-view-title">calendar</span>
+        <button class="btn primary" id="cal-new-btn">+ event</button>
+      </div>
+      <div class="page-view-body" id="calendar-list"></div>
+    </div>
+
+    <!-- ── gallery view ── -->
+    <div class="page-view" id="gallery-view" style="display:none">
+      <div class="page-view-head">
+        <span class="page-view-title">gallery</span>
+        <input type="file" id="gallery-file-input" accept="image/*" style="display:none">
+        <button class="btn primary" id="gallery-upload-btn">+ upload</button>
+      </div>
+      <div class="page-view-body">
+        <input type="text" id="gallery-prompt-input" placeholder="prompt / caption (optional)" style="width:100%;background:none;border:none;border-bottom:1px solid var(--faint);color:var(--text);font:inherit;font-size:0.8rem;padding:0.3rem 0;outline:none;margin-bottom:1rem;transition:border-color 0.2s" onfocus="this.style.borderColor='var(--muted)'" onblur="this.style.borderColor='var(--faint)'">
+        <div class="gallery-grid" id="gallery-grid"></div>
       </div>
     </div>
 
@@ -197,6 +221,26 @@
         <button class="btn primary" id="settings-save-btn">save</button>
       </div>
       <div class="settings-section">
+        <span class="settings-label">personas</span>
+        <div id="persona-list" style="margin-bottom:0.5rem"></div>
+        <div style="display:flex;gap:0.4rem;flex-wrap:wrap">
+          <input type="text" class="settings-input" id="persona-emoji" placeholder="🤖" style="width:40px">
+          <input type="text" class="settings-input" id="persona-name" placeholder="name" style="flex:1;min-width:80px">
+          <input type="text" class="settings-input" id="persona-prompt" placeholder="system prompt..." style="flex:3;min-width:160px">
+          <button class="btn primary" id="persona-add-btn">add</button>
+        </div>
+      </div>
+      <div class="settings-section">
+        <span class="settings-label">cookbook (slash commands)</span>
+        <div id="cookbook-list" style="margin-bottom:0.5rem"></div>
+        <div style="display:flex;gap:0.4rem;flex-wrap:wrap">
+          <input type="text" class="settings-input" id="cookbook-name" placeholder="name" style="flex:1;min-width:80px">
+          <input type="text" class="settings-input" id="cookbook-desc" placeholder="description" style="flex:1;min-width:100px">
+          <input type="text" class="settings-input" id="cookbook-prompt" placeholder="prompt template..." style="flex:3;min-width:160px">
+          <button class="btn primary" id="cookbook-add-btn">add</button>
+        </div>
+      </div>
+      <div class="settings-section">
         <span class="settings-label">mcp servers</span>
         <div id="mcp-server-list" style="margin-bottom:0.5rem"></div>
         <div style="display:flex;gap:0.4rem;flex-wrap:wrap">
@@ -205,12 +249,30 @@
           <button class="btn primary" id="mcp-add-btn">add</button>
         </div>
       </div>
+      <div class="settings-section">
+        <span class="settings-label">webhooks</span>
+        <div id="webhook-list" style="margin-bottom:0.5rem"></div>
+        <div style="display:flex;gap:0.4rem;flex-wrap:wrap">
+          <input type="text" class="settings-input" id="wh-name" placeholder="name" style="flex:1;min-width:80px">
+          <input type="text" class="settings-input" id="wh-url" placeholder="https://..." style="flex:3;min-width:160px">
+          <button class="btn primary" id="wh-add-btn">add</button>
+        </div>
+      </div>
+      <div class="settings-section">
+        <span class="settings-label">api tokens</span>
+        <div id="token-list" style="margin-bottom:0.5rem"></div>
+        <div style="display:flex;gap:0.4rem">
+          <input type="text" class="settings-input" id="token-name" placeholder="token name" style="flex:1">
+          <button class="btn primary" id="token-add-btn">generate</button>
+        </div>
+        <div id="token-reveal" style="display:none;margin-top:0.5rem;padding:0.5rem;border:1px solid var(--faint);border-radius:2px;font-family:monospace;font-size:0.72rem;word-break:break-all;color:var(--accent)"></div>
+      </div>
     </div>
   </div>
 </div>
 
 <script type="module">
-const _v = '5';
+const _v = '6';
 import(`/static/js/app.js?v=${_v}`);
 </script>
 </body>
