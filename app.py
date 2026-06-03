@@ -9,7 +9,7 @@ from fastapi.responses import FileResponse
 
 from core.database import init_db, SessionLocal, ModelEndpoint
 from core.settings import deepseek_api_key, get_port
-from routes import chat, sessions, models, settings as settings_routes, memory as memory_routes
+from routes import chat, sessions, models, settings as settings_routes, memory as memory_routes, research as research_routes
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s  %(name)s  %(message)s")
 log = logging.getLogger("aide")
@@ -64,6 +64,7 @@ app.include_router(sessions.router)
 app.include_router(models.router)
 app.include_router(settings_routes.router)
 app.include_router(memory_routes.router)
+app.include_router(research_routes.router)
 
 
 # static files — no-cache so JS/CSS always reloads

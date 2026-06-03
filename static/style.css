@@ -587,6 +587,61 @@ code {
   to   { opacity: 1; }
 }
 
+/* ── research card ── */
+.research-card {
+  border: 1px solid var(--faint); border-radius: 3px;
+  overflow: hidden; margin: 0.5rem 0;
+}
+.research-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0.55rem 0.9rem;
+  border-bottom: 1px solid var(--faint);
+  font-size: 0.75rem;
+}
+.research-label {
+  display: flex; align-items: center; gap: 0.5rem;
+  color: var(--muted); letter-spacing: 0.04em; font-weight: 500;
+}
+.research-steps {
+  padding: 0.5rem 0.9rem;
+  border-bottom: 1px solid var(--faint);
+  max-height: 160px; overflow-y: auto;
+}
+.research-step {
+  font-size: 0.72rem; color: var(--muted);
+  padding: 0.15rem 0; letter-spacing: 0.02em;
+}
+.research-step::before { content: '› '; color: var(--faint); }
+.research-step.error { color: var(--error); }
+.research-finding {
+  font-size: 0.72rem; color: var(--accent);
+  padding: 0.15rem 0;
+}
+.research-report {
+  padding: 0.9rem;
+  font-size: 0.875rem; line-height: 1.75;
+  border-bottom: 1px solid var(--faint);
+}
+.research-sources {
+  padding: 0.6rem 0.9rem;
+  display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center;
+}
+.sources-label {
+  font-size: 0.65rem; color: var(--muted);
+  letter-spacing: 0.04em; font-weight: 500;
+  width: 100%; margin-bottom: 0.2rem;
+}
+.source-link {
+  font-size: 0.68rem; color: var(--muted);
+  border: 1px solid var(--faint); border-radius: 2px;
+  padding: 0.18rem 0.5rem;
+  text-decoration: none;
+  transition: color 0.2s, border-color 0.2s;
+  white-space: nowrap; max-width: 220px;
+  overflow: hidden; text-overflow: ellipsis; display: inline-block;
+}
+.source-link:hover { color: var(--text); border-color: var(--muted); }
+
 /* ── floating window ── */
 .float-win {
   position: fixed; z-index: 300;
