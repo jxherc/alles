@@ -2,6 +2,7 @@ import { loadSessions, showWelcome, createSession, renderSidebar } from './sessi
 import { loadModels, renderModelList, addEndpoint, getSelected, getCurrentEndpoint } from './models.js';
 import { sendMessage, stopStream } from './chat.js';
 import { toast, closeAllModals } from './util.js';
+import { initMemoryPanel } from './memory.js';
 
 // ── init ────────────────────────────────────────────────────────────────────
 
@@ -45,15 +46,6 @@ function bindEvents() {
     renderSidebar(e.target.value);
   });
 
-  // chips
-  document.querySelectorAll('.chip').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const ta = document.getElementById('composer-ta');
-      ta.value = btn.dataset.prompt;
-      ta.focus();
-    });
-  });
-
   // mode toggle
   document.getElementById('mode-agent').addEventListener('click', () => setMode('agent'));
   document.getElementById('mode-chat').addEventListener('click', () => setMode('chat'));
@@ -91,13 +83,20 @@ function bindEvents() {
   document.getElementById('settings-modal-close').addEventListener('click', closeAllModals);
   document.getElementById('settings-save-btn').addEventListener('click', saveSettings);
 
+  // memory modal close
+  document.getElementById('memory-modal-close').addEventListener('click', closeAllModals);
+  document.getElementById('memory-modal').addEventListener('click', e => {
+    if (e.target === document.getElementById('memory-modal')) closeAllModals();
+  });
+
   // sidebar nav
   document.querySelectorAll('.nav-item').forEach(el => {
     el.addEventListener('click', () => {
       document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
       el.classList.add('active');
-      // placeholder — views not implemented in Phase 1
-      if (el.dataset.view !== 'chat') {
+      if (el.dataset.view === 'memory') {
+        openMemoryModal();
+      } else if (el.dataset.view !== 'chat') {
         toast(`${el.dataset.view} — coming soon`, '');
       }
     });
@@ -178,6 +177,11 @@ async function openSettingsModal() {
   } catch (e) {}
 }
 
+
+function openMemoryModal() {
+  document.getElementById('memory-modal').style.display = 'flex';
+  initMemoryPanel();
+}
 
 async function saveSettings() {
   const body = {

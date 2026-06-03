@@ -6,3 +6,4 @@ httpx
 pydantic>=2.0
 sqlalchemy
 cryptography
+fastembed
