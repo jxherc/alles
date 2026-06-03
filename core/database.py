@@ -52,6 +52,7 @@ class Session(Base):
     model          = Column(String, default="")
     endpoint_id    = Column(String, ForeignKey("model_endpoints.id", ondelete="SET NULL"), nullable=True)
     mode           = Column(String, default="chat")   # chat | agent
+    persona_id     = Column(String, ForeignKey("personas.id", ondelete="SET NULL"), nullable=True)
     starred        = Column(Boolean, default=False)
     archived       = Column(Boolean, default=False)
     message_count  = Column(Integer, default=0)
@@ -62,6 +63,7 @@ class Session(Base):
                             cascade="all, delete-orphan",
                             order_by="Message.timestamp")
     endpoint = relationship("ModelEndpoint", foreign_keys=[endpoint_id])
+    persona  = relationship("Persona", foreign_keys=[persona_id])
 
 
 class Message(Base):
