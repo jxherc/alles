@@ -124,6 +124,72 @@ class Task(Base):
     created_at = Column(DateTime, default=_now)
 
 
+class CalendarEvent(Base):
+    __tablename__ = "calendar_events"
+    id          = Column(String, primary_key=True, default=_uid)
+    title       = Column(String, nullable=False)
+    description = Column(Text, default="")
+    start_dt    = Column(String, nullable=False)  # ISO8601
+    end_dt      = Column(String, nullable=True)
+    all_day     = Column(Boolean, default=False)
+    color       = Column(String, default="")      # accent | green | warn | etc.
+    created_at  = Column(DateTime, default=_now)
+
+
+class GalleryImage(Base):
+    __tablename__ = "gallery_images"
+    id         = Column(String, primary_key=True, default=_uid)
+    filename   = Column(String, nullable=False)
+    prompt     = Column(Text, default="")
+    tags       = Column(Text, default="")
+    source     = Column(String, default="upload")  # upload | generated
+    created_at = Column(DateTime, default=_now)
+
+
+class CookbookEntry(Base):
+    __tablename__ = "cookbook"
+    id          = Column(String, primary_key=True, default=_uid)
+    name        = Column(String, nullable=False)   # slash command name (no spaces)
+    description = Column(String, default="")
+    prompt      = Column(Text, nullable=False)
+    created_at  = Column(DateTime, default=_now)
+
+
+class Persona(Base):
+    __tablename__ = "personas"
+    id           = Column(String, primary_key=True, default=_uid)
+    name         = Column(String, nullable=False)
+    emoji        = Column(String, default="🤖")
+    system_prompt = Column(Text, default="")
+    model        = Column(String, default="")       # override model, or "" = use session default
+    is_default   = Column(Boolean, default=False)
+    created_at   = Column(DateTime, default=_now)
+
+
+class Webhook(Base):
+    __tablename__ = "webhooks"
+    id         = Column(String, primary_key=True, default=_uid)
+    name       = Column(String, nullable=False)
+    url        = Column(String, nullable=False)
+    events     = Column(Text, default="[]")  # json list: message, research_done, session_created
+    enabled    = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=_now)
+
+    def events_list(self):
+        try: return json.loads(self.events or "[]")
+        except: return []
+
+
+class ApiToken(Base):
+    __tablename__ = "api_tokens"
+    id          = Column(String, primary_key=True, default=_uid)
+    name        = Column(String, nullable=False)
+    token_hash  = Column(String, nullable=False)   # bcrypt or sha256
+    prefix      = Column(String, nullable=False)   # first 8 chars for display
+    created_at  = Column(DateTime, default=_now)
+    last_used_at = Column(DateTime, nullable=True)
+
+
 class Memory(Base):
     __tablename__ = "memories"
     id         = Column(String, primary_key=True, default=_uid)
