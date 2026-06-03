@@ -215,6 +215,7 @@ async function openSettingsModal() {
     const r = await fetch('/api/settings');
     const s = await r.json();
     document.getElementById('settings-system-prompt').value = s.system_prompt || '';
+    document.getElementById('settings-context-limit').value = s.context_limit ?? 40;
   } catch (e) {}
   loadMcpServers();
 }
@@ -225,6 +226,7 @@ async function saveSettings() {
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
       system_prompt: document.getElementById('settings-system-prompt').value,
+      context_limit: parseInt(document.getElementById('settings-context-limit').value) || 40,
     }),
   });
   toast('saved', 'success');
