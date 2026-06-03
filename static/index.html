@@ -68,18 +68,7 @@
       <div class="welcome" id="welcome" style="display:none">
         <div>
           <div class="welcome-brand">aide</div>
-          <div class="welcome-desc" id="welcome-desc">ask anything.</div>
-        </div>
-        <div class="chips">
-          <div class="chip-label">try asking</div>
-          <div class="chips-grid">
-            <button class="chip" data-prompt="explain this code">explain this code <span class="arr">→</span></button>
-            <button class="chip" data-prompt="write a script to">write a script <span class="arr">→</span></button>
-            <button class="chip" data-prompt="debug this error">debug this error <span class="arr">→</span></button>
-            <button class="chip" data-prompt="refactor for readability">refactor code <span class="arr">→</span></button>
-            <button class="chip" data-prompt="compare these two approaches">compare A vs B <span class="arr">→</span></button>
-            <button class="chip" data-prompt="what's the best way to">best way to... <span class="arr">→</span></button>
-          </div>
+          <div class="welcome-desc" id="welcome-desc">odysseus fork.</div>
         </div>
       </div>
 
@@ -120,10 +109,6 @@
           </div>
         </div>
       </div>
-      <div class="c-hint">
-        <span><kbd>enter</kbd> send &nbsp;·&nbsp; <kbd>shift+enter</kbd> newline</span>
-        <span id="hint-right">no endpoint</span>
-      </div>
     </div>
 
   </main>
@@ -158,6 +143,27 @@
         </div>
       </div>
     </details>
+  </div>
+</div>
+
+<!-- memory panel modal -->
+<div class="modal-overlay" id="memory-modal" style="display:none">
+  <div class="modal-card memory-card">
+    <div class="modal-head">
+      <span class="modal-title">memory</span>
+      <button class="modal-close" id="memory-modal-close">×</button>
+    </div>
+    <div class="modal-search" style="display:flex;gap:0.5rem;align-items:center">
+      <input type="text" id="mem-search" placeholder="search memories..." style="flex:1">
+    </div>
+    <div class="modal-body" id="memory-panel">
+      <div id="memory-list"></div>
+    </div>
+    <div style="padding:0.6rem 1rem;border-top:1px solid var(--faint);display:flex;gap:0.4rem">
+      <input type="text" id="mem-add-input" placeholder="add a memory..." style="flex:1;background:none;border:none;border-bottom:1px solid var(--faint);color:var(--text);font:inherit;font-size:0.8rem;padding:0.3rem 0;outline:none">
+      <button class="btn primary" id="mem-add-btn">add</button>
+      <button class="btn" id="mem-extract-btn">extract from chat</button>
+    </div>
   </div>
 </div>
 

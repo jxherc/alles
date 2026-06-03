@@ -82,6 +82,17 @@ class Message(Base):
             return {}
 
 
+class Memory(Base):
+    __tablename__ = "memories"
+    id         = Column(String, primary_key=True, default=_uid)
+    text       = Column(Text, nullable=False)
+    category   = Column(String, default="general")  # identity | preference | fact | task | general
+    source     = Column(String, default="manual")   # manual | extracted | imported
+    session_id = Column(String, nullable=True)       # which session it came from
+    pinned     = Column(Boolean, default=False)      # always inject if pinned
+    timestamp  = Column(DateTime, default=_now)
+
+
 def init_db():
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
     Base.metadata.create_all(engine)

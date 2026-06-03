@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session as DbSession
 from core.database import get_db, Session, Message, ModelEndpoint
 from core.settings import load_settings
 from services.llm import stream_chat, simple_complete
+from services.memory_store import inject_memories
 
 router = APIRouter(prefix="/api")
 
@@ -23,7 +24,14 @@ def _resolve_endpoint(session: Session, db: DbSession) -> ModelEndpoint | None:
 
 
 def _build_messages(session: Session, user_text: str, settings: dict) -> list[dict]:
-    msgs = [{"role": "system", "content": settings.get("system_prompt", "You are aide, a helpful AI assistant.")}]
+    sys = settings.get("system_prompt", "You are aide, a helpful AI assistant.")
+
+    # inject relevant memories into system prompt
+    mem_ctx = inject_memories(user_text)
+    if mem_ctx:
+        sys = sys.rstrip() + "\n\n" + mem_ctx
+
+    msgs = [{"role": "system", "content": sys}]
     limit = settings.get("context_limit", 40)
     history = list(session.messages)[-limit:]
     for m in history:

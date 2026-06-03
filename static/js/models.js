@@ -45,23 +45,17 @@ export function getCurrentEndpoint() {
 function updateTopbar() {
   const label = document.getElementById('model-label');
   const dot = document.getElementById('live-dot');
-  const hint = document.getElementById('hint-right');
 
   if (_selected) {
-    // shorten model name — just last segment if it has slashes
     const short = _selected.model.split('/').pop();
     label.textContent = short;
     dot.classList.remove('offline');
 
     const ep = getCurrentEndpoint();
-    if (ep) {
-      hint.textContent = `${ep.name.toLowerCase()} · ${_selected.model}`;
-      window._currentEndpoint = ep;
-    }
+    if (ep) window._currentEndpoint = ep;
   } else {
     label.textContent = 'no model';
     dot.classList.add('offline');
-    hint.textContent = 'add an endpoint in settings';
   }
 }
 
