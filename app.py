@@ -8,7 +8,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
 from core.database import init_db, SessionLocal, ModelEndpoint
-from core.settings import deepseek_api_key, get_port
+from core.settings import deepseek_api_key, get_port, auth_enabled
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request as StarletteRequest
+from starlette.responses import JSONResponse
 from routes import (
     chat, sessions, models,
     settings as settings_routes,
@@ -73,11 +76,36 @@ app = FastAPI(title="aide", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:8000", "http://127.0.0.1:8000"],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+class TokenAuthMiddleware(BaseHTTPMiddleware):
+    """
+    If a request has Authorization: Bearer aide_xxx, validate it.
+    Passes through all requests that don't have that header (browser UI, etc.).
+    Blocks only requests with an invalid token.
+    """
+    _EXEMPT = {"/", "/health", "/static", "/docs", "/openapi.json", "/redoc"}
+
+    async def dispatch(self, request: StarletteRequest, call_next):
+        auth = request.headers.get("authorization", "")
+        if auth.startswith("Bearer aide_"):
+            token = auth.split(" ", 1)[1]
+            from routes.api_tokens import verify_token
+            db = SessionLocal()
+            try:
+                valid = verify_token(token, db)
+            finally:
+                db.close()
+            if not valid:
+                return JSONResponse({"detail": "invalid token"}, status_code=401)
+        return await call_next(request)
+
+app.add_middleware(TokenAuthMiddleware)
 
 # routes
 app.include_router(chat.router)
