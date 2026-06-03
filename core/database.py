@@ -82,6 +82,48 @@ class Message(Base):
             return {}
 
 
+class McpServer(Base):
+    __tablename__ = "mcp_servers"
+    id        = Column(String, primary_key=True, default=_uid)
+    name      = Column(String, nullable=False)
+    transport = Column(String, default="stdio")  # stdio | sse
+    command   = Column(String, default="")
+    args      = Column(Text, default="[]")        # json list
+    url       = Column(String, default="")
+    enabled   = Column(Boolean, default=True)
+    disabled_tools = Column(Text, default="[]")   # json list of disabled tool names
+    created_at = Column(DateTime, default=_now)
+
+    def args_list(self):
+        try: return json.loads(self.args or "[]")
+        except: return []
+
+    def disabled_tools_list(self):
+        try: return json.loads(self.disabled_tools or "[]")
+        except: return []
+
+
+class Note(Base):
+    __tablename__ = "notes"
+    id         = Column(String, primary_key=True, default=_uid)
+    title      = Column(String, default="")
+    content    = Column(Text, default="")
+    pinned     = Column(Boolean, default=False)
+    archived   = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=_now)
+    updated_at = Column(DateTime, default=_now)
+
+
+class Task(Base):
+    __tablename__ = "tasks"
+    id        = Column(String, primary_key=True, default=_uid)
+    title     = Column(String, nullable=False)
+    done      = Column(Boolean, default=False)
+    priority  = Column(Integer, default=0)   # 0 normal, 1 high
+    due_date  = Column(String, nullable=True)
+    created_at = Column(DateTime, default=_now)
+
+
 class Memory(Base):
     __tablename__ = "memories"
     id         = Column(String, primary_key=True, default=_uid)
