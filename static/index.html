@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>aide</title>
-<!-- theme restore before first paint so no flash -->
 <script>
   const _t = localStorage.getItem('aide-theme');
   if (_t) document.documentElement.dataset.theme = _t;
@@ -35,7 +34,6 @@
 
     <nav class="sidebar-nav">
       <div class="nav-item active" data-view="chat">chat</div>
-      <div class="nav-item" data-view="research">research</div>
       <div class="nav-item" data-view="memory">memory</div>
       <div class="nav-item" data-view="settings">settings</div>
     </nav>
@@ -62,23 +60,34 @@
       </div>
     </div>
 
+    <!-- ── chat view (default) ── -->
     <div class="chat" id="chat">
-
-      <!-- welcome state -->
       <div class="welcome" id="welcome" style="display:none">
         <div>
           <div class="welcome-brand">aide</div>
-          <div class="welcome-desc" id="welcome-desc">odysseus fork.</div>
+          <div class="welcome-desc">odysseus fork.</div>
         </div>
       </div>
-
-      <!-- messages state -->
       <div class="messages" id="messages" style="display:none"></div>
+    </div>
 
-    </div><!-- .chat -->
+    <!-- ── memory view (full page) ── -->
+    <div class="mem-view" id="mem-view" style="display:none">
+      <div class="mem-view-head">
+        <div class="mem-view-search-wrap">
+          <input type="text" id="mem-search" placeholder="search memories...">
+        </div>
+        <button class="btn" id="mem-extract-btn">extract from chat</button>
+      </div>
+      <div class="mem-view-list" id="memory-list"></div>
+      <div class="mem-view-footer">
+        <input type="text" id="mem-add-input" placeholder="add a memory...">
+        <button class="btn primary" id="mem-add-btn">add</button>
+      </div>
+    </div>
 
-    <!-- composer -->
-    <div class="composer-outer">
+    <!-- ── composer (hidden in memory view) ── -->
+    <div class="composer-outer" id="composer-outer">
       <div class="composer-box">
         <textarea class="composer-ta" id="composer-ta" placeholder="message aide..." rows="1"
           oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,220)+'px'"></textarea>
@@ -88,9 +97,9 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
               attach
             </button>
-            <button class="c-tool" id="search-btn-tool">
+            <button class="c-tool" id="research-toggle-btn">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-              search
+              research
             </button>
             <button class="c-tool" id="shell-btn-tool">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
@@ -117,7 +126,7 @@
 <!-- toast container -->
 <div class="toast-container" id="toast-container"></div>
 
-<!-- context menu (session right-click) -->
+<!-- context menu -->
 <div class="ctx-menu" id="ctx-menu" style="display:none"></div>
 
 <!-- model picker modal -->
@@ -131,7 +140,6 @@
       <input type="text" id="model-search-input" placeholder="search models...">
     </div>
     <div class="modal-body" id="model-list"></div>
-    <!-- add endpoint -->
     <details style="border-top:1px solid var(--faint)">
       <summary style="padding:0.55rem 1rem;font-size:0.72rem;color:var(--muted);cursor:pointer;letter-spacing:0.04em;">+ add endpoint</summary>
       <div class="add-ep-form">
@@ -143,25 +151,6 @@
         </div>
       </div>
     </details>
-  </div>
-</div>
-
-<!-- memory floating window -->
-<div class="float-win" id="memory-win" style="display:none">
-  <div class="float-win-head" id="memory-win-head">
-    <span class="float-win-title">memory</span>
-    <button class="modal-close" id="memory-modal-close">×</button>
-  </div>
-  <div class="float-win-search">
-    <input type="text" id="mem-search" placeholder="search memories...">
-  </div>
-  <div class="float-win-body" id="memory-panel">
-    <div id="memory-list"></div>
-  </div>
-  <div class="float-win-footer">
-    <input type="text" id="mem-add-input" placeholder="add a memory...">
-    <button class="btn primary" id="mem-add-btn">add</button>
-    <button class="btn" id="mem-extract-btn">extract</button>
   </div>
 </div>
 
@@ -189,8 +178,7 @@
 </div>
 
 <script type="module">
-// cache bust — bump this when JS changes
-const _v = '3';
+const _v = '4';
 import(`/static/js/app.js?v=${_v}`);
 </script>
 </body>

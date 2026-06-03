@@ -57,9 +57,12 @@ function escHtml(s) {
   return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
+let _panelBound = false;
+
 export function initMemoryPanel() {
-  const panel = document.getElementById('memory-panel');
-  if (!panel) return;
+  // only bind events once — the list re-renders on loadMemories
+  if (_panelBound) { loadMemories(); return; }
+  _panelBound = true;
 
   // add memory form
   document.getElementById('mem-add-btn')?.addEventListener('click', async () => {
