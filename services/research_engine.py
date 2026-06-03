@@ -242,6 +242,13 @@ async def run_research(
 
         yield {"type": "done", "report": report, "sources": unique_sources[:15]}
 
+        # fire webhook
+        try:
+            from routes.webhooks import fire
+            await fire("research_done", {"session_id": session_id, "query": query, "sources": len(unique_sources)})
+        except Exception:
+            pass
+
     except Exception as e:
         log.exception(f"research error: {e}")
         state["status"] = "error"

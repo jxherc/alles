@@ -116,6 +116,11 @@ export async function selectSession(id) {
     if (data.session.model) {
       document.getElementById('model-label').textContent = data.session.model;
     }
+    // refresh persona button
+    try {
+      const { refreshPersonaBtn } = await import('./app.js');
+      refreshPersonaBtn();
+    } catch (e) {}
   } catch (e) {
     console.error('selectSession', e);
   }

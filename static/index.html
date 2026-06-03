@@ -46,11 +46,17 @@
   <!-- main -->
   <main class="main">
     <div class="topbar">
-      <button class="model-btn" id="model-btn">
-        <span class="live-dot" id="live-dot"></span>
-        <span id="model-label">no model</span>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
-      </button>
+      <div style="display:flex;align-items:center;gap:0.4rem">
+        <button class="model-btn" id="model-btn">
+          <span class="live-dot" id="live-dot"></span>
+          <span id="model-label">no model</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <button class="model-btn" id="persona-btn" title="persona" style="display:none">
+          <span id="persona-label">🤖</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+      </div>
       <div class="topbar-right">
         <button class="icon-btn" id="share-btn" title="share">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
@@ -272,7 +278,7 @@
 </div>
 
 <script type="module">
-const _v = '6';
+const _v = '7';
 import(`/static/js/app.js?v=${_v}`);
 </script>
 </body>

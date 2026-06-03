@@ -5,7 +5,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session as DbSession
 
-from core.database import get_db, Session, Message, ModelEndpoint
+from core.database import get_db, Session, Message, ModelEndpoint, Persona, SessionLocal
 from core.settings import load_settings
 from services.llm import stream_chat, simple_complete
 from services.memory_store import inject_memories
@@ -23,8 +23,21 @@ def _resolve_endpoint(session: Session, db: DbSession) -> ModelEndpoint | None:
     return db.query(ModelEndpoint).filter(ModelEndpoint.enabled == True).first()
 
 
-def _build_messages(session: Session, user_text: str, settings: dict) -> list[dict]:
+def _resolve_persona(session: Session, db) -> Persona | None:
+    # session-level persona first, then default persona
+    if session.persona_id:
+        return db.get(Persona, session.persona_id)
+    return db.query(Persona).filter(Persona.is_default == True).first()
+
+
+def _build_messages(session: Session, user_text: str, settings: dict, db=None) -> list[dict]:
     sys_prompt = settings.get("system_prompt", "You are aide, a helpful AI assistant.")
+
+    # override with persona system prompt if one is set
+    if db:
+        persona = _resolve_persona(session, db)
+        if persona and persona.system_prompt:
+            sys_prompt = persona.system_prompt
 
     mem_ctx = inject_memories(user_text)
     if mem_ctx:
@@ -135,8 +148,19 @@ async def _stream_and_save(
         # auto-name after 3rd message
         if s.message_count == 3:
             asyncio.create_task(_auto_name(session_id, user_text, ep, model))
+
+        # fire webhook
+        asyncio.create_task(_fire_message_hook(session_id, user_text, full_text))
     finally:
         db.close()
+
+
+async def _fire_message_hook(session_id: str, user_text: str, reply: str):
+    try:
+        from routes.webhooks import fire
+        await fire("message", {"session_id": session_id, "user": user_text[:500], "reply": reply[:500]})
+    except Exception:
+        pass
 
 
 # POST /api/chat
@@ -155,7 +179,7 @@ async def chat(body: ChatRequest, background_tasks: BackgroundTasks, db: DbSessi
         raise HTTPException(400, "no model selected")
 
     settings = load_settings()
-    messages = _build_messages(s, body.message, settings)
+    messages = _build_messages(s, body.message, settings, db)
 
     stop_event = asyncio.Event()
     _streams[body.session_id] = stop_event

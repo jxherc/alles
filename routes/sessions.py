@@ -1,10 +1,18 @@
-import json
+import json, asyncio
 from datetime import datetime, timedelta
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from pydantic import BaseModel
 from sqlalchemy.orm import Session as DbSession
 
 from core.database import get_db, Session, Message, ModelEndpoint
+
+
+async def _fire(event: str, data: dict):
+    try:
+        from routes.webhooks import fire
+        await fire(event, data)
+    except Exception:
+        pass
 
 router = APIRouter(prefix="/api")
 
@@ -23,6 +31,7 @@ def _fmt_session(s: Session) -> dict:
         "model": s.model,
         "endpoint_id": s.endpoint_id,
         "mode": s.mode,
+        "persona_id": s.persona_id,
         "starred": s.starred,
         "message_count": s.message_count,
         "created_at": s.created_at.isoformat(),
@@ -64,7 +73,7 @@ class CreateSession(BaseModel):
 
 # POST /api/sessions
 @router.post("/sessions")
-def create_session(body: CreateSession, db: DbSession = Depends(get_db)):
+async def create_session(body: CreateSession, bg: BackgroundTasks, db: DbSession = Depends(get_db)):
     s = Session(
         name=body.name,
         model=body.model,
@@ -74,6 +83,7 @@ def create_session(body: CreateSession, db: DbSession = Depends(get_db)):
     db.add(s)
     db.commit()
     db.refresh(s)
+    bg.add_task(_fire, "session_created", {"session_id": s.id, "name": s.name})
     return _fmt_session(s)
 
 
@@ -99,18 +109,23 @@ class PatchSession(BaseModel):
     endpoint_id: str | None = None
     mode: str | None = None
     starred: bool | None = None
+    persona_id: str | None = None
 
 
 # PATCH /api/sessions/{id}
 @router.patch("/sessions/{session_id}")
-def patch_session(session_id: str, body: PatchSession, db: DbSession = Depends(get_db)):
+async def patch_session(session_id: str, body: PatchSession, bg: BackgroundTasks, db: DbSession = Depends(get_db)):
     s = _session_or_404(session_id, db)
-    if body.name is not None:      s.name = body.name
-    if body.model is not None:     s.model = body.model
+    renamed = body.name is not None and body.name != s.name
+    if body.name is not None:       s.name = body.name
+    if body.model is not None:      s.model = body.model
     if body.endpoint_id is not None: s.endpoint_id = body.endpoint_id or None
-    if body.mode is not None:      s.mode = body.mode
-    if body.starred is not None:   s.starred = body.starred
+    if body.mode is not None:       s.mode = body.mode
+    if body.starred is not None:    s.starred = body.starred
+    if body.persona_id is not None: s.persona_id = body.persona_id or None
     db.commit()
+    if renamed:
+        bg.add_task(_fire, "session_renamed", {"session_id": s.id, "name": s.name})
     return _fmt_session(s)
 
 
