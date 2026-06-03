@@ -1,0 +1,13 @@
+.env
+__pycache__/
+*.pyc
+*.pyo
+data/aide.db
+data/settings.json
+data/research/
+venv/
+.venv/
+*.egg-info/
+dist/
+build/
+node_modules/
