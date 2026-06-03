@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>aide</title>
+<!-- theme restore before first paint so no flash -->
+<script>
+  const _t = localStorage.getItem('aide-theme');
+  if (_t) document.documentElement.dataset.theme = _t;
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<div class="app">
+
+  <!-- sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-head">
+      <span class="brand">aide</span>
+      <button class="new-btn" id="new-chat-btn">+ new chat</button>
+    </div>
+
+    <div class="search-wrap">
+      <input class="search-input" id="session-search" type="text" placeholder="search chats...">
+    </div>
+
+    <div class="session-list" id="session-list">
+      <div class="empty-sessions">no chats yet</div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <div class="nav-item active" data-view="chat">chat</div>
+      <div class="nav-item" data-view="research">research</div>
+      <div class="nav-item" data-view="memory">memory</div>
+      <div class="nav-item" data-view="settings">settings</div>
+    </nav>
+  </aside>
+
+  <!-- main -->
+  <main class="main">
+    <div class="topbar">
+      <button class="model-btn" id="model-btn">
+        <span class="live-dot" id="live-dot"></span>
+        <span id="model-label">no model</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="topbar-right">
+        <button class="icon-btn" id="share-btn" title="share">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+        </button>
+        <button class="icon-btn" id="theme-btn" title="toggle theme">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+        </button>
+        <button class="icon-btn" id="settings-btn" title="settings">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="chat" id="chat">
+
+      <!-- welcome state -->
+      <div class="welcome" id="welcome" style="display:none">
+        <div>
+          <div class="welcome-brand">aide</div>
+          <div class="welcome-desc" id="welcome-desc">ask anything.</div>
+        </div>
+        <div class="chips">
+          <div class="chip-label">try asking</div>
+          <div class="chips-grid">
+            <button class="chip" data-prompt="explain this code">explain this code <span class="arr">→</span></button>
+            <button class="chip" data-prompt="write a script to">write a script <span class="arr">→</span></button>
+            <button class="chip" data-prompt="debug this error">debug this error <span class="arr">→</span></button>
+            <button class="chip" data-prompt="refactor for readability">refactor code <span class="arr">→</span></button>
+            <button class="chip" data-prompt="compare these two approaches">compare A vs B <span class="arr">→</span></button>
+            <button class="chip" data-prompt="what's the best way to">best way to... <span class="arr">→</span></button>
+          </div>
+        </div>
+      </div>
+
+      <!-- messages state -->
+      <div class="messages" id="messages" style="display:none"></div>
+
+    </div><!-- .chat -->
+
+    <!-- composer -->
+    <div class="composer-outer">
+      <div class="composer-box">
+        <textarea class="composer-ta" id="composer-ta" placeholder="message aide..." rows="1"
+          oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,220)+'px'"></textarea>
+        <div class="composer-bar">
+          <div class="c-tools">
+            <button class="c-tool" id="attach-btn">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+              attach
+            </button>
+            <button class="c-tool" id="search-btn-tool">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              search
+            </button>
+            <button class="c-tool" id="shell-btn-tool">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+              shell
+            </button>
+          </div>
+          <div class="c-right">
+            <div class="mode-toggle">
+              <button class="mode-btn" id="mode-agent">agent</button>
+              <button class="mode-btn active" id="mode-chat">chat</button>
+            </div>
+            <button class="stop-btn" id="stop-btn">■ stop</button>
+            <button class="send-btn" id="send-btn">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="c-hint">
+        <span><kbd>enter</kbd> send &nbsp;·&nbsp; <kbd>shift+enter</kbd> newline</span>
+        <span id="hint-right">no endpoint</span>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- toast container -->
+<div class="toast-container" id="toast-container"></div>
+
+<!-- context menu (session right-click) -->
+<div class="ctx-menu" id="ctx-menu" style="display:none"></div>
+
+<!-- model picker modal -->
+<div class="modal-overlay" id="model-modal" style="display:none">
+  <div class="modal-card">
+    <div class="modal-head">
+      <span class="modal-title">select model</span>
+      <button class="modal-close" id="model-modal-close">×</button>
+    </div>
+    <div class="modal-search">
+      <input type="text" id="model-search-input" placeholder="search models...">
+    </div>
+    <div class="modal-body" id="model-list"></div>
+    <!-- add endpoint -->
+    <details style="border-top:1px solid var(--faint)">
+      <summary style="padding:0.55rem 1rem;font-size:0.72rem;color:var(--muted);cursor:pointer;letter-spacing:0.04em;">+ add endpoint</summary>
+      <div class="add-ep-form">
+        <input type="text" id="ep-name" placeholder="name (e.g. DeepSeek)">
+        <input type="text" id="ep-url" placeholder="base url (e.g. https://api.deepseek.com)">
+        <input type="password" id="ep-key" placeholder="api key (leave blank for ollama)">
+        <div class="add-ep-form-row">
+          <button class="btn primary" id="ep-add-btn">add + probe</button>
+        </div>
+      </div>
+    </details>
+  </div>
+</div>
+
+<!-- settings modal -->
+<div class="modal-overlay" id="settings-modal" style="display:none">
+  <div class="modal-card settings-card">
+    <div class="modal-head">
+      <span class="modal-title">settings</span>
+      <button class="modal-close" id="settings-modal-close">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="settings-section">
+        <span class="settings-label">system prompt</span>
+        <textarea class="settings-textarea" id="settings-system-prompt" rows="4"></textarea>
+      </div>
+      <div class="settings-section">
+        <span class="settings-label">context limit (messages)</span>
+        <input type="number" class="settings-input" id="settings-context-limit" min="4" max="200">
+      </div>
+      <div class="settings-section" style="display:flex;gap:0.5rem;justify-content:flex-end;padding:0.75rem 1rem">
+        <button class="btn primary" id="settings-save-btn">save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script type="module" src="/static/js/app.js"></script>
+</body>
+</html>
