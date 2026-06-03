@@ -14,6 +14,7 @@ class SettingsPatch(BaseModel):
     default_model: str | None = None
     default_endpoint_id: str | None = None
     system_prompt: str | None = None
+    context_limit: int | None = None
     stream_thinking: bool | None = None
 
 
