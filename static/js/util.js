@@ -65,7 +65,9 @@ export function toast(msg, type = '', duration = 3000) {
 export function closeAllModals() {
   document.querySelectorAll('.modal-overlay').forEach(m => m.style.display = 'none');
   document.getElementById('ctx-menu').style.display = 'none';
-  // reset nav — chat is always the "home" state
+}
+
+export function resetNavToChat() {
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.querySelector('.nav-item[data-view="chat"]')?.classList.add('active');
 }
