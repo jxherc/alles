@@ -160,7 +160,7 @@ a:focus-visible, button:focus-visible {
   border: 1px solid var(--faint); border-radius: 2px;
   color: var(--muted); font-family: inherit; font-size: 0.7rem;
   letter-spacing: 0.04em; padding: 0.32rem 0.75rem;
-  cursor: pointer;
+  cursor: pointer; white-space: nowrap;
   display: flex; align-items: center; gap: 0.5rem;
   transition: border-color 0.2s ease, color 0.2s ease, background 0.2s ease;
 }
@@ -586,6 +586,36 @@ code {
   from { opacity: 0; }
   to   { opacity: 1; }
 }
+
+/* ── memory panel ── */
+.memory-card { width: 480px; max-height: 65vh; }
+
+.mem-empty {
+  padding: 1rem; font-size: 0.75rem; color: var(--faint);
+}
+.mem-item {
+  padding: 0.55rem 1rem;
+  border-bottom: 1px solid var(--faint);
+  transition: background 0.15s;
+}
+.mem-item:hover { background: var(--panel); }
+.mem-item:last-child { border-bottom: none; }
+.mem-item.pinned { border-left: 2px solid var(--accent); padding-left: calc(1rem - 2px); }
+
+.mem-text { font-size: 0.82rem; color: var(--text); line-height: 1.5; margin-bottom: 0.25rem; }
+.mem-meta {
+  display: flex; gap: 0.5rem; align-items: center;
+  font-size: 0.65rem; color: var(--faint); letter-spacing: 0.04em;
+}
+.mem-cat { color: var(--accent); }
+.mem-pin { color: var(--accent); }
+.mem-source { margin-left: auto; }
+
+.mem-actions {
+  display: flex; gap: 0; margin-top: 0.25rem;
+  opacity: 0; transition: opacity 0.15s;
+}
+.mem-item:hover .mem-actions { opacity: 1; }
 
 /* empty state */
 .empty-sessions {

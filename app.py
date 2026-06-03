@@ -9,7 +9,7 @@ from fastapi.responses import FileResponse
 
 from core.database import init_db, SessionLocal, ModelEndpoint
 from core.settings import deepseek_api_key, get_port
-from routes import chat, sessions, models, settings as settings_routes
+from routes import chat, sessions, models, settings as settings_routes, memory as memory_routes
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s  %(name)s  %(message)s")
 log = logging.getLogger("aide")
@@ -63,6 +63,7 @@ app.include_router(chat.router)
 app.include_router(sessions.router)
 app.include_router(models.router)
 app.include_router(settings_routes.router)
+app.include_router(memory_routes.router)
 
 
 # static files — no-cache so JS/CSS always reloads
@@ -91,4 +92,4 @@ if __name__ == "__main__":
     import uvicorn
     port = get_port()
     log.info(f"starting aide on http://localhost:{port}")
-    uvicorn.run("app:app", host="0.0.0.0", port=port, reload=True, reload_dirs=["."])
+    uvicorn.run("app:app", host="0.0.0.0", port=port, reload=False)
