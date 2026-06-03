@@ -6,58 +6,51 @@ import { initMemoryPanel } from './memory.js';
 import { runResearch, setResearchMode, isResearchMode } from './research.js';
 import { loadNotes, newNote } from './notes.js';
 import { loadTasks, addTask } from './tasks.js';
+import { loadCalendar, newEvent } from './calendar.js';
+import { loadGallery, initGalleryUpload } from './gallery.js';
+import { initSlash } from './slash.js';
 
 window._mdToHtml = mdToHtml;
 
 // ── init ─────────────────────────────────────────────────────────────────────
-
 async function init() {
   await loadModels();
   await loadSessions();
+  const ta = document.getElementById('composer-ta');
+  initSlash(ta);
   bindEvents();
 }
 init();
 
-
 // ── views ─────────────────────────────────────────────────────────────────────
-
-const _allViews = ['chat', 'notes', 'tasks', 'memory'];
+const _VIEW_IDS = ['chat', 'notes-view', 'tasks-view', 'calendar-view', 'gallery-view', 'mem-view'];
 
 function hideAllViews() {
-  document.getElementById('chat').style.display = 'none';
-  document.getElementById('notes-view').style.display = 'none';
-  document.getElementById('tasks-view').style.display = 'none';
-  document.getElementById('mem-view').style.display = 'none';
+  _VIEW_IDS.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = 'none';
+  });
   document.getElementById('composer-outer').style.display = 'none';
 }
 
-function showChatView() {
+function showView(viewId, navKey, onShow) {
+  hideAllViews();
+  document.getElementById(viewId).style.display = 'flex';
+  setNav(navKey);
+  onShow?.();
+}
+
+const showChatView = () => {
   hideAllViews();
   document.getElementById('chat').style.display = 'flex';
   document.getElementById('composer-outer').style.display = 'block';
   setNav('chat');
-}
-
-function showNotesView() {
-  hideAllViews();
-  document.getElementById('notes-view').style.display = 'flex';
-  setNav('notes');
-  loadNotes();
-}
-
-function showTasksView() {
-  hideAllViews();
-  document.getElementById('tasks-view').style.display = 'flex';
-  setNav('tasks');
-  loadTasks();
-}
-
-function showMemoryView() {
-  hideAllViews();
-  document.getElementById('mem-view').style.display = 'flex';
-  setNav('memory');
-  initMemoryPanel();
-}
+};
+const showNotesView    = () => showView('notes-view',    'notes',    loadNotes);
+const showTasksView    = () => showView('tasks-view',    'tasks',    loadTasks);
+const showCalendarView = () => showView('calendar-view', 'calendar', loadCalendar);
+const showGalleryView  = () => showView('gallery-view',  'gallery',  () => { loadGallery(); initGalleryUpload(); });
+const showMemoryView   = () => showView('mem-view',      'memory',   initMemoryPanel);
 
 function setNav(view) {
   document.querySelectorAll('.nav-item').forEach(n => {
@@ -65,11 +58,10 @@ function setNav(view) {
   });
 }
 
-
 // ── events ────────────────────────────────────────────────────────────────────
-
 function bindEvents() {
   const ta = document.getElementById('composer-ta');
+
   ta.addEventListener('keydown', e => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); doSend(); }
   });
@@ -86,11 +78,8 @@ function bindEvents() {
     }
   });
 
-  document.getElementById('session-search').addEventListener('input', e => {
-    renderSidebar(e.target.value);
-  });
+  document.getElementById('session-search').addEventListener('input', e => renderSidebar(e.target.value));
 
-  // research toggle
   document.getElementById('research-toggle-btn').addEventListener('click', () => {
     const on = !isResearchMode();
     setResearchMode(on);
@@ -98,20 +87,16 @@ function bindEvents() {
     ta.placeholder = on ? 'research a topic...' : 'message aide...';
   });
 
-  // shell button — opens a quick shell prompt
   document.getElementById('shell-btn-tool').addEventListener('click', openShellPrompt);
 
-  // mode toggle
   document.getElementById('mode-agent').addEventListener('click', () => setMode('agent'));
   document.getElementById('mode-chat').addEventListener('click', () => setMode('chat'));
-
   document.getElementById('theme-btn').addEventListener('click', toggleTheme);
 
   // model picker
   document.getElementById('model-btn').addEventListener('click', openModelModal);
   document.getElementById('model-modal-close').addEventListener('click', closeAllModals);
   document.getElementById('model-search-input').addEventListener('input', e => renderModelList(e.target.value));
-
   document.getElementById('ep-add-btn').addEventListener('click', async () => {
     const name = document.getElementById('ep-name').value.trim();
     const url  = document.getElementById('ep-url').value.trim();
@@ -129,18 +114,18 @@ function bindEvents() {
   document.getElementById('settings-btn').addEventListener('click', openSettingsModal);
   document.getElementById('settings-modal-close').addEventListener('click', closeAllModals);
   document.getElementById('settings-save-btn').addEventListener('click', saveSettings);
-
-  // mcp add
   document.getElementById('mcp-add-btn').addEventListener('click', addMcpServer);
+  document.getElementById('persona-add-btn').addEventListener('click', addPersona);
+  document.getElementById('cookbook-add-btn').addEventListener('click', addCookbookEntry);
+  document.getElementById('wh-add-btn').addEventListener('click', addWebhook);
+  document.getElementById('token-add-btn').addEventListener('click', generateToken);
 
-  // notes
+  // notes / tasks / calendar / gallery
   document.getElementById('note-new-btn').addEventListener('click', newNote);
-
-  // tasks
+  document.getElementById('cal-new-btn').addEventListener('click', newEvent);
   const taskInput = document.getElementById('task-add-input');
   document.getElementById('task-add-btn').addEventListener('click', async () => {
-    await addTask(taskInput.value.trim());
-    taskInput.value = '';
+    await addTask(taskInput.value.trim()); taskInput.value = '';
   });
   taskInput.addEventListener('keydown', e => {
     if (e.key === 'Enter') document.getElementById('task-add-btn').click();
@@ -150,15 +135,16 @@ function bindEvents() {
   document.querySelectorAll('.nav-item').forEach(el => {
     el.addEventListener('click', () => {
       const v = el.dataset.view;
-      if (v === 'chat')     showChatView();
+      if      (v === 'chat')     showChatView();
       else if (v === 'notes')    showNotesView();
       else if (v === 'tasks')    showTasksView();
+      else if (v === 'calendar') showCalendarView();
+      else if (v === 'gallery')  showGalleryView();
       else if (v === 'memory')   showMemoryView();
       else if (v === 'settings') openSettingsModal();
     });
   });
 
-  // close modals
   document.querySelectorAll('.modal-overlay').forEach(o => {
     o.addEventListener('click', e => { if (e.target === o) closeAllModals(); });
   });
@@ -166,7 +152,6 @@ function bindEvents() {
   document.addEventListener('click', () => {
     document.getElementById('ctx-menu').style.display = 'none';
   });
-
   document.getElementById('share-btn').addEventListener('click', () => {
     navigator.clipboard.writeText(location.href).then(() => toast('link copied'));
   });
@@ -174,9 +159,7 @@ function bindEvents() {
   setInterval(loadModels, 30000);
 }
 
-
-// ── helpers ───────────────────────────────────────────────────────────────────
-
+// ── send ──────────────────────────────────────────────────────────────────────
 function doSend() {
   const ta = document.getElementById('composer-ta');
   const text = ta.value.trim();
@@ -186,6 +169,7 @@ function doSend() {
   else sendMessage(text);
 }
 
+// ── helpers ───────────────────────────────────────────────────────────────────
 function setMode(m) {
   document.getElementById('mode-agent').classList.toggle('active', m === 'agent');
   document.getElementById('mode-chat').classList.toggle('active', m === 'chat');
@@ -194,11 +178,9 @@ function setMode(m) {
 function toggleTheme() {
   const root = document.documentElement;
   if (root.dataset.theme === 'light') {
-    delete root.dataset.theme;
-    localStorage.removeItem('aide-theme');
+    delete root.dataset.theme; localStorage.removeItem('aide-theme');
   } else {
-    root.dataset.theme = 'light';
-    localStorage.setItem('aide-theme', 'light');
+    root.dataset.theme = 'light'; localStorage.setItem('aide-theme', 'light');
   }
 }
 
@@ -212,18 +194,20 @@ function openModelModal() {
 async function openSettingsModal() {
   document.getElementById('settings-modal').style.display = 'flex';
   try {
-    const r = await fetch('/api/settings');
-    const s = await r.json();
+    const s = await (await fetch('/api/settings')).json();
     document.getElementById('settings-system-prompt').value = s.system_prompt || '';
     document.getElementById('settings-context-limit').value = s.context_limit ?? 40;
   } catch (e) {}
   loadMcpServers();
+  loadPersonas();
+  loadCookbook();
+  loadWebhooks();
+  loadTokens();
 }
 
 async function saveSettings() {
   await fetch('/api/settings', {
-    method: 'PATCH',
-    headers: { 'content-type': 'application/json' },
+    method: 'PATCH', headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
       system_prompt: document.getElementById('settings-system-prompt').value,
       context_limit: parseInt(document.getElementById('settings-context-limit').value) || 40,
@@ -233,42 +217,37 @@ async function saveSettings() {
   closeAllModals();
 }
 
+// ── mcp ───────────────────────────────────────────────────────────────────────
 async function loadMcpServers() {
-  const listEl = document.getElementById('mcp-server-list');
-  if (!listEl) return;
+  const el = document.getElementById('mcp-server-list');
+  if (!el) return;
   try {
-    const r = await fetch('/api/mcp/servers');
-    const servers = await r.json();
-    if (!servers.length) { listEl.innerHTML = '<div style="font-size:0.72rem;color:var(--faint);padding:0.25rem 0">no servers</div>'; return; }
-    listEl.innerHTML = servers.map(s => `
-      <div style="display:flex;align-items:center;gap:0.5rem;padding:0.25rem 0;font-size:0.78rem">
-        <span style="width:6px;height:6px;border-radius:50%;background:${s.connected ? 'var(--green)' : 'var(--faint)'}"></span>
-        <span style="flex:1;color:var(--text)">${s.name}</span>
-        <span style="color:var(--muted);font-size:0.68rem">${s.tools.length} tools</span>
-        <button class="act-btn mcp-del" data-id="${s.id}">remove</button>
+    const servers = await (await fetch('/api/mcp/servers')).json();
+    if (!servers.length) { el.innerHTML = '<div class="settings-row-empty">no servers</div>'; return; }
+    el.innerHTML = servers.map(s => `
+      <div class="settings-list-row">
+        <span class="status-dot" style="background:${s.connected ? 'var(--green)' : 'var(--faint)'}"></span>
+        <span class="row-name">${s.name}</span>
+        <span class="row-meta">${s.tools.length} tools</span>
+        <button class="act-btn" data-id="${s.id}" onclick="rmMcp(this)">remove</button>
       </div>`).join('');
-    listEl.querySelectorAll('.mcp-del').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        await fetch(`/api/mcp/servers/${btn.dataset.id}`, { method: 'DELETE' });
-        loadMcpServers();
-      });
-    });
   } catch (e) {}
 }
 
+window.rmMcp = async btn => {
+  await fetch(`/api/mcp/servers/${btn.dataset.id}`, { method: 'DELETE' });
+  loadMcpServers();
+};
+
 async function addMcpServer() {
-  const name    = document.getElementById('mcp-name').value.trim();
+  const name = document.getElementById('mcp-name').value.trim();
   const command = document.getElementById('mcp-command').value.trim();
   if (!name || !command) { toast('name + command required', 'error'); return; }
-  // split command into binary + args
   const parts = command.match(/(?:[^\s"]+|"[^"]*")+/g) || [];
-  const cmd = parts[0]; const args = parts.slice(1).map(a => a.replace(/^"|"$/g, ''));
+  const cmd = parts[0], args = parts.slice(1).map(a => a.replace(/^"|"$/g,''));
   try {
-    await fetch('/api/mcp/servers', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ name, transport: 'stdio', command: cmd, args }),
-    });
+    await fetch('/api/mcp/servers', { method: 'POST', headers: {'content-type':'application/json'},
+      body: JSON.stringify({ name, transport: 'stdio', command: cmd, args }) });
     document.getElementById('mcp-name').value = '';
     document.getElementById('mcp-command').value = '';
     toast('mcp server added', 'success');
@@ -276,15 +255,144 @@ async function addMcpServer() {
   } catch (e) { toast('failed', 'error'); }
 }
 
-// shell quick-prompt — injects a shell block into the composer
+// ── personas ──────────────────────────────────────────────────────────────────
+async function loadPersonas() {
+  const el = document.getElementById('persona-list');
+  if (!el) return;
+  const personas = await (await fetch('/api/personas')).json();
+  if (!personas.length) { el.innerHTML = '<div class="settings-row-empty">no personas</div>'; return; }
+  el.innerHTML = personas.map(p => `
+    <div class="settings-list-row">
+      <span>${p.emoji}</span>
+      <span class="row-name">${p.name}</span>
+      <span class="row-meta">${p.system_prompt.slice(0,40)}${p.system_prompt.length>40?'…':''}</span>
+      <button class="act-btn" data-id="${p.id}" onclick="rmPersona(this)">remove</button>
+    </div>`).join('');
+}
+
+window.rmPersona = async btn => {
+  await fetch(`/api/personas/${btn.dataset.id}`, { method: 'DELETE' });
+  loadPersonas();
+};
+
+async function addPersona() {
+  const name   = document.getElementById('persona-name').value.trim();
+  const emoji  = document.getElementById('persona-emoji').value.trim() || '🤖';
+  const prompt = document.getElementById('persona-prompt').value.trim();
+  if (!name) { toast('name required', 'error'); return; }
+  await fetch('/api/personas', { method: 'POST', headers: {'content-type':'application/json'},
+    body: JSON.stringify({ name, emoji, system_prompt: prompt }) });
+  ['persona-name','persona-emoji','persona-prompt'].forEach(id => document.getElementById(id).value = '');
+  toast('persona added', 'success');
+  loadPersonas();
+}
+
+// ── cookbook ──────────────────────────────────────────────────────────────────
+async function loadCookbook() {
+  const el = document.getElementById('cookbook-list');
+  if (!el) return;
+  const entries = await (await fetch('/api/cookbook')).json();
+  if (!entries.length) { el.innerHTML = '<div class="settings-row-empty">no entries — type / in chat to use</div>'; return; }
+  el.innerHTML = entries.map(e => `
+    <div class="settings-list-row">
+      <span class="row-name" style="color:var(--accent)">/${e.name}</span>
+      <span class="row-meta">${e.description || e.prompt.slice(0,50)}</span>
+      <button class="act-btn" data-id="${e.id}" onclick="rmCookbook(this)">remove</button>
+    </div>`).join('');
+}
+
+window.rmCookbook = async btn => {
+  await fetch(`/api/cookbook/${btn.dataset.id}`, { method: 'DELETE' });
+  loadCookbook();
+};
+
+async function addCookbookEntry() {
+  const name   = document.getElementById('cookbook-name').value.trim();
+  const desc   = document.getElementById('cookbook-desc').value.trim();
+  const prompt = document.getElementById('cookbook-prompt').value.trim();
+  if (!name || !prompt) { toast('name + prompt required', 'error'); return; }
+  await fetch('/api/cookbook', { method: 'POST', headers: {'content-type':'application/json'},
+    body: JSON.stringify({ name, description: desc, prompt }) });
+  ['cookbook-name','cookbook-desc','cookbook-prompt'].forEach(id => document.getElementById(id).value = '');
+  toast('added', 'success');
+  loadCookbook();
+}
+
+// ── webhooks ──────────────────────────────────────────────────────────────────
+async function loadWebhooks() {
+  const el = document.getElementById('webhook-list');
+  if (!el) return;
+  const hooks = await (await fetch('/api/webhooks')).json();
+  if (!hooks.length) { el.innerHTML = '<div class="settings-row-empty">no webhooks</div>'; return; }
+  el.innerHTML = hooks.map(h => `
+    <div class="settings-list-row">
+      <span class="status-dot" style="background:${h.enabled ? 'var(--green)' : 'var(--faint)'}"></span>
+      <span class="row-name">${h.name}</span>
+      <span class="row-meta">${h.events.join(', ')}</span>
+      <button class="act-btn" data-id="${h.id}" onclick="rmWebhook(this)">remove</button>
+    </div>`).join('');
+}
+
+window.rmWebhook = async btn => {
+  await fetch(`/api/webhooks/${btn.dataset.id}`, { method: 'DELETE' });
+  loadWebhooks();
+};
+
+async function addWebhook() {
+  const name = document.getElementById('wh-name').value.trim();
+  const url  = document.getElementById('wh-url').value.trim();
+  if (!name || !url) { toast('name + url required', 'error'); return; }
+  await fetch('/api/webhooks', { method: 'POST', headers: {'content-type':'application/json'},
+    body: JSON.stringify({ name, url, events: ['message'] }) });
+  ['wh-name','wh-url'].forEach(id => document.getElementById(id).value = '');
+  toast('webhook added', 'success');
+  loadWebhooks();
+}
+
+// ── api tokens ────────────────────────────────────────────────────────────────
+async function loadTokens() {
+  const el = document.getElementById('token-list');
+  if (!el) return;
+  const tokens = await (await fetch('/api/tokens')).json();
+  if (!tokens.length) { el.innerHTML = '<div class="settings-row-empty">no tokens</div>'; return; }
+  el.innerHTML = tokens.map(t => `
+    <div class="settings-list-row">
+      <span class="row-name" style="font-family:monospace;font-size:0.72rem">${t.prefix}…</span>
+      <span class="row-meta">${t.name}</span>
+      <span class="row-meta">${t.last_used_at ? 'used ' + new Date(t.last_used_at).toLocaleDateString() : 'never used'}</span>
+      <button class="act-btn" data-id="${t.id}" onclick="rmToken(this)">revoke</button>
+    </div>`).join('');
+}
+
+window.rmToken = async btn => {
+  await fetch(`/api/tokens/${btn.dataset.id}`, { method: 'DELETE' });
+  loadTokens();
+};
+
+async function generateToken() {
+  const name = document.getElementById('token-name').value.trim();
+  if (!name) { toast('name required', 'error'); return; }
+  const r = await fetch('/api/tokens', { method: 'POST', headers: {'content-type':'application/json'},
+    body: JSON.stringify({ name }) });
+  const data = await r.json();
+  document.getElementById('token-name').value = '';
+  const reveal = document.getElementById('token-reveal');
+  reveal.style.display = 'block';
+  reveal.textContent = data.token;
+  reveal.title = 'click to copy';
+  reveal.onclick = () => {
+    navigator.clipboard.writeText(data.token).then(() => toast('token copied', 'success'));
+  };
+  toast('token generated — copy it now, shown once', 'success');
+  loadTokens();
+}
+
+// ── shell ─────────────────────────────────────────────────────────────────────
 function openShellPrompt() {
   const ta = document.getElementById('composer-ta');
-  const current = ta.value;
-  if (!current.includes('```sh')) {
-    ta.value = current ? current + '\n```sh\n\n```' : '```sh\n\n```';
-  }
+  const cur = ta.value;
+  ta.value = cur ? cur + '\n```sh\n\n```' : '```sh\n\n```';
   ta.focus();
-  // put cursor inside the block
   const pos = ta.value.lastIndexOf('```sh\n') + 6;
   ta.setSelectionRange(pos, pos);
   ta.style.height = 'auto';
