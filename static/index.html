@@ -188,6 +188,10 @@
   </div>
 </div>
 
-<script type="module" src="/static/js/app.js"></script>
+<script type="module">
+// cache bust — bump this when JS changes
+const _v = '3';
+import(`/static/js/app.js?v=${_v}`);
+</script>
 </body>
 </html>

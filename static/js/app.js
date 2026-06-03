@@ -1,8 +1,9 @@
 import { loadSessions, showWelcome, createSession, renderSidebar } from './sessions.js';
 import { loadModels, renderModelList, addEndpoint, getSelected, getCurrentEndpoint } from './models.js';
 import { sendMessage, stopStream } from './chat.js';
-import { toast, closeAllModals } from './util.js';
+import { toast, closeAllModals, resetNavToChat } from './util.js';
 import { initMemoryPanel } from './memory.js';
+import { runResearch, isResearchMode, setResearchMode } from './research.js';
 
 // ── init ────────────────────────────────────────────────────────────────────
 
@@ -104,8 +105,15 @@ function bindEvents() {
       }
       document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
       el.classList.add('active');
-      closeMemoryWin();
-      if (el.dataset.view !== 'chat') {
+      // just hide the window — don't let closeMemoryWin reset the nav we just set
+      document.getElementById('memory-win').style.display = 'none';
+      if (el.dataset.view === 'research') {
+        setResearchMode(true);
+        document.getElementById('composer-ta').placeholder = 'research topic...';
+      } else if (el.dataset.view === 'chat') {
+        setResearchMode(false);
+        document.getElementById('composer-ta').placeholder = 'message aide...';
+      } else {
         toast(`${el.dataset.view} — coming soon`, '');
       }
     });
@@ -144,7 +152,11 @@ function doSend() {
   if (!text) return;
   ta.value = '';
   ta.style.height = 'auto';
-  sendMessage(text);
+  if (isResearchMode()) {
+    runResearch(text);
+  } else {
+    sendMessage(text);
+  }
 }
 
 
@@ -195,9 +207,7 @@ function openMemoryWin() {
 
 function closeMemoryWin() {
   document.getElementById('memory-win').style.display = 'none';
-  // restore chat as active
-  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-  document.querySelector('.nav-item[data-view="chat"]').classList.add('active');
+  resetNavToChat();
 }
 
 function makeDraggable(win, handle) {
