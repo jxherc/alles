@@ -1,11 +1,15 @@
 import { loadSessions, showWelcome, createSession, renderSidebar } from './sessions.js';
 import { loadModels, renderModelList, addEndpoint, getSelected, getCurrentEndpoint } from './models.js';
 import { sendMessage, stopStream } from './chat.js';
-import { toast, closeAllModals, resetNavToChat } from './util.js';
+import { toast, closeAllModals } from './util.js';
 import { initMemoryPanel } from './memory.js';
-import { runResearch, isResearchMode, setResearchMode } from './research.js';
+import { runResearch, setResearchMode, isResearchMode } from './research.js';
 
-// ── init ────────────────────────────────────────────────────────────────────
+// expose mdToHtml for sessions.js
+import { mdToHtml } from './util.js';
+window._mdToHtml = mdToHtml;
+
+// ── init ─────────────────────────────────────────────────────────────────────
 
 async function init() {
   await loadModels();
@@ -16,18 +20,38 @@ async function init() {
 init();
 
 
-// ── event bindings ───────────────────────────────────────────────────────────
+// ── views ─────────────────────────────────────────────────────────────────────
+
+function showChatView() {
+  document.getElementById('chat').style.display = 'flex';
+  document.getElementById('mem-view').style.display = 'none';
+  document.getElementById('composer-outer').style.display = 'block';
+  setNav('chat');
+}
+
+function showMemoryView() {
+  document.getElementById('chat').style.display = 'none';
+  document.getElementById('mem-view').style.display = 'flex';
+  document.getElementById('composer-outer').style.display = 'none';
+  setNav('memory');
+  initMemoryPanel();
+}
+
+function setNav(view) {
+  document.querySelectorAll('.nav-item').forEach(n => {
+    n.classList.toggle('active', n.dataset.view === view);
+  });
+}
+
+
+// ── events ────────────────────────────────────────────────────────────────────
 
 function bindEvents() {
-  // composer — send on Enter, newline on Shift+Enter
+  // send
   const ta = document.getElementById('composer-ta');
   ta.addEventListener('keydown', e => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      doSend();
-    }
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); doSend(); }
   });
-
   document.getElementById('send-btn').addEventListener('click', doSend);
   document.getElementById('stop-btn').addEventListener('click', stopStream);
 
@@ -37,6 +61,7 @@ function bindEvents() {
     const model = getSelected()?.model || '';
     const s = await createSession(model, ep?.id || '');
     if (s) {
+      showChatView();
       const { selectSession } = await import('./sessions.js');
       await selectSession(s.id);
     }
@@ -47,11 +72,19 @@ function bindEvents() {
     renderSidebar(e.target.value);
   });
 
-  // mode toggle
+  // research toggle button in composer
+  document.getElementById('research-toggle-btn').addEventListener('click', () => {
+    const on = !isResearchMode();
+    setResearchMode(on);
+    document.getElementById('research-toggle-btn').classList.toggle('active', on);
+    ta.placeholder = on ? 'research a topic...' : 'message aide...';
+  });
+
+  // mode toggle (agent/chat)
   document.getElementById('mode-agent').addEventListener('click', () => setMode('agent'));
   document.getElementById('mode-chat').addEventListener('click', () => setMode('chat'));
 
-  // theme toggle
+  // theme
   document.getElementById('theme-btn').addEventListener('click', toggleTheme);
 
   // model picker
@@ -61,7 +94,7 @@ function bindEvents() {
     renderModelList(e.target.value);
   });
 
-  // add endpoint form
+  // add endpoint
   document.getElementById('ep-add-btn').addEventListener('click', async () => {
     const name = document.getElementById('ep-name').value.trim();
     const url  = document.getElementById('ep-url').value.trim();
@@ -79,72 +112,46 @@ function bindEvents() {
     }
   });
 
-  // settings modal
+  // settings
   document.getElementById('settings-btn').addEventListener('click', openSettingsModal);
   document.getElementById('settings-modal-close').addEventListener('click', closeAllModals);
   document.getElementById('settings-save-btn').addEventListener('click', saveSettings);
 
-  // memory float window — close button
-  document.getElementById('memory-modal-close').addEventListener('click', closeMemoryWin);
-
-  // drag to move
-  makeDraggable(document.getElementById('memory-win'), document.getElementById('memory-win-head'));
-
   // sidebar nav
   document.querySelectorAll('.nav-item').forEach(el => {
     el.addEventListener('click', () => {
-      if (el.dataset.view === 'memory') {
-        const win = document.getElementById('memory-win');
-        if (win.style.display === 'none' || !win.style.display) {
-          el.classList.add('active');
-          openMemoryWin();
-        } else {
-          closeMemoryWin();
-        }
-        return;
-      }
-      document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-      el.classList.add('active');
-      // just hide the window — don't let closeMemoryWin reset the nav we just set
-      document.getElementById('memory-win').style.display = 'none';
-      if (el.dataset.view === 'research') {
-        setResearchMode(true);
-        document.getElementById('composer-ta').placeholder = 'research topic...';
-      } else if (el.dataset.view === 'chat') {
-        setResearchMode(false);
-        document.getElementById('composer-ta').placeholder = 'message aide...';
-      } else {
-        toast(`${el.dataset.view} — coming soon`, '');
-      }
+      if (el.dataset.view === 'chat')     showChatView();
+      else if (el.dataset.view === 'memory') showMemoryView();
+      else if (el.dataset.view === 'settings') openSettingsModal();
     });
   });
 
-  // close modals on overlay click
+  // close modals on overlay click + escape
   document.querySelectorAll('.modal-overlay').forEach(overlay => {
     overlay.addEventListener('click', e => {
       if (e.target === overlay) closeAllModals();
     });
   });
-
-  // close ctx menu on click anywhere
-  document.addEventListener('click', () => {
-    document.getElementById('ctx-menu').style.display = 'none';
-  });
-
-  // escape closes modals
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') closeAllModals();
   });
 
-  // share — copy url
+  // close ctx menu
+  document.addEventListener('click', () => {
+    document.getElementById('ctx-menu').style.display = 'none';
+  });
+
+  // share
   document.getElementById('share-btn').addEventListener('click', () => {
     navigator.clipboard.writeText(location.href).then(() => toast('link copied'));
   });
 
-  // poll models every 30s
+  // poll models
   setInterval(loadModels, 30000);
 }
 
+
+// ── helpers ───────────────────────────────────────────────────────────────────
 
 function doSend() {
   const ta = document.getElementById('composer-ta');
@@ -159,82 +166,38 @@ function doSend() {
   }
 }
 
-
 function setMode(m) {
   document.getElementById('mode-agent').classList.toggle('active', m === 'agent');
   document.getElementById('mode-chat').classList.toggle('active', m === 'chat');
 }
 
-
 function toggleTheme() {
   const root = document.documentElement;
-  const current = root.dataset.theme || 'dark';
-  const next = current === 'light' ? '' : 'light';
-  if (next) root.dataset.theme = next;
-  else delete root.dataset.theme;
-  localStorage.setItem('aide-theme', next || 'dark');
-  // fix: store as 'light' or '' (empty = dark)
-  if (!next) localStorage.removeItem('aide-theme');
+  const isLight = root.dataset.theme === 'light';
+  if (isLight) {
+    delete root.dataset.theme;
+    localStorage.removeItem('aide-theme');
+  } else {
+    root.dataset.theme = 'light';
+    localStorage.setItem('aide-theme', 'light');
+  }
 }
 
-
 function openModelModal() {
-  const modal = document.getElementById('model-modal');
-  modal.style.display = 'flex';
+  document.getElementById('model-modal').style.display = 'flex';
   renderModelList();
   document.getElementById('model-search-input').value = '';
   document.getElementById('model-search-input').focus();
 }
 
-
 async function openSettingsModal() {
-  const modal = document.getElementById('settings-modal');
-  modal.style.display = 'flex';
+  document.getElementById('settings-modal').style.display = 'flex';
   try {
     const r = await fetch('/api/settings');
     const s = await r.json();
     document.getElementById('settings-system-prompt').value = s.system_prompt || '';
     document.getElementById('settings-context-limit').value = s.context_limit || 40;
   } catch (e) {}
-}
-
-
-function openMemoryWin() {
-  document.getElementById('memory-win').style.display = 'flex';
-  document.querySelector('.nav-item[data-view="memory"]').classList.add('active');
-  initMemoryPanel();
-}
-
-function closeMemoryWin() {
-  document.getElementById('memory-win').style.display = 'none';
-  resetNavToChat();
-}
-
-function makeDraggable(win, handle) {
-  let ox = 0, oy = 0, startX = 0, startY = 0;
-  handle.addEventListener('mousedown', e => {
-    e.preventDefault();
-    startX = e.clientX; startY = e.clientY;
-    const rect = win.getBoundingClientRect();
-    // switch to absolute positioning from bottom/right to top/left
-    win.style.bottom = 'auto'; win.style.right = 'auto';
-    win.style.top  = rect.top  + 'px';
-    win.style.left = rect.left + 'px';
-    ox = rect.left; oy = rect.top;
-
-    const onMove = e => {
-      const dx = e.clientX - startX;
-      const dy = e.clientY - startY;
-      win.style.left = (ox + dx) + 'px';
-      win.style.top  = (oy + dy) + 'px';
-    };
-    const onUp = () => {
-      document.removeEventListener('mousemove', onMove);
-      document.removeEventListener('mouseup', onUp);
-    };
-    document.addEventListener('mousemove', onMove);
-    document.addEventListener('mouseup', onUp);
-  });
 }
 
 async function saveSettings() {
