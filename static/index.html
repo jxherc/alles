@@ -34,6 +34,8 @@
 
     <nav class="sidebar-nav">
       <div class="nav-item active" data-view="chat">chat</div>
+      <div class="nav-item" data-view="notes">notes</div>
+      <div class="nav-item" data-view="tasks">tasks</div>
       <div class="nav-item" data-view="memory">memory</div>
       <div class="nav-item" data-view="settings">settings</div>
     </nav>
@@ -69,6 +71,27 @@
         </div>
       </div>
       <div class="messages" id="messages" style="display:none"></div>
+    </div>
+
+    <!-- ── notes view ── -->
+    <div class="page-view" id="notes-view" style="display:none">
+      <div class="page-view-head">
+        <span class="page-view-title">notes</span>
+        <button class="btn primary" id="note-new-btn">+ new</button>
+      </div>
+      <div class="page-view-body" id="notes-list"></div>
+    </div>
+
+    <!-- ── tasks view ── -->
+    <div class="page-view" id="tasks-view" style="display:none">
+      <div class="page-view-head">
+        <span class="page-view-title">tasks</span>
+      </div>
+      <div class="page-view-body" id="tasks-list"></div>
+      <div class="page-view-footer">
+        <input type="text" id="task-add-input" placeholder="add a task...">
+        <button class="btn primary" id="task-add-btn">add</button>
+      </div>
     </div>
 
     <!-- ── memory view (full page) ── -->
@@ -166,19 +189,24 @@
         <span class="settings-label">system prompt</span>
         <textarea class="settings-textarea" id="settings-system-prompt" rows="4"></textarea>
       </div>
-      <div class="settings-section">
-        <span class="settings-label">context limit (messages)</span>
-        <input type="number" class="settings-input" id="settings-context-limit" min="4" max="200">
-      </div>
       <div class="settings-section" style="display:flex;gap:0.5rem;justify-content:flex-end;padding:0.75rem 1rem">
         <button class="btn primary" id="settings-save-btn">save</button>
+      </div>
+      <div class="settings-section">
+        <span class="settings-label">mcp servers</span>
+        <div id="mcp-server-list" style="margin-bottom:0.5rem"></div>
+        <div style="display:flex;gap:0.4rem;flex-wrap:wrap">
+          <input type="text" class="settings-input" id="mcp-name" placeholder="name" style="flex:1;min-width:80px">
+          <input type="text" class="settings-input" id="mcp-command" placeholder="command (e.g. npx -y @modelcontextprotocol/server-filesystem)" style="flex:3;min-width:160px">
+          <button class="btn primary" id="mcp-add-btn">add</button>
+        </div>
       </div>
     </div>
   </div>
 </div>
 
 <script type="module">
-const _v = '4';
+const _v = '5';
 import(`/static/js/app.js?v=${_v}`);
 </script>
 </body>

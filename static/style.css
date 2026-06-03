@@ -642,6 +642,106 @@ code {
 }
 .source-link:hover { color: var(--text); border-color: var(--muted); }
 
+/* ── generic page view (notes, tasks, etc.) ── */
+.page-view {
+  flex: 1; display: flex; flex-direction: column; min-height: 0;
+  animation: rise 0.2s cubic-bezier(0.2,0.7,0.2,1) forwards;
+}
+.page-view-head {
+  max-width: 640px; width: 100%; margin: 0 auto;
+  padding: 1.5rem 1.5rem 0.75rem;
+  display: flex; align-items: center; justify-content: space-between;
+  flex-shrink: 0;
+}
+.page-view-title {
+  font-size: 0.85rem; font-weight: 500; letter-spacing: -0.01em;
+}
+.page-view-body {
+  flex: 1; overflow-y: auto;
+  max-width: 640px; width: 100%; margin: 0 auto;
+  padding: 0 1.5rem 1rem;
+}
+.page-view-footer {
+  max-width: 640px; width: 100%; margin: 0 auto;
+  padding: 0.75rem 1.5rem 1.4rem;
+  display: flex; gap: 0.5rem; align-items: center;
+  border-top: 1px solid var(--faint); flex-shrink: 0;
+}
+.page-view-footer input {
+  flex: 1; background: none; border: none; border-bottom: 1px solid var(--faint);
+  color: var(--text); font-family: inherit; font-size: 0.875rem;
+  padding: 0.3rem 0; outline: none; transition: border-color 0.2s;
+}
+.page-view-footer input:focus { border-color: var(--muted); }
+.page-view-footer input::placeholder { color: var(--muted); }
+
+/* note card */
+.note-card {
+  border: 1px solid var(--faint); border-radius: 3px;
+  padding: 0.75rem 0.9rem; margin-bottom: 0.4rem;
+  cursor: pointer; transition: border-color 0.2s, background 0.2s;
+  position: relative;
+}
+.note-card:hover { border-color: var(--muted); background: var(--panel); }
+.note-card.pinned { border-left: 2px solid var(--accent); padding-left: calc(0.9rem - 2px); }
+.note-title {
+  font-size: 0.82rem; font-weight: 500; color: var(--text);
+  margin-bottom: 0.2rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.note-preview {
+  font-size: 0.75rem; color: var(--muted);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.note-actions {
+  position: absolute; right: 0.75rem; top: 50%; transform: translateY(-50%);
+  display: flex; gap: 0; opacity: 0; transition: opacity 0.15s;
+}
+.note-card:hover .note-actions { opacity: 1; }
+
+/* note editor */
+.note-editor {
+  display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1rem;
+}
+.note-editor-title {
+  width: 100%; background: none; border: none; border-bottom: 1px solid var(--muted);
+  color: var(--text); font-family: inherit; font-size: 0.9rem; font-weight: 500;
+  padding: 0.3rem 0; outline: none;
+}
+.note-editor-body {
+  width: 100%; background: none; border: 1px solid var(--faint); border-radius: 2px;
+  color: var(--text); font-family: inherit; font-size: 0.82rem;
+  padding: 0.6rem 0.75rem; outline: none; resize: vertical; min-height: 120px;
+  transition: border-color 0.2s; line-height: 1.6;
+}
+.note-editor-body:focus { border-color: var(--muted); }
+
+/* task item */
+.task-item {
+  display: flex; align-items: center; gap: 0.65rem;
+  padding: 0.45rem 0;
+  border-bottom: 1px solid var(--faint);
+}
+.task-item:last-child { border-bottom: none; }
+.task-check {
+  width: 14px; height: 14px; flex-shrink: 0;
+  border: 1px solid var(--faint); border-radius: 2px;
+  background: none; cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  display: flex; align-items: center; justify-content: center;
+}
+.task-check:hover { border-color: var(--muted); }
+.task-check.done { background: var(--accent); border-color: var(--accent); }
+.task-check.done::after { content: '✓'; font-size: 9px; color: var(--bg); }
+.task-title { flex: 1; font-size: 0.82rem; color: var(--text); }
+.task-title.done { color: var(--muted); text-decoration: line-through; }
+.task-high { color: var(--accent); font-size: 0.68rem; letter-spacing: 0.04em; }
+.task-del {
+  background: none; border: none; cursor: pointer; color: var(--faint);
+  font-size: 0.8rem; padding: 0.1rem 0.3rem;
+  transition: color 0.15s;
+}
+.task-del:hover { color: var(--error); }
+
 /* ── memory full-page view ── */
 .mem-view {
   flex: 1; display: flex; flex-direction: column; min-height: 0;

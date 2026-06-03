@@ -23,17 +23,17 @@ def _resolve_endpoint(session: Session, db: DbSession) -> ModelEndpoint | None:
     return db.query(ModelEndpoint).filter(ModelEndpoint.enabled == True).first()
 
 
-def _build_messages(session: Session, user_text: str, settings: dict) -> list[dict]:
-    sys = settings.get("system_prompt", "You are aide, a helpful AI assistant.")
+_CTX_LIMIT = 40   # keep last N messages; trimmed automatically
 
-    # inject relevant memories into system prompt
+def _build_messages(session: Session, user_text: str, settings: dict) -> list[dict]:
+    sys_prompt = settings.get("system_prompt", "You are aide, a helpful AI assistant.")
+
     mem_ctx = inject_memories(user_text)
     if mem_ctx:
-        sys = sys.rstrip() + "\n\n" + mem_ctx
+        sys_prompt = sys_prompt.rstrip() + "\n\n" + mem_ctx
 
-    msgs = [{"role": "system", "content": sys}]
-    limit = settings.get("context_limit", 40)
-    history = list(session.messages)[-limit:]
+    msgs = [{"role": "system", "content": sys_prompt}]
+    history = list(session.messages)[-_CTX_LIMIT:]
     for m in history:
         msgs.append({"role": m.role, "content": m.content})
     msgs.append({"role": "user", "content": user_text})
