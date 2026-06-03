@@ -10,7 +10,6 @@ _defaults = {
     "default_model": "",
     "default_endpoint_id": "",
     "system_prompt": "You are aide, a helpful personal AI assistant.",
-    "context_limit": 40,   # max messages to send upstream
     "stream_thinking": True,
 }
 
