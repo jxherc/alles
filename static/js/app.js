@@ -83,20 +83,29 @@ function bindEvents() {
   document.getElementById('settings-modal-close').addEventListener('click', closeAllModals);
   document.getElementById('settings-save-btn').addEventListener('click', saveSettings);
 
-  // memory modal close
-  document.getElementById('memory-modal-close').addEventListener('click', closeAllModals);
-  document.getElementById('memory-modal').addEventListener('click', e => {
-    if (e.target === document.getElementById('memory-modal')) closeAllModals();
-  });
+  // memory float window — close button
+  document.getElementById('memory-modal-close').addEventListener('click', closeMemoryWin);
+
+  // drag to move
+  makeDraggable(document.getElementById('memory-win'), document.getElementById('memory-win-head'));
 
   // sidebar nav
   document.querySelectorAll('.nav-item').forEach(el => {
     el.addEventListener('click', () => {
+      if (el.dataset.view === 'memory') {
+        const win = document.getElementById('memory-win');
+        if (win.style.display === 'none' || !win.style.display) {
+          el.classList.add('active');
+          openMemoryWin();
+        } else {
+          closeMemoryWin();
+        }
+        return;
+      }
       document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
       el.classList.add('active');
-      if (el.dataset.view === 'memory') {
-        openMemoryModal();
-      } else if (el.dataset.view !== 'chat') {
+      closeMemoryWin();
+      if (el.dataset.view !== 'chat') {
         toast(`${el.dataset.view} — coming soon`, '');
       }
     });
@@ -178,9 +187,44 @@ async function openSettingsModal() {
 }
 
 
-function openMemoryModal() {
-  document.getElementById('memory-modal').style.display = 'flex';
+function openMemoryWin() {
+  document.getElementById('memory-win').style.display = 'flex';
+  document.querySelector('.nav-item[data-view="memory"]').classList.add('active');
   initMemoryPanel();
+}
+
+function closeMemoryWin() {
+  document.getElementById('memory-win').style.display = 'none';
+  // restore chat as active
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelector('.nav-item[data-view="chat"]').classList.add('active');
+}
+
+function makeDraggable(win, handle) {
+  let ox = 0, oy = 0, startX = 0, startY = 0;
+  handle.addEventListener('mousedown', e => {
+    e.preventDefault();
+    startX = e.clientX; startY = e.clientY;
+    const rect = win.getBoundingClientRect();
+    // switch to absolute positioning from bottom/right to top/left
+    win.style.bottom = 'auto'; win.style.right = 'auto';
+    win.style.top  = rect.top  + 'px';
+    win.style.left = rect.left + 'px';
+    ox = rect.left; oy = rect.top;
+
+    const onMove = e => {
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+      win.style.left = (ox + dx) + 'px';
+      win.style.top  = (oy + dy) + 'px';
+    };
+    const onUp = () => {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  });
 }
 
 async function saveSettings() {
