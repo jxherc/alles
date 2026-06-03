@@ -9,7 +9,16 @@ from fastapi.responses import FileResponse
 
 from core.database import init_db, SessionLocal, ModelEndpoint
 from core.settings import deepseek_api_key, get_port
-from routes import chat, sessions, models, settings as settings_routes, memory as memory_routes, research as research_routes
+from routes import (
+    chat, sessions, models,
+    settings as settings_routes,
+    memory as memory_routes,
+    research as research_routes,
+    shell as shell_routes,
+    mcp as mcp_routes,
+    notes as notes_routes,
+    tasks as tasks_routes,
+)
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s  %(name)s  %(message)s")
 log = logging.getLogger("aide")
@@ -43,6 +52,12 @@ async def _bootstrap_deepseek():
 async def lifespan(app: FastAPI):
     init_db()
     await _bootstrap_deepseek()
+    # try to reconnect MCP servers from last session
+    try:
+        from routes.mcp import connect_all
+        await connect_all()
+    except Exception:
+        pass
     log.info("aide ready")
     yield
     log.info("aide shutting down")
@@ -65,6 +80,10 @@ app.include_router(models.router)
 app.include_router(settings_routes.router)
 app.include_router(memory_routes.router)
 app.include_router(research_routes.router)
+app.include_router(shell_routes.router)
+app.include_router(mcp_routes.router)
+app.include_router(notes_routes.router)
+app.include_router(tasks_routes.router)
 
 
 # static files — no-cache so JS/CSS always reloads
