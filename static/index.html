@@ -146,24 +146,22 @@
   </div>
 </div>
 
-<!-- memory panel modal -->
-<div class="modal-overlay" id="memory-modal" style="display:none">
-  <div class="modal-card memory-card">
-    <div class="modal-head">
-      <span class="modal-title">memory</span>
-      <button class="modal-close" id="memory-modal-close">×</button>
-    </div>
-    <div class="modal-search" style="display:flex;gap:0.5rem;align-items:center">
-      <input type="text" id="mem-search" placeholder="search memories..." style="flex:1">
-    </div>
-    <div class="modal-body" id="memory-panel">
-      <div id="memory-list"></div>
-    </div>
-    <div style="padding:0.6rem 1rem;border-top:1px solid var(--faint);display:flex;gap:0.4rem">
-      <input type="text" id="mem-add-input" placeholder="add a memory..." style="flex:1;background:none;border:none;border-bottom:1px solid var(--faint);color:var(--text);font:inherit;font-size:0.8rem;padding:0.3rem 0;outline:none">
-      <button class="btn primary" id="mem-add-btn">add</button>
-      <button class="btn" id="mem-extract-btn">extract from chat</button>
-    </div>
+<!-- memory floating window -->
+<div class="float-win" id="memory-win" style="display:none">
+  <div class="float-win-head" id="memory-win-head">
+    <span class="float-win-title">memory</span>
+    <button class="modal-close" id="memory-modal-close">×</button>
+  </div>
+  <div class="float-win-search">
+    <input type="text" id="mem-search" placeholder="search memories...">
+  </div>
+  <div class="float-win-body" id="memory-panel">
+    <div id="memory-list"></div>
+  </div>
+  <div class="float-win-footer">
+    <input type="text" id="mem-add-input" placeholder="add a memory...">
+    <button class="btn primary" id="mem-add-btn">add</button>
+    <button class="btn" id="mem-extract-btn">extract</button>
   </div>
 </div>
 
