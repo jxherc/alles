@@ -93,6 +93,9 @@ function bindEvents() {
   document.getElementById('mode-chat').addEventListener('click', () => setMode('chat'));
   document.getElementById('theme-btn').addEventListener('click', toggleTheme);
 
+  // persona picker
+  document.getElementById('persona-btn').addEventListener('click', openPersonaPicker);
+
   // model picker
   document.getElementById('model-btn').addEventListener('click', openModelModal);
   document.getElementById('model-modal-close').addEventListener('click', closeAllModals);
@@ -385,6 +388,83 @@ async function generateToken() {
   };
   toast('token generated — copy it now, shown once', 'success');
   loadTokens();
+}
+
+// ── persona picker ───────────────────────────────────────────────────────────
+let _personas = [];
+
+export async function refreshPersonaBtn() {
+  try {
+    _personas = await (await fetch('/api/personas')).json();
+  } catch (e) { return; }
+
+  const btn = document.getElementById('persona-btn');
+  const label = document.getElementById('persona-label');
+  const session = window._currentSession;
+  if (!session) { btn.style.display = 'none'; return; }
+
+  // find active persona
+  const active = _personas.find(p => p.id === session.persona_id)
+    || _personas.find(p => p.is_default);
+
+  if (active) {
+    btn.style.display = 'flex';
+    label.textContent = active.emoji + ' ' + active.name;
+  } else if (_personas.length > 0) {
+    btn.style.display = 'flex';
+    label.textContent = 'no persona';
+  } else {
+    btn.style.display = 'none';
+  }
+}
+
+async function openPersonaPicker() {
+  if (!_personas.length) _personas = await (await fetch('/api/personas')).json();
+  const session = window._currentSession;
+  if (!session) return;
+
+  // build a tiny dropdown manually
+  const existing = document.getElementById('_persona_picker');
+  if (existing) { existing.remove(); return; }
+
+  const picker = document.createElement('div');
+  picker.id = '_persona_picker';
+  picker.className = 'ctx-menu';
+  picker.style.cssText = 'display:block;top:50px;left:260px;min-width:160px';
+
+  const none = document.createElement('div');
+  none.className = 'ctx-item';
+  none.textContent = '— none';
+  none.addEventListener('click', async () => {
+    await fetch(`/api/sessions/${session.id}`, {
+      method: 'PATCH', headers: {'content-type':'application/json'},
+      body: JSON.stringify({ persona_id: '' }),
+    });
+    window._currentSession.persona_id = null;
+    refreshPersonaBtn();
+    picker.remove();
+  });
+  picker.appendChild(none);
+
+  for (const p of _personas) {
+    const item = document.createElement('div');
+    item.className = 'ctx-item';
+    item.textContent = p.emoji + ' ' + p.name;
+    item.addEventListener('click', async () => {
+      await fetch(`/api/sessions/${session.id}`, {
+        method: 'PATCH', headers: {'content-type':'application/json'},
+        body: JSON.stringify({ persona_id: p.id }),
+      });
+      window._currentSession.persona_id = p.id;
+      toast(`persona set: ${p.name}`, 'success');
+      refreshPersonaBtn();
+      picker.remove();
+    });
+    picker.appendChild(item);
+  }
+
+  document.body.appendChild(picker);
+  setTimeout(() => document.addEventListener('click', () => picker.remove(), { once: true }), 0);
 }
 
 // ── shell ─────────────────────────────────────────────────────────────────────
