@@ -9,6 +9,13 @@ export function escapeHtml(s) {
 export function mdToHtml(text) {
   if (!text) return '';
 
+  const thinkingBlocks = [];
+  text = text.replace(/<think(?:ing)?>([\s\S]*?)<\/think(?:ing)?>/gi, (_, content) => {
+    const idx = thinkingBlocks.length;
+    thinkingBlocks.push(escapeHtml(content.trim()));
+    return `\x00THINK${idx}\x00`;
+  });
+
   // code blocks first (don't process inside them)
   const blocks = [];
   let out = text.replace(/```(\w*)\n?([\s\S]*?)```/g, (_, lang, code) => {
@@ -51,6 +58,11 @@ export function mdToHtml(text) {
 </div>
 <pre data-lang="${lang}"><code class="${lang ? 'language-' + lang : ''}">${escaped}</code></pre>
 </div>`;
+  });
+
+  out = out.replace(/\x00THINK(\d+)\x00/g, (_, i) => {
+    const content = thinkingBlocks[i] || '';
+    return `<details class="thinking-block"><summary>thinking</summary><div class="thinking-content">${content.replace(/\n/g, '<br>')}</div></details>`;
   });
 
   return out;

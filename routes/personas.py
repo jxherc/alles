@@ -20,7 +20,7 @@ def list_personas(db: DbSession = Depends(get_db)):
 
 class PersonaBody(BaseModel):
     name: str
-    emoji: str = "🤖"
+    emoji: str = ""
     system_prompt: str = ""
     model: str = ""
     is_default: bool = False
