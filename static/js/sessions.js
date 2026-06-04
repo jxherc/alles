@@ -1,5 +1,6 @@
 import { toast } from './util.js';
 import { renderProjectFolders, loadProjects, getProjects } from './projects.js';
+import { applyResponsePrivacy, stripEmojis, welcomeEnabled } from './privacy.js';
 
 let _sessions = { today: [], yesterday: [], earlier: [] };
 let _activeId = null;
@@ -89,11 +90,11 @@ function renderGroup(label, items) {
 function renderItem(s) {
   const starred  = s.starred   ? ' starred'   : '';
   const incog    = s.incognito ? ' incognito' : '';
-  const icon     = s.incognito ? '<span class="incognito-icon" title="incognito">◎</span>' : '';
+  const icon     = s.incognito ? '<span class="incognito-icon" title="incognito" aria-hidden="true"></span>' : '';
   return `<div class="session-item${starred}${incog}" data-id="${s.id}">
   <div class="session-dot"></div>
   ${icon}<span class="session-name">${escHtml(s.name)}</span>
-  <span class="star">★</span>
+  <span class="star" aria-hidden="true"></span>
 </div>`;
 }
 
@@ -123,6 +124,7 @@ export async function selectSession(id) {
     if (data.session.model) {
       document.getElementById('model-label').textContent = data.session.model;
     }
+    updateSessionHeader(data.session);
     // refresh persona button
     try {
       window._refreshPersonaBtn?.();
@@ -173,7 +175,7 @@ export function appendUserMsg(text) {
   const { row } = _makeRow('user');
   row.innerHTML = `<div class="user-wrap">
     <div class="user-bubble">${escHtml(text)}</div>
-    <button class="msg-edit-btn" title="edit">✎</button>
+    <button class="msg-edit-btn" title="edit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 3a2.8 2.8 0 0 1 4 4L7 21l-4 1 1-4Z"></path><path d="m15 5 4 4"></path></svg></button>
   </div>`;
   document.getElementById('messages').appendChild(row);
   scrollDown();
@@ -184,23 +186,25 @@ export function appendUserMsg(text) {
 export function appendAiMsg(text, thinking) {
   const { row, wrap, body } = _makeAiRow();
   if (thinking) {
-    const tb = document.createElement('div');
+    const tb = document.createElement('details');
     tb.className = 'thinking-block';
-    tb.textContent = thinking;
+    tb.innerHTML = '<summary>thinking</summary><div class="thinking-content"></div>';
+    tb.querySelector('.thinking-content').textContent = thinking;
     body.appendChild(tb);
   }
   // strip artifact tags from display
   const displayText = text ? text.replace(/<aide-artifact[^>]*>[\s\S]*?<\/aide-artifact>/g, '').trim() : '';
   const content = document.createElement('div');
   content.className = 'ai-content';
-  content.innerHTML = displayText ? _md(displayText) : '';
+  content.innerHTML = displayText ? _md(stripEmojis(displayText)) : '';
+  applyResponsePrivacy(content);
   body.appendChild(content);
   body.classList.add('done');
 
   const actions = document.createElement('div');
   actions.className = 'msg-actions';
   actions.innerHTML = `<button class="act-btn" onclick="copyMsg(this)">copy</button>
-    <button class="msg-regen-btn act-btn" title="regenerate">↺ regen</button>`;
+    <button class="msg-regen-btn act-btn" title="regenerate">regen</button>`;
   wrap.appendChild(actions);
 
   document.getElementById('messages').appendChild(row);
@@ -339,13 +343,50 @@ export function scrollDown() {
 
 
 export function showWelcome() {
-  document.getElementById('welcome').style.display = 'flex';
-  document.getElementById('messages').style.display = 'none';
+  if (welcomeEnabled()) {
+    document.getElementById('welcome').style.display = 'flex';
+    document.getElementById('messages').style.display = 'none';
+  } else {
+    document.getElementById('welcome').style.display = 'none';
+    document.getElementById('messages').style.display = 'flex';
+  }
+  updateSessionHeader(window._currentSession || null);
 }
 
 export function showMessages() {
   document.getElementById('welcome').style.display = 'none';
   document.getElementById('messages').style.display = 'flex';
+  updateSessionHeader(window._currentSession || null);
+}
+
+export function updateSessionHeader(session) {
+  const header = document.getElementById('session-header');
+  if (!header) return;
+  const label = document.getElementById('session-header-model');
+  if (!session) {
+    header.style.display = 'none';
+    if (label) label.textContent = '';
+    return;
+  }
+  header.style.display = 'flex';
+  if (label) label.textContent = session.model || 'no model';
+}
+
+export async function exportActiveSessionMarkdown() {
+  if (!_activeId) { toast('no active chat', 'error'); return; }
+  const r = await fetch(`/api/sessions/${_activeId}/history`);
+  if (!r.ok) { toast('export failed', 'error'); return; }
+  const { session, messages } = await r.json();
+  const md = messages
+    .map(m => `**${m.role}:**\n\n${m.content}`)
+    .join('\n\n---\n\n');
+  const blob = new Blob([md], { type: 'text/markdown' });
+  const a = Object.assign(document.createElement('a'), {
+    href: URL.createObjectURL(blob),
+    download: `${(session?.name || 'chat').replace(/[^a-z0-9]/gi, '-')}.md`,
+  });
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
 
 

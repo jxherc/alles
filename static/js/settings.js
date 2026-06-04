@@ -1,6 +1,11 @@
 import { toast } from './util.js';
 import { loadModels, addEndpoint, renderModelList } from './models.js';
 import { initCustomDropdowns, getDropdownValue, setDropdownValue } from './dropdown.js';
+import {
+  sensitiveBlurEnabled, textOnlyEmojisEnabled, welcomeEnabled,
+  setSensitiveBlur, setTextOnlyEmojis, setWelcomeEnabled,
+} from './privacy.js';
+import { loadShortcuts, saveShortcuts, eventToShortcut } from './shortcuts.js';
 
 // ── visibility prefs (appearance toggles) ────────────────────────────────────
 const VIS_KEY = 'aide-ui-vis';
@@ -58,7 +63,7 @@ function _onPaneOpen(name) {
   if (name === 'voice')      loadVoicePane();
   if (name === 'personas')   { loadPersonas(); loadCookbook(); }
   if (name === 'tools')      loadMcpServers();
-  if (name === 'developer')  { loadTokens(); loadWebhooks(); }
+  if (name === 'developer')  { loadTokens(); loadWebhooks(); loadShortcutSettings(); }
 }
 
 // ── open / close ──────────────────────────────────────────────────────────────
@@ -185,6 +190,21 @@ function _initSettings() {
     else toast('restore failed', 'error');
     e.target.value = '';
   });
+
+  document.querySelectorAll('.shortcut-input').forEach(inp => {
+    inp.addEventListener('keydown', e => {
+      e.preventDefault();
+      e.stopPropagation();
+      const combo = eventToShortcut(e);
+      if (!combo) return;
+      inp.value = combo;
+      saveShortcuts({ [inp.dataset.shortcut]: combo });
+      toast('shortcut saved', 'success');
+    });
+    inp.addEventListener('blur', () => {
+      if (inp.value.trim()) saveShortcuts({ [inp.dataset.shortcut]: inp.value.trim() });
+    });
+  });
 }
 
 // ── models pane ───────────────────────────────────────────────────────────────
@@ -289,7 +309,7 @@ function _updateSearchStatus(s) {
   const labels = { duckduckgo: 'DuckDuckGo · free', tavily: 'Tavily', disabled: 'disabled' };
   const count = s.search_result_count || 5;
   const hasKey = prov === 'tavily' ? !!(s.tavily_api_key || '').trim() : true;
-  el.textContent = `active: ${labels[prov] || prov} · ${count} results${prov === 'tavily' && !hasKey ? ' · ⚠ no api key' : ''}`;
+  el.textContent = `active: ${labels[prov] || prov} · ${count} results${prov === 'tavily' && !hasKey ? ' · no api key' : ''}`;
   el.style.color = (prov === 'tavily' && !hasKey) ? 'var(--error)' : 'var(--muted)';
 }
 
@@ -306,7 +326,7 @@ async function saveSearchSettings() {
 async function testSearch() {
   const btn = document.getElementById('s-search-test-btn');
   const status = document.getElementById('s-search-status');
-  btn.textContent = 'testing…'; btn.disabled = true;
+  btn.textContent = 'testing...'; btn.disabled = true;
   try {
     const prov = getDropdownValue(document.getElementById('s-search-provider'));
     if (prov === 'disabled') { status.textContent = 'search is disabled'; btn.textContent = 'test'; btn.disabled = false; return; }
@@ -314,7 +334,7 @@ async function testSearch() {
       method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ query: 'test', session_id: 'settings-test', max_rounds: 1 }),
     });
-    status.textContent = r.ok ? '✓ connection ok' : `error: ${r.status}`;
+    status.textContent = r.ok ? 'connection ok' : `error: ${r.status}`;
     status.style.color = r.ok ? 'var(--green)' : 'var(--error)';
   } catch (e) {
     status.textContent = `error: ${e.message}`; status.style.color = 'var(--error)';
@@ -328,6 +348,34 @@ function loadAppearancePane() {
   document.querySelectorAll('.s-vis-toggle').forEach(sw => {
     const key = sw.dataset.visKey;
     _setSwitch(sw, key in v ? v[key] : true);
+  });
+  _bindSwitchOnce(document.getElementById('s-sensitive-blur-toggle'),
+    sensitiveBlurEnabled,
+    setSensitiveBlur);
+  _bindSwitchOnce(document.getElementById('s-text-emoji-toggle'),
+    textOnlyEmojisEnabled,
+    setTextOnlyEmojis);
+  _bindSwitchOnce(document.getElementById('s-welcome-toggle'),
+    welcomeEnabled,
+    setWelcomeEnabled);
+}
+
+function _bindSwitchOnce(el, getter, setter) {
+  if (!el) return;
+  _setSwitch(el, getter());
+  if (el.dataset.bound === '1') return;
+  el.dataset.bound = '1';
+  el.addEventListener('click', () => {
+    const next = !el.classList.contains('on');
+    _setSwitch(el, next);
+    setter(next);
+  });
+}
+
+function loadShortcutSettings() {
+  const shortcuts = loadShortcuts();
+  document.querySelectorAll('.shortcut-input').forEach(inp => {
+    inp.value = shortcuts[inp.dataset.shortcut] || '';
   });
 }
 
@@ -372,7 +420,6 @@ export async function loadPersonas() {
   if (!personas.length) { el.innerHTML = '<div class="settings-row-empty">no personas yet</div>'; return; }
   el.innerHTML = personas.map(p => `
     <div class="settings-list-row">
-      <span>${p.emoji}</span>
       <span class="row-name">${_esc(p.name)}</span>
       <span class="row-meta">${_esc((p.system_prompt||'').slice(0,40))}${p.system_prompt?.length>40?'…':''}</span>
       <button class="act-btn" data-id="${p.id}" onclick="window._rmPersona(this)">remove</button>
@@ -386,12 +433,11 @@ window._rmPersona = async btn => {
 
 async function addPersona() {
   const name   = document.getElementById('persona-name').value.trim();
-  const emoji  = document.getElementById('persona-emoji').value.trim() || ':)';
   const prompt = document.getElementById('persona-prompt').value.trim();
   if (!name) { toast('name required', 'error'); return; }
   await fetch('/api/personas', { method: 'POST', headers: {'content-type':'application/json'},
-    body: JSON.stringify({ name, emoji, system_prompt: prompt }) });
-  ['persona-name','persona-emoji','persona-prompt'].forEach(id => document.getElementById(id).value = '');
+    body: JSON.stringify({ name, emoji: '', system_prompt: prompt }) });
+  ['persona-name','persona-prompt'].forEach(id => document.getElementById(id).value = '');
   toast('persona added', 'success');
   loadPersonas();
 }
