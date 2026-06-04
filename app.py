@@ -1,4 +1,5 @@
-import os, json, logging
+import os, json, logging, asyncio
+from datetime import datetime
 from pathlib import Path
 from contextlib import asynccontextmanager
 
@@ -39,6 +40,7 @@ from routes import (
     contacts as contact_routes,
     backup as backup_routes,
 )
+from routes import reminders as reminder_routes, templates as template_routes, shared as shared_routes
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s  %(name)s  %(message)s")
 log = logging.getLogger("aide")
@@ -68,18 +70,75 @@ async def _bootstrap_deepseek():
         db.close()
 
 
+async def _reminder_loop():
+    """fires scheduled messages every 30s"""
+    await asyncio.sleep(5)  # let startup finish
+    while True:
+        try:
+            from core.database import SessionLocal, Reminder, Session
+            from services.llm import stream_chat
+            from core.settings import load_settings
+            now = datetime.utcnow()
+            db = SessionLocal()
+            try:
+                due = db.query(Reminder).filter(
+                    Reminder.trigger_at <= now,
+                    Reminder.fired == False,
+                    Reminder.type == "message",
+                ).all()
+                for r in due:
+                    r.fired = True
+                    db.commit()
+                    if not r.session_id:
+                        continue
+                    s = db.get(Session, r.session_id)
+                    if not s:
+                        continue
+                    from core.database import Message, ModelEndpoint
+                    from datetime import datetime as dt
+                    ep = db.get(ModelEndpoint, s.endpoint_id)
+                    if not ep:
+                        continue
+                    settings = load_settings()
+                    msgs = [{"role": "system", "content": settings.get("system_prompt", "You are aide.")}]
+                    for m in list(s.messages)[-20:]:
+                        msgs.append({"role": m.role, "content": m.content})
+                    msgs.append({"role": "user", "content": r.text})
+                    acc = []
+                    async for chunk in stream_chat(msgs, ep.base_url, ep.api_key, s.model):
+                        if "delta" in chunk:
+                            acc.append(chunk["delta"])
+                    full = "".join(acc)
+                    if full:
+                        um = Message(session_id=s.id, role="user", content=r.text)
+                        am = Message(session_id=s.id, role="assistant", content=full)
+                        db.add(um); db.add(am)
+                        s.message_count = (s.message_count or 0) + 2
+                        s.last_message_at = dt.utcnow()
+                        db.commit()
+                        log.info(f"fired scheduled message for session {s.id}")
+            finally:
+                db.close()
+        except asyncio.CancelledError:
+            break
+        except Exception as e:
+            log.warning(f"reminder loop error: {e}")
+        await asyncio.sleep(30)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
     await _bootstrap_deepseek()
-    # try to reconnect MCP servers from last session
     try:
         from routes.mcp import connect_all
         await connect_all()
     except Exception:
         pass
+    task = asyncio.create_task(_reminder_loop())
     log.info("aide ready")
     yield
+    task.cancel()
     log.info("aide shutting down")
 
 
@@ -154,6 +213,9 @@ app.include_router(vault_routes.router)
 app.include_router(oai_routes.router)
 app.include_router(contact_routes.router)
 app.include_router(backup_routes.router)
+app.include_router(reminder_routes.router)
+app.include_router(template_routes.router)
+app.include_router(shared_routes.router)
 
 
 # static files — no-cache so JS/CSS always reloads

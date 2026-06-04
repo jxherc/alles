@@ -42,6 +42,7 @@
       <div class="nav-item" data-view="gallery">gallery</div>
       <div class="nav-item" data-view="memory">memory</div>
       <div class="nav-item" data-view="docs">docs</div>
+      <div class="nav-item" data-view="reminders">reminders</div>
       <div class="nav-item" data-view="compare">compare</div>
       <div class="nav-item" data-view="vault">vault</div>
       <div class="nav-item" data-view="contacts">contacts</div>
@@ -53,6 +54,9 @@
   <main class="main">
     <div class="topbar">
       <div style="display:flex;align-items:center;gap:0.4rem">
+        <button class="icon-btn" id="sidebar-toggle-btn" title="toggle sidebar (Ctrl+B)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
         <button class="model-btn" id="model-btn">
           <span class="live-dot" id="live-dot"></span>
           <span id="model-label">no model</span>
@@ -82,6 +86,8 @@
         <span class="session-header-model" id="session-header-model"></span>
         <span class="session-token-count" id="session-token-count"></span>
         <button class="act-btn" id="session-export-btn">export</button>
+        <button class="act-btn" id="session-share-btn">share</button>
+        <button class="act-btn" id="session-print-btn">print</button>
       </div>
       <div class="welcome" id="welcome" style="display:none">
         <div>
@@ -173,10 +179,40 @@
         </div>
         <button class="btn" id="mem-extract-btn">extract from chat</button>
       </div>
+      <div id="mem-category-filter" class="mem-cat-filter"></div>
       <div class="mem-view-list" id="memory-list"></div>
       <div class="mem-view-footer">
         <input type="text" id="mem-add-input" placeholder="add a memory...">
+        <select id="mem-add-category" style="background:var(--panel);border:1px solid var(--faint);color:var(--muted);font:inherit;font-size:0.72rem;padding:0.25rem;border-radius:2px">
+          <option value="general">general</option>
+          <option value="identity">identity</option>
+          <option value="preference">preference</option>
+          <option value="fact">fact</option>
+          <option value="task">task</option>
+        </select>
         <button class="btn primary" id="mem-add-btn">add</button>
+      </div>
+    </div>
+
+    <!-- ── reminders view ── -->
+    <div class="page-view" id="reminders-view" style="display:none">
+      <div class="page-view-head">
+        <span class="page-view-title">reminders</span>
+      </div>
+      <div class="page-view-body">
+        <div id="reminder-list" style="margin-bottom:0.75rem"></div>
+        <div class="reminder-add-form">
+          <input type="text" id="reminder-text" class="settings-input" placeholder="what to remind / message to send..." style="flex:1">
+          <input type="datetime-local" id="reminder-time" class="settings-input" style="width:200px">
+          <select id="reminder-type-select" style="background:var(--panel);border:1px solid var(--faint);color:var(--muted);font:inherit;font-size:0.72rem;padding:0.35rem;border-radius:2px">
+            <option value="reminder">reminder</option>
+            <option value="message">send message to AI</option>
+          </select>
+          <button class="btn primary" id="reminder-add-btn">set</button>
+        </div>
+        <div style="font-size:0.7rem;color:var(--muted);margin-top:0.5rem">
+          tip: use <code>/remind in 2h check deployment</code> or <code>/send at 3pm summarize my day</code> from chat
+        </div>
       </div>
     </div>
 
@@ -435,6 +471,10 @@
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
           personas
         </div>
+        <div class="s-nav-item" data-pane="templates">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+          templates
+        </div>
         <div class="s-nav-item" data-pane="tools">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
           tools
@@ -484,6 +524,7 @@
                     <input type="password" class="settings-input" id="s-ep-key" placeholder="leave blank for local / Ollama">
                   </div>
                   <button class="btn primary" id="s-ep-add-btn" style="width:100%;margin-top:0.2rem">add + probe models</button>
+                  <div class="s-field" style="margin-top:0.5rem"><label>vision-capable models <span style="color:var(--muted);font-weight:400">(comma-separated, optional)</span></label><input type="text" class="settings-input" id="s-ep-vision" placeholder="e.g. gpt-4o, claude-3-5-sonnet-20241022" style="width:100%"></div>
                 </div>
               </details>
             </div>
@@ -729,6 +770,23 @@
           </div>
         </div>
 
+        <!-- ── templates pane ── -->
+        <div class="s-pane" id="s-pane-templates">
+          <div class="s-card">
+            <div class="s-card-head">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+              session templates
+            </div>
+            <div class="s-card-body">
+              <div id="template-list" style="margin-bottom:0.75rem"></div>
+              <div class="s-field"><label>template name</label><input type="text" class="settings-input" id="tpl-name" placeholder="e.g. code review" style="width:100%"></div>
+              <div class="s-field"><label>system prompt <span style="color:var(--muted);font-weight:400">(optional)</span></label><textarea class="settings-textarea" id="tpl-system" rows="2" placeholder="You are..."></textarea></div>
+              <div class="s-field"><label>initial message <span style="color:var(--muted);font-weight:400">(optional)</span></label><input type="text" class="settings-input" id="tpl-message" placeholder="e.g. Please review this code:" style="width:100%"></div>
+              <button class="btn primary" id="tpl-add-btn" style="width:100%">save template</button>
+            </div>
+          </div>
+        </div>
+
         <!-- ── tools pane ── -->
         <div class="s-pane" id="s-pane-tools">
           <div class="s-card">
@@ -832,7 +890,7 @@
 </div>
 
 <script type="module">
-const _v = '12';
+const _v = '13';
 import(`/static/js/app.js?v=${_v}`);
 </script>
 </body>

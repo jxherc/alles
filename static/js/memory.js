@@ -2,11 +2,32 @@ import { toast } from './util.js';
 
 let _memories = [];
 let _searchTimeout = null;
+let _activeCategory = 'all';
+
+const CATEGORIES = ['all', 'identity', 'preference', 'fact', 'task', 'general'];
 
 export async function loadMemories() {
   const r = await fetch('/api/memories');
   _memories = await r.json();
-  renderMemories(_memories);
+  _renderCategoryFilter();
+  const filtered = _activeCategory === 'all' ? _memories : _memories.filter(m => m.category === _activeCategory);
+  renderMemories(filtered);
+}
+
+function _renderCategoryFilter() {
+  const el = document.getElementById('mem-category-filter');
+  if (!el) return;
+  el.innerHTML = CATEGORIES.map(c =>
+    `<button class="mem-cat-btn${c === _activeCategory ? ' active' : ''}" data-cat="${c}">${c}</button>`
+  ).join('');
+  el.querySelectorAll('.mem-cat-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      _activeCategory = btn.dataset.cat;
+      _renderCategoryFilter();
+      const filtered = _activeCategory === 'all' ? _memories : _memories.filter(m => m.category === _activeCategory);
+      renderMemories(filtered);
+    });
+  });
 }
 
 function renderMemories(mems) {
@@ -14,7 +35,7 @@ function renderMemories(mems) {
   if (!list) return;
 
   if (!mems.length) {
-    list.innerHTML = '<div class="mem-empty">no memories yet</div>';
+    list.innerHTML = `<div class="mem-empty">no ${_activeCategory === 'all' ? '' : _activeCategory + ' '}memories</div>`;
     return;
   }
 
@@ -67,12 +88,13 @@ export function initMemoryPanel() {
   // add memory form
   document.getElementById('mem-add-btn')?.addEventListener('click', async () => {
     const inp = document.getElementById('mem-add-input');
+    const catEl = document.getElementById('mem-add-category');
     const text = inp?.value.trim();
     if (!text) return;
     await fetch('/api/memories', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ text }),
+      body: JSON.stringify({ text, category: catEl?.value || 'general' }),
     });
     inp.value = '';
     toast('memory saved', 'success');

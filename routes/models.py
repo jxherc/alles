@@ -16,6 +16,11 @@ def _is_chat_model(mid: str) -> bool:
     return not any(x in ml for x in _NON_CHAT)
 
 def _fmt_endpoint(ep: ModelEndpoint) -> dict:
+    import json as _json
+    try:
+        vision = _json.loads(ep.vision_models or "[]")
+    except Exception:
+        vision = []
     return {
         "id": ep.id,
         "name": ep.name,
@@ -23,6 +28,7 @@ def _fmt_endpoint(ep: ModelEndpoint) -> dict:
         "enabled": ep.enabled,
         "provider": detect_provider(ep.base_url),
         "models": ep.models_list(),
+        "vision_models": vision,
         "created_at": ep.created_at.isoformat(),
     }
 
@@ -54,6 +60,7 @@ class PatchEndpoint(BaseModel):
     name: str | None = None
     api_key: str | None = None
     enabled: bool | None = None
+    vision_models: str | None = None  # json list string
 
 
 # PATCH /api/models/endpoint/{id}
@@ -62,9 +69,10 @@ def patch_endpoint(ep_id: str, body: PatchEndpoint, db: DbSession = Depends(get_
     ep = db.get(ModelEndpoint, ep_id)
     if not ep:
         raise HTTPException(404)
-    if body.name is not None:    ep.name = body.name
-    if body.api_key is not None: ep.api_key = body.api_key
-    if body.enabled is not None: ep.enabled = body.enabled
+    if body.name is not None:          ep.name = body.name
+    if body.api_key is not None:       ep.api_key = body.api_key
+    if body.enabled is not None:       ep.enabled = body.enabled
+    if body.vision_models is not None: ep.vision_models = body.vision_models
     db.commit()
     return _fmt_endpoint(ep)
 

@@ -21,6 +21,7 @@ import { openSettings, closeSettings, applyVis } from './settings.js';
 import { toggleIncognitoMode, setIncognitoMode } from './modes.js';
 import { initPrivacyHandlers } from './privacy.js';
 import { loadShortcuts, matchesShortcut } from './shortcuts.js';
+import { startReminderPoll, initReminderPanel, loadReminders } from './reminders.js';
 
 window._mdToHtml = mdToHtml;
 
@@ -35,6 +36,7 @@ async function init() {
 
 async function _boot() {
   applyVis();
+  if (localStorage.getItem('aide-sidebar-hidden')) document.body.classList.add('sidebar-hidden');
   await loadModels();
   await loadProjects();
   await loadSessions();
@@ -44,6 +46,7 @@ async function _boot() {
   initDropZone();
   initVault();
   initPrivacyHandlers();
+  startReminderPoll();
   bindEvents();
 }
 
@@ -70,6 +73,7 @@ init();
 const _VIEW_IDS = [
   'chat', 'notes-view', 'tasks-view', 'calendar-view', 'gallery-view',
   'models-view', 'brain-view', 'mem-view', 'docs-view', 'compare-view', 'vault-view', 'contacts-view',
+  'reminders-view',
 ];
 
 function hideAllViews() {
@@ -102,8 +106,9 @@ const showGalleryView  = () => showView('gallery-view',  'gallery',  () => { loa
 const showMemoryView   = () => showView('mem-view',      'memory',   initMemoryPanel);
 const showDocsView     = () => showView('docs-view',     'docs',     () => { loadDocuments(); initDocEditor(); });
 const showCompareView  = () => showView('compare-view',  'compare',  () => { initCompareView(); loadCompareModels(); });
-const showVaultView    = () => showView('vault-view',    'vault',    loadVaultView);
-const showContactsView = () => showView('contacts-view', 'contacts', () => loadContacts());
+const showVaultView      = () => showView('vault-view',      'vault',     loadVaultView);
+const showContactsView   = () => showView('contacts-view',  'contacts',  () => loadContacts());
+const showRemindersView  = () => showView('reminders-view', 'reminders', initReminderPanel);
 
 function setNav(view) {
   document.querySelectorAll('.nav-item').forEach(n => {
@@ -195,6 +200,12 @@ function bindEvents() {
   // settings — delegate entirely to settings.js
   document.getElementById('settings-btn').addEventListener('click', () => openSettings());
   document.getElementById('session-export-btn')?.addEventListener('click', exportActiveSessionMarkdown);
+  document.getElementById('session-share-btn')?.addEventListener('click', _shareSession);
+  document.getElementById('session-print-btn')?.addEventListener('click', _printSession);
+  document.getElementById('sidebar-toggle-btn')?.addEventListener('click', () => {
+    document.body.classList.toggle('sidebar-hidden');
+    localStorage.setItem('aide-sidebar-hidden', document.body.classList.contains('sidebar-hidden') ? '1' : '');
+  });
 
   // notes / tasks / calendar / gallery
   document.getElementById('note-new-btn').addEventListener('click', newNote);
@@ -253,8 +264,9 @@ function bindEvents() {
       else if (v === 'docs')     showDocsView();
       else if (v === 'compare')  showCompareView();
       else if (v === 'vault')    showVaultView();
-      else if (v === 'contacts') showContactsView();
-      else if (v === 'settings') openSettings();
+      else if (v === 'contacts')  showContactsView();
+      else if (v === 'reminders') showRemindersView();
+      else if (v === 'settings')  openSettings();
     });
   });
 
@@ -281,6 +293,34 @@ function bindEvents() {
   });
 
   setInterval(loadModels, 30000);
+}
+
+async function _shareSession() {
+  const sid = window._currentSession?.id;
+  if (!sid) { toast('open a chat first', 'error'); return; }
+  const btn = document.getElementById('session-share-btn');
+  btn.textContent = '...'; btn.disabled = true;
+  try {
+    const r = await fetch(`/api/sessions/${sid}/share`, { method: 'POST' });
+    const { url } = await r.json();
+    const full = location.origin + url;
+    await navigator.clipboard.writeText(full);
+    toast('share link copied to clipboard', 'success');
+  } catch { toast('share failed', 'error'); }
+  btn.textContent = 'share'; btn.disabled = false;
+}
+
+function _printSession() {
+  const sid = window._currentSession?.id;
+  if (!sid) { window.print(); return; }
+  // check if a share link exists, else just print current page
+  fetch(`/api/sessions/${sid}/share`, { method: 'POST' })
+    .then(r => r.json())
+    .then(({ url }) => {
+      const w = window.open(location.origin + url, '_blank');
+      setTimeout(() => w?.print(), 600);
+    })
+    .catch(() => window.print());
 }
 
 function toggleMoreTools() {
