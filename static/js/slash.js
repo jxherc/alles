@@ -82,31 +82,59 @@ function _handleInput(ta) {
 
   if (!line.startsWith('/') || line.includes(' ')) { _hide(); return; }
   const query = line.slice(1).toLowerCase();
-  const matches = _allEntries().filter(e =>
-    e.name.startsWith(query) || e.name.includes(query) || e.description.includes(query)
-  );
+  // show ALL when just "/" — filter when query has chars
+  const all = _allEntries();
+  const matches = query
+    ? all.filter(e => e.name.startsWith(query) || e.name.includes(query) || e.description.includes(query))
+    : all;
   if (!matches.length) { _hide(); return; }
-  _show(matches, ta, lineStart, cursor);
+  _show(matches, ta, lineStart, cursor, !query);
 }
 
-function _show(matches, ta, lineStart, cursor) {
+function _show(matches, ta, lineStart, cursor, grouped = false) {
   _hide();
   _selectedIdx = 0;
   _currentMatches = matches;
 
   _popup = document.createElement('div');
-  _popup.className = 'slash-popup';
-  _popup.innerHTML = matches.map((e, i) => {
-    const argsHtml = e.args ? `<span class="slash-args"> ${e.args}</span>` : '';
-    const tag = e.cat !== 'cookbook' ? '' : '<span class="slash-tag">saved</span>';
-    return `<div class="slash-item${i === 0 ? ' selected' : ''}" data-idx="${i}">
-      <span class="slash-name">/${e.name}${argsHtml}</span>
-      <span class="slash-desc">${e.description}</span>${tag}
-    </div>`;
-  }).join('');
+  _popup.className = 'slash-popup slash-cheatsheet';
 
+  if (grouped) {
+    // group by category — cheatsheet mode
+    const cats = {};
+    for (const e of matches) (cats[e.cat] = cats[e.cat] || []).push(e);
+    let flatIdx = 0;
+    let html = '';
+    for (const [cat, entries] of Object.entries(cats)) {
+      html += `<div class="slash-cat-label">${cat}</div>`;
+      for (const e of entries) {
+        const argsHtml = e.args ? `<span class="slash-args">${e.args}</span>` : '';
+        const tag = e.cat === 'cookbook' ? '<span class="slash-tag">saved</span>' : '';
+        html += `<div class="slash-item${flatIdx === 0 ? ' selected' : ''}" data-idx="${flatIdx}">
+          <span class="slash-cmd"><span class="slash-name">/${e.name}</span>${argsHtml}</span>
+          <span class="slash-desc">${e.description}</span>${tag}
+        </div>`;
+        flatIdx++;
+      }
+    }
+    _popup.innerHTML = html;
+  } else {
+    // filtered mode — flat list, prefix-sorted
+    _popup.innerHTML = matches.map((e, i) => {
+      const argsHtml = e.args ? `<span class="slash-args">${e.args}</span>` : '';
+      const tag = e.cat === 'cookbook' ? '<span class="slash-tag">saved</span>' : '';
+      return `<div class="slash-item${i === 0 ? ' selected' : ''}" data-idx="${i}">
+        <span class="slash-cmd"><span class="slash-name">/${e.name}</span>${argsHtml}</span>
+        <span class="slash-desc">${e.description}</span>${tag}
+      </div>`;
+    }).join('');
+  }
+
+  // position above textarea, wider than textarea for cheatsheet feel
   const rect = ta.getBoundingClientRect();
-  _popup.style.cssText = `bottom:${window.innerHeight - rect.top + 6}px;left:${rect.left}px;width:${rect.width}px`;
+  const width = Math.max(480, rect.width);
+  const left  = Math.min(rect.left, window.innerWidth - width - 12);
+  _popup.style.cssText = `bottom:${window.innerHeight - rect.top + 8}px;left:${left}px;width:${width}px`;
   document.body.appendChild(_popup);
 
   _popup.querySelectorAll('.slash-item').forEach(el => {

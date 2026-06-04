@@ -878,24 +878,46 @@ code {
   line-height: 1.4; margin-bottom: 0.3rem;
 }
 
-/* ── slash autocomplete ── */
+/* ── slash cheatsheet ── */
 .slash-popup {
   position: fixed; z-index: 400;
   background: var(--bg); border: 1px solid var(--faint); border-radius: 3px;
-  max-height: 200px; overflow-y: auto;
+  max-height: 360px; overflow-y: auto;
   animation: rise 0.12s ease forwards;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.3);
 }
+.slash-cheatsheet {
+  padding: 0.3rem 0 0.5rem;
+}
+.slash-cat-label {
+  font-size: 0.62rem; color: var(--faint);
+  letter-spacing: 0.08em; font-weight: 500; text-transform: uppercase;
+  padding: 0.6rem 0.85rem 0.2rem;
+  border-top: 1px solid var(--faint);
+}
+.slash-cat-label:first-child { border-top: none; padding-top: 0.3rem; }
 .slash-item {
-  display: flex; align-items: baseline; gap: 0.6rem;
-  padding: 0.4rem 0.85rem; cursor: pointer;
+  display: flex; align-items: baseline; gap: 0;
+  padding: 0.28rem 0.85rem; cursor: pointer;
   transition: background 0.1s;
 }
 .slash-item:hover, .slash-item.selected { background: var(--panel); }
-.slash-name { font-size: 0.78rem; color: var(--accent); font-weight: 500; white-space: nowrap; }
-.slash-args { color: var(--muted); font-weight: 400; }
-.slash-desc { font-size: 0.72rem; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
-.slash-tag  { font-size: 0.65rem; color: var(--faint); letter-spacing: 0.04em; flex-shrink: 0; }
+.slash-cmd {
+  display: flex; align-items: baseline; gap: 0.35rem;
+  flex-shrink: 0; width: 180px;
+}
+.slash-name {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.75rem; color: var(--accent); white-space: nowrap;
+}
+.slash-args {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.68rem; color: var(--faint); white-space: nowrap;
+}
+.slash-desc {
+  font-size: 0.72rem; color: var(--muted);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1;
+}
+.slash-tag { font-size: 0.62rem; color: var(--faint); letter-spacing: 0.04em; flex-shrink: 0; margin-left: 0.4rem; }
 
 /* shared page empty state */
 .page-empty { padding: 1rem 0; font-size: 0.75rem; color: var(--faint); }
