@@ -145,10 +145,10 @@ class ChatRequest(BaseModel):
 
 
 async def _sse(gen):
-    """wrap async generator into SSE text/event-stream"""
+    """wrap async generator into SSE — yield bytes so uvicorn flushes each chunk immediately"""
     async for chunk in gen:
-        yield f"data: {json.dumps(chunk)}\n\n"
-    yield "data: [DONE]\n\n"
+        yield f"data: {json.dumps(chunk)}\n\n".encode()
+    yield b"data: [DONE]\n\n"
 
 
 async def _stream_and_save(
