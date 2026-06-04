@@ -34,6 +34,8 @@
 
     <nav class="sidebar-nav">
       <div class="nav-item active" data-view="chat">chat</div>
+      <div class="nav-item" data-view="models">models</div>
+      <div class="nav-item" data-view="brain">brain</div>
       <div class="nav-item" data-view="notes">notes</div>
       <div class="nav-item" data-view="tasks">tasks</div>
       <div class="nav-item" data-view="calendar">calendar</div>
@@ -87,6 +89,36 @@
         </div>
       </div>
       <div class="messages" id="messages" style="display:none"></div>
+    </div>
+
+    <div class="page-view" id="models-view" style="display:none">
+      <div class="page-view-head">
+        <span class="page-view-title">models</span>
+        <button class="btn" id="models-refresh-btn">refresh</button>
+      </div>
+      <div class="page-view-body">
+        <input type="text" id="sidebar-model-search" class="settings-input" placeholder="filter models..." style="width:100%;margin-bottom:0.65rem">
+        <div class="sidebar-model-list" id="sidebar-model-list"></div>
+      </div>
+    </div>
+
+    <div class="page-view" id="brain-view" style="display:none">
+      <div class="page-view-head">
+        <span class="page-view-title">brain</span>
+        <button class="btn" id="brain-refresh-btn">refresh</button>
+      </div>
+      <div class="page-view-body">
+        <div class="brain-grid" id="brain-stats"></div>
+        <div class="brain-section">
+          <div class="brain-section-title">current context</div>
+          <div class="brain-context" id="brain-context"></div>
+        </div>
+        <div class="brain-section">
+          <div class="brain-section-title">recent memories</div>
+          <div id="brain-memories"></div>
+          <button class="btn" id="brain-open-memory-btn" style="margin-top:0.65rem">open memory</button>
+        </div>
+      </div>
     </div>
 
     <!-- ── notes view ── -->
