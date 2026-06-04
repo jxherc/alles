@@ -240,6 +240,35 @@ async def _parse_anthropic(resp) -> AsyncGenerator[dict, None]:
     yield {"done": True, "usage": usage}
 
 
+async def compact_messages(
+    messages: list[dict],
+    ep,
+    model: str,
+    target_len: int = 20,
+) -> list[dict]:
+    """summarize old messages when context is too long"""
+    # filter out the system message
+    sys_msgs = [m for m in messages if m["role"] == "system"]
+    chat_msgs = [m for m in messages if m["role"] != "system"]
+
+    if len(chat_msgs) <= target_len:
+        return messages
+
+    keep = chat_msgs[-(target_len // 2):]
+    summarize = chat_msgs[:-(target_len // 2)]
+
+    conv_text = "\n".join(f"{m['role']}: {m['content'][:300]}" for m in summarize)
+    summary = await simple_complete(
+        [
+            {"role": "system", "content": "Summarize this conversation history in 200 words or less. Be factual and concise."},
+            {"role": "user", "content": conv_text},
+        ],
+        ep.base_url, ep.api_key, model, max_tokens=300,
+    )
+    compact_sys = {"role": "system", "content": f"[conversation summary]: {summary}"}
+    return sys_msgs + [compact_sys] + keep
+
+
 async def simple_complete(
     messages: list[dict],
     base_url: str,

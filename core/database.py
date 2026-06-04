@@ -2,7 +2,7 @@ import os, uuid, json
 from datetime import datetime
 from sqlalchemy import (
     create_engine, Column, String, Text, Boolean,
-    Integer, DateTime, ForeignKey, event
+    Integer, DateTime, ForeignKey, event, text
 )
 from sqlalchemy.orm import DeclarativeBase, sessionmaker, relationship
 
@@ -53,8 +53,10 @@ class Session(Base):
     endpoint_id    = Column(String, ForeignKey("model_endpoints.id", ondelete="SET NULL"), nullable=True)
     mode           = Column(String, default="chat")   # chat | agent
     persona_id     = Column(String, ForeignKey("personas.id", ondelete="SET NULL"), nullable=True)
+    project_id     = Column(String, ForeignKey("projects.id", ondelete="SET NULL"), nullable=True)
     starred        = Column(Boolean, default=False)
     archived       = Column(Boolean, default=False)
+    incognito      = Column(Boolean, default=False)
     message_count  = Column(Integer, default=0)
     created_at     = Column(DateTime, default=_now)
     last_message_at = Column(DateTime, default=_now)
@@ -64,6 +66,7 @@ class Session(Base):
                             order_by="Message.timestamp")
     endpoint = relationship("ModelEndpoint", foreign_keys=[endpoint_id])
     persona  = relationship("Persona", foreign_keys=[persona_id])
+    project  = relationship("Project", back_populates="sessions", foreign_keys=[project_id])
 
 
 class Message(Base):
@@ -203,9 +206,79 @@ class Memory(Base):
     timestamp  = Column(DateTime, default=_now)
 
 
+class Project(Base):
+    __tablename__ = "projects"
+    id            = Column(String, primary_key=True, default=_uid)
+    name          = Column(String, nullable=False)
+    description   = Column(Text, default="")
+    system_prompt = Column(Text, default="")
+    color         = Column(String, default="")
+    created_at    = Column(DateTime, default=_now)
+
+    sessions = relationship("Session", back_populates="project", foreign_keys="Session.project_id")
+
+
+class Upload(Base):
+    __tablename__ = "uploads"
+    id            = Column(String, primary_key=True, default=_uid)
+    filename      = Column(String, nullable=False)
+    original_name = Column(String, nullable=False)
+    mime_type     = Column(String, default="")
+    size          = Column(Integer, default=0)
+    session_id    = Column(String, nullable=True)
+    created_at    = Column(DateTime, default=_now)
+
+
+class Document(Base):
+    __tablename__ = "documents"
+    id         = Column(String, primary_key=True, default=_uid)
+    title      = Column(String, default="untitled")
+    content    = Column(Text, default="")
+    doc_type   = Column(String, default="md")   # md | txt | html | csv
+    created_at = Column(DateTime, default=_now)
+    updated_at = Column(DateTime, default=_now)
+
+
+class VaultEntry(Base):
+    __tablename__ = "vault_entries"
+    id              = Column(String, primary_key=True, default=_uid)
+    name            = Column(String, nullable=False)
+    value_encrypted = Column(Text, default="")   # base64 ciphertext+nonce
+    category        = Column(String, default="general")
+    created_at      = Column(DateTime, default=_now)
+
+
+class Contact(Base):
+    __tablename__ = "contacts"
+    id         = Column(String, primary_key=True, default=_uid)
+    name       = Column(String, nullable=False)
+    email      = Column(String, default="")
+    phone      = Column(String, default="")
+    notes      = Column(Text, default="")
+    tags       = Column(Text, default="[]")   # json list
+    created_at = Column(DateTime, default=_now)
+    updated_at = Column(DateTime, default=_now)
+
+
+def _add_col(conn, table, col, col_type):
+    try:
+        conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {col} {col_type}"))
+        conn.commit()
+    except Exception:
+        pass
+
+
 def init_db():
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
     Base.metadata.create_all(engine)
+    # migrations — safe to run multiple times (all idempotent)
+    with engine.connect() as conn:
+        _add_col(conn, "sessions", "persona_id",  "TEXT")
+        _add_col(conn, "sessions", "project_id",  "TEXT")
+        _add_col(conn, "sessions", "incognito",   "BOOLEAN DEFAULT 0")
+        _add_col(conn, "sessions", "mode",        "TEXT DEFAULT 'chat'")
+        _add_col(conn, "sessions", "starred",     "BOOLEAN DEFAULT 0")
+        _add_col(conn, "sessions", "archived",    "BOOLEAN DEFAULT 0")
 
 
 def get_db():

@@ -181,11 +181,44 @@ def search_memories(query: str, top_k: int = 6) -> list[dict]:
 
 def inject_memories(query: str, top_k: int = 6) -> str:
     """returns a system-prompt string to inject, or '' if nothing relevant"""
+    parts = []
+
     mems = search_memories(query, top_k=top_k)
-    if not mems:
+    if mems:
+        lines = "\n".join(f"- {m['text']}" for m in mems)
+        parts.append(f"Relevant things you know about the user:\n{lines}")
+
+    # inject contacts if query mentions a name
+    contacts_ctx = _inject_contacts(query)
+    if contacts_ctx:
+        parts.append(contacts_ctx)
+
+    return "\n\n".join(parts)
+
+
+def _inject_contacts(query: str) -> str:
+    try:
+        db = SessionLocal()
+        from core.database import Contact
+        contacts = db.query(Contact).all()
+        db.close()
+        if not contacts:
+            return ""
+        q_lower = query.lower()
+        matched = [c for c in contacts if c.name.lower() in q_lower]
+        if not matched:
+            return ""
+        import json
+        lines = []
+        for c in matched:
+            parts = [c.name]
+            if c.email: parts.append(f"email: {c.email}")
+            if c.phone: parts.append(f"phone: {c.phone}")
+            if c.notes: parts.append(f"notes: {c.notes}")
+            lines.append(", ".join(parts))
+        return "Contact info:\n" + "\n".join(f"- {l}" for l in lines)
+    except Exception:
         return ""
-    lines = "\n".join(f"- {m['text']}" for m in mems)
-    return f"Relevant things you know about the user:\n{lines}"
 
 
 def _fmt(m: Memory) -> dict:
