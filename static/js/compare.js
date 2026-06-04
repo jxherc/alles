@@ -111,19 +111,21 @@ export function initCompareView() {
 export async function loadCompareModels() {
   const container = document.getElementById('compare-model-picker');
   if (!container) return;
-  try {
-    const r = await fetch('/v1/models');
-    const { data } = await r.json();
-    container.innerHTML = data.map(m => {
-      const [ep, model] = m.id.split('/', 2);
-      const epRow = window._allEndpoints?.find(e => e.name === ep);
-      return `<label class="compare-model-row">
-        <input type="checkbox" class="compare-model-check"
-          data-ep="${epRow?.id || ''}" data-model="${_esc(model)}">
-        <span>${_esc(m.id)}</span>
-      </label>`;
-    }).join('');
-  } catch (e) {
-    container.innerHTML = '<div class="page-empty">no models</div>';
+  const eps = window._endpoints || [];
+  if (!eps.length) {
+    container.innerHTML = '<div style="font-size:0.72rem;color:var(--muted)">no endpoints — add one via the model picker</div>';
+    return;
   }
+  let html = '';
+  for (const ep of eps) {
+    if (!ep.models.length) continue;
+    html += `<div style="font-size:0.68rem;color:var(--muted);margin:0.5rem 0 0.2rem;text-transform:lowercase">${_esc(ep.name)}</div>`;
+    for (const m of ep.models) {
+      html += `<label class="compare-model-row">
+        <input type="checkbox" class="compare-model-check" data-ep="${ep.id}" data-model="${_esc(m)}">
+        <span title="${_esc(m)}">${_esc(m.split('/').pop())}</span>
+      </label>`;
+    }
+  }
+  container.innerHTML = html || '<div style="font-size:0.72rem;color:var(--muted)">no models</div>';
 }
