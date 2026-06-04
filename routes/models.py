@@ -58,6 +58,7 @@ def add_endpoint(body: AddEndpoint, db: DbSession = Depends(get_db)):
 
 class PatchEndpoint(BaseModel):
     name: str | None = None
+    base_url: str | None = None
     api_key: str | None = None
     enabled: bool | None = None
     vision_models: str | None = None  # json list string
@@ -70,6 +71,7 @@ def patch_endpoint(ep_id: str, body: PatchEndpoint, db: DbSession = Depends(get_
     if not ep:
         raise HTTPException(404)
     if body.name is not None:          ep.name = body.name
+    if body.base_url is not None:      ep.base_url = body.base_url
     if body.api_key is not None:       ep.api_key = body.api_key
     if body.enabled is not None:       ep.enabled = body.enabled
     if body.vision_models is not None: ep.vision_models = body.vision_models

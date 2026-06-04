@@ -49,16 +49,27 @@ def _mark_ok(url: str):
 
 def detect_provider(base_url: str) -> str:
     url = base_url.lower()
-    if "deepseek.com" in url:   return "deepseek"
-    if "anthropic.com" in url:  return "anthropic"
-    if "openrouter.ai" in url:  return "openrouter"
-    if "groq.com" in url:       return "groq"
+    if "anthropic.com" in url:      return "anthropic"
+    if "deepseek.com" in url:       return "deepseek"
+    if "openrouter.ai" in url:      return "openrouter"
+    if "groq.com" in url:           return "groq"
+    if "moonshot.cn" in url:        return "moonshot"
+    if "api.x.ai" in url:           return "xai"
+    if "googleapis.com" in url:     return "gemini"
+    if "mistral.ai" in url:         return "mistral"
+    if "perplexity.ai" in url:      return "perplexity"
+    if "together.xyz" in url or "togetherai.com" in url: return "together"
+    if "fireworks.ai" in url:       return "fireworks"
+    if "cohere.ai" in url or "api.cohere.com" in url: return "cohere"
+    if "openai.com" in url:         return "openai"
     if ":11434" in url or "ollama" in url: return "ollama"
     return "openai"  # openai-compat fallback
 
 
 def _build_openai_payload(messages, model, stream=True, **kw) -> dict:
     p = {"model": model, "messages": messages, "stream": stream}
+    if stream:
+        p["stream_options"] = {"include_usage": True}
     if "max_tokens" in kw:   p["max_tokens"] = kw["max_tokens"]
     if "temperature" in kw:  p["temperature"] = kw["temperature"]
     return p

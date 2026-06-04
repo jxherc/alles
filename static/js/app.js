@@ -1,5 +1,5 @@
 import { loadSessions, showWelcome, createSession, renderSidebar, exportActiveSessionMarkdown } from './sessions.js';
-import { loadModels, renderModelList, renderSidebarModelList, addEndpoint, getSelected, getCurrentEndpoint } from './models.js';
+import { loadModels, renderModelList, renderSidebarModelList, addEndpoint, getSelected, getCurrentEndpoint, initModelModal } from './models.js';
 import { sendMessage, stopStream } from './chat.js';
 import { toast, closeAllModals, mdToHtml } from './util.js';
 import { initMemoryPanel } from './memory.js';
@@ -389,11 +389,15 @@ function toggleTheme() {
 }
 
 // ── model picker ──────────────────────────────────────────────────────────────
+let _modelModalInited = false;
 function openModelModal() {
   document.getElementById('model-modal').style.display = 'flex';
+  if (!_modelModalInited) { initModelModal(); _modelModalInited = true; }
+  // make sure models tab is active
+  document.querySelector('.mm-tab[data-tab="models"]')?.click();
   renderModelList();
   const inp = document.getElementById('model-search-input');
-  inp.value = ''; inp.focus();
+  if (inp) { inp.value = ''; inp.focus(); }
 }
 
 // ── persona picker ────────────────────────────────────────────────────────────
