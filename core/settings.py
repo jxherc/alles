@@ -19,9 +19,20 @@ _defaults = {
     "tts_provider": "browser",    # openai | browser
     "tts_voice": "alloy",
     "openai_api_key": "",         # for TTS/STT
-    "search_provider": "duckduckgo",  # duckduckgo | tavily | disabled
+    "search_provider": "duckduckgo",
     "search_result_count": 5,
+    "search_fallback_chain": ["duckduckgo"],
     "tavily_api_key": "",
+    "brave_api_key": "",
+    "searxng_url": "",
+    "google_pse_api_key": "",
+    "google_pse_cx": "",
+    "serper_api_key": "",
+    "search_fallback": "duckduckgo",
+    "memory_auto_inject": True,
+    "tts_speed": 1.0,
+    "tts_auto_play": False,
+    "stt_language": "",
 }
 
 _ARTIFACT_INSTRUCTIONS = (

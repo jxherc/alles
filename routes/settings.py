@@ -28,7 +28,18 @@ class SettingsPatch(BaseModel):
     openai_api_key: str | None = None
     search_provider: str | None = None
     search_result_count: int | None = None
+    search_fallback_chain: list[str] | None = None
     tavily_api_key: str | None = None
+    brave_api_key: str | None = None
+    searxng_url: str | None = None
+    google_pse_api_key: str | None = None
+    google_pse_cx: str | None = None
+    serper_api_key: str | None = None
+    search_fallback: str | None = None
+    memory_auto_inject: bool | None = None
+    tts_speed: float | None = None
+    tts_auto_play: bool | None = None
+    stt_language: str | None = None
 
 
 @router.patch("/settings")

@@ -31,6 +31,68 @@ async def _search_tavily(query: str, api_key: str, max_results: int = 5) -> list
     return [{"url": x["url"], "title": x.get("title",""), "snippet": x.get("content","")} for x in data.get("results", [])]
 
 
+async def _search_brave(query: str, api_key: str, max_results: int = 5) -> list[dict]:
+    async with httpx.AsyncClient(timeout=15) as c:
+        r = await c.get(
+            "https://api.search.brave.com/res/v1/web/search",
+            params={"q": query, "count": max_results},
+            headers={"X-Subscription-Token": api_key, "user-agent": "aide-research/1.0"},
+        )
+        r.raise_for_status()
+        data = r.json()
+    return [{
+        "url": x.get("url", ""),
+        "title": x.get("title", ""),
+        "snippet": x.get("description", ""),
+    } for x in data.get("web", {}).get("results", []) if x.get("url")]
+
+
+async def _search_searxng(query: str, base_url: str, max_results: int = 5) -> list[dict]:
+    url = base_url.rstrip("/") + "/search"
+    async with httpx.AsyncClient(timeout=15, follow_redirects=True) as c:
+        r = await c.get(url, params={"q": query, "format": "json"})
+        r.raise_for_status()
+        data = r.json()
+    return [{
+        "url": x.get("url", ""),
+        "title": x.get("title", ""),
+        "snippet": x.get("content", ""),
+    } for x in data.get("results", [])[:max_results] if x.get("url")]
+
+
+async def _search_google_pse(query: str, api_key: str, cx: str, max_results: int = 5) -> list[dict]:
+    async with httpx.AsyncClient(timeout=15) as c:
+        r = await c.get("https://www.googleapis.com/customsearch/v1", params={
+            "key": api_key,
+            "cx": cx,
+            "q": query,
+            "num": min(max_results, 10),
+        })
+        r.raise_for_status()
+        data = r.json()
+    return [{
+        "url": x.get("link", ""),
+        "title": x.get("title", ""),
+        "snippet": x.get("snippet", ""),
+    } for x in data.get("items", []) if x.get("link")]
+
+
+async def _search_serper(query: str, api_key: str, max_results: int = 5) -> list[dict]:
+    async with httpx.AsyncClient(timeout=15) as c:
+        r = await c.post(
+            "https://google.serper.dev/search",
+            json={"q": query, "num": max_results},
+            headers={"X-API-KEY": api_key, "user-agent": "aide-research/1.0"},
+        )
+        r.raise_for_status()
+        data = r.json()
+    return [{
+        "url": x.get("link", ""),
+        "title": x.get("title", ""),
+        "snippet": x.get("snippet", ""),
+    } for x in data.get("organic", []) if x.get("link")]
+
+
 async def _search_duckduckgo(query: str, max_results: int = 5) -> list[dict]:
     # DDG instant answer API — free, no key needed, limited
     params = {"q": query, "format": "json", "no_redirect": "1", "no_html": "1"}
@@ -51,18 +113,74 @@ async def _search_duckduckgo(query: str, max_results: int = 5) -> list[dict]:
     return results
 
 
-async def web_search(query: str, max_results: int = 5) -> list[dict]:
-    key = os.getenv("TAVILY_API_KEY", "")
-    if key:
-        try:
-            return await _search_tavily(query, key, max_results)
-        except Exception as e:
-            log.warning(f"tavily failed: {e}, falling back to DDG")
-    try:
-        return await _search_duckduckgo(query, max_results)
-    except Exception as e:
-        log.warning(f"duckduckgo failed: {e}")
+async def web_search(query: str, max_results: int = 5, provider: str | None = None) -> list[dict]:
+    from core.settings import load_settings
+
+    settings = load_settings()
+    primary = provider or settings.get("search_provider") or "duckduckgo"
+    chain = _provider_chain(primary, settings.get("search_fallback_chain"))
+    if not chain:
         return []
+
+    for name in chain:
+        try:
+            results = await _search_provider(name, query, settings, max_results)
+            if results:
+                if name != primary:
+                    log.info("search fallback used: %s", name)
+                return results
+            log.warning("%s returned no results", name)
+        except Exception as e:
+            log.warning("%s search failed: %s", name, e)
+    return []
+
+
+def _provider_chain(primary: str, fallbacks) -> list[str]:
+    if primary == "disabled":
+        return []
+    if isinstance(fallbacks, str):
+        fallbacks = [p.strip() for p in fallbacks.split(",") if p.strip()]
+    if not isinstance(fallbacks, list):
+        fallbacks = []
+    chain = [primary, *fallbacks, "duckduckgo"]
+    out = []
+    for p in chain:
+        p = str(p or "").strip()
+        if p and p != "disabled" and p not in out:
+            out.append(p)
+    return out
+
+
+async def _search_provider(name: str, query: str, settings: dict, max_results: int) -> list[dict]:
+    if name == "duckduckgo":
+        return await _search_duckduckgo(query, max_results)
+    if name == "tavily":
+        key = settings.get("tavily_api_key") or os.getenv("TAVILY_API_KEY", "")
+        if not key:
+            raise RuntimeError("missing tavily api key")
+        return await _search_tavily(query, key, max_results)
+    if name == "brave":
+        key = settings.get("brave_api_key") or os.getenv("BRAVE_API_KEY", "")
+        if not key:
+            raise RuntimeError("missing brave api key")
+        return await _search_brave(query, key, max_results)
+    if name == "searxng":
+        url = settings.get("searxng_url") or os.getenv("SEARXNG_URL", "")
+        if not url:
+            raise RuntimeError("missing searxng url")
+        return await _search_searxng(query, url, max_results)
+    if name == "google_pse":
+        key = settings.get("google_pse_api_key") or os.getenv("GOOGLE_PSE_API_KEY", "")
+        cx = settings.get("google_pse_cx") or os.getenv("GOOGLE_PSE_CX", "")
+        if not key or not cx:
+            raise RuntimeError("missing google pse credentials")
+        return await _search_google_pse(query, key, cx, max_results)
+    if name == "serper":
+        key = settings.get("serper_api_key") or os.getenv("SERPER_API_KEY", "")
+        if not key:
+            raise RuntimeError("missing serper api key")
+        return await _search_serper(query, key, max_results)
+    raise RuntimeError(f"unknown search provider: {name}")
 
 
 # ── task persistence ──────────────────────────────────────────────────────────
