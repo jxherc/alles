@@ -1,5 +1,5 @@
 import { loadSessions, showWelcome, createSession, renderSidebar, exportActiveSessionMarkdown } from './sessions.js';
-import { loadModels, renderModelList, addEndpoint, getSelected, getCurrentEndpoint } from './models.js';
+import { loadModels, renderModelList, renderSidebarModelList, addEndpoint, getSelected, getCurrentEndpoint } from './models.js';
 import { sendMessage, stopStream } from './chat.js';
 import { toast, closeAllModals, mdToHtml } from './util.js';
 import { initMemoryPanel } from './memory.js';
@@ -16,6 +16,7 @@ import { loadDocuments, newDocument, initDocEditor, closeDocEditor, aiEditDoc } 
 import { initCompareView, loadCompareModels } from './compare.js';
 import { loadVaultView, initVault } from './vault.js';
 import { loadContacts, addContact } from './contacts.js';
+import { loadBrainPanel } from './brain.js';
 import { openSettings, closeSettings, applyVis } from './settings.js';
 import { toggleIncognitoMode, setIncognitoMode } from './modes.js';
 import { initPrivacyHandlers } from './privacy.js';
@@ -68,7 +69,7 @@ init();
 // ── views ─────────────────────────────────────────────────────────────────────
 const _VIEW_IDS = [
   'chat', 'notes-view', 'tasks-view', 'calendar-view', 'gallery-view',
-  'mem-view', 'docs-view', 'compare-view', 'vault-view', 'contacts-view',
+  'models-view', 'brain-view', 'mem-view', 'docs-view', 'compare-view', 'vault-view', 'contacts-view',
 ];
 
 function hideAllViews() {
@@ -92,6 +93,8 @@ const showChatView = () => {
   document.getElementById('composer-outer').style.display = 'block';
   setNav('chat');
 };
+const showModelsView  = () => showView('models-view',   'models',   () => renderSidebarModelList(document.getElementById('sidebar-model-search')?.value || ''));
+const showBrainView   = () => showView('brain-view',    'brain',    loadBrainPanel);
 const showNotesView    = () => showView('notes-view',    'notes',    loadNotes);
 const showTasksView    = () => showView('tasks-view',    'tasks',    loadTasks);
 const showCalendarView = () => showView('calendar-view', 'calendar', loadCalendar);
@@ -134,6 +137,10 @@ function bindEvents() {
   });
 
   document.getElementById('session-search').addEventListener('input', e => renderSidebar(e.target.value));
+  document.getElementById('sidebar-model-search')?.addEventListener('input', e => renderSidebarModelList(e.target.value));
+  document.getElementById('models-refresh-btn')?.addEventListener('click', loadModels);
+  document.getElementById('brain-refresh-btn')?.addEventListener('click', loadBrainPanel);
+  document.getElementById('brain-open-memory-btn')?.addEventListener('click', showMemoryView);
 
   const toggleResearch = () => {
     const on = !isResearchMode();
@@ -236,6 +243,8 @@ function bindEvents() {
     el.addEventListener('click', () => {
       const v = el.dataset.view;
       if      (v === 'chat')     showChatView();
+      else if (v === 'models')   showModelsView();
+      else if (v === 'brain')    showBrainView();
       else if (v === 'notes')    showNotesView();
       else if (v === 'tasks')    showTasksView();
       else if (v === 'calendar') showCalendarView();

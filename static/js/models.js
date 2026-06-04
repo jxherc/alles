@@ -29,6 +29,7 @@ export async function loadModels() {
 
     updateTopbar();
     renderModelList();
+    renderSidebarModelList();
   } catch (e) {
     console.error('loadModels', e);
   }
@@ -105,12 +106,51 @@ export function renderModelList(filter = '') {
   });
 }
 
+export function renderSidebarModelList(filter = '') {
+  const list = document.getElementById('sidebar-model-list');
+  if (!list) return;
+  const fl = filter.toLowerCase();
+  let html = '';
+
+  for (const ep of _endpoints) {
+    const models = fl
+      ? ep.models.filter(m => m.toLowerCase().includes(fl) || ep.name.toLowerCase().includes(fl))
+      : ep.models;
+    if (!models.length && fl) continue;
+
+    const color = _PROVIDER_COLOR[ep.provider] || '#6e6e6e';
+    html += `<div class="sidebar-model-provider">
+      <span class="provider-dot" style="background:${color}"></span>
+      <span>${escHtml(ep.name)}</span>
+    </div>`;
+
+    if (!models.length) {
+      html += `<div class="sidebar-model-empty">no cached models</div>`;
+      continue;
+    }
+
+    html += models.map(m => {
+      const isActive = _selected?.endpointId === ep.id && _selected?.model === m;
+      return `<button class="sidebar-model-row${isActive ? ' active' : ''}" data-ep="${ep.id}" data-model="${escAttr(m)}">
+        <span>${escHtml(m)}</span>
+      </button>`;
+    }).join('');
+  }
+
+  if (!html) html = '<div class="sidebar-model-empty">no models found</div>';
+  list.innerHTML = html;
+  list.querySelectorAll('.sidebar-model-row').forEach(btn => {
+    btn.addEventListener('click', () => selectModel(btn.dataset.ep, btn.dataset.model));
+  });
+}
+
 
 export function selectModel(endpointId, model) {
   _selected = { endpointId, model };
   localStorage.setItem('aide-model', JSON.stringify(_selected));
   updateTopbar();
   renderModelList();
+  renderSidebarModelList(document.getElementById('sidebar-model-search')?.value || '');
 
   // update current session if one is open
   const session = window._currentSession;
@@ -135,6 +175,14 @@ window.probeEndpoint = async function(epId) {
     toast('probe failed', 'error');
   }
 };
+
+function escHtml(s = '') {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function escAttr(s = '') {
+  return escHtml(s).replace(/"/g, '&quot;');
+}
 
 
 export async function addEndpoint(name, url, key) {

@@ -5,6 +5,7 @@ import { applyResponsePrivacy, stripEmojis, welcomeEnabled } from './privacy.js'
 let _sessions = { today: [], yesterday: [], earlier: [] };
 let _activeId = null;
 let _allSessions = [];  // flat list for search
+const SESSION_ORDER_KEY = 'aide-session-order';
 
 export function getActiveId() { return _activeId; }
 
@@ -13,6 +14,7 @@ export async function loadSessions() {
     const r = await fetch('/api/sessions');
     _sessions = await r.json();
     _allSessions = [..._sessions.today, ..._sessions.yesterday, ..._sessions.earlier];
+    _applySessionOrder();
     renderSidebar();
 
     // auto-select
@@ -75,6 +77,12 @@ export function renderSidebar(filter = '') {
     if (sid === _activeId) el.classList.add('active');
     el.addEventListener('click', () => selectSession(sid));
     el.addEventListener('contextmenu', e => { e.preventDefault(); openCtxMenu(e, sid); });
+    el.querySelector('.star')?.addEventListener('click', e => {
+      e.preventDefault();
+      e.stopPropagation();
+      toggleSessionStar(sid);
+    });
+    _bindSessionDrag(el);
     // double-click to rename
     el.querySelector('.session-name')?.addEventListener('dblclick', e => {
       e.stopPropagation();
@@ -91,15 +99,84 @@ function renderItem(s) {
   const starred  = s.starred   ? ' starred'   : '';
   const incog    = s.incognito ? ' incognito' : '';
   const icon     = s.incognito ? '<span class="incognito-icon" title="incognito" aria-hidden="true"></span>' : '';
-  return `<div class="session-item${starred}${incog}" data-id="${s.id}">
+  return `<div class="session-item${starred}${incog}" data-id="${s.id}" draggable="true">
   <div class="session-dot"></div>
   ${icon}<span class="session-name">${escHtml(s.name)}</span>
-  <span class="star" aria-hidden="true"></span>
+  <button class="star" title="${s.starred ? 'unstar' : 'star'}" aria-label="${s.starred ? 'unstar session' : 'star session'}"></button>
 </div>`;
 }
 
 function escHtml(s) {
   return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function _loadSessionOrder() {
+  try {
+    const arr = JSON.parse(localStorage.getItem(SESSION_ORDER_KEY) || '[]');
+    return Array.isArray(arr) ? arr : [];
+  } catch {
+    return [];
+  }
+}
+
+function _saveSessionOrder(order) {
+  localStorage.setItem(SESSION_ORDER_KEY, JSON.stringify(order));
+}
+
+function _applySessionOrder() {
+  const order = _loadSessionOrder();
+  if (!order.length) return;
+  const pos = new Map(order.map((id, idx) => [id, idx]));
+  const sorter = (a, b) => (pos.get(a.id) ?? 999999) - (pos.get(b.id) ?? 999999);
+  _allSessions.sort(sorter);
+  ['today', 'yesterday', 'earlier'].forEach(k => _sessions[k]?.sort(sorter));
+}
+
+function _bindSessionDrag(el) {
+  el.addEventListener('dragstart', e => {
+    e.dataTransfer?.setData('text/plain', el.dataset.id);
+    e.dataTransfer?.setDragImage?.(el, 12, 12);
+    el.classList.add('dragging');
+  });
+  el.addEventListener('dragend', () => el.classList.remove('dragging'));
+  el.addEventListener('dragover', e => e.preventDefault());
+  el.addEventListener('drop', e => {
+    e.preventDefault();
+    const fromId = e.dataTransfer?.getData('text/plain');
+    const toId = el.dataset.id;
+    if (!fromId || !toId || fromId === toId) return;
+    _moveSessionBefore(fromId, toId);
+  });
+}
+
+function _moveSessionBefore(fromId, toId) {
+  const ids = _allSessions.map(s => s.id);
+  const order = _loadSessionOrder().filter(id => ids.includes(id));
+  ids.forEach(id => { if (!order.includes(id)) order.push(id); });
+  const fromIdx = order.indexOf(fromId);
+  const toIdx = order.indexOf(toId);
+  if (fromIdx < 0 || toIdx < 0) return;
+  order.splice(fromIdx, 1);
+  order.splice(order.indexOf(toId), 0, fromId);
+  _saveSessionOrder(order);
+  _applySessionOrder();
+  renderSidebar(document.getElementById('session-search')?.value || '');
+}
+
+async function toggleSessionStar(id) {
+  const s = _allSessions.find(x => x.id === id);
+  if (!s) return;
+  const next = !s.starred;
+  const r = await fetch(`/api/sessions/${id}`, {
+    method: 'PATCH',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ starred: next }),
+  });
+  if (!r.ok) { toast('star failed', 'error'); return; }
+  s.starred = next;
+  const grouped = [..._sessions.today, ..._sessions.yesterday, ..._sessions.earlier].find(x => x.id === id);
+  if (grouped) grouped.starred = next;
+  renderSidebar(document.getElementById('session-search')?.value || '');
 }
 
 
