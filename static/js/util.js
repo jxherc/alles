@@ -39,12 +39,17 @@ export function mdToHtml(text) {
   out = out.replace(/\x00BLOCK(\d+)\x00/g, (_, i) => {
     const { lang, code } = blocks[i];
     const escaped = escapeHtml(code);
-    return `<div class="code-block">
+    const runnable = ['js', 'javascript', 'html', 'python', 'py'].includes(lang.toLowerCase());
+    const runBtn = runnable
+      ? `<button class="code-run" onclick="runCode(this)">run</button>`
+      : '';
+    return `<div class="code-block" data-lang="${lang}">
 <div class="code-block-header">
   <span class="code-lang">${lang}</span>
   <button class="code-copy" onclick="copyCode(this)">copy</button>
+  ${runBtn}
 </div>
-<pre><code class="${lang ? 'language-' + lang : ''}">${escaped}</code></pre>
+<pre data-lang="${lang}"><code class="${lang ? 'language-' + lang : ''}">${escaped}</code></pre>
 </div>`;
   });
 
@@ -80,4 +85,54 @@ window.copyCode = function(btn) {
     btn.textContent = 'copied';
     setTimeout(() => btn.textContent = 'copy', 1500);
   });
+};
+
+// run code button
+window.runCode = async function(btn) {
+  const block = btn.closest('.code-block');
+  const lang  = (block.dataset.lang || '').toLowerCase();
+  const code  = block.querySelector('pre')?.innerText || '';
+
+  // remove old output
+  block.querySelector('.code-output')?.remove();
+  block.querySelector('.code-iframe')?.remove();
+
+  const out = document.createElement('div');
+  out.className = 'code-output';
+
+  if (lang === 'html') {
+    const iframe = document.createElement('iframe');
+    iframe.className = 'code-iframe';
+    iframe.sandbox = 'allow-scripts';
+    iframe.srcdoc = code;
+    block.appendChild(iframe);
+    return;
+  }
+
+  if (lang === 'js' || lang === 'javascript') {
+    const iframe = document.createElement('iframe');
+    iframe.className = 'code-iframe';
+    iframe.sandbox = 'allow-scripts';
+    iframe.srcdoc = `<script>${code}<\/script>`;
+    block.appendChild(iframe);
+    return;
+  }
+
+  if (lang === 'python' || lang === 'py') {
+    out.textContent = 'running…';
+    block.appendChild(out);
+    try {
+      const r = await fetch('/api/execute/python', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ code }),
+      });
+      const { stdout, stderr, exit_code } = await r.json();
+      out.textContent = (stdout || '') + (stderr ? '\n' + stderr : '');
+      if (exit_code !== 0) out.classList.add('error');
+    } catch (e) {
+      out.textContent = 'run failed: ' + e.message;
+      out.classList.add('error');
+    }
+  }
 };

@@ -39,6 +39,10 @@
       <div class="nav-item" data-view="calendar">calendar</div>
       <div class="nav-item" data-view="gallery">gallery</div>
       <div class="nav-item" data-view="memory">memory</div>
+      <div class="nav-item" data-view="docs">docs</div>
+      <div class="nav-item" data-view="compare">compare</div>
+      <div class="nav-item" data-view="vault">vault</div>
+      <div class="nav-item" data-view="contacts">contacts</div>
       <div class="nav-item" data-view="settings">settings</div>
     </nav>
   </aside>
@@ -139,8 +143,88 @@
       </div>
     </div>
 
+    <!-- ── docs view ── -->
+    <div class="page-view" id="docs-view" style="display:none">
+      <div id="doc-list-panel" style="display:flex;flex-direction:column;height:100%">
+        <div class="page-view-head">
+          <span class="page-view-title">docs</span>
+          <button class="btn primary" id="doc-new-btn">+ new</button>
+        </div>
+        <div class="page-view-body" id="doc-list"></div>
+      </div>
+      <div id="doc-editor-panel" style="display:none;flex-direction:column;height:100%;flex:1">
+        <div class="page-view-head">
+          <button class="btn" id="doc-back-btn">← back</button>
+          <input type="text" id="doc-title-input" class="settings-input" placeholder="title" style="flex:1;margin:0 0.5rem">
+        </div>
+        <div class="doc-editor">
+          <textarea class="doc-source" id="doc-editor-area"></textarea>
+          <div class="doc-preview" id="doc-preview-area"></div>
+        </div>
+        <div class="doc-ai-bar">
+          <input type="text" id="doc-ai-input" placeholder="ask ai to edit...">
+          <button class="btn primary" id="doc-ai-send">ask</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── compare view ── -->
+    <div class="page-view" id="compare-view" style="display:none">
+      <div class="page-view-head">
+        <span class="page-view-title">compare models</span>
+      </div>
+      <div style="padding:0.75rem 1rem;border-bottom:1px solid var(--faint)">
+        <div id="compare-model-picker" style="display:flex;flex-wrap:wrap;gap:0.4rem;margin-bottom:0.5rem"></div>
+        <div style="display:flex;gap:0.4rem">
+          <input type="text" id="compare-input" class="settings-input" placeholder="enter prompt..." style="flex:1">
+          <button class="btn primary" id="compare-send-btn">send</button>
+        </div>
+      </div>
+      <div class="compare-grid" id="compare-grid"></div>
+    </div>
+
+    <!-- ── vault view ── -->
+    <div class="page-view" id="vault-view" style="display:none">
+      <div class="page-view-head"><span class="page-view-title">vault</span></div>
+      <div id="vault-locked" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1rem">
+        <div style="font-size:2rem">🔒</div>
+        <span style="font-size:0.8rem;color:var(--muted)">enter master password to unlock</span>
+        <input type="password" id="vault-pw-input" class="settings-input" placeholder="master password" style="width:240px;text-align:center">
+        <button class="btn primary" id="vault-unlock-btn">unlock</button>
+      </div>
+      <div id="vault-unlocked" style="display:none;flex-direction:column;flex:1;overflow:hidden">
+        <div style="padding:0.75rem 1rem;border-bottom:1px solid var(--faint);display:flex;gap:0.4rem;flex-wrap:wrap">
+          <input type="text" id="vault-new-name" class="settings-input" placeholder="name" style="flex:1;min-width:100px">
+          <input type="password" id="vault-new-value" class="settings-input" placeholder="value" style="flex:2;min-width:140px">
+          <input type="text" id="vault-new-cat" class="settings-input" placeholder="category" style="flex:1;min-width:80px">
+          <button class="btn primary" id="vault-add-btn">add</button>
+          <button class="btn" id="vault-lock-btn">lock</button>
+        </div>
+        <div class="page-view-body" id="vault-entry-list"></div>
+      </div>
+    </div>
+
+    <!-- ── contacts view ── -->
+    <div class="page-view" id="contacts-view" style="display:none">
+      <div class="page-view-head">
+        <span class="page-view-title">contacts</span>
+      </div>
+      <div style="padding:0.75rem 1rem;border-bottom:1px solid var(--faint)">
+        <input type="text" id="contacts-search" class="settings-input" placeholder="search contacts..." style="width:100%;margin-bottom:0.5rem">
+        <div style="display:flex;gap:0.4rem;flex-wrap:wrap">
+          <input type="text" id="contact-name" class="settings-input" placeholder="name" style="flex:1;min-width:80px">
+          <input type="text" id="contact-email" class="settings-input" placeholder="email" style="flex:1;min-width:100px">
+          <input type="text" id="contact-phone" class="settings-input" placeholder="phone" style="flex:1;min-width:80px">
+          <input type="text" id="contact-notes" class="settings-input" placeholder="notes" style="flex:2;min-width:120px">
+          <button class="btn primary" id="contact-add-btn">add</button>
+        </div>
+      </div>
+      <div class="page-view-body" id="contacts-list"></div>
+    </div>
+
     <!-- ── composer (hidden in memory view) ── -->
     <div class="composer-outer" id="composer-outer">
+      <div id="attachment-chips" style="display:none;flex-wrap:wrap;gap:0.3rem;padding:0.3rem 0.75rem 0"></div>
       <div class="composer-box">
         <textarea class="composer-ta" id="composer-ta" placeholder="message aide..." rows="1"
           oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,220)+'px'"></textarea>
@@ -149,6 +233,14 @@
             <button class="c-tool" id="attach-btn">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
               attach
+            </button>
+            <button class="c-tool" id="mic-btn">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+              mic
+            </button>
+            <button class="c-tool" id="incognito-btn" title="new incognito session">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
+              incognito
             </button>
             <button class="c-tool" id="research-toggle-btn">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -172,8 +264,47 @@
         </div>
       </div>
     </div>
+    <!-- hidden file input for attachments -->
+    <input type="file" id="file-input-hidden" multiple style="display:none">
 
   </main>
+
+  <!-- artifact panel -->
+  <div class="artifact-panel" id="artifact-panel">
+    <div class="artifact-panel-head">
+      <div class="artifact-panel-meta">
+        <span class="artifact-title"></span>
+        <span class="artifact-type-badge"></span>
+      </div>
+      <button class="icon-btn artifact-close" id="artifact-close-btn">×</button>
+    </div>
+    <div class="artifact-body" id="artifact-body"></div>
+  </div>
+
+</div>
+
+<!-- login screen -->
+<div class="login-screen" id="login-screen" style="display:none">
+  <div class="login-inner">
+    <div class="login-brand">aide <span class="login-sep">/ sign in</span></div>
+    <input type="password" id="login-pw" class="login-input" placeholder="password" autocomplete="current-password">
+    <button class="login-btn" id="login-submit">enter</button>
+  </div>
+</div>
+
+<!-- drop overlay -->
+<div class="drop-overlay" id="drop-overlay" style="display:none">
+  <span>drop files to attach</span>
+</div>
+
+<!-- search modal -->
+<div class="modal-overlay" id="search-modal" style="display:none">
+  <div class="modal-card search-card">
+    <div class="modal-search" style="padding:0.75rem 1rem">
+      <input type="text" id="search-input" placeholder="search everything..." style="width:100%;background:none;border:none;border-bottom:1px solid var(--faint);color:var(--text);font:inherit;font-size:0.9rem;padding:0.4rem 0;outline:none;transition:border-color 0.2s" onfocus="this.style.borderColor='var(--muted)'" onblur="this.style.borderColor='var(--faint)'">
+    </div>
+    <div class="modal-body" id="search-results" style="max-height:420px;overflow-y:auto"></div>
+  </div>
 </div>
 
 <!-- toast container -->
@@ -273,12 +404,43 @@
         </div>
         <div id="token-reveal" style="display:none;margin-top:0.5rem;padding:0.5rem;border:1px solid var(--faint);border-radius:2px;font-family:monospace;font-size:0.72rem;word-break:break-all;color:var(--accent)"></div>
       </div>
+      <div class="settings-section">
+        <span class="settings-label">voice (tts / stt)</span>
+        <div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center;margin-bottom:0.4rem">
+          <span style="font-size:0.75rem;color:var(--muted)">stt:</span>
+          <select id="settings-stt-provider" class="settings-input" style="flex:1;min-width:100px">
+            <option value="browser">browser</option>
+            <option value="whisper_api">whisper api</option>
+          </select>
+          <span style="font-size:0.75rem;color:var(--muted)">tts:</span>
+          <select id="settings-tts-provider" class="settings-input" style="flex:1;min-width:100px">
+            <option value="browser">browser</option>
+            <option value="openai">openai</option>
+          </select>
+        </div>
+        <input type="password" class="settings-input" id="settings-openai-key" placeholder="openai api key (for whisper / tts)" style="width:100%">
+      </div>
+      <div class="settings-section">
+        <span class="settings-label">openai-compatible api</span>
+        <div style="font-size:0.75rem;color:var(--muted);font-family:monospace;margin-bottom:0.4rem">base url: <span style="color:var(--accent)">http://localhost:8000/v1</span></div>
+        <div style="font-size:0.72rem;color:var(--muted)">model ids: <em>EndpointName/model-id</em></div>
+      </div>
+      <div class="settings-section">
+        <span class="settings-label">backup / restore</span>
+        <div style="display:flex;gap:0.5rem;align-items:center">
+          <button class="btn" id="backup-export-btn">export backup</button>
+          <label class="btn" style="cursor:pointer">
+            restore
+            <input type="file" id="backup-restore-input" accept=".zip" style="display:none">
+          </label>
+        </div>
+      </div>
     </div>
   </div>
 </div>
 
 <script type="module">
-const _v = '7';
+const _v = '9';
 import(`/static/js/app.js?v=${_v}`);
 </script>
 </body>
