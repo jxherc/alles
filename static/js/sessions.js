@@ -1,4 +1,5 @@
 import { toast } from './util.js';
+import { renderProjectFolders, loadProjects, getProjects } from './projects.js';
 
 let _sessions = { today: [], yesterday: [], earlier: [] };
 let _activeId = null;
@@ -64,6 +65,10 @@ export function renderSidebar(filter = '') {
   }
 
   list.innerHTML = html;
+
+  // inject project folders above the session groups
+  if (!fl) renderProjectFolders(_allSessions, id => selectSession(id));
+
   list.querySelectorAll('.session-item').forEach(el => {
     const sid = el.dataset.id;
     if (sid === _activeId) el.classList.add('active');
@@ -401,10 +406,16 @@ function openCtxMenu(e, id) {
   const s = _allSessions.find(x => x.id === id);
   if (!s) return;
 
+  const projects = getProjects();
+  const projectItems = projects.map(p =>
+    `<div class="ctx-item" data-action="move-project" data-pid="${p.id}">→ ${p.name}</div>`
+  ).join('');
   menu.innerHTML = `
     <div class="ctx-item" data-action="rename">rename</div>
     <div class="ctx-item" data-action="star">${s.starred ? 'unstar' : 'star'}</div>
     <div class="ctx-item" data-action="archive">archive</div>
+    ${projectItems}
+    <div class="ctx-item" data-action="new-project">+ new project</div>
     <div class="ctx-item danger" data-action="delete">delete</div>
   `;
   menu.style.display = 'block';
@@ -429,6 +440,27 @@ function openCtxMenu(e, id) {
       } else if (action === 'archive') {
         await fetch(`/api/sessions/${id}/archive`, { method: 'POST' });
         await loadSessions();
+      } else if (action === 'move-project') {
+        const pid = item.dataset.pid;
+        await fetch(`/api/projects/${pid}/sessions/${id}`, { method: 'POST' });
+        await loadProjects();
+        await loadSessions();
+        toast('moved to project', 'success');
+      } else if (action === 'new-project') {
+        const name = prompt('project name:');
+        if (!name?.trim()) return;
+        const r = await fetch('/api/projects', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ name: name.trim() }),
+        });
+        if (r.ok) {
+          const p = await r.json();
+          await fetch(`/api/projects/${p.id}/sessions/${id}`, { method: 'POST' });
+          await loadProjects();
+          await loadSessions();
+          toast(`project "${name}" created`, 'success');
+        }
       } else if (action === 'delete') {
         if (!confirm('delete this session?')) return;
         const res = await fetch(`/api/sessions/${id}`, { method: 'DELETE' });

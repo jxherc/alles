@@ -443,7 +443,7 @@ export async function tryExecuteSlashCommand(text) {
       // store as session-level override in a meta patch
       // for now just save as global setting with toast hint
       const r = await fetch('/api/settings', {
-        method: 'POST',
+        method: 'PATCH',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ system_prompt: args }),
       });

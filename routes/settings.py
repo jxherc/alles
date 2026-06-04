@@ -5,9 +5,12 @@ from core.settings import load_settings, save_settings
 router = APIRouter(prefix="/api")
 
 
+_STRIP = {"auth_password_hash", "vault_verifier", "vault_pw_b64"}
+
 @router.get("/settings")
 def get_settings():
-    return load_settings()
+    s = load_settings()
+    return {k: v for k, v in s.items() if k not in _STRIP}
 
 
 class SettingsPatch(BaseModel):
@@ -16,6 +19,10 @@ class SettingsPatch(BaseModel):
     system_prompt: str | None = None
     context_limit: int | None = None
     stream_thinking: bool | None = None
+    tts_provider: str | None = None
+    stt_provider: str | None = None
+    tts_voice: str | None = None
+    openai_api_key: str | None = None
 
 
 @router.patch("/settings")
