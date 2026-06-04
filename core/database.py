@@ -34,9 +34,10 @@ class ModelEndpoint(Base):
     name         = Column(String, nullable=False)
     base_url     = Column(String, nullable=False)
     api_key      = Column(Text, default="")      # stored plain for now, encrypt later
-    enabled      = Column(Boolean, default=True)
+    enabled       = Column(Boolean, default=True)
     cached_models = Column(Text, default="[]")   # json list of model id strings
-    created_at   = Column(DateTime, default=_now)
+    vision_models = Column(Text, default="[]")   # json list of vision-capable model ids
+    created_at    = Column(DateTime, default=_now)
 
     def models_list(self):
         try:
@@ -57,6 +58,7 @@ class Session(Base):
     starred        = Column(Boolean, default=False)
     archived       = Column(Boolean, default=False)
     incognito      = Column(Boolean, default=False)
+    share_token    = Column(String, nullable=True)
     message_count  = Column(Integer, default=0)
     created_at     = Column(DateTime, default=_now)
     last_message_at = Column(DateTime, default=_now)
@@ -260,6 +262,26 @@ class Contact(Base):
     updated_at = Column(DateTime, default=_now)
 
 
+class Reminder(Base):
+    __tablename__ = "reminders"
+    id         = Column(String, primary_key=True, default=_uid)
+    text       = Column(Text, nullable=False)
+    trigger_at = Column(DateTime, nullable=False)
+    type       = Column(String, default="reminder")   # reminder | message
+    session_id = Column(String, nullable=True)         # for type=message
+    fired      = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=_now)
+
+
+class SessionTemplate(Base):
+    __tablename__ = "session_templates"
+    id              = Column(String, primary_key=True, default=_uid)
+    name            = Column(String, nullable=False)
+    system_prompt   = Column(Text, default="")
+    initial_message = Column(Text, default="")
+    created_at      = Column(DateTime, default=_now)
+
+
 def _add_col(conn, table, col, col_type):
     try:
         conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {col} {col_type}"))
@@ -273,12 +295,14 @@ def init_db():
     Base.metadata.create_all(engine)
     # migrations — safe to run multiple times (all idempotent)
     with engine.connect() as conn:
-        _add_col(conn, "sessions", "persona_id",  "TEXT")
-        _add_col(conn, "sessions", "project_id",  "TEXT")
-        _add_col(conn, "sessions", "incognito",   "BOOLEAN DEFAULT 0")
-        _add_col(conn, "sessions", "mode",        "TEXT DEFAULT 'chat'")
-        _add_col(conn, "sessions", "starred",     "BOOLEAN DEFAULT 0")
-        _add_col(conn, "sessions", "archived",    "BOOLEAN DEFAULT 0")
+        _add_col(conn, "sessions", "persona_id",   "TEXT")
+        _add_col(conn, "sessions", "project_id",   "TEXT")
+        _add_col(conn, "sessions", "incognito",    "BOOLEAN DEFAULT 0")
+        _add_col(conn, "sessions", "mode",         "TEXT DEFAULT 'chat'")
+        _add_col(conn, "sessions", "starred",      "BOOLEAN DEFAULT 0")
+        _add_col(conn, "sessions", "archived",     "BOOLEAN DEFAULT 0")
+        _add_col(conn, "sessions", "share_token",  "TEXT")
+        _add_col(conn, "model_endpoints", "vision_models", "TEXT DEFAULT '[]'")
 
 
 def get_db():
