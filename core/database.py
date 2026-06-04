@@ -164,7 +164,7 @@ class Persona(Base):
     __tablename__ = "personas"
     id           = Column(String, primary_key=True, default=_uid)
     name         = Column(String, nullable=False)
-    emoji        = Column(String, default="🤖")
+    emoji        = Column(String, default="")
     system_prompt = Column(Text, default="")
     model        = Column(String, default="")       # override model, or "" = use session default
     is_default   = Column(Boolean, default=False)
