@@ -301,6 +301,29 @@ async function doSend() {
 }
 
 // ── helpers ───────────────────────────────────────────────────────────────────
+
+function _setToggle(id, val) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.dataset.value = val;
+  el.querySelectorAll('.mode-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.val === val);
+  });
+}
+
+function _getToggle(id) {
+  return document.getElementById(id)?.dataset.value || '';
+}
+
+// wire mode-toggle buttons inside settings modal
+function _bindSettingToggles() {
+  ['stt-toggle', 'tts-toggle'].forEach(id => {
+    document.getElementById(id)?.querySelectorAll('.mode-btn').forEach(btn => {
+      btn.addEventListener('click', () => _setToggle(id, btn.dataset.val));
+    });
+  });
+}
+
 function setMode(m) {
   document.getElementById('mode-agent').classList.toggle('active', m === 'agent');
   document.getElementById('mode-chat').classList.toggle('active', m === 'chat');
@@ -328,11 +351,10 @@ async function openSettingsModal() {
     const s = await (await fetch('/api/settings')).json();
     document.getElementById('settings-system-prompt').value = s.system_prompt || '';
     document.getElementById('settings-context-limit').value = s.context_limit ?? 40;
-    if (document.getElementById('settings-tts-provider'))
-      document.getElementById('settings-tts-provider').value = s.tts_provider || 'browser';
-    if (document.getElementById('settings-stt-provider'))
-      document.getElementById('settings-stt-provider').value = s.stt_provider || 'browser';
+    _setToggle('tts-toggle', s.tts_provider || 'browser');
+    _setToggle('stt-toggle', s.stt_provider || 'browser');
   } catch (e) {}
+  _bindSettingToggles();
   loadMcpServers();
   loadPersonas();
   loadCookbook();
@@ -347,10 +369,8 @@ async function saveSettings() {
   };
   const oaiKey = document.getElementById('settings-openai-key')?.value?.trim();
   if (oaiKey) patch.openai_api_key = oaiKey;
-  const ttsProvider = document.getElementById('settings-tts-provider')?.value;
-  if (ttsProvider) patch.tts_provider = ttsProvider;
-  const sttProvider = document.getElementById('settings-stt-provider')?.value;
-  if (sttProvider) patch.stt_provider = sttProvider;
+  patch.tts_provider = _getToggle('tts-toggle') || 'browser';
+  patch.stt_provider = _getToggle('stt-toggle') || 'browser';
   await fetch('/api/settings', {
     method: 'PATCH', headers: { 'content-type': 'application/json' },
     body: JSON.stringify(patch),

@@ -2,9 +2,19 @@
 __pycache__/
 *.pyc
 *.pyo
-data/aide.db
-data/settings.json
-data/research/
+
+# data — all of it, nothing personal should be tracked
+data/
+
+# logs
+*.log
+server*.log
+
+# ide / local tooling
+.claude/
+.vscode/
+
+# python
 venv/
 .venv/
 *.egg-info/
