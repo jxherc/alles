@@ -19,10 +19,16 @@ class SettingsPatch(BaseModel):
     system_prompt: str | None = None
     context_limit: int | None = None
     stream_thinking: bool | None = None
+    artifacts_enabled: bool | None = None
+    auto_compact: bool | None = None
+    compact_threshold: int | None = None
     tts_provider: str | None = None
     stt_provider: str | None = None
     tts_voice: str | None = None
     openai_api_key: str | None = None
+    search_provider: str | None = None
+    search_result_count: int | None = None
+    tavily_api_key: str | None = None
 
 
 @router.patch("/settings")

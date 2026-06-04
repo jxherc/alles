@@ -19,6 +19,9 @@ _defaults = {
     "tts_provider": "browser",    # openai | browser
     "tts_voice": "alloy",
     "openai_api_key": "",         # for TTS/STT
+    "search_provider": "duckduckgo",  # duckduckgo | tavily | disabled
+    "search_result_count": 5,
+    "tavily_api_key": "",
 }
 
 _ARTIFACT_INSTRUCTIONS = (
