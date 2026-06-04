@@ -406,17 +406,21 @@
       </div>
       <div class="settings-section">
         <span class="settings-label">voice (tts / stt)</span>
-        <div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center;margin-bottom:0.4rem">
-          <span style="font-size:0.75rem;color:var(--muted)">stt:</span>
-          <select id="settings-stt-provider" class="settings-input" style="flex:1;min-width:100px">
-            <option value="browser">browser</option>
-            <option value="whisper_api">whisper api</option>
-          </select>
-          <span style="font-size:0.75rem;color:var(--muted)">tts:</span>
-          <select id="settings-tts-provider" class="settings-input" style="flex:1;min-width:100px">
-            <option value="browser">browser</option>
-            <option value="openai">openai</option>
-          </select>
+        <div style="display:flex;gap:1rem;flex-wrap:wrap;align-items:center;margin-bottom:0.4rem">
+          <div style="display:flex;align-items:center;gap:0.5rem">
+            <span style="font-size:0.7rem;color:var(--muted);letter-spacing:0.04em">stt</span>
+            <div class="mode-toggle" id="stt-toggle" data-value="browser">
+              <button class="mode-btn active" data-val="browser">browser</button>
+              <button class="mode-btn" data-val="whisper_api">whisper api</button>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:0.5rem">
+            <span style="font-size:0.7rem;color:var(--muted);letter-spacing:0.04em">tts</span>
+            <div class="mode-toggle" id="tts-toggle" data-value="browser">
+              <button class="mode-btn active" data-val="browser">browser</button>
+              <button class="mode-btn" data-val="openai">openai</button>
+            </div>
+          </div>
         </div>
         <input type="password" class="settings-input" id="settings-openai-key" placeholder="openai api key (for whisper / tts)" style="width:100%">
       </div>
