@@ -4,6 +4,8 @@ import {
   showMessages, updateSessionName, createSession, getActiveId,
 } from './sessions.js';
 import { getSelected, getCurrentEndpoint } from './models.js';
+import { openArtifact, extractArtifacts, stripArtifacts } from './artifacts.js';
+import { getAttachments, clearAttachments } from './uploads.js';
 
 // expose mdToHtml for sessions.js lazy fallback
 window._mdToHtml = mdToHtml;
@@ -15,6 +17,15 @@ window.copyMsg = function(btn) {
     btn.textContent = 'copied';
     setTimeout(() => btn.textContent = 'copy', 1500);
   });
+};
+
+// open artifact from msg actions row
+window.openArtifactFromMsg = function(btn) {
+  const wrap = btn.closest('.ai-wrap');
+  const raw = wrap?.dataset.artifacts;
+  if (!raw) return;
+  const [a] = JSON.parse(raw);
+  if (a) openArtifact(a.content, a.type, a.title, a.lang);
 };
 
 let _streaming = false;
@@ -43,6 +54,7 @@ export async function sendMessage(text) {
 
   showMessages();
   appendUserMsg(text);
+  clearAttachments();
   scrollDown();
 
   setStreaming(true);
@@ -69,6 +81,7 @@ export async function sendMessage(text) {
         session_id: sessionId,
         message: text,
         mode: getMode(),
+        file_ids: getAttachments(),
       }),
     });
 
@@ -121,18 +134,21 @@ export async function sendMessage(text) {
 
         if (chunk.delta) {
           accText += chunk.delta;
-          if (!contentEl) {
-            contentEl = document.createElement('div');
-            contentEl.className = 'ai-content';
+          // stop rendering once artifact tag begins
+          const displayText = _splitBeforeArtifact(accText);
+          if (displayText) {
+            if (!contentEl) {
+              contentEl = document.createElement('div');
+              contentEl.className = 'ai-content';
+              cursor?.remove();
+              body.appendChild(contentEl);
+              addCursor(contentEl);
+            }
+            contentEl.innerHTML = mdToHtml(displayText);
             cursor?.remove();
-            body.appendChild(contentEl);
             addCursor(contentEl);
+            scrollDown();
           }
-          // re-render incrementally
-          contentEl.innerHTML = mdToHtml(accText);
-          cursor?.remove();
-          addCursor(contentEl);
-          scrollDown();
         }
       }
     }
@@ -145,18 +161,38 @@ export async function sendMessage(text) {
     cursor?.remove();
     body.classList.add('done');
 
-    // finalize render
-    if (contentEl && accText) {
-      contentEl.innerHTML = mdToHtml(accText);
+    const artifacts = extractArtifacts(accText);
+    const cleanText = stripArtifacts(accText);
+
+    // finalize display — strip artifact tags from rendered markdown
+    if (cleanText) {
+      if (!contentEl) {
+        contentEl = document.createElement('div');
+        contentEl.className = 'ai-content';
+        body.appendChild(contentEl);
+      }
+      contentEl.innerHTML = mdToHtml(cleanText);
     }
 
     // action buttons
     const wrap = body.parentElement;
-    if (wrap && accText) {
+    if (wrap && (cleanText || artifacts.length)) {
       const actions = document.createElement('div');
       actions.className = 'msg-actions';
-      actions.innerHTML = `<button class="act-btn" onclick="copyMsg(this)">copy</button>`;
+      let html = '';
+      if (cleanText) html += `<button class="act-btn" onclick="copyMsg(this)">copy</button>`;
+      if (artifacts.length) {
+        wrap.dataset.artifacts = JSON.stringify(artifacts);
+        html += `<button class="act-btn" onclick="openArtifactFromMsg(this)">open artifact</button>`;
+      }
+      actions.innerHTML = html;
       wrap.appendChild(actions);
+    }
+
+    // auto-open the first artifact
+    if (artifacts.length) {
+      const a = artifacts[0];
+      openArtifact(a.content, a.type, a.title, a.lang);
     }
 
     setStreaming(false);
@@ -164,6 +200,11 @@ export async function sendMessage(text) {
   }
 }
 
+
+function _splitBeforeArtifact(text) {
+  const idx = text.indexOf('<aide-artifact');
+  return idx === -1 ? text : text.slice(0, idx).trimEnd();
+}
 
 function setStreaming(val) {
   _streaming = val;

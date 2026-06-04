@@ -1,4 +1,4 @@
-import json, asyncio
+import re, json, asyncio
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from fastapi.responses import StreamingResponse
@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session as DbSession
 
 from core.database import get_db, Session, Message, ModelEndpoint, Persona, SessionLocal
-from core.settings import load_settings
+from core.settings import load_settings, _ARTIFACT_INSTRUCTIONS
 from services.llm import stream_chat, simple_complete
 from services.memory_store import inject_memories
 
@@ -14,6 +14,24 @@ router = APIRouter(prefix="/api")
 
 # active stream registry — session_id → asyncio.Event for stop
 _streams: dict[str, asyncio.Event] = {}
+
+
+_ART_RE = re.compile(r'<aide-artifact([^>]*)>([\s\S]*?)</aide-artifact>')
+
+def _extract_artifacts(text: str) -> list[dict]:
+    out = []
+    for m in _ART_RE.finditer(text):
+        attrs, content = m.group(1), m.group(2)
+        t  = re.search(r'type="([^"]*)"', attrs)
+        ti = re.search(r'title="([^"]*)"', attrs)
+        la = re.search(r'lang="([^"]*)"', attrs)
+        out.append({
+            "type":    t.group(1)  if t  else "code",
+            "title":   ti.group(1) if ti else "artifact",
+            "lang":    la.group(1) if la else "",
+            "content": content,
+        })
+    return out
 
 
 def _resolve_endpoint(session: Session, db: DbSession) -> ModelEndpoint | None:
@@ -30,8 +48,15 @@ def _resolve_persona(session: Session, db) -> Persona | None:
     return db.query(Persona).filter(Persona.is_default == True).first()
 
 
-def _build_messages(session: Session, user_text: str, settings: dict, db=None) -> list[dict]:
+def _build_messages(session: Session, user_text: str, settings: dict,
+                    db=None, file_ids: list[str] = None) -> list[dict]:
     sys_prompt = settings.get("system_prompt", "You are aide, a helpful AI assistant.")
+
+    # project system prompt takes priority
+    if db:
+        proj = getattr(session, "project", None)
+        if proj and proj.system_prompt:
+            sys_prompt = proj.system_prompt + "\n\n" + sys_prompt
 
     # override with persona system prompt if one is set
     if db:
@@ -43,12 +68,50 @@ def _build_messages(session: Session, user_text: str, settings: dict, db=None) -
     if mem_ctx:
         sys_prompt = sys_prompt.rstrip() + "\n\n" + mem_ctx
 
+    if settings.get("artifacts_enabled", True):
+        sys_prompt = sys_prompt.rstrip() + "\n\n" + _ARTIFACT_INSTRUCTIONS
+
     msgs = [{"role": "system", "content": sys_prompt}]
     limit = settings.get("context_limit", 40)
     history = list(session.messages)[-limit:]
     for m in history:
         msgs.append({"role": m.role, "content": m.content})
-    msgs.append({"role": "user", "content": user_text})
+
+    # handle file attachments
+    user_content: list | str = user_text
+    if file_ids and db:
+        from core.database import Upload
+        from pathlib import Path
+        import base64
+        text_blocks = []
+        image_parts = []
+        for fid in file_ids:
+            rec = db.get(Upload, fid)
+            if not rec:
+                continue
+            fpath = Path(__file__).parent.parent / "data" / "uploads" / rec.filename
+            if not fpath.exists():
+                continue
+            if rec.mime_type.startswith("image/"):
+                b64 = base64.b64encode(fpath.read_bytes()).decode()
+                image_parts.append({
+                    "type": "image_url",
+                    "image_url": {"url": f"data:{rec.mime_type};base64,{b64}"},
+                })
+            else:
+                try:
+                    text_blocks.append(
+                        f'<file name="{rec.original_name}">\n{fpath.read_text("utf-8", errors="replace")}\n</file>')
+                except Exception:
+                    pass
+        if text_blocks:
+            user_text = user_text + "\n\n" + "\n\n".join(text_blocks)
+        if image_parts:
+            user_content = [{"type": "text", "text": user_text}] + image_parts
+        else:
+            user_content = user_text
+
+    msgs.append({"role": "user", "content": user_content})
     return msgs
 
 
@@ -76,6 +139,7 @@ class ChatRequest(BaseModel):
     session_id: str
     message: str
     mode: str = "chat"   # chat | agent
+    file_ids: list[str] = []
 
 
 async def _sse(gen):
@@ -93,6 +157,7 @@ async def _stream_and_save(
     model: str,
     stop_event: asyncio.Event,
     db_factory,
+    incognito: bool = False,
 ):
     accumulated = []
     thinking_acc = []
@@ -119,6 +184,9 @@ async def _stream_and_save(
     if not full_text:
         return
 
+    if incognito:
+        return   # don't persist incognito messages
+
     db = db_factory()
     try:
         s = db.get(Session, session_id)
@@ -134,6 +202,9 @@ async def _stream_and_save(
         meta = {"usage": usage}
         if thinking_acc:
             meta["thinking"] = "".join(thinking_acc)
+        artifacts = _extract_artifacts(full_text)
+        if artifacts:
+            meta["artifacts"] = artifacts
         am = Message(
             session_id=session_id,
             role="assistant",
@@ -179,13 +250,23 @@ async def chat(body: ChatRequest, background_tasks: BackgroundTasks, db: DbSessi
         raise HTTPException(400, "no model selected")
 
     settings = load_settings()
-    messages = _build_messages(s, body.message, settings, db)
+    messages = _build_messages(s, body.message, settings, db, body.file_ids)
+
+    # context compaction
+    if settings.get("auto_compact", True):
+        threshold = settings.get("compact_threshold", 30)
+        chat_msgs = [m for m in messages if m["role"] != "system"]
+        if len(chat_msgs) > threshold * 0.9:
+            from services.llm import compact_messages
+            messages = await compact_messages(messages, ep, model, target_len=threshold)
 
     stop_event = asyncio.Event()
     _streams[body.session_id] = stop_event
 
     from core.database import SessionLocal as _SF
-    gen = _stream_and_save(body.session_id, body.message, messages, ep, model, stop_event, _SF)
+    incognito = bool(getattr(s, "incognito", False))
+    gen = _stream_and_save(body.session_id, body.message, messages, ep, model,
+                           stop_event, _SF, incognito=incognito)
 
     async def cleanup_gen():
         try:
@@ -212,3 +293,16 @@ def stop_chat(session_id: str):
 @router.get("/chat/status/{session_id}")
 def chat_status(session_id: str):
     return {"streaming": session_id in _streams}
+
+
+# GET /api/sessions/{session_id}/messages/{msg_id}/artifact/{idx}
+@router.get("/sessions/{session_id}/messages/{msg_id}/artifact/{idx}")
+def get_artifact(session_id: str, msg_id: str, idx: int, db: DbSession = Depends(get_db)):
+    msg = db.get(Message, msg_id)
+    if not msg or msg.session_id != session_id:
+        raise HTTPException(404)
+    meta = msg.meta_dict()
+    arts = meta.get("artifacts", [])
+    if idx >= len(arts):
+        raise HTTPException(404)
+    return arts[idx]
