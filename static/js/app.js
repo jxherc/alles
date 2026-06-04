@@ -36,8 +36,8 @@ async function init() {
 
 async function _boot() {
   await loadModels();
-  await loadSessions();
   await loadProjects();
+  await loadSessions();
   const ta = document.getElementById('composer-ta');
   initSlash(ta);
   initSearch();
