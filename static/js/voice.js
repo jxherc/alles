@@ -3,6 +3,7 @@ import { toast } from './util.js';
 let _recorder = null;
 let _chunks = [];
 let _recording = false;
+let _micIdleHtml = '';
 
 export function isRecording() { return _recording; }
 
@@ -16,7 +17,7 @@ export async function startRecording() {
     _recorder.onstop = _onStop;
     _recorder.start();
     _recording = true;
-    document.getElementById('mic-btn')?.classList.add('recording');
+    _setMicRecording(true);
   } catch (e) {
     toast('mic access denied', 'error');
   }
@@ -27,7 +28,18 @@ export function stopRecording() {
   _recorder.stop();
   _recorder.stream?.getTracks().forEach(t => t.stop());
   _recording = false;
-  document.getElementById('mic-btn')?.classList.remove('recording');
+  _setMicRecording(false);
+}
+
+function _setMicRecording(on) {
+  const btn = document.getElementById('mic-btn');
+  if (!btn) return;
+  if (!_micIdleHtml) _micIdleHtml = btn.innerHTML;
+  btn.classList.toggle('recording', on);
+  btn.setAttribute('aria-pressed', String(on));
+  btn.innerHTML = on
+    ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="8" width="8" height="8" rx="1" fill="currentColor" stroke="none"/><path d="M3 12h1.5M6.5 12v-3M18 12v3M20.5 12H22"/></svg> stop'
+    : _micIdleHtml;
 }
 
 async function _onStop() {

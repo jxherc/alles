@@ -57,7 +57,7 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
         </button>
         <button class="model-btn" id="persona-btn" title="persona" style="display:none">
-          <span id="persona-label">🤖</span>
+          <span id="persona-label">persona</span>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
         </button>
       </div>
@@ -238,7 +238,7 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
               mic
             </button>
-            <button class="c-tool" id="incognito-btn" title="new incognito session">
+            <button class="c-tool incognito-btn" id="incognito-btn" title="enable incognito mode" aria-pressed="false">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
               incognito
             </button>
@@ -501,11 +501,7 @@
               <div class="s-field">
                 <label>provider</label>
                 <div style="display:flex;gap:0.4rem;align-items:center">
-                  <select class="settings-input" id="s-search-provider" style="flex:1">
-                    <option value="duckduckgo">DuckDuckGo (free, no key)</option>
-                    <option value="tavily">Tavily (best quality)</option>
-                    <option value="disabled">disabled</option>
-                  </select>
+                  <div class="settings-input custom-select" id="s-search-provider" style="flex:1" data-value="duckduckgo" data-options="duckduckgo|DuckDuckGo (free, no key);tavily|Tavily (best quality);disabled|disabled"></div>
                   <button class="btn" id="s-search-test-btn" style="flex-shrink:0">test</button>
                 </div>
               </div>
@@ -515,12 +511,7 @@
               </div>
               <div class="s-field">
                 <label>results per query</label>
-                <select class="settings-input" id="s-search-count" style="width:100px">
-                  <option value="3">3</option>
-                  <option value="5" selected>5</option>
-                  <option value="10">10</option>
-                  <option value="20">20</option>
-                </select>
+                <div class="settings-input custom-select" id="s-search-count" style="width:100px" data-value="5" data-options="3|3;5|5;10|10;20|20"></div>
               </div>
               <div id="s-search-status" style="font-size:0.72rem;color:var(--muted);margin-top:0.3rem"></div>
             </div>
@@ -539,7 +530,7 @@
               <div class="s-toggle-row"><div><div class="s-toggle-label">research mode</div><div class="s-toggle-desc">deep research button in composer</div></div><div class="s-switch s-vis-toggle" data-vis="#research-toggle-btn" data-vis-key="bar-research"></div></div>
               <div class="s-toggle-row"><div><div class="s-toggle-label">shell</div><div class="s-toggle-desc">shell command shortcut in composer</div></div><div class="s-switch s-vis-toggle" data-vis="#shell-btn-tool" data-vis-key="bar-shell"></div></div>
               <div class="s-toggle-row"><div><div class="s-toggle-label">microphone</div><div class="s-toggle-desc">voice input button</div></div><div class="s-switch s-vis-toggle" data-vis="#mic-btn" data-vis-key="bar-mic"></div></div>
-              <div class="s-toggle-row"><div><div class="s-toggle-label">incognito</div><div class="s-toggle-desc">new incognito session button</div></div><div class="s-switch s-vis-toggle" data-vis="#incognito-btn" data-vis-key="bar-incognito"></div></div>
+              <div class="s-toggle-row"><div><div class="s-toggle-label">incognito</div><div class="s-toggle-desc">incognito mode button</div></div><div class="s-switch s-vis-toggle" data-vis="#incognito-btn" data-vis-key="bar-incognito"></div></div>
               <div class="s-toggle-row"><div><div class="s-toggle-label">agent / chat mode</div><div class="s-toggle-desc">mode switcher in composer</div></div><div class="s-switch s-vis-toggle" data-vis=".mode-toggle" data-vis-key="bar-mode"></div></div>
             </div>
           </div>
@@ -572,10 +563,7 @@
             <div class="s-card-body">
               <div class="s-field">
                 <label>provider</label>
-                <select class="settings-input" id="stt-select" style="width:100%">
-                  <option value="browser">browser (Web Speech API, free)</option>
-                  <option value="whisper_api">OpenAI Whisper API</option>
-                </select>
+                <div class="settings-input custom-select" id="stt-select" style="width:100%" data-value="browser" data-options="browser|browser (Web Speech API, free);whisper_api|OpenAI Whisper API"></div>
               </div>
             </div>
           </div>
@@ -587,21 +575,11 @@
             <div class="s-card-body">
               <div class="s-field">
                 <label>provider</label>
-                <select class="settings-input" id="tts-select" style="width:100%">
-                  <option value="browser">browser (speechSynthesis, free)</option>
-                  <option value="openai">OpenAI TTS</option>
-                </select>
+                <div class="settings-input custom-select" id="tts-select" style="width:100%" data-value="browser" data-options="browser|browser (speechSynthesis, free);openai|OpenAI TTS"></div>
               </div>
               <div class="s-field" id="s-tts-voice-row" style="display:none">
                 <label>voice</label>
-                <select class="settings-input" id="s-tts-voice" style="width:100%">
-                  <option value="alloy">alloy</option>
-                  <option value="echo">echo</option>
-                  <option value="fable">fable</option>
-                  <option value="onyx">onyx</option>
-                  <option value="nova">nova</option>
-                  <option value="shimmer">shimmer</option>
-                </select>
+                <div class="settings-input custom-select" id="s-tts-voice" style="width:100%" data-value="alloy" data-options="alloy|alloy;echo|echo;fable|fable;onyx|onyx;nova|nova;shimmer|shimmer"></div>
               </div>
             </div>
           </div>
@@ -629,7 +607,7 @@
             </div>
             <div class="s-card-body">
               <div id="persona-list" style="margin-bottom:0.75rem"></div>
-              <div class="s-field"><label>emoji</label><input type="text" class="settings-input" id="persona-emoji" placeholder="🤖" style="width:50px"></div>
+              <div class="s-field"><label>emoji</label><input type="text" class="settings-input" id="persona-emoji" placeholder="optional" style="width:80px"></div>
               <div class="s-field"><label>name</label><input type="text" class="settings-input" id="persona-name" placeholder="name" style="width:100%"></div>
               <div class="s-field"><label>system prompt</label><textarea class="settings-textarea" id="persona-prompt" rows="3" placeholder="You are..."></textarea></div>
               <button class="btn primary" id="persona-add-btn" style="width:100%">add persona</button>
@@ -742,7 +720,7 @@
 </div>
 
 <script type="module">
-const _v = '10';
+const _v = '11';
 import(`/static/js/app.js?v=${_v}`);
 </script>
 </body>

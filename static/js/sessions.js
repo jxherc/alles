@@ -125,8 +125,7 @@ export async function selectSession(id) {
     }
     // refresh persona button
     try {
-      const { refreshPersonaBtn } = await import('./app.js');
-      refreshPersonaBtn();
+      window._refreshPersonaBtn?.();
     } catch (e) {}
   } catch (e) {
     console.error('selectSession', e);
@@ -350,11 +349,11 @@ export function showMessages() {
 }
 
 
-export async function createSession(model = '', endpointId = '') {
+export async function createSession(model = '', endpointId = '', options = {}) {
   const r = await fetch('/api/sessions', {
     method: 'POST',
     headers: {'content-type':'application/json'},
-    body: JSON.stringify({ model, endpoint_id: endpointId }),
+    body: JSON.stringify({ model, endpoint_id: endpointId, incognito: !!options.incognito }),
   });
   if (!r.ok) return null;
   const s = await r.json();
