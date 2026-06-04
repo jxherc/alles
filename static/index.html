@@ -248,17 +248,22 @@
     </div>
 
     <!-- ── compare view ── -->
-    <div class="page-view" id="compare-view" style="display:none">
-      <div class="page-view-head">
-        <span class="page-view-title">compare models</span>
-      </div>
-      <div style="padding:0.75rem 1rem;border-bottom:1px solid var(--faint)">
-        <div id="compare-model-picker" style="display:flex;flex-wrap:wrap;gap:0.4rem;margin-bottom:0.5rem"></div>
-        <div style="display:flex;gap:0.4rem">
-          <input type="text" id="compare-input" class="settings-input" placeholder="enter prompt..." style="flex:1">
-          <button class="btn primary" id="compare-send-btn">send</button>
+    <div class="page-view compare-layout" id="compare-view" style="display:none">
+      <!-- left sidebar: model picker + prompt -->
+      <div class="compare-sidebar">
+        <div class="page-view-head" style="padding:0.55rem 0.75rem">
+          <span class="page-view-title" style="font-size:0.8rem">compare</span>
+        </div>
+        <div style="padding:0 0.75rem;flex:1;overflow-y:auto">
+          <div style="font-size:0.68rem;color:var(--muted);margin-bottom:0.4rem;text-transform:lowercase;letter-spacing:0.04em">select models</div>
+          <div id="compare-model-picker"></div>
+        </div>
+        <div style="padding:0.5rem 0.75rem;border-top:1px solid var(--faint);flex-shrink:0">
+          <textarea id="compare-input" class="settings-input" placeholder="enter prompt..." rows="3" style="width:100%;resize:vertical;margin-bottom:0.4rem"></textarea>
+          <button class="btn primary" id="compare-send-btn" style="width:100%">compare</button>
         </div>
       </div>
+      <!-- right: output grid -->
       <div class="compare-grid" id="compare-grid"></div>
     </div>
 
@@ -413,26 +418,38 @@
 
 <!-- model picker modal -->
 <div class="modal-overlay" id="model-modal" style="display:none">
-  <div class="modal-card">
+  <div class="modal-card model-modal-card">
     <div class="modal-head">
-      <span class="modal-title">select model</span>
+      <div class="mm-tabs">
+        <button class="mm-tab active" data-tab="models">models</button>
+        <button class="mm-tab" data-tab="endpoints">endpoints</button>
+      </div>
       <button class="modal-close" id="model-modal-close">×</button>
     </div>
-    <div class="modal-search">
-      <input type="text" id="model-search-input" placeholder="search models...">
+
+    <!-- models tab -->
+    <div class="mm-panel" id="mm-panel-models">
+      <div class="modal-search">
+        <input type="text" id="model-search-input" placeholder="search models...">
+      </div>
+      <div class="modal-body" id="model-list"></div>
     </div>
-    <div class="modal-body" id="model-list"></div>
-    <details style="border-top:1px solid var(--faint)">
-      <summary style="padding:0.55rem 1rem;font-size:0.72rem;color:var(--muted);cursor:pointer;letter-spacing:0.04em;">+ add endpoint</summary>
-      <div class="add-ep-form">
-        <input type="text" id="ep-name" placeholder="name (e.g. DeepSeek)">
-        <input type="text" id="ep-url" placeholder="base url (e.g. https://api.deepseek.com)">
-        <input type="password" id="ep-key" placeholder="api key (leave blank for ollama)">
-        <div class="add-ep-form-row">
+
+    <!-- endpoints tab -->
+    <div class="mm-panel" id="mm-panel-endpoints" style="display:none">
+      <div class="mm-ep-list" id="mm-ep-list"></div>
+      <div class="mm-add-section">
+        <div class="mm-presets" id="mm-presets">
+          <span style="font-size:0.68rem;color:var(--muted);flex-shrink:0">quick add:</span>
+        </div>
+        <div class="mm-add-form">
+          <input type="text" id="ep-name" placeholder="name" style="width:120px">
+          <input type="text" id="ep-url" placeholder="base url" style="flex:1">
+          <input type="password" id="ep-key" placeholder="api key">
           <button class="btn primary" id="ep-add-btn">add + probe</button>
         </div>
       </div>
-    </details>
+    </div>
   </div>
 </div>
 
@@ -890,7 +907,7 @@
 </div>
 
 <script type="module">
-const _v = '13';
+const _v = '14';
 import(`/static/js/app.js?v=${_v}`);
 </script>
 </body>
