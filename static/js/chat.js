@@ -124,6 +124,15 @@ export async function sendMessage(text) {
           break;
         }
 
+        if (chunk.done && chunk.usage) {
+          const u = chunk.usage;
+          const total = (u.prompt_tokens || 0) + (u.completion_tokens || 0);
+          if (total) {
+            const el = document.getElementById('session-token-count');
+            if (el) el.textContent = `${total.toLocaleString()} tokens`;
+          }
+        }
+
         if (chunk.thinking) {
           accThink += chunk.thinking;
           if (!thinkingEl) {

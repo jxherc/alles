@@ -64,9 +64,10 @@ def _build_messages(session: Session, user_text: str, settings: dict,
         if persona and persona.system_prompt:
             sys_prompt = persona.system_prompt
 
-    mem_ctx = inject_memories(user_text)
-    if mem_ctx:
-        sys_prompt = sys_prompt.rstrip() + "\n\n" + mem_ctx
+    if settings.get("memory_auto_inject", True):
+        mem_ctx = inject_memories(user_text)
+        if mem_ctx:
+            sys_prompt = sys_prompt.rstrip() + "\n\n" + mem_ctx
 
     if settings.get("artifacts_enabled", True):
         sys_prompt = sys_prompt.rstrip() + "\n\n" + _ARTIFACT_INSTRUCTIONS
