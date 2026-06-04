@@ -1,4 +1,5 @@
 import { toast } from './util.js';
+import { exportActiveSessionMarkdown } from './sessions.js';
 
 // ── built-in command registry ────────────────────────────────────────
 const BUILTINS = [
@@ -276,20 +277,7 @@ export async function tryExecuteSlashCommand(text) {
     }
 
     case 'export': {
-      const { getActiveId } = await import('./sessions.js');
-      const sid = getActiveId();
-      if (!sid) { toast('no active chat', 'error'); return true; }
-      const r = await fetch(`/api/sessions/${sid}/history`);
-      const { session, messages } = await r.json();
-      const md = messages
-        .map(m => `**${m.role}:**\n\n${m.content}`)
-        .join('\n\n---\n\n');
-      const blob = new Blob([md], { type: 'text/markdown' });
-      const a = Object.assign(document.createElement('a'), {
-        href: URL.createObjectURL(blob),
-        download: `${(session?.name || 'chat').replace(/[^a-z0-9]/gi, '-')}.md`,
-      });
-      a.click();
+      await exportActiveSessionMarkdown();
       return true;
     }
 
@@ -305,10 +293,8 @@ export async function tryExecuteSlashCommand(text) {
 
     case 'agent': {
       const agentBtn = document.getElementById('mode-agent');
-      const chatBtn  = document.getElementById('mode-chat');
       const isAgent  = agentBtn?.classList.contains('active');
-      agentBtn?.classList.toggle('active', !isAgent);
-      chatBtn?.classList.toggle('active', isAgent);
+      document.getElementById(isAgent ? 'mode-chat' : 'mode-agent')?.click();
       toast(isAgent ? 'switched to chat mode' : 'switched to agent mode');
       return true;
     }
@@ -396,7 +382,7 @@ export async function tryExecuteSlashCommand(text) {
                 headers: { 'content-type': 'application/json' },
                 body: JSON.stringify({ persona_id: match.id }),
               });
-              toast(`persona: ${match.emoji || ''} ${match.name}`, 'success');
+              toast(`persona: ${match.name}`, 'success');
             }
           } else {
             toast(`no persona matching "${args}"`, 'error');

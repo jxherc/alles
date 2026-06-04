@@ -1,4 +1,4 @@
-import { loadSessions, showWelcome, createSession, renderSidebar } from './sessions.js';
+import { loadSessions, showWelcome, createSession, renderSidebar, exportActiveSessionMarkdown } from './sessions.js';
 import { loadModels, renderModelList, addEndpoint, getSelected, getCurrentEndpoint } from './models.js';
 import { sendMessage, stopStream } from './chat.js';
 import { toast, closeAllModals, mdToHtml } from './util.js';
@@ -18,6 +18,8 @@ import { loadVaultView, initVault } from './vault.js';
 import { loadContacts, addContact } from './contacts.js';
 import { openSettings, closeSettings, applyVis } from './settings.js';
 import { toggleIncognitoMode, setIncognitoMode } from './modes.js';
+import { initPrivacyHandlers } from './privacy.js';
+import { loadShortcuts, matchesShortcut } from './shortcuts.js';
 
 window._mdToHtml = mdToHtml;
 
@@ -40,6 +42,7 @@ async function _boot() {
   initSearch();
   initDropZone();
   initVault();
+  initPrivacyHandlers();
   bindEvents();
 }
 
@@ -144,15 +147,32 @@ function bindEvents() {
     if (!btn) return;
     if (btn.id === 'research-toggle-btn') {
       e.preventDefault();
+      e.stopPropagation();
       toggleResearch();
     } else if (btn.id === 'incognito-btn') {
       e.preventDefault();
+      e.stopPropagation();
       const on = toggleIncognitoMode();
       toast(on ? 'incognito mode on - messages will not be saved' : 'incognito mode off', 'success');
+    } else if (btn.id === 'more-tools-btn') {
+      e.preventDefault();
+      e.stopPropagation();
+      toggleMoreTools();
     }
   });
 
-  document.getElementById('shell-btn-tool').addEventListener('click', openShellPrompt);
+  document.getElementById('shell-btn-tool').addEventListener('click', openShellPanel);
+  document.getElementById('shell-panel-close')?.addEventListener('click', closeShellPanel);
+  document.getElementById('shell-send-btn')?.addEventListener('click', submitShellPanel);
+  document.getElementById('shell-input')?.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      closeShellPanel();
+    } else if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+      e.preventDefault();
+      submitShellPanel();
+    }
+  });
   document.getElementById('mode-agent').addEventListener('click', () => setMode('agent'));
   document.getElementById('mode-chat').addEventListener('click',  () => setMode('chat'));
   document.getElementById('theme-btn').addEventListener('click', toggleTheme);
@@ -167,6 +187,7 @@ function bindEvents() {
 
   // settings — delegate entirely to settings.js
   document.getElementById('settings-btn').addEventListener('click', () => openSettings());
+  document.getElementById('session-export-btn')?.addEventListener('click', exportActiveSessionMarkdown);
 
   // notes / tasks / calendar / gallery
   document.getElementById('note-new-btn').addEventListener('click', newNote);
@@ -234,17 +255,58 @@ function bindEvents() {
   });
 
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') { closeAllModals(); closeSettings(); closeSearch(); }
-    if ((e.metaKey || e.ctrlKey) && e.key === 'k') { e.preventDefault(); openSearch(); }
+    const shortcuts = loadShortcuts();
+    if (e.key === 'Escape') { closeAllModals(); closeSettings(); closeSearch(); closeMoreTools(); closeShellPanel(); }
+    else if (matchesShortcut(e, shortcuts.search)) { e.preventDefault(); openSearch(); }
+    else if (matchesShortcut(e, shortcuts.settings)) { e.preventDefault(); openSettings(); }
+    else if (matchesShortcut(e, shortcuts.sidebar)) { e.preventDefault(); document.body.classList.toggle('sidebar-hidden'); }
+    else if (matchesShortcut(e, shortcuts.new_chat)) { e.preventDefault(); document.getElementById('new-chat-btn')?.click(); }
+    else if (matchesShortcut(e, shortcuts.send)) { e.preventDefault(); doSend(); }
   });
   document.addEventListener('click', () => {
     document.getElementById('ctx-menu').style.display = 'none';
+    closeMoreTools();
   });
   document.getElementById('share-btn').addEventListener('click', () => {
     navigator.clipboard.writeText(location.href).then(() => toast('link copied'));
   });
 
   setInterval(loadModels, 30000);
+}
+
+function toggleMoreTools() {
+  const existing = document.getElementById('_more_tools_menu');
+  if (existing) { closeMoreTools(); return; }
+  const btn = document.getElementById('more-tools-btn');
+  const rect = btn.getBoundingClientRect();
+  const menu = document.createElement('div');
+  menu.id = '_more_tools_menu';
+  menu.className = 'ctx-menu more-tools-menu';
+  menu.style.display = 'block';
+  menu.style.left = Math.max(12, rect.right - 170) + 'px';
+  menu.style.top = Math.max(12, rect.top - 136) + 'px';
+  menu.innerHTML = `
+    <div class="ctx-item" data-tool="incognito">incognito mode</div>
+    <div class="ctx-item" data-tool="research">research mode</div>
+    <div class="ctx-item" data-tool="shell">shell command</div>
+    <div class="ctx-item" data-tool="attach">attach file</div>
+  `;
+  menu.addEventListener('click', e => {
+    e.stopPropagation();
+    const tool = e.target.closest('.ctx-item')?.dataset.tool;
+    if (tool === 'incognito') document.getElementById('incognito-btn')?.click();
+    if (tool === 'research') document.getElementById('research-toggle-btn')?.click();
+    if (tool === 'shell') document.getElementById('shell-btn-tool')?.click();
+    if (tool === 'attach') document.getElementById('attach-btn')?.click();
+    closeMoreTools();
+  });
+  document.body.appendChild(menu);
+  btn.setAttribute('aria-expanded', 'true');
+}
+
+function closeMoreTools() {
+  document.getElementById('_more_tools_menu')?.remove();
+  document.getElementById('more-tools-btn')?.setAttribute('aria-expanded', 'false');
 }
 
 // ── send ──────────────────────────────────────────────────────────────────────
@@ -296,7 +358,7 @@ export async function refreshPersonaBtn() {
   if (!session) { btn.style.display = 'none'; return; }
   const active = _personas.find(p => p.id === session.persona_id) || _personas.find(p => p.is_default);
   if (active) {
-    btn.style.display = 'flex'; label.textContent = active.emoji + ' ' + active.name;
+    btn.style.display = 'flex'; label.textContent = active.name;
   } else if (_personas.length > 0) {
     btn.style.display = 'flex'; label.textContent = 'no persona';
   } else {
@@ -328,7 +390,7 @@ async function openPersonaPicker() {
   picker.appendChild(none);
   for (const p of _personas) {
     const item = document.createElement('div');
-    item.className = 'ctx-item'; item.textContent = p.emoji + ' ' + p.name;
+    item.className = 'ctx-item'; item.textContent = p.name;
     item.addEventListener('click', async () => {
       await fetch(`/api/sessions/${session.id}`, {
         method: 'PATCH', headers: {'content-type':'application/json'},
@@ -344,13 +406,29 @@ async function openPersonaPicker() {
 }
 
 // ── shell prompt ──────────────────────────────────────────────────────────────
-function openShellPrompt() {
-  const ta = document.getElementById('composer-ta');
-  const cur = ta.value;
-  ta.value = cur ? cur + '\n```sh\n\n```' : '```sh\n\n```';
-  ta.focus();
-  const pos = ta.value.lastIndexOf('```sh\n') + 6;
-  ta.setSelectionRange(pos, pos);
-  ta.style.height = 'auto';
-  ta.style.height = Math.min(ta.scrollHeight, 220) + 'px';
+function openShellPanel() {
+  const panel = document.getElementById('shell-panel');
+  if (!panel) return;
+  const willOpen = panel.hidden;
+  panel.hidden = !willOpen;
+  document.getElementById('shell-btn-tool')?.classList.toggle('active', willOpen);
+  if (willOpen) document.getElementById('shell-input')?.focus();
+}
+
+function closeShellPanel() {
+  const panel = document.getElementById('shell-panel');
+  if (!panel) return;
+  panel.hidden = true;
+  document.getElementById('shell-btn-tool')?.classList.remove('active');
+}
+
+function submitShellPanel() {
+  const input = document.getElementById('shell-input');
+  const command = input?.value.trim();
+  if (!command) { toast('shell command required', 'error'); return; }
+  input.value = '';
+  closeShellPanel();
+  const message = `\`\`\`sh\n${command}\n\`\`\``;
+  if (isResearchMode()) runResearch(message);
+  else sendMessage(message);
 }

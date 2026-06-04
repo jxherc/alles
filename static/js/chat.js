@@ -7,6 +7,7 @@ import { getSelected, getCurrentEndpoint } from './models.js';
 import { openArtifact, extractArtifacts, stripArtifacts } from './artifacts.js';
 import { getAttachments, clearAttachments } from './uploads.js';
 import { isIncognitoMode } from './modes.js';
+import { applyResponsePrivacy, stripEmojis } from './privacy.js';
 
 // expose mdToHtml for sessions.js lazy fallback
 window._mdToHtml = mdToHtml;
@@ -126,11 +127,12 @@ export async function sendMessage(text) {
         if (chunk.thinking) {
           accThink += chunk.thinking;
           if (!thinkingEl) {
-            thinkingEl = document.createElement('div');
+            thinkingEl = document.createElement('details');
             thinkingEl.className = 'thinking-block';
+            thinkingEl.innerHTML = '<summary>thinking</summary><div class="thinking-content"></div>';
             body.insertBefore(thinkingEl, body.firstChild);
           }
-          thinkingEl.textContent = accThink;
+          thinkingEl.querySelector('.thinking-content').textContent = accThink;
           scrollDown();
         }
 
@@ -146,7 +148,8 @@ export async function sendMessage(text) {
               body.appendChild(contentEl);
               addCursor(contentEl);
             }
-            contentEl.innerHTML = mdToHtml(displayText);
+            contentEl.innerHTML = mdToHtml(stripEmojis(displayText));
+            applyResponsePrivacy(contentEl);
             cursor?.remove();
             addCursor(contentEl);
             scrollDown();
@@ -173,7 +176,8 @@ export async function sendMessage(text) {
         contentEl.className = 'ai-content';
         body.appendChild(contentEl);
       }
-      contentEl.innerHTML = mdToHtml(cleanText);
+      contentEl.innerHTML = mdToHtml(stripEmojis(cleanText));
+      applyResponsePrivacy(contentEl);
     }
 
     // action buttons
