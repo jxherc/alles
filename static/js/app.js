@@ -17,6 +17,7 @@ import { initCompareView, loadCompareModels } from './compare.js';
 import { loadVaultView, initVault } from './vault.js';
 import { loadContacts, addContact } from './contacts.js';
 import { openSettings, closeSettings, applyVis } from './settings.js';
+import { toggleIncognitoMode, setIncognitoMode } from './modes.js';
 
 window._mdToHtml = mdToHtml;
 
@@ -105,7 +106,12 @@ function setNav(view) {
 }
 
 // ── events ────────────────────────────────────────────────────────────────────
+let _eventsBound = false;
+
 function bindEvents() {
+  if (_eventsBound) return;
+  _eventsBound = true;
+
   const ta = document.getElementById('composer-ta');
 
   ta.addEventListener('keydown', e => {
@@ -126,11 +132,24 @@ function bindEvents() {
 
   document.getElementById('session-search').addEventListener('input', e => renderSidebar(e.target.value));
 
-  document.getElementById('research-toggle-btn').addEventListener('click', () => {
+  const toggleResearch = () => {
     const on = !isResearchMode();
     setResearchMode(on);
     document.getElementById('research-toggle-btn').classList.toggle('active', on);
     ta.placeholder = on ? 'research a topic...' : 'message aide...';
+  };
+
+  document.querySelector('.c-tools')?.addEventListener('click', e => {
+    const btn = e.target.closest('button');
+    if (!btn) return;
+    if (btn.id === 'research-toggle-btn') {
+      e.preventDefault();
+      toggleResearch();
+    } else if (btn.id === 'incognito-btn') {
+      e.preventDefault();
+      const on = toggleIncognitoMode();
+      toast(on ? 'incognito mode on - messages will not be saved' : 'incognito mode off', 'success');
+    }
   });
 
   document.getElementById('shell-btn-tool').addEventListener('click', openShellPrompt);
@@ -176,20 +195,7 @@ function bindEvents() {
   });
 
   // incognito
-  document.getElementById('incognito-btn')?.addEventListener('click', async () => {
-    toast('incognito session — messages not saved', 'success');
-    const ep = getCurrentEndpoint();
-    const s = await fetch('/api/sessions', {
-      method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ model: getSelected()?.model || '', endpoint_id: ep?.id || '', incognito: true }),
-    }).then(r => r.json());
-    if (s?.id) {
-      showChatView();
-      const { selectSession } = await import('./sessions.js');
-      await loadSessions();
-      await selectSession(s.id);
-    }
-  });
+  setIncognitoMode(false);
 
   // docs
   document.getElementById('doc-ai-send')?.addEventListener('click', async () => {
@@ -259,6 +265,7 @@ async function doSend() {
 function setMode(m) {
   document.getElementById('mode-agent').classList.toggle('active', m === 'agent');
   document.getElementById('mode-chat').classList.toggle('active', m === 'chat');
+  document.querySelector('.composer-box')?.classList.toggle('agent-mode', m === 'agent');
 }
 
 function toggleTheme() {
@@ -296,6 +303,8 @@ export async function refreshPersonaBtn() {
     btn.style.display = 'none';
   }
 }
+
+window._refreshPersonaBtn = refreshPersonaBtn;
 
 async function openPersonaPicker() {
   if (!_personas.length) _personas = await fetch('/api/personas').then(r => r.json());

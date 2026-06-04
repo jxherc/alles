@@ -6,6 +6,7 @@ import {
 import { getSelected, getCurrentEndpoint } from './models.js';
 import { openArtifact, extractArtifacts, stripArtifacts } from './artifacts.js';
 import { getAttachments, clearAttachments } from './uploads.js';
+import { isIncognitoMode } from './modes.js';
 
 // expose mdToHtml for sessions.js lazy fallback
 window._mdToHtml = mdToHtml;
@@ -44,7 +45,7 @@ export async function sendMessage(text) {
     const ep = getCurrentEndpoint();
     if (!ep) { toast('no endpoint configured — add one via the model picker', 'error'); return; }
     const model = getSelected()?.model || ep.models[0] || '';
-    const s = await createSession(model, ep.id);
+    const s = await createSession(model, ep.id, { incognito: isIncognitoMode() });
     if (!s) { toast('failed to create session', 'error'); return; }
     sessionId = s.id;
   }
@@ -82,6 +83,7 @@ export async function sendMessage(text) {
         message: text,
         mode: getMode(),
         file_ids: getAttachments(),
+        incognito: isIncognitoMode(),
       }),
     });
 

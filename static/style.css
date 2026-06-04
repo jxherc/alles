@@ -322,9 +322,12 @@ code {
 .composer-box {
   border: 1px solid var(--faint); border-radius: 3px;
   background: var(--panel);
-  transition: border-color 0.2s ease;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 .composer-box:focus-within { border-color: var(--muted); }
+.composer-box.agent-mode {
+  box-shadow: 0 0 0 1px var(--accent), 0 0 16px color-mix(in srgb, var(--accent) 25%, transparent);
+}
 .composer-ta {
   width: 100%; background: none; border: none; outline: none; resize: none;
   color: var(--text); font-family: inherit;
@@ -340,16 +343,26 @@ code {
 }
 .c-tools { display: flex; gap: 0; }
 .c-tool {
-  background: none; border: none; cursor: pointer;
+  background: none; border: 1px solid transparent; cursor: pointer;
   color: var(--muted); font-size: 0.68rem; letter-spacing: 0.04em;
   font-family: inherit; font-weight: 500; text-transform: lowercase;
   padding: 0.2rem 0.5rem; border-radius: 2px;
-  transition: color 0.2s ease, background 0.2s ease;
+  transition: color 0.2s ease, background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
   display: flex; align-items: center; gap: 0.3rem;
 }
 .c-tool:hover { color: var(--text); background: #111; }
 .c-tool svg { width: 12px; height: 12px; }
 .c-tool.active { color: var(--accent); }
+.incognito-btn.active {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+#research-toggle-btn.active {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 40%, transparent);
+}
 
 .c-right { display: flex; align-items: center; gap: 0.5rem; }
 .mode-toggle { display: flex; gap: 0.25rem; }
@@ -566,7 +579,68 @@ code {
 }
 .settings-input:focus { border-color: var(--muted); }
 .settings-input[type="number"] { -moz-appearance: textfield; }
-select.settings-input { cursor: pointer; padding: 0.3rem 0.1rem; }
+.custom-select.settings-input {
+  cursor: pointer;
+  min-width: 0;
+  min-height: 31px;
+  padding: 0.3rem 1.35rem 0.3rem 0;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+  user-select: none;
+}
+.custom-select.open,
+.custom-select:focus {
+  border-color: var(--muted);
+}
+.custom-select-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.custom-select-chevron {
+  width: 13px;
+  height: 13px;
+  flex-shrink: 0;
+  opacity: 0.7;
+  position: absolute;
+  right: 0.1rem;
+}
+.custom-select.open .custom-select-chevron { transform: rotate(180deg); }
+.custom-dropdown-panel {
+  position: fixed;
+  z-index: 1000;
+  background: var(--bg);
+  border: 1px solid var(--faint);
+  border-radius: 3px;
+  max-height: 260px;
+  overflow-y: auto;
+  padding: 0.25rem 0;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+  animation: rise 0.12s ease forwards;
+}
+.custom-dropdown-option {
+  width: 100%;
+  border: none;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+  display: block;
+  font: inherit;
+  font-size: 0.76rem;
+  padding: 0.34rem 0.75rem;
+  text-align: left;
+}
+.custom-dropdown-option:hover,
+.custom-dropdown-option.active {
+  background: var(--panel);
+  color: var(--text);
+}
+.custom-dropdown-option.selected {
+  color: var(--accent);
+}
 .settings-textarea {
   width: 100%; background: none; border: 1px solid var(--faint); border-radius: 2px;
   color: var(--text); font-family: inherit; font-size: 0.82rem;
@@ -1331,6 +1405,14 @@ select.settings-input { cursor: pointer; padding: 0.3rem 0.1rem; }
 .vault-entry-value { font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; color: var(--muted); flex-shrink: 0; }
 
 /* ── mic recording ── */
-.c-tool#mic-btn.recording { color: var(--error); }
-@keyframes mic-pulse { 0%,100% { opacity: 0.6; } 50% { opacity: 1; } }
-.c-tool#mic-btn.recording { animation: mic-pulse 1s ease-in-out infinite; }
+.c-tool#mic-btn.recording {
+  color: var(--error);
+  border-color: var(--error);
+  background: color-mix(in srgb, var(--error) 15%, transparent);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--error) 35%, transparent);
+  animation: mic-pulse 1s ease-in-out infinite;
+}
+@keyframes mic-pulse {
+  0%,100% { box-shadow: 0 0 6px color-mix(in srgb, var(--error) 25%, transparent); }
+  50% { box-shadow: 0 0 14px color-mix(in srgb, var(--error) 55%, transparent); }
+}

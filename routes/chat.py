@@ -140,6 +140,7 @@ class ChatRequest(BaseModel):
     message: str
     mode: str = "chat"   # chat | agent
     file_ids: list[str] = []
+    incognito: bool = False
 
 
 async def _sse(gen):
@@ -264,7 +265,7 @@ async def chat(body: ChatRequest, background_tasks: BackgroundTasks, db: DbSessi
     _streams[body.session_id] = stop_event
 
     from core.database import SessionLocal as _SF
-    incognito = bool(getattr(s, "incognito", False))
+    incognito = bool(body.incognito or getattr(s, "incognito", False))
     gen = _stream_and_save(body.session_id, body.message, messages, ep, model,
                            stop_event, _SF, incognito=incognito)
 

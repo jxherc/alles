@@ -1,5 +1,6 @@
 import { toast } from './util.js';
 import { loadModels, addEndpoint, renderModelList } from './models.js';
+import { initCustomDropdowns, getDropdownValue, setDropdownValue } from './dropdown.js';
 
 // ── visibility prefs (appearance toggles) ────────────────────────────────────
 const VIS_KEY = 'aide-ui-vis';
@@ -85,6 +86,8 @@ export function closeSettings() {
 
 // ── init (runs once) ──────────────────────────────────────────────────────────
 function _initSettings() {
+  initCustomDropdowns(document.getElementById('settings-modal') || document);
+
   // nav clicks
   document.querySelectorAll('.s-nav-item').forEach(n => {
     n.addEventListener('click', () => _switchPane(n.dataset.pane));
@@ -263,18 +266,18 @@ async function loadSearchPane() {
   try {
     const s = await fetch('/api/settings').then(r => r.json());
     const prov = s.search_provider || 'duckduckgo';
-    document.getElementById('s-search-provider').value = prov;
+    setDropdownValue(document.getElementById('s-search-provider'), prov);
     if (s.tavily_api_key) document.getElementById('s-tavily-key').value = s.tavily_api_key;
     const count = s.search_result_count || 5;
     const sel = document.getElementById('s-search-count');
-    if (sel) sel.value = String(count);
+    if (sel) setDropdownValue(sel, String(count));
     _updateSearchKeyRow();
     _updateSearchStatus(s);
   } catch {}
 }
 
 function _updateSearchKeyRow() {
-  const prov = document.getElementById('s-search-provider')?.value;
+  const prov = getDropdownValue(document.getElementById('s-search-provider'));
   const row = document.getElementById('s-tavily-row');
   if (row) row.style.display = prov === 'tavily' ? 'flex' : 'none';
 }
@@ -291,8 +294,8 @@ function _updateSearchStatus(s) {
 }
 
 async function saveSearchSettings() {
-  const prov  = document.getElementById('s-search-provider')?.value;
-  const count = parseInt(document.getElementById('s-search-count')?.value) || 5;
+  const prov  = getDropdownValue(document.getElementById('s-search-provider'));
+  const count = parseInt(getDropdownValue(document.getElementById('s-search-count'))) || 5;
   const key   = document.getElementById('s-tavily-key')?.value.trim() || '';
   const patch = { search_provider: prov, search_result_count: count };
   if (key) patch.tavily_api_key = key;
@@ -305,7 +308,7 @@ async function testSearch() {
   const status = document.getElementById('s-search-status');
   btn.textContent = 'testing…'; btn.disabled = true;
   try {
-    const prov = document.getElementById('s-search-provider').value;
+    const prov = getDropdownValue(document.getElementById('s-search-provider'));
     if (prov === 'disabled') { status.textContent = 'search is disabled'; btn.textContent = 'test'; btn.disabled = false; return; }
     const r = await fetch('/api/research', {
       method: 'POST', headers: { 'content-type': 'application/json' },
@@ -334,26 +337,26 @@ async function loadVoicePane() {
     const s = await fetch('/api/settings').then(r => r.json());
     const ttsEl = document.getElementById('tts-select');
     const sttEl = document.getElementById('stt-select');
-    if (ttsEl) ttsEl.value = s.tts_provider || 'browser';
-    if (sttEl) sttEl.value = s.stt_provider || 'browser';
+    if (ttsEl) setDropdownValue(ttsEl, s.tts_provider || 'browser');
+    if (sttEl) setDropdownValue(sttEl, s.stt_provider || 'browser');
     const voiceSel = document.getElementById('s-tts-voice');
-    if (voiceSel) voiceSel.value = s.tts_voice || 'alloy';
+    if (voiceSel) setDropdownValue(voiceSel, s.tts_voice || 'alloy');
     if (s.openai_api_key) document.getElementById('settings-openai-key').value = s.openai_api_key;
     _updateTtsVoiceRow();
   } catch {}
 }
 
 function _updateTtsVoiceRow() {
-  const tts = document.getElementById('tts-select')?.value;
+  const tts = getDropdownValue(document.getElementById('tts-select'));
   const row = document.getElementById('s-tts-voice-row');
   if (row) row.style.display = tts === 'openai' ? 'flex' : 'none';
 }
 
 async function saveVoiceSettings() {
   const patch = {
-    tts_provider: document.getElementById('tts-select')?.value || 'browser',
-    stt_provider: document.getElementById('stt-select')?.value || 'browser',
-    tts_voice:    document.getElementById('s-tts-voice')?.value || 'alloy',
+    tts_provider: getDropdownValue(document.getElementById('tts-select')) || 'browser',
+    stt_provider: getDropdownValue(document.getElementById('stt-select')) || 'browser',
+    tts_voice:    getDropdownValue(document.getElementById('s-tts-voice')) || 'alloy',
   };
   const key = document.getElementById('settings-openai-key')?.value.trim();
   if (key) patch.openai_api_key = key;
@@ -383,7 +386,7 @@ window._rmPersona = async btn => {
 
 async function addPersona() {
   const name   = document.getElementById('persona-name').value.trim();
-  const emoji  = document.getElementById('persona-emoji').value.trim() || '🤖';
+  const emoji  = document.getElementById('persona-emoji').value.trim() || ':)';
   const prompt = document.getElementById('persona-prompt').value.trim();
   if (!name) { toast('name required', 'error'); return; }
   await fetch('/api/personas', { method: 'POST', headers: {'content-type':'application/json'},
