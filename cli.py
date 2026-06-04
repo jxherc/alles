@@ -44,11 +44,45 @@ def _running(pid):
         return False
 
 
+def _port_in_use():
+    """check if something is already bound to our port (catches orphans not in PID file)"""
+    import socket
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.settimeout(0.5)
+        return s.connect_ex(('127.0.0.1', _port())) == 0
+
+
+def _kill_port():
+    """find and kill whatever is holding our port"""
+    port = _port()
+    try:
+        if sys.platform == "win32":
+            out = subprocess.check_output(
+                ['netstat', '-ano', '-p', 'tcp'],
+                stderr=subprocess.DEVNULL, text=True,
+            )
+            for line in out.splitlines():
+                if f':{port} ' in line and 'LISTENING' in line:
+                    pid = line.strip().split()[-1]
+                    subprocess.call(['taskkill', '/F', '/PID', pid],
+                                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                    print(f"killed orphaned process {pid} holding port {port}")
+        else:
+            subprocess.call(['fuser', '-k', f'{port}/tcp'],
+                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except Exception:
+        pass
+
+
 def cmd_start():
     pid = _pid()
     if _running(pid):
         print(f"aide already running  pid={pid}  http://localhost:{_port()}")
         return
+    if _port_in_use():
+        print(f"port {_port()} is in use by an orphaned process — killing it...")
+        _kill_port()
+        time.sleep(0.5)
 
     PID_FILE.parent.mkdir(parents=True, exist_ok=True)
     LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
