@@ -338,113 +338,411 @@
   </div>
 </div>
 
-<!-- settings modal -->
+<!-- settings modal (multi-pane) -->
 <div class="modal-overlay" id="settings-modal" style="display:none">
-  <div class="modal-card settings-card">
-    <div class="modal-head">
-      <span class="modal-title">settings</span>
+  <div class="s-modal">
+    <div class="s-header">
+      <span class="s-title">settings</span>
       <button class="modal-close" id="settings-modal-close">×</button>
     </div>
-    <div class="modal-body">
-      <div class="settings-section">
-        <span class="settings-label">system prompt</span>
-        <textarea class="settings-textarea" id="settings-system-prompt" rows="4"></textarea>
-      </div>
-      <div class="settings-section">
-        <span class="settings-label">context limit (messages)</span>
-        <input type="number" class="settings-input" id="settings-context-limit" min="4" max="200">
-      </div>
-      <div class="settings-section" style="display:flex;gap:0.5rem;justify-content:flex-end;padding:0.75rem 1rem">
-        <button class="btn primary" id="settings-save-btn">save</button>
-      </div>
-      <div class="settings-section">
-        <span class="settings-label">personas</span>
-        <div id="persona-list" style="margin-bottom:0.5rem"></div>
-        <div style="display:flex;gap:0.4rem;flex-wrap:wrap">
-          <input type="text" class="settings-input" id="persona-emoji" placeholder="🤖" style="width:40px">
-          <input type="text" class="settings-input" id="persona-name" placeholder="name" style="flex:1;min-width:80px">
-          <input type="text" class="settings-input" id="persona-prompt" placeholder="system prompt..." style="flex:3;min-width:160px">
-          <button class="btn primary" id="persona-add-btn">add</button>
+    <div class="s-layout">
+
+      <!-- left nav -->
+      <nav class="s-nav">
+        <div class="s-nav-item active" data-pane="models">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+          models
         </div>
-      </div>
-      <div class="settings-section">
-        <span class="settings-label">cookbook (slash commands)</span>
-        <div id="cookbook-list" style="margin-bottom:0.5rem"></div>
-        <div style="display:flex;gap:0.4rem;flex-wrap:wrap">
-          <input type="text" class="settings-input" id="cookbook-name" placeholder="name" style="flex:1;min-width:80px">
-          <input type="text" class="settings-input" id="cookbook-desc" placeholder="description" style="flex:1;min-width:100px">
-          <input type="text" class="settings-input" id="cookbook-prompt" placeholder="prompt template..." style="flex:3;min-width:160px">
-          <button class="btn primary" id="cookbook-add-btn">add</button>
+        <div class="s-nav-item" data-pane="ai">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
+          ai defaults
         </div>
-      </div>
-      <div class="settings-section">
-        <span class="settings-label">mcp servers</span>
-        <div id="mcp-server-list" style="margin-bottom:0.5rem"></div>
-        <div style="display:flex;gap:0.4rem;flex-wrap:wrap">
-          <input type="text" class="settings-input" id="mcp-name" placeholder="name" style="flex:1;min-width:80px">
-          <input type="text" class="settings-input" id="mcp-command" placeholder="command (e.g. npx -y @modelcontextprotocol/server-filesystem)" style="flex:3;min-width:160px">
-          <button class="btn primary" id="mcp-add-btn">add</button>
+        <div class="s-nav-item" data-pane="search">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+          search
         </div>
-      </div>
-      <div class="settings-section">
-        <span class="settings-label">webhooks</span>
-        <div id="webhook-list" style="margin-bottom:0.5rem"></div>
-        <div style="display:flex;gap:0.4rem;flex-wrap:wrap">
-          <input type="text" class="settings-input" id="wh-name" placeholder="name" style="flex:1;min-width:80px">
-          <input type="text" class="settings-input" id="wh-url" placeholder="https://..." style="flex:3;min-width:160px">
-          <button class="btn primary" id="wh-add-btn">add</button>
+        <div class="s-nav-item" data-pane="appearance">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+          appearance
         </div>
-      </div>
-      <div class="settings-section">
-        <span class="settings-label">api tokens</span>
-        <div id="token-list" style="margin-bottom:0.5rem"></div>
-        <div style="display:flex;gap:0.4rem">
-          <input type="text" class="settings-input" id="token-name" placeholder="token name" style="flex:1">
-          <button class="btn primary" id="token-add-btn">generate</button>
+        <div class="s-nav-item" data-pane="voice">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/></svg>
+          voice
         </div>
-        <div id="token-reveal" style="display:none;margin-top:0.5rem;padding:0.5rem;border:1px solid var(--faint);border-radius:2px;font-family:monospace;font-size:0.72rem;word-break:break-all;color:var(--accent)"></div>
-      </div>
-      <div class="settings-section">
-        <span class="settings-label">voice (tts / stt)</span>
-        <div style="display:flex;gap:1rem;flex-wrap:wrap;align-items:center;margin-bottom:0.4rem">
-          <div style="display:flex;align-items:center;gap:0.5rem">
-            <span style="font-size:0.7rem;color:var(--muted);letter-spacing:0.04em">stt</span>
-            <div class="mode-toggle" id="stt-toggle" data-value="browser">
-              <button class="mode-btn active" data-val="browser">browser</button>
-              <button class="mode-btn" data-val="whisper_api">whisper api</button>
+        <div class="s-nav-item" data-pane="personas">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          personas
+        </div>
+        <div class="s-nav-item" data-pane="tools">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+          tools
+        </div>
+        <div class="s-nav-item" data-pane="developer">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+          developer
+        </div>
+        <div class="s-nav-item" data-pane="backup">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          backup
+        </div>
+      </nav>
+
+      <!-- content area -->
+      <div class="s-content">
+
+        <!-- ── models pane ── -->
+        <div class="s-pane active" id="s-pane-models">
+          <div class="s-card">
+            <div class="s-card-head">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/></svg>
+              model endpoints
+            </div>
+            <div class="s-card-body">
+              <div id="s-ep-list" style="margin-bottom:0.75rem"></div>
+              <details id="s-ep-add-details">
+                <summary class="s-add-summary">+ add endpoint</summary>
+                <div class="s-ep-form">
+                  <div class="s-ep-presets">
+                    <button class="s-preset-btn" data-url="https://api.anthropic.com" data-name="Anthropic">Anthropic</button>
+                    <button class="s-preset-btn" data-url="https://api.deepseek.com" data-name="DeepSeek">DeepSeek</button>
+                    <button class="s-preset-btn" data-url="https://api.openai.com" data-name="OpenAI">OpenAI</button>
+                    <button class="s-preset-btn" data-url="http://localhost:11434" data-name="Ollama">Ollama</button>
+                    <button class="s-preset-btn" data-url="http://localhost:1234" data-name="LM Studio">LM Studio</button>
+                  </div>
+                  <div class="s-field">
+                    <label>name</label>
+                    <input type="text" class="settings-input" id="s-ep-name" placeholder="e.g. DeepSeek">
+                  </div>
+                  <div class="s-field">
+                    <label>base url</label>
+                    <input type="text" class="settings-input" id="s-ep-url" placeholder="https://api.example.com">
+                  </div>
+                  <div class="s-field">
+                    <label>api key</label>
+                    <input type="password" class="settings-input" id="s-ep-key" placeholder="leave blank for local / Ollama">
+                  </div>
+                  <button class="btn primary" id="s-ep-add-btn" style="width:100%;margin-top:0.2rem">add + probe models</button>
+                </div>
+              </details>
             </div>
           </div>
-          <div style="display:flex;align-items:center;gap:0.5rem">
-            <span style="font-size:0.7rem;color:var(--muted);letter-spacing:0.04em">tts</span>
-            <div class="mode-toggle" id="tts-toggle" data-value="browser">
-              <button class="mode-btn active" data-val="browser">browser</button>
-              <button class="mode-btn" data-val="openai">openai</button>
+          <div class="s-card">
+            <div class="s-card-head">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+              openai-compatible api
+            </div>
+            <div class="s-card-body" style="font-size:0.75rem;color:var(--muted)">
+              <div style="margin-bottom:0.3rem">base url: <code id="s-compat-url" style="color:var(--accent)">http://localhost:8001/v1</code></div>
+              <div>model id format: <code style="color:var(--accent)">EndpointName/model-id</code></div>
             </div>
           </div>
         </div>
-        <input type="password" class="settings-input" id="settings-openai-key" placeholder="openai api key (for whisper / tts)" style="width:100%">
-      </div>
-      <div class="settings-section">
-        <span class="settings-label">openai-compatible api</span>
-        <div style="font-size:0.75rem;color:var(--muted);font-family:monospace;margin-bottom:0.4rem">base url: <span style="color:var(--accent)">http://localhost:8000/v1</span></div>
-        <div style="font-size:0.72rem;color:var(--muted)">model ids: <em>EndpointName/model-id</em></div>
-      </div>
-      <div class="settings-section">
-        <span class="settings-label">backup / restore</span>
-        <div style="display:flex;gap:0.5rem;align-items:center">
-          <button class="btn" id="backup-export-btn">export backup</button>
-          <label class="btn" style="cursor:pointer">
-            restore
-            <input type="file" id="backup-restore-input" accept=".zip" style="display:none">
-          </label>
+
+        <!-- ── ai defaults pane ── -->
+        <div class="s-pane" id="s-pane-ai">
+          <div class="s-card">
+            <div class="s-card-head">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83"/></svg>
+              chat defaults
+            </div>
+            <div class="s-card-body">
+              <div class="s-field">
+                <label>system prompt</label>
+                <textarea class="settings-textarea" id="settings-system-prompt" rows="4" placeholder="You are aide, a helpful personal AI assistant."></textarea>
+              </div>
+              <div class="s-field">
+                <label>context window (messages)</label>
+                <input type="number" class="settings-input" id="settings-context-limit" min="4" max="200" style="width:80px">
+              </div>
+            </div>
+          </div>
+          <div class="s-card">
+            <div class="s-card-head">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+              features
+            </div>
+            <div class="s-card-body" style="padding-top:0.2rem;padding-bottom:0.2rem">
+              <div class="s-toggle-row">
+                <div>
+                  <div class="s-toggle-label">streaming thinking</div>
+                  <div class="s-toggle-desc">show model reasoning blocks as they stream</div>
+                </div>
+                <div class="s-switch" id="s-thinking-toggle"></div>
+              </div>
+              <div class="s-toggle-row">
+                <div>
+                  <div class="s-toggle-label">artifacts</div>
+                  <div class="s-toggle-desc">render HTML, SVG and code in a side panel</div>
+                </div>
+                <div class="s-switch" id="s-artifacts-toggle"></div>
+              </div>
+              <div class="s-toggle-row">
+                <div>
+                  <div class="s-toggle-label">auto-compact context</div>
+                  <div class="s-toggle-desc">summarize old messages when context fills up</div>
+                </div>
+                <div class="s-switch" id="s-compact-toggle"></div>
+              </div>
+            </div>
+          </div>
+          <div style="text-align:right;margin-top:0.4rem">
+            <button class="btn primary" id="settings-save-btn">save</button>
+          </div>
         </div>
-      </div>
-    </div>
-  </div>
+
+        <!-- ── search pane ── -->
+        <div class="s-pane" id="s-pane-search">
+          <div class="s-card">
+            <div class="s-card-head">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+              web search
+            </div>
+            <div class="s-card-body">
+              <div class="s-field">
+                <label>provider</label>
+                <div style="display:flex;gap:0.4rem;align-items:center">
+                  <select class="settings-input" id="s-search-provider" style="flex:1">
+                    <option value="duckduckgo">DuckDuckGo (free, no key)</option>
+                    <option value="tavily">Tavily (best quality)</option>
+                    <option value="disabled">disabled</option>
+                  </select>
+                  <button class="btn" id="s-search-test-btn" style="flex-shrink:0">test</button>
+                </div>
+              </div>
+              <div class="s-field" id="s-tavily-row" style="display:none">
+                <label>tavily api key</label>
+                <input type="password" class="settings-input" id="s-tavily-key" placeholder="tvly-...">
+              </div>
+              <div class="s-field">
+                <label>results per query</label>
+                <select class="settings-input" id="s-search-count" style="width:100px">
+                  <option value="3">3</option>
+                  <option value="5" selected>5</option>
+                  <option value="10">10</option>
+                  <option value="20">20</option>
+                </select>
+              </div>
+              <div id="s-search-status" style="font-size:0.72rem;color:var(--muted);margin-top:0.3rem"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── appearance pane ── -->
+        <div class="s-pane" id="s-pane-appearance">
+          <div class="s-card">
+            <div class="s-card-head">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+              chat bar
+              <button class="btn" id="s-vis-reset-btn" style="margin-left:auto;font-size:0.68rem;padding:0.15rem 0.5rem">reset all</button>
+            </div>
+            <div class="s-card-body" style="padding-top:0.2rem;padding-bottom:0.2rem">
+              <div class="s-toggle-row"><div><div class="s-toggle-label">research mode</div><div class="s-toggle-desc">deep research button in composer</div></div><div class="s-switch s-vis-toggle" data-vis="#research-toggle-btn" data-vis-key="bar-research"></div></div>
+              <div class="s-toggle-row"><div><div class="s-toggle-label">shell</div><div class="s-toggle-desc">shell command shortcut in composer</div></div><div class="s-switch s-vis-toggle" data-vis="#shell-btn-tool" data-vis-key="bar-shell"></div></div>
+              <div class="s-toggle-row"><div><div class="s-toggle-label">microphone</div><div class="s-toggle-desc">voice input button</div></div><div class="s-switch s-vis-toggle" data-vis="#mic-btn" data-vis-key="bar-mic"></div></div>
+              <div class="s-toggle-row"><div><div class="s-toggle-label">incognito</div><div class="s-toggle-desc">new incognito session button</div></div><div class="s-switch s-vis-toggle" data-vis="#incognito-btn" data-vis-key="bar-incognito"></div></div>
+              <div class="s-toggle-row"><div><div class="s-toggle-label">agent / chat mode</div><div class="s-toggle-desc">mode switcher in composer</div></div><div class="s-switch s-vis-toggle" data-vis=".mode-toggle" data-vis-key="bar-mode"></div></div>
+            </div>
+          </div>
+          <div class="s-card">
+            <div class="s-card-head">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+              sidebar views
+            </div>
+            <div class="s-card-body" style="padding-top:0.2rem;padding-bottom:0.2rem">
+              <div class="s-toggle-row"><div><div class="s-toggle-label">notes</div></div><div class="s-switch s-vis-toggle" data-vis=".nav-item[data-view='notes']" data-vis-key="nav-notes"></div></div>
+              <div class="s-toggle-row"><div><div class="s-toggle-label">tasks</div></div><div class="s-switch s-vis-toggle" data-vis=".nav-item[data-view='tasks']" data-vis-key="nav-tasks"></div></div>
+              <div class="s-toggle-row"><div><div class="s-toggle-label">calendar</div></div><div class="s-switch s-vis-toggle" data-vis=".nav-item[data-view='calendar']" data-vis-key="nav-calendar"></div></div>
+              <div class="s-toggle-row"><div><div class="s-toggle-label">gallery</div></div><div class="s-switch s-vis-toggle" data-vis=".nav-item[data-view='gallery']" data-vis-key="nav-gallery"></div></div>
+              <div class="s-toggle-row"><div><div class="s-toggle-label">memory</div></div><div class="s-switch s-vis-toggle" data-vis=".nav-item[data-view='memory']" data-vis-key="nav-memory"></div></div>
+              <div class="s-toggle-row"><div><div class="s-toggle-label">docs</div></div><div class="s-switch s-vis-toggle" data-vis=".nav-item[data-view='docs']" data-vis-key="nav-docs"></div></div>
+              <div class="s-toggle-row"><div><div class="s-toggle-label">compare</div></div><div class="s-switch s-vis-toggle" data-vis=".nav-item[data-view='compare']" data-vis-key="nav-compare"></div></div>
+              <div class="s-toggle-row"><div><div class="s-toggle-label">vault</div></div><div class="s-switch s-vis-toggle" data-vis=".nav-item[data-view='vault']" data-vis-key="nav-vault"></div></div>
+              <div class="s-toggle-row"><div><div class="s-toggle-label">contacts</div></div><div class="s-switch s-vis-toggle" data-vis=".nav-item[data-view='contacts']" data-vis-key="nav-contacts"></div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── voice pane ── -->
+        <div class="s-pane" id="s-pane-voice">
+          <div class="s-card">
+            <div class="s-card-head">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg>
+              speech-to-text (STT)
+            </div>
+            <div class="s-card-body">
+              <div class="s-field">
+                <label>provider</label>
+                <select class="settings-input" id="stt-select" style="width:100%">
+                  <option value="browser">browser (Web Speech API, free)</option>
+                  <option value="whisper_api">OpenAI Whisper API</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <div class="s-card">
+            <div class="s-card-head">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+              text-to-speech (TTS)
+            </div>
+            <div class="s-card-body">
+              <div class="s-field">
+                <label>provider</label>
+                <select class="settings-input" id="tts-select" style="width:100%">
+                  <option value="browser">browser (speechSynthesis, free)</option>
+                  <option value="openai">OpenAI TTS</option>
+                </select>
+              </div>
+              <div class="s-field" id="s-tts-voice-row" style="display:none">
+                <label>voice</label>
+                <select class="settings-input" id="s-tts-voice" style="width:100%">
+                  <option value="alloy">alloy</option>
+                  <option value="echo">echo</option>
+                  <option value="fable">fable</option>
+                  <option value="onyx">onyx</option>
+                  <option value="nova">nova</option>
+                  <option value="shimmer">shimmer</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <div class="s-card">
+            <div class="s-card-head">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              openai api key
+            </div>
+            <div class="s-card-body">
+              <div class="s-field">
+                <label>required for whisper api and openai tts</label>
+                <input type="password" class="settings-input" id="settings-openai-key" placeholder="sk-..." style="width:100%">
+              </div>
+              <button class="btn primary" id="s-voice-save-btn" style="width:100%;margin-top:0.2rem">save voice settings</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── personas pane ── -->
+        <div class="s-pane" id="s-pane-personas">
+          <div class="s-card">
+            <div class="s-card-head">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              personas
+            </div>
+            <div class="s-card-body">
+              <div id="persona-list" style="margin-bottom:0.75rem"></div>
+              <div class="s-field"><label>emoji</label><input type="text" class="settings-input" id="persona-emoji" placeholder="🤖" style="width:50px"></div>
+              <div class="s-field"><label>name</label><input type="text" class="settings-input" id="persona-name" placeholder="name" style="width:100%"></div>
+              <div class="s-field"><label>system prompt</label><textarea class="settings-textarea" id="persona-prompt" rows="3" placeholder="You are..."></textarea></div>
+              <button class="btn primary" id="persona-add-btn" style="width:100%">add persona</button>
+            </div>
+          </div>
+          <div class="s-card">
+            <div class="s-card-head">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+              cookbook (custom slash commands)
+            </div>
+            <div class="s-card-body">
+              <div id="cookbook-list" style="margin-bottom:0.75rem"></div>
+              <div style="display:flex;gap:0.4rem;flex-wrap:wrap">
+                <div class="s-field" style="flex:1;min-width:80px"><label>name</label><input type="text" class="settings-input" id="cookbook-name"></div>
+                <div class="s-field" style="flex:1;min-width:100px"><label>description</label><input type="text" class="settings-input" id="cookbook-desc"></div>
+              </div>
+              <div class="s-field"><label>prompt template</label><textarea class="settings-textarea" id="cookbook-prompt" rows="2" placeholder="use {args} for the user's input"></textarea></div>
+              <button class="btn primary" id="cookbook-add-btn" style="width:100%">add command</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── tools pane ── -->
+        <div class="s-pane" id="s-pane-tools">
+          <div class="s-card">
+            <div class="s-card-head">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+              mcp servers
+            </div>
+            <div class="s-card-body">
+              <div id="mcp-server-list" style="margin-bottom:0.75rem"></div>
+              <div class="s-field"><label>name</label><input type="text" class="settings-input" id="mcp-name" style="width:100%"></div>
+              <div class="s-field"><label>command</label><input type="text" class="settings-input" id="mcp-command" placeholder="npx -y @modelcontextprotocol/server-filesystem /path" style="width:100%"></div>
+              <button class="btn primary" id="mcp-add-btn" style="width:100%">add server</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── developer pane ── -->
+        <div class="s-pane" id="s-pane-developer">
+          <div class="s-card">
+            <div class="s-card-head">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
+              api tokens
+            </div>
+            <div class="s-card-body">
+              <div id="token-list" style="margin-bottom:0.75rem"></div>
+              <div style="display:flex;gap:0.4rem">
+                <input type="text" class="settings-input" id="token-name" placeholder="token name" style="flex:1">
+                <button class="btn primary" id="token-add-btn">generate</button>
+              </div>
+              <div id="token-reveal" style="display:none;margin-top:0.5rem;padding:0.5rem;border:1px solid var(--faint);border-radius:2px;font-family:monospace;font-size:0.72rem;word-break:break-all;color:var(--accent)"></div>
+            </div>
+          </div>
+          <div class="s-card">
+            <div class="s-card-head">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+              webhooks
+            </div>
+            <div class="s-card-body">
+              <div id="webhook-list" style="margin-bottom:0.75rem"></div>
+              <div class="s-field"><label>name</label><input type="text" class="settings-input" id="wh-name" style="width:100%"></div>
+              <div class="s-field"><label>url</label><input type="text" class="settings-input" id="wh-url" placeholder="https://..." style="width:100%"></div>
+              <button class="btn primary" id="wh-add-btn" style="width:100%">add webhook</button>
+            </div>
+          </div>
+          <div class="s-card">
+            <div class="s-card-head">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+              openai-compatible api
+            </div>
+            <div class="s-card-body" style="font-size:0.75rem;color:var(--muted)">
+              <div style="margin-bottom:0.3rem">expose aide's models via the OpenAI API spec.</div>
+              <div style="margin-bottom:0.3rem">base url: <code id="s-compat-url2" style="color:var(--accent)">http://localhost:8001/v1</code></div>
+              <div>model id format: <code style="color:var(--accent)">EndpointName/model-id</code></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── backup pane ── -->
+        <div class="s-pane" id="s-pane-backup">
+          <div class="s-card">
+            <div class="s-card-head">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              export
+            </div>
+            <div class="s-card-body">
+              <p style="font-size:0.75rem;color:var(--muted);margin-bottom:0.75rem">downloads a ZIP containing <code>aide.db</code> (all chats, notes, tasks, memories) and <code>settings.json</code>.</p>
+              <button class="btn primary" id="backup-export-btn" style="width:100%">download backup</button>
+            </div>
+          </div>
+          <div class="s-card">
+            <div class="s-card-head">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              restore
+            </div>
+            <div class="s-card-body">
+              <p style="font-size:0.75rem;color:var(--muted);margin-bottom:0.75rem">select a ZIP backup to restore. this will replace all current data.</p>
+              <label class="btn primary" style="cursor:pointer;display:block;text-align:center;width:100%">
+                choose backup file
+                <input type="file" id="backup-restore-input" accept=".zip" style="display:none">
+              </label>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /s-content -->
+    </div><!-- /s-layout -->
+  </div><!-- /s-modal -->
 </div>
 
 <script type="module">
-const _v = '9';
+const _v = '10';
 import(`/static/js/app.js?v=${_v}`);
 </script>
 </body>
