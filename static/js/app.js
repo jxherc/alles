@@ -8,22 +8,73 @@ import { loadNotes, newNote } from './notes.js';
 import { loadTasks, addTask } from './tasks.js';
 import { loadCalendar, newEvent } from './calendar.js';
 import { loadGallery, initGalleryUpload } from './gallery.js';
-import { initSlash } from './slash.js';
+import { initSlash, tryExecuteSlashCommand } from './slash.js';
+import { attachFile, initDropZone } from './uploads.js';
+import { loadProjects } from './projects.js';
+import { openSearch, closeSearch, initSearch } from './search.js';
+import { loadDocuments, newDocument, initDocEditor, closeDocEditor, aiEditDoc } from './documents.js';
+import { initCompareView, loadCompareModels } from './compare.js';
+import { loadVaultView, initVault } from './vault.js';
+import { loadContacts, addContact } from './contacts.js';
 
 window._mdToHtml = mdToHtml;
 
 // ── init ─────────────────────────────────────────────────────────────────────
 async function init() {
+  // check auth first
+  try {
+    const me = await fetch('/api/auth/me').then(r => r.json());
+    if (!me.authenticated) {
+      _showLoginScreen();
+      return;
+    }
+  } catch (e) {
+    // auth not enabled — proceed normally
+  }
+  await _boot();
+}
+
+async function _boot() {
   await loadModels();
   await loadSessions();
+  await loadProjects();
   const ta = document.getElementById('composer-ta');
   initSlash(ta);
+  initSearch();
+  initDropZone();
+  initVault();
   bindEvents();
 }
+
+function _showLoginScreen() {
+  const screen = document.getElementById('login-screen');
+  if (screen) screen.style.display = 'flex';
+  document.getElementById('login-submit')?.addEventListener('click', async () => {
+    const pw = document.getElementById('login-pw')?.value;
+    const r = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ password: pw }),
+    });
+    if (r.ok) {
+      if (screen) screen.style.display = 'none';
+      _boot();
+    } else {
+      toast('wrong password', 'error');
+    }
+  });
+  document.getElementById('login-pw')?.addEventListener('keydown', e => {
+    if (e.key === 'Enter') document.getElementById('login-submit')?.click();
+  });
+}
+
 init();
 
 // ── views ─────────────────────────────────────────────────────────────────────
-const _VIEW_IDS = ['chat', 'notes-view', 'tasks-view', 'calendar-view', 'gallery-view', 'mem-view'];
+const _VIEW_IDS = [
+  'chat', 'notes-view', 'tasks-view', 'calendar-view', 'gallery-view',
+  'mem-view', 'docs-view', 'compare-view', 'vault-view', 'contacts-view',
+];
 
 function hideAllViews() {
   _VIEW_IDS.forEach(id => {
@@ -51,6 +102,10 @@ const showTasksView    = () => showView('tasks-view',    'tasks',    loadTasks);
 const showCalendarView = () => showView('calendar-view', 'calendar', loadCalendar);
 const showGalleryView  = () => showView('gallery-view',  'gallery',  () => { loadGallery(); initGalleryUpload(); });
 const showMemoryView   = () => showView('mem-view',      'memory',   initMemoryPanel);
+const showDocsView     = () => showView('docs-view',     'docs',     () => { loadDocuments(); initDocEditor(); });
+const showCompareView  = () => showView('compare-view',  'compare',  () => { initCompareView(); loadCompareModels(); });
+const showVaultView    = () => showView('vault-view',    'vault',    loadVaultView);
+const showContactsView = () => showView('contacts-view', 'contacts', () => loadContacts());
 
 function setNav(view) {
   document.querySelectorAll('.nav-item').forEach(n => {
@@ -134,6 +189,68 @@ function bindEvents() {
     if (e.key === 'Enter') document.getElementById('task-add-btn').click();
   });
 
+  // attach button wires to hidden file input
+  document.getElementById('attach-btn')?.addEventListener('click', () => {
+    document.getElementById('file-input-hidden')?.click();
+  });
+  document.getElementById('file-input-hidden')?.addEventListener('change', async e => {
+    for (const f of e.target.files) await attachFile(f);
+    e.target.value = '';
+  });
+
+  // mic button
+  document.getElementById('mic-btn')?.addEventListener('click', async () => {
+    const { isRecording, startRecording, stopRecording } = await import('./voice.js');
+    if (isRecording()) stopRecording();
+    else startRecording();
+  });
+
+  // new incognito session button
+  document.getElementById('incognito-btn')?.addEventListener('click', async () => {
+    toast('incognito session — messages not saved', 'success');
+    const ep = getCurrentEndpoint();
+    const s = await fetch('/api/sessions', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ model: getSelected()?.model || '', endpoint_id: ep?.id || '', incognito: true }),
+    }).then(r => r.json());
+    if (s?.id) {
+      showChatView();
+      const { selectSession } = await import('./sessions.js');
+      await loadSessions();
+      await selectSession(s.id);
+    }
+  });
+
+  // doc ai-edit bar
+  document.getElementById('doc-ai-send')?.addEventListener('click', async () => {
+    const inp = document.getElementById('doc-ai-input');
+    if (!inp?.value.trim()) return;
+    await aiEditDoc(inp.value.trim());
+    inp.value = '';
+  });
+  document.getElementById('doc-back-btn')?.addEventListener('click', closeDocEditor);
+  document.getElementById('doc-new-btn')?.addEventListener('click', newDocument);
+
+  // contacts search
+  document.getElementById('contacts-search')?.addEventListener('input', e => loadContacts(e.target.value));
+  document.getElementById('contact-add-btn')?.addEventListener('click', addContact);
+
+  // backup/restore in settings
+  document.getElementById('backup-export-btn')?.addEventListener('click', () => {
+    window.location = '/api/backup';
+  });
+  document.getElementById('backup-restore-input')?.addEventListener('change', async e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const fd = new FormData();
+    fd.append('file', file);
+    const r = await fetch('/api/backup/restore', { method: 'POST', body: fd });
+    if (r.ok) { toast('restore complete — reloading…', 'success'); setTimeout(() => location.reload(), 1500); }
+    else toast('restore failed', 'error');
+    e.target.value = '';
+  });
+
   // sidebar nav
   document.querySelectorAll('.nav-item').forEach(el => {
     el.addEventListener('click', () => {
@@ -144,6 +261,10 @@ function bindEvents() {
       else if (v === 'calendar') showCalendarView();
       else if (v === 'gallery')  showGalleryView();
       else if (v === 'memory')   showMemoryView();
+      else if (v === 'docs')     showDocsView();
+      else if (v === 'compare')  showCompareView();
+      else if (v === 'vault')    showVaultView();
+      else if (v === 'contacts') showContactsView();
       else if (v === 'settings') openSettingsModal();
     });
   });
@@ -151,7 +272,10 @@ function bindEvents() {
   document.querySelectorAll('.modal-overlay').forEach(o => {
     o.addEventListener('click', e => { if (e.target === o) closeAllModals(); });
   });
-  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeAllModals(); });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { closeAllModals(); closeSearch(); }
+    if ((e.metaKey || e.ctrlKey) && e.key === 'k') { e.preventDefault(); openSearch(); }
+  });
   document.addEventListener('click', () => {
     document.getElementById('ctx-menu').style.display = 'none';
   });
@@ -163,10 +287,14 @@ function bindEvents() {
 }
 
 // ── send ──────────────────────────────────────────────────────────────────────
-function doSend() {
+async function doSend() {
   const ta = document.getElementById('composer-ta');
   const text = ta.value.trim();
   if (!text) return;
+  if (await tryExecuteSlashCommand(text)) {
+    ta.value = ''; ta.style.height = 'auto';
+    return;
+  }
   ta.value = ''; ta.style.height = 'auto';
   if (isResearchMode()) runResearch(text);
   else sendMessage(text);
@@ -200,6 +328,10 @@ async function openSettingsModal() {
     const s = await (await fetch('/api/settings')).json();
     document.getElementById('settings-system-prompt').value = s.system_prompt || '';
     document.getElementById('settings-context-limit').value = s.context_limit ?? 40;
+    if (document.getElementById('settings-tts-provider'))
+      document.getElementById('settings-tts-provider').value = s.tts_provider || 'browser';
+    if (document.getElementById('settings-stt-provider'))
+      document.getElementById('settings-stt-provider').value = s.stt_provider || 'browser';
   } catch (e) {}
   loadMcpServers();
   loadPersonas();
@@ -209,12 +341,19 @@ async function openSettingsModal() {
 }
 
 async function saveSettings() {
+  const patch = {
+    system_prompt: document.getElementById('settings-system-prompt').value,
+    context_limit: parseInt(document.getElementById('settings-context-limit').value) || 40,
+  };
+  const oaiKey = document.getElementById('settings-openai-key')?.value?.trim();
+  if (oaiKey) patch.openai_api_key = oaiKey;
+  const ttsProvider = document.getElementById('settings-tts-provider')?.value;
+  if (ttsProvider) patch.tts_provider = ttsProvider;
+  const sttProvider = document.getElementById('settings-stt-provider')?.value;
+  if (sttProvider) patch.stt_provider = sttProvider;
   await fetch('/api/settings', {
     method: 'PATCH', headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({
-      system_prompt: document.getElementById('settings-system-prompt').value,
-      context_limit: parseInt(document.getElementById('settings-context-limit').value) || 40,
-    }),
+    body: JSON.stringify(patch),
   });
   toast('saved', 'success');
   closeAllModals();

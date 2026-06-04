@@ -32,7 +32,9 @@ def _fmt_session(s: Session) -> dict:
         "endpoint_id": s.endpoint_id,
         "mode": s.mode,
         "persona_id": s.persona_id,
+        "project_id": getattr(s, "project_id", None),
         "starred": s.starred,
+        "incognito": bool(getattr(s, "incognito", False)),
         "message_count": s.message_count,
         "created_at": s.created_at.isoformat(),
         "last_message_at": s.last_message_at.isoformat() if s.last_message_at else None,
@@ -69,6 +71,7 @@ class CreateSession(BaseModel):
     endpoint_id: str = ""
     name: str = "new chat"
     mode: str = "chat"
+    incognito: bool = False
 
 
 # POST /api/sessions
@@ -79,11 +82,13 @@ async def create_session(body: CreateSession, bg: BackgroundTasks, db: DbSession
         model=body.model,
         endpoint_id=body.endpoint_id or None,
         mode=body.mode,
+        incognito=body.incognito,
     )
     db.add(s)
     db.commit()
     db.refresh(s)
-    bg.add_task(_fire, "session_created", {"session_id": s.id, "name": s.name})
+    if not body.incognito:
+        bg.add_task(_fire, "session_created", {"session_id": s.id, "name": s.name})
     return _fmt_session(s)
 
 
@@ -151,6 +156,59 @@ def delete_session(session_id: str, db: DbSession = Depends(get_db)):
     db.delete(s)
     db.commit()
     return {"ok": True}
+
+
+class EditMessage(BaseModel):
+    content: str
+
+
+# POST /api/sessions/{id}/messages/{msg_id}/edit
+@router.post("/sessions/{session_id}/messages/{msg_id}/edit")
+def edit_message(session_id: str, msg_id: str, body: EditMessage,
+                 db: DbSession = Depends(get_db)):
+    msg = db.get(Message, msg_id)
+    if not msg or msg.session_id != session_id:
+        raise HTTPException(404)
+    msg.content = body.content
+    # hard-delete everything after this message
+    later = (db.query(Message)
+             .filter(Message.session_id == session_id,
+                     Message.timestamp > msg.timestamp)
+             .all())
+    for m in later:
+        db.delete(m)
+    db.commit()
+    return {"ok": True}
+
+
+# POST /api/sessions/{id}/auto-name — LLM-generated name from history
+@router.post("/sessions/{session_id}/auto-name")
+async def auto_name_session(session_id: str, db: DbSession = Depends(get_db)):
+    s = _session_or_404(session_id, db)
+    if not s.messages:
+        raise HTTPException(400, "no messages to name from")
+
+    ep = db.query(ModelEndpoint).filter(ModelEndpoint.enabled == True).first()
+    if not ep:
+        raise HTTPException(400, "no endpoint configured")
+
+    model = s.model or (ep.models_list()[0] if ep.models_list() else "")
+    if not model:
+        raise HTTPException(400, "no model")
+
+    first_user = next((m.content for m in s.messages if m.role == "user"), "")
+    from services.llm import simple_complete
+    prompt = [
+        {"role": "system", "content": "You produce ultra-short chat session titles. Respond with ONLY the title, no quotes or punctuation."},
+        {"role": "user", "content": f"Give a 3-5 word title for a chat that starts with: {first_user[:300]}"},
+    ]
+    name = await simple_complete(prompt, ep.base_url, ep.api_key, model, max_tokens=20)
+    if not name or len(name) > 80:
+        raise HTTPException(500, "naming failed")
+
+    s.name = name.strip().lower()
+    db.commit()
+    return {"name": s.name}
 
 
 # GET /api/sessions/archived

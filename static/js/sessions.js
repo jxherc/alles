@@ -82,10 +82,12 @@ function renderGroup(label, items) {
 }
 
 function renderItem(s) {
-  const starred = s.starred ? ' starred' : '';
-  return `<div class="session-item${starred}" data-id="${s.id}">
+  const starred  = s.starred   ? ' starred'   : '';
+  const incog    = s.incognito ? ' incognito' : '';
+  const icon     = s.incognito ? '<span class="incognito-icon" title="incognito">◎</span>' : '';
+  return `<div class="session-item${starred}${incog}" data-id="${s.id}">
   <div class="session-dot"></div>
-  <span class="session-name">${escHtml(s.name)}</span>
+  ${icon}<span class="session-name">${escHtml(s.name)}</span>
   <span class="star">★</span>
 </div>`;
 }
@@ -132,18 +134,43 @@ function renderMessages(msgs) {
   container.innerHTML = '';
   for (const m of msgs) {
     if (m.role === 'user') {
-      appendUserMsg(m.content);
+      const row = appendUserMsg(m.content);
+      row.dataset.msgId = m.id;
+    } else if (m.role === 'system' && m.content?.startsWith('[conversation summary]')) {
+      // compact divider
+      const div = document.createElement('div');
+      div.className = 'compact-divider';
+      div.innerHTML = '<span>context compacted</span>';
+      container.appendChild(div);
     } else if (m.role === 'assistant') {
-      appendAiMsg(m.content, m.meta?.thinking);
+      const { row, wrap } = appendAiMsg(m.content, m.meta?.thinking);
+      row.dataset.msgId = m.id;
+      // re-open artifact button from history
+      if (m.meta?.artifacts?.length) {
+        wrap.dataset.artifacts = JSON.stringify(m.meta.artifacts);
+        const actions = wrap.querySelector('.msg-actions');
+        if (actions) {
+          const btn = document.createElement('button');
+          btn.className = 'act-btn';
+          btn.textContent = 'open artifact';
+          btn.setAttribute('onclick', 'openArtifactFromMsg(this)');
+          actions.appendChild(btn);
+        }
+      }
     }
   }
+  // wire edit buttons after all messages are rendered
+  _wireEditButtons(container);
   container.scrollTop = container.scrollHeight;
 }
 
 
 export function appendUserMsg(text) {
   const { row } = _makeRow('user');
-  row.innerHTML = `<div class="user-wrap"><div class="user-bubble">${escHtml(text)}</div></div>`;
+  row.innerHTML = `<div class="user-wrap">
+    <div class="user-bubble">${escHtml(text)}</div>
+    <button class="msg-edit-btn" title="edit">✎</button>
+  </div>`;
   document.getElementById('messages').appendChild(row);
   scrollDown();
   return row;
@@ -158,21 +185,23 @@ export function appendAiMsg(text, thinking) {
     tb.textContent = thinking;
     body.appendChild(tb);
   }
+  // strip artifact tags from display
+  const displayText = text ? text.replace(/<aide-artifact[^>]*>[\s\S]*?<\/aide-artifact>/g, '').trim() : '';
   const content = document.createElement('div');
   content.className = 'ai-content';
-  // import mdToHtml dynamically to avoid circular — just use innerHTML
-  content.innerHTML = text ? _md(text) : '';
+  content.innerHTML = displayText ? _md(displayText) : '';
   body.appendChild(content);
   body.classList.add('done');
 
   const actions = document.createElement('div');
   actions.className = 'msg-actions';
-  actions.innerHTML = `<button class="act-btn" onclick="copyMsg(this)">copy</button>`;
+  actions.innerHTML = `<button class="act-btn" onclick="copyMsg(this)">copy</button>
+    <button class="msg-regen-btn act-btn" title="regenerate">↺ regen</button>`;
   wrap.appendChild(actions);
 
   document.getElementById('messages').appendChild(row);
   scrollDown();
-  return { row, body, content };
+  return { row, wrap, body, content };
 }
 
 
@@ -202,6 +231,93 @@ function _makeAiRow() {
   return { row, wrap, body };
 }
 
+
+function _wireEditButtons(container) {
+  container.querySelectorAll('.msg-edit-btn').forEach(btn => {
+    btn.addEventListener('click', async e => {
+      e.stopPropagation();
+      const wrap = btn.closest('.user-wrap');
+      const bubble = wrap?.querySelector('.user-bubble');
+      const row = btn.closest('.msg-row');
+      if (!bubble) return;
+      const original = bubble.innerText;
+      const ta = document.createElement('textarea');
+      ta.className = 'edit-inline';
+      ta.value = original;
+      bubble.replaceWith(ta);
+      ta.focus();
+
+      const save = async () => {
+        const newText = ta.value.trim() || original;
+        const msgId = row?.dataset.msgId;
+        const sid = _activeId;
+        if (msgId && sid) {
+          await fetch(`/api/sessions/${sid}/messages/${msgId}/edit`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ content: newText }),
+          });
+        }
+        // remove all subsequent rows from DOM
+        let next = row?.nextElementSibling;
+        while (next) { const n = next.nextElementSibling; next.remove(); next = n; }
+        // replace textarea with bubble
+        const newBubble = document.createElement('div');
+        newBubble.className = 'user-bubble';
+        newBubble.textContent = newText;
+        ta.replaceWith(newBubble);
+        // re-send
+        const { sendMessage } = await import('./chat.js');
+        sendMessage(newText);
+      };
+
+      ta.addEventListener('keydown', e => {
+        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); save(); }
+        if (e.key === 'Escape') {
+          const b = document.createElement('div');
+          b.className = 'user-bubble'; b.textContent = original;
+          ta.replaceWith(b);
+        }
+      });
+      ta.addEventListener('blur', () => {
+        // only save if still in DOM
+        if (ta.isConnected) save();
+      });
+    });
+  });
+
+  container.querySelectorAll('.msg-regen-btn').forEach(btn => {
+    btn.addEventListener('click', async e => {
+      e.stopPropagation();
+      const aiRow = btn.closest('.msg-row');
+      // find the preceding user row
+      let prev = aiRow?.previousElementSibling;
+      while (prev && !prev.querySelector('.user-bubble')) {
+        prev = prev.previousElementSibling;
+      }
+      const userText = prev?.querySelector('.user-bubble')?.innerText;
+      const userMsgId = prev?.dataset.msgId;
+      if (!userText) return;
+
+      const sid = _activeId;
+      if (userMsgId && sid) {
+        // edit user msg with same content — backend deletes everything after it
+        await fetch(`/api/sessions/${sid}/messages/${userMsgId}/edit`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ content: userText }),
+        }).catch(() => {});
+      }
+      // remove AI row + anything after from DOM
+      let next = aiRow?.nextElementSibling;
+      while (next) { const n = next.nextElementSibling; next.remove(); next = n; }
+      aiRow?.remove();
+
+      const { sendMessage } = await import('./chat.js');
+      sendMessage(userText);
+    });
+  });
+}
 
 // lazy md render — avoids import cycle with chat.js
 function _md(text) {

@@ -99,6 +99,44 @@ async def _stream_proc(command: str, timeout: int):
         yield "data: [DONE]\n\n"
 
 
+class PyExecRequest(BaseModel):
+    code: str
+    timeout: int = 30
+
+
+# POST /api/execute/python — run python code, return stdout/stderr
+@router.post("/execute/python")
+async def execute_python(body: PyExecRequest):
+    import tempfile, sys
+    with tempfile.NamedTemporaryFile(suffix=".py", mode="w", delete=False) as f:
+        f.write(body.code)
+        fname = f.name
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            sys.executable, fname,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        try:
+            stdout, stderr = await asyncio.wait_for(
+                proc.communicate(), timeout=body.timeout)
+        except asyncio.TimeoutError:
+            proc.kill()
+            return {"exit_code": -1, "stdout": "", "stderr": f"timed out after {body.timeout}s"}
+        return {
+            "exit_code": proc.returncode,
+            "stdout": stdout.decode("utf-8", "replace")[:50_000],
+            "stderr": stderr.decode("utf-8", "replace")[:10_000],
+        }
+    except Exception as e:
+        raise HTTPException(500, str(e))
+    finally:
+        try:
+            os.unlink(fname)
+        except Exception:
+            pass
+
+
 # POST /api/shell/stream  — SSE line-by-line output
 @router.post("/shell/stream")
 async def shell_stream(body: StreamRequest):

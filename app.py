@@ -27,6 +27,17 @@ from routes import (
     personas as personas_routes,
     webhooks as webhook_routes,
     api_tokens as token_routes,
+    uploads as upload_routes,
+    projects as project_routes,
+    auth as auth_routes,
+    voice as voice_routes,
+    search as search_routes,
+    documents as doc_routes,
+    compare as compare_routes,
+    vault as vault_routes,
+    openai_compat as oai_routes,
+    contacts as contact_routes,
+    backup as backup_routes,
 )
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s  %(name)s  %(message)s")
@@ -85,9 +96,8 @@ app.add_middleware(
 
 class TokenAuthMiddleware(BaseHTTPMiddleware):
     """
-    If a request has Authorization: Bearer aide_xxx, validate it.
-    Passes through all requests that don't have that header (browser UI, etc.).
-    Blocks only requests with an invalid token.
+    1. If Bearer aide_xxx token present, validate it.
+    2. If AUTH_ENABLED=true, block unauthenticated /api/ requests (except /api/auth/*).
     """
     _EXEMPT = {"/", "/health", "/static", "/docs", "/openapi.json", "/redoc"}
 
@@ -103,11 +113,21 @@ class TokenAuthMiddleware(BaseHTTPMiddleware):
                 db.close()
             if not valid:
                 return JSONResponse({"detail": "invalid token"}, status_code=401)
+
+        if auth_enabled():
+            path = request.url.path
+            if path.startswith("/api/") and not path.startswith("/api/auth"):
+                from core.auth import verify_session
+                cookie = request.cookies.get("aide_session", "")
+                if not verify_session(cookie):
+                    return JSONResponse({"detail": "not authenticated"}, status_code=401)
+
         return await call_next(request)
 
 app.add_middleware(TokenAuthMiddleware)
 
 # routes
+app.include_router(auth_routes.router)
 app.include_router(chat.router)
 app.include_router(sessions.router)
 app.include_router(models.router)
@@ -124,6 +144,16 @@ app.include_router(cookbook_routes.router)
 app.include_router(personas_routes.router)
 app.include_router(webhook_routes.router)
 app.include_router(token_routes.router)
+app.include_router(upload_routes.router)
+app.include_router(project_routes.router)
+app.include_router(voice_routes.router)
+app.include_router(search_routes.router)
+app.include_router(doc_routes.router)
+app.include_router(compare_routes.router)
+app.include_router(vault_routes.router)
+app.include_router(oai_routes.router)
+app.include_router(contact_routes.router)
+app.include_router(backup_routes.router)
 
 
 # static files — no-cache so JS/CSS always reloads
