@@ -69,6 +69,7 @@ function _onPaneOpen(name) {
   if (name === 'appearance') loadAppearancePane();
   if (name === 'voice')      loadVoicePane();
   if (name === 'personas')   { loadPersonas(); loadCookbook(); }
+  if (name === 'templates')  loadTemplatesPane();
   if (name === 'tools')      loadMcpServers();
   if (name === 'developer')  { loadTokens(); loadWebhooks(); loadShortcutSettings(); }
 }
@@ -126,8 +127,16 @@ function _initSettings() {
     const btn = document.getElementById('s-ep-add-btn');
     btn.textContent = 'probing…'; btn.disabled = true;
     try {
-      await addEndpoint(name, url, key);
-      ['s-ep-name','s-ep-url','s-ep-key'].forEach(id => document.getElementById(id).value = '');
+      const ep = await addEndpoint(name, url, key);
+      const visionRaw = document.getElementById('s-ep-vision')?.value.trim() || '';
+      if (visionRaw && ep?.id) {
+        const visionList = visionRaw.split(',').map(s => s.trim()).filter(Boolean);
+        await fetch(`/api/models/endpoint/${ep.id}`, {
+          method: 'PATCH', headers: {'content-type':'application/json'},
+          body: JSON.stringify({ vision_models: JSON.stringify(visionList) }),
+        });
+      }
+      ['s-ep-name','s-ep-url','s-ep-key','s-ep-vision'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
       document.getElementById('s-ep-add-details').open = false;
       toast('endpoint added', 'success');
       loadEpList();
@@ -556,6 +565,65 @@ async function addCookbookEntry() {
   toast('added', 'success');
   loadCookbook();
 }
+
+// ── templates ─────────────────────────────────────────────────────────────────
+async function loadTemplatesPane() {
+  const el = document.getElementById('template-list');
+  if (!el) return;
+  const templates = await fetch('/api/templates').then(r => r.json()).catch(() => []);
+  if (!templates.length) { el.innerHTML = '<div class="settings-row-empty">no templates yet</div>'; return; }
+  el.innerHTML = templates.map(t => `
+    <div class="settings-list-row">
+      <div style="flex:1;min-width:0">
+        <div class="row-name">${_esc(t.name)}</div>
+        ${t.system_prompt ? `<div style="font-size:0.68rem;color:var(--muted);margin-top:2px">${_esc(t.system_prompt.slice(0,50))}${t.system_prompt.length>50?'…':''}</div>` : ''}
+      </div>
+      <button class="btn" data-id="${t.id}" onclick="window._useTemplate('${t.id}')">use</button>
+      <button class="act-btn" data-id="${t.id}" onclick="window._rmTemplate('${t.id}')">×</button>
+    </div>`).join('');
+
+  // init template add button once
+  const addBtn = document.getElementById('tpl-add-btn');
+  if (addBtn && !addBtn.dataset.bound) {
+    addBtn.dataset.bound = '1';
+    addBtn.addEventListener('click', async () => {
+      const name = document.getElementById('tpl-name').value.trim();
+      const sys  = document.getElementById('tpl-system').value.trim();
+      const msg  = document.getElementById('tpl-message').value.trim();
+      if (!name) { toast('name required', 'error'); return; }
+      await fetch('/api/templates', { method: 'POST', headers: {'content-type':'application/json'},
+        body: JSON.stringify({ name, system_prompt: sys, initial_message: msg }) });
+      ['tpl-name','tpl-system','tpl-message'].forEach(id => document.getElementById(id).value = '');
+      toast('template saved', 'success');
+      loadTemplatesPane();
+    });
+  }
+}
+
+window._rmTemplate = async id => {
+  await fetch(`/api/templates/${id}`, { method: 'DELETE' });
+  document.getElementById('template-list') && loadTemplatesPane();
+};
+
+window._useTemplate = async id => {
+  const r = await fetch('/api/templates');
+  const templates = await r.json();
+  const t = templates.find(x => x.id === id);
+  if (!t) return;
+  // apply: set system prompt + pre-fill composer
+  if (t.system_prompt) {
+    await fetch('/api/settings', { method: 'PATCH', headers: {'content-type':'application/json'},
+      body: JSON.stringify({ system_prompt: t.system_prompt }) });
+    toast(`template "${t.name}" applied`, 'success');
+  }
+  if (t.initial_message) {
+    const ta = document.getElementById('composer-ta');
+    if (ta) { ta.value = t.initial_message; ta.focus(); ta.dispatchEvent(new Event('input')); }
+  }
+  // close settings
+  const { closeSettings } = await import('./settings.js');
+  closeSettings();
+};
 
 // ── mcp servers ───────────────────────────────────────────────────────────────
 export async function loadMcpServers() {

@@ -84,11 +84,13 @@ export function renderModelList(filter = '') {
       continue;
     }
 
+    const visionModels = new Set(ep.vision_models || []);
     for (const m of models) {
       const isActive = _selected?.endpointId === ep.id && _selected?.model === m;
+      const visionBadge = visionModels.has(m) ? '<span class="model-vision-badge" title="vision capable">👁</span>' : '';
       html += `<div class="model-row${isActive ? ' active' : ''}" data-ep="${ep.id}" data-model="${m}">
         <div class="model-dot"></div>
-        <span class="model-name">${m}</span>
+        <span class="model-name">${m}</span>${visionBadge}
       </div>`;
     }
   }

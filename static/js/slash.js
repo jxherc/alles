@@ -34,6 +34,10 @@ const BUILTINS = [
   { name: 'backup',    cat: 'system',   help: 'download backup zip' },
   { name: 'compact',   cat: 'system',   help: 'compact context now' },
   { name: 'help',      cat: 'system',   help: 'list all slash commands' },
+  // scheduling
+  { name: 'remind',    cat: 'schedule', help: 'set a reminder', args: '<in 2h|at 3pm> <text>' },
+  { name: 'send',      cat: 'schedule', help: 'schedule a message to AI', args: '<in 2h|at 3pm> <text>' },
+  { name: 'reminders', cat: 'schedule', help: 'view scheduled reminders & messages' },
 ];
 
 // cookbook entries from API
@@ -443,6 +447,38 @@ export async function tryExecuteSlashCommand(text) {
 
     case 'compact':
       toast('context compaction is automatic — happens when context exceeds threshold');
+      return true;
+
+    case 'remind':
+    case 'send': {
+      // usage: /remind in 2h <text>  OR  /remind at 3pm <text>
+      const { parseReminderTime, createReminder } = await import('./reminders.js');
+      const timePatterns = [
+        /^(in\s+\d+\s*(?:m(?:in)?|h(?:r|our)?|d(?:ay)?))\s+(.+)$/i,
+        /^((?:today\s+)?at\s+\d{1,2}(?::\d{2})?\s*(?:am|pm)?)\s+(.+)$/i,
+        /^(tomorrow\s+at\s+\d{1,2}(?::\d{2})?\s*(?:am|pm)?)\s+(.+)$/i,
+      ];
+      let timePart = null, textPart = null;
+      for (const pat of timePatterns) {
+        const m = args.match(pat);
+        if (m) { timePart = m[1]; textPart = m[2]; break; }
+      }
+      if (!timePart || !textPart) {
+        toast(`usage: /${cmd} in 2h <text> OR /${cmd} at 3pm <text>`, 'error');
+        return true;
+      }
+      const triggerAt = parseReminderTime(timePart);
+      if (!triggerAt) { toast('could not parse time', 'error'); return true; }
+      const type = cmd === 'send' ? 'message' : 'reminder';
+      const sessionId = type === 'message' ? (window._currentSession?.id || null) : null;
+      await createReminder(textPart, triggerAt, type, sessionId);
+      const when = triggerAt.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+      toast(type === 'message' ? `scheduled for ${when}` : `reminder set for ${when}`, 'success');
+      return true;
+    }
+
+    case 'reminders':
+      document.querySelector('.nav-item[data-view="reminders"]')?.click();
       return true;
 
     case 'help': {

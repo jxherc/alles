@@ -1634,6 +1634,42 @@ code {
 
 /* ── docs improved ── */
 .doc-item-meta { font-size: 0.68rem; color: var(--muted); margin-top: 2px; }
+
+/* ── memory category filter ── */
+.mem-cat-filter {
+  display: flex; gap: 0.3rem; padding: 0.4rem 0.75rem 0; flex-wrap: wrap; flex-shrink: 0;
+}
+.mem-cat-btn {
+  background: none; border: 1px solid var(--faint); color: var(--muted);
+  font: inherit; font-size: 0.68rem; padding: 0.15rem 0.5rem; border-radius: 2px;
+  cursor: pointer; transition: color 0.15s, border-color 0.15s;
+}
+.mem-cat-btn:hover { color: var(--text); border-color: var(--muted); }
+.mem-cat-btn.active { color: var(--accent); border-color: var(--accent); }
+.mem-view-footer { gap: 0.4rem; }
+
+/* ── reminders ── */
+.reminder-add-form {
+  display: flex; gap: 0.4rem; flex-wrap: wrap; align-items: flex-start;
+  padding: 0 0 0.5rem;
+}
+.reminder-add-form input, .reminder-add-form select { height: 32px; }
+
+/* ── vision badge ── */
+.model-vision-badge {
+  font-size: 0.65rem; margin-left: 0.3rem; opacity: 0.7;
+  vertical-align: middle;
+}
+
+/* ── print ── */
+@media print {
+  .sidebar, .topbar, .composer-outer, .session-header, .msg-actions,
+  .thinking-block summary, .nav-item, .no-print { display: none !important; }
+  .main { overflow: visible !important; }
+  .messages { max-height: none !important; overflow: visible !important; }
+  body { background: white !important; color: black !important; }
+  .ai-content, .user-msg { color: black !important; }
+}
 .session-token-count {
   font-size: 0.68rem; color: var(--muted); margin-left: auto; flex-shrink: 0;
 }
