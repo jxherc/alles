@@ -27,6 +27,13 @@ export function applyVis() {
       el.style.display = on ? '' : 'none';
     });
   });
+  // restore compact + font size at boot
+  if (localStorage.getItem('aide-compact')) document.body.classList.add('compact');
+  _applyFontSize(localStorage.getItem('aide-font-size') || 'md');
+}
+
+function _applyFontSize(sz) {
+  document.documentElement.dataset.fontSize = sz || 'md';
 }
 
 // ── switch helpers ────────────────────────────────────────────────────────────
@@ -138,13 +145,20 @@ function _initSettings() {
     _updateSearchKeyRow();
     saveSearchSettings();
   });
-  document.getElementById('s-tavily-key')?.addEventListener('blur', saveSearchSettings);
+  document.getElementById('s-search-fallback')?.addEventListener('change', saveSearchSettings);
+  ['s-tavily-key','s-brave-key','s-searxng-url','s-gpse-key','s-gpse-cx','s-serper-key'].forEach(id =>
+    document.getElementById(id)?.addEventListener('blur', saveSearchSettings));
   document.getElementById('s-search-count')?.addEventListener('change', saveSearchSettings);
   document.getElementById('s-search-test-btn')?.addEventListener('click', testSearch);
 
   // ── voice pane ──
   document.getElementById('s-voice-save-btn')?.addEventListener('click', saveVoiceSettings);
   document.getElementById('tts-select')?.addEventListener('change', _updateTtsVoiceRow);
+  document.getElementById('s-tts-speed')?.addEventListener('input', e => {
+    const v = parseFloat(e.target.value).toFixed(1);
+    const label = document.getElementById('s-tts-speed-val');
+    if (label) label.textContent = `${v}×`;
+  });
 
   // ── appearance: vis toggles ──
   document.querySelectorAll('.s-vis-toggle').forEach(sw => {
@@ -282,15 +296,28 @@ async function saveAiDefaults() {
 }
 
 // ── search pane ───────────────────────────────────────────────────────────────
+const _SEARCH_KEY_FIELDS = {
+  tavily:     ['s-tavily-row'],
+  brave:      ['s-brave-row'],
+  searxng:    ['s-searxng-row'],
+  google_pse: ['s-google-pse-rows'],
+  serper:     ['s-serper-row'],
+};
+
 async function loadSearchPane() {
   try {
     const s = await fetch('/api/settings').then(r => r.json());
     const prov = s.search_provider || 'duckduckgo';
     setDropdownValue(document.getElementById('s-search-provider'), prov);
-    if (s.tavily_api_key) document.getElementById('s-tavily-key').value = s.tavily_api_key;
-    const count = s.search_result_count || 5;
+    setDropdownValue(document.getElementById('s-search-fallback'), s.search_fallback || 'duckduckgo');
+    if (s.tavily_api_key)  document.getElementById('s-tavily-key').value  = s.tavily_api_key;
+    if (s.brave_api_key)   document.getElementById('s-brave-key').value   = s.brave_api_key;
+    if (s.searxng_url)     document.getElementById('s-searxng-url').value  = s.searxng_url;
+    if (s.google_pse_api_key) document.getElementById('s-gpse-key').value = s.google_pse_api_key;
+    if (s.google_pse_cx)   document.getElementById('s-gpse-cx').value     = s.google_pse_cx;
+    if (s.serper_api_key)  document.getElementById('s-serper-key').value  = s.serper_api_key;
     const sel = document.getElementById('s-search-count');
-    if (sel) setDropdownValue(sel, String(count));
+    if (sel) setDropdownValue(sel, String(s.search_result_count || 5));
     _updateSearchKeyRow();
     _updateSearchStatus(s);
   } catch {}
@@ -298,29 +325,49 @@ async function loadSearchPane() {
 
 function _updateSearchKeyRow() {
   const prov = getDropdownValue(document.getElementById('s-search-provider'));
-  const row = document.getElementById('s-tavily-row');
-  if (row) row.style.display = prov === 'tavily' ? 'flex' : 'none';
+  // hide all key rows, then show the right one
+  const allRows = ['s-tavily-row','s-brave-row','s-searxng-row','s-google-pse-rows','s-serper-row'];
+  allRows.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = 'none';
+  });
+  const rows = _SEARCH_KEY_FIELDS[prov] || [];
+  rows.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = 'flex';
+  });
 }
 
 function _updateSearchStatus(s) {
   const el = document.getElementById('s-search-status');
   if (!el) return;
-  const prov = s.search_provider || 'duckduckgo';
-  const labels = { duckduckgo: 'DuckDuckGo · free', tavily: 'Tavily', disabled: 'disabled' };
+  const prov  = s.search_provider || 'duckduckgo';
   const count = s.search_result_count || 5;
-  const hasKey = prov === 'tavily' ? !!(s.tavily_api_key || '').trim() : true;
-  el.textContent = `active: ${labels[prov] || prov} · ${count} results${prov === 'tavily' && !hasKey ? ' · no api key' : ''}`;
-  el.style.color = (prov === 'tavily' && !hasKey) ? 'var(--error)' : 'var(--muted)';
+  const labels = { duckduckgo:'DuckDuckGo', tavily:'Tavily', brave:'Brave', searxng:'SearXNG', google_pse:'Google PSE', serper:'Serper', disabled:'disabled' };
+  const needsKey = { tavily:'tavily_api_key', brave:'brave_api_key', google_pse:'google_pse_api_key', serper:'serper_api_key' };
+  const needsUrl = { searxng:'searxng_url' };
+  const keyField = needsKey[prov]; const urlField = needsUrl[prov];
+  const missing  = (keyField && !s[keyField]) || (urlField && !s[urlField]);
+  el.textContent = `active: ${labels[prov]||prov} · ${count} results${missing?' · missing credentials':''}`;
+  el.style.color  = missing ? 'var(--error)' : 'var(--muted)';
 }
 
 async function saveSearchSettings() {
   const prov  = getDropdownValue(document.getElementById('s-search-provider'));
   const count = parseInt(getDropdownValue(document.getElementById('s-search-count'))) || 5;
-  const key   = document.getElementById('s-tavily-key')?.value.trim() || '';
-  const patch = { search_provider: prov, search_result_count: count };
-  if (key) patch.tavily_api_key = key;
+  const fall  = getDropdownValue(document.getElementById('s-search-fallback')) || 'duckduckgo';
+  const patch = { search_provider: prov, search_result_count: count, search_fallback: fall };
+  const fields = {
+    s_tavily_key: 'tavily_api_key', s_brave_key: 'brave_api_key',
+    s_searxng_url: 'searxng_url', s_gpse_key: 'google_pse_api_key',
+    s_gpse_cx: 'google_pse_cx', s_serper_key: 'serper_api_key',
+  };
+  for (const [htmlId, settingKey] of Object.entries(fields)) {
+    const val = document.getElementById(htmlId.replace(/_/g, '-'))?.value.trim();
+    if (val) patch[settingKey] = val;
+  }
   await _patchSettings(patch);
-  _updateSearchStatus({ search_provider: prov, search_result_count: count, tavily_api_key: key });
+  _updateSearchStatus({ search_provider: prov, search_result_count: count, ...patch });
 }
 
 async function testSearch() {
@@ -349,16 +396,39 @@ function loadAppearancePane() {
     const key = sw.dataset.visKey;
     _setSwitch(sw, key in v ? v[key] : true);
   });
-  _bindSwitchOnce(document.getElementById('s-sensitive-blur-toggle'),
-    sensitiveBlurEnabled,
-    setSensitiveBlur);
-  _bindSwitchOnce(document.getElementById('s-text-emoji-toggle'),
-    textOnlyEmojisEnabled,
-    setTextOnlyEmojis);
-  _bindSwitchOnce(document.getElementById('s-welcome-toggle'),
-    welcomeEnabled,
-    setWelcomeEnabled);
+  _bindSwitchOnce(document.getElementById('s-sensitive-blur-toggle'), sensitiveBlurEnabled, setSensitiveBlur);
+  _bindSwitchOnce(document.getElementById('s-text-emoji-toggle'), textOnlyEmojisEnabled, setTextOnlyEmojis);
+  _bindSwitchOnce(document.getElementById('s-welcome-toggle'), welcomeEnabled, setWelcomeEnabled);
+  // memory inject loaded async — fetch setting first
+  fetch('/api/settings').then(r => r.json()).then(s => {
+    _bindSwitchOnce(document.getElementById('s-memory-inject-toggle'),
+      () => s.memory_auto_inject !== false,
+      on => _patchSettings({ memory_auto_inject: on })
+    );
+  }).catch(() => {});
+  _bindSwitchOnce(document.getElementById('s-ui-compact-toggle'),
+    () => document.body.classList.contains('compact'),
+    on => {
+      document.body.classList.toggle('compact', on);
+      localStorage.setItem('aide-compact', on ? '1' : '');
+    }
+  );
+  const fsEl = document.getElementById('s-ui-font-size');
+  if (fsEl) {
+    const cur = localStorage.getItem('aide-font-size') || 'md';
+    setDropdownValue(fsEl, cur);
+    if (!fsEl.dataset.fsBound) {
+      fsEl.dataset.fsBound = '1';
+      fsEl.addEventListener('change', () => {
+        const sz = getDropdownValue(fsEl) || 'md';
+        localStorage.setItem('aide-font-size', sz);
+        _applyFontSize(sz);
+      });
+    }
+  }
 }
+
+// (end loadAppearancePane helper)
 
 function _bindSwitchOnce(el, getter, setter) {
   if (!el) return;
@@ -390,6 +460,18 @@ async function loadVoicePane() {
     const voiceSel = document.getElementById('s-tts-voice');
     if (voiceSel) setDropdownValue(voiceSel, s.tts_voice || 'alloy');
     if (s.openai_api_key) document.getElementById('settings-openai-key').value = s.openai_api_key;
+    const langEl = document.getElementById('s-stt-language');
+    if (langEl && s.stt_language) langEl.value = s.stt_language;
+    const speedEl = document.getElementById('s-tts-speed');
+    if (speedEl) {
+      speedEl.value = s.tts_speed ?? 1.0;
+      const label = document.getElementById('s-tts-speed-val');
+      if (label) label.textContent = `${parseFloat(speedEl.value).toFixed(1)}×`;
+    }
+    _bindSwitchOnce(document.getElementById('s-tts-enabled-toggle'),
+      () => !!(s.tts_auto_play),
+      async on => { await _patchSettings({ tts_auto_play: on }); }
+    );
     _updateTtsVoiceRow();
   } catch {}
 }
@@ -405,6 +487,8 @@ async function saveVoiceSettings() {
     tts_provider: getDropdownValue(document.getElementById('tts-select')) || 'browser',
     stt_provider: getDropdownValue(document.getElementById('stt-select')) || 'browser',
     tts_voice:    getDropdownValue(document.getElementById('s-tts-voice')) || 'alloy',
+    tts_speed:    parseFloat(document.getElementById('s-tts-speed')?.value || '1.0'),
+    stt_language: document.getElementById('s-stt-language')?.value.trim() || '',
   };
   const key = document.getElementById('settings-openai-key')?.value.trim();
   if (key) patch.openai_api_key = key;

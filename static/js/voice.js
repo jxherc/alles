@@ -66,6 +66,7 @@ async function _onStop() {
     }
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     const rec = new SR();
+    if (s.stt_language) rec.lang = s.stt_language;
     rec.onresult = e => _inject(e.results[0][0].transcript);
     rec.onerror = () => toast('speech recognition error', 'error');
     rec.start();
@@ -108,7 +109,10 @@ export async function speak(text) {
   }
 }
 
-function _browserSpeak(text) {
+async function _browserSpeak(text) {
+  const s = await fetch('/api/settings').then(r => r.json()).catch(() => ({}));
   const utt = new SpeechSynthesisUtterance(text.slice(0, 200));
+  if (s.tts_speed) utt.rate = parseFloat(s.tts_speed);
+  if (s.stt_language) utt.lang = s.stt_language;
   window.speechSynthesis.speak(utt);
 }
