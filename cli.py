@@ -32,16 +32,15 @@ def _running(pid):
         return False
     try:
         if sys.platform == "win32":
-            import ctypes
-            handle = ctypes.windll.kernel32.OpenProcess(0x0400, False, pid)
-            if not handle:
-                return False
-            ctypes.windll.kernel32.CloseHandle(handle)
-            return True
+            out = subprocess.check_output(
+                ['tasklist', '/FI', f'PID eq {pid}', '/NH'],
+                stderr=subprocess.DEVNULL, text=True,
+            )
+            return str(pid) in out
         else:
             os.kill(pid, 0)
             return True
-    except (OSError, PermissionError):
+    except Exception:
         return False
 
 
