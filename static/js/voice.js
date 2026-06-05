@@ -17,12 +17,12 @@ export async function startRecording() {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     _chunks = [];
     _recorder = new MediaRecorder(stream);
+    _recording = true;        // must be true before tick loop starts
+    _setMicRecording(true);   // show #mic-wave before driving bars
     _startLiveWave(stream);
     _recorder.ondataavailable = e => _chunks.push(e.data);
     _recorder.onstop = _onStop;
     _recorder.start();
-    _recording = true;
-    _setMicRecording(true);
   } catch (e) {
     toast('mic access denied', 'error');
   }
