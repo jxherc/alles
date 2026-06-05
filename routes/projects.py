@@ -12,6 +12,7 @@ def _fmt(p: Project) -> dict:
         "name": p.name,
         "description": p.description,
         "system_prompt": p.system_prompt,
+        "working_dir": p.working_dir,
         "color": p.color,
         "created_at": p.created_at.isoformat(),
         "session_count": len(p.sessions) if p.sessions else 0,
@@ -27,13 +28,15 @@ class CreateProject(BaseModel):
     name: str
     description: str = ""
     system_prompt: str = ""
+    working_dir: str = ""
     color: str = ""
 
 
 @router.post("/projects")
 def create_project(body: CreateProject, db: DbSession = Depends(get_db)):
     p = Project(name=body.name, description=body.description,
-                system_prompt=body.system_prompt, color=body.color)
+                system_prompt=body.system_prompt, working_dir=body.working_dir,
+                color=body.color)
     db.add(p); db.commit(); db.refresh(p)
     return _fmt(p)
 
@@ -42,6 +45,7 @@ class PatchProject(BaseModel):
     name: str | None = None
     description: str | None = None
     system_prompt: str | None = None
+    working_dir: str | None = None
     color: str | None = None
 
 
@@ -52,6 +56,7 @@ def patch_project(pid: str, body: PatchProject, db: DbSession = Depends(get_db))
     if body.name is not None:          p.name = body.name
     if body.description is not None:   p.description = body.description
     if body.system_prompt is not None: p.system_prompt = body.system_prompt
+    if body.working_dir is not None:   p.working_dir = body.working_dir
     if body.color is not None:         p.color = body.color
     db.commit()
     return _fmt(p)

@@ -1,4 +1,5 @@
 import { mdToHtml, toast } from './util.js';
+import { confirm as _dlgConfirm } from './dialog.js';
 
 let _docs = [];
 let _activeDoc = null;
@@ -192,7 +193,7 @@ async function _save() {
 }
 
 window._delDoc = async id => {
-  if (!confirm('delete this document?')) return;
+  if (!await _dlgConfirm('delete this document?')) return;
   await fetch(`/api/documents/${id}`, { method: 'DELETE' });
   _docs = _docs.filter(d => d.id !== id);
   _renderList();

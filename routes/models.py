@@ -104,8 +104,9 @@ async def probe_endpoint(ep_id: str, db: DbSession = Depends(get_db)):
         headers["authorization"] = f"Bearer {ep.api_key}"
 
     if provider == "anthropic":
-        # anthropic doesn't have a models endpoint — just return known ones
-        models = ["claude-opus-4-5", "claude-sonnet-4-5", "claude-haiku-4-5"]
+        # Keep this fallback current for Anthropic, whose model list may not be
+        # available to every key in every environment.
+        models = ["claude-opus-4-8", "claude-sonnet-4-6", "claude-haiku-4-5-20251001"]
         ep.cached_models = json.dumps(models)
         db.commit()
         return {"models": models}

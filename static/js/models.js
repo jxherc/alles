@@ -1,4 +1,5 @@
 import { toast } from './util.js';
+import { confirm as _dlgConfirm } from './dialog.js';
 
 let _endpoints = [];
 let _selected = null;   // { endpointId, model }
@@ -246,7 +247,7 @@ export function renderEndpointList() {
 
   el.querySelectorAll('.mm-del-btn').forEach(btn => {
     btn.addEventListener('click', async () => {
-      if (!confirm('remove this endpoint?')) return;
+      if (!await _dlgConfirm('remove this endpoint?')) return;
       await fetch(`/api/models/endpoint/${btn.dataset.id}`, { method: 'DELETE' });
       toast('removed', 'success');
       await loadModels();
