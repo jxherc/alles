@@ -1,4 +1,4 @@
-import { loadSessions, showWelcome, createSession, renderSidebar, exportActiveSessionMarkdown } from './sessions.js';
+import { loadSessions, initSessions, newChat, showWelcome, createSession, renderSidebar, exportActiveSessionMarkdown } from './sessions.js';
 import { loadModels, renderModelList, renderSidebarModelList, addEndpoint, getSelected, getCurrentEndpoint, initModelModal } from './models.js';
 import { sendMessage, stopStream } from './chat.js';
 import { toast, closeAllModals, mdToHtml } from './util.js';
@@ -39,7 +39,7 @@ async function _boot() {
   if (localStorage.getItem('aide-sidebar-hidden')) document.body.classList.add('sidebar-hidden');
   await loadModels();
   await loadProjects();
-  await loadSessions();
+  await initSessions();
   const ta = document.getElementById('composer-ta');
   initSlash(ta);
   initSearch();
@@ -163,14 +163,9 @@ function bindEvents() {
   });
   document.getElementById('stop-btn').addEventListener('click', stopStream);
 
-  document.getElementById('new-chat-btn').addEventListener('click', async () => {
-    const ep = getCurrentEndpoint();
-    const s = await createSession(getSelected()?.model || '', ep?.id || '');
-    if (s) {
-      showChatView();
-      const { selectSession } = await import('./sessions.js');
-      await selectSession(s.id);
-    }
+  document.getElementById('new-chat-btn').addEventListener('click', () => {
+    showChatView();
+    newChat();   // fresh chat — not persisted until first message
   });
 
   document.getElementById('session-search').addEventListener('input', e => renderSidebar(e.target.value));
