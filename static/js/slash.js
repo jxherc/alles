@@ -296,10 +296,8 @@ export async function tryExecuteSlashCommand(text) {
     }
 
     case 'agent': {
-      const agentBtn = document.getElementById('mode-agent');
-      const isAgent  = agentBtn?.classList.contains('active');
-      document.getElementById(isAgent ? 'mode-chat' : 'mode-agent')?.click();
-      toast(isAgent ? 'switched to chat mode' : 'switched to agent mode');
+      // always agent — open the agent panel in settings
+      document.querySelector('.nav-item[data-view="brain"]')?.click();
       return true;
     }
 

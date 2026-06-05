@@ -12,6 +12,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/static/style.css">
+<link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
 </head>
 <body>
 
@@ -34,18 +35,23 @@
 
     <nav class="sidebar-nav">
       <div class="nav-item active" data-view="chat">chat</div>
-      <div class="nav-item" data-view="models">models</div>
-      <div class="nav-item" data-view="brain">brain</div>
-      <div class="nav-item" data-view="notes">notes</div>
-      <div class="nav-item" data-view="tasks">tasks</div>
-      <div class="nav-item" data-view="calendar">calendar</div>
-      <div class="nav-item" data-view="gallery">gallery</div>
-      <div class="nav-item" data-view="memory">memory</div>
-      <div class="nav-item" data-view="docs">docs</div>
-      <div class="nav-item" data-view="reminders">reminders</div>
-      <div class="nav-item" data-view="compare">compare</div>
-      <div class="nav-item" data-view="vault">vault</div>
-      <div class="nav-item" data-view="contacts">contacts</div>
+      <div class="nav-sep"></div>
+      <div class="nav-more-toggle" id="nav-more-toggle">tools <span id="nav-more-arrow">▾</span></div>
+      <div class="nav-more-items" id="nav-more-items">
+        <div class="nav-item" data-view="models">models</div>
+        <div class="nav-item" data-view="notes">notes</div>
+        <div class="nav-item" data-view="tasks">tasks</div>
+        <div class="nav-item" data-view="docs">docs</div>
+        <div class="nav-item" data-view="memory">memory</div>
+        <div class="nav-item" data-view="brain">brain</div>
+        <div class="nav-item" data-view="calendar">calendar</div>
+        <div class="nav-item" data-view="gallery">gallery</div>
+        <div class="nav-item" data-view="reminders">reminders</div>
+        <div class="nav-item" data-view="compare">compare</div>
+        <div class="nav-item" data-view="vault">vault</div>
+        <div class="nav-item" data-view="contacts">contacts</div>
+      </div>
+      <div class="nav-sep"></div>
       <div class="nav-item" data-view="settings">settings</div>
     </nav>
   </aside>
@@ -68,27 +74,18 @@
         </button>
       </div>
       <div class="topbar-right">
-        <button class="icon-btn" id="share-btn" title="share">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+        <span id="session-token-count" style="display:none;font-size:0.65rem;color:var(--muted)"></span>
+        <button class="icon-btn" id="session-actions-btn" title="export / share" style="display:none">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
         </button>
         <button class="icon-btn" id="theme-btn" title="toggle theme">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
-        </button>
-        <button class="icon-btn" id="settings-btn" title="settings">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
         </button>
       </div>
     </div>
 
     <!-- ── chat view (default) ── -->
     <div class="chat" id="chat">
-      <div class="session-header" id="session-header" style="display:none">
-        <span class="session-header-model" id="session-header-model"></span>
-        <span class="session-token-count" id="session-token-count"></span>
-        <button class="act-btn" id="session-export-btn">export</button>
-        <button class="act-btn" id="session-share-btn">share</button>
-        <button class="act-btn" id="session-print-btn">print</button>
-      </div>
       <div class="welcome" id="welcome" style="display:none">
         <div>
           <div class="welcome-brand">aide</div>
@@ -183,13 +180,7 @@
       <div class="mem-view-list" id="memory-list"></div>
       <div class="mem-view-footer">
         <input type="text" id="mem-add-input" placeholder="add a memory...">
-        <select id="mem-add-category" style="background:var(--panel);border:1px solid var(--faint);color:var(--muted);font:inherit;font-size:0.72rem;padding:0.25rem;border-radius:2px">
-          <option value="general">general</option>
-          <option value="identity">identity</option>
-          <option value="preference">preference</option>
-          <option value="fact">fact</option>
-          <option value="task">task</option>
-        </select>
+        <button class="btn mem-cat-cycle" id="mem-cat-cycle-btn" data-val="general">general</button>
         <button class="btn primary" id="mem-add-btn">add</button>
       </div>
     </div>
@@ -269,25 +260,27 @@
 
     <!-- ── vault view ── -->
     <div class="page-view" id="vault-view" style="display:none">
-      <div class="page-view-head"><span class="page-view-title">vault</span></div>
-      <div id="vault-locked" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1rem">
-        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <div class="page-view-head">
+        <span class="page-view-title">vault</span>
+        <button class="btn" id="vault-lock-btn" style="display:none">lock</button>
+      </div>
+      <div id="vault-locked" class="vault-lock-screen">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="opacity:0.4">
           <rect x="4" y="10" width="16" height="10" rx="2"></rect>
           <path d="M8 10V7a4 4 0 0 1 8 0v3"></path>
         </svg>
-        <span style="font-size:0.8rem;color:var(--muted)">enter master password to unlock</span>
-        <input type="password" id="vault-pw-input" class="settings-input" placeholder="master password" style="width:240px;text-align:center">
+        <span>enter master password to unlock</span>
+        <input type="password" id="vault-pw-input" class="settings-input" placeholder="master password" style="width:220px;text-align:center">
         <button class="btn primary" id="vault-unlock-btn">unlock</button>
       </div>
       <div id="vault-unlocked" style="display:none;flex-direction:column;flex:1;overflow:hidden">
-        <div style="padding:0.75rem 1rem;border-bottom:1px solid var(--faint);display:flex;gap:0.4rem;flex-wrap:wrap">
-          <input type="text" id="vault-new-name" class="settings-input" placeholder="name" style="flex:1;min-width:100px">
-          <input type="password" id="vault-new-value" class="settings-input" placeholder="value" style="flex:2;min-width:140px">
-          <input type="text" id="vault-new-cat" class="settings-input" placeholder="category" style="flex:1;min-width:80px">
-          <button class="btn primary" id="vault-add-btn">add</button>
-          <button class="btn" id="vault-lock-btn">lock</button>
-        </div>
         <div class="page-view-body" id="vault-entry-list"></div>
+      </div>
+      <div class="page-view-footer" id="vault-add-bar" style="display:none">
+        <input type="text" id="vault-new-name" class="settings-input" placeholder="name" style="flex:1;min-width:80px">
+        <input type="password" id="vault-new-value" class="settings-input" placeholder="value" style="flex:2;min-width:120px">
+        <input type="text" id="vault-new-cat" class="settings-input" placeholder="category" style="flex:1;min-width:70px">
+        <button class="btn primary" id="vault-add-btn">add</button>
       </div>
     </div>
 
@@ -295,18 +288,15 @@
     <div class="page-view" id="contacts-view" style="display:none">
       <div class="page-view-head">
         <span class="page-view-title">contacts</span>
-      </div>
-      <div style="padding:0.75rem 1rem;border-bottom:1px solid var(--faint)">
-        <input type="text" id="contacts-search" class="settings-input" placeholder="search contacts..." style="width:100%;margin-bottom:0.5rem">
-        <div style="display:flex;gap:0.4rem;flex-wrap:wrap">
-          <input type="text" id="contact-name" class="settings-input" placeholder="name" style="flex:1;min-width:80px">
-          <input type="text" id="contact-email" class="settings-input" placeholder="email" style="flex:1;min-width:100px">
-          <input type="text" id="contact-phone" class="settings-input" placeholder="phone" style="flex:1;min-width:80px">
-          <input type="text" id="contact-notes" class="settings-input" placeholder="notes" style="flex:2;min-width:120px">
-          <button class="btn primary" id="contact-add-btn">add</button>
-        </div>
+        <input type="text" id="contacts-search" class="settings-input" placeholder="search..." style="width:160px">
       </div>
       <div class="page-view-body" id="contacts-list"></div>
+      <div class="page-view-footer">
+        <input type="text" id="contact-name" class="settings-input" placeholder="name" style="flex:1;min-width:80px">
+        <input type="text" id="contact-email" class="settings-input" placeholder="email" style="flex:1;min-width:100px">
+        <input type="text" id="contact-phone" class="settings-input" placeholder="phone" style="width:90px">
+        <button class="btn primary" id="contact-add-btn">add</button>
+      </div>
     </div>
 
     <!-- ── composer (hidden in memory view) ── -->
@@ -326,8 +316,14 @@
             <button class="btn primary" id="shell-send-btn">send shell</button>
           </div>
         </div>
-        <textarea class="composer-ta" id="composer-ta" placeholder="message aide..." rows="1"
+        <textarea class="composer-ta" id="composer-ta" placeholder="message..." rows="1"
           oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,220)+'px'"></textarea>
+        <div id="mic-wave" class="mic-wave" aria-hidden="true">
+          <span style="--level:0.08"></span><span style="--level:0.16"></span><span style="--level:0.32"></span><span style="--level:0.52"></span><span style="--level:0.74"></span>
+          <span style="--level:0.88"></span><span style="--level:0.96"></span><span style="--level:0.82"></span><span style="--level:0.64"></span><span style="--level:0.44"></span>
+          <span style="--level:0.28"></span><span style="--level:0.44"></span><span style="--level:0.64"></span><span style="--level:0.82"></span><span style="--level:0.96"></span>
+          <span style="--level:0.88"></span><span style="--level:0.74"></span><span style="--level:0.52"></span><span style="--level:0.32"></span><span style="--level:0.12"></span>
+        </div>
         <div class="composer-bar">
           <div class="c-tools">
             <button class="c-tool" id="attach-btn">
@@ -355,10 +351,6 @@
             </button>
           </div>
           <div class="c-right">
-            <div class="mode-toggle">
-              <button class="mode-btn" id="mode-agent">agent</button>
-              <button class="mode-btn active" id="mode-chat">chat</button>
-            </div>
             <button class="stop-btn" id="stop-btn">■ stop</button>
             <button class="send-btn" id="send-btn">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>
@@ -522,11 +514,20 @@
                 <summary class="s-add-summary">+ add endpoint</summary>
                 <div class="s-ep-form">
                   <div class="s-ep-presets">
+                    <button class="s-preset-btn" data-url="https://api.openai.com" data-name="OpenAI">OpenAI</button>
                     <button class="s-preset-btn" data-url="https://api.anthropic.com" data-name="Anthropic">Anthropic</button>
                     <button class="s-preset-btn" data-url="https://api.deepseek.com" data-name="DeepSeek">DeepSeek</button>
-                    <button class="s-preset-btn" data-url="https://api.openai.com" data-name="OpenAI">OpenAI</button>
+                    <button class="s-preset-btn" data-url="https://api.moonshot.cn" data-name="Moonshot">Moonshot</button>
+                    <button class="s-preset-btn" data-url="https://api.groq.com/openai" data-name="Groq">Groq</button>
+                    <button class="s-preset-btn" data-url="https://generativelanguage.googleapis.com/v1beta/openai" data-name="Gemini">Gemini</button>
+                    <button class="s-preset-btn" data-url="https://api.x.ai" data-name="xAI (Grok)">xAI (Grok)</button>
+                    <button class="s-preset-btn" data-url="https://api.mistral.ai" data-name="Mistral">Mistral</button>
+                    <button class="s-preset-btn" data-url="https://api.perplexity.ai" data-name="Perplexity">Perplexity</button>
+                    <button class="s-preset-btn" data-url="https://openrouter.ai/api" data-name="OpenRouter">OpenRouter</button>
+                    <button class="s-preset-btn" data-url="https://api.together.xyz" data-name="Together">Together</button>
+                    <button class="s-preset-btn" data-url="https://api.fireworks.ai/inference" data-name="Fireworks">Fireworks</button>
+                    <button class="s-preset-btn" data-url="https://api.cohere.ai" data-name="Cohere">Cohere</button>
                     <button class="s-preset-btn" data-url="http://localhost:11434" data-name="Ollama">Ollama</button>
-                    <button class="s-preset-btn" data-url="http://localhost:1234" data-name="LM Studio">LM Studio</button>
                   </div>
                   <div class="s-field">
                     <label>name</label>
@@ -680,7 +681,7 @@
               <div class="s-toggle-row"><div><div class="s-toggle-label">shell</div><div class="s-toggle-desc">shell command shortcut in composer</div></div><div class="s-switch s-vis-toggle" data-vis="#shell-btn-tool" data-vis-key="bar-shell"></div></div>
               <div class="s-toggle-row"><div><div class="s-toggle-label">microphone</div><div class="s-toggle-desc">voice input button</div></div><div class="s-switch s-vis-toggle" data-vis="#mic-btn" data-vis-key="bar-mic"></div></div>
               <div class="s-toggle-row"><div><div class="s-toggle-label">incognito</div><div class="s-toggle-desc">incognito mode button</div></div><div class="s-switch s-vis-toggle" data-vis="#incognito-btn" data-vis-key="bar-incognito"></div></div>
-              <div class="s-toggle-row"><div><div class="s-toggle-label">agent / chat mode</div><div class="s-toggle-desc">mode switcher in composer</div></div><div class="s-switch s-vis-toggle" data-vis=".mode-toggle" data-vis-key="bar-mode"></div></div>
+              <!-- agent/chat mode toggle removed — always agent -->
             </div>
           </div>
           <div class="s-card">
@@ -808,6 +809,18 @@
         <div class="s-pane" id="s-pane-tools">
           <div class="s-card">
             <div class="s-card-head">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4"/><path d="M12 18v4"/><path d="M4.93 4.93l2.83 2.83"/><path d="M16.24 16.24l2.83 2.83"/><path d="M2 12h4"/><path d="M18 12h4"/><path d="M4.93 19.07l2.83-2.83"/><path d="M16.24 7.76l2.83-2.83"/></svg>
+              agent stack
+              <button class="btn" id="agent-status-refresh-btn" style="margin-left:auto;font-size:0.68rem;padding:0.15rem 0.5rem">refresh</button>
+            </div>
+            <div class="s-card-body">
+              <div id="agent-status-grid" class="agent-status-grid"></div>
+              <div id="agent-tool-list" class="agent-tool-list"></div>
+              <div id="agent-run-list" class="agent-run-list"></div>
+            </div>
+          </div>
+          <div class="s-card">
+            <div class="s-card-head">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
               mcp servers
             </div>
@@ -907,7 +920,7 @@
 </div>
 
 <script type="module">
-const _v = '14';
+const _v = '17';
 import(`/static/js/app.js?v=${_v}`);
 </script>
 </body>

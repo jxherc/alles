@@ -33,6 +33,7 @@ def _fmt_session(s: Session) -> dict:
         "mode": s.mode,
         "persona_id": s.persona_id,
         "project_id": getattr(s, "project_id", None),
+        "working_dir": getattr(s, "working_dir", "") or "",
         "starred": s.starred,
         "incognito": bool(getattr(s, "incognito", False)),
         "message_count": s.message_count,
@@ -72,6 +73,7 @@ class CreateSession(BaseModel):
     name: str = "new chat"
     mode: str = "chat"
     incognito: bool = False
+    working_dir: str = ""
 
 
 # POST /api/sessions
@@ -83,6 +85,7 @@ async def create_session(body: CreateSession, bg: BackgroundTasks, db: DbSession
         endpoint_id=body.endpoint_id or None,
         mode=body.mode,
         incognito=body.incognito,
+        working_dir=body.working_dir,
     )
     db.add(s)
     db.commit()
@@ -115,6 +118,7 @@ class PatchSession(BaseModel):
     mode: str | None = None
     starred: bool | None = None
     persona_id: str | None = None
+    working_dir: str | None = None
 
 
 # PATCH /api/sessions/{id}
@@ -128,6 +132,7 @@ async def patch_session(session_id: str, body: PatchSession, bg: BackgroundTasks
     if body.mode is not None:       s.mode = body.mode
     if body.starred is not None:    s.starred = body.starred
     if body.persona_id is not None: s.persona_id = body.persona_id or None
+    if body.working_dir is not None: s.working_dir = body.working_dir
     db.commit()
     if renamed:
         bg.add_task(_fire, "session_renamed", {"session_id": s.id, "name": s.name})

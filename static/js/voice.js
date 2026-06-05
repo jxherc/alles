@@ -4,6 +4,10 @@ let _recorder = null;
 let _chunks = [];
 let _recording = false;
 let _micIdleHtml = '';
+let _sendIdleHtml = '';
+let _audioCtx = null;
+let _analyser = null;
+let _waveRaf = 0;
 
 export function isRecording() { return _recording; }
 
@@ -13,6 +17,7 @@ export async function startRecording() {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     _chunks = [];
     _recorder = new MediaRecorder(stream);
+    _startLiveWave(stream);
     _recorder.ondataavailable = e => _chunks.push(e.data);
     _recorder.onstop = _onStop;
     _recorder.start();
@@ -33,13 +38,59 @@ export function stopRecording() {
 
 function _setMicRecording(on) {
   const btn = document.getElementById('mic-btn');
+  const box = document.querySelector('.composer-box');
+  const send = document.getElementById('send-btn');
   if (!btn) return;
   if (!_micIdleHtml) _micIdleHtml = btn.innerHTML;
+  if (send && !_sendIdleHtml) _sendIdleHtml = send.innerHTML;
   btn.classList.toggle('recording', on);
   btn.setAttribute('aria-pressed', String(on));
   btn.innerHTML = on
-    ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="8" width="8" height="8" rx="1" fill="currentColor" stroke="none"/><path d="M3 12h1.5M6.5 12v-3M18 12v3M20.5 12H22"/></svg> stop'
+    ? '<svg viewBox="0 0 24 24" fill="none"><rect x="8" y="8" width="8" height="8" rx="1" fill="currentColor"/></svg> stop'
     : _micIdleHtml;
+  if (send) {
+    send.classList.toggle('recording', on);
+    send.title = on ? 'stop recording' : '';
+    // simple stop square when recording — wave is now on #mic-wave
+    send.innerHTML = on
+      ? '<svg viewBox="0 0 24 24" fill="none"><rect x="7" y="7" width="10" height="10" rx="1" fill="currentColor"/></svg>'
+      : _sendIdleHtml;
+  }
+  if (box) box.classList.toggle('mic-recording', on);
+  if (!on) _stopLiveWave();
+}
+
+function _startLiveWave(stream) {
+  try {
+    _audioCtx = new AudioContext();
+    _analyser = _audioCtx.createAnalyser();
+    _analyser.fftSize = 512;
+    _audioCtx.createMediaStreamSource(stream).connect(_analyser);
+    const data = new Uint8Array(_analyser.frequencyBinCount);
+    const tick = () => {
+      if (!_recording || !_analyser) return;
+      _analyser.getByteFrequencyData(data);
+      // drive #mic-wave bars — full-width live waveform
+      const bars = document.querySelectorAll('#mic-wave span');
+      const step = Math.max(1, Math.floor(data.length / Math.max(1, bars.length)));
+      bars.forEach((bar, i) => {
+        let sum = 0;
+        for (let j = i * step; j < Math.min(data.length, (i + 1) * step); j++) sum += data[j];
+        const avg = sum / step / 255;
+        bar.style.setProperty('--level', String(Math.max(0.06, Math.min(1, avg * 2.4))));
+      });
+      _waveRaf = requestAnimationFrame(tick);
+    };
+    tick();
+  } catch {}
+}
+
+function _stopLiveWave() {
+  if (_waveRaf) cancelAnimationFrame(_waveRaf);
+  _waveRaf = 0;
+  _analyser = null;
+  if (_audioCtx) _audioCtx.close().catch(() => {});
+  _audioCtx = null;
 }
 
 async function _onStop() {

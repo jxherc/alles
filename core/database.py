@@ -55,6 +55,7 @@ class Session(Base):
     mode           = Column(String, default="chat")   # chat | agent
     persona_id     = Column(String, ForeignKey("personas.id", ondelete="SET NULL"), nullable=True)
     project_id     = Column(String, ForeignKey("projects.id", ondelete="SET NULL"), nullable=True)
+    working_dir    = Column(Text, default="")
     starred        = Column(Boolean, default=False)
     archived       = Column(Boolean, default=False)
     incognito      = Column(Boolean, default=False)
@@ -214,6 +215,7 @@ class Project(Base):
     name          = Column(String, nullable=False)
     description   = Column(Text, default="")
     system_prompt = Column(Text, default="")
+    working_dir   = Column(Text, default="")
     color         = Column(String, default="")
     created_at    = Column(DateTime, default=_now)
 
@@ -297,12 +299,14 @@ def init_db():
     with engine.connect() as conn:
         _add_col(conn, "sessions", "persona_id",   "TEXT")
         _add_col(conn, "sessions", "project_id",   "TEXT")
+        _add_col(conn, "sessions", "working_dir",  "TEXT DEFAULT ''")
         _add_col(conn, "sessions", "incognito",    "BOOLEAN DEFAULT 0")
         _add_col(conn, "sessions", "mode",         "TEXT DEFAULT 'chat'")
         _add_col(conn, "sessions", "starred",      "BOOLEAN DEFAULT 0")
         _add_col(conn, "sessions", "archived",     "BOOLEAN DEFAULT 0")
         _add_col(conn, "sessions", "share_token",  "TEXT")
         _add_col(conn, "model_endpoints", "vision_models", "TEXT DEFAULT '[]'")
+        _add_col(conn, "projects", "working_dir", "TEXT DEFAULT ''")
 
 
 def get_db():

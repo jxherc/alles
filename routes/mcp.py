@@ -14,8 +14,9 @@ router = APIRouter(prefix="/api")
 log = logging.getLogger("aide.mcp")
 
 # in-memory connected sessions
-_sessions: dict[str, object] = {}   # server_id → mcp ClientSession
-_tools: dict[str, list] = {}        # server_id → [{name, description, schema}]
+_sessions: dict[str, object] = {}   # server_id -> mcp ClientSession
+_tools: dict[str, list] = {}        # server_id -> [{name, description, schema}]
+_stacks: dict[str, object] = {}     # server_id -> AsyncExitStack
 
 
 def _fmt(s: McpServer) -> dict:
@@ -138,6 +139,7 @@ async def _connect(server_id: str, db) -> tuple[bool, str]:
             await session.initialize()
             tools_resp = await session.list_tools()
             _sessions[server_id] = session
+            _stacks[server_id] = stack
             _tools[server_id] = [
                 {"name": t.name, "description": t.description or "", "schema": t.inputSchema}
                 for t in tools_resp.tools
@@ -155,7 +157,14 @@ async def _connect(server_id: str, db) -> tuple[bool, str]:
 
 async def _disconnect(server_id: str):
     session = _sessions.pop(server_id, None)
+    stack = _stacks.pop(server_id, None)
     _tools.pop(server_id, None)
+    if stack:
+        try:
+            await stack.aclose()
+            return
+        except Exception:
+            pass
     if session:
         try:
             await session.aclose()

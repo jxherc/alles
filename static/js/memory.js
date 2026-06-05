@@ -86,15 +86,25 @@ export function initMemoryPanel() {
   _panelBound = true;
 
   // add memory form
+  // category cycle button
+  const cycleBtn = document.getElementById('mem-cat-cycle-btn');
+  const CATS = ['general','identity','preference','fact','task'];
+  cycleBtn?.addEventListener('click', () => {
+    const cur = cycleBtn.dataset.val || 'general';
+    const next = CATS[(CATS.indexOf(cur) + 1) % CATS.length];
+    cycleBtn.dataset.val = next;
+    cycleBtn.textContent = next;
+  });
+
   document.getElementById('mem-add-btn')?.addEventListener('click', async () => {
     const inp = document.getElementById('mem-add-input');
-    const catEl = document.getElementById('mem-add-category');
+    const cat = document.getElementById('mem-cat-cycle-btn')?.dataset.val || 'general';
     const text = inp?.value.trim();
     if (!text) return;
     await fetch('/api/memories', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ text, category: catEl?.value || 'general' }),
+      body: JSON.stringify({ text, category: cat }),
     });
     inp.value = '';
     toast('memory saved', 'success');

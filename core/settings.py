@@ -13,6 +13,10 @@ _defaults = {
     "context_limit": 40,
     "stream_thinking": True,
     "artifacts_enabled": True,
+    "agent_max_turns": 24,
+    "agent_max_tokens": 0,
+    "agent_permission_mode": "full_auto",
+    "agent_allowed_roots": [],
     "auto_compact": True,
     "compact_threshold": 30,
     "stt_provider": "browser",    # whisper_api | browser
@@ -81,3 +85,6 @@ def get_port() -> int:
 
 def deepseek_api_key() -> str:
     return os.getenv("DEEPSEEK_API_KEY", "")
+
+def anthropic_api_key() -> str:
+    return os.getenv("ANTHROPIC_API_KEY", "")
