@@ -216,7 +216,8 @@ function bindEvents() {
       submitShellPanel();
     }
   });
-  // mode toggle removed — always agent
+  document.getElementById('mode-agent').addEventListener('click', () => setMode('agent'));
+  document.getElementById('mode-chat').addEventListener('click',  () => setMode('chat'));
   document.getElementById('theme-btn').addEventListener('click', toggleTheme);
 
   // persona picker
@@ -420,7 +421,12 @@ async function doSend() {
   else sendMessage(text);
 }
 
-// ── theme ─────────────────────────────────────────────────────────────────────
+// ── mode / theme ──────────────────────────────────────────────────────────────
+function setMode(m) {
+  document.getElementById('mode-agent').classList.toggle('active', m === 'agent');
+  document.getElementById('mode-chat').classList.toggle('active', m === 'chat');
+  document.querySelector('.composer-box')?.classList.toggle('agent-mode', m === 'agent');
+}
 
 function toggleTheme() {
   const root = document.documentElement;
