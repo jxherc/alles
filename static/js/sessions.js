@@ -10,37 +10,54 @@ const SESSION_ORDER_KEY = 'aide-session-order';
 
 export function getActiveId() { return _activeId; }
 
+// just fetch + render the sidebar. no navigation — safe to call after any mutation.
 export async function loadSessions() {
   try {
     const r = await fetch('/api/sessions');
     _sessions = await r.json();
     _allSessions = [..._sessions.today, ..._sessions.yesterday, ..._sessions.earlier];
     _applySessionOrder();
-    renderSidebar();
-
-    // auto-select
-    const hash = location.hash.slice(1);
-    const saved = localStorage.getItem('aide-last-session');
-    const target = hash || saved;
-
-    if (target && _allSessions.find(s => s.id === target)) {
-      await selectSession(target);
-    } else if (_allSessions.length > 0) {
-      await selectSession(_allSessions[0].id);
-    } else {
-      // create a default session when nothing exists
-      const ep = window._currentEndpoint;
-      if (ep) {
-        const model = ep.models[0] || '';
-        const s = await createSession(model, ep.id);
-        if (s) await selectSession(s.id);
-      } else {
-        showWelcome();
-      }
-    }
+    renderSidebar(document.getElementById('session-search')?.value || '');
+    // active session got deleted/archived elsewhere → drop the stale highlight
+    if (_activeId && !_allSessions.find(s => s.id === _activeId)) _activeId = null;
   } catch (e) {
     console.error('loadSessions', e);
   }
+}
+
+// called once on boot. only restore a session from a deep-link hash —
+// a bare localhost:8000 always opens a fresh chat (like claude.ai/new).
+export async function initSessions() {
+  await loadSessions();
+  const hash = location.hash.slice(1);
+  if (hash && _allSessions.find(s => s.id === hash)) {
+    await selectSession(hash);
+  } else {
+    newChat();
+  }
+}
+
+// fresh empty chat — does NOT create a db row. the session is created
+// lazily on the first send (see chat.js), so empty chats never persist.
+export function newChat() {
+  _activeId = null;
+  window._currentSession = null;
+  if (location.hash) history.replaceState(null, '', location.pathname + location.search);
+  document.getElementById('messages').innerHTML = '';
+  document.querySelectorAll('.session-item').forEach(el => el.classList.remove('active'));
+  showWelcome();
+  const ta = document.getElementById('composer-ta');
+  if (ta) { ta.value = ''; ta.style.height = 'auto'; ta.focus(); }
+}
+
+// mark a session active without re-fetching/re-rendering its messages.
+// used after lazy-create so the in-flight stream isn't wiped.
+export function markActive(id) {
+  _activeId = id;
+  if (id) location.hash = id;
+  document.querySelectorAll('.session-item').forEach(el => {
+    el.classList.toggle('active', el.dataset.id === id);
+  });
 }
 
 
@@ -183,7 +200,6 @@ async function toggleSessionStar(id) {
 
 export async function selectSession(id) {
   _activeId = id;
-  localStorage.setItem('aide-last-session', id);
   location.hash = id;
 
   // update active class
@@ -557,6 +573,7 @@ function openCtxMenu(e, id) {
       } else if (action === 'archive') {
         await fetch(`/api/sessions/${id}/archive`, { method: 'POST' });
         await loadSessions();
+        if (id === _activeId || _activeId === null) newChat();
       } else if (action === 'move-project') {
         const pid = item.dataset.pid;
         await fetch(`/api/projects/${pid}/sessions/${id}`, { method: 'POST' });
@@ -582,7 +599,9 @@ function openCtxMenu(e, id) {
         if (!await _dlgConfirm('delete this session?')) return;
         const res = await fetch(`/api/sessions/${id}`, { method: 'DELETE' });
         if (!res.ok) { toast('unstar before deleting', 'error'); return; }
+        const wasActive = id === _activeId;
         await loadSessions();
+        if (wasActive) newChat();
       }
     });
   });

@@ -664,18 +664,19 @@ code {
   display: flex; align-items: center; justify-content: space-between;
   padding: 0.35rem 0.6rem 0.6rem;
 }
-.c-tools { display: flex; gap: 0.75rem; }
+.c-tools { display: flex; gap: 0.25rem; }
 .c-tool {
   background: none; border: 1px solid transparent; cursor: pointer;
-  color: var(--muted); font-size: 0.68rem; letter-spacing: 0.04em;
-  font-family: inherit; font-weight: 500; text-transform: lowercase;
-  padding: 0.25rem 0.6rem; border-radius: 2px;
-  transition: color 0.2s ease, background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, text-shadow 0.2s ease;
-  display: flex; align-items: center; gap: 0.3rem;
+  color: var(--muted);
+  width: 30px; height: 30px; padding: 0; border-radius: 4px;
+  transition: color 0.2s ease, background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  display: flex; align-items: center; justify-content: center;
 }
-.c-tool:hover { color: var(--text); background: #111; }
-.c-tool svg { width: 12px; height: 12px; }
+.c-tool:hover { color: var(--text); background: #161616; }
+.c-tool svg { width: 16px; height: 16px; }
 .c-tool.active { color: var(--accent); }
+.mic-corner { margin-left: 0.1rem; }
+.mic-corner.recording { color: var(--error); border-color: var(--error); background: color-mix(in srgb, var(--error) 12%, transparent); }
 .incognito-btn.active {
   color: var(--accent);
   border-color: var(--accent);
