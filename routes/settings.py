@@ -20,6 +20,10 @@ class SettingsPatch(BaseModel):
     context_limit: int | None = None
     stream_thinking: bool | None = None
     artifacts_enabled: bool | None = None
+    agent_max_turns: int | None = None
+    agent_max_tokens: int | None = None
+    agent_permission_mode: str | None = None
+    agent_allowed_roots: list[str] | None = None
     auto_compact: bool | None = None
     compact_threshold: int | None = None
     tts_provider: str | None = None

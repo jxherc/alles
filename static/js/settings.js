@@ -1,4 +1,5 @@
 import { toast } from './util.js';
+import { confirm as _dlgConfirm } from './dialog.js';
 import { loadModels, addEndpoint, renderModelList } from './models.js';
 import { initCustomDropdowns, getDropdownValue, setDropdownValue } from './dropdown.js';
 import {
@@ -70,7 +71,7 @@ function _onPaneOpen(name) {
   if (name === 'voice')      loadVoicePane();
   if (name === 'personas')   { loadPersonas(); loadCookbook(); }
   if (name === 'templates')  loadTemplatesPane();
-  if (name === 'tools')      loadMcpServers();
+  if (name === 'tools')      { loadAgentStatus(); loadMcpServers(); }
   if (name === 'developer')  { loadTokens(); loadWebhooks(); loadShortcutSettings(); }
 }
 
@@ -195,6 +196,7 @@ function _initSettings() {
 
   // ── tools (mcp) ──
   document.getElementById('mcp-add-btn')?.addEventListener('click', addMcpServer);
+  document.getElementById('agent-status-refresh-btn')?.addEventListener('click', loadAgentStatus);
 
   // ── developer ──
   document.getElementById('token-add-btn')?.addEventListener('click', generateToken);
@@ -268,7 +270,7 @@ async function loadEpList() {
 
     el.querySelectorAll('[data-del]').forEach(btn => {
       btn.addEventListener('click', async () => {
-        if (!confirm('remove this endpoint?')) return;
+        if (!await _dlgConfirm('remove this endpoint?')) return;
         await fetch(`/api/models/endpoint/${btn.dataset.del}`, { method: 'DELETE' });
         toast('endpoint removed', 'success');
         loadEpList(); loadModels(); renderModelList();
@@ -625,7 +627,46 @@ window._useTemplate = async id => {
   closeSettings();
 };
 
-// ── mcp servers ───────────────────────────────────────────────────────────────
+// ── agent + mcp servers ───────────────────────────────────────────────────────
+async function loadAgentStatus() {
+  const grid = document.getElementById('agent-status-grid');
+  const list = document.getElementById('agent-tool-list');
+  const runsEl = document.getElementById('agent-run-list');
+  if (!grid || !list) return;
+  try {
+    const [s, runs] = await Promise.all([
+      fetch('/api/agent/status').then(r => r.json()),
+      fetch('/api/agent/runs?limit=5').then(r => r.json()).catch(() => []),
+    ]);
+    const opencode = s.opencode?.installed
+      ? 'installed'
+      : (s.opencode?.npx_fallback ? 'npx fallback' : 'missing');
+    grid.innerHTML = `
+      <div><span>tools</span><strong>${s.tool_count || 0}</strong></div>
+      <div><span>opencode</span><strong>${_esc(opencode)}</strong></div>
+      <div><span>mcp</span><strong>${s.mcp?.connected_tool_count || 0}</strong></div>
+      <div><span>skills</span><strong>${s.skills?.count || 0}</strong></div>
+      <div><span>memories</span><strong>${s.memory?.count || 0}</strong></div>
+    `;
+    list.innerHTML = (s.tools || []).map(t => `<span>${_esc(t)}</span>`).join('');
+    if (runsEl) {
+      runsEl.innerHTML = Array.isArray(runs) && runs.length
+        ? runs.map(r => `
+          <div class="agent-run-row">
+            <span>${_esc(r.status || 'unknown')}</span>
+            <strong>${_esc((r.model || '').split('/').pop() || 'agent')}</strong>
+            <em>${_esc((r.updated_at || '').replace('T', ' ').slice(0, 19))}</em>
+          </div>
+        `).join('')
+        : '<div class="settings-row-empty">no agent runs yet</div>';
+    }
+  } catch {
+    grid.innerHTML = '<div class="settings-row-empty">agent status unavailable</div>';
+    list.innerHTML = '';
+    if (runsEl) runsEl.innerHTML = '';
+  }
+}
+
 export async function loadMcpServers() {
   const el = document.getElementById('mcp-server-list');
   if (!el) return;

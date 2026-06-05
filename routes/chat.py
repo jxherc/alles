@@ -9,6 +9,7 @@ from core.database import get_db, Session, Message, ModelEndpoint, Persona, Sess
 from core.settings import load_settings, _ARTIFACT_INSTRUCTIONS
 from services.llm import stream_chat, simple_complete
 from services.memory_store import inject_memories
+from services.agent_runtime import run_agent, merge_usage
 
 router = APIRouter(prefix="/api")
 
@@ -46,6 +47,15 @@ def _resolve_persona(session: Session, db) -> Persona | None:
     if session.persona_id:
         return db.get(Persona, session.persona_id)
     return db.query(Persona).filter(Persona.is_default == True).first()
+
+
+def _resolve_working_dir(session: Session) -> str:
+    if getattr(session, "working_dir", ""):
+        return session.working_dir
+    proj = getattr(session, "project", None)
+    if proj and getattr(proj, "working_dir", ""):
+        return proj.working_dir
+    return ""
 
 
 def _build_messages(session: Session, user_text: str, settings: dict,
@@ -160,26 +170,39 @@ async def _stream_and_save(
     stop_event: asyncio.Event,
     db_factory,
     incognito: bool = False,
+    mode: str = "chat",
+    settings: dict | None = None,
 ):
     accumulated = []
     thinking_acc = []
+    tool_steps = []
     usage = {}
 
-    async for chunk in stream_chat(messages, ep.base_url, ep.api_key, model):
-        if stop_event.is_set():
-            break
-        if "error" in chunk:
+    if mode == "agent":
+        async for chunk in run_agent(
+            messages, ep, model, stop_event, settings or {},
+            accumulated, thinking_acc, tool_steps,
+            session_id=session_id,
+        ):
+            if "usage" in chunk:
+                usage = merge_usage(usage, chunk.get("usage", {}))
             yield chunk
-            break
-        if "thinking" in chunk:
-            thinking_acc.append(chunk["thinking"])
-            yield chunk
-        elif "delta" in chunk:
-            accumulated.append(chunk["delta"])
-            yield chunk
-        elif "done" in chunk:
-            usage = chunk.get("usage", {})
-            yield chunk
+    else:
+        async for chunk in stream_chat(messages, ep.base_url, ep.api_key, model):
+            if stop_event.is_set():
+                break
+            if "error" in chunk:
+                yield chunk
+                break
+            if "thinking" in chunk:
+                thinking_acc.append(chunk["thinking"])
+                yield chunk
+            elif "delta" in chunk:
+                accumulated.append(chunk["delta"])
+                yield chunk
+            elif "done" in chunk:
+                usage = chunk.get("usage", {})
+                yield chunk
 
     # save to db
     full_text = "".join(accumulated)
@@ -204,6 +227,8 @@ async def _stream_and_save(
         meta = {"usage": usage}
         if thinking_acc:
             meta["thinking"] = "".join(thinking_acc)
+        if tool_steps:
+            meta["tool_steps"] = tool_steps
         artifacts = _extract_artifacts(full_text)
         if artifacts:
             meta["artifacts"] = artifacts
@@ -252,6 +277,7 @@ async def chat(body: ChatRequest, background_tasks: BackgroundTasks, db: DbSessi
         raise HTTPException(400, "no model selected")
 
     settings = load_settings()
+    settings["agent_cwd"] = _resolve_working_dir(s)
     messages = _build_messages(s, body.message, settings, db, body.file_ids)
 
     # context compaction
@@ -267,8 +293,10 @@ async def chat(body: ChatRequest, background_tasks: BackgroundTasks, db: DbSessi
 
     from core.database import SessionLocal as _SF
     incognito = bool(body.incognito or getattr(s, "incognito", False))
+    mode = body.mode or getattr(s, "mode", "chat") or "chat"
     gen = _stream_and_save(body.session_id, body.message, messages, ep, model,
-                           stop_event, _SF, incognito=incognito)
+                           stop_event, _SF, incognito=incognito,
+                           mode=mode, settings=settings)
 
     async def cleanup_gen():
         try:

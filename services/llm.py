@@ -66,12 +66,40 @@ def detect_provider(base_url: str) -> str:
     return "openai"  # openai-compat fallback
 
 
-def _build_openai_payload(messages, model, stream=True, **kw) -> dict:
-    p = {"model": model, "messages": messages, "stream": stream}
-    if stream:
+def _normalize_openai_messages(messages: list[dict]) -> list[dict]:
+    normalized = []
+    for m in messages:
+        msg = dict(m)
+        if "tool_calls" in msg:
+            calls = []
+            for tc in msg.get("tool_calls") or []:
+                if "function" in tc:
+                    calls.append(tc)
+                    continue
+                calls.append({
+                    "id": tc.get("call_id") or tc.get("id") or "",
+                    "type": "function",
+                    "function": {
+                        "name": tc.get("name", ""),
+                        "arguments": json.dumps(tc.get("args", {})),
+                    },
+                })
+            msg["tool_calls"] = calls
+            msg["content"] = msg.get("content") or ""
+        normalized.append(msg)
+    return normalized
+
+
+def _build_openai_payload(messages, model, stream=True, provider="openai", **kw) -> dict:
+    p = {"model": model, "messages": _normalize_openai_messages(messages), "stream": stream}
+    # stream_options only on real OpenAI — others silently fail or error
+    if stream and provider == "openai":
         p["stream_options"] = {"include_usage": True}
     if "max_tokens" in kw:   p["max_tokens"] = kw["max_tokens"]
     if "temperature" in kw:  p["temperature"] = kw["temperature"]
+    if "tools" in kw and kw["tools"]:
+        p["tools"] = kw["tools"]
+        p["tool_choice"] = "auto"
     return p
 
 def _build_ollama_payload(messages, model, stream=True, **kw) -> dict:
@@ -83,9 +111,26 @@ def _build_ollama_payload(messages, model, stream=True, **kw) -> dict:
     }
 
 def _build_anthropic_payload(messages, model, stream=True, **kw) -> dict:
-    # anthropic wants system separate from messages
     sys_msgs = [m for m in messages if m["role"] == "system"]
-    other = [m for m in messages if m["role"] != "system"]
+    other = []
+    for m in messages:
+        if m["role"] == "system":
+            continue
+        # convert tool results from openai format to anthropic format
+        if m["role"] == "tool":
+            other.append({
+                "role": "user",
+                "content": [{"type": "tool_result", "tool_use_id": m.get("tool_call_id", ""), "content": m["content"]}]
+            })
+        elif "tool_calls" in m:
+            content = []
+            if m.get("content"):
+                content.append({"type": "text", "text": m["content"]})
+            for tc in m["tool_calls"]:
+                content.append({"type": "tool_use", "id": tc["call_id"], "name": tc["name"], "input": tc["args"]})
+            other.append({"role": "assistant", "content": content})
+        else:
+            other.append(m)
     p = {
         "model": model,
         "messages": other,
@@ -94,6 +139,16 @@ def _build_anthropic_payload(messages, model, stream=True, **kw) -> dict:
     }
     if sys_msgs:
         p["system"] = "\n\n".join(m["content"] for m in sys_msgs)
+    if kw.get("tools"):
+        # convert openai tool format to anthropic format
+        p["tools"] = [
+            {
+                "name": t["function"]["name"],
+                "description": t["function"].get("description", ""),
+                "input_schema": t["function"].get("parameters", {"type": "object", "properties": {}}),
+            }
+            for t in kw["tools"]
+        ]
     return p
 
 
@@ -132,7 +187,7 @@ async def stream_chat(
         headers = {"content-type": "application/json"}
         if api_key:
             headers["authorization"] = f"Bearer {api_key}"
-        payload = _build_openai_payload(messages, model, **kw)
+        payload = _build_openai_payload(messages, model, provider=provider, **kw)
 
     try:
         async with client.stream("POST", url, json=payload, headers=headers) as resp:
@@ -164,11 +219,22 @@ async def stream_chat(
 
 async def _parse_openai(resp) -> AsyncGenerator[dict, None]:
     usage = {}
+    # tool call accumulator: index -> {id, name, args_chunks}
+    tool_acc: dict[int, dict] = {}
+
     async for line in resp.aiter_lines():
         if not line.startswith("data:"):
             continue
         raw = line[5:].strip()
         if raw == "[DONE]":
+            # emit any accumulated tool calls before done
+            for idx in sorted(tool_acc):
+                tc = tool_acc[idx]
+                try:
+                    args = json.loads("".join(tc["args"]))
+                except Exception:
+                    args = {}
+                yield {"tool_call": {"call_id": tc["id"], "name": tc["name"], "args": args}}
             yield {"done": True, "usage": usage}
             return
         try:
@@ -176,7 +242,7 @@ async def _parse_openai(resp) -> AsyncGenerator[dict, None]:
         except Exception:
             continue
 
-        if "usage" in d:
+        if "usage" in d and not d.get("choices"):
             usage = d["usage"]
             continue
 
@@ -185,7 +251,7 @@ async def _parse_openai(resp) -> AsyncGenerator[dict, None]:
             continue
         delta = choices[0].get("delta", {})
 
-        # reasoning/thinking tokens (deepseek-r1, qwen3, etc.)
+        # reasoning tokens (deepseek-r1, qwen3, etc.)
         thinking = delta.get("reasoning_content") or delta.get("reasoning") or ""
         if thinking:
             yield {"thinking": thinking}
@@ -194,7 +260,30 @@ async def _parse_openai(resp) -> AsyncGenerator[dict, None]:
         if content:
             yield {"delta": content}
 
-        if choices[0].get("finish_reason"):
+        # accumulate tool calls
+        for tc_delta in (delta.get("tool_calls") or []):
+            idx = tc_delta.get("index", 0)
+            if idx not in tool_acc:
+                tool_acc[idx] = {"id": "", "name": "", "args": []}
+            if tc_delta.get("id"):
+                tool_acc[idx]["id"] = tc_delta["id"]
+            fn = tc_delta.get("function", {})
+            if fn.get("name"):
+                tool_acc[idx]["name"] = fn["name"]
+            if fn.get("arguments"):
+                tool_acc[idx]["args"].append(fn["arguments"])
+
+        fr = choices[0].get("finish_reason")
+        if fr and fr != "tool_calls":
+            # emit tool calls if finish_reason came before [DONE]
+            for idx in sorted(tool_acc):
+                tc = tool_acc[idx]
+                try:
+                    args = json.loads("".join(tc["args"]))
+                except Exception:
+                    args = {}
+                yield {"tool_call": {"call_id": tc["id"], "name": tc["name"], "args": args}}
+            tool_acc.clear()
             yield {"done": True, "usage": usage}
             return
 
@@ -224,6 +313,10 @@ async def _parse_ollama(resp) -> AsyncGenerator[dict, None]:
 
 async def _parse_anthropic(resp) -> AsyncGenerator[dict, None]:
     usage = {}
+    # tool use accumulator: block_idx -> {id, name, input_chunks}
+    tool_acc: dict[int, dict] = {}
+    cur_idx = 0
+
     async for line in resp.aiter_lines():
         if not line.startswith("data:"):
             continue
@@ -234,12 +327,30 @@ async def _parse_anthropic(resp) -> AsyncGenerator[dict, None]:
             continue
         etype = d.get("type", "")
 
-        if etype == "content_block_delta":
+        if etype == "content_block_start":
+            blk = d.get("content_block", {})
+            cur_idx = d.get("index", 0)
+            if blk.get("type") == "tool_use":
+                tool_acc[cur_idx] = {"id": blk.get("id", ""), "name": blk.get("name", ""), "args": []}
+
+        elif etype == "content_block_delta":
             delta = d.get("delta", {})
             if delta.get("type") == "thinking_delta":
                 yield {"thinking": delta.get("thinking", "")}
             elif delta.get("type") == "text_delta":
                 yield {"delta": delta.get("text", "")}
+            elif delta.get("type") == "input_json_delta":
+                if cur_idx in tool_acc:
+                    tool_acc[cur_idx]["args"].append(delta.get("partial_json", ""))
+
+        elif etype == "content_block_stop":
+            if cur_idx in tool_acc:
+                tc = tool_acc.pop(cur_idx)
+                try:
+                    args = json.loads("".join(tc["args"]))
+                except Exception:
+                    args = {}
+                yield {"tool_call": {"call_id": tc["id"], "name": tc["name"], "args": args}}
 
         elif etype == "message_delta":
             usage = d.get("usage", {})

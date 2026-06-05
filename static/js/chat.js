@@ -65,6 +65,9 @@ export async function sendMessage(text) {
 
   let thinkingEl = null;
   let contentEl = null;
+  let agentEl = null;
+  let todoEl = null;
+  const toolEls = new Map();
   let accText = '';
   let accThink = '';
   let cursor = null;
@@ -129,8 +132,79 @@ export async function sendMessage(text) {
           const total = (u.prompt_tokens || 0) + (u.completion_tokens || 0);
           if (total) {
             const el = document.getElementById('session-token-count');
-            if (el) el.textContent = `${total.toLocaleString()} tokens`;
+            if (el) { el.textContent = `${total.toLocaleString()} tok`; el.style.display = ''; }
           }
+        }
+
+        if (chunk.agent_turn) {
+          const t = chunk.agent_turn;
+          const panel = ensureAgentPanel();
+          let status = agentEl.querySelector('.agent-turn-status');
+          if (!status) {
+            status = document.createElement('div');
+            status.className = 'agent-turn-status';
+            panel.parentElement.insertBefore(status, panel);
+          }
+          status.textContent = `turn ${t.index} / ${t.max}`;
+        }
+
+        if (chunk.todo_update) {
+          const panel = ensureAgentPanel();
+          if (!todoEl) {
+            todoEl = document.createElement('div');
+            todoEl.className = 'agent-todos';
+            panel.parentElement.insertBefore(todoEl, panel);
+          }
+          const items = chunk.todo_update.items || [];
+          todoEl.innerHTML = items.map(item => `
+            <div class="agent-todo ${escHtml(item.status || 'pending')}">
+              <span class="agent-todo-mark"></span>
+              <span>${escHtml(item.step || '')}</span>
+            </div>
+          `).join('');
+          scrollDown();
+        }
+
+        if (chunk.tool_start) {
+          const t = chunk.tool_start;
+          const panel = ensureAgentPanel();
+          const step = document.createElement('div');
+          step.className = 'agent-step running';
+          step.dataset.callId = t.call_id || '';
+          step.innerHTML = `
+            <div class="agent-step-head">
+              <span class="agent-step-dot"></span>
+              <span class="agent-step-name">${escHtml(t.name || 'tool')}</span>
+              <span class="agent-step-status">running</span>
+            </div>
+            <pre class="agent-step-args">${escHtml(JSON.stringify(t.args || {}, null, 2))}</pre>
+            <pre class="agent-step-output"></pre>
+          `;
+          panel.appendChild(step);
+          toolEls.set(t.call_id, step);
+          scrollDown();
+        }
+
+        if (chunk.tool_delta) {
+          const t = chunk.tool_delta;
+          const step = toolEls.get(t.call_id);
+          const out = step?.querySelector('.agent-step-output');
+          if (out) out.textContent += t.text || '';
+          scrollDown();
+        }
+
+        if (chunk.tool_result) {
+          const t = chunk.tool_result;
+          const step = toolEls.get(t.call_id);
+          if (step) {
+            step.classList.remove('running');
+            step.classList.toggle('error', !!t.error);
+            const status = step.querySelector('.agent-step-status');
+            if (status) status.textContent = t.error ? 'error' : 'done';
+            const out = step.querySelector('.agent-step-output');
+            if (out && !out.textContent) out.textContent = t.output || '(no output)';
+          }
+          scrollDown();
         }
 
         if (chunk.thinking) {
@@ -213,12 +287,26 @@ export async function sendMessage(text) {
     setStreaming(false);
     scrollDown();
   }
+
+  function ensureAgentPanel() {
+    if (agentEl) return agentEl.querySelector('.agent-step-list');
+    agentEl = document.createElement('details');
+    agentEl.className = 'agent-steps';
+    agentEl.open = true;
+    agentEl.innerHTML = '<summary>agent steps</summary><div class="agent-step-list"></div>';
+    body.insertBefore(agentEl, body.firstChild);
+    return agentEl.querySelector('.agent-step-list');
+  }
 }
 
 
 function _splitBeforeArtifact(text) {
   const idx = text.indexOf('<aide-artifact');
   return idx === -1 ? text : text.slice(0, idx).trimEnd();
+}
+
+function escHtml(s = '') {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
 function setStreaming(val) {
@@ -237,5 +325,5 @@ export function stopStream() {
 
 
 function getMode() {
-  return document.getElementById('mode-agent').classList.contains('active') ? 'agent' : 'chat';
+  return 'agent'; // always agent now
 }

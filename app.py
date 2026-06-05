@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
 from core.database import init_db, SessionLocal, ModelEndpoint
-from core.settings import deepseek_api_key, get_port, auth_enabled
+from core.settings import deepseek_api_key, anthropic_api_key, get_port, auth_enabled
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request as StarletteRequest
 from starlette.responses import JSONResponse
@@ -39,6 +39,7 @@ from routes import (
     openai_compat as oai_routes,
     contacts as contact_routes,
     backup as backup_routes,
+    agent as agent_routes,
 )
 from routes import reminders as reminder_routes, templates as template_routes, shared as shared_routes
 
@@ -66,6 +67,31 @@ async def _bootstrap_deepseek():
         db.add(ep)
         db.commit()
         log.info("DeepSeek endpoint created — default model: deepseek-chat")
+    finally:
+        db.close()
+
+
+async def _bootstrap_anthropic():
+    """if ANTHROPIC_API_KEY is set and Anthropic is missing, auto-create it"""
+    key = anthropic_api_key()
+    if not key or key == "sk-ant-...":
+        return
+    db = SessionLocal()
+    try:
+        exists = db.query(ModelEndpoint).filter(ModelEndpoint.base_url == "https://api.anthropic.com").first()
+        if exists:
+            return
+        log.info("bootstrapping Anthropic endpoint from ANTHROPIC_API_KEY")
+        ep = ModelEndpoint(
+            name="Anthropic",
+            base_url="https://api.anthropic.com",
+            api_key=key,
+            cached_models=json.dumps(["claude-opus-4-8", "claude-sonnet-4-6", "claude-haiku-4-5-20251001"]),
+            vision_models=json.dumps(["claude-opus-4-8", "claude-sonnet-4-6", "claude-haiku-4-5-20251001"]),
+        )
+        db.add(ep)
+        db.commit()
+        log.info("Anthropic endpoint created - default model: claude-opus-4-8")
     finally:
         db.close()
 
@@ -130,6 +156,7 @@ async def _reminder_loop():
 async def lifespan(app: FastAPI):
     init_db()
     await _bootstrap_deepseek()
+    await _bootstrap_anthropic()
     try:
         from routes.mcp import connect_all
         await connect_all()
@@ -213,6 +240,7 @@ app.include_router(vault_routes.router)
 app.include_router(oai_routes.router)
 app.include_router(contact_routes.router)
 app.include_router(backup_routes.router)
+app.include_router(agent_routes.router)
 app.include_router(reminder_routes.router)
 app.include_router(template_routes.router)
 app.include_router(shared_routes.router)

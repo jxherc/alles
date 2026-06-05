@@ -1,4 +1,5 @@
 import { toast } from './util.js';
+import { confirm as _dlgConfirm, fields as _dlgFields } from './dialog.js';
 
 export async function loadContacts(q = '') {
   const list = document.getElementById('contacts-list');
@@ -23,14 +24,13 @@ export async function addContact() {
   const name  = document.getElementById('contact-name')?.value.trim();
   const email = document.getElementById('contact-email')?.value.trim();
   const phone = document.getElementById('contact-phone')?.value.trim();
-  const notes = document.getElementById('contact-notes')?.value.trim();
   if (!name) { toast('name required', 'error'); return; }
   await fetch('/api/contacts', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ name, email, phone, notes }),
+    body: JSON.stringify({ name, email, phone }),
   });
-  ['contact-name','contact-email','contact-phone','contact-notes'].forEach(id => {
+  ['contact-name','contact-email','contact-phone'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
@@ -39,7 +39,7 @@ export async function addContact() {
 }
 
 window._delContact = async id => {
-  if (!confirm('delete contact?')) return;
+  if (!await _dlgConfirm('delete contact?')) return;
   await fetch(`/api/contacts/${id}`, { method: 'DELETE' });
   loadContacts();
 };
@@ -48,15 +48,17 @@ window._editContact = async id => {
   const r = await fetch(`/api/contacts?q=`).then(r => r.json());
   const c = r.find(x => x.id === id);
   if (!c) return;
-  const name  = prompt('name:', c.name);
-  if (name === null) return;
-  const email = prompt('email:', c.email);
-  const phone = prompt('phone:', c.phone);
-  const notes = prompt('notes:', c.notes);
+  const res = await _dlgFields('edit contact', [
+    { id: 'name',  label: 'name',  value: c.name  || '' },
+    { id: 'email', label: 'email', value: c.email || '' },
+    { id: 'phone', label: 'phone', value: c.phone || '' },
+    { id: 'notes', label: 'notes', value: c.notes || '' },
+  ]);
+  if (!res) return;
   await fetch(`/api/contacts/${id}`, {
     method: 'PATCH',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ name, email, phone, notes }),
+    body: JSON.stringify(res),
   });
   loadContacts();
 };

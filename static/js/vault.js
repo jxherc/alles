@@ -1,13 +1,18 @@
 import { toast } from './util.js';
+import { confirm } from './dialog.js';
 
 let _unlocked = false;
 
 export async function loadVaultView() {
-  const locked = document.getElementById('vault-locked');
+  const locked   = document.getElementById('vault-locked');
   const unlocked = document.getElementById('vault-unlocked');
+  const addBar   = document.getElementById('vault-add-bar');
+  const lockBtn  = document.getElementById('vault-lock-btn');
   if (!locked || !unlocked) return;
-  locked.style.display = _unlocked ? 'none' : 'flex';
+  locked.style.display   = _unlocked ? 'none' : 'flex';
   unlocked.style.display = _unlocked ? 'flex' : 'none';
+  if (addBar)  addBar.style.display  = _unlocked ? 'flex' : 'none';
+  if (lockBtn) lockBtn.style.display = _unlocked ? ''     : 'none';
   if (_unlocked) await _loadEntries();
 }
 
@@ -107,7 +112,7 @@ window._vaultCopy = async id => {
 };
 
 window._vaultDel = async id => {
-  if (!confirm('delete this entry?')) return;
+  if (!await confirm('delete this entry?')) return;
   await fetch(`/api/vault/${id}`, { method: 'DELETE' });
   await _loadEntries();
 };
