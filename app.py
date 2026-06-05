@@ -267,6 +267,24 @@ async def index():
 def health():
     return {"ok": True}
 
+@app.get("/api/ping")
+async def ping():
+    """connectivity self-test — hits each configured endpoint's base host"""
+    import httpx
+    from core.database import SessionLocal, ModelEndpoint as ME
+    db = SessionLocal()
+    eps = db.query(ME).filter(ME.enabled == True).all()
+    db.close()
+    results = {}
+    async with httpx.AsyncClient(timeout=6, follow_redirects=True) as c:
+        for ep in eps:
+            try:
+                r = await c.get(ep.base_url.rstrip("/"), headers={"user-agent": "aide-ping/1.0"})
+                results[ep.name] = {"ok": True, "status": r.status_code}
+            except Exception as e:
+                results[ep.name] = {"ok": False, "error": type(e).__name__, "detail": str(e)[:120]}
+    return results
+
 
 if __name__ == "__main__":
     import uvicorn
