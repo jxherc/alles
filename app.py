@@ -152,11 +152,33 @@ async def _reminder_loop():
         await asyncio.sleep(30)
 
 
+def _cleanup_empty_sessions():
+    """drop sessions that never got a message (abandoned 'new chat' / incognito leftovers)"""
+    from core.database import Message as Msg
+    db = SessionLocal()
+    try:
+        gone = 0
+        for s in db.query(Session).all():
+            if s.starred:
+                continue
+            if db.query(Msg).filter(Msg.session_id == s.id).count() == 0:
+                db.delete(s)
+                gone += 1
+        if gone:
+            db.commit()
+            log.info(f"cleaned {gone} empty session(s)")
+    except Exception as e:
+        log.warning(f"empty-session cleanup failed: {e}")
+    finally:
+        db.close()
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
     await _bootstrap_deepseek()
     await _bootstrap_anthropic()
+    _cleanup_empty_sessions()
     try:
         from routes.mcp import connect_all
         await connect_all()
