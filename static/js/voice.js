@@ -62,24 +62,63 @@ function _setMicRecording(on) {
 
 function _startLiveWave(stream) {
   try {
+    const canvas = document.getElementById('mic-wave');
+    if (!canvas) return;
+
     _audioCtx = new AudioContext();
     _analyser = _audioCtx.createAnalyser();
-    _analyser.fftSize = 512;
+    _analyser.fftSize = 1024;
     _audioCtx.createMediaStreamSource(stream).connect(_analyser);
-    const data = new Uint8Array(_analyser.frequencyBinCount);
+    const td = new Uint8Array(_analyser.fftSize);
+
+    // size canvas to its CSS size
+    canvas.width  = canvas.offsetWidth  || 400;
+    canvas.height = canvas.offsetHeight || 52;
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height, cy = H / 2;
+
+    let phase = 0;
+    let smoothAmp = 0;
+
+    // wave layers: [frequency-multiplier, phase-offset, opacity, line-width]
+    const layers = [
+      [1.4, 0,   1.0, 1.5],
+      [2.3, 1.7, 0.45, 1.0],
+      [0.9, 3.2, 0.25, 1.0],
+    ];
+
     const tick = () => {
       if (!_recording || !_analyser) return;
-      _analyser.getByteFrequencyData(data);
-      // drive #mic-wave bars — full-width live waveform
-      const bars = document.querySelectorAll('#mic-wave span');
-      const step = Math.max(1, Math.floor(data.length / Math.max(1, bars.length)));
-      bars.forEach((bar, i) => {
-        let sum = 0;
-        for (let j = i * step; j < Math.min(data.length, (i + 1) * step); j++) sum += data[j];
-        const avg = sum / step / 255;
-        bar.style.setProperty('--level', String(Math.max(0.06, Math.min(1, avg * 2.4))));
-      });
       _waveRaf = requestAnimationFrame(tick);
+
+      _analyser.getByteTimeDomainData(td);
+
+      // RMS → smooth amplitude
+      let sum = 0;
+      for (let i = 0; i < td.length; i++) { const v = (td[i] - 128) / 128; sum += v * v; }
+      const rms = Math.sqrt(sum / td.length);
+      smoothAmp += (Math.min(1, rms * 10) - smoothAmp) * 0.18;
+
+      phase += 0.055;
+      ctx.clearRect(0, 0, W, H);
+
+      const amp = (0.07 + smoothAmp * 0.38) * cy; // idle wobble + voice
+
+      for (const [freq, phOff, alpha, lw] of layers) {
+        ctx.beginPath();
+        ctx.strokeStyle = `rgba(248,113,113,${alpha})`;
+        ctx.lineWidth = lw;
+        ctx.lineJoin = 'round';
+        ctx.lineCap  = 'round';
+        for (let x = 0; x <= W; x++) {
+          const t = x / W;
+          const y = cy
+            + Math.sin(t * Math.PI * 2 * freq + phase + phOff) * amp
+            + Math.sin(t * Math.PI * 4 * freq + phase * 1.3 + phOff) * amp * 0.3;
+          x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+      }
     };
     tick();
   } catch {}
