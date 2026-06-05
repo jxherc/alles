@@ -664,27 +664,35 @@ code {
   display: flex; align-items: center; justify-content: space-between;
   padding: 0.35rem 0.6rem 0.6rem;
 }
-.c-tools { display: flex; gap: 0.5rem; }
+.c-tools { display: flex; gap: 0.75rem; }
 .c-tool {
   background: none; border: 1px solid transparent; cursor: pointer;
   color: var(--muted); font-size: 0.68rem; letter-spacing: 0.04em;
   font-family: inherit; font-weight: 500; text-transform: lowercase;
-  padding: 0.2rem 0.5rem; border-radius: 2px;
-  transition: color 0.2s ease, background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  padding: 0.25rem 0.6rem; border-radius: 2px;
+  transition: color 0.2s ease, background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, text-shadow 0.2s ease;
   display: flex; align-items: center; gap: 0.3rem;
 }
 .c-tool:hover { color: var(--text); background: #111; }
 .c-tool svg { width: 12px; height: 12px; }
 .c-tool.active { color: var(--accent); }
 .incognito-btn.active {
+  color: var(--accent);
   border-color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 15%, transparent);
-  box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 35%, transparent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 30%, transparent);
+  text-shadow: 0 0 8px color-mix(in srgb, var(--accent) 90%, transparent), 0 0 20px color-mix(in srgb, var(--accent) 50%, transparent);
 }
 #research-toggle-btn.active {
+  color: var(--accent);
   border-color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 12%, transparent);
-  box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 40%, transparent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 30%, transparent);
+  text-shadow: 0 0 8px color-mix(in srgb, var(--accent) 90%, transparent), 0 0 20px color-mix(in srgb, var(--accent) 50%, transparent);
+}
+.incognito-btn.active svg,
+#research-toggle-btn.active svg {
+  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--accent) 80%, transparent));
 }
 #more-tools-btn { display: none; }
 .more-tools-menu { min-width: 160px; }
