@@ -1,4 +1,5 @@
 import { toast } from './util.js';
+import { confirm as _dlgConfirm, prompt as _dlgPrompt } from './dialog.js';
 import { renderProjectFolders, loadProjects, getProjects } from './projects.js';
 import { applyResponsePrivacy, stripEmojis, welcomeEnabled } from './privacy.js';
 
@@ -437,16 +438,15 @@ export function showMessages() {
 }
 
 export function updateSessionHeader(session) {
-  const header = document.getElementById('session-header');
-  if (!header) return;
-  const label = document.getElementById('session-header-model');
+  const actBtn   = document.getElementById('session-actions-btn');
+  const tokCount = document.getElementById('session-token-count');
   if (!session) {
-    header.style.display = 'none';
-    if (label) label.textContent = '';
+    if (actBtn)   actBtn.style.display   = 'none';
+    if (tokCount) { tokCount.style.display = 'none'; tokCount.textContent = ''; }
     return;
   }
-  header.style.display = 'flex';
-  if (label) label.textContent = session.model || 'no model';
+  if (actBtn)   actBtn.style.display   = '';
+  // token count stays hidden until chat.js populates it
 }
 
 export async function exportActiveSessionMarkdown() {
@@ -564,7 +564,7 @@ function openCtxMenu(e, id) {
         await loadSessions();
         toast('moved to project', 'success');
       } else if (action === 'new-project') {
-        const name = prompt('project name:');
+        const name = await _dlgPrompt('project name:');
         if (!name?.trim()) return;
         const r = await fetch('/api/projects', {
           method: 'POST',
@@ -579,7 +579,7 @@ function openCtxMenu(e, id) {
           toast(`project "${name}" created`, 'success');
         }
       } else if (action === 'delete') {
-        if (!confirm('delete this session?')) return;
+        if (!await _dlgConfirm('delete this session?')) return;
         const res = await fetch(`/api/sessions/${id}`, { method: 'DELETE' });
         if (!res.ok) { toast('unstar before deleting', 'error'); return; }
         await loadSessions();

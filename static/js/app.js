@@ -110,10 +110,22 @@ const showVaultView      = () => showView('vault-view',      'vault',     loadVa
 const showContactsView   = () => showView('contacts-view',  'contacts',  () => loadContacts());
 const showRemindersView  = () => showView('reminders-view', 'reminders', initReminderPanel);
 
+const _moreViews = new Set(['models','notes','tasks','docs','memory','brain','calendar','gallery','reminders','compare','vault','contacts']);
+
 function setNav(view) {
   document.querySelectorAll('.nav-item').forEach(n => {
     n.classList.toggle('active', n.dataset.view === view);
   });
+  // auto-expand tools section if navigating to a hidden item
+  if (_moreViews.has(view)) {
+    const items = document.getElementById('nav-more-items');
+    const arrow = document.getElementById('nav-more-arrow');
+    if (items && !items.classList.contains('open')) {
+      items.classList.add('open');
+      if (arrow) arrow.textContent = '▴';
+      localStorage.setItem('nav-more-open', '1');
+    }
+  }
 }
 
 // ── events ────────────────────────────────────────────────────────────────────
@@ -123,12 +135,32 @@ function bindEvents() {
   if (_eventsBound) return;
   _eventsBound = true;
 
+  // tools collapse toggle
+  const moreToggle = document.getElementById('nav-more-toggle');
+  const moreItems  = document.getElementById('nav-more-items');
+  const moreArrow  = document.getElementById('nav-more-arrow');
+  if (moreToggle && moreItems) {
+    if (localStorage.getItem('nav-more-open') === '1') {
+      moreItems.classList.add('open');
+      if (moreArrow) moreArrow.textContent = '▴';
+    }
+    moreToggle.addEventListener('click', () => {
+      const isOpen = moreItems.classList.toggle('open');
+      if (moreArrow) moreArrow.textContent = isOpen ? '▴' : '▾';
+      localStorage.setItem('nav-more-open', isOpen ? '1' : '0');
+    });
+  }
+
   const ta = document.getElementById('composer-ta');
 
   ta.addEventListener('keydown', e => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); doSend(); }
   });
-  document.getElementById('send-btn').addEventListener('click', doSend);
+  document.getElementById('send-btn').addEventListener('click', async () => {
+    const { isRecording, stopRecording } = await import('./voice.js');
+    if (isRecording()) stopRecording();
+    else doSend();
+  });
   document.getElementById('stop-btn').addEventListener('click', stopStream);
 
   document.getElementById('new-chat-btn').addEventListener('click', async () => {
@@ -164,8 +196,7 @@ function bindEvents() {
     } else if (btn.id === 'incognito-btn') {
       e.preventDefault();
       e.stopPropagation();
-      const on = toggleIncognitoMode();
-      toast(on ? 'incognito mode on - messages will not be saved' : 'incognito mode off', 'success');
+      toggleIncognitoMode();
     } else if (btn.id === 'more-tools-btn') {
       e.preventDefault();
       e.stopPropagation();
@@ -185,8 +216,7 @@ function bindEvents() {
       submitShellPanel();
     }
   });
-  document.getElementById('mode-agent').addEventListener('click', () => setMode('agent'));
-  document.getElementById('mode-chat').addEventListener('click',  () => setMode('chat'));
+  // mode toggle removed — always agent
   document.getElementById('theme-btn').addEventListener('click', toggleTheme);
 
   // persona picker
@@ -197,11 +227,31 @@ function bindEvents() {
   document.getElementById('model-modal-close').addEventListener('click', closeAllModals);
   document.getElementById('model-search-input').addEventListener('input', e => renderModelList(e.target.value));
 
-  // settings — delegate entirely to settings.js
-  document.getElementById('settings-btn').addEventListener('click', () => openSettings());
-  document.getElementById('session-export-btn')?.addEventListener('click', exportActiveSessionMarkdown);
-  document.getElementById('session-share-btn')?.addEventListener('click', _shareSession);
-  document.getElementById('session-print-btn')?.addEventListener('click', _printSession);
+  // export/share/print dropdown
+  document.getElementById('session-actions-btn')?.addEventListener('click', e => {
+    e.stopPropagation();
+    const existing = document.getElementById('_export_menu');
+    if (existing) { existing.remove(); return; }
+    const btn = e.currentTarget;
+    const rect = btn.getBoundingClientRect();
+    const menu = document.createElement('div');
+    menu.id = '_export_menu';
+    menu.className = 'ctx-menu';
+    menu.style.cssText = `display:block;right:${window.innerWidth - rect.right}px;top:${rect.bottom + 4}px;left:auto`;
+    menu.innerHTML = `
+      <div class="ctx-item" data-a="export">export markdown</div>
+      <div class="ctx-item" data-a="share">copy share link</div>
+      <div class="ctx-item" data-a="print">print / save pdf</div>`;
+    menu.addEventListener('click', e => {
+      const a = e.target.closest('.ctx-item')?.dataset.a;
+      if (a === 'export') exportActiveSessionMarkdown();
+      if (a === 'share')  _shareSession();
+      if (a === 'print')  _printSession();
+      menu.remove();
+    });
+    document.body.appendChild(menu);
+    setTimeout(() => document.addEventListener('click', () => menu.remove(), { once: true }), 0);
+  });
   document.getElementById('sidebar-toggle-btn')?.addEventListener('click', () => {
     document.body.classList.toggle('sidebar-hidden');
     localStorage.setItem('aide-sidebar-hidden', document.body.classList.contains('sidebar-hidden') ? '1' : '');
@@ -288,9 +338,7 @@ function bindEvents() {
     document.getElementById('ctx-menu').style.display = 'none';
     closeMoreTools();
   });
-  document.getElementById('share-btn').addEventListener('click', () => {
-    navigator.clipboard.writeText(location.href).then(() => toast('link copied'));
-  });
+  // share-btn removed — export/share/print now in topbar-session-actions
 
   setInterval(loadModels, 30000);
 }
@@ -372,12 +420,7 @@ async function doSend() {
   else sendMessage(text);
 }
 
-// ── mode / theme ──────────────────────────────────────────────────────────────
-function setMode(m) {
-  document.getElementById('mode-agent').classList.toggle('active', m === 'agent');
-  document.getElementById('mode-chat').classList.toggle('active', m === 'chat');
-  document.querySelector('.composer-box')?.classList.toggle('agent-mode', m === 'agent');
-}
+// ── theme ─────────────────────────────────────────────────────────────────────
 
 function toggleTheme() {
   const root = document.documentElement;
