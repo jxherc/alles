@@ -11,9 +11,15 @@ _client: httpx.AsyncClient | None = None
 def _get_client() -> httpx.AsyncClient:
     global _client
     if _client is None or _client.is_closed:
+        import os
+        # pick up system/user proxy env vars (HTTP_PROXY, HTTPS_PROXY, no_proxy)
+        proxy = (os.environ.get("HTTPS_PROXY") or os.environ.get("https_proxy")
+                 or os.environ.get("HTTP_PROXY") or os.environ.get("http_proxy"))
         _client = httpx.AsyncClient(
             timeout=httpx.Timeout(10.0, read=120.0),
             limits=httpx.Limits(max_connections=50, max_keepalive_connections=20),
+            proxy=proxy or None,
+            follow_redirects=True,
         )
     return _client
 
