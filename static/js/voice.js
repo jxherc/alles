@@ -46,7 +46,7 @@ function _setMicRecording(on) {
   btn.classList.toggle('recording', on);
   btn.setAttribute('aria-pressed', String(on));
   btn.innerHTML = on
-    ? '<svg viewBox="0 0 24 24" fill="none"><rect x="8" y="8" width="8" height="8" rx="1" fill="currentColor"/></svg> stop'
+    ? '<svg viewBox="0 0 24 24" fill="none"><rect x="7" y="7" width="10" height="10" rx="1.5" fill="currentColor"/></svg>'
     : _micIdleHtml;
   if (send) {
     send.classList.toggle('recording', on);

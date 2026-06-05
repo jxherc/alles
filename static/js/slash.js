@@ -228,12 +228,8 @@ export async function tryExecuteSlashCommand(text) {
 
   switch (cmd) {
     case 'new': {
-      const { createSession } = await import('./sessions.js');
-      const { getCurrentEndpoint, getSelected } = await import('./models.js');
-      const ep = getCurrentEndpoint();
-      if (!ep) { toast('no endpoint configured', 'error'); return true; }
-      const model = getSelected()?.model || ep.models?.[0] || '';
-      await createSession(model, ep.id);
+      const { newChat } = await import('./sessions.js');
+      newChat();   // fresh chat, created on first send
       return true;
     }
 

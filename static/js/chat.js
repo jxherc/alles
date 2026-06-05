@@ -1,7 +1,7 @@
 import { mdToHtml, toast } from './util.js';
 import {
   appendUserMsg, createStreamingAiRow, scrollDown,
-  showMessages, updateSessionName, createSession, getActiveId,
+  showMessages, updateSessionName, createSession, getActiveId, markActive,
 } from './sessions.js';
 import { getSelected, getCurrentEndpoint } from './models.js';
 import { openArtifact, extractArtifacts, stripArtifacts } from './artifacts.js';
@@ -41,7 +41,7 @@ export async function sendMessage(text) {
 
   let sessionId = getActiveId();
 
-  // no active session — create one
+  // no active session — create one lazily now (first message)
   if (!sessionId) {
     const ep = getCurrentEndpoint();
     if (!ep) { toast('no endpoint configured — add one via the model picker', 'error'); return; }
@@ -49,6 +49,7 @@ export async function sendMessage(text) {
     const s = await createSession(model, ep.id, { incognito: isIncognitoMode() });
     if (!s) { toast('failed to create session', 'error'); return; }
     sessionId = s.id;
+    markActive(sessionId);   // highlight + set active, don't re-render
   }
 
   const sel = getSelected();
