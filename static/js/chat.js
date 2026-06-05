@@ -325,5 +325,5 @@ export function stopStream() {
 
 
 function getMode() {
-  return 'agent'; // always agent now
+  return document.getElementById('mode-agent').classList.contains('active') ? 'agent' : 'chat';
 }
