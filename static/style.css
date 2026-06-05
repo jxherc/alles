@@ -675,7 +675,7 @@ code {
   display: flex; align-items: center; justify-content: space-between;
   padding: 0.35rem 0.6rem 0.6rem;
 }
-.c-tools { display: flex; gap: 0; }
+.c-tools { display: flex; gap: 0.3rem; }
 .c-tool {
   background: none; border: 1px solid transparent; cursor: pointer;
   color: var(--muted); font-size: 0.68rem; letter-spacing: 0.04em;
