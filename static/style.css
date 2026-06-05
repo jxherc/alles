@@ -194,21 +194,10 @@ body.sidebar-hidden .sidebar { display: none; }
 .composer-box.mic-recording .composer-ta { display: none; }
 .mic-wave {
   display: none;
-  align-items: center;
-  justify-content: center;
-  gap: 3px;
-  padding: 0.85rem 1rem;
-  min-height: 52px;
+  width: 100%;
+  height: 52px;
 }
-.composer-box.mic-recording .mic-wave { display: flex; }
-.mic-wave span {
-  width: 3px;
-  border-radius: 1px;
-  background: var(--error);
-  height: calc(4px + (var(--level, 0.18) * 38px));
-  transition: height 55ms linear;
-  flex-shrink: 0;
-}
+.composer-box.mic-recording .mic-wave { display: block; }
 
 /* ── main ── */
 .main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
@@ -675,7 +664,7 @@ code {
   display: flex; align-items: center; justify-content: space-between;
   padding: 0.35rem 0.6rem 0.6rem;
 }
-.c-tools { display: flex; gap: 0.3rem; }
+.c-tools { display: flex; gap: 0.5rem; }
 .c-tool {
   background: none; border: 1px solid transparent; cursor: pointer;
   color: var(--muted); font-size: 0.68rem; letter-spacing: 0.04em;
