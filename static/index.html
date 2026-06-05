@@ -318,12 +318,7 @@
         </div>
         <textarea class="composer-ta" id="composer-ta" placeholder="message..." rows="1"
           oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,220)+'px'"></textarea>
-        <div id="mic-wave" class="mic-wave" aria-hidden="true">
-          <span style="--level:0.08"></span><span style="--level:0.16"></span><span style="--level:0.32"></span><span style="--level:0.52"></span><span style="--level:0.74"></span>
-          <span style="--level:0.88"></span><span style="--level:0.96"></span><span style="--level:0.82"></span><span style="--level:0.64"></span><span style="--level:0.44"></span>
-          <span style="--level:0.28"></span><span style="--level:0.44"></span><span style="--level:0.64"></span><span style="--level:0.82"></span><span style="--level:0.96"></span>
-          <span style="--level:0.88"></span><span style="--level:0.74"></span><span style="--level:0.52"></span><span style="--level:0.32"></span><span style="--level:0.12"></span>
-        </div>
+        <canvas id="mic-wave" class="mic-wave" aria-hidden="true"></canvas>
         <div class="composer-bar">
           <div class="c-tools">
             <button class="c-tool" id="attach-btn">
