@@ -351,6 +351,10 @@
             </button>
           </div>
           <div class="c-right">
+            <div class="mode-toggle">
+              <button class="mode-btn" id="mode-agent">agent</button>
+              <button class="mode-btn active" id="mode-chat">chat</button>
+            </div>
             <button class="stop-btn" id="stop-btn">■ stop</button>
             <button class="send-btn" id="send-btn">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>
@@ -681,7 +685,7 @@
               <div class="s-toggle-row"><div><div class="s-toggle-label">shell</div><div class="s-toggle-desc">shell command shortcut in composer</div></div><div class="s-switch s-vis-toggle" data-vis="#shell-btn-tool" data-vis-key="bar-shell"></div></div>
               <div class="s-toggle-row"><div><div class="s-toggle-label">microphone</div><div class="s-toggle-desc">voice input button</div></div><div class="s-switch s-vis-toggle" data-vis="#mic-btn" data-vis-key="bar-mic"></div></div>
               <div class="s-toggle-row"><div><div class="s-toggle-label">incognito</div><div class="s-toggle-desc">incognito mode button</div></div><div class="s-switch s-vis-toggle" data-vis="#incognito-btn" data-vis-key="bar-incognito"></div></div>
-              <!-- agent/chat mode toggle removed — always agent -->
+              <div class="s-toggle-row"><div><div class="s-toggle-label">agent / chat mode</div><div class="s-toggle-desc">mode switcher in composer</div></div><div class="s-switch s-vis-toggle" data-vis=".mode-toggle" data-vis-key="bar-mode"></div></div>
             </div>
           </div>
           <div class="s-card">

@@ -615,7 +615,9 @@ code {
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 .composer-box:focus-within { border-color: var(--muted); }
-/* agent-mode glow removed — always agent now */
+.composer-box.agent-mode {
+  box-shadow: 0 0 0 1px var(--accent), 0 0 16px color-mix(in srgb, var(--accent) 25%, transparent);
+}
 .composer-ta {
   width: 100%; background: none; border: none; outline: none; resize: none;
   color: var(--text); font-family: inherit;
@@ -699,6 +701,18 @@ code {
 .more-tools-menu { min-width: 160px; }
 
 .c-right { display: flex; align-items: center; gap: 0.5rem; }
+.mode-toggle { display: flex; gap: 0.25rem; }
+.mode-btn {
+  background: none;
+  border: 1px solid var(--faint); border-radius: 2px;
+  color: var(--muted); font-family: inherit; font-size: 0.65rem;
+  letter-spacing: 0.05em; text-transform: lowercase;
+  padding: 0.28rem 0.65rem; cursor: pointer;
+  transition: border-color 0.2s ease, color 0.2s ease, background 0.2s ease;
+}
+.mode-btn:hover { color: var(--text); border-color: var(--muted); }
+.mode-btn.active { color: var(--text); border-color: var(--muted); background: #111; }
+[data-theme="light"] .mode-btn.active { background: var(--panel); }
 
 .send-btn {
   background: none;
