@@ -48,7 +48,7 @@ async def _await_permission(request_id: str, stop_event, timeout: float = 600) -
 
 
 # context files an agent auto-reads from the working dir (+ parents), nearest first.
-_CTX_NAMES = ["aide.md", "AGENTS.md", ".aide/instructions.md", "AGENT.md"]
+_CTX_NAMES = ["AGENTS.md", "AGENT.md", "aide.md", ".aide/instructions.md"]
 
 
 def _trim_history(messages: list[dict], budget: int = 120000, keep_recent: int = 8):
@@ -124,7 +124,7 @@ def agent_system_note(settings: dict) -> str:
     if settings.get("agent_subagents", True):
         extra.append("- You can delegate with spawn_agent (one subtask) or spawn_agents (several in parallel). Use it to split big independent jobs; each sub-agent reports a summary back.")
     if settings.get("agent_context_files", True):
-        extra.append("- Honor any <project-context> files provided (aide.md / AGENTS.md) as standing workspace instructions.")
+        extra.append("- Honor any <project-context> files provided (AGENTS.md) as standing workspace instructions.")
     try:
         from services.connections import get_token
         if get_token("github"):
