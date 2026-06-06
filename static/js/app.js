@@ -158,7 +158,12 @@ function bindEvents() {
   ta.addEventListener('keydown', e => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); doSend(); }
   });
-  document.getElementById('send-btn').addEventListener('click', async () => {
+  // dim send when empty (but never while recording — it doubles as the stop)
+  const _sendBtn = document.getElementById('send-btn');
+  const syncSend = () => { _sendBtn.classList.toggle('is-empty', !ta.value.trim() && !_sendBtn.classList.contains('recording')); };
+  ta.addEventListener('input', syncSend);
+  syncSend();
+  _sendBtn.addEventListener('click', async () => {
     const { isRecording, stopRecording } = await import('./voice.js');
     if (isRecording()) stopRecording();
     else doSend();
@@ -218,8 +223,7 @@ function bindEvents() {
   // permission mode button + label
   const permBtn = document.getElementById('perm-mode-btn');
   if (permBtn) {
-    permBtn.textContent = permLabel();
-    setPermMode(getPermMode());   // sync classes
+    setPermMode(getPermMode());   // sets label span + classes (keeps the icon)
     permBtn.addEventListener('click', e => { e.stopPropagation(); _openPermMenu(permBtn); });
   }
   document.getElementById('theme-btn').addEventListener('click', toggleTheme);
