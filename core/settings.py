@@ -17,7 +17,7 @@ _defaults = {
     "agent_max_tokens": 0,
     "agent_permission_mode": "full_auto",
     "agent_allowed_roots": [],
-    "agent_context_files": True,        # read aide.md / AGENTS.md from working dir
+    "agent_context_files": True,        # read AGENTS.md from working dir
     "agent_sandbox": False,             # run shell inside docker
     "agent_sandbox_image": "alpine:latest",
     "agent_sandbox_no_net": False,      # --network none in sandbox
