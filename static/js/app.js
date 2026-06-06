@@ -18,7 +18,7 @@ import { loadVaultView, initVault } from './vault.js';
 import { loadContacts, addContact } from './contacts.js';
 import { loadBrainPanel } from './brain.js';
 import { openSettings, closeSettings, applyVis } from './settings.js';
-import { toggleIncognitoMode, setIncognitoMode, getPermMode, setPermMode, permLabel } from './modes.js';
+import { toggleIncognitoMode, setIncognitoMode, getPermMode, setPermMode, permLabel, getEffort, setEffort } from './modes.js';
 import { initPrivacyHandlers } from './privacy.js';
 import { loadShortcuts, matchesShortcut } from './shortcuts.js';
 import { startReminderPoll, initReminderPanel, loadReminders } from './reminders.js';
@@ -225,6 +225,11 @@ function bindEvents() {
   if (permBtn) {
     setPermMode(getPermMode());   // sets label span + classes (keeps the icon)
     permBtn.addEventListener('click', e => { e.stopPropagation(); _openPermMenu(permBtn); });
+  }
+  const effortBtn = document.getElementById('effort-btn');
+  if (effortBtn) {
+    setEffort(getEffort());
+    effortBtn.addEventListener('click', e => { e.stopPropagation(); _openEffortMenu(effortBtn); });
   }
   document.getElementById('theme-btn').addEventListener('click', toggleTheme);
 
@@ -459,6 +464,33 @@ function _openPermMenu(anchor) {
   menu.style.bottom = `${window.innerHeight - r.top + 6}px`;
   menu.querySelectorAll('.perm-menu-item').forEach(it =>
     it.addEventListener('click', () => { setPermMode(it.dataset.v); menu.remove(); }));
+  setTimeout(() => document.addEventListener('click', function h(e) {
+    if (!menu.contains(e.target) && e.target !== anchor) { menu.remove(); document.removeEventListener('click', h); }
+  }), 0);
+}
+
+function _openEffortMenu(anchor) {
+  document.getElementById('perm-menu')?.remove();
+  const cur = getEffort();
+  const opts = [
+    ['low',    'low',    'quick & minimal — fewer turns'],
+    ['medium', 'medium', 'balanced (default)'],
+    ['high',   'high',   'thorough — more turns, deeper checks'],
+  ];
+  const menu = document.createElement('div');
+  menu.id = 'perm-menu';
+  menu.className = 'perm-menu';
+  menu.innerHTML = opts.map(([v, label, desc]) =>
+    `<div class="perm-menu-item${v === cur ? ' active' : ''}" data-v="${v}">
+       <div class="perm-menu-label">${label}</div>
+       <div class="perm-menu-desc">${desc}</div>
+     </div>`).join('');
+  document.body.appendChild(menu);
+  const r = anchor.getBoundingClientRect();
+  menu.style.left = `${Math.min(r.left, window.innerWidth - menu.offsetWidth - 12)}px`;
+  menu.style.bottom = `${window.innerHeight - r.top + 6}px`;
+  menu.querySelectorAll('.perm-menu-item').forEach(it =>
+    it.addEventListener('click', () => { setEffort(it.dataset.v); menu.remove(); }));
   setTimeout(() => document.addEventListener('click', function h(e) {
     if (!menu.contains(e.target) && e.target !== anchor) { menu.remove(); document.removeEventListener('click', h); }
   }), 0);

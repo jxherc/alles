@@ -6,7 +6,7 @@ import {
 import { getSelected, getCurrentEndpoint } from './models.js';
 import { openArtifact, extractArtifacts, stripArtifacts } from './artifacts.js';
 import { getAttachments, clearAttachments } from './uploads.js';
-import { isIncognitoMode, getPermMode } from './modes.js';
+import { isIncognitoMode, getPermMode, getEffort } from './modes.js';
 import { applyResponsePrivacy, stripEmojis } from './privacy.js';
 
 // expose mdToHtml for sessions.js lazy fallback
@@ -92,6 +92,7 @@ export async function sendMessage(text) {
         file_ids: getAttachments(),
         incognito: isIncognitoMode(),
         permission_mode: getMode() === 'agent' ? getPermMode() : '',
+        effort: getMode() === 'agent' ? getEffort() : '',
       }),
     });
 

@@ -45,9 +45,10 @@ def _fmt_session(s: Session) -> dict:
 # GET /api/sessions
 @router.get("/sessions")
 def list_sessions(db: DbSession = Depends(get_db)):
+    # incognito sessions never show in the sidebar — no trace
     rows = (
         db.query(Session)
-        .filter(Session.archived == False)
+        .filter(Session.archived == False, Session.incognito == False)
         .order_by(Session.last_message_at.desc())
         .all()
     )

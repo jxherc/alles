@@ -23,6 +23,19 @@ export function setPermMode(m) {
   }
 }
 
+// ── agent effort ──────────────────────────────────────────────────────────
+const EFFORT_KEY = 'aide-effort';
+let _effort = localStorage.getItem(EFFORT_KEY) || 'medium';   // low | medium | high
+
+export function getEffort() { return _effort; }
+
+export function setEffort(m) {
+  _effort = m;
+  localStorage.setItem(EFFORT_KEY, m);
+  const el = document.querySelector('#effort-btn .effort-label');
+  if (el) el.textContent = m;
+}
+
 export function isIncognitoMode() {
   return _incognitoMode;
 }
