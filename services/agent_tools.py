@@ -1009,6 +1009,31 @@ SUBAGENT_TOOL_DEFS = [
 ]
 
 
+_SKIP_DIRS = {".git", "node_modules", "__pycache__", ".venv", "venv", "dist", "build", ".idea", ".next", "data"}
+
+
+def workspace_files(cwd: str = "", q: str = "", limit: int = 30) -> list[str]:
+    """list files under cwd for @-mention autocomplete, ranked by relevance"""
+    base = _resolve(cwd or ".")
+    if base.is_file():
+        base = base.parent
+    ql = (q or "").lower()
+    out = []
+    for f in base.rglob("*"):
+        if not f.is_file():
+            continue
+        if any(part in _SKIP_DIRS for part in f.relative_to(base).parts[:-1]):
+            continue
+        rel = str(f.relative_to(base)).replace("\\", "/")
+        if ql and ql not in rel.lower():
+            continue
+        out.append(rel)
+        if len(out) >= limit * 6:
+            break
+    out.sort(key=lambda r: (ql not in r.rsplit("/", 1)[-1].lower(), len(r)))
+    return out[:limit]
+
+
 def build_tool_defs(settings: dict) -> list:
     """base tools + optional computer-use / sub-agent tools per settings"""
     defs = list(TOOL_DEFS)
