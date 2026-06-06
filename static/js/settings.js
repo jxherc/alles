@@ -64,7 +64,7 @@ function _switchPane(name) {
 }
 
 function _onPaneOpen(name) {
-  if (name === 'models')     loadEpList();
+  if (name === 'models')     { loadEpList(); loadLocalModels(); }
   if (name === 'ai')         loadAiPane();
   if (name === 'search')     loadSearchPane();
   if (name === 'appearance') loadAppearancePane();
@@ -148,6 +148,9 @@ function _initSettings() {
   });
 
   // ── ai pane ──
+  document.getElementById('s-local-refresh-btn')?.addEventListener('click', loadLocalModels);
+  document.getElementById('s-local-start-btn')?.addEventListener('click', startLocalOllama);
+
   document.getElementById('settings-save-btn')?.addEventListener('click', saveAiDefaults);
 
   // ── search pane ──
@@ -233,6 +236,149 @@ function _initSettings() {
 }
 
 // ── models pane ───────────────────────────────────────────────────────────────
+async function loadLocalModels() {
+  const ollamaEl = document.getElementById('s-local-ollama');
+  const hwEl = document.getElementById('s-local-hw');
+  const listEl = document.getElementById('s-local-presets');
+  if (!ollamaEl || !hwEl || !listEl) return;
+  ollamaEl.textContent = 'checking Ollama...';
+  try {
+    const data = await _localJson('/api/local-models/status');
+    const o = data.ollama || {};
+    const hw = data.hardware || {};
+    const gpu = (hw.gpus || []).map(g => `${g.name} (${g.vram_gb} GB)`).join(', ') || 'no NVIDIA GPU detected';
+    const state = o.running ? 'running' : (o.installed ? 'installed, stopped' : 'not installed');
+    ollamaEl.textContent = `Ollama: ${state} - ${o.base_url || 'http://localhost:11434'}`;
+    hwEl.textContent = `Hardware: ${hw.ram_gb || '?'} GB RAM - ${gpu}`;
+    renderLocalPresets(data.presets || []);
+  } catch (e) {
+    ollamaEl.textContent = e.message || 'local model status failed';
+    hwEl.textContent = '';
+    listEl.innerHTML = '';
+  }
+}
+
+function renderLocalPresets(presets) {
+  const listEl = document.getElementById('s-local-presets');
+  if (!listEl) return;
+  if (!presets.length) {
+    listEl.innerHTML = '<div style="font-size:0.72rem;color:var(--muted)">no local presets available</div>';
+    return;
+  }
+  listEl.innerHTML = presets.map(p => {
+    const badge = p.fit === 'fits_gpu' ? 'gpu fit' : (p.fit === 'fits_cpu' ? 'cpu fit' : 'large');
+    const installed = p.installed ? 'installed' : 'download first';
+    const serveDisabled = p.installed ? '' : 'disabled title="download first"';
+    return `<div class="settings-list-row" style="align-items:flex-start;gap:0.55rem">
+      <span class="status-dot" style="margin-top:0.35rem;background:${p.installed ? 'var(--green)' : 'var(--faint)'}"></span>
+      <div style="min-width:0;flex:1">
+        <div class="row-name">${_esc(p.label)} <span style="color:var(--muted);font-weight:400">${_esc(p.model)}</span></div>
+        <div class="row-meta">${badge} - ${installed} - ${_esc(p.fit_reason || '')}</div>
+      </div>
+      <button class="btn" data-local-download="${_escAttr(p.model)}" ${p.installed ? 'disabled' : ''}>download</button>
+      <button class="btn primary" data-local-serve="${_escAttr(p.model)}" ${serveDisabled}>serve</button>
+    </div>`;
+  }).join('');
+
+  listEl.querySelectorAll('[data-local-download]').forEach(btn => {
+    btn.addEventListener('click', () => downloadLocalModel(btn.dataset.localDownload, btn));
+  });
+  listEl.querySelectorAll('[data-local-serve]').forEach(btn => {
+    btn.addEventListener('click', () => serveLocalModel(btn.dataset.localServe, btn));
+  });
+}
+
+async function startLocalOllama() {
+  const btn = document.getElementById('s-local-start-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'starting...'; }
+  try {
+    const data = await _localJson('/api/local-models/start', { method: 'POST' });
+    if (data.ok) toast(data.started ? 'Ollama started' : 'Ollama already starting', 'success');
+    else toast(data.error || 'Ollama start failed', 'error');
+  } catch (e) {
+    toast(e.message || 'Ollama start failed', 'error');
+  }
+  if (btn) { btn.disabled = false; btn.textContent = 'start Ollama'; }
+  setTimeout(loadLocalModels, 700);
+}
+
+async function downloadLocalModel(model, btn) {
+  if (!model) return;
+  btn.disabled = true;
+  btn.textContent = 'queued';
+  try {
+    const job = await _localJson('/api/local-models/download_model', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ model }),
+    });
+    pollLocalJob(job.id, btn);
+  } catch (e) {
+    btn.disabled = false;
+    btn.textContent = 'download';
+    toast(e.message || 'download failed to start', 'error');
+  }
+}
+
+async function pollLocalJob(jobId, btn) {
+  if (!jobId) return;
+  try {
+    const job = await _localJson(`/api/local-models/jobs/${jobId}`);
+    if (job.status === 'done') {
+      btn.textContent = 'downloaded';
+      toast(`${job.model} downloaded`, 'success');
+      loadLocalModels();
+      loadModels();
+      return;
+    }
+    if (job.status === 'error') {
+      btn.disabled = false;
+      btn.textContent = 'download';
+      toast(job.error || 'download failed', 'error');
+      return;
+    }
+    btn.textContent = job.status === 'running' ? 'pulling...' : 'queued';
+    setTimeout(() => pollLocalJob(jobId, btn), 1800);
+  } catch {
+    btn.disabled = false;
+    btn.textContent = 'download';
+  }
+}
+
+async function serveLocalModel(model, btn) {
+  if (!model) return;
+  btn.disabled = true;
+  btn.textContent = 'serving...';
+  try {
+    const data = await _localJson('/api/local-models/serve', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ model, autostart: true, set_default: true }),
+    });
+    toast(`${data.model || model} selected`, 'success');
+    loadEpList();
+    loadModels();
+    renderModelList();
+  } catch (e) {
+    toast(e.message || 'serve failed', 'error');
+  }
+  btn.disabled = false;
+  btn.textContent = 'serve';
+  loadLocalModels();
+}
+
+async function _localJson(url, options = {}) {
+  const r = await fetch(url, options);
+  let data = {};
+  try { data = await r.json(); } catch {}
+  if (!r.ok) {
+    const detail = data.detail || data;
+    if (typeof detail === 'string') throw new Error(detail);
+    throw new Error(detail.error || data.error || `request failed (${r.status})`);
+  }
+  return data;
+}
+
 async function loadEpList() {
   const el = document.getElementById('s-ep-list');
   if (!el) return;
@@ -857,4 +1003,8 @@ async function _patchSetting(key, val) {
 
 function _esc(s = '') {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function _escAttr(s = '') {
+  return _esc(s).replace(/"/g,'&quot;');
 }
