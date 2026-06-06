@@ -72,6 +72,8 @@ export async function sendMessage(text) {
   let accText = '';
   let accThink = '';
   let cursor = null;
+  let runId = null;
+  let hadEdits = false;
 
   const addCursor = (target) => {
     cursor = document.createElement('span');
@@ -136,6 +138,10 @@ export async function sendMessage(text) {
             const el = document.getElementById('session-token-count');
             if (el) { el.textContent = `${total.toLocaleString()} tok`; el.style.display = ''; }
           }
+        }
+
+        if (chunk.agent_run) {
+          runId = chunk.agent_run.id || runId;
         }
 
         if (chunk.agent_turn) {
@@ -212,6 +218,7 @@ export async function sendMessage(text) {
 
         if (chunk.tool_diff) {
           const t = chunk.tool_diff;
+          hadEdits = true;
           const step = toolEls.get(t.call_id);
           if (step && t.diff) {
             let d = step.querySelector('.agent-step-diff');
@@ -322,6 +329,27 @@ export async function sendMessage(text) {
   } finally {
     cursor?.remove();
     body.classList.add('done');
+
+    // revert control — only if the agent actually edited files this run
+    if (agentEl && runId && hadEdits) {
+      const sum = agentEl.querySelector('summary');
+      if (sum && !sum.querySelector('.agent-revert-btn')) {
+        const rb = document.createElement('button');
+        rb.className = 'agent-revert-btn';
+        rb.textContent = 'revert edits';
+        rb.title = 'restore every file this run changed';
+        rb.addEventListener('click', async (e) => {
+          e.preventDefault(); e.stopPropagation();
+          rb.disabled = true; rb.textContent = 'reverting…';
+          try {
+            const r = await fetch(`/api/agent/runs/${runId}/revert`, { method: 'POST' }).then(x => x.json());
+            rb.textContent = `reverted ${r.restored || 0}`;
+            toast(`reverted ${r.restored || 0} file(s)`, 'success');
+          } catch { rb.textContent = 'revert failed'; toast('revert failed', 'error'); }
+        });
+        sum.appendChild(rb);
+      }
+    }
 
     const artifacts = extractArtifacts(accText);
     const cleanText = stripArtifacts(accText);

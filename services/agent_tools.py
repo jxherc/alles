@@ -28,8 +28,8 @@ CODEX_HOME = Path(os.getenv("CODEX_HOME") or Path.home() / ".codex")
 _ctx = contextvars.ContextVar("agent_ctx", default={})
 
 
-def set_agent_ctx(settings=None, ep=None, model=""):
-    _ctx.set({"settings": settings or {}, "ep": ep, "model": model})
+def set_agent_ctx(settings=None, ep=None, model="", run_id=""):
+    _ctx.set({"settings": settings or {}, "ep": ep, "model": model, "run_id": run_id})
 
 
 def get_agent_ctx() -> dict:
@@ -62,6 +62,10 @@ TOOL_PERMISSION = {
     "git_diff": "read",
     "git_branch": "git_write",
     "git_commit": "git_write",
+    "code_symbols": "read",
+    "find_definition": "read",
+    "diagnostics": "read",
+    "revert_file": "write",
     "screenshot": "computer",
     "computer_click": "computer",
     "computer_move": "computer",
@@ -653,8 +657,108 @@ async def _spawn_agents(tasks: list | None) -> dict:
     return {"output": "\n\n".join(parts), "error": False}
 
 
+# ── code intelligence (symbols + diagnostics) ───────────────────────────────
+_SYMBOL_PATTERNS = {
+    ".py":  [(r"^\s*class\s+(\w+)", "class"), (r"^\s*(?:async\s+)?def\s+(\w+)", "def")],
+    ".js":  [(r"^\s*class\s+(\w+)", "class"), (r"function\s+(\w+)", "function"),
+             (r"^\s*(?:export\s+)?(?:const|let|var)\s+(\w+)\s*=", "const")],
+    ".ts":  [(r"^\s*(?:export\s+)?class\s+(\w+)", "class"), (r"^\s*(?:export\s+)?interface\s+(\w+)", "interface"),
+             (r"function\s+(\w+)", "function"), (r"^\s*(?:export\s+)?(?:const|let)\s+(\w+)\s*=", "const")],
+    ".go":  [(r"func\s+(?:\([^)]*\)\s*)?(\w+)", "func"), (r"type\s+(\w+)", "type")],
+    ".rs":  [(r"fn\s+(\w+)", "fn"), (r"struct\s+(\w+)", "struct"), (r"enum\s+(\w+)", "enum"), (r"trait\s+(\w+)", "trait")],
+    ".java": [(r"(?:class|interface)\s+(\w+)", "class"), (r"(?:public|private|protected)[\w\s<>\[\]]*\s+(\w+)\s*\(", "method")],
+    ".rb":  [(r"^\s*class\s+(\w+)", "class"), (r"^\s*def\s+(\w+)", "def")],
+    ".c":   [(r"^\w[\w\s\*]*\s+(\w+)\s*\(", "func")],
+    ".cpp": [(r"^\w[\w\s\*:<>]*\s+(\w+)\s*\(", "func"), (r"class\s+(\w+)", "class")],
+}
+_SYMBOL_PATTERNS[".jsx"] = _SYMBOL_PATTERNS[".js"]
+_SYMBOL_PATTERNS[".tsx"] = _SYMBOL_PATTERNS[".ts"]
+_SYMBOL_PATTERNS[".h"] = _SYMBOL_PATTERNS[".c"]
+
+
+async def _code_symbols(path: str = ".", name_filter: str = "") -> dict:
+    try:
+        root = _resolve(path)
+        files = [root] if root.is_file() else [f for f in root.rglob("*") if f.is_file()]
+        rows = []
+        nf = name_filter.lower()
+        for f in files:
+            pats = _SYMBOL_PATTERNS.get(f.suffix.lower())
+            if not pats:
+                continue
+            if any(part in {".git", "node_modules", "__pycache__", ".venv", "dist", "build"} for part in f.parts):
+                continue
+            try:
+                lines = f.read_text("utf-8", errors="replace").splitlines()
+            except Exception:
+                continue
+            compiled = [(re.compile(rx), kind) for rx, kind in pats]
+            for i, line in enumerate(lines, 1):
+                for rx, kind in compiled:
+                    m = rx.search(line)
+                    if m:
+                        sym = m.group(1)
+                        if nf and nf not in sym.lower():
+                            continue
+                        rel = f.relative_to(root) if root.is_dir() else f.name
+                        rows.append(f"{kind} {sym}  {rel}:{i}")
+                        break
+            if len(rows) >= 800:
+                rows.append("[truncated]")
+                break
+        return {"output": "\n".join(rows) or "(no symbols found)", "error": False}
+    except Exception as e:
+        return {"output": str(e), "error": True}
+
+
+async def _find_definition(name: str, path: str = ".") -> dict:
+    if not name.strip():
+        return {"output": "name required", "error": True}
+    res = await _code_symbols(path, name_filter=name.strip())
+    # keep exact-ish matches first
+    lines = [l for l in res["output"].splitlines() if f" {name} " in f" {l} " or l.split("  ")[0].endswith(name)]
+    body = "\n".join(lines) if lines else res["output"]
+    return {"output": body, "error": False}
+
+
+async def _diagnostics(path: str = ".") -> dict:
+    """run the most relevant linter/typechecker and return errors (lightweight LSP)"""
+    p = _resolve(path)
+    ext = p.suffix.lower() if p.is_file() else ""
+    q = json.dumps(str(p)) if os.name == "nt" else shlex.quote(str(p))
+    cwd = str(p if p.is_dir() else p.parent)
+
+    if ext == ".py" or (p.is_dir()):
+        if shutil.which("ruff"):
+            return await _run_shell(f"ruff check {q}", cwd=cwd)
+        if ext == ".py":
+            r = await _run_shell(f"python -m pyflakes {q}", cwd=cwd)
+            if "No module named" not in r.get("output", ""):
+                return r
+            return await _run_shell(f"python -m py_compile {q}", cwd=cwd)
+    if ext in (".js", ".jsx", ".mjs", ".cjs"):
+        if shutil.which("node"):
+            return await _run_shell(f"node --check {q}", cwd=cwd)
+    if ext in (".ts", ".tsx"):
+        npx = shutil.which("npx.cmd") or shutil.which("npx")
+        if npx:
+            return await _run_shell(f"npx --no-install tsc --noEmit {q}", cwd=cwd)
+    # generic: try ruff for any dir, else nothing
+    if shutil.which("ruff"):
+        return await _run_shell(f"ruff check {q}", cwd=cwd)
+    return {"output": "no diagnostics tool available for this target (install ruff / node / tsc)", "error": False}
+
+
 async def execute(name: str, args: dict) -> dict:
     args = args or {}
+    if name == "revert_file":
+        return await _revert_file(args.get("path", ""))
+    if name == "code_symbols":
+        return await _code_symbols(args.get("path", "."), args.get("name_filter", ""))
+    if name == "find_definition":
+        return await _find_definition(args.get("name", ""), args.get("path", "."))
+    if name == "diagnostics":
+        return await _diagnostics(args.get("path", "."))
     if name == "screenshot":
         return await _screenshot()
     if name == "computer_click":
@@ -844,6 +948,20 @@ TOOL_DEFS = [
         "message": {"type": "string"},
         "paths": {"type": "array", "items": {"type": "string"}},
     }, ["message"]),
+    _tool("code_symbols", "Index code symbols (functions, classes, types) in a file or tree. Faster than reading whole files to understand structure.", {
+        "path": {"type": "string", "default": "."},
+        "name_filter": {"type": "string", "description": "Only return symbols containing this substring.", "default": ""},
+    }),
+    _tool("find_definition", "Jump to where a symbol (function/class/type) is defined.", {
+        "name": {"type": "string"},
+        "path": {"type": "string", "default": "."},
+    }, ["name"]),
+    _tool("diagnostics", "Run the project's linter/typechecker (ruff, node --check, tsc, py_compile) and return errors. Use to verify code after edits.", {
+        "path": {"type": "string", "default": "."},
+    }),
+    _tool("revert_file", "Undo a file back to its state at the start of this agent run.", {
+        "path": {"type": "string"},
+    }, ["path"]),
 ]
 
 
@@ -913,6 +1031,88 @@ MUTATING_TOOLS = {
 }
 # subset that produces a file diff we can preview
 _DIFF_TOOLS = {"write_file", "edit_file", "apply_patch"}
+
+
+def _patch_targets(patch: str) -> list[str]:
+    """pull target file paths out of a unified diff (+++ b/path lines)"""
+    out = []
+    for line in (patch or "").splitlines():
+        if line.startswith("+++ "):
+            p = line[4:].strip()
+            if p.startswith("b/"):
+                p = p[2:]
+            if p and p != "/dev/null":
+                out.append(p)
+    return out
+
+
+def snapshot_targets(name: str, args: dict) -> list[Path]:
+    """which files a mutating tool will touch (for checkpointing)"""
+    args = args or {}
+    if name in ("write_file", "edit_file"):
+        return [_resolve(args.get("path", ""))]
+    if name == "apply_patch":
+        return [_resolve(p) for p in _patch_targets(args.get("patch", ""))]
+    return []
+
+
+def capture_checkpoint(run_id: str, name: str, args: dict):
+    """snapshot file contents BEFORE a mutating tool runs"""
+    from services.agent_state import add_checkpoint
+    for p in snapshot_targets(name, args):
+        try:
+            existed = p.exists() and p.is_file()
+            before = p.read_text("utf-8", errors="replace") if existed else ""
+            add_checkpoint(run_id, {"path": str(p), "existed": existed, "before": before})
+        except Exception:
+            pass
+
+
+def revert_run(run_id: str) -> dict:
+    """restore every file a run touched back to its pre-run state"""
+    from services.agent_state import get_run
+    state = get_run(run_id)
+    if not state:
+        return {"ok": False, "error": "run not found", "restored": 0}
+    restored = 0
+    # reverse so the earliest snapshot (true original) wins
+    for cp in reversed(state.get("checkpoints", [])):
+        p = Path(cp["path"])
+        try:
+            if cp.get("existed"):
+                p.parent.mkdir(parents=True, exist_ok=True)
+                p.write_text(cp.get("before", ""), "utf-8")
+            elif p.exists():
+                p.unlink()
+            restored += 1
+        except Exception:
+            pass
+    return {"ok": True, "restored": restored}
+
+
+async def _revert_file(path: str) -> dict:
+    """agent-callable: undo a file to its state at the start of this run"""
+    ctx = get_agent_ctx()
+    run_id = ctx.get("run_id")
+    if not run_id:
+        return {"output": "no active run to revert against", "error": True}
+    from services.agent_state import get_run
+    state = get_run(run_id) or {}
+    target = str(_resolve(path))
+    cps = [c for c in state.get("checkpoints", []) if c["path"] == target]
+    if not cps:
+        return {"output": f"no checkpoint for {path} in this run", "error": True}
+    cp = cps[0]  # earliest = original
+    p = Path(target)
+    try:
+        if cp.get("existed"):
+            p.write_text(cp.get("before", ""), "utf-8")
+            return {"output": f"reverted {path} to run-start state", "error": False}
+        if p.exists():
+            p.unlink()
+        return {"output": f"removed {path} (didn't exist at run start)", "error": False}
+    except Exception as e:
+        return {"output": str(e), "error": True}
 
 
 def preview_change(name: str, args: dict) -> str:

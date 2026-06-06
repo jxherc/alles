@@ -11,7 +11,7 @@ from typing import AsyncGenerator
 from core.database import ModelEndpoint
 from services.agent_tools import (
     build_tool_defs, stream_execute, ROOT, set_agent_ctx,
-    MUTATING_TOOLS, preview_change,
+    MUTATING_TOOLS, preview_change, capture_checkpoint,
 )
 from services.agent_state import start_run, record_event, update_run, finish_run
 from services.llm import stream_chat
@@ -155,7 +155,7 @@ async def run_agent(
     yield {"agent_run": {"id": run_id, "status": "running", "max_turns": max_turns}}
 
     # tools read sandbox/cwd/computer-use config + ep/model (for sub-agents) from here
-    set_agent_ctx(settings=settings, ep=ep, model=model)
+    set_agent_ctx(settings=settings, ep=ep, model=model, run_id=run_id)
 
     note = agent_system_note(settings)
     if settings.get("agent_context_files", True):
@@ -258,6 +258,9 @@ async def run_agent(
                     step["output"] = gate["output"]
                     step["error"] = True
                 else:
+                    # snapshot files before edits so the run can be reverted
+                    if name in ("write_file", "edit_file", "apply_patch"):
+                        capture_checkpoint(run_id, name, args)
                     result = {"output": "", "error": False}
                     async for event in stream_execute(name, args):
                         if stop_event.is_set():
