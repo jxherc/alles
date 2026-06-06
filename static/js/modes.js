@@ -15,7 +15,9 @@ export function setPermMode(m) {
   localStorage.setItem(PERM_KEY, m);
   const btn = document.getElementById('perm-mode-btn');
   if (btn) {
-    btn.textContent = permLabel(m);
+    const label = btn.querySelector('.perm-label');
+    if (label) label.textContent = permLabel(m);
+    else btn.textContent = permLabel(m);
     btn.classList.toggle('perm-plan', m === 'plan');
     btn.classList.toggle('perm-auto', m === 'full_auto');
   }
