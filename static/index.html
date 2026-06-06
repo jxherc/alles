@@ -558,6 +558,21 @@
           </div>
           <div class="s-card">
             <div class="s-card-head">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4"/></svg>
+              local serving
+            </div>
+            <div class="s-card-body">
+              <div id="s-local-ollama" style="font-size:0.72rem;color:var(--muted);margin-bottom:0.45rem">checking Ollama...</div>
+              <div id="s-local-hw" style="font-size:0.72rem;color:var(--muted);margin-bottom:0.65rem"></div>
+              <div id="s-local-presets" class="settings-list"></div>
+              <div style="display:flex;gap:0.4rem;margin-top:0.65rem;flex-wrap:wrap">
+                <button class="btn" id="s-local-refresh-btn">refresh</button>
+                <button class="btn" id="s-local-start-btn">start Ollama</button>
+              </div>
+            </div>
+          </div>
+          <div class="s-card">
+            <div class="s-card-head">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
               openai-compatible api
             </div>
