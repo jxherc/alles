@@ -18,7 +18,7 @@ import { loadVaultView, initVault } from './vault.js';
 import { loadContacts, addContact } from './contacts.js';
 import { loadBrainPanel } from './brain.js';
 import { openSettings, closeSettings, applyVis } from './settings.js';
-import { toggleIncognitoMode, setIncognitoMode } from './modes.js';
+import { toggleIncognitoMode, setIncognitoMode, getPermMode, setPermMode, permLabel } from './modes.js';
 import { initPrivacyHandlers } from './privacy.js';
 import { loadShortcuts, matchesShortcut } from './shortcuts.js';
 import { startReminderPoll, initReminderPanel, loadReminders } from './reminders.js';
@@ -213,6 +213,13 @@ function bindEvents() {
   });
   document.getElementById('mode-agent').addEventListener('click', () => setMode('agent'));
   document.getElementById('mode-chat').addEventListener('click',  () => setMode('chat'));
+  // permission mode button + label
+  const permBtn = document.getElementById('perm-mode-btn');
+  if (permBtn) {
+    permBtn.textContent = permLabel();
+    setPermMode(getPermMode());   // sync classes
+    permBtn.addEventListener('click', e => { e.stopPropagation(); _openPermMenu(permBtn); });
+  }
   document.getElementById('theme-btn').addEventListener('click', toggleTheme);
 
   // persona picker
@@ -421,6 +428,36 @@ function setMode(m) {
   document.getElementById('mode-agent').classList.toggle('active', m === 'agent');
   document.getElementById('mode-chat').classList.toggle('active', m === 'chat');
   document.querySelector('.composer-box')?.classList.toggle('agent-mode', m === 'agent');
+  // permission-mode button only matters in agent mode
+  const pb = document.getElementById('perm-mode-btn');
+  if (pb) pb.style.display = m === 'agent' ? '' : 'none';
+}
+
+function _openPermMenu(anchor) {
+  document.getElementById('perm-menu')?.remove();
+  const cur = getPermMode();
+  const opts = [
+    ['approve',  'approve',  'ask before each change (recommended)'],
+    ['full_auto','auto',     'run everything without asking'],
+    ['plan',     'plan',     'read-only — just make a plan, change nothing'],
+  ];
+  const menu = document.createElement('div');
+  menu.id = 'perm-menu';
+  menu.className = 'perm-menu';
+  menu.innerHTML = opts.map(([v, label, desc]) =>
+    `<div class="perm-menu-item${v === cur ? ' active' : ''}" data-v="${v}">
+       <div class="perm-menu-label">${label}</div>
+       <div class="perm-menu-desc">${desc}</div>
+     </div>`).join('');
+  document.body.appendChild(menu);
+  const r = anchor.getBoundingClientRect();
+  menu.style.left = `${Math.min(r.left, window.innerWidth - menu.offsetWidth - 12)}px`;
+  menu.style.bottom = `${window.innerHeight - r.top + 6}px`;
+  menu.querySelectorAll('.perm-menu-item').forEach(it =>
+    it.addEventListener('click', () => { setPermMode(it.dataset.v); menu.remove(); }));
+  setTimeout(() => document.addEventListener('click', function h(e) {
+    if (!menu.contains(e.target) && e.target !== anchor) { menu.remove(); document.removeEventListener('click', h); }
+  }), 0);
 }
 
 function toggleTheme() {

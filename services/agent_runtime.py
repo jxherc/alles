@@ -1,15 +1,50 @@
 """
 First-class autonomous agent runtime for aide.
 """
+import asyncio
 import json
 import shutil
+import uuid
 from pathlib import Path
 from typing import AsyncGenerator
 
 from core.database import ModelEndpoint
-from services.agent_tools import build_tool_defs, stream_execute, ROOT, set_agent_ctx
+from services.agent_tools import (
+    build_tool_defs, stream_execute, ROOT, set_agent_ctx,
+    MUTATING_TOOLS, preview_change,
+)
 from services.agent_state import start_run, record_event, update_run, finish_run
 from services.llm import stream_chat
+
+
+# pending tool approvals — request_id → {event, allow}. resolved by the API.
+_pending_perms: dict[str, dict] = {}
+
+
+def resolve_permission(request_id: str, allow: bool) -> bool:
+    p = _pending_perms.get(request_id)
+    if not p:
+        return False
+    p["allow"] = bool(allow)
+    p["event"].set()
+    return True
+
+
+async def _await_permission(request_id: str, stop_event, timeout: float = 600) -> bool:
+    ev = asyncio.Event()
+    _pending_perms[request_id] = {"event": ev, "allow": False}
+    t_ev = asyncio.create_task(ev.wait())
+    t_stop = asyncio.create_task(stop_event.wait())
+    try:
+        await asyncio.wait({t_ev, t_stop}, timeout=timeout, return_when=asyncio.FIRST_COMPLETED)
+        if stop_event.is_set():
+            return False
+        return _pending_perms.get(request_id, {}).get("allow", False)
+    finally:
+        for t in (t_ev, t_stop):
+            if not t.done():
+                t.cancel()
+        _pending_perms.pop(request_id, None)
 
 
 # context files an agent auto-reads from the working dir (+ parents), nearest first.
@@ -72,6 +107,11 @@ def agent_system_note(settings: dict) -> str:
         extra.append("- You can delegate with spawn_agent (one subtask) or spawn_agents (several in parallel). Use it to split big independent jobs; each sub-agent reports a summary back.")
     if settings.get("agent_context_files", True):
         extra.append("- Honor any <project-context> files provided (aide.md / AGENTS.md) as standing workspace instructions.")
+    pmode = settings.get("agent_permission_mode") or "full_auto"
+    if pmode == "plan":
+        extra.append("- PLAN MODE: change nothing. Inspect with read-only tools, then present a clear numbered plan of what you WOULD do, and stop. State-changing tools are disabled this turn.")
+    elif pmode == "approve":
+        extra.append("- APPROVE MODE: every state-changing action (shell, file writes, git, computer use, delegation) is shown to the user for approval first. Say what you're about to do in one line before such actions.")
 
     return (
         "Agent mode is enabled. You are aide Agent, a fully autonomous local operator inspired by "
@@ -195,19 +235,41 @@ async def run_agent(
                 record_event(run_id, "tool_start", step)
                 yield {"tool_start": {"call_id": call_id, "name": name, "args": args}}
 
-                result = {"output": "", "error": False}
-                async for event in stream_execute(name, args):
-                    if stop_event.is_set():
-                        break
-                    if event["type"] == "output":
-                        text = event.get("text", "")
-                        step["output"] = (step.get("output", "") + text)[-12000:]
-                        yield {"tool_delta": {"call_id": call_id, "text": text}}
-                    elif event["type"] == "result":
-                        result = event.get("result", result)
+                # ── permission gate (approve / plan modes) + diff review ──
+                mode = settings.get("agent_permission_mode") or "full_auto"
+                gate = None  # set to a result dict to skip execution
+                if name in MUTATING_TOOLS:
+                    diff = preview_change(name, args)
+                    if diff:
+                        yield {"tool_diff": {"call_id": call_id, "diff": diff}}
+                    if mode == "plan":
+                        gate = {"output": "[plan mode] not executed. Describe this change in your plan instead of running it.", "error": True}
+                    elif mode == "approve":
+                        req_id = uuid.uuid4().hex
+                        record_event(run_id, "permission_request", {"call_id": call_id, "name": name, "args": args})
+                        yield {"tool_permission": {"request_id": req_id, "call_id": call_id, "name": name, "args": args, "diff": diff}}
+                        allowed = await _await_permission(req_id, stop_event)
+                        yield {"tool_permission_resolved": {"call_id": call_id, "allow": bool(allowed)}}
+                        if not allowed:
+                            gate = {"output": "[denied by user] action not performed. Adjust your approach or ask the user.", "error": True}
 
-                step["output"] = result.get("output", step.get("output", ""))
-                step["error"] = bool(result.get("error"))
+                if gate is not None:
+                    result = gate
+                    step["output"] = gate["output"]
+                    step["error"] = True
+                else:
+                    result = {"output": "", "error": False}
+                    async for event in stream_execute(name, args):
+                        if stop_event.is_set():
+                            break
+                        if event["type"] == "output":
+                            text = event.get("text", "")
+                            step["output"] = (step.get("output", "") + text)[-12000:]
+                            yield {"tool_delta": {"call_id": call_id, "text": text}}
+                        elif event["type"] == "result":
+                            result = event.get("result", result)
+                    step["output"] = result.get("output", step.get("output", ""))
+                    step["error"] = bool(result.get("error"))
 
                 # pull any screenshot image out — feed it back as vision, not as text
                 img = result.get("image")
