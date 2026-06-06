@@ -81,6 +81,31 @@ export async function sendMessage(text) {
     target.appendChild(cursor);
   };
 
+  // throttle markdown render to one paint per frame — tokens batch within ~16ms
+  // instead of re-parsing the whole response on every single delta (was O(n²))
+  let renderRaf = 0;
+  const flushRender = () => {
+    renderRaf = 0;
+    const displayText = _splitBeforeArtifact(accText);
+    if (!displayText) return;
+    // only auto-scroll if the user is already following along at the bottom —
+    // don't yank them down if they scrolled up to read
+    const chat = document.getElementById('chat');
+    const stick = !chat || (chat.scrollHeight - chat.scrollTop - chat.clientHeight < 120);
+    if (!contentEl) {
+      contentEl = document.createElement('div');
+      contentEl.className = 'ai-content';
+      cursor?.remove();
+      body.appendChild(contentEl);
+    }
+    contentEl.innerHTML = mdToHtml(stripEmojis(displayText));
+    applyResponsePrivacy(contentEl);
+    cursor?.remove();
+    addCursor(contentEl);
+    if (stick) scrollDown();
+  };
+  const scheduleRender = () => { if (!renderRaf) renderRaf = requestAnimationFrame(flushRender); };
+
   try {
     const r = await fetch('/api/chat', {
       method: 'POST',
@@ -303,22 +328,7 @@ export async function sendMessage(text) {
 
         if (chunk.delta) {
           accText += chunk.delta;
-          // stop rendering once artifact tag begins
-          const displayText = _splitBeforeArtifact(accText);
-          if (displayText) {
-            if (!contentEl) {
-              contentEl = document.createElement('div');
-              contentEl.className = 'ai-content';
-              cursor?.remove();
-              body.appendChild(contentEl);
-              addCursor(contentEl);
-            }
-            contentEl.innerHTML = mdToHtml(stripEmojis(displayText));
-            applyResponsePrivacy(contentEl);
-            cursor?.remove();
-            addCursor(contentEl);
-            scrollDown();
-          }
+          scheduleRender();   // batched to next animation frame
         }
       }
     }
@@ -328,6 +338,7 @@ export async function sendMessage(text) {
       body.innerHTML += `<div class="error-msg">stream error: ${e.message}</div>`;
     }
   } finally {
+    if (renderRaf) { cancelAnimationFrame(renderRaf); renderRaf = 0; }
     cursor?.remove();
     body.classList.add('done');
 
