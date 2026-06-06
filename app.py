@@ -41,6 +41,7 @@ from routes import (
     backup as backup_routes,
     agent as agent_routes,
     connections as connection_routes,
+    local_models as local_model_routes,
 )
 from routes import reminders as reminder_routes, templates as template_routes, shared as shared_routes
 
@@ -155,7 +156,7 @@ async def _reminder_loop():
 
 def _cleanup_empty_sessions():
     """drop sessions that never got a message (abandoned 'new chat' / incognito leftovers)"""
-    from core.database import Message as Msg
+    from core.database import Message as Msg, Session
     db = SessionLocal()
     try:
         gone = 0
@@ -292,6 +293,7 @@ app.include_router(contact_routes.router)
 app.include_router(backup_routes.router)
 app.include_router(agent_routes.router)
 app.include_router(connection_routes.router)
+app.include_router(local_model_routes.router)
 app.include_router(reminder_routes.router)
 app.include_router(template_routes.router)
 app.include_router(shared_routes.router)
