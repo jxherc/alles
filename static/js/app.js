@@ -442,14 +442,14 @@ function _openPermMenu(anchor) {
   const cur = getPermMode();
   const opts = [
     ['approve',  'approve',  'ask before each change (recommended)'],
-    ['full_auto','auto',     'run everything without asking'],
+    ['full_auto','auto',     '⚠ runs everything without asking'],
     ['plan',     'plan',     'read-only — just make a plan, change nothing'],
   ];
   const menu = document.createElement('div');
   menu.id = 'perm-menu';
   menu.className = 'perm-menu';
   menu.innerHTML = opts.map(([v, label, desc]) =>
-    `<div class="perm-menu-item${v === cur ? ' active' : ''}" data-v="${v}">
+    `<div class="perm-menu-item${v === cur ? ' active' : ''}${v === 'full_auto' ? ' warn' : ''}" data-v="${v}">
        <div class="perm-menu-label">${label}</div>
        <div class="perm-menu-desc">${desc}</div>
      </div>`).join('');
