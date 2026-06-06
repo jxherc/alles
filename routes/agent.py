@@ -24,6 +24,27 @@ def agent_revert(run_id: str):
     return revert_run(run_id)
 
 
+@router.get("/agent/files")
+def agent_files(q: str = "", session_id: str = "", limit: int = 30):
+    """workspace files for @-mention autocomplete"""
+    from services.agent_tools import workspace_files
+    from core.database import SessionLocal, Session as Sess
+    cwd = ""
+    if session_id:
+        db = SessionLocal()
+        try:
+            s = db.get(Sess, session_id)
+            if s:
+                cwd = getattr(s, "working_dir", "") or ""
+                if not cwd:
+                    proj = getattr(s, "project", None)
+                    if proj:
+                        cwd = getattr(proj, "working_dir", "") or ""
+        finally:
+            db.close()
+    return {"files": workspace_files(cwd, q, limit)}
+
+
 @router.get("/agent/status")
 async def status():
     return await agent_status()

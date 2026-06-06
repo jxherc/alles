@@ -42,6 +42,8 @@ async function _boot() {
   await initSessions();
   const ta = document.getElementById('composer-ta');
   initSlash(ta);
+  const { initMentions } = await import('./mentions.js');
+  initMentions(ta);
   initSearch();
   initDropZone();
   initVault();
