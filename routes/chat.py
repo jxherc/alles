@@ -338,6 +338,47 @@ async def chat(body: ChatRequest, background_tasks: BackgroundTasks, db: DbSessi
                              headers={"cache-control": "no-cache", "x-accel-buffering": "no"})
 
 
+# background agent runs — detached, survive tab close
+_bg_tasks: dict[str, asyncio.Task] = {}
+
+
+@router.post("/agent/background")
+async def chat_background(body: ChatRequest, db: DbSession = Depends(get_db)):
+    s = db.get(Session, body.session_id)
+    if not s:
+        raise HTTPException(404, "session not found")
+    ep = _resolve_endpoint(s, db)
+    if not ep:
+        raise HTTPException(400, "no model endpoint configured")
+    model = s.model or (ep.models_list()[0] if ep.models_list() else "")
+    if not model:
+        raise HTTPException(400, "no model selected")
+
+    settings = load_settings()
+    settings["agent_cwd"] = _resolve_working_dir(s)
+    settings["agent_permission_mode"] = "full_auto"   # nothing is watching to approve
+    aug_text = _resolve_mentions(body.message, settings["agent_cwd"])
+    messages = _build_messages(s, aug_text, settings, db, body.file_ids)
+
+    stop_event = asyncio.Event()
+    _streams[body.session_id] = stop_event
+    from core.database import SessionLocal as _SF
+
+    async def runner():
+        try:
+            async for _ in _stream_and_save(
+                body.session_id, body.message, messages, ep, model,
+                stop_event, _SF, incognito=False, mode="agent", settings=settings,
+            ):
+                pass
+        finally:
+            _streams.pop(body.session_id, None)
+            _bg_tasks.pop(body.session_id, None)
+
+    _bg_tasks[body.session_id] = asyncio.create_task(runner())
+    return {"ok": True, "session_id": body.session_id}
+
+
 # POST /api/chat/stop/{session_id}
 @router.post("/chat/stop/{session_id}")
 def stop_chat(session_id: str):
