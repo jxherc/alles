@@ -433,10 +433,8 @@ async function doSend() {
 function setMode(m) {
   document.getElementById('mode-agent').classList.toggle('active', m === 'agent');
   document.getElementById('mode-chat').classList.toggle('active', m === 'chat');
+  // .agent-mode grows the box + reveals the agent control row (CSS-driven)
   document.querySelector('.composer-box')?.classList.toggle('agent-mode', m === 'agent');
-  // permission-mode button only matters in agent mode
-  const pb = document.getElementById('perm-mode-btn');
-  if (pb) pb.style.display = m === 'agent' ? '' : 'none';
 }
 
 function _openPermMenu(anchor) {
