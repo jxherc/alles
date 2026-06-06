@@ -152,6 +152,7 @@ class ChatRequest(BaseModel):
     mode: str = "chat"   # chat | agent
     file_ids: list[str] = []
     incognito: bool = False
+    permission_mode: str = ""   # full_auto | approve | plan
 
 
 async def _sse(gen):
@@ -278,6 +279,8 @@ async def chat(body: ChatRequest, background_tasks: BackgroundTasks, db: DbSessi
 
     settings = load_settings()
     settings["agent_cwd"] = _resolve_working_dir(s)
+    if body.permission_mode:
+        settings["agent_permission_mode"] = body.permission_mode
     messages = _build_messages(s, body.message, settings, db, body.file_ids)
 
     # context compaction

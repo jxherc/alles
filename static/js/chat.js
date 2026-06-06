@@ -6,7 +6,7 @@ import {
 import { getSelected, getCurrentEndpoint } from './models.js';
 import { openArtifact, extractArtifacts, stripArtifacts } from './artifacts.js';
 import { getAttachments, clearAttachments } from './uploads.js';
-import { isIncognitoMode } from './modes.js';
+import { isIncognitoMode, getPermMode } from './modes.js';
 import { applyResponsePrivacy, stripEmojis } from './privacy.js';
 
 // expose mdToHtml for sessions.js lazy fallback
@@ -89,6 +89,7 @@ export async function sendMessage(text) {
         mode: getMode(),
         file_ids: getAttachments(),
         incognito: isIncognitoMode(),
+        permission_mode: getMode() === 'agent' ? getPermMode() : '',
       }),
     });
 
@@ -209,6 +210,63 @@ export async function sendMessage(text) {
           scrollDown();
         }
 
+        if (chunk.tool_diff) {
+          const t = chunk.tool_diff;
+          const step = toolEls.get(t.call_id);
+          if (step && t.diff) {
+            let d = step.querySelector('.agent-step-diff');
+            if (!d) {
+              d = document.createElement('pre');
+              d.className = 'agent-step-diff';
+              step.appendChild(d);
+            }
+            d.innerHTML = renderDiff(t.diff);
+          }
+          scrollDown();
+        }
+
+        if (chunk.tool_permission) {
+          const t = chunk.tool_permission;
+          const step = toolEls.get(t.call_id);
+          if (step) {
+            const card = document.createElement('div');
+            card.className = 'agent-perm';
+            card.dataset.req = t.request_id;
+            card.innerHTML = `
+              <div class="agent-perm-msg">approve <b>${escHtml(t.name)}</b>?</div>
+              <div class="agent-perm-actions">
+                <button class="agent-perm-allow">approve</button>
+                <button class="agent-perm-deny">deny</button>
+              </div>`;
+            step.appendChild(card);
+            const decide = async (allow) => {
+              card.querySelectorAll('button').forEach(b => b.disabled = true);
+              await fetch(`/api/agent/permission/${t.request_id}`, {
+                method: 'POST',
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify({ allow }),
+              }).catch(() => {});
+              card.classList.add(allow ? 'approved' : 'denied');
+              card.querySelector('.agent-perm-msg').textContent = allow ? 'approved' : 'denied';
+            };
+            card.querySelector('.agent-perm-allow').addEventListener('click', () => decide(true));
+            card.querySelector('.agent-perm-deny').addEventListener('click', () => decide(false));
+          }
+          scrollDown();
+        }
+
+        if (chunk.tool_permission_resolved) {
+          const t = chunk.tool_permission_resolved;
+          const step = toolEls.get(t.call_id);
+          const card = step?.querySelector('.agent-perm');
+          if (card && !card.classList.contains('approved') && !card.classList.contains('denied')) {
+            // resolved elsewhere / timed out
+            card.querySelectorAll('button').forEach(b => b.disabled = true);
+            card.classList.add(t.allow ? 'approved' : 'denied');
+            card.querySelector('.agent-perm-msg').textContent = t.allow ? 'approved' : 'denied';
+          }
+        }
+
         if (chunk.tool_result) {
           const t = chunk.tool_result;
           const step = toolEls.get(t.call_id);
@@ -319,6 +377,17 @@ export async function sendMessage(text) {
 function _splitBeforeArtifact(text) {
   const idx = text.indexOf('<aide-artifact');
   return idx === -1 ? text : text.slice(0, idx).trimEnd();
+}
+
+function renderDiff(diff = '') {
+  return String(diff).split('\n').map(line => {
+    let cls = '';
+    if (line.startsWith('+') && !line.startsWith('+++')) cls = 'diff-add';
+    else if (line.startsWith('-') && !line.startsWith('---')) cls = 'diff-del';
+    else if (line.startsWith('@@')) cls = 'diff-hunk';
+    else if (line.startsWith('+++') || line.startsWith('---') || line.startsWith('diff ')) cls = 'diff-meta';
+    return `<span class="${cls}">${escHtml(line)}</span>`;
+  }).join('\n');
 }
 
 function escHtml(s = '') {
