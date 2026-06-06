@@ -102,25 +102,18 @@ export function stopRecording() {
 }
 
 function _setMicRecording(on) {
+  // ONLY the mic button becomes the stop control — the send button is left
+  // alone (was turning into a 2nd stop square, which looked like two close btns)
   const btn = document.getElementById('mic-btn');
   const box = document.querySelector('.composer-box');
-  const send = document.getElementById('send-btn');
   if (!btn) return;
   if (!_micIdleHtml) _micIdleHtml = btn.innerHTML;
-  if (send && !_sendIdleHtml) _sendIdleHtml = send.innerHTML;
   btn.classList.toggle('recording', on);
   btn.setAttribute('aria-pressed', String(on));
+  btn.title = on ? 'stop recording' : 'voice input';
   btn.innerHTML = on
     ? '<svg viewBox="0 0 24 24" fill="none"><rect x="7" y="7" width="10" height="10" rx="1.5" fill="currentColor"/></svg>'
     : _micIdleHtml;
-  if (send) {
-    send.classList.toggle('recording', on);
-    send.title = on ? 'stop recording' : '';
-    // simple stop square when recording — wave is now on #mic-wave
-    send.innerHTML = on
-      ? '<svg viewBox="0 0 24 24" fill="none"><rect x="7" y="7" width="10" height="10" rx="1" fill="currentColor"/></svg>'
-      : _sendIdleHtml;
-  }
   if (box) box.classList.toggle('mic-recording', on);
   if (!on) _stopLiveWave();
 }
