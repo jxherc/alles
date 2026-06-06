@@ -58,6 +58,30 @@ def _resolve_working_dir(session: Session) -> str:
     return ""
 
 
+def _resolve_mentions(text: str, cwd: str) -> str:
+    """inline @path file references → append file contents for the model"""
+    from pathlib import Path
+    from services.agent_tools import ROOT
+    base = Path(cwd) if cwd else ROOT
+    blocks, seen = [], set()
+    for m in re.finditer(r"(?:^|\s)@([\w./\\-]+)", text):
+        rel = m.group(1).rstrip(".,;:")
+        if rel in seen:
+            continue
+        seen.add(rel)
+        try:
+            p = (base / rel).resolve()
+        except Exception:
+            continue
+        if p.is_file():
+            try:
+                content = p.read_text("utf-8", errors="replace")
+                blocks.append(f'<file name="{rel}">\n{content[:20000]}\n</file>')
+            except Exception:
+                pass
+    return text + "\n\n" + "\n\n".join(blocks) if blocks else text
+
+
 def _build_messages(session: Session, user_text: str, settings: dict,
                     db=None, file_ids: list[str] = None) -> list[dict]:
     sys_prompt = settings.get("system_prompt", "You are aide, a helpful AI assistant.")
@@ -281,7 +305,9 @@ async def chat(body: ChatRequest, background_tasks: BackgroundTasks, db: DbSessi
     settings["agent_cwd"] = _resolve_working_dir(s)
     if body.permission_mode:
         settings["agent_permission_mode"] = body.permission_mode
-    messages = _build_messages(s, body.message, settings, db, body.file_ids)
+    # @path mentions → inline file contents for the model (saved msg stays clean)
+    aug_text = _resolve_mentions(body.message, settings["agent_cwd"])
+    messages = _build_messages(s, aug_text, settings, db, body.file_ids)
 
     # context compaction
     if settings.get("auto_compact", True):
