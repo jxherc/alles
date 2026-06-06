@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session as DbSession
 from core.database import get_db
 from services.local_models import (
     PRESETS,
+    delete_model,
     download_model,
     get_job,
     hwfit,
@@ -71,6 +72,17 @@ def job(job_id: str):
 @router.get("/jobs")
 def jobs():
     return {"jobs": list_jobs()}
+
+
+@router.post("/delete")
+def delete(body: ModelRequest):
+    try:
+        res = delete_model(body.model)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    if not res.get("ok"):
+        raise HTTPException(409, res)
+    return res
 
 
 @router.post("/serve")
