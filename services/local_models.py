@@ -356,6 +356,20 @@ def download_model(model: str) -> dict:
     return get_job(job_id)
 
 
+def delete_model(model: str) -> dict:
+    model = _validate_model(model)
+    exe = shutil.which("ollama")
+    if not exe:
+        return {"ok": False, "error": "ollama is not installed or not on PATH"}
+    try:
+        r = _run([exe, "rm", model], timeout=30)
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+    if r.returncode == 0:
+        return {"ok": True, "model": model}
+    return {"ok": False, "error": (r.stderr or r.stdout or "ollama rm failed").strip()}
+
+
 def get_job(job_id: str) -> dict | None:
     with _jobs_lock:
         job = _jobs.get(job_id)

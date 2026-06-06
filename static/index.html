@@ -565,7 +565,13 @@
               <div id="s-local-ollama" style="font-size:0.72rem;color:var(--muted);margin-bottom:0.45rem">checking Ollama...</div>
               <div id="s-local-hw" style="font-size:0.72rem;color:var(--muted);margin-bottom:0.65rem"></div>
               <div id="s-local-presets" class="settings-list"></div>
-              <div style="display:flex;gap:0.4rem;margin-top:0.65rem;flex-wrap:wrap">
+              <div class="s-field" style="margin-top:0.65rem"><label>pull any model</label>
+                <div style="display:flex;gap:0.4rem">
+                  <input type="text" class="settings-input" id="s-local-custom" placeholder="e.g. qwen2.5:14b" style="flex:1">
+                  <button class="btn" id="s-local-pull-btn">pull</button>
+                </div>
+              </div>
+              <div style="display:flex;gap:0.4rem;margin-top:0.4rem;flex-wrap:wrap">
                 <button class="btn" id="s-local-refresh-btn">refresh</button>
                 <button class="btn" id="s-local-start-btn">start Ollama</button>
               </div>

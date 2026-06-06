@@ -19,6 +19,10 @@ class LocalModelTests(unittest.IsolatedAsyncioTestCase):
     def test_accepts_known_preset_model(self):
         self.assertEqual(local_models._validate_model("llama3.2:3b"), "llama3.2:3b")
 
+    def test_delete_rejects_bad_name(self):
+        with self.assertRaises(ValueError):
+            local_models.delete_model("evil; rm -rf /")
+
     async def test_hwfit_marks_installed_and_prefers_gpu_fit(self):
         old_profile = local_models.hardware_profile
         old_installed = local_models.installed_models
