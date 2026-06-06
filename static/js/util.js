@@ -24,13 +24,17 @@ export function mdToHtml(text) {
     return `\x00BLOCK${idx}\x00`;
   });
 
+  // Escape all raw HTML before adding the small Markdown subset below. Code and
+  // thinking blocks are restored later from placeholders.
+  out = escapeHtml(out);
+
   // headings
   out = out.replace(/^#{1,6}\s+(.+)$/gm, (_, t) => `<p><strong>${t}</strong></p>`);
   // bold + italic
   out = out.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
   out = out.replace(/\*(.+?)\*/g, '<em>$1</em>');
   // inline code
-  out = out.replace(/`([^`]+)`/g, (_, c) => `<code>${escapeHtml(c)}</code>`);
+  out = out.replace(/`([^`]+)`/g, '<code>$1</code>');
   // unordered lists
   out = out.replace(/^\s*[-*]\s+(.+)/gm, '<li>$1</li>');
   out = out.replace(/(<li>.*<\/li>\n?)+/g, m => `<ul>${m}</ul>`);
