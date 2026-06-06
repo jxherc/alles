@@ -77,6 +77,23 @@ export async function sendMessage(text) {
   let thinkStart = 0;
   let thinkTimer = 0;
   let thinkDone = false;
+  let genStart = 0;     // first answer token time, for tok/s
+  let statsEl = null;
+  let outTok = 0;       // real output tokens from usage (if provided)
+
+  const updateStats = (final = false) => {
+    if (!genStart) return;
+    if (!statsEl) {
+      statsEl = document.createElement('div');
+      statsEl.className = 'msg-stats';
+      body.appendChild(statsEl);
+    }
+    const secs = (Date.now() - genStart) / 1000;
+    const toks = outTok || Math.max(1, Math.round(accText.length / 4));  // real if known, else ~chars/4
+    const approx = outTok ? '' : '~';
+    const rate = secs > 0.3 ? ` · ${Math.round(toks / secs)} tok/s` : '';
+    statsEl.textContent = `${approx}${toks.toLocaleString()} tok${rate}` + (final ? '' : ' ▍');
+  };
 
   // freeze the thinking block: stop the live timer, show "thought for Xs", collapse
   const finishThinking = () => {
@@ -122,6 +139,7 @@ export async function sendMessage(text) {
     applyResponsePrivacy(contentEl);
     cursor?.remove();
     addCursor(contentEl);
+    updateStats();
     if (stick) scrollDown();
   };
   const scheduleRender = () => {
@@ -184,7 +202,11 @@ export async function sendMessage(text) {
 
         if (chunk.done && chunk.usage) {
           const u = chunk.usage;
-          const total = (u.prompt_tokens || 0) + (u.completion_tokens || 0);
+          // openai uses prompt/completion_tokens; anthropic uses input/output_tokens
+          const inp = u.prompt_tokens || u.input_tokens || 0;
+          const out = u.completion_tokens || u.output_tokens || 0;
+          if (out) outTok = out;
+          const total = inp + out;
           if (total) {
             const el = document.getElementById('session-token-count');
             if (el) { el.textContent = `${total.toLocaleString()} tok`; el.style.display = ''; }
@@ -361,6 +383,7 @@ export async function sendMessage(text) {
 
         if (chunk.delta) {
           finishThinking();   // first real content → reasoning is done
+          if (!genStart) genStart = Date.now();
           accText += chunk.delta;
           scheduleRender();
         }
@@ -374,6 +397,7 @@ export async function sendMessage(text) {
   } finally {
     if (renderTimer) { clearTimeout(renderTimer); renderTimer = 0; }
     finishThinking();   // freeze timer even if the reply was thinking-only
+    updateStats(true);  // final token count + tok/s (real if usage was sent)
     cursor?.remove();
     body.classList.add('done');
 
