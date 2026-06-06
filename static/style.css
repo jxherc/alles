@@ -531,6 +531,8 @@ body.sidebar-hidden .sidebar { display: none; }
 .perm-menu-item.active { background: color-mix(in srgb, var(--accent) 14%, transparent); }
 .perm-menu-label { font-size: 0.75rem; color: var(--text); text-transform: lowercase; }
 .perm-menu-desc { font-size: 0.65rem; color: var(--muted); margin-top: 1px; }
+.perm-menu-item.warn .perm-menu-label { color: #d9a441; }
+.perm-menu-item.warn .perm-menu-desc { color: #b08534; }
 
 /* @-mention file picker */
 .mention-menu {
@@ -698,7 +700,10 @@ code {
 }
 .composer-box:focus-within { border-color: var(--muted); }
 /* agent mode: subtle border + the box grows taller, no loud glow */
-.composer-box.agent-mode { border-color: var(--muted); }
+.composer-box.agent-mode {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent), 0 0 16px color-mix(in srgb, var(--accent) 25%, transparent);
+}
 .composer-ta {
   width: 100%; background: none; border: none; outline: none; resize: none;
   color: var(--text); font-family: inherit;
@@ -771,15 +776,17 @@ code {
 .c-tool svg { width: 16px; height: 16px; }
 .c-tool.active { color: var(--accent); }
 
-/* active toggle tools (incognito / research) — accent glow */
+/* active toggle tools (incognito / research) — glowing icon, NO box.
+   keeps every tool button the same shape; active ones just glow accent. */
 .incognito-btn.active,
 #research-toggle-btn.active {
-  color: var(--accent); border-color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  color: var(--accent);
+  background: none;
+  border-color: transparent;
 }
 .incognito-btn.active svg,
 #research-toggle-btn.active svg {
-  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--accent) 80%, transparent));
+  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--accent) 85%, transparent));
 }
 #more-tools-btn { display: none; }
 .more-tools-menu { min-width: 160px; }
@@ -828,6 +835,10 @@ code {
 }
 .perm-btn:hover { color: var(--text); }
 .perm-caret { width: 11px; height: 11px; opacity: 0.6; }
+/* bypass (auto) — mild yellow warning; plan — subtle accent */
+.perm-btn.perm-auto { color: #d9a441; }
+.perm-btn.perm-auto:hover { color: #e8b85a; }
+.perm-btn.perm-plan { color: var(--accent); }
 
 /* mic */
 .mic-corner { width: 28px; height: 28px; }
