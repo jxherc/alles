@@ -284,6 +284,15 @@ class SessionTemplate(Base):
     created_at      = Column(DateTime, default=_now)
 
 
+class Connection(Base):
+    __tablename__ = "connections"
+    id         = Column(String, primary_key=True, default=_uid)
+    service    = Column(String, nullable=False)   # github | gitlab | slack | ...
+    token      = Column(Text, default="")         # access token / PAT
+    meta       = Column(Text, default="{}")       # json: base_url, username, scopes...
+    created_at = Column(DateTime, default=_now)
+
+
 def _add_col(conn, table, col, col_type):
     try:
         conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {col} {col_type}"))

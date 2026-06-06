@@ -107,6 +107,12 @@ def agent_system_note(settings: dict) -> str:
         extra.append("- You can delegate with spawn_agent (one subtask) or spawn_agents (several in parallel). Use it to split big independent jobs; each sub-agent reports a summary back.")
     if settings.get("agent_context_files", True):
         extra.append("- Honor any <project-context> files provided (aide.md / AGENTS.md) as standing workspace instructions.")
+    try:
+        from services.connections import get_token
+        if get_token("github"):
+            extra.append("- A GitHub connection is active: use github_* tools (repos, files, issues, PRs, code search) for anything on GitHub.")
+    except Exception:
+        pass
     pmode = settings.get("agent_permission_mode") or "full_auto"
     if pmode == "plan":
         extra.append("- PLAN MODE: change nothing. Inspect with read-only tools, then present a clear numbered plan of what you WOULD do, and stop. State-changing tools are disabled this turn.")
