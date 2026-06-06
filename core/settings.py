@@ -17,6 +17,12 @@ _defaults = {
     "agent_max_tokens": 0,
     "agent_permission_mode": "full_auto",
     "agent_allowed_roots": [],
+    "agent_context_files": True,        # read aide.md / AGENTS.md from working dir
+    "agent_sandbox": False,             # run shell inside docker
+    "agent_sandbox_image": "alpine:latest",
+    "agent_sandbox_no_net": False,      # --network none in sandbox
+    "agent_computer_use": False,        # enable screenshot/click/type tools
+    "agent_subagents": True,            # allow spawn_agent delegation
     "auto_compact": True,
     "compact_threshold": 30,
     "stt_provider": "browser",    # whisper_api | browser

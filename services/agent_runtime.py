@@ -3,12 +3,46 @@ First-class autonomous agent runtime for aide.
 """
 import json
 import shutil
+from pathlib import Path
 from typing import AsyncGenerator
 
 from core.database import ModelEndpoint
-from services.agent_tools import TOOL_DEFS, stream_execute
+from services.agent_tools import build_tool_defs, stream_execute, ROOT, set_agent_ctx
 from services.agent_state import start_run, record_event, update_run, finish_run
 from services.llm import stream_chat
+
+
+# context files an agent auto-reads from the working dir (+ parents), nearest first.
+_CTX_NAMES = ["aide.md", "AGENTS.md", ".aide/instructions.md", "AGENT.md"]
+
+
+def _load_project_context(cwd: str) -> str:
+    base = Path(cwd).expanduser() if cwd else ROOT
+    try:
+        base = base.resolve()
+    except Exception:
+        return ""
+    found = []
+    seen = set()
+    cur = base
+    for _ in range(5):  # walk up to 5 levels
+        for n in _CTX_NAMES:
+            p = cur / n
+            if p.is_file() and p not in seen:
+                seen.add(p)
+                try:
+                    txt = p.read_text("utf-8", errors="replace").strip()
+                except Exception:
+                    txt = ""
+                if txt:
+                    found.append((p, txt[:8000]))
+        if cur.parent == cur:
+            break
+        cur = cur.parent
+    if not found:
+        return ""
+    blocks = [f'<project-context path="{p}">\n{txt}\n</project-context>' for p, txt in found]
+    return "\n\n".join(blocks)
 
 
 def merge_usage(total: dict, part: dict) -> dict:
@@ -28,6 +62,17 @@ def agent_system_note(settings: dict) -> str:
     opencode = "installed" if shutil.which("opencode") else (
         "available through npx fallback" if shutil.which("npx.cmd") or shutil.which("npx") else "not available"
     )
+    extra = []
+    if settings.get("agent_sandbox") and shutil.which("docker"):
+        img = settings.get("agent_sandbox_image") or "alpine:latest"
+        extra.append(f"- Shell runs INSIDE a docker sandbox ({img}). The workspace is mounted at /work. Filesystem outside /work and the host are not affected.")
+    if settings.get("agent_computer_use"):
+        extra.append("- Computer use is enabled: screenshot, computer_click, computer_type, computer_key, computer_scroll, computer_move. Take a screenshot first to see the screen, then act on real pixel coordinates. Be careful and deliberate.")
+    if settings.get("agent_subagents", True):
+        extra.append("- You can delegate with spawn_agent (one subtask) or spawn_agents (several in parallel). Use it to split big independent jobs; each sub-agent reports a summary back.")
+    if settings.get("agent_context_files", True):
+        extra.append("- Honor any <project-context> files provided (aide.md / AGENTS.md) as standing workspace instructions.")
+
     return (
         "Agent mode is enabled. You are aide Agent, a fully autonomous local operator inspired by "
         "Claude Code, Codex, OpenCode, and Odysseus.\n\n"
@@ -47,7 +92,8 @@ def agent_system_note(settings: dict) -> str:
         "- Use opencode_run for coding subtasks when OpenCode is installed and a delegated coding pass is useful.\n"
         "- Stream concise progress before and after major tool use. Avoid dumping huge output unless it is the deliverable.\n"
         "- Ask the user only if blocked, if credentials/approval are missing, or if the next action is genuinely risky.\n"
-        f"- OpenCode delegation status: {opencode}.\n"
+        + ("".join("\n" + e for e in extra) if extra else "")
+        + f"\n- OpenCode delegation status: {opencode}.\n"
         f"- Continue for up to {max_turns} agent turns, then summarize what remains."
     )
 
@@ -68,11 +114,21 @@ async def run_agent(
     run_id = run["id"]
     yield {"agent_run": {"id": run_id, "status": "running", "max_turns": max_turns}}
 
+    # tools read sandbox/cwd/computer-use config + ep/model (for sub-agents) from here
+    set_agent_ctx(settings=settings, ep=ep, model=model)
+
+    note = agent_system_note(settings)
+    if settings.get("agent_context_files", True):
+        ctx = _load_project_context(settings.get("agent_cwd", ""))
+        if ctx:
+            note += ("\n\nThe following project context files apply to this workspace. "
+                     "Treat them as standing instructions:\n\n" + ctx)
+
     agent_messages = [dict(m) for m in messages]
     if agent_messages and agent_messages[0].get("role") == "system":
-        agent_messages[0]["content"] = agent_messages[0].get("content", "").rstrip() + "\n\n" + agent_system_note(settings)
+        agent_messages[0]["content"] = agent_messages[0].get("content", "").rstrip() + "\n\n" + note
     else:
-        agent_messages.insert(0, {"role": "system", "content": agent_system_note(settings)})
+        agent_messages.insert(0, {"role": "system", "content": note})
 
     usage = {}
     try:
@@ -82,7 +138,7 @@ async def run_agent(
 
             turn_text = []
             tool_calls = []
-            llm_kwargs = {"tools": TOOL_DEFS}
+            llm_kwargs = {"tools": build_tool_defs(settings)}
             if settings.get("agent_max_tokens"):
                 llm_kwargs["max_tokens"] = settings["agent_max_tokens"]
 
@@ -126,6 +182,8 @@ async def run_agent(
                 "tool_calls": tool_calls,
             })
 
+            turn_images = []   # screenshots to feed back as vision input this turn
+
             for call in tool_calls:
                 if stop_event.is_set():
                     break
@@ -150,6 +208,14 @@ async def run_agent(
 
                 step["output"] = result.get("output", step.get("output", ""))
                 step["error"] = bool(result.get("error"))
+
+                # pull any screenshot image out — feed it back as vision, not as text
+                img = result.get("image")
+                tool_content = {k: v for k, v in result.items() if k != "image"}
+                if img:
+                    turn_images.append(img)
+                    yield {"tool_image": {"call_id": call_id, "image": img}}
+
                 record_event(run_id, "tool_result", step)
                 update_run(run_id, tool_steps=tool_steps)
                 if name == "todo_update" and not step["error"]:
@@ -168,8 +234,15 @@ async def run_agent(
                 agent_messages.append({
                     "role": "tool",
                     "tool_call_id": call_id,
-                    "content": json.dumps(result),
+                    "content": json.dumps(tool_content),
                 })
+
+            # after the tool batch, hand screenshots to the model as image input
+            if turn_images and not stop_event.is_set():
+                parts = [{"type": "text", "text": "Screenshot(s) from the tools above:"}]
+                for du in turn_images:
+                    parts.append({"type": "image_url", "image_url": {"url": du}})
+                agent_messages.append({"role": "user", "content": parts})
 
         status = "stopped" if stop_event.is_set() else "turn_limit"
         msg = "\n\nAgent stopped after reaching the turn limit. Send \"continue\" and I can keep going from here."

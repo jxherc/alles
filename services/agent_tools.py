@@ -5,6 +5,8 @@ Tools return {"output": str, "error": bool}. Long-running tools can stream
 incremental {"type": "output", "text": str} events via stream_execute().
 """
 import asyncio
+import base64
+import contextvars
 import fnmatch
 import json
 import os
@@ -20,6 +22,22 @@ import httpx
 
 ROOT = Path(__file__).parent.parent
 CODEX_HOME = Path(os.getenv("CODEX_HOME") or Path.home() / ".codex")
+
+# per-run context (settings, endpoint, model) — async-task safe via contextvars
+# so concurrent sub-agents don't clobber each other.
+_ctx = contextvars.ContextVar("agent_ctx", default={})
+
+
+def set_agent_ctx(settings=None, ep=None, model=""):
+    _ctx.set({"settings": settings or {}, "ep": ep, "model": model})
+
+
+def get_agent_ctx() -> dict:
+    return _ctx.get()
+
+
+def _settings() -> dict:
+    return (_ctx.get() or {}).get("settings", {}) or {}
 
 TOOL_PERMISSION = {
     "shell": "shell",
@@ -44,6 +62,14 @@ TOOL_PERMISSION = {
     "git_diff": "read",
     "git_branch": "git_write",
     "git_commit": "git_write",
+    "screenshot": "computer",
+    "computer_click": "computer",
+    "computer_move": "computer",
+    "computer_type": "computer",
+    "computer_key": "computer",
+    "computer_scroll": "computer",
+    "spawn_agent": "delegate",
+    "spawn_agents": "delegate",
 }
 
 
@@ -59,10 +85,28 @@ def _resolve(path: str = ".") -> Path:
     return p.resolve()
 
 
+def _sandbox_cmd(command: str, workdir: str) -> list[str] | None:
+    """wrap a command to run inside docker if sandbox is enabled + docker present"""
+    s = _settings()
+    if not s.get("agent_sandbox"):
+        return None
+    if not shutil.which("docker"):
+        return None
+    image = s.get("agent_sandbox_image") or "alpine:latest"
+    cmd = ["docker", "run", "--rm", "-i"]
+    if s.get("agent_sandbox_no_net"):
+        cmd += ["--network", "none"]
+    cmd += ["-v", f"{workdir}:/work", "-w", "/work", image, "sh", "-c", command]
+    return cmd
+
+
 async def _stream_shell(command: str, cwd: str = ""):
     try:
         workdir = str(_resolve(cwd or "."))
-        if os.name == "nt":
+        sandboxed = _sandbox_cmd(command, workdir)
+        if sandboxed:
+            cmd = sandboxed
+        elif os.name == "nt":
             cmd = ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", command]
         else:
             cmd = ["bash", "-lc", command]
@@ -462,8 +506,171 @@ async def _opencode_run(prompt: str, cwd: str = ".", model: str = "", agent: str
     return await _run_shell(" ".join(parts), cwd=cwd)
 
 
+# ── computer use (pyautogui) ────────────────────────────────────────────────
+def _shots_dir() -> Path:
+    d = ROOT / "data" / "agent_shots"
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
+def _pg():
+    import pyautogui
+    pyautogui.FAILSAFE = False
+    return pyautogui
+
+
+async def _screenshot() -> dict:
+    try:
+        pg = _pg()
+    except Exception:
+        return {"output": "pyautogui not installed. run: pip install pyautogui pillow", "error": True}
+    try:
+        import time
+        img = pg.screenshot()
+        w, h = img.size
+        path = _shots_dir() / f"shot-{int(time.time() * 1000)}.png"
+        img.save(path)
+        b64 = base64.b64encode(path.read_bytes()).decode()
+        return {
+            "output": f"screenshot {w}x{h} saved as {path.name}. screen coords: x 0..{w}, y 0..{h}.",
+            "error": False,
+            "image": f"data:image/png;base64,{b64}",
+        }
+    except Exception as e:
+        return {"output": str(e), "error": True}
+
+
+async def _computer_click(x=None, y=None, button="left", clicks=1) -> dict:
+    try:
+        pg = _pg()
+    except Exception:
+        return {"output": "pyautogui not installed", "error": True}
+    try:
+        b = button or "left"
+        n = int(clicks or 1)
+        if x is not None and y is not None:
+            pg.click(int(x), int(y), clicks=n, button=b)
+            return {"output": f"{b} click x{n} at ({int(x)},{int(y)})", "error": False}
+        pg.click(clicks=n, button=b)
+        return {"output": f"{b} click x{n} at current pos", "error": False}
+    except Exception as e:
+        return {"output": str(e), "error": True}
+
+
+async def _computer_move(x, y) -> dict:
+    try:
+        pg = _pg()
+    except Exception:
+        return {"output": "pyautogui not installed", "error": True}
+    try:
+        pg.moveTo(int(x), int(y), duration=0.1)
+        return {"output": f"moved to ({int(x)},{int(y)})", "error": False}
+    except Exception as e:
+        return {"output": str(e), "error": True}
+
+
+async def _computer_type(text, interval=0.0) -> dict:
+    try:
+        pg = _pg()
+    except Exception:
+        return {"output": "pyautogui not installed", "error": True}
+    try:
+        pg.write(str(text), interval=float(interval or 0))
+        return {"output": f"typed {len(str(text))} chars", "error": False}
+    except Exception as e:
+        return {"output": str(e), "error": True}
+
+
+async def _computer_key(keys: str) -> dict:
+    try:
+        pg = _pg()
+    except Exception:
+        return {"output": "pyautogui not installed", "error": True}
+    try:
+        parts = [k.strip().lower() for k in str(keys).replace(" ", "").split("+") if k.strip()]
+        if len(parts) > 1:
+            pg.hotkey(*parts)
+        elif parts:
+            pg.press(parts[0])
+        else:
+            return {"output": "no key given", "error": True}
+        return {"output": f"pressed {keys}", "error": False}
+    except Exception as e:
+        return {"output": str(e), "error": True}
+
+
+async def _computer_scroll(amount) -> dict:
+    try:
+        pg = _pg()
+    except Exception:
+        return {"output": "pyautogui not installed", "error": True}
+    try:
+        pg.scroll(int(amount))
+        return {"output": f"scrolled {amount}", "error": False}
+    except Exception as e:
+        return {"output": str(e), "error": True}
+
+
+# ── sub-agents ───────────────────────────────────────────────────────────────
+async def _run_subagent(task: str, cwd: str = "") -> str:
+    from services.agent_runtime import run_agent  # lazy — avoid import cycle
+    ctx = get_agent_ctx()
+    ep, model = ctx.get("ep"), ctx.get("model")
+    if not ep or not model:
+        return "[sub-agent error: no endpoint/model in context]"
+    sub = dict(_settings())
+    sub["agent_max_turns"] = min(int(sub.get("agent_max_turns", 24) or 24), 10)
+    sub["agent_subagents"] = False     # no recursive spawning
+    if cwd:
+        sub["agent_cwd"] = cwd
+    stop = asyncio.Event()
+    acc, think, steps = [], [], []
+    async for _ in run_agent([{"role": "user", "content": task}], ep, model, stop, sub, acc, think, steps):
+        pass
+    return "".join(acc).strip() or "(no output)"
+
+
+async def _spawn_agent(task: str, cwd: str = "") -> dict:
+    if not task.strip():
+        return {"output": "task required", "error": True}
+    out = await asyncio.create_task(_run_subagent(task, cwd))  # own context
+    return {"output": out, "error": False}
+
+
+async def _spawn_agents(tasks: list | None) -> dict:
+    items = [t for t in (tasks or []) if (t or {}).get("task")]
+    if not items:
+        return {"output": "no tasks provided", "error": True}
+    results = await asyncio.gather(
+        *(asyncio.create_task(_run_subagent(it["task"], it.get("cwd", ""))) for it in items),
+        return_exceptions=True,
+    )
+    parts = []
+    for i, r in enumerate(results):
+        label = items[i]["task"][:60]
+        body = f"[error: {r}]" if isinstance(r, Exception) else r
+        parts.append(f"### sub-agent {i + 1} — {label}\n{body}")
+    return {"output": "\n\n".join(parts), "error": False}
+
+
 async def execute(name: str, args: dict) -> dict:
     args = args or {}
+    if name == "screenshot":
+        return await _screenshot()
+    if name == "computer_click":
+        return await _computer_click(args.get("x"), args.get("y"), args.get("button", "left"), args.get("clicks", 1))
+    if name == "computer_move":
+        return await _computer_move(args.get("x"), args.get("y"))
+    if name == "computer_type":
+        return await _computer_type(args.get("text", ""), args.get("interval", 0))
+    if name == "computer_key":
+        return await _computer_key(args.get("keys", ""))
+    if name == "computer_scroll":
+        return await _computer_scroll(args.get("amount", 0))
+    if name == "spawn_agent":
+        return await _spawn_agent(args.get("task", ""), args.get("cwd", ""))
+    if name == "spawn_agents":
+        return await _spawn_agents(args.get("tasks", []))
     if name in ("shell", "bash"):
         return await _run_shell(args.get("command", "echo no command"), args.get("cwd", ""))
     if name == "read_file":
@@ -640,6 +847,60 @@ TOOL_DEFS = [
 ]
 
 
+COMPUTER_TOOL_DEFS = [
+    _tool("screenshot", "Capture the current screen and see it. Always screenshot before clicking/typing so you act on real coordinates.", {}),
+    _tool("computer_click", "Click the mouse at screen pixel coordinates (from a screenshot).", {
+        "x": {"type": "integer"},
+        "y": {"type": "integer"},
+        "button": {"type": "string", "enum": ["left", "right", "middle"], "default": "left"},
+        "clicks": {"type": "integer", "default": 1},
+    }, ["x", "y"]),
+    _tool("computer_move", "Move the mouse to screen coordinates without clicking.", {
+        "x": {"type": "integer"}, "y": {"type": "integer"},
+    }, ["x", "y"]),
+    _tool("computer_type", "Type text at the current cursor/focus.", {
+        "text": {"type": "string"},
+        "interval": {"type": "number", "default": 0},
+    }, ["text"]),
+    _tool("computer_key", "Press a key or combo, e.g. 'enter', 'ctrl+c', 'alt+tab'.", {
+        "keys": {"type": "string"},
+    }, ["keys"]),
+    _tool("computer_scroll", "Scroll vertically. Positive scrolls up, negative down.", {
+        "amount": {"type": "integer"},
+    }, ["amount"]),
+]
+
+SUBAGENT_TOOL_DEFS = [
+    _tool("spawn_agent", "Delegate one focused subtask to a fresh sub-agent (own tool loop). Returns its summary. Use for self-contained chunks of a larger job.", {
+        "task": {"type": "string", "description": "Clear, self-contained instructions for the sub-agent."},
+        "cwd": {"type": "string", "default": ""},
+    }, ["task"]),
+    _tool("spawn_agents", "Run several sub-agents in parallel on independent subtasks, then get all summaries. Use to fan out work.", {
+        "tasks": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "task": {"type": "string"},
+                    "cwd": {"type": "string"},
+                },
+                "required": ["task"],
+            },
+        },
+    }, ["tasks"]),
+]
+
+
+def build_tool_defs(settings: dict) -> list:
+    """base tools + optional computer-use / sub-agent tools per settings"""
+    defs = list(TOOL_DEFS)
+    if (settings or {}).get("agent_computer_use"):
+        defs += COMPUTER_TOOL_DEFS
+    if (settings or {}).get("agent_subagents", True):
+        defs += SUBAGENT_TOOL_DEFS
+    return defs
+
+
 async def agent_status() -> dict:
     from services.memory_store import get_all_memories
 
@@ -658,6 +919,13 @@ async def agent_status() -> dict:
 
     opencode_path = shutil.which("opencode")
     npx_path = shutil.which("npx.cmd") or shutil.which("npx")
+
+    try:
+        import importlib.util
+        has_pyautogui = importlib.util.find_spec("pyautogui") is not None
+    except Exception:
+        has_pyautogui = False
+
     return {
         "root": str(ROOT),
         "tools": [t["function"]["name"] for t in TOOL_DEFS],
@@ -669,6 +937,8 @@ async def agent_status() -> dict:
             "npx_fallback": bool(npx_path),
             "npx_path": npx_path or "",
         },
+        "sandbox": {"docker": bool(shutil.which("docker"))},
+        "computer_use": {"pyautogui": has_pyautogui},
         "mcp": {
             "connected_tool_count": len(mcp_tools),
             "tools": mcp_tools[:50],

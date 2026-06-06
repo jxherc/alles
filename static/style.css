@@ -458,6 +458,13 @@ body.sidebar-hidden .sidebar { display: none; }
   font-size: 0.7rem;
   line-height: 1.45;
 }
+.agent-step-shot {
+  display: block;
+  margin: 0.4rem 0 0;
+  max-width: 100%;
+  border: 1px solid var(--faint);
+  border-radius: 3px;
+}
 .agent-step-output:not(:empty) { color: var(--text); }
 .censored-item {
   filter: blur(4px);
@@ -471,6 +478,11 @@ body.sidebar-hidden .sidebar { display: none; }
   grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
   gap: 0.45rem;
   margin-bottom: 0.6rem;
+}
+.agent-caps {
+  border-top: 1px solid var(--faint);
+  margin: 0.2rem 0 0.6rem;
+  padding-top: 0.3rem;
 }
 .agent-status-grid > div {
   border: 1px solid var(--faint);
