@@ -81,15 +81,18 @@ export async function sendMessage(text) {
     target.appendChild(cursor);
   };
 
-  // throttle markdown render to one paint per frame — tokens batch within ~16ms
-  // instead of re-parsing the whole response on every single delta (was O(n²))
-  let renderRaf = 0;
+  // time-throttled render: first token paints instantly, then at most every ~45ms.
+  // uses setTimeout (NOT requestAnimationFrame — rAF pauses in background/unfocused
+  // tabs, which made streaming look broken). batching avoids re-parsing the whole
+  // response on every token (that was O(n²)).
+  let renderTimer = 0;
+  let lastRenderAt = 0;
   const flushRender = () => {
-    renderRaf = 0;
+    renderTimer = 0;
+    lastRenderAt = Date.now();
     const displayText = _splitBeforeArtifact(accText);
     if (!displayText) return;
-    // only auto-scroll if the user is already following along at the bottom —
-    // don't yank them down if they scrolled up to read
+    // only auto-scroll if the user is already following along at the bottom
     const chat = document.getElementById('chat');
     const stick = !chat || (chat.scrollHeight - chat.scrollTop - chat.clientHeight < 120);
     if (!contentEl) {
@@ -104,7 +107,12 @@ export async function sendMessage(text) {
     addCursor(contentEl);
     if (stick) scrollDown();
   };
-  const scheduleRender = () => { if (!renderRaf) renderRaf = requestAnimationFrame(flushRender); };
+  const scheduleRender = () => {
+    if (renderTimer) return;
+    const since = Date.now() - lastRenderAt;
+    if (since >= 45) flushRender();                       // paint now
+    else renderTimer = setTimeout(flushRender, 45 - since); // trailing paint
+  };
 
   try {
     const r = await fetch('/api/chat', {
@@ -338,7 +346,7 @@ export async function sendMessage(text) {
       body.innerHTML += `<div class="error-msg">stream error: ${e.message}</div>`;
     }
   } finally {
-    if (renderRaf) { cancelAnimationFrame(renderRaf); renderRaf = 0; }
+    if (renderTimer) { clearTimeout(renderTimer); renderTimer = 0; }
     cursor?.remove();
     body.classList.add('done');
 
