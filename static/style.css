@@ -534,6 +534,21 @@ body.sidebar-hidden .sidebar { display: none; }
 .perm-menu-item.active { background: color-mix(in srgb, var(--accent) 14%, transparent); }
 .perm-menu-label { font-size: 0.75rem; color: var(--text); text-transform: lowercase; }
 .perm-menu-desc { font-size: 0.65rem; color: var(--muted); margin-top: 1px; }
+
+/* @-mention file picker */
+.mention-menu {
+  position: fixed; z-index: 300;
+  max-height: 240px; overflow: auto;
+  background: var(--panel); border: 1px solid var(--faint); border-radius: 4px;
+  padding: 0.2rem; box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+}
+.mention-item {
+  padding: 0.3rem 0.5rem; border-radius: 3px; cursor: pointer;
+  font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; color: var(--muted);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.mention-item:hover { background: #161616; color: var(--text); }
+.mention-item.active { background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--text); }
 .agent-step-output:not(:empty) { color: var(--text); }
 .censored-item {
   filter: blur(4px);
