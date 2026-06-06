@@ -71,7 +71,7 @@ function _onPaneOpen(name) {
   if (name === 'voice')      loadVoicePane();
   if (name === 'personas')   { loadPersonas(); loadCookbook(); }
   if (name === 'templates')  loadTemplatesPane();
-  if (name === 'tools')      { loadAgentStatus(); loadMcpServers(); }
+  if (name === 'tools')      { loadAgentStatus(); loadMcpServers(); loadConnections(); }
   if (name === 'developer')  { loadTokens(); loadWebhooks(); loadShortcutSettings(); }
 }
 
@@ -648,6 +648,7 @@ async function loadAgentStatus() {
       <div><span>skills</span><strong>${s.skills?.count || 0}</strong></div>
       <div><span>docker</span><strong>${s.sandbox?.docker ? 'yes' : 'no'}</strong></div>
       <div><span>pyautogui</span><strong>${s.computer_use?.pyautogui ? 'yes' : 'no'}</strong></div>
+      <div><span>connections</span><strong>${(s.connections || []).join(', ') || 'none'}</strong></div>
     `;
     list.innerHTML = (s.tools || []).map(t => `<span>${_esc(t)}</span>`).join('');
 
@@ -699,6 +700,63 @@ export async function loadMcpServers() {
 window._rmMcp = async btn => {
   await fetch(`/api/mcp/servers/${btn.dataset.id}`, { method: 'DELETE' });
   loadMcpServers();
+};
+
+// ── connections (github etc) ────────────────────────────────────────────────
+export async function loadConnections() {
+  const el = document.getElementById('conn-list');
+  if (!el) return;
+  // custom-service field toggle (bind once)
+  const sel = document.getElementById('conn-service');
+  if (sel && !sel.dataset.bound) {
+    sel.dataset.bound = '1';
+    sel.addEventListener('change', () => {
+      document.getElementById('conn-custom-row').style.display = sel.value === 'custom' ? '' : 'none';
+    });
+    document.getElementById('conn-add-btn')?.addEventListener('click', addConnection);
+  }
+  try {
+    const conns = await fetch('/api/connections').then(r => r.json());
+    if (!conns.length) { el.innerHTML = '<div class="settings-row-empty">nothing connected</div>'; return; }
+    el.innerHTML = conns.map(c => `
+      <div class="settings-list-row">
+        <span class="status-dot" style="background:${c.connected ? 'var(--green)' : 'var(--faint)'}"></span>
+        <span class="row-name">${_esc(c.service)}</span>
+        <span class="row-meta">${_esc(c.token_masked || '')}</span>
+        <button class="act-btn" data-svc="${_esc(c.service)}" onclick="window._testConn(this)">test</button>
+        <button class="act-btn" data-id="${c.id}" onclick="window._rmConn(this)">remove</button>
+      </div>`).join('');
+  } catch { el.innerHTML = '<div class="settings-row-empty">failed to load</div>'; }
+}
+
+async function addConnection() {
+  const sel = document.getElementById('conn-service');
+  let service = sel.value;
+  if (service === 'custom') service = document.getElementById('conn-custom').value.trim();
+  const token = document.getElementById('conn-token').value.trim();
+  if (!service) { toast('pick a service', 'error'); return; }
+  if (!token) { toast('token required', 'error'); return; }
+  const r = await fetch('/api/connections', {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ service, token }),
+  });
+  if (r.ok) { toast(`${service} connected`, 'success'); document.getElementById('conn-token').value = ''; loadConnections(); }
+  else toast('connect failed', 'error');
+}
+
+window._rmConn = async btn => {
+  await fetch(`/api/connections/${btn.dataset.id}`, { method: 'DELETE' });
+  loadConnections();
+};
+
+window._testConn = async btn => {
+  btn.textContent = '…';
+  try {
+    const r = await fetch(`/api/connections/${btn.dataset.svc}/test`).then(x => x.json());
+    if (r.ok) toast(`${btn.dataset.svc} ok${r.user ? ' — ' + r.user : ''}`, 'success');
+    else toast(r.error || 'test failed', 'error');
+  } catch { toast('test failed', 'error'); }
+  btn.textContent = 'test';
 };
 
 async function addMcpServer() {
