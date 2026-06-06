@@ -714,9 +714,7 @@ code {
   font-size: 0.875rem; line-height: 1.6;
   padding: 0.85rem 1rem 0.35rem;
   min-height: 52px; max-height: 220px; overflow-y: auto;
-  transition: min-height 0.18s ease;
 }
-.composer-box.agent-mode .composer-ta { min-height: 104px; }
 .composer-ta::placeholder { color: var(--muted); }
 
 .shell-panel {
@@ -829,6 +827,7 @@ code {
   font-size: 0.62rem; color: var(--faint);
   letter-spacing: 0.06em; text-transform: lowercase;
 }
+.agent-bar-sep { width: 1px; height: 13px; background: var(--faint); margin: 0 0.3rem; }
 .perm-btn {
   display: inline-flex; align-items: center; gap: 0.2rem;
   padding: 0.15rem 0.3rem;

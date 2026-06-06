@@ -93,7 +93,8 @@ def merge_usage(total: dict, part: dict) -> dict:
 
 
 def agent_system_note(settings: dict) -> str:
-    max_turns = int(settings.get("agent_max_turns", 24) or 24)
+    eff = (settings.get("agent_effort") or "medium").lower()
+    max_turns = {"low": 6, "medium": 18, "high": 36}.get(eff) or int(settings.get("agent_max_turns", 24) or 24)
     opencode = "installed" if shutil.which("opencode") else (
         "available through npx fallback" if shutil.which("npx.cmd") or shutil.which("npx") else "not available"
     )
@@ -113,6 +114,10 @@ def agent_system_note(settings: dict) -> str:
             extra.append("- A GitHub connection is active: use github_* tools (repos, files, issues, PRs, code search) for anything on GitHub.")
     except Exception:
         pass
+    if eff == "low":
+        extra.append("- EFFORT: low — be quick and minimal. Do the least that satisfies the task; skip optional exploration and extras.")
+    elif eff == "high":
+        extra.append("- EFFORT: high — be thorough. Explore broadly, verify with diagnostics/tests, cover edge cases, and don't stop early.")
     pmode = settings.get("agent_permission_mode") or "full_auto"
     if pmode == "plan":
         extra.append("- PLAN MODE: change nothing. Inspect with read-only tools, then present a clear numbered plan of what you WOULD do, and stop. State-changing tools are disabled this turn.")
@@ -155,7 +160,9 @@ async def run_agent(
     tool_steps: list[dict],
     session_id: str = "",
 ) -> AsyncGenerator[dict, None]:
-    max_turns = int(settings.get("agent_max_turns", 24) or 24)
+    # effort drives how many turns the agent gets (falls back to configured max)
+    eff = (settings.get("agent_effort") or "medium").lower()
+    max_turns = {"low": 6, "medium": 18, "high": 36}.get(eff) or int(settings.get("agent_max_turns", 24) or 24)
     run = start_run(session_id=session_id, model=model, max_turns=max_turns, cwd=settings.get("agent_cwd", ""))
     run_id = run["id"]
     yield {"agent_run": {"id": run_id, "status": "running", "max_turns": max_turns}}

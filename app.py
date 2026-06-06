@@ -203,15 +203,34 @@ app.add_middleware(
 )
 
 
-class TokenAuthMiddleware(BaseHTTPMiddleware):
-    """
-    1. If Bearer aide_xxx token present, validate it.
-    2. If AUTH_ENABLED=true, block unauthenticated /api/ requests (except /api/auth/*).
-    """
-    _EXEMPT = {"/", "/health", "/static", "/docs", "/openapi.json", "/redoc"}
+def _cookie_val(header: str, key: str) -> str:
+    for part in header.split(";"):
+        if "=" in part:
+            k, v = part.strip().split("=", 1)
+            if k == key:
+                return v
+    return ""
 
-    async def dispatch(self, request: StarletteRequest, call_next):
-        auth = request.headers.get("authorization", "")
+
+class TokenAuthMiddleware:
+    """
+    Pure ASGI middleware (NOT BaseHTTPMiddleware — that one buffers streaming
+    responses and kills SSE). Passes chunks straight through.
+    1. Bearer aide_xxx token → validate it.
+    2. AUTH_ENABLED=true → block unauthenticated /api/ (except /api/auth/*).
+    """
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        headers = dict(scope.get("headers") or [])
+        auth = headers.get(b"authorization", b"").decode("latin-1")
+        path = scope.get("path", "")
+
         if auth.startswith("Bearer aide_"):
             token = auth.split(" ", 1)[1]
             from routes.api_tokens import verify_token
@@ -221,17 +240,25 @@ class TokenAuthMiddleware(BaseHTTPMiddleware):
             finally:
                 db.close()
             if not valid:
-                return JSONResponse({"detail": "invalid token"}, status_code=401)
+                await self._deny(send, "invalid token")
+                return
 
-        if auth_enabled():
-            path = request.url.path
-            if path.startswith("/api/") and not path.startswith("/api/auth"):
-                from core.auth import verify_session
-                cookie = request.cookies.get("aide_session", "")
-                if not verify_session(cookie):
-                    return JSONResponse({"detail": "not authenticated"}, status_code=401)
+        if auth_enabled() and path.startswith("/api/") and not path.startswith("/api/auth"):
+            from core.auth import verify_session
+            cookie = _cookie_val(headers.get(b"cookie", b"").decode("latin-1"), "aide_session")
+            if not verify_session(cookie):
+                await self._deny(send, "not authenticated")
+                return
 
-        return await call_next(request)
+        await self.app(scope, receive, send)
+
+    async def _deny(self, send, detail):
+        body = json.dumps({"detail": detail}).encode()
+        await send({"type": "http.response.start", "status": 401,
+                    "headers": [(b"content-type", b"application/json"),
+                                (b"content-length", str(len(body)).encode())]})
+        await send({"type": "http.response.body", "body": body})
+
 
 app.add_middleware(TokenAuthMiddleware)
 
