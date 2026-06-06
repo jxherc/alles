@@ -40,6 +40,7 @@ from routes import (
     contacts as contact_routes,
     backup as backup_routes,
     agent as agent_routes,
+    connections as connection_routes,
 )
 from routes import reminders as reminder_routes, templates as template_routes, shared as shared_routes
 
@@ -263,6 +264,7 @@ app.include_router(oai_routes.router)
 app.include_router(contact_routes.router)
 app.include_router(backup_routes.router)
 app.include_router(agent_routes.router)
+app.include_router(connection_routes.router)
 app.include_router(reminder_routes.router)
 app.include_router(template_routes.router)
 app.include_router(shared_routes.router)

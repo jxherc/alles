@@ -74,6 +74,16 @@ TOOL_PERMISSION = {
     "computer_scroll": "computer",
     "spawn_agent": "delegate",
     "spawn_agents": "delegate",
+    "github_me": "connection_read",
+    "github_list_repos": "connection_read",
+    "github_get_repo": "connection_read",
+    "github_get_file": "connection_read",
+    "github_list_issues": "connection_read",
+    "github_list_prs": "connection_read",
+    "github_search_code": "connection_read",
+    "github_search_repos": "connection_read",
+    "github_create_issue": "connection_write",
+    "github_create_pr": "connection_write",
 }
 
 
@@ -749,10 +759,71 @@ async def _diagnostics(path: str = ".") -> dict:
     return {"output": "no diagnostics tool available for this target (install ruff / node / tsc)", "error": False}
 
 
+# ── github connection ────────────────────────────────────────────────────────
+async def _github_api(method: str, path: str, body: dict | None = None, params: dict | None = None) -> dict:
+    from services.connections import get_token
+    tok = get_token("github")
+    if not tok:
+        return {"output": "no github connection — add a token in settings → connections, or set GITHUB_TOKEN in .env", "error": True}
+    headers = {
+        "Authorization": f"Bearer {tok}",
+        "Accept": "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+        "User-Agent": "aide-agent",
+    }
+    try:
+        async with httpx.AsyncClient(timeout=25, follow_redirects=True) as c:
+            r = await c.request(method, "https://api.github.com" + path, headers=headers, json=body, params=params)
+        try:
+            data = r.json()
+        except Exception:
+            data = r.text
+        if r.status_code >= 400:
+            return {"output": f"HTTP {r.status_code}: {str(data)[:600]}", "error": True}
+        return {"output": _safe_text(json.dumps(data, indent=2) if not isinstance(data, str) else data), "error": False}
+    except Exception as e:
+        return {"output": str(e), "error": True}
+
+
+async def _gh_get_file(owner: str, repo: str, path: str, ref: str = "") -> dict:
+    params = {"ref": ref} if ref else None
+    r = await _github_api("GET", f"/repos/{owner}/{repo}/contents/{path}", params=params)
+    if r["error"]:
+        return r
+    try:
+        d = json.loads(r["output"])
+        if isinstance(d, dict) and d.get("encoding") == "base64":
+            content = base64.b64decode(d.get("content", "")).decode("utf-8", "replace")
+            return {"output": _safe_text(f"{owner}/{repo}/{path} @ {d.get('sha','')[:7]}\n\n{content}"), "error": False}
+    except Exception:
+        pass
+    return r
+
+
 async def execute(name: str, args: dict) -> dict:
     args = args or {}
     if name == "revert_file":
         return await _revert_file(args.get("path", ""))
+    if name == "github_me":
+        return await _github_api("GET", "/user")
+    if name == "github_list_repos":
+        return await _github_api("GET", "/user/repos", params={"per_page": int(args.get("limit") or 30), "sort": "updated"})
+    if name == "github_get_repo":
+        return await _github_api("GET", f"/repos/{args.get('owner','')}/{args.get('repo','')}")
+    if name == "github_get_file":
+        return await _gh_get_file(args.get("owner", ""), args.get("repo", ""), args.get("path", ""), args.get("ref", ""))
+    if name == "github_list_issues":
+        return await _github_api("GET", f"/repos/{args.get('owner','')}/{args.get('repo','')}/issues", params={"state": args.get("state", "open"), "per_page": int(args.get("limit") or 20)})
+    if name == "github_create_issue":
+        return await _github_api("POST", f"/repos/{args.get('owner','')}/{args.get('repo','')}/issues", body={"title": args.get("title", ""), "body": args.get("body", "")})
+    if name == "github_list_prs":
+        return await _github_api("GET", f"/repos/{args.get('owner','')}/{args.get('repo','')}/pulls", params={"state": args.get("state", "open"), "per_page": int(args.get("limit") or 20)})
+    if name == "github_create_pr":
+        return await _github_api("POST", f"/repos/{args.get('owner','')}/{args.get('repo','')}/pulls", body={"title": args.get("title", ""), "head": args.get("head", ""), "base": args.get("base", "main"), "body": args.get("body", "")})
+    if name == "github_search_code":
+        return await _github_api("GET", "/search/code", params={"q": args.get("q", ""), "per_page": int(args.get("limit") or 15)})
+    if name == "github_search_repos":
+        return await _github_api("GET", "/search/repositories", params={"q": args.get("q", ""), "per_page": int(args.get("limit") or 15)})
     if name == "code_symbols":
         return await _code_symbols(args.get("path", "."), args.get("name_filter", ""))
     if name == "find_definition":
@@ -1035,16 +1106,65 @@ def workspace_files(cwd: str = "", q: str = "", limit: int = 30) -> list[str]:
 
 
 def build_tool_defs(settings: dict) -> list:
-    """base tools + optional computer-use / sub-agent tools per settings"""
+    """base tools + optional computer-use / sub-agent / connection tools per settings"""
     defs = list(TOOL_DEFS)
     if (settings or {}).get("agent_computer_use"):
         defs += COMPUTER_TOOL_DEFS
     if (settings or {}).get("agent_subagents", True):
         defs += SUBAGENT_TOOL_DEFS
+    # connection tools only show when that service is actually connected
+    try:
+        from services.connections import get_token
+        if get_token("github"):
+            defs += GITHUB_TOOL_DEFS
+    except Exception:
+        pass
     # plan mode: hide everything that changes state — read/inspect only
     if (settings or {}).get("agent_permission_mode") == "plan":
         defs = [d for d in defs if d["function"]["name"] not in MUTATING_TOOLS]
     return defs
+
+
+GITHUB_TOOL_DEFS = [
+    _tool("github_me", "Show the authenticated GitHub user (verify the connection).", {}),
+    _tool("github_list_repos", "List the connected user's repositories (most recently updated first).", {
+        "limit": {"type": "integer", "default": 30},
+    }),
+    _tool("github_get_repo", "Get a repository's details.", {
+        "owner": {"type": "string"}, "repo": {"type": "string"},
+    }, ["owner", "repo"]),
+    _tool("github_get_file", "Read a file's contents from a GitHub repo.", {
+        "owner": {"type": "string"}, "repo": {"type": "string"},
+        "path": {"type": "string"}, "ref": {"type": "string", "description": "branch/tag/sha", "default": ""},
+    }, ["owner", "repo", "path"]),
+    _tool("github_list_issues", "List issues on a repo.", {
+        "owner": {"type": "string"}, "repo": {"type": "string"},
+        "state": {"type": "string", "enum": ["open", "closed", "all"], "default": "open"},
+        "limit": {"type": "integer", "default": 20},
+    }, ["owner", "repo"]),
+    _tool("github_create_issue", "Open a new issue on a repo.", {
+        "owner": {"type": "string"}, "repo": {"type": "string"},
+        "title": {"type": "string"}, "body": {"type": "string", "default": ""},
+    }, ["owner", "repo", "title"]),
+    _tool("github_list_prs", "List pull requests on a repo.", {
+        "owner": {"type": "string"}, "repo": {"type": "string"},
+        "state": {"type": "string", "enum": ["open", "closed", "all"], "default": "open"},
+        "limit": {"type": "integer", "default": 20},
+    }, ["owner", "repo"]),
+    _tool("github_create_pr", "Open a pull request.", {
+        "owner": {"type": "string"}, "repo": {"type": "string"},
+        "title": {"type": "string"},
+        "head": {"type": "string", "description": "source branch"},
+        "base": {"type": "string", "description": "target branch", "default": "main"},
+        "body": {"type": "string", "default": ""},
+    }, ["owner", "repo", "title", "head"]),
+    _tool("github_search_code", "Search code across GitHub (q is a GitHub code-search query).", {
+        "q": {"type": "string"}, "limit": {"type": "integer", "default": 15},
+    }, ["q"]),
+    _tool("github_search_repos", "Search GitHub repositories.", {
+        "q": {"type": "string"}, "limit": {"type": "integer", "default": 15},
+    }, ["q"]),
+]
 
 
 # tools that change state — gated by approve/plan modes + get a diff preview
@@ -1053,6 +1173,7 @@ MUTATING_TOOLS = {
     "git_branch", "git_commit",
     "computer_click", "computer_move", "computer_type", "computer_key", "computer_scroll",
     "mcp_call_tool", "opencode_run", "spawn_agent", "spawn_agents",
+    "github_create_issue", "github_create_pr",
 }
 # subset that produces a file diff we can preview
 _DIFF_TOOLS = {"write_file", "edit_file", "apply_patch"}
@@ -1173,6 +1294,14 @@ def preview_change(name: str, args: dict) -> str:
         return ""
 
 
+def _connection_summary() -> list[str]:
+    try:
+        from services.connections import list_connections
+        return [c.service for c in list_connections() if c.token]
+    except Exception:
+        return []
+
+
 async def agent_status() -> dict:
     from services.memory_store import get_all_memories
 
@@ -1211,6 +1340,7 @@ async def agent_status() -> dict:
         },
         "sandbox": {"docker": bool(shutil.which("docker"))},
         "computer_use": {"pyautogui": has_pyautogui},
+        "connections": _connection_summary(),
         "mcp": {
             "connected_tool_count": len(mcp_tools),
             "tools": mcp_tools[:50],

@@ -567,6 +567,10 @@ body.sidebar-hidden .sidebar { display: none; }
   margin: 0.2rem 0 0.6rem;
   padding-top: 0.3rem;
 }
+.s-card-hint {
+  margin-top: 0.5rem;
+  font-size: 0.66rem; color: var(--muted); line-height: 1.5;
+}
 .agent-status-grid > div {
   border: 1px solid var(--faint);
   border-radius: 3px;
