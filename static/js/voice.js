@@ -10,6 +10,7 @@ let _analyser = null;
 let _waveRaf = 0;
 let _sr = null;          // browser SpeechRecognition (live)
 let _srText = '';        // accumulated transcript
+let _srFatal = false;    // stop restarting after a real error
 let _stream = null;      // active mic stream
 let _mode = 'browser';
 
@@ -55,6 +56,7 @@ function _startBrowserSR(s) {
     return;
   }
   _srText = '';
+  _srFatal = false;
   _sr = new SR();
   _sr.continuous = true;
   _sr.interimResults = true;
@@ -68,17 +70,20 @@ function _startBrowserSR(s) {
     if (fin.trim()) _srText += (_srText ? ' ' : '') + fin.trim();
   };
   _sr.onerror = e => {
-    if (e.error === 'no-speech' || e.error === 'aborted') return;
+    if (e.error === 'no-speech' || e.error === 'aborted') return;   // benign
+    _srFatal = true;   // real error — do NOT restart (avoids toast storm)
     if (e.error === 'network') toast('speech recognition needs internet', 'error');
     else if (e.error === 'not-allowed' || e.error === 'service-not-allowed') toast('mic blocked', 'error');
     else toast('speech error: ' + e.error, 'error');
+    stopRecording();
   };
   _sr.onend = () => {
-    if (_recording) { try { _sr.start(); return; } catch {} }  // silence timeout — keep listening
+    // only auto-restart on a benign silence timeout while still recording
+    if (_recording && !_srFatal) { try { _sr.start(); return; } catch {} }
     const text = _srText.trim();
     _sr = null;
     if (text) _inject(text);
-    else toast('no speech detected', 'error');
+    else if (!_srFatal) toast('no speech detected', 'error');   // stay quiet after a real error
   };
   try { _sr.start(); } catch {}
 }
