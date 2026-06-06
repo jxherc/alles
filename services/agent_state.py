@@ -40,6 +40,7 @@ def start_run(session_id: str, model: str, max_turns: int, cwd: str = "") -> dic
         "todos": [],
         "events": [],
         "tool_steps": [],
+        "checkpoints": [],
         "started_at": _now(),
         "updated_at": _now(),
         "finished_at": None,
@@ -57,6 +58,17 @@ def record_event(run_id: str, event_type: str, data: dict | None = None):
     state.setdefault("events", []).append(event)
     state["events"] = state["events"][-300:]
     state["updated_at"] = event["time"]
+    _active[state["id"]] = state
+    _save(state)
+
+
+def add_checkpoint(run_id: str, entry: dict):
+    """record a file's pre-edit state so the run can be reverted"""
+    state = get_run(run_id)
+    if not state:
+        return
+    state.setdefault("checkpoints", []).append(entry)
+    state["updated_at"] = _now()
     _active[state["id"]] = state
     _save(state)
 

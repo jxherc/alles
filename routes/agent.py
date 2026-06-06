@@ -2,7 +2,7 @@ from fastapi import APIRouter
 from fastapi import HTTPException
 from pydantic import BaseModel
 
-from services.agent_tools import agent_status
+from services.agent_tools import agent_status, revert_run
 from services.agent_state import list_runs, get_run
 from services.agent_runtime import resolve_permission
 
@@ -17,6 +17,11 @@ class PermDecision(BaseModel):
 def agent_permission(request_id: str, body: PermDecision):
     ok = resolve_permission(request_id, body.allow)
     return {"ok": ok}
+
+
+@router.post("/agent/runs/{run_id}/revert")
+def agent_revert(run_id: str):
+    return revert_run(run_id)
 
 
 @router.get("/agent/status")
