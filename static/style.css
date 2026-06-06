@@ -344,6 +344,11 @@ body.sidebar-hidden .sidebar { display: none; }
 .thinking-block[open] summary::before { content: '-'; }
 .thinking-content { margin-top: 0.35rem; white-space: pre-wrap; }
 .think-timer { color: var(--faint); font-variant-numeric: tabular-nums; }
+.msg-stats {
+  margin-top: 0.4rem;
+  font-size: 0.62rem; color: var(--faint);
+  letter-spacing: 0.03em; font-variant-numeric: tabular-nums;
+}
 /* shimmer the label while actively reasoning */
 .thinking-block.thinking-live { border-left-color: var(--accent); }
 .thinking-block.thinking-live .think-label {
