@@ -7,3 +7,6 @@ pydantic>=2.0
 sqlalchemy
 cryptography
 fastembed
+# optional — computer use tools (screenshot/click/type). install if you enable it.
+# pyautogui
+# pillow

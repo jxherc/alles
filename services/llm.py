@@ -116,6 +116,29 @@ def _build_ollama_payload(messages, model, stream=True, **kw) -> dict:
         "options": {k: v for k, v in kw.items() if k in ("temperature", "num_predict", "num_ctx")},
     }
 
+def _anthropic_blocks(content):
+    """convert openai-style content (str or list with image_url) to anthropic blocks"""
+    if isinstance(content, str):
+        return content
+    out = []
+    for b in content or []:
+        t = b.get("type")
+        if t == "text":
+            out.append({"type": "text", "text": b.get("text", "")})
+        elif t == "image_url":
+            url = (b.get("image_url") or {}).get("url", "")
+            if url.startswith("data:"):
+                try:
+                    head, data = url.split(",", 1)
+                    media = head.split(":", 1)[1].split(";", 1)[0]
+                    out.append({"type": "image", "source": {"type": "base64", "media_type": media, "data": data}})
+                except Exception:
+                    pass
+            elif url:
+                out.append({"type": "image", "source": {"type": "url", "url": url}})
+    return out
+
+
 def _build_anthropic_payload(messages, model, stream=True, **kw) -> dict:
     sys_msgs = [m for m in messages if m["role"] == "system"]
     other = []
@@ -135,6 +158,8 @@ def _build_anthropic_payload(messages, model, stream=True, **kw) -> dict:
             for tc in m["tool_calls"]:
                 content.append({"type": "tool_use", "id": tc["call_id"], "name": tc["name"], "input": tc["args"]})
             other.append({"role": "assistant", "content": content})
+        elif isinstance(m.get("content"), list):
+            other.append({"role": m["role"], "content": _anthropic_blocks(m["content"])})
         else:
             other.append(m)
     p = {

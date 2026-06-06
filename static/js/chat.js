@@ -194,6 +194,21 @@ export async function sendMessage(text) {
           scrollDown();
         }
 
+        if (chunk.tool_image) {
+          const t = chunk.tool_image;
+          const step = toolEls.get(t.call_id);
+          if (step && t.image) {
+            let shot = step.querySelector('.agent-step-shot');
+            if (!shot) {
+              shot = document.createElement('img');
+              shot.className = 'agent-step-shot';
+              step.appendChild(shot);
+            }
+            shot.src = t.image;
+          }
+          scrollDown();
+        }
+
         if (chunk.tool_result) {
           const t = chunk.tool_result;
           const step = toolEls.get(t.call_id);

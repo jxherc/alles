@@ -646,9 +646,22 @@ async function loadAgentStatus() {
       <div><span>opencode</span><strong>${_esc(opencode)}</strong></div>
       <div><span>mcp</span><strong>${s.mcp?.connected_tool_count || 0}</strong></div>
       <div><span>skills</span><strong>${s.skills?.count || 0}</strong></div>
-      <div><span>memories</span><strong>${s.memory?.count || 0}</strong></div>
+      <div><span>docker</span><strong>${s.sandbox?.docker ? 'yes' : 'no'}</strong></div>
+      <div><span>pyautogui</span><strong>${s.computer_use?.pyautogui ? 'yes' : 'no'}</strong></div>
     `;
     list.innerHTML = (s.tools || []).map(t => `<span>${_esc(t)}</span>`).join('');
+
+    // capability toggles (backend settings)
+    const cfg = await fetch('/api/settings').then(r => r.json()).catch(() => ({}));
+    _bindSwitchOnce(document.getElementById('s-agent-ctx-toggle'),
+      () => cfg.agent_context_files !== false, v => _patchSetting('agent_context_files', v));
+    _bindSwitchOnce(document.getElementById('s-agent-sandbox-toggle'),
+      () => !!cfg.agent_sandbox, v => _patchSetting('agent_sandbox', v));
+    _bindSwitchOnce(document.getElementById('s-agent-computer-toggle'),
+      () => !!cfg.agent_computer_use, v => _patchSetting('agent_computer_use', v));
+    _bindSwitchOnce(document.getElementById('s-agent-subagents-toggle'),
+      () => cfg.agent_subagents !== false, v => _patchSetting('agent_subagents', v));
+
     if (runsEl) {
       runsEl.innerHTML = Array.isArray(runs) && runs.length
         ? runs.map(r => `
