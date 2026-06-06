@@ -357,6 +357,15 @@ body.sidebar-hidden .sidebar { display: none; }
   color: var(--muted);
   list-style: none;
 }
+.agent-revert-btn {
+  float: right;
+  font-family: inherit; font-size: 0.66rem; cursor: pointer;
+  padding: 0.1rem 0.5rem; border-radius: 2px;
+  border: 1px solid var(--error); background: none; color: var(--error);
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.agent-revert-btn:hover { background: var(--error); color: var(--bg); }
+.agent-revert-btn:disabled { opacity: 0.5; pointer-events: none; }
 .agent-steps summary::-webkit-details-marker { display: none; }
 .agent-steps summary::before {
   content: '+';
