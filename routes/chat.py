@@ -177,6 +177,7 @@ class ChatRequest(BaseModel):
     file_ids: list[str] = []
     incognito: bool = False
     permission_mode: str = ""   # full_auto | approve | plan
+    effort: str = ""            # low | medium | high
 
 
 async def _sse(gen):
@@ -305,6 +306,8 @@ async def chat(body: ChatRequest, background_tasks: BackgroundTasks, db: DbSessi
     settings["agent_cwd"] = _resolve_working_dir(s)
     if body.permission_mode:
         settings["agent_permission_mode"] = body.permission_mode
+    if body.effort:
+        settings["agent_effort"] = body.effort
     # @path mentions → inline file contents for the model (saved msg stays clean)
     aug_text = _resolve_mentions(body.message, settings["agent_cwd"])
     messages = _build_messages(s, aug_text, settings, db, body.file_ids)
