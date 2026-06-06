@@ -8,32 +8,92 @@ let _sendIdleHtml = '';
 let _audioCtx = null;
 let _analyser = null;
 let _waveRaf = 0;
+let _sr = null;          // browser SpeechRecognition (live)
+let _srText = '';        // accumulated transcript
+let _stream = null;      // active mic stream
+let _mode = 'browser';
 
 export function isRecording() { return _recording; }
 
 export async function startRecording() {
   if (_recording) return;
+  const s = await fetch('/api/settings').then(r => r.json()).catch(() => ({}));
+  const provider = s.stt_provider || 'browser';
+
+  let stream;
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  } catch {
+    toast('mic access denied', 'error');
+    return;
+  }
+  _stream = stream;
+  _recording = true;
+  _setMicRecording(true);
+  _startLiveWave(stream);
+
+  if (provider === 'whisper_api') {
+    _mode = 'whisper';
     _chunks = [];
     _recorder = new MediaRecorder(stream);
-    _recording = true;        // must be true before tick loop starts
-    _setMicRecording(true);   // show #mic-wave before driving bars
-    _startLiveWave(stream);
     _recorder.ondataavailable = e => _chunks.push(e.data);
-    _recorder.onstop = _onStop;
+    _recorder.onstop = _whisperDone;
     _recorder.start();
-  } catch (e) {
-    toast('mic access denied', 'error');
+  } else {
+    _mode = 'browser';
+    _startBrowserSR(s);
   }
 }
 
+// live speech recognition — the only browser API that actually transcribes
+function _startBrowserSR(s) {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) {
+    toast('speech recognition needs Chrome/Edge — or switch STT to Whisper in settings', 'error');
+    _recording = false; _setMicRecording(false);
+    _stream?.getTracks().forEach(t => t.stop());
+    return;
+  }
+  _srText = '';
+  _sr = new SR();
+  _sr.continuous = true;
+  _sr.interimResults = true;
+  if (s.stt_language) _sr.lang = s.stt_language;
+
+  _sr.onresult = e => {
+    let fin = '';
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      if (e.results[i].isFinal) fin += e.results[i][0].transcript;
+    }
+    if (fin.trim()) _srText += (_srText ? ' ' : '') + fin.trim();
+  };
+  _sr.onerror = e => {
+    if (e.error === 'no-speech' || e.error === 'aborted') return;
+    if (e.error === 'network') toast('speech recognition needs internet', 'error');
+    else if (e.error === 'not-allowed' || e.error === 'service-not-allowed') toast('mic blocked', 'error');
+    else toast('speech error: ' + e.error, 'error');
+  };
+  _sr.onend = () => {
+    if (_recording) { try { _sr.start(); return; } catch {} }  // silence timeout — keep listening
+    const text = _srText.trim();
+    _sr = null;
+    if (text) _inject(text);
+    else toast('no speech detected', 'error');
+  };
+  try { _sr.start(); } catch {}
+}
+
 export function stopRecording() {
-  if (!_recorder || !_recording) return;
-  _recorder.stop();
-  _recorder.stream?.getTracks().forEach(t => t.stop());
+  if (!_recording) return;
   _recording = false;
-  _setMicRecording(false);
+  _setMicRecording(false);   // also stops the wave
+  if (_mode === 'whisper') {
+    try { _recorder?.stop(); } catch {}
+  } else {
+    try { _sr?.stop(); } catch {}   // → onend → inject
+  }
+  _stream?.getTracks().forEach(t => t.stop());
+  _stream = null;
 }
 
 function _setMicRecording(on) {
@@ -132,34 +192,18 @@ function _stopLiveWave() {
   _audioCtx = null;
 }
 
-async function _onStop() {
+async function _whisperDone() {
   const blob = new Blob(_chunks, { type: 'audio/webm' });
-  const s = await fetch('/api/settings').then(r => r.json()).catch(() => ({}));
-  const provider = s.stt_provider || 'browser';
-
-  if (provider === 'whisper_api') {
-    const fd = new FormData();
-    fd.append('file', blob, 'audio.webm');
-    try {
-      const r = await fetch('/api/stt', { method: 'POST', body: fd });
-      if (!r.ok) throw new Error(await r.text());
-      const { text } = await r.json();
-      _inject(text);
-    } catch (e) {
-      toast('transcription failed — check openai_api_key', 'error');
-    }
-  } else {
-    // browser STT fallback
-    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-      toast('speech recognition not available in this browser', 'error');
-      return;
-    }
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    const rec = new SR();
-    if (s.stt_language) rec.lang = s.stt_language;
-    rec.onresult = e => _inject(e.results[0][0].transcript);
-    rec.onerror = () => toast('speech recognition error', 'error');
-    rec.start();
+  const fd = new FormData();
+  fd.append('file', blob, 'audio.webm');
+  try {
+    const r = await fetch('/api/stt', { method: 'POST', body: fd });
+    if (!r.ok) throw new Error(await r.text());
+    const { text } = await r.json();
+    if (text && text.trim()) _inject(text.trim());
+    else toast('no speech detected', 'error');
+  } catch (e) {
+    toast('transcription failed — check openai_api_key in settings', 'error');
   }
 }
 
