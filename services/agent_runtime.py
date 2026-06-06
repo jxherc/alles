@@ -51,6 +51,23 @@ async def _await_permission(request_id: str, stop_event, timeout: float = 600) -
 _CTX_NAMES = ["aide.md", "AGENTS.md", ".aide/instructions.md", "AGENT.md"]
 
 
+def _trim_history(messages: list[dict], budget: int = 120000, keep_recent: int = 8):
+    """keep the running context bounded on long agent runs. shrinks the CONTENT of
+    old tool messages only — never removes messages, so assistant↔tool pairing stays
+    valid for the API. ~120k chars ≈ 30k tokens, leaving room for the model."""
+    total = sum(len(m["content"]) for m in messages if isinstance(m.get("content"), str))
+    if total <= budget:
+        return
+    end = max(1, len(messages) - keep_recent)   # protect system msg + recent turns
+    for m in messages[1:end]:
+        if total <= budget:
+            break
+        if m.get("role") == "tool" and isinstance(m.get("content"), str) and len(m["content"]) > 400:
+            saved = len(m["content"])
+            m["content"] = m["content"][:400] + " …[trimmed]"
+            total -= saved - len(m["content"])
+
+
 def _load_project_context(cwd: str) -> str:
     base = Path(cwd).expanduser() if cwd else ROOT
     try:
@@ -237,10 +254,10 @@ async def run_agent(
 
             turn_images = []   # screenshots to feed back as vision input this turn
 
-            for call in tool_calls:
+            for ci, call in enumerate(tool_calls):
                 if stop_event.is_set():
                     break
-                call_id = call.get("call_id") or f"tool-{turn}"
+                call_id = call.get("call_id") or f"tool-{turn}-{ci}"
                 name = call.get("name", "")
                 args = call.get("args") or {}
                 step = {"call_id": call_id, "name": name, "args": args, "output": "", "error": False}
@@ -309,10 +326,13 @@ async def run_agent(
                     "output": step["output"],
                     "error": step["error"],
                 }}
+                content = json.dumps(tool_content)
+                if len(content) > 8000:   # cap per-tool history so long runs don't blow context
+                    content = content[:8000] + " …[truncated for context]\"}"
                 agent_messages.append({
                     "role": "tool",
                     "tool_call_id": call_id,
-                    "content": json.dumps(tool_content),
+                    "content": content,
                 })
 
             # after the tool batch, hand screenshots to the model as image input
@@ -321,6 +341,8 @@ async def run_agent(
                 for du in turn_images:
                     parts.append({"type": "image_url", "image_url": {"url": du}})
                 agent_messages.append({"role": "user", "content": parts})
+
+            _trim_history(agent_messages)   # keep total context bounded on long runs
 
         status = "stopped" if stop_event.is_set() else "turn_limit"
         msg = "\n\nAgent stopped after reaching the turn limit. Send \"continue\" and I can keep going from here."
