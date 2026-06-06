@@ -74,6 +74,23 @@ export async function sendMessage(text) {
   let cursor = null;
   let runId = null;
   let hadEdits = false;
+  let thinkStart = 0;
+  let thinkTimer = 0;
+  let thinkDone = false;
+
+  // freeze the thinking block: stop the live timer, show "thought for Xs", collapse
+  const finishThinking = () => {
+    if (!thinkingEl || thinkDone) return;
+    thinkDone = true;
+    if (thinkTimer) { clearInterval(thinkTimer); thinkTimer = 0; }
+    const secs = Math.max(1, Math.round((Date.now() - thinkStart) / 1000));
+    const label = thinkingEl.querySelector('.think-label');
+    const timer = thinkingEl.querySelector('.think-timer');
+    if (label) label.textContent = `thought for ${secs}s`;
+    if (timer) timer.textContent = '';
+    thinkingEl.classList.remove('thinking-live');
+    thinkingEl.open = false;
+  };
 
   const addCursor = (target) => {
     cursor = document.createElement('span');
@@ -325,18 +342,27 @@ export async function sendMessage(text) {
         if (chunk.thinking) {
           accThink += chunk.thinking;
           if (!thinkingEl) {
+            thinkStart = Date.now();
             thinkingEl = document.createElement('details');
-            thinkingEl.className = 'thinking-block';
-            thinkingEl.innerHTML = '<summary>thinking</summary><div class="thinking-content"></div>';
+            thinkingEl.className = 'thinking-block thinking-live';
+            thinkingEl.open = true;
+            thinkingEl.innerHTML = '<summary><span class="think-label">thinking</span><span class="think-timer"></span></summary><div class="thinking-content"></div>';
             body.insertBefore(thinkingEl, body.firstChild);
+            // live elapsed timer while reasoning
+            thinkTimer = setInterval(() => {
+              if (thinkDone) return;
+              const t = thinkingEl.querySelector('.think-timer');
+              if (t) t.textContent = ` ${((Date.now() - thinkStart) / 1000).toFixed(1)}s`;
+            }, 100);
           }
           thinkingEl.querySelector('.thinking-content').textContent = accThink;
           scrollDown();
         }
 
         if (chunk.delta) {
+          finishThinking();   // first real content → reasoning is done
           accText += chunk.delta;
-          scheduleRender();   // batched to next animation frame
+          scheduleRender();
         }
       }
     }
@@ -347,6 +373,7 @@ export async function sendMessage(text) {
     }
   } finally {
     if (renderTimer) { clearTimeout(renderTimer); renderTimer = 0; }
+    finishThinking();   // freeze timer even if the reply was thinking-only
     cursor?.remove();
     body.classList.add('done');
 

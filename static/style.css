@@ -343,6 +343,20 @@ body.sidebar-hidden .sidebar { display: none; }
 }
 .thinking-block[open] summary::before { content: '-'; }
 .thinking-content { margin-top: 0.35rem; white-space: pre-wrap; }
+.think-timer { color: var(--faint); font-variant-numeric: tabular-nums; }
+/* shimmer the label while actively reasoning */
+.thinking-block.thinking-live { border-left-color: var(--accent); }
+.thinking-block.thinking-live .think-label {
+  background: linear-gradient(90deg, var(--muted) 30%, var(--text) 50%, var(--muted) 70%);
+  background-size: 200% 100%;
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: think-shimmer 1.4s linear infinite;
+}
+@keyframes think-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
 
 /* streamed agent tool steps */
 .agent-steps {
