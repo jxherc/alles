@@ -1,6 +1,6 @@
-# aide — project context
+# AGENTS.md — aide project context
 
-This file is auto-loaded into agent mode (like CLAUDE.md). Keep it short.
+Auto-loaded into agent mode (the cross-tool standard, like CLAUDE.md for Claude Code). Keep it short.
 
 ## what this is
 Self-hosted personal AI workspace. Python 3.11 + FastAPI + SQLite + vanilla JS ES modules, no build step.
