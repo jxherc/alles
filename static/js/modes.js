@@ -1,5 +1,26 @@
 let _incognitoMode = false;
 
+// ── agent permission mode ─────────────────────────────────────────────
+const PERM_KEY = 'aide-perm-mode';
+let _perm = localStorage.getItem(PERM_KEY) || 'approve';   // approve | full_auto | plan
+
+export function getPermMode() { return _perm; }
+
+export function permLabel(m = _perm) {
+  return m === 'plan' ? 'plan' : m === 'full_auto' ? 'auto' : 'approve';
+}
+
+export function setPermMode(m) {
+  _perm = m;
+  localStorage.setItem(PERM_KEY, m);
+  const btn = document.getElementById('perm-mode-btn');
+  if (btn) {
+    btn.textContent = permLabel(m);
+    btn.classList.toggle('perm-plan', m === 'plan');
+    btn.classList.toggle('perm-auto', m === 'full_auto');
+  }
+}
+
 export function isIncognitoMode() {
   return _incognitoMode;
 }

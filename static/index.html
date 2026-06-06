@@ -302,6 +302,7 @@
     <!-- ── composer (hidden in memory view) ── -->
     <div class="composer-outer" id="composer-outer">
       <div id="attachment-chips" style="display:none;flex-wrap:wrap;gap:0.3rem;padding:0.3rem 0.75rem 0"></div>
+      <div id="attachment-preview" class="attach-preview"></div>
       <div class="composer-box">
         <div class="shell-panel" id="shell-panel" hidden>
           <div class="shell-panel-head">
@@ -342,6 +343,7 @@
               <button class="mode-btn" id="mode-agent">agent</button>
               <button class="mode-btn active" id="mode-chat">chat</button>
             </div>
+            <button class="mode-btn perm-btn" id="perm-mode-btn" style="display:none" title="permission mode — what the agent can do without asking">approve</button>
             <button class="c-tool mic-corner" id="mic-btn" title="voice input" aria-label="voice input">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
             </button>

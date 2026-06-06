@@ -898,7 +898,54 @@ def build_tool_defs(settings: dict) -> list:
         defs += COMPUTER_TOOL_DEFS
     if (settings or {}).get("agent_subagents", True):
         defs += SUBAGENT_TOOL_DEFS
+    # plan mode: hide everything that changes state — read/inspect only
+    if (settings or {}).get("agent_permission_mode") == "plan":
+        defs = [d for d in defs if d["function"]["name"] not in MUTATING_TOOLS]
     return defs
+
+
+# tools that change state — gated by approve/plan modes + get a diff preview
+MUTATING_TOOLS = {
+    "shell", "bash", "write_file", "edit_file", "apply_patch",
+    "git_branch", "git_commit",
+    "computer_click", "computer_move", "computer_type", "computer_key", "computer_scroll",
+    "mcp_call_tool", "opencode_run", "spawn_agent", "spawn_agents",
+}
+# subset that produces a file diff we can preview
+_DIFF_TOOLS = {"write_file", "edit_file", "apply_patch"}
+
+
+def preview_change(name: str, args: dict) -> str:
+    """unified diff for a pending edit, WITHOUT applying it (for diff review)"""
+    import difflib
+    args = args or {}
+    try:
+        if name == "apply_patch":
+            return (args.get("patch") or "").strip()
+        if name == "write_file":
+            p = _resolve(args.get("path", ""))
+            old = p.read_text("utf-8", errors="replace").splitlines(keepends=True) if p.exists() else []
+            new = (args.get("content") or "").splitlines(keepends=True)
+        elif name == "edit_file":
+            p = _resolve(args.get("path", ""))
+            if not p.exists():
+                return ""
+            text = p.read_text("utf-8", errors="replace")
+            o, n = args.get("old", ""), args.get("new", "")
+            cnt = text.count(o)
+            if cnt == 0:
+                return ""
+            updated = text.replace(o, n) if args.get("replace_all") else text.replace(o, n, 1)
+            old = text.splitlines(keepends=True)
+            new = updated.splitlines(keepends=True)
+        else:
+            return ""
+        rel = str(args.get("path", ""))
+        diff = difflib.unified_diff(old, new, fromfile=f"a/{rel}", tofile=f"b/{rel}", n=3)
+        out = "".join(diff)
+        return out if len(out) <= 16000 else out[:16000] + "\n[diff truncated]"
+    except Exception:
+        return ""
 
 
 async def agent_status() -> dict:

@@ -1,10 +1,22 @@
 from fastapi import APIRouter
 from fastapi import HTTPException
+from pydantic import BaseModel
 
 from services.agent_tools import agent_status
 from services.agent_state import list_runs, get_run
+from services.agent_runtime import resolve_permission
 
 router = APIRouter(prefix="/api")
+
+
+class PermDecision(BaseModel):
+    allow: bool
+
+
+@router.post("/agent/permission/{request_id}")
+def agent_permission(request_id: str, body: PermDecision):
+    ok = resolve_permission(request_id, body.allow)
+    return {"ok": ok}
 
 
 @router.get("/agent/status")
