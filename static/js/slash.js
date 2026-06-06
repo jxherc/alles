@@ -16,6 +16,7 @@ const BUILTINS = [
   // mode
   { name: 'research',  cat: 'mode',     help: 'toggle research mode' },
   { name: 'agent',     cat: 'mode',     help: 'toggle agent mode' },
+  { name: 'bg',        cat: 'mode',     help: 'run an agent task in the background', args: '<task>' },
   // memory
   { name: 'remember',  cat: 'memory',   help: 'save a memory',           args: '<text>' },
   { name: 'memories',  cat: 'memory',   help: 'open memory panel' },
@@ -297,6 +298,31 @@ export async function tryExecuteSlashCommand(text) {
       return true;
     }
 
+    case 'bg':
+    case 'background': {
+      if (!args) { toast('usage: /bg <task>', 'error'); return true; }
+      const { getActiveId, createSession, markActive, appendUserMsg, showMessages } = await import('./sessions.js');
+      const { getCurrentEndpoint, getSelected } = await import('./models.js');
+      let sid = getActiveId();
+      if (!sid) {
+        const ep = getCurrentEndpoint();
+        if (!ep) { toast('no endpoint configured', 'error'); return true; }
+        const sm = getSelected()?.model || ep.models?.[0] || '';
+        const s = await createSession(sm, ep.id);
+        if (!s) { toast('failed to create session', 'error'); return true; }
+        sid = s.id; markActive(sid);
+      }
+      showMessages();
+      appendUserMsg(args + '  ·(background)');
+      const r = await fetch('/api/agent/background', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ session_id: sid, message: args, mode: 'agent' }),
+      });
+      if (r.ok) { toast('running in background — keep working'); _pollBackground(sid); }
+      else toast('background start failed', 'error');
+      return true;
+    }
+
     case 'remember': {
       if (!args) { toast('/remember requires text', 'error'); return true; }
       const r = await fetch('/api/memories', {
@@ -501,4 +527,23 @@ export async function tryExecuteSlashCommand(text) {
     default:
       return false;
   }
+}
+
+// poll a background run; when it finishes, refresh the session if it's open
+function _pollBackground(sid) {
+  let tries = 0;
+  const iv = setInterval(async () => {
+    if (++tries > 200) { clearInterval(iv); return; }   // ~10 min cap
+    let runs = [];
+    try { runs = await fetch('/api/agent/runs?limit=12').then(r => r.json()); } catch { return; }
+    const run = (runs || [])
+      .filter(r => r.session_id === sid)
+      .sort((a, b) => (b.updated_at || '').localeCompare(a.updated_at || ''))[0];
+    if (run && run.status !== 'running') {
+      clearInterval(iv);
+      const { getActiveId, selectSession } = await import('./sessions.js');
+      if (getActiveId() === sid) await selectSession(sid);
+      toast(`background run ${run.status}`, run.status === 'error' ? 'error' : 'success');
+    }
+  }, 3000);
 }
