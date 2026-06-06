@@ -149,6 +149,7 @@ function _initSettings() {
 
   // ── ai pane ──
   document.getElementById('s-local-refresh-btn')?.addEventListener('click', loadLocalModels);
+  document.getElementById('s-local-pull-btn')?.addEventListener('click', pullCustomLocalModel);
   document.getElementById('s-local-start-btn')?.addEventListener('click', startLocalOllama);
 
   document.getElementById('settings-save-btn')?.addEventListener('click', saveAiDefaults);
@@ -275,7 +276,9 @@ function renderLocalPresets(presets) {
         <div class="row-name">${_esc(p.label)} <span style="color:var(--muted);font-weight:400">${_esc(p.model)}</span></div>
         <div class="row-meta">${badge} - ${installed} - ${_esc(p.fit_reason || '')}</div>
       </div>
-      <button class="btn" data-local-download="${_escAttr(p.model)}" ${p.installed ? 'disabled' : ''}>download</button>
+      ${p.installed
+        ? `<button class="btn" data-local-remove="${_escAttr(p.model)}">remove</button>`
+        : `<button class="btn" data-local-download="${_escAttr(p.model)}">download</button>`}
       <button class="btn primary" data-local-serve="${_escAttr(p.model)}" ${serveDisabled}>serve</button>
     </div>`;
   }).join('');
@@ -285,6 +288,9 @@ function renderLocalPresets(presets) {
   });
   listEl.querySelectorAll('[data-local-serve]').forEach(btn => {
     btn.addEventListener('click', () => serveLocalModel(btn.dataset.localServe, btn));
+  });
+  listEl.querySelectorAll('[data-local-remove]').forEach(btn => {
+    btn.addEventListener('click', () => deleteLocalModel(btn.dataset.localRemove, btn));
   });
 }
 
@@ -343,6 +349,42 @@ async function pollLocalJob(jobId, btn) {
     btn.disabled = false;
     btn.textContent = 'download';
   }
+}
+
+async function pullCustomLocalModel() {
+  const inp = document.getElementById('s-local-custom');
+  const btn = document.getElementById('s-local-pull-btn');
+  const model = (inp?.value || '').trim();
+  if (!model) { toast('enter a model name', 'error'); return; }
+  btn.disabled = true; btn.textContent = 'queued';
+  try {
+    const job = await _localJson('/api/local-models/download_model', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ model }),
+    });
+    pollLocalJob(job.id, btn);
+    inp.value = '';
+  } catch (e) {
+    btn.disabled = false; btn.textContent = 'pull';
+    toast(e.message || 'pull failed to start', 'error');
+  }
+}
+
+async function deleteLocalModel(model, btn) {
+  if (!model) return;
+  if (!confirm(`remove ${model} from disk?`)) return;
+  btn.disabled = true; btn.textContent = 'removing...';
+  try {
+    await _localJson('/api/local-models/delete', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ model }),
+    });
+    toast(`${model} removed`, 'success');
+  } catch (e) {
+    toast(e.message || 'remove failed', 'error');
+  }
+  loadLocalModels();
+  loadModels();
 }
 
 async function serveLocalModel(model, btn) {
