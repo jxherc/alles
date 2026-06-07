@@ -12,6 +12,21 @@ async def speech_to_text(file: UploadFile = File(...)):
     s = load_settings()
     provider = s.get("stt_provider", "browser")
 
+    if provider == "local":
+        from services import stt_local
+        if not stt_local.available():
+            raise HTTPException(400, "local STT needs faster-whisper — run: pip install faster-whisper")
+        try:
+            audio = await file.read()
+            import asyncio
+            text = await asyncio.to_thread(
+                stt_local.transcribe, audio,
+                s.get("stt_model", "base"), s.get("stt_language", ""),
+            )
+            return {"text": text}
+        except Exception as e:
+            raise HTTPException(500, f"local transcription failed: {e}")
+
     if provider == "whisper_api":
         key = s.get("openai_api_key") or os.getenv("OPENAI_API_KEY", "")
         if not key:
@@ -33,8 +48,8 @@ async def speech_to_text(file: UploadFile = File(...)):
             raise
         except Exception as e:
             raise HTTPException(502, str(e))
-    else:
-        raise HTTPException(400, "use browser STT (Web Speech API)")
+
+    raise HTTPException(400, "use browser STT (Web Speech API)")
 
 
 class TtsRequest(BaseModel):
