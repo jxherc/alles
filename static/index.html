@@ -42,6 +42,7 @@
         <div class="nav-item" data-view="notes">notes</div>
         <div class="nav-item" data-view="tasks">tasks</div>
         <div class="nav-item" data-view="docs">docs</div>
+        <div class="nav-item" data-view="wiki">vault</div>
         <div class="nav-item" data-view="memory">memory</div>
         <div class="nav-item" data-view="brain">brain</div>
         <div class="nav-item" data-view="calendar">calendar</div>
@@ -236,6 +237,31 @@
           <button class="btn primary" id="doc-ai-send">ask</button>
         </div>
       </div>
+    </div>
+
+    <!-- ── vault: obsidian-style markdown notes on disk ── -->
+    <div class="page-view" id="wiki-view" style="display:none">
+      <div class="wiki-tree-panel">
+        <div class="page-view-head">
+          <span class="page-view-title">vault</span>
+          <button class="btn primary" id="wiki-new-btn">+ note</button>
+        </div>
+        <div id="wiki-tree" class="wiki-tree"></div>
+      </div>
+      <div class="wiki-main">
+        <div class="page-view-head" style="gap:0.5rem">
+          <span id="wiki-current" class="wiki-current">no note open</span>
+          <span id="wiki-save-status" style="font-size:0.66rem;color:var(--muted);margin-left:auto"></span>
+          <button class="btn" id="wiki-preview-toggle" style="font-size:0.72rem">preview</button>
+          <button class="btn" id="wiki-delete-btn" style="font-size:0.72rem">delete</button>
+        </div>
+        <div class="wiki-editor">
+          <textarea class="wiki-source" id="wiki-source" spellcheck="false" placeholder="# start writing&#10;&#10;link notes with [[double brackets]]"></textarea>
+          <div class="wiki-preview" id="wiki-preview"></div>
+        </div>
+        <div class="wiki-backlinks" id="wiki-backlinks"></div>
+      </div>
+      <div id="wiki-autocomplete" class="wiki-autocomplete" style="display:none"></div>
     </div>
 
     <!-- ── compare view ── -->
