@@ -187,32 +187,51 @@ def edit_message(session_id: str, msg_id: str, body: EditMessage,
     return {"ok": True}
 
 
-# POST /api/sessions/{id}/auto-name — LLM-generated name from history
+import re as _re
+
+_TITLE_STRIP = _re.compile(
+    r"^(how (do|can|to)\s+i\s+|how (do|to)\s+|what('?s| is| are)\s+|whats\s+|can you\s+|could you\s+|"
+    r"please\s+|help me( with)?\s+|i (want|need|would like) to\s+|tell me about\s+|explain\s+|"
+    r"write( me)?\s+|make( me)?\s+|create\s+|build\s+|fix\s+|give me\s+)", _re.I)
+
+
+def _heuristic_title(text: str) -> str:
+    t = " ".join((text or "").split())
+    t = _TITLE_STRIP.sub("", t)
+    words = t.split()[:6]
+    title = " ".join(words).strip(" ?.!,:;\"'")[:48]
+    return (title or " ".join((text or "").split())[:48] or "new chat").lower()
+
+
+async def _generate_title(first_user: str, ep, model: str) -> str:
+    """LLM title with room for reasoning models, heuristic fallback. never fails."""
+    if ep and model:
+        try:
+            from services.llm import simple_complete
+            prompt = [
+                {"role": "system", "content": "Respond with ONLY a 3-6 word lowercase title for the chat. No quotes, no punctuation, no preamble."},
+                {"role": "user", "content": f"Chat is about: {first_user[:400]}"},
+            ]
+            # generous max_tokens: reasoning models burn the budget thinking before answering
+            name = (await simple_complete(prompt, ep.base_url, ep.api_key, model, max_tokens=400)).strip().strip('"\'').strip()
+            name = name.splitlines()[-1].strip() if name else ""   # take last line in case of stray output
+            if name and len(name) <= 60:
+                return name.lower()
+        except Exception:
+            pass
+    return _heuristic_title(first_user)
+
+
+# POST /api/sessions/{id}/auto-name — name a session from its first message
 @router.post("/sessions/{session_id}/auto-name")
 async def auto_name_session(session_id: str, db: DbSession = Depends(get_db)):
     s = _session_or_404(session_id, db)
     if not s.messages:
         raise HTTPException(400, "no messages to name from")
-
     ep = db.query(ModelEndpoint).filter(ModelEndpoint.enabled == True).first()
-    if not ep:
-        raise HTTPException(400, "no endpoint configured")
-
-    model = s.model or (ep.models_list()[0] if ep.models_list() else "")
-    if not model:
-        raise HTTPException(400, "no model")
-
+    model = s.model or (ep.models_list()[0] if ep and ep.models_list() else "")
     first_user = next((m.content for m in s.messages if m.role == "user"), "")
-    from services.llm import simple_complete
-    prompt = [
-        {"role": "system", "content": "You produce ultra-short chat session titles. Respond with ONLY the title, no quotes or punctuation."},
-        {"role": "user", "content": f"Give a 3-5 word title for a chat that starts with: {first_user[:300]}"},
-    ]
-    name = await simple_complete(prompt, ep.base_url, ep.api_key, model, max_tokens=20)
-    if not name or len(name) > 80:
-        raise HTTPException(500, "naming failed")
-
-    s.name = name.strip().lower()
+    s.name = await _generate_title(first_user, ep, model)
     db.commit()
     return {"name": s.name}
 
