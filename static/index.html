@@ -280,10 +280,12 @@
       <div id="vault-unlocked" style="display:none;flex-direction:column;flex:1;overflow:hidden">
         <div class="page-view-body" id="vault-entry-list"></div>
       </div>
-      <div class="page-view-footer" id="vault-add-bar" style="display:none">
-        <input type="text" id="vault-new-name" class="settings-input" placeholder="name" style="flex:1;min-width:80px">
-        <input type="password" id="vault-new-value" class="settings-input" placeholder="value" style="flex:2;min-width:120px">
-        <input type="text" id="vault-new-cat" class="settings-input" placeholder="category" style="flex:1;min-width:70px">
+      <div class="page-view-footer" id="vault-add-bar" style="display:none;flex-wrap:wrap">
+        <input type="text" id="vault-new-name" class="settings-input" placeholder="name" style="flex:1;min-width:90px">
+        <select id="vault-new-cat" class="settings-input" style="flex:1;min-width:100px"></select>
+        <input type="text" id="vault-new-cat-custom" class="settings-input" placeholder="new category" style="flex:1;min-width:100px;display:none">
+        <input type="text" id="vault-new-username" class="settings-input" placeholder="username" style="flex:1;min-width:100px;display:none">
+        <input type="password" id="vault-new-value" class="settings-input" placeholder="value / password" style="flex:2;min-width:120px">
         <button class="btn primary" id="vault-add-btn">add</button>
       </div>
     </div>
