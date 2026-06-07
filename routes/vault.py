@@ -56,21 +56,29 @@ def vault_lock():
 @router.get("/vault")
 def list_vault(db: DbSession = Depends(get_db)):
     entries = db.query(VaultEntry).order_by(VaultEntry.created_at.desc()).all()
-    return [{"id": e.id, "name": e.name, "category": e.category,
+    return [{"id": e.id, "name": e.name, "username": e.username or "", "category": e.category,
              "created_at": e.created_at.isoformat()} for e in entries]
+
+
+@router.get("/vault/categories")
+def vault_categories(db: DbSession = Depends(get_db)):
+    used = [c for (c,) in db.query(VaultEntry.category).distinct().all() if c]
+    base = ["password", "api key", "card", "note", "general"]
+    return {"categories": sorted(set(base) | set(used))}
 
 
 class CreateEntry(BaseModel):
     name: str
     value: str
     category: str = "general"
+    username: str = ""
 
 
 @router.post("/vault")
 def create_entry(body: CreateEntry, db: DbSession = Depends(get_db)):
     pw = _get_master_pw()
     enc = encrypt(pw, body.value)
-    e = VaultEntry(name=body.name, value_encrypted=enc, category=body.category)
+    e = VaultEntry(name=body.name, username=body.username, value_encrypted=enc, category=body.category)
     db.add(e); db.commit(); db.refresh(e)
     return {"id": e.id, "name": e.name, "category": e.category}
 
@@ -79,6 +87,7 @@ class PatchEntry(BaseModel):
     name: str | None = None
     value: str | None = None
     category: str | None = None
+    username: str | None = None
 
 
 @router.patch("/vault/{entry_id}")
@@ -88,6 +97,7 @@ def patch_entry(entry_id: str, body: PatchEntry, db: DbSession = Depends(get_db)
     pw = _get_master_pw()
     if body.name is not None:     e.name = body.name
     if body.category is not None: e.category = body.category
+    if body.username is not None: e.username = body.username
     if body.value is not None:    e.value_encrypted = encrypt(pw, body.value)
     db.commit()
     return {"ok": True}
