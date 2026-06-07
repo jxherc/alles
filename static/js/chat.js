@@ -199,6 +199,7 @@ export async function sendMessage(text) {
         if (chunk.error) {
           cursor?.remove();
           body.innerHTML += `<div class="error-msg">${chunk.error}</div>`;
+          if (isConnError(chunk.error)) showConnBanner(chunk.error);
           break;
         }
 
@@ -385,7 +386,7 @@ export async function sendMessage(text) {
 
         if (chunk.delta) {
           finishThinking();   // first real content → reasoning is done
-          if (!genStart) genStart = Date.now();
+          if (!genStart) { genStart = Date.now(); hideConnBanner(); }  // a real token = we're connected, clear any stale warning
           accText += chunk.delta;
           scheduleRender();
         }
@@ -395,6 +396,7 @@ export async function sendMessage(text) {
   } catch (e) {
     if (e.name !== 'AbortError') {
       body.innerHTML += `<div class="error-msg">stream error: ${e.message}</div>`;
+      if (isConnError(e.message)) showConnBanner(e.message);
     }
   } finally {
     if (renderTimer) { clearTimeout(renderTimer); renderTimer = 0; }
@@ -501,6 +503,27 @@ function renderDiff(diff = '') {
 
 function escHtml(s = '') {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// connect-type failures (vs a real HTTP error from the provider) → worth the banner
+function isConnError(msg = '') {
+  return /can'?t connect|connect\s?error|connection (refused|error|reset|timed ?out|aborted)|failed to (establish|connect)|ECONNREFUSED|ENOTFOUND|getaddrinfo|name resolution|cooling down|network is unreachable|read ?timed ?out/i.test(String(msg));
+}
+
+function showConnBanner(detail = '') {
+  const b = document.getElementById('conn-banner');
+  const m = document.getElementById('conn-banner-msg');
+  if (!b || !m) return;
+  m.innerHTML = `<b>can't reach the model endpoint.</b> the request couldn't connect outbound — `
+    + `if you launched aide from a sandboxed shell, restart it from your own terminal `
+    + `(<code>python cli.py restart</code>) so it has network.`
+    + (detail ? ` <span style="opacity:.7">— ${escHtml(String(detail).slice(0, 160))}</span>` : '');
+  b.style.display = 'flex';
+}
+
+export function hideConnBanner() {
+  const b = document.getElementById('conn-banner');
+  if (b) b.style.display = 'none';
 }
 
 function setStreaming(val) {

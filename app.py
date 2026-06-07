@@ -176,6 +176,56 @@ def _cleanup_empty_sessions():
         db.close()
 
 
+# last connectivity probe result — surfaced via /api/ping, also set by the startup self-test
+_last_ping: dict = {}
+
+
+async def _probe_endpoints() -> dict:
+    """GET each enabled endpoint's base host. ok=True means reachable (any HTTP code)."""
+    import httpx
+    from core.database import SessionLocal as SL, ModelEndpoint as ME
+    db = SL()
+    try:
+        eps = db.query(ME).filter(ME.enabled == True).all()
+    finally:
+        db.close()
+    results = {}
+    async with httpx.AsyncClient(timeout=6, follow_redirects=True) as c:
+        for ep in eps:
+            try:
+                r = await c.get(ep.base_url.rstrip("/"), headers={"user-agent": "aide-ping/1.0"})
+                results[ep.name] = {"ok": True, "status": r.status_code}
+            except Exception as e:
+                results[ep.name] = {"ok": False, "error": type(e).__name__, "detail": str(e)[:120]}
+    global _last_ping
+    _last_ping = results
+    return results
+
+
+async def _connectivity_selftest():
+    """ping the configured endpoints on boot, warn loudly if outbound is dead.
+    runs detached so it never delays startup."""
+    try:
+        results = await _probe_endpoints()
+    except Exception as e:
+        log.warning(f"connectivity self-test couldn't run: {e}")
+        return
+    if not results:
+        return  # nothing configured yet
+    reachable = [n for n, r in results.items() if r.get("ok")]
+    dead = [n for n, r in results.items() if not r.get("ok")]
+    for n in reachable:
+        log.info(f"connectivity ok - {n} (HTTP {results[n]['status']})")
+    for n in dead:
+        log.warning(f"connectivity FAILED - {n}: {results[n].get('error')} - {results[n].get('detail')}")
+    if dead and not reachable:
+        log.warning(
+            "no endpoints reachable - outbound network looks blocked. "
+            "if you launched aide from a sandboxed shell, restart it from your own "
+            "terminal (python cli.py restart) so it actually has network."
+        )
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
@@ -188,6 +238,7 @@ async def lifespan(app: FastAPI):
     except Exception:
         pass
     task = asyncio.create_task(_reminder_loop())
+    asyncio.create_task(_connectivity_selftest())   # fire-and-forget, logs a warning if outbound is dead
     log.info("aide ready")
     yield
     task.cancel()
@@ -316,29 +367,21 @@ app.mount("/static", NoCacheStatic(directory=str(static_dir), html=False), name=
 
 @app.get("/")
 async def index():
-    return FileResponse(str(static_dir / "index.html"))
+    # no-cache so the SPA shell never goes stale (JS/CSS already no-cache via NoCacheStatic)
+    return FileResponse(str(static_dir / "index.html"),
+                        headers={"cache-control": "no-cache, no-store, must-revalidate"})
 
 @app.get("/health")
 def health():
     return {"ok": True}
 
 @app.get("/api/ping")
-async def ping():
-    """connectivity self-test — hits each configured endpoint's base host"""
-    import httpx
-    from core.database import SessionLocal, ModelEndpoint as ME
-    db = SessionLocal()
-    eps = db.query(ME).filter(ME.enabled == True).all()
-    db.close()
-    results = {}
-    async with httpx.AsyncClient(timeout=6, follow_redirects=True) as c:
-        for ep in eps:
-            try:
-                r = await c.get(ep.base_url.rstrip("/"), headers={"user-agent": "aide-ping/1.0"})
-                results[ep.name] = {"ok": True, "status": r.status_code}
-            except Exception as e:
-                results[ep.name] = {"ok": False, "error": type(e).__name__, "detail": str(e)[:120]}
-    return results
+async def ping(cached: bool = False):
+    """connectivity self-test — hits each configured endpoint's base host.
+    ?cached=1 returns the last probe (e.g. the boot self-test) without re-hitting."""
+    if cached and _last_ping:
+        return _last_ping
+    return await _probe_endpoints()
 
 
 if __name__ == "__main__":
