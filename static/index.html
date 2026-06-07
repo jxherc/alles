@@ -148,9 +148,14 @@
 
     <!-- ── calendar view ── -->
     <div class="page-view" id="calendar-view" style="display:none">
-      <div class="page-view-head">
-        <span class="page-view-title">calendar</span>
-        <button class="btn primary" id="cal-new-btn">+ event</button>
+      <div class="page-view-head" style="gap:0.5rem">
+        <div class="cal-nav">
+          <button class="btn" id="cal-prev" title="previous month">‹</button>
+          <button class="btn" id="cal-today">today</button>
+          <button class="btn" id="cal-next" title="next month">›</button>
+        </div>
+        <span id="cal-month-label" class="cal-month-title"></span>
+        <button class="btn primary" id="cal-new-btn" style="margin-left:auto">+ event</button>
       </div>
       <div class="page-view-body" id="calendar-list"></div>
     </div>
