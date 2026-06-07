@@ -2215,6 +2215,8 @@ code {
   font-size: 0.8rem;
 }
 .vault-entry-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vault-entry-user { color: var(--muted); font-size: 0.72rem; }
+.vault-entry-user::before { content: '· '; color: var(--faint); }
 .vault-entry-cat { font-size: 0.65rem; color: var(--muted); border: 1px solid var(--faint); border-radius: 2px; padding: 0.1rem 0.3rem; flex-shrink: 0; }
 .vault-entry-value { font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; color: var(--muted); flex-shrink: 0; }
 

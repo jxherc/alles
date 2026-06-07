@@ -247,6 +247,7 @@ class VaultEntry(Base):
     __tablename__ = "vault_entries"
     id              = Column(String, primary_key=True, default=_uid)
     name            = Column(String, nullable=False)
+    username        = Column(String, default="")   # for password entries
     value_encrypted = Column(Text, default="")   # base64 ciphertext+nonce
     category        = Column(String, default="general")
     created_at      = Column(DateTime, default=_now)
@@ -316,6 +317,7 @@ def init_db():
         _add_col(conn, "sessions", "share_token",  "TEXT")
         _add_col(conn, "model_endpoints", "vision_models", "TEXT DEFAULT '[]'")
         _add_col(conn, "projects", "working_dir", "TEXT DEFAULT ''")
+        _add_col(conn, "vault_entries", "username", "TEXT DEFAULT ''")
 
 
 def get_db():
