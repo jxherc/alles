@@ -150,3 +150,92 @@ def outgoing_links(rel: str) -> list[str]:
         return []
     text = p.read_text("utf-8", errors="replace")
     return sorted({m.group(1).strip() for m in _WIKILINK.finditer(text)})
+
+
+def create_folder(rel: str) -> dict:
+    p = _safe(rel)
+    p.mkdir(parents=True, exist_ok=True)
+    return {"path": str(p.relative_to(vault_dir())).replace("\\", "/"), "ok": True}
+
+
+def full_text_search(q: str, limit: int = 50) -> list[dict]:
+    """search note names AND contents, with a snippet of context."""
+    base = vault_dir()
+    ql = (q or "").strip().lower()
+    if not ql:
+        return []
+    out = []
+    for p in _all_md():
+        try:
+            text = p.read_text("utf-8", errors="replace")
+        except Exception:
+            continue
+        low = text.lower()
+        idx = low.find(ql)
+        in_name = ql in p.stem.lower()
+        if idx < 0 and not in_name:
+            continue
+        ctx = ""
+        if idx >= 0:
+            s = max(0, idx - 40)
+            ctx = " ".join(text[s:idx + len(ql) + 50].split())
+        out.append({"name": p.stem, "path": str(p.relative_to(base)).replace("\\", "/"), "context": ctx})
+        if len(out) >= limit:
+            break
+    out.sort(key=lambda r: (ql not in r["name"].lower(), r["name"].lower()))
+    return out
+
+
+_TAG = re.compile(r"(?:^|\s)#([A-Za-z0-9][A-Za-z0-9_/\-]*)")
+
+
+def all_tags() -> list[dict]:
+    counts: dict[str, int] = {}
+    for p in _all_md():
+        try:
+            text = p.read_text("utf-8", errors="replace")
+        except Exception:
+            continue
+        for t in {m.group(1) for m in _TAG.finditer(text)}:
+            counts[t] = counts.get(t, 0) + 1
+    return [{"tag": t, "count": c} for t, c in sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))]
+
+
+def notes_with_tag(tag: str) -> list[dict]:
+    base = vault_dir()
+    target = (tag or "").lstrip("#").lower()
+    out = []
+    for p in _all_md():
+        try:
+            text = p.read_text("utf-8", errors="replace")
+        except Exception:
+            continue
+        if any(m.group(1).lower() == target for m in _TAG.finditer(text)):
+            out.append({"name": p.stem, "path": str(p.relative_to(base)).replace("\\", "/")})
+    return out
+
+
+def graph() -> dict:
+    """nodes = notes, edges = resolved [[wikilinks]] between them."""
+    base = vault_dir()
+    files = _all_md()
+    by_stem = {p.stem.lower(): p.stem for p in files}
+    nodes = [{"id": p.stem, "path": str(p.relative_to(base)).replace("\\", "/")} for p in files]
+    edges = []
+    for p in files:
+        try:
+            text = p.read_text("utf-8", errors="replace")
+        except Exception:
+            continue
+        for tgt in {m.group(1).strip() for m in _WIKILINK.finditer(text)}:
+            res = by_stem.get(tgt.lower())
+            if res and res != p.stem:
+                edges.append({"source": p.stem, "target": res})
+    # degree for sizing
+    deg: dict[str, int] = {}
+    for e in edges:
+        deg[e["source"]] = deg.get(e["source"], 0) + 1
+        deg[e["target"]] = deg.get(e["target"], 0) + 1
+    for n in nodes:
+        n["degree"] = deg.get(n["id"], 0)
+    return {"nodes": nodes, "edges": edges}

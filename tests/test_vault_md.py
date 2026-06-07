@@ -56,6 +56,33 @@ class VaultTests(unittest.TestCase):
         res = vault_md.search("alpha")
         self.assertEqual(res[0]["name"], "alpha")   # prefix match ranks first
 
+    def test_full_text_search(self):
+        vault_md.write("a.md", "the quick brown fox")
+        vault_md.write("b.md", "nothing here")
+        res = vault_md.full_text_search("brown")
+        self.assertEqual([r["name"] for r in res], ["a"])
+        self.assertIn("brown", res[0]["context"])
+
+    def test_tags(self):
+        vault_md.write("a.md", "a note #work #urgent")
+        vault_md.write("b.md", "another #work item")
+        tags = {t["tag"]: t["count"] for t in vault_md.all_tags()}
+        self.assertEqual(tags["work"], 2)
+        self.assertEqual(tags["urgent"], 1)
+        self.assertEqual({n["name"] for n in vault_md.notes_with_tag("work")}, {"a", "b"})
+
+    def test_graph(self):
+        vault_md.write("home.md", "go to [[about]] and [[contact]]")
+        vault_md.write("about.md", "back [[home]]")
+        vault_md.write("contact.md", "x")
+        g = vault_md.graph()
+        self.assertEqual(len(g["nodes"]), 3)
+        pairs = {(e["source"], e["target"]) for e in g["edges"]}
+        self.assertIn(("home", "about"), pairs)
+        self.assertIn(("about", "home"), pairs)
+        home = next(n for n in g["nodes"] if n["id"] == "home")
+        self.assertEqual(home["degree"], 3)   # 2 out + 1 in
+
 
 if __name__ == "__main__":
     unittest.main()

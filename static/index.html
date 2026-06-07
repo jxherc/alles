@@ -216,10 +216,14 @@
     <!-- ── vault: obsidian-style markdown notes on disk ── -->
     <div class="page-view" id="wiki-view" style="display:none">
       <div class="wiki-tree-panel">
-        <div class="page-view-head">
+        <div class="page-view-head" style="gap:0.3rem">
           <span class="page-view-title">vault</span>
-          <button class="btn primary" id="wiki-new-btn">+ note</button>
+          <button class="btn" id="wiki-graph-btn" title="graph view" style="font-size:0.7rem;margin-left:auto">graph</button>
+          <button class="btn" id="wiki-folder-btn" title="new folder" style="font-size:0.7rem">+dir</button>
+          <button class="btn primary" id="wiki-new-btn" style="font-size:0.7rem">+note</button>
         </div>
+        <input type="text" id="wiki-search" class="settings-input" placeholder="search notes…" style="margin:0 0.5rem 0.4rem;width:calc(100% - 1rem)">
+        <div id="wiki-tags" class="wiki-tags"></div>
         <div id="wiki-tree" class="wiki-tree"></div>
       </div>
       <div class="wiki-main">
@@ -241,6 +245,10 @@
         </div>
       </div>
       <div id="wiki-autocomplete" class="wiki-autocomplete" style="display:none"></div>
+      <div id="wiki-graph" class="wiki-graph" style="display:none">
+        <div class="wiki-graph-head"><span>graph</span><button class="icon-btn" id="wiki-graph-close">×</button></div>
+        <svg id="wiki-graph-svg" class="wiki-graph-svg"></svg>
+      </div>
     </div>
 
     <!-- ── compare view ── -->
