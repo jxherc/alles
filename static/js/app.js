@@ -1,6 +1,6 @@
 import { loadSessions, initSessions, newChat, showWelcome, createSession, renderSidebar, exportActiveSessionMarkdown } from './sessions.js';
 import { loadModels, renderModelList, renderSidebarModelList, addEndpoint, getSelected, getCurrentEndpoint, initModelModal } from './models.js';
-import { sendMessage, stopStream } from './chat.js';
+import { sendMessage, stopStream, hideConnBanner } from './chat.js';
 import { toast, closeAllModals, mdToHtml } from './util.js';
 import { initMemoryPanel } from './memory.js';
 import { runResearch, setResearchMode, isResearchMode } from './research.js';
@@ -168,6 +168,7 @@ function bindEvents() {
     else doSend();
   });
   document.getElementById('stop-btn').addEventListener('click', stopStream);
+  document.getElementById('conn-banner-x')?.addEventListener('click', hideConnBanner);
 
   document.getElementById('new-chat-btn').addEventListener('click', () => {
     showChatView();

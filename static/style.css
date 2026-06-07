@@ -709,6 +709,34 @@ code {
   margin: 0.4rem 0;
 }
 
+/* connectivity banner — appears when a chat can't reach the endpoint */
+.conn-banner {
+  flex-shrink: 0;
+  max-width: 760px; width: 100%;
+  margin: 0.6rem auto 0;
+  display: flex; align-items: center; gap: 0.75rem;
+  padding: 0.5rem 0.85rem;
+  background: var(--panel);
+  border: 1px solid var(--faint);
+  border-left: 2px solid var(--error);
+  border-radius: 3px;
+  font-size: 0.75rem; color: var(--muted);
+  animation: fade-in 0.15s ease;
+}
+.conn-banner-msg { flex: 1; line-height: 1.45; }
+.conn-banner-msg b { color: var(--text); font-weight: 500; }
+.conn-banner-msg code {
+  font-family: 'JetBrains Mono', monospace; font-size: 0.7rem;
+  color: var(--text); background: var(--faint);
+  padding: 0.05rem 0.3rem; border-radius: 2px;
+}
+.conn-banner-x {
+  background: none; border: none; color: var(--muted);
+  font-size: 1rem; line-height: 1; cursor: pointer; padding: 0 0.2rem;
+  transition: color 0.2s ease;
+}
+.conn-banner-x:hover { color: var(--text); }
+
 /* ── composer ── */
 .composer-outer {
   flex-shrink: 0;
