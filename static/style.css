@@ -2093,16 +2093,35 @@ code {
 .wiki-main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
 .wiki-current { font-size: 0.82rem; color: var(--text); }
 .wiki-editor { flex: 1; display: flex; overflow: hidden; border-top: 1px solid var(--faint); }
+/* one mode at a time — editor by default, preview on toggle. centered column, readable. */
 .wiki-source {
-  flex: 1; background: none; border: none; border-right: 1px solid var(--faint);
+  flex: 1; background: none; border: none;
   outline: none; resize: none; color: var(--text);
-  font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; line-height: 1.7;
-  padding: 1rem 1.1rem;
+  font-family: 'Inter', -apple-system, system-ui, sans-serif;
+  font-size: 1rem; line-height: 1.75;
+  padding: 2rem clamp(1.5rem, 12%, 7rem);
 }
 .wiki-preview {
-  flex: 1; overflow-y: auto; padding: 1rem 1.2rem; font-size: 0.86rem; line-height: 1.65;
+  flex: 1; display: none; overflow-y: auto;
+  padding: 2rem clamp(1.5rem, 12%, 7rem);
+  font-size: 1rem; line-height: 1.7;
 }
-#wiki-view.preview-only .wiki-source { display: none; }
+#wiki-view.preview-mode .wiki-source { display: none; }
+#wiki-view.preview-mode .wiki-preview { display: block; }
+/* empty state — no note open */
+.wiki-empty-state {
+  flex: 1; display: none; align-items: center; justify-content: center;
+  flex-direction: column; gap: 0.9rem; color: var(--muted); font-size: 0.85rem;
+  border-top: 1px solid var(--faint);
+}
+#wiki-view.no-note .wiki-editor,
+#wiki-view.no-note .wiki-backlinks,
+#wiki-view.no-note .doc-ai-bar { display: none; }
+#wiki-view.no-note .wiki-empty-state { display: flex; }
+#wiki-view.no-note .wiki-current,
+#wiki-view.no-note #wiki-preview-toggle,
+#wiki-view.no-note #wiki-export-btn,
+#wiki-view.no-note #wiki-delete-btn { display: none; }
 .wiki-preview .wikilink { color: var(--accent); text-decoration: none; border-bottom: 1px dashed color-mix(in srgb, var(--accent) 50%, transparent); cursor: pointer; }
 .wiki-preview .wikilink:hover { border-bottom-style: solid; }
 .wiki-backlinks {
