@@ -14,6 +14,7 @@ export function initVault() {
   _inited = true;
   $('wiki-new-btn')?.addEventListener('click', newNote);
   $('wiki-delete-btn')?.addEventListener('click', deleteCurrent);
+  $('wiki-export-btn')?.addEventListener('click', exportDocx);
   $('wiki-preview-toggle')?.addEventListener('click', () => {
     $('wiki-view').classList.toggle('preview-only');
   });
@@ -148,6 +149,21 @@ async function loadBacklinks() {
       d.backlinks.map(b => `<div class="wiki-bl" data-path="${esc(b.path)}"><b>${esc(b.name)}</b> <span>${esc(b.context)}</span></div>`).join('');
     el.querySelectorAll('.wiki-bl').forEach(b => b.addEventListener('click', () => openFile(b.dataset.path)));
   } catch {}
+}
+
+async function exportDocx() {
+  if (!_cur) { toast('open a note first', 'error'); return; }
+  try {
+    const r = await fetch(`/api/vault-md/export-docx?path=${encodeURIComponent(_cur)}`);
+    if (!r.ok) throw new Error();
+    const blob = await r.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = _cur.split('/').pop().replace(/\.md$/, '') + '.docx';
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    toast('exported .docx', 'success');
+  } catch { toast('export failed', 'error'); }
 }
 
 async function newNote() {
