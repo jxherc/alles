@@ -33,16 +33,17 @@ export async function startRecording() {
   _setMicRecording(true);
   _startLiveWave(stream);
 
-  if (provider === 'whisper_api') {
+  if (provider === 'browser') {
+    _mode = 'browser';
+    _startBrowserSR(s);
+  } else {
+    // whisper_api OR local — record audio + upload to /api/stt (server picks engine)
     _mode = 'whisper';
     _chunks = [];
     _recorder = new MediaRecorder(stream);
     _recorder.ondataavailable = e => _chunks.push(e.data);
     _recorder.onstop = _whisperDone;
     _recorder.start();
-  } else {
-    _mode = 'browser';
-    _startBrowserSR(s);
   }
 }
 
@@ -196,12 +197,17 @@ async function _whisperDone() {
   fd.append('file', blob, 'audio.webm');
   try {
     const r = await fetch('/api/stt', { method: 'POST', body: fd });
-    if (!r.ok) throw new Error(await r.text());
+    if (!r.ok) {
+      const msg = await r.text().catch(() => '');
+      try { toast(JSON.parse(msg).detail || 'transcription failed', 'error'); }
+      catch { toast('transcription failed', 'error'); }
+      return;
+    }
     const { text } = await r.json();
     if (text && text.trim()) _inject(text.trim());
     else toast('no speech detected', 'error');
   } catch (e) {
-    toast('transcription failed — check openai_api_key in settings', 'error');
+    toast('transcription failed', 'error');
   }
 }
 
