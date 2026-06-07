@@ -8,6 +8,7 @@ let _inited = false;
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+const _syncEmpty = () => $('wiki-view')?.classList.toggle('no-note', !_cur);
 
 export function initVault() {
   if (_inited) { loadTree(); return; }
@@ -28,8 +29,12 @@ export function initVault() {
     if (tag) { filterByTag(tag.dataset.tag); }
   });
   $('wiki-preview-toggle')?.addEventListener('click', () => {
-    $('wiki-view').classList.toggle('preview-only');
+    const v = $('wiki-view');
+    const on = v.classList.toggle('preview-mode');
+    $('wiki-preview-toggle').textContent = on ? 'edit' : 'preview';
+    if (on) renderPreview();
   });
+  $('wiki-empty-new')?.addEventListener('click', newNote);
   const src = $('wiki-source');
   src?.addEventListener('input', () => {
     renderPreview();
@@ -82,6 +87,7 @@ let _activeTag = null;
 
 async function loadTree() {
   _activeTag = null;
+  _syncEmpty();
   const search = $('wiki-search');
   if (search) search.value = '';
   loadTags();
@@ -200,6 +206,7 @@ async function openFile(path) {
   try {
     const d = await fetch(`/api/vault-md/file?path=${encodeURIComponent(path)}`).then(r => r.json());
     _cur = d.path || path;
+    _syncEmpty();
     $('wiki-source').value = d.content || '';
     $('wiki-current').textContent = _cur.replace(/\.md$/, '');
     renderPreview();
@@ -293,9 +300,9 @@ async function deleteCurrent() {
   if (!await dlgConfirm(`delete ${_cur}?`)) return;
   await fetch(`/api/vault-md/file?path=${encodeURIComponent(_cur)}`, { method: 'DELETE' });
   _cur = null;
+  _syncEmpty();
   $('wiki-source').value = '';
   $('wiki-preview').innerHTML = '';
-  $('wiki-current').textContent = 'no note open';
   $('wiki-backlinks').innerHTML = '';
   loadTree();
 }
