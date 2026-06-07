@@ -1,11 +1,30 @@
 import json
 from fastapi import APIRouter, HTTPException
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, Response
 from pydantic import BaseModel
 
 from services import vault_md
 
 router = APIRouter(prefix="/api/vault-md")
+
+
+@router.get("/export-docx")
+def export_docx(path: str):
+    cur = vault_md.read(path)
+    if not cur.get("exists"):
+        raise HTTPException(404, "note not found")
+    try:
+        from services.docx_export import md_to_docx
+    except Exception:
+        raise HTTPException(500, "python-docx not installed (pip install python-docx)")
+    title = path.split("/")[-1].rsplit(".", 1)[0]
+    data = md_to_docx(cur["content"], title)
+    fname = (title or "note").replace('"', "") + ".docx"
+    return Response(
+        content=data,
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        headers={"content-disposition": f'attachment; filename="{fname}"'},
+    )
 
 
 @router.get("/tree")
