@@ -74,7 +74,7 @@ init();
 // ── views ─────────────────────────────────────────────────────────────────────
 const _VIEW_IDS = [
   'chat', 'notes-view', 'tasks-view', 'calendar-view', 'gallery-view',
-  'models-view', 'brain-view', 'mem-view', 'docs-view', 'compare-view', 'vault-view', 'contacts-view',
+  'models-view', 'brain-view', 'mem-view', 'docs-view', 'wiki-view', 'compare-view', 'vault-view', 'contacts-view',
   'reminders-view',
 ];
 
@@ -108,11 +108,12 @@ const showGalleryView  = () => showView('gallery-view',  'gallery',  () => { loa
 const showMemoryView   = () => showView('mem-view',      'memory',   initMemoryPanel);
 const showDocsView     = () => showView('docs-view',     'docs',     () => { loadDocuments(); initDocEditor(); });
 const showCompareView  = () => showView('compare-view',  'compare',  () => { initCompareView(); loadCompareModels(); });
+const showWikiView     = () => showView('wiki-view',     'wiki',     async () => { (await import('./vaultmd.js')).initVault(); });
 const showVaultView      = () => showView('vault-view',      'vault',     loadVaultView);
 const showContactsView   = () => showView('contacts-view',  'contacts',  () => loadContacts());
 const showRemindersView  = () => showView('reminders-view', 'reminders', initReminderPanel);
 
-const _moreViews = new Set(['models','notes','tasks','docs','memory','brain','calendar','gallery','reminders','compare','vault','contacts']);
+const _moreViews = new Set(['models','notes','tasks','docs','wiki','memory','brain','calendar','gallery','reminders','compare','vault','contacts']);
 
 function setNav(view) {
   document.querySelectorAll('.nav-item').forEach(n => {
@@ -326,6 +327,7 @@ function bindEvents() {
       else if (v === 'gallery')  showGalleryView();
       else if (v === 'memory')   showMemoryView();
       else if (v === 'docs')     showDocsView();
+      else if (v === 'wiki')     showWikiView();
       else if (v === 'compare')  showCompareView();
       else if (v === 'vault')    showVaultView();
       else if (v === 'contacts')  showContactsView();
