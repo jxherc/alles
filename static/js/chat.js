@@ -40,6 +40,7 @@ export async function sendMessage(text) {
   if (!text?.trim() || _streaming) return;
 
   let sessionId = getActiveId();
+  let freshSession = false;
 
   // no active session — create one lazily now (first message)
   if (!sessionId) {
@@ -49,6 +50,7 @@ export async function sendMessage(text) {
     const s = await createSession(model, ep.id, { incognito: isIncognitoMode() });
     if (!s) { toast('failed to create session', 'error'); return; }
     sessionId = s.id;
+    freshSession = true;     // first message ever → auto-name it after the reply
     markActive(sessionId);   // highlight + set active, don't re-render
   }
 
@@ -459,6 +461,14 @@ export async function sendMessage(text) {
 
     setStreaming(false);
     scrollDown();
+
+    // name the chat from its first message (async; updates the sidebar when ready)
+    if (freshSession && !isIncognitoMode() && cleanText) {
+      fetch(`/api/sessions/${sessionId}/auto-name`, { method: 'POST' })
+        .then(r => r.ok ? r.json() : null)
+        .then(d => { if (d?.name) updateSessionName(sessionId, d.name); })
+        .catch(() => {});
+    }
   }
 
   function ensureAgentPanel() {

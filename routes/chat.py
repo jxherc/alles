@@ -269,9 +269,8 @@ async def _stream_and_save(
         s.last_message_at = datetime.utcnow()
         db.commit()
 
-        # auto-name after 3rd message
-        if s.message_count == 3:
-            asyncio.create_task(_auto_name(session_id, user_text, ep, model))
+        # (auto-naming is now driven by the frontend after the first reply so the
+        #  sidebar updates immediately — see chat.js)
 
         # fire webhook
         asyncio.create_task(_fire_message_hook(session_id, user_text, full_text))
