@@ -12,7 +12,6 @@ import { initSlash, tryExecuteSlashCommand } from './slash.js';
 import { attachFile, initDropZone } from './uploads.js';
 import { loadProjects } from './projects.js';
 import { openSearch, closeSearch, initSearch } from './search.js';
-import { loadDocuments, newDocument, initDocEditor, closeDocEditor, aiEditDoc } from './documents.js';
 import { initCompareView, loadCompareModels } from './compare.js';
 import { loadVaultView, initVault } from './vault.js';
 import { loadContacts, addContact } from './contacts.js';
@@ -74,7 +73,7 @@ init();
 // ── views ─────────────────────────────────────────────────────────────────────
 const _VIEW_IDS = [
   'chat', 'notes-view', 'tasks-view', 'calendar-view', 'gallery-view',
-  'models-view', 'brain-view', 'mem-view', 'docs-view', 'wiki-view', 'compare-view', 'vault-view', 'contacts-view',
+  'models-view', 'brain-view', 'mem-view', 'wiki-view', 'compare-view', 'vault-view', 'contacts-view',
   'reminders-view',
 ];
 
@@ -106,14 +105,13 @@ const showTasksView    = () => showView('tasks-view',    'tasks',    loadTasks);
 const showCalendarView = () => showView('calendar-view', 'calendar', loadCalendar);
 const showGalleryView  = () => showView('gallery-view',  'gallery',  () => { loadGallery(); initGalleryUpload(); });
 const showMemoryView   = () => showView('mem-view',      'memory',   initMemoryPanel);
-const showDocsView     = () => showView('docs-view',     'docs',     () => { loadDocuments(); initDocEditor(); });
 const showCompareView  = () => showView('compare-view',  'compare',  () => { initCompareView(); loadCompareModels(); });
 const showWikiView     = () => showView('wiki-view',     'wiki',     async () => { (await import('./vaultmd.js')).initVault(); });
 const showVaultView      = () => showView('vault-view',      'vault',     loadVaultView);
 const showContactsView   = () => showView('contacts-view',  'contacts',  () => loadContacts());
 const showRemindersView  = () => showView('reminders-view', 'reminders', initReminderPanel);
 
-const _moreViews = new Set(['models','notes','tasks','docs','wiki','memory','brain','calendar','gallery','reminders','compare','vault','contacts']);
+const _moreViews = new Set(['models','notes','tasks','wiki','memory','brain','calendar','gallery','reminders','compare','vault','contacts']);
 
 function setNav(view) {
   document.querySelectorAll('.nav-item').forEach(n => {
@@ -301,14 +299,6 @@ function bindEvents() {
   // incognito
   setIncognitoMode(false);
 
-  // docs
-  document.getElementById('doc-ai-send')?.addEventListener('click', async () => {
-    const inp = document.getElementById('doc-ai-input');
-    if (!inp?.value.trim()) return;
-    await aiEditDoc(inp.value.trim()); inp.value = '';
-  });
-  document.getElementById('doc-back-btn')?.addEventListener('click', closeDocEditor);
-  document.getElementById('doc-new-btn')?.addEventListener('click', newDocument);
 
   // contacts
   document.getElementById('contacts-search')?.addEventListener('input', e => loadContacts(e.target.value));
@@ -326,7 +316,6 @@ function bindEvents() {
       else if (v === 'calendar') showCalendarView();
       else if (v === 'gallery')  showGalleryView();
       else if (v === 'memory')   showMemoryView();
-      else if (v === 'docs')     showDocsView();
       else if (v === 'wiki')     showWikiView();
       else if (v === 'compare')  showCompareView();
       else if (v === 'vault')    showVaultView();

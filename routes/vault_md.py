@@ -1,4 +1,6 @@
+import json
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from services import vault_md
@@ -79,3 +81,48 @@ def backlinks(name: str):
 @router.get("/names")
 def names():
     return {"names": vault_md.note_names()}
+
+
+class AiEditBody(BaseModel):
+    path: str
+    instruction: str
+
+
+@router.post("/ai-edit")
+async def ai_edit(body: AiEditBody):
+    from core.database import SessionLocal, ModelEndpoint
+    from services.llm import stream_chat
+    cur = vault_md.read(body.path)
+    if not cur.get("exists"):
+        raise HTTPException(404, "note not found")
+    db = SessionLocal()
+    try:
+        ep = db.query(ModelEndpoint).filter(ModelEndpoint.enabled == True).first()
+    finally:
+        db.close()
+    if not ep:
+        raise HTTPException(400, "no endpoint configured")
+    model = ep.models_list()[0] if ep.models_list() else ""
+    if not model:
+        raise HTTPException(400, "no model available")
+
+    msgs = [
+        {"role": "system", "content": "You are a markdown note editor. Rewrite the note per the instruction. Keep any [[wikilinks]] intact unless asked to change them. Return ONLY the new note content — no commentary, no code fences."},
+        {"role": "user", "content": f"Instruction: {body.instruction}\n\nNote:\n{cur['content']}"},
+    ]
+
+    async def _gen():
+        acc = []
+        async for chunk in stream_chat(msgs, ep.base_url, ep.api_key, model):
+            if "delta" in chunk:
+                acc.append(chunk["delta"])
+                yield f"data: {json.dumps({'delta': chunk['delta']})}\n\n"
+            elif "error" in chunk:
+                yield f"data: {json.dumps(chunk)}\n\n"
+        full = "".join(acc).strip()
+        if full:
+            vault_md.write(body.path, full)   # persist the rewrite
+        yield "data: [DONE]\n\n"
+
+    return StreamingResponse(_gen(), media_type="text/event-stream",
+                             headers={"cache-control": "no-cache", "x-accel-buffering": "no"})
