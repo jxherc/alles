@@ -234,8 +234,12 @@
           <button class="btn" id="wiki-export-btn" style="font-size:0.72rem">export .docx</button>
           <button class="btn" id="wiki-delete-btn" style="font-size:0.72rem">delete</button>
         </div>
+        <div class="wiki-empty-state" id="wiki-empty-state">
+          <div>no note open</div>
+          <button class="btn primary" id="wiki-empty-new">+ new note</button>
+        </div>
         <div class="wiki-editor">
-          <textarea class="wiki-source" id="wiki-source" spellcheck="false" placeholder="# start writing&#10;&#10;link notes with [[double brackets]]"></textarea>
+          <textarea class="wiki-source" id="wiki-source" spellcheck="false" placeholder="start writing… link notes with [[double brackets]]"></textarea>
           <div class="wiki-preview" id="wiki-preview"></div>
         </div>
         <div class="wiki-backlinks" id="wiki-backlinks"></div>
