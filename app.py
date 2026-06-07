@@ -42,6 +42,7 @@ from routes import (
     agent as agent_routes,
     connections as connection_routes,
     local_models as local_model_routes,
+    vault_md as vault_md_routes,
 )
 from routes import reminders as reminder_routes, templates as template_routes, shared as shared_routes
 
@@ -294,6 +295,7 @@ app.include_router(backup_routes.router)
 app.include_router(agent_routes.router)
 app.include_router(connection_routes.router)
 app.include_router(local_model_routes.router)
+app.include_router(vault_md_routes.router)
 app.include_router(reminder_routes.router)
 app.include_router(template_routes.router)
 app.include_router(shared_routes.router)
