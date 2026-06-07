@@ -102,6 +102,38 @@ def names():
     return {"names": vault_md.note_names()}
 
 
+@router.get("/grep")
+def grep(q: str = ""):
+    return {"results": vault_md.full_text_search(q)}
+
+
+@router.get("/tags")
+def tags():
+    return {"tags": vault_md.all_tags()}
+
+
+@router.get("/tag")
+def by_tag(tag: str):
+    return {"notes": vault_md.notes_with_tag(tag)}
+
+
+@router.get("/graph")
+def graph():
+    return vault_md.graph()
+
+
+class FolderBody(BaseModel):
+    path: str
+
+
+@router.post("/folder")
+def make_folder(body: FolderBody):
+    try:
+        return vault_md.create_folder(body.path)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
 class AiEditBody(BaseModel):
     path: str
     instruction: str
