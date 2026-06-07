@@ -28,7 +28,41 @@ export function initVault() {
     const a = e.target.closest('.wikilink');
     if (a) { e.preventDefault(); openByName(a.dataset.note); }
   });
+  $('wiki-ai-send')?.addEventListener('click', aiEdit);
+  $('wiki-ai-input')?.addEventListener('keydown', e => { if (e.key === 'Enter') aiEdit(); });
   loadTree();
+}
+
+async function aiEdit() {
+  if (!_cur) { toast('open a note first', 'error'); return; }
+  const inp = $('wiki-ai-input');
+  const instruction = inp.value.trim();
+  if (!instruction) return;
+  inp.value = '';
+  const src = $('wiki-source');
+  src.value = '';
+  $('wiki-save-status').textContent = 'ai editing…';
+  try {
+    const r = await fetch('/api/vault-md/ai-edit', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ path: _cur, instruction }),
+    });
+    if (!r.ok) { toast('ai edit failed', 'error'); $('wiki-save-status').textContent = ''; return; }
+    const reader = r.body.getReader(); const dec = new TextDecoder(); let buf = '';
+    while (true) {
+      const { done, value } = await reader.read(); if (done) break;
+      buf += dec.decode(value, { stream: true });
+      const lines = buf.split('\n'); buf = lines.pop();
+      for (const line of lines) {
+        if (!line.startsWith('data:')) continue;
+        const raw = line.slice(5).trim();
+        if (raw === '[DONE]') continue;
+        try { const c = JSON.parse(raw); if (c.delta) { src.value += c.delta; renderPreview(); } } catch {}
+      }
+    }
+    $('wiki-save-status').textContent = 'saved';   // backend persisted it
+    loadBacklinks();
+  } catch { toast('ai edit failed', 'error'); $('wiki-save-status').textContent = ''; }
 }
 
 async function loadTree() {

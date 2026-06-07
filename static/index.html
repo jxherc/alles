@@ -41,7 +41,6 @@
         <div class="nav-item" data-view="models">models</div>
         <div class="nav-item" data-view="notes">notes</div>
         <div class="nav-item" data-view="tasks">tasks</div>
-        <div class="nav-item" data-view="docs">docs</div>
         <div class="nav-item" data-view="wiki">vault</div>
         <div class="nav-item" data-view="memory">memory</div>
         <div class="nav-item" data-view="brain">brain</div>
@@ -208,36 +207,6 @@
       </div>
     </div>
 
-    <!-- ── docs view ── -->
-    <div class="page-view" id="docs-view" style="display:none">
-      <div id="doc-list-panel" style="display:flex;flex-direction:column;height:100%">
-        <div class="page-view-head">
-          <span class="page-view-title">docs</span>
-          <button class="btn primary" id="doc-new-btn">+ new</button>
-        </div>
-        <div style="padding:0.4rem 0.75rem 0;flex-shrink:0">
-          <input type="text" id="doc-filter-input" class="settings-input" placeholder="filter docs..." style="width:100%">
-        </div>
-        <div class="page-view-body" id="doc-list"></div>
-      </div>
-      <div id="doc-editor-panel" style="display:none;flex-direction:column;height:100%;flex:1">
-        <div class="page-view-head" style="gap:0.4rem">
-          <button class="btn" id="doc-back-btn">← back</button>
-          <input type="text" id="doc-title-input" class="settings-input" placeholder="title" style="flex:1">
-          <span id="doc-word-count" style="font-size:0.68rem;color:var(--muted);flex-shrink:0"></span>
-          <span id="doc-save-status" style="font-size:0.68rem;color:var(--muted);flex-shrink:0"></span>
-          <button class="btn" id="doc-preview-toggle" style="flex-shrink:0;font-size:0.72rem">preview</button>
-        </div>
-        <div class="doc-editor">
-          <textarea class="doc-source" id="doc-editor-area"></textarea>
-          <div class="doc-preview" id="doc-preview-area"></div>
-        </div>
-        <div class="doc-ai-bar">
-          <input type="text" id="doc-ai-input" placeholder="tell the AI what to change (e.g. 'rewrite the intro', 'add a summary')...">
-          <button class="btn primary" id="doc-ai-send">ask</button>
-        </div>
-      </div>
-    </div>
 
     <!-- ── vault: obsidian-style markdown notes on disk ── -->
     <div class="page-view" id="wiki-view" style="display:none">
@@ -260,6 +229,10 @@
           <div class="wiki-preview" id="wiki-preview"></div>
         </div>
         <div class="wiki-backlinks" id="wiki-backlinks"></div>
+        <div class="doc-ai-bar">
+          <input type="text" id="wiki-ai-input" placeholder="tell the AI what to change (e.g. 'summarize', 'fix grammar', 'expand the intro')...">
+          <button class="btn primary" id="wiki-ai-send">ask</button>
+        </div>
       </div>
       <div id="wiki-autocomplete" class="wiki-autocomplete" style="display:none"></div>
     </div>
@@ -751,7 +724,7 @@
               <div class="s-toggle-row"><div><div class="s-toggle-label">calendar</div></div><div class="s-switch s-vis-toggle" data-vis=".nav-item[data-view='calendar']" data-vis-key="nav-calendar"></div></div>
               <div class="s-toggle-row"><div><div class="s-toggle-label">gallery</div></div><div class="s-switch s-vis-toggle" data-vis=".nav-item[data-view='gallery']" data-vis-key="nav-gallery"></div></div>
               <div class="s-toggle-row"><div><div class="s-toggle-label">memory</div></div><div class="s-switch s-vis-toggle" data-vis=".nav-item[data-view='memory']" data-vis-key="nav-memory"></div></div>
-              <div class="s-toggle-row"><div><div class="s-toggle-label">docs</div></div><div class="s-switch s-vis-toggle" data-vis=".nav-item[data-view='docs']" data-vis-key="nav-docs"></div></div>
+              <div class="s-toggle-row"><div><div class="s-toggle-label">vault</div></div><div class="s-switch s-vis-toggle" data-vis=".nav-item[data-view='wiki']" data-vis-key="nav-wiki"></div></div>
               <div class="s-toggle-row"><div><div class="s-toggle-label">compare</div></div><div class="s-switch s-vis-toggle" data-vis=".nav-item[data-view='compare']" data-vis-key="nav-compare"></div></div>
               <div class="s-toggle-row"><div><div class="s-toggle-label">vault</div></div><div class="s-switch s-vis-toggle" data-vis=".nav-item[data-view='vault']" data-vis-key="nav-vault"></div></div>
               <div class="s-toggle-row"><div><div class="s-toggle-label">contacts</div></div><div class="s-switch s-vis-toggle" data-vis=".nav-item[data-view='contacts']" data-vis-key="nav-contacts"></div></div>
