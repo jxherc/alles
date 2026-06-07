@@ -15,6 +15,18 @@ export function initVault() {
   $('wiki-new-btn')?.addEventListener('click', newNote);
   $('wiki-delete-btn')?.addEventListener('click', deleteCurrent);
   $('wiki-export-btn')?.addEventListener('click', exportDocx);
+  $('wiki-folder-btn')?.addEventListener('click', newFolder);
+  $('wiki-graph-btn')?.addEventListener('click', openGraph);
+  $('wiki-graph-close')?.addEventListener('click', () => { $('wiki-graph').style.display = 'none'; });
+  let _searchT = 0;
+  $('wiki-search')?.addEventListener('input', e => {
+    clearTimeout(_searchT);
+    _searchT = setTimeout(() => doSearch(e.target.value.trim()), 160);
+  });
+  $('wiki-preview')?.addEventListener('click', e => {
+    const tag = e.target.closest('.md-tag');
+    if (tag) { filterByTag(tag.dataset.tag); }
+  });
   $('wiki-preview-toggle')?.addEventListener('click', () => {
     $('wiki-view').classList.toggle('preview-only');
   });
@@ -66,7 +78,13 @@ async function aiEdit() {
   } catch { toast('ai edit failed', 'error'); $('wiki-save-status').textContent = ''; }
 }
 
+let _activeTag = null;
+
 async function loadTree() {
+  _activeTag = null;
+  const search = $('wiki-search');
+  if (search) search.value = '';
+  loadTags();
   const el = $('wiki-tree');
   if (!el) return;
   try {
@@ -75,6 +93,96 @@ async function loadTree() {
     el.querySelectorAll('.wiki-file').forEach(f =>
       f.addEventListener('click', () => openFile(f.dataset.path)));
   } catch { el.innerHTML = '<div class="wiki-empty">failed to load</div>'; }
+}
+
+async function loadTags() {
+  const el = $('wiki-tags');
+  if (!el) return;
+  try {
+    const d = await fetch('/api/vault-md/tags').then(r => r.json());
+    el.innerHTML = (d.tags || []).map(t =>
+      `<span class="wiki-tag${t.tag === _activeTag ? ' active' : ''}" data-tag="${esc(t.tag)}">#${esc(t.tag)} <em>${t.count}</em></span>`).join('');
+    el.querySelectorAll('.wiki-tag').forEach(t =>
+      t.addEventListener('click', () => filterByTag(t.dataset.tag)));
+  } catch {}
+}
+
+async function filterByTag(tag) {
+  if (_activeTag === tag) { loadTree(); return; }   // toggle off
+  _activeTag = tag;
+  loadTags();
+  const el = $('wiki-tree');
+  try {
+    const d = await fetch(`/api/vault-md/tag?tag=${encodeURIComponent(tag)}`).then(r => r.json());
+    el.innerHTML = `<div class="wiki-filter-note">#${esc(tag)} · ${d.notes.length}</div>`
+      + d.notes.map(n => `<div class="wiki-file" data-path="${esc(n.path)}">${esc(n.name)}</div>`).join('');
+    el.querySelectorAll('.wiki-file').forEach(f => f.addEventListener('click', () => openFile(f.dataset.path)));
+  } catch {}
+}
+
+async function doSearch(q) {
+  if (!q) { loadTree(); return; }
+  const el = $('wiki-tree');
+  try {
+    const d = await fetch(`/api/vault-md/grep?q=${encodeURIComponent(q)}`).then(r => r.json());
+    if (!d.results.length) { el.innerHTML = '<div class="wiki-empty">no matches</div>'; return; }
+    el.innerHTML = d.results.map(r =>
+      `<div class="wiki-file wiki-search-hit" data-path="${esc(r.path)}"><div>${esc(r.name)}</div>${r.context ? `<span>${esc(r.context)}</span>` : ''}</div>`).join('');
+    el.querySelectorAll('.wiki-file').forEach(f => f.addEventListener('click', () => openFile(f.dataset.path)));
+  } catch { el.innerHTML = '<div class="wiki-empty">search failed</div>'; }
+}
+
+async function newFolder() {
+  const name = await dlgPrompt('folder name:');
+  if (!name?.trim()) return;
+  await fetch('/api/vault-md/folder', {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ path: name.trim() }),
+  });
+  loadTree();
+}
+
+// ── graph view ────────────────────────────────────────────────────────────
+async function openGraph() {
+  const box = $('wiki-graph');
+  box.style.display = 'flex';
+  try {
+    const data = await fetch('/api/vault-md/graph').then(r => r.json());
+    renderGraph(data);
+  } catch { toast('graph failed', 'error'); }
+}
+
+function renderGraph(data) {
+  const svg = $('wiki-graph-svg');
+  const W = svg.clientWidth || 700, H = svg.clientHeight || 520;
+  const nodes = data.nodes.map(n => ({ ...n, x: W / 2 + (Math.random() - 0.5) * 200, y: H / 2 + (Math.random() - 0.5) * 200, vx: 0, vy: 0 }));
+  const idx = {}; nodes.forEach(n => idx[n.id] = n);
+  const edges = data.edges.filter(e => idx[e.source] && idx[e.target]);
+  // tiny force sim
+  for (let it = 0; it < 140; it++) {
+    for (let i = 0; i < nodes.length; i++) for (let j = i + 1; j < nodes.length; j++) {
+      const a = nodes[i], b = nodes[j]; let dx = a.x - b.x, dy = a.y - b.y; const d = Math.hypot(dx, dy) || 1;
+      const f = 2600 / (d * d); dx /= d; dy /= d; a.vx += dx * f; a.vy += dy * f; b.vx -= dx * f; b.vy -= dy * f;
+    }
+    for (const e of edges) {
+      const a = idx[e.source], b = idx[e.target]; let dx = b.x - a.x, dy = b.y - a.y; const d = Math.hypot(dx, dy) || 1;
+      const f = (d - 90) * 0.012; dx /= d; dy /= d; a.vx += dx * f; a.vy += dy * f; b.vx -= dx * f; b.vy -= dy * f;
+    }
+    for (const n of nodes) {
+      n.vx += (W / 2 - n.x) * 0.003; n.vy += (H / 2 - n.y) * 0.003;
+      n.x += n.vx * 0.82; n.y += n.vy * 0.82; n.vx *= 0.82; n.vy *= 0.82;
+      n.x = Math.max(24, Math.min(W - 24, n.x)); n.y = Math.max(24, Math.min(H - 24, n.y));
+    }
+  }
+  let html = '';
+  for (const e of edges) html += `<line x1="${idx[e.source].x.toFixed(1)}" y1="${idx[e.source].y.toFixed(1)}" x2="${idx[e.target].x.toFixed(1)}" y2="${idx[e.target].y.toFixed(1)}" class="wg-edge"/>`;
+  for (const n of nodes) {
+    const r = 4 + Math.min(11, n.degree * 1.6);
+    html += `<g class="wg-node" data-path="${esc(n.path)}"><circle cx="${n.x.toFixed(1)}" cy="${n.y.toFixed(1)}" r="${r}"/><text x="${n.x.toFixed(1)}" y="${(n.y - r - 4).toFixed(1)}">${esc(n.id)}</text></g>`;
+  }
+  svg.innerHTML = html;
+  svg.querySelectorAll('.wg-node').forEach(g =>
+    g.addEventListener('click', () => { $('wiki-graph').style.display = 'none'; openFile(g.dataset.path); }));
 }
 
 function renderItems(items, depth) {
@@ -119,6 +227,9 @@ function renderPreview() {
   // [[note]] and [[note|alias]] -> clickable links
   html = html.replace(/\[\[([^\]|#]+)(?:#[^\]|]*)?(?:\|([^\]]+))?\]\]/g,
     (_, name, alias) => `<a class="wikilink" data-note="${esc(name.trim())}">${esc((alias || name).trim())}</a>`);
+  // #tags -> clickable (not markdown headings, which have a space after #)
+  html = html.replace(/(^|[\s(])#([A-Za-z0-9][A-Za-z0-9_/\-]*)/g,
+    (_, pre, tag) => `${pre}<span class="md-tag" data-tag="${esc(tag)}">#${esc(tag)}</span>`);
   $('wiki-preview').innerHTML = html;
 }
 
