@@ -25,7 +25,8 @@ _defaults = {
     "agent_subagents": True,            # allow spawn_agent delegation
     "auto_compact": True,
     "compact_threshold": 30,
-    "stt_provider": "browser",    # whisper_api | browser
+    "stt_provider": "browser",    # browser | local | whisper_api
+    "stt_model": "base",          # faster-whisper size for local: tiny|base|small|medium|large-v3
     "tts_provider": "browser",    # openai | browser
     "tts_voice": "alloy",
     "openai_api_key": "",         # for TTS/STT
