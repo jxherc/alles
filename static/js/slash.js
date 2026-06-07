@@ -25,9 +25,10 @@ const BUILTINS = [
   { name: 'todo',      cat: 'tasks',    help: 'add a task',              args: '<task>' },
   { name: 'note',      cat: 'notes',    help: 'create a note',           args: '<text>' },
   // navigate (aide-only)
-  { name: 'vault',     cat: 'navigate', help: 'open vault' },
+  { name: 'vault',     cat: 'navigate', help: 'open the notes vault' },
+  { name: 'secrets',   cat: 'navigate', help: 'open the secrets vault' },
   { name: 'compare',   cat: 'navigate', help: 'open model compare' },
-  { name: 'docs',      cat: 'navigate', help: 'open document editor' },
+  { name: 'docs',      cat: 'navigate', help: 'open the vault (notes)' },
   { name: 'contacts',  cat: 'navigate', help: 'open contacts' },
   { name: 'search',    cat: 'navigate', help: 'open search',             args: '[query]' },
   // system
@@ -418,7 +419,7 @@ export async function tryExecuteSlashCommand(text) {
       return true;
     }
 
-    case 'vault':
+    case 'secrets':
       document.querySelector('.nav-item[data-view="vault"]')?.click();
       return true;
 
@@ -427,7 +428,8 @@ export async function tryExecuteSlashCommand(text) {
       return true;
 
     case 'docs':
-      document.querySelector('.nav-item[data-view="docs"]')?.click();
+    case 'vault':
+      document.querySelector('.nav-item[data-view="wiki"]')?.click();
       return true;
 
     case 'contacts':
