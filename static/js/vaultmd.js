@@ -202,6 +202,12 @@ function renderItems(items, depth) {
   }).join('');
 }
 
+// open a note by path from outside the vault view (global search) — wires up if needed
+export function openNote(path) {
+  if (!_inited) initVault();
+  return openFile(path);
+}
+
 async function openFile(path) {
   try {
     const d = await fetch(`/api/vault-md/file?path=${encodeURIComponent(path)}`).then(r => r.json());
