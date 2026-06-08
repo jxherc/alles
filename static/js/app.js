@@ -15,6 +15,7 @@ import { openSearch, closeSearch, initSearch } from './search.js';
 import { initCompareView, loadCompareModels } from './compare.js';
 import { loadVaultView, initVault } from './vault.js';
 import { loadContacts, addContact } from './contacts.js';
+import { loadFiles, initFiles } from './files.js';
 import { loadBrainPanel } from './brain.js';
 import { openSettings, closeSettings, applyVis } from './settings.js';
 import { toggleIncognitoMode, setIncognitoMode, getPermMode, setPermMode, permLabel, getEffort, setEffort } from './modes.js';
@@ -76,7 +77,7 @@ init();
 const _VIEW_IDS = [
   'home-view', 'chat', 'notes-view', 'tasks-view', 'calendar-view', 'gallery-view',
   'models-view', 'brain-view', 'mem-view', 'wiki-view', 'compare-view', 'vault-view', 'contacts-view',
-  'reminders-view',
+  'reminders-view', 'files-view',
 ];
 
 function hideAllViews() {
@@ -112,6 +113,7 @@ const showWikiView     = () => showView('wiki-view',     'wiki',     async () =>
 const showVaultView      = () => showView('vault-view',      'vault',     loadVaultView);
 const showContactsView   = () => showView('contacts-view',  'contacts',  () => loadContacts());
 const showRemindersView  = () => showView('reminders-view', 'reminders', initReminderPanel);
+const showFilesView      = () => showView('files-view',     'files',     () => { initFiles(); loadFiles(); });
 const showHomeView       = () => showView('home-view',      'home',      renderHome);
 
 // central nav dispatch — used by both the sidebar nav-items and the home tiles
@@ -130,6 +132,7 @@ function navigateTo(v) {
   else if (v === 'vault')     showVaultView();
   else if (v === 'contacts')  showContactsView();
   else if (v === 'reminders') showRemindersView();
+  else if (v === 'files')     showFilesView();
   else if (v === 'settings')  openSettings();
 }
 
@@ -162,8 +165,8 @@ const HOME_TILES = [
   { view: 'reminders', name: 'reminders', desc: 'scheduled nudges',           icon: 'reminders' },
   { view: 'gallery',   name: 'gallery',   desc: 'image library',              icon: 'gallery' },
   { view: 'compare',   name: 'compare',   desc: 'models side by side',        icon: 'compare' },
+  { view: 'files',     name: 'files',     desc: 'browse your files',          icon: 'files' },
   { coming: true,      name: 'mail',      desc: 'coming soon',                icon: 'mail' },
-  { coming: true,      name: 'files',     desc: 'coming soon',                icon: 'files' },
   { coming: true,      name: 'photos',    desc: 'coming soon',                icon: 'photos' },
 ];
 
@@ -182,7 +185,7 @@ function renderHome() {
   _homeRendered = true;
 }
 
-const _moreViews = new Set(['models','notes','tasks','wiki','memory','brain','calendar','gallery','reminders','compare','vault','contacts']);
+const _moreViews = new Set(['models','notes','tasks','wiki','memory','brain','calendar','gallery','reminders','compare','vault','contacts','files']);
 
 function setNav(view) {
   document.querySelectorAll('.nav-item').forEach(n => {

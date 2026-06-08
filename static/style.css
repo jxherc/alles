@@ -1510,6 +1510,55 @@ code {
 .home-tile-star { color: var(--muted); font-size: 0.7rem; }
 .home-tile-desc { font-size: 0.7rem; color: var(--muted); line-height: 1.35; }
 
+/* ── files ── */
+.files-actions { display: flex; gap: 0.4rem; }
+.files-breadcrumb {
+  max-width: 760px; width: 100%; margin: 0 auto;
+  padding: 0.1rem 1.5rem 0.6rem;
+  display: flex; align-items: center; gap: 0.25rem; flex-wrap: wrap;
+  font-size: 0.75rem; color: var(--muted); flex-shrink: 0;
+}
+.crumb { cursor: pointer; }
+.crumb:hover { color: var(--text); }
+.crumb-sep { color: var(--faint); }
+.files-list { display: flex; flex-direction: column; }
+.file-row {
+  display: flex; align-items: center; gap: 0.6rem;
+  padding: 0.42rem 0.5rem; border-bottom: 1px solid var(--faint);
+  transition: background 0.15s ease;
+}
+.file-row:hover { background: var(--panel); }
+.file-icon { color: var(--muted); display: flex; cursor: pointer; flex-shrink: 0; }
+.file-icon svg { width: 17px; height: 17px; }
+.file-name {
+  flex: 1; font-size: 0.82rem; color: var(--text); cursor: pointer;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.file-meta { font-size: 0.68rem; color: var(--muted); white-space: nowrap; }
+.file-row-actions { display: flex; gap: 0.35rem; opacity: 0; transition: opacity 0.15s ease; }
+.file-row:hover .file-row-actions { opacity: 1; }
+.file-act {
+  background: none; border: none; color: var(--muted); cursor: pointer;
+  font-size: 0.8rem; text-decoration: none; padding: 0 0.15rem; line-height: 1;
+  transition: color 0.15s ease;
+}
+.file-act:hover { color: var(--text); }
+.files-empty { color: var(--muted); font-size: 0.78rem; padding: 1rem 0.5rem; }
+
+.files-preview-card { width: min(720px, 92vw); max-height: 86vh; display: flex; flex-direction: column; }
+.files-preview-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0.6rem 0.9rem; border-bottom: 1px solid var(--faint);
+}
+.files-preview-name { font-size: 0.8rem; color: var(--text); font-family: 'JetBrains Mono', monospace; }
+.files-preview-actions { display: flex; gap: 0.4rem; }
+.files-preview-body { overflow: auto; padding: 0.5rem; }
+.files-preview-pre {
+  font-family: 'JetBrains Mono', monospace; font-size: 0.74rem; color: var(--text);
+  white-space: pre-wrap; word-break: break-word; margin: 0; padding: 0.5rem;
+}
+.files-preview-img { max-width: 100%; height: auto; display: block; margin: 0 auto; }
+
 .sidebar-model-list {
   border: 1px solid var(--faint);
   border-radius: 6px;

@@ -51,6 +51,7 @@
         <div class="nav-item" data-view="compare">compare</div>
         <div class="nav-item" data-view="vault">secrets</div>
         <div class="nav-item" data-view="contacts">contacts</div>
+        <div class="nav-item" data-view="files">files</div>
       </div>
       <div class="nav-sep"></div>
       <div class="nav-item" data-view="settings">settings</div>
@@ -336,6 +337,23 @@
       </div>
     </div>
 
+    <!-- ── files view ── -->
+    <div class="page-view" id="files-view" style="display:none">
+      <div class="page-view-head">
+        <span class="page-view-title">files</span>
+        <div class="files-actions">
+          <button class="btn" id="files-up-btn" title="up one folder">↑ up</button>
+          <button class="btn" id="files-mkdir-btn">+ folder</button>
+          <button class="btn" id="files-upload-btn">upload</button>
+          <input type="file" id="files-upload-input" multiple hidden>
+        </div>
+      </div>
+      <div class="files-breadcrumb" id="files-breadcrumb"></div>
+      <div class="page-view-body">
+        <div class="files-list" id="files-list"></div>
+      </div>
+    </div>
+
     <!-- ── composer (hidden in memory view) ── -->
     <div class="composer-outer" id="composer-outer">
       <div id="attachment-chips" style="display:none;flex-wrap:wrap;gap:0.3rem;padding:0.3rem 0.75rem 0"></div>
@@ -445,6 +463,20 @@
       <input type="text" id="search-input" placeholder="search everything..." style="width:100%;background:none;border:none;border-bottom:1px solid var(--faint);color:var(--text);font:inherit;font-size:0.9rem;padding:0.4rem 0;outline:none;transition:border-color 0.2s" onfocus="this.style.borderColor='var(--muted)'" onblur="this.style.borderColor='var(--faint)'">
     </div>
     <div class="modal-body" id="search-results" style="max-height:420px;overflow-y:auto"></div>
+  </div>
+</div>
+
+<!-- files preview -->
+<div class="modal-overlay" id="files-preview-modal" style="display:none">
+  <div class="modal-card files-preview-card">
+    <div class="files-preview-head">
+      <span class="files-preview-name" id="files-preview-name"></span>
+      <div class="files-preview-actions">
+        <a class="btn" id="files-preview-dl" href="#" download>download</a>
+        <button class="btn" id="files-preview-close">close</button>
+      </div>
+    </div>
+    <div class="files-preview-body" id="files-preview-body"></div>
   </div>
 </div>
 
