@@ -37,3 +37,24 @@ def verify_session(token: str) -> bool:
 
 def revoke_token(token: str):
     _tokens.pop(token, None)
+
+
+# cross-subdomain SSO: a one-time short-lived code that hands a session to another
+# subdomain (the Domain=localhost cookie won't share to *.localhost, so we relay).
+_handoff: dict[str, tuple[float, str]] = {}   # code → (expiry, token)
+
+
+def make_handoff(token: str, ttl: int = 30) -> str:
+    code = secrets.token_urlsafe(24)
+    _handoff[code] = (time.time() + ttl, token)
+    return code
+
+
+def redeem_handoff(code: str) -> str | None:
+    v = _handoff.pop(code, None)   # single-use
+    if not v:
+        return None
+    exp, token = v
+    if time.time() > exp or not verify_session(token):
+        return None
+    return token
