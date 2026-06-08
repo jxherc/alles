@@ -32,6 +32,17 @@ def tree():
     return vault_md.tree()
 
 
+@router.get("/raw")
+def raw_asset(path: str):
+    """serve an embedded asset (image/pdf/etc.) by path or bare name — for ![[ ]] embeds."""
+    resolved = vault_md.find_asset(path) or path
+    try:
+        data, mime = vault_md.file_bytes(resolved)
+    except ValueError:
+        raise HTTPException(404, "asset not found")
+    return Response(content=data, media_type=mime, headers={"cache-control": "no-cache"})
+
+
 @router.get("/file")
 def read_file(path: str):
     try:

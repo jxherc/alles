@@ -17,6 +17,8 @@ export function initVault() {
   $('wiki-delete-btn')?.addEventListener('click', deleteCurrent);
   $('wiki-export-btn')?.addEventListener('click', exportDocx);
   $('wiki-folder-btn')?.addEventListener('click', newFolder);
+  $('wiki-today-btn')?.addEventListener('click', openDaily);
+  $('wiki-outline-btn')?.addEventListener('click', toggleOutline);
   $('wiki-graph-btn')?.addEventListener('click', openGraph);
   $('wiki-graph-close')?.addEventListener('click', () => { $('wiki-graph').style.display = 'none'; });
   let _searchT = 0;
@@ -96,8 +98,8 @@ async function loadTree() {
   try {
     const t = await fetch('/api/vault-md/tree').then(r => r.json());
     el.innerHTML = t.items.length ? renderItems(t.items, 0) : '<div class="wiki-empty">empty vault — create a note</div>';
-    el.querySelectorAll('.wiki-file').forEach(f =>
-      f.addEventListener('click', () => openFile(f.dataset.path)));
+    el.querySelectorAll('.wiki-file').forEach(f => _wireRow(f, 'file'));
+    el.querySelectorAll('.wiki-dir').forEach(d => _wireRow(d, 'dir'));
   } catch { el.innerHTML = '<div class="wiki-empty">failed to load</div>'; }
 }
 
@@ -191,15 +193,56 @@ function renderGraph(data) {
     g.addEventListener('click', () => { $('wiki-graph').style.display = 'none'; openFile(g.dataset.path); }));
 }
 
+function _rowActs() {
+  return `<span class="wiki-row-acts">`
+    + `<button class="wiki-row-act" data-act="rename" title="rename">✎</button>`
+    + `<button class="wiki-row-act" data-act="delete" title="delete">✕</button></span>`;
+}
+
 function renderItems(items, depth) {
   return items.map(it => {
     const pad = `style="padding-left:${0.4 + depth * 0.7}rem"`;
     if (it.type === 'dir') {
-      return `<div class="wiki-dir" ${pad}>▸ ${esc(it.name)}</div>` + renderItems(it.children || [], depth + 1);
+      return `<div class="wiki-dir" data-path="${esc(it.path)}" ${pad}><span class="wiki-row-label">▸ ${esc(it.name)}</span>${_rowActs()}</div>`
+        + renderItems(it.children || [], depth + 1);
     }
     const active = it.path === _cur ? ' active' : '';
-    return `<div class="wiki-file${active}" data-path="${esc(it.path)}" ${pad}>${esc(it.name)}</div>`;
+    return `<div class="wiki-file${active}" data-path="${esc(it.path)}" ${pad}><span class="wiki-row-label">${esc(it.name)}</span>${_rowActs()}</div>`;
   }).join('');
+}
+
+function _wireRow(row, kind) {
+  row.querySelector('.wiki-row-label')?.addEventListener('click', () => {
+    if (kind === 'file') openFile(row.dataset.path);
+  });
+  row.querySelectorAll('.wiki-row-act').forEach(b => b.addEventListener('click', async e => {
+    e.stopPropagation();
+    const path = row.dataset.path;
+    if (b.dataset.act === 'rename') {
+      const cur = path.split('/').pop().replace(/\.md$/, '');
+      const name = await dlgPrompt(`rename ${kind}:`, cur);
+      if (!name?.trim() || name.trim() === cur) return;
+      const parent = path.includes('/') ? path.slice(0, path.lastIndexOf('/') + 1) : '';
+      await fetch('/api/vault-md/rename', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ path, new_path: parent + name.trim() }),
+      });
+      if (_cur === path) _resetEditor();
+      loadTree();
+    } else {
+      if (!await dlgConfirm(`delete ${kind} "${path}"?`)) return;
+      await fetch(`/api/vault-md/file?path=${encodeURIComponent(path)}`, { method: 'DELETE' });
+      if (_cur && (_cur === path || _cur.startsWith(path + '/'))) _resetEditor();
+      loadTree();
+    }
+  }));
+}
+
+function _resetEditor() {
+  _cur = null; _syncEmpty();
+  $('wiki-source').value = '';
+  $('wiki-preview').innerHTML = '';
+  $('wiki-backlinks').innerHTML = '';
 }
 
 // open a note by path from outside the vault view (global search) — wires up if needed
@@ -234,16 +277,125 @@ async function openByName(name) {
   openFile(name.endsWith('.md') ? name : name + '.md');
 }
 
+const _embedCache = {};
+
 function renderPreview() {
-  const src = $('wiki-source').value;
+  let src = $('wiki-source').value;
+  // frontmatter: leading --- ... --- block → properties panel, stripped from body
+  let fmHtml = '';
+  const fm = src.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?/);
+  if (fm) { fmHtml = renderFrontmatter(fm[1]); src = src.slice(fm[0].length); }
   let html = mdToHtml(src);
+  // ![[embeds]] first (images + note transclusion), before plain wikilinks
+  html = html.replace(/!\[\[([^\]|#]+?)(?:#[^\]|]*)?(?:\|([^\]]+))?\]\]/g,
+    (_, name, alias) => embedHtml(name.trim(), alias));
   // [[note]] and [[note|alias]] -> clickable links
   html = html.replace(/\[\[([^\]|#]+)(?:#[^\]|]*)?(?:\|([^\]]+))?\]\]/g,
     (_, name, alias) => `<a class="wikilink" data-note="${esc(name.trim())}">${esc((alias || name).trim())}</a>`);
   // #tags -> clickable (not markdown headings, which have a space after #)
   html = html.replace(/(^|[\s(])#([A-Za-z0-9][A-Za-z0-9_/\-]*)/g,
     (_, pre, tag) => `${pre}<span class="md-tag" data-tag="${esc(tag)}">#${esc(tag)}</span>`);
-  $('wiki-preview').innerHTML = html;
+  $('wiki-preview').innerHTML = fmHtml + html;
+  fillEmbeds();
+  if ($('wiki-outline') && $('wiki-outline').style.display !== 'none') updateOutline();
+}
+
+function renderFrontmatter(raw) {
+  const rows = [];
+  for (const line of raw.split('\n')) {
+    const m = line.match(/^([A-Za-z0-9_][\w \-]*):\s*(.*)$/);
+    if (m) rows.push([m[1].trim(), m[2].trim()]);
+  }
+  if (!rows.length) return '';
+  return `<div class="md-frontmatter">` + rows.map(([k, v]) =>
+    `<div class="md-fm-row"><span class="md-fm-key">${esc(k)}</span><span class="md-fm-val">${esc(v || '—')}</span></div>`).join('') + `</div>`;
+}
+
+const _IMG_RE = /\.(png|jpe?g|gif|webp|svg|bmp|ico)$/i;
+
+function embedHtml(name, alias) {
+  if (_IMG_RE.test(name)) {
+    return `<img class="md-embed-img" src="/api/vault-md/raw?path=${encodeURIComponent(name)}" alt="${esc(alias || name)}">`;
+  }
+  const cached = _embedCache[name.toLowerCase()];
+  const body = cached != null ? cached : '<span class="md-embed-loading">…</span>';
+  return `<div class="md-embed" data-embed="${esc(name)}">`
+    + `<div class="md-embed-head wikilink" data-note="${esc(name)}">${esc(name)}</div>`
+    + `<div class="md-embed-body">${body}</div></div>`;
+}
+
+function fillEmbeds() {
+  $('wiki-preview').querySelectorAll('.md-embed[data-embed]').forEach(async el => {
+    const name = el.dataset.embed, key = name.toLowerCase();
+    const body = el.querySelector('.md-embed-body');
+    if (_embedCache[key] != null) { body.innerHTML = _embedCache[key]; return; }
+    let out;
+    try {
+      const res = await fetch(`/api/vault-md/search?q=${encodeURIComponent(name)}`).then(r => r.json());
+      const hit = (res.results || []).find(r => r.name.toLowerCase() === key);
+      if (!hit) out = '<span class="md-embed-loading">note not found</span>';
+      else {
+        const d = await fetch(`/api/vault-md/file?path=${encodeURIComponent(hit.path)}`).then(r => r.json());
+        out = mdToHtml((d.content || '').replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, ''));
+      }
+    } catch { out = '<span class="md-embed-loading">failed to load</span>'; }
+    _embedCache[key] = out;
+    if (body) body.innerHTML = out;
+  });
+}
+
+// ── outline (TOC of headings) ──────────────────────────────────────────────
+function toggleOutline() {
+  const p = $('wiki-outline');
+  if (!p) return;
+  const show = p.style.display === 'none';
+  p.style.display = show ? 'block' : 'none';
+  $('wiki-outline-btn')?.classList.toggle('active', show);
+  if (show) updateOutline();
+}
+
+function updateOutline() {
+  const panel = $('wiki-outline');
+  if (!panel) return;
+  const lines = $('wiki-source').value.split('\n');
+  const heads = [];
+  let inFm = false;
+  lines.forEach((line, i) => {
+    if (i === 0 && line.trim() === '---') { inFm = true; return; }
+    if (inFm) { if (line.trim() === '---') inFm = false; return; }
+    const m = line.match(/^(#{1,6})\s+(.+)$/);
+    if (m) heads.push({ level: m[1].length, text: m[2].trim(), line: i });
+  });
+  if (!heads.length) { panel.innerHTML = '<div class="wiki-outline-empty">no headings</div>'; return; }
+  panel.innerHTML = `<div class="wiki-outline-head">outline</div>` + heads.map(h =>
+    `<div class="wiki-outline-item" data-line="${h.line}" style="padding-left:${(h.level - 1) * 0.7}rem">${esc(h.text)}</div>`).join('');
+  panel.querySelectorAll('.wiki-outline-item').forEach(el =>
+    el.addEventListener('click', () => jumpToLine(+el.dataset.line, el.textContent)));
+}
+
+function jumpToLine(lineNo, text) {
+  const src = $('wiki-source');
+  const before = src.value.split('\n').slice(0, lineNo).join('\n');
+  const pos = before.length + (lineNo ? 1 : 0);
+  src.focus();
+  src.setSelectionRange(pos, pos);
+  const lh = parseInt(getComputedStyle(src).lineHeight) || 20;
+  src.scrollTop = Math.max(0, lineNo * lh - 60);
+  // also nudge the preview if it's showing
+  const pv = $('wiki-preview');
+  const h = [...pv.querySelectorAll('h1,h2,h3,h4,h5,h6')].find(x => x.textContent.trim() === text.trim());
+  if (h) h.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+async function openDaily() {
+  const d = new Date();
+  const name = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  await fetch('/api/vault-md/file', {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ path: name, content: `# ${name}\n\n` }),
+  });
+  await loadTree();
+  openFile(name + '.md');
 }
 
 function queueSave() {
@@ -257,6 +409,7 @@ function queueSave() {
         body: JSON.stringify({ path: _cur, content: $('wiki-source').value }),
       });
       $('wiki-save-status').textContent = 'saved';
+      delete _embedCache[_cur.split('/').pop().replace(/\.md$/, '').toLowerCase()];  // any note embedding this re-fetches
       loadBacklinks();
     } catch { $('wiki-save-status').textContent = 'save failed'; }
   }, 600);
