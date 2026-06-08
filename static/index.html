@@ -21,7 +21,7 @@
   <!-- sidebar -->
   <aside class="sidebar">
     <div class="sidebar-head">
-      <span class="brand">aide</span>
+      <span class="brand" id="brand-home" title="home">aide</span>
       <button class="new-btn" id="new-chat-btn">+ new chat</button>
     </div>
 
@@ -34,7 +34,8 @@
     </div>
 
     <nav class="sidebar-nav">
-      <div class="nav-item active" data-view="chat">chat</div>
+      <div class="nav-item active" data-view="home">home</div>
+      <div class="nav-item" data-view="chat">chat</div>
       <div class="nav-sep"></div>
       <div class="nav-more-toggle" id="nav-more-toggle">tools <span id="nav-more-arrow">▾</span></div>
       <div class="nav-more-items" id="nav-more-items">
@@ -88,6 +89,17 @@
     <div class="conn-banner" id="conn-banner" style="display:none">
       <span class="conn-banner-msg" id="conn-banner-msg"></span>
       <button class="conn-banner-x" id="conn-banner-x" title="dismiss">×</button>
+    </div>
+
+    <!-- ── home / launcher (landing) ── -->
+    <div class="page-view home-view" id="home-view" style="display:none">
+      <div class="home-inner">
+        <div class="home-head">
+          <div class="home-brand">alles</div>
+          <div class="home-tagline">your everything, in one place — with aide as the brain.</div>
+        </div>
+        <div class="home-grid" id="home-grid"></div>
+      </div>
     </div>
 
     <!-- ── chat view (default) ── -->
