@@ -17,6 +17,7 @@ import { loadVaultView, initVault } from './vault.js';
 import { loadContacts, addContact } from './contacts.js';
 import { loadFiles, initFiles } from './files.js';
 import { loadMail } from './mail.js';
+import { loadPhotos, initPhotos } from './photos.js';
 import { setBaseDomain, parseHost, appForSub, viewToSub, urlForApp, currentSub } from './subdomain.js';
 import { loadBrainPanel } from './brain.js';
 import { openSettings, closeSettings, applyVis } from './settings.js';
@@ -129,7 +130,7 @@ init();
 const _VIEW_IDS = [
   'home-view', 'chat', 'notes-view', 'tasks-view', 'calendar-view', 'gallery-view',
   'models-view', 'brain-view', 'mem-view', 'wiki-view', 'compare-view', 'vault-view', 'contacts-view',
-  'reminders-view', 'files-view', 'mail-view',
+  'reminders-view', 'files-view', 'mail-view', 'photos-view',
 ];
 
 function hideAllViews() {
@@ -167,6 +168,7 @@ const showContactsView   = () => showView('contacts-view',  'contacts',  () => l
 const showRemindersView  = () => showView('reminders-view', 'reminders', initReminderPanel);
 const showFilesView      = () => showView('files-view',     'files',     () => { initFiles(); loadFiles(); });
 const showMailView       = () => showView('mail-view',      'mail',      loadMail);
+const showPhotosView     = () => showView('photos-view',    'photos',    () => { initPhotos(); loadPhotos(); });
 const showHomeView       = () => showView('home-view',      'home',      renderHome);
 
 // central nav dispatch — used by both the sidebar nav-items and the home tiles
@@ -192,6 +194,7 @@ function navigateTo(v) {
   else if (v === 'reminders') showRemindersView();
   else if (v === 'files')     showFilesView();
   else if (v === 'mail')      showMailView();
+  else if (v === 'photos')    showPhotosView();
   else if (v === 'settings')  openSettings();
 }
 
@@ -226,7 +229,7 @@ const HOME_TILES = [
   { view: 'compare',   name: 'compare',   desc: 'models side by side',        icon: 'compare' },
   { view: 'files',     name: 'files',     desc: 'browse your files',          icon: 'files' },
   { view: 'mail',      name: 'mail',      desc: 'your inbox',                 icon: 'mail' },
-  { coming: true,      name: 'photos',    desc: 'coming soon',                icon: 'photos' },
+  { view: 'photos',    name: 'photos',    desc: 'your photo library',         icon: 'photos' },
 ];
 
 let _homeRendered = false;
@@ -244,7 +247,7 @@ function renderHome() {
   _homeRendered = true;
 }
 
-const _moreViews = new Set(['models','notes','tasks','wiki','memory','brain','calendar','gallery','reminders','compare','vault','contacts','files','mail']);
+const _moreViews = new Set(['models','notes','tasks','wiki','memory','brain','calendar','gallery','reminders','compare','vault','contacts','files','mail','photos']);
 
 function setNav(view) {
   document.querySelectorAll('.nav-item').forEach(n => {

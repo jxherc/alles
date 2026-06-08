@@ -283,6 +283,29 @@ class MailAccount(Base):
     created_at = Column(DateTime, default=_now)
 
 
+class Album(Base):
+    __tablename__ = "albums"
+    id         = Column(String, primary_key=True, default=_uid)
+    name       = Column(String, nullable=False)
+    cover_id   = Column(String, nullable=True)   # a Photo.id
+    created_at = Column(DateTime, default=_now)
+
+
+class Photo(Base):
+    __tablename__ = "photos"
+    id            = Column(String, primary_key=True, default=_uid)
+    filename      = Column(String, nullable=False)   # stored original: uid.ext
+    thumb         = Column(String, default="")        # uid.jpg in .thumbs
+    original_name = Column(String, default="")
+    album_id      = Column(String, ForeignKey("albums.id", ondelete="SET NULL"), nullable=True)
+    width         = Column(Integer, default=0)
+    height        = Column(Integer, default=0)
+    taken_at      = Column(DateTime, nullable=True)   # EXIF DateTimeOriginal, else file mtime
+    exif          = Column(Text, default="{}")
+    favorite      = Column(Boolean, default=False)
+    created_at    = Column(DateTime, default=_now)    # import time
+
+
 class Reminder(Base):
     __tablename__ = "reminders"
     id         = Column(String, primary_key=True, default=_uid)
