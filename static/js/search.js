@@ -41,62 +41,49 @@ async function _runSearch(q) {
   } catch (e) {}
 }
 
-function _renderResults({ chats = [], notes = [], memories = [] }) {
+function _group(label, items, render) {
+  if (!items.length) return '';
+  return `<div class="search-group-label">${label}</div>` + items.map(render).join('');
+}
+
+function _row(attrs, name, snip) {
+  return `<div class="search-result" ${attrs}>
+      ${name ? `<span class="search-result-name">${_esc(name)}</span>` : ''}
+      ${snip ? `<span class="search-result-snippet">${_esc(snip)}</span>` : ''}
+    </div>`;
+}
+
+function _renderResults(d) {
+  const { chats = [], notes = [], tasks = [], calendar = [], contacts = [], memories = [] } = d || {};
   const container = document.getElementById('search-results');
   if (!container) return;
 
   let html = '';
+  html += _group('chats',    chats,    c => _row(`data-type="chat" data-id="${_esc(c.session_id)}"`, c.session_name, c.snippet));
+  html += _group('notes',    notes,    n => _row(`data-type="note" data-path="${_esc(n.path)}"`, n.name, n.snippet));
+  html += _group('tasks',    tasks,    t => _row(`data-type="nav" data-view="tasks"`, t.title, t.done ? 'done' : ''));
+  html += _group('calendar', calendar, e => _row(`data-type="nav" data-view="calendar"`, e.title, e.when));
+  html += _group('contacts', contacts, c => _row(`data-type="nav" data-view="contacts"`, c.name, c.snippet));
+  html += _group('memories', memories, m => _row(`data-type="nav" data-view="memory"`, m.text, ''));
 
-  if (chats.length) {
-    html += '<div class="search-group-label">chats</div>';
-    html += chats.map(c => `
-      <div class="search-result" data-type="chat" data-id="${c.session_id}">
-        <span class="search-result-name">${_esc(c.session_name)}</span>
-        <span class="search-result-snippet">${_esc(c.snippet)}</span>
-      </div>`).join('');
+  container.innerHTML = html || '<div class="search-empty">no results</div>';
+  container.querySelectorAll('.search-result').forEach(el => el.addEventListener('click', () => _go(el)));
+}
+
+async function _go(el) {
+  closeSearch();
+  const type = el.dataset.type;
+  if (type === 'chat') {
+    document.querySelector('.nav-item[data-view="chat"]')?.click();
+    const { selectSession } = await import('./sessions.js');
+    selectSession(el.dataset.id);
+  } else if (type === 'note') {
+    document.querySelector('.nav-item[data-view="wiki"]')?.click();
+    const { openNote } = await import('./vaultmd.js');
+    openNote(el.dataset.path);
+  } else {
+    document.querySelector(`.nav-item[data-view="${el.dataset.view}"]`)?.click();
   }
-  if (notes.length) {
-    html += '<div class="search-group-label">notes</div>';
-    html += notes.map(n => `
-      <div class="search-result" data-type="note" data-id="${n.id}">
-        <span class="search-result-name">${_esc(n.title)}</span>
-        <span class="search-result-snippet">${_esc(n.snippet)}</span>
-      </div>`).join('');
-  }
-  if (memories.length) {
-    html += '<div class="search-group-label">memories</div>';
-    html += memories.map(m => `
-      <div class="search-result" data-type="memory">
-        <span class="search-result-snippet">${_esc(m.text)}</span>
-      </div>`).join('');
-  }
-
-  if (!html) html = '<div class="search-empty">no results</div>';
-  container.innerHTML = html;
-
-  container.querySelectorAll('.search-result[data-type="chat"]').forEach(el => {
-    el.addEventListener('click', async () => {
-      closeSearch();
-      const { selectSession } = await import('./sessions.js');
-      selectSession(el.dataset.id);
-      // switch to chat view
-      document.querySelector('.nav-item[data-view="chat"]')?.click();
-    });
-  });
-
-  container.querySelectorAll('.search-result[data-type="note"]').forEach(el => {
-    el.addEventListener('click', () => {
-      closeSearch();
-      document.querySelector('.nav-item[data-view="notes"]')?.click();
-    });
-  });
-
-  container.querySelectorAll('.search-result[data-type="memory"]').forEach(el => {
-    el.addEventListener('click', () => {
-      closeSearch();
-      document.querySelector('.nav-item[data-view="memory"]')?.click();
-    });
-  });
 }
 
 function _esc(s = '') {
