@@ -8,9 +8,9 @@ sqlalchemy
 cryptography
 fastembed
 python-docx          # vault .docx export
+pillow               # photos app — thumbnails + EXIF
 # optional — computer use tools (screenshot/click/type). install if you enable it.
 # pyautogui
-# pillow
 # optional — offline voice input (local whisper STT). install if you enable it.
 # faster-whisper
 # optional — calendar CalDAV sync (iCloud/Google). install if you enable it.
