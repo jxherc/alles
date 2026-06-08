@@ -44,6 +44,7 @@ _defaults = {
     "tts_speed": 1.0,
     "tts_auto_play": False,
     "stt_language": "",
+    "base_domain": "localhost",   # apex domain; each app lives on {app}.{base_domain}
 }
 
 _ARTIFACT_INSTRUCTIONS = (
@@ -89,6 +90,10 @@ def auth_enabled() -> bool:
 
 def get_port() -> int:
     return int(os.getenv("PORT", "8000"))
+
+def base_domain() -> str:
+    # env wins so you can point a real domain at it without editing settings.json
+    return os.getenv("BASE_DOMAIN", "") or load_settings().get("base_domain", "localhost")
 
 def deepseek_api_key() -> str:
     return os.getenv("DEEPSEEK_API_KEY", "")

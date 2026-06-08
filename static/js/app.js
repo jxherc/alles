@@ -17,6 +17,7 @@ import { loadVaultView, initVault } from './vault.js';
 import { loadContacts, addContact } from './contacts.js';
 import { loadFiles, initFiles } from './files.js';
 import { loadMail } from './mail.js';
+import { setBaseDomain, parseHost, appForSub, viewToSub, urlForApp, currentSub } from './subdomain.js';
 import { loadBrainPanel } from './brain.js';
 import { openSettings, closeSettings, applyVis } from './settings.js';
 import { toggleIncognitoMode, setIncognitoMode, getPermMode, setPermMode, permLabel, getEffort, setEffort } from './modes.js';
@@ -28,8 +29,18 @@ window._mdToHtml = mdToHtml;
 
 // ── init ──────────────────────────────────────────────────────────────────────
 async function init() {
+  // redeem a cross-subdomain SSO handoff if we arrived with one (?_auth=code)
+  const params = new URLSearchParams(location.search);
+  const code = params.get('_auth');
+  if (code) {
+    await fetch('/api/auth/redeem?code=' + encodeURIComponent(code)).catch(() => {});
+    params.delete('_auth');
+    const q = params.toString();
+    history.replaceState(null, '', location.pathname + (q ? '?' + q : '') + location.hash);
+  }
   try {
     const me = await fetch('/api/auth/me').then(r => r.json());
+    setBaseDomain(me.base_domain);
     if (!me.authenticated) { _showLoginScreen(); return; }
   } catch {}
   await _boot();
@@ -51,8 +62,48 @@ async function _boot() {
   initPrivacyHandlers();
   startReminderPoll();
   bindEvents();
-  // land on the launcher unless we deep-linked straight to a session (#id)
-  if (!location.hash) showHomeView();
+  applySubdomainScope();
+}
+
+// configure the SPA for whichever subdomain we're on: apex = the hub; an app
+// subdomain boots straight into that app with a sidebar scoped to its views.
+function applySubdomainScope() {
+  const { sub } = parseHost();
+  const app = appForSub(sub);
+  const onAide = app.app === 'aide';
+
+  if (sub) document.title = app.app;
+
+  // chats + composer chrome belong to aide only
+  _show('new-chat-btn', onAide);
+  document.querySelector('.search-wrap')?.style.setProperty('display', onAide ? '' : 'none');
+  _show('session-list', onAide);
+
+  // on an app subdomain, hide nav-items that aren't part of this app (settings always stays).
+  // only ever HIDE — never force-show — so the appearance toggles (applyVis) still win.
+  if (sub) {
+    document.querySelectorAll('.nav-item[data-view]').forEach(el => {
+      const v = el.dataset.view;
+      if (v !== 'settings' && !app.views.includes(v)) el.style.display = 'none';
+    });
+  }
+
+  // landing
+  if (!sub) { if (!location.hash) showHomeView(); }
+  else if (!(app.primary === 'chat' && location.hash)) navigateTo(app.primary);
+  // (aide with a #sessionId is already restored by initSessions)
+}
+
+function _show(id, on) { const e = document.getElementById(id); if (e) e.style.display = on ? '' : 'none'; }
+
+// cross-app jump → full-page nav to that app's subdomain, carrying an SSO handoff code
+async function crossNav(sub) {
+  let url = urlForApp(sub);
+  try {
+    const { code } = await fetch('/api/auth/handoff').then(r => r.json());
+    if (code) url += (url.includes('?') ? '&' : '?') + '_auth=' + encodeURIComponent(code);
+  } catch {}
+  location.assign(url);
 }
 
 function _showLoginScreen() {
@@ -120,6 +171,11 @@ const showHomeView       = () => showView('home-view',      'home',      renderH
 
 // central nav dispatch — used by both the sidebar nav-items and the home tiles
 function navigateTo(v) {
+  // a view that lives on another subdomain → full-page jump (with SSO handoff)
+  if (v !== 'settings') {
+    const dest = viewToSub(v);
+    if (dest !== currentSub()) { crossNav(dest); return; }
+  }
   if      (v === 'home')      showHomeView();
   else if (v === 'chat')      showChatView();
   else if (v === 'models')    showModelsView();
@@ -386,7 +442,10 @@ function bindEvents() {
   document.querySelectorAll('.nav-item').forEach(el => {
     el.addEventListener('click', () => navigateTo(el.dataset.view));
   });
-  document.getElementById('brand-home')?.addEventListener('click', showHomeView);
+  document.getElementById('brand-home')?.addEventListener('click', () => {
+    if (currentSub()) crossNav('');   // on an app subdomain → back to the hub (with SSO handoff)
+    else showHomeView();
+  });
 
   // modal overlays close on backdrop click (except settings which manages itself)
   document.querySelectorAll('.modal-overlay:not(#settings-modal)').forEach(o => {
