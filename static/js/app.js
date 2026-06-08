@@ -18,7 +18,7 @@ import { loadContacts, addContact } from './contacts.js';
 import { loadFiles, initFiles } from './files.js';
 import { loadMail } from './mail.js';
 import { loadPhotos, initPhotos } from './photos.js';
-import { setBaseDomain, parseHost, appForSub, viewToSub, urlForApp, currentSub } from './subdomain.js';
+import { setBaseDomain, parseHost, appForSub, viewToSub, urlForApp, currentSub, SUBDOMAIN_VIEWS } from './subdomain.js';
 import { loadBrainPanel } from './brain.js';
 import { openSettings, closeSettings, applyVis } from './settings.js';
 import { toggleIncognitoMode, setIncognitoMode, getPermMode, setPermMode, permLabel, getEffort, setEffort } from './modes.js';
@@ -29,22 +29,69 @@ import { startReminderPoll, initReminderPanel, loadReminders } from './reminders
 window._mdToHtml = mdToHtml;
 
 // ── init ──────────────────────────────────────────────────────────────────────
+// single sign-on: log in once at alles and every app subdomain unlocks. cookies
+// can't be shared across *.localhost, so an unauthed app silently bounces through
+// the apex (which holds the session) to mint its own — even on a direct visit.
+let _pendingSso = null;
+
 async function init() {
-  // redeem a cross-subdomain SSO handoff if we arrived with one (?_auth=code)
   const params = new URLSearchParams(location.search);
+  // 1. redeem a handoff code if an app/the apex sent us one
   const code = params.get('_auth');
   if (code) {
     await fetch('/api/auth/redeem?code=' + encodeURIComponent(code)).catch(() => {});
-    params.delete('_auth');
-    const q = params.toString();
-    history.replaceState(null, '', location.pathname + (q ? '?' + q : '') + location.hash);
+    _stripParam('_auth');
   }
-  try {
-    const me = await fetch('/api/auth/me').then(r => r.json());
-    setBaseDomain(me.base_domain);
-    if (!me.authenticated) { _showLoginScreen(); return; }
-  } catch {}
+
+  let me = {};
+  try { me = await fetch('/api/auth/me').then(r => r.json()); setBaseDomain(me.base_domain); } catch {}
+
+  // 2. apex acting as the SSO broker: an app bounced here (?_sso=app.host) for a session
+  const ssoTarget = params.get('_sso');
+  if (ssoTarget) {
+    if (me.authenticated && _validSsoTarget(ssoTarget)) { _ssoRedirect(ssoTarget); return; }
+    if (!me.authenticated) { _pendingSso = _validSsoTarget(ssoTarget) ? ssoTarget : null; _showLoginScreen(); return; }
+    _stripParam('_sso');   // authed but a junk target → ignore, continue to the hub
+  }
+
+  // 3. not authed here → bounce to the apex ONCE to pick up an existing session
+  if (!me.authenticated) {
+    if (parseHost().sub && !sessionStorage.getItem('alles_sso_tried')) {
+      sessionStorage.setItem('alles_sso_tried', '1');
+      location.assign(urlForApp('') + '?_sso=' + encodeURIComponent(location.host));
+      return;
+    }
+    _showLoginScreen();
+    return;
+  }
+  sessionStorage.removeItem('alles_sso_tried');
   await _boot();
+}
+
+function _stripParam(name) {
+  const p = new URLSearchParams(location.search);
+  p.delete(name);
+  const q = p.toString();
+  history.replaceState(null, '', location.pathname + (q ? '?' + q : '') + location.hash);
+}
+
+// apex → mint a one-time code and send it back to the requesting app subdomain
+async function _ssoRedirect(target) {
+  try {
+    const { code } = await fetch('/api/auth/handoff').then(r => r.json());
+    location.assign(location.protocol + '//' + target + '/?_auth=' + encodeURIComponent(code));
+  } catch { _stripParam('_sso'); _showLoginScreen(); }
+}
+
+// only relay a session to OUR own app subdomains (no open-redirect / token leak)
+function _validSsoTarget(target) {
+  try {
+    const u = new URL(location.protocol + '//' + target);
+    if (u.port !== location.port || u.hostname === parseHost().base) return false;
+    const base = parseHost().base;
+    if (!u.hostname.endsWith('.' + base)) return false;
+    return !!SUBDOMAIN_VIEWS[u.hostname.slice(0, -('.' + base).length)];
+  } catch { return false; }
 }
 
 async function _boot() {
@@ -116,8 +163,12 @@ function _showLoginScreen() {
       method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ password: pw }),
     });
-    if (r.ok) { if (screen) screen.style.display = 'none'; _boot(); }
-    else toast('wrong password', 'error');
+    if (r.ok) {
+      if (screen) screen.style.display = 'none';
+      sessionStorage.removeItem('alles_sso_tried');
+      if (_pendingSso) { _ssoRedirect(_pendingSso); return; }   // came from an app → relay back
+      _boot();
+    } else toast('wrong password', 'error');
   });
   document.getElementById('login-pw')?.addEventListener('keydown', e => {
     if (e.key === 'Enter') document.getElementById('login-submit')?.click();
