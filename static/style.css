@@ -1589,6 +1589,25 @@ code {
 .mail-form-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 0.5rem; }
 .mail-acct-row { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; padding: 0.45rem 0; border-bottom: 1px solid var(--faint); font-size: 0.8rem; }
 
+/* ── photos ── */
+.photos-grid { display: flex; flex-direction: column; gap: 1.3rem; }
+.photos-moment-label { font-size: 0.8rem; color: var(--text); font-weight: 500; margin-bottom: 0.45rem; }
+.photos-moment-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 3px; }
+.photos-cell { position: relative; aspect-ratio: 1; overflow: hidden; cursor: pointer; background: var(--panel); border-radius: 2px; }
+.photos-cell img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.2s ease; }
+.photos-cell:hover img { transform: scale(1.05); }
+.photos-cell.fav::after { content: '♥'; position: absolute; bottom: 3px; right: 5px; color: #fff; font-size: 0.72rem; text-shadow: 0 1px 3px rgba(0,0,0,0.7); }
+.photos-empty { color: var(--muted); font-size: 0.8rem; padding: 2.5rem; text-align: center; }
+
+#photos-lightbox { align-items: center; justify-content: center; }
+.photos-lightbox-inner { display: flex; max-width: 95vw; max-height: 92vh; background: var(--panel); border: 1px solid var(--faint); border-radius: 4px; overflow: hidden; }
+.photos-lightbox-img { max-width: 72vw; max-height: 92vh; object-fit: contain; background: #000; display: block; }
+.photos-lightbox-side { width: 240px; flex-shrink: 0; padding: 0.85rem; display: flex; flex-direction: column; gap: 0.8rem; overflow-y: auto; }
+.photos-lightbox-actions { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+.photos-exif { display: flex; flex-direction: column; }
+.photos-exif-row { display: flex; justify-content: space-between; gap: 0.6rem; font-size: 0.72rem; color: var(--muted); border-bottom: 1px solid var(--faint); padding: 0.25rem 0; }
+.photos-exif-row span:last-child { color: var(--text); text-align: right; word-break: break-word; }
+
 .sidebar-model-list {
   border: 1px solid var(--faint);
   border-radius: 6px;
