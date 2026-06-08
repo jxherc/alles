@@ -1471,6 +1471,45 @@ code {
 }
 .page-view-footer input:focus { border-color: var(--muted); }
 
+/* ── home / launcher ── */
+.brand { cursor: pointer; }
+.home-view { overflow-y: auto; }
+.home-inner {
+  max-width: 760px; width: 100%; margin: 0 auto;
+  padding: 4rem 1.5rem 3rem;
+}
+.home-head { margin-bottom: 2.5rem; }
+.home-brand {
+  font-size: 1.5rem; font-weight: 600; letter-spacing: -0.02em; color: var(--text);
+}
+.home-tagline { font-size: 0.82rem; color: var(--muted); margin-top: 0.45rem; }
+.home-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(158px, 1fr));
+  gap: 0.6rem;
+}
+.home-tile {
+  border: 1px solid var(--faint); border-radius: 3px;
+  padding: 1rem 0.95rem 0.9rem;
+  display: flex; flex-direction: column; gap: 0.5rem;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+.home-tile:hover { border-color: var(--muted); background: var(--panel); }
+.home-tile.flag { border-color: var(--faint); }
+.home-tile.flag:hover { border-color: var(--text); }
+.home-tile.coming { opacity: 0.4; cursor: default; }
+.home-tile.coming:hover { border-color: var(--faint); background: none; }
+.home-tile-icon { color: var(--muted); transition: color 0.2s ease; }
+.home-tile:not(.coming):hover .home-tile-icon { color: var(--text); }
+.home-tile-icon svg { width: 22px; height: 22px; }
+.home-tile-name {
+  font-size: 0.82rem; font-weight: 500; color: var(--text);
+  letter-spacing: -0.01em; display: flex; align-items: center; gap: 0.3rem;
+}
+.home-tile-star { color: var(--muted); font-size: 0.7rem; }
+.home-tile-desc { font-size: 0.7rem; color: var(--muted); line-height: 1.35; }
+
 .sidebar-model-list {
   border: 1px solid var(--faint);
   border-radius: 6px;
