@@ -890,7 +890,176 @@ async def execute(name: str, args: dict) -> dict:
         return await _git_branch(args.get("cwd", "."), args.get("name", ""), bool(args.get("checkout", True)))
     if name == "git_commit":
         return await _git_commit(args.get("cwd", "."), args.get("message", ""), args.get("paths") or None)
+    # ── cross-app tools (calendar / tasks / notes / contacts) ──
+    if name == "calendar_list":
+        return await _calendar_list(args.get("start", ""), args.get("end", ""))
+    if name == "calendar_create":
+        return await _calendar_create(args)
+    if name == "calendar_delete":
+        return await _calendar_delete(args.get("id", ""))
+    if name == "task_list":
+        return await _task_list(bool(args.get("include_done")))
+    if name == "task_add":
+        return await _task_add(args.get("title", ""))
+    if name == "task_done":
+        return await _task_done(args.get("id", ""), bool(args.get("done", True)))
+    if name == "note_list":
+        return await _note_list()
+    if name == "note_read":
+        return await _note_read(args.get("name", ""))
+    if name == "note_write":
+        return await _note_write(args.get("path", ""), args.get("content", ""))
+    if name == "note_search":
+        return await _note_search(args.get("query", ""))
+    if name == "contact_list":
+        return await _contact_list(args.get("query", ""))
+    if name == "contact_add":
+        return await _contact_add(args)
     return {"output": f"unknown tool: {name}", "error": True}
+
+
+# ── cross-app tool implementations ──────────────────────────────────────────
+async def _calendar_list(start, end):
+    from core.database import SessionLocal, CalendarEvent
+    db = SessionLocal()
+    try:
+        rows = db.query(CalendarEvent).order_by(CalendarEvent.start_dt.asc()).all()
+        out = []
+        for e in rows:
+            d = (e.start_dt or "")[:10]
+            if start and d < start:
+                continue
+            if end and d > end:
+                continue
+            line = f"- [{e.id[:8]}] {e.title} @ {e.start_dt}"
+            if e.recurrence:
+                line += f" (repeats {e.recurrence})"
+            out.append(line)
+        return {"output": "\n".join(out) if out else "no events"}
+    finally:
+        db.close()
+
+
+async def _calendar_create(a):
+    from core.database import SessionLocal, CalendarEvent
+    db = SessionLocal()
+    try:
+        e = CalendarEvent(
+            title=a.get("title", ""), start_dt=a.get("start_dt", ""),
+            end_dt=a.get("end_dt") or None, all_day=bool(a.get("all_day")),
+            description=a.get("description", ""), color=a.get("color", "") or "accent",
+            recurrence=a.get("recurrence", "") or "",
+        )
+        db.add(e); db.commit(); db.refresh(e)
+        return {"output": f"created event {e.id} — {e.title} @ {e.start_dt}"}
+    finally:
+        db.close()
+
+
+async def _calendar_delete(eid):
+    from core.database import SessionLocal, CalendarEvent
+    db = SessionLocal()
+    try:
+        e = db.get(CalendarEvent, eid)
+        if not e:
+            return {"output": "event not found", "error": True}
+        title = e.title
+        db.delete(e); db.commit()
+        return {"output": f"deleted event {eid} ({title})"}
+    finally:
+        db.close()
+
+
+async def _task_list(include_done):
+    from core.database import SessionLocal, Task
+    db = SessionLocal()
+    try:
+        q = db.query(Task)
+        if not include_done:
+            q = q.filter(Task.done == False)  # noqa: E712
+        rows = q.order_by(Task.created_at.desc()).all()
+        out = [f"- [{'x' if t.done else ' '}] ({t.id[:8]}) {t.title}" for t in rows]
+        return {"output": "\n".join(out) if out else "no tasks"}
+    finally:
+        db.close()
+
+
+async def _task_add(title):
+    from core.database import SessionLocal, Task
+    db = SessionLocal()
+    try:
+        t = Task(title=title); db.add(t); db.commit(); db.refresh(t)
+        return {"output": f"added task {t.id} — {title}"}
+    finally:
+        db.close()
+
+
+async def _task_done(tid, done):
+    from core.database import SessionLocal, Task
+    db = SessionLocal()
+    try:
+        t = db.get(Task, tid)
+        if not t:
+            return {"output": "task not found", "error": True}
+        t.done = done; db.commit()
+        return {"output": f"task {tid} marked {'done' if done else 'not done'}"}
+    finally:
+        db.close()
+
+
+async def _note_list():
+    from services import vault_md
+    names = vault_md.note_names()
+    return {"output": "\n".join(names) if names else "no notes yet"}
+
+
+async def _note_read(name):
+    from services import vault_md
+    hits = vault_md.search(name, limit=5)
+    hit = next((h for h in hits if h["name"].lower() == name.lower()), None) or (hits[0] if hits else None)
+    if not hit:
+        return {"output": f"note not found: {name}", "error": True}
+    d = vault_md.read(hit["path"])
+    return {"output": d.get("content", "") or "(empty note)"}
+
+
+async def _note_write(path, content):
+    from services import vault_md
+    res = vault_md.write(path, content)
+    return {"output": f"saved note {res.get('path', path)}"}
+
+
+async def _note_search(q):
+    from services import vault_md
+    res = vault_md.full_text_search(q, limit=12)
+    out = [f"- {r['name']}: {(r.get('context') or '')[:80]}" for r in res]
+    return {"output": "\n".join(out) if out else "no matches"}
+
+
+async def _contact_list(q):
+    from core.database import SessionLocal, Contact
+    db = SessionLocal()
+    try:
+        query = db.query(Contact)
+        if q:
+            query = query.filter(Contact.name.ilike(f"%{q}%"))
+        rows = query.order_by(Contact.name).all()
+        out = [f"- ({c.id[:8]}) {c.name}" + (f" · {c.email}" if c.email else "") + (f" · {c.phone}" if c.phone else "") for c in rows]
+        return {"output": "\n".join(out) if out else "no contacts"}
+    finally:
+        db.close()
+
+
+async def _contact_add(a):
+    from core.database import SessionLocal, Contact
+    db = SessionLocal()
+    try:
+        c = Contact(name=a.get("name", ""), email=a.get("email", ""),
+                    phone=a.get("phone", ""), notes=a.get("notes", ""), tags="[]")
+        db.add(c); db.commit(); db.refresh(c)
+        return {"output": f"added contact {c.id} — {c.name}"}
+    finally:
+        db.close()
 
 
 async def stream_execute(name: str, args: dict):
@@ -1106,8 +1275,8 @@ def workspace_files(cwd: str = "", q: str = "", limit: int = 30) -> list[str]:
 
 
 def build_tool_defs(settings: dict) -> list:
-    """base tools + optional computer-use / sub-agent / connection tools per settings"""
-    defs = list(TOOL_DEFS)
+    """base tools + cross-app tools + optional computer-use / sub-agent / connection tools per settings"""
+    defs = list(TOOL_DEFS) + APP_TOOL_DEFS
     if (settings or {}).get("agent_computer_use"):
         defs += COMPUTER_TOOL_DEFS
     if (settings or {}).get("agent_subagents", True):
@@ -1167,6 +1336,41 @@ GITHUB_TOOL_DEFS = [
 ]
 
 
+# cross-app tools — let the agent act across alles (calendar / tasks / notes / contacts)
+APP_TOOL_DEFS = [
+    _tool("calendar_list", "List calendar events, optionally within a YYYY-MM-DD date range.", {
+        "start": {"type": "string", "description": "from date YYYY-MM-DD", "default": ""},
+        "end": {"type": "string", "description": "to date YYYY-MM-DD", "default": ""},
+    }),
+    _tool("calendar_create", "Create a calendar event.", {
+        "title": {"type": "string"},
+        "start_dt": {"type": "string", "description": "ISO start, e.g. 2026-06-10T15:00:00"},
+        "end_dt": {"type": "string", "default": ""},
+        "all_day": {"type": "boolean", "default": False},
+        "description": {"type": "string", "default": ""},
+        "color": {"type": "string", "enum": ["accent", "green", "warn", "error"], "default": "accent"},
+        "recurrence": {"type": "string", "enum": ["", "daily", "weekly", "monthly"], "default": ""},
+    }, ["title", "start_dt"]),
+    _tool("calendar_delete", "Delete a calendar event by id.", {"id": {"type": "string"}}, ["id"]),
+    _tool("task_list", "List tasks / todos.", {"include_done": {"type": "boolean", "default": False}}),
+    _tool("task_add", "Add a task / todo.", {"title": {"type": "string"}}, ["title"]),
+    _tool("task_done", "Mark a task done or not done.", {
+        "id": {"type": "string"}, "done": {"type": "boolean", "default": True},
+    }, ["id"]),
+    _tool("note_list", "List all vault note names.", {}),
+    _tool("note_read", "Read a vault note by name.", {"name": {"type": "string"}}, ["name"]),
+    _tool("note_write", "Create or overwrite a vault note (path = note name, folders ok).", {
+        "path": {"type": "string"}, "content": {"type": "string"},
+    }, ["path", "content"]),
+    _tool("note_search", "Full-text search the vault notes.", {"query": {"type": "string"}}, ["query"]),
+    _tool("contact_list", "List or search contacts.", {"query": {"type": "string", "default": ""}}),
+    _tool("contact_add", "Add a contact.", {
+        "name": {"type": "string"}, "email": {"type": "string", "default": ""},
+        "phone": {"type": "string", "default": ""}, "notes": {"type": "string", "default": ""},
+    }, ["name"]),
+]
+
+
 # tools that change state — gated by approve/plan modes + get a diff preview
 MUTATING_TOOLS = {
     "shell", "bash", "write_file", "edit_file", "apply_patch",
@@ -1174,6 +1378,7 @@ MUTATING_TOOLS = {
     "computer_click", "computer_move", "computer_type", "computer_key", "computer_scroll",
     "mcp_call_tool", "opencode_run", "spawn_agent", "spawn_agents",
     "github_create_issue", "github_create_pr",
+    "calendar_create", "calendar_delete", "task_add", "task_done", "note_write", "contact_add",
 }
 # subset that produces a file diff we can preview
 _DIFF_TOOLS = {"write_file", "edit_file", "apply_patch"}
