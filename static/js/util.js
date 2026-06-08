@@ -28,8 +28,8 @@ export function mdToHtml(text) {
   // thinking blocks are restored later from placeholders.
   out = escapeHtml(out);
 
-  // headings
-  out = out.replace(/^#{1,6}\s+(.+)$/gm, (_, t) => `<p><strong>${t}</strong></p>`);
+  // headings → real h1..h6
+  out = out.replace(/^(#{1,6})\s+(.+)$/gm, (_, h, t) => `<h${h.length}>${t}</h${h.length}>`);
   // bold + italic
   out = out.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
   out = out.replace(/\*(.+?)\*/g, '<em>$1</em>');
