@@ -52,6 +52,7 @@
         <div class="nav-item" data-view="contacts">contacts</div>
         <div class="nav-item" data-view="files">files</div>
         <div class="nav-item" data-view="mail">mail</div>
+        <div class="nav-item" data-view="photos">photos</div>
       </div>
       <div class="nav-sep"></div>
       <div class="nav-item" data-view="settings">settings</div>
@@ -378,6 +379,18 @@
       </div>
     </div>
 
+    <!-- ── photos view ── -->
+    <div class="page-view" id="photos-view" style="display:none">
+      <div class="page-view-head" style="gap:0.4rem">
+        <span class="page-view-title">photos</span>
+        <select id="photos-album" class="settings-input" style="font-size:0.72rem;width:auto;max-width:180px"></select>
+        <button class="btn" id="photos-newalbum-btn" style="font-size:0.72rem">+ album</button>
+        <input type="file" id="photos-upload-input" accept="image/*" multiple hidden>
+        <button class="btn primary" id="photos-upload-btn" style="font-size:0.72rem;margin-left:auto">upload</button>
+      </div>
+      <div class="page-view-body"><div class="photos-grid" id="photos-grid"></div></div>
+    </div>
+
     <!-- ── composer (hidden in memory view) ── -->
     <div class="composer-outer" id="composer-outer">
       <div id="attachment-chips" style="display:none;flex-wrap:wrap;gap:0.3rem;padding:0.3rem 0.75rem 0"></div>
@@ -501,6 +514,22 @@
       </div>
     </div>
     <div class="files-preview-body" id="files-preview-body"></div>
+  </div>
+</div>
+
+<!-- photo lightbox -->
+<div class="modal-overlay" id="photos-lightbox" style="display:none">
+  <div class="photos-lightbox-inner">
+    <img class="photos-lightbox-img" id="photos-lightbox-img" src="" alt="">
+    <div class="photos-lightbox-side">
+      <div class="photos-lightbox-actions">
+        <button class="btn" id="photos-fav-btn">favorite</button>
+        <a class="btn" id="photos-dl-btn" href="#" download>download</a>
+        <button class="btn" id="photos-del-btn">delete</button>
+        <button class="btn" id="photos-close-btn">close</button>
+      </div>
+      <div class="photos-exif" id="photos-exif"></div>
+    </div>
   </div>
 </div>
 
