@@ -49,6 +49,8 @@ async function _boot() {
   initPrivacyHandlers();
   startReminderPoll();
   bindEvents();
+  // land on the launcher unless we deep-linked straight to a session (#id)
+  if (!location.hash) showHomeView();
 }
 
 function _showLoginScreen() {
@@ -72,7 +74,7 @@ init();
 
 // ── views ─────────────────────────────────────────────────────────────────────
 const _VIEW_IDS = [
-  'chat', 'notes-view', 'tasks-view', 'calendar-view', 'gallery-view',
+  'home-view', 'chat', 'notes-view', 'tasks-view', 'calendar-view', 'gallery-view',
   'models-view', 'brain-view', 'mem-view', 'wiki-view', 'compare-view', 'vault-view', 'contacts-view',
   'reminders-view',
 ];
@@ -110,6 +112,75 @@ const showWikiView     = () => showView('wiki-view',     'wiki',     async () =>
 const showVaultView      = () => showView('vault-view',      'vault',     loadVaultView);
 const showContactsView   = () => showView('contacts-view',  'contacts',  () => loadContacts());
 const showRemindersView  = () => showView('reminders-view', 'reminders', initReminderPanel);
+const showHomeView       = () => showView('home-view',      'home',      renderHome);
+
+// central nav dispatch — used by both the sidebar nav-items and the home tiles
+function navigateTo(v) {
+  if      (v === 'home')      showHomeView();
+  else if (v === 'chat')      showChatView();
+  else if (v === 'models')    showModelsView();
+  else if (v === 'brain')     showBrainView();
+  else if (v === 'notes')     showNotesView();
+  else if (v === 'tasks')     showTasksView();
+  else if (v === 'calendar')  showCalendarView();
+  else if (v === 'gallery')   showGalleryView();
+  else if (v === 'memory')    showMemoryView();
+  else if (v === 'wiki')      showWikiView();
+  else if (v === 'compare')   showCompareView();
+  else if (v === 'vault')     showVaultView();
+  else if (v === 'contacts')  showContactsView();
+  else if (v === 'reminders') showRemindersView();
+  else if (v === 'settings')  openSettings();
+}
+
+// ── launcher tiles ──────────────────────────────────────────────────────────
+const _ICON = {
+  chat: '<path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8z"/>',
+  notes: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/>',
+  calendar: '<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>',
+  tasks: '<polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>',
+  memory: '<ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/>',
+  secrets: '<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
+  contacts: '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
+  reminders: '<path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/>',
+  gallery: '<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>',
+  compare: '<rect x="3" y="4" width="7" height="16" rx="1"/><rect x="14" y="4" width="7" height="16" rx="1"/>',
+  mail: '<rect x="3" y="5" width="18" height="14" rx="2"/><polyline points="3 7 12 13 21 7"/>',
+  files: '<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>',
+  photos: '<path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>',
+};
+const _svg = (k) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">${_ICON[k] || ''}</svg>`;
+
+const HOME_TILES = [
+  { view: 'chat',      name: 'aide',      desc: 'chat & agent — the brain', flag: true, icon: 'chat' },
+  { view: 'wiki',      name: 'notes',     desc: 'markdown vault, linked',     icon: 'notes' },
+  { view: 'calendar',  name: 'calendar',  desc: 'your schedule',              icon: 'calendar' },
+  { view: 'tasks',     name: 'tasks',     desc: 'todos & lists',              icon: 'tasks' },
+  { view: 'memory',    name: 'memory',    desc: 'what aide remembers',        icon: 'memory' },
+  { view: 'vault',     name: 'secrets',   desc: 'encrypted store',            icon: 'secrets' },
+  { view: 'contacts',  name: 'contacts',  desc: 'address book',               icon: 'contacts' },
+  { view: 'reminders', name: 'reminders', desc: 'scheduled nudges',           icon: 'reminders' },
+  { view: 'gallery',   name: 'gallery',   desc: 'image library',              icon: 'gallery' },
+  { view: 'compare',   name: 'compare',   desc: 'models side by side',        icon: 'compare' },
+  { coming: true,      name: 'mail',      desc: 'coming soon',                icon: 'mail' },
+  { coming: true,      name: 'files',     desc: 'coming soon',                icon: 'files' },
+  { coming: true,      name: 'photos',    desc: 'coming soon',                icon: 'photos' },
+];
+
+let _homeRendered = false;
+function renderHome() {
+  const grid = document.getElementById('home-grid');
+  if (!grid || _homeRendered) return;
+  grid.innerHTML = HOME_TILES.map(t => `
+    <div class="home-tile${t.flag ? ' flag' : ''}${t.coming ? ' coming' : ''}" ${t.coming ? '' : `data-go="${t.view}"`}>
+      <div class="home-tile-icon">${_svg(t.icon)}</div>
+      <div class="home-tile-name">${t.name}${t.flag ? ' <span class="home-tile-star">★</span>' : ''}</div>
+      <div class="home-tile-desc">${t.desc}</div>
+    </div>`).join('');
+  grid.querySelectorAll('.home-tile[data-go]').forEach(el =>
+    el.addEventListener('click', () => navigateTo(el.dataset.go)));
+  _homeRendered = true;
+}
 
 const _moreViews = new Set(['models','notes','tasks','wiki','memory','brain','calendar','gallery','reminders','compare','vault','contacts']);
 
@@ -305,26 +376,11 @@ function bindEvents() {
   document.getElementById('contacts-search')?.addEventListener('input', e => loadContacts(e.target.value));
   document.getElementById('contact-add-btn')?.addEventListener('click', addContact);
 
-  // sidebar nav
+  // sidebar nav + brand-as-home
   document.querySelectorAll('.nav-item').forEach(el => {
-    el.addEventListener('click', () => {
-      const v = el.dataset.view;
-      if      (v === 'chat')     showChatView();
-      else if (v === 'models')   showModelsView();
-      else if (v === 'brain')    showBrainView();
-      else if (v === 'notes')    showNotesView();
-      else if (v === 'tasks')    showTasksView();
-      else if (v === 'calendar') showCalendarView();
-      else if (v === 'gallery')  showGalleryView();
-      else if (v === 'memory')   showMemoryView();
-      else if (v === 'wiki')     showWikiView();
-      else if (v === 'compare')  showCompareView();
-      else if (v === 'vault')    showVaultView();
-      else if (v === 'contacts')  showContactsView();
-      else if (v === 'reminders') showRemindersView();
-      else if (v === 'settings')  openSettings();
-    });
+    el.addEventListener('click', () => navigateTo(el.dataset.view));
   });
+  document.getElementById('brand-home')?.addEventListener('click', showHomeView);
 
   // modal overlays close on backdrop click (except settings which manages itself)
   document.querySelectorAll('.modal-overlay:not(#settings-modal)').forEach(o => {
