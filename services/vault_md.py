@@ -94,7 +94,8 @@ def delete(rel: str) -> dict:
 def rename(rel: str, new_rel: str) -> dict:
     src = _safe(rel)
     dst = _safe(new_rel)
-    if dst.suffix == "":
+    # only auto-append .md when renaming a FILE (folders keep their plain name)
+    if src.is_file() and dst.suffix == "":
         dst = dst.with_suffix(".md")
     dst.parent.mkdir(parents=True, exist_ok=True)
     src.rename(dst)
@@ -156,6 +157,32 @@ def create_folder(rel: str) -> dict:
     p = _safe(rel)
     p.mkdir(parents=True, exist_ok=True)
     return {"path": str(p.relative_to(vault_dir())).replace("\\", "/"), "ok": True}
+
+
+def find_asset(name: str) -> str | None:
+    """resolve an embed target (image/file) by relative path or bare name."""
+    base = vault_dir()
+    name = (name or "").strip()
+    try:
+        p = _safe(name)
+        if p.is_file():
+            return str(p.relative_to(base)).replace("\\", "/")
+    except ValueError:
+        pass
+    target = name.lower()
+    for f in base.rglob("*"):
+        if f.is_file() and not f.name.startswith(".") and (f.name.lower() == target or f.stem.lower() == target):
+            return str(f.relative_to(base)).replace("\\", "/")
+    return None
+
+
+def file_bytes(rel: str):
+    import mimetypes
+    p = _safe(rel)
+    if not p.is_file():
+        raise ValueError("not a file")
+    mime = mimetypes.guess_type(p.name)[0] or "application/octet-stream"
+    return p.read_bytes(), mime
 
 
 def full_text_search(q: str, limit: int = 50) -> list[dict]:

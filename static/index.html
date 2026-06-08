@@ -237,7 +237,8 @@
       <div class="wiki-tree-panel">
         <div class="page-view-head" style="gap:0.3rem">
           <span class="page-view-title">vault</span>
-          <button class="btn" id="wiki-graph-btn" title="graph view" style="font-size:0.7rem;margin-left:auto">graph</button>
+          <button class="btn" id="wiki-today-btn" title="today's daily note" style="font-size:0.7rem;margin-left:auto">today</button>
+          <button class="btn" id="wiki-graph-btn" title="graph view" style="font-size:0.7rem">graph</button>
           <button class="btn" id="wiki-folder-btn" title="new folder" style="font-size:0.7rem">+dir</button>
           <button class="btn primary" id="wiki-new-btn" style="font-size:0.7rem">+note</button>
         </div>
@@ -249,10 +250,12 @@
         <div class="page-view-head" style="gap:0.5rem">
           <span id="wiki-current" class="wiki-current">no note open</span>
           <span id="wiki-save-status" style="font-size:0.66rem;color:var(--muted);margin-left:auto"></span>
+          <button class="btn" id="wiki-outline-btn" style="font-size:0.72rem">outline</button>
           <button class="btn" id="wiki-preview-toggle" style="font-size:0.72rem">preview</button>
           <button class="btn" id="wiki-export-btn" style="font-size:0.72rem">export .docx</button>
           <button class="btn" id="wiki-delete-btn" style="font-size:0.72rem">delete</button>
         </div>
+        <div id="wiki-outline" class="wiki-outline" style="display:none"></div>
         <div class="wiki-empty-state" id="wiki-empty-state">
           <div>no note open</div>
           <button class="btn primary" id="wiki-empty-new">+ new note</button>
