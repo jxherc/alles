@@ -268,6 +268,21 @@ class Contact(Base):
     updated_at = Column(DateTime, default=_now)
 
 
+class MailAccount(Base):
+    __tablename__ = "mail_accounts"
+    id         = Column(String, primary_key=True, default=_uid)
+    name       = Column(String, default="")          # display label
+    email      = Column(String, default="")
+    imap_host  = Column(String, default="")
+    imap_port  = Column(Integer, default=993)
+    smtp_host  = Column(String, default="")
+    smtp_port  = Column(Integer, default=587)
+    username   = Column(String, default="")
+    password   = Column(String, default="")           # stored local-only (single-user)
+    use_ssl    = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=_now)
+
+
 class Reminder(Base):
     __tablename__ = "reminders"
     id         = Column(String, primary_key=True, default=_uid)

@@ -44,7 +44,7 @@ from routes import (
     local_models as local_model_routes,
     vault_md as vault_md_routes,
 )
-from routes import reminders as reminder_routes, templates as template_routes, shared as shared_routes, files as files_routes, caldav as caldav_routes
+from routes import reminders as reminder_routes, templates as template_routes, shared as shared_routes, files as files_routes, caldav as caldav_routes, mail as mail_routes
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s  %(name)s  %(message)s")
 log = logging.getLogger("aide")
@@ -352,6 +352,7 @@ app.include_router(template_routes.router)
 app.include_router(shared_routes.router)
 app.include_router(files_routes.router)
 app.include_router(caldav_routes.router)
+app.include_router(mail_routes.router)
 
 
 # static files — no-cache so JS/CSS always reloads

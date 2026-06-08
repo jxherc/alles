@@ -52,6 +52,7 @@
         <div class="nav-item" data-view="vault">secrets</div>
         <div class="nav-item" data-view="contacts">contacts</div>
         <div class="nav-item" data-view="files">files</div>
+        <div class="nav-item" data-view="mail">mail</div>
       </div>
       <div class="nav-sep"></div>
       <div class="nav-item" data-view="settings">settings</div>
@@ -360,6 +361,21 @@
       <div class="files-breadcrumb" id="files-breadcrumb"></div>
       <div class="page-view-body">
         <div class="files-list" id="files-list"></div>
+      </div>
+    </div>
+
+    <!-- ── mail view ── -->
+    <div class="page-view" id="mail-view" style="display:none">
+      <div class="page-view-head" style="gap:0.4rem">
+        <span class="page-view-title">mail</span>
+        <select id="mail-account" class="settings-input" style="font-size:0.72rem;width:auto;max-width:200px"></select>
+        <button class="btn" id="mail-refresh-btn" style="font-size:0.72rem">refresh</button>
+        <button class="btn primary" id="mail-compose-btn" style="font-size:0.72rem;margin-left:auto">compose</button>
+        <button class="btn" id="mail-accounts-btn" title="accounts" style="font-size:0.72rem">accounts</button>
+      </div>
+      <div class="mail-layout">
+        <div class="mail-list" id="mail-list"></div>
+        <div class="mail-main" id="mail-main"></div>
       </div>
     </div>
 
