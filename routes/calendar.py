@@ -11,6 +11,7 @@ def _fmt(e: CalendarEvent) -> dict:
         "id": e.id, "title": e.title, "description": e.description,
         "start_dt": e.start_dt, "end_dt": e.end_dt,
         "all_day": e.all_day, "color": e.color,
+        "recurrence": e.recurrence or "", "recur_until": e.recur_until,
         "created_at": e.created_at.isoformat(),
     }
 
@@ -26,6 +27,8 @@ class EventBody(BaseModel):
     end_dt: Optional[str] = None
     all_day: bool = False
     color: str = ""
+    recurrence: str = ""
+    recur_until: Optional[str] = None
 
 @router.post("/calendar")
 def create_event(body: EventBody, db: DbSession = Depends(get_db)):

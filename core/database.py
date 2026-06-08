@@ -141,6 +141,9 @@ class CalendarEvent(Base):
     end_dt      = Column(String, nullable=True)
     all_day     = Column(Boolean, default=False)
     color       = Column(String, default="")      # accent | green | warn | etc.
+    recurrence  = Column(String, default="")       # '' | daily | weekly | monthly
+    recur_until = Column(String, nullable=True)     # ISO date, optional series end
+    caldav_uid  = Column(String, nullable=True)     # set when synced from/to CalDAV
     created_at  = Column(DateTime, default=_now)
 
 
@@ -318,6 +321,9 @@ def init_db():
         _add_col(conn, "model_endpoints", "vision_models", "TEXT DEFAULT '[]'")
         _add_col(conn, "projects", "working_dir", "TEXT DEFAULT ''")
         _add_col(conn, "vault_entries", "username", "TEXT DEFAULT ''")
+        _add_col(conn, "calendar_events", "recurrence",  "TEXT DEFAULT ''")
+        _add_col(conn, "calendar_events", "recur_until", "TEXT")
+        _add_col(conn, "calendar_events", "caldav_uid",  "TEXT")
 
 
 def get_db():

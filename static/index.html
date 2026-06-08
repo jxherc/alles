@@ -169,12 +169,18 @@
     <div class="page-view" id="calendar-view" style="display:none">
       <div class="page-view-head" style="gap:0.5rem">
         <div class="cal-nav">
-          <button class="btn" id="cal-prev" title="previous month">‹</button>
+          <button class="btn" id="cal-prev" title="previous">‹</button>
           <button class="btn" id="cal-today">today</button>
-          <button class="btn" id="cal-next" title="next month">›</button>
+          <button class="btn" id="cal-next" title="next">›</button>
         </div>
         <span id="cal-month-label" class="cal-month-title"></span>
-        <button class="btn primary" id="cal-new-btn" style="margin-left:auto">+ event</button>
+        <div class="cal-view-toggle" style="margin-left:auto">
+          <button class="btn cal-view-btn" data-view="month">month</button>
+          <button class="btn cal-view-btn" data-view="week">week</button>
+          <button class="btn cal-view-btn" data-view="day">day</button>
+        </div>
+        <button class="btn" id="cal-sync-btn" title="CalDAV sync">sync</button>
+        <button class="btn primary" id="cal-new-btn">+ event</button>
       </div>
       <div class="page-view-body" id="calendar-list"></div>
     </div>
