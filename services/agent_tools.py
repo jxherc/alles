@@ -915,6 +915,12 @@ async def execute(name: str, args: dict) -> dict:
         return await _contact_list(args.get("query", ""))
     if name == "contact_add":
         return await _contact_add(args)
+    if name == "mail_list":
+        return await _mail_list(int(args.get("limit") or 15))
+    if name == "mail_read":
+        return await _mail_read(args.get("uid", ""))
+    if name == "mail_send":
+        return await _mail_send(args.get("to", ""), args.get("subject", ""), args.get("body", ""), args.get("cc", ""))
     return {"output": f"unknown tool: {name}", "error": True}
 
 
@@ -1060,6 +1066,60 @@ async def _contact_add(a):
         return {"output": f"added contact {c.id} — {c.name}"}
     finally:
         db.close()
+
+
+def _first_mail_acct():
+    from core.database import SessionLocal, MailAccount
+    db = SessionLocal()
+    try:
+        a = db.query(MailAccount).order_by(MailAccount.created_at).first()
+        if not a:
+            return None
+        return {"imap_host": a.imap_host, "imap_port": a.imap_port, "smtp_host": a.smtp_host,
+                "smtp_port": a.smtp_port, "username": a.username, "password": a.password,
+                "email": a.email, "use_ssl": a.use_ssl}
+    finally:
+        db.close()
+
+
+async def _mail_list(limit):
+    acct = _first_mail_acct()
+    if not acct:
+        return {"output": "no mail account configured (add one in the Mail app)", "error": True}
+    from services import mail as mailsvc
+    try:
+        msgs = mailsvc.fetch_inbox(acct, "INBOX", limit)
+        out = [f"[{m['uid']}] {m['from']} — {m['subject']} ({m['date']})" for m in msgs]
+        return {"output": "\n".join(out) if out else "inbox empty"}
+    except Exception as e:
+        return {"output": f"mail error: {e}", "error": True}
+
+
+async def _mail_read(uid):
+    acct = _first_mail_acct()
+    if not acct:
+        return {"output": "no mail account configured", "error": True}
+    from services import mail as mailsvc
+    try:
+        m = mailsvc.fetch_message(acct, uid)
+        if m.get("error"):
+            return {"output": m["error"], "error": True}
+        body = m.get("text") or "(html-only email — open it in the Mail app)"
+        return {"output": f"From: {m['from']}\nSubject: {m['subject']}\nDate: {m['date']}\n\n{body[:4000]}"}
+    except Exception as e:
+        return {"output": f"mail error: {e}", "error": True}
+
+
+async def _mail_send(to, subject, body, cc):
+    acct = _first_mail_acct()
+    if not acct:
+        return {"output": "no mail account configured", "error": True}
+    from services import mail as mailsvc
+    try:
+        mailsvc.send_mail(acct, to, subject, body, cc)
+        return {"output": f"sent to {to}"}
+    except Exception as e:
+        return {"output": f"send failed: {e}", "error": True}
 
 
 async def stream_execute(name: str, args: dict):
@@ -1368,6 +1428,14 @@ APP_TOOL_DEFS = [
         "name": {"type": "string"}, "email": {"type": "string", "default": ""},
         "phone": {"type": "string", "default": ""}, "notes": {"type": "string", "default": ""},
     }, ["name"]),
+    _tool("mail_list", "List recent inbox messages from the configured mail account.", {
+        "limit": {"type": "integer", "default": 15},
+    }),
+    _tool("mail_read", "Read a full email by its uid (from mail_list).", {"uid": {"type": "string"}}, ["uid"]),
+    _tool("mail_send", "Send an email from the configured account.", {
+        "to": {"type": "string"}, "subject": {"type": "string", "default": ""},
+        "body": {"type": "string", "default": ""}, "cc": {"type": "string", "default": ""},
+    }, ["to"]),
 ]
 
 
@@ -1379,6 +1447,7 @@ MUTATING_TOOLS = {
     "mcp_call_tool", "opencode_run", "spawn_agent", "spawn_agents",
     "github_create_issue", "github_create_pr",
     "calendar_create", "calendar_delete", "task_add", "task_done", "note_write", "contact_add",
+    "mail_send",
 }
 # subset that produces a file diff we can preview
 _DIFF_TOOLS = {"write_file", "edit_file", "apply_patch"}
