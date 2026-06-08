@@ -13,3 +13,5 @@ python-docx          # vault .docx export
 # pillow
 # optional — offline voice input (local whisper STT). install if you enable it.
 # faster-whisper
+# optional — calendar CalDAV sync (iCloud/Google). install if you enable it.
+# caldav
