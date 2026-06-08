@@ -25,6 +25,20 @@ Run: `python app.py` or `aide start` → http://localhost:8000
 bg #0a0a0a, text #e8e6e3, muted #6e6e6e, accent #818cf8, error #f87171, green #4ade80
 border-radius 2-3px max, no shadows/gradients, transitions only on color/border/background
 
+## alles = ecosystem of per-app sites (subdomains)
+One server, subdomain-aware single SPA. `static/js/subdomain.js` holds the
+`SUBDOMAIN_VIEWS` map: apex = the hub; `aide` = the AI (chat/agent/memory/compare/
+brain/models/reminders/gallery); each other app on its own subdomain (mail, notes
+=vault, calendar, tasks, files, contacts, secrets, photos). `app.js`
+`applySubdomainScope()` scopes the sidebar; `navigateTo` cross-jumps between
+subdomains. Works today on `aide.localhost:8000` etc. (no DNS).
+- auth across subdomains: `Domain=localhost` cookies aren't sent to `*.localhost`,
+  so login is host-only per subdomain + a one-time `/api/auth/handoff` code relays
+  the session on cross-nav (log in once). `base_domain` setting (env `BASE_DOMAIN`).
+- real domain: set `BASE_DOMAIN=dom` (cookie gets `Domain=dom; Secure`) + a Caddy
+  wildcard: `*.dom, dom { reverse_proxy 127.0.0.1:8000 }` (needs DNS-challenge cert).
+
 ## checks
 - python: `python -c "import ast; ast.parse(open('FILE').read())"` for a quick syntax check
 - js: `node --check static/js/FILE.js`
+- tests: `python -m unittest discover -s tests` (56 tests)
