@@ -1,5 +1,6 @@
 import { toast } from './util.js';
 import { confirm } from './dialog.js';
+import { populateDropdown } from './dropdown.js';
 
 let _unlocked = false;
 
@@ -38,9 +39,8 @@ async function _populateCats() {
     if (d.categories?.length) cats = d.categories;
   } catch {}
   const cur = sel.value;
-  sel.innerHTML = cats.map(c => `<option value="${_esc(c)}">${_esc(c)}</option>`).join('')
-    + `<option value="${NEW_CAT}">+ new category…</option>`;
-  if (cur && [...sel.options].some(o => o.value === cur)) sel.value = cur;
+  const opts = [...cats.map(c => ({ value: c, label: c })), { value: NEW_CAT, label: '+ new category…' }];
+  populateDropdown(sel, opts, (cur && cats.includes(cur)) ? cur : cats[0]);
   _onCatChange();
 }
 

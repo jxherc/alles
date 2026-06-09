@@ -14,7 +14,7 @@ function renderNotes() {
   if (!list) return;
 
   if (!_notes.length) {
-    list.innerHTML = '<div style="padding:1rem 0;font-size:0.75rem;color:var(--faint)">no notes yet</div>';
+    list.innerHTML = '<div style="padding:1rem 0;font-size:0.75rem;color:var(--faint)">no docs yet</div>';
     return;
   }
 

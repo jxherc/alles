@@ -54,6 +54,7 @@ class AcctBody(BaseModel):
 def add_account(body: AcctBody, db: DbSession = Depends(get_db)):
     a = MailAccount(**body.model_dump())
     db.add(a); db.commit(); db.refresh(a)
+    mailsvc.clear_cache()
     return _fmt(a)
 
 
@@ -66,6 +67,7 @@ def patch_account(aid: str, body: AcctBody, db: DbSession = Depends(get_db)):
     for k, v in data.items():
         setattr(a, k, v)
     db.commit()
+    mailsvc.clear_cache()
     return _fmt(a)
 
 
@@ -73,6 +75,7 @@ def patch_account(aid: str, body: AcctBody, db: DbSession = Depends(get_db)):
 def del_account(aid: str, db: DbSession = Depends(get_db)):
     a = _get(db, aid)
     db.delete(a); db.commit()
+    mailsvc.clear_cache()
     return {"ok": True}
 
 
@@ -102,6 +105,24 @@ def message(aid: str, uid: str, folder: str = "INBOX", db: DbSession = Depends(g
         return mailsvc.fetch_message(_acct_dict(a), uid, folder)
     except Exception as e:
         return {"error": str(e)[:200]}
+
+
+@router.get("/folders/{aid}")
+def folders(aid: str, db: DbSession = Depends(get_db)):
+    a = _get(db, aid)
+    try:
+        return {"folders": mailsvc.list_folders(_acct_dict(a))}
+    except Exception as e:
+        return {"folders": [], "error": str(e)[:200]}
+
+
+@router.post("/seen/{aid}")
+def seen(aid: str, uid: str, folder: str = "INBOX", db: DbSession = Depends(get_db)):
+    a = _get(db, aid)
+    try:
+        return mailsvc.mark_seen(_acct_dict(a), uid, folder)
+    except Exception as e:
+        return {"ok": False, "error": str(e)[:200]}
 
 
 class SendBody(BaseModel):

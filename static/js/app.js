@@ -2,7 +2,6 @@ import { loadSessions, initSessions, newChat, showWelcome, createSession, render
 import { loadModels, renderModelList, renderSidebarModelList, addEndpoint, getSelected, getCurrentEndpoint, initModelModal } from './models.js';
 import { sendMessage, stopStream, hideConnBanner } from './chat.js';
 import { toast, closeAllModals, mdToHtml } from './util.js';
-import { initMemoryPanel } from './memory.js';
 import { runResearch, setResearchMode, isResearchMode } from './research.js';
 import { loadNotes, newNote } from './notes.js';
 import { loadTasks, addTask } from './tasks.js';
@@ -38,6 +37,7 @@ async function init() {
   const params = new URLSearchParams(location.search);
   // 1. redeem a handoff code if an app/the apex sent us one
   const code = params.get('_auth');
+  const hadAuthCode = !!code;
   if (code) {
     await fetch('/api/auth/redeem?code=' + encodeURIComponent(code)).catch(() => {});
     _stripParam('_auth');
@@ -56,11 +56,12 @@ async function init() {
 
   // 3. not authed here → bounce to the apex ONCE to pick up an existing session
   if (!me.authenticated) {
-    if (parseHost().sub && !sessionStorage.getItem('alles_sso_tried')) {
+    if (parseHost().sub && !hadAuthCode) {
       sessionStorage.setItem('alles_sso_tried', '1');
       location.assign(urlForApp('') + '?_sso=' + encodeURIComponent(location.host));
       return;
     }
+    sessionStorage.removeItem('alles_sso_tried');
     _showLoginScreen();
     return;
   }
@@ -119,30 +120,54 @@ function applySubdomainScope() {
   const { sub } = parseHost();
   const app = appForSub(sub);
   const onAide = app.app === 'aide';
+  const onHub = app.app === 'alles';
+  const onSubApp = !!sub && !onAide;
 
-  if (sub) document.title = app.app;
+  document.body.classList.toggle('is-hub', onHub);
+  document.body.classList.toggle('is-aide', onAide);
+  document.body.classList.toggle('is-subapp', onSubApp);
+  document.body.dataset.app = app.app;
+  document.title = onHub ? 'alles' : `${app.app} / alles`;
+  renderAppCrumb(app.app);
 
   // chats + composer chrome belong to aide only
+  _show('sidebar-toggle-btn', onAide);
   _show('new-chat-btn', onAide);
   document.querySelector('.search-wrap')?.style.setProperty('display', onAide ? '' : 'none');
   _show('session-list', onAide);
-
-  // on an app subdomain, hide nav-items that aren't part of this app (settings always stays).
-  // only ever HIDE — never force-show — so the appearance toggles (applyVis) still win.
-  if (sub) {
-    document.querySelectorAll('.nav-item[data-view]').forEach(el => {
-      const v = el.dataset.view;
-      if (v !== 'settings' && !app.views.includes(v)) el.style.display = 'none';
-    });
+  _show('ai-top-controls', onAide);
+  // settings is AI-heavy — keep it inside aide, not bleeding onto mail/docs/etc.
+  _show('topbar-settings-btn', onAide);
+  // on aide the logo lives in the sidebar's top-left; elsewhere it's the topbar crumb
+  _show('app-crumb', !onAide);
+  if (!onAide) {
+    _show('persona-btn', false);
+    _show('session-actions-btn', false);
   }
+  // the sidebar only renders on aide now, so show every nav item there and let
+  // applyVis (user prefs) be the only thing that hides any of them.
 
   // landing
   if (!sub) { if (!location.hash) showHomeView(); }
   else if (!(app.primary === 'chat' && location.hash)) navigateTo(app.primary);
   // (aide with a #sessionId is already restored by initSessions)
+  document.body.classList.remove('preboot', 'login-mode');
 }
 
 function _show(id, on) { const e = document.getElementById(id); if (e) e.style.display = on ? '' : 'none'; }
+
+function renderAppCrumb(appName) {
+  const crumb = document.getElementById('app-crumb');
+  if (!crumb) return;
+  crumb.replaceChildren();
+  crumb.appendChild(document.createTextNode(appName));
+  if (appName !== 'alles') {
+    const parent = document.createElement('span');
+    parent.textContent = ' / alles';
+    crumb.appendChild(parent);
+  }
+  crumb.title = appName === 'alles' ? 'home' : 'back to alles';
+}
 
 // cross-app jump → full-page nav to that app's subdomain, carrying an SSO handoff code
 async function crossNav(sub) {
@@ -155,6 +180,8 @@ async function crossNav(sub) {
 }
 
 function _showLoginScreen() {
+  document.body.classList.remove('preboot');
+  document.body.classList.add('login-mode');
   const screen = document.getElementById('login-screen');
   if (screen) screen.style.display = 'flex';
   document.getElementById('login-submit')?.addEventListener('click', async () => {
@@ -165,6 +192,7 @@ function _showLoginScreen() {
     });
     if (r.ok) {
       if (screen) screen.style.display = 'none';
+      document.body.classList.remove('login-mode');
       sessionStorage.removeItem('alles_sso_tried');
       if (_pendingSso) { _ssoRedirect(_pendingSso); return; }   // came from an app → relay back
       _boot();
@@ -180,7 +208,7 @@ init();
 // ── views ─────────────────────────────────────────────────────────────────────
 const _VIEW_IDS = [
   'home-view', 'chat', 'notes-view', 'tasks-view', 'calendar-view', 'gallery-view',
-  'models-view', 'brain-view', 'mem-view', 'wiki-view', 'compare-view', 'vault-view', 'contacts-view',
+  'models-view', 'brain-view', 'wiki-view', 'compare-view', 'vault-view', 'contacts-view',
   'reminders-view', 'files-view', 'mail-view', 'photos-view',
 ];
 
@@ -211,7 +239,6 @@ const showNotesView    = () => showView('notes-view',    'notes',    loadNotes);
 const showTasksView    = () => showView('tasks-view',    'tasks',    loadTasks);
 const showCalendarView = () => showView('calendar-view', 'calendar', loadCalendar);
 const showGalleryView  = () => showView('gallery-view',  'gallery',  () => { loadGallery(); initGalleryUpload(); });
-const showMemoryView   = () => showView('mem-view',      'memory',   initMemoryPanel);
 const showCompareView  = () => showView('compare-view',  'compare',  () => { initCompareView(); loadCompareModels(); });
 const showWikiView     = () => showView('wiki-view',     'wiki',     async () => { (await import('./vaultmd.js')).initVault(); });
 const showVaultView      = () => showView('vault-view',      'vault',     loadVaultView);
@@ -224,6 +251,8 @@ const showHomeView       = () => showView('home-view',      'home',      renderH
 
 // central nav dispatch — used by both the sidebar nav-items and the home tiles
 function navigateTo(v) {
+  // memory now lives inside settings, not as its own view
+  if (v === 'memory') { openSettings('memory'); return; }
   // a view that lives on another subdomain → full-page jump (with SSO handoff)
   if (v !== 'settings') {
     const dest = viewToSub(v);
@@ -237,7 +266,6 @@ function navigateTo(v) {
   else if (v === 'tasks')     showTasksView();
   else if (v === 'calendar')  showCalendarView();
   else if (v === 'gallery')   showGalleryView();
-  else if (v === 'memory')    showMemoryView();
   else if (v === 'wiki')      showWikiView();
   else if (v === 'compare')   showCompareView();
   else if (v === 'vault')     showVaultView();
@@ -268,19 +296,15 @@ const _ICON = {
 const _svg = (k) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">${_ICON[k] || ''}</svg>`;
 
 const HOME_TILES = [
-  { view: 'chat',      name: 'aide',      desc: 'chat & agent — the brain', flag: true, icon: 'chat' },
-  { view: 'wiki',      name: 'notes',     desc: 'markdown vault, linked',     icon: 'notes' },
-  { view: 'calendar',  name: 'calendar',  desc: 'your schedule',              icon: 'calendar' },
-  { view: 'tasks',     name: 'tasks',     desc: 'todos & lists',              icon: 'tasks' },
-  { view: 'memory',    name: 'memory',    desc: 'what aide remembers',        icon: 'memory' },
-  { view: 'vault',     name: 'secrets',   desc: 'encrypted store',            icon: 'secrets' },
-  { view: 'contacts',  name: 'contacts',  desc: 'address book',               icon: 'contacts' },
-  { view: 'reminders', name: 'reminders', desc: 'scheduled nudges',           icon: 'reminders' },
-  { view: 'gallery',   name: 'gallery',   desc: 'image library',              icon: 'gallery' },
-  { view: 'compare',   name: 'compare',   desc: 'models side by side',        icon: 'compare' },
-  { view: 'files',     name: 'files',     desc: 'browse your files',          icon: 'files' },
-  { view: 'mail',      name: 'mail',      desc: 'your inbox',                 icon: 'mail' },
-  { view: 'photos',    name: 'photos',    desc: 'your photo library',         icon: 'photos' },
+  { view: 'chat',     name: 'aide',     desc: 'chat, agent' },
+  { view: 'mail',     name: 'mail',     desc: 'inbox & sending' },
+  { view: 'wiki',     name: 'docs',     desc: 'linked notes' },
+  { view: 'files',    name: 'files',    desc: 'your files' },
+  { view: 'calendar', name: 'calendar', desc: 'schedule' },
+  { view: 'tasks',    name: 'tasks',    desc: 'to-dos' },
+  { view: 'photos',   name: 'gallery',  desc: 'photos' },
+  { view: 'contacts', name: 'contacts', desc: 'people' },
+  { view: 'vault',    name: 'secrets',  desc: 'passwords' },
 ];
 
 let _homeRendered = false;
@@ -288,9 +312,8 @@ function renderHome() {
   const grid = document.getElementById('home-grid');
   if (!grid || _homeRendered) return;
   grid.innerHTML = HOME_TILES.map(t => `
-    <div class="home-tile${t.flag ? ' flag' : ''}${t.coming ? ' coming' : ''}" ${t.coming ? '' : `data-go="${t.view}"`}>
-      <div class="home-tile-icon">${_svg(t.icon)}</div>
-      <div class="home-tile-name">${t.name}${t.flag ? ' <span class="home-tile-star">★</span>' : ''}</div>
+    <div class="home-tile${t.coming ? ' coming' : ''}" ${t.coming ? '' : `data-go="${t.view}"`}>
+      <div class="home-tile-name">${t.name}</div>
       <div class="home-tile-desc">${t.desc}</div>
     </div>`).join('');
   grid.querySelectorAll('.home-tile[data-go]').forEach(el =>
@@ -298,7 +321,8 @@ function renderHome() {
   _homeRendered = true;
 }
 
-const _moreViews = new Set(['models','notes','tasks','wiki','memory','brain','calendar','gallery','reminders','compare','vault','contacts','files','mail','photos']);
+// aide's tools live in the collapsible "tools" group
+const _moreViews = new Set(['compare','gallery','brain','models','reminders']);
 
 function setNav(view) {
   document.querySelectorAll('.nav-item').forEach(n => {
@@ -328,7 +352,7 @@ function bindEvents() {
   const moreItems  = document.getElementById('nav-more-items');
   const moreArrow  = document.getElementById('nav-more-arrow');
   if (moreToggle && moreItems) {
-    if (localStorage.getItem('nav-more-open') === '1') {
+    if (localStorage.getItem('nav-more-open') !== '0') {   // open by default
       moreItems.classList.add('open');
       if (moreArrow) moreArrow.textContent = '▴';
     }
@@ -366,7 +390,7 @@ function bindEvents() {
   document.getElementById('sidebar-model-search')?.addEventListener('input', e => renderSidebarModelList(e.target.value));
   document.getElementById('models-refresh-btn')?.addEventListener('click', loadModels);
   document.getElementById('brain-refresh-btn')?.addEventListener('click', loadBrainPanel);
-  document.getElementById('brain-open-memory-btn')?.addEventListener('click', showMemoryView);
+  document.getElementById('brain-open-memory-btn')?.addEventListener('click', () => openSettings('memory'));
 
   const toggleResearch = () => {
     const on = !isResearchMode();
@@ -419,6 +443,18 @@ function bindEvents() {
     effortBtn.addEventListener('click', e => { e.stopPropagation(); _openEffortMenu(effortBtn); });
   }
   document.getElementById('theme-btn').addEventListener('click', toggleTheme);
+  document.getElementById('topbar-settings-btn')?.addEventListener('click', openSettings);
+
+  // your name → used by aide's greeting (client-only, no server round-trip)
+  const nameInput = document.getElementById('s-user-name');
+  if (nameInput) {
+    nameInput.value = localStorage.getItem('alles-name') || '';
+    nameInput.addEventListener('input', () => localStorage.setItem('alles-name', nameInput.value.trim()));
+  }
+  document.getElementById('app-crumb')?.addEventListener('click', () => {
+    if (currentSub()) crossNav('');
+    else showHomeView();
+  });
 
   // persona picker
   document.getElementById('persona-btn').addEventListener('click', openPersonaPicker);
@@ -454,6 +490,7 @@ function bindEvents() {
     setTimeout(() => document.addEventListener('click', () => menu.remove(), { once: true }), 0);
   });
   document.getElementById('sidebar-toggle-btn')?.addEventListener('click', () => {
+    if (!document.body.classList.contains('is-aide')) return;
     document.body.classList.toggle('sidebar-hidden');
     localStorage.setItem('aide-sidebar-hidden', document.body.classList.contains('sidebar-hidden') ? '1' : '');
   });
@@ -511,7 +548,7 @@ function bindEvents() {
     if (e.key === 'Escape') { closeAllModals(); closeSettings(); closeSearch(); closeMoreTools(); closeShellPanel(); }
     else if (matchesShortcut(e, shortcuts.search)) { e.preventDefault(); openSearch(); }
     else if (matchesShortcut(e, shortcuts.settings)) { e.preventDefault(); openSettings(); }
-    else if (matchesShortcut(e, shortcuts.sidebar)) { e.preventDefault(); document.body.classList.toggle('sidebar-hidden'); }
+    else if (matchesShortcut(e, shortcuts.sidebar) && document.body.classList.contains('is-aide')) { e.preventDefault(); document.body.classList.toggle('sidebar-hidden'); }
     else if (matchesShortcut(e, shortcuts.new_chat)) { e.preventDefault(); document.getElementById('new-chat-btn')?.click(); }
     else if (matchesShortcut(e, shortcuts.send)) { e.preventDefault(); doSend(); }
   });

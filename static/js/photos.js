@@ -1,5 +1,6 @@
 import { toast } from './util.js';
 import { prompt as dlgPrompt, confirm as dlgConfirm } from './dialog.js';
+import { populateDropdown } from './dropdown.js';
 
 let _album = '';     // current album filter
 let _photos = [];    // flat list (for the lightbox)
@@ -14,7 +15,7 @@ export async function loadPhotos() {
     .then(r => r.json()).catch(() => ({ moments: [] }));
   const grid = $('photos-grid');
   _photos = [];
-  if (!d.moments?.length) { grid.innerHTML = '<div class="photos-empty">no photos yet — upload some</div>'; return; }
+  if (!d.moments?.length) { grid.innerHTML = '<div class="photos-empty">gallery empty - upload something</div>'; return; }
   let html = '';
   for (const m of d.moments) {
     html += `<div class="photos-moment"><div class="photos-moment-label">${esc(m.label)}</div><div class="photos-moment-grid">`;
@@ -30,8 +31,9 @@ export async function loadPhotos() {
 
 async function loadAlbums() {
   const albums = await fetch('/api/photos/albums').then(r => r.json()).catch(() => []);
-  $('photos-album').innerHTML = `<option value="">all photos</option>` +
-    albums.map(a => `<option value="${a.id}" ${a.id === _album ? 'selected' : ''}>${esc(a.name)} (${a.count})</option>`).join('');
+  const opts = [{ value: '', label: 'all gallery' },
+    ...albums.map(a => ({ value: a.id, label: `${a.name} (${a.count})` }))];
+  populateDropdown($('photos-album'), opts, _album);
 }
 
 function openLightbox(id) {
@@ -70,7 +72,7 @@ export function initPhotos() {
     document.querySelector(`.photos-cell[data-id="${_cur.id}"]`)?.classList.toggle('fav', fav);
   });
   $('photos-del-btn')?.addEventListener('click', async () => {
-    if (!_cur || !await dlgConfirm('delete this photo?')) return;
+    if (!_cur || !await dlgConfirm('delete this image?')) return;
     await fetch('/api/photos/' + _cur.id, { method: 'DELETE' });
     closeLightbox(); loadPhotos();
   });
@@ -85,7 +87,7 @@ async function uploadPhotos(files) {
     const r = await fetch('/api/photos/upload', { method: 'POST', body: fd });
     if (r.ok) n++; else toast('upload failed: ' + f.name, 'error');
   }
-  if (n) { toast(`added ${n} photo${n > 1 ? 's' : ''}`, 'success'); loadPhotos(); }
+  if (n) { toast(`added ${n} image${n > 1 ? 's' : ''}`, 'success'); loadPhotos(); }
 }
 
 async function newAlbum() {

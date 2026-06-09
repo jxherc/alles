@@ -23,12 +23,11 @@ const BUILTINS = [
   { name: 'forget',    cat: 'memory',   help: 'delete memory by id',     args: '<id>' },
   // productivity
   { name: 'todo',      cat: 'tasks',    help: 'add a task',              args: '<task>' },
-  { name: 'note',      cat: 'notes',    help: 'create a note',           args: '<text>' },
+  { name: 'doc',       cat: 'docs',     help: 'create a doc',            args: '<text>' },
   // navigate (aide-only)
-  { name: 'vault',     cat: 'navigate', help: 'open the notes vault' },
-  { name: 'secrets',   cat: 'navigate', help: 'open the secrets vault' },
+  { name: 'secrets',   cat: 'navigate', help: 'open secrets' },
   { name: 'compare',   cat: 'navigate', help: 'open model compare' },
-  { name: 'docs',      cat: 'navigate', help: 'open the vault (notes)' },
+  { name: 'docs',      cat: 'navigate', help: 'open docs' },
   { name: 'contacts',  cat: 'navigate', help: 'open contacts' },
   { name: 'search',    cat: 'navigate', help: 'open search',             args: '[query]' },
   // system
@@ -336,7 +335,7 @@ export async function tryExecuteSlashCommand(text) {
     }
 
     case 'memories': {
-      document.querySelector('.nav-item[data-view="memory"]')?.click();
+      (await import('./settings.js')).openSettings('memory');
       return true;
     }
 
@@ -359,14 +358,15 @@ export async function tryExecuteSlashCommand(text) {
       return true;
     }
 
+    case 'doc':
     case 'note': {
-      if (!args) { toast('/note requires text', 'error'); return true; }
+      if (!args) { toast(`/${cmd} requires text`, 'error'); return true; }
       const r = await fetch('/api/notes', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ title: args.slice(0, 60), content: args }),
       });
-      if (r.ok) toast('note created', 'success');
+      if (r.ok) toast('doc created', 'success');
       return true;
     }
 

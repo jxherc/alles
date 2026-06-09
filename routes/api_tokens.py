@@ -27,7 +27,7 @@ class TokenBody(BaseModel):
 
 @router.post("/tokens")
 def create_token(body: TokenBody, db: DbSession = Depends(get_db)):
-    raw = "aide_" + secrets.token_urlsafe(32)
+    raw = "alles_" + secrets.token_urlsafe(32)
     t = ApiToken(name=body.name, token_hash=_hash(raw), prefix=raw[:12])
     db.add(t); db.commit(); db.refresh(t)
     return _fmt(t, raw)   # raw shown only here

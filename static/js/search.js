@@ -60,7 +60,7 @@ function _renderResults(d) {
 
   let html = '';
   html += _group('chats',    chats,    c => _row(`data-type="chat" data-id="${_esc(c.session_id)}"`, c.session_name, c.snippet));
-  html += _group('notes',    notes,    n => _row(`data-type="note" data-path="${_esc(n.path)}"`, n.name, n.snippet));
+  html += _group('docs',     notes,    n => _row(`data-type="note" data-path="${_esc(n.path)}"`, n.name, n.snippet));
   html += _group('tasks',    tasks,    t => _row(`data-type="nav" data-view="tasks"`, t.title, t.done ? 'done' : ''));
   html += _group('calendar', calendar, e => _row(`data-type="nav" data-view="calendar"`, e.title, e.when));
   html += _group('contacts', contacts, c => _row(`data-type="nav" data-view="contacts"`, c.name, c.snippet));
