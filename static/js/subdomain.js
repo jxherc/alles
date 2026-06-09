@@ -9,13 +9,15 @@ export const SUBDOMAIN_VIEWS = {
   '':         { app: 'alles',    primary: 'home',     views: ['home'] },
   aide:       { app: 'aide',     primary: 'chat',     views: ['chat', 'memory', 'compare', 'brain', 'models', 'reminders', 'gallery'] },
   mail:       { app: 'mail',     primary: 'mail',     views: ['mail'] },
-  notes:      { app: 'notes',    primary: 'wiki',     views: ['wiki'] },     // the obsidian vault
+  docs:       { app: 'docs',     primary: 'wiki',     views: ['wiki'] },
+  gallery:    { app: 'gallery',  primary: 'photos',   views: ['photos'] },
   calendar:   { app: 'calendar', primary: 'calendar', views: ['calendar'] },
   tasks:      { app: 'tasks',    primary: 'tasks',    views: ['tasks'] },
   files:      { app: 'files',    primary: 'files',    views: ['files'] },
   contacts:   { app: 'contacts', primary: 'contacts', views: ['contacts'] },
   secrets:    { app: 'secrets',  primary: 'vault',    views: ['vault'] },
-  photos:     { app: 'photos',   primary: 'photos',   views: ['photos'] },
+  notes:      { app: 'docs',     primary: 'wiki',     views: ['wiki'] },
+  photos:     { app: 'gallery',  primary: 'photos',   views: ['photos'] },
 };
 
 export function parseHost() {

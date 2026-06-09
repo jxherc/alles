@@ -1,8 +1,8 @@
-// obsidian-style vault: file tree + editor + live preview with [[wikilinks]] + backlinks
+// docs: file tree + editor + live preview with [[wikilinks]] + backlinks
 import { mdToHtml, toast } from './util.js';
 import { prompt as dlgPrompt, confirm as dlgConfirm } from './dialog.js';
 
-let _cur = null;          // current note path
+let _cur = null;          // current doc path
 let _saveT = 0;
 let _inited = false;
 
@@ -10,8 +10,21 @@ const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const _syncEmpty = () => $('wiki-view')?.classList.toggle('no-note', !_cur);
 
+// docs view mode: split (source+preview) | read (preview only) | source (raw, no effects)
+const _DOCS_MODES = ['split', 'read', 'source'];
+let _docsMode = localStorage.getItem('docs-view-mode') || 'split';
+function applyDocsMode() {
+  const v = $('wiki-view');
+  if (!v) return;
+  v.classList.toggle('docs-read', _docsMode === 'read');
+  v.classList.toggle('docs-source', _docsMode === 'source');
+  const btn = $('wiki-preview-toggle');
+  if (btn) btn.textContent = _docsMode;
+  if (_docsMode !== 'source') renderPreview();
+}
+
 export function initVault() {
-  if (_inited) { loadTree(); return; }
+  if (_inited) { loadTree(); applyDocsMode(); return; }
   _inited = true;
   $('wiki-new-btn')?.addEventListener('click', newNote);
   $('wiki-delete-btn')?.addEventListener('click', deleteCurrent);
@@ -21,6 +34,11 @@ export function initVault() {
   $('wiki-outline-btn')?.addEventListener('click', toggleOutline);
   $('wiki-graph-btn')?.addEventListener('click', openGraph);
   $('wiki-graph-close')?.addEventListener('click', () => { $('wiki-graph').style.display = 'none'; });
+  $('wiki-help-btn')?.addEventListener('click', () => {
+    const h = $('wiki-help');
+    if (h) h.style.display = h.style.display === 'none' ? 'block' : 'none';
+  });
+  $('wiki-help-close')?.addEventListener('click', () => { $('wiki-help').style.display = 'none'; });
   let _searchT = 0;
   $('wiki-search')?.addEventListener('input', e => {
     clearTimeout(_searchT);
@@ -31,10 +49,9 @@ export function initVault() {
     if (tag) { filterByTag(tag.dataset.tag); }
   });
   $('wiki-preview-toggle')?.addEventListener('click', () => {
-    const v = $('wiki-view');
-    const on = v.classList.toggle('preview-mode');
-    $('wiki-preview-toggle').textContent = on ? 'edit' : 'preview';
-    if (on) renderPreview();
+    _docsMode = _DOCS_MODES[(_DOCS_MODES.indexOf(_docsMode) + 1) % _DOCS_MODES.length];
+    localStorage.setItem('docs-view-mode', _docsMode);
+    applyDocsMode();
   });
   $('wiki-empty-new')?.addEventListener('click', newNote);
   const src = $('wiki-source');
@@ -51,10 +68,11 @@ export function initVault() {
   $('wiki-ai-send')?.addEventListener('click', aiEdit);
   $('wiki-ai-input')?.addEventListener('keydown', e => { if (e.key === 'Enter') aiEdit(); });
   loadTree();
+  applyDocsMode();
 }
 
 async function aiEdit() {
-  if (!_cur) { toast('open a note first', 'error'); return; }
+  if (!_cur) { toast('open a doc first', 'error'); return; }
   const inp = $('wiki-ai-input');
   const instruction = inp.value.trim();
   if (!instruction) return;
@@ -97,7 +115,7 @@ async function loadTree() {
   if (!el) return;
   try {
     const t = await fetch('/api/vault-md/tree').then(r => r.json());
-    el.innerHTML = t.items.length ? renderItems(t.items, 0) : '<div class="wiki-empty">empty vault — create a note</div>';
+    el.innerHTML = t.items.length ? renderItems(t.items, 0) : '<div class="wiki-empty">docs empty - create one</div>';
     el.querySelectorAll('.wiki-file').forEach(f => _wireRow(f, 'file'));
     el.querySelectorAll('.wiki-dir').forEach(d => _wireRow(d, 'dir'));
   } catch { el.innerHTML = '<div class="wiki-empty">failed to load</div>'; }
@@ -245,7 +263,7 @@ function _resetEditor() {
   $('wiki-backlinks').innerHTML = '';
 }
 
-// open a note by path from outside the vault view (global search) — wires up if needed
+// open a doc by path from global search; wires up if needed
 export function openNote(path) {
   if (!_inited) initVault();
   return openFile(path);
@@ -261,11 +279,11 @@ async function openFile(path) {
     renderPreview();
     loadBacklinks();
     document.querySelectorAll('.wiki-file').forEach(f => f.classList.toggle('active', f.dataset.path === _cur));
-  } catch { toast('failed to open note', 'error'); }
+  } catch { toast('failed to open doc', 'error'); }
 }
 
 async function openByName(name) {
-  // find an existing note by stem, else create it
+  // find an existing doc by stem, else create it
   const res = await fetch(`/api/vault-md/search?q=${encodeURIComponent(name)}`).then(r => r.json()).catch(() => ({ results: [] }));
   const hit = (res.results || []).find(r => r.name.toLowerCase() === name.toLowerCase());
   if (hit) return openFile(hit.path);
@@ -286,10 +304,10 @@ function renderPreview() {
   const fm = src.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?/);
   if (fm) { fmHtml = renderFrontmatter(fm[1]); src = src.slice(fm[0].length); }
   let html = mdToHtml(src);
-  // ![[embeds]] first (images + note transclusion), before plain wikilinks
+  // ![[embeds]] first (images + doc transclusion), before plain wikilinks
   html = html.replace(/!\[\[([^\]|#]+?)(?:#[^\]|]*)?(?:\|([^\]]+))?\]\]/g,
     (_, name, alias) => embedHtml(name.trim(), alias));
-  // [[note]] and [[note|alias]] -> clickable links
+  // [[doc]] and [[doc|alias]] -> clickable links
   html = html.replace(/\[\[([^\]|#]+)(?:#[^\]|]*)?(?:\|([^\]]+))?\]\]/g,
     (_, name, alias) => `<a class="wikilink" data-note="${esc(name.trim())}">${esc((alias || name).trim())}</a>`);
   // #tags -> clickable (not markdown headings, which have a space after #)
@@ -333,7 +351,7 @@ function fillEmbeds() {
     try {
       const res = await fetch(`/api/vault-md/search?q=${encodeURIComponent(name)}`).then(r => r.json());
       const hit = (res.results || []).find(r => r.name.toLowerCase() === key);
-      if (!hit) out = '<span class="md-embed-loading">note not found</span>';
+      if (!hit) out = '<span class="md-embed-loading">doc not found</span>';
       else {
         const d = await fetch(`/api/vault-md/file?path=${encodeURIComponent(hit.path)}`).then(r => r.json());
         out = mdToHtml((d.content || '').replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, ''));
@@ -409,7 +427,7 @@ function queueSave() {
         body: JSON.stringify({ path: _cur, content: $('wiki-source').value }),
       });
       $('wiki-save-status').textContent = 'saved';
-      delete _embedCache[_cur.split('/').pop().replace(/\.md$/, '').toLowerCase()];  // any note embedding this re-fetches
+      delete _embedCache[_cur.split('/').pop().replace(/\.md$/, '').toLowerCase()];  // any doc embedding this re-fetches
       loadBacklinks();
     } catch { $('wiki-save-status').textContent = 'save failed'; }
   }, 600);
@@ -429,7 +447,7 @@ async function loadBacklinks() {
 }
 
 async function exportDocx() {
-  if (!_cur) { toast('open a note first', 'error'); return; }
+  if (!_cur) { toast('open a doc first', 'error'); return; }
   try {
     const r = await fetch(`/api/vault-md/export-docx?path=${encodeURIComponent(_cur)}`);
     if (!r.ok) throw new Error();
@@ -444,7 +462,7 @@ async function exportDocx() {
 }
 
 async function newNote() {
-  const name = await dlgPrompt('note name (folders ok, e.g. ideas/new):');
+  const name = await dlgPrompt('doc name (folders ok, e.g. ideas/new):');
   if (!name?.trim()) return;
   await fetch('/api/vault-md/file', {
     method: 'POST', headers: { 'content-type': 'application/json' },
