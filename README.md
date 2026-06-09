@@ -1,194 +1,170 @@
-# aide
+# alles
 
-self-hosted personal AI workspace. runs on your machine, talks to whatever model you want.
+**your everything-app, self-hosted.** one place for your AI, mail, docs, files, calendar, tasks, photos, contacts, and passwords — all running on your own machine, your data never leaving it.
 
----
-
-## features
-
-**chat**
-- streaming chat with any OpenAI-compatible API or Ollama — responses show up word by word as they come in, not all at once
-- DeepSeek set up automatically if you drop in a `DEEPSEEK_API_KEY`
-- works with Anthropic, OpenRouter, Groq, Ollama — aide figures out which one from the URL/key
-- chat history saved automatically; sessions get auto-named and can be starred or archived
-- thinking blocks — when you use DeepSeek R1 or Claude extended thinking, you can see the model's reasoning before the answer
-
-**artifacts**
-- if the AI writes HTML, SVG, or code, it shows up rendered in a side panel instead of just as text
-- HTML/SVG runs in a sandboxed iframe (can't mess with the rest of the page), code gets syntax highlighting
-
-**file uploads**
-- drag a file into the chat or use the attach button
-- images get sent to the AI as vision context (it can actually see them)
-- text/code files get pasted in as context so the AI can read them
-- 20MB limit
-
-**projects**
-- group your chats into named folders so you can keep different topics separate
-- each project can have a shared system prompt — basically standing instructions that get added to every chat in that folder automatically
-
-**message editing**
-- click any of your messages to edit and resend it — rewrites the conversation from that point
-- regenerate button on AI replies if you don't like what it said
-
-**inline code execution**
-- run button appears on Python, JS, and HTML code blocks in chat
-- Python runs via your local shell and shows the output right there
-- HTML/JS renders in a sandboxed iframe below the block
-
-**research**
-- does multiple rounds of web searches and uses the AI to reason over what it finds
-- uses Tavily API if you have a key, falls back to DuckDuckGo if not
-- streams what it's finding in real time, then produces a full markdown report
-
-**memory**
-- aide can remember things across conversations — stores them with semantic search so it can find relevant ones later
-- uses fastembed (runs locally, no API) for the semantic part; falls back to keyword search if that's not set up
-- you can extract memories from past chats or add them manually with `/remember`
-
-**documents**
-- write and store markdown/text files inside aide with a live preview
-- "AI-edit" button: type an instruction and it rewrites the document for you, streamed
-
-**model compare**
-- send the same message to 2–4 models at the same time
-- see their answers side by side as they stream in — useful for seeing which model handles something better
-
-**voice**
-- talk to it: uses Whisper API or your browser's built-in speech recognition
-- it can talk back: OpenAI TTS or your browser's built-in text-to-speech
-
-**global search**
-- Cmd/Ctrl+K to search across everything — all chats, notes, and memories at once
-
-**shell + MCP**
-- run shell commands directly from the chat
-- connect MCP (Model Context Protocol) servers to give the AI access to external tools
-
-**vault**
-- encrypted secret storage (AES-256-GCM) — think password manager built into aide
-- protected by a master password; the key is never written to disk
-
-**auth**
-- optional login gate so not just anyone can open it if you expose it on a network
-- password is bcrypt-hashed; sessions use httponly cookies
-
-**OpenAI-compatible API**
-- aide exposes `/v1/models` and `/v1/chat/completions`
-- point any app or script that talks to OpenAI at `http://localhost:PORT/v1` and it'll work
-
-**extras**
-- notes, tasks, calendar, gallery, contacts — basic productivity stuff built in
-- cookbook: save reusable prompt templates
-- personas: named AI identities with their own system prompts (switch mid-session)
-- webhooks, API tokens
-- backup/restore — export everything as a ZIP, import it back
-- incognito sessions — nothing gets saved, like private browsing for chats
-- light/dark theme
+alles is the ecosystem. **aide** is the AI inside it — think Gemini to Google. aide can read and act across every app: your mail, your docs, your calendar, all of it.
 
 ---
 
-## quick start
+## what's inside
+
+every app lives on its own subdomain (`aide.localhost:8000`, `mail.localhost:8000`, …) and shares one login.
+
+- **aide** — streaming chat with any model (DeepSeek, Claude, GPT, Gemini, Grok, local Ollama…). agent mode that uses tools and acts across your apps, long-term memory, side-by-side model compare, an image gallery, and deep research.
+- **mail** — a real IMAP/SMTP client. one-click setup for Gmail / Outlook / iCloud / Yahoo / Fastmail, or bring your own domain. inbox · unread · sent, and reading a mail actually marks it read.
+- **docs** — markdown notes with live preview, `[[wikilinks]]`, embeds, tags, backlinks, a graph view, and AI editing. obsidian-style, in your browser.
+- **files** — browse, upload, and preview files over any folder you point it at.
+- **calendar** — month / week / day, recurring events, CalDAV sync.
+- **tasks** — quick lists, nothing fancy.
+- **gallery** — a local photo library with albums, favorites, and EXIF — works like iCloud Photos, minus Apple.
+- **contacts** — an address book.
+- **secrets** — an encrypted password vault (AES-256-GCM), unlocked by a master password that never touches disk.
+
+plus: artifacts (live HTML/SVG/code panels), voice in and out, global search (`Cmd/Ctrl+K`) across everything, shell + MCP tools, personas, prompt templates, webhooks, API tokens, backup/restore, incognito sessions, and a light/dark theme.
+
+---
+
+## get started
+
+you need **Python 3.11+**. then:
 
 ```
-git clone https://github.com/jxherc/aide.git
-cd aide
+git clone https://github.com/jxherc/alles.git
+cd alles
 pip install -r requirements.txt
-cp .env.example .env        # add your DEEPSEEK_API_KEY
-aide start                  # or: python app.py
+python app.py
 ```
 
-then open http://localhost:8000
+open **http://localhost:8000** — done.
 
-> `aide start` requires the project directory on your PATH. if you haven't done that yet, just use `python app.py` or `python cli.py start`.
+> no API key needed to boot. mail, docs, files, calendar, tasks — all work out of the box. when you want aide to talk, add a model in **settings → models** (or drop a `DEEPSEEK_API_KEY` into `.env`).
+
+**prefer not to use git?** hit the green **Code** button above → *Download ZIP*, unzip it, and run the same three commands from inside the folder.
+
+---
+
+## writing in docs — markdown guide
+
+docs speaks plain markdown plus a few obsidian-style extras. open any doc and click **guide** to see this in-app, anytime.
+
+| you type | you get |
+|---|---|
+| `# H1`  `## H2`  `### H3` | headings |
+| `**bold**` | **bold** |
+| `*italic*` | *italic* |
+| `~~strike~~` | ~~strikethrough~~ |
+| `==highlight==` | highlighted text |
+| `` `code` `` | inline code |
+| `> quote` | blockquote |
+| `- item` | bullet list |
+| `1. item` | numbered list |
+| `- [ ] todo` · `- [x] done` | task list with checkboxes |
+| `[text](url)` | link |
+| `![alt](url)` | image |
+| `[[doc]]` · `[[doc\|alias]]` | link another doc — click to jump |
+| `![[doc]]` · `![[pic.png]]` | embed a doc or image inline |
+| `#tag` | tag — click it to filter docs |
+| `---` | divider |
+
+**code blocks** — fence with triple backticks and a language. js, python, and html blocks get a **run** button:
+
+````
+```python
+print("hello from inside a doc")
+```
+````
+
+**frontmatter** — a `---` fenced block at the very top of a doc becomes a properties panel:
+
+```
+---
+title: my note
+tags: ideas
+---
+```
+
+the editor has three modes — the toggle cycles **split** (raw + live preview), **read** (preview only), and **source** (raw only). links between docs build a backlink list and a graph automatically.
+
+---
+
+## slash commands
+
+type these in aide's chat box:
+
+| command | what it does |
+|---|---|
+| `/new` | start a new chat |
+| `/clear` | clear the display (keeps history) |
+| `/rename [name]` | rename the chat — blank lets the AI name it |
+| `/archive` | archive this chat |
+| `/export` | download the chat as markdown |
+| `/incognito` | start a chat that saves nothing |
+| `/model` | open the model picker |
+| `/persona [name]` | switch persona |
+| `/research` | toggle research mode |
+| `/agent` | toggle agent mode |
+| `/remember <text>` | save something to memory |
+| `/memories` | open memory (settings → memory) |
+| `/forget <id>` | delete a memory by id |
+| `/todo <task>` | add a task |
+| `/note <text>` | jot a note |
+| `/compare` | open model compare |
+| `/docs` | open the doc editor |
+| `/search [query]` | open global search |
+| `/system <prompt>` | set this chat's system prompt |
+| `/backup` | download a backup zip |
+| `/help` | list every command in chat |
+
+add your own under **settings → cookbook**.
 
 ---
 
 ## cli
 
 ```
-aide start      start server in background
-aide stop       stop server
-aide restart    restart server
-aide status     show running/stopped + url
-aide logs       tail server log
-aide open       open browser
+alles start      start the server in the background
+alles stop       stop it
+alles restart    restart it
+alles status     running/stopped + url
+alles logs       tail the log
+alles open       open the browser
 ```
 
-windows: use `aide.cmd` — add the project folder to PATH.  
-unix/git bash: use `./aide` — already chmod +x.
-
----
-
-## slash commands
-
-type these in the chat input:
-
-| command | what it does |
-|---|---|
-| `/new` | start a new chat |
-| `/clear` | clear the chat display (doesn't delete history) |
-| `/rename [name]` | rename the chat — leave blank and the AI picks a name |
-| `/archive` | archive this chat |
-| `/export` | download the chat as a markdown file |
-| `/incognito` | start a chat that doesn't save anything |
-| `/model` | open the model picker |
-| `/persona [name]` | switch to a different persona |
-| `/research` | toggle research mode on/off |
-| `/agent` | toggle agent mode on/off |
-| `/remember <text>` | save something to memory |
-| `/memories` | open the memory panel |
-| `/forget <id>` | delete a memory by its id |
-| `/todo <task>` | add a task |
-| `/note <text>` | create a note |
-| `/vault` | open the encrypted vault |
-| `/compare` | open model compare view |
-| `/docs` | open the document editor |
-| `/contacts` | open contacts |
-| `/search [query]` | open global search |
-| `/system <prompt>` | update the system prompt for this chat |
-| `/backup` | download a backup zip of everything |
-| `/compact` | info about context compaction |
-| `/help` | list all commands in chat |
-
-custom slash commands can be added via settings → cookbook.
+windows: `alles.cmd` (add the folder to PATH). unix / git-bash: `./alles` (already executable). or just `python app.py`.
 
 ---
 
 ## configuration
 
-copy `.env.example` to `.env` and fill in what you need:
+copy `.env.example` to `.env` and set whatever you need — everything is optional:
 
-| var | default | what it's for |
+| var | default | for |
 |---|---|---|
-| `DEEPSEEK_API_KEY` | — | auto-sets up a DeepSeek endpoint on first boot |
-| `ANTHROPIC_API_KEY` | — | auto-sets up an Anthropic endpoint on first boot |
-| `PORT` | `8000` | what port to run on |
-| `SECRET_KEY` | `dev-secret` | used to sign sessions — change this if you expose aide on a network |
-| `AUTH_ENABLED` | `false` | set to `true` to require a password to open aide |
-| `AUTH_PASSWORD` | — | the password (gets bcrypt-hashed automatically on first boot) |
-| `TAVILY_API_KEY` | — | web search for research mode — uses DuckDuckGo if you skip this |
+| `DEEPSEEK_API_KEY` | — | auto-creates a DeepSeek endpoint on first boot |
+| `ANTHROPIC_API_KEY` | — | auto-creates an Anthropic endpoint on first boot |
+| `PORT` | `8000` | port to serve on |
+| `SECRET_KEY` | `dev-secret` | signs your session — **change it** if you expose alles on a network |
+| `AUTH_ENABLED` | `false` | `true` requires a password to open alles |
+| `AUTH_PASSWORD` | — | that password (bcrypt-hashed on first boot) |
+| `TAVILY_API_KEY` | — | better research-mode search — falls back to DuckDuckGo without it |
 
-to add Ollama, OpenAI, OpenRouter, etc.: settings → add endpoint.
+add Ollama, OpenAI, OpenRouter, Groq, Gemini, and friends under **settings → models → add endpoint**.
 
 ---
 
 ## stack
 
 ```
-Python 3.11 + FastAPI + SQLite (SQLAlchemy ORM)
-vanilla JS ES modules — no bundler, no framework
+Python 3.11 + FastAPI + SQLite (SQLAlchemy)
+vanilla JS — ES modules, no bundler, no framework
 fastembed (ONNX) for local embeddings
-httpx for async LLM streaming
+httpx for async model streaming
 ```
 
-all data lives in `data/` — one SQLite file, uploads, settings, everything.
+all your data lives in `data/` — one SQLite file plus uploads. nothing is sent anywhere you don't configure.
 
 ---
 
 ## acknowledgments
 
-aide was inspired by [odysseus](https://github.com/pewdiepie-archdaemon/odysseus)
-by pewdiepie-archdaemon — the feature set, product vision, and architecture
-patterns all originate there. aide is an independent reimplementation written
-from scratch. see [ACKNOWLEDGMENTS.md](./ACKNOWLEDGMENTS.md) for full credit.
+aide was inspired by [odysseus](https://github.com/pewdiepie-archdaemon/odysseus) by pewdiepie-archdaemon — the feature set, product vision, and architecture patterns originate there. aide is an independent reimplementation written from scratch. full credit in [ACKNOWLEDGMENTS.md](./ACKNOWLEDGMENTS.md).
