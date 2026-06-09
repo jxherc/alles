@@ -47,7 +47,7 @@ from routes import (
 from routes import reminders as reminder_routes, templates as template_routes, shared as shared_routes, files as files_routes, caldav as caldav_routes, mail as mail_routes, photos as photos_routes
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s  %(name)s  %(message)s")
-log = logging.getLogger("aide")
+log = logging.getLogger("alles")
 
 
 async def _bootstrap_deepseek():
@@ -193,7 +193,7 @@ async def _probe_endpoints() -> dict:
     async with httpx.AsyncClient(timeout=6, follow_redirects=True) as c:
         for ep in eps:
             try:
-                r = await c.get(ep.base_url.rstrip("/"), headers={"user-agent": "aide-ping/1.0"})
+                r = await c.get(ep.base_url.rstrip("/"), headers={"user-agent": "alles-ping/1.0"})
                 results[ep.name] = {"ok": True, "status": r.status_code}
             except Exception as e:
                 results[ep.name] = {"ok": False, "error": type(e).__name__, "detail": str(e)[:120]}
@@ -221,7 +221,7 @@ async def _connectivity_selftest():
     if dead and not reachable:
         log.warning(
             "no endpoints reachable - outbound network looks blocked. "
-            "if you launched aide from a sandboxed shell, restart it from your own "
+            "if you launched alles from a sandboxed shell, restart it from your own "
             "terminal (python cli.py restart) so it actually has network."
         )
 
@@ -239,13 +239,13 @@ async def lifespan(app: FastAPI):
         pass
     task = asyncio.create_task(_reminder_loop())
     asyncio.create_task(_connectivity_selftest())   # fire-and-forget, logs a warning if outbound is dead
-    log.info("aide ready")
+    log.info("alles ready")
     yield
     task.cancel()
-    log.info("aide shutting down")
+    log.info("alles shutting down")
 
 
-app = FastAPI(title="aide", lifespan=lifespan)
+app = FastAPI(title="alles", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -269,7 +269,7 @@ class TokenAuthMiddleware:
     """
     Pure ASGI middleware (NOT BaseHTTPMiddleware — that one buffers streaming
     responses and kills SSE). Passes chunks straight through.
-    1. Bearer aide_xxx token → validate it.
+    1. Bearer alles_xxx or aide_xxx token -> validate it.
     2. AUTH_ENABLED=true → block unauthenticated /api/ (except /api/auth/*).
     """
     def __init__(self, app):
@@ -284,7 +284,7 @@ class TokenAuthMiddleware:
         auth = headers.get(b"authorization", b"").decode("latin-1")
         path = scope.get("path", "")
 
-        if auth.startswith("Bearer aide_"):
+        if auth.startswith("Bearer aide_") or auth.startswith("Bearer alles_"):
             token = auth.split(" ", 1)[1]
             from routes.api_tokens import verify_token
             db = SessionLocal()
@@ -391,5 +391,5 @@ async def ping(cached: bool = False):
 if __name__ == "__main__":
     import uvicorn
     port = get_port()
-    log.info(f"starting aide on http://localhost:{port}")
+    log.info(f"starting alles on http://localhost:{port}")
     uvicorn.run("app:app", host="0.0.0.0", port=port, reload=False)

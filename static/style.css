@@ -1,4 +1,4 @@
-/* ── design tokens — jxherc/website palette ── */
+/* ── design tokens — jxherc/website palette, but alles keeps its purple ── */
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
 :root {
@@ -6,7 +6,7 @@
   --text:   #e8e6e3;
   --muted:  #6e6e6e;
   --faint:  #2e2e2e;
-  --accent: #818cf8;
+  --accent: #818cf8;   /* alles purple — the identity color, not the site's green */
   --panel:  #0e0e0e;
   --error:  #f87171;
   --green:  #4ade80;
@@ -44,6 +44,10 @@ a:focus-visible, button:focus-visible {
 
 /* ── layout ── */
 .app { display: flex; height: 100vh; }
+body.preboot .app,
+body.login-mode .app {
+  visibility: hidden;
+}
 
 /* ── sidebar ── */
 .sidebar {
@@ -58,7 +62,7 @@ body.sidebar-hidden .sidebar { display: none; }
 
 .sidebar-head {
   padding: 1.2rem 1.1rem 0.8rem;
-  display: flex; align-items: center; justify-content: space-between;
+  display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;
   border-bottom: 1px solid var(--faint);
 }
 
@@ -66,6 +70,9 @@ body.sidebar-hidden .sidebar { display: none; }
   font-size: 0.85rem; color: var(--text);
   font-weight: 500; letter-spacing: -0.01em;
 }
+/* the aide / alles logo lives top-left of the sidebar (the blank spot) */
+.sidebar .brand { display: inline; cursor: pointer; }
+.sidebar-brand .brand-sep { color: var(--muted); font-weight: 400; }
 
 .new-btn {
   background: none;
@@ -208,6 +215,34 @@ body.sidebar-hidden .sidebar { display: none; }
   border-bottom: 1px solid var(--faint);
   flex-shrink: 0;
 }
+.topbar-left {
+  display: flex; align-items: center; gap: 0.65rem; min-width: 0;
+}
+.app-crumb {
+  font-size: 0.82rem; font-weight: 500; letter-spacing: -0.01em;
+  color: var(--text); white-space: nowrap;
+  cursor: pointer;
+}
+.app-crumb span {
+  color: var(--muted); font-weight: 400;
+}
+.ai-top-controls {
+  display: flex; align-items: center; gap: 0.4rem;
+}
+/* the hub (home launcher) is chrome-less — just the tiles */
+body.is-hub .sidebar,
+body.is-hub .topbar {
+  display: none;
+}
+body.is-hub .main {
+  min-height: 100vh;
+}
+/* the full sidebar is aide's home base only. every other app is just its own
+   content + the topbar crumb ("<app> / alles") to get back — no rail, no clutter */
+body.is-subapp .sidebar { display: none; }
+body.is-subapp .main { min-height: 100vh; }
+/* aide-only sidebar bits (chats, the aide tools group) never leak elsewhere */
+body:not(.is-aide) .aide-only { display: none !important; }
 
 .model-btn {
   background: none;
@@ -241,15 +276,22 @@ body.sidebar-hidden .sidebar { display: none; }
 /* ── chat area ── */
 .chat { flex: 1; overflow-y: auto; display: flex; flex-direction: column; }
 
-/* welcome */
+/* welcome — Claude-style: a time-aware greeting, vertically centered above the composer */
 .welcome {
-  flex: 1; max-width: 560px; width: 100%; margin: 0 auto;
-  padding: 4rem 1.5rem;
-  display: flex; flex-direction: column; gap: 2.5rem;
+  flex: 1; max-width: 640px; width: 100%; margin: 0 auto;
+  padding: 1.5rem;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  text-align: center;
   animation: rise 0.5s cubic-bezier(0.2,0.7,0.2,1) forwards;
 }
-.welcome-brand { font-size: 0.85rem; font-weight: 500; letter-spacing: -0.01em; }
-.welcome-desc { font-size: 0.875rem; color: var(--muted); margin-top: 0.4rem; }
+.welcome-greeting {
+  font-size: 1.9rem; font-weight: 300; letter-spacing: -0.025em;
+  color: var(--text); line-height: 1.2;
+}
+.welcome-greeting .accent { color: var(--accent); }
+.welcome-sub { font-size: 0.8rem; color: var(--muted); margin-top: 0.55rem; letter-spacing: 0.01em; }
+/* legacy bits, kept hidden so old markup never flashes */
+.welcome-brand, .welcome-desc { display: none; }
 
 .session-header {
   max-width: 760px;
@@ -550,8 +592,8 @@ body.sidebar-hidden .sidebar { display: none; }
 .perm-menu-item.active { background: color-mix(in srgb, var(--accent) 14%, transparent); }
 .perm-menu-label { font-size: 0.75rem; color: var(--text); text-transform: lowercase; }
 .perm-menu-desc { font-size: 0.65rem; color: var(--muted); margin-top: 1px; }
-.perm-menu-item.warn .perm-menu-label { color: #d9a441; }
-.perm-menu-item.warn .perm-menu-desc { color: #b08534; }
+.perm-menu-item.warn .perm-menu-label { color: var(--accent); }
+.perm-menu-item.warn .perm-menu-desc { color: var(--muted); }
 
 /* @-mention file picker */
 .mention-menu {
@@ -885,10 +927,11 @@ code {
 }
 .perm-btn:hover { color: var(--text); }
 .perm-caret { width: 11px; height: 11px; opacity: 0.6; }
-/* bypass (auto) — mild yellow warning; plan — subtle accent */
-.perm-btn.perm-auto { color: #d9a441; }
-.perm-btn.perm-auto:hover { color: #e8b85a; }
-.perm-btn.perm-plan { color: var(--accent); }
+/* auto + plan both read as accent purple; plan is lighter-weight so they're
+   still distinguishable at a glance */
+.perm-btn.perm-auto { color: var(--accent); }
+.perm-btn.perm-auto:hover { color: var(--accent); }
+.perm-btn.perm-plan { color: var(--accent); font-weight: 300; }
 
 /* mic */
 .mic-corner { width: 28px; height: 28px; }
@@ -1475,27 +1518,32 @@ code {
 .brand { cursor: pointer; }
 .home-view { overflow-y: auto; }
 .home-inner {
-  max-width: 760px; width: 100%; margin: 0 auto;
-  padding: 4rem 1.5rem 3rem;
+  max-width: 560px; width: 100%; margin: 0 auto;
+  padding: 6rem 2rem 5rem;
 }
-.home-head { margin-bottom: 2.5rem; }
+.home-head { margin-bottom: 3.25rem; }
 .home-brand {
-  font-size: 1.5rem; font-weight: 600; letter-spacing: -0.02em; color: var(--text);
+  font-size: 1.6rem; font-weight: 500; letter-spacing: -0.03em; color: var(--text);
+  line-height: 1;
 }
-.home-tagline { font-size: 0.82rem; color: var(--muted); margin-top: 0.45rem; }
+.home-sub {
+  font-size: 0.74rem; color: var(--muted); margin-top: 0.55rem; letter-spacing: 0.02em;
+}
 .home-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(158px, 1fr));
-  gap: 0.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
 }
 .home-tile {
-  border: 1px solid var(--faint); border-radius: 3px;
-  padding: 1rem 0.95rem 0.9rem;
-  display: flex; flex-direction: column; gap: 0.5rem;
+  border: 0; border-radius: 0;
+  padding: 0.12rem 0;
+  display: grid; grid-template-columns: 96px 1fr; gap: 1rem;
+  align-items: baseline;
+  width: fit-content;
   cursor: pointer;
-  transition: border-color 0.2s ease, background 0.2s ease;
+  transition: opacity 0.2s ease, color 0.2s ease;
 }
-.home-tile:hover { border-color: var(--muted); background: var(--panel); }
+.home-tile:hover { opacity: 0.68; }
 .home-tile.flag { border-color: var(--faint); }
 .home-tile.flag:hover { border-color: var(--text); }
 .home-tile.coming { opacity: 0.4; cursor: default; }
@@ -1504,11 +1552,11 @@ code {
 .home-tile:not(.coming):hover .home-tile-icon { color: var(--text); }
 .home-tile-icon svg { width: 22px; height: 22px; }
 .home-tile-name {
-  font-size: 0.82rem; font-weight: 500; color: var(--text);
-  letter-spacing: -0.01em; display: flex; align-items: center; gap: 0.3rem;
+  font-size: 0.875rem; font-weight: 400; color: var(--text);
+  letter-spacing: -0.005em; display: flex; align-items: center; gap: 0.3rem;
 }
 .home-tile-star { color: var(--muted); font-size: 0.7rem; }
-.home-tile-desc { font-size: 0.7rem; color: var(--muted); line-height: 1.35; }
+.home-tile-desc { font-size: 0.72rem; color: var(--muted); line-height: 1.35; }
 
 /* ── files ── */
 .files-actions { display: flex; gap: 0.4rem; }
@@ -1588,6 +1636,27 @@ code {
 .mail-compose-body { min-height: 220px; resize: vertical; font-family: 'Inter', sans-serif; line-height: 1.5; }
 .mail-form-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 0.5rem; }
 .mail-acct-row { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; padding: 0.45rem 0; border-bottom: 1px solid var(--faint); font-size: 0.8rem; }
+.mail-service-links,
+.mail-provider-row {
+  display: flex; flex-wrap: wrap; gap: 0.35rem;
+}
+.mail-service-link,
+.mail-provider-btn {
+  background: none; border: 1px solid var(--faint); border-radius: 2px;
+  color: var(--muted); font: inherit; font-size: 0.68rem;
+  padding: 0.22rem 0.5rem; text-decoration: none; cursor: pointer;
+  transition: color 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+}
+.mail-service-link:hover,
+.mail-provider-btn:hover {
+  color: var(--text); border-color: var(--muted); background: var(--panel);
+}
+.mail-provider-note {
+  font-size: 0.72rem; color: var(--muted); line-height: 1.5;
+  border-left: 1px solid var(--faint); padding-left: 0.6rem;
+}
+.mail-provider-note a { color: var(--text); text-decoration: none; border-bottom: 1px solid var(--faint); }
+.mail-provider-note a:hover { border-bottom-color: var(--muted); }
 
 /* ── photos ── */
 .photos-grid { display: flex; flex-direction: column; gap: 1.3rem; }
@@ -2274,22 +2343,41 @@ code {
 .search-empty { padding: 1rem; font-size: 0.75rem; color: var(--faint); }
 
 /* ── document editor ── */
-/* ── vault (obsidian-style) ── */
-#wiki-view { flex-direction: row; position: relative; }
+#wiki-view { flex-direction: row; position: relative; overflow: hidden; background: var(--bg); }
 .wiki-tree-panel {
-  width: 220px; flex-shrink: 0; display: flex; flex-direction: column;
+  width: 268px; flex-shrink: 0; display: flex; flex-direction: column;
   border-right: 1px solid var(--faint); overflow: hidden;
 }
-.wiki-tree { flex: 1; overflow-y: auto; padding: 0.3rem 0; }
-.wiki-empty { padding: 1rem 0.75rem; font-size: 0.72rem; color: var(--muted); }
+.docs-rail-head {
+  max-width: none; margin: 0; padding: 1rem 0.8rem 0.45rem;
+  display: grid; grid-template-columns: 1fr; align-items: start; gap: 0.55rem;
+}
+.docs-rail-head .page-view-title {
+  font-size: 0.88rem;
+}
+.docs-rail-actions {
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.25rem;
+}
+.docs-rail-actions .btn {
+  min-width: 0; padding: 0.24rem 0.25rem; font-size: 0.62rem;
+  letter-spacing: 0; text-align: center;
+}
+.docs-search {
+  margin: 0.15rem 0.8rem 0.55rem; width: calc(100% - 1.6rem);
+  font-size: 0.78rem; padding: 0.3rem 0;
+}
+.wiki-tree { flex: 1; overflow-y: auto; padding: 0.2rem 0.45rem 1rem; }
+.wiki-empty { padding: 1rem 0.35rem; font-size: 0.72rem; color: var(--muted); }
 .wiki-dir {
-  font-size: 0.72rem; color: var(--muted); padding: 0.2rem 0.5rem; text-transform: lowercase;
+  font-size: 0.76rem; color: var(--muted); padding: 0.28rem 0.38rem; text-transform: lowercase;
   display: flex; align-items: center; gap: 0.3rem;
+  border-radius: 2px;
 }
 .wiki-file {
-  font-size: 0.78rem; color: var(--text); padding: 0.28rem 0.5rem; cursor: pointer;
+  font-size: 0.8rem; color: var(--text); padding: 0.34rem 0.38rem; cursor: pointer;
   border-left: 2px solid transparent;
   display: flex; align-items: center; gap: 0.3rem;
+  border-radius: 2px;
 }
 .wiki-row-label { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
 .wiki-row-acts { display: flex; gap: 0.15rem; opacity: 0; transition: opacity 0.15s ease; flex-shrink: 0; }
@@ -2300,30 +2388,50 @@ code {
 }
 .wiki-row-act:hover { color: var(--text); }
 .wiki-file:hover { background: #141414; }
-.wiki-file.active { background: #161616; border-left-color: var(--accent); color: var(--accent); }
+.wiki-file.active { background: #161616; border-left-color: var(--text); color: var(--text); }
 .wiki-main { flex: 1; display: flex; flex-direction: column; min-width: 0; position: relative; }
-.wiki-current { font-size: 0.82rem; color: var(--text); }
-.wiki-editor { flex: 1; display: flex; overflow: hidden; border-top: 1px solid var(--faint); }
-/* one mode at a time — editor by default, preview on toggle. centered column, readable. */
+.docs-editor-head {
+  max-width: none; margin: 0; min-height: 50px;
+  padding: 0.65rem clamp(1rem, 4vw, 3.4rem);
+  gap: 0.35rem; border-bottom: 1px solid var(--faint);
+}
+.docs-editor-head .btn {
+  padding: 0.28rem 0.55rem; font-size: 0.64rem; letter-spacing: 0;
+}
+.wiki-current {
+  font-size: 0.84rem; color: var(--text); min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.wiki-editor { flex: 1; display: flex; overflow: hidden; }
+/* split by default — raw source on the left, live preview always on the right.
+   the toggle cycles split → read (preview only) → source (raw, no effects). */
 .wiki-source {
-  flex: 1; background: none; border: none;
+  flex: 1; min-width: 0; background: none; border: none;
+  border-right: 1px solid var(--faint);
   outline: none; resize: none; color: var(--text);
   font-family: 'Inter', -apple-system, system-ui, sans-serif;
   font-size: 1rem; line-height: 1.75;
-  padding: 2rem clamp(1.5rem, 12%, 7rem);
+  padding: 2rem clamp(1rem, 5%, 3rem);
 }
 .wiki-preview {
-  flex: 1; display: none; overflow-y: auto;
-  padding: 2rem clamp(1.5rem, 12%, 7rem);
+  flex: 1; min-width: 0; display: block; overflow-y: auto;
+  padding: 2rem clamp(1rem, 5%, 3rem);
   font-size: 1rem; line-height: 1.7;
 }
-#wiki-view.preview-mode .wiki-source { display: none; }
-#wiki-view.preview-mode .wiki-preview { display: block; }
+/* read = preview only, full width */
+#wiki-view.docs-read .wiki-source { display: none; }
+#wiki-view.docs-read .wiki-preview { padding: 2rem clamp(1.5rem, 12%, 7rem); }
+/* source = raw only, no preview */
+#wiki-view.docs-source .wiki-preview { display: none; }
+#wiki-view.docs-source .wiki-source { border-right: none; padding: 2rem clamp(1.5rem, 12%, 7rem); }
+@media (max-width: 900px) {
+  .wiki-editor { flex-direction: column; }
+  .wiki-source { border-right: none; border-bottom: 1px solid var(--faint); }
+}
 /* empty state — no note open */
 .wiki-empty-state {
   flex: 1; display: none; align-items: center; justify-content: center;
   flex-direction: column; gap: 0.9rem; color: var(--muted); font-size: 0.85rem;
-  border-top: 1px solid var(--faint);
 }
 #wiki-view.no-note .wiki-editor,
 #wiki-view.no-note .wiki-backlinks,
@@ -2335,6 +2443,16 @@ code {
 #wiki-view.no-note #wiki-delete-btn { display: none; }
 .wiki-preview .wikilink { color: var(--accent); text-decoration: none; border-bottom: 1px dashed color-mix(in srgb, var(--accent) 50%, transparent); cursor: pointer; }
 .wiki-preview .wikilink:hover { border-bottom-style: solid; }
+/* markdown elements (docs preview + AI chat + embeds) */
+.wiki-preview a, .ai-content a, .md-embed-body a { color: var(--accent); text-decoration: none; border-bottom: 1px solid color-mix(in srgb, var(--accent) 40%, transparent); }
+.wiki-preview a:hover, .ai-content a:hover, .md-embed-body a:hover { border-bottom-color: var(--accent); }
+.wiki-preview mark, .ai-content mark, .md-embed-body mark { background: color-mix(in srgb, var(--accent) 28%, transparent); color: var(--text); padding: 0 0.15em; border-radius: 2px; }
+.wiki-preview del, .ai-content del, .md-embed-body del { color: var(--muted); }
+.wiki-preview blockquote, .ai-content blockquote, .md-embed-body blockquote { border-left: 2px solid var(--accent); padding: 0.15rem 0 0.15rem 0.85rem; margin: 0.7rem 0; color: var(--muted); }
+.wiki-preview hr, .ai-content hr, .md-embed-body hr { border: none; border-top: 1px solid var(--faint); margin: 1.1rem 0; }
+.wiki-preview .md-img, .ai-content .md-img, .md-embed-body .md-img { max-width: 100%; border-radius: 3px; }
+.wiki-preview .md-task, .ai-content .md-task, .md-embed-body .md-task { list-style: none; }
+.wiki-preview .md-task input, .ai-content .md-task input, .md-embed-body .md-task input { margin-right: 0.45rem; accent-color: var(--accent); vertical-align: middle; }
 .wiki-backlinks {
   flex-shrink: 0; max-height: 28%; overflow-y: auto;
   border-top: 1px solid var(--faint); padding: 0.5rem 1rem;
@@ -2405,10 +2523,10 @@ code {
 .wiki-ac-item:hover, .wiki-ac-item.active { background: #161616; color: var(--text); }
 
 /* tags */
-.wiki-tags { display: flex; flex-wrap: wrap; gap: 0.25rem; padding: 0 0.5rem 0.4rem; max-height: 90px; overflow-y: auto; }
+.wiki-tags { display: flex; flex-wrap: wrap; gap: 0.25rem; padding: 0 0.8rem 0.55rem; max-height: 80px; overflow-y: auto; }
 .wiki-tag {
   font-size: 0.66rem; color: var(--muted); cursor: pointer;
-  border: 1px solid var(--faint); border-radius: 2px; padding: 0.05rem 0.32rem;
+  border: 1px solid var(--faint); border-radius: 2px; padding: 0.08rem 0.34rem;
 }
 .wiki-tag:hover { color: var(--text); border-color: var(--muted); }
 .wiki-tag.active { color: var(--accent); border-color: var(--accent); }
@@ -2437,6 +2555,28 @@ code {
 .wg-node text { fill: var(--muted); font-size: 9px; text-anchor: middle; pointer-events: none; }
 .wg-node:hover text { fill: var(--text); }
 
+/* markdown guide panel */
+.wiki-help {
+  position: absolute; top: 3rem; right: 0.6rem; z-index: 30;
+  width: 330px; max-height: 72%; overflow-y: auto;
+  background: var(--panel); border: 1px solid var(--faint); border-radius: 3px;
+  box-shadow: 0 4px 18px rgba(0,0,0,0.4);
+}
+.wiki-help-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0.5rem 0.8rem; border-bottom: 1px solid var(--faint);
+  font-size: 0.7rem; color: var(--muted); text-transform: lowercase; letter-spacing: 0.05em;
+  position: sticky; top: 0; background: var(--panel);
+}
+.wiki-help-body { padding: 0.35rem 0; }
+.wiki-help-row { display: flex; align-items: baseline; gap: 0.7rem; padding: 0.28rem 0.8rem; }
+.wiki-help-row code {
+  flex-shrink: 0; width: 150px;
+  font-family: 'JetBrains Mono', monospace; font-size: 0.66rem;
+  color: var(--accent); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.wiki-help-row span { color: var(--muted); font-size: 0.72rem; }
+
 .doc-editor {
   flex: 1; display: flex; overflow: hidden;
   border-top: 1px solid var(--faint);
@@ -2451,7 +2591,7 @@ code {
   font-size: 0.82rem; line-height: 1.65;
 }
 .doc-ai-bar {
-  display: flex; gap: 0.4rem; padding: 0.5rem 1rem;
+  display: flex; gap: 0.4rem; padding: 0.55rem clamp(1rem, 4vw, 3.4rem);
   border-top: 1px solid var(--faint); flex-shrink: 0;
 }
 .doc-ai-bar input {
@@ -2461,6 +2601,17 @@ code {
   transition: border-color 0.2s;
 }
 .doc-ai-bar input:focus { border-color: var(--muted); }
+
+@media (max-width: 760px) {
+  #wiki-view { flex-direction: column; }
+  .wiki-tree-panel {
+    width: 100%; max-height: 42vh; border-right: none; border-bottom: 1px solid var(--faint);
+  }
+  .docs-rail-actions { grid-template-columns: repeat(4, minmax(58px, 1fr)); }
+  .docs-editor-head { padding: 0.65rem 0.85rem; flex-wrap: wrap; }
+  .wiki-source, .wiki-preview { padding: 1.2rem 0.9rem; }
+  .doc-ai-bar { padding: 0.55rem 0.85rem; }
+}
 
 /* ── model compare ── */
 .compare-layout {
@@ -2519,7 +2670,15 @@ code {
   align-items: center; justify-content: center;
   gap: 0.75rem; color: var(--muted); font-size: 0.8rem;
 }
-#vault-add-bar, #contacts-view .page-view-footer { max-width: none; }
+/* standalone apps (no sidebar) fill the width — the centered 760 column left big
+   side bezels, and the add-bars were already full-width so they overhung the
+   centered lists above them. flush everything to the full width. */
+#tasks-view .page-view-head, #tasks-view .page-view-body, #tasks-view .page-view-footer,
+#contacts-view .page-view-head, #contacts-view .page-view-body, #contacts-view .page-view-footer,
+#vault-view .page-view-head, #vault-view .page-view-body, #vault-view .page-view-footer, #vault-add-bar,
+#photos-view .page-view-head, #photos-view .page-view-body {
+  max-width: none; margin-left: 0; margin-right: 0;
+}
 .mem-cat-cycle { font-size: 0.7rem; flex-shrink: 0; color: var(--accent); border-color: var(--accent); }
 .vault-entry {
   display: flex; align-items: center; gap: 0.5rem;
@@ -2572,6 +2731,368 @@ code {
 .model-vision-badge {
   font-size: 0.65rem; margin-left: 0.3rem; opacity: 0.7;
   vertical-align: middle;
+}
+
+/* mail overhaul */
+.mail-head {
+  max-width: none;
+  margin: 0;
+  min-height: 52px;
+  padding: 0.62rem clamp(0.9rem, 3vw, 2.4rem);
+  gap: 0.5rem;
+  border-bottom: 1px solid var(--faint);
+}
+.mail-head .page-view-title {
+  font-size: 0.9rem;
+  letter-spacing: -0.01em;
+  min-width: 44px;
+}
+.mail-tabs { display: inline-flex; gap: 0.1rem; flex-shrink: 0; }
+.mail-tab {
+  background: none; border: none; cursor: pointer;
+  color: var(--muted); font: inherit; font-size: 0.72rem;
+  letter-spacing: 0.02em; text-transform: lowercase;
+  padding: 0.28rem 0.55rem; border-radius: 2px;
+  transition: color 0.18s ease, background 0.18s ease;
+}
+.mail-tab:hover { color: var(--text); }
+.mail-tab.active { color: var(--text); background: var(--panel); }
+
+.mail-account-select {
+  width: min(240px, 34vw);
+  height: 30px;
+  padding: 0.2rem 0.55rem;
+  font-size: 0.72rem;
+}
+.mail-head-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+.mail-head .btn {
+  height: 30px;
+  padding: 0.22rem 0.62rem;
+  font-size: 0.66rem;
+  letter-spacing: 0.02em;
+}
+.mail-layout {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+  border-top: 0;
+  background: var(--bg);
+}
+.mail-list {
+  width: min(380px, 38vw);
+  flex-shrink: 0;
+  overflow-y: auto;
+  border-right: 1px solid var(--faint);
+  background: var(--bg);
+}
+.mail-main {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+  background: var(--bg);
+}
+.mail-empty {
+  color: var(--muted);
+  font-size: 0.76rem;
+  line-height: 1.6;
+  padding: 1.35rem 1rem;
+  text-align: left;
+}
+.mail-list .mail-empty {
+  text-align: center;
+  padding: 1.2rem 0.85rem;
+}
+.mail-error-strip {
+  color: var(--error);
+  font-size: 0.68rem;
+  line-height: 1.45;
+  padding: 0.55rem 0.8rem;
+  border-bottom: 1px solid var(--faint);
+  background: color-mix(in srgb, var(--error) 7%, transparent);
+}
+.mail-row {
+  padding: 0.62rem 0.8rem 0.58rem;
+  border-bottom: 1px solid var(--faint);
+  border-left: 2px solid transparent;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.mail-row:hover { background: var(--panel); }
+.mail-row.sel {
+  background: #101010;
+  border-left-color: var(--muted);
+}
+.mail-row-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.75rem;
+  margin-bottom: 0.12rem;
+}
+.mail-from {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text);
+  font-size: 0.78rem;
+  letter-spacing: -0.005em;
+}
+.mail-row.unread .mail-from { font-weight: 600; }
+.mail-date {
+  color: var(--faint);
+  flex-shrink: 0;
+  font-size: 0.64rem;
+  font-variant-numeric: tabular-nums;
+}
+.mail-subject {
+  color: var(--muted);
+  font-size: 0.73rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mail-row.unread .mail-subject { color: var(--text); }
+.mail-account-badge {
+  width: fit-content;
+  margin-top: 0.38rem;
+  border: 1px solid var(--faint);
+  border-radius: 2px;
+  color: var(--muted);
+  font-size: 0.62rem;
+  line-height: 1;
+  padding: 0.18rem 0.38rem;
+}
+.mail-reader {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+.mail-reader-head {
+  position: relative;
+  padding: 1.2rem clamp(1rem, 4vw, 3rem) 0.95rem;
+  border-bottom: 1px solid var(--faint);
+  flex-shrink: 0;
+}
+.mail-reader-kicker {
+  color: var(--muted);
+  font-size: 0.66rem;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.38rem;
+}
+.mail-reader-subject {
+  color: var(--text);
+  font-size: clamp(1.05rem, 2vw, 1.42rem);
+  line-height: 1.25;
+  letter-spacing: -0.015em;
+  font-weight: 500;
+  max-width: 68ch;
+  margin-bottom: 0.48rem;
+}
+.mail-reader-meta {
+  color: var(--muted);
+  font-size: 0.72rem;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+.mail-reader-meta b {
+  color: var(--text);
+  font-weight: 500;
+}
+.mail-reader-head #mail-reply {
+  position: absolute;
+  top: 1.15rem;
+  right: clamp(1rem, 4vw, 3rem);
+  height: 30px;
+  padding: 0.2rem 0.68rem;
+}
+.mail-reader-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.1rem clamp(1rem, 4vw, 3rem) 2rem;
+}
+.mail-body-frame {
+  width: 100%;
+  min-height: 64vh;
+  border: 1px solid var(--faint);
+  background: #fff;
+  border-radius: 2px;
+}
+.mail-body-text {
+  margin: 0;
+  max-width: 78ch;
+  color: var(--text);
+  font: 0.86rem/1.7 'Inter', sans-serif;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.mail-compose,
+.mail-accounts {
+  width: min(720px, 100%);
+  max-width: none;
+  padding: 1.15rem clamp(1rem, 4vw, 3rem) 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.62rem;
+}
+.mail-form-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.25rem;
+}
+.mail-compose-head {
+  color: var(--text);
+  font-size: 0.95rem;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+.mail-form-sub {
+  color: var(--muted);
+  font-size: 0.68rem;
+  margin-top: 0.1rem;
+}
+.mail-form-actions,
+.mail-acct-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  flex-shrink: 0;
+}
+.mail-form-actions .btn,
+.mail-acct-actions .btn {
+  min-height: 28px;
+  padding: 0.2rem 0.58rem;
+  font-size: 0.64rem;
+}
+.mail-compose-body {
+  min-height: 260px;
+  resize: vertical;
+  font: 0.84rem/1.55 'Inter', sans-serif;
+}
+.mail-status {
+  min-height: 1rem;
+  color: var(--muted);
+  font-size: 0.7rem;
+}
+.mail-form-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 96px;
+  gap: 0.5rem;
+}
+.mail-service-links,
+.mail-provider-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+.mail-service-link,
+.mail-provider-btn {
+  background: none;
+  border: 1px solid var(--faint);
+  border-radius: 2px;
+  color: var(--muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.66rem;
+  line-height: 1;
+  min-height: 28px;
+  padding: 0.25rem 0.52rem;
+  text-decoration: none;
+  transition: color 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+}
+.mail-service-link:hover,
+.mail-provider-btn:hover {
+  color: var(--text);
+  border-color: var(--muted);
+  background: var(--panel);
+}
+.mail-provider-note {
+  border-left: 1px solid var(--faint);
+  color: var(--muted);
+  font-size: 0.72rem;
+  line-height: 1.55;
+  padding-left: 0.62rem;
+}
+.mail-provider-note a {
+  color: var(--text);
+  text-decoration: none;
+  border-bottom: 1px solid var(--faint);
+}
+.mail-provider-note a:hover { border-bottom-color: var(--muted); }
+.mail-acct-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  border-bottom: 1px solid var(--faint);
+  padding: 0.58rem 0;
+  font-size: 0.78rem;
+}
+.mail-acct-row > span:first-child {
+  display: flex;
+  flex-direction: column;
+  gap: 0.08rem;
+  min-width: 0;
+}
+.mail-acct-row b {
+  color: var(--text);
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mail-acct-row em {
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-style: normal;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 760px) {
+  .mail-head {
+    padding: 0.58rem 0.85rem;
+    flex-wrap: wrap;
+  }
+  .mail-account-select {
+    flex: 1 1 150px;
+    width: auto;
+  }
+  .mail-head-actions {
+    width: 100%;
+    margin-left: 0;
+  }
+  .mail-head-actions .btn {
+    flex: 1;
+  }
+  .mail-layout {
+    flex-direction: column;
+  }
+  .mail-list {
+    width: 100%;
+    max-height: 38vh;
+    border-right: 0;
+    border-bottom: 1px solid var(--faint);
+  }
+  .mail-reader-head #mail-reply {
+    position: static;
+    margin-top: 0.75rem;
+  }
+  .mail-form-grid {
+    grid-template-columns: 1fr;
+  }
+  .mail-form-head {
+    flex-direction: column;
+    align-items: stretch;
+  }
 }
 
 /* ── print ── */

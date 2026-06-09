@@ -14,14 +14,14 @@
 <link rel="stylesheet" href="/static/style.css">
 <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
 </head>
-<body>
+<body class="preboot">
 
 <div class="app">
 
   <!-- sidebar -->
   <aside class="sidebar">
     <div class="sidebar-head">
-      <span class="brand" id="brand-home" title="home">alles</span>
+      <span class="brand sidebar-brand" id="brand-home" title="back to alles">aide<span class="brand-sep"> / alles</span></span>
       <button class="new-btn" id="new-chat-btn">+ new chat</button>
     </div>
 
@@ -34,25 +34,16 @@
     </div>
 
     <nav class="sidebar-nav">
-      <div class="nav-item active" data-view="home">home</div>
-      <div class="nav-item" data-view="chat">chat</div>
+      <!-- aide is gemini-style: chat + its tools. switch apps from the alles logo. -->
+      <div class="nav-item" data-view="chat">aide</div>
       <div class="nav-sep"></div>
       <div class="nav-more-toggle" id="nav-more-toggle">tools <span id="nav-more-arrow">▾</span></div>
       <div class="nav-more-items" id="nav-more-items">
-        <div class="nav-item" data-view="models">models</div>
-        <div class="nav-item" data-view="tasks">tasks</div>
-        <div class="nav-item" data-view="wiki">vault</div>
-        <div class="nav-item" data-view="memory">memory</div>
-        <div class="nav-item" data-view="brain">brain</div>
-        <div class="nav-item" data-view="calendar">calendar</div>
-        <div class="nav-item" data-view="gallery">gallery</div>
-        <div class="nav-item" data-view="reminders">reminders</div>
         <div class="nav-item" data-view="compare">compare</div>
-        <div class="nav-item" data-view="vault">secrets</div>
-        <div class="nav-item" data-view="contacts">contacts</div>
-        <div class="nav-item" data-view="files">files</div>
-        <div class="nav-item" data-view="mail">mail</div>
-        <div class="nav-item" data-view="photos">photos</div>
+        <div class="nav-item" data-view="gallery">gallery</div>
+        <div class="nav-item" data-view="brain">brain</div>
+        <div class="nav-item" data-view="models">models</div>
+        <div class="nav-item" data-view="reminders">reminders</div>
       </div>
       <div class="nav-sep"></div>
       <div class="nav-item" data-view="settings">settings</div>
@@ -62,24 +53,30 @@
   <!-- main -->
   <main class="main">
     <div class="topbar">
-      <div style="display:flex;align-items:center;gap:0.4rem">
+      <div class="topbar-left">
         <button class="icon-btn" id="sidebar-toggle-btn" title="toggle sidebar (Ctrl+B)">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
         </button>
-        <button class="model-btn" id="model-btn">
-          <span class="live-dot" id="live-dot"></span>
-          <span id="model-label">no model</span>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
-        </button>
-        <button class="model-btn" id="persona-btn" title="persona" style="display:none">
-          <span id="persona-label">persona</span>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
-        </button>
+        <div class="app-crumb" id="app-crumb">alles</div>
+        <div class="ai-top-controls" id="ai-top-controls">
+          <button class="model-btn" id="model-btn">
+            <span class="live-dot" id="live-dot"></span>
+            <span id="model-label">no model</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <button class="model-btn" id="persona-btn" title="persona" style="display:none">
+            <span id="persona-label">persona</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+        </div>
       </div>
       <div class="topbar-right">
         <span id="session-token-count" style="display:none;font-size:0.65rem;color:var(--muted)"></span>
         <button class="icon-btn" id="session-actions-btn" title="export / share" style="display:none">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        </button>
+        <button class="icon-btn" id="topbar-settings-btn" title="settings">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2a2 2 0 1 1-4 0V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1A2 2 0 1 1 4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H3a2 2 0 1 1 0-4h.2a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1A2 2 0 1 1 7.2 4.2l.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.6V3a2 2 0 1 1 4 0v.2a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1A2 2 0 1 1 20 7.2l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2a2 2 0 1 1 0 4h-.2a1.7 1.7 0 0 0-1.8 1z"/></svg>
         </button>
         <button class="icon-btn" id="theme-btn" title="toggle theme">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
@@ -98,7 +95,6 @@
       <div class="home-inner">
         <div class="home-head">
           <div class="home-brand">alles</div>
-          <div class="home-tagline">your everything, in one place — with aide as the brain.</div>
         </div>
         <div class="home-grid" id="home-grid"></div>
       </div>
@@ -107,10 +103,7 @@
     <!-- ── chat view (default) ── -->
     <div class="chat" id="chat">
       <div class="welcome" id="welcome" style="display:none">
-        <div>
-          <div class="welcome-brand">aide</div>
-          <div class="welcome-desc">the brain of alles.</div>
-        </div>
+        <div class="welcome-greeting" id="welcome-greeting"></div>
       </div>
       <div class="messages" id="messages" style="display:none"></div>
     </div>
@@ -145,10 +138,10 @@
       </div>
     </div>
 
-    <!-- ── notes view ── -->
+    <!-- docs scratchpad view -->
     <div class="page-view" id="notes-view" style="display:none">
       <div class="page-view-head">
-        <span class="page-view-title">notes</span>
+        <span class="page-view-title">docs</span>
         <button class="btn primary" id="note-new-btn">+ new</button>
       </div>
       <div class="page-view-body" id="notes-list"></div>
@@ -186,7 +179,7 @@
       <div class="page-view-body" id="calendar-list"></div>
     </div>
 
-    <!-- ── gallery view ── -->
+    <!-- aide gallery view (AI image generation — lives inside aide) -->
     <div class="page-view" id="gallery-view" style="display:none">
       <div class="page-view-head">
         <span class="page-view-title">gallery</span>
@@ -199,22 +192,6 @@
       </div>
     </div>
 
-    <!-- ── memory view (full page) ── -->
-    <div class="mem-view" id="mem-view" style="display:none">
-      <div class="mem-view-head">
-        <div class="mem-view-search-wrap">
-          <input type="text" id="mem-search" placeholder="search memories...">
-        </div>
-        <button class="btn" id="mem-extract-btn">extract from chat</button>
-      </div>
-      <div id="mem-category-filter" class="mem-cat-filter"></div>
-      <div class="mem-view-list" id="memory-list"></div>
-      <div class="mem-view-footer">
-        <input type="text" id="mem-add-input" placeholder="add a memory...">
-        <button class="btn mem-cat-cycle" id="mem-cat-cycle-btn" data-val="general">general</button>
-        <button class="btn primary" id="mem-add-btn">add</button>
-      </div>
-    </div>
 
     <!-- ── reminders view ── -->
     <div class="page-view" id="reminders-view" style="display:none">
@@ -226,10 +203,7 @@
         <div class="reminder-add-form">
           <input type="text" id="reminder-text" class="settings-input" placeholder="what to remind / message to send..." style="flex:1">
           <input type="datetime-local" id="reminder-time" class="settings-input" style="width:200px">
-          <select id="reminder-type-select" style="background:var(--panel);border:1px solid var(--faint);color:var(--muted);font:inherit;font-size:0.72rem;padding:0.35rem;border-radius:2px">
-            <option value="reminder">reminder</option>
-            <option value="message">send message to AI</option>
-          </select>
+          <div id="reminder-type-select" class="settings-input custom-select" data-value="reminder" data-options="reminder|reminder;message|send message to AI" style="width:auto;min-width:150px"></div>
           <button class="btn primary" id="reminder-add-btn">set</button>
         </div>
         <div style="font-size:0.7rem;color:var(--muted);margin-top:0.5rem">
@@ -239,36 +213,39 @@
     </div>
 
 
-    <!-- ── vault: obsidian-style markdown notes on disk ── -->
+    <!-- docs: markdown files on disk -->
     <div class="page-view" id="wiki-view" style="display:none">
       <div class="wiki-tree-panel">
-        <div class="page-view-head" style="gap:0.3rem">
-          <span class="page-view-title">vault</span>
-          <button class="btn" id="wiki-today-btn" title="today's daily note" style="font-size:0.7rem;margin-left:auto">today</button>
-          <button class="btn" id="wiki-graph-btn" title="graph view" style="font-size:0.7rem">graph</button>
-          <button class="btn" id="wiki-folder-btn" title="new folder" style="font-size:0.7rem">+dir</button>
-          <button class="btn primary" id="wiki-new-btn" style="font-size:0.7rem">+note</button>
+        <div class="page-view-head docs-rail-head">
+          <span class="page-view-title">docs</span>
+          <div class="docs-rail-actions">
+            <button class="btn" id="wiki-today-btn" title="today's daily doc">today</button>
+            <button class="btn" id="wiki-graph-btn" title="graph view">graph</button>
+            <button class="btn" id="wiki-folder-btn" title="new folder">+dir</button>
+            <button class="btn primary" id="wiki-new-btn">+doc</button>
+          </div>
         </div>
-        <input type="text" id="wiki-search" class="settings-input" placeholder="search notes…" style="margin:0 0.5rem 0.4rem;width:calc(100% - 1rem)">
+        <input type="text" id="wiki-search" class="settings-input docs-search" placeholder="search docs...">
         <div id="wiki-tags" class="wiki-tags"></div>
         <div id="wiki-tree" class="wiki-tree"></div>
       </div>
       <div class="wiki-main">
-        <div class="page-view-head" style="gap:0.5rem">
-          <span id="wiki-current" class="wiki-current">no note open</span>
+        <div class="page-view-head docs-editor-head">
+          <span id="wiki-current" class="wiki-current">no doc open</span>
           <span id="wiki-save-status" style="font-size:0.66rem;color:var(--muted);margin-left:auto"></span>
-          <button class="btn" id="wiki-outline-btn" style="font-size:0.72rem">outline</button>
-          <button class="btn" id="wiki-preview-toggle" style="font-size:0.72rem">preview</button>
-          <button class="btn" id="wiki-export-btn" style="font-size:0.72rem">export .docx</button>
-          <button class="btn" id="wiki-delete-btn" style="font-size:0.72rem">delete</button>
+          <button class="btn" id="wiki-help-btn" title="markdown guide">guide</button>
+          <button class="btn" id="wiki-outline-btn">outline</button>
+          <button class="btn" id="wiki-preview-toggle" title="cycle split / read / source">split</button>
+          <button class="btn" id="wiki-export-btn">export .docx</button>
+          <button class="btn danger" id="wiki-delete-btn">delete</button>
         </div>
         <div id="wiki-outline" class="wiki-outline" style="display:none"></div>
         <div class="wiki-empty-state" id="wiki-empty-state">
-          <div>no note open</div>
-          <button class="btn primary" id="wiki-empty-new">+ new note</button>
+          <div>no doc open</div>
+          <button class="btn primary" id="wiki-empty-new">+ new doc</button>
         </div>
         <div class="wiki-editor">
-          <textarea class="wiki-source" id="wiki-source" spellcheck="false" placeholder="start writing… link notes with [[double brackets]]"></textarea>
+          <textarea class="wiki-source" id="wiki-source" spellcheck="false" placeholder="start writing... link docs with [[double brackets]]"></textarea>
           <div class="wiki-preview" id="wiki-preview"></div>
         </div>
         <div class="wiki-backlinks" id="wiki-backlinks"></div>
@@ -281,6 +258,29 @@
       <div id="wiki-graph" class="wiki-graph" style="display:none">
         <div class="wiki-graph-head"><span>graph</span><button class="icon-btn" id="wiki-graph-close">×</button></div>
         <svg id="wiki-graph-svg" class="wiki-graph-svg"></svg>
+      </div>
+      <div id="wiki-help" class="wiki-help" style="display:none">
+        <div class="wiki-help-head"><span>markdown guide</span><button class="icon-btn" id="wiki-help-close">×</button></div>
+        <div class="wiki-help-body">
+          <div class="wiki-help-row"><code># H1  ## H2  ### H3</code><span>headings</span></div>
+          <div class="wiki-help-row"><code>**bold**</code><span>bold</span></div>
+          <div class="wiki-help-row"><code>*italic*</code><span>italic</span></div>
+          <div class="wiki-help-row"><code>~~strike~~</code><span>strikethrough</span></div>
+          <div class="wiki-help-row"><code>==highlight==</code><span>highlight</span></div>
+          <div class="wiki-help-row"><code>`code`</code><span>inline code</span></div>
+          <div class="wiki-help-row"><code>```lang … ```</code><span>code block (run js/py/html)</span></div>
+          <div class="wiki-help-row"><code>&gt; quote</code><span>blockquote</span></div>
+          <div class="wiki-help-row"><code>- item</code><span>bullet list</span></div>
+          <div class="wiki-help-row"><code>1. item</code><span>numbered list</span></div>
+          <div class="wiki-help-row"><code>- [ ] todo · - [x] done</code><span>task list</span></div>
+          <div class="wiki-help-row"><code>[text](url)</code><span>link</span></div>
+          <div class="wiki-help-row"><code>![alt](url)</code><span>image</span></div>
+          <div class="wiki-help-row"><code>[[doc]] · [[doc|alias]]</code><span>link another doc</span></div>
+          <div class="wiki-help-row"><code>![[doc]] · ![[pic.png]]</code><span>embed a doc or image</span></div>
+          <div class="wiki-help-row"><code>#tag</code><span>tag (click to filter)</span></div>
+          <div class="wiki-help-row"><code>---</code><span>divider</span></div>
+          <div class="wiki-help-row"><code>--- &#10; key: value &#10; ---</code><span>frontmatter (top of doc)</span></div>
+        </div>
       </div>
     </div>
 
@@ -324,7 +324,7 @@
       </div>
       <div class="page-view-footer" id="vault-add-bar" style="display:none;flex-wrap:wrap">
         <input type="text" id="vault-new-name" class="settings-input" placeholder="name" style="flex:1;min-width:90px">
-        <select id="vault-new-cat" class="settings-input" style="flex:1;min-width:100px"></select>
+        <div id="vault-new-cat" class="settings-input custom-select" style="flex:1;min-width:100px"></div>
         <input type="text" id="vault-new-cat-custom" class="settings-input" placeholder="new category" style="flex:1;min-width:100px;display:none">
         <input type="text" id="vault-new-username" class="settings-input" placeholder="username" style="flex:1;min-width:100px;display:none">
         <input type="password" id="vault-new-value" class="settings-input" placeholder="value / password" style="flex:2;min-width:120px">
@@ -366,12 +366,19 @@
 
     <!-- ── mail view ── -->
     <div class="page-view" id="mail-view" style="display:none">
-      <div class="page-view-head" style="gap:0.4rem">
+      <div class="page-view-head mail-head">
         <span class="page-view-title">mail</span>
-        <select id="mail-account" class="settings-input" style="font-size:0.72rem;width:auto;max-width:200px"></select>
-        <button class="btn" id="mail-refresh-btn" style="font-size:0.72rem">refresh</button>
-        <button class="btn primary" id="mail-compose-btn" style="font-size:0.72rem;margin-left:auto">compose</button>
-        <button class="btn" id="mail-accounts-btn" title="accounts" style="font-size:0.72rem">accounts</button>
+        <div class="mail-tabs" id="mail-tabs">
+          <button class="mail-tab active" data-filter="inbox">inbox</button>
+          <button class="mail-tab" data-filter="unread">unread</button>
+          <button class="mail-tab" data-filter="sent">sent</button>
+        </div>
+        <div id="mail-account" class="settings-input custom-select mail-account-select"></div>
+        <div class="mail-head-actions">
+          <button class="btn" id="mail-refresh-btn">refresh</button>
+          <button class="btn primary" id="mail-compose-btn">compose</button>
+          <button class="btn" id="mail-accounts-btn" title="accounts">accounts</button>
+        </div>
       </div>
       <div class="mail-layout">
         <div class="mail-list" id="mail-list"></div>
@@ -379,11 +386,11 @@
       </div>
     </div>
 
-    <!-- ── photos view ── -->
+    <!-- gallery view -->
     <div class="page-view" id="photos-view" style="display:none">
       <div class="page-view-head" style="gap:0.4rem">
-        <span class="page-view-title">photos</span>
-        <select id="photos-album" class="settings-input" style="font-size:0.72rem;width:auto;max-width:180px"></select>
+        <span class="page-view-title">gallery</span>
+        <div id="photos-album" class="settings-input custom-select" style="font-size:0.72rem;width:auto;max-width:180px"></div>
         <button class="btn" id="photos-newalbum-btn" style="font-size:0.72rem">+ album</button>
         <input type="file" id="photos-upload-input" accept="image/*" multiple hidden>
         <button class="btn primary" id="photos-upload-btn" style="font-size:0.72rem;margin-left:auto">upload</button>
@@ -446,7 +453,7 @@
           </div>
         </div>
         <div class="agent-bar" id="agent-bar">
-          <span class="agent-bar-label">permissions</span>
+          <span class="agent-bar-label">mode</span>
           <button class="perm-btn" id="perm-mode-btn" title="what the agent can do without asking">
             <span class="perm-label">approve</span>
             <svg class="perm-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
@@ -525,7 +532,7 @@
       <div class="photos-lightbox-actions">
         <button class="btn" id="photos-fav-btn">favorite</button>
         <a class="btn" id="photos-dl-btn" href="#" download>download</a>
-        <button class="btn" id="photos-del-btn">delete</button>
+        <button class="btn danger" id="photos-del-btn">delete</button>
         <button class="btn" id="photos-close-btn">close</button>
       </div>
       <div class="photos-exif" id="photos-exif"></div>
@@ -594,6 +601,10 @@
         <div class="s-nav-item" data-pane="ai">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
           ai defaults
+        </div>
+        <div class="s-nav-item" data-pane="memory">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/></svg>
+          memory
         </div>
         <div class="s-nav-item" data-pane="search">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
@@ -721,7 +732,7 @@
             <div class="s-card-body">
               <div class="s-field">
                 <label>system prompt</label>
-                <textarea class="settings-textarea" id="settings-system-prompt" rows="4" placeholder="You are aide, a helpful personal AI assistant."></textarea>
+                <textarea class="settings-textarea" id="settings-system-prompt" rows="4" placeholder="You are Aide, the AI assistant inside Alles."></textarea>
               </div>
               <div class="s-field">
                 <label>context window (messages)</label>
@@ -760,6 +771,27 @@
           </div>
           <div style="text-align:right;margin-top:0.4rem">
             <button class="btn primary" id="settings-save-btn">save</button>
+          </div>
+        </div>
+
+        <!-- ── memory pane (aide's long-term memory) ── -->
+        <div class="s-pane" id="s-pane-memory">
+          <div class="s-card">
+            <div class="s-card-head">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/></svg>
+              memory
+              <button class="btn" id="mem-extract-btn" style="margin-left:auto;font-size:0.68rem;padding:0.15rem 0.5rem">extract from chat</button>
+            </div>
+            <div class="s-card-body">
+              <input type="text" id="mem-search" class="settings-input" placeholder="search memories..." style="width:100%;margin-bottom:0.55rem">
+              <div id="mem-category-filter" class="mem-cat-filter"></div>
+              <div class="mem-view-list" id="memory-list"></div>
+              <div style="display:flex;gap:0.4rem;margin-top:0.6rem">
+                <input type="text" id="mem-add-input" class="settings-input" placeholder="add a memory..." style="flex:1">
+                <button class="btn mem-cat-cycle" id="mem-cat-cycle-btn" data-val="general">general</button>
+                <button class="btn primary" id="mem-add-btn">add</button>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -815,6 +847,18 @@
         <div class="s-pane" id="s-pane-appearance">
           <div class="s-card">
             <div class="s-card-head">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              profile
+            </div>
+            <div class="s-card-body">
+              <div class="s-field">
+                <label>your name <span style="color:var(--muted);font-weight:400">— aide greets you by it</span></label>
+                <input type="text" class="settings-input" id="s-user-name" placeholder="e.g. eric" style="width:100%">
+              </div>
+            </div>
+          </div>
+          <div class="s-card">
+            <div class="s-card-head">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
               chat bar
               <button class="btn" id="s-vis-reset-btn" style="margin-left:auto;font-size:0.68rem;padding:0.15rem 0.5rem">reset all</button>
@@ -842,15 +886,15 @@
               sidebar views
             </div>
             <div class="s-card-body" style="padding-top:0.2rem;padding-bottom:0.2rem">
-              <div class="s-toggle-row"><div><div class="s-toggle-label">notes</div></div><div class="s-switch s-vis-toggle" data-vis=".nav-item[data-view='notes']" data-vis-key="nav-notes"></div></div>
+              <div class="s-toggle-row"><div><div class="s-toggle-label">docs</div></div><div class="s-switch s-vis-toggle" data-vis=".nav-item[data-view='wiki']" data-vis-key="nav-wiki"></div></div>
               <div class="s-toggle-row"><div><div class="s-toggle-label">tasks</div></div><div class="s-switch s-vis-toggle" data-vis=".nav-item[data-view='tasks']" data-vis-key="nav-tasks"></div></div>
               <div class="s-toggle-row"><div><div class="s-toggle-label">calendar</div></div><div class="s-switch s-vis-toggle" data-vis=".nav-item[data-view='calendar']" data-vis-key="nav-calendar"></div></div>
-              <div class="s-toggle-row"><div><div class="s-toggle-label">gallery</div></div><div class="s-switch s-vis-toggle" data-vis=".nav-item[data-view='gallery']" data-vis-key="nav-gallery"></div></div>
+              <div class="s-toggle-row"><div><div class="s-toggle-label">ai gallery</div></div><div class="s-switch s-vis-toggle" data-vis=".nav-item[data-view='gallery']" data-vis-key="nav-gallery"></div></div>
               <div class="s-toggle-row"><div><div class="s-toggle-label">memory</div></div><div class="s-switch s-vis-toggle" data-vis=".nav-item[data-view='memory']" data-vis-key="nav-memory"></div></div>
-              <div class="s-toggle-row"><div><div class="s-toggle-label">vault</div></div><div class="s-switch s-vis-toggle" data-vis=".nav-item[data-view='wiki']" data-vis-key="nav-wiki"></div></div>
               <div class="s-toggle-row"><div><div class="s-toggle-label">compare</div></div><div class="s-switch s-vis-toggle" data-vis=".nav-item[data-view='compare']" data-vis-key="nav-compare"></div></div>
-              <div class="s-toggle-row"><div><div class="s-toggle-label">vault</div></div><div class="s-switch s-vis-toggle" data-vis=".nav-item[data-view='vault']" data-vis-key="nav-vault"></div></div>
+              <div class="s-toggle-row"><div><div class="s-toggle-label">secrets</div></div><div class="s-switch s-vis-toggle" data-vis=".nav-item[data-view='vault']" data-vis-key="nav-vault"></div></div>
               <div class="s-toggle-row"><div><div class="s-toggle-label">contacts</div></div><div class="s-switch s-vis-toggle" data-vis=".nav-item[data-view='contacts']" data-vis-key="nav-contacts"></div></div>
+              <div class="s-toggle-row"><div><div class="s-toggle-label">gallery</div></div><div class="s-switch s-vis-toggle" data-vis=".nav-item[data-view='photos']" data-vis-key="nav-photos"></div></div>
             </div>
           </div>
         </div>
@@ -997,11 +1041,7 @@
             <div class="s-card-body">
               <div id="conn-list" style="margin-bottom:0.75rem"></div>
               <div class="s-field"><label>service</label>
-                <select class="settings-input" id="conn-service" style="width:100%">
-                  <option value="github">github</option>
-                  <option value="gitlab">gitlab</option>
-                  <option value="custom">custom…</option>
-                </select>
+                <div class="settings-input custom-select" id="conn-service" data-value="github" data-options="github|github;gitlab|gitlab;custom|custom…" style="width:100%"></div>
               </div>
               <div class="s-field" id="conn-custom-row" style="display:none"><label>name</label><input type="text" class="settings-input" id="conn-custom" placeholder="service id" style="width:100%"></div>
               <div class="s-field"><label>token</label><input type="password" class="settings-input" id="conn-token" placeholder="personal access token" style="width:100%"></div>
@@ -1058,7 +1098,7 @@
               openai-compatible api
             </div>
             <div class="s-card-body" style="font-size:0.75rem;color:var(--muted)">
-              <div style="margin-bottom:0.3rem">expose aide's models via the OpenAI API spec.</div>
+              <div style="margin-bottom:0.3rem">expose Aide's models via the OpenAI API spec.</div>
               <div style="margin-bottom:0.3rem">base url: <code id="s-compat-url2" style="color:var(--accent)">http://localhost:8001/v1</code></div>
               <div>model id format: <code style="color:var(--accent)">EndpointName/model-id</code></div>
             </div>
@@ -1073,7 +1113,7 @@
               export
             </div>
             <div class="s-card-body">
-              <p style="font-size:0.75rem;color:var(--muted);margin-bottom:0.75rem">downloads a ZIP containing <code>aide.db</code> (all chats, notes, tasks, memories) and <code>settings.json</code>.</p>
+              <p style="font-size:0.75rem;color:var(--muted);margin-bottom:0.75rem">downloads a ZIP containing local Alles data (chats, docs, tasks, memories) and <code>settings.json</code>.</p>
               <button class="btn primary" id="backup-export-btn" style="width:100%">download backup</button>
             </div>
           </div>
@@ -1098,7 +1138,7 @@
 </div>
 
 <script type="module">
-const _v = '17';
+const _v = '20';
 import(`/static/js/app.js?v=${_v}`);
 </script>
 </body>

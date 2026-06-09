@@ -30,14 +30,47 @@ export function mdToHtml(text) {
 
   // headings → real h1..h6
   out = out.replace(/^(#{1,6})\s+(.+)$/gm, (_, h, t) => `<h${h.length}>${t}</h${h.length}>`);
-  // bold + italic
+  // horizontal rule (before inline * so *** isn't eaten by italic)
+  out = out.replace(/^\s*(?:---|\*\*\*|___)\s*$/gm, '<hr>');
+  // images then links ( ! [ ] ( ) survived escapeHtml )
+  out = out.replace(/!\[([^\]]*)\]\(([^)\s]+)\)/g, '<img class="md-img" src="$2" alt="$1">');
+  out = out.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noreferrer">$1</a>');
+  // bold, italic, strikethrough, ==highlight==
   out = out.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
   out = out.replace(/\*(.+?)\*/g, '<em>$1</em>');
+  out = out.replace(/~~(.+?)~~/g, '<del>$1</del>');
+  // highlight — require non-space boundaries so "a == b == c" stays untouched
+  out = out.replace(/==(\S(?:[^=]*\S)?)==/g, '<mark>$1</mark>');
   // inline code
   out = out.replace(/`([^`]+)`/g, '<code>$1</code>');
-  // unordered lists
-  out = out.replace(/^\s*[-*]\s+(.+)/gm, '<li>$1</li>');
-  out = out.replace(/(<li>.*<\/li>\n?)+/g, m => `<ul>${m}</ul>`);
+  // blockquotes — consecutive > lines into one block (> was escaped to &gt;)
+  out = out.replace(/(?:^&gt;\s?.*(?:\n|$))+/gm, m =>
+    `<blockquote>${m.replace(/^&gt;\s?/gm, '').trim().replace(/\n/g, '<br>')}</blockquote>`);
+  // lists — line based so blank lines end a list and ul/ol never bleed together
+  {
+    const lines = out.split('\n');
+    const res = [];
+    let buf = null;   // { type, items[] }
+    const flush = () => { if (buf) { res.push(`<${buf.type}>${buf.items.join('')}</${buf.type}>`); buf = null; } };
+    for (const line of lines) {
+      let m;
+      if ((m = line.match(/^\s*[-*]\s+\[([ xX])\]\s+(.+)/))) {
+        if (buf?.type !== 'ul') { flush(); buf = { type: 'ul', items: [] }; }
+        buf.items.push(`<li class="md-task"><input type="checkbox" disabled ${/x/i.test(m[1]) ? 'checked' : ''}> ${m[2]}</li>`);
+      } else if ((m = line.match(/^\s*\d+\.\s+(.+)/))) {
+        if (buf?.type !== 'ol') { flush(); buf = { type: 'ol', items: [] }; }
+        buf.items.push(`<li>${m[1]}</li>`);
+      } else if ((m = line.match(/^\s*[-*]\s+(.+)/))) {
+        if (buf?.type !== 'ul') { flush(); buf = { type: 'ul', items: [] }; }
+        buf.items.push(`<li>${m[1]}</li>`);
+      } else {
+        flush();
+        res.push(line);
+      }
+    }
+    flush();
+    out = res.join('\n');
+  }
   // paragraphs — double newlines
   out = out.replace(/\n{2,}/g, '\n\n');
   const paras = out.split('\n\n').map(p => p.trim()).filter(Boolean);

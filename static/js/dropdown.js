@@ -1,3 +1,6 @@
+// custom select — replaces native <select> everywhere so the UI stays ours.
+// options live in el.dataset.options ("val|label;val|label"), so they can be
+// swapped at runtime (mail accounts, photo albums, etc.) without re-wiring.
 let _open = null;
 
 export function initCustomDropdowns(root = document) {
@@ -12,75 +15,55 @@ export function initCustomDropdown(el) {
   el.setAttribute('aria-expanded', 'false');
   if (!el.hasAttribute('tabindex')) el.tabIndex = 0;
 
-  const options = _readOptions(el);
-  el._customOptions = options;
-  let value = el.dataset.value || options[0]?.value || '';
-  el.dataset.value = value;
-  let activeIndex = Math.max(0, options.findIndex(o => o.value === value));
+  if (!el.dataset.value) el.dataset.value = _readOptions(el)[0]?.value || '';
 
   Object.defineProperty(el, 'value', {
     configurable: true,
-    get() {
-      return value;
-    },
+    get() { return el.dataset.value || ''; },
     set(next) {
-      const idx = options.findIndex(o => o.value === String(next));
-      value = idx >= 0 ? options[idx].value : String(next || '');
-      el.dataset.value = value;
-      activeIndex = Math.max(0, options.findIndex(o => o.value === value));
-      _renderTrigger(el, options, value);
-      if (_open?.el === el) _renderPanel(el, options, activeIndex);
+      const opts = _readOptions(el);
+      const idx = opts.findIndex(o => o.value === String(next));
+      el.dataset.value = idx >= 0 ? opts[idx].value : String(next ?? '');
+      _renderTrigger(el);
+      if (_open?.el === el) _renderPanel(el);
     },
   });
 
-  _renderTrigger(el, options, value);
+  _renderTrigger(el);
 
-  el.addEventListener('click', e => {
-    e.stopPropagation();
-    _toggle(el, options, activeIndex);
-  });
-
+  el.addEventListener('click', e => { e.stopPropagation(); _toggle(el); });
   el.addEventListener('keydown', e => {
+    const opts = _readOptions(el);
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
-      if (_open?.el === el) _choose(el, options, activeIndex);
-      else _toggle(el, options, activeIndex);
+      if (_open?.el === el) _choose(el, _open.activeIndex);
+      else _openDropdown(el);
     } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
       e.preventDefault();
-      if (_open?.el !== el) _openDropdown(el, options, activeIndex);
+      if (_open?.el !== el) _openDropdown(el);
       const step = e.key === 'ArrowDown' ? 1 : -1;
-      activeIndex = Math.max(0, Math.min(options.length - 1, activeIndex + step));
-      if (_open?.el === el) {
-        _open.activeIndex = activeIndex;
-        _renderPanel(el, options, activeIndex);
-      }
+      _open.activeIndex = Math.max(0, Math.min(opts.length - 1, _open.activeIndex + step));
+      _renderPanel(el);
     } else if (e.key === 'Escape') {
       _close();
     }
   });
-
-  el.addEventListener('custom-dropdown-select', e => {
-    activeIndex = e.detail.index;
-  });
 }
 
-export function getDropdownValue(el) {
-  return el?.dataset?.value || '';
-}
+export function getDropdownValue(el) { return el?.dataset?.value || ''; }
 
 export function setDropdownValue(el, value) {
   if (!el) return;
-  if (!el.dataset.dropdownReady) initCustomDropdown(el);
-  const options = el._customOptions || _readOptions(el);
-  const next = String(value || '');
-  const match = options.find(o => o.value === next);
-  el.dataset.value = match ? match.value : next;
-  try { el.value = el.dataset.value; } catch {}
-  _renderTrigger(el, options, el.dataset.value);
-  if (_open?.el === el) {
-    const idx = Math.max(0, options.findIndex(o => o.value === el.dataset.value));
-    _renderPanel(el, options, idx);
-  }
+  if (el.dataset.dropdownReady !== '1') initCustomDropdown(el);
+  el.value = String(value ?? '');
+}
+
+// swap the option set at runtime (and optionally the selected value)
+export function populateDropdown(el, options, value) {
+  if (!el) return;
+  el.dataset.options = options.map(o => `${o.value}|${o.label ?? o.value}`).join(';');
+  if (el.dataset.dropdownReady !== '1') initCustomDropdown(el);
+  el.value = value != null ? String(value) : (options[0]?.value || '');
 }
 
 function _readOptions(el) {
@@ -95,59 +78,65 @@ function _readOptions(el) {
     });
 }
 
-function _renderTrigger(el, options, value) {
-  const label = options.find(o => o.value === value)?.label || value || 'select';
+function _activeIndex(el) {
+  const opts = _readOptions(el);
+  return Math.max(0, opts.findIndex(o => o.value === el.dataset.value));
+}
+
+function _renderTrigger(el) {
+  const opts = _readOptions(el);
+  const label = opts.find(o => o.value === el.dataset.value)?.label || el.dataset.placeholder || 'select';
   el.innerHTML = `
     <span class="custom-select-label">${_esc(label)}</span>
     <svg class="custom-select-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
   `;
 }
 
-function _toggle(el, options, activeIndex) {
+function _toggle(el) {
   if (_open?.el === el) _close();
-  else _openDropdown(el, options, activeIndex);
+  else _openDropdown(el);
 }
 
-function _openDropdown(el, options, activeIndex) {
+function _openDropdown(el) {
   _close();
   const panel = document.createElement('div');
   panel.className = 'custom-dropdown-panel';
   panel.setAttribute('role', 'listbox');
   document.body.appendChild(panel);
-  _open = { el, panel, activeIndex };
+  _open = { el, panel, activeIndex: _activeIndex(el) };
   el.classList.add('open');
   el.setAttribute('aria-expanded', 'true');
   _positionPanel(el, panel);
-  _renderPanel(el, options, activeIndex);
+  _renderPanel(el);
   setTimeout(() => document.addEventListener('click', _outsideClick), 0);
   window.addEventListener('resize', _repositionOpen);
   window.addEventListener('scroll', _repositionOpen, true);
 }
 
-function _renderPanel(el, options, activeIndex) {
+function _renderPanel(el) {
   const panel = _open?.panel;
   if (!panel) return;
-  panel.innerHTML = options.map((opt, idx) => `
-    <button type="button" class="custom-dropdown-option${opt.value === el.value ? ' selected' : ''}${idx === activeIndex ? ' active' : ''}" data-index="${idx}" role="option" aria-selected="${opt.value === el.value}">
+  const opts = _readOptions(el);
+  panel.innerHTML = opts.map((opt, idx) => `
+    <button type="button" class="custom-dropdown-option${opt.value === el.dataset.value ? ' selected' : ''}${idx === _open.activeIndex ? ' active' : ''}" data-index="${idx}" role="option" aria-selected="${opt.value === el.dataset.value}">
       ${_esc(opt.label)}
     </button>
   `).join('');
   panel.querySelectorAll('.custom-dropdown-option').forEach(btn => {
     btn.addEventListener('click', e => {
       e.stopPropagation();
-      _choose(el, options, Number(btn.dataset.index));
+      _choose(el, Number(btn.dataset.index));
     });
   });
   panel.querySelector('.active')?.scrollIntoView({ block: 'nearest' });
 }
 
-function _choose(el, options, index) {
-  const opt = options[index];
+function _choose(el, index) {
+  const opts = _readOptions(el);
+  const opt = opts[index];
   if (!opt) return;
   el.dataset.value = opt.value;
-  try { el.value = opt.value; } catch {}
-  _renderTrigger(el, options, opt.value);
-  el.dispatchEvent(new CustomEvent('custom-dropdown-select', { detail: { index } }));
+  _renderTrigger(el);
   el.dispatchEvent(new Event('change', { bubbles: true }));
   _close();
   el.focus();

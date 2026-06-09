@@ -13,7 +13,7 @@ function renderGallery() {
   if (!grid) return;
 
   if (!_images.length) {
-    grid.innerHTML = '<div class="page-empty">no images yet — upload one below</div>';
+    grid.innerHTML = '<div class="page-empty">ai gallery empty - upload an image</div>';
     return;
   }
 

@@ -2,6 +2,7 @@ import { toast } from './util.js';
 import { confirm as _dlgConfirm } from './dialog.js';
 import { loadModels, addEndpoint, renderModelList } from './models.js';
 import { initCustomDropdowns, getDropdownValue, setDropdownValue } from './dropdown.js';
+import { initMemoryPanel } from './memory.js';
 import {
   sensitiveBlurEnabled, textOnlyEmojisEnabled, welcomeEnabled,
   setSensitiveBlur, setTextOnlyEmojis, setWelcomeEnabled,
@@ -66,6 +67,7 @@ function _switchPane(name) {
 function _onPaneOpen(name) {
   if (name === 'models')     { loadEpList(); loadLocalModels(); }
   if (name === 'ai')         loadAiPane();
+  if (name === 'memory')     initMemoryPanel();
   if (name === 'search')     loadSearchPane();
   if (name === 'appearance') loadAppearancePane();
   if (name === 'voice')      loadVoicePane();
@@ -372,7 +374,7 @@ async function pullCustomLocalModel() {
 
 async function deleteLocalModel(model, btn) {
   if (!model) return;
-  if (!confirm(`remove ${model} from disk?`)) return;
+  if (!await _dlgConfirm(`remove ${model} from disk?`)) return;
   btn.disabled = true; btn.textContent = 'removing...';
   try {
     await _localJson('/api/local-models/delete', {

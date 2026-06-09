@@ -9,7 +9,7 @@ _SETTINGS_FILE = Path(__file__).parent.parent / "data" / "settings.json"
 _defaults = {
     "default_model": "",
     "default_endpoint_id": "",
-    "system_prompt": "You are aide, a helpful personal AI assistant.",
+    "system_prompt": "You are Aide, the AI assistant inside Alles.",
     "context_limit": 40,
     "stream_thinking": True,
     "artifacts_enabled": True,
