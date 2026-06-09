@@ -1,4 +1,5 @@
 import { toast } from './util.js';
+import { initCustomDropdown } from './dropdown.js';
 
 let _events = [];
 let _editing = null;
@@ -198,9 +199,7 @@ function openEditor(event, defaultDate, hour, allDay) {
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;margin-top:0.5rem">
       <div><div class="cal-flabel">repeat</div>
-        <select class="settings-input" id="cal-recur" style="width:100%">
-          ${['', 'daily', 'weekly', 'monthly'].map(r => `<option value="${r}" ${r === recur ? 'selected' : ''}>${r || 'does not repeat'}</option>`).join('')}
-        </select>
+        <div class="settings-input custom-select" id="cal-recur" data-value="${recur}" data-options="|does not repeat;daily|daily;weekly|weekly;monthly|monthly" style="width:100%"></div>
       </div>
       <div><div class="cal-flabel">repeat until (optional)</div><input class="settings-input" id="cal-until" type="date" value="${event?.recur_until || ''}" style="width:100%"></div>
     </div>
@@ -218,6 +217,8 @@ function openEditor(event, defaultDate, hour, allDay) {
       <button class="btn primary" id="cal-save">${isNew ? 'create' : 'save'}</button>
     </div>
   </div>`;
+
+  initCustomDropdown(document.getElementById('cal-recur'));
 
   let _color = event?.color || 'accent';
   list.querySelectorAll('.cal-color-dot').forEach(d => d.addEventListener('click', () => {

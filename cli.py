@@ -1,11 +1,11 @@
 """
-aide CLI
-  aide start    — start server in background
-  aide stop     — stop server
-  aide restart  — restart server
-  aide status   — show if running + url
-  aide logs     — tail logs
-  aide open     — open in browser
+alles CLI
+  alles start    - start server in background
+  alles stop     - stop server
+  alles restart  - restart server
+  alles status   - show if running + url
+  alles logs     - tail logs
+  alles open     - open in browser
 """
 import sys, os, signal, subprocess, time, webbrowser
 from pathlib import Path
@@ -77,7 +77,7 @@ def _kill_port():
 def cmd_start():
     pid = _pid()
     if _running(pid):
-        print(f"aide already running  pid={pid}  http://localhost:{_port()}")
+        print(f"alles already running  pid={pid}  http://localhost:{_port()}")
         return
     if _port_in_use():
         print(f"port {_port()} is in use by an orphaned process — killing it...")
@@ -110,16 +110,16 @@ def cmd_start():
     time.sleep(1.2)
 
     if _running(proc.pid):
-        print(f"aide started  pid={proc.pid}  http://localhost:{_port()}")
+        print(f"alles started  pid={proc.pid}  http://localhost:{_port()}")
     else:
-        print("aide failed to start — check logs:")
-        print(f"  aide logs")
+        print("alles failed to start - check logs:")
+        print(f"  alles logs")
 
 
 def cmd_stop():
     pid = _pid()
     if not _running(pid):
-        print("aide is not running")
+        print("alles is not running")
         PID_FILE.unlink(missing_ok=True)
         return
 
@@ -137,7 +137,7 @@ def cmd_stop():
                 break
 
         PID_FILE.unlink(missing_ok=True)
-        print(f"aide stopped  (pid {pid})")
+        print(f"alles stopped  (pid {pid})")
     except Exception as e:
         print(f"stop failed: {e}")
 
@@ -152,15 +152,15 @@ def cmd_status():
     pid = _pid()
     port = _port()
     if _running(pid):
-        print(f"aide running   pid={pid}   http://localhost:{port}")
+        print(f"alles running   pid={pid}   http://localhost:{port}")
     else:
-        print("aide stopped")
+        print("alles stopped")
         PID_FILE.unlink(missing_ok=True)
 
 
 def cmd_logs(n=60):
     if not LOG_FILE.exists():
-        print("no log file yet — run  aide start  first")
+        print("no log file yet - run  alles start  first")
         return
     lines = LOG_FILE.read_text(errors="replace").splitlines()
     print("\n".join(lines[-n:]))
@@ -169,7 +169,7 @@ def cmd_logs(n=60):
 def cmd_open():
     pid = _pid()
     if not _running(pid):
-        print("aide is not running — start it first with  aide start")
+        print("alles is not running - start it first with  alles start")
         return
     url = f"http://localhost:{_port()}"
     webbrowser.open(url)

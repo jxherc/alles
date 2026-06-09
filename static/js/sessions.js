@@ -436,8 +436,37 @@ export function scrollDown() {
 }
 
 
+// claude-style greeting: time-of-day, your name, and a little variety per refresh
+function _escName(s) { return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+function greetingHtml() {
+  const h = new Date().getHours();
+  const name = (localStorage.getItem('alles-name') || '').trim();
+  let pool;
+  if (h < 5)        pool = ['still up?', 'burning the midnight oil', 'the world\'s asleep, perfect',
+                            'night owl mode', 'quiet hours, big ideas', 'one more thing?', 'can\'t sleep?',
+                            'late-night session'];
+  else if (h < 12)  pool = ['good morning', 'morning', 'rise and shine', 'top of the morning',
+                            'fresh start', 'let\'s make today count', 'the day is yours', 'coffee first?'];
+  else if (h < 18)  pool = ['good afternoon', 'afternoon', 'good to see you', 'back at it',
+                            'midday momentum', 'what are we shipping today?', 'let\'s keep rolling', 'ready when you are'];
+  else              pool = ['good evening', 'evening', 'welcome back', 'the night is young',
+                            'what are we building tonight?', 'prime hours', 'let\'s get into it', 'golden hour for ideas'];
+  const pick = pool[Math.floor(Math.random() * pool.length)];
+  return _withName(pick, name);
+}
+
+// drop the name in before any trailing ? . ! so "one more thing?" → "one more thing, eric?"
+function _withName(g, name) {
+  if (!name) return _escName(g);
+  const punct = /[?.!]$/.test(g) ? g.slice(-1) : '';
+  const base = punct ? g.slice(0, -1) : g;
+  return `${_escName(base)}, <span class="accent">${_escName(name)}</span>${punct}`;
+}
+
 export function showWelcome() {
   if (welcomeEnabled()) {
+    const g = document.getElementById('welcome-greeting');
+    if (g) g.innerHTML = greetingHtml();
     document.getElementById('welcome').style.display = 'flex';
     document.getElementById('messages').style.display = 'none';
   } else {

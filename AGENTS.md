@@ -1,10 +1,11 @@
-# AGENTS.md — aide project context
+# AGENTS.md - alles project context
 
 Auto-loaded into agent mode (the cross-tool standard, like CLAUDE.md for Claude Code). Keep it short.
 
 ## what this is
-Self-hosted personal AI workspace. Python 3.11 + FastAPI + SQLite + vanilla JS ES modules, no build step.
-Run: `python app.py` or `aide start` → http://localhost:8000
+Self-hosted personal workspace. Alles is the ecosystem; Aide is the AI app inside it.
+Python 3.11 + FastAPI + SQLite + vanilla JS ES modules, no build step.
+Run: `python app.py` or `alles start` -> http://localhost:8000
 
 ## layout
 - `app.py` — FastAPI entry, routers, lifespan
@@ -28,8 +29,9 @@ border-radius 2-3px max, no shadows/gradients, transitions only on color/border/
 ## alles = ecosystem of per-app sites (subdomains)
 One server, subdomain-aware single SPA. `static/js/subdomain.js` holds the
 `SUBDOMAIN_VIEWS` map: apex = the hub; `aide` = the AI (chat/agent/memory/compare/
-brain/models/reminders/gallery); each other app on its own subdomain (mail, notes
-=vault, calendar, tasks, files, contacts, secrets, photos). `app.js`
+brain/models/reminders/AI gallery); each other app on its own subdomain (mail, docs,
+calendar, tasks, files, contacts, secrets, gallery). `notes` and `photos` remain
+compatibility aliases for `docs` and `gallery`. `app.js`
 `applySubdomainScope()` scopes the sidebar; `navigateTo` cross-jumps between
 subdomains. Works today on `aide.localhost:8000` etc. (no DNS).
 - auth across subdomains: `Domain=localhost` cookies aren't sent to `*.localhost`,
