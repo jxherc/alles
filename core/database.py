@@ -340,6 +340,20 @@ class Reminder(Base):
     created_at = Column(DateTime, default=_now)
 
 
+class DayEvent(Base):
+    __tablename__ = "day_events"
+    id          = Column(String, primary_key=True, default=_uid)
+    name        = Column(String, nullable=False)
+    date        = Column(String, nullable=False)      # ISO date YYYY-MM-DD
+    repeat      = Column(String, default="none")      # none | yearly | monthly
+    category    = Column(String, default="")
+    notes       = Column(Text, default="")
+    pinned      = Column(Boolean, default=False)
+    notify_days = Column(Integer, default=1)           # push window; -1 = off, 0 = day-of only
+    last_notified = Column(String, default="")         # occurrence date already pushed
+    created_at  = Column(DateTime, default=_now)
+
+
 class Subscription(Base):
     __tablename__ = "subscriptions"
     id          = Column(String, primary_key=True, default=_uid)

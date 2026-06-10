@@ -44,7 +44,7 @@ from routes import (
     local_models as local_model_routes,
     vault_md as vault_md_routes,
 )
-from routes import reminders as reminder_routes, templates as template_routes, shared as shared_routes, files as files_routes, caldav as caldav_routes, mail as mail_routes, photos as photos_routes, push as push_routes, subscriptions as subscription_routes
+from routes import reminders as reminder_routes, templates as template_routes, shared as shared_routes, files as files_routes, caldav as caldav_routes, mail as mail_routes, photos as photos_routes, push as push_routes, subscriptions as subscription_routes, days as days_routes
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s  %(name)s  %(message)s")
 log = logging.getLogger("alles")
@@ -113,6 +113,11 @@ async def _reminder_loop():
                 await check_renewals()
             except Exception as e:
                 log.warning(f"subscription renewal check failed: {e}")
+            try:
+                from routes.days import check_day_events
+                await check_day_events()
+            except Exception as e:
+                log.warning(f"day event check failed: {e}")
             now = datetime.utcnow()
             db = SessionLocal()
             try:
@@ -388,6 +393,7 @@ app.include_router(mail_routes.router)
 app.include_router(photos_routes.router)
 app.include_router(push_routes.router)
 app.include_router(subscription_routes.router)
+app.include_router(days_routes.router)
 
 
 # static files — no-cache so JS/CSS always reloads
