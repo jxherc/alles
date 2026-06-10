@@ -6,6 +6,7 @@ httpx
 pydantic>=2.0
 sqlalchemy
 cryptography
+bcrypt                # password hashing (core/auth.py)
 fastembed
 python-docx          # vault .docx export
 pillow               # photos app — thumbnails + EXIF
