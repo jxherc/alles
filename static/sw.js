@@ -1,5 +1,5 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v1';
+const VERSION = 'v2';   // bumped: purges caches that held the old broken editor bundle
 const CACHE = `alles-${VERSION}`;
 
 self.addEventListener('install', () => self.skipWaiting());
