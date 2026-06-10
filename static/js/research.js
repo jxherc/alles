@@ -65,7 +65,7 @@ export async function runResearch(query) {
     });
 
     if (!r.ok) {
-      stepsEl.innerHTML += `<div class="research-step error">${await r.text()}</div>`;
+      stepsEl.innerHTML += `<div class="research-step error">${escHtml(await r.text())}</div>`;
       return;
     }
 
@@ -129,16 +129,16 @@ export async function runResearch(query) {
         }
 
         if (ev.type === 'error') {
-          stepsEl.innerHTML += `<div class="research-step error">error: ${ev.text}</div>`;
+          stepsEl.innerHTML += `<div class="research-step error">error: ${escHtml(ev.text)}</div>`;
         }
       }
     }
   } catch (e) {
-    stepsEl.innerHTML += `<div class="research-step error">${e.message}</div>`;
+    stepsEl.innerHTML += `<div class="research-step error">${escHtml(e.message)}</div>`;
   }
 }
 
 
-function escHtml(s) {
-  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+function escHtml(s = '') {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }

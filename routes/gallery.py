@@ -46,8 +46,11 @@ async def upload_image(
 
 @router.get("/gallery/file/{filename}")
 def serve_file(filename: str):
-    path = GALLERY_DIR / filename
-    if not path.exists(): raise HTTPException(404)
+    if filename != Path(filename).name:   # no separators / traversal
+        raise HTTPException(404)
+    path = (GALLERY_DIR / filename).resolve()
+    if not path.is_relative_to(GALLERY_DIR.resolve()) or not path.is_file():
+        raise HTTPException(404)
     return FileResponse(str(path))
 
 @router.delete("/gallery/{iid}")
