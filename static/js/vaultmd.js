@@ -1,5 +1,6 @@
 // docs: file tree + editor + live preview with [[wikilinks]] + backlinks
-import { mdToHtml, toast } from './util.js';
+import { mdToHtml, toast, enhanceMarkdown } from './util.js';
+import { createDocEditor, getDocMarkdown, setDocMarkdown, docEditorReady } from './toastdocs.js';
 import { prompt as dlgPrompt, confirm as dlgConfirm } from './dialog.js';
 
 let _cur = null;          // current doc path
@@ -10,22 +11,397 @@ const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const _syncEmpty = () => $('wiki-view')?.classList.toggle('no-note', !_cur);
 
-// docs view mode: split (source+preview) | read (preview only) | source (raw, no effects)
-const _DOCS_MODES = ['split', 'read', 'source'];
-let _docsMode = localStorage.getItem('docs-view-mode') || 'split';
+// docs view mode: live = wysiwyg edit · rendered = full preview (graphs/math/tables) · source = raw markdown
+const _DOCS_MODES = ['live', 'rendered', 'source'];
+let _docsMode = localStorage.getItem('docs-view-mode');
+if (!_DOCS_MODES.includes(_docsMode)) _docsMode = 'live';
 function applyDocsMode() {
   const v = $('wiki-view');
   if (!v) return;
-  v.classList.toggle('docs-read', _docsMode === 'read');
+  v.classList.toggle('docs-rendered', _docsMode === 'rendered');
   v.classList.toggle('docs-source', _docsMode === 'source');
   const btn = $('wiki-preview-toggle');
-  if (btn) btn.textContent = _docsMode;
-  if (_docsMode !== 'source') renderPreview();
+  if (btn) btn.textContent = _docsMode;   // current mode; click cycles live → rendered → source
+  if (_docsMode === 'live') loadLive($('wiki-source')?.value || '');
+  else if (_docsMode === 'rendered') renderPreview();
+}
+
+// ── live editor ─────────────────────────────────────────────────────────────
+// a contenteditable whose textContent is ALWAYS the raw markdown (so saving can
+// never corrupt). tokens get styled inline; even if highlighting glitches it's
+// purely cosmetic — the source is intact. type [[x]], it styles as you go.
+let _liveComposing = false, _liveInited = false;
+
+function initLive() {
+  const el = $('wiki-live');
+  if (!el || _liveInited) return;
+  _liveInited = true;
+  el.addEventListener('compositionstart', () => { _liveComposing = true; });
+  el.addEventListener('compositionend', () => { _liveComposing = false; liveRehighlight(); liveSync(); });
+  el.addEventListener('input', () => {
+    if (_liveComposing) { liveSync(); return; }
+    liveRehighlight();
+    liveSync();
+  });
+  el.addEventListener('keydown', e => {
+    // google-docs shortcuts — wrap the selection in markdown, no typing syntax
+    const mod = e.ctrlKey || e.metaKey;
+    if (mod && !e.altKey) {
+      const k = e.key.toLowerCase();
+      let hit = true;
+      if      (k === 'b' && !e.shiftKey) wrapSel('**', '**');
+      else if (k === 'i' && !e.shiftKey) wrapSel('*', '*');
+      else if (k === 'e' && !e.shiftKey) wrapSel('`', '`');
+      else if (k === 'k' && !e.shiftKey) insertLink();
+      else if (k === 'x' && e.shiftKey)  wrapSel('~~', '~~');
+      else if (k === 'h' && e.shiftKey)  wrapSel('==', '==');
+      else hit = false;
+      if (hit) { e.preventDefault(); e.stopPropagation(); return; }
+    }
+    if (e.key === 'Enter') {
+      // execCommand('insertText','\n') is unreliable in contenteditable; insert in
+      // offset space instead. stopPropagation so the global Enter shortcut stays out.
+      e.preventDefault(); e.stopPropagation();
+      const t = el.textContent;
+      const s = _selOffsets(el) || { start: t.length, end: t.length };
+      _liveApply(t.slice(0, s.start) + '\n' + t.slice(s.end), s.start + 1, s.start + 1);
+    }
+  });
+  el.addEventListener('paste', e => {
+    e.preventDefault();
+    const text = ((e.clipboardData || window.clipboardData).getData('text/plain') || '').replace(/\r\n/g, '\n');
+    const t = el.textContent;
+    const s = _selOffsets(el) || { start: t.length, end: t.length };
+    _liveApply(t.slice(0, s.start) + text + t.slice(s.end), s.start + text.length, s.start + text.length);
+  });
+  // ctrl/cmd-click a [[link]] to jump (plain click just positions the caret)
+  el.addEventListener('click', e => {
+    const a = e.target.closest('.wikilink');
+    if (a && (e.metaKey || e.ctrlKey)) { e.preventDefault(); openByName(a.dataset.note); }
+  });
+}
+
+function loadLive(md) {
+  const el = $('wiki-live');
+  if (el) el.innerHTML = highlightDoc(md || '');
+}
+function liveText() { return $('wiki-live')?.textContent ?? ''; }
+function liveSync() {
+  const src = $('wiki-source');
+  if (src) src.value = liveText();
+  queueSave();
+}
+function liveRehighlight() {
+  const el = $('wiki-live');
+  if (!el) return;
+  const off = _caretOffset(el);
+  el.innerHTML = highlightDoc(el.textContent);
+  if (off != null) _setCaret(el, off);
+}
+
+function _caretOffset(el) {
+  const sel = window.getSelection();
+  if (!sel || !sel.rangeCount) return null;
+  const r = sel.getRangeAt(0);
+  if (!el.contains(r.endContainer)) return null;
+  const pre = r.cloneRange();
+  pre.selectNodeContents(el);
+  pre.setEnd(r.endContainer, r.endOffset);
+  return pre.toString().length;
+}
+function _setCaret(el, offset) {
+  const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, null);
+  let count = 0, node = null, nodeOff = 0, n;
+  while ((n = walker.nextNode())) {
+    const len = n.textContent.length;
+    if (count + len >= offset) { node = n; nodeOff = offset - count; break; }
+    count += len;
+  }
+  const range = document.createRange();
+  if (node) range.setStart(node, Math.min(nodeOff, node.textContent.length));
+  else { range.selectNodeContents(el); range.collapse(false); }
+  range.collapse(true);
+  const sel = window.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(range);
+}
+
+// highlight: every branch emits html whose textContent equals the raw chars
+const _e = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+const _attr = s => String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+
+function highlightDoc(src) { return src.split('\n').map(highlightLine).join('\n'); }
+
+function highlightLine(line) {
+  if (line === '') return '';
+  let m;
+  if ((m = /^(#{1,6})(\s+)(.*)$/.exec(line)))
+    return `<span class="lp-sy">${_e(m[1] + m[2])}</span><span class="lp-h lp-h${Math.min(m[1].length, 3)}">${inlineHi(m[3])}</span>`;
+  if ((m = /^(\s*)(>\s?)(.*)$/.exec(line)))
+    return `${_e(m[1])}<span class="lp-quote"><span class="lp-sy">${_e(m[2])}</span>${inlineHi(m[3])}</span>`;
+  if ((m = /^(\s*)([-*]\s+)(\[([ xX])\]\s+)(.*)$/.exec(line)))
+    return `${_e(m[1])}<span class="lp-task lp-task-${/[xX]/.test(m[4]) ? 'done' : 'open'}"><span class="lp-sy">${_e(m[2] + m[3])}</span>${inlineHi(m[5])}</span>`;
+  if ((m = /^(\s*)([-*]\s+)(.*)$/.exec(line)))
+    return `${_e(m[1])}<span class="lp-li"><span class="lp-sy">${_e(m[2])}</span>${inlineHi(m[3])}</span>`;
+  if ((m = /^(\s*)(\d+\.)(\s+)(.*)$/.exec(line)))
+    return `${_e(m[1])}<span class="lp-oli"><span class="lp-num">${_e(m[2])}</span><span class="lp-sy">${_e(m[3])}</span>${inlineHi(m[4])}</span>`;
+  if (/^(---|\*\*\*|___)\s*$/.test(line))
+    return `<span class="lp-hr">${_e(line)}</span>`;
+  return inlineHi(line);
+}
+
+function inlineHi(text) {
+  let out = '', i = 0;
+  while (i < text.length) {
+    const rest = text.slice(i);
+    let m;
+    if ((m = /^`([^`]+)`/.exec(rest))) {
+      out += `<span class="lp-code"><span class="lp-sy">\`</span>${_e(m[1])}<span class="lp-sy">\`</span></span>`;
+    } else if ((m = /^!\[\[([^\]]+?)\]\]/.exec(rest))) {
+      out += `<span class="lp-sy">![[</span><span class="wikilink" data-note="${_attr(m[1].trim())}">${_e(m[1])}</span><span class="lp-sy">]]</span>`;
+    } else if ((m = /^\[\[([^\]|]+?)(\|[^\]]+)?\]\]/.exec(rest))) {
+      out += `<span class="lp-sy">[[</span><span class="wikilink" data-note="${_attr(m[1].trim())}">${_e(m[1] + (m[2] || ''))}</span><span class="lp-sy">]]</span>`;
+    } else if ((m = /^\{color:([#\w(),.\s-]+?)\}([^]*?)\{\/color\}/.exec(rest))) {
+      out += `<span class="lp-sy">{color:${_e(m[1])}}</span><span style="color:${_attr(m[1].trim())}">${inlineHi(m[2])}</span><span class="lp-sy">{/color}</span>`;
+    } else if ((m = /^\*\*([^*]+?)\*\*/.exec(rest))) {
+      out += `<span class="lp-sy">**</span><span class="lp-b">${_e(m[1])}</span><span class="lp-sy">**</span>`;
+    } else if ((m = /^\*([^*]+?)\*/.exec(rest))) {
+      out += `<span class="lp-sy">*</span><span class="lp-i">${_e(m[1])}</span><span class="lp-sy">*</span>`;
+    } else if ((m = /^~~([^~]+?)~~/.exec(rest))) {
+      out += `<span class="lp-sy">~~</span><span class="lp-s">${_e(m[1])}</span><span class="lp-sy">~~</span>`;
+    } else if ((m = /^==(\S(?:[^=]*\S)?)==/.exec(rest))) {
+      out += `<span class="lp-sy">==</span><span class="lp-mark">${_e(m[1])}</span><span class="lp-sy">==</span>`;
+    } else if ((m = /^\[([^\]]+?)\]\(([^)\s]+?)\)/.exec(rest))) {
+      out += `<span class="lp-sy">[</span><span class="lp-link">${_e(m[1])}</span><span class="lp-sy">](${_e(m[2])})</span>`;
+    } else if ((m = /^#([A-Za-z][\w/\-]*)/.exec(rest)) && (i === 0 || /\s/.test(text[i - 1]))) {
+      out += `<span class="lp-tag">#${_e(m[1])}</span>`;
+    } else {
+      out += _e(text[i]); i++; continue;
+    }
+    i += m[0].length;
+  }
+  return out;
+}
+
+// ── google-docs formatting: shortcuts + toolbar wrap the selection in markdown,
+// so you never type the syntax. operates in source-offset space (textContent
+// is the source) then re-renders. ─────────────────────────────────────────────
+function _rangeAt(el, offset) {
+  const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, null);
+  let count = 0, n, last = null;
+  while ((n = walker.nextNode())) {
+    last = n; const len = n.textContent.length;
+    if (count + len >= offset) return { node: n, off: offset - count };
+    count += len;
+  }
+  return last ? { node: last, off: last.textContent.length } : { node: el, off: 0 };
+}
+function _selectRange(el, start, end) {
+  const a = _rangeAt(el, start), b = _rangeAt(el, end);
+  const r = document.createRange();
+  try { r.setStart(a.node, a.off); r.setEnd(b.node, b.off); }
+  catch { r.selectNodeContents(el); r.collapse(false); }
+  const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(r);
+}
+function _selOffsets(el) {
+  const sel = window.getSelection();
+  if (!sel || !sel.rangeCount) return null;
+  const r = sel.getRangeAt(0);
+  if (!el.contains(r.startContainer) || !el.contains(r.endContainer)) return null;
+  const pre = r.cloneRange(); pre.selectNodeContents(el); pre.setEnd(r.startContainer, r.startOffset);
+  const start = pre.toString().length;
+  return { start, end: start + r.toString().length };
+}
+function _liveApply(newText, selA, selB) {
+  const el = $('wiki-live'); if (!el) return;
+  el.innerHTML = highlightDoc(newText);
+  _selectRange(el, selA, selB);
+  liveSync();
+}
+function wrapSel(prefix, suffix) {
+  const el = $('wiki-live'); if (!el) return; el.focus();
+  const s = _selOffsets(el); if (!s) return;
+  const t = el.textContent; const { start, end } = s;
+  if (start === end) {
+    // nothing selected → drop a selected placeholder so it renders styled (no bare ** markers)
+    const ph = 'text';
+    _liveApply(t.slice(0, start) + prefix + ph + suffix + t.slice(end), start + prefix.length, start + prefix.length + ph.length);
+  } else if (start >= prefix.length && t.slice(start - prefix.length, start) === prefix && t.slice(end, end + suffix.length) === suffix) {
+    _liveApply(t.slice(0, start - prefix.length) + t.slice(start, end) + t.slice(end + suffix.length), start - prefix.length, end - prefix.length);
+  } else {
+    _liveApply(t.slice(0, start) + prefix + t.slice(start, end) + suffix + t.slice(end), start + prefix.length, end + prefix.length);
+  }
+}
+function insertLink() {
+  const el = $('wiki-live'); if (!el) return; el.focus();
+  const s = _selOffsets(el); if (!s) return;
+  const t = el.textContent; const inner = t.slice(s.start, s.end) || 'text';
+  const pre = `[${inner}](`;
+  _liveApply(t.slice(0, s.start) + pre + 'url)' + t.slice(s.end), s.start + pre.length, s.start + pre.length + 3);
+}
+// uses a captured selection (so typing in the hex field doesn't lose it)
+function applyColorAt(hex, sel) {
+  const el = $('wiki-live'); if (!el || !sel || sel.start === sel.end) return;
+  el.focus();
+  const t = el.textContent; const { start, end } = sel;
+  const pre = t.slice(0, start), post = t.slice(end), inner = t.slice(start, end);
+  const openM = /\{color:[^}]+\}$/.exec(pre), closeM = /^\{\/color\}/.exec(post);
+  if (!hex) {
+    if (openM && closeM) _liveApply(pre.slice(0, openM.index) + inner + post.slice(8), openM.index, openM.index + inner.length);
+    return;
+  }
+  const open = `{color:${hex}}`;
+  if (openM && closeM) _liveApply(pre.slice(0, openM.index) + open + inner + '{/color}' + post.slice(8), openM.index + open.length, openM.index + open.length + inner.length);
+  else _liveApply(pre + open + inner + '{/color}' + post, start + open.length, start + open.length + inner.length);
+}
+function toggleLinePrefix(prefix) {
+  const el = $('wiki-live'); if (!el) return; el.focus();
+  const s = _selOffsets(el); if (!s) return;
+  const t = el.textContent;
+  const ls = t.lastIndexOf('\n', s.start - 1) + 1;
+  let le = t.indexOf('\n', s.start); if (le < 0) le = t.length;
+  const line = t.slice(ls, le);
+  const indent = (/^\s*/.exec(line) || [''])[0];
+  const rest = line.slice(indent.length);
+  const stripped = rest.replace(/^(#{1,6}\s+|[-*]\s+(?:\[[ xX]\]\s+)?|\d+\.\s+|>\s?)/, '');
+  const newLine = indent + (rest.startsWith(prefix) ? stripped : prefix + stripped);
+  const caret = ls + newLine.length;
+  _liveApply(t.slice(0, ls) + newLine + t.slice(le), caret, caret);
+}
+
+const _DOCS_COLORS = [
+  ['#f87171', 'red'], ['#fb923c', 'orange'], ['#fbbf24', 'amber'], ['#facc15', 'yellow'],
+  ['#a3e635', 'lime'], ['#4ade80', 'green'], ['#34d399', 'emerald'], ['#22d3ee', 'cyan'],
+  ['#60a5fa', 'blue'], ['#818cf8', 'indigo'], ['#a78bfa', 'purple'], ['#e879f9', 'fuchsia'],
+  ['#f472b6', 'pink'], ['#e8e6e3', 'white'],
+];
+function _hsvToHex(h, s, v) {
+  const c = v * s, x = c * (1 - Math.abs((h / 60) % 2 - 1)), m = v - c;
+  let r, g, b;
+  if (h < 60) [r, g, b] = [c, x, 0]; else if (h < 120) [r, g, b] = [x, c, 0];
+  else if (h < 180) [r, g, b] = [0, c, x]; else if (h < 240) [r, g, b] = [0, x, c];
+  else if (h < 300) [r, g, b] = [x, 0, c]; else [r, g, b] = [c, 0, x];
+  const to = n => Math.round((n + m) * 255).toString(16).padStart(2, '0');
+  return '#' + to(r) + to(g) + to(b);
+}
+function _toggleColorPalette(btn) {
+  document.getElementById('dt-color-pop')?.remove();
+  const saved = _selOffsets($('wiki-live'));   // grab the selection before focus can move
+  const pop = document.createElement('div');
+  pop.id = 'dt-color-pop'; pop.className = 'dt-color-pop';
+  pop.innerHTML = _DOCS_COLORS.map(([hex, name]) => `<button class="dt-swatch" style="background:${hex}" title="${name}" data-hex="${hex}"></button>`).join('')
+    + `<button class="dt-swatch dt-swatch-clear" title="default / remove" data-hex="">×</button>`
+    + `<div class="dt-picker"><div class="dt-sv"><div class="dt-sv-dot"></div></div><div class="dt-hue"><div class="dt-hue-handle"></div></div></div>`
+    + `<input class="dt-hex" type="text" placeholder="or type #hex / css color" spellcheck="false">`;
+  document.body.appendChild(pop);
+  const r = btn.getBoundingClientRect();
+  pop.style.left = Math.min(r.left, window.innerWidth - 234) + 'px';
+  pop.style.top = Math.min(r.bottom + 4, window.innerHeight - pop.offsetHeight - 8) + 'px';
+  pop.querySelectorAll('.dt-swatch').forEach(sw =>
+    sw.addEventListener('mousedown', e => { e.preventDefault(); applyColorAt(sw.dataset.hex, saved); pop.remove(); }));
+  _initColorPicker(pop, saved);
+  const hex = pop.querySelector('.dt-hex');
+  hex.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); const v = hex.value.trim(); if (/^[#\w(),.%\s-]+$/.test(v)) { applyColorAt(v, saved); pop.remove(); } }
+    else if (e.key === 'Escape') pop.remove();
+  });
+  setTimeout(() => document.addEventListener('mousedown', function h(ev) {
+    if (!pop.contains(ev.target) && ev.target !== btn) { pop.remove(); document.removeEventListener('mousedown', h); }
+  }), 0);
+}
+// custom (non-native) picker: saturation/value box + hue slider, drag to recolor live
+function _initColorPicker(pop, saved) {
+  const sv = pop.querySelector('.dt-sv'), hue = pop.querySelector('.dt-hue');
+  const dot = sv.querySelector('.dt-sv-dot'), handle = hue.querySelector('.dt-hue-handle');
+  let h = 250, s = 0.6, v = 0.95;
+  const render = (commit) => {
+    sv.style.background = `linear-gradient(to top, #000, rgba(0,0,0,0)), linear-gradient(to right, #fff, hsl(${h} 100% 50%))`;
+    dot.style.left = (s * 100) + '%'; dot.style.top = ((1 - v) * 100) + '%';
+    handle.style.left = (h / 360 * 100) + '%';
+    const hex = _hsvToHex(h, s, v); dot.style.background = hex;
+    if (commit) { applyColorAt(hex, saved); const hx = pop.querySelector('.dt-hex'); if (hx) hx.value = hex; }
+  };
+  const track = (el, onMove) => {
+    const pt = e => {
+      const r = el.getBoundingClientRect();
+      onMove(Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)), Math.max(0, Math.min(1, (e.clientY - r.top) / r.height)));
+      render(true);
+    };
+    el.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      try { el.setPointerCapture(e.pointerId); } catch {}
+      pt(e);
+      const mv = ev => pt(ev);
+      const up = () => { el.removeEventListener('pointermove', mv); el.removeEventListener('pointerup', up); el.removeEventListener('pointercancel', up); };
+      el.addEventListener('pointermove', mv); el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up);
+    });
+  };
+  track(sv, (x, y) => { s = x; v = 1 - y; });
+  track(hue, (x) => { h = x * 360; });
+  render(false);
+}
+
+// insert a multi-line snippet as its own block; {} marks where the caret lands
+function insertBlock(snippet) {
+  const el = $('wiki-live'); if (!el) return; el.focus();
+  const s = _selOffsets(el); if (!s) return;
+  const t = el.textContent;
+  const before = t.slice(0, s.start);
+  const lead = (before && !before.endsWith('\n')) ? '\n' : '';
+  const after = t.slice(s.end);
+  const tail = (after && !after.startsWith('\n')) ? '\n' : '';
+  let body = lead + snippet + tail;
+  let caret = body.indexOf('{}');
+  if (caret >= 0) body = body.replace('{}', ''); else caret = body.length;
+  _liveApply(before + body + after, s.start + caret, s.start + caret);
+}
+function insertImage() {
+  const el = $('wiki-live'); if (!el) return; el.focus();
+  const s = _selOffsets(el); if (!s) return;
+  const t = el.textContent; const alt = t.slice(s.start, s.end) || 'alt';
+  const pre = `![${alt}](`;
+  _liveApply(t.slice(0, s.start) + pre + 'url)' + t.slice(s.end), s.start + pre.length, s.start + pre.length + 3);
+}
+
+const _FMT = {
+  bold: () => wrapSel('**', '**'), italic: () => wrapSel('*', '*'), strike: () => wrapSel('~~', '~~'),
+  highlight: () => wrapSel('==', '=='), code: () => wrapSel('`', '`'),
+  h1: () => toggleLinePrefix('# '), h2: () => toggleLinePrefix('## '), h3: () => toggleLinePrefix('### '),
+  bullet: () => toggleLinePrefix('- '), olist: () => toggleLinePrefix('1. '), check: () => toggleLinePrefix('- [ ] '),
+  quote: () => toggleLinePrefix('> '),
+  link: () => insertLink(), image: () => insertImage(),
+  hr: () => insertBlock('---'),
+  table: () => insertBlock('| {}col 1 | col 2 |\n| --- | --- |\n| a | b |'),
+  codeblock: () => insertBlock('```\n{}\n```'),
+  callout: () => insertBlock('> [!note] {}title\n> body'),
+  math: () => insertBlock('$$\n{}\n$$'),
+  mermaid: () => insertBlock('```mermaid\ngraph TD;\n  {}A --> B\n```'),
+};
+let _toolbarInited = false;
+function initDocsToolbar() {
+  const bar = $('docs-toolbar');
+  if (!bar || _toolbarInited) return;
+  _toolbarInited = true;
+  bar.querySelectorAll('.dt-btn[data-fmt]').forEach(b =>
+    b.addEventListener('mousedown', e => { e.preventDefault(); _FMT[b.dataset.fmt]?.(); }));
+  $('dt-color-btn')?.addEventListener('mousedown', e => { e.preventDefault(); _toggleColorPalette(e.currentTarget); });
 }
 
 export function initVault() {
-  if (_inited) { loadTree(); applyDocsMode(); return; }
+  if (_inited) { loadTree(); return; }
   _inited = true;
+  // full-screen writing: collapse the file tree (the ☰ toggle brings it back);
+  // the AI-edit bar is hidden by default so docs doesn't feel like the chat.
+  if (localStorage.getItem('docs-tree-hidden') !== '0') $('wiki-view')?.classList.add('tree-hidden');
+  $('wiki-tree-toggle')?.addEventListener('click', () => {
+    const hidden = $('wiki-view').classList.toggle('tree-hidden');
+    localStorage.setItem('docs-tree-hidden', hidden ? '1' : '0');
+  });
+  $('wiki-ai-toggle')?.addEventListener('click', () => {
+    const on = $('wiki-view').classList.toggle('ai-open');
+    $('wiki-ai-toggle').classList.toggle('active', on);
+    if (on) $('wiki-ai-input')?.focus();
+  });
   $('wiki-new-btn')?.addEventListener('click', newNote);
   $('wiki-delete-btn')?.addEventListener('click', deleteCurrent);
   $('wiki-export-btn')?.addEventListener('click', exportDocx);
@@ -48,27 +424,46 @@ export function initVault() {
     const tag = e.target.closest('.md-tag');
     if (tag) { filterByTag(tag.dataset.tag); }
   });
-  $('wiki-preview-toggle')?.addEventListener('click', () => {
-    _docsMode = _DOCS_MODES[(_DOCS_MODES.indexOf(_docsMode) + 1) % _DOCS_MODES.length];
-    localStorage.setItem('docs-view-mode', _docsMode);
-    applyDocsMode();
-  });
   $('wiki-empty-new')?.addEventListener('click', newNote);
-  const src = $('wiki-source');
-  src?.addEventListener('input', () => {
-    renderPreview();
-    queueSave();
-    autocomplete();
-  });
-  src?.addEventListener('keydown', acKeydown);
+  $('wiki-empty-today')?.addEventListener('click', openDaily);
+  $('wiki-empty-guide')?.addEventListener('click', () => { const h = $('wiki-help'); if (h) h.style.display = 'block'; });
   $('wiki-preview')?.addEventListener('click', e => {
     const a = e.target.closest('.wikilink');
     if (a) { e.preventDefault(); openByName(a.dataset.note); }
   });
   $('wiki-ai-send')?.addEventListener('click', aiEdit);
   $('wiki-ai-input')?.addEventListener('keydown', e => { if (e.key === 'Enter') aiEdit(); });
-  loadTree();
-  applyDocsMode();
+  loadTree();   // the Toast UI editor is created lazily on first openFile (container visible)
+}
+
+// ── Toast UI editor lifecycle ───────────────────────────────────────────────
+let _suppressChange = false;
+async function ensureEditor() {
+  const elc = $('toast-editor');
+  if (!elc || docEditorReady()) return;
+  try {
+    await createDocEditor(elc, { initialValue: $('wiki-source')?.value || '', onChange: onDocChange });
+  } catch (e) {
+    // graceful fallback — if Toast UI can't load, use the raw markdown textarea
+    const src = $('wiki-source');
+    if (src) {
+      src.style.cssText = 'display:block;flex:1;width:100%;background:none;border:none;outline:none;color:var(--text);font-family:JetBrains Mono,monospace;font-size:0.9rem;line-height:1.7;padding:1.5rem;resize:none';
+      src.addEventListener('input', () => queueSave());
+    }
+    toast('rich editor failed to load — plain markdown mode', 'error');
+  }
+}
+function onDocChange() {
+  if (_suppressChange) return;
+  const md = getDocMarkdown();
+  const src = $('wiki-source'); if (src) src.value = md;
+  queueSave();   // debounced; it refreshes backlinks after the save
+}
+function _setEditorContent(md) {
+  _suppressChange = true;
+  setDocMarkdown(md || '');
+  const src = $('wiki-source'); if (src) src.value = md || '';
+  setTimeout(() => { _suppressChange = false; }, 0);
 }
 
 async function aiEdit() {
@@ -99,11 +494,30 @@ async function aiEdit() {
       }
     }
     $('wiki-save-status').textContent = 'saved';   // backend persisted it
+    _setEditorContent($('wiki-source').value);
     loadBacklinks();
   } catch { toast('ai edit failed', 'error'); $('wiki-save-status').textContent = ''; }
 }
 
 let _activeTag = null;
+
+function _flattenFiles(items, out = []) {
+  for (const it of items || []) {
+    if (it.type === 'dir') _flattenFiles(it.children, out);
+    else out.push(it);
+  }
+  return out;
+}
+function renderRecent(items) {
+  const el = $('wiki-empty-recent');
+  if (!el) return;
+  const files = _flattenFiles(items).slice(0, 8);
+  if (!files.length) { el.innerHTML = ''; return; }
+  el.innerHTML = `<div class="we-recent-label">your docs</div><div class="we-recent-list">`
+    + files.map(f => `<button class="we-recent-item" data-path="${esc(f.path)}">${esc(f.name)}</button>`).join('')
+    + `</div>`;
+  el.querySelectorAll('.we-recent-item').forEach(b => b.addEventListener('click', () => openFile(b.dataset.path)));
+}
 
 async function loadTree() {
   _activeTag = null;
@@ -118,6 +532,7 @@ async function loadTree() {
     el.innerHTML = t.items.length ? renderItems(t.items, 0) : '<div class="wiki-empty">docs empty - create one</div>';
     el.querySelectorAll('.wiki-file').forEach(f => _wireRow(f, 'file'));
     el.querySelectorAll('.wiki-dir').forEach(d => _wireRow(d, 'dir'));
+    renderRecent(t.items);
   } catch { el.innerHTML = '<div class="wiki-empty">failed to load</div>'; }
 }
 
@@ -259,6 +674,7 @@ function _wireRow(row, kind) {
 function _resetEditor() {
   _cur = null; _syncEmpty();
   $('wiki-source').value = '';
+  if (docEditorReady()) _setEditorContent('');
   $('wiki-preview').innerHTML = '';
   $('wiki-backlinks').innerHTML = '';
 }
@@ -274,9 +690,9 @@ async function openFile(path) {
     const d = await fetch(`/api/vault-md/file?path=${encodeURIComponent(path)}`).then(r => r.json());
     _cur = d.path || path;
     _syncEmpty();
-    $('wiki-source').value = d.content || '';
+    await ensureEditor();
+    _setEditorContent(d.content || '');
     $('wiki-current').textContent = _cur.replace(/\.md$/, '');
-    renderPreview();
     loadBacklinks();
     document.querySelectorAll('.wiki-file').forEach(f => f.classList.toggle('active', f.dataset.path === _cur));
   } catch { toast('failed to open doc', 'error'); }
@@ -314,6 +730,7 @@ function renderPreview() {
   html = html.replace(/(^|[\s(])#([A-Za-z0-9][A-Za-z0-9_/\-]*)/g,
     (_, pre, tag) => `${pre}<span class="md-tag" data-tag="${esc(tag)}">#${esc(tag)}</span>`);
   $('wiki-preview').innerHTML = fmHtml + html;
+  enhanceMarkdown($('wiki-preview'));
   fillEmbeds();
   if ($('wiki-outline') && $('wiki-outline').style.display !== 'none') updateOutline();
 }
@@ -476,11 +893,7 @@ async function deleteCurrent() {
   if (!_cur) return;
   if (!await dlgConfirm(`delete ${_cur}?`)) return;
   await fetch(`/api/vault-md/file?path=${encodeURIComponent(_cur)}`, { method: 'DELETE' });
-  _cur = null;
-  _syncEmpty();
-  $('wiki-source').value = '';
-  $('wiki-preview').innerHTML = '';
-  $('wiki-backlinks').innerHTML = '';
+  _resetEditor();
   loadTree();
 }
 

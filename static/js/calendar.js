@@ -1,5 +1,6 @@
 import { toast } from './util.js';
 import { initCustomDropdown } from './dropdown.js';
+import { initDatePickers } from './datepick.js';
 
 let _events = [];
 let _editing = null;
@@ -194,14 +195,14 @@ function openEditor(event, defaultDate, hour, allDay) {
   list.innerHTML = `<div class="note-editor">
     <input class="note-editor-title" id="cal-title" value="${esc(event?.title || '')}" placeholder="event title...">
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;margin-top:0.25rem">
-      <div><div class="cal-flabel">start</div><input class="settings-input" id="cal-start" type="datetime-local" value="${start}" style="width:100%"></div>
-      <div><div class="cal-flabel">end</div><input class="settings-input" id="cal-end" type="datetime-local" value="${event?.end_dt?.slice(0, 16) || ''}" style="width:100%"></div>
+      <div><div class="cal-flabel">start</div><div class="date-input" id="cal-start" data-type="datetime" data-value="${start}" data-ph="start" style="width:100%"></div></div>
+      <div><div class="cal-flabel">end</div><div class="date-input" id="cal-end" data-type="datetime" data-value="${event?.end_dt?.slice(0, 16) || ''}" data-ph="end (optional)" style="width:100%"></div></div>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;margin-top:0.5rem">
       <div><div class="cal-flabel">repeat</div>
         <div class="settings-input custom-select" id="cal-recur" data-value="${recur}" data-options="|does not repeat;daily|daily;weekly|weekly;monthly|monthly" style="width:100%"></div>
       </div>
-      <div><div class="cal-flabel">repeat until (optional)</div><input class="settings-input" id="cal-until" type="date" value="${event?.recur_until || ''}" style="width:100%"></div>
+      <div><div class="cal-flabel">repeat until (optional)</div><div class="date-input" id="cal-until" data-type="date" data-value="${event?.recur_until || ''}" data-ph="never" style="width:100%"></div></div>
     </div>
     <div style="display:flex;align-items:center;gap:0.5rem;margin-top:0.5rem">
       <label class="cal-flabel" style="display:flex;align-items:center;gap:0.3rem;margin:0"><input type="checkbox" id="cal-allday" ${event?.all_day || allDay ? 'checked' : ''}> all day</label>
@@ -219,6 +220,7 @@ function openEditor(event, defaultDate, hour, allDay) {
   </div>`;
 
   initCustomDropdown(document.getElementById('cal-recur'));
+  initDatePickers(list);
 
   let _color = event?.color || 'accent';
   list.querySelectorAll('.cal-color-dot').forEach(d => d.addEventListener('click', () => {

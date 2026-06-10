@@ -442,13 +442,13 @@ function greetingHtml() {
   const h = new Date().getHours();
   const name = (localStorage.getItem('alles-name') || '').trim();
   let pool;
-  if (h < 5)        pool = ['still up?', 'burning the midnight oil', 'the world\'s asleep, perfect',
-                            'night owl mode', 'quiet hours, big ideas', 'one more thing?', 'can\'t sleep?',
-                            'late-night session'];
+  if (h < 5)        pool = ['still up?', 'burning the midnight oil?', 'the world\'s asleep, perfect',
+                            'night owl mode?', 'quiet hours, big ideas', 'one more thing?', 'can\'t sleep?',
+                            'late-night session?'];
   else if (h < 12)  pool = ['good morning', 'morning', 'rise and shine', 'top of the morning',
                             'fresh start', 'let\'s make today count', 'the day is yours', 'coffee first?'];
-  else if (h < 18)  pool = ['good afternoon', 'afternoon', 'good to see you', 'back at it',
-                            'midday momentum', 'what are we shipping today?', 'let\'s keep rolling', 'ready when you are'];
+  else if (h < 18)  pool = ['good afternoon', 'afternoon', 'good to see you', 'back at it?',
+                            'midday momentum', 'what are we shipping today?', 'let\'s keep rolling', 'ready when you are?'];
   else              pool = ['good evening', 'evening', 'welcome back', 'the night is young',
                             'what are we building tonight?', 'prime hours', 'let\'s get into it', 'golden hour for ideas'];
   const pick = pool[Math.floor(Math.random() * pool.length)];
