@@ -155,6 +155,59 @@ def rename_file(body: RenameBody):
     return out
 
 
+class ExtractTodosBody(BaseModel):
+    path: str
+
+
+@router.post("/extract-todos")
+async def extract_todos(body: ExtractTodosBody):
+    """AI-pull action items out of a doc and create real tasks from them."""
+    import json as _json
+    from core.database import SessionLocal, ModelEndpoint, Task
+    from services.llm import simple_complete
+    try:
+        doc = vault_md.read(_norm_path(body.path))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    if not doc.get("exists") or not (doc.get("content") or "").strip():
+        raise HTTPException(404, "doc is empty or missing")
+
+    db = SessionLocal()
+    try:
+        ep = db.query(ModelEndpoint).filter(ModelEndpoint.enabled == True).first()
+        if not ep:
+            raise HTTPException(400, "no model endpoint configured")
+        model = ep.models_list()[0] if ep.models_list() else ""
+        if not model:
+            raise HTTPException(400, "no model available")
+        prompt = [
+            {"role": "system", "content": (
+                "Extract actionable to-do items from the document. Reply with ONLY a JSON "
+                "array of short task title strings, no prose, no code fences. If there is "
+                "nothing actionable, reply []."
+            )},
+            {"role": "user", "content": doc["content"][:8000]},
+        ]
+        raw = await simple_complete(prompt, ep.base_url, ep.api_key, model, max_tokens=400)
+        raw = raw.strip().removeprefix("```json").removeprefix("```").removesuffix("```").strip()
+        try:
+            items = _json.loads(raw)
+            assert isinstance(items, list)
+        except Exception:
+            raise HTTPException(502, "model returned unparseable output — try again")
+        created = []
+        for title in items[:20]:
+            title = str(title).strip()[:300]
+            if title:
+                t = Task(title=title)
+                db.add(t)
+                created.append(title)
+        db.commit()
+        return {"created": len(created), "tasks": created}
+    finally:
+        db.close()
+
+
 @router.get("/revisions")
 def list_revisions(path: str):
     from core.database import SessionLocal, DocRevision

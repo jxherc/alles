@@ -141,6 +141,50 @@ def send(aid: str, body: SendBody, db: DbSession = Depends(get_db)):
         return {"ok": False, "error": str(e)[:200]}
 
 
+class SummarizeBody(BaseModel):
+    subject: str = ""
+    body: str = ""
+
+
+@router.post("/summarize")
+async def summarize_mail(body: SummarizeBody, db: DbSession = Depends(get_db)):
+    """AI summary of a mail — bullets + any action items."""
+    from core.database import ModelEndpoint
+    from services.llm import simple_complete
+    ep = db.query(ModelEndpoint).filter(ModelEndpoint.enabled == True).first()
+    if not ep:
+        raise HTTPException(400, "no model endpoint configured")
+    model = ep.models_list()[0] if ep.models_list() else ""
+    if not model:
+        raise HTTPException(400, "no model available")
+    prompt = [
+        {"role": "system", "content": (
+            "Summarize the email in 2-4 short bullet points, then if there are any "
+            "action items add a final line starting with 'todo:'. Be terse, plain text only."
+        )},
+        {"role": "user", "content": f"Subject: {body.subject}\n\n{body.body[:8000]}"},
+    ]
+    text = await simple_complete(prompt, ep.base_url, ep.api_key, model, max_tokens=400)
+    if not text:
+        raise HTTPException(502, "model returned nothing — try again")
+    return {"summary": text}
+
+
+class MakeTaskBody(BaseModel):
+    title: str
+
+
+@router.post("/make-task")
+def make_task(body: MakeTaskBody, db: DbSession = Depends(get_db)):
+    from core.database import Task
+    title = body.title.strip()[:300]
+    if not title:
+        raise HTTPException(400, "empty title")
+    t = Task(title=title)
+    db.add(t); db.commit()
+    return {"ok": True, "id": t.id}
+
+
 class ExtractEventBody(BaseModel):
     subject: str = ""
     body: str = ""
