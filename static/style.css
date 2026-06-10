@@ -1949,7 +1949,15 @@ code {
 }
 .day-card:hover { border-color: var(--muted); }
 .day-card.today { border-color: var(--accent); }
+.day-card.soon { border-color: color-mix(in srgb, var(--accent) 45%, var(--faint)); }
 .day-card.since .day-num { color: var(--muted); }
+.day-section {
+  grid-column: 1 / -1;
+  font-size: 0.62rem; color: var(--muted);
+  letter-spacing: 0.08em; text-transform: uppercase;
+  margin: 0.6rem 0 0.05rem;
+}
+.day-section:first-child { margin-top: 0; }
 .day-pin {
   position: absolute; top: 0.4rem; right: 0.5rem;
   background: none; border: none; cursor: pointer;

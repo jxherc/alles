@@ -1,4 +1,7 @@
-// days — countdowns to what's ahead, day counts since what's behind
+// days — countdowns to what's ahead, day counts since what's behind.
+// the server resolves each event's target date (and repeat rollover); the
+// count/mode are recomputed here against the *viewer's* local midnight, so the
+// numbers are never off by the server's timezone.
 import { toast } from './util.js';
 import { initCustomDropdown } from './dropdown.js';
 import { initDatePicker } from './datepick.js';
@@ -6,15 +9,14 @@ import { confirm as dlgConfirm } from './dialog.js';
 
 const $ = id => document.getElementById(id);
 let _events = [];
-let _summary = {};
 let _editing = null;
+let _midnightTimer = null;
+let _lastRenderDay = '';
 
 export async function loadDays() {
   try {
-    const d = await fetch('/api/days').then(r => r.json());
-    _events = d.events || [];
-    _summary = d.summary || {};
-  } catch { _events = []; _summary = {}; }
+    _events = (await fetch('/api/days').then(r => r.json())).events || [];
+  } catch { _events = []; }
   _render();
 }
 
@@ -22,10 +24,15 @@ export function initDaysPanel() {
   loadDays();
   initCustomDropdown($('day-repeat'));
   initDatePicker($('day-date'));
+  _armMidnightRefresh();
   if (!$('day-add-btn') || $('day-add-btn').dataset.wired) return;
   $('day-add-btn').dataset.wired = '1';
   $('day-add-btn').addEventListener('click', _add);
   $('day-name')?.addEventListener('keydown', e => { if (e.key === 'Enter') _add(); });
+  // an open tab shouldn't go stale across midnight / while backgrounded
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && _lastRenderDay !== _todayLocal().toDateString()) loadDays();
+  });
 }
 
 async function _add() {
@@ -47,56 +54,121 @@ async function _add() {
   loadDays();
 }
 
-function _unitLabel(e) {
-  if (e.mode === 'today') return e.repeat !== 'none' && e.nth > 1 ? `${e.nth}${_ord(e.nth)} time — today!` : 'today!';
-  if (e.mode === 'since') return e.count === 1 ? 'day since' : 'days since';
-  return e.count === 1 ? 'day left' : 'days left';
+// ── local-time derivation ───────────────────────────────────────────────────
+function _todayLocal() {
+  const n = new Date();
+  return new Date(n.getFullYear(), n.getMonth(), n.getDate());
 }
 
+function _breakdown(a, b) {
+  if (a > b) [a, b] = [b, a];
+  let y = b.getFullYear() - a.getFullYear();
+  let m = b.getMonth() - a.getMonth();
+  let d = b.getDate() - a.getDate();
+  if (d < 0) { m--; d += new Date(b.getFullYear(), b.getMonth(), 0).getDate(); }
+  if (m < 0) { y--; m += 12; }
+  const p = [];
+  if (y) p.push(`${y} year${y !== 1 ? 's' : ''}`);
+  if (m) p.push(`${m} month${m !== 1 ? 's' : ''}`);
+  if (d || !p.length) p.push(`${d} day${d !== 1 ? 's' : ''}`);
+  return p.join(' ');
+}
+
+// recompute count/mode/breakdown against the viewer's local today
+function _derive(e) {
+  const today = _todayLocal();
+  const target = new Date(e.target + 'T00:00:00');
+  const days = Math.round((target - today) / 86400000);
+  const mode = days === 0 ? 'today' : (days > 0 ? 'countdown' : 'since');
+  return { ...e, days, count: Math.abs(days), mode, breakdown: days ? _breakdown(today, target) : '' };
+}
+
+function _armMidnightRefresh() {
+  clearTimeout(_midnightTimer);
+  const n = new Date();
+  const next = new Date(n.getFullYear(), n.getMonth(), n.getDate() + 1, 0, 0, 30);
+  _midnightTimer = setTimeout(() => { loadDays(); _armMidnightRefresh(); }, next - n);
+}
+
+// ── labels ──────────────────────────────────────────────────────────────────
 function _ord(n) {
   const t = n % 100;
   if (t >= 11 && t <= 13) return 'th';
   return { 1: 'st', 2: 'nd', 3: 'rd' }[n % 10] || 'th';
 }
 
+function _unitLabel(e) {
+  if (e.mode === 'today') return e.repeat !== 'none' && e.nth > 1 ? `${e.nth}${_ord(e.nth)} — today!` : 'today!';
+  if (e.mode === 'since') return e.count === 1 ? 'day since' : 'days since';
+  return e.count === 1 ? 'day left' : 'days left';
+}
+
+function _fmtDate(e) {
+  const d = new Date(e.target + 'T00:00:00');
+  const near = e.mode !== 'since' && e.days <= 7;   // weekday helps when it's close
+  const opts = near ? { weekday: 'short', month: 'short', day: 'numeric' } : { month: 'short', day: 'numeric' };
+  if (d.getFullYear() !== new Date().getFullYear()) opts.year = 'numeric';
+  return d.toLocaleDateString('en-US', opts).toLowerCase();
+}
+
 function _metaLine(e) {
-  const bits = [_fmtDate(e.target)];
+  const bits = [_fmtDate(e)];
   if (e.repeat === 'yearly') bits.push(`↻ yearly${e.nth > 0 ? ` · ${e.nth}${_ord(e.nth)}` : ''}`);
   if (e.repeat === 'monthly') bits.push(`↻ monthly${e.nth > 0 ? ` · ${e.nth}${_ord(e.nth)}` : ''}`);
   if (e.category) bits.push(esc(e.category));
   return bits.join(' · ');
 }
 
-function _fmtDate(iso) {
-  const d = new Date(iso + 'T00:00:00');
-  const opts = { month: 'short', day: 'numeric' };
-  if (d.getFullYear() !== new Date().getFullYear()) opts.year = 'numeric';
-  return d.toLocaleDateString('en-US', opts).toLowerCase();
-}
-
+// ── render ──────────────────────────────────────────────────────────────────
 function _render() {
-  const sum = $('days-summary');
-  if (sum) {
-    const bits = [];
-    if (_summary.today) bits.push(`${_summary.today} today`);
-    if (_summary.upcoming) bits.push(`${_summary.upcoming} upcoming`);
-    if (_summary.since) bits.push(`${_summary.since} counting up`);
-    sum.textContent = bits.join(' · ');
-  }
+  _lastRenderDay = _todayLocal().toDateString();
   const grid = $('days-grid');
   if (!grid) return;
-  if (!_events.length) {
+
+  const derived = _events.map(_derive);
+  const sum = $('days-summary');
+  if (sum) {
+    const c = m => derived.filter(x => x.mode === m).length;
+    const bits = [];
+    if (c('today')) bits.push(`${c('today')} today`);
+    if (c('countdown')) bits.push(`${c('countdown')} upcoming`);
+    if (c('since')) bits.push(`${c('since')} counting up`);
+    sum.textContent = bits.join(' · ');
+  }
+
+  if (!derived.length) {
     grid.innerHTML = '<div style="padding:1rem 0;font-size:0.75rem;color:var(--faint)">nothing counted yet — a trip, a birthday, a streak. add one below.</div>';
     return;
   }
-  grid.innerHTML = _events.map(e => _editing === e.id ? _editCard(e) : _card(e)).join('');
+
+  if (_editing) {
+    const e = derived.find(x => x.id === _editing);
+    if (e) { grid.innerHTML = _editCard(e) + derived.filter(x => x.id !== _editing).map(_card).join(''); _wire(grid); return; }
+  }
+
+  const sections = [
+    ['today',     derived.filter(x => x.mode === 'today').sort(_byPinThenName)],
+    ['upcoming',  derived.filter(x => x.mode === 'countdown').sort(_byPinThenSoonest)],
+    ['counting up', derived.filter(x => x.mode === 'since').sort((a, b) => a.count - b.count)],
+  ];
+  grid.innerHTML = sections
+    .filter(([, list]) => list.length)
+    .map(([label, list]) => `<div class="day-section">${label}</div>` + list.map(_card).join(''))
+    .join('');
   _wire(grid);
 }
 
+function _byPinThenName(a, b) {
+  return (b.pinned - a.pinned) || a.name.localeCompare(b.name);
+}
+function _byPinThenSoonest(a, b) {
+  return (b.pinned - a.pinned) || (a.days - b.days);
+}
+
 function _card(e) {
-  const title = e.breakdown ? ` title="${esc(e.breakdown)}${e.notes ? ' — ' + esc(e.notes) : ''}"` : (e.notes ? ` title="${esc(e.notes)}"` : '');
+  const tip = e.breakdown ? `${esc(e.breakdown)}${e.notes ? ' — ' + esc(e.notes) : ''}` : esc(e.notes || '');
   return `
-    <div class="day-card${e.mode === 'today' ? ' today' : ''}${e.mode === 'since' ? ' since' : ''}" data-id="${e.id}"${title}>
+    <div class="day-card${e.mode === 'today' ? ' today' : ''}${e.mode === 'since' ? ' since' : ''}${e.days >= 1 && e.days <= 3 ? ' soon' : ''}" data-id="${e.id}"${tip ? ` title="${tip}"` : ''}>
       <button class="day-pin${e.pinned ? ' on' : ''}" data-act="pin" title="${e.pinned ? 'unpin' : 'pin to top'}">★</button>
       <div class="day-num">${e.mode === 'today' ? '🎉' : e.count.toLocaleString()}</div>
       <div class="day-unit">${_unitLabel(e)}</div>
