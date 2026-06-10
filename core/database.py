@@ -21,6 +21,28 @@ class Base(DeclarativeBase):
     pass
 
 
+from sqlalchemy.types import TypeDecorator
+
+class EncryptedText(TypeDecorator):
+    """seals server-side secrets (API keys, mail passwords) at rest with the
+    machine-local key in data/secret.key. legacy plaintext rows pass through
+    on read and get sealed by the init_db migration."""
+    impl = Text
+    cache_ok = True
+
+    def process_bind_param(self, value, dialect):
+        if not value:
+            return value
+        from services.secretstore import seal
+        return seal(value)
+
+    def process_result_value(self, value, dialect):
+        if not value:
+            return value
+        from services.secretstore import unseal
+        return unseal(value)
+
+
 def _uid():
     return str(uuid.uuid4())
 
@@ -33,7 +55,7 @@ class ModelEndpoint(Base):
     id           = Column(String, primary_key=True, default=_uid)
     name         = Column(String, nullable=False)
     base_url     = Column(String, nullable=False)
-    api_key      = Column(Text, default="")      # stored plain for now, encrypt later
+    api_key      = Column(EncryptedText, default="")   # AES-GCM at rest, see secretstore
     enabled       = Column(Boolean, default=True)
     cached_models = Column(Text, default="[]")   # json list of model id strings
     vision_models = Column(Text, default="[]")   # json list of vision-capable model ids
@@ -278,7 +300,7 @@ class MailAccount(Base):
     smtp_host  = Column(String, default="")
     smtp_port  = Column(Integer, default=587)
     username   = Column(String, default="")
-    password   = Column(String, default="")           # stored local-only (single-user)
+    password   = Column(EncryptedText, default="")     # AES-GCM at rest, see secretstore
     use_ssl    = Column(Boolean, default=True)
     created_at = Column(DateTime, default=_now)
 
@@ -362,6 +384,20 @@ def init_db():
         _add_col(conn, "calendar_events", "recurrence",  "TEXT DEFAULT ''")
         _add_col(conn, "calendar_events", "recur_until", "TEXT")
         _add_col(conn, "calendar_events", "caldav_uid",  "TEXT")
+    _encrypt_plaintext_secrets()
+
+
+def _encrypt_plaintext_secrets():
+    """one-time (idempotent) — seal credentials that predate at-rest encryption"""
+    from services.secretstore import seal, PREFIX
+    with engine.begin() as conn:
+        for table, col in (("model_endpoints", "api_key"), ("mail_accounts", "password")):
+            rows = conn.execute(text(
+                f"SELECT id, {col} FROM {table} WHERE {col} != '' AND {col} NOT LIKE :p"
+            ), {"p": PREFIX + "%"}).fetchall()
+            for rid, val in rows:
+                conn.execute(text(f"UPDATE {table} SET {col} = :v WHERE id = :id"),
+                             {"v": seal(val), "id": rid})
 
 
 def get_db():

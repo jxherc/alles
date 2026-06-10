@@ -55,6 +55,7 @@ def vault_lock():
 
 @router.get("/vault")
 def list_vault(db: DbSession = Depends(get_db)):
+    _get_master_pw()   # entry names/usernames are metadata, but still vault-locked
     entries = db.query(VaultEntry).order_by(VaultEntry.created_at.desc()).all()
     return [{"id": e.id, "name": e.name, "username": e.username or "", "category": e.category,
              "created_at": e.created_at.isoformat()} for e in entries]
@@ -62,6 +63,7 @@ def list_vault(db: DbSession = Depends(get_db)):
 
 @router.get("/vault/categories")
 def vault_categories(db: DbSession = Depends(get_db)):
+    _get_master_pw()
     used = [c for (c,) in db.query(VaultEntry.category).distinct().all() if c]
     base = ["password", "api key", "card", "note", "general"]
     return {"categories": sorted(set(base) | set(used))}
@@ -117,6 +119,7 @@ def reveal_entry(entry_id: str, db: DbSession = Depends(get_db)):
 
 @router.delete("/vault/{entry_id}")
 def delete_entry(entry_id: str, db: DbSession = Depends(get_db)):
+    _get_master_pw()
     e = db.get(VaultEntry, entry_id)
     if not e: raise HTTPException(404)
     db.delete(e); db.commit()
