@@ -24,9 +24,22 @@ export function mdToHtml(text) {
     return `\x00BLOCK${idx}\x00`;
   });
 
+  // math: $$block$$ and $inline$ → placeholders, rendered later by KaTeX
+  const maths = [];
+  out = out.replace(/\$\$([\s\S]+?)\$\$/g, (_, tex) => { maths.push({ display: true, tex }); return `\x00MATH${maths.length - 1}\x00`; });
+  out = out.replace(/(?<![\\$\d])\$(?!\s)([^\n$]+?)(?<!\s)\$(?!\d)/g, (_, tex) => { maths.push({ display: false, tex }); return `\x00MATH${maths.length - 1}\x00`; });
+
   // Escape all raw HTML before adding the small Markdown subset below. Code and
   // thinking blocks are restored later from placeholders.
   out = escapeHtml(out);
+
+  // footnotes: pull [^id]: definitions, then turn [^id] refs into superscripts
+  const fns = [];
+  out = out.replace(/^\[\^([^\]\s]+)\]:[ \t]*(.+)$\n?/gm, (_, id, txt) => { fns.push({ id, txt }); return ''; });
+  if (fns.length) out = out.replace(/\[\^([^\]\s]+)\]/g, (full, id) => {
+    const i = fns.findIndex(f => f.id === id);
+    return i >= 0 ? `<sup class="md-fnref">${i + 1}</sup>` : full;
+  });
 
   // headings → real h1..h6
   out = out.replace(/^(#{1,6})\s+(.+)$/gm, (_, h, t) => `<h${h.length}>${t}</h${h.length}>`);
@@ -43,9 +56,29 @@ export function mdToHtml(text) {
   out = out.replace(/==(\S(?:[^=]*\S)?)==/g, '<mark>$1</mark>');
   // inline code
   out = out.replace(/`([^`]+)`/g, '<code>$1</code>');
-  // blockquotes — consecutive > lines into one block (> was escaped to &gt;)
-  out = out.replace(/(?:^&gt;\s?.*(?:\n|$))+/gm, m =>
-    `<blockquote>${m.replace(/^&gt;\s?/gm, '').trim().replace(/\n/g, '<br>')}</blockquote>`);
+  // font color: {color:red}text{/color} — restricted to safe css color chars
+  out = out.replace(/\{color:([^}]+)\}([\s\S]*?)\{\/color\}/g, (full, c, inner) =>
+    /^[#\w(),.%\s-]+$/.test(c.trim()) ? `<span style="color:${c.trim()}">${inner}</span>` : full);
+  // blockquotes + obsidian callouts ( > [!note] Title )
+  out = out.replace(/(?:^&gt;\s?.*(?:\n|$))+/gm, m => {
+    const body = m.replace(/^&gt;\s?/gm, '').replace(/\n+$/, '');
+    const cal = body.match(/^\[!(\w+)\][+-]?\s*(.*)(?:\n([\s\S]*))?$/);
+    if (cal) {
+      const type = cal[1].toLowerCase();
+      const rest = (cal[3] || '').trim();
+      return `<div class="md-callout md-callout-${type}"><div class="md-callout-title">${cal[2] || type}</div>${rest ? `<div class="md-callout-body">${rest.replace(/\n/g, '<br>')}</div>` : ''}</div>`;
+    }
+    return `<blockquote>${body.trim().replace(/\n/g, '<br>')}</blockquote>`;
+  });
+  // tables ( | a | b | with a |---|---| separator row )
+  out = out.replace(/(?:^\|.*\|[ \t]*(?:\n|$))+/gm, block => {
+    const rows = block.replace(/\n+$/, '').split('\n').map(r => r.trim()).filter(Boolean);
+    if (rows.length < 2 || !/^\|?[\s:|-]+\|?$/.test(rows[1]) || !rows[1].includes('-')) return block;
+    const cells = r => r.replace(/^\||\|$/g, '').split('|').map(c => c.trim());
+    let html = '<table class="md-table"><thead><tr>' + cells(rows[0]).map(c => `<th>${c}</th>`).join('') + '</tr></thead><tbody>';
+    for (const r of rows.slice(2)) html += '<tr>' + cells(r).map(c => `<td>${c}</td>`).join('') + '</tr>';
+    return html + '</tbody></table>';
+  });
   // lists — line based so blank lines end a list and ul/ol never bleed together
   {
     const lines = out.split('\n');
@@ -79,10 +112,18 @@ export function mdToHtml(text) {
     return `<p>${p.replace(/\n/g, '<br>')}</p>`;
   }).join('\n');
 
+  // restore math (rendered by KaTeX later; raw shown as fallback)
+  out = out.replace(/\x00MATH(\d+)\x00/g, (_, i) => {
+    const { display, tex } = maths[i]; const t = escapeHtml(tex.trim());
+    return display ? `<div class="md-math" data-tex="${t}">${t}</div>` : `<span class="md-math-inline" data-tex="${t}">${t}</span>`;
+  });
+
   // restore code blocks
   out = out.replace(/\x00BLOCK(\d+)\x00/g, (_, i) => {
     const { lang, code } = blocks[i];
     const escaped = escapeHtml(code);
+    if (lang.toLowerCase() === 'mermaid')   // diagrams/graphs — rendered later by mermaid
+      return `<div class="md-mermaid" data-src="${escaped}">${escaped}</div>`;
     const runnable = ['js', 'javascript', 'html', 'python', 'py'].includes(lang.toLowerCase());
     const runBtn = runnable
       ? `<button class="code-run" onclick="runCode(this)">run</button>`
@@ -102,8 +143,60 @@ export function mdToHtml(text) {
     return `<details class="thinking-block"><summary>thinking</summary><div class="thinking-content">${content.replace(/\n/g, '<br>')}</div></details>`;
   });
 
+  if (fns.length)
+    out += `<div class="md-footnotes">` + fns.map((f, i) =>
+      `<div class="md-fn"><span class="md-fn-n">${i + 1}.</span> ${f.txt}</div>`).join('') + `</div>`;
+
   return out;
 }
+
+// lazy-render mermaid diagrams + katex math inside a freshly-rendered container.
+// libs load from CDN on first use; if that fails the raw text just stays.
+let _mermaidP, _katexP;
+function _loadMermaid() {
+  if (!_mermaidP) _mermaidP = import('https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs')
+    .then(m => { m.default.initialize({ startOnLoad: false, theme: 'dark', securityLevel: 'loose', fontFamily: 'Inter, sans-serif' }); return m.default; });
+  return _mermaidP;
+}
+function _loadKatex() {
+  if (!_katexP) {
+    if (!document.getElementById('katex-css')) {
+      const l = document.createElement('link');
+      l.id = 'katex-css'; l.rel = 'stylesheet';
+      l.href = 'https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css';
+      document.head.appendChild(l);
+    }
+    _katexP = import('https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.mjs').then(m => m.default);
+  }
+  return _katexP;
+}
+export async function enhanceMarkdown(root) {
+  if (!root) return;
+  const mer = [...root.querySelectorAll('.md-mermaid:not([data-done])')];
+  if (mer.length) {
+    try {
+      const mermaid = await _loadMermaid();
+      for (const el of mer) {
+        el.dataset.done = '1';
+        try {
+          const { svg } = await mermaid.render('mmd' + Math.random().toString(36).slice(2), el.dataset.src);
+          el.innerHTML = svg;
+        } catch { el.classList.add('md-mermaid-err'); }
+      }
+    } catch {}
+  }
+  const math = [...root.querySelectorAll('.md-math:not([data-done]),.md-math-inline:not([data-done])')];
+  if (math.length) {
+    try {
+      const katex = await _loadKatex();
+      for (const el of math) {
+        el.dataset.done = '1';
+        try { katex.render(el.dataset.tex, el, { displayMode: el.classList.contains('md-math'), throwOnError: false }); } catch {}
+      }
+    } catch {}
+  }
+}
+window.enhanceMarkdown = enhanceMarkdown;
 
 
 export function toast(msg, type = '', duration = 3000) {
