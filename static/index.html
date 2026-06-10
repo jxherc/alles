@@ -13,6 +13,12 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/static/style.css">
 <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#0a0a0a">
+<link rel="apple-touch-icon" href="/static/icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="alles">
 </head>
 <body class="preboot">
 
@@ -202,6 +208,7 @@
     <div class="page-view" id="reminders-view" style="display:none">
       <div class="page-view-head">
         <span class="page-view-title">reminders</span>
+        <button class="btn primary" id="push-enable-btn" style="margin-left:auto;font-size:0.72rem">enable notifications</button>
       </div>
       <div class="page-view-body">
         <div id="reminder-list" style="margin-bottom:0.75rem"></div>

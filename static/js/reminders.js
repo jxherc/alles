@@ -87,6 +87,7 @@ async function _checkDue() {
 
 export function initReminderPanel() {
   loadReminders();
+  import('./push.js').then(m => m.initPushButton()).catch(() => {});
 
   const addBtn = document.getElementById('reminder-add-btn');
   const textEl = document.getElementById('reminder-text');
