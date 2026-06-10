@@ -110,7 +110,23 @@ def _tail(n=60):
     return LOG_FILE.read_text(errors="replace").splitlines()[-n:]
 
 
+def _deps_ok() -> bool:
+    """app.py will run under THIS interpreter — make sure it has the deps,
+    otherwise the server just crash-loops into the log file."""
+    try:
+        import fastapi, uvicorn  # noqa: F401
+        return True
+    except ImportError:
+        return False
+
+
 def cmd_start(args=()):
+    if not _deps_ok():
+        print(f"dependencies are missing for this python:\n  {sys.executable}")
+        print("install them with:")
+        print(f"  {sys.executable} -m pip install -r requirements.txt")
+        print("(if you installed packages into a different python, run alles with that one)")
+        return
     pid = _pid()
     if _running(pid):
         print(f"alles already running  pid={pid}  {_url()}")
