@@ -24,6 +24,11 @@ def export_backup():
         sj = DATA_DIR / "settings.json"
         if sj.exists():
             zf.write(sj, "settings.json")
+        # at-rest encryption key — without it a restored DB can't decrypt
+        # its API keys / mail passwords, so it travels with the backup
+        sk = DATA_DIR / "secret.key"
+        if sk.exists():
+            zf.write(sk, "secret.key")
         # uploads
         upload_dir = DATA_DIR / "uploads"
         if upload_dir.exists():
@@ -63,9 +68,14 @@ async def restore_backup(file: UploadFile = File(...)):
             if DATA_DIR.exists():
                 shutil.copytree(DATA_DIR, backup_cur)
 
-            # extract
+            # extract — refuse member paths that escape the data dir (zip-slip)
+            data_root = DATA_DIR.resolve()
             for name in names:
-                dest = DATA_DIR / name
+                if name.endswith("/"):
+                    continue
+                dest = (DATA_DIR / name).resolve()
+                if not dest.is_relative_to(data_root):
+                    raise HTTPException(400, f"invalid path in archive: {name}")
                 dest.parent.mkdir(parents=True, exist_ok=True)
                 dest.write_bytes(zf.read(name))
 

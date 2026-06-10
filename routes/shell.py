@@ -2,11 +2,12 @@
 shell execution — admin only, streams output via SSE.
 """
 import os, sys, asyncio, json, shutil, logging
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
+from core.auth import require_auth
 
-router = APIRouter(prefix="/api")
+router = APIRouter(prefix="/api", dependencies=[Depends(require_auth)])
 log = logging.getLogger("aide.shell")
 
 _TIMEOUT_EXEC   = 30   # seconds for blocking exec

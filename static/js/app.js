@@ -184,7 +184,10 @@ function _showLoginScreen() {
   document.body.classList.add('login-mode');
   const screen = document.getElementById('login-screen');
   if (screen) screen.style.display = 'flex';
-  document.getElementById('login-submit')?.addEventListener('click', async () => {
+  const submit = document.getElementById('login-submit');
+  if (!submit || submit.dataset.wired) return;   // re-entry must not stack listeners
+  submit.dataset.wired = '1';
+  submit.addEventListener('click', async () => {
     const pw = document.getElementById('login-pw')?.value;
     const r = await fetch('/api/auth/login', {
       method: 'POST', headers: { 'content-type': 'application/json' },
