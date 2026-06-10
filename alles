@@ -1,3 +1,15 @@
 #!/usr/bin/env bash
-# alles - server CLI
-python "$(dirname "$0")/cli.py" "$@"
+# alles — server CLI. finds a working python 3, resolving symlinks so it
+# works even when this script is symlinked onto PATH.
+src="${BASH_SOURCE[0]}"
+while [ -h "$src" ]; do
+  d="$(cd -P "$(dirname "$src")" && pwd)"; src="$(readlink "$src")"
+  [[ $src != /* ]] && src="$d/$src"
+done
+dir="$(cd -P "$(dirname "$src")" && pwd)"
+
+for py in python3 python; do
+  if command -v "$py" >/dev/null 2>&1; then exec "$py" "$dir/cli.py" "$@"; fi
+done
+echo "alles: no python found on PATH — install Python 3.11+ (python3)" >&2
+exit 1
