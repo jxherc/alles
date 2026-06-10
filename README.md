@@ -44,15 +44,19 @@ prefer not to use git? hit the green Code button above, download the zip, unzip 
 ## cli
 
 ```
-alles start      start the server in the background
-alles stop       stop it
-alles restart    restart it
-alles status     running/stopped + url
-alles logs       tail the log
-alles open       open the browser
+alles start         start the server in the background (waits until it's actually up)
+alles stop          stop it
+alles restart       restart it
+alles status        running/stopped + url + reachability
+alles logs [N]      print the last N log lines (default 60)
+alles logs -f       follow the log live
+alles update        git pull, then restart
+alles open          open the browser
 ```
 
 windows: `alles.cmd` (add the folder to PATH). unix / git-bash: `./alles`. or just `python app.py`.
+
+the launchers find `python3` or `python` automatically, so `./alles` works whether or not bare `python` is on your PATH.
 
 ## configuration
 

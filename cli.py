@@ -1,15 +1,25 @@
 """
 alles CLI
-  alles start    - start server in background
-  alles stop     - stop server
-  alles restart  - restart server
-  alles status   - show if running + url
-  alles logs     - tail logs
-  alles open     - open in browser
+
+  alles start          start the server in the background
+  alles stop           stop it
+  alles restart        restart it
+  alles status         running/stopped + url + reachability
+  alles logs [N]       print the last N log lines (default 60)
+  alles logs -f        follow the log live (ctrl-c to stop)
+  alles logs --clear   truncate the log file
+  alles update         git pull, then restart
+  alles open           open the browser
+
+windows: alles.cmd   unix/git-bash: ./alles   or just: python app.py
 """
-import sys, os, signal, subprocess, time, webbrowser
+import sys, os, signal, socket, subprocess, time, webbrowser
 from pathlib import Path
-from dotenv import load_dotenv
+
+try:
+    from dotenv import load_dotenv
+except Exception:                       # dotenv is a dep, but never let a missing
+    def load_dotenv(*a, **k): return False   # import block the whole CLI
 
 ROOT     = Path(__file__).parent
 PID_FILE = ROOT / "data" / "aide.pid"
@@ -17,9 +27,19 @@ LOG_FILE = ROOT / "data" / "aide-server.log"
 
 load_dotenv(ROOT / ".env", encoding="utf-8-sig")
 
+IS_WIN = sys.platform == "win32"
+
 
 def _port():
-    return int(os.getenv("PORT", "8000"))
+    try:
+        return int(os.getenv("PORT", "8000"))
+    except ValueError:
+        return 8000
+
+
+def _url():
+    return f"http://localhost:{_port()}"
+
 
 def _pid():
     try:
@@ -27,152 +47,225 @@ def _pid():
     except Exception:
         return None
 
+
 def _running(pid):
     if pid is None:
         return False
     try:
-        if sys.platform == "win32":
+        if IS_WIN:
             out = subprocess.check_output(
                 ['tasklist', '/FI', f'PID eq {pid}', '/NH'],
-                stderr=subprocess.DEVNULL, text=True,
-            )
+                stderr=subprocess.DEVNULL, text=True)
             return str(pid) in out
-        else:
-            os.kill(pid, 0)
-            return True
+        os.kill(pid, 0)
+        return True
     except Exception:
         return False
 
 
-def _port_in_use():
-    """check if something is already bound to our port (catches orphans not in PID file)"""
-    import socket
+def _port_open():
+    """is something accepting connections on our port? (server up, or an orphan)"""
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.settimeout(0.5)
         return s.connect_ex(('127.0.0.1', _port())) == 0
 
 
 def _kill_port():
-    """find and kill whatever is holding our port"""
+    """find and kill whatever is holding our port — cross-platform best effort"""
     port = _port()
     try:
-        if sys.platform == "win32":
-            out = subprocess.check_output(
-                ['netstat', '-ano', '-p', 'tcp'],
-                stderr=subprocess.DEVNULL, text=True,
-            )
+        if IS_WIN:
+            out = subprocess.check_output(['netstat', '-ano', '-p', 'tcp'],
+                                          stderr=subprocess.DEVNULL, text=True)
             for line in out.splitlines():
                 if f':{port} ' in line and 'LISTENING' in line:
                     pid = line.strip().split()[-1]
                     subprocess.call(['taskkill', '/F', '/PID', pid],
                                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-                    print(f"killed orphaned process {pid} holding port {port}")
-        else:
+                    print(f"  killed orphan process {pid} on port {port}")
+            return
+        # unix: prefer lsof (works on macOS + linux), fall back to fuser (linux)
+        from shutil import which
+        if which('lsof'):
+            out = subprocess.check_output(['lsof', '-ti', f'tcp:{port}'],
+                                          stderr=subprocess.DEVNULL, text=True)
+            for pid in out.split():
+                try:
+                    os.kill(int(pid), signal.SIGKILL)
+                    print(f"  killed orphan process {pid} on port {port}")
+                except Exception:
+                    pass
+        elif which('fuser'):
             subprocess.call(['fuser', '-k', f'{port}/tcp'],
                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except subprocess.CalledProcessError:
+        pass   # nothing was listening
     except Exception:
         pass
 
 
-def cmd_start():
+def _tail(n=60):
+    if not LOG_FILE.exists():
+        return []
+    return LOG_FILE.read_text(errors="replace").splitlines()[-n:]
+
+
+def cmd_start(args=()):
     pid = _pid()
     if _running(pid):
-        print(f"alles already running  pid={pid}  http://localhost:{_port()}")
+        print(f"alles already running  pid={pid}  {_url()}")
         return
-    if _port_in_use():
-        print(f"port {_port()} is in use by an orphaned process — killing it...")
+    if _port_open():
+        print(f"port {_port()} is busy (orphan?) — clearing it…")
         _kill_port()
         time.sleep(0.5)
 
     PID_FILE.parent.mkdir(parents=True, exist_ok=True)
-    LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
-
-    python = sys.executable
+    python = sys.executable or "python3"
     with open(LOG_FILE, "a") as log:
-        if sys.platform == "win32":
+        if IS_WIN:
             proc = subprocess.Popen(
-                [python, "app.py"],
-                cwd=ROOT,
-                stdout=log, stderr=log,
+                [python, "app.py"], cwd=ROOT, stdout=log, stderr=log,
                 creationflags=subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.DETACHED_PROCESS,
-                close_fds=True,
-            )
+                close_fds=True)
         else:
             proc = subprocess.Popen(
-                [python, "app.py"],
-                cwd=ROOT,
-                stdout=log, stderr=log,
-                start_new_session=True,
-            )
+                [python, "app.py"], cwd=ROOT, stdout=log, stderr=log,
+                start_new_session=True)
 
     PID_FILE.write_text(str(proc.pid))
-    time.sleep(1.2)
 
-    if _running(proc.pid):
-        print(f"alles started  pid={proc.pid}  http://localhost:{_port()}")
-    else:
-        print("alles failed to start - check logs:")
-        print(f"  alles logs")
+    # wait for the server to actually accept connections — not just for the
+    # process to exist. first boot can load embedding models, so give it time.
+    print("starting…", end="", flush=True)
+    deadline = time.time() + 40
+    while time.time() < deadline:
+        if _port_open():
+            print(f"\ralles started  pid={proc.pid}  {_url()}        ")
+            return
+        if proc.poll() is not None:        # process died during startup
+            print("\ralles failed to start. last log lines:        \n")
+            print("\n".join("  " + l for l in _tail(15)) or "  (log empty)")
+            PID_FILE.unlink(missing_ok=True)
+            return
+        print(".", end="", flush=True)
+        time.sleep(0.5)
+    print(f"\ralles is still warming up (pid={proc.pid}).        ")
+    print(f"  port {_port()} isn't answering yet — check:  alles logs -f")
 
 
-def cmd_stop():
+def cmd_stop(args=()):
     pid = _pid()
     if not _running(pid):
-        print("alles is not running")
+        if _port_open():               # PID file stale but something's on the port
+            print("no tracked pid, but the port is busy — clearing it…")
+            _kill_port()
+        else:
+            print("alles is not running")
         PID_FILE.unlink(missing_ok=True)
         return
 
     try:
-        if sys.platform == "win32":
+        if IS_WIN:
             subprocess.call(["taskkill", "/F", "/PID", str(pid)],
                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         else:
             os.kill(pid, signal.SIGTERM)
-
-        # wait up to 5s
-        for _ in range(10):
-            time.sleep(0.5)
-            if not _running(pid):
-                break
-
-        PID_FILE.unlink(missing_ok=True)
-        print(f"alles stopped  (pid {pid})")
+            for _ in range(20):            # up to 10s for a graceful exit
+                if not _running(pid):
+                    break
+                time.sleep(0.5)
+            if _running(pid):              # escalate
+                print("not responding to SIGTERM — forcing…")
+                try:
+                    os.kill(pid, signal.SIGKILL)
+                except Exception:
+                    pass
+                time.sleep(0.5)
     except Exception as e:
         print(f"stop failed: {e}")
+        return
+
+    if _running(pid):
+        print(f"stop failed — pid {pid} is still alive")
+        return
+    PID_FILE.unlink(missing_ok=True)
+    print(f"alles stopped  (pid {pid})")
 
 
-def cmd_restart():
+def cmd_restart(args=()):
     cmd_stop()
     time.sleep(0.5)
     cmd_start()
 
 
-def cmd_status():
+def cmd_status(args=()):
     pid = _pid()
-    port = _port()
+    up = _port_open()
     if _running(pid):
-        print(f"alles running   pid={pid}   http://localhost:{port}")
+        state = "reachable" if up else "process up, port not answering yet"
+        print(f"alles running   pid={pid}   {_url()}   ({state})")
+    elif up:
+        print(f"alles running   (untracked pid)   {_url()}   reachable")
     else:
         print("alles stopped")
         PID_FILE.unlink(missing_ok=True)
 
 
-def cmd_logs(n=60):
+def cmd_logs(args=()):
+    args = list(args)
+    if "--clear" in args:
+        LOG_FILE.write_text("")
+        print("log cleared")
+        return
     if not LOG_FILE.exists():
-        print("no log file yet - run  alles start  first")
+        print("no log file yet — run  alles start  first")
         return
-    lines = LOG_FILE.read_text(errors="replace").splitlines()
-    print("\n".join(lines[-n:]))
+    if "-f" in args or "--follow" in args:
+        _follow_logs()
+        return
+    n = next((int(a) for a in args if a.isdigit()), 60)
+    print("\n".join(_tail(n)))
 
 
-def cmd_open():
-    pid = _pid()
-    if not _running(pid):
-        print("alles is not running - start it first with  alles start")
+def _follow_logs():
+    with LOG_FILE.open("r", errors="replace") as f:
+        for ln in f.readlines()[-40:]:
+            sys.stdout.write(ln)
+        sys.stdout.flush()
+        try:
+            while True:
+                ln = f.readline()
+                if ln:
+                    sys.stdout.write(ln); sys.stdout.flush()
+                else:
+                    time.sleep(0.3)
+        except KeyboardInterrupt:
+            print()
+
+
+def cmd_update(args=()):
+    if not (ROOT / ".git").exists():
+        print("not a git checkout — update manually, then  alles restart")
         return
-    url = f"http://localhost:{_port()}"
-    webbrowser.open(url)
-    print(f"opening {url}")
+    print("pulling latest…")
+    try:
+        r = subprocess.run(["git", "pull", "--ff-only"], cwd=ROOT)
+    except FileNotFoundError:
+        print("git not found on PATH")
+        return
+    if r.returncode != 0:
+        print("git pull failed (local changes or diverged) — resolve, then  alles restart")
+        return
+    cmd_restart()
+
+
+def cmd_open(args=()):
+    if not _port_open():
+        print("alles isn't reachable — start it first with  alles start")
+        return
+    webbrowser.open(_url())
+    print(f"opening {_url()}")
 
 
 COMMANDS = {
@@ -181,12 +274,27 @@ COMMANDS = {
     "restart": cmd_restart,
     "status":  cmd_status,
     "logs":    cmd_logs,
+    "update":  cmd_update,
     "open":    cmd_open,
 }
 
-if __name__ == "__main__":
-    if len(sys.argv) < 2 or sys.argv[1] not in COMMANDS:
-        print(__doc__.strip())
-        print("\ncommands:", "  ".join(COMMANDS))
+
+def _usage():
+    return __doc__.strip() + "\n\ncommands: " + "  ".join(COMMANDS)
+
+
+def main():
+    args = sys.argv[1:]
+    if args and args[0] in ("-h", "--help", "help"):
+        print(_usage())
+        return
+    if not args or args[0] not in COMMANDS:
+        if args:
+            print(f"alles: unknown command '{args[0]}'\n", file=sys.stderr)
+        print(_usage(), file=sys.stderr)
         sys.exit(1)
-    COMMANDS[sys.argv[1]]()
+    COMMANDS[args[0]](args[1:])
+
+
+if __name__ == "__main__":
+    main()
