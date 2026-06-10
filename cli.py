@@ -88,23 +88,22 @@ def cmd_start():
     LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
 
     python = sys.executable
-    log = open(LOG_FILE, "a")
-
-    if sys.platform == "win32":
-        proc = subprocess.Popen(
-            [python, "app.py"],
-            cwd=ROOT,
-            stdout=log, stderr=log,
-            creationflags=subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.DETACHED_PROCESS,
-            close_fds=True,
-        )
-    else:
-        proc = subprocess.Popen(
-            [python, "app.py"],
-            cwd=ROOT,
-            stdout=log, stderr=log,
-            start_new_session=True,
-        )
+    with open(LOG_FILE, "a") as log:
+        if sys.platform == "win32":
+            proc = subprocess.Popen(
+                [python, "app.py"],
+                cwd=ROOT,
+                stdout=log, stderr=log,
+                creationflags=subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.DETACHED_PROCESS,
+                close_fds=True,
+            )
+        else:
+            proc = subprocess.Popen(
+                [python, "app.py"],
+                cwd=ROOT,
+                stdout=log, stderr=log,
+                start_new_session=True,
+            )
 
     PID_FILE.write_text(str(proc.pid))
     time.sleep(1.2)
