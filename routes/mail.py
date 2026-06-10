@@ -139,3 +139,63 @@ def send(aid: str, body: SendBody, db: DbSession = Depends(get_db)):
         return mailsvc.send_mail(_acct_dict(a), body.to, body.subject, body.body, body.cc)
     except Exception as e:
         return {"ok": False, "error": str(e)[:200]}
+
+
+class ExtractEventBody(BaseModel):
+    subject: str = ""
+    body: str = ""
+    date: str = ""    # the mail's own date header, helps resolve "next tuesday"
+
+
+@router.post("/extract-event")
+async def extract_event(body: ExtractEventBody, db: DbSession = Depends(get_db)):
+    """AI-extract an event from a mail and drop it straight into the calendar."""
+    import json as _json
+    from datetime import datetime
+    from core.database import ModelEndpoint, CalendarEvent
+    from services.llm import simple_complete
+
+    ep = db.query(ModelEndpoint).filter(ModelEndpoint.enabled == True).first()
+    if not ep:
+        raise HTTPException(400, "no model endpoint configured")
+    model = ep.models_list()[0] if ep.models_list() else ""
+    if not model:
+        raise HTTPException(400, "no model available")
+
+    today = datetime.now().strftime("%A, %Y-%m-%d")
+    prompt = [
+        {"role": "system", "content": (
+            "You extract calendar events from emails. Reply with ONLY a JSON object, no prose, "
+            "no code fences. Schema: {\"found\": bool, \"title\": str, \"start\": \"YYYY-MM-DDTHH:MM\", "
+            "\"end\": \"YYYY-MM-DDTHH:MM\" or null, \"location\": str, \"all_day\": bool}. "
+            f"Today is {today}. Resolve relative dates against the email's date when given. "
+            "If the email contains no concrete event (date or time), return {\"found\": false}."
+        )},
+        {"role": "user", "content": (
+            (f"Email date: {body.date}\n" if body.date else "")
+            + f"Subject: {body.subject}\n\n{body.body[:6000]}"
+        )},
+    ]
+    raw = await simple_complete(prompt, ep.base_url, ep.api_key, model, max_tokens=300)
+    raw = raw.strip().removeprefix("```json").removeprefix("```").removesuffix("```").strip()
+    try:
+        data = _json.loads(raw)
+    except Exception:
+        raise HTTPException(502, "model returned unparseable output — try again")
+    if not data.get("found") or not data.get("start"):
+        return {"found": False}
+
+    desc = "from mail"
+    if data.get("location"):
+        desc += f" — {data['location']}"
+    ev = CalendarEvent(
+        title=(data.get("title") or body.subject or "event")[:200],
+        description=desc,
+        start_dt=str(data["start"]),
+        end_dt=str(data["end"]) if data.get("end") else None,
+        all_day=bool(data.get("all_day")),
+        color="accent",
+    )
+    db.add(ev); db.commit(); db.refresh(ev)
+    return {"found": True, "id": ev.id, "title": ev.title,
+            "start": ev.start_dt, "end": ev.end_dt, "all_day": ev.all_day}
