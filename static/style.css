@@ -1556,6 +1556,19 @@ code {
   padding: 0.3rem 0; outline: none; transition: border-color 0.2s;
 }
 .page-view-footer input:focus { border-color: var(--muted); }
+/* dropdowns + date pickers inside footers match the underline inputs, so a
+   form row reads as one consistent strip instead of mixed boxed/underline */
+.page-view-footer .custom-select.settings-input,
+.page-view-footer .date-input {
+  background: none; border: none; border-bottom: 1px solid var(--faint);
+  border-radius: 0; min-height: 0;
+  padding: 0.45rem 0.1rem; font-size: 0.8rem;
+}
+.page-view-footer .custom-select.settings-input { padding-right: 1.2rem; }
+.page-view-footer .custom-select.open,
+.page-view-footer .custom-select:focus,
+.page-view-footer .date-input:hover,
+.page-view-footer .date-input.open { border-bottom-color: var(--muted); }
 
 /* ── home / launcher ── */
 .brand { cursor: pointer; }
@@ -2692,9 +2705,11 @@ code {
   opacity: 1;
 }
 .toastui-editor-toolbar-icons.active {
-  background-color: color-mix(in srgb, var(--accent) 16%, transparent) !important;
-  border-color: color-mix(in srgb, var(--accent) 50%, var(--faint)) !important;
+  background-color: transparent !important;
+  border-color: transparent !important;
   opacity: 1;
+  /* tint the sprite glyph itself to the accent — no box */
+  filter: brightness(0) saturate(100%) invert(62%) sepia(32%) saturate(3700%) hue-rotate(216deg) brightness(100%) contrast(95%);
 }
 
 /* bottom mode switch + write/preview tabs */
@@ -2765,6 +2780,26 @@ code {
 .toastui-editor-contents table th,
 .toastui-editor-contents table td { border: 1px solid var(--faint) !important; }
 .toastui-editor-contents table th { background: var(--panel) !important; color: var(--text) !important; font-weight: 600; }
+
+/* our custom toolbar buttons (underline / highlight / wikilink) — text glyphs,
+   not sprite icons, so they need their own colors */
+.alles-tool-btn {
+  background-image: none !important;
+  color: var(--muted) !important;
+  font-size: 0.78rem !important; font-weight: 600;
+  display: inline-flex !important; align-items: center; justify-content: center;
+}
+.alles-tool-btn:hover { color: var(--text) !important; }
+.alles-tool-btn .alles-hl {
+  background: color-mix(in srgb, var(--accent) 30%, transparent);
+  border-radius: 2px; padding: 0 0.18em;
+}
+/* underline + highlight in the editing surface and preview */
+.toastui-editor-contents u { text-decoration-color: color-mix(in srgb, var(--accent) 70%, var(--text)); }
+.toastui-editor-contents mark {
+  background: color-mix(in srgb, var(--accent) 28%, transparent);
+  color: var(--text); padding: 0 0.15em; border-radius: 2px;
+}
 
 /* placeholder + selection */
 .ProseMirror .placeholder,
