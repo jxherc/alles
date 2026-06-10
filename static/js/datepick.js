@@ -61,8 +61,7 @@ function _openPanel(el) {
   document.body.appendChild(panel);
   const cur = _parse(el);
   _open = { el, panel, view: { y: cur.y, mo: cur.mo }, sel: cur };
-  _position(el, panel);
-  _render(el);
+  _render(el);   // render first so the panel has a measurable height
   setTimeout(() => document.addEventListener('click', _outside), 0);
 }
 
@@ -118,6 +117,8 @@ function _render(el) {
     _commit(el);
     if (isDate) _close(); else _render(el);
   });
+
+  _position(el, panel);   // after content exists — height changes with the month
 }
 
 function _commit(el) {
@@ -128,8 +129,14 @@ function _commit(el) {
 
 function _position(el, panel) {
   const r = el.getBoundingClientRect();
-  panel.style.left = `${Math.min(r.left, window.innerWidth - 250)}px`;
-  panel.style.top = `${r.bottom + 4}px`;
+  const margin = 8;
+  const h = panel.offsetHeight || 300;
+  const w = panel.offsetWidth || 250;
+  const spaceBelow = window.innerHeight - r.bottom - margin;
+  // flip above the trigger when there isn't room below (footer forms etc.)
+  const top = (h <= spaceBelow || spaceBelow >= r.top - margin) ? r.bottom + 4 : r.top - h - 4;
+  panel.style.top = `${Math.max(margin, top)}px`;
+  panel.style.left = `${Math.max(margin, Math.min(r.left, window.innerWidth - w - margin))}px`;
 }
 function _outside(e) {
   if (!_open) return;

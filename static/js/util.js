@@ -32,6 +32,8 @@ export function mdToHtml(text) {
   // Escape all raw HTML before adding the small Markdown subset below. Code and
   // thinking blocks are restored later from placeholders.
   out = escapeHtml(out);
+  // re-allow the safe attribute-less inline tags the docs editor emits
+  out = out.replace(/&lt;(\/?)(u|mark|sub|sup)&gt;/g, '<$1$2>');
 
   // footnotes: pull [^id]: definitions, then turn [^id] refs into superscripts
   const fns = [];
