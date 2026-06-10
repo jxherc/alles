@@ -336,6 +336,16 @@ class Reminder(Base):
     type       = Column(String, default="reminder")   # reminder | message
     session_id = Column(String, nullable=True)         # for type=message
     fired      = Column(Boolean, default=False)
+    notified   = Column(Boolean, default=False)        # web push already sent
+    created_at = Column(DateTime, default=_now)
+
+
+class PushSubscription(Base):
+    __tablename__ = "push_subscriptions"
+    id         = Column(String, primary_key=True, default=_uid)
+    endpoint   = Column(Text, unique=True, nullable=False)   # browser push URL
+    p256dh     = Column(String, default="")                  # client public key
+    auth       = Column(String, default="")                  # client auth secret
     created_at = Column(DateTime, default=_now)
 
 
@@ -384,6 +394,7 @@ def init_db():
         _add_col(conn, "calendar_events", "recurrence",  "TEXT DEFAULT ''")
         _add_col(conn, "calendar_events", "recur_until", "TEXT")
         _add_col(conn, "calendar_events", "caldav_uid",  "TEXT")
+        _add_col(conn, "reminders", "notified", "BOOLEAN DEFAULT 0")
     _encrypt_plaintext_secrets()
 
 
