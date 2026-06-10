@@ -237,11 +237,14 @@ async function openMessage(aid, uid, folder = 'INBOX') {
       <div class="mail-reader-subject">${esc(m.subject)}</div>
       <div class="mail-reader-meta"><b>${esc(fromName(m.from))}</b> &lt;${esc((/<([^>]+)>/.exec(m.from) || [, m.from])[1])}&gt;</div>
       <div class="mail-reader-meta">to ${esc(m.to)} - ${esc(m.date)}</div>
-      <div style="display:flex;gap:0.4rem">
+      <div style="display:flex;gap:0.4rem;flex-wrap:wrap">
         <button class="btn" id="mail-reply">reply</button>
+        <button class="btn" id="mail-to-task" title="create a task from this mail">→ task</button>
         <button class="btn" id="mail-to-cal" title="AI-extract the event and add it to your calendar">→ calendar</button>
+        <button class="btn" id="mail-summarize" title="AI summary + action items">summarize</button>
       </div>
     </div>
+    <div class="mail-summary" id="mail-summary" style="display:none"></div>
     <div class="mail-reader-body">${bodyHtml}</div>
   </div>`;
   if (m.html) {
@@ -251,6 +254,28 @@ async function openMessage(aid, uid, folder = 'INBOX') {
   $('mail-reply')?.addEventListener('click', () => {
     const addr = (/<([^>]+)>/.exec(m.from) || [, m.from])[1];
     compose({ account_id: aid, to: addr, subject: /^re:/i.test(m.subject) ? m.subject : 'Re: ' + m.subject, body: `\n\n-- on ${m.date}, ${fromName(m.from)} wrote --\n${(m.text || '').split('\n').map(l => '> ' + l).join('\n')}` });
+  });
+  $('mail-to-task')?.addEventListener('click', async () => {
+    const r = await fetch('/api/mail/make-task', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ title: m.subject || `mail from ${fromName(m.from)}` }),
+    });
+    toast(r.ok ? 'task created' : 'failed to create task', r.ok ? 'success' : 'error');
+  });
+  $('mail-summarize')?.addEventListener('click', async () => {
+    const btn = $('mail-summarize');
+    const box = $('mail-summary');
+    btn.disabled = true; btn.textContent = 'summarizing...';
+    try {
+      const r = await fetch('/api/mail/summarize', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ subject: m.subject || '', body: m.text || '' }),
+      });
+      const d = await r.json();
+      if (!r.ok) toast(d.detail || 'summarize failed', 'error');
+      else { box.textContent = d.summary; box.style.display = 'block'; }
+    } catch { toast('summarize failed', 'error'); }
+    btn.disabled = false; btn.textContent = 'summarize';
   });
   $('mail-to-cal')?.addEventListener('click', async () => {
     const btn = $('mail-to-cal');

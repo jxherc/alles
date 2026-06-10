@@ -1993,6 +1993,17 @@ code {
 .day-card.editing { gap: 0.3rem; }
 .day-card.editing .settings-input { font-size: 0.72rem; width: 100%; }
 
+/* ── mail AI summary panel ── */
+.mail-summary {
+  margin: 0.6rem 1rem 0;
+  padding: 0.6rem 0.85rem;
+  border: 1px solid var(--faint); border-left: 3px solid var(--accent);
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+  font-size: 0.78rem; color: var(--text);
+  white-space: pre-wrap; line-height: 1.55;
+}
+
 /* ── automation rules ── */
 .rule-row {
   display: flex; align-items: center; gap: 0.45rem;
