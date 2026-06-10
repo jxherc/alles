@@ -24,6 +24,7 @@ import { toggleIncognitoMode, setIncognitoMode, getPermMode, setPermMode, permLa
 import { initPrivacyHandlers } from './privacy.js';
 import { loadShortcuts, matchesShortcut } from './shortcuts.js';
 import { startReminderPoll, initReminderPanel, loadReminders } from './reminders.js';
+import { registerServiceWorker } from './push.js';
 
 window._mdToHtml = mdToHtml;
 
@@ -110,6 +111,7 @@ async function _boot() {
   initVault();
   initPrivacyHandlers();
   startReminderPoll();
+  registerServiceWorker();
   bindEvents();
   applySubdomainScope();
 }
