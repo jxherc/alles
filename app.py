@@ -134,18 +134,22 @@ async def _reminder_loop():
                         msgs.append({"role": m.role, "content": m.content})
                     msgs.append({"role": "user", "content": r.text})
                     acc = []
-                    async for chunk in stream_chat(msgs, ep.base_url, ep.api_key, s.model):
-                        if "delta" in chunk:
-                            acc.append(chunk["delta"])
-                    full = "".join(acc)
-                    if full:
-                        um = Message(session_id=s.id, role="user", content=r.text)
-                        am = Message(session_id=s.id, role="assistant", content=full)
-                        db.add(um); db.add(am)
-                        s.message_count = (s.message_count or 0) + 2
-                        s.last_message_at = dt.utcnow()
-                        db.commit()
-                        log.info(f"fired scheduled message for session {s.id}")
+                    try:
+                        async for chunk in stream_chat(msgs, ep.base_url, ep.api_key, s.model):
+                            if "delta" in chunk:
+                                acc.append(chunk["delta"])
+                    except Exception as e:
+                        # one broken endpoint must not stall the rest of the queue,
+                        # and the reminder itself still lands in the session below
+                        log.warning(f"reminder LLM call failed for session {s.id}: {e}")
+                    full = "".join(acc) or "(reminder fired, but the model could not be reached)"
+                    um = Message(session_id=s.id, role="user", content=r.text)
+                    am = Message(session_id=s.id, role="assistant", content=full)
+                    db.add(um); db.add(am)
+                    s.message_count = (s.message_count or 0) + 2
+                    s.last_message_at = dt.utcnow()
+                    db.commit()
+                    log.info(f"fired scheduled message for session {s.id}")
             finally:
                 db.close()
         except asyncio.CancelledError:
