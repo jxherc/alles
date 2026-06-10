@@ -39,10 +39,58 @@ function ensureToast() {
   return _loadP;
 }
 
+// register <u> and <mark> as real wysiwyg marks so they round-trip to markdown
+const _htmlInline = {
+  u(n, { entering })    { return { type: entering ? 'openTag' : 'closeTag', tagName: 'u' }; },
+  mark(n, { entering }) { return { type: entering ? 'openTag' : 'closeTag', tagName: 'mark' }; },
+};
+
+function _inlinePlugin() {
+  const toggle = name => (payload, state, dispatch) => {
+    const mark = state.schema.marks[name];
+    if (!mark) return false;
+    const { from, to, empty } = state.selection;
+    if (empty) return false;
+    const has = state.doc.rangeHasMark(from, to, mark);
+    dispatch(has ? state.tr.removeMark(from, to, mark) : state.tr.addMark(from, to, mark.create()));
+    return true;
+  };
+  return { wysiwygCommands: { underline: toggle('u'), highlight: toggle('mark') } };
+}
+
+function _mdWrap(open, close) {
+  const sel = _editor.getSelectedText();
+  _editor.replaceSelection(`${open}${sel}${close}`);
+}
+
+function _toolBtn(html, tooltip, onClick) {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'toastui-editor-toolbar-icons alles-tool-btn';
+  b.innerHTML = html;
+  b.addEventListener('click', e => { e.preventDefault(); onClick(); });
+  return { name: tooltip, tooltip, el: b };
+}
+
 export async function createDocEditor(el, { initialValue = '', onChange } = {}) {
   const Editor = await ensureToast();
   const colorSyntax = window.toastui?.Editor?.plugin?.uml;   // color-syntax (mis-named in the umd)
   el.innerHTML = '';
+
+  const underlineBtn = _toolBtn('<span style="text-decoration:underline">U</span>', 'underline', () => {
+    if (_editor.isMarkdownMode()) _mdWrap('<u>', '</u>');
+    else _editor.exec('underline');
+  });
+  const highlightBtn = _toolBtn('<span class="alles-hl">H</span>', 'highlight', () => {
+    if (_editor.isMarkdownMode()) _mdWrap('<mark>', '</mark>');
+    else _editor.exec('highlight');
+  });
+  const wikiBtn = _toolBtn('<span>[[]]</span>', 'wikilink', () => {
+    // plain text — safe in both modes; cursor lands inside empty brackets
+    const sel = _editor.getSelectedText();
+    _editor.replaceSelection(`[[${sel}]]`);
+  });
+
   _editor = new Editor({
     el,
     height: '100%',
@@ -54,12 +102,13 @@ export async function createDocEditor(el, { initialValue = '', onChange } = {}) 
     theme: document.documentElement.dataset.theme === 'light' ? 'default' : 'dark',
     usageStatistics: false,
     autofocus: false,
-    plugins: colorSyntax ? [colorSyntax] : [],
+    customHTMLRenderer: _htmlInline ? { htmlInline: _htmlInline } : undefined,
+    plugins: colorSyntax ? [colorSyntax, _inlinePlugin] : [_inlinePlugin],
     toolbarItems: [
-      ['heading', 'bold', 'italic', 'strike'],
+      ['heading', 'bold', 'italic', 'strike', underlineBtn, highlightBtn],
       ['hr', 'quote'],
       ['ul', 'ol', 'task', 'indent', 'outdent'],
-      ['table', 'image', 'link'],
+      ['table', 'image', 'link', wikiBtn],
       ['code', 'codeblock'],
     ],
     events: { change: () => onChange?.() },
