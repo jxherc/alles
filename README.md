@@ -12,7 +12,7 @@ every app lives on its own subdomain (`aide.localhost:8000`, `mail.localhost:800
 
 - **aide** — streaming chat with any model (DeepSeek, Claude, GPT, Gemini, Grok, local Ollama…). agent mode that uses tools and acts across your apps, long-term memory, side-by-side model compare, an image gallery, and deep research.
 - **mail** — a real IMAP/SMTP client. one-click setup for Gmail / Outlook / iCloud / Yahoo / Fastmail, or bring your own domain. inbox · unread · sent, and reading a mail actually marks it read.
-- **docs** — markdown notes with live preview, `[[wikilinks]]`, embeds, tags, backlinks, a graph view, and AI editing. obsidian-style, in your browser.
+- **docs** — a visual **WYSIWYG editor** (write like Google Docs: a toolbar, visual tables, images, code, a color picker) that's plain **markdown underneath**, with a pure-markdown tab. plus `[[wikilinks]]`, embeds, tags, backlinks, a graph view, and AI editing.
 - **files** — browse, upload, and preview files over any folder you point it at.
 - **calendar** — month / week / day, recurring events, CalDAV sync.
 - **tasks** — quick lists, nothing fancy.
@@ -45,7 +45,7 @@ open **http://localhost:8000** — done.
 
 ## writing in docs — markdown guide
 
-docs speaks plain markdown plus a few obsidian-style extras. open any doc and click **guide** to see this in-app, anytime.
+the docs editor is **visual** — a toolbar + WYSIWYG, like Google Docs — but it stores plain **markdown**. you rarely need to type syntax, but you can (flip to the **Markdown** tab). here's the vocabulary, also in-app via **guide**:
 
 | you type | you get |
 |---|---|
@@ -54,6 +54,7 @@ docs speaks plain markdown plus a few obsidian-style extras. open any doc and cl
 | `*italic*` | *italic* |
 | `~~strike~~` | ~~strikethrough~~ |
 | `==highlight==` | highlighted text |
+| `{color:red}text{/color}` | colored text (name or #hex) |
 | `` `code` `` | inline code |
 | `> quote` | blockquote |
 | `- item` | bullet list |
@@ -64,9 +65,10 @@ docs speaks plain markdown plus a few obsidian-style extras. open any doc and cl
 | `[[doc]]` · `[[doc\|alias]]` | link another doc — click to jump |
 | `![[doc]]` · `![[pic.png]]` | embed a doc or image inline |
 | `#tag` | tag — click it to filter docs |
+| `> [!note] title` | callout box (note · tip · warning · danger) |
 | `---` | divider |
 
-**code blocks** — fence with triple backticks and a language. js, python, and html blocks get a **run** button:
+**code blocks** — fence with triple backticks and a language:
 
 ````
 ```python
@@ -83,7 +85,15 @@ tags: ideas
 ---
 ```
 
-the editor has three modes — the toggle cycles **split** (raw + live preview), **read** (preview only), and **source** (raw only). links between docs build a backlink list and a graph automatically.
+**tables** — pipe columns with a separator row:
+
+```
+| col a | col b |
+|-------|-------|
+| 1     | 2     |
+```
+
+switch between the **WYSIWYG** and **Markdown** tabs at the bottom-right of the editor any time. links between docs build a backlink list and a graph automatically.
 
 ---
 
@@ -156,7 +166,7 @@ add Ollama, OpenAI, OpenRouter, Groq, Gemini, and friends under **settings → m
 
 ```
 Python 3.11 + FastAPI + SQLite (SQLAlchemy)
-vanilla JS — ES modules, no bundler, no framework
+vanilla JS — ES modules, no bundler (Toast UI Editor vendored for docs)
 fastembed (ONNX) for local embeddings
 httpx for async model streaming
 ```
