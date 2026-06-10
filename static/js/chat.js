@@ -21,6 +21,30 @@ window.copyMsg = function(btn) {
   });
 };
 
+// save an assistant message as a note / task / reminder
+window.saveMsgAs = async function(btn, kind) {
+  const text = btn.closest('.ai-wrap')?.querySelector('.ai-content')?.innerText?.trim();
+  if (!text) return;
+  let ok = false;
+  try {
+    if (kind === 'note') {
+      const r = await fetch('/api/notes', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ title: text.split('\n')[0].slice(0, 80), content: text }),
+      });
+      ok = r.ok;
+    } else if (kind === 'task') {
+      const r = await fetch('/api/tasks', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ title: text.split('\n')[0].slice(0, 200) }),
+      });
+      ok = r.ok;
+    }
+  } catch {}
+  btn.textContent = ok ? 'saved' : 'failed';
+  setTimeout(() => { btn.textContent = kind === 'note' ? '+note' : '+task'; }, 1500);
+};
+
 // open artifact from msg actions row
 window.openArtifactFromMsg = function(btn) {
   const wrap = btn.closest('.ai-wrap');
@@ -446,7 +470,11 @@ export async function sendMessage(text) {
       const actions = document.createElement('div');
       actions.className = 'msg-actions';
       let html = '';
-      if (cleanText) html += `<button class="act-btn" onclick="copyMsg(this)">copy</button>`;
+      if (cleanText) {
+        html += `<button class="act-btn" onclick="copyMsg(this)">copy</button>`;
+        html += `<button class="act-btn" onclick="saveMsgAs(this,'note')" title="save this reply as a note">+note</button>`;
+        html += `<button class="act-btn" onclick="saveMsgAs(this,'task')" title="first line becomes a task">+task</button>`;
+      }
       if (artifacts.length) {
         wrap.dataset.artifacts = JSON.stringify(artifacts);
         html += `<button class="act-btn" onclick="openArtifactFromMsg(this)">open artifact</button>`;

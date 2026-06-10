@@ -408,6 +408,7 @@ export function initVault() {
   $('wiki-folder-btn')?.addEventListener('click', newFolder);
   $('wiki-today-btn')?.addEventListener('click', openDaily);
   $('wiki-outline-btn')?.addEventListener('click', toggleOutline);
+  $('wiki-todos-btn')?.addEventListener('click', extractTodos);
   $('wiki-history-btn')?.addEventListener('click', toggleHistory);
   $('wiki-graph-btn')?.addEventListener('click', openGraph);
   $('wiki-graph-close')?.addEventListener('click', () => { $('wiki-graph').style.display = 'none'; });
@@ -779,6 +780,24 @@ function fillEmbeds() {
     _embedCache[key] = out;
     if (body) body.innerHTML = out;
   });
+}
+
+// ── extract todos: AI-pull action items into real tasks ─────────────────────
+async function extractTodos() {
+  if (!_cur) { toast('open a doc first', 'error'); return; }
+  const btn = $('wiki-todos-btn');
+  btn.disabled = true; btn.textContent = 'extracting…';
+  try {
+    const r = await fetch('/api/vault-md/extract-todos', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ path: _cur }),
+    });
+    const d = await r.json();
+    if (!r.ok) toast(d.detail || 'extraction failed', 'error');
+    else if (!d.created) toast('no action items found in this doc', '');
+    else toast(`${d.created} task${d.created !== 1 ? 's' : ''} created — check the tasks app`, 'success');
+  } catch { toast('extraction failed', 'error'); }
+  btn.disabled = false; btn.textContent = 'todos';
 }
 
 // ── version history ────────────────────────────────────────────────────────
