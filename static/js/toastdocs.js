@@ -28,7 +28,7 @@ function ensureToast() {
     _css(v + 'toastui-editor-dark.min.css');
     _css(v + 'tui-color-picker.min.css');
     await _js(v + 'tui-color-picker.min.js');       // window.tui.colorPicker
-    await _js(v + 'toastui-editor.min.js');          // window.toastui.Editor
+    await _js(v + 'toastui-editor-all.min.js');       // window.toastui.Editor (ProseMirror bundled in)
     await _js(v + 'toastui-editor-plugin-color-syntax.min.js');  // toastui.Editor.plugin.uml
     if (!window.toastui?.Editor) throw new Error('toast ui editor missing');
     return window.toastui.Editor;
