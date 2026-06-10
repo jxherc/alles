@@ -44,7 +44,7 @@ from routes import (
     local_models as local_model_routes,
     vault_md as vault_md_routes,
 )
-from routes import reminders as reminder_routes, templates as template_routes, shared as shared_routes, files as files_routes, caldav as caldav_routes, mail as mail_routes, photos as photos_routes
+from routes import reminders as reminder_routes, templates as template_routes, shared as shared_routes, files as files_routes, caldav as caldav_routes, mail as mail_routes, photos as photos_routes, push as push_routes
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s  %(name)s  %(message)s")
 log = logging.getLogger("alles")
@@ -107,9 +107,27 @@ async def _reminder_loop():
             from core.database import SessionLocal, Reminder, Session
             from services.llm import stream_chat
             from core.settings import load_settings
+            from routes.push import broadcast as push_broadcast
             now = datetime.utcnow()
             db = SessionLocal()
             try:
+                # plain reminders: web push once, but leave them unfired so an
+                # open tab still picks them up via /api/reminders/due
+                plain = db.query(Reminder).filter(
+                    Reminder.trigger_at <= now,
+                    Reminder.fired == False,
+                    Reminder.notified == False,
+                    Reminder.type == "reminder",
+                ).all()
+                for r in plain:
+                    r.notified = True
+                    db.commit()
+                    try:
+                        await push_broadcast({"title": "reminder", "body": r.text,
+                                              "url": "/", "tag": f"reminder-{r.id}"})
+                    except Exception as e:
+                        log.warning(f"reminder push failed: {e}")
+
                 due = db.query(Reminder).filter(
                     Reminder.trigger_at <= now,
                     Reminder.fired == False,
@@ -150,6 +168,11 @@ async def _reminder_loop():
                     s.last_message_at = dt.utcnow()
                     db.commit()
                     log.info(f"fired scheduled message for session {s.id}")
+                    try:
+                        await push_broadcast({"title": "aide", "body": full[:160],
+                                              "url": "/", "tag": f"message-{r.id}"})
+                    except Exception as e:
+                        log.warning(f"message push failed: {e}")
             finally:
                 db.close()
         except asyncio.CancelledError:
@@ -358,6 +381,7 @@ app.include_router(files_routes.router)
 app.include_router(caldav_routes.router)
 app.include_router(mail_routes.router)
 app.include_router(photos_routes.router)
+app.include_router(push_routes.router)
 
 
 # static files — no-cache so JS/CSS always reloads
@@ -378,6 +402,16 @@ async def index():
     # no-cache so the SPA shell never goes stale (JS/CSS already no-cache via NoCacheStatic)
     return FileResponse(str(static_dir / "index.html"),
                         headers={"cache-control": "no-cache, no-store, must-revalidate"})
+
+@app.get("/sw.js")
+async def service_worker():
+    # served from root so the worker's scope covers the whole app
+    return FileResponse(str(static_dir / "sw.js"), media_type="application/javascript",
+                        headers={"cache-control": "no-cache, no-store, must-revalidate"})
+
+@app.get("/manifest.json")
+async def manifest():
+    return FileResponse(str(static_dir / "manifest.json"), media_type="application/manifest+json")
 
 @app.get("/health")
 def health():

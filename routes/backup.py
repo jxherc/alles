@@ -29,6 +29,10 @@ def export_backup():
         sk = DATA_DIR / "secret.key"
         if sk.exists():
             zf.write(sk, "secret.key")
+        # vapid key — push subscriptions in the DB are bound to it
+        vp = DATA_DIR / "vapid.pem"
+        if vp.exists():
+            zf.write(vp, "vapid.pem")
         # uploads
         upload_dir = DATA_DIR / "uploads"
         if upload_dir.exists():
