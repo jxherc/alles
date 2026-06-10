@@ -1,5 +1,6 @@
 import { toast } from './util.js';
 import { initCustomDropdown } from './dropdown.js';
+import { initDatePicker } from './datepick.js';
 
 let _reminders = [];
 let _pollTimer = null;
@@ -92,6 +93,7 @@ export function initReminderPanel() {
   const timeEl = document.getElementById('reminder-time');
   const typeEl = document.getElementById('reminder-type-select');
   initCustomDropdown(typeEl);
+  initDatePicker(timeEl);
 
   addBtn?.addEventListener('click', async () => {
     const text = textEl?.value.trim();

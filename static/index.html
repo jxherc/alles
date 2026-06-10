@@ -95,8 +95,13 @@
       <div class="home-inner">
         <div class="home-head">
           <div class="home-brand">alles</div>
+          <div class="home-greeting" id="home-greeting"></div>
         </div>
         <div class="home-grid" id="home-grid"></div>
+        <div class="home-foot">
+          <span class="live-dot"></span>
+          <span id="home-clock"></span>
+        </div>
       </div>
     </div>
 
@@ -202,7 +207,7 @@
         <div id="reminder-list" style="margin-bottom:0.75rem"></div>
         <div class="reminder-add-form">
           <input type="text" id="reminder-text" class="settings-input" placeholder="what to remind / message to send..." style="flex:1">
-          <input type="datetime-local" id="reminder-time" class="settings-input" style="width:200px">
+          <div class="date-input" id="reminder-time" data-type="datetime" data-ph="when" style="width:200px"></div>
           <div id="reminder-type-select" class="settings-input custom-select" data-value="reminder" data-options="reminder|reminder;message|send message to AI" style="width:auto;min-width:150px"></div>
           <button class="btn primary" id="reminder-add-btn">set</button>
         </div>
@@ -231,23 +236,32 @@
       </div>
       <div class="wiki-main">
         <div class="page-view-head docs-editor-head">
+          <button class="btn" id="wiki-tree-toggle" title="show / hide files (full-screen)">☰</button>
           <span id="wiki-current" class="wiki-current">no doc open</span>
           <span id="wiki-save-status" style="font-size:0.66rem;color:var(--muted);margin-left:auto"></span>
+          <button class="btn" id="wiki-ai-toggle" title="ask AI to edit">ai</button>
           <button class="btn" id="wiki-help-btn" title="markdown guide">guide</button>
           <button class="btn" id="wiki-outline-btn">outline</button>
-          <button class="btn" id="wiki-preview-toggle" title="cycle split / read / source">split</button>
           <button class="btn" id="wiki-export-btn">export .docx</button>
           <button class="btn danger" id="wiki-delete-btn">delete</button>
         </div>
         <div id="wiki-outline" class="wiki-outline" style="display:none"></div>
         <div class="wiki-empty-state" id="wiki-empty-state">
-          <div>no doc open</div>
-          <button class="btn primary" id="wiki-empty-new">+ new doc</button>
+          <div class="we-card">
+            <svg class="we-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/></svg>
+            <div class="we-title">docs</div>
+            <div class="we-sub">markdown notes — linked with [[wikilinks]], with graphs, math, and one-click formatting.</div>
+            <div class="we-actions">
+              <button class="btn primary" id="wiki-empty-new">+ new doc</button>
+              <button class="btn" id="wiki-empty-today">today's note</button>
+              <button class="btn" id="wiki-empty-guide">markdown guide</button>
+            </div>
+            <div class="we-recent" id="wiki-empty-recent"></div>
+          </div>
         </div>
-        <div class="wiki-editor">
-          <textarea class="wiki-source" id="wiki-source" spellcheck="false" placeholder="start writing... link docs with [[double brackets]]"></textarea>
-          <div class="wiki-preview" id="wiki-preview"></div>
-        </div>
+        <div id="toast-editor" class="toast-editor"></div>
+        <textarea id="wiki-source" style="display:none"></textarea>
+        <div class="wiki-preview" id="wiki-preview" style="display:none"></div>
         <div class="wiki-backlinks" id="wiki-backlinks"></div>
         <div class="doc-ai-bar">
           <input type="text" id="wiki-ai-input" placeholder="tell the AI what to change (e.g. 'summarize', 'fix grammar', 'expand the intro')...">
@@ -267,6 +281,7 @@
           <div class="wiki-help-row"><code>*italic*</code><span>italic</span></div>
           <div class="wiki-help-row"><code>~~strike~~</code><span>strikethrough</span></div>
           <div class="wiki-help-row"><code>==highlight==</code><span>highlight</span></div>
+          <div class="wiki-help-row"><code>{color:red}text{/color}</code><span>font color (name or #hex)</span></div>
           <div class="wiki-help-row"><code>`code`</code><span>inline code</span></div>
           <div class="wiki-help-row"><code>```lang … ```</code><span>code block (run js/py/html)</span></div>
           <div class="wiki-help-row"><code>&gt; quote</code><span>blockquote</span></div>
@@ -278,6 +293,8 @@
           <div class="wiki-help-row"><code>[[doc]] · [[doc|alias]]</code><span>link another doc</span></div>
           <div class="wiki-help-row"><code>![[doc]] · ![[pic.png]]</code><span>embed a doc or image</span></div>
           <div class="wiki-help-row"><code>#tag</code><span>tag (click to filter)</span></div>
+          <div class="wiki-help-row"><code>&gt; [!note] title</code><span>callout (note · tip · warning · danger)</span></div>
+          <div class="wiki-help-row"><code>| a | b | · |---|---|</code><span>table (header + separator row)</span></div>
           <div class="wiki-help-row"><code>---</code><span>divider</span></div>
           <div class="wiki-help-row"><code>--- &#10; key: value &#10; ---</code><span>frontmatter (top of doc)</span></div>
         </div>
@@ -1138,7 +1155,7 @@
 </div>
 
 <script type="module">
-const _v = '20';
+const _v = '30';
 import(`/static/js/app.js?v=${_v}`);
 </script>
 </body>
