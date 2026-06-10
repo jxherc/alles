@@ -1,7 +1,7 @@
 import { toast } from './util.js';
 import { confirm as _dlgConfirm } from './dialog.js';
 import { loadModels, addEndpoint, renderModelList } from './models.js';
-import { initCustomDropdowns, getDropdownValue, setDropdownValue } from './dropdown.js';
+import { initCustomDropdowns, getDropdownValue, setDropdownValue, populateDropdown } from './dropdown.js';
 import { initMemoryPanel } from './memory.js';
 import {
   sensitiveBlurEnabled, textOnlyEmojisEnabled, welcomeEnabled,
@@ -75,6 +75,7 @@ function _onPaneOpen(name) {
   if (name === 'templates')  loadTemplatesPane();
   if (name === 'tools')      { loadAgentStatus(); loadMcpServers(); loadConnections(); }
   if (name === 'developer')  { loadTokens(); loadWebhooks(); loadShortcutSettings(); }
+  if (name === 'rules')      loadRulesPane();
 }
 
 // ── open / close ──────────────────────────────────────────────────────────────
@@ -1051,4 +1052,101 @@ function _esc(s = '') {
 
 function _escAttr(s = '') {
   return _esc(s).replace(/"/g,'&quot;');
+}
+
+// ── rules pane: personal automations ──────────────────────────────────────────
+let _ruleOpts = null;
+let _rulesWired = false;
+
+async function loadRulesPane() {
+  if (!_ruleOpts) {
+    try { _ruleOpts = await fetch('/api/automations/options').then(r => r.json()); }
+    catch { _ruleOpts = { triggers: [], actions: [] }; }
+  }
+  const trigEl = document.getElementById('rule-trigger');
+  const actEl = document.getElementById('rule-action');
+  if (trigEl && !trigEl.dataset.populated) {
+    populateDropdown(trigEl, _ruleOpts.triggers.map(t => ({ value: t.value, label: t.label })));
+    populateDropdown(actEl, _ruleOpts.actions.map(a => ({ value: a.value, label: a.label })));
+    trigEl.dataset.populated = '1';
+    const syncPh = () => {
+      const t = _ruleOpts.triggers.find(x => x.value === trigEl.dataset.value);
+      const a = _ruleOpts.actions.find(x => x.value === actEl.dataset.value);
+      document.getElementById('rule-trigger-arg').placeholder = t?.arg || '…';
+      const actArg = document.getElementById('rule-action-arg');
+      actArg.placeholder = a?.arg || '…';
+      actArg.style.display = actEl.dataset.value === 'push_digest' ? 'none' : '';
+    };
+    trigEl.addEventListener('change', syncPh);
+    actEl.addEventListener('change', syncPh);
+    syncPh();
+  }
+  if (!_rulesWired) {
+    _rulesWired = true;
+    document.getElementById('rule-add-btn')?.addEventListener('click', _addRule);
+  }
+  _renderRules();
+}
+
+async function _renderRules() {
+  const el = document.getElementById('rules-list');
+  if (!el) return;
+  let rules = [];
+  try { rules = await fetch('/api/automations').then(r => r.json()); } catch {}
+  if (!rules.length) {
+    el.innerHTML = '<div class="settings-row-empty">no rules yet — your first automation is one form away</div>';
+    return;
+  }
+  const label = (list, v) => list.find(x => x.value === v)?.label || v;
+  el.innerHTML = rules.map(r => `
+    <div class="rule-row${r.enabled ? '' : ' off'}" data-id="${r.id}">
+      <div class="rule-row-main">
+        <span class="rule-row-name">${_esc(r.name)}</span>
+        <span class="rule-row-desc">${_esc(label(_ruleOpts.triggers, r.trigger))} <b>${_esc(r.trigger_arg)}</b> → ${_esc(label(_ruleOpts.actions, r.action))}${r.action_arg ? `: <i>${_esc(r.action_arg.slice(0, 60))}</i>` : ''}</span>
+      </div>
+      <button class="btn" data-act="test" title="run once with sample data">test</button>
+      <button class="btn" data-act="toggle">${r.enabled ? 'pause' : 'resume'}</button>
+      <button class="btn danger" data-act="del">×</button>
+    </div>`).join('');
+  el.querySelectorAll('.rule-row').forEach(row => {
+    const id = row.dataset.id;
+    row.querySelectorAll('[data-act]').forEach(b => b.addEventListener('click', async () => {
+      if (b.dataset.act === 'del') {
+        await fetch(`/api/automations/${id}`, { method: 'DELETE' });
+        _renderRules(); return;
+      }
+      if (b.dataset.act === 'toggle') {
+        const off = row.classList.contains('off');
+        await fetch(`/api/automations/${id}`, {
+          method: 'PATCH', headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ enabled: off }),
+        });
+        _renderRules(); return;
+      }
+      if (b.dataset.act === 'test') {
+        b.disabled = true;
+        const r = await fetch(`/api/automations/${id}/test`, { method: 'POST' });
+        toast(r.ok ? 'rule fired with sample data — check the result' : 'test failed', r.ok ? 'success' : 'error');
+        b.disabled = false;
+      }
+    }));
+  });
+}
+
+async function _addRule() {
+  const body = {
+    name: document.getElementById('rule-name')?.value.trim() || '',
+    trigger: document.getElementById('rule-trigger')?.dataset.value,
+    trigger_arg: document.getElementById('rule-trigger-arg')?.value.trim() || '',
+    action: document.getElementById('rule-action')?.dataset.value,
+    action_arg: document.getElementById('rule-action-arg')?.value.trim() || '',
+  };
+  const r = await fetch('/api/automations', {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!r.ok) { toast((await r.json()).detail || 'failed to add rule', 'error'); return; }
+  ['rule-name', 'rule-trigger-arg', 'rule-action-arg'].forEach(id => { const e = document.getElementById(id); if (e) e.value = ''; });
+  toast('rule added — it runs automatically from now on', 'success');
+  _renderRules();
 }

@@ -340,6 +340,19 @@ class Reminder(Base):
     created_at = Column(DateTime, default=_now)
 
 
+class AutomationRule(Base):
+    __tablename__ = "automation_rules"
+    id          = Column(String, primary_key=True, default=_uid)
+    name        = Column(String, default="")
+    trigger     = Column(String, nullable=False)   # mail_from | sub_renewing | day_event_near | daily_at | doc_tag
+    trigger_arg = Column(String, default="")        # sender substr | days | days | HH:MM | tag
+    action      = Column(String, nullable=False)   # create_task | push | create_note | push_digest
+    action_arg  = Column(Text, default="")          # template ({from} {subject} {name} {date} {path} {tag})
+    enabled     = Column(Boolean, default=True)
+    state       = Column(Text, default="{}")        # engine state: dedupe keys, last mail uids, last daily run
+    created_at  = Column(DateTime, default=_now)
+
+
 class DayEvent(Base):
     __tablename__ = "day_events"
     id          = Column(String, primary_key=True, default=_uid)

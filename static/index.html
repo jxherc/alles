@@ -700,6 +700,10 @@
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
           developer
         </div>
+        <div class="s-nav-item" data-pane="rules">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+          rules
+        </div>
         <div class="s-nav-item" data-pane="backup">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           backup
@@ -1172,6 +1176,34 @@
         </div>
 
         <!-- ── backup pane ── -->
+        <!-- ── rules pane: personal automations ── -->
+        <div class="s-pane" id="s-pane-rules">
+          <div class="s-card">
+            <div class="s-card-head">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+              automation rules
+            </div>
+            <div class="s-card-body">
+              <p style="font-size:0.75rem;color:var(--muted);margin-bottom:0.75rem">when this happens, do that. rules run in the background — mail is checked every ~5 minutes, everything else within 30 seconds.</p>
+              <div id="rules-list" style="margin-bottom:0.85rem"></div>
+              <div class="rules-form">
+                <div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-bottom:0.4rem">
+                  <div id="rule-trigger" class="settings-input custom-select" style="flex:1;min-width:170px"></div>
+                  <input type="text" id="rule-trigger-arg" class="settings-input" placeholder="…" style="flex:1;min-width:140px">
+                </div>
+                <div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-bottom:0.4rem">
+                  <div id="rule-action" class="settings-input custom-select" style="flex:1;min-width:170px"></div>
+                  <input type="text" id="rule-action-arg" class="settings-input" placeholder="…" style="flex:1;min-width:140px">
+                </div>
+                <div style="display:flex;gap:0.4rem">
+                  <input type="text" id="rule-name" class="settings-input" placeholder="rule name (optional)" style="flex:1">
+                  <button class="btn primary" id="rule-add-btn">add rule</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div class="s-pane" id="s-pane-backup">
           <div class="s-card">
             <div class="s-card-head">
