@@ -54,7 +54,7 @@ alles update        git pull, then restart
 alles open          open the browser
 ```
 
-windows: `alles.cmd` (add the folder to PATH). unix / git-bash: `./alles`. or just `python app.py`.
+windows (powershell): `.\alles.cmd restart` — powershell needs the `.\` to run a script from the current folder. windows (cmd): just `alles.cmd restart`. unix / git-bash: `./alles restart`. or anywhere: `python app.py`. add the folder to PATH to drop the prefix.
 
 the launchers find `python3` or `python` automatically, so `./alles` works whether or not bare `python` is on your PATH.
 
