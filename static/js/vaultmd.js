@@ -446,6 +446,7 @@ async function ensureEditor() {
     await createDocEditor(elc, { initialValue: $('wiki-source')?.value || '', onChange: onDocChange });
   } catch (e) {
     // graceful fallback — if Toast UI can't load, use the raw markdown textarea
+    console.error('rich editor failed to load:', e);
     const src = $('wiki-source');
     if (src) {
       src.style.cssText = 'display:block;flex:1;width:100%;background:none;border:none;outline:none;color:var(--text);font-family:JetBrains Mono,monospace;font-size:0.9rem;line-height:1.7;padding:1.5rem;resize:none';

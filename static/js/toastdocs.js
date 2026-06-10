@@ -32,7 +32,10 @@ function ensureToast() {
     await _js(v + 'toastui-editor-plugin-color-syntax.min.js');  // toastui.Editor.plugin.uml
     if (!window.toastui?.Editor) throw new Error('toast ui editor missing');
     return window.toastui.Editor;
-  })();
+  })().catch(e => {
+    _loadP = null;   // a failed load must not poison every later attempt
+    throw e;
+  });
   return _loadP;
 }
 
