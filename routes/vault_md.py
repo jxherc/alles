@@ -97,12 +97,18 @@ def _snapshot(rel: str, force: bool = False):
 
 
 @router.put("/file")
-def write_file(body: WriteBody):
+async def write_file(body: WriteBody):
     try:
         _snapshot(body.path)
-        return vault_md.write(body.path, body.content)
+        out = vault_md.write(body.path, body.content)
     except ValueError as e:
         raise HTTPException(400, str(e))
+    try:
+        from services.automations import on_doc_saved
+        await on_doc_saved(out.get("path", body.path), body.content or "")
+    except Exception:
+        pass   # automations must never break a save
+    return out
 
 
 class PathBody(BaseModel):

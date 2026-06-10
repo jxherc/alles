@@ -1993,6 +1993,18 @@ code {
 .day-card.editing { gap: 0.3rem; }
 .day-card.editing .settings-input { font-size: 0.72rem; width: 100%; }
 
+/* ── automation rules ── */
+.rule-row {
+  display: flex; align-items: center; gap: 0.45rem;
+  padding: 0.45rem 0; border-bottom: 1px solid var(--faint);
+}
+.rule-row:last-child { border-bottom: none; }
+.rule-row.off .rule-row-name, .rule-row.off .rule-row-desc { color: var(--muted); opacity: 0.6; }
+.rule-row-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.1rem; }
+.rule-row-name { font-size: 0.78rem; color: var(--text); }
+.rule-row-desc { font-size: 0.68rem; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rule-row .btn { font-size: 0.64rem; padding: 0.15rem 0.45rem; flex-shrink: 0; }
+
 /* ── home: today strip ── */
 .home-today {
   display: flex; flex-direction: column; gap: 0.55rem;
