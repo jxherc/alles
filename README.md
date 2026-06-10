@@ -77,6 +77,17 @@ httpx for async model streaming
 
 all your data lives in `data/`, one SQLite file plus uploads. nothing is sent anywhere you don't configure.
 
+## security notes
+
+alles is built for one person on their own machine. read this before exposing it to anything beyond localhost.
+
+- **it ships open.** auth is off by default. if alles is reachable from your network (or worse, the internet), set `AUTH_ENABLED=true`, `AUTH_PASSWORD`, and a real `SECRET_KEY` first. without auth, anyone who can reach the port can read your mail, your files, and run shell commands as you.
+- **aide has hands.** agent mode and the shell tools can execute real commands on the machine alles runs on. that's the point — but it means a prompt, a model, or anyone with access to the UI can do real things. don't give access to people or models you don't trust.
+- **credentials are encrypted at rest, with a local key.** model API keys and mail passwords are sealed with AES-256-GCM under a key in `data/secret.key`. this protects the database file if it leaks on its own — it does not protect against someone with full access to the `data/` folder, because the server must be able to decrypt unattended.
+- **backups are the whole safe, key included.** a backup zip contains the database *and* `secret.key`, so restores just work — which also means a backup is exactly as sensitive as your live data. store it like a password.
+- **vault entries are different.** secrets in the password vault are encrypted with your master password, which never touches disk. no master password, no plaintext — not even from a full copy of `data/`.
+- **no warranty.** this is a self-hosted hobby project, not an audited security product. it tries hard, but you run it at your own risk.
+
 ## acknowledgments
 
 aide was inspired by [odysseus](https://github.com/pewdiepie-archdaemon/odysseus) by pewdiepie-archdaemon — the feature set, product vision, and architecture patterns originate there. aide is an independent reimplementation written from scratch. full credit in [ACKNOWLEDGMENTS.md](./ACKNOWLEDGMENTS.md).
