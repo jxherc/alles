@@ -204,7 +204,10 @@ async function openMessage(aid, uid, folder = 'INBOX') {
       <div class="mail-reader-subject">${esc(m.subject)}</div>
       <div class="mail-reader-meta"><b>${esc(fromName(m.from))}</b> &lt;${esc((/<([^>]+)>/.exec(m.from) || [, m.from])[1])}&gt;</div>
       <div class="mail-reader-meta">to ${esc(m.to)} - ${esc(m.date)}</div>
-      <button class="btn" id="mail-reply">reply</button>
+      <div style="display:flex;gap:0.4rem">
+        <button class="btn" id="mail-reply">reply</button>
+        <button class="btn" id="mail-to-cal" title="AI-extract the event and add it to your calendar">→ calendar</button>
+      </div>
     </div>
     <div class="mail-reader-body">${bodyHtml}</div>
   </div>`;
@@ -215,6 +218,24 @@ async function openMessage(aid, uid, folder = 'INBOX') {
   $('mail-reply')?.addEventListener('click', () => {
     const addr = (/<([^>]+)>/.exec(m.from) || [, m.from])[1];
     compose({ account_id: aid, to: addr, subject: /^re:/i.test(m.subject) ? m.subject : 'Re: ' + m.subject, body: `\n\n-- on ${m.date}, ${fromName(m.from)} wrote --\n${(m.text || '').split('\n').map(l => '> ' + l).join('\n')}` });
+  });
+  $('mail-to-cal')?.addEventListener('click', async () => {
+    const btn = $('mail-to-cal');
+    btn.disabled = true; btn.textContent = 'extracting...';
+    try {
+      const r = await fetch('/api/mail/extract-event', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ subject: m.subject || '', body: m.text || '', date: m.date || '' }),
+      });
+      const d = await r.json();
+      if (!r.ok) { toast(d.detail || 'extraction failed', 'error'); }
+      else if (!d.found) { toast('no event found in this mail', ''); }
+      else {
+        const when = d.all_day ? d.start.slice(0, 10) : d.start.replace('T', ' ');
+        toast(`added to calendar: ${d.title} — ${when}`, 'success');
+      }
+    } catch { toast('extraction failed', 'error'); }
+    btn.disabled = false; btn.textContent = '→ calendar';
   });
 }
 

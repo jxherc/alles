@@ -13,6 +13,7 @@ export const SUBDOMAIN_VIEWS = {
   gallery:    { app: 'gallery',  primary: 'photos',   views: ['photos'] },
   calendar:   { app: 'calendar', primary: 'calendar', views: ['calendar'] },
   tasks:      { app: 'tasks',    primary: 'tasks',    views: ['tasks'] },
+  subs:       { app: 'subs',     primary: 'subs',     views: ['subs'] },
   files:      { app: 'files',    primary: 'files',    views: ['files'] },
   contacts:   { app: 'contacts', primary: 'contacts', views: ['contacts'] },
   secrets:    { app: 'secrets',  primary: 'vault',    views: ['vault'] },
