@@ -49,7 +49,9 @@ export async function createDocEditor(el, { initialValue = '', onChange } = {}) 
     initialValue,
     initialEditType: 'wysiwyg',
     previewStyle: 'tab',
-    theme: 'dark',
+    // follow the app's theme; our CSS tokens restyle both, this just picks the
+    // right icon set (light icons on dark, dark icons on light)
+    theme: document.documentElement.dataset.theme === 'light' ? 'default' : 'dark',
     usageStatistics: false,
     autofocus: false,
     plugins: colorSyntax ? [colorSyntax] : [],
