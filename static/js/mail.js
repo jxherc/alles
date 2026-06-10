@@ -170,7 +170,7 @@ const _msgTime = m => Number(m.date_ts || 0) || Math.floor((Date.parse(m.date ||
 const _newestKey = msgs => [...msgs].sort((a, b) => _msgTime(b) - _msgTime(a))
   .slice(0, 5).map(m => `${m.account_id || ''}:${m.uid}`).join('|');
 
-export function startMailPoll(intervalMs = 60000) {
+export function startMailPoll(intervalMs = 30000) {
   if (_pollTimer) return;
   _pollTimer = setInterval(() => {
     const view = $('mail-view');

@@ -2,7 +2,7 @@
 personal automation rules — "when this happens, do that".
 
 triggers
-  mail_from <substr>      a new mail arrives whose sender matches (IMAP polled ~5 min)
+  mail_from <substr>      a new mail arrives whose sender matches (IMAP polled ~30s)
   sub_renewing <days>     a subscription renews within N days
   day_event_near <days>   a days-event is within N days
   daily_at <HH:MM>        every day at that time (server clock)
@@ -26,7 +26,7 @@ log = logging.getLogger("aide.automations")
 TRIGGERS = ("mail_from", "sub_renewing", "day_event_near", "daily_at", "doc_tag")
 ACTIONS = ("create_task", "push", "create_note", "push_digest")
 
-_MAIL_POLL_EVERY = 300   # seconds between IMAP polls for mail_from rules
+_MAIL_POLL_EVERY = 30   # seconds between IMAP polls for mail_from rules (pooled connections + 10s list cache keep this cheap)
 
 
 class _Safe(dict):
