@@ -50,6 +50,7 @@
         <div class="nav-item" data-view="brain">brain</div>
         <div class="nav-item" data-view="models">models</div>
         <div class="nav-item" data-view="reminders">reminders</div>
+        <div class="nav-item" data-view="subs">subs</div>
       </div>
       <div class="nav-sep"></div>
       <div class="nav-item" data-view="settings">settings</div>
@@ -221,6 +222,25 @@
         <div style="font-size:0.7rem;color:var(--muted);margin-top:0.5rem">
           tip: use <code>/remind in 2h check deployment</code> or <code>/send at 3pm summarize my day</code> from chat
         </div>
+      </div>
+    </div>
+
+
+    <!-- ── subscriptions view ── -->
+    <div class="page-view" id="subs-view" style="display:none">
+      <div class="page-view-head">
+        <span class="page-view-title">subscriptions</span>
+        <span id="subs-summary" style="font-size:0.7rem;color:var(--muted);margin-left:auto"></span>
+      </div>
+      <div class="page-view-body" id="subs-list"></div>
+      <div class="page-view-footer" style="flex-wrap:wrap;gap:0.4rem">
+        <input type="text" id="sub-name" class="settings-input" placeholder="name (e.g. netflix)" style="flex:2;min-width:130px">
+        <input type="text" id="sub-price" class="settings-input" placeholder="price" style="width:75px" inputmode="decimal">
+        <div id="sub-cycle" class="settings-input custom-select" data-value="monthly" data-options="weekly|weekly;monthly|monthly;quarterly|quarterly;yearly|yearly;custom|custom days" style="width:auto;min-width:110px"></div>
+        <input type="text" id="sub-cycle-days" class="settings-input" placeholder="days" style="width:60px;display:none" inputmode="numeric">
+        <div class="date-input" id="sub-due" data-type="date" data-ph="next due" style="width:135px"></div>
+        <input type="text" id="sub-category" class="settings-input" placeholder="category" style="width:105px">
+        <button class="btn primary" id="sub-add-btn">add</button>
       </div>
     </div>
 
