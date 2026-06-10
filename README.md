@@ -9,8 +9,8 @@ alles is the ecosystem. **aide** is the AI inside it, think Gemini to Google. ai
 every app lives on its own subdomain and shares one login.
 
 - **aide** — streaming chat with any model (DeepSeek, Claude, GPT, Gemini, Grok, local Ollama...). agent mode, long-term memory, side-by-side model compare, image gallery, and deep research.
-- **mail** — a real IMAP/SMTP client. one-click setup for Gmail, Outlook, iCloud, Yahoo, Fastmail, or bring your own.
-- **docs** — a WYSIWYG editor that stores plain markdown underneath. wikilinks, embeds, tags, backlinks, graph view, and AI editing.
+- **mail** — a real IMAP/SMTP client. one-click setup for Gmail, Outlook, iCloud, Yahoo, Fastmail, or bring your own. one click turns a mail into a calendar event (AI-extracted).
+- **docs** — a WYSIWYG editor that stores plain markdown underneath. wikilinks, embeds, tags, backlinks, graph view, AI editing, and version history with restore.
 - **files** — browse, upload, and preview files over any folder you point it at.
 - **calendar** — month, week, and day views, recurring events, CalDAV sync.
 - **tasks** — quick lists, nothing fancy.
@@ -19,6 +19,8 @@ every app lives on its own subdomain and shares one login.
 - **secrets** — an encrypted password vault (AES-256-GCM), unlocked by a master password that never touches disk.
 
 plus: artifacts, voice in and out, global search (Cmd/Ctrl+K), shell and MCP tools, personas, prompt templates, webhooks, API tokens, backup/restore, incognito sessions, and a light/dark theme.
+
+alles also installs as an app: add it to your home screen or dock (it's a PWA), and reminders reach you as push notifications even when no tab is open — enable them in the reminders view.
 
 ## get started
 
