@@ -336,7 +336,78 @@ function renderHome() {
     _homeRendered = true;
   }
   _renderHomeGreeting();
+  _renderToday();
   _startHomeClock();
+}
+
+// ── today strip: events, tasks, reminders, renewals, mail, recent docs ──────
+const _escT = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+async function _renderToday() {
+  const el = document.getElementById('home-today');
+  if (!el) return;
+  const local = new Date();
+  const dstr = `${local.getFullYear()}-${String(local.getMonth() + 1).padStart(2, '0')}-${String(local.getDate()).padStart(2, '0')}`;
+  let d;
+  try { d = await fetch(`/api/today?date=${dstr}`).then(r => r.json()); }
+  catch { el.style.display = 'none'; return; }
+
+  // unread mail straight from the inbox cache — instant, no IMAP round-trip
+  let unread = [];
+  try {
+    for (const k of Object.keys(localStorage)) {
+      if (!k.startsWith('mail-cache-') || k.endsWith('-sent')) continue;
+      for (const m of JSON.parse(localStorage.getItem(k) || '[]')) {
+        if (!m.seen && !unread.find(x => x.uid === m.uid && x.account_id === m.account_id)) unread.push(m);
+      }
+    }
+  } catch {}
+
+  const rows = [];
+  const row = (go, icon, html) => rows.push(`<div class="ht-row" data-go="${go}"><span class="ht-ico">${icon}</span><span class="ht-body">${html}</span></div>`);
+
+  for (const e of d.events.slice(0, 4))
+    row('calendar', '◷', `${e.time ? `<b>${e.time}</b> ` : ''}${_escT(e.title)}`);
+  for (const t of d.tasks.overdue.slice(0, 3))
+    row('tasks', '!', `<span class="ht-warn">overdue</span> ${_escT(t.title)}`);
+  for (const t of d.tasks.due_today.slice(0, 3))
+    row('tasks', '☐', `due today — ${_escT(t.title)}`);
+  for (const r of d.reminders.slice(0, 3))
+    row('reminders', '◔', `<b>${r.at}</b> ${_escT(r.text)}`);
+  for (const s of d.renewing.slice(0, 3))
+    row('subs', '↻', `${_escT(s.name)} renews ${s.in_days === 0 ? 'today' : s.in_days === 1 ? 'tomorrow' : `in ${s.in_days}d`}${s.price ? ` — ${_escT(s.currency)}${s.price}` : ''}`);
+  for (const e of d.day_events.slice(0, 2))
+    row('days', '⧗', `${_escT(e.name)} ${e.in_days === 0 ? 'is today' : `in ${e.in_days}d`}`);
+  if (unread.length)
+    row('mail', '✉', `${unread.length} unread — ${_escT((unread[0].subject || '').slice(0, 50))}`);
+  for (const doc of (d.recent_docs || []).slice(0, 2))
+    row('wiki', '≡', `recent: ${_escT(doc.name)}`);
+
+  if (!rows.length) {
+    el.innerHTML = `<div class="ht-empty">nothing scheduled — clear day ✨</div>
+      <button class="btn" id="ht-ask">ask aide about my day</button>`;
+  } else {
+    el.innerHTML = `<div class="ht-rows">${rows.join('')}</div>
+      <button class="btn" id="ht-ask">ask aide about my day</button>`;
+  }
+  el.style.display = 'flex';
+
+  el.querySelectorAll('.ht-row').forEach(r => r.addEventListener('click', () => navigateTo(r.dataset.go)));
+  document.getElementById('ht-ask')?.addEventListener('click', () => _askAideAboutToday(d, unread));
+}
+
+function _askAideAboutToday(d, unread) {
+  const bits = [];
+  if (d.events.length) bits.push(`events: ${d.events.map(e => `${e.time || 'all-day'} ${e.title}`).join('; ')}`);
+  if (d.tasks.overdue.length) bits.push(`overdue tasks: ${d.tasks.overdue.map(t => t.title).join('; ')}`);
+  if (d.tasks.due_today.length) bits.push(`tasks due today: ${d.tasks.due_today.map(t => t.title).join('; ')}`);
+  if (d.reminders.length) bits.push(`reminders: ${d.reminders.map(r => `${r.at} ${r.text}`).join('; ')}`);
+  if (d.renewing.length) bits.push(`renewing soon: ${d.renewing.map(s => `${s.name} in ${s.in_days}d`).join('; ')}`);
+  if (unread.length) bits.push(`unread mail: ${unread.slice(0, 5).map(m => m.subject).join('; ')}`);
+  const ctx = bits.length ? `here's my day:\n${bits.join('\n')}` : 'my schedule is empty today.';
+  showChatView();
+  newChat();
+  sendMessage(`${ctx}\n\ngive me a short, friendly rundown of my day — what to do first, what can wait, anything i'm about to miss.`);
 }
 
 function _renderHomeGreeting() {
