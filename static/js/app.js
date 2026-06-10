@@ -1,4 +1,4 @@
-import { loadSessions, initSessions, newChat, showWelcome, createSession, renderSidebar, exportActiveSessionMarkdown } from './sessions.js';
+import { loadSessions, initSessions, newChat, showWelcome, createSession, renderSidebar, exportActiveSessionMarkdown, getActiveId } from './sessions.js';
 import { loadModels, renderModelList, renderSidebarModelList, addEndpoint, getSelected, getCurrentEndpoint, initModelModal } from './models.js';
 import { sendMessage, stopStream, hideConnBanner } from './chat.js';
 import { toast, closeAllModals, mdToHtml } from './util.js';
@@ -425,6 +425,14 @@ function bindEvents() {
     if (isRecording()) stopRecording();
     else doSend();
   });
+  // right-click send → schedule the message for later (delivered by the
+  // reminder loop as a type=message reminder bound to this session)
+  _sendBtn.addEventListener('contextmenu', e => {
+    e.preventDefault();
+    const text = ta.value.trim();
+    if (!text) { toast('type a message first — then right-click to schedule it', ''); return; }
+    _openSchedulePop(text, ta);
+  });
   document.getElementById('stop-btn').addEventListener('click', stopStream);
   document.getElementById('conn-banner-x')?.addEventListener('click', hideConnBanner);
 
@@ -683,6 +691,50 @@ async function doSend() {
   ta.value = ''; ta.style.height = 'auto';
   if (isResearchMode()) runResearch(text);
   else sendMessage(text);
+}
+
+// schedule-send popup (right-click on the send button)
+async function _openSchedulePop(text, ta) {
+  document.querySelector('.schedule-pop')?.remove();
+  const pop = document.createElement('div');
+  pop.className = 'schedule-pop';
+  pop.innerHTML = `
+    <div class="schedule-pop-title">send later</div>
+    <div class="date-input" id="schedule-when" data-type="datetime" data-ph="when to send"></div>
+    <div class="schedule-pop-actions">
+      <button class="btn primary" id="schedule-go">schedule</button>
+      <button class="btn" id="schedule-cancel">cancel</button>
+    </div>`;
+  document.body.appendChild(pop);
+  const btnRect = document.getElementById('send-btn').getBoundingClientRect();
+  pop.style.right = `${Math.max(8, window.innerWidth - btnRect.right)}px`;
+  pop.style.bottom = `${Math.max(8, window.innerHeight - btnRect.top + 8)}px`;
+  const { initDatePicker } = await import('./datepick.js');
+  const when = pop.querySelector('#schedule-when');
+  initDatePicker(when);
+  const close = () => { pop.remove(); document.removeEventListener('click', outside); };
+  const outside = e => { if (!pop.contains(e.target) && !document.querySelector('.date-panel')?.contains(e.target)) close(); };
+  setTimeout(() => document.addEventListener('click', outside), 0);
+  pop.querySelector('#schedule-cancel').addEventListener('click', close);
+  pop.querySelector('#schedule-go').addEventListener('click', async () => {
+    const at = when.value;
+    if (!at) { toast('pick a time', 'error'); return; }
+    if (new Date(at) <= new Date()) { toast('that time is in the past', 'error'); return; }
+    let sid = getActiveId();
+    if (!sid) {
+      const s = await createSession();
+      sid = s?.id;
+    }
+    if (!sid) { toast('no session to schedule into', 'error'); return; }
+    const r = await fetch('/api/reminders', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ text, trigger_at: at, type: 'message', session_id: sid }),
+    });
+    if (!r.ok) { toast('failed to schedule', 'error'); return; }
+    ta.value = ''; ta.style.height = 'auto'; ta.dispatchEvent(new Event('input'));
+    toast(`scheduled — aide will answer it ${new Date(at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).toLowerCase()}`, 'success');
+    close();
+  });
 }
 
 // ── mode / theme ──────────────────────────────────────────────────────────────
