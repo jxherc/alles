@@ -2,7 +2,7 @@ import os, uuid, json
 from datetime import datetime
 from sqlalchemy import (
     create_engine, Column, String, Text, Boolean,
-    Integer, DateTime, ForeignKey, event, text
+    Integer, Float, DateTime, ForeignKey, event, text
 )
 from sqlalchemy.orm import DeclarativeBase, sessionmaker, relationship
 
@@ -338,6 +338,24 @@ class Reminder(Base):
     fired      = Column(Boolean, default=False)
     notified   = Column(Boolean, default=False)        # web push already sent
     created_at = Column(DateTime, default=_now)
+
+
+class Subscription(Base):
+    __tablename__ = "subscriptions"
+    id          = Column(String, primary_key=True, default=_uid)
+    name        = Column(String, nullable=False)
+    price       = Column(Float, default=0.0)
+    currency    = Column(String, default="$")
+    cycle       = Column(String, default="monthly")   # weekly | monthly | quarterly | yearly | custom
+    cycle_days  = Column(Integer, default=30)          # only used for cycle=custom
+    next_due    = Column(String, nullable=False)       # ISO date YYYY-MM-DD
+    category    = Column(String, default="")
+    url         = Column(String, default="")
+    notes       = Column(Text, default="")
+    active      = Column(Boolean, default=True)
+    remind_days = Column(Integer, default=1)           # push N days before renewal (0 = off)
+    last_notified_due = Column(String, default="")     # due date we already pushed for
+    created_at  = Column(DateTime, default=_now)
 
 
 class DocRevision(Base):
