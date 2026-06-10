@@ -109,7 +109,14 @@ def _imap(acct) -> imaplib.IMAP4:
             except Exception:
                 pass
     M = _open_imap(acct)
-    M.login(acct.get("username") or acct.get("email", ""), acct.get("password", ""))
+    try:
+        M.login(acct.get("username") or acct.get("email", ""), acct.get("password", ""))
+    except Exception:
+        try:
+            M.logout()
+        except Exception:
+            pass
+        raise
     return M
 
 

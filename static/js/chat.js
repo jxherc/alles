@@ -168,7 +168,7 @@ export async function sendMessage(text) {
 
     if (!r.ok) {
       const err = await r.text();
-      body.innerHTML = `<div class="error-msg">${err}</div>`;
+      body.innerHTML = `<div class="error-msg">${escHtml(err)}</div>`;
       body.classList.add('done');
       setStreaming(false);
       return;
@@ -198,7 +198,7 @@ export async function sendMessage(text) {
 
         if (chunk.error) {
           cursor?.remove();
-          body.innerHTML += `<div class="error-msg">${chunk.error}</div>`;
+          body.innerHTML += `<div class="error-msg">${escHtml(chunk.error)}</div>`;
           if (isConnError(chunk.error)) showConnBanner(chunk.error);
           break;
         }
@@ -395,7 +395,7 @@ export async function sendMessage(text) {
 
   } catch (e) {
     if (e.name !== 'AbortError') {
-      body.innerHTML += `<div class="error-msg">stream error: ${e.message}</div>`;
+      body.innerHTML += `<div class="error-msg">stream error: ${escHtml(e.message)}</div>`;
       if (isConnError(e.message)) showConnBanner(e.message);
     }
   } finally {
