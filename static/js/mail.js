@@ -68,6 +68,7 @@ export function initMail() {
 
 export async function loadMail() {
   initMail();
+  startMailPoll();
   _accounts = await fetch('/api/mail/accounts').then(r => r.json()).catch(() => []);
   if (_accounts.length > 1 && !localStorage.getItem('alles-mail-account-mode')) _active = 'all';
   syncAccountSelect();
@@ -129,14 +130,16 @@ function setFilter(f) {
   loadInbox();
 }
 
-async function loadInbox(force = false) {
+async function loadInbox(force = false, silent = false) {
   const list = $('mail-list');
   const main = $('mail-main');
   if (!_accounts.length) return;
   const cached = readCache();
-  if (cached?.length) renderInbox(applyFilter(cached), []);   // instant, stale
-  else list.innerHTML = `<div class="mail-empty">loading ${_filter}...</div>`;
-  if (force) main.innerHTML = '';
+  if (!silent) {
+    if (cached?.length) renderInbox(applyFilter(cached), []);   // instant, stale
+    else list.innerHTML = `<div class="mail-empty">loading ${_filter}...</div>`;
+    if (force) main.innerHTML = '';
+  }
 
   const accts = _active === 'all' ? _accounts : _accounts.filter(a => a.id === _active);
   const results = await Promise.allSettled(accts.map(async a => {
@@ -148,9 +151,39 @@ async function loadInbox(force = false) {
     .map((r, i) => r.status === 'rejected' ? `${acctName(accts[i].id)}: ${r.reason?.message || 'failed'}` : '')
     .filter(Boolean);
   if (messages.length || !cached?.length) {
+    const newest = _newestKey(messages);
+    if (silent && _lastNewest && newest === _lastNewest) return;   // nothing new — leave the UI alone
+    if (silent && _lastNewest && newest !== _lastNewest) {
+      const top = [...messages].sort((a, b) => _msgTime(b) - _msgTime(a))[0];
+      if (top && !top.seen) toast(`new mail: ${fromName(top.from)} — ${(top.subject || '').slice(0, 60)}`, 'success');
+    }
+    _lastNewest = newest;
     renderInbox(applyFilter(messages), errors);
     if (messages.length) writeCache(messages);
   }
+}
+
+// ── live inbox: poll while the mail view is visible ─────────────────────────
+let _pollTimer = null;
+let _lastNewest = '';
+const _msgTime = m => Number(m.date_ts || 0) || Math.floor((Date.parse(m.date || '') || 0) / 1000);
+const _newestKey = msgs => [...msgs].sort((a, b) => _msgTime(b) - _msgTime(a))
+  .slice(0, 5).map(m => `${m.account_id || ''}:${m.uid}`).join('|');
+
+export function startMailPoll(intervalMs = 60000) {
+  if (_pollTimer) return;
+  _pollTimer = setInterval(() => {
+    const view = $('mail-view');
+    if (!view || view.style.display === 'none' || document.hidden) return;
+    if (_filter === 'sent' || !_accounts.length) return;
+    loadInbox(false, true).catch(() => {});
+  }, intervalMs);
+  document.addEventListener('visibilitychange', () => {
+    // catch up immediately when the tab comes back
+    if (!document.hidden && $('mail-view')?.style.display !== 'none' && _accounts.length) {
+      loadInbox(false, true).catch(() => {});
+    }
+  });
 }
 
 function renderInbox(messages, errors = []) {
