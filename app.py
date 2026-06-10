@@ -44,7 +44,7 @@ from routes import (
     local_models as local_model_routes,
     vault_md as vault_md_routes,
 )
-from routes import reminders as reminder_routes, templates as template_routes, shared as shared_routes, files as files_routes, caldav as caldav_routes, mail as mail_routes, photos as photos_routes, push as push_routes
+from routes import reminders as reminder_routes, templates as template_routes, shared as shared_routes, files as files_routes, caldav as caldav_routes, mail as mail_routes, photos as photos_routes, push as push_routes, subscriptions as subscription_routes
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s  %(name)s  %(message)s")
 log = logging.getLogger("alles")
@@ -108,6 +108,11 @@ async def _reminder_loop():
             from services.llm import stream_chat
             from core.settings import load_settings
             from routes.push import broadcast as push_broadcast
+            try:
+                from routes.subscriptions import check_renewals
+                await check_renewals()
+            except Exception as e:
+                log.warning(f"subscription renewal check failed: {e}")
             now = datetime.utcnow()
             db = SessionLocal()
             try:
@@ -382,6 +387,7 @@ app.include_router(caldav_routes.router)
 app.include_router(mail_routes.router)
 app.include_router(photos_routes.router)
 app.include_router(push_routes.router)
+app.include_router(subscription_routes.router)
 
 
 # static files — no-cache so JS/CSS always reloads

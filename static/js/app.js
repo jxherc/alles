@@ -214,7 +214,7 @@ init();
 const _VIEW_IDS = [
   'home-view', 'chat', 'notes-view', 'tasks-view', 'calendar-view', 'gallery-view',
   'models-view', 'brain-view', 'wiki-view', 'compare-view', 'vault-view', 'contacts-view',
-  'reminders-view', 'files-view', 'mail-view', 'photos-view',
+  'reminders-view', 'files-view', 'mail-view', 'photos-view', 'subs-view',
 ];
 
 function hideAllViews() {
@@ -249,6 +249,7 @@ const showWikiView     = () => showView('wiki-view',     'wiki',     async () =>
 const showVaultView      = () => showView('vault-view',      'vault',     loadVaultView);
 const showContactsView   = () => showView('contacts-view',  'contacts',  () => loadContacts());
 const showRemindersView  = () => showView('reminders-view', 'reminders', initReminderPanel);
+const showSubsView       = () => showView('subs-view',      'subs',      async () => { (await import('./subs.js')).initSubsPanel(); });
 const showFilesView      = () => showView('files-view',     'files',     () => { initFiles(); loadFiles(); });
 const showMailView       = () => showView('mail-view',      'mail',      loadMail);
 const showPhotosView     = () => showView('photos-view',    'photos',    () => { initPhotos(); loadPhotos(); });
@@ -276,6 +277,7 @@ function navigateTo(v) {
   else if (v === 'vault')     showVaultView();
   else if (v === 'contacts')  showContactsView();
   else if (v === 'reminders') showRemindersView();
+  else if (v === 'subs')      showSubsView();
   else if (v === 'files')     showFilesView();
   else if (v === 'mail')      showMailView();
   else if (v === 'photos')    showPhotosView();
@@ -290,6 +292,7 @@ const _ICON = {
   tasks: '<polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>',
   memory: '<ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/>',
   secrets: '<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
+  subs: '<polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/>',
   contacts: '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
   reminders: '<path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/>',
   gallery: '<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>',
@@ -310,6 +313,7 @@ const HOME_TILES = [
   { view: 'photos',   name: 'gallery',  desc: 'photos',          icon: 'photos' },
   { view: 'contacts', name: 'contacts', desc: 'people',          icon: 'contacts' },
   { view: 'vault',    name: 'secrets',  desc: 'passwords',       icon: 'secrets' },
+  { view: 'subs',     name: 'subs',     desc: 'recurring costs', icon: 'subs' },
 ];
 
 let _homeRendered = false;
@@ -361,7 +365,7 @@ function _startHomeClock() {
 }
 
 // aide's tools live in the collapsible "tools" group
-const _moreViews = new Set(['compare','gallery','brain','models','reminders']);
+const _moreViews = new Set(['compare','gallery','brain','models','reminders','subs']);
 
 function setNav(view) {
   document.querySelectorAll('.nav-item').forEach(n => {
