@@ -340,6 +340,14 @@ class Reminder(Base):
     created_at = Column(DateTime, default=_now)
 
 
+class DocRevision(Base):
+    __tablename__ = "doc_revisions"
+    id         = Column(String, primary_key=True, default=_uid)
+    path       = Column(String, nullable=False, index=True)   # vault-relative, normalized
+    content    = Column(Text, default="")
+    created_at = Column(DateTime, default=_now)
+
+
 class PushSubscription(Base):
     __tablename__ = "push_subscriptions"
     id         = Column(String, primary_key=True, default=_uid)
