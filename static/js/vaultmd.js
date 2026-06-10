@@ -408,6 +408,7 @@ export function initVault() {
   $('wiki-folder-btn')?.addEventListener('click', newFolder);
   $('wiki-today-btn')?.addEventListener('click', openDaily);
   $('wiki-outline-btn')?.addEventListener('click', toggleOutline);
+  $('wiki-history-btn')?.addEventListener('click', toggleHistory);
   $('wiki-graph-btn')?.addEventListener('click', openGraph);
   $('wiki-graph-close')?.addEventListener('click', () => { $('wiki-graph').style.display = 'none'; });
   $('wiki-help-btn')?.addEventListener('click', () => {
@@ -777,6 +778,55 @@ function fillEmbeds() {
     _embedCache[key] = out;
     if (body) body.innerHTML = out;
   });
+}
+
+// ── version history ────────────────────────────────────────────────────────
+function toggleHistory() {
+  const p = $('wiki-history');
+  if (!p) return;
+  const show = p.style.display === 'none';
+  p.style.display = show ? 'block' : 'none';
+  $('wiki-history-btn')?.classList.toggle('active', show);
+  if (show) loadHistory();
+}
+
+function _revAgo(iso) {
+  const s = (Date.now() - new Date(iso + 'Z').getTime()) / 1000;
+  if (s < 90) return 'just now';
+  if (s < 3600) return `${Math.round(s / 60)}m ago`;
+  if (s < 86400) return `${Math.round(s / 3600)}h ago`;
+  return `${Math.round(s / 86400)}d ago`;
+}
+
+async function loadHistory() {
+  const panel = $('wiki-history');
+  if (!panel) return;
+  if (!_cur) { panel.innerHTML = '<div style="font-size:0.72rem;color:var(--muted)">open a doc first</div>'; return; }
+  panel.innerHTML = '<div style="font-size:0.72rem;color:var(--muted)">loading…</div>';
+  let revs;
+  try { revs = await fetch(`/api/vault-md/revisions?path=${encodeURIComponent(_cur)}`).then(r => r.json()); }
+  catch { panel.innerHTML = '<div style="font-size:0.72rem;color:var(--error)">failed to load history</div>'; return; }
+  if (!revs.length) {
+    panel.innerHTML = '<div style="font-size:0.72rem;color:var(--muted)">no earlier versions yet — snapshots are taken as you edit</div>';
+    return;
+  }
+  panel.innerHTML = revs.map(r => `
+    <div style="display:flex;align-items:center;gap:0.5rem;padding:0.25rem 0;font-size:0.72rem">
+      <span>${_revAgo(r.created_at)}</span>
+      <span style="color:var(--muted)">${(r.size / 1000).toFixed(1)}k</span>
+      <span style="flex:1"></span>
+      <button class="btn" data-rev-restore="${r.id}" style="font-size:0.66rem">restore</button>
+    </div>`).join('');
+  panel.querySelectorAll('[data-rev-restore]').forEach(b => b.addEventListener('click', async () => {
+    if (!await dlgConfirm('restore this version? the current state is kept as a revision.')) return;
+    try {
+      const r = await fetch(`/api/vault-md/revisions/${b.dataset.revRestore}/restore`, { method: 'POST' });
+      if (!r.ok) throw new Error();
+      await openFile(_cur);
+      toast('version restored', 'success');
+      loadHistory();
+    } catch { toast('restore failed', 'error'); }
+  }));
 }
 
 // ── outline (TOC of headings) ──────────────────────────────────────────────

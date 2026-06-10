@@ -56,9 +56,50 @@ class WriteBody(BaseModel):
     content: str = ""
 
 
+_REV_GAP = 300    # min seconds between automatic snapshots of the same doc
+_REV_KEEP = 50    # revisions kept per doc
+
+
+def _norm_path(rel: str) -> str:
+    from pathlib import PurePosixPath
+    rel = (rel or "").replace("\\", "/")
+    return rel if PurePosixPath(rel).suffix else rel + ".md"
+
+
+def _snapshot(rel: str, force: bool = False):
+    """store the doc's current on-disk content as a revision (its pre-change
+    state). autosave fires every keystroke pause, so unforced snapshots are
+    rate-limited — you get the pre-session state plus one every ~5 minutes."""
+    from datetime import datetime
+    from core.database import SessionLocal, DocRevision
+    rel = _norm_path(rel)
+    try:
+        cur = vault_md.read(rel)
+    except ValueError:
+        return
+    if not cur.get("exists"):
+        return
+    db = SessionLocal()
+    try:
+        last = (db.query(DocRevision).filter_by(path=rel)
+                .order_by(DocRevision.created_at.desc()).first())
+        if last and last.content == cur["content"]:
+            return
+        if not force and last and (datetime.utcnow() - last.created_at).total_seconds() < _REV_GAP:
+            return
+        db.add(DocRevision(path=rel, content=cur["content"]))
+        for old in (db.query(DocRevision).filter_by(path=rel)
+                    .order_by(DocRevision.created_at.desc()).offset(_REV_KEEP).all()):
+            db.delete(old)
+        db.commit()
+    finally:
+        db.close()
+
+
 @router.put("/file")
 def write_file(body: WriteBody):
     try:
+        _snapshot(body.path)
         return vault_md.write(body.path, body.content)
     except ValueError as e:
         raise HTTPException(400, str(e))
@@ -93,9 +134,62 @@ class RenameBody(BaseModel):
 @router.post("/rename")
 def rename_file(body: RenameBody):
     try:
-        return vault_md.rename(body.path, body.new_path)
+        out = vault_md.rename(body.path, body.new_path)
     except ValueError as e:
         raise HTTPException(400, str(e))
+    # carry the history along with the doc
+    from core.database import SessionLocal, DocRevision
+    db = SessionLocal()
+    try:
+        db.query(DocRevision).filter_by(path=_norm_path(body.path)) \
+          .update({"path": out.get("path", _norm_path(body.new_path))})
+        db.commit()
+    finally:
+        db.close()
+    return out
+
+
+@router.get("/revisions")
+def list_revisions(path: str):
+    from core.database import SessionLocal, DocRevision
+    db = SessionLocal()
+    try:
+        rows = (db.query(DocRevision).filter_by(path=_norm_path(path))
+                .order_by(DocRevision.created_at.desc()).all())
+        return [{"id": r.id, "created_at": r.created_at.isoformat(), "size": len(r.content or "")}
+                for r in rows]
+    finally:
+        db.close()
+
+
+@router.get("/revisions/{rid}")
+def get_revision(rid: str):
+    from core.database import SessionLocal, DocRevision
+    db = SessionLocal()
+    try:
+        r = db.get(DocRevision, rid)
+        if not r:
+            raise HTTPException(404)
+        return {"id": r.id, "path": r.path, "content": r.content,
+                "created_at": r.created_at.isoformat()}
+    finally:
+        db.close()
+
+
+@router.post("/revisions/{rid}/restore")
+def restore_revision(rid: str):
+    from core.database import SessionLocal, DocRevision
+    db = SessionLocal()
+    try:
+        r = db.get(DocRevision, rid)
+        if not r:
+            raise HTTPException(404)
+        path, content = r.path, r.content
+    finally:
+        db.close()
+    _snapshot(path, force=True)   # the state being replaced becomes a revision
+    out = vault_md.write(path, content)
+    return {"ok": True, "path": out.get("path", path)}
 
 
 @router.get("/search")
