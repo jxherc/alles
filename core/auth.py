@@ -1,5 +1,6 @@
 import secrets, time
 import bcrypt
+from fastapi import Request
 
 # in-memory token store — survives process lifetime, not restarts
 # that's fine: 30-day cookies re-login on restart
@@ -37,6 +38,29 @@ def verify_session(token: str) -> bool:
 
 def revoke_token(token: str):
     _tokens.pop(token, None)
+
+
+def require_auth(request: Request):
+    """FastAPI dependency for dangerous routes (shell exec etc.) — re-checks
+    what TokenAuthMiddleware already enforces, so those endpoints stay locked
+    even if the middleware is reordered or removed. Mirrors its semantics:
+    a valid bearer token always passes; otherwise the session cookie is
+    required only when AUTH_ENABLED is on."""
+    from fastapi import HTTPException
+    auth = request.headers.get("authorization", "")
+    if auth.startswith("Bearer aide_") or auth.startswith("Bearer alles_"):
+        from routes.api_tokens import verify_token
+        from core.database import SessionLocal
+        db = SessionLocal()
+        try:
+            if verify_token(auth.split(" ", 1)[1], db):
+                return
+        finally:
+            db.close()
+        raise HTTPException(401, "invalid token")
+    from core.settings import auth_enabled
+    if auth_enabled() and not verify_session(request.cookies.get("aide_session", "")):
+        raise HTTPException(401, "not authenticated")
 
 
 # cross-subdomain SSO: a one-time short-lived code that hands a session to another

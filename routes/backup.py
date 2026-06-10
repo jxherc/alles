@@ -24,6 +24,11 @@ def export_backup():
         sj = DATA_DIR / "settings.json"
         if sj.exists():
             zf.write(sj, "settings.json")
+        # at-rest encryption key — without it a restored DB can't decrypt
+        # its API keys / mail passwords, so it travels with the backup
+        sk = DATA_DIR / "secret.key"
+        if sk.exists():
+            zf.write(sk, "secret.key")
         # uploads
         upload_dir = DATA_DIR / "uploads"
         if upload_dir.exists():
