@@ -51,6 +51,7 @@
         <div class="nav-item" data-view="models">models</div>
         <div class="nav-item" data-view="reminders">reminders</div>
         <div class="nav-item" data-view="subs">subs</div>
+        <div class="nav-item" data-view="days">days</div>
       </div>
       <div class="nav-sep"></div>
       <div class="nav-item" data-view="settings">settings</div>
@@ -241,6 +242,25 @@
         <div class="date-input" id="sub-due" data-type="date" data-ph="next due" style="width:135px"></div>
         <input type="text" id="sub-category" class="settings-input" placeholder="category" style="width:105px">
         <button class="btn primary" id="sub-add-btn">add</button>
+      </div>
+    </div>
+
+
+    <!-- ── days: countdowns & days-since ── -->
+    <div class="page-view" id="days-view" style="display:none">
+      <div class="page-view-head">
+        <span class="page-view-title">days</span>
+        <span id="days-summary" style="font-size:0.7rem;color:var(--muted);margin-left:auto"></span>
+      </div>
+      <div class="page-view-body">
+        <div id="days-grid" class="days-grid"></div>
+      </div>
+      <div class="page-view-footer" style="flex-wrap:wrap;gap:0.4rem">
+        <input type="text" id="day-name" class="settings-input" placeholder="event (e.g. trip to japan, quit smoking)" style="flex:2;min-width:170px">
+        <div class="date-input" id="day-date" data-type="date" data-ph="date" style="width:135px"></div>
+        <div id="day-repeat" class="settings-input custom-select" data-value="none" data-options="none|one-time;yearly|every year;monthly|every month" style="width:auto;min-width:115px"></div>
+        <input type="text" id="day-category" class="settings-input" placeholder="category" style="width:105px">
+        <button class="btn primary" id="day-add-btn">add</button>
       </div>
     </div>
 
