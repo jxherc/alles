@@ -296,29 +296,63 @@ const _ICON = {
 const _svg = (k) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">${_ICON[k] || ''}</svg>`;
 
 const HOME_TILES = [
-  { view: 'chat',     name: 'aide',     desc: 'chat, agent' },
-  { view: 'mail',     name: 'mail',     desc: 'inbox & sending' },
-  { view: 'wiki',     name: 'docs',     desc: 'linked notes' },
-  { view: 'files',    name: 'files',    desc: 'your files' },
-  { view: 'calendar', name: 'calendar', desc: 'schedule' },
-  { view: 'tasks',    name: 'tasks',    desc: 'to-dos' },
-  { view: 'photos',   name: 'gallery',  desc: 'photos' },
-  { view: 'contacts', name: 'contacts', desc: 'people' },
-  { view: 'vault',    name: 'secrets',  desc: 'passwords' },
+  { view: 'chat',     name: 'aide',     desc: 'chat, agent',     icon: 'chat' },
+  { view: 'mail',     name: 'mail',     desc: 'inbox & sending', icon: 'mail' },
+  { view: 'wiki',     name: 'docs',     desc: 'linked notes',    icon: 'notes' },
+  { view: 'files',    name: 'files',    desc: 'your files',      icon: 'files' },
+  { view: 'calendar', name: 'calendar', desc: 'schedule',        icon: 'calendar' },
+  { view: 'tasks',    name: 'tasks',    desc: 'to-dos',          icon: 'tasks' },
+  { view: 'photos',   name: 'gallery',  desc: 'photos',          icon: 'photos' },
+  { view: 'contacts', name: 'contacts', desc: 'people',          icon: 'contacts' },
+  { view: 'vault',    name: 'secrets',  desc: 'passwords',       icon: 'secrets' },
 ];
 
 let _homeRendered = false;
 function renderHome() {
   const grid = document.getElementById('home-grid');
-  if (!grid || _homeRendered) return;
-  grid.innerHTML = HOME_TILES.map(t => `
-    <div class="home-tile${t.coming ? ' coming' : ''}" ${t.coming ? '' : `data-go="${t.view}"`}>
-      <div class="home-tile-name">${t.name}</div>
-      <div class="home-tile-desc">${t.desc}</div>
-    </div>`).join('');
-  grid.querySelectorAll('.home-tile[data-go]').forEach(el =>
-    el.addEventListener('click', () => navigateTo(el.dataset.go)));
-  _homeRendered = true;
+  if (!grid) return;
+  if (!_homeRendered) {
+    grid.innerHTML = HOME_TILES.map((t, i) => `
+      <div class="home-tile" data-go="${t.view}" style="--i:${i}">
+        <span class="home-tile-icon">${_svg(t.icon || t.view)}</span>
+        <span class="home-tile-name">${t.name}</span>
+        <span class="home-tile-desc">${t.desc}</span>
+      </div>`).join('');
+    grid.querySelectorAll('.home-tile[data-go]').forEach(el =>
+      el.addEventListener('click', () => navigateTo(el.dataset.go)));
+    _homeRendered = true;
+  }
+  _renderHomeGreeting();
+  _startHomeClock();
+}
+
+function _renderHomeGreeting() {
+  const el = document.getElementById('home-greeting');
+  if (!el) return;
+  const h = new Date().getHours();
+  const word = h < 5 ? 'still up' : h < 12 ? 'good morning' : h < 18 ? 'good afternoon' : 'good evening';
+  const name = (localStorage.getItem('alles-name') || '').trim();
+  el.replaceChildren(document.createTextNode(name ? `${word}, ` : `${word} — your everything, in one place`));
+  if (name) {
+    const s = document.createElement('span');
+    s.className = 'accent';
+    s.textContent = name;
+    el.appendChild(s);
+  }
+}
+
+let _homeClockTimer = null;
+function _startHomeClock() {
+  const tick = () => {
+    const el = document.getElementById('home-clock');
+    if (!el) return;
+    const now = new Date();
+    const date = now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }).toLowerCase();
+    const time = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }).toLowerCase();
+    el.textContent = `${date} · ${time}`;
+  };
+  tick();
+  if (!_homeClockTimer) _homeClockTimer = setInterval(tick, 20000);
 }
 
 // aide's tools live in the collapsible "tools" group
