@@ -106,8 +106,8 @@ function _openDropdown(el) {
   _open = { el, panel, activeIndex: _activeIndex(el) };
   el.classList.add('open');
   el.setAttribute('aria-expanded', 'true');
+  _renderPanel(el);            // fill content first so the panel has a measurable height
   _positionPanel(el, panel);
-  _renderPanel(el);
   setTimeout(() => document.addEventListener('click', _outsideClick), 0);
   window.addEventListener('resize', _repositionOpen);
   window.addEventListener('scroll', _repositionOpen, true);
@@ -144,9 +144,30 @@ function _choose(el, index) {
 
 function _positionPanel(el, panel) {
   const rect = el.getBoundingClientRect();
-  panel.style.left = `${rect.left}px`;
-  panel.style.top = `${rect.bottom + 4}px`;
+  const margin = 8;
   panel.style.minWidth = `${rect.width}px`;
+
+  // measure the natural height (uncapped), then cap to the CSS max and viewport
+  panel.style.maxHeight = '';
+  const desired = Math.min(panel.scrollHeight, 260);   // 260 == CSS max-height
+  const spaceBelow = window.innerHeight - rect.bottom - margin;
+  const spaceAbove = rect.top - margin;
+
+  let top, maxH;
+  if (desired <= spaceBelow || spaceBelow >= spaceAbove) {
+    top = rect.bottom + 4;                              // room below → drop down
+    maxH = Math.min(desired, spaceBelow);
+  } else {
+    maxH = Math.min(desired, spaceAbove);               // tight below → flip up
+    top = rect.top - maxH - 4;
+  }
+  panel.style.maxHeight = `${Math.max(80, maxH)}px`;
+  panel.style.top = `${Math.max(margin, top)}px`;
+
+  // keep it inside the viewport horizontally too
+  const width = panel.offsetWidth || rect.width;
+  const left = Math.min(rect.left, window.innerWidth - width - margin);
+  panel.style.left = `${Math.max(margin, left)}px`;
 }
 
 function _repositionOpen() {
