@@ -14,6 +14,7 @@ every app lives on its own subdomain and shares one login.
 - **files** — browse, upload, and preview files over any folder you point it at.
 - **calendar** — month, week, and day views, recurring events, CalDAV sync.
 - **tasks** — quick lists, nothing fancy.
+- **subs** — a subscription manager. billing cycles, next-due dates that roll over on their own, monthly/yearly totals, and a push notification before anything renews.
 - **gallery** — a local photo library with albums, favorites, and EXIF. works like iCloud Photos, minus Apple.
 - **contacts** — an address book.
 - **secrets** — an encrypted password vault (AES-256-GCM), unlocked by a master password that never touches disk.

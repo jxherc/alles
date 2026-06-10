@@ -1906,6 +1906,33 @@ code {
 }
 .task-del:hover { color: var(--error); }
 
+/* ── subscriptions ── */
+.sub-item {
+  display: flex; align-items: center; gap: 0.65rem; flex-wrap: wrap;
+  padding: 0.45rem 0;
+  border-bottom: 1px solid var(--faint);
+}
+.sub-item:last-child { border-bottom: none; }
+.sub-item.paused .sub-name,
+.sub-item.paused .sub-price,
+.sub-item.paused .sub-due { color: var(--muted); }
+.sub-main { display: flex; align-items: center; gap: 0.45rem; flex: 1; min-width: 140px; }
+.sub-name { font-size: 0.82rem; color: var(--text); }
+.sub-cat {
+  font-size: 0.62rem; color: var(--muted);
+  border: 1px solid var(--faint); border-radius: 8px;
+  padding: 0.05rem 0.4rem; letter-spacing: 0.03em;
+}
+.sub-notes { font-size: 0.72rem; color: var(--muted); cursor: help; }
+.sub-price { font-size: 0.8rem; color: var(--text); white-space: nowrap; }
+.sub-cycle { font-size: 0.65rem; color: var(--muted); margin-left: 0.15rem; }
+.sub-due { font-size: 0.7rem; color: var(--muted); white-space: nowrap; min-width: 90px; text-align: right; }
+.sub-due.soon { color: var(--accent); }
+.sub-actions { display: flex; gap: 0.3rem; }
+.sub-actions .btn { font-size: 0.64rem; padding: 0.15rem 0.45rem; }
+.sub-item.editing { gap: 0.35rem; }
+.sub-item.editing .settings-input { font-size: 0.72rem; }
+
 /* ── memory full-page view ── */
 .mem-view {
   flex: 1; display: flex; flex-direction: column; min-height: 0;
