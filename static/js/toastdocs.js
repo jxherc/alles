@@ -77,15 +77,16 @@ export async function createDocEditor(el, { initialValue = '', onChange } = {}) 
   const colorSyntax = window.toastui?.Editor?.plugin?.uml;   // color-syntax (mis-named in the umd)
   el.innerHTML = '';
 
-  const underlineBtn = _toolBtn('<span style="text-decoration:underline">U</span>', 'underline', () => {
+  const _svg = paths => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${paths}</svg>`;
+  const underlineBtn = _toolBtn(_svg('<path d="M6 4v6a6 6 0 0 0 12 0V4"/><line x1="4" y1="21" x2="20" y2="21"/>'), 'underline', () => {
     if (_editor.isMarkdownMode()) _mdWrap('<u>', '</u>');
     else _editor.exec('underline');
   });
-  const highlightBtn = _toolBtn('<span class="alles-hl">H</span>', 'highlight', () => {
+  const highlightBtn = _toolBtn(_svg('<path d="m9 11-6 6v3h9l3-3"/><path d="m22 12-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4l8 8Z"/>'), 'highlight', () => {
     if (_editor.isMarkdownMode()) _mdWrap('<mark>', '</mark>');
     else _editor.exec('highlight');
   });
-  const wikiBtn = _toolBtn('<span>[[]]</span>', 'wikilink', () => {
+  const wikiBtn = _toolBtn(_svg('<path d="M8 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h2"/><path d="M16 3h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-2"/>'), 'wikilink', () => {
     // plain text — safe in both modes; cursor lands inside empty brackets
     const sel = _editor.getSelectedText();
     _editor.replaceSelection(`[[${sel}]]`);

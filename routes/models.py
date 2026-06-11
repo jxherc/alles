@@ -90,44 +90,83 @@ def delete_endpoint(ep_id: str, db: DbSession = Depends(get_db)):
     return {"ok": True}
 
 
+# the static Anthropic list is only a FALLBACK for keys that can't hit the
+# models API — the live probe below is what keeps lists current
+_ANTHROPIC_FALLBACK = ["claude-opus-4-8", "claude-sonnet-4-6", "claude-haiku-4-5-20251001"]
+
+
+async def fetch_provider_models(ep: ModelEndpoint) -> list[str]:
+    """ask the provider what models exist right now. raises on failure."""
+    provider = detect_provider(ep.base_url)
+    base = ep.base_url.rstrip("/")
+
+    if provider == "anthropic":
+        # Anthropic has a real models API — use it so new releases show up on
+        # their own; the static list is only for keys that can't reach it
+        try:
+            async with httpx.AsyncClient(timeout=10) as c:
+                r = await c.get(base + "/v1/models?limit=100", headers={
+                    "x-api-key": ep.api_key or "",
+                    "anthropic-version": "2023-06-01",
+                })
+                r.raise_for_status()
+                models = [m["id"] for m in r.json().get("data", [])]
+                if models:
+                    return models
+        except Exception:
+            pass
+        return list(_ANTHROPIC_FALLBACK)
+
+    if provider == "ollama":
+        async with httpx.AsyncClient(timeout=10) as c:
+            r = await c.get(base + "/api/tags")
+            r.raise_for_status()
+            return [m["name"] for m in r.json().get("models", [])]
+
+    headers = {"content-type": "application/json"}
+    if ep.api_key:
+        headers["authorization"] = f"Bearer {ep.api_key}"
+    async with httpx.AsyncClient(timeout=10) as c:
+        r = await c.get(base + "/v1/models", headers=headers)
+        r.raise_for_status()
+        data = r.json()
+    return [m for m in (x["id"] for x in data.get("data", [])) if _is_chat_model(m)]
+
+
+async def refresh_all_model_lists():
+    """background re-probe of every enabled endpoint, so new provider models
+    appear without anyone clicking refresh. failures keep the old cache."""
+    import logging
+    log = logging.getLogger("aide.models")
+    from core.database import SessionLocal
+    db = SessionLocal()
+    try:
+        for ep in db.query(ModelEndpoint).filter(ModelEndpoint.enabled == True).all():
+            try:
+                models = await fetch_provider_models(ep)
+            except Exception as e:
+                log.info(f"model refresh skipped for {ep.name}: {e}")
+                continue
+            if models and set(models) != set(ep.models_list()):
+                added = [m for m in models if m not in ep.models_list()]
+                ep.cached_models = json.dumps(models)
+                db.commit()
+                if added:
+                    log.info(f"{ep.name}: new models available — {', '.join(added[:5])}")
+    finally:
+        db.close()
+
+
 # POST /api/models/endpoint/{id}/probe — fetch model list from provider
 @router.post("/models/endpoint/{ep_id}/probe")
 async def probe_endpoint(ep_id: str, db: DbSession = Depends(get_db)):
     ep = db.get(ModelEndpoint, ep_id)
     if not ep:
         raise HTTPException(404)
-
-    provider = detect_provider(ep.base_url)
-    url = ep.base_url.rstrip("/") + "/v1/models"
-    headers = {"content-type": "application/json"}
-    if ep.api_key:
-        headers["authorization"] = f"Bearer {ep.api_key}"
-
-    if provider == "anthropic":
-        # Keep this fallback current for Anthropic, whose model list may not be
-        # available to every key in every environment.
-        models = ["claude-opus-4-8", "claude-sonnet-4-6", "claude-haiku-4-5-20251001"]
-        ep.cached_models = json.dumps(models)
-        db.commit()
-        return {"models": models}
-
-    if provider == "ollama":
-        url = ep.base_url.rstrip("/") + "/api/tags"
-
     try:
-        async with httpx.AsyncClient(timeout=10) as c:
-            r = await c.get(url, headers=headers)
-            r.raise_for_status()
-            data = r.json()
+        models = await fetch_provider_models(ep)
     except Exception as e:
         raise HTTPException(502, f"probe failed: {e}")
-
-    if provider == "ollama":
-        models = [m["name"] for m in data.get("models", [])]
-    else:
-        all_models = [m["id"] for m in data.get("data", [])]
-        models = [m for m in all_models if _is_chat_model(m)]
-
     ep.cached_models = json.dumps(models)
     db.commit()
     return {"models": models}
