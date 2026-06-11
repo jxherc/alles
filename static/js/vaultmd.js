@@ -390,10 +390,13 @@ function initDocsToolbar() {
 export function initVault() {
   if (_inited) { loadTree(); return; }
   _inited = true;
-  // the file tree is part of the app — always visible (collapses via css on
-  // small screens). the old ☰ toggle is gone; clear its sticky preference.
-  $('wiki-view')?.classList.remove('tree-hidden');
-  localStorage.removeItem('docs-tree-hidden');
+  // full-screen writing: collapse the file tree once a doc is open; the menu
+  // button brings it back and remembers the choice.
+  if (localStorage.getItem('docs-tree-hidden') !== '0') $('wiki-view')?.classList.add('tree-hidden');
+  $('wiki-tree-toggle')?.addEventListener('click', () => {
+    const hidden = $('wiki-view')?.classList.toggle('tree-hidden');
+    localStorage.setItem('docs-tree-hidden', hidden ? '1' : '0');
+  });
   $('wiki-ai-toggle')?.addEventListener('click', () => {
     const on = $('wiki-view').classList.toggle('ai-open');
     $('wiki-ai-toggle').classList.toggle('active', on);
@@ -472,16 +475,37 @@ async function aiEdit() {
   const instruction = inp.value.trim();
   if (!instruction) return;
   inp.value = '';
-  const src = $('wiki-source');
-  src.value = '';
-  $('wiki-save-status').textContent = 'ai editing…';
+  const status = $('wiki-save-status');
+  const t0 = Date.now();
+  let phase = 'thinking';
+  status.textContent = 'ai thinking…';
+  const tick = setInterval(() => {
+    status.textContent = `ai ${phase}… ${Math.round((Date.now() - t0) / 1000)}s`;
+  }, 500);
+
+  // stream into the VISIBLE editor (old code streamed into the hidden #wiki-source
+  // textarea — the doc looked frozen, then popped in at the end). setMarkdown
+  // re-parses the whole doc so paints are throttled.
+  let acc = '', paintT = 0, lastPaint = 0;
+  const paint = () => {
+    paintT = 0; lastPaint = Date.now();
+    _setEditorContent(acc);
+  };
+  const schedule = () => {
+    if (paintT) return;
+    const since = Date.now() - lastPaint;
+    if (since >= 150) paint(); else paintT = setTimeout(paint, 150 - since);
+  };
+  const stop = () => { clearInterval(tick); if (paintT) { clearTimeout(paintT); paintT = 0; } };
+
   try {
     const r = await fetch('/api/vault-md/ai-edit', {
       method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ path: _cur, instruction }),
     });
-    if (!r.ok) { toast('ai edit failed', 'error'); $('wiki-save-status').textContent = ''; return; }
+    if (!r.ok) { stop(); toast('ai edit failed', 'error'); status.textContent = ''; return; }
     const reader = r.body.getReader(); const dec = new TextDecoder(); let buf = '';
+    let err = '';
     while (true) {
       const { done, value } = await reader.read(); if (done) break;
       buf += dec.decode(value, { stream: true });
@@ -490,13 +514,26 @@ async function aiEdit() {
         if (!line.startsWith('data:')) continue;
         const raw = line.slice(5).trim();
         if (raw === '[DONE]') continue;
-        try { const c = JSON.parse(raw); if (c.delta) { src.value += c.delta; renderPreview(); } } catch {}
+        let c; try { c = JSON.parse(raw); } catch { continue; }
+        if (c.error) err = c.error;
+        if (c.delta) { phase = 'writing'; acc += c.delta; schedule(); }
+        // c.thinking is just a heartbeat — the timer above shows the elapsed time
       }
     }
-    $('wiki-save-status').textContent = 'saved';   // backend persisted it
-    _setEditorContent($('wiki-source').value);
+    stop();
+    if (!acc.trim()) {
+      toast(err ? err.slice(0, 140) : 'ai returned nothing — doc unchanged', 'error');
+      status.textContent = '';
+      return;   // editor untouched
+    }
+    _setEditorContent(acc);
+    status.textContent = 'saved';   // backend persisted it
     loadBacklinks();
-  } catch { toast('ai edit failed', 'error'); $('wiki-save-status').textContent = ''; }
+  } catch {
+    stop();
+    toast('ai edit failed', 'error'); status.textContent = '';
+    if (acc) openFile(_cur);   // stream died mid-paint — restore what's on disk
+  }
 }
 
 let _activeTag = null;
@@ -692,7 +729,8 @@ async function openFile(path) {
     _syncEmpty();
     await ensureEditor();
     _setEditorContent(d.content || '');
-    $('wiki-current').textContent = _cur.replace(/\.md$/, '');
+    const currentLabel = $('wiki-current');
+    if (currentLabel) currentLabel.textContent = _cur.replace(/\.md$/, '');
     loadBacklinks();
     document.querySelectorAll('.wiki-file').forEach(f => f.classList.toggle('active', f.dataset.path === _cur));
   } catch { toast('failed to open doc', 'error'); }

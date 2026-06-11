@@ -11,14 +11,14 @@ _client: httpx.AsyncClient | None = None
 def _get_client() -> httpx.AsyncClient:
     global _client
     if _client is None or _client.is_closed:
-        import os
-        # pick up system/user proxy env vars (HTTP_PROXY, HTTPS_PROXY, no_proxy)
-        proxy = (os.environ.get("HTTPS_PROXY") or os.environ.get("https_proxy")
-                 or os.environ.get("HTTP_PROXY") or os.environ.get("http_proxy"))
+        # proxies come from env (trust_env default) which honors NO_PROXY.
+        # passing proxy= explicitly here used to force even localhost
+        # (ollama / lm studio) through clash and broke local streaming.
+        direct = httpx.AsyncHTTPTransport()
         _client = httpx.AsyncClient(
             timeout=httpx.Timeout(10.0, read=120.0),
             limits=httpx.Limits(max_connections=50, max_keepalive_connections=20),
-            proxy=proxy or None,
+            mounts={"all://localhost": direct, "all://127.0.0.1": direct, "all://[::1]": direct},
             follow_redirects=True,
         )
     return _client
