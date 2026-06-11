@@ -390,13 +390,10 @@ function initDocsToolbar() {
 export function initVault() {
   if (_inited) { loadTree(); return; }
   _inited = true;
-  // full-screen writing: collapse the file tree (the ☰ toggle brings it back);
-  // the AI-edit bar is hidden by default so docs doesn't feel like the chat.
-  if (localStorage.getItem('docs-tree-hidden') !== '0') $('wiki-view')?.classList.add('tree-hidden');
-  $('wiki-tree-toggle')?.addEventListener('click', () => {
-    const hidden = $('wiki-view').classList.toggle('tree-hidden');
-    localStorage.setItem('docs-tree-hidden', hidden ? '1' : '0');
-  });
+  // the file tree is part of the app — always visible (collapses via css on
+  // small screens). the old ☰ toggle is gone; clear its sticky preference.
+  $('wiki-view')?.classList.remove('tree-hidden');
+  localStorage.removeItem('docs-tree-hidden');
   $('wiki-ai-toggle')?.addEventListener('click', () => {
     const on = $('wiki-view').classList.toggle('ai-open');
     $('wiki-ai-toggle').classList.toggle('active', on);
