@@ -390,10 +390,13 @@ function initDocsToolbar() {
 export function initVault() {
   if (_inited) { loadTree(); return; }
   _inited = true;
-  // the file tree is part of the app — always visible (collapses via css on
-  // small screens). the old ☰ toggle is gone; clear its sticky preference.
-  $('wiki-view')?.classList.remove('tree-hidden');
-  localStorage.removeItem('docs-tree-hidden');
+  // full-screen writing: ☰ collapses the file tree; the preference sticks.
+  // default is tree visible — discoverable first, focused when you ask for it.
+  if (localStorage.getItem('docs-tree-hidden') === '1') $('wiki-view')?.classList.add('tree-hidden');
+  $('wiki-tree-toggle')?.addEventListener('click', () => {
+    const hidden = $('wiki-view').classList.toggle('tree-hidden');
+    localStorage.setItem('docs-tree-hidden', hidden ? '1' : '0');
+  });
   $('wiki-ai-toggle')?.addEventListener('click', () => {
     const on = $('wiki-view').classList.toggle('ai-open');
     $('wiki-ai-toggle').classList.toggle('active', on);
