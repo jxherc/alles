@@ -89,12 +89,12 @@ async def _bootstrap_anthropic():
             name="Anthropic",
             base_url="https://api.anthropic.com",
             api_key=key,
-            cached_models=json.dumps(["claude-opus-4-8", "claude-sonnet-4-6", "claude-haiku-4-5-20251001"]),
-            vision_models=json.dumps(["claude-opus-4-8", "claude-sonnet-4-6", "claude-haiku-4-5-20251001"]),
+            cached_models=json.dumps(["claude-fable-5", "claude-opus-4-8", "claude-sonnet-4-6", "claude-haiku-4-5-20251001"]),
+            vision_models=json.dumps(["claude-fable-5", "claude-opus-4-8", "claude-sonnet-4-6", "claude-haiku-4-5-20251001"]),
         )
         db.add(ep)
         db.commit()
-        log.info("Anthropic endpoint created - default model: claude-opus-4-8")
+        log.info("Anthropic endpoint created - default model: claude-fable-5")
     finally:
         db.close()
 
