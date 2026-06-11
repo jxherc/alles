@@ -2544,6 +2544,7 @@ code {
   border-right: 1px solid var(--faint); overflow: hidden;
 }
 /* full-screen writing: hide the tree once a doc is open (☰ brings it back) */
+#wiki-view.tree-hidden:not(.no-note) .wiki-tree-panel { display: none; }
 .docs-rail-head {
   max-width: none; margin: 0; padding: 1rem 0.8rem 0.45rem;
   display: grid; grid-template-columns: 1fr; align-items: start; gap: 0.55rem;
@@ -2591,12 +2592,24 @@ code {
   padding: 0.65rem clamp(1rem, 4vw, 3.4rem);
   gap: 0.35rem; border-bottom: 1px solid var(--faint);
 }
+.docs-tree-toggle {
+  flex: 0 0 auto;
+  margin-left: clamp(-2.8rem, -3vw, -0.45rem);
+  margin-right: 0.15rem;
+}
+.docs-tree-toggle svg {
+  width: 16px;
+  height: 16px;
+}
+/* which doc is open — the tree hides by default so this is the only hint */
+.wiki-current {
+  font-size: 0.78rem; color: var(--muted);
+  min-width: 0; max-width: 20rem;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+#wiki-view.no-note .wiki-current { display: none; }
 .docs-editor-head .btn {
   padding: 0.28rem 0.55rem; font-size: 0.64rem; letter-spacing: 0;
-}
-.wiki-current {
-  font-size: 0.84rem; color: var(--text); min-width: 0;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .wiki-editor { flex: 1; display: flex; overflow: hidden; }
 /* one surface at a time — live (styled editing, default) · source (raw codes) · read (rendered) */
@@ -2748,12 +2761,15 @@ code {
   background: var(--bg) !important;
   border: none !important;
   border-bottom: 1px solid var(--faint) !important;
-  padding: 0.35rem 0.55rem !important;
+  padding: 0.35rem 0.55rem 0.35rem 0.3rem !important;  /* left pad lines the first icon up with the ☰ toggle above */
+  align-items: center !important;
 }
 .toastui-editor-toolbar-divider { background-color: var(--faint) !important; margin: 0 0.4rem !important; }
+.toastui-editor-toolbar-group { align-items: center !important; }
 .toastui-editor-toolbar-icons {
   border: 1px solid transparent !important;
   border-radius: 5px !important;
+  width: 32px !important; height: 32px !important; padding: 0 !important;
   margin: 0 1px !important;
   opacity: 0.78;
   transition: background 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
@@ -2770,23 +2786,22 @@ code {
   /* tint the sprite glyph itself to the accent — no box */
   filter: brightness(0) saturate(100%) invert(62%) sepia(32%) saturate(3700%) hue-rotate(216deg) brightness(100%) contrast(95%);
 }
+.toastui-editor-toolbar-icons.alles-tool-btn.active {
+  color: var(--accent) !important;
+  filter: none !important;
+}
 
-/* bottom mode switch + write/preview tabs — both restyled as quiet lowercase
-   text-tabs (the vendor draws boxed fixed-width tabs that look foreign here) */
+/* Toast UI's Markdown write/preview tabs are redundant in the WYSIWYG docs editor. */
 .toastui-editor-mode-switch {
   background: var(--bg) !important;
   border-top: 1px solid var(--faint) !important;
   border-bottom: none !important;
 }
 .toastui-editor-md-tab-container {
-  background: var(--bg) !important;
-  border: none !important;
-  display: flex; align-items: center;
+  display: none !important;
 }
-.toastui-editor-md-tab-container .toastui-editor-tabs { margin: 0 4px 0 10px !important; }
-.toastui-editor-mode-switch .tab-item,
-.toastui-editor-md-tab-container .tab-item {
-  width: auto !important; height: auto !important;
+.toastui-editor-mode-switch .tab-item {
+  width: auto !important; min-width: 3.8rem !important; height: auto !important;
   line-height: 1 !important;
   padding: 0.45rem 0.6rem 0.5rem !important;
   margin: 0 0.15rem 0 0 !important;
@@ -2798,10 +2813,8 @@ code {
   font-size: 0.72rem !important; font-weight: 500 !important;
   text-transform: lowercase; letter-spacing: 0.03em;
 }
-.toastui-editor-mode-switch .tab-item:hover,
-.toastui-editor-md-tab-container .tab-item:hover { color: var(--text) !important; }
-.toastui-editor-mode-switch .tab-item.active,
-.toastui-editor-md-tab-container .tab-item.active {
+.toastui-editor-mode-switch .tab-item:hover { color: var(--text) !important; }
+.toastui-editor-mode-switch .tab-item.active {
   color: var(--text) !important;
   box-shadow: inset 0 -1.5px 0 var(--accent) !important;
 }
@@ -2861,10 +2874,28 @@ code {
   background-image: none !important;
   color: var(--muted) !important;
   display: inline-flex !important; align-items: center !important; justify-content: center !important;
+  line-height: 0 !important;
   opacity: 0.78;
 }
-.alles-tool-btn svg { width: 18px; height: 18px; display: block; }
+.alles-tool-btn svg { width: 24px; height: 24px; display: block; }
 .alles-tool-btn:hover { color: var(--text) !important; opacity: 1; }
+.alles-tool-text {
+  color: currentColor; font-size: 1.52rem; font-weight: 430; line-height: 1;
+}
+.alles-tool-heading { font-weight: 360; }
+.alles-tool-bold { font-weight: 760; }
+.alles-tool-italic { font-style: italic; transform: skewX(-5deg); }
+.alles-tool-color { border-bottom: 2px solid var(--accent); padding-bottom: 1px; }
+.alles-tool-strike { text-decoration: line-through; text-decoration-thickness: 1.5px; }
+.alles-tool-quote,
+.alles-tool-codeblock {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 1.08rem; font-weight: 600; letter-spacing: -0.05em;
+}
+.alles-tool-ordered {
+  display: flex; flex-direction: column; gap: 1px;
+  color: currentColor; font: 650 0.78rem/0.8 'JetBrains Mono', ui-monospace, monospace;
+}
 /* underline + highlight in the editing surface and preview */
 .toastui-editor-contents u { text-decoration-color: color-mix(in srgb, var(--accent) 70%, var(--text)); }
 .toastui-editor-contents mark {
@@ -2911,7 +2942,6 @@ code {
 }
 .toastui-editor-tooltip .arrow { display: none !important; }
 #wiki-view.no-note .wiki-empty-state { display: flex; }
-#wiki-view.no-note .wiki-current,
 #wiki-view.no-note #wiki-preview-toggle,
 #wiki-view.no-note #wiki-export-btn,
 #wiki-view.no-note #wiki-delete-btn { display: none; }
