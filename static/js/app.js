@@ -380,16 +380,16 @@ async function _renderToday() {
     row('days', '⧗', `${_escT(e.name)} ${e.in_days === 0 ? 'is today' : `in ${e.in_days}d`}`);
   if (unread.length)
     row('mail', '✉', `${unread.length} unread — ${_escT((unread[0].subject || '').slice(0, 50))}`);
+
+  // recents aren't "today" items — when they're all we have, lead with the
+  // clear-day note so the strip still reads as a day view
+  const scheduled = rows.length;
   for (const doc of (d.recent_docs || []).slice(0, 2))
     row('wiki', '≡', `recent: ${_escT(doc.name)}`);
 
-  if (!rows.length) {
-    el.innerHTML = `<div class="ht-empty">nothing scheduled — clear day ✨</div>
-      <button class="btn" id="ht-ask">ask aide about my day</button>`;
-  } else {
-    el.innerHTML = `<div class="ht-rows">${rows.join('')}</div>
-      <button class="btn" id="ht-ask">ask aide about my day</button>`;
-  }
+  const empty = scheduled ? '' : '<div class="ht-empty">nothing scheduled — clear day ✨</div>';
+  el.innerHTML = `${empty}${rows.length ? `<div class="ht-rows">${rows.join('')}</div>` : ''}
+    <button class="btn" id="ht-ask">ask aide about my day</button>`;
   el.style.display = 'flex';
 
   el.querySelectorAll('.ht-row').forEach(r => r.addEventListener('click', () => navigateTo(r.dataset.go)));
@@ -414,15 +414,32 @@ function _renderHomeGreeting() {
   const el = document.getElementById('home-greeting');
   if (!el) return;
   const h = new Date().getHours();
-  const word = h < 5 ? 'still up' : h < 12 ? 'good morning' : h < 18 ? 'good afternoon' : 'good evening';
+  // each bucket reads as a complete line on its own — the tagline lives below
+  const word = h < 5 ? 'still up?' : h < 12 ? 'good morning' : h < 18 ? 'good afternoon' : 'good evening';
   const name = (localStorage.getItem('alles-name') || '').trim();
-  el.replaceChildren(document.createTextNode(name ? `${word}, ` : `${word} — your everything, in one place`));
+  el.replaceChildren(document.createTextNode(name ? `${word.replace('?', '') }, ` : word));
   if (name) {
     const s = document.createElement('span');
     s.className = 'accent';
     s.textContent = name;
     el.appendChild(s);
+    if (h < 5) el.appendChild(document.createTextNode('?'));
   }
+  // greeting doubles as the way in to set your name
+  el.title = 'click to set your name';
+  el.style.cursor = 'pointer';
+  if (!el.dataset.wired) {
+    el.dataset.wired = '1';
+    el.addEventListener('click', () => openSettings('appearance'));
+  }
+  let tag = document.getElementById('home-tagline');
+  if (!tag) {
+    tag = document.createElement('div');
+    tag.id = 'home-tagline';
+    tag.className = 'home-tagline';
+    el.insertAdjacentElement('afterend', tag);
+  }
+  tag.textContent = 'your everything, in one place';
 }
 
 let _homeClockTimer = null;

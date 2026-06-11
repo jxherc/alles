@@ -1,4 +1,4 @@
-import os, json, logging, asyncio
+import os, json, logging, asyncio, time
 from datetime import datetime
 from pathlib import Path
 from contextlib import asynccontextmanager
@@ -99,6 +99,10 @@ async def _bootstrap_anthropic():
         db.close()
 
 
+# 0 → the first loop tick re-probes immediately after boot, then every 6h
+_last_model_refresh = 0.0
+
+
 async def _reminder_loop():
     """fires scheduled messages every 30s"""
     await asyncio.sleep(5)  # let startup finish
@@ -123,6 +127,15 @@ async def _reminder_loop():
                 await run_automations()
             except Exception as e:
                 log.warning(f"automations failed: {e}")
+            # keep provider model lists fresh (new releases show up on their own)
+            global _last_model_refresh
+            if time.time() - _last_model_refresh > 6 * 3600:
+                _last_model_refresh = time.time()
+                try:
+                    from routes.models import refresh_all_model_lists
+                    await refresh_all_model_lists()
+                except Exception as e:
+                    log.warning(f"model list refresh failed: {e}")
             now = datetime.utcnow()
             db = SessionLocal()
             try:
