@@ -332,6 +332,10 @@ async def ai_edit(body: AiEditBody):
             if "delta" in chunk:
                 acc.append(chunk["delta"])
                 yield f"data: {json.dumps({'delta': chunk['delta']})}\n\n"
+            elif "thinking" in chunk:
+                # reasoning models sit silent for ages before the rewrite starts —
+                # heartbeat so the ui can show progress instead of looking dead
+                yield 'data: {"thinking": 1}\n\n'
             elif "error" in chunk:
                 yield f"data: {json.dumps(chunk)}\n\n"
         full = "".join(acc).strip()
