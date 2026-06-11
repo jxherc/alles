@@ -410,20 +410,42 @@ function _askAideAboutToday(d, unread) {
   sendMessage(`${ctx}\n\ngive me a short, friendly rundown of my day — what to do first, what can wait, anything i'm about to miss.`);
 }
 
+// a different one every visit — picked by time of day
+const _GREETINGS = {
+  night: ['still up?', 'the quiet hours', 'burning the midnight oil', 'night owl mode',
+          '3am thoughts?', "the world's asleep", 'moonlight session', 'late night, big ideas',
+          'insomnia or inspiration?', 'the night shift'],
+  morning: ['good morning', 'rise and shine', 'coffee first', 'a fresh one', 'up and at it',
+            'new day, clean slate', 'morning, sunshine', "let's get this day", 'early bird hours',
+            'the day is yours', 'ready when you are', 'top of the morning'],
+  afternoon: ['good afternoon', 'midday check-in', 'keeping the momentum', 'halfway there',
+              'afternoon focus', 'the day is in full swing', 'cruising along', 'post-lunch power',
+              'steady as she goes', 'making it count', 'deep in the day'],
+  evening: ['good evening', 'winding down?', 'home stretch', 'golden hour', 'evening calm',
+            'the night is young', 'lights low, focus up', "day's almost done", 'evening session',
+            'one more thing?', 'the day did its part'],
+};
+
 function _renderHomeGreeting() {
   const el = document.getElementById('home-greeting');
   if (!el) return;
   const h = new Date().getHours();
-  // each bucket reads as a complete line on its own — the tagline lives below
-  const word = h < 5 ? 'still up?' : h < 12 ? 'good morning' : h < 18 ? 'good afternoon' : 'good evening';
+  const pool = h < 5 ? _GREETINGS.night : h < 12 ? _GREETINGS.morning
+             : h < 18 ? _GREETINGS.afternoon : _GREETINGS.evening;
+  const phrase = pool[Math.floor(Math.random() * pool.length)];
   const name = (localStorage.getItem('alles-name') || '').trim();
-  el.replaceChildren(document.createTextNode(name ? `${word.replace('?', '') }, ` : word));
+  el.replaceChildren();
   if (name) {
+    // "still up, eric?" — the name slips in before any ?/! punctuation
+    const punct = /[?!]$/.test(phrase) ? phrase.slice(-1) : '';
+    el.appendChild(document.createTextNode((punct ? phrase.slice(0, -1) : phrase) + ', '));
     const s = document.createElement('span');
     s.className = 'accent';
     s.textContent = name;
     el.appendChild(s);
-    if (h < 5) el.appendChild(document.createTextNode('?'));
+    if (punct) el.appendChild(document.createTextNode(punct));
+  } else {
+    el.appendChild(document.createTextNode(phrase));
   }
   // greeting doubles as the way in to set your name
   el.title = 'click to set your name';
