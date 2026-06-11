@@ -63,10 +63,51 @@ function _mdWrap(open, close) {
   _editor.replaceSelection(`${open}${sel}${close}`);
 }
 
+const _svg = paths => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${paths}</svg>`;
+const _txt = (text, cls = '') => `<span class="alles-tool-text ${cls}">${text}</span>`;
+const _TOOLBAR_ICONS = {
+  heading: _txt('H', 'alles-tool-heading'),
+  bold: _txt('B', 'alles-tool-bold'),
+  italic: _txt('I', 'alles-tool-italic'),
+  color: _txt('A', 'alles-tool-color'),
+  strike: _txt('S', 'alles-tool-strike'),
+  hrline: _svg('<line x1="5" y1="12" x2="19" y2="12"/>'),
+  quote: _txt('66', 'alles-tool-quote'),
+  'bullet-list': _svg('<line x1="9" y1="6" x2="20" y2="6"/><line x1="9" y1="12" x2="20" y2="12"/><line x1="9" y1="18" x2="20" y2="18"/><circle cx="4.5" cy="6" r="1"/><circle cx="4.5" cy="12" r="1"/><circle cx="4.5" cy="18" r="1"/>'),
+  'ordered-list': '<span class="alles-tool-ordered"><span>1</span><span>2</span></span>',
+  'task-list': _svg('<rect x="4" y="4" width="16" height="16" rx="2"/><path d="m8 12 2.5 2.5L16 9"/>'),
+  indent: _svg('<path d="M4 6h16M12 12h8M12 18h8"/><path d="m4 10 4 2-4 2z"/>'),
+  outdent: _svg('<path d="M4 6h16M12 12h8M12 18h8"/><path d="m8 10-4 2 4 2z"/>'),
+  table: _svg('<rect x="4" y="4" width="16" height="16" rx="1"/><path d="M4 10h16M4 16h16M10 4v16M16 4v16"/>'),
+  image: _svg('<rect x="4" y="5" width="16" height="14" rx="2"/><circle cx="9" cy="10" r="1.3"/><path d="m7 17 4-4 3 3 2-2 2 3"/>'),
+  link: _svg('<path d="M10 13a5 5 0 0 0 7 0l2-2a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-2 2a5 5 0 0 0 7 7l1-1"/>'),
+  code: _svg('<path d="m9 18-6-6 6-6"/><path d="m15 6 6 6-6 6"/>'),
+  codeblock: _txt('CB', 'alles-tool-codeblock'),
+  more: _txt('...', 'alles-tool-more'),
+};
+function _polishToolbarIcons(root) {
+  root.querySelectorAll('.toastui-editor-toolbar-icons').forEach(btn => {
+    // toast rewrites className on state toggles (active etc.) which drops our
+    // classes — the dataset marker survives, so re-add them. the contains-check
+    // matters: classList.add fires a mutation record even when nothing changes,
+    // which would loop with the observer below
+    if (btn.dataset.allesTool) {
+      if (!btn.classList.contains('alles-tool-btn'))
+        btn.classList.add('alles-tool-btn', 'alles-vendor-tool-btn');
+      return;
+    }
+    const key = Object.keys(_TOOLBAR_ICONS).find(k => btn.classList.contains(k));
+    if (!key) return;
+    btn.dataset.allesTool = key;
+    btn.classList.add('alles-tool-btn', 'alles-vendor-tool-btn');
+    btn.innerHTML = _TOOLBAR_ICONS[key];
+  });
+}
+
 function _toolBtn(html, tooltip, onClick) {
   const b = document.createElement('button');
   b.type = 'button';
-  b.className = 'toastui-editor-toolbar-icons alles-tool-btn';
+  b.className = `toastui-editor-toolbar-icons alles-tool-btn alles-tool-${tooltip}`;
   b.innerHTML = html;
   b.addEventListener('click', e => { e.preventDefault(); onClick(); });
   return { name: tooltip, tooltip, el: b };
@@ -77,7 +118,6 @@ export async function createDocEditor(el, { initialValue = '', onChange } = {}) 
   const colorSyntax = window.toastui?.Editor?.plugin?.uml;   // color-syntax (mis-named in the umd)
   el.innerHTML = '';
 
-  const _svg = paths => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${paths}</svg>`;
   const underlineBtn = _toolBtn(_svg('<path d="M6 4v6a6 6 0 0 0 12 0V4"/><line x1="4" y1="21" x2="20" y2="21"/>'), 'underline', () => {
     if (_editor.isMarkdownMode()) _mdWrap('<u>', '</u>');
     else _editor.exec('underline');
@@ -114,6 +154,12 @@ export async function createDocEditor(el, { initialValue = '', onChange } = {}) 
     ],
     events: { change: () => onChange?.() },
   });
+  _polishToolbarIcons(el);
+  // re-polish whenever toast re-renders toolbar buttons (mode/state changes wipe
+  // our icons). re-entry is a no-op thanks to the dataset marker, so no loop.
+  const tb = el.querySelector('.toastui-editor-defaultUI-toolbar') || el;
+  new MutationObserver(() => _polishToolbarIcons(el))
+    .observe(tb, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
   return _editor;
 }
 
