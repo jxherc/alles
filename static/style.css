@@ -1582,8 +1582,10 @@ code {
   font-size: 2.5rem; font-weight: 600; letter-spacing: -0.045em; color: var(--text);
   line-height: 1;
 }
-.home-greeting { font-size: 0.92rem; color: var(--muted); margin-top: 0.75rem; letter-spacing: 0.01em; }
+.home-greeting { font-size: 1.05rem; color: var(--text); margin-top: 0.75rem; letter-spacing: 0.01em; }
 .home-greeting .accent { color: var(--accent); }
+.home-greeting:hover { color: var(--accent); transition: color 0.15s ease; }
+.home-tagline { font-size: 0.72rem; color: var(--muted); margin-top: 0.2rem; letter-spacing: 0.02em; }
 .home-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.6rem; }
 .home-tile {
   display: flex; flex-direction: column; gap: 0.5rem;
@@ -2019,9 +2021,10 @@ code {
 /* ── home: today strip ── */
 .home-today {
   display: flex; flex-direction: column; gap: 0.55rem;
-  width: 100%; max-width: 560px; margin: 0 auto 1.4rem;
+  width: fit-content; min-width: 340px; max-width: min(560px, 92%);
+  margin: 0 auto 1.4rem;
   border: 1px solid var(--faint); border-radius: 8px;
-  padding: 0.75rem 0.9rem;
+  padding: 0.75rem 1.1rem;
   background: color-mix(in srgb, var(--panel) 70%, transparent);
 }
 .ht-rows { display: flex; flex-direction: column; gap: 0.3rem; }
@@ -2588,6 +2591,14 @@ code {
   padding: 0.65rem clamp(1rem, 4vw, 3.4rem);
   gap: 0.35rem; border-bottom: 1px solid var(--faint);
 }
+/* the file-tree toggle reads as a stray box when it's the only thing next to
+   the title — make it a ghost icon button instead */
+#wiki-tree-toggle {
+  background: none; border: none;
+  color: var(--muted); font-size: 0.9rem;
+  padding: 0.1rem 0.35rem; cursor: pointer;
+}
+#wiki-tree-toggle:hover { color: var(--text); background: var(--panel); border-radius: 4px; }
 .docs-editor-head .btn {
   padding: 0.28rem 0.55rem; font-size: 0.64rem; letter-spacing: 0;
 }
@@ -2768,24 +2779,39 @@ code {
   filter: brightness(0) saturate(100%) invert(62%) sepia(32%) saturate(3700%) hue-rotate(216deg) brightness(100%) contrast(95%);
 }
 
-/* bottom mode switch + write/preview tabs */
-.toastui-editor-mode-switch,
-.toastui-editor-md-tab-container {
+/* bottom mode switch + write/preview tabs — both restyled as quiet lowercase
+   text-tabs (the vendor draws boxed fixed-width tabs that look foreign here) */
+.toastui-editor-mode-switch {
   background: var(--bg) !important;
   border-top: 1px solid var(--faint) !important;
   border-bottom: none !important;
 }
+.toastui-editor-md-tab-container {
+  background: var(--bg) !important;
+  border: none !important;
+  display: flex; align-items: center;
+}
+.toastui-editor-md-tab-container .toastui-editor-tabs { margin: 0 4px 0 10px !important; }
 .toastui-editor-mode-switch .tab-item,
 .toastui-editor-md-tab-container .tab-item {
+  width: auto !important; height: auto !important;
+  line-height: 1 !important;
+  padding: 0.45rem 0.6rem 0.5rem !important;
+  margin: 0 0.15rem 0 0 !important;
   color: var(--muted) !important;
   background: transparent !important;
   border: none !important;
-  font-size: 0.72rem !important;
+  border-radius: 4px 4px 0 0 !important;
+  font-family: 'Inter', system-ui, sans-serif !important;
+  font-size: 0.72rem !important; font-weight: 500 !important;
+  text-transform: lowercase; letter-spacing: 0.03em;
 }
+.toastui-editor-mode-switch .tab-item:hover,
+.toastui-editor-md-tab-container .tab-item:hover { color: var(--text) !important; }
 .toastui-editor-mode-switch .tab-item.active,
 .toastui-editor-md-tab-container .tab-item.active {
   color: var(--text) !important;
-  border-bottom: 1.5px solid var(--accent) !important;
+  box-shadow: inset 0 -1.5px 0 var(--accent) !important;
 }
 
 /* content typography — shared by the wysiwyg surface and the preview */
@@ -2837,19 +2863,16 @@ code {
 .toastui-editor-contents table td { border: 1px solid var(--faint) !important; }
 .toastui-editor-contents table th { background: var(--panel) !important; color: var(--text) !important; font-weight: 600; }
 
-/* our custom toolbar buttons (underline / highlight / wikilink) — text glyphs,
-   not sprite icons, so they need their own colors */
+/* our custom toolbar buttons (underline / highlight / wikilink) — svg line
+   icons that sit exactly like the sprite icons next to them */
 .alles-tool-btn {
   background-image: none !important;
   color: var(--muted) !important;
-  font-size: 0.78rem !important; font-weight: 600;
-  display: inline-flex !important; align-items: center; justify-content: center;
+  display: inline-flex !important; align-items: center !important; justify-content: center !important;
+  opacity: 0.78;
 }
-.alles-tool-btn:hover { color: var(--text) !important; }
-.alles-tool-btn .alles-hl {
-  background: color-mix(in srgb, var(--accent) 30%, transparent);
-  border-radius: 2px; padding: 0 0.18em;
-}
+.alles-tool-btn svg { width: 15px; height: 15px; display: block; }
+.alles-tool-btn:hover { color: var(--text) !important; opacity: 1; }
 /* underline + highlight in the editing surface and preview */
 .toastui-editor-contents u { text-decoration-color: color-mix(in srgb, var(--accent) 70%, var(--text)); }
 .toastui-editor-contents mark {
