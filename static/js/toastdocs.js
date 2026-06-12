@@ -39,10 +39,12 @@ function ensureToast() {
   return _loadP;
 }
 
-// register <u> and <mark> as real wysiwyg marks so they round-trip to markdown
+// register <u> and <mark> as real wysiwyg marks so they round-trip to markdown.
+// attrs pass through so colored highlights (<mark style="background-color:…">)
+// survive the md → wysiwyg direction too
 const _htmlInline = {
-  u(n, { entering })    { return { type: entering ? 'openTag' : 'closeTag', tagName: 'u' }; },
-  mark(n, { entering }) { return { type: entering ? 'openTag' : 'closeTag', tagName: 'mark' }; },
+  u(n, { entering })    { return entering ? { type: 'openTag', tagName: 'u', attributes: n.attrs } : { type: 'closeTag', tagName: 'u' }; },
+  mark(n, { entering }) { return entering ? { type: 'openTag', tagName: 'mark', attributes: n.attrs } : { type: 'closeTag', tagName: 'mark' }; },
 };
 
 function _inlinePlugin() {
@@ -61,6 +63,80 @@ function _inlinePlugin() {
 function _mdWrap(open, close) {
   const sel = _editor.getSelectedText();
   _editor.replaceSelection(`${open}${sel}${close}`);
+}
+
+// ── app-styled swatch popup (replaces the vendor color-picker wheel) ─────────
+const _TEXT_COLORS = ['#f87171', '#fbbf24', '#4ade80', '#38bdf8', '#818cf8', '#f472b6'];
+const _HL_COLORS   = ['#713f12', '#14532d', '#1e3a8a', '#581c87', '#7f1d1d', '#334155'];
+let _palEl = null;
+
+function _closePalette() {
+  _palEl?.remove(); _palEl = null;
+  document.removeEventListener('mousedown', _palOutside, true);
+  document.removeEventListener('keydown', _palEsc, true);
+}
+function _palOutside(e) { if (_palEl && !_palEl.contains(e.target)) _closePalette(); }
+function _palEsc(e) { if (e.key === 'Escape') _closePalette(); }
+
+function _openPalette(anchor, colors, onPick, onClear) {
+  if (_palEl) { _closePalette(); return; }
+  const r = anchor.getBoundingClientRect();
+  const p = document.createElement('div');
+  p.className = 'alles-palette';
+  p.style.left = Math.round(r.left) + 'px';
+  p.style.top = Math.round(r.bottom + 6) + 'px';
+  colors.forEach(c => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'alles-swatch';
+    b.style.background = c;
+    b.addEventListener('click', () => { _closePalette(); onPick(c); });
+    p.appendChild(b);
+  });
+  if (onClear) {
+    const x = document.createElement('button');
+    x.type = 'button';
+    x.className = 'alles-swatch alles-swatch-clear';
+    x.title = 'clear';
+    x.textContent = '×';
+    x.addEventListener('click', () => { _closePalette(); onClear(); });
+    p.appendChild(x);
+  }
+  document.body.appendChild(p);
+  _palEl = p;
+  document.addEventListener('mousedown', _palOutside, true);
+  document.addEventListener('keydown', _palEsc, true);
+}
+
+// colored highlight straight on the prosemirror state — exec('highlight') only
+// does the single default color
+function _applyHighlight(color) {
+  if (_editor.isMarkdownMode()) {
+    _mdWrap(`<mark style="background-color: ${color}">`, '</mark>');
+    return;
+  }
+  const view = _editor.wwEditor.view;
+  const { state, dispatch } = view;
+  const { from, to, empty } = state.selection;
+  if (empty) return;
+  const mt = state.schema.marks.mark;
+  dispatch(state.tr.addMark(from, to, mt.create({ htmlAttrs: { style: `background-color: ${color}` } })));
+}
+function _clearHighlight() {
+  if (_editor.isMarkdownMode()) return;
+  const view = _editor.wwEditor.view;
+  const { state, dispatch } = view;
+  const { from, to, empty } = state.selection;
+  if (empty) return;
+  dispatch(state.tr.removeMark(from, to, state.schema.marks.mark));
+}
+function _clearTextColor() {
+  if (_editor.isMarkdownMode()) return;
+  const view = _editor.wwEditor.view;
+  const { state, dispatch } = view;
+  const { from, to, empty } = state.selection;
+  if (empty) return;
+  dispatch(state.tr.removeMark(from, to, state.schema.marks.span));
 }
 
 const _svg = paths => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${paths}</svg>`;
@@ -101,6 +177,15 @@ function _polishToolbarIcons(root) {
     btn.dataset.allesTool = key;
     btn.classList.add('alles-tool-btn', 'alles-vendor-tool-btn');
     btn.innerHTML = _TOOLBAR_ICONS[key];
+    if (key === 'color') {
+      // hijack the vendor button — our swatches instead of the tui color wheel
+      btn.addEventListener('click', e => {
+        e.preventDefault(); e.stopImmediatePropagation();
+        _openPalette(btn, _TEXT_COLORS,
+          c => _editor.exec('color', { selectedColor: c }),
+          () => _clearTextColor());
+      }, true);
+    }
   });
 }
 
@@ -122,10 +207,11 @@ export async function createDocEditor(el, { initialValue = '', onChange } = {}) 
     if (_editor.isMarkdownMode()) _mdWrap('<u>', '</u>');
     else _editor.exec('underline');
   });
+  let _hlBtnRef;
   const highlightBtn = _toolBtn(_svg('<path d="m9 11-6 6v3h9l3-3"/><path d="m22 12-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4l8 8Z"/>'), 'highlight', () => {
-    if (_editor.isMarkdownMode()) _mdWrap('<mark>', '</mark>');
-    else _editor.exec('highlight');
+    _openPalette(_hlBtnRef, _HL_COLORS, c => _applyHighlight(c), () => _clearHighlight());
   });
+  _hlBtnRef = highlightBtn.el;
   const wikiBtn = _toolBtn(_svg('<path d="M8 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h2"/><path d="M16 3h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-2"/>'), 'wikilink', () => {
     // plain text — safe in both modes; cursor lands inside empty brackets
     const sel = _editor.getSelectedText();
@@ -154,6 +240,7 @@ export async function createDocEditor(el, { initialValue = '', onChange } = {}) 
     ],
     events: { change: () => onChange?.() },
   });
+  window._docEd = _editor;   // debug handle
   _polishToolbarIcons(el);
   // re-polish whenever toast re-renders toolbar buttons (mode/state changes wipe
   // our icons). re-entry is a no-op thanks to the dataset marker, so no loop.

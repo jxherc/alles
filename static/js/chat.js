@@ -204,9 +204,16 @@ export async function sendMessage(text) {
 
     addCursor(body);
 
+    // proxy-buffering detector: if the whole reply lands in one burst after a
+    // long wait, something between the browser and the server held the stream
+    const tReq = Date.now();
+    let tFirstRead = 0, nReads = 0;
+
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
+      nReads++;
+      if (!tFirstRead) tFirstRead = Date.now();
       buf += decoder.decode(value, { stream: true });
 
       const lines = buf.split('\n');
@@ -414,6 +421,17 @@ export async function sendMessage(text) {
           accText += chunk.delta;
           scheduleRender();
         }
+      }
+    }
+
+    // whole reply in one burst after >2.5s of silence = a buffering proxy ate
+    // the stream (clash etc. buffer plain-http chunked responses when the
+    // *.localhost host isn't in the bypass list). tell the user once a day.
+    if (tFirstRead && nReads > 3 && tFirstRead - tReq > 2500 && Date.now() - tFirstRead < 150) {
+      const k = 'stream-buffer-warned';
+      if (Date.now() - (+localStorage.getItem(k) || 0) > 86400000) {
+        localStorage.setItem(k, Date.now());
+        toast('reply arrived all at once — a proxy is buffering the stream. using clash? add *.localhost to its system-proxy bypass list', 'error');
       }
     }
 

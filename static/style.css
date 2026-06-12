@@ -1949,6 +1949,15 @@ code {
 .sub-item.editing .settings-input { font-size: 0.72rem; }
 
 /* ── days: countdowns & days-since ── */
+/* subs + days are full apps on their own subdomains now — full-bleed like
+   mail/docs, not the skinny 760px centered column */
+#subs-view .page-view-head, #days-view .page-view-head,
+#subs-view .page-view-body, #days-view .page-view-body,
+#subs-view .page-view-footer, #days-view .page-view-footer {
+  max-width: none;
+  padding-left: clamp(0.9rem, 3vw, 2.4rem);
+  padding-right: clamp(0.9rem, 3vw, 2.4rem);
+}
 .days-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
@@ -2896,6 +2905,23 @@ code {
   display: flex; flex-direction: column; gap: 1px;
   color: currentColor; font: 650 0.78rem/0.8 'JetBrains Mono', ui-monospace, monospace;
 }
+/* swatch popup — ours, not the vendor color wheel */
+.alles-palette {
+  position: fixed; z-index: 300;
+  display: flex; gap: 4px; padding: 6px;
+  background: var(--panel); border: 1px solid var(--faint); border-radius: 3px;
+}
+.alles-swatch {
+  width: 20px; height: 20px; border-radius: 2px; cursor: pointer;
+  border: 1px solid transparent; padding: 0;
+}
+.alles-swatch:hover { border-color: var(--text); }
+.alles-swatch-clear {
+  background: none; color: var(--muted); font-size: 0.85rem; line-height: 1;
+  border: 1px solid var(--faint);
+}
+.alles-swatch-clear:hover { color: var(--text); }
+
 /* underline + highlight in the editing surface and preview */
 .toastui-editor-contents u { text-decoration-color: color-mix(in srgb, var(--accent) 70%, var(--text)); }
 .toastui-editor-contents mark {
@@ -3276,7 +3302,8 @@ code {
   max-width: none;
   margin: 0;
   min-height: 52px;
-  padding: 0.62rem clamp(0.9rem, 3vw, 2.4rem);
+  /* lines the tabs up with the mail rows below (.mail-row pads 0.8rem) */
+  padding: 0.62rem 0.8rem;
   gap: 0.5rem;
   border-bottom: 1px solid var(--faint);
 }
