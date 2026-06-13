@@ -97,8 +97,10 @@ function syncAccountSelect() {
   populateDropdown(sel, opts, _active);
 }
 
-async function fetchInboxFor(account, limit = 35, folder = 'INBOX') {
-  const url = `/api/mail/inbox/${account.id}?folder=${encodeURIComponent(folder)}&limit=${limit}`;
+async function fetchInboxFor(account, limit = 35, folder = 'INBOX', quick = false) {
+  // quick=1 lets the server skip the full header re-fetch when the mailbox tip
+  // hasn't moved — keeps the 30s background poll cheap on slow connections
+  const url = `/api/mail/inbox/${account.id}?folder=${encodeURIComponent(folder)}&limit=${limit}${quick ? '&quick=1' : ''}`;
   const d = await fetch(url).then(r => r.json());
   if (d.error) throw new Error(d.error);
   return (d.messages || []).map(m => ({ ...m, account_id: account.id, account_name: account.name || account.email, folder }));
@@ -144,7 +146,7 @@ async function loadInbox(force = false, silent = false) {
   const accts = _active === 'all' ? _accounts : _accounts.filter(a => a.id === _active);
   const results = await Promise.allSettled(accts.map(async a => {
     const folder = _filter === 'sent' ? await sentFolderFor(a) : 'INBOX';
-    return fetchInboxFor(a, _active === 'all' ? 30 : 45, folder);
+    return fetchInboxFor(a, _active === 'all' ? 30 : 45, folder, silent);   // silent poll → cheap quick fetch
   }));
   const messages = results.flatMap(r => r.status === 'fulfilled' ? r.value : []);
   const errors = results

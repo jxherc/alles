@@ -2620,60 +2620,36 @@ code {
 .docs-editor-head .btn {
   padding: 0.28rem 0.55rem; font-size: 0.64rem; letter-spacing: 0;
 }
-.wiki-editor { flex: 1; display: flex; overflow: hidden; }
-/* one surface at a time — live (styled editing, default) · source (raw codes) · read (rendered) */
-.wiki-live, .wiki-source, .wiki-preview {
+/* editor surface: a markdown source textarea (the value IS the saved doc, so it
+   can never corrupt) next to the rendered preview. modes: edit · split · preview */
+.wiki-edit-wrap { flex: 1; min-height: 0; display: flex; overflow: hidden; }
+.wiki-source, .wiki-preview {
   flex: 1; min-width: 0; overflow-y: auto;
   padding: 2rem clamp(1.5rem, 12%, 7rem);
   line-height: 1.75;
 }
-.wiki-live {
-  display: block; outline: none; color: var(--text);
-  white-space: pre-wrap; word-break: break-word;
-  font-family: 'Inter', -apple-system, system-ui, sans-serif; font-size: 1rem;
-  caret-color: var(--accent);
-}
-.wiki-live:empty::before { content: attr(data-ph); color: var(--faint); pointer-events: none; }
 .wiki-source {
-  display: none; background: none; border: none; resize: none; outline: none; color: var(--text);
-  font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 0.9rem; line-height: 1.7;
+  display: block; background: none; border: none; resize: none; outline: none; color: var(--text);
+  white-space: pre-wrap; word-break: break-word; width: 100%;
+  font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 0.92rem; line-height: 1.75;
+  caret-color: var(--accent); tab-size: 2;
 }
+.wiki-source::placeholder { color: var(--faint); }
 .wiki-preview { display: none; font-size: 1rem; line-height: 1.7; }
-#wiki-view.docs-source .wiki-live { display: none; }
-#wiki-view.docs-source .wiki-source { display: block; }
-#wiki-view.docs-rendered .wiki-live { display: none; }
-#wiki-view.docs-rendered .wiki-preview { display: block; }
-
-/* live (edit) mode = WYSIWYG: the syntax chars are hidden and content rendered,
-   but the raw markdown still lives in the DOM text, so saving stays exact. */
-.wiki-live .lp-sy { display: none; }
-.wiki-live .lp-h { font-weight: 600; letter-spacing: -0.01em; }
-.wiki-live .lp-h1 { font-size: 1.5em; }
-.wiki-live .lp-h2 { font-size: 1.3em; }
-.wiki-live .lp-h3 { font-size: 1.12em; }
-.wiki-live .lp-b { font-weight: 700; }
-.wiki-live .lp-i { font-style: italic; }
-.wiki-live .lp-s { text-decoration: line-through; color: var(--muted); }
-.wiki-live .lp-mark { background: color-mix(in srgb, var(--accent) 25%, transparent); border-radius: 2px; padding: 0 0.1em; }
-.wiki-live .lp-code { font-family: 'JetBrains Mono', monospace; font-size: 0.88em; color: var(--accent); }
-.wiki-live .wikilink { color: var(--accent); cursor: pointer; border-bottom: 1px dashed color-mix(in srgb, var(--accent) 45%, transparent); }
-.wiki-live .lp-tag { color: var(--accent); }
-.wiki-live .lp-link { color: var(--accent); }
-/* list / quote markers drawn with ::before so they're never in the saved text */
-.wiki-live .lp-li::before { content: "•  "; color: var(--muted); }
-.wiki-live .lp-num { color: var(--muted); margin-right: 0.35em; }
-.wiki-live .lp-task::before { content: "☐  "; color: var(--muted); }
-.wiki-live .lp-task-done::before { content: "☑  "; color: var(--accent); }
-.wiki-live .lp-task-done { color: var(--muted); }
-.wiki-live .lp-quote { border-left: 2px solid var(--accent); padding-left: 0.55em; color: var(--muted); }
-.wiki-live .lp-hr { color: var(--faint); }
+/* split: editor on the left, live preview on the right (both narrower padding) */
+#wiki-view.docs-split .wiki-preview { display: block; border-left: 1px solid var(--faint); }
+#wiki-view.docs-split .wiki-source,
+#wiki-view.docs-split .wiki-preview { padding: 1.6rem clamp(1rem, 4%, 2.6rem); }
+/* preview-only: rendered, full width, source hidden */
+#wiki-view.docs-preview .wiki-source { display: none; }
+#wiki-view.docs-preview .wiki-preview { display: block; }
+#wiki-view.docs-preview .docs-toolbar { display: none; }
 
 /* docs formatting toolbar (google-docs style) */
 .docs-toolbar {
   display: flex; align-items: center; gap: 0.12rem; flex-wrap: wrap;
   padding: 0.3rem 1.5rem; border-bottom: 1px solid var(--faint); flex-shrink: 0;
 }
-#wiki-view.docs-source .docs-toolbar,
 #wiki-view.no-note .docs-toolbar { display: none; }
 .dt-btn {
   min-width: 26px; height: 26px; padding: 0 0.4rem;
@@ -2747,228 +2723,16 @@ code {
   transition: border-color 0.2s ease, color 0.2s ease;
 }
 .we-recent-item:hover { border-color: color-mix(in srgb, var(--accent) 55%, var(--faint)); color: var(--accent); }
-#wiki-view.no-note .wiki-editor,
-#wiki-view.no-note #toast-editor,
+#wiki-view.no-note .wiki-edit-wrap,
 #wiki-view.no-note .wiki-backlinks,
 #wiki-view.no-note .doc-ai-bar { display: none; }
 
-/* ── Toast UI editor — restyled to feel native to the alles theme ────────── */
-.toast-editor { flex: 1; min-height: 0; overflow: hidden; }
-.toastui-editor-defaultUI {
-  border: none !important; height: 100% !important;
-  font-family: 'Inter', system-ui, sans-serif !important;
-}
-.toastui-editor-main,
-.toastui-editor-md-container,
-.toastui-editor-md-preview,
-.toastui-editor-ww-container { background: var(--bg) !important; }
-.toastui-editor-md-splitter { background: var(--faint) !important; }
-
-/* toolbar */
-.toastui-editor-toolbar { background: var(--bg) !important; }
-.toastui-editor-defaultUI-toolbar {
-  background: var(--bg) !important;
-  border: none !important;
-  border-bottom: 1px solid var(--faint) !important;
-  padding: 0.35rem 0.55rem 0.35rem 0.3rem !important;  /* left pad lines the first icon up with the ☰ toggle above */
-  align-items: center !important;
-}
-.toastui-editor-toolbar-divider { background-color: var(--faint) !important; margin: 0 0.4rem !important; }
-.toastui-editor-toolbar-group { align-items: center !important; }
-.toastui-editor-toolbar-icons {
-  border: 1px solid transparent !important;
-  border-radius: 5px !important;
-  width: 32px !important; height: 32px !important; padding: 0 !important;
-  margin: 0 1px !important;
-  opacity: 0.78;
-  transition: background 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
-}
-.toastui-editor-toolbar-icons:not(:disabled):hover {
-  background-color: var(--panel) !important;
-  border-color: var(--faint) !important;
-  opacity: 1;
-}
-.toastui-editor-toolbar-icons.active {
-  background-color: transparent !important;
-  border-color: transparent !important;
-  opacity: 1;
-  /* tint the sprite glyph itself to the accent — no box */
-  filter: brightness(0) saturate(100%) invert(62%) sepia(32%) saturate(3700%) hue-rotate(216deg) brightness(100%) contrast(95%);
-}
-.toastui-editor-toolbar-icons.alles-tool-btn.active {
-  color: var(--accent) !important;
-  filter: none !important;
-}
-
-/* Toast UI's Markdown write/preview tabs are redundant in the WYSIWYG docs editor. */
-.toastui-editor-mode-switch {
-  background: var(--bg) !important;
-  border-top: 1px solid var(--faint) !important;
-  border-bottom: none !important;
-}
-.toastui-editor-md-tab-container {
-  display: none !important;
-}
-.toastui-editor-mode-switch .tab-item {
-  width: auto !important; min-width: 3.8rem !important; height: auto !important;
-  line-height: 1 !important;
-  padding: 0.45rem 0.6rem 0.5rem !important;
-  margin: 0 0.15rem 0 0 !important;
-  color: var(--muted) !important;
-  background: transparent !important;
-  border: none !important;
-  border-radius: 4px 4px 0 0 !important;
-  font-family: 'Inter', system-ui, sans-serif !important;
-  font-size: 0.72rem !important; font-weight: 500 !important;
-  text-transform: lowercase; letter-spacing: 0.03em;
-}
-.toastui-editor-mode-switch .tab-item:hover { color: var(--text) !important; }
-.toastui-editor-mode-switch .tab-item.active {
-  color: var(--text) !important;
-  box-shadow: inset 0 -1.5px 0 var(--accent) !important;
-}
-
-/* content typography — shared by the wysiwyg surface and the preview */
-.toastui-editor-contents {
-  font-family: 'Inter', system-ui, sans-serif !important;
-  color: var(--text) !important;
-  font-size: 0.92rem; line-height: 1.7;
-}
-.toastui-editor-contents p,
-.toastui-editor-contents li,
-.toastui-editor-contents td,
-.toastui-editor-contents strong,
-.toastui-editor-contents em { color: var(--text); }
-.toastui-editor-contents h1,
-.toastui-editor-contents h2,
-.toastui-editor-contents h3,
-.toastui-editor-contents h4,
-.toastui-editor-contents h5,
-.toastui-editor-contents h6 {
-  color: var(--text) !important;
-  font-weight: 600; letter-spacing: -0.02em; border: none; margin: 1.15em 0 0.5em;
-}
-.toastui-editor-contents h1 { font-size: 1.6rem; padding-bottom: 0.28em; border-bottom: 1px solid var(--faint) !important; }
-.toastui-editor-contents h2 { font-size: 1.3rem; padding-bottom: 0.22em; border-bottom: 1px solid var(--faint) !important; }
-.toastui-editor-contents h3 { font-size: 1.12rem; }
-.toastui-editor-contents h4 { font-size: 1rem; }
-.toastui-editor-contents h5,
-.toastui-editor-contents h6 { font-size: 0.9rem; color: var(--muted) !important; }
-.toastui-editor-contents a {
-  color: var(--accent) !important; text-decoration: none;
-  border-bottom: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
-}
-.toastui-editor-contents a:hover { border-bottom-color: var(--accent); }
-.toastui-editor-contents blockquote {
-  border-left: 2px solid var(--accent) !important; color: var(--muted) !important;
-  padding: 0.1rem 0 0.1rem 0.9rem !important; margin: 0.8em 0;
-}
-.toastui-editor-contents blockquote p { color: var(--muted) !important; }
-.toastui-editor-contents hr { border-top: 1px solid var(--faint) !important; }
-.toastui-editor-contents code {
-  font-family: 'JetBrains Mono', monospace !important; font-size: 0.85em;
-  background: var(--panel) !important; color: var(--text) !important;
-  border: 1px solid var(--faint); border-radius: 3px; padding: 0.05em 0.35em;
-}
-.toastui-editor-contents pre { background: var(--panel) !important; border: 1px solid var(--faint) !important; border-radius: 5px; }
-.toastui-editor-contents pre code { background: none !important; border: none; padding: 0; }
-.toastui-editor-contents table { border-collapse: collapse; }
-.toastui-editor-contents table th,
-.toastui-editor-contents table td { border: 1px solid var(--faint) !important; }
-.toastui-editor-contents table th { background: var(--panel) !important; color: var(--text) !important; font-weight: 600; }
-
-/* our custom toolbar buttons (underline / highlight / wikilink) — svg line
-   icons that sit exactly like the sprite icons next to them */
-.alles-tool-btn {
-  background-image: none !important;
-  color: var(--muted) !important;
-  display: inline-flex !important; align-items: center !important; justify-content: center !important;
-  line-height: 0 !important;
-  opacity: 0.78;
-}
-.alles-tool-btn svg { width: 24px; height: 24px; display: block; }
-.alles-tool-btn:hover { color: var(--text) !important; opacity: 1; }
-.alles-tool-text {
-  color: currentColor; font-size: 1.52rem; font-weight: 430; line-height: 1;
-}
-.alles-tool-heading { font-weight: 360; }
-.alles-tool-bold { font-weight: 760; }
-.alles-tool-italic { font-style: italic; transform: skewX(-5deg); }
-.alles-tool-color { border-bottom: 2px solid var(--accent); padding-bottom: 1px; }
-.alles-tool-strike { text-decoration: line-through; text-decoration-thickness: 1.5px; }
-.alles-tool-quote,
-.alles-tool-codeblock {
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 1.08rem; font-weight: 600; letter-spacing: -0.05em;
-}
-.alles-tool-ordered {
-  display: flex; flex-direction: column; gap: 1px;
-  color: currentColor; font: 650 0.78rem/0.8 'JetBrains Mono', ui-monospace, monospace;
-}
-/* swatch popup — ours, not the vendor color wheel */
-.alles-palette {
-  position: fixed; z-index: 300;
-  display: flex; gap: 4px; padding: 6px;
-  background: var(--panel); border: 1px solid var(--faint); border-radius: 3px;
-}
-.alles-swatch {
-  width: 20px; height: 20px; border-radius: 2px; cursor: pointer;
-  border: 1px solid transparent; padding: 0;
-}
-.alles-swatch:hover { border-color: var(--text); }
-.alles-swatch-clear {
-  background: none; color: var(--muted); font-size: 0.85rem; line-height: 1;
-  border: 1px solid var(--faint);
-}
-.alles-swatch-clear:hover { color: var(--text); }
-
-/* underline + highlight in the editing surface and preview */
-.toastui-editor-contents u { text-decoration-color: color-mix(in srgb, var(--accent) 70%, var(--text)); }
-.toastui-editor-contents mark {
-  background: color-mix(in srgb, var(--accent) 28%, transparent);
-  color: var(--text); padding: 0 0.15em; border-radius: 2px;
-}
-
-/* placeholder + selection */
-.ProseMirror .placeholder,
-.toastui-editor-contents-placeholder::before { color: var(--muted) !important; }
-.toastui-editor-contents .ProseMirror-selectednode { outline-color: var(--accent) !important; }
-
-/* popups, dropdowns, context menu, tooltip */
-.toastui-editor-popup,
-.toastui-editor-context-menu,
-.toastui-editor-dropdown-toolbar {
-  background: var(--panel) !important;
-  border: 1px solid var(--faint) !important;
-  border-radius: 6px !important;
-  color: var(--text) !important;
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35) !important;
-}
-.toastui-editor-popup *,
-.toastui-editor-context-menu * { color: var(--text); }
-.toastui-editor-popup-body label { color: var(--muted) !important; }
-.toastui-editor-popup input[type=text],
-.toastui-editor-popup textarea,
-.toastui-editor-popup select {
-  background: var(--bg) !important;
-  border: 1px solid var(--faint) !important;
-  color: var(--text) !important;
-  border-radius: 3px !important;
-}
-.toastui-editor-popup input[type=text]:focus,
-.toastui-editor-popup textarea:focus { border-color: var(--muted) !important; }
-.toastui-editor-ok-button { background: var(--accent) !important; color: #fff !important; border: none !important; border-radius: 3px !important; }
-.toastui-editor-close-button { background: var(--panel) !important; color: var(--muted) !important; border: 1px solid var(--faint) !important; border-radius: 3px !important; }
-.toastui-editor-context-menu .menu-item:hover,
-.toastui-editor-dropdown-toolbar .toastui-editor-toolbar-icons:hover { background: var(--bg) !important; }
-.toastui-editor-tooltip {
-  background: var(--panel) !important; color: var(--text) !important;
-  border: 1px solid var(--faint) !important;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3) !important;
-}
-.toastui-editor-tooltip .arrow { display: none !important; }
 #wiki-view.no-note .wiki-empty-state { display: flex; }
-#wiki-view.no-note #wiki-preview-toggle,
+#wiki-view.no-note #wiki-mode-toggle,
+#wiki-view.no-note #wiki-ai-toggle,
+#wiki-view.no-note #wiki-outline-btn,
+#wiki-view.no-note #wiki-todos-btn,
+#wiki-view.no-note #wiki-history-btn,
 #wiki-view.no-note #wiki-export-btn,
 #wiki-view.no-note #wiki-delete-btn { display: none; }
 .wiki-preview .wikilink { color: var(--accent); text-decoration: none; border-bottom: 1px dashed color-mix(in srgb, var(--accent) 50%, transparent); cursor: pointer; }
