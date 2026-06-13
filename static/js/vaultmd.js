@@ -1,8 +1,13 @@
-// docs: file tree + markdown source editor + rendered preview, with [[wikilinks]],
-// backlinks, embeds, tags, graph, outline, history. the editor surface is a plain
-// textarea — its value IS the raw markdown, so a save can never corrupt the doc
-// (the old Toast WYSIWYG round-trip mangled frontmatter + wikilinks). preview is
-// the existing mdToHtml renderer, which already does math/mermaid/callouts/etc.
+// docs: file tree + a live-preview WYSIWYG editor + rendered preview, with
+// [[wikilinks]], backlinks, embeds, tags, graph, outline, history.
+//
+// the editor has three surfaces, cycled by the mode button:
+//   live    — WYSIWYG: markdown symbols (** # [[ ) are hidden, text shows styled
+//             inline; the symbols reveal on whatever line the caret is on. its
+//             textContent is ALWAYS the raw markdown, so a save can never corrupt
+//             the file (the old Toast wysiwyg mangled frontmatter + wikilinks).
+//   source  — raw markdown in a plain textarea.
+//   preview — fully rendered (math/mermaid/callouts/embeds), read-only.
 import { mdToHtml, toast, enhanceMarkdown } from './util.js';
 import { prompt as dlgPrompt, confirm as dlgConfirm } from './dialog.js';
 
@@ -14,139 +19,314 @@ const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const _syncEmpty = () => $('wiki-view')?.classList.toggle('no-note', !_cur);
 
-// ── view mode: edit (source) · split (source + live preview) · preview (rendered) ──
-const _DOCS_MODES = ['edit', 'split', 'preview'];
+// ── view mode: live (wysiwyg) · source (raw md) · preview (rendered) ──────────
+const _DOCS_MODES = ['live', 'source', 'preview'];
 let _docsMode = localStorage.getItem('docs-view-mode');
-if (!_DOCS_MODES.includes(_docsMode)) _docsMode = 'edit';
+if (!_DOCS_MODES.includes(_docsMode)) {
+  // migrate the old mode names
+  _docsMode = _docsMode === 'edit' ? 'source' : (_docsMode === 'split' ? 'live' : 'live');
+}
 
 function applyDocsMode() {
   const v = $('wiki-view');
   if (!v) return;
-  v.classList.toggle('docs-split', _docsMode === 'split');
+  v.classList.toggle('docs-source', _docsMode === 'source');
   v.classList.toggle('docs-preview', _docsMode === 'preview');
   const btn = $('wiki-mode-toggle');
   if (btn) btn.textContent = _docsMode;
-  if (_docsMode !== 'edit') renderPreview();
+  if (_docsMode === 'live') { const el = $('wiki-live'); if (el) el.innerHTML = highlightDoc(getEditor()); _liveActiveLine(); }
+  else if (_docsMode === 'preview') renderPreview();
 }
 function cycleMode() {
   _docsMode = _DOCS_MODES[(_DOCS_MODES.indexOf(_docsMode) + 1) % _DOCS_MODES.length];
   localStorage.setItem('docs-view-mode', _docsMode);
   applyDocsMode();
-  if (_docsMode !== 'preview') $('wiki-source')?.focus();
+  if (_docsMode === 'live') $('wiki-live')?.focus();
+  else if (_docsMode === 'source') $('wiki-source')?.focus();
 }
+const activeIsLive = () => _docsMode === 'live';
 
-// ── editor (textarea = source of truth) ──────────────────────────────────────
-const _ta = () => $('wiki-source');
-function getEditor() { return _ta()?.value ?? ''; }
+// ── source of truth ──────────────────────────────────────────────────────────
+// #wiki-source (textarea) is the canonical mirror that everything reads (save,
+// outline, preview). the live surface syncs its textContent into it on every input.
+function getEditor() { return $('wiki-source')?.value ?? ''; }
 function setEditor(md) {
-  const ta = _ta();
-  if (ta) ta.value = md || '';
-  if (_docsMode !== 'edit') renderPreview();
+  md = md || '';
+  const ta = $('wiki-source'); if (ta) ta.value = md;
+  const live = $('wiki-live'); if (live) live.innerHTML = highlightDoc(md);
+  if (_docsMode === 'live') _liveActiveLine();
+  if (_docsMode === 'preview') renderPreview();
 }
 
 let _pvT = 0;
 function schedulePreview() { clearTimeout(_pvT); _pvT = setTimeout(renderPreview, 120); }
 
-function onEditorInput() {
-  if (!_cur) return;
+// ── live (wysiwyg) surface ───────────────────────────────────────────────────
+// highlight: every branch emits html whose textContent equals the raw chars, so
+// el.textContent is always the exact markdown. each line wrapped in .lp-line so
+// the caret's line can reveal its raw symbols (obsidian-style).
+const _e = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+const _attr = s => String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+
+function highlightDoc(src) {
+  return (src ?? '').split('\n').map(l => `<span class="lp-line">${highlightLine(l)}</span>`).join('\n');
+}
+function highlightLine(line) {
+  if (line === '') return '';
+  let m;
+  if ((m = /^(#{1,6})(\s+)(.*)$/.exec(line)))
+    return `<span class="lp-sy">${_e(m[1] + m[2])}</span><span class="lp-h lp-h${Math.min(m[1].length, 3)}">${inlineHi(m[3])}</span>`;
+  if ((m = /^(\s*)(>\s?)(.*)$/.exec(line)))
+    return `${_e(m[1])}<span class="lp-quote"><span class="lp-sy">${_e(m[2])}</span>${inlineHi(m[3])}</span>`;
+  if ((m = /^(\s*)([-*]\s+)(\[([ xX])\]\s+)(.*)$/.exec(line)))
+    return `${_e(m[1])}<span class="lp-task lp-task-${/[xX]/.test(m[4]) ? 'done' : 'open'}"><span class="lp-sy">${_e(m[2] + m[3])}</span>${inlineHi(m[5])}</span>`;
+  if ((m = /^(\s*)([-*]\s+)(.*)$/.exec(line)))
+    return `${_e(m[1])}<span class="lp-li"><span class="lp-sy">${_e(m[2])}</span>${inlineHi(m[3])}</span>`;
+  if ((m = /^(\s*)(\d+\.)(\s+)(.*)$/.exec(line)))
+    return `${_e(m[1])}<span class="lp-oli"><span class="lp-num">${_e(m[2])}</span><span class="lp-sy">${_e(m[3])}</span>${inlineHi(m[4])}</span>`;
+  if (/^(---|\*\*\*|___)\s*$/.test(line))
+    return `<span class="lp-hr">${_e(line)}</span>`;
+  return inlineHi(line);
+}
+function inlineHi(text) {
+  let out = '', i = 0;
+  while (i < text.length) {
+    const rest = text.slice(i);
+    let m;
+    if ((m = /^`([^`]+)`/.exec(rest))) {
+      out += `<span class="lp-code"><span class="lp-sy">\`</span>${_e(m[1])}<span class="lp-sy">\`</span></span>`;
+    } else if ((m = /^!\[\[([^\]]+?)\]\]/.exec(rest))) {
+      out += `<span class="lp-sy">![[</span><span class="wikilink" data-note="${_attr(m[1].trim())}">${_e(m[1])}</span><span class="lp-sy">]]</span>`;
+    } else if ((m = /^\[\[([^\]|]+?)(\|[^\]]+)?\]\]/.exec(rest))) {
+      out += `<span class="lp-sy">[[</span><span class="wikilink" data-note="${_attr(m[1].trim())}">${_e(m[1] + (m[2] || ''))}</span><span class="lp-sy">]]</span>`;
+    } else if ((m = /^\{color:([#\w(),.\s-]+?)\}([^]*?)\{\/color\}/.exec(rest))) {
+      out += `<span class="lp-sy">{color:${_e(m[1])}}</span><span style="color:${_attr(m[1].trim())}">${inlineHi(m[2])}</span><span class="lp-sy">{/color}</span>`;
+    } else if ((m = /^\*\*([^*]+?)\*\*/.exec(rest))) {
+      out += `<span class="lp-sy">**</span><span class="lp-b">${_e(m[1])}</span><span class="lp-sy">**</span>`;
+    } else if ((m = /^\*([^*]+?)\*/.exec(rest))) {
+      out += `<span class="lp-sy">*</span><span class="lp-i">${_e(m[1])}</span><span class="lp-sy">*</span>`;
+    } else if ((m = /^~~([^~]+?)~~/.exec(rest))) {
+      out += `<span class="lp-sy">~~</span><span class="lp-s">${_e(m[1])}</span><span class="lp-sy">~~</span>`;
+    } else if ((m = /^==(\S(?:[^=]*\S)?)==/.exec(rest))) {
+      out += `<span class="lp-sy">==</span><span class="lp-mark">${_e(m[1])}</span><span class="lp-sy">==</span>`;
+    } else if ((m = /^\[([^\]]+?)\]\(([^)\s]+?)\)/.exec(rest))) {
+      out += `<span class="lp-sy">[</span><span class="lp-link">${_e(m[1])}</span><span class="lp-sy">](${_e(m[2])})</span>`;
+    } else if ((m = /^#([A-Za-z][\w/\-]*)/.exec(rest)) && (i === 0 || /\s/.test(text[i - 1]))) {
+      out += `<span class="lp-tag">#${_e(m[1])}</span>`;
+    } else {
+      out += _e(text[i]); i++; continue;
+    }
+    i += m[0].length;
+  }
+  return out;
+}
+
+// caret <-> raw-offset helpers (offsets count DOM text, incl. hidden symbol spans,
+// so they line up exactly with the raw markdown)
+function _caretOffset(el) {
+  const sel = window.getSelection();
+  if (!sel || !sel.rangeCount) return null;
+  const r = sel.getRangeAt(0);
+  if (!el.contains(r.endContainer)) return null;
+  const pre = r.cloneRange();
+  pre.selectNodeContents(el);
+  pre.setEnd(r.endContainer, r.endOffset);
+  return pre.toString().length;
+}
+function _setCaret(el, offset) {
+  const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, null);
+  let count = 0, node = null, nodeOff = 0, n;
+  while ((n = walker.nextNode())) {
+    const len = n.textContent.length;
+    if (count + len >= offset) { node = n; nodeOff = offset - count; break; }
+    count += len;
+  }
+  const range = document.createRange();
+  if (node) range.setStart(node, Math.min(nodeOff, node.textContent.length));
+  else { range.selectNodeContents(el); range.collapse(false); }
+  range.collapse(true);
+  const sel = window.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(range);
+}
+function _rangeAt(el, offset) {
+  const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, null);
+  let count = 0, n, last = null;
+  while ((n = walker.nextNode())) {
+    last = n; const len = n.textContent.length;
+    if (count + len >= offset) return { node: n, off: offset - count };
+    count += len;
+  }
+  return last ? { node: last, off: last.textContent.length } : { node: el, off: 0 };
+}
+function _selectRange(el, start, end) {
+  const a = _rangeAt(el, start), b = _rangeAt(el, end);
+  const r = document.createRange();
+  try { r.setStart(a.node, a.off); r.setEnd(b.node, b.off); }
+  catch { r.selectNodeContents(el); r.collapse(false); }
+  const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(r);
+}
+function _liveSelOffsets(el) {
+  const sel = window.getSelection();
+  if (!sel || !sel.rangeCount) return null;
+  const r = sel.getRangeAt(0);
+  if (!el.contains(r.startContainer) || !el.contains(r.endContainer)) return null;
+  const pre = r.cloneRange(); pre.selectNodeContents(el); pre.setEnd(r.startContainer, r.startOffset);
+  const start = pre.toString().length;
+  return { start, end: start + r.toString().length };
+}
+
+let _composing = false, _liveInited = false;
+function _liveSync() {
+  const live = $('wiki-live'); const ta = $('wiki-source');
+  if (live && ta) ta.value = live.textContent;
   queueSave();
-  autocomplete();
-  if (_docsMode !== 'edit') schedulePreview();
 }
-
-function onEditorKeydown(e) {
-  // autocomplete gets first dibs on nav keys while its popup is open
-  if ($('wiki-autocomplete')?.style.display === 'block' && _acItems.length) {
-    acKeydown(e);
-    if (e.defaultPrevented) return;
-  }
-  const mod = e.ctrlKey || e.metaKey;
-  if (mod && !e.altKey) {
-    const k = e.key.toLowerCase();
-    let hit = true;
-    if      (k === 'b' && !e.shiftKey) wrapSel('**', '**');
-    else if (k === 'i' && !e.shiftKey) wrapSel('*', '*');
-    else if (k === 'e' && !e.shiftKey) wrapSel('`', '`');
-    else if (k === 'k' && !e.shiftKey) insertLink();
-    else if (k === 'x' && e.shiftKey)  wrapSel('~~', '~~');
-    else if (k === 'h' && e.shiftKey)  wrapSel('==', '==');
-    else hit = false;
-    if (hit) { e.preventDefault(); return; }
-  }
-  if (e.key === 'Tab') {
+function _liveRehighlight() {
+  const el = $('wiki-live'); if (!el) return;
+  const off = _caretOffset(el);
+  el.innerHTML = highlightDoc(el.textContent);
+  if (off != null) _setCaret(el, off);
+  _liveActiveLine();
+}
+// reveal the raw symbols on the caret's line (so editing markers is real, not blind)
+function _liveActiveLine() {
+  const el = $('wiki-live'); if (!el || _docsMode !== 'live') return;
+  el.querySelectorAll('.lp-line.active').forEach(s => s.classList.remove('active'));
+  const off = _caretOffset(el); if (off == null) return;
+  const idx = el.textContent.slice(0, off).split('\n').length - 1;
+  el.querySelectorAll('.lp-line')[idx]?.classList.add('active');
+}
+function _liveApply(value, selA, selB) {
+  const el = $('wiki-live'); if (!el) return;
+  el.innerHTML = highlightDoc(value);
+  _selectRange(el, selA, selB);
+  _liveSync();
+  _liveActiveLine();
+}
+function initLive() {
+  const el = $('wiki-live');
+  if (!el || _liveInited) return;
+  _liveInited = true;
+  el.addEventListener('compositionstart', () => { _composing = true; });
+  el.addEventListener('compositionend', () => { _composing = false; _liveRehighlight(); _liveSync(); });
+  el.addEventListener('input', () => {
+    if (_composing) { _liveSync(); return; }
+    _liveRehighlight();
+    _liveSync();
+  });
+  el.addEventListener('keydown', e => {
+    const mod = e.ctrlKey || e.metaKey;
+    if (mod && !e.altKey) {
+      const k = e.key.toLowerCase(); let hit = true;
+      if      (k === 'b' && !e.shiftKey) wrapSel('**', '**');
+      else if (k === 'i' && !e.shiftKey) wrapSel('*', '*');
+      else if (k === 'e' && !e.shiftKey) wrapSel('`', '`');
+      else if (k === 'k' && !e.shiftKey) insertLink();
+      else if (k === 'x' && e.shiftKey)  wrapSel('~~', '~~');
+      else if (k === 'h' && e.shiftKey)  wrapSel('==', '==');
+      else hit = false;
+      if (hit) { e.preventDefault(); e.stopPropagation(); return; }
+    }
+    if (e.key === 'Enter') {
+      // execCommand is unreliable in contenteditable — splice a \n in offset space
+      e.preventDefault(); e.stopPropagation();
+      const t = el.textContent; const s = _liveSelOffsets(el) || { start: t.length, end: t.length };
+      _liveApply(t.slice(0, s.start) + '\n' + t.slice(s.end), s.start + 1, s.start + 1);
+    } else if (e.key === 'Tab') {
+      e.preventDefault();
+      const t = el.textContent; const s = _liveSelOffsets(el) || { start: 0, end: 0 };
+      _liveApply(t.slice(0, s.start) + '  ' + t.slice(s.end), s.start + 2, s.start + 2);
+    }
+  });
+  el.addEventListener('paste', e => {
     e.preventDefault();
-    const ta = _ta(); const { selectionStart: a, selectionEnd: b, value: t } = ta;
-    _taApply(t.slice(0, a) + '  ' + t.slice(b), a + 2, a + 2);
-  }
+    const text = ((e.clipboardData || window.clipboardData).getData('text/plain') || '').replace(/\r\n/g, '\n');
+    const t = el.textContent; const s = _liveSelOffsets(el) || { start: t.length, end: t.length };
+    _liveApply(t.slice(0, s.start) + text + t.slice(s.end), s.start + text.length, s.start + text.length);
+  });
+  el.addEventListener('click', e => {
+    const a = e.target.closest('.wikilink');
+    if (a && (e.metaKey || e.ctrlKey)) { e.preventDefault(); openByName(a.dataset.note); return; }
+    _liveActiveLine();
+  });
+  el.addEventListener('keyup', _liveActiveLine);
+  document.addEventListener('selectionchange', () => {
+    if (_docsMode === 'live' && document.activeElement === el) _liveActiveLine();
+  });
 }
 
-// ── one-click formatting (operates on the textarea selection) ────────────────
-function _taApply(value, selA, selB) {
-  const ta = _ta(); if (!ta) return;
-  ta.value = value;
-  ta.setSelectionRange(selA, selB);
-  ta.focus();
-  onEditorInput();
+// ── unified editing surface (toolbar + shortcuts work in live AND source) ─────
+function surfaceText() {
+  return activeIsLive() ? ($('wiki-live')?.textContent ?? '') : ($('wiki-source')?.value ?? '');
 }
+function surfaceSel() {
+  if (activeIsLive()) return _liveSelOffsets($('wiki-live'));
+  const ta = $('wiki-source'); return ta ? { start: ta.selectionStart, end: ta.selectionEnd } : null;
+}
+function surfaceApply(value, a, b) {
+  if (activeIsLive()) { $('wiki-live')?.focus(); _liveApply(value, a, b); return; }
+  const ta = $('wiki-source'); if (!ta) return;
+  ta.value = value; ta.setSelectionRange(a, b); ta.focus(); onSourceInput();
+}
+
+// ── one-click formatting (operates on whichever surface is active) ────────────
 function wrapSel(pre, suf) {
-  const ta = _ta(); if (!ta) return;
-  const { selectionStart: a, selectionEnd: b, value: t } = ta;
+  const s = surfaceSel(); if (!s) return;
+  const t = surfaceText(); const { start: a, end: b } = s;
   if (a === b) {
-    const ph = 'text';   // drop a selected placeholder so nothing renders as bare markers
-    _taApply(t.slice(0, a) + pre + ph + suf + t.slice(b), a + pre.length, a + pre.length + ph.length);
+    const ph = 'text';
+    surfaceApply(t.slice(0, a) + pre + ph + suf + t.slice(b), a + pre.length, a + pre.length + ph.length);
   } else if (a >= pre.length && t.slice(a - pre.length, a) === pre && t.slice(b, b + suf.length) === suf) {
-    _taApply(t.slice(0, a - pre.length) + t.slice(a, b) + t.slice(b + suf.length), a - pre.length, b - pre.length);
+    surfaceApply(t.slice(0, a - pre.length) + t.slice(a, b) + t.slice(b + suf.length), a - pre.length, b - pre.length);
   } else {
-    _taApply(t.slice(0, a) + pre + t.slice(a, b) + suf + t.slice(b), a + pre.length, b + pre.length);
+    surfaceApply(t.slice(0, a) + pre + t.slice(a, b) + suf + t.slice(b), a + pre.length, b + pre.length);
   }
 }
 function toggleLinePrefix(prefix) {
-  const ta = _ta(); if (!ta) return;
-  const t = ta.value, a = ta.selectionStart;
-  const ls = t.lastIndexOf('\n', a - 1) + 1;
-  let le = t.indexOf('\n', a); if (le < 0) le = t.length;
+  const s = surfaceSel(); if (!s) return;
+  const t = surfaceText();
+  const ls = t.lastIndexOf('\n', s.start - 1) + 1;
+  let le = t.indexOf('\n', s.start); if (le < 0) le = t.length;
   const line = t.slice(ls, le);
   const indent = (/^\s*/.exec(line) || [''])[0];
   const rest = line.slice(indent.length);
   const stripped = rest.replace(/^(#{1,6}\s+|[-*]\s+(?:\[[ xX]\]\s+)?|\d+\.\s+|>\s?)/, '');
   const newLine = indent + (rest.startsWith(prefix) ? stripped : prefix + stripped);
   const caret = ls + newLine.length;
-  _taApply(t.slice(0, ls) + newLine + t.slice(le), caret, caret);
+  surfaceApply(t.slice(0, ls) + newLine + t.slice(le), caret, caret);
 }
 function insertBlock(snippet) {
-  const ta = _ta(); if (!ta) return;
-  const t = ta.value, a = ta.selectionStart, b = ta.selectionEnd;
-  const before = t.slice(0, a);
+  const s = surfaceSel(); if (!s) return;
+  const t = surfaceText();
+  const before = t.slice(0, s.start);
   const lead = (before && !before.endsWith('\n')) ? '\n' : '';
-  const after = t.slice(b);
+  const after = t.slice(s.end);
   const tail = (after && !after.startsWith('\n')) ? '\n' : '';
   let body = lead + snippet + tail;
   let caret = body.indexOf('{}');
   if (caret >= 0) body = body.replace('{}', ''); else caret = body.length;
-  _taApply(before + body + after, a + caret, a + caret);
+  surfaceApply(before + body + after, s.start + caret, s.start + caret);
 }
 function insertLink() {
-  const ta = _ta(); if (!ta) return;
-  const t = ta.value, a = ta.selectionStart, b = ta.selectionEnd;
-  const inner = t.slice(a, b) || 'text';
+  const s = surfaceSel(); if (!s) return;
+  const t = surfaceText(); const inner = t.slice(s.start, s.end) || 'text';
   const pre = `[${inner}](`;
-  _taApply(t.slice(0, a) + pre + 'url)' + t.slice(b), a + pre.length, a + pre.length + 3);
+  surfaceApply(t.slice(0, s.start) + pre + 'url)' + t.slice(s.end), s.start + pre.length, s.start + pre.length + 3);
 }
 function insertImage() {
-  const ta = _ta(); if (!ta) return;
-  const t = ta.value, a = ta.selectionStart, b = ta.selectionEnd;
-  const alt = t.slice(a, b) || 'alt';
+  const s = surfaceSel(); if (!s) return;
+  const t = surfaceText(); const alt = t.slice(s.start, s.end) || 'alt';
   const pre = `![${alt}](`;
-  _taApply(t.slice(0, a) + pre + 'url)' + t.slice(b), a + pre.length, a + pre.length + 3);
+  surfaceApply(t.slice(0, s.start) + pre + 'url)' + t.slice(s.end), s.start + pre.length, s.start + pre.length + 3);
 }
 function insertWiki() {
-  const ta = _ta(); if (!ta) return;
-  const t = ta.value, a = ta.selectionStart, b = ta.selectionEnd;
-  const inner = t.slice(a, b);
-  _taApply(t.slice(0, a) + '[[' + inner + ']]' + t.slice(b), a + 2 + inner.length, a + 2 + inner.length);
+  const s = surfaceSel(); if (!s) return;
+  const t = surfaceText(); const inner = t.slice(s.start, s.end);
+  surfaceApply(t.slice(0, s.start) + '[[' + inner + ']]' + t.slice(s.end), s.start + 2 + inner.length, s.start + 2 + inner.length);
 }
 
-// ── text color: {color:hex}text{/color} + swatch / custom picker popup ───────
+// ── text color: {color:hex}text{/color} + swatch / custom picker popup ────────
 const _DOCS_COLORS = [
   ['#f87171', 'red'], ['#fb923c', 'orange'], ['#fbbf24', 'amber'], ['#facc15', 'yellow'],
   ['#a3e635', 'lime'], ['#4ade80', 'green'], ['#34d399', 'emerald'], ['#22d3ee', 'cyan'],
@@ -162,23 +342,22 @@ function _hsvToHex(h, s, v) {
   const to = n => Math.round((n + m) * 255).toString(16).padStart(2, '0');
   return '#' + to(r) + to(g) + to(b);
 }
-function _selRange() { const ta = _ta(); return ta ? { start: ta.selectionStart, end: ta.selectionEnd } : null; }
 function applyColorAt(hex, sel) {
-  const ta = _ta(); if (!ta || !sel || sel.start === sel.end) return;
-  const t = ta.value; const { start, end } = sel;
+  if (!sel || sel.start === sel.end) return;
+  const t = surfaceText(); const { start, end } = sel;
   const pre = t.slice(0, start), post = t.slice(end), inner = t.slice(start, end);
   const openM = /\{color:[^}]+\}$/.exec(pre), closeM = /^\{\/color\}/.exec(post);
-  if (!hex) {   // clear color around the selection if present
-    if (openM && closeM) _taApply(pre.slice(0, openM.index) + inner + post.slice(8), openM.index, openM.index + inner.length);
+  if (!hex) {
+    if (openM && closeM) surfaceApply(pre.slice(0, openM.index) + inner + post.slice(8), openM.index, openM.index + inner.length);
     return;
   }
   const open = `{color:${hex}}`;
-  if (openM && closeM) _taApply(pre.slice(0, openM.index) + open + inner + '{/color}' + post.slice(8), openM.index + open.length, openM.index + open.length + inner.length);
-  else _taApply(pre + open + inner + '{/color}' + post, start + open.length, start + open.length + inner.length);
+  if (openM && closeM) surfaceApply(pre.slice(0, openM.index) + open + inner + '{/color}' + post.slice(8), openM.index + open.length, openM.index + open.length + inner.length);
+  else surfaceApply(pre + open + inner + '{/color}' + post, start + open.length, start + open.length + inner.length);
 }
 function _toggleColorPalette(btn) {
   document.getElementById('dt-color-pop')?.remove();
-  const saved = _selRange();   // grab the selection before focus can move to the popup
+  const saved = surfaceSel();   // grab the selection before focus can move to the popup
   const pop = document.createElement('div');
   pop.id = 'dt-color-pop'; pop.className = 'dt-color-pop';
   pop.innerHTML = _DOCS_COLORS.map(([hex, name]) => `<button class="dt-swatch" style="background:${hex}" title="${name}" data-hex="${hex}"></button>`).join('')
@@ -251,7 +430,7 @@ function initDocsToolbar() {
   const bar = $('docs-toolbar');
   if (!bar || _toolbarInited) return;
   _toolbarInited = true;
-  // mousedown + preventDefault keeps the textarea's selection alive while clicking
+  // mousedown + preventDefault keeps the editor's selection alive while clicking
   bar.querySelectorAll('.dt-btn[data-fmt]').forEach(b =>
     b.addEventListener('mousedown', e => { e.preventDefault(); _FMT[b.dataset.fmt]?.(); }));
   $('dt-color-btn')?.addEventListener('mousedown', e => { e.preventDefault(); _toggleColorPalette(e.currentTarget); });
@@ -260,8 +439,6 @@ function initDocsToolbar() {
 export function initVault() {
   if (_inited) { loadTree(); return; }
   _inited = true;
-  // full-screen writing: collapse the file tree once a doc is open; the menu
-  // button brings it back and remembers the choice.
   if (localStorage.getItem('docs-tree-hidden') !== '0') $('wiki-view')?.classList.add('tree-hidden');
   $('wiki-tree-toggle')?.addEventListener('click', () => {
     const hidden = $('wiki-view')?.classList.toggle('tree-hidden');
@@ -305,10 +482,11 @@ export function initVault() {
   $('wiki-ai-send')?.addEventListener('click', aiEdit);
   $('wiki-ai-input')?.addEventListener('keydown', e => { if (e.key === 'Enter') aiEdit(); });
 
-  const ta = _ta();
+  initLive();
+  const ta = $('wiki-source');
   if (ta) {
-    ta.addEventListener('input', onEditorInput);
-    ta.addEventListener('keydown', onEditorKeydown);
+    ta.addEventListener('input', onSourceInput);
+    ta.addEventListener('keydown', onSourceKeydown);
     ta.addEventListener('blur', () => setTimeout(hideAc, 120));
     ta.addEventListener('click', () => hideAc());
   }
@@ -317,7 +495,38 @@ export function initVault() {
   loadTree();
 }
 
-// ── ai edit (streams the rewrite straight into the editor) ───────────────────
+// ── source (raw textarea) surface ────────────────────────────────────────────
+function onSourceInput() {
+  if (!_cur) return;
+  queueSave();
+  autocomplete();
+}
+function onSourceKeydown(e) {
+  if ($('wiki-autocomplete')?.style.display === 'block' && _acItems.length) {
+    acKeydown(e);
+    if (e.defaultPrevented) return;
+  }
+  const mod = e.ctrlKey || e.metaKey;
+  if (mod && !e.altKey) {
+    const k = e.key.toLowerCase();
+    let hit = true;
+    if      (k === 'b' && !e.shiftKey) wrapSel('**', '**');
+    else if (k === 'i' && !e.shiftKey) wrapSel('*', '*');
+    else if (k === 'e' && !e.shiftKey) wrapSel('`', '`');
+    else if (k === 'k' && !e.shiftKey) insertLink();
+    else if (k === 'x' && e.shiftKey)  wrapSel('~~', '~~');
+    else if (k === 'h' && e.shiftKey)  wrapSel('==', '==');
+    else hit = false;
+    if (hit) { e.preventDefault(); return; }
+  }
+  if (e.key === 'Tab') {
+    e.preventDefault();
+    const ta = $('wiki-source'); const { selectionStart: a, selectionEnd: b, value: t } = ta;
+    ta.value = t.slice(0, a) + '  ' + t.slice(b); ta.setSelectionRange(a + 2, a + 2); onSourceInput();
+  }
+}
+
+// ── ai edit (streams the rewrite into the editor) ────────────────────────────
 let _suppressChange = false;
 function _setEditorContent(md) {
   _suppressChange = true;
@@ -331,7 +540,6 @@ async function aiEdit() {
   const instruction = inp.value.trim();
   if (!instruction) return;
   inp.value = '';
-  // flush any pending edit so the model rewrites what's actually on screen
   await flushSave();
   const status = $('wiki-save-status');
   const t0 = Date.now();
@@ -377,13 +585,13 @@ async function aiEdit() {
       status.textContent = '';
       return;
     }
-    _setEditorContent(acc);   // backend already persisted this exact text
+    _setEditorContent(acc);
     status.textContent = 'saved';
     loadBacklinks();
   } catch {
     stop();
     toast('ai edit failed', 'error'); status.textContent = '';
-    if (acc) openFile(_cur);   // stream died mid-paint — restore what's on disk
+    if (acc) openFile(_cur);
   }
 }
 
@@ -487,7 +695,6 @@ function renderGraph(data) {
   const nodes = data.nodes.map(n => ({ ...n, x: W / 2 + (Math.random() - 0.5) * 200, y: H / 2 + (Math.random() - 0.5) * 200, vx: 0, vy: 0 }));
   const idx = {}; nodes.forEach(n => idx[n.id] = n);
   const edges = data.edges.filter(e => idx[e.source] && idx[e.target]);
-  // tiny force sim
   for (let it = 0; it < 140; it++) {
     for (let i = 0; i < nodes.length; i++) for (let j = i + 1; j < nodes.length; j++) {
       const a = nodes[i], b = nodes[j]; let dx = a.x - b.x, dy = a.y - b.y; const d = Math.hypot(dx, dy) || 1;
@@ -567,14 +774,13 @@ function _resetEditor() {
   const cl = $('wiki-current'); if (cl) cl.textContent = 'no doc open';
 }
 
-// open a doc by path from global search; wires up if needed
 export function openNote(path) {
   if (!_inited) initVault();
   return openFile(path);
 }
 
 async function openFile(path) {
-  await flushSave();   // don't lose pending edits to the doc we're leaving
+  await flushSave();
   try {
     const d = await fetch(`/api/vault-md/file?path=${encodeURIComponent(path)}`).then(r => r.json());
     _cur = d.path || path;
@@ -584,12 +790,12 @@ async function openFile(path) {
     if (currentLabel) currentLabel.textContent = _cur.replace(/\.md$/, '');
     loadBacklinks();
     document.querySelectorAll('.wiki-file').forEach(f => f.classList.toggle('active', f.dataset.path === _cur));
-    if (_docsMode !== 'preview') _ta()?.focus();
+    if (_docsMode === 'live') $('wiki-live')?.focus();
+    else if (_docsMode === 'source') $('wiki-source')?.focus();
   } catch { toast('failed to open doc', 'error'); }
 }
 
 async function openByName(name) {
-  // find an existing doc by stem, else create it
   const res = await fetch(`/api/vault-md/search?q=${encodeURIComponent(name)}`).then(r => r.json()).catch(() => ({ results: [] }));
   const hit = (res.results || []).find(r => r.name.toLowerCase() === name.toLowerCase());
   if (hit) return openFile(hit.path);
@@ -605,20 +811,16 @@ const _embedCache = {};
 
 function renderPreview() {
   let src = getEditor();
-  // frontmatter: leading --- ... --- block → properties panel, stripped from body
   let fmHtml = '';
   const fm = src.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?/);
   if (fm) { fmHtml = renderFrontmatter(fm[1]); src = src.slice(fm[0].length); }
   let html = mdToHtml(src);
-  // ![[embeds]] first (images + doc transclusion), before plain wikilinks
   html = html.replace(/!\[\[([^\]|#]+?)(?:#[^\]|]*)?(?:\|([^\]]+))?\]\]/g,
     (_, name, alias) => embedHtml(name.trim(), alias));
-  // [[doc]] and [[doc|alias]] -> clickable links
   html = html.replace(/\[\[([^\]|#]+)(?:#[^\]|]*)?(?:\|([^\]]+))?\]\]/g,
     (_, name, alias) => `<a class="wikilink" data-note="${esc(name.trim())}">${esc((alias || name).trim())}</a>`);
-  // #tags -> clickable (not markdown headings, which have a space after #).
-  // include `>` so a tag at the start of a line still matches — after mdToHtml a
-  // line-leading #tag sits right after a block tag like <p>, not whitespace.
+  // #tags -> clickable. include `>` so a line-leading tag (sitting right after a
+  // block tag from mdToHtml) still matches, not just whitespace-preceded ones.
   html = html.replace(/(^|[\s(>])#([A-Za-z0-9][A-Za-z0-9_/\-]*)/g,
     (_, pre, tag) => `${pre}<span class="md-tag" data-tag="${esc(tag)}">#${esc(tag)}</span>`);
   $('wiki-preview').innerHTML = fmHtml + html;
@@ -769,8 +971,8 @@ function updateOutline() {
 }
 
 function jumpToLine(lineNo, text) {
-  const src = _ta();
-  if (src && _docsMode !== 'preview') {
+  if (_docsMode === 'source') {
+    const src = $('wiki-source');
     const before = src.value.split('\n').slice(0, lineNo).join('\n');
     const pos = before.length + (lineNo ? 1 : 0);
     src.focus();
@@ -778,7 +980,6 @@ function jumpToLine(lineNo, text) {
     const lh = parseInt(getComputedStyle(src).lineHeight) || 20;
     src.scrollTop = Math.max(0, lineNo * lh - 60);
   }
-  // also nudge the preview if it's showing
   const pv = $('wiki-preview');
   const h = [...pv.querySelectorAll('h1,h2,h3,h4,h5,h6')].find(x => x.textContent.trim() === text.trim());
   if (h) h.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -795,7 +996,7 @@ async function openDaily() {
   openFile(name + '.md');
 }
 
-// debounced autosave — the textarea value IS the source, so a save is exact
+// debounced autosave — getEditor() is the synced source mirror, so saves are exact
 function queueSave() {
   if (!_cur) return;
   $('wiki-save-status').textContent = 'saving…';
@@ -811,11 +1012,10 @@ async function doSave() {
       body: JSON.stringify({ path: _cur, content: getEditor() }),
     });
     $('wiki-save-status').textContent = 'saved';
-    delete _embedCache[_cur.split('/').pop().replace(/\.md$/, '').toLowerCase()];  // any doc embedding this re-fetches
+    delete _embedCache[_cur.split('/').pop().replace(/\.md$/, '').toLowerCase()];
     loadBacklinks();
   } catch { $('wiki-save-status').textContent = 'save failed'; }
 }
-// force a pending save to complete now (before ai-edit / switching docs)
 async function flushSave() {
   if (_saveT) { await doSave(); }
 }
@@ -868,12 +1068,12 @@ async function deleteCurrent() {
   loadTree();
 }
 
-// ── [[ autocomplete ───────────────────────────────────────────────────────
+// ── [[ autocomplete (source mode) ──────────────────────────────────────────
 let _acItems = [], _acSel = 0, _acStart = -1;
 
 async function autocomplete() {
-  const src = _ta();
-  if (!src) return hideAc();
+  const src = $('wiki-source');
+  if (!src || activeIsLive()) return hideAc();
   const v = src.value, pos = src.selectionStart;
   const open = v.lastIndexOf('[[', pos - 1);
   if (open < 0 || v.slice(open, pos).includes(']]')) return hideAc();
@@ -889,8 +1089,6 @@ async function autocomplete() {
 
 function renderAc() {
   const box = $('wiki-autocomplete');
-  const src = _ta();
-  // position the popup near the caret line (rough — top of the editor area)
   box.innerHTML = _acItems.map((it, i) =>
     `<div class="wiki-ac-item${i === _acSel ? ' active' : ''}" data-i="${i}">${esc(it.name)}</div>`).join('');
   box.style.display = 'block';
@@ -909,10 +1107,12 @@ function acKeydown(e) {
 }
 
 function pickAc(i) {
-  const src = _ta();
+  const src = $('wiki-source');
   const name = _acItems[i].name;
   const v = src.value, pos = src.selectionStart;
   const caret = _acStart + name.length + 4;
-  _taApply(v.slice(0, _acStart) + `[[${name}]]` + v.slice(pos), caret, caret);
+  src.value = v.slice(0, _acStart) + `[[${name}]]` + v.slice(pos);
+  src.setSelectionRange(caret, caret);
   hideAc();
+  onSourceInput();
 }
