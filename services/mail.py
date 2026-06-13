@@ -1,13 +1,17 @@
 """
 Mail client - IMAP fetch + SMTP send over Python stdlib.
 
-This stays intentionally small, but borrows the useful Odysseus shape:
-reuse live IMAP sessions, cache short-lived list/body reads, and fetch message
-headers in one batch instead of one UID at a time.
+Kept small but tuned for slow links (the usual mail complaint): reuse live IMAP
+sessions, cache short-lived list/body reads, fetch the inbox by sequence range
+instead of SEARCH ALL, make the background poll skip the full re-fetch when the
+mailbox tip hasn't moved, and read a message by pulling ONLY its text/html body
+parts (never the attachments) instead of the whole RFC822 blob.
 """
+import base64
 import email
 import email.utils
 import imaplib
+import quopri
 import re
 import smtplib
 import threading
@@ -23,6 +27,8 @@ _MESSAGE_TTL = 10 * 60.0
 _POOL = {}
 _LIST_CACHE = {}
 _MESSAGE_CACHE = {}
+_LAST_LIST = {}    # (acct, folder, limit) -> last good list (no TTL, for the cheap poll)
+_LAST_SIG = {}     # (acct, folder, limit) -> last mailbox tip signature
 _LOCK = threading.Lock()
 
 
@@ -145,6 +151,8 @@ def clear_cache():
         _POOL.clear()
         _LIST_CACHE.clear()
         _MESSAGE_CACHE.clear()
+        _LAST_LIST.clear()
+        _LAST_SIG.clear()
     for M, _ in pooled:
         try:
             M.logout()
@@ -198,26 +206,72 @@ def list_folders(acct) -> list[str]:
         _release_imap(acct, M, ok)
 
 
-def fetch_inbox(acct, folder: str = "INBOX", limit: int = 30) -> list[dict]:
-    cache_key = (_acct_key(acct), folder, int(limit or 30))
-    cached = _cached(_LIST_CACHE, cache_key)
-    if cached is not None:
-        return cached
+def _select_count(M, folder: str) -> int:
+    typ, sd = M.select(folder, readonly=True)
+    if typ != "OK":
+        raise ValueError("could not open folder")
+    try:
+        return int((sd[0] or b"0").decode())
+    except Exception:
+        return 0
+
+
+def _mailbox_sig(M, exists: int) -> tuple:
+    """cheap 'has anything changed' fingerprint: message count + the UID of the
+    newest message. one tiny fetch, works on every server (unlike STATUS on the
+    selected mailbox). a new mail moves the count or the top UID; so does a
+    delete. used to skip the full header re-fetch on the background poll."""
+    if exists <= 0:
+        return (0, 0)
+    try:
+        typ, d = M.fetch(f"{exists}:{exists}", "(UID)")
+        for p in d or []:
+            raw = p[0] if isinstance(p, tuple) else p
+            m = re.search(rb"\bUID\s+(\d+)", raw or b"")
+            if m:
+                return (exists, int(m.group(1)))
+    except Exception:
+        pass
+    return (exists, 0)
+
+
+def fetch_inbox(acct, folder: str = "INBOX", limit: int = 30, quick: bool = False) -> list[dict]:
+    key = _acct_key(acct)
+    cache_key = (key, folder, int(limit or 30))
+    if not quick:
+        cached = _cached(_LIST_CACHE, cache_key)
+        if cached is not None:
+            return cached
 
     M = _imap(acct)
     ok = False
     try:
-        M.select(folder, readonly=True)
-        typ, data = M.uid("search", None, "ALL")
-        uids = data[0].split() if (data and data[0]) else []
-        uids = uids[-limit:][::-1]
-        if not uids:
+        exists = _select_count(M, folder)
+
+        # background poll: if the tip hasn't moved, hand back the last list and
+        # skip the (slow on a bad link) full header fetch entirely
+        if quick:
+            sig = _mailbox_sig(M, exists)
+            with _LOCK:
+                last_list = _LAST_LIST.get(cache_key)
+                last_sig = _LAST_SIG.get(cache_key)
+            if last_list is not None and last_sig == sig:
+                ok = True
+                return last_list
+
+        if exists <= 0:
             ok = True
             _put_cache(_LIST_CACHE, cache_key, _LIST_TTL, [])
+            with _LOCK:
+                _LAST_LIST[cache_key] = []
+                _LAST_SIG[cache_key] = (0, 0)
             return []
 
-        by_uid = {}
-        typ, msgd = M.uid("fetch", b",".join(uids), "(UID FLAGS BODY.PEEK[HEADER.FIELDS (FROM SUBJECT DATE)])")
+        # newest `limit` messages by sequence number — no SEARCH ALL round trip
+        n = int(limit or 30)
+        lo = max(1, exists - n + 1)
+        typ, msgd = M.fetch(f"{lo}:{exists}", "(UID FLAGS BODY.PEEK[HEADER.FIELDS (FROM SUBJECT DATE)])")
+        rows = []
         for part in msgd or []:
             if not isinstance(part, tuple):
                 continue
@@ -227,21 +281,247 @@ def fetch_inbox(acct, folder: str = "INBOX", limit: int = 30) -> list[dict]:
                 continue
             msg = email.message_from_bytes(part[1] or b"")
             date = msg.get("Date", "")
-            by_uid[uid] = {
+            rows.append({
                 "uid": uid,
                 "from": _dec(msg.get("From", "")),
                 "subject": _dec(msg.get("Subject", "(no subject)")),
                 "date": date,
                 "date_ts": _date_ts(date),
                 "seen": b"\\Seen" in meta,
-            }
-
-        out = [by_uid[uid.decode()] for uid in uids if uid.decode() in by_uid]
+            })
+        rows.reverse()   # sequence order is oldest→newest; we want newest first
+        out = rows[:n]
         ok = True
         _put_cache(_LIST_CACHE, cache_key, _LIST_TTL, out)
+        with _LOCK:
+            _LAST_LIST[cache_key] = out
+            _LAST_SIG[cache_key] = _mailbox_sig(M, exists)
         return out
     finally:
         _release_imap(acct, M, ok)
+
+
+# ── reading one message: pull only the text/html body parts ──────────────────
+
+def _imap_tokenize(s: str):
+    """parse an IMAP parenthesized list (a BODYSTRUCTURE) into nested python
+    lists. handles quoted strings, NIL, atoms and nesting — enough for finding
+    the text parts. (literals don't show up in the structures we care about.)"""
+    n = len(s)
+    pos = s.find("(")
+    if pos < 0:
+        return []
+    pos += 1
+
+    def parse():
+        nonlocal pos
+        out = []
+        while pos < n:
+            c = s[pos]
+            if c == " ":
+                pos += 1
+            elif c == "(":
+                pos += 1
+                out.append(parse())
+            elif c == ")":
+                pos += 1
+                return out
+            elif c == '"':
+                pos += 1
+                buf = []
+                while pos < n and s[pos] != '"':
+                    if s[pos] == "\\" and pos + 1 < n:
+                        pos += 1
+                    buf.append(s[pos])
+                    pos += 1
+                pos += 1
+                out.append("".join(buf))
+            else:
+                start = pos
+                while pos < n and s[pos] not in ' ()':
+                    pos += 1
+                atom = s[start:pos]
+                out.append(None if atom.upper() == "NIL" else atom)
+        return out
+
+    return parse()
+
+
+def _extract_bodystructure(meta: str):
+    i = meta.upper().find("BODYSTRUCTURE")
+    if i < 0:
+        return None
+    i = meta.find("(", i)
+    if i < 0:
+        return None
+    depth = 0
+    inq = False
+    esc = False
+    j = i
+    while j < len(meta):
+        c = meta[j]
+        if inq:
+            if esc:
+                esc = False
+            elif c == "\\":
+                esc = True
+            elif c == '"':
+                inq = False
+        else:
+            if c == '"':
+                inq = True
+            elif c == "(":
+                depth += 1
+            elif c == ")":
+                depth -= 1
+                if depth == 0:
+                    return meta[i:j + 1]
+        j += 1
+    return None
+
+
+def _text_parts(node, prefix=""):
+    """walk a parsed bodystructure, collecting text/plain + text/html leaves with
+    their IMAP section number, charset and transfer-encoding."""
+    out = []
+    if not isinstance(node, list) or not node:
+        return out
+    if isinstance(node[0], list):
+        # multipart: child lists then the subtype string
+        i = 1
+        for child in node:
+            if isinstance(child, list):
+                sec = f"{prefix}.{i}" if prefix else str(i)
+                out += _text_parts(child, sec)
+                i += 1
+            else:
+                break
+        return out
+    typ = (node[0] or "").lower() if isinstance(node[0], str) else ""
+    sub = (node[1] or "").lower() if len(node) > 1 and isinstance(node[1], str) else ""
+    sec = prefix or "1"
+    if typ == "text" and sub in ("plain", "html"):
+        charset = "utf-8"
+        params = node[2] if len(node) > 2 else None
+        if isinstance(params, list):
+            for k, v in zip(params[0::2], params[1::2]):
+                if isinstance(k, str) and k.lower() == "charset" and isinstance(v, str):
+                    charset = v
+        enc = node[5].lower() if len(node) > 5 and isinstance(node[5], str) else ""
+        out.append({"section": sec, "subtype": sub, "charset": charset, "encoding": enc})
+    return out
+
+
+def _decode_part(raw: bytes, enc: str, charset: str) -> str:
+    try:
+        if enc == "base64":
+            raw = base64.b64decode(raw)
+        elif enc == "quoted-printable":
+            raw = quopri.decodestring(raw)
+        return raw.decode(charset or "utf-8", errors="replace")
+    except Exception:
+        try:
+            return (raw or b"").decode("utf-8", errors="replace")
+        except Exception:
+            return ""
+
+
+def _fetch_message_parts(M, uid_b):
+    """fast path: headers + bodystructure in one round trip, then fetch only the
+    text/html sections. returns None if anything looks off so the caller can fall
+    back to the whole-message read."""
+    typ, d = M.uid("fetch", uid_b, "(BODY.PEEK[HEADER] BODYSTRUCTURE)")
+    if typ != "OK":
+        return None
+    meta = ""
+    hdr_bytes = None
+    for part in d or []:
+        if isinstance(part, tuple):
+            meta += (part[0] or b"").decode("latin-1", "replace")
+            if hdr_bytes is None:
+                hdr_bytes = part[1]
+        elif isinstance(part, (bytes, bytearray)):
+            meta += part.decode("latin-1", "replace")
+    if hdr_bytes is None:
+        return None
+    bs = _extract_bodystructure(meta)
+    if not bs:
+        return None
+    parts = _text_parts(_imap_tokenize(bs))
+    if not parts:
+        return None
+
+    want = {}
+    for p in parts:
+        want.setdefault(p["subtype"], p)   # first plain + first html is plenty
+
+    # fetch every wanted text section in ONE round trip (was one per part — slow on
+    # a high-latency link). only sections the bodystructure flagged as text are
+    # requested, so an attachment section is never downloaded.
+    spec = " ".join(f'BODY.PEEK[{p["section"]}]' for p in want.values())
+    typ2, pd = M.uid("fetch", uid_b, f"({spec})")
+    by_section = {}
+    for x in pd or []:
+        if isinstance(x, tuple):
+            meta = (x[0] or b"").decode("latin-1", "replace")
+            m = re.search(r"BODY\[([0-9.]+)\]", meta)
+            if m:
+                by_section[m.group(1)] = x[1]
+
+    text, html = "", ""
+    for kind, p in want.items():
+        body = by_section.get(p["section"])
+        if body is None:
+            continue
+        s = _decode_part(body, p["encoding"], p["charset"])
+        if kind == "plain":
+            text = s
+        elif kind == "html":
+            html = s
+
+    hdr = email.message_from_bytes(hdr_bytes)
+    return {
+        "from": _dec(hdr.get("From", "")),
+        "to": _dec(hdr.get("To", "")),
+        "subject": _dec(hdr.get("Subject", "(no subject)")),
+        "date": hdr.get("Date", ""),
+        "text": text,
+        "html": html,
+    }
+
+
+def _fetch_message_rfc822(M, uid_b):
+    """fallback: pull the whole message and walk it (what we used to always do)."""
+    typ, msgd = M.uid("fetch", uid_b, "(RFC822)")
+    raw = None
+    for part in (msgd or []):
+        if isinstance(part, tuple):
+            raw = part[1]
+    if not raw:
+        return None
+    msg = email.message_from_bytes(raw)
+    text, html = "", ""
+    if msg.is_multipart():
+        for p in msg.walk():
+            if "attachment" in str(p.get("Content-Disposition") or ""):
+                continue
+            ct = p.get_content_type()
+            if ct == "text/plain" and not text:
+                text = _payload(p)
+            elif ct == "text/html" and not html:
+                html = _payload(p)
+    elif msg.get_content_type() == "text/html":
+        html = _payload(msg)
+    else:
+        text = _payload(msg)
+    return {
+        "from": _dec(msg.get("From", "")),
+        "to": _dec(msg.get("To", "")),
+        "subject": _dec(msg.get("Subject", "(no subject)")),
+        "date": msg.get("Date", ""),
+        "text": text,
+        "html": html,
+    }
 
 
 def fetch_message(acct, uid: str, folder: str = "INBOX") -> dict:
@@ -254,37 +534,17 @@ def fetch_message(acct, uid: str, folder: str = "INBOX") -> dict:
     ok = False
     try:
         M.select(folder, readonly=True)
-        typ, msgd = M.uid("fetch", uid.encode() if isinstance(uid, str) else uid, "(RFC822)")
-        raw = None
-        for part in (msgd or []):
-            if isinstance(part, tuple):
-                raw = part[1]
-        if not raw:
+        uid_b = uid.encode() if isinstance(uid, str) else uid
+        result = None
+        try:
+            result = _fetch_message_parts(M, uid_b)
+        except Exception:
+            result = None
+        if result is None:
+            result = _fetch_message_rfc822(M, uid_b)
+        if result is None:
             return {"error": "message not found"}
-        msg = email.message_from_bytes(raw)
-        text, html = "", ""
-        if msg.is_multipart():
-            for p in msg.walk():
-                if "attachment" in str(p.get("Content-Disposition") or ""):
-                    continue
-                ct = p.get_content_type()
-                if ct == "text/plain" and not text:
-                    text = _payload(p)
-                elif ct == "text/html" and not html:
-                    html = _payload(p)
-        elif msg.get_content_type() == "text/html":
-            html = _payload(msg)
-        else:
-            text = _payload(msg)
-        result = {
-            "uid": uid,
-            "from": _dec(msg.get("From", "")),
-            "to": _dec(msg.get("To", "")),
-            "subject": _dec(msg.get("Subject", "(no subject)")),
-            "date": msg.get("Date", ""),
-            "text": text,
-            "html": html,
-        }
+        result["uid"] = uid
         ok = True
         _put_cache(_MESSAGE_CACHE, cache_key, _MESSAGE_TTL, result)
         return result
@@ -305,6 +565,9 @@ def mark_seen(acct, uid, folder: str = "INBOX") -> dict:
         with _LOCK:
             for k in [k for k in _LIST_CACHE if k[0] == akey and k[1] == folder]:
                 _LIST_CACHE.pop(k, None)
+            for k in [k for k in _LAST_LIST if k[0] == akey and k[1] == folder]:
+                _LAST_LIST.pop(k, None)
+                _LAST_SIG.pop(k, None)
         return {"ok": True}
     finally:
         _release_imap(acct, M, ok)
@@ -322,20 +585,36 @@ def send_mail(acct, to: str, subject: str, body: str, cc: str = "") -> dict:
     msg["Subject"] = subject
     msg.set_content(body or "")
     port = int(acct.get("smtp_port") or 587)
-    if port == 465:
-        s = smtplib.SMTP_SSL(host, port, timeout=30)
-    else:
-        s = smtplib.SMTP(host, port, timeout=30)
+    user = acct.get("username") or acct.get("email", "")
+    pw = acct.get("password", "")
+
+    # a flaky proxy/link drops the SMTP socket mid-handshake every so often
+    # ("connection unexpectedly closed"). that's transient — retry once before
+    # giving up. auth errors are NOT retried (a wrong password won't fix itself).
+    last_err = None
+    for attempt in range(2):
         try:
-            s.starttls()
-        except Exception:
-            pass
-    try:
-        s.login(acct.get("username") or acct.get("email", ""), acct.get("password", ""))
-        s.send_message(msg)
-    finally:
-        try:
-            s.quit()
-        except Exception:
-            pass
-    return {"ok": True}
+            if port == 465:
+                s = smtplib.SMTP_SSL(host, port, timeout=30)
+            else:
+                s = smtplib.SMTP(host, port, timeout=30)
+                s.ehlo()
+                try:
+                    s.starttls()
+                    s.ehlo()
+                except smtplib.SMTPNotSupportedError:
+                    pass   # server without STARTTLS (some local/self-hosted servers)
+            try:
+                s.login(user, pw)
+                s.send_message(msg)
+            finally:
+                try:
+                    s.quit()
+                except Exception:
+                    pass
+            return {"ok": True}
+        except (smtplib.SMTPServerDisconnected, smtplib.SMTPConnectError,
+                ConnectionError, TimeoutError, OSError) as e:
+            last_err = e
+            time.sleep(0.8)
+    raise last_err or RuntimeError("send failed")

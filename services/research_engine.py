@@ -3,11 +3,48 @@ deep research engine.
 web search + LLM reasoning loop → markdown report.
 """
 import os, json, asyncio, time, logging, re
+import html as _htmlmod
+import urllib.parse
 from pathlib import Path
 from typing import AsyncGenerator
 import httpx
 
 log = logging.getLogger("aide.research")
+
+_UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+       "(KHTML, like Gecko) Chrome/122.0 Safari/537.36")
+
+
+def _strip_tags(s: str) -> str:
+    return _htmlmod.unescape(re.sub(r"<[^>]+>", "", s or "")).strip()
+
+
+def _html_to_text(html: str) -> str:
+    """crude but dependency-free html → readable text, for feeding pages to the LLM."""
+    html = re.sub(r"(?is)<(script|style|noscript|head|nav|footer|header|aside|form|svg)[^>]*>.*?</\1>", " ", html)
+    html = re.sub(r"(?is)<br\s*/?>", "\n", html)
+    html = re.sub(r"(?is)</(p|div|li|h[1-6]|tr|section|article)>", "\n", html)
+    text = _htmlmod.unescape(re.sub(r"(?is)<[^>]+>", " ", html))
+    text = re.sub(r"[ \t ]+", " ", text)
+    text = re.sub(r"\n[ \t]*\n[ \t]*\n+", "\n\n", text)
+    return text.strip()
+
+
+async def _fetch_page(url: str, max_chars: int = 4000) -> str:
+    """grab a page and reduce it to text. returns '' on any failure (timeouts,
+    non-html, blocks) — research must never hang on one bad link."""
+    if not url or not url.startswith("http"):
+        return ""
+    try:
+        async with httpx.AsyncClient(timeout=10, follow_redirects=True,
+                                     headers={"user-agent": _UA}) as c:
+            r = await c.get(url)
+            ct = r.headers.get("content-type", "")
+            if ct and "html" not in ct and "text" not in ct:
+                return ""
+            return _html_to_text(r.text)[:max_chars]
+    except Exception:
+        return ""
 
 DATA_DIR = Path(__file__).parent.parent / "data" / "research"
 DATA_DIR.mkdir(parents=True, exist_ok=True)
@@ -93,24 +130,82 @@ async def _search_serper(query: str, api_key: str, max_results: int = 5) -> list
     } for x in data.get("organic", []) if x.get("link")]
 
 
-async def _search_duckduckgo(query: str, max_results: int = 5) -> list[dict]:
-    # DDG instant answer API — free, no key needed, limited
-    params = {"q": query, "format": "json", "no_redirect": "1", "no_html": "1"}
-    async with httpx.AsyncClient(timeout=10, follow_redirects=True) as c:
-        r = await c.get("https://api.duckduckgo.com/", params=params,
-                        headers={"user-agent": "aide-research/1.0"})
-        data = r.json()
+def _ddg_unwrap(href: str) -> str:
+    # DDG wraps result links as //duckduckgo.com/l/?uddg=<urlencoded target>
+    if "uddg=" in href:
+        q = urllib.parse.urlparse(href if href.startswith("http") else "https:" + href).query
+        v = urllib.parse.parse_qs(q).get("uddg")
+        if v:
+            return v[0]
+    if href.startswith("//"):
+        return "https:" + href
+    return href
 
-    results = []
-    # related topics as snippets
-    for t in data.get("RelatedTopics", [])[:max_results]:
-        if isinstance(t, dict) and t.get("FirstURL"):
-            results.append({
-                "url": t["FirstURL"],
-                "title": t.get("Text","")[:80],
-                "snippet": t.get("Text","")[:300],
-            })
-    return results
+
+def _parse_ddg_html(html: str) -> list[dict]:
+    out = []
+    for m in re.finditer(r'<a[^>]+class="result__a"[^>]+href="([^"]+)"[^>]*>(.*?)</a>', html, re.S):
+        url = _ddg_unwrap(m.group(1))
+        title = _strip_tags(m.group(2))
+        if url.startswith("http") and title:
+            out.append({"url": url, "title": title, "snippet": ""})
+    snips = [_strip_tags(s) for s in re.findall(r'class="result__snippet"[^>]*>(.*?)</a>', html, re.S)]
+    for i, s in enumerate(snips):
+        if i < len(out):
+            out[i]["snippet"] = s
+    if not out:   # lite.duckduckgo.com layout
+        for m in re.finditer(r'<a[^>]+class="result-link"[^>]+href="([^"]+)"[^>]*>(.*?)</a>', html, re.S):
+            url = _ddg_unwrap(m.group(1))
+            title = _strip_tags(m.group(2))
+            if url.startswith("http") and title:
+                out.append({"url": url, "title": title, "snippet": ""})
+    return out
+
+
+async def _search_duckduckgo(query: str, max_results: int = 6) -> list[dict]:
+    # the instant-answer API returns almost nothing; scrape the HTML endpoints
+    # instead — real web results, still no key required. DDG sometimes serves an
+    # empty/anomaly page, so try the html endpoint then the lite one.
+    headers = {"user-agent": _UA, "accept-language": "en-US,en;q=0.9"}
+    async with httpx.AsyncClient(timeout=12, follow_redirects=True, headers=headers) as c:
+        for attempt in ("html", "lite"):
+            try:
+                if attempt == "html":
+                    r = await c.post("https://html.duckduckgo.com/html/", data={"q": query})
+                else:
+                    r = await c.get("https://lite.duckduckgo.com/lite/", params={"q": query})
+                r.raise_for_status()
+                hits = _parse_ddg_html(r.text)
+                if hits:
+                    return hits[:max_results]
+            except Exception as e:
+                log.warning("ddg %s failed: %s", attempt, e)
+    return []
+
+
+async def _search_wikipedia(query: str, max_results: int = 6) -> list[dict]:
+    # reliable keyless fallback for factual queries — DDG scraping gets blocked a
+    # lot; the Wikipedia API never does. covers far less of the web, but it always
+    # returns real sources to ground the report.
+    async with httpx.AsyncClient(timeout=12, follow_redirects=True,
+                                 headers={"user-agent": _UA}) as c:
+        r = await c.get("https://en.wikipedia.org/w/api.php", params={
+            "action": "query", "format": "json", "list": "search",
+            "srsearch": query, "srlimit": max_results, "srprop": "snippet",
+        })
+        r.raise_for_status()
+        data = r.json()
+    out = []
+    for x in data.get("query", {}).get("search", []):
+        title = x.get("title", "")
+        if not title:
+            continue
+        out.append({
+            "url": "https://en.wikipedia.org/wiki/" + urllib.parse.quote(title.replace(" ", "_")),
+            "title": title,
+            "snippet": _strip_tags(x.get("snippet", "")),
+        })
+    return out
 
 
 async def web_search(query: str, max_results: int = 5, provider: str | None = None) -> list[dict]:
@@ -142,7 +237,9 @@ def _provider_chain(primary: str, fallbacks) -> list[str]:
         fallbacks = [p.strip() for p in fallbacks.split(",") if p.strip()]
     if not isinstance(fallbacks, list):
         fallbacks = []
-    chain = [primary, *fallbacks, "duckduckgo"]
+    # always keep the keyless engines as last-resort fallbacks so research still
+    # works with no API keys at all
+    chain = [primary, *fallbacks, "duckduckgo", "wikipedia"]
     out = []
     for p in chain:
         p = str(p or "").strip()
@@ -154,6 +251,8 @@ def _provider_chain(primary: str, fallbacks) -> list[str]:
 async def _search_provider(name: str, query: str, settings: dict, max_results: int) -> list[dict]:
     if name == "duckduckgo":
         return await _search_duckduckgo(query, max_results)
+    if name == "wikipedia":
+        return await _search_wikipedia(query, max_results)
     if name == "tavily":
         key = settings.get("tavily_api_key") or os.getenv("TAVILY_API_KEY", "")
         if not key:
@@ -273,7 +372,7 @@ async def run_research(
 
             yield {"type": "step", "text": f"searching: {search_q}"}
 
-            results = await web_search(search_q, max_results=5)
+            results = await web_search(search_q, max_results=6)
             new_results = [r for r in results if r["url"] not in seen_urls]
             for r in new_results:
                 seen_urls.add(r["url"])
@@ -285,19 +384,30 @@ async def run_research(
                 yield {"type": "step", "text": "no new results, wrapping up..."}
                 break
 
-            # ask LLM to extract findings from search results
-            snippets = "\n\n".join(
-                f"[{r['title']}] ({r['url']})\n{r['snippet']}"
-                for r in new_results[:5]
-            )
+            # read the actual pages for the top hits — snippets alone are too thin
+            # for real findings. fetched concurrently; failures fall back to snippet.
+            top = new_results[:3]
+            yield {"type": "step", "text": f"reading {len(top)} source" + ("s" if len(top) != 1 else "") + "…"}
+            pages = await asyncio.gather(*[_fetch_page(r["url"]) for r in top])
+            blocks = []
+            for r, body in zip(top, pages):
+                content = body or r.get("snippet", "")
+                if content:
+                    blocks.append(f"[{r['title']}] ({r['url']})\n{content[:3500]}")
+            for r in new_results[3:6]:   # the rest as snippet-only context
+                if r.get("snippet"):
+                    blocks.append(f"[{r['title']}] ({r['url']})\n{r['snippet']}")
+            snippets = "\n\n".join(blocks) or "(no readable content)"
+
             extract_prompt = [
                 {"role": "system", "content": (
-                    "Extract key factual findings relevant to the research question. "
+                    "Extract key factual findings relevant to the research question from the "
+                    "page content below. Prefer specifics — numbers, names, dates, direct claims. "
                     "Be concise. Return bullet points only, no intro text."
                 )},
-                {"role": "user", "content": f"Question: {query}\n\nSearch results:\n{snippets}"},
+                {"role": "user", "content": f"Question: {query}\n\nSources:\n{snippets}"},
             ]
-            findings_raw = await simple_complete(extract_prompt, base_url, api_key, model, max_tokens=400)
+            findings_raw = await simple_complete(extract_prompt, base_url, api_key, model, max_tokens=500)
             new_findings = [
                 re.sub(r'^[-*\d.]+\s*', '', l).strip()
                 for l in findings_raw.splitlines()

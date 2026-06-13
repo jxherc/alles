@@ -133,13 +133,15 @@ async def fetch_provider_models(ep: ModelEndpoint) -> list[str]:
     return [m for m in (x["id"] for x in data.get("data", [])) if _is_chat_model(m)]
 
 
-async def refresh_all_model_lists():
-    """background re-probe of every enabled endpoint, so new provider models
-    appear without anyone clicking refresh. failures keep the old cache."""
+async def refresh_all_model_lists() -> list[dict]:
+    """re-probe every enabled endpoint so new provider models appear without anyone
+    clicking refresh. failures keep the old cache. returns the per-endpoint
+    additions so callers (the UI) can announce what's new."""
     import logging
     log = logging.getLogger("aide.models")
     from core.database import SessionLocal
     db = SessionLocal()
+    diffs = []
     try:
         for ep in db.query(ModelEndpoint).filter(ModelEndpoint.enabled == True).all():
             try:
@@ -153,8 +155,30 @@ async def refresh_all_model_lists():
                 db.commit()
                 if added:
                     log.info(f"{ep.name}: new models available — {', '.join(added[:5])}")
+                    diffs.append({"endpoint": ep.name, "added": added})
     finally:
         db.close()
+    return diffs
+
+
+_last_refresh = 0.0
+
+
+# POST /api/models/refresh — re-probe all enabled endpoints (model-picker open +
+# the manual "refresh all" button). cooldown so repeated opens don't hammer providers.
+@router.post("/models/refresh")
+async def refresh_models(force: bool = False):
+    global _last_refresh
+    import time as _t
+    now = _t.time()
+    if not force and now - _last_refresh < 60:
+        return {"added": [], "endpoints": 0, "skipped": "cooldown"}
+    _last_refresh = now
+    diffs = await refresh_all_model_lists()
+    added = []
+    for d in diffs:
+        added.extend(d["added"])
+    return {"added": added, "endpoints": len(diffs)}
 
 
 # POST /api/models/endpoint/{id}/probe — fetch model list from provider
