@@ -92,7 +92,7 @@ def delete_endpoint(ep_id: str, db: DbSession = Depends(get_db)):
 
 # the static Anthropic list is only a FALLBACK for keys that can't hit the
 # models API — the live probe below is what keeps lists current
-_ANTHROPIC_FALLBACK = ["claude-opus-4-8", "claude-sonnet-4-6", "claude-haiku-4-5-20251001"]
+_ANTHROPIC_FALLBACK = ["claude-fable-5", "claude-opus-4-8", "claude-sonnet-4-6", "claude-haiku-4-5-20251001"]
 
 
 async def fetch_provider_models(ep: ModelEndpoint) -> list[str]:
