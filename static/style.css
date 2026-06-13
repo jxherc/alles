@@ -2603,7 +2603,7 @@ code {
 }
 .docs-tree-toggle {
   flex: 0 0 auto;
-  margin-left: clamp(-2.8rem, -3vw, -0.45rem);
+  margin-left: 0;
   margin-right: 0.15rem;
 }
 .docs-tree-toggle svg {
