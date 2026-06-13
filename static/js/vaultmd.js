@@ -11,10 +11,23 @@ import { prompt as dlgPrompt, confirm as dlgConfirm } from './dialog.js';
 let _cur = null;
 let _saveT = 0;
 let _inited = false;
+let _sortMode = localStorage.getItem('docs-sort') || 'name';   // 'name' | 'recent'
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const _syncEmpty = () => $('wiki-view')?.classList.toggle('no-note', !_cur);
+const _docsVisible = () => { const v = $('wiki-view'); return v && v.style.display !== 'none' && v.offsetParent !== null; };
+
+// pinned/favorite docs (paths) — kept in localStorage, shown atop the tree
+function _pinned() { try { return JSON.parse(localStorage.getItem('docs-pinned') || '[]'); } catch { return []; } }
+function _setPinned(a) { localStorage.setItem('docs-pinned', JSON.stringify(a)); }
+function togglePin(path) {
+  const a = _pinned(); const i = a.indexOf(path);
+  if (i >= 0) a.splice(i, 1); else a.unshift(path);
+  _setPinned(a); loadTree();
+}
+function cycleSort() { _sortMode = _sortMode === 'name' ? 'recent' : 'name'; localStorage.setItem('docs-sort', _sortMode); _syncSortBtn(); loadTree(); }
+function _syncSortBtn() { const b = $('wiki-sort-btn'); if (b) b.textContent = _sortMode === 'recent' ? 'recent' : 'a–z'; }
 
 // ── view mode ────────────────────────────────────────────────────────────────
 const _DOCS_MODES = ['live', 'source', 'preview'];
@@ -54,9 +67,16 @@ function ensureCM() {
       doc: getEditor(),
       onChange: (val) => {
         const ta = $('wiki-source'); if (ta) ta.value = val;
+        updateStats();
         if (!_applyingExternal) queueSave();
       },
+      wikiComplete: async (q) => {
+        const res = await fetch(`/api/vault-md/search?q=${encodeURIComponent(q)}`).then(r => r.json()).catch(() => ({ results: [] }));
+        return res.results || [];
+      },
+      onImageUpload: uploadImage,
     });
+    window._cmEditor = _cm;   // debug handle (like the old _docEd)
   }).catch(e => {
     // graceful: fall back to the raw source textarea if CM can't load
     console.error('codemirror failed to load:', e);
@@ -80,7 +100,30 @@ function setEditor(md) {
   md = md || '';
   const ta = $('wiki-source'); if (ta) ta.value = md;
   cmSet(md);
+  updateStats();
   if (_docsMode === 'preview') renderPreview();
+}
+
+// upload a pasted/dropped image → _assets/, return its embed path for ![[ ]]
+async function uploadImage(file) {
+  const fd = new FormData();
+  fd.append('file', file, file.name || 'image.png');
+  const r = await fetch('/api/vault-md/asset', { method: 'POST', body: fd });
+  if (!r.ok) { toast('image upload failed', 'error'); throw new Error('upload failed'); }
+  const d = await r.json();
+  toast('image added', 'success');
+  return d.path;
+}
+
+// word count + reading time in the header (live)
+function updateStats() {
+  const el = $('wiki-stats'); if (!el) return;
+  if (!_cur) { el.textContent = ''; return; }
+  let t = getEditor().replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, '');   // drop frontmatter
+  t = t.replace(/```[\s\S]*?```/g, ' ').replace(/[#>*_`~\-\[\]()|]/g, ' ');
+  const words = (t.match(/[^\s]+/g) || []).length;
+  const mins = Math.max(1, Math.round(words / 200));
+  el.textContent = words ? `${words} word${words !== 1 ? 's' : ''} · ${mins} min` : '';
 }
 
 // ── one-click formatting (live → CodeMirror, source → textarea) ──────────────
@@ -229,12 +272,25 @@ export function initVault() {
   });
   $('wiki-new-btn')?.addEventListener('click', newNote);
   $('wiki-delete-btn')?.addEventListener('click', deleteCurrent);
-  $('wiki-export-btn')?.addEventListener('click', exportDocx);
+  $('wiki-export-btn')?.addEventListener('click', e => openExportMenu(e.currentTarget));
   $('wiki-folder-btn')?.addEventListener('click', newFolder);
+  $('wiki-tmpl-btn')?.addEventListener('click', e => openTemplateMenu(e.currentTarget));
+  $('wiki-sort-btn')?.addEventListener('click', cycleSort);
   $('wiki-today-btn')?.addEventListener('click', openDaily);
   $('wiki-outline-btn')?.addEventListener('click', toggleOutline);
   $('wiki-todos-btn')?.addEventListener('click', extractTodos);
+  $('wiki-taskroll-btn')?.addEventListener('click', toggleTaskRoll);
   $('wiki-history-btn')?.addEventListener('click', toggleHistory);
+  _syncSortBtn();
+  // docs-scoped shortcuts: Ctrl/Cmd+O quick switcher, Ctrl/Cmd+F find (live mode)
+  document.addEventListener('keydown', e => {
+    if (!_docsVisible()) return;
+    const mod = e.ctrlKey || e.metaKey;
+    if (!mod || e.altKey) return;
+    const k = e.key.toLowerCase();
+    if (k === 'o' && !e.shiftKey) { e.preventDefault(); openQuickSwitcher(); }
+    else if (k === 'f' && !e.shiftKey && _docsMode === 'live' && _cm) { e.preventDefault(); _cm.openSearch(); }
+  });
   $('wiki-graph-btn')?.addEventListener('click', openGraph);
   $('wiki-graph-close')?.addEventListener('click', () => { $('wiki-graph').style.display = 'none'; });
   $('wiki-help-btn')?.addEventListener('click', () => {
@@ -274,6 +330,7 @@ export function initVault() {
 // ── source (raw textarea) mode ───────────────────────────────────────────────
 function onSourceInput() {
   if (!_cur) return;
+  updateStats();
   queueSave();
   autocomplete();
 }
@@ -379,6 +436,11 @@ function renderRecent(items) {
   el.querySelectorAll('.we-recent-item').forEach(b => b.addEventListener('click', () => openFile(b.dataset.path)));
 }
 
+function _fileRow(f) {
+  const active = f.path === _cur ? ' active' : '';
+  return `<div class="wiki-file${active}" data-path="${esc(f.path)}"><span class="wiki-row-label">${esc(f.name)}</span>${_rowActs('file', f.path)}</div>`;
+}
+
 async function loadTree() {
   _activeTag = null;
   _syncEmpty();
@@ -389,7 +451,16 @@ async function loadTree() {
   if (!el) return;
   try {
     const t = await fetch('/api/vault-md/tree').then(r => r.json());
-    el.innerHTML = t.items.length ? renderItems(t.items, 0) : '<div class="wiki-empty">docs empty - create one</div>';
+    const files = _flattenFiles(t.items);
+    let html = '';
+    const pins = _pinned().map(p => files.find(f => f.path === p)).filter(Boolean);
+    if (pins.length) html += `<div class="wiki-pinned"><div class="wiki-pinned-label">pinned</div>${pins.map(_fileRow).join('')}</div>`;
+    if (_sortMode === 'recent') {
+      html += [...files].sort((a, b) => (b.mtime || 0) - (a.mtime || 0)).map(_fileRow).join('');
+    } else {
+      html += t.items.length ? renderItems(t.items, 0) : '';
+    }
+    el.innerHTML = html || '<div class="wiki-empty">docs empty - create one</div>';
     el.querySelectorAll('.wiki-file').forEach(f => _wireRow(f, 'file'));
     el.querySelectorAll('.wiki-dir').forEach(d => _wireRow(d, 'dir'));
     renderRecent(t.items);
@@ -477,18 +548,21 @@ function renderGraph(data) {
   svg.querySelectorAll('.wg-node').forEach(g => g.addEventListener('click', () => { $('wiki-graph').style.display = 'none'; openFile(g.dataset.path); }));
 }
 
-function _rowActs() {
-  return `<span class="wiki-row-acts"><button class="wiki-row-act" data-act="rename" title="rename">✎</button><button class="wiki-row-act" data-act="delete" title="delete">✕</button></span>`;
+function _rowActs(kind, path) {
+  const pinned = _pinned().includes(path);
+  const pin = kind === 'file'
+    ? `<button class="wiki-row-act wiki-pin${pinned ? ' on' : ''}" data-act="pin" title="${pinned ? 'unpin' : 'pin'}">${pinned ? '★' : '☆'}</button>` : '';
+  return `<span class="wiki-row-acts">${pin}<button class="wiki-row-act" data-act="rename" title="rename">✎</button><button class="wiki-row-act" data-act="delete" title="delete">✕</button></span>`;
 }
 function renderItems(items, depth) {
   return items.map(it => {
     const pad = `style="padding-left:${0.4 + depth * 0.7}rem"`;
     if (it.type === 'dir') {
-      return `<div class="wiki-dir" data-path="${esc(it.path)}" ${pad}><span class="wiki-row-label">▸ ${esc(it.name)}</span>${_rowActs()}</div>`
+      return `<div class="wiki-dir" data-path="${esc(it.path)}" ${pad}><span class="wiki-row-label">▸ ${esc(it.name)}</span>${_rowActs('dir', it.path)}</div>`
         + renderItems(it.children || [], depth + 1);
     }
     const active = it.path === _cur ? ' active' : '';
-    return `<div class="wiki-file${active}" data-path="${esc(it.path)}" ${pad}><span class="wiki-row-label">${esc(it.name)}</span>${_rowActs()}</div>`;
+    return `<div class="wiki-file${active}" data-path="${esc(it.path)}" ${pad}><span class="wiki-row-label">${esc(it.name)}</span>${_rowActs('file', it.path)}</div>`;
   }).join('');
 }
 function _wireRow(row, kind) {
@@ -496,6 +570,7 @@ function _wireRow(row, kind) {
   row.querySelectorAll('.wiki-row-act').forEach(b => b.addEventListener('click', async e => {
     e.stopPropagation();
     const path = row.dataset.path;
+    if (b.dataset.act === 'pin') { togglePin(path); return; }
     if (b.dataset.act === 'rename') {
       const cur = path.split('/').pop().replace(/\.md$/, '');
       const name = await dlgPrompt(`rename ${kind}:`, cur);
@@ -716,12 +791,18 @@ async function flushSave() { if (_saveT) await doSave(); }
 async function loadBacklinks() {
   if (!_cur) return;
   const name = _cur.split('/').pop().replace(/\.md$/, '');
+  const el = $('wiki-backlinks'); if (!el) return;
   try {
-    const d = await fetch(`/api/vault-md/backlinks?name=${encodeURIComponent(name)}`).then(r => r.json());
-    const el = $('wiki-backlinks');
-    if (!d.backlinks.length) { el.innerHTML = '<span class="wiki-bl-empty">no backlinks</span>'; return; }
-    el.innerHTML = `<div class="wiki-bl-head">${d.backlinks.length} backlink${d.backlinks.length > 1 ? 's' : ''}</div>` +
-      d.backlinks.map(b => `<div class="wiki-bl" data-path="${esc(b.path)}"><b>${esc(b.name)}</b> <span>${esc(b.context)}</span></div>`).join('');
+    const [bl, ul] = await Promise.all([
+      fetch(`/api/vault-md/backlinks?name=${encodeURIComponent(name)}`).then(r => r.json()).catch(() => ({ backlinks: [] })),
+      fetch(`/api/vault-md/unlinked?name=${encodeURIComponent(name)}`).then(r => r.json()).catch(() => ({ mentions: [] })),
+    ]);
+    const links = bl.backlinks || [], ment = ul.mentions || [];
+    const row = b => `<div class="wiki-bl" data-path="${esc(b.path)}"><b>${esc(b.name)}</b> <span>${esc(b.context)}</span></div>`;
+    let html = '';
+    if (links.length) html += `<div class="wiki-bl-head">${links.length} backlink${links.length > 1 ? 's' : ''}</div>` + links.map(row).join('');
+    if (ment.length) html += `<div class="wiki-bl-head wiki-bl-unlinked">${ment.length} unlinked mention${ment.length > 1 ? 's' : ''}</div>` + ment.map(row).join('');
+    el.innerHTML = html || '<span class="wiki-bl-empty">no backlinks</span>';
     el.querySelectorAll('.wiki-bl').forEach(b => b.addEventListener('click', () => openFile(b.dataset.path)));
   } catch {}
 }
@@ -740,6 +821,167 @@ async function exportDocx() {
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
     toast('exported .docx', 'success');
   } catch { toast('export failed', 'error'); }
+}
+
+// ── export menu (docx / html / pdf) ─────────────────────────────────────────
+function openExportMenu(btn) {
+  document.getElementById('wiki-export-pop')?.remove();
+  if (!_cur) { toast('open a doc first', 'error'); return; }
+  const pop = document.createElement('div');
+  pop.id = 'wiki-export-pop'; pop.className = 'wiki-menu-pop';
+  pop.innerHTML = `<button class="wmp-item" data-x="docx">word (.docx)</button>`
+    + `<button class="wmp-item" data-x="html">html</button>`
+    + `<button class="wmp-item" data-x="pdf">pdf / print</button>`;
+  document.body.appendChild(pop);
+  const r = btn.getBoundingClientRect();
+  pop.style.left = Math.min(r.left, window.innerWidth - 170) + 'px';
+  pop.style.top = (r.bottom + 4) + 'px';
+  pop.querySelectorAll('.wmp-item').forEach(b => b.addEventListener('click', () => {
+    pop.remove();
+    if (b.dataset.x === 'docx') exportDocx();
+    else if (b.dataset.x === 'html') exportHtml();
+    else exportPdf();
+  }));
+  setTimeout(() => document.addEventListener('mousedown', function h(ev) { if (!pop.contains(ev.target) && ev.target !== btn) { pop.remove(); document.removeEventListener('mousedown', h); } }), 0);
+}
+function _exportDoc(title) {
+  renderPreview();
+  const body = ($('wiki-preview').innerHTML || '').replace(/(src|href)="\//g, `$1="${location.origin}/`);
+  const css = `*{box-sizing:border-box}body{max-width:760px;margin:2rem auto;padding:0 1.5rem;font-family:Inter,-apple-system,system-ui,sans-serif;line-height:1.7;color:#1a1a1a;background:#fff}
+h1,h2,h3,h4{line-height:1.25;margin:1.4em 0 .5em;font-weight:600}h1{font-size:1.9rem}h2{font-size:1.5rem}h3{font-size:1.25rem}
+p{margin:.7em 0}a{color:#2563eb;text-decoration:none}code{font-family:ui-monospace,Menlo,monospace;background:#f3f3f3;padding:.1em .3em;border-radius:3px;font-size:.9em}
+pre{background:#f6f8fa;padding:1rem;border-radius:6px;overflow:auto}pre code{background:none;padding:0}
+blockquote{border-left:3px solid #ddd;margin:1em 0;padding:.2em 0 .2em 1em;color:#555}
+table{border-collapse:collapse;margin:1em 0}th,td{border:1px solid #ddd;padding:.4em .7em}
+img{max-width:100%}mark{background:#fef08a;padding:0 .15em}ul,ol{padding-left:1.4em}.md-task{list-style:none}
+hr{border:none;border-top:1px solid #ddd;margin:1.5em 0}.code-block-header,.code-copy,.code-run{display:none}
+.md-callout{border-left:3px solid #888;padding:.5em 1em;margin:1em 0;background:#f7f7f7;border-radius:4px}
+.md-frontmatter{font-size:.85em;color:#666;border-bottom:1px solid #eee;padding-bottom:.6em;margin-bottom:1em}
+.md-fm-row{display:flex;gap:.5em}.md-fm-key{font-weight:600;min-width:90px}
+@media print{body{margin:0;max-width:none}}`;
+  return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(title)}</title><style>${css}</style></head><body>${body}</body></html>`;
+}
+function exportHtml() {
+  if (!_cur) { toast('open a doc first', 'error'); return; }
+  const title = _cur.split('/').pop().replace(/\.md$/, '');
+  const blob = new Blob([_exportDoc(title)], { type: 'text/html' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = title + '.html'; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  toast('exported .html', 'success');
+}
+function exportPdf() {
+  if (!_cur) { toast('open a doc first', 'error'); return; }
+  const title = _cur.split('/').pop().replace(/\.md$/, '');
+  const w = window.open('', '_blank');
+  if (!w) { toast('allow popups to export pdf', 'error'); return; }
+  w.document.write(_exportDoc(title));
+  w.document.close();
+  w.onload = () => setTimeout(() => { w.focus(); w.print(); }, 400);
+}
+
+// ── new from template ────────────────────────────────────────────────────────
+async function openTemplateMenu(btn) {
+  document.getElementById('wiki-tmpl-pop')?.remove();
+  let tmpls = [];
+  try { tmpls = (await fetch('/api/vault-md/templates').then(r => r.json())).templates || []; } catch {}
+  const pop = document.createElement('div');
+  pop.id = 'wiki-tmpl-pop'; pop.className = 'wiki-menu-pop';
+  pop.innerHTML = `<div class="wmp-label">new from template</div>`
+    + (tmpls.length ? tmpls.map(t => `<button class="wmp-item" data-name="${esc(t.name)}">${esc(t.name)}</button>`).join('')
+      : '<div class="wmp-empty">no templates — add .md files to _templates/</div>');
+  document.body.appendChild(pop);
+  const r = btn.getBoundingClientRect();
+  pop.style.left = Math.min(r.left, window.innerWidth - 200) + 'px';
+  pop.style.top = (r.bottom + 4) + 'px';
+  pop.querySelectorAll('.wmp-item').forEach(b => b.addEventListener('click', () => { pop.remove(); newFromTemplate(tmpls.find(x => x.name === b.dataset.name)); }));
+  setTimeout(() => document.addEventListener('mousedown', function h(ev) { if (!pop.contains(ev.target) && ev.target !== btn) { pop.remove(); document.removeEventListener('mousedown', h); } }), 0);
+}
+function _subTokens(s, title) {
+  const d = new Date();
+  const date = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const time = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  return (s || '').replace(/\{\{title\}\}/g, title.replace(/\.md$/, '')).replace(/\{\{date\}\}/g, date).replace(/\{\{time\}\}/g, time);
+}
+async function newFromTemplate(t) {
+  if (!t) return;
+  const name = await dlgPrompt('doc name (folders ok):');
+  if (!name?.trim()) return;
+  const content = _subTokens(t.content, name.trim().split('/').pop());
+  await fetch('/api/vault-md/file', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ path: name.trim(), content }) });
+  await loadTree();
+  openFile(name.trim().endsWith('.md') ? name.trim() : name.trim() + '.md');
+}
+
+// ── tasks rollup (every - [ ] across the vault) ──────────────────────────────
+function toggleTaskRoll() {
+  const p = $('wiki-taskroll'); if (!p) return;
+  const show = p.style.display === 'none';
+  p.style.display = show ? 'block' : 'none';
+  $('wiki-taskroll-btn')?.classList.toggle('active', show);
+  if (show) loadTaskRoll();
+}
+async function loadTaskRoll() {
+  const p = $('wiki-taskroll'); if (!p) return;
+  p.innerHTML = '<div class="wiki-tr-head">loading…</div>';
+  let tasks = [];
+  try { tasks = (await fetch('/api/vault-md/tasks').then(r => r.json())).tasks || []; }
+  catch { p.innerHTML = '<div class="wiki-tr-head">failed to load</div>'; return; }
+  if (!tasks.length) { p.innerHTML = '<div class="wiki-tr-head">no tasks — add - [ ] items in your docs</div>'; return; }
+  const open = tasks.filter(t => !t.done), done = tasks.filter(t => t.done);
+  const row = t => `<div class="wiki-tr-item${t.done ? ' done' : ''}" data-path="${esc(t.path)}" data-line="${t.line}">
+    <input type="checkbox" ${t.done ? 'checked' : ''} data-toggle>
+    <span class="wiki-tr-text">${esc(t.text)}</span><span class="wiki-tr-doc">${esc(t.name)}</span></div>`;
+  p.innerHTML = `<div class="wiki-tr-head">${open.length} open · ${done.length} done</div>` + open.map(row).join('') + done.map(row).join('');
+  p.querySelectorAll('.wiki-tr-item').forEach(el => {
+    const path = el.dataset.path, line = +el.dataset.line;
+    el.querySelector('[data-toggle]').addEventListener('click', async e => {
+      e.stopPropagation();
+      const done = e.target.checked;
+      if (_cur === path) await flushSave();   // don't clobber unsaved edits to the open doc
+      try {
+        const r = await fetch('/api/vault-md/task', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ path, line, done }) });
+        if (!r.ok) throw new Error();
+        el.classList.toggle('done', done);
+        if (_cur === path) { const d = await fetch(`/api/vault-md/file?path=${encodeURIComponent(path)}`).then(r => r.json()); setEditor(d.content || ''); }
+      } catch { toast('failed to update task', 'error'); e.target.checked = !done; }
+    });
+    el.querySelector('.wiki-tr-text').addEventListener('click', async () => { await openFile(path); jumpToLine(line, ''); });
+  });
+}
+
+// ── quick switcher (Ctrl/Cmd+O) ──────────────────────────────────────────────
+let _qsOpen = false;
+async function openQuickSwitcher() {
+  if (_qsOpen) return; _qsOpen = true;
+  let names = [];
+  try { names = (await fetch('/api/vault-md/names').then(r => r.json())).names || []; } catch {}
+  const ov = document.createElement('div');
+  ov.className = 'wiki-qs-overlay'; ov.id = 'wiki-qs';
+  ov.innerHTML = `<div class="wiki-qs-box"><input class="wiki-qs-input" type="text" placeholder="jump to doc… (Enter creates if missing)" spellcheck="false"><div class="wiki-qs-list"></div></div>`;
+  document.body.appendChild(ov);
+  const inp = ov.querySelector('.wiki-qs-input'), list = ov.querySelector('.wiki-qs-list');
+  let sel = 0, filtered = names.slice();
+  const render = () => {
+    list.innerHTML = filtered.slice(0, 50).map((n, i) => `<div class="wiki-qs-item${i === sel ? ' active' : ''}" data-i="${i}">${esc(n)}</div>`).join('')
+      || '<div class="wiki-qs-empty">no match — Enter to create</div>';
+    list.querySelectorAll('.wiki-qs-item').forEach(el => el.addEventListener('mousedown', e => { e.preventDefault(); pick(+el.dataset.i); }));
+  };
+  const close = () => { _qsOpen = false; ov.remove(); };
+  const pick = i => { const name = filtered[i]; close(); if (name) openByName(name); };
+  inp.addEventListener('input', () => {
+    const q = inp.value.trim().toLowerCase();
+    filtered = q ? names.filter(n => n.toLowerCase().includes(q)).sort((a, b) => (a.toLowerCase().startsWith(q) ? 0 : 1) - (b.toLowerCase().startsWith(q) ? 0 : 1)) : names.slice();
+    sel = 0; render();
+  });
+  inp.addEventListener('keydown', e => {
+    if (e.key === 'ArrowDown') { e.preventDefault(); sel = Math.min(sel + 1, filtered.length - 1); render(); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); sel = Math.max(sel - 1, 0); render(); }
+    else if (e.key === 'Enter') { e.preventDefault(); if (filtered.length) pick(sel); else { const v = inp.value.trim(); if (v) { close(); openByName(v); } } }
+    else if (e.key === 'Escape') { e.preventDefault(); close(); }
+  });
+  ov.addEventListener('mousedown', e => { if (e.target === ov) close(); });
+  render(); inp.focus();
 }
 
 async function newNote() {

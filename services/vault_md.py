@@ -31,9 +31,17 @@ def _safe(rel: str) -> Path:
 
 _WIKILINK = re.compile(r"\[\[([^\[\]|#]+)(?:[#|][^\[\]]*)?\]\]")
 
+# system folders that hold embedded assets + templates — kept out of the tree,
+# search, tags and the graph so they don't clutter the actual notes
+_SYS_DIRS = {"_assets", "_templates"}
+
 
 def _is_md(p: Path) -> bool:
     return p.suffix.lower() in (".md", ".markdown")
+
+
+def _in_sys_dir(p: Path) -> bool:
+    return any(part in _SYS_DIRS for part in p.parts)
 
 
 def tree() -> dict:
@@ -43,13 +51,17 @@ def tree() -> dict:
     def walk(d: Path) -> list:
         items = []
         for child in sorted(d.iterdir(), key=lambda c: (c.is_file(), c.name.lower())):
-            if child.name.startswith("."):
+            if child.name.startswith(".") or child.name in _SYS_DIRS:
                 continue
             rel = str(child.relative_to(base)).replace("\\", "/")
             if child.is_dir():
                 items.append({"type": "dir", "name": child.name, "path": rel, "children": walk(child)})
             elif _is_md(child):
-                items.append({"type": "file", "name": child.stem, "path": rel})
+                try:
+                    mt = child.stat().st_mtime
+                except OSError:
+                    mt = 0
+                items.append({"type": "file", "name": child.stem, "path": rel, "mtime": mt})
         return items
 
     return {"path": str(base), "items": walk(base)}
@@ -104,7 +116,8 @@ def rename(rel: str, new_rel: str) -> dict:
 
 def _all_md() -> list[Path]:
     base = vault_dir()
-    return [p for p in base.rglob("*") if p.is_file() and _is_md(p) and not p.name.startswith(".")]
+    return [p for p in base.rglob("*")
+            if p.is_file() and _is_md(p) and not p.name.startswith(".") and not _in_sys_dir(p)]
 
 
 def note_names() -> list[str]:
@@ -239,6 +252,120 @@ def notes_with_tag(tag: str) -> list[dict]:
             continue
         if any(m.group(1).lower() == target for m in _TAG.finditer(text)):
             out.append({"name": p.stem, "path": str(p.relative_to(base)).replace("\\", "/")})
+    return out
+
+
+_TASK = re.compile(r"^(\s*)[-*]\s+\[([ xX])\]\s+(.*)$")
+
+
+def all_tasks(include_done: bool = True) -> list[dict]:
+    """every `- [ ]` / `- [x]` checkbox across the vault — for the rollup view."""
+    base = vault_dir()
+    out = []
+    for p in _all_md():
+        try:
+            text = p.read_text("utf-8", errors="replace")
+        except Exception:
+            continue
+        rel = str(p.relative_to(base)).replace("\\", "/")
+        for i, line in enumerate(text.split("\n")):
+            m = _TASK.match(line)
+            if not m:
+                continue
+            done = m.group(2).lower() == "x"
+            if not include_done and done:
+                continue
+            txt = m.group(3).strip()
+            if txt:
+                out.append({"path": rel, "name": p.stem, "line": i, "text": txt, "done": done})
+    # open tasks first, then by doc
+    out.sort(key=lambda t: (t["done"], t["name"].lower()))
+    return out
+
+
+def set_task(rel: str, line: int, done: bool) -> dict:
+    """flip a single checkbox on a known line and save the doc."""
+    p = _safe(rel)
+    if not p.is_file():
+        raise ValueError("not a file")
+    lines = p.read_text("utf-8", errors="replace").split("\n")
+    if line < 0 or line >= len(lines):
+        raise ValueError("line out of range")
+    if not _TASK.match(lines[line]):
+        raise ValueError("not a task line")
+    mark = "x" if done else " "
+    lines[line] = re.sub(r"\[[ xX]\]", f"[{mark}]", lines[line], count=1)
+    p.write_text("\n".join(lines), "utf-8")
+    return {"ok": True, "done": done}
+
+
+_DEFAULT_TEMPLATES = {
+    "meeting": "# {{title}}\n\n**date:** {{date}}\n**attendees:** \n\n## agenda\n- \n\n## notes\n\n\n## action items\n- [ ] \n",
+    "daily": "# {{date}}\n\n## today\n- [ ] \n\n## notes\n\n\n## log\n",
+    "project": "# {{title}}\n\n## goal\n\n\n## tasks\n- [ ] \n\n## resources\n\n\n## notes\n",
+}
+
+
+def list_templates() -> list[dict]:
+    """templates live in _templates/*.md. seed a few starters on first use."""
+    base = vault_dir()
+    tdir = base / "_templates"
+    if not tdir.exists():
+        tdir.mkdir(parents=True, exist_ok=True)
+        for name, body in _DEFAULT_TEMPLATES.items():
+            (tdir / f"{name}.md").write_text(body, "utf-8")
+    out = []
+    for p in sorted(tdir.glob("*.md")):
+        try:
+            out.append({"name": p.stem, "content": p.read_text("utf-8", errors="replace")})
+        except Exception:
+            pass
+    return out
+
+
+def save_asset(filename: str, data: bytes) -> dict:
+    """stash a pasted/dropped image under _assets/, de-duping the name."""
+    base = vault_dir()
+    adir = base / "_assets"
+    adir.mkdir(parents=True, exist_ok=True)
+    name = re.sub(r"[^A-Za-z0-9._-]+", "_", (filename or "asset").strip().lower()) or "asset"
+    if "." not in name:
+        name += ".png"
+    stem, _, ext = name.rpartition(".")
+    p = adir / name
+    i = 1
+    while p.exists():
+        p = adir / f"{stem}-{i}.{ext}"
+        i += 1
+    p.write_bytes(data)
+    rel = str(p.relative_to(base)).replace("\\", "/")
+    return {"path": rel, "name": p.name}
+
+
+def unlinked_mentions(name: str) -> list[dict]:
+    """notes that say this note's title in plain text but don't [[link]] it."""
+    base = vault_dir()
+    target = (name or "").strip()
+    if len(target) < 2:
+        return []
+    tl = target.lower()
+    pat = re.compile(r"(?<![\w\[])" + re.escape(target) + r"(?![\w\]])", re.IGNORECASE)
+    out = []
+    for p in _all_md():
+        if p.stem.lower() == tl:
+            continue
+        try:
+            text = p.read_text("utf-8", errors="replace")
+        except Exception:
+            continue
+        # blank out real wikilinks first so [[name]] isn't counted as "unlinked"
+        stripped = _WIKILINK.sub(lambda m: " " * len(m.group(0)), text)
+        m = pat.search(stripped)
+        if not m:
+            continue
+        s = max(0, m.start() - 40)
+        ctx = " ".join(stripped[s:m.end() + 40].split())
+        out.append({"name": p.stem, "path": str(p.relative_to(base)).replace("\\", "/"), "context": ctx})
     return out
 
 
