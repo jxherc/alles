@@ -1618,6 +1618,44 @@ code {
   font-size: 0.72rem; color: var(--faint); letter-spacing: 0.04em;
   font-variant-numeric: tabular-nums;
 }
+/* customize button (top-right of the head) */
+.home-head { position: relative; }
+.home-edit-btn { position: absolute; top: 0.2rem; right: 0; font-size: 0.66rem; padding: 0.28rem 0.6rem; }
+.home-edit-btn.active { border-color: var(--accent); color: var(--accent); }
+
+/* quick capture */
+.home-capture {
+  display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1.1rem;
+  background: var(--panel); border: 1px solid var(--faint); border-radius: 6px; padding: 0.45rem 0.55rem;
+}
+.hc-modes { display: flex; gap: 0.15rem; flex-shrink: 0; }
+.hc-mode {
+  background: none; border: 1px solid transparent; border-radius: 4px; color: var(--muted);
+  font: inherit; font-size: 0.7rem; padding: 0.22rem 0.5rem; cursor: pointer; transition: all 0.15s ease;
+}
+.hc-mode:hover { color: var(--text); }
+.hc-mode.active { background: color-mix(in srgb, var(--accent) 18%, transparent); color: var(--accent); border-color: color-mix(in srgb, var(--accent) 40%, transparent); }
+.hc-input {
+  flex: 1; min-width: 0; background: none; border: none; outline: none; color: var(--text);
+  font: inherit; font-size: 0.85rem; padding: 0.2rem 0.15rem;
+}
+.hc-input::placeholder { color: var(--faint); }
+.hc-save { flex-shrink: 0; font-size: 0.7rem; padding: 0.3rem 0.7rem; }
+
+/* edit mode: drag to reorder, ×/+ to hide/show */
+.home-grid.no-anim .home-tile { animation: none; opacity: 1; transform: none; }
+.home-grid.editing .home-tile { cursor: grab; }
+.home-grid.editing .home-tile:hover { transform: none; }
+.home-tile.dragging { opacity: 0.4; }
+.home-tile.hidden-tile { opacity: 0.45; border-style: dashed; }
+.home-tile-toggle {
+  position: absolute; top: 0.4rem; right: 0.4rem; z-index: 2;
+  width: 20px; height: 20px; line-height: 1; padding: 0; border-radius: 50%;
+  background: var(--bg); border: 1px solid var(--faint); color: var(--muted);
+  font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; justify-content: center;
+}
+.home-tile-toggle:hover { color: var(--accent); border-color: var(--accent); }
+
 @media (max-width: 680px) { .home-grid { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 430px) { .home-grid { grid-template-columns: 1fr; } }
 

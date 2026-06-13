@@ -102,8 +102,17 @@
         <div class="home-head">
           <div class="home-brand">alles</div>
           <div class="home-greeting" id="home-greeting"></div>
+          <button class="btn home-edit-btn" id="home-edit-btn" title="rearrange & hide tiles">customize</button>
         </div>
         <div class="home-today" id="home-today" style="display:none"></div>
+        <div class="home-capture" id="home-capture">
+          <div class="hc-modes">
+            <button class="hc-mode active" data-mode="note">note</button>
+            <button class="hc-mode" data-mode="task">task</button>
+          </div>
+          <input type="text" id="hc-input" class="hc-input" placeholder="capture a note…" spellcheck="true" autocomplete="off">
+          <button class="btn primary hc-save" id="hc-save">save</button>
+        </div>
         <div class="home-grid" id="home-grid"></div>
         <div class="home-foot">
           <span class="live-dot"></span>

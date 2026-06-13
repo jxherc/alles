@@ -320,24 +320,123 @@ const HOME_TILES = [
   { view: 'days',     name: 'days',     desc: 'countdowns',      icon: 'days' },
 ];
 
-let _homeRendered = false;
+// ── home tiles: drag-reorder + hide/show (persisted) + quick capture ─────────
+const HOME_ORDER_KEY = 'alles-home-order';
+const HOME_HIDDEN_KEY = 'alles-home-hidden';
+let _homeEdit = false, _homeAnimated = false, _dragView = null;
+
+const _homeOrder = () => { try { return JSON.parse(localStorage.getItem(HOME_ORDER_KEY) || '[]'); } catch { return []; } };
+const _homeHidden = () => { try { return JSON.parse(localStorage.getItem(HOME_HIDDEN_KEY) || '[]'); } catch { return []; } };
+function _orderedTiles() {
+  const pos = new Map(_homeOrder().map((v, i) => [v, i]));
+  return [...HOME_TILES].sort((a, b) => (pos.get(a.view) ?? 999) - (pos.get(b.view) ?? 999));
+}
+
 function renderHome() {
   const grid = document.getElementById('home-grid');
   if (!grid) return;
-  if (!_homeRendered) {
-    grid.innerHTML = HOME_TILES.map((t, i) => `
-      <div class="home-tile" data-go="${t.view}" style="--i:${i}">
-        <span class="home-tile-icon">${_svg(t.icon || t.view)}</span>
-        <span class="home-tile-name">${t.name}</span>
-        <span class="home-tile-desc">${t.desc}</span>
-      </div>`).join('');
-    grid.querySelectorAll('.home-tile[data-go]').forEach(el =>
-      el.addEventListener('click', () => navigateTo(el.dataset.go)));
-    _homeRendered = true;
-  }
+  _renderHomeTiles();
   _renderHomeGreeting();
   _renderToday();
   _startHomeClock();
+  _wireQuickCapture();
+}
+
+function _renderHomeTiles() {
+  const grid = document.getElementById('home-grid');
+  if (!grid) return;
+  const hidden = new Set(_homeHidden());
+  const tiles = _orderedTiles();
+  const shown = _homeEdit ? tiles : tiles.filter(t => !hidden.has(t.view));
+  grid.classList.toggle('editing', _homeEdit);
+  grid.classList.toggle('no-anim', _homeAnimated);
+  grid.innerHTML = shown.map((t, i) => {
+    const isHidden = hidden.has(t.view);
+    return `<div class="home-tile${isHidden ? ' hidden-tile' : ''}" data-go="${t.view}" draggable="${_homeEdit}" style="--i:${i}">
+      <span class="home-tile-icon">${_svg(t.icon || t.view)}</span>
+      <span class="home-tile-name">${t.name}</span>
+      <span class="home-tile-desc">${t.desc}</span>
+      ${_homeEdit ? `<button class="home-tile-toggle" data-toggle="${t.view}" title="${isHidden ? 'show' : 'hide'}">${isHidden ? '+' : '×'}</button>` : ''}
+    </div>`;
+  }).join('');
+  _homeAnimated = true;
+  grid.querySelectorAll('.home-tile').forEach(el => {
+    el.addEventListener('click', e => {
+      if (_homeEdit || e.target.closest('.home-tile-toggle')) return;
+      navigateTo(el.dataset.go);
+    });
+    if (_homeEdit) _bindTileDrag(el);
+  });
+  grid.querySelectorAll('.home-tile-toggle').forEach(b =>
+    b.addEventListener('click', e => { e.stopPropagation(); _toggleTileHidden(b.dataset.toggle); }));
+}
+
+function _toggleHomeEdit() {
+  _homeEdit = !_homeEdit;
+  const btn = document.getElementById('home-edit-btn');
+  if (btn) { btn.classList.toggle('active', _homeEdit); btn.textContent = _homeEdit ? 'done' : 'customize'; }
+  _renderHomeTiles();
+}
+function _toggleTileHidden(view) {
+  const h = new Set(_homeHidden());
+  h.has(view) ? h.delete(view) : h.add(view);
+  localStorage.setItem(HOME_HIDDEN_KEY, JSON.stringify([...h]));
+  _renderHomeTiles();
+}
+function _bindTileDrag(el) {
+  el.addEventListener('dragstart', e => { _dragView = el.dataset.go; e.dataTransfer.effectAllowed = 'move'; el.classList.add('dragging'); });
+  el.addEventListener('dragend', () => { el.classList.remove('dragging'); _dragView = null; });
+  el.addEventListener('dragover', e => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; });
+  el.addEventListener('drop', e => {
+    e.preventDefault();
+    const from = _dragView, to = el.dataset.go;
+    if (!from || !to || from === to) return;
+    let order = _orderedTiles().map(t => t.view).filter(v => v !== from);
+    order.splice(order.indexOf(to), 0, from);
+    localStorage.setItem(HOME_ORDER_KEY, JSON.stringify(order));
+    _renderHomeTiles();
+  });
+}
+
+// quick capture → today's daily note (bullet) or a task
+let _qcWired = false, _qcMode = 'note';
+function _wireQuickCapture() {
+  if (_qcWired) return; _qcWired = true;
+  const inp = document.getElementById('hc-input'), save = document.getElementById('hc-save');
+  document.getElementById('home-edit-btn')?.addEventListener('click', _toggleHomeEdit);
+  document.querySelectorAll('.hc-mode').forEach(b => b.addEventListener('click', () => {
+    _qcMode = b.dataset.mode;
+    document.querySelectorAll('.hc-mode').forEach(x => x.classList.toggle('active', x === b));
+    if (inp) inp.placeholder = _qcMode === 'task' ? 'capture a task…' : 'capture a note…';
+  }));
+  const submit = async () => {
+    const text = (inp?.value || '').trim();
+    if (!text) return;
+    save.disabled = true;
+    const ok = await _quickCapture(text, _qcMode === 'task');
+    save.disabled = false;
+    if (ok) { inp.value = ''; toast(_qcMode === 'task' ? 'task added' : "saved to today's note", 'success'); _renderToday(); }
+    else toast('capture failed', 'error');
+  };
+  save?.addEventListener('click', submit);
+  inp?.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submit(); } });
+}
+async function _quickCapture(text, asTask) {
+  try {
+    if (asTask) {
+      const r = await fetch('/api/tasks', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ title: text }) });
+      return r.ok;
+    }
+    const d = new Date();
+    const name = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const path = name + '.md';
+    let cur = '';
+    try { const g = await fetch(`/api/vault-md/file?path=${encodeURIComponent(path)}`).then(r => r.json()); cur = g.exists ? g.content : `# ${name}\n\n`; }
+    catch { cur = `# ${name}\n\n`; }
+    const body = cur + (cur.endsWith('\n') ? '' : '\n') + `- ${text}\n`;
+    const r = await fetch('/api/vault-md/file', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ path, content: body }) });
+    return r.ok;
+  } catch { return false; }
 }
 
 // ── today strip: events, tasks, reminders, renewals, mail, recent docs ──────
