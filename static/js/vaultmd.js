@@ -275,7 +275,7 @@ export function initVault() {
   $('wiki-export-btn')?.addEventListener('click', e => openExportMenu(e.currentTarget));
   $('wiki-folder-btn')?.addEventListener('click', newFolder);
   $('wiki-tmpl-btn')?.addEventListener('click', e => openTemplateMenu(e.currentTarget));
-  $('wiki-import-btn')?.addEventListener('click', () => $('wiki-import-input')?.click());
+  $('wiki-import-btn')?.addEventListener('click', e => openImportMenu(e.currentTarget));
   $('wiki-import-input')?.addEventListener('change', importDoc);
   $('wiki-sort-btn')?.addEventListener('click', cycleSort);
   $('wiki-today-btn')?.addEventListener('click', openDaily);
@@ -913,6 +913,36 @@ async function newFromTemplate(t) {
   await fetch('/api/vault-md/file', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ path: name.trim(), content }) });
   await loadTree();
   openFile(name.trim().endsWith('.md') ? name.trim() : name.trim() + '.md');
+}
+
+// ── import: from a file, or from a YouTube link ──────────────────────────────
+function openImportMenu(btn) {
+  document.getElementById('wiki-import-pop')?.remove();
+  const pop = document.createElement('div');
+  pop.id = 'wiki-import-pop'; pop.className = 'wiki-menu-pop';
+  pop.innerHTML = `<button class="wmp-item" data-x="file">from file…</button><button class="wmp-item" data-x="yt">from YouTube link…</button>`;
+  document.body.appendChild(pop);
+  const r = btn.getBoundingClientRect();
+  pop.style.left = Math.min(r.left, window.innerWidth - 190) + 'px';
+  pop.style.top = (r.bottom + 4) + 'px';
+  pop.querySelectorAll('.wmp-item').forEach(b => b.addEventListener('click', () => {
+    pop.remove();
+    if (b.dataset.x === 'file') $('wiki-import-input')?.click();
+    else importYoutube();
+  }));
+  setTimeout(() => document.addEventListener('mousedown', function h(ev) { if (!pop.contains(ev.target) && ev.target !== btn) { pop.remove(); document.removeEventListener('mousedown', h); } }), 0);
+}
+
+async function importYoutube() {
+  const url = await dlgPrompt('YouTube URL:');
+  if (!url?.trim()) return;
+  toast('fetching transcript…', '');
+  try {
+    const d = await api('/api/vault-md/youtube', { method: 'POST', body: { url: url.trim() } });
+    await loadTree();
+    await openFile(d.path);
+    toast(d.summarized ? 'imported + summarized' : 'imported transcript', 'success');
+  } catch (e) { toast(e.message || 'youtube import failed', 'error'); }
 }
 
 // ── import a document (.md/.txt/.docx/.html/.pdf → markdown doc) ─────────────

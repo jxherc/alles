@@ -106,8 +106,22 @@ async function openPreview(path, isImg) {
   const body = $('files-preview-body');
   body.innerHTML = '<div class="files-empty">loading…</div>';
   $('files-preview-modal').style.display = 'flex';
+  const raw = `/api/files/raw?path=${encodeURIComponent(path)}`;
+  const ext = name.split('.').pop().toLowerCase();
   if (isImg) {
-    body.innerHTML = `<img class="files-preview-img" src="/api/files/raw?path=${encodeURIComponent(path)}" alt="">`;
+    body.innerHTML = `<img class="files-preview-img" src="${raw}" alt="">`;
+    return;
+  }
+  if (ext === 'pdf') {
+    body.innerHTML = `<iframe class="files-preview-frame" src="${raw}#view=FitH" title="${esc(name)}"></iframe>`;
+    return;
+  }
+  if (['mp4', 'webm', 'ogv', 'mov', 'm4v'].includes(ext)) {
+    body.innerHTML = `<video class="files-preview-media" src="${raw}" controls autoplay playsinline></video>`;
+    return;
+  }
+  if (['mp3', 'wav', 'ogg', 'm4a', 'flac', 'aac'].includes(ext)) {
+    body.innerHTML = `<audio class="files-preview-media" src="${raw}" controls autoplay></audio>`;
     return;
   }
   try {
