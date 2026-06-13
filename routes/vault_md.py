@@ -1,5 +1,5 @@
 import json
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, UploadFile, File
 from fastapi.responses import StreamingResponse, Response
 from pydantic import BaseModel
 
@@ -284,6 +284,46 @@ def by_tag(tag: str):
 @router.get("/graph")
 def graph():
     return vault_md.graph()
+
+
+@router.post("/asset")
+async def upload_asset(file: UploadFile = File(...)):
+    """pasted/dropped image → saved under _assets/, returns the embed path."""
+    data = await file.read()
+    if not data:
+        raise HTTPException(400, "empty file")
+    if len(data) > 25 * 1024 * 1024:
+        raise HTTPException(413, "file too big (25MB max)")
+    return vault_md.save_asset(file.filename or "image.png", data)
+
+
+@router.get("/tasks")
+def tasks(open_only: bool = False):
+    return {"tasks": vault_md.all_tasks(include_done=not open_only)}
+
+
+class TaskToggleBody(BaseModel):
+    path: str
+    line: int
+    done: bool
+
+
+@router.post("/task")
+def toggle_task(body: TaskToggleBody):
+    try:
+        return vault_md.set_task(body.path, body.line, body.done)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+@router.get("/templates")
+def templates():
+    return {"templates": vault_md.list_templates()}
+
+
+@router.get("/unlinked")
+def unlinked(name: str):
+    return {"mentions": vault_md.unlinked_mentions(name)}
 
 
 class FolderBody(BaseModel):
