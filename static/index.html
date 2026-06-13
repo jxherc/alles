@@ -287,6 +287,7 @@
           </button>
           <span id="wiki-current" class="wiki-current">no doc open</span>
           <span id="wiki-save-status" style="font-size:0.66rem;color:var(--muted);margin-left:auto"></span>
+          <button class="btn" id="wiki-mode-toggle" title="cycle edit / split / preview">edit</button>
           <button class="btn" id="wiki-ai-toggle" title="ask AI to edit">ai</button>
           <button class="btn" id="wiki-help-btn" title="markdown guide">guide</button>
           <button class="btn" id="wiki-outline-btn">outline</button>
@@ -310,9 +311,35 @@
             <div class="we-recent" id="wiki-empty-recent"></div>
           </div>
         </div>
-        <div id="toast-editor" class="toast-editor"></div>
-        <textarea id="wiki-source" style="display:none"></textarea>
-        <div class="wiki-preview" id="wiki-preview" style="display:none"></div>
+        <div id="docs-toolbar" class="docs-toolbar">
+          <button class="dt-btn" data-fmt="h1" title="heading 1">H1</button>
+          <button class="dt-btn" data-fmt="h2" title="heading 2">H2</button>
+          <button class="dt-btn" data-fmt="h3" title="heading 3">H3</button>
+          <span class="dt-sep"></span>
+          <button class="dt-btn" data-fmt="bold" title="bold (Ctrl+B)"><b>B</b></button>
+          <button class="dt-btn" data-fmt="italic" title="italic (Ctrl+I)"><i>I</i></button>
+          <button class="dt-btn" data-fmt="strike" title="strikethrough"><span style="text-decoration:line-through">S</span></button>
+          <button class="dt-btn" data-fmt="highlight" title="highlight (Ctrl+Shift+H)"><span class="dt-hl">H</span></button>
+          <button class="dt-btn" id="dt-color-btn" title="text color"><span class="dt-color-a">A</span></button>
+          <button class="dt-btn" data-fmt="code" title="inline code (Ctrl+E)">&lt;/&gt;</button>
+          <span class="dt-sep"></span>
+          <button class="dt-btn" data-fmt="bullet" title="bullet list">•</button>
+          <button class="dt-btn" data-fmt="olist" title="numbered list">1.</button>
+          <button class="dt-btn" data-fmt="check" title="checklist">☑</button>
+          <button class="dt-btn" data-fmt="quote" title="quote">&ldquo;</button>
+          <span class="dt-sep"></span>
+          <button class="dt-btn dt-wide" data-fmt="link" title="link (Ctrl+K)">link</button>
+          <button class="dt-btn dt-wide" data-fmt="image" title="image">img</button>
+          <button class="dt-btn dt-wide" data-fmt="wiki" title="link another doc">[[ ]]</button>
+          <button class="dt-btn dt-wide" data-fmt="table" title="table">table</button>
+          <button class="dt-btn dt-wide" data-fmt="codeblock" title="code block">code</button>
+          <button class="dt-btn dt-wide" data-fmt="callout" title="callout">callout</button>
+          <button class="dt-btn" data-fmt="hr" title="divider">—</button>
+        </div>
+        <div class="wiki-edit-wrap">
+          <textarea id="wiki-source" class="wiki-source" spellcheck="true" placeholder="start writing — markdown supported. [[link]] another doc, # for a heading, /guide for the cheatsheet."></textarea>
+          <div class="wiki-preview" id="wiki-preview"></div>
+        </div>
         <div class="wiki-backlinks" id="wiki-backlinks"></div>
         <div class="doc-ai-bar">
           <input type="text" id="wiki-ai-input" placeholder="tell the AI what to change (e.g. 'summarize', 'fix grammar', 'expand the intro')...">
@@ -621,6 +648,7 @@
         <button class="mm-tab active" data-tab="models">models</button>
         <button class="mm-tab" data-tab="endpoints">endpoints</button>
       </div>
+      <button class="btn mm-refresh-all" id="mm-refresh-all" title="re-probe every endpoint for new models" style="margin-left:auto;margin-right:0.4rem">refresh</button>
       <button class="modal-close" id="model-modal-close">×</button>
     </div>
 

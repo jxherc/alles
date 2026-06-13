@@ -90,10 +90,10 @@ def test(aid: str, db: DbSession = Depends(get_db)):
 
 
 @router.get("/inbox/{aid}")
-def inbox(aid: str, folder: str = "INBOX", limit: int = 30, db: DbSession = Depends(get_db)):
+def inbox(aid: str, folder: str = "INBOX", limit: int = 30, quick: bool = False, db: DbSession = Depends(get_db)):
     a = _get(db, aid)
     try:
-        return {"messages": mailsvc.fetch_inbox(_acct_dict(a), folder, limit)}
+        return {"messages": mailsvc.fetch_inbox(_acct_dict(a), folder, limit, quick=quick)}
     except Exception as e:
         return {"error": str(e)[:200], "messages": []}
 
