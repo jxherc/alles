@@ -71,6 +71,49 @@ class VaultTests(unittest.TestCase):
         self.assertEqual(tags["urgent"], 1)
         self.assertEqual({n["name"] for n in vault_md.notes_with_tag("work")}, {"a", "b"})
 
+    def test_tasks_rollup_and_toggle(self):
+        vault_md.write("a.md", "# a\n- [ ] buy milk\n- [x] done thing\nplain line\n")
+        vault_md.write("b.md", "- [ ] write tests")
+        tasks = vault_md.all_tasks()
+        texts = {(t["name"], t["text"], t["done"]) for t in tasks}
+        self.assertIn(("a", "buy milk", False), texts)
+        self.assertIn(("a", "done thing", True), texts)
+        self.assertIn(("b", "write tests", False), texts)
+        # open-only filter
+        self.assertTrue(all(not t["done"] for t in vault_md.all_tasks(include_done=False)))
+        # toggle the milk line (line index 1) done
+        vault_md.set_task("a.md", 1, True)
+        self.assertIn("- [x] buy milk", vault_md.read("a.md")["content"])
+        with self.assertRaises(ValueError):
+            vault_md.set_task("a.md", 3, True)   # "plain line" is not a task
+
+    def test_save_asset_and_sys_dir_excluded(self):
+        out = vault_md.save_asset("My Pic!.png", b"\x89PNG\r\n")
+        self.assertTrue(out["path"].startswith("_assets/"))
+        # dedupe on repeat
+        out2 = vault_md.save_asset("My Pic!.png", b"x")
+        self.assertNotEqual(out["path"], out2["path"])
+        # assets dir must not leak into tree / search
+        vault_md.create("real.md")
+        names = {i["name"] for i in vault_md.tree()["items"]}
+        self.assertNotIn("_assets", names)
+        self.assertEqual([r["name"] for r in vault_md.search("My Pic")], [])
+
+    def test_templates_seed(self):
+        tmpls = {t["name"] for t in vault_md.list_templates()}
+        self.assertTrue({"meeting", "daily", "project"} <= tmpls)
+        # templates folder stays out of the notes tree
+        self.assertNotIn("_templates", {i["name"] for i in vault_md.tree()["items"]})
+
+    def test_unlinked_mentions(self):
+        vault_md.write("target.md", "i am target")
+        vault_md.write("linked.md", "see [[target]] here")     # already a link → not unlinked
+        vault_md.write("plain.md", "i mention target in prose")  # plain mention → unlinked
+        ment = {m["name"] for m in vault_md.unlinked_mentions("target")}
+        self.assertIn("plain", ment)
+        self.assertNotIn("linked", ment)
+        self.assertNotIn("target", ment)   # excludes self
+
     def test_graph(self):
         vault_md.write("home.md", "go to [[about]] and [[contact]]")
         vault_md.write("about.md", "back [[home]]")
