@@ -99,114 +99,123 @@ async def _bootstrap_anthropic():
         db.close()
 
 
-# 0 → the first loop tick re-probes immediately after boot, then every 6h
-_last_model_refresh = 0.0
+async def _fire_due_reminders():
+    """plain reminders → web push once; scheduled 'message' reminders → run the
+    model and drop the reply into the session. (a registered 30s job)"""
+    from core.database import SessionLocal, Reminder, Session
+    from services.llm import stream_chat
+    from core.settings import load_settings
+    from routes.push import broadcast as push_broadcast
+    now = datetime.utcnow()
+    db = SessionLocal()
+    try:
+        # plain reminders: web push once, but leave them unfired so an
+        # open tab still picks them up via /api/reminders/due
+        plain = db.query(Reminder).filter(
+            Reminder.trigger_at <= now,
+            Reminder.fired == False,
+            Reminder.notified == False,
+            Reminder.type == "reminder",
+        ).all()
+        for r in plain:
+            r.notified = True
+            db.commit()
+            try:
+                await push_broadcast({"title": "reminder", "body": r.text,
+                                      "url": "/", "tag": f"reminder-{r.id}"})
+            except Exception as e:
+                log.warning(f"reminder push failed: {e}")
+
+        due = db.query(Reminder).filter(
+            Reminder.trigger_at <= now,
+            Reminder.fired == False,
+            Reminder.type == "message",
+        ).all()
+        for r in due:
+            r.fired = True
+            db.commit()
+            if not r.session_id:
+                continue
+            s = db.get(Session, r.session_id)
+            if not s:
+                continue
+            from core.database import Message, ModelEndpoint
+            from datetime import datetime as dt
+            ep = db.get(ModelEndpoint, s.endpoint_id)
+            if not ep:
+                continue
+            settings = load_settings()
+            msgs = [{"role": "system", "content": settings.get("system_prompt", "You are aide.")}]
+            for m in list(s.messages)[-20:]:
+                msgs.append({"role": m.role, "content": m.content})
+            msgs.append({"role": "user", "content": r.text})
+            acc = []
+            try:
+                async for chunk in stream_chat(msgs, ep.base_url, ep.api_key, s.model):
+                    if "delta" in chunk:
+                        acc.append(chunk["delta"])
+            except Exception as e:
+                # one broken endpoint must not stall the rest of the queue,
+                # and the reminder itself still lands in the session below
+                log.warning(f"reminder LLM call failed for session {s.id}: {e}")
+            full = "".join(acc) or "(reminder fired, but the model could not be reached)"
+            um = Message(session_id=s.id, role="user", content=r.text)
+            am = Message(session_id=s.id, role="assistant", content=full)
+            db.add(um); db.add(am)
+            s.message_count = (s.message_count or 0) + 2
+            s.last_message_at = dt.utcnow()
+            db.commit()
+            log.info(f"fired scheduled message for session {s.id}")
+            try:
+                await push_broadcast({"title": "aide", "body": full[:160],
+                                      "url": "/", "tag": f"message-{r.id}"})
+            except Exception as e:
+                log.warning(f"message push failed: {e}")
+    finally:
+        db.close()
+
+
+def _register_jobs():
+    """wire the periodic checks into the shared job registry. same functions and
+    intervals as before — just routed through services.jobs so new features
+    (scheduled agents, daily digest) can register their own jobs."""
+    from services import jobs
+
+    async def _subs():
+        from routes.subscriptions import check_renewals
+        await check_renewals()
+
+    async def _days():
+        from routes.days import check_day_events
+        await check_day_events()
+
+    async def _autos():
+        from services.automations import run_automations
+        await run_automations()
+
+    async def _models():
+        from routes.models import refresh_all_model_lists
+        await refresh_all_model_lists()
+
+    jobs.register("subscriptions", _subs, 30)
+    jobs.register("day_events", _days, 30)
+    jobs.register("automations", _autos, 30)
+    jobs.register("reminders", _fire_due_reminders, 30)
+    jobs.register("model_refresh", _models, 6 * 3600)   # runs at boot, then every 6h
 
 
 async def _reminder_loop():
-    """fires scheduled messages every 30s"""
+    """ticks the background job registry every 30s."""
     await asyncio.sleep(5)  # let startup finish
+    _register_jobs()
+    from services import jobs
     while True:
         try:
-            from core.database import SessionLocal, Reminder, Session
-            from services.llm import stream_chat
-            from core.settings import load_settings
-            from routes.push import broadcast as push_broadcast
-            try:
-                from routes.subscriptions import check_renewals
-                await check_renewals()
-            except Exception as e:
-                log.warning(f"subscription renewal check failed: {e}")
-            try:
-                from routes.days import check_day_events
-                await check_day_events()
-            except Exception as e:
-                log.warning(f"day event check failed: {e}")
-            try:
-                from services.automations import run_automations
-                await run_automations()
-            except Exception as e:
-                log.warning(f"automations failed: {e}")
-            # keep provider model lists fresh (new releases show up on their own)
-            global _last_model_refresh
-            if time.time() - _last_model_refresh > 6 * 3600:
-                _last_model_refresh = time.time()
-                try:
-                    from routes.models import refresh_all_model_lists
-                    await refresh_all_model_lists()
-                except Exception as e:
-                    log.warning(f"model list refresh failed: {e}")
-            now = datetime.utcnow()
-            db = SessionLocal()
-            try:
-                # plain reminders: web push once, but leave them unfired so an
-                # open tab still picks them up via /api/reminders/due
-                plain = db.query(Reminder).filter(
-                    Reminder.trigger_at <= now,
-                    Reminder.fired == False,
-                    Reminder.notified == False,
-                    Reminder.type == "reminder",
-                ).all()
-                for r in plain:
-                    r.notified = True
-                    db.commit()
-                    try:
-                        await push_broadcast({"title": "reminder", "body": r.text,
-                                              "url": "/", "tag": f"reminder-{r.id}"})
-                    except Exception as e:
-                        log.warning(f"reminder push failed: {e}")
-
-                due = db.query(Reminder).filter(
-                    Reminder.trigger_at <= now,
-                    Reminder.fired == False,
-                    Reminder.type == "message",
-                ).all()
-                for r in due:
-                    r.fired = True
-                    db.commit()
-                    if not r.session_id:
-                        continue
-                    s = db.get(Session, r.session_id)
-                    if not s:
-                        continue
-                    from core.database import Message, ModelEndpoint
-                    from datetime import datetime as dt
-                    ep = db.get(ModelEndpoint, s.endpoint_id)
-                    if not ep:
-                        continue
-                    settings = load_settings()
-                    msgs = [{"role": "system", "content": settings.get("system_prompt", "You are aide.")}]
-                    for m in list(s.messages)[-20:]:
-                        msgs.append({"role": m.role, "content": m.content})
-                    msgs.append({"role": "user", "content": r.text})
-                    acc = []
-                    try:
-                        async for chunk in stream_chat(msgs, ep.base_url, ep.api_key, s.model):
-                            if "delta" in chunk:
-                                acc.append(chunk["delta"])
-                    except Exception as e:
-                        # one broken endpoint must not stall the rest of the queue,
-                        # and the reminder itself still lands in the session below
-                        log.warning(f"reminder LLM call failed for session {s.id}: {e}")
-                    full = "".join(acc) or "(reminder fired, but the model could not be reached)"
-                    um = Message(session_id=s.id, role="user", content=r.text)
-                    am = Message(session_id=s.id, role="assistant", content=full)
-                    db.add(um); db.add(am)
-                    s.message_count = (s.message_count or 0) + 2
-                    s.last_message_at = dt.utcnow()
-                    db.commit()
-                    log.info(f"fired scheduled message for session {s.id}")
-                    try:
-                        await push_broadcast({"title": "aide", "body": full[:160],
-                                              "url": "/", "tag": f"message-{r.id}"})
-                    except Exception as e:
-                        log.warning(f"message push failed: {e}")
-            finally:
-                db.close()
+            await jobs.run_due()
         except asyncio.CancelledError:
             break
         except Exception as e:
-            log.warning(f"reminder loop error: {e}")
+            log.warning(f"job loop error: {e}")
         await asyncio.sleep(30)
 
 

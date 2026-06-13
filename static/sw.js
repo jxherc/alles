@@ -1,5 +1,5 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v2';   // bumped: purges caches that held the old broken editor bundle
+const VERSION = 'v3';   // bumped: vendor is now stale-while-revalidate (was cache-first → served stale bundles after a rebuild)
 const CACHE = `alles-${VERSION}`;
 
 self.addEventListener('install', () => self.skipWaiting());
@@ -17,15 +17,19 @@ self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET' || url.origin !== location.origin) return;
   if (url.pathname.startsWith('/api/') || url.pathname === '/sw.js') return;   // never cache
 
-  // vendor bundles are versioned by filename — cache-first
+  // vendor bundles: stale-while-revalidate — serve cache instantly for speed +
+  // offline, but always refetch in the background so a rebuilt bundle (the file
+  // name isn't content-hashed) gets picked up on the next load
   if (url.pathname.startsWith('/static/vendor/')) {
-    e.respondWith(caches.open(CACHE).then(async c => {
+    e.respondWith((async () => {
+      const c = await caches.open(CACHE);
       const hit = await c.match(e.request);
-      if (hit) return hit;
-      const resp = await fetch(e.request);
-      if (resp.ok) c.put(e.request, resp.clone());
-      return resp;
-    }));
+      const fetching = fetch(e.request)
+        .then(resp => { if (resp && resp.ok) c.put(e.request, resp.clone()); return resp; })
+        .catch(() => null);
+      if (hit) { e.waitUntil(fetching); return hit; }
+      return (await fetching) || fetch(e.request);
+    })());
     return;
   }
 
