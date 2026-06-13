@@ -201,6 +201,27 @@ export async function enhanceMarkdown(root) {
 window.enhanceMarkdown = enhanceMarkdown;
 
 
+// thin fetch wrapper — json in/out by default, throws on !ok with the server's
+// detail message. plain objects get JSON-encoded; FormData/strings pass through.
+// adopt incrementally; raw fetch is still fine where this doesn't fit.
+export async function api(path, opts = {}) {
+  const o = { ...opts };
+  const body = o.body;
+  if (body != null && !(body instanceof FormData) && typeof body !== 'string') {
+    o.headers = { 'content-type': 'application/json', ...(o.headers || {}) };
+    o.body = JSON.stringify(body);
+  }
+  const r = await fetch(path, o);
+  const ct = r.headers.get('content-type') || '';
+  const data = ct.includes('application/json') ? await r.json().catch(() => null) : await r.text();
+  if (!r.ok) {
+    const msg = (data && data.detail) || (typeof data === 'string' && data) || `request failed (${r.status})`;
+    throw Object.assign(new Error(msg), { status: r.status, data });
+  }
+  return data;
+}
+
+
 export function toast(msg, type = '', duration = 3000) {
   const c = document.getElementById('toast-container');
   const el = document.createElement('div');
