@@ -275,6 +275,8 @@ export function initVault() {
   $('wiki-export-btn')?.addEventListener('click', e => openExportMenu(e.currentTarget));
   $('wiki-folder-btn')?.addEventListener('click', newFolder);
   $('wiki-tmpl-btn')?.addEventListener('click', e => openTemplateMenu(e.currentTarget));
+  $('wiki-import-btn')?.addEventListener('click', () => $('wiki-import-input')?.click());
+  $('wiki-import-input')?.addEventListener('change', importDoc);
   $('wiki-sort-btn')?.addEventListener('click', cycleSort);
   $('wiki-today-btn')?.addEventListener('click', openDaily);
   $('wiki-outline-btn')?.addEventListener('click', toggleOutline);
@@ -911,6 +913,24 @@ async function newFromTemplate(t) {
   await fetch('/api/vault-md/file', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ path: name.trim(), content }) });
   await loadTree();
   openFile(name.trim().endsWith('.md') ? name.trim() : name.trim() + '.md');
+}
+
+// ── import a document (.md/.txt/.docx/.html/.pdf → markdown doc) ─────────────
+async function importDoc(e) {
+  const file = e.target.files?.[0];
+  e.target.value = '';   // let the same file be picked again later
+  if (!file) return;
+  toast(`importing ${file.name}…`, '');
+  const fd = new FormData();
+  fd.append('file', file, file.name);
+  try {
+    const r = await fetch('/api/vault-md/import', { method: 'POST', body: fd });
+    const d = await r.json();
+    if (!r.ok) { toast(d.detail || 'import failed', 'error'); return; }
+    await loadTree();
+    await openFile(d.path);
+    toast(`imported ${d.name}`, 'success');
+  } catch { toast('import failed', 'error'); }
 }
 
 // ── tasks rollup (every - [ ] across the vault) ──────────────────────────────

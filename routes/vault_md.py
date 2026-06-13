@@ -326,6 +326,34 @@ def unlinked(name: str):
     return {"mentions": vault_md.unlinked_mentions(name)}
 
 
+@router.post("/import")
+async def import_doc(file: UploadFile = File(...)):
+    """import .md/.txt/.docx/.html/.pdf → a new markdown doc."""
+    from services import doc_import
+    data = await file.read()
+    if not data:
+        raise HTTPException(400, "empty file")
+    if len(data) > 25 * 1024 * 1024:
+        raise HTTPException(413, "file too big (25MB max)")
+    try:
+        res = doc_import.import_document(file.filename or "imported", data)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except Exception:
+        raise HTTPException(500, "couldn't read that file — it may be corrupt")
+    # pick a free name so an import never clobbers an existing doc
+    base = res["name"] or "imported"
+    existing = {n.lower() for n in vault_md.note_names()}
+    path = base
+    if base.lower() in existing:
+        i = 1
+        while f"{base}-{i}".lower() in existing:
+            i += 1
+        path = f"{base}-{i}"
+    out = vault_md.create(path, res["content"])
+    return {"path": out.get("path", path + ".md"), "name": base}
+
+
 class FolderBody(BaseModel):
     path: str
 
