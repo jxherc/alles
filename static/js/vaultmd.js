@@ -5,7 +5,7 @@
 // styled inline, symbols reveal on the cursor's line) · source = raw markdown
 // textarea · preview = fully rendered. CodeMirror edits plain markdown text
 // directly (no lossy round-trip), so a save can never corrupt the file.
-import { mdToHtml, toast, enhanceMarkdown } from './util.js';
+import { mdToHtml, toast, enhanceMarkdown, api } from './util.js';
 import { prompt as dlgPrompt, confirm as dlgConfirm } from './dialog.js';
 
 let _cur = null;
@@ -924,13 +924,11 @@ async function importDoc(e) {
   const fd = new FormData();
   fd.append('file', file, file.name);
   try {
-    const r = await fetch('/api/vault-md/import', { method: 'POST', body: fd });
-    const d = await r.json();
-    if (!r.ok) { toast(d.detail || 'import failed', 'error'); return; }
+    const d = await api('/api/vault-md/import', { method: 'POST', body: fd });
     await loadTree();
     await openFile(d.path);
     toast(`imported ${d.name}`, 'success');
-  } catch { toast('import failed', 'error'); }
+  } catch (e) { toast(e.message || 'import failed', 'error'); }
 }
 
 // ── tasks rollup (every - [ ] across the vault) ──────────────────────────────

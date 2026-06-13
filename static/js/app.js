@@ -1,7 +1,7 @@
 import { loadSessions, initSessions, newChat, showWelcome, createSession, renderSidebar, exportActiveSessionMarkdown, getActiveId } from './sessions.js';
 import { loadModels, renderModelList, renderSidebarModelList, addEndpoint, getSelected, getCurrentEndpoint, initModelModal } from './models.js';
 import { sendMessage, stopStream, hideConnBanner } from './chat.js';
-import { toast, closeAllModals, mdToHtml } from './util.js';
+import { toast, closeAllModals, mdToHtml, api } from './util.js';
 import { runResearch, setResearchMode, isResearchMode } from './research.js';
 import { loadNotes, newNote } from './notes.js';
 import { loadTasks, addTask } from './tasks.js';
@@ -424,18 +424,17 @@ function _wireQuickCapture() {
 async function _quickCapture(text, asTask) {
   try {
     if (asTask) {
-      const r = await fetch('/api/tasks', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ title: text }) });
-      return r.ok;
+      await api('/api/tasks', { method: 'POST', body: { title: text } });
+      return true;
     }
     const d = new Date();
     const name = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     const path = name + '.md';
-    let cur = '';
-    try { const g = await fetch(`/api/vault-md/file?path=${encodeURIComponent(path)}`).then(r => r.json()); cur = g.exists ? g.content : `# ${name}\n\n`; }
-    catch { cur = `# ${name}\n\n`; }
+    let cur = `# ${name}\n\n`;
+    try { const g = await api(`/api/vault-md/file?path=${encodeURIComponent(path)}`); if (g.exists) cur = g.content; } catch {}
     const body = cur + (cur.endsWith('\n') ? '' : '\n') + `- ${text}\n`;
-    const r = await fetch('/api/vault-md/file', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ path, content: body }) });
-    return r.ok;
+    await api('/api/vault-md/file', { method: 'PUT', body: { path, content: body } });
+    return true;
   } catch { return false; }
 }
 

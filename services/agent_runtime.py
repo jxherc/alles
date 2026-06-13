@@ -12,6 +12,7 @@ from core.database import ModelEndpoint
 from services.agent_tools import (
     build_tool_defs, stream_execute, ROOT, set_agent_ctx,
     MUTATING_TOOLS, preview_change, capture_checkpoint,
+    UNTRUSTED_TOOLS, guard_untrusted,
 )
 from services.agent_state import start_run, record_event, update_run, finish_run
 from services.llm import stream_chat
@@ -307,6 +308,14 @@ async def run_agent(
                 # pull any screenshot image out — feed it back as vision, not as text
                 img = result.get("image")
                 tool_content = {k: v for k, v in result.items() if k != "image"}
+                # wrap untrusted external content (web/file/mail/repo) so it can't act
+                # as instructions, and flag anything that looks like an injection
+                if name in UNTRUSTED_TOOLS and isinstance(tool_content.get("output"), str) and not step["error"]:
+                    wrapped, flagged = guard_untrusted(name, tool_content["output"])
+                    tool_content["output"] = wrapped
+                    if flagged:
+                        record_event(run_id, "injection_flagged", {"call_id": call_id, "name": name})
+                        yield {"tool_injection_flag": {"call_id": call_id, "name": name}}
                 if img:
                     turn_images.append(img)
                     yield {"tool_image": {"call_id": call_id, "image": img}}
