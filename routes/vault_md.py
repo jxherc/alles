@@ -326,6 +326,65 @@ def unlinked(name: str):
     return {"mentions": vault_md.unlinked_mentions(name)}
 
 
+class YoutubeBody(BaseModel):
+    url: str
+    summarize: bool = True
+
+
+@router.post("/youtube")
+async def youtube_to_note(body: YoutubeBody):
+    """YouTube URL → transcript → (optional) AI summary → a new doc."""
+    import re as _re
+    from services import youtube
+    vid = youtube.extract_video_id(body.url)
+    if not vid:
+        raise HTTPException(400, "that doesn't look like a YouTube URL")
+    try:
+        title, transcript = await youtube.fetch_transcript(vid)
+    except ValueError as e:
+        raise HTTPException(422, str(e))
+    except Exception:
+        raise HTTPException(502, "couldn't reach YouTube to fetch the transcript")
+
+    summary = ""
+    if body.summarize:
+        from core.database import SessionLocal, ModelEndpoint
+        from services.llm import simple_complete
+        db = SessionLocal()
+        try:
+            ep = db.query(ModelEndpoint).filter(ModelEndpoint.enabled == True).first()
+            model = ep.models_list()[0] if ep and ep.models_list() else ""
+        finally:
+            db.close()
+        if ep and model:
+            try:
+                prompt = [
+                    {"role": "system", "content": (
+                        "Turn this video transcript into clean markdown notes: a one-line **TL;DR**, "
+                        "then the key points as bullets, then any notable takeaways or quotes. "
+                        "No preamble, no code fences.")},
+                    {"role": "user", "content": transcript[:14000]},
+                ]
+                summary = (await simple_complete(prompt, ep.base_url, ep.api_key, model, max_tokens=900)).strip()
+            except Exception:
+                summary = ""
+
+    safe = (_re.sub(r'[\\/:*?"<>|#\[\]]+', " ", title).strip() or f"youtube-{vid}")[:80].strip()
+    link = f"https://youtu.be/{vid}"
+    md = f"# {safe}\n\n[{link}]({link})\n\n"
+    md += (summary + "\n\n## transcript\n\n" + transcript + "\n") if summary else ("## transcript\n\n" + transcript + "\n")
+
+    existing = {n.lower() for n in vault_md.note_names()}
+    path = safe
+    if safe.lower() in existing:
+        i = 1
+        while f"{safe}-{i}".lower() in existing:
+            i += 1
+        path = f"{safe}-{i}"
+    out = vault_md.create(path, md)
+    return {"path": out.get("path", path + ".md"), "name": safe, "summarized": bool(summary)}
+
+
 @router.post("/import")
 async def import_doc(file: UploadFile = File(...)):
     """import .md/.txt/.docx/.html/.pdf → a new markdown doc."""
