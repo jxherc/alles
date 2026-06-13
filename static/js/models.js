@@ -276,6 +276,15 @@ function _renderPresets() {
 }
 
 export function initModelModal() {
+  // refresh model lists when the picker opens (debounced) + manual button
+  document.getElementById('model-btn')?.addEventListener('click', maybeAutoRefresh);
+  document.getElementById('mm-refresh-all')?.addEventListener('click', async () => {
+    const b = document.getElementById('mm-refresh-all');
+    b.textContent = '…'; b.disabled = true;
+    await refreshModels(true);
+    renderEndpointList();
+    b.textContent = 'refresh'; b.disabled = false;
+  });
   // tab switching
   document.querySelectorAll('.mm-tab').forEach(tab => {
     tab.addEventListener('click', () => {
@@ -317,6 +326,29 @@ window.probeEndpoint = async function(epId) {
     await loadModels();
   } catch { toast('probe failed', 'error'); }
 };
+
+// ── auto-refresh: re-probe enabled endpoints so new provider models show up ──
+let _lastAutoRefresh = 0;
+export async function refreshModels(force = false) {
+  try {
+    const r = await fetch('/api/models/refresh' + (force ? '?force=1' : ''), { method: 'POST' });
+    const d = await r.json();
+    if (d.added?.length) {
+      await loadModels();
+      toast('new models: ' + d.added.slice(0, 6).join(', '), 'success');
+    } else if (force) {
+      await loadModels();
+      toast('models up to date', '');
+    }
+    return d;
+  } catch { if (force) toast('refresh failed', 'error'); }
+}
+// called when the picker opens — client-debounced so opening it repeatedly is cheap
+function maybeAutoRefresh() {
+  if (Date.now() - _lastAutoRefresh < 120000) return;
+  _lastAutoRefresh = Date.now();
+  refreshModels(false);
+}
 
 export async function addEndpoint(name, url, key) {
   const r = await fetch('/api/models/endpoint', {
