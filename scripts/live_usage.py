@@ -231,6 +231,38 @@ def phase_more_apps():
     return all(not (isinstance(v, str) and ("Error" in v or "error" in v)) for v in made.values())
 
 
+def phase_compare():
+    say("\n[7] COMPARE — one prompt against two real models, side by side")
+    eps = {e["name"]: e["id"] for e in endpoints()}
+    pairs = [(eps.get("DeepSeek"), "deepseek-v4-flash"), (eps.get("Moonshot"), "kimi-k2.5"),
+             (eps.get("Anthropic"), "claude-opus-4-8")]
+    pairs = [(eid, m) for eid, m in pairs if eid][:2]
+    if len(pairs) < 2:
+        say("    need 2 endpoints — skipping"); return True
+    r = httpx.post(f"{BASE}/api/compare", json={
+        "message": "Say hi in exactly 3 words.",
+        "models": [{"endpoint_id": e, "model": m} for e, m in pairs]}, timeout=20).json()
+    cid, n = r["compare_id"], r["count"]
+    replies = []
+    for idx in range(n):
+        txt = []
+        with httpx.stream("GET", f"{BASE}/api/compare/{cid}/stream/{idx}", timeout=90) as s:
+            for line in s.iter_lines():
+                if line.startswith("data: ") and line[6:] != "[DONE]":
+                    try:
+                        ev = json.loads(line[6:])
+                        if "delta" in ev:
+                            txt.append(ev["delta"])
+                    except Exception:
+                        pass
+        replies.append("".join(txt).strip())
+    ok = all(replies)
+    for i, rp in enumerate(replies):
+        say(f"    model[{i}]: {rp[:80]}")
+    write("07_compare.md", "# live compare\n\n" + "\n".join(f"**model {i}:** {rp}" for i, rp in enumerate(replies)) + "\n")
+    return ok
+
+
 def phase_chat_action(eid, model, name):
     say("\n[6] CHAT APP-ACTION — plain chat 'what's on my calendar?' should DO it, not just talk")
     sid = new_session(f"live-test chat-action ({name})", model, eid, mode="chat")
@@ -267,6 +299,7 @@ def main():
     results["app_data"] = phase_app_data()
     results["more_apps"] = phase_more_apps()
     results["chat_app_action"] = phase_chat_action(eid, model, name)
+    results["compare"] = phase_compare()
 
     lines = ["# alles LIVE usage run", f"_{datetime.now().isoformat()}_", "",
              f"endpoint used: **{name} / {model}**", "", "| flow | result |", "|---|---|"]
