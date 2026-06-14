@@ -130,6 +130,50 @@ def delete_txn(tid: str, db: DbSession = Depends(get_db)):
     return {"ok": True}
 
 
+@router.get("/transactions/export.csv")
+def export_txns_csv(db: DbSession = Depends(get_db)):
+    """download all transactions as CSV (open in a spreadsheet)."""
+    import csv, io
+    from fastapi.responses import Response
+    buf = io.StringIO()
+    w = csv.writer(buf)
+    w.writerow(["date", "amount", "category", "payee", "notes", "account_id"])
+    for t in db.query(Transaction).order_by(Transaction.date).all():
+        w.writerow([t.date, t.amount, t.category or "", t.payee or "", t.notes or "", t.account_id])
+    return Response(buf.getvalue(), media_type="text/csv",
+                    headers={"content-disposition": 'attachment; filename="transactions.csv"'})
+
+
+class CsvImport(BaseModel):
+    csv: str
+    account_id: str
+
+
+@router.post("/transactions/import.csv")
+def import_txns_csv(body: CsvImport, db: DbSession = Depends(get_db)):
+    """import transactions from a CSV (e.g. a bank export). needs date + amount columns."""
+    import csv, io
+    if not db.get(Account, body.account_id):
+        raise HTTPException(400, "unknown account")
+    n = 0
+    for row in csv.DictReader(io.StringIO(body.csv)):
+        row = {(k or "").strip().lower(): v for k, v in row.items()}
+        date = (row.get("date") or "").strip()
+        try:
+            amt = float(str(row.get("amount") or "").replace(",", "").replace("$", "").strip())
+        except ValueError:
+            continue
+        if not date:
+            continue
+        db.add(Transaction(account_id=body.account_id, date=date[:10], amount=amt,
+                           category=(row.get("category") or "").strip(),
+                           payee=(row.get("payee") or row.get("description") or "").strip(),
+                           notes=(row.get("notes") or "").strip()))
+        n += 1
+    db.commit()
+    return {"imported": n}
+
+
 # ── budgets (monthly spending caps per category) ──────────────────────────────
 @router.get("/budgets")
 def list_budgets(db: DbSession = Depends(get_db)):
