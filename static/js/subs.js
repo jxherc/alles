@@ -7,6 +7,7 @@ import { confirm as dlgConfirm } from './dialog.js';
 const $ = id => document.getElementById(id);
 let _subs = [];
 let _summary = {};
+let _analytics = null;
 let _editing = null;   // id of the row currently in edit mode
 
 export async function loadSubs() {
@@ -15,7 +16,24 @@ export async function loadSubs() {
     _subs = d.subscriptions || [];
     _summary = d.summary || {};
   } catch { _subs = []; _summary = {}; }
+  try { _analytics = await fetch('/api/subscriptions/analytics').then(r => r.json()); }
+  catch { _analytics = null; }
   _render();
+}
+
+function _chartHtml(a) {
+  if (!a || !a.count || !a.by_category.length) return '';
+  const max = Math.max(...a.by_category.map(c => c.monthly), 1);
+  const bars = a.by_category.slice(0, 8).map(c => `
+    <div class="subs-bar-row">
+      <span class="subs-bar-label">${esc(c.name)}</span>
+      <span class="subs-bar-track"><span class="subs-bar-fill" style="width:${(c.monthly / max * 100).toFixed(1)}%"></span></span>
+      <span class="subs-bar-val">${esc(a.currency)}${c.monthly.toFixed(2)}</span>
+    </div>`).join('');
+  return `<div class="subs-chart">
+    <div class="subs-chart-title">${esc(a.currency)}${a.monthly_total}/mo · ${esc(a.currency)}${a.yearly_total}/yr · spend by category</div>
+    ${bars}
+  </div>`;
 }
 
 export function initSubsPanel() {
@@ -81,7 +99,7 @@ function _render() {
     list.innerHTML = '<div style="padding:1rem 0;font-size:0.75rem;color:var(--faint)">nothing tracked yet — add your first subscription below</div>';
     return;
   }
-  list.innerHTML = _subs.map(s => _editing === s.id ? _editRow(s) : _row(s)).join('');
+  list.innerHTML = _chartHtml(_analytics) + _subs.map(s => _editing === s.id ? _editRow(s) : _row(s)).join('');
   _wireRows(list);
 }
 
