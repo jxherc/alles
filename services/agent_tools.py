@@ -55,6 +55,7 @@ TOOL_PERMISSION = {
     "memory_add": "memory_write",
     "skill_list": "read",
     "skill_load": "read",
+    "skill_match": "read",
     "mcp_list_tools": "mcp_read",
     "mcp_call_tool": "mcp_call",
     "opencode_run": "delegate",
@@ -492,6 +493,18 @@ async def _skill_list() -> dict:
         finally:
             db.close()
         return {"output": json.dumps(skills[:300], indent=2), "error": False}
+    except Exception as e:
+        return {"output": str(e), "error": True}
+
+
+async def _skill_match(query: str) -> dict:
+    """rank the user's own skills against a task so the agent can pick one to load."""
+    try:
+        from services import skills_store
+        matches = skills_store.match_skills(query, top_k=5)
+        if not matches:
+            return {"output": "no matching skills — use skill_list to see all, or proceed without one.", "error": False}
+        return {"output": json.dumps(matches, indent=2), "error": False}
     except Exception as e:
         return {"output": str(e), "error": True}
 
@@ -943,6 +956,8 @@ async def execute(name: str, args: dict) -> dict:
         return await _skill_list()
     if name == "skill_load":
         return await _skill_load(args.get("name_or_path", ""))
+    if name == "skill_match":
+        return await _skill_match(args.get("query", ""))
     if name == "mcp_list_tools":
         return await _mcp_list_tools()
     if name == "mcp_call_tool":
@@ -1285,6 +1300,9 @@ TOOL_DEFS = [
     _tool("skill_load", "Load a skill by name, path, or cookbook/name.", {
         "name_or_path": {"type": "string"},
     }, ["name_or_path"]),
+    _tool("skill_match", "Find the user's skills most relevant to a task, ranked. Call this before a multi-step task to reuse an existing procedure.", {
+        "query": {"type": "string"},
+    }, ["query"]),
     _tool("mcp_list_tools", "List connected MCP tools.", {}),
     _tool("mcp_call_tool", "Call a connected MCP tool.", {
         "server_id": {"type": "string"},
