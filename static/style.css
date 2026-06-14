@@ -1191,6 +1191,30 @@ code {
   text-transform: uppercase;
 }
 
+/* theme mode + accent color picker (appearance pane) */
+.theme-mode-row { display: flex; gap: 0.35rem; }
+.theme-mode-btn {
+  flex: 1; background: var(--bg); border: 1px solid var(--faint); border-radius: 5px;
+  color: var(--muted); font: inherit; font-size: 0.78rem; padding: 0.4rem 0; cursor: pointer;
+  transition: all 0.15s ease;
+}
+.theme-mode-btn:hover { color: var(--text); }
+.theme-mode-btn.active { border-color: var(--accent); color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.accent-swatches { display: flex; flex-wrap: wrap; gap: 0.45rem; }
+.accent-swatch {
+  width: 24px; height: 24px; border-radius: 50%; padding: 0; cursor: pointer;
+  border: 2px solid transparent; box-shadow: 0 0 0 1px var(--faint); transition: transform 0.12s ease;
+}
+.accent-swatch:hover { transform: scale(1.15); }
+.accent-swatch.active { border-color: var(--bg); box-shadow: 0 0 0 2px var(--text); }
+.accent-custom { display: flex; align-items: center; gap: 0.4rem; margin-top: 0.5rem; }
+.accent-custom input[type="color"] {
+  width: 32px; height: 28px; padding: 0; border: 1px solid var(--faint); border-radius: 5px;
+  background: none; cursor: pointer;
+}
+.accent-custom input[type="color"]::-webkit-color-swatch-wrapper { padding: 2px; }
+.accent-custom input[type="color"]::-webkit-color-swatch { border: none; border-radius: 3px; }
+
 /* shared inputs (also used by old settings) */
 .settings-input {
   background: none; border: none; border-bottom: 1px solid var(--faint);
