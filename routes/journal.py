@@ -89,6 +89,50 @@ def on_this_day(db: DbSession = Depends(get_db)):
     return {"entries": [_fmt(e) for e in rows]}
 
 
+@router.get("/journal/search")
+def search_entries(q: str, db: DbSession = Depends(get_db)):
+    ql = (q or "").strip().lower()
+    if not ql:
+        return {"results": []}
+    out = []
+    for e in db.query(JournalEntry).order_by(JournalEntry.date.desc()).all():
+        c = e.content or ""
+        idx = c.lower().find(ql)
+        if idx != -1 or ql in (e.tags or "").lower():
+            snip = c[:80]
+            if idx != -1:
+                s = max(0, idx - 40)
+                snip = c[s:idx + len(ql) + 40].replace("\n", " ").strip()
+            out.append({"date": e.date, "mood": e.mood or "", "snippet": snip})
+        if len(out) >= 100:
+            break
+    return {"results": out}
+
+
+@router.get("/journal/export")
+def export_entries(db: DbSession = Depends(get_db)):
+    """all entries as one markdown document."""
+    rows = db.query(JournalEntry).order_by(JournalEntry.date.asc()).all()
+    parts = ["# Journal\n"]
+    for e in rows:
+        head = f"## {e.date}"
+        if e.mood:
+            head += f" {e.mood}"
+        parts.append(head)
+        if e.tags:
+            parts.append(f"*tags: {e.tags}*")
+        parts.append((e.content or "").strip() + "\n")
+    return {"markdown": "\n".join(parts), "count": len(rows)}
+
+
+@router.get("/journal/calendar")
+def entry_calendar(year: int = 0, db: DbSession = Depends(get_db)):
+    """which days have entries + their word counts, for a contribution heatmap."""
+    y = year or date.today().year
+    rows = db.query(JournalEntry).filter(JournalEntry.date.like(f"{y}-%")).all()
+    return {"year": y, "days": {e.date: len((e.content or "").split()) for e in rows}}
+
+
 @router.get("/journal/{day}")
 def get_entry(day: str, db: DbSession = Depends(get_db)):
     try:

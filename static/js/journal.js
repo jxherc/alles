@@ -47,6 +47,9 @@ export function initJournal() {
           <div class="jrnl-reflection" id="jrnl-reflection" style="display:none"></div>
         </div>
         <div class="jrnl-side">
+          <input id="jrnl-search" class="jrnl-tags" placeholder="search entries…" style="margin:0 0 0.5rem">
+          <div id="jrnl-results"></div>
+          <button class="btn" id="jrnl-export" style="margin-bottom:0.6rem">export .md</button>
           <div class="jrnl-side-title">on this day</div>
           <div id="jrnl-otd" class="jrnl-otd"><div class="jrnl-empty">nothing from past years yet</div></div>
           <div class="jrnl-side-title">recent</div>
@@ -70,6 +73,27 @@ export function initJournal() {
       document.querySelectorAll('.jrnl-mood').forEach(x => x.classList.remove('active'));
       if (!on) b.classList.add('active');
       save(false);
+    });
+    let _js;
+    document.getElementById('jrnl-search').addEventListener('input', e => {
+      clearTimeout(_js);
+      const q = e.target.value.trim();
+      const box = document.getElementById('jrnl-results');
+      if (!q) { box.innerHTML = ''; return; }
+      _js = setTimeout(async () => {
+        const d = await jget('/api/journal/search?q=' + encodeURIComponent(q));
+        box.innerHTML = d.results.map(r =>
+          `<div class="jrnl-otd-row" data-d="${r.date}"><b>${r.date}</b> ${r.mood || ''} ${esc(r.snippet)}</div>`).join('')
+          || '<div class="jrnl-empty">no matches</div>';
+        box.querySelectorAll('.jrnl-otd-row').forEach(x => x.onclick = () => { _day = x.dataset.d; load(); });
+      }, 250);
+    });
+    document.getElementById('jrnl-export').addEventListener('click', async () => {
+      const d = await jget('/api/journal/export');
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(new Blob([d.markdown], { type: 'text/markdown' }));
+      a.download = 'journal.md'; a.click();
+      URL.revokeObjectURL(a.href);
     });
     _built = true;
   }
