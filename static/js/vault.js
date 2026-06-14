@@ -39,7 +39,7 @@ async function _genPw() {
     inp.value = d.password;
     inp.type = 'text';              // reveal the generated one so it can be reviewed
     _showStrength(d.strength);
-  } catch {}
+  } catch { toast("couldn't generate a password — try again", 'error'); }
 }
 
 let _stTimer;
