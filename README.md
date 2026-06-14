@@ -84,6 +84,7 @@ every one of these is a real, finished app — not a placeholder. they each live
 - **slash commands** (`/new`, `/clear`, `/rename`, …) and `@`-mentions to pull a file into context
 - **cookbook** — a browser over **900+ open models** ranked against *your* actual hardware (what fits, at what quant, how fast), so you can pick + pull a local model that'll actually run
 - **usage** — a token dashboard: totals, a tokens-by-month chart, and a per-model breakdown, so you can see what you're spending
+- **skills** — write reusable procedures (a name, when-to-use, and the steps in markdown) that the agent discovers and loads on its own; it ranks your skills against each task and reaches for the right one. ships with a few starters (summarize, web research, code review)
 
 ### home
 **plain version:** the front page. a launcher you can arrange however you like, with a box to jot something down fast.
@@ -369,7 +370,9 @@ pip install -r requirements.txt
 python app.py
 ```
 
-open **http://localhost:8000** and you're in.
+open **http://localhost:8000** and you're in. (run `python cli.py doctor` first if you want to confirm the install is healthy before starting.)
+
+**prefer docker?** `docker build -t alles . && docker run -p 8000:8000 -v alles-data:/app/data alles` — the `data/` volume keeps your db, vault, uploads, and keys across rebuilds.
 
 **no api key is needed to boot.** mail, docs, files, calendar, tasks, subs, days, photos, contacts, secrets — all work out of the box. when you want aide to talk, add a model under **settings → models** (one click for openai / anthropic / deepseek / groq / gemini / ollama and ~10 more), or drop a key like `DEEPSEEK_API_KEY` into `.env`.
 
@@ -392,7 +395,10 @@ alles logs [N]      print the last N log lines (default 60)
 alles logs -f       follow the log live
 alles update        git pull, then restart
 alles open          open the browser
+alles doctor        check the install is ready (deps, data dir, provider)
 ```
+
+`alles doctor` is the first thing to run on a fresh checkout — it reports your python version, which required/optional deps are present, whether the data dir is writable, and whether an AI provider is configured yet, then tells you if you're good to `start`.
 
 - **windows (powershell):** `.\alles.cmd start` (powershell needs the `.\`), or just `alles start` if the folder is on your `PATH`
 - **windows (cmd):** `alles.cmd start`
@@ -428,7 +434,7 @@ alles is **one server** serving **one single-page app**, but each app gets its o
 
 ```
 alles.localhost          the hub (launcher / home)
-aide.localhost           chat, agent, memory, compare, ai gallery, cookbook, usage
+aide.localhost           chat, agent, memory, compare, ai gallery, cookbook, usage, skills
 mail.localhost           mail
 docs.localhost           docs (notes)
 calendar.localhost       calendar
@@ -579,7 +585,7 @@ small touches that keep it snappy and sturdy:
 python -m unittest discover -s tests
 ```
 
-**210 unit tests** and counting — covering the docs vault (links, tags, graph, tasks, templates, asset/import handling, unlinked mentions), document import, the youtube id parser, the job registry + event bus, the agent's tool-gating + prompt-injection guard + secret-path confinement + action-intent routing + context compaction, the deep-research engine (page extraction, quality filter, the full plan→search→synthesize loop against a fake model), the hardware-aware model fit engine (catalog ranking, quant/version/bandwidth scoring), the natural-language task + calendar parsers, journal/files/photos search, the subscription + money math, the password generator + strength meter, vcard round-tripping, aes-256-gcm crypto, bcrypt auth + the login throttle, the token-usage rollup, mail parsing, the model client, and more.
+**340+ unit tests** and counting — including a full in-process API harness that drives the real app (via `TestClient` against a throwaway in-memory db, no server/port) so every route has end-to-end coverage — plus the docs vault (links, tags, graph, tasks, templates, asset/import handling, unlinked mentions), document import, the youtube id parser, the job registry + event bus, the agent's tool-gating + prompt-injection guard + secret-path confinement + action-intent routing + context compaction, the deep-research engine (page extraction, quality filter, the full plan→search→synthesize loop against a fake model), the hardware-aware model fit engine (catalog ranking, quant/version/bandwidth scoring), the natural-language task + calendar parsers, journal/files/photos search, the subscription + money math, the password generator + strength meter, vcard round-tripping, aes-256-gcm crypto, bcrypt auth + the login throttle, the token-usage rollup, mail parsing, the model client, and more.
 
 every push runs the full suite on **GitHub Actions CI** (`.github/workflows/tests.yml`) — it already earned its keep by catching a data file that wasn't committed.
 
