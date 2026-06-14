@@ -420,6 +420,7 @@ function _wireQuickCapture() {
   if (_qcWired) return; _qcWired = true;
   const inp = document.getElementById('hc-input'), save = document.getElementById('hc-save');
   document.getElementById('home-edit-btn')?.addEventListener('click', _toggleHomeEdit);
+  document.getElementById('home-settings-btn')?.addEventListener('click', () => openSettings());
   document.querySelectorAll('.hc-mode').forEach(b => b.addEventListener('click', () => {
     _qcMode = b.dataset.mode;
     document.querySelectorAll('.hc-mode').forEach(x => x.classList.toggle('active', x === b));
