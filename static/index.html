@@ -178,13 +178,16 @@
       <div class="page-view-head">
         <span class="page-view-title">tasks</span>
         <div class="tasks-tabs">
-          <button class="tasks-tab active" data-tab="active">active</button>
+          <button class="tasks-tab active" data-tab="active">all</button>
+          <button class="tasks-tab" data-tab="today">today</button>
+          <button class="tasks-tab" data-tab="upcoming">upcoming</button>
+          <button class="tasks-tab" data-tab="someday">someday</button>
           <button class="tasks-tab" data-tab="done">history</button>
         </div>
       </div>
       <div class="page-view-body" id="tasks-list"></div>
       <div class="page-view-footer">
-        <input type="text" id="task-add-input" placeholder="add a task...">
+        <input type="text" id="task-add-input" placeholder="add a task… try 'pay rent every 1st !' or 'call mom tomorrow #home'">
         <button class="btn primary" id="task-add-btn">add</button>
       </div>
     </div>
