@@ -114,6 +114,14 @@ def phase_agent(eid, model, name):
             "then run it with python and show me the output.")
     say(f"    task: {task}")
     text, tools, err = stream_chat(sid, task, mode="agent", permission_mode="full_auto", timeout=240)
+    # the SSE shapes vary; pull the authoritative tool steps from the run record
+    try:
+        runs = httpx.get(f"{BASE}/api/agent/runs?limit=10", timeout=20).json()
+        run = next((r for r in runs if r.get("session_id") == sid), None)
+        if run:
+            tools = [e for e in run.get("events", []) if e.get("type") in ("tool_start", "tool_result")]
+    except Exception:
+        pass
     # verify the program got built + actually works
     fizz = ws / "fizzbuzz.py"
     built = fizz.exists()
