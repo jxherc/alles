@@ -46,6 +46,10 @@ class SettingsPatch(BaseModel):
     stt_language: str | None = None
     theme: str | None = None      # '' (dark/default) | 'light' — synced across subdomains
     accent: str | None = None     # hex like '#818cf8', or '' for the default
+    notify_discord_webhook: str | None = None
+    notify_telegram_token: str | None = None
+    notify_telegram_chat_id: str | None = None
+    notify_on_agent_done: bool | None = None
 
 
 @router.patch("/settings")
