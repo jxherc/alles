@@ -2039,6 +2039,9 @@ code {
 .usage-mname { color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .usage-mtotal { text-align: right; color: var(--text); font-variant-numeric: tabular-nums; }
 @media (max-width: 620px) { .usage-cards { grid-template-columns: repeat(2, 1fr); } }
+.vault-strength { align-items: center; gap: 0.5rem; margin-top: 0.4rem; font-size: 0.66rem; color: var(--muted); }
+.vault-strength-bar { flex: 0 0 120px; height: 5px; background: var(--faint); border-radius: 3px; overflow: hidden; }
+.vault-strength-fill { display: block; height: 100%; width: 0; transition: width .2s, background .2s; }
 .task-del {
   background: none; border: none; cursor: pointer; color: var(--faint);
   font-size: 0.8rem; padding: 0.1rem 0.3rem;
