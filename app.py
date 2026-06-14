@@ -44,7 +44,7 @@ from routes import (
     local_models as local_model_routes,
     vault_md as vault_md_routes,
 )
-from routes import reminders as reminder_routes, templates as template_routes, shared as shared_routes, files as files_routes, caldav as caldav_routes, mail as mail_routes, photos as photos_routes, push as push_routes, subscriptions as subscription_routes, days as days_routes, today as today_routes, automations as automation_routes
+from routes import reminders as reminder_routes, templates as template_routes, shared as shared_routes, files as files_routes, caldav as caldav_routes, mail as mail_routes, photos as photos_routes, push as push_routes, subscriptions as subscription_routes, days as days_routes, today as today_routes, automations as automation_routes, money as money_routes
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s  %(name)s  %(message)s")
 log = logging.getLogger("alles")
@@ -423,6 +423,7 @@ app.include_router(subscription_routes.router)
 app.include_router(days_routes.router)
 app.include_router(today_routes.router)
 app.include_router(automation_routes.router)
+app.include_router(money_routes.router)
 
 
 # static files — no-cache so JS/CSS always reloads
