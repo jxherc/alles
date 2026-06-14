@@ -1577,9 +1577,10 @@ code {
   flex: 1; display: flex; flex-direction: column; min-height: 0;
   animation: rise 0.2s cubic-bezier(0.2,0.7,0.2,1) forwards;
 }
+/* tool pages run full-width with responsive side padding (like cookbook) — no
+   centered 760px column leaving big side bezels. */
 .page-view-head {
-  max-width: 760px; width: 100%; margin: 0 auto;
-  padding: 1.5rem 1.5rem 0.75rem;
+  padding: 1.5rem clamp(0.9rem, 3vw, 2rem) 0.75rem;
   display: flex; align-items: center; justify-content: space-between;
   flex-shrink: 0;
 }
@@ -1588,12 +1589,10 @@ code {
 }
 .page-view-body {
   flex: 1; overflow-y: auto;
-  max-width: 760px; width: 100%; margin: 0 auto;
-  padding: 0 1.5rem 1rem;
+  padding: 0 clamp(0.9rem, 3vw, 2rem) 1rem;
 }
 .page-view-footer {
-  max-width: 760px; width: 100%; margin: 0 auto;
-  padding: 0.75rem 1.5rem 1.4rem;
+  padding: 0.75rem clamp(0.9rem, 3vw, 2rem) 1.4rem;
   display: flex; gap: 0.5rem; align-items: center;
   border-top: 1px solid var(--faint); flex-shrink: 0;
 }
@@ -2131,12 +2130,7 @@ code {
 /* new views go full-width with the same tight side padding as tasks/subs/files
    (the default page-view is a narrow 760px centered column = big side bezels) */
 #journal-view .page-view-head, #journal-view .page-view-body,
-#cookbook-view .page-view-head, #cookbook-view .page-view-body,
-#usage-view .page-view-head, #usage-view .page-view-body {
-  max-width: none;
-  padding-left: clamp(0.9rem, 3vw, 2rem);
-  padding-right: clamp(0.9rem, 3vw, 2rem);
-}
+/* (cookbook/usage full-width is now the default for all tool pages) */
 
 /* ── journal ── */
 .jrnl-wrap { display: flex; gap: 1.4rem; padding: 0.4rem 0 1rem; align-items: flex-start; }
