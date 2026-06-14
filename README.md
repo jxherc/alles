@@ -82,6 +82,8 @@ every one of these is a real, finished app — not a placeholder. they each live
 - **vision** — drop in an image and capable models can see it
 - **incognito chats** — conversations that aren't saved
 - **slash commands** (`/new`, `/clear`, `/rename`, …) and `@`-mentions to pull a file into context
+- **cookbook** — a browser over **900+ open models** ranked against *your* actual hardware (what fits, at what quant, how fast), so you can pick + pull a local model that'll actually run
+- **usage** — a token dashboard: totals, a tokens-by-month chart, and a per-model breakdown, so you can see what you're spending
 
 ### home
 **plain version:** the front page. a launcher you can arrange however you like, with a box to jot something down fast.
@@ -136,27 +138,37 @@ this is the most feature-dense app, so here's the full list:
 ### calendar
 **plain version:** a calendar with month / week / day views and repeating events.
 
-- real time-grid week and day views, plus a month grid
+- real time-grid week and day views, a month grid, and an **agenda list**
 - **recurring events** — daily / weekly / monthly
-- create an event from plain language via the ai ("lunch with sam friday 1pm")
+- **natural-language quick-add** right in the header — "lunch with sam friday 1pm" makes the timed event; "team sync tomorrow" makes an all-day one
 - optional **two-way sync with caldav** (the open calendar-sync standard used by icloud and google) if you add your credentials
 
 ### tasks
-**plain version:** a to-do list. simple, fast.
+**plain version:** a real to-do list — type tasks in plain english, with recurring ones and smart views.
 
-- add tasks, check them off, set priority and a due date
-- **active / history tabs** — checking a task off doesn't make it vanish forever; the **history** tab shows everything you've completed, and you can un-check one to send it back to active
+- **natural-language quick-add** — "pay rent every 1st !" or "call mom tomorrow #home" parses the due date, repeat, `#tags` and `!` priority for you (deterministic, no deps, all local)
+- **recurring tasks** — finish one and it rolls forward to the next occurrence (daily / weekly / monthly / yearly, leap-day safe)
+- **Today / Upcoming / Someday** views by due date, plus tags, subtasks, projects, and manual drag-reorder
+- **active / history tabs** — checking a task off doesn't make it vanish; the **history** tab shows everything you've completed, and you can un-check one to send it back
 - tasks created anywhere (quick-capture, "extract to-dos" from a doc, the ai's `task_add` tool) all land here
 
 ### notes
 **plain version:** lightweight scratch notes (separate from the full docs app) for when you just want to jot something with zero ceremony — also where home's quick-capture "note" lands as a properly-named note.
+
+### journal
+**plain version:** a daily diary — one entry a day, with mood, prompts, and a streak.
+
+- one entry per day with a **mood** picker, tags, live word count, and gentle autosave
+- a rotating **daily writing prompt**, a **streak** counter (an unwritten today doesn't break it), and **on-this-day** (the same date in past years)
+- **search** across every entry, **export** the whole journal to one markdown file
+- an optional **"reflect"** button — a short, warm ai reflection on what you wrote
 
 ### subs
 **plain version:** track what you're paying for every month so nothing surprises you.
 
 - weekly / monthly / quarterly / yearly / custom billing cycles
 - due dates roll forward automatically as they pass
-- monthly **and** yearly totals computed for you
+- monthly **and** yearly totals, plus a **spend-by-category bar chart** (plain CSS, no chart library)
 - a **push notification before anything renews** so you can cancel in time
 
 ### money
@@ -178,7 +190,7 @@ this is the most feature-dense app, so here's the full list:
 ### files
 **plain version:** a file browser over any folder you point it at — browse, upload, preview, organize.
 
-- browse folders, upload, rename, delete
+- browse folders, upload, rename, delete, and **search** — by filename *and* inside text files, with a snippet of where the match was
 - **inline preview** without downloading: images, **pdfs** (in a real pdf viewer), **video**, **audio**, and text/markdown
 - download anything with one click
 
@@ -186,16 +198,21 @@ this is the most feature-dense app, so here's the full list:
 **plain version:** a local photo library that feels like icloud/google photos, minus the company.
 
 - your photos grouped into date "moments," plus albums and favorites
+- **search** by filename, camera (from exif), or date — "june 2026", a `2026-06` prefix, or just a year
 - reads **exif** (the camera/date info baked into a photo) and makes thumbnails automatically
 - everything stored as plain files under `data/` — they're just your photos in a folder
 
 ### contacts
 **plain version:** an address book — and one the ai can read and use (e.g. when drafting mail).
 
+- name / email / phone / notes / tags, searchable
+- **vCard import / export** — round-trips with your phone and any other address book
+
 ### secrets
 **plain version:** a password vault. properly encrypted, not just "hidden."
 
 - stores logins/secrets, organized by category
+- a built-in **password generator** (CSPRNG, skips look-alike characters) and a live **strength meter** that flags common, repetitive, or sequential passwords
 - *under the hood:* each entry is sealed with **aes-256-gcm** (a strong authenticated encryption) under a key derived from your master password with **pbkdf2-hmac-sha-256, 260,000 iterations** (a deliberately slow key-stretch so guessing the password is expensive). the master password is held **in memory only** and never written to disk. locked, the vault is unreadable even to someone holding a full copy of your database.
 
 ### automations
@@ -411,11 +428,12 @@ alles is **one server** serving **one single-page app**, but each app gets its o
 
 ```
 alles.localhost          the hub (launcher / home)
-aide.localhost           chat, agent, memory, compare, ai gallery
+aide.localhost           chat, agent, memory, compare, ai gallery, cookbook, usage
 mail.localhost           mail
 docs.localhost           docs (notes)
 calendar.localhost       calendar
 tasks.localhost          tasks
+journal.localhost        journal
 files.localhost          files
 gallery.localhost        photos
 contacts.localhost       contacts
@@ -503,6 +521,10 @@ alles/
 │   ├── jobs.py            background job registry + event bus
 │   ├── research/          iterresearch deep-research engine (plan → search → read → synthesize)
 │   ├── hwfit/             hardware-aware local-model fit engine (900+ model catalog)
+│   ├── task_nl.py         deterministic natural-language task parser (no deps)
+│   ├── event_nl.py        natural-language calendar-event parser
+│   ├── pwtools.py         password generator + strength estimator
+│   ├── vcard.py           vcard 3.0 import/export
 │   ├── mail.py            imap/smtp over stdlib
 │   ├── vault_md.py        markdown docs on disk (tree, links, tags, graph, tasks)
 │   ├── doc_import.py      import .md/.txt/.docx/.html/.pdf → markdown
@@ -528,6 +550,7 @@ alles/
 alles is built for **one person on their own machine.** read this before you put it on a network.
 
 - **it ships open.** auth is off by default. if alles is reachable beyond localhost, set `AUTH_ENABLED=true`, a strong `AUTH_PASSWORD`, and a real `SECRET_KEY` **first**. without auth, anyone who can reach the port can read your mail and files and run shell commands as you.
+- **login is rate-limited.** once auth is on, a single IP that fails the password 8 times in 5 minutes is blocked (HTTP 429) — basic brute-force insurance for the day alles sits behind a domain.
 - **aide has hands.** agent mode and the shell tools run real commands on the machine alles is on. that's the point — but don't hand access to people or models you don't trust. the prompt-injection guard reduces the risk of a malicious web page/email steering the agent, but treat it as a seatbelt, not a force field.
 - **credentials are encrypted at rest with a local key.** model api keys and mail passwords are sealed with aes-256-gcm under `data/secret.key`. this protects the database file if it leaks *on its own* — it does **not** protect against someone who has the whole `data/` folder, because the server must be able to decrypt unattended.
 - **backups are the whole safe, key included.** a backup zip contains the database **and** the keys so restores just work — which means a backup is exactly as sensitive as your live data. store it like a password.
@@ -556,7 +579,9 @@ small touches that keep it snappy and sturdy:
 python -m unittest discover -s tests
 ```
 
-**105 unit tests** and counting — covering the docs vault (links, tags, graph, tasks, templates, asset/import handling, unlinked mentions), document import, the youtube id parser, the job registry + event bus, the agent's tool-gating + prompt-injection guard + secret-path confinement + action-intent routing, the deep-research engine (page extraction, quality filter, the full plan→search→synthesize loop against a fake model), the hardware-aware model fit engine (catalog ranking, quant/version/bandwidth scoring), mail parsing, crypto, the model client, photos, and more.
+**210 unit tests** and counting — covering the docs vault (links, tags, graph, tasks, templates, asset/import handling, unlinked mentions), document import, the youtube id parser, the job registry + event bus, the agent's tool-gating + prompt-injection guard + secret-path confinement + action-intent routing + context compaction, the deep-research engine (page extraction, quality filter, the full plan→search→synthesize loop against a fake model), the hardware-aware model fit engine (catalog ranking, quant/version/bandwidth scoring), the natural-language task + calendar parsers, journal/files/photos search, the subscription + money math, the password generator + strength meter, vcard round-tripping, aes-256-gcm crypto, bcrypt auth + the login throttle, the token-usage rollup, mail parsing, the model client, and more.
+
+every push runs the full suite on **GitHub Actions CI** (`.github/workflows/tests.yml`) — it already earned its keep by catching a data file that wasn't committed.
 
 ---
 
