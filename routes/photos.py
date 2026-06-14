@@ -44,6 +44,33 @@ def list_photos(album: str = Query(""), db: DbSession = Depends(get_db)):
     return {"moments": out, "count": len(rows)}
 
 
+@router.get("/search")
+def search_photos(q: str = Query(...), db: DbSession = Depends(get_db)):
+    """match on filename, EXIF (camera make/model), and the date ('june 2026',
+    '2026-06', a year). returns the same moments shape as /list."""
+    ql = (q or "").strip().lower()
+    if not ql:
+        return {"moments": [], "count": 0}
+    hits = []
+    for p in db.query(Photo).all():
+        d = p.taken_at or p.created_at
+        hay = " ".join([
+            (p.original_name or "").lower(),
+            (p.exif or "").lower(),
+            (d.isoformat().lower() if d else ""),
+            (d.strftime("%B %Y").lower() if d else ""),
+        ])
+        if ql in hay:
+            hits.append(p)
+    hits.sort(key=lambda p: (p.taken_at or p.created_at or datetime.min), reverse=True)
+    moments = OrderedDict()
+    for p in hits:
+        d = p.taken_at or p.created_at or datetime.utcnow()
+        moments.setdefault(d.strftime("%Y-%m-%d"), (d, []))[1].append(_fmt(p))
+    out = [{"date": k, "label": _label(v[0]), "items": v[1]} for k, v in moments.items()]
+    return {"moments": out, "count": len(hits)}
+
+
 @router.post("/upload")
 async def upload(album_id: str = Form(""), file: UploadFile = File(...), db: DbSession = Depends(get_db)):
     data = await file.read()
