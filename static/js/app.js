@@ -332,8 +332,6 @@ const HOME_TILES = [
   { view: 'money',    name: 'money',    desc: 'accounts & budgets', icon: 'money' },
   { view: 'days',     name: 'days',     desc: 'countdowns',      icon: 'days' },
   { view: 'journal',  name: 'journal',  desc: 'daily entries',   icon: 'journal' },
-  { view: 'cookbook', name: 'cookbook', desc: 'local model picker', icon: 'cookbook' },
-  { view: 'usage',    name: 'usage',    desc: 'token usage & cost', icon: 'usage' },
 ];
 
 // ── home tiles: drag-reorder + hide/show (persisted) + quick capture ─────────

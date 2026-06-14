@@ -1582,7 +1582,7 @@ code {
   flex-shrink: 0;
 }
 .page-view-title {
-  font-size: 0.85rem; font-weight: 500; letter-spacing: -0.01em;
+  font-size: 1.1rem; font-weight: 600; letter-spacing: -0.01em;
 }
 .page-view-body {
   flex: 1; overflow-y: auto;
@@ -2030,7 +2030,7 @@ code {
 .subs-bar-track { background: var(--faint); border-radius: 2px; height: 8px; overflow: hidden; }
 .subs-bar-fill { display: block; height: 100%; background: var(--accent); border-radius: 2px; }
 .subs-bar-val { text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
-.usage-wrap { max-width: 720px; margin: 0 auto; padding: 0.5rem clamp(0.9rem,3vw,1.5rem); }
+.usage-wrap { padding: 0.4rem 0 1rem; }
 .usage-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.6rem; }
 .usage-card { border: 1px solid var(--faint); border-radius: 3px; padding: 0.7rem 0.8rem; }
 .usage-num { font-size: 1.25rem; color: var(--text); font-variant-numeric: tabular-nums; }
@@ -2087,8 +2087,18 @@ code {
   padding-right: clamp(0.9rem, 3vw, 2.4rem);
 }
 
+/* new views go full-width with the same tight side padding as tasks/subs/files
+   (the default page-view is a narrow 760px centered column = big side bezels) */
+#journal-view .page-view-head, #journal-view .page-view-body,
+#cookbook-view .page-view-head, #cookbook-view .page-view-body,
+#usage-view .page-view-head, #usage-view .page-view-body {
+  max-width: none;
+  padding-left: clamp(0.9rem, 3vw, 2rem);
+  padding-right: clamp(0.9rem, 3vw, 2rem);
+}
+
 /* ── journal ── */
-.jrnl-wrap { display: flex; gap: 1.4rem; max-width: 1100px; margin: 0 auto; padding: 0.5rem clamp(0.9rem,3vw,2rem); align-items: flex-start; }
+.jrnl-wrap { display: flex; gap: 1.4rem; padding: 0.4rem 0 1rem; align-items: flex-start; }
 .jrnl-main { flex: 1; min-width: 0; }
 .jrnl-side { width: 250px; flex-shrink: 0; }
 @media (max-width: 820px) { .jrnl-wrap { flex-direction: column; } .jrnl-side { width: 100%; } }
@@ -2117,11 +2127,11 @@ code {
 .jrnl-empty { font-size: 0.72rem; color: var(--muted); padding: 0.3rem 0.5rem; }
 
 /* ── cookbook ── */
-.cb-controls { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin-bottom: 0.7rem; padding: 0 clamp(0.9rem,3vw,2rem); }
+.cb-controls { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin-bottom: 0.7rem; }
 .cb-search { flex: 1; min-width: 160px; background: var(--panel); color: var(--text); border: 1px solid var(--faint); border-radius: 3px; padding: 0.45rem 0.6rem; font-size: 0.82rem; }
 .cb-sel { background: var(--panel); color: var(--text); border: 1px solid var(--faint); border-radius: 3px; padding: 0.4rem 0.5rem; font-size: 0.78rem; }
 .cb-fitonly { font-size: 0.74rem; color: var(--muted); display: flex; align-items: center; gap: 0.3rem; }
-.cb-table { padding: 0 clamp(0.9rem,3vw,2rem); }
+.cb-table { }
 .cb-row { display: grid; grid-template-columns: minmax(0,2.4fr) 0.7fr 1fr 1.1fr 0.9fr 0.9fr 0.9fr 0.6fr; gap: 0.5rem; align-items: center; padding: 0.45rem 0.4rem; border-bottom: 1px solid var(--faint); font-size: 0.78rem; }
 .cb-head { font-size: 0.64rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); border-bottom: 1px solid var(--muted); }
 .cb-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
