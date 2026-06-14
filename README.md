@@ -72,6 +72,7 @@ every one of these is a real, finished app — not a placeholder. they each live
 - streaming chat (the reply types itself out live, word by word)
 - works with any provider: claude, openai/gpt, deepseek, gemini, groq, mistral, a local model, and ~15 others — switch any time, even mid-conversation
 - **agent mode** — a do-it-for-me mode with files, shell, web, and cross-app tools (full section below)
+- **app actions from plain chat** — just ask ("what's on my calendar", "any new emails", "remind me to call the dentist", "add lunch friday 1pm") and aide does it; reads happen freely, anything that changes/sends asks first. plus Discord/Telegram pings when a long run finishes.
 - **research mode** — searches the web, *reads the pages*, and writes you a cited report
 - **compare** — run one prompt against several models at once, side by side, and vote
 - **long-term memory** — it remembers facts/preferences across all your chats
@@ -134,6 +135,7 @@ this is the most feature-dense app, so here's the full list:
 - live inbox that auto-refreshes; open, read, and reply to mail
 - compose and send (with cc)
 - **ai:** summarize a long thread, turn an email into a task, or turn an email into a calendar event (the ai reads out the date/time/title for you)
+- **fast + offline-tolerant:** a persistent header cache means the inbox opens instantly and still shows your last sync when the network's slow or down; local search over the cache is instant
 - *under the hood:* built directly on python's standard `imaplib`/`smtplib` — no third-party mail library. it pools live connections, caches what it's read, loads the inbox by range (not a slow "search everything"), and opens a message by pulling *only* its text/html body — not the attachments — so it stays fast on a weak connection.
 
 ### calendar
@@ -201,6 +203,7 @@ this is the most feature-dense app, so here's the full list:
 - your photos grouped into date "moments," plus albums and favorites
 - **search** by filename, camera (from exif), or date — "june 2026", a `2026-06` prefix, or just a year
 - reads **exif** (the camera/date info baked into a photo) and makes thumbnails automatically
+- **folder sync** — point `/api/photos/sync` at an iCloud Drive / Photos-export / Dropbox folder and it pulls in new shots (deduped); on the Mac mini a PhotoKit/osxphotos bridge feeds the same path
 - everything stored as plain files under `data/` — they're just your photos in a folder
 
 ### contacts
@@ -585,7 +588,7 @@ small touches that keep it snappy and sturdy:
 python -m unittest discover -s tests
 ```
 
-**340+ unit tests** and counting — including a full in-process API harness that drives the real app (via `TestClient` against a throwaway in-memory db, no server/port) so every route has end-to-end coverage — plus the docs vault (links, tags, graph, tasks, templates, asset/import handling, unlinked mentions), document import, the youtube id parser, the job registry + event bus, the agent's tool-gating + prompt-injection guard + secret-path confinement + action-intent routing + context compaction, the deep-research engine (page extraction, quality filter, the full plan→search→synthesize loop against a fake model), the hardware-aware model fit engine (catalog ranking, quant/version/bandwidth scoring), the natural-language task + calendar parsers, journal/files/photos search, the subscription + money math, the password generator + strength meter, vcard round-tripping, aes-256-gcm crypto, bcrypt auth + the login throttle, the token-usage rollup, mail parsing, the model client, and more.
+**385+ unit tests** and counting — including a full in-process API harness that drives the real app (via `TestClient` against a throwaway in-memory db, no server/port) so every route has end-to-end coverage, plus `python scripts/stress_test.py` which exercises every app's backend end-to-end and writes evidence (request/expected/actual + a summary) to `~/alles-test-evidence/<timestamp>/` — plus the docs vault (links, tags, graph, tasks, templates, asset/import handling, unlinked mentions), document import, the youtube id parser, the job registry + event bus, the agent's tool-gating + prompt-injection guard + secret-path confinement + action-intent routing + context compaction, the deep-research engine (page extraction, quality filter, the full plan→search→synthesize loop against a fake model), the hardware-aware model fit engine (catalog ranking, quant/version/bandwidth scoring), the natural-language task + calendar parsers, journal/files/photos search, the subscription + money math, the password generator + strength meter, vcard round-tripping, aes-256-gcm crypto, bcrypt auth + the login throttle, the token-usage rollup, mail parsing, the model client, and more.
 
 every push runs the full suite on **GitHub Actions CI** (`.github/workflows/tests.yml`) — it already earned its keep by catching a data file that wasn't committed.
 
