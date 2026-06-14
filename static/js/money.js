@@ -2,6 +2,8 @@
 // the charts (no chart lib), api() helper for the fetches.
 import { api, toast } from './util.js';
 import { confirm as dlgConfirm } from './dialog.js';
+import { initCustomDropdown, getDropdownValue } from './dropdown.js';
+import { initDatePicker } from './datepick.js';
 
 let _month = _thisMonth();
 let _accounts = [], _txns = [], _budgets = [], _sum = null;
@@ -138,20 +140,16 @@ function budgetsList() {
   }).join('') + `</div>`;
 }
 
-function _catOptions() {
-  const cats = [...new Set([..._txns.map(t => t.category), ...(_sum?.by_category || []).map(c => c[0]), ..._budgets.map(b => b.category)].filter(Boolean))];
-  return cats.map(c => `<option value="${esc(c)}">`).join('');
-}
-
 function addTxnRow() {
-  const opts = _accounts.map(a => `<option value="${a.id}">${esc(a.name)}</option>`).join('');
+  const acctOpts = _accounts.map(a => `${a.id}|${(a.name || '').replace(/[;|]/g, '')}`).join(';');
+  const first = _accounts[0]?.id || '';
   return `<div class="txn-add">
-    <input type="date" id="tx-date" class="settings-input" value="${_today()}">
-    <select id="tx-acct" class="settings-input">${opts}</select>
-    <input type="text" id="tx-payee" class="settings-input" placeholder="payee / what" style="flex:1.4">
-    <input type="text" id="tx-cat" class="settings-input" placeholder="category" list="tx-cats" style="flex:1"><datalist id="tx-cats">${_catOptions()}</datalist>
-    <select id="tx-sign" class="settings-input" style="width:90px"><option value="-">expense</option><option value="+">income</option></select>
-    <input type="text" id="tx-amt" class="settings-input" placeholder="0.00" inputmode="decimal" style="width:90px">
+    <div class="date-input" id="tx-date" data-type="date" data-value="${_today()}" data-ph="date" style="width:128px"></div>
+    <div class="settings-input custom-select" id="tx-acct" data-value="${esc(first)}" data-options="${esc(acctOpts)}" style="width:128px"></div>
+    <input type="text" id="tx-payee" class="settings-input" placeholder="payee / what" style="flex:1.4;min-width:120px">
+    <input type="text" id="tx-cat" class="settings-input" placeholder="category" style="flex:1;min-width:90px">
+    <div class="settings-input custom-select" id="tx-sign" data-value="-" data-options="-|expense;+|income" style="width:106px"></div>
+    <input type="text" id="tx-amt" class="settings-input" placeholder="0.00" inputmode="decimal" style="width:96px">
     <button class="btn primary" id="tx-add">add</button>
   </div>`;
 }
@@ -173,32 +171,41 @@ function txnList() {
 // ── inline forms ──────────────────────────────────────────────────────────────
 function _accountForm() {
   return `<div class="acct-form" id="acct-form">
-    <input type="text" id="af-name" class="settings-input" placeholder="account name (e.g. checking)">
-    <select id="af-kind" class="settings-input"><option value="checking">checking</option><option value="savings">savings</option><option value="cash">cash</option><option value="credit">credit card</option><option value="investment">investment</option></select>
-    <input type="text" id="af-open" class="settings-input" placeholder="opening balance" inputmode="decimal" style="width:130px">
+    <input type="text" id="af-name" class="settings-input" placeholder="account name (e.g. checking)" style="flex:1;min-width:150px">
+    <div class="settings-input custom-select" id="af-kind" data-value="checking" data-options="checking|checking;savings|savings;cash|cash;credit|credit card;investment|investment" style="width:150px"></div>
+    <input type="text" id="af-open" class="settings-input" placeholder="opening balance" inputmode="decimal" style="width:140px">
     <button class="btn primary" id="af-add">add account</button>
   </div>`;
 }
 function _budgetForm() {
   return `<div class="budget-form">
-    <input type="text" id="bf-cat" class="settings-input" placeholder="category" list="tx-cats" style="flex:1">
-    <input type="text" id="bf-amt" class="settings-input" placeholder="monthly cap" inputmode="decimal" style="width:110px">
+    <input type="text" id="bf-cat" class="settings-input" placeholder="category" style="flex:1;min-width:110px">
+    <input type="text" id="bf-amt" class="settings-input" placeholder="monthly cap" inputmode="decimal" style="width:120px">
     <button class="btn" id="bf-add">set</button>
   </div>`;
 }
 
+// init the app's custom dropdowns + date pickers in the money panel (both self-guard)
+function _initControls() {
+  document.querySelectorAll('#money-body .custom-select').forEach(initCustomDropdown);
+  document.querySelectorAll('#money-body .date-input').forEach(initDatePicker);
+}
+
 // ── wiring ──────────────────────────────────────────────────────────────────
 function _wireAccountForm() {
+  _initControls();
   $('af-add')?.addEventListener('click', addAccount);
 }
 function wire() {
+  _initControls();
   $('tx-add')?.addEventListener('click', addTxn);
   $('tx-amt')?.addEventListener('keydown', e => { if (e.key === 'Enter') addTxn(); });
   $('money-add-acct')?.addEventListener('click', () => {
     const wrap = $('money-acct-form-wrap');
     if (wrap.innerHTML) { wrap.innerHTML = ''; return; }
     wrap.innerHTML = _accountForm();
-    _wireAccountForm();
+    _initControls();
+    $('af-add')?.addEventListener('click', addAccount);
     $('af-name')?.focus();
   });
   $('bf-add')?.addEventListener('click', addBudget);
@@ -213,7 +220,7 @@ async function addAccount() {
   if (!name) { toast('name the account', 'error'); return; }
   const opening = parseFloat($('af-open')?.value) || 0;
   try {
-    await api('/api/money/accounts', { method: 'POST', body: { name, kind: $('af-kind').value, opening } });
+    await api('/api/money/accounts', { method: 'POST', body: { name, kind: getDropdownValue($('af-kind')), opening } });
     await load();
   } catch { toast('couldn\'t add account', 'error'); }
 }
@@ -225,10 +232,10 @@ async function delAccount(id) {
 async function addTxn() {
   const amtRaw = parseFloat($('tx-amt')?.value);
   if (!amtRaw || amtRaw <= 0) { toast('enter an amount', 'error'); return; }
-  const sign = $('tx-sign').value === '+' ? 1 : -1;
+  const sign = getDropdownValue($('tx-sign')) === '+' ? 1 : -1;
   try {
     await api('/api/money/transactions', { method: 'POST', body: {
-      account_id: $('tx-acct').value, date: $('tx-date').value || _today(),
+      account_id: getDropdownValue($('tx-acct')), date: $('tx-date')?.dataset.value || _today(),
       amount: sign * amtRaw, category: $('tx-cat').value.trim(), payee: $('tx-payee').value.trim(),
     } });
     await load();

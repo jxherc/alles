@@ -2103,7 +2103,15 @@ code {
 .acct-form { margin-bottom: 0.4rem; }
 
 .txn-add { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-bottom: 0.7rem; align-items: center; }
-.txn-add .settings-input { font-size: 0.76rem; }
+/* unify every control in the money forms: same boxed look + same height, so the
+   text inputs match the custom dropdowns / date picker instead of being underlines */
+.txn-add > *, .acct-form > *, .budget-form > * { height: 32px; box-sizing: border-box; }
+.txn-add input.settings-input, .acct-form input.settings-input, .budget-form input.settings-input {
+  background: var(--panel); border: 1px solid var(--faint); border-radius: 2px;
+  padding: 0 0.55rem; font-size: 0.72rem;
+}
+.txn-add input.settings-input:focus, .acct-form input.settings-input:focus, .budget-form input.settings-input:focus { border-color: var(--muted); }
+.txn-add .btn, .acct-form .btn, .budget-form .btn { display: inline-flex; align-items: center; }
 .txns { display: flex; flex-direction: column; }
 .txn { display: flex; align-items: center; gap: 0.6rem; padding: 0.4rem 0.2rem; border-bottom: 1px solid var(--faint); font-size: 0.78rem; }
 .txn:last-child { border-bottom: none; }
