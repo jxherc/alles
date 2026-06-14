@@ -115,6 +115,35 @@ async def upload(album_id: str = Form(""), file: UploadFile = File(...), db: DbS
     return _fmt(p)
 
 
+class SyncBody(BaseModel):
+    source: str            # a folder path (iCloud Drive / Photos export / any synced dir)
+
+
+@router.post("/sync")
+def sync(body: SyncBody, db: DbSession = Depends(get_db)):
+    """import new images from a folder, skipping anything already pulled in."""
+    from services import photo_sync
+    try:
+        return photo_sync.sync_folder(body.source, db)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+@router.post("/sync/macos")
+def sync_macos():
+    """pull from the macOS Photos library (Mac mini only) then import."""
+    import tempfile
+    from services import photo_sync
+    try:
+        dest = tempfile.mkdtemp(prefix="alles-photos-")
+        photo_sync.pull_from_macos_photos(dest)
+        return photo_sync.sync_folder(dest)
+    except NotImplementedError as e:
+        raise HTTPException(501, str(e))
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+
 @router.get("/thumb/{pid}")
 def thumb(pid: str, db: DbSession = Depends(get_db)):
     p = db.get(Photo, pid)
