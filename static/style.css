@@ -1642,9 +1642,10 @@ code {
   font-size: 0.72rem; color: var(--faint); letter-spacing: 0.04em;
   font-variant-numeric: tabular-nums;
 }
-/* customize button (top-right of the head) */
+/* settings + customize buttons (top-right of the head) */
 .home-head { position: relative; }
-.home-edit-btn { position: absolute; top: 0.2rem; right: 0; font-size: 0.66rem; padding: 0.28rem 0.6rem; }
+.home-head-actions { position: absolute; top: 0.2rem; right: 0; display: flex; gap: 0.35rem; }
+.home-head-actions .btn { font-size: 0.66rem; padding: 0.28rem 0.6rem; }
 .home-edit-btn.active { border-color: var(--accent); color: var(--accent); }
 
 /* quick capture */
