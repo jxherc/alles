@@ -214,7 +214,7 @@ init();
 const _VIEW_IDS = [
   'home-view', 'chat', 'notes-view', 'tasks-view', 'calendar-view', 'gallery-view',
   'models-view', 'brain-view', 'wiki-view', 'compare-view', 'vault-view', 'contacts-view',
-  'reminders-view', 'files-view', 'mail-view', 'photos-view', 'subs-view', 'money-view', 'days-view', 'journal-view',
+  'reminders-view', 'files-view', 'mail-view', 'photos-view', 'subs-view', 'money-view', 'days-view', 'journal-view', 'cookbook-view',
 ];
 
 function hideAllViews() {
@@ -253,6 +253,7 @@ const showSubsView       = () => showView('subs-view',      'subs',      async (
 const showMoneyView      = () => showView('money-view',     'money',     async () => { (await import('./money.js')).initMoneyPanel(); });
 const showDaysView       = () => showView('days-view',      'days',      async () => { (await import('./days.js')).initDaysPanel(); });
 const showJournalView    = () => showView('journal-view',   'journal',   async () => { (await import('./journal.js')).initJournal(); });
+const showCookbookView   = () => showView('cookbook-view',  'cookbook',  async () => { (await import('./cookbook.js')).initCookbook(); });
 const showFilesView      = () => showView('files-view',     'files',     () => { initFiles(); loadFiles(); });
 const showMailView       = () => showView('mail-view',      'mail',      loadMail);
 const showPhotosView     = () => showView('photos-view',    'photos',    () => { initPhotos(); loadPhotos(); });
@@ -284,6 +285,7 @@ function navigateTo(v) {
   else if (v === 'money')     showMoneyView();
   else if (v === 'days')      showDaysView();
   else if (v === 'journal')   showJournalView();
+  else if (v === 'cookbook')  showCookbookView();
   else if (v === 'files')     showFilesView();
   else if (v === 'mail')      showMailView();
   else if (v === 'photos')    showPhotosView();
@@ -309,6 +311,7 @@ const _ICON = {
   files: '<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>',
   photos: '<path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>',
   journal: '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><line x1="9" y1="7" x2="15" y2="7"/>',
+  cookbook: '<path d="M12 2a3 3 0 0 0-3 3c0 .6.2 1.2.5 1.7L7 9H5a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2h-2l-2.5-2.3c.3-.5.5-1.1.5-1.7a3 3 0 0 0-3-3z"/><line x1="7" y1="14" x2="17" y2="14"/>',
 };
 const _svg = (k) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">${_ICON[k] || ''}</svg>`;
 
@@ -326,6 +329,7 @@ const HOME_TILES = [
   { view: 'money',    name: 'money',    desc: 'accounts & budgets', icon: 'money' },
   { view: 'days',     name: 'days',     desc: 'countdowns',      icon: 'days' },
   { view: 'journal',  name: 'journal',  desc: 'daily entries',   icon: 'journal' },
+  { view: 'cookbook', name: 'cookbook', desc: 'local model picker', icon: 'cookbook' },
 ];
 
 // ── home tiles: drag-reorder + hide/show (persisted) + quick capture ─────────

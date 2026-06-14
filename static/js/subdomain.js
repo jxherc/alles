@@ -17,6 +17,7 @@ export const SUBDOMAIN_VIEWS = {
   money:      { app: 'money',    primary: 'money',    views: ['money'] },
   days:       { app: 'days',     primary: 'days',     views: ['days'] },
   journal:    { app: 'journal',  primary: 'journal',  views: ['journal'] },
+  cookbook:   { app: 'cookbook', primary: 'cookbook', views: ['cookbook'] },
   files:      { app: 'files',    primary: 'files',    views: ['files'] },
   contacts:   { app: 'contacts', primary: 'contacts', views: ['contacts'] },
   secrets:    { app: 'secrets',  primary: 'vault',    views: ['vault'] },
