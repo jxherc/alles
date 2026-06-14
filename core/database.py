@@ -451,6 +451,22 @@ class PushSubscription(Base):
     created_at = Column(DateTime, default=_now)
 
 
+class CachedMessage(Base):
+    # header cache for the mail inbox — instant open + offline fallback + local search,
+    # so we're not waiting on an IMAP round-trip every time. populated on each live fetch.
+    __tablename__ = "cached_messages"
+    id          = Column(String, primary_key=True, default=_uid)
+    account_id  = Column(String, index=True, nullable=False)
+    folder      = Column(String, default="INBOX", index=True)
+    uid         = Column(String, nullable=False)
+    sender      = Column(Text, default="")
+    subject     = Column(Text, default="")
+    date        = Column(String, default="")
+    date_ts     = Column(Float, default=0)
+    seen        = Column(Boolean, default=False)
+    cached_at   = Column(DateTime, default=_now)
+
+
 class SessionTemplate(Base):
     __tablename__ = "session_templates"
     id              = Column(String, primary_key=True, default=_uid)
