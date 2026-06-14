@@ -26,6 +26,31 @@ def list_contacts(q: str = Query(""), db: DbSession = Depends(get_db)):
     return [_fmt(c) for c in qs.order_by(Contact.name).all()]
 
 
+@router.get("/contacts/export")
+def export_contacts(db: DbSession = Depends(get_db)):
+    from fastapi.responses import PlainTextResponse
+    from services.vcard import to_vcard
+    cards = [_fmt(c) for c in db.query(Contact).order_by(Contact.name).all()]
+    return PlainTextResponse(to_vcard(cards), media_type="text/vcard",
+                             headers={"content-disposition": "attachment; filename=contacts.vcf"})
+
+
+class ImportBody(BaseModel):
+    vcard: str
+
+
+@router.post("/contacts/import")
+def import_contacts(body: ImportBody, db: DbSession = Depends(get_db)):
+    from services.vcard import parse_vcards
+    n = 0
+    for c in parse_vcards(body.vcard):
+        db.add(Contact(name=c["name"], email=c.get("email", ""), phone=c.get("phone", ""),
+                       notes=c.get("notes", ""), tags="[]"))
+        n += 1
+    db.commit()
+    return {"imported": n}
+
+
 class CreateContact(BaseModel):
     name: str
     email: str = ""

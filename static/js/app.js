@@ -840,6 +840,16 @@ function bindEvents() {
   // contacts
   document.getElementById('contacts-search')?.addEventListener('input', e => loadContacts(e.target.value));
   document.getElementById('contact-add-btn')?.addEventListener('click', addContact);
+  document.getElementById('contacts-import-btn')?.addEventListener('click', () => document.getElementById('contacts-import-input')?.click());
+  document.getElementById('contacts-import-input')?.addEventListener('change', async e => {
+    const f = e.target.files[0]; e.target.value = '';
+    if (!f) return;
+    const vcard = await f.text();
+    const r = await fetch('/api/contacts/import', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ vcard }) });
+    const d = await r.json().catch(() => ({}));
+    toast(`imported ${d.imported || 0} contact${d.imported === 1 ? '' : 's'}`, 'success');
+    loadContacts();
+  });
 
   // sidebar nav + brand-as-home
   document.querySelectorAll('.nav-item').forEach(el => {
