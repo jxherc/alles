@@ -2168,10 +2168,10 @@ code {
 .jrnl-empty { font-size: 0.72rem; color: var(--muted); padding: 0.3rem 0.5rem; }
 
 /* ── cookbook ── */
-/* skills view — master/detail */
-.skills-wrap { display: flex; gap: 1.25rem; align-items: flex-start; }
+/* skills view — master/detail, fills the body width like cookbook (no side gaps) */
+.skills-wrap { display: flex; gap: 1.25rem; align-items: flex-start; width: 100%; }
 .skills-side { width: 240px; flex-shrink: 0; }
-.skills-main { flex: 1; min-width: 0; max-width: 720px; }
+.skills-main { flex: 1; min-width: 0; }
 .skl-list { display: flex; flex-direction: column; gap: 0.3rem; }
 .skl-row { padding: 0.45rem 0.55rem; border: 1px solid var(--faint); border-radius: 4px; cursor: pointer; transition: border-color 0.15s ease, background 0.15s ease; }
 .skl-row:hover { border-color: var(--muted); }
