@@ -75,6 +75,8 @@ class CreateSession(BaseModel):
     mode: str = "chat"
     incognito: bool = False
     working_dir: str = ""
+    persona_id: str = ""
+    project_id: str = ""
 
 
 # POST /api/sessions
@@ -87,6 +89,8 @@ async def create_session(body: CreateSession, bg: BackgroundTasks, db: DbSession
         mode=body.mode,
         incognito=body.incognito,
         working_dir=body.working_dir,
+        persona_id=body.persona_id or None,
+        project_id=body.project_id or None,
     )
     db.add(s)
     db.commit()
