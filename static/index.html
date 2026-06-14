@@ -7,6 +7,8 @@
 <script>
   const _t = localStorage.getItem('aide-theme');
   if (_t) document.documentElement.dataset.theme = _t;
+  const _a = localStorage.getItem('aide-accent');
+  if (_a) document.documentElement.style.setProperty('--accent', _a);
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -974,6 +976,30 @@
               <div class="s-field">
                 <label>your name <span style="color:var(--muted);font-weight:400">— aide greets you by it</span></label>
                 <input type="text" class="settings-input" id="s-user-name" placeholder="e.g. eric" style="width:100%">
+              </div>
+            </div>
+          </div>
+          <div class="s-card">
+            <div class="s-card-head">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r=".5"/><circle cx="17.5" cy="10.5" r=".5"/><circle cx="8.5" cy="7.5" r=".5"/><circle cx="6.5" cy="12.5" r=".5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.555C21.965 6.012 17.461 2 12 2z"/></svg>
+              theme & color
+            </div>
+            <div class="s-card-body">
+              <div class="s-field">
+                <label>mode</label>
+                <div class="theme-mode-row">
+                  <button class="theme-mode-btn" data-theme-mode="dark">dark</button>
+                  <button class="theme-mode-btn" data-theme-mode="light">light</button>
+                </div>
+              </div>
+              <div class="s-field" style="margin-top:0.6rem">
+                <label>accent color <span style="color:var(--muted);font-weight:400">— the highlight used everywhere</span></label>
+                <div class="accent-swatches" id="s-accent-swatches"></div>
+                <div class="accent-custom">
+                  <input type="color" id="s-accent-custom" value="#818cf8" title="pick any color">
+                  <input type="text" id="s-accent-hex" class="settings-input" placeholder="#hex" spellcheck="false" style="width:120px">
+                  <button class="btn" id="s-accent-reset" style="font-size:0.68rem;padding:0.2rem 0.55rem">reset</button>
+                </div>
               </div>
             </div>
           </div>
