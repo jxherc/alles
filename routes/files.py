@@ -15,6 +15,11 @@ def list_files(path: str = Query("")):
         raise HTTPException(400, str(e))
 
 
+@router.get("/search")
+def search_files(q: str = Query(...), limit: int = 100):
+    return fs.search(q, limit)
+
+
 @router.get("/read")
 def read_file(path: str = Query(...)):
     try:
