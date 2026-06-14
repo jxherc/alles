@@ -66,5 +66,21 @@ class CrudTests(unittest.TestCase):
         self.assertIn("?", J.todays_prompt()["prompt"])
 
 
+class DepthTests(unittest.TestCase):
+    def test_search_export_calendar(self):
+        db = _mkdb()
+        J.upsert_entry("2026-06-14", EntryBody(content="found the needle today", mood="🙂"), db)
+        J.upsert_entry("2026-06-13", EntryBody(content="ordinary day"), db)
+        r = J.search_entries("needle", db)
+        self.assertEqual(len(r["results"]), 1)
+        self.assertEqual(r["results"][0]["date"], "2026-06-14")
+        ex = J.export_entries(db)
+        self.assertEqual(ex["count"], 2)
+        self.assertIn("found the needle", ex["markdown"])
+        cal = J.entry_calendar(2026, db)
+        self.assertIn("2026-06-14", cal["days"])
+        self.assertEqual(cal["days"]["2026-06-14"], 4)   # word count
+
+
 if __name__ == "__main__":
     unittest.main()
