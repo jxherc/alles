@@ -5,6 +5,7 @@ from unittest import mock
 
 from services.agent_intents import message_needs_tools
 from services import agent_tools as at
+from services.agent_runtime import _trim_history, _hist_chars
 
 
 class IntentTests(unittest.TestCase):
@@ -71,6 +72,32 @@ class PathConfinementTests(unittest.TestCase):
             inside = at.ROOT / "scratch_test_file.txt"
             self.assertIsNotNone(at._guard_path(outside, write=True))
             self.assertIsNone(at._guard_path(inside, write=True))
+
+
+class CompactionTests(unittest.TestCase):
+    def _mk(self, n, size):
+        msgs = [{"role": "system", "content": "sys"}]
+        for i in range(n):
+            msgs.append({"role": "assistant", "content": f"turn {i}",
+                         "tool_calls": [{"call_id": str(i), "name": "x", "args": {}}]})
+            msgs.append({"role": "tool", "tool_call_id": str(i), "content": "D" * size})
+        return msgs
+
+    def test_under_budget_untouched(self):
+        m = self._mk(3, 100)
+        before = [x["content"] for x in m]
+        _trim_history(m, budget=10**9)
+        self.assertEqual([x["content"] for x in m], before)
+
+    def test_over_budget_trims_keeps_recent_and_pairing(self):
+        m = self._mk(40, 5000)   # ~400k chars, way over budget
+        n_before = len(m)
+        recent_before = [x["content"] for x in m[-8:]]
+        _trim_history(m, budget=120000, keep_recent=8)
+        self.assertLessEqual(_hist_chars(m), 120000)        # got under budget
+        self.assertEqual(len(m), n_before)                   # pairing-safe: nothing removed
+        self.assertEqual([x["content"] for x in m[-8:]], recent_before)  # recent turns intact
+        self.assertEqual(m[0]["content"], "sys")             # system intact
 
 
 if __name__ == "__main__":
