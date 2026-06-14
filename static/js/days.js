@@ -186,11 +186,8 @@ function _editCard(e) {
   return `
     <div class="day-card editing" data-id="${e.id}">
       <input type="text" class="settings-input" data-f="name" value="${esc(e.name)}" placeholder="name">
-      <input type="date" class="settings-input" data-f="date" value="${esc(e.date)}">
-      <select class="settings-input" data-f="repeat">
-        ${[['none', 'one-time'], ['yearly', 'every year'], ['monthly', 'every month']].map(([v, l]) =>
-          `<option value="${v}"${e.repeat === v ? ' selected' : ''}>${l}</option>`).join('')}
-      </select>
+      <div class="date-input" data-f="date" data-type="date" data-value="${esc(e.date)}" data-ph="date"></div>
+      <div class="settings-input custom-select" data-f="repeat" data-value="${esc(e.repeat || 'none')}" data-options="none|one-time;yearly|every year;monthly|every month"></div>
       <input type="text" class="settings-input" data-f="category" value="${esc(e.category)}" placeholder="category">
       <input type="text" class="settings-input" data-f="notify_days" value="${e.notify_days}" title="push reminder N days before (-1 = off, 0 = day of)" inputmode="numeric" placeholder="remind">
       <input type="text" class="settings-input" data-f="notes" value="${esc(e.notes)}" placeholder="notes">
@@ -202,6 +199,8 @@ function _editCard(e) {
 }
 
 function _wire(grid) {
+  grid.querySelectorAll('.day-card.editing .custom-select').forEach(initCustomDropdown);
+  grid.querySelectorAll('.day-card.editing .date-input').forEach(initDatePicker);
   grid.querySelectorAll('.day-card').forEach(card => {
     const id = card.dataset.id;
     card.querySelectorAll('[data-act]').forEach(btn => btn.addEventListener('click', async () => {

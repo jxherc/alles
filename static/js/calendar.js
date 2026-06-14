@@ -205,7 +205,7 @@ function openEditor(event, defaultDate, hour, allDay) {
       <div><div class="cal-flabel">repeat until (optional)</div><div class="date-input" id="cal-until" data-type="date" data-value="${event?.recur_until || ''}" data-ph="never" style="width:100%"></div></div>
     </div>
     <div style="display:flex;align-items:center;gap:0.5rem;margin-top:0.5rem">
-      <label class="cal-flabel" style="display:flex;align-items:center;gap:0.3rem;margin:0"><input type="checkbox" id="cal-allday" ${event?.all_day || allDay ? 'checked' : ''}> all day</label>
+      <label class="cal-flabel" id="cal-allday-row" style="display:flex;align-items:center;gap:0.4rem;margin:0;cursor:pointer"><span class="chk" id="cal-allday" role="checkbox" aria-checked="${event?.all_day || allDay ? 'true' : 'false'}"></span> all day</label>
       <span class="cal-flabel" style="margin:0 0 0 0.5rem">color</span>
       <div id="cal-colors" style="display:flex;gap:0.3rem">
         ${colors.map(c => `<span class="cal-color-dot ${c}${(event?.color || 'accent') === c ? ' sel' : ''}" data-c="${c}"></span>`).join('')}
@@ -221,6 +221,10 @@ function openEditor(event, defaultDate, hour, allDay) {
 
   initCustomDropdown(document.getElementById('cal-recur'));
   initDatePickers(list);
+  document.getElementById('cal-allday-row')?.addEventListener('click', () => {
+    const c = document.getElementById('cal-allday');
+    c.setAttribute('aria-checked', c.getAttribute('aria-checked') === 'true' ? 'false' : 'true');
+  });
 
   let _color = event?.color || 'accent';
   list.querySelectorAll('.cal-color-dot').forEach(d => d.addEventListener('click', () => {
@@ -238,7 +242,7 @@ function openEditor(event, defaultDate, hour, allDay) {
       description: document.getElementById('cal-desc').value,
       start_dt: document.getElementById('cal-start').value,
       end_dt: document.getElementById('cal-end').value || null,
-      all_day: document.getElementById('cal-allday').checked,
+      all_day: document.getElementById('cal-allday').getAttribute('aria-checked') === 'true',
       color: _color,
       recurrence: document.getElementById('cal-recur').value,
       recur_until: document.getElementById('cal-until').value || null,
