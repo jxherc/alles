@@ -144,6 +144,17 @@ class Note(Base):
     updated_at = Column(DateTime, default=_now)
 
 
+class JournalEntry(Base):
+    __tablename__ = "journal_entries"
+    id         = Column(String, primary_key=True, default=_uid)
+    date       = Column(String, unique=True, index=True)   # one per day, ISO YYYY-MM-DD
+    content    = Column(Text, default="")
+    mood       = Column(String, default="")                # emoji / short word
+    tags       = Column(String, default="")
+    created_at = Column(DateTime, default=_now)
+    updated_at = Column(DateTime, default=_now)
+
+
 class Task(Base):
     __tablename__ = "tasks"
     id        = Column(String, primary_key=True, default=_uid)
