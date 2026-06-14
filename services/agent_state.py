@@ -106,6 +106,23 @@ def get_run(run_id: str) -> dict | None:
         return None
 
 
+def find_active_run(session_id: str) -> dict | None:
+    """the run currently executing for a session, if any. lets a client that
+    reconnected (tab reload, nav away and back) find the run to replay its
+    event log and pick the live stream back up instead of losing the run."""
+    if not session_id:
+        return None
+    for st in _active.values():
+        if st.get("session_id") == session_id and st.get("status") == "running":
+            return st
+    # _active is memory-only — after a process restart a run can still be
+    # marked running on disk; surface that too so it can be inspected/reverted.
+    for st in list_runs(limit=40):
+        if st.get("session_id") == session_id and st.get("status") == "running":
+            return st
+    return None
+
+
 def list_runs(limit: int = 20) -> list[dict]:
     rows = []
     for p in sorted(DATA_DIR.glob("*.json"), key=lambda x: x.stat().st_mtime, reverse=True):

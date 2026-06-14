@@ -100,5 +100,18 @@ class CompactionTests(unittest.TestCase):
         self.assertEqual(m[0]["content"], "sys")             # system intact
 
 
+class ReplayTests(unittest.TestCase):
+    def test_find_active_run(self):
+        from services import agent_state as st
+        run = st.start_run(session_id="sess-xyz-test", model="m", max_turns=3)
+        try:
+            self.assertEqual(st.find_active_run("sess-xyz-test")["id"], run["id"])
+            self.assertIsNone(st.find_active_run("other-session"))
+            st.finish_run(run["id"])
+            self.assertIsNone(st.find_active_run("sess-xyz-test"))  # done != active
+        finally:
+            st._path(run["id"]).unlink(missing_ok=True)
+
+
 if __name__ == "__main__":
     unittest.main()
