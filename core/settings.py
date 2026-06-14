@@ -45,6 +45,10 @@ _defaults = {
     "tts_auto_play": False,
     "stt_language": "",
     "base_domain": "localhost",   # apex domain; each app lives on {app}.{base_domain}
+    # on by default: when a plain chat message clearly asks aide to DO an app thing
+    # (check mail, add to calendar, remind me, what's on my schedule…) it acts on it
+    # instead of just talking about it. auto-promoted runs gate mutations behind approval.
+    "agent_auto_intents": True,
 }
 
 _ARTIFACT_INSTRUCTIONS = (

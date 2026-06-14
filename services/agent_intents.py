@@ -35,6 +35,14 @@ _PATTERNS = tuple(re.compile(p, re.I) for p in (
     rf"{_PLEASE}(?:send|write|reply)\b.{{0,120}}\b(?:emails?|mail|messages?)\b",
     r"\b(?:send|write|reply)\s+(?:an?\s+)?(?:email|message|mail)\b",
     r"\bcheck\s+(?:my\s+)?(?:email|inbox|mail)\b",
+    # read-y questions about your stuff — aide should go look, not guess
+    r"\bwhat(?:'?s| is| are)\b.{0,40}\b(?:on\s+)?(?:my\s+)?(?:calendar|schedule|agenda)\b",
+    r"\b(?:do\s+i\s+have|any|got)\b.{0,30}\b(?:meetings?|events?|appointments?)\b",
+    r"\bwhat(?:'?s| is| do i have)\b.{0,30}\b(?:in\s+)?(?:my\s+)?inbox\b",
+    r"\bany\s+(?:new\s+|unread\s+)*(?:emails?|mail|messages?)\b",
+    r"\bwhat(?:'?s| are)\b.{0,30}\b(?:my\s+)?(?:tasks?|to-?dos?|reminders?)\b",
+    r"\b(?:do\s+i\s+have|any|got)\b.{0,20}\b(?:tasks?|to-?dos?|reminders?)\b",
+    r"\bwhat(?:'?s| do i have)\b.{0,30}\b(?:going\s+on|happening|planned)\b.{0,20}\b(?:today|tomorrow|this\s+week)\b",
     # open a panel / flip a toggle
     rf"{_PLEASE}(?:open|show|bring\s+up)\s+(?:me\s+)?(?:my\s+|the\s+)?{_PANEL}\b",
     r"\b(?:disable|enable|turn\s+(?:on|off))\s+(?:the\s+)?(?:shell|search|web|browser|documents?|memory|skills|images?|calendar|email|mail|research|incognito)\b",
