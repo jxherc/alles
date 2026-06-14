@@ -1672,6 +1672,15 @@ code {
 .home-edit-btn.active { border-color: var(--accent); color: var(--accent); }
 
 /* quick capture */
+.home-firstrun {
+  margin: 0.5rem 0 1.1rem; padding: 0.9rem 1rem;
+  background: var(--panel); border: 1px solid var(--faint);
+  border-left: 2px solid var(--accent); border-radius: 6px;
+}
+.firstrun-title { font-size: 0.95rem; color: var(--text); margin-bottom: 0.35rem; }
+.firstrun-body { font-size: 0.8rem; color: var(--muted); line-height: 1.5; margin-bottom: 0.7rem; }
+.firstrun-cta { font-size: 0.78rem; }
+
 .home-capture {
   display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1.1rem;
   background: var(--panel); border: 1px solid var(--faint); border-radius: 6px; padding: 0.45rem 0.55rem;
