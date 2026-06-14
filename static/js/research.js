@@ -8,7 +8,7 @@ export function isResearchMode() { return _active; }
 
 export function setResearchMode(on) {
   _active = on;
-  const btn = document.getElementById('research-mode-btn');
+  const btn = document.getElementById('research-toggle-btn');
   if (btn) btn.classList.toggle('active', on);
 }
 
@@ -41,21 +41,37 @@ export async function runResearch(query) {
       </div>
       <div class="research-steps" id="research-steps"></div>
       <div class="research-report" id="research-report" style="display:none"></div>
+      <div class="research-stats" id="research-stats" style="display:none"></div>
       <div class="research-sources" id="research-sources" style="display:none"></div>
     </div>`;
   container.appendChild(resRow);
   scrollDown();
 
-  const stepsEl  = document.getElementById('research-steps');
-  const reportEl = document.getElementById('research-report');
+  const stepsEl   = document.getElementById('research-steps');
+  const reportEl  = document.getElementById('research-report');
+  const statsEl   = document.getElementById('research-stats');
   const sourcesEl = document.getElementById('research-sources');
-  const dot      = document.getElementById('research-dot');
+  const dot       = document.getElementById('research-dot');
 
   document.getElementById('research-cancel-btn').addEventListener('click', () => {
     fetch(`/api/research/${sid}/cancel`, { method: 'POST' }).catch(() => {});
   });
 
   let reportAccum = '';
+  const seenSources = new Set();   // live sources discovered as we read pages
+
+  const addSource = (url, title) => {
+    if (!url || seenSources.has(url)) return;
+    seenSources.add(url);
+    sourcesEl.style.display = 'block';
+    if (!sourcesEl.querySelector('.sources-label'))
+      sourcesEl.innerHTML = '<div class="sources-label">sources</div>';
+    const a = document.createElement('a');
+    a.className = 'source-link';
+    a.href = url; a.target = '_blank'; a.rel = 'noopener';
+    a.textContent = title || url;
+    sourcesEl.appendChild(a);
+  };
 
   try {
     const r = await fetch('/api/research', {
@@ -96,39 +112,53 @@ export async function runResearch(query) {
           scrollDown();
         }
 
-        if (ev.type === 'finding') {
+        // live source discovery (new engine streams these as it reads pages)
+        else if (ev.type === 'source') {
+          addSource(ev.url, ev.title);
+          scrollDown();
+        }
+
+        // kept for back-compat with the old engine's streamed shapes
+        else if (ev.type === 'finding') {
           const s = document.createElement('div');
           s.className = 'research-finding';
           s.textContent = '→ ' + ev.text;
           stepsEl.appendChild(s);
           scrollDown();
         }
-
-        if (ev.type === 'report_delta') {
+        else if (ev.type === 'report_delta') {
           reportAccum += ev.text;
           reportEl.style.display = 'block';
           reportEl.innerHTML = mdToHtml(reportAccum);
           scrollDown();
         }
 
-        if (ev.type === 'done') {
+        else if (ev.type === 'done') {
           dot.style.animation = 'none';
           dot.style.opacity = '0.4';
           document.getElementById('research-cancel-btn').style.display = 'none';
           reportEl.style.display = 'block';
           reportEl.innerHTML = mdToHtml(ev.report || reportAccum);
 
+          if (ev.stats && Object.keys(ev.stats).length) {
+            statsEl.style.display = 'block';
+            statsEl.innerHTML = Object.entries(ev.stats)
+              .map(([k, v]) => `<span class="research-stat"><b>${escHtml(k)}</b> ${escHtml(String(v))}</span>`)
+              .join('');
+          }
+
+          // final dedup'd source list (overwrites the live one)
           if (ev.sources?.length) {
             sourcesEl.style.display = 'block';
             sourcesEl.innerHTML = '<div class="sources-label">sources</div>' +
               ev.sources.map(s =>
-                `<a class="source-link" href="${s.url}" target="_blank" rel="noopener">${s.title || s.url}</a>`
+                `<a class="source-link" href="${s.url}" target="_blank" rel="noopener">${escHtml(s.title || s.url)}</a>`
               ).join('');
           }
           scrollDown();
         }
 
-        if (ev.type === 'error') {
+        else if (ev.type === 'error') {
           stepsEl.innerHTML += `<div class="research-step error">error: ${escHtml(ev.text)}</div>`;
         }
       }

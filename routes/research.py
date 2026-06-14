@@ -1,9 +1,9 @@
-import json, asyncio
+import json
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
-from services.research_engine import run_research, get_task, cancel_task
+from services.research import run_research, get_task, cancel_task
 
 router = APIRouter(prefix="/api")
 
@@ -24,7 +24,7 @@ def _resolve_ep():
 class ResearchRequest(BaseModel):
     query: str
     session_id: str
-    max_rounds: int = 6
+    max_rounds: int = 8
 
 
 async def _sse(gen):
@@ -50,7 +50,6 @@ async def start_research(body: ResearchRequest):
         model=model,
         max_rounds=body.max_rounds,
     )
-
     return StreamingResponse(
         _sse(gen),
         media_type="text/event-stream",
@@ -58,13 +57,28 @@ async def start_research(body: ResearchRequest):
     )
 
 
-# GET /api/research/{session_id}  — get completed task
+# GET /api/research/{session_id}  — full task state
 @router.get("/research/{session_id}")
 def get_research(session_id: str):
     t = get_task(session_id)
     if not t:
         raise HTTPException(404, "no research task found")
     return t
+
+
+# GET /api/research/{session_id}/result  — just the report + sources + stats
+@router.get("/research/{session_id}/result")
+def get_research_result(session_id: str):
+    t = get_task(session_id)
+    if not t:
+        raise HTTPException(404, "no research task found")
+    return {
+        "status": t.get("status"),
+        "query": t.get("query"),
+        "report": t.get("report", ""),
+        "sources": t.get("sources", []),
+        "stats": t.get("stats", {}),
+    }
 
 
 # POST /api/research/{session_id}/cancel
