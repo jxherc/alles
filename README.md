@@ -39,7 +39,7 @@ you do **not** need to be technical to *use* it. you need to be a little technic
 ## table of contents
 
 - [the apps — what you actually get](#the-apps--what-you-actually-get)
-  - [aide (the ai)](#aide-the-ai) · [home](#home) · [today](#today) · [docs](#docs) · [mail](#mail) · [calendar](#calendar) · [tasks](#tasks) · [notes](#notes) · [subs](#subs) · [days](#days) · [files](#files) · [gallery](#gallery) · [contacts](#contacts) · [secrets](#secrets) · [automations](#automations)
+  - [aide (the ai)](#aide-the-ai) · [home](#home) · [today](#today) · [docs](#docs) · [mail](#mail) · [calendar](#calendar) · [tasks](#tasks) · [notes](#notes) · [subs](#subs) · [money](#money) · [days](#days) · [files](#files) · [gallery](#gallery) · [contacts](#contacts) · [secrets](#secrets) · [automations](#automations)
 - [aide in depth](#aide-in-depth)
 - [how the model switch works](#how-the-model-switch-works) — *the part everyone asks about*
 - [the agent in depth](#the-agent-in-depth)
@@ -158,6 +158,15 @@ this is the most feature-dense app, so here's the full list:
 - due dates roll forward automatically as they pass
 - monthly **and** yearly totals computed for you
 - a **push notification before anything renews** so you can cancel in time
+
+### money
+**plain version:** a finance tracker — accounts, what you spend, and budgets, with charts.
+
+- **accounts** (checking / savings / cash / credit / investment) with live balances + a net-worth roll-up
+- **transactions** — log income/expenses with a category + payee, browse by month, quick-add, delete
+- **budgets** — set a monthly cap per category; a progress bar turns red when you go over
+- **charts** — spending-by-category bars and a 6-month income-vs-spent trend (plain SVG, no chart library)
+- this-month cards: net worth · income · spent · net
 
 ### days
 **plain version:** countdowns to things coming up, and day-counts since things that happened.
@@ -449,7 +458,7 @@ protect it with **api tokens** (settings → tokens) and, if exposed, **`AUTH_EN
 
 everything is in one folder, **`data/`**:
 
-- **`data/aide.db`** — a single sqlite database file holding the structured stuff. ~30 tables: `sessions`, `messages`, `model_endpoints`, `notes`, `tasks`, `calendar_events`, `gallery_images`, `cookbook`, `personas`, `webhooks`, `api_tokens`, `memories`, `projects`, `uploads`, `documents`, `vault_entries`, `contacts`, `mail_accounts`, `albums`, `photos`, `reminders`, `automation_rules`, `day_events`, `subscriptions`, `doc_revisions`, `push_subscriptions`, `session_templates`, `mcp_servers`, `connections`.
+- **`data/aide.db`** — a single sqlite database file holding the structured stuff. ~30 tables: `sessions`, `messages`, `model_endpoints`, `notes`, `tasks`, `calendar_events`, `gallery_images`, `cookbook`, `personas`, `webhooks`, `api_tokens`, `memories`, `projects`, `uploads`, `documents`, `vault_entries`, `contacts`, `mail_accounts`, `albums`, `photos`, `reminders`, `automation_rules`, `day_events`, `subscriptions`, `money_accounts`, `money_transactions`, `money_budgets`, `doc_revisions`, `push_subscriptions`, `session_templates`, `mcp_servers`, `connections`.
 - **`data/vault/`** — your docs as plain `.md` files (with `_assets/` for embedded images and `_templates/` for templates).
 - **`data/`** (other) — uploads, photos, and file-app content as plain files; **`data/secret.key`** — the encryption key for stored credentials.
 
