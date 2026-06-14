@@ -335,6 +335,9 @@
           <span id="money-month-label">—</span>
           <button class="icon-btn" id="money-next" title="next month">›</button>
         </div>
+        <a class="btn" id="money-export" href="/api/money/transactions/export.csv" download title="export CSV" style="margin-left:auto">export</a>
+        <input type="file" id="money-import-file" accept=".csv,text/csv" hidden>
+        <button class="btn" id="money-import" title="import a bank CSV">import</button>
       </div>
       <div class="page-view-body" id="money-body"></div>
     </div>
