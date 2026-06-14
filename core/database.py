@@ -162,6 +162,12 @@ class Task(Base):
     done      = Column(Boolean, default=False)
     priority  = Column(Integer, default=0)   # 0 normal, 1 high
     due_date  = Column(String, nullable=True)
+    parent_id = Column(String, nullable=True)     # subtasks point at their parent
+    tags      = Column(String, default="")        # comma-separated
+    repeat    = Column(String, default="")        # ''|daily|weekly|monthly|yearly
+    notes     = Column(Text, default="")
+    project   = Column(String, default="")
+    sort_order = Column(Integer, default=0)        # manual drag-reorder
     created_at = Column(DateTime, default=_now)
 
 
@@ -491,6 +497,12 @@ def init_db():
         _add_col(conn, "calendar_events", "recur_until", "TEXT")
         _add_col(conn, "calendar_events", "caldav_uid",  "TEXT")
         _add_col(conn, "reminders", "notified", "BOOLEAN DEFAULT 0")
+        _add_col(conn, "tasks", "parent_id",  "TEXT")
+        _add_col(conn, "tasks", "tags",       "TEXT DEFAULT ''")
+        _add_col(conn, "tasks", "repeat",     "TEXT DEFAULT ''")
+        _add_col(conn, "tasks", "notes",      "TEXT DEFAULT ''")
+        _add_col(conn, "tasks", "project",    "TEXT DEFAULT ''")
+        _add_col(conn, "tasks", "sort_order", "INTEGER DEFAULT 0")
     _encrypt_plaintext_secrets()
 
 
