@@ -50,9 +50,17 @@ class SettingsPatch(BaseModel):
     notify_telegram_token: str | None = None
     notify_telegram_chat_id: str | None = None
     notify_on_agent_done: bool | None = None
+    outbound_proxy: str | None = None    # e.g. http://127.0.0.1:7890 — routes all egress through it
 
 
 @router.patch("/settings")
 def patch_settings(body: SettingsPatch):
     patch = {k: v for k, v in body.model_dump().items() if v is not None}
-    return save_settings(patch)
+    out = save_settings(patch)
+    if "outbound_proxy" in patch:
+        try:
+            from services import net
+            net.apply_proxy()   # take effect without a restart
+        except Exception:
+            pass
+    return out
