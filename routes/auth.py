@@ -68,10 +68,32 @@ def logout(response: Response, aide_session: str | None = Cookie(None)):
 def me(aide_session: str | None = Cookie(None)):
     from core.settings import auth_enabled
     bd = base_domain()
+    username = load_settings().get("username", "")
     if not auth_enabled():
-        return {"enabled": False, "authenticated": True, "base_domain": bd}
+        return {"enabled": False, "authenticated": True, "base_domain": bd, "username": username}
     authed = bool(aide_session and verify_session(aide_session))
-    return {"enabled": True, "authenticated": authed, "base_domain": bd}
+    return {"enabled": True, "authenticated": authed, "base_domain": bd, "username": username}
+
+
+class ChangePwBody(BaseModel):
+    old_password: str = ""
+    new_password: str
+
+
+@router.post("/change-password")
+def change_password(body: ChangePwBody):
+    if len(body.new_password) < 4:
+        raise HTTPException(400, "new password must be at least 4 characters")
+    s = load_settings()
+    hashed = s.get("auth_password_hash", "")
+    if not hashed:
+        env_pw = os.getenv("AUTH_PASSWORD", "")
+        hashed = hash_password(env_pw) if env_pw else ""
+    # if a password already exists, the current one must match
+    if hashed and not verify_password(body.old_password, hashed):
+        raise HTTPException(401, "current password is wrong")
+    save_settings({"auth_password_hash": hash_password(body.new_password)})
+    return {"ok": True}
 
 
 # cross-subdomain SSO: an authed subdomain mints a one-time code; the target
