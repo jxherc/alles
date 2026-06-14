@@ -231,6 +231,28 @@ def phase_more_apps():
     return all(not (isinstance(v, str) and ("Error" in v or "error" in v)) for v in made.values())
 
 
+def phase_chat_action(eid, model, name):
+    say("\n[6] CHAT APP-ACTION — plain chat 'what's on my calendar?' should DO it, not just talk")
+    sid = new_session(f"live-test chat-action ({name})", model, eid, mode="chat")
+    msg = "What do I have on my calendar? Check it and tell me."
+    text, _, err = stream_chat(sid, msg, mode="chat", permission_mode="full_auto", timeout=150)
+    called = []
+    try:
+        runs = httpx.get(f"{BASE}/api/agent/runs?limit=10", timeout=20).json()
+        run = next((r for r in runs if r.get("session_id") == sid), None)
+        if run:
+            called = [e.get("data", {}).get("name") for e in run.get("events", []) if e.get("type") == "tool_start"]
+    except Exception:
+        pass
+    used_cal = any("calendar" in (c or "") for c in called)   # must actually CALL a calendar tool
+    say(f"    reply: {text.strip()[:200]}")
+    say(f"    tools the agent called: {called}")
+    write("06_chat_action.md",
+          f"# chat does app things (auto-intent promotion)\n\nmsg: {msg}\nsession: {sid}\n\n"
+          f"**tools called:** {called}\n\n**reply:**\n\n{text}\n")
+    return used_cal
+
+
 def main():
     say(f"live usage run -> {OUT}\nbase: {BASE}")
     eid, model, name = pick()
@@ -244,6 +266,7 @@ def main():
     results["research"] = phase_research()
     results["app_data"] = phase_app_data()
     results["more_apps"] = phase_more_apps()
+    results["chat_app_action"] = phase_chat_action(eid, model, name)
 
     lines = ["# alles LIVE usage run", f"_{datetime.now().isoformat()}_", "",
              f"endpoint used: **{name} / {model}**", "", "| flow | result |", "|---|---|"]
