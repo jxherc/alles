@@ -325,6 +325,13 @@ async def chat(body: ChatRequest, background_tasks: BackgroundTasks, db: DbSessi
     from core.database import SessionLocal as _SF
     incognito = bool(body.incognito or getattr(s, "incognito", False))
     mode = body.mode or getattr(s, "mode", "chat") or "chat"
+    # opt-in: auto-promote a plain chat turn to agent when the user clearly asks
+    # the assistant to DO something (calendar/mail/shell/research/edit). off by
+    # default so it never surprises people who just want to chat.
+    if mode == "chat" and settings.get("agent_auto_intents"):
+        from services.agent_intents import message_needs_tools
+        if message_needs_tools(body.message):
+            mode = "agent"
     gen = _stream_and_save(body.session_id, body.message, messages, ep, model,
                            stop_event, _SF, incognito=incognito,
                            mode=mode, settings=settings)

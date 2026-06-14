@@ -99,6 +99,63 @@ def _resolve(path: str = ".") -> Path:
     return p.resolve()
 
 
+# ── path confinement (opencode-style) ───────────────────────────────────────
+# stop the agent reaching credential/secret stores even when a prompt-injection
+# tries to make it exfiltrate keys. always on; a power user can opt out with
+# agent_allow_secrets. writes can also be confined to the workspace.
+_SECRET_RE = re.compile(r"""(?ix)
+    (?:^|[/\\])\.ssh(?:[/\\]|$)
+  | (?:^|[/\\])\.aws(?:[/\\]|$)
+  | (?:^|[/\\])\.gnupg(?:[/\\]|$)
+  | (?:^|[/\\])\.kube(?:[/\\]|$)
+  | (?:^|[/\\])\.config[/\\]gh(?:[/\\]|$)
+  | (?:^|[/\\])\.docker[/\\]config\.json$
+  | (?:^|[/\\])\.(?:netrc|npmrc|pypirc)$
+  | (?:^|[/\\])id_(?:rsa|dsa|ecdsa|ed25519)(?:\.pub)?$
+  | (?:^|[/\\])\.env(?:\.[\w.-]+)?$
+  | (?:^|[/\\])credentials(?:\.\w+)?$
+  | \.(?:pem|pfx|p12|keystore)$
+""")
+
+
+def _is_secret_path(p) -> bool:
+    return bool(_SECRET_RE.search(str(p).replace("\\", "/")))
+
+
+def _allowed_roots() -> list:
+    s = _settings()
+    roots = [ROOT.resolve()]
+    cwd = s.get("agent_cwd")
+    if cwd:
+        try: roots.append(Path(cwd).expanduser().resolve())
+        except Exception: pass
+    try: roots.append(Path(tempfile.gettempdir()).resolve())
+    except Exception: pass
+    for r in (s.get("agent_path_extra_roots") or []):
+        try: roots.append(Path(str(r)).expanduser().resolve())
+        except Exception: pass
+    return roots
+
+
+def _within(p, root) -> bool:
+    try:
+        Path(p).resolve().relative_to(Path(root))
+        return True
+    except Exception:
+        return False
+
+
+def _guard_path(p, write: bool = False) -> str | None:
+    """error string if the path is off-limits, else None."""
+    s = _settings()
+    if _is_secret_path(p) and not s.get("agent_allow_secrets"):
+        return f"blocked: {p} looks like a credential/secret store (set agent_allow_secrets to override)"
+    if write and s.get("agent_confine_workspace"):
+        if not any(_within(p, r) for r in _allowed_roots()):
+            return f"blocked: writes are confined to the workspace; {p} is outside it"
+    return None
+
+
 def _sandbox_cmd(command: str, workdir: str) -> list[str] | None:
     """wrap a command to run inside docker if sandbox is enabled + docker present"""
     s = _settings()
@@ -168,6 +225,9 @@ async def _run_shell(command: str, cwd: str = "") -> dict:
 async def _read_file(path: str, start_line: int = 1, end_line: int = 0) -> dict:
     try:
         p = _resolve(path)
+        blocked = _guard_path(p)
+        if blocked:
+            return {"output": blocked, "error": True}
         if not p.exists():
             return {"output": f"not found: {path}", "error": True}
         if p.is_dir():
@@ -187,6 +247,9 @@ async def _read_file(path: str, start_line: int = 1, end_line: int = 0) -> dict:
 async def _write_file(path: str, content: str) -> dict:
     try:
         p = _resolve(path)
+        blocked = _guard_path(p, write=True)
+        if blocked:
+            return {"output": blocked, "error": True}
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_text(content, "utf-8")
         return {"output": f"wrote {len(content)} chars to {p}", "error": False}
@@ -197,6 +260,9 @@ async def _write_file(path: str, content: str) -> dict:
 async def _edit_file(path: str, old: str, new: str, replace_all: bool = False) -> dict:
     try:
         p = _resolve(path)
+        blocked = _guard_path(p, write=True)
+        if blocked:
+            return {"output": blocked, "error": True}
         if not p.exists():
             return {"output": f"not found: {path}", "error": True}
         text = p.read_text("utf-8", errors="replace")
