@@ -40,6 +40,32 @@ def revoke_token(token: str):
     _tokens.pop(token, None)
 
 
+# ── login throttle — slow down password brute-force from a single IP. matters
+# the day alles sits behind a real domain; harmless on localhost. in-memory,
+# resets on restart (which also clears any lockout).
+_login_fails: dict[str, list[float]] = {}
+_LOGIN_WINDOW = 300        # 5 minutes
+_LOGIN_MAX_FAILS = 8       # failures in the window before we start blocking
+
+
+def login_blocked(ip: str) -> bool:
+    now = time.time()
+    fails = [t for t in _login_fails.get(ip, []) if now - t < _LOGIN_WINDOW]
+    if fails:
+        _login_fails[ip] = fails
+    else:
+        _login_fails.pop(ip, None)
+    return len(fails) >= _LOGIN_MAX_FAILS
+
+
+def record_login_fail(ip: str):
+    _login_fails.setdefault(ip, []).append(time.time())
+
+
+def clear_login_fails(ip: str):
+    _login_fails.pop(ip, None)
+
+
 def require_auth(request: Request):
     """FastAPI dependency for dangerous routes (shell exec etc.) — re-checks
     what TokenAuthMiddleware already enforces, so those endpoints stay locked
