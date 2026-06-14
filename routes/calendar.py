@@ -20,6 +20,38 @@ def list_events(db: DbSession = Depends(get_db)):
     rows = db.query(CalendarEvent).order_by(CalendarEvent.start_dt.asc()).all()
     return [_fmt(e) for e in rows]
 
+
+@router.get("/calendar/agenda")
+def agenda(days: int = 30, db: DbSession = Depends(get_db)):
+    """upcoming events grouped by day — a flat agenda list for the next N days."""
+    from datetime import date, timedelta
+    today = date.today().isoformat()
+    until = (date.today() + timedelta(days=days)).isoformat()
+    rows = (db.query(CalendarEvent)
+            .filter(CalendarEvent.start_dt >= today, CalendarEvent.start_dt <= until + "T99")
+            .order_by(CalendarEvent.start_dt.asc()).all())
+    groups: dict[str, list] = {}
+    for e in rows:
+        groups.setdefault(e.start_dt[:10], []).append(_fmt(e))
+    return {"days": [{"date": d, "events": groups[d]} for d in sorted(groups)]}
+
+
+class QuickEvent(BaseModel):
+    text: str
+
+
+@router.post("/calendar/quick")
+def quick_event(body: QuickEvent, db: DbSession = Depends(get_db)):
+    """natural-language event: 'lunch with sam friday 1pm', 'dentist june 20 9am'."""
+    from services.event_nl import parse_event
+    if not body.text.strip():
+        raise HTTPException(400, "empty")
+    p = parse_event(body.text)
+    e = CalendarEvent(title=p["title"], start_dt=p["start_dt"],
+                      end_dt=p["end_dt"], all_day=p["all_day"])
+    db.add(e); db.commit(); db.refresh(e)
+    return _fmt(e)
+
 class EventBody(BaseModel):
     title: str
     description: str = ""

@@ -798,6 +798,14 @@ function bindEvents() {
   // notes / tasks / calendar / gallery
   document.getElementById('note-new-btn').addEventListener('click', newNote);
   document.getElementById('cal-new-btn').addEventListener('click', newEvent);
+  const calQuick = document.getElementById('cal-quick');
+  calQuick?.addEventListener('keydown', async e => {
+    if (e.key !== 'Enter' || !calQuick.value.trim()) return;
+    await fetch('/api/calendar/quick', { method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ text: calQuick.value.trim() }) });
+    calQuick.value = '';
+    loadCalendar();
+  });
   const taskInput = document.getElementById('task-add-input');
   document.getElementById('task-add-btn').addEventListener('click', async () => {
     await addTask(taskInput.value.trim()); taskInput.value = '';
