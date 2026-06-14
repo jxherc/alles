@@ -385,6 +385,38 @@ class Subscription(Base):
     created_at  = Column(DateTime, default=_now)
 
 
+class Account(Base):
+    __tablename__ = "money_accounts"
+    id         = Column(String, primary_key=True, default=_uid)
+    name       = Column(String, nullable=False)
+    kind       = Column(String, default="checking")   # checking | savings | cash | credit | investment
+    currency   = Column(String, default="$")
+    opening    = Column(Float, default=0.0)            # starting balance; live balance = opening + txns
+    color      = Column(String, default="accent")
+    archived   = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=_now)
+
+
+class Transaction(Base):
+    __tablename__ = "money_transactions"
+    id         = Column(String, primary_key=True, default=_uid)
+    account_id = Column(String, ForeignKey("money_accounts.id", ondelete="CASCADE"))
+    date       = Column(String, nullable=False)        # ISO date YYYY-MM-DD
+    amount     = Column(Float, default=0.0)            # positive = income, negative = expense
+    category   = Column(String, default="")
+    payee      = Column(String, default="")
+    notes      = Column(Text, default="")
+    created_at = Column(DateTime, default=_now)
+
+
+class Budget(Base):
+    __tablename__ = "money_budgets"
+    id         = Column(String, primary_key=True, default=_uid)
+    category   = Column(String, nullable=False)
+    limit_amt  = Column(Float, default=0.0)            # monthly spending cap for this category
+    created_at = Column(DateTime, default=_now)
+
+
 class DocRevision(Base):
     __tablename__ = "doc_revisions"
     id         = Column(String, primary_key=True, default=_uid)
