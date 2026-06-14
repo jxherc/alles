@@ -38,8 +38,11 @@ def _extract_artifacts(text: str) -> list[dict]:
 def _resolve_endpoint(session: Session, db: DbSession) -> ModelEndpoint | None:
     if session.endpoint_id:
         return db.get(ModelEndpoint, session.endpoint_id)
-    # fallback: first enabled endpoint
-    return db.query(ModelEndpoint).filter(ModelEndpoint.enabled == True).first()
+    # fallback: first enabled endpoint, or a local one if the user prefers that
+    eps = db.query(ModelEndpoint).filter(ModelEndpoint.enabled == True).all()
+    from core.settings import load_settings
+    from services.routing import pick_endpoint
+    return pick_endpoint(eps, prefer_local=bool(load_settings().get("prefer_local_models")))
 
 
 def _resolve_persona(session: Session, db) -> Persona | None:
