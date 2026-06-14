@@ -98,7 +98,7 @@ export function initCompareView() {
     inp.value = '';
 
     // collect selected models from checkboxes
-    const checks = document.querySelectorAll('.compare-model-check:checked');
+    const checks = document.querySelectorAll('.compare-model-check[aria-checked="true"]');
     const modelList = [...checks].map(c => ({
       endpoint_id: c.dataset.ep,
       model: c.dataset.model,
@@ -121,11 +121,15 @@ export async function loadCompareModels() {
     if (!ep.models.length) continue;
     html += `<div style="font-size:0.68rem;color:var(--muted);margin:0.5rem 0 0.2rem;text-transform:lowercase">${_esc(ep.name)}</div>`;
     for (const m of ep.models) {
-      html += `<label class="compare-model-row">
-        <input type="checkbox" class="compare-model-check" data-ep="${ep.id}" data-model="${_esc(m)}">
+      html += `<div class="compare-model-row">
+        <span class="chk compare-model-check" data-ep="${ep.id}" data-model="${_esc(m)}" aria-checked="false"></span>
         <span title="${_esc(m)}">${_esc(m.split('/').pop())}</span>
-      </label>`;
+      </div>`;
     }
   }
   container.innerHTML = html || '<div style="font-size:0.72rem;color:var(--muted)">no models</div>';
+  container.querySelectorAll('.compare-model-row').forEach(row => row.addEventListener('click', () => {
+    const c = row.querySelector('.chk');
+    c.setAttribute('aria-checked', c.getAttribute('aria-checked') === 'true' ? 'false' : 'true');
+  }));
 }

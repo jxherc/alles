@@ -1224,6 +1224,18 @@ code {
   padding: 0.3rem 0; outline: none;
   transition: border-color 0.2s ease;
 }
+/* custom checkbox — replaces native <input type=checkbox> so the UI stays ours */
+.chk {
+  display: inline-block; width: 15px; height: 15px; flex-shrink: 0; vertical-align: middle;
+  border: 1.5px solid var(--muted); border-radius: 3px; cursor: pointer; position: relative;
+  transition: background 0.12s, border-color 0.12s;
+}
+.chk[aria-checked="true"] { background: var(--accent); border-color: var(--accent); }
+.chk[aria-checked="true"]::after {
+  content: ""; position: absolute; left: 4px; top: 1px; width: 4px; height: 8px;
+  border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(45deg);
+}
+.chk-static { cursor: default; }
 .settings-input:focus { border-color: var(--muted); }
 .settings-input[type="number"] { -moz-appearance: textfield; }
 .custom-select.settings-input {
@@ -2993,7 +3005,7 @@ code {
 .wiki-preview hr, .ai-content hr, .md-embed-body hr { border: none; border-top: 1px solid var(--faint); margin: 1.1rem 0; }
 .wiki-preview .md-img, .ai-content .md-img, .md-embed-body .md-img { max-width: 100%; border-radius: 3px; }
 .wiki-preview .md-task, .ai-content .md-task, .md-embed-body .md-task { list-style: none; }
-.wiki-preview .md-task input, .ai-content .md-task input, .md-embed-body .md-task input { margin-right: 0.45rem; accent-color: var(--accent); vertical-align: middle; }
+.wiki-preview .md-task .chk, .ai-content .md-task .chk, .md-embed-body .md-task .chk { margin-right: 0.35rem; }
 /* tables */
 .wiki-preview .md-table, .ai-content .md-table, .md-embed-body .md-table { border-collapse: collapse; margin: 0.75rem 0; font-size: 0.92em; }
 .md-table th, .md-table td { border: 1px solid var(--faint); padding: 0.35rem 0.7rem; text-align: left; }
@@ -3229,14 +3241,7 @@ code {
 }
 .compare-model-row span { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .compare-model-row:hover { color: var(--text); }
-.compare-model-check {
-  appearance: none; -webkit-appearance: none;
-  width: 12px; height: 12px; flex-shrink: 0;
-  border: 1px solid var(--faint); border-radius: 2px;
-  cursor: pointer; margin: 0;
-  transition: background 0.15s, border-color 0.15s;
-}
-.compare-model-check:checked { background: var(--accent); border-color: var(--accent); }
+/* .compare-model-check is now a .chk span — styling comes from .chk */
 
 /* ── vault ── */
 .vault-lock-screen {
@@ -3251,7 +3256,8 @@ code {
 #contacts-view .page-view-head, #contacts-view .page-view-body, #contacts-view .page-view-footer,
 #vault-view .page-view-head, #vault-view .page-view-body, #vault-view .page-view-footer, #vault-add-bar,
 #photos-view .page-view-head, #photos-view .page-view-body,
-#files-view .page-view-head, #files-view .page-view-body, #files-view .files-breadcrumb {
+#files-view .page-view-head, #files-view .page-view-body, #files-view .files-breadcrumb,
+#money-view .page-view-head, #money-view .page-view-body {
   max-width: none; margin-left: 0; margin-right: 0;
 }
 .mem-cat-cycle { font-size: 0.7rem; flex-shrink: 0; color: var(--accent); border-color: var(--accent); }

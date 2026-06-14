@@ -111,12 +111,9 @@ function _editRow(s) {
       <input type="text" class="settings-input" data-f="name" value="${esc(s.name)}" placeholder="name" style="flex:2;min-width:110px">
       <input type="text" class="settings-input" data-f="currency" value="${esc(s.currency)}" style="width:40px" title="currency symbol">
       <input type="text" class="settings-input" data-f="price" value="${s.price || ''}" placeholder="price" style="width:70px" inputmode="decimal">
-      <select class="settings-input" data-f="cycle" style="width:auto">
-        ${['weekly', 'monthly', 'quarterly', 'yearly', 'custom'].map(c =>
-          `<option value="${c}"${s.cycle === c ? ' selected' : ''}>${c}</option>`).join('')}
-      </select>
+      <div class="settings-input custom-select" data-f="cycle" data-value="${esc(s.cycle || 'monthly')}" data-options="weekly|weekly;monthly|monthly;quarterly|quarterly;yearly|yearly;custom|custom" style="width:auto;min-width:96px"></div>
       <input type="text" class="settings-input" data-f="cycle_days" value="${s.cycle_days}" style="width:55px;${s.cycle === 'custom' ? '' : 'display:none'}" title="cycle length in days" inputmode="numeric">
-      <input type="date" class="settings-input" data-f="next_due" value="${esc(s.next_due)}" style="width:135px">
+      <div class="date-input" data-f="next_due" data-type="date" data-value="${esc(s.next_due)}" data-ph="due" style="width:135px"></div>
       <input type="text" class="settings-input" data-f="category" value="${esc(s.category)}" placeholder="category" style="width:95px">
       <input type="text" class="settings-input" data-f="remind_days" value="${s.remind_days}" style="width:45px" title="push reminder N days before (0 = off)" inputmode="numeric">
       <input type="text" class="settings-input" data-f="notes" value="${esc(s.notes)}" placeholder="notes" style="flex:1;min-width:80px">
@@ -128,6 +125,8 @@ function _editRow(s) {
 }
 
 function _wireRows(list) {
+  list.querySelectorAll('.sub-item.editing .custom-select').forEach(initCustomDropdown);
+  list.querySelectorAll('.sub-item.editing .date-input').forEach(initDatePicker);
   list.querySelectorAll('.sub-item').forEach(row => {
     const id = row.dataset.id;
     const cycleSel = row.querySelector('[data-f="cycle"]');

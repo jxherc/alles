@@ -1027,21 +1027,23 @@ async function loadTaskRoll() {
   if (!tasks.length) { p.innerHTML = '<div class="wiki-tr-head">no tasks — add - [ ] items in your docs</div>'; return; }
   const open = tasks.filter(t => !t.done), done = tasks.filter(t => t.done);
   const row = t => `<div class="wiki-tr-item${t.done ? ' done' : ''}" data-path="${esc(t.path)}" data-line="${t.line}">
-    <input type="checkbox" ${t.done ? 'checked' : ''} data-toggle>
+    <span class="chk" data-toggle aria-checked="${t.done ? 'true' : 'false'}"></span>
     <span class="wiki-tr-text">${esc(t.text)}</span><span class="wiki-tr-doc">${esc(t.name)}</span></div>`;
   p.innerHTML = `<div class="wiki-tr-head">${open.length} open · ${done.length} done</div>` + open.map(row).join('') + done.map(row).join('');
   p.querySelectorAll('.wiki-tr-item').forEach(el => {
     const path = el.dataset.path, line = +el.dataset.line;
-    el.querySelector('[data-toggle]').addEventListener('click', async e => {
+    const chk = el.querySelector('[data-toggle]');
+    chk.addEventListener('click', async e => {
       e.stopPropagation();
-      const done = e.target.checked;
+      const done = chk.getAttribute('aria-checked') !== 'true';
+      chk.setAttribute('aria-checked', done ? 'true' : 'false');
       if (_cur === path) await flushSave();   // don't clobber unsaved edits to the open doc
       try {
         const r = await fetch('/api/vault-md/task', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ path, line, done }) });
         if (!r.ok) throw new Error();
         el.classList.toggle('done', done);
         if (_cur === path) { const d = await fetch(`/api/vault-md/file?path=${encodeURIComponent(path)}`).then(r => r.json()); setEditor(d.content || ''); }
-      } catch { toast('failed to update task', 'error'); e.target.checked = !done; }
+      } catch { toast('failed to update task', 'error'); chk.setAttribute('aria-checked', done ? 'false' : 'true'); }
     });
     el.querySelector('.wiki-tr-text').addEventListener('click', async () => { await openFile(path); jumpToLine(line, ''); });
   });
