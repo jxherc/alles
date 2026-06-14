@@ -693,6 +693,31 @@ function _loadThemeColorControls() {
   const reset = document.getElementById('s-accent-reset');
   if (reset && !reset.dataset.bound) { reset.dataset.bound = '1'; reset.addEventListener('click', () => applyAccent(null)); }
   _markAccent();
+
+  // username (server-synced) — bind once
+  const uname = document.getElementById('s-username');
+  if (uname && !uname.dataset.bound) {
+    uname.dataset.bound = '1';
+    fetch('/api/auth/me').then(r => r.json()).then(m => { uname.value = m.username || ''; }).catch(() => {});
+    let t; uname.addEventListener('input', () => { clearTimeout(t); t = setTimeout(() => _patchSettings({ username: uname.value.trim() }), 400); });
+  }
+  // change password — bind once
+  const pwBtn = document.getElementById('s-pw-save');
+  if (pwBtn && !pwBtn.dataset.bound) {
+    pwBtn.dataset.bound = '1';
+    pwBtn.addEventListener('click', async () => {
+      const oldp = document.getElementById('s-pw-old').value;
+      const newp = document.getElementById('s-pw-new').value;
+      if (newp.length < 4) { toast('new password must be at least 4 characters', 'error'); return; }
+      try {
+        const r = await fetch('/api/auth/change-password', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ old_password: oldp, new_password: newp }) });
+        if (!r.ok) { toast((await r.json().catch(() => ({}))).detail || 'change failed', 'error'); return; }
+        toast('password changed', 'success');
+        document.getElementById('s-pw-old').value = '';
+        document.getElementById('s-pw-new').value = '';
+      } catch { toast('failed to change password', 'error'); }
+    });
+  }
 }
 
 // (end loadAppearancePane helper)
