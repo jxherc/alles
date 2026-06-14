@@ -249,6 +249,34 @@ async def hwfit() -> dict:
     return {"hardware": hw, "presets": presets}
 
 
+# ── real hardware-aware catalog (hwfit / llmfit engine) ────────────────────────
+# the 6 PRESETS above are the legacy fallback; this is the 900+ model catalog
+# scored against detected hardware (bandwidth/VRAM/quant/MoE aware).
+
+def detect_system_info() -> dict:
+    from services.hwfit import hardware
+    return hardware.detect_system()
+
+
+def _short_name(name: str) -> str:
+    return (name or "").split("/")[-1].lower()
+
+
+async def model_catalog(use_case=None, search=None, sort="score", quant=None,
+                        target_context=None, fit_only=False, limit=60) -> dict:
+    from services.hwfit import hardware, fit
+    sysinfo = hardware.detect_system()
+    rows = fit.rank_models(sysinfo, use_case=use_case, limit=limit, search=search,
+                           sort=sort, quant=quant, target_context=target_context,
+                           fit_only=fit_only)
+    # flag rows we've already pulled in ollama (best-effort name match)
+    installed = set(await installed_models())
+    inst_short = {_short_name(m) for m in installed}
+    for r in rows:
+        r["installed"] = _short_name(r.get("name", "")) in inst_short or r.get("name", "").lower() in installed
+    return {"system": sysinfo, "models": rows, "count": len(rows)}
+
+
 def _validate_model(model: str) -> str:
     model = (model or "").strip()
     preset_models = {p["model"] for p in PRESETS}

@@ -6,10 +6,12 @@ from core.database import get_db
 from services.local_models import (
     PRESETS,
     delete_model,
+    detect_system_info,
     download_model,
     get_job,
     hwfit,
     list_jobs,
+    model_catalog,
     ollama_status,
     serve_model,
     start_ollama,
@@ -46,6 +48,20 @@ async def status():
 @router.get("/hwfit")
 async def hardware_fit():
     return await hwfit()
+
+
+@router.get("/system")
+def system_info():
+    """detailed hardware probe (gpus, vram, backend, ram) from the hwfit engine."""
+    return detect_system_info()
+
+
+@router.get("/catalog")
+async def catalog(use_case: str | None = None, search: str | None = None,
+                  sort: str = "score", quant: str | None = None, context: int = 0,
+                  fit_only: bool = False, limit: int = 60):
+    """900+ model catalog ranked against detected hardware (quant/MoE/bandwidth aware)."""
+    return await model_catalog(use_case, search, sort, quant, context or None, fit_only, limit)
 
 
 @router.post("/start")
