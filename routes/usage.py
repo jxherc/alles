@@ -62,3 +62,27 @@ def usage_summary(db: DbSession = Depends(get_db)):
         "by_month": months,
         "by_model": models,
     }
+
+
+@router.get("/usage/by-session")
+def usage_by_session(limit: int = 30, db: DbSession = Depends(get_db)):
+    """token totals per chat — see which conversations are actually costing you."""
+    from core.database import Session as Sess
+    by_sess: dict[str, list] = defaultdict(lambda: [0, 0, 0])   # prompt, completion, msgs
+    for m in db.query(Message).filter(Message.role == "assistant").all():
+        try:
+            meta = json.loads(m.meta or "{}")
+        except Exception:
+            continue
+        p, c = _toks(meta.get("usage"))
+        if p == 0 and c == 0:
+            continue
+        b = by_sess[m.session_id]
+        b[0] += p; b[1] += c; b[2] += 1
+    rows = []
+    for sid, v in by_sess.items():
+        s = db.get(Sess, sid)
+        rows.append({"session_id": sid, "name": (s.name if s else "(deleted)"),
+                     "prompt": v[0], "completion": v[1], "total": v[0] + v[1], "messages": v[2]})
+    rows.sort(key=lambda r: -r["total"])
+    return {"sessions": rows[:limit]}
