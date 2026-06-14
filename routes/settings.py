@@ -51,6 +51,7 @@ class SettingsPatch(BaseModel):
     notify_telegram_chat_id: str | None = None
     notify_on_agent_done: bool | None = None
     outbound_proxy: str | None = None    # e.g. http://127.0.0.1:7890 — routes all egress through it
+    prefer_local_models: bool | None = None   # fallback to a local (ollama) endpoint when available
 
 
 @router.patch("/settings")
