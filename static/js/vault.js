@@ -28,6 +28,45 @@ export function initVault() {
   });
   document.getElementById('vault-new-cat')?.addEventListener('change', _onCatChange);
   document.getElementById('vault-new-cat-custom')?.addEventListener('input', _onCatChange);
+  document.getElementById('vault-gen-btn')?.addEventListener('click', _genPw);
+  document.getElementById('vault-new-value')?.addEventListener('input', _checkStrength);
+}
+
+async function _genPw() {
+  try {
+    const d = await fetch('/api/vault/generate?length=20').then(r => r.json());
+    const inp = document.getElementById('vault-new-value');
+    inp.value = d.password;
+    inp.type = 'text';              // reveal the generated one so it can be reviewed
+    _showStrength(d.strength);
+  } catch {}
+}
+
+let _stTimer;
+function _checkStrength() {
+  clearTimeout(_stTimer);
+  const pw = document.getElementById('vault-new-value').value;
+  const box = document.getElementById('vault-strength');
+  if (!pw) { if (box) box.style.display = 'none'; return; }
+  _stTimer = setTimeout(async () => {
+    try {
+      const s = await fetch('/api/vault/strength', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ password: pw }),
+      }).then(r => r.json());
+      _showStrength(s);
+    } catch {}
+  }, 200);
+}
+
+function _showStrength(s) {
+  const box = document.getElementById('vault-strength');
+  if (!box) return;
+  box.style.display = 'flex';
+  const colors = ['var(--error)', 'var(--error)', '#d8a24a', 'var(--green)', 'var(--green)'];
+  box.querySelector('.vault-strength-fill').style.width = ((s.score + 1) * 20) + '%';
+  box.querySelector('.vault-strength-fill').style.background = colors[s.score] || 'var(--muted)';
+  box.querySelector('.vault-strength-label').textContent = s.label + (s.warning ? ' — ' + s.warning : '');
 }
 
 async function _populateCats() {

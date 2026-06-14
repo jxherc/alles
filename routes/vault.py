@@ -28,6 +28,24 @@ class UnlockBody(BaseModel):
     password: str
 
 
+@router.get("/vault/generate")
+def vault_generate(length: int = 20, upper: bool = True, lower: bool = True,
+                   digits: bool = True, symbols: bool = True, avoid_ambiguous: bool = True):
+    from services.pwtools import generate_password, estimate_strength
+    pw = generate_password(length, upper, lower, digits, symbols, avoid_ambiguous)
+    return {"password": pw, "strength": estimate_strength(pw)}
+
+
+class StrengthBody(BaseModel):
+    password: str
+
+
+@router.post("/vault/strength")
+def vault_strength(body: StrengthBody):
+    from services.pwtools import estimate_strength
+    return estimate_strength(body.password)
+
+
 @router.post("/vault/unlock")
 def vault_unlock(body: UnlockBody):
     s = load_settings()
