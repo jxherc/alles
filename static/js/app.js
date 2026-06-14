@@ -214,7 +214,7 @@ init();
 const _VIEW_IDS = [
   'home-view', 'chat', 'notes-view', 'tasks-view', 'calendar-view', 'gallery-view',
   'models-view', 'brain-view', 'wiki-view', 'compare-view', 'vault-view', 'contacts-view',
-  'reminders-view', 'files-view', 'mail-view', 'photos-view', 'subs-view', 'days-view',
+  'reminders-view', 'files-view', 'mail-view', 'photos-view', 'subs-view', 'money-view', 'days-view',
 ];
 
 function hideAllViews() {
@@ -250,6 +250,7 @@ const showVaultView      = () => showView('vault-view',      'vault',     loadVa
 const showContactsView   = () => showView('contacts-view',  'contacts',  () => loadContacts());
 const showRemindersView  = () => showView('reminders-view', 'reminders', initReminderPanel);
 const showSubsView       = () => showView('subs-view',      'subs',      async () => { (await import('./subs.js')).initSubsPanel(); });
+const showMoneyView      = () => showView('money-view',     'money',     async () => { (await import('./money.js')).initMoneyPanel(); });
 const showDaysView       = () => showView('days-view',      'days',      async () => { (await import('./days.js')).initDaysPanel(); });
 const showFilesView      = () => showView('files-view',     'files',     () => { initFiles(); loadFiles(); });
 const showMailView       = () => showView('mail-view',      'mail',      loadMail);
@@ -279,6 +280,7 @@ function navigateTo(v) {
   else if (v === 'contacts')  showContactsView();
   else if (v === 'reminders') showRemindersView();
   else if (v === 'subs')      showSubsView();
+  else if (v === 'money')     showMoneyView();
   else if (v === 'days')      showDaysView();
   else if (v === 'files')     showFilesView();
   else if (v === 'mail')      showMailView();
@@ -295,6 +297,7 @@ const _ICON = {
   memory: '<ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/>',
   secrets: '<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
   subs: '<polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/>',
+  money: '<path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/>',
   days: '<path d="M5 22h14"/><path d="M5 2h14"/><path d="M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22"/><path d="M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2"/>',
   contacts: '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
   reminders: '<path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/>',
@@ -317,6 +320,7 @@ const HOME_TILES = [
   { view: 'contacts', name: 'contacts', desc: 'people',          icon: 'contacts' },
   { view: 'vault',    name: 'secrets',  desc: 'passwords',       icon: 'secrets' },
   { view: 'subs',     name: 'subs',     desc: 'recurring costs', icon: 'subs' },
+  { view: 'money',    name: 'money',    desc: 'accounts & budgets', icon: 'money' },
   { view: 'days',     name: 'days',     desc: 'countdowns',      icon: 'days' },
 ];
 
