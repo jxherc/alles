@@ -44,6 +44,8 @@ class SettingsPatch(BaseModel):
     tts_speed: float | None = None
     tts_auto_play: bool | None = None
     stt_language: str | None = None
+    theme: str | None = None      # '' (dark/default) | 'light' — synced across subdomains
+    accent: str | None = None     # hex like '#818cf8', or '' for the default
 
 
 @router.patch("/settings")
