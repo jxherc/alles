@@ -75,3 +75,12 @@ def run_detail(run_id: str):
     if not run:
         raise HTTPException(404, "agent run not found")
     return run
+
+
+@router.get("/agent/runs/{run_id}/sources")
+def run_sources(run_id: str):
+    """provenance for a run — files touched, urls fetched, searches, commands."""
+    from services.agent_state import run_sources as _sources
+    if not get_run(run_id):
+        raise HTTPException(404, "agent run not found")
+    return _sources(run_id)
