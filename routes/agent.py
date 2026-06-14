@@ -55,11 +55,18 @@ def runs(limit: int = 20):
     return list_runs(limit=limit)
 
 
-# declared before /agent/runs/{run_id} so "active" isn't captured as a run_id
+# declared before /agent/runs/{run_id} so "active"/"incomplete" aren't captured as run_ids
 @router.get("/agent/runs/active")
 def active_run(session_id: str = ""):
     """the running agent run for a session (for reconnect/replay), or {} if none."""
     return find_active_run(session_id) or {}
+
+
+@router.get("/agent/runs/incomplete")
+def incomplete_runs(limit: int = 20):
+    """runs that didn't finish cleanly (still running, or interrupted by a restart)."""
+    from services.agent_state import list_incomplete
+    return list_incomplete(limit)
 
 
 @router.get("/agent/runs/{run_id}")

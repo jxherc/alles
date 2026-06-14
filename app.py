@@ -302,6 +302,13 @@ async def lifespan(app: FastAPI):
     except Exception:
         pass
     try:
+        from services import agent_state
+        n = agent_state.reconcile_interrupted()   # zombie 'running' runs from a dead process → interrupted
+        if n:
+            log.info(f"reconciled {n} interrupted agent run(s) from a previous process")
+    except Exception:
+        pass
+    try:
         from routes.mcp import connect_all
         await connect_all()
     except Exception:
