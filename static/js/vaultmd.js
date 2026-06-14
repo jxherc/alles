@@ -29,6 +29,33 @@ function togglePin(path) {
 function cycleSort() { _sortMode = _sortMode === 'name' ? 'recent' : 'name'; localStorage.setItem('docs-sort', _sortMode); _syncSortBtn(); loadTree(); }
 function _syncSortBtn() { const b = $('wiki-sort-btn'); if (b) b.textContent = _sortMode === 'recent' ? 'recent' : 'a–z'; }
 
+// collapsed folders (paths) — persisted, so folders fold/unfold like a real tree
+function _collapsed() { try { return new Set(JSON.parse(localStorage.getItem('docs-collapsed') || '[]')); } catch { return new Set(); } }
+function _setCollapsed(s) { localStorage.setItem('docs-collapsed', JSON.stringify([...s])); }
+function toggleCollapse(path) { const c = _collapsed(); c.has(path) ? c.delete(path) : c.add(path); _setCollapsed(c); loadTree(); }
+
+// drag-to-move: which row is being dragged
+let _dragPath = null;
+function _canDrop(src, destDir) {
+  if (!src || src === destDir) return false;
+  if (destDir === src || destDir.startsWith(src + '/')) return false;   // a folder into its own subtree
+  const parent = src.includes('/') ? src.slice(0, src.lastIndexOf('/')) : '';
+  return parent !== destDir;                                            // already sitting there
+}
+async function moveInto(src, destDir) {
+  const name = src.split('/').pop();
+  const newPath = destDir ? destDir + '/' + name : name;
+  try {
+    const r = await fetch('/api/vault-md/rename', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ path: src, new_path: newPath }) });
+    if (!r.ok) throw new Error();
+    const res = await r.json();
+    if (_cur === src) { _cur = res.path || newPath; const cl = $('wiki-current'); if (cl) cl.textContent = _cur.replace(/\.md$/, ''); }
+    if (destDir) { const c = _collapsed(); c.delete(destDir); _setCollapsed(c); }   // reveal where it landed
+    await loadTree();
+    toast(destDir ? `moved into ${destDir.split('/').pop()}` : 'moved to top level', 'success');
+  } catch { toast('move failed', 'error'); }
+}
+
 // ── view mode ────────────────────────────────────────────────────────────────
 const _DOCS_MODES = ['live', 'source', 'preview'];
 let _docsMode = localStorage.getItem('docs-view-mode');
@@ -278,6 +305,12 @@ export function initVault() {
   $('wiki-import-btn')?.addEventListener('click', e => openImportMenu(e.currentTarget));
   $('wiki-import-input')?.addEventListener('change', importDoc);
   $('wiki-sort-btn')?.addEventListener('click', cycleSort);
+  // drop a nested file/folder onto empty tree space → move it back to the top level
+  const treeEl = $('wiki-tree');
+  if (treeEl) {
+    treeEl.addEventListener('dragover', e => { if (_canDrop(_dragPath, '') && !e.target.closest('.wiki-dir')) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; } });
+    treeEl.addEventListener('drop', e => { if (e.target.closest('.wiki-dir') || !_canDrop(_dragPath, '')) return; e.preventDefault(); moveInto(_dragPath, ''); });
+  }
   $('wiki-today-btn')?.addEventListener('click', openDaily);
   $('wiki-outline-btn')?.addEventListener('click', toggleOutline);
   $('wiki-todos-btn')?.addEventListener('click', extractTodos);
@@ -557,18 +590,34 @@ function _rowActs(kind, path) {
   return `<span class="wiki-row-acts">${pin}<button class="wiki-row-act" data-act="rename" title="rename">✎</button><button class="wiki-row-act" data-act="delete" title="delete">✕</button></span>`;
 }
 function renderItems(items, depth) {
+  const collapsed = _collapsed();
   return items.map(it => {
     const pad = `style="padding-left:${0.4 + depth * 0.7}rem"`;
     if (it.type === 'dir') {
-      return `<div class="wiki-dir" data-path="${esc(it.path)}" ${pad}><span class="wiki-row-label">▸ ${esc(it.name)}</span>${_rowActs('dir', it.path)}</div>`
-        + renderItems(it.children || [], depth + 1);
+      const folded = collapsed.has(it.path);
+      const n = (it.children || []).length;
+      const row = `<div class="wiki-dir${folded ? ' folded' : ''}" data-path="${esc(it.path)}" ${pad}><span class="wiki-row-label"><span class="wiki-dir-arrow">${folded ? '▸' : '▾'}</span>${esc(it.name)}${n ? ` <em class="wiki-dir-count">${n}</em>` : ''}</span>${_rowActs('dir', it.path)}</div>`;
+      return row + (folded ? '' : renderItems(it.children || [], depth + 1));
     }
     const active = it.path === _cur ? ' active' : '';
     return `<div class="wiki-file${active}" data-path="${esc(it.path)}" ${pad}><span class="wiki-row-label">${esc(it.name)}</span>${_rowActs('file', it.path)}</div>`;
   }).join('');
 }
 function _wireRow(row, kind) {
-  row.querySelector('.wiki-row-label')?.addEventListener('click', () => { if (kind === 'file') openFile(row.dataset.path); });
+  const rowPath = row.dataset.path;
+  row.querySelector('.wiki-row-label')?.addEventListener('click', () => {
+    if (kind === 'file') openFile(rowPath);
+    else toggleCollapse(rowPath);
+  });
+  // drag a file/folder to move it; folders are drop targets
+  row.setAttribute('draggable', 'true');
+  row.addEventListener('dragstart', e => { e.stopPropagation(); _dragPath = rowPath; e.dataTransfer.effectAllowed = 'move'; try { e.dataTransfer.setData('text/plain', rowPath); } catch {} row.classList.add('dragging'); });
+  row.addEventListener('dragend', () => { row.classList.remove('dragging'); _dragPath = null; document.querySelectorAll('.wiki-drop-into').forEach(x => x.classList.remove('wiki-drop-into')); });
+  if (kind === 'dir') {
+    row.addEventListener('dragover', e => { if (_canDrop(_dragPath, rowPath)) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; row.classList.add('wiki-drop-into'); } });
+    row.addEventListener('dragleave', () => row.classList.remove('wiki-drop-into'));
+    row.addEventListener('drop', e => { row.classList.remove('wiki-drop-into'); if (!_canDrop(_dragPath, rowPath)) return; e.preventDefault(); e.stopPropagation(); moveInto(_dragPath, rowPath); });
+  }
   row.querySelectorAll('.wiki-row-act').forEach(b => b.addEventListener('click', async e => {
     e.stopPropagation();
     const path = row.dataset.path;
