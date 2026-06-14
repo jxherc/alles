@@ -202,6 +202,10 @@ export async function selectSession(id) {
   _activeId = id;
   location.hash = id;
 
+  // if we're sitting on a tools page (models/memory/etc), get back to chat first
+  // — otherwise the messages render behind the still-open tool view
+  window._enterChatView?.();
+
   // update active class
   document.querySelectorAll('.session-item').forEach(el => {
     el.classList.toggle('active', el.dataset.id === id);
