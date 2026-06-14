@@ -297,6 +297,11 @@ async def lifespan(app: FastAPI):
     await _bootstrap_anthropic()
     _cleanup_empty_sessions()
     try:
+        from services import skills_store
+        skills_store.seed_starters()   # first-boot starter skills so the app isn't empty
+    except Exception:
+        pass
+    try:
         from routes.mcp import connect_all
         await connect_all()
     except Exception:
