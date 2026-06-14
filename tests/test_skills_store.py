@@ -69,6 +69,15 @@ class SkillsStoreTest(unittest.TestCase):
         ss.upsert_skill("Beta", "about dogs")
         self.assertEqual([s["slug"] for s in ss.search("cats")], ["alpha"])
 
+    def test_seed_starters_once_and_deletion_sticks(self):
+        n = ss.seed_starters()
+        self.assertEqual(n, len(ss._STARTERS))
+        self.assertEqual(len(ss.list_skills()), len(ss._STARTERS))
+        # sentinel → a second seed is a no-op, even after the user deletes one
+        ss.delete_skill(ss.list_skills()[0]["slug"])
+        self.assertEqual(ss.seed_starters(), 0)
+        self.assertEqual(len(ss.list_skills()), len(ss._STARTERS) - 1)
+
 
 if __name__ == "__main__":
     unittest.main()
