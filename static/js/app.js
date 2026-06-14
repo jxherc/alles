@@ -3,6 +3,7 @@ import { loadModels, renderModelList, renderSidebarModelList, addEndpoint, getSe
 import { sendMessage, stopStream, hideConnBanner } from './chat.js';
 import { toast, closeAllModals, mdToHtml, api } from './util.js';
 import { runResearch, setResearchMode, isResearchMode } from './research.js';
+import { runDocsQuery, setDocsMode, isDocsMode } from './ragquery.js';
 import { loadNotes, newNote } from './notes.js';
 import { loadTasks, addTask } from './tasks.js';
 import { loadCalendar, newEvent } from './calendar.js';
@@ -697,8 +698,16 @@ function bindEvents() {
   const toggleResearch = () => {
     const on = !isResearchMode();
     setResearchMode(on);
+    if (on) setDocsMode(false);   // research + docs are mutually exclusive
     document.getElementById('research-toggle-btn').classList.toggle('active', on);
     ta.placeholder = on ? 'research a topic...' : 'message aide...';
+  };
+
+  const toggleDocs = () => {
+    const on = !isDocsMode();
+    setDocsMode(on);
+    if (on) setResearchMode(false);
+    ta.placeholder = on ? 'ask your docs...' : 'message aide...';
   };
 
   document.querySelector('.c-tools')?.addEventListener('click', e => {
@@ -708,6 +717,10 @@ function bindEvents() {
       e.preventDefault();
       e.stopPropagation();
       toggleResearch();
+    } else if (btn.id === 'docs-toggle-btn') {
+      e.preventDefault();
+      e.stopPropagation();
+      toggleDocs();
     } else if (btn.id === 'incognito-btn') {
       e.preventDefault();
       e.stopPropagation();
@@ -955,6 +968,7 @@ async function doSend() {
   }
   ta.value = ''; ta.style.height = 'auto';
   if (isResearchMode()) runResearch(text);
+  else if (isDocsMode()) runDocsQuery(text);
   else sendMessage(text);
 }
 
