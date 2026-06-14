@@ -92,6 +92,30 @@ def list_subscriptions(db: DbSession = Depends(get_db)):
     }
 
 
+@router.get("/subscriptions/analytics")
+def analytics(db: DbSession = Depends(get_db)):
+    """normalized monthly spend, broken down by category and by billing cycle."""
+    active = [s for s in db.query(Subscription).all() if s.active]
+    by_cat: dict[str, float] = {}
+    by_cycle: dict[str, float] = {}
+    for s in active:
+        mc = _monthly_cost(s)
+        cat = (s.category or "").strip() or "uncategorized"
+        by_cat[cat] = by_cat.get(cat, 0) + mc
+        by_cycle[s.cycle] = by_cycle.get(s.cycle, 0) + mc
+    monthly = sum(_monthly_cost(s) for s in active)
+    return {
+        "monthly_total": round(monthly, 2),
+        "yearly_total": round(monthly * 12, 2),
+        "currency": active[0].currency if active else "$",
+        "count": len(active),
+        "by_category": [{"name": k, "monthly": round(v, 2)}
+                        for k, v in sorted(by_cat.items(), key=lambda x: -x[1])],
+        "by_cycle": [{"name": k, "monthly": round(v, 2)}
+                     for k, v in sorted(by_cycle.items(), key=lambda x: -x[1])],
+    }
+
+
 class SubBody(BaseModel):
     name: str
     price: float = 0.0

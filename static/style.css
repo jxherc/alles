@@ -2023,6 +2023,13 @@ code {
 .cal-quick { background: var(--panel); color: var(--text); border: 1px solid var(--faint); border-radius: 3px; padding: 0.35rem 0.55rem; font-size: 0.76rem; min-width: 180px; }
 .cal-quick:focus { outline: none; border-color: var(--muted); }
 .file-snip { display: block; font-size: 0.66rem; color: var(--muted); margin-top: 0.1rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 60ch; }
+.subs-chart { padding: 0.6rem 0.4rem 0.9rem; border-bottom: 1px solid var(--faint); margin-bottom: 0.5rem; }
+.subs-chart-title { font-size: 0.66rem; color: var(--muted); margin-bottom: 0.5rem; letter-spacing: 0.02em; }
+.subs-bar-row { display: grid; grid-template-columns: 110px 1fr 72px; gap: 0.5rem; align-items: center; margin-bottom: 0.3rem; font-size: 0.72rem; }
+.subs-bar-label { color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.subs-bar-track { background: var(--faint); border-radius: 2px; height: 8px; overflow: hidden; }
+.subs-bar-fill { display: block; height: 100%; background: var(--accent); border-radius: 2px; }
+.subs-bar-val { text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
 .task-del {
   background: none; border: none; cursor: pointer; color: var(--faint);
   font-size: 0.8rem; padding: 0.1rem 0.3rem;
