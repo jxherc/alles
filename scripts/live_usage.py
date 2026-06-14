@@ -199,6 +199,38 @@ def phase_app_data():
                [made.get("subscription"), made.get("day_counter")])
 
 
+def phase_more_apps():
+    say("\n[5] MORE APPS (notes / journal / contacts / money — real records)")
+    made = {}
+    today = datetime.now().strftime("%Y-%m-%d")
+    try:
+        made["note"] = httpx.post(f"{BASE}/api/vault-md/file",
+                                  json={"path": "live-test-note", "content": "# live test\n\nthis note was created by the live usage test."}, timeout=15).status_code
+    except Exception as e:
+        made["note"] = str(e)
+    try:
+        made["journal"] = httpx.put(f"{BASE}/api/journal/{today}",
+                                    json={"content": "shipped a full autonomous build + live test pass today.", "mood": "🚀", "tags": "build"}, timeout=15).status_code
+    except Exception as e:
+        made["journal"] = str(e)
+    try:
+        made["contact"] = httpx.post(f"{BASE}/api/contacts",
+                                     json={"name": "Odysseus Ref", "email": "ody@example.com", "notes": "voice clone source (future)"}, timeout=15).json().get("id", "?")
+    except Exception as e:
+        made["contact"] = str(e)
+    try:
+        acct = httpx.post(f"{BASE}/api/money/accounts", json={"name": "Live Test Checking", "opening": 500.0}, timeout=15).json()
+        httpx.post(f"{BASE}/api/money/transactions",
+                   json={"account_id": acct["id"], "date": today, "amount": -42.0, "category": "tools", "payee": "github"}, timeout=15)
+        bal = httpx.get(f"{BASE}/api/money/accounts", timeout=15).json()
+        made["money"] = f"account+txn ok, balance {next((a['balance'] for a in bal if a['id']==acct['id']), '?')}"
+    except Exception as e:
+        made["money"] = str(e)
+    say("    " + json.dumps(made, default=str)[:300])
+    write("05_more_apps.md", "# live: notes / journal / contacts / money\n\n```json\n" + json.dumps(made, indent=2, default=str) + "\n```\n")
+    return all(not (isinstance(v, str) and ("Error" in v or "error" in v)) for v in made.values())
+
+
 def main():
     say(f"live usage run -> {OUT}\nbase: {BASE}")
     eid, model, name = pick()
@@ -211,6 +243,7 @@ def main():
     results["agent_program"] = a_ok
     results["research"] = phase_research()
     results["app_data"] = phase_app_data()
+    results["more_apps"] = phase_more_apps()
 
     lines = ["# alles LIVE usage run", f"_{datetime.now().isoformat()}_", "",
              f"endpoint used: **{name} / {model}**", "", "| flow | result |", "|---|---|"]
