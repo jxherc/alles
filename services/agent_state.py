@@ -133,3 +133,24 @@ def list_runs(limit: int = 20) -> list[dict]:
         if len(rows) >= limit:
             break
     return rows
+
+
+def reconcile_interrupted() -> int:
+    """on boot, any run still 'running' on disk belongs to a process that's gone —
+    mark it 'interrupted' so it's not a zombie and can be inspected/resumed.
+    long agent runs that outlived a restart show up honestly instead of hanging."""
+    n = 0
+    for st in list_runs(limit=1000):
+        if st.get("status") == "running" and st.get("id") not in _active:
+            st["status"] = "interrupted"
+            st["finished_at"] = st.get("finished_at") or _now()
+            st["updated_at"] = _now()
+            _save(st)
+            n += 1
+    return n
+
+
+def list_incomplete(limit: int = 20) -> list[dict]:
+    """runs that didn't finish cleanly — still running, or interrupted by a restart."""
+    out = [st for st in list_runs(limit=300) if st.get("status") in ("running", "interrupted")]
+    return out[:limit]
