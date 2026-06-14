@@ -21,13 +21,21 @@ class AgentIntentsTest(unittest.TestCase):
         for m in [
             "what's on my calendar today",
             "what is my schedule tomorrow",
+            "what do i have on my calendar?",          # the one real usage caught
+            "what do i have on my calendar this week",
+            "do i have anything on my calendar",
+            "check my calendar",
+            "check it on my schedule",
+            "pull up my inbox",
             "do i have any meetings this week",
             "what's in my inbox",
             "any new emails?",
             "any unread mail",
             "what are my tasks",
+            "what do i have on my plate",
             "do i have any reminders",
             "what's going on today",
+            "what do i have coming up",
         ]:
             self.assertTrue(message_needs_tools(m), f"should promote: {m!r}")
 
