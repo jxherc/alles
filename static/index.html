@@ -69,17 +69,6 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
         </button>
         <div class="app-crumb" id="app-crumb">alles</div>
-        <div class="ai-top-controls" id="ai-top-controls">
-          <button class="model-btn" id="model-btn">
-            <span class="live-dot" id="live-dot"></span>
-            <span id="model-label">no model</span>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
-          </button>
-          <button class="model-btn" id="persona-btn" title="persona" style="display:none">
-            <span id="persona-label">persona</span>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
-          </button>
-        </div>
       </div>
       <div class="topbar-right">
         <span id="session-token-count" style="display:none;font-size:0.65rem;color:var(--muted)"></span>
@@ -607,16 +596,27 @@
             <button class="c-tool" id="attach-btn" title="attach files" aria-label="attach files">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
             </button>
+            <div class="ai-top-controls" id="ai-top-controls">
+              <button class="model-btn" id="model-btn">
+                <span class="live-dot" id="live-dot"></span>
+                <span id="model-label">no model</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+              </button>
+              <button class="model-btn" id="persona-btn" title="persona" style="display:none">
+                <span id="persona-label">persona</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+              </button>
+            </div>
             <button class="c-tool" id="research-toggle-btn" title="research mode" aria-label="research mode">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
             </button>
-            <button class="c-tool" id="docs-toggle-btn" title="chat with your docs" aria-label="chat with your docs">
+            <button class="c-tool" id="docs-toggle-btn" title="chat with your docs" aria-label="chat with your docs" style="display:none">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
             </button>
             <button class="c-tool" id="shell-btn-tool" title="shell command" aria-label="shell command">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
             </button>
-            <button class="c-tool incognito-btn" id="incognito-btn" title="incognito mode" aria-pressed="false" aria-label="incognito mode">
+            <button class="c-tool incognito-btn" id="incognito-btn" title="incognito mode" aria-pressed="false" aria-label="incognito mode" style="display:none">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
             </button>
             <button class="c-tool" id="more-tools-btn" title="more tools" aria-expanded="false">

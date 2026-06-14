@@ -967,6 +967,7 @@ function toggleMoreTools() {
   menu.innerHTML = `
     <div class="ctx-item" data-tool="incognito">incognito mode</div>
     <div class="ctx-item" data-tool="research">research mode</div>
+    <div class="ctx-item" data-tool="docs">chat with your docs</div>
     <div class="ctx-item" data-tool="shell">shell command</div>
     <div class="ctx-item" data-tool="attach">attach file</div>
   `;
@@ -975,6 +976,7 @@ function toggleMoreTools() {
     const tool = e.target.closest('.ctx-item')?.dataset.tool;
     if (tool === 'incognito') document.getElementById('incognito-btn')?.click();
     if (tool === 'research') document.getElementById('research-toggle-btn')?.click();
+    if (tool === 'docs') document.getElementById('docs-toggle-btn')?.click();
     if (tool === 'shell') document.getElementById('shell-btn-tool')?.click();
     if (tool === 'attach') document.getElementById('attach-btn')?.click();
     closeMoreTools();
