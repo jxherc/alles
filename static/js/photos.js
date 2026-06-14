@@ -80,6 +80,14 @@ export function initPhotos() {
   $('photos-upload-input')?.addEventListener('change', e => { uploadPhotos(e.target.files); e.target.value = ''; });
   $('photos-newalbum-btn')?.addEventListener('click', newAlbum);
   $('photos-close-btn')?.addEventListener('click', closeLightbox);
+  $('photos-edit-btn')?.addEventListener('click', async () => {
+    if (!_cur) return;
+    const { openEditor } = await import('./imgeditor.js');
+    openEditor(_cur.original, {
+      name: _cur.original_name || 'photo.png',
+      onSaved: () => { closeLightbox(); loadPhotos(); },
+    });
+  });
   $('photos-lightbox')?.addEventListener('click', e => { if (e.target === $('photos-lightbox')) closeLightbox(); });
   $('photos-fav-btn')?.addEventListener('click', async () => {
     if (!_cur) return;

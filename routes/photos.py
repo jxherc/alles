@@ -71,6 +71,34 @@ def search_photos(q: str = Query(...), db: DbSession = Depends(get_db)):
     return {"moments": out, "count": len(hits)}
 
 
+class EditSaveBody(BaseModel):
+    data_url: str
+    name: str = "edited.png"
+
+
+@router.post("/edit-save")
+def edit_save(body: EditSaveBody, db: DbSession = Depends(get_db)):
+    """save an edited image (a canvas data-url from the editor) as a new photo."""
+    import base64
+    du = body.data_url or ""
+    if "," in du:
+        du = du.split(",", 1)[1]
+    try:
+        raw = base64.b64decode(du)
+    except Exception:
+        raise HTTPException(400, "bad image data")
+    if not raw:
+        raise HTTPException(400, "empty image")
+    try:
+        info = ps.import_image(raw, body.name or "edited.png")
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    p = Photo(filename=info["filename"], thumb=info["thumb"], original_name=info["original_name"],
+              width=info["width"], height=info["height"], taken_at=info["taken_at"], exif=info["exif"])
+    db.add(p); db.commit(); db.refresh(p)
+    return _fmt(p)
+
+
 @router.post("/upload")
 async def upload(album_id: str = Form(""), file: UploadFile = File(...), db: DbSession = Depends(get_db)):
     data = await file.read()
