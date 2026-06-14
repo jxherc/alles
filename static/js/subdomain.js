@@ -7,7 +7,7 @@ export function setBaseDomain(b) { if (b) _base = b; }
 // apex ('') = the hub. every app gets its own subdomain; the AI stuff is grouped under aide.
 export const SUBDOMAIN_VIEWS = {
   '':         { app: 'alles',    primary: 'home',     views: ['home'] },
-  aide:       { app: 'aide',     primary: 'chat',     views: ['chat', 'memory', 'compare', 'brain', 'models', 'reminders', 'gallery', 'cookbook', 'usage'] },
+  aide:       { app: 'aide',     primary: 'chat',     views: ['chat', 'memory', 'compare', 'brain', 'models', 'reminders', 'gallery', 'cookbook', 'usage', 'skills'] },
   mail:       { app: 'mail',     primary: 'mail',     views: ['mail'] },
   docs:       { app: 'docs',     primary: 'wiki',     views: ['wiki'] },
   gallery:    { app: 'gallery',  primary: 'photos',   views: ['photos'] },
