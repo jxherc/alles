@@ -302,7 +302,9 @@ aide also **exposes its own** openai-compatible api (`GET /v1/models`, `POST /v1
 - **permission modes** — *full-auto* (does it), *approve* (asks before every change, showing you the exact diff first), or *plan* (read-only — it inspects and writes you a plan, and the change-making tools are removed entirely that turn)
 - **checkpoints** — every file edit is snapshotted, so you can **revert a whole run** with one click
 - **prompt-injection guard** — when the agent reads something it didn't write (a web page, an email, a file, repo contents, an mcp result), that text is wrapped as *data, not instructions* before it goes back to the model, and scanned for the classic attacks ("ignore previous instructions," "reveal your system prompt," "email the api key to…"). anything that trips gets flagged. so a booby-trapped webpage can't quietly hijack a run. *(it's a seatbelt, not a force field — see security.)*
+- **secret-path confinement** — the file tools refuse to touch credential/secret stores (`~/.ssh`, `~/.aws`, `.env`, `*.pem`, `id_rsa`, `.netrc`, `.docker/config.json`…) by default, even if a prompt-injection tries to make the agent exfiltrate them. you can opt out (`agent_allow_secrets`) and optionally confine all writes to the workspace (`agent_confine_workspace`)
 - **sandbox** — the shell can run inside a docker container with the workspace mounted at `/work` and (optionally) no network, so commands can't touch your real filesystem
+- **action intents** (opt-in) — a plain chat turn that's clearly asking aide to *do* something ("add lunch to my calendar", "run npm install", "research X") can auto-promote into agent mode (`agent_auto_intents`); off by default so a normal chat never gets hijacked
 - a project-level **`AGENTS.md`** (or `aide.md`) in the working folder is auto-loaded as standing instructions — the same cross-tool convention claude code and others use
 
 ---
@@ -313,7 +315,7 @@ the whole point of self-hosting is that nothing is magic. here's what each app *
 
 - **docs** — your notes are **real `.md` files** in `data/vault/` (path configurable). the editor is **codemirror 6** doing obsidian-style live preview; it edits the plain text directly, so *what's saved equals what you typed*. `[[wikilinks]]`, backlinks, unlinked mentions, `#tags`, `![[embeds]]`, frontmatter, the graph, the outline, the task rollup, and word count are all computed over those files on demand. images you paste/drop go to `data/vault/_assets/`; templates live in `data/vault/_templates/` (both hidden from the tree). math renders with katex, diagrams with mermaid (lazy-loaded from a cdn; raw text shown if you're offline). every save writes a revision row you can restore.
 - **mail** — a thin client over python's stdlib `imaplib`/`smtplib` (no mail dependency). it pools live imap connections, caches reads, loads the inbox by sequence range (no slow `SEARCH ALL`), and opens a message by fetching only its text/html body parts (not attachments) for speed on bad links. a background poll only re-fetches when the mailbox actually changed. credentials are stored locally, encrypted, and never sent back to the browser.
-- **research** — a search-and-read loop: pick a query → search (tavily / brave / searxng / google programmable search / serper if you have a key, else duckduckgo → wikipedia for free) → fetch and strip the top pages to text → ask the model for findings → decide what to look up next → write a cited report, streamed live.
+- **research** — an *iterresearch*-style deep-research loop (the model drives every decision): it plans the question into sub-topics, fires several search queries per round in parallel (tavily / brave / searxng / google programmable search / serper if you have a key, else duckduckgo → wikipedia for free), reads the top pages with [trafilatura](https://github.com/adbar/trafilatura) (pulls the real article, drops nav/ads), extracts findings, rolls them into an evolving report, and **decides itself when it's covered the question** — then writes a long, cited, magazine-quality report (auto-formatted for product / comparison / how-to / fact-check questions). streamed live with sources as they're found.
 - **calendar** — events in sqlite with recurrence expanded on the fly; optional two-way caldav sync if you install `caldav` and add credentials.
 - **gallery / photos** — you import photos; pillow makes thumbnails and reads exif; they're grouped into date "moments." stored as plain files under `data/`.
 - **secrets** — entries sealed with aes-256-gcm under a pbkdf2-hmac-sha-256 (260k iterations) key derived from your master password, which lives in memory only.
@@ -476,7 +478,7 @@ fastembed (onnx) for local embeddings — no embedding api needed
 web push implemented straight from the rfcs — zero extra dependencies
 ```
 
-the dependency list is deliberately tiny — `fastapi`, `uvicorn`, `httpx`, `sqlalchemy`, `pydantic`, `cryptography`, `bcrypt`, `fastembed`, plus `python-docx` and `pillow`. optional extras are opt-in and clearly marked: `pyautogui` (agent computer-use), `faster-whisper` (offline voice), `caldav` (calendar sync), `pypdf` (pdf import).
+the dependency list is deliberately small — `fastapi`, `uvicorn`, `httpx`, `sqlalchemy`, `pydantic`, `cryptography`, `bcrypt`, `fastembed`, `python-docx`, `pillow`, plus `beautifulsoup4` + `trafilatura` + `ddgs` for research (reading and searching the web). optional extras are opt-in and clearly marked: `pyautogui` (agent computer-use), `faster-whisper` (offline voice), `caldav` (calendar sync), `pypdf` (pdf import).
 
 the frontend is genuinely just files: `static/index.html` is the whole app shell, `static/js/` is **one es module per feature** (~40 of them — `app.js`, `chat.js`, `vaultmd.js`, `mail.js`, `agent`-related, etc.) imported by `app.js`, and `static/style.css` holds the design tokens (sharp, monochrome, 2–3px radii, no shadows). "view source" actually shows you the app. the **one** exception is the docs editor: codemirror 6 is vendored as a single pre-built file (`static/vendor/cm6.bundle.js`), so there's still no build step you have to run.
 
@@ -495,10 +497,12 @@ alles/
 ├── services/
 │   ├── llm.py             provider-agnostic streaming client (the model switch)
 │   ├── agent_runtime.py   the autonomous agent loop
-│   ├── agent_tools.py     every agent tool (+ the prompt-injection guard)
+│   ├── agent_tools.py     every agent tool (+ injection guard + secret-path confinement)
+│   ├── agent_intents.py   detect when a chat turn really wants the agent
 │   ├── agent_state.py     durable agent run logs / checkpoints
 │   ├── jobs.py            background job registry + event bus
-│   ├── research_engine.py search + read-the-page research loop
+│   ├── research/          iterresearch deep-research engine (plan → search → read → synthesize)
+│   ├── hwfit/             hardware-aware local-model fit engine (900+ model catalog)
 │   ├── mail.py            imap/smtp over stdlib
 │   ├── vault_md.py        markdown docs on disk (tree, links, tags, graph, tasks)
 │   ├── doc_import.py      import .md/.txt/.docx/.html/.pdf → markdown
@@ -552,7 +556,7 @@ small touches that keep it snappy and sturdy:
 python -m unittest discover -s tests
 ```
 
-**76 unit tests** and counting — covering the docs vault (links, tags, graph, tasks, templates, asset/import handling, unlinked mentions), document import, the youtube id parser, the job registry + event bus, the agent's tool-gating and prompt-injection guard, mail parsing, crypto, the model client, photos, and more.
+**105 unit tests** and counting — covering the docs vault (links, tags, graph, tasks, templates, asset/import handling, unlinked mentions), document import, the youtube id parser, the job registry + event bus, the agent's tool-gating + prompt-injection guard + secret-path confinement + action-intent routing, the deep-research engine (page extraction, quality filter, the full plan→search→synthesize loop against a fake model), the hardware-aware model fit engine (catalog ranking, quant/version/bandwidth scoring), mail parsing, crypto, the model client, photos, and more.
 
 ---
 
