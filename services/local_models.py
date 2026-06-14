@@ -253,9 +253,22 @@ async def hwfit() -> dict:
 # the 6 PRESETS above are the legacy fallback; this is the 900+ model catalog
 # scored against detected hardware (bandwidth/VRAM/quant/MoE aware).
 
-def detect_system_info() -> dict:
-    from services.hwfit import hardware
-    return hardware.detect_system()
+# the hardware probe shells out (nvidia-smi / wmi / rocminfo) — cache it briefly
+# so the cookbook's rapid search/sort/filter calls don't re-probe every keystroke.
+# hardware barely changes; a short TTL still picks up a plugged-in GPU eventually.
+_sys_cache: dict | None = None
+_sys_cache_at: float = 0.0
+_SYS_TTL = 60
+
+
+def detect_system_info(refresh: bool = False) -> dict:
+    global _sys_cache, _sys_cache_at
+    now = time.time()
+    if refresh or _sys_cache is None or now - _sys_cache_at > _SYS_TTL:
+        from services.hwfit import hardware
+        _sys_cache = hardware.detect_system()
+        _sys_cache_at = now
+    return _sys_cache
 
 
 def _short_name(name: str) -> str:
@@ -264,8 +277,8 @@ def _short_name(name: str) -> str:
 
 async def model_catalog(use_case=None, search=None, sort="score", quant=None,
                         target_context=None, fit_only=False, limit=60) -> dict:
-    from services.hwfit import hardware, fit
-    sysinfo = hardware.detect_system()
+    from services.hwfit import fit
+    sysinfo = detect_system_info()
     rows = fit.rank_models(sysinfo, use_case=use_case, limit=limit, search=search,
                            sort=sort, quant=quant, target_context=target_context,
                            fit_only=fit_only)
