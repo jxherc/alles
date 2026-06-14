@@ -1151,6 +1151,8 @@ code {
   margin: 0 0.35rem 0.05rem;
   transition: background 0.12s, color 0.12s;
 }
+/* alles-wide (hub) settings: only appearance + backup, hide the aide panes */
+#settings-modal.alles-scope .s-nav-item:not([data-pane="appearance"]):not([data-pane="backup"]) { display: none; }
 .s-nav-item svg { flex-shrink: 0; opacity: 0.6; }
 .s-nav-item:hover { background: var(--panel); color: var(--text); }
 .s-nav-item:hover svg { opacity: 1; }
