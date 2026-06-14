@@ -382,6 +382,13 @@ async def chat_background(body: ChatRequest, db: DbSession = Depends(get_db)):
                 stop_event, _SF, incognito=False, mode="agent", settings=settings,
             ):
                 pass
+            # ping Discord/Telegram when a long background run wraps up
+            try:
+                from services import notify
+                if settings.get("notify_on_agent_done") and notify.configured():
+                    await notify.send(f"✓ aide finished a background run: {body.message[:140]}")
+            except Exception:
+                pass
         finally:
             _streams.pop(body.session_id, None)
             _bg_tasks.pop(body.session_id, None)

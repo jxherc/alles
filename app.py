@@ -404,6 +404,8 @@ app.include_router(usage_routes.router)
 app.include_router(rag_routes.router)
 app.include_router(images_routes.router)
 app.include_router(skills_routes.router)
+from routes import notify as notify_routes
+app.include_router(notify_routes.router)
 app.include_router(shell_routes.router)
 app.include_router(mcp_routes.router)
 app.include_router(notes_routes.router)
