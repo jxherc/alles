@@ -3,7 +3,7 @@ from fastapi import HTTPException
 from pydantic import BaseModel
 
 from services.agent_tools import agent_status, revert_run
-from services.agent_state import list_runs, get_run
+from services.agent_state import list_runs, get_run, find_active_run
 from services.agent_runtime import resolve_permission
 
 router = APIRouter(prefix="/api")
@@ -53,6 +53,13 @@ async def status():
 @router.get("/agent/runs")
 def runs(limit: int = 20):
     return list_runs(limit=limit)
+
+
+# declared before /agent/runs/{run_id} so "active" isn't captured as a run_id
+@router.get("/agent/runs/active")
+def active_run(session_id: str = ""):
+    """the running agent run for a session (for reconnect/replay), or {} if none."""
+    return find_active_run(session_id) or {}
 
 
 @router.get("/agent/runs/{run_id}")
