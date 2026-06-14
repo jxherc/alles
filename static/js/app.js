@@ -239,6 +239,9 @@ const showChatView = () => {
   document.getElementById('composer-outer').style.display = 'block';
   setNav('chat');
 };
+// so selectSession (sessions.js) can jump back to chat when a convo is clicked
+// from a tools page — otherwise messages render behind the still-open tool view
+window._enterChatView = showChatView;
 const showModelsView  = () => showView('models-view',   'models',   () => renderSidebarModelList(document.getElementById('sidebar-model-search')?.value || ''));
 const showBrainView   = () => showView('brain-view',    'brain',    loadBrainPanel);
 const showNotesView    = () => showView('notes-view',    'notes',    loadNotes);
@@ -366,16 +369,22 @@ function renderHome() {
 async function _renderFirstRun() {
   const el = document.getElementById('home-firstrun');
   if (!el) return;
+  if (localStorage.getItem('alles-firstrun-dismissed') === '1') { el.style.display = 'none'; return; }
   let st;
   try { st = await fetch('/api/setup/status').then(r => r.json()); }
   catch { el.style.display = 'none'; return; }   // never let this block the launcher
-  if (st.configured) { el.style.display = 'none'; el.innerHTML = ''; return; }
+  if (st.configured) { el.style.display = 'none'; el.innerHTML = ''; return; }   // already connected → gone
   el.style.display = 'block';
   el.innerHTML = `
+    <button class="firstrun-x" id="firstrun-x" title="dismiss" aria-label="dismiss">×</button>
     <div class="firstrun-title">👋 welcome to alles</div>
     <div class="firstrun-body">to start chatting, connect an AI provider — paste an API key (DeepSeek, Anthropic, OpenAI…) or point at a local Ollama. takes about a minute.</div>
     <button class="btn firstrun-cta" id="firstrun-setup-btn">set up a provider</button>`;
   document.getElementById('firstrun-setup-btn')?.addEventListener('click', () => openSettings('models'));
+  document.getElementById('firstrun-x')?.addEventListener('click', () => {
+    localStorage.setItem('alles-firstrun-dismissed', '1');
+    el.style.display = 'none';
+  });
 }
 
 function _renderHomeTiles() {
@@ -778,7 +787,7 @@ function bindEvents() {
     setEffort(getEffort());
     effortBtn.addEventListener('click', e => { e.stopPropagation(); _openEffortMenu(effortBtn); });
   }
-  document.getElementById('theme-btn').addEventListener('click', toggleTheme);
+  document.getElementById('theme-btn')?.addEventListener('click', toggleTheme);   // removed from topbar → lives in settings → appearance
   document.getElementById('topbar-settings-btn')?.addEventListener('click', openSettings);
 
   // your name → used by aide's greeting (client-only, no server round-trip)

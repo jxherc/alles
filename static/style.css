@@ -1673,10 +1673,17 @@ code {
 
 /* quick capture */
 .home-firstrun {
+  position: relative;
   margin: 0.5rem 0 1.1rem; padding: 0.9rem 1rem;
   background: var(--panel); border: 1px solid var(--faint);
   border-left: 2px solid var(--accent); border-radius: 6px;
 }
+.firstrun-x {
+  position: absolute; top: 0.4rem; right: 0.5rem;
+  background: none; border: none; color: var(--muted);
+  font-size: 1rem; line-height: 1; cursor: pointer; padding: 0.2rem;
+}
+.firstrun-x:hover { color: var(--text); }
 .firstrun-title { font-size: 0.95rem; color: var(--text); margin-bottom: 0.35rem; }
 .firstrun-body { font-size: 0.8rem; color: var(--muted); line-height: 1.5; margin-bottom: 0.7rem; }
 .firstrun-cta { font-size: 0.78rem; }
