@@ -19,6 +19,12 @@ class SessionsApiTest(ApiTest):
         lst = self.client.get("/api/sessions").json()
         self.assertEqual([s["id"] for s in lst["today"]], [sid])
 
+    def test_create_with_persona_and_project(self):
+        r = self.client.post("/api/sessions", json={"name": "p", "persona_id": "persona-1", "project_id": "proj-1"})
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.json()["persona_id"], "persona-1")
+        self.assertEqual(r.json()["project_id"], "proj-1")
+
     def test_incognito_hidden_from_list(self):
         self.client.post("/api/sessions", json={"name": "secret", "incognito": True})
         lst = self.client.get("/api/sessions").json()
