@@ -1,0 +1,14 @@
+data/
+.git/
+.github/
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.log
+.cmbuild/
+.claude/
+node_modules/
+*.zip
+aide-pre-restore-*/
+tests/

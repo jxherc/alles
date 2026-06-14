@@ -10,6 +10,7 @@ alles CLI
   alles logs --clear   truncate the log file
   alles update         git pull, then restart
   alles open           open the browser
+  alles doctor         check the install is ready (deps, data dir, provider)
 
 windows: alles.cmd   unix/git-bash: ./alles   or just: python app.py
 """
@@ -284,6 +285,26 @@ def cmd_open(args=()):
     print(f"opening {_url()}")
 
 
+def cmd_doctor(args=()):
+    """fresh-install readiness check — deps, data dir, encryption key, provider."""
+    try:
+        from services import doctor
+    except Exception as e:
+        print(f"couldn't load checks: {e}")
+        return
+    checks = doctor.run_all()
+    print("alles doctor\n")
+    for c in checks:
+        mark = "ok " if c["ok"] else "!! "
+        print(f"  [{mark}] {c['label']:<24} {c['detail']}")
+    hard_fail = [c for c in checks if not c["ok"] and c["label"] in doctor._HARD]
+    print()
+    if hard_fail:
+        print("not ready — fix the !! items above, then:  alles start")
+        sys.exit(1)
+    print("ready to go.  start with:  alles start")
+
+
 COMMANDS = {
     "start":   cmd_start,
     "stop":    cmd_stop,
@@ -292,6 +313,7 @@ COMMANDS = {
     "logs":    cmd_logs,
     "update":  cmd_update,
     "open":    cmd_open,
+    "doctor":  cmd_doctor,
 }
 
 
