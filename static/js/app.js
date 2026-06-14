@@ -352,9 +352,27 @@ function renderHome() {
   if (!grid) return;
   _renderHomeTiles();
   _renderHomeGreeting();
+  _renderFirstRun();
   _renderToday();
   _startHomeClock();
   _wireQuickCapture();
+}
+
+// fresh-install nudge: if no AI provider is wired up yet, chat is a dead end —
+// show a get-started card on the launcher instead of letting them find out the hard way
+async function _renderFirstRun() {
+  const el = document.getElementById('home-firstrun');
+  if (!el) return;
+  let st;
+  try { st = await fetch('/api/setup/status').then(r => r.json()); }
+  catch { el.style.display = 'none'; return; }   // never let this block the launcher
+  if (st.configured) { el.style.display = 'none'; el.innerHTML = ''; return; }
+  el.style.display = 'block';
+  el.innerHTML = `
+    <div class="firstrun-title">👋 welcome to alles</div>
+    <div class="firstrun-body">to start chatting, connect an AI provider — paste an API key (DeepSeek, Anthropic, OpenAI…) or point at a local Ollama. takes about a minute.</div>
+    <button class="btn firstrun-cta" id="firstrun-setup-btn">set up a provider</button>`;
+  document.getElementById('firstrun-setup-btn')?.addEventListener('click', () => openSettings('models'));
 }
 
 function _renderHomeTiles() {
