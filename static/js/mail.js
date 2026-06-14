@@ -64,6 +64,26 @@ export function initMail() {
   $('mail-accounts-btn')?.addEventListener('click', () => accountsPanel());
   document.querySelectorAll('.mail-tab').forEach(t =>
     t.addEventListener('click', () => setFilter(t.dataset.filter)));
+  $('mail-search')?.addEventListener('keydown', e => {
+    if (e.key !== 'Enter') return;
+    const q = e.target.value.trim();
+    if (q) searchMail(q); else loadInbox();
+  });
+}
+
+async function searchMail(q) {
+  const list = $('mail-list');
+  list.innerHTML = '<div class="mail-empty">searching…</div>';
+  const accts = _active === 'all' ? _accounts : _accounts.filter(a => a.id === _active);
+  const all = [];
+  await Promise.all(accts.map(async a => {
+    try {
+      const d = await fetch(`/api/mail/search/${a.id}?q=${encodeURIComponent(q)}&limit=40`).then(r => r.json());
+      (d.messages || []).forEach(msg => { msg.account_id = a.id; msg.account_name = a.name || a.email; all.push(msg); });
+    } catch {}
+  }));
+  if (!all.length) { list.innerHTML = `<div class="mail-empty">no mail matches “${esc(q)}”</div>`; return; }
+  renderInbox(all);
 }
 
 export async function loadMail() {

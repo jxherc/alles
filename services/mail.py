@@ -573,6 +573,149 @@ def mark_seen(acct, uid, folder: str = "INBOX") -> dict:
         _release_imap(acct, M, ok)
 
 
+# ── search ───────────────────────────────────────────────────────────────────
+
+def search(acct, query: str, folder: str = "INBOX", limit: int = 40) -> list[dict]:
+    """IMAP TEXT search (headers + body) → header rows, newest first. returns []
+    on an empty query or a server that rejects the search."""
+    q = (query or "").strip()
+    if not q:
+        return []
+    M = _imap(acct)
+    ok = False
+    try:
+        M.select(folder, readonly=True)
+        try:
+            typ, data = M.uid("search", "CHARSET", "UTF-8", "TEXT", q.encode("utf-8"))
+        except Exception:
+            typ, data = M.uid("search", None, "TEXT", q)
+        if typ != "OK" or not data:
+            ok = True
+            return []
+        uids = (data[0] or b"").split()[-int(limit or 40):]   # newest matches
+        if not uids:
+            ok = True
+            return []
+        typ, msgd = M.uid("fetch", b",".join(uids),
+                          "(UID FLAGS BODY.PEEK[HEADER.FIELDS (FROM SUBJECT DATE)])")
+        rows = []
+        for part in msgd or []:
+            if not isinstance(part, tuple):
+                continue
+            meta = part[0] or b""
+            uid = _uid_from_meta(meta)
+            if not uid:
+                continue
+            msg = email.message_from_bytes(part[1] or b"")
+            date = msg.get("Date", "")
+            rows.append({
+                "uid": uid, "from": _dec(msg.get("From", "")),
+                "subject": _dec(msg.get("Subject", "(no subject)")),
+                "date": date, "date_ts": _date_ts(date), "seen": b"\\Seen" in meta,
+            })
+        rows.sort(key=lambda x: x["date_ts"], reverse=True)
+        ok = True
+        return rows
+    finally:
+        _release_imap(acct, M, ok)
+
+
+# ── threads — group a flat message list by normalized subject ────────────────
+
+_SUBJ_PREFIX = re.compile(r"^(?:\s*(?:re|fwd|fw|aw|wg)\s*:\s*)+", re.I)
+
+
+def normalize_subject(s: str) -> str:
+    s = _SUBJ_PREFIX.sub("", _dec(s or "")).strip()
+    return s or "(no subject)"
+
+
+def group_threads(messages: list[dict]) -> list[dict]:
+    """collapse a flat list (from fetch_inbox) into conversations keyed on the
+    re:/fwd:-stripped subject. each thread carries its messages newest-first."""
+    buckets: dict[str, list] = {}
+    for m in messages:
+        buckets.setdefault(normalize_subject(m.get("subject", "")).lower(), []).append(m)
+    out = []
+    for msgs in buckets.values():
+        msgs = sorted(msgs, key=lambda x: x.get("date_ts", 0), reverse=True)
+        top = msgs[0]
+        out.append({
+            "subject": normalize_subject(top.get("subject", "")),
+            "count": len(msgs),
+            "latest_ts": top.get("date_ts", 0),
+            "unseen": sum(1 for x in msgs if not x.get("seen", True)),
+            "uid": top.get("uid"),
+            "from": top.get("from", ""),
+            "date": top.get("date", ""),
+            "messages": msgs,
+        })
+    out.sort(key=lambda x: x["latest_ts"], reverse=True)
+    return out
+
+
+# ── attachments ──────────────────────────────────────────────────────────────
+
+def attachments_of(msg) -> list[dict]:
+    """list the attachment parts of a parsed email (by walk-index, so a later
+    fetch can grab one). a part counts if it has a filename or is dispositioned
+    as an attachment."""
+    out = []
+    for i, p in enumerate(msg.walk()):
+        if p.is_multipart():
+            continue
+        fn = _dec(p.get_filename() or "")
+        disp = str(p.get("Content-Disposition") or "").lower()
+        if not fn and "attachment" not in disp:
+            continue
+        payload = p.get_payload(decode=True) or b""
+        out.append({
+            "index": i,
+            "filename": fn or f"attachment-{i}",
+            "content_type": p.get_content_type(),
+            "size": len(payload),
+        })
+    return out
+
+
+def _full_message(M, uid, folder):
+    M.select(folder, readonly=True)
+    typ, msgd = M.uid("fetch", uid.encode() if isinstance(uid, str) else uid, "(RFC822)")
+    for part in msgd or []:
+        if isinstance(part, tuple) and part[1]:
+            return email.message_from_bytes(part[1])
+    return None
+
+
+def list_attachments(acct, uid, folder: str = "INBOX") -> list[dict]:
+    M = _imap(acct)
+    ok = False
+    try:
+        msg = _full_message(M, uid, folder)
+        ok = True
+        return attachments_of(msg) if msg else []
+    finally:
+        _release_imap(acct, M, ok)
+
+
+def fetch_attachment(acct, uid, index: int, folder: str = "INBOX"):
+    """returns (filename, content_type, bytes) for one attachment, or None."""
+    M = _imap(acct)
+    ok = False
+    try:
+        msg = _full_message(M, uid, folder)
+        ok = True
+        if not msg:
+            return None
+        for i, p in enumerate(msg.walk()):
+            if i == int(index) and not p.is_multipart():
+                return (_dec(p.get_filename() or f"attachment-{i}"),
+                        p.get_content_type(), p.get_payload(decode=True) or b"")
+        return None
+    finally:
+        _release_imap(acct, M, ok)
+
+
 def send_mail(acct, to: str, subject: str, body: str, cc: str = "") -> dict:
     host = acct.get("smtp_host", "")
     if not host:
