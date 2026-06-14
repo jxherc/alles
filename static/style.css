@@ -870,13 +870,15 @@ code {
 /* active toggle tools (incognito / research) — glowing icon, NO box.
    keeps every tool button the same shape; active ones just glow accent. */
 .incognito-btn.active,
-#research-toggle-btn.active {
+#research-toggle-btn.active,
+#docs-toggle-btn.active {
   color: var(--accent);
   background: none;
   border-color: transparent;
 }
 .incognito-btn.active svg,
-#research-toggle-btn.active svg {
+#research-toggle-btn.active svg,
+#docs-toggle-btn.active svg {
   filter: drop-shadow(0 0 5px color-mix(in srgb, var(--accent) 85%, transparent));
 }
 #more-tools-btn { display: none; }
