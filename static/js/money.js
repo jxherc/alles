@@ -32,6 +32,21 @@ export function initMoneyPanel() {
     _inited = true;
     $('money-prev')?.addEventListener('click', () => { _month = _shiftMonth(_month, -1); load(); });
     $('money-next')?.addEventListener('click', () => { _month = _shiftMonth(_month, 1); load(); });
+    const imp = $('money-import'), fileInp = $('money-import-file');
+    imp?.addEventListener('click', () => {
+      if (!_accounts.length) { toast('add an account first', 'error'); return; }
+      fileInp?.click();
+    });
+    fileInp?.addEventListener('change', async e => {
+      const f = e.target.files[0]; if (!f) return;
+      try {
+        const r = await api('/api/money/transactions/import.csv', {
+          method: 'POST', body: { csv: await f.text(), account_id: _accounts[0].id } });
+        toast(`imported ${r.imported} txn${r.imported === 1 ? '' : 's'} into ${_accounts[0].name}`, 'success');
+        load();
+      } catch { toast('import failed', 'error'); }
+      fileInp.value = '';
+    });
   }
   load();
 }
