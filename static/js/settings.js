@@ -628,6 +628,69 @@ function loadAppearancePane() {
       });
     }
   }
+  _loadThemeColorControls();
+}
+
+// ── theme mode + accent color ─────────────────────────────────────────────────
+const ACCENT_PRESETS = [
+  ['#818cf8', 'indigo'], ['#a78bfa', 'purple'], ['#60a5fa', 'blue'], ['#22d3ee', 'cyan'],
+  ['#34d399', 'emerald'], ['#4ade80', 'green'], ['#facc15', 'yellow'], ['#fb923c', 'orange'],
+  ['#f87171', 'red'], ['#f472b6', 'pink'], ['#e879f9', 'fuchsia'], ['#e8e6e3', 'mono'],
+];
+const DEFAULT_ACCENT = '#818cf8';
+const _curAccent = () => (localStorage.getItem('aide-accent') || DEFAULT_ACCENT).toLowerCase();
+
+function applyAccent(hex) {
+  if (hex) {
+    document.documentElement.style.setProperty('--accent', hex);
+    localStorage.setItem('aide-accent', hex);
+  } else {
+    document.documentElement.style.removeProperty('--accent');
+    localStorage.removeItem('aide-accent');
+  }
+  _markAccent();
+}
+function applyThemeMode(mode) {
+  if (mode === 'light') { document.documentElement.dataset.theme = 'light'; localStorage.setItem('aide-theme', 'light'); }
+  else { delete document.documentElement.dataset.theme; localStorage.removeItem('aide-theme'); }
+  document.querySelectorAll('.theme-mode-btn').forEach(b => b.classList.toggle('active', b.dataset.themeMode === (mode === 'light' ? 'light' : 'dark')));
+}
+function _markAccent() {
+  const cur = _curAccent();
+  document.querySelectorAll('#s-accent-swatches .accent-swatch').forEach(s =>
+    s.classList.toggle('active', s.dataset.hex.toLowerCase() === cur));
+  const hexInp = document.getElementById('s-accent-hex'); if (hexInp) hexInp.value = cur;
+  const colorInp = document.getElementById('s-accent-custom'); if (colorInp && /^#[0-9a-f]{6}$/i.test(cur)) colorInp.value = cur;
+}
+function _loadThemeColorControls() {
+  // theme mode buttons
+  const curMode = document.documentElement.dataset.theme === 'light' ? 'light' : 'dark';
+  document.querySelectorAll('.theme-mode-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.themeMode === curMode);
+    if (!b.dataset.bound) { b.dataset.bound = '1'; b.addEventListener('click', () => applyThemeMode(b.dataset.themeMode)); }
+  });
+  // accent swatches
+  const box = document.getElementById('s-accent-swatches');
+  if (box && !box.dataset.built) {
+    box.dataset.built = '1';
+    box.innerHTML = ACCENT_PRESETS.map(([hex, name]) =>
+      `<button class="accent-swatch" data-hex="${hex}" title="${name}" style="background:${hex}"></button>`).join('');
+    box.querySelectorAll('.accent-swatch').forEach(s => s.addEventListener('click', () => applyAccent(s.dataset.hex)));
+  }
+  const colorInp = document.getElementById('s-accent-custom');
+  if (colorInp && !colorInp.dataset.bound) { colorInp.dataset.bound = '1'; colorInp.addEventListener('input', () => applyAccent(colorInp.value)); }
+  const hexInp = document.getElementById('s-accent-hex');
+  if (hexInp && !hexInp.dataset.bound) {
+    hexInp.dataset.bound = '1';
+    hexInp.addEventListener('keydown', e => {
+      if (e.key !== 'Enter') return;
+      let v = hexInp.value.trim(); if (v && v[0] !== '#') v = '#' + v;
+      if (/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(v)) applyAccent(v); else toast('not a valid hex color', 'error');
+    });
+  }
+  const reset = document.getElementById('s-accent-reset');
+  if (reset && !reset.dataset.bound) { reset.dataset.bound = '1'; reset.addEventListener('click', () => applyAccent(null)); }
+  _markAccent();
 }
 
 // (end loadAppearancePane helper)
