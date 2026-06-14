@@ -214,6 +214,41 @@ def run_agent_endpoints():
     area_write("agent", log)
 
 
+def run_page_smoke():
+    """hit the primary read endpoint behind every app/page — evidence each one's
+    backend is alive (200), even with no data yet."""
+    log = [f"# every-page backend smoke — {datetime.now().isoformat()}", ""]
+    endpoints = [
+        ("home/today", "/api/today"),
+        ("files", "/api/files/list"),
+        ("journal", "/api/journal"),
+        ("money", "/api/money/accounts"),
+        ("days", "/api/days"),
+        ("subs", "/api/subscriptions"),
+        ("subs-analytics", "/api/subscriptions/analytics"),
+        ("templates", "/api/templates"),
+        ("connections", "/api/connections"),
+        ("local-models", "/api/local-models/status"),
+        ("photos", "/api/photos/list"),
+        ("mail-accounts", "/api/mail/accounts"),
+        ("automations", "/api/automations"),
+        ("rag", "/api/rag/status"),
+        ("notes/vault", "/api/vault-md/tags"),
+        ("calendar", "/api/calendar"),
+        ("tasks", "/api/tasks"),
+        ("gallery", "/api/gallery"),
+        ("usage", "/api/usage/summary"),
+        ("settings", "/api/settings"),
+    ]
+    for name, path in endpoints:
+        def chk(p=path):
+            r = client.get(p)
+            log.append(f"GET {p} -> {r.status_code}")
+            return r.status_code == 200, f"{p} -> {r.status_code}"
+        check("pages", name, chk)
+    area_write("pages", log)
+
+
 def main():
     OUT.mkdir(parents=True, exist_ok=True)
     print(f"stress run -> {OUT}\n")
@@ -231,6 +266,7 @@ def main():
     run_tasks_nl()
     run_memory()
     run_agent_endpoints()
+    run_page_smoke()
 
     # summary
     total = len(_results)
