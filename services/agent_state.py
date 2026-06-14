@@ -154,3 +154,28 @@ def list_incomplete(limit: int = 20) -> list[dict]:
     """runs that didn't finish cleanly — still running, or interrupted by a restart."""
     out = [st for st in list_runs(limit=300) if st.get("status") in ("running", "interrupted")]
     return out[:limit]
+
+
+def run_sources(run_id: str) -> dict:
+    """what a run actually drew on — the files it touched, urls it fetched, searches
+    it ran, commands it executed. claude-code-style provenance so you can see where
+    an answer came from instead of trusting it blind."""
+    run = get_run(run_id)
+    if not run:
+        return {}
+    files, urls, searches, commands = set(), set(), [], []
+    for e in run.get("events", []):
+        if e.get("type") != "tool_start":
+            continue
+        d = e.get("data", {})
+        name, args = d.get("name", ""), d.get("args", {}) or {}
+        if name in ("read_file", "write_file", "edit_file", "apply_patch", "revert_file") and args.get("path"):
+            files.add(args["path"])
+        elif name in ("web_fetch", "github_get_file") and (args.get("url") or args.get("path")):
+            urls.add(args.get("url") or args.get("path"))
+        elif name == "web_search" and args.get("query"):
+            searches.append(args["query"])
+        elif name == "shell" and args.get("command"):
+            commands.append(args["command"])
+    return {"files": sorted(files), "urls": sorted(urls),
+            "searches": searches, "commands": commands}
