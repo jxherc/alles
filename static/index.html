@@ -119,6 +119,25 @@
           <input type="text" id="hc-input" class="hc-input" placeholder="capture a note…" spellcheck="true" autocomplete="off">
           <button class="btn primary hc-save" id="hc-save">save</button>
         </div>
+
+        <!-- ask aide about my day — a simple, tool-free aide right on the home -->
+        <div class="home-ask" id="home-ask">
+          <div class="home-ask-reply" id="home-ask-reply" style="display:none"></div>
+          <div class="home-ask-bar">
+            <input type="file" id="ha-file" hidden>
+            <button class="ha-tool" id="ha-upload" title="attach a text file" aria-label="attach">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+            </button>
+            <input type="text" id="ha-input" class="home-ask-input" placeholder="ask aide about your day…" autocomplete="off">
+            <button class="ha-tool" id="ha-voice" title="voice input" aria-label="voice">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+            </button>
+            <select id="ha-model" class="home-ask-model" title="model"></select>
+            <button class="btn primary ha-send" id="ha-send">ask</button>
+            <button class="btn ha-goto" id="ha-goto" title="open the full aide">aide ↗</button>
+          </div>
+        </div>
+
         <div class="home-grid" id="home-grid"></div>
         <div class="home-foot">
           <span class="live-dot"></span>

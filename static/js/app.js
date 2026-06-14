@@ -363,6 +363,82 @@ function renderHome() {
   _renderToday();
   _startHomeClock();
   _wireQuickCapture();
+  _wireHomeAsk();
+}
+
+// "ask aide about my day" — a simple, tool-free aide right on the home page, with
+// its own model switcher. pure chat (no research/agent), but day-aware: it tucks a
+// quick summary of today in front of your question so it can actually answer.
+let _haSession = null, _haAttach = '';
+async function _wireHomeAsk() {
+  const inp = document.getElementById('ha-input');
+  const sel = document.getElementById('ha-model');
+  const send = document.getElementById('ha-send');
+  const rep = document.getElementById('home-ask-reply');
+  if (!inp || inp.dataset.wired) return;
+  inp.dataset.wired = '1';
+  try {
+    const eps = await fetch('/api/models').then(r => r.json());
+    sel.innerHTML = '';
+    for (const e of eps) for (const m of (e.cached_models || e.models || []))
+      sel.insertAdjacentHTML('beforeend', `<option value="${e.id}::${m}">${e.name} / ${m}</option>`);
+    if (!sel.options.length) sel.insertAdjacentHTML('beforeend', '<option value="">no model — add one in settings</option>');
+  } catch {}
+
+  document.getElementById('ha-upload')?.addEventListener('click', () => document.getElementById('ha-file')?.click());
+  document.getElementById('ha-file')?.addEventListener('change', async e => {
+    const f = e.target.files[0]; if (!f) return;
+    try { _haAttach = `\n\n[attached ${f.name}]:\n` + (await f.text()).slice(0, 4000); toast(`attached ${f.name}`, 'success'); }
+    catch { toast('could not read that file', 'error'); }
+  });
+  document.getElementById('ha-goto')?.addEventListener('click', () => navigateTo('chat'));
+  document.getElementById('ha-voice')?.addEventListener('click', async () => {
+    try { (await import('./voice.js')).dictateInto?.(inp); }
+    catch { toast('voice input lives in the full aide', 'error'); }
+  });
+
+  const ask = async () => {
+    const q = inp.value.trim(); if (!q) return;
+    const [eid, model] = (sel.value || '::').split('::');
+    if (!eid) { toast('add a model in settings first', 'error'); return; }
+    rep.style.display = 'block'; rep.textContent = '…'; send.disabled = true;
+    // day context so the simple aide can actually talk about today
+    let ctx = '';
+    try {
+      const d = await fetch('/api/today').then(r => r.json());
+      const bits = [];
+      if (d.events?.length) bits.push('events: ' + d.events.map(e => `${e.time || 'all-day'} ${e.title}`).join('; '));
+      if (d.tasks?.overdue?.length) bits.push('overdue: ' + d.tasks.overdue.map(t => t.title).join('; '));
+      if (d.tasks?.due_today?.length) bits.push('due today: ' + d.tasks.due_today.map(t => t.title).join('; '));
+      if (d.reminders?.length) bits.push('reminders: ' + d.reminders.map(r => r.text).join('; '));
+      if (bits.length) ctx = `(my day so far — ${bits.join(' | ')})\n\n`;
+    } catch {}
+    if (!_haSession) {
+      _haSession = (await fetch('/api/sessions', { method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ name: 'home: ask aide', model, endpoint_id: eid, incognito: true }) }).then(x => x.json())).id;
+    }
+    let text = '';
+    try {
+      const resp = await fetch('/api/chat', { method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ session_id: _haSession, message: ctx + q + _haAttach, mode: 'chat', simple: true }) });
+      const reader = resp.body.getReader(); const dec = new TextDecoder(); let buf = '';
+      for (;;) {
+        const { done, value } = await reader.read(); if (done) break;
+        buf += dec.decode(value, { stream: true });
+        let i;
+        while ((i = buf.indexOf('\n\n')) >= 0) {
+          const line = buf.slice(0, i); buf = buf.slice(i + 2);
+          if (line.startsWith('data: ')) {
+            const dd = line.slice(6); if (dd === '[DONE]') break;
+            try { const ev = JSON.parse(dd); if (ev.delta) { text += ev.delta; rep.innerHTML = mdToHtml(text); } } catch {}
+          }
+        }
+      }
+    } catch { rep.textContent = 'failed — try again'; }
+    send.disabled = false; inp.value = ''; _haAttach = '';
+  };
+  send.addEventListener('click', ask);
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); ask(); } });
 }
 
 // fresh-install nudge: if no AI provider is wired up yet, chat is a dead end —

@@ -181,6 +181,7 @@ class ChatRequest(BaseModel):
     incognito: bool = False
     permission_mode: str = ""   # full_auto | approve | plan
     effort: str = ""            # low | medium | high
+    simple: bool = False        # pure chat — never auto-promote to tools (the home "ask aide")
 
 
 async def _sse(gen):
@@ -331,7 +332,7 @@ async def chat(body: ChatRequest, background_tasks: BackgroundTasks, db: DbSessi
     # on by default: auto-promote a plain chat turn when the user clearly asks aide
     # to DO an app thing (calendar/mail/reminders/research/edit). reads just happen;
     # mutations are gated behind approval so a chat message can't silently send mail.
-    if mode == "chat" and settings.get("agent_auto_intents", True):
+    if mode == "chat" and not body.simple and settings.get("agent_auto_intents", True):
         from services.agent_intents import message_needs_tools
         if message_needs_tools(body.message):
             mode = "agent"

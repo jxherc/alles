@@ -1691,6 +1691,34 @@ code {
   display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1.1rem;
   background: var(--panel); border: 1px solid var(--faint); border-radius: 6px; padding: 0.45rem 0.55rem;
 }
+
+/* home: ask aide about my day — simple inline aide */
+.home-ask { margin-bottom: 1.1rem; }
+.home-ask-reply {
+  background: var(--panel); border: 1px solid var(--faint); border-left: 2px solid var(--accent);
+  border-radius: 6px; padding: 0.7rem 0.85rem; margin-bottom: 0.5rem;
+  font-size: 0.85rem; line-height: 1.55; max-height: 320px; overflow-y: auto;
+}
+.home-ask-bar {
+  display: flex; align-items: center; gap: 0.4rem;
+  background: var(--panel); border: 1px solid var(--faint); border-radius: 6px; padding: 0.4rem 0.5rem;
+}
+.home-ask-input {
+  flex: 1; min-width: 0; background: none; border: none; color: var(--text);
+  font: inherit; font-size: 0.85rem; outline: none;
+}
+.home-ask-input::placeholder { color: var(--muted); }
+.ha-tool {
+  background: none; border: none; color: var(--muted); cursor: pointer; padding: 0.25rem;
+  display: flex; align-items: center; flex-shrink: 0; transition: color 0.15s ease;
+}
+.ha-tool:hover { color: var(--text); }
+.ha-tool svg { width: 17px; height: 17px; }
+.home-ask-model {
+  background: var(--bg); color: var(--text); border: 1px solid var(--faint); border-radius: 4px;
+  font-size: 0.72rem; padding: 0.25rem 0.35rem; max-width: 170px; flex-shrink: 0;
+}
+.ha-send, .ha-goto { font-size: 0.76rem; padding: 0.3rem 0.7rem; flex-shrink: 0; }
 .hc-modes { display: flex; gap: 0.15rem; flex-shrink: 0; }
 .hc-mode {
   background: none; border: 1px solid transparent; border-radius: 4px; color: var(--muted);
