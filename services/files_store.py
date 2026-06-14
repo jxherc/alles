@@ -114,5 +114,45 @@ def save_upload(rel_dir: str, filename: str, data: bytes) -> dict:
             "path": str(dst.relative_to(files_dir())).replace("\\", "/")}
 
 
+_TEXT_EXT = {"txt", "md", "markdown", "py", "js", "ts", "json", "csv", "html",
+             "css", "log", "yml", "yaml", "toml", "ini", "sh", "xml", "rst", "tsx", "jsx"}
+
+
+def search(query: str, limit: int = 100) -> dict:
+    """find files by name, and by content for small text files. content hits
+    carry a snippet around the match. stays inside the files root, skips
+    dotfiles, caps text scanning at 512KB so it can't choke on huge blobs."""
+    base = files_dir()
+    q = (query or "").strip().lower()
+    if not q:
+        return {"query": query, "results": []}
+    results = []
+    for p in base.rglob("*"):
+        if len(results) >= limit:
+            break
+        rel_parts = p.relative_to(base).parts
+        if any(part.startswith(".") for part in rel_parts) or not p.is_file():
+            continue
+        name_hit = q in p.name.lower()
+        body_hit, snippet = False, ""
+        if p.suffix.lower().lstrip(".") in _TEXT_EXT and p.stat().st_size <= 512_000:
+            try:
+                text = p.read_text("utf-8", errors="ignore")
+                idx = text.lower().find(q)
+                if idx != -1:
+                    body_hit = True
+                    s = max(0, idx - 40)
+                    snippet = text[s:idx + len(q) + 40].replace("\n", " ").strip()
+            except Exception:
+                pass
+        if name_hit or body_hit:
+            e = _entry(p, base)
+            e["snippet"] = snippet
+            e["match"] = "both" if name_hit and body_hit else ("name" if name_hit else "content")
+            results.append(e)
+    results.sort(key=lambda e: (e["match"] == "content", e["name"].lower()))
+    return {"query": query, "results": results[:limit]}
+
+
 def abspath(rel: str) -> Path:
     return _safe(rel)
