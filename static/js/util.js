@@ -91,7 +91,7 @@ export function mdToHtml(text) {
       let m;
       if ((m = line.match(/^\s*[-*]\s+\[([ xX])\]\s+(.+)/))) {
         if (buf?.type !== 'ul') { flush(); buf = { type: 'ul', items: [] }; }
-        buf.items.push(`<li class="md-task"><input type="checkbox" disabled ${/x/i.test(m[1]) ? 'checked' : ''}> ${m[2]}</li>`);
+        buf.items.push(`<li class="md-task"><span class="chk chk-static" aria-checked="${/x/i.test(m[1]) ? 'true' : 'false'}"></span> ${m[2]}</li>`);
       } else if ((m = line.match(/^\s*\d+\.\s+(.+)/))) {
         if (buf?.type !== 'ol') { flush(); buf = { type: 'ol', items: [] }; }
         buf.items.push(`<li>${m[1]}</li>`);

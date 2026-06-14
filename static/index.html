@@ -874,7 +874,7 @@
               </div>
               <div class="s-field">
                 <label>context window (messages)</label>
-                <input type="number" class="settings-input" id="settings-context-limit" min="4" max="200" style="width:80px">
+                <input type="text" inputmode="numeric" class="settings-input" id="settings-context-limit" style="width:80px">
               </div>
             </div>
           </div>
@@ -1094,8 +1094,8 @@
                 <div class="settings-input custom-select" id="s-tts-voice" style="width:100%" data-value="alloy" data-options="alloy|alloy;echo|echo;fable|fable;onyx|onyx;nova|nova;shimmer|shimmer"></div>
               </div>
               <div class="s-field">
-                <label>speed <span id="s-tts-speed-val" style="color:var(--accent)">1.0×</span></label>
-                <input type="range" id="s-tts-speed" min="0.5" max="2" step="0.1" value="1.0" style="width:100%;accent-color:var(--accent)">
+                <label>speed</label>
+                <div class="settings-input custom-select" id="s-tts-speed" style="width:120px" data-value="1" data-options="0.5|0.5×;0.75|0.75×;1|1×;1.25|1.25×;1.5|1.5×;1.75|1.75×;2|2×"></div>
               </div>
             </div>
           </div>

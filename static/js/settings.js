@@ -176,11 +176,6 @@ function _initSettings() {
   // ── voice pane ──
   document.getElementById('s-voice-save-btn')?.addEventListener('click', saveVoiceSettings);
   document.getElementById('tts-select')?.addEventListener('change', _updateTtsVoiceRow);
-  document.getElementById('s-tts-speed')?.addEventListener('input', e => {
-    const v = parseFloat(e.target.value).toFixed(1);
-    const label = document.getElementById('s-tts-speed-val');
-    if (label) label.textContent = `${v}×`;
-  });
 
   // ── appearance: vis toggles ──
   document.querySelectorAll('.s-vis-toggle').forEach(sw => {
@@ -732,12 +727,7 @@ async function loadVoicePane() {
     if (s.openai_api_key) document.getElementById('settings-openai-key').value = s.openai_api_key;
     const langEl = document.getElementById('s-stt-language');
     if (langEl && s.stt_language) langEl.value = s.stt_language;
-    const speedEl = document.getElementById('s-tts-speed');
-    if (speedEl) {
-      speedEl.value = s.tts_speed ?? 1.0;
-      const label = document.getElementById('s-tts-speed-val');
-      if (label) label.textContent = `${parseFloat(speedEl.value).toFixed(1)}×`;
-    }
+    setDropdownValue(document.getElementById('s-tts-speed'), String(s.tts_speed ?? 1));
     _bindSwitchOnce(document.getElementById('s-tts-enabled-toggle'),
       () => !!(s.tts_auto_play),
       async on => { await _patchSettings({ tts_auto_play: on }); }
