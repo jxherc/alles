@@ -760,10 +760,23 @@ async function loadHistory() {
   catch { panel.innerHTML = '<div style="font-size:0.72rem;color:var(--error)">failed to load history</div>'; return; }
   if (!revs.length) { panel.innerHTML = '<div style="font-size:0.72rem;color:var(--muted)">no earlier versions yet — snapshots are taken as you edit</div>'; return; }
   panel.innerHTML = revs.map(r => `
-    <div style="display:flex;align-items:center;gap:0.5rem;padding:0.25rem 0;font-size:0.72rem">
-      <span>${_revAgo(r.created_at)}</span><span style="color:var(--muted)">${(r.size / 1000).toFixed(1)}k</span><span style="flex:1"></span>
-      <button class="btn" data-rev-restore="${r.id}" style="font-size:0.66rem">restore</button>
+    <div class="wiki-rev" data-rev="${r.id}">
+      <div style="display:flex;align-items:center;gap:0.5rem;padding:0.25rem 0;font-size:0.72rem">
+        <span>${_revAgo(r.created_at)}</span><span style="color:var(--muted)">${(r.size / 1000).toFixed(1)}k</span><span style="flex:1"></span>
+        <button class="btn" data-rev-diff="${r.id}" style="font-size:0.66rem">diff</button>
+        <button class="btn" data-rev-restore="${r.id}" style="font-size:0.66rem">restore</button>
+      </div>
+      <div class="wiki-rev-diff" style="display:none"></div>
     </div>`).join('');
+  panel.querySelectorAll('[data-rev-diff]').forEach(b => b.addEventListener('click', async () => {
+    const box = b.closest('.wiki-rev').querySelector('.wiki-rev-diff');
+    if (box.style.display !== 'none') { box.style.display = 'none'; return; }   // toggle off
+    box.style.display = 'block'; box.textContent = 'loading…';
+    try {
+      const d = await fetch(`/api/vault-md/diff?path=${encodeURIComponent(_cur)}&a=${b.dataset.revDiff}`).then(r => r.json());
+      box.innerHTML = _renderDiff(d.diff);
+    } catch { box.innerHTML = '<div style="font-size:0.7rem;color:var(--error)">diff failed</div>'; }
+  }));
   panel.querySelectorAll('[data-rev-restore]').forEach(b => b.addEventListener('click', async () => {
     if (!await dlgConfirm('restore this version? the current state is kept as a revision.')) return;
     try {
@@ -772,6 +785,18 @@ async function loadHistory() {
       await openFile(_cur); toast('version restored', 'success'); loadHistory();
     } catch { toast('restore failed', 'error'); }
   }));
+}
+// color a unified diff (vs the current file). add=green, remove=red, hunk=accent
+function _renderDiff(txt) {
+  if (!txt || !txt.trim()) return '<div style="font-size:0.7rem;color:var(--muted)">no changes vs current version</div>';
+  const body = txt.split('\n').map(l => {
+    let c = 'var(--muted)';
+    if (l.startsWith('+') && !l.startsWith('+++')) c = 'var(--green)';
+    else if (l.startsWith('-') && !l.startsWith('---')) c = 'var(--error)';
+    else if (l.startsWith('@@')) c = 'var(--accent)';
+    return `<span style="color:${c}">${esc(l)}</span>`;
+  }).join('\n');
+  return `<pre style="margin:0.3rem 0 0.5rem;padding:0.4rem;background:var(--panel);border:1px solid var(--faint);border-radius:3px;font-size:0.66rem;white-space:pre-wrap;overflow-x:auto">${body}</pre>`;
 }
 
 function toggleOutline() {
