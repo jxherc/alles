@@ -99,6 +99,7 @@ function _validSsoTarget(target) {
 
 async function _boot() {
   applyVis();
+  _syncAppearance();   // pull theme/accent from the server so it matches across subdomains
   if (localStorage.getItem('aide-sidebar-hidden')) document.body.classList.add('sidebar-hidden');
   await loadModels();
   await loadProjects();
@@ -1114,6 +1115,22 @@ function toggleTheme() {
     delete root.dataset.theme; localStorage.removeItem('aide-theme');
   } else {
     root.dataset.theme = 'light'; localStorage.setItem('aide-theme', 'light');
+  }
+}
+
+// appearance (theme + accent) is stored server-side too, so it's the same on every
+// subdomain. localStorage stays as the instant pre-paint cache (see index.html head).
+async function _syncAppearance() {
+  let s;
+  try { s = await fetch('/api/settings').then(r => r.json()); } catch { return; }
+  const root = document.documentElement;
+  if ('theme' in s) {
+    if (s.theme === 'light') { root.dataset.theme = 'light'; localStorage.setItem('aide-theme', 'light'); }
+    else { delete root.dataset.theme; localStorage.removeItem('aide-theme'); }
+  }
+  if ('accent' in s) {
+    if (s.accent) { root.style.setProperty('--accent', s.accent); localStorage.setItem('aide-accent', s.accent); }
+    else { root.style.removeProperty('--accent'); localStorage.removeItem('aide-accent'); }
   }
 }
 

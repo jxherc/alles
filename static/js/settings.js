@@ -649,11 +649,13 @@ function applyAccent(hex) {
     localStorage.removeItem('aide-accent');
   }
   _markAccent();
+  _patchSettings({ accent: hex || '' });   // persist server-side → same accent on every subdomain
 }
 function applyThemeMode(mode) {
   if (mode === 'light') { document.documentElement.dataset.theme = 'light'; localStorage.setItem('aide-theme', 'light'); }
   else { delete document.documentElement.dataset.theme; localStorage.removeItem('aide-theme'); }
   document.querySelectorAll('.theme-mode-btn').forEach(b => b.classList.toggle('active', b.dataset.themeMode === (mode === 'light' ? 'light' : 'dark')));
+  _patchSettings({ theme: mode === 'light' ? 'light' : '' });   // persist server-side → synced
 }
 function _markAccent() {
   const cur = _curAccent();
