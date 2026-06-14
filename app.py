@@ -44,7 +44,7 @@ from routes import (
     local_models as local_model_routes,
     vault_md as vault_md_routes,
 )
-from routes import reminders as reminder_routes, templates as template_routes, shared as shared_routes, files as files_routes, caldav as caldav_routes, mail as mail_routes, photos as photos_routes, push as push_routes, subscriptions as subscription_routes, days as days_routes, today as today_routes, automations as automation_routes, money as money_routes
+from routes import reminders as reminder_routes, templates as template_routes, shared as shared_routes, files as files_routes, caldav as caldav_routes, mail as mail_routes, photos as photos_routes, push as push_routes, subscriptions as subscription_routes, days as days_routes, today as today_routes, automations as automation_routes, money as money_routes, journal as journal_routes
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s  %(name)s  %(message)s")
 log = logging.getLogger("alles")
@@ -387,6 +387,7 @@ app.include_router(models.router)
 app.include_router(settings_routes.router)
 app.include_router(memory_routes.router)
 app.include_router(research_routes.router)
+app.include_router(journal_routes.router)
 app.include_router(shell_routes.router)
 app.include_router(mcp_routes.router)
 app.include_router(notes_routes.router)
