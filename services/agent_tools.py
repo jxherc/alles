@@ -96,7 +96,17 @@ def _safe_text(value, limit: int = 20000) -> str:
 def _resolve(path: str = ".") -> Path:
     p = Path(path or ".").expanduser()
     if not p.is_absolute():
-        p = ROOT / p
+        # resolve relative paths against the session's working dir when set, so
+        # file ops land where shell runs (which already uses agent_cwd) — without
+        # a working_dir this stays ROOT, the long-standing default.
+        base = ROOT
+        try:
+            cwd = _settings().get("agent_cwd")
+            if cwd:
+                base = Path(cwd).expanduser()
+        except Exception:
+            pass
+        p = base / p
     return p.resolve()
 
 
