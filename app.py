@@ -293,6 +293,12 @@ async def _connectivity_selftest():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
+    try:
+        from services import net
+        if net.apply_proxy():
+            log.info("outbound proxy applied from settings")
+    except Exception:
+        pass
     await _bootstrap_deepseek()
     await _bootstrap_anthropic()
     _cleanup_empty_sessions()
