@@ -137,6 +137,28 @@ async function openPreview(path, isImg) {
 
 function closePreview() { $('files-preview-modal').style.display = 'none'; }
 
+async function searchFiles(q) {
+  let d;
+  try { d = await fetch(`/api/files/search?q=${encodeURIComponent(q)}`).then(r => r.json()); }
+  catch { return; }
+  $('files-breadcrumb').innerHTML =
+    `<span class="crumb" id="files-search-back" data-go="">files</span><span class="crumb-sep">/</span><span style="color:var(--muted)">search: ${esc(q)}</span>`;
+  $('files-search-back')?.addEventListener('click', () => { $('files-search').value = ''; loadFiles(''); });
+  const list = $('files-list');
+  if (!d.results?.length) { list.innerHTML = '<div class="files-empty">no matches</div>'; return; }
+  list.innerHTML = d.results.map(it => `
+    <div class="file-row" data-path="${esc(it.path)}" data-img="${it.is_img ? 1 : 0}">
+      <span class="file-icon">${_ic(it.is_img ? 'img' : 'file')}</span>
+      <span class="file-name">${esc(it.path)}${it.snippet ? `<span class="file-snip">${esc(it.snippet)}</span>` : ''}</span>
+      <span class="file-meta">${it.match}</span>
+    </div>`).join('');
+  list.querySelectorAll('.file-row').forEach(row => {
+    const open = () => openPreview(row.dataset.path, row.dataset.img === '1');
+    row.querySelector('.file-name').addEventListener('click', open);
+    row.querySelector('.file-icon').addEventListener('click', open);
+  });
+}
+
 async function newFolder() {
   const name = await dlgPrompt('new folder name:');
   if (!name) return;
@@ -172,6 +194,14 @@ export function initFiles() {
   $('files-upload-btn')?.addEventListener('click', () => $('files-upload-input')?.click());
   $('files-upload-input')?.addEventListener('change', e => { uploadFiles(e.target.files); e.target.value = ''; });
   $('files-preview-close')?.addEventListener('click', closePreview);
+  const search = $('files-search');
+  let st;
+  search?.addEventListener('input', () => {
+    clearTimeout(st);
+    const q = search.value.trim();
+    if (!q) { loadFiles(); return; }
+    st = setTimeout(() => searchFiles(q), 300);
+  });
 }
 
 // minimal monochrome icons
