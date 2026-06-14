@@ -1,4 +1,5 @@
 import unittest
+from unittest import mock
 
 from services.hwfit import fit
 from services.hwfit.models import get_models, params_b, estimate_memory_gb
@@ -67,6 +68,23 @@ class ScoringTests(unittest.TestCase):
     def test_memory_estimate_positive(self):
         m = next(x for x in get_models() if params_b(x) > 1)
         self.assertGreater(estimate_memory_gb(m, "Q4_K_M", 4096), 0)
+
+
+class SystemCacheTests(unittest.TestCase):
+    def test_detect_system_is_cached(self):
+        from services import local_models as lm
+        from services.hwfit import hardware
+        lm._sys_cache = None
+        calls = []
+        def fake():
+            calls.append(1)
+            return {"backend": "x"}
+        with mock.patch.object(hardware, "detect_system", fake):
+            a = lm.detect_system_info()
+            b = lm.detect_system_info()
+        lm._sys_cache = None        # don't leak the fake into other tests
+        self.assertIs(a, b)         # same cached object
+        self.assertEqual(len(calls), 1)   # probed once, not twice
 
 
 if __name__ == "__main__":

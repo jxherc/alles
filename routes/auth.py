@@ -1,11 +1,12 @@
 import os
-from fastapi import APIRouter, HTTPException, Response, Cookie
+from fastapi import APIRouter, HTTPException, Response, Cookie, Request
 from pydantic import BaseModel
 from core.settings import load_settings, save_settings, base_domain
 from core.auth import (hash_password, verify_password,
                        create_session_token, store_token,
                        verify_session, revoke_token,
-                       make_handoff, redeem_handoff)
+                       make_handoff, redeem_handoff,
+                       login_blocked, record_login_fail, clear_login_fails)
 
 router = APIRouter(prefix="/api/auth")
 
@@ -30,7 +31,11 @@ class LoginBody(BaseModel):
 
 
 @router.post("/login")
-def login(body: LoginBody, response: Response):
+def login(body: LoginBody, response: Response, request: Request):
+    ip = request.client.host if request.client else "?"
+    if login_blocked(ip):
+        raise HTTPException(429, "too many attempts — wait a few minutes and try again")
+
     s = load_settings()
     hashed = s.get("auth_password_hash", "")
     if not hashed:
@@ -41,8 +46,10 @@ def login(body: LoginBody, response: Response):
         save_settings({"auth_password_hash": hashed})
 
     if not verify_password(body.password, hashed):
+        record_login_fail(ip)
         raise HTTPException(401, "invalid password")
 
+    clear_login_fails(ip)   # good login wipes the slate for this IP
     token = create_session_token()
     store_token(token)
     _set_session_cookie(response, token)
