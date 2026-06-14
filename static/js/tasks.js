@@ -1,9 +1,21 @@
 import { toast } from './util.js';
 
 let _tasks = [];
+let _tab = 'active';   // 'active' | 'done' (history)
+let _tabsWired = false;
+
+function _wireTabs() {
+  if (_tabsWired) return; _tabsWired = true;
+  document.querySelectorAll('.tasks-tab').forEach(b => b.addEventListener('click', () => {
+    _tab = b.dataset.tab;
+    document.querySelectorAll('.tasks-tab').forEach(x => x.classList.toggle('active', x === b));
+    loadTasks();
+  }));
+}
 
 export async function loadTasks() {
-  const r = await fetch('/api/tasks');
+  _wireTabs();
+  const r = await fetch(_tab === 'done' ? '/api/tasks/done' : '/api/tasks');
   _tasks = await r.json();
   renderTasks();
 }
@@ -13,7 +25,8 @@ function renderTasks() {
   if (!list) return;
 
   if (!_tasks.length) {
-    list.innerHTML = '<div style="padding:1rem 0;font-size:0.75rem;color:var(--faint)">no tasks</div>';
+    const msg = _tab === 'done' ? 'no completed tasks yet' : 'no tasks';
+    list.innerHTML = `<div style="padding:1rem 0;font-size:0.75rem;color:var(--faint)">${msg}</div>`;
     return;
   }
 
@@ -52,6 +65,10 @@ export async function addTask(title) {
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ title }),
   });
+  if (_tab !== 'active') {   // jump back to active so the new task is visible
+    _tab = 'active';
+    document.querySelectorAll('.tasks-tab').forEach(x => x.classList.toggle('active', x.dataset.tab === 'active'));
+  }
   await loadTasks();
 }
 

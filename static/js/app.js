@@ -383,16 +383,32 @@ function _toggleTileHidden(view) {
   localStorage.setItem(HOME_HIDDEN_KEY, JSON.stringify([...h]));
   _renderHomeTiles();
 }
+function _clearDropMarks() {
+  document.querySelectorAll('.home-tile.drop-before, .home-tile.drop-after')
+    .forEach(t => t.classList.remove('drop-before', 'drop-after'));
+}
 function _bindTileDrag(el) {
   el.addEventListener('dragstart', e => { _dragView = el.dataset.go; e.dataTransfer.effectAllowed = 'move'; el.classList.add('dragging'); });
-  el.addEventListener('dragend', () => { el.classList.remove('dragging'); _dragView = null; });
-  el.addEventListener('dragover', e => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; });
+  el.addEventListener('dragend', () => { el.classList.remove('dragging'); _dragView = null; _clearDropMarks(); });
+  el.addEventListener('dragover', e => {
+    if (!_dragView || el.dataset.go === _dragView) return;
+    e.preventDefault(); e.dataTransfer.dropEffect = 'move';
+    const r = el.getBoundingClientRect();
+    const after = e.clientX > r.left + r.width / 2;   // which side of the tile → where the bar shows
+    _clearDropMarks();
+    el.classList.add(after ? 'drop-after' : 'drop-before');
+  });
+  el.addEventListener('dragleave', () => el.classList.remove('drop-before', 'drop-after'));
   el.addEventListener('drop', e => {
     e.preventDefault();
     const from = _dragView, to = el.dataset.go;
+    const after = el.classList.contains('drop-after');
+    _clearDropMarks();
     if (!from || !to || from === to) return;
-    let order = _orderedTiles().map(t => t.view).filter(v => v !== from);
-    order.splice(order.indexOf(to), 0, from);
+    const order = _orderedTiles().map(t => t.view).filter(v => v !== from);
+    let idx = order.indexOf(to);
+    if (after) idx += 1;
+    order.splice(idx, 0, from);
     localStorage.setItem(HOME_ORDER_KEY, JSON.stringify(order));
     _renderHomeTiles();
   });
@@ -415,11 +431,19 @@ function _wireQuickCapture() {
     save.disabled = true;
     const ok = await _quickCapture(text, _qcMode === 'task');
     save.disabled = false;
-    if (ok) { inp.value = ''; toast(_qcMode === 'task' ? 'task added' : "saved to today's note", 'success'); _renderToday(); }
+    if (ok) { inp.value = ''; toast(_qcMode === 'task' ? 'task added' : 'note saved', 'success'); _renderToday(); }
     else toast('capture failed', 'error');
   };
   save?.addEventListener('click', submit);
   inp?.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submit(); } });
+}
+// derive a doc title from the note's text — its first line, cleaned up. so a quick
+// note names itself after what you wrote instead of getting a date stamp.
+function _titleFromText(text) {
+  let t = (text || '').trim().split('\n')[0].replace(/^#+\s*/, '').replace(/^[-*]\s+(\[[ xX]\]\s+)?/, '').trim();
+  t = t.replace(/[\\/:*?"<>|#\[\]]+/g, ' ').replace(/\s+/g, ' ').trim();
+  if (t.length > 60) t = t.slice(0, 60).replace(/\s+\S*$/, '').trim();   // don't cut mid-word
+  return t || 'note';
 }
 async function _quickCapture(text, asTask) {
   try {
@@ -427,13 +451,13 @@ async function _quickCapture(text, asTask) {
       await api('/api/tasks', { method: 'POST', body: { title: text } });
       return true;
     }
-    const d = new Date();
-    const name = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    const path = name + '.md';
-    let cur = `# ${name}\n\n`;
-    try { const g = await api(`/api/vault-md/file?path=${encodeURIComponent(path)}`); if (g.exists) cur = g.content; } catch {}
-    const body = cur + (cur.endsWith('\n') ? '' : '\n') + `- ${text}\n`;
-    await api('/api/vault-md/file', { method: 'PUT', body: { path, content: body } });
+    // a standalone note named from its content, with a free (non-clobbering) name
+    const title = _titleFromText(text);
+    let taken = new Set();
+    try { taken = new Set(((await api('/api/vault-md/names')).names || []).map(n => n.toLowerCase())); } catch {}
+    let name = title, i = 2;
+    while (taken.has(name.toLowerCase())) name = `${title} ${i++}`;
+    await api('/api/vault-md/file', { method: 'POST', body: { path: name, content: text.trim() + '\n' } });
     return true;
   } catch { return false; }
 }
