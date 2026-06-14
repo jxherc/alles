@@ -5,6 +5,10 @@ __pycache__/
 
 # data — all of it, nothing personal should be tracked
 data/
+# ...except the hwfit model catalog: it's reference data that ships with the
+# repo (the cookbook is empty without it). un-ignore just that one.
+!services/hwfit/data/
+!services/hwfit/data/hf_models.json
 
 # logs
 *.log
