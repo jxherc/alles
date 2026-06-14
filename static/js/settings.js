@@ -18,11 +18,16 @@ function loadVis() {
 
 function saveVis(v) { localStorage.setItem(VIS_KEY, JSON.stringify(v)); }
 
+// keep the composer minimal by default — research/shell live in the ⋯ menu unless
+// the user turns them back on in settings → appearance.
+const VIS_DEFAULTS = { 'bar-research': false, 'bar-shell': false };
+
 export function applyVis() {
   const v = loadVis();
   document.querySelectorAll('.s-vis-toggle').forEach(sw => {
     const key = sw.dataset.visKey;
-    const on = key in v ? v[key] : true; // default on
+    const dflt = key in VIS_DEFAULTS ? VIS_DEFAULTS[key] : true;
+    const on = key in v ? v[key] : dflt;
     _setSwitch(sw, on);
     const sel = sw.dataset.vis;
     if (sel) document.querySelectorAll(sel).forEach(el => {
