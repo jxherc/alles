@@ -107,6 +107,50 @@ def message(aid: str, uid: str, folder: str = "INBOX", db: DbSession = Depends(g
         return {"error": str(e)[:200]}
 
 
+@router.get("/search/{aid}")
+def search_mail(aid: str, q: str, folder: str = "INBOX", limit: int = 40, db: DbSession = Depends(get_db)):
+    a = _get(db, aid)
+    try:
+        return {"messages": mailsvc.search(_acct_dict(a), q, folder, limit)}
+    except Exception as e:
+        return {"error": str(e)[:200], "messages": []}
+
+
+@router.get("/threads/{aid}")
+def threads(aid: str, folder: str = "INBOX", limit: int = 60, db: DbSession = Depends(get_db)):
+    a = _get(db, aid)
+    try:
+        msgs = mailsvc.fetch_inbox(_acct_dict(a), folder, limit)
+        return {"threads": mailsvc.group_threads(msgs)}
+    except Exception as e:
+        return {"error": str(e)[:200], "threads": []}
+
+
+@router.get("/attachments/{aid}")
+def attachments(aid: str, uid: str, folder: str = "INBOX", db: DbSession = Depends(get_db)):
+    a = _get(db, aid)
+    try:
+        return {"attachments": mailsvc.list_attachments(_acct_dict(a), uid, folder)}
+    except Exception as e:
+        return {"error": str(e)[:200], "attachments": []}
+
+
+@router.get("/attachment/{aid}")
+def attachment(aid: str, uid: str, index: int, folder: str = "INBOX", db: DbSession = Depends(get_db)):
+    from fastapi.responses import Response
+    from urllib.parse import quote
+    a = _get(db, aid)
+    try:
+        res = mailsvc.fetch_attachment(_acct_dict(a), uid, index, folder)
+    except Exception as e:
+        raise HTTPException(502, str(e)[:200])
+    if not res:
+        raise HTTPException(404, "attachment not found")
+    filename, ctype, data = res
+    return Response(content=data, media_type=ctype or "application/octet-stream",
+                    headers={"content-disposition": f"attachment; filename*=UTF-8''{quote(filename)}"})
+
+
 @router.get("/folders/{aid}")
 def folders(aid: str, db: DbSession = Depends(get_db)):
     a = _get(db, aid)
