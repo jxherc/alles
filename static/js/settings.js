@@ -81,10 +81,15 @@ function _onPaneOpen(name) {
 // ── open / close ──────────────────────────────────────────────────────────────
 let _bound = false;
 
-export function openSettings(pane = 'models') {
+export function openSettings(pane, allesOnly = false) {
   const modal = document.getElementById('settings-modal');
   if (!modal) return;
   modal.style.display = 'flex';
+  // hub/home settings = alles-wide only (appearance + backup); aide keeps the full set
+  modal.classList.toggle('alles-scope', allesOnly);
+  const title = document.querySelector('#settings-modal .s-title');
+  if (title) title.textContent = allesOnly ? 'alles settings' : 'settings';
+  if (!pane) pane = allesOnly ? 'appearance' : 'models';
   if (!_bound) { _initSettings(); _bound = true; }
   // update compat url labels
   const port = location.port || '8000';
