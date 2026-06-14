@@ -174,7 +174,7 @@ def agent_system_note(settings: dict) -> str:
         "- Use git_status/git_diff before summarizing code changes. Use git_branch/git_commit only when the user asks to create branches or commits.\n"
         "- Use web_search/web_fetch for current information, documentation, or anything likely to have changed.\n"
         "- Use memory_search when preferences or prior context may matter, and memory_add only for durable user facts/preferences.\n"
-        "- Use skill_list/skill_load when a task matches a reusable skill or cookbook workflow.\n"
+        "- For a multi-step task, call skill_match(query) first to find a reusable procedure the user already wrote, then skill_load the best one; fall back to skill_list/cookbook workflows.\n"
         "- Use mcp_list_tools/mcp_call_tool for external tool surfaces.\n"
         "- Use opencode_run for coding subtasks when OpenCode is installed and a delegated coding pass is useful.\n"
         "- Stream concise progress before and after major tool use. Avoid dumping huge output unless it is the deliverable.\n"
