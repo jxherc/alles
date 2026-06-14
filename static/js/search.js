@@ -38,7 +38,10 @@ async function _runSearch(q) {
     const r = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
     const data = await r.json();
     _renderResults(data);
-  } catch (e) {}
+  } catch (e) {
+    const el = document.getElementById('search-results');
+    if (el) el.innerHTML = '<div style="padding:1rem;color:var(--muted);font-size:0.8rem">search failed — check your connection and try again</div>';
+  }
 }
 
 function _group(label, items, render) {
