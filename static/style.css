@@ -2030,6 +2030,15 @@ code {
 .subs-bar-track { background: var(--faint); border-radius: 2px; height: 8px; overflow: hidden; }
 .subs-bar-fill { display: block; height: 100%; background: var(--accent); border-radius: 2px; }
 .subs-bar-val { text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
+.usage-wrap { max-width: 720px; margin: 0 auto; padding: 0.5rem clamp(0.9rem,3vw,1.5rem); }
+.usage-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.6rem; }
+.usage-card { border: 1px solid var(--faint); border-radius: 3px; padding: 0.7rem 0.8rem; }
+.usage-num { font-size: 1.25rem; color: var(--text); font-variant-numeric: tabular-nums; }
+.usage-lbl { font-size: 0.64rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; margin-top: 0.15rem; }
+.usage-mrow { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 0.8fr; gap: 0.5rem; padding: 0.4rem 0.2rem; border-bottom: 1px solid var(--faint); font-size: 0.74rem; color: var(--muted); }
+.usage-mname { color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.usage-mtotal { text-align: right; color: var(--text); font-variant-numeric: tabular-nums; }
+@media (max-width: 620px) { .usage-cards { grid-template-columns: repeat(2, 1fr); } }
 .task-del {
   background: none; border: none; cursor: pointer; color: var(--faint);
   font-size: 0.8rem; padding: 0.1rem 0.3rem;
