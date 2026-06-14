@@ -346,7 +346,7 @@ async def _grep_files(pattern: str, path: str = ".", file_glob: str = "*") -> di
 
 async def _web_search(query: str, max_results: int = 5) -> dict:
     try:
-        from services.research_engine import web_search
+        from services.research.search import web_search
         results = await web_search(query, max_results=max_results)
         return {"output": json.dumps(results, indent=2), "error": False}
     except Exception as e:
