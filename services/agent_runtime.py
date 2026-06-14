@@ -52,21 +52,39 @@ async def _await_permission(request_id: str, stop_event, timeout: float = 600) -
 _CTX_NAMES = ["AGENTS.md", "AGENT.md", "aide.md", ".aide/instructions.md"]
 
 
+def _hist_chars(messages: list[dict]) -> int:
+    return sum(len(m["content"]) for m in messages if isinstance(m.get("content"), str))
+
+
 def _trim_history(messages: list[dict], budget: int = 120000, keep_recent: int = 8):
     """keep the running context bounded on long agent runs. shrinks the CONTENT of
     old tool messages only — never removes messages, so assistant↔tool pairing stays
-    valid for the API. ~120k chars ≈ 30k tokens, leaving room for the model."""
-    total = sum(len(m["content"]) for m in messages if isinstance(m.get("content"), str))
-    if total <= budget:
+    valid for the API. ~120k chars ≈ 30k tokens, leaving room for the model.
+
+    two passes, oldest-first: first collapse big old tool outputs to a head+tail
+    snippet (keeps the start AND the result, which is usually where the signal
+    is), then if still over budget, stub them down hard. recent turns + the system
+    message are never touched, so the model keeps full fidelity on what it just did."""
+    if _hist_chars(messages) <= budget:
         return
     end = max(1, len(messages) - keep_recent)   # protect system msg + recent turns
+
+    # pass 1 — head+tail snippet (preserves more than the old head-only 400)
     for m in messages[1:end]:
-        if total <= budget:
-            break
-        if m.get("role") == "tool" and isinstance(m.get("content"), str) and len(m["content"]) > 400:
-            saved = len(m["content"])
-            m["content"] = m["content"][:400] + " …[trimmed]"
-            total -= saved - len(m["content"])
+        if _hist_chars(messages) <= budget:
+            return
+        c = m.get("content")
+        if m.get("role") == "tool" and isinstance(c, str) and len(c) > 600:
+            cut = len(c) - 600
+            m["content"] = f"{c[:300]}\n…[{cut} chars trimmed]…\n{c[-300:]}"
+
+    # pass 2 — still over? stub the oldest tool outputs to almost nothing
+    for m in messages[1:end]:
+        if _hist_chars(messages) <= budget:
+            return
+        c = m.get("content")
+        if m.get("role") == "tool" and isinstance(c, str) and len(c) > 90:
+            m["content"] = c[:80] + " …[trimmed]"
 
 
 def _load_project_context(cwd: str) -> str:
