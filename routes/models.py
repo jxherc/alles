@@ -40,6 +40,19 @@ def list_models(db: DbSession = Depends(get_db)):
     return [_fmt_endpoint(ep) for ep in eps]
 
 
+@router.get("/setup/status")
+def setup_status(db: DbSession = Depends(get_db)):
+    """first-run check — is there at least one usable AI provider wired up?
+    drives the welcome/get-started card so a fresh install isn't a dead end."""
+    eps = db.query(ModelEndpoint).filter(ModelEndpoint.enabled == True).all()
+    with_models = [ep for ep in eps if ep.models_list()]
+    return {
+        "configured": bool(with_models),
+        "endpoints": len(eps),
+        "endpoints_with_models": len(with_models),
+    }
+
+
 class AddEndpoint(BaseModel):
     name: str
     base_url: str
