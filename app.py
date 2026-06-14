@@ -460,7 +460,11 @@ async def manifest():
     return FileResponse(str(static_dir / "manifest.json"), media_type="application/manifest+json")
 
 @app.get("/health")
-def health():
+def health(deep: bool = False):
+    # default stays a cheap liveness ping; ?deep=1 runs the full readiness check
+    if deep:
+        from services import doctor
+        return {"ok": doctor.healthy(), "checks": doctor.run_all()}
     return {"ok": True}
 
 @app.get("/api/ping")
