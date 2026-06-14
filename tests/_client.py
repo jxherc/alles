@@ -2,9 +2,11 @@
 # in-memory sqlite, no server / no port / no touching data/aide.db. underscore
 # name keeps unittest from collecting it as a test module.
 import os
+import logging
 import unittest
 
 os.environ["AUTH_ENABLED"] = "false"   # set before app import so dotenv can't flip it on us
+logging.getLogger("httpx").setLevel(logging.WARNING)   # quiet the per-request request log
 
 from sqlalchemy import create_engine
 from sqlalchemy.pool import StaticPool
