@@ -455,6 +455,7 @@ async def _memory_add(text: str, category: str = "", pinned: bool = False) -> di
 
 def _skill_files() -> list[Path]:
     roots = [
+        Path(__file__).resolve().parent.parent / "data" / "skills",   # user's own alles skills
         CODEX_HOME / "skills",
         CODEX_HOME / "skills" / ".system",
         CODEX_HOME / "plugins" / "cache",
