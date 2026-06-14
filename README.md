@@ -143,6 +143,7 @@ this is the most feature-dense app, so here's the full list:
 
 - real time-grid week and day views, a month grid, and an **agenda list**
 - **recurring events** — daily / weekly / monthly
+- **import / export `.ics`** — round-trip with Apple Calendar, Google, Outlook (export everything, or import a `.ics` someone sent you)
 - **natural-language quick-add** right in the header — "lunch with sam friday 1pm" makes the timed event; "team sync tomorrow" makes an all-day one
 - optional **two-way sync with caldav** (the open calendar-sync standard used by icloud and google) if you add your credentials
 
@@ -179,6 +180,7 @@ this is the most feature-dense app, so here's the full list:
 
 - **accounts** (checking / savings / cash / credit / investment) with live balances + a net-worth roll-up
 - **transactions** — log income/expenses with a category + payee, browse by month, quick-add, delete
+- **CSV import / export** — pull in a bank statement (it maps a `Description` column to the payee, copes with `$`/commas), or export everything to a spreadsheet
 - **budgets** — set a monthly cap per category; a progress bar turns red when you go over
 - **charts** — spending-by-category bars and a 6-month income-vs-spent trend (plain SVG, no chart library)
 - this-month cards: net worth · income · spent · net
@@ -588,7 +590,7 @@ small touches that keep it snappy and sturdy:
 python -m unittest discover -s tests
 ```
 
-**385+ unit tests** and counting — including a full in-process API harness that drives the real app (via `TestClient` against a throwaway in-memory db, no server/port) so every route has end-to-end coverage, plus `python scripts/stress_test.py` which exercises every app's backend end-to-end and writes evidence (request/expected/actual + a summary) to `~/alles-test-evidence/<timestamp>/` — plus the docs vault (links, tags, graph, tasks, templates, asset/import handling, unlinked mentions), document import, the youtube id parser, the job registry + event bus, the agent's tool-gating + prompt-injection guard + secret-path confinement + action-intent routing + context compaction, the deep-research engine (page extraction, quality filter, the full plan→search→synthesize loop against a fake model), the hardware-aware model fit engine (catalog ranking, quant/version/bandwidth scoring), the natural-language task + calendar parsers, journal/files/photos search, the subscription + money math, the password generator + strength meter, vcard round-tripping, aes-256-gcm crypto, bcrypt auth + the login throttle, the token-usage rollup, mail parsing, the model client, and more.
+**415+ unit tests** and counting — including a full in-process API harness that drives the real app (via `TestClient` against a throwaway in-memory db, no server/port) so every route has end-to-end coverage, plus `python scripts/stress_test.py` (exercises every app's backend) and `python scripts/live_usage.py` (drives the real app against live AI — a chat, an agent that writes *and runs* a program, web research, compare, and real records across the apps), both writing evidence to `~/alles-test-evidence/<timestamp>/` — plus the docs vault (links, tags, graph, tasks, templates, asset/import handling, unlinked mentions), document import, the youtube id parser, the job registry + event bus, the agent's tool-gating + prompt-injection guard + secret-path confinement + action-intent routing + context compaction, the deep-research engine (page extraction, quality filter, the full plan→search→synthesize loop against a fake model), the hardware-aware model fit engine (catalog ranking, quant/version/bandwidth scoring), the natural-language task + calendar parsers, journal/files/photos search, the subscription + money math, the password generator + strength meter, vcard round-tripping, aes-256-gcm crypto, bcrypt auth + the login throttle, the token-usage rollup, mail parsing, the model client, and more.
 
 every push runs the full suite on **GitHub Actions CI** (`.github/workflows/tests.yml`) — it already earned its keep by catching a data file that wasn't committed.
 
