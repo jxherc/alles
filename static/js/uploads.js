@@ -111,28 +111,38 @@ function _escHtml(s) {
   return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
-// drag-and-drop
+// drag-and-drop (chat file attach). only reacts to real files dragged in from
+// outside — internal element drags (the docs tree move, etc.) carry no "Files"
+// type, so they never trigger the overlay. drops aimed at the docs editor / tree
+// are left for those to handle.
 export function initDropZone() {
   const main = document.querySelector('.main');
   const overlay = document.getElementById('drop-overlay');
   if (!main || !overlay) return;
 
+  const hasFiles = e => Array.from(e.dataTransfer?.types || []).includes('Files');
+  const ownsDrop = e => !!e.target?.closest?.('#wiki-live, .cm-editor, .wiki-tree');
   let dragCount = 0;
+  const hide = () => { dragCount = 0; overlay.style.display = 'none'; };
+
   main.addEventListener('dragenter', e => {
+    if (!hasFiles(e) || ownsDrop(e)) return;
     e.preventDefault();
     dragCount++;
     overlay.style.display = 'flex';
   });
-  main.addEventListener('dragleave', () => {
-    dragCount--;
-    if (dragCount <= 0) { dragCount = 0; overlay.style.display = 'none'; }
+  main.addEventListener('dragleave', e => {
+    if (!hasFiles(e)) return;
+    if (--dragCount <= 0) hide();
   });
-  main.addEventListener('dragover', e => e.preventDefault());
+  main.addEventListener('dragover', e => { if (hasFiles(e) && !ownsDrop(e)) e.preventDefault(); });
   main.addEventListener('drop', async e => {
+    if (!hasFiles(e) || ownsDrop(e)) { hide(); return; }   // not a chat attach — just clear the overlay
     e.preventDefault();
-    dragCount = 0;
-    overlay.style.display = 'none';
-    const files = [...(e.dataTransfer?.files || [])];
-    for (const f of files) await attachFile(f);
+    hide();
+    for (const f of [...(e.dataTransfer?.files || [])]) await attachFile(f);
   });
+  // safety net: any drag that ends or drops anywhere clears a stuck overlay
+  window.addEventListener('dragend', hide);
+  window.addEventListener('drop', e => { if (!hasFiles(e)) hide(); });
 }
