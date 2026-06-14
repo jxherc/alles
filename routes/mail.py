@@ -91,11 +91,35 @@ def test(aid: str, db: DbSession = Depends(get_db)):
 
 @router.get("/inbox/{aid}")
 def inbox(aid: str, folder: str = "INBOX", limit: int = 30, quick: bool = False, db: DbSession = Depends(get_db)):
+    from services import mail_cache
     a = _get(db, aid)
     try:
-        return {"messages": mailsvc.fetch_inbox(_acct_dict(a), folder, limit, quick=quick)}
+        msgs = mailsvc.fetch_inbox(_acct_dict(a), folder, limit, quick=quick)
+        try:
+            mail_cache.save(db, aid, folder, msgs)   # warm the cache for instant/offline reads
+        except Exception:
+            pass
+        return {"messages": msgs}
     except Exception as e:
-        return {"error": str(e)[:200], "messages": []}
+        # network slow/down → serve the last cached copy so the inbox isn't just blank
+        cached = mail_cache.get(db, aid, folder, limit)
+        return {"error": str(e)[:200], "messages": cached, "cached": bool(cached)}
+
+
+@router.get("/cached/{aid}")
+def cached_inbox(aid: str, folder: str = "INBOX", limit: int = 30, db: DbSession = Depends(get_db)):
+    """instant inbox from the local cache — no IMAP round-trip."""
+    from services import mail_cache
+    _get(db, aid)
+    return {"messages": mail_cache.get(db, aid, folder, limit), "cached": True}
+
+
+@router.get("/cache-search/{aid}")
+def cache_search(aid: str, q: str, limit: int = 40, db: DbSession = Depends(get_db)):
+    """instant local search over cached headers (offline-friendly)."""
+    from services import mail_cache
+    _get(db, aid)
+    return {"messages": mail_cache.search(db, aid, q, limit), "cached": True}
 
 
 @router.get("/message/{aid}")
