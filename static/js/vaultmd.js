@@ -26,8 +26,13 @@ function togglePin(path) {
   if (i >= 0) a.splice(i, 1); else a.unshift(path);
   _setPinned(a); loadTree();
 }
-function cycleSort() { _sortMode = _sortMode === 'name' ? 'recent' : 'name'; localStorage.setItem('docs-sort', _sortMode); _syncSortBtn(); loadTree(); }
-function _syncSortBtn() { const b = $('wiki-sort-btn'); if (b) b.textContent = _sortMode === 'recent' ? 'recent' : 'a–z'; }
+const _SORTS = [['name', 'a–z'], ['za', 'z–a'], ['recent', 'edited ↓'], ['oldest', 'edited ↑'], ['type', 'type']];
+function cycleSort() {
+  const i = _SORTS.findIndex(s => s[0] === _sortMode);
+  _sortMode = _SORTS[(i + 1) % _SORTS.length][0];
+  localStorage.setItem('docs-sort', _sortMode); _syncSortBtn(); loadTree();
+}
+function _syncSortBtn() { const b = $('wiki-sort-btn'); if (b) b.textContent = (_SORTS.find(s => s[0] === _sortMode) || _SORTS[0])[1]; }
 
 // collapsed folders (paths) — persisted, so folders fold/unfold like a real tree
 function _collapsed() { try { return new Set(JSON.parse(localStorage.getItem('docs-collapsed') || '[]')); } catch { return new Set(); } }
@@ -490,10 +495,17 @@ async function loadTree() {
     let html = '';
     const pins = _pinned().map(p => files.find(f => f.path === p)).filter(Boolean);
     if (pins.length) html += `<div class="wiki-pinned"><div class="wiki-pinned-label">pinned</div>${pins.map(_fileRow).join('')}</div>`;
-    if (_sortMode === 'recent') {
-      html += [...files].sort((a, b) => (b.mtime || 0) - (a.mtime || 0)).map(_fileRow).join('');
+    const _ext = f => (f.name || '').split('.').slice(1).pop() || '';
+    const flat = {
+      za:     [...files].sort((a, b) => (b.name || '').localeCompare(a.name || '')),
+      recent: [...files].sort((a, b) => (b.mtime || 0) - (a.mtime || 0)),
+      oldest: [...files].sort((a, b) => (a.mtime || 0) - (b.mtime || 0)),
+      type:   [...files].sort((a, b) => _ext(a).localeCompare(_ext(b)) || (a.name || '').localeCompare(b.name || '')),
+    };
+    if (flat[_sortMode]) {
+      html += flat[_sortMode].map(_fileRow).join('');
     } else {
-      html += t.items.length ? renderItems(t.items, 0) : '';
+      html += t.items.length ? renderItems(t.items, 0) : '';   // 'name' = hierarchical a–z
     }
     el.innerHTML = html || '<div class="wiki-empty">docs empty - create one</div>';
     el.querySelectorAll('.wiki-file').forEach(f => _wireRow(f, 'file'));
