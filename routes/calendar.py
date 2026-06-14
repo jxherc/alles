@@ -82,3 +82,32 @@ def delete_event(eid: str, db: DbSession = Depends(get_db)):
     if not e: raise HTTPException(404)
     db.delete(e); db.commit()
     return {"ok": True}
+
+
+@router.get("/calendar/export.ics")
+def export_ics(db: DbSession = Depends(get_db)):
+    """download every event as a .ics — import into Apple/Google/Outlook calendar."""
+    from fastapi.responses import Response
+    from services.ics import to_ics
+    rows = db.query(CalendarEvent).order_by(CalendarEvent.start_dt.asc()).all()
+    body = to_ics([_fmt(e) for e in rows])
+    return Response(body, media_type="text/calendar",
+                    headers={"content-disposition": 'attachment; filename="alles-calendar.ics"'})
+
+
+class IcsImport(BaseModel):
+    ics: str
+
+
+@router.post("/calendar/import")
+def import_ics(body: IcsImport, db: DbSession = Depends(get_db)):
+    """import events from a pasted/uploaded .ics."""
+    from services.ics import parse_ics
+    n = 0
+    for ev in parse_ics(body.ics):
+        db.add(CalendarEvent(title=ev["title"] or "(untitled)", start_dt=ev["start_dt"],
+                             end_dt=ev.get("end_dt"), all_day=ev.get("all_day", False),
+                             description=ev.get("description", "")))
+        n += 1
+    db.commit()
+    return {"imported": n}
