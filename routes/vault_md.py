@@ -251,6 +251,28 @@ def restore_revision(rid: str):
     return {"ok": True, "path": out.get("path", path)}
 
 
+@router.get("/diff")
+def diff_revision(path: str, a: str = "", b: str = ""):
+    """unified diff between revision `a` and `b`. empty/'current' b = the live file."""
+    import difflib
+    from core.database import SessionLocal, DocRevision
+    db = SessionLocal()
+    try:
+        old = (db.get(DocRevision, a).content if a and db.get(DocRevision, a) else "") or ""
+        if not b or b == "current":
+            new = vault_md.read(_norm_path(path)).get("content", "") or ""
+            blabel = "current"
+        else:
+            rb = db.get(DocRevision, b)
+            new = (rb.content if rb else "") or ""
+            blabel = b[:8]
+    finally:
+        db.close()
+    d = "".join(difflib.unified_diff(old.splitlines(keepends=True), new.splitlines(keepends=True),
+                                     fromfile=a[:8] if a else "empty", tofile=blabel))
+    return {"diff": d}
+
+
 @router.get("/search")
 def search(q: str = ""):
     return {"results": vault_md.search(q)}
