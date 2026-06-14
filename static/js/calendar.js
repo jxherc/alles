@@ -33,6 +33,23 @@ function _bindNav() {
     b.addEventListener('click', () => { _view = b.dataset.view; localStorage.setItem('cal-view', _view); _syncViewBtns(); render(); }));
   _syncViewBtns();
   document.getElementById('cal-sync-btn')?.addEventListener('click', openCaldavPanel);
+
+  const imp = document.getElementById('cal-import');
+  if (imp && !imp.dataset.bound) {
+    imp.dataset.bound = '1';
+    const fileInp = document.getElementById('cal-import-file');
+    imp.addEventListener('click', () => fileInp?.click());
+    fileInp?.addEventListener('change', async e => {
+      const f = e.target.files[0]; if (!f) return;
+      try {
+        const r = await fetch('/api/calendar/import', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ics: await f.text() }) });
+        const d = await r.json();
+        toast(`imported ${d.imported} event${d.imported === 1 ? '' : 's'}`, 'success');
+        loadCalendar();
+      } catch { toast('import failed', 'error'); }
+      fileInp.value = '';
+    });
+  }
 }
 
 function _syncViewBtns() {
