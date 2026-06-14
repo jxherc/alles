@@ -1562,6 +1562,13 @@ code {
   overflow: hidden; text-overflow: ellipsis; display: inline-block;
 }
 .source-link:hover { color: var(--text); border-color: var(--muted); }
+.research-stats {
+  padding: 0.4rem 0.9rem;
+  display: flex; flex-wrap: wrap; gap: 0.5rem 1rem;
+  border-top: 1px solid var(--faint);
+  font-size: 0.66rem; color: var(--muted); letter-spacing: 0.02em;
+}
+.research-stat b { color: var(--text); font-weight: 500; margin-right: 0.25rem; }
 
 /* ── generic page view (notes, tasks, etc.) ── */
 .page-view {
