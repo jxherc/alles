@@ -162,6 +162,58 @@ def run_setup():
     area_write("setup", log)
 
 
+def run_memory():
+    log = [f"# memory — {datetime.now().isoformat()}", ""]
+    holder = {}
+
+    def add():
+        r = client.post("/api/memories", json={"text": "I evidence-test alles every night", "category": "identity"})
+        log.append(f"POST /api/memories -> {r.status_code} {json.dumps(r.json())[:200]}")
+        holder["id"] = r.json().get("id")
+        return r.status_code == 200 and bool(holder["id"]), ""
+
+    def search():
+        r = client.post("/api/memories/search", json={"query": "what do i test"})
+        log.append(f"POST /api/memories/search 'what do i test' -> {len(r.json())} hit(s)")
+        log.append(json.dumps(r.json(), indent=2)[:400])
+        return r.status_code == 200 and any("evidence-test" in m["text"] for m in r.json()), ""
+
+    def delete():
+        r = client.delete(f"/api/memories/{holder['id']}")
+        log.append(f"DELETE -> {r.json()}")
+        return r.json().get("ok") is True, ""
+
+    check("memory", "add", add)
+    check("memory", "semantic search finds it", search)
+    check("memory", "delete", delete)
+    area_write("memory", log)
+
+
+def run_agent_endpoints():
+    log = [f"# agent endpoints — {datetime.now().isoformat()}", ""]
+
+    def status():
+        r = client.get("/api/agent/status")
+        log.append(f"GET /api/agent/status -> {r.status_code}")
+        log.append(json.dumps(r.json(), indent=2)[:600])
+        return r.status_code == 200, ""
+
+    def runs():
+        r = client.get("/api/agent/runs")
+        log.append(f"GET /api/agent/runs -> {r.status_code}, {len(r.json())} run(s)")
+        return r.status_code == 200 and isinstance(r.json(), list), ""
+
+    def incomplete():
+        r = client.get("/api/agent/runs/incomplete")
+        log.append(f"GET /api/agent/runs/incomplete -> {r.status_code}, {len(r.json())} run(s)")
+        return r.status_code == 200 and isinstance(r.json(), list), ""
+
+    check("agent", "status reports tools", status)
+    check("agent", "runs list", runs)
+    check("agent", "incomplete runs list", incomplete)
+    area_write("agent", log)
+
+
 def main():
     OUT.mkdir(parents=True, exist_ok=True)
     print(f"stress run -> {OUT}\n")
@@ -177,6 +229,8 @@ def main():
     run_crud("webhooks", "/api/webhooks", None, {"name": "evh", "url": "https://example.com"}, {"name": "evh2", "url": "https://example.com", "events": ["message"]})
     run_calendar_nl()
     run_tasks_nl()
+    run_memory()
+    run_agent_endpoints()
 
     # summary
     total = len(_results)
