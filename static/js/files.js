@@ -1,5 +1,6 @@
 import { toast } from './util.js';
 import { prompt as dlgPrompt, confirm as dlgConfirm } from './dialog.js';
+import { urlForApp } from './subdomain.js';
 
 let _cwd = '';   // current relative dir
 
@@ -27,6 +28,26 @@ export async function loadFiles(path = _cwd) {
   }
   renderCrumb();
   renderList(data.items || []);
+  if (!_cwd) _injectDocsShortcut();   // at root, surface the docs vault too
+}
+
+function _countDocs(items) {
+  let n = 0;
+  for (const it of (items || [])) n += it.type === 'dir' ? _countDocs(it.children || it.items) : 1;
+  return n;
+}
+
+async function _injectDocsShortcut() {
+  const list = $('files-list');
+  if (!list || list.querySelector('.files-doc-shortcut')) return;
+  let n = 0;
+  try { n = _countDocs((await fetch('/api/vault-md/tree').then(r => r.json())).items); } catch {}
+  const row = document.createElement('div');
+  row.className = 'file-row files-doc-shortcut';
+  row.style.cursor = 'pointer';
+  row.innerHTML = `<span class="file-icon">📄</span><span class="file-name">documents</span><span class="file-meta">${n} note${n === 1 ? '' : 's'} · open in docs →</span>`;
+  row.addEventListener('click', () => { try { window.location.href = urlForApp('docs'); } catch { location.hash = ''; } });
+  list.insertBefore(row, list.firstChild);
 }
 
 function renderCrumb() {
