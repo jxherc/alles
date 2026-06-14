@@ -68,6 +68,21 @@ export function initPhotos() {
   if (_inited) return;
   _inited = true;
   $('photos-album')?.addEventListener('change', e => { _album = e.target.value; loadPhotos(); });
+  $('photos-gen-btn')?.addEventListener('click', async () => {
+    const p = await dlgPrompt('describe the image to generate:');
+    if (!p) return;
+    toast('generating… (this can take a bit)');
+    try {
+      const r = await fetch('/api/images/generate', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ prompt: p, model: localStorage.getItem('alles-image-model') || '' }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.detail || 'generation failed');
+      toast(`generated ${d.images.length} image${d.images.length === 1 ? '' : 's'}`, 'success');
+      loadPhotos();
+    } catch (e) { toast(e.message || 'generation failed', 'error'); }
+  });
   const psearch = $('photos-search');
   let _pt;
   psearch?.addEventListener('input', () => {
