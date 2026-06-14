@@ -1644,9 +1644,17 @@ code {
 
 /* edit mode: drag to reorder, ×/+ to hide/show */
 .home-grid.no-anim .home-tile { animation: none; opacity: 1; transform: none; }
-.home-grid.editing .home-tile { cursor: grab; }
+.home-grid.editing .home-tile { cursor: grab; overflow: visible; }
 .home-grid.editing .home-tile:hover { transform: none; }
 .home-tile.dragging { opacity: 0.4; }
+/* placement indicator: a glowing accent bar in the gap where the tile will land */
+.home-tile.drop-before::before, .home-tile.drop-after::before {
+  content: ""; position: absolute; top: 6%; height: 88%; width: 3px; z-index: 5;
+  background: var(--accent); border-radius: 3px;
+  box-shadow: 0 0 8px 1px color-mix(in srgb, var(--accent) 70%, transparent);
+}
+.home-tile.drop-before::before { left: -0.33rem; }
+.home-tile.drop-after::before { right: -0.33rem; }
 .home-tile.hidden-tile { opacity: 0.45; border-style: dashed; }
 .home-tile-toggle {
   position: absolute; top: 0.4rem; right: 0.4rem; z-index: 2;
@@ -1928,6 +1936,13 @@ code {
 .note-editor-body:focus { border-color: var(--muted); }
 
 /* task item */
+.tasks-tabs { display: flex; gap: 0.15rem; }
+.tasks-tab {
+  background: none; border: 1px solid transparent; border-radius: 4px; color: var(--muted);
+  font: inherit; font-size: 0.68rem; padding: 0.22rem 0.6rem; cursor: pointer; transition: all 0.15s ease;
+}
+.tasks-tab:hover { color: var(--text); }
+.tasks-tab.active { background: color-mix(in srgb, var(--accent) 18%, transparent); color: var(--accent); border-color: color-mix(in srgb, var(--accent) 40%, transparent); }
 .task-item {
   display: flex; align-items: center; gap: 0.65rem;
   padding: 0.45rem 0;
