@@ -13,9 +13,19 @@ export async function loadPhotos() {
   await loadAlbums();
   const d = await fetch('/api/photos/list' + (_album ? '?album=' + encodeURIComponent(_album) : ''))
     .then(r => r.json()).catch(() => ({ moments: [] }));
+  _renderMoments(d, 'gallery empty - upload something');
+}
+
+async function searchPhotos(q) {
+  const d = await fetch('/api/photos/search?q=' + encodeURIComponent(q))
+    .then(r => r.json()).catch(() => ({ moments: [] }));
+  _renderMoments(d, 'no photos match');
+}
+
+function _renderMoments(d, emptyMsg) {
   const grid = $('photos-grid');
   _photos = [];
-  if (!d.moments?.length) { grid.innerHTML = '<div class="photos-empty">gallery empty - upload something</div>'; return; }
+  if (!d.moments?.length) { grid.innerHTML = `<div class="photos-empty">${emptyMsg}</div>`; return; }
   let html = '';
   for (const m of d.moments) {
     html += `<div class="photos-moment"><div class="photos-moment-label">${esc(m.label)}</div><div class="photos-moment-grid">`;
@@ -58,6 +68,14 @@ export function initPhotos() {
   if (_inited) return;
   _inited = true;
   $('photos-album')?.addEventListener('change', e => { _album = e.target.value; loadPhotos(); });
+  const psearch = $('photos-search');
+  let _pt;
+  psearch?.addEventListener('input', () => {
+    clearTimeout(_pt);
+    const q = psearch.value.trim();
+    if (!q) { loadPhotos(); return; }
+    _pt = setTimeout(() => searchPhotos(q), 300);
+  });
   $('photos-upload-btn')?.addEventListener('click', () => $('photos-upload-input')?.click());
   $('photos-upload-input')?.addEventListener('change', e => { uploadPhotos(e.target.files); e.target.value = ''; });
   $('photos-newalbum-btn')?.addEventListener('click', newAlbum);
