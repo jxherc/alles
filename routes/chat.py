@@ -250,7 +250,7 @@ async def _stream_and_save(
             um = Message(session_id=session_id, role="user", content=user_text)
             db.add(um)
 
-        meta = {"usage": usage}
+        meta = {"usage": usage, "model": model}
         if thinking_acc:
             meta["thinking"] = "".join(thinking_acc)
         if tool_steps:
