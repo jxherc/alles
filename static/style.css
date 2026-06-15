@@ -2554,6 +2554,23 @@ code {
 .seg-opt:hover { color: var(--text); }
 .seg-opt.active { color: var(--accent); background: var(--panel); }
 
+/* persona accent swatches */
+.pa-hint { color: var(--muted); font-size: 0.62rem; text-transform: none; letter-spacing: 0; }
+.persona-accent-row { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; }
+.pa-swatch {
+  width: 20px; height: 20px; border-radius: 50%; padding: 0;
+  border: 1px solid var(--faint); cursor: pointer;
+  transition: transform 0.12s cubic-bezier(0.2,0.7,0.2,1);
+}
+.pa-swatch:hover { transform: scale(1.18); }
+.pa-swatch.active { box-shadow: 0 0 0 2px var(--bg), 0 0 0 3px var(--text); }
+.pa-none {
+  width: auto; height: 20px; border-radius: 4px; padding: 0 0.5rem;
+  background: none; color: var(--muted); font-size: 0.62rem;
+  letter-spacing: 0.04em; text-transform: lowercase;
+}
+.pa-none.active { color: var(--text); border-color: var(--muted); box-shadow: none; }
+
 /* ── calendar ── */
 .cal-month-label {
   font-size: 0.7rem; color: var(--muted); letter-spacing: 0.04em; font-weight: 500;
