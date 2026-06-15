@@ -236,6 +236,8 @@ async def run_agent(
             llm_kwargs = {"tools": build_tool_defs(settings)}
             if settings.get("agent_max_tokens"):
                 llm_kwargs["max_tokens"] = settings["agent_max_tokens"]
+            if settings.get("temperature") is not None:
+                llm_kwargs["temperature"] = settings["temperature"]
 
             update_run(run_id, turn=turn + 1)
             record_event(run_id, "turn", {"index": turn + 1, "max": max_turns})

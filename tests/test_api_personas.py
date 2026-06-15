@@ -35,6 +35,16 @@ class PersonasApiTest(ApiTest):
         self.assertEqual(r["model"], "gpt-x")     # untouched
         self.assertTrue(r["is_default"])          # untouched
 
+    def test_temperature_roundtrip(self):
+        pid = self.client.post("/api/personas", json={"name": "loose", "temperature": 1.3}).json()["id"]
+        self.assertEqual(self.client.get("/api/personas").json()[0]["temperature"], 1.3)
+        # clearing it sets null, doesn't error
+        r = self.client.patch(f"/api/personas/{pid}", json={"temperature": None}).json()
+        self.assertIsNone(r["temperature"])
+        # default (unset) persona has null temperature
+        pid2 = self.client.post("/api/personas", json={"name": "plain"}).json()["id"]
+        self.assertIsNone([p for p in self.client.get("/api/personas").json() if p["id"] == pid2][0]["temperature"])
+
     def test_duplicate(self):
         pid = self.client.post("/api/personas", json={
             "name": "orig", "emoji": "🤖", "system_prompt": "be terse", "model": "m1"}).json()["id"]
