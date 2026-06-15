@@ -36,6 +36,18 @@ class AuthApiTest(ApiTest):
     def test_short_password_rejected(self):
         self.assertEqual(self.client.post("/api/auth/change-password", json={"new_password": "ab"}).status_code, 400)
 
+    def test_change_password_throttles_brute_force(self):
+        from core import auth
+        auth._login_fails.clear()
+        self.client.post("/api/auth/change-password", json={"new_password": "first1"})
+        # wrong current password, hammered: must eventually rate-limit (429) so the
+        # endpoint isn't an unmetered oracle for the master password
+        statuses = [self.client.post("/api/auth/change-password",
+                    json={"old_password": "nope", "new_password": "second1"}).status_code
+                    for _ in range(auth._LOGIN_MAX_FAILS + 1)]
+        self.assertIn(429, statuses)
+        auth._login_fails.clear()
+
     def test_username_round_trips_through_me(self):
         self.assertEqual(self.client.get("/api/auth/me").json().get("username"), "")
         self.client.patch("/api/settings", json={"username": "jxh"})

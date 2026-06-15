@@ -135,11 +135,19 @@ def export_txns_csv(db: DbSession = Depends(get_db)):
     """download all transactions as CSV (open in a spreadsheet)."""
     import csv, io
     from fastapi.responses import Response
+
+    def _safe(v):
+        # neutralize spreadsheet formula injection: a cell starting with =,+,-,@
+        # (or a leading tab/CR) is run as a formula by Excel/Sheets/LibreOffice.
+        s = "" if v is None else str(v)
+        return "'" + s if s[:1] in ("=", "+", "-", "@", "\t", "\r") else s
+
     buf = io.StringIO()
     w = csv.writer(buf)
     w.writerow(["date", "amount", "category", "payee", "notes", "account_id"])
     for t in db.query(Transaction).order_by(Transaction.date).all():
-        w.writerow([t.date, t.amount, t.category or "", t.payee or "", t.notes or "", t.account_id])
+        w.writerow([t.date, t.amount, _safe(t.category or ""), _safe(t.payee or ""),
+                    _safe(t.notes or ""), t.account_id])
     return Response(buf.getvalue(), media_type="text/csv",
                     headers={"content-disposition": 'attachment; filename="transactions.csv"'})
 

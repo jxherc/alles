@@ -81,7 +81,7 @@ class ChangePwBody(BaseModel):
 
 
 @router.post("/change-password")
-def change_password(body: ChangePwBody):
+def change_password(body: ChangePwBody, request: Request):
     if len(body.new_password) < 4:
         raise HTTPException(400, "new password must be at least 4 characters")
     s = load_settings()
@@ -89,9 +89,17 @@ def change_password(body: ChangePwBody):
     if not hashed:
         env_pw = os.getenv("AUTH_PASSWORD", "")
         hashed = hash_password(env_pw) if env_pw else ""
-    # if a password already exists, the current one must match
-    if hashed and not verify_password(body.old_password, hashed):
-        raise HTTPException(401, "current password is wrong")
+    # if a password already exists, the current one must match. throttle this
+    # the same way as /login — otherwise it's an unmetered brute-force oracle
+    # for the master password (this endpoint sits under the auth-exempt prefix).
+    if hashed:
+        ip = request.client.host if request.client else "?"
+        if login_blocked(ip):
+            raise HTTPException(429, "too many attempts — wait a few minutes and try again")
+        if not verify_password(body.old_password, hashed):
+            record_login_fail(ip)
+            raise HTTPException(401, "current password is wrong")
+        clear_login_fails(ip)
     save_settings({"auth_password_hash": hash_password(body.new_password)})
     return {"ok": True}
 
