@@ -39,3 +39,16 @@ class MoneyCsvTest(ApiTest):
         csv_text = "date,amount\n2026-06-01,10\n,5\n2026-06-02,notanumber\n2026-06-03,20\n"
         r = self.client.post("/api/money/transactions/import.csv", json={"csv": csv_text, "account_id": aid})
         self.assertEqual(r.json()["imported"], 2)   # only the two valid rows
+
+    def test_export_neutralizes_formula_injection(self):
+        aid = self._account()
+        # a payee/notes that an attacker controls (e.g. via an imported statement)
+        # must not become a live formula when the CSV is opened in a spreadsheet
+        self.client.post("/api/money/transactions", json={
+            "account_id": aid, "date": "2026-06-05", "amount": -1.0,
+            "payee": "=cmd|'/c calc'!A0", "notes": "@SUM(1+1)", "category": "+x"})
+        text = self.client.get("/api/money/transactions/export.csv").text
+        self.assertNotIn(",=cmd", text)           # no cell begins with a bare formula
+        self.assertIn(",'=cmd|", text)            # neutralized with a leading quote
+        self.assertIn(",'@SUM(1+1)", text)
+        self.assertIn(",'+x", text)

@@ -199,16 +199,28 @@ async def _stream_shell(command: str, cwd: str = ""):
             stderr=asyncio.subprocess.STDOUT,
         )
         collected = []
+        collected_len = 0
+        loop = asyncio.get_event_loop()
+        deadline = loop.time() + 180   # wall-clock cap, not per-line
         try:
             while True:
-                line = await asyncio.wait_for(proc.stdout.readline(), timeout=180)
+                remaining = deadline - loop.time()
+                if remaining <= 0:
+                    raise asyncio.TimeoutError
+                line = await asyncio.wait_for(proc.stdout.readline(), timeout=remaining)
                 if not line:
                     break
                 text = line.decode("utf-8", errors="replace")
-                collected.append(text)
+                if collected_len < 200_000:   # bound memory on chatty/looping commands
+                    collected.append(text)
+                    collected_len += len(text)
                 yield {"type": "output", "text": text}
         except asyncio.TimeoutError:
             proc.kill()
+            try:
+                await proc.wait()   # reap, don't leave a zombie + leaked pipes
+            except Exception:
+                pass
             yield {"type": "result", "result": {"output": "timeout after 180s", "error": True}}
             return
         await proc.wait()
@@ -299,6 +311,13 @@ async def _apply_patch_text(patch: str, cwd: str = "") -> dict:
             patch_path = f.name
         try:
             if (workdir / ".git").exists():
+                # apply_patch shells out to `git apply`, so the per-file write
+                # guard (secrets / workspace confinement) has to be enforced here
+                # too — otherwise a diff targeting ../.ssh/... or a .env slips past it.
+                for tgt in _patch_targets(patch):
+                    blocked = _guard_path((workdir / tgt).resolve(), write=True)
+                    if blocked:
+                        return {"output": blocked, "error": True}
                 quoted = json.dumps(patch_path) if os.name == "nt" else shlex.quote(patch_path)
                 return await _run_shell(f"git apply --whitespace=nowarn {quoted}", cwd=str(workdir))
             return {"output": "apply_patch currently requires a git worktree so `git apply` can apply the unified diff", "error": True}
@@ -1655,6 +1674,7 @@ async def _revert_file(path: str) -> dict:
     p = Path(target)
     try:
         if cp.get("existed"):
+            p.parent.mkdir(parents=True, exist_ok=True)   # dir may have been removed since the checkpoint
             p.write_text(cp.get("before", ""), "utf-8")
             return {"output": f"reverted {path} to run-start state", "error": False}
         if p.exists():

@@ -1,4 +1,6 @@
+import asyncio
 import os
+import subprocess
 import tempfile
 import unittest
 
@@ -86,6 +88,20 @@ class InjectionGuardTests(unittest.TestCase):
 
     def test_non_diff_tool_empty(self):
         self.assertEqual(at.preview_change("shell", {"command": "ls"}), "")
+
+
+class ApplyPatchGuardTests(unittest.TestCase):
+    def test_patch_targeting_secret_is_blocked(self):
+        # apply_patch shells out to `git apply`, so the secret/workspace write
+        # guard has to be enforced on the patch's target paths too.
+        with tempfile.TemporaryDirectory() as d:
+            subprocess.run(["git", "init", "-q"], cwd=d, check=True)
+            patch = ("--- /dev/null\n+++ b/.env\n@@ -0,0 +1 @@\n"
+                     "+SECRET=leaked\n")
+            res = asyncio.run(at._apply_patch_text(patch, cwd=d))
+            self.assertTrue(res["error"])
+            self.assertIn("blocked", res["output"])
+            self.assertFalse(os.path.exists(os.path.join(d, ".env")))
 
 
 class WorkspaceFilesTests(unittest.TestCase):
