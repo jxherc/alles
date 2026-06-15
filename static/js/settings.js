@@ -788,9 +788,25 @@ async function saveVoiceSettings() {
 let _personaCache = [];
 let _editingPersona = null;
 
+function _fillPersonaModels(selected = '') {
+  const sel = document.getElementById('persona-model');
+  if (!sel) return;
+  const eps = window._endpoints || [];
+  let html = '<option value="">— use chat\'s model</option>';
+  for (const ep of eps) {
+    for (const m of (ep.models || [])) html += `<option value="${_esc(m)}">${_esc(m)}</option>`;
+  }
+  // keep a pinned model that isn't in any endpoint's list (e.g. a renamed/removed one)
+  if (selected && !eps.some(ep => (ep.models || []).includes(selected)))
+    html += `<option value="${_esc(selected)}">${_esc(selected)} (not in any endpoint)</option>`;
+  sel.innerHTML = html;
+  sel.value = selected || '';
+}
+
 export async function loadPersonas() {
   const el = document.getElementById('persona-list');
   if (!el) return;
+  _fillPersonaModels(document.getElementById('persona-model')?.value || '');
   _personaCache = await fetch('/api/personas').then(r => r.json()).catch(() => []);
   if (!_personaCache.length) { el.innerHTML = '<div class="settings-row-empty">no personas yet</div>'; return; }
   el.innerHTML = _personaCache.map(p => {
@@ -811,6 +827,8 @@ window._editPersona = id => {
   document.getElementById('persona-name').value   = p.name || '';
   document.getElementById('persona-prompt').value = p.system_prompt || '';
   const em = document.getElementById('persona-emoji'); if (em) em.value = p.emoji || '';
+  _fillPersonaModels(p.model || '');
+  const def = document.getElementById('persona-default'); if (def) def.checked = !!p.is_default;
   const title = document.getElementById('persona-form-title');
   if (title) { title.textContent = `editing "${p.name}"`; title.hidden = false; }
   document.getElementById('persona-add-btn').textContent = 'save changes';
@@ -822,6 +840,8 @@ window._editPersona = id => {
 function _resetPersonaForm() {
   _editingPersona = null;
   ['persona-name','persona-prompt','persona-emoji'].forEach(id => { const e = document.getElementById(id); if (e) e.value = ''; });
+  _fillPersonaModels('');
+  const def = document.getElementById('persona-default'); if (def) def.checked = false;
   const title = document.getElementById('persona-form-title'); if (title) title.hidden = true;
   document.getElementById('persona-add-btn').textContent = 'add persona';
   document.getElementById('persona-cancel-btn').hidden = true;
@@ -839,14 +859,17 @@ async function addPersona() {
   const name   = document.getElementById('persona-name').value.trim();
   const prompt = document.getElementById('persona-prompt').value.trim();
   const emoji  = (document.getElementById('persona-emoji')?.value || '').trim();
+  const model  = document.getElementById('persona-model')?.value || '';
+  const is_default = !!document.getElementById('persona-default')?.checked;
   if (!name) { toast('name required', 'error'); return; }
+  const payload = { name, emoji, system_prompt: prompt, model, is_default };
   if (_editingPersona) {
     await fetch(`/api/personas/${_editingPersona}`, { method: 'PATCH', headers: {'content-type':'application/json'},
-      body: JSON.stringify({ name, emoji, system_prompt: prompt }) });
+      body: JSON.stringify(payload) });
     toast('persona updated', 'success');
   } else {
     await fetch('/api/personas', { method: 'POST', headers: {'content-type':'application/json'},
-      body: JSON.stringify({ name, emoji, system_prompt: prompt }) });
+      body: JSON.stringify(payload) });
     toast('persona added', 'success');
   }
   _resetPersonaForm();

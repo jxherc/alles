@@ -1223,6 +1223,10 @@
                 <div style="flex:1"><label>name</label><input type="text" class="settings-input" id="persona-name" placeholder="name" style="width:100%"></div>
               </div>
               <div class="s-field"><label>system prompt</label><textarea class="settings-textarea" id="persona-prompt" rows="6" placeholder="You are..." style="width:100%;resize:vertical"></textarea></div>
+              <div class="s-field" style="display:flex;gap:.5rem;align-items:flex-end">
+                <div style="flex:1"><label>pinned model</label><select class="settings-input" id="persona-model" style="width:100%"><option value="">— use chat's model</option></select></div>
+                <label style="display:flex;align-items:center;gap:.3rem;font-size:.72rem;white-space:nowrap;padding-bottom:.5rem"><input type="checkbox" id="persona-default"> default</label>
+              </div>
               <div style="display:flex;gap:.5rem">
                 <button class="btn primary" id="persona-add-btn" style="flex:1">add persona</button>
                 <button class="btn" id="persona-cancel-btn" hidden>cancel</button>

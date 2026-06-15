@@ -1,3 +1,4 @@
+import json
 from tests._client import ApiTest
 
 
@@ -33,3 +34,21 @@ class PersonasApiTest(ApiTest):
         self.assertEqual(r["system_prompt"], "be terse")
         self.assertEqual(r["model"], "gpt-x")     # untouched
         self.assertTrue(r["is_default"])          # untouched
+
+    def test_persona_pins_model_and_switches_endpoint(self):
+        from routes.chat import _apply_persona_model
+        from core.database import ModelEndpoint, Session, Persona
+        db = self.db()
+        ep1 = ModelEndpoint(name="e1", base_url="http://x", api_key="", enabled=True, cached_models=json.dumps(["m1"]))
+        ep2 = ModelEndpoint(name="e2", base_url="http://y", api_key="", enabled=True, cached_models=json.dumps(["m2"]))
+        db.add_all([ep1, ep2]); db.commit()
+        p = Persona(name="coder", model="m2"); db.add(p); db.commit()
+        s = Session(name="t", persona_id=p.id, endpoint_id=ep1.id); db.add(s); db.commit()
+        new_ep, model = _apply_persona_model(s, ep1, "m1", db)
+        self.assertEqual(model, "m2")
+        self.assertEqual(new_ep.id, ep2.id)   # hopped to the endpoint that serves m2
+        # persona with no pinned model leaves things alone
+        s.persona_id = None; db.commit()
+        same_ep, same_model = _apply_persona_model(s, ep1, "m1", db)
+        self.assertEqual((same_ep.id, same_model), (ep1.id, "m1"))
+        db.close()
