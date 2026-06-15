@@ -5,7 +5,12 @@ implementation, just the fields the app actually uses (summary/start/end/all-day
 description), which is what real calendars round-trip.
 """
 import re
-from datetime import datetime
+from datetime import date, datetime, timedelta
+
+
+def _add_days(iso: str, days: int) -> str:
+    """shift a YYYY-MM-DD string by N days (handles month/year rollover)."""
+    return (date.fromisoformat(iso[:10]) + timedelta(days=days)).isoformat()
 
 
 def _esc(s: str) -> str:
@@ -42,7 +47,10 @@ def to_ics(events: list[dict]) -> str:
         if all_day:
             lines.append(f"DTSTART;VALUE=DATE:{_fmt_dt(e.get('start_dt',''), True)}")
             if e.get("end_dt"):
-                lines.append(f"DTEND;VALUE=DATE:{_fmt_dt(e.get('end_dt',''), True)}")
+                # all-day DTEND is exclusive in RFC 5545 (an event on the 1st ends
+                # the 2nd). we store the inclusive last day, so emit end + 1 day —
+                # otherwise the final day is dropped in Apple/Google/Outlook.
+                lines.append(f"DTEND;VALUE=DATE:{_fmt_dt(_add_days(e['end_dt'], 1), True)}")
         else:
             lines.append(f"DTSTART:{_fmt_dt(e.get('start_dt',''), False)}")
             if e.get("end_dt"):
@@ -91,5 +99,7 @@ def parse_ics(text: str) -> list[dict]:
             elif name == "DTSTART":
                 cur["start_dt"], cur["all_day"] = _parse_dt(val)
             elif name == "DTEND":
-                cur["end_dt"], _ = _parse_dt(val)
+                end_iso, end_all_day = _parse_dt(val)
+                # reverse the export: an all-day exclusive end → inclusive last day
+                cur["end_dt"] = _add_days(end_iso, -1) if end_all_day else end_iso
     return events

@@ -33,27 +33,36 @@ class VaultApiTest(ApiTest):
         self.assertEqual(self.client.post("/api/vault", json={"name": "x", "value": "y"}).status_code, 403)
 
     def test_full_flow_unlock_create_reveal_lock(self):
-        # first unlock sets the master verifier
+        # first unlock sets the master verifier and hands back this session's token
         tok = self.client.post("/api/vault/unlock", json={"password": "hunter2"}).json()
         self.assertIn("token", tok)
+        h = {"X-Vault-Token": tok["token"]}
 
         # create an encrypted entry
-        r = self.client.post("/api/vault", json={"name": "github", "value": "ghp_secret", "username": "me"})
+        r = self.client.post("/api/vault", json={"name": "github", "value": "ghp_secret", "username": "me"}, headers=h)
         self.assertEqual(r.status_code, 200)
         eid = r.json()["id"]
 
         # list shows metadata (not the secret)
-        lst = self.client.get("/api/vault").json()
+        lst = self.client.get("/api/vault", headers=h).json()
         self.assertEqual(lst[0]["name"], "github")
         self.assertNotIn("value", lst[0])
 
         # reveal decrypts back to the original
-        rv = self.client.get(f"/api/vault/{eid}/reveal").json()
+        rv = self.client.get(f"/api/vault/{eid}/reveal", headers=h).json()
         self.assertEqual(rv["value"], "ghp_secret")
 
         # lock → access denied again
         self.assertEqual(self.client.post("/api/vault/lock").json(), {"ok": True})
-        self.assertEqual(self.client.get(f"/api/vault/{eid}/reveal").status_code, 403)
+        self.assertEqual(self.client.get(f"/api/vault/{eid}/reveal", headers=h).status_code, 403)
+
+    def test_unlock_token_is_required_not_just_any_unlock(self):
+        # a live unlock must NOT authorize a request that doesn't present the
+        # matching token — otherwise one unlock opens the vault to every caller
+        tok = self.client.post("/api/vault/unlock", json={"password": "hunter2"}).json()["token"]
+        self.assertEqual(self.client.get("/api/vault").status_code, 403)            # no token header
+        self.assertEqual(self.client.get("/api/vault", headers={"X-Vault-Token": "bogus"}).status_code, 403)
+        self.assertEqual(self.client.get("/api/vault", headers={"X-Vault-Token": tok}).status_code, 200)
 
     def test_wrong_master_rejected(self):
         self.client.post("/api/vault/unlock", json={"password": "right"})

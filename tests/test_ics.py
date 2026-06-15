@@ -20,6 +20,17 @@ class IcsServiceTest(ApiTest):   # ApiTest only for convenience; these are pure
         self.assertTrue(out[0]["all_day"])
         self.assertEqual(out[0]["start_dt"], "2026-07-01")
 
+    def test_all_day_multiday_end_is_exclusive(self):
+        # a 3-day all-day event (Jun 30 - Jul 2 inclusive) must export an
+        # exclusive DTEND of Jul 3, and round-trip back to the inclusive Jul 2
+        evs = [{"id": "3", "title": "Trip", "start_dt": "2026-06-30",
+                "end_dt": "2026-07-02", "all_day": True}]
+        text = ics.to_ics(evs)
+        self.assertIn("DTEND;VALUE=DATE:20260703", text)   # +1 day, crosses the month
+        out = ics.parse_ics(text)
+        self.assertEqual(out[0]["start_dt"], "2026-06-30")
+        self.assertEqual(out[0]["end_dt"], "2026-07-02")
+
     def test_parses_real_world_ics(self):
         text = ("BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nUID:x\r\nSUMMARY:Team sync\r\n"
                 "DTSTART:20260620T090000\r\nDTEND:20260620T093000\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n")
