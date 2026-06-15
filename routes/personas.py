@@ -33,13 +33,23 @@ def create_persona(body: PersonaBody, db: DbSession = Depends(get_db)):
     db.add(p); db.commit(); db.refresh(p)
     return _fmt(p)
 
+class PersonaPatch(BaseModel):
+    # all optional — only fields actually sent get touched, so editing the prompt
+    # doesn't silently wipe model/default
+    name: Optional[str] = None
+    emoji: Optional[str] = None
+    system_prompt: Optional[str] = None
+    model: Optional[str] = None
+    is_default: Optional[bool] = None
+
 @router.patch("/personas/{pid}")
-def update_persona(pid: str, body: PersonaBody, db: DbSession = Depends(get_db)):
+def update_persona(pid: str, body: PersonaPatch, db: DbSession = Depends(get_db)):
     p = db.get(Persona, pid)
     if not p: raise HTTPException(404)
-    if body.is_default:
+    data = body.model_dump(exclude_unset=True)
+    if data.get("is_default"):
         db.query(Persona).filter(Persona.id != pid).update({Persona.is_default: False})
-    for k, v in body.model_dump().items():
+    for k, v in data.items():
         setattr(p, k, v)
     db.commit(); return _fmt(p)
 

@@ -199,6 +199,7 @@ function _initSettings() {
 
   // ── personas / cookbook ──
   document.getElementById('persona-add-btn')?.addEventListener('click', addPersona);
+  document.getElementById('persona-cancel-btn')?.addEventListener('click', _resetPersonaForm);
   document.getElementById('cookbook-add-btn')?.addEventListener('click', addCookbookEntry);
 
   // ── tools (mcp) ──
@@ -784,33 +785,72 @@ async function saveVoiceSettings() {
 }
 
 // ── personas ──────────────────────────────────────────────────────────────────
+let _personaCache = [];
+let _editingPersona = null;
+
 export async function loadPersonas() {
   const el = document.getElementById('persona-list');
   if (!el) return;
-  const personas = await fetch('/api/personas').then(r => r.json()).catch(() => []);
-  if (!personas.length) { el.innerHTML = '<div class="settings-row-empty">no personas yet</div>'; return; }
-  el.innerHTML = personas.map(p => `
-    <div class="settings-list-row">
-      <span class="row-name">${_esc(p.name)}</span>
-      <span class="row-meta">${_esc((p.system_prompt||'').slice(0,40))}${p.system_prompt?.length>40?'…':''}</span>
-      <button class="act-btn" data-id="${p.id}" onclick="window._rmPersona(this)">remove</button>
-    </div>`).join('');
+  _personaCache = await fetch('/api/personas').then(r => r.json()).catch(() => []);
+  if (!_personaCache.length) { el.innerHTML = '<div class="settings-row-empty">no personas yet</div>'; return; }
+  el.innerHTML = _personaCache.map(p => {
+    const prev = (p.system_prompt || '').replace(/\s+/g, ' ').trim();
+    return `
+    <div class="settings-list-row persona-row${_editingPersona === p.id ? ' editing' : ''}" data-id="${p.id}" onclick="window._editPersona('${p.id}')">
+      <span class="row-name">${p.emoji ? _esc(p.emoji) + ' ' : ''}${_esc(p.name)}${p.is_default ? ' <span class="row-tag">default</span>' : ''}</span>
+      <span class="row-meta">${_esc(prev.slice(0, 60))}${prev.length > 60 ? '…' : ''}</span>
+      <button class="act-btn" data-id="${p.id}" onclick="event.stopPropagation();window._rmPersona(this)">remove</button>
+    </div>`;
+  }).join('');
+}
+
+window._editPersona = id => {
+  const p = _personaCache.find(x => x.id === id);
+  if (!p) return;
+  _editingPersona = id;
+  document.getElementById('persona-name').value   = p.name || '';
+  document.getElementById('persona-prompt').value = p.system_prompt || '';
+  const em = document.getElementById('persona-emoji'); if (em) em.value = p.emoji || '';
+  const title = document.getElementById('persona-form-title');
+  if (title) { title.textContent = `editing "${p.name}"`; title.hidden = false; }
+  document.getElementById('persona-add-btn').textContent = 'save changes';
+  document.getElementById('persona-cancel-btn').hidden = false;
+  loadPersonas();   // re-render so the active row highlights
+  document.getElementById('persona-prompt').focus();
+};
+
+function _resetPersonaForm() {
+  _editingPersona = null;
+  ['persona-name','persona-prompt','persona-emoji'].forEach(id => { const e = document.getElementById(id); if (e) e.value = ''; });
+  const title = document.getElementById('persona-form-title'); if (title) title.hidden = true;
+  document.getElementById('persona-add-btn').textContent = 'add persona';
+  document.getElementById('persona-cancel-btn').hidden = true;
+  loadPersonas();
 }
 
 window._rmPersona = async btn => {
   await fetch(`/api/personas/${btn.dataset.id}`, { method: 'DELETE' });
-  loadPersonas();
+  if (_editingPersona === btn.dataset.id) _resetPersonaForm();
+  else loadPersonas();
+  window._refreshPersonaBtn?.();
 };
 
 async function addPersona() {
   const name   = document.getElementById('persona-name').value.trim();
   const prompt = document.getElementById('persona-prompt').value.trim();
+  const emoji  = (document.getElementById('persona-emoji')?.value || '').trim();
   if (!name) { toast('name required', 'error'); return; }
-  await fetch('/api/personas', { method: 'POST', headers: {'content-type':'application/json'},
-    body: JSON.stringify({ name, emoji: '', system_prompt: prompt }) });
-  ['persona-name','persona-prompt'].forEach(id => document.getElementById(id).value = '');
-  toast('persona added', 'success');
-  loadPersonas();
+  if (_editingPersona) {
+    await fetch(`/api/personas/${_editingPersona}`, { method: 'PATCH', headers: {'content-type':'application/json'},
+      body: JSON.stringify({ name, emoji, system_prompt: prompt }) });
+    toast('persona updated', 'success');
+  } else {
+    await fetch('/api/personas', { method: 'POST', headers: {'content-type':'application/json'},
+      body: JSON.stringify({ name, emoji, system_prompt: prompt }) });
+    toast('persona added', 'success');
+  }
+  _resetPersonaForm();
+  window._refreshPersonaBtn?.();
 }
 
 // ── cookbook ──────────────────────────────────────────────────────────────────
