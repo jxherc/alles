@@ -828,6 +828,7 @@ window._editPersona = id => {
   document.getElementById('persona-name').value   = p.name || '';
   document.getElementById('persona-prompt').value = p.system_prompt || '';
   _fillPersonaModels(p.model || '');
+  const tmp = document.getElementById('persona-temp'); if (tmp) tmp.value = p.temperature == null ? '' : p.temperature;
   const def = document.getElementById('persona-default'); if (def) def.checked = !!p.is_default;
   const title = document.getElementById('persona-form-title');
   if (title) { title.textContent = `editing "${p.name}"`; title.hidden = false; }
@@ -839,7 +840,7 @@ window._editPersona = id => {
 
 function _resetPersonaForm() {
   _editingPersona = null;
-  ['persona-name','persona-prompt'].forEach(id => { const e = document.getElementById(id); if (e) e.value = ''; });
+  ['persona-name','persona-prompt','persona-temp'].forEach(id => { const e = document.getElementById(id); if (e) e.value = ''; });
   _fillPersonaModels('');
   const def = document.getElementById('persona-default'); if (def) def.checked = false;
   const title = document.getElementById('persona-form-title'); if (title) title.hidden = true;
@@ -864,9 +865,11 @@ async function addPersona() {
   const name   = document.getElementById('persona-name').value.trim();
   const prompt = document.getElementById('persona-prompt').value.trim();
   const model  = document.getElementById('persona-model')?.value || '';
+  const tempRaw = (document.getElementById('persona-temp')?.value || '').trim();
+  const temperature = tempRaw === '' ? null : parseFloat(tempRaw);
   const is_default = !!document.getElementById('persona-default')?.checked;
   if (!name) { toast('name required', 'error'); return; }
-  const payload = { name, system_prompt: prompt, model, is_default };
+  const payload = { name, system_prompt: prompt, model, temperature, is_default };
   if (_editingPersona) {
     await fetch(`/api/personas/${_editingPersona}`, { method: 'PATCH', headers: {'content-type':'application/json'},
       body: JSON.stringify(payload) });

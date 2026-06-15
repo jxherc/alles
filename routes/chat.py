@@ -232,7 +232,10 @@ async def _stream_and_save(
                 usage = merge_usage(usage, chunk.get("usage", {}))
             yield chunk
     else:
-        async for chunk in stream_chat(messages, ep.base_url, ep.api_key, model):
+        chat_kw = {}
+        if settings and settings.get("temperature") is not None:
+            chat_kw["temperature"] = settings["temperature"]
+        async for chunk in stream_chat(messages, ep.base_url, ep.api_key, model, **chat_kw):
             if stop_event.is_set():
                 break
             if "error" in chunk:
@@ -322,6 +325,9 @@ async def chat(body: ChatRequest, background_tasks: BackgroundTasks, db: DbSessi
 
     settings = load_settings()
     settings["agent_cwd"] = _resolve_working_dir(s)
+    _p = _resolve_persona(s, db)
+    if _p and _p.temperature is not None:
+        settings["temperature"] = _p.temperature
     if body.permission_mode:
         settings["agent_permission_mode"] = body.permission_mode
     if body.effort:
@@ -388,6 +394,9 @@ async def chat_background(body: ChatRequest, db: DbSession = Depends(get_db)):
     settings = load_settings()
     settings["agent_cwd"] = _resolve_working_dir(s)
     settings["agent_permission_mode"] = "full_auto"   # nothing is watching to approve
+    _p = _resolve_persona(s, db)
+    if _p and _p.temperature is not None:
+        settings["temperature"] = _p.temperature
     aug_text = _resolve_mentions(body.message, settings["agent_cwd"])
     messages = _build_messages(s, aug_text, settings, db, body.file_ids)
 

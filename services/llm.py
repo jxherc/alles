@@ -170,6 +170,8 @@ def _build_anthropic_payload(messages, model, stream=True, **kw) -> dict:
     }
     if sys_msgs:
         p["system"] = "\n\n".join(m["content"] for m in sys_msgs)
+    if "temperature" in kw:
+        p["temperature"] = kw["temperature"]
     if kw.get("tools"):
         # convert openai tool format to anthropic format
         p["tools"] = [

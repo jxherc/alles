@@ -54,6 +54,15 @@ class AnthropicPayloadTests(unittest.TestCase):
         asst = [m for m in p["messages"] if m["role"] == "assistant"][0]
         self.assertEqual(asst["content"][0]["type"], "tool_use")
 
+    def test_temperature_threads_through(self):
+        msgs = [{"role": "user", "content": "hi"}]
+        # anthropic builder used to silently drop temperature
+        self.assertEqual(llm._build_anthropic_payload(msgs, "claude-x", temperature=0.2)["temperature"], 0.2)
+        self.assertEqual(llm._build_openai_payload(msgs, "gpt-x", temperature=0.2)["temperature"], 0.2)
+        # absent → not forced into the payload
+        self.assertNotIn("temperature", llm._build_anthropic_payload(msgs, "claude-x"))
+        self.assertNotIn("temperature", llm._build_openai_payload(msgs, "gpt-x"))
+
 
 if __name__ == "__main__":
     unittest.main()
