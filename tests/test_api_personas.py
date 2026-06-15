@@ -45,6 +45,27 @@ class PersonasApiTest(ApiTest):
         pid2 = self.client.post("/api/personas", json={"name": "plain"}).json()["id"]
         self.assertIsNone([p for p in self.client.get("/api/personas").json() if p["id"] == pid2][0]["temperature"])
 
+    def test_default_mode_roundtrip(self):
+        pid = self.client.post("/api/personas", json={"name": "ag", "default_mode": "agent"}).json()["id"]
+        self.assertEqual(self.client.get("/api/personas").json()[0]["default_mode"], "agent")
+        r = self.client.patch(f"/api/personas/{pid}", json={"default_mode": "chat"}).json()
+        self.assertEqual(r["default_mode"], "chat")
+
+    def test_decide_mode(self):
+        from routes.chat import _decide_mode
+        plain = "tell me a joke"
+        doish = "what's on my calendar today"
+        # agent persona always runs tools (and gates on approval)
+        self.assertEqual(_decide_mode("chat", "agent", plain, False, True), ("agent", True))
+        # chat-only persona never auto-promotes, even on a do-something message
+        self.assertEqual(_decide_mode("chat", "chat", doish, False, True), ("chat", False))
+        # no persona default → intent-based: plain stays chat, do-ish promotes
+        self.assertEqual(_decide_mode("chat", "", plain, False, True), ("chat", False))
+        self.assertEqual(_decide_mode("chat", "", doish, False, True)[0], "agent")
+        # explicit agent turn or simple-chat short-circuit
+        self.assertEqual(_decide_mode("agent", "chat", plain, False, True), ("agent", False))
+        self.assertEqual(_decide_mode("chat", "agent", plain, True, True), ("chat", False))
+
     def test_duplicate(self):
         pid = self.client.post("/api/personas", json={
             "name": "orig", "emoji": "🤖", "system_prompt": "be terse", "model": "m1"}).json()["id"]

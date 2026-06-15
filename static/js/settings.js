@@ -203,6 +203,10 @@ function _initSettings() {
   document.getElementById('persona-temp')?.addEventListener('input', _onPersonaTempInput);
   document.getElementById('persona-temp-pin')?.addEventListener('click', _togglePersonaTempPin);
   document.getElementById('persona-default')?.addEventListener('click', e => e.currentTarget.classList.toggle('on'));
+  document.getElementById('persona-mode')?.addEventListener('click', e => {
+    const opt = e.target.closest('.seg-opt'); if (!opt) return;
+    opt.parentElement.querySelectorAll('.seg-opt').forEach(o => o.classList.toggle('active', o === opt));
+  });
   document.getElementById('cookbook-add-btn')?.addEventListener('click', addCookbookEntry);
 
   // ── tools (mcp) ──
@@ -825,6 +829,14 @@ function _setPersonaTemp(val) {
   _paintTemp(on);
 }
 
+function _setPersonaMode(val) {
+  document.querySelectorAll('#persona-mode .seg-opt').forEach(o =>
+    o.classList.toggle('active', (o.dataset.val || '') === (val || '')));
+}
+function _getPersonaMode() {
+  return document.querySelector('#persona-mode .seg-opt.active')?.dataset.val || '';
+}
+
 function _onPersonaTempInput() {
   // dragging the slider means you want it pinned
   document.getElementById('persona-temp-pin')?.classList.add('on');
@@ -881,6 +893,7 @@ window._editPersona = id => {
   document.getElementById('persona-prompt').value = p.system_prompt || '';
   _fillPersonaModels(p.model || '');
   _setPersonaTemp(p.temperature == null ? null : p.temperature);
+  _setPersonaMode(p.default_mode || '');
   document.getElementById('persona-default')?.classList.toggle('on', !!p.is_default);
   const title = document.getElementById('persona-form-title');
   if (title) { title.textContent = `editing "${p.name}"`; title.hidden = false; }
@@ -895,6 +908,7 @@ function _resetPersonaForm() {
   ['persona-name','persona-prompt'].forEach(id => { const e = document.getElementById(id); if (e) e.value = ''; });
   _fillPersonaModels('');
   _setPersonaTemp(null);
+  _setPersonaMode('');
   document.getElementById('persona-default')?.classList.remove('on');
   const title = document.getElementById('persona-form-title'); if (title) title.hidden = true;
   document.getElementById('persona-add-btn').textContent = 'add persona';
@@ -921,8 +935,9 @@ async function addPersona() {
   const pinned = document.getElementById('persona-temp-pin')?.classList.contains('on');
   const temperature = pinned ? parseFloat(document.getElementById('persona-temp').value) : null;
   const is_default = !!document.getElementById('persona-default')?.classList.contains('on');
+  const default_mode = _getPersonaMode();
   if (!name) { toast('name required', 'error'); return; }
-  const payload = { name, system_prompt: prompt, model, temperature, is_default };
+  const payload = { name, system_prompt: prompt, model, temperature, default_mode, is_default };
   if (_editingPersona) {
     await fetch(`/api/personas/${_editingPersona}`, { method: 'PATCH', headers: {'content-type':'application/json'},
       body: JSON.stringify(payload) });

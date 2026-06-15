@@ -2542,6 +2542,18 @@ code {
 .persona-temp-foot .cold { color: #3b82f6; }
 .persona-temp-foot .hot  { color: #ef4444; }
 
+/* segmented control — custom, no native select */
+.seg { display: flex; border: 1px solid var(--faint); border-radius: 4px; overflow: hidden; }
+.seg-opt {
+  flex: 1; background: none; border: none; cursor: pointer;
+  padding: 0.4rem 0.5rem; font: inherit; font-size: 0.72rem;
+  color: var(--muted); letter-spacing: 0.04em; text-transform: lowercase;
+  border-left: 1px solid var(--faint); transition: color 0.12s, background 0.12s;
+}
+.seg-opt:first-child { border-left: none; }
+.seg-opt:hover { color: var(--text); }
+.seg-opt.active { color: var(--accent); background: var(--panel); }
+
 /* ── calendar ── */
 .cal-month-label {
   font-size: 0.7rem; color: var(--muted); letter-spacing: 0.04em; font-weight: 500;

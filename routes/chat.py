@@ -66,6 +66,22 @@ def _apply_persona_model(session: Session, ep: ModelEndpoint, model: str, db):
     return ep, model
 
 
+def _decide_mode(base_mode: str, pmode: str, message: str, simple: bool, auto_intents: bool):
+    """resolve the effective turn mode. returns (mode, force_approve).
+    a persona's default_mode: "agent" always runs tools, "chat" stays pure chat (no
+    auto-promote), "" falls back to intent-based auto-promotion. mutations that get
+    auto-promoted are gated behind approval so a chat turn can't silently act."""
+    if base_mode != "chat" or simple:
+        return base_mode, False
+    if pmode == "agent":
+        return "agent", True
+    if pmode != "chat" and auto_intents:
+        from services.agent_intents import message_needs_tools
+        if message_needs_tools(message):
+            return "agent", True
+    return "chat", False
+
+
 def _resolve_working_dir(session: Session) -> str:
     if getattr(session, "working_dir", ""):
         return session.working_dir
@@ -349,16 +365,12 @@ async def chat(body: ChatRequest, background_tasks: BackgroundTasks, db: DbSessi
 
     from core.database import SessionLocal as _SF
     incognito = bool(body.incognito or getattr(s, "incognito", False))
-    mode = body.mode or getattr(s, "mode", "chat") or "chat"
-    # on by default: auto-promote a plain chat turn when the user clearly asks aide
-    # to DO an app thing (calendar/mail/reminders/research/edit). reads just happen;
-    # mutations are gated behind approval so a chat message can't silently send mail.
-    if mode == "chat" and not body.simple and settings.get("agent_auto_intents", True):
-        from services.agent_intents import message_needs_tools
-        if message_needs_tools(body.message):
-            mode = "agent"
-            if not body.permission_mode:
-                settings["agent_permission_mode"] = "approve"
+    base_mode = body.mode or getattr(s, "mode", "chat") or "chat"
+    pmode = (_p.default_mode if _p else "") or ""
+    mode, force_approve = _decide_mode(base_mode, pmode, body.message, body.simple,
+                                       settings.get("agent_auto_intents", True))
+    if force_approve and not body.permission_mode:
+        settings["agent_permission_mode"] = "approve"
     gen = _stream_and_save(body.session_id, body.message, messages, ep, model,
                            stop_event, _SF, incognito=incognito,
                            mode=mode, settings=settings)
