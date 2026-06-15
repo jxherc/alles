@@ -1,5 +1,5 @@
 import time, secrets
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Header
 from pydantic import BaseModel
 from sqlalchemy.orm import Session as DbSession
 from core.database import get_db, VaultEntry
@@ -13,15 +13,21 @@ _unlock_tokens: dict[str, tuple[float, str]] = {}
 _TTL = 600   # 10 min
 
 
-def _get_master_pw() -> str:
+def _master_pw(x_vault_token: str | None = Header(None)) -> str:
+    """resolve the caller's own unlock token to its master password.
+
+    binds each vault request to the token returned by /vault/unlock, so an
+    unlock by one session no longer hands the vault to every other request
+    that happens to land in the 10-min window.
+    """
     now = time.time()
-    for tok, (exp, pw) in list(_unlock_tokens.items()):
-        if now <= exp:
-            _unlock_tokens[tok] = (now + _TTL, pw)  # slide window
-            return pw
-        else:
-            del _unlock_tokens[tok]
-    raise HTTPException(403, "vault locked")
+    for tok in [t for t, (exp, _) in list(_unlock_tokens.items()) if now > exp]:
+        del _unlock_tokens[tok]
+    v = _unlock_tokens.get(x_vault_token or "")
+    if not v:
+        raise HTTPException(403, "vault locked")
+    _unlock_tokens[x_vault_token] = (now + _TTL, v[1])   # slide the window
+    return v[1]
 
 
 class UnlockBody(BaseModel):
@@ -72,16 +78,15 @@ def vault_lock():
 
 
 @router.get("/vault")
-def list_vault(db: DbSession = Depends(get_db)):
-    _get_master_pw()   # entry names/usernames are metadata, but still vault-locked
+def list_vault(db: DbSession = Depends(get_db), _pw: str = Depends(_master_pw)):
+    # entry names/usernames are metadata, but still vault-locked
     entries = db.query(VaultEntry).order_by(VaultEntry.created_at.desc()).all()
     return [{"id": e.id, "name": e.name, "username": e.username or "", "category": e.category,
              "created_at": e.created_at.isoformat()} for e in entries]
 
 
 @router.get("/vault/categories")
-def vault_categories(db: DbSession = Depends(get_db)):
-    _get_master_pw()
+def vault_categories(db: DbSession = Depends(get_db), _pw: str = Depends(_master_pw)):
     used = [c for (c,) in db.query(VaultEntry.category).distinct().all() if c]
     base = ["password", "api key", "card", "note", "general"]
     return {"categories": sorted(set(base) | set(used))}
@@ -95,8 +100,7 @@ class CreateEntry(BaseModel):
 
 
 @router.post("/vault")
-def create_entry(body: CreateEntry, db: DbSession = Depends(get_db)):
-    pw = _get_master_pw()
+def create_entry(body: CreateEntry, db: DbSession = Depends(get_db), pw: str = Depends(_master_pw)):
     enc = encrypt(pw, body.value)
     e = VaultEntry(name=body.name, username=body.username, value_encrypted=enc, category=body.category)
     db.add(e); db.commit(); db.refresh(e)
@@ -111,10 +115,9 @@ class PatchEntry(BaseModel):
 
 
 @router.patch("/vault/{entry_id}")
-def patch_entry(entry_id: str, body: PatchEntry, db: DbSession = Depends(get_db)):
+def patch_entry(entry_id: str, body: PatchEntry, db: DbSession = Depends(get_db), pw: str = Depends(_master_pw)):
     e = db.get(VaultEntry, entry_id)
     if not e: raise HTTPException(404)
-    pw = _get_master_pw()
     if body.name is not None:     e.name = body.name
     if body.category is not None: e.category = body.category
     if body.username is not None: e.username = body.username
@@ -124,10 +127,9 @@ def patch_entry(entry_id: str, body: PatchEntry, db: DbSession = Depends(get_db)
 
 
 @router.get("/vault/{entry_id}/reveal")
-def reveal_entry(entry_id: str, db: DbSession = Depends(get_db)):
+def reveal_entry(entry_id: str, db: DbSession = Depends(get_db), pw: str = Depends(_master_pw)):
     e = db.get(VaultEntry, entry_id)
     if not e: raise HTTPException(404)
-    pw = _get_master_pw()
     try:
         value = decrypt(pw, e.value_encrypted)
     except Exception:
@@ -136,8 +138,7 @@ def reveal_entry(entry_id: str, db: DbSession = Depends(get_db)):
 
 
 @router.delete("/vault/{entry_id}")
-def delete_entry(entry_id: str, db: DbSession = Depends(get_db)):
-    _get_master_pw()
+def delete_entry(entry_id: str, db: DbSession = Depends(get_db), _pw: str = Depends(_master_pw)):
     e = db.get(VaultEntry, entry_id)
     if not e: raise HTTPException(404)
     db.delete(e); db.commit()
