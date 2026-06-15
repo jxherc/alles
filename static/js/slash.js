@@ -407,6 +407,8 @@ export async function tryExecuteSlashCommand(text) {
                 headers: { 'content-type': 'application/json' },
                 body: JSON.stringify({ persona_id: match.id }),
               });
+              if (window._currentSession) window._currentSession.persona_id = match.id;
+              window._refreshPersonaBtn?.();   // updates the label + applies the persona's accent
               toast(`persona: ${match.name}`, 'success');
             }
           } else {

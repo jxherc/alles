@@ -66,13 +66,22 @@ class PersonasApiTest(ApiTest):
         self.assertEqual(_decide_mode("agent", "chat", plain, False, True), ("agent", False))
         self.assertEqual(_decide_mode("chat", "agent", plain, True, True), ("chat", False))
 
+    def test_accent_roundtrip(self):
+        pid = self.client.post("/api/personas", json={"name": "amber", "accent": "#fbbf24"}).json()["id"]
+        self.assertEqual(self.client.get("/api/personas").json()[0]["accent"], "#fbbf24")
+        r = self.client.patch(f"/api/personas/{pid}", json={"accent": ""}).json()
+        self.assertEqual(r["accent"], "")
+
     def test_duplicate(self):
         pid = self.client.post("/api/personas", json={
-            "name": "orig", "emoji": "🤖", "system_prompt": "be terse", "model": "m1"}).json()["id"]
+            "name": "orig", "emoji": "🤖", "system_prompt": "be terse", "model": "m1",
+            "accent": "#60a5fa", "default_mode": "agent"}).json()["id"]
         dup = self.client.post(f"/api/personas/{pid}/duplicate").json()
         self.assertEqual(dup["name"], "orig copy")
         self.assertEqual(dup["system_prompt"], "be terse")
         self.assertEqual(dup["model"], "m1")
+        self.assertEqual(dup["accent"], "#60a5fa")
+        self.assertEqual(dup["default_mode"], "agent")
         self.assertFalse(dup["is_default"])
         self.assertNotEqual(dup["id"], pid)
         self.assertEqual(self.client.post("/api/personas/nope/duplicate").status_code, 404)
