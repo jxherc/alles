@@ -1217,9 +1217,16 @@
             </div>
             <div class="s-card-body">
               <div id="persona-list" style="margin-bottom:0.75rem"></div>
-              <div class="s-field"><label>name</label><input type="text" class="settings-input" id="persona-name" placeholder="name" style="width:100%"></div>
-              <div class="s-field"><label>system prompt</label><textarea class="settings-textarea" id="persona-prompt" rows="3" placeholder="You are..."></textarea></div>
-              <button class="btn primary" id="persona-add-btn" style="width:100%">add persona</button>
+              <div id="persona-form-title" class="s-form-title" hidden></div>
+              <div class="s-field" style="display:flex;gap:.5rem">
+                <div style="width:64px"><label>emoji</label><input type="text" class="settings-input" id="persona-emoji" placeholder="🤖" maxlength="4" style="width:100%;text-align:center"></div>
+                <div style="flex:1"><label>name</label><input type="text" class="settings-input" id="persona-name" placeholder="name" style="width:100%"></div>
+              </div>
+              <div class="s-field"><label>system prompt</label><textarea class="settings-textarea" id="persona-prompt" rows="6" placeholder="You are..." style="width:100%;resize:vertical"></textarea></div>
+              <div style="display:flex;gap:.5rem">
+                <button class="btn primary" id="persona-add-btn" style="flex:1">add persona</button>
+                <button class="btn" id="persona-cancel-btn" hidden>cancel</button>
+              </div>
             </div>
           </div>
           <div class="s-card">

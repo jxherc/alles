@@ -2502,6 +2502,11 @@ code {
 .status-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
 .row-name { color: var(--text); flex-shrink: 0; }
 .row-meta { color: var(--muted); font-size: 0.7rem; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row-tag { font-size: 0.6rem; color: var(--accent); border: 1px solid var(--border); border-radius: 4px; padding: 0 4px; margin-left: 4px; vertical-align: middle; }
+.persona-row { cursor: pointer; border-radius: 6px; padding-left: 6px; padding-right: 6px; }
+.persona-row:hover { background: var(--panel); }
+.persona-row.editing { background: var(--panel); outline: 1px solid var(--accent); }
+.s-form-title { font-size: 0.72rem; color: var(--accent); margin-bottom: 0.4rem; }
 
 /* ── calendar ── */
 .cal-month-label {
