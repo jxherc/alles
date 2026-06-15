@@ -792,12 +792,24 @@ let _personaCache = [];
 let _editingPersona = null;
 
 // ── temperature slider (null = auto/provider default) ──
-function _renderTempFill(on) {
+// blue (cold/precise) → violet → red (hot/creative) across 0..2
+function _tempColor(v) {
+  const t = Math.max(0, Math.min(1, v / 2));
+  const L = (a, b, k) => Math.round(a + (b - a) * k);
+  let c;
+  if (t < 0.5) { const k = t / 0.5;       c = [L(59,139,k),  L(130,92,k), L(246,246,k)]; }
+  else         { const k = (t-0.5) / 0.5; c = [L(139,239,k), L(92,68,k),  L(246,68,k)];  }
+  return `rgb(${c[0]},${c[1]},${c[2]})`;
+}
+
+function _paintTemp(on) {
   const sl = document.getElementById('persona-temp');
+  const lbl = document.getElementById('persona-temp-val');
   if (!sl) return;
-  if (!on) { sl.style.background = 'var(--faint)'; return; }
-  const pct = (sl.value - sl.min) / (sl.max - sl.min) * 100;
-  sl.style.background = `linear-gradient(to right, var(--accent) ${pct}%, var(--faint) ${pct}%)`;
+  if (!on) { sl.style.removeProperty('--temp-color'); if (lbl) lbl.style.color = ''; return; }
+  const c = _tempColor(Number(sl.value));
+  sl.style.setProperty('--temp-color', c);
+  if (lbl) lbl.style.color = c;
 }
 
 function _setPersonaTemp(val) {
@@ -810,7 +822,7 @@ function _setPersonaTemp(val) {
   sl.classList.toggle('is-auto', !on);
   if (on) sl.value = val;
   if (lbl) { lbl.textContent = on ? Number(sl.value).toFixed(2) : 'auto'; lbl.classList.toggle('muted', !on); }
-  _renderTempFill(on);
+  _paintTemp(on);
 }
 
 function _onPersonaTempInput() {
@@ -819,7 +831,7 @@ function _onPersonaTempInput() {
   const sl = document.getElementById('persona-temp'); sl.classList.remove('is-auto');
   const lbl = document.getElementById('persona-temp-val');
   if (lbl) { lbl.textContent = Number(sl.value).toFixed(2); lbl.classList.remove('muted'); }
-  _renderTempFill(true);
+  _paintTemp(true);
 }
 
 function _togglePersonaTempPin() {
