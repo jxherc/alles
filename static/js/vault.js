@@ -3,6 +3,15 @@ import { confirm } from './dialog.js';
 import { populateDropdown } from './dropdown.js';
 
 let _unlocked = false;
+let _token = null;   // the unlock token; sent back on every vault request
+
+// fetch wrapper that attaches this session's unlock token so the server can
+// bind the request to our unlock (not just "someone unlocked recently")
+function _vfetch(url, opts = {}) {
+  const headers = { ...(opts.headers || {}) };
+  if (_token) headers['X-Vault-Token'] = _token;
+  return fetch(url, { ...opts, headers });
+}
 
 export async function loadVaultView() {
   const locked   = document.getElementById('vault-locked');
@@ -74,7 +83,7 @@ async function _populateCats() {
   if (!sel) return;
   let cats = ['password', 'api key', 'card', 'note', 'general'];
   try {
-    const d = await fetch('/api/vault/categories').then(r => r.json());
+    const d = await _vfetch('/api/vault/categories').then(r => r.json());
     if (d.categories?.length) cats = d.categories;
   } catch {}
   const cur = sel.value;
@@ -106,6 +115,7 @@ async function _doUnlock() {
       body: JSON.stringify({ password: pw }),
     });
     if (!r.ok) { toast('wrong password', 'error'); return; }
+    _token = (await r.json()).token;
     _unlocked = true;
     document.getElementById('vault-pw-input').value = '';
     await loadVaultView();
@@ -116,6 +126,7 @@ async function _doUnlock() {
 
 async function _doLock() {
   await fetch('/api/vault/lock', { method: 'POST' }).catch(() => {});
+  _token = null;
   _unlocked = false;
   loadVaultView();
 }
@@ -124,7 +135,7 @@ async function _loadEntries() {
   const list = document.getElementById('vault-entry-list');
   if (!list) return;
   try {
-    const entries = await fetch('/api/vault').then(r => r.json());
+    const entries = await _vfetch('/api/vault').then(r => r.json());
     if (!entries.length) { list.innerHTML = '<div class="page-empty">no entries</div>'; return; }
     list.innerHTML = entries.map(e => `
       <div class="vault-entry" data-id="${e.id}">
@@ -153,7 +164,7 @@ async function _addEntry() {
   const userEl = document.getElementById('vault-new-username');
   const username = userEl.style.display !== 'none' ? userEl.value.trim() : '';
   if (!name || !val) { toast('name and value required', 'error'); return; }
-  const r = await fetch('/api/vault', {
+  const r = await _vfetch('/api/vault', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ name, value: val, category: cat, username }),
@@ -173,7 +184,7 @@ window._vaultReveal = async id => {
   if (!el) return;
   if (el.dataset.revealed) { el.textContent = '••••••••'; delete el.dataset.revealed; return; }
   try {
-    const { value } = await fetch(`/api/vault/${id}/reveal`).then(r => r.json());
+    const { value } = await _vfetch(`/api/vault/${id}/reveal`).then(r => r.json());
     el.textContent = value;
     el.dataset.revealed = '1';
   } catch (e) { toast('reveal failed', 'error'); }
@@ -183,7 +194,7 @@ window._vaultCopy = async id => {
   const el = document.getElementById(`vault-val-${id}`);
   let val = el?.dataset.revealed ? el.textContent : null;
   if (!val) {
-    try { val = (await fetch(`/api/vault/${id}/reveal`).then(r => r.json())).value; } catch { return; }
+    try { val = (await _vfetch(`/api/vault/${id}/reveal`).then(r => r.json())).value; } catch { return; }
   }
   await navigator.clipboard.writeText(val);
   toast('copied', 'success');
@@ -196,7 +207,7 @@ window._vaultCopyUser = async (id, username) => {
 
 window._vaultDel = async id => {
   if (!await confirm('delete this entry?')) return;
-  await fetch(`/api/vault/${id}`, { method: 'DELETE' });
+  await _vfetch(`/api/vault/${id}`, { method: 'DELETE' });
   await _loadEntries();
 };
 
