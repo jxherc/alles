@@ -35,6 +35,36 @@ class PersonasApiTest(ApiTest):
         self.assertEqual(r["model"], "gpt-x")     # untouched
         self.assertTrue(r["is_default"])          # untouched
 
+    def test_duplicate(self):
+        pid = self.client.post("/api/personas", json={
+            "name": "orig", "emoji": "🤖", "system_prompt": "be terse", "model": "m1"}).json()["id"]
+        dup = self.client.post(f"/api/personas/{pid}/duplicate").json()
+        self.assertEqual(dup["name"], "orig copy")
+        self.assertEqual(dup["system_prompt"], "be terse")
+        self.assertEqual(dup["model"], "m1")
+        self.assertFalse(dup["is_default"])
+        self.assertNotEqual(dup["id"], pid)
+        self.assertEqual(self.client.post("/api/personas/nope/duplicate").status_code, 404)
+
+    def test_seed_default_personas(self):
+        import tempfile, os
+        from pathlib import Path
+        from routes import personas as pmod
+        orig = pmod._SEED_SENTINEL
+        tmp = Path(tempfile.gettempdir()) / f"_pseed_{os.getpid()}_{id(self)}"
+        if tmp.exists(): tmp.unlink()
+        pmod._SEED_SENTINEL = tmp
+        try:
+            n = pmod.seed_default_personas()
+            self.assertEqual(n, len(pmod._STARTERS))
+            rows = self.client.get("/api/personas").json()
+            self.assertIn("coder", [p["name"] for p in rows])
+            self.assertEqual(len([p for p in rows if p["is_default"]]), 1)
+            self.assertEqual(pmod.seed_default_personas(), 0)   # sentinel → no-op
+        finally:
+            pmod._SEED_SENTINEL = orig
+            if tmp.exists(): tmp.unlink()
+
     def test_persona_pins_model_and_switches_endpoint(self):
         from routes.chat import _apply_persona_model
         from core.database import ModelEndpoint, Session, Persona

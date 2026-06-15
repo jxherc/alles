@@ -308,6 +308,11 @@ async def lifespan(app: FastAPI):
     except Exception:
         pass
     try:
+        from routes.personas import seed_default_personas
+        seed_default_personas()        # first-boot starter personas
+    except Exception:
+        pass
+    try:
         from services import agent_state
         n = agent_state.reconcile_interrupted()   # zombie 'running' runs from a dead process → interrupted
         if n:
