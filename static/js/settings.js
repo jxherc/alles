@@ -200,6 +200,9 @@ function _initSettings() {
   // ── personas / cookbook ──
   document.getElementById('persona-add-btn')?.addEventListener('click', addPersona);
   document.getElementById('persona-cancel-btn')?.addEventListener('click', _resetPersonaForm);
+  document.getElementById('persona-temp')?.addEventListener('input', _onPersonaTempInput);
+  document.getElementById('persona-temp-pin')?.addEventListener('click', _togglePersonaTempPin);
+  document.getElementById('persona-default')?.addEventListener('click', e => e.currentTarget.classList.toggle('on'));
   document.getElementById('cookbook-add-btn')?.addEventListener('click', addCookbookEntry);
 
   // ── tools (mcp) ──
@@ -788,6 +791,43 @@ async function saveVoiceSettings() {
 let _personaCache = [];
 let _editingPersona = null;
 
+// ── temperature slider (null = auto/provider default) ──
+function _renderTempFill(on) {
+  const sl = document.getElementById('persona-temp');
+  if (!sl) return;
+  if (!on) { sl.style.background = 'var(--faint)'; return; }
+  const pct = (sl.value - sl.min) / (sl.max - sl.min) * 100;
+  sl.style.background = `linear-gradient(to right, var(--accent) ${pct}%, var(--faint) ${pct}%)`;
+}
+
+function _setPersonaTemp(val) {
+  const sl  = document.getElementById('persona-temp');
+  const pin = document.getElementById('persona-temp-pin');
+  const lbl = document.getElementById('persona-temp-val');
+  if (!sl) return;
+  const on = val != null;
+  pin?.classList.toggle('on', on);
+  sl.classList.toggle('is-auto', !on);
+  if (on) sl.value = val;
+  if (lbl) { lbl.textContent = on ? Number(sl.value).toFixed(2) : 'auto'; lbl.classList.toggle('muted', !on); }
+  _renderTempFill(on);
+}
+
+function _onPersonaTempInput() {
+  // dragging the slider means you want it pinned
+  document.getElementById('persona-temp-pin')?.classList.add('on');
+  const sl = document.getElementById('persona-temp'); sl.classList.remove('is-auto');
+  const lbl = document.getElementById('persona-temp-val');
+  if (lbl) { lbl.textContent = Number(sl.value).toFixed(2); lbl.classList.remove('muted'); }
+  _renderTempFill(true);
+}
+
+function _togglePersonaTempPin() {
+  const on = !document.getElementById('persona-temp-pin').classList.contains('on');
+  const sl = document.getElementById('persona-temp');
+  _setPersonaTemp(on ? Number(sl.value || 0.7) : null);
+}
+
 function _fillPersonaModels(selected = '') {
   const sel = document.getElementById('persona-model');
   if (!sel) return;
@@ -828,8 +868,8 @@ window._editPersona = id => {
   document.getElementById('persona-name').value   = p.name || '';
   document.getElementById('persona-prompt').value = p.system_prompt || '';
   _fillPersonaModels(p.model || '');
-  const tmp = document.getElementById('persona-temp'); if (tmp) tmp.value = p.temperature == null ? '' : p.temperature;
-  const def = document.getElementById('persona-default'); if (def) def.checked = !!p.is_default;
+  _setPersonaTemp(p.temperature == null ? null : p.temperature);
+  document.getElementById('persona-default')?.classList.toggle('on', !!p.is_default);
   const title = document.getElementById('persona-form-title');
   if (title) { title.textContent = `editing "${p.name}"`; title.hidden = false; }
   document.getElementById('persona-add-btn').textContent = 'save changes';
@@ -840,9 +880,10 @@ window._editPersona = id => {
 
 function _resetPersonaForm() {
   _editingPersona = null;
-  ['persona-name','persona-prompt','persona-temp'].forEach(id => { const e = document.getElementById(id); if (e) e.value = ''; });
+  ['persona-name','persona-prompt'].forEach(id => { const e = document.getElementById(id); if (e) e.value = ''; });
   _fillPersonaModels('');
-  const def = document.getElementById('persona-default'); if (def) def.checked = false;
+  _setPersonaTemp(null);
+  document.getElementById('persona-default')?.classList.remove('on');
   const title = document.getElementById('persona-form-title'); if (title) title.hidden = true;
   document.getElementById('persona-add-btn').textContent = 'add persona';
   document.getElementById('persona-cancel-btn').hidden = true;
@@ -865,9 +906,9 @@ async function addPersona() {
   const name   = document.getElementById('persona-name').value.trim();
   const prompt = document.getElementById('persona-prompt').value.trim();
   const model  = document.getElementById('persona-model')?.value || '';
-  const tempRaw = (document.getElementById('persona-temp')?.value || '').trim();
-  const temperature = tempRaw === '' ? null : parseFloat(tempRaw);
-  const is_default = !!document.getElementById('persona-default')?.checked;
+  const pinned = document.getElementById('persona-temp-pin')?.classList.contains('on');
+  const temperature = pinned ? parseFloat(document.getElementById('persona-temp').value) : null;
+  const is_default = !!document.getElementById('persona-default')?.classList.contains('on');
   if (!name) { toast('name required', 'error'); return; }
   const payload = { name, system_prompt: prompt, model, temperature, is_default };
   if (_editingPersona) {
