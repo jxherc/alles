@@ -52,6 +52,20 @@ def _resolve_persona(session: Session, db) -> Persona | None:
     return db.query(Persona).filter(Persona.is_default == True).first()
 
 
+def _apply_persona_model(session: Session, ep: ModelEndpoint, model: str, db):
+    """if the active persona pins a model, use it — and switch to an enabled endpoint
+    that actually serves it when the current one doesn't."""
+    p = _resolve_persona(session, db)
+    if not (p and p.model):
+        return ep, model
+    model = p.model
+    if model not in (ep.models_list() or []):
+        for e in db.query(ModelEndpoint).filter(ModelEndpoint.enabled == True).all():
+            if model in (e.models_list() or []):
+                return e, model
+    return ep, model
+
+
 def _resolve_working_dir(session: Session) -> str:
     if getattr(session, "working_dir", ""):
         return session.working_dir
@@ -302,6 +316,7 @@ async def chat(body: ChatRequest, background_tasks: BackgroundTasks, db: DbSessi
         raise HTTPException(400, "no model endpoint configured — add one in settings")
 
     model = s.model or (ep.models_list()[0] if ep.models_list() else "")
+    ep, model = _apply_persona_model(s, ep, model, db)
     if not model:
         raise HTTPException(400, "no model selected")
 
@@ -366,6 +381,7 @@ async def chat_background(body: ChatRequest, db: DbSession = Depends(get_db)):
     if not ep:
         raise HTTPException(400, "no model endpoint configured")
     model = s.model or (ep.models_list()[0] if ep.models_list() else "")
+    ep, model = _apply_persona_model(s, ep, model, db)
     if not model:
         raise HTTPException(400, "no model selected")
 
