@@ -214,6 +214,7 @@ class Persona(Base):
     model        = Column(String, default="")       # override model, or "" = use session default
     temperature  = Column(Float, nullable=True)      # pinned sampling temp, or null = provider default
     default_mode = Column(String, default="")        # "" auto | "chat" pure-chat | "agent" always tools
+    accent       = Column(String, default="")        # hex accent that re-themes the app when active, "" = use global
     is_default   = Column(Boolean, default=False)
     created_at   = Column(DateTime, default=_now)
 
@@ -523,6 +524,7 @@ def init_db():
         _add_col(conn, "tasks", "sort_order", "INTEGER DEFAULT 0")
         _add_col(conn, "personas", "temperature", "REAL")
         _add_col(conn, "personas", "default_mode", "TEXT DEFAULT ''")
+        _add_col(conn, "personas", "accent", "TEXT DEFAULT ''")
     _encrypt_plaintext_secrets()
 
 

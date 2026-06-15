@@ -837,6 +837,38 @@ function _getPersonaMode() {
   return document.querySelector('#persona-mode .seg-opt.active')?.dataset.val || '';
 }
 
+// curated persona accent palette. deliberately NO green / red — those carry "right vs
+// wrong" (success/error) meaning across the app, so a green/red accent would read as a
+// state signal, not a persona's identity. anything added here later should hold that line.
+const PERSONA_ACCENTS = [
+  ['#818cf8','indigo'], ['#a78bfa','violet'], ['#c084fc','purple'], ['#60a5fa','blue'],
+  ['#38bdf8','sky'],    ['#22d3ee','cyan'],   ['#fbbf24','amber'],  ['#fb923c','orange'],
+  ['#f472b6','pink'],   ['#e879f9','fuchsia'],['#94a3b8','slate'],
+];
+let _personaAccent = '';
+
+function _buildPersonaAccents() {
+  const box = document.getElementById('persona-accent');
+  if (!box || box.dataset.built) return;
+  box.dataset.built = '1';
+  box.innerHTML =
+    '<button type="button" class="pa-swatch pa-none" data-hex="" title="no override — use your theme accent">default</button>' +
+    PERSONA_ACCENTS.map(([hex, name]) =>
+      `<button type="button" class="pa-swatch" data-hex="${hex}" title="${name}" style="background:${hex}"></button>`).join('');
+  box.querySelectorAll('.pa-swatch').forEach(s => s.addEventListener('click', () => {
+    _setPersonaAccent(s.dataset.hex);
+    // live preview the re-theme as you pick (reset/save restores the real active accent)
+    document.documentElement.style.setProperty('--accent', s.dataset.hex || (localStorage.getItem('aide-accent') || '#818cf8'));
+  }));
+}
+
+function _setPersonaAccent(hex) {
+  _personaAccent = hex || '';
+  document.querySelectorAll('#persona-accent .pa-swatch').forEach(s =>
+    s.classList.toggle('active', (s.dataset.hex || '') === _personaAccent));
+}
+function _getPersonaAccent() { return _personaAccent; }
+
 function _onPersonaTempInput() {
   // dragging the slider means you want it pinned
   document.getElementById('persona-temp-pin')?.classList.add('on');
@@ -871,6 +903,7 @@ export async function loadPersonas() {
   const el = document.getElementById('persona-list');
   if (!el) return;
   _fillPersonaModels(document.getElementById('persona-model')?.value || '');
+  _buildPersonaAccents();
   _personaCache = await fetch('/api/personas').then(r => r.json()).catch(() => []);
   if (!_personaCache.length) { el.innerHTML = '<div class="settings-row-empty">no personas yet</div>'; return; }
   el.innerHTML = _personaCache.map(p => {
@@ -894,6 +927,7 @@ window._editPersona = id => {
   _fillPersonaModels(p.model || '');
   _setPersonaTemp(p.temperature == null ? null : p.temperature);
   _setPersonaMode(p.default_mode || '');
+  _buildPersonaAccents(); _setPersonaAccent(p.accent || '');
   document.getElementById('persona-default')?.classList.toggle('on', !!p.is_default);
   const title = document.getElementById('persona-form-title');
   if (title) { title.textContent = `editing "${p.name}"`; title.hidden = false; }
@@ -909,7 +943,9 @@ function _resetPersonaForm() {
   _fillPersonaModels('');
   _setPersonaTemp(null);
   _setPersonaMode('');
+  _setPersonaAccent('');
   document.getElementById('persona-default')?.classList.remove('on');
+  window._refreshPersonaBtn?.();   // restore the live accent to the active session's persona
   const title = document.getElementById('persona-form-title'); if (title) title.hidden = true;
   document.getElementById('persona-add-btn').textContent = 'add persona';
   document.getElementById('persona-cancel-btn').hidden = true;
@@ -936,8 +972,9 @@ async function addPersona() {
   const temperature = pinned ? parseFloat(document.getElementById('persona-temp').value) : null;
   const is_default = !!document.getElementById('persona-default')?.classList.contains('on');
   const default_mode = _getPersonaMode();
+  const accent = _getPersonaAccent();
   if (!name) { toast('name required', 'error'); return; }
-  const payload = { name, system_prompt: prompt, model, temperature, default_mode, is_default };
+  const payload = { name, system_prompt: prompt, model, temperature, default_mode, accent, is_default };
   if (_editingPersona) {
     await fetch(`/api/personas/${_editingPersona}`, { method: 'PATCH', headers: {'content-type':'application/json'},
       body: JSON.stringify(payload) });

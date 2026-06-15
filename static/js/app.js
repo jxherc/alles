@@ -1225,12 +1225,23 @@ function openModelModal() {
 // ── persona picker ────────────────────────────────────────────────────────────
 let _personas = [];
 
+// transient accent override: a persona can re-theme the app's one accent while it's
+// active. NOT persisted — reverts to the user's global accent when you switch away.
+export function applyPersonaAccent(hex) {
+  const root = document.documentElement;
+  if (hex) { root.style.setProperty('--accent', hex); return; }
+  const u = localStorage.getItem('aide-accent');
+  if (u) root.style.setProperty('--accent', u);
+  else root.style.removeProperty('--accent');
+}
+window._applyPersonaAccent = applyPersonaAccent;
+
 export async function refreshPersonaBtn() {
   try { _personas = await fetch('/api/personas').then(r => r.json()); } catch { return; }
   const btn   = document.getElementById('persona-btn');
   const label = document.getElementById('persona-label');
   const session = window._currentSession;
-  if (!session) { btn.style.display = 'none'; return; }
+  if (!session) { btn.style.display = 'none'; applyPersonaAccent(null); return; }
   const active = _personas.find(p => p.id === session.persona_id) || _personas.find(p => p.is_default);
   if (active) {
     btn.style.display = 'flex'; label.textContent = active.name;
@@ -1239,6 +1250,7 @@ export async function refreshPersonaBtn() {
   } else {
     btn.style.display = 'none';
   }
+  applyPersonaAccent(active?.accent || null);
 }
 
 window._refreshPersonaBtn = refreshPersonaBtn;
