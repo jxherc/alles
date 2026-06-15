@@ -813,7 +813,7 @@ export async function loadPersonas() {
     const prev = (p.system_prompt || '').replace(/\s+/g, ' ').trim();
     return `
     <div class="settings-list-row persona-row${_editingPersona === p.id ? ' editing' : ''}" data-id="${p.id}" onclick="window._editPersona('${p.id}')">
-      <span class="row-name">${p.emoji ? _esc(p.emoji) + ' ' : ''}${_esc(p.name)}${p.is_default ? ' <span class="row-tag">default</span>' : ''}</span>
+      <span class="row-name">${_esc(p.name)}${p.is_default ? ' <span class="row-tag">default</span>' : ''}</span>
       <span class="row-meta">${_esc(prev.slice(0, 60))}${prev.length > 60 ? '…' : ''}</span>
       <button class="act-btn" data-id="${p.id}" onclick="event.stopPropagation();window._dupPersona('${p.id}')">duplicate</button>
       <button class="act-btn" data-id="${p.id}" onclick="event.stopPropagation();window._rmPersona(this)">remove</button>
@@ -827,7 +827,6 @@ window._editPersona = id => {
   _editingPersona = id;
   document.getElementById('persona-name').value   = p.name || '';
   document.getElementById('persona-prompt').value = p.system_prompt || '';
-  const em = document.getElementById('persona-emoji'); if (em) em.value = p.emoji || '';
   _fillPersonaModels(p.model || '');
   const def = document.getElementById('persona-default'); if (def) def.checked = !!p.is_default;
   const title = document.getElementById('persona-form-title');
@@ -840,7 +839,7 @@ window._editPersona = id => {
 
 function _resetPersonaForm() {
   _editingPersona = null;
-  ['persona-name','persona-prompt','persona-emoji'].forEach(id => { const e = document.getElementById(id); if (e) e.value = ''; });
+  ['persona-name','persona-prompt'].forEach(id => { const e = document.getElementById(id); if (e) e.value = ''; });
   _fillPersonaModels('');
   const def = document.getElementById('persona-default'); if (def) def.checked = false;
   const title = document.getElementById('persona-form-title'); if (title) title.hidden = true;
@@ -864,11 +863,10 @@ window._dupPersona = async id => {
 async function addPersona() {
   const name   = document.getElementById('persona-name').value.trim();
   const prompt = document.getElementById('persona-prompt').value.trim();
-  const emoji  = (document.getElementById('persona-emoji')?.value || '').trim();
   const model  = document.getElementById('persona-model')?.value || '';
   const is_default = !!document.getElementById('persona-default')?.checked;
   if (!name) { toast('name required', 'error'); return; }
-  const payload = { name, emoji, system_prompt: prompt, model, is_default };
+  const payload = { name, system_prompt: prompt, model, is_default };
   if (_editingPersona) {
     await fetch(`/api/personas/${_editingPersona}`, { method: 'PATCH', headers: {'content-type':'application/json'},
       body: JSON.stringify(payload) });
