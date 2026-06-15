@@ -46,6 +46,13 @@ class EventTests(unittest.TestCase):
         self.assertEqual(p["start_dt"], "2026-06-14")
         self.assertEqual(p["title"], "buy milk")
 
+    def test_malformed_iso_date_does_not_crash(self):
+        # an impossible date must not reach date.fromisoformat() and 500;
+        # it should fall back to an all-day event today, keeping the text as title
+        p = parse_event("file taxes 2026-13-40", T)
+        self.assertEqual(p["start_dt"], "2026-06-14")
+        self.assertIn("file taxes", p["title"])
+
 
 if __name__ == "__main__":
     unittest.main()

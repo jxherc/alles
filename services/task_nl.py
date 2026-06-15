@@ -71,10 +71,15 @@ def _extract_date(t: str, today: date):
     def strip(span):
         return t[:span[0]] + " " + t[span[1]:]
 
-    # ISO date
+    # ISO date — only accept a real calendar date, else it crashes
+    # date.fromisoformat() downstream (e.g. "2026-13-40" → 500).
     m = re.search(r"\b(\d{4}-\d{2}-\d{2})\b", t)
     if m:
-        return m.group(1), strip(m.span())
+        try:
+            date.fromisoformat(m.group(1))
+            return m.group(1), strip(m.span())
+        except ValueError:
+            pass
 
     m = re.search(r"\b(today|tonight)\b", t, re.I)
     if m:
