@@ -815,6 +815,7 @@ export async function loadPersonas() {
     <div class="settings-list-row persona-row${_editingPersona === p.id ? ' editing' : ''}" data-id="${p.id}" onclick="window._editPersona('${p.id}')">
       <span class="row-name">${p.emoji ? _esc(p.emoji) + ' ' : ''}${_esc(p.name)}${p.is_default ? ' <span class="row-tag">default</span>' : ''}</span>
       <span class="row-meta">${_esc(prev.slice(0, 60))}${prev.length > 60 ? '…' : ''}</span>
+      <button class="act-btn" data-id="${p.id}" onclick="event.stopPropagation();window._dupPersona('${p.id}')">duplicate</button>
       <button class="act-btn" data-id="${p.id}" onclick="event.stopPropagation();window._rmPersona(this)">remove</button>
     </div>`;
   }).join('');
@@ -853,6 +854,11 @@ window._rmPersona = async btn => {
   if (_editingPersona === btn.dataset.id) _resetPersonaForm();
   else loadPersonas();
   window._refreshPersonaBtn?.();
+};
+
+window._dupPersona = async id => {
+  const r = await fetch(`/api/personas/${id}/duplicate`, { method: 'POST' });
+  if (r.ok) { toast('duplicated', 'success'); loadPersonas(); window._refreshPersonaBtn?.(); }
 };
 
 async function addPersona() {
