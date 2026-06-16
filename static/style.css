@@ -2768,26 +2768,7 @@ code {
   .nf-logo { animation: none; color: var(--accent); -webkit-background-clip: initial; background-clip: initial; background: none; }
 }
 
-/* whole-panel life: staggered entrance, a scanline sweep, a blinking cursor */
-#sys-shell { position: relative; }
-#sys-shell::after {
-  content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 4; border-radius: 4px;
-  background: linear-gradient(180deg, transparent 0%, color-mix(in srgb, var(--accent) 7%, transparent) 7%, transparent 15%);
-  background-size: 100% 520px; background-repeat: no-repeat;
-  animation: sys-scan 4.5s linear infinite;
-  mix-blend-mode: screen;
-}
-@keyframes sys-scan { from { background-position: 0 -140px; } to { background-position: 0 calc(100% + 140px); } }
-
-.sys-enter { animation: sys-rise 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
-.btop-grid > .sys-enter:nth-child(1) { animation-delay: 0.06s; }
-.btop-grid > .sys-enter:nth-child(2) { animation-delay: 0.12s; }
-.btop-grid > .sys-enter:nth-child(3) { animation-delay: 0.18s; }
-.btop-grid > .sys-enter:nth-child(4) { animation-delay: 0.24s; }
-.btop-grid > .sys-enter:nth-child(5) { animation-delay: 0.30s; }
-@keyframes sys-rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
-@media (prefers-reduced-motion: reduce) { .sys-enter { animation: none; } #sys-shell::after { display: none; } }
-
+/* minor, localized touches only — no screen-wide motion */
 #system-host::after { content: '▮'; margin-left: 5px; color: var(--accent); animation: sys-blink 1.1s steps(1) infinite; }
 @keyframes sys-blink { 50% { opacity: 0; } }
 
