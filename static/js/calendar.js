@@ -11,10 +11,15 @@ let _view = localStorage.getItem('cal-view') || 'month';
 let _search = '';
 let _miniCursor = new Date();    // month shown in the mini-navigator
 let _navBound = false;
+let _prefill = null;             // {start,end} for a drag-created event
 
 const WD = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const HOUR_H = 44;
-const ymd = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const _pad = n => String(n).padStart(2, '0');
+const ymd = d => `${d.getFullYear()}-${_pad(d.getMonth() + 1)}-${_pad(d.getDate())}`;
+const localISO = d => `${ymd(d)}T${_pad(d.getHours())}:${_pad(d.getMinutes())}`;
+const apiPatch = (id, body) => fetch(`/api/calendar/${id}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+const apiPost = body => fetch('/api/calendar', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
 const timeShort = dt => new Date(dt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
 const sameDay = (a, b) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 
@@ -344,7 +349,7 @@ function renderTimeGrid(el, days, occ) {
       const durH = Math.max(0.5, (be - bs) / 3600000);
       const top = (o._date.getHours() + o._date.getMinutes() / 60) * HOUR_H;
       const hx = evHex(o);
-      evHtml += `<div class="cal-tev${o._recur ? ' recurring' : ''}" data-id="${o.id}" data-occ="${ymd(o._date)}" style="top:${top}px;height:${durH * HOUR_H - 2}px;background:color-mix(in srgb, ${hx} 24%, transparent);border-left:3px solid ${hx}" title="${chipTitle(o)}"><b>${esc(timeShort(o._date))}</b> ${o._recur ? '<span class="cal-chip-recur">↻</span>' : ''}${esc(o.title)}${o.location ? `<span class="cal-tev-loc">${esc(o.location)}</span>` : ''}</div>`;
+      evHtml += `<div class="cal-tev${o._recur ? ' recurring' : ''}" data-id="${o.id}" data-occ="${ymd(o._date)}" style="top:${top}px;height:${durH * HOUR_H - 2}px;background:color-mix(in srgb, ${hx} 24%, transparent);border-left:3px solid ${hx}" title="${chipTitle(o)}"><b>${esc(timeShort(o._date))}</b> ${o._recur ? '<span class="cal-chip-recur">↻</span>' : ''}${esc(o.title)}${o.location ? `<span class="cal-tev-loc">${esc(o.location)}</span>` : ''}<span class="cal-tev-resize"></span></div>`;
     }
     const isToday = sameDay(d, today);
     const nowLine = isToday ? `<div class="cal-now-line" style="top:${nowTop}px"></div>` : '';
@@ -357,17 +362,127 @@ function renderTimeGrid(el, days, occ) {
     <div class="cal-tg-scroll"><div class="cal-tg-body"><div class="cal-tg-gutter-col">${gutter}</div>${cols}</div></div>
   </div>`;
 
-  el.querySelectorAll('.cal-tev, .cal-allday-ev').forEach(ev => ev.addEventListener('click', e => {
+  el.querySelectorAll('.cal-allday-ev').forEach(ev => ev.addEventListener('click', e => {
     e.stopPropagation(); openEvent(ev.dataset.id, ev.dataset.occ);
   }));
-  el.querySelectorAll('.cal-tg-slot').forEach(s => s.addEventListener('click', () => openEditor(null, s.dataset.date, +s.dataset.hour)));
   el.querySelectorAll('.cal-tg-allday').forEach(s => s.addEventListener('click', e => { if (e.target === s) openEditor(null, s.dataset.date, null, true); }));
+  attachDrag(el, days);   // drag to create / move / resize timed events
   const sc = el.querySelector('.cal-tg-scroll'); if (sc) sc.scrollTop = Math.max(0, nowTop - 3 * HOUR_H);
 }
 
 function openEvent(id, occ) {
   const ev = _events.find(e => e.id === id);
   if (ev) openEditor(ev, null, null, false, occ);
+}
+
+// ── drag: create / move / resize timed events in week & day views ────────────
+function attachDrag(el, days) {
+  const body = el.querySelector('.cal-tg-body');
+  const cols = [...el.querySelectorAll('.cal-tg-col')];
+  if (!body || !cols.length) return;
+  const SNAP = HOUR_H / 4;                         // 15-minute grid
+  const snap = px => Math.max(0, Math.round(px / SNAP) * SNAP);
+  const colAt = x => cols.findIndex(c => { const r = c.getBoundingClientRect(); return x >= r.left && x < r.right; });
+  const atTime = (date, px) => { const d = new Date(date); d.setHours(0, Math.round((px / HOUR_H) * 60 / 15) * 15, 0, 0); return localISO(d); };
+  let st = null;
+
+  function down(e) {
+    if (e.button !== 0) return;
+    const resize = e.target.closest('.cal-tev-resize');
+    const tev = e.target.closest('.cal-tev');
+    const slot = e.target.closest('.cal-tg-slot');
+    if (resize && tev) {
+      st = { mode: 'resize', tev, id: tev.dataset.id, occ: tev.dataset.occ, y0: e.clientY, h0: tev.offsetHeight, moved: false };
+    } else if (tev) {
+      st = { mode: 'move', tev, id: tev.dataset.id, occ: tev.dataset.occ, y0: e.clientY, x0: e.clientX, top0: tev.offsetTop, ci: cols.indexOf(tev.closest('.cal-tg-col')), moved: false };
+      tev.classList.add('dragging');
+    } else if (slot) {
+      const ci = colAt(e.clientX); if (ci < 0) return;
+      const rect = cols[ci].getBoundingClientRect();
+      const y = snap(e.clientY - rect.top);
+      const ghost = document.createElement('div');
+      ghost.className = 'cal-tev cal-ghost'; ghost.style.cssText = `top:${y}px;height:${SNAP}px`;
+      cols[ci].appendChild(ghost);
+      st = { mode: 'create', ci, y, top: y, h: SNAP, ghost, hour: +slot.dataset.hour, date: slot.dataset.date, moved: false };
+    } else return;
+    document.addEventListener('mousemove', move);
+    document.addEventListener('mouseup', up);
+    e.preventDefault();
+  }
+
+  function move(e) {
+    if (!st) return;
+    if (st.mode === 'move') {
+      if (Math.abs(e.clientY - st.y0) > 3 || Math.abs(e.clientX - st.x0) > 3) st.moved = true;
+      st.tev.style.top = snap(st.top0 + (e.clientY - st.y0)) + 'px';
+      const ci = colAt(e.clientX);
+      if (ci >= 0 && ci !== st.ci) { cols[ci].appendChild(st.tev); st.ci = ci; }
+    } else if (st.mode === 'resize') {
+      if (Math.abs(e.clientY - st.y0) > 3) st.moved = true;
+      st.tev.style.height = Math.max(SNAP, snap(st.h0 + (e.clientY - st.y0))) + 'px';
+    } else {
+      const rect = cols[st.ci].getBoundingClientRect();
+      const cur = snap(e.clientY - rect.top);
+      st.top = Math.min(cur, st.y); st.h = Math.max(SNAP, Math.abs(cur - st.y));
+      st.ghost.style.top = st.top + 'px'; st.ghost.style.height = st.h + 'px';
+      if (Math.abs(cur - st.y) > 4) st.moved = true;
+    }
+  }
+
+  async function up() {
+    document.removeEventListener('mousemove', move);
+    document.removeEventListener('mouseup', up);
+    const s = st; st = null;
+    if (!s) return;
+    if (s.mode === 'create') {
+      s.ghost.remove();
+      if (s.moved) {
+        _prefill = { start: atTime(days[s.ci], s.top), end: atTime(days[s.ci], s.top + s.h) };
+        openEditor(null, ymd(days[s.ci]));
+      } else openEditor(null, s.date, s.hour);
+      return;
+    }
+    s.tev.classList.remove('dragging');
+    if (!s.moved) { openEvent(s.id, s.occ); return; }   // a plain click
+    const ci = s.ci >= 0 ? s.ci : cols.indexOf(s.tev.closest('.cal-tg-col'));
+    const date = days[ci];
+    const top = s.tev.offsetTop, h = s.tev.offsetHeight;
+    await applyTimeChange(s.id, s.occ, atTime(date, top), atTime(date, top + h));
+  }
+
+  body.addEventListener('mousedown', down);
+}
+
+function buildCopy(ev, ov) {
+  return {
+    title: ev.title, calendar_id: ev.calendar_id, description: ev.description,
+    location: ev.location, guests: ev.guests, all_day: ev.all_day, color: ev.color,
+    reminders: ev.reminders || [], start_dt: ev.start_dt, end_dt: ev.end_dt,
+    recurrence: ev.recurrence, recur_interval: ev.recur_interval, recur_byday: ev.recur_byday,
+    recur_count: ev.recur_count, recur_until: ev.recur_until, ...ov,
+  };
+}
+
+async function applyTimeChange(id, occ, newStart, newEnd) {
+  const ev = _events.find(e => e.id === id);
+  if (!ev) return;
+  if (!ev.recurrence) {
+    await apiPatch(id, { start_dt: newStart, end_dt: newEnd });
+    return loadCalendar();
+  }
+  const scope = await chooseScope('move');
+  if (!scope) return loadCalendar();   // cancelled → revert the visual drag
+  if (scope === 'all') {
+    await apiPatch(id, { start_dt: newStart, end_dt: newEnd });
+  } else if (scope === 'this') {
+    await apiPatch(id, { recur_except: [...(ev.recur_except || []), occ] });
+    await apiPost(buildCopy(ev, { start_dt: newStart, end_dt: newEnd, recurrence: '', recur_byday: '', recur_count: null, recur_until: null, recur_interval: 1 }));
+  } else {
+    const db = new Date(occ + 'T00:00:00'); db.setDate(db.getDate() - 1);
+    await apiPatch(id, { recur_until: ymd(db), recur_count: null });
+    await apiPost(buildCopy(ev, { start_dt: newStart, end_dt: newEnd }));
+  }
+  loadCalendar();
 }
 
 // ── scope chooser (this / following / all) ───────────────────────────────────
@@ -400,10 +515,12 @@ function openEditor(event, defaultDate, hour, allDay, occ) {
   const el = document.getElementById('calendar-list');
   _editing = event || null;
   _editOcc = occ || null;
+  const pf = _prefill; _prefill = null;   // start/end from a drag-create
   const isNew = !event;
   const now = new Date(); now.setMinutes(0, 0, 0);
   const hh = hour != null ? String(hour).padStart(2, '0') : '09';
-  const start = event?.start_dt?.slice(0, 16) || (defaultDate ? `${defaultDate}T${hh}:00` : now.toISOString().slice(0, 16));
+  const start = pf?.start || event?.start_dt?.slice(0, 16) || (defaultDate ? `${defaultDate}T${hh}:00` : now.toISOString().slice(0, 16));
+  const endVal = pf?.end || event?.end_dt?.slice(0, 16) || '';
   const defaultCal = event?.calendar_id || (_calendars.find(c => c.is_default)?.id || _calendars[0]?.id || '');
   const rec = event?.recurrence || '';
   const reminders = new Set(event?.reminders || (isNew ? [10] : []));
@@ -417,7 +534,7 @@ function openEditor(event, defaultDate, hour, allDay, occ) {
     <input class="note-editor-title" id="cal-title" value="${esc(event?.title || '')}" placeholder="event title…">
     <div class="cal-ed-grid">
       <div><div class="cal-flabel">start</div><div class="date-input" id="cal-start" data-type="datetime" data-value="${start}" data-ph="start" style="width:100%"></div></div>
-      <div><div class="cal-flabel">end</div><div class="date-input" id="cal-end" data-type="datetime" data-value="${event?.end_dt?.slice(0, 16) || ''}" data-ph="end (optional)" style="width:100%"></div></div>
+      <div><div class="cal-flabel">end</div><div class="date-input" id="cal-end" data-type="datetime" data-value="${endVal}" data-ph="end (optional)" style="width:100%"></div></div>
     </div>
     <div class="cal-ed-row">
       <label class="cal-flabel cal-chk-row" id="cal-allday-row"><span class="chk" id="cal-allday" role="checkbox" aria-checked="${event?.all_day || allDay ? 'true' : 'false'}"></span> all day</label>
