@@ -32,6 +32,30 @@ def _user():
         return os.environ.get("USER") or os.environ.get("USERNAME") or "user"
 
 
+def _os_name() -> str:
+    """platform.release() lies on windows 11 — it still says '10' because win11
+    reports version 10.0.x. the build number is the only tell (>=22000 = win11)."""
+    sysname = platform.system()
+    if sysname == "Windows":
+        try:
+            build = int(platform.version().split(".")[2])   # '10.0.26100' -> 26100
+        except (IndexError, ValueError):
+            build = 0
+        return f"Windows {'11' if build >= 22000 else platform.release()}"
+    if sysname == "Darwin":
+        ver = platform.mac_ver()[0]
+        return f"macOS {ver}".strip() if ver else "macOS"
+    return f"{sysname} {platform.release()}".strip()
+
+
+def _arch() -> str:
+    # 'AMD64' is just the x86-64 ISA name (amd designed it, intel licensed it) —
+    # windows reports it for every 64-bit box, intel or amd. show the neutral name.
+    m = platform.machine()
+    return {"AMD64": "x86_64", "x86_64": "x86_64", "x86": "x86", "i386": "x86",
+            "i686": "x86", "ARM64": "arm64", "aarch64": "arm64"}.get(m, m or "?")
+
+
 # module-level state for rate calcs (the server process persists across polls)
 _net_last = None    # (monotonic, bytes_sent, bytes_recv)
 _dio_last = None    # (monotonic, read_bytes, write_bytes)
@@ -127,10 +151,10 @@ def snapshot() -> dict:
         "disks": [],
         "gpu": {"has": bool(info.get("has_gpu")), "name": info.get("gpu_name"),
                 "vram_gb": info.get("gpu_vram_gb"), "count": info.get("gpu_count")},
-        "host": {"os": f"{platform.system()} {platform.release()}".strip(),
+        "host": {"os": _os_name(),
                  "platform": platform.system().lower(),
                  "hostname": socket.gethostname(), "python": platform.python_version(),
-                 "user": _user(), "arch": platform.machine(),
+                 "user": _user(), "arch": _arch(),
                  "backend": info.get("backend")},
         "uptime_sec": None,
         "load": None,
