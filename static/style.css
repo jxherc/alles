@@ -451,6 +451,9 @@ body:not(.is-aide) .aide-only { display: none !important; }
   display: flex; flex-direction: column;
   animation: runs-slide 0.18s cubic-bezier(0.2,0.7,0.2,1);
 }
+/* the class sets display:flex, which beats the UA [hidden]{display:none} — so the
+   hidden attribute alone wouldn't hide it. force it closed explicitly. */
+.runs-drawer[hidden], .runs-scrim[hidden] { display: none; }
 @keyframes runs-slide { from { transform: translateX(20px); opacity: 0; } to { transform: none; opacity: 1; } }
 .runs-drawer-head { display: flex; align-items: center; justify-content: space-between; padding: 0.7rem 0.9rem; border-bottom: 1px solid var(--faint); font-size: 0.8rem; color: var(--text); }
 .runs-drawer-body { overflow-y: auto; flex: 1; padding: 0.3rem 0.5rem; }
