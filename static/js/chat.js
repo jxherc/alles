@@ -9,6 +9,42 @@ import { getAttachments, clearAttachments } from './uploads.js';
 import { isIncognitoMode, getPermMode, getEffort } from './modes.js';
 import { applyResponsePrivacy, stripEmojis } from './privacy.js';
 
+// tools that change state / reach out — flagged in the agent panel + permission cards
+const DESTRUCTIVE_TOOLS = new Set(['shell', 'bash', 'write_file', 'edit_file', 'apply_patch',
+  'git_commit', 'git_push', 'revert_file', 'delete_file', 'mail_send',
+  'computer_click', 'computer_type', 'computer_key', 'computer_scroll']);
+
+// one-line human summary of a tool call (so the panel + approvals read clearly,
+// not as raw JSON)
+function toolSummary(name, args = {}) {
+  const a = args || {};
+  const cut = (s, n = 70) => String(s || '').replace(/\s+/g, ' ').slice(0, n);
+  switch (name) {
+    case 'read_file': return `read ${a.path || ''}`;
+    case 'write_file': return `write ${a.path || ''}`;
+    case 'edit_file': return `edit ${a.path || ''}`;
+    case 'apply_patch': return 'apply a patch';
+    case 'shell': case 'bash': return `run: ${cut(a.command, 90)}`;
+    case 'grep_files': return `grep "${cut(a.pattern, 40)}"`;
+    case 'glob_files': return `glob ${a.pattern || ''}`;
+    case 'list_files': return `list ${a.path || '.'}`;
+    case 'web_search': return `search: ${cut(a.query, 50)}`;
+    case 'web_fetch': return `fetch ${cut(a.url, 60)}`;
+    case 'git_commit': return 'git commit';
+    case 'git_status': return 'git status';
+    case 'git_diff': return 'git diff';
+    case 'todo_update': return 'update the checklist';
+    case 'memory_search': return `recall: ${cut(a.query, 40)}`;
+    case 'memory_add': return 'remember a fact';
+    case 'diagnostics': return 'run diagnostics';
+    case 'mail_send': return `send mail to ${cut(a.to, 40)}`;
+    default: {
+      const v = Object.values(a).find(x => typeof x === 'string' && x.length < 80);
+      return v ? `${name}: ${cut(v)}` : name;
+    }
+  }
+}
+
 // expose mdToHtml for sessions.js lazy fallback
 window._mdToHtml = mdToHtml;
 
@@ -284,15 +320,16 @@ export async function sendMessage(text) {
           const t = chunk.tool_start;
           const panel = ensureAgentPanel();
           const step = document.createElement('div');
-          step.className = 'agent-step running';
+          step.className = 'agent-step running' + (DESTRUCTIVE_TOOLS.has(t.name) ? ' destructive' : '');
           step.dataset.callId = t.call_id || '';
           step.innerHTML = `
             <div class="agent-step-head">
               <span class="agent-step-dot"></span>
               <span class="agent-step-name">${escHtml(t.name || 'tool')}</span>
+              <span class="agent-step-summary">${escHtml(toolSummary(t.name, t.args))}</span>
               <span class="agent-step-status">running</span>
             </div>
-            <pre class="agent-step-args">${escHtml(JSON.stringify(t.args || {}, null, 2))}</pre>
+            <details class="agent-step-args-wrap"><summary>args</summary><pre class="agent-step-args">${escHtml(JSON.stringify(t.args || {}, null, 2))}</pre></details>
             <pre class="agent-step-output"></pre>
           `;
           panel.appendChild(step);
@@ -347,7 +384,7 @@ export async function sendMessage(text) {
             card.className = 'agent-perm';
             card.dataset.req = t.request_id;
             card.innerHTML = `
-              <div class="agent-perm-msg">approve <b>${escHtml(t.name)}</b>?</div>
+              <div class="agent-perm-msg">approve: <b>${escHtml(toolSummary(t.name, t.args))}</b>?</div>
               <div class="agent-perm-actions">
                 <button class="agent-perm-allow">approve</button>
                 <button class="agent-perm-deny">deny</button>
