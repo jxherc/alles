@@ -198,13 +198,17 @@ class SendBody(BaseModel):
     subject: str = ""
     body: str = ""
     cc: str = ""
+    bcc: str = ""
+    in_reply_to: str = ""
+    references: str = ""
 
 
 @router.post("/send/{aid}")
 def send(aid: str, body: SendBody, db: DbSession = Depends(get_db)):
     a = _get(db, aid)
     try:
-        return mailsvc.send_mail(_acct_dict(a), body.to, body.subject, body.body, body.cc)
+        return mailsvc.send_mail(_acct_dict(a), body.to, body.subject, body.body, body.cc,
+                                 body.bcc, body.in_reply_to, body.references)
     except Exception as e:
         return {"ok": False, "error": str(e)[:200]}
 
