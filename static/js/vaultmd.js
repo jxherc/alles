@@ -639,7 +639,8 @@ function _wireRow(row, kind) {
       const name = await dlgPrompt(`rename ${kind}:`, cur);
       if (!name?.trim() || name.trim() === cur) return;
       const parent = path.includes('/') ? path.slice(0, path.lastIndexOf('/') + 1) : '';
-      await fetch('/api/vault-md/rename', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ path, new_path: parent + name.trim() }) });
+      const rr = await fetch('/api/vault-md/rename', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ path, new_path: parent + name.trim() }) }).then(r => r.json()).catch(() => ({}));
+      if (rr.links_rewritten) toast(`updated ${rr.links_rewritten} note${rr.links_rewritten > 1 ? 's' : ''} linking here`, 'success');
       if (_cur === path) _resetEditor();
       loadTree();
     } else {

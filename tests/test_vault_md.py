@@ -34,6 +34,28 @@ class VaultTests(unittest.TestCase):
         self.assertIn("sub", names)
         self.assertNotIn("ignore", names)   # non-md excluded
 
+    def test_rewrite_links_preserves_alias_and_heading(self):
+        vault_md.write("a.md", "link to [[old]] here")
+        vault_md.write("b.md", "alias [[old|Display]] and heading [[old#sec]]")
+        vault_md.write("c.md", "unrelated [[other]]")
+        changed = vault_md.rewrite_links("old", "new")
+        self.assertEqual(set(changed), {"a.md", "b.md"})
+        self.assertIn("[[new]]", vault_md.read("a.md")["content"])
+        bc = vault_md.read("b.md")["content"]
+        self.assertIn("[[new|Display]]", bc)   # alias kept
+        self.assertIn("[[new#sec]]", bc)       # heading kept
+        self.assertIn("[[other]]", vault_md.read("c.md")["content"])   # untouched
+
+    def test_rewrite_links_case_insensitive_match(self):
+        vault_md.write("a.md", "[[Old Note]] and [[old note]]")
+        vault_md.rewrite_links("old note", "Renamed")
+        self.assertEqual(vault_md.read("a.md")["content"], "[[Renamed]] and [[Renamed]]")
+
+    def test_rewrite_links_noop_when_same(self):
+        vault_md.write("a.md", "[[x]]")
+        self.assertEqual(vault_md.rewrite_links("x", "x"), [])
+        self.assertEqual(vault_md.rewrite_links("", "y"), [])
+
     def test_backlinks(self):
         vault_md.write("one.md", "see [[target]] here")
         vault_md.write("two.md", "also [[Target]] and [[other]]")
