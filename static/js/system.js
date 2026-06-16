@@ -102,16 +102,27 @@ function render(s) {
     </div>`;
 }
 
-let _timer = null, _wired = false;
+let _timer = null, _wired = false, _ok = false;
 async function tick() {
   const v = $('system-view');
   if (!v || v.style.display === 'none' || document.hidden) return;
   try {
-    const s = await fetch('/api/system/stats').then(r => r.json());
+    const r = await fetch('/api/system/stats');
+    if (!r.ok) throw new Error(r.status === 404 ? 'the /api/system/stats route is missing' : `server returned ${r.status}`);
+    const s = await r.json();
+    if (!s || !s.cpu || !s.memory) throw new Error('unexpected response');
     render(s);
-  } catch {
+    _ok = true;
+  } catch (e) {
+    // don't wipe a working view over one transient blip; only show the error if
+    // we never managed to load (e.g. the route isn't there yet)
     const b = $('system-body');
-    if (b && !b.children.length) b.innerHTML = '<div class="sys-note">couldn’t read system stats</div>';
+    if (b && !_ok) {
+      const restart = /missing|404|unexpected/.test(e.message)
+        ? ' if you just updated alles, restart the server so it picks up the new route: <code>python cli.py restart</code>'
+        : '';
+      b.innerHTML = `<div class="sys-note">couldn’t read system stats — ${esc(e.message)}.${restart}</div>`;
+    }
   }
 }
 
