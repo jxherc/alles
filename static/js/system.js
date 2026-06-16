@@ -176,20 +176,20 @@ function buildShell(s) {
     `<div class="sys-note">live cpu% + processes + net need <code>psutil</code> (<code>pip install psutil</code>); ram + disk shown from the static readout.</div>`;
   $('system-body').innerHTML = `${note}
     <div id="sys-shell">
-      <div class="neofetch sys-enter">
+      <div class="neofetch">
         <pre class="nf-logo">${esc(logoFor(s.host.platform))}</pre>
         <div class="nf-info" id="nf-info"></div>
       </div>
       <div class="btop-grid">
-        <div class="btop-box span2 sys-enter" id="box-cpu">
+        <div class="btop-box span2" id="box-cpu">
           <div class="bx-line" id="cpu-top"></div>
           <pre class="graph" id="cpu-graph"></pre>
           <div class="cores-grid" id="cpu-cores"></div>
         </div>
-        <div class="btop-box sys-enter" id="box-mem"><div id="mem-lines"></div><pre class="graph graph-sm" id="mem-graph"></pre></div>
-        <div class="btop-box sys-enter" id="box-net"><div id="net-body"></div></div>
-        <div class="btop-box sys-enter" id="box-disk"><div id="disk-body"></div></div>
-        <div class="btop-box span2 sys-enter" id="box-proc"><div id="proc-body"></div></div>
+        <div class="btop-box" id="box-mem"><div id="mem-lines"></div><pre class="graph graph-sm" id="mem-graph"></pre></div>
+        <div class="btop-box" id="box-net"><div id="net-body"></div></div>
+        <div class="btop-box" id="box-disk"><div id="disk-body"></div></div>
+        <div class="btop-box span2" id="box-proc"><div id="proc-body"></div></div>
       </div>
     </div>`;
 }
