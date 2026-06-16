@@ -3,32 +3,53 @@ import { initCustomDropdown } from './dropdown.js';
 import { initDatePickers } from './datepick.js';
 
 let _events = [];
+let _calendars = [];
 let _editing = null;
-let _cursor = new Date();        // a day inside the viewed period
-let _view = localStorage.getItem('cal-view') || 'month';   // month | week | day
+let _editOcc = null;             // occurrence date when editing a recurring instance
+let _cursor = new Date();
+let _view = localStorage.getItem('cal-view') || 'month';
+let _search = '';
+let _miniCursor = new Date();    // month shown in the mini-navigator
 let _navBound = false;
 
 const WD = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-const HOUR_H = 40;
+const HOUR_H = 44;
 const ymd = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-const COLORS = { accent: 'accent', green: 'green', warn: 'warn', error: 'error', red: 'error' };
-const colorClass = c => COLORS[c] || 'accent';
 const timeShort = dt => new Date(dt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
 const sameDay = (a, b) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 
+// google-ish categorical palette (event colours are categorisation here, not status)
+const PALETTE = {
+  accent: 'var(--accent)', tomato: '#f87171', flamingo: '#fb9a8f', tangerine: '#fb923c',
+  banana: '#fbbf24', sage: '#5ec88a', basil: '#2dba6e', peacock: '#39b3e5',
+  blueberry: '#5b8def', lavender: '#8b9cf8', grape: '#c08cf8', graphite: '#94a3b8',
+  // back-compat with the old class names
+  green: '#5ec88a', warn: '#fbbf24', error: '#f87171', red: '#f87171', blue: '#5b8def',
+};
+const COLOR_NAMES = ['accent', 'tomato', 'tangerine', 'banana', 'sage', 'basil', 'peacock', 'blueberry', 'lavender', 'grape', 'graphite'];
+const calById = id => _calendars.find(c => c.id === id);
+const hexOf = name => PALETTE[name] || (String(name || '').startsWith('#') ? name : PALETTE.accent);
+const evColorName = e => e.color || calById(e.calendar_id)?.color || 'accent';
+const evHex = e => hexOf(evColorName(e));
+
 export async function loadCalendar() {
   _bindNav();
-  const r = await fetch('/api/calendar');
-  _events = await r.json();
+  const [cals, evs] = await Promise.all([
+    fetch('/api/calendars').then(r => r.json()).catch(() => []),
+    fetch('/api/calendar').then(r => r.json()).catch(() => []),
+  ]);
+  _calendars = Array.isArray(cals) ? cals : [];
+  _events = Array.isArray(evs) ? evs : [];
+  renderSidebar();
   render();
 }
 
 function _bindNav() {
   if (_navBound) return;
   _navBound = true;
-  document.getElementById('cal-prev')?.addEventListener('click', () => { shift(-1); });
-  document.getElementById('cal-next')?.addEventListener('click', () => { shift(1); });
-  document.getElementById('cal-today')?.addEventListener('click', () => { _cursor = new Date(); render(); });
+  document.getElementById('cal-prev')?.addEventListener('click', () => shift(-1));
+  document.getElementById('cal-next')?.addEventListener('click', () => shift(1));
+  document.getElementById('cal-today')?.addEventListener('click', () => { _cursor = new Date(); _miniCursor = new Date(); render(); renderSidebar(); });
   document.querySelectorAll('.cal-view-btn').forEach(b =>
     b.addEventListener('click', () => { _view = b.dataset.view; localStorage.setItem('cal-view', _view); _syncViewBtns(); render(); }));
   _syncViewBtns();
@@ -60,42 +81,188 @@ function shift(dir) {
   if (_view === 'month') _cursor.setMonth(_cursor.getMonth() + dir);
   else if (_view === 'week') _cursor.setDate(_cursor.getDate() + 7 * dir);
   else _cursor.setDate(_cursor.getDate() + dir);
+  _miniCursor = new Date(_cursor);
   render();
+  renderSidebar();
 }
 
-// expand recurring events into concrete occurrences within [rs, re)
-function expand(rs, re) {
-  const step = (d, rec) => {
-    if (rec === 'daily') d.setDate(d.getDate() + 1);
-    else if (rec === 'weekly') d.setDate(d.getDate() + 7);
-    else if (rec === 'monthly') d.setMonth(d.getMonth() + 1);
-  };
-  const out = [];
-  for (const e of _events) {
-    const base = new Date(e.start_dt);
-    if (!e.recurrence) {
-      if (base >= rs && base < re) out.push({ ...e, _date: base });
-      continue;
+// ── sidebar: search + mini-month + my-calendars ──────────────────────────────
+function renderSidebar() {
+  const el = document.getElementById('cal-sidebar');
+  if (!el) return;
+  el.innerHTML = `
+    <input type="text" id="cal-search" class="cal-side-search" placeholder="search events…" value="${esc(_search)}">
+    <div class="cal-mini" id="cal-mini"></div>
+    <div class="cal-cals">
+      <div class="cal-cals-head"><span>my calendars</span><button class="cal-cal-add" id="cal-cal-add" title="new calendar">+</button></div>
+      <div id="cal-cals-list"></div>
+    </div>`;
+  renderMini();
+  renderCalList();
+  const s = document.getElementById('cal-search');
+  s.addEventListener('input', () => { _search = s.value.trim(); render(); });
+  document.getElementById('cal-cal-add').addEventListener('click', () => calForm(null));
+}
+
+function renderMini() {
+  const el = document.getElementById('cal-mini');
+  if (!el) return;
+  const y = _miniCursor.getFullYear(), m = _miniCursor.getMonth();
+  const today = new Date();
+  const startDay = new Date(y, m, 1).getDay();
+  const dim = new Date(y, m + 1, 0).getDate();
+  let html = `<div class="cal-mini-head"><button class="cal-mini-nav" data-d="-1">‹</button>
+    <span>${_miniCursor.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</span>
+    <button class="cal-mini-nav" data-d="1">›</button></div><div class="cal-mini-grid">`;
+  for (const w of ['S', 'M', 'T', 'W', 'T', 'F', 'S']) html += `<div class="cal-mini-wd">${w}</div>`;
+  for (let i = 0; i < startDay; i++) html += '<div></div>';
+  for (let d = 1; d <= dim; d++) {
+    const date = new Date(y, m, d);
+    const cls = ['cal-mini-day'];
+    if (sameDay(date, today)) cls.push('today');
+    if (sameDay(date, _cursor)) cls.push('sel');
+    html += `<div class="${cls.join(' ')}" data-date="${ymd(date)}">${d}</div>`;
+  }
+  html += '</div>';
+  el.innerHTML = html;
+  el.querySelectorAll('.cal-mini-nav').forEach(b => b.addEventListener('click', () => {
+    _miniCursor.setMonth(_miniCursor.getMonth() + (+b.dataset.d)); renderMini();
+  }));
+  el.querySelectorAll('.cal-mini-day').forEach(c => c.addEventListener('click', () => {
+    _cursor = new Date(c.dataset.date + 'T00:00:00'); render(); renderMini();
+  }));
+}
+
+function renderCalList() {
+  const el = document.getElementById('cal-cals-list');
+  if (!el) return;
+  el.innerHTML = _calendars.map(c => `
+    <div class="cal-cal-row" data-id="${c.id}">
+      <span class="cal-cal-chk ${c.visible ? 'on' : ''}" data-act="vis" style="--cc:${hexOf(c.color)}"></span>
+      <span class="cal-cal-name" data-act="edit">${esc(c.name)}</span>
+    </div>`).join('');
+  el.querySelectorAll('.cal-cal-row').forEach(row => {
+    const c = calById(row.dataset.id);
+    row.querySelector('[data-act="vis"]').addEventListener('click', async () => {
+      await fetch(`/api/calendars/${c.id}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ visible: !c.visible }) });
+      c.visible = !c.visible; renderCalList(); render();
+    });
+    row.querySelector('[data-act="edit"]').addEventListener('click', () => calForm(c));
+  });
+}
+
+function calForm(cal) {
+  const isNew = !cal;
+  const wrap = document.getElementById('cal-cals-list');
+  const sel = cal?.color || 'accent';
+  const form = document.createElement('div');
+  form.className = 'cal-cal-form';
+  form.innerHTML = `
+    <input class="settings-input" id="cc-name" placeholder="calendar name" value="${esc(cal?.name || '')}" style="width:100%">
+    <div class="cal-swatches" id="cc-colors">${COLOR_NAMES.map(c => `<span class="cal-sw ${c === sel ? 'sel' : ''}" data-c="${c}" style="background:${hexOf(c)}"></span>`).join('')}</div>
+    <div class="cal-cal-form-btns">
+      ${isNew || cal.is_default ? '' : '<button class="btn" id="cc-del" style="color:var(--error);border-color:var(--error);margin-right:auto">delete</button>'}
+      <button class="btn" id="cc-cancel">cancel</button>
+      <button class="btn primary" id="cc-save">${isNew ? 'add' : 'save'}</button>
+    </div>`;
+  wrap.prepend(form);
+  let color = sel;
+  form.querySelectorAll('.cal-sw').forEach(s => s.addEventListener('click', () => {
+    color = s.dataset.c; form.querySelectorAll('.cal-sw').forEach(x => x.classList.toggle('sel', x === s));
+  }));
+  form.querySelector('#cc-cancel').addEventListener('click', () => renderCalList());
+  form.querySelector('#cc-del')?.addEventListener('click', async () => {
+    await fetch(`/api/calendars/${cal.id}`, { method: 'DELETE' });
+    await loadCalendar();
+  });
+  form.querySelector('#cc-save').addEventListener('click', async () => {
+    const name = form.querySelector('#cc-name').value.trim();
+    if (!name) { toast('name it', 'error'); return; }
+    const body = { name, color };
+    if (isNew) await fetch('/api/calendars', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+    else await fetch(`/api/calendars/${cal.id}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+    await loadCalendar();
+  });
+}
+
+// ── recurrence expansion (mirrors services/recur.py) ─────────────────────────
+const PYWD = { MO: 0, TU: 1, WE: 2, TH: 3, FR: 4, SA: 5, SU: 6 };
+const parseByday = s => new Set((s || '').split(',').map(t => PYWD[t.trim().toUpperCase()]).filter(v => v != null));
+function addMonths(d, n) {
+  const x = new Date(d); const day = d.getDate();
+  x.setDate(1); x.setMonth(x.getMonth() + n);
+  x.setDate(Math.min(day, new Date(x.getFullYear(), x.getMonth() + 1, 0).getDate()));
+  return x;
+}
+function* candidates(start, rec, interval, byday) {
+  if (rec === 'weekly') {
+    const days = (byday && byday.size) ? byday : new Set([(start.getDay() + 6) % 7]);
+    const monday = new Date(start); monday.setDate(start.getDate() - ((start.getDay() + 6) % 7));
+    const floor = new Date(start); floor.setSeconds(0, 0);
+    let wk = 0;
+    while (true) {
+      for (const wd of [...days].sort((a, b) => a - b)) {
+        const c = new Date(monday); c.setDate(monday.getDate() + wk * 7 * interval + wd);
+        if (c >= floor) yield c;
+      }
+      wk++;
     }
+  } else if (rec === 'daily') {
+    let cur = new Date(start);
+    while (true) { yield new Date(cur); cur.setDate(cur.getDate() + interval); }
+  } else {
+    const months = rec === 'monthly' ? interval : 12 * interval; let i = 0;
+    while (true) { yield addMonths(start, i * months); i++; }
+  }
+}
+
+function visibleEvents() {
+  let list = _events.filter(e => { const c = calById(e.calendar_id); return !c || c.visible; });
+  if (_search) {
+    const q = _search.toLowerCase();
+    list = list.filter(e => `${e.title || ''} ${e.description || ''} ${e.location || ''}`.toLowerCase().includes(q));
+  }
+  return list;
+}
+
+function expand(rs, re) {
+  const out = [];
+  for (const e of visibleEvents()) {
+    const start = new Date(e.start_dt);
+    if (isNaN(start)) continue;
+    if (!e.recurrence) { if (start >= rs && start < re) out.push({ ...e, _date: start }); continue; }
+    const interval = Math.max(1, e.recur_interval || 1);
     const until = e.recur_until ? new Date(e.recur_until + 'T23:59:59') : null;
-    const d = new Date(base);
-    let g = 0;
-    while (d < rs && g++ < 6000) step(d, e.recurrence);
-    g = 0;
-    while (d < re && g++ < 1000) {
-      if (!until || d <= until) out.push({ ...e, _date: new Date(d), _recur: true });
-      step(d, e.recurrence);
+    const count = e.recur_count || null;
+    const excepts = new Set((e.recur_except || []).map(d => String(d).slice(0, 10)));
+    const byday = e.recurrence === 'weekly' ? parseByday(e.recur_byday) : null;
+    const gen = candidates(start, e.recurrence, interval, byday);
+    let emitted = 0, guard = 0;
+    while (guard++ < 8000) {
+      const nx = gen.next(); if (nx.done) break;
+      const cand = nx.value;
+      if (until && cand > until) break;
+      if (count != null && emitted >= count) break;
+      emitted++;
+      if (excepts.has(ymd(cand))) continue;
+      if (cand >= re) break;
+      if (cand >= rs) out.push({ ...e, _date: new Date(cand), _recur: true });
+      if (out.length > 3000) break;
     }
   }
   return out;
 }
 
+// ── rendering ────────────────────────────────────────────────────────────────
 function render() {
   const lbl = document.getElementById('cal-month-label');
   if (_view === 'month') { if (lbl) lbl.textContent = _cursor.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }); renderMonth(); }
   else if (_view === 'week') renderWeek(lbl);
   else renderDay(lbl);
 }
+
+const chipStyle = o => `background:${evHex(o)};color:#0a0a0a`;
+const chipTitle = o => `${esc(o.title)}${o.location ? ' · ' + esc(o.location) : ''}${o._recur ? ' (repeats)' : ''}`;
 
 function renderMonth() {
   const el = document.getElementById('calendar-list');
@@ -104,7 +271,6 @@ function renderMonth() {
   const startDay = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const today = new Date();
-
   const rangeStart = new Date(year, month, 1 - startDay);
   const rangeEnd = new Date(year, month, daysInMonth + 7);
   const occ = expand(rangeStart, rangeEnd);
@@ -121,9 +287,9 @@ function renderMonth() {
   for (const cell of cells) {
     if (!cell) { html += '<div class="cal-cell empty"></div>'; continue; }
     const key = ymd(cell);
-    const evts = (byDay[key] || []).sort((a, b) => (a._date - b._date));
+    const evts = (byDay[key] || []).sort((a, b) => (a.all_day ? 0 : a._date) - (b.all_day ? 0 : b._date));
     const chips = evts.slice(0, 4).map(o =>
-      `<div class="cal-chip ${colorClass(o.color)}${o._recur ? ' recurring' : ''}" data-id="${o.id}" title="${esc(o.title)}${o._recur ? ' (repeats ' + esc(o.recurrence) + ')' : ''}">${o._recur ? '<span class="cal-chip-recur">↻</span>' : ''}${esc((o.all_day ? '' : timeShort(o._date) + ' ') + o.title)}</div>`).join('');
+      `<div class="cal-chip${o._recur ? ' recurring' : ''}" data-id="${o.id}" data-occ="${ymd(o._date)}" style="${chipStyle(o)}" title="${chipTitle(o)}">${o._recur ? '<span class="cal-chip-recur">↻</span>' : ''}${esc((o.all_day ? '' : timeShort(o._date) + ' ') + o.title)}</div>`).join('');
     const more = evts.length > 4 ? `<div class="cal-more">+${evts.length - 4} more</div>` : '';
     html += `<div class="cal-cell${sameDay(cell, today) ? ' today' : ''}" data-date="${key}">
       <div class="cal-cell-num">${cell.getDate()}</div>
@@ -133,7 +299,7 @@ function renderMonth() {
   el.innerHTML = html;
   el.querySelectorAll('.cal-cell:not(.empty)').forEach(c => c.addEventListener('click', ev => {
     const chip = ev.target.closest('.cal-chip');
-    if (chip) { openEditor(_events.find(e => e.id === chip.dataset.id)); return; }
+    if (chip) { openEvent(chip.dataset.id, chip.dataset.occ); return; }
     openEditor(null, c.dataset.date);
   }));
 }
@@ -159,19 +325,17 @@ function renderDay(lbl) {
 function renderTimeGrid(el, days, occ) {
   if (!el) return;
   const today = new Date();
-  // header
   let head = '<div class="cal-tg-gutter-head"></div>';
   for (const d of days) head += `<div class="cal-tg-dayhead${sameDay(d, today) ? ' today' : ''}" data-date="${ymd(d)}"><span class="cal-tg-wd">${WD[d.getDay()]}</span> <span class="cal-tg-dn">${d.getDate()}</span></div>`;
-  // all-day row
   let allday = '<div class="cal-tg-gutter">all-day</div>';
   for (const d of days) {
     const items = occ.filter(o => o.all_day && sameDay(o._date, d))
-      .map(o => `<div class="cal-allday-ev ${colorClass(o.color)}${o._recur ? ' recurring' : ''}" data-id="${o.id}" title="${esc(o.title)}${o._recur ? ' (repeats ' + esc(o.recurrence) + ')' : ''}">${o._recur ? '<span class="cal-chip-recur">↻</span>' : ''}${esc(o.title)}</div>`).join('');
+      .map(o => `<div class="cal-allday-ev${o._recur ? ' recurring' : ''}" data-id="${o.id}" data-occ="${ymd(o._date)}" style="${chipStyle(o)}" title="${chipTitle(o)}">${o._recur ? '<span class="cal-chip-recur">↻</span>' : ''}${esc(o.title)}</div>`).join('');
     allday += `<div class="cal-tg-allday" data-date="${ymd(d)}">${items}</div>`;
   }
-  // hour grid
   let gutter = '';
   for (let h = 0; h < 24; h++) gutter += `<div class="cal-tg-hour" style="height:${HOUR_H}px">${h === 0 ? '' : (h % 12 || 12) + (h < 12 ? 'a' : 'p')}</div>`;
+  const nowTop = (today.getHours() + today.getMinutes() / 60) * HOUR_H;
   let cols = '';
   for (const d of days) {
     let evHtml = '';
@@ -179,10 +343,13 @@ function renderTimeGrid(el, days, occ) {
       const bs = new Date(o.start_dt), be = o.end_dt ? new Date(o.end_dt) : new Date(bs.getTime() + 3600000);
       const durH = Math.max(0.5, (be - bs) / 3600000);
       const top = (o._date.getHours() + o._date.getMinutes() / 60) * HOUR_H;
-      evHtml += `<div class="cal-tev ${colorClass(o.color)}${o._recur ? ' recurring' : ''}" data-id="${o.id}" style="top:${top}px;height:${durH * HOUR_H - 2}px" title="${esc(o.title)}${o._recur ? ' (repeats ' + esc(o.recurrence) + ')' : ''}"><b>${esc(timeShort(o._date))}</b> ${o._recur ? '<span class="cal-chip-recur">↻</span>' : ''}${esc(o.title)}</div>`;
+      const hx = evHex(o);
+      evHtml += `<div class="cal-tev${o._recur ? ' recurring' : ''}" data-id="${o.id}" data-occ="${ymd(o._date)}" style="top:${top}px;height:${durH * HOUR_H - 2}px;background:color-mix(in srgb, ${hx} 24%, transparent);border-left:3px solid ${hx}" title="${chipTitle(o)}"><b>${esc(timeShort(o._date))}</b> ${o._recur ? '<span class="cal-chip-recur">↻</span>' : ''}${esc(o.title)}${o.location ? `<span class="cal-tev-loc">${esc(o.location)}</span>` : ''}</div>`;
     }
+    const isToday = sameDay(d, today);
+    const nowLine = isToday ? `<div class="cal-now-line" style="top:${nowTop}px"></div>` : '';
     const lines = Array.from({ length: 24 }, (_, h) => `<div class="cal-tg-slot" style="height:${HOUR_H}px" data-date="${ymd(d)}" data-hour="${h}"></div>`).join('');
-    cols += `<div class="cal-tg-col">${lines}${evHtml}</div>`;
+    cols += `<div class="cal-tg-col">${lines}${nowLine}${evHtml}</div>`;
   }
   el.innerHTML = `<div class="cal-timegrid ${days.length === 1 ? 'one-day' : ''}" style="--cols:${days.length}">
     <div class="cal-tg-headrow">${head}</div>
@@ -191,45 +358,102 @@ function renderTimeGrid(el, days, occ) {
   </div>`;
 
   el.querySelectorAll('.cal-tev, .cal-allday-ev').forEach(ev => ev.addEventListener('click', e => {
-    e.stopPropagation(); openEditor(_events.find(x => x.id === ev.dataset.id));
+    e.stopPropagation(); openEvent(ev.dataset.id, ev.dataset.occ);
   }));
   el.querySelectorAll('.cal-tg-slot').forEach(s => s.addEventListener('click', () => openEditor(null, s.dataset.date, +s.dataset.hour)));
   el.querySelectorAll('.cal-tg-allday').forEach(s => s.addEventListener('click', e => { if (e.target === s) openEditor(null, s.dataset.date, null, true); }));
-  // scroll to ~8am
-  const sc = el.querySelector('.cal-tg-scroll'); if (sc) sc.scrollTop = 7 * HOUR_H;
+  const sc = el.querySelector('.cal-tg-scroll'); if (sc) sc.scrollTop = Math.max(0, nowTop - 3 * HOUR_H);
 }
 
-function openEditor(event, defaultDate, hour, allDay) {
-  const list = document.getElementById('calendar-list');
-  _editing = event || null;
-  const isNew = !event;
-  const now = new Date().toISOString().slice(0, 16);
-  const hh = hour != null ? String(hour).padStart(2, '0') : '09';
-  const start = event?.start_dt?.slice(0, 16) || (defaultDate ? `${defaultDate}T${hh}:00` : now);
-  const colors = ['accent', 'green', 'warn', 'error'];
-  const recur = event?.recurrence || '';
+function openEvent(id, occ) {
+  const ev = _events.find(e => e.id === id);
+  if (ev) openEditor(ev, null, null, false, occ);
+}
 
-  list.innerHTML = `<div class="note-editor">
-    <input class="note-editor-title" id="cal-title" value="${esc(event?.title || '')}" placeholder="event title...">
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;margin-top:0.25rem">
+// ── scope chooser (this / following / all) ───────────────────────────────────
+function chooseScope(verb) {
+  return new Promise(resolve => {
+    const ov = document.createElement('div');
+    ov.className = 'cal-scope-ov';
+    ov.innerHTML = `<div class="cal-scope">
+      <div class="cal-scope-h">${verb} recurring event</div>
+      <button class="btn" data-s="this">This event</button>
+      <button class="btn" data-s="following">This and following</button>
+      <button class="btn" data-s="all">All events</button>
+      <button class="btn cal-scope-cancel" data-s="">cancel</button>
+    </div>`;
+    document.body.appendChild(ov);
+    const done = v => { ov.remove(); resolve(v); };
+    ov.addEventListener('click', e => { if (e.target === ov) done(null); });
+    ov.querySelectorAll('[data-s]').forEach(b => b.addEventListener('click', () => done(b.dataset.s || null)));
+  });
+}
+
+// ── the event editor ─────────────────────────────────────────────────────────
+const REMIND_PRESETS = [[0, 'at time'], [5, '5m'], [10, '10m'], [30, '30m'], [60, '1h'], [1440, '1d']];
+const FREQS = [['', 'does not repeat'], ['daily', 'daily'], ['weekly', 'weekly'], ['monthly', 'monthly'], ['yearly', 'yearly']];
+const UNIT = { daily: 'days', weekly: 'weeks', monthly: 'months', yearly: 'years' };
+const DOW = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+const DOW_LETTER = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
+
+function openEditor(event, defaultDate, hour, allDay, occ) {
+  const el = document.getElementById('calendar-list');
+  _editing = event || null;
+  _editOcc = occ || null;
+  const isNew = !event;
+  const now = new Date(); now.setMinutes(0, 0, 0);
+  const hh = hour != null ? String(hour).padStart(2, '0') : '09';
+  const start = event?.start_dt?.slice(0, 16) || (defaultDate ? `${defaultDate}T${hh}:00` : now.toISOString().slice(0, 16));
+  const defaultCal = event?.calendar_id || (_calendars.find(c => c.is_default)?.id || _calendars[0]?.id || '');
+  const rec = event?.recurrence || '';
+  const reminders = new Set(event?.reminders || (isNew ? [10] : []));
+  const startDow = new Date(start).getDay();
+  let byday = new Set(parseBydayJs(event?.recur_byday) || (rec === 'weekly' ? [startDow] : []));
+  if (rec === 'weekly' && byday.size === 0) byday.add(startDow);
+  let color = event?.color || '';   // '' = use the calendar's colour
+  const endsMode = event?.recur_count ? 'after' : (event?.recur_until ? 'on' : 'never');
+
+  el.innerHTML = `<div class="cal-editor">
+    <input class="note-editor-title" id="cal-title" value="${esc(event?.title || '')}" placeholder="event title…">
+    <div class="cal-ed-grid">
       <div><div class="cal-flabel">start</div><div class="date-input" id="cal-start" data-type="datetime" data-value="${start}" data-ph="start" style="width:100%"></div></div>
       <div><div class="cal-flabel">end</div><div class="date-input" id="cal-end" data-type="datetime" data-value="${event?.end_dt?.slice(0, 16) || ''}" data-ph="end (optional)" style="width:100%"></div></div>
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;margin-top:0.5rem">
-      <div><div class="cal-flabel">repeat</div>
-        <div class="settings-input custom-select" id="cal-recur" data-value="${recur}" data-options="|does not repeat;daily|daily;weekly|weekly;monthly|monthly" style="width:100%"></div>
-      </div>
-      <div><div class="cal-flabel">repeat until (optional)</div><div class="date-input" id="cal-until" data-type="date" data-value="${event?.recur_until || ''}" data-ph="never" style="width:100%"></div></div>
+    <div class="cal-ed-row">
+      <label class="cal-flabel cal-chk-row" id="cal-allday-row"><span class="chk" id="cal-allday" role="checkbox" aria-checked="${event?.all_day || allDay ? 'true' : 'false'}"></span> all day</label>
+      <div class="cal-cal-pick"><span class="cal-flabel">calendar</span>
+        <div class="settings-input custom-select" id="cal-calendar" data-value="${defaultCal}" data-options="${_calendars.map(c => `${c.id}|${esc(c.name)}`).join(';')}" style="min-width:130px"></div></div>
     </div>
-    <div style="display:flex;align-items:center;gap:0.5rem;margin-top:0.5rem">
-      <label class="cal-flabel" id="cal-allday-row" style="display:flex;align-items:center;gap:0.4rem;margin:0;cursor:pointer"><span class="chk" id="cal-allday" role="checkbox" aria-checked="${event?.all_day || allDay ? 'true' : 'false'}"></span> all day</label>
-      <span class="cal-flabel" style="margin:0 0 0 0.5rem">color</span>
-      <div id="cal-colors" style="display:flex;gap:0.3rem">
-        ${colors.map(c => `<span class="cal-color-dot ${c}${(event?.color || 'accent') === c ? ' sel' : ''}" data-c="${c}"></span>`).join('')}
+
+    <div class="cal-flabel">repeat</div>
+    <div class="settings-input custom-select" id="cal-recur" data-value="${rec}" data-options="${FREQS.map(([v, l]) => `${v}|${l}`).join(';')}" style="width:100%"></div>
+    <div id="cal-recur-adv" style="display:${rec ? 'block' : 'none'}">
+      <div class="cal-recur-line">every <input class="settings-input cal-int" id="cal-interval" type="text" inputmode="numeric" value="${event?.recur_interval || 1}"> <span id="cal-unit">${UNIT[rec] || 'weeks'}</span></div>
+      <div class="cal-dow" id="cal-dow" style="display:${rec === 'weekly' ? 'flex' : 'none'}">${DOW.map((d, i) => `<span class="cal-dow-b ${byday.has(i) ? 'on' : ''}" data-i="${i}">${d}</span>`).join('')}</div>
+      <div class="cal-ends">
+        <span class="cal-flabel">ends</span>
+        <label class="cal-radio"><input type="radio" name="cal-ends" value="never" ${endsMode === 'never' ? 'checked' : ''}> never</label>
+        <label class="cal-radio"><input type="radio" name="cal-ends" value="on" ${endsMode === 'on' ? 'checked' : ''}> on <div class="date-input cal-ends-date" id="cal-until" data-type="date" data-value="${event?.recur_until || ''}" data-ph="date" style="width:130px"></div></label>
+        <label class="cal-radio"><input type="radio" name="cal-ends" value="after" ${endsMode === 'after' ? 'checked' : ''}> after <input class="settings-input cal-int" id="cal-count" type="text" inputmode="numeric" value="${event?.recur_count || 10}"> times</label>
       </div>
     </div>
-    <textarea class="note-editor-body" id="cal-desc" rows="3" placeholder="description...">${esc(event?.description || '')}</textarea>
-    <div style="display:flex;gap:0.4rem;justify-content:flex-end">
+
+    <div class="cal-flabel">reminders</div>
+    <div class="cal-reminders" id="cal-reminders">${REMIND_PRESETS.map(([m, l]) => `<span class="cal-rem ${reminders.has(m) ? 'on' : ''}" data-m="${m}">${l}</span>`).join('')}</div>
+
+    <div class="cal-ed-grid">
+      <div><div class="cal-flabel">location</div><input class="settings-input" id="cal-loc" value="${esc(event?.location || '')}" placeholder="add location" style="width:100%"></div>
+      <div><div class="cal-flabel">guests</div><input class="settings-input" id="cal-guests" value="${esc(event?.guests || '')}" placeholder="comma-separated" style="width:100%"></div>
+    </div>
+
+    <div class="cal-flabel">color</div>
+    <div class="cal-swatches" id="cal-colors">
+      <span class="cal-sw cal-sw-def ${color === '' ? 'sel' : ''}" data-c="" title="calendar default">○</span>
+      ${COLOR_NAMES.map(c => `<span class="cal-sw ${color === c ? 'sel' : ''}" data-c="${c}" style="background:${hexOf(c)}"></span>`).join('')}
+    </div>
+
+    <textarea class="note-editor-body" id="cal-desc" rows="3" placeholder="description…">${esc(event?.description || '')}</textarea>
+    <div class="cal-ed-actions">
       ${isNew ? '' : '<button class="btn" id="cal-del" style="margin-right:auto;color:var(--error);border-color:var(--error)">delete</button>'}
       <button class="btn" id="cal-back">← back</button>
       <button class="btn primary" id="cal-save">${isNew ? 'create' : 'save'}</button>
@@ -237,39 +461,110 @@ function openEditor(event, defaultDate, hour, allDay) {
   </div>`;
 
   initCustomDropdown(document.getElementById('cal-recur'));
-  initDatePickers(list);
-  document.getElementById('cal-allday-row')?.addEventListener('click', () => {
+  initCustomDropdown(document.getElementById('cal-calendar'));
+  initDatePickers(el);
+
+  document.getElementById('cal-allday-row').addEventListener('click', e => {
+    if (e.target.closest('.date-input')) return;
     const c = document.getElementById('cal-allday');
     c.setAttribute('aria-checked', c.getAttribute('aria-checked') === 'true' ? 'false' : 'true');
   });
-
-  let _color = event?.color || 'accent';
-  list.querySelectorAll('.cal-color-dot').forEach(d => d.addEventListener('click', () => {
-    _color = d.dataset.c;
-    list.querySelectorAll('.cal-color-dot').forEach(x => x.classList.toggle('sel', x === d));
+  const recSel = document.getElementById('cal-recur');
+  recSel.addEventListener('change', () => {
+    const v = recSel.value;
+    document.getElementById('cal-recur-adv').style.display = v ? 'block' : 'none';
+    document.getElementById('cal-unit').textContent = UNIT[v] || 'weeks';
+    document.getElementById('cal-dow').style.display = v === 'weekly' ? 'flex' : 'none';
+    if (v === 'weekly' && byday.size === 0) { byday.add(startDow); syncDow(); }
+  });
+  function syncDow() { el.querySelectorAll('.cal-dow-b').forEach(b => b.classList.toggle('on', byday.has(+b.dataset.i))); }
+  el.querySelectorAll('.cal-dow-b').forEach(b => b.addEventListener('click', () => {
+    const i = +b.dataset.i; byday.has(i) ? byday.delete(i) : byday.add(i); syncDow();
   }));
-  document.getElementById('cal-del')?.addEventListener('click', async () => {
-    await fetch(`/api/calendar/${_editing.id}`, { method: 'DELETE' });
-    await loadCalendar();
-  });
+  el.querySelectorAll('.cal-rem').forEach(r => r.addEventListener('click', () => r.classList.toggle('on')));
+  el.querySelectorAll('#cal-colors .cal-sw').forEach(s => s.addEventListener('click', () => {
+    color = s.dataset.c; el.querySelectorAll('#cal-colors .cal-sw').forEach(x => x.classList.toggle('sel', x === s));
+  }));
+
   document.getElementById('cal-back').addEventListener('click', () => loadCalendar());
-  document.getElementById('cal-save').addEventListener('click', async () => {
-    const body = {
-      title: document.getElementById('cal-title').value.trim(),
-      description: document.getElementById('cal-desc').value,
-      start_dt: document.getElementById('cal-start').value,
-      end_dt: document.getElementById('cal-end').value || null,
-      all_day: document.getElementById('cal-allday').getAttribute('aria-checked') === 'true',
-      color: _color,
-      recurrence: document.getElementById('cal-recur').value,
-      recur_until: document.getElementById('cal-until').value || null,
-    };
-    if (!body.title || !body.start_dt) { toast('title + start required', 'error'); return; }
-    if (_editing) await fetch(`/api/calendar/${_editing.id}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
-    else await fetch('/api/calendar', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
-    toast('saved', 'success');
-    await loadCalendar();
-  });
+  document.getElementById('cal-del')?.addEventListener('click', () => deleteEvent());
+  document.getElementById('cal-save').addEventListener('click', () => saveEvent(byday));
+}
+
+function parseBydayJs(s) {
+  return s ? (s.split(',').map(t => DOW_LETTER.indexOf(t.trim().toUpperCase())).filter(v => v >= 0)) : null;
+}
+
+function collectBody(byday) {
+  const el = document.getElementById('calendar-list');
+  const rec = document.getElementById('cal-recur').value;
+  const ends = el.querySelector('input[name="cal-ends"]:checked')?.value || 'never';
+  const reminders = [...el.querySelectorAll('.cal-rem.on')].map(r => +r.dataset.m).sort((a, b) => a - b);
+  const body = {
+    title: document.getElementById('cal-title').value.trim(),
+    calendar_id: document.getElementById('cal-calendar').value,
+    description: document.getElementById('cal-desc').value,
+    location: document.getElementById('cal-loc').value.trim(),
+    guests: document.getElementById('cal-guests').value.trim(),
+    start_dt: document.getElementById('cal-start').value,
+    end_dt: document.getElementById('cal-end').value || null,
+    all_day: document.getElementById('cal-allday').getAttribute('aria-checked') === 'true',
+    color: document.querySelector('#cal-colors .cal-sw.sel')?.dataset.c ?? '',
+    reminders,
+    recurrence: rec,
+    recur_interval: rec ? Math.max(1, parseInt(document.getElementById('cal-interval').value) || 1) : 1,
+    recur_byday: rec === 'weekly' ? [...byday].sort((a, b) => a - b).map(i => DOW_LETTER[i]).join(',') : '',
+    recur_count: rec && ends === 'after' ? Math.max(1, parseInt(document.getElementById('cal-count').value) || 1) : null,
+    recur_until: rec && ends === 'on' ? (document.getElementById('cal-until').value || null) : null,
+  };
+  return body;
+}
+
+async function saveEvent(byday) {
+  const body = collectBody(byday);
+  if (!body.title || !body.start_dt) { toast('title + start required', 'error'); return; }
+
+  // new, or a non-recurring edit → straightforward
+  if (!_editing) {
+    await fetch('/api/calendar', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+    toast('created', 'success'); return loadCalendar();
+  }
+  if (!_editing.recurrence) {
+    await fetch(`/api/calendar/${_editing.id}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+    toast('saved', 'success'); return loadCalendar();
+  }
+
+  // editing a recurring series → ask scope
+  const scope = await chooseScope('edit');
+  if (!scope) return;
+  const occ = _editOcc || _editing.start_dt.slice(0, 10);
+  if (scope === 'all') {
+    await fetch(`/api/calendar/${_editing.id}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+  } else if (scope === 'this') {
+    // exclude this occurrence on the master, create a standalone single event
+    const ex = [...(_editing.recur_except || []), occ];
+    await fetch(`/api/calendar/${_editing.id}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ recur_except: ex }) });
+    const single = { ...body, recurrence: '', recur_byday: '', recur_count: null, recur_until: null, recur_interval: 1 };
+    await fetch('/api/calendar', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(single) });
+  } else { // following — end the old series before occ, start a new one here
+    const dayBefore = new Date(occ + 'T00:00:00'); dayBefore.setDate(dayBefore.getDate() - 1);
+    await fetch(`/api/calendar/${_editing.id}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ recur_until: ymd(dayBefore), recur_count: null }) });
+    await fetch('/api/calendar', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+  }
+  toast('saved', 'success'); loadCalendar();
+}
+
+async function deleteEvent() {
+  if (!_editing) return;
+  if (!_editing.recurrence) {
+    await fetch(`/api/calendar/${_editing.id}`, { method: 'DELETE' });
+    return loadCalendar();
+  }
+  const scope = await chooseScope('delete');
+  if (!scope) return;
+  const occ = _editOcc || _editing.start_dt.slice(0, 10);
+  await fetch(`/api/calendar/${_editing.id}?scope=${scope}&occ=${occ}`, { method: 'DELETE' });
+  loadCalendar();
 }
 
 // ── CalDAV sync panel ───────────────────────────────────────────────────────
@@ -277,7 +572,7 @@ async function openCaldavPanel() {
   const list = document.getElementById('calendar-list');
   let cfg = {};
   try { cfg = await fetch('/api/caldav/status').then(r => r.json()); } catch {}
-  list.innerHTML = `<div class="note-editor" style="max-width:520px">
+  list.innerHTML = `<div class="cal-editor" style="max-width:520px">
     <div style="font-size:0.9rem;color:var(--text);margin-bottom:0.2rem">CalDAV sync</div>
     <div style="font-size:0.72rem;color:var(--muted);line-height:1.5;margin-bottom:0.6rem">
       two-way sync with iCloud / Google / any CalDAV server. credentials are stored locally.
@@ -290,7 +585,7 @@ async function openCaldavPanel() {
     <input class="settings-input" id="cd-user" placeholder="you@icloud.com" value="${esc(cfg.username || '')}" style="width:100%">
     <div class="cal-flabel" style="margin-top:0.4rem">app password</div>
     <input class="settings-input" id="cd-pass" type="password" placeholder="app-specific password" style="width:100%">
-    <div style="display:flex;gap:0.4rem;justify-content:flex-end;margin-top:0.7rem">
+    <div class="cal-ed-actions">
       <button class="btn" id="cd-back">← back</button>
       <button class="btn" id="cd-save">save</button>
       <button class="btn primary" id="cd-sync">sync now</button>
@@ -305,8 +600,7 @@ async function openCaldavPanel() {
   document.getElementById('cd-save').addEventListener('click', async () => { await save(); toast('saved', 'success'); });
   document.getElementById('cd-sync').addEventListener('click', async () => {
     const st = document.getElementById('cd-status');
-    st.textContent = 'syncing…';
-    await save();
+    st.textContent = 'syncing…'; await save();
     try {
       const r = await fetch('/api/caldav/sync', { method: 'POST' }).then(x => x.json());
       if (r.error) { st.textContent = 'error: ' + r.error; return; }
@@ -318,4 +612,4 @@ async function openCaldavPanel() {
 
 export function newEvent() { openEditor(null); }
 
-function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+function esc(s) { return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
