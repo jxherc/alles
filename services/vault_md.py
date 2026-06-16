@@ -114,6 +114,39 @@ def rename(rel: str, new_rel: str) -> dict:
     return {"path": str(dst.relative_to(vault_dir())).replace("\\", "/"), "ok": True}
 
 
+def rewrite_links(old_name: str, new_name: str) -> list[str]:
+    """a note's [[wikilink]] target is its stem, so renaming a note orphans every
+    backlink. walk the vault and rewrite [[old]] / [[old#heading]] / [[old|alias]]
+    → [[new...]], preserving the heading/alias tail. returns changed rel-paths."""
+    old_l = (old_name or "").strip().lower()
+    new_name = (new_name or "").strip()
+    if not old_l or not new_name or old_l == new_name.lower():
+        return []
+    base = vault_dir()
+    # like _WIKILINK but captures the #heading / |alias tail separately so we keep it
+    pat = re.compile(r"\[\[([^\[\]|#]+)((?:[#|][^\[\]]*)?)\]\]")
+
+    def _sub(m):
+        if m.group(1).strip().lower() == old_l:
+            return f"[[{new_name}{m.group(2)}]]"
+        return m.group(0)
+
+    changed = []
+    for p in _all_md():
+        try:
+            text = p.read_text("utf-8", errors="replace")
+        except Exception:
+            continue
+        new_text = pat.sub(_sub, text)
+        if new_text != text:
+            try:
+                p.write_text(new_text, "utf-8")
+                changed.append(str(p.relative_to(base)).replace("\\", "/"))
+            except Exception:
+                continue
+    return changed
+
+
 def _all_md() -> list[Path]:
     base = vault_dir()
     return [p for p in base.rglob("*")
