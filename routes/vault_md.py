@@ -143,15 +143,27 @@ def rename_file(body: RenameBody):
         out = vault_md.rename(body.path, body.new_path)
     except ValueError as e:
         raise HTTPException(400, str(e))
+    new_path = out.get("path", _norm_path(body.new_path))
     # carry the history along with the doc
     from core.database import SessionLocal, DocRevision
     db = SessionLocal()
     try:
         db.query(DocRevision).filter_by(path=_norm_path(body.path)) \
-          .update({"path": out.get("path", _norm_path(body.new_path))})
+          .update({"path": new_path})
         db.commit()
     finally:
         db.close()
+    # renaming a FILE changes its [[wikilink]] name → rewrite every backlink so the
+    # graph doesn't silently break. snapshot affected notes first so it's undoable.
+    out["links_rewritten"] = 0
+    if new_path.lower().endswith((".md", ".markdown")):
+        from pathlib import PurePosixPath
+        old_stem = PurePosixPath(_norm_path(body.path)).stem
+        new_stem = PurePosixPath(new_path).stem
+        if old_stem and new_stem and old_stem.lower() != new_stem.lower():
+            for bl in vault_md.backlinks(old_stem):
+                _snapshot(bl["path"], force=True)
+            out["links_rewritten"] = len(vault_md.rewrite_links(old_stem, new_stem))
     return out
 
 
