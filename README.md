@@ -39,7 +39,7 @@ you do **not** need to be technical to *use* it. you need to be a little technic
 ## table of contents
 
 - [the apps — what you actually get](#the-apps--what-you-actually-get)
-  - [aide (the ai)](#aide-the-ai) · [home](#home) · [today](#today) · [docs](#docs) · [mail](#mail) · [calendar](#calendar) · [tasks](#tasks) · [notes](#notes) · [subs](#subs) · [money](#money) · [days](#days) · [files](#files) · [gallery](#gallery) · [contacts](#contacts) · [secrets](#secrets) · [automations](#automations)
+  - [aide (the ai)](#aide-the-ai) · [home](#home) · [today](#today) · [activity](#activity) · [docs](#docs) · [mail](#mail) · [calendar](#calendar) · [tasks](#tasks) · [notes](#notes) · [subs](#subs) · [money](#money) · [days](#days) · [files](#files) · [gallery](#gallery) · [contacts](#contacts) · [secrets](#secrets) · [system](#system) · [automations](#automations)
 - [aide in depth](#aide-in-depth)
 - [how the model switch works](#how-the-model-switch-works) — *the part everyone asks about*
 - [the agent in depth](#the-agent-in-depth)
@@ -101,6 +101,13 @@ every one of these is a real, finished app — not a placeholder. they each live
 - today's calendar events, tasks that are overdue or due today, reminders, subscriptions about to renew, day-countdowns, unread mail, and recently-edited docs — all in one list
 - one button: **"ask aide about my day"** — hands all of that to the ai for a friendly rundown of what to do first and what you're about to miss
 
+### activity
+**plain version:** one scrollable feed of *everything you did*, across every app, newest first. if today is what's coming up, activity is what already happened.
+
+- a single reverse-chron timeline merging journal entries, tasks you added and ticked off, calendar events, money transactions, mail you received, photos you added, docs you edited, agent runs, and subscription renewals — grouped by day (today / yesterday / weekday / date)
+- **filter chips** to show/hide any source, and a range toggle (7d / 30d / 90d / 1y); click any row to jump straight to it in its app
+- *under the hood:* it's a **read-time aggregator** ([`routes/timeline.py`](routes/timeline.py)) — it queries each app's own tables on request instead of keeping a separate "events" log, so it's always correct and never needs a backfill. completing a task stamps a `completed_at` so "done" shows the real time, not just the date.
+
 ### docs
 **plain version:** a really good notes app — like obsidian — where your notes are plain text files you own, linked together, with a live, pretty editor.
 
@@ -109,6 +116,7 @@ this is the most feature-dense app, so here's the full list:
 - a true **wysiwyg** editor (you see bold as bold, headings as headings) built on **codemirror 6**, doing obsidian-style *live preview*: the markdown symbols (the `**` and `#`) hide themselves, the text styles inline, and the raw symbols reappear on whatever line your cursor is on. *under the hood:* codemirror edits the plain text directly, so what gets saved is byte-for-byte what you typed — a save can't silently corrupt a doc.
 - three view modes you cycle with one button: **live** (the wysiwyg) · **source** (raw markdown) · **preview** (fully rendered)
 - **`[[wikilinks]]`** to link notes together, **backlinks** (see what links *to* this note), and **unlinked mentions** (notes that name this one in plain text but haven't linked it yet)
+- **rename-safe links** — renaming a note rewrites every `[[link]]` to it across the whole vault (aliases and `#headings` preserved), so refactoring never silently breaks your graph; the change is snapshotted so it's undoable
 - **`[[` autocomplete** — start typing a link and it suggests your notes
 - **find & replace** inside a doc (Ctrl+F)
 - **a graph view** — your notes as dots, links as lines, drag-explore
@@ -133,7 +141,9 @@ this is the most feature-dense app, so here's the full list:
 
 - connects to **any imap/smtp account** (imap = how apps read your inbox, smtp = how they send) — one-click presets for gmail, outlook, icloud, yahoo, fastmail, or your own domain
 - live inbox that auto-refreshes; open, read, and reply to mail
-- compose and send (with cc)
+- **conversation threads** — a toggle collapses the inbox into conversations (everything with the same subject, re:/fwd: stripped), expand one to read the whole back-and-forth
+- **attachments** — a message shows its attachments as chips you click to download (the body still loads attachment-free for speed)
+- compose and send with **cc + bcc**; replies set the proper `In-Reply-To`/`References` headers so they thread correctly in Apple Mail, Gmail, and everywhere else
 - **ai:** summarize a long thread, turn an email into a task, or turn an email into a calendar event (the ai reads out the date/time/title for you)
 - **fast + offline-tolerant:** a persistent header cache means the inbox opens instantly and still shows your last sync when the network's slow or down; local search over the cache is instant
 - *under the hood:* built directly on python's standard `imaplib`/`smtplib` — no third-party mail library. it pools live connections, caches what it's read, loads the inbox by range (not a slow "search everything"), and opens a message by pulling *only* its text/html body — not the attachments — so it stays fast on a weak connection.
@@ -142,9 +152,9 @@ this is the most feature-dense app, so here's the full list:
 **plain version:** a calendar with month / week / day views and repeating events.
 
 - real time-grid week and day views, a month grid, and an **agenda list**
-- **recurring events** — daily / weekly / monthly
+- **recurring events** — daily / weekly / monthly, with a small **↻ marker** on every repeating occurrence so you never mistake one instance for a one-off
 - **import / export `.ics`** — round-trip with Apple Calendar, Google, Outlook (export everything, or import a `.ics` someone sent you)
-- **natural-language quick-add** right in the header — "lunch with sam friday 1pm" makes the timed event; "team sync tomorrow" makes an all-day one
+- **natural-language quick-add** right in the header — "lunch with sam friday 1pm" makes the timed event; "team sync tomorrow" makes an all-day one; and it now understands repeats too — "standup daily 9am", "yoga every monday 6pm", "class every week until 2026-08-01"
 - optional **two-way sync with caldav** (the open calendar-sync standard used by icloud and google) if you add your credentials
 
 ### tasks
@@ -172,6 +182,8 @@ this is the most feature-dense app, so here's the full list:
 
 - weekly / monthly / quarterly / yearly / custom billing cycles
 - due dates roll forward automatically as they pass
+- **auto-post to money** (optional) — link a subscription to a money account and every time it renews it drops a real dated transaction there, so your spending picture actually includes your subscriptions instead of forecasting them separately (idempotent — it never double-charges)
+- a **manage ↗ link** straight to the cancel/billing page you saved
 - monthly **and** yearly totals, plus a **spend-by-category bar chart** (plain CSS, no chart library)
 - a **push notification before anything renews** so you can cancel in time
 
@@ -179,8 +191,8 @@ this is the most feature-dense app, so here's the full list:
 **plain version:** a finance tracker — accounts, what you spend, and budgets, with charts.
 
 - **accounts** (checking / savings / cash / credit / investment) with live balances + a net-worth roll-up
-- **transactions** — log income/expenses with a category + payee, browse by month, quick-add, delete
-- **CSV import / export** — pull in a bank statement (it maps a `Description` column to the payee, copes with `$`/commas), or export everything to a spreadsheet
+- **transactions** — log income/expenses with a category + payee, browse by month, quick-add, **click a row to edit it inline**, delete
+- **CSV import / export** — pull in a bank statement (it maps a `Description` column to the payee, copes with `$`/commas) and **skips rows you already imported** (matched on date + amount + payee) so re-importing an overlapping statement doesn't double-count; or export everything to a spreadsheet
 - **budgets** — set a monthly cap per category; a progress bar turns red when you go over
 - **charts** — spending-by-category bars and a 6-month income-vs-spent trend (plain SVG, no chart library)
 - this-month cards: net worth · income · spent · net
@@ -213,6 +225,14 @@ this is the most feature-dense app, so here's the full list:
 
 - name / email / phone / notes / tags, searchable
 - **vCard import / export** — round-trips with your phone and any other address book
+
+### system
+**plain version:** a live look at how hard your computer is working — like Task Manager / Activity Monitor, built in.
+
+- **ring gauges** for cpu and memory, a per-core bar strip, and **cpu/ram history sparklines** that fill in as you watch — refreshing every couple seconds
+- disk-usage bars per drive, plus a card with your gpu, vram, cpu model, backend, and uptime
+- the gauges go from accent → amber → red as a number heats up, so a pegged core or a full disk is obvious at a glance
+- *under the hood:* `GET /api/system/stats` ([`services/sysmon.py`](services/sysmon.py)) uses [psutil](https://github.com/giampaolo/psutil) for live cpu%/per-core/uptime/disks; without it, it still shows ram + disk from the static hardware readout (`shutil` + the `hwfit` probe), just no live cpu%. all the gauges are hand-drawn svg — no chart library.
 
 ### secrets
 **plain version:** a password vault. properly encrypted, not just "hidden."
@@ -324,6 +344,7 @@ aide also **exposes its own** openai-compatible api (`GET /v1/models`, `POST /v1
 
 - **permission modes** — *full-auto* (does it), *approve* (asks before every change, showing you the exact diff first), or *plan* (read-only — it inspects and writes you a plan, and the change-making tools are removed entirely that turn)
 - **checkpoints** — every file edit is snapshotted, so you can **revert a whole run** with one click
+- **provenance you can see** — every agent reply has a **sources** button listing exactly what that run touched (files, urls fetched, searches, shell commands), and a **runs drawer** (the ⟳ in the top bar) browses past runs — their status, to-do list, tool steps, and the same sources — so the agent is inspectable, not a black box
 - **prompt-injection guard** — when the agent reads something it didn't write (a web page, an email, a file, repo contents, an mcp result), that text is wrapped as *data, not instructions* before it goes back to the model, and scanned for the classic attacks ("ignore previous instructions," "reveal your system prompt," "email the api key to…"). anything that trips gets flagged. so a booby-trapped webpage can't quietly hijack a run. *(it's a seatbelt, not a force field — see security.)*
 - **secret-path confinement** — the file tools refuse to touch credential/secret stores (`~/.ssh`, `~/.aws`, `.env`, `*.pem`, `id_rsa`, `.netrc`, `.docker/config.json`…) by default, even if a prompt-injection tries to make the agent exfiltrate them. you can opt out (`agent_allow_secrets`) and optionally confine all writes to the workspace (`agent_confine_workspace`)
 - **sandbox** — the shell can run inside a docker container with the workspace mounted at `/work` and (optionally) no network, so commands can't touch your real filesystem
@@ -351,7 +372,7 @@ the whole point of self-hosting is that nothing is magic. here's what each app *
 
 | shortcut | does |
 |---|---|
-| **Ctrl/Cmd + K** | global search across everything (chats, docs, tasks, mail, …) |
+| **Ctrl/Cmd + K** | command palette — search everything (chats, docs, mail, tasks, calendar, money, subs, photos, …) + "ask aide" / "research the web" |
 | **Ctrl/Cmd + O** | (in docs) quick-switch to any note by name |
 | **Ctrl/Cmd + F** | (in docs) find & replace inside the current note |
 | **Ctrl/Cmd + B** | toggle the sidebar |
@@ -360,7 +381,7 @@ the whole point of self-hosting is that nothing is magic. here's what each app *
 | **Ctrl/Cmd + Enter** | send |
 | **Ctrl/Cmd + B / I / E / K** | (in docs) bold / italic / inline-code / link |
 
-shortcuts are remappable in settings. global search is fuzzy and grouped by app; from results you jump straight into the item.
+shortcuts are remappable in settings. global search is one command palette across the whole suite — chats, docs, **mail** (over the local header cache, instant), tasks, calendar, contacts, memories, **money**, **subscriptions**, and **photos** — grouped by app, and clicking a result jumps to it in its app (even on another subdomain). it also carries two **action rails**: **ask aide** drops your query straight into chat, and **research the web** kicks off a deep-research run — so the place you search is also where you act. summoned from any app with Ctrl/Cmd+K.
 
 ---
 
@@ -449,6 +470,8 @@ files.localhost          files
 gallery.localhost        photos
 contacts.localhost       contacts
 secrets.localhost        the vault
+activity.localhost       the cross-app activity timeline
+system.localhost         the live system monitor
 ```
 
 `static/js/subdomain.js` maps each host to the views it shows; `app.js` scopes the sidebar to that app and `navigateTo()` cross-jumps between them. this works **today with zero dns setup** — browsers route `*.localhost` to your own machine automatically.
@@ -472,14 +495,14 @@ alles is scriptable. two flavors:
 
 **2. the native rest api** (everything the ui uses; all under `/api`). a representative slice:
 
-- **chat/agent:** `POST /api/chat`, `POST /api/chat/stop/{id}`, `GET /api/sessions`, `POST /api/agent/background`, `GET /api/agent/runs`, `POST /api/agent/runs/{id}/revert`, `POST /api/research`
+- **chat/agent:** `POST /api/chat`, `POST /api/chat/stop/{id}`, `GET /api/sessions`, `POST /api/agent/background`, `GET /api/agent/runs`, `GET /api/agent/runs/{id}/sources`, `POST /api/agent/runs/{id}/revert`, `POST /api/research`
 - **docs:** `GET /api/vault-md/tree`, `GET/PUT/POST/DELETE /api/vault-md/file`, `/search`, `/grep`, `/graph`, `/tags`, `/backlinks`, `/unlinked`, `/tasks`, `/templates`, `/youtube`, `/import`, `/export-docx`, `/revisions`
-- **mail:** `GET /api/mail/accounts`, `GET /api/mail/inbox/{id}`, `GET /api/mail/message/{id}`, `POST /api/mail/send/{id}`, `POST /api/mail/summarize`, `POST /api/mail/make-task`, `POST /api/mail/extract-event`
+- **mail:** `GET /api/mail/accounts`, `GET /api/mail/inbox/{id}`, `GET /api/mail/threads/{id}`, `GET /api/mail/message/{id}`, `GET /api/mail/attachments/{id}`, `GET /api/mail/attachment/{id}`, `POST /api/mail/send/{id}`, `POST /api/mail/summarize`, `POST /api/mail/make-task`, `POST /api/mail/extract-event`
 - **tasks/calendar/notes/contacts/subs/days:** standard `GET/POST/PATCH/DELETE` on `/api/tasks`, `/api/calendar`, `/api/notes`, `/api/contacts`, `/api/subscriptions`, `/api/days`
 - **files/photos:** `/api/files/{list,raw,upload,mkdir,rename,delete}`, `/api/photos/{gallery,gallery/upload,albums,thumb}`
 - **secrets:** `/api/vault` (+ `/unlock`, `/lock`, `/{id}/reveal`)
 - **memory/personas/projects/cookbook:** `/api/memories` (+ `/search`, `/extract`), `/api/personas`, `/api/projects`, `/api/cookbook`
-- **platform:** `/api/settings`, `/api/today`, `/api/backup` (+ `/restore`), `/api/tokens`, `/api/webhooks`, `/api/push/*`, `/api/mcp/*`, `/api/connections`, `/api/automations`, `/api/jobs`
+- **platform:** `/api/settings`, `/api/today`, `/api/timeline` (the activity feed), `/api/system/stats` (live machine stats), `/api/backup` (+ `/restore`), `/api/tokens`, `/api/webhooks`, `/api/push/*`, `/api/mcp/*`, `/api/connections`, `/api/automations`, `/api/jobs`
 
 protect it with **api tokens** (settings → tokens) and, if exposed, **`AUTH_ENABLED`**.
 
@@ -507,7 +530,7 @@ fastembed (onnx) for local embeddings — no embedding api needed
 web push implemented straight from the rfcs — zero extra dependencies
 ```
 
-the dependency list is deliberately small — `fastapi`, `uvicorn`, `httpx`, `sqlalchemy`, `pydantic`, `cryptography`, `bcrypt`, `fastembed`, `python-docx`, `pillow`, plus `beautifulsoup4` + `trafilatura` + `ddgs` for research (reading and searching the web). optional extras are opt-in and clearly marked: `pyautogui` (agent computer-use), `faster-whisper` (offline voice), `caldav` (calendar sync), `pypdf` (pdf import).
+the dependency list is deliberately small — `fastapi`, `uvicorn`, `httpx`, `sqlalchemy`, `pydantic`, `cryptography`, `bcrypt`, `fastembed`, `python-docx`, `pillow`, `psutil` (the live system monitor), plus `beautifulsoup4` + `trafilatura` + `ddgs` for research (reading and searching the web). optional extras are opt-in and clearly marked: `pyautogui` (agent computer-use), `faster-whisper` (offline voice), `caldav` (calendar sync), `pypdf` (pdf import).
 
 the frontend is genuinely just files: `static/index.html` is the whole app shell, `static/js/` is **one es module per feature** (~40 of them — `app.js`, `chat.js`, `vaultmd.js`, `mail.js`, `agent`-related, etc.) imported by `app.js`, and `static/style.css` holds the design tokens (sharp, monochrome, 2–3px radii, no shadows). "view source" actually shows you the app. the **one** exception is the docs editor: codemirror 6 is vendored as a single pre-built file (`static/vendor/cm6.bundle.js`), so there's still no build step you have to run.
 
@@ -543,6 +566,7 @@ alles/
 │   ├── memory_store.py    fastembed vector memory + keyword fallback
 │   ├── crypto.py          aes-256-gcm vault encryption
 │   ├── webpush.py         web push from the rfcs
+│   ├── sysmon.py          live cpu/ram/disk/gpu snapshot (the system monitor)
 │   └── …                  files, photos, caldav, automations, docx export, stt
 ├── routes/                one apirouter per feature, all under /api (+ /v1 openai-compat)
 ├── tests/                 unit tests
@@ -590,7 +614,7 @@ small touches that keep it snappy and sturdy:
 python -m unittest discover -s tests
 ```
 
-**415+ unit tests** and counting — including a full in-process API harness that drives the real app (via `TestClient` against a throwaway in-memory db, no server/port) so every route has end-to-end coverage, plus `python scripts/stress_test.py` (exercises every app's backend) and `python scripts/live_usage.py` (drives the real app against live AI — a chat, an agent that writes *and runs* a program, web research, compare, and real records across the apps), both writing evidence to `~/alles-test-evidence/<timestamp>/` — plus the docs vault (links, tags, graph, tasks, templates, asset/import handling, unlinked mentions), document import, the youtube id parser, the job registry + event bus, the agent's tool-gating + prompt-injection guard + secret-path confinement + action-intent routing + context compaction, the deep-research engine (page extraction, quality filter, the full plan→search→synthesize loop against a fake model), the hardware-aware model fit engine (catalog ranking, quant/version/bandwidth scoring), the natural-language task + calendar parsers, journal/files/photos search, the subscription + money math, the password generator + strength meter, vcard round-tripping, aes-256-gcm crypto, bcrypt auth + the login throttle, the token-usage rollup, mail parsing, the model client, and more.
+**460+ unit tests** and counting — including a full in-process API harness that drives the real app (via `TestClient` against a throwaway in-memory db, no server/port) so every route has end-to-end coverage, plus `python scripts/stress_test.py` (exercises every app's backend) and `python scripts/live_usage.py` (drives the real app against live AI — a chat, an agent that writes *and runs* a program, web research, compare, and real records across the apps), both writing evidence to `~/alles-test-evidence/<timestamp>/` — plus the docs vault (links, tags, graph, tasks, templates, asset/import handling, unlinked mentions, **rename link-rewriting**), document import, the youtube id parser, the job registry + event bus, the agent's tool-gating + prompt-injection guard + secret-path confinement + action-intent routing + context compaction (and the **tool-history truncation staying valid json**), the **activity-timeline aggregator** and **system-stats snapshot**, the deep-research engine (page extraction, quality filter, the full plan→search→synthesize loop against a fake model), the hardware-aware model fit engine (catalog ranking, quant/version/bandwidth scoring), the natural-language task + calendar parsers (incl. **recurrence + "until"**), journal/files/photos search, the **federated command-palette** surfaces, the subscription + money math (incl. **renewal auto-post** + **CSV dedup**), mail parsing (incl. **threading + reply headers**), the password generator + strength meter, vcard round-tripping, aes-256-gcm crypto, bcrypt auth + the login throttle, the token-usage rollup, the model client, and more.
 
 every push runs the full suite on **GitHub Actions CI** (`.github/workflows/tests.yml`) — it already earned its keep by catching a data file that wasn't committed.
 
