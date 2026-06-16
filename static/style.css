@@ -3042,6 +3042,17 @@ code {
 .search-result-snippet { font-size: 0.72rem; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .search-empty { padding: 1rem; font-size: 0.75rem; color: var(--faint); }
 
+/* action rails — ask aide / research, pinned at the top of palette results */
+.search-actions { display: flex; gap: 0.4rem; padding: 0.5rem 1rem; border-bottom: 1px solid var(--faint); flex-wrap: wrap; }
+.search-act {
+  font-family: inherit; font-size: 0.72rem; cursor: pointer;
+  padding: 0.3rem 0.6rem; border-radius: 3px; color: var(--muted);
+  border: 1px solid var(--faint); background: none;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+.search-act:hover { border-color: var(--accent); color: var(--text); background: var(--panel); }
+.search-act b { color: var(--text); font-weight: 500; }
+
 /* ── document editor ── */
 #wiki-view { flex-direction: row; position: relative; overflow: hidden; background: var(--bg); }
 .wiki-tree-panel {

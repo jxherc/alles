@@ -117,6 +117,14 @@ async function _boot() {
   registerServiceWorker();
   bindEvents();
   applySubdomainScope();
+
+  // arrived from another subapp's palette "ask aide / research" → run it once
+  const _p = new URLSearchParams(location.search);
+  const _ask = _p.get('ask');
+  if (_ask) {
+    history.replaceState(null, '', location.pathname + location.hash);
+    setTimeout(() => window._askInChat(_ask, _p.get('web') === '1'), 350);
+  }
 }
 
 // configure the SPA for whichever subdomain we're on: apex = the hub; an app
@@ -245,6 +253,22 @@ const showChatView = () => {
 // so selectSession (sessions.js) can jump back to chat when a convo is clicked
 // from a tools page — otherwise messages render behind the still-open tool view
 window._enterChatView = showChatView;
+
+// the command palette (search.js) reaches across subdomains, so expose the router
+// + an "ask aide / research" handoff it can call from any app.
+window._navigateTo = (v) => navigateTo(v);
+window._askInChat = (q, web = false) => {
+  q = (q || '').trim();
+  if (!q) return;
+  const ta = document.getElementById('composer-ta');
+  if (ta) {   // on aide — run it inline
+    showChatView();
+    ta.value = q; ta.dispatchEvent(new Event('input', { bubbles: true }));
+    if (web) runResearch(q); else sendMessage(q);
+  } else {    // from another subapp — hop to aide carrying the query (SSO handles auth)
+    location.href = urlForApp('aide') + '?ask=' + encodeURIComponent(q) + (web ? '&web=1' : '');
+  }
+};
 const showModelsView  = () => showView('models-view',   'models',   () => renderSidebarModelList(document.getElementById('sidebar-model-search')?.value || ''));
 const showBrainView   = () => showView('brain-view',    'brain',    loadBrainPanel);
 const showNotesView    = () => showView('notes-view',    'notes',    loadNotes);
