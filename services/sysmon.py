@@ -98,25 +98,51 @@ def _disk_io_rates(ps) -> dict:
     return {"read_bps": rd, "write_bps": wr}
 
 
-def _processes(ps, limit=16) -> tuple[list, int]:
-    """top processes by cpu. process_iter caches Process objects, so cpu_percent()
-    measures the delta since the previous poll (first poll reads ~0 for everything,
-    real numbers from the second on — same as btop warming up)."""
-    procs = []
+_user_cache = {}   # pid -> username (stable per process; lookups are slow on windows)
+
+
+def _processes(ps, limit=24) -> tuple[list, int]:
+    """top processes by cpu, btop-style columns (threads/user/mem/cpu). process_iter
+    caches Process objects, so cpu_percent() measures the delta since the previous
+    poll (first poll reads ~0 — same as btop warming up)."""
+    # pass 1: cheap cpu read for every process (cpu_percent on the cached object)
+    cand = []
     for p in ps.process_iter(["pid", "name"]):
         pid, name = p.info.get("pid"), (p.info.get("name") or "?")
-        # the windows idle process aggregates every idle core (~ncores*100%) — noise
-        if pid == 0 or name == "System Idle Process":
+        if pid == 0 or name == "System Idle Process":   # win idle process = noise
             continue
         try:
-            cpu = p.cpu_percent(None)
-            mem = p.memory_percent()
+            cand.append((p.cpu_percent(None), pid, name, p))
         except Exception:
             continue
-        procs.append({"pid": pid, "name": name[:26], "cpu": round(cpu, 1), "mem": round(mem, 1)})
-    total = len(procs)
-    procs.sort(key=lambda x: (x["cpu"], x["mem"]), reverse=True)
-    return procs[:limit], total
+    total = len(cand)
+    cand.sort(key=lambda x: x[0], reverse=True)
+
+    # pass 2: the expensive per-process detail only for the top N we'll actually show
+    procs = []
+    for cpu, pid, name, p in cand[:limit]:
+        try:
+            with p.oneshot():
+                mem = p.memory_percent()
+                rss = p.memory_info().rss
+                try:
+                    threads = p.num_threads()
+                except Exception:
+                    threads = 0
+        except Exception:
+            mem, rss, threads = 0.0, 0, 0
+        user = _user_cache.get(pid)
+        if user is None:
+            try:
+                user = (p.username() or "").split("\\")[-1][:12]
+            except Exception:
+                user = ""
+            _user_cache[pid] = user
+        procs.append({"pid": pid, "name": name[:28], "cpu": round(cpu, 1),
+                      "mem": round(mem, 1), "rss": rss, "threads": threads, "user": user})
+    if len(_user_cache) > 4000:
+        _user_cache.clear()
+    return procs, total
 
 
 def _temps(ps):

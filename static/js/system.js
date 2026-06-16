@@ -160,6 +160,14 @@ function fmtBytes(n) {
   }
   return `${n} B`;
 }
+const memMB = b => (b >= 1073741824) ? `${(b / 1073741824).toFixed(1)}G` : `${Math.round((b || 0) / 1048576)}M`;
+// a tiny pixelized cpu bar for a process row
+function cpuBar(pct) {
+  const w = 5, f = Math.round(Math.min(100, pct || 0) / 100 * w);
+  let s = '';
+  for (let i = 0; i < w; i++) s += i < f ? `<span style="color:${hgrad(i, w)}">█</span>` : '░';
+  return s;
+}
 function uptime(sec) {
   if (!sec) return '—';
   const d = Math.floor(sec / 86400), h = Math.floor(sec % 86400 / 3600), m = Math.floor(sec % 3600 / 60);
@@ -283,11 +291,18 @@ function render(s) {
     ((s.disks || []).map(d => `<div class="bx-line"><span class="bx-tag">${esc(d.mount)}</span>${meter(d.percent, 16)}<span class="bx-meta">${d.used_gb}/${d.total_gb} GB</span></div>`).join('') || '<span class="g-dim">no disks</span>') +
     ((io.read_bps != null) ? `<div class="bx-line io"><span class="bx-tag">io</span><span class="bx-meta">r ${fmtRate(io.read_bps)} · w ${fmtRate(io.write_bps)}</span></div>` : '');
 
-  // proc
+  // proc — btop-style table: pid · program · threads · user · mem · cpu(bar+%)
   $('box-proc').dataset.label = `processes  (top ${(s.procs || []).length} of ${s.proc_count || 0})`;
   $('proc-body').innerHTML =
-    `<div class="proc-row proc-head"><span>pid</span><span>name</span><span>cpu%</span><span>mem%</span></div>` +
-    ((s.procs || []).map(p => `<div class="proc-row"><span class="p-pid">${p.pid}</span><span class="p-name">${esc(p.name)}</span><span class="p-cpu" style="color:${heat(p.cpu)}">${p.cpu.toFixed(1)}</span><span class="p-mem">${p.mem.toFixed(1)}</span></div>`).join('') || '<span class="g-dim">no process data — needs psutil</span>');
+    `<div class="proc-row proc-head"><span>pid</span><span>program</span><span>thr</span><span>user</span><span>mem</span><span>cpu%</span></div>` +
+    ((s.procs || []).map(p => `<div class="proc-row">
+      <span class="p-pid">${p.pid}</span>
+      <span class="p-name">${esc(p.name)}</span>
+      <span class="p-thr">${p.threads || ''}</span>
+      <span class="p-user">${esc(p.user || '')}</span>
+      <span class="p-mem">${memMB(p.rss)}</span>
+      <span class="p-cpu"><span class="p-cpubar">${cpuBar(p.cpu)}</span><b style="color:${heat(p.cpu)}">${String(p.cpu.toFixed(0)).padStart(3)}</b></span>
+    </div>`).join('') || '<span class="g-dim">no process data — needs psutil</span>');
 }
 
 function push(arr, v) { arr.push(v); if (arr.length > HIST) arr.shift(); }
