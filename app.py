@@ -23,6 +23,7 @@ from routes import (
     notes as notes_routes,
     tasks as tasks_routes,
     calendar as calendar_routes,
+    calendars as calendars_routes,
     gallery as gallery_routes,
     cookbook as cookbook_routes,
     personas as personas_routes,
@@ -197,10 +198,15 @@ def _register_jobs():
         from routes.models import refresh_all_model_lists
         await refresh_all_model_lists()
 
+    async def _cal_reminders():
+        from services.cal_notify import fire_due
+        await fire_due()
+
     jobs.register("subscriptions", _subs, 30)
     jobs.register("day_events", _days, 30)
     jobs.register("automations", _autos, 30)
     jobs.register("reminders", _fire_due_reminders, 30)
+    jobs.register("calendar_reminders", _cal_reminders, 30)
     jobs.register("model_refresh", _models, 6 * 3600)   # runs at boot, then every 6h
 
 
@@ -310,6 +316,11 @@ async def lifespan(app: FastAPI):
     try:
         from routes.personas import seed_default_personas
         seed_default_personas()        # first-boot starter personas
+    except Exception:
+        pass
+    try:
+        from routes.calendars import seed_default_calendar
+        seed_default_calendar()        # first-boot 'Personal' calendar + adopt orphan events
     except Exception:
         pass
     try:
@@ -424,6 +435,7 @@ app.include_router(mcp_routes.router)
 app.include_router(notes_routes.router)
 app.include_router(tasks_routes.router)
 app.include_router(calendar_routes.router)
+app.include_router(calendars_routes.router)
 app.include_router(gallery_routes.router)
 app.include_router(cookbook_routes.router)
 app.include_router(personas_routes.router)

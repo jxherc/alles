@@ -172,17 +172,38 @@ class Task(Base):
     created_at = Column(DateTime, default=_now)
 
 
+class Calendar(Base):
+    """a named calendar (Personal/Work/…) — events belong to one, inherit its
+    colour, and can be toggled on/off as a layer."""
+    __tablename__ = "calendars"
+    id         = Column(String, primary_key=True, default=_uid)
+    name       = Column(String, nullable=False)
+    color      = Column(String, default="accent")
+    visible    = Column(Boolean, default=True)
+    is_default = Column(Boolean, default=False)
+    sort_order = Column(Integer, default=0)
+    created_at = Column(DateTime, default=_now)
+
+
 class CalendarEvent(Base):
     __tablename__ = "calendar_events"
     id          = Column(String, primary_key=True, default=_uid)
+    calendar_id = Column(String, default="")        # which Calendar it belongs to
     title       = Column(String, nullable=False)
     description = Column(Text, default="")
+    location    = Column(String, default="")
+    guests      = Column(Text, default="")          # freeform / comma list
     start_dt    = Column(String, nullable=False)  # ISO8601
     end_dt      = Column(String, nullable=True)
     all_day     = Column(Boolean, default=False)
-    color       = Column(String, default="")      # accent | green | warn | etc.
-    recurrence  = Column(String, default="")       # '' | daily | weekly | monthly
+    color       = Column(String, default="")      # override; '' = use the calendar's colour
+    reminders   = Column(Text, default="[]")        # json: minutes-before [10, 60, ...]
+    recurrence  = Column(String, default="")       # '' | daily | weekly | monthly | yearly
+    recur_interval = Column(Integer, default=1)     # every N (days/weeks/…)
+    recur_byday = Column(String, default="")        # weekly: 'MO,WE,FR'
+    recur_count = Column(Integer, nullable=True)     # end after N occurrences
     recur_until = Column(String, nullable=True)     # ISO date, optional series end
+    recur_except = Column(Text, default="[]")       # json: excluded occurrence dates
     caldav_uid  = Column(String, nullable=True)     # set when synced from/to CalDAV
     created_at  = Column(DateTime, default=_now)
 
@@ -531,6 +552,14 @@ def init_db():
         _add_col(conn, "subscriptions", "account_id", "TEXT DEFAULT ''")
         _add_col(conn, "subscriptions", "last_posted_due", "TEXT DEFAULT ''")
         _add_col(conn, "tasks", "completed_at", "DATETIME")
+        _add_col(conn, "calendar_events", "calendar_id",    "TEXT DEFAULT ''")
+        _add_col(conn, "calendar_events", "location",       "TEXT DEFAULT ''")
+        _add_col(conn, "calendar_events", "guests",         "TEXT DEFAULT ''")
+        _add_col(conn, "calendar_events", "reminders",      "TEXT DEFAULT '[]'")
+        _add_col(conn, "calendar_events", "recur_interval", "INTEGER DEFAULT 1")
+        _add_col(conn, "calendar_events", "recur_byday",    "TEXT DEFAULT ''")
+        _add_col(conn, "calendar_events", "recur_count",    "INTEGER")
+        _add_col(conn, "calendar_events", "recur_except",   "TEXT DEFAULT '[]'")
     _encrypt_plaintext_secrets()
 
 

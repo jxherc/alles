@@ -1,19 +1,43 @@
+import json
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from typing import Optional
 from sqlalchemy.orm import Session as DbSession
-from core.database import get_db, CalendarEvent
+from core.database import get_db, Calendar, CalendarEvent
 
 router = APIRouter(prefix="/api")
 
+
+def _jl(s):
+    try:
+        v = json.loads(s or "[]")
+        return v if isinstance(v, list) else []
+    except Exception:
+        return []
+
+
 def _fmt(e: CalendarEvent) -> dict:
     return {
-        "id": e.id, "title": e.title, "description": e.description,
+        "id": e.id, "calendar_id": e.calendar_id or "", "title": e.title,
+        "description": e.description, "location": e.location or "", "guests": e.guests or "",
         "start_dt": e.start_dt, "end_dt": e.end_dt,
         "all_day": e.all_day, "color": e.color,
-        "recurrence": e.recurrence or "", "recur_until": e.recur_until,
+        "reminders": _jl(e.reminders),
+        "recurrence": e.recurrence or "", "recur_interval": e.recur_interval or 1,
+        "recur_byday": e.recur_byday or "", "recur_count": e.recur_count,
+        "recur_until": e.recur_until, "recur_except": _jl(e.recur_except),
         "created_at": e.created_at.isoformat(),
     }
+
+
+def _default_cal(db) -> str:
+    c = db.query(Calendar).filter(Calendar.is_default == True).first() \
+        or db.query(Calendar).order_by(Calendar.sort_order).first()
+    if not c:
+        from routes.calendars import seed_default_calendar
+        seed_default_calendar()
+        c = db.query(Calendar).filter(Calendar.is_default == True).first()
+    return c.id if c else ""
 
 @router.get("/calendar")
 def list_events(db: DbSession = Depends(get_db)):
@@ -55,32 +79,92 @@ def quick_event(body: QuickEvent, db: DbSession = Depends(get_db)):
 
 class EventBody(BaseModel):
     title: str
+    calendar_id: str = ""
     description: str = ""
+    location: str = ""
+    guests: str = ""
     start_dt: str
     end_dt: Optional[str] = None
     all_day: bool = False
     color: str = ""
+    reminders: list[int] = []
     recurrence: str = ""
+    recur_interval: int = 1
+    recur_byday: str = ""
+    recur_count: Optional[int] = None
     recur_until: Optional[str] = None
+    recur_except: list[str] = []
+
 
 @router.post("/calendar")
 def create_event(body: EventBody, db: DbSession = Depends(get_db)):
-    e = CalendarEvent(**body.model_dump())
+    data = body.model_dump()
+    data["calendar_id"] = data.get("calendar_id") or _default_cal(db)
+    data["reminders"] = json.dumps(data.get("reminders") or [])
+    data["recur_except"] = json.dumps(data.get("recur_except") or [])
+    e = CalendarEvent(**data)
     db.add(e); db.commit(); db.refresh(e)
     return _fmt(e)
 
+
+class EventPatch(BaseModel):
+    title: Optional[str] = None
+    calendar_id: Optional[str] = None
+    description: Optional[str] = None
+    location: Optional[str] = None
+    guests: Optional[str] = None
+    start_dt: Optional[str] = None
+    end_dt: Optional[str] = None
+    all_day: Optional[bool] = None
+    color: Optional[str] = None
+    reminders: Optional[list[int]] = None
+    recurrence: Optional[str] = None
+    recur_interval: Optional[int] = None
+    recur_byday: Optional[str] = None
+    recur_count: Optional[int] = None
+    recur_until: Optional[str] = None
+    recur_except: Optional[list[str]] = None
+
+
 @router.patch("/calendar/{eid}")
-def update_event(eid: str, body: EventBody, db: DbSession = Depends(get_db)):
+def update_event(eid: str, body: EventPatch, db: DbSession = Depends(get_db)):
     e = db.get(CalendarEvent, eid)
-    if not e: raise HTTPException(404)
-    for k, v in body.model_dump(exclude_unset=True).items():
+    if not e:
+        raise HTTPException(404)
+    data = body.model_dump(exclude_unset=True)
+    if "reminders" in data:
+        data["reminders"] = json.dumps(data["reminders"] or [])
+    if "recur_except" in data:
+        data["recur_except"] = json.dumps(data["recur_except"] or [])
+    for k, v in data.items():
         setattr(e, k, v)
-    db.commit(); return _fmt(e)
+    db.commit()
+    return _fmt(e)
+
 
 @router.delete("/calendar/{eid}")
-def delete_event(eid: str, db: DbSession = Depends(get_db)):
+def delete_event(eid: str, scope: str = "all", occ: str = "", db: DbSession = Depends(get_db)):
+    """scope='all' deletes the event/series; 'this' excludes one occurrence (occ
+    date); 'following' ends the series the day before occ."""
+    from datetime import date, timedelta
     e = db.get(CalendarEvent, eid)
-    if not e: raise HTTPException(404)
+    if not e:
+        raise HTTPException(404)
+    if scope == "this" and occ and e.recurrence:
+        ex = _jl(e.recur_except)
+        if occ[:10] not in ex:
+            ex.append(occ[:10])
+        e.recur_except = json.dumps(ex)
+        db.commit()
+        return {"ok": True, "scope": "this"}
+    if scope == "following" and occ and e.recurrence:
+        try:
+            e.recur_until = (date.fromisoformat(occ[:10]) - timedelta(days=1)).isoformat()
+            e.recur_count = None
+            db.commit()
+            return {"ok": True, "scope": "following"}
+        except ValueError:
+            pass
     db.delete(e); db.commit()
     return {"ok": True}
 
