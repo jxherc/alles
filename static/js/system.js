@@ -158,7 +158,16 @@ function palette() {
   const row = a => a.map(c => `<span class="pal" style="background:${c}"></span>`).join('');
   return `<div class="nf-pal">${row(top)}</div><div class="nf-pal">${row(bot)}</div>`;
 }
-const kv = (k, v) => `<div class="nf-row"><span class="nf-key">${esc(k)}</span><span class="nf-val">${esc(v)}</span></div>`;
+// talljoe-style grouped tree: a header (with optional value) + ├/└ branch rows
+function group(header, headerVal, rows) {
+  let out = `<div class="nf-grp"><span class="nf-head">${esc(header)}</span>` +
+    (headerVal ? `<span class="nf-val">${esc(headerVal)}</span>` : '') + `</div>`;
+  rows.filter(Boolean).forEach((r, i, a) => {
+    out += `<div class="nf-row"><span class="nf-branch">${i === a.length - 1 ? '└' : '├'}</span>` +
+      `<span class="nf-key">${esc(r[0])}</span><span class="nf-val">${esc(r[1])}</span></div>`;
+  });
+  return out;
+}
 
 function render(s) {
   const body = $('system-body');
@@ -176,22 +185,27 @@ function render(s) {
   const hostEl = $('system-host');
   if (hostEl) hostEl.textContent = s.live ? `live · ${s.proc_count || 0} procs` : 'static (no psutil)';
 
-  // ── neofetch header ──────────────────────────────────────────────
+  // ── neofetch header (talljoe-style grouped tree) ─────────────────
   const info = [
     `<div class="nf-title">${esc(title)}</div>`,
     `<div class="nf-rule">${'─'.repeat(Math.max(10, title.length))}</div>`,
-    kv('os', h.os + (h.arch ? ` (${h.arch})` : '')),
-    kv('host', h.hostname),
-    kv('uptime', uptime(s.uptime_sec)),
-    kv('cpu', `${cpu.name || 'cpu'} (${cpu.cores || '?'}) ${freq}`.trim()),
-    kv('gpu', s.gpu.has ? `${s.gpu.name}${s.gpu.vram_gb ? ` · ${s.gpu.vram_gb} GB` : ''}` : 'none detected'),
-    kv('memory', `${mem.used_gb} / ${mem.total_gb} GB (${Math.round(mem.percent)}%)`),
-    sw && sw.total_gb ? kv('swap', `${sw.used_gb} / ${sw.total_gb} GB (${Math.round(sw.percent)}%)`) : '',
-    disk0 ? kv('disk', `${disk0.used_gb} / ${disk0.total_gb} GB (${Math.round(disk0.percent)}%)`) : '',
-    s.load ? kv('load', s.load.map(x => x.toFixed(2)).join(' ')) : '',
-    kv('procs', s.proc_count || '—'),
-    kv('backend', h.backend || '—'),
-    kv('shell', `python ${h.python || ''}`),
+    group('OS', h.os, [
+      ['arch', h.arch || '—'],
+      ['uptime', uptime(s.uptime_sec)],
+      ['procs', String(s.proc_count || '—')],
+    ]),
+    group('PC', h.hostname, [
+      ['cpu', `${cpu.name || 'cpu'} (${cpu.cores || '?'}) ${freq}`.trim()],
+      ['memory', `${mem.used_gb} / ${mem.total_gb} GB (${Math.round(mem.percent)}%)`],
+      ['gpu', s.gpu.has ? `${s.gpu.name}${s.gpu.vram_gb ? ` · ${s.gpu.vram_gb} GB` : ''}` : 'none detected'],
+      disk0 ? ['disk', `${disk0.used_gb} / ${disk0.total_gb} GB (${Math.round(disk0.percent)}%)`] : null,
+    ]),
+    group('SYS', '', [
+      s.load ? ['load', s.load.map(x => x.toFixed(2)).join('  ')] : null,
+      sw && sw.total_gb ? ['swap', `${sw.used_gb} / ${sw.total_gb} GB (${Math.round(sw.percent)}%)`] : null,
+      ['backend', h.backend || '—'],
+      ['shell', `python ${h.python || ''}`],
+    ]),
     palette(),
   ].join('');
   const neofetch = `<div class="neofetch">
