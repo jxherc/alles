@@ -29,7 +29,7 @@ _ctx = contextvars.ContextVar("agent_ctx", default={})
 
 
 def set_agent_ctx(settings=None, ep=None, model="", run_id=""):
-    _ctx.set({"settings": settings or {}, "ep": ep, "model": model, "run_id": run_id})
+    _ctx.set({"settings": settings or {}, "ep": ep, "model": model, "run_id": run_id, "_reads": set()})
 
 
 def get_agent_ctx() -> dict:
@@ -258,11 +258,17 @@ async def _read_file(path: str, start_line: int = 1, end_line: int = 0) -> dict:
         lines = p.read_text("utf-8", errors="replace").splitlines()
         if end_line and end_line >= start_line:
             selected = lines[max(0, start_line - 1):end_line]
+            base = start_line
             prefix = f"{p}\nlines {start_line}-{end_line}\n\n"
         else:
             selected = lines
+            base = 1
             prefix = f"{p}\n\n"
-        return {"output": _safe_text(prefix + "\n".join(selected)), "error": False}
+        # line-numbered like Claude Code ('NNN\tcode') so the model can cite exact
+        # lines and copy precise old_strings for edit_file
+        numbered = "\n".join(f"{base + i}\t{ln}" for i, ln in enumerate(selected))
+        get_agent_ctx().setdefault("_reads", set()).add(str(p))   # for the read-before-edit hint
+        return {"output": _safe_text(prefix + numbered), "error": False}
     except Exception as e:
         return {"output": str(e), "error": True}
 
@@ -291,7 +297,11 @@ async def _edit_file(path: str, old: str, new: str, replace_all: bool = False) -
         text = p.read_text("utf-8", errors="replace")
         count = text.count(old)
         if count == 0:
-            return {"output": "old text not found", "error": True}
+            # softly nudge toward Claude Code's read-before-edit discipline: if this
+            # file wasn't read this run, the old_string is probably stale/guessed
+            hint = "" if str(p) in get_agent_ctx().get("_reads", set()) \
+                else " — read the file first (read_file gives line-numbered text) to copy the exact string"
+            return {"output": "old text not found" + hint, "error": True}
         if count > 1 and not replace_all:
             return {"output": f"old text appears {count} times; set replace_all=true or use a more exact old string", "error": True}
         updated = text.replace(old, new) if replace_all else text.replace(old, new, 1)
@@ -401,40 +411,75 @@ async def _list_files(path: str = ".", depth: int = 1) -> dict:
         return {"output": str(e), "error": True}
 
 
-async def _glob_files(pattern: str, path: str = ".") -> dict:
+async def _glob_files(pattern: str, path: str = ".", head_limit: int = 0) -> dict:
     try:
         root = _resolve(path)
         matches = []
         for item in root.rglob("*"):
             rel = str(item.relative_to(root)).replace("\\", "/")
             if fnmatch.fnmatch(rel, pattern):
-                matches.append(rel)
-            if len(matches) >= 500:
-                matches.append("[truncated]")
-                break
-        return {"output": "\n".join(matches) or "(no matches)", "error": False}
+                try:
+                    mt = item.stat().st_mtime
+                except OSError:
+                    mt = 0
+                matches.append((mt, rel))
+        matches.sort(reverse=True)   # newest first, like ripgrep/Claude Code's glob
+        cap = head_limit or 500
+        out = [r for _, r in matches[:cap]]
+        if len(matches) > cap:
+            out.append(f"[{len(matches) - cap} more — refine the pattern or raise head_limit]")
+        return {"output": "\n".join(out) or "(no matches)", "error": False}
     except Exception as e:
         return {"output": str(e), "error": True}
 
 
-async def _grep_files(pattern: str, path: str = ".", file_glob: str = "*") -> dict:
+async def _grep_files(pattern: str, path: str = ".", file_glob: str = "*",
+                      output_mode: str = "content", context: int = 0,
+                      ignore_case: bool = False, head_limit: int = 0) -> dict:
+    """ripgrep-ish search. output_mode: content (matching lines, supports context) |
+    files_with_matches (file paths) | count (matches per file)."""
     try:
         root = _resolve(path)
-        rx = re.compile(pattern)
+        rx = re.compile(pattern, re.IGNORECASE if ignore_case else 0)
+        cap = head_limit or (300 if output_mode == "content" else 1000)
+
+        if output_mode in ("files_with_matches", "count"):
+            out = []
+            for item in root.rglob(file_glob):
+                if not item.is_file():
+                    continue
+                try:
+                    n = sum(1 for ln in item.read_text("utf-8", errors="replace").splitlines() if rx.search(ln))
+                except Exception:
+                    continue
+                if n:
+                    rel = str(item.relative_to(root)).replace("\\", "/")
+                    out.append(f"{rel}:{n}" if output_mode == "count" else rel)
+                if len(out) >= cap:
+                    break
+            return {"output": "\n".join(out) or "(no matches)", "error": False}
+
         rows = []
         for item in root.rglob(file_glob):
             if not item.is_file():
                 continue
             try:
-                for i, line in enumerate(item.read_text("utf-8", errors="replace").splitlines(), start=1):
-                    if rx.search(line):
-                        rel = item.relative_to(root)
-                        rows.append(f"{rel}:{i}: {line[:240]}")
-                        if len(rows) >= 500:
-                            rows.append("[truncated]")
-                            return {"output": "\n".join(rows), "error": False}
+                lines = item.read_text("utf-8", errors="replace").splitlines()
             except Exception:
                 continue
+            rel = str(item.relative_to(root)).replace("\\", "/")
+            for i, line in enumerate(lines):
+                if not rx.search(line):
+                    continue
+                if context > 0:
+                    for j in range(max(0, i - context), min(len(lines), i + context + 1)):
+                        rows.append(f"{rel}:{j + 1}{':' if j == i else '-'} {lines[j][:240]}")
+                    rows.append("--")
+                else:
+                    rows.append(f"{rel}:{i + 1}: {line[:240]}")
+                if len(rows) >= cap:
+                    rows.append("[truncated — narrow the pattern, or use head_limit / output_mode=count]")
+                    return {"output": "\n".join(rows), "error": False}
         return {"output": "\n".join(rows) or "(no matches)", "error": False}
     except Exception as e:
         return {"output": str(e), "error": True}
@@ -970,9 +1015,11 @@ async def execute(name: str, args: dict) -> dict:
     if name == "list_files":
         return await _list_files(args.get("path", "."), int(args.get("depth") or 1))
     if name == "glob_files":
-        return await _glob_files(args.get("pattern", "*"), args.get("path", "."))
+        return await _glob_files(args.get("pattern", "*"), args.get("path", "."), int(args.get("head_limit") or 0))
     if name == "grep_files":
-        return await _grep_files(args.get("pattern", ""), args.get("path", "."), args.get("file_glob", "*"))
+        return await _grep_files(args.get("pattern", ""), args.get("path", "."), args.get("file_glob", "*"),
+                                 args.get("output_mode", "content"), int(args.get("context") or 0),
+                                 bool(args.get("ignore_case")), int(args.get("head_limit") or 0))
     if name == "web_search":
         return await _web_search(args.get("query", ""), int(args.get("max_results") or 5))
     if name == "web_fetch":
@@ -1263,7 +1310,7 @@ TOOL_DEFS = [
         "command": {"type": "string"},
         "cwd": {"type": "string", "description": "Working directory, relative to aide root or absolute.", "default": "."},
     }, ["command"]),
-    _tool("read_file", "Read a file, optionally with a 1-based line range.", {
+    _tool("read_file", "Read a file. Returns line-numbered content ('NNN<tab>code') so you can cite exact lines and copy precise old_strings for edit_file. Read a file before editing it.", {
         "path": {"type": "string"},
         "start_line": {"type": "integer", "default": 1},
         "end_line": {"type": "integer", "description": "0 means read through EOF.", "default": 0},
@@ -1299,14 +1346,20 @@ TOOL_DEFS = [
         "path": {"type": "string", "default": "."},
         "depth": {"type": "integer", "default": 1},
     }),
-    _tool("glob_files", "Find files by glob pattern.", {
+    _tool("glob_files", "Find files by glob pattern, newest first.", {
         "pattern": {"type": "string", "description": "Example: **/*.py"},
         "path": {"type": "string", "default": "."},
+        "head_limit": {"type": "integer", "description": "Cap results (default 500).", "default": 0},
     }, ["pattern"]),
-    _tool("grep_files", "Search file contents with a regular expression.", {
+    _tool("grep_files", "Search file contents with a regular expression (ripgrep-style).", {
         "pattern": {"type": "string"},
         "path": {"type": "string", "default": "."},
         "file_glob": {"type": "string", "default": "*"},
+        "output_mode": {"type": "string", "enum": ["content", "files_with_matches", "count"],
+                         "description": "content = matching lines (default); files_with_matches = file paths; count = matches per file.", "default": "content"},
+        "context": {"type": "integer", "description": "Lines of context before+after each match (content mode).", "default": 0},
+        "ignore_case": {"type": "boolean", "default": False},
+        "head_limit": {"type": "integer", "description": "Cap results to avoid context bloat.", "default": 0},
     }, ["pattern"]),
     _tool("web_search", "Search the web using aide's configured search provider/fallback chain.", {
         "query": {"type": "string"},
