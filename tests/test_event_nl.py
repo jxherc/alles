@@ -54,5 +54,40 @@ class EventTests(unittest.TestCase):
         self.assertIn("file taxes", p["title"])
 
 
+class RecurrenceTests(unittest.TestCase):
+    def test_daily(self):
+        p = parse_event("standup daily 9am", T)
+        self.assertEqual(p["recurrence"], "daily")
+        self.assertTrue(p["start_dt"].endswith("T09:00"))
+        self.assertEqual(p["title"], "standup")
+
+    def test_every_week(self):
+        p = parse_event("review every week", T)
+        self.assertEqual(p["recurrence"], "weekly")
+        self.assertEqual(p["title"], "review")
+
+    def test_every_weekday_keeps_day_for_first_occurrence(self):
+        p = parse_event("yoga every monday 6pm", T)
+        self.assertEqual(p["recurrence"], "weekly")
+        self.assertEqual(p["start_dt"], "2026-06-15T18:00")   # next monday after sat 6/14
+        self.assertEqual(p["title"], "yoga")
+
+    def test_until_clause(self):
+        p = parse_event("class every week until 2026-08-01", T)
+        self.assertEqual(p["recurrence"], "weekly")
+        self.assertEqual(p["recur_until"], "2026-08-01")
+        self.assertEqual(p["title"], "class")
+
+    def test_until_without_cycle_ignored(self):
+        p = parse_event("trip until 2026-08-01", T)
+        self.assertEqual(p["recurrence"], "")
+        self.assertIsNone(p["recur_until"])
+
+    def test_no_recurrence(self):
+        p = parse_event("call bob tomorrow 3pm", T)
+        self.assertEqual(p["recurrence"], "")
+        self.assertIsNone(p["recur_until"])
+
+
 if __name__ == "__main__":
     unittest.main()

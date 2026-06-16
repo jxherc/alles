@@ -48,7 +48,8 @@ def quick_event(body: QuickEvent, db: DbSession = Depends(get_db)):
         raise HTTPException(400, "empty")
     p = parse_event(body.text)
     e = CalendarEvent(title=p["title"], start_dt=p["start_dt"],
-                      end_dt=p["end_dt"], all_day=p["all_day"])
+                      end_dt=p["end_dt"], all_day=p["all_day"],
+                      recurrence=p.get("recurrence", ""), recur_until=p.get("recur_until"))
     db.add(e); db.commit(); db.refresh(e)
     return _fmt(e)
 

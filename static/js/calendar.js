@@ -123,7 +123,7 @@ function renderMonth() {
     const key = ymd(cell);
     const evts = (byDay[key] || []).sort((a, b) => (a._date - b._date));
     const chips = evts.slice(0, 4).map(o =>
-      `<div class="cal-chip ${colorClass(o.color)}" data-id="${o.id}" title="${esc(o.title)}">${esc((o.all_day ? '' : timeShort(o._date) + ' ') + o.title)}</div>`).join('');
+      `<div class="cal-chip ${colorClass(o.color)}${o._recur ? ' recurring' : ''}" data-id="${o.id}" title="${esc(o.title)}${o._recur ? ' (repeats ' + esc(o.recurrence) + ')' : ''}">${o._recur ? '<span class="cal-chip-recur">↻</span>' : ''}${esc((o.all_day ? '' : timeShort(o._date) + ' ') + o.title)}</div>`).join('');
     const more = evts.length > 4 ? `<div class="cal-more">+${evts.length - 4} more</div>` : '';
     html += `<div class="cal-cell${sameDay(cell, today) ? ' today' : ''}" data-date="${key}">
       <div class="cal-cell-num">${cell.getDate()}</div>
@@ -166,7 +166,7 @@ function renderTimeGrid(el, days, occ) {
   let allday = '<div class="cal-tg-gutter">all-day</div>';
   for (const d of days) {
     const items = occ.filter(o => o.all_day && sameDay(o._date, d))
-      .map(o => `<div class="cal-allday-ev ${colorClass(o.color)}" data-id="${o.id}" title="${esc(o.title)}">${esc(o.title)}</div>`).join('');
+      .map(o => `<div class="cal-allday-ev ${colorClass(o.color)}${o._recur ? ' recurring' : ''}" data-id="${o.id}" title="${esc(o.title)}${o._recur ? ' (repeats ' + esc(o.recurrence) + ')' : ''}">${o._recur ? '<span class="cal-chip-recur">↻</span>' : ''}${esc(o.title)}</div>`).join('');
     allday += `<div class="cal-tg-allday" data-date="${ymd(d)}">${items}</div>`;
   }
   // hour grid
@@ -179,7 +179,7 @@ function renderTimeGrid(el, days, occ) {
       const bs = new Date(o.start_dt), be = o.end_dt ? new Date(o.end_dt) : new Date(bs.getTime() + 3600000);
       const durH = Math.max(0.5, (be - bs) / 3600000);
       const top = (o._date.getHours() + o._date.getMinutes() / 60) * HOUR_H;
-      evHtml += `<div class="cal-tev ${colorClass(o.color)}" data-id="${o.id}" style="top:${top}px;height:${durH * HOUR_H - 2}px" title="${esc(o.title)}"><b>${esc(timeShort(o._date))}</b> ${esc(o.title)}</div>`;
+      evHtml += `<div class="cal-tev ${colorClass(o.color)}${o._recur ? ' recurring' : ''}" data-id="${o.id}" style="top:${top}px;height:${durH * HOUR_H - 2}px" title="${esc(o.title)}${o._recur ? ' (repeats ' + esc(o.recurrence) + ')' : ''}"><b>${esc(timeShort(o._date))}</b> ${o._recur ? '<span class="cal-chip-recur">↻</span>' : ''}${esc(o.title)}</div>`;
     }
     const lines = Array.from({ length: 24 }, (_, h) => `<div class="cal-tg-slot" style="height:${HOUR_H}px" data-date="${ymd(d)}" data-hour="${h}"></div>`).join('');
     cols += `<div class="cal-tg-col">${lines}${evHtml}</div>`;
