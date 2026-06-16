@@ -53,6 +53,12 @@ def _mark_ok(url: str):
     _cooldowns.pop(h, None)
 
 
+def clear_cooldown(url: str):
+    """drop the fail/cooldown state for a host so a deliberate retry actually hits
+    it (the agent loop uses this when retrying a transient error mid-run)."""
+    _mark_ok(url)
+
+
 def detect_provider(base_url: str) -> str:
     url = base_url.lower()
     if "anthropic.com" in url:      return "anthropic"
