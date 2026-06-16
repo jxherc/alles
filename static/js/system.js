@@ -169,24 +169,35 @@ function group(header, headerVal, rows) {
   return out;
 }
 
-function render(s) {
-  const body = $('system-body');
-  if (!body) return;
-  if (s.cpu.percent != null) push(cpuHist, s.cpu.percent);
-  push(ramHist, s.memory.percent);
-  push(netDownHist, (s.net?.down_bps || 0));
-  push(netUpHist, (s.net?.up_bps || 0));
+// build the static shell ONCE (logo + box frames) so animations run smoothly and
+// the page doesn't flash every tick; update() only rewrites the dynamic guts.
+function buildShell(s) {
+  const note = s.live ? '' :
+    `<div class="sys-note">live cpu% + processes + net need <code>psutil</code> (<code>pip install psutil</code>); ram + disk shown from the static readout.</div>`;
+  $('system-body').innerHTML = `${note}
+    <div id="sys-shell">
+      <div class="neofetch sys-enter">
+        <pre class="nf-logo">${esc(logoFor(s.host.platform))}</pre>
+        <div class="nf-info" id="nf-info"></div>
+      </div>
+      <div class="btop-grid">
+        <div class="btop-box span2 sys-enter" id="box-cpu">
+          <div class="bx-line" id="cpu-top"></div>
+          <pre class="graph" id="cpu-graph"></pre>
+          <div class="cores-grid" id="cpu-cores"></div>
+        </div>
+        <div class="btop-box sys-enter" id="box-mem"><div id="mem-lines"></div><pre class="graph graph-sm" id="mem-graph"></pre></div>
+        <div class="btop-box sys-enter" id="box-net"><div id="net-body"></div></div>
+        <div class="btop-box sys-enter" id="box-disk"><div id="disk-body"></div></div>
+        <div class="btop-box span2 sys-enter" id="box-proc"><div id="proc-body"></div></div>
+      </div>
+    </div>`;
+}
 
-  const cpu = s.cpu, mem = s.memory, h = s.host, sw = s.swap, net = s.net || {};
+function buildInfo(s, freq, disk0) {
+  const cpu = s.cpu, mem = s.memory, h = s.host, sw = s.swap;
   const title = `${h.user || 'user'}@${h.hostname || 'host'}`;
-  const freq = cpu.freq_mhz ? `@ ${(cpu.freq_mhz / 1000).toFixed(2)} GHz` : '';
-  const disk0 = (s.disks || [])[0];
-
-  const hostEl = $('system-host');
-  if (hostEl) hostEl.textContent = s.live ? `live · ${s.proc_count || 0} procs` : 'static (no psutil)';
-
-  // ── neofetch header (talljoe-style grouped tree) ─────────────────
-  const info = [
+  return [
     `<div class="nf-title">${esc(title)}</div>`,
     `<div class="nf-rule">${'─'.repeat(Math.max(10, title.length))}</div>`,
     group('OS', h.os, [
@@ -208,66 +219,61 @@ function render(s) {
     ]),
     palette(),
   ].join('');
-  const neofetch = `<div class="neofetch">
-    <pre class="nf-logo">${esc(logoFor(h.platform))}</pre>
-    <div class="nf-info">${info}</div>
-  </div>`;
+}
 
-  // ── cpu box ──────────────────────────────────────────────────────
-  const cores = (cpu.per_core || []).map((c, i) =>
+function render(s) {
+  if (!$('sys-shell')) buildShell(s);
+  if (s.cpu.percent != null) push(cpuHist, s.cpu.percent);
+  push(ramHist, s.memory.percent);
+  push(netDownHist, (s.net?.down_bps || 0));
+  push(netUpHist, (s.net?.up_bps || 0));
+
+  const cpu = s.cpu, mem = s.memory, sw = s.swap, net = s.net || {}, io = s.disk_io || {};
+  const freq = cpu.freq_mhz ? `@ ${(cpu.freq_mhz / 1000).toFixed(2)} GHz` : '';
+  const disk0 = (s.disks || [])[0];
+
+  const hostEl = $('system-host');
+  if (hostEl) hostEl.textContent = s.live ? `live · ${s.proc_count || 0} procs` : 'static (no psutil)';
+
+  $('nf-info').innerHTML = buildInfo(s, freq, disk0);
+
+  // cpu
+  $('box-cpu').dataset.label = `cpu  ${cpu.cores || '?'} threads ${freq}${s.temp_c ? '  ' + s.temp_c + '°C' : ''}`;
+  $('cpu-top').innerHTML = `<span class="bx-pct ${cpu.percent >= 90 ? 'hot' : ''}" style="color:${heat(cpu.percent)}">${cpu.percent == null ? '—' : Math.round(cpu.percent) + '%'}</span>${meter(cpu.percent, 30)}`;
+  $('cpu-graph').innerHTML = loadGraph(cpuHist, 8);
+  $('cpu-cores').innerHTML = (cpu.per_core || []).map((c, i) =>
     `<span class="core"><span class="core-id">${String(i).padStart(2, '0')}</span>` +
     `${meter(c, 7)}<span class="core-pct" style="color:${heat(c)}">${String(Math.round(c)).padStart(3)}%</span></span>`).join('');
-  const liveNote = s.live ? '' :
-    `<div class="sys-note">live cpu% + processes + net need <code>psutil</code> (<code>pip install psutil</code>); ram + disk shown from the static readout.</div>`;
-  const cpuBox = `<div class="btop-box span2" data-label="cpu  ${cpu.cores || '?'} threads ${freq}${s.temp_c ? '  ' + s.temp_c + '°C' : ''}">
-    <div class="bx-line"><span class="bx-pct" style="color:${heat(cpu.percent)}">${cpu.percent == null ? '—' : Math.round(cpu.percent) + '%'}</span>
-      ${meter(cpu.percent, 30)}</div>
-    <pre class="graph">${loadGraph(cpuHist, 8)}</pre>
-    <div class="cores-grid">${cores}</div>
-  </div>`;
 
-  // ── memory box ───────────────────────────────────────────────────
+  // mem
   const memRow = (lbl, used, total, pct, color) =>
-    `<div class="bx-line"><span class="bx-tag">${lbl}</span>${meter(pct, 20, color)}` +
-    `<span class="bx-meta">${used} / ${total} GB</span></div>`;
-  const memBox = `<div class="btop-box" data-label="mem">
-    ${memRow('ram', mem.used_gb, mem.total_gb, mem.percent)}
-    ${mem.cached_gb ? `<div class="bx-line"><span class="bx-tag">cache</span>${meter(mem.total_gb ? mem.cached_gb / mem.total_gb * 100 : 0, 20, '#5ec8d8')}<span class="bx-meta">${mem.cached_gb} GB</span></div>` : ''}
-    ${sw && sw.total_gb ? memRow('swap', sw.used_gb, sw.total_gb, sw.percent, '#c08cf8') : ''}
-    <pre class="graph graph-sm">${loadGraph(ramHist, 4)}</pre>
-  </div>`;
+    `<div class="bx-line"><span class="bx-tag">${lbl}</span>${meter(pct, 20, color)}<span class="bx-meta">${used} / ${total} GB</span></div>`;
+  $('box-mem').dataset.label = 'mem';
+  $('mem-lines').innerHTML =
+    memRow('ram', mem.used_gb, mem.total_gb, mem.percent) +
+    (mem.cached_gb ? `<div class="bx-line"><span class="bx-tag">cache</span>${meter(mem.total_gb ? mem.cached_gb / mem.total_gb * 100 : 0, 20, '#5ec8d8')}<span class="bx-meta">${mem.cached_gb} GB</span></div>` : '') +
+    (sw && sw.total_gb ? memRow('swap', sw.used_gb, sw.total_gb, sw.percent, '#c08cf8') : '');
+  $('mem-graph').innerHTML = loadGraph(ramHist, 4);
 
-  // ── network box ──────────────────────────────────────────────────
-  const netBox = `<div class="btop-box" data-label="net">
-    <div class="bx-line"><span class="bx-tag" style="color:#5ec8d8">↓ dn</span><span class="bx-rate">${fmtRate(net.down_bps)}</span>
-      <span class="bx-meta">${fmtBytes(net.recv_total)} total</span></div>
-    <pre class="graph graph-sm">${areaGraph(netDownHist, 3, 0, () => '#5ec8d8')}</pre>
-    <div class="bx-line"><span class="bx-tag" style="color:#c08cf8">↑ up</span><span class="bx-rate">${fmtRate(net.up_bps)}</span>
-      <span class="bx-meta">${fmtBytes(net.sent_total)} total</span></div>
-    <pre class="graph graph-sm">${areaGraph(netUpHist, 3, 0, () => '#c08cf8')}</pre>
-  </div>`;
+  // net
+  $('box-net').dataset.label = 'net';
+  $('net-body').innerHTML =
+    `<div class="bx-line"><span class="bx-tag" style="color:#5ec8d8">↓ dn</span><span class="bx-rate">${fmtRate(net.down_bps)}</span><span class="bx-meta">${fmtBytes(net.recv_total)} total</span></div>` +
+    `<pre class="graph graph-sm">${areaGraph(netDownHist, 3, 0, () => '#5ec8d8')}</pre>` +
+    `<div class="bx-line"><span class="bx-tag" style="color:#c08cf8">↑ up</span><span class="bx-rate">${fmtRate(net.up_bps)}</span><span class="bx-meta">${fmtBytes(net.sent_total)} total</span></div>` +
+    `<pre class="graph graph-sm">${areaGraph(netUpHist, 3, 0, () => '#c08cf8')}</pre>`;
 
-  // ── disk box ─────────────────────────────────────────────────────
-  const io = s.disk_io || {};
-  const diskBox = `<div class="btop-box" data-label="disk">
-    ${(s.disks || []).map(d => `<div class="bx-line"><span class="bx-tag">${esc(d.mount)}</span>${meter(d.percent, 16)}
-      <span class="bx-meta">${d.used_gb}/${d.total_gb} GB</span></div>`).join('') || '<span class="g-dim">no disks</span>'}
-    ${(io.read_bps != null) ? `<div class="bx-line io"><span class="bx-tag">io</span><span class="bx-meta">r ${fmtRate(io.read_bps)} · w ${fmtRate(io.write_bps)}</span></div>` : ''}
-  </div>`;
+  // disk
+  $('box-disk').dataset.label = 'disk';
+  $('disk-body').innerHTML =
+    ((s.disks || []).map(d => `<div class="bx-line"><span class="bx-tag">${esc(d.mount)}</span>${meter(d.percent, 16)}<span class="bx-meta">${d.used_gb}/${d.total_gb} GB</span></div>`).join('') || '<span class="g-dim">no disks</span>') +
+    ((io.read_bps != null) ? `<div class="bx-line io"><span class="bx-tag">io</span><span class="bx-meta">r ${fmtRate(io.read_bps)} · w ${fmtRate(io.write_bps)}</span></div>` : '');
 
-  // ── process table ────────────────────────────────────────────────
-  const rows = (s.procs || []).map(p => `<div class="proc-row">
-    <span class="p-pid">${p.pid}</span>
-    <span class="p-name">${esc(p.name)}</span>
-    <span class="p-cpu" style="color:${heat(p.cpu)}">${p.cpu.toFixed(1)}</span>
-    <span class="p-mem">${p.mem.toFixed(1)}</span>
-  </div>`).join('');
-  const procBox = `<div class="btop-box span2" data-label="processes  (top ${(s.procs || []).length} of ${s.proc_count || 0})">
-    <div class="proc-row proc-head"><span>pid</span><span>name</span><span>cpu%</span><span>mem%</span></div>
-    ${rows || '<span class="g-dim">no process data — needs psutil</span>'}
-  </div>`;
-
-  body.innerHTML = liveNote + neofetch + `<div class="btop-grid">${cpuBox}${memBox}${netBox}${diskBox}${procBox}</div>`;
+  // proc
+  $('box-proc').dataset.label = `processes  (top ${(s.procs || []).length} of ${s.proc_count || 0})`;
+  $('proc-body').innerHTML =
+    `<div class="proc-row proc-head"><span>pid</span><span>name</span><span>cpu%</span><span>mem%</span></div>` +
+    ((s.procs || []).map(p => `<div class="proc-row"><span class="p-pid">${p.pid}</span><span class="p-name">${esc(p.name)}</span><span class="p-cpu" style="color:${heat(p.cpu)}">${p.cpu.toFixed(1)}</span><span class="p-mem">${p.mem.toFixed(1)}</span></div>`).join('') || '<span class="g-dim">no process data — needs psutil</span>');
 }
 
 function push(arr, v) { arr.push(v); if (arr.length > HIST) arr.shift(); }
