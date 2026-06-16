@@ -83,6 +83,9 @@
       </div>
       <div class="topbar-right">
         <span id="session-token-count" style="display:none;font-size:0.65rem;color:var(--muted)"></span>
+        <button class="icon-btn" id="runs-btn" title="agent runs — what the agent did + what it touched">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l3 2"/></svg>
+        </button>
         <button class="icon-btn" id="session-actions-btn" title="export / share" style="display:none">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
         </button>
@@ -91,6 +94,16 @@
         </button>
       </div>
     </div>
+
+    <!-- agent runs drawer — browse past runs + their provenance -->
+    <div class="runs-drawer" id="runs-drawer" hidden>
+      <div class="runs-drawer-head">
+        <span>agent runs</span>
+        <button class="icon-btn" id="runs-close" title="close">×</button>
+      </div>
+      <div class="runs-drawer-body" id="runs-drawer-body"></div>
+    </div>
+    <div class="runs-scrim" id="runs-scrim" hidden></div>
 
     <!-- connectivity warning — shows when a chat can't reach the endpoint -->
     <div class="conn-banner" id="conn-banner" style="display:none">

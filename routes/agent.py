@@ -50,9 +50,27 @@ async def status():
     return await agent_status()
 
 
+_RUN_LITE = ("id", "session_id", "model", "cwd", "status", "turn", "max_turns",
+             "started_at", "finished_at", "updated_at")
+
+
 @router.get("/agent/runs")
-def runs(limit: int = 20):
-    return list_runs(limit=limit)
+def runs(limit: int = 20, summary: bool = False):
+    rows = list_runs(limit=limit)
+    if not summary:
+        return rows
+    # strip the heavy events/checkpoints for the drawer list; keep a few signals
+    out = []
+    for r in rows:
+        lite = {k: r.get(k) for k in _RUN_LITE}
+        lite["steps"] = len(r.get("tool_steps", []) or [])
+        lite["edits"] = len(r.get("checkpoints", []) or [])
+        todos = r.get("todos", []) or []
+        lite["todo"] = next((t.get("text") or t.get("title") for t in todos if isinstance(t, dict)), "")
+        lite["todos_total"] = len(todos)
+        lite["todos_done"] = sum(1 for t in todos if isinstance(t, dict) and t.get("status") == "done")
+        out.append(lite)
+    return out
 
 
 # declared before /agent/runs/{run_id} so "active"/"incomplete" aren't captured as run_ids
