@@ -2652,6 +2652,7 @@ code {
 .cal-chip.green  { background: var(--green); }
 .cal-chip.error  { background: var(--error); }
 .cal-chip.warn   { background: #d9a441; }
+.cal-chip-recur { opacity: 0.7; margin-right: 1px; font-size: 0.9em; }
 .cal-more { font-size: 0.58rem; color: var(--muted); padding-left: 2px; }
 
 /* view toggle + form labels */

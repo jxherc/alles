@@ -35,10 +35,42 @@ def _extract_time(t: str):
     return None, t
 
 
+def _extract_until(t: str, today: date):
+    """pull a trailing 'until/till <date>' clause → (recur_until_iso, remaining)."""
+    m = re.search(r"\b(?:until|till|til)\b", t, re.I)
+    if not m:
+        return None, t
+    due, _ = _extract_date(" " + t[m.end():] + " ", today)
+    if due:
+        return due, t[:m.start()] + " "
+    return None, t
+
+
+def _extract_recurrence(t: str):
+    """detect daily/weekly/monthly (frontend-supported cycles). for 'every <weekday>'
+    the weekday is LEFT in the text so the date parser sets the first occurrence."""
+    m = re.search(r"\bevery\s+(?=mon|tue|wed|thu|fri|sat|sun)", t, re.I)
+    if m:
+        return "weekly", t[:m.start()] + " " + t[m.end():]
+    for pat, rec in ((r"\b(?:every\s*day|daily)\b", "daily"),
+                     (r"\b(?:every\s*week|weekly)\b", "weekly"),
+                     (r"\b(?:every\s*month|monthly)\b", "monthly")):
+        m = re.search(pat, t, re.I)
+        if m:
+            return rec, t[:m.start()] + " " + t[m.end():]
+    return "", t
+
+
 def parse_event(text: str, today: date | None = None) -> dict:
     today = today or date.today()
-    out = {"title": "", "start_dt": None, "end_dt": None, "all_day": False}
+    out = {"title": "", "start_dt": None, "end_dt": None, "all_day": False,
+           "recurrence": "", "recur_until": None}
     t = f" {text.strip()} "
+
+    recur_until, t = _extract_until(t, today)
+    recurrence, t = _extract_recurrence(t)
+    out["recurrence"] = recurrence
+    out["recur_until"] = recur_until if recurrence else None   # 'until' is meaningless without a cycle
 
     due, t = _extract_date(t, today)
     tm, t = _extract_time(t)
