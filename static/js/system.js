@@ -176,11 +176,16 @@ function areaGraph(hist, rows, max, grad, cols) {
     let line = '';
     for (const v of data) {
       const cells = (Math.min(v, m) / m) * rows;
-      let ch;
-      if (cells >= r + 1) ch = '█';
-      else if (cells <= r) ch = ' ';
-      else ch = BLOCKS[Math.max(1, Math.round((cells - r) * 8))];
-      line += ch === ' ' ? ' ' : `<span style="color:${grad(r, rows)}">${ch}</span>`;
+      if (cells >= r + 1) {                       // solid body → gradient by height
+        line += `<span style="color:${grad(r, rows)}">█</span>`;
+      } else if (cells <= r) {                     // above the level → empty
+        line += ' ';
+      } else {                                     // the leading top edge
+        const ch = BLOCKS[Math.max(1, Math.round((cells - r) * 8))];
+        // the edge above the filled body is a subtle GRAY indicator, not loud
+        // gradient (keeps low signals coloured at the very bottom row though)
+        line += `<span style="color:${r === 0 ? grad(0, rows) : 'var(--muted)'}">${ch}</span>`;
+      }
     }
     lines.push(line);
   }
