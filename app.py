@@ -416,6 +416,7 @@ app.include_router(rag_routes.router)
 app.include_router(images_routes.router)
 app.include_router(skills_routes.router)
 from routes import notify as notify_routes
+from routes import timeline as timeline_routes
 app.include_router(notify_routes.router)
 app.include_router(shell_routes.router)
 app.include_router(mcp_routes.router)
@@ -454,6 +455,7 @@ app.include_router(days_routes.router)
 app.include_router(today_routes.router)
 app.include_router(automation_routes.router)
 app.include_router(money_routes.router)
+app.include_router(timeline_routes.router)
 
 
 # static files — no-cache so JS/CSS always reloads

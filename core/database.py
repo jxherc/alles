@@ -168,6 +168,7 @@ class Task(Base):
     notes     = Column(Text, default="")
     project   = Column(String, default="")
     sort_order = Column(Integer, default=0)        # manual drag-reorder
+    completed_at = Column(DateTime, nullable=True)  # when done flipped true (for the activity feed)
     created_at = Column(DateTime, default=_now)
 
 
@@ -529,6 +530,7 @@ def init_db():
         _add_col(conn, "personas", "accent", "TEXT DEFAULT ''")
         _add_col(conn, "subscriptions", "account_id", "TEXT DEFAULT ''")
         _add_col(conn, "subscriptions", "last_posted_due", "TEXT DEFAULT ''")
+        _add_col(conn, "tasks", "completed_at", "DATETIME")
     _encrypt_plaintext_secrets()
 
 

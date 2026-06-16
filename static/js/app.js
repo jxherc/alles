@@ -226,7 +226,7 @@ init();
 const _VIEW_IDS = [
   'home-view', 'chat', 'notes-view', 'tasks-view', 'calendar-view', 'gallery-view',
   'models-view', 'brain-view', 'wiki-view', 'compare-view', 'vault-view', 'contacts-view',
-  'reminders-view', 'files-view', 'mail-view', 'photos-view', 'subs-view', 'money-view', 'days-view', 'journal-view', 'cookbook-view', 'usage-view', 'skills-view',
+  'reminders-view', 'files-view', 'mail-view', 'photos-view', 'subs-view', 'money-view', 'days-view', 'journal-view', 'cookbook-view', 'usage-view', 'skills-view', 'activity-view',
 ];
 
 function hideAllViews() {
@@ -284,6 +284,7 @@ const showSubsView       = () => showView('subs-view',      'subs',      async (
 const showMoneyView      = () => showView('money-view',     'money',     async () => { (await import('./money.js')).initMoneyPanel(); });
 const showDaysView       = () => showView('days-view',      'days',      async () => { (await import('./days.js')).initDaysPanel(); });
 const showJournalView    = () => showView('journal-view',   'journal',   async () => { (await import('./journal.js')).initJournal(); });
+const showActivityView   = () => showView('activity-view',  'activity',  async () => { (await import('./activity.js')).initActivity(); });
 const showCookbookView   = () => showView('cookbook-view',  'cookbook',  async () => { (await import('./cookbook.js')).initCookbook(); });
 const showSkillsView     = () => showView('skills-view',    'skills',    async () => { (await import('./skills.js')).initSkills(); });
 const showUsageView      = () => showView('usage-view',     'usage',     async () => { (await import('./usage.js')).initUsage(); });
@@ -318,6 +319,7 @@ function navigateTo(v) {
   else if (v === 'money')     showMoneyView();
   else if (v === 'days')      showDaysView();
   else if (v === 'journal')   showJournalView();
+  else if (v === 'activity')  showActivityView();
   else if (v === 'cookbook')  showCookbookView();
   else if (v === 'usage')     showUsageView();
   else if (v === 'skills')    showSkillsView();
@@ -349,6 +351,7 @@ const _ICON = {
   cookbook: '<path d="M12 2a3 3 0 0 0-3 3c0 .6.2 1.2.5 1.7L7 9H5a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2h-2l-2.5-2.3c.3-.5.5-1.1.5-1.7a3 3 0 0 0-3-3z"/><line x1="7" y1="14" x2="17" y2="14"/>',
   skills: '<path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z"/>',
   usage: '<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>',
+  activity: '<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>',
 };
 const _svg = (k) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">${_ICON[k] || ''}</svg>`;
 
@@ -366,6 +369,7 @@ const HOME_TILES = [
   { view: 'money',    name: 'money',    desc: 'accounts & budgets', icon: 'money' },
   { view: 'days',     name: 'days',     desc: 'countdowns',      icon: 'days' },
   { view: 'journal',  name: 'journal',  desc: 'daily entries',   icon: 'journal' },
+  { view: 'activity', name: 'activity', desc: 'everything, lately', icon: 'activity' },
 ];
 
 // ── home tiles: drag-reorder + hide/show (persisted) + quick capture ─────────
