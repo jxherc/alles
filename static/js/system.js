@@ -124,12 +124,14 @@ function heat(v) {
 // btop-style gradients: colour comes from POSITION, in hard discrete steps (the
 // "pixelized" terminal look — no smooth blend). vertical = by height for graphs,
 // horizontal = along the bar for meters. cold (green) → hot (red).
-const _RAMP = ['#4ade80', '#a3e635', '#fbbf24', '#fb923c', '#f87171'];
+const _RAMP = ['#4ade80', '#7ee05a', '#b6e84b', '#e8d23e', '#f6a738', '#f6783a', '#f25555'];
+const _RAMP_DN = ['#2dd4bf', '#33c7cf', '#39b3e5', '#4a9bea', '#5b8def'];
+const _RAMP_UP = ['#a78bfa', '#b58cf8', '#c08cf8', '#d479f4', '#e879f9'];
 function _step(f, ramp) { return ramp[Math.min(ramp.length - 1, Math.max(0, Math.floor(f * ramp.length)))]; }
 const vgrad = (r, rows) => _step(rows > 1 ? r / (rows - 1) : 0, _RAMP);
 const hgrad = (i, w) => _step(w > 1 ? i / (w - 1) : 0, _RAMP);
-const vgradDown = (r, rows) => _step(rows > 1 ? r / (rows - 1) : 0, ['#2dd4bf', '#39b3e5', '#5b8def']);
-const vgradUp = (r, rows) => _step(rows > 1 ? r / (rows - 1) : 0, ['#a78bfa', '#c08cf8', '#e879f9']);
+const vgradDown = (r, rows) => _step(rows > 1 ? r / (rows - 1) : 0, _RAMP_DN);
+const vgradUp = (r, rows) => _step(rows > 1 ? r / (rows - 1) : 0, _RAMP_UP);
 
 const BLOCKS = [' ', '▁', '▂', '▃', '▄', '▅', '▆', '▇', '█'];
 const glyph = v => BLOCKS[Math.max(0, Math.min(8, Math.round((v / 100) * 8)))];
@@ -146,19 +148,32 @@ function meter(pct, width = 18, color) {
   return `<span class="m-track">[${bar}]</span>`;
 }
 
-// block area graph, `cols` wide × `rows` tall, scaled to `max`. data is right-
-// aligned and the empty left is padded so the graph always FILLS its box (newest
-// on the right, scrolling in). each CELL coloured by its height → vertical
-// pixelized gradient like btop's.
+// resample a history of N values onto exactly `cols` points (linear interpolation),
+// so the graph ALWAYS fills its width — like btop, never a sparse clump. newest
+// value lands on the right edge.
+function _resample(hist, cols) {
+  const n = hist.length;
+  if (n === 0) return new Array(cols).fill(0);
+  if (n === 1) return new Array(cols).fill(hist[0]);
+  const out = new Array(cols);
+  for (let i = 0; i < cols; i++) {
+    const t = i * (n - 1) / (cols - 1);
+    const lo = Math.floor(t), hi = Math.min(n - 1, lo + 1);
+    out[i] = hist[lo] + (hist[hi] - hist[lo]) * (t - lo);
+  }
+  return out;
+}
+
+// block area graph, `cols` wide × `rows` tall, scaled to `max`. each CELL coloured
+// by its height → vertical pixelized gradient like btop's.
 function areaGraph(hist, rows, max, grad, cols) {
+  cols = Math.max(8, cols || HIST);
   if (!hist || hist.length < 1) return '<span class="g-dim">gathering…</span>';
-  cols = cols || HIST;
-  const data = hist.slice(-cols);
-  const lead = Math.max(0, cols - data.length);
+  const data = _resample(hist, cols);
   const m = max || Math.max(1, ...data);
   const lines = [];
   for (let r = rows - 1; r >= 0; r--) {
-    let line = ' '.repeat(lead);
+    let line = '';
     for (const v of data) {
       const cells = (Math.min(v, m) / m) * rows;
       let ch;
