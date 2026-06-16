@@ -15,7 +15,21 @@ from services.agent_tools import (
     UNTRUSTED_TOOLS, guard_untrusted,
 )
 from services.agent_state import start_run, record_event, update_run, finish_run
-from services.llm import stream_chat
+from services.llm import stream_chat, clear_cooldown
+
+# a single flaky model/network call shouldn't kill a whole agent run. retry
+# transient errors a couple times before giving up; tests patch the base to 0.
+LLM_RETRIES = 2
+LLM_RETRY_BASE = 1.5   # seconds; backoff = base * 2**(attempt-1), capped
+
+
+def _retryable(msg: str) -> bool:
+    """transient = worth retrying (connect/timeout/5xx/429/cooldown/empty). a 4xx
+    other than 429 is a real client error that won't fix itself."""
+    msg = (msg or "").strip()
+    if msg.startswith("HTTP 4") and not msg.startswith("HTTP 429"):
+        return False
+    return True
 
 
 # pending tool approvals — request_id → {event, allow}. resolved by the API.
@@ -278,31 +292,52 @@ async def run_agent(
             update_run(run_id, turn=turn + 1)
             record_event(run_id, "turn", {"index": turn + 1, "max": max_turns})
             yield {"agent_turn": {"index": turn + 1, "max": max_turns}}
-            async for chunk in stream_chat(
-                agent_messages, ep.base_url, ep.api_key, model,
-                **llm_kwargs,
-            ):
-                if stop_event.is_set():
+
+            # stream the model for this turn, retrying transient errors that hit
+            # BEFORE any content this turn — so one flaky call doesn't kill a run
+            # that's already done work.
+            llm_error = None
+            for attempt in range(LLM_RETRIES + 1):
+                produced = False
+                err_chunk = None
+                async for chunk in stream_chat(agent_messages, ep.base_url, ep.api_key, model, **llm_kwargs):
+                    if stop_event.is_set():
+                        break
+                    if "error" in chunk:
+                        err_chunk = chunk
+                        break
+                    if "thinking" in chunk:
+                        thinking_acc.append(chunk["thinking"]); produced = True
+                        yield chunk
+                    elif "delta" in chunk:
+                        turn_text.append(chunk["delta"]); accumulated.append(chunk["delta"]); produced = True
+                        yield chunk
+                    elif "tool_call" in chunk:
+                        tool_calls.append(chunk["tool_call"]); produced = True
+                    elif "done" in chunk:
+                        usage = merge_usage(usage, chunk.get("usage", {}))
+                if stop_event.is_set() or err_chunk is None:
                     break
-                if "error" in chunk:
-                    record_event(run_id, "error", chunk)
-                    yield chunk
-                    finish_run(run_id, "error")
-                    return
-                if "thinking" in chunk:
-                    thinking_acc.append(chunk["thinking"])
-                    yield chunk
-                elif "delta" in chunk:
-                    turn_text.append(chunk["delta"])
-                    accumulated.append(chunk["delta"])
-                    yield chunk
-                elif "tool_call" in chunk:
-                    tool_calls.append(chunk["tool_call"])
-                elif "done" in chunk:
-                    usage = merge_usage(usage, chunk.get("usage", {}))
+                # got an error. retry only if nothing streamed yet + it's transient.
+                if not produced and attempt < LLM_RETRIES and _retryable(err_chunk.get("error", "")):
+                    record_event(run_id, "llm_retry", {"attempt": attempt + 1, "error": str(err_chunk.get("error", ""))[:200]})
+                    yield {"llm_retry": {"attempt": attempt + 1}}
+                    clear_cooldown(ep.base_url)          # so the retry actually hits the api
+                    await asyncio.sleep(min(8.0, LLM_RETRY_BASE * (2 ** attempt)))
+                    turn_text = []; tool_calls = []
+                    continue
+                llm_error = err_chunk
+                break
 
             if stop_event.is_set():
                 break
+            if llm_error is not None:
+                record_event(run_id, "error", llm_error)
+                yield llm_error
+                # honest status: a run that already did work was interrupted, not a
+                # clean failure — only call it 'error' if nothing ever landed.
+                finish_run(run_id, "stopped" if tool_steps else "error")
+                return
 
             if not tool_calls:
                 yield {"done": True, "usage": usage}
