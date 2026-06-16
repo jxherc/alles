@@ -2701,6 +2701,40 @@ code {
 .cal-chip.error  { background: var(--error); }
 .cal-chip.warn   { background: #d9a441; }
 .cal-chip-recur { opacity: 0.7; margin-right: 1px; font-size: 0.9em; }
+
+/* ── activity timeline ─────────────────────────────────────────────────────── */
+.activity-filters { display: flex; flex-wrap: wrap; gap: 0.3rem; align-items: center; margin-left: auto; }
+.act-chip {
+  font-family: inherit; font-size: 0.66rem; cursor: pointer;
+  padding: 0.15rem 0.45rem; border-radius: 10px; color: var(--text);
+  border: 1px solid var(--faint); background: var(--panel);
+  transition: opacity 0.15s, border-color 0.15s, color 0.15s;
+}
+.act-chip:hover { border-color: var(--muted); }
+.act-chip.off { opacity: 0.4; color: var(--muted); }
+.act-range { display: inline-flex; gap: 1px; margin-left: 0.4rem; border: 1px solid var(--faint); border-radius: 3px; overflow: hidden; }
+.act-range-opt { font-family: inherit; font-size: 0.64rem; cursor: pointer; padding: 0.15rem 0.4rem; background: none; border: none; color: var(--muted); }
+.act-range-opt.on { background: var(--faint); color: var(--text); }
+
+.activity-day {
+  position: sticky; top: 0; z-index: 1; background: var(--bg);
+  font-size: 0.66rem; letter-spacing: 0.05em; color: var(--muted); text-transform: lowercase;
+  padding: 0.6rem 0.2rem 0.25rem; border-bottom: 1px solid var(--faint); margin-bottom: 0.1rem;
+}
+.activity-row {
+  display: flex; align-items: baseline; gap: 0.6rem; cursor: pointer;
+  padding: 0.4rem 0.3rem; border-bottom: 1px solid var(--faint); transition: background 0.1s;
+}
+.activity-row:hover { background: var(--panel); }
+.activity-glyph { flex-shrink: 0; width: 1.3rem; text-align: center; color: var(--muted); font-size: 0.82rem; }
+.activity-glyph.act-task { color: var(--green); }
+.activity-glyph.act-money { color: var(--text); }
+.activity-glyph.act-agent { color: var(--accent); }
+.activity-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.05rem; }
+.activity-title { font-size: 0.78rem; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.activity-sub { font-size: 0.68rem; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.activity-time { font-size: 0.64rem; color: var(--muted); flex-shrink: 0; }
+.activity-empty { padding: 1.4rem 0.4rem; font-size: 0.75rem; color: var(--muted); }
 .cal-more { font-size: 0.58rem; color: var(--muted); padding-left: 2px; }
 
 /* view toggle + form labels */
