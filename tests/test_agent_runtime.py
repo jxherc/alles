@@ -64,6 +64,15 @@ class EffortTurnsTests(unittest.TestCase):
         self.assertIn("EFFORT: low", note_low)
         self.assertIn("EFFORT: high", note_high)
 
+    def test_effort_guides_tool_selection(self):
+        # claude-code-style: low effort biases to glob/grep, high maps structure first
+        self.assertIn("glob/grep", ar.agent_system_note({"agent_effort": "low"}))
+        self.assertIn("code_symbols", ar.agent_system_note({"agent_effort": "high"}))
+
+    def test_note_has_file_creation_discipline(self):
+        note = ar.agent_system_note({})
+        self.assertIn("never create docs/README/boilerplate unless asked", note)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -175,7 +175,7 @@ def agent_system_note(settings: dict) -> str:
     if settings.get("agent_computer_use"):
         extra.append("- Computer use is enabled: screenshot, computer_click, computer_type, computer_key, computer_scroll, computer_move. Take a screenshot first to see the screen, then act on real pixel coordinates. Be careful and deliberate.")
     if settings.get("agent_subagents", True):
-        extra.append("- You can delegate with spawn_agent (one subtask) or spawn_agents (several in parallel). Use it to split big independent jobs; each sub-agent reports a summary back.")
+        extra.append("- You can delegate with spawn_agent (one self-contained subtask) or spawn_agents (several in parallel). Use spawn_agents to parallelize independent work (e.g. several files/modules at once); don't delegate tiny (<30s) tasks — the startup overhead isn't worth it. Each sub-agent reports a summary back.")
     if settings.get("agent_context_files", True):
         extra.append("- Honor any <project-context> files provided (AGENTS.md) as standing workspace instructions.")
     try:
@@ -185,9 +185,9 @@ def agent_system_note(settings: dict) -> str:
     except Exception:
         pass
     if eff == "low":
-        extra.append("- EFFORT: low — be quick and minimal. Do the least that satisfies the task; skip optional exploration and extras.")
+        extra.append("- EFFORT: low — be quick and minimal. Do the least that satisfies the task; prefer glob/grep over shelling out to look around; skip diagnostics/tests unless the change clearly needs them.")
     elif eff == "high":
-        extra.append("- EFFORT: high — be thorough. Explore broadly, verify with diagnostics/tests, cover edge cases, and don't stop early.")
+        extra.append("- EFFORT: high — be thorough. Map the structure with glob/grep/code_symbols before editing, explore broadly, run the project's full tests/lint after changes, cover edge cases, and don't stop early.")
     pmode = settings.get("agent_permission_mode") or "full_auto"
     if pmode == "plan":
         extra.append("- PLAN MODE: change nothing. Inspect with read-only tools, then present a clear numbered plan of what you WOULD do, and stop. State-changing tools are disabled this turn.")
@@ -205,7 +205,7 @@ def agent_system_note(settings: dict) -> str:
         "- For multi-step work, call todo_update early and keep it current.\n"
         "- Use tools aggressively when they help. Do not pretend to know local state; inspect it.\n"
         "- For code work, read before editing, prefer apply_patch or exact edits, run relevant checks, inspect git diff, and keep going after tool results.\n"
-        "- Code conventions (write like the codebase, not like an AI): match the surrounding file's style, naming, and structure; prefer editing an existing file over creating a new one; don't add comments unless they earn their place; never add license/boilerplate headers; don't wrap everything in try/except — handle errors only where they matter; mimic how the project already does logging, imports, and tests.\n"
+        "- Code conventions (write like the codebase, not like an AI): match the surrounding file's style, naming, and structure; prefer editing an existing file over creating a new one — only create a new file when the task needs it or no suitable file exists, and never create docs/README/boilerplate unless asked; don't add comments unless they earn their place; never add license/boilerplate headers; don't wrap everything in try/except — handle errors only where they matter; mimic how the project already does logging, imports, and tests.\n"
         "- After changing code, run the project's own checks if present (diagnostics/linters/tests) and fix what you broke before reporting done.\n"
         "- Be concise. No preamble like 'Sure, I'll…' and no postamble summary unless the user asked for one or the result needs explaining. Let the work speak.\n"
         "- Use git_status/git_diff before summarizing code changes. Use git_branch/git_commit only when the user asks to create branches or commits.\n"
@@ -260,6 +260,8 @@ async def run_agent(
         agent_messages.insert(0, {"role": "system", "content": note})
 
     usage = {}
+    _failkey: dict[str, int] = {}   # (tool+args) → consecutive failure count, for the loop-breaker
+    _verify_nudged = False          # the "run your checks" nudge fires once per run
     try:
         for turn in range(max_turns):
             if stop_event.is_set():
@@ -379,6 +381,33 @@ async def run_agent(
                 if img:
                     turn_images.append(img)
                     yield {"tool_image": {"call_id": call_id, "image": img}}
+
+                # ── loop-breaker: don't burn the turn budget retrying the same
+                # failing call. on the 2nd identical failure, tell it to change tack.
+                fk = f"{name}:{json.dumps(args, sort_keys=True, default=str)[:300]}"
+                if step["error"]:
+                    _failkey[fk] = _failkey.get(fk, 0) + 1
+                    if _failkey[fk] >= 2:
+                        warn = (f"\n\n[loop] you've called {name} with the same arguments "
+                                f"{_failkey[fk]}x and it keeps failing — change approach or "
+                                f"surface the blocker to the user instead of retrying.")
+                        step["output"] = (step["output"] or "") + warn
+                        if isinstance(tool_content.get("output"), str):
+                            tool_content["output"] += warn
+                        record_event(run_id, "loop_warning", {"name": name, "count": _failkey[fk]})
+                        yield {"loop_warning": {"name": name, "count": _failkey[fk]}}
+                else:
+                    _failkey.pop(fk, None)
+                    # ── verify-nudge: after the first successful code change, remind it
+                    # to run the project's checks before declaring done (once per run).
+                    if not _verify_nudged and name in ("write_file", "edit_file", "apply_patch"):
+                        _verify_nudged = True
+                        v = ("\n\n[verify] you changed code — before reporting done, run the "
+                             "project's tests/diagnostics (diagnostics or shell) and fix anything "
+                             "you broke.")
+                        step["output"] = (step["output"] or "") + v
+                        if isinstance(tool_content.get("output"), str):
+                            tool_content["output"] += v
 
                 record_event(run_id, "tool_result", step)
                 update_run(run_id, tool_steps=tool_steps)
