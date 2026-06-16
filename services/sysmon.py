@@ -32,6 +32,88 @@ def _user():
         return os.environ.get("USER") or os.environ.get("USERNAME") or "user"
 
 
+# module-level state for rate calcs (the server process persists across polls)
+_net_last = None    # (monotonic, bytes_sent, bytes_recv)
+_dio_last = None    # (monotonic, read_bytes, write_bytes)
+
+
+def _net_rates(ps) -> dict:
+    global _net_last
+    try:
+        io = ps.net_io_counters()
+    except Exception:
+        return {}
+    now = time.monotonic()
+    up = down = 0.0
+    if _net_last:
+        dt = now - _net_last[0]
+        if dt > 0:
+            up = max(0.0, (io.bytes_sent - _net_last[1]) / dt)
+            down = max(0.0, (io.bytes_recv - _net_last[2]) / dt)
+    _net_last = (now, io.bytes_sent, io.bytes_recv)
+    return {"up_bps": up, "down_bps": down,
+            "sent_total": io.bytes_sent, "recv_total": io.bytes_recv}
+
+
+def _disk_io_rates(ps) -> dict:
+    global _dio_last
+    try:
+        io = ps.disk_io_counters()
+    except Exception:
+        return {}
+    if not io:
+        return {}
+    now = time.monotonic()
+    rd = wr = 0.0
+    if _dio_last:
+        dt = now - _dio_last[0]
+        if dt > 0:
+            rd = max(0.0, (io.read_bytes - _dio_last[1]) / dt)
+            wr = max(0.0, (io.write_bytes - _dio_last[2]) / dt)
+    _dio_last = (now, io.read_bytes, io.write_bytes)
+    return {"read_bps": rd, "write_bps": wr}
+
+
+def _processes(ps, limit=16) -> tuple[list, int]:
+    """top processes by cpu. process_iter caches Process objects, so cpu_percent()
+    measures the delta since the previous poll (first poll reads ~0 for everything,
+    real numbers from the second on — same as btop warming up)."""
+    procs = []
+    for p in ps.process_iter(["pid", "name"]):
+        pid, name = p.info.get("pid"), (p.info.get("name") or "?")
+        # the windows idle process aggregates every idle core (~ncores*100%) — noise
+        if pid == 0 or name == "System Idle Process":
+            continue
+        try:
+            cpu = p.cpu_percent(None)
+            mem = p.memory_percent()
+        except Exception:
+            continue
+        procs.append({"pid": pid, "name": name[:26], "cpu": round(cpu, 1), "mem": round(mem, 1)})
+    total = len(procs)
+    procs.sort(key=lambda x: (x["cpu"], x["mem"]), reverse=True)
+    return procs[:limit], total
+
+
+def _temps(ps):
+    try:
+        t = ps.sensors_temperatures()
+    except Exception:
+        return None
+    if not t:
+        return None
+    # pick a plausible cpu sensor
+    for key in ("coretemp", "k10temp", "cpu_thermal", "acpitz", "zenpower"):
+        if key in t and t[key]:
+            cur = t[key][0].current
+            if cur:
+                return round(cur)
+    for arr in t.values():
+        if arr and arr[0].current:
+            return round(arr[0].current)
+    return None
+
+
 def snapshot() -> dict:
     from services.local_models import detect_system_info
     info = detect_system_info()   # cached static hwfit readout
@@ -46,11 +128,18 @@ def snapshot() -> dict:
         "gpu": {"has": bool(info.get("has_gpu")), "name": info.get("gpu_name"),
                 "vram_gb": info.get("gpu_vram_gb"), "count": info.get("gpu_count")},
         "host": {"os": f"{platform.system()} {platform.release()}".strip(),
+                 "platform": platform.system().lower(),
                  "hostname": socket.gethostname(), "python": platform.python_version(),
                  "user": _user(), "arch": platform.machine(),
                  "backend": info.get("backend")},
         "uptime_sec": None,
         "load": None,
+        "swap": None,
+        "net": {},
+        "disk_io": {},
+        "procs": [],
+        "proc_count": 0,
+        "temp_c": None,
     }
 
     if ps:
@@ -65,7 +154,21 @@ def snapshot() -> dict:
             pass
         vm = ps.virtual_memory()
         out["memory"] = {"total_gb": _gb(vm.total), "used_gb": _gb(vm.total - vm.available),
-                         "percent": round(vm.percent, 1)}
+                         "available_gb": _gb(vm.available), "percent": round(vm.percent, 1),
+                         "cached_gb": _gb(getattr(vm, "cached", 0) or getattr(vm, "buffers", 0) or 0)}
+        try:
+            sw = ps.swap_memory()
+            out["swap"] = {"total_gb": _gb(sw.total), "used_gb": _gb(sw.used),
+                           "percent": round(sw.percent, 1)}
+        except Exception:
+            pass
+        out["net"] = _net_rates(ps)
+        out["disk_io"] = _disk_io_rates(ps)
+        out["temp_c"] = _temps(ps)
+        try:
+            out["procs"], out["proc_count"] = _processes(ps)
+        except Exception:
+            pass
         for p in ps.disk_partitions(all=False):
             try:
                 u = ps.disk_usage(p.mountpoint)
