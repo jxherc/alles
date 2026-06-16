@@ -2806,9 +2806,10 @@ code {
 .m-track { color: var(--faint); letter-spacing: -0.5px; }
 .m-empty { color: var(--faint); }
 
-.graph { margin: 0.25rem 0 0; font-size: 0.8rem; line-height: 1.0; white-space: pre; overflow: hidden;
-  letter-spacing: 0; color: var(--faint); }
-.graph-sm { font-size: 0.74rem; }
+.graph { margin: 0.3rem 0 0; font-size: 0.82rem; line-height: 0.98; white-space: pre; overflow: hidden;
+  letter-spacing: 0; color: var(--faint); background: rgba(255,255,255,0.022);
+  border-radius: 3px; padding: 3px 4px; }
+.graph-sm { font-size: 0.78rem; }
 
 /* per-core grid */
 .cores-grid { margin-top: 0.6rem; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0.1rem 0.9rem; }
