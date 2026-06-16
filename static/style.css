@@ -556,17 +556,34 @@ body:not(.is-aide) .aide-only { display: none !important; }
   animation: live-pulse 1s ease-in-out infinite;
 }
 .agent-step.error .agent-step-dot { background: var(--error); }
+/* destructive ops (shell/writes/commits/…) stand out from neutral reads */
+.agent-step.destructive .agent-step-dot { background: #d9a441; }
+.agent-step.destructive { border-left: 2px solid color-mix(in srgb, #d9a441 55%, var(--faint)); padding-left: 0.4rem; }
 .agent-step-name {
   color: var(--text);
+  font-family: 'JetBrains Mono', monospace;
+  flex: 0 0 auto;
+}
+.agent-step-summary {
+  color: var(--muted);
   font-family: 'JetBrains Mono', monospace;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  min-width: 0;
 }
 .agent-step-status {
   margin-left: auto;
   color: var(--muted);
+  flex: 0 0 auto;
 }
+/* args are collapsed by default — no wall of JSON */
+.agent-step-args-wrap { margin: 0.3rem 0 0; }
+.agent-step-args-wrap summary { cursor: pointer; color: var(--faint); font-size: 0.62rem; letter-spacing: 0.04em; list-style: none; }
+.agent-step-args-wrap summary::-webkit-details-marker { display: none; }
+.agent-step-args-wrap summary::before { content: '▸ '; }
+.agent-step-args-wrap[open] summary::before { content: '▾ '; }
+.agent-step-args-wrap .agent-step-args { margin-top: 0.2rem; }
 .agent-step-args,
 .agent-step-output {
   margin: 0.35rem 0 0;
