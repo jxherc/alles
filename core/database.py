@@ -402,6 +402,8 @@ class Subscription(Base):
     active      = Column(Boolean, default=True)
     remind_days = Column(Integer, default=1)           # push N days before renewal (0 = off)
     last_notified_due = Column(String, default="")     # due date we already pushed for
+    account_id  = Column(String, default="")           # money account to auto-post the charge to (optional)
+    last_posted_due = Column(String, default="")       # due date we already posted a txn for
     created_at  = Column(DateTime, default=_now)
 
 
@@ -525,6 +527,8 @@ def init_db():
         _add_col(conn, "personas", "temperature", "REAL")
         _add_col(conn, "personas", "default_mode", "TEXT DEFAULT ''")
         _add_col(conn, "personas", "accent", "TEXT DEFAULT ''")
+        _add_col(conn, "subscriptions", "account_id", "TEXT DEFAULT ''")
+        _add_col(conn, "subscriptions", "last_posted_due", "TEXT DEFAULT ''")
     _encrypt_plaintext_secrets()
 
 
