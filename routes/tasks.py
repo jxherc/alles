@@ -116,6 +116,10 @@ def update_task(tid: str, body: dict, db: DbSession = Depends(get_db)):
     if not t:
         raise HTTPException(404)
     spawned = None
+    # stamp/clear the completion time as done flips (powers the activity feed)
+    if "done" in body and bool(body["done"]) != bool(t.done):
+        from datetime import datetime
+        t.completed_at = datetime.utcnow() if body["done"] else None
     if body.get("done") and not t.done and t.repeat and t.due_date:
         # completing a recurring task rolls it forward to the next occurrence
         nxt = advance(t.due_date, t.repeat)
