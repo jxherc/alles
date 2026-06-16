@@ -9,6 +9,7 @@ let _month = _thisMonth();
 let _accounts = [], _txns = [], _budgets = [], _sum = null;
 let _cur = '$';
 let _inited = false;
+let _editTxn = null;   // id of the txn row currently being edited inline
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -42,7 +43,8 @@ export function initMoneyPanel() {
       try {
         const r = await api('/api/money/transactions/import.csv', {
           method: 'POST', body: { csv: await f.text(), account_id: _accounts[0].id } });
-        toast(`imported ${r.imported} txn${r.imported === 1 ? '' : 's'} into ${_accounts[0].name}`, 'success');
+        const dup = r.skipped ? `, skipped ${r.skipped} duplicate${r.skipped === 1 ? '' : 's'}` : '';
+        toast(`imported ${r.imported} txn${r.imported === 1 ? '' : 's'} into ${_accounts[0].name}${dup}`, 'success');
         load();
       } catch { toast('import failed', 'error'); }
       fileInp.value = '';
@@ -172,15 +174,30 @@ function addTxnRow() {
 function txnList() {
   if (!_txns.length) return '<div class="money-empty-sm">no transactions this month</div>';
   const an = {}; _accounts.forEach(a => an[a.id] = a.name);
-  return `<div class="txns">` + _txns.map(t => `
+  return `<div class="txns">` + _txns.map(t => _editTxn === t.id ? editTxnRow(t) : `
     <div class="txn" data-id="${t.id}">
       <span class="tx-date">${(t.date || '').slice(5)}</span>
-      <span class="tx-payee">${esc(t.payee) || '<span class="tx-dim">—</span>'}</span>
-      <span class="tx-cat">${t.category ? esc(t.category) : ''}</span>
+      <span class="tx-payee" data-edit-txn="${t.id}">${esc(t.payee) || '<span class="tx-dim">—</span>'}</span>
+      <span class="tx-cat" data-edit-txn="${t.id}">${t.category ? esc(t.category) : ''}</span>
       <span class="tx-acct">${esc(an[t.account_id] || '')}</span>
-      <span class="tx-amt ${t.amount >= 0 ? 'pos' : 'neg'}">${signed(t.amount)}</span>
+      <span class="tx-amt ${t.amount >= 0 ? 'pos' : 'neg'}" data-edit-txn="${t.id}">${signed(t.amount)}</span>
       <button class="tx-del" data-del-txn="${t.id}" title="delete">×</button>
     </div>`).join('') + `</div>`;
+}
+
+function editTxnRow(t) {
+  const acctOpts = _accounts.map(a => `${a.id}|${(a.name || '').replace(/[;|]/g, '')}`).join(';');
+  const neg = (t.amount || 0) < 0;
+  return `<div class="txn txn-edit" data-id="${t.id}">
+    <div class="date-input" data-f="date" data-type="date" data-value="${esc(t.date || _today())}" data-ph="date" style="width:124px"></div>
+    <div class="settings-input custom-select" data-f="account_id" data-value="${esc(t.account_id)}" data-options="${esc(acctOpts)}" style="width:120px"></div>
+    <input type="text" class="settings-input" data-f="payee" value="${esc(t.payee || '')}" placeholder="payee" style="flex:1.4;min-width:90px">
+    <input type="text" class="settings-input" data-f="category" value="${esc(t.category || '')}" placeholder="category" style="flex:1;min-width:80px">
+    <div class="settings-input custom-select" data-f="sign" data-value="${neg ? '-' : '+'}" data-options="-|expense;+|income" style="width:100px"></div>
+    <input type="text" class="settings-input" data-f="amount" value="${Math.abs(t.amount || 0)}" inputmode="decimal" style="width:84px">
+    <button class="btn primary" data-save-txn="${t.id}">save</button>
+    <button class="btn" data-cancel-txn="${t.id}">×</button>
+  </div>`;
 }
 
 // ── inline forms ──────────────────────────────────────────────────────────────
@@ -225,6 +242,9 @@ function wire() {
   });
   $('bf-add')?.addEventListener('click', addBudget);
   $('money-body').querySelectorAll('[data-del-txn]').forEach(b => b.addEventListener('click', () => delTxn(b.dataset.delTxn)));
+  $('money-body').querySelectorAll('[data-edit-txn]').forEach(el => el.addEventListener('click', () => { _editTxn = el.dataset.editTxn; render(); }));
+  $('money-body').querySelectorAll('[data-save-txn]').forEach(b => b.addEventListener('click', () => saveTxn(b.dataset.saveTxn)));
+  $('money-body').querySelectorAll('[data-cancel-txn]').forEach(b => b.addEventListener('click', () => { _editTxn = null; render(); }));
   $('money-body').querySelectorAll('[data-del-acct]').forEach(b => b.addEventListener('click', () => delAccount(b.dataset.delAcct)));
   $('money-body').querySelectorAll('[data-del-budget]').forEach(b => b.addEventListener('click', () => delBudget(b.dataset.delBudget)));
 }
@@ -259,6 +279,22 @@ async function addTxn() {
 async function delTxn(id) {
   try { await api(`/api/money/transactions/${id}`, { method: 'DELETE' }); await load(); }
   catch { toast('delete failed', 'error'); }
+}
+async function saveTxn(id) {
+  const row = $('money-body').querySelector(`.txn-edit[data-id="${id}"]`);
+  if (!row) return;
+  const f = name => row.querySelector(`[data-f="${name}"]`);
+  const amtRaw = parseFloat(f('amount')?.value);
+  if (!amtRaw || amtRaw <= 0) { toast('enter an amount', 'error'); return; }
+  const sign = getDropdownValue(f('sign')) === '+' ? 1 : -1;
+  try {
+    await api(`/api/money/transactions/${id}`, { method: 'PATCH', body: {
+      account_id: getDropdownValue(f('account_id')), date: f('date')?.dataset.value || _today(),
+      amount: sign * amtRaw, category: f('category').value.trim(), payee: f('payee').value.trim(),
+    } });
+    _editTxn = null;
+    await load();
+  } catch { toast('save failed', 'error'); }
 }
 async function addBudget() {
   const category = $('bf-cat')?.value.trim();

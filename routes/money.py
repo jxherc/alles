@@ -159,11 +159,16 @@ class CsvImport(BaseModel):
 
 @router.post("/transactions/import.csv")
 def import_txns_csv(body: CsvImport, db: DbSession = Depends(get_db)):
-    """import transactions from a CSV (e.g. a bank export). needs date + amount columns."""
+    """import transactions from a CSV (e.g. a bank export). needs date + amount
+    columns. skips rows that duplicate an existing txn (same date+amount+payee in
+    this account) so re-importing an overlapping statement doesn't double-count."""
     import csv, io
     if not db.get(Account, body.account_id):
         raise HTTPException(400, "unknown account")
-    n = 0
+    # existing fingerprints for this account + dups within the file itself
+    seen = {(t.date, round(t.amount or 0.0, 2), (t.payee or "").strip().lower())
+            for t in db.query(Transaction).filter(Transaction.account_id == body.account_id).all()}
+    n = skipped = 0
     for row in csv.DictReader(io.StringIO(body.csv)):
         row = {(k or "").strip().lower(): v for k, v in row.items()}
         date = (row.get("date") or "").strip()
@@ -173,13 +178,18 @@ def import_txns_csv(body: CsvImport, db: DbSession = Depends(get_db)):
             continue
         if not date:
             continue
+        payee = (row.get("payee") or row.get("description") or "").strip()
+        key = (date[:10], round(amt, 2), payee.lower())
+        if key in seen:
+            skipped += 1
+            continue
+        seen.add(key)
         db.add(Transaction(account_id=body.account_id, date=date[:10], amount=amt,
-                           category=(row.get("category") or "").strip(),
-                           payee=(row.get("payee") or row.get("description") or "").strip(),
+                           category=(row.get("category") or "").strip(), payee=payee,
                            notes=(row.get("notes") or "").strip()))
         n += 1
     db.commit()
-    return {"imported": n}
+    return {"imported": n, "skipped": skipped}
 
 
 # ── budgets (monthly spending caps per category) ──────────────────────────────
