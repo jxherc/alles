@@ -226,7 +226,7 @@ init();
 const _VIEW_IDS = [
   'home-view', 'chat', 'notes-view', 'tasks-view', 'calendar-view', 'gallery-view',
   'models-view', 'brain-view', 'wiki-view', 'compare-view', 'vault-view', 'contacts-view',
-  'reminders-view', 'files-view', 'mail-view', 'photos-view', 'subs-view', 'money-view', 'days-view', 'journal-view', 'cookbook-view', 'usage-view', 'skills-view', 'activity-view',
+  'reminders-view', 'files-view', 'mail-view', 'photos-view', 'subs-view', 'money-view', 'days-view', 'journal-view', 'cookbook-view', 'usage-view', 'skills-view', 'activity-view', 'system-view',
 ];
 
 function hideAllViews() {
@@ -285,6 +285,7 @@ const showMoneyView      = () => showView('money-view',     'money',     async (
 const showDaysView       = () => showView('days-view',      'days',      async () => { (await import('./days.js')).initDaysPanel(); });
 const showJournalView    = () => showView('journal-view',   'journal',   async () => { (await import('./journal.js')).initJournal(); });
 const showActivityView   = () => showView('activity-view',  'activity',  async () => { (await import('./activity.js')).initActivity(); });
+const showSystemView     = () => showView('system-view',    'system',    async () => { (await import('./system.js')).initSystem(); });
 const showCookbookView   = () => showView('cookbook-view',  'cookbook',  async () => { (await import('./cookbook.js')).initCookbook(); });
 const showSkillsView     = () => showView('skills-view',    'skills',    async () => { (await import('./skills.js')).initSkills(); });
 const showUsageView      = () => showView('usage-view',     'usage',     async () => { (await import('./usage.js')).initUsage(); });
@@ -320,6 +321,7 @@ function navigateTo(v) {
   else if (v === 'days')      showDaysView();
   else if (v === 'journal')   showJournalView();
   else if (v === 'activity')  showActivityView();
+  else if (v === 'system')    showSystemView();
   else if (v === 'cookbook')  showCookbookView();
   else if (v === 'usage')     showUsageView();
   else if (v === 'skills')    showSkillsView();
@@ -352,6 +354,7 @@ const _ICON = {
   skills: '<path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z"/>',
   usage: '<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>',
   activity: '<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>',
+  system: '<rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/>',
 };
 const _svg = (k) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">${_ICON[k] || ''}</svg>`;
 
@@ -370,6 +373,7 @@ const HOME_TILES = [
   { view: 'days',     name: 'days',     desc: 'countdowns',      icon: 'days' },
   { view: 'journal',  name: 'journal',  desc: 'daily entries',   icon: 'journal' },
   { view: 'activity', name: 'activity', desc: 'everything, lately', icon: 'activity' },
+  { view: 'system',   name: 'system',   desc: 'live machine stats', icon: 'system' },
 ];
 
 // ── home tiles: drag-reorder + hide/show (persisted) + quick capture ─────────
