@@ -2748,7 +2748,7 @@ code {
 /* neofetch header */
 .neofetch { display: flex; gap: 1.6rem; align-items: flex-start; flex-wrap: wrap; margin-bottom: 1rem;
   padding-bottom: 1rem; border-bottom: 1px solid var(--faint); }
-.nf-logo { margin: 0; color: var(--accent); font-size: 0.8rem; line-height: 1.15; white-space: pre; text-shadow: 0 0 18px color-mix(in srgb, var(--accent) 45%, transparent); }
+.nf-logo { margin: 0; color: var(--accent); font-size: 0.7rem; line-height: 1.04; white-space: pre; letter-spacing: 0; align-self: center; }
 .nf-info { font-size: 0.74rem; line-height: 1.55; min-width: 240px; }
 .nf-title { color: var(--accent); font-weight: 600; }
 .nf-rule { color: var(--faint); letter-spacing: -1px; margin-bottom: 0.1rem; }
@@ -2760,22 +2760,39 @@ code {
 .nf-pal:first-of-type { margin-top: 0.5rem; }
 
 /* btop boxes */
-.btop-grid { display: grid; grid-template-columns: 1fr; gap: 0.9rem; }
-@media (min-width: 760px) { .btop-grid { grid-template-columns: 1fr 1fr; } .btop-box[data-label="cpu"] { grid-column: 1 / -1; } }
-.btop-box { position: relative; border: 1px solid var(--faint); border-radius: 4px; padding: 0.85rem 0.8rem 0.7rem; }
+.btop-grid { display: grid; grid-template-columns: 1fr; gap: 1rem; }
+@media (min-width: 800px) { .btop-grid { grid-template-columns: 1fr 1fr 1fr; } .btop-box.span2 { grid-column: 1 / -1; } }
+.btop-box { position: relative; border: 1px solid var(--faint); border-radius: 4px; padding: 0.95rem 0.8rem 0.7rem; min-width: 0; }
 .btop-box::before { content: attr(data-label); position: absolute; top: -0.55rem; left: 0.7rem;
-  background: var(--bg); padding: 0 0.4rem; font-size: 0.64rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); }
-.bx-line { display: flex; align-items: center; gap: 0.6rem; font-size: 0.74rem; margin-bottom: 0.35rem; flex-wrap: wrap; }
-.bx-pct { font-weight: 600; min-width: 2.6rem; }
+  background: var(--bg); padding: 0 0.45rem; font-size: 0.62rem; letter-spacing: 0.1em; text-transform: lowercase; color: var(--accent); white-space: nowrap; }
+.bx-line { display: flex; align-items: center; gap: 0.55rem; font-size: 0.73rem; margin-bottom: 0.35rem; flex-wrap: wrap; }
+.bx-pct { font-weight: 600; min-width: 2.8rem; }
+.bx-tag { color: var(--muted); min-width: 2.6rem; }
+.bx-rate { color: var(--text); min-width: 5.5rem; }
 .bx-meta { color: var(--muted); font-size: 0.7rem; }
+.bx-line.io .bx-meta { font-size: 0.68rem; }
 .m-track { color: var(--faint); letter-spacing: -0.5px; }
 .m-empty { color: var(--faint); }
 
-.graph { margin: 0.2rem 0 0; font-size: 0.82rem; line-height: 1.0; white-space: pre; overflow: hidden;
+.graph { margin: 0.25rem 0 0; font-size: 0.8rem; line-height: 1.0; white-space: pre; overflow: hidden;
   letter-spacing: 0; color: var(--faint); }
-.graph-sm { font-size: 0.78rem; }
-.cores-row { margin-top: 0.5rem; font-size: 0.95rem; line-height: 1; letter-spacing: 1px; word-break: break-all; }
-.core { display: inline-block; }
+.graph-sm { font-size: 0.74rem; }
+
+/* per-core grid */
+.cores-grid { margin-top: 0.6rem; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0.1rem 0.9rem; }
+.core { display: flex; align-items: center; gap: 0.35rem; font-size: 0.7rem; }
+.core-id { color: var(--muted); }
+.core-pct { text-align: right; }
+
+/* process table */
+.proc-row { display: grid; grid-template-columns: 4.5rem 1fr 3.5rem 3.5rem; gap: 0.5rem; font-size: 0.72rem; padding: 0.12rem 0.2rem; }
+.proc-row:nth-child(even) { background: color-mix(in srgb, var(--panel) 55%, transparent); }
+.proc-head { color: var(--muted); text-transform: lowercase; letter-spacing: 0.06em; border-bottom: 1px solid var(--faint); margin-bottom: 0.15rem; }
+.proc-head span { font-size: 0.64rem; }
+.p-pid { color: var(--muted); }
+.p-name { color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.p-cpu { text-align: right; font-weight: 600; }
+.p-mem { text-align: right; color: var(--muted); }
 .cal-more { font-size: 0.58rem; color: var(--muted); padding-left: 2px; }
 
 /* view toggle + form labels */
