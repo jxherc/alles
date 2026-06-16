@@ -2749,15 +2749,19 @@ code {
 .neofetch { display: flex; gap: 1.6rem; align-items: flex-start; flex-wrap: wrap; margin-bottom: 1rem;
   padding-bottom: 1rem; border-bottom: 1px solid var(--faint); }
 .nf-logo { margin: 0; color: var(--accent); font-size: 0.7rem; line-height: 1.04; white-space: pre; letter-spacing: 0; align-self: center; }
-.nf-info { font-size: 0.74rem; line-height: 1.55; min-width: 240px; }
+.nf-info { font-size: 0.74rem; line-height: 1.5; min-width: 280px; }
 .nf-title { color: var(--accent); font-weight: 600; }
-.nf-rule { color: var(--faint); letter-spacing: -1px; margin-bottom: 0.1rem; }
-.nf-row { display: flex; gap: 0.5rem; }
-.nf-key { color: var(--accent); min-width: 64px; }
+.nf-rule { color: var(--faint); letter-spacing: -1px; margin-bottom: 0.15rem; }
+.nf-grp { display: flex; gap: 0.5rem; margin-top: 0.45rem; }
+.nf-grp:first-of-type { margin-top: 0; }
+.nf-head { color: var(--text); font-weight: 600; min-width: 1.6rem; letter-spacing: 0.04em; }
+.nf-row { display: flex; gap: 0.4rem; }
+.nf-branch { color: var(--faint); width: 0.9rem; }
+.nf-key { color: var(--accent); min-width: 4.2rem; }
 .nf-val { color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.nf-pal { display: flex; gap: 0; margin-top: 0.35rem; }
+.nf-pal { display: flex; gap: 0; margin-top: 0.45rem; }
 .pal { width: 15px; height: 13px; display: inline-block; }
-.nf-pal:first-of-type { margin-top: 0.5rem; }
+.nf-pal + .nf-pal { margin-top: 0; }
 
 /* btop boxes */
 .btop-grid { display: grid; grid-template-columns: 1fr; gap: 1rem; }
