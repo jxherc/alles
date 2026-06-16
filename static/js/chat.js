@@ -447,6 +447,33 @@ export async function sendMessage(text) {
     cursor?.remove();
     body.classList.add('done');
 
+    // provenance — let the reader see what the run actually touched
+    if (agentEl && runId) {
+      const sum = agentEl.querySelector('summary');
+      if (sum && !sum.querySelector('.agent-sources-btn')) {
+        const sb = document.createElement('button');
+        sb.className = 'agent-sources-btn';
+        sb.textContent = 'sources';
+        sb.title = 'files, urls, searches and commands this run touched';
+        let panel = null;
+        sb.addEventListener('click', async (e) => {
+          e.preventDefault(); e.stopPropagation();
+          if (panel) { panel.hidden = !panel.hidden; return; }
+          sb.disabled = true;
+          try {
+            const src = await fetch(`/api/agent/runs/${runId}/sources`).then(x => x.json());
+            const { sourcesHtml } = await import('./runs.js');
+            panel = document.createElement('div');
+            panel.className = 'agent-sources';
+            panel.innerHTML = sourcesHtml(src);
+            agentEl.appendChild(panel);
+          } catch { toast('couldn’t load sources', 'error'); }
+          sb.disabled = false;
+        });
+        sum.appendChild(sb);
+      }
+    }
+
     // revert control — only if the agent actually edited files this run
     if (agentEl && runId && hadEdits) {
       const sum = agentEl.querySelector('summary');
