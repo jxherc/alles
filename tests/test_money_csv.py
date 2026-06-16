@@ -40,6 +40,23 @@ class MoneyCsvTest(ApiTest):
         r = self.client.post("/api/money/transactions/import.csv", json={"csv": csv_text, "account_id": aid})
         self.assertEqual(r.json()["imported"], 2)   # only the two valid rows
 
+    def test_import_skips_duplicates(self):
+        aid = self._account()
+        csv_text = "date,amount,payee\n2026-06-01,-10,cafe\n2026-06-02,-20,shop\n"
+        first = self.client.post("/api/money/transactions/import.csv", json={"csv": csv_text, "account_id": aid}).json()
+        self.assertEqual(first["imported"], 2)
+        # re-import the same statement plus a new row → only the new one lands
+        again = "date,amount,payee\n2026-06-01,-10,cafe\n2026-06-02,-20,shop\n2026-06-03,-5,newthing\n"
+        second = self.client.post("/api/money/transactions/import.csv", json={"csv": again, "account_id": aid}).json()
+        self.assertEqual(second["imported"], 1)
+        self.assertEqual(second["skipped"], 2)
+        # in-file duplicate rows are also collapsed
+        dupfile = "date,amount,payee\n2026-07-01,-9,x\n2026-07-01,-9,x\n"
+        aid2 = self._account()
+        third = self.client.post("/api/money/transactions/import.csv", json={"csv": dupfile, "account_id": aid2}).json()
+        self.assertEqual(third["imported"], 1)
+        self.assertEqual(third["skipped"], 1)
+
     def test_export_neutralizes_formula_injection(self):
         aid = self._account()
         # a payee/notes that an attacker controls (e.g. via an imported statement)

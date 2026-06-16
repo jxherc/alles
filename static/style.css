@@ -2152,6 +2152,9 @@ code {
   padding: 0.05rem 0.4rem; letter-spacing: 0.03em;
 }
 .sub-notes { font-size: 0.72rem; color: var(--muted); cursor: help; }
+.sub-link { font-size: 0.72rem; color: var(--muted); text-decoration: none; transition: color 0.15s; }
+.sub-link:hover { color: var(--accent); }
+.sub-autopost { font-size: 0.6rem; color: var(--muted); border: 1px solid var(--faint); border-radius: 8px; padding: 0.05rem 0.4rem; white-space: nowrap; }
 .sub-price { font-size: 0.8rem; color: var(--text); white-space: nowrap; }
 .sub-cycle { font-size: 0.65rem; color: var(--muted); margin-left: 0.15rem; }
 .sub-due { font-size: 0.7rem; color: var(--muted); white-space: nowrap; min-width: 90px; text-align: right; }
@@ -2317,6 +2320,10 @@ code {
 .txn-add .btn, .acct-form .btn, .budget-form .btn { display: inline-flex; align-items: center; }
 .txns { display: flex; flex-direction: column; }
 .txn { display: flex; align-items: center; gap: 0.6rem; padding: 0.4rem 0.2rem; border-bottom: 1px solid var(--faint); font-size: 0.78rem; }
+.txn-edit { flex-wrap: wrap; gap: 0.4rem; }
+.txn-edit > * { height: 32px; box-sizing: border-box; }
+.txn [data-edit-txn] { cursor: text; }
+.txn:hover [data-edit-txn] { color: var(--text); }
 .txn:last-child { border-bottom: none; }
 .tx-date { width: 44px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .tx-payee { flex: 1.4; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

@@ -8,6 +8,7 @@ const $ = id => document.getElementById(id);
 let _subs = [];
 let _summary = {};
 let _analytics = null;
+let _accounts = [];    // money accounts, for the optional auto-post link
 let _editing = null;   // id of the row currently in edit mode
 
 export async function loadSubs() {
@@ -18,8 +19,12 @@ export async function loadSubs() {
   } catch { _subs = []; _summary = {}; }
   try { _analytics = await fetch('/api/subscriptions/analytics').then(r => r.json()); }
   catch { _analytics = null; }
+  try { _accounts = (await fetch('/api/money/accounts').then(r => r.json())).filter(a => !a.archived); }
+  catch { _accounts = []; }
   _render();
 }
+
+const acctName = id => _accounts.find(a => a.id === id)?.name || '';
 
 function _chartHtml(a) {
   if (!a || !a.count || !a.by_category.length) return '';
@@ -109,7 +114,9 @@ function _row(s) {
     <div class="sub-item${s.active ? '' : ' paused'}" data-id="${s.id}">
       <div class="sub-main">
         <span class="sub-name">${esc(s.name)}</span>
+        ${s.url ? `<a class="sub-link" href="${esc(s.url)}" target="_blank" rel="noreferrer" title="manage ${esc(s.name)}">↗</a>` : ''}
         ${s.category ? `<span class="sub-cat">${esc(s.category)}</span>` : ''}
+        ${s.account_id && acctName(s.account_id) ? `<span class="sub-autopost" title="auto-posts the charge to ${esc(acctName(s.account_id))}">↻ ${esc(acctName(s.account_id))}</span>` : ''}
         ${s.notes ? `<span class="sub-notes" title="${esc(s.notes)}">…</span>` : ''}
       </div>
       <span class="sub-price">${esc(s.currency)}${s.price ? s.price.toFixed(2) : '—'}<span class="sub-cycle">${_cycleLabel(s)}</span></span>
@@ -133,7 +140,9 @@ function _editRow(s) {
       <input type="text" class="settings-input" data-f="cycle_days" value="${s.cycle_days}" style="width:55px;${s.cycle === 'custom' ? '' : 'display:none'}" title="cycle length in days" inputmode="numeric">
       <div class="date-input" data-f="next_due" data-type="date" data-value="${esc(s.next_due)}" data-ph="due" style="width:135px"></div>
       <input type="text" class="settings-input" data-f="category" value="${esc(s.category)}" placeholder="category" style="width:95px">
+      <input type="text" class="settings-input" data-f="url" value="${esc(s.url || '')}" placeholder="manage url" style="width:120px">
       <input type="text" class="settings-input" data-f="remind_days" value="${s.remind_days}" style="width:45px" title="push reminder N days before (0 = off)" inputmode="numeric">
+      <div class="settings-input custom-select" data-f="account_id" data-value="${esc(s.account_id || '')}" data-options="${['|no auto-post', ..._accounts.map(a => `${a.id}|↻ ${a.name}`)].map(esc).join(';')}" style="width:auto;min-width:120px" title="auto-post the charge to a money account"></div>
       <input type="text" class="settings-input" data-f="notes" value="${esc(s.notes)}" placeholder="notes" style="flex:1;min-width:80px">
       <span class="sub-actions">
         <button class="btn primary" data-act="save">save</button>
@@ -181,6 +190,7 @@ function _wireRows(list) {
           price: parseFloat(v('price')) || 0,
           cycle: v('cycle'), cycle_days: parseInt(v('cycle_days')) || 30,
           next_due: v('next_due'), category: v('category')?.trim() || '',
+          url: v('url')?.trim() || '', account_id: v('account_id') || '',
           remind_days: parseInt(v('remind_days')) || 0,
           notes: v('notes') || '',
         };
