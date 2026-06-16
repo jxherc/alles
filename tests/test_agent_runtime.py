@@ -1,6 +1,32 @@
+import json
 import unittest
 
 from services import agent_runtime as ar
+
+
+class CapToolContentTests(unittest.TestCase):
+    def test_large_output_stays_valid_json(self):
+        tc = {"output": "Z" * 50000, "error": False}
+        content = ar._cap_tool_content(tc)
+        # the old bug: sliced the json string + tacked on `"}` → unparseable
+        parsed = json.loads(content)   # must not raise
+        self.assertFalse(parsed["error"])
+        self.assertIn("truncated for context", parsed["output"])
+        self.assertLess(len(content), 20000)
+        # head AND tail of the original are preserved
+        self.assertTrue(parsed["output"].startswith("Z"))
+        self.assertTrue(parsed["output"].rstrip().endswith("Z"))
+
+    def test_small_output_untouched(self):
+        tc = {"output": "hello", "error": False}
+        self.assertEqual(json.loads(ar._cap_tool_content(tc)), tc)
+
+    def test_hist_chars_counts_image_urls(self):
+        msgs = [{"role": "user", "content": [
+            {"type": "text", "text": "hi"},
+            {"type": "image_url", "image_url": {"url": "data:image/png;base64," + "A" * 5000}},
+        ]}]
+        self.assertGreaterEqual(ar._hist_chars(msgs), 5000)
 
 
 class TrimHistoryTests(unittest.TestCase):

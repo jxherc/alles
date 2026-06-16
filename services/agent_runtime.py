@@ -51,9 +51,43 @@ async def _await_permission(request_id: str, stop_event, timeout: float = 600) -
 # context files an agent auto-reads from the working dir (+ parents), nearest first.
 _CTX_NAMES = ["AGENTS.md", "AGENT.md", "aide.md", ".aide/instructions.md"]
 
+TOOL_HIST_BUDGET = 8000   # per-tool-result char budget kept in the running history
+
+
+def _cap_tool_content(tool_content: dict) -> str:
+    """serialize a tool result for the model's history, bounded but always valid json.
+    truncates the (usually huge) `output` value head+tail rather than the json text."""
+    out = tool_content.get("output")
+    if isinstance(out, str) and len(out) > TOOL_HIST_BUDGET:
+        head = out[: TOOL_HIST_BUDGET * 2 // 3]
+        tail = out[-TOOL_HIST_BUDGET // 3:]
+        tool_content = {**tool_content,
+                        "output": f"{head}\n…[{len(out) - TOOL_HIST_BUDGET} chars truncated for context]…\n{tail}"}
+    content = json.dumps(tool_content)
+    # belt-and-suspenders: if some other field is pathologically large, hard-trim the
+    # output further but keep it valid json (never slice the serialized string).
+    if len(content) > TOOL_HIST_BUDGET * 3 and isinstance(tool_content.get("output"), str):
+        tc = {**tool_content, "output": tool_content["output"][:1000] + " …[truncated]"}
+        content = json.dumps(tc)
+    return content
+
 
 def _hist_chars(messages: list[dict]) -> int:
-    return sum(len(m["content"]) for m in messages if isinstance(m.get("content"), str))
+    n = 0
+    for m in messages:
+        c = m.get("content")
+        if isinstance(c, str):
+            n += len(c)
+        elif isinstance(c, list):
+            # vision turns: count the text AND the base64 image urls (they bloat context)
+            for p in c:
+                if not isinstance(p, dict):
+                    continue
+                if p.get("type") == "text":
+                    n += len(p.get("text", ""))
+                elif p.get("type") == "image_url":
+                    n += len(p.get("image_url", {}).get("url", ""))
+    return n
 
 
 def _trim_history(messages: list[dict], budget: int = 120000, keep_recent: int = 8):
@@ -361,9 +395,11 @@ async def run_agent(
                     "output": step["output"],
                     "error": step["error"],
                 }}
-                content = json.dumps(tool_content)
-                if len(content) > 8000:   # cap per-tool history so long runs don't blow context
-                    content = content[:8000] + " …[truncated for context]\"}"
+                # cap per-tool history so long runs don't blow context. truncate the
+                # OUTPUT VALUE (head+tail) then re-serialize, so the tool message is
+                # ALWAYS valid json — the old code sliced the json string itself and
+                # tacked on `"}`, which split keys/values mid-string → unparseable.
+                content = _cap_tool_content(tool_content)
                 agent_messages.append({
                     "role": "tool",
                     "tool_call_id": call_id,
