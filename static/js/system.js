@@ -5,8 +5,29 @@
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-const HIST = 60;
+const HIST = 320;   // keep enough history to fill a wide graph
 const cpuHist = [], ramHist = [], netDownHist = [], netUpHist = [];
+
+// how many monospace columns fit a graph element — so graphs FILL their box
+// (btop sizes the graph to the box width and scrolls data in from the right).
+const _cw = {};
+function charW(small) {
+  const k = small ? 'sm' : 'lg';
+  if (_cw[k]) return _cw[k];
+  const p = document.createElement('span');
+  p.className = 'graph' + (small ? ' graph-sm' : '');
+  p.style.cssText = 'position:absolute;visibility:hidden;white-space:pre;padding:0;margin:0;border:0';
+  p.textContent = '█'.repeat(40);
+  document.body.appendChild(p);
+  const w = p.getBoundingClientRect().width / 40;
+  p.remove();
+  if (w > 0) _cw[k] = w;
+  return w || 8;
+}
+function colsFor(el, small) {
+  if (!el || !el.clientWidth) return 60;
+  return Math.max(8, Math.floor((el.clientWidth - 9) / charW(small)));
+}
 
 // ── os logos (neofetch-style, picked by the detected platform) ───────────────
 const LOGOS = {
@@ -125,15 +146,20 @@ function meter(pct, width = 18, color) {
   return `<span class="m-track">[${bar}]</span>`;
 }
 
-// block area graph, `rows` tall, scaled to `max`. each CELL is coloured by its
-// height via `grad(row, rows)` → a vertical pixelized gradient like btop's.
-function areaGraph(hist, rows, max, grad) {
+// block area graph, `cols` wide × `rows` tall, scaled to `max`. data is right-
+// aligned and the empty left is padded so the graph always FILLS its box (newest
+// on the right, scrolling in). each CELL coloured by its height → vertical
+// pixelized gradient like btop's.
+function areaGraph(hist, rows, max, grad, cols) {
   if (!hist || hist.length < 1) return '<span class="g-dim">gathering…</span>';
-  const cols = hist.slice(-HIST), m = max || Math.max(1, ...cols);
+  cols = cols || HIST;
+  const data = hist.slice(-cols);
+  const lead = Math.max(0, cols - data.length);
+  const m = max || Math.max(1, ...data);
   const lines = [];
   for (let r = rows - 1; r >= 0; r--) {
-    let line = '';
-    for (const v of cols) {
+    let line = ' '.repeat(lead);
+    for (const v of data) {
       const cells = (Math.min(v, m) / m) * rows;
       let ch;
       if (cells >= r + 1) ch = '█';
@@ -145,7 +171,7 @@ function areaGraph(hist, rows, max, grad) {
   }
   return lines.join('\n');
 }
-const loadGraph = (h, rows) => areaGraph(h, rows, 100, vgrad);
+const loadGraph = (h, rows, cols) => areaGraph(h, rows, 100, vgrad, cols);
 
 function fmtRate(bps) {
   bps = bps || 0;
@@ -262,7 +288,7 @@ function render(s) {
   // cpu
   $('box-cpu').dataset.label = `cpu  ${cpu.cores || '?'} threads ${freq}${s.temp_c ? '  ' + s.temp_c + '°C' : ''}`;
   $('cpu-top').innerHTML = `<span class="bx-pct ${cpu.percent >= 90 ? 'hot' : ''}" style="color:${heat(cpu.percent)}">${cpu.percent == null ? '—' : Math.round(cpu.percent) + '%'}</span>${meter(cpu.percent, 30)}`;
-  $('cpu-graph').innerHTML = loadGraph(cpuHist, 10);
+  $('cpu-graph').innerHTML = loadGraph(cpuHist, 10, colsFor($('cpu-graph'), false));
   $('cpu-cores').innerHTML = (cpu.per_core || []).map((c, i) =>
     `<span class="core"><span class="core-id">${String(i).padStart(2, '0')}</span>` +
     `${meter(c, 7)}<span class="core-pct" style="color:${heat(c)}">${String(Math.round(c)).padStart(3)}%</span></span>`).join('');
@@ -275,15 +301,16 @@ function render(s) {
     memRow('ram', mem.used_gb, mem.total_gb, mem.percent) +
     (mem.cached_gb ? `<div class="bx-line"><span class="bx-tag">cache</span>${meter(mem.total_gb ? mem.cached_gb / mem.total_gb * 100 : 0, 20, '#5ec8d8')}<span class="bx-meta">${mem.cached_gb} GB</span></div>` : '') +
     (sw && sw.total_gb ? memRow('swap', sw.used_gb, sw.total_gb, sw.percent, '#c08cf8') : '');
-  $('mem-graph').innerHTML = loadGraph(ramHist, 5);
+  $('mem-graph').innerHTML = loadGraph(ramHist, 5, colsFor($('mem-graph'), true));
 
-  // net
+  // net (measure the body width before rebuilding its innerHTML)
   $('box-net').dataset.label = 'net';
+  const ncols = colsFor($('net-body'), true);
   $('net-body').innerHTML =
     `<div class="bx-line"><span class="bx-tag" style="color:#5ec8d8">↓ dn</span><span class="bx-rate">${fmtRate(net.down_bps)}</span><span class="bx-meta">${fmtBytes(net.recv_total)} total</span></div>` +
-    `<pre class="graph graph-sm">${areaGraph(netDownHist, 4, 0, vgradDown)}</pre>` +
+    `<pre class="graph graph-sm">${areaGraph(netDownHist, 4, 0, vgradDown, ncols)}</pre>` +
     `<div class="bx-line"><span class="bx-tag" style="color:#c08cf8">↑ up</span><span class="bx-rate">${fmtRate(net.up_bps)}</span><span class="bx-meta">${fmtBytes(net.sent_total)} total</span></div>` +
-    `<pre class="graph graph-sm">${areaGraph(netUpHist, 4, 0, vgradUp)}</pre>`;
+    `<pre class="graph graph-sm">${areaGraph(netUpHist, 4, 0, vgradUp, ncols)}</pre>`;
 
   // disk
   $('box-disk').dataset.label = 'disk';
