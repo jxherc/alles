@@ -2784,8 +2784,8 @@ code {
 .nf-branch { color: var(--faint); width: 0.9rem; }
 .nf-key { color: var(--accent); min-width: 4.2rem; }
 .nf-val { color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.nf-pal { display: flex; gap: 0; margin-top: 0.45rem; }
-.pal { width: 15px; height: 13px; display: inline-block; }
+.nf-pal { display: flex; gap: 0; margin-top: 0.5rem; }
+.pal { flex: 1; min-width: 30px; height: 16px; display: inline-block; }
 .nf-pal + .nf-pal { margin-top: 0; }
 
 /* btop boxes */
