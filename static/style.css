@@ -2819,7 +2819,7 @@ code {
 .m-track { color: var(--faint); letter-spacing: -0.5px; }
 .m-empty { color: var(--faint); }
 
-.graph { margin: 0.3rem 0 0; font-size: 0.82rem; line-height: 0.98; white-space: pre; overflow: hidden;
+.graph { margin: 0.3rem 0 0; font-size: 0.82rem; line-height: 0.92; white-space: pre; overflow: hidden;
   letter-spacing: 0; color: var(--faint); background: rgba(255,255,255,0.022);
   border-radius: 3px; padding: 3px 4px; }
 .graph-sm { font-size: 0.78rem; }
