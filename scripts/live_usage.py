@@ -21,6 +21,18 @@ import subprocess
 from pathlib import Path
 from datetime import datetime
 
+# httpx picks up the windows system (clash) proxy from the registry and would
+# route localhost through it → empty replies. force a direct localhost connection.
+os.environ["NO_PROXY"] = "localhost,127.0.0.1," + os.environ.get("NO_PROXY", "")
+
+# the windows console is cp1252 — model replies contain unicode (narrow spaces,
+# emoji); make stdout tolerant so a print never crashes the run.
+try:
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+except Exception:
+    pass
+
 import httpx
 
 BASE = sys.argv[1] if len(sys.argv) > 1 else "http://localhost:8099"
