@@ -2738,6 +2738,46 @@ code {
 .activity-sub { font-size: 0.68rem; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .activity-time { font-size: 0.64rem; color: var(--muted); flex-shrink: 0; }
 .activity-empty { padding: 1.4rem 0.4rem; font-size: 0.75rem; color: var(--muted); }
+
+/* ── system monitor ────────────────────────────────────────────────────────── */
+.sys-note { font-size: 0.72rem; color: var(--muted); padding: 0.5rem 0.7rem; margin-bottom: 0.8rem; border: 1px solid var(--faint); border-radius: 3px; background: var(--panel); }
+.sys-note code { font-family: 'JetBrains Mono', monospace; color: var(--text); }
+.sys-dim { font-size: 0.7rem; color: var(--muted); }
+
+.sys-gauges { display: flex; gap: 1.5rem; flex-wrap: wrap; margin-bottom: 1.2rem; }
+.sys-gauge { width: 150px; text-align: center; }
+.sys-gauge svg { width: 130px; height: 130px; }
+.sys-gauge-track { fill: none; stroke: var(--faint); stroke-width: 9; }
+.sys-gauge-fill { fill: none; stroke-width: 9; stroke-linecap: round; transition: stroke-dashoffset 0.6s cubic-bezier(0.2,0.7,0.2,1), stroke 0.4s; }
+.sys-gauge-val { fill: var(--text); font-size: 26px; font-weight: 500; text-anchor: middle; font-family: 'JetBrains Mono', monospace; }
+.sys-gauge-pct { fill: var(--muted); font-size: 13px; }
+.sys-gauge-cap { fill: var(--muted); font-size: 10px; text-anchor: middle; text-transform: lowercase; letter-spacing: 0.06em; }
+.sys-gauge-sub { font-size: 0.66rem; color: var(--muted); margin-top: 0.2rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.sys-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 0.8rem; }
+.sys-card { border: 1px solid var(--faint); border-radius: 4px; padding: 0.7rem 0.8rem; }
+.sys-card-h { font-size: 0.74rem; color: var(--text); margin-bottom: 0.6rem; display: flex; justify-content: space-between; gap: 0.5rem; }
+.sys-card-h .sys-dim { font-weight: 400; }
+
+.sys-cores { display: flex; align-items: flex-end; gap: 2px; height: 34px; margin-bottom: 0.5rem; }
+.sys-core { flex: 1; min-width: 3px; height: 100%; background: var(--faint); border-radius: 1px; display: flex; align-items: flex-end; overflow: hidden; }
+.sys-core-fill { width: 100%; transition: height 0.5s cubic-bezier(0.2,0.7,0.2,1); }
+
+.sys-spark-wrap { height: 26px; }
+.sys-spark-wrap.sys-spark-big { height: 48px; }
+.sys-spark { width: 100%; height: 100%; }
+.sys-spark polyline { fill: none; stroke-width: 1.5; vector-effect: non-scaling-stroke; }
+
+.sys-bar-row { margin-bottom: 0.55rem; }
+.sys-bar-head { display: flex; justify-content: space-between; font-size: 0.7rem; color: var(--text); margin-bottom: 0.2rem; }
+.sys-bar-sub { color: var(--muted); }
+.sys-bar-track { height: 6px; background: var(--faint); border-radius: 3px; overflow: hidden; }
+.sys-bar-fill { height: 100%; border-radius: 3px; transition: width 0.6s cubic-bezier(0.2,0.7,0.2,1), background 0.4s; }
+
+.sys-kv { display: flex; justify-content: space-between; gap: 0.5rem; font-size: 0.72rem; padding: 0.15rem 0; border-bottom: 1px solid var(--faint); }
+.sys-kv:last-child { border-bottom: none; }
+.sys-kv span { color: var(--muted); }
+.sys-kv b { color: var(--text); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 60%; text-align: right; }
 .cal-more { font-size: 0.58rem; color: var(--muted); padding-left: 2px; }
 
 /* view toggle + form labels */
