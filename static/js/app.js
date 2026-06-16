@@ -111,6 +111,7 @@ async function _boot() {
   initSearch();
   initDropZone();
   initVault();
+  import('./runs.js').then(m => m.initRuns()).catch(() => {});
   initPrivacyHandlers();
   startReminderPoll();
   registerServiceWorker();
@@ -142,6 +143,7 @@ function applySubdomainScope() {
   _show('ai-top-controls', onAide);
   // settings is AI-heavy — keep it inside aide, not bleeding onto mail/docs/etc.
   _show('topbar-settings-btn', onAide);
+  _show('runs-btn', onAide);   // agent runs only make sense on aide
   // on aide the logo lives in the sidebar's top-left; elsewhere it's the topbar crumb
   _show('app-crumb', !onAide);
   if (!onAide) {
