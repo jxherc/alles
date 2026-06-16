@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session as DbSession
 from sqlalchemy import or_
-from core.database import get_db, Session, Message, Task, CalendarEvent, Contact
+from core.database import (get_db, Session, Message, Task, CalendarEvent, Contact,
+                           Transaction, Subscription, Photo, MailAccount)
 
 router = APIRouter(prefix="/api")
 
@@ -41,7 +42,8 @@ def _search_vault(q: str, limit: int) -> list[dict]:
 # GET /api/search — one search across every alles app
 @router.get("/search")
 def search(q: str = Query(""), db: DbSession = Depends(get_db)):
-    empty = {"chats": [], "notes": [], "tasks": [], "calendar": [], "contacts": [], "memories": []}
+    empty = {"chats": [], "notes": [], "tasks": [], "calendar": [], "contacts": [],
+             "memories": [], "mail": [], "money": [], "subs": [], "photos": []}
     if not q.strip():
         return empty
 
@@ -93,5 +95,39 @@ def search(q: str = Query(""), db: DbSession = Depends(get_db)):
         res["memories"] = search_memories(q, top_k=_LIMIT)
     except Exception:
         res["memories"] = []
+
+    # money — transactions by payee/category/notes
+    txns = (db.query(Transaction)
+            .filter(or_(Transaction.payee.ilike(pat), Transaction.category.ilike(pat),
+                        Transaction.notes.ilike(pat)))
+            .order_by(Transaction.date.desc()).limit(_LIMIT).all())
+    res["money"] = [{"id": t.id, "payee": t.payee or t.category or "transaction",
+                     "amount": t.amount, "when": (t.date or "")[:10]} for t in txns]
+
+    # subscriptions — by name/category
+    subs = (db.query(Subscription)
+            .filter(or_(Subscription.name.ilike(pat), Subscription.category.ilike(pat)))
+            .limit(_LIMIT).all())
+    res["subs"] = [{"id": s.id, "name": s.name,
+                    "snippet": f"{s.currency}{s.price:g} · {s.cycle}"} for s in subs]
+
+    # photos — by original filename
+    photos = (db.query(Photo).filter(Photo.original_name.ilike(pat))
+              .order_by(Photo.created_at.desc()).limit(_LIMIT).all())
+    res["photos"] = [{"id": p.id, "name": p.original_name or p.filename} for p in photos]
+
+    # mail — instant local search over CACHED headers (no slow IMAP round-trip)
+    try:
+        from services import mail_cache
+        mail_hits = []
+        for a in db.query(MailAccount).all():
+            for m in mail_cache.search(db, a.id, q, limit=_LIMIT):
+                m = {**m, "account_id": a.id}
+                mail_hits.append(m)
+            if len(mail_hits) >= _LIMIT:
+                break
+        res["mail"] = mail_hits[:_LIMIT]
+    except Exception:
+        res["mail"] = []
 
     return res

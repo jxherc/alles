@@ -1,12 +1,26 @@
 from tests._client import ApiTest
-from core.database import Session, Message, Task, CalendarEvent, Contact
+from core.database import (Session, Message, Task, CalendarEvent, Contact,
+                          Account, Transaction, Subscription)
 
 
 class SearchApiTest(ApiTest):
     def test_empty_query_returns_empty_shape(self):
         r = self.client.get("/api/search", params={"q": ""}).json()
-        self.assertEqual(set(r), {"chats", "notes", "tasks", "calendar", "contacts", "memories"})
+        self.assertEqual(set(r), {"chats", "notes", "tasks", "calendar", "contacts",
+                                  "memories", "mail", "money", "subs", "photos"})
         self.assertTrue(all(r[k] == [] for k in r))
+
+    def test_finds_money_and_subs(self):
+        d = self.db()
+        acct = Account(name="checking", opening=0.0); d.add(acct); d.commit()
+        d.add(Transaction(account_id=acct.id, date="2026-06-01", amount=-9.99,
+                          payee="zptest grocer", category="food"))
+        d.add(Subscription(name="zptest plus", price=5, currency="$", cycle="monthly",
+                          next_due="2026-07-01", category="apps"))
+        d.commit(); d.close()
+        r = self.client.get("/api/search", params={"q": "zptest"}).json()
+        self.assertEqual([t["payee"] for t in r["money"]], ["zptest grocer"])
+        self.assertEqual([s["name"] for s in r["subs"]], ["zptest plus"])
 
     def test_finds_across_surfaces(self):
         d = self.db()
