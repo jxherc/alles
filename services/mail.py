@@ -485,6 +485,8 @@ def _fetch_message_parts(M, uid_b):
         "to": _dec(hdr.get("To", "")),
         "subject": _dec(hdr.get("Subject", "(no subject)")),
         "date": hdr.get("Date", ""),
+        "message_id": (hdr.get("Message-ID", "") or "").strip(),
+        "references": (hdr.get("References", "") or "").strip(),
         "text": text,
         "html": html,
     }
@@ -519,6 +521,8 @@ def _fetch_message_rfc822(M, uid_b):
         "to": _dec(msg.get("To", "")),
         "subject": _dec(msg.get("Subject", "(no subject)")),
         "date": msg.get("Date", ""),
+        "message_id": (msg.get("Message-ID", "") or "").strip(),
+        "references": (msg.get("References", "") or "").strip(),
         "text": text,
         "html": html,
     }
@@ -716,17 +720,29 @@ def fetch_attachment(acct, uid, index: int, folder: str = "INBOX"):
         _release_imap(acct, M, ok)
 
 
-def send_mail(acct, to: str, subject: str, body: str, cc: str = "") -> dict:
-    host = acct.get("smtp_host", "")
-    if not host:
-        raise ValueError("no SMTP host configured")
+def _build_message(acct, to, subject, body, cc="", bcc="", in_reply_to="", references=""):
     msg = EmailMessage()
     msg["From"] = acct.get("email") or acct.get("username", "")
     msg["To"] = to
     if cc:
         msg["Cc"] = cc
+    if bcc:
+        msg["Bcc"] = bcc   # send_message strips this from the wire but uses it for the envelope
     msg["Subject"] = subject
+    # thread replies properly in other clients (Mail.app, Gmail, etc.)
+    if in_reply_to:
+        msg["In-Reply-To"] = in_reply_to
+        msg["References"] = (references + " " + in_reply_to).strip() if references else in_reply_to
     msg.set_content(body or "")
+    return msg
+
+
+def send_mail(acct, to: str, subject: str, body: str, cc: str = "",
+              bcc: str = "", in_reply_to: str = "", references: str = "") -> dict:
+    host = acct.get("smtp_host", "")
+    if not host:
+        raise ValueError("no SMTP host configured")
+    msg = _build_message(acct, to, subject, body, cc, bcc, in_reply_to, references)
     port = int(acct.get("smtp_port") or 587)
     user = acct.get("username") or acct.get("email", "")
     pw = acct.get("password", "")

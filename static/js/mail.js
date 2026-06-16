@@ -5,7 +5,14 @@ import { populateDropdown } from './dropdown.js';
 let _accounts = [];
 let _active = localStorage.getItem('alles-mail-account-mode') || 'all';
 let _filter = 'inbox';        // inbox | unread | sent
+let _threads = localStorage.getItem('alles-mail-threads') === '1';   // group by conversation
 const _sentFolders = {};      // account_id -> detected sent folder name
+const _expanded = new Set();  // thread keys currently expanded
+let _lastMsgs = [];           // last rendered message set (for re-render on toggle)
+
+// mirror services.mail.normalize_subject — strip re:/fwd:/aw:… so a conversation collapses
+const _subjPrefix = /^(?:\s*(?:re|fwd|fw|aw|wg)\s*:\s*)+/i;
+const threadKey = s => (String(s ?? '').replace(_subjPrefix, '').trim() || '(no subject)').toLowerCase();
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -60,6 +67,19 @@ export function initMail() {
     loadInbox();
   });
   $('mail-refresh-btn')?.addEventListener('click', () => loadInbox(true));
+  const tbtn = $('mail-threads-btn');
+  if (tbtn) {
+    tbtn.classList.toggle('active', _threads);
+    tbtn.setAttribute('aria-pressed', String(_threads));
+    tbtn.addEventListener('click', () => {
+      _threads = !_threads;
+      localStorage.setItem('alles-mail-threads', _threads ? '1' : '0');
+      tbtn.classList.toggle('active', _threads);
+      tbtn.setAttribute('aria-pressed', String(_threads));
+      _expanded.clear();
+      renderInbox(_lastMsgs);
+    });
+  }
   $('mail-compose-btn')?.addEventListener('click', () => compose());
   $('mail-accounts-btn')?.addEventListener('click', () => accountsPanel());
   document.querySelectorAll('.mail-tab').forEach(t =>
@@ -208,10 +228,21 @@ export function startMailPoll(intervalMs = 30000) {
   });
 }
 
+const _msgRow = (m, indent = false) => `
+    <div class="mail-row${m.seen ? '' : ' unread'}${indent ? ' mail-row-child' : ''}" data-aid="${esc(m.account_id)}" data-uid="${esc(m.uid)}" data-folder="${esc(m.folder || 'INBOX')}">
+      <div class="mail-row-top">
+        <span class="mail-from">${esc(fromName(m.from))}</span>
+        <span class="mail-date">${esc(shortDate(m.date))}</span>
+      </div>
+      <div class="mail-subject">${esc(m.subject)}</div>
+      ${_active === 'all' ? `<div class="mail-account-badge">${esc(m.account_name || acctName(m.account_id))}</div>` : ''}
+    </div>`;
+
 function renderInbox(messages, errors = []) {
   const list = $('mail-list');
   const msgTime = m => Number(m.date_ts || 0) || Math.floor((Date.parse(m.date || '') || 0) / 1000);
-  messages.sort((a, b) => msgTime(b) - msgTime(a));
+  messages = [...messages].sort((a, b) => msgTime(b) - msgTime(a));
+  _lastMsgs = messages;
   if (!messages.length && !errors.length) {
     list.innerHTML = `<div class="mail-empty">nothing in ${esc(_filter)}</div>`;
     return;
@@ -219,17 +250,45 @@ function renderInbox(messages, errors = []) {
   const errHtml = errors.length
     ? `<div class="mail-error-strip">${errors.map(esc).join('<br>')}</div>`
     : '';
-  const rowHtml = messages.map(m => `
-    <div class="mail-row${m.seen ? '' : ' unread'}" data-aid="${esc(m.account_id)}" data-uid="${esc(m.uid)}" data-folder="${esc(m.folder || 'INBOX')}">
-      <div class="mail-row-top">
-        <span class="mail-from">${esc(fromName(m.from))}</span>
-        <span class="mail-date">${esc(shortDate(m.date))}</span>
-      </div>
-      <div class="mail-subject">${esc(m.subject)}</div>
-      ${_active === 'all' ? `<div class="mail-account-badge">${esc(m.account_name || acctName(m.account_id))}</div>` : ''}
-    </div>`).join('');
-  list.innerHTML = errHtml + rowHtml;
-  list.querySelectorAll('.mail-row').forEach(r => r.addEventListener('click', () => {
+  list.innerHTML = errHtml + (_threads ? _renderThreads(messages, msgTime) : messages.map(m => _msgRow(m)).join(''));
+  _wireRows(list);
+}
+
+function _renderThreads(messages, msgTime) {
+  const groups = new Map();
+  for (const m of messages) {
+    const k = threadKey(m.subject);
+    (groups.get(k) || groups.set(k, []).get(k)).push(m);
+  }
+  const threads = [...groups.entries()].map(([k, msgs]) => {
+    msgs.sort((a, b) => msgTime(b) - msgTime(a));
+    return { k, msgs, top: msgs[0], unseen: msgs.filter(x => !x.seen).length };
+  }).sort((a, b) => msgTime(b.top) - msgTime(a.top));
+
+  return threads.map(t => {
+    if (t.msgs.length === 1) return _msgRow(t.top);
+    const open = _expanded.has(t.k);
+    const head = `
+      <div class="mail-row mail-thread-head${t.unseen ? ' unread' : ''}${open ? ' open' : ''}" data-thread="${esc(t.k)}">
+        <div class="mail-row-top">
+          <span class="mail-from">${esc(fromName(t.top.from))}</span>
+          <span class="mail-date">${esc(shortDate(t.top.date))}</span>
+        </div>
+        <div class="mail-subject"><span class="mail-thread-caret">${open ? '▾' : '▸'}</span> ${esc(t.top.subject)} <span class="mail-thread-count">${t.msgs.length}</span></div>
+        ${_active === 'all' ? `<div class="mail-account-badge">${esc(t.top.account_name || acctName(t.top.account_id))}</div>` : ''}
+      </div>`;
+    const kids = open ? t.msgs.map(m => _msgRow(m, true)).join('') : '';
+    return head + kids;
+  }).join('');
+}
+
+function _wireRows(list) {
+  list.querySelectorAll('.mail-thread-head').forEach(h => h.addEventListener('click', () => {
+    const k = h.dataset.thread;
+    if (_expanded.has(k)) _expanded.delete(k); else _expanded.add(k);
+    renderInbox(_lastMsgs);
+  }));
+  list.querySelectorAll('.mail-row:not(.mail-thread-head)').forEach(r => r.addEventListener('click', () => {
     list.querySelectorAll('.mail-row').forEach(x => x.classList.remove('sel'));
     r.classList.add('sel'); r.classList.remove('unread');
     openMessage(r.dataset.aid, r.dataset.uid, r.dataset.folder);
@@ -273,9 +332,16 @@ async function openMessage(aid, uid, folder = 'INBOX') {
     const f = main.querySelector('.mail-body-frame');
     f.srcdoc = `<style>body{font-family:Inter,system-ui,sans-serif;color:#111;background:#fff;font-size:14px;padding:8px;margin:0}</style>${m.html}`;
   }
+  // attachment chips — backend lists/serves them, the reader just never showed them
+  loadAttachments(aid, uid, folder);
   $('mail-reply')?.addEventListener('click', () => {
     const addr = (/<([^>]+)>/.exec(m.from) || [, m.from])[1];
-    compose({ account_id: aid, to: addr, subject: /^re:/i.test(m.subject) ? m.subject : 'Re: ' + m.subject, body: `\n\n-- on ${m.date}, ${fromName(m.from)} wrote --\n${(m.text || '').split('\n').map(l => '> ' + l).join('\n')}` });
+    compose({
+      account_id: aid, to: addr,
+      subject: /^re:/i.test(m.subject) ? m.subject : 'Re: ' + m.subject,
+      body: `\n\n-- on ${m.date}, ${fromName(m.from)} wrote --\n${(m.text || '').split('\n').map(l => '> ' + l).join('\n')}`,
+      in_reply_to: m.message_id || '', references: m.references || '',
+    });
   });
   $('mail-to-task')?.addEventListener('click', async () => {
     const r = await fetch('/api/mail/make-task', {
@@ -319,6 +385,27 @@ async function openMessage(aid, uid, folder = 'INBOX') {
   });
 }
 
+const fmtBytes = n => n < 1024 ? `${n} B` : n < 1048576 ? `${(n / 1024).toFixed(0)} KB` : `${(n / 1048576).toFixed(1)} MB`;
+
+async function loadAttachments(aid, uid, folder) {
+  let d;
+  try {
+    d = await fetch(`/api/mail/attachments/${aid}?uid=${encodeURIComponent(uid)}&folder=${encodeURIComponent(folder)}`).then(r => r.json());
+  } catch { return; }
+  const atts = d?.attachments || [];
+  if (!atts.length) return;
+  const head = $('mail-main')?.querySelector('.mail-reader-head');
+  if (!head) return;
+  const row = document.createElement('div');
+  row.className = 'mail-attach-row';
+  row.innerHTML = atts.map(a => {
+    const url = `/api/mail/attachment/${aid}?uid=${encodeURIComponent(uid)}&index=${a.index}&folder=${encodeURIComponent(folder)}`;
+    return `<a class="mail-attach-chip" href="${esc(url)}" download="${esc(a.filename)}" title="${esc(a.content_type)} · ${fmtBytes(a.size)}">
+      <span class="mail-attach-clip">📎</span><span class="mail-attach-name">${esc(a.filename)}</span><span class="mail-attach-size">${fmtBytes(a.size)}</span></a>`;
+  }).join('');
+  head.appendChild(row);
+}
+
 function compose(pre = {}) {
   const main = $('mail-main');
   const defaultAid = pre.account_id || (_active !== 'all' ? _active : _accounts[0]?.id);
@@ -336,6 +423,7 @@ function compose(pre = {}) {
     ${_accounts.length > 1 ? `<div class="settings-input custom-select" id="mc-account"></div>` : ''}
     <input class="settings-input" id="mc-to" placeholder="to" value="${esc(pre.to || '')}">
     <input class="settings-input" id="mc-cc" placeholder="cc (optional)">
+    <input class="settings-input" id="mc-bcc" placeholder="bcc (optional)">
     <input class="settings-input" id="mc-subj" placeholder="subject" value="${esc(pre.subject || '')}">
     <textarea class="settings-input mail-compose-body" id="mc-body" placeholder="write your message...">${esc(pre.body || '')}</textarea>
     <div id="mc-status" class="mail-status"></div>
@@ -351,7 +439,11 @@ function compose(pre = {}) {
     const to = $('mc-to').value.trim();
     if (!to) { toast('recipient required', 'error'); return; }
     $('mc-status').textContent = 'sending...';
-    const body = { to, cc: $('mc-cc').value.trim(), subject: $('mc-subj').value, body: $('mc-body').value };
+    const body = {
+      to, cc: $('mc-cc').value.trim(), bcc: $('mc-bcc').value.trim(),
+      subject: $('mc-subj').value, body: $('mc-body').value,
+      in_reply_to: pre.in_reply_to || '', references: pre.references || '',
+    };
     const r = await fetch(`/api/mail/send/${aid}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }).then(x => x.json()).catch(() => ({ error: 'network' }));
     if (r.ok) { toast('sent', 'success'); main.innerHTML = ''; loadInbox(); }
     else { $('mc-status').textContent = 'failed: ' + (r.error || 'unknown'); }
