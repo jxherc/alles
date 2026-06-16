@@ -5,6 +5,7 @@ uses psutil when present (live cpu%, per-core, real disk list, uptime); degrades
 gracefully to the static hwfit detection + stdlib shutil/ctypes when it isn't, so
 the page still shows ram + disk + the hardware readout, just without the live cpu%.
 """
+import getpass
 import os
 import platform
 import shutil
@@ -24,6 +25,13 @@ def _gb(n):
     return round((n or 0) / 1e9, 1)
 
 
+def _user():
+    try:
+        return getpass.getuser()
+    except Exception:
+        return os.environ.get("USER") or os.environ.get("USERNAME") or "user"
+
+
 def snapshot() -> dict:
     from services.local_models import detect_system_info
     info = detect_system_info()   # cached static hwfit readout
@@ -39,6 +47,7 @@ def snapshot() -> dict:
                 "vram_gb": info.get("gpu_vram_gb"), "count": info.get("gpu_count")},
         "host": {"os": f"{platform.system()} {platform.release()}".strip(),
                  "hostname": socket.gethostname(), "python": platform.python_version(),
+                 "user": _user(), "arch": platform.machine(),
                  "backend": info.get("backend")},
         "uptime_sec": None,
         "load": None,
