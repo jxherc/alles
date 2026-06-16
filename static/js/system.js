@@ -90,30 +90,44 @@ function logoFor(plat) {
   return LOGOS.generic;
 }
 
-// load → colour, btop-style green→amber→orange→red gradient (load IS state here)
+// discrete heat ramp by VALUE — used for the numeric labels (cpu%, per-core, proc)
 function heat(v) {
   if (v == null) return 'var(--muted)';
   if (v >= 90) return '#f87171';
-  if (v >= 75) return '#f59e0b';
-  if (v >= 55) return '#e3c64b';
-  if (v >= 30) return '#8bd450';
+  if (v >= 75) return '#fb923c';
+  if (v >= 55) return '#fbbf24';
+  if (v >= 30) return '#a3e635';
   return '#4ade80';
 }
+
+// btop-style gradients: colour comes from POSITION, in hard discrete steps (the
+// "pixelized" terminal look — no smooth blend). vertical = by height for graphs,
+// horizontal = along the bar for meters. cold (green) → hot (red).
+const _RAMP = ['#4ade80', '#a3e635', '#fbbf24', '#fb923c', '#f87171'];
+function _step(f, ramp) { return ramp[Math.min(ramp.length - 1, Math.max(0, Math.floor(f * ramp.length)))]; }
+const vgrad = (r, rows) => _step(rows > 1 ? r / (rows - 1) : 0, _RAMP);
+const hgrad = (i, w) => _step(w > 1 ? i / (w - 1) : 0, _RAMP);
+const vgradDown = (r, rows) => _step(rows > 1 ? r / (rows - 1) : 0, ['#2dd4bf', '#39b3e5', '#5b8def']);
+const vgradUp = (r, rows) => _step(rows > 1 ? r / (rows - 1) : 0, ['#a78bfa', '#c08cf8', '#e879f9']);
 
 const BLOCKS = [' ', '▁', '▂', '▃', '▄', '▅', '▆', '▇', '█'];
 const glyph = v => BLOCKS[Math.max(0, Math.min(8, Math.round((v / 100) * 8)))];
 
+// a bar meter — each filled cell coloured by its horizontal position (pixelized
+// gradient), unless a solid `color` is given (cache/swap keep their identity).
 function meter(pct, width = 18, color) {
   const p = Math.max(0, Math.min(100, pct ?? 0));
   const fill = Math.round((p / 100) * width);
-  const c = color || heat(p);
-  return `<span class="m-track">[<span style="color:${c}">${'█'.repeat(fill)}</span>` +
-    `<span class="m-empty">${'░'.repeat(Math.max(0, width - fill))}</span>]</span>`;
+  let bar = '';
+  for (let i = 0; i < width; i++) {
+    bar += i < fill ? `<span style="color:${color || hgrad(i, width)}">█</span>` : '░';
+  }
+  return `<span class="m-track">[${bar}]</span>`;
 }
 
-// block area graph, `rows` tall; values scaled to `max`; each column coloured by
-// `colorFn(value, pctOfMax)`.
-function areaGraph(hist, rows, max, colorFn) {
+// block area graph, `rows` tall, scaled to `max`. each CELL is coloured by its
+// height via `grad(row, rows)` → a vertical pixelized gradient like btop's.
+function areaGraph(hist, rows, max, grad) {
   if (!hist || hist.length < 1) return '<span class="g-dim">gathering…</span>';
   const cols = hist.slice(-HIST), m = max || Math.max(1, ...cols);
   const lines = [];
@@ -125,13 +139,13 @@ function areaGraph(hist, rows, max, colorFn) {
       if (cells >= r + 1) ch = '█';
       else if (cells <= r) ch = ' ';
       else ch = BLOCKS[Math.max(1, Math.round((cells - r) * 8))];
-      line += ch === ' ' ? ' ' : `<span style="color:${colorFn(v, (v / m) * 100)}">${ch}</span>`;
+      line += ch === ' ' ? ' ' : `<span style="color:${grad(r, rows)}">${ch}</span>`;
     }
     lines.push(line);
   }
   return lines.join('\n');
 }
-const loadGraph = (h, rows) => areaGraph(h, rows, 100, v => heat(v));
+const loadGraph = (h, rows) => areaGraph(h, rows, 100, vgrad);
 
 function fmtRate(bps) {
   bps = bps || 0;
@@ -240,7 +254,7 @@ function render(s) {
   // cpu
   $('box-cpu').dataset.label = `cpu  ${cpu.cores || '?'} threads ${freq}${s.temp_c ? '  ' + s.temp_c + '°C' : ''}`;
   $('cpu-top').innerHTML = `<span class="bx-pct ${cpu.percent >= 90 ? 'hot' : ''}" style="color:${heat(cpu.percent)}">${cpu.percent == null ? '—' : Math.round(cpu.percent) + '%'}</span>${meter(cpu.percent, 30)}`;
-  $('cpu-graph').innerHTML = loadGraph(cpuHist, 8);
+  $('cpu-graph').innerHTML = loadGraph(cpuHist, 10);
   $('cpu-cores').innerHTML = (cpu.per_core || []).map((c, i) =>
     `<span class="core"><span class="core-id">${String(i).padStart(2, '0')}</span>` +
     `${meter(c, 7)}<span class="core-pct" style="color:${heat(c)}">${String(Math.round(c)).padStart(3)}%</span></span>`).join('');
@@ -253,15 +267,15 @@ function render(s) {
     memRow('ram', mem.used_gb, mem.total_gb, mem.percent) +
     (mem.cached_gb ? `<div class="bx-line"><span class="bx-tag">cache</span>${meter(mem.total_gb ? mem.cached_gb / mem.total_gb * 100 : 0, 20, '#5ec8d8')}<span class="bx-meta">${mem.cached_gb} GB</span></div>` : '') +
     (sw && sw.total_gb ? memRow('swap', sw.used_gb, sw.total_gb, sw.percent, '#c08cf8') : '');
-  $('mem-graph').innerHTML = loadGraph(ramHist, 4);
+  $('mem-graph').innerHTML = loadGraph(ramHist, 5);
 
   // net
   $('box-net').dataset.label = 'net';
   $('net-body').innerHTML =
     `<div class="bx-line"><span class="bx-tag" style="color:#5ec8d8">↓ dn</span><span class="bx-rate">${fmtRate(net.down_bps)}</span><span class="bx-meta">${fmtBytes(net.recv_total)} total</span></div>` +
-    `<pre class="graph graph-sm">${areaGraph(netDownHist, 3, 0, () => '#5ec8d8')}</pre>` +
+    `<pre class="graph graph-sm">${areaGraph(netDownHist, 4, 0, vgradDown)}</pre>` +
     `<div class="bx-line"><span class="bx-tag" style="color:#c08cf8">↑ up</span><span class="bx-rate">${fmtRate(net.up_bps)}</span><span class="bx-meta">${fmtBytes(net.sent_total)} total</span></div>` +
-    `<pre class="graph graph-sm">${areaGraph(netUpHist, 3, 0, () => '#c08cf8')}</pre>`;
+    `<pre class="graph graph-sm">${areaGraph(netUpHist, 4, 0, vgradUp)}</pre>`;
 
   // disk
   $('box-disk').dataset.label = 'disk';
