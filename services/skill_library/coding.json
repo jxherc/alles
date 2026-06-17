@@ -1,0 +1,86 @@
+[
+  {
+    "name": "Explain Code",
+    "description": "explain what a chunk of code does and why",
+    "when_to_use": "when the user pastes code and asks what it does or how it works",
+    "body": "1. read the whole thing once before saying anything.\n2. state the one-line purpose: what goes in, what comes out.\n3. walk the non-obvious parts top to bottom, skip the boilerplate.\n4. call out side effects, mutations, and anything that can blow up.\n5. end with a plain-language summary a teammate could repeat."
+  },
+  {
+    "name": "Scaffold Module",
+    "description": "stand up a new module with sane structure and stubs",
+    "when_to_use": "when the user wants to start a new file, module, or component from scratch",
+    "body": "1. ask or infer the one job this module owns, nothing more.\n2. match the project's existing layout, naming, and import style.\n3. lay out the public surface first: exports, signatures, types.\n4. stub the bodies with clear todos, not fake implementations.\n5. add one minimal usage example so the wiring is obvious."
+  },
+  {
+    "name": "Port Language",
+    "description": "translate code from one language to another idiomatically",
+    "when_to_use": "when the user wants existing code rewritten in a different language",
+    "body": "1. understand the source's behavior fully before writing a line.\n2. map the source idioms to the target's natural equivalents, don't transliterate.\n3. swap stdlib and dependency calls for the target ecosystem's real ones.\n4. preserve edge-case handling and error paths exactly.\n5. flag anything that has no clean equivalent and how you worked around it."
+  },
+  {
+    "name": "Add Types",
+    "description": "annotate untyped code with correct precise types",
+    "when_to_use": "when the user wants type hints or annotations added to existing code",
+    "body": "1. trace each value's real shape from how it's actually used.\n2. type the function boundaries first: params and returns.\n3. prefer narrow concrete types over any/object/unknown escapes.\n4. introduce shared interfaces or aliases for repeated shapes.\n5. run the type checker if available and fix what it flags."
+  },
+  {
+    "name": "Write Docstrings",
+    "description": "write docstrings and comments that earn their place",
+    "when_to_use": "when the user asks to document functions, classes, or modules",
+    "body": "1. read the code so the doc describes reality, not wishes.\n2. lead with what it does in one line, then params and return.\n3. note raises, side effects, and any non-obvious assumptions.\n4. match the project's docstring convention exactly.\n5. skip comments that just restate the code; explain the why instead."
+  },
+  {
+    "name": "Trace Bug Path",
+    "description": "follow a bug from symptom back to its root cause",
+    "when_to_use": "when the user reports something broken and wants the cause found",
+    "body": "1. pin the exact symptom: input, expected, actual.\n2. find the entry point and follow the data forward to where it diverges.\n3. inspect state at each hop, narrowing to the first wrong value.\n4. name the root cause, not just the line that crashed.\n5. propose the minimal fix and the case that proves it."
+  },
+  {
+    "name": "Refactor Safely",
+    "description": "restructure code without changing its behavior",
+    "when_to_use": "when the user wants code cleaned up or reorganized but kept working",
+    "body": "1. confirm current behavior and what tests already cover it.\n2. make one structural change at a time, not a rewrite.\n3. keep the public interface stable unless told otherwise.\n4. extract duplication and dead code, name things by their role.\n5. re-run tests after each step and stop if behavior shifts."
+  },
+  {
+    "name": "Write Tests",
+    "description": "write tests that actually catch regressions",
+    "when_to_use": "when the user wants unit or integration tests for some code",
+    "body": "1. read the code and list its real behaviors and branches.\n2. cover the happy path, the edges, and the failure modes.\n3. match the project's test framework, layout, and naming.\n4. make each test assert one thing with a clear name.\n5. confirm they pass on good code and fail when you break it."
+  },
+  {
+    "name": "Review Diff",
+    "description": "review a code change for bugs and clarity",
+    "when_to_use": "when the user asks for a review of a diff, pr, or pasted change",
+    "body": "1. read the diff with its surrounding context, not in isolation.\n2. hunt correctness first: logic, edge cases, error handling.\n3. then flag clarity, naming, and duplication, ranked by impact.\n4. tie each comment to a specific line with a concrete fix.\n5. separate must-fix from nice-to-have so priorities are clear."
+  },
+  {
+    "name": "Optimize Hotpath",
+    "description": "make slow code faster without breaking it",
+    "when_to_use": "when the user says code is slow and wants it sped up",
+    "body": "1. find the actual bottleneck by measuring, not guessing.\n2. check algorithmic complexity before micro-tweaks.\n3. cut redundant work: repeated calls, n+1 loops, needless allocs.\n4. apply the smallest change that moves the number, verify it did.\n5. keep behavior identical and note the speedup you got."
+  },
+  {
+    "name": "Read Codebase",
+    "description": "orient fast in an unfamiliar codebase",
+    "when_to_use": "when the user drops you into a new repo and asks how it works",
+    "body": "1. start at the entry point: main, index, or the run script.\n2. map the top-level dirs to their responsibilities.\n3. follow one real request or command end to end.\n4. note the core data models and where state lives.\n5. summarize the architecture and where to make a given change."
+  },
+  {
+    "name": "Implement Feature",
+    "description": "add a new feature into an existing codebase",
+    "when_to_use": "when the user wants new functionality built into a current project",
+    "body": "1. find where similar features already live and mirror their pattern.\n2. sketch the change: files touched, data flow, interface.\n3. build the smallest working slice end to end first.\n4. wire it into the existing plumbing, reuse don't duplicate.\n5. add a test and check nothing nearby broke."
+  },
+  {
+    "name": "Decode Error",
+    "description": "turn a stack trace or error into a fix",
+    "when_to_use": "when the user pastes an error message, traceback, or stack trace",
+    "body": "1. read the bottom-most real frame, that's usually the source.\n2. translate the error type into what it actually means here.\n3. map the trace back to the offending line in their code.\n4. name the cause: bad input, null, wrong type, missing dep.\n5. give the fix and how to keep it from recurring."
+  },
+  {
+    "name": "Convert Async",
+    "description": "convert code between sync and async styles",
+    "when_to_use": "when the user wants blocking code made async or callbacks modernized",
+    "body": "1. find every blocking or callback call in the path.\n2. propagate async outward: callers must await too.\n3. swap blocking apis for their async equivalents.\n4. handle concurrency where parallel work is safe, sequence where it isn't.\n5. preserve error handling across the await boundaries."
+  }
+]

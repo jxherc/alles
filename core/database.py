@@ -57,13 +57,20 @@ class ModelEndpoint(Base):
     base_url     = Column(String, nullable=False)
     api_key      = Column(EncryptedText, default="")   # AES-GCM at rest, see secretstore
     enabled       = Column(Boolean, default=True)
-    cached_models = Column(Text, default="[]")   # json list of model id strings
+    cached_models = Column(Text, default="[]")   # json list of model id strings (chat)
     vision_models = Column(Text, default="[]")   # json list of vision-capable model ids
+    image_models  = Column(Text, default="[]")   # json list of image-generation model ids
     created_at    = Column(DateTime, default=_now)
 
     def models_list(self):
         try:
             return json.loads(self.cached_models or "[]")
+        except Exception:
+            return []
+
+    def image_models_list(self):
+        try:
+            return json.loads(self.image_models or "[]")
         except Exception:
             return []
 
@@ -237,6 +244,7 @@ class Persona(Base):
     temperature  = Column(Float, nullable=True)      # pinned sampling temp, or null = provider default
     default_mode = Column(String, default="")        # "" auto | "chat" pure-chat | "agent" always tools
     accent       = Column(String, default="")        # hex accent that re-themes the app when active, "" = use global
+    initial_message = Column(Text, default="")       # prefilled into the composer when picked (merged from templates)
     is_default   = Column(Boolean, default=False)
     created_at   = Column(DateTime, default=_now)
 
@@ -534,6 +542,8 @@ def init_db():
         _add_col(conn, "sessions", "archived",     "BOOLEAN DEFAULT 0")
         _add_col(conn, "sessions", "share_token",  "TEXT")
         _add_col(conn, "model_endpoints", "vision_models", "TEXT DEFAULT '[]'")
+        _add_col(conn, "model_endpoints", "image_models", "TEXT DEFAULT '[]'")
+        _add_col(conn, "personas", "initial_message", "TEXT DEFAULT ''")
         _add_col(conn, "projects", "working_dir", "TEXT DEFAULT ''")
         _add_col(conn, "vault_entries", "username", "TEXT DEFAULT ''")
         _add_col(conn, "calendar_events", "recurrence",  "TEXT DEFAULT ''")

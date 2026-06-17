@@ -1,0 +1,86 @@
+[
+  {
+    "name": "Regex Builder",
+    "description": "construct and explain a regex for a stated matching goal",
+    "when_to_use": "when the user wants a pattern to match, extract, or validate some text shape",
+    "body": "1. nail down exactly what must match and what must NOT — get 2-3 sample strings of each.\n2. build the pattern incrementally: anchors, then required tokens, then quantifiers, then optional groups.\n3. prefer explicit char classes over greedy dots; use non-capturing groups unless a capture is needed.\n4. note the target flavor (pcre/js/python) since escaping and lookbehind support differ.\n5. show the final pattern, then annotate each chunk inline.\n6. give one passing and one failing test string to prove it."
+  },
+  {
+    "name": "Cron Schedule",
+    "description": "turn a plain-english schedule into a correct cron expression",
+    "when_to_use": "when the user describes a recurring time and needs a cron line",
+    "body": "1. restate the schedule in words to confirm intent (e.g. 'every weekday at 9:30am').\n2. map to the 5 fields: minute hour day-of-month month day-of-week.\n3. use ranges/steps (*/15, 1-5) instead of comma spam where possible.\n4. flag the timezone assumption — cron runs in the box's local tz unless told otherwise.\n5. output the expression plus a one-line human readback.\n6. mention the next 2-3 fire times as a sanity check."
+  },
+  {
+    "name": "Convert Units",
+    "description": "convert a value between units with the right precision",
+    "when_to_use": "when the user gives a quantity and wants it in a different unit",
+    "body": "1. identify source unit, target unit, and the value's significant figures.\n2. confirm the dimension matches (mass→mass, not mass→volume without a density).\n3. apply the exact conversion factor, not a rounded one, then round at the end.\n4. keep precision sane — don't report 12 decimals for a kitchen measurement.\n5. state the result with units, and show the factor used.\n6. for temperature, remember it's offset math (not a pure multiply)."
+  },
+  {
+    "name": "Format JSON",
+    "description": "validate, pretty-print, or minify a json blob",
+    "when_to_use": "when the user pastes json that's broken, ugly, or needs compacting",
+    "body": "1. parse first — if it fails, report the exact line/char and the likely cause (trailing comma, unquoted key, single quotes).\n2. fix only structural errors; never silently change values.\n3. pretty-print with 2-space indent and stable key order unless asked otherwise.\n4. for minify, strip all insignificant whitespace and return one line.\n5. call out any non-standard bits (comments, NaN, duplicate keys) the user may not realize are invalid.\n6. return the clean output in a fenced block."
+  },
+  {
+    "name": "Color Palette",
+    "description": "pick a small cohesive color palette for a stated purpose",
+    "when_to_use": "when the user needs colors for a ui, brand, chart, or theme",
+    "body": "1. ask the vibe + one anchor color or use case if none given.\n2. derive 4-6 roles: bg, surface, text, one accent, one signal/status.\n3. keep hues consistent (pick a harmony: mono, analogous, or accent+neutral).\n4. check text-on-bg contrast hits at least 4.5:1 for body copy.\n5. output hex values with a one-word label per role.\n6. note a dark-mode flip if relevant."
+  },
+  {
+    "name": "Build Command",
+    "description": "assemble a correct cli command from a described intent",
+    "when_to_use": "when the user knows what they want a tool to do but not the exact flags",
+    "body": "1. confirm the tool and version if flags differ across them.\n2. start from the subcommand, then add only the flags the goal needs.\n3. prefer long flags in the written answer for readability; note short aliases.\n4. quote paths/globs that could be expanded or split by the shell.\n5. show the full command, then a one-line gloss of each non-obvious flag.\n6. add a dry-run or safe-preview variant if the action is destructive."
+  },
+  {
+    "name": "Decode Token",
+    "description": "decode and explain an encoded string like base64, jwt, or url-encoding",
+    "when_to_use": "when the user pastes an opaque encoded string and wants its contents",
+    "body": "1. identify the encoding from shape (jwt has two dots, base64 ends in =, %xx is url-encoding).\n2. decode the layers in order until you hit human-readable content.\n3. for a jwt, split header/payload/signature and decode the first two; never claim the signature is valid without the key.\n4. pretty-print any decoded json.\n5. flag anything sensitive (secrets, pii, exp claims) you surface.\n6. show the decoded result, not just 'it's base64'."
+  },
+  {
+    "name": "Diff Text",
+    "description": "compare two blocks of text and surface the meaningful changes",
+    "when_to_use": "when the user gives two versions and asks what changed",
+    "body": "1. align the two inputs line by line.\n2. classify each change: added, removed, or modified.\n3. ignore pure whitespace/reordering unless it's load-bearing — say so if you do.\n4. group related edits instead of listing every char.\n5. present as a tight added/removed list or a unified-diff block.\n6. end with a one-line summary of the net effect."
+  },
+  {
+    "name": "Slugify Text",
+    "description": "turn an arbitrary string into a clean url-safe slug",
+    "when_to_use": "when the user needs a filename, url path, or id from human text",
+    "body": "1. lowercase everything.\n2. transliterate accents/non-ascii to plain ascii (café→cafe).\n3. replace any run of non-alphanumerics with a single hyphen.\n4. trim leading/trailing hyphens and collapse doubles.\n5. cap length sensibly and avoid cutting mid-word.\n6. return the slug and warn if it collided with a reserved word or got empty."
+  },
+  {
+    "name": "Crontab Reverse",
+    "description": "explain what an existing cron expression actually does",
+    "when_to_use": "when the user pastes a cron line and asks what it means or when it runs",
+    "body": "1. split into the 5 (or 6 with seconds) fields and label each.\n2. translate every field, expanding ranges and steps.\n3. watch the day-of-month AND day-of-week trap — when both are set it's an OR, not an AND.\n4. render the whole thing as one plain-english sentence.\n5. list the next few concrete run times.\n6. flag anything surprising (e.g. fires twice on dst, or never)."
+  },
+  {
+    "name": "Generate Password",
+    "description": "produce a strong password or passphrase to a given policy",
+    "when_to_use": "when the user wants a secure secret, key, or passphrase generated",
+    "body": "1. ask or infer the constraints: length, allowed char sets, must-avoid chars.\n2. for memorable, build a 4-6 word diceware-style passphrase; for max-entropy, use a random char string.\n3. ensure it actually satisfies every stated rule (one upper, one digit, etc.).\n4. state the rough entropy in bits so the strength is concrete.\n5. remind the user to store it in a manager, not reuse it.\n6. never echo it back into logs or commit it anywhere."
+  },
+  {
+    "name": "Parse Timestamp",
+    "description": "convert between unix time, iso 8601, and human dates across timezones",
+    "when_to_use": "when the user has a timestamp in one form and needs another or a tz shift",
+    "body": "1. detect the input form (10-digit=seconds, 13-digit=ms, iso string, or human text).\n2. nail the source timezone — assume utc only if unmarked and say so.\n3. convert to the requested form, doing the tz offset explicitly.\n4. account for dst on the target date, not today.\n5. output both the machine form and a readable 'weekday, date, time tz' line.\n6. flag leap-second or year-2038 edge cases only if actually relevant."
+  },
+  {
+    "name": "Escape String",
+    "description": "escape or quote a string correctly for a target context",
+    "when_to_use": "when the user needs text safe to drop into shell, sql, json, html, or regex",
+    "body": "1. confirm the exact destination context — escaping rules differ wildly between them.\n2. identify the dangerous chars for that context (quotes, backslash, <>&, %, etc.).\n3. apply the canonical escaping, not a hand-rolled approximation.\n4. for sql, push toward parameterized queries instead of inline escaping and say why.\n5. show before/after so the change is visible.\n6. note any double-escaping risk if it'll pass through two layers."
+  },
+  {
+    "name": "Calc Hash",
+    "description": "explain, choose, or verify a hash or checksum for a goal",
+    "when_to_use": "when the user needs to hash data, verify a checksum, or pick an algorithm",
+    "body": "1. clarify the goal: integrity check, dedup, password storage, or signature — they want different algos.\n2. pick accordingly: sha-256 for integrity, bcrypt/argon2 for passwords, never md5/sha1 for security.\n3. give the exact command or snippet to compute it on their platform.\n4. for verification, compare the computed digest to the expected one char-for-char.\n5. explain salting/peppering if it's a password case.\n6. warn plainly when a requested algo is broken for the stated use."
+  }
+]

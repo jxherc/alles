@@ -1,0 +1,86 @@
+[
+  {
+    "name": "Proofread Polish",
+    "description": "fix spelling, grammar, and punctuation without changing the author's voice",
+    "when_to_use": "when the user wants their text checked for errors or cleaned up before sending",
+    "body": "1. read the whole text once before touching anything.\n2. fix only mechanics: spelling, grammar, punctuation, agreement, tense.\n3. leave word choice, voice, and structure alone unless it's broken.\n4. flag anything genuinely ambiguous instead of guessing.\n5. return the corrected text, then a short list of what changed."
+  },
+  {
+    "name": "Rewrite Tone",
+    "description": "shift a piece into a target tone while keeping the meaning intact",
+    "when_to_use": "when the user wants the same content but more formal, casual, warm, blunt, etc",
+    "body": "1. name the current tone and the target tone in one line.\n2. read for meaning so you don't drop facts while restyling.\n3. rewrite sentence by sentence, adjusting word choice and rhythm to hit the target.\n4. keep every concrete claim and number unchanged.\n5. read it back aloud in your head; cut anything that breaks the target tone."
+  },
+  {
+    "name": "Tighten Text",
+    "description": "cut wordiness so the same point lands in fewer words",
+    "when_to_use": "when the text is bloated, repetitive, or the user asks to make it shorter or punchier",
+    "body": "1. mark the load-bearing words in each sentence.\n2. delete filler: very, really, in order to, the fact that, hedges, throat-clearing.\n3. collapse two weak sentences into one strong one where they overlap.\n4. swap long phrases for single words.\n5. check the meaning survived, then report the rough word-count drop."
+  },
+  {
+    "name": "Outline Essay",
+    "description": "turn a topic or thesis into a structured argument skeleton",
+    "when_to_use": "when the user needs a plan before writing a longer piece or essay",
+    "body": "1. pin down the thesis in one sentence; if vague, sharpen it.\n2. break it into 3-5 supporting claims that each earn their own section.\n3. under each claim list the evidence or example it needs.\n4. order the sections so the argument builds, not meanders.\n5. add a one-line intro hook and a closing takeaway."
+  },
+  {
+    "name": "Write Headline",
+    "description": "generate sharp titles or subject lines for a piece",
+    "when_to_use": "when the user needs a headline, title, subject line, or hook",
+    "body": "1. read the piece and name the single most interesting thing in it.\n2. draft 6-8 options across angles: direct, curiosity, benefit, number, contrarian.\n3. cut any that are vague, clickbaity, or longer than they need to be.\n4. keep the front-loaded ones where the key word hits first.\n5. mark your top pick and say why in one line."
+  },
+  {
+    "name": "Adjust Level",
+    "description": "rewrite text to a target reading level or audience",
+    "when_to_use": "when the user wants something simpler, more expert, or aimed at a specific reader",
+    "body": "1. name the target reader and reading level in one line.\n2. read the source so you keep all the real content.\n3. for simpler: shorten sentences, swap jargon for plain words, add a concrete example.\n4. for more expert: tighten, use precise terms, drop the hand-holding.\n5. recheck nothing important got lost or dumbed into wrongness."
+  },
+  {
+    "name": "Line Edit",
+    "description": "improve flow, rhythm, and clarity sentence by sentence",
+    "when_to_use": "when the meaning is fine but the prose feels clunky, flat, or awkward",
+    "body": "1. read a paragraph at a time, listening for where it stumbles.\n2. vary sentence length so it doesn't drone; break the long ones.\n3. cut dead verbs and nominalizations; prefer active, concrete verbs.\n4. fix transitions so each sentence pulls into the next.\n5. preserve voice; show the edited version with changes visible if asked."
+  },
+  {
+    "name": "Write Email",
+    "description": "draft a clear email for a stated purpose and recipient",
+    "when_to_use": "when the user needs to write or reply to an email",
+    "body": "1. nail the goal: what should the reader do or know after reading.\n2. open with the ask or point, not a warm-up paragraph.\n3. keep the body to the few facts the reader needs to act.\n4. set tone to match the relationship; close with a clear next step.\n5. draft a subject line that previews the ask."
+  },
+  {
+    "name": "Summarize Text",
+    "description": "compress a long piece into its core points",
+    "when_to_use": "when the user wants a shorter version, a tldr, or the gist of something",
+    "body": "1. read the whole input first.\n2. pull out the 3-5 load-bearing points.\n3. write them as tight bullets, no filler.\n4. drop examples and asides unless one carries the point.\n5. end with a one-line takeaway."
+  },
+  {
+    "name": "Expand Draft",
+    "description": "flesh out a thin draft or bullet list into full prose",
+    "when_to_use": "when the user has notes, bullets, or a stub and wants it built out",
+    "body": "1. read the stub and infer the intended argument and audience.\n2. keep each existing point as its own beat; don't merge them away.\n3. add the reasoning, an example, or detail that makes each point land.\n4. write connective tissue so the beats read as continuous prose.\n5. don't pad; every added sentence must add information."
+  },
+  {
+    "name": "Fix Structure",
+    "description": "reorganize a piece so the ideas flow in a logical order",
+    "when_to_use": "when the content is good but the order is confusing or rambling",
+    "body": "1. read it and jot the one idea each paragraph actually carries.\n2. spot repeats, gaps, and points landing out of order.\n3. resequence so context comes before payoff and the argument builds.\n4. merge duplicate paragraphs and split ones doing two jobs.\n5. add or fix headings and transitions to signal the new flow."
+  },
+  {
+    "name": "Vary Wording",
+    "description": "rephrase text to kill repetition and stiff phrasing",
+    "when_to_use": "when the same word or sentence shape keeps repeating, or phrasing feels robotic",
+    "body": "1. scan for repeated words, openers, and sentence patterns.\n2. swap repeats for fitting alternatives, not thesaurus-weird ones.\n3. reshape back-to-back sentences that share the same structure.\n4. keep technical terms exact; only vary the filler around them.\n5. read back to confirm meaning and tone held."
+  },
+  {
+    "name": "Critique Draft",
+    "description": "give honest, specific feedback on a piece of writing",
+    "when_to_use": "when the user asks what's wrong with their writing or wants feedback",
+    "body": "1. read the whole thing before forming an opinion.\n2. say what's working in one line so the rest has context.\n3. name the 3-4 biggest issues, each tied to a specific spot in the text.\n4. for each, suggest a concrete fix, not just the problem.\n5. end with the one change that would help most."
+  },
+  {
+    "name": "Match Style",
+    "description": "rewrite new text to match the voice of a provided sample",
+    "when_to_use": "when the user gives a sample and wants more writing that sounds like it",
+    "body": "1. study the sample for sentence length, vocabulary, rhythm, and quirks.\n2. note its tone and any recurring tics (em-dashes, fragments, slang).\n3. write the new content with the same fingerprints, not just the same topic.\n4. avoid drifting into generic prose when the source has personality.\n5. compare a paragraph against the sample and adjust until they rhyme."
+  }
+]

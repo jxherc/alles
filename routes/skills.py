@@ -1,3 +1,5 @@
+import re
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
@@ -15,6 +17,72 @@ def list_skills(q: str = ""):
 def match(q: str, k: int = 3):
     """best skills for a request — drives auto-suggest in chat/agent."""
     return {"matches": skills_store.match_skills(q, k)}
+
+
+@router.get("/catalog")
+def catalog():
+    """the built-in skill library, each marked installed or not."""
+    from services import skills_catalog
+    have = {s["slug"] for s in skills_store.list_skills()}
+    return [{**it, "installed": it["slug"] in have} for it in skills_catalog.items()]
+
+
+class InstallBody(BaseModel):
+    slugs: list[str] = []
+
+
+@router.post("/install")
+def install(body: InstallBody):
+    """install one or more library skills into data/skills/."""
+    from services import skills_catalog
+    n = 0
+    for slug in (body.slugs or []):
+        it = skills_catalog.get(slug)
+        if it:
+            skills_store.upsert_skill(it["name"], it["description"], it["when_to_use"], it["body"])
+            n += 1
+    return {"installed": n}
+
+
+class GithubBody(BaseModel):
+    url: str
+
+
+@router.post("/import-github")
+def import_github(body: GithubBody):
+    """pull SKILL.md(s) from a github repo / folder / file url into data/skills/."""
+    from services import skills_github
+    try:
+        return skills_github.import_from_github(body.url)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except Exception as e:
+        raise HTTPException(502, f"github fetch failed: {e}")
+
+
+class UploadItem(BaseModel):
+    filename: str = ""
+    text: str
+
+
+class UploadBody(BaseModel):
+    items: list[UploadItem] = []
+
+
+@router.post("/upload")
+def upload(body: UploadBody):
+    """install uploaded SKILL.md files (their text is read client-side)."""
+    imported, failed = [], 0
+    for it in body.items:
+        # a bare "SKILL.md" is a useless name — strip the extension, drop that sentinel
+        fb = re.sub(r"\.(md|markdown|txt)$", "", (it.filename or "").strip(), flags=re.I)
+        if fb.lower() == "skill":
+            fb = ""
+        try:
+            imported.append(skills_store.upsert_from_md(it.text, fb or None)["slug"])
+        except Exception:
+            failed += 1
+    return {"imported": imported, "failed": failed}
 
 
 @router.get("/{slug}")

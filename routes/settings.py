@@ -53,12 +53,28 @@ class SettingsPatch(BaseModel):
     outbound_proxy: str | None = None    # e.g. http://127.0.0.1:7890 — routes all egress through it
     prefer_local_models: bool | None = None   # fallback to a local (ollama) endpoint when available
     username: str | None = None          # display name, synced across subdomains
+    # ── per-app settings ──
+    files_dir: str | None = None         # files app root directory
+    photos_dir: str | None = None        # gallery library folder
+    cal_default_view: str | None = None  # 'month' | 'week'
+    cal_week_start: str | None = None    # 'sun' | 'mon'
+    system_refresh: int | None = None    # system monitor poll interval (ms)
+    mail_poll_seconds: int | None = None # mail background check interval
+    mail_signature: str | None = None    # appended/prefilled when composing
 
 
 @router.patch("/settings")
 def patch_settings(body: SettingsPatch):
     patch = {k: v for k, v in body.model_dump().items() if v is not None}
+    old_photos = load_settings().get("photos_dir") if "photos_dir" in patch else None
     out = save_settings(patch)
+    if "photos_dir" in patch:
+        # the library is indexed by bare filename → carry the files to the new folder
+        try:
+            from services import photos_store
+            photos_store.relocate(old_photos)
+        except Exception:
+            pass
     if "outbound_proxy" in patch:
         try:
             from services import net

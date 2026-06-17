@@ -2,6 +2,8 @@ import { toast } from './util.js';
 import { confirm as _dlgConfirm, prompt as _dlgPrompt } from './dialog.js';
 import { renderProjectFolders, loadProjects, getProjects } from './projects.js';
 import { applyResponsePrivacy, stripEmojis, welcomeEnabled } from './privacy.js';
+import { renderAgentSteps } from './agentview.js';
+import { isIncognitoMode } from './modes.js';
 
 let _sessions = { today: [], yesterday: [], earlier: [] };
 let _activeId = null;
@@ -39,7 +41,30 @@ export async function initSessions() {
 
 // fresh empty chat — does NOT create a db row. the session is created
 // lazily on the first send (see chat.js), so empty chats never persist.
+// ── per-conversation composer drafts ───────────────────────────────────────
+// unsent text stays with the convo you typed it in — switch away + back, it's
+// still there. keyed by session id (or 'new' for the not-yet-created chat).
+const _draftKey = id => 'aide-draft-' + (id || 'new');
+export function saveDraft() {
+  const ta = document.getElementById('composer-ta');
+  if (!ta) return;
+  const k = _draftKey(_activeId);
+  if (ta.value.trim()) localStorage.setItem(k, ta.value);
+  else localStorage.removeItem(k);
+}
+export function restoreDraft(id) {
+  const ta = document.getElementById('composer-ta');
+  if (!ta) return;
+  ta.value = localStorage.getItem(_draftKey(id)) || '';
+  ta.style.height = 'auto';
+  ta.dispatchEvent(new Event('input', { bubbles: true }));   // autosize + send-btn state
+}
+export function clearDraft(id) {
+  localStorage.removeItem(_draftKey(id === undefined ? _activeId : id));
+}
+
 export function newChat() {
+  saveDraft();              // keep whatever was half-typed in the outgoing convo
   _activeId = null;
   window._currentSession = null;
   if (location.hash) history.replaceState(null, '', location.pathname + location.search);
@@ -47,7 +72,8 @@ export function newChat() {
   document.querySelectorAll('.session-item').forEach(el => el.classList.remove('active'));
   showWelcome();
   const ta = document.getElementById('composer-ta');
-  if (ta) { ta.value = ''; ta.style.height = 'auto'; ta.focus(); }
+  if (ta) { ta.style.height = 'auto'; ta.focus(); }
+  restoreDraft(null);       // bring back the 'new chat' draft if any
 }
 
 // mark a session active without re-fetching/re-rendering its messages.
@@ -88,7 +114,7 @@ export function renderSidebar(filter = '') {
   list.innerHTML = html;
 
   // inject project folders above the session groups
-  if (!fl) renderProjectFolders(_allSessions, id => selectSession(id));
+  if (!fl) renderProjectFolders(_allSessions, id => selectSession(id), () => loadSessions());
 
   list.querySelectorAll('.session-item').forEach(el => {
     const sid = el.dataset.id;
@@ -152,7 +178,8 @@ function _applySessionOrder() {
 
 function _bindSessionDrag(el) {
   el.addEventListener('dragstart', e => {
-    e.dataTransfer?.setData('text/plain', el.dataset.id);
+    e.dataTransfer?.setData('text/plain', el.dataset.id);     // reorder
+    e.dataTransfer?.setData('text/session', el.dataset.id);   // drop-into-project
     e.dataTransfer?.setDragImage?.(el, 12, 12);
     el.classList.add('dragging');
   });
@@ -199,8 +226,10 @@ async function toggleSessionStar(id) {
 
 
 export async function selectSession(id) {
+  if (id !== _activeId) saveDraft();   // stash the outgoing convo's unsent text
   _activeId = id;
   location.hash = id;
+  restoreDraft(id);                    // and bring up this convo's draft
 
   // if we're sitting on a tools page (models/memory/etc), get back to chat first
   // — otherwise the messages render behind the still-open tool view
@@ -220,9 +249,12 @@ export async function selectSession(id) {
 
     // update topbar model label if session has a model
     if (data.session.model) {
-      document.getElementById('model-label').textContent = data.session.model;
+      import('./models.js').then(m => {
+        document.getElementById('model-label').textContent = m.prettyModel(data.session.model);
+      });
     }
     updateSessionHeader(data.session);
+    window._setMode?.(data.session.mode || 'chat');   // restore this convo's last mode
     // refresh persona button
     try {
       window._refreshPersonaBtn?.();
@@ -247,7 +279,7 @@ function renderMessages(msgs) {
       div.innerHTML = '<span>context compacted</span>';
       container.appendChild(div);
     } else if (m.role === 'assistant') {
-      const { row, wrap } = appendAiMsg(m.content, m.meta?.thinking);
+      const { row, wrap } = appendAiMsg(m.content, m.meta?.thinking, m.meta?.tool_steps);
       row.dataset.msgId = m.id;
       // re-open artifact button from history
       if (m.meta?.artifacts?.length) {
@@ -281,8 +313,14 @@ export function appendUserMsg(text) {
 }
 
 
-export function appendAiMsg(text, thinking) {
+export function appendAiMsg(text, thinking, toolSteps) {
   const { row, wrap, body } = _makeAiRow();
+  // re-show the agent run (tool calls + diffs) inline, collapsed, above the reply
+  if (toolSteps?.length) {
+    const holder = document.createElement('div');
+    holder.innerHTML = renderAgentSteps(toolSteps, false);
+    if (holder.firstElementChild) body.appendChild(holder.firstElementChild);
+  }
   if (thinking) {
     const tb = document.createElement('details');
     tb.className = 'thinking-block';
@@ -459,6 +497,22 @@ function greetingHtml() {
   return _withName(pick, name);
 }
 
+// incognito hero title — same dynamic, time-of-day idea as the welcome greeting but
+// with an off-the-record flavor. changes every time you open / refresh.
+function incognitoTitle() {
+  const h = new Date().getHours();
+  let pool;
+  if (h < 5)        pool = ['off the record, after hours', 'ghost mode, late night', 'no traces tonight',
+                            'midnight, no memory', 'the quiet, unlogged hours', 'this stays between us'];
+  else if (h < 12)  pool = ['a clean, private start', 'off the record this morning', 'no history today',
+                            'incognito, fresh', 'quietly, just us', 'nothing written down'];
+  else if (h < 18)  pool = ['off the books', 'a private session', 'nothing saved here',
+                            'between you and me', 'no memory, no trace', 'speak freely'];
+  else              pool = ['off the record tonight', 'a private evening', 'no traces this evening',
+                            'just between us', 'quiet and unlogged', 'the night, off the books'];
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
 // drop the name in before any trailing ? . ! so "one more thing?" → "one more thing, eric?"
 function _withName(g, name) {
   if (!name) return _escName(g);
@@ -468,8 +522,18 @@ function _withName(g, name) {
 }
 
 export function showWelcome() {
-  if (welcomeEnabled()) {
-    const g = document.getElementById('welcome-greeting');
+  const g = document.getElementById('welcome-greeting');
+  if (isIncognitoMode()) {
+    // dedicated incognito hero — always shown off the record (à la Claude)
+    if (g) g.innerHTML = `
+      <div class="incognito-hero">
+        <svg class="incognito-hero-mark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M12 2v20M2 12h20M4.93 4.93l14.14 14.14M19.07 4.93L4.93 19.07"/></svg>
+        <div class="incognito-hero-title">${incognitoTitle()}</div>
+        <div class="incognito-hero-note">incognito chats aren't saved, added to memory, or used to train models.</div>
+      </div>`;
+    document.getElementById('welcome').style.display = 'flex';
+    document.getElementById('messages').style.display = 'none';
+  } else if (welcomeEnabled()) {
     if (g) g.innerHTML = greetingHtml();
     document.getElementById('welcome').style.display = 'flex';
     document.getElementById('messages').style.display = 'none';
@@ -520,7 +584,7 @@ export async function createSession(model = '', endpointId = '', options = {}) {
   const r = await fetch('/api/sessions', {
     method: 'POST',
     headers: {'content-type':'application/json'},
-    body: JSON.stringify({ model, endpoint_id: endpointId, incognito: !!options.incognito }),
+    body: JSON.stringify({ model, endpoint_id: endpointId, incognito: !!options.incognito, mode: options.mode || 'chat' }),
   });
   if (!r.ok) return null;
   const s = await r.json();

@@ -1,0 +1,86 @@
+[
+  {
+    "name": "Resume Bullet",
+    "description": "turn a raw job duty into a quantified achievement bullet",
+    "when_to_use": "when the user wants a resume line that sounds stronger or more measurable",
+    "body": "1. ask for the role, the task, and any number attached (time, %, $, count, scale).\n2. lead with a strong past-tense verb, no \"responsible for\".\n3. structure it as action + scope + result, fold the metric into the result.\n4. if no number exists, infer a plausible scope or estimate and flag it for the user to confirm.\n5. keep it one line, cut adjectives, return 2-3 variants at different intensities."
+  },
+  {
+    "name": "Cover Letter",
+    "description": "draft a tailored cover letter from a resume and a job posting",
+    "when_to_use": "when the user is applying to a specific role and needs a letter",
+    "body": "1. pull the 3 must-have requirements from the posting, ignore the fluff.\n2. map each one to a concrete thing the user has actually done.\n3. open with why this company specifically, not a generic hook.\n4. body = the three mappings as short proof paragraphs, one per requirement.\n5. close with a clear next-step ask, no \"thank you for your consideration\" padding.\n6. keep it under 300 words, match the company's tone (formal vs scrappy)."
+  },
+  {
+    "name": "Interview Prep",
+    "description": "build a targeted prep sheet for a specific interview",
+    "when_to_use": "when the user has an interview coming up and wants to be ready",
+    "body": "1. get the role, company, and interview type (behavioral, technical, panel).\n2. list the 6-8 questions most likely for this role, ranked by probability.\n3. draft STAR answers for the top behavioral ones using the user's real stories.\n4. prep 3 sharp questions for them to ask back that signal they did homework.\n5. flag 1-2 likely weak spots and a one-line way to deflect each.\n6. end with a 60-second self-intro they can open with."
+  },
+  {
+    "name": "Salary Negotiate",
+    "description": "script a salary or offer negotiation with anchors and fallbacks",
+    "when_to_use": "when the user got an offer or raise chance and wants more",
+    "body": "1. get the offer number, their target, and their walk-away floor.\n2. pull a market range for the role+location so the ask is anchored, not vibes.\n3. write the opening line: gratitude, then a specific number above target with a reason.\n4. prep responses for the 3 likely pushbacks (budget, parity, policy).\n5. list non-salary levers to trade if cash is stuck (equity, signing, pto, title, remote).\n6. end with the exact email or sentence to send, plus a silence-is-ok reminder."
+  },
+  {
+    "name": "Elevator Pitch",
+    "description": "craft a 30-second pitch for a person, product, or idea",
+    "when_to_use": "when the user needs to introduce themselves or a thing fast and memorably",
+    "body": "1. nail the one audience and what they care about.\n2. state who/what + the specific problem solved in the first sentence.\n3. add the unique angle, the thing only this does.\n4. drop one proof point (number, name, traction) so it's not just claims.\n5. close with a clear ask or hook for the next conversation.\n6. cut until it reads in 30 seconds out loud, return a short and a one-liner version."
+  },
+  {
+    "name": "SWOT Analysis",
+    "description": "run a structured strengths/weaknesses/opportunities/threats breakdown",
+    "when_to_use": "when the user wants to size up a business, career move, or competitor",
+    "body": "1. confirm the subject and the decision the swot is meant to inform.\n2. fill all four quadrants, keep strengths/weaknesses internal and opps/threats external.\n3. force at least 3 real items per box, no lazy mirror-images.\n4. cross the quadrants: which strength attacks which opportunity, which weakness invites which threat.\n5. surface the 2 highest-leverage moves that fall out of the crosses.\n6. end with a one-line strategic read."
+  },
+  {
+    "name": "LinkedIn Optimize",
+    "description": "rewrite a linkedin headline, about, and experience for reach and clarity",
+    "when_to_use": "when the user wants their profile to attract recruiters or clients",
+    "body": "1. ask the target outcome (job, leads, authority) and the keywords for it.\n2. rewrite the headline: role + value + keyword, not just job title.\n3. write the about in first person, hook line first, skimmable, ends with a cta.\n4. convert experience bullets to achievement format with metrics.\n5. seed the right keywords naturally so search picks them up.\n6. flag missing trust signals (skills, recommendations, banner) to add."
+  },
+  {
+    "name": "Business Model",
+    "description": "map an idea onto a lean business model canvas",
+    "when_to_use": "when the user has a business idea and needs to pressure-test it",
+    "body": "1. state the customer segment and the job they're hiring the product for.\n2. fill the 9 canvas blocks: segments, value prop, channels, relationships, revenue, resources, activities, partners, costs.\n3. for each block write the real assumption, not the wish.\n4. mark the single riskiest assumption that kills the whole thing if wrong.\n5. propose the cheapest test to validate that one assumption this week.\n6. end with go / refine / kill based on what's currently provable."
+  },
+  {
+    "name": "Cold Outreach",
+    "description": "write a cold email or dm that gets a reply",
+    "when_to_use": "when the user wants to reach a stranger for a job, sale, or favor",
+    "body": "1. get who they're messaging, the goal, and any real connection or trigger.\n2. open with a specific personal line proving it's not a blast.\n3. state the value to them in one sentence, not the user's resume.\n4. make the ask tiny and concrete (15 min, one question, a yes/no).\n5. keep it under 120 words, one cta, mobile-skimmable.\n6. add a soft one-line follow-up to send if no reply in a week."
+  },
+  {
+    "name": "Performance Review",
+    "description": "write a self-review or peer review that lands",
+    "when_to_use": "when the user has to submit a self-assessment or review a colleague",
+    "body": "1. get the period, the role's goals, and any rating scale used.\n2. group accomplishments under the goals or competencies being scored.\n3. quantify impact and tie each to business outcome, not effort.\n4. name 1-2 growth areas honestly with a plan, so it reads self-aware not defensive.\n5. for peer reviews, balance specific praise with one actionable improvement.\n6. keep claims evidenced, end with the forward-looking ask (promo, project, support)."
+  },
+  {
+    "name": "Pricing Strategy",
+    "description": "set or revise pricing for a product or service",
+    "when_to_use": "when the user is unsure what to charge or wants to raise prices",
+    "body": "1. get the offer, the cost to deliver, and the buyer's alternative.\n2. price against value and competitor anchors, not cost-plus alone.\n3. design 3 tiers so there's an anchor, a target, and a decoy.\n4. choose the model that fits usage (flat, per-seat, usage, retainer).\n5. script the rollout for existing customers if it's a raise (grandfather, notice, justification).\n6. end with the recommended number and the one-line rationale to defend it."
+  },
+  {
+    "name": "Networking Followup",
+    "description": "turn a conversation or event into a relationship with a good follow-up",
+    "when_to_use": "when the user met someone and wants to stay on their radar",
+    "body": "1. capture who, where met, and the one thing worth referencing from the talk.\n2. send within 48h, lead with that specific shared moment.\n3. give before you ask: an article, intro, or useful note tied to their interest.\n4. make any ask low-friction and optional.\n5. set a natural next touchpoint, don't fake-promise to \"keep in touch\".\n6. log it so the next follow-up has context."
+  },
+  {
+    "name": "Career Pivot",
+    "description": "plan a switch into a new role or industry from current skills",
+    "when_to_use": "when the user wants to change fields and feels stuck on how",
+    "body": "1. get the current role, the target role, and the why now.\n2. list transferable skills and name the 2-3 real gaps to the target.\n3. find adjacent or bridge roles that need 80% of what they already have.\n4. map the cheapest gap-closers (project, cert, side work, volunteer).\n5. rewrite their story so the pivot reads as logical progression, not a reset.\n6. set a 90-day plan with one concrete first move this week."
+  },
+  {
+    "name": "Meeting Agenda",
+    "description": "structure a focused agenda that ends with decisions",
+    "when_to_use": "when the user is running a meeting and wants it to not waste time",
+    "body": "1. state the single objective; if there isn't one, suggest an email instead.\n2. list only attendees who decide or do, mark optional folks.\n3. break the time into agenda items, each with an owner and a desired outcome (decide/inform/brainstorm).\n4. timebox each item and front-load the highest-stakes decision.\n5. leave the last 5 min for owners + deadlines on action items.\n6. send it ahead with any pre-read so the meeting is for deciding, not reading."
+  }
+]

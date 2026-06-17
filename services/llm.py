@@ -102,10 +102,14 @@ def _normalize_openai_messages(messages: list[dict]) -> list[dict]:
     return normalized
 
 
+# providers whose OpenAI-compatible API honors stream_options.include_usage, so we
+# get token counts back on streamed replies (which the usage page reads). others can
+# error on the field, so keep them off it.
+_USAGE_OK = {"openai", "deepseek", "openrouter", "groq", "together", "fireworks", "moonshot", "xai"}
+
 def _build_openai_payload(messages, model, stream=True, provider="openai", **kw) -> dict:
     p = {"model": model, "messages": _normalize_openai_messages(messages), "stream": stream}
-    # stream_options only on real OpenAI — others silently fail or error
-    if stream and provider == "openai":
+    if stream and provider in _USAGE_OK:
         p["stream_options"] = {"include_usage": True}
     if "max_tokens" in kw:   p["max_tokens"] = kw["max_tokens"]
     if "temperature" in kw:  p["temperature"] = kw["temperature"]

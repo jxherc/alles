@@ -1,6 +1,6 @@
 import { toast } from './util.js';
 import { prompt as dlgPrompt, confirm as dlgConfirm } from './dialog.js';
-import { populateDropdown } from './dropdown.js';
+import { populateDropdown, getDropdownValue } from './dropdown.js';
 
 let _album = '';     // current album filter
 let _photos = [];    // flat list (for the lightbox)
@@ -9,7 +9,23 @@ let _cur = null;     // photo open in the lightbox
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
+// fill the image-model picker from the configured endpoints' image-gen models.
+// value = "endpointId::model" so we hit the right provider; "" = endpoint default.
+function _fillImageModels() {
+  const el = $('photos-model');
+  if (!el) return;
+  const eps = window._endpoints || [];
+  const opts = [{ value: '', label: 'default model' }];
+  for (const ep of eps) {
+    for (const m of (ep.image_models || []))
+      opts.push({ value: `${ep.id}::${m}`, label: eps.length > 1 ? `${m} · ${ep.name}` : m });
+  }
+  const saved = localStorage.getItem('alles-image-model') || '';
+  populateDropdown(el, opts, opts.some(o => o.value === saved) ? saved : '');
+}
+
 export async function loadPhotos() {
+  _fillImageModels();
   await loadAlbums();
   const d = await fetch('/api/photos/list' + (_album ? '?album=' + encodeURIComponent(_album) : ''))
     .then(r => r.json()).catch(() => ({ moments: [] }));
@@ -68,14 +84,20 @@ export function initPhotos() {
   if (_inited) return;
   _inited = true;
   $('photos-album')?.addEventListener('change', e => { _album = e.target.value; loadPhotos(); });
+  $('photos-model')?.addEventListener('change', () => {
+    localStorage.setItem('alles-image-model', getDropdownValue($('photos-model')) || '');
+  });
+  _fillImageModels();
   $('photos-gen-btn')?.addEventListener('click', async () => {
     const p = await dlgPrompt('describe the image to generate:');
     if (!p) return;
+    const sel = getDropdownValue($('photos-model')) || '';
+    const [endpoint_id, model] = sel.includes('::') ? sel.split('::') : ['', sel];
     toast('generating… (this can take a bit)');
     try {
       const r = await fetch('/api/images/generate', {
         method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ prompt: p, model: localStorage.getItem('alles-image-model') || '' }),
+        body: JSON.stringify({ prompt: p, model: model || '', endpoint_id: endpoint_id || '' }),
       });
       const d = await r.json();
       if (!r.ok) throw new Error(d.detail || 'generation failed');

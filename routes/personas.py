@@ -13,6 +13,7 @@ def _fmt(p: Persona) -> dict:
         "system_prompt": p.system_prompt, "model": p.model,
         "temperature": p.temperature, "default_mode": p.default_mode,
         "accent": p.accent,
+        "initial_message": p.initial_message or "",
         "is_default": p.is_default,
         "created_at": p.created_at.isoformat(),
     }
@@ -29,6 +30,7 @@ class PersonaBody(BaseModel):
     temperature: Optional[float] = None
     default_mode: str = ""
     accent: str = ""
+    initial_message: str = ""
     is_default: bool = False
 
 @router.post("/personas")
@@ -49,6 +51,7 @@ class PersonaPatch(BaseModel):
     temperature: Optional[float] = None
     default_mode: Optional[str] = None
     accent: Optional[str] = None
+    initial_message: Optional[str] = None
     is_default: Optional[bool] = None
 
 @router.patch("/personas/{pid}")
@@ -69,7 +72,7 @@ def duplicate_persona(pid: str, db: DbSession = Depends(get_db)):
     dup = Persona(name=f"{p.name} copy", emoji=p.emoji,
                   system_prompt=p.system_prompt, model=p.model,
                   temperature=p.temperature, default_mode=p.default_mode,
-                  accent=p.accent, is_default=False)
+                  accent=p.accent, initial_message=p.initial_message, is_default=False)
     db.add(dup); db.commit(); db.refresh(dup)
     return _fmt(dup)
 

@@ -45,6 +45,16 @@ class PersonasApiTest(ApiTest):
         pid2 = self.client.post("/api/personas", json={"name": "plain"}).json()["id"]
         self.assertIsNone([p for p in self.client.get("/api/personas").json() if p["id"] == pid2][0]["temperature"])
 
+    def test_initial_message_roundtrip(self):
+        # the field merged in from session templates
+        p = self.client.post("/api/personas", json={"name": "rev", "initial_message": "review this:"}).json()
+        self.assertEqual(p["initial_message"], "review this:")
+        r = self.client.patch(f"/api/personas/{p['id']}", json={"initial_message": "explain this:"}).json()
+        self.assertEqual(r["initial_message"], "explain this:")
+        # duplicate carries it over
+        dup = self.client.post(f"/api/personas/{p['id']}/duplicate").json()
+        self.assertEqual(dup["initial_message"], "explain this:")
+
     def test_default_mode_roundtrip(self):
         pid = self.client.post("/api/personas", json={"name": "ag", "default_mode": "agent"}).json()["id"]
         self.assertEqual(self.client.get("/api/personas").json()[0]["default_mode"], "agent")

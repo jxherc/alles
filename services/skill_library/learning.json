@@ -1,0 +1,86 @@
+[
+  {
+    "name": "Study Plan",
+    "description": "build a dated, realistic study schedule toward a goal",
+    "when_to_use": "when the user wants to learn or prepare for something by a deadline",
+    "body": "1. pin down the goal, deadline, and hours/week they actually have.\n2. break the subject into ordered modules, hardest-foundation first.\n3. assign modules to dated blocks, leaving slack for spillover.\n4. add a weekly review slot and one checkpoint test per module.\n5. end with the next 3 concrete actions to start today."
+  },
+  {
+    "name": "Explain Simply",
+    "description": "re-explain a hard concept in plain language with an analogy",
+    "when_to_use": "when the user is confused by a concept or asks to explain it like they're new",
+    "body": "1. state the one core idea in a single plain sentence.\n2. give a concrete everyday analogy that maps to it.\n3. walk one small example showing the idea in action.\n4. name the most common misconception and correct it.\n5. close with a one-line plain-words summary."
+  },
+  {
+    "name": "Make Flashcards",
+    "description": "turn material into clean spaced-repetition flashcards",
+    "when_to_use": "when the user wants flashcards or to memorize facts from some material",
+    "body": "1. read the source and extract every atomic fact worth recalling.\n2. write one question per card, answer short and unambiguous.\n3. split any card that hides two facts into two cards.\n4. add a cloze-deletion version for definitions and lists.\n5. output as front/back pairs ready to paste into anki."
+  },
+  {
+    "name": "Quiz Me",
+    "description": "run an adaptive quiz that probes weak spots",
+    "when_to_use": "when the user wants to test themselves or be quizzed on a topic",
+    "body": "1. ask one question at a time, don't dump them all.\n2. wait for the answer, then mark right/wrong with the why.\n3. on a miss, give a quick fix and re-ask a variant later.\n4. escalate difficulty when they're getting it, ease off when not.\n5. end with a score and the 2-3 topics to review next."
+  },
+  {
+    "name": "Learning Roadmap",
+    "description": "lay out a skill from zero to competent as ordered milestones",
+    "when_to_use": "when the user asks how to learn a whole field or skill from scratch",
+    "body": "1. define what 'competent' looks like concretely for this skill.\n2. list prerequisites and the assumed starting point.\n3. order milestones so each unlocks the next, no gaps.\n4. attach one project and one resource per milestone.\n5. mark the rough hour cost and a checkpoint to prove each is done."
+  },
+  {
+    "name": "Worked Example",
+    "description": "solve a representative problem step by step then generalize",
+    "when_to_use": "when the user is stuck on a problem type and needs to see one solved fully",
+    "body": "1. restate the problem and what's being asked.\n2. solve it one step at a time, showing the reasoning for each.\n3. flag the step where people usually slip.\n4. extract the reusable method as a short checklist.\n5. give one similar problem for them to try unaided."
+  },
+  {
+    "name": "Feynman Check",
+    "description": "force a teach-back to expose gaps in understanding",
+    "when_to_use": "when the user thinks they understand something and wants to verify it",
+    "body": "1. ask them to explain the concept to a 12-year-old in their own words.\n2. listen for jargon used as a crutch and probe each term.\n3. mark exactly where the explanation breaks or hand-waves.\n4. point to the specific source section that fills each gap.\n5. have them redo only the broken part, not the whole thing."
+  },
+  {
+    "name": "Concept Map",
+    "description": "diagram how the pieces of a topic connect",
+    "when_to_use": "when the user has scattered facts and needs to see how a topic fits together",
+    "body": "1. list every key concept in the material as a node.\n2. draw labeled links showing how each relates (causes, part-of, opposite).\n3. cluster nodes into the 3-4 natural groupings.\n4. mark the central hub concept everything else hangs off.\n5. render as an indented outline or mermaid graph."
+  },
+  {
+    "name": "Summarize Notes",
+    "description": "compress messy notes or readings into tight study notes",
+    "when_to_use": "when the user has long notes, a lecture, or a chapter to condense",
+    "body": "1. read it all before writing anything.\n2. pull the load-bearing points and drop the examples.\n3. structure as headings with bullets under each.\n4. bold the terms likely to be tested.\n5. end with a 3-line tl;dr of the whole thing."
+  },
+  {
+    "name": "Practice Set",
+    "description": "generate graded practice problems with full solutions",
+    "when_to_use": "when the user wants problems to drill a topic, not just be quizzed live",
+    "body": "1. set the topic and pick a difficulty spread (easy to hard).\n2. write 8-12 problems covering distinct sub-skills, no repeats.\n3. keep the problems above a fold, solutions below.\n4. for each solution show the steps, not just the answer.\n5. add 2 stretch problems that combine sub-skills."
+  },
+  {
+    "name": "Debug My Understanding",
+    "description": "find the root misconception behind a recurring mistake",
+    "when_to_use": "when the user keeps getting the same kind of thing wrong",
+    "body": "1. collect 2-3 examples of the mistake they're making.\n2. find the single false belief that produces all of them.\n3. show a case where that belief clearly fails.\n4. state the correct rule plainly next to the wrong one.\n5. give a quick self-check they can run before answering next time."
+  },
+  {
+    "name": "Compare Concepts",
+    "description": "contrast two confusable ideas side by side",
+    "when_to_use": "when the user mixes up two similar terms or keeps confusing A and B",
+    "body": "1. define each in one line on its own terms.\n2. build a table of the dimensions where they differ.\n3. nail the single sharpest distinguishing test.\n4. give one example that's clearly each, and one tricky edge case.\n5. end with a mnemonic to keep them straight."
+  },
+  {
+    "name": "Reading Guide",
+    "description": "turn a dense text into a guided active-reading pass",
+    "when_to_use": "when the user must get through a hard paper, chapter, or book section",
+    "body": "1. preview structure and state what to look for before reading.\n2. break it into sections with one focus question each.\n3. flag terms to define and equations to not skip.\n4. give a 'stop and recall' prompt after each section.\n5. finish with synthesis questions tying the sections together."
+  },
+  {
+    "name": "Exam Prep",
+    "description": "back-plan a focused cram-free run-up to a test",
+    "when_to_use": "when the user has an exam coming and wants to prepare efficiently",
+    "body": "1. get the date, format, and topic weighting of the exam.\n2. rank topics by weight times their current weakness.\n3. schedule active recall and past-paper days, not re-reading.\n4. build a one-page cheat sheet of the highest-yield facts.\n5. set a taper: light review and sleep the night before."
+  }
+]

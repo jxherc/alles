@@ -1,0 +1,86 @@
+[
+  {
+    "name": "Write Unit Tests",
+    "description": "add focused unit tests for a function or module",
+    "when_to_use": "when the user wants tests for new or existing code with no coverage",
+    "body": "1. read the function and note its inputs, outputs, and side effects.\n2. detect the test framework already in the repo, don't introduce a new one.\n3. cover the happy path, the empty/zero case, and at least one boundary or error case.\n4. assert on concrete values, not just \"truthy\" or \"no exception\".\n5. run the new tests and confirm they pass before handing back."
+  },
+  {
+    "name": "Debug Error",
+    "description": "track a thrown error or stack trace back to its root cause",
+    "when_to_use": "when the user pastes an exception, crash, or failing run and wants it fixed",
+    "body": "1. read the full stack trace bottom-up, find the deepest frame in their own code.\n2. open that line and check the actual values flowing in, not what should be there.\n3. form one hypothesis for the cause, state it before touching anything.\n4. make the smallest change that tests the hypothesis, re-run to confirm.\n5. if wrong, revert and form the next hypothesis — don't stack guesses."
+  },
+  {
+    "name": "Minimal Repro",
+    "description": "strip a bug down to the smallest self-contained reproduction",
+    "when_to_use": "when a bug is tangled in app code and you need an isolated case to study",
+    "body": "1. copy the failing path into a fresh scratch file or single test.\n2. delete everything that doesn't change the failure, one chunk at a time.\n3. replace external calls (db, network, fs) with hardcoded fixtures.\n4. confirm it still fails the same way after each cut.\n5. hand back the smallest version that still reproduces, plus the exact run command."
+  },
+  {
+    "name": "Add Logging",
+    "description": "insert targeted logging to expose what code is actually doing",
+    "when_to_use": "when behavior is unclear and you need runtime visibility before fixing",
+    "body": "1. pick the 2-3 points where state changes or branches diverge.\n2. log the values that decide the outcome, label each with where it is.\n3. use the project's existing logger and level, not raw prints if a logger exists.\n4. run once, read the output, narrow to the first place reality diverges from expectation.\n5. remove or downgrade the noisy logs once the cause is found."
+  },
+  {
+    "name": "Find Flaky Test",
+    "description": "isolate why a test passes sometimes and fails other times",
+    "when_to_use": "when a test fails intermittently or only in ci",
+    "body": "1. run the test alone in a loop (20-50x) to confirm it flakes solo vs only in a suite.\n2. if only in a suite, suspect shared state — global vars, db rows, temp files, ordering.\n3. check for time, randomness, or async races: unmocked clock, no seed, missing await.\n4. fix the source of nondeterminism, don't just add a retry or sleep.\n5. re-loop the test to prove it's now stable before closing."
+  },
+  {
+    "name": "Profile Slow Code",
+    "description": "find and confirm the real bottleneck in slow code",
+    "when_to_use": "when something is too slow and the user wants it faster",
+    "body": "1. measure first — time the whole operation so you have a baseline number.\n2. profile with the language's profiler, sort by cumulative time.\n3. look at the top 1-2 functions, ignore everything below them for now.\n4. check for the usual suspects: n+1 queries, work inside loops, repeated parsing.\n5. fix the top one, re-measure, report before/after — stop when it's good enough."
+  },
+  {
+    "name": "Bisect Regression",
+    "description": "find the exact commit that introduced a regression",
+    "when_to_use": "when something worked before and broke and you don't know which change did it",
+    "body": "1. nail down a known-good commit and a known-bad commit.\n2. write a one-line check that exits 0 on good and nonzero on bad.\n3. run git bisect with that check as the automated test.\n4. read the offending commit's diff to see what actually changed.\n5. confirm the fix against that diff, not against a guess."
+  },
+  {
+    "name": "Mock Dependency",
+    "description": "replace an external dependency with a controlled fake for tests",
+    "when_to_use": "when a test hits the network, db, clock, or filesystem and is slow or unstable",
+    "body": "1. find the boundary where your code calls the external thing.\n2. mock at that seam, not three layers deep, so the test stays readable.\n3. set the fake to return realistic shapes, including one error response.\n4. assert both the result and that the dependency was called as expected.\n5. verify the test fails if you break the code, so the mock isn't hiding bugs."
+  },
+  {
+    "name": "Test Edge Cases",
+    "description": "enumerate and test the boundary and degenerate inputs of code",
+    "when_to_use": "when code looks correct on normal input but its edges are untested",
+    "body": "1. list the input domains: empty, single, max, negative, null, unicode, duplicates.\n2. for each, write down the expected output before coding the assertion.\n3. add one test per distinct edge, named for the case it covers.\n4. run them — any surprise failure is a real bug, fix the code not the test.\n5. note any edge the code intentionally rejects and assert that rejection."
+  },
+  {
+    "name": "Reproduce Bug Report",
+    "description": "turn a vague user bug report into a deterministic reproduction",
+    "when_to_use": "when someone reports a bug but you can't yet trigger it yourself",
+    "body": "1. extract the exact steps, environment, and version from the report.\n2. match their setup as closely as you can locally before changing anything.\n3. follow the steps literally — if it doesn't repro, ask for the one missing detail.\n4. once it repros, capture it as a failing test so it can't silently return.\n5. only then start fixing, against that test."
+  },
+  {
+    "name": "Diagnose Hang",
+    "description": "figure out why a process is stuck and not progressing",
+    "when_to_use": "when code hangs, freezes, or never returns instead of erroring",
+    "body": "1. confirm it's hung not just slow — check cpu: pegged means loop, idle means wait.\n2. dump the stack of the live process (thread dump, py-spy, ctrl-\\, debugger attach).\n3. read where it's parked: a lock, a join, a network read, an infinite loop.\n4. trace who holds the resource it's waiting on, or what should end the loop.\n5. fix the deadlock/missing-timeout/exit-condition, re-run to confirm it completes."
+  },
+  {
+    "name": "Snapshot Test",
+    "description": "capture and compare output snapshots for complex structured results",
+    "when_to_use": "when output is large or nested and hand-writing assertions is impractical",
+    "body": "1. pick stable, deterministic output — strip timestamps, ids, ordering first.\n2. generate the snapshot once and read it to confirm it's actually correct.\n3. commit the snapshot so future diffs are reviewable.\n4. on failure, read the diff and decide: real regression or intended change.\n5. only update the snapshot deliberately, never blanket-accept all updates."
+  },
+  {
+    "name": "Triage Failures",
+    "description": "sort a wall of failing tests into root causes fast",
+    "when_to_use": "when a test run comes back with many failures at once",
+    "body": "1. read the failure summary, group by identical error message or file.\n2. find the common root — usually one broken import, fixture, or config feeds many.\n3. fix the shared cause first, re-run, watch the count collapse.\n4. repeat on the next-largest cluster until only true singletons remain.\n5. handle the remaining one-offs individually, last."
+  },
+  {
+    "name": "Assert Invariants",
+    "description": "add runtime assertions to catch broken assumptions early",
+    "when_to_use": "when a bug comes from a silently violated assumption deep in the code",
+    "body": "1. name the thing that must always be true (non-null, sorted, within range, summed).\n2. assert it right where it must hold, with a message naming the invariant.\n3. run the existing flow — if the assert fires, you've localized the bug.\n4. trace upstream to where the invariant first broke, fix it there.\n5. keep cheap asserts in; pull expensive ones once the cause is settled."
+  }
+]

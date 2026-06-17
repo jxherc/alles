@@ -369,6 +369,7 @@ async def run_agent(
                 if name in MUTATING_TOOLS:
                     diff = preview_change(name, args)
                     if diff:
+                        step["diff"] = diff[:8000]   # persist so the convo can re-show it on reload
                         yield {"tool_diff": {"call_id": call_id, "diff": diff}}
                     if mode == "plan":
                         gate = {"output": "[plan mode] not executed. Describe this change in your plan instead of running it.", "error": True}

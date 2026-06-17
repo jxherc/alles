@@ -1,0 +1,86 @@
+[
+  {
+    "name": "Brainstorm Ideas",
+    "description": "generate a wide spread of distinct ideas fast, then narrow",
+    "when_to_use": "when the user wants options, ideas, or ways to approach something open-ended",
+    "body": "1. restate the goal in one line so the target is clear.\n2. dump 12-15 ideas with no filtering, vary the angle each time.\n3. cluster them into 3-4 loose themes.\n4. flag the 3 with the best payoff-to-effort ratio.\n5. ask which thread to push deeper, or pick one and expand it."
+  },
+  {
+    "name": "Name Things",
+    "description": "produce naming options for a product, feature, project, or character",
+    "when_to_use": "when the user needs a name for something and wants choices not one answer",
+    "body": "1. nail down what it is, the vibe wanted, and any hard constraints (length, .com, no x).\n2. generate names across 4 lanes: literal, evocative, made-up/coined, and metaphor.\n3. give 8-10 total, one short reason each.\n4. drop any that are hard to spell, say, or already huge.\n5. mark your top 2 and note what to check (domain, trademark, slang collision)."
+  },
+  {
+    "name": "Metaphor Maker",
+    "description": "find fresh metaphors and analogies to explain or sell an idea",
+    "when_to_use": "when the user wants to make an abstract or dry concept land",
+    "body": "1. strip the concept to the one relationship that actually matters.\n2. scan source domains far from the topic (nature, cooking, sports, machines).\n3. draft 5 metaphors, each mapping that core relationship.\n4. test each: does it break if pushed one step further? keep the ones that hold.\n5. write the best as a one-line analogy ready to drop in."
+  },
+  {
+    "name": "Story Beats",
+    "description": "lay out a story's structure as ordered beats",
+    "when_to_use": "when the user is writing a story, pitch, or narrative and needs a skeleton",
+    "body": "1. lock the protagonist, what they want, and what blocks them.\n2. set the spine: hook, inciting incident, midpoint turn, low point, climax, resolution.\n3. write one line per beat, concrete not abstract.\n4. check each beat raises stakes or changes the situation, cut any that idle.\n5. note where the emotional turn lands and whether the ending pays off the hook."
+  },
+  {
+    "name": "Worldbuild",
+    "description": "build a coherent fictional world from a seed premise",
+    "when_to_use": "when the user is creating a setting for fiction, a game, or a universe",
+    "body": "1. fix the one premise that makes this world different from ours.\n2. trace its consequences across society, power, money, and daily life.\n3. define 3-4 anchors: a place, a faction, a conflict, a rule that can't be broken.\n4. add one telling sensory detail per anchor so it feels lived-in.\n5. list the open questions a story could exploit."
+  },
+  {
+    "name": "Remix Idea",
+    "description": "transform an existing idea by forcing it through new constraints",
+    "when_to_use": "when the user has something and wants it reworked, freshened, or taken sideways",
+    "body": "1. name the original's core in one sentence.\n2. apply 4 lenses: swap the audience, flip a constraint, change the medium, invert the goal.\n3. write the resulting variant for each lens.\n4. keep the 2 that feel new but still serve the original intent.\n5. spell out what specifically changed and why it's better."
+  },
+  {
+    "name": "Concept Mashup",
+    "description": "collide two unrelated things into a single novel concept",
+    "when_to_use": "when the user wants something original or is stuck in obvious territory",
+    "body": "1. take the two inputs (or pick two distant ones if only a topic is given).\n2. list the defining traits of each, 3-4 apiece.\n3. cross them: pair a trait from A with one from B and see what emerges.\n4. write up the 2-3 mashups that produce a real tension or surprise.\n5. push the strongest one into a concrete pitch."
+  },
+  {
+    "name": "Tagline Writer",
+    "description": "write short punchy taglines and slogans",
+    "when_to_use": "when the user needs a one-liner for a product, campaign, or page hero",
+    "body": "1. pin the single promise or feeling the line must carry.\n2. write 10 lines, mix angles: benefit, attitude, wordplay, plain truth.\n3. cut anything over ~7 words or that needs a second read.\n4. say each out loud, drop the ones that sound clumsy.\n5. surface your top 3 and note the tone each sets."
+  },
+  {
+    "name": "Pitch Builder",
+    "description": "turn an idea into a tight persuasive pitch",
+    "when_to_use": "when the user needs to sell an idea to an investor, boss, or audience",
+    "body": "1. open with the problem and who hurts from it.\n2. state the idea as the obvious fix in one sentence.\n3. show why now and why this beats the current way.\n4. add one proof point or vivid example.\n5. close with the specific ask.\n6. trim until it reads in under 60 seconds."
+  },
+  {
+    "name": "Character Forge",
+    "description": "create a believable character with depth and a clear arc",
+    "when_to_use": "when the user is writing fiction and needs a character built out",
+    "body": "1. set the want (external) and the need (internal) and make them clash.\n2. give a defining wound that explains the behavior.\n3. add a contradiction so they aren't flat.\n4. nail voice with one speech tic and one habit.\n5. sketch how they'd change by the end, or refuse to."
+  },
+  {
+    "name": "Hook Crafter",
+    "description": "write opening hooks that stop the scroll or grab the reader",
+    "when_to_use": "when the user needs a strong first line for an essay, post, video, or email",
+    "body": "1. find the most surprising, useful, or tense thing in the content.\n2. lead with that, not with setup or throat-clearing.\n3. draft 6 hooks: a question, a bold claim, a stat, a scene, a contradiction, a direct you-statement.\n4. cut any that bury the point past the first 8 words.\n5. pick the 2 strongest and match them to the platform's tone."
+  },
+  {
+    "name": "Visual Concept",
+    "description": "describe a visual idea concretely enough to design or prompt from",
+    "when_to_use": "when the user wants an image, logo, scene, or art direction described",
+    "body": "1. fix the subject, mood, and where it'll be used.\n2. specify composition, color palette, lighting, and style reference.\n3. name what to avoid (clichés, clutter, wrong tone).\n4. write it as one tight art-direction paragraph.\n5. offer one bolder alt direction in a line."
+  },
+  {
+    "name": "Idea Stress Test",
+    "description": "pressure-test an idea to expose weak points before committing",
+    "when_to_use": "when the user has an idea and wants it challenged before they invest in it",
+    "body": "1. restate the idea and its core assumption.\n2. attack it: who hates it, what breaks at scale, what's the hidden cost.\n3. find the single assumption that, if wrong, sinks the whole thing.\n4. propose the cheapest test to check that assumption.\n5. give a verdict: pursue, rework, or kill, with the reason."
+  },
+  {
+    "name": "Creative Unblock",
+    "description": "break a creative block with forced prompts and constraints",
+    "when_to_use": "when the user is stuck, staring at a blank page, or out of ideas",
+    "body": "1. ask what they've got so far, even if it's nothing.\n2. shrink the task to the smallest possible next move.\n3. throw 3 unsticking prompts: do it badly on purpose, copy then twist, write the worst version.\n4. impose one weird constraint to force a fresh angle.\n5. get one rough output on the page and build from it."
+  }
+]

@@ -1,4 +1,5 @@
 import { toast } from './util.js';
+import { confirm as dlgConfirm } from './dialog.js';
 
 let _projects = [];
 
@@ -38,7 +39,7 @@ export async function unassignSession(projectId, sessionId) {
 }
 
 // render project folders above the session list
-export function renderProjectFolders(sessions, onSelect) {
+export function renderProjectFolders(sessions, onSelect, onChange) {
   const list = document.getElementById('session-list');
   if (!list) return;
 
@@ -55,6 +56,7 @@ export function renderProjectFolders(sessions, onSelect) {
     <span class="project-dot" style="${dot}"></span>
     <span class="project-name">${_esc(p.name)}</span>
     <span class="project-count">${pSessions.length}</span>
+    <button class="project-del" data-id="${p.id}" title="delete project (chats are kept)">×</button>
   </div>
   <div class="project-sessions" id="proj-sessions-${p.id}" style="display:none">
     ${pSessions.map(s => `<div class="session-item" data-id="${s.id}" data-project="${p.id}">
@@ -68,12 +70,22 @@ export function renderProjectFolders(sessions, onSelect) {
   // prepend project folders
   list.insertAdjacentHTML('afterbegin', html);
 
-  // wire toggles + clicks
+  // clicking a project opens its workspace page (not just a toggle)
   list.querySelectorAll('.project-folder-head').forEach(head => {
-    head.addEventListener('click', () => {
-      const body = head.nextElementSibling;
-      body.style.display = body.style.display === 'none' ? 'flex' : 'none';
-      head.parentElement.classList.toggle('open');
+    head.addEventListener('click', () => window._openProject?.(head.closest('.project-folder').dataset.id));
+  });
+
+  // drag a chat onto a project to file it there
+  list.querySelectorAll('.project-folder').forEach(folder => {
+    folder.addEventListener('dragover', e => { e.preventDefault(); folder.classList.add('drag-over'); });
+    folder.addEventListener('dragleave', () => folder.classList.remove('drag-over'));
+    folder.addEventListener('drop', async e => {
+      e.preventDefault(); folder.classList.remove('drag-over');
+      const sid = e.dataTransfer.getData('text/session');
+      if (!sid) return;
+      await assignSession(folder.dataset.id, sid);
+      toast('moved to project', 'success');
+      onChange?.();
     });
   });
 
@@ -82,6 +94,17 @@ export function renderProjectFolders(sessions, onSelect) {
       el.addEventListener('click', () => onSelect(el.dataset.id));
     });
   }
+
+  list.querySelectorAll('.project-del').forEach(btn => {
+    btn.addEventListener('click', async e => {
+      e.stopPropagation();
+      const p = _projects.find(x => x.id === btn.dataset.id);
+      if (!await dlgConfirm(`delete project "${p?.name || ''}"? the chats inside are kept.`)) return;
+      await deleteProject(btn.dataset.id);
+      toast('project deleted', 'success');
+      onChange?.();
+    });
+  });
 }
 
 function _esc(s) {

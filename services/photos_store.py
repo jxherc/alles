@@ -5,6 +5,7 @@ Originals live in data/photos, thumbs in data/photos/.thumbs. Path-safe like fil
 import io
 import json
 import uuid
+import shutil
 from pathlib import Path
 from datetime import datetime
 
@@ -18,12 +19,48 @@ _THUMB = 512
 def photos_dir() -> Path:
     d = load_settings().get("photos_dir") or str(ROOT / "data" / "photos")
     p = Path(d).expanduser()
+    if not p.is_absolute():
+        p = ROOT / p          # relative dirs anchor to the app root, not cwd
+    p = p.resolve()           # must be absolute — _safe() compares against resolved children
     (p / ".thumbs").mkdir(parents=True, exist_ok=True)
     return p
 
 
 def thumbs_dir() -> Path:
     return photos_dir() / ".thumbs"
+
+
+def _resolve_dir(raw) -> Path:
+    p = Path(raw or str(ROOT / "data" / "photos")).expanduser()
+    if not p.is_absolute():
+        p = ROOT / p
+    return p.resolve()
+
+
+def relocate(old_raw):
+    """photos_dir just changed — move the existing library (originals + .thumbs) into the
+    new folder. DB rows only keep bare 'uid.ext' names resolved against photos_dir(), so
+    without this every prior photo 404s after a folder switch."""
+    old = _resolve_dir(old_raw)
+    new = photos_dir()   # resolves + creates the new dir (incl. an empty .thumbs)
+    if old == new or not old.exists():
+        return
+    _merge_move(old, new)
+
+
+def _merge_move(src: Path, dst: Path):
+    # move files in, recursing into subdirs (.thumbs already exists in dst from photos_dir(),
+    # so a plain shutil.move of the whole folder would be skipped — merge file-by-file instead)
+    dst.mkdir(parents=True, exist_ok=True)
+    for item in src.iterdir():
+        target = dst / item.name
+        if item.is_dir():
+            _merge_move(item, target)
+        elif not target.exists():   # never clobber a file already in the target
+            try:
+                shutil.move(str(item), str(target))
+            except Exception:
+                pass
 
 
 def _safe(name: str) -> Path:

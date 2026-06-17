@@ -6,6 +6,14 @@ class ProjectsApiTest(ApiTest):
     def test_list_empty(self):
         self.assertEqual(self.client.get("/api/projects").json(), [])
 
+    def test_project_files(self):
+        pid = self.client.post("/api/projects", json={"name": "p"}).json()["id"]
+        # no working dir → empty list, not a crash
+        r = self.client.get(f"/api/projects/{pid}/files")
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.json(), {"files": [], "working_dir": ""})
+        self.assertEqual(self.client.get("/api/projects/nope/files").status_code, 404)
+
     def test_create_patch_delete(self):
         p = self.client.post("/api/projects", json={"name": "proj", "color": "#abc"}).json()
         self.assertEqual(p["name"], "proj")

@@ -7,7 +7,7 @@ import {
   sensitiveBlurEnabled, textOnlyEmojisEnabled, welcomeEnabled,
   setSensitiveBlur, setTextOnlyEmojis, setWelcomeEnabled,
 } from './privacy.js';
-import { loadShortcuts, saveShortcuts, eventToShortcut } from './shortcuts.js';
+import { loadShortcuts, saveShortcuts, eventToShortcut, isReservedShortcut } from './shortcuts.js';
 
 // ── visibility prefs (appearance toggles) ────────────────────────────────────
 const VIS_KEY = 'aide-ui-vis';
@@ -72,7 +72,6 @@ function _onPaneOpen(name) {
   if (name === 'appearance') loadAppearancePane();
   if (name === 'voice')      loadVoicePane();
   if (name === 'personas')   { loadPersonas(); loadCookbook(); }
-  if (name === 'templates')  loadTemplatesPane();
   if (name === 'tools')      { loadAgentStatus(); loadMcpServers(); loadConnections(); }
   if (name === 'developer')  { loadTokens(); loadWebhooks(); loadShortcutSettings(); }
   if (name === 'rules')      loadRulesPane();
@@ -200,8 +199,11 @@ function _initSettings() {
   // ── personas / cookbook ──
   document.getElementById('persona-add-btn')?.addEventListener('click', addPersona);
   document.getElementById('persona-cancel-btn')?.addEventListener('click', _resetPersonaForm);
-  document.getElementById('persona-temp')?.addEventListener('input', _onPersonaTempInput);
+  const _tempBar = document.getElementById('persona-temp');
+  _tempBar?.addEventListener('pointerdown', _onTempPointer);
+  _tempBar?.addEventListener('pointermove', _onTempPointer);
   document.getElementById('persona-temp-pin')?.addEventListener('click', _togglePersonaTempPin);
+  _renderTempBar();   // paint the empty/auto track on first open
   document.getElementById('persona-default')?.addEventListener('click', e => e.currentTarget.classList.toggle('on'));
   document.getElementById('persona-mode')?.addEventListener('click', e => {
     const opt = e.target.closest('.seg-opt'); if (!opt) return;
@@ -235,14 +237,19 @@ function _initSettings() {
     inp.addEventListener('keydown', e => {
       e.preventDefault();
       e.stopPropagation();
+      if (e.key === 'Escape') {              // Esc → no shortcut for this action
+        inp.value = '';
+        saveShortcuts({ [inp.dataset.shortcut]: '' });
+        toast('shortcut cleared', '');
+        inp.blur();
+        return;
+      }
       const combo = eventToShortcut(e);
       if (!combo) return;
+      if (isReservedShortcut(combo)) { toast(`${combo} is a system/browser shortcut — pick another`, 'error'); return; }
       inp.value = combo;
       saveShortcuts({ [inp.dataset.shortcut]: combo });
       toast('shortcut saved', 'success');
-    });
-    inp.addEventListener('blur', () => {
-      if (inp.value.trim()) saveShortcuts({ [inp.dataset.shortcut]: inp.value.trim() });
     });
   });
 }
@@ -716,14 +723,36 @@ function _loadThemeColorControls() {
     pwBtn.addEventListener('click', async () => {
       const oldp = document.getElementById('s-pw-old').value;
       const newp = document.getElementById('s-pw-new').value;
+      const conf = document.getElementById('s-pw-new2')?.value ?? '';
       if (newp.length < 4) { toast('new password must be at least 4 characters', 'error'); return; }
+      if (newp !== conf) { toast("passwords don't match", 'error'); return; }
       try {
         const r = await fetch('/api/auth/change-password', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ old_password: oldp, new_password: newp }) });
         if (!r.ok) { toast((await r.json().catch(() => ({}))).detail || 'change failed', 'error'); return; }
         toast('password changed', 'success');
         document.getElementById('s-pw-old').value = '';
         document.getElementById('s-pw-new').value = '';
+        const c = document.getElementById('s-pw-new2'); if (c) c.value = '';
       } catch { toast('failed to change password', 'error'); }
+    });
+  }
+
+  // password-lock toggle (enable/disable auth from the UI, no file editing) — bind once
+  const authSw = document.getElementById('s-auth-enable');
+  if (authSw && !authSw.dataset.bound) {
+    authSw.dataset.bound = '1';
+    fetch('/api/auth/me').then(r => r.json()).then(m => _setSwitch(authSw, !!m.enabled)).catch(() => {});
+    authSw.addEventListener('click', async () => {
+      const turnOn = !authSw.classList.contains('on');
+      // enabling uses the new-password field (to set one if none); disabling uses current
+      const password = document.getElementById(turnOn ? 's-pw-new' : 's-pw-old')?.value || '';
+      try {
+        const r = await fetch('/api/auth/config', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ enabled: turnOn, password }) });
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok) { toast(d.detail || 'could not change the lock', 'error'); return; }
+        _setSwitch(authSw, d.enabled);
+        toast(d.enabled ? 'password lock on' : 'password lock off', 'success');
+      } catch { toast('could not change the lock', 'error'); }
     });
   }
 }
@@ -746,6 +775,8 @@ function loadShortcutSettings() {
   const shortcuts = loadShortcuts();
   document.querySelectorAll('.shortcut-input').forEach(inp => {
     inp.value = shortcuts[inp.dataset.shortcut] || '';
+    inp.placeholder = 'press keys · Esc = none';
+    inp.readOnly = true;   // it's a key-capture field, not free text
   });
 }
 
@@ -769,6 +800,31 @@ async function loadVoicePane() {
     );
     _updateTtsVoiceRow();
   } catch {}
+  _loadMicDevices();
+}
+
+// populate the microphone picker. device labels are hidden until mic permission is
+// granted, so if they're blank we ask once (then drop the stream) to reveal them.
+async function _loadMicDevices() {
+  const el = document.getElementById('s-mic-select');
+  if (!el || !navigator.mediaDevices?.enumerateDevices) return;
+  let mics = (await navigator.mediaDevices.enumerateDevices().catch(() => []))
+    .filter(d => d.kind === 'audioinput');
+  if (mics.length && !mics.some(m => m.label)) {
+    try {
+      const s = await navigator.mediaDevices.getUserMedia({ audio: true });
+      s.getTracks().forEach(t => t.stop());
+      mics = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'audioinput');
+    } catch {}
+  }
+  const opts = [{ value: '', label: 'default microphone' },
+    ...mics.map((m, i) => ({ value: m.deviceId, label: m.label || `microphone ${i + 1}` }))];
+  const saved = localStorage.getItem('alles-mic-id') || '';
+  populateDropdown(el, opts, opts.some(o => o.value === saved) ? saved : '');
+  if (!el.dataset.micBound) {
+    el.dataset.micBound = '1';
+    el.addEventListener('change', () => localStorage.setItem('alles-mic-id', getDropdownValue(el) || ''));
+  }
 }
 
 function _updateTtsVoiceRow() {
@@ -795,38 +851,65 @@ async function saveVoiceSettings() {
 let _personaCache = [];
 let _editingPersona = null;
 
-// ── temperature slider (null = auto/provider default) ──
-// blue (cold/precise) → violet → red (hot/creative) across 0..2
-function _tempColor(v) {
-  const t = Math.max(0, Math.min(1, v / 2));
-  const L = (a, b, k) => Math.round(a + (b - a) * k);
-  let c;
-  if (t < 0.5) { const k = t / 0.5;       c = [L(59,139,k),  L(130,92,k), L(246,246,k)]; }
-  else         { const k = (t-0.5) / 0.5; c = [L(139,239,k), L(92,68,k),  L(246,68,k)];  }
-  return `rgb(${c[0]},${c[1]},${c[2]})`;
-}
+// ── temperature: btop-style block meter (null = auto/provider default) ──
+// 0..2 in hard 0.1 steps. each lit cell is coloured by its POSITION on the scale,
+// in discrete bands (cold blue → hot red) — no smooth blend, snaps to a cell.
+const TEMP_CELLS = 20;
+const TEMP_STEP  = 0.1;
+const TEMP_RAMP  = ['#3b82f6','#6366f1','#8b5cf6','#a855f7','#d946ef','#f43f5e','#ef4444'];
+let _tempVal = 0.7, _tempOn = false;
 
-function _paintTemp(on) {
-  const sl = document.getElementById('persona-temp');
+// snap to nearest 0.1, rounded clean so we don't store float cruft like 0.70000001
+const _tempSnap = v => Math.max(0, Math.min(2, Math.round(v * 10) / 10));
+// colour by cell index — floor into the ramp so neighbouring cells share a band
+const _tempCellColor = i => TEMP_RAMP[Math.min(TEMP_RAMP.length - 1, Math.floor(i / TEMP_CELLS * TEMP_RAMP.length))];
+
+function _renderTempBar() {
+  const bar = document.getElementById('persona-temp');
   const lbl = document.getElementById('persona-temp-val');
-  if (!sl) return;
-  if (!on) { sl.style.removeProperty('--temp-color'); if (lbl) lbl.style.color = ''; return; }
-  const c = _tempColor(Number(sl.value));
-  sl.style.setProperty('--temp-color', c);
-  if (lbl) lbl.style.color = c;
+  if (!bar) return;
+  bar.classList.toggle('is-auto', !_tempOn);
+  bar.setAttribute('aria-valuenow', _tempOn ? _tempVal.toFixed(1) : '');
+  const lit = Math.round(_tempVal / TEMP_STEP);   // cells filled, 0..20
+  let html = '';
+  for (let i = 0; i < TEMP_CELLS; i++) {
+    if (i < lit) {
+      const c = _tempCellColor(i);
+      html += `<span class="tc f${i === lit - 1 ? ' edge' : ''}" style="background:${c}"></span>`;
+    } else {
+      html += '<span class="tc"></span>';
+    }
+  }
+  bar.innerHTML = html;
+  if (lbl) {
+    lbl.textContent = _tempOn ? _tempVal.toFixed(1) : 'auto';
+    lbl.classList.toggle('muted', !_tempOn);
+    lbl.style.color = _tempOn ? _tempCellColor(Math.max(0, lit - 1)) : '';
+  }
 }
 
 function _setPersonaTemp(val) {
-  const sl  = document.getElementById('persona-temp');
-  const pin = document.getElementById('persona-temp-pin');
-  const lbl = document.getElementById('persona-temp-val');
-  if (!sl) return;
-  const on = val != null;
-  pin?.classList.toggle('on', on);
-  sl.classList.toggle('is-auto', !on);
-  if (on) sl.value = val;
-  if (lbl) { lbl.textContent = on ? Number(sl.value).toFixed(2) : 'auto'; lbl.classList.toggle('muted', !on); }
-  _paintTemp(on);
+  _tempOn = val != null;
+  if (_tempOn) _tempVal = _tempSnap(val);
+  document.getElementById('persona-temp-pin')?.classList.toggle('on', _tempOn);
+  _renderTempBar();
+}
+
+// pointer x along the bar → snapped temperature
+function _tempFromEvent(e) {
+  const r = document.getElementById('persona-temp').getBoundingClientRect();
+  const f = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width));
+  return _tempSnap(f * 2);
+}
+// click or drag a cell → pins and sets. pointermove only counts while held down.
+function _onTempPointer(e) {
+  if (e.type === 'pointermove' && e.buttons !== 1) return;
+  e.preventDefault();
+  if (e.type === 'pointerdown') e.currentTarget.setPointerCapture?.(e.pointerId);
+  _tempOn = true;
+  _tempVal = _tempFromEvent(e);
+  document.getElementById('persona-temp-pin')?.classList.add('on');
+  _renderTempBar();
 }
 
 function _setPersonaMode(val) {
@@ -869,19 +952,9 @@ function _setPersonaAccent(hex) {
 }
 function _getPersonaAccent() { return _personaAccent; }
 
-function _onPersonaTempInput() {
-  // dragging the slider means you want it pinned
-  document.getElementById('persona-temp-pin')?.classList.add('on');
-  const sl = document.getElementById('persona-temp'); sl.classList.remove('is-auto');
-  const lbl = document.getElementById('persona-temp-val');
-  if (lbl) { lbl.textContent = Number(sl.value).toFixed(2); lbl.classList.remove('muted'); }
-  _paintTemp(true);
-}
-
 function _togglePersonaTempPin() {
   const on = !document.getElementById('persona-temp-pin').classList.contains('on');
-  const sl = document.getElementById('persona-temp');
-  _setPersonaTemp(on ? Number(sl.value || 0.7) : null);
+  _setPersonaTemp(on ? (_tempVal || 0.7) : null);
 }
 
 function _fillPersonaModels(selected = '') {
@@ -924,6 +997,7 @@ window._editPersona = id => {
   _editingPersona = id;
   document.getElementById('persona-name').value   = p.name || '';
   document.getElementById('persona-prompt').value = p.system_prompt || '';
+  const initEl = document.getElementById('persona-initial'); if (initEl) initEl.value = p.initial_message || '';
   _fillPersonaModels(p.model || '');
   _setPersonaTemp(p.temperature == null ? null : p.temperature);
   _setPersonaMode(p.default_mode || '');
@@ -939,7 +1013,7 @@ window._editPersona = id => {
 
 function _resetPersonaForm() {
   _editingPersona = null;
-  ['persona-name','persona-prompt'].forEach(id => { const e = document.getElementById(id); if (e) e.value = ''; });
+  ['persona-name','persona-prompt','persona-initial'].forEach(id => { const e = document.getElementById(id); if (e) e.value = ''; });
   _fillPersonaModels('');
   _setPersonaTemp(null);
   _setPersonaMode('');
@@ -967,14 +1041,14 @@ window._dupPersona = async id => {
 async function addPersona() {
   const name   = document.getElementById('persona-name').value.trim();
   const prompt = document.getElementById('persona-prompt').value.trim();
+  const initial_message = document.getElementById('persona-initial')?.value.trim() || '';
   const model  = document.getElementById('persona-model')?.value || '';
-  const pinned = document.getElementById('persona-temp-pin')?.classList.contains('on');
-  const temperature = pinned ? parseFloat(document.getElementById('persona-temp').value) : null;
+  const temperature = _tempOn ? _tempVal : null;
   const is_default = !!document.getElementById('persona-default')?.classList.contains('on');
   const default_mode = _getPersonaMode();
   const accent = _getPersonaAccent();
   if (!name) { toast('name required', 'error'); return; }
-  const payload = { name, system_prompt: prompt, model, temperature, default_mode, accent, is_default };
+  const payload = { name, system_prompt: prompt, initial_message, model, temperature, default_mode, accent, is_default };
   if (_editingPersona) {
     await fetch(`/api/personas/${_editingPersona}`, { method: 'PATCH', headers: {'content-type':'application/json'},
       body: JSON.stringify(payload) });
@@ -1019,64 +1093,8 @@ async function addCookbookEntry() {
   loadCookbook();
 }
 
-// ── templates ─────────────────────────────────────────────────────────────────
-async function loadTemplatesPane() {
-  const el = document.getElementById('template-list');
-  if (!el) return;
-  const templates = await fetch('/api/templates').then(r => r.json()).catch(() => []);
-  if (!templates.length) { el.innerHTML = '<div class="settings-row-empty">no templates yet</div>'; return; }
-  el.innerHTML = templates.map(t => `
-    <div class="settings-list-row">
-      <div style="flex:1;min-width:0">
-        <div class="row-name">${_esc(t.name)}</div>
-        ${t.system_prompt ? `<div style="font-size:0.68rem;color:var(--muted);margin-top:2px">${_esc(t.system_prompt.slice(0,50))}${t.system_prompt.length>50?'…':''}</div>` : ''}
-      </div>
-      <button class="btn" data-id="${t.id}" onclick="window._useTemplate('${t.id}')">use</button>
-      <button class="act-btn" data-id="${t.id}" onclick="window._rmTemplate('${t.id}')">×</button>
-    </div>`).join('');
-
-  // init template add button once
-  const addBtn = document.getElementById('tpl-add-btn');
-  if (addBtn && !addBtn.dataset.bound) {
-    addBtn.dataset.bound = '1';
-    addBtn.addEventListener('click', async () => {
-      const name = document.getElementById('tpl-name').value.trim();
-      const sys  = document.getElementById('tpl-system').value.trim();
-      const msg  = document.getElementById('tpl-message').value.trim();
-      if (!name) { toast('name required', 'error'); return; }
-      await fetch('/api/templates', { method: 'POST', headers: {'content-type':'application/json'},
-        body: JSON.stringify({ name, system_prompt: sys, initial_message: msg }) });
-      ['tpl-name','tpl-system','tpl-message'].forEach(id => document.getElementById(id).value = '');
-      toast('template saved', 'success');
-      loadTemplatesPane();
-    });
-  }
-}
-
-window._rmTemplate = async id => {
-  await fetch(`/api/templates/${id}`, { method: 'DELETE' });
-  document.getElementById('template-list') && loadTemplatesPane();
-};
-
-window._useTemplate = async id => {
-  const r = await fetch('/api/templates');
-  const templates = await r.json();
-  const t = templates.find(x => x.id === id);
-  if (!t) return;
-  // apply: set system prompt + pre-fill composer
-  if (t.system_prompt) {
-    await fetch('/api/settings', { method: 'PATCH', headers: {'content-type':'application/json'},
-      body: JSON.stringify({ system_prompt: t.system_prompt }) });
-    toast(`template "${t.name}" applied`, 'success');
-  }
-  if (t.initial_message) {
-    const ta = document.getElementById('composer-ta');
-    if (ta) { ta.value = t.initial_message; ta.focus(); ta.dispatchEvent(new Event('input')); }
-  }
-  // close settings
-  const { closeSettings } = await import('./settings.js');
-  closeSettings();
-};
+// (session templates were merged into personas — a persona's "starter message" now
+//  does what a template's initial message did; see openPersonaPicker in app.js)
 
 // ── agent + mcp servers ───────────────────────────────────────────────────────
 async function loadAgentStatus() {
@@ -1317,6 +1335,15 @@ function _escAttr(s = '') {
 // ── rules pane: personal automations ──────────────────────────────────────────
 let _ruleOpts = null;
 let _rulesWired = false;
+let _editingRule = null;   // rule id being edited (null = adding a new one)
+
+// one-click starting points — prefill the form with a sensible rule to tweak
+const _RULE_PRESETS = [
+  { label: '☀ morning digest', trigger: 'daily_at', trigger_arg: '08:00', action: 'push_digest', action_arg: '', name: 'morning digest' },
+  { label: '📥 important email → task', trigger: 'mail_from', trigger_arg: '', action: 'create_task', action_arg: '{subject} — from {from}', name: '' },
+  { label: '💳 renewal heads-up', trigger: 'sub_renewing', trigger_arg: '3', action: 'push', action_arg: '{name} renews in 3 days', name: 'renewal reminder' },
+  { label: '📅 upcoming day', trigger: 'day_event_near', trigger_arg: '7', action: 'push', action_arg: '{name} is in a week', name: '' },
+];
 
 async function loadRulesPane() {
   if (!_ruleOpts) {
@@ -1344,8 +1371,40 @@ async function loadRulesPane() {
   if (!_rulesWired) {
     _rulesWired = true;
     document.getElementById('rule-add-btn')?.addEventListener('click', _addRule);
+    document.getElementById('rule-cancel-btn')?.addEventListener('click', _resetRuleForm);
+    _renderRulePresets();
   }
   _renderRules();
+}
+
+function _renderRulePresets() {
+  const box = document.getElementById('rule-presets');
+  if (!box) return;
+  box.innerHTML = '<span class="rule-presets-label">quick start:</span>' +
+    _RULE_PRESETS.map((p, i) => `<button class="rule-preset" data-i="${i}">${p.label}</button>`).join('');
+  box.querySelectorAll('.rule-preset').forEach(b =>
+    b.addEventListener('click', () => _fillRuleForm(_RULE_PRESETS[+b.dataset.i], null)));
+}
+
+// load a rule (or preset) into the form. id=null → adding/preset; id set → editing
+function _fillRuleForm(r, id) {
+  _editingRule = id;
+  setDropdownValue(document.getElementById('rule-trigger'), r.trigger);
+  setDropdownValue(document.getElementById('rule-action'), r.action);
+  document.getElementById('rule-trigger-arg').value = r.trigger_arg || '';
+  document.getElementById('rule-action-arg').value = r.action_arg || '';
+  document.getElementById('rule-name').value = r.name || '';
+  document.getElementById('rule-trigger')?.dispatchEvent(new Event('change'));   // sync placeholders
+  document.getElementById('rule-action')?.dispatchEvent(new Event('change'));
+  document.getElementById('rule-add-btn').textContent = id ? 'save changes' : 'add rule';
+  document.getElementById('rule-cancel-btn').style.display = id ? '' : 'none';
+}
+
+function _resetRuleForm() {
+  _editingRule = null;
+  ['rule-trigger-arg', 'rule-action-arg', 'rule-name'].forEach(id => { const e = document.getElementById(id); if (e) e.value = ''; });
+  document.getElementById('rule-add-btn').textContent = 'add rule';
+  document.getElementById('rule-cancel-btn').style.display = 'none';
 }
 
 async function _renderRules() {
@@ -1370,6 +1429,10 @@ async function _renderRules() {
     </div>`).join('');
   el.querySelectorAll('.rule-row').forEach(row => {
     const id = row.dataset.id;
+    row.querySelector('.rule-row-main')?.addEventListener('click', () => {
+      const r = rules.find(x => x.id === id);
+      if (r) _fillRuleForm(r, id);
+    });
     row.querySelectorAll('[data-act]').forEach(b => b.addEventListener('click', async () => {
       if (b.dataset.act === 'del') {
         await fetch(`/api/automations/${id}`, { method: 'DELETE' });
@@ -1401,12 +1464,13 @@ async function _addRule() {
     action: document.getElementById('rule-action')?.dataset.value,
     action_arg: document.getElementById('rule-action-arg')?.value.trim() || '',
   };
-  const r = await fetch('/api/automations', {
-    method: 'POST', headers: { 'content-type': 'application/json' },
+  const editing = _editingRule;
+  const r = await fetch(editing ? `/api/automations/${editing}` : '/api/automations', {
+    method: editing ? 'PATCH' : 'POST', headers: { 'content-type': 'application/json' },
     body: JSON.stringify(body),
   });
-  if (!r.ok) { toast((await r.json()).detail || 'failed to add rule', 'error'); return; }
-  ['rule-name', 'rule-trigger-arg', 'rule-action-arg'].forEach(id => { const e = document.getElementById(id); if (e) e.value = ''; });
-  toast('rule added — it runs automatically from now on', 'success');
+  if (!r.ok) { toast((await r.json().catch(() => ({}))).detail || 'failed to save rule', 'error'); return; }
+  _resetRuleForm();
+  toast(editing ? 'rule updated' : 'rule added — it runs automatically from now on', 'success');
   _renderRules();
 }

@@ -1,0 +1,86 @@
+[
+  {
+    "name": "Meal Plan",
+    "description": "builds a week of meals around the user's goals, budget, and time",
+    "when_to_use": "when the user wants meals planned for the week or to eat better without thinking about it",
+    "body": "1. ask for diet limits, headcount, budget, cooking time, and any hated foods.\n2. block out the week: pick a few repeatable bases (grains, proteins) to reuse across meals.\n3. assign meals per day, batching prep so leftovers cover lunches.\n4. flag which meals freeze well and which must be eaten fresh.\n5. output the plan as a day-by-day table plus a consolidated shopping list grouped by store aisle."
+  },
+  {
+    "name": "Workout Plan",
+    "description": "designs a training schedule matched to fitness level, goal, and available gear",
+    "when_to_use": "when the user wants a workout routine or to get stronger, leaner, or fitter",
+    "body": "1. pull goal, current level, days per week, session length, equipment, and any injuries.\n2. pick a split that fits the day count (full-body for 2-3, upper/lower or push-pull-legs for 4+).\n3. for each day list movements, sets, reps, and rest; lead with the heaviest compound lift.\n4. set a progression rule (add reps then weight) and a deload every 4-6 weeks.\n5. name 1-2 swaps per exercise for missing gear or sore joints."
+  },
+  {
+    "name": "Build Habit",
+    "description": "turns a vague intention into a small habit that actually sticks",
+    "when_to_use": "when the user wants to start or stop a habit or finally make something routine",
+    "body": "1. shrink the goal to a version so small it feels almost stupid (one pushup, one page).\n2. anchor it to an existing daily action (after coffee, before shower) so the cue is automatic.\n3. design the environment: make the good thing one step easier and the bad thing one step harder.\n4. pick a dead-simple tracker (calendar X, checkbox) and a never-miss-twice rule.\n5. set a tiny reward at the moment of doing it, and a review date 2 weeks out."
+  },
+  {
+    "name": "Plan Trip",
+    "description": "turns a destination and dates into a realistic day-by-day itinerary",
+    "when_to_use": "when the user is planning a trip or vacation and wants it organized",
+    "body": "1. lock dates, budget, travelers, pace (packed vs lazy), and must-do anchors.\n2. group sights by neighborhood so each day stays in one area, minimizing transit.\n3. draft a daily plan with a morning anchor, lunch spot, afternoon thing, and loose evening.\n4. leave buffer: don't schedule past ~70% of the day, build in rest and one rain backup.\n5. end with a logistics block: bookings to make, transit notes, and a packing checklist."
+  },
+  {
+    "name": "Declutter Space",
+    "description": "walks the user through clearing a room or area without overwhelm",
+    "when_to_use": "when the user wants to declutter, tidy, or organize a messy space",
+    "body": "1. pick ONE zone (a drawer, one shelf) so the task is finishable in a session.\n2. empty it fully, then sort every item into keep / toss / donate / belongs-elsewhere.\n3. for keep-or-not waffling, ask: used in the last year? would i rebuy it today?\n4. give each kept item a home; group like with like and store by frequency of use.\n5. bag the toss/donate immediately and move it out the door before momentum dies."
+  },
+  {
+    "name": "Recipe Ingredients",
+    "description": "invents a cookable recipe from whatever the user already has",
+    "when_to_use": "when the user lists ingredients on hand and wants to know what to make",
+    "body": "1. read the full list; sort into protein, carb base, veg, fat, and flavor/aromatics.\n2. pick a format those parts fit (stir-fry, grain bowl, soup, frittata, pasta).\n3. assume common staples (oil, salt, pepper, a few spices); flag anything truly missing.\n4. write numbered steps with rough times and heat levels, prepping in cook order.\n5. add one easy upgrade and one swap so it flexes to taste."
+  },
+  {
+    "name": "Budget Setup",
+    "description": "sets up a simple monthly budget the user can actually maintain",
+    "when_to_use": "when the user wants to budget, track spending, or get a handle on money",
+    "body": "1. get monthly take-home income and list fixed bills (rent, utilities, subscriptions, debt mins).\n2. subtract fixed costs to find what's left for variable spending and saving.\n3. split the leftover with a simple frame (e.g. 50 needs / 30 wants / 20 save-and-debt), adjusted to reality.\n4. set per-category caps for the easy-to-overspend buckets (food, fun, shopping).\n5. pick a weekly 5-minute check-in to log and course-correct, not a daily chore."
+  },
+  {
+    "name": "Sleep Fix",
+    "description": "diagnoses poor sleep and builds a wind-down routine to fix it",
+    "when_to_use": "when the user sleeps badly, can't fall asleep, or wakes up tired",
+    "body": "1. ask current bed/wake times, caffeine and alcohol timing, screen use, and what wakes them.\n2. set a fixed wake time first (anchor the rhythm) and back the bedtime out from it.\n3. cut caffeine after early afternoon and dim screens/lights in the last hour before bed.\n4. build a 30-min wind-down: same order each night, low light, no work, cool dark room.\n5. if awake 20+ min, get up and do something dull until sleepy; track for a week and tweak one thing."
+  },
+  {
+    "name": "Clean Routine",
+    "description": "turns whole-home cleaning into a repeatable rotating schedule",
+    "when_to_use": "when the user wants a cleaning schedule or to stop the house spiraling messy",
+    "body": "1. list rooms and every recurring task, then tag each daily / weekly / monthly by how fast it gets gross.\n2. spread weekly tasks across days so no single day is brutal (one room or chore per day).\n3. define a 10-minute daily reset (dishes, surfaces, one tidy lap) that prevents buildup.\n4. assign or rotate tasks if others share the space; put it somewhere visible.\n5. batch supplies per zone so nothing stalls on a missing rag or spray."
+  },
+  {
+    "name": "Grocery List",
+    "description": "turns a meal plan or week's needs into an efficient shopping list",
+    "when_to_use": "when the user needs a grocery list or to shop without forgetting things",
+    "body": "1. gather the meals or items needed and the days they cover.\n2. break recipes into raw ingredients with quantities; merge duplicates into one line.\n3. subtract what's already in the pantry/fridge so you don't double-buy.\n4. group the list by store section (produce, dairy, meat, dry, frozen) for a single loop.\n5. mark substitutable items and rough budget so swaps are easy at the shelf."
+  },
+  {
+    "name": "Stress Reset",
+    "description": "gives a fast grounding protocol plus a plan to lower ongoing stress",
+    "when_to_use": "when the user is overwhelmed, anxious, or burning out and needs to calm down",
+    "body": "1. start with an immediate down-regulator: slow exhale-longer-than-inhale breathing for ~2 minutes.\n2. name what's actually in their control vs not; park the not-in-control items on paper.\n3. pick the single smallest next action on a controllable item and do just that.\n4. identify the top recurring stressor and one structural change to defuse it (boundary, cut, ask for help).\n5. schedule one real recovery block (sleep, movement, offline time) before the next demand."
+  },
+  {
+    "name": "Home Fix",
+    "description": "diagnoses a common household problem and walks the user through fixing it safely",
+    "when_to_use": "when the user has something broken or annoying at home (leak, clog, squeak, no power)",
+    "body": "1. get a clear symptom description and when it started; rule out the simplest cause first.\n2. flag any safety stop-line (water shutoff, breaker, gas) before touching anything.\n3. give the most likely fix as ordered steps with the tools/parts needed.\n4. note the cheap test to confirm it worked before reassembling.\n5. set the call-a-pro threshold so they know when DIY stops being smart."
+  },
+  {
+    "name": "Hydration Energy",
+    "description": "builds a daily food, water, and movement rhythm to steady energy",
+    "when_to_use": "when the user feels sluggish, crashes in the afternoon, or wants steadier energy",
+    "body": "1. map the current day: when they eat, caffeine timing, water intake, and when the crash hits.\n2. set a water target tied to cues (a glass at each meal, refill on the desk) instead of a vague number.\n3. balance meals so each has protein and fiber, smoothing the post-meal slump.\n4. move caffeine earlier and cap it; replace the afternoon crash with a short walk or daylight break.\n5. test for one week, watch the crash, and adjust the single biggest lever."
+  },
+  {
+    "name": "Gift Finder",
+    "description": "generates thoughtful gift ideas matched to a person and occasion",
+    "when_to_use": "when the user needs gift ideas for someone and is stuck",
+    "body": "1. gather the recipient's relationship, age, interests, occasion, and budget.\n2. note what they already love or recently mentioned wanting, and what to avoid (allergies, dupes).\n3. brainstorm across types: a useful thing, an experience, a consumable, and a personal/handmade option.\n4. shortlist 3-5 that fit budget and ship in time, each with a one-line why-they'd-like-it.\n5. add a small add-on or presentation touch to lift the main gift."
+  }
+]

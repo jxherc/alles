@@ -64,5 +64,20 @@ class AnthropicPayloadTests(unittest.TestCase):
         self.assertNotIn("temperature", llm._build_openai_payload(msgs, "gpt-x"))
 
 
+class OpenAIUsagePayloadTests(unittest.TestCase):
+    # deepseek (+ other openai-compatible) must request usage on streamed replies,
+    # else the usage dashboard has no tokens to show for them
+    def test_include_usage_for_compatible_providers(self):
+        msgs = [{"role": "user", "content": "hi"}]
+        for prov in ("openai", "deepseek", "openrouter", "groq", "xai"):
+            p = llm._build_openai_payload(msgs, "m", stream=True, provider=prov)
+            self.assertEqual(p.get("stream_options"), {"include_usage": True}, prov)
+
+    def test_no_usage_flag_when_unsupported_or_not_streaming(self):
+        msgs = [{"role": "user", "content": "hi"}]
+        self.assertNotIn("stream_options", llm._build_openai_payload(msgs, "m", stream=False, provider="deepseek"))
+        self.assertNotIn("stream_options", llm._build_openai_payload(msgs, "m", stream=True, provider="gemini"))
+
+
 if __name__ == "__main__":
     unittest.main()
