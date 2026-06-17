@@ -1245,6 +1245,7 @@ function toggleTheme() {
   } else {
     root.dataset.theme = 'light'; localStorage.setItem('aide-theme', 'light');
   }
+  updateFavicon();
 }
 
 // appearance (theme + accent) is stored server-side too, so it's the same on every
@@ -1261,7 +1262,22 @@ async function _syncAppearance() {
     if (s.accent) { root.style.setProperty('--accent', s.accent); localStorage.setItem('aide-accent', s.accent); }
     else { root.style.removeProperty('--accent'); localStorage.removeItem('aide-accent'); }
   }
+  updateFavicon();
 }
+
+// favicon tracks the appearance: a square box matching the theme bg + the accent dot.
+// (sharp square, no radius — matches the site. static favicon.svg is the no-JS fallback.)
+function updateFavicon() {
+  const root = document.documentElement;
+  const accent = (getComputedStyle(root).getPropertyValue('--accent') || '').trim() || '#818cf8';
+  const box = root.dataset.theme === 'light' ? '#f4f4f5' : '#0a0a0a';
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" fill="${box}"/><circle cx="16" cy="16" r="7" fill="${accent}"/></svg>`;
+  let link = document.querySelector('link[rel="icon"]');
+  if (!link) { link = document.createElement('link'); link.rel = 'icon'; document.head.appendChild(link); }
+  link.type = 'image/svg+xml';
+  link.href = 'data:image/svg+xml,' + encodeURIComponent(svg);
+}
+window._updateFavicon = updateFavicon;
 
 // ── model picker ──────────────────────────────────────────────────────────────
 let _modelModalInited = false;
@@ -1282,10 +1298,11 @@ let _personas = [];
 // active. NOT persisted — reverts to the user's global accent when you switch away.
 export function applyPersonaAccent(hex) {
   const root = document.documentElement;
-  if (hex) { root.style.setProperty('--accent', hex); return; }
+  if (hex) { root.style.setProperty('--accent', hex); updateFavicon(); return; }
   const u = localStorage.getItem('aide-accent');
   if (u) root.style.setProperty('--accent', u);
   else root.style.removeProperty('--accent');
+  updateFavicon();
 }
 window._applyPersonaAccent = applyPersonaAccent;
 
