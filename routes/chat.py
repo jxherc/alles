@@ -251,6 +251,8 @@ async def _stream_and_save(
         chat_kw = {}
         if settings and settings.get("temperature") is not None:
             chat_kw["temperature"] = settings["temperature"]
+        if settings and settings.get("agent_effort"):
+            chat_kw["effort"] = settings["agent_effort"]   # per-model reasoning effort
         async for chunk in stream_chat(messages, ep.base_url, ep.api_key, model, **chat_kw):
             if stop_event.is_set():
                 break

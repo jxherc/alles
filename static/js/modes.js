@@ -23,17 +23,26 @@ export function setPermMode(m) {
   }
 }
 
-// ── agent effort ──────────────────────────────────────────────────────────
-const EFFORT_KEY = 'aide-effort';
-let _effort = localStorage.getItem(EFFORT_KEY) || 'medium';   // low | medium | high
+// ── reasoning effort (PER MODEL) ────────────────────────────────────────────
+// low | medium | high | xhigh | max. each model remembers its own effort; pass the
+// model id to read/write its setting. drives agent turns + the model's reasoning.
+export const EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'];
+const EFFORT_MAP_KEY = 'aide-effort-by-model';
+const EFFORT_LAST_KEY = 'aide-effort';        // global fallback / last used
+const DEFAULT_EFFORT = 'medium';
+const _effMap = () => { try { return JSON.parse(localStorage.getItem(EFFORT_MAP_KEY) || '{}'); } catch { return {}; } };
 
-export function getEffort() { return _effort; }
+export function getEffort(modelKey) {
+  const m = _effMap();
+  if (modelKey && m[modelKey]) return m[modelKey];
+  return localStorage.getItem(EFFORT_LAST_KEY) || DEFAULT_EFFORT;
+}
 
-export function setEffort(m) {
-  _effort = m;
-  localStorage.setItem(EFFORT_KEY, m);
+export function setEffort(val, modelKey) {
+  if (modelKey) { const m = _effMap(); m[modelKey] = val; localStorage.setItem(EFFORT_MAP_KEY, JSON.stringify(m)); }
+  localStorage.setItem(EFFORT_LAST_KEY, val);
   const el = document.querySelector('#effort-btn .effort-label');
-  if (el) el.textContent = m;
+  if (el) el.textContent = val;
 }
 
 export function isIncognitoMode() {

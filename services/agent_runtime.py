@@ -178,7 +178,7 @@ def merge_usage(total: dict, part: dict) -> dict:
 
 def agent_system_note(settings: dict) -> str:
     eff = (settings.get("agent_effort") or "medium").lower()
-    max_turns = {"low": 6, "medium": 18, "high": 36}.get(eff) or int(settings.get("agent_max_turns", 24) or 24)
+    max_turns = {"low": 6, "medium": 18, "high": 36, "xhigh": 60, "max": 100}.get(eff) or int(settings.get("agent_max_turns", 24) or 24)
     opencode = "installed" if shutil.which("opencode") else (
         "available through npx fallback" if shutil.which("npx.cmd") or shutil.which("npx") else "not available"
     )
@@ -252,7 +252,7 @@ async def run_agent(
 ) -> AsyncGenerator[dict, None]:
     # effort drives how many turns the agent gets (falls back to configured max)
     eff = (settings.get("agent_effort") or "medium").lower()
-    max_turns = {"low": 6, "medium": 18, "high": 36}.get(eff) or int(settings.get("agent_max_turns", 24) or 24)
+    max_turns = {"low": 6, "medium": 18, "high": 36, "xhigh": 60, "max": 100}.get(eff) or int(settings.get("agent_max_turns", 24) or 24)
     run = start_run(session_id=session_id, model=model, max_turns=max_turns, cwd=settings.get("agent_cwd", ""))
     run_id = run["id"]
     yield {"agent_run": {"id": run_id, "status": "running", "max_turns": max_turns}}
@@ -283,7 +283,7 @@ async def run_agent(
 
             turn_text = []
             tool_calls = []
-            llm_kwargs = {"tools": build_tool_defs(settings)}
+            llm_kwargs = {"tools": build_tool_defs(settings), "effort": eff}
             if settings.get("agent_max_tokens"):
                 llm_kwargs["max_tokens"] = settings["agent_max_tokens"]
             if settings.get("temperature") is not None:
