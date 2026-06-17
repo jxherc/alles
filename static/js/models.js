@@ -256,6 +256,7 @@ export function selectModel(endpointId, model) {
   _selected = { endpointId, model };
   localStorage.setItem('aide-model', JSON.stringify(_selected));
   updateTopbar();
+  window._refreshEffortLabel?.();   // effort is per-model → show this model's setting
   renderModelList();
   renderSidebarModelList(document.getElementById('sidebar-model-search')?.value || '');
   const session = window._currentSession;

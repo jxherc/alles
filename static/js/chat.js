@@ -225,7 +225,7 @@ export async function sendMessage(text) {
         file_ids: getAttachments(),
         incognito: isIncognitoMode(),
         permission_mode: getMode() === 'agent' ? getPermMode() : '',
-        effort: getMode() === 'agent' ? getEffort() : '',
+        effort: getEffort(getSelected()?.model),   // per-model effort, applies to chat + agent
       }),
     });
 

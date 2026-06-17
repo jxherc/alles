@@ -107,12 +107,29 @@ def _normalize_openai_messages(messages: list[dict]) -> list[dict]:
 # error on the field, so keep them off it.
 _USAGE_OK = {"openai", "deepseek", "openrouter", "groq", "together", "fireworks", "moonshot", "xai"}
 
+# reasoning effort → API params, per model. only sent where the model/provider accepts
+# it (else it'd 400), so non-reasoning models just ignore effort (it still drives agent turns).
+_OAI_EFFORT = {"low": "low", "medium": "medium", "high": "high", "xhigh": "high", "max": "high"}
+_THINK_BUDGET = {"high": 8000, "xhigh": 16000, "max": 24000}
+
+def _is_oai_reasoning(model: str) -> bool:
+    m = (model or "").lower().split("/")[-1]
+    return m.startswith(("o1", "o3", "o4")) or "gpt-5" in m or "gpt5" in m
+
+def _anthropic_thinks(model: str) -> bool:
+    m = (model or "").lower()
+    return ("3-7" in m or "3.7" in m or "opus-4" in m or "sonnet-4" in m or "haiku-4" in m
+            or "opus4" in m or "sonnet4" in m)
+
 def _build_openai_payload(messages, model, stream=True, provider="openai", **kw) -> dict:
     p = {"model": model, "messages": _normalize_openai_messages(messages), "stream": stream}
     if stream and provider in _USAGE_OK:
         p["stream_options"] = {"include_usage": True}
     if "max_tokens" in kw:   p["max_tokens"] = kw["max_tokens"]
     if "temperature" in kw:  p["temperature"] = kw["temperature"]
+    eff = kw.get("effort")
+    if eff and provider == "openai" and _is_oai_reasoning(model):
+        p["reasoning_effort"] = _OAI_EFFORT.get(eff, "medium")
     if "tools" in kw and kw["tools"]:
         p["tools"] = kw["tools"]
         p["tool_choice"] = "auto"
@@ -182,6 +199,13 @@ def _build_anthropic_payload(messages, model, stream=True, **kw) -> dict:
         p["system"] = "\n\n".join(m["content"] for m in sys_msgs)
     if "temperature" in kw:
         p["temperature"] = kw["temperature"]
+    # high+ effort → extended thinking on models that support it
+    eff = kw.get("effort")
+    if eff in _THINK_BUDGET and _anthropic_thinks(model):
+        budget = _THINK_BUDGET[eff]
+        p["max_tokens"] = max(p.get("max_tokens", 8192), budget + 2048)
+        p["thinking"] = {"type": "enabled", "budget_tokens": budget}
+        p.pop("temperature", None)   # anthropic requires temp unset when thinking is on
     if kw.get("tools"):
         # convert openai tool format to anthropic format
         p["tools"] = [

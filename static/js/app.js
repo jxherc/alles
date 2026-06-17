@@ -908,7 +908,7 @@ function bindEvents() {
   }
   const effortBtn = document.getElementById('effort-btn');
   if (effortBtn) {
-    setEffort(getEffort());
+    refreshEffortLabel();
     effortBtn.addEventListener('click', e => { e.stopPropagation(); _openEffortMenu(effortBtn); });
   }
   document.getElementById('theme-btn')?.addEventListener('click', toggleTheme);   // removed from topbar → lives in settings → appearance
@@ -1211,18 +1211,31 @@ function _openPermMenu(anchor) {
   }), 0);
 }
 
+// the effort applies to the CURRENT model and is remembered per model
+const _curModelKey = () => getSelected()?.model || '';
+function refreshEffortLabel() {
+  const el = document.querySelector('#effort-btn .effort-label');
+  if (el) el.textContent = getEffort(_curModelKey());
+  const btn = document.getElementById('effort-btn');
+  if (btn) btn.title = `reasoning effort for ${_curModelKey() || 'this model'} — saved per model`;
+}
+window._refreshEffortLabel = refreshEffortLabel;
+
 function _openEffortMenu(anchor) {
   document.getElementById('perm-menu')?.remove();
-  const cur = getEffort();
+  const mk = _curModelKey();
+  const cur = getEffort(mk);
   const opts = [
-    ['low',    'low',    'quick & minimal — fewer turns'],
+    ['low',    'low',    'quick & minimal — fewest turns'],
     ['medium', 'medium', 'balanced (default)'],
-    ['high',   'high',   'thorough — more turns, deeper checks'],
+    ['high',   'high',   'thorough — more turns + reasoning'],
+    ['xhigh',  'xhigh',  'very thorough — deep reasoning'],
+    ['max',    'max',    'maximum — most turns + deepest reasoning'],
   ];
   const menu = document.createElement('div');
   menu.id = 'perm-menu';
   menu.className = 'perm-menu';
-  menu.innerHTML = opts.map(([v, label, desc]) =>
+  menu.innerHTML = `<div class="perm-menu-head">effort · ${mk ? mk.replace(/</g, '&lt;') : 'model'}</div>` + opts.map(([v, label, desc]) =>
     `<div class="perm-menu-item${v === cur ? ' active' : ''}" data-v="${v}">
        <div class="perm-menu-label">${label}</div>
        <div class="perm-menu-desc">${desc}</div>
@@ -1232,7 +1245,7 @@ function _openEffortMenu(anchor) {
   menu.style.left = `${Math.min(r.left, window.innerWidth - menu.offsetWidth - 12)}px`;
   menu.style.bottom = `${window.innerHeight - r.top + 6}px`;
   menu.querySelectorAll('.perm-menu-item').forEach(it =>
-    it.addEventListener('click', () => { setEffort(it.dataset.v); menu.remove(); }));
+    it.addEventListener('click', () => { setEffort(it.dataset.v, mk); menu.remove(); }));
   setTimeout(() => document.addEventListener('click', function h(e) {
     if (!menu.contains(e.target) && e.target !== anchor) { menu.remove(); document.removeEventListener('click', h); }
   }), 0);
