@@ -809,7 +809,7 @@ function _renderDiff(txt) {
     else if (l.startsWith('@@')) c = 'var(--accent)';
     return `<span style="color:${c}">${esc(l)}</span>`;
   }).join('\n');
-  return `<pre style="margin:0.3rem 0 0.5rem;padding:0.4rem;background:var(--panel);border:1px solid var(--faint);border-radius:3px;font-size:0.66rem;white-space:pre-wrap;overflow-x:auto">${body}</pre>`;
+  return `<pre style="margin:0.3rem 0 0.5rem;padding:0.4rem;background:var(--panel);border:1px solid var(--faint);border-radius:0;font-size:0.66rem;white-space:pre-wrap;overflow-x:auto">${body}</pre>`;
 }
 
 function toggleOutline() {
