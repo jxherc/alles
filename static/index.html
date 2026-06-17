@@ -1350,6 +1350,22 @@
           </div>
           <div class="s-card">
             <div class="s-card-head">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              permission rules
+            </div>
+            <div class="s-card-body">
+              <p style="font-size:0.75rem;color:var(--muted);margin-bottom:0.6rem">fine-grained control over what the agent does without asking — layered over the mode, last matching rule wins. tool + path accept globs (<code>*</code> <code>?</code>); a plain path is a "contains" match. e.g. allow <code>git_status</code>, ask on <code>git_commit</code>, deny <code>write_file</code> on <code>.env</code>.</p>
+              <div id="perm-rules-list" style="margin-bottom:0.7rem"></div>
+              <div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-bottom:0.45rem">
+                <input type="text" id="perm-rule-tool" class="settings-input" placeholder="tool (git_* / shell / *)" style="flex:1;min-width:120px">
+                <input type="text" id="perm-rule-path" class="settings-input" placeholder="path or command match (optional)" style="flex:1.4;min-width:140px">
+                <div id="perm-rule-action" class="settings-input custom-select" data-value="ask" data-options="allow|allow;ask|ask;deny|deny" style="width:88px;flex-shrink:0"></div>
+              </div>
+              <button class="btn primary" id="perm-rule-add-btn" style="width:100%">add rule</button>
+            </div>
+          </div>
+          <div class="s-card">
+            <div class="s-card-head">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
               mcp servers
             </div>

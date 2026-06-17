@@ -23,6 +23,9 @@ _defaults = {
     "agent_sandbox_no_net": False,      # --network none in sandbox
     "agent_computer_use": False,        # enable screenshot/click/type tools
     "agent_subagents": True,            # allow spawn_agent delegation
+    # per-tool/path permission rules: [{tool: glob, path: glob, action: allow|ask|deny}]
+    # layered over agent_permission_mode, last match wins
+    "permission_rules": [],
     "auto_compact": True,
     "compact_threshold": 30,
     "stt_provider": "browser",    # browser | local | whisper_api

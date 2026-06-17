@@ -72,7 +72,7 @@ function _onPaneOpen(name) {
   if (name === 'appearance') loadAppearancePane();
   if (name === 'voice')      loadVoicePane();
   if (name === 'personas')   { loadPersonas(); loadCookbook(); }
-  if (name === 'tools')      { loadAgentStatus(); loadMcpServers(); loadConnections(); }
+  if (name === 'tools')      { loadAgentStatus(); loadMcpServers(); loadConnections(); loadPermRules(); }
   if (name === 'developer')  { loadTokens(); loadWebhooks(); loadShortcutSettings(); }
   if (name === 'rules')      loadRulesPane();
 }
@@ -1332,6 +1332,48 @@ function _esc(s = '') {
 
 function _escAttr(s = '') {
   return _esc(s).replace(/"/g,'&quot;');
+}
+
+// ── permission rules: per-tool/path allow|ask|deny, layered over the agent mode ──
+let _permRules = [];
+let _permWired = false;
+async function loadPermRules() {
+  try { _permRules = (await fetch('/api/settings').then(r => r.json())).permission_rules || []; }
+  catch { _permRules = []; }
+  const el = document.getElementById('perm-rules-list');
+  if (el) {
+    el.innerHTML = _permRules.length
+      ? _permRules.map((r, i) => `
+        <div class="perm-rule-row">
+          <span class="perm-rule-act perm-${_esc(r.action)}">${_esc(r.action)}</span>
+          <span class="perm-rule-tool">${_esc(r.tool || '*')}</span>
+          ${r.path ? `<span class="perm-rule-path">${_esc(r.path)}</span>` : ''}
+          <button class="perm-rule-del" data-i="${i}" title="remove">✕</button>
+        </div>`).join('')
+      : '<div style="font-size:0.72rem;color:var(--muted)">no rules — the agent follows the mode for everything</div>';
+    el.querySelectorAll('.perm-rule-del').forEach(b => b.onclick = () => _delPermRule(+b.dataset.i));
+  }
+  if (!_permWired) {
+    _permWired = true;
+    document.getElementById('perm-rule-add-btn')?.addEventListener('click', _addPermRule);
+  }
+}
+async function _addPermRule() {
+  const tool = document.getElementById('perm-rule-tool').value.trim();
+  const path = document.getElementById('perm-rule-path').value.trim();
+  const action = getDropdownValue(document.getElementById('perm-rule-action')) || 'ask';
+  if (!tool) { toast('tool pattern required (use * for any)', 'error'); return; }
+  _permRules.push({ tool, path, action });
+  await _patchSettings({ permission_rules: _permRules });
+  document.getElementById('perm-rule-tool').value = '';
+  document.getElementById('perm-rule-path').value = '';
+  toast('rule added', 'success');
+  loadPermRules();
+}
+async function _delPermRule(i) {
+  _permRules.splice(i, 1);
+  await _patchSettings({ permission_rules: _permRules });
+  loadPermRules();
 }
 
 // ── rules pane: personal automations ──────────────────────────────────────────
