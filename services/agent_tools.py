@@ -1619,6 +1619,42 @@ MUTATING_TOOLS = {
 # subset that produces a file diff we can preview
 _DIFF_TOOLS = {"write_file", "edit_file", "apply_patch"}
 
+
+def _perm_target(name, args):
+    """the string a rule's path-glob is matched against, per tool type."""
+    a = args or {}
+    if name in ("write_file", "edit_file", "apply_patch", "read_file", "revert_file"):
+        return str(a.get("path") or a.get("file") or "")
+    if name in ("shell", "bash"):
+        return str(a.get("command") or a.get("cmd") or "")
+    if name == "mcp_call_tool":
+        return str(a.get("tool") or a.get("name") or "")
+    return ""
+
+
+def decide_permission(name, args, mode, rules):
+    """allow | ask | deny. base comes from the mode (full_auto=allow, approve=ask,
+    plan=deny — for mutating tools), then user rules override, LAST match wins (opencode-
+    style). a rule = {tool: glob, path: glob, action}. a plain path (no glob chars) is a
+    'contains' match. lets you e.g. auto-run `git_status` but always ask on `git_commit`."""
+    base = "allow"
+    if name in MUTATING_TOOLS:
+        base = {"plan": "deny", "approve": "ask", "full_auto": "allow"}.get(mode or "full_auto", "ask")
+    decision = base
+    target = _perm_target(name, args)
+    for r in (rules or []):
+        if not fnmatch.fnmatch(name, (r.get("tool") or "*").strip() or "*"):
+            continue
+        pg = (r.get("path") or "").strip()
+        if pg:
+            pat = pg if any(c in pg for c in "*?[") else f"*{pg}*"
+            if not fnmatch.fnmatch(target, pat):
+                continue
+        act = (r.get("action") or "").lower()
+        if act in ("allow", "ask", "deny"):
+            decision = act
+    return decision
+
 # tools whose output is external/untrusted text (web pages, emails, repo files, MCP
 # results). their output is wrapped so the model treats it as DATA, not instructions —
 # the classic prompt-injection vector ("ignore previous instructions…" hidden in a page).
