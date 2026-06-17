@@ -34,7 +34,7 @@
     </div>
 
     <div class="search-wrap">
-      <input class="search-input" id="session-search" type="text" placeholder="search chats...">
+      <input class="search-input" id="session-search" type="text" placeholder="search...">
     </div>
 
     <div class="session-list" id="session-list">
@@ -43,18 +43,15 @@
 
     <nav class="sidebar-nav">
       <!-- aide is gemini-style: chat + its tools. switch apps from the alles logo. -->
-      <div class="nav-item" data-view="chat">aide</div>
-      <div class="nav-sep"></div>
       <div class="nav-more-toggle" id="nav-more-toggle">tools <span id="nav-more-arrow">▾</span></div>
       <div class="nav-more-items" id="nav-more-items">
-        <div class="nav-item" data-view="compare">compare</div>
-        <div class="nav-item" data-view="gallery">gallery</div>
         <div class="nav-item" data-view="brain">brain</div>
         <div class="nav-item" data-view="models">models</div>
         <div class="nav-item" data-view="cookbook">cookbook</div>
         <div class="nav-item" data-view="usage">usage</div>
         <div class="nav-item" data-view="skills">skills</div>
         <div class="nav-item" data-view="reminders">reminders</div>
+        <div class="nav-item" data-view="compare">compare</div>
       </div>
       <div class="nav-sep"></div>
       <div class="nav-item" data-view="settings">settings</div>
@@ -83,11 +80,11 @@
       </div>
       <div class="topbar-right">
         <span id="session-token-count" style="display:none;font-size:0.65rem;color:var(--muted)"></span>
-        <button class="icon-btn" id="runs-btn" title="agent runs — what the agent did + what it touched">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l3 2"/></svg>
-        </button>
         <button class="icon-btn" id="session-actions-btn" title="export / share" style="display:none">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        </button>
+        <button class="icon-btn incognito-btn" id="incognito-btn" title="incognito mode" aria-pressed="false" aria-label="incognito mode">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
         </button>
         <button class="icon-btn" id="topbar-settings-btn" title="settings">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2a2 2 0 1 1-4 0V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1A2 2 0 1 1 4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H3a2 2 0 1 1 0-4h.2a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1A2 2 0 1 1 7.2 4.2l.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.6V3a2 2 0 1 1 4 0v.2a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1A2 2 0 1 1 20 7.2l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2a2 2 0 1 1 0 4h-.2a1.7 1.7 0 0 0-1.8 1z"/></svg>
@@ -95,15 +92,16 @@
       </div>
     </div>
 
-    <!-- agent runs drawer — browse past runs + their provenance -->
-    <div class="runs-drawer" id="runs-drawer" hidden>
-      <div class="runs-drawer-head">
-        <span>agent runs</span>
-        <button class="icon-btn" id="runs-close" title="close">×</button>
-      </div>
-      <div class="runs-drawer-body" id="runs-drawer-body"></div>
+    <!-- incognito header — replaces the topbar while off the record -->
+    <div class="incognito-bar" id="incognito-bar">
+      <span class="incognito-bar-title">
+        <svg class="incognito-ghost" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21v-9a7 7 0 0 1 14 0v9l-2.4-1.5L14.2 21l-2.2-1.5L9.8 21l-2.4-1.5L5 21z"/><circle cx="9.5" cy="11" r="0.5" fill="currentColor"/><circle cx="14.5" cy="11" r="0.5" fill="currentColor"/></svg>
+        incognito chat
+      </span>
+      <button class="icon-btn" id="incognito-exit" title="leave incognito">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
     </div>
-    <div class="runs-scrim" id="runs-scrim" hidden></div>
 
     <!-- connectivity warning — shows when a chat can't reach the endpoint -->
     <div class="conn-banner" id="conn-banner" style="display:none">
@@ -145,7 +143,7 @@
             <button class="ha-tool" id="ha-voice" title="voice input" aria-label="voice">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
             </button>
-            <select id="ha-model" class="home-ask-model" title="model"></select>
+            <div id="ha-model" class="home-ask-model custom-select" title="model"></div>
             <button class="btn primary ha-send" id="ha-send">ask</button>
             <button class="btn ha-goto" id="ha-goto" title="open the full aide">aide ↗</button>
           </div>
@@ -167,10 +165,17 @@
       <div class="messages" id="messages" style="display:none"></div>
     </div>
 
+    <!-- project workspace (NotebookLM-style: chats + files + instructions + notes) -->
+    <div class="page-view" id="project-view" style="display:none"></div>
+
     <div class="page-view" id="models-view" style="display:none">
       <div class="page-view-head">
         <span class="page-view-title">models</span>
-        <button class="btn" id="models-refresh-btn">refresh</button>
+        <div style="display:flex;align-items:center;gap:0.55rem;margin-left:auto">
+          <span class="newest-only-label">newest only</span>
+          <div class="s-switch" id="newest-only-switch" title="show only the newest model of each family"></div>
+          <button class="btn" id="models-refresh-btn">refresh</button>
+        </div>
       </div>
       <div class="page-view-body">
         <input type="text" id="sidebar-model-search" class="settings-input" placeholder="filter models..." style="width:100%;margin-bottom:0.65rem">
@@ -245,6 +250,7 @@
         <input type="text" id="cal-quick" class="cal-quick" placeholder="quick add… 'lunch fri 1pm'">
         <button class="btn" id="cal-sync-btn" title="CalDAV sync">sync</button>
         <button class="btn primary" id="cal-new-btn">+ event</button>
+        <button class="icon-btn app-cog" data-app="calendar" title="calendar settings"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2a2 2 0 1 1-4 0V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1A2 2 0 1 1 4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H3a2 2 0 1 1 0-4h.2a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1A2 2 0 1 1 7.2 4.2l.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.6V3a2 2 0 1 1 4 0v.2a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1A2 2 0 1 1 20 7.2l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2a2 2 0 1 1 0 4h-.2a1.7 1.7 0 0 0-1.8 1z"/></svg></button>
       </div>
       <div class="cal-layout">
         <div class="cal-sidebar" id="cal-sidebar"></div>
@@ -337,6 +343,7 @@
       <div class="page-view-head">
         <span class="page-view-title">system</span>
         <span id="system-host" style="font-size:0.7rem;color:var(--muted);margin-left:auto"></span>
+        <button class="icon-btn app-cog" data-app="system" title="system settings"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2a2 2 0 1 1-4 0V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1A2 2 0 1 1 4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H3a2 2 0 1 1 0-4h.2a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1A2 2 0 1 1 7.2 4.2l.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.6V3a2 2 0 1 1 4 0v.2a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1A2 2 0 1 1 20 7.2l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2a2 2 0 1 1 0 4h-.2a1.7 1.7 0 0 0-1.8 1z"/></svg></button>
       </div>
       <div class="page-view-body" id="system-body"></div>
     </div>
@@ -596,6 +603,7 @@
           <button class="btn" id="files-upload-btn">upload</button>
           <input type="file" id="files-upload-input" multiple hidden>
           <input type="text" id="files-search" class="cal-quick" placeholder="search files…">
+          <button class="icon-btn app-cog" data-app="files" title="files settings"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2a2 2 0 1 1-4 0V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1A2 2 0 1 1 4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H3a2 2 0 1 1 0-4h.2a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1A2 2 0 1 1 7.2 4.2l.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.6V3a2 2 0 1 1 4 0v.2a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1A2 2 0 1 1 20 7.2l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2a2 2 0 1 1 0 4h-.2a1.7 1.7 0 0 0-1.8 1z"/></svg></button>
         </div>
       </div>
       <div class="files-breadcrumb" id="files-breadcrumb"></div>
@@ -619,6 +627,7 @@
           <button class="btn" id="mail-refresh-btn">refresh</button>
           <button class="btn primary" id="mail-compose-btn">compose</button>
           <button class="btn" id="mail-accounts-btn" title="accounts">accounts</button>
+          <button class="icon-btn app-cog" data-app="mail" title="mail settings"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2a2 2 0 1 1-4 0V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1A2 2 0 1 1 4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H3a2 2 0 1 1 0-4h.2a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1A2 2 0 1 1 7.2 4.2l.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.6V3a2 2 0 1 1 4 0v.2a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1A2 2 0 1 1 20 7.2l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2a2 2 0 1 1 0 4h-.2a1.7 1.7 0 0 0-1.8 1z"/></svg></button>
         </div>
       </div>
       <div class="mail-layout">
@@ -633,13 +642,18 @@
         <span class="page-view-title">gallery</span>
         <div id="photos-album" class="settings-input custom-select" style="font-size:0.72rem;width:auto;max-width:180px"></div>
         <button class="btn" id="photos-newalbum-btn" style="font-size:0.72rem">+ album</button>
+        <div id="photos-model" class="settings-input custom-select" data-placeholder="model" style="font-size:0.72rem;width:auto;max-width:170px" title="image model"></div>
         <button class="btn" id="photos-gen-btn" style="font-size:0.72rem" title="generate an image with AI">✨ generate</button>
         <input type="text" id="photos-search" class="cal-quick" placeholder="search photos…" style="font-size:0.72rem">
         <input type="file" id="photos-upload-input" accept="image/*" multiple hidden>
         <button class="btn primary" id="photos-upload-btn" style="font-size:0.72rem;margin-left:auto">upload</button>
+        <button class="icon-btn app-cog" data-app="photos" title="gallery settings"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2a2 2 0 1 1-4 0V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1A2 2 0 1 1 4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H3a2 2 0 1 1 0-4h.2a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1A2 2 0 1 1 7.2 4.2l.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.6V3a2 2 0 1 1 4 0v.2a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1A2 2 0 1 1 20 7.2l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2a2 2 0 1 1 0 4h-.2a1.7 1.7 0 0 0-1.8 1z"/></svg></button>
       </div>
       <div class="page-view-body"><div class="photos-grid" id="photos-grid"></div></div>
     </div>
+
+    <!-- floating dot-wave shown while the assistant is speaking (TTS) -->
+    <div class="tts-wave-pop" id="tts-wave" hidden><canvas></canvas></div>
 
     <!-- ── composer (hidden in memory view) ── -->
     <div class="composer-outer" id="composer-outer">
@@ -672,12 +686,6 @@
             </button>
             <button class="c-tool" id="docs-toggle-btn" title="chat with your docs" aria-label="chat with your docs">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
-            </button>
-            <button class="c-tool" id="shell-btn-tool" title="shell command" aria-label="shell command">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
-            </button>
-            <button class="c-tool incognito-btn" id="incognito-btn" title="incognito mode" aria-pressed="false" aria-label="incognito mode">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
             </button>
             <button class="c-tool" id="more-tools-btn" title="more tools" aria-expanded="false">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg>
@@ -793,6 +801,17 @@
 <!-- context menu -->
 <div class="ctx-menu" id="ctx-menu" style="display:none"></div>
 
+<!-- first-run setup wizard (skippable) -->
+<div class="modal-overlay" id="setup-wizard" style="display:none">
+  <div class="modal-card setup-card">
+    <div class="setup-head">
+      <div class="setup-dots" id="setup-dots"></div>
+      <button class="setup-skip" id="setup-skip">skip setup</button>
+    </div>
+    <div class="setup-body" id="setup-wizard-body"></div>
+  </div>
+</div>
+
 <!-- model picker modal -->
 <div class="modal-overlay" id="model-modal" style="display:none">
   <div class="modal-card model-modal-card">
@@ -801,14 +820,14 @@
         <button class="mm-tab active" data-tab="models">models</button>
         <button class="mm-tab" data-tab="endpoints">endpoints</button>
       </div>
-      <button class="btn mm-refresh-all" id="mm-refresh-all" title="re-probe every endpoint for new models" style="margin-left:auto;margin-right:0.4rem">refresh</button>
-      <button class="modal-close" id="model-modal-close">×</button>
+      <button class="modal-close" id="model-modal-close" style="margin-left:auto">×</button>
     </div>
 
     <!-- models tab -->
     <div class="mm-panel" id="mm-panel-models">
       <div class="modal-search">
         <input type="text" id="model-search-input" placeholder="search models...">
+        <button class="btn mm-refresh-all" id="mm-refresh-all" title="re-probe every endpoint for new models">refresh</button>
       </div>
       <div class="modal-body" id="model-list"></div>
     </div>
@@ -869,10 +888,6 @@
         <div class="s-nav-item" data-pane="personas">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
           personas
-        </div>
-        <div class="s-nav-item" data-pane="templates">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
-          templates
         </div>
         <div class="s-nav-item" data-pane="tools">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
@@ -1119,8 +1134,10 @@
               password
             </div>
             <div class="s-card-body">
+              <div class="s-toggle-row"><div><div class="s-toggle-label">require password</div><div class="s-toggle-desc">lock alles behind your password</div></div><div class="s-switch" id="s-auth-enable"></div></div>
               <div class="s-field"><label>current password</label><input type="password" class="settings-input" id="s-pw-old" placeholder="leave blank if none set" style="width:100%"></div>
               <div class="s-field"><label>new password</label><input type="password" class="settings-input" id="s-pw-new" placeholder="at least 4 characters" style="width:100%"></div>
+              <div class="s-field"><label>verify password <span style="color:var(--muted);font-weight:400">— enter it again</span></label><input type="password" class="settings-input" id="s-pw-new2" placeholder="re-enter new password" style="width:100%"></div>
               <button class="btn primary" id="s-pw-save" style="width:100%;margin-top:0.3rem">change password</button>
             </div>
           </div>
@@ -1164,9 +1181,7 @@
                 <div class="settings-input custom-select" id="s-ui-font-size" style="width:120px" data-value="md" data-options="sm|small;md|medium;lg|large"></div>
               </div>
               <div class="s-toggle-row"><div><div class="s-toggle-label">research mode</div><div class="s-toggle-desc">deep research button in composer</div></div><div class="s-switch s-vis-toggle" data-vis="#research-toggle-btn" data-vis-key="bar-research"></div></div>
-              <div class="s-toggle-row"><div><div class="s-toggle-label">shell</div><div class="s-toggle-desc">shell command shortcut in composer</div></div><div class="s-switch s-vis-toggle" data-vis="#shell-btn-tool" data-vis-key="bar-shell"></div></div>
               <div class="s-toggle-row"><div><div class="s-toggle-label">microphone</div><div class="s-toggle-desc">voice input button</div></div><div class="s-switch s-vis-toggle" data-vis="#mic-btn" data-vis-key="bar-mic"></div></div>
-              <div class="s-toggle-row"><div><div class="s-toggle-label">incognito</div><div class="s-toggle-desc">incognito mode button</div></div><div class="s-switch s-vis-toggle" data-vis="#incognito-btn" data-vis-key="bar-incognito"></div></div>
               <div class="s-toggle-row"><div><div class="s-toggle-label">agent / chat mode</div><div class="s-toggle-desc">mode switcher in composer</div></div><div class="s-switch s-vis-toggle" data-vis=".mode-toggle" data-vis-key="bar-mode"></div></div>
             </div>
           </div>
@@ -1200,6 +1215,10 @@
               <div class="s-field">
                 <label>provider</label>
                 <div class="settings-input custom-select" id="stt-select" style="width:100%" data-value="browser" data-options="browser|browser (Web Speech API, needs internet);local|local whisper (offline, needs faster-whisper);whisper_api|OpenAI Whisper API"></div>
+              </div>
+              <div class="s-field">
+                <label>microphone</label>
+                <div class="settings-input custom-select" id="s-mic-select" style="width:100%" data-options="|default microphone"></div>
               </div>
               <div class="s-field" id="s-stt-lang-row">
                 <label>language <span style="color:var(--muted);font-weight:400">(optional)</span></label>
@@ -1255,6 +1274,7 @@
               <div id="persona-form-title" class="s-form-title" hidden></div>
               <div class="s-field"><label>name</label><input type="text" class="settings-input" id="persona-name" placeholder="name" style="width:100%"></div>
               <div class="s-field"><label>system prompt</label><textarea class="settings-textarea" id="persona-prompt" rows="6" placeholder="You are..." style="width:100%;resize:vertical"></textarea></div>
+              <div class="s-field"><label>starter message <span style="color:var(--muted);font-weight:400">— prefilled into the composer when you pick this persona (optional)</span></label><textarea class="settings-textarea" id="persona-initial" rows="2" placeholder="e.g. Please review this code:" style="width:100%;resize:vertical"></textarea></div>
               <div class="s-field"><label>pinned model</label><select class="settings-input" id="persona-model" style="width:100%"><option value="">— use chat's model</option></select></div>
               <div class="s-field persona-temp-field">
                 <div class="persona-temp-head">
@@ -1264,7 +1284,7 @@
                     <div class="s-switch" id="persona-temp-pin" title="pin a temperature"></div>
                   </div>
                 </div>
-                <input type="range" id="persona-temp" class="alles-slider is-auto" min="0" max="2" step="0.05" value="0.7">
+                <div id="persona-temp" class="temp-bar is-auto" role="slider" aria-label="temperature" aria-valuemin="0" aria-valuemax="2" aria-valuenow="0.7" tabindex="0"></div>
                 <div class="persona-temp-foot"><span class="cold">precise · 0</span><span class="hot">creative · 2</span></div>
               </div>
               <div class="s-field">
@@ -1307,21 +1327,6 @@
         </div>
 
         <!-- ── templates pane ── -->
-        <div class="s-pane" id="s-pane-templates">
-          <div class="s-card">
-            <div class="s-card-head">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
-              session templates
-            </div>
-            <div class="s-card-body">
-              <div id="template-list" style="margin-bottom:0.75rem"></div>
-              <div class="s-field"><label>template name</label><input type="text" class="settings-input" id="tpl-name" placeholder="e.g. code review" style="width:100%"></div>
-              <div class="s-field"><label>system prompt <span style="color:var(--muted);font-weight:400">(optional)</span></label><textarea class="settings-textarea" id="tpl-system" rows="2" placeholder="You are..."></textarea></div>
-              <div class="s-field"><label>initial message <span style="color:var(--muted);font-weight:400">(optional)</span></label><input type="text" class="settings-input" id="tpl-message" placeholder="e.g. Please review this code:" style="width:100%"></div>
-              <button class="btn primary" id="tpl-add-btn" style="width:100%">save template</button>
-            </div>
-          </div>
-        </div>
 
         <!-- ── tools pane ── -->
         <div class="s-pane" id="s-pane-tools">
@@ -1438,6 +1443,7 @@
             <div class="s-card-body">
               <p style="font-size:0.75rem;color:var(--muted);margin-bottom:0.75rem">when this happens, do that. rules run in the background — everything is checked within ~30 seconds.</p>
               <div id="rules-list" style="margin-bottom:0.85rem"></div>
+              <div class="rule-presets" id="rule-presets"></div>
               <div class="rules-form">
                 <div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-bottom:0.4rem">
                   <div id="rule-trigger" class="settings-input custom-select" style="flex:1;min-width:170px"></div>
@@ -1449,6 +1455,7 @@
                 </div>
                 <div style="display:flex;gap:0.4rem">
                   <input type="text" id="rule-name" class="settings-input" placeholder="rule name (optional)" style="flex:1">
+                  <button class="btn" id="rule-cancel-btn" style="display:none">cancel</button>
                   <button class="btn primary" id="rule-add-btn">add rule</button>
                 </div>
               </div>

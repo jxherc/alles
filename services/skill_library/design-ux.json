@@ -1,0 +1,86 @@
+[
+  {
+    "name": "UI Critique",
+    "description": "audit a screen or component and call out what hurts usability",
+    "when_to_use": "when the user shares a design, screenshot, or built ui and asks if it's good",
+    "body": "1. squint at it first — note what your eye hits before reading anything.\n2. check the hierarchy: is the primary action the loudest thing? if not, say so.\n3. flag spacing/alignment/contrast issues with exact elements, not vibes.\n4. test the core task path in your head, name where it stalls.\n5. give 3-5 fixes ranked by impact, each tied to a specific element."
+  },
+  {
+    "name": "Microcopy",
+    "description": "write the tiny in-product text that drives action and tone",
+    "when_to_use": "when the user needs button labels, tooltips, errors, or empty-state lines",
+    "body": "1. ask what the user is trying to do at this exact moment.\n2. lead with the verb, cut the pleasantries (\"save\" not \"click here to save\").\n3. say what happens next or what went wrong, never blame the user.\n4. match length to the slot — buttons 1-3 words, errors one sentence.\n5. offer 2 variants per string so they can pick the tone."
+  },
+  {
+    "name": "User Flow",
+    "description": "map the step-by-step path a user takes to finish a task",
+    "when_to_use": "when the user wants to design or untangle a multi-step journey or funnel",
+    "body": "1. name the entry point and the single success state.\n2. list every screen/decision as a node, branch on yes/no choices.\n3. mark each step's user intent and the system response.\n4. hunt for dead ends, loops, and steps that could be merged or cut.\n5. output as an arrow chain (a -> b -> c) with branches called out inline."
+  },
+  {
+    "name": "Accessibility Pass",
+    "description": "check a design or markup against real a11y requirements",
+    "when_to_use": "when the user asks to make something accessible or wcag-compliant",
+    "body": "1. check colour contrast ratios against wcag AA (4.5:1 text, 3:1 large/ui).\n2. verify every interactive element has a name, role, and keyboard path.\n3. confirm focus order is logical and focus is visibly styled.\n4. check images for alt text and that meaning isn't carried by colour alone.\n5. list each failure with the element, the rule broken, and the fix."
+  },
+  {
+    "name": "Empty State",
+    "description": "design the screen shown when there's no data yet",
+    "when_to_use": "when a list, dashboard, or feature can render with zero content",
+    "body": "1. separate the three cases: first-use, user-cleared, and error/no-results.\n2. for first-use, explain the value in one line and show the primary action.\n3. for no-results, suggest a way to broaden or reset the query.\n4. keep illustration optional — the cta does the work, not the art.\n5. write the headline + one supporting line + one button for each case."
+  },
+  {
+    "name": "Wireframe Spec",
+    "description": "describe a layout precisely enough to build without a mockup",
+    "when_to_use": "when the user wants a low-fi structure for a screen before visual design",
+    "body": "1. name the screen, its purpose, and the one thing it must accomplish.\n2. list regions top-to-bottom (header, content, actions) with their contents.\n3. for each region give layout intent: stack/grid/columns and rough proportions.\n4. mark every interactive element and its state changes.\n5. note breakpoints — what reflows or hides on narrow screens."
+  },
+  {
+    "name": "Design Tokens",
+    "description": "extract a reusable system of colour, type, spacing, and radius values",
+    "when_to_use": "when the user wants a consistent foundation or to systematize ad-hoc styles",
+    "body": "1. pull a neutral ramp (5-9 steps) plus the minimum accent/signal colours.\n2. set a type scale with a fixed ratio and name each step by role.\n3. define a spacing scale on one base unit (4 or 8) so gaps stay rhythmic.\n4. fix radius, border, and shadow to 2-3 values each — resist one-offs.\n5. output as named tokens (css vars or json) ready to drop into code."
+  },
+  {
+    "name": "Form Design",
+    "description": "lay out and validate a form so people actually finish it",
+    "when_to_use": "when the user is building any input form, signup, or settings page",
+    "body": "1. cut every field you can't justify — each one drops completion.\n2. single column, labels above inputs, group related fields visually.\n3. validate inline on blur, show the error next to the field that caused it.\n4. match input type to data (email, tel, date) for the right keyboard.\n5. make the submit button state the outcome and disable it only with a reason shown."
+  },
+  {
+    "name": "Onboarding Flow",
+    "description": "design the first-run experience that gets users to value fast",
+    "when_to_use": "when the user wants to design signup, setup, or a new-user welcome",
+    "body": "1. define the single \"aha\" moment and make the whole flow point at it.\n2. defer every setup step that isn't required to reach that moment.\n3. prefer showing-by-doing over upfront tours or modal walls.\n4. let users skip, and persist progress so returns don't restart.\n5. spec each step: goal, what's shown, the action, and the skip path."
+  },
+  {
+    "name": "Responsive Plan",
+    "description": "decide how a layout adapts across screen sizes",
+    "when_to_use": "when the user needs a design to work on mobile, tablet, and desktop",
+    "body": "1. design the narrow layout first — it forces priority decisions.\n2. set breakpoints at content-break points, not at device widths.\n3. for each breakpoint state what reflows, stacks, hides, or reveals.\n4. keep touch targets >=44px and check thumb reach on the smallest screen.\n5. note which elements stay fixed (nav, ctas) vs scroll with content."
+  },
+  {
+    "name": "Visual Hierarchy",
+    "description": "order a screen so the eye lands on what matters first",
+    "when_to_use": "when a layout feels flat, busy, or the user can't find the main action",
+    "body": "1. pick the one element that must win attention; everything else supports it.\n2. build contrast with size, weight, and colour — not all three on everything.\n3. use whitespace to group and separate; crowding flattens hierarchy.\n4. limit to 2-3 type sizes and one accent so the loud thing stays loud.\n5. verify by squinting — if the priority order isn't obvious, dial up contrast."
+  },
+  {
+    "name": "Interaction States",
+    "description": "spec every state an interactive element can be in",
+    "when_to_use": "when building a button, input, toggle, or any clickable component",
+    "body": "1. enumerate the states: default, hover, focus, active, disabled, loading, error.\n2. for each, describe the visual change and what triggers it.\n3. make focus distinct from hover so keyboard users aren't lost.\n4. give disabled a reason (tooltip/helper) instead of a silent dead button.\n5. cover the data states too: empty, partial, full, and overflow."
+  },
+  {
+    "name": "Heuristic Eval",
+    "description": "score a product against nielsen's usability heuristics",
+    "when_to_use": "when the user wants a structured expert review of an existing interface",
+    "body": "1. walk the core tasks while noting issues against each heuristic.\n2. for every issue record: heuristic violated, location, and what the user feels.\n3. rate severity 0-4 (cosmetic to catastrophe) so fixes can be triaged.\n4. group duplicate issues so the list stays actionable, not noisy.\n5. deliver a ranked table plus the top 3 to fix first."
+  },
+  {
+    "name": "Notification Design",
+    "description": "decide what to notify, where, and how loud",
+    "when_to_use": "when the user is adding alerts, toasts, badges, or push messages",
+    "body": "1. classify each event by urgency and whether it needs action.\n2. pick the channel by urgency: inline < badge < toast < banner < push.\n3. write the copy to lead with what changed and the action if any.\n4. set dismissal and persistence — transient for info, sticky for decisions.\n5. add a way to mute or batch so frequency never becomes noise."
+  }
+]

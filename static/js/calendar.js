@@ -8,12 +8,18 @@ let _editing = null;
 let _editOcc = null;             // occurrence date when editing a recurring instance
 let _cursor = new Date();
 let _view = localStorage.getItem('cal-view') || 'month';
+let _viewBooted = false;          // has loadCalendar seeded the view once this session
+let _lastDefaultView = null;      // last cal_default_view we applied (detects a cog change)
 let _search = '';
 let _miniCursor = new Date();    // month shown in the mini-navigator
 let _navBound = false;
 let _prefill = null;             // {start,end} for a drag-created event
 
 const WD = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+let _weekStart = 0;   // 0 = sunday, 1 = monday (per-app setting)
+const _wdLabels = () => _weekStart ? [...WD.slice(1), WD[0]] : WD;
+// leading blanks before the 1st, honoring week-start
+const _lead = (y, m) => (new Date(y, m, 1).getDay() - _weekStart + 7) % 7;
 const HOUR_H = 44;
 const _pad = n => String(n).padStart(2, '0');
 const ymd = d => `${d.getFullYear()}-${_pad(d.getMonth() + 1)}-${_pad(d.getDate())}`;
@@ -39,10 +45,24 @@ const evHex = e => hexOf(evColorName(e));
 
 export async function loadCalendar() {
   _bindNav();
-  const [cals, evs] = await Promise.all([
+  const [cals, evs, s] = await Promise.all([
     fetch('/api/calendars').then(r => r.json()).catch(() => []),
     fetch('/api/calendar').then(r => r.json()).catch(() => []),
+    fetch('/api/settings').then(r => r.json()).catch(() => ({})),
   ]);
+  _weekStart = s.cal_week_start === 'mon' ? 1 : 0;
+  // default-view setting: seed the opening view on first mount (last-used in localStorage
+  // wins if present), then only re-apply when the setting itself actually changes (cog save).
+  // otherwise leave _view alone so navigating / editing doesn't yank you out of week/day.
+  const dv = (s.cal_default_view === 'month' || s.cal_default_view === 'week') ? s.cal_default_view : null;
+  if (!_viewBooted) {
+    _viewBooted = true;
+    if (!localStorage.getItem('cal-view') && dv) _view = dv;
+    _lastDefaultView = dv;
+    _syncViewBtns();
+  } else if (dv && dv !== _lastDefaultView) {
+    _lastDefaultView = dv; _view = dv; _syncViewBtns();
+  }
   _calendars = Array.isArray(cals) ? cals : [];
   _events = Array.isArray(evs) ? evs : [];
   renderSidebar();
@@ -114,12 +134,13 @@ function renderMini() {
   if (!el) return;
   const y = _miniCursor.getFullYear(), m = _miniCursor.getMonth();
   const today = new Date();
-  const startDay = new Date(y, m, 1).getDay();
+  const startDay = _lead(y, m);
   const dim = new Date(y, m + 1, 0).getDate();
+  const miniWd = _weekStart ? ['M', 'T', 'W', 'T', 'F', 'S', 'S'] : ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
   let html = `<div class="cal-mini-head"><button class="cal-mini-nav" data-d="-1">‹</button>
     <span>${_miniCursor.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</span>
     <button class="cal-mini-nav" data-d="1">›</button></div><div class="cal-mini-grid">`;
-  for (const w of ['S', 'M', 'T', 'W', 'T', 'F', 'S']) html += `<div class="cal-mini-wd">${w}</div>`;
+  for (const w of miniWd) html += `<div class="cal-mini-wd">${w}</div>`;
   for (let i = 0; i < startDay; i++) html += '<div></div>';
   for (let d = 1; d <= dim; d++) {
     const date = new Date(y, m, d);
@@ -273,7 +294,7 @@ function renderMonth() {
   const el = document.getElementById('calendar-list');
   if (!el) return;
   const year = _cursor.getFullYear(), month = _cursor.getMonth();
-  const startDay = new Date(year, month, 1).getDay();
+  const startDay = _lead(year, month);
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const today = new Date();
   const rangeStart = new Date(year, month, 1 - startDay);
@@ -288,7 +309,7 @@ function renderMonth() {
   while (cells.length % 7) cells.push(null);
 
   let html = '<div class="cal-grid">';
-  for (const w of WD) html += `<div class="cal-weekday">${w}</div>`;
+  for (const w of _wdLabels()) html += `<div class="cal-weekday">${w}</div>`;
   for (const cell of cells) {
     if (!cell) { html += '<div class="cal-cell empty"></div>'; continue; }
     const key = ymd(cell);
@@ -309,7 +330,7 @@ function renderMonth() {
   }));
 }
 
-function weekStart(d) { const s = new Date(d); s.setDate(s.getDate() - s.getDay()); s.setHours(0, 0, 0, 0); return s; }
+function weekStart(d) { const s = new Date(d); s.setDate(s.getDate() - ((s.getDay() - _weekStart + 7) % 7)); s.setHours(0, 0, 0, 0); return s; }
 
 function renderWeek(lbl) {
   const days = [];

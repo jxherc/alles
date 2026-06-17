@@ -5,7 +5,31 @@ servers speak it). returns raw PNG bytes; the caller drops them in the gallery.
 providers that don't do images just error clearly.
 """
 import base64
+import re
 import httpx
+
+# which model ids are image-generation models — used to split a provider's model
+# list into chat vs image so the gallery's model picker only shows the image ones.
+# broad on purpose ("all the possible ones"): covers the common families across
+# OpenAI, Google, and the OSS/local diffusion world. a custom id can still be typed.
+_IMAGE_RE = re.compile(
+    r"dall-?e|gpt-image|imagen|image-?gen|"
+    r"stable-?diffusion|sdxl|\bsd[-_ ]?(?:xl|3|3\.5|2|1\.5|turbo)\b|"
+    r"flux|playground-v|kandinsky|kolors|hunyuan-?(?:image|dit)|qwen-?image|"
+    r"recraft|ideogram|seedream|seededit|aura-?flow|pixart|cogview|janus|"
+    r"omnigen|\bsana\b|hidream|wuerstchen|midjourney|photon|"
+    r"grok.*image|titan-image|nova-canvas",
+    re.I,
+)
+
+
+def is_image_model(mid: str) -> bool:
+    return bool(_IMAGE_RE.search(mid or ""))
+
+
+def image_models(models) -> list[str]:
+    """the image-gen subset of a model-id list, order preserved."""
+    return [m for m in (models or []) if is_image_model(m)]
 
 
 def _b64_images(data: dict) -> list[bytes]:
@@ -44,7 +68,8 @@ async def generate(prompt: str, base_url: str, api_key: str, model: str = "",
             if item.get("url"):
                 try:
                     ir = await c.get(item["url"])
-                    out.append(ir.content)
+                    if ir.status_code < 400 and ir.content:   # don't pass an error page off as an image
+                        out.append(ir.content)
                 except Exception:
                     pass
         return out

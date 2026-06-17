@@ -1,0 +1,86 @@
+[
+  {
+    "name": "Prioritize List",
+    "description": "rank a messy list of tasks by what actually matters now",
+    "when_to_use": "when the user dumps a pile of todos and asks what to do first",
+    "body": "1. list every task as-is, no editing yet.\n2. score each on impact (1-3) and effort (1-3).\n3. flag anything with a hard deadline or that blocks others.\n4. sort: blockers first, then high-impact low-effort, then the rest.\n5. cut or defer anything scoring 1 on both axes.\n6. hand back the top 3 to start on right now."
+  },
+  {
+    "name": "Plan My Day",
+    "description": "turn today's tasks and meetings into a realistic hour-by-hour plan",
+    "when_to_use": "when the user asks to plan their day or says they feel scattered",
+    "body": "1. pull fixed events (meetings, calls) onto a timeline first.\n2. ask for or infer their 1-3 must-do outcomes for today.\n3. drop must-dos into the biggest open blocks, hardest task at peak energy.\n4. leave 20% of the day empty for overruns and the unexpected.\n5. add one short break after each deep block.\n6. write it as a clean schedule with start times."
+  },
+  {
+    "name": "Break Down Project",
+    "description": "split a big vague project into ordered concrete tasks",
+    "when_to_use": "when the user has a goal too big to start and asks how to tackle it",
+    "body": "1. restate the end goal in one sentence so done is obvious.\n2. work backwards: list the milestones between now and done.\n3. under each milestone, write tasks small enough to finish in one sitting.\n4. mark dependencies — what must happen before what.\n5. pick the single first task that unblocks the most.\n6. return the tree plus that first task highlighted."
+  },
+  {
+    "name": "Weekly Review",
+    "description": "run a structured look-back and look-ahead for the week",
+    "when_to_use": "when the user wants to review the week or reset for the next one",
+    "body": "1. gather what got done, what slipped, and what got abandoned.\n2. name the one thing that went well and the one that didn't.\n3. clear stale items — close, delegate, or consciously drop them.\n4. carry forward only what still matters into next week.\n5. set 1-3 priorities for the coming week.\n6. end with a single sentence of what to change in how you work."
+  },
+  {
+    "name": "Timebox Tasks",
+    "description": "assign each task a fixed time budget and a stop point",
+    "when_to_use": "when the user keeps overrunning or asks to timebox their work",
+    "body": "1. take the task list and estimate each in 15-minute units.\n2. cap any single box at 90 minutes — split bigger ones.\n3. assign a hard start and stop time to each box.\n4. add a 5-10 minute buffer between boxes.\n5. decide upfront what good enough looks like for each box.\n6. return the boxed schedule and the rule: stop when the box ends."
+  },
+  {
+    "name": "Unblock Myself",
+    "description": "diagnose why a task is stuck and find the smallest next move",
+    "when_to_use": "when the user is stuck, procrastinating, or says they can't start",
+    "body": "1. ask what exactly is blocking — unclear, waiting, scared, or bored.\n2. if unclear: define done in one sentence.\n3. if waiting: identify who to ping and draft the ask.\n4. if scared or bored: shrink the task until the first step takes 2 minutes.\n5. name that 2-minute step out loud.\n6. tell them to do only that step, nothing more."
+  },
+  {
+    "name": "Estimate Effort",
+    "description": "give a grounded time estimate for a task or set of tasks",
+    "when_to_use": "when the user asks how long something will take",
+    "body": "1. break the task into the actual steps to finish it.\n2. estimate each step at a realistic pace, not best case.\n3. add a buffer of 30-50% for the unknowns.\n4. flag the riskiest step that could blow the estimate.\n5. give a range (low-high), not a single false number.\n6. note one thing that would shrink the estimate."
+  },
+  {
+    "name": "Triage Inbox",
+    "description": "clear a backlog of messages or notifications fast",
+    "when_to_use": "when the user is buried in email, messages, or notifications",
+    "body": "1. sort everything into four buckets: do, delegate, defer, delete.\n2. delete and archive the obvious noise first.\n3. knock out anything that takes under 2 minutes immediately.\n4. turn deferred items into dated tasks, not unread flags.\n5. draft quick replies for the delegate pile.\n6. report inbox down to zero open decisions."
+  },
+  {
+    "name": "Set Goals",
+    "description": "turn a fuzzy intention into measurable goals with a deadline",
+    "when_to_use": "when the user wants to set goals or says they want to get better at something",
+    "body": "1. pin down the outcome they actually want, not the activity.\n2. make it measurable — a number or a yes/no you can check.\n3. set a real deadline and a midpoint check-in.\n4. list the 2-3 habits or tasks that drive the number.\n5. name the first action to take this week.\n6. write each goal as one testable sentence."
+  },
+  {
+    "name": "Daily Standup",
+    "description": "produce a tight did/doing/blocked update",
+    "when_to_use": "when the user needs a standup update or status check-in",
+    "body": "1. list what got done since the last update, results not activity.\n2. list what's planned next, in priority order.\n3. name any blockers and who can clear them.\n4. cut anything nobody needs to hear.\n5. keep it under 5 bullets total.\n6. flag one thing that needs a decision, if any."
+  },
+  {
+    "name": "Decide Fast",
+    "description": "force a clear decision when the user is stuck choosing",
+    "when_to_use": "when the user is dithering between options and needs to pick",
+    "body": "1. state the decision and the real deadline to make it.\n2. list the genuine options — usually 2-3, kill the fake ones.\n3. name the one criterion that matters most here.\n4. score each option only against that criterion.\n5. check: is this reversible? if yes, decide now and move.\n6. give a clear recommendation and the trigger to revisit it."
+  },
+  {
+    "name": "Batch Similar",
+    "description": "group scattered tasks by context to cut switching cost",
+    "when_to_use": "when the user has many small tasks of different kinds",
+    "body": "1. tag each task by context — calls, errands, writing, admin, deep work.\n2. group all tasks sharing a context into one batch.\n3. order batches by energy: deep work when fresh, admin when tired.\n4. assign each batch a single time block.\n5. silence other contexts during a batch — no switching.\n6. return the batched plan with block times."
+  },
+  {
+    "name": "Recover Plan",
+    "description": "rebuild a workable plan after a day or week went off the rails",
+    "when_to_use": "when the user fell behind and the original plan is now useless",
+    "body": "1. stop and accept the old plan is dead — don't relitigate it.\n2. list what's truly still due and strip the rest.\n3. find the one thing that, if done, salvages the day.\n4. clear the calendar of anything skippable to make room.\n5. rebuild a short plan for the time actually left.\n6. set the lowest bar that still counts as a win today."
+  },
+  {
+    "name": "Define Done",
+    "description": "write a clear finish line so a vague task becomes actionable",
+    "when_to_use": "when a task is fuzzy and the user can't tell when it's complete",
+    "body": "1. ask what specifically will be true when this is finished.\n2. turn that into a checkable condition, not a feeling.\n3. strip scope creep — name what is explicitly out of bounds.\n4. set the quality bar: rough draft, shippable, or polished.\n5. list the artifacts that prove it's done.\n6. restate the task as one sentence ending in a clear done test."
+  }
+]

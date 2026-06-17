@@ -49,6 +49,12 @@ _defaults = {
     # (check mail, add to calendar, remind me, what's on my schedule…) it acts on it
     # instead of just talking about it. auto-promoted runs gate mutations behind approval.
     "agent_auto_intents": True,
+    # per-app settings
+    "cal_default_view": "month",
+    "cal_week_start": "sun",
+    "system_refresh": 1500,
+    "mail_poll_seconds": 30,
+    "mail_signature": "",
 }
 
 _ARTIFACT_INSTRUCTIONS = (
@@ -90,7 +96,13 @@ def get_secret_key() -> str:
     return os.getenv("SECRET_KEY", "dev-secret-change-me")
 
 def auth_enabled() -> bool:
-    return os.getenv("AUTH_ENABLED", "false").lower() in ("true", "1", "yes")
+    # an explicit AUTH_ENABLED env wins (on OR off) so a .env / tests stay authoritative.
+    # if it's not set at all, the in-app toggle (settings.json) decides — that's what lets
+    # you turn the password lock on/off from the UI without touching any file.
+    env = os.getenv("AUTH_ENABLED")
+    if env not in (None, ""):
+        return env.lower() in ("true", "1", "yes")
+    return bool(load_settings().get("auth_enabled"))
 
 def get_port() -> int:
     return int(os.getenv("PORT", "8000"))

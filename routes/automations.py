@@ -70,7 +70,9 @@ def create_rule(body: RuleBody, db: DbSession = Depends(get_db)):
 
 class RulePatch(BaseModel):
     name: str | None = None
+    trigger: str | None = None
     trigger_arg: str | None = None
+    action: str | None = None
     action_arg: str | None = None
     enabled: bool | None = None
 
@@ -80,7 +82,11 @@ def patch_rule(rid: str, body: RulePatch, db: DbSession = Depends(get_db)):
     r = db.get(AutomationRule, rid)
     if not r:
         raise HTTPException(404)
-    for f in ("name", "trigger_arg", "action_arg", "enabled"):
+    if body.trigger is not None and body.trigger not in TRIGGERS:
+        raise HTTPException(400, "unknown trigger")
+    if body.action is not None and body.action not in ACTIONS:
+        raise HTTPException(400, "unknown action")
+    for f in ("name", "trigger", "trigger_arg", "action", "action_arg", "enabled"):
         v = getattr(body, f)
         if v is not None:
             setattr(r, f, v)

@@ -1,0 +1,86 @@
+[
+  {
+    "name": "Commit Message",
+    "description": "write a clear conventional commit from a staged diff",
+    "when_to_use": "when the user asks to commit changes or write a commit message",
+    "body": "1. run `git diff --staged` and read what actually changed.\n2. pick the type (feat/fix/refactor/docs/chore/test) and a scope from the touched area.\n3. write a <=50 char subject in imperative mood, no trailing period.\n4. add a body only if the why isn't obvious — explain intent, not the diff.\n5. commit; do not push unless asked."
+  },
+  {
+    "name": "Resolve Conflict",
+    "description": "work through a merge or rebase conflict safely",
+    "when_to_use": "when the user hits merge conflicts during merge, rebase, or cherry-pick",
+    "body": "1. run `git status` to list conflicted files and the operation in progress.\n2. open each file, read both sides — keep intent from both, not just one branch.\n3. delete the `<<<<<<< ======= >>>>>>>` markers, leave valid code.\n4. build/test the merged result before continuing.\n5. `git add` resolved files, then continue the op (`--continue`), never blind-`--theirs`.\n6. if it's a mess, `git merge --abort` and rethink the approach."
+  },
+  {
+    "name": "Write Dockerfile",
+    "description": "author a lean reproducible Dockerfile for a service",
+    "when_to_use": "when the user wants to containerize an app or write a Dockerfile",
+    "body": "1. pick a pinned slim base image matching the runtime (e.g. node:20-slim, python:3.12-slim).\n2. use a multi-stage build: deps/build stage, then copy only artifacts into a small runtime stage.\n3. copy lockfile first and install deps before app code so layer cache survives code edits.\n4. run as a non-root user, set WORKDIR, expose the port, define a HEALTHCHECK.\n5. add a .dockerignore (node_modules, .git, secrets) so context stays small.\n6. prefer exec-form CMD/ENTRYPOINT so signals reach the process."
+  },
+  {
+    "name": "Set Up CI",
+    "description": "scaffold a CI pipeline that lints, tests, and builds on push",
+    "when_to_use": "when the user wants continuous integration or a github actions workflow",
+    "body": "1. detect the stack and existing scripts (package.json, Makefile, pyproject).\n2. create a workflow triggered on push + pull_request to the main branch.\n3. add steps: checkout, setup-runtime with dependency cache, install, lint, test.\n4. matrix only over versions that actually matter; fail fast off for full signal.\n5. cache the package manager dir keyed on the lockfile hash.\n6. keep secrets in repo/org secrets, never inline; gate deploy jobs behind CI passing."
+  },
+  {
+    "name": "Read Stacktrace",
+    "description": "trace an exception back to the real root cause",
+    "when_to_use": "when the user pastes a stack trace or error and wants it diagnosed",
+    "body": "1. read the bottom exception type + message first — that's the actual failure.\n2. for chained traces, find the deepest `caused by` / `during handling`.\n3. walk frames top-down to the first one in the user's own code, not the library.\n4. open that file:line and inspect the variables/null/typing at fault.\n5. reproduce minimally, then propose the fix at the root, not a swallow."
+  },
+  {
+    "name": "Incident Postmortem",
+    "description": "write a blameless postmortem after an outage",
+    "when_to_use": "when the user wants to document an incident or postmortem",
+    "body": "1. state impact up top: what broke, who/how many hit, duration, severity.\n2. build a UTC timeline — detection, escalation, mitigation, resolution.\n3. separate trigger, root cause, and contributing factors; stay blameless.\n4. note what went well and what slowed recovery honestly.\n5. list action items with owners + due dates, each tied to a real gap.\n6. add detection/alerting follow-ups so it's caught faster next time."
+  },
+  {
+    "name": "Roll Back",
+    "description": "revert a bad deploy or commit cleanly under pressure",
+    "when_to_use": "when a deploy or commit broke production and the user needs to undo it",
+    "body": "1. confirm what's live and what the last-known-good version/sha was.\n2. prefer redeploying the good artifact or `git revert` over force-pushing history.\n3. if a shared branch, never reset --hard; use revert so the undo is itself a commit.\n4. roll forward db migrations carefully — many aren't reversible, check before reverting.\n5. verify health/metrics recover after rollback.\n6. capture the bad sha for the postmortem before moving on."
+  },
+  {
+    "name": "Debug Container",
+    "description": "diagnose why a container crashes, restarts, or won't start",
+    "when_to_use": "when a docker or k8s container is crashlooping or exiting unexpectedly",
+    "body": "1. `docker ps -a` / `kubectl get pods` — read status and exit code (137=OOM, 1=app err).\n2. pull logs (`docker logs`, `kubectl logs --previous`) for the crashed instance.\n3. for OOM, check memory limits vs actual usage; bump or fix the leak.\n4. for config issues, exec a shell in or override entrypoint with sh to inspect env/files.\n5. check the CMD actually exists and is exec-form; verify mounts and ports.\n6. fix root cause, rebuild, and watch it stay up before declaring done."
+  },
+  {
+    "name": "Branch Cleanup",
+    "description": "prune stale local and remote branches without losing work",
+    "when_to_use": "when the user wants to clean up old or merged git branches",
+    "body": "1. `git fetch --prune` to drop refs deleted on the remote.\n2. `git branch --merged main` to find branches safely folded in.\n3. eyeball the list — never delete current, main, or in-flight work.\n4. delete merged locals with `git branch -d` (lowercase, refuses unmerged).\n5. for confirmed-dead remotes, `git push origin --delete <branch>`.\n6. leave anything ambiguous alone and flag it for the owner."
+  },
+  {
+    "name": "Tag Release",
+    "description": "cut a versioned release with a tag and changelog",
+    "when_to_use": "when the user wants to publish a release or bump a version",
+    "body": "1. decide the semver bump from the changes (breaking=major, feature=minor, fix=patch).\n2. update the version in the manifest and the CHANGELOG with grouped notes.\n3. commit that, then `git tag -a vX.Y.Z -m` an annotated tag, never lightweight.\n4. push commit and tag (`git push --follow-tags`).\n5. let CI build from the tag; attach artifacts to the release page.\n6. announce the highlights, not the raw commit log."
+  },
+  {
+    "name": "Bisect Bug",
+    "description": "binary-search git history to find the commit that broke something",
+    "when_to_use": "when a regression appeared and the user doesn't know which commit caused it",
+    "body": "1. nail a reliable repro and a known-good old commit.\n2. `git bisect start`, mark `bad` (now) and `good` <old-sha>.\n3. at each checkout, run the repro and mark `good`/`bad` honestly.\n4. automate with `git bisect run <test-script>` when the check is scriptable.\n5. read the diff of the offending commit bisect names.\n6. `git bisect reset` to restore HEAD, then fix the root cause."
+  },
+  {
+    "name": "Secrets Hygiene",
+    "description": "remove a leaked secret and stop it recurring",
+    "when_to_use": "when a credential, key, or token got committed or exposed",
+    "body": "1. rotate/revoke the secret first — assume it's already compromised.\n2. remove it from history (git-filter-repo or BFG), not just the latest commit.\n3. force-push the cleaned history and have collaborators re-clone.\n4. move the value into env vars or a secrets manager, reference not inline.\n5. add the path to .gitignore and a pre-commit secret scanner (gitleaks).\n6. audit logs for any use during the exposure window."
+  },
+  {
+    "name": "Healthcheck Probe",
+    "description": "design liveness/readiness checks that fail for the right reasons",
+    "when_to_use": "when the user needs health endpoints or k8s liveness/readiness probes",
+    "body": "1. split readiness (can serve traffic now) from liveness (process is wedged).\n2. readiness should check real deps — db, cache — so traffic waits for them.\n3. keep liveness cheap and dependency-free so a slow db doesn't kill pods.\n4. set timeouts/thresholds above normal p99 to avoid flapping restarts.\n5. return proper status codes + a tiny body; no heavy work per probe.\n6. test by killing a dep and confirming only readiness drops."
+  },
+  {
+    "name": "Tail Logs",
+    "description": "find the signal in production logs during an active issue",
+    "when_to_use": "when the user is investigating a live problem and needs to read logs",
+    "body": "1. fix the time window to around the incident, in UTC.\n2. filter by request id / trace id / user to follow one failing path end to end.\n3. grep error+warn first, then widen to surrounding context lines.\n4. correlate across services on the shared trace id, not guesswork.\n5. note the first anomalous line — earlier than the loud errors usually.\n6. capture the smoking-gun lines for the ticket before logs rotate out."
+  }
+]

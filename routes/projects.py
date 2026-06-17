@@ -62,6 +62,22 @@ def patch_project(pid: str, body: PatchProject, db: DbSession = Depends(get_db))
     return _fmt(p)
 
 
+@router.get("/projects/{pid}/files")
+def project_files(pid: str, db: DbSession = Depends(get_db)):
+    """the files under the project's working dir — the 'sources' for its workspace page."""
+    p = db.get(Project, pid)
+    if not p: raise HTTPException(404)
+    wd = (p.working_dir or "").strip()
+    if not wd:
+        return {"files": [], "working_dir": ""}
+    from services.agent_tools import workspace_files
+    try:
+        files = workspace_files(wd, "", 200)
+    except Exception:
+        files = []
+    return {"files": files, "working_dir": wd}
+
+
 @router.delete("/projects/{pid}")
 def delete_project(pid: str, db: DbSession = Depends(get_db)):
     p = db.get(Project, pid)

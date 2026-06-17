@@ -1,0 +1,86 @@
+[
+  {
+    "name": "Web Research",
+    "description": "run a focused multi-source web search and synthesize an answer",
+    "when_to_use": "when the user asks a question that needs current or external info you don't already hold",
+    "body": "1. restate the question as 2-3 specific search queries, not one vague one.\n2. fetch the top hits per query, skim for relevance before reading deep.\n3. cross-check the claim across at least 3 independent sources.\n4. note where sources agree vs conflict, flag the conflicts.\n5. write the answer with inline source links, separate fact from inference.\n6. end with a confidence line: high / medium / low and why."
+  },
+  {
+    "name": "Compare Options",
+    "description": "build a side-by-side comparison of competing choices on shared criteria",
+    "when_to_use": "when the user asks which of several products, tools, or approaches to pick",
+    "body": "1. confirm the user's actual constraints first: budget, use-case, must-haves.\n2. derive 4-6 comparison criteria that map to those constraints.\n3. fill a table: rows = options, columns = criteria, cells = concrete values not adjectives.\n4. mark the winner per criterion so tradeoffs are visible.\n5. give a single recommendation tied to their top constraint.\n6. add one line on who should pick the runner-up instead."
+  },
+  {
+    "name": "Fact Check",
+    "description": "verify or debunk a specific factual claim against primary sources",
+    "when_to_use": "when the user asks 'is it true that…' or shares a claim to validate",
+    "body": "1. isolate the exact checkable assertion, strip the framing.\n2. find the primary source or original data, not a retelling.\n3. check whether the claim matches the source's numbers, dates, and scope.\n4. watch for stale data, cherry-picked stats, and missing context.\n5. rule it true / false / misleading / unverifiable with the deciding evidence.\n6. cite the source and note when it was last updated."
+  },
+  {
+    "name": "Evaluate Source",
+    "description": "assess whether a given source is credible and worth citing",
+    "when_to_use": "when the user shares a link or asks if a source can be trusted",
+    "body": "1. identify the author and publisher, check their expertise and incentives.\n2. check the date and whether the field has moved since.\n3. look for primary evidence vs unsupported assertion.\n4. scan for funding, ads, or bias that could skew the framing.\n5. cross-check one key claim against an independent source.\n6. verdict: trustworthy / use with caution / avoid, plus the main reason."
+  },
+  {
+    "name": "Literature Scan",
+    "description": "map the current state of research on a topic across multiple papers",
+    "when_to_use": "when the user wants an overview of what's known or published in a field",
+    "body": "1. define the scope and time window before searching.\n2. pull 8-12 key works, prefer reviews and highly-cited anchors.\n3. group them by theme or stance, not chronologically.\n4. note the consensus, the open debates, and the gaps.\n5. flag any seminal paper everyone cites.\n6. close with where the field is heading and what's unsettled."
+  },
+  {
+    "name": "Summarize Paper",
+    "description": "distill an academic paper into its core contribution and findings",
+    "when_to_use": "when the user shares a paper or asks what a study actually found",
+    "body": "1. read abstract, then jump to results and conclusion before methods.\n2. state the research question and the single main claim in plain words.\n3. pull the key result with its actual numbers and effect size.\n4. note the method and sample so the reader can judge weight.\n5. list the stated limitations honestly.\n6. one-line takeaway: what this changes if true."
+  },
+  {
+    "name": "Cross Verify",
+    "description": "triangulate a fact across independent sources to confirm it",
+    "when_to_use": "when a claim matters enough that one source isn't enough",
+    "body": "1. find the claim's earliest or primary origin first.\n2. locate 2+ sources that are genuinely independent, not reposts of each other.\n3. check that they agree on specifics, not just the gist.\n4. trace any single-source claim back to who first said it.\n5. if all roads lead to one origin, label it single-sourced.\n6. report agreement level and the strongest piece of evidence."
+  },
+  {
+    "name": "Detect Bias",
+    "description": "surface slant, framing, and selective evidence in a piece of content",
+    "when_to_use": "when the user wants to know if an article or argument is biased",
+    "body": "1. identify what the piece is trying to get you to believe or do.\n2. separate factual claims from loaded language and framing.\n3. check what's omitted: missing counterpoints, inconvenient data.\n4. look at source selection — are only one side's experts quoted.\n5. name the likely angle and who benefits from it.\n6. note what you'd need to read to get the other side."
+  },
+  {
+    "name": "Trace Origin",
+    "description": "track a claim, quote, or statistic back to its original source",
+    "when_to_use": "when the user wants to know where a viral fact or quote actually came from",
+    "body": "1. search the exact phrasing in quotes to find earliest uses.\n2. follow the citation chain backward, source to source.\n3. find the original document, study, or recording — not the summary.\n4. check if the claim was distorted or stripped of context along the way.\n5. report the true origin and the original wording.\n6. flag if it's misattributed, fabricated, or taken out of context."
+  },
+  {
+    "name": "Pros Cons",
+    "description": "lay out the honest upside and downside of a single decision",
+    "when_to_use": "when the user is weighing whether to do one specific thing",
+    "body": "1. clarify the exact decision and the alternative of doing nothing.\n2. list real pros with their magnitude, not generic positives.\n3. list real cons including the ones easy to ignore.\n4. weight each by likelihood and impact, don't treat them as equal.\n5. surface any dealbreaker that overrides the rest.\n6. give a lean: do it / don't / depends on X."
+  },
+  {
+    "name": "Spot Check",
+    "description": "quickly sanity-test a number or stat for plausibility before trusting it",
+    "when_to_use": "when a figure looks off or the user wants a fast reality check",
+    "body": "1. restate the number and its units precisely.\n2. estimate the right order of magnitude from first principles.\n3. compare against a known reference point you trust.\n4. check the denominator and timeframe — per what, over what.\n5. flag if it's off by 10x or the units don't add up.\n6. say plausible / suspicious and the rough true range."
+  },
+  {
+    "name": "Survey Opinion",
+    "description": "gather the range of expert and community views on a contested topic",
+    "when_to_use": "when the user asks what people or experts think about a debated subject",
+    "body": "1. identify the main camps before collecting quotes.\n2. find a credible representative for each position.\n3. capture each view in its own strongest form, no strawmen.\n4. note where the disagreement is factual vs values-based.\n5. show rough weight — is one view fringe or mainstream.\n6. end without forcing a false balance; say if one side has the evidence."
+  },
+  {
+    "name": "Build Timeline",
+    "description": "reconstruct the chronological sequence of events from scattered sources",
+    "when_to_use": "when the user wants to understand how an event or story unfolded over time",
+    "body": "1. pin the start and end of the window you care about.\n2. collect dated events, each tied to a source.\n3. order them strictly by date, resolve conflicting dates.\n4. mark turning points and cause-effect links between events.\n5. flag any gaps where the record is thin.\n6. close with the through-line: what the sequence reveals."
+  },
+  {
+    "name": "Define Term",
+    "description": "give a precise, sourced definition and disambiguate competing meanings",
+    "when_to_use": "when the user asks what a term means or when a word is being used ambiguously",
+    "body": "1. find the authoritative or field-standard definition first.\n2. state it plainly, then the technical version if they differ.\n3. note competing or domain-specific meanings to avoid confusion.\n4. give one concrete example and one near-miss it's often confused with.\n5. cite where the definition comes from.\n6. one line on which sense applies to the user's context."
+  }
+]

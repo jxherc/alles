@@ -16,6 +16,9 @@ def files_dir() -> Path:
     s = load_settings()
     d = s.get("files_dir") or str(ROOT / "data" / "files")
     p = Path(d).expanduser()
+    if not p.is_absolute():
+        p = ROOT / p          # relative dirs anchor to the app root, not cwd
+    p = p.resolve()           # must be absolute — _safe() compares against resolved children
     p.mkdir(parents=True, exist_ok=True)
     return p
 

@@ -52,3 +52,38 @@ class AuthApiTest(ApiTest):
         self.assertEqual(self.client.get("/api/auth/me").json().get("username"), "")
         self.client.patch("/api/settings", json={"username": "jxh"})
         self.assertEqual(self.client.get("/api/auth/me").json().get("username"), "jxh")
+
+    def test_auth_enabled_env_wins_else_settings(self):
+        saved = os.environ.pop("AUTH_ENABLED", None)
+        try:
+            cs.save_settings({"auth_enabled": True})
+            self.assertTrue(cs.auth_enabled())            # env unset → settings decides
+            cs.save_settings({"auth_enabled": False})
+            self.assertFalse(cs.auth_enabled())
+            os.environ["AUTH_ENABLED"] = "true"           # explicit env wins over settings
+            self.assertTrue(cs.auth_enabled())
+            os.environ["AUTH_ENABLED"] = "false"
+            cs.save_settings({"auth_enabled": True})
+            self.assertFalse(cs.auth_enabled())
+        finally:
+            os.environ.pop("AUTH_ENABLED", None)
+            if saved is not None:
+                os.environ["AUTH_ENABLED"] = saved
+
+    def test_auth_config_enable_needs_password_then_works(self):
+        # nothing set yet → can't enable
+        self.assertEqual(self.client.post("/api/auth/config", json={"enabled": True}).status_code, 400)
+        # supply a password inline → enables
+        r = self.client.post("/api/auth/config", json={"enabled": True, "password": "secret1"})
+        self.assertEqual(r.status_code, 200)
+        self.assertTrue(r.json()["enabled"])
+
+    def test_auth_config_disable_requires_current_password(self):
+        from core import auth as cauth
+        cauth._login_fails.clear()
+        self.client.post("/api/auth/config", json={"enabled": True, "password": "secret1"})
+        self.assertEqual(self.client.post("/api/auth/config", json={"enabled": False, "password": "nope"}).status_code, 401)
+        r = self.client.post("/api/auth/config", json={"enabled": False, "password": "secret1"})
+        self.assertEqual(r.status_code, 200)
+        self.assertFalse(r.json()["enabled"])
+        cauth._login_fails.clear()

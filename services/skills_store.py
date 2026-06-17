@@ -95,6 +95,18 @@ def upsert_skill(name, description="", when_to_use="", body="", slug=None) -> di
     return {"slug": s, "ok": True}
 
 
+def upsert_from_md(text: str, fallback_name: str = None) -> dict:
+    """take a raw SKILL.md (frontmatter + body) and store it. used by upload + github
+    import. the frontmatter name wins; fallback_name (e.g. the source folder) covers
+    files that skipped it."""
+    parsed = _parse(text or "")
+    m = parsed["meta"]
+    name = (m.get("name") or fallback_name or "").strip()
+    if not name:
+        raise ValueError("skill has no name (add a frontmatter 'name:' line)")
+    return upsert_skill(name, m.get("description", ""), m.get("when_to_use", ""), parsed["body"])
+
+
 def delete_skill(slug: str) -> bool:
     p = _path(slug)
     if not p.exists():

@@ -79,6 +79,47 @@ def _net_rates(ps) -> dict:
             "sent_total": io.bytes_sent, "recv_total": io.bytes_recv}
 
 
+def _primary_ip():
+    """the source ip of the default route — picks the REAL outbound nic, not a
+    virtual hyper-v/docker/vmware adapter that might enumerate first. no packets sent."""
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
+    except Exception:
+        return None
+
+
+_VIRT = ("veth", "vethernet", "loopback", "vmware", "virtualbox", "docker", "wsl", "hyper-v")
+
+
+def _net_iface(ps) -> dict:
+    """the primary interface + its ipv4 — for the net panel header."""
+    try:
+        stats = ps.net_if_stats()
+        addrs = ps.net_if_addrs()
+    except Exception:
+        return {}
+    spd_of = lambda n: getattr(stats.get(n), "speed", 0) or 0
+    # 1. match the default-route ip to whichever interface owns it (the real one)
+    primary = _primary_ip()
+    if primary:
+        for name, al in addrs.items():
+            if any(getattr(a, "family", None) == socket.AF_INET and a.address == primary for a in al):
+                return {"iface": name[:18], "ip": primary, "link_mbps": spd_of(name)}
+    # 2. fallback: first up, non-loopback, non-virtual interface with an ipv4
+    for name, st in stats.items():
+        low = name.lower()
+        if not st.isup or low.startswith("lo") or any(v in low for v in _VIRT):
+            continue
+        for a in addrs.get(name, []):
+            if getattr(a, "family", None) == socket.AF_INET and not a.address.startswith("127."):
+                return {"iface": name[:18], "ip": a.address, "link_mbps": spd_of(name)}
+    return {}
+
+
 def _disk_io_rates(ps) -> dict:
     global _dio_last
     try:
@@ -205,6 +246,7 @@ def snapshot() -> dict:
         vm = ps.virtual_memory()
         out["memory"] = {"total_gb": _gb(vm.total), "used_gb": _gb(vm.total - vm.available),
                          "available_gb": _gb(vm.available), "percent": round(vm.percent, 1),
+                         "free_gb": _gb(getattr(vm, "free", 0) or 0),
                          "cached_gb": _gb(getattr(vm, "cached", 0) or getattr(vm, "buffers", 0) or 0)}
         try:
             sw = ps.swap_memory()
@@ -212,7 +254,7 @@ def snapshot() -> dict:
                            "percent": round(sw.percent, 1)}
         except Exception:
             pass
-        out["net"] = _net_rates(ps)
+        out["net"] = {**_net_rates(ps), **_net_iface(ps)}
         out["disk_io"] = _disk_io_rates(ps)
         out["temp_c"] = _temps(ps)
         try:
@@ -227,7 +269,8 @@ def snapshot() -> dict:
             if not u.total:
                 continue
             out["disks"].append({"mount": p.mountpoint, "total_gb": _gb(u.total),
-                                 "used_gb": _gb(u.used), "percent": round(u.percent, 1)})
+                                 "used_gb": _gb(u.used), "free_gb": _gb(u.free),
+                                 "percent": round(u.percent, 1), "fstype": (p.fstype or "")[:8]})
         try:
             out["uptime_sec"] = int(time.time() - ps.boot_time())
         except Exception:

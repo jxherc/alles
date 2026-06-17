@@ -21,12 +21,16 @@ export async function startRecording() {
   const s = await fetch('/api/settings').then(r => r.json()).catch(() => ({}));
   const provider = s.stt_provider || 'browser';
 
+  const micId = localStorage.getItem('alles-mic-id') || '';
+  const audio = { echoCancellation: true, noiseSuppression: true, autoGainControl: true };
+  if (micId) audio.deviceId = { exact: micId };
   let stream;
   try {
-    stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    stream = await navigator.mediaDevices.getUserMedia({ audio });
   } catch {
-    toast('mic access denied', 'error');
-    return;
+    // the saved device may be gone — fall back to the default mic before giving up
+    try { stream = await navigator.mediaDevices.getUserMedia({ audio: true }); }
+    catch { toast('mic access denied', 'error'); return; }
   }
   _stream = stream;
   _recording = true;
@@ -119,73 +123,75 @@ function _setMicRecording(on) {
   if (!on) _stopLiveWave();
 }
 
+// the mic's current loudness, 0..1 (RMS off the analyser). null → not live.
+function _micAmp() {
+  if (!_analyser) return null;
+  const td = new Uint8Array(_analyser.fftSize);
+  _analyser.getByteTimeDomainData(td);
+  let sum = 0;
+  for (let i = 0; i < td.length; i++) { const v = (td[i] - 128) / 128; sum += v * v; }
+  return Math.min(1, Math.sqrt(sum / td.length) * 9);
+}
+
+// dotted waveform — a field of equal dots, columns scrolling left, each column's
+// height = loudness. apple-voice-memos vibe but made of dots. getAmp()→0..1 (null stops).
+function _runDotWave(canvas, getAmp) {
+  if (!canvas) return;
+  canvas.width  = canvas.offsetWidth  || 360;
+  canvas.height = canvas.offsetHeight || 40;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height, cy = H / 2;
+  // small + tight = a finer, more accurate trace (not a chunky purple blob)
+  const colGap = 4, dotR = 1.1, rowGap = 3.4;
+  const cols = Math.max(8, Math.floor(W / colGap));
+  const maxRows = Math.max(2, Math.floor((cy - dotR) / rowGap));
+  const hist = new Array(cols).fill(0);
+  const left = (W - cols * colGap) / 2 + colGap / 2;
+  const color = '#f87171';   // voice waveform = red
+  let smooth = 0;
+
+  const dot = (x, y, a) => { ctx.globalAlpha = a; ctx.beginPath(); ctx.arc(x, y, dotR, 0, 7); ctx.fill(); };
+
+  const tick = () => {
+    const a = getAmp();
+    if (a == null) { _stopDotWave(); ctx.clearRect(0, 0, W, H); return; }
+    _waveRaf = requestAnimationFrame(tick);
+    smooth += (a - smooth) * 0.35;
+    hist.push(Math.min(1, smooth)); hist.shift();
+    ctx.clearRect(0, 0, W, H);
+    ctx.fillStyle = color;
+    for (let i = 0; i < cols; i++) {
+      const x = left + i * colGap;
+      const lit = Math.round(hist[i] * maxRows);
+      dot(x, cy, 0.22);                              // faint baseline dot
+      for (let r = 1; r <= lit; r++) {
+        const al = 1 - (r / maxRows) * 0.55;
+        dot(x, cy - r * rowGap, al);
+        dot(x, cy + r * rowGap, al);
+      }
+    }
+    ctx.globalAlpha = 1;
+  };
+  tick();
+}
+
+function _stopDotWave() {
+  if (_waveRaf) cancelAnimationFrame(_waveRaf);
+  _waveRaf = 0;
+}
+
 function _startLiveWave(stream) {
   try {
-    const canvas = document.getElementById('mic-wave');
-    if (!canvas) return;
-
     _audioCtx = new AudioContext();
     _analyser = _audioCtx.createAnalyser();
     _analyser.fftSize = 1024;
     _audioCtx.createMediaStreamSource(stream).connect(_analyser);
-    const td = new Uint8Array(_analyser.fftSize);
-
-    // size canvas to its CSS size
-    canvas.width  = canvas.offsetWidth  || 400;
-    canvas.height = canvas.offsetHeight || 52;
-    const ctx = canvas.getContext('2d');
-    const W = canvas.width, H = canvas.height, cy = H / 2;
-
-    let phase = 0;
-    let smoothAmp = 0;
-
-    // wave layers: [frequency-multiplier, phase-offset, opacity, line-width]
-    const layers = [
-      [1.4, 0,   1.0, 1.5],
-      [2.3, 1.7, 0.45, 1.0],
-      [0.9, 3.2, 0.25, 1.0],
-    ];
-
-    const tick = () => {
-      if (!_recording || !_analyser) return;
-      _waveRaf = requestAnimationFrame(tick);
-
-      _analyser.getByteTimeDomainData(td);
-
-      // RMS → smooth amplitude
-      let sum = 0;
-      for (let i = 0; i < td.length; i++) { const v = (td[i] - 128) / 128; sum += v * v; }
-      const rms = Math.sqrt(sum / td.length);
-      smoothAmp += (Math.min(1, rms * 10) - smoothAmp) * 0.18;
-
-      phase += 0.055;
-      ctx.clearRect(0, 0, W, H);
-
-      const amp = (0.07 + smoothAmp * 0.38) * cy; // idle wobble + voice
-
-      for (const [freq, phOff, alpha, lw] of layers) {
-        ctx.beginPath();
-        ctx.strokeStyle = `rgba(248,113,113,${alpha})`;
-        ctx.lineWidth = lw;
-        ctx.lineJoin = 'round';
-        ctx.lineCap  = 'round';
-        for (let x = 0; x <= W; x++) {
-          const t = x / W;
-          const y = cy
-            + Math.sin(t * Math.PI * 2 * freq + phase + phOff) * amp
-            + Math.sin(t * Math.PI * 4 * freq + phase * 1.3 + phOff) * amp * 0.3;
-          x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-        }
-        ctx.stroke();
-      }
-    };
-    tick();
+    _runDotWave(document.getElementById('mic-wave'), _micAmp);
   } catch {}
 }
 
 function _stopLiveWave() {
-  if (_waveRaf) cancelAnimationFrame(_waveRaf);
-  _waveRaf = 0;
+  _stopDotWave();
   _analyser = null;
   if (_audioCtx) _audioCtx.close().catch(() => {});
   _audioCtx = null;
@@ -219,6 +225,22 @@ function _inject(text) {
   ta.focus();
 }
 
+// the little floating dot-wave shown while the assistant is talking (same look as
+// the mic wave). real levels when we own the audio (openai), a synthetic pulse for
+// the browser voice (speechSynthesis gives us no audio graph to tap).
+function _outWaveStart(getAmp) {
+  if (_recording) return;   // don't fight the input wave
+  const pop = document.getElementById('tts-wave');
+  if (!pop) return;
+  pop.hidden = false;
+  _runDotWave(pop.querySelector('canvas'), getAmp);
+}
+function _outWaveStop() {
+  _stopDotWave();
+  const pop = document.getElementById('tts-wave');
+  if (pop) pop.hidden = true;
+}
+
 export async function speak(text) {
   const s = await fetch('/api/settings').then(r => r.json()).catch(() => ({}));
   const provider = s.tts_provider || 'browser';
@@ -236,8 +258,18 @@ export async function speak(text) {
       const decoded = await ctx.decodeAudioData(buf);
       const src = ctx.createBufferSource();
       src.buffer = decoded;
-      src.connect(ctx.destination);
+      const an = ctx.createAnalyser(); an.fftSize = 1024;
+      src.connect(an); an.connect(ctx.destination);
+      let ended = false;
+      src.onended = () => { ended = true; _outWaveStop(); ctx.close().catch(() => {}); };
       src.start();
+      const td = new Uint8Array(an.fftSize);
+      _outWaveStart(() => {
+        if (ended) return null;
+        an.getByteTimeDomainData(td);
+        let sum = 0; for (let i = 0; i < td.length; i++) { const v = (td[i] - 128) / 128; sum += v * v; }
+        return Math.min(1, Math.sqrt(sum / td.length) * 9);
+      });
     } catch (e) {
       toast('TTS failed — falling back to browser', 'error');
       _browserSpeak(text);
@@ -252,5 +284,14 @@ async function _browserSpeak(text) {
   const utt = new SpeechSynthesisUtterance(text.slice(0, 200));
   if (s.tts_speed) utt.rate = parseFloat(s.tts_speed);
   if (s.stt_language) utt.lang = s.stt_language;
+  let speaking = true;
+  utt.onend = utt.onerror = () => { speaking = false; _outWaveStop(); };
+  window.speechSynthesis.cancel();   // clear any stuck utterance (a common 'mic/voice broken' cause)
   window.speechSynthesis.speak(utt);
+  let t = 0;
+  _outWaveStart(() => {
+    if (!speaking && !window.speechSynthesis.speaking) return null;
+    t += 0.3;
+    return 0.3 + 0.32 * Math.abs(Math.sin(t)) + 0.14 * Math.abs(Math.sin(t * 2.7));
+  });
 }

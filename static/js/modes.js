@@ -42,6 +42,10 @@ export function isIncognitoMode() {
 
 export function setIncognitoMode(on) {
   _incognitoMode = !!on;
+  document.body.classList.toggle('is-incognito', _incognitoMode);   // screen-edge glow
+  // incognito = you're not using history, so tuck the sidebar away (like Claude)
+  if (document.body.classList.contains('is-aide'))
+    document.body.classList.toggle('sidebar-hidden', _incognitoMode);
   const btn = document.getElementById('incognito-btn');
   if (btn) {
     btn.classList.toggle('active', _incognitoMode);
