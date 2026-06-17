@@ -61,7 +61,8 @@ body.login-mode .app {
 body.sidebar-hidden .sidebar { display: none; }
 
 .sidebar-head {
-  padding: 1.2rem 1.1rem 0.8rem;
+  height: 46px;          /* match .topbar exactly so the two header bars line up */
+  padding: 0 1.1rem;
   display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;
   border-bottom: 1px solid var(--faint);
 }
@@ -205,6 +206,17 @@ body.sidebar-hidden .sidebar { display: none; }
   height: 52px;
 }
 .composer-box.mic-recording .mic-wave { display: block; }
+/* floating dot-wave shown while the assistant is speaking (TTS output) */
+.tts-wave-pop {
+  position: fixed; left: 50%; bottom: 98px; transform: translateX(-50%);
+  z-index: 200; width: 152px; height: 34px;
+  background: var(--panel); border: 1px solid var(--faint); border-radius: 18px;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.35);
+  display: flex; align-items: center; justify-content: center;
+  animation: rise 0.2s ease forwards;
+}
+.tts-wave-pop[hidden] { display: none; }
+.tts-wave-pop canvas { width: 130px; height: 26px; }
 
 /* ── main ── */
 .main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
@@ -623,6 +635,10 @@ body:not(.is-aide) .aide-only { display: none !important; }
 .agent-step-diff .diff-del  { color: var(--error); background: color-mix(in srgb, var(--error) 10%, transparent); }
 .agent-step-diff .diff-hunk { color: var(--accent); }
 .agent-step-diff .diff-meta { color: var(--muted); }
+/* +N −N edit-size badge (Claude-Code style) on a step head */
+.agent-step-counts { margin-left: auto; font-size: 0.62rem; font-family: 'JetBrains Mono', monospace; white-space: nowrap; flex: 0 0 auto; }
+.agent-step-counts .diff-add { color: var(--green); }
+.agent-step-counts .diff-del { color: var(--error); }
 
 /* permission approval card */
 .agent-perm {
@@ -949,6 +965,34 @@ code {
 #docs-toggle-btn.active svg {
   filter: drop-shadow(0 0 5px color-mix(in srgb, var(--accent) 85%, transparent));
 }
+
+/* incognito on → a soft accent glow framing the whole screen, so it's unmistakable
+   you're off the record (à la a private-window indicator). purely decorative. */
+body.is-incognito::after {
+  content: ''; position: fixed; inset: 0; z-index: 9998; pointer-events: none;
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--accent) 50%, transparent),
+              inset 0 0 70px -12px color-mix(in srgb, var(--accent) 60%, transparent);
+  animation: incog-pulse 3.2s ease-in-out infinite;
+}
+@keyframes incog-pulse { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }
+
+/* ── incognito mode: a dedicated screen (its own header, hero + exit) ── */
+.incognito-bar { display: none; }
+body.is-incognito .topbar { display: none; }
+body.is-incognito .incognito-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  height: 46px; padding: 0 0.75rem 0 1.3rem;
+  border-bottom: 1px solid var(--faint); flex-shrink: 0;
+}
+.incognito-bar-title {
+  display: flex; align-items: center; gap: 0.55rem;
+  font-size: 0.84rem; color: var(--text); letter-spacing: 0.01em;
+}
+.incognito-bar-title .incognito-ghost { width: 18px; height: 18px; color: var(--accent); }
+.incognito-hero { display: flex; flex-direction: column; align-items: center; gap: 0.55rem; animation: rise 0.4s cubic-bezier(0.2,0.7,0.2,1) forwards; }
+.incognito-hero-mark { width: 30px; height: 30px; color: var(--accent); margin-bottom: 0.2rem; }
+.incognito-hero-title { font-size: 1.9rem; font-weight: 300; letter-spacing: -0.025em; color: var(--text); line-height: 1.2; }
+.incognito-hero-note { font-size: 0.74rem; color: var(--muted); max-width: 380px; line-height: 1.55; margin-top: 0.3rem; }
 #more-tools-btn { display: none; }
 .more-tools-menu { min-width: 160px; }
 
@@ -1093,7 +1137,9 @@ code {
   padding: 0.5rem 1rem;
   border-bottom: 1px solid var(--faint);
   flex-shrink: 0;
+  display: flex; align-items: center; gap: 0.6rem;
 }
+.modal-search .mm-refresh-all { flex-shrink: 0; font-size: 0.68rem; padding: 0.28rem 0.6rem; }
 .modal-search input {
   width: 100%; background: none; border: none; border-bottom: 1px solid var(--faint);
   color: var(--text); font-family: inherit; font-size: 0.8rem;
@@ -1223,6 +1269,8 @@ code {
 }
 /* alles-wide (hub) settings: only appearance + backup, hide the aide panes */
 #settings-modal.alles-scope .s-nav-item:not([data-pane="appearance"]):not([data-pane="backup"]) { display: none; }
+/* appearance + the security cards inside it are alles-wide → hide them from aide's own settings */
+#settings-modal:not(.alles-scope) .s-nav-item[data-pane="appearance"] { display: none; }
 .s-nav-item svg { flex-shrink: 0; opacity: 0.6; }
 .s-nav-item:hover { background: var(--panel); color: var(--text); }
 .s-nav-item:hover svg { opacity: 1; }
@@ -1782,10 +1830,11 @@ code {
 }
 .ha-tool:hover { color: var(--text); }
 .ha-tool svg { width: 17px; height: 17px; }
-.home-ask-model {
+.home-ask-model.custom-select {
   background: var(--bg); color: var(--text); border: 1px solid var(--faint); border-radius: 4px;
-  font-size: 0.72rem; padding: 0.25rem 0.35rem; max-width: 170px; flex-shrink: 0;
+  font-size: 0.72rem; padding: 0.25rem 0.45rem; min-height: 0; width: auto; max-width: 160px; flex-shrink: 0;
 }
+.home-ask-model.custom-select .custom-select-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ha-send, .ha-goto { font-size: 0.76rem; padding: 0.3rem 0.7rem; flex-shrink: 0; }
 .hc-modes { display: flex; gap: 0.15rem; flex-shrink: 0; }
 .hc-mode {
@@ -2289,6 +2338,15 @@ code {
 .skl-row-name { font-size: 0.82rem; color: var(--text); }
 .skl-row-desc { font-size: 0.7rem; color: var(--muted); margin-top: 0.15rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .skl-empty { font-size: 0.74rem; color: var(--muted); padding: 0.6rem 0.2rem; }
+.skl-import-row { display: flex; gap: 0.35rem; margin: 0 0 0.55rem; }
+.skl-import-row .btn { flex: 1; font-size: 0.68rem; padding: 0.28rem 0.3rem; }
+/* skill library (browse + install) */
+.skl-lib-head { display: flex; align-items: center; justify-content: space-between; font-size: 0.7rem; color: var(--muted); padding: 0.1rem 0.1rem 0.3rem; letter-spacing: 0.03em; }
+.skl-lib-head .btn { font-size: 0.64rem; padding: 0.15rem 0.5rem; }
+.skl-lib-row { display: flex; align-items: center; gap: 0.5rem; cursor: default; }
+.skl-lib-row:hover { border-color: var(--faint); }
+.skl-add { font-size: 0.66rem; padding: 0.18rem 0.6rem; flex-shrink: 0; }
+.skl-installed { font-size: 0.66rem; color: var(--signal, #4ade80); flex-shrink: 0; white-space: nowrap; }
 .skl-actions { display: flex; align-items: center; gap: 0.6rem; margin-top: 0.4rem; }
 .skl-status { font-size: 0.72rem; color: var(--green); }
 @media (max-width: 720px) { .skills-wrap { flex-direction: column; } .skills-side { width: 100%; } }
@@ -2469,7 +2527,37 @@ code {
 }
 .rule-row:last-child { border-bottom: none; }
 .rule-row.off .rule-row-name, .rule-row.off .rule-row-desc { color: var(--muted); opacity: 0.6; }
-.rule-row-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.1rem; }
+.rule-row-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.1rem; cursor: pointer; }
+.rule-row-main:hover .rule-row-name { color: var(--accent); }
+/* automation quick-start presets */
+.rule-presets { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem; margin-bottom: 0.6rem; }
+.rule-presets-label { font-size: 0.66rem; color: var(--muted); margin-right: 0.15rem; }
+.rule-preset {
+  background: none; border: 1px solid var(--faint); border-radius: 999px;
+  color: var(--muted); font: inherit; font-size: 0.68rem; padding: 0.2rem 0.6rem; cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+.rule-preset:hover { border-color: var(--accent); color: var(--text); }
+.rule-preset.sel { border-color: var(--accent); color: var(--text); background: color-mix(in srgb, var(--accent) 14%, transparent); }
+
+/* ── first-run setup wizard ── */
+.setup-card { width: 460px; max-width: 94vw; padding: 0; }
+.setup-head { display: flex; align-items: center; justify-content: space-between; padding: 0.9rem 1.1rem 0.4rem; }
+.setup-dots { display: flex; gap: 0.4rem; }
+.setup-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--faint); transition: background 0.2s; }
+.setup-dot.on { background: var(--accent); }
+.setup-dot.done { background: color-mix(in srgb, var(--accent) 50%, var(--faint)); }
+.setup-skip { background: none; border: none; color: var(--muted); font: inherit; font-size: 0.7rem; cursor: pointer; }
+.setup-skip:hover { color: var(--text); }
+.setup-body { padding: 0.6rem 1.3rem 1.4rem; }
+.setup-title { font-size: 1.25rem; font-weight: 300; letter-spacing: -0.02em; color: var(--text); }
+.setup-opt { color: var(--muted); font-size: 0.8rem; }
+.setup-sub { font-size: 0.78rem; color: var(--muted); line-height: 1.5; margin: 0.5rem 0 1rem; }
+.setup-input { width: 100%; margin-bottom: 0.5rem; }
+.setup-presets { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 0.7rem; }
+.setup-status { font-size: 0.72rem; color: var(--muted); min-height: 1rem; margin-bottom: 0.3rem; }
+.setup-actions { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-top: 0.6rem; }
+.setup-actions span { display: flex; gap: 0.4rem; }
 .rule-row-name { font-size: 0.78rem; color: var(--text); }
 .rule-row-desc { font-size: 0.68rem; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rule-row .btn { font-size: 0.64rem; padding: 0.15rem 0.45rem; flex-shrink: 0; }
@@ -2607,30 +2695,23 @@ code {
 .persona-temp-val { font-size: 0.74rem; color: var(--accent); font-variant-numeric: tabular-nums; min-width: 30px; text-align: right; }
 .persona-temp-val.muted { color: var(--muted); }
 .persona-temp-foot { display: flex; justify-content: space-between; font-size: 0.6rem; color: var(--muted); margin-top: 0.1rem; }
-/* temperature reads as temperature: cold blue (precise) → hot red (creative).
-   the track IS the scale; the thumb glows whatever temp it sits on. */
-.alles-slider {
-  -webkit-appearance: none; appearance: none;
-  width: 100%; height: 6px; border-radius: 4px;
-  background: linear-gradient(to right, #3b82f6 0%, #8b5cf6 50%, #ef4444 100%);
-  outline: none; cursor: pointer; margin: 0.5rem 0 0.2rem;
+/* temperature as a btop-style block meter: hard discrete colour steps (cold blue
+   → hot red), no smooth blend, snaps to cells — reads like a terminal equaliser,
+   not a draggable fader. each lit cell is coloured by its POSITION on the scale. */
+.temp-bar {
+  display: flex; gap: 1px; height: 14px;
+  margin: 0.5rem 0 0.2rem; cursor: pointer; user-select: none;
+  touch-action: none;
 }
-.alles-slider::-webkit-slider-thumb {
-  -webkit-appearance: none; appearance: none;
-  width: 16px; height: 16px; border-radius: 50%;
-  background: var(--temp-color, var(--accent)); border: 2px solid var(--bg);
-  box-shadow: 0 0 0 1px var(--temp-color, var(--accent)), 0 0 9px var(--temp-color, var(--accent));
-  cursor: pointer; transition: transform 0.12s cubic-bezier(0.2,0.7,0.2,1);
+.temp-bar .tc {
+  flex: 1; background: var(--faint);
+  transition: background 0.07s ease, transform 0.07s ease;
 }
-.alles-slider::-webkit-slider-thumb:hover { transform: scale(1.18); }
-.alles-slider::-moz-range-thumb {
-  width: 16px; height: 16px; border-radius: 50%;
-  background: var(--temp-color, var(--accent)); border: 2px solid var(--bg);
-  box-shadow: 0 0 0 1px var(--temp-color, var(--accent)), 0 0 9px var(--temp-color, var(--accent)); cursor: pointer;
-}
-.alles-slider.is-auto { opacity: 0.35; filter: grayscale(0.7); }
-.alles-slider.is-auto::-webkit-slider-thumb { background: var(--muted); box-shadow: none; }
-.alles-slider.is-auto::-moz-range-thumb { background: var(--muted); box-shadow: none; }
+/* the level edge — last lit cell — pops a touch so you can read the value */
+.temp-bar .tc.edge { transform: scaleY(1.2); }
+.temp-bar:not(.is-auto):hover .tc.f { transform: scaleY(1.12); }
+.temp-bar.is-auto { opacity: 0.4; filter: grayscale(0.85); }
+.temp-bar:focus-visible { outline: 1px solid var(--accent); outline-offset: 3px; }
 .persona-temp-foot .cold { color: #3b82f6; }
 .persona-temp-foot .hot  { color: #ef4444; }
 
@@ -2645,6 +2726,24 @@ code {
 .seg-opt:first-child { border-left: none; }
 .seg-opt:hover { color: var(--text); }
 .seg-opt.active { color: var(--accent); background: var(--panel); }
+
+/* ── per-app settings popover (header gear) ── */
+.app-cog { color: var(--muted); }
+.app-settings-pop {
+  position: fixed; z-index: 200; width: 260px; max-width: calc(100vw - 16px);
+  background: var(--bg); border: 1px solid var(--faint); border-radius: 8px;
+  box-shadow: 0 8px 28px rgba(0,0,0,0.35);
+  padding: 0.75rem; display: flex; flex-direction: column; gap: 0.7rem;
+  animation: aps-in 0.12s ease-out;
+}
+@keyframes aps-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+.app-settings-title {
+  font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--muted); padding-bottom: 0.1rem;
+}
+.aps-field { display: flex; flex-direction: column; gap: 0.3rem; }
+.aps-field > label { font-size: 0.74rem; color: var(--text); }
+.aps-field .settings-textarea { min-height: 2.6rem; }
 
 /* persona accent swatches */
 .pa-hint { color: var(--muted); font-size: 0.62rem; text-transform: none; letter-spacing: 0; }
@@ -2805,21 +2904,28 @@ code {
 .pal { flex: 1; min-width: 30px; height: 16px; display: inline-block; }
 .nf-pal + .nf-pal { margin-top: 0; }
 
-/* btop boxes — cpu full-width on top; mem/net/disk stacked left; proc tall right */
-.btop-grid { display: grid; grid-template-columns: 1fr; gap: 1rem; }
+/* btop boxes — cpu full-width on top; mem/net/disk stacked left; proc tall right.
+   flex (not grid) so the tall proc list never inflates the left boxes' heights → no dead space. */
+.btop-grid { display: flex; flex-direction: column; gap: 1rem; }
+.btop-cols { display: flex; flex-direction: column; gap: 1rem; }
 @media (min-width: 860px) {
-  .btop-grid {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
-    grid-template-areas: "cpu cpu" "mem proc" "net proc" "disk proc";
-    align-items: start;
-  }
-  #box-cpu { grid-area: cpu; }
-  #box-mem { grid-area: mem; }
-  #box-net { grid-area: net; }
-  #box-disk { grid-area: disk; }
-  #box-proc { grid-area: proc; align-self: stretch; display: flex; flex-direction: column; }
+  /* flex-start (not stretch) + FIXED graph heights — a canvas that flex-grows feeds its
+     own layout height back into its pixel size and runs away, so heights are explicit.
+     left column ends up ~the same height as proc, with balanced graphs and no dead gaps. */
+  .btop-cols { flex-direction: row; align-items: flex-start; }
+  .btop-left { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 1rem; }
+  #box-proc { flex: 1.05 1 0; min-width: 0; display: flex; flex-direction: column; max-height: 560px; }
   #box-proc #proc-body { overflow-y: auto; flex: 1; min-height: 0; }
 }
+#cpu-graph { height: 130px; }
+#mem-graph { height: 64px; }
+#net-dn-graph, #net-up-graph { height: 50px; }
+#disk-graph { height: 96px; }
+.bx-pctv { min-width: 2.3rem; text-align: right; font-size: 0.7rem; }
+.bx-total { font-weight: 600; margin-bottom: 0.45rem; }
+.bx-total .bx-meta { color: var(--text); font-size: 0.74rem; }
+.bx-netif { margin-bottom: 0.4rem; }
+.bx-netif .bx-tag { font-weight: 600; min-width: 0; }
 .btop-box { position: relative; border: 1px solid var(--faint); border-radius: 5px; padding: 0.95rem 0.8rem 0.7rem; min-width: 0;
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.025); transition: border-color 0.3s ease; }
 .btop-box:hover { border-color: color-mix(in srgb, var(--accent) 45%, var(--faint)); }
@@ -2836,10 +2942,10 @@ code {
 .m-track { color: var(--faint); letter-spacing: -0.5px; }
 .m-empty { color: var(--faint); }
 
-.graph { margin: 0.3rem 0 0; font-size: 0.82rem; line-height: 0.92; white-space: pre; overflow: hidden;
-  letter-spacing: 0; color: var(--faint); background: rgba(255,255,255,0.022);
-  border-radius: 3px; padding: 3px 4px; }
-.graph-sm { font-size: 0.78rem; }
+/* graphs are drawn on a canvas (solid thin gradient bars — clean in a browser,
+   unlike braille/blocks which render dotty or chunky). heights come from the id rules. */
+.graph-canvas { display: block; width: 100%; margin: 0.3rem 0 0;
+  background: rgba(255,255,255,0.022); border-radius: 3px; }
 
 /* per-core grid */
 .cores-grid { margin-top: 0.6rem; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0.1rem 0.9rem; }
@@ -3181,7 +3287,23 @@ code {
 .project-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
 .project-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .project-count { font-size: 0.65rem; color: var(--faint); }
+.project-del {
+  background: none; border: none; color: var(--muted); cursor: pointer;
+  font-size: 1rem; line-height: 1; padding: 0 0.15rem; opacity: 0;
+  transition: opacity 0.15s, color 0.15s;
+}
+.project-folder-head:hover .project-del { opacity: 0.6; }
+.project-del:hover { opacity: 1; color: var(--signal, #ef4444); }
 .project-sessions { flex-direction: column; padding-left: 1rem; }
+.project-folder.drag-over { background: color-mix(in srgb, var(--accent) 16%, transparent); outline: 1px dashed var(--accent); outline-offset: -1px; border-radius: 3px; }
+/* project workspace page */
+.project-workspace { display: flex; gap: 1rem; align-items: flex-start; flex-wrap: wrap; max-width: 1000px; }
+.pj-col { flex: 1; min-width: 290px; display: flex; flex-direction: column; gap: 1rem; }
+.pj-hint { color: var(--muted); font-size: 0.62rem; font-weight: 400; letter-spacing: 0; text-transform: none; }
+.pj-chat { display: flex; align-items: center; gap: 0.5rem; padding: 0.42rem 0.35rem; font-size: 0.8rem; color: var(--muted); cursor: pointer; border-radius: 3px; }
+.pj-chat:hover { color: var(--text); background: var(--panel); }
+.pj-files { display: flex; flex-direction: column; gap: 0.05rem; max-height: 220px; overflow-y: auto; }
+.pj-file { font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; color: var(--muted); padding: 0.12rem 0.3rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* ── edit / regen buttons ── */
 .msg-edit-btn, .msg-regen-btn {
@@ -3867,6 +3989,13 @@ code {
   font-size: 0.65rem; margin-left: 0.3rem; opacity: 0.7;
   vertical-align: middle;
 }
+/* image-gen model badge in the picker + the "generating…" placeholder in chat */
+.model-img-badge { font-size: 0.65rem; margin-left: auto; opacity: 0.85; vertical-align: middle; }
+.sidebar-model-row .model-img-badge,
+.model-row .model-img-badge { margin-left: auto; }
+.newest-only-label { font-size: 0.68rem; color: var(--muted); letter-spacing: 0.03em; white-space: nowrap; }
+.img-gen-status { color: var(--muted); font-size: 0.82rem; animation: imgpulse 1.4s ease-in-out infinite; }
+@keyframes imgpulse { 0%,100% { opacity: 0.4; } 50% { opacity: 0.9; } }
 
 /* mail overhaul */
 .mail-head {

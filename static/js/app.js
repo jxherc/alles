@@ -1,5 +1,6 @@
-import { loadSessions, initSessions, newChat, showWelcome, createSession, renderSidebar, exportActiveSessionMarkdown, getActiveId } from './sessions.js';
-import { loadModels, renderModelList, renderSidebarModelList, addEndpoint, getSelected, getCurrentEndpoint, initModelModal } from './models.js';
+import { loadSessions, initSessions, newChat, showWelcome, createSession, renderSidebar, exportActiveSessionMarkdown, getActiveId, saveDraft, clearDraft } from './sessions.js';
+import { loadModels, renderModelList, renderSidebarModelList, addEndpoint, getSelected, getCurrentEndpoint, initModelModal, prettyModel } from './models.js';
+import { populateDropdown } from './dropdown.js';
 import { sendMessage, stopStream, hideConnBanner } from './chat.js';
 import { toast, closeAllModals, mdToHtml, api } from './util.js';
 import { runResearch, setResearchMode, isResearchMode } from './research.js';
@@ -16,7 +17,8 @@ import { initCompareView, loadCompareModels } from './compare.js';
 import { loadVaultView, initVault } from './vault.js';
 import { loadContacts, addContact } from './contacts.js';
 import { loadFiles, initFiles } from './files.js';
-import { loadMail } from './mail.js';
+import { loadMail, startMailPoll } from './mail.js';
+import { initAppCogs } from './appsettings.js';
 import { loadPhotos, initPhotos } from './photos.js';
 import { setBaseDomain, parseHost, appForSub, viewToSub, urlForApp, currentSub, SUBDOMAIN_VIEWS } from './subdomain.js';
 import { loadBrainPanel } from './brain.js';
@@ -111,11 +113,17 @@ async function _boot() {
   initSearch();
   initDropZone();
   initVault();
-  import('./runs.js').then(m => m.initRuns()).catch(() => {});
   initPrivacyHandlers();
   startReminderPoll();
   registerServiceWorker();
   bindEvents();
+  // per-app settings gears (header cogs) + the reload hooks they call after saving
+  initAppCogs();
+  window._reloadFiles = () => loadFiles('');   // jump to the (possibly new) root
+  window._reloadPhotos = loadPhotos;
+  window._reloadCalendar = () => loadCalendar();
+  window._reloadMail = startMailPoll;
+  window._reloadSystem = () => import('./system.js').then(m => m.initSystem());
   applySubdomainScope();
 
   // arrived from another subapp's palette "ask aide / research" → run it once
@@ -151,7 +159,7 @@ function applySubdomainScope() {
   _show('ai-top-controls', onAide);
   // settings is AI-heavy — keep it inside aide, not bleeding onto mail/docs/etc.
   _show('topbar-settings-btn', onAide);
-  _show('runs-btn', onAide);   // agent runs only make sense on aide
+  _show('incognito-btn', onAide);   // incognito lives in the topbar now, aide-only
   // on aide the logo lives in the sidebar's top-left; elsewhere it's the topbar crumb
   _show('app-crumb', !onAide);
   if (!onAide) {
@@ -253,6 +261,9 @@ const showChatView = () => {
 // so selectSession (sessions.js) can jump back to chat when a convo is clicked
 // from a tools page — otherwise messages render behind the still-open tool view
 window._enterChatView = showChatView;
+
+// open a project's workspace page (called from the sidebar project folders)
+window._openProject = (pid) => showView('project-view', 'project', () => import('./projectview.js').then(m => m.renderProject(pid)));
 
 // the command palette (search.js) reaches across subdomains, so expose the router
 // + an "ask aide / research" handoff it can call from any app.
@@ -413,10 +424,17 @@ async function _wireHomeAsk() {
   inp.dataset.wired = '1';
   try {
     const eps = await fetch('/api/models').then(r => r.json());
-    sel.innerHTML = '';
-    for (const e of eps) for (const m of (e.cached_models || e.models || []))
-      sel.insertAdjacentHTML('beforeend', `<option value="${e.id}::${m}">${e.name} / ${m}</option>`);
-    if (!sel.options.length) sel.insertAdjacentHTML('beforeend', '<option value="">no model — add one in settings</option>');
+    const withModels = eps.filter(e => (e.cached_models || e.models || []).length);
+    const multi = withModels.length > 1;
+    const opts = [];
+    for (const e of withModels) for (const m of (e.cached_models || e.models || []))
+      // clean name (no full id dump); only tack on the endpoint when there's more than one
+      opts.push({ value: `${e.id}::${m}`, label: multi ? `${prettyModel(m)} · ${e.name}` : prettyModel(m) });
+    if (!opts.length) opts.push({ value: '', label: 'no model — add one in settings' });
+    // default to whatever model the app is already on, not the first of a huge list
+    const cur = getSelected();
+    const want = cur?.model ? `${cur.endpointId || getCurrentEndpoint()?.id}::${cur.model}` : null;
+    populateDropdown(sel, opts, opts.some(o => o.value === want) ? want : opts[0].value);
   } catch {}
 
   document.getElementById('ha-upload')?.addEventListener('click', () => document.getElementById('ha-file')?.click());
@@ -476,27 +494,21 @@ async function _wireHomeAsk() {
 }
 
 // fresh-install nudge: if no AI provider is wired up yet, chat is a dead end —
-// show a get-started card on the launcher instead of letting them find out the hard way
+// first run → pop the skippable setup wizard (name → model → optional lock) instead
+// of leaving people to find settings the hard way. the old card is retired.
 async function _renderFirstRun() {
   const el = document.getElementById('home-firstrun');
-  if (!el) return;
-  if (localStorage.getItem('alles-firstrun-dismissed') === '1') { el.style.display = 'none'; return; }
+  if (el) { el.style.display = 'none'; el.innerHTML = ''; }
+  if (localStorage.getItem('alles-firstrun-dismissed') === '1') return;
   let st;
   try { st = await fetch('/api/setup/status').then(r => r.json()); }
-  catch { el.style.display = 'none'; return; }   // never let this block the launcher
-  if (st.configured) { el.style.display = 'none'; el.innerHTML = ''; return; }   // already connected → gone
-  el.style.display = 'block';
-  el.innerHTML = `
-    <button class="firstrun-x" id="firstrun-x" title="dismiss" aria-label="dismiss">×</button>
-    <div class="firstrun-title">👋 welcome to alles</div>
-    <div class="firstrun-body">to start chatting, connect an AI provider — paste an API key (DeepSeek, Anthropic, OpenAI…) or point at a local Ollama. takes about a minute.</div>
-    <button class="btn firstrun-cta" id="firstrun-setup-btn">set up a provider</button>`;
-  document.getElementById('firstrun-setup-btn')?.addEventListener('click', () => openSettings('models'));
-  document.getElementById('firstrun-x')?.addEventListener('click', () => {
-    localStorage.setItem('alles-firstrun-dismissed', '1');
-    el.style.display = 'none';
-  });
+  catch { return; }   // never let this block the launcher
+  if (st.configured) return;   // already connected → no wizard
+  if (document.getElementById('setup-wizard')?.style.display === 'flex') return;
+  (await import('./setupwizard.js')).openSetupWizard();
 }
+// let anything (a settings link, the command palette) re-run the wizard on demand
+window._openSetupWizard = async () => (await import('./setupwizard.js')).openSetupWizard();
 
 function _renderHomeTiles() {
   const grid = document.getElementById('home-grid');
@@ -808,6 +820,7 @@ function bindEvents() {
   const _sendBtn = document.getElementById('send-btn');
   const syncSend = () => { _sendBtn.classList.toggle('is-empty', !ta.value.trim() && !_sendBtn.classList.contains('recording')); };
   ta.addEventListener('input', syncSend);
+  ta.addEventListener('input', saveDraft);   // keep the per-convo draft current
   syncSend();
   _sendBtn.addEventListener('click', async () => {
     const { isRecording, stopRecording } = await import('./voice.js');
@@ -862,18 +875,18 @@ function bindEvents() {
       e.preventDefault();
       e.stopPropagation();
       toggleDocs();
-    } else if (btn.id === 'incognito-btn') {
-      e.preventDefault();
-      e.stopPropagation();
-      toggleIncognitoMode();
     } else if (btn.id === 'more-tools-btn') {
       e.preventDefault();
       e.stopPropagation();
       toggleMoreTools();
     }
   });
+  // incognito lives in the topbar (next to settings) → enter a fresh incognito chat;
+  // the × in the incognito header is the way back out.
+  document.getElementById('incognito-btn')?.addEventListener('click', () => { setIncognitoMode(true); newChat(); });
+  document.getElementById('incognito-exit')?.addEventListener('click', () => { setIncognitoMode(false); newChat(); });
 
-  document.getElementById('shell-btn-tool').addEventListener('click', openShellPanel);
+  document.getElementById('shell-btn-tool')?.addEventListener('click', openShellPanel);
   document.getElementById('shell-panel-close')?.addEventListener('click', closeShellPanel);
   document.getElementById('shell-send-btn')?.addEventListener('click', submitShellPanel);
   document.getElementById('shell-input')?.addEventListener('keydown', e => {
@@ -885,8 +898,8 @@ function bindEvents() {
       submitShellPanel();
     }
   });
-  document.getElementById('mode-agent').addEventListener('click', () => setMode('agent'));
-  document.getElementById('mode-chat').addEventListener('click',  () => setMode('chat'));
+  document.getElementById('mode-agent').addEventListener('click', () => { setMode('agent'); _persistSessionMode('agent'); });
+  document.getElementById('mode-chat').addEventListener('click',  () => { setMode('chat');  _persistSessionMode('chat'); });
   // permission mode button + label
   const permBtn = document.getElementById('perm-mode-btn');
   if (permBtn) {
@@ -1075,17 +1088,13 @@ function toggleMoreTools() {
   menu.style.left = Math.max(12, rect.right - 170) + 'px';
   menu.style.top = Math.max(12, rect.top - 136) + 'px';
   menu.innerHTML = `
-    <div class="ctx-item" data-tool="incognito">incognito mode</div>
     <div class="ctx-item" data-tool="research">research mode</div>
-    <div class="ctx-item" data-tool="shell">shell command</div>
     <div class="ctx-item" data-tool="attach">attach file</div>
   `;
   menu.addEventListener('click', e => {
     e.stopPropagation();
     const tool = e.target.closest('.ctx-item')?.dataset.tool;
-    if (tool === 'incognito') document.getElementById('incognito-btn')?.click();
     if (tool === 'research') document.getElementById('research-toggle-btn')?.click();
-    if (tool === 'shell') document.getElementById('shell-btn-tool')?.click();
     if (tool === 'attach') document.getElementById('attach-btn')?.click();
     closeMoreTools();
   });
@@ -1104,10 +1113,10 @@ async function doSend() {
   const text = ta.value.trim();
   if (!text) return;
   if (await tryExecuteSlashCommand(text)) {
-    ta.value = ''; ta.style.height = 'auto';
+    ta.value = ''; ta.style.height = 'auto'; clearDraft();
     return;
   }
-  ta.value = ''; ta.style.height = 'auto';
+  ta.value = ''; ta.style.height = 'auto'; clearDraft();
   if (isResearchMode()) runResearch(text);
   else if (isDocsMode()) runDocsQuery(text);
   else sendMessage(text);
@@ -1163,6 +1172,16 @@ function setMode(m) {
   document.getElementById('mode-chat').classList.toggle('active', m === 'chat');
   // .agent-mode grows the box + reveals the agent control row (CSS-driven)
   document.querySelector('.composer-box')?.classList.toggle('agent-mode', m === 'agent');
+}
+window._setMode = setMode;   // so sessions.js can restore a convo's last mode on load
+
+// remember the mode per-conversation — refreshing an agent chat shouldn't drop to chat
+function _persistSessionMode(m) {
+  const id = getActiveId();
+  if (id) fetch(`/api/sessions/${id}`, {
+    method: 'PATCH', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ mode: m }),
+  }).catch(() => {});
 }
 
 function _openPermMenu(anchor) {
@@ -1318,6 +1337,11 @@ async function openPersonaPicker() {
         body: JSON.stringify({ persona_id: p.id }),
       });
       window._currentSession.persona_id = p.id;
+      // a persona's starter message prefills the composer (if empty) — merged from templates
+      const ta = document.getElementById('composer-ta');
+      if (p.initial_message && ta && !ta.value.trim()) {
+        ta.value = p.initial_message; ta.dispatchEvent(new Event('input', { bubbles: true })); ta.focus();
+      }
       toast(`persona set: ${p.name}`, 'success'); refreshPersonaBtn(); picker.remove();
     });
     picker.appendChild(item);

@@ -48,3 +48,14 @@ class SkillsApiTest(ApiTest):
 
     def test_invalid_name_400(self):
         self.assertEqual(self.client.post("/api/skills", json={"name": "   "}).status_code, 400)
+
+    def test_catalog_and_install(self):
+        cat = self.client.get("/api/skills/catalog").json()
+        self.assertGreaterEqual(len(cat), 10)
+        self.assertIn("installed", cat[0])
+        self.assertFalse(any(c["installed"] for c in cat))   # temp dir → nothing installed yet
+        slug = cat[0]["slug"]
+        self.assertEqual(self.client.post("/api/skills/install", json={"slugs": [slug]}).json()["installed"], 1)
+        cat2 = self.client.get("/api/skills/catalog").json()
+        self.assertTrue([c["installed"] for c in cat2 if c["slug"] == slug][0])
+        self.assertTrue(any(s["slug"] == slug for s in self.client.get("/api/skills").json()))

@@ -104,6 +104,40 @@ def change_password(body: ChangePwBody, request: Request):
     return {"ok": True}
 
 
+class AuthConfigBody(BaseModel):
+    enabled: bool
+    password: str = ""
+
+
+@router.post("/config")
+def set_auth_config(body: AuthConfigBody, request: Request):
+    """turn the password lock on/off from the UI (no file editing). enabling needs a
+    password to exist (or one supplied here); disabling needs the current password so a
+    random visitor can't just switch it off."""
+    s = load_settings()
+    hashed = s.get("auth_password_hash", "")
+    if body.enabled:
+        if body.password:
+            if len(body.password) < 4:
+                raise HTTPException(400, "password must be at least 4 characters")
+            hashed = hash_password(body.password)
+        if not hashed:
+            raise HTTPException(400, "set a password first, then enable the lock")
+        save_settings({"auth_password_hash": hashed, "auth_enabled": True})
+        return {"ok": True, "enabled": True}
+    # disabling
+    if hashed:
+        ip = request.client.host if request.client else "?"
+        if login_blocked(ip):
+            raise HTTPException(429, "too many attempts — wait a few minutes and try again")
+        if not verify_password(body.password, hashed):
+            record_login_fail(ip)
+            raise HTTPException(401, "current password required to disable the lock")
+        clear_login_fails(ip)
+    save_settings({"auth_enabled": False})
+    return {"ok": True, "enabled": False}
+
+
 # cross-subdomain SSO: an authed subdomain mints a one-time code; the target
 # subdomain redeems it to get its own cookie (so you only log in once).
 @router.get("/handoff")

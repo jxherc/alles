@@ -1,0 +1,86 @@
+[
+  {
+    "name": "SEO Keywords",
+    "description": "build a keyword set with intent and difficulty for a target page or topic",
+    "when_to_use": "when the user wants keywords to target, an seo plan, or to know what to rank for",
+    "body": "1. clarify the page, product, and who's searching for it.\n2. seed 5-8 head terms, then expand into long-tail + question variants.\n3. tag each by intent (informational/commercial/transactional) and rough difficulty.\n4. group into clusters, pick one primary per page + 3-5 secondaries.\n5. output a table: keyword, intent, difficulty, cluster, target url."
+  },
+  {
+    "name": "Social Post",
+    "description": "write a platform-native short post with hook, body, and cta",
+    "when_to_use": "when the user wants a tweet, linkedin, instagram, or other social post",
+    "body": "1. nail the platform + goal (reach, clicks, replies) before writing.\n2. open with a scroll-stopping first line, no throat-clearing.\n3. keep body to one idea, match the platform's voice and length.\n4. end with a single clear cta or question.\n5. add 2-4 relevant hashtags only if the platform rewards them."
+  },
+  {
+    "name": "Landing Copy",
+    "description": "write conversion-focused landing page copy section by section",
+    "when_to_use": "when the user needs copy for a landing or sales page",
+    "body": "1. pin the one audience, one offer, one desired action.\n2. write a benefit-led headline + subhead that names the outcome.\n3. draft sections: problem, solution, how-it-works, proof, faq, cta.\n4. lead with benefits, back each with a concrete feature or number.\n5. repeat the cta after value is built; keep it the same verb throughout."
+  },
+  {
+    "name": "Newsletter",
+    "description": "draft an email newsletter issue with subject, hook, and sections",
+    "when_to_use": "when the user wants to write or plan an email newsletter issue",
+    "body": "1. decide the one takeaway the reader should leave with.\n2. write 2-3 subject lines + a preview line, optimize for opens not clicks.\n3. open personal and direct, get to value in the first two lines.\n4. structure as scannable sections with bold mini-headers.\n5. close with one cta and a p.s. that restates the hook."
+  },
+  {
+    "name": "Ad Variations",
+    "description": "generate multiple ad copy variants for testing across angles",
+    "when_to_use": "when the user needs ad copy, ppc variants, or creatives to a/b test",
+    "body": "1. confirm platform, character limits, and the single conversion goal.\n2. list 3-4 distinct angles (pain, gain, social proof, curiosity).\n3. write 2 variants per angle: each with headline, primary text, cta.\n4. keep one variable changing at a time so tests stay readable.\n5. label every variant by angle so results map back cleanly."
+  },
+  {
+    "name": "Content Calendar",
+    "description": "plan a dated content schedule across channels and themes",
+    "when_to_use": "when the user wants a posting schedule, editorial calendar, or content plan",
+    "body": "1. set the timeframe, channels, and cadence per channel.\n2. define 3-5 recurring themes or pillars to rotate through.\n3. map each slot to date, channel, theme, format, and working title.\n4. balance the mix (educate/entertain/promote) so it's not all selling.\n5. output as a table sorted by date, leave a notes column for status."
+  },
+  {
+    "name": "Value Prop",
+    "description": "distill a sharp value proposition and one-line positioning",
+    "when_to_use": "when the user needs a value proposition, positioning, or one-liner for a product",
+    "body": "1. gather target customer, their problem, and the alternatives.\n2. fill 'for [who] who [need], [product] is a [category] that [benefit].'\n3. name the one differentiator a competitor can't easily copy.\n4. compress to a single line under 12 words, no jargon.\n5. give 2-3 backup variants at different specificity levels."
+  },
+  {
+    "name": "Blog Outline",
+    "description": "structure an seo-aware blog post outline before drafting",
+    "when_to_use": "when the user wants to outline an article or blog post",
+    "body": "1. lock the primary keyword and the searcher's actual question.\n2. write a working title + angle that beats what already ranks.\n3. lay out h2/h3 sections answering the question top to bottom.\n4. note key points, data, or examples to drop under each section.\n5. plan intro hook and a cta, flag any internal links to add."
+  },
+  {
+    "name": "Brand Voice",
+    "description": "define a reusable brand voice guide with do/don't examples",
+    "when_to_use": "when the user wants to define, document, or audit their brand voice or tone",
+    "body": "1. collect existing copy + a few brands they admire or hate.\n2. pick 3-4 voice traits, each as an adjective plus a 'but not' guardrail.\n3. set rules for person, tense, formality, humor, and forbidden words.\n4. show one sample sentence rewritten on-voice vs off-voice.\n5. condense to a one-page cheat sheet anyone can apply."
+  },
+  {
+    "name": "Product Description",
+    "description": "write ecommerce product copy that sells on benefits and specs",
+    "when_to_use": "when the user needs product page or catalog descriptions",
+    "body": "1. list the buyer, their objection, and the standout feature.\n2. open with a benefit-led line that paints the outcome.\n3. translate each spec into what it does for the buyer.\n4. add scannable bullets for specs, sizing, materials, what's in box.\n5. close with a reassurance line (returns, guarantee) and a cta."
+  },
+  {
+    "name": "Email Sequence",
+    "description": "map a multi-email nurture or onboarding drip with goals per send",
+    "when_to_use": "when the user wants a drip campaign, welcome series, or nurture sequence",
+    "body": "1. define the entry trigger, the end goal, and the time window.\n2. plan 4-6 emails, one job each (welcome, value, proof, offer, nudge).\n3. set send timing/delay between each and the exit condition.\n4. for every email: subject, one-line goal, core message, cta.\n5. add a fallback for non-openers and note where to segment."
+  },
+  {
+    "name": "Repurpose Content",
+    "description": "turn one source asset into multiple channel-specific pieces",
+    "when_to_use": "when the user wants to repurpose, atomize, or reuse existing content across channels",
+    "body": "1. read the source asset and pull its 3-5 strongest standalone points.\n2. pick target channels and the format each one wants.\n3. reshape each point into a native piece (thread, clip script, carousel, snippet).\n4. rewrite per channel voice and length, don't just copy-paste.\n5. list each output with channel, format, and a hook line."
+  },
+  {
+    "name": "Headline Test",
+    "description": "generate and rank multiple headline options against a goal",
+    "when_to_use": "when the user wants headline, title, or subject line options to choose between",
+    "body": "1. confirm the asset, audience, and whether the goal is opens or clicks.\n2. write 8-10 headlines spanning angles (benefit, curiosity, number, how-to, fear).\n3. keep each tight, front-load the strongest word, kill filler.\n4. score each on clarity, specificity, and emotional pull.\n5. recommend the top 2-3 and say why they win."
+  },
+  {
+    "name": "Competitor Teardown",
+    "description": "analyze a competitor's messaging and surface positioning gaps",
+    "when_to_use": "when the user wants to analyze a competitor's marketing, copy, or positioning",
+    "body": "1. pull their homepage hero, value prop, pricing framing, and main cta.\n2. note their target audience, tone, and the proof they lean on.\n3. list what they do well and where the messaging is weak or vague.\n4. find the gap or angle they're not claiming.\n5. recommend 3 concrete moves to differentiate against them."
+  }
+]

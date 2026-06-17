@@ -1,0 +1,86 @@
+[
+  {
+    "name": "Pros And Cons",
+    "description": "lay out the tradeoffs of a single option or choice in a balanced list",
+    "when_to_use": "when the user is weighing one option and asks whether to do it or what the downsides are",
+    "body": "1. restate the exact decision in one line so the scope is clear.\n2. list pros, each one concrete and tied to what the user actually cares about.\n3. list cons the same way, no hedging, include the ones they'd rather not hear.\n4. mark which 1-2 points are load-bearing vs minor.\n5. end with a one-line lean and the single condition that would flip it."
+  },
+  {
+    "name": "Decision Matrix",
+    "description": "score multiple options against weighted criteria to surface a winner",
+    "when_to_use": "when the user has 3+ options and several factors that matter at different amounts",
+    "body": "1. list the options as rows and the criteria as columns.\n2. assign each criterion a weight, confirm the weights reflect their real priorities.\n3. score every option per criterion on a fixed scale, note any guesses.\n4. compute weighted totals, show the table.\n5. name the winner, then sanity-check it against gut feel and flag if they disagree."
+  },
+  {
+    "name": "Premortem",
+    "description": "imagine the plan already failed and trace back the causes",
+    "when_to_use": "when the user is about to commit to a plan and wants to catch failure modes early",
+    "body": "1. assume it's 6 months later and the plan failed badly.\n2. brainstorm the specific reasons it died, concrete not generic.\n3. rank them by likelihood times damage.\n4. for the top 3, name one cheap thing now that would have prevented it.\n5. end with the single failure mode worth designing around first."
+  },
+  {
+    "name": "Risk Assessment",
+    "description": "map the risks of an action by likelihood and impact with mitigations",
+    "when_to_use": "when the user asks how risky something is or what could go wrong",
+    "body": "1. enumerate distinct risks, keep them mutually exclusive.\n2. rate each on likelihood and impact, low/med/high, no fence-sitting.\n3. sort into a quick quadrant: ignore, watch, mitigate, avoid.\n4. for everything in mitigate/avoid, give one concrete countermeasure.\n5. close with the residual risk left after mitigations and whether it's acceptable."
+  },
+  {
+    "name": "Devils Advocate",
+    "description": "argue hard against the user's current position to stress-test it",
+    "when_to_use": "when the user seems already decided and wants their thinking challenged",
+    "body": "1. state the position you're attacking in their own terms, steelmanned.\n2. attack the weakest assumption it rests on first.\n3. give the strongest counter-case someone smart would actually make.\n4. point out what evidence they'd need to see to be wrong.\n5. end honestly: does the position survive, or does it crack."
+  },
+  {
+    "name": "Find The Real Question",
+    "description": "dig past the stated ask to the actual decision underneath",
+    "when_to_use": "when the user's question feels narrow, off, or like a symptom of something bigger",
+    "body": "1. take the literal question at face value and note what answering it gives them.\n2. ask why they want that, infer the underlying goal.\n3. surface the real decision they're actually trying to make.\n4. check whether the original question even moves that decision.\n5. reframe to the question worth answering and confirm before solving."
+  },
+  {
+    "name": "Reversible Or Not",
+    "description": "classify a decision by how costly it is to undo and set the rigor accordingly",
+    "when_to_use": "when the user is stuck deliberating and you need to calibrate how much care it deserves",
+    "body": "1. ask: if this goes wrong, how hard is it to walk back.\n2. label it one-way door (hard to reverse) or two-way door (cheap to reverse).\n3. for two-way doors, push to just decide fast and learn.\n4. for one-way doors, slow down, demand evidence, widen the option set.\n5. state the call and the matching amount of deliberation it warrants."
+  },
+  {
+    "name": "Expected Value",
+    "description": "weigh options by probability times payoff instead of by vibes",
+    "when_to_use": "when outcomes are uncertain and the user is anchoring on best or worst case only",
+    "body": "1. list the plausible outcomes for each option.\n2. attach a rough probability and a payoff to each, label the soft numbers.\n3. compute probability times payoff and sum per option.\n4. note variance: a high-ev option with ruinous downside may still be wrong.\n5. recommend based on ev adjusted for whether they can survive the bad tail."
+  },
+  {
+    "name": "Second Order",
+    "description": "trace the downstream effects of a choice beyond the immediate result",
+    "when_to_use": "when a decision looks fine at first glance but you suspect knock-on consequences",
+    "body": "1. state the obvious first-order effect everyone sees.\n2. ask 'and then what' to get the second-order effects.\n3. push once more to third-order where the surprises usually hide.\n4. flag any effect that reverses or cancels the original benefit.\n5. end with whether the chain still nets positive."
+  },
+  {
+    "name": "Opportunity Cost",
+    "description": "evaluate a choice against what it forces you to give up",
+    "when_to_use": "when the user is judging an option in isolation without comparing to the next best use",
+    "body": "1. name the option being considered and its apparent benefit.\n2. identify the single best thing they'd do instead with the same time, money, or attention.\n3. compare the option directly against that alternative, not against doing nothing.\n4. note any hidden cost: lock-in, attention drain, closed-off paths.\n5. conclude whether it beats the next best use or just beats idleness."
+  },
+  {
+    "name": "Steelman",
+    "description": "build the strongest possible version of a view before judging it",
+    "when_to_use": "when the user dismisses an option or opposing view too quickly",
+    "body": "1. restate the view in its most charitable, strongest form.\n2. add the best supporting reasons even they didn't state.\n3. identify the real-world conditions under which it'd be correct.\n4. only then weigh it against the user's view on the merits.\n5. say which wins and why, having given the other side its best shot."
+  },
+  {
+    "name": "Stop Loss",
+    "description": "set the exit conditions before committing so you quit at the right time",
+    "when_to_use": "when the user is committing effort, money, or time and risks throwing good after bad",
+    "body": "1. define what success looks like in measurable terms upfront.\n2. set a hard kill-criterion: the signal that says abandon it.\n3. set a checkpoint date or threshold to evaluate against the criterion.\n4. pre-commit the decision now while unemotional, write it down.\n5. flag the sunk-cost trap so past spend doesn't override the rule."
+  },
+  {
+    "name": "Assumption Audit",
+    "description": "list and pressure-test the beliefs a decision quietly depends on",
+    "when_to_use": "when a plan feels shaky or the reasoning rests on things taken for granted",
+    "body": "1. extract every assumption the conclusion depends on, including the silent ones.\n2. mark each as known-true, likely, or unverified guess.\n3. find the load-bearing assumption: the one that breaks everything if wrong.\n4. propose the cheapest way to test or de-risk that one.\n5. end with how confident the whole decision can honestly be."
+  },
+  {
+    "name": "Tiebreaker",
+    "description": "break a genuine deadlock between options that score nearly equal",
+    "when_to_use": "when analysis has stalled because two options come out roughly the same",
+    "body": "1. confirm the options are actually tied, not just unfinished analysis.\n2. since payoff is even, switch the criterion to downside, regret, or reversibility.\n3. run a quick gut check: flip a coin and notice which result disappoints you.\n4. pick the option that's easier to undo or that you'd regret less.\n5. decide now and move, the cost of more deliberation exceeds the gap."
+  }
+]

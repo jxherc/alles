@@ -64,11 +64,108 @@ export function getCurrentEndpoint() {
   return _endpoints.find(ep => ep.id === _selected.endpointId) || null;
 }
 
+// clean display label instead of the raw id — drop the vendor prefix + dash soup.
+// "claude-opus-4-8" → "opus 4.8", "deepseek-v4-flash" → "deepseek v4 flash"
+export function prettyModel(id = '') {
+  let s = String(id).split('/').pop();                          // drop "vendor/" prefix
+  s = s.replace(/^claude-/, '');                                // redundant w/ opus/sonnet/haiku
+  s = s.replace(/[-_ ]?20\d{2}[-_]?\d{2}[-_]?\d{2}$/, '');      // drop trailing release date
+  s = s.replace(/(\d)[-_](\d)/g, '$1.$2');                      // version dashes → dots (4-8 → 4.8)
+  s = s.replace(/[-_]/g, ' ').trim();                           // the rest → spaces
+  return s || id;
+}
+
+// is the currently-picked model an image-generation model? (chat branches on this)
+export function isImageSelected() {
+  if (!_selected) return false;
+  const ep = _endpoints.find(e => e.id === _selected.endpointId);
+  return !!ep && (ep.image_models || []).includes(_selected.model);
+}
+
+// ── sorting: class-grouped, newest-first ────────────────────────────────────
+// providers hand back model lists in arbitrary order. rank each id by class/tier
+// (flagship → mini) then recency (date, then version) so the headline + newest
+// models sit on top and a family stays grouped together. heuristic, but covers
+// the common provider ladders; falls back to alpha.
+function _modelRank(id) {
+  const s = String(id).toLowerCase();
+  const TIERS = [
+    [/opus|gpt-5|o3|o4|grok-4|ultra|-pro\b|reasoner|405b/, 6],
+    [/sonnet|gpt-4o|gpt-4\.1|o1\b|deepseek-r1|grok-3|72b|-70b|large/, 5],
+    [/haiku|gpt-4\b|deepseek-v3|deepseek-chat|gemini-[12]\.\d-pro|-3[234]b|medium/, 4],
+    [/mini|flash\b|turbo|coder|small|-(7|8|9)b\b/, 3],
+    [/nano|lite|tiny|gemma|phi|-[1-3]b\b/, 2],
+  ];
+  let tier = 1;
+  for (const [re, t] of TIERS) if (re.test(s)) { tier = t; break; }
+  // a release date (if present) — only a tiebreaker; newest families often have none
+  const dm = s.match(/(20\d{2})[-_]?(\d{2})[-_]?(\d{2})/);
+  const dscore = dm ? Number(dm[1] + dm[2] + dm[3]) : 0;
+  // version = the FIRST number once dates + size tokens are gone. (max-number trips
+  // on "70b" and the date digits; first-number tracks the family version: claude-3-…
+  // → 3, gpt-4o → 4, gemini-2.5-pro → 2.5.)
+  const cleaned = s.replace(/(20\d{2})[-_]?\d{2}[-_]?\d{2}/g, ' ').replace(/\d+(\.\d+)?b\b/g, ' ');
+  // major.minor so 4-8 (4.08) sorts above 4-5 (4.05); size tokens already stripped
+  const nums = (cleaned.match(/\d+(\.\d+)?/g) || []).map(parseFloat);
+  let ver = nums.length ? nums[0] + Math.min(nums[1] || 0, 99) / 100 : 0;
+  if (/latest|preview|exp|thinking/.test(s)) ver += 0.25;
+  return { tier, ver, dscore };
+}
+function _sortModels(models) {
+  return [...models].sort((a, b) => {
+    const x = _modelRank(a), y = _modelRank(b);
+    return (y.tier - x.tier) || (y.ver - x.ver) || (y.dscore - x.dscore) || a.localeCompare(b);
+  });
+}
+
+// ── "newest only" — collapse each family to its latest release ───────────────
+let _newestOnly = localStorage.getItem('aide-newest-only') === '1';
+export function getNewestOnly() { return _newestOnly; }
+export function setNewestOnly(on) {
+  _newestOnly = !!on;
+  localStorage.setItem('aide-newest-only', _newestOnly ? '1' : '0');
+  renderModelList(document.getElementById('model-search-input')?.value || '');
+  renderSidebarModelList(document.getElementById('sidebar-model-search')?.value || '');
+}
+
+// family = the id with versions + dates stripped, so opus-4-8 / opus-4-5 / 3-opus
+// all collapse to "claude opus" and we keep just the newest.
+function _familyKey(id) {
+  return String(id).toLowerCase().split('/').pop()
+    .replace(/(20\d{2})[-_]?\d{2}[-_]?\d{2}/g, ' ')   // dates
+    .replace(/\d+(\.\d+)?/g, ' ')                       // version numbers
+    .replace(/[-_.]+/g, ' ').replace(/\s+/g, ' ').trim();
+}
+// finer than _modelRank.ver: major.minor so 4-8 (4.08) beats 4-5 (4.05)
+function _verScore(id) {
+  const nums = (String(id).toLowerCase().replace(/(20\d{2})[-_]?\d{2}[-_]?\d{2}/g, ' ')
+    .match(/\d+(\.\d+)?/g) || []).map(parseFloat);
+  if (!nums.length) return 0;
+  return nums[0] + Math.min(nums[1] || 0, 99) / 100;
+}
+function _dateScore(id) {
+  const m = String(id).match(/(20\d{2})[-_]?(\d{2})[-_]?(\d{2})/);
+  return m ? Number(m[1] + m[2] + m[3]) : 0;
+}
+function _filterNewest(models) {
+  if (!_newestOnly) return models;
+  const best = new Map();
+  for (const m of models) {
+    const k = _familyKey(m), cur = best.get(k);
+    if (!cur) { best.set(k, m); continue; }
+    const newer = _verScore(m) > _verScore(cur) ||
+      (_verScore(m) === _verScore(cur) && _dateScore(m) > _dateScore(cur));
+    if (newer) best.set(k, m);
+  }
+  const keep = new Set(best.values());
+  return models.filter(m => keep.has(m));
+}
+
 function updateTopbar() {
   const label = document.getElementById('model-label');
   const dot = document.getElementById('live-dot');
   if (_selected) {
-    label.textContent = _selected.model.split('/').pop();
+    label.textContent = prettyModel(_selected.model);
     dot.classList.remove('offline');
     const ep = getCurrentEndpoint();
     if (ep) window._currentEndpoint = ep;
@@ -84,11 +181,13 @@ export function renderModelList(filter = '') {
   const fl = filter.toLowerCase();
   let html = '';
   for (const ep of _endpoints) {
-    const models = fl ? ep.models.filter(m => m.toLowerCase().includes(fl)) : ep.models;
-    if (!models.length && fl) continue;
+    const keep = m => !fl || m.toLowerCase().includes(fl);
+    const models = _filterNewest(_sortModels(ep.models.filter(keep)));
+    const imgs = _filterNewest(_sortModels((ep.image_models || []).filter(keep)));
+    if (!models.length && !imgs.length && fl) continue;
     const color = _PROVIDER_COLOR[ep.provider] || '#6e6e6e';
     html += `<div class="provider-label" style="color:${color}">${ep.name}</div>`;
-    if (!models.length) {
+    if (!models.length && !imgs.length) {
       html += `<div style="padding:0.3rem 1rem;font-size:0.72rem;color:var(--muted)">
         no models — <button style="background:none;border:none;cursor:pointer;color:var(--accent);font:inherit;font-size:0.72rem" onclick="probeEndpoint('${ep.id}')">probe</button>
       </div>`;
@@ -100,7 +199,14 @@ export function renderModelList(filter = '') {
       const eye = visionSet.has(m) ? '<span class="model-vision-badge" title="vision">👁</span>' : '';
       html += `<div class="model-row${isActive ? ' active' : ''}" data-ep="${ep.id}" data-model="${escAttr(m)}">
         <div class="model-dot"></div>
-        <span class="model-name">${escHtml(m)}</span>${eye}
+        <span class="model-name" title="${escAttr(m)}">${escHtml(prettyModel(m))}</span>${eye}
+      </div>`;
+    }
+    for (const m of imgs) {
+      const isActive = _selected?.endpointId === ep.id && _selected?.model === m;
+      html += `<div class="model-row model-row-img${isActive ? ' active' : ''}" data-ep="${ep.id}" data-model="${escAttr(m)}">
+        <div class="model-dot"></div>
+        <span class="model-name" title="${escAttr(m)}">${escHtml(prettyModel(m))}</span><span class="model-img-badge" title="image generation">🎨</span>
       </div>`;
     }
   }
@@ -117,25 +223,27 @@ export function renderSidebarModelList(filter = '') {
   const fl = filter.toLowerCase();
   let html = '';
   for (const ep of _endpoints) {
-    const models = fl
-      ? ep.models.filter(m => m.toLowerCase().includes(fl) || ep.name.toLowerCase().includes(fl))
-      : ep.models;
-    if (!models.length && fl) continue;
+    const keep = m => !fl || m.toLowerCase().includes(fl) || ep.name.toLowerCase().includes(fl);
+    const models = _filterNewest(_sortModels(ep.models.filter(keep)));
+    const imgs = _filterNewest(_sortModels((ep.image_models || []).filter(keep)));
+    if (!models.length && !imgs.length && fl) continue;
     const color = _PROVIDER_COLOR[ep.provider] || '#6e6e6e';
     html += `<div class="sidebar-model-provider">
       <span class="provider-dot" style="background:${color}"></span>
       <span>${escHtml(ep.name)}</span>
     </div>`;
-    if (!models.length) {
+    if (!models.length && !imgs.length) {
       html += `<div class="sidebar-model-empty">no cached models</div>`;
       continue;
     }
-    html += models.map(m => {
+    const row = (m, img) => {
       const isActive = _selected?.endpointId === ep.id && _selected?.model === m;
-      return `<button class="sidebar-model-row${isActive ? ' active' : ''}" data-ep="${ep.id}" data-model="${escAttr(m)}">
-        <span>${escHtml(m)}</span>
+      return `<button class="sidebar-model-row${isActive ? ' active' : ''}${img ? ' sidebar-model-img' : ''}" data-ep="${ep.id}" data-model="${escAttr(m)}" title="${escAttr(m)}">
+        <span>${escHtml(prettyModel(m))}</span>${img ? '<span class="model-img-badge" title="image generation">🎨</span>' : ''}
       </button>`;
-    }).join('');
+    };
+    html += models.map(m => row(m, false)).join('');
+    html += imgs.map(m => row(m, true)).join('');
   }
   if (!html) html = '<div class="sidebar-model-empty">no models found</div>';
   list.innerHTML = html;
@@ -276,6 +384,16 @@ function _renderPresets() {
 }
 
 export function initModelModal() {
+  // newest-only toggle on the models page
+  const newestSw = document.getElementById('newest-only-switch');
+  if (newestSw) {
+    newestSw.classList.toggle('on', _newestOnly);
+    newestSw.addEventListener('click', () => {
+      const on = !newestSw.classList.contains('on');
+      newestSw.classList.toggle('on', on);
+      setNewestOnly(on);
+    });
+  }
   // refresh model lists when the picker opens (debounced) + manual button
   document.getElementById('model-btn')?.addEventListener('click', maybeAutoRefresh);
   document.getElementById('mm-refresh-all')?.addEventListener('click', async () => {

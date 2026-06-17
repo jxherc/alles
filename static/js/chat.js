@@ -3,7 +3,7 @@ import {
   appendUserMsg, createStreamingAiRow, scrollDown,
   showMessages, updateSessionName, createSession, getActiveId, markActive,
 } from './sessions.js';
-import { getSelected, getCurrentEndpoint } from './models.js';
+import { getSelected, getCurrentEndpoint, isImageSelected } from './models.js';
 import { openArtifact, extractArtifacts, stripArtifacts } from './artifacts.js';
 import { getAttachments, clearAttachments } from './uploads.js';
 import { isIncognitoMode, getPermMode, getEffort } from './modes.js';
@@ -107,7 +107,7 @@ export async function sendMessage(text) {
     const ep = getCurrentEndpoint();
     if (!ep) { toast('no endpoint configured — add one via the model picker', 'error'); return; }
     const model = getSelected()?.model || ep.models[0] || '';
-    const s = await createSession(model, ep.id, { incognito: isIncognitoMode() });
+    const s = await createSession(model, ep.id, { incognito: isIncognitoMode(), mode: getMode() });
     if (!s) { toast('failed to create session', 'error'); return; }
     sessionId = s.id;
     freshSession = true;     // first message ever → auto-name it after the reply
@@ -116,6 +116,9 @@ export async function sendMessage(text) {
 
   const sel = getSelected();
   if (!sel) { toast('select a model first', 'error'); return; }
+
+  // image model picked → generate an image instead of chatting
+  if (isImageSelected()) { _sendImage(text, sessionId, freshSession); return; }
 
   showMessages();
   appendUserMsg(text);
@@ -648,6 +651,50 @@ export function stopStream() {
   const sid = getActiveId();
   if (sid) fetch(`/api/chat/stop/${sid}`, { method: 'POST' }).catch(() => {});
   setStreaming(false);
+}
+
+
+// image-gen turn: same chat thread, but hit the image endpoint. backend saves the
+// pic to the gallery + a document and persists the turn, so it survives a reload.
+async function _sendImage(prompt, sessionId, fresh) {
+  const sel = getSelected();
+  showMessages();
+  appendUserMsg(prompt);
+  clearAttachments();
+  scrollDown();
+  setStreaming(true);
+  const { body } = createStreamingAiRow();
+  const status = document.createElement('div');
+  status.className = 'ai-content img-gen-status';
+  status.textContent = 'generating image…';
+  body.appendChild(status);
+  scrollDown();
+  try {
+    const r = await fetch('/api/images/chat', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ session_id: sessionId, prompt, model: sel.model, endpoint_id: sel.endpointId }),
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.detail || 'generation failed');
+    body.innerHTML = '';
+    const content = document.createElement('div');
+    content.className = 'ai-content';
+    content.innerHTML = mdToHtml(d.content);
+    body.appendChild(content);
+    body.classList.add('done');
+    if (fresh && d.doc_id && d.doc_title) updateSessionName(sessionId, d.doc_title);
+    toast(d.doc_id ? 'saved to documents' : 'image generated', 'success');
+  } catch (e) {
+    body.innerHTML = '';
+    const err = document.createElement('div');
+    err.className = 'ai-content';
+    err.textContent = 'image generation failed — ' + (e.message || '');
+    body.appendChild(err);
+    toast(e.message || 'generation failed', 'error');
+  } finally {
+    setStreaming(false);
+    scrollDown();
+  }
 }
 
 

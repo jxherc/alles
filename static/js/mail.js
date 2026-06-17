@@ -212,14 +212,22 @@ const _msgTime = m => Number(m.date_ts || 0) || Math.floor((Date.parse(m.date ||
 const _newestKey = msgs => [...msgs].sort((a, b) => _msgTime(b) - _msgTime(a))
   .slice(0, 5).map(m => `${m.account_id || ''}:${m.uid}`).join('|');
 
-export function startMailPoll(intervalMs = 30000) {
-  if (_pollTimer) return;
+let _pollWired = false;
+let _pollGen = 0;
+export async function startMailPoll() {
+  const gen = ++_pollGen;   // newer call wins the await race so a stale one can't leak a 2nd interval
+  if (_pollTimer) { clearInterval(_pollTimer); _pollTimer = null; }
+  let ms = 30000;
+  try { ms = Math.max(10, Number((await fetch('/api/settings').then(r => r.json())).mail_poll_seconds) || 30) * 1000; } catch {}
+  if (gen !== _pollGen) return;   // superseded while awaiting
   _pollTimer = setInterval(() => {
     const view = $('mail-view');
     if (!view || view.style.display === 'none' || document.hidden) return;
     if (_filter === 'sent' || !_accounts.length) return;
     loadInbox(false, true).catch(() => {});
-  }, intervalMs);
+  }, ms);
+  if (_pollWired) return;
+  _pollWired = true;
   document.addEventListener('visibilitychange', () => {
     // catch up immediately when the tab comes back
     if (!document.hidden && $('mail-view')?.style.display !== 'none' && _accounts.length) {
@@ -406,7 +414,14 @@ async function loadAttachments(aid, uid, folder) {
   head.appendChild(row);
 }
 
-function compose(pre = {}) {
+async function compose(pre = {}) {
+  // blank new message picks up the saved signature; replies keep their quote untouched
+  if (!pre.body) {
+    try {
+      const sig = (await fetch('/api/settings').then(r => r.json())).mail_signature;
+      if (sig) pre = { ...pre, body: '\n\n' + sig };
+    } catch {}
+  }
   const main = $('mail-main');
   const defaultAid = pre.account_id || (_active !== 'all' ? _active : _accounts[0]?.id);
   main.innerHTML = `<div class="mail-compose">

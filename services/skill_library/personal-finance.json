@@ -1,0 +1,86 @@
+[
+  {
+    "name": "Build Budget",
+    "description": "turns income and bills into a workable monthly spending plan",
+    "when_to_use": "when the user wants to make a budget or get their monthly money under control",
+    "body": "1. ask for take-home income and a list of fixed bills (rent, utilities, loans, insurance).\n2. subtract fixed costs from income to get what's left for variable spend + saving.\n3. split the leftover into buckets (groceries, transport, fun, savings) using their priorities, not a generic rule.\n4. set one concrete dollar cap per bucket and name where overflow gets pulled from.\n5. end with the single number they must not exceed in discretionary spend this month."
+  },
+  {
+    "name": "Expense Review",
+    "description": "audits recent transactions to find where money actually went",
+    "when_to_use": "when the user wants to understand or cut their spending after seeing statements",
+    "body": "1. ask them to paste or describe the last 30-60 days of transactions.\n2. bucket every line into categories; flag anything uncategorizable for them to confirm.\n3. total each category and rank biggest to smallest.\n4. call out the top 3 categories and any single charges that look off or surprising.\n5. propose two specific cuts with the dollar amount each would save per month."
+  },
+  {
+    "name": "Savings Plan",
+    "description": "works backward from a goal to a required monthly set-aside",
+    "when_to_use": "when the user has a target amount or purchase and wants to save for it",
+    "body": "1. get the goal amount, the deadline, and what they already have saved toward it.\n2. compute the gap and divide by months remaining to get the raw monthly number.\n3. sanity-check that number against their free cash flow; if it doesn't fit, adjust deadline or amount.\n4. pick where the money lives (separate account, HYSA) and whether to automate the transfer.\n5. end with the exact monthly amount and the date they hit the goal."
+  },
+  {
+    "name": "Compare Offers",
+    "description": "puts two financial offers side by side on a common basis",
+    "when_to_use": "when the user is choosing between two loans, cards, jobs, plans, or quotes",
+    "body": "1. list both offers and pull every cost, rate, fee, and perk for each.\n2. normalize them to the same time window and units (annual cost, effective rate, total over term).\n3. build a two-column table so differences are obvious at a glance.\n4. note any non-money factors that matter (flexibility, penalties, lock-in).\n5. state which one wins for their situation and the one tradeoff they're accepting."
+  },
+  {
+    "name": "Subscription Audit",
+    "description": "finds and ranks recurring charges worth cutting",
+    "when_to_use": "when the user suspects they're paying for things they don't use",
+    "body": "1. scan statements for recurring or near-monthly charges, including annual ones split out.\n2. list each with its price, billing cycle, and last time they used it if known.\n3. sort into keep, downgrade, and cancel based on actual use.\n4. total the annual cost of the cancel pile so the savings feel real.\n5. give the exact cancel steps or links for the top 2-3."
+  },
+  {
+    "name": "Explain Fee",
+    "description": "decodes a confusing charge and whether it can be avoided",
+    "when_to_use": "when the user sees a fee or charge they don't understand",
+    "body": "1. get the exact label, amount, and where it appeared.\n2. identify what it is in plain terms and what triggered it.\n3. say whether it's a one-time, recurring, or conditional fee.\n4. explain the specific action that avoids or waives it next time.\n5. tell them if it's worth disputing and how, or if it's just the cost of business."
+  },
+  {
+    "name": "Debt Payoff",
+    "description": "orders debts and sets a payoff sequence and timeline",
+    "when_to_use": "when the user has multiple debts and wants a plan to clear them",
+    "body": "1. list every debt with balance, rate, and minimum payment.\n2. lock in all minimums first so nothing goes delinquent.\n3. pick a method: avalanche (highest rate first, saves most) or snowball (smallest first, faster wins) and say why.\n4. apply every spare dollar to the target debt, roll its payment to the next once cleared.\n5. give the order, the monthly extra needed, and the rough debt-free date."
+  },
+  {
+    "name": "Emergency Fund",
+    "description": "sizes and stages a cash cushion for unexpected costs",
+    "when_to_use": "when the user wants a safety net or asks how much cash to keep on hand",
+    "body": "1. add up bare-minimum monthly costs (housing, food, utilities, insurance, minimum debt).\n2. multiply by 3-6 months based on income stability and dependents.\n3. compare to current liquid cash and find the gap.\n4. set a starter milestone (one month) before the full target so it feels reachable.\n5. name the account it sits in and the monthly contribution to fill it."
+  },
+  {
+    "name": "Big Purchase",
+    "description": "pressure-tests a large buy before committing",
+    "when_to_use": "when the user is about to spend a lot on one thing and wants a gut check",
+    "body": "1. get the price, the reason for buying, and the timing.\n2. check it against current cash and whether it dents emergency savings or adds debt.\n3. break down total cost of ownership, not just sticker (taxes, insurance, upkeep, financing interest).\n4. weigh buy now vs wait-and-save vs cheaper alternative.\n5. give a clear go / wait / skip call with the reason in one line."
+  },
+  {
+    "name": "Paycheck Split",
+    "description": "allocates each paycheck across needs, wants, and goals on payday",
+    "when_to_use": "when the user wants a repeatable rule for what to do when money lands",
+    "body": "1. get net pay per check and pay frequency.\n2. carve off fixed obligations due before the next check first.\n3. route fixed percentages to savings and debt before any spending happens (pay yourself first).\n4. leave the remainder as spendable and convert it to a per-day or per-week number.\n5. write it as a simple checklist they run every payday."
+  },
+  {
+    "name": "Cash Flow",
+    "description": "maps timing of money in vs out to avoid running short",
+    "when_to_use": "when the user keeps hitting low balances or overdrafts despite enough income",
+    "body": "1. lay income dates and amounts on a calendar.\n2. place every bill and recurring charge on its due date.\n3. walk the running balance day by day to find the danger dips.\n4. shift movable due dates or build a small buffer to smooth the low points.\n5. point to the exact dates to watch and the buffer amount that fixes them."
+  },
+  {
+    "name": "Price Per Use",
+    "description": "compares options by what they cost each time you actually use them",
+    "when_to_use": "when the user is deciding between buy vs rent, cheap vs durable, or membership vs pay-as-you-go",
+    "body": "1. get the total cost of each option including upkeep over its life.\n2. estimate honest usage count over the same period.\n3. divide cost by uses to get price per use for each.\n4. flag the breakeven usage where the pricier option wins.\n5. recommend based on their real usage, not the optimistic version."
+  },
+  {
+    "name": "Raise Math",
+    "description": "translates a pay change into real take-home and lifestyle impact",
+    "when_to_use": "when the user gets a raise, offer, or rate change and wants the actual net effect",
+    "body": "1. take the gross change and estimate taxes and any bracket shift.\n2. subtract increased deductions (retirement %, benefits) that scale with pay.\n3. show the net monthly increase, not the gross headline.\n4. suggest splitting the new money before lifestyle absorbs it (save x, spend y).\n5. end with the realistic extra dollars per month they'll actually see."
+  },
+  {
+    "name": "Net Worth",
+    "description": "tallies assets minus debts into one tracked number",
+    "when_to_use": "when the user wants a single snapshot of their financial position or to track progress",
+    "body": "1. list assets: cash, accounts, investments, property, anything resellable at honest value.\n2. list liabilities: every loan, card balance, and amount owed.\n3. subtract liabilities from assets for the net worth figure.\n4. note the 1-2 line items moving it most so they know the levers.\n5. set a cadence (monthly/quarterly) to re-run and compare the trend."
+  }
+]

@@ -1,0 +1,86 @@
+[
+  {
+    "name": "Email Draft",
+    "description": "writes a clear email from a rough intent or bullet points",
+    "when_to_use": "when the user wants to send an email but only has a goal or scattered notes",
+    "body": "1. nail the one outcome you want before writing a word.\n2. lead with that ask or news in the first sentence, not the third.\n3. give only the context needed to act, cut the backstory.\n4. write a subject line that says what it is and what's needed.\n5. close with a concrete next step and a date.\n6. read it once as the recipient, delete anything they don't need."
+  },
+  {
+    "name": "Reply Diplomatically",
+    "description": "drafts a measured reply to a tense or loaded message",
+    "when_to_use": "when the user got an email or message that annoyed them and wants to respond without escalating",
+    "body": "1. don't reply from the first emotion, name what actually went wrong.\n2. acknowledge their point in one honest line before pushing back.\n3. state your position as facts, not accusations (\"the deadline moved\" not \"you moved it\").\n4. swap every \"you always/never\" for a specific instance.\n5. offer one path forward so it's not just defense.\n6. cut sarcasm, exclamation marks, and anything you'd regret forwarded."
+  },
+  {
+    "name": "Say No Gracefully",
+    "description": "declines a request without burning the relationship",
+    "when_to_use": "when the user needs to turn down an invite, ask, or request and wants to keep it clean",
+    "body": "1. say no in the first line, no long windup that fakes a maybe.\n2. give one real reason, not three excuses.\n3. don't apologize more than once.\n4. offer an alternative only if you mean it (later date, a referral, partial help).\n5. keep it warm and short, length reads as guilt.\n6. don't leave a door open you plan to keep shut."
+  },
+  {
+    "name": "Follow Up",
+    "description": "nudges a stalled thread without sounding pushy",
+    "when_to_use": "when the user sent something and got silence and wants to chase a reply",
+    "body": "1. reply on the original thread so context rides along.\n2. assume they're busy, not ignoring you, and say so lightly.\n3. restate the single thing you need in one line.\n4. make saying yes trivial: a yes/no, a date, a one-click option.\n5. add a soft deadline (\"if i don't hear by friday i'll assume X\").\n6. cap it at three lines, this is a nudge not a resend."
+  },
+  {
+    "name": "Cold Outreach",
+    "description": "writes a first-contact message to a stranger that gets a reply",
+    "when_to_use": "when the user wants to email or dm someone who doesn't know them",
+    "body": "1. open with why them specifically, prove you didn't mass-send it.\n2. say who you are in one clause, not a resume.\n3. make the ask small and concrete, a 15-min call beats \"pick your brain.\"\n4. give them an easy out so it doesn't feel like pressure.\n5. keep the whole thing under 120 words, long cold emails die.\n6. no flattery they've heard a hundred times, be specific or skip it."
+  },
+  {
+    "name": "Meeting Agenda",
+    "description": "turns a fuzzy meeting purpose into a tight agenda",
+    "when_to_use": "when the user is calling a meeting and needs structure so it doesn't drift",
+    "body": "1. write the one decision or outcome the meeting must produce.\n2. if there's no decision to make, kill the meeting and send an email.\n3. list 2-4 topics, each with an owner and a time box.\n4. mark each item: decide, discuss, or inform, so people know the mode.\n5. attach what to read beforehand so the meeting isn't a read-aloud.\n6. end the agenda with the desired end-state in one line."
+  },
+  {
+    "name": "Notes To Actions",
+    "description": "converts messy meeting notes into owned action items",
+    "when_to_use": "when the user has raw notes or a transcript and needs the to-dos pulled out",
+    "body": "1. read the whole thing before extracting anything.\n2. pull every decision made and write it as a flat statement.\n3. pull every action: who does what by when, drop ones with no owner or flag them.\n4. separate decisions from actions from open questions, three lists.\n5. cut discussion that led nowhere, keep only outcomes.\n6. end with the single most important next step up top."
+  },
+  {
+    "name": "Give Feedback",
+    "description": "delivers critical feedback that lands without crushing",
+    "when_to_use": "when the user needs to tell someone something isn't working",
+    "body": "1. anchor on the specific behavior or work, never the person's character.\n2. say what you observed, then the impact it had, then what you want instead.\n3. give one or two examples, not a pile of grievances.\n4. drop the compliment-sandwich, it muffles the real point.\n5. make the path forward concrete and doable.\n6. end by inviting their side, feedback is a conversation not a verdict."
+  },
+  {
+    "name": "Ask For Feedback",
+    "description": "requests feedback in a way that gets useful answers",
+    "when_to_use": "when the user wants real critique on their work, not polite nods",
+    "body": "1. ask about one specific thing, \"any thoughts?\" gets you nothing.\n2. tell them what kind of feedback you want: blunt, directional, line-level.\n3. give them an easy on-ramp (\"what's the weakest part?\").\n4. say where you're already unsure so they aim there.\n5. make it safe to be harsh, say you want the real version.\n6. thank them for the sharp stuff specifically, that's how you get more."
+  },
+  {
+    "name": "Apologize Well",
+    "description": "writes a real apology that repairs instead of deflects",
+    "when_to_use": "when the user messed up and needs to own it in writing",
+    "body": "1. name the specific thing you did, no \"if anyone was affected.\"\n2. own it without \"but\" or a reason that's really an excuse.\n3. say you get the impact it had on them.\n4. state what you're doing so it doesn't repeat.\n5. don't fish for reassurance, the apology isn't about your guilt.\n6. keep it short, a long apology asks them to comfort you."
+  },
+  {
+    "name": "Status Update",
+    "description": "writes a crisp progress update people actually read",
+    "when_to_use": "when the user needs to report where a project or task stands",
+    "body": "1. lead with one line: on track, at risk, or blocked.\n2. say what shipped since last update in plain done/not-done terms.\n3. flag blockers with the exact help you need and from whom.\n4. give next steps with dates, not \"soon.\"\n5. skip the activity log, report outcomes not effort.\n6. keep it scannable, bold the status, bullets for the rest."
+  },
+  {
+    "name": "Difficult Conversation",
+    "description": "scripts the opening for a hard talk so it starts right",
+    "when_to_use": "when the user is dreading a confrontation and needs a way in",
+    "body": "1. write the one thing this conversation has to resolve.\n2. open by naming the topic and that it's hard, don't ambush.\n3. lead with the shared goal so it's not you-versus-them.\n4. state your view as one perspective, then genuinely ask for theirs.\n5. prep two phrases to de-escalate if it heats up.\n6. know your walk-away line before you start, not mid-fight."
+  },
+  {
+    "name": "Summarize Thread",
+    "description": "condenses a long email or chat thread into the state of play",
+    "when_to_use": "when the user is buried in a thread and needs the gist plus what's owed",
+    "body": "1. read top to bottom before summarizing, threads reverse on themselves.\n2. state the current decision or status in one line up top.\n3. list what's been agreed vs still open.\n4. flag who owes what next.\n5. drop the back-and-forth, keep only what changed the outcome.\n6. end with the single action needed to move it forward."
+  },
+  {
+    "name": "Chat Tone Shift",
+    "description": "rewrites a message to fit the right register for the audience",
+    "when_to_use": "when the user has a draft that's too stiff, too casual, or off for the reader",
+    "body": "1. name the reader and the relationship, that sets the register.\n2. decide the target: warmer, more formal, more direct, softer.\n3. cut hedging (\"just\", \"maybe\", \"sorry to bother\") if they want directness.\n4. strip jargon and corporate filler if they want human.\n5. match their channel's norms, slack isn't email isn't a letter.\n6. read it aloud once, if it sounds like a press release, loosen it."
+  }
+]
