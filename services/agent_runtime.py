@@ -12,7 +12,7 @@ from core.database import ModelEndpoint
 from services.agent_tools import (
     build_tool_defs, stream_execute, ROOT, set_agent_ctx,
     MUTATING_TOOLS, preview_change, capture_checkpoint,
-    UNTRUSTED_TOOLS, guard_untrusted,
+    UNTRUSTED_TOOLS, guard_untrusted, decide_permission,
 )
 from services.agent_state import start_run, record_event, update_run, finish_run
 from services.llm import stream_chat, clear_cooldown
@@ -363,24 +363,28 @@ async def run_agent(
                 record_event(run_id, "tool_start", step)
                 yield {"tool_start": {"call_id": call_id, "name": name, "args": args}}
 
-                # ── permission gate (approve / plan modes) + diff review ──
+                # ── permission gate: mode + per-tool/path rules (allow|ask|deny) ──
                 mode = settings.get("agent_permission_mode") or "full_auto"
+                decision = decide_permission(name, args, mode, settings.get("permission_rules") or [])
                 gate = None  # set to a result dict to skip execution
+                diff = None
                 if name in MUTATING_TOOLS:
                     diff = preview_change(name, args)
                     if diff:
                         step["diff"] = diff[:8000]   # persist so the convo can re-show it on reload
                         yield {"tool_diff": {"call_id": call_id, "diff": diff}}
-                    if mode == "plan":
-                        gate = {"output": "[plan mode] not executed. Describe this change in your plan instead of running it.", "error": True}
-                    elif mode == "approve":
-                        req_id = uuid.uuid4().hex
-                        record_event(run_id, "permission_request", {"call_id": call_id, "name": name, "args": args})
-                        yield {"tool_permission": {"request_id": req_id, "call_id": call_id, "name": name, "args": args, "diff": diff}}
-                        allowed = await _await_permission(req_id, stop_event)
-                        yield {"tool_permission_resolved": {"call_id": call_id, "allow": bool(allowed)}}
-                        if not allowed:
-                            gate = {"output": "[denied by user] action not performed. Adjust your approach or ask the user.", "error": True}
+                if decision == "deny":
+                    gate = ({"output": "[plan mode] not executed. Describe this change in your plan instead of running it.", "error": True}
+                            if mode == "plan" and name in MUTATING_TOOLS
+                            else {"output": "[denied by permission rules] action not performed. Adjust your approach or ask the user.", "error": True})
+                elif decision == "ask":
+                    req_id = uuid.uuid4().hex
+                    record_event(run_id, "permission_request", {"call_id": call_id, "name": name, "args": args})
+                    yield {"tool_permission": {"request_id": req_id, "call_id": call_id, "name": name, "args": args, "diff": diff}}
+                    allowed = await _await_permission(req_id, stop_event)
+                    yield {"tool_permission_resolved": {"call_id": call_id, "allow": bool(allowed)}}
+                    if not allowed:
+                        gate = {"output": "[denied by user] action not performed. Adjust your approach or ask the user.", "error": True}
 
                 if gate is not None:
                     result = gate
