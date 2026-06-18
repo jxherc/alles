@@ -2273,6 +2273,12 @@ body.is-incognito .incognito-bar {
 .vault-type-seg .vts-btn { background: none; border: none; color: var(--muted); font-size: 0.68rem; padding: 0.25rem 0.5rem; cursor: pointer; border-right: 1px solid var(--faint); }
 .vault-type-seg .vts-btn:last-child { border-right: none; }
 .vault-type-seg .vts-btn.active { background: var(--accent); color: #0a0a0a; }
+/* new-category field picker — custom toggle chips (no native checkboxes) */
+.vault-schema-pick { display: inline-flex; align-items: center; gap: 0.3rem; flex-wrap: wrap; }
+.vsp-label { font-size: 0.64rem; color: var(--faint); text-transform: uppercase; letter-spacing: 0.05em; }
+.vsp-chip { background: none; border: 1px solid var(--faint); border-radius: 3px; color: var(--muted); font-family: inherit; font-size: 0.66rem; padding: 0.18rem 0.45rem; cursor: pointer; }
+.vsp-chip:hover { color: var(--text); border-color: var(--muted); }
+.vsp-chip.active { background: var(--accent); color: #0a0a0a; border-color: var(--accent); }
 .vault-strength-bar { flex: 0 0 120px; height: 5px; background: var(--faint); border-radius: 3px; overflow: hidden; }
 .vault-strength-fill { display: block; height: 100%; width: 0; transition: width .2s, background .2s; }
 
