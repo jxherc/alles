@@ -1,6 +1,7 @@
 import unittest
 from datetime import date
-from services.event_nl import parse_event, _extract_time
+
+from services.event_nl import _extract_time, parse_event
 
 T = date(2026, 6, 14)
 
@@ -87,6 +88,53 @@ class RecurrenceTests(unittest.TestCase):
         p = parse_event("call bob tomorrow 3pm", T)
         self.assertEqual(p["recurrence"], "")
         self.assertIsNone(p["recur_until"])
+
+
+def _dur(p):
+    from datetime import datetime
+
+    s = datetime.fromisoformat(p["start_dt"])
+    e = datetime.fromisoformat(p["end_dt"])
+    return int((e - s).total_seconds() // 60)
+
+
+class DurationTests(unittest.TestCase):
+    def test_for_hours(self):
+        p = parse_event("lunch tomorrow 1pm for 2 hours", T)
+        self.assertEqual(_dur(p), 120)
+        self.assertNotIn("for", p["title"].lower())
+
+    def test_for_minutes(self):
+        self.assertEqual(_dur(parse_event("call tomorrow 9am for 30 minutes", T)), 30)
+
+    def test_for_90_min(self):
+        self.assertEqual(_dur(parse_event("meeting tomorrow 10am for 90 min", T)), 90)
+
+    def test_short_unit_h(self):
+        self.assertEqual(_dur(parse_event("workout tomorrow 6am for 1h", T)), 60)
+
+    def test_default_one_hour(self):
+        self.assertEqual(_dur(parse_event("standup tomorrow 9am", T)), 60)
+
+    def test_duration_without_time_is_all_day(self):
+        self.assertTrue(parse_event("review docs for 2 hours", T)["all_day"])
+
+
+class RangeTests(unittest.TestCase):
+    def test_range_shared_meridiem(self):
+        p = parse_event("meeting tomorrow 1-2pm", T)
+        self.assertTrue(p["start_dt"].endswith("T13:00"))
+        self.assertTrue(p["end_dt"].endswith("T14:00"))
+
+    def test_range_explicit(self):
+        p = parse_event("demo tomorrow 3pm to 4:30pm", T)
+        self.assertTrue(p["start_dt"].endswith("T15:00"))
+        self.assertTrue(p["end_dt"].endswith("T16:30"))
+
+    def test_range_am(self):
+        p = parse_event("yoga tomorrow 9-10am", T)
+        self.assertTrue(p["start_dt"].endswith("T09:00"))
+        self.assertTrue(p["end_dt"].endswith("T10:00"))
 
 
 if __name__ == "__main__":
