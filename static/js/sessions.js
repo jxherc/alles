@@ -281,10 +281,10 @@ function renderMessages(msgs) {
     } else if (m.role === 'assistant') {
       const { row, wrap } = appendAiMsg(m.content, m.meta?.thinking, m.meta?.tool_steps);
       row.dataset.msgId = m.id;
+      const actions = wrap.querySelector('.msg-actions');
       // re-open artifact button from history
       if (m.meta?.artifacts?.length) {
         wrap.dataset.artifacts = JSON.stringify(m.meta.artifacts);
-        const actions = wrap.querySelector('.msg-actions');
         if (actions) {
           const btn = document.createElement('button');
           btn.className = 'act-btn';
@@ -293,10 +293,20 @@ function renderMessages(msgs) {
           actions.appendChild(btn);
         }
       }
+      // branch: fork the chat from this reply into a new session, non-destructively
+      if (actions) {
+        const bb = document.createElement('button');
+        bb.className = 'act-btn msg-branch-btn';
+        bb.textContent = 'branch';
+        bb.title = 'fork a new chat from here (keeps this one)';
+        bb.dataset.msgId = m.id;
+        actions.appendChild(bb);
+      }
     }
   }
-  // wire edit buttons after all messages are rendered
+  // wire edit + branch buttons after all messages are rendered
   _wireEditButtons(container);
+  _wireBranchButtons(container);
   container.scrollTop = container.scrollHeight;
 }
 
@@ -375,6 +385,31 @@ function _makeAiRow() {
   return { row, wrap, body };
 }
 
+
+function _wireBranchButtons(container) {
+  container.querySelectorAll('.msg-branch-btn').forEach(btn => {
+    btn.addEventListener('click', async e => {
+      e.stopPropagation();
+      const msgId = btn.dataset.msgId;
+      if (!msgId || !_activeId) return;
+      btn.disabled = true;
+      try {
+        const r = await fetch(`/api/sessions/${_activeId}/fork`, {
+          method: 'POST', headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ msg_id: msgId }),
+        });
+        if (!r.ok) throw new Error('fork failed');
+        const ns = await r.json();
+        await loadSessions();      // surface the new branch in the sidebar
+        await selectSession(ns.id);  // and open it
+      } catch {
+        btn.disabled = false;
+        const { toast } = await import('./util.js');
+        toast('couldn\'t branch this chat', 'error');
+      }
+    });
+  });
+}
 
 function _wireEditButtons(container) {
   container.querySelectorAll('.msg-edit-btn').forEach(btn => {
