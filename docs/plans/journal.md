@@ -43,3 +43,18 @@ Genuine gaps vs the spec ("lock + journaling features") and the global rules:
 Per-entry encryption (that's the vault's job — the journal must stay searchable + AI-reflectable),
 biometric/WebAuthn unlock (no hardware in this env), media attachments (the files app owns media),
 multi-journal/notebooks.
+
+
+---
+
+# journal — UI/UX polish (2026-06-18)
+
+Evidence: `docs/evidence/journal/` (findings + before/after).
+
+## journal-ui-1 — centered editor + vertical full-year heatmap
+A merged-selector CSS bug made the journal body `display:flex`, jamming the editor left (426px) with the
+right half of the screen empty; the year heatmap was a horizontal 53-column strip clipped (overflow-x) in
+the 250px sidebar. Fix: split the broken selector so the body is full-width again; `.jrnl-main` gets a
+centered `max-width:760px`; sidebar 280px; and the heatmap is rebuilt **vertical** (week rows top→bottom,
+weekday columns) in `journal.js` + `style.css` so the full year shows with no horizontal scroll.
+Verify `pw_journal_layout.py` (10 assertions, screenshot, zero console errors).
