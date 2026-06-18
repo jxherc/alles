@@ -69,6 +69,24 @@ def search_tasks(q: str = "", db: DbSession = Depends(get_db)):
     return [_fmt(t) for t in hits]
 
 
+@router.get("/tasks/tree")
+def task_tree(db: DbSession = Depends(get_db)):
+    """active top-level tasks with their subtasks nested + done/total progress."""
+    children: dict[str, list] = {}
+    for t in db.query(Task).all():  # include done subtasks so progress is accurate
+        if t.parent_id:
+            children.setdefault(t.parent_id, []).append(t)
+    tops = _ordered([t for t in db.query(Task).filter(Task.done == False).all() if not t.parent_id])
+    out = []
+    for t in tops:
+        subs = _ordered(children.get(t.id, []))
+        node = _fmt(t)
+        node["subtasks"] = [_fmt(s) for s in subs]
+        node["progress"] = {"done": sum(1 for s in subs if s.done), "total": len(subs)}
+        out.append(node)
+    return out
+
+
 @router.get("/tasks/done")
 def list_done(db: DbSession = Depends(get_db)):
     rows = db.query(Task).filter(Task.done == True).order_by(Task.created_at.desc()).limit(50).all()
