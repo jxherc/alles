@@ -87,7 +87,7 @@ function render() {
       <section class="money-card"><h3>last 6 months</h3>${trendChart()}</section>
       <section class="money-card"><h3>budgets</h3>${budgetsList()}${_budgetForm()}</section>
      </div>` +
-    `<section class="money-card money-txns"><h3>transactions · ${_monthLabel(_month)}</h3>${addTxnRow()}${txnList()}</section>`;
+    `<section class="money-card money-txns"><h3>transactions · ${_monthLabel(_month)}</h3>${addTxnRow()}${transferRow()}${txnList()}</section>`;
   wire();
 }
 
@@ -168,21 +168,46 @@ function addTxnRow() {
     <div class="settings-input custom-select" id="tx-sign" data-value="-" data-options="-|expense;+|income" style="width:106px"></div>
     <input type="text" id="tx-amt" class="settings-input" placeholder="0.00" inputmode="decimal" style="width:96px">
     <button class="btn primary" id="tx-add">add</button>
+    ${_accounts.length >= 2 ? '<button class="btn" id="tx-transfer-toggle" title="move money between accounts">⇄ transfer</button>' : ''}
+  </div>`;
+}
+
+function transferRow() {
+  if (_accounts.length < 2) return '';
+  const opts = _accounts.map(a => `${a.id}|${(a.name || '').replace(/[;|]/g, '')}`).join(';');
+  const a0 = _accounts[0]?.id || '', a1 = _accounts[1]?.id || '';
+  return `<div class="txn-transfer" id="txn-transfer" style="display:none">
+    <span class="tr-lbl">move</span>
+    <div class="settings-input custom-select" id="tr-from" data-value="${esc(a0)}" data-options="${esc(opts)}" style="width:130px"></div>
+    <span class="tr-arrow">→</span>
+    <div class="settings-input custom-select" id="tr-to" data-value="${esc(a1)}" data-options="${esc(opts)}" style="width:130px"></div>
+    <div class="date-input" id="tr-date" data-type="date" data-value="${_today()}" data-ph="date" style="width:128px"></div>
+    <input type="text" id="tr-amt" class="settings-input" placeholder="0.00" inputmode="decimal" style="width:96px">
+    <button class="btn primary" id="tr-do">transfer</button>
   </div>`;
 }
 
 function txnList() {
   if (!_txns.length) return '<div class="money-empty-sm">no transactions this month</div>';
   const an = {}; _accounts.forEach(a => an[a.id] = a.name);
-  return `<div class="txns">` + _txns.map(t => _editTxn === t.id ? editTxnRow(t) : `
-    <div class="txn" data-id="${t.id}">
+  return `<div class="txns">` + _txns.map(t => {
+    if (_editTxn === t.id && !t.transfer_id) return editTxnRow(t);
+    // transfer legs aren't inline-editable (editing one would desync the pair) and
+    // their × removes the whole transfer, not just this leg
+    const xf = !!t.transfer_id;
+    const ed = xf ? '' : `data-edit-txn="${t.id}"`;
+    return `
+    <div class="txn ${xf ? 'is-transfer' : ''}" data-id="${t.id}">
       <span class="tx-date">${(t.date || '').slice(5)}</span>
-      <span class="tx-payee" data-edit-txn="${t.id}">${esc(t.payee) || '<span class="tx-dim">—</span>'}</span>
-      <span class="tx-cat" data-edit-txn="${t.id}">${t.category ? esc(t.category) : ''}</span>
+      <span class="tx-payee" ${ed}>${esc(t.payee) || '<span class="tx-dim">—</span>'}</span>
+      <span class="tx-cat" ${ed}>${xf ? '⇄ transfer' : (t.category ? esc(t.category) : '')}</span>
       <span class="tx-acct">${esc(an[t.account_id] || '')}</span>
-      <span class="tx-amt ${t.amount >= 0 ? 'pos' : 'neg'}" data-edit-txn="${t.id}">${signed(t.amount)}</span>
-      <button class="tx-del" data-del-txn="${t.id}" title="delete">×</button>
-    </div>`).join('') + `</div>`;
+      <span class="tx-amt ${t.amount >= 0 ? 'pos' : 'neg'}" ${ed}>${signed(t.amount)}</span>
+      ${xf
+        ? `<button class="tx-del" data-del-transfer="${t.transfer_id}" title="delete transfer (both legs)">×</button>`
+        : `<button class="tx-del" data-del-txn="${t.id}" title="delete">×</button>`}
+    </div>`;
+  }).join('') + `</div>`;
 }
 
 function editTxnRow(t) {
@@ -241,6 +266,14 @@ function wire() {
     $('af-name')?.focus();
   });
   $('bf-add')?.addEventListener('click', addBudget);
+  $('tx-transfer-toggle')?.addEventListener('click', () => {
+    const f = $('txn-transfer'); if (!f) return;
+    f.style.display = f.style.display === 'none' ? 'flex' : 'none';
+    if (f.style.display !== 'none') $('tr-amt')?.focus();
+  });
+  $('tr-do')?.addEventListener('click', doTransfer);
+  $('tr-amt')?.addEventListener('keydown', e => { if (e.key === 'Enter') doTransfer(); });
+  $('money-body').querySelectorAll('[data-del-transfer]').forEach(b => b.addEventListener('click', () => delTransfer(b.dataset.delTransfer)));
   $('money-body').querySelectorAll('[data-del-txn]').forEach(b => b.addEventListener('click', () => delTxn(b.dataset.delTxn)));
   $('money-body').querySelectorAll('[data-edit-txn]').forEach(el => el.addEventListener('click', () => { _editTxn = el.dataset.editTxn; render(); }));
   $('money-body').querySelectorAll('[data-save-txn]').forEach(b => b.addEventListener('click', () => saveTxn(b.dataset.saveTxn)));
@@ -278,6 +311,24 @@ async function addTxn() {
 }
 async function delTxn(id) {
   try { await api(`/api/money/transactions/${id}`, { method: 'DELETE' }); await load(); }
+  catch { toast('delete failed', 'error'); }
+}
+async function doTransfer() {
+  const from = getDropdownValue($('tr-from')), to = getDropdownValue($('tr-to'));
+  const amt = parseFloat($('tr-amt')?.value);
+  if (!amt || amt <= 0) { toast('enter an amount', 'error'); return; }
+  if (from === to) { toast('pick two different accounts', 'error'); return; }
+  try {
+    await api('/api/money/transfer', { method: 'POST', body: {
+      from_account: from, to_account: to, amount: amt, date: $('tr-date')?.dataset.value || _today(),
+    } });
+    toast('transferred', 'success');
+    await load();
+  } catch { toast('transfer failed', 'error'); }
+}
+async function delTransfer(tid) {
+  if (!await dlgConfirm('delete this transfer (removes both legs)?')) return;
+  try { await api(`/api/money/transfer/${tid}`, { method: 'DELETE' }); await load(); }
   catch { toast('delete failed', 'error'); }
 }
 async function saveTxn(id) {
