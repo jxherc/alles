@@ -33,11 +33,24 @@ _RICH = ("company", "title", "address", "birthday", "website")
 
 
 @router.get("/contacts")
-def list_contacts(q: str = Query(""), db: DbSession = Depends(get_db)):
+def list_contacts(
+    q: str = Query(""), favorites: bool = Query(False), db: DbSession = Depends(get_db)
+):
     qs = db.query(Contact)
+    if favorites:
+        qs = qs.filter(Contact.favorite == True)  # noqa: E712
+    rows = qs.order_by(Contact.name).all()
     if q:
-        qs = qs.filter(Contact.name.ilike(f"%{q}%"))
-    return [_fmt(c) for c in qs.order_by(Contact.name).all()]
+        ql = q.lower()
+        rows = [
+            c
+            for c in rows
+            if ql in (c.name or "").lower()
+            or ql in (c.email or "").lower()
+            or ql in (c.phone or "").lower()
+            or ql in (c.company or "").lower()
+        ]
+    return [_fmt(c) for c in rows]
 
 
 @router.get("/contacts/export")
@@ -127,6 +140,7 @@ class PatchContact(BaseModel):
     address: str | None = None
     birthday: str | None = None
     website: str | None = None
+    favorite: bool | None = None
 
 
 @router.patch("/contacts/{cid}")
@@ -148,6 +162,8 @@ def patch_contact(cid: str, body: PatchContact, db: DbSession = Depends(get_db))
         v = getattr(body, f)
         if v is not None:
             setattr(c, f, v)
+    if body.favorite is not None:
+        c.favorite = body.favorite
     c.updated_at = datetime.utcnow()
     db.commit()
     return _fmt(c)

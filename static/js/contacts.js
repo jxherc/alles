@@ -1,20 +1,42 @@
 import { toast } from './util.js';
 import { confirm as _dlgConfirm, fields as _dlgFields } from './dialog.js';
 
+let _favOnly = false;
+let _wiredFav = false;
+function _wireFav() {
+  if (_wiredFav) return; _wiredFav = true;
+  const btn = document.getElementById('contacts-fav-filter');
+  btn?.addEventListener('click', () => {
+    _favOnly = !_favOnly;
+    btn.classList.toggle('active', _favOnly);
+    loadContacts(document.getElementById('contacts-search')?.value || '');
+  });
+}
+
 export async function loadContacts(q = '') {
+  _wireFav();
   const list = document.getElementById('contacts-list');
   if (!list) return;
   try {
-    const url = q ? `/api/contacts?q=${encodeURIComponent(q)}` : '/api/contacts';
+    const params = new URLSearchParams();
+    if (q) params.set('q', q);
+    if (_favOnly) params.set('favorites', 'true');
+    const url = '/api/contacts' + (params.toString() ? '?' + params : '');
     const contacts = await fetch(url).then(r => r.json());
-    if (!contacts.length) { list.innerHTML = '<div class="page-empty">no contacts</div>'; return; }
+    if (!contacts.length) { list.innerHTML = `<div class="page-empty">${_favOnly ? 'no favorites' : 'no contacts'}</div>`; return; }
     list.innerHTML = contacts.map(c => `
       <div class="settings-list-row contact-item" data-id="${c.id}">
+        <button class="contact-star${c.favorite ? ' on' : ''}" data-id="${c.id}" title="favorite">${c.favorite ? '★' : '☆'}</button>
         <span class="row-name">${_esc(c.name)}</span>
         <span class="row-meta">${_esc(c.email || c.phone || '')}${c.company ? ' · ' + _esc(c.company) : ''}</span>
         <button class="act-btn" onclick="window._editContact('${c.id}')">edit</button>
         <button class="act-btn danger" onclick="window._delContact('${c.id}')">del</button>
       </div>`).join('');
+    list.querySelectorAll('.contact-star').forEach(s => s.addEventListener('click', async () => {
+      const on = !s.classList.contains('on');
+      await fetch(`/api/contacts/${s.dataset.id}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ favorite: on }) });
+      loadContacts(document.getElementById('contacts-search')?.value || '');
+    }));
   } catch (e) {
     list.innerHTML = '<div class="page-empty">failed to load</div>';
   }
