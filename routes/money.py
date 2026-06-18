@@ -164,6 +164,44 @@ def list_txns(
     return [_txn(t) for t in rows]
 
 
+@router.get("/transactions/search")
+def search_txns(
+    q: str = "",
+    min_amt: float = None,
+    max_amt: float = None,
+    account: str = "",
+    month: str = "",
+    limit: int = 500,
+    db: DbSession = Depends(get_db),
+):
+    """text search across payee/category/notes + filter by |amount| range, account,
+    month. date-desc. answers 'what did I spend at X' / 'charges over $100'."""
+    query = db.query(Transaction)
+    if account:
+        query = query.filter(Transaction.account_id == account)
+    if month:
+        query = query.filter(Transaction.date.like(f"{month}%"))
+    rows = query.order_by(Transaction.date.desc(), Transaction.created_at.desc()).all()
+    ql = (q or "").strip().lower()
+    out = []
+    for t in rows:
+        if ql and not (
+            ql in (t.payee or "").lower()
+            or ql in (t.category or "").lower()
+            or ql in (t.notes or "").lower()
+        ):
+            continue
+        amt = abs(t.amount or 0.0)
+        if min_amt is not None and amt < min_amt:
+            continue
+        if max_amt is not None and amt > max_amt:
+            continue
+        out.append(_txn(t))
+        if len(out) >= limit:
+            break
+    return out
+
+
 class TxnBody(BaseModel):
     account_id: str
     date: str
