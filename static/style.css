@@ -3022,7 +3022,8 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 .act-range-opt.on { background: var(--faint); color: var(--text); }
 .act-search { font-family: inherit; font-size: 0.7rem; margin-left: auto; padding: 0.2rem 0.5rem; background: var(--bg); border: 1px solid var(--faint); border-radius: 3px; color: var(--text); width: 160px; }
 .act-search:focus { outline: none; border-color: var(--muted); }
-.activity-summary { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; padding: 0.4rem 0; font-size: 0.72rem; color: var(--muted); }
+/* match the head/body horizontal padding so the summary's left edge lines up with the title */
+.activity-summary { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; padding: 0.4rem clamp(0.9rem, 3vw, 2rem); font-size: 0.72rem; color: var(--muted); }
 .activity-summary:empty { display: none; }
 .act-sum-total { color: var(--text); font-weight: 600; }
 .act-sum-chip { display: inline-flex; align-items: center; gap: 0.25rem; }
