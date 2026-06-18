@@ -501,7 +501,14 @@
       </div>
       <div id="wiki-autocomplete" class="wiki-autocomplete" style="display:none"></div>
       <div id="wiki-graph" class="wiki-graph" style="display:none">
-        <div class="wiki-graph-head"><span>graph</span><button class="icon-btn" id="wiki-graph-close">×</button></div>
+        <div class="wiki-graph-head">
+          <span>graph</span>
+          <div class="wiki-graph-ctrls">
+            <button class="btn" id="wiki-graph-local" title="show only notes linked to the open doc">local</button>
+            <input type="text" id="wiki-graph-filter" class="settings-input" placeholder="filter #tag" spellcheck="false">
+            <button class="icon-btn" id="wiki-graph-close">×</button>
+          </div>
+        </div>
         <svg id="wiki-graph-svg" class="wiki-graph-svg"></svg>
       </div>
       <div id="wiki-board" class="wiki-graph wiki-board" style="display:none">
