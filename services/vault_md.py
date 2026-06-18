@@ -152,6 +152,122 @@ _PERIODIC_TMPL = {
 }
 
 
+def _cmp_prop(pv, op: str, value: str) -> bool:
+    """compare a single frontmatter value against a filter. pv may be str/list/None."""
+    if op == "exists":
+        return pv is not None
+    if op == "missing":
+        return pv is None
+    if pv is None:
+        return op == "ne"  # a missing value is "not equal" to anything
+    if isinstance(pv, list):
+        vals = [str(x).lower() for x in pv]
+        if op in ("eq", "contains"):
+            return value.lower() in vals
+        if op == "ne":
+            return value.lower() not in vals
+        return False
+    s = str(pv)
+    if op == "eq":
+        return s.lower() == value.lower()
+    if op == "ne":
+        return s.lower() != value.lower()
+    if op == "contains":
+        return value.lower() in s.lower()
+    if op in ("gt", "lt"):
+        try:
+            a, b = float(s), float(value)
+        except ValueError:
+            a, b = s.lower(), value.lower()
+        return a > b if op == "gt" else a < b
+    return False
+
+
+def _match_note(row: dict, filters: list) -> bool:
+    for flt in filters:
+        field = flt.get("field") or flt.get("key") or ""
+        op = flt.get("op", "eq")
+        value = str(flt.get("value", ""))
+        if field == "tag":
+            tv = value.lstrip("#").lower()
+            if op in ("eq", "contains"):
+                ok = tv in row["tags"]
+            elif op == "ne":
+                ok = tv not in row["tags"]
+            elif op == "exists":
+                ok = bool(row["tags"])
+            elif op == "missing":
+                ok = not row["tags"]
+            else:
+                ok = False
+        elif field == "folder":
+            pref = value.lower().rstrip("/")
+            ok = row["path"].lower().startswith(pref + "/") if pref else "/" not in row["path"]
+        elif field == "name":
+            ok = _cmp_prop(row["name"], op, value)
+        else:
+            ok = _cmp_prop(row["props"].get(field), op, value)
+        if not ok:
+            return False
+    return True
+
+
+def query_notes(filters=None, sort=None, limit=None) -> list[dict]:
+    """dataview-lite: filter notes by frontmatter properties / tags / folder, sort, limit.
+    each row = {name, path, props, tags, modified}."""
+    filters = filters or []
+    base = vault_dir()
+    rows = []
+    for p in _all_md():
+        try:
+            text = p.read_text("utf-8", errors="replace")
+        except Exception:
+            continue
+        props, body = parse_frontmatter(text)
+        tags = set()
+        tp = props.get("tags")
+        if isinstance(tp, list):
+            tags.update(str(x).lower() for x in tp)
+        elif isinstance(tp, str) and tp:
+            tags.update(s.strip().lower() for s in tp.split(",") if s.strip())
+        tags.update(m.group(1).lower() for m in _TAG.finditer(body))
+        try:
+            mtime = p.stat().st_mtime
+        except OSError:
+            mtime = 0
+        row = {
+            "name": p.stem,
+            "path": str(p.relative_to(base)).replace("\\", "/"),
+            "props": props,
+            "tags": sorted(tags),
+            "modified": mtime,
+        }
+        if _match_note(row, filters):
+            rows.append(row)
+    if sort and sort.get("field"):
+        f = sort["field"]
+
+        def _key(r):
+            if f == "name":
+                return r["name"].lower()
+            if f == "modified":
+                return r["modified"]
+            v = r["props"].get(f)
+            if v is None:
+                return (2, "")
+            if isinstance(v, list):
+                v = ", ".join(str(x) for x in v)
+            try:
+                return (0, float(v))
+            except ValueError:
+                return (1, str(v).lower())
+
+        rows.sort(key=_key, reverse=(sort.get("dir", "asc") == "desc"))
+    if limit:
+        rows = rows[: int(limit)]
+    return rows
+
+
 def periodic_path(kind: str, d=None) -> str:
     """relative note path for a periodic note. weekly uses ISO year+week so the
     new-year boundary lands in the right bucket."""
