@@ -1,0 +1,26 @@
+{
+  "console_errors": [],
+  "log": [
+    "=== width 1280 ===",
+    "month label: 'June 2026'",
+    "[1280] head box: {'x': 0, 'y': 46, 'width': 1279, 'height': 65}  (multi-row if height>56: True)",
+    "[1280] control center-Ys: [('cal-nav', 84), ('cal-month-label', 84), ('cal-view-toggle', 84), ('cal-export', 84), ('cal-import-file', 0), ('cal-import', 84), ('cal-quick', 84), ('cal-find', 84), ('cal-sync-btn', 84), ('cal-new-btn', 84), ('icon-btn app-cog', 84)]",
+    "[1280] center-Y spread (max-min): 84",
+    "[1280] distinct top-Y rows: [0, 70, 71, 72, 73] -> 5 visual row(s)",
+    "[1280] sidebar-search top=122 grid-main top=111 delta=12",
+    "=== width 1000 ===",
+    "month label: 'June 2026'",
+    "[1000] head box: {'x': 0, 'y': 46, 'width': 999, 'height': 65}  (multi-row if height>56: True)",
+    "[1000] control center-Ys: [('cal-nav', 84), ('cal-month-label', 84), ('cal-view-toggle', 84), ('cal-export', 84), ('cal-import-file', 0), ('cal-import', 84), ('cal-quick', 84), ('cal-find', 84), ('cal-sync-btn', 84), ('cal-new-btn', 84), ('icon-btn app-cog', 84)]",
+    "[1000] center-Y spread (max-min): 84",
+    "[1000] distinct top-Y rows: [0, 70, 71, 72, 73] -> 5 visual row(s)",
+    "[1000] sidebar-search top=122 grid-main top=111 delta=12",
+    "=== width 820 ===",
+    "month label: 'June 2026'",
+    "[820] head box: {'x': 0, 'y': 46, 'width': 819, 'height': 82}  (multi-row if height>56: True)",
+    "[820] control center-Ys: [('cal-nav', 93), ('cal-month-label', 93), ('cal-view-toggle', 93), ('cal-export', 93), ('cal-import-file', 0), ('cal-import', 93), ('cal-quick', 93), ('cal-find', 93), ('cal-sync-btn', 93), ('cal-new-btn', 93), ('icon-btn app-cog', 93)]",
+    "[820] center-Y spread (max-min): 93",
+    "[820] distinct top-Y rows: [0, 70, 73, 79, 80, 81, 82] -> 7 visual row(s)",
+    "[820] sidebar-search top=139 grid-main top=128 delta=12"
+  ]
+}
