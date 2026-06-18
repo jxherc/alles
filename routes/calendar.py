@@ -74,6 +74,59 @@ def calendar_tasks(start: str = "", end: str = "", db: DbSession = Depends(get_d
     return [{"id": t.id, "title": t.title, "date": t.due_date, "done": t.done} for t in rows]
 
 
+@router.post("/calendar/{eid}/duplicate")
+def duplicate_event(eid: str, db: DbSession = Depends(get_db)):
+    """clone an event (new id), same fields — Google Calendar 'duplicate'."""
+    e = db.get(CalendarEvent, eid)
+    if not e:
+        raise HTTPException(404)
+    cols = {c.name for c in CalendarEvent.__table__.columns} - {"id", "created_at", "caldav_uid"}
+    clone = CalendarEvent(**{c: getattr(e, c) for c in cols})
+    db.add(clone)
+    db.commit()
+    db.refresh(clone)
+    return _fmt(clone)
+
+
+@router.get("/calendar/free")
+def free_time(
+    date: str,
+    minutes: int = 60,
+    work_start: int = 9,
+    work_end: int = 18,
+    db: DbSession = Depends(get_db),
+):
+    """open slots on a given date that fit `minutes`, avoiding existing timed events."""
+    from datetime import date as _date
+    from datetime import datetime as _dt
+    from datetime import timedelta as _td
+
+    from services.recur import expand, free_slots
+
+    try:
+        day = _date.fromisoformat(date)
+    except ValueError:
+        raise HTTPException(400, "bad date")
+    rs = _dt.combine(day, _dt.min.time())
+    re_ = rs + _td(days=1)
+    busy = []
+    for e in db.query(CalendarEvent).all():
+        if e.all_day:
+            continue
+        try:
+            base_s = _dt.fromisoformat(e.start_dt)
+            base_e = _dt.fromisoformat(e.end_dt) if e.end_dt else base_s + _td(hours=1)
+            dur = base_e - base_s
+        except (ValueError, TypeError):
+            continue
+        if e.recurrence:
+            for occ in expand(_fmt(e), rs, re_):
+                busy.append((occ, occ + dur))
+        elif rs <= base_s < re_:
+            busy.append((base_s, base_e))
+    return {"date": date, "slots": free_slots(busy, day, minutes, work_start, work_end)}
+
+
 @router.get("/calendar/agenda")
 def agenda(days: int = 30, db: DbSession = Depends(get_db)):
     """upcoming events grouped by day — a flat agenda list for the next N days."""
