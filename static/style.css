@@ -3748,6 +3748,19 @@ body.is-incognito .incognito-bar {
 .wiki-outline-item:hover { color: var(--text); background: #141414; }
 .wiki-outline-empty { font-size: 0.72rem; color: var(--faint); padding: 0.2rem 0.7rem; }
 .wiki-outline-btn.active, #wiki-outline-btn.active { color: var(--text); border-color: var(--muted); }
+#wiki-props-btn.active { color: var(--text); border-color: var(--muted); }
+.wiki-props { width: 320px; padding: 0.5rem 0.6rem; }
+.wiki-prop-row { display: flex; gap: 0.3rem; align-items: center; margin-bottom: 0.3rem; }
+.wiki-prop-key, .wiki-prop-val {
+  flex: 1; min-width: 0; font-size: 0.72rem; color: var(--text);
+  background: #141414; border: 1px solid var(--faint); border-radius: 2px; padding: 0.2rem 0.35rem;
+  transition: border-color 0.15s;
+}
+.wiki-prop-key { flex: 0 0 38%; }
+.wiki-prop-key:focus, .wiki-prop-val:focus { outline: none; border-color: var(--muted); }
+.wiki-prop-del { flex: 0 0 auto; color: var(--muted); font-size: 0.9rem; line-height: 1; }
+.wiki-prop-del:hover { color: var(--error); }
+.wiki-prop-actions { display: flex; gap: 0.4rem; margin-top: 0.4rem; }
 
 /* frontmatter properties */
 .md-frontmatter {
