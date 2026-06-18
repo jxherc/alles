@@ -4,6 +4,7 @@ import { populateDropdown } from './dropdown.js';
 
 let _unlocked = false;
 let _token = null;   // the unlock token; sent back on every vault request
+let _schemas = {};   // category -> {fields:[...]}; drives which inputs show
 
 // fetch wrapper that attaches this session's unlock token so the server can
 // bind the request to our unlock (not just "someone unlocked recently")
@@ -28,33 +29,51 @@ export async function loadVaultView() {
 
 const NEW_CAT = '__new__';
 
+const $ = id => document.getElementById(id);
+
 export function initVault() {
-  document.getElementById('vault-unlock-btn')?.addEventListener('click', _doUnlock);
-  document.getElementById('vault-lock-btn')?.addEventListener('click', _doLock);
-  document.getElementById('vault-add-btn')?.addEventListener('click', _addEntry);
-  document.getElementById('vault-pw-input')?.addEventListener('keydown', e => {
+  $('vault-unlock-btn')?.addEventListener('click', _doUnlock);
+  $('vault-lock-btn')?.addEventListener('click', _doLock);
+  $('vault-add-btn')?.addEventListener('click', _addEntry);
+  $('vault-pw-input')?.addEventListener('keydown', e => {
     if (e.key === 'Enter') _doUnlock();
   });
-  document.getElementById('vault-new-cat')?.addEventListener('change', _onCatChange);
-  document.getElementById('vault-new-cat-custom')?.addEventListener('input', _onCatChange);
-  document.getElementById('vault-gen-btn')?.addEventListener('click', _genPw);
-  document.getElementById('vault-new-value')?.addEventListener('input', _checkStrength);
-  document.querySelectorAll('#vault-new-type .vts-btn').forEach(b => b.addEventListener('click', () => {
-    document.getElementById('vault-new-type').dataset.type = b.dataset.t;
-    document.querySelectorAll('#vault-new-type .vts-btn').forEach(x => x.classList.toggle('active', x === b));
-    _applyType();
+  $('vault-new-cat')?.addEventListener('change', _onCatChange);
+  $('vault-new-cat-custom')?.addEventListener('input', _onCatChange);
+  $('vault-gen-btn')?.addEventListener('click', _genPw);
+  $('vault-new-value')?.addEventListener('input', _checkStrength);
+  // field-picker chips for a brand-new category
+  document.querySelectorAll('#vault-new-schema .vsp-chip').forEach(c => c.addEventListener('click', () => {
+    c.classList.toggle('active');
+    _applySchema(_currentSchema());
   }));
-  _applyType();
 }
 
-function _curType() { return document.getElementById('vault-new-type')?.dataset.type || 'password'; }
+// fields the form is currently set to collect
+function _currentSchema() {
+  const sel = $('vault-new-cat');
+  if (sel && sel.value === NEW_CAT) {
+    return [...document.querySelectorAll('#vault-new-schema .vsp-chip.active')].map(c => c.dataset.f);
+  }
+  return (_schemas[sel?.value]?.fields) || ['password', 'notes'];
+}
 
-function _applyType() {
-  const t = _curType();
-  document.querySelectorAll('.vault-f-pw').forEach(el => el.style.display = t === 'card' ? 'none' : '');
-  document.querySelectorAll('.vault-f-card').forEach(el => el.style.display = t === 'card' ? '' : 'none');
-  const v = document.getElementById('vault-new-value');
-  if (v) v.placeholder = t === 'note' ? 'note text' : 'value / password';
+function _typeFromFields(f) {
+  if (f.includes('card')) return 'card';
+  if (f.includes('notes') && !f.includes('password')) return 'note';
+  return 'password';
+}
+
+function _show(id, on) { const el = $(id); if (el) el.style.display = on ? '' : 'none'; }
+
+// show exactly the inputs the selected category's schema declares
+function _applySchema(fields) {
+  const card = fields.includes('card');
+  _show('vault-new-username', fields.includes('username') && !card);
+  document.querySelectorAll('.vault-f-pw').forEach(el => el.style.display = (fields.includes('password') && !card) ? '' : 'none');
+  _show('vault-new-url', fields.includes('url') && !card);
+  _show('vault-new-notes', fields.includes('notes') && !card);
+  document.querySelectorAll('.vault-f-card').forEach(el => el.style.display = card ? '' : 'none');
 }
 
 async function _genPw() {
@@ -95,12 +114,13 @@ function _showStrength(s) {
 }
 
 async function _populateCats() {
-  const sel = document.getElementById('vault-new-cat');
+  const sel = $('vault-new-cat');
   if (!sel) return;
   let cats = ['password', 'api key', 'card', 'note', 'general'];
   try {
     const d = await _vfetch('/api/vault/categories').then(r => r.json());
     if (d.categories?.length) cats = d.categories;
+    _schemas = d.schemas || {};
   } catch {}
   const cur = sel.value;
   const opts = [...cats.map(c => ({ value: c, label: c })), { value: NEW_CAT, label: '+ new category…' }];
@@ -109,16 +129,13 @@ async function _populateCats() {
 }
 
 function _onCatChange() {
-  const sel = document.getElementById('vault-new-cat');
-  const custom = document.getElementById('vault-new-cat-custom');
-  const user = document.getElementById('vault-new-username');
+  const sel = $('vault-new-cat');
   if (!sel) return;
   const isNew = sel.value === NEW_CAT;
-  custom.style.display = isNew ? '' : 'none';
-  if (isNew) custom.focus();
-  // username field for credential-style categories
-  const cat = isNew ? custom.value.trim() : sel.value;
-  user.style.display = /password|login|account/i.test(cat) ? '' : 'none';
+  _show('vault-new-cat-custom', isNew);
+  _show('vault-new-schema', isNew);
+  if (isNew) $('vault-new-cat-custom').focus();
+  _applySchema(_currentSchema());   // category drives which fields show
 }
 
 async function _doUnlock() {
@@ -171,36 +188,40 @@ async function _loadEntries() {
 }
 
 async function _addEntry() {
-  const name = document.getElementById('vault-new-name')?.value.trim();
-  const sel  = document.getElementById('vault-new-cat');
-  const cat  = (sel.value === NEW_CAT
-    ? document.getElementById('vault-new-cat-custom').value.trim()
-    : sel.value) || 'general';
-  const type = _curType();
-  const g = id => document.getElementById(id)?.value.trim() || '';
-  let fields, ok;
+  const name = $('vault-new-name')?.value.trim();
+  const sel  = $('vault-new-cat');
+  const isNew = sel.value === NEW_CAT;
+  const cat  = (isNew ? $('vault-new-cat-custom').value.trim() : sel.value) || 'general';
+  const schema = _currentSchema();
+  const type = _typeFromFields(schema);
+  const g = id => $(id)?.value.trim() || '';
+  let fields = {}, ok = false, username = '';
   if (type === 'card') {
     fields = { cardholder: g('vault-new-cardholder'), number: g('vault-new-number'), expiry: g('vault-new-expiry'), cvv: g('vault-new-cvv') };
-    ok = fields.number;
-  } else if (type === 'note') {
-    fields = { notes: g('vault-new-value') };
-    ok = fields.notes;
+    ok = !!fields.number;
   } else {
-    const userEl = document.getElementById('vault-new-username');
-    fields = { password: g('vault-new-value'), url: '', notes: '' };
-    ok = fields.password;
-    var username = userEl.style.display !== 'none' ? userEl.value.trim() : '';
+    if (schema.includes('password')) fields.password = g('vault-new-value');
+    if (schema.includes('url')) fields.url = g('vault-new-url');
+    if (schema.includes('notes')) fields.notes = g('vault-new-notes');
+    ok = !!(fields.password || fields.notes);
+    username = schema.includes('username') ? g('vault-new-username') : '';
   }
   if (!name || !ok) { toast('name and value required', 'error'); return; }
+  if (isNew && cat) {   // remember the new category's field schema
+    await _vfetch('/api/vault/category-schema', {
+      method: 'PUT', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ name: cat, fields: schema }),
+    }).catch(() => {});
+  }
   const r = await _vfetch('/api/vault', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ name, type, fields, category: cat, username: username || '' }),
+    body: JSON.stringify({ name, type, fields, category: cat, username }),
   });
   if (!r.ok) { toast('failed — is vault unlocked?', 'error'); return; }
-  ['vault-new-name','vault-new-value','vault-new-cat-custom','vault-new-username',
+  ['vault-new-name','vault-new-value','vault-new-cat-custom','vault-new-username','vault-new-url','vault-new-notes',
    'vault-new-cardholder','vault-new-number','vault-new-expiry','vault-new-cvv'].forEach(id => {
-    const el = document.getElementById(id);
+    const el = $(id);
     if (el) el.value = '';
   });
   toast('entry added', 'success');
@@ -214,7 +235,7 @@ function _revealText(d) {
     return [f.number, f.expiry && 'exp ' + f.expiry, f.cvv && 'cvv ' + f.cvv, f.cardholder].filter(Boolean).join('  ');
   }
   if (d.type === 'note') return f.notes || '';
-  return [f.password || d.value, f.url && '↗ ' + f.url].filter(Boolean).join('  ');
+  return [f.password || d.value, f.url && '↗ ' + f.url, f.notes && '— ' + f.notes].filter(Boolean).join('  ');
 }
 function _primarySecret(d) {
   const f = d.fields || {};

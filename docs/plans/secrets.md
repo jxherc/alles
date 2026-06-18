@@ -23,3 +23,28 @@ structured/typed fields; UI form is single-secret.
 ## Out of scope
 
 TOTP/2FA secrets, password-history, breach checks, attachments.
+
+---
+
+# secrets — UI/UX polish (2026-06-18)
+
+Evidence: `docs/evidence/secrets/` (findings.md + 2 screenshots). User ask (Image #3): selecting a
+category should auto-apply its field style, and creating a category should ask which fields it holds.
+
+## secrets-cat-1 — per-category field schema
+
+**Backend (`routes/vault.py`, schema in `settings.json` `vault_category_schemas`):**
+- `_default_schema(cat)` infers fields (card / note / login / api-key / fallback).
+- `GET /api/vault/categories` → `{categories, schemas:{cat:{fields}}}`.
+- `PUT /api/vault/category-schema {name, fields}` persists one (drops unknown fields, 400 on empty name,
+  403 when locked).
+
+**UI (`static/js/vault.js`, `static/index.html`, `static/style.css`):**
+- selecting a category shows exactly its schema fields (replaces the hardcoded regex + the fixed
+  password/card/note TYPE segment); `type` inferred from the schema.
+- "+ new category…" reveals a custom toggle-chip field-picker (username/password/url/notes/card — no
+  native checkboxes); the chosen schema is PUT on add.
+- reveal renders password + url + notes generically.
+
+**Verify:** `tests/test_vault_category_schema.py` (13 cases, RED→GREEN) + Playwright `pw_secrets_cat.py`
+(10/10 assertions, zero console errors, screenshots).

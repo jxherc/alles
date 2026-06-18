@@ -1,4 +1,5 @@
 import json
+import re
 import secrets
 import time
 
@@ -106,11 +107,56 @@ def list_vault(db: DbSession = Depends(get_db), _pw: str = Depends(_master_pw)):
     ]
 
 
+_BASE_CATS = ["password", "api key", "card", "note", "general"]
+_FIELD_KEYS = ["username", "password", "url", "notes", "card"]  # canonical, ordered
+
+
+def _default_schema(category: str) -> list[str]:
+    """which fields a category has by default, when nothing's been saved for it."""
+    c = (category or "").lower()
+    if "card" in c:
+        return ["card"]
+    if "note" in c:
+        return ["notes"]
+    if re.search(r"password|login|account", c):
+        return ["username", "password", "url", "notes"]
+    if "api" in c or "key" in c:
+        return ["password", "url", "notes"]
+    return ["password", "notes"]
+
+
+def _all_schemas(db) -> tuple[list[str], dict]:
+    used = [c for (c,) in db.query(VaultEntry.category).distinct().all() if c]
+    saved = load_settings().get("vault_category_schemas") or {}
+    cats = sorted(set(_BASE_CATS) | set(used) | set(saved.keys()))
+    schemas = {}
+    for c in cats:
+        fields = saved.get(c)
+        schemas[c] = {"fields": fields if isinstance(fields, list) else _default_schema(c)}
+    return cats, schemas
+
+
 @router.get("/vault/categories")
 def vault_categories(db: DbSession = Depends(get_db), _pw: str = Depends(_master_pw)):
-    used = [c for (c,) in db.query(VaultEntry.category).distinct().all() if c]
-    base = ["password", "api key", "card", "note", "general"]
-    return {"categories": sorted(set(base) | set(used))}
+    cats, schemas = _all_schemas(db)
+    return {"categories": cats, "schemas": schemas}
+
+
+class CategorySchema(BaseModel):
+    name: str
+    fields: list[str] = []
+
+
+@router.put("/vault/category-schema")
+def put_category_schema(body: CategorySchema, _pw: str = Depends(_master_pw)):
+    name = (body.name or "").strip()
+    if not name:
+        raise HTTPException(400, "category name required")
+    fields = [f for f in body.fields if f in _FIELD_KEYS]  # drop anything not a known field
+    m = dict(load_settings().get("vault_category_schemas") or {})
+    m[name] = fields
+    save_settings({"vault_category_schemas": m})
+    return {"name": name, "fields": fields}
 
 
 class CreateEntry(BaseModel):
