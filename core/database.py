@@ -557,6 +557,17 @@ class CategoryRule(Base):
     created_at = Column(DateTime, default=_now)
 
 
+class FileTag(Base):
+    # macOS-Finder-style labels for a file/folder in the files app, keyed by its
+    # root-relative path. tags = comma-separated, color = one swatch name.
+    __tablename__ = "file_tags"
+    id = Column(String, primary_key=True, default=_uid)
+    path = Column(String, unique=True, index=True)  # files-root-relative
+    tags = Column(String, default="")  # csv of normalized (lowercased) tags
+    color = Column(String, default="")  # swatch name: red/orange/green/blue/purple/gray
+    created_at = Column(DateTime, default=_now)
+
+
 class DocRevision(Base):
     __tablename__ = "doc_revisions"
     id = Column(String, primary_key=True, default=_uid)

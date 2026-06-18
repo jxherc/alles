@@ -113,11 +113,13 @@ function renderList(items) {
   }
   list.innerHTML = items.map(it => `
     <div class="file-row" data-path="${esc(it.path)}" data-type="${it.type}" data-img="${it.is_img ? 1 : 0}">
+      <span class="file-dot ${it.color ? 'on c-' + esc(it.color) : ''}"></span>
       <span class="file-icon">${it.type === 'dir' ? _ic('dir') : _ic(it.is_img ? 'img' : 'file')}</span>
-      <span class="file-name">${esc(it.name)}</span>
+      <span class="file-name">${esc(it.name)}${(it.tags && it.tags.length) ? it.tags.map(t => `<span class="file-tag">${esc(t)}</span>`).join('') : ''}</span>
       <span class="file-meta">${it.type === 'file' ? fmtSize(it.size) : ''}</span>
       <span class="file-row-actions">
         ${it.type === 'file' ? `<a class="file-act" href="/api/files/raw?path=${encodeURIComponent(it.path)}&download=1" download title="download">↓</a>` : ''}
+        <button class="file-act" data-act="tag" title="tags & color">⊙</button>
         <button class="file-act" data-act="rename" title="rename">✎</button>
         <button class="file-act" data-act="delete" title="delete">✕</button>
       </span>
@@ -137,9 +139,41 @@ function renderList(items) {
       b.addEventListener('click', async e => {
         e.stopPropagation();
         if (b.dataset.act === 'rename') await renameEntry(path);
+        else if (b.dataset.act === 'tag') await editTags(path, row);
         else await deleteEntry(path, row.dataset.type);
       });
     });
+  });
+}
+
+const COLORS = ['', 'red', 'orange', 'green', 'blue', 'purple', 'gray'];
+
+async function editTags(path, row) {
+  // close any open popover first
+  document.querySelector('.file-tagpop')?.remove();
+  let cur = { tags: [], color: '' };
+  try { cur = await fetch(`/api/files/tags?path=${encodeURIComponent(path)}`).then(r => r.json()); } catch {}
+  const pop = document.createElement('div');
+  pop.className = 'file-tagpop';
+  pop.innerHTML = `
+    <input type="text" class="file-tagin" placeholder="tags, comma separated" value="${esc((cur.tags || []).join(', '))}">
+    <div class="file-colors">${COLORS.map(c => `<button class="file-cdot ${c ? 'c-' + c : 'c-none'} ${c === (cur.color || '') ? 'sel' : ''}" data-c="${c}" title="${c || 'none'}"></button>`).join('')}</div>
+    <div class="file-tagpop-actions"><button class="btn primary" data-save>save</button><button class="btn" data-cancel>cancel</button></div>`;
+  row.appendChild(pop);
+  let color = cur.color || '';
+  pop.querySelectorAll('.file-cdot').forEach(d => d.addEventListener('click', () => {
+    color = d.dataset.c;
+    pop.querySelectorAll('.file-cdot').forEach(x => x.classList.toggle('sel', x === d));
+  }));
+  pop.querySelector('.file-tagin').focus();
+  pop.querySelector('[data-cancel]').addEventListener('click', () => pop.remove());
+  pop.querySelector('[data-save]').addEventListener('click', async () => {
+    const tags = pop.querySelector('.file-tagin').value.split(',').map(s => s.trim()).filter(Boolean);
+    const r = await fetch(`/api/files/tags?path=${encodeURIComponent(path)}`, {
+      method: 'PUT', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ tags, color }),
+    });
+    if (r.ok) { pop.remove(); loadFiles(); } else toast('save failed', 'error');
   });
 }
 
