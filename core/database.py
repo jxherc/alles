@@ -498,6 +498,28 @@ class Subscription(Base):
     created_at = Column(DateTime, default=_now)
 
 
+class SubPayment(Base):
+    # one row per time a subscription was marked paid — drives history + undo
+    __tablename__ = "sub_payments"
+    id = Column(String, primary_key=True, default=_uid)
+    sub_id = Column(String, index=True, nullable=False)
+    date = Column(String, nullable=False)  # the due/cycle date that was paid (ISO)
+    amount = Column(Float, default=0.0)
+    txn_id = Column(String, default="")  # linked money transaction, if posted (for undo)
+    created_at = Column(DateTime, default=_now)
+
+
+class SubPriceChange(Base):
+    # recorded whenever a sub's price changes — drives price-history + hike flag
+    __tablename__ = "sub_price_changes"
+    id = Column(String, primary_key=True, default=_uid)
+    sub_id = Column(String, index=True, nullable=False)
+    old_price = Column(Float, default=0.0)
+    new_price = Column(Float, default=0.0)
+    date = Column(String, default="")  # ISO date of the change
+    created_at = Column(DateTime, default=_now)
+
+
 class Account(Base):
     __tablename__ = "money_accounts"
     id = Column(String, primary_key=True, default=_uid)

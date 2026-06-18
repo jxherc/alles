@@ -28,3 +28,28 @@ renewals** view (what's due in the next N days + the total).
 ## Out of scope
 
 Bank/email auto-detection of subscriptions, multi-currency conversion, shared/family plans.
+
+---
+
+# subscriptions — sane payments + feasible extras (2026-06-18)
+
+Evidence: `docs/evidence/subscriptions/`. The reported bug: `mark_paid` advanced `next_due` every click
+with no due-guard → infinite advancing. New tables `sub_payments` + `sub_price_changes`.
+
+## subs-fix-1 — sane mark-paid + payment log + undo  (done)
+`paid` only when due (`days_until<=0`, else 400 + UI "not due"); each pay writes a `SubPayment` (+links the
+money txn); `GET /…/{id}/payments`, `POST /…/{id}/payments/undo` (drops txn + steps next_due back). UI:
+paid gated on `payable`, "⤺ N" history popover with undo.
+Tests: `test_subs_payments.py` (12) + corrected `test_subs_paid` + `pw_subs_pay.py` (8/8).
+
+## subs-fix-2 — price history + hike flag
+On a PATCH that changes `price`, record `SubPriceChange(old,new,date)`; expose `price_increased` + last
+change in `_fmt`; UI "↑ price up" badge. Tests `test_subs_price.py` (≥8).
+
+## subs-fix-3 — cash-flow forecast
+`GET /api/subscriptions/forecast?months=6` → per-month projected totals across each active sub's cycle
+(+ grand total). UI mini month strip. Tests `test_subs_forecast.py` (≥8).
+
+## subs-fix-4 — duplicate detection
+`GET /api/subscriptions/duplicates` → groups of subs with normalized-similar names / same url host. UI
+"possible duplicate" hint. Tests `test_subs_duplicates.py` (≥8).
