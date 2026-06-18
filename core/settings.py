@@ -1,5 +1,7 @@
-import os, json
+import json
+import os
 from pathlib import Path
+
 from dotenv import load_dotenv
 
 load_dotenv(encoding="utf-8-sig")  # utf-8-sig handles windows BOM
@@ -64,6 +66,7 @@ _defaults = {
     "system_refresh": 1500,
     "mail_poll_seconds": 30,
     "mail_signature": "",
+    "mail_vips": [],  # VIP sender emails (Apple Mail style)
 }
 
 _ARTIFACT_INSTRUCTIONS = (

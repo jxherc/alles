@@ -565,6 +565,28 @@ def fetch_message(acct, uid: str, folder: str = "INBOX") -> dict:
         _release_imap(acct, M, ok)
 
 
+def is_vip(sender: str, vips) -> bool:
+    """is this message from a VIP? matches the email in 'Name <email>' against the list."""
+    if not vips:
+        return False
+    addr = email.utils.parseaddr(sender or "")[1].lower()
+    return bool(addr) and addr in {str(v).lower() for v in vips}
+
+
+def set_seen(acct, uid, seen: bool, folder: str = "INBOX") -> dict:
+    """add/remove the \\Seen IMAP flag (read/unread toggle, best-effort)."""
+    M = _imap(acct)
+    ok = False
+    try:
+        M.select(folder)
+        op = "+FLAGS" if seen else "-FLAGS"
+        M.uid("store", uid.encode() if isinstance(uid, str) else uid, op, r"(\Seen)")
+        ok = True
+        return {"ok": True}
+    finally:
+        _release_imap(acct, M, ok)
+
+
 def set_flag(acct, uid, flagged: bool, folder: str = "INBOX") -> dict:
     """add/remove the \\Flagged IMAP flag (best-effort star sync)."""
     M = _imap(acct)

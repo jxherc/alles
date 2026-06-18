@@ -1942,6 +1942,7 @@ body.is-incognito .incognito-bar {
 .mail-flag { flex-shrink: 0; background: none; border: none; cursor: pointer; color: var(--muted); font-size: 0.8rem; line-height: 1; padding: 0 0 0 0.2rem; opacity: 0.5; transition: opacity 0.15s, color 0.15s; }
 .mail-row:hover .mail-flag { opacity: 1; }
 .mail-flag.on { color: var(--accent); opacity: 1; }
+#mail-vip.on { color: var(--accent); border-color: var(--accent); }
 .mail-subject { font-size: 0.74rem; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .mail-reader { display: flex; flex-direction: column; height: 100%; }

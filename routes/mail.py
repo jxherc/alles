@@ -200,14 +200,62 @@ def unified(limit: int = 50, db: DbSession = Depends(get_db)):
 
 @router.get("/smart/{aid}")
 def smart(aid: str, filter: str = "unread", limit: int = 50, db: DbSession = Depends(get_db)):
-    """smart mailbox over the cache: filter = unread | flagged."""
+    """smart mailbox over the cache: filter = unread | flagged | vip."""
     from services import mail_cache
 
     _get(db, aid)
+    if filter == "vip":
+        from core.settings import load_settings
+
+        vips = load_settings().get("mail_vips", [])
+        rows = mail_cache.get(db, aid, "INBOX", limit)
+        return {"messages": [m for m in rows if mailsvc.is_vip(m.get("from", ""), vips)]}
     msgs = mail_cache.get_filtered(
         db, aid, unread=(filter == "unread"), flagged=(filter == "flagged"), limit=limit
     )
     return {"messages": msgs}
+
+
+@router.post("/read/{aid}")
+def read(
+    aid: str, uid: str, seen: bool = True, folder: str = "INBOX", db: DbSession = Depends(get_db)
+):
+    """mark read/unread — cache is the source of truth, IMAP is best-effort."""
+    from services import mail_cache
+
+    a = _get(db, aid)
+    mail_cache.set_seen(db, aid, folder, uid, seen)
+    try:
+        mailsvc.set_seen(_acct_dict(a), uid, seen, folder)
+    except Exception:
+        pass
+    return {"ok": True, "seen": seen}
+
+
+class VipBody(BaseModel):
+    email: str
+    add: bool = True
+
+
+@router.get("/vips")
+def get_vips():
+    from core.settings import load_settings
+
+    return {"vips": load_settings().get("mail_vips", [])}
+
+
+@router.post("/vips")
+def set_vip(body: VipBody):
+    from core.settings import load_settings, save_settings
+
+    vips = [v for v in load_settings().get("mail_vips", []) if v]
+    e = body.email.strip().lower()
+    if body.add and e and e not in vips:
+        vips.append(e)
+    elif not body.add:
+        vips = [v for v in vips if v.lower() != e]
+    save_settings({"mail_vips": vips})
+    return {"vips": vips}
 
 
 @router.post("/flag/{aid}")
