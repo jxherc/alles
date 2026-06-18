@@ -373,6 +373,12 @@ class Contact(Base):
     phone = Column(String, default="")
     notes = Column(Text, default="")
     tags = Column(Text, default="[]")  # json list
+    company = Column(String, default="")
+    title = Column(String, default="")  # job title
+    address = Column(Text, default="")
+    birthday = Column(String, default="")  # ISO date or MM-DD
+    website = Column(String, default="")
+    favorite = Column(Boolean, default=False)
     created_at = Column(DateTime, default=_now)
     updated_at = Column(DateTime, default=_now)
 
@@ -588,6 +594,15 @@ def init_db():
     # migrations — safe to run multiple times (all idempotent)
     with engine.connect() as conn:
         _add_col(conn, "cached_messages", "flagged", "BOOLEAN DEFAULT 0")
+        for _c, _t in [
+            ("company", "TEXT DEFAULT ''"),
+            ("title", "TEXT DEFAULT ''"),
+            ("address", "TEXT DEFAULT ''"),
+            ("birthday", "TEXT DEFAULT ''"),
+            ("website", "TEXT DEFAULT ''"),
+            ("favorite", "BOOLEAN DEFAULT 0"),
+        ]:
+            _add_col(conn, "contacts", _c, _t)
         _add_col(conn, "sessions", "persona_id", "TEXT")
         _add_col(conn, "sessions", "project_id", "TEXT")
         _add_col(conn, "sessions", "working_dir", "TEXT DEFAULT ''")
