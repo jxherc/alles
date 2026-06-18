@@ -30,3 +30,31 @@ find-a-time / free-slot** helper.
 
 Per-event time zones / world clock (niche for single-user self-host), appointment-scheduling pages,
 free-busy across external calendars. Revisit if needed.
+
+---
+
+# calendar — UI/UX polish (2026-06-18)
+
+Re-audit evidence: `docs/evidence/calendar/` (findings.md + 3 screenshots). Wide (1280/1000) the header is
+one clean baseline-aligned row. At 820 the month label + `find time`/`+ event` labels wrap and the toolbar
+overflows the cog off-screen. Single UI task.
+
+## cal-ui-1 — keep the calendar toolbar on intact, wrapping rows (no label-splitting / cog overflow)
+
+**Change (`static/style.css`):**
+- `.cal-month-title { white-space:nowrap }`.
+- `#calendar-view .page-view-head { flex-wrap:wrap }` and nowrap on its `.btn` / `.cal-view-btn`.
+- trim `.cal-quick` min-width (180→150) so it stops forcing the row past the viewport.
+- align `.cal-sidebar` top padding to `.cal-main` so the sidebar search lines up with the weekday header.
+
+**Verify (Playwright `pw_cal_ui1.py` @1280 + @820, ≥8 assertions, RED→GREEN, screenshots, 0 console err):**
+1. `month_single_line_1280` — month label height < 30px (one line).
+2. `month_single_line_820` — month label still one line at 820 (no "June"/"2026" split).
+3. `findtime_single_line_820` — "find time" button height < 30px (label not wrapped).
+4. `plusevent_single_line_820` — "+ event" button height < 30px.
+5. `cog_in_viewport_820` — settings cog right edge ≤ viewport width (not cut off).
+6. `no_control_overflow_820` — every header control's right edge ≤ viewport width.
+7. `one_row_1280` — head height ≤ 56px at 1280 (single row preserved).
+8. `controls_centered_1280` — visible header controls share one center-Y (spread < 6px).
+9. `search_aligns_weekday` — sidebar search top within 10px of the weekday-header row top.
+10. `zero_console_errors` — no console/page errors; screenshots saved.
