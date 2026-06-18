@@ -947,12 +947,17 @@ function bindEvents() {
     menu.innerHTML = `
       <div class="ctx-item" data-a="export">export markdown</div>
       <div class="ctx-item" data-a="share">copy share link</div>
-      <div class="ctx-item" data-a="print">print / save pdf</div>`;
+      <div class="ctx-item" data-a="print">print / save pdf</div>
+      <div class="ctx-sep"></div>
+      <div class="ctx-item" data-a="audio-summary">🔊 audio overview</div>
+      <div class="ctx-item" data-a="audio-podcast">🎙 podcast overview</div>`;
     menu.addEventListener('click', e => {
       const a = e.target.closest('.ctx-item')?.dataset.a;
       if (a === 'export') exportActiveSessionMarkdown();
       if (a === 'share')  _shareSession();
       if (a === 'print')  _printSession();
+      if (a === 'audio-summary') _playAudioOverview('summary');
+      if (a === 'audio-podcast') _playAudioOverview('podcast');
       menu.remove();
     });
     document.body.appendChild(menu);
@@ -1046,6 +1051,35 @@ function bindEvents() {
   // share-btn removed — export/share/print now in topbar-session-actions
 
   setInterval(loadModels, 30000);
+}
+
+let _aoPlaying = false;
+async function _playAudioOverview(style) {
+  const sid = window._currentSession?.id || getActiveId();
+  if (!sid) { toast('open a chat first', 'error'); return; }
+  if (_aoPlaying) { toast('already generating an overview', 'error'); return; }
+  _aoPlaying = true;
+  toast(style === 'podcast' ? 'writing a podcast…' : 'writing an overview…', 'info');
+  try {
+    const r = await fetch('/api/audio-overview', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ session_id: sid, style }),
+    });
+    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || 'failed');
+    const { segments } = await r.json();
+    if (!segments?.length) { toast('nothing to narrate', 'error'); _aoPlaying = false; return; }
+    const { speak } = await import('./voice.js');
+    // map the two podcast hosts to distinct TTS voices for a bit of contrast
+    const voiceFor = spk => spk === 'Sam' ? 'onyx' : (spk === 'Alex' ? 'nova' : 'alloy');
+    toast(`playing ${segments.length} segment${segments.length === 1 ? '' : 's'}`, 'success');
+    for (const seg of segments) {
+      if (!_aoPlaying) break;   // a second invocation / page change cancels
+      try { await speak(seg.text, voiceFor(seg.speaker)); } catch { /* keep going */ }
+    }
+  } catch (e) {
+    toast(e.message || 'audio overview failed', 'error');
+  }
+  _aoPlaying = false;
 }
 
 async function _shareSession() {
