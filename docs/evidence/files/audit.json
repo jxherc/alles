@@ -1,0 +1,22 @@
+{
+  "console_errors": [],
+  "log": [
+    "URL@root: http://files.localhost:8799/",
+    "breadcrumb@root: 'files'",
+    "sortbar@root: 'name \u2191\\nsize\\ndate'",
+    "smart folders: ['\ud83d\udd58 recent', '\ud83d\uddbc images', '\ud83d\udcc4 documents', '\ud83d\udce6 large files']",
+    "file rows@root: ['documents', 'notesworkideas', 'photos', 'projects', 'readme.txtimportantstarred']",
+    "breadcrumb box: {'x': 0, 'y': 109, 'width': 1099, 'height': 29}",
+    "sortbar box: {'x': 0, 'y': 138, 'width': 1099, 'height': 29}",
+    "SEPARATE ROWS (sortbar.y > breadcrumb.y+h-2): True",
+    "LEFT-EDGE MISMATCH (|cb.x - sb.x|): 0",
+    "redundant-root-crumb (== 'files'): True",
+    "after open projects URL: http://files.localhost:8799/?p=projects | crumb: 'files\\n/\\nprojects'",
+    "back-to-root via crumb URL: http://files.localhost:8799/",
+    "sort toggles fired: [('size', 'size \u2193'), ('mtime', 'date \u2193'), ('name', 'name \u2191')]",
+    "smart=recent crumb: 'files\\n/\\nrecent' | rows: 6",
+    "search 'a' rows: 4",
+    "preview card present: True",
+    "CONSOLE ERRORS (filtered): []"
+  ]
+}

@@ -125,6 +125,7 @@ async function _injectDocsShortcut() {
 function renderCrumb() {
   const el = $('files-breadcrumb');
   const parts = _cwd ? _cwd.split('/') : [];
+  if (!parts.length) { el.innerHTML = ''; return; }   // root: title already says "files", no redundant crumb
   let acc = '';
   let html = `<span class="crumb" data-go="">files</span>`;
   for (const p of parts) {
