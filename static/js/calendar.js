@@ -1,6 +1,7 @@
 import { toast } from './util.js';
 import { initCustomDropdown } from './dropdown.js';
 import { initDatePickers } from './datepick.js';
+import { prompt as dlgPrompt } from './dialog.js';
 
 let _events = [];
 let _tasks = [];  // tasks with due dates, overlaid on the month/agenda
@@ -82,6 +83,7 @@ function _bindNav() {
     b.addEventListener('click', () => { _view = b.dataset.view; localStorage.setItem('cal-view', _view); _syncViewBtns(); render(); }));
   _syncViewBtns();
   document.getElementById('cal-sync-btn')?.addEventListener('click', openCaldavPanel);
+  document.getElementById('cal-find')?.addEventListener('click', findTime);
 
   // quick-add: natural language → event (was a dead input before)
   const quick = document.getElementById('cal-quick');
@@ -560,6 +562,32 @@ function chooseScope(verb) {
   });
 }
 
+// ── find a time: show open slots on the focused day, click to book ───────────
+async function findTime() {
+  const mins = parseInt(await dlgPrompt('how many minutes do you need?')) || 60;
+  const dstr = ymd(_cursor);
+  let slots = [];
+  try { slots = (await fetch(`/api/calendar/free?date=${dstr}&minutes=${mins}`).then(r => r.json())).slots || []; }
+  catch { toast('could not load free slots', 'error'); return; }
+  const ov = document.createElement('div');
+  ov.className = 'cal-scope-ov';
+  const fmt = iso => iso.slice(11);
+  ov.innerHTML = `<div class="cal-scope"><div class="cal-scope-h">free on ${dstr} (${mins} min)</div>${
+    slots.length ? slots.map(s => `<button class="btn" data-s="${s.start}" data-e="${s.end}">${fmt(s.start)} – ${fmt(s.end)}</button>`).join('')
+                 : '<div style="color:var(--muted);font-size:0.78rem;padding:0.4rem">no free slots that day</div>'
+  }<button class="btn cal-scope-cancel">cancel</button></div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov || e.target.classList.contains('cal-scope-cancel')) ov.remove(); });
+  ov.querySelectorAll('[data-s]').forEach(b => b.addEventListener('click', async () => {
+    const title = await dlgPrompt('event title:');
+    if (!title?.trim()) { ov.remove(); return; }
+    const start = b.dataset.s;
+    const end = new Date(new Date(start).getTime() + mins * 60000);
+    await fetch('/api/calendar', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ title: title.trim(), start_dt: start, end_dt: localISO(end) }) });
+    ov.remove(); toast('booked', 'success'); loadCalendar();
+  }));
+}
+
 // ── the event editor ─────────────────────────────────────────────────────────
 const REMIND_PRESETS = [[0, 'at time'], [5, '5m'], [10, '10m'], [30, '30m'], [60, '1h'], [1440, '1d']];
 const FREQS = [['', 'does not repeat'], ['daily', 'daily'], ['weekly', 'weekly'], ['monthly', 'monthly'], ['yearly', 'yearly']];
@@ -628,6 +656,7 @@ function openEditor(event, defaultDate, hour, allDay, occ) {
     <textarea class="note-editor-body" id="cal-desc" rows="3" placeholder="description…">${esc(event?.description || '')}</textarea>
     <div class="cal-ed-actions">
       ${isNew ? '' : '<button class="btn" id="cal-del" style="margin-right:auto;color:var(--error);border-color:var(--error)">delete</button>'}
+      ${isNew ? '' : '<button class="btn" id="cal-dup" title="duplicate this event">duplicate</button>'}
       <button class="btn" id="cal-back">← back</button>
       <button class="btn primary" id="cal-save">${isNew ? 'create' : 'save'}</button>
     </div>
@@ -661,6 +690,14 @@ function openEditor(event, defaultDate, hour, allDay, occ) {
 
   document.getElementById('cal-back').addEventListener('click', () => loadCalendar());
   document.getElementById('cal-del')?.addEventListener('click', () => deleteEvent());
+  document.getElementById('cal-dup')?.addEventListener('click', async () => {
+    if (!_editing?.id) return;
+    try {
+      await fetch(`/api/calendar/${_editing.id}/duplicate`, { method: 'POST' });
+      toast('event duplicated', 'success');
+      loadCalendar();
+    } catch { toast('duplicate failed', 'error'); }
+  });
   document.getElementById('cal-save').addEventListener('click', () => saveEvent(byday));
 }
 
