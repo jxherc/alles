@@ -290,7 +290,7 @@ function initDocsToolbar() {
 export function initVault() {
   if (_inited) { loadTree(); return; }
   _inited = true;
-  if (localStorage.getItem('docs-tree-hidden') !== '0') $('wiki-view')?.classList.add('tree-hidden');
+  $('wiki-view')?.classList.add('tree-hidden');   // sidebar always starts closed in a doc — open it with the ☰ toggle
   $('wiki-tree-toggle')?.addEventListener('click', () => {
     const hidden = $('wiki-view')?.classList.toggle('tree-hidden');
     localStorage.setItem('docs-tree-hidden', hidden ? '1' : '0');
