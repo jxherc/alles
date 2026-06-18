@@ -2978,7 +2978,9 @@ body.is-incognito .incognito-bar {
 .cal-chip-recur { opacity: 0.7; margin-right: 1px; font-size: 0.9em; }
 
 /* ── activity timeline ─────────────────────────────────────────────────────── */
-.activity-filters { display: flex; flex-wrap: wrap; gap: 0.3rem; align-items: center; margin-left: auto; }
+/* filters live on their own row under the title (left-aligned), not crammed against the right */
+#activity-view .page-view-head { flex-wrap: wrap; }
+.activity-filters { display: flex; flex-wrap: wrap; gap: 0.3rem; align-items: center; flex-basis: 100%; margin-top: 0.5rem; }
 .act-chip {
   font-family: inherit; font-size: 0.66rem; cursor: pointer;
   padding: 0.15rem 0.45rem; border-radius: 3px; color: var(--text);
@@ -2990,14 +2992,14 @@ body.is-incognito .incognito-bar {
 .act-range { display: inline-flex; gap: 1px; margin-left: 0.4rem; border: 1px solid var(--faint); border-radius: 3px; overflow: hidden; }
 .act-range-opt { font-family: inherit; font-size: 0.64rem; cursor: pointer; padding: 0.15rem 0.4rem; background: none; border: none; color: var(--muted); }
 .act-range-opt.on { background: var(--faint); color: var(--text); }
-.act-search { font-family: inherit; font-size: 0.7rem; margin-left: auto; padding: 0.2rem 0.5rem; background: var(--bg); border: 1px solid var(--faint); border-radius: 3px; color: var(--text); width: 200px; }
+.act-search { font-family: inherit; font-size: 0.7rem; margin-left: auto; padding: 0.2rem 0.5rem; background: var(--bg); border: 1px solid var(--faint); border-radius: 3px; color: var(--text); width: 160px; }
 .act-search:focus { outline: none; border-color: var(--muted); }
 .activity-summary { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; padding: 0.4rem 0; font-size: 0.72rem; color: var(--muted); }
 .activity-summary:empty { display: none; }
 .act-sum-total { color: var(--text); font-weight: 600; }
 .act-sum-chip { display: inline-flex; align-items: center; gap: 0.25rem; }
 .act-sum-glyph { font-size: 0.78rem; }
-.act-sum-busy { margin-left: auto; color: var(--muted); }
+.act-sum-busy { color: var(--muted); }
 
 .activity-day {
   position: sticky; top: 0; z-index: 1; background: var(--bg);

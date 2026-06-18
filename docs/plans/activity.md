@@ -33,3 +33,15 @@ Genuine, sensible gaps (it's a small app — two focused enhancements, no rebuil
 
 A real write-time event table (the read-time aggregator is correct-by-construction and the explicit
 design), notifications/digests, cross-device sync.
+
+
+---
+
+# activity — UI/UX polish (2026-06-18)
+
+Evidence: `docs/evidence/activity/` (findings + before/after).
+
+## activity-ui-1 — rebalance filters + summary
+Filters were crammed right (double `margin-left:auto`), 200px search oversized, "busiest" isolated far
+right. Fix (`static/style.css`): filter bar on its own left-aligned row under the title
+(`#activity-view .page-view-head{flex-wrap}` + `.activity-filters{flex-basis:100
