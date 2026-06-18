@@ -2702,6 +2702,9 @@ body.is-incognito .incognito-bar {
 .settings-row-empty { font-size: 0.72rem; color: var(--faint); padding: 0.2rem 0 0.4rem; }
 .status-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
 .row-name { color: var(--text); flex-shrink: 0; }
+.contact-star { background: none; border: none; cursor: pointer; color: var(--muted); font-size: 0.85rem; line-height: 1; padding: 0 0.3rem 0 0; flex-shrink: 0; }
+.contact-star.on { color: var(--accent); }
+#contacts-fav-filter.active { color: var(--accent); border-color: var(--accent); }
 .row-meta { color: var(--muted); font-size: 0.7rem; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .row-tag { font-size: 0.6rem; color: var(--accent); border: 1px solid var(--border); border-radius: 3px; padding: 0 4px; margin-left: 4px; vertical-align: middle; }
 .persona-row { cursor: pointer; border-radius: 3px; padding-left: 6px; padding-right: 6px; }
