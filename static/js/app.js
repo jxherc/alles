@@ -425,11 +425,10 @@ async function _wireHomeAsk() {
   try {
     const eps = await fetch('/api/models').then(r => r.json());
     const withModels = eps.filter(e => (e.cached_models || e.models || []).length);
-    const multi = withModels.length > 1;
     const opts = [];
     for (const e of withModels) for (const m of (e.cached_models || e.models || []))
-      // clean name (no full id dump); only tack on the endpoint when there's more than one
-      opts.push({ value: `${e.id}::${m}`, label: multi ? `${prettyModel(m)} · ${e.name}` : prettyModel(m) });
+      // just the model name, same as the aide model selector (endpoint still in the value)
+      opts.push({ value: `${e.id}::${m}`, label: prettyModel(m) });
     if (!opts.length) opts.push({ value: '', label: 'no model — add one in settings' });
     // default to whatever model the app is already on, not the first of a huge list
     const cur = getSelected();
