@@ -6,6 +6,7 @@ generator of SSE events. we bridge with an asyncio.Queue: the callback drops
 events on the queue, we run research() as a task and drain the queue, then yield
 a final done event. keeps run_research's old signature so routes stay drop-in.
 """
+
 import asyncio, json, time, logging
 from pathlib import Path
 from typing import AsyncGenerator
@@ -17,7 +18,7 @@ log = logging.getLogger("aide.research")
 DATA_DIR = Path(__file__).parent.parent.parent / "data" / "research"
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 
-_tasks: dict[str, dict] = {}   # session_id → task state (live, in-memory)
+_tasks: dict[str, dict] = {}  # session_id → task state (live, in-memory)
 
 
 def _save_task(session_id: str, state: dict):
@@ -86,8 +87,9 @@ def _sources_from(researcher: DeepResearcher) -> list[dict]:
         url = f.get("url")
         if url and url not in seen:
             seen.add(url)
-            out.append({"url": url, "title": f.get("title") or url,
-                        "og_image": f.get("og_image", "")})
+            out.append(
+                {"url": url, "title": f.get("title") or url, "og_image": f.get("og_image", "")}
+            )
     return out
 
 
@@ -100,11 +102,17 @@ async def run_research(
     max_rounds: int = 8,
 ) -> AsyncGenerator[dict, None]:
     """async generator of progress events. yields the alles SSE shapes:
-       {step|source|error}, then a final {done, report, sources, stats}."""
+    {step|source|error}, then a final {done, report, sources, stats}."""
     state = {
-        "session_id": session_id, "query": query, "status": "running",
-        "cancel": False, "findings": [], "sources": [], "report": "",
-        "started_at": time.time(), "stats": {},
+        "session_id": session_id,
+        "query": query,
+        "status": "running",
+        "cancel": False,
+        "findings": [],
+        "sources": [],
+        "report": "",
+        "started_at": time.time(),
+        "stats": {},
     }
     _tasks[session_id] = state
 
@@ -116,8 +124,9 @@ async def run_research(
         except Exception:
             pass
 
-    researcher = DeepResearcher(base_url, api_key, model,
-                                max_rounds=max_rounds, progress_callback=cb)
+    researcher = DeepResearcher(
+        base_url, api_key, model, max_rounds=max_rounds, progress_callback=cb
+    )
     state["_researcher"] = researcher
 
     yield {"type": "step", "text": f"researching: {query}"}
@@ -145,21 +154,28 @@ async def run_research(
         report = task.result()
         sources = _sources_from(researcher)
         stats = researcher.get_stats()
-        state.update(status="cancelled" if state.get("cancel") else "done",
-                     report=report, sources=sources,
-                     findings=researcher.findings, stats=stats)
+        state.update(
+            status="cancelled" if state.get("cancel") else "done",
+            report=report,
+            sources=sources,
+            findings=researcher.findings,
+            stats=stats,
+        )
         _save_task(session_id, state)
         yield {"type": "done", "report": report, "sources": sources[:15], "stats": stats}
 
         try:
             from routes.webhooks import fire
+
             await asyncio.wait_for(
-                fire("research_done", {"session_id": session_id, "query": query,
-                                       "sources": len(sources)}),
+                fire(
+                    "research_done",
+                    {"session_id": session_id, "query": query, "sources": len(sources)},
+                ),
                 timeout=10,
             )
         except Exception:
-            pass   # a dead webhook must not hang/orphan the research task
+            pass  # a dead webhook must not hang/orphan the research task
 
     except Exception as e:
         log.exception("research error: %s", e)

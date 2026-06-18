@@ -19,7 +19,7 @@ class PasswordTests(unittest.TestCase):
 class SessionTokenTests(unittest.TestCase):
     def test_store_verify_revoke(self):
         t = auth.create_session_token()
-        self.assertFalse(auth.verify_session(t))      # not stored yet
+        self.assertFalse(auth.verify_session(t))  # not stored yet
         auth.store_token(t, ttl_days=1)
         self.assertTrue(auth.verify_session(t))
         auth.revoke_token(t)
@@ -34,13 +34,15 @@ class SessionTokenTests(unittest.TestCase):
 
 class HandoffTests(unittest.TestCase):
     def test_single_use(self):
-        t = auth.create_session_token(); auth.store_token(t)
+        t = auth.create_session_token()
+        auth.store_token(t)
         code = auth.make_handoff(t)
         self.assertEqual(auth.redeem_handoff(code), t)
-        self.assertIsNone(auth.redeem_handoff(code))   # consumed
+        self.assertIsNone(auth.redeem_handoff(code))  # consumed
 
     def test_expired_handoff(self):
-        t = auth.create_session_token(); auth.store_token(t)
+        t = auth.create_session_token()
+        auth.store_token(t)
         code = auth.make_handoff(t, ttl=0)
         with mock.patch("core.auth.time.time", return_value=time.time() + 5):
             self.assertIsNone(auth.redeem_handoff(code))

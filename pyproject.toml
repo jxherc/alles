@@ -1,0 +1,22 @@
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+exclude = [
+    ".git",
+    "__pycache__",
+    "data",
+    ".cmbuild",
+    "static/vendor",
+    "build",
+    "dist",
+]
+
+[tool.ruff.lint]
+# keep it sane: pyflakes + a useful slice of pycodestyle + import sorting.
+# line length is left to the formatter, so E501 is off.
+select = ["E", "F", "W", "I"]
+ignore = ["E501", "E741"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"

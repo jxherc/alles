@@ -32,7 +32,7 @@ class VaultTests(unittest.TestCase):
         names = {i["name"] for i in t["items"]}
         self.assertIn("a", names)
         self.assertIn("sub", names)
-        self.assertNotIn("ignore", names)   # non-md excluded
+        self.assertNotIn("ignore", names)  # non-md excluded
 
     def test_rewrite_links_preserves_alias_and_heading(self):
         vault_md.write("a.md", "link to [[old]] here")
@@ -42,9 +42,9 @@ class VaultTests(unittest.TestCase):
         self.assertEqual(set(changed), {"a.md", "b.md"})
         self.assertIn("[[new]]", vault_md.read("a.md")["content"])
         bc = vault_md.read("b.md")["content"]
-        self.assertIn("[[new|Display]]", bc)   # alias kept
-        self.assertIn("[[new#sec]]", bc)       # heading kept
-        self.assertIn("[[other]]", vault_md.read("c.md")["content"])   # untouched
+        self.assertIn("[[new|Display]]", bc)  # alias kept
+        self.assertIn("[[new#sec]]", bc)  # heading kept
+        self.assertIn("[[other]]", vault_md.read("c.md")["content"])  # untouched
 
     def test_rewrite_links_case_insensitive_match(self):
         vault_md.write("a.md", "[[Old Note]] and [[old note]]")
@@ -62,7 +62,7 @@ class VaultTests(unittest.TestCase):
         vault_md.write("target.md", "i am the target")
         bl = vault_md.backlinks("target")
         names = {b["name"] for b in bl}
-        self.assertEqual(names, {"one", "two"})   # case-insensitive, excludes self
+        self.assertEqual(names, {"one", "two"})  # case-insensitive, excludes self
 
     def test_wikilink_with_alias_and_heading(self):
         vault_md.write("x.md", "[[Note|shown text]] and [[Other#section]]")
@@ -76,7 +76,7 @@ class VaultTests(unittest.TestCase):
         vault_md.create("alpha.md")
         vault_md.create("beta-alpha.md")
         res = vault_md.search("alpha")
-        self.assertEqual(res[0]["name"], "alpha")   # prefix match ranks first
+        self.assertEqual(res[0]["name"], "alpha")  # prefix match ranks first
 
     def test_full_text_search(self):
         vault_md.write("a.md", "the quick brown fox")
@@ -107,7 +107,7 @@ class VaultTests(unittest.TestCase):
         vault_md.set_task("a.md", 1, True)
         self.assertIn("- [x] buy milk", vault_md.read("a.md")["content"])
         with self.assertRaises(ValueError):
-            vault_md.set_task("a.md", 3, True)   # "plain line" is not a task
+            vault_md.set_task("a.md", 3, True)  # "plain line" is not a task
 
     def test_save_asset_and_sys_dir_excluded(self):
         out = vault_md.save_asset("My Pic!.png", b"\x89PNG\r\n")
@@ -129,12 +129,12 @@ class VaultTests(unittest.TestCase):
 
     def test_unlinked_mentions(self):
         vault_md.write("target.md", "i am target")
-        vault_md.write("linked.md", "see [[target]] here")     # already a link → not unlinked
+        vault_md.write("linked.md", "see [[target]] here")  # already a link → not unlinked
         vault_md.write("plain.md", "i mention target in prose")  # plain mention → unlinked
         ment = {m["name"] for m in vault_md.unlinked_mentions("target")}
         self.assertIn("plain", ment)
         self.assertNotIn("linked", ment)
-        self.assertNotIn("target", ment)   # excludes self
+        self.assertNotIn("target", ment)  # excludes self
 
     def test_graph(self):
         vault_md.write("home.md", "go to [[about]] and [[contact]]")
@@ -146,7 +146,7 @@ class VaultTests(unittest.TestCase):
         self.assertIn(("home", "about"), pairs)
         self.assertIn(("about", "home"), pairs)
         home = next(n for n in g["nodes"] if n["id"] == "home")
-        self.assertEqual(home["degree"], 3)   # 2 out + 1 in
+        self.assertEqual(home["degree"], 3)  # 2 out + 1 in
 
 
 if __name__ == "__main__":

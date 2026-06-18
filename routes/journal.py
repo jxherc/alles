@@ -2,6 +2,7 @@
 journal — one entry per day. mood, tags, writing prompts, on-this-day, a
 streak counter, and an optional AI reflection on what you wrote.
 """
+
 from datetime import date, timedelta
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -36,8 +37,11 @@ def _iso(s) -> str:
 
 def _fmt(e: JournalEntry) -> dict:
     return {
-        "id": e.id, "date": e.date, "content": e.content or "",
-        "mood": e.mood or "", "tags": e.tags or "",
+        "id": e.id,
+        "date": e.date,
+        "content": e.content or "",
+        "mood": e.mood or "",
+        "tags": e.tags or "",
         "words": len((e.content or "").split()),
         "created_at": e.created_at.isoformat() if e.created_at else "",
         "updated_at": e.updated_at.isoformat() if e.updated_at else "",
@@ -58,10 +62,12 @@ def _streak(dates: set[str], today: date) -> int:
 @router.get("/journal")
 def list_entries(month: str = "", limit: int = 60, db: DbSession = Depends(get_db)):
     q = db.query(JournalEntry)
-    if month:   # YYYY-MM
+    if month:  # YYYY-MM
         q = q.filter(JournalEntry.date.like(f"{month[:7]}-%"))
     rows = q.order_by(JournalEntry.date.desc()).all()
-    all_dates = {r.date for r in rows} if month else {r.date for r in db.query(JournalEntry.date).all()}
+    all_dates = (
+        {r.date for r in rows} if month else {r.date for r in db.query(JournalEntry.date).all()}
+    )
     today = date.today()
     return {
         "entries": [_fmt(e) for e in rows[:limit]],
@@ -83,9 +89,12 @@ def todays_prompt():
 def on_this_day(db: DbSession = Depends(get_db)):
     today = date.today()
     mmdd = today.strftime("-%m-%d")
-    rows = (db.query(JournalEntry)
-            .filter(JournalEntry.date.like(f"%{mmdd}"), JournalEntry.date != today.isoformat())
-            .order_by(JournalEntry.date.desc()).all())
+    rows = (
+        db.query(JournalEntry)
+        .filter(JournalEntry.date.like(f"%{mmdd}"), JournalEntry.date != today.isoformat())
+        .order_by(JournalEntry.date.desc())
+        .all()
+    )
     return {"entries": [_fmt(e) for e in rows]}
 
 
@@ -102,7 +111,7 @@ def search_entries(q: str, db: DbSession = Depends(get_db)):
             snip = c[:80]
             if idx != -1:
                 s = max(0, idx - 40)
-                snip = c[s:idx + len(ql) + 40].replace("\n", " ").strip()
+                snip = c[s : idx + len(ql) + 40].replace("\n", " ").strip()
             out.append({"date": e.date, "mood": e.mood or "", "snippet": snip})
         if len(out) >= 100:
             break
@@ -160,15 +169,18 @@ def upsert_entry(day: str, body: EntryBody, db: DbSession = Depends(get_db)):
     except ValueError:
         raise HTTPException(400, "date must be ISO (YYYY-MM-DD)")
     from core.database import _now
+
     e = db.query(JournalEntry).filter(JournalEntry.date == day).first()
     if e:
         e.content, e.mood, e.tags = body.content, body.mood.strip()[:40], body.tags.strip()
         e.updated_at = _now()
     else:
-        e = JournalEntry(date=day, content=body.content,
-                         mood=body.mood.strip()[:40], tags=body.tags.strip())
+        e = JournalEntry(
+            date=day, content=body.content, mood=body.mood.strip()[:40], tags=body.tags.strip()
+        )
         db.add(e)
-    db.commit(); db.refresh(e)
+    db.commit()
+    db.refresh(e)
     return _fmt(e)
 
 
@@ -177,7 +189,8 @@ def delete_entry(day: str, db: DbSession = Depends(get_db)):
     e = db.query(JournalEntry).filter(JournalEntry.date == str(day)[:10]).first()
     if not e:
         raise HTTPException(404)
-    db.delete(e); db.commit()
+    db.delete(e)
+    db.commit()
     return {"ok": True}
 
 
@@ -188,16 +201,22 @@ async def reflect(day: str, db: DbSession = Depends(get_db)):
     if not e or not (e.content or "").strip():
         raise HTTPException(400, "nothing written for that day yet")
     from core.database import ModelEndpoint
+
     ep = db.query(ModelEndpoint).filter(ModelEndpoint.enabled == True).first()
     if not ep or not ep.models_list():
         raise HTTPException(400, "no model configured")
     from services.llm import simple_complete
+
     msgs = [
-        {"role": "system", "content": (
-            "You are a kind, grounded journaling companion. The user shares a diary "
-            "entry; respond in 3-4 sentences: reflect back what you notice, gently name "
-            "a feeling or pattern, and offer one small encouragement or question. Warm, "
-            "not clinical. No lists, no preamble.")},
+        {
+            "role": "system",
+            "content": (
+                "You are a kind, grounded journaling companion. The user shares a diary "
+                "entry; respond in 3-4 sentences: reflect back what you notice, gently name "
+                "a feeling or pattern, and offer one small encouragement or question. Warm, "
+                "not clinical. No lists, no preamble."
+            ),
+        },
         {"role": "user", "content": e.content[:6000]},
     ]
     text = await simple_complete(msgs, ep.base_url, ep.api_key, ep.models_list()[0], max_tokens=400)

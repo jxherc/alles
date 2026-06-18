@@ -1,4 +1,5 @@
 """shared bits for the research engine: thinking-tag stripping + quality filter."""
+
 import re
 
 # matches paired reasoning blocks, whatever flavor the model emits
@@ -20,10 +21,10 @@ def strip_think(text):
     # reasoning then a lone </think>, no opening tag — keep what's after it
     if "<think" not in low and "</think>" in low:
         idx = low.rfind("</think>")
-        t = t[idx + len("</think>"):]
+        t = t[idx + len("</think>") :]
     # opening tag with nothing closing it — everything after is reasoning, drop it
     elif "<think" in low and "</think>" not in low:
-        t = t[:low.find("<think")]
+        t = t[: low.find("<think")]
     return t.strip()
 
 
@@ -35,11 +36,22 @@ def strip_thinking(text):
 # markers that mean the extraction is boilerplate / a refusal / empty.
 # phrases not bare words, so a page literally about cookies/copyright still counts.
 LOW_QUALITY_MARKERS = [
-    "insufficient to", "content is insufficient", "no substantive data",
-    "does not contain", "not relevant to", "no relevant information",
-    "unable to extract", "completely unrelated", "boilerplate", "footer text",
-    "cookie consent", "cookie banner", "cookie notice",
-    "copyright notice", "copyright footer", "all rights reserved",
+    "insufficient to",
+    "content is insufficient",
+    "no substantive data",
+    "does not contain",
+    "not relevant to",
+    "no relevant information",
+    "unable to extract",
+    "completely unrelated",
+    "boilerplate",
+    "footer text",
+    "cookie consent",
+    "cookie banner",
+    "cookie notice",
+    "copyright notice",
+    "copyright footer",
+    "all rights reserved",
 ]
 
 

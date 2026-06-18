@@ -10,8 +10,15 @@ def D(s):
 
 
 def ev(**kw):
-    base = {"start_dt": "2026-06-01T09:00", "recurrence": "", "recur_interval": 1,
-            "recur_byday": "", "recur_count": None, "recur_until": None, "recur_except": "[]"}
+    base = {
+        "start_dt": "2026-06-01T09:00",
+        "recurrence": "",
+        "recur_interval": 1,
+        "recur_byday": "",
+        "recur_count": None,
+        "recur_until": None,
+        "recur_except": "[]",
+    }
     base.update(kw)
     return base
 
@@ -34,7 +41,7 @@ class RecurTests(unittest.TestCase):
         self.assertEqual([d.day for d in occ], [1, 3, 5])
 
     def test_weekly_interval_2(self):
-        e = ev(recurrence="weekly", recur_interval=2)   # every other monday
+        e = ev(recurrence="weekly", recur_interval=2)  # every other monday
         occ = recur.expand(e, D("2026-06-01T00:00"), D("2026-06-30T00:00"))
         self.assertEqual([d.day for d in occ], [1, 15, 29])
 

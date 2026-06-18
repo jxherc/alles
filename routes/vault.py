@@ -10,7 +10,7 @@ router = APIRouter(prefix="/api")
 
 # token → (expiry, plaintext_password) — never written to disk
 _unlock_tokens: dict[str, tuple[float, str]] = {}
-_TTL = 600   # 10 min
+_TTL = 600  # 10 min
 
 
 def _master_pw(x_vault_token: str | None = Header(None)) -> str:
@@ -26,7 +26,7 @@ def _master_pw(x_vault_token: str | None = Header(None)) -> str:
     v = _unlock_tokens.get(x_vault_token or "")
     if not v:
         raise HTTPException(403, "vault locked")
-    _unlock_tokens[x_vault_token] = (now + _TTL, v[1])   # slide the window
+    _unlock_tokens[x_vault_token] = (now + _TTL, v[1])  # slide the window
     return v[1]
 
 
@@ -35,9 +35,16 @@ class UnlockBody(BaseModel):
 
 
 @router.get("/vault/generate")
-def vault_generate(length: int = 20, upper: bool = True, lower: bool = True,
-                   digits: bool = True, symbols: bool = True, avoid_ambiguous: bool = True):
+def vault_generate(
+    length: int = 20,
+    upper: bool = True,
+    lower: bool = True,
+    digits: bool = True,
+    symbols: bool = True,
+    avoid_ambiguous: bool = True,
+):
     from services.pwtools import generate_password, estimate_strength
+
     pw = generate_password(length, upper, lower, digits, symbols, avoid_ambiguous)
     return {"password": pw, "strength": estimate_strength(pw)}
 
@@ -49,6 +56,7 @@ class StrengthBody(BaseModel):
 @router.post("/vault/strength")
 def vault_strength(body: StrengthBody):
     from services.pwtools import estimate_strength
+
     return estimate_strength(body.password)
 
 
@@ -81,8 +89,16 @@ def vault_lock():
 def list_vault(db: DbSession = Depends(get_db), _pw: str = Depends(_master_pw)):
     # entry names/usernames are metadata, but still vault-locked
     entries = db.query(VaultEntry).order_by(VaultEntry.created_at.desc()).all()
-    return [{"id": e.id, "name": e.name, "username": e.username or "", "category": e.category,
-             "created_at": e.created_at.isoformat()} for e in entries]
+    return [
+        {
+            "id": e.id,
+            "name": e.name,
+            "username": e.username or "",
+            "category": e.category,
+            "created_at": e.created_at.isoformat(),
+        }
+        for e in entries
+    ]
 
 
 @router.get("/vault/categories")
@@ -102,8 +118,12 @@ class CreateEntry(BaseModel):
 @router.post("/vault")
 def create_entry(body: CreateEntry, db: DbSession = Depends(get_db), pw: str = Depends(_master_pw)):
     enc = encrypt(pw, body.value)
-    e = VaultEntry(name=body.name, username=body.username, value_encrypted=enc, category=body.category)
-    db.add(e); db.commit(); db.refresh(e)
+    e = VaultEntry(
+        name=body.name, username=body.username, value_encrypted=enc, category=body.category
+    )
+    db.add(e)
+    db.commit()
+    db.refresh(e)
     return {"id": e.id, "name": e.name, "category": e.category}
 
 
@@ -115,13 +135,20 @@ class PatchEntry(BaseModel):
 
 
 @router.patch("/vault/{entry_id}")
-def patch_entry(entry_id: str, body: PatchEntry, db: DbSession = Depends(get_db), pw: str = Depends(_master_pw)):
+def patch_entry(
+    entry_id: str, body: PatchEntry, db: DbSession = Depends(get_db), pw: str = Depends(_master_pw)
+):
     e = db.get(VaultEntry, entry_id)
-    if not e: raise HTTPException(404)
-    if body.name is not None:     e.name = body.name
-    if body.category is not None: e.category = body.category
-    if body.username is not None: e.username = body.username
-    if body.value is not None:    e.value_encrypted = encrypt(pw, body.value)
+    if not e:
+        raise HTTPException(404)
+    if body.name is not None:
+        e.name = body.name
+    if body.category is not None:
+        e.category = body.category
+    if body.username is not None:
+        e.username = body.username
+    if body.value is not None:
+        e.value_encrypted = encrypt(pw, body.value)
     db.commit()
     return {"ok": True}
 
@@ -129,7 +156,8 @@ def patch_entry(entry_id: str, body: PatchEntry, db: DbSession = Depends(get_db)
 @router.get("/vault/{entry_id}/reveal")
 def reveal_entry(entry_id: str, db: DbSession = Depends(get_db), pw: str = Depends(_master_pw)):
     e = db.get(VaultEntry, entry_id)
-    if not e: raise HTTPException(404)
+    if not e:
+        raise HTTPException(404)
     try:
         value = decrypt(pw, e.value_encrypted)
     except Exception:
@@ -140,6 +168,8 @@ def reveal_entry(entry_id: str, db: DbSession = Depends(get_db), pw: str = Depen
 @router.delete("/vault/{entry_id}")
 def delete_entry(entry_id: str, db: DbSession = Depends(get_db), _pw: str = Depends(_master_pw)):
     e = db.get(VaultEntry, entry_id)
-    if not e: raise HTTPException(404)
-    db.delete(e); db.commit()
+    if not e:
+        raise HTTPException(404)
+    db.delete(e)
+    db.commit()
     return {"ok": True}

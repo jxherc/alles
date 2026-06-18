@@ -1,6 +1,7 @@
 """
 First-class autonomous agent runtime for aide.
 """
+
 import asyncio
 import json
 import shutil
@@ -10,9 +11,16 @@ from typing import AsyncGenerator
 
 from core.database import ModelEndpoint
 from services.agent_tools import (
-    build_tool_defs, stream_execute, ROOT, set_agent_ctx,
-    MUTATING_TOOLS, preview_change, capture_checkpoint,
-    UNTRUSTED_TOOLS, guard_untrusted, decide_permission,
+    build_tool_defs,
+    stream_execute,
+    ROOT,
+    set_agent_ctx,
+    MUTATING_TOOLS,
+    preview_change,
+    capture_checkpoint,
+    UNTRUSTED_TOOLS,
+    guard_untrusted,
+    decide_permission,
 )
 from services.agent_state import start_run, record_event, update_run, finish_run
 from services.llm import stream_chat, clear_cooldown
@@ -20,7 +28,7 @@ from services.llm import stream_chat, clear_cooldown
 # a single flaky model/network call shouldn't kill a whole agent run. retry
 # transient errors a couple times before giving up; tests patch the base to 0.
 LLM_RETRIES = 2
-LLM_RETRY_BASE = 1.5   # seconds; backoff = base * 2**(attempt-1), capped
+LLM_RETRY_BASE = 1.5  # seconds; backoff = base * 2**(attempt-1), capped
 
 
 def _retryable(msg: str) -> bool:
@@ -65,7 +73,7 @@ async def _await_permission(request_id: str, stop_event, timeout: float = 600) -
 # context files an agent auto-reads from the working dir (+ parents), nearest first.
 _CTX_NAMES = ["AGENTS.md", "AGENT.md", "aide.md", ".aide/instructions.md"]
 
-TOOL_HIST_BUDGET = 8000   # per-tool-result char budget kept in the running history
+TOOL_HIST_BUDGET = 8000  # per-tool-result char budget kept in the running history
 
 
 def _cap_tool_content(tool_content: dict) -> str:
@@ -74,9 +82,11 @@ def _cap_tool_content(tool_content: dict) -> str:
     out = tool_content.get("output")
     if isinstance(out, str) and len(out) > TOOL_HIST_BUDGET:
         head = out[: TOOL_HIST_BUDGET * 2 // 3]
-        tail = out[-TOOL_HIST_BUDGET // 3:]
-        tool_content = {**tool_content,
-                        "output": f"{head}\n…[{len(out) - TOOL_HIST_BUDGET} chars truncated for context]…\n{tail}"}
+        tail = out[-TOOL_HIST_BUDGET // 3 :]
+        tool_content = {
+            **tool_content,
+            "output": f"{head}\n…[{len(out) - TOOL_HIST_BUDGET} chars truncated for context]…\n{tail}",
+        }
     content = json.dumps(tool_content)
     # belt-and-suspenders: if some other field is pathologically large, hard-trim the
     # output further but keep it valid json (never slice the serialized string).
@@ -115,7 +125,7 @@ def _trim_history(messages: list[dict], budget: int = 120000, keep_recent: int =
     message are never touched, so the model keeps full fidelity on what it just did."""
     if _hist_chars(messages) <= budget:
         return
-    end = max(1, len(messages) - keep_recent)   # protect system msg + recent turns
+    end = max(1, len(messages) - keep_recent)  # protect system msg + recent turns
 
     # pass 1 — head+tail snippet (preserves more than the old head-only 400)
     for m in messages[1:end]:
@@ -178,35 +188,62 @@ def merge_usage(total: dict, part: dict) -> dict:
 
 def agent_system_note(settings: dict) -> str:
     eff = (settings.get("agent_effort") or "medium").lower()
-    max_turns = {"low": 6, "medium": 18, "high": 36, "xhigh": 60, "max": 100}.get(eff) or int(settings.get("agent_max_turns", 24) or 24)
-    opencode = "installed" if shutil.which("opencode") else (
-        "available through npx fallback" if shutil.which("npx.cmd") or shutil.which("npx") else "not available"
+    max_turns = {"low": 6, "medium": 18, "high": 36, "xhigh": 60, "max": 100}.get(eff) or int(
+        settings.get("agent_max_turns", 24) or 24
+    )
+    opencode = (
+        "installed"
+        if shutil.which("opencode")
+        else (
+            "available through npx fallback"
+            if shutil.which("npx.cmd") or shutil.which("npx")
+            else "not available"
+        )
     )
     extra = []
     if settings.get("agent_sandbox") and shutil.which("docker"):
         img = settings.get("agent_sandbox_image") or "alpine:latest"
-        extra.append(f"- Shell runs INSIDE a docker sandbox ({img}). The workspace is mounted at /work. Filesystem outside /work and the host are not affected.")
+        extra.append(
+            f"- Shell runs INSIDE a docker sandbox ({img}). The workspace is mounted at /work. Filesystem outside /work and the host are not affected."
+        )
     if settings.get("agent_computer_use"):
-        extra.append("- Computer use is enabled: screenshot, computer_click, computer_type, computer_key, computer_scroll, computer_move. Take a screenshot first to see the screen, then act on real pixel coordinates. Be careful and deliberate.")
+        extra.append(
+            "- Computer use is enabled: screenshot, computer_click, computer_type, computer_key, computer_scroll, computer_move. Take a screenshot first to see the screen, then act on real pixel coordinates. Be careful and deliberate."
+        )
     if settings.get("agent_subagents", True):
-        extra.append("- You can delegate with spawn_agent (one self-contained subtask) or spawn_agents (several in parallel). Use spawn_agents to parallelize independent work (e.g. several files/modules at once); don't delegate tiny (<30s) tasks — the startup overhead isn't worth it. Each sub-agent reports a summary back.")
+        extra.append(
+            "- You can delegate with spawn_agent (one self-contained subtask) or spawn_agents (several in parallel). Use spawn_agents to parallelize independent work (e.g. several files/modules at once); don't delegate tiny (<30s) tasks — the startup overhead isn't worth it. Each sub-agent reports a summary back."
+        )
     if settings.get("agent_context_files", True):
-        extra.append("- Honor any <project-context> files provided (AGENTS.md) as standing workspace instructions.")
+        extra.append(
+            "- Honor any <project-context> files provided (AGENTS.md) as standing workspace instructions."
+        )
     try:
         from services.connections import get_token
+
         if get_token("github"):
-            extra.append("- A GitHub connection is active: use github_* tools (repos, files, issues, PRs, code search) for anything on GitHub.")
+            extra.append(
+                "- A GitHub connection is active: use github_* tools (repos, files, issues, PRs, code search) for anything on GitHub."
+            )
     except Exception:
         pass
     if eff == "low":
-        extra.append("- EFFORT: low — be quick and minimal. Do the least that satisfies the task; prefer glob/grep over shelling out to look around; skip diagnostics/tests unless the change clearly needs them.")
+        extra.append(
+            "- EFFORT: low — be quick and minimal. Do the least that satisfies the task; prefer glob/grep over shelling out to look around; skip diagnostics/tests unless the change clearly needs them."
+        )
     elif eff == "high":
-        extra.append("- EFFORT: high — be thorough. Map the structure with glob/grep/code_symbols before editing, explore broadly, run the project's full tests/lint after changes, cover edge cases, and don't stop early.")
+        extra.append(
+            "- EFFORT: high — be thorough. Map the structure with glob/grep/code_symbols before editing, explore broadly, run the project's full tests/lint after changes, cover edge cases, and don't stop early."
+        )
     pmode = settings.get("agent_permission_mode") or "full_auto"
     if pmode == "plan":
-        extra.append("- PLAN MODE: change nothing. Inspect with read-only tools, then present a clear numbered plan of what you WOULD do, and stop. State-changing tools are disabled this turn.")
+        extra.append(
+            "- PLAN MODE: change nothing. Inspect with read-only tools, then present a clear numbered plan of what you WOULD do, and stop. State-changing tools are disabled this turn."
+        )
     elif pmode == "approve":
-        extra.append("- APPROVE MODE: every state-changing action (shell, file writes, git, computer use, delegation) is shown to the user for approval first. Say what you're about to do in one line before such actions.")
+        extra.append(
+            "- APPROVE MODE: every state-changing action (shell, file writes, git, computer use, delegation) is shown to the user for approval first. Say what you're about to do in one line before such actions."
+        )
 
     return (
         "Agent mode is enabled. You are aide Agent, a fully autonomous local operator inspired by "
@@ -252,8 +289,12 @@ async def run_agent(
 ) -> AsyncGenerator[dict, None]:
     # effort drives how many turns the agent gets (falls back to configured max)
     eff = (settings.get("agent_effort") or "medium").lower()
-    max_turns = {"low": 6, "medium": 18, "high": 36, "xhigh": 60, "max": 100}.get(eff) or int(settings.get("agent_max_turns", 24) or 24)
-    run = start_run(session_id=session_id, model=model, max_turns=max_turns, cwd=settings.get("agent_cwd", ""))
+    max_turns = {"low": 6, "medium": 18, "high": 36, "xhigh": 60, "max": 100}.get(eff) or int(
+        settings.get("agent_max_turns", 24) or 24
+    )
+    run = start_run(
+        session_id=session_id, model=model, max_turns=max_turns, cwd=settings.get("agent_cwd", "")
+    )
     run_id = run["id"]
     yield {"agent_run": {"id": run_id, "status": "running", "max_turns": max_turns}}
 
@@ -264,8 +305,10 @@ async def run_agent(
     if settings.get("agent_context_files", True):
         ctx = _load_project_context(settings.get("agent_cwd", ""))
         if ctx:
-            note += ("\n\nThe following project context files apply to this workspace. "
-                     "Treat them as standing instructions:\n\n" + ctx)
+            note += (
+                "\n\nThe following project context files apply to this workspace. "
+                "Treat them as standing instructions:\n\n" + ctx
+            )
 
     agent_messages = [dict(m) for m in messages]
     if agent_messages and agent_messages[0].get("role") == "system":
@@ -274,8 +317,8 @@ async def run_agent(
         agent_messages.insert(0, {"role": "system", "content": note})
 
     usage = {}
-    _failkey: dict[str, int] = {}   # (tool+args) → consecutive failure count, for the loop-breaker
-    _verify_nudged = False          # the "run your checks" nudge fires once per run
+    _failkey: dict[str, int] = {}  # (tool+args) → consecutive failure count, for the loop-breaker
+    _verify_nudged = False  # the "run your checks" nudge fires once per run
     try:
         for turn in range(max_turns):
             if stop_event.is_set():
@@ -300,31 +343,46 @@ async def run_agent(
             for attempt in range(LLM_RETRIES + 1):
                 produced = False
                 err_chunk = None
-                async for chunk in stream_chat(agent_messages, ep.base_url, ep.api_key, model, **llm_kwargs):
+                async for chunk in stream_chat(
+                    agent_messages, ep.base_url, ep.api_key, model, **llm_kwargs
+                ):
                     if stop_event.is_set():
                         break
                     if "error" in chunk:
                         err_chunk = chunk
                         break
                     if "thinking" in chunk:
-                        thinking_acc.append(chunk["thinking"]); produced = True
+                        thinking_acc.append(chunk["thinking"])
+                        produced = True
                         yield chunk
                     elif "delta" in chunk:
-                        turn_text.append(chunk["delta"]); accumulated.append(chunk["delta"]); produced = True
+                        turn_text.append(chunk["delta"])
+                        accumulated.append(chunk["delta"])
+                        produced = True
                         yield chunk
                     elif "tool_call" in chunk:
-                        tool_calls.append(chunk["tool_call"]); produced = True
+                        tool_calls.append(chunk["tool_call"])
+                        produced = True
                     elif "done" in chunk:
                         usage = merge_usage(usage, chunk.get("usage", {}))
                 if stop_event.is_set() or err_chunk is None:
                     break
                 # got an error. retry only if nothing streamed yet + it's transient.
-                if not produced and attempt < LLM_RETRIES and _retryable(err_chunk.get("error", "")):
-                    record_event(run_id, "llm_retry", {"attempt": attempt + 1, "error": str(err_chunk.get("error", ""))[:200]})
+                if (
+                    not produced
+                    and attempt < LLM_RETRIES
+                    and _retryable(err_chunk.get("error", ""))
+                ):
+                    record_event(
+                        run_id,
+                        "llm_retry",
+                        {"attempt": attempt + 1, "error": str(err_chunk.get("error", ""))[:200]},
+                    )
                     yield {"llm_retry": {"attempt": attempt + 1}}
-                    clear_cooldown(ep.base_url)          # so the retry actually hits the api
-                    await asyncio.sleep(min(8.0, LLM_RETRY_BASE * (2 ** attempt)))
-                    turn_text = []; tool_calls = []
+                    clear_cooldown(ep.base_url)  # so the retry actually hits the api
+                    await asyncio.sleep(min(8.0, LLM_RETRY_BASE * (2**attempt)))
+                    turn_text = []
+                    tool_calls = []
                     continue
                 llm_error = err_chunk
                 break
@@ -344,13 +402,15 @@ async def run_agent(
                 finish_run(run_id, "done")
                 return
 
-            agent_messages.append({
-                "role": "assistant",
-                "content": "".join(turn_text),
-                "tool_calls": tool_calls,
-            })
+            agent_messages.append(
+                {
+                    "role": "assistant",
+                    "content": "".join(turn_text),
+                    "tool_calls": tool_calls,
+                }
+            )
 
-            turn_images = []   # screenshots to feed back as vision input this turn
+            turn_images = []  # screenshots to feed back as vision input this turn
 
             for ci, call in enumerate(tool_calls):
                 if stop_event.is_set():
@@ -358,33 +418,64 @@ async def run_agent(
                 call_id = call.get("call_id") or f"tool-{turn}-{ci}"
                 name = call.get("name", "")
                 args = call.get("args") or {}
-                step = {"call_id": call_id, "name": name, "args": args, "output": "", "error": False}
+                step = {
+                    "call_id": call_id,
+                    "name": name,
+                    "args": args,
+                    "output": "",
+                    "error": False,
+                }
                 tool_steps.append(step)
                 record_event(run_id, "tool_start", step)
                 yield {"tool_start": {"call_id": call_id, "name": name, "args": args}}
 
                 # ── permission gate: mode + per-tool/path rules (allow|ask|deny) ──
                 mode = settings.get("agent_permission_mode") or "full_auto"
-                decision = decide_permission(name, args, mode, settings.get("permission_rules") or [])
+                decision = decide_permission(
+                    name, args, mode, settings.get("permission_rules") or []
+                )
                 gate = None  # set to a result dict to skip execution
                 diff = None
                 if name in MUTATING_TOOLS:
                     diff = preview_change(name, args)
                     if diff:
-                        step["diff"] = diff[:8000]   # persist so the convo can re-show it on reload
+                        step["diff"] = diff[:8000]  # persist so the convo can re-show it on reload
                         yield {"tool_diff": {"call_id": call_id, "diff": diff}}
                 if decision == "deny":
-                    gate = ({"output": "[plan mode] not executed. Describe this change in your plan instead of running it.", "error": True}
-                            if mode == "plan" and name in MUTATING_TOOLS
-                            else {"output": "[denied by permission rules] action not performed. Adjust your approach or ask the user.", "error": True})
+                    gate = (
+                        {
+                            "output": "[plan mode] not executed. Describe this change in your plan instead of running it.",
+                            "error": True,
+                        }
+                        if mode == "plan" and name in MUTATING_TOOLS
+                        else {
+                            "output": "[denied by permission rules] action not performed. Adjust your approach or ask the user.",
+                            "error": True,
+                        }
+                    )
                 elif decision == "ask":
                     req_id = uuid.uuid4().hex
-                    record_event(run_id, "permission_request", {"call_id": call_id, "name": name, "args": args})
-                    yield {"tool_permission": {"request_id": req_id, "call_id": call_id, "name": name, "args": args, "diff": diff}}
+                    record_event(
+                        run_id,
+                        "permission_request",
+                        {"call_id": call_id, "name": name, "args": args},
+                    )
+                    yield {
+                        "tool_permission": {
+                            "request_id": req_id,
+                            "call_id": call_id,
+                            "name": name,
+                            "args": args,
+                            "diff": diff,
+                        }
+                    }
                     allowed = await _await_permission(req_id, stop_event)
                     yield {"tool_permission_resolved": {"call_id": call_id, "allow": bool(allowed)}}
                     if not allowed:
-                        gate = {"output": "[denied by user] action not performed. Adjust your approach or ask the user.", "error": True}
+                        gate = {
+                            "output": "[denied by user] action not performed. Adjust your approach or ask the user.",
+                            "error": True,
+                        }
 
                 if gate is not None:
                     result = gate
@@ -412,11 +503,17 @@ async def run_agent(
                 tool_content = {k: v for k, v in result.items() if k != "image"}
                 # wrap untrusted external content (web/file/mail/repo) so it can't act
                 # as instructions, and flag anything that looks like an injection
-                if name in UNTRUSTED_TOOLS and isinstance(tool_content.get("output"), str) and not step["error"]:
+                if (
+                    name in UNTRUSTED_TOOLS
+                    and isinstance(tool_content.get("output"), str)
+                    and not step["error"]
+                ):
                     wrapped, flagged = guard_untrusted(name, tool_content["output"])
                     tool_content["output"] = wrapped
                     if flagged:
-                        record_event(run_id, "injection_flagged", {"call_id": call_id, "name": name})
+                        record_event(
+                            run_id, "injection_flagged", {"call_id": call_id, "name": name}
+                        )
                         yield {"tool_injection_flag": {"call_id": call_id, "name": name}}
                 if img:
                     turn_images.append(img)
@@ -428,9 +525,11 @@ async def run_agent(
                 if step["error"]:
                     _failkey[fk] = _failkey.get(fk, 0) + 1
                     if _failkey[fk] >= 2:
-                        warn = (f"\n\n[loop] you've called {name} with the same arguments "
-                                f"{_failkey[fk]}x and it keeps failing — change approach or "
-                                f"surface the blocker to the user instead of retrying.")
+                        warn = (
+                            f"\n\n[loop] you've called {name} with the same arguments "
+                            f"{_failkey[fk]}x and it keeps failing — change approach or "
+                            f"surface the blocker to the user instead of retrying."
+                        )
                         step["output"] = (step["output"] or "") + warn
                         if isinstance(tool_content.get("output"), str):
                             tool_content["output"] += warn
@@ -442,9 +541,11 @@ async def run_agent(
                     # to run the project's checks before declaring done (once per run).
                     if not _verify_nudged and name in ("write_file", "edit_file", "apply_patch"):
                         _verify_nudged = True
-                        v = ("\n\n[verify] you changed code — before reporting done, run the "
-                             "project's tests/diagnostics (diagnostics or shell) and fix anything "
-                             "you broke.")
+                        v = (
+                            "\n\n[verify] you changed code — before reporting done, run the "
+                            "project's tests/diagnostics (diagnostics or shell) and fix anything "
+                            "you broke."
+                        )
                         step["output"] = (step["output"] or "") + v
                         if isinstance(tool_content.get("output"), str):
                             tool_content["output"] += v
@@ -458,22 +559,26 @@ async def run_agent(
                         yield {"todo_update": {"items": todos}}
                     except Exception:
                         pass
-                yield {"tool_result": {
-                    "call_id": call_id,
-                    "name": name,
-                    "output": step["output"],
-                    "error": step["error"],
-                }}
+                yield {
+                    "tool_result": {
+                        "call_id": call_id,
+                        "name": name,
+                        "output": step["output"],
+                        "error": step["error"],
+                    }
+                }
                 # cap per-tool history so long runs don't blow context. truncate the
                 # OUTPUT VALUE (head+tail) then re-serialize, so the tool message is
                 # ALWAYS valid json — the old code sliced the json string itself and
                 # tacked on `"}`, which split keys/values mid-string → unparseable.
                 content = _cap_tool_content(tool_content)
-                agent_messages.append({
-                    "role": "tool",
-                    "tool_call_id": call_id,
-                    "content": content,
-                })
+                agent_messages.append(
+                    {
+                        "role": "tool",
+                        "tool_call_id": call_id,
+                        "content": content,
+                    }
+                )
 
             # after the tool batch, hand screenshots to the model as image input
             if turn_images and not stop_event.is_set():
@@ -482,10 +587,10 @@ async def run_agent(
                     parts.append({"type": "image_url", "image_url": {"url": du}})
                 agent_messages.append({"role": "user", "content": parts})
 
-            _trim_history(agent_messages)   # keep total context bounded on long runs
+            _trim_history(agent_messages)  # keep total context bounded on long runs
 
         status = "stopped" if stop_event.is_set() else "turn_limit"
-        msg = "\n\nAgent stopped after reaching the turn limit. Send \"continue\" and I can keep going from here."
+        msg = '\n\nAgent stopped after reaching the turn limit. Send "continue" and I can keep going from here.'
         if stop_event.is_set():
             msg = "\n\nAgent stopped."
         accumulated.append(msg)

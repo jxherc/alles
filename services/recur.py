@@ -6,6 +6,7 @@ weekly BYDAY (MO,WE,FR), COUNT (end after N), UNTIL (end date), and EXDATE
 (excluded occurrence dates). kept deliberately simple — single-user calendar, not
 a groupware server — but enough to match what the UI lets you build.
 """
+
 import calendar as _cal
 import json
 from datetime import datetime, date, timedelta
@@ -52,7 +53,8 @@ def _add_months(d, n):
 def _weekly_stream(start, interval, byday):
     days = byday or {start.weekday()}
     monday = (start - timedelta(days=start.weekday())).replace(
-        hour=start.hour, minute=start.minute, second=0, microsecond=0)
+        hour=start.hour, minute=start.minute, second=0, microsecond=0
+    )
     wk = 0
     while True:
         base = monday + timedelta(weeks=wk * interval)
@@ -97,7 +99,11 @@ def expand(event: dict, rs: datetime, re: datetime, cap: int = 1500) -> list[dat
     byday = _byday(event.get("recur_byday")) if rec == "weekly" else set()
     excepts = {str(x)[:10] for x in _json_list(event.get("recur_except"))}
 
-    stream = _weekly_stream(start, interval, byday) if rec == "weekly" else _step_stream(start, rec, interval)
+    stream = (
+        _weekly_stream(start, interval, byday)
+        if rec == "weekly"
+        else _step_stream(start, rec, interval)
+    )
     out, emitted, guard = [], 0, 0
     for cand in stream:
         guard += 1
@@ -107,7 +113,7 @@ def expand(event: dict, rs: datetime, re: datetime, cap: int = 1500) -> list[dat
             break
         if count is not None and emitted >= count:
             break
-        emitted += 1                                  # COUNT counts pre-exclusion (RFC)
+        emitted += 1  # COUNT counts pre-exclusion (RFC)
         if cand.date().isoformat() in excepts:
             continue
         if cand >= re:

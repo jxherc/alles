@@ -2,6 +2,7 @@
 Files app — a browser over a configurable root dir (default data/files).
 single-user, path-traversal safe. mirrors the vault_md safe-path approach.
 """
+
 import shutil
 import mimetypes
 from pathlib import Path
@@ -17,8 +18,8 @@ def files_dir() -> Path:
     d = s.get("files_dir") or str(ROOT / "data" / "files")
     p = Path(d).expanduser()
     if not p.is_absolute():
-        p = ROOT / p          # relative dirs anchor to the app root, not cwd
-    p = p.resolve()           # must be absolute — _safe() compares against resolved children
+        p = ROOT / p  # relative dirs anchor to the app root, not cwd
+    p = p.resolve()  # must be absolute — _safe() compares against resolved children
     p.mkdir(parents=True, exist_ok=True)
     return p
 
@@ -76,8 +77,14 @@ def read_text(rel: str, limit: int = 200_000) -> dict:
     except Exception:
         text, is_text = "", False
     size = p.stat().st_size
-    return {"path": rel, "mime": mime, "is_text": is_text,
-            "content": text, "size": size, "truncated": size > limit}
+    return {
+        "path": rel,
+        "mime": mime,
+        "is_text": is_text,
+        "content": text,
+        "size": size,
+        "truncated": size > limit,
+    }
 
 
 def mkdir(rel: str) -> dict:
@@ -113,12 +120,31 @@ def save_upload(rel_dir: str, filename: str, data: bytes) -> dict:
     name = Path(filename).name  # strip any path from the upload name
     dst = _safe(str((Path(rel_dir) / name))) if rel_dir else _safe(name)
     dst.write_bytes(data)
-    return {"ok": True, "name": name,
-            "path": str(dst.relative_to(files_dir())).replace("\\", "/")}
+    return {"ok": True, "name": name, "path": str(dst.relative_to(files_dir())).replace("\\", "/")}
 
 
-_TEXT_EXT = {"txt", "md", "markdown", "py", "js", "ts", "json", "csv", "html",
-             "css", "log", "yml", "yaml", "toml", "ini", "sh", "xml", "rst", "tsx", "jsx"}
+_TEXT_EXT = {
+    "txt",
+    "md",
+    "markdown",
+    "py",
+    "js",
+    "ts",
+    "json",
+    "csv",
+    "html",
+    "css",
+    "log",
+    "yml",
+    "yaml",
+    "toml",
+    "ini",
+    "sh",
+    "xml",
+    "rst",
+    "tsx",
+    "jsx",
+}
 
 
 def search(query: str, limit: int = 100) -> dict:
@@ -145,7 +171,7 @@ def search(query: str, limit: int = 100) -> dict:
                 if idx != -1:
                     body_hit = True
                     s = max(0, idx - 40)
-                    snippet = text[s:idx + len(q) + 40].replace("\n", " ").strip()
+                    snippet = text[s : idx + len(q) + 40].replace("\n", " ").strip()
             except Exception:
                 pass
         if name_hit or body_hit:

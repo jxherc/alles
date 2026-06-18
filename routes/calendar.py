@@ -18,26 +18,39 @@ def _jl(s):
 
 def _fmt(e: CalendarEvent) -> dict:
     return {
-        "id": e.id, "calendar_id": e.calendar_id or "", "title": e.title,
-        "description": e.description, "location": e.location or "", "guests": e.guests or "",
-        "start_dt": e.start_dt, "end_dt": e.end_dt,
-        "all_day": e.all_day, "color": e.color,
+        "id": e.id,
+        "calendar_id": e.calendar_id or "",
+        "title": e.title,
+        "description": e.description,
+        "location": e.location or "",
+        "guests": e.guests or "",
+        "start_dt": e.start_dt,
+        "end_dt": e.end_dt,
+        "all_day": e.all_day,
+        "color": e.color,
         "reminders": _jl(e.reminders),
-        "recurrence": e.recurrence or "", "recur_interval": e.recur_interval or 1,
-        "recur_byday": e.recur_byday or "", "recur_count": e.recur_count,
-        "recur_until": e.recur_until, "recur_except": _jl(e.recur_except),
+        "recurrence": e.recurrence or "",
+        "recur_interval": e.recur_interval or 1,
+        "recur_byday": e.recur_byday or "",
+        "recur_count": e.recur_count,
+        "recur_until": e.recur_until,
+        "recur_except": _jl(e.recur_except),
         "created_at": e.created_at.isoformat(),
     }
 
 
 def _default_cal(db) -> str:
-    c = db.query(Calendar).filter(Calendar.is_default == True).first() \
+    c = (
+        db.query(Calendar).filter(Calendar.is_default == True).first()
         or db.query(Calendar).order_by(Calendar.sort_order).first()
+    )
     if not c:
         from routes.calendars import seed_default_calendar
+
         seed_default_calendar()
         c = db.query(Calendar).filter(Calendar.is_default == True).first()
     return c.id if c else ""
+
 
 @router.get("/calendar")
 def list_events(db: DbSession = Depends(get_db)):
@@ -49,11 +62,15 @@ def list_events(db: DbSession = Depends(get_db)):
 def agenda(days: int = 30, db: DbSession = Depends(get_db)):
     """upcoming events grouped by day — a flat agenda list for the next N days."""
     from datetime import date, timedelta
+
     today = date.today().isoformat()
     until = (date.today() + timedelta(days=days)).isoformat()
-    rows = (db.query(CalendarEvent)
-            .filter(CalendarEvent.start_dt >= today, CalendarEvent.start_dt <= until + "T99")
-            .order_by(CalendarEvent.start_dt.asc()).all())
+    rows = (
+        db.query(CalendarEvent)
+        .filter(CalendarEvent.start_dt >= today, CalendarEvent.start_dt <= until + "T99")
+        .order_by(CalendarEvent.start_dt.asc())
+        .all()
+    )
     groups: dict[str, list] = {}
     for e in rows:
         groups.setdefault(e.start_dt[:10], []).append(_fmt(e))
@@ -68,14 +85,23 @@ class QuickEvent(BaseModel):
 def quick_event(body: QuickEvent, db: DbSession = Depends(get_db)):
     """natural-language event: 'lunch with sam friday 1pm', 'dentist june 20 9am'."""
     from services.event_nl import parse_event
+
     if not body.text.strip():
         raise HTTPException(400, "empty")
     p = parse_event(body.text)
-    e = CalendarEvent(title=p["title"], start_dt=p["start_dt"],
-                      end_dt=p["end_dt"], all_day=p["all_day"],
-                      recurrence=p.get("recurrence", ""), recur_until=p.get("recur_until"))
-    db.add(e); db.commit(); db.refresh(e)
+    e = CalendarEvent(
+        title=p["title"],
+        start_dt=p["start_dt"],
+        end_dt=p["end_dt"],
+        all_day=p["all_day"],
+        recurrence=p.get("recurrence", ""),
+        recur_until=p.get("recur_until"),
+    )
+    db.add(e)
+    db.commit()
+    db.refresh(e)
     return _fmt(e)
+
 
 class EventBody(BaseModel):
     title: str
@@ -103,7 +129,9 @@ def create_event(body: EventBody, db: DbSession = Depends(get_db)):
     data["reminders"] = json.dumps(data.get("reminders") or [])
     data["recur_except"] = json.dumps(data.get("recur_except") or [])
     e = CalendarEvent(**data)
-    db.add(e); db.commit(); db.refresh(e)
+    db.add(e)
+    db.commit()
+    db.refresh(e)
     return _fmt(e)
 
 
@@ -147,6 +175,7 @@ def delete_event(eid: str, scope: str = "all", occ: str = "", db: DbSession = De
     """scope='all' deletes the event/series; 'this' excludes one occurrence (occ
     date); 'following' ends the series the day before occ."""
     from datetime import date, timedelta
+
     e = db.get(CalendarEvent, eid)
     if not e:
         raise HTTPException(404)
@@ -165,7 +194,8 @@ def delete_event(eid: str, scope: str = "all", occ: str = "", db: DbSession = De
             return {"ok": True, "scope": "following"}
         except ValueError:
             pass
-    db.delete(e); db.commit()
+    db.delete(e)
+    db.commit()
     return {"ok": True}
 
 
@@ -174,10 +204,14 @@ def export_ics(db: DbSession = Depends(get_db)):
     """download every event as a .ics — import into Apple/Google/Outlook calendar."""
     from fastapi.responses import Response
     from services.ics import to_ics
+
     rows = db.query(CalendarEvent).order_by(CalendarEvent.start_dt.asc()).all()
     body = to_ics([_fmt(e) for e in rows])
-    return Response(body, media_type="text/calendar",
-                    headers={"content-disposition": 'attachment; filename="alles-calendar.ics"'})
+    return Response(
+        body,
+        media_type="text/calendar",
+        headers={"content-disposition": 'attachment; filename="alles-calendar.ics"'},
+    )
 
 
 class IcsImport(BaseModel):
@@ -188,11 +222,18 @@ class IcsImport(BaseModel):
 def import_ics(body: IcsImport, db: DbSession = Depends(get_db)):
     """import events from a pasted/uploaded .ics."""
     from services.ics import parse_ics
+
     n = 0
     for ev in parse_ics(body.ics):
-        db.add(CalendarEvent(title=ev["title"] or "(untitled)", start_dt=ev["start_dt"],
-                             end_dt=ev.get("end_dt"), all_day=ev.get("all_day", False),
-                             description=ev.get("description", "")))
+        db.add(
+            CalendarEvent(
+                title=ev["title"] or "(untitled)",
+                start_dt=ev["start_dt"],
+                end_dt=ev.get("end_dt"),
+                all_day=ev.get("all_day", False),
+                description=ev.get("description", ""),
+            )
+        )
         n += 1
     db.commit()
     return {"imported": n}

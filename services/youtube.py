@@ -3,6 +3,7 @@ YouTube → note: pull a video's transcript (no API key). Tries youtube-transcri
 if installed, else scrapes the watch page's caption tracks → timedtext. Graceful
 when transcripts are unavailable or YouTube blocks the server.
 """
+
 import html as _html
 import json
 import re
@@ -10,8 +11,10 @@ import re
 import httpx
 
 _ID_RE = re.compile(r"(?:v=|/shorts/|youtu\.be/|/embed/|/v/|/live/)([A-Za-z0-9_-]{11})")
-_UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-       "(KHTML, like Gecko) Chrome/120 Safari/537.36")
+_UA = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/120 Safari/537.36"
+)
 
 
 def extract_video_id(url: str):
@@ -29,6 +32,7 @@ async def fetch_transcript(video_id: str):
     # 1) library, if it happens to be installed
     try:
         from youtube_transcript_api import YouTubeTranscriptApi
+
         parts = YouTubeTranscriptApi.get_transcript(video_id)
         text = re.sub(r"\s+", " ", " ".join(p.get("text", "") for p in parts)).strip()
         if text:
@@ -36,8 +40,11 @@ async def fetch_transcript(video_id: str):
     except Exception:
         pass
     # 2) scrape the watch page → caption track → timedtext xml
-    async with httpx.AsyncClient(timeout=20, follow_redirects=True,
-                                 headers={"user-agent": _UA, "accept-language": "en-US,en;q=0.9"}) as c:
+    async with httpx.AsyncClient(
+        timeout=20,
+        follow_redirects=True,
+        headers={"user-agent": _UA, "accept-language": "en-US,en;q=0.9"},
+    ) as c:
         r = await c.get(f"https://www.youtube.com/watch?v={video_id}")
         page = r.text
         title = ""
@@ -51,8 +58,10 @@ async def fetch_transcript(video_id: str):
             tracks = json.loads(m.group(1))
         except Exception:
             raise ValueError("couldn't parse the caption list")
-        track = next((t for t in tracks if (t.get("languageCode") or "").startswith("en")),
-                     tracks[0] if tracks else None)
+        track = next(
+            (t for t in tracks if (t.get("languageCode") or "").startswith("en")),
+            tracks[0] if tracks else None,
+        )
         if not track or not track.get("baseUrl"):
             raise ValueError("no usable caption track")
         base = track["baseUrl"].replace("\\u0026", "&")

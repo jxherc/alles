@@ -6,6 +6,7 @@ bus lets features react to things happening elsewhere ('doc.saved', etc.) withou
 importing each other. Both are process-local and best-effort: a failing job or
 handler is logged and never stalls the others.
 """
+
 import asyncio
 import logging
 import time
@@ -17,8 +18,8 @@ log = logging.getLogger("alles.jobs")
 @dataclass
 class Job:
     name: str
-    fn: object            # async callable () -> awaitable
-    interval: float       # seconds between runs
+    fn: object  # async callable () -> awaitable
+    interval: float  # seconds between runs
     last_run: float = 0.0
     enabled: bool = True
     runs: int = 0

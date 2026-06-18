@@ -6,7 +6,9 @@ from tests._client import ApiTest
 class RemindersApiTest(ApiTest):
     def test_create_list_delete(self):
         future = (datetime.utcnow() + timedelta(days=1)).isoformat()
-        r = self.client.post("/api/reminders", json={"text": "call mom", "trigger_at": future}).json()
+        r = self.client.post(
+            "/api/reminders", json={"text": "call mom", "trigger_at": future}
+        ).json()
         self.assertEqual(r["text"], "call mom")
         self.assertFalse(r["fired"])
         self.assertEqual([x["id"] for x in self.client.get("/api/reminders").json()], [r["id"]])
@@ -14,7 +16,12 @@ class RemindersApiTest(ApiTest):
         self.assertEqual(self.client.get("/api/reminders").json(), [])
 
     def test_bad_trigger_at_400(self):
-        self.assertEqual(self.client.post("/api/reminders", json={"text": "x", "trigger_at": "not-a-date"}).status_code, 400)
+        self.assertEqual(
+            self.client.post(
+                "/api/reminders", json={"text": "x", "trigger_at": "not-a-date"}
+            ).status_code,
+            400,
+        )
 
     def test_due_marks_fired_and_drops_from_list(self):
         past = (datetime.utcnow() - timedelta(minutes=5)).isoformat()

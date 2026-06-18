@@ -6,6 +6,7 @@ the VAPID keypair lives in data/vapid.pem (generated on first use). browsers
 subscribe against its public key, so deleting the file invalidates every
 existing subscription.
 """
+
 import os, json, time, base64, struct, logging
 from pathlib import Path
 import httpx
@@ -37,10 +38,13 @@ def _load_vapid() -> ec.EllipticCurvePrivateKey:
         else:
             _vapid_key = ec.generate_private_key(ec.SECP256R1())
             _KEY_FILE.parent.mkdir(parents=True, exist_ok=True)
-            _KEY_FILE.write_bytes(_vapid_key.private_bytes(
-                serialization.Encoding.PEM,
-                serialization.PrivateFormat.PKCS8,
-                serialization.NoEncryption()))
+            _KEY_FILE.write_bytes(
+                _vapid_key.private_bytes(
+                    serialization.Encoding.PEM,
+                    serialization.PrivateFormat.PKCS8,
+                    serialization.NoEncryption(),
+                )
+            )
             try:
                 os.chmod(_KEY_FILE, 0o600)
             except OSError:
@@ -49,21 +53,27 @@ def _load_vapid() -> ec.EllipticCurvePrivateKey:
 
 
 def public_key_b64u() -> str:
-    pub = _load_vapid().public_key().public_bytes(
-        serialization.Encoding.X962, serialization.PublicFormat.UncompressedPoint)
+    pub = (
+        _load_vapid()
+        .public_key()
+        .public_bytes(serialization.Encoding.X962, serialization.PublicFormat.UncompressedPoint)
+    )
     return _b64u(pub)
 
 
 def _vapid_auth(endpoint: str) -> str:
     from urllib.parse import urlsplit
+
     u = urlsplit(endpoint)
-    claims = {"aud": f"{u.scheme}://{u.netloc}",
-              "exp": int(time.time()) + 12 * 3600,
-              "sub": "mailto:admin@localhost"}
+    claims = {
+        "aud": f"{u.scheme}://{u.netloc}",
+        "exp": int(time.time()) + 12 * 3600,
+        "sub": "mailto:admin@localhost",
+    }
     header = _b64u(json.dumps({"typ": "JWT", "alg": "ES256"}).encode())
     body = _b64u(json.dumps(claims).encode())
     der = _load_vapid().sign(f"{header}.{body}".encode(), ec.ECDSA(hashes.SHA256()))
-    r, s = decode_dss_signature(der)       # JWT wants raw r||s, not DER
+    r, s = decode_dss_signature(der)  # JWT wants raw r||s, not DER
     sig = _b64u(r.to_bytes(32, "big") + s.to_bytes(32, "big"))
     return f"vapid t={header}.{body}.{sig}, k={public_key_b64u()}"
 
@@ -75,14 +85,16 @@ def _encrypt(plaintext: bytes, p256dh: str, auth: str) -> bytes:
     ua_pub = ec.EllipticCurvePublicKey.from_encoded_point(ec.SECP256R1(), ua_pub_raw)
     as_priv = ec.generate_private_key(ec.SECP256R1())
     as_pub_raw = as_priv.public_key().public_bytes(
-        serialization.Encoding.X962, serialization.PublicFormat.UncompressedPoint)
+        serialization.Encoding.X962, serialization.PublicFormat.UncompressedPoint
+    )
     shared = as_priv.exchange(ec.ECDH(), ua_pub)
-    ikm = HKDF(hashes.SHA256(), 32, salt=auth_secret,
-               info=b"WebPush: info\x00" + ua_pub_raw + as_pub_raw).derive(shared)
+    ikm = HKDF(
+        hashes.SHA256(), 32, salt=auth_secret, info=b"WebPush: info\x00" + ua_pub_raw + as_pub_raw
+    ).derive(shared)
     salt = os.urandom(16)
     cek = HKDF(hashes.SHA256(), 16, salt=salt, info=b"Content-Encoding: aes128gcm\x00").derive(ikm)
     nonce = HKDF(hashes.SHA256(), 12, salt=salt, info=b"Content-Encoding: nonce\x00").derive(ikm)
-    ct = AESGCM(cek).encrypt(nonce, plaintext + b"\x02", None)   # 0x02 = last record
+    ct = AESGCM(cek).encrypt(nonce, plaintext + b"\x02", None)  # 0x02 = last record
     return salt + struct.pack("!IB", 4096, len(as_pub_raw)) + as_pub_raw + ct
 
 

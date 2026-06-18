@@ -14,14 +14,20 @@ async def speech_to_text(file: UploadFile = File(...)):
 
     if provider == "local":
         from services import stt_local
+
         if not stt_local.available():
-            raise HTTPException(400, "local STT needs faster-whisper — run: pip install faster-whisper")
+            raise HTTPException(
+                400, "local STT needs faster-whisper — run: pip install faster-whisper"
+            )
         try:
             audio = await file.read()
             import asyncio
+
             text = await asyncio.to_thread(
-                stt_local.transcribe, audio,
-                s.get("stt_model", "base"), s.get("stt_language", ""),
+                stt_local.transcribe,
+                audio,
+                s.get("stt_model", "base"),
+                s.get("stt_language", ""),
             )
             return {"text": text}
         except Exception as e:
@@ -33,6 +39,7 @@ async def speech_to_text(file: UploadFile = File(...)):
             raise HTTPException(400, "openai_api_key not configured for whisper_api")
         try:
             import httpx
+
             audio = await file.read()
             async with httpx.AsyncClient(timeout=30) as client:
                 r = await client.post(
@@ -69,12 +76,14 @@ async def text_to_speech(body: TtsRequest):
         raise HTTPException(400, "openai_api_key not configured")
 
     import httpx
+
     voice = body.voice or s.get("tts_voice", "alloy")
-    text  = body.text[:4096]
+    text = body.text[:4096]
 
     async def _stream():
         async with httpx.AsyncClient(timeout=60) as client:
-            async with client.stream("POST",
+            async with client.stream(
+                "POST",
                 "https://api.openai.com/v1/audio/speech",
                 headers={"Authorization": f"Bearer {key}", "content-type": "application/json"},
                 json={"model": "tts-1", "input": text, "voice": voice},

@@ -19,7 +19,9 @@ class Conn(BaseModel):
 
 @router.post("/connect")
 def connect(body: Conn):
-    caldav_sync.save_cfg({"url": body.url.strip(), "username": body.username.strip(), "password": body.password})
+    caldav_sync.save_cfg(
+        {"url": body.url.strip(), "username": body.username.strip(), "password": body.password}
+    )
     return caldav_sync.status()
 
 

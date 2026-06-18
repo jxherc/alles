@@ -1,4 +1,5 @@
 """automation rules CRUD — the engine lives in services/automations.py"""
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session as DbSession
@@ -8,24 +9,47 @@ from services.automations import TRIGGERS, ACTIONS
 router = APIRouter(prefix="/api")
 
 _TRIGGER_META = [
-    {"value": "mail_from",      "label": "mail arrives from…",        "arg": "sender contains (e.g. landlord@)"},
-    {"value": "sub_renewing",   "label": "subscription renews within…", "arg": "days (e.g. 3)"},
-    {"value": "day_event_near", "label": "days-event is within…",      "arg": "days (e.g. 7)"},
-    {"value": "daily_at",       "label": "every day at…",              "arg": "HH:MM (server time)"},
-    {"value": "doc_tag",        "label": "doc saved with #tag…",       "arg": "tag (e.g. invoice)"},
+    {
+        "value": "mail_from",
+        "label": "mail arrives from…",
+        "arg": "sender contains (e.g. landlord@)",
+    },
+    {"value": "sub_renewing", "label": "subscription renews within…", "arg": "days (e.g. 3)"},
+    {"value": "day_event_near", "label": "days-event is within…", "arg": "days (e.g. 7)"},
+    {"value": "daily_at", "label": "every day at…", "arg": "HH:MM (server time)"},
+    {"value": "doc_tag", "label": "doc saved with #tag…", "arg": "tag (e.g. invoice)"},
 ]
 _ACTION_META = [
-    {"value": "create_task", "label": "create a task",      "arg": "task title — {from} {subject} {name} {date}"},
-    {"value": "push",        "label": "push a notification", "arg": "notification text — {from} {subject} {name} {date}"},
-    {"value": "create_note", "label": "create a note",       "arg": "note content — {from} {subject} {name} {date} {path}"},
-    {"value": "push_digest", "label": "push my day digest",  "arg": "(no template needed)"},
+    {
+        "value": "create_task",
+        "label": "create a task",
+        "arg": "task title — {from} {subject} {name} {date}",
+    },
+    {
+        "value": "push",
+        "label": "push a notification",
+        "arg": "notification text — {from} {subject} {name} {date}",
+    },
+    {
+        "value": "create_note",
+        "label": "create a note",
+        "arg": "note content — {from} {subject} {name} {date} {path}",
+    },
+    {"value": "push_digest", "label": "push my day digest", "arg": "(no template needed)"},
 ]
 
 
 def _fmt(r: AutomationRule) -> dict:
-    return {"id": r.id, "name": r.name, "trigger": r.trigger, "trigger_arg": r.trigger_arg,
-            "action": r.action, "action_arg": r.action_arg, "enabled": r.enabled,
-            "created_at": r.created_at.isoformat()}
+    return {
+        "id": r.id,
+        "name": r.name,
+        "trigger": r.trigger,
+        "trigger_arg": r.trigger_arg,
+        "action": r.action,
+        "action_arg": r.action_arg,
+        "enabled": r.enabled,
+        "created_at": r.created_at.isoformat(),
+    }
 
 
 @router.get("/automations/options")
@@ -54,6 +78,7 @@ def create_rule(body: RuleBody, db: DbSession = Depends(get_db)):
         raise HTTPException(400, f"action must be one of {', '.join(ACTIONS)}")
     if body.trigger == "daily_at":
         import re
+
         if not re.fullmatch(r"\d{2}:\d{2}", body.trigger_arg.strip()):
             raise HTTPException(400, "daily_at needs a HH:MM time")
     if body.trigger in ("sub_renewing", "day_event_near"):
@@ -62,9 +87,16 @@ def create_rule(body: RuleBody, db: DbSession = Depends(get_db)):
         except ValueError:
             raise HTTPException(400, "this trigger needs a number of days")
     name = body.name.strip() or f"{body.trigger} → {body.action}"
-    r = AutomationRule(name=name, trigger=body.trigger, trigger_arg=body.trigger_arg.strip(),
-                       action=body.action, action_arg=body.action_arg)
-    db.add(r); db.commit(); db.refresh(r)
+    r = AutomationRule(
+        name=name,
+        trigger=body.trigger,
+        trigger_arg=body.trigger_arg.strip(),
+        action=body.action,
+        action_arg=body.action_arg,
+    )
+    db.add(r)
+    db.commit()
+    db.refresh(r)
     return _fmt(r)
 
 
@@ -99,7 +131,8 @@ def delete_rule(rid: str, db: DbSession = Depends(get_db)):
     r = db.get(AutomationRule, rid)
     if not r:
         raise HTTPException(404)
-    db.delete(r); db.commit()
+    db.delete(r)
+    db.commit()
     return {"ok": True}
 
 
@@ -110,8 +143,16 @@ async def test_rule(rid: str, db: DbSession = Depends(get_db)):
     if not r:
         raise HTTPException(404)
     from services.automations import _fire
-    sample = {"from": "sample@example.com", "subject": "sample subject", "name": "sample",
-              "date": "2026-01-01", "path": "sample.md", "tag": r.trigger_arg or "tag",
-              "price": "9.99", "dedupe": "test"}
+
+    sample = {
+        "from": "sample@example.com",
+        "subject": "sample subject",
+        "name": "sample",
+        "date": "2026-01-01",
+        "path": "sample.md",
+        "tag": r.trigger_arg or "tag",
+        "price": "9.99",
+        "dedupe": "test",
+    }
     await _fire(db, r, sample)
     return {"ok": True, "note": "action executed with sample data"}

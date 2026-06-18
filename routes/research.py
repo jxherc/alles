@@ -10,6 +10,7 @@ router = APIRouter(prefix="/api")
 
 def _resolve_ep():
     from core.database import SessionLocal, ModelEndpoint
+
     db = SessionLocal()
     try:
         ep = db.query(ModelEndpoint).filter(ModelEndpoint.enabled == True).first()

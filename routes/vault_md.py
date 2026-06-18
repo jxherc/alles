@@ -56,12 +56,13 @@ class WriteBody(BaseModel):
     content: str = ""
 
 
-_REV_GAP = 300    # min seconds between automatic snapshots of the same doc
-_REV_KEEP = 50    # revisions kept per doc
+_REV_GAP = 300  # min seconds between automatic snapshots of the same doc
+_REV_KEEP = 50  # revisions kept per doc
 
 
 def _norm_path(rel: str) -> str:
     from pathlib import PurePosixPath
+
     rel = (rel or "").replace("\\", "/")
     return rel if PurePosixPath(rel).suffix else rel + ".md"
 
@@ -72,6 +73,7 @@ def _snapshot(rel: str, force: bool = False):
     rate-limited — you get the pre-session state plus one every ~5 minutes."""
     from datetime import datetime
     from core.database import SessionLocal, DocRevision
+
     rel = _norm_path(rel)
     try:
         cur = vault_md.read(rel)
@@ -81,15 +83,24 @@ def _snapshot(rel: str, force: bool = False):
         return
     db = SessionLocal()
     try:
-        last = (db.query(DocRevision).filter_by(path=rel)
-                .order_by(DocRevision.created_at.desc()).first())
+        last = (
+            db.query(DocRevision)
+            .filter_by(path=rel)
+            .order_by(DocRevision.created_at.desc())
+            .first()
+        )
         if last and last.content == cur["content"]:
             return
         if not force and last and (datetime.utcnow() - last.created_at).total_seconds() < _REV_GAP:
             return
         db.add(DocRevision(path=rel, content=cur["content"]))
-        for old in (db.query(DocRevision).filter_by(path=rel)
-                    .order_by(DocRevision.created_at.desc()).offset(_REV_KEEP).all()):
+        for old in (
+            db.query(DocRevision)
+            .filter_by(path=rel)
+            .order_by(DocRevision.created_at.desc())
+            .offset(_REV_KEEP)
+            .all()
+        ):
             db.delete(old)
         db.commit()
     finally:
@@ -105,9 +116,10 @@ async def write_file(body: WriteBody):
         raise HTTPException(400, str(e))
     try:
         from services.automations import on_doc_saved
+
         await on_doc_saved(out.get("path", body.path), body.content or "")
     except Exception:
-        pass   # automations must never break a save
+        pass  # automations must never break a save
     return out
 
 
@@ -146,10 +158,10 @@ def rename_file(body: RenameBody):
     new_path = out.get("path", _norm_path(body.new_path))
     # carry the history along with the doc
     from core.database import SessionLocal, DocRevision
+
     db = SessionLocal()
     try:
-        db.query(DocRevision).filter_by(path=_norm_path(body.path)) \
-          .update({"path": new_path})
+        db.query(DocRevision).filter_by(path=_norm_path(body.path)).update({"path": new_path})
         db.commit()
     finally:
         db.close()
@@ -158,6 +170,7 @@ def rename_file(body: RenameBody):
     out["links_rewritten"] = 0
     if new_path.lower().endswith((".md", ".markdown")):
         from pathlib import PurePosixPath
+
         old_stem = PurePosixPath(_norm_path(body.path)).stem
         new_stem = PurePosixPath(new_path).stem
         if old_stem and new_stem and old_stem.lower() != new_stem.lower():
@@ -177,6 +190,7 @@ async def extract_todos(body: ExtractTodosBody):
     import json as _json
     from core.database import SessionLocal, ModelEndpoint, Task
     from services.llm import simple_complete
+
     try:
         doc = vault_md.read(_norm_path(body.path))
     except ValueError as e:
@@ -193,11 +207,14 @@ async def extract_todos(body: ExtractTodosBody):
         if not model:
             raise HTTPException(400, "no model available")
         prompt = [
-            {"role": "system", "content": (
-                "Extract actionable to-do items from the document. Reply with ONLY a JSON "
-                "array of short task title strings, no prose, no code fences. If there is "
-                "nothing actionable, reply []."
-            )},
+            {
+                "role": "system",
+                "content": (
+                    "Extract actionable to-do items from the document. Reply with ONLY a JSON "
+                    "array of short task title strings, no prose, no code fences. If there is "
+                    "nothing actionable, reply []."
+                ),
+            },
             {"role": "user", "content": doc["content"][:8000]},
         ]
         raw = await simple_complete(prompt, ep.base_url, ep.api_key, model, max_tokens=400)
@@ -223,12 +240,19 @@ async def extract_todos(body: ExtractTodosBody):
 @router.get("/revisions")
 def list_revisions(path: str):
     from core.database import SessionLocal, DocRevision
+
     db = SessionLocal()
     try:
-        rows = (db.query(DocRevision).filter_by(path=_norm_path(path))
-                .order_by(DocRevision.created_at.desc()).all())
-        return [{"id": r.id, "created_at": r.created_at.isoformat(), "size": len(r.content or "")}
-                for r in rows]
+        rows = (
+            db.query(DocRevision)
+            .filter_by(path=_norm_path(path))
+            .order_by(DocRevision.created_at.desc())
+            .all()
+        )
+        return [
+            {"id": r.id, "created_at": r.created_at.isoformat(), "size": len(r.content or "")}
+            for r in rows
+        ]
     finally:
         db.close()
 
@@ -236,13 +260,18 @@ def list_revisions(path: str):
 @router.get("/revisions/{rid}")
 def get_revision(rid: str):
     from core.database import SessionLocal, DocRevision
+
     db = SessionLocal()
     try:
         r = db.get(DocRevision, rid)
         if not r:
             raise HTTPException(404)
-        return {"id": r.id, "path": r.path, "content": r.content,
-                "created_at": r.created_at.isoformat()}
+        return {
+            "id": r.id,
+            "path": r.path,
+            "content": r.content,
+            "created_at": r.created_at.isoformat(),
+        }
     finally:
         db.close()
 
@@ -250,6 +279,7 @@ def get_revision(rid: str):
 @router.post("/revisions/{rid}/restore")
 def restore_revision(rid: str):
     from core.database import SessionLocal, DocRevision
+
     db = SessionLocal()
     try:
         r = db.get(DocRevision, rid)
@@ -258,7 +288,7 @@ def restore_revision(rid: str):
         path, content = r.path, r.content
     finally:
         db.close()
-    _snapshot(path, force=True)   # the state being replaced becomes a revision
+    _snapshot(path, force=True)  # the state being replaced becomes a revision
     out = vault_md.write(path, content)
     return {"ok": True, "path": out.get("path", path)}
 
@@ -268,6 +298,7 @@ def diff_revision(path: str, a: str = "", b: str = ""):
     """unified diff between revision `a` and `b`. empty/'current' b = the live file."""
     import difflib
     from core.database import SessionLocal, DocRevision
+
     db = SessionLocal()
     try:
         old = (db.get(DocRevision, a).content if a and db.get(DocRevision, a) else "") or ""
@@ -280,8 +311,14 @@ def diff_revision(path: str, a: str = "", b: str = ""):
             blabel = b[:8]
     finally:
         db.close()
-    d = "".join(difflib.unified_diff(old.splitlines(keepends=True), new.splitlines(keepends=True),
-                                     fromfile=a[:8] if a else "empty", tofile=blabel))
+    d = "".join(
+        difflib.unified_diff(
+            old.splitlines(keepends=True),
+            new.splitlines(keepends=True),
+            fromfile=a[:8] if a else "empty",
+            tofile=blabel,
+        )
+    )
     return {"diff": d}
 
 
@@ -370,6 +407,7 @@ async def youtube_to_note(body: YoutubeBody):
     """YouTube URL → transcript → (optional) AI summary → a new doc."""
     import re as _re
     from services import youtube
+
     vid = youtube.extract_video_id(body.url)
     if not vid:
         raise HTTPException(400, "that doesn't look like a YouTube URL")
@@ -384,6 +422,7 @@ async def youtube_to_note(body: YoutubeBody):
     if body.summarize:
         from core.database import SessionLocal, ModelEndpoint
         from services.llm import simple_complete
+
         db = SessionLocal()
         try:
             ep = db.query(ModelEndpoint).filter(ModelEndpoint.enabled == True).first()
@@ -393,20 +432,30 @@ async def youtube_to_note(body: YoutubeBody):
         if ep and model:
             try:
                 prompt = [
-                    {"role": "system", "content": (
-                        "Turn this video transcript into clean markdown notes: a one-line **TL;DR**, "
-                        "then the key points as bullets, then any notable takeaways or quotes. "
-                        "No preamble, no code fences.")},
+                    {
+                        "role": "system",
+                        "content": (
+                            "Turn this video transcript into clean markdown notes: a one-line **TL;DR**, "
+                            "then the key points as bullets, then any notable takeaways or quotes. "
+                            "No preamble, no code fences."
+                        ),
+                    },
                     {"role": "user", "content": transcript[:14000]},
                 ]
-                summary = (await simple_complete(prompt, ep.base_url, ep.api_key, model, max_tokens=900)).strip()
+                summary = (
+                    await simple_complete(prompt, ep.base_url, ep.api_key, model, max_tokens=900)
+                ).strip()
             except Exception:
                 summary = ""
 
     safe = (_re.sub(r'[\\/:*?"<>|#\[\]]+', " ", title).strip() or f"youtube-{vid}")[:80].strip()
     link = f"https://youtu.be/{vid}"
     md = f"# {safe}\n\n[{link}]({link})\n\n"
-    md += (summary + "\n\n## transcript\n\n" + transcript + "\n") if summary else ("## transcript\n\n" + transcript + "\n")
+    md += (
+        (summary + "\n\n## transcript\n\n" + transcript + "\n")
+        if summary
+        else ("## transcript\n\n" + transcript + "\n")
+    )
 
     existing = {n.lower() for n in vault_md.note_names()}
     path = safe
@@ -423,6 +472,7 @@ async def youtube_to_note(body: YoutubeBody):
 async def import_doc(file: UploadFile = File(...)):
     """import .md/.txt/.docx/.html/.pdf → a new markdown doc."""
     from services import doc_import
+
     data = await file.read()
     if not data:
         raise HTTPException(400, "empty file")
@@ -468,6 +518,7 @@ class AiEditBody(BaseModel):
 async def ai_edit(body: AiEditBody):
     from core.database import SessionLocal, ModelEndpoint
     from services.llm import stream_chat
+
     cur = vault_md.read(body.path)
     if not cur.get("exists"):
         raise HTTPException(404, "note not found")
@@ -483,7 +534,10 @@ async def ai_edit(body: AiEditBody):
         raise HTTPException(400, "no model available")
 
     msgs = [
-        {"role": "system", "content": "You are a markdown note editor. Rewrite the note per the instruction. Keep any [[wikilinks]] intact unless asked to change them. Return ONLY the new note content — no commentary, no code fences."},
+        {
+            "role": "system",
+            "content": "You are a markdown note editor. Rewrite the note per the instruction. Keep any [[wikilinks]] intact unless asked to change them. Return ONLY the new note content — no commentary, no code fences.",
+        },
         {"role": "user", "content": f"Instruction: {body.instruction}\n\nNote:\n{cur['content']}"},
     ]
 
@@ -501,8 +555,11 @@ async def ai_edit(body: AiEditBody):
                 yield f"data: {json.dumps(chunk)}\n\n"
         full = "".join(acc).strip()
         if full:
-            vault_md.write(body.path, full)   # persist the rewrite
+            vault_md.write(body.path, full)  # persist the rewrite
         yield "data: [DONE]\n\n"
 
-    return StreamingResponse(_gen(), media_type="text/event-stream",
-                             headers={"cache-control": "no-cache", "x-accel-buffering": "no"})
+    return StreamingResponse(
+        _gen(),
+        media_type="text/event-stream",
+        headers={"cache-control": "no-cache", "x-accel-buffering": "no"},
+    )

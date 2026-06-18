@@ -68,7 +68,9 @@ async def restore_backup(file: UploadFile = File(...)):
                 raise HTTPException(400, "not a valid aide backup (no aide.db)")
 
             # backup current data dir first
-            backup_cur = DATA_DIR.parent / f"aide-pre-restore-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+            backup_cur = (
+                DATA_DIR.parent / f"aide-pre-restore-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+            )
             if DATA_DIR.exists():
                 shutil.copytree(DATA_DIR, backup_cur)
 

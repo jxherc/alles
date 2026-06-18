@@ -28,7 +28,7 @@ class ThreadTests(unittest.TestCase):
         self.assertEqual(threads[0]["subject"], "Project X")
         self.assertEqual(threads[0]["count"], 2)
         self.assertEqual(threads[0]["unseen"], 1)
-        self.assertEqual(threads[0]["uid"], "2")          # latest message in the thread
+        self.assertEqual(threads[0]["uid"], "2")  # latest message in the thread
         self.assertEqual(threads[1]["subject"], "Lunch")
 
     def test_empty(self):
@@ -40,12 +40,14 @@ class AttachmentTests(unittest.TestCase):
         msg = EmailMessage()
         msg["Subject"] = "report"
         msg.set_content("here is the report")
-        msg.add_attachment(b"%PDF-1.4 fake", maintype="application", subtype="pdf", filename="report.pdf")
+        msg.add_attachment(
+            b"%PDF-1.4 fake", maintype="application", subtype="pdf", filename="report.pdf"
+        )
         return msg
 
     def test_lists_attachment_only(self):
         atts = m.attachments_of(self._msg())
-        self.assertEqual(len(atts), 1)                    # body text isn't an attachment
+        self.assertEqual(len(atts), 1)  # body text isn't an attachment
         self.assertEqual(atts[0]["filename"], "report.pdf")
         self.assertEqual(atts[0]["content_type"], "application/pdf")
         self.assertEqual(atts[0]["size"], len(b"%PDF-1.4 fake"))

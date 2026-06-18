@@ -14,7 +14,9 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request as StarletteRequest
 from starlette.responses import JSONResponse
 from routes import (
-    chat, sessions, models,
+    chat,
+    sessions,
+    models,
     settings as settings_routes,
     memory as memory_routes,
     research as research_routes,
@@ -45,7 +47,26 @@ from routes import (
     local_models as local_model_routes,
     vault_md as vault_md_routes,
 )
-from routes import reminders as reminder_routes, templates as template_routes, shared as shared_routes, files as files_routes, caldav as caldav_routes, mail as mail_routes, photos as photos_routes, push as push_routes, subscriptions as subscription_routes, days as days_routes, today as today_routes, automations as automation_routes, money as money_routes, journal as journal_routes, usage as usage_routes, rag as rag_routes, images as images_routes, skills as skills_routes
+from routes import (
+    reminders as reminder_routes,
+    templates as template_routes,
+    shared as shared_routes,
+    files as files_routes,
+    caldav as caldav_routes,
+    mail as mail_routes,
+    photos as photos_routes,
+    push as push_routes,
+    subscriptions as subscription_routes,
+    days as days_routes,
+    today as today_routes,
+    automations as automation_routes,
+    money as money_routes,
+    journal as journal_routes,
+    usage as usage_routes,
+    rag as rag_routes,
+    images as images_routes,
+    skills as skills_routes,
+)
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s  %(name)s  %(message)s")
 log = logging.getLogger("alles")
@@ -82,7 +103,11 @@ async def _bootstrap_anthropic():
         return
     db = SessionLocal()
     try:
-        exists = db.query(ModelEndpoint).filter(ModelEndpoint.base_url == "https://api.anthropic.com").first()
+        exists = (
+            db.query(ModelEndpoint)
+            .filter(ModelEndpoint.base_url == "https://api.anthropic.com")
+            .first()
+        )
         if exists:
             return
         log.info("bootstrapping Anthropic endpoint from ANTHROPIC_API_KEY")
@@ -90,8 +115,22 @@ async def _bootstrap_anthropic():
             name="Anthropic",
             base_url="https://api.anthropic.com",
             api_key=key,
-            cached_models=json.dumps(["claude-fable-5", "claude-opus-4-8", "claude-sonnet-4-6", "claude-haiku-4-5-20251001"]),
-            vision_models=json.dumps(["claude-fable-5", "claude-opus-4-8", "claude-sonnet-4-6", "claude-haiku-4-5-20251001"]),
+            cached_models=json.dumps(
+                [
+                    "claude-fable-5",
+                    "claude-opus-4-8",
+                    "claude-sonnet-4-6",
+                    "claude-haiku-4-5-20251001",
+                ]
+            ),
+            vision_models=json.dumps(
+                [
+                    "claude-fable-5",
+                    "claude-opus-4-8",
+                    "claude-sonnet-4-6",
+                    "claude-haiku-4-5-20251001",
+                ]
+            ),
         )
         db.add(ep)
         db.commit()
@@ -107,31 +146,41 @@ async def _fire_due_reminders():
     from services.llm import stream_chat
     from core.settings import load_settings
     from routes.push import broadcast as push_broadcast
+
     now = datetime.utcnow()
     db = SessionLocal()
     try:
         # plain reminders: web push once, but leave them unfired so an
         # open tab still picks them up via /api/reminders/due
-        plain = db.query(Reminder).filter(
-            Reminder.trigger_at <= now,
-            Reminder.fired == False,
-            Reminder.notified == False,
-            Reminder.type == "reminder",
-        ).all()
+        plain = (
+            db.query(Reminder)
+            .filter(
+                Reminder.trigger_at <= now,
+                Reminder.fired == False,
+                Reminder.notified == False,
+                Reminder.type == "reminder",
+            )
+            .all()
+        )
         for r in plain:
             r.notified = True
             db.commit()
             try:
-                await push_broadcast({"title": "reminder", "body": r.text,
-                                      "url": "/", "tag": f"reminder-{r.id}"})
+                await push_broadcast(
+                    {"title": "reminder", "body": r.text, "url": "/", "tag": f"reminder-{r.id}"}
+                )
             except Exception as e:
                 log.warning(f"reminder push failed: {e}")
 
-        due = db.query(Reminder).filter(
-            Reminder.trigger_at <= now,
-            Reminder.fired == False,
-            Reminder.type == "message",
-        ).all()
+        due = (
+            db.query(Reminder)
+            .filter(
+                Reminder.trigger_at <= now,
+                Reminder.fired == False,
+                Reminder.type == "message",
+            )
+            .all()
+        )
         for r in due:
             r.fired = True
             db.commit()
@@ -142,6 +191,7 @@ async def _fire_due_reminders():
                 continue
             from core.database import Message, ModelEndpoint
             from datetime import datetime as dt
+
             ep = db.get(ModelEndpoint, s.endpoint_id)
             if not ep:
                 continue
@@ -162,14 +212,16 @@ async def _fire_due_reminders():
             full = "".join(acc) or "(reminder fired, but the model could not be reached)"
             um = Message(session_id=s.id, role="user", content=r.text)
             am = Message(session_id=s.id, role="assistant", content=full)
-            db.add(um); db.add(am)
+            db.add(um)
+            db.add(am)
             s.message_count = (s.message_count or 0) + 2
             s.last_message_at = dt.utcnow()
             db.commit()
             log.info(f"fired scheduled message for session {s.id}")
             try:
-                await push_broadcast({"title": "aide", "body": full[:160],
-                                      "url": "/", "tag": f"message-{r.id}"})
+                await push_broadcast(
+                    {"title": "aide", "body": full[:160], "url": "/", "tag": f"message-{r.id}"}
+                )
             except Exception as e:
                 log.warning(f"message push failed: {e}")
     finally:
@@ -184,22 +236,27 @@ def _register_jobs():
 
     async def _subs():
         from routes.subscriptions import check_renewals
+
         await check_renewals()
 
     async def _days():
         from routes.days import check_day_events
+
         await check_day_events()
 
     async def _autos():
         from services.automations import run_automations
+
         await run_automations()
 
     async def _models():
         from routes.models import refresh_all_model_lists
+
         await refresh_all_model_lists()
 
     async def _cal_reminders():
         from services.cal_notify import fire_due
+
         await fire_due()
 
     jobs.register("subscriptions", _subs, 30)
@@ -207,7 +264,7 @@ def _register_jobs():
     jobs.register("automations", _autos, 30)
     jobs.register("reminders", _fire_due_reminders, 30)
     jobs.register("calendar_reminders", _cal_reminders, 30)
-    jobs.register("model_refresh", _models, 6 * 3600)   # runs at boot, then every 6h
+    jobs.register("model_refresh", _models, 6 * 3600)  # runs at boot, then every 6h
 
 
 async def _reminder_loop():
@@ -215,6 +272,7 @@ async def _reminder_loop():
     await asyncio.sleep(5)  # let startup finish
     _register_jobs()
     from services import jobs
+
     while True:
         try:
             await jobs.run_due()
@@ -228,6 +286,7 @@ async def _reminder_loop():
 def _cleanup_empty_sessions():
     """drop sessions that never got a message (abandoned 'new chat' / incognito leftovers)"""
     from core.database import Message as Msg, Session
+
     db = SessionLocal()
     try:
         gone = 0
@@ -254,6 +313,7 @@ async def _probe_endpoints() -> dict:
     """GET each enabled endpoint's base host. ok=True means reachable (any HTTP code)."""
     import httpx
     from core.database import SessionLocal as SL, ModelEndpoint as ME
+
     db = SL()
     try:
         eps = db.query(ME).filter(ME.enabled == True).all()
@@ -287,7 +347,9 @@ async def _connectivity_selftest():
     for n in reachable:
         log.info(f"connectivity ok - {n} (HTTP {results[n]['status']})")
     for n in dead:
-        log.warning(f"connectivity FAILED - {n}: {results[n].get('error')} - {results[n].get('detail')}")
+        log.warning(
+            f"connectivity FAILED - {n}: {results[n].get('error')} - {results[n].get('detail')}"
+        )
     if dead and not reachable:
         log.warning(
             "no endpoints reachable - outbound network looks blocked. "
@@ -301,6 +363,7 @@ async def lifespan(app: FastAPI):
     init_db()
     try:
         from services import net
+
         if net.apply_proxy():
             log.info("outbound proxy applied from settings")
     except Exception:
@@ -310,33 +373,42 @@ async def lifespan(app: FastAPI):
     _cleanup_empty_sessions()
     try:
         from services import skills_store
-        skills_store.seed_starters()   # first-boot starter skills so the app isn't empty
+
+        skills_store.seed_starters()  # first-boot starter skills so the app isn't empty
     except Exception:
         pass
     try:
         from routes.personas import seed_default_personas
-        seed_default_personas()        # first-boot starter personas
+
+        seed_default_personas()  # first-boot starter personas
     except Exception:
         pass
     try:
         from routes.calendars import seed_default_calendar
-        seed_default_calendar()        # first-boot 'Personal' calendar + adopt orphan events
+
+        seed_default_calendar()  # first-boot 'Personal' calendar + adopt orphan events
     except Exception:
         pass
     try:
         from services import agent_state
-        n = agent_state.reconcile_interrupted()   # zombie 'running' runs from a dead process → interrupted
+
+        n = (
+            agent_state.reconcile_interrupted()
+        )  # zombie 'running' runs from a dead process → interrupted
         if n:
             log.info(f"reconciled {n} interrupted agent run(s) from a previous process")
     except Exception:
         pass
     try:
         from routes.mcp import connect_all
+
         await connect_all()
     except Exception:
         pass
     task = asyncio.create_task(_reminder_loop())
-    asyncio.create_task(_connectivity_selftest())   # fire-and-forget, logs a warning if outbound is dead
+    asyncio.create_task(
+        _connectivity_selftest()
+    )  # fire-and-forget, logs a warning if outbound is dead
     log.info("alles ready")
     yield
     task.cancel()
@@ -370,6 +442,7 @@ class TokenAuthMiddleware:
     1. Bearer alles_xxx or aide_xxx token -> validate it.
     2. AUTH_ENABLED=true → block unauthenticated /api/ (except /api/auth/*).
     """
+
     def __init__(self, app):
         self.app = app
 
@@ -385,6 +458,7 @@ class TokenAuthMiddleware:
         if auth.startswith("Bearer aide_") or auth.startswith("Bearer alles_"):
             token = auth.split(" ", 1)[1]
             from routes.api_tokens import verify_token
+
             db = SessionLocal()
             try:
                 valid = verify_token(token, db)
@@ -396,6 +470,7 @@ class TokenAuthMiddleware:
 
         if auth_enabled() and path.startswith("/api/") and not path.startswith("/api/auth"):
             from core.auth import verify_session
+
             cookie = _cookie_val(headers.get(b"cookie", b"").decode("latin-1"), "aide_session")
             if not verify_session(cookie):
                 await self._deny(send, "not authenticated")
@@ -405,9 +480,16 @@ class TokenAuthMiddleware:
 
     async def _deny(self, send, detail):
         body = json.dumps({"detail": detail}).encode()
-        await send({"type": "http.response.start", "status": 401,
-                    "headers": [(b"content-type", b"application/json"),
-                                (b"content-length", str(len(body)).encode())]})
+        await send(
+            {
+                "type": "http.response.start",
+                "status": 401,
+                "headers": [
+                    (b"content-type", b"application/json"),
+                    (b"content-length", str(len(body)).encode()),
+                ],
+            }
+        )
         await send({"type": "http.response.body", "body": body})
 
 
@@ -429,6 +511,7 @@ app.include_router(skills_routes.router)
 from routes import notify as notify_routes
 from routes import timeline as timeline_routes
 from routes import system as system_routes
+
 app.include_router(notify_routes.router)
 app.include_router(shell_routes.router)
 app.include_router(mcp_routes.router)
@@ -481,6 +564,7 @@ class NoCacheStatic(StaticFiles):
             resp.headers["cache-control"] = "no-cache, no-store, must-revalidate"
         return resp
 
+
 static_dir = Path(__file__).parent / "static"
 app.mount("/static", NoCacheStatic(directory=str(static_dir), html=False), name="static")
 
@@ -488,26 +572,36 @@ app.mount("/static", NoCacheStatic(directory=str(static_dir), html=False), name=
 @app.get("/")
 async def index():
     # no-cache so the SPA shell never goes stale (JS/CSS already no-cache via NoCacheStatic)
-    return FileResponse(str(static_dir / "index.html"),
-                        headers={"cache-control": "no-cache, no-store, must-revalidate"})
+    return FileResponse(
+        str(static_dir / "index.html"),
+        headers={"cache-control": "no-cache, no-store, must-revalidate"},
+    )
+
 
 @app.get("/sw.js")
 async def service_worker():
     # served from root so the worker's scope covers the whole app
-    return FileResponse(str(static_dir / "sw.js"), media_type="application/javascript",
-                        headers={"cache-control": "no-cache, no-store, must-revalidate"})
+    return FileResponse(
+        str(static_dir / "sw.js"),
+        media_type="application/javascript",
+        headers={"cache-control": "no-cache, no-store, must-revalidate"},
+    )
+
 
 @app.get("/manifest.json")
 async def manifest():
     return FileResponse(str(static_dir / "manifest.json"), media_type="application/manifest+json")
+
 
 @app.get("/health")
 def health(deep: bool = False):
     # default stays a cheap liveness ping; ?deep=1 runs the full readiness check
     if deep:
         from services import doctor
+
         return {"ok": doctor.healthy(), "checks": doctor.run_all()}
     return {"ok": True}
+
 
 @app.get("/api/ping")
 async def ping(cached: bool = False):
@@ -520,6 +614,7 @@ async def ping(cached: bool = False):
 
 if __name__ == "__main__":
     import uvicorn
+
     port = get_port()
     log.info(f"starting alles on http://localhost:{port}")
     uvicorn.run("app:app", host="0.0.0.0", port=port, reload=False)
