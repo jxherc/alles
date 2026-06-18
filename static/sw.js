@@ -1,5 +1,5 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v3';   // bumped: vendor is now stale-while-revalidate (was cache-first → served stale bundles after a rebuild)
+const VERSION = 'v4';   // bumped after the docs page/selection + home redesign so clients drop any stale cached shell
 const CACHE = `alles-${VERSION}`;
 
 self.addEventListener('install', () => self.skipWaiting());
