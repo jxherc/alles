@@ -2515,6 +2515,16 @@ body.is-incognito .incognito-bar {
 .recur-form { display: flex; gap: 0.4rem; flex-wrap: wrap; align-items: center; margin-top: 0.5rem; }
 .recur-form > * { height: 32px; box-sizing: border-box; }
 .recur-form input.settings-input { background: var(--bg); border: 1px solid var(--faint); }
+.rules { display: flex; flex-direction: column; gap: 0.1rem; margin-bottom: 0.5rem; }
+.rule { display: flex; align-items: center; gap: 0.45rem; padding: 0.3rem 0.15rem; border-bottom: 1px solid var(--faint); font-size: 0.75rem; }
+.rule:last-child { border-bottom: none; }
+.rl-match { color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1.2; }
+.rl-cat { color: var(--muted); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rl-arrow { color: var(--accent); font-size: 0.8rem; }
+.rule-form { display: flex; gap: 0.4rem; flex-wrap: wrap; align-items: center; margin-top: 0.5rem; }
+.rule-form > * { height: 32px; box-sizing: border-box; }
+.rule-form input.settings-input { background: var(--bg); border: 1px solid var(--faint); }
+.rules-apply { font-size: 0.62rem; padding: 0.08rem 0.45rem; margin-left: 0.4rem; vertical-align: middle; }
 @media (max-width: 720px) { .money-summary { grid-template-columns: repeat(2, 1fr); } .money-grid { grid-template-columns: 1fr; } }
 
 .days-grid {
