@@ -8,14 +8,14 @@ import mimetypes
 from pathlib import Path
 from datetime import datetime
 
-from core.settings import load_settings
+from core.settings import load_settings, data_dir
 
 ROOT = Path(__file__).resolve().parent.parent
 
 
 def files_dir() -> Path:
     s = load_settings()
-    d = s.get("files_dir") or str(ROOT / "data" / "files")
+    d = s.get("files_dir") or str(data_dir() / "files")
     p = Path(d).expanduser()
     if not p.is_absolute():
         p = ROOT / p  # relative dirs anchor to the app root, not cwd
