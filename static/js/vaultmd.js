@@ -303,6 +303,8 @@ export function initVault() {
     if (on) $('wiki-ai-input')?.focus();
   });
   $('wiki-new-btn')?.addEventListener('click', newNote);
+  $('wiki-home-btn')?.addEventListener('click', () => { _resetEditor(); loadTree(); });   // back to docs home
+  $('docs-home-search')?.addEventListener('input', _paintHome);
   $('wiki-delete-btn')?.addEventListener('click', deleteCurrent);
   $('wiki-export-btn')?.addEventListener('click', e => openExportMenu(e.currentTarget));
   $('wiki-folder-btn')?.addEventListener('click', newFolder);
@@ -483,15 +485,40 @@ function _flattenFiles(items, out = []) {
   }
   return out;
 }
+let _homeDocs = [];
 function renderRecent(items) {
+  // docs home gallery — all docs as cards, newest first (google-docs style)
+  _homeDocs = _flattenFiles(items).sort((a, b) => (b.mtime || 0) - (a.mtime || 0));
+  _paintHome();
+}
+
+function _fmtDate(mt) {
+  if (!mt) return '';
+  try { return new Date(mt * 1000).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }); }
+  catch { return ''; }
+}
+
+const _DOC_ICON = '<svg class="docs-card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>';
+
+function _paintHome() {
   const el = $('wiki-empty-recent');
   if (!el) return;
-  const files = _flattenFiles(items).slice(0, 8);
-  if (!files.length) { el.innerHTML = ''; return; }
-  el.innerHTML = `<div class="we-recent-label">your docs</div><div class="we-recent-list">`
-    + files.map(f => `<button class="we-recent-item" data-path="${esc(f.path)}">${esc(f.name)}</button>`).join('')
-    + `</div>`;
-  el.querySelectorAll('.we-recent-item').forEach(b => b.addEventListener('click', () => openFile(b.dataset.path)));
+  const q = ($('docs-home-search')?.value || '').toLowerCase().trim();
+  const docs = q
+    ? _homeDocs.filter(f => (f.name || '').toLowerCase().includes(q) || (f.path || '').toLowerCase().includes(q))
+    : _homeDocs;
+  if (!docs.length) {
+    el.innerHTML = `<div class="docs-home-empty">${q ? 'no docs match' : 'no docs yet — make one with + new doc'}</div>`;
+    return;
+  }
+  el.innerHTML = docs.map(f => {
+    const folder = f.path.includes('/') ? f.path.slice(0, f.path.lastIndexOf('/')) : '';
+    const meta = [folder, _fmtDate(f.mtime)].filter(Boolean).join(' · ');
+    return `<button class="docs-card" data-path="${esc(f.path)}">${_DOC_ICON}
+      <span class="docs-card-title">${esc(f.name)}</span>
+      <span class="docs-card-meta">${esc(meta)}</span></button>`;
+  }).join('');
+  el.querySelectorAll('.docs-card').forEach(b => b.addEventListener('click', () => openFile(b.dataset.path)));
 }
 
 function _fileRow(f) {

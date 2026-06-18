@@ -93,4 +93,9 @@ selection_tinted (translucent accent), zero_console_errors.
 ## docs-home-1 — Google-Docs-style docs home gallery
 Replace the small centered empty-state card (8 pill links) with a real home: a header (+ new doc / today /
 guide) + a search box + a responsive grid of doc **cards** (title · folder · modified date), all docs,
-click → open; plus an "all docs" affordance in the editor head to return home. (see below verify)
+click → open; plus an "⊞ all docs" button in the editor head to return home.
+`static/index.html` (empty-state markup + home button), `static/style.css` (`.docs-home*`/`.docs-card`),
+`static/js/vaultmd.js` (`renderRecent`→card gallery, `_paintHome`, `_fmtDate`, home-button + search wiring).
+**Verify (`pw_docs_home1.py`, 9 assertions, screenshots, 0 console err):** home_shows_on_load,
+home_has_grid, home_cards_rendered (≥5), card_has_title_and_meta, card_opens_doc (sets `?doc`, hides home),
+home_button_returns (clears `?doc`), home_search_filters, home_search_clear_restores, zero_console_errors.
