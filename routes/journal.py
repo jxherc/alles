@@ -3,14 +3,92 @@ journal — one entry per day. mood, tags, writing prompts, on-this-day, a
 streak counter, and an optional AI reflection on what you wrote.
 """
 
+import secrets
+import time
 from datetime import date, timedelta
-from fastapi import APIRouter, Depends, HTTPException
+
+from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session as DbSession
 
-from core.database import get_db, JournalEntry
+from core.database import JournalEntry, get_db
+from core.settings import load_settings, save_settings
+from services.crypto import make_verifier, verify_master
 
 router = APIRouter(prefix="/api")
+
+# ── lock: an access gate (not encryption — the journal stays searchable + AI-
+# reflectable). verifier lives in settings; unlock tokens are in-memory only.
+_unlock_tokens: dict[str, float] = {}  # token → expiry
+_TTL = 1800  # 30 min
+
+
+def _passcode_set() -> bool:
+    return bool(load_settings().get("journal_passcode", ""))
+
+
+def _require_unlock(x_journal_token: str | None = Header(None)):
+    """gate the journal data endpoints. open when no passcode is set (back-compat);
+    once a passcode exists, a valid unlock token is required."""
+    if not _passcode_set():
+        return
+    now = time.time()
+    for t in [t for t, exp in list(_unlock_tokens.items()) if now > exp]:
+        del _unlock_tokens[t]
+    if (x_journal_token or "") not in _unlock_tokens:
+        raise HTTPException(403, "journal locked")
+    _unlock_tokens[x_journal_token] = now + _TTL  # slide the window
+
+
+class PasscodeBody(BaseModel):
+    passcode: str
+    old: str = ""
+
+
+@router.get("/journal/lock/status")
+def lock_status():
+    return {"enabled": _passcode_set()}
+
+
+@router.post("/journal/lock/set")
+def lock_set(body: PasscodeBody):
+    if not (body.passcode or "").strip():
+        raise HTTPException(400, "passcode required")
+    cur = load_settings().get("journal_passcode", "")
+    if cur and not verify_master(body.old, cur):  # changing → must prove the old one
+        raise HTTPException(401, "wrong current passcode")
+    save_settings({"journal_passcode": make_verifier(body.passcode)})
+    _unlock_tokens.clear()  # force a fresh unlock with the new passcode
+    return {"ok": True, "enabled": True}
+
+
+@router.post("/journal/unlock")
+def journal_unlock(body: PasscodeBody):
+    cur = load_settings().get("journal_passcode", "")
+    if not cur:
+        raise HTTPException(400, "no passcode set")
+    if not verify_master(body.passcode, cur):
+        raise HTTPException(401, "wrong passcode")
+    token = secrets.token_urlsafe(16)
+    _unlock_tokens[token] = time.time() + _TTL
+    return {"token": token}
+
+
+@router.post("/journal/lock")
+def journal_lock():
+    _unlock_tokens.clear()
+    return {"ok": True}
+
+
+@router.post("/journal/lock/disable")
+def lock_disable(body: PasscodeBody):
+    cur = load_settings().get("journal_passcode", "")
+    if cur and not verify_master(body.passcode, cur):
+        raise HTTPException(401, "wrong passcode")
+    save_settings({"journal_passcode": ""})
+    _unlock_tokens.clear()
+    return {"ok": True, "enabled": False}
+
 
 # rotating writing prompts — pick one by day so it's stable through the day
 PROMPTS = [
@@ -60,7 +138,12 @@ def _streak(dates: set[str], today: date) -> int:
 
 
 @router.get("/journal")
-def list_entries(month: str = "", limit: int = 60, db: DbSession = Depends(get_db)):
+def list_entries(
+    month: str = "",
+    limit: int = 60,
+    db: DbSession = Depends(get_db),
+    _: None = Depends(_require_unlock),
+):
     q = db.query(JournalEntry)
     if month:  # YYYY-MM
         q = q.filter(JournalEntry.date.like(f"{month[:7]}-%"))
@@ -86,7 +169,7 @@ def todays_prompt():
 
 
 @router.get("/journal/on-this-day")
-def on_this_day(db: DbSession = Depends(get_db)):
+def on_this_day(db: DbSession = Depends(get_db), _: None = Depends(_require_unlock)):
     today = date.today()
     mmdd = today.strftime("-%m-%d")
     rows = (
@@ -99,7 +182,7 @@ def on_this_day(db: DbSession = Depends(get_db)):
 
 
 @router.get("/journal/search")
-def search_entries(q: str, db: DbSession = Depends(get_db)):
+def search_entries(q: str, db: DbSession = Depends(get_db), _: None = Depends(_require_unlock)):
     ql = (q or "").strip().lower()
     if not ql:
         return {"results": []}
@@ -119,7 +202,7 @@ def search_entries(q: str, db: DbSession = Depends(get_db)):
 
 
 @router.get("/journal/export")
-def export_entries(db: DbSession = Depends(get_db)):
+def export_entries(db: DbSession = Depends(get_db), _: None = Depends(_require_unlock)):
     """all entries as one markdown document."""
     rows = db.query(JournalEntry).order_by(JournalEntry.date.asc()).all()
     parts = ["# Journal\n"]
@@ -135,7 +218,9 @@ def export_entries(db: DbSession = Depends(get_db)):
 
 
 @router.get("/journal/calendar")
-def entry_calendar(year: int = 0, db: DbSession = Depends(get_db)):
+def entry_calendar(
+    year: int = 0, db: DbSession = Depends(get_db), _: None = Depends(_require_unlock)
+):
     """which days have entries + their word counts, for a contribution heatmap."""
     y = year or date.today().year
     rows = db.query(JournalEntry).filter(JournalEntry.date.like(f"{y}-%")).all()
@@ -143,7 +228,7 @@ def entry_calendar(year: int = 0, db: DbSession = Depends(get_db)):
 
 
 @router.get("/journal/{day}")
-def get_entry(day: str, db: DbSession = Depends(get_db)):
+def get_entry(day: str, db: DbSession = Depends(get_db), _: None = Depends(_require_unlock)):
     try:
         day = _iso(day)
     except ValueError:
@@ -163,7 +248,9 @@ class EntryBody(BaseModel):
 
 
 @router.put("/journal/{day}")
-def upsert_entry(day: str, body: EntryBody, db: DbSession = Depends(get_db)):
+def upsert_entry(
+    day: str, body: EntryBody, db: DbSession = Depends(get_db), _: None = Depends(_require_unlock)
+):
     try:
         day = _iso(day)
     except ValueError:
@@ -185,7 +272,7 @@ def upsert_entry(day: str, body: EntryBody, db: DbSession = Depends(get_db)):
 
 
 @router.delete("/journal/{day}")
-def delete_entry(day: str, db: DbSession = Depends(get_db)):
+def delete_entry(day: str, db: DbSession = Depends(get_db), _: None = Depends(_require_unlock)):
     e = db.query(JournalEntry).filter(JournalEntry.date == str(day)[:10]).first()
     if not e:
         raise HTTPException(404)
@@ -195,7 +282,7 @@ def delete_entry(day: str, db: DbSession = Depends(get_db)):
 
 
 @router.post("/journal/{day}/reflect")
-async def reflect(day: str, db: DbSession = Depends(get_db)):
+async def reflect(day: str, db: DbSession = Depends(get_db), _: None = Depends(_require_unlock)):
     """a short, warm AI reflection on the day's entry. best-effort — needs a model."""
     e = db.query(JournalEntry).filter(JournalEntry.date == str(day)[:10]).first()
     if not e or not (e.content or "").strip():

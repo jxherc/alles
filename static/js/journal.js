@@ -5,25 +5,47 @@ const MOODS = ['😄', '🙂', '😐', '😕', '😢', '😠', '😴', '🤔', '
 let _day = todayISO();
 let _saveTimer = null;
 let _built = false;
+let _token = sessionStorage.getItem('journal_token') || '';
 
 function todayISO() { return new Date().toISOString().slice(0, 10); }
 function esc(s = '') { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+function _setToken(t) { _token = t || ''; if (_token) sessionStorage.setItem('journal_token', _token); else sessionStorage.removeItem('journal_token'); }
+function _authHeaders(extra = {}) { return _token ? { ...extra, 'X-Journal-Token': _token } : extra; }
 function shift(iso, n) { const d = new Date(iso + 'T00:00:00'); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); }
 function pretty(iso) {
   const d = new Date(iso + 'T00:00:00');
   return d.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
 }
 
-async function jget(url) { const r = await fetch(url); if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || r.status); return r.json(); }
+async function jget(url) {
+  const r = await fetch(url, { headers: _authHeaders() });
+  if (r.status === 403) { _setToken(''); showLock('unlock'); throw new Error('locked'); }
+  if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || r.status);
+  return r.json();
+}
 async function jput(url, body) {
-  const r = await fetch(url, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+  const r = await fetch(url, { method: 'PUT', headers: _authHeaders({ 'content-type': 'application/json' }), body: JSON.stringify(body) });
+  if (r.status === 403) { _setToken(''); showLock('unlock'); throw new Error('locked'); }
   if (!r.ok) throw new Error('save failed');
   return r.json();
 }
 
-export function initJournal() {
+export async function initJournal() {
   const body = document.getElementById('journal-body');
   if (!body) return;
+  // gate: if a passcode is set and we don't hold a valid token, show the lock screen
+  let status = { enabled: false };
+  try { status = await jget('/api/journal/lock/status'); } catch {}
+  if (status.enabled && !_token) { showLock('unlock'); return; }
+  buildJournal();
+}
+
+function buildJournal() {
+  const body = document.getElementById('journal-body');
+  if (!body) return;
+  if (!_built || body.querySelector('.jrnl-lock')) {
+    _built = false;   // lock screen replaced the shell — rebuild it
+  }
   if (!_built) {
     body.innerHTML = `
       <div class="jrnl-wrap">
@@ -43,6 +65,7 @@ export function initJournal() {
             <button class="btn primary" id="jrnl-save">save</button>
             <button class="btn" id="jrnl-reflect">✨ reflect</button>
             <span class="jrnl-saved" id="jrnl-saved"></span>
+            <button class="btn jrnl-lock-btn" id="jrnl-lock" title="lock" style="margin-left:auto"></button>
           </div>
           <div class="jrnl-reflection" id="jrnl-reflection" style="display:none"></div>
         </div>
@@ -95,11 +118,104 @@ export function initJournal() {
       a.download = 'journal.md'; a.click();
       URL.revokeObjectURL(a.href);
     });
+    document.getElementById('jrnl-lock').onclick = openLockMenu;
     _built = true;
   }
   load();
   loadPrompt();
   loadOnThisDay();
+  refreshLockBtn();
+}
+
+async function refreshLockBtn() {
+  const btn = document.getElementById('jrnl-lock');
+  if (!btn) return;
+  try {
+    const s = await jget('/api/journal/lock/status');
+    btn.textContent = s.enabled ? '🔒 lock now' : '🔓 add passcode';
+    btn.dataset.enabled = s.enabled ? '1' : '';
+  } catch {}
+}
+
+async function openLockMenu() {
+  const btn = document.getElementById('jrnl-lock');
+  if (btn?.dataset.enabled) {
+    // enabled + unlocked → offer lock-now / change / disable
+    const choice = await pickLockAction();
+    if (choice === 'lock') { await fetch('/api/journal/lock', { method: 'POST' }); _setToken(''); showLock('unlock'); }
+    else if (choice === 'change') showLock('change');
+    else if (choice === 'disable') showLock('disable');
+  } else {
+    showLock('set');
+  }
+}
+
+// tiny themed action picker rendered inline over the actions row
+function pickLockAction() {
+  return new Promise(resolve => {
+    const host = document.getElementById('jrnl-reflection');
+    host.style.display = 'block';
+    host.innerHTML = `<div class="jrnl-lockmenu">
+      <button class="btn" data-a="lock">lock now</button>
+      <button class="btn" data-a="change">change passcode</button>
+      <button class="btn danger" data-a="disable">disable lock</button>
+      <button class="btn" data-a="">cancel</button>
+    </div>`;
+    host.querySelectorAll('[data-a]').forEach(b => b.onclick = () => { host.style.display = 'none'; host.innerHTML = ''; resolve(b.dataset.a); });
+  });
+}
+
+// the lock screen — modes: unlock | set | change | disable
+function showLock(mode) {
+  const body = document.getElementById('journal-body');
+  if (!body) return;
+  _built = false;
+  const titles = { unlock: 'journal is locked', set: 'set a passcode', change: 'change passcode', disable: 'disable lock' };
+  const needsOld = mode === 'change' || mode === 'disable' || mode === 'unlock';
+  const needsNew = mode === 'set' || mode === 'change';
+  body.innerHTML = `
+    <div class="jrnl-lock">
+      <div class="jrnl-lock-card">
+        <div class="jrnl-lock-icon">🔒</div>
+        <div class="jrnl-lock-title">${titles[mode] || 'journal'}</div>
+        ${needsOld ? `<input type="password" id="jl-old" class="jrnl-tags" placeholder="${mode === 'unlock' ? 'passcode' : 'current passcode'}" autocomplete="off">` : ''}
+        ${needsNew ? `<input type="password" id="jl-new" class="jrnl-tags" placeholder="new passcode" autocomplete="off">` : ''}
+        ${needsNew ? `<input type="password" id="jl-new2" class="jrnl-tags" placeholder="confirm passcode" autocomplete="off">` : ''}
+        <div class="jrnl-lock-actions">
+          <button class="btn primary" id="jl-go">${mode === 'unlock' ? 'unlock' : mode === 'disable' ? 'disable' : 'save'}</button>
+          ${mode !== 'unlock' ? '<button class="btn" id="jl-cancel">cancel</button>' : ''}
+        </div>
+        <div class="jrnl-lock-err" id="jl-err"></div>
+      </div>
+    </div>`;
+  const err = m => { document.getElementById('jl-err').textContent = m; };
+  const first = body.querySelector('input'); first?.focus();
+  body.querySelector('#jl-cancel')?.addEventListener('click', () => { _built = false; buildJournal(); });
+  const submit = async () => {
+    const old = document.getElementById('jl-old')?.value || '';
+    const nw = document.getElementById('jl-new')?.value || '';
+    const nw2 = document.getElementById('jl-new2')?.value || '';
+    try {
+      if (mode === 'unlock') {
+        const r = await fetch('/api/journal/unlock', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ passcode: old }) });
+        if (!r.ok) return err('wrong passcode');
+        _setToken((await r.json()).token); _built = false; buildJournal();
+      } else if (mode === 'disable') {
+        const r = await fetch('/api/journal/lock/disable', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ passcode: old }) });
+        if (!r.ok) return err('wrong passcode'); _setToken(''); _built = false; buildJournal();
+      } else { // set | change
+        if (nw.length < 4) return err('use at least 4 characters');
+        if (nw !== nw2) return err('passcodes don\'t match');
+        const r = await fetch('/api/journal/lock/set', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ passcode: nw, old }) });
+        if (!r.ok) return err((await r.json().catch(() => ({}))).detail || 'failed');
+        const u = await fetch('/api/journal/unlock', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ passcode: nw }) });
+        _setToken((await u.json()).token); _built = false; buildJournal();
+        toast('passcode set', 'success');
+      }
+    } catch { err('something went wrong'); }
+  };
+  document.getElementById('jl-go').addEventListener('click', submit);
+  body.querySelectorAll('input').forEach(i => i.addEventListener('keydown', e => { if (e.key === 'Enter') submit(); }));
 }
 
 function curMood() { return document.querySelector('.jrnl-mood.active')?.dataset.m || ''; }
