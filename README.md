@@ -14,6 +14,8 @@ it's *one python process*. no build step, no bundler, no `node_modules`, no acco
 
 > **two-audience note:** this readme is written to be read two ways. if you're not a programmer, read the plain sentences and skip the grey "*under the hood*" bits — you'll still understand what every part does. if you are a programmer, the under-the-hood bits and the spec tables have the precise details (protocols, endpoints, algorithms, file formats). jargon gets a quick plain-english gloss the first time it shows up.
 
+<p align="center"><img src="docs/screenshots/home.png" width="760" alt="alles home — the day digest, quick-capture, the aide ask bar, and the app grid"></p>
+
 ---
 
 ## the 30-second version
@@ -179,6 +181,8 @@ this is the most feature-dense app, so here's the full list:
 - an optional **"reflect"** button — a short, warm ai reflection on what you wrote
 - an optional **passcode lock** that gates the journal behind its own code (an access gate, not extra encryption — once you're in it's still fully searchable)
 
+<p align="center"><img src="docs/screenshots/journal.png" width="680" alt="journal — a day entry with the full-year activity heatmap on top"></p>
+
 ### subs
 **plain version:** track what you're paying for every month so nothing surprises you.
 
@@ -246,6 +250,11 @@ this is the most feature-dense app, so here's the full list:
 - click any entry to open it, reveal or copy a field, edit it, or delete it
 - a built-in **password generator** (CSPRNG, skips look-alike characters) and a live **strength meter** that flags common, repetitive, or sequential passwords
 - *under the hood:* each entry is sealed with **aes-256-gcm** (a strong authenticated encryption) under a key derived from your master password with **pbkdf2-hmac-sha-256, 260,000 iterations** (a deliberately slow key-stretch so guessing the password is expensive). the master password is held **in memory only** and never written to disk. locked, the vault is unreadable even to someone holding a full copy of your database.
+
+<p align="center">
+  <img src="docs/screenshots/secrets-card.png" width="680" alt="secrets — a credit-card item (cardholder, number, expiry, cvv, billing address)"><br>
+  <img src="docs/screenshots/secrets-apikey.png" width="680" alt="secrets — an api-key item: same form, different fields, no 'password'">
+</p>
 
 ### automations
 **plain version:** *when this happens, do that.* set a rule once and alles runs it for you.
