@@ -2367,6 +2367,17 @@ body.is-incognito .incognito-bar {
 .jrnl-mt-bar { flex: 1; height: 8px; background: var(--faint); border-radius: 2px; overflow: hidden; }
 .jrnl-mt-fill { display: block; height: 100%; background: var(--accent); }
 .jrnl-mt-n { font-size: 0.66rem; color: var(--muted); min-width: 1.2rem; text-align: right; font-variant-numeric: tabular-nums; }
+.jrnl-heat-head { display: flex; align-items: center; gap: 0.4rem; }
+.jrnl-heat-nav { font-size: 0.7rem; padding: 0 0.35rem; line-height: 1.4; }
+.jrnl-heatmap { display: flex; gap: 2px; overflow-x: auto; padding-bottom: 0.3rem; margin-bottom: 0.3rem; }
+.jrnl-hcol { display: flex; flex-direction: column; gap: 2px; }
+.jrnl-hc { width: 9px; height: 9px; border-radius: 2px; background: var(--faint); cursor: pointer; }
+.jrnl-hc.off { background: transparent; cursor: default; pointer-events: none; }
+.jrnl-hc.l1 { background: color-mix(in srgb, var(--accent) 30%, var(--faint)); }
+.jrnl-hc.l2 { background: color-mix(in srgb, var(--accent) 55%, var(--faint)); }
+.jrnl-hc.l3 { background: color-mix(in srgb, var(--accent) 78%, var(--faint)); }
+.jrnl-hc.l4 { background: var(--accent); }
+.jrnl-hc.sel { outline: 1px solid var(--text); outline-offset: 1px; }
 .jrnl-otd-row, .jrnl-recent-row { font-size: 0.74rem; color: var(--muted); padding: 0.4rem 0.5rem; border: 1px solid transparent; border-radius: 3px; cursor: pointer; }
 .jrnl-otd-row:hover, .jrnl-recent-row:hover { background: var(--panel); color: var(--text); }
 .jrnl-recent-row { display: flex; gap: 0.45rem; align-items: baseline; }

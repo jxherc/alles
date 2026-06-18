@@ -247,14 +247,34 @@ def mood_trends(
     }
 
 
+def _heat_level(words: int) -> int:
+    """word count → contribution intensity 0-4. 0 only for an empty entry; any
+    writing is at least 1 so a written day always shows on the heatmap."""
+    if words <= 0:
+        return 0
+    for lvl, threshold in ((4, 400), (3, 150), (2, 50)):
+        if words >= threshold:
+            return lvl
+    return 1
+
+
 @router.get("/journal/calendar")
 def entry_calendar(
     year: int = 0, db: DbSession = Depends(get_db), _: None = Depends(_require_unlock)
 ):
-    """which days have entries + their word counts, for a contribution heatmap."""
+    """per-day words/mood/intensity for a year, + which years have entries — for a
+    GitHub-style contribution heatmap with year navigation."""
     y = year or date.today().year
     rows = db.query(JournalEntry).filter(JournalEntry.date.like(f"{y}-%")).all()
-    return {"year": y, "days": {e.date: len((e.content or "").split()) for e in rows}}
+    days = {}
+    for e in rows:
+        w = len((e.content or "").split())
+        days[e.date] = {"words": w, "mood": e.mood or "", "level": _heat_level(w)}
+    years = sorted(
+        {int(d[:4]) for (d,) in db.query(JournalEntry.date).all() if d and d[:4].isdigit()},
+        reverse=True,
+    )
+    return {"year": y, "days": days, "years": years}
 
 
 @router.get("/journal/{day}")

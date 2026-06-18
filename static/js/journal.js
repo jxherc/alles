@@ -2,12 +2,15 @@
 import { toast, mdToHtml } from './util.js';
 
 const MOODS = ['😄', '🙂', '😐', '😕', '😢', '😠', '😴', '🤔', '🥳', '😍'];
-let _day = todayISO();
+function _dayFromUrl() { const d = new URLSearchParams(location.search).get('d'); return (d && /^\d{4}-\d{2}-\d{2}$/.test(d)) ? d : ''; }
+let _day = _dayFromUrl() || todayISO();
+let _heatYear = null;
 let _saveTimer = null;
 let _built = false;
 let _token = sessionStorage.getItem('journal_token') || '';
 
 function todayISO() { return new Date().toISOString().slice(0, 10); }
+function _setDayUrl() { try { const u = new URL(location.href); u.searchParams.set('d', _day); history.replaceState(null, '', u); } catch {} }
 function esc(s = '') { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 function _setToken(t) { _token = t || ''; if (_token) sessionStorage.setItem('journal_token', _token); else sessionStorage.removeItem('journal_token'); }
 function _authHeaders(extra = {}) { return _token ? { ...extra, 'X-Journal-Token': _token } : extra; }
@@ -73,6 +76,12 @@ function buildJournal() {
           <input id="jrnl-search" class="jrnl-tags" placeholder="search entries…" style="margin:0 0 0.5rem">
           <div id="jrnl-results"></div>
           <button class="btn" id="jrnl-export" style="margin-bottom:0.6rem">export .md</button>
+          <div class="jrnl-side-title jrnl-heat-head">
+            <button class="btn jrnl-heat-nav" id="jrnl-heat-prev" title="previous year">‹</button>
+            <span id="jrnl-heat-year"></span>
+            <button class="btn jrnl-heat-nav" id="jrnl-heat-next" title="next year">›</button>
+          </div>
+          <div id="jrnl-heatmap" class="jrnl-heatmap"></div>
           <div class="jrnl-side-title">mood · last 30 days</div>
           <div id="jrnl-moodtrend" class="jrnl-moodtrend"></div>
           <div class="jrnl-side-title">on this day</div>
@@ -121,6 +130,8 @@ function buildJournal() {
       URL.revokeObjectURL(a.href);
     });
     document.getElementById('jrnl-lock').onclick = openLockMenu;
+    document.getElementById('jrnl-heat-prev').onclick = () => { if (_heatYear) { _heatYear--; loadHeatmap(); } };
+    document.getElementById('jrnl-heat-next').onclick = () => { if (_heatYear && _heatYear < new Date().getFullYear()) { _heatYear++; loadHeatmap(); } };
     _built = true;
   }
   load();
@@ -128,6 +139,41 @@ function buildJournal() {
   loadOnThisDay();
   loadMoodTrend();
   refreshLockBtn();
+}
+
+async function loadHeatmap() {
+  const el = document.getElementById('jrnl-heatmap');
+  if (!el) return;
+  const year = _heatYear || Number(_day.slice(0, 4)) || new Date().getFullYear();
+  try {
+    const d = await jget('/api/journal/calendar?year=' + year);
+    _heatYear = d.year;
+    document.getElementById('jrnl-heat-year').textContent = d.year;
+    document.getElementById('jrnl-heat-next').disabled = d.year >= new Date().getFullYear();
+    // GitHub-style grid: columns = weeks (Sun→Sat), starting from the Sunday on/before Jan 1
+    const start = new Date(Date.UTC(d.year, 0, 1));
+    start.setUTCDate(start.getUTCDate() - start.getUTCDay());
+    const end = new Date(Date.UTC(d.year, 11, 31));
+    let cols = '';
+    for (let c = new Date(start); c <= end; c.setUTCDate(c.getUTCDate() + 7)) {
+      let cells = '';
+      for (let r = 0; r < 7; r++) {
+        const dt = new Date(c); dt.setUTCDate(dt.getUTCDate() + r);
+        const iso = dt.toISOString().slice(0, 10);
+        const inYear = dt.getUTCFullYear() === d.year;
+        const info = d.days[iso];
+        const lvl = info ? info.level : 0;
+        const future = iso > todayISO();
+        const title = info ? `${iso} · ${info.words} words ${info.mood || ''}` : iso;
+        cells += `<span class="jrnl-hc l${lvl} ${!inYear || future ? 'off' : ''} ${iso === _day ? 'sel' : ''}" data-d="${inYear && !future ? iso : ''}" title="${title}"></span>`;
+      }
+      cols += `<div class="jrnl-hcol">${cells}</div>`;
+    }
+    el.innerHTML = cols;
+    el.querySelectorAll('.jrnl-hc[data-d]:not([data-d=""])').forEach(c => {
+      if (c.dataset.d) c.onclick = () => { _day = c.dataset.d; load(); };
+    });
+  } catch { el.innerHTML = ''; }
 }
 
 async function loadMoodTrend() {
@@ -240,6 +286,7 @@ function showLock(mode) {
 function curMood() { return document.querySelector('.jrnl-mood.active')?.dataset.m || ''; }
 
 async function load() {
+  _setDayUrl();
   document.getElementById('jrnl-date').textContent = pretty(_day) + (_day === todayISO() ? '' : '');
   document.getElementById('jrnl-next').disabled = _day >= todayISO();
   try {
@@ -253,6 +300,7 @@ async function load() {
   } catch { /* fresh shell is fine */ }
   loadStats();
   loadRecent();
+  loadHeatmap();
 }
 
 function updateWords() {
