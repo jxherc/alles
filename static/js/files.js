@@ -3,8 +3,18 @@ import { prompt as dlgPrompt, confirm as dlgConfirm } from './dialog.js';
 import { urlForApp } from './subdomain.js';
 
 let _cwd = '';   // current relative dir
+let _sort = 'name', _order = '';
 
 const $ = id => document.getElementById(id);
+function _pathFromUrl() { return new URLSearchParams(location.search).get('p') || ''; }
+function _writeUrl() {
+  try {
+    const u = new URL(location.href);
+    if (_cwd) u.searchParams.set('p', _cwd); else u.searchParams.delete('p');
+    if (_sort !== 'name') u.searchParams.set('sort', _sort); else u.searchParams.delete('sort');
+    history.replaceState(null, '', u);
+  } catch {}
+}
 const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
 function fmtSize(n) {
@@ -17,18 +27,38 @@ function fmtSize(n) {
 
 export async function loadFiles(path = _cwd) {
   let data;
+  const qs = p => `/api/files/list?path=${encodeURIComponent(p)}&sort=${_sort}&order=${_order}`;
   try {
-    data = await fetch(`/api/files/list?path=${encodeURIComponent(path)}`).then(r => r.json());
+    data = await fetch(qs(path)).then(r => r.json());
   } catch { toast('failed to load files', 'error'); return; }
   if (data.detail) {  // server rejected the path — bounce to root
     _cwd = '';
-    data = await fetch('/api/files/list?path=').then(r => r.json());
+    data = await fetch(qs('')).then(r => r.json());
   } else {
     _cwd = data.path || '';
   }
+  _writeUrl();
   renderCrumb();
+  renderSortBar();
   renderList(data.items || []);
   if (!_cwd) { _injectSmartFolders(); _injectDocsShortcut(); }   // at root, surface smart views + the docs vault
+}
+
+const SORTS = [['name', 'name'], ['size', 'size'], ['mtime', 'date']];
+function renderSortBar() {
+  const bar = $('files-sortbar');
+  if (!bar) return;
+  bar.innerHTML = SORTS.map(([k, l]) =>
+    `<button class="files-sort${k === _sort ? ' on' : ''}" data-k="${k}">${l}${k === _sort ? (_isDesc() ? ' ↓' : ' ↑') : ''}</button>`).join('');
+  bar.querySelectorAll('.files-sort').forEach(b => b.addEventListener('click', () => {
+    const k = b.dataset.k;
+    if (k === _sort) _order = _isDesc() ? 'asc' : 'desc';   // toggle direction
+    else { _sort = k; _order = ''; }                        // new column → sensible default
+    loadFiles();
+  }));
+}
+function _isDesc() {
+  return _order === 'desc' || (_order === '' && (_sort === 'size' || _sort === 'mtime'));
 }
 
 const SMART = [
@@ -281,8 +311,14 @@ async function uploadFiles(fileList) {
 
 let _inited = false;
 export function initFiles() {
-  if (_inited) return;
+  if (_inited) {
+    return;
+  }
   _inited = true;
+  // restore folder + sort from the URL so refresh / deep-link lands in the same place
+  _cwd = _pathFromUrl();
+  const us = new URLSearchParams(location.search).get('sort');
+  if (['name', 'size', 'mtime', 'type'].includes(us)) _sort = us;
   $('files-up-btn')?.addEventListener('click', () => {
     if (!_cwd) return;
     loadFiles(_cwd.includes('/') ? _cwd.slice(0, _cwd.lastIndexOf('/')) : '');

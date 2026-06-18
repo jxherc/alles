@@ -49,19 +49,36 @@ def _entry(p: Path, base: Path) -> dict:
     }
 
 
-def listdir(rel: str = "") -> dict:
+_SORT_KEYS = ("name", "size", "mtime", "type")
+
+
+def listdir(rel: str = "", sort: str = "name", order: str = "") -> dict:
     base = files_dir()
     d = _safe(rel)
     if not d.exists() or not d.is_dir():
         raise ValueError("not a directory")
     items = []
-    for c in sorted(d.iterdir(), key=lambda c: (c.is_file(), c.name.lower())):
+    for c in d.iterdir():
         if c.name.startswith("."):
             continue
         try:
             items.append(_entry(c, base))
         except Exception:
             pass  # broken symlink etc.
+    if sort not in _SORT_KEYS:
+        sort = "name"
+    # size/mtime default to desc (biggest/newest first); name/type default to asc
+    desc = (order == "desc") if order in ("asc", "desc") else (sort in ("size", "mtime"))
+    if sort == "size":
+        items.sort(key=lambda e: e["size"], reverse=desc)
+    elif sort == "mtime":
+        items.sort(key=lambda e: e["mtime"], reverse=desc)
+    elif sort == "type":
+        items.sort(key=lambda e: (e["ext"], e["name"].lower()), reverse=desc)
+    else:  # name
+        items.sort(key=lambda e: e["name"].lower(), reverse=desc)
+    # dirs always float to the top regardless of the chosen sort
+    items.sort(key=lambda e: e["type"] != "dir")
     return {"path": (rel or "").strip("/"), "items": items}
 
 

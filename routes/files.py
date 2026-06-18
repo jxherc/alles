@@ -40,9 +40,14 @@ def _decorate(items, tmap):
 
 
 @router.get("/list")
-def list_files(path: str = Query(""), db: DbSession = Depends(get_db)):
+def list_files(
+    path: str = Query(""),
+    sort: str = Query("name"),
+    order: str = Query(""),
+    db: DbSession = Depends(get_db),
+):
     try:
-        d = fs.listdir(path)
+        d = fs.listdir(path, sort=sort, order=order)
     except ValueError as e:
         raise HTTPException(400, str(e))
     _decorate(d["items"], _tag_map(db))
