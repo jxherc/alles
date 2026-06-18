@@ -2298,6 +2298,15 @@ body.is-incognito .incognito-bar {
 .sub-link:hover { color: var(--accent); }
 .sub-autopost { font-size: 0.6rem; color: var(--muted); border: 1px solid var(--faint); border-radius: 3px; padding: 0.05rem 0.4rem; white-space: nowrap; }
 .sub-trial { font-size: 0.6rem; color: var(--signal, #e0a458); border: 1px solid var(--signal, #e0a458); border-radius: 3px; padding: 0.05rem 0.4rem; white-space: nowrap; }
+.subs-upcoming { border: 1px solid var(--faint); border-radius: 3px; padding: 0.55rem 0.65rem; margin-bottom: 0.7rem; }
+.subs-up-head { font-size: 0.72rem; color: var(--muted); margin-bottom: 0.45rem; }
+.subs-up-head strong { color: var(--text); font-weight: 600; }
+.subs-up-chips { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+.subs-up-chip { display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.68rem; border: 1px solid var(--faint); border-radius: 3px; padding: 0.12rem 0.45rem; white-space: nowrap; }
+.subs-up-name { color: var(--text); }
+.subs-up-when { color: var(--muted); }
+.subs-up-when.soon { color: var(--signal, #e0a458); }
+.subs-up-amt { color: var(--muted); }
 .sub-price { font-size: 0.8rem; color: var(--text); white-space: nowrap; }
 .sub-cycle { font-size: 0.65rem; color: var(--muted); margin-left: 0.15rem; }
 .sub-due { font-size: 0.7rem; color: var(--muted); white-space: nowrap; min-width: 90px; text-align: right; }
