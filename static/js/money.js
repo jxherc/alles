@@ -5,16 +5,20 @@ import { confirm as dlgConfirm } from './dialog.js';
 import { initCustomDropdown, getDropdownValue } from './dropdown.js';
 import { initDatePicker } from './datepick.js';
 
-let _month = _thisMonth();
-let _accounts = [], _txns = [], _budgets = [], _sum = null, _recurring = [], _rules = [];
-let _cur = '$';
-let _inited = false;
-let _editTxn = null;   // id of the txn row currently being edited inline
-
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
 function _thisMonth() { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; }
+function _monthFromUrl() { const m = new URLSearchParams(location.search).get('m'); return (m && /^\d{4}-\d{2}$/.test(m)) ? m : ''; }
+function _setMonthUrl() { try { const u = new URL(location.href); u.searchParams.set('m', _month); history.replaceState(null, '', u); } catch {} }
+
+let _month = _monthFromUrl() || _thisMonth();
+let _accounts = [], _txns = [], _budgets = [], _sum = null, _recurring = [], _rules = [];
+let _searchResults = null;   // array when a search/filter is active, else null
+let _searchTimer = null;
+let _cur = '$';
+let _inited = false;
+let _editTxn = null;   // id of the txn row currently being edited inline
 function _today() { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; }
 function _shiftMonth(m, delta) {
   let [y, mo] = m.split('-').map(Number); mo += delta;
@@ -55,6 +59,8 @@ export function initMoneyPanel() {
 
 async function load() {
   const lbl = $('money-month-label'); if (lbl) lbl.textContent = _monthLabel(_month);
+  _setMonthUrl();
+  _searchResults = null;   // month change / reload clears any active search
   try {
     // post any due recurring txns FIRST (and advance them) so the balances,
     // transactions and summary we read next all reflect them — no stale first load
@@ -93,7 +99,17 @@ function render() {
       <section class="money-card"><h3>recurring</h3>${recurringList()}${_recurringForm()}</section>
       <section class="money-card"><h3>auto-categorize${_rules.length ? ` <button class="btn rules-apply" id="rules-apply" title="apply to existing uncategorized">apply</button>` : ''}</h3>${rulesList()}${_ruleForm()}</section>
      </div>` +
-    `<section class="money-card money-txns"><h3>transactions · ${_monthLabel(_month)}</h3>${addTxnRow()}${transferRow()}${txnList()}</section>`;
+    `<section class="money-card money-txns">
+      <h3>transactions · ${_monthLabel(_month)}
+        <span class="txn-search-wrap">
+          <input type="text" id="txn-search" class="settings-input" placeholder="search payee / category / notes" autocomplete="off">
+          <input type="text" id="txn-min" class="settings-input" placeholder="min $" inputmode="decimal" title="min amount">
+          <input type="text" id="txn-max" class="settings-input" placeholder="max $" inputmode="decimal" title="max amount">
+        </span>
+      </h3>
+      ${addTxnRow()}${transferRow()}
+      <div id="txn-rows">${txnList()}</div>
+    </section>`;
   wire();
 }
 
@@ -245,9 +261,10 @@ function transferRow() {
 }
 
 function txnList() {
-  if (!_txns.length) return '<div class="money-empty-sm">no transactions this month</div>';
+  const rows = _searchResults !== null ? _searchResults : _txns;
+  if (!rows.length) return `<div class="money-empty-sm">${_searchResults !== null ? 'no matches' : 'no transactions this month'}</div>`;
   const an = {}; _accounts.forEach(a => an[a.id] = a.name);
-  return `<div class="txns">` + _txns.map(t => {
+  return `<div class="txns">` + rows.map(t => {
     if (_editTxn === t.id && !t.transfer_id) return editTxnRow(t);
     // transfer legs aren't inline-editable (editing one would desync the pair) and
     // their × removes the whole transfer, not just this leg
@@ -330,11 +347,10 @@ function wire() {
   });
   $('tr-do')?.addEventListener('click', doTransfer);
   $('tr-amt')?.addEventListener('keydown', e => { if (e.key === 'Enter') doTransfer(); });
-  $('money-body').querySelectorAll('[data-del-transfer]').forEach(b => b.addEventListener('click', () => delTransfer(b.dataset.delTransfer)));
-  $('money-body').querySelectorAll('[data-del-txn]').forEach(b => b.addEventListener('click', () => delTxn(b.dataset.delTxn)));
-  $('money-body').querySelectorAll('[data-edit-txn]').forEach(el => el.addEventListener('click', () => { _editTxn = el.dataset.editTxn; render(); }));
-  $('money-body').querySelectorAll('[data-save-txn]').forEach(b => b.addEventListener('click', () => saveTxn(b.dataset.saveTxn)));
-  $('money-body').querySelectorAll('[data-cancel-txn]').forEach(b => b.addEventListener('click', () => { _editTxn = null; render(); }));
+  ['txn-search', 'txn-min', 'txn-max'].forEach(id => $(id)?.addEventListener('input', () => {
+    clearTimeout(_searchTimer); _searchTimer = setTimeout(applySearch, 220);
+  }));
+  _wireTxnRows();
   $('money-body').querySelectorAll('[data-del-acct]').forEach(b => b.addEventListener('click', () => delAccount(b.dataset.delAcct)));
   $('money-body').querySelectorAll('[data-del-budget]').forEach(b => b.addEventListener('click', () => delBudget(b.dataset.delBudget)));
   $('rc-add')?.addEventListener('click', addRecurring);
@@ -344,6 +360,38 @@ function wire() {
   $('rl-cat')?.addEventListener('keydown', e => { if (e.key === 'Enter') addRule(); });
   $('rules-apply')?.addEventListener('click', applyRules);
   $('money-body').querySelectorAll('[data-del-rule]').forEach(b => b.addEventListener('click', () => delRule(b.dataset.delRule)));
+}
+
+// wire the txn row buttons within a root (the whole #txn-rows list); called on full
+// render and again after a search replaces just the list
+function _wireTxnRows() {
+  const root = $('txn-rows'); if (!root) return;
+  root.querySelectorAll('.txn-edit .custom-select').forEach(initCustomDropdown);
+  root.querySelectorAll('.txn-edit .date-input').forEach(initDatePicker);
+  root.querySelectorAll('[data-del-transfer]').forEach(b => b.addEventListener('click', () => delTransfer(b.dataset.delTransfer)));
+  root.querySelectorAll('[data-del-txn]').forEach(b => b.addEventListener('click', () => delTxn(b.dataset.delTxn)));
+  root.querySelectorAll('[data-edit-txn]').forEach(el => el.addEventListener('click', () => { _editTxn = el.dataset.editTxn; render(); }));
+  root.querySelectorAll('[data-save-txn]').forEach(b => b.addEventListener('click', () => saveTxn(b.dataset.saveTxn)));
+  root.querySelectorAll('[data-cancel-txn]').forEach(b => b.addEventListener('click', () => { _editTxn = null; render(); }));
+}
+
+async function applySearch() {
+  const q = $('txn-search')?.value.trim() || '';
+  const mn = $('txn-min')?.value.trim() || '';
+  const mx = $('txn-max')?.value.trim() || '';
+  if (!q && !mn && !mx) {   // nothing to filter → back to the plain month list
+    _searchResults = null;
+    const rows = $('txn-rows'); if (rows) { rows.innerHTML = txnList(); _wireTxnRows(); }
+    return;
+  }
+  const p = new URLSearchParams({ month: _month });
+  if (q) p.set('q', q);
+  if (mn && !isNaN(parseFloat(mn))) p.set('min_amt', parseFloat(mn));
+  if (mx && !isNaN(parseFloat(mx))) p.set('max_amt', parseFloat(mx));
+  try {
+    _searchResults = await api(`/api/money/transactions/search?${p}`);
+  } catch { _searchResults = []; }
+  const rows = $('txn-rows'); if (rows) { rows.innerHTML = txnList(); _wireTxnRows(); }
 }
 
 // ── actions ────────────────────────────────────────────────────────────────
