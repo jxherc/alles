@@ -146,6 +146,51 @@ def set_frontmatter(content: str, props: dict) -> str:
     return "\n".join(out) + "\n" + body
 
 
+_PERIODIC_TMPL = {
+    "weekly": "# Week {wk}, {iy}\n\n## Focus\n\n\n## Notes\n\n\n## Review\n",
+    "monthly": "# {month} {year}\n\n## Goals\n\n\n## Highlights\n\n\n## Review\n",
+}
+
+
+def periodic_path(kind: str, d=None) -> str:
+    """relative note path for a periodic note. weekly uses ISO year+week so the
+    new-year boundary lands in the right bucket."""
+    from datetime import date as _date
+
+    d = d or _date.today()
+    if kind == "weekly":
+        iy, iw, _ = d.isocalendar()
+        return f"Periodic/{iy}-W{iw:02d}.md"
+    if kind == "monthly":
+        return f"Periodic/{d.year}-{d.month:02d}.md"
+    if kind == "daily":
+        return f"{d.year}-{d.month:02d}-{d.day:02d}.md"
+    raise ValueError("kind must be weekly, monthly or daily")
+
+
+def open_or_create_periodic(kind: str, d=None) -> dict:
+    """return the periodic note's path, creating it from a template if missing.
+    never overwrites an existing note."""
+    import calendar
+    from datetime import date as _date
+
+    d = d or _date.today()
+    rel = periodic_path(kind, d)  # raises on bad kind
+    p = _safe(rel)
+    if p.exists():
+        return {"path": rel, "existed": True, "ok": True}
+    if kind == "weekly":
+        iy, iw, _ = d.isocalendar()
+        body = _PERIODIC_TMPL["weekly"].format(wk=iw, iy=iy)
+    elif kind == "monthly":
+        body = _PERIODIC_TMPL["monthly"].format(month=calendar.month_name[d.month], year=d.year)
+    else:
+        body = f"# {rel[:-3]}\n\n"
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(body, "utf-8")
+    return {"path": rel, "created": True, "ok": True}
+
+
 def create(rel: str, content: str = "") -> dict:
     p = _safe(rel)
     if p.suffix == "":
