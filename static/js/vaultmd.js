@@ -339,6 +339,13 @@ export function initVault() {
   });
   $('wiki-graph-btn')?.addEventListener('click', openGraph);
   $('wiki-graph-close')?.addEventListener('click', () => { $('wiki-graph').style.display = 'none'; });
+  $('wiki-graph-local')?.addEventListener('click', () => {
+    _graphLocal = !_graphLocal;
+    $('wiki-graph-local').classList.toggle('active', _graphLocal);
+    fetchGraph();
+  });
+  let _gfT = 0;
+  $('wiki-graph-filter')?.addEventListener('input', () => { clearTimeout(_gfT); _gfT = setTimeout(fetchGraph, 200); });
   $('wiki-help-btn')?.addEventListener('click', () => {
     const h = $('wiki-help');
     if (h) h.style.display = h.style.display === 'none' ? 'block' : 'none';
@@ -564,10 +571,21 @@ async function newFolder() {
 }
 
 // ── graph view ────────────────────────────────────────────────────────────
+let _graphLocal = false;
 async function openGraph() {
-  const box = $('wiki-graph');
-  box.style.display = 'flex';
-  try { renderGraph(await fetch('/api/vault-md/graph').then(r => r.json())); }
+  $('wiki-graph').style.display = 'flex';
+  await fetchGraph();
+}
+async function fetchGraph() {
+  const filt = ($('wiki-graph-filter')?.value || '').trim().replace(/^#/, '');
+  let url;
+  if (_graphLocal && _cur) {
+    const name = _cur.replace(/\.md$/, '').split('/').pop();
+    url = `/api/vault-md/local-graph?name=${encodeURIComponent(name)}&depth=2`;
+  } else {
+    url = filt ? `/api/vault-md/graph?tag=${encodeURIComponent(filt)}` : '/api/vault-md/graph';
+  }
+  try { renderGraph(await fetch(url).then(r => r.json())); }
   catch { toast('graph failed', 'error'); }
 }
 function renderGraph(data) {
@@ -595,7 +613,8 @@ function renderGraph(data) {
   for (const e of edges) html += `<line x1="${idx[e.source].x.toFixed(1)}" y1="${idx[e.source].y.toFixed(1)}" x2="${idx[e.target].x.toFixed(1)}" y2="${idx[e.target].y.toFixed(1)}" class="wg-edge"/>`;
   for (const n of nodes) {
     const r = 4 + Math.min(11, n.degree * 1.6);
-    html += `<g class="wg-node" data-path="${esc(n.path)}"><circle cx="${n.x.toFixed(1)}" cy="${n.y.toFixed(1)}" r="${r}"/><text x="${n.x.toFixed(1)}" y="${(n.y - r - 4).toFixed(1)}">${esc(n.id)}</text></g>`;
+    const isCenter = data.center && n.id === data.center;
+    html += `<g class="wg-node${isCenter ? ' wg-center' : ''}" data-path="${esc(n.path)}"><circle cx="${n.x.toFixed(1)}" cy="${n.y.toFixed(1)}" r="${isCenter ? r + 2 : r}"/><text x="${n.x.toFixed(1)}" y="${(n.y - r - 4).toFixed(1)}">${esc(n.id)}</text></g>`;
   }
   svg.innerHTML = html;
   svg.querySelectorAll('.wg-node').forEach(g => g.addEventListener('click', () => { $('wiki-graph').style.display = 'none'; openFile(g.dataset.path); }));

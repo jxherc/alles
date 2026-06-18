@@ -3852,6 +3852,11 @@ body.is-incognito .incognito-bar {
   font-size: 0.8rem; color: var(--muted); text-transform: lowercase; letter-spacing: 0.05em;
 }
 .wiki-graph-svg { flex: 1; width: 100%; }
+.wiki-graph-ctrls { display: flex; align-items: center; gap: 0.4rem; }
+.wiki-graph-ctrls #wiki-graph-filter { width: 140px; font-size: 0.72rem; padding: 0.2rem 0.4rem; }
+#wiki-graph-local.active { color: var(--text); border-color: var(--accent); }
+.wg-center circle { fill: var(--accent); }
+.wg-center text { fill: var(--text); }
 .wg-edge { stroke: var(--faint); stroke-width: 1; }
 .wg-node { cursor: pointer; }
 .wiki-board-cols { flex: 1; display: flex; gap: 0.7rem; padding: 0.8rem; overflow-x: auto; align-items: flex-start; }

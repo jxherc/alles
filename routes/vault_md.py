@@ -451,8 +451,13 @@ def by_tag(tag: str):
 
 
 @router.get("/graph")
-def graph():
-    return vault_md.graph()
+def graph(tag: str = "", folder: str = ""):
+    return vault_md.graph(tag or None, folder or None)
+
+
+@router.get("/local-graph")
+def local_graph(name: str, depth: int = 1):
+    return vault_md.local_graph(name, depth)
 
 
 @router.post("/asset")
