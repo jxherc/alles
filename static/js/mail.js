@@ -172,17 +172,18 @@ function setFilter(f) {
   _filter = f;
   document.querySelectorAll('.mail-tab').forEach(t => t.classList.toggle('active', t.dataset.filter === f));
   if (f === 'drafts') loadDrafts();
-  else if (f === 'flagged') loadFlagged();
+  else if (f === 'flagged') loadSmart('flagged');
+  else if (f === 'vip') loadSmart('vip');
   else loadInbox();
 }
 
-async function loadFlagged() {
+async function loadSmart(filter) {
   const list = $('mail-list'); const main = $('mail-main');
   main.innerHTML = '';
-  list.innerHTML = '<div class="mail-empty">loading flagged…</div>';
+  list.innerHTML = `<div class="mail-empty">loading ${esc(filter)}…</div>`;
   const accts = _active === 'all' ? _accounts : _accounts.filter(a => a.id === _active);
   const results = await Promise.allSettled(accts.map(a =>
-    fetch(`/api/mail/smart/${a.id}?filter=flagged`).then(r => r.json())));
+    fetch(`/api/mail/smart/${a.id}?filter=${encodeURIComponent(filter)}`).then(r => r.json())));
   let msgs = [];
   for (const r of results) if (r.status === 'fulfilled') msgs = msgs.concat(r.value.messages || []);
   renderInbox(msgs);
@@ -386,6 +387,8 @@ async function openMessage(aid, uid, folder = 'INBOX') {
       <div class="mail-reader-meta">to ${esc(m.to)} - ${esc(m.date)}</div>
       <div style="display:flex;gap:0.4rem;flex-wrap:wrap">
         <button class="btn" id="mail-reply">reply</button>
+        <button class="btn" id="mail-unread" title="mark as unread">unread</button>
+        <button class="btn" id="mail-vip" title="VIP sender">+ VIP</button>
         <button class="btn" id="mail-to-task" title="create a task from this mail">→ task</button>
         <button class="btn" id="mail-to-cal" title="AI-extract the event and add it to your calendar">→ calendar</button>
         <button class="btn" id="mail-summarize" title="AI summary + action items">summarize</button>
@@ -400,6 +403,24 @@ async function openMessage(aid, uid, folder = 'INBOX') {
   }
   // attachment chips — backend lists/serves them, the reader just never showed them
   loadAttachments(aid, uid, folder);
+  const senderAddr = ((/<([^>]+)>/.exec(m.from) || [, m.from])[1] || '').trim().toLowerCase();
+  $('mail-unread')?.addEventListener('click', async () => {
+    await fetch(`/api/mail/read/${aid}?uid=${encodeURIComponent(uid)}&seen=false&folder=${encodeURIComponent(folder)}`, { method: 'POST' }).catch(() => {});
+    const row = [...document.querySelectorAll('.mail-row')].find(r => r.dataset.uid === String(uid) && r.dataset.aid === aid);
+    if (row) row.classList.add('unread');
+    const lm = _lastMsgs.find(x => String(x.uid) === String(uid) && (x.account_id || '') === aid); if (lm) lm.seen = false;
+    toast('marked unread', 'success');
+  });
+  (async () => {
+    const vips = ((await fetch('/api/mail/vips').then(r => r.json()).catch(() => ({ vips: [] }))).vips || []).map(v => v.toLowerCase());
+    const btn = $('mail-vip'); if (btn) { const on = vips.includes(senderAddr); btn.classList.toggle('on', on); btn.textContent = on ? 'VIP ★' : '+ VIP'; }
+  })();
+  $('mail-vip')?.addEventListener('click', async () => {
+    const btn = $('mail-vip'); const adding = !btn.classList.contains('on');
+    await fetch('/api/mail/vips', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: senderAddr, add: adding }) }).catch(() => {});
+    btn.classList.toggle('on', adding); btn.textContent = adding ? 'VIP ★' : '+ VIP';
+    toast(adding ? 'added to VIP' : 'removed from VIP', 'success');
+  });
   $('mail-reply')?.addEventListener('click', () => {
     const addr = (/<([^>]+)>/.exec(m.from) || [, m.from])[1];
     compose({

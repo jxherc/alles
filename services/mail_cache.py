@@ -82,6 +82,16 @@ def set_flag(db, account_id, folder, uid, flagged: bool) -> int:
     return n
 
 
+def set_seen(db, account_id, folder, uid, seen: bool) -> int:
+    n = (
+        db.query(CachedMessage)
+        .filter_by(account_id=account_id, folder=folder, uid=str(uid))
+        .update({"seen": bool(seen)})
+    )
+    db.commit()
+    return n
+
+
 def get(db, account_id: str, folder: str = "INBOX", limit: int = 30) -> list[dict]:
     rows = (
         db.query(CachedMessage)
