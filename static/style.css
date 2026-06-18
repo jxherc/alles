@@ -1560,6 +1560,8 @@ body.is-incognito .incognito-bar {
   color: var(--muted); font-family: inherit; font-size: 0.68rem;
   letter-spacing: 0.05em; text-transform: lowercase;
   padding: 0.32rem 0.7rem; cursor: pointer;
+  text-decoration: none;   /* so <a class=btn> export links match <button> import siblings exactly */
+  display: inline-block; line-height: 1.2; box-sizing: border-box; vertical-align: middle;
   transition: border-color 0.2s ease, color 0.2s ease, background 0.2s ease;
 }
 .btn:hover { color: var(--text); border-color: var(--muted); background: var(--panel); }
