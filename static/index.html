@@ -13,7 +13,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/style.css?v=31">
+<link rel="stylesheet" href="/static/style.css?v=32">
 <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#0a0a0a">
@@ -573,7 +573,10 @@
     <div class="page-view" id="vault-view" style="display:none">
       <div class="page-view-head">
         <span class="page-view-title">secrets</span>
-        <button class="btn" id="vault-lock-btn" style="display:none">lock</button>
+        <span style="margin-left:auto;display:flex;gap:0.4rem">
+          <button class="btn primary" id="vault-new-btn" style="display:none">+ new</button>
+          <button class="btn" id="vault-lock-btn" style="display:none">lock</button>
+        </span>
       </div>
       <div id="vault-locked" class="vault-lock-screen">
         <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="opacity:0.4">
@@ -587,31 +590,7 @@
       <div id="vault-unlocked" style="display:none;flex-direction:column;flex:1;overflow:hidden">
         <div class="page-view-body" id="vault-entry-list"></div>
       </div>
-      <div class="page-view-footer" id="vault-add-bar" style="display:none;flex-wrap:wrap">
-        <input type="text" id="vault-new-name" class="settings-input" placeholder="name" style="flex:1;min-width:90px">
-        <div id="vault-new-cat" class="settings-input custom-select" style="flex:1;min-width:100px"></div>
-        <input type="text" id="vault-new-cat-custom" class="settings-input" placeholder="new category" style="flex:1;min-width:100px;display:none">
-        <!-- new-category field picker: which fields this category holds. custom chips (no native checkboxes) -->
-        <div class="vault-schema-pick" id="vault-new-schema" style="display:none">
-          <span class="vsp-label">fields</span>
-          <button type="button" class="vsp-chip" data-f="username">username</button>
-          <button type="button" class="vsp-chip active" data-f="password">password</button>
-          <button type="button" class="vsp-chip" data-f="url">url</button>
-          <button type="button" class="vsp-chip" data-f="notes">notes</button>
-          <button type="button" class="vsp-chip" data-f="card">card</button>
-        </div>
-        <input type="text" id="vault-new-username" class="settings-input" placeholder="username" style="flex:1;min-width:100px;display:none">
-        <input type="password" id="vault-new-value" class="settings-input vault-f-pw" placeholder="value / password" style="flex:2;min-width:120px">
-        <button class="btn vault-f-pw" id="vault-gen-btn" title="generate a strong password">⚙ gen</button>
-        <input type="text" id="vault-new-url" class="settings-input" placeholder="url" style="flex:1;min-width:100px;display:none">
-        <input type="text" id="vault-new-notes" class="settings-input" placeholder="notes" style="flex:1;min-width:100px;display:none">
-        <input type="text" id="vault-new-cardholder" class="settings-input vault-f-card" placeholder="cardholder" style="flex:1;min-width:100px;display:none">
-        <input type="text" id="vault-new-number" class="settings-input vault-f-card" placeholder="card number" style="flex:1;min-width:120px;display:none">
-        <input type="text" id="vault-new-expiry" class="settings-input vault-f-card" placeholder="MM/YY" style="width:70px;display:none">
-        <input type="text" id="vault-new-cvv" class="settings-input vault-f-card" placeholder="cvv" style="width:60px;display:none">
-        <button class="btn primary" id="vault-add-btn">add</button>
-        <div id="vault-strength" class="vault-strength" style="width:100%;display:none"><span class="vault-strength-bar"><span class="vault-strength-fill"></span></span><span class="vault-strength-label"></span></div>
-      </div>
+      <!-- the add/edit form is a modal built in vault.js (openVaultForm) -->
     </div>
 
     <!-- ── contacts view ── -->
@@ -1558,7 +1537,7 @@
 </div>
 
 <script type="module">
-const _v = '31';
+const _v = '32';
 import(`/static/js/app.js?v=${_v}`);
 </script>
 </body>
