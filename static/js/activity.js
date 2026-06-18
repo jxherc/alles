@@ -15,13 +15,34 @@ const GLYPH = { journal: '✎', task: '✓', calendar: '◷', money: '$', mail: 
 
 let _days = 30;
 let _off = new Set();   // hidden type keys
+let _q = '';
+let _qTimer = null;
 const _hk = 'alles-activity-hidden';
+
+function _readUrl() {
+  const p = new URLSearchParams(location.search);
+  const d = parseInt(p.get('days'));
+  if ([7, 30, 90, 365].includes(d)) _days = d;
+  const hide = p.get('hide');
+  if (hide !== null) _off = new Set(hide.split(',').filter(Boolean));
+  if (p.get('q')) _q = p.get('q');
+}
+function _writeUrl() {
+  try {
+    const u = new URL(location.href);
+    u.searchParams.set('days', _days);
+    if (_off.size) u.searchParams.set('hide', [..._off].join(',')); else u.searchParams.delete('hide');
+    if (_q) u.searchParams.set('q', _q); else u.searchParams.delete('q');
+    history.replaceState(null, '', u);
+  } catch {}
+}
 
 let _inited = false;
 export function initActivity() {
   if (!_inited) {
     _inited = true;
     try { _off = new Set(JSON.parse(localStorage.getItem(_hk) || '[]')); } catch {}
+    _readUrl();   // URL wins over localStorage so a shared link restores exactly
     renderFilters();
   }
   load();
@@ -36,19 +57,27 @@ function renderFilters() {
     `<button class="act-chip${_off.has(t.key) ? ' off' : ''}" data-k="${t.key}">${GLYPH[t.key]} ${t.label}</button>`).join('');
   const ranges = `<span class="act-range">${RANGES.map(([d, l]) =>
     `<button class="act-range-opt${d === _days ? ' on' : ''}" data-d="${d}">${l}</button>`).join('')}</span>`;
-  wrap.innerHTML = chips + ranges;
+  const search = `<input type="text" id="act-search" class="act-search" placeholder="search activity…" value="${esc(_q)}">`;
+  wrap.innerHTML = chips + ranges + search;
   wrap.querySelectorAll('.act-chip').forEach(b => b.addEventListener('click', () => {
     const k = b.dataset.k;
     if (_off.has(k)) _off.delete(k); else _off.add(k);
     b.classList.toggle('off');
     localStorage.setItem(_hk, JSON.stringify([..._off]));
+    _writeUrl();
     load();
   }));
   wrap.querySelectorAll('.act-range-opt').forEach(b => b.addEventListener('click', () => {
     _days = +b.dataset.d || 30;
     wrap.querySelectorAll('.act-range-opt').forEach(x => x.classList.toggle('on', x === b));
+    _writeUrl();
     load();
   }));
+  $('act-search')?.addEventListener('input', e => {
+    _q = e.target.value;
+    clearTimeout(_qTimer);
+    _qTimer = setTimeout(() => { _writeUrl(); load(); }, 220);
+  });
 }
 
 async function load() {
@@ -59,7 +88,8 @@ async function load() {
   if (!want.length) { body.innerHTML = '<div class="activity-empty">all sources hidden — turn some back on above</div>'; return; }
   let d;
   try {
-    d = await fetch(`/api/timeline?days=${_days}&limit=200&types=${want.join(',')}`).then(r => r.json());
+    const qp = _q ? `&q=${encodeURIComponent(_q)}` : '';
+    d = await fetch(`/api/timeline?days=${_days}&limit=200&types=${want.join(',')}${qp}`).then(r => r.json());
   } catch { body.innerHTML = '<div class="activity-empty">couldn’t load activity</div>'; return; }
   render(d.events || []);
 }
