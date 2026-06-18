@@ -1929,6 +1929,11 @@ body.is-incognito .incognito-bar {
 .file-cdot.c-none { background: transparent; color: var(--muted); }
 .file-cdot.sel { outline: 2px solid var(--text); outline-offset: 1px; }
 .file-tagpop-actions { display: flex; gap: 0.4rem; }
+.files-sortbar { display: flex; gap: 0.3rem; padding: 0.3rem 0.5rem; align-items: center; }
+.files-sortbar::before { content: 'sort'; font-size: 0.64rem; color: var(--faint); text-transform: uppercase; letter-spacing: 0.05em; margin-right: 0.2rem; }
+.files-sort { font-family: inherit; font-size: 0.7rem; cursor: pointer; background: none; border: 1px solid transparent; border-radius: 3px; color: var(--muted); padding: 0.1rem 0.45rem; }
+.files-sort:hover { color: var(--text); }
+.files-sort.on { color: var(--text); border-color: var(--faint); background: var(--panel); }
 
 .files-preview-card { width: min(720px, 92vw); max-height: 86vh; display: flex; flex-direction: column; }
 .files-preview-head {
