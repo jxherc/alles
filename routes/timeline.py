@@ -57,15 +57,9 @@ def _ev(ts, type_, app, title, subtitle="", view="", eid=""):
     }
 
 
-@router.get("/timeline")
-def timeline(
-    days: int = Query(30, ge=1, le=365),
-    types: str = Query(""),
-    q: str = Query(""),
-    limit: int = Query(120, ge=1, le=500),
-    db: DbSession = Depends(get_db),
-):
-    want = set(t.strip() for t in types.split(",") if t.strip()) or set(ALL_TYPES)
+def _aggregate(db, want: set, days: int) -> list:
+    """build the raw (unsorted) event list across every wanted source. shared by
+    the feed (/timeline) and the rollup (/timeline/summary) so they never drift."""
     cutoff = datetime.utcnow() - timedelta(days=days)
     cutoff_d = cutoff.date()
     out = []
@@ -236,7 +230,19 @@ def timeline(
         except Exception:
             pass
 
-    out = [e for e in out if e]
+    return [e for e in out if e]
+
+
+@router.get("/timeline")
+def timeline(
+    days: int = Query(30, ge=1, le=365),
+    types: str = Query(""),
+    q: str = Query(""),
+    limit: int = Query(120, ge=1, le=500),
+    db: DbSession = Depends(get_db),
+):
+    want = set(t.strip() for t in types.split(",") if t.strip()) or set(ALL_TYPES)
+    out = _aggregate(db, want, days)
     ql = (q or "").strip().lower()
     if ql:  # text filter over title + subtitle, after aggregation
         out = [
@@ -246,3 +252,30 @@ def timeline(
         ]
     out.sort(key=lambda e: e["ts"], reverse=True)
     return {"events": out[:limit], "types": sorted(want)}
+
+
+@router.get("/timeline/summary")
+def timeline_summary(
+    days: int = Query(30, ge=1, le=365),
+    types: str = Query(""),
+    db: DbSession = Depends(get_db),
+):
+    """rollup over the window: per-source counts (desc), total, and the busiest day."""
+    want = set(t.strip() for t in types.split(",") if t.strip()) or set(ALL_TYPES)
+    out = _aggregate(db, want, days)
+    by_type: dict[str, int] = {}
+    by_day: dict[str, int] = {}
+    for e in out:
+        by_type[e["type"]] = by_type.get(e["type"], 0) + 1
+        day = (e["ts"] or "")[:10]
+        if day:
+            by_day[day] = by_day.get(day, 0) + 1
+    type_rows = sorted(
+        ({"type": t, "count": c} for t, c in by_type.items()),
+        key=lambda x: (-x["count"], x["type"]),
+    )
+    busiest = None
+    if by_day:
+        d, c = max(by_day.items(), key=lambda kv: (kv[1], kv[0]))
+        busiest = {"date": d, "count": c}
+    return {"days": days, "total": len(out), "by_type": type_rows, "busiest": busiest}
