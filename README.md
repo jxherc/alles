@@ -89,6 +89,8 @@ every one of these is a real, finished app — not a placeholder. they each live
 - **usage** — a token dashboard: totals, a tokens-by-month chart, and a per-model breakdown, so you can see what you're spending
 - **skills** — write reusable procedures (a name, when-to-use, and the steps in markdown) that the agent discovers and loads on its own; it ranks your skills against each task and reaches for the right one. ships with a few starters (summarize, web research, code review)
 
+<p align="center"><img src="docs/screenshots/aide.png" width="760" alt="aide — model switcher, agent/chat toggle, chat history + tools sidebar"></p>
+
 ### home
 **plain version:** the front page. a launcher you can arrange however you like, with a box to jot something down fast.
 
@@ -109,6 +111,8 @@ every one of these is a real, finished app — not a placeholder. they each live
 - a single reverse-chron timeline merging journal entries, tasks you added and ticked off, calendar events, money transactions, mail you received, photos you added, docs you edited, agent runs, and subscription renewals — grouped by day (today / yesterday / weekday / date)
 - **filter chips** to show/hide any source, and a range toggle (7d / 30d / 90d / 1y); click any row to jump straight to it in its app
 - *under the hood:* it's a **read-time aggregator** ([`routes/timeline.py`](routes/timeline.py)) — it queries each app's own tables on request instead of keeping a separate "events" log, so it's always correct and never needs a backfill. completing a task stamps a `completed_at` so "done" shows the real time, not just the date.
+
+<p align="center"><img src="docs/screenshots/activity.png" width="760" alt="activity — one reverse-chron timeline across every app"></p>
 
 ### docs
 **plain version:** a really good notes app — like obsidian — where your notes are plain text files you own, linked together, with a live, pretty editor.
@@ -138,6 +142,8 @@ this is the most feature-dense app, so here's the full list:
 - **import** `.md` / `.txt` / `.docx` (word) / `.html` / `.pdf`, or paste a **youtube link** → it grabs the transcript and ai-summarizes it into a note
 - **export** to **pdf**, **html**, or **docx** (word)
 
+<p align="center"><img src="docs/screenshots/docs.png" width="760" alt="docs — the doc gallery; obsidian-style linked notes"></p>
+
 ### mail
 **plain version:** a real email client (read + send), with one-click setup for the big providers and ai help built in.
 
@@ -159,6 +165,8 @@ this is the most feature-dense app, so here's the full list:
 - **natural-language quick-add** right in the header — "lunch with sam friday 1pm" makes the timed event; "team sync tomorrow" makes an all-day one; and it now understands repeats too — "standup daily 9am", "yoga every monday 6pm", "class every week until 2026-08-01"
 - optional **two-way sync with caldav** (the open calendar-sync standard used by icloud and google) if you add your credentials
 
+<p align="center"><img src="docs/screenshots/calendar.png" width="760" alt="calendar — month view with events"></p>
+
 ### tasks
 **plain version:** a real to-do list — type tasks in plain english, with recurring ones and smart views.
 
@@ -167,6 +175,8 @@ this is the most feature-dense app, so here's the full list:
 - **Today / Upcoming / Someday** views by due date, plus tags, subtasks, projects, and manual drag-reorder
 - **active / history tabs** — checking a task off doesn't make it vanish; the **history** tab shows everything you've completed, and you can un-check one to send it back
 - tasks created anywhere (quick-capture, "extract to-dos" from a doc, the ai's `task_add` tool) all land here
+
+<p align="center"><img src="docs/screenshots/tasks.png" width="760" alt="tasks — natural-language to-dos with priorities, tags, and subtasks"></p>
 
 ### notes
 **plain version:** lightweight scratch notes (separate from the full docs app) for when you just want to jot something with zero ceremony — also where home's quick-capture "note" lands as a properly-named note.
@@ -196,6 +206,8 @@ this is the most feature-dense app, so here's the full list:
 - monthly **and** yearly totals, plus a **spend-by-category bar chart** (plain CSS, no chart library)
 - a **push notification before anything renews** so you can cancel in time
 
+<p align="center"><img src="docs/screenshots/subs.png" width="760" alt="subs — renewals, a 6-month forecast, and spend by category"></p>
+
 ### money
 **plain version:** a finance tracker — accounts, what you spend, and budgets, with charts.
 
@@ -206,12 +218,16 @@ this is the most feature-dense app, so here's the full list:
 - **charts** — spending-by-category bars and a 6-month income-vs-spent trend (plain SVG, no chart library)
 - this-month cards: net worth · income · spent · net
 
+<p align="center"><img src="docs/screenshots/money.png" width="760" alt="money — accounts, spending by category, budgets, and a 6-month trend"></p>
+
 ### days
 **plain version:** countdowns to things coming up, and day-counts since things that happened.
 
 - birthdays & anniversaries (it knows *which* anniversary — "3 years")
 - handles feb 29 sanely
 - progress bars, pins, and push reminders as the day approaches
+
+<p align="center"><img src="docs/screenshots/days.png" width="760" alt="days — countdowns with progress bars"></p>
 
 ### files
 **plain version:** a file browser over any folder you point it at — browse, upload, preview, organize.
@@ -242,6 +258,8 @@ this is the most feature-dense app, so here's the full list:
 - disk-usage bars per drive, plus a card with your gpu, vram, cpu model, backend, and uptime
 - the gauges go from accent → amber → red as a number heats up, so a pegged core or a full disk is obvious at a glance
 - *under the hood:* `GET /api/system/stats` ([`services/sysmon.py`](services/sysmon.py)) uses [psutil](https://github.com/giampaolo/psutil) for live cpu%/per-core/uptime/disks; without it, it still shows ram + disk from the static hardware readout (`shutil` + the `hwfit` probe), just no live cpu%. all the gauges are hand-drawn svg — no chart library.
+
+<p align="center"><img src="docs/screenshots/system.png" width="760" alt="system — a built-in live system monitor"></p>
 
 ### secrets
 **plain version:** an encrypted vault — and not just for passwords. each item carries the fields that actually fit what it is.
