@@ -548,6 +548,15 @@ class RecurringTxn(Base):
     created_at = Column(DateTime, default=_now)
 
 
+class CategoryRule(Base):
+    # payee substring → category, applied to typed/imported txns with no category
+    __tablename__ = "money_category_rules"
+    id = Column(String, primary_key=True, default=_uid)
+    match = Column(String, nullable=False)  # case-insensitive substring of the payee
+    category = Column(String, default="")
+    created_at = Column(DateTime, default=_now)
+
+
 class DocRevision(Base):
     __tablename__ = "doc_revisions"
     id = Column(String, primary_key=True, default=_uid)
