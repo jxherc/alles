@@ -1,11 +1,76 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session as DbSession
 
-from core.database import get_db, MailAccount
+from core.database import MailAccount, MailDraft, get_db
 from services import mail as mailsvc
 
 router = APIRouter(prefix="/api/mail")
+
+
+def _draft_fmt(d: MailDraft) -> dict:
+    return {
+        "id": d.id,
+        "account_id": d.account_id,
+        "to": d.to,
+        "cc": d.cc,
+        "bcc": d.bcc,
+        "subject": d.subject,
+        "body": d.body,
+        "in_reply_to": d.in_reply_to,
+        "references": d.references,
+        "updated_at": d.updated_at.isoformat() if d.updated_at else "",
+    }
+
+
+class DraftBody(BaseModel):
+    id: str = ""
+    account_id: str = ""
+    to: str = ""
+    cc: str = ""
+    bcc: str = ""
+    subject: str = ""
+    body: str = ""
+    in_reply_to: str = ""
+    references: str = ""
+
+
+@router.post("/drafts")
+def save_draft(body: DraftBody, db: DbSession = Depends(get_db)):
+    d = db.get(MailDraft, body.id) if body.id else None
+    if not d:
+        d = MailDraft()
+        db.add(d)
+    for f in ("account_id", "to", "cc", "bcc", "subject", "body", "in_reply_to", "references"):
+        setattr(d, f, getattr(body, f))
+    db.commit()
+    db.refresh(d)
+    return _draft_fmt(d)
+
+
+@router.get("/drafts")
+def list_drafts(account_id: str = "", db: DbSession = Depends(get_db)):
+    q = db.query(MailDraft)
+    if account_id:
+        q = q.filter(MailDraft.account_id == account_id)
+    return [_draft_fmt(d) for d in q.order_by(MailDraft.updated_at.desc()).all()]
+
+
+@router.get("/drafts/{did}")
+def get_draft(did: str, db: DbSession = Depends(get_db)):
+    d = db.get(MailDraft, did)
+    if not d:
+        raise HTTPException(404, "draft not found")
+    return _draft_fmt(d)
+
+
+@router.delete("/drafts/{did}")
+def delete_draft(did: str, db: DbSession = Depends(get_db)):
+    d = db.get(MailDraft, did)
+    if d:
+        db.delete(d)
+        db.commit()
+    return {"ok": True}
 
 
 def _acct_dict(a: MailAccount) -> dict:
@@ -186,8 +251,9 @@ def attachments(aid: str, uid: str, folder: str = "INBOX", db: DbSession = Depen
 def attachment(
     aid: str, uid: str, index: int, folder: str = "INBOX", db: DbSession = Depends(get_db)
 ):
-    from fastapi.responses import Response
     from urllib.parse import quote
+
+    from fastapi.responses import Response
 
     a = _get(db, aid)
     try:
@@ -311,7 +377,8 @@ async def extract_event(body: ExtractEventBody, db: DbSession = Depends(get_db))
     """AI-extract an event from a mail and drop it straight into the calendar."""
     import json as _json
     from datetime import datetime
-    from core.database import ModelEndpoint, CalendarEvent
+
+    from core.database import CalendarEvent, ModelEndpoint
     from services.llm import simple_complete
 
     ep = db.query(ModelEndpoint).filter(ModelEndpoint.enabled == True).first()
