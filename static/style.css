@@ -2347,6 +2347,17 @@ body.is-incognito .incognito-bar {
 .sub-due { font-size: 0.7rem; color: var(--muted); white-space: nowrap; min-width: 90px; text-align: right; }
 .sub-due.soon { color: var(--accent); }
 .sub-actions { display: flex; gap: 0.3rem; }
+.sub-notdue { font-size: 0.64rem; color: var(--faint); align-self: center; padding: 0 0.3rem; }
+.sub-item { position: relative; }
+.sub-hist-pop {
+  position: absolute; right: 0; top: 100%; z-index: 30; margin-top: 3px;
+  background: var(--panel); border: 1px solid var(--faint); border-radius: 5px;
+  padding: 0.5rem; min-width: 170px; display: flex; flex-direction: column; gap: 0.25rem;
+}
+.sub-hist-head { font-size: 0.62rem; color: var(--faint); text-transform: uppercase; letter-spacing: 0.05em; }
+.sub-hist-row { display: flex; justify-content: space-between; font-size: 0.72rem; color: var(--text); }
+.sub-hist-empty { font-size: 0.72rem; color: var(--muted); }
+.sub-hist-pop .btn { margin-top: 0.3rem; }
 .sub-actions .btn { font-size: 0.64rem; padding: 0.15rem 0.45rem; }
 .sub-item.editing { gap: 0.35rem; }
 .sub-item.editing .settings-input { font-size: 0.72rem; }

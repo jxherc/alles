@@ -142,7 +142,9 @@ function _row(s) {
       <span class="sub-price">${esc(s.currency)}${s.price ? s.price.toFixed(2) : '—'}<span class="sub-cycle">${_cycleLabel(s)}</span></span>
       <span class="sub-due${soon ? ' soon' : ''}" title="${esc(s.next_due)}">${s.active ? esc(s.next_due.slice(5)) + ' · ' : ''}${_dueLabel(s)}</span>
       <span class="sub-actions">
-        ${s.active ? `<button class="btn" data-act="paid" title="paid — advance one cycle">paid</button>` : ''}
+        ${s.payable ? `<button class="btn" data-act="paid" title="mark this renewal paid">paid</button>`
+          : (s.active ? `<span class="sub-notdue" title="next charge ${esc(s.next_due)}">not due</span>` : '')}
+        ${s.paid_count ? `<button class="btn" data-act="history" title="payment history + undo">⤺ ${s.paid_count}</button>` : ''}
         <button class="btn" data-act="toggle">${s.active ? 'pause' : 'resume'}</button>
         <button class="btn" data-act="edit">edit</button>
         <button class="btn danger" data-act="del">×</button>
@@ -194,8 +196,10 @@ function _wireRows(list) {
       if (act === 'paid') {
         const r = await fetch(`/api/subscriptions/${id}/paid`, { method: 'POST' });
         if (r.ok) toast(`next due ${(await r.json()).next_due}`, 'success');
+        else toast((await r.json()).detail || 'not due yet', 'error');
         loadSubs(); return;
       }
+      if (act === 'history') { await _showHistory(id, row, btn); return; }
       if (act === 'toggle') {
         const s = _subs.find(x => x.id === id);
         await fetch(`/api/subscriptions/${id}`, {
@@ -227,6 +231,29 @@ function _wireRows(list) {
       }
     }));
   });
+}
+
+async function _showHistory(id, row, btn) {
+  document.querySelectorAll('.sub-hist-pop').forEach(p => p.remove());
+  let pays = [];
+  try { pays = await fetch(`/api/subscriptions/${id}/payments`).then(r => r.json()); } catch {}
+  const cur = _subs.find(x => x.id === id)?.currency || '$';
+  const pop = document.createElement('div');
+  pop.className = 'sub-hist-pop';
+  pop.innerHTML = `<div class="sub-hist-head">payments</div>`
+    + (pays.length
+      ? pays.map(p => `<div class="sub-hist-row"><span>${esc(p.date)}</span><span>${esc(cur)}${(p.amount || 0).toFixed(2)}</span></div>`).join('')
+        + `<button class="btn" data-act="undo-last">undo last</button>`
+      : '<div class="sub-hist-empty">no payments yet</div>');
+  row.appendChild(pop);
+  pop.querySelector('[data-act="undo-last"]')?.addEventListener('click', async () => {
+    const r = await fetch(`/api/subscriptions/${id}/payments/undo`, { method: 'POST' });
+    toast(r.ok ? 'payment undone' : 'nothing to undo', r.ok ? 'success' : 'error');
+    loadSubs();
+  });
+  setTimeout(() => document.addEventListener('click', function h(e) {
+    if (!pop.contains(e.target) && e.target !== btn) { pop.remove(); document.removeEventListener('click', h); }
+  }), 0);
 }
 
 function esc(s) {

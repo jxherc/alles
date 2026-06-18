@@ -126,6 +126,7 @@ def _fmt(sub: Subscription, today: date) -> dict:
         "cycle_days": sub.cycle_days,
         "next_due": sub.next_due,
         "days_until": (_parse(sub.next_due) - today).days,
+        "payable": sub.active and (_parse(sub.next_due) - today).days <= 0,
         "monthly_cost": round(_monthly_cost(sub), 2),
         "category": sub.category,
         "url": sub.url,
@@ -146,6 +147,15 @@ def list_subscriptions(db: DbSession = Depends(get_db)):
     active = [s for s in subs if s.active]
     monthly = sum(_monthly_cost(s) for s in active)
     items = sorted((_fmt(s, today) for s in subs), key=lambda x: (not x["active"], x["days_until"]))
+    from sqlalchemy import func
+
+    from core.database import SubPayment
+
+    counts = dict(
+        db.query(SubPayment.sub_id, func.count(SubPayment.id)).group_by(SubPayment.sub_id).all()
+    )
+    for it in items:
+        it["paid_count"] = counts.get(it["id"], 0)
     return {
         "subscriptions": items,
         "summary": {
@@ -325,37 +335,94 @@ def update_subscription(sid: str, body: SubPatch, db: DbSession = Depends(get_db
 
 @router.post("/subscriptions/{sid}/paid")
 def mark_paid(sid: str, db: DbSession = Depends(get_db)):
-    """advance one billing cycle (e.g. after paying early or fixing the date).
-    if linked to a money account, post the charge for the date being paid."""
+    """mark a DUE renewal paid: log the payment, optionally post the money txn, and
+    advance to the next upcoming due. refuses if the sub isn't due yet — that's the
+    fix for 'click paid forever and push the date into the future'."""
+    from core.database import SubPayment
+
     sub = db.get(Subscription, sid)
     if not sub:
         raise HTTPException(404)
+    today = date.today()
     paid_for = _parse(sub.next_due)
+    if (paid_for - today).days > 0:
+        raise HTTPException(400, "not due yet")
+
+    txn_id = ""
     if (sub.account_id or "") and (sub.last_posted_due or "") < paid_for.isoformat():
         from core.database import Account, Transaction
 
         if db.get(Account, sub.account_id):
-            db.add(
-                Transaction(
-                    account_id=sub.account_id,
-                    date=paid_for.isoformat(),
-                    amount=-abs(sub.price or 0.0),
-                    category=(sub.category or "subscriptions"),
-                    payee=sub.name,
-                    notes="auto: subscription renewal",
-                )
+            txn = Transaction(
+                account_id=sub.account_id,
+                date=paid_for.isoformat(),
+                amount=-abs(sub.price or 0.0),
+                category=(sub.category or "subscriptions"),
+                payee=sub.name,
+                notes="auto: subscription renewal",
             )
+            db.add(txn)
+            db.flush()
+            txn_id = txn.id
             sub.last_posted_due = paid_for.isoformat()
-    # advance one full cycle; if the sub was overdue (next_due in the past), keep
-    # advancing whole cycles so a single click lands on the next upcoming due —
-    # not still in the past, and never "just +1 month" regardless of cycle.
+
+    db.add(
+        SubPayment(sub_id=sub.id, date=paid_for.isoformat(), amount=sub.price or 0.0, txn_id=txn_id)
+    )
+
+    # advance one full cycle; if overdue, keep advancing whole cycles so one click
+    # lands on the next upcoming due (cycle-correct, never just "+1 month").
     nxt = _advance(paid_for, sub.cycle, sub.cycle_days)
-    today = date.today()
     guard = 0
     while nxt <= today and guard < 600:
         nxt = _advance(nxt, sub.cycle, sub.cycle_days)
         guard += 1
     sub.next_due = nxt.isoformat()
+    db.commit()
+    return _fmt(sub, today)
+
+
+@router.get("/subscriptions/{sid}/payments")
+def list_payments(sid: str, db: DbSession = Depends(get_db)):
+    from core.database import SubPayment
+
+    if not db.get(Subscription, sid):
+        raise HTTPException(404)
+    rows = (
+        db.query(SubPayment)
+        .filter(SubPayment.sub_id == sid)
+        .order_by(SubPayment.created_at.desc())
+        .all()
+    )
+    return [
+        {"id": p.id, "date": p.date, "amount": p.amount, "txn_id": p.txn_id or ""} for p in rows
+    ]
+
+
+@router.post("/subscriptions/{sid}/payments/undo")
+def undo_payment(sid: str, db: DbSession = Depends(get_db)):
+    """undo the most recent payment: drop its money txn (if any) and step next_due
+    back to the date that was paid."""
+    from core.database import SubPayment, Transaction
+
+    sub = db.get(Subscription, sid)
+    if not sub:
+        raise HTTPException(404)
+    last = (
+        db.query(SubPayment)
+        .filter(SubPayment.sub_id == sid)
+        .order_by(SubPayment.created_at.desc())
+        .first()
+    )
+    if not last:
+        raise HTTPException(400, "no payment to undo")
+    if last.txn_id:
+        t = db.get(Transaction, last.txn_id)
+        if t:
+            db.delete(t)
+    sub.next_due = last.date
+    sub.last_posted_due = ""  # let a re-pay re-post the charge
+    db.delete(last)
     db.commit()
     return _fmt(sub, date.today())
 
