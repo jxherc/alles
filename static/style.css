@@ -2198,6 +2198,11 @@ body.is-incognito .incognito-bar {
 .task-title { flex: 1; font-size: 0.82rem; color: var(--text); }
 .task-title.done { color: var(--muted); text-decoration: line-through; }
 .task-high { color: var(--accent); font-size: 0.68rem; letter-spacing: 0.04em; }
+.task-child { margin-left: 1.5rem; border-left: 1px solid var(--faint); padding-left: 0.5rem; }
+.task-progress { font-size: 0.64rem; color: var(--muted); border: 1px solid var(--faint); border-radius: 2px; padding: 0 0.25rem; }
+.task-addsub { font-size: 0.62rem; color: var(--muted); background: none; border: 1px dashed var(--faint); border-radius: 2px; padding: 0 0.3rem; cursor: pointer; opacity: 0; transition: opacity 0.15s, color 0.15s; }
+.task-item:hover .task-addsub { opacity: 1; }
+.task-addsub:hover { color: var(--text); border-color: var(--muted); }
 .task-due { font-size: 0.66rem; color: var(--muted); border: 1px solid var(--faint); border-radius: 3px; padding: 0.05rem 0.35rem; white-space: nowrap; }
 .task-due.today { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 40%, transparent); }
 .task-due.overdue { color: var(--error); border-color: color-mix(in srgb, var(--error) 40%, transparent); }
