@@ -28,7 +28,49 @@ export async function loadFiles(path = _cwd) {
   }
   renderCrumb();
   renderList(data.items || []);
-  if (!_cwd) _injectDocsShortcut();   // at root, surface the docs vault too
+  if (!_cwd) { _injectSmartFolders(); _injectDocsShortcut(); }   // at root, surface smart views + the docs vault
+}
+
+const SMART = [
+  { kind: 'recent', label: 'recent', icon: '🕘' },
+  { kind: 'images', label: 'images', icon: '🖼' },
+  { kind: 'documents', label: 'documents', icon: '📄' },
+  { kind: 'large', label: 'large files', icon: '📦' },
+];
+
+function _injectSmartFolders() {
+  const list = $('files-list');
+  if (!list || list.querySelector('.files-smart-bar')) return;
+  const bar = document.createElement('div');
+  bar.className = 'files-smart-bar';
+  bar.innerHTML = SMART.map(s => `<button class="files-smart" data-kind="${s.kind}">${s.icon} ${s.label}</button>`).join('');
+  bar.querySelectorAll('.files-smart').forEach(btn =>
+    btn.addEventListener('click', () => openSmart(btn.dataset.kind)));
+  list.insertBefore(bar, list.firstChild);
+}
+
+async function openSmart(kind) {
+  let d;
+  try { d = await fetch(`/api/files/smart/${kind}`).then(r => r.json()); }
+  catch { toast('failed to load', 'error'); return; }
+  const label = (SMART.find(s => s.kind === kind) || {}).label || kind;
+  $('files-breadcrumb').innerHTML =
+    `<span class="crumb" id="files-smart-back" data-go="">files</span><span class="crumb-sep">/</span><span style="color:var(--muted)">${esc(label)}</span>`;
+  $('files-smart-back')?.addEventListener('click', () => loadFiles(''));
+  const list = $('files-list');
+  const items = d.items || [];
+  if (!items.length) { list.innerHTML = '<div class="files-empty">nothing here</div>'; return; }
+  list.innerHTML = items.map(it => `
+    <div class="file-row" data-path="${esc(it.path)}" data-img="${it.is_img ? 1 : 0}">
+      <span class="file-icon">${_ic(it.is_img ? 'img' : 'file')}</span>
+      <span class="file-name">${esc(it.path)}</span>
+      <span class="file-meta">${fmtSize(it.size)}</span>
+    </div>`).join('');
+  list.querySelectorAll('.file-row').forEach(row => {
+    const open = () => openPreview(row.dataset.path, row.dataset.img === '1');
+    row.querySelector('.file-name').addEventListener('click', open);
+    row.querySelector('.file-icon').addEventListener('click', open);
+  });
 }
 
 function _countDocs(items) {
