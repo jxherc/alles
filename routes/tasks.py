@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session as DbSession
 
 from core.database import Task, get_db
-from services.task_nl import advance, parse_task
+from services.task_nl import advance, parse_task, reschedule_date
 
 router = APIRouter(prefix="/api")
 
@@ -219,6 +219,25 @@ def update_task(tid: str, body: dict, db: DbSession = Depends(get_db)):
         db.refresh(spawned)
         out["spawned"] = _fmt(spawned)
     return out
+
+
+class RescheduleBody(BaseModel):
+    when: str
+
+
+@router.post("/tasks/{tid}/reschedule")
+def reschedule_task(tid: str, body: RescheduleBody, db: DbSession = Depends(get_db)):
+    """quick reschedule: today | tomorrow | next_week | weekend | <weekday>."""
+    t = db.get(Task, tid)
+    if not t:
+        raise HTTPException(404)
+    try:
+        t.due_date = reschedule_date(body.when)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    db.commit()
+    db.refresh(t)
+    return _fmt(t)
 
 
 class Reorder(BaseModel):
