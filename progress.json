@@ -1,4 +1,10 @@
 [
+  {"id": "docs-1", "app": "docs", "phase": 1, "plan": "docs/plans/docs.md — properties (frontmatter) editor: parse/set/typed + GET/PUT /api/vault-md/properties + editable panel", "status": "pending", "completed": 0, "rounds": 0, "tests": []},
+  {"id": "docs-2", "app": "docs", "phase": 1, "plan": "docs/plans/docs.md — periodic notes (weekly+monthly): periodic_path/open_or_create + POST /api/vault-md/periodic + buttons", "status": "pending", "completed": 0, "rounds": 0, "tests": []},
+  {"id": "docs-3", "app": "docs", "phase": 1, "plan": "docs/plans/docs.md — note query (dataview-lite): query_notes filters/sort + POST /api/vault-md/query + query panel", "status": "pending", "completed": 0, "rounds": 0, "tests": []},
+  {"id": "docs-4", "app": "docs", "phase": 1, "plan": "docs/plans/docs.md — kanban board: parse_board/move/add over markdown columns + endpoints + board view", "status": "pending", "completed": 0, "rounds": 0, "tests": []},
+  {"id": "docs-5", "app": "docs", "phase": 1, "plan": "docs/plans/docs.md — local graph + filters: local_graph(name,depth) + filtered graph() + GET /api/vault-md/local-graph + UI toggle", "status": "pending", "completed": 0, "rounds": 0, "tests": []},
+  {"id": "docs-6", "app": "docs", "phase": 1, "plan": "docs/plans/docs.md — slash / insert menu: slash_commands registry + snippet builder + filter + editor menu", "status": "pending", "completed": 0, "rounds": 0, "tests": []},
   {"id": "p1-gate", "app": "docs", "phase": 1, "plan": "audit docs + build all gap tasks; phase-complete gate", "status": "pending", "completed": 0, "rounds": 0, "tests": []},
   {"id": "p2-gate", "app": "mail", "phase": 2, "plan": "audit mail vs Apple Mail + build all gap tasks; phase-complete gate", "status": "pending", "completed": 0, "rounds": 0, "tests": []},
   {"id": "p3-gate", "app": "calendar", "phase": 3, "plan": "audit calendar vs Google Calendar + build all gap tasks; phase-complete gate", "status": "pending", "completed": 0, "rounds": 0, "tests": []},
