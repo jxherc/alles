@@ -2348,6 +2348,7 @@ body.is-incognito .incognito-bar {
 .sub-due.soon { color: var(--accent); }
 .sub-actions { display: flex; gap: 0.3rem; }
 .sub-notdue { font-size: 0.64rem; color: var(--faint); align-self: center; padding: 0 0.3rem; }
+.sub-hike { font-size: 0.62rem; color: #fb923c; border: 1px solid color-mix(in srgb, #fb923c 45%, transparent); border-radius: 3px; padding: 0 0.3rem; }
 .sub-item { position: relative; }
 .sub-hist-pop {
   position: absolute; right: 0; top: 100%; z-index: 30; margin-top: 3px;
