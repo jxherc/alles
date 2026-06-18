@@ -9,9 +9,44 @@ a groupware server — but enough to match what the UI lets you build.
 
 import calendar as _cal
 import json
-from datetime import datetime, date, timedelta
+from datetime import date, datetime, timedelta
 
 _WD = {"MO": 0, "TU": 1, "WE": 2, "TH": 3, "FR": 4, "SA": 5, "SU": 6}
+
+
+def free_slots(busy, day, minutes, work_start=9, work_end=18):
+    """open windows on `day` (within work hours) that fit `minutes`, avoiding the
+    busy intervals. busy = list of (start_dt, end_dt). returns [{start, end}] ISO."""
+    from datetime import time as _time
+
+    win_s = datetime.combine(day, _time(work_start, 0))
+    win_e = datetime.combine(day, _time(work_end, 0))
+    iv = []
+    for s, e in busy:
+        s, e = max(s, win_s), min(e, win_e)
+        if e > s:
+            iv.append((s, e))
+    iv.sort()
+    merged = []
+    for s, e in iv:
+        if merged and s <= merged[-1][1]:
+            merged[-1] = (merged[-1][0], max(merged[-1][1], e))
+        else:
+            merged.append((s, e))
+    out = []
+    cur = win_s
+    need = minutes * 60
+    for s, e in merged:
+        if (s - cur).total_seconds() >= need:
+            out.append(
+                {"start": cur.isoformat(timespec="minutes"), "end": s.isoformat(timespec="minutes")}
+            )
+        cur = max(cur, e)
+    if (win_e - cur).total_seconds() >= need:
+        out.append(
+            {"start": cur.isoformat(timespec="minutes"), "end": win_e.isoformat(timespec="minutes")}
+        )
+    return out
 
 
 def _parse_dt(s):
