@@ -519,6 +519,7 @@ class Transaction(Base):
     category = Column(String, default="")
     payee = Column(String, default="")
     notes = Column(Text, default="")
+    transfer_id = Column(String, default="")  # links the two legs of an inter-account transfer
     created_at = Column(DateTime, default=_now)
 
 
@@ -607,6 +608,7 @@ def init_db():
             _add_col(conn, "contacts", _c, _t)
         _add_col(conn, "vault_entries", "type", "TEXT DEFAULT 'password'")
         _add_col(conn, "subscriptions", "trial_end", "TEXT DEFAULT ''")
+        _add_col(conn, "money_transactions", "transfer_id", "TEXT DEFAULT ''")
         _add_col(conn, "sessions", "persona_id", "TEXT")
         _add_col(conn, "sessions", "project_id", "TEXT")
         _add_col(conn, "sessions", "working_dir", "TEXT DEFAULT ''")
