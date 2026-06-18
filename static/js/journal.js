@@ -150,11 +150,12 @@ async function loadHeatmap() {
     _heatYear = d.year;
     document.getElementById('jrnl-heat-year').textContent = d.year;
     document.getElementById('jrnl-heat-next').disabled = d.year >= new Date().getFullYear();
-    // GitHub-style grid: columns = weeks (Sun→Sat), starting from the Sunday on/before Jan 1
+    // vertical calendar: each row = a week (Sun→Sat), rows stack top→bottom from the
+    // Sunday on/before Jan 1 → full year fits the narrow sidebar with no horizontal scroll
     const start = new Date(Date.UTC(d.year, 0, 1));
     start.setUTCDate(start.getUTCDate() - start.getUTCDay());
     const end = new Date(Date.UTC(d.year, 11, 31));
-    let cols = '';
+    let rows = '';
     for (let c = new Date(start); c <= end; c.setUTCDate(c.getUTCDate() + 7)) {
       let cells = '';
       for (let r = 0; r < 7; r++) {
@@ -167,9 +168,9 @@ async function loadHeatmap() {
         const title = info ? `${iso} · ${info.words} words ${info.mood || ''}` : iso;
         cells += `<span class="jrnl-hc l${lvl} ${!inYear || future ? 'off' : ''} ${iso === _day ? 'sel' : ''}" data-d="${inYear && !future ? iso : ''}" title="${title}"></span>`;
       }
-      cols += `<div class="jrnl-hcol">${cells}</div>`;
+      rows += `<div class="jrnl-hrow">${cells}</div>`;
     }
-    el.innerHTML = cols;
+    el.innerHTML = rows;
     el.querySelectorAll('.jrnl-hc[data-d]:not([data-d=""])').forEach(c => {
       if (c.dataset.d) c.onclick = () => { _day = c.dataset.d; load(); };
     });
