@@ -10,6 +10,7 @@ let _summary = {};
 let _analytics = null;
 let _upcoming = null;  // renewals due in the next N days + summed cost
 let _forecast = null;  // per-month projected spend (cash-flow)
+let _dupIds = new Set(); // ids flagged as possible duplicates
 let _accounts = [];    // money accounts, for the optional auto-post link
 let _editing = null;   // id of the row currently in edit mode
 
@@ -25,6 +26,10 @@ export async function loadSubs() {
   catch { _upcoming = null; }
   try { _forecast = await fetch('/api/subscriptions/forecast?months=6').then(r => r.json()); }
   catch { _forecast = null; }
+  try {
+    const dd = await fetch('/api/subscriptions/duplicates').then(r => r.json());
+    _dupIds = new Set((dd.groups || []).flatMap(g => g.subs.map(s => s.id)));
+  } catch { _dupIds = new Set(); }
   try { _accounts = (await fetch('/api/money/accounts').then(r => r.json())).filter(a => !a.archived); }
   catch { _accounts = []; }
   _render();
@@ -157,6 +162,7 @@ function _row(s) {
         ${s.notes ? `<span class="sub-notes" title="${esc(s.notes)}">…</span>` : ''}
         ${s.trial_days_left != null && s.trial_days_left >= 0 ? `<span class="sub-trial" title="free trial / cancel by ${esc(s.trial_end)}">trial: ${s.trial_days_left === 0 ? 'ends today' : s.trial_days_left + 'd left'}</span>` : ''}
         ${s.price_increased ? `<span class="sub-hike" title="price went up${s.last_price_change ? ` (${esc(s.currency)}${s.last_price_change.old} → ${esc(s.currency)}${s.last_price_change.new} on ${esc(s.last_price_change.date)})` : ''}">↑ price up</span>` : ''}
+        ${_dupIds.has(s.id) ? `<span class="sub-dup" title="possible duplicate — another tracked subscription matches this name or site">⚠ dup?</span>` : ''}
       </div>
       <span class="sub-price">${esc(s.currency)}${s.price ? s.price.toFixed(2) : '—'}<span class="sub-cycle">${_cycleLabel(s)}</span></span>
       <span class="sub-due${soon ? ' soon' : ''}" title="${esc(s.next_due)}">${s.active ? esc(s.next_due.slice(5)) + ' · ' : ''}${_dueLabel(s)}</span>
