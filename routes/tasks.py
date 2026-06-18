@@ -1,10 +1,12 @@
 from datetime import date
-from fastapi import APIRouter, HTTPException, Depends
-from pydantic import BaseModel
 from typing import Optional
+
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 from sqlalchemy.orm import Session as DbSession
-from core.database import get_db, Task
-from services.task_nl import parse_task, advance
+
+from core.database import Task, get_db
+from services.task_nl import advance, parse_task
 
 router = APIRouter(prefix="/api")
 
@@ -47,6 +49,24 @@ def list_tasks(project: str = "", tag: str = "", db: DbSession = Depends(get_db)
     if tag:
         rows = [t for t in rows if tag in (t.tags or "").split(",")]
     return [_fmt(t) for t in rows]
+
+
+@router.get("/tasks/search")
+def search_tasks(q: str = "", db: DbSession = Depends(get_db)):
+    """search active tasks by title / notes / tags (case-insensitive substring)."""
+    q = (q or "").strip()
+    if not q:
+        return []
+    rows = _ordered(db.query(Task).filter(Task.done == False).all())
+    ql = q.lower()
+    hits = [
+        t
+        for t in rows
+        if ql in (t.title or "").lower()
+        or ql in (t.notes or "").lower()
+        or ql in (t.tags or "").lower()
+    ]
+    return [_fmt(t) for t in hits]
 
 
 @router.get("/tasks/done")

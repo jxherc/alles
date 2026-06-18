@@ -2,6 +2,7 @@ import { toast } from './util.js';
 
 let _tasks = [];
 let _tab = 'active';   // 'active' | 'done' (history)
+let _search = '';
 let _tabsWired = false;
 
 function _wireTabs() {
@@ -11,6 +12,12 @@ function _wireTabs() {
     document.querySelectorAll('.tasks-tab').forEach(x => x.classList.toggle('active', x === b));
     loadTasks();
   }));
+  const si = document.getElementById('tasks-search');
+  let _t = 0;
+  si?.addEventListener('input', () => {
+    clearTimeout(_t);
+    _t = setTimeout(() => { _search = si.value.trim(); loadTasks(); }, 180);
+  });
 }
 
 const _URL = { active: '/api/tasks', done: '/api/tasks/done',
@@ -19,7 +26,8 @@ const _URL = { active: '/api/tasks', done: '/api/tasks/done',
 
 export async function loadTasks() {
   _wireTabs();
-  const r = await fetch(_URL[_tab] || '/api/tasks');
+  const url = _search ? `/api/tasks/search?q=${encodeURIComponent(_search)}` : (_URL[_tab] || '/api/tasks');
+  const r = await fetch(url);
   _tasks = await r.json();
   renderTasks();
 }
