@@ -2,6 +2,7 @@
 web push subscriptions — the browser registers here, the reminder loop (and
 anything else) broadcasts through `broadcast()`.
 """
+
 import logging
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -20,7 +21,7 @@ def vapid_key():
 
 class SubscribeBody(BaseModel):
     endpoint: str
-    keys: dict   # {p256dh, auth}
+    keys: dict  # {p256dh, auth}
 
 
 @router.post("/push/subscribe")
@@ -56,8 +57,9 @@ def status(db: DbSession = Depends(get_db)):
 
 @router.post("/push/test")
 async def test_push():
-    n = await broadcast({"title": "alles", "body": "push notifications are working",
-                         "url": "/", "tag": "push-test"})
+    n = await broadcast(
+        {"title": "alles", "body": "push notifications are working", "url": "/", "tag": "push-test"}
+    )
     if n == 0:
         raise HTTPException(400, "no push subscriptions registered")
     return {"ok": True, "sent": n}
@@ -72,7 +74,8 @@ async def broadcast(payload: dict) -> int:
         sent = 0
         for s in subs:
             alive = await webpush.send_push(
-                {"endpoint": s.endpoint, "p256dh": s.p256dh, "auth": s.auth}, payload)
+                {"endpoint": s.endpoint, "p256dh": s.p256dh, "auth": s.auth}, payload
+            )
             if alive:
                 sent += 1
             else:

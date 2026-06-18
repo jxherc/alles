@@ -10,6 +10,7 @@ report, ids of created records) to ~/alles-test-evidence/live_<ts>/.
 prereq: a server running with auth off, e.g.  AUTH_ENABLED=false PORT=8099 python app.py
 run:  python scripts/live_usage.py [base_url]
 """
+
 import io
 import os
 import sys
@@ -71,9 +72,17 @@ def pick(preferred=("DeepSeek", "deepseek-v4-pro")):
 
 
 def new_session(name, model, endpoint_id, working_dir="", mode="chat"):
-    r = httpx.post(f"{BASE}/api/sessions", json={
-        "name": name, "model": model, "endpoint_id": endpoint_id,
-        "working_dir": working_dir, "mode": mode}, timeout=20)
+    r = httpx.post(
+        f"{BASE}/api/sessions",
+        json={
+            "name": name,
+            "model": model,
+            "endpoint_id": endpoint_id,
+            "working_dir": working_dir,
+            "mode": mode,
+        },
+        timeout=20,
+    )
     return r.json()["id"]
 
 
@@ -112,7 +121,10 @@ def phase_chat(eid, model, name):
     ok = bool(text.strip()) and not err
     say(f"    Q: {q}")
     say(f"    A: {text.strip()[:300] or ('ERROR ' + str(err))}")
-    write("01_chat.md", f"# live chat\n\nendpoint: {name}/{model}\nsession: {sid}\n\n**Q:** {q}\n\n**A:**\n\n{text or err}\n")
+    write(
+        "01_chat.md",
+        f"# live chat\n\nendpoint: {name}/{model}\nsession: {sid}\n\n**Q:** {q}\n\n**A:**\n\n{text or err}\n",
+    )
     return ok, sid
 
 
@@ -121,17 +133,23 @@ def phase_agent(eid, model, name):
     say(f"\n[2] AGENT builds + runs a program via {name}/{model}")
     ws = Path(tempfile.mkdtemp(prefix="alles-agent-"))
     sid = new_session(f"live-test agent ({name})", model, eid, working_dir=str(ws), mode="agent")
-    task = ("Create a Python file called fizzbuzz.py in the current directory that prints FizzBuzz "
-            "for the numbers 1 to 15 (multiples of 3 -> 'Fizz', of 5 -> 'Buzz', of both -> 'FizzBuzz'), "
-            "then run it with python and show me the output.")
+    task = (
+        "Create a Python file called fizzbuzz.py in the current directory that prints FizzBuzz "
+        "for the numbers 1 to 15 (multiples of 3 -> 'Fizz', of 5 -> 'Buzz', of both -> 'FizzBuzz'), "
+        "then run it with python and show me the output."
+    )
     say(f"    task: {task}")
-    text, tools, err = stream_chat(sid, task, mode="agent", permission_mode="full_auto", timeout=240)
+    text, tools, err = stream_chat(
+        sid, task, mode="agent", permission_mode="full_auto", timeout=240
+    )
     # the SSE shapes vary; pull the authoritative tool steps from the run record
     try:
         runs = httpx.get(f"{BASE}/api/agent/runs?limit=10", timeout=20).json()
         run = next((r for r in runs if r.get("session_id") == sid), None)
         if run:
-            tools = [e for e in run.get("events", []) if e.get("type") in ("tool_start", "tool_result")]
+            tools = [
+                e for e in run.get("events", []) if e.get("type") in ("tool_start", "tool_result")
+            ]
     except Exception:
         pass
     # verify the program got built + actually works
@@ -141,18 +159,22 @@ def phase_agent(eid, model, name):
     correct = False
     if built:
         try:
-            run_out = subprocess.run([sys.executable, str(fizz)], capture_output=True, text=True, timeout=15).stdout
+            run_out = subprocess.run(
+                [sys.executable, str(fizz)], capture_output=True, text=True, timeout=15
+            ).stdout
             correct = "FizzBuzz" in run_out and "Fizz\n" in run_out and "Buzz" in run_out
         except Exception as e:
             run_out = f"(run failed: {e})"
     say(f"    file written: {built}   runs correctly: {correct}")
     say(f"    tool steps captured: {len(tools)}")
-    write("02_agent.md",
-          f"# live agent — build & run a program\n\nendpoint: {name}/{model}\nsession: {sid}\nworkspace: {ws}\n\n"
-          f"**task:** {task}\n\n**file written:** {built}\n**runs correctly:** {correct}\n\n"
-          f"**fizzbuzz.py:**\n```python\n{fizz.read_text() if built else '(not created)'}\n```\n\n"
-          f"**program output:**\n```\n{run_out}\n```\n\n**assistant said:**\n\n{text[:1500]}\n\n"
-          f"**tool steps:** {len(tools)}\n```json\n{json.dumps(tools[:8], indent=2)[:2000]}\n```\n")
+    write(
+        "02_agent.md",
+        f"# live agent — build & run a program\n\nendpoint: {name}/{model}\nsession: {sid}\nworkspace: {ws}\n\n"
+        f"**task:** {task}\n\n**file written:** {built}\n**runs correctly:** {correct}\n\n"
+        f"**fizzbuzz.py:**\n```python\n{fizz.read_text() if built else '(not created)'}\n```\n\n"
+        f"**program output:**\n```\n{run_out}\n```\n\n**assistant said:**\n\n{text[:1500]}\n\n"
+        f"**tool steps:** {len(tools)}\n```json\n{json.dumps(tools[:8], indent=2)[:2000]}\n```\n",
+    )
     return (built and correct), sid
 
 
@@ -163,8 +185,12 @@ def phase_research():
     q = "What is the FizzBuzz programming problem and why is it used in interviews?"
     got = ""
     try:
-        with httpx.stream("POST", f"{BASE}/api/research",
-                          json={"query": q, "session_id": rid, "max_rounds": 3}, timeout=240) as r:
+        with httpx.stream(
+            "POST",
+            f"{BASE}/api/research",
+            json={"query": q, "session_id": rid, "max_rounds": 3},
+            timeout=240,
+        ) as r:
             for line in r.iter_lines():
                 if line.startswith("data: ") and line[6:] != "[DONE]":
                     pass  # progress events; we read the final result below
@@ -175,7 +201,10 @@ def phase_research():
     ok = bool(got and len(got) > 80 and "error" not in got[:20].lower())
     say(f"    query: {q}")
     say(f"    report chars: {len(got)}")
-    write("03_research.md", f"# live research\n\nsession: {rid}\n\n**query:** {q}\n\n**report:**\n\n{got[:4000]}\n")
+    write(
+        "03_research.md",
+        f"# live research\n\nsession: {rid}\n\n**query:** {q}\n\n**report:**\n\n{got[:4000]}\n",
+    )
     return ok
 
 
@@ -184,31 +213,51 @@ def phase_app_data():
     say("\n[4] APP DATA (real records you'll see in the UI)")
     made = {}
     try:
-        made["subscription"] = httpx.post(f"{BASE}/api/subscriptions", json={
-            "name": "Spotify", "amount": 11.99, "cycle": "monthly", "next_due": "2026-07-01"}, timeout=15).status_code
+        made["subscription"] = httpx.post(
+            f"{BASE}/api/subscriptions",
+            json={"name": "Spotify", "amount": 11.99, "cycle": "monthly", "next_due": "2026-07-01"},
+            timeout=15,
+        ).status_code
     except Exception as e:
         made["subscription"] = str(e)
     try:
-        made["day_counter"] = httpx.post(f"{BASE}/api/days", json={
-            "name": "alles shipped", "date": "2026-06-15"}, timeout=15).status_code
+        made["day_counter"] = httpx.post(
+            f"{BASE}/api/days", json={"name": "alles shipped", "date": "2026-06-15"}, timeout=15
+        ).status_code
     except Exception as e:
         made["day_counter"] = str(e)
     try:
-        made["task"] = httpx.post(f"{BASE}/api/tasks/quick", json={"text": "review alles build tomorrow !"}, timeout=15).json()
+        made["task"] = httpx.post(
+            f"{BASE}/api/tasks/quick", json={"text": "review alles build tomorrow !"}, timeout=15
+        ).json()
     except Exception as e:
         made["task"] = str(e)
     try:
-        made["calendar"] = httpx.post(f"{BASE}/api/calendar/quick", json={"text": "demo alles friday 2pm"}, timeout=15).json()
+        made["calendar"] = httpx.post(
+            f"{BASE}/api/calendar/quick", json={"text": "demo alles friday 2pm"}, timeout=15
+        ).json()
     except Exception as e:
         made["calendar"] = str(e)
     try:
-        made["memory"] = httpx.post(f"{BASE}/api/memories", json={"text": "I shipped alles with a full autonomous build pass"}, timeout=15).json()
+        made["memory"] = httpx.post(
+            f"{BASE}/api/memories",
+            json={"text": "I shipped alles with a full autonomous build pass"},
+            timeout=15,
+        ).json()
     except Exception as e:
         made["memory"] = str(e)
     say("    " + json.dumps({k: (v if isinstance(v, int) else "created") for k, v in made.items()}))
-    write("04_app_data.md", "# live app data\n\n" + "```json\n" + json.dumps(made, indent=2, default=str)[:3000] + "\n```\n")
-    return all(not isinstance(v, str) or v.isdigit() for v in
-               [made.get("subscription"), made.get("day_counter")])
+    write(
+        "04_app_data.md",
+        "# live app data\n\n"
+        + "```json\n"
+        + json.dumps(made, indent=2, default=str)[:3000]
+        + "\n```\n",
+    )
+    return all(
+        not isinstance(v, str) or v.isdigit()
+        for v in [made.get("subscription"), made.get("day_counter")]
+    )
 
 
 def phase_more_apps():
@@ -216,44 +265,97 @@ def phase_more_apps():
     made = {}
     today = datetime.now().strftime("%Y-%m-%d")
     try:
-        made["note"] = httpx.post(f"{BASE}/api/vault-md/file",
-                                  json={"path": "live-test-note", "content": "# live test\n\nthis note was created by the live usage test."}, timeout=15).status_code
+        made["note"] = httpx.post(
+            f"{BASE}/api/vault-md/file",
+            json={
+                "path": "live-test-note",
+                "content": "# live test\n\nthis note was created by the live usage test.",
+            },
+            timeout=15,
+        ).status_code
     except Exception as e:
         made["note"] = str(e)
     try:
-        made["journal"] = httpx.put(f"{BASE}/api/journal/{today}",
-                                    json={"content": "shipped a full autonomous build + live test pass today.", "mood": "🚀", "tags": "build"}, timeout=15).status_code
+        made["journal"] = httpx.put(
+            f"{BASE}/api/journal/{today}",
+            json={
+                "content": "shipped a full autonomous build + live test pass today.",
+                "mood": "🚀",
+                "tags": "build",
+            },
+            timeout=15,
+        ).status_code
     except Exception as e:
         made["journal"] = str(e)
     try:
-        made["contact"] = httpx.post(f"{BASE}/api/contacts",
-                                     json={"name": "Odysseus Ref", "email": "ody@example.com", "notes": "voice clone source (future)"}, timeout=15).json().get("id", "?")
+        made["contact"] = (
+            httpx.post(
+                f"{BASE}/api/contacts",
+                json={
+                    "name": "Odysseus Ref",
+                    "email": "ody@example.com",
+                    "notes": "voice clone source (future)",
+                },
+                timeout=15,
+            )
+            .json()
+            .get("id", "?")
+        )
     except Exception as e:
         made["contact"] = str(e)
     try:
-        acct = httpx.post(f"{BASE}/api/money/accounts", json={"name": "Live Test Checking", "opening": 500.0}, timeout=15).json()
-        httpx.post(f"{BASE}/api/money/transactions",
-                   json={"account_id": acct["id"], "date": today, "amount": -42.0, "category": "tools", "payee": "github"}, timeout=15)
+        acct = httpx.post(
+            f"{BASE}/api/money/accounts",
+            json={"name": "Live Test Checking", "opening": 500.0},
+            timeout=15,
+        ).json()
+        httpx.post(
+            f"{BASE}/api/money/transactions",
+            json={
+                "account_id": acct["id"],
+                "date": today,
+                "amount": -42.0,
+                "category": "tools",
+                "payee": "github",
+            },
+            timeout=15,
+        )
         bal = httpx.get(f"{BASE}/api/money/accounts", timeout=15).json()
-        made["money"] = f"account+txn ok, balance {next((a['balance'] for a in bal if a['id']==acct['id']), '?')}"
+        made["money"] = (
+            f"account+txn ok, balance {next((a['balance'] for a in bal if a['id'] == acct['id']), '?')}"
+        )
     except Exception as e:
         made["money"] = str(e)
     say("    " + json.dumps(made, default=str)[:300])
-    write("05_more_apps.md", "# live: notes / journal / contacts / money\n\n```json\n" + json.dumps(made, indent=2, default=str) + "\n```\n")
+    write(
+        "05_more_apps.md",
+        "# live: notes / journal / contacts / money\n\n```json\n"
+        + json.dumps(made, indent=2, default=str)
+        + "\n```\n",
+    )
     return all(not (isinstance(v, str) and ("Error" in v or "error" in v)) for v in made.values())
 
 
 def phase_compare():
     say("\n[7] COMPARE — one prompt against two real models, side by side")
     eps = {e["name"]: e["id"] for e in endpoints()}
-    pairs = [(eps.get("DeepSeek"), "deepseek-v4-flash"), (eps.get("Moonshot"), "kimi-k2.5"),
-             (eps.get("Anthropic"), "claude-opus-4-8")]
+    pairs = [
+        (eps.get("DeepSeek"), "deepseek-v4-flash"),
+        (eps.get("Moonshot"), "kimi-k2.5"),
+        (eps.get("Anthropic"), "claude-opus-4-8"),
+    ]
     pairs = [(eid, m) for eid, m in pairs if eid][:2]
     if len(pairs) < 2:
-        say("    need 2 endpoints — skipping"); return True
-    r = httpx.post(f"{BASE}/api/compare", json={
-        "message": "Say hi in exactly 3 words.",
-        "models": [{"endpoint_id": e, "model": m} for e, m in pairs]}, timeout=20).json()
+        say("    need 2 endpoints — skipping")
+        return True
+    r = httpx.post(
+        f"{BASE}/api/compare",
+        json={
+            "message": "Say hi in exactly 3 words.",
+            "models": [{"endpoint_id": e, "model": m} for e, m in pairs],
+        },
+        timeout=20,
+    ).json()
     cid, n = r["compare_id"], r["count"]
     replies = []
     for idx in range(n):
@@ -271,7 +373,12 @@ def phase_compare():
     ok = all(replies)
     for i, rp in enumerate(replies):
         say(f"    model[{i}]: {rp[:80]}")
-    write("07_compare.md", "# live compare\n\n" + "\n".join(f"**model {i}:** {rp}" for i, rp in enumerate(replies)) + "\n")
+    write(
+        "07_compare.md",
+        "# live compare\n\n"
+        + "\n".join(f"**model {i}:** {rp}" for i, rp in enumerate(replies))
+        + "\n",
+    )
     return ok
 
 
@@ -285,15 +392,21 @@ def phase_chat_action(eid, model, name):
         runs = httpx.get(f"{BASE}/api/agent/runs?limit=10", timeout=20).json()
         run = next((r for r in runs if r.get("session_id") == sid), None)
         if run:
-            called = [e.get("data", {}).get("name") for e in run.get("events", []) if e.get("type") == "tool_start"]
+            called = [
+                e.get("data", {}).get("name")
+                for e in run.get("events", [])
+                if e.get("type") == "tool_start"
+            ]
     except Exception:
         pass
-    used_cal = any("calendar" in (c or "") for c in called)   # must actually CALL a calendar tool
+    used_cal = any("calendar" in (c or "") for c in called)  # must actually CALL a calendar tool
     say(f"    reply: {text.strip()[:200]}")
     say(f"    tools the agent called: {called}")
-    write("06_chat_action.md",
-          f"# chat does app things (auto-intent promotion)\n\nmsg: {msg}\nsession: {sid}\n\n"
-          f"**tools called:** {called}\n\n**reply:**\n\n{text}\n")
+    write(
+        "06_chat_action.md",
+        f"# chat does app things (auto-intent promotion)\n\nmsg: {msg}\nsession: {sid}\n\n"
+        f"**tools called:** {called}\n\n**reply:**\n\n{text}\n",
+    )
     return used_cal
 
 
@@ -301,7 +414,8 @@ def main():
     say(f"live usage run -> {OUT}\nbase: {BASE}")
     eid, model, name = pick()
     if not eid:
-        say("no usable endpoint — aborting"); return 1
+        say("no usable endpoint — aborting")
+        return 1
     results = {}
     c_ok, _ = phase_chat(eid, model, name)
     results["chat"] = c_ok
@@ -313,15 +427,25 @@ def main():
     results["chat_app_action"] = phase_chat_action(eid, model, name)
     results["compare"] = phase_compare()
 
-    lines = ["# alles LIVE usage run", f"_{datetime.now().isoformat()}_", "",
-             f"endpoint used: **{name} / {model}**", "", "| flow | result |", "|---|---|"]
+    lines = [
+        "# alles LIVE usage run",
+        f"_{datetime.now().isoformat()}_",
+        "",
+        f"endpoint used: **{name} / {model}**",
+        "",
+        "| flow | result |",
+        "|---|---|",
+    ]
     for k, v in results.items():
         lines.append(f"| {k} | {'✅ worked' if v else '❌ failed'} |")
-    lines += ["", "see the per-phase files for the actual prompts, replies, the generated",
-              "program + its output, and the research report. the chat/agent sessions and",
-              "the sub/day/task/calendar/memory are now in the app — open it to see them."]
+    lines += [
+        "",
+        "see the per-phase files for the actual prompts, replies, the generated",
+        "program + its output, and the research report. the chat/agent sessions and",
+        "the sub/day/task/calendar/memory are now in the app — open it to see them.",
+    ]
     write("SUMMARY.md", "\n".join(lines) + "\n" + "\n".join(_log))
-    say(f"\n{sum(results.values())}/{len(results)} live flows worked -> {OUT/'SUMMARY.md'}")
+    say(f"\n{sum(results.values())}/{len(results)} live flows worked -> {OUT / 'SUMMARY.md'}")
     return 0
 
 

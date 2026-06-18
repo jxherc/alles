@@ -4,6 +4,7 @@ Outlook, anything. stdlib only, generates + parses VEVENTs. not a full RFC 5545
 implementation, just the fields the app actually uses (summary/start/end/all-day/
 description), which is what real calendars round-trip.
 """
+
 import re
 from datetime import date, datetime, timedelta
 
@@ -14,13 +15,17 @@ def _add_days(iso: str, days: int) -> str:
 
 
 def _esc(s: str) -> str:
-    return (str(s or "").replace("\\", "\\\\").replace(";", "\\;")
-            .replace(",", "\\,").replace("\n", "\\n"))
+    return (
+        str(s or "")
+        .replace("\\", "\\\\")
+        .replace(";", "\\;")
+        .replace(",", "\\,")
+        .replace("\n", "\\n")
+    )
 
 
 def _unesc(s: str) -> str:
-    return (s.replace("\\n", "\n").replace("\\,", ",")
-            .replace("\\;", ";").replace("\\\\", "\\"))
+    return s.replace("\\n", "\n").replace("\\,", ",").replace("\\;", ";").replace("\\\\", "\\")
 
 
 def _fmt_dt(iso: str, all_day: bool) -> str:
@@ -30,7 +35,7 @@ def _fmt_dt(iso: str, all_day: bool) -> str:
         d = iso[:10].replace("-", "")
         return d  # caller adds ;VALUE=DATE
     s = iso.replace("-", "").replace(":", "")
-    s = s.split(".")[0]                 # drop fractional seconds
+    s = s.split(".")[0]  # drop fractional seconds
     if "T" not in s and len(s) >= 8:
         s = s[:8] + "T" + s[8:]
     s = (s + "000000")[:15] if "T" in s else s
@@ -38,23 +43,28 @@ def _fmt_dt(iso: str, all_day: bool) -> str:
 
 
 def to_ics(events: list[dict]) -> str:
-    lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//alles//calendar//EN", "CALSCALE:GREGORIAN"]
+    lines = [
+        "BEGIN:VCALENDAR",
+        "VERSION:2.0",
+        "PRODID:-//alles//calendar//EN",
+        "CALSCALE:GREGORIAN",
+    ]
     for e in events:
         all_day = bool(e.get("all_day"))
         lines.append("BEGIN:VEVENT")
-        lines.append(f"UID:{e.get('id') or _fmt_dt(e.get('start_dt',''), all_day)}@alles")
+        lines.append(f"UID:{e.get('id') or _fmt_dt(e.get('start_dt', ''), all_day)}@alles")
         lines.append(f"SUMMARY:{_esc(e.get('title', ''))}")
         if all_day:
-            lines.append(f"DTSTART;VALUE=DATE:{_fmt_dt(e.get('start_dt',''), True)}")
+            lines.append(f"DTSTART;VALUE=DATE:{_fmt_dt(e.get('start_dt', ''), True)}")
             if e.get("end_dt"):
                 # all-day DTEND is exclusive in RFC 5545 (an event on the 1st ends
                 # the 2nd). we store the inclusive last day, so emit end + 1 day —
                 # otherwise the final day is dropped in Apple/Google/Outlook.
                 lines.append(f"DTEND;VALUE=DATE:{_fmt_dt(_add_days(e['end_dt'], 1), True)}")
         else:
-            lines.append(f"DTSTART:{_fmt_dt(e.get('start_dt',''), False)}")
+            lines.append(f"DTSTART:{_fmt_dt(e.get('start_dt', ''), False)}")
             if e.get("end_dt"):
-                lines.append(f"DTEND:{_fmt_dt(e.get('end_dt',''), False)}")
+                lines.append(f"DTEND:{_fmt_dt(e.get('end_dt', ''), False)}")
         if e.get("description"):
             lines.append(f"DESCRIPTION:{_esc(e['description'])}")
         lines.append("END:VEVENT")
@@ -65,12 +75,12 @@ def to_ics(events: list[dict]) -> str:
 def _parse_dt(val: str) -> tuple[str, bool]:
     """ICS date/datetime -> (ISO string, all_day)."""
     val = val.strip()
-    if "T" in val:                      # 20260619T140000
+    if "T" in val:  # 20260619T140000
         m = re.match(r"(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})?", val)
         if m:
             y, mo, d, h, mi, s = m.groups()
             return f"{y}-{mo}-{d}T{h}:{mi}:{s or '00'}", False
-    m = re.match(r"(\d{4})(\d{2})(\d{2})", val)   # 20260619
+    m = re.match(r"(\d{4})(\d{2})(\d{2})", val)  # 20260619
     if m:
         y, mo, d = m.groups()
         return f"{y}-{mo}-{d}", True

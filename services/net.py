@@ -5,6 +5,7 @@ httpx-based calls (LLM, research, notifications, web push) route through a proxy
 picks up HTTP(S)_PROXY from the environment automatically, so applying the
 setting to the env is all it takes.
 """
+
 import os
 
 
@@ -14,6 +15,7 @@ def apply_proxy() -> str:
     the user set themselves via the real env before launch."""
     try:
         from core.settings import load_settings
+
         proxy = (load_settings().get("outbound_proxy") or "").strip()
     except Exception:
         proxy = ""

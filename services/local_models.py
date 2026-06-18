@@ -129,10 +129,10 @@ def _total_ram_gb() -> int:
             stat = MemoryStatusEx()
             stat.dwLength = ctypes.sizeof(MemoryStatusEx)
             ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(stat))
-            return round(stat.ullTotalPhys / (1024 ** 3))
+            return round(stat.ullTotalPhys / (1024**3))
         pages = os.sysconf("SC_PHYS_PAGES")
         page_size = os.sysconf("SC_PAGE_SIZE")
-        return round(pages * page_size / (1024 ** 3))
+        return round(pages * page_size / (1024**3))
     except Exception:
         return 0
 
@@ -141,11 +141,13 @@ def _gpus() -> list[dict]:
     if not shutil.which("nvidia-smi"):
         return []
     try:
-        r = _run([
-            "nvidia-smi",
-            "--query-gpu=name,memory.total",
-            "--format=csv,noheader,nounits",
-        ])
+        r = _run(
+            [
+                "nvidia-smi",
+                "--query-gpu=name,memory.total",
+                "--format=csv,noheader,nounits",
+            ]
+        )
         if r.returncode != 0:
             return []
         out = []
@@ -232,12 +234,14 @@ def _fit(preset: dict, hw: dict, installed: set[str]) -> dict:
         reason = f"Likely too large: needs about {preset['vram_gb']} GB VRAM or {preset['ram_gb']} GB RAM."
         score = 0 - preset["ram_gb"]
     out = dict(preset)
-    out.update({
-        "fit": status,
-        "fit_reason": reason,
-        "installed": preset["model"] in installed,
-        "score": score + (10 if preset["model"] in installed else 0),
-    })
+    out.update(
+        {
+            "fit": status,
+            "fit_reason": reason,
+            "installed": preset["model"] in installed,
+            "score": score + (10 if preset["model"] in installed else 0),
+        }
+    )
     return out
 
 
@@ -266,6 +270,7 @@ def detect_system_info(refresh: bool = False) -> dict:
     now = time.time()
     if refresh or _sys_cache is None or now - _sys_cache_at > _SYS_TTL:
         from services.hwfit import hardware
+
         _sys_cache = hardware.detect_system()
         _sys_cache_at = now
     return _sys_cache
@@ -275,18 +280,35 @@ def _short_name(name: str) -> str:
     return (name or "").split("/")[-1].lower()
 
 
-async def model_catalog(use_case=None, search=None, sort="score", quant=None,
-                        target_context=None, fit_only=False, limit=60) -> dict:
+async def model_catalog(
+    use_case=None,
+    search=None,
+    sort="score",
+    quant=None,
+    target_context=None,
+    fit_only=False,
+    limit=60,
+) -> dict:
     from services.hwfit import fit
+
     sysinfo = detect_system_info()
-    rows = fit.rank_models(sysinfo, use_case=use_case, limit=limit, search=search,
-                           sort=sort, quant=quant, target_context=target_context,
-                           fit_only=fit_only)
+    rows = fit.rank_models(
+        sysinfo,
+        use_case=use_case,
+        limit=limit,
+        search=search,
+        sort=sort,
+        quant=quant,
+        target_context=target_context,
+        fit_only=fit_only,
+    )
     # flag rows we've already pulled in ollama (best-effort name match)
     installed = set(await installed_models())
     inst_short = {_short_name(m) for m in installed}
     for r in rows:
-        r["installed"] = _short_name(r.get("name", "")) in inst_short or r.get("name", "").lower() in installed
+        r["installed"] = (
+            _short_name(r.get("name", "")) in inst_short or r.get("name", "").lower() in installed
+        )
     return {"system": sysinfo, "models": rows, "count": len(rows)}
 
 
@@ -350,7 +372,7 @@ def _prune_jobs_locked():
         for jid, job in _jobs.items()
         if job.get("status") in ("done", "error")
     ]
-    for jid, _ in sorted(finished, key=lambda item: item[1])[:len(_jobs) - _MAX_JOBS]:
+    for jid, _ in sorted(finished, key=lambda item: item[1])[: len(_jobs) - _MAX_JOBS]:
         _jobs.pop(jid, None)
 
 
@@ -380,7 +402,13 @@ def _download_worker(job_id: str, model: str):
         if rc == 0:
             _set_job(job_id, status="done", output="".join(chunks), finished_at=time.time())
         else:
-            _set_job(job_id, status="error", output="".join(chunks), error=f"ollama pull exited {rc}", finished_at=time.time())
+            _set_job(
+                job_id,
+                status="error",
+                output="".join(chunks),
+                error=f"ollama pull exited {rc}",
+                finished_at=time.time(),
+            )
     except Exception as e:
         _set_job(job_id, status="error", error=str(e), finished_at=time.time())
 
@@ -391,7 +419,14 @@ def download_model(model: str) -> dict:
     if active:
         return active
     job_id = str(uuid.uuid4())
-    _set_job(job_id, id=job_id, type="download_model", model=model, status="queued", created_at=time.time())
+    _set_job(
+        job_id,
+        id=job_id,
+        type="download_model",
+        model=model,
+        status="queued",
+        created_at=time.time(),
+    )
     t = threading.Thread(target=_download_worker, args=(job_id, model), daemon=True)
     t.start()
     return get_job(job_id)
@@ -419,13 +454,21 @@ def get_job(job_id: str) -> dict | None:
 
 def list_jobs() -> list[dict]:
     with _jobs_lock:
-        return sorted((dict(job) for job in _jobs.values()), key=lambda j: j.get("created_at", 0), reverse=True)
+        return sorted(
+            (dict(job) for job in _jobs.values()),
+            key=lambda j: j.get("created_at", 0),
+            reverse=True,
+        )
 
 
 def find_active_download(model: str) -> dict | None:
     with _jobs_lock:
         for job in _jobs.values():
-            if job.get("type") == "download_model" and job.get("model") == model and job.get("status") in ("queued", "running"):
+            if (
+                job.get("type") == "download_model"
+                and job.get("model") == model
+                and job.get("status") in ("queued", "running")
+            ):
                 return dict(job)
     return None
 

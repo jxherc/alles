@@ -57,9 +57,15 @@ def system_info():
 
 
 @router.get("/catalog")
-async def catalog(use_case: str | None = None, search: str | None = None,
-                  sort: str = "score", quant: str | None = None, context: int = 0,
-                  fit_only: bool = False, limit: int = 60):
+async def catalog(
+    use_case: str | None = None,
+    search: str | None = None,
+    sort: str = "score",
+    quant: str | None = None,
+    context: int = 0,
+    fit_only: bool = False,
+    limit: int = 60,
+):
     """900+ model catalog ranked against detected hardware (quant/MoE/bandwidth aware)."""
     return await model_catalog(use_case, search, sort, quant, context or None, fit_only, limit)
 

@@ -8,6 +8,7 @@ config lives in settings (set in the app, no file editing):
   notify_telegram_chat_id  - the chat id to message
 all optional; if nothing's set, send() is a no-op.
 """
+
 import logging
 import httpx
 
@@ -16,6 +17,7 @@ log = logging.getLogger("aide.notify")
 
 def _targets() -> dict:
     from core.settings import load_settings
+
     s = load_settings()
     return {
         "discord": s.get("notify_discord_webhook", "").strip(),
@@ -48,7 +50,8 @@ async def send(text: str) -> dict:
             try:
                 r = await c.post(
                     f"https://api.telegram.org/bot{t['tg_token']}/sendMessage",
-                    json={"chat_id": t["tg_chat"], "text": text[:4000]})
+                    json={"chat_id": t["tg_chat"], "text": text[:4000]},
+                )
                 out["telegram"] = r.status_code < 300
             except Exception as e:
                 log.warning(f"telegram notify failed: {e}")

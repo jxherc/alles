@@ -22,8 +22,8 @@ def _fmt(r: Reminder) -> dict:
 
 class ReminderCreate(BaseModel):
     text: str
-    trigger_at: str           # ISO datetime string
-    type: str = "reminder"    # reminder | message
+    trigger_at: str  # ISO datetime string
+    type: str = "reminder"  # reminder | message
     session_id: str | None = None
 
 
@@ -40,7 +40,9 @@ def create_reminder(body: ReminderCreate, db: DbSession = Depends(get_db)):
     except ValueError:
         raise HTTPException(400, "invalid trigger_at — use ISO format")
     r = Reminder(text=body.text, trigger_at=trigger_at, type=body.type, session_id=body.session_id)
-    db.add(r); db.commit(); db.refresh(r)
+    db.add(r)
+    db.commit()
+    db.refresh(r)
     return _fmt(r)
 
 
@@ -49,7 +51,8 @@ def delete_reminder(rid: str, db: DbSession = Depends(get_db)):
     r = db.get(Reminder, rid)
     if not r:
         raise HTTPException(404, "not found")
-    db.delete(r); db.commit()
+    db.delete(r)
+    db.commit()
     return {"ok": True}
 
 
@@ -57,11 +60,15 @@ def delete_reminder(rid: str, db: DbSession = Depends(get_db)):
 def due_reminders(db: DbSession = Depends(get_db)):
     """return reminders that are due and not yet fired; marks them fired"""
     now = datetime.utcnow()
-    due = db.query(Reminder).filter(
-        Reminder.trigger_at <= now,
-        Reminder.fired == False,
-        Reminder.type == "reminder",
-    ).all()
+    due = (
+        db.query(Reminder)
+        .filter(
+            Reminder.trigger_at <= now,
+            Reminder.fired == False,
+            Reminder.type == "reminder",
+        )
+        .all()
+    )
     for r in due:
         r.fired = True
     db.commit()

@@ -1,0 +1,24 @@
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+exclude = [
+    ".git",
+    "__pycache__",
+    "data",
+    ".cmbuild",
+    "static/vendor",
+    "build",
+    "dist",
+]
+
+[tool.ruff.lint]
+# keep it sane: pyflakes + a useful slice of pycodestyle + import sorting.
+# line length is left to the formatter, so E501 is off.
+select = ["E", "F", "W", "I"]
+# E501: formatter handles line length. E741: ambiguous names ok.
+# E712: SQLAlchemy filters need `== True`/`== False` to build the SQL clause — not a bug here.
+ignore = ["E501", "E741", "E712"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"

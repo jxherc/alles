@@ -2,6 +2,7 @@
 memory storage + semantic search.
 tries fastembed for vector search, falls back to jaccard if unavailable.
 """
+
 import re, math, logging
 from typing import Optional
 from core.database import SessionLocal, Memory
@@ -13,12 +14,14 @@ log = logging.getLogger("aide.memory")
 _embed_model = None
 _embed_ready = False
 
+
 def _get_embedder():
     global _embed_model, _embed_ready
     if _embed_ready:
         return _embed_model
     try:
         from fastembed import TextEmbedding
+
         _embed_model = TextEmbedding("BAAI/bge-small-en-v1.5")
         _embed_ready = True
         log.info("fastembed loaded — vector memory search active")
@@ -40,9 +43,9 @@ def _embed(texts: list[str]) -> list[list[float]] | None:
 
 
 def _cosine(a: list[float], b: list[float]) -> float:
-    dot = sum(x*y for x,y in zip(a,b))
-    na  = math.sqrt(sum(x*x for x in a))
-    nb  = math.sqrt(sum(x*x for x in b))
+    dot = sum(x * y for x, y in zip(a, b))
+    na = math.sqrt(sum(x * x for x in a))
+    nb = math.sqrt(sum(x * x for x in b))
     if na == 0 or nb == 0:
         return 0.0
     return dot / (na * nb)
@@ -50,8 +53,10 @@ def _cosine(a: list[float], b: list[float]) -> float:
 
 # ── keyword fallback ──────────────────────────────────────────────────────────
 
+
 def _tokenize(text: str) -> set[str]:
-    return set(re.findall(r'\w+', text.lower()))
+    return set(re.findall(r"\w+", text.lower()))
+
 
 def _jaccard(a: str, b: str) -> float:
     ta, tb = _tokenize(a), _tokenize(b)
@@ -63,11 +68,12 @@ def _jaccard(a: str, b: str) -> float:
 # ── category boosting ─────────────────────────────────────────────────────────
 
 _CATEGORY_PATTERNS = {
-    "identity": r'\b(i am|my name|i\'m|i work|i live|i study|i go to)\b',
-    "preference": r'\b(i like|i love|i prefer|i hate|i dislike|i enjoy|i use|my favorite)\b',
-    "task": r'\b(remind|todo|task|need to|should|want to|going to|will)\b',
-    "contact": r'\b(email|phone|address|contact|reach|number)\b',
+    "identity": r"\b(i am|my name|i\'m|i work|i live|i study|i go to)\b",
+    "preference": r"\b(i like|i love|i prefer|i hate|i dislike|i enjoy|i use|my favorite)\b",
+    "task": r"\b(remind|todo|task|need to|should|want to|going to|will)\b",
+    "contact": r"\b(email|phone|address|contact|reach|number)\b",
 }
+
 
 def _detect_category(text: str) -> str:
     tl = text.lower()
@@ -76,24 +82,36 @@ def _detect_category(text: str) -> str:
             return cat
     return "general"
 
+
 _QUERY_BOOST = {
     # query category → memory categories that get boosted
-    "identity":   {"identity": 0.4},
-    "contact":    {"contact": 0.4, "identity": 0.2},
+    "identity": {"identity": 0.4},
+    "contact": {"contact": 0.4, "identity": 0.2},
     "preference": {"preference": 0.3},
-    "task":       {"task": 0.3},
+    "task": {"task": 0.3},
 }
 
 
 # ── public api ────────────────────────────────────────────────────────────────
 
-def add_memory(text: str, category: str = "", source: str = "manual",
-               session_id: str = "", pinned: bool = False) -> dict:
+
+def add_memory(
+    text: str,
+    category: str = "",
+    source: str = "manual",
+    session_id: str = "",
+    pinned: bool = False,
+) -> dict:
     db = SessionLocal()
     try:
         cat = category or _detect_category(text)
-        m = Memory(text=text.strip(), category=cat, source=source,
-                   session_id=session_id or None, pinned=pinned)
+        m = Memory(
+            text=text.strip(),
+            category=cat,
+            source=source,
+            session_id=session_id or None,
+            pinned=pinned,
+        )
         db.add(m)
         db.commit()
         db.refresh(m)
@@ -124,16 +142,20 @@ def delete_memory(mid: str) -> bool:
         db.close()
 
 
-def update_memory(mid: str, text: str = "", pinned: Optional[bool] = None,
-                  category: str = "") -> dict | None:
+def update_memory(
+    mid: str, text: str = "", pinned: Optional[bool] = None, category: str = ""
+) -> dict | None:
     db = SessionLocal()
     try:
         m = db.get(Memory, mid)
         if not m:
             return None
-        if text:       m.text = text.strip()
-        if category:   m.category = category
-        if pinned is not None: m.pinned = pinned
+        if text:
+            m.text = text.strip()
+        if category:
+            m.category = category
+        if pinned is not None:
+            m.pinned = pinned
         db.commit()
         db.refresh(m)
         return _fmt(m)
@@ -150,7 +172,7 @@ def search_memories(query: str, top_k: int = 6) -> list[dict]:
 
         # pinned always go in first
         pinned = [m for m in all_mems if m.pinned]
-        rest   = [m for m in all_mems if not m.pinned]
+        rest = [m for m in all_mems if not m.pinned]
 
         q_cat = _detect_category(query)
         boosts = _QUERY_BOOST.get(q_cat, {})
@@ -160,7 +182,7 @@ def search_memories(query: str, top_k: int = 6) -> list[dict]:
             q_vec = vecs[0]
             scored = []
             for i, m in enumerate(rest):
-                sim = _cosine(q_vec, vecs[i+1])
+                sim = _cosine(q_vec, vecs[i + 1])
                 sim += boosts.get(m.category, 0.0)
                 scored.append((sim, m))
         else:
@@ -172,7 +194,7 @@ def search_memories(query: str, top_k: int = 6) -> list[dict]:
                 scored.append((sim, m))
 
         scored.sort(key=lambda x: x[0], reverse=True)
-        top = [m for _, m in scored[:top_k - len(pinned)]]
+        top = [m for _, m in scored[: top_k - len(pinned)]]
 
         return [_fmt(m) for m in pinned] + [_fmt(m) for m in top]
     finally:
@@ -200,6 +222,7 @@ def _inject_contacts(query: str) -> str:
     try:
         db = SessionLocal()
         from core.database import Contact
+
         contacts = db.query(Contact).all()
         db.close()
         if not contacts:
@@ -209,12 +232,16 @@ def _inject_contacts(query: str) -> str:
         if not matched:
             return ""
         import json
+
         lines = []
         for c in matched:
             parts = [c.name]
-            if c.email: parts.append(f"email: {c.email}")
-            if c.phone: parts.append(f"phone: {c.phone}")
-            if c.notes: parts.append(f"notes: {c.notes}")
+            if c.email:
+                parts.append(f"email: {c.email}")
+            if c.phone:
+                parts.append(f"phone: {c.phone}")
+            if c.notes:
+                parts.append(f"notes: {c.notes}")
             lines.append(", ".join(parts))
         return "Contact info:\n" + "\n".join(f"- {l}" for l in lines)
     except Exception:
@@ -223,11 +250,11 @@ def _inject_contacts(query: str) -> str:
 
 def _fmt(m: Memory) -> dict:
     return {
-        "id":         m.id,
-        "text":       m.text,
-        "category":   m.category,
-        "source":     m.source,
+        "id": m.id,
+        "text": m.text,
+        "category": m.category,
+        "source": m.source,
         "session_id": m.session_id,
-        "pinned":     m.pinned,
-        "timestamp":  m.timestamp.isoformat(),
+        "pinned": m.pinned,
+        "timestamp": m.timestamp.isoformat(),
     }

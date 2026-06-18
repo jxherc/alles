@@ -15,19 +15,22 @@ class DocImportTests(unittest.TestCase):
         self.assertIn("# Title", r["content"])
 
     def test_html_to_md(self):
-        html = ("<html><head><style>.x{color:red}</style></head><body>"
-                "<h1>Hi</h1><p>a <strong>bold</strong> word and "
-                "<a href='http://e.com'>link</a></p>"
-                "<ul><li>one</li><li>two</li></ul></body></html>")
+        html = (
+            "<html><head><style>.x{color:red}</style></head><body>"
+            "<h1>Hi</h1><p>a <strong>bold</strong> word and "
+            "<a href='http://e.com'>link</a></p>"
+            "<ul><li>one</li><li>two</li></ul></body></html>"
+        )
         c = doc_import.import_document("page.html", html.encode())["content"]
         self.assertIn("# Hi", c)
         self.assertIn("**bold**", c)
         self.assertIn("[link](http://e.com)", c)
         self.assertIn("- one", c)
-        self.assertNotIn("color:red", c)   # <style> stripped
+        self.assertNotIn("color:red", c)  # <style> stripped
 
     def test_docx_to_md(self):
         from docx import Document
+
         doc = Document()
         doc.add_heading("Heading One", level=1)
         doc.add_paragraph("a normal paragraph")
@@ -46,7 +49,8 @@ class DocImportTests(unittest.TestCase):
     def test_pdf_graceful_when_pypdf_missing(self):
         try:
             import pypdf  # noqa: F401
-            return   # pypdf installed → nothing to assert here
+
+            return  # pypdf installed → nothing to assert here
         except Exception:
             pass
         with self.assertRaises(ValueError):

@@ -1,6 +1,7 @@
 """Offline speech-to-text via faster-whisper. Runs on the user's machine, no API.
 Model downloads once on first use (~150MB for 'base'), then fully offline.
 """
+
 import shutil
 import tempfile
 from pathlib import Path
@@ -12,6 +13,7 @@ _loaded_size = None
 def available() -> bool:
     try:
         import faster_whisper  # noqa: F401
+
         return True
     except Exception:
         return False
@@ -22,6 +24,7 @@ def _get_model(size: str):
     if _model is not None and _loaded_size == size:
         return _model
     from faster_whisper import WhisperModel
+
     # try GPU, fall back to CPU/int8 (works anywhere)
     try:
         if shutil.which("nvidia-smi"):

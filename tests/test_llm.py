@@ -14,7 +14,7 @@ class DetectProviderTests(unittest.TestCase):
         "http://localhost:11434": "ollama",
         "http://localhost:11434/v1": "ollama",
         "https://my-ollama-box:11434": "ollama",
-        "https://example.com/v1": "openai",   # unknown -> openai-compat fallback
+        "https://example.com/v1": "openai",  # unknown -> openai-compat fallback
     }
 
     def test_detect(self):
@@ -43,8 +43,11 @@ class AnthropicPayloadTests(unittest.TestCase):
         msgs = [
             {"role": "system", "content": "be nice"},
             {"role": "user", "content": "hi"},
-            {"role": "assistant", "content": "", "tool_calls": [
-                {"call_id": "c1", "name": "shell", "args": {"command": "ls"}}]},
+            {
+                "role": "assistant",
+                "content": "",
+                "tool_calls": [{"call_id": "c1", "name": "shell", "args": {"command": "ls"}}],
+            },
             {"role": "tool", "tool_call_id": "c1", "content": "ok"},
         ]
         p = llm._build_anthropic_payload(msgs, "claude-x", tools=[])
@@ -57,8 +60,12 @@ class AnthropicPayloadTests(unittest.TestCase):
     def test_temperature_threads_through(self):
         msgs = [{"role": "user", "content": "hi"}]
         # anthropic builder used to silently drop temperature
-        self.assertEqual(llm._build_anthropic_payload(msgs, "claude-x", temperature=0.2)["temperature"], 0.2)
-        self.assertEqual(llm._build_openai_payload(msgs, "gpt-x", temperature=0.2)["temperature"], 0.2)
+        self.assertEqual(
+            llm._build_anthropic_payload(msgs, "claude-x", temperature=0.2)["temperature"], 0.2
+        )
+        self.assertEqual(
+            llm._build_openai_payload(msgs, "gpt-x", temperature=0.2)["temperature"], 0.2
+        )
         # absent → not forced into the payload
         self.assertNotIn("temperature", llm._build_anthropic_payload(msgs, "claude-x"))
         self.assertNotIn("temperature", llm._build_openai_payload(msgs, "gpt-x"))
@@ -75,8 +82,13 @@ class OpenAIUsagePayloadTests(unittest.TestCase):
 
     def test_no_usage_flag_when_unsupported_or_not_streaming(self):
         msgs = [{"role": "user", "content": "hi"}]
-        self.assertNotIn("stream_options", llm._build_openai_payload(msgs, "m", stream=False, provider="deepseek"))
-        self.assertNotIn("stream_options", llm._build_openai_payload(msgs, "m", stream=True, provider="gemini"))
+        self.assertNotIn(
+            "stream_options",
+            llm._build_openai_payload(msgs, "m", stream=False, provider="deepseek"),
+        )
+        self.assertNotIn(
+            "stream_options", llm._build_openai_payload(msgs, "m", stream=True, provider="gemini")
+        )
 
 
 if __name__ == "__main__":

@@ -34,18 +34,21 @@ class AgentStateTest(unittest.TestCase):
         self.assertIsNotNone(got["finished_at"])
 
     def test_reconcile_marks_zombie_running_as_interrupted(self):
-        r = ast.start_run("s", "m", 10)        # status running, saved to disk
-        ast._active.clear()                    # simulate a process restart (memory lost, disk kept)
+        r = ast.start_run("s", "m", 10)  # status running, saved to disk
+        ast._active.clear()  # simulate a process restart (memory lost, disk kept)
         n = ast.reconcile_interrupted()
         self.assertEqual(n, 1)
         self.assertEqual(ast.get_run(r["id"])["status"], "interrupted")
         # a finished run is left alone
-        r2 = ast.start_run("s2", "m", 10); ast.finish_run(r2["id"], "done"); ast._active.clear()
+        r2 = ast.start_run("s2", "m", 10)
+        ast.finish_run(r2["id"], "done")
+        ast._active.clear()
         self.assertEqual(ast.reconcile_interrupted(), 0)
 
     def test_list_incomplete(self):
         a = ast.start_run("s", "m", 10)
-        b = ast.start_run("s", "m", 10); ast.finish_run(b["id"], "done")
+        b = ast.start_run("s", "m", 10)
+        ast.finish_run(b["id"], "done")
         ast._active.clear()
         ast.reconcile_interrupted()
         incomplete = [x["id"] for x in ast.list_incomplete()]

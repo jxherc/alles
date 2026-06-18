@@ -21,7 +21,7 @@ class ChunkTests(unittest.TestCase):
 
 class RetrieveTests(unittest.TestCase):
     def tearDown(self):
-        rag._index = None   # don't leak the fake index
+        rag._index = None  # don't leak the fake index
 
     def test_ranks_by_relevance_jaccard(self):
         # vec=None forces the keyword (jaccard) path — no fastembed needed

@@ -4,12 +4,12 @@ from tests._client import ApiTest
 class TokensApiTest(ApiTest):
     def test_create_shows_raw_once_then_never(self):
         t = self.client.post("/api/tokens", json={"name": "cli"}).json()
-        self.assertTrue(t["token"].startswith("alles_"))   # raw shown only on creation
+        self.assertTrue(t["token"].startswith("alles_"))  # raw shown only on creation
         self.assertEqual(len(t["prefix"]), 12)
 
         listed = self.client.get("/api/tokens").json()
         self.assertEqual(len(listed), 1)
-        self.assertNotIn("token", listed[0])               # never returned again
+        self.assertNotIn("token", listed[0])  # never returned again
         self.assertEqual(listed[0]["prefix"], t["prefix"])
 
     def test_delete(self):

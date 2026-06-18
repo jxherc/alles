@@ -4,8 +4,11 @@ from pydantic import BaseModel
 from typing import Optional
 
 from services.memory_store import (
-    add_memory, get_all_memories, delete_memory,
-    update_memory, search_memories,
+    add_memory,
+    get_all_memories,
+    delete_memory,
+    update_memory,
+    search_memories,
 )
 
 router = APIRouter(prefix="/api")
@@ -22,6 +25,7 @@ class AddMemory(BaseModel):
     category: str = ""
     pinned: bool = False
 
+
 # POST /api/memories
 @router.post("/memories")
 def create_memory(body: AddMemory):
@@ -34,6 +38,7 @@ class PatchMemory(BaseModel):
     text: Optional[str] = None
     category: Optional[str] = None
     pinned: Optional[bool] = None
+
 
 # PATCH /api/memories/{id}
 @router.patch("/memories/{mid}")
@@ -56,6 +61,7 @@ class SearchQuery(BaseModel):
     query: str
     top_k: int = 6
 
+
 # POST /api/memories/search
 @router.post("/memories/search")
 def search(body: SearchQuery):
@@ -66,6 +72,7 @@ class ExtractRequest(BaseModel):
     session_id: str
     max_memories: int = 10
 
+
 # POST /api/memories/extract — LLM-driven extraction from session history
 @router.post("/memories/extract")
 async def extract_from_session(body: ExtractRequest, bg: BackgroundTasks):
@@ -75,6 +82,7 @@ async def extract_from_session(body: ExtractRequest, bg: BackgroundTasks):
     db = SessionLocal()
     try:
         from core.database import Session
+
         s = db.get(Session, body.session_id)
         if not s:
             raise HTTPException(404, "session not found")
@@ -82,14 +90,13 @@ async def extract_from_session(body: ExtractRequest, bg: BackgroundTasks):
         if not msgs:
             return {"extracted": 0}
 
-        convo = "\n".join(
-            f"{m.role.upper()}: {m.content[:400]}" for m in msgs
-        )
+        convo = "\n".join(f"{m.role.upper()}: {m.content[:400]}" for m in msgs)
     finally:
         db.close()
 
     # find a working endpoint
     from core.database import SessionLocal as SL, ModelEndpoint
+
     db2 = SL()
     try:
         ep = db2.query(ModelEndpoint).filter(ModelEndpoint.enabled == True).first()
@@ -103,12 +110,15 @@ async def extract_from_session(body: ExtractRequest, bg: BackgroundTasks):
         db2.close()
 
     prompt = [
-        {"role": "system", "content": (
-            "Extract factual memories about the user from the conversation. "
-            f"Return up to {body.max_memories} bullet points, one per line, starting with '- '. "
-            "Only include facts explicitly stated by the user (name, preferences, habits, goals, etc). "
-            "No commentary, just the bullet points."
-        )},
+        {
+            "role": "system",
+            "content": (
+                "Extract factual memories about the user from the conversation. "
+                f"Return up to {body.max_memories} bullet points, one per line, starting with '- '. "
+                "Only include facts explicitly stated by the user (name, preferences, habits, goals, etc). "
+                "No commentary, just the bullet points."
+            ),
+        },
         {"role": "user", "content": convo},
     ]
 
@@ -116,12 +126,13 @@ async def extract_from_session(body: ExtractRequest, bg: BackgroundTasks):
 
     # parse lines starting with "- " or "1. " etc
     import re
-    lines = [re.sub(r'^[-*\d.]+\s*', '', l).strip() for l in raw.splitlines()]
+
+    lines = [re.sub(r"^[-*\d.]+\s*", "", l).strip() for l in raw.splitlines()]
     lines = [l for l in lines if len(l) > 10]
 
     count = 0
-    for line in lines[:body.max_memories]:
+    for line in lines[: body.max_memories]:
         add_memory(line, source="extracted", session_id=body.session_id)
         count += 1
 
-    return {"extracted": count, "memories": lines[:body.max_memories]}
+    return {"extracted": count, "memories": lines[: body.max_memories]}

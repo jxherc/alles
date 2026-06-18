@@ -27,11 +27,15 @@ class DaysTests(unittest.TestCase):
         self.assertEqual(occ, date(2026, 6, 10))
 
     def test_ymd_between(self):
-        self.assertEqual(D._ymd_between(date(2026, 1, 1), date(2027, 3, 13)), "1 year 2 months 12 days")
+        self.assertEqual(
+            D._ymd_between(date(2026, 1, 1), date(2027, 3, 13)), "1 year 2 months 12 days"
+        )
 
     def test_ordinal(self):
-        self.assertEqual([D._ordinal(n) for n in (1, 2, 3, 4, 11, 21, 22)],
-                         ["st", "nd", "rd", "th", "th", "st", "nd"])
+        self.assertEqual(
+            [D._ordinal(n) for n in (1, 2, 3, 4, 11, 21, 22)],
+            ["st", "nd", "rd", "th", "th", "st", "nd"],
+        )
 
 
 class SubsRolloverTests(unittest.TestCase):
@@ -61,7 +65,7 @@ class TodayRecurrenceTests(unittest.TestCase):
 
     def test_weekly_same_weekday(self):
         e = self._ev("2026-06-14", "weekly")
-        self.assertTrue(T._event_occurs_on(e, date(2026, 6, 21)))    # +7 days
+        self.assertTrue(T._event_occurs_on(e, date(2026, 6, 21)))  # +7 days
         self.assertFalse(T._event_occurs_on(e, date(2026, 6, 20)))
 
     def test_daily_respects_until(self):

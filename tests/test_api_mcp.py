@@ -5,7 +5,7 @@ from tests._client import ApiTest
 
 
 async def _no_connect(*a, **k):
-    return False, "connect disabled in tests"   # don't spawn a real stdio subprocess
+    return False, "connect disabled in tests"  # don't spawn a real stdio subprocess
 
 
 class McpApiTest(ApiTest):
@@ -22,7 +22,9 @@ class McpApiTest(ApiTest):
         self.assertEqual(self.client.get("/api/mcp/servers").json(), [])
 
     def test_add_list_delete(self):
-        s = self.client.post("/api/mcp/servers", json={"name": "fs", "command": "echo", "args": ["hi"]}).json()
+        s = self.client.post(
+            "/api/mcp/servers", json={"name": "fs", "command": "echo", "args": ["hi"]}
+        ).json()
         self.assertEqual(s["name"], "fs")
         self.assertFalse(s["connected"])
         sid = s["id"]
@@ -31,7 +33,9 @@ class McpApiTest(ApiTest):
         self.assertEqual(self.client.get("/api/mcp/servers").json(), [])
 
     def test_call_unconnected_400(self):
-        r = self.client.post("/api/mcp/call", json={"server_id": "x", "tool_name": "t", "arguments": {}})
+        r = self.client.post(
+            "/api/mcp/call", json={"server_id": "x", "tool_name": "t", "arguments": {}}
+        )
         self.assertEqual(r.status_code, 400)
 
     def test_connect_and_delete_missing_404(self):

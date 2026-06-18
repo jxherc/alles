@@ -32,8 +32,11 @@ def revoke_share_link(sid: str, db: DbSession = Depends(get_db)):
 def view_shared_session(token: str, db: DbSession = Depends(get_db)):
     s = db.query(Session).filter_by(share_token=token).first()
     if not s:
-        return HTMLResponse("<html><body style='font:14px/1.6 sans-serif;padding:2rem;background:#0a0a0a;color:#e8e6e3'>"
-                            "<h2>session not found or link revoked</h2></body></html>", status_code=404)
+        return HTMLResponse(
+            "<html><body style='font:14px/1.6 sans-serif;padding:2rem;background:#0a0a0a;color:#e8e6e3'>"
+            "<h2>session not found or link revoked</h2></body></html>",
+            status_code=404,
+        )
     msgs = [m for m in s.messages if m.role in ("user", "assistant")]
     rows = ""
     for m in msgs:
@@ -46,7 +49,7 @@ def view_shared_session(token: str, db: DbSession = Depends(get_db)):
     return HTMLResponse(f"""<!DOCTYPE html>
 <html><head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>{_esc(s.name or 'aide session')}</title>
+<title>{_esc(s.name or "aide session")}</title>
 <style>
   *{{box-sizing:border-box;margin:0;padding:0}}
   body{{background:#0a0a0a;color:#e8e6e3;font-family:Inter,-apple-system,sans-serif;min-height:100vh}}
@@ -59,7 +62,7 @@ def view_shared_session(token: str, db: DbSession = Depends(get_db)):
 </head><body>
 <div class="header no-print">
   <span class="brand">aide</span>
-  <span class="title">{_esc(s.name or 'untitled')}</span>
+  <span class="title">{_esc(s.name or "untitled")}</span>
   <span class="badge">read-only</span>
   <button onclick="window.print()" style="margin-left:auto;background:none;border:1px solid #2e2e2e;color:#e8e6e3;padding:0.25rem 0.75rem;cursor:pointer;font-size:0.72rem;border-radius:2px">print</button>
 </div>
@@ -68,4 +71,4 @@ def view_shared_session(token: str, db: DbSession = Depends(get_db)):
 
 
 def _esc(s=""):
-    return str(s).replace("&","&amp;").replace("<","&lt;").replace(">","&gt;")
+    return str(s).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")

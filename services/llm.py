@@ -2,11 +2,13 @@
 provider-agnostic streaming LLM client.
 yields dicts: {"delta": str} | {"thinking": str} | {"done": True, "usage": {...}}
 """
+
 import json, time, asyncio
 from typing import AsyncGenerator
 import httpx
 
 _client: httpx.AsyncClient | None = None
+
 
 def _get_client() -> httpx.AsyncClient:
     global _client
@@ -28,12 +30,15 @@ def _get_client() -> httpx.AsyncClient:
 _fail_counts: dict[str, int] = {}
 _cooldowns: dict[str, float] = {}
 
+
 def _host(url: str) -> str:
     try:
         from urllib.parse import urlparse
+
         return urlparse(url).hostname or url
     except Exception:
         return url
+
 
 def _is_cooling(url: str) -> bool:
     h = _host(url)
@@ -41,11 +46,13 @@ def _is_cooling(url: str) -> bool:
         return True
     return False
 
+
 def _mark_fail(url: str):
     h = _host(url)
     _fail_counts[h] = _fail_counts.get(h, 0) + 1
     if _fail_counts[h] >= 2:
         _cooldowns[h] = time.time() + 20
+
 
 def _mark_ok(url: str):
     h = _host(url)
@@ -61,20 +68,34 @@ def clear_cooldown(url: str):
 
 def detect_provider(base_url: str) -> str:
     url = base_url.lower()
-    if "anthropic.com" in url:      return "anthropic"
-    if "deepseek.com" in url:       return "deepseek"
-    if "openrouter.ai" in url:      return "openrouter"
-    if "groq.com" in url:           return "groq"
-    if "moonshot.cn" in url:        return "moonshot"
-    if "api.x.ai" in url:           return "xai"
-    if "googleapis.com" in url:     return "gemini"
-    if "mistral.ai" in url:         return "mistral"
-    if "perplexity.ai" in url:      return "perplexity"
-    if "together.xyz" in url or "togetherai.com" in url: return "together"
-    if "fireworks.ai" in url:       return "fireworks"
-    if "cohere.ai" in url or "api.cohere.com" in url: return "cohere"
-    if "openai.com" in url:         return "openai"
-    if ":11434" in url or "ollama" in url: return "ollama"
+    if "anthropic.com" in url:
+        return "anthropic"
+    if "deepseek.com" in url:
+        return "deepseek"
+    if "openrouter.ai" in url:
+        return "openrouter"
+    if "groq.com" in url:
+        return "groq"
+    if "moonshot.cn" in url:
+        return "moonshot"
+    if "api.x.ai" in url:
+        return "xai"
+    if "googleapis.com" in url:
+        return "gemini"
+    if "mistral.ai" in url:
+        return "mistral"
+    if "perplexity.ai" in url:
+        return "perplexity"
+    if "together.xyz" in url or "togetherai.com" in url:
+        return "together"
+    if "fireworks.ai" in url:
+        return "fireworks"
+    if "cohere.ai" in url or "api.cohere.com" in url:
+        return "cohere"
+    if "openai.com" in url:
+        return "openai"
+    if ":11434" in url or "ollama" in url:
+        return "ollama"
     return "openai"  # openai-compat fallback
 
 
@@ -88,14 +109,16 @@ def _normalize_openai_messages(messages: list[dict]) -> list[dict]:
                 if "function" in tc:
                     calls.append(tc)
                     continue
-                calls.append({
-                    "id": tc.get("call_id") or tc.get("id") or "",
-                    "type": "function",
-                    "function": {
-                        "name": tc.get("name", ""),
-                        "arguments": json.dumps(tc.get("args", {})),
-                    },
-                })
+                calls.append(
+                    {
+                        "id": tc.get("call_id") or tc.get("id") or "",
+                        "type": "function",
+                        "function": {
+                            "name": tc.get("name", ""),
+                            "arguments": json.dumps(tc.get("args", {})),
+                        },
+                    }
+                )
             msg["tool_calls"] = calls
             msg["content"] = msg.get("content") or ""
         normalized.append(msg)
@@ -112,21 +135,33 @@ _USAGE_OK = {"openai", "deepseek", "openrouter", "groq", "together", "fireworks"
 _OAI_EFFORT = {"low": "low", "medium": "medium", "high": "high", "xhigh": "high", "max": "high"}
 _THINK_BUDGET = {"high": 8000, "xhigh": 16000, "max": 24000}
 
+
 def _is_oai_reasoning(model: str) -> bool:
     m = (model or "").lower().split("/")[-1]
     return m.startswith(("o1", "o3", "o4")) or "gpt-5" in m or "gpt5" in m
 
+
 def _anthropic_thinks(model: str) -> bool:
     m = (model or "").lower()
-    return ("3-7" in m or "3.7" in m or "opus-4" in m or "sonnet-4" in m or "haiku-4" in m
-            or "opus4" in m or "sonnet4" in m)
+    return (
+        "3-7" in m
+        or "3.7" in m
+        or "opus-4" in m
+        or "sonnet-4" in m
+        or "haiku-4" in m
+        or "opus4" in m
+        or "sonnet4" in m
+    )
+
 
 def _build_openai_payload(messages, model, stream=True, provider="openai", **kw) -> dict:
     p = {"model": model, "messages": _normalize_openai_messages(messages), "stream": stream}
     if stream and provider in _USAGE_OK:
         p["stream_options"] = {"include_usage": True}
-    if "max_tokens" in kw:   p["max_tokens"] = kw["max_tokens"]
-    if "temperature" in kw:  p["temperature"] = kw["temperature"]
+    if "max_tokens" in kw:
+        p["max_tokens"] = kw["max_tokens"]
+    if "temperature" in kw:
+        p["temperature"] = kw["temperature"]
     eff = kw.get("effort")
     if eff and provider == "openai" and _is_oai_reasoning(model):
         p["reasoning_effort"] = _OAI_EFFORT.get(eff, "medium")
@@ -135,6 +170,7 @@ def _build_openai_payload(messages, model, stream=True, provider="openai", **kw)
         p["tool_choice"] = "auto"
     return p
 
+
 def _build_ollama_payload(messages, model, stream=True, **kw) -> dict:
     return {
         "model": model,
@@ -142,6 +178,7 @@ def _build_ollama_payload(messages, model, stream=True, **kw) -> dict:
         "stream": stream,
         "options": {k: v for k, v in kw.items() if k in ("temperature", "num_predict", "num_ctx")},
     }
+
 
 def _anthropic_blocks(content):
     """convert openai-style content (str or list with image_url) to anthropic blocks"""
@@ -158,7 +195,12 @@ def _anthropic_blocks(content):
                 try:
                     head, data = url.split(",", 1)
                     media = head.split(":", 1)[1].split(";", 1)[0]
-                    out.append({"type": "image", "source": {"type": "base64", "media_type": media, "data": data}})
+                    out.append(
+                        {
+                            "type": "image",
+                            "source": {"type": "base64", "media_type": media, "data": data},
+                        }
+                    )
                 except Exception:
                     pass
             elif url:
@@ -174,16 +216,31 @@ def _build_anthropic_payload(messages, model, stream=True, **kw) -> dict:
             continue
         # convert tool results from openai format to anthropic format
         if m["role"] == "tool":
-            other.append({
-                "role": "user",
-                "content": [{"type": "tool_result", "tool_use_id": m.get("tool_call_id", ""), "content": m["content"]}]
-            })
+            other.append(
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "tool_result",
+                            "tool_use_id": m.get("tool_call_id", ""),
+                            "content": m["content"],
+                        }
+                    ],
+                }
+            )
         elif "tool_calls" in m:
             content = []
             if m.get("content"):
                 content.append({"type": "text", "text": m["content"]})
             for tc in m["tool_calls"]:
-                content.append({"type": "tool_use", "id": tc["call_id"], "name": tc["name"], "input": tc["args"]})
+                content.append(
+                    {
+                        "type": "tool_use",
+                        "id": tc["call_id"],
+                        "name": tc["name"],
+                        "input": tc["args"],
+                    }
+                )
             other.append({"role": "assistant", "content": content})
         elif isinstance(m.get("content"), list):
             other.append({"role": m["role"], "content": _anthropic_blocks(m["content"])})
@@ -205,14 +262,16 @@ def _build_anthropic_payload(messages, model, stream=True, **kw) -> dict:
         budget = _THINK_BUDGET[eff]
         p["max_tokens"] = max(p.get("max_tokens", 8192), budget + 2048)
         p["thinking"] = {"type": "enabled", "budget_tokens": budget}
-        p.pop("temperature", None)   # anthropic requires temp unset when thinking is on
+        p.pop("temperature", None)  # anthropic requires temp unset when thinking is on
     if kw.get("tools"):
         # convert openai tool format to anthropic format
         p["tools"] = [
             {
                 "name": t["function"]["name"],
                 "description": t["function"].get("description", ""),
-                "input_schema": t["function"].get("parameters", {"type": "object", "properties": {}}),
+                "input_schema": t["function"].get(
+                    "parameters", {"type": "object", "properties": {}}
+                ),
             }
             for t in kw["tools"]
         ]
@@ -220,11 +279,7 @@ def _build_anthropic_payload(messages, model, stream=True, **kw) -> dict:
 
 
 async def stream_chat(
-    messages: list[dict],
-    base_url: str,
-    api_key: str,
-    model: str,
-    **kw
+    messages: list[dict], base_url: str, api_key: str, model: str, **kw
 ) -> AsyncGenerator[dict, None]:
 
     if _is_cooling(base_url):
@@ -261,7 +316,7 @@ async def stream_chat(
             if resp.status_code >= 400:
                 body = await resp.aread()
                 _mark_fail(base_url)
-                yield {"error": f"HTTP {resp.status_code}: {body.decode('utf-8','replace')[:300]}"}
+                yield {"error": f"HTTP {resp.status_code}: {body.decode('utf-8', 'replace')[:300]}"}
                 return
 
             _mark_ok(base_url)
@@ -328,7 +383,7 @@ async def _parse_openai(resp) -> AsyncGenerator[dict, None]:
             yield {"delta": content}
 
         # accumulate tool calls
-        for tc_delta in (delta.get("tool_calls") or []):
+        for tc_delta in delta.get("tool_calls") or []:
             idx = tc_delta.get("index", 0)
             if idx not in tool_acc:
                 tool_acc[idx] = {"id": "", "name": "", "args": []}
@@ -370,10 +425,13 @@ async def _parse_ollama(resp) -> AsyncGenerator[dict, None]:
         if content:
             yield {"delta": content}
         if d.get("done"):
-            yield {"done": True, "usage": {
-                "prompt_tokens": d.get("prompt_eval_count", 0),
-                "completion_tokens": d.get("eval_count", 0),
-            }}
+            yield {
+                "done": True,
+                "usage": {
+                    "prompt_tokens": d.get("prompt_eval_count", 0),
+                    "completion_tokens": d.get("eval_count", 0),
+                },
+            }
             return
     yield {"done": True, "usage": {}}
 
@@ -398,7 +456,11 @@ async def _parse_anthropic(resp) -> AsyncGenerator[dict, None]:
             blk = d.get("content_block", {})
             cur_idx = d.get("index", 0)
             if blk.get("type") == "tool_use":
-                tool_acc[cur_idx] = {"id": blk.get("id", ""), "name": blk.get("name", ""), "args": []}
+                tool_acc[cur_idx] = {
+                    "id": blk.get("id", ""),
+                    "name": blk.get("name", ""),
+                    "args": [],
+                }
 
         elif etype == "content_block_delta":
             delta = d.get("delta", {})
@@ -443,16 +505,22 @@ async def compact_messages(
     if len(chat_msgs) <= target_len:
         return messages
 
-    keep = chat_msgs[-(target_len // 2):]
-    summarize = chat_msgs[:-(target_len // 2)]
+    keep = chat_msgs[-(target_len // 2) :]
+    summarize = chat_msgs[: -(target_len // 2)]
 
     conv_text = "\n".join(f"{m['role']}: {m['content'][:300]}" for m in summarize)
     summary = await simple_complete(
         [
-            {"role": "system", "content": "Summarize this conversation history in 200 words or less. Be factual and concise."},
+            {
+                "role": "system",
+                "content": "Summarize this conversation history in 200 words or less. Be factual and concise.",
+            },
             {"role": "user", "content": conv_text},
         ],
-        ep.base_url, ep.api_key, model, max_tokens=300,
+        ep.base_url,
+        ep.api_key,
+        model,
+        max_tokens=300,
     )
     compact_sys = {"role": "system", "content": f"[conversation summary]: {summary}"}
     return sys_msgs + [compact_sys] + keep

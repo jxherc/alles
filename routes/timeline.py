@@ -7,11 +7,22 @@ each row is a typed event {ts, type, app, title, subtitle, view, id} the client
 renders into a scrollable "your life, lately" feed. /today is the forward-looking
 slice; this is the backward-looking log.
 """
-from datetime import date, datetime, timedelta
+
+from datetime import datetime, timedelta
+
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session as DbSession
-from core.database import (get_db, Task, JournalEntry, CalendarEvent, Transaction,
-                           Photo, MailAccount, Subscription)
+
+from core.database import (
+    CalendarEvent,
+    JournalEntry,
+    MailAccount,
+    Photo,
+    Subscription,
+    Task,
+    Transaction,
+    get_db,
+)
 
 router = APIRouter(prefix="/api")
 
@@ -35,16 +46,20 @@ def _ev(ts, type_, app, title, subtitle="", view="", eid=""):
     d = _dt(ts)
     if not d:
         return None
-    return {"ts": d.isoformat(), "type": type_, "app": app, "title": title,
-            "subtitle": subtitle, "view": view, "id": eid}
+    return {
+        "ts": d.isoformat(),
+        "type": type_,
+        "app": app,
+        "title": title,
+        "subtitle": subtitle,
+        "view": view,
+        "id": eid,
+    }
 
 
-@router.get("/timeline")
-def timeline(days: int = Query(30, ge=1, le=365),
-             types: str = Query(""),
-             limit: int = Query(120, ge=1, le=500),
-             db: DbSession = Depends(get_db)):
-    want = set(t.strip() for t in types.split(",") if t.strip()) or set(ALL_TYPES)
+def _aggregate(db, want: set, days: int) -> list:
+    """build the raw (unsorted) event list across every wanted source. shared by
+    the feed (/timeline) and the rollup (/timeline/summary) so they never drift."""
     cutoff = datetime.utcnow() - timedelta(days=days)
     cutoff_d = cutoff.date()
     out = []
@@ -54,13 +69,24 @@ def timeline(days: int = Query(30, ge=1, le=365),
             jd = _dt(j.updated_at or j.created_at)
             if jd and jd >= cutoff:
                 preview = (j.content or "").strip().replace("\n", " ")[:80]
-                out.append(_ev(jd, "journal", "journal", f"journaled · {j.date}",
-                               (j.mood + " " if j.mood else "") + preview, "journal", j.id))
+                out.append(
+                    _ev(
+                        jd,
+                        "journal",
+                        "journal",
+                        f"journaled · {j.date}",
+                        (j.mood + " " if j.mood else "") + preview,
+                        "journal",
+                        j.id,
+                    )
+                )
 
     if "task" in want:
         for t in db.query(Task).all():
             if t.completed_at and _dt(t.completed_at) >= cutoff:
-                out.append(_ev(t.completed_at, "task", "tasks", "✓ " + t.title, "completed", "tasks", t.id))
+                out.append(
+                    _ev(t.completed_at, "task", "tasks", "✓ " + t.title, "completed", "tasks", t.id)
+                )
             elif not t.done and _dt(t.created_at) and _dt(t.created_at) >= cutoff:
                 out.append(_ev(t.created_at, "task", "tasks", t.title, "added", "tasks", t.id))
 
@@ -87,31 +113,61 @@ def timeline(days: int = Query(30, ge=1, le=365),
                         guard += 1
             when = "" if e.all_day else str(e.start_dt)[11:16]
             for o in occs[-6:]:
-                out.append(_ev(o, "calendar", "calendar", e.title,
-                               ("all-day" if e.all_day else when), "calendar", e.id))
+                out.append(
+                    _ev(
+                        o,
+                        "calendar",
+                        "calendar",
+                        e.title,
+                        ("all-day" if e.all_day else when),
+                        "calendar",
+                        e.id,
+                    )
+                )
 
     if "money" in want:
         for t in db.query(Transaction).filter(Transaction.date >= cutoff_d.isoformat()).all():
             amt = t.amount or 0.0
             sign = "+" if amt >= 0 else "−"
-            out.append(_ev(t.date, "money", "money", t.payee or t.category or "transaction",
-                           f"{sign}{abs(amt):.2f}", "money", t.id))
+            out.append(
+                _ev(
+                    t.date,
+                    "money",
+                    "money",
+                    t.payee or t.category or "transaction",
+                    f"{sign}{abs(amt):.2f}",
+                    "money",
+                    t.id,
+                )
+            )
 
     if "photo" in want:
         for p in db.query(Photo).all():
             pd = _dt(p.taken_at or p.created_at)
             if pd and pd >= cutoff:
-                out.append(_ev(pd, "photo", "gallery", p.original_name or "photo", "added", "photos", p.id))
+                out.append(
+                    _ev(pd, "photo", "gallery", p.original_name or "photo", "added", "photos", p.id)
+                )
 
     if "sub" in want:
         for s in db.query(Subscription).all():
             if s.last_posted_due and _dt(s.last_posted_due) and _dt(s.last_posted_due) >= cutoff:
-                out.append(_ev(s.last_posted_due, "sub", "subs", s.name + " renewed",
-                               f"{s.currency}{s.price:g}", "subs", s.id))
+                out.append(
+                    _ev(
+                        s.last_posted_due,
+                        "sub",
+                        "subs",
+                        s.name + " renewed",
+                        f"{s.currency}{s.price:g}",
+                        "subs",
+                        s.id,
+                    )
+                )
 
     if "doc" in want:
         try:
             from services.vault_md import _all_md, vault_dir
+
             root = vault_dir()
             for p in _all_md():
                 mt = datetime.utcfromtimestamp(p.stat().st_mtime)
@@ -124,32 +180,102 @@ def timeline(days: int = Query(30, ge=1, le=365),
     if "agent" in want:
         try:
             from services.agent_state import list_runs
+
             for r in list_runs(limit=60):
                 fin = _dt(r.get("finished_at") or r.get("updated_at"))
                 if fin and fin >= cutoff:
                     steps = len(r.get("tool_steps", []) or [])
-                    out.append(_ev(fin, "agent", "aide", f"agent run · {r.get('status', '')}",
-                                   f"{steps} step{'' if steps == 1 else 's'}", "chat", r.get("id", "")))
+                    out.append(
+                        _ev(
+                            fin,
+                            "agent",
+                            "aide",
+                            f"agent run · {r.get('status', '')}",
+                            f"{steps} step{'' if steps == 1 else 's'}",
+                            "chat",
+                            r.get("id", ""),
+                        )
+                    )
         except Exception:
             pass
 
     if "mail" in want:
         try:
             from core.database import CachedMessage
+
             for a in db.query(MailAccount).all():
-                rows = (db.query(CachedMessage)
-                        .filter(CachedMessage.account_id == a.id)
-                        .order_by(CachedMessage.date_ts.desc()).limit(40).all())
+                rows = (
+                    db.query(CachedMessage)
+                    .filter(CachedMessage.account_id == a.id)
+                    .order_by(CachedMessage.date_ts.desc())
+                    .limit(40)
+                    .all()
+                )
                 for m in rows:
                     md = _dt(m.date)
                     if md and md >= cutoff:
                         frm = m.sender or ""
                         name = frm.split("<")[0].strip(' "') or frm
-                        out.append(_ev(md, "mail", "mail", m.subject or "(no subject)",
-                                       "from " + name, "mail", str(m.uid)))
+                        out.append(
+                            _ev(
+                                md,
+                                "mail",
+                                "mail",
+                                m.subject or "(no subject)",
+                                "from " + name,
+                                "mail",
+                                str(m.uid),
+                            )
+                        )
         except Exception:
             pass
 
-    out = [e for e in out if e]
+    return [e for e in out if e]
+
+
+@router.get("/timeline")
+def timeline(
+    days: int = Query(30, ge=1, le=365),
+    types: str = Query(""),
+    q: str = Query(""),
+    limit: int = Query(120, ge=1, le=500),
+    db: DbSession = Depends(get_db),
+):
+    want = set(t.strip() for t in types.split(",") if t.strip()) or set(ALL_TYPES)
+    out = _aggregate(db, want, days)
+    ql = (q or "").strip().lower()
+    if ql:  # text filter over title + subtitle, after aggregation
+        out = [
+            e
+            for e in out
+            if ql in (e["title"] or "").lower() or ql in (e["subtitle"] or "").lower()
+        ]
     out.sort(key=lambda e: e["ts"], reverse=True)
     return {"events": out[:limit], "types": sorted(want)}
+
+
+@router.get("/timeline/summary")
+def timeline_summary(
+    days: int = Query(30, ge=1, le=365),
+    types: str = Query(""),
+    db: DbSession = Depends(get_db),
+):
+    """rollup over the window: per-source counts (desc), total, and the busiest day."""
+    want = set(t.strip() for t in types.split(",") if t.strip()) or set(ALL_TYPES)
+    out = _aggregate(db, want, days)
+    by_type: dict[str, int] = {}
+    by_day: dict[str, int] = {}
+    for e in out:
+        by_type[e["type"]] = by_type.get(e["type"], 0) + 1
+        day = (e["ts"] or "")[:10]
+        if day:
+            by_day[day] = by_day.get(day, 0) + 1
+    type_rows = sorted(
+        ({"type": t, "count": c} for t, c in by_type.items()),
+        key=lambda x: (-x["count"], x["type"]),
+    )
+    busiest = None
+    if by_day:
+        d, c = max(by_day.items(), key=lambda kv: (kv[1], kv[0]))
+        busiest = {"date": d, "count": c}
+    return {"days": days, "total": len(out), "by_type": type_rows, "busiest": busiest}

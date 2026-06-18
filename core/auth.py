@@ -4,7 +4,7 @@ from fastapi import Request
 
 # in-memory token store — survives process lifetime, not restarts
 # that's fine: 30-day cookies re-login on restart
-_tokens: dict[str, float] = {}   # token → expiry unix timestamp
+_tokens: dict[str, float] = {}  # token → expiry unix timestamp
 
 
 def hash_password(pw: str) -> str:
@@ -44,8 +44,8 @@ def revoke_token(token: str):
 # the day alles sits behind a real domain; harmless on localhost. in-memory,
 # resets on restart (which also clears any lockout).
 _login_fails: dict[str, list[float]] = {}
-_LOGIN_WINDOW = 300        # 5 minutes
-_LOGIN_MAX_FAILS = 8       # failures in the window before we start blocking
+_LOGIN_WINDOW = 300  # 5 minutes
+_LOGIN_MAX_FAILS = 8  # failures in the window before we start blocking
 
 
 def login_blocked(ip: str) -> bool:
@@ -73,10 +73,12 @@ def require_auth(request: Request):
     a valid bearer token always passes; otherwise the session cookie is
     required only when AUTH_ENABLED is on."""
     from fastapi import HTTPException
+
     auth = request.headers.get("authorization", "")
     if auth.startswith("Bearer aide_") or auth.startswith("Bearer alles_"):
         from routes.api_tokens import verify_token
         from core.database import SessionLocal
+
         db = SessionLocal()
         try:
             if verify_token(auth.split(" ", 1)[1], db):
@@ -85,13 +87,14 @@ def require_auth(request: Request):
             db.close()
         raise HTTPException(401, "invalid token")
     from core.settings import auth_enabled
+
     if auth_enabled() and not verify_session(request.cookies.get("aide_session", "")):
         raise HTTPException(401, "not authenticated")
 
 
 # cross-subdomain SSO: a one-time short-lived code that hands a session to another
 # subdomain (the Domain=localhost cookie won't share to *.localhost, so we relay).
-_handoff: dict[str, tuple[float, str]] = {}   # code → (expiry, token)
+_handoff: dict[str, tuple[float, str]] = {}  # code → (expiry, token)
 
 
 def make_handoff(token: str, ttl: int = 30) -> str:
@@ -101,7 +104,7 @@ def make_handoff(token: str, ttl: int = 30) -> str:
 
 
 def redeem_handoff(code: str) -> str | None:
-    v = _handoff.pop(code, None)   # single-use
+    v = _handoff.pop(code, None)  # single-use
     if not v:
         return None
     exp, token = v
