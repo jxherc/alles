@@ -20,7 +20,6 @@ import time
 from email.header import decode_header, make_header
 from email.message import EmailMessage
 
-
 _IMAP_TIMEOUT = 12
 _POOL_IDLE = 60.0
 _LIST_TTL = 10.0
@@ -562,6 +561,20 @@ def fetch_message(acct, uid: str, folder: str = "INBOX") -> dict:
         ok = True
         _put_cache(_MESSAGE_CACHE, cache_key, _MESSAGE_TTL, result)
         return result
+    finally:
+        _release_imap(acct, M, ok)
+
+
+def set_flag(acct, uid, flagged: bool, folder: str = "INBOX") -> dict:
+    """add/remove the \\Flagged IMAP flag (best-effort star sync)."""
+    M = _imap(acct)
+    ok = False
+    try:
+        M.select(folder)
+        op = "+FLAGS" if flagged else "-FLAGS"
+        M.uid("store", uid.encode() if isinstance(uid, str) else uid, op, r"(\Flagged)")
+        ok = True
+        return {"ok": True}
     finally:
         _release_imap(acct, M, ok)
 

@@ -552,6 +552,7 @@ class CachedMessage(Base):
     date = Column(String, default="")
     date_ts = Column(Float, default=0)
     seen = Column(Boolean, default=False)
+    flagged = Column(Boolean, default=False)  # local star/flag (Apple Mail style)
     cached_at = Column(DateTime, default=_now)
 
 
@@ -586,6 +587,7 @@ def init_db():
     Base.metadata.create_all(engine)
     # migrations — safe to run multiple times (all idempotent)
     with engine.connect() as conn:
+        _add_col(conn, "cached_messages", "flagged", "BOOLEAN DEFAULT 0")
         _add_col(conn, "sessions", "persona_id", "TEXT")
         _add_col(conn, "sessions", "project_id", "TEXT")
         _add_col(conn, "sessions", "working_dir", "TEXT DEFAULT ''")

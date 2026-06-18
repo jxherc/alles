@@ -142,8 +142,10 @@ async function fetchInboxFor(account, limit = 35, folder = 'INBOX', quick = fals
   // hasn't moved — keeps the 30s background poll cheap on slow connections
   const url = `/api/mail/inbox/${account.id}?folder=${encodeURIComponent(folder)}&limit=${limit}${quick ? '&quick=1' : ''}`;
   const d = await fetch(url).then(r => r.json());
-  if (d.error) throw new Error(d.error);
-  return (d.messages || []).map(m => ({ ...m, account_id: account.id, account_name: account.name || account.email, folder }));
+  const map = ms => ms.map(m => ({ ...m, account_id: account.id, account_name: account.name || account.email, folder }));
+  // IMAP failed but the server handed back the cached copy → show it (offline-friendly) instead of erroring
+  if (d.error) { if ((d.messages || []).length) return map(d.messages); throw new Error(d.error); }
+  return map(d.messages || []);
 }
 
 // providers don't agree on a sent-folder name; sniff it once per account
@@ -169,7 +171,21 @@ function setFilter(f) {
   if (_filter === f) return;
   _filter = f;
   document.querySelectorAll('.mail-tab').forEach(t => t.classList.toggle('active', t.dataset.filter === f));
-  if (f === 'drafts') loadDrafts(); else loadInbox();
+  if (f === 'drafts') loadDrafts();
+  else if (f === 'flagged') loadFlagged();
+  else loadInbox();
+}
+
+async function loadFlagged() {
+  const list = $('mail-list'); const main = $('mail-main');
+  main.innerHTML = '';
+  list.innerHTML = '<div class="mail-empty">loading flagged…</div>';
+  const accts = _active === 'all' ? _accounts : _accounts.filter(a => a.id === _active);
+  const results = await Promise.allSettled(accts.map(a =>
+    fetch(`/api/mail/smart/${a.id}?filter=flagged`).then(r => r.json())));
+  let msgs = [];
+  for (const r of results) if (r.status === 'fulfilled') msgs = msgs.concat(r.value.messages || []);
+  renderInbox(msgs);
 }
 
 async function loadDrafts() {
@@ -272,6 +288,7 @@ const _msgRow = (m, indent = false) => `
       <div class="mail-row-top">
         <span class="mail-from">${esc(fromName(m.from))}</span>
         <span class="mail-date">${esc(shortDate(m.date))}</span>
+        <button class="mail-flag${m.flagged ? ' on' : ''}" data-flag title="flag">${m.flagged ? '★' : '☆'}</button>
       </div>
       <div class="mail-subject">${esc(m.subject)}</div>
       ${_active === 'all' ? `<div class="mail-account-badge">${esc(m.account_name || acctName(m.account_id))}</div>` : ''}
@@ -331,6 +348,16 @@ function _wireRows(list) {
     list.querySelectorAll('.mail-row').forEach(x => x.classList.remove('sel'));
     r.classList.add('sel'); r.classList.remove('unread');
     openMessage(r.dataset.aid, r.dataset.uid, r.dataset.folder);
+  }));
+  list.querySelectorAll('.mail-flag').forEach(btn => btn.addEventListener('click', async e => {
+    e.stopPropagation();
+    const row = btn.closest('.mail-row');
+    const on = !btn.classList.contains('on');
+    btn.classList.toggle('on', on); btn.textContent = on ? '★' : '☆';
+    const m = _lastMsgs.find(x => String(x.uid) === row.dataset.uid && (x.account_id || '') === row.dataset.aid);
+    if (m) m.flagged = on;
+    await fetch(`/api/mail/flag/${row.dataset.aid}?uid=${encodeURIComponent(row.dataset.uid)}&folder=${encodeURIComponent(row.dataset.folder)}&flagged=${on}`, { method: 'POST' }).catch(() => {});
+    if (_filter === 'flagged' && !on) row.remove();   // unflagged in the flagged view → drop it
   }));
 }
 
