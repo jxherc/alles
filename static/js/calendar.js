@@ -83,6 +83,23 @@ function _bindNav() {
   _syncViewBtns();
   document.getElementById('cal-sync-btn')?.addEventListener('click', openCaldavPanel);
 
+  // quick-add: natural language → event (was a dead input before)
+  const quick = document.getElementById('cal-quick');
+  quick?.addEventListener('keydown', async e => {
+    if (e.key !== 'Enter') return;
+    const text = quick.value.trim();
+    if (!text) return;
+    try {
+      const r = await fetch('/api/calendar/quick', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text }) });
+      if (!r.ok) throw new Error();
+      const ev = await r.json();
+      quick.value = '';
+      toast(`added “${ev.title}”`, 'success');
+      if (ev.start_dt) { _cursor = new Date(ev.start_dt.slice(0, 10) + 'T00:00'); }
+      await loadCalendar();
+    } catch { toast('could not parse that — try “lunch fri 1pm”', 'error'); }
+  });
+
   const imp = document.getElementById('cal-import');
   if (imp && !imp.dataset.bound) {
     imp.dataset.bound = '1';
