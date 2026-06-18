@@ -1,10 +1,14 @@
-import time, secrets
-from fastapi import APIRouter, Depends, HTTPException, Header
+import json
+import secrets
+import time
+
+from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session as DbSession
-from core.database import get_db, VaultEntry
+
+from core.database import VaultEntry, get_db
 from core.settings import load_settings, save_settings
-from services.crypto import make_verifier, verify_master, encrypt, decrypt
+from services.crypto import decrypt, encrypt, make_verifier, verify_master
 
 router = APIRouter(prefix="/api")
 
@@ -43,7 +47,7 @@ def vault_generate(
     symbols: bool = True,
     avoid_ambiguous: bool = True,
 ):
-    from services.pwtools import generate_password, estimate_strength
+    from services.pwtools import estimate_strength, generate_password
 
     pw = generate_password(length, upper, lower, digits, symbols, avoid_ambiguous)
     return {"password": pw, "strength": estimate_strength(pw)}
@@ -95,6 +99,7 @@ def list_vault(db: DbSession = Depends(get_db), _pw: str = Depends(_master_pw)):
             "name": e.name,
             "username": e.username or "",
             "category": e.category,
+            "type": e.type or "password",
             "created_at": e.created_at.isoformat(),
         }
         for e in entries
@@ -110,26 +115,41 @@ def vault_categories(db: DbSession = Depends(get_db), _pw: str = Depends(_master
 
 class CreateEntry(BaseModel):
     name: str
-    value: str
+    value: str = ""  # legacy single-secret create
+    fields: dict | None = None  # typed structured fields (password/card/note)
+    type: str = "password"
     category: str = "general"
     username: str = ""
 
 
+def _fields_of(body) -> dict:
+    """normalize a create/patch body into a fields dict to encrypt."""
+    if body.fields is not None:
+        return body.fields
+    return {"password": body.value} if body.value else {}
+
+
 @router.post("/vault")
 def create_entry(body: CreateEntry, db: DbSession = Depends(get_db), pw: str = Depends(_master_pw)):
-    enc = encrypt(pw, body.value)
+    enc = encrypt(pw, json.dumps(_fields_of(body)))
     e = VaultEntry(
-        name=body.name, username=body.username, value_encrypted=enc, category=body.category
+        name=body.name,
+        username=body.username,
+        value_encrypted=enc,
+        category=body.category,
+        type=body.type or "password",
     )
     db.add(e)
     db.commit()
     db.refresh(e)
-    return {"id": e.id, "name": e.name, "category": e.category}
+    return {"id": e.id, "name": e.name, "category": e.category, "type": e.type}
 
 
 class PatchEntry(BaseModel):
     name: str | None = None
     value: str | None = None
+    fields: dict | None = None
+    type: str | None = None
     category: str | None = None
     username: str | None = None
 
@@ -147,8 +167,12 @@ def patch_entry(
         e.category = body.category
     if body.username is not None:
         e.username = body.username
-    if body.value is not None:
-        e.value_encrypted = encrypt(pw, body.value)
+    if body.type is not None:
+        e.type = body.type
+    if body.fields is not None:
+        e.value_encrypted = encrypt(pw, json.dumps(body.fields))
+    elif body.value is not None:
+        e.value_encrypted = encrypt(pw, json.dumps({"password": body.value}))
     db.commit()
     return {"ok": True}
 
@@ -159,10 +183,17 @@ def reveal_entry(entry_id: str, db: DbSession = Depends(get_db), pw: str = Depen
     if not e:
         raise HTTPException(404)
     try:
-        value = decrypt(pw, e.value_encrypted)
+        raw = decrypt(pw, e.value_encrypted)
     except Exception:
         raise HTTPException(500, "decryption failed")
-    return {"value": value}
+    try:
+        fields = json.loads(raw)
+        if not isinstance(fields, dict):
+            raise ValueError
+    except (ValueError, TypeError):
+        fields = {"password": raw}  # legacy: a bare encrypted string
+    # keep `value` for older callers (the password, when there is one)
+    return {"type": e.type or "password", "fields": fields, "value": fields.get("password", "")}
 
 
 @router.delete("/vault/{entry_id}")

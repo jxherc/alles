@@ -360,8 +360,9 @@ class VaultEntry(Base):
     id = Column(String, primary_key=True, default=_uid)
     name = Column(String, nullable=False)
     username = Column(String, default="")  # for password entries
-    value_encrypted = Column(Text, default="")  # base64 ciphertext+nonce
+    value_encrypted = Column(Text, default="")  # base64 ciphertext+nonce (JSON of fields)
     category = Column(String, default="general")
+    type = Column(String, default="password")  # password | card | note
     created_at = Column(DateTime, default=_now)
 
 
@@ -603,6 +604,7 @@ def init_db():
             ("favorite", "BOOLEAN DEFAULT 0"),
         ]:
             _add_col(conn, "contacts", _c, _t)
+        _add_col(conn, "vault_entries", "type", "TEXT DEFAULT 'password'")
         _add_col(conn, "sessions", "persona_id", "TEXT")
         _add_col(conn, "sessions", "project_id", "TEXT")
         _add_col(conn, "sessions", "working_dir", "TEXT DEFAULT ''")
