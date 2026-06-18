@@ -432,6 +432,7 @@
           <button class="icon-btn docs-tree-toggle" id="wiki-tree-toggle" title="show / hide files (fullscreen)" aria-label="show or hide files">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
           </button>
+          <button class="btn" id="wiki-home-btn" title="all docs (home)">⊞ all docs</button>
           <span id="wiki-current" class="wiki-current">no doc open</span>
           <span id="wiki-stats" class="wiki-stats"></span>
           <span id="wiki-save-status" style="font-size:0.66rem;color:var(--muted)"></span>
@@ -454,16 +455,17 @@
         <div id="wiki-history" class="wiki-outline" style="display:none"></div>
         <div id="wiki-taskroll" class="wiki-outline wiki-taskroll" style="display:none"></div>
         <div class="wiki-empty-state" id="wiki-empty-state">
-          <div class="we-card">
-            <svg class="we-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/></svg>
-            <div class="we-title">docs</div>
-            <div class="we-sub">markdown notes — linked with [[wikilinks]], with graphs, math, and one-click formatting.</div>
-            <div class="we-actions">
-              <button class="btn primary" id="wiki-empty-new">+ new doc</button>
-              <button class="btn" id="wiki-empty-today">today's note</button>
-              <button class="btn" id="wiki-empty-guide">markdown guide</button>
+          <div class="docs-home">
+            <div class="docs-home-head">
+              <span class="docs-home-title">docs</span>
+              <div class="docs-home-actions">
+                <button class="btn primary" id="wiki-empty-new">+ new doc</button>
+                <button class="btn" id="wiki-empty-today">today's note</button>
+                <button class="btn" id="wiki-empty-guide">guide</button>
+              </div>
             </div>
-            <div class="we-recent" id="wiki-empty-recent"></div>
+            <input type="text" id="docs-home-search" class="settings-input docs-home-search" placeholder="search your docs…">
+            <div class="docs-home-grid" id="wiki-empty-recent"></div>
           </div>
         </div>
         <div id="docs-toolbar" class="docs-toolbar">
