@@ -1,10 +1,11 @@
-import json, asyncio
+import re as _re
 from datetime import datetime, timedelta
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
+
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session as DbSession
 
-from core.database import get_db, Session, Message, ModelEndpoint
+from core.database import Message, ModelEndpoint, Session, get_db
 
 
 async def _fire(event: str, data: dict):
@@ -204,7 +205,42 @@ def edit_message(session_id: str, msg_id: str, body: EditMessage, db: DbSession 
     return {"ok": True}
 
 
-import re as _re
+class ForkBody(BaseModel):
+    msg_id: str
+
+
+# POST /api/sessions/{id}/fork — non-destructive branch from a message
+@router.post("/sessions/{session_id}/fork")
+def fork_session(session_id: str, body: ForkBody, db: DbSession = Depends(get_db)):
+    """copy this session's messages up to AND INCLUDING msg_id into a brand-new
+    session (original left untouched), so you can explore an alternate path from
+    any point. inherits model/endpoint/mode/persona/project."""
+    s = _session_or_404(session_id, db)
+    target = db.get(Message, body.msg_id)
+    if not target or target.session_id != session_id:
+        raise HTTPException(404, "message not found in this session")
+    new = Session(
+        name=f"{s.name} (branch)",
+        model=s.model,
+        endpoint_id=s.endpoint_id,
+        mode=s.mode,
+        persona_id=s.persona_id,
+        project_id=getattr(s, "project_id", None),
+        working_dir=getattr(s, "working_dir", "") or "",
+    )
+    db.add(new)
+    db.flush()
+    n = 0
+    for m in s.messages:  # relationship is timestamp-ordered — same order the user sees
+        db.add(Message(session_id=new.id, role=m.role, content=m.content, meta=m.meta))
+        n += 1
+        if m.id == body.msg_id:
+            break  # stop after copying the chosen message
+    new.message_count = n
+    db.commit()
+    db.refresh(new)
+    return _fmt_session(new)
+
 
 _TITLE_STRIP = _re.compile(
     r"^(how (do|can|to)\s+i\s+|how (do|to)\s+|what('?s| is| are)\s+|whats\s+|can you\s+|could you\s+|"
