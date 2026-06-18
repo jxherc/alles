@@ -8,10 +8,12 @@ inside each event's reminder window.
 import calendar
 import logging
 from datetime import date
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session as DbSession
-from core.database import get_db, SessionLocal, DayEvent
+
+from core.database import DayEvent, SessionLocal, get_db
 
 router = APIRouter(prefix="/api")
 log = logging.getLogger("aide.days")
@@ -30,6 +32,11 @@ def _clamp(y: int, m: int, d: int) -> date:
 def _occurrence(orig: date, today: date, repeat: str) -> tuple[date, int]:
     """next occurrence on/after today, and which anniversary it is (1-based).
     handles feb 29 birthdays and 31st-of-month repeats by clamping."""
+    # the original date hasn't happened yet → its FIRST occurrence is orig itself
+    # (anniversary 0). without this, snapping to the current year/month would land
+    # before the event ever occurred and report a negative anniversary.
+    if orig > today:
+        return orig, 0
     if repeat == "yearly":
         occ = _clamp(today.year, orig.month, orig.day)
         if occ < today:
