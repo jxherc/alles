@@ -5,8 +5,8 @@ import os
 import logging
 import unittest
 
-os.environ["AUTH_ENABLED"] = "false"   # set before app import so dotenv can't flip it on us
-logging.getLogger("httpx").setLevel(logging.WARNING)   # quiet the per-request request log
+os.environ["AUTH_ENABLED"] = "false"  # set before app import so dotenv can't flip it on us
+logging.getLogger("httpx").setLevel(logging.WARNING)  # quiet the per-request request log
 
 from sqlalchemy import create_engine
 from sqlalchemy.pool import StaticPool
@@ -21,12 +21,15 @@ class ApiTest(unittest.TestCase):
         os.environ["AUTH_ENABLED"] = "false"
         # StaticPool = one shared connection, so the schema survives across the
         # threadpool fastapi runs sync routes in (a plain :memory: engine wouldn't)
-        self.eng = create_engine("sqlite://", connect_args={"check_same_thread": False},
-                                 poolclass=StaticPool)
+        self.eng = create_engine(
+            "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
+        )
         db.Base.metadata.create_all(self.eng)
         self._orig = db.engine
         db.engine = self.eng
-        db.SessionLocal.configure(bind=self.eng)   # shared sessionmaker → every route + get_db follows
+        db.SessionLocal.configure(
+            bind=self.eng
+        )  # shared sessionmaker → every route + get_db follows
         self.client = TestClient(app)
 
     def tearDown(self):

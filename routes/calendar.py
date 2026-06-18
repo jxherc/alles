@@ -1,9 +1,11 @@
 import json
-from fastapi import APIRouter, HTTPException, Depends
-from pydantic import BaseModel
 from typing import Optional
+
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 from sqlalchemy.orm import Session as DbSession
-from core.database import get_db, Calendar, CalendarEvent
+
+from core.database import Calendar, CalendarEvent, get_db
 
 router = APIRouter(prefix="/api")
 
@@ -18,26 +20,39 @@ def _jl(s):
 
 def _fmt(e: CalendarEvent) -> dict:
     return {
-        "id": e.id, "calendar_id": e.calendar_id or "", "title": e.title,
-        "description": e.description, "location": e.location or "", "guests": e.guests or "",
-        "start_dt": e.start_dt, "end_dt": e.end_dt,
-        "all_day": e.all_day, "color": e.color,
+        "id": e.id,
+        "calendar_id": e.calendar_id or "",
+        "title": e.title,
+        "description": e.description,
+        "location": e.location or "",
+        "guests": e.guests or "",
+        "start_dt": e.start_dt,
+        "end_dt": e.end_dt,
+        "all_day": e.all_day,
+        "color": e.color,
         "reminders": _jl(e.reminders),
-        "recurrence": e.recurrence or "", "recur_interval": e.recur_interval or 1,
-        "recur_byday": e.recur_byday or "", "recur_count": e.recur_count,
-        "recur_until": e.recur_until, "recur_except": _jl(e.recur_except),
+        "recurrence": e.recurrence or "",
+        "recur_interval": e.recur_interval or 1,
+        "recur_byday": e.recur_byday or "",
+        "recur_count": e.recur_count,
+        "recur_until": e.recur_until,
+        "recur_except": _jl(e.recur_except),
         "created_at": e.created_at.isoformat(),
     }
 
 
 def _default_cal(db) -> str:
-    c = db.query(Calendar).filter(Calendar.is_default == True).first() \
+    c = (
+        db.query(Calendar).filter(Calendar.is_default == True).first()
         or db.query(Calendar).order_by(Calendar.sort_order).first()
+    )
     if not c:
         from routes.calendars import seed_default_calendar
+
         seed_default_calendar()
         c = db.query(Calendar).filter(Calendar.is_default == True).first()
     return c.id if c else ""
+
 
 @router.get("/calendar")
 def list_events(db: DbSession = Depends(get_db)):
@@ -45,15 +60,86 @@ def list_events(db: DbSession = Depends(get_db)):
     return [_fmt(e) for e in rows]
 
 
+@router.get("/calendar/tasks")
+def calendar_tasks(start: str = "", end: str = "", db: DbSession = Depends(get_db)):
+    """tasks that have a due date, as calendar items (overlay, Google Tasks style)."""
+    from core.database import Task
+
+    q = db.query(Task).filter(Task.due_date != None, Task.due_date != "")  # noqa: E711
+    if start:
+        q = q.filter(Task.due_date >= start)
+    if end:
+        q = q.filter(Task.due_date <= end)
+    rows = q.order_by(Task.due_date.asc()).all()
+    return [{"id": t.id, "title": t.title, "date": t.due_date, "done": t.done} for t in rows]
+
+
+@router.post("/calendar/{eid}/duplicate")
+def duplicate_event(eid: str, db: DbSession = Depends(get_db)):
+    """clone an event (new id), same fields — Google Calendar 'duplicate'."""
+    e = db.get(CalendarEvent, eid)
+    if not e:
+        raise HTTPException(404)
+    cols = {c.name for c in CalendarEvent.__table__.columns} - {"id", "created_at", "caldav_uid"}
+    clone = CalendarEvent(**{c: getattr(e, c) for c in cols})
+    db.add(clone)
+    db.commit()
+    db.refresh(clone)
+    return _fmt(clone)
+
+
+@router.get("/calendar/free")
+def free_time(
+    date: str,
+    minutes: int = 60,
+    work_start: int = 9,
+    work_end: int = 18,
+    db: DbSession = Depends(get_db),
+):
+    """open slots on a given date that fit `minutes`, avoiding existing timed events."""
+    from datetime import date as _date
+    from datetime import datetime as _dt
+    from datetime import timedelta as _td
+
+    from services.recur import expand, free_slots
+
+    try:
+        day = _date.fromisoformat(date)
+    except ValueError:
+        raise HTTPException(400, "bad date")
+    rs = _dt.combine(day, _dt.min.time())
+    re_ = rs + _td(days=1)
+    busy = []
+    for e in db.query(CalendarEvent).all():
+        if e.all_day:
+            continue
+        try:
+            base_s = _dt.fromisoformat(e.start_dt)
+            base_e = _dt.fromisoformat(e.end_dt) if e.end_dt else base_s + _td(hours=1)
+            dur = base_e - base_s
+        except (ValueError, TypeError):
+            continue
+        if e.recurrence:
+            for occ in expand(_fmt(e), rs, re_):
+                busy.append((occ, occ + dur))
+        elif rs <= base_s < re_:
+            busy.append((base_s, base_e))
+    return {"date": date, "slots": free_slots(busy, day, minutes, work_start, work_end)}
+
+
 @router.get("/calendar/agenda")
 def agenda(days: int = 30, db: DbSession = Depends(get_db)):
     """upcoming events grouped by day — a flat agenda list for the next N days."""
     from datetime import date, timedelta
+
     today = date.today().isoformat()
     until = (date.today() + timedelta(days=days)).isoformat()
-    rows = (db.query(CalendarEvent)
-            .filter(CalendarEvent.start_dt >= today, CalendarEvent.start_dt <= until + "T99")
-            .order_by(CalendarEvent.start_dt.asc()).all())
+    rows = (
+        db.query(CalendarEvent)
+        .filter(CalendarEvent.start_dt >= today, CalendarEvent.start_dt <= until + "T99")
+        .order_by(CalendarEvent.start_dt.asc())
+        .all()
+    )
     groups: dict[str, list] = {}
     for e in rows:
         groups.setdefault(e.start_dt[:10], []).append(_fmt(e))
@@ -68,14 +154,23 @@ class QuickEvent(BaseModel):
 def quick_event(body: QuickEvent, db: DbSession = Depends(get_db)):
     """natural-language event: 'lunch with sam friday 1pm', 'dentist june 20 9am'."""
     from services.event_nl import parse_event
+
     if not body.text.strip():
         raise HTTPException(400, "empty")
     p = parse_event(body.text)
-    e = CalendarEvent(title=p["title"], start_dt=p["start_dt"],
-                      end_dt=p["end_dt"], all_day=p["all_day"],
-                      recurrence=p.get("recurrence", ""), recur_until=p.get("recur_until"))
-    db.add(e); db.commit(); db.refresh(e)
+    e = CalendarEvent(
+        title=p["title"],
+        start_dt=p["start_dt"],
+        end_dt=p["end_dt"],
+        all_day=p["all_day"],
+        recurrence=p.get("recurrence", ""),
+        recur_until=p.get("recur_until"),
+    )
+    db.add(e)
+    db.commit()
+    db.refresh(e)
     return _fmt(e)
+
 
 class EventBody(BaseModel):
     title: str
@@ -103,7 +198,9 @@ def create_event(body: EventBody, db: DbSession = Depends(get_db)):
     data["reminders"] = json.dumps(data.get("reminders") or [])
     data["recur_except"] = json.dumps(data.get("recur_except") or [])
     e = CalendarEvent(**data)
-    db.add(e); db.commit(); db.refresh(e)
+    db.add(e)
+    db.commit()
+    db.refresh(e)
     return _fmt(e)
 
 
@@ -147,6 +244,7 @@ def delete_event(eid: str, scope: str = "all", occ: str = "", db: DbSession = De
     """scope='all' deletes the event/series; 'this' excludes one occurrence (occ
     date); 'following' ends the series the day before occ."""
     from datetime import date, timedelta
+
     e = db.get(CalendarEvent, eid)
     if not e:
         raise HTTPException(404)
@@ -165,7 +263,8 @@ def delete_event(eid: str, scope: str = "all", occ: str = "", db: DbSession = De
             return {"ok": True, "scope": "following"}
         except ValueError:
             pass
-    db.delete(e); db.commit()
+    db.delete(e)
+    db.commit()
     return {"ok": True}
 
 
@@ -173,11 +272,16 @@ def delete_event(eid: str, scope: str = "all", occ: str = "", db: DbSession = De
 def export_ics(db: DbSession = Depends(get_db)):
     """download every event as a .ics — import into Apple/Google/Outlook calendar."""
     from fastapi.responses import Response
+
     from services.ics import to_ics
+
     rows = db.query(CalendarEvent).order_by(CalendarEvent.start_dt.asc()).all()
     body = to_ics([_fmt(e) for e in rows])
-    return Response(body, media_type="text/calendar",
-                    headers={"content-disposition": 'attachment; filename="alles-calendar.ics"'})
+    return Response(
+        body,
+        media_type="text/calendar",
+        headers={"content-disposition": 'attachment; filename="alles-calendar.ics"'},
+    )
 
 
 class IcsImport(BaseModel):
@@ -188,11 +292,18 @@ class IcsImport(BaseModel):
 def import_ics(body: IcsImport, db: DbSession = Depends(get_db)):
     """import events from a pasted/uploaded .ics."""
     from services.ics import parse_ics
+
     n = 0
     for ev in parse_ics(body.ics):
-        db.add(CalendarEvent(title=ev["title"] or "(untitled)", start_dt=ev["start_dt"],
-                             end_dt=ev.get("end_dt"), all_day=ev.get("all_day", False),
-                             description=ev.get("description", "")))
+        db.add(
+            CalendarEvent(
+                title=ev["title"] or "(untitled)",
+                start_dt=ev["start_dt"],
+                end_dt=ev.get("end_dt"),
+                all_day=ev.get("all_day", False),
+                description=ev.get("description", ""),
+            )
+        )
         n += 1
     db.commit()
     return {"imported": n}

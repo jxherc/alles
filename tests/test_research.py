@@ -30,6 +30,7 @@ class UtilTests(unittest.TestCase):
 
     def test_date_context_has_year(self):
         from datetime import datetime
+
         self.assertIn(str(datetime.now().year), current_date_context())
 
 
@@ -58,6 +59,7 @@ class JsonParseTests(unittest.TestCase):
 
 # ── full loop against fakes ──────────────────────────────────────────────────
 
+
 def _fake_response(prompt: str) -> str:
     p = prompt
     if "research strategist" in p:
@@ -66,9 +68,10 @@ def _fake_response(prompt: str) -> str:
         return "general"
     if "JSON array of query strings" in p:
         import re
+
         m = re.search(r"\*\*Round:\*\*\s*(\d+)", p)
         rn = m.group(1) if m else "0"
-        return f'["query {rn}a", "query {rn}b"]'   # unique per round, else dedup empties it
+        return f'["query {rn}a", "query {rn}b"]'  # unique per round, else dedup empties it
     if "Webpage Content" in p:  # extractor
         return '{"rational":"r","evidence":"the moon is made of rock","summary":"rocky moon"}'
     if "deciding whether a research report" in p:  # STOP_PROMPT
@@ -84,20 +87,29 @@ async def _fake_stream_chat(messages, base_url, api_key, model, **kw):
 
 
 async def _fake_search_chain(query, override=None, max_results=10):
-    return ([{"url": f"http://ex/{abs(hash(query)) % 999}", "title": "Ex", "snippet": "s"}],
-            "duckduckgo", None)
+    return (
+        [{"url": f"http://ex/{abs(hash(query)) % 999}", "title": "Ex", "snippet": "s"}],
+        "duckduckgo",
+        None,
+    )
 
 
 def _fake_fetch(url, timeout=10):
-    return {"success": True, "content": "the moon is made of rock " * 50,
-            "title": "Ex", "og_image": ""}
+    return {
+        "success": True,
+        "content": "the moon is made of rock " * 50,
+        "title": "Ex",
+        "og_image": "",
+    }
 
 
 class FullLoopTests(unittest.TestCase):
     def test_research_produces_report(self):
-        with mock.patch("services.llm.stream_chat", _fake_stream_chat), \
-             mock.patch("services.research.search.search_chain", _fake_search_chain), \
-             mock.patch("services.research.search.fetch_webpage_content", _fake_fetch):
+        with (
+            mock.patch("services.llm.stream_chat", _fake_stream_chat),
+            mock.patch("services.research.search.search_chain", _fake_search_chain),
+            mock.patch("services.research.search.fetch_webpage_content", _fake_fetch),
+        ):
             r = DeepResearcher("http://x", "k", "m", min_rounds=1, max_rounds=2)
             report = asyncio.run(r.research("what is the moon made of"))
 
@@ -111,9 +123,12 @@ class FullLoopTests(unittest.TestCase):
     def test_search_down_returns_message(self):
         async def _empty_search(query, override=None, max_results=10):
             return ([], None, "duckduckgo: connection refused")
-        with mock.patch("services.llm.stream_chat", _fake_stream_chat), \
-             mock.patch("services.research.search.search_chain", _empty_search), \
-             mock.patch("services.research.search.fetch_webpage_content", _fake_fetch):
+
+        with (
+            mock.patch("services.llm.stream_chat", _fake_stream_chat),
+            mock.patch("services.research.search.search_chain", _empty_search),
+            mock.patch("services.research.search.fetch_webpage_content", _fake_fetch),
+        ):
             # min_rounds high so the stop-check doesn't fire before the empty
             # rounds accumulate to the "search down" threshold
             r = DeepResearcher("http://x", "k", "m", min_rounds=3, max_rounds=3, max_empty_rounds=2)

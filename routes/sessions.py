@@ -1,18 +1,21 @@
-import json, asyncio
+import re as _re
 from datetime import datetime, timedelta
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
+
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session as DbSession
 
-from core.database import get_db, Session, Message, ModelEndpoint
+from core.database import Message, ModelEndpoint, Session, get_db
 
 
 async def _fire(event: str, data: dict):
     try:
         from routes.webhooks import fire
+
         await fire(event, data)
     except Exception:
         pass
+
 
 router = APIRouter(prefix="/api")
 
@@ -106,13 +109,15 @@ def get_history(session_id: str, db: DbSession = Depends(get_db)):
     s = _session_or_404(session_id, db)
     msgs = []
     for m in s.messages:
-        msgs.append({
-            "id": m.id,
-            "role": m.role,
-            "content": m.content,
-            "meta": m.meta_dict(),
-            "timestamp": m.timestamp.isoformat(),
-        })
+        msgs.append(
+            {
+                "id": m.id,
+                "role": m.role,
+                "content": m.content,
+                "meta": m.meta_dict(),
+                "timestamp": m.timestamp.isoformat(),
+            }
+        )
     return {"session": _fmt_session(s), "messages": msgs}
 
 
@@ -128,16 +133,25 @@ class PatchSession(BaseModel):
 
 # PATCH /api/sessions/{id}
 @router.patch("/sessions/{session_id}")
-async def patch_session(session_id: str, body: PatchSession, bg: BackgroundTasks, db: DbSession = Depends(get_db)):
+async def patch_session(
+    session_id: str, body: PatchSession, bg: BackgroundTasks, db: DbSession = Depends(get_db)
+):
     s = _session_or_404(session_id, db)
     renamed = body.name is not None and body.name != s.name
-    if body.name is not None:       s.name = body.name
-    if body.model is not None:      s.model = body.model
-    if body.endpoint_id is not None: s.endpoint_id = body.endpoint_id or None
-    if body.mode is not None:       s.mode = body.mode
-    if body.starred is not None:    s.starred = body.starred
-    if body.persona_id is not None: s.persona_id = body.persona_id or None
-    if body.working_dir is not None: s.working_dir = body.working_dir
+    if body.name is not None:
+        s.name = body.name
+    if body.model is not None:
+        s.model = body.model
+    if body.endpoint_id is not None:
+        s.endpoint_id = body.endpoint_id or None
+    if body.mode is not None:
+        s.mode = body.mode
+    if body.starred is not None:
+        s.starred = body.starred
+    if body.persona_id is not None:
+        s.persona_id = body.persona_id or None
+    if body.working_dir is not None:
+        s.working_dir = body.working_dir
     db.commit()
     if renamed:
         bg.add_task(_fire, "session_renamed", {"session_id": s.id, "name": s.name})
@@ -174,29 +188,66 @@ class EditMessage(BaseModel):
 
 # POST /api/sessions/{id}/messages/{msg_id}/edit
 @router.post("/sessions/{session_id}/messages/{msg_id}/edit")
-def edit_message(session_id: str, msg_id: str, body: EditMessage,
-                 db: DbSession = Depends(get_db)):
+def edit_message(session_id: str, msg_id: str, body: EditMessage, db: DbSession = Depends(get_db)):
     msg = db.get(Message, msg_id)
     if not msg or msg.session_id != session_id:
         raise HTTPException(404)
     msg.content = body.content
     # hard-delete everything after this message
-    later = (db.query(Message)
-             .filter(Message.session_id == session_id,
-                     Message.timestamp > msg.timestamp)
-             .all())
+    later = (
+        db.query(Message)
+        .filter(Message.session_id == session_id, Message.timestamp > msg.timestamp)
+        .all()
+    )
     for m in later:
         db.delete(m)
     db.commit()
     return {"ok": True}
 
 
-import re as _re
+class ForkBody(BaseModel):
+    msg_id: str
+
+
+# POST /api/sessions/{id}/fork — non-destructive branch from a message
+@router.post("/sessions/{session_id}/fork")
+def fork_session(session_id: str, body: ForkBody, db: DbSession = Depends(get_db)):
+    """copy this session's messages up to AND INCLUDING msg_id into a brand-new
+    session (original left untouched), so you can explore an alternate path from
+    any point. inherits model/endpoint/mode/persona/project."""
+    s = _session_or_404(session_id, db)
+    target = db.get(Message, body.msg_id)
+    if not target or target.session_id != session_id:
+        raise HTTPException(404, "message not found in this session")
+    new = Session(
+        name=f"{s.name} (branch)",
+        model=s.model,
+        endpoint_id=s.endpoint_id,
+        mode=s.mode,
+        persona_id=s.persona_id,
+        project_id=getattr(s, "project_id", None),
+        working_dir=getattr(s, "working_dir", "") or "",
+    )
+    db.add(new)
+    db.flush()
+    n = 0
+    for m in s.messages:  # relationship is timestamp-ordered — same order the user sees
+        db.add(Message(session_id=new.id, role=m.role, content=m.content, meta=m.meta))
+        n += 1
+        if m.id == body.msg_id:
+            break  # stop after copying the chosen message
+    new.message_count = n
+    db.commit()
+    db.refresh(new)
+    return _fmt_session(new)
+
 
 _TITLE_STRIP = _re.compile(
     r"^(how (do|can|to)\s+i\s+|how (do|to)\s+|what('?s| is| are)\s+|whats\s+|can you\s+|could you\s+|"
     r"please\s+|help me( with)?\s+|i (want|need|would like) to\s+|tell me about\s+|explain\s+|"
-    r"write( me)?\s+|make( me)?\s+|create\s+|build\s+|fix\s+|give me\s+)", _re.I)
+    r"write( me)?\s+|make( me)?\s+|create\s+|build\s+|fix\s+|give me\s+)",
+    _re.I,
+)
 
 
 def _heuristic_title(text: str) -> str:
@@ -212,13 +263,24 @@ async def _generate_title(first_user: str, ep, model: str) -> str:
     if ep and model:
         try:
             from services.llm import simple_complete
+
             prompt = [
-                {"role": "system", "content": "Respond with ONLY a 3-6 word lowercase title for the chat. No quotes, no punctuation, no preamble."},
+                {
+                    "role": "system",
+                    "content": "Respond with ONLY a 3-6 word lowercase title for the chat. No quotes, no punctuation, no preamble.",
+                },
                 {"role": "user", "content": f"Chat is about: {first_user[:400]}"},
             ]
             # generous max_tokens: reasoning models burn the budget thinking before answering
-            name = (await simple_complete(prompt, ep.base_url, ep.api_key, model, max_tokens=400)).strip().strip('"\'').strip()
-            name = name.splitlines()[-1].strip() if name else ""   # take last line in case of stray output
+            name = (
+                (await simple_complete(prompt, ep.base_url, ep.api_key, model, max_tokens=400))
+                .strip()
+                .strip("\"'")
+                .strip()
+            )
+            name = (
+                name.splitlines()[-1].strip() if name else ""
+            )  # take last line in case of stray output
             if name and len(name) <= 60:
                 return name.lower()
         except Exception:

@@ -8,15 +8,38 @@ class UsageApiTest(ApiTest):
     def _seed(self):
         d = self.db()
         s = Session(name="costly chat", model="deepseek-v4-pro")
-        d.add(s); d.commit(); sid = s.id
+        d.add(s)
+        d.commit()
+        sid = s.id
         d.add(Message(session_id=sid, role="user", content="hi"))
-        d.add(Message(session_id=sid, role="assistant", content="hello",
-                      meta=json.dumps({"model": "deepseek-v4-pro",
-                                       "usage": {"prompt_tokens": 100, "completion_tokens": 40}})))
-        d.add(Message(session_id=sid, role="assistant", content="more",
-                      meta=json.dumps({"model": "deepseek-v4-pro",
-                                       "usage": {"prompt_tokens": 50, "completion_tokens": 10}})))
-        d.commit(); d.close()
+        d.add(
+            Message(
+                session_id=sid,
+                role="assistant",
+                content="hello",
+                meta=json.dumps(
+                    {
+                        "model": "deepseek-v4-pro",
+                        "usage": {"prompt_tokens": 100, "completion_tokens": 40},
+                    }
+                ),
+            )
+        )
+        d.add(
+            Message(
+                session_id=sid,
+                role="assistant",
+                content="more",
+                meta=json.dumps(
+                    {
+                        "model": "deepseek-v4-pro",
+                        "usage": {"prompt_tokens": 50, "completion_tokens": 10},
+                    }
+                ),
+            )
+        )
+        d.commit()
+        d.close()
         return sid
 
     def test_summary_aggregates(self):

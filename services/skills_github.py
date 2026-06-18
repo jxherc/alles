@@ -4,6 +4,7 @@ direct SKILL.md (blob/raw) url. scans the tree for SKILL.md files and stores eac
 public repos only — no token needed, which is plenty for single-user. respects the
 outbound_proxy via httpx's trust_env (services/net exports HTTP(S)_PROXY).
 """
+
 import re
 import httpx
 
@@ -39,14 +40,21 @@ def _default_branch(owner, repo):
 
 
 def _skill_paths(owner, repo, branch, under=""):
-    r = httpx.get(f"{_API}repos/{owner}/{repo}/git/trees/{branch}?recursive=1",
-                  headers=_H, timeout=20, follow_redirects=True)
+    r = httpx.get(
+        f"{_API}repos/{owner}/{repo}/git/trees/{branch}?recursive=1",
+        headers=_H,
+        timeout=20,
+        follow_redirects=True,
+    )
     r.raise_for_status()
     pre = (under + "/") if under else ""
-    return [x["path"] for x in r.json().get("tree", [])
-            if x.get("type") == "blob"
-            and (x["path"] == "SKILL.md" or x["path"].endswith("/SKILL.md"))
-            and x["path"].startswith(pre)]
+    return [
+        x["path"]
+        for x in r.json().get("tree", [])
+        if x.get("type") == "blob"
+        and (x["path"] == "SKILL.md" or x["path"].endswith("/SKILL.md"))
+        and x["path"].startswith(pre)
+    ]
 
 
 def _fetch(owner, repo, branch, path):

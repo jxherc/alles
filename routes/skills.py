@@ -23,6 +23,7 @@ def match(q: str, k: int = 3):
 def catalog():
     """the built-in skill library, each marked installed or not."""
     from services import skills_catalog
+
     have = {s["slug"] for s in skills_store.list_skills()}
     return [{**it, "installed": it["slug"] in have} for it in skills_catalog.items()]
 
@@ -35,8 +36,9 @@ class InstallBody(BaseModel):
 def install(body: InstallBody):
     """install one or more library skills into data/skills/."""
     from services import skills_catalog
+
     n = 0
-    for slug in (body.slugs or []):
+    for slug in body.slugs or []:
         it = skills_catalog.get(slug)
         if it:
             skills_store.upsert_skill(it["name"], it["description"], it["when_to_use"], it["body"])
@@ -52,6 +54,7 @@ class GithubBody(BaseModel):
 def import_github(body: GithubBody):
     """pull SKILL.md(s) from a github repo / folder / file url into data/skills/."""
     from services import skills_github
+
     try:
         return skills_github.import_from_github(body.url)
     except ValueError as e:
@@ -104,7 +107,9 @@ class SkillBody(BaseModel):
 @router.post("")
 def create(body: SkillBody):
     try:
-        return skills_store.upsert_skill(body.name, body.description, body.when_to_use, body.body, body.slug)
+        return skills_store.upsert_skill(
+            body.name, body.description, body.when_to_use, body.body, body.slug
+        )
     except ValueError as e:
         raise HTTPException(400, str(e))
 
@@ -112,7 +117,9 @@ def create(body: SkillBody):
 @router.put("/{slug}")
 def update(slug: str, body: SkillBody):
     try:
-        return skills_store.upsert_skill(body.name, body.description, body.when_to_use, body.body, slug)
+        return skills_store.upsert_skill(
+            body.name, body.description, body.when_to_use, body.body, slug
+        )
     except ValueError as e:
         raise HTTPException(400, str(e))
 

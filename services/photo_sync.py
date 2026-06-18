@@ -8,15 +8,49 @@ the macOS Photos *library* itself (PhotoKit) isn't a plain folder, so the native
 bridge below is the integration seam for the Mac mini: export from the system
 library to a temp dir (osxphotos / PhotoKit), then run the same folder sync.
 """
-import sys
+
 import json
+import sys
+from datetime import datetime
 from pathlib import Path
 
+from core.database import Photo, SessionLocal
 from services import photos_store
-from core.database import SessionLocal, Photo
 
 _IMG_EXT = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".heic", ".bmp"}
 _STATE = Path(__file__).resolve().parent.parent / "data" / "photo_sync_state.json"
+
+
+def parse_takeout_sidecar(data: dict) -> dict:
+    """pull taken-time + GPS out of a Google Takeout JSON sidecar. Takeout writes
+    0.0 lat/lon when there's no location, so those are ignored."""
+    out = {}
+    ts = (data.get("photoTakenTime") or {}).get("timestamp")
+    if ts:
+        try:
+            out["taken_at"] = datetime.utcfromtimestamp(int(ts))
+        except (ValueError, TypeError):
+            pass
+    geo = data.get("geoData") or data.get("geoDataExif") or {}
+    lat, lon = geo.get("latitude"), geo.get("longitude")
+    if lat and lon:
+        try:
+            out["lat"], out["lon"] = round(float(lat), 6), round(float(lon), 6)
+        except (ValueError, TypeError):
+            pass
+    return out
+
+
+def _find_sidecar(p: Path):
+    """Takeout sidecar next to an image: IMG.jpg.json / IMG.jpg.supplemental-metadata.json / IMG.json."""
+    for cand in (
+        p.parent / (p.name + ".json"),
+        p.parent / (p.name + ".supplemental-metadata.json"),
+        p.with_suffix(".json"),
+    ):
+        if cand.is_file():
+            return cand
+    return None
 
 
 def _load_state() -> dict:
@@ -61,9 +95,30 @@ def sync_folder(src: str, db=None, limit: int = 2000) -> dict:
                 continue
             try:
                 info = photos_store.import_image(p.read_bytes(), p.name)
-                db.add(Photo(filename=info["filename"], thumb=info["thumb"],
-                             original_name=info["original_name"], width=info["width"],
-                             height=info["height"], taken_at=info["taken_at"], exif=info["exif"]))
+                # Google Takeout sidecar (if present) is authoritative for date + GPS
+                sc = _find_sidecar(p)
+                if sc:
+                    try:
+                        meta = parse_takeout_sidecar(json.loads(sc.read_text("utf-8")))
+                        if meta.get("taken_at"):
+                            info["taken_at"] = meta["taken_at"]
+                        if "lat" in meta:
+                            ex = json.loads(info["exif"] or "{}")
+                            ex["lat"], ex["lon"] = meta["lat"], meta["lon"]
+                            info["exif"] = json.dumps(ex)
+                    except Exception:
+                        pass
+                db.add(
+                    Photo(
+                        filename=info["filename"],
+                        thumb=info["thumb"],
+                        original_name=info["original_name"],
+                        width=info["width"],
+                        height=info["height"],
+                        taken_at=info["taken_at"],
+                        exif=info["exif"],
+                    )
+                )
                 seen[k] = sig
                 imported += 1
             except Exception:
@@ -85,10 +140,12 @@ def pull_from_macos_photos(dest_dir: str) -> dict:
     if sys.platform != "darwin":
         raise NotImplementedError(
             "macOS-only: on the Mac mini, export via osxphotos "
-            "(`osxphotos export <dest> --update`) or PhotoKit, then sync_folder(dest).")
+            "(`osxphotos export <dest> --update`) or PhotoKit, then sync_folder(dest)."
+        )
     # on darwin: shell out to osxphotos if present (kept here as the seam)
     import shutil
     import subprocess
+
     if not shutil.which("osxphotos"):
         raise RuntimeError("osxphotos not installed — `pip install osxphotos` on the Mac")
     Path(dest_dir).mkdir(parents=True, exist_ok=True)

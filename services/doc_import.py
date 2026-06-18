@@ -2,6 +2,7 @@
 Import a document into the vault as markdown. Handles .md/.txt (passthrough),
 .docx (python-docx), .html (stripped to md), .pdf (pypdf, graceful if missing).
 """
+
 import io
 import re
 from html.parser import HTMLParser
@@ -27,6 +28,7 @@ def import_document(filename: str, data: bytes) -> dict:
 
 def _docx_to_md(data: bytes) -> str:
     from docx import Document
+
     doc = Document(io.BytesIO(data))
     out = []
     for p in doc.paragraphs:
@@ -50,7 +52,10 @@ def _docx_to_md(data: bytes) -> str:
             out.append(text)
     # tables come after the body (python-docx doesn't interleave them) — good enough
     for t in doc.tables:
-        rows = ["| " + " | ".join(c.text.strip().replace("\n", " ") for c in r.cells) + " |" for r in t.rows]
+        rows = [
+            "| " + " | ".join(c.text.strip().replace("\n", " ") for c in r.cells) + " |"
+            for r in t.rows
+        ]
         if rows:
             cols = rows[0].count("|") - 1
             rows.insert(1, "| " + " | ".join(["---"] * cols) + " |")
@@ -64,7 +69,7 @@ class _HtmlToMd(HTMLParser):
         super().__init__(convert_charrefs=True)
         self.out = []
         self.skip = 0
-        self.lists = []        # stack of [kind, counter]
+        self.lists = []  # stack of [kind, counter]
         self.in_link = False
         self.href = None
         self.link_txt = []
@@ -165,7 +170,7 @@ def _pdf_to_md(data: bytes) -> str:
         from pypdf import PdfReader
     except Exception:
         try:
-            from PyPDF2 import PdfReader   # older name, same api
+            from PyPDF2 import PdfReader  # older name, same api
         except Exception:
             raise ValueError("PDF import needs pypdf — run: pip install pypdf")
     reader = PdfReader(io.BytesIO(data))

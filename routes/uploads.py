@@ -20,12 +20,13 @@ async def upload_file(file: UploadFile = File(...), db: DbSession = Depends(get_
         raise HTTPException(400, "file too large (max 20MB)")
 
     mime = file.content_type or "application/octet-stream"
-    ext  = Path(file.filename or "file").suffix.lower()
+    ext = Path(file.filename or "file").suffix.lower()
     fname = f"{uuid.uuid4()}{ext}"
     (UPLOAD_DIR / fname).write_bytes(content)
 
-    rec = Upload(filename=fname, original_name=file.filename or fname,
-                 mime_type=mime, size=len(content))
+    rec = Upload(
+        filename=fname, original_name=file.filename or fname, mime_type=mime, size=len(content)
+    )
     db.add(rec)
     db.commit()
     db.refresh(rec)

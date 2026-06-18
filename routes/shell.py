@@ -1,6 +1,7 @@
 """
 shell execution — admin only, streams output via SSE.
 """
+
 import os, sys, asyncio, json, shutil, logging
 from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import StreamingResponse
@@ -10,7 +11,7 @@ from core.auth import require_auth
 router = APIRouter(prefix="/api", dependencies=[Depends(require_auth)])
 log = logging.getLogger("aide.shell")
 
-_TIMEOUT_EXEC   = 30   # seconds for blocking exec
+_TIMEOUT_EXEC = 30  # seconds for blocking exec
 _TIMEOUT_STREAM = 120  # seconds for streaming
 
 
@@ -38,7 +39,8 @@ async def shell_exec(body: ExecRequest):
     shell = _find_shell()
     try:
         proc = await asyncio.create_subprocess_exec(
-            *shell, body.command,
+            *shell,
+            body.command,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
             cwd=os.path.expanduser("~"),
@@ -67,13 +69,14 @@ async def _stream_proc(command: str, timeout: int):
     shell = _find_shell()
     try:
         proc = await asyncio.create_subprocess_exec(
-            *shell, command,
+            *shell,
+            command,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.STDOUT,  # merge stderr into stdout
             cwd=os.path.expanduser("~"),
         )
     except Exception as e:
-        yield f"data: {json.dumps({'type':'error','text':str(e)})}\n\n"
+        yield f"data: {json.dumps({'type': 'error', 'text': str(e)})}\n\n"
         return
 
     try:
@@ -82,7 +85,7 @@ async def _stream_proc(command: str, timeout: int):
             remaining = deadline - asyncio.get_event_loop().time()
             if remaining <= 0:
                 proc.kill()
-                yield f"data: {json.dumps({'type':'error','text':f'timed out after {timeout}s'})}\n\n"
+                yield f"data: {json.dumps({'type': 'error', 'text': f'timed out after {timeout}s'})}\n\n"
                 break
             try:
                 line = await asyncio.wait_for(proc.stdout.readline(), timeout=min(remaining, 5))
@@ -90,12 +93,12 @@ async def _stream_proc(command: str, timeout: int):
                 continue
             if not line:
                 break
-            yield f"data: {json.dumps({'type':'line','text':line.decode('utf-8','replace').rstrip()})}\n\n"
+            yield f"data: {json.dumps({'type': 'line', 'text': line.decode('utf-8', 'replace').rstrip()})}\n\n"
 
         await proc.wait()
-        yield f"data: {json.dumps({'type':'done','exit_code':proc.returncode})}\n\n"
+        yield f"data: {json.dumps({'type': 'done', 'exit_code': proc.returncode})}\n\n"
     except Exception as e:
-        yield f"data: {json.dumps({'type':'error','text':str(e)})}\n\n"
+        yield f"data: {json.dumps({'type': 'error', 'text': str(e)})}\n\n"
     finally:
         yield "data: [DONE]\n\n"
 
@@ -109,18 +112,19 @@ class PyExecRequest(BaseModel):
 @router.post("/execute/python")
 async def execute_python(body: PyExecRequest):
     import tempfile, sys
+
     with tempfile.NamedTemporaryFile(suffix=".py", mode="w", delete=False) as f:
         f.write(body.code)
         fname = f.name
     try:
         proc = await asyncio.create_subprocess_exec(
-            sys.executable, fname,
+            sys.executable,
+            fname,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
         try:
-            stdout, stderr = await asyncio.wait_for(
-                proc.communicate(), timeout=body.timeout)
+            stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=body.timeout)
         except asyncio.TimeoutError:
             proc.kill()
             return {"exit_code": -1, "stdout": "", "stderr": f"timed out after {body.timeout}s"}

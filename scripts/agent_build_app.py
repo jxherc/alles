@@ -1,5 +1,7 @@
 """drive the aide agent through a real app build with a chosen model. diagnostic."""
+
 import os, sys, json
+
 os.environ["NO_PROXY"] = "localhost,127.0.0.1," + os.environ.get("NO_PROXY", "")
 try:
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -14,7 +16,9 @@ WANT_ENDPOINT = os.environ.get("AGENT_ENDPOINT", "DeepSeek")
 WANT_MODELS = os.environ.get("AGENT_MODELS", "deepseek-v4-pro,deepseek-v4-flash").split(",")
 WS = Path(os.environ.get("AGENT_WS", r"C:/Users/jxh/agent-builds/shenzhen-gems"))
 WS.mkdir(parents=True, exist_ok=True)
-EV = Path.home() / "alles-test-evidence" / ("appbuild_" + datetime.now().strftime("%Y-%m-%d_%H%M%S"))
+EV = (
+    Path.home() / "alles-test-evidence" / ("appbuild_" + datetime.now().strftime("%Y-%m-%d_%H%M%S"))
+)
 EV.mkdir(parents=True, exist_ok=True)
 
 TASK = """Create a localized discovery app focused on Shenzhen. Include a map interface where users can find 'Hidden Gems' or local favorite spots. Users should be able to click on a location to see a brief description, why it's worth visiting, and a walking distance calculation.
@@ -30,16 +34,30 @@ def main():
     ms = ep.get("models") or []
     model = next((m for m in WANT_MODELS if m in ms), (ms[0] if ms else WANT_MODELS[0]))
     print(f"agent: {ep['name']}/{model}  workspace: {WS}")
-    sid = httpx.post(f"{BASE}/api/sessions", json={
-        "name": f"appbuild {ep['name']}", "model": model, "endpoint_id": ep["id"],
-        "working_dir": str(WS), "mode": "agent"}, timeout=20).json()["id"]
+    sid = httpx.post(
+        f"{BASE}/api/sessions",
+        json={
+            "name": f"appbuild {ep['name']}",
+            "model": model,
+            "endpoint_id": ep["id"],
+            "working_dir": str(WS),
+            "mode": "agent",
+        },
+        timeout=20,
+    ).json()["id"]
 
     tools, last_status, runid = [], "", ""
     msg = TASK
     for attempt in range(4):
-        body = {"session_id": sid, "message": msg, "mode": "agent",
-                "permission_mode": "full_auto", "effort": "high",
-                "model": model, "endpoint_id": ep["id"]}
+        body = {
+            "session_id": sid,
+            "message": msg,
+            "mode": "agent",
+            "permission_mode": "full_auto",
+            "effort": "high",
+            "model": model,
+            "endpoint_id": ep["id"],
+        }
         err_seen = None
         try:
             with httpx.stream("POST", f"{BASE}/api/chat", json=body, timeout=900) as r:
@@ -54,11 +72,17 @@ def main():
                     except Exception:
                         continue
                     if "tool_start" in ch:
-                        t = ch["tool_start"]; a = t.get("args", {})
-                        print(f"  · {t['name']}  {str(a.get('path') or a.get('command') or a.get('pattern') or '')[:60]}", flush=True)
+                        t = ch["tool_start"]
+                        a = t.get("args", {})
+                        print(
+                            f"  · {t['name']}  {str(a.get('path') or a.get('command') or a.get('pattern') or '')[:60]}",
+                            flush=True,
+                        )
                         tools.append(t["name"])
                     if "llm_retry" in ch:
-                        print(f"  ↻ retry #{ch['llm_retry']['attempt']} (transient error)", flush=True)
+                        print(
+                            f"  ↻ retry #{ch['llm_retry']['attempt']} (transient error)", flush=True
+                        )
                     if "error" in ch:
                         err_seen = ch["error"]
                         print(f"  ✗ error chunk: {str(ch['error'])[:160]}", flush=True)
@@ -68,12 +92,14 @@ def main():
             runs = httpx.get(f"{BASE}/api/agent/runs?limit=1", timeout=20).json()
             last_status = runs[0].get("status") if runs else "?"
             runid = runs[0].get("id") if runs else ""
-            errs = [e for e in (runs[0].get("events", []) if runs else []) if e.get("type") == "error"]
+            errs = [
+                e for e in (runs[0].get("events", []) if runs else []) if e.get("type") == "error"
+            ]
             if errs:
                 print(f"  run error event: {errs[-1].get('data')}")
         except Exception:
             pass
-        print(f"  [turn {attempt+1}] status: {last_status}")
+        print(f"  [turn {attempt + 1}] status: {last_status}")
         if last_status != "turn_limit":
             break
         msg = "continue"
@@ -84,7 +110,9 @@ def main():
     print(f"tools ({len(tools)}): {tools}")
     (EV / "run.md").write_text(
         f"# agent app build — {ep['name']}/{model}\nstatus: {last_status}\nworkspace: {WS}\nrun: {runid}\n\n"
-        f"files: {files}\n\ntools ({len(tools)}):\n" + "\n".join(f"- {t}" for t in tools), encoding="utf-8")
+        f"files: {files}\n\ntools ({len(tools)}):\n" + "\n".join(f"- {t}" for t in tools),
+        encoding="utf-8",
+    )
     print(f"evidence: {EV}")
 
 

@@ -6,15 +6,19 @@ from services import sysmon
 
 class OsArchTest(ApiTest):
     def test_windows_11_detected_by_build(self):
-        with mock.patch.object(sysmon.platform, "system", lambda: "Windows"), \
-             mock.patch.object(sysmon.platform, "version", lambda: "10.0.26100"), \
-             mock.patch.object(sysmon.platform, "release", lambda: "10"):
-            self.assertEqual(sysmon._os_name(), "Windows 11")   # build >= 22000
+        with (
+            mock.patch.object(sysmon.platform, "system", lambda: "Windows"),
+            mock.patch.object(sysmon.platform, "version", lambda: "10.0.26100"),
+            mock.patch.object(sysmon.platform, "release", lambda: "10"),
+        ):
+            self.assertEqual(sysmon._os_name(), "Windows 11")  # build >= 22000
 
     def test_windows_10_stays_10(self):
-        with mock.patch.object(sysmon.platform, "system", lambda: "Windows"), \
-             mock.patch.object(sysmon.platform, "version", lambda: "10.0.19045"), \
-             mock.patch.object(sysmon.platform, "release", lambda: "10"):
+        with (
+            mock.patch.object(sysmon.platform, "system", lambda: "Windows"),
+            mock.patch.object(sysmon.platform, "version", lambda: "10.0.19045"),
+            mock.patch.object(sysmon.platform, "release", lambda: "10"),
+        ):
             self.assertEqual(sysmon._os_name(), "Windows 10")
 
     def test_arch_normalizes_amd64(self):
@@ -46,5 +50,5 @@ class SystemStatsTest(ApiTest):
     def test_disks_deduped_and_capped(self):
         s = sysmon.snapshot()
         mounts = [d["mount"] for d in s["disks"]]
-        self.assertEqual(len(mounts), len(set(mounts)))   # no dup mounts
+        self.assertEqual(len(mounts), len(set(mounts)))  # no dup mounts
         self.assertLessEqual(len(s["disks"]), 6)

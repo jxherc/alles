@@ -14,15 +14,19 @@ alles CLI
 
 windows: alles.cmd   unix/git-bash: ./alles   or just: python app.py
 """
+
 import sys, os, signal, socket, subprocess, time, webbrowser
 from pathlib import Path
 
 try:
     from dotenv import load_dotenv
-except Exception:                       # dotenv is a dep, but never let a missing
-    def load_dotenv(*a, **k): return False   # import block the whole CLI
+except Exception:  # dotenv is a dep, but never let a missing
 
-ROOT     = Path(__file__).parent
+    def load_dotenv(*a, **k):
+        return False  # import block the whole CLI
+
+
+ROOT = Path(__file__).parent
 PID_FILE = ROOT / "data" / "aide.pid"
 LOG_FILE = ROOT / "data" / "aide-server.log"
 
@@ -55,8 +59,8 @@ def _running(pid):
     try:
         if IS_WIN:
             out = subprocess.check_output(
-                ['tasklist', '/FI', f'PID eq {pid}', '/NH'],
-                stderr=subprocess.DEVNULL, text=True)
+                ["tasklist", "/FI", f"PID eq {pid}", "/NH"], stderr=subprocess.DEVNULL, text=True
+            )
             return str(pid) in out
         os.kill(pid, 0)
         return True
@@ -68,7 +72,7 @@ def _port_open():
     """is something accepting connections on our port? (server up, or an orphan)"""
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.settimeout(0.5)
-        return s.connect_ex(('127.0.0.1', _port())) == 0
+        return s.connect_ex(("127.0.0.1", _port())) == 0
 
 
 def _kill_port():
@@ -76,31 +80,38 @@ def _kill_port():
     port = _port()
     try:
         if IS_WIN:
-            out = subprocess.check_output(['netstat', '-ano', '-p', 'tcp'],
-                                          stderr=subprocess.DEVNULL, text=True)
+            out = subprocess.check_output(
+                ["netstat", "-ano", "-p", "tcp"], stderr=subprocess.DEVNULL, text=True
+            )
             for line in out.splitlines():
-                if f':{port} ' in line and 'LISTENING' in line:
+                if f":{port} " in line and "LISTENING" in line:
                     pid = line.strip().split()[-1]
-                    subprocess.call(['taskkill', '/F', '/PID', pid],
-                                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                    subprocess.call(
+                        ["taskkill", "/F", "/PID", pid],
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL,
+                    )
                     print(f"  killed orphan process {pid} on port {port}")
             return
         # unix: prefer lsof (works on macOS + linux), fall back to fuser (linux)
         from shutil import which
-        if which('lsof'):
-            out = subprocess.check_output(['lsof', '-ti', f'tcp:{port}'],
-                                          stderr=subprocess.DEVNULL, text=True)
+
+        if which("lsof"):
+            out = subprocess.check_output(
+                ["lsof", "-ti", f"tcp:{port}"], stderr=subprocess.DEVNULL, text=True
+            )
             for pid in out.split():
                 try:
                     os.kill(int(pid), signal.SIGKILL)
                     print(f"  killed orphan process {pid} on port {port}")
                 except Exception:
                     pass
-        elif which('fuser'):
-            subprocess.call(['fuser', '-k', f'{port}/tcp'],
-                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        elif which("fuser"):
+            subprocess.call(
+                ["fuser", "-k", f"{port}/tcp"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+            )
     except subprocess.CalledProcessError:
-        pass   # nothing was listening
+        pass  # nothing was listening
     except Exception:
         pass
 
@@ -116,6 +127,7 @@ def _deps_ok() -> bool:
     otherwise the server just crash-loops into the log file."""
     try:
         import fastapi, uvicorn  # noqa: F401
+
         return True
     except ImportError:
         return False
@@ -142,13 +154,17 @@ def cmd_start(args=()):
     with open(LOG_FILE, "a") as log:
         if IS_WIN:
             proc = subprocess.Popen(
-                [python, "app.py"], cwd=ROOT, stdout=log, stderr=log,
+                [python, "app.py"],
+                cwd=ROOT,
+                stdout=log,
+                stderr=log,
                 creationflags=subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.DETACHED_PROCESS,
-                close_fds=True)
+                close_fds=True,
+            )
         else:
             proc = subprocess.Popen(
-                [python, "app.py"], cwd=ROOT, stdout=log, stderr=log,
-                start_new_session=True)
+                [python, "app.py"], cwd=ROOT, stdout=log, stderr=log, start_new_session=True
+            )
 
     PID_FILE.write_text(str(proc.pid))
 
@@ -160,7 +176,7 @@ def cmd_start(args=()):
         if _port_open():
             print(f"\ralles started  pid={proc.pid}  {_url()}        ")
             return
-        if proc.poll() is not None:        # process died during startup
+        if proc.poll() is not None:  # process died during startup
             print("\ralles failed to start. last log lines:        \n")
             print("\n".join("  " + l for l in _tail(15)) or "  (log empty)")
             PID_FILE.unlink(missing_ok=True)
@@ -174,7 +190,7 @@ def cmd_start(args=()):
 def cmd_stop(args=()):
     pid = _pid()
     if not _running(pid):
-        if _port_open():               # PID file stale but something's on the port
+        if _port_open():  # PID file stale but something's on the port
             print("no tracked pid, but the port is busy — clearing it…")
             _kill_port()
         else:
@@ -184,15 +200,18 @@ def cmd_stop(args=()):
 
     try:
         if IS_WIN:
-            subprocess.call(["taskkill", "/F", "/PID", str(pid)],
-                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            subprocess.call(
+                ["taskkill", "/F", "/PID", str(pid)],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
         else:
             os.kill(pid, signal.SIGTERM)
-            for _ in range(20):            # up to 10s for a graceful exit
+            for _ in range(20):  # up to 10s for a graceful exit
                 if not _running(pid):
                     break
                 time.sleep(0.5)
-            if _running(pid):              # escalate
+            if _running(pid):  # escalate
                 print("not responding to SIGTERM — forcing…")
                 try:
                     os.kill(pid, signal.SIGKILL)
@@ -254,7 +273,8 @@ def _follow_logs():
             while True:
                 ln = f.readline()
                 if ln:
-                    sys.stdout.write(ln); sys.stdout.flush()
+                    sys.stdout.write(ln)
+                    sys.stdout.flush()
                 else:
                     time.sleep(0.3)
         except KeyboardInterrupt:
@@ -306,14 +326,14 @@ def cmd_doctor(args=()):
 
 
 COMMANDS = {
-    "start":   cmd_start,
-    "stop":    cmd_stop,
+    "start": cmd_start,
+    "stop": cmd_stop,
     "restart": cmd_restart,
-    "status":  cmd_status,
-    "logs":    cmd_logs,
-    "update":  cmd_update,
-    "open":    cmd_open,
-    "doctor":  cmd_doctor,
+    "status": cmd_status,
+    "logs": cmd_logs,
+    "update": cmd_update,
+    "open": cmd_open,
+    "doctor": cmd_doctor,
 }
 
 

@@ -42,14 +42,23 @@ class IntentTests(unittest.TestCase):
 
 class PathConfinementTests(unittest.TestCase):
     def test_secret_paths_flagged(self):
-        for p in ("/home/x/.ssh/id_rsa", r"C:\Users\x\.aws\credentials",
-                  "/srv/app/.env", "/etc/ssl/server.pem", "/home/x/.netrc",
-                  "/home/x/id_ed25519"):
+        for p in (
+            "/home/x/.ssh/id_rsa",
+            r"C:\Users\x\.aws\credentials",
+            "/srv/app/.env",
+            "/etc/ssl/server.pem",
+            "/home/x/.netrc",
+            "/home/x/id_ed25519",
+        ):
             self.assertTrue(at._is_secret_path(p), p)
 
     def test_normal_paths_ok(self):
-        for p in ("/home/x/project/main.py", r"C:\code\alles\app.py",
-                  "/tmp/output.txt", "notes/todo.md"):
+        for p in (
+            "/home/x/project/main.py",
+            r"C:\code\alles\app.py",
+            "/tmp/output.txt",
+            "notes/todo.md",
+        ):
             self.assertFalse(at._is_secret_path(p), p)
 
     def test_guard_blocks_secret_by_default(self):
@@ -78,8 +87,13 @@ class CompactionTests(unittest.TestCase):
     def _mk(self, n, size):
         msgs = [{"role": "system", "content": "sys"}]
         for i in range(n):
-            msgs.append({"role": "assistant", "content": f"turn {i}",
-                         "tool_calls": [{"call_id": str(i), "name": "x", "args": {}}]})
+            msgs.append(
+                {
+                    "role": "assistant",
+                    "content": f"turn {i}",
+                    "tool_calls": [{"call_id": str(i), "name": "x", "args": {}}],
+                }
+            )
             msgs.append({"role": "tool", "tool_call_id": str(i), "content": "D" * size})
         return msgs
 
@@ -90,19 +104,20 @@ class CompactionTests(unittest.TestCase):
         self.assertEqual([x["content"] for x in m], before)
 
     def test_over_budget_trims_keeps_recent_and_pairing(self):
-        m = self._mk(40, 5000)   # ~400k chars, way over budget
+        m = self._mk(40, 5000)  # ~400k chars, way over budget
         n_before = len(m)
         recent_before = [x["content"] for x in m[-8:]]
         _trim_history(m, budget=120000, keep_recent=8)
-        self.assertLessEqual(_hist_chars(m), 120000)        # got under budget
-        self.assertEqual(len(m), n_before)                   # pairing-safe: nothing removed
+        self.assertLessEqual(_hist_chars(m), 120000)  # got under budget
+        self.assertEqual(len(m), n_before)  # pairing-safe: nothing removed
         self.assertEqual([x["content"] for x in m[-8:]], recent_before)  # recent turns intact
-        self.assertEqual(m[0]["content"], "sys")             # system intact
+        self.assertEqual(m[0]["content"], "sys")  # system intact
 
 
 class ReplayTests(unittest.TestCase):
     def test_find_active_run(self):
         from services import agent_state as st
+
         run = st.start_run(session_id="sess-xyz-test", model="m", max_turns=3)
         try:
             self.assertEqual(st.find_active_run("sess-xyz-test")["id"], run["id"])

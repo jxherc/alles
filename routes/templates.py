@@ -24,13 +24,19 @@ class TemplateCreate(BaseModel):
 
 @router.get("/templates")
 def list_templates(db: DbSession = Depends(get_db)):
-    return [_fmt(t) for t in db.query(SessionTemplate).order_by(SessionTemplate.created_at.desc()).all()]
+    return [
+        _fmt(t) for t in db.query(SessionTemplate).order_by(SessionTemplate.created_at.desc()).all()
+    ]
 
 
 @router.post("/templates")
 def create_template(body: TemplateCreate, db: DbSession = Depends(get_db)):
-    t = SessionTemplate(name=body.name, system_prompt=body.system_prompt, initial_message=body.initial_message)
-    db.add(t); db.commit(); db.refresh(t)
+    t = SessionTemplate(
+        name=body.name, system_prompt=body.system_prompt, initial_message=body.initial_message
+    )
+    db.add(t)
+    db.commit()
+    db.refresh(t)
     return _fmt(t)
 
 
@@ -39,5 +45,6 @@ def delete_template(tid: str, db: DbSession = Depends(get_db)):
     t = db.get(SessionTemplate, tid)
     if not t:
         raise HTTPException(404, "not found")
-    db.delete(t); db.commit()
+    db.delete(t)
+    db.commit()
     return {"ok": True}

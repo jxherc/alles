@@ -3,6 +3,7 @@ password generator + a lightweight strength estimator (entropy-based, no deps).
 not zxcvbn, but it catches the obvious stuff: tiny charsets, common passwords,
 repetition, and short length, and gives an honest entropy/score.
 """
+
 import math
 import re
 import secrets
@@ -15,19 +16,41 @@ _DIGIT = "23456789"
 _SYM = "!@#$%^&*-_=+?"
 
 COMMON = {
-    "password", "passw0rd", "123456", "12345678", "qwerty", "letmein", "admin",
-    "welcome", "iloveyou", "000000", "abc123", "monkey", "dragon", "football",
-    "login", "starwars", "hello", "freedom", "whatever", "trustno1",
+    "password",
+    "passw0rd",
+    "123456",
+    "12345678",
+    "qwerty",
+    "letmein",
+    "admin",
+    "welcome",
+    "iloveyou",
+    "000000",
+    "abc123",
+    "monkey",
+    "dragon",
+    "football",
+    "login",
+    "starwars",
+    "hello",
+    "freedom",
+    "whatever",
+    "trustno1",
 }
 
 
-def generate_password(length=20, upper=True, lower=True, digits=True,
-                      symbols=True, avoid_ambiguous=True) -> str:
+def generate_password(
+    length=20, upper=True, lower=True, digits=True, symbols=True, avoid_ambiguous=True
+) -> str:
     pools = []
-    if lower:   pools.append(_LOWER if avoid_ambiguous else string.ascii_lowercase)
-    if upper:   pools.append(_UPPER if avoid_ambiguous else string.ascii_uppercase)
-    if digits:  pools.append(_DIGIT if avoid_ambiguous else string.digits)
-    if symbols: pools.append(_SYM)
+    if lower:
+        pools.append(_LOWER if avoid_ambiguous else string.ascii_lowercase)
+    if upper:
+        pools.append(_UPPER if avoid_ambiguous else string.ascii_uppercase)
+    if digits:
+        pools.append(_DIGIT if avoid_ambiguous else string.digits)
+    if symbols:
+        pools.append(_SYM)
     if not pools:
         pools.append(string.ascii_letters)
     length = max(4, min(128, int(length or 20)))
@@ -46,10 +69,14 @@ def estimate_strength(pw: str) -> dict:
     if not pw:
         return {"score": 0, "entropy": 0.0, "label": "empty", "warning": "enter a password"}
     charset = 0
-    if re.search(r"[a-z]", pw): charset += 26
-    if re.search(r"[A-Z]", pw): charset += 26
-    if re.search(r"\d", pw):    charset += 10
-    if re.search(r"[^a-zA-Z0-9]", pw): charset += 32
+    if re.search(r"[a-z]", pw):
+        charset += 26
+    if re.search(r"[A-Z]", pw):
+        charset += 26
+    if re.search(r"\d", pw):
+        charset += 10
+    if re.search(r"[^a-zA-Z0-9]", pw):
+        charset += 32
     entropy = len(pw) * math.log2(charset or 1)
 
     warning = ""
@@ -67,4 +94,54 @@ def estimate_strength(pw: str) -> dict:
     for thr, sc in ((28, 1), (40, 2), (60, 3), (80, 4)):
         if entropy >= thr:
             score = sc
-    return {"score": score, "entropy": round(entropy, 1), "label": _LABELS[score], "warning": warning}
+    return {
+        "score": score,
+        "entropy": round(entropy, 1),
+        "label": _LABELS[score],
+        "warning": warning,
+    }
+
+
+# ── payment-card helpers (vault card items) ──────────────────────────────────
+def _digits(number: str) -> str:
+    return "".join(ch for ch in str(number or "") if ch.isdigit())
+
+
+def luhn_valid(number: str) -> bool:
+    d = _digits(number)
+    if len(d) < 12:
+        return False
+    total, alt = 0, False
+    for ch in reversed(d):
+        n = int(ch)
+        if alt:
+            n *= 2
+            if n > 9:
+                n -= 9
+        total += n
+        alt = not alt
+    return total % 10 == 0
+
+
+def card_brand(number: str) -> str:
+    d = _digits(number)
+    if d.startswith("4"):
+        return "Visa"
+    if d[:2] in ("34", "37"):
+        return "Amex"
+    if (d[:2].isdigit() and 51 <= int(d[:2] or 0) <= 55) or (
+        d[:4].isdigit() and 2221 <= int(d[:4] or 0) <= 2720
+    ):
+        return "Mastercard"
+    if d[:2] in ("60", "65") or d.startswith("6011"):
+        return "Discover"
+    return "Card"
+
+
+def card_last4(number: str) -> str:
+    return _digits(number)[-4:]
+
+
+def mask_card(number: str) -> str:
+    d = _digits(number)
+    return ("•" * max(0, len(d) - 4)) + d[-4:] if d else ""

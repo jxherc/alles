@@ -6,6 +6,7 @@ pretending. on the Mac these are the wiring points for Keychain + EventKit.
   - keychain_*   : back vault secrets onto the system Keychain via the `security` CLI
   - export_calendar / export_reminders : pull from the Calendar/Reminders apps (EventKit)
 """
+
 import sys
 import shutil
 import subprocess
@@ -23,21 +24,28 @@ def _require_darwin():
 # ── Keychain (uses the built-in `security` CLI, no extra deps) ─────────────────
 def keychain_set(service: str, account: str, secret: str):
     _require_darwin()
-    subprocess.run(["security", "add-generic-password", "-U",
-                    "-s", service, "-a", account, "-w", secret], check=True)
+    subprocess.run(
+        ["security", "add-generic-password", "-U", "-s", service, "-a", account, "-w", secret],
+        check=True,
+    )
     return {"ok": True}
 
 
 def keychain_get(service: str, account: str):
     _require_darwin()
-    r = subprocess.run(["security", "find-generic-password", "-s", service, "-a", account, "-w"],
-                       capture_output=True, text=True)
+    r = subprocess.run(
+        ["security", "find-generic-password", "-s", service, "-a", account, "-w"],
+        capture_output=True,
+        text=True,
+    )
     return r.stdout.strip() if r.returncode == 0 else None
 
 
 def keychain_delete(service: str, account: str):
     _require_darwin()
-    subprocess.run(["security", "delete-generic-password", "-s", service, "-a", account], check=True)
+    subprocess.run(
+        ["security", "delete-generic-password", "-s", service, "-a", account], check=True
+    )
     return {"ok": True}
 
 
@@ -48,8 +56,12 @@ def export_calendar() -> list[dict]:
     _require_darwin()
     if not shutil.which("icalBuddy"):
         raise RuntimeError("install icalBuddy (`brew install ical-buddy`) or wire pyobjc EventKit")
-    r = subprocess.run(["icalBuddy", "-b", "* ", "-nc", "eventsToday+7"],
-                       capture_output=True, text=True, check=True)
+    r = subprocess.run(
+        ["icalBuddy", "-b", "* ", "-nc", "eventsToday+7"],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
     return [{"raw": line} for line in r.stdout.splitlines() if line.strip()]
 
 
@@ -57,6 +69,10 @@ def export_reminders() -> list[dict]:
     _require_darwin()
     if not shutil.which("icalBuddy"):
         raise RuntimeError("install icalBuddy (`brew install ical-buddy`) or wire pyobjc EventKit")
-    r = subprocess.run(["icalBuddy", "-b", "* ", "-nc", "uncompletedTasks"],
-                       capture_output=True, text=True, check=True)
+    r = subprocess.run(
+        ["icalBuddy", "-b", "* ", "-nc", "uncompletedTasks"],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
     return [{"raw": line} for line in r.stdout.splitlines() if line.strip()]

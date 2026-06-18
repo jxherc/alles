@@ -3,10 +3,18 @@ from core.database import CalendarEvent
 from services import ics
 
 
-class IcsServiceTest(ApiTest):   # ApiTest only for convenience; these are pure
+class IcsServiceTest(ApiTest):  # ApiTest only for convenience; these are pure
     def test_roundtrip_timed(self):
-        evs = [{"id": "1", "title": "Demo, with comma", "start_dt": "2026-06-19T14:00:00",
-                "end_dt": "2026-06-19T15:00:00", "all_day": False, "description": "line1\nline2"}]
+        evs = [
+            {
+                "id": "1",
+                "title": "Demo, with comma",
+                "start_dt": "2026-06-19T14:00:00",
+                "end_dt": "2026-06-19T15:00:00",
+                "all_day": False,
+                "description": "line1\nline2",
+            }
+        ]
         out = ics.parse_ics(ics.to_ics(evs))
         self.assertEqual(len(out), 1)
         self.assertEqual(out[0]["title"], "Demo, with comma")
@@ -23,17 +31,26 @@ class IcsServiceTest(ApiTest):   # ApiTest only for convenience; these are pure
     def test_all_day_multiday_end_is_exclusive(self):
         # a 3-day all-day event (Jun 30 - Jul 2 inclusive) must export an
         # exclusive DTEND of Jul 3, and round-trip back to the inclusive Jul 2
-        evs = [{"id": "3", "title": "Trip", "start_dt": "2026-06-30",
-                "end_dt": "2026-07-02", "all_day": True}]
+        evs = [
+            {
+                "id": "3",
+                "title": "Trip",
+                "start_dt": "2026-06-30",
+                "end_dt": "2026-07-02",
+                "all_day": True,
+            }
+        ]
         text = ics.to_ics(evs)
-        self.assertIn("DTEND;VALUE=DATE:20260703", text)   # +1 day, crosses the month
+        self.assertIn("DTEND;VALUE=DATE:20260703", text)  # +1 day, crosses the month
         out = ics.parse_ics(text)
         self.assertEqual(out[0]["start_dt"], "2026-06-30")
         self.assertEqual(out[0]["end_dt"], "2026-07-02")
 
     def test_parses_real_world_ics(self):
-        text = ("BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nUID:x\r\nSUMMARY:Team sync\r\n"
-                "DTSTART:20260620T090000\r\nDTEND:20260620T093000\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n")
+        text = (
+            "BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nUID:x\r\nSUMMARY:Team sync\r\n"
+            "DTSTART:20260620T090000\r\nDTEND:20260620T093000\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"
+        )
         out = ics.parse_ics(text)
         self.assertEqual(out[0]["title"], "Team sync")
         self.assertEqual(out[0]["start_dt"], "2026-06-20T09:00:00")
@@ -43,7 +60,8 @@ class IcsApiTest(ApiTest):
     def test_export_then_import(self):
         d = self.db()
         d.add(CalendarEvent(title="Exported", start_dt="2026-06-19T14:00:00", all_day=False))
-        d.commit(); d.close()
+        d.commit()
+        d.close()
         r = self.client.get("/api/calendar/export.ics")
         self.assertEqual(r.status_code, 200)
         self.assertIn("text/calendar", r.headers["content-type"])
@@ -52,7 +70,8 @@ class IcsApiTest(ApiTest):
         d = self.db()
         for e in d.query(CalendarEvent).all():
             d.delete(e)
-        d.commit(); d.close()
+        d.commit()
+        d.close()
         imp = self.client.post("/api/calendar/import", json={"ics": r.text})
         self.assertEqual(imp.json()["imported"], 1)
         self.assertEqual(self.client.get("/api/calendar").json()[0]["title"], "Exported")
