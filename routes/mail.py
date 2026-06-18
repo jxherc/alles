@@ -190,6 +190,46 @@ def inbox(
         return {"error": str(e)[:200], "messages": cached, "cached": bool(cached)}
 
 
+@router.get("/unified")
+def unified(limit: int = 50, db: DbSession = Depends(get_db)):
+    """one inbox across every account, from the cache (instant/offline)."""
+    from services import mail_cache
+
+    return {"messages": mail_cache.get_unified(db, limit)}
+
+
+@router.get("/smart/{aid}")
+def smart(aid: str, filter: str = "unread", limit: int = 50, db: DbSession = Depends(get_db)):
+    """smart mailbox over the cache: filter = unread | flagged."""
+    from services import mail_cache
+
+    _get(db, aid)
+    msgs = mail_cache.get_filtered(
+        db, aid, unread=(filter == "unread"), flagged=(filter == "flagged"), limit=limit
+    )
+    return {"messages": msgs}
+
+
+@router.post("/flag/{aid}")
+def flag(
+    aid: str,
+    uid: str,
+    flagged: bool = True,
+    folder: str = "INBOX",
+    db: DbSession = Depends(get_db),
+):
+    """star/flag a message — local cache is the source of truth, IMAP is best-effort."""
+    from services import mail_cache
+
+    a = _get(db, aid)
+    mail_cache.set_flag(db, aid, folder, uid, flagged)
+    try:
+        mailsvc.set_flag(_acct_dict(a), uid, flagged, folder)
+    except Exception:
+        pass  # cache already updated; IMAP sync is best-effort
+    return {"ok": True, "flagged": flagged}
+
+
 @router.get("/cached/{aid}")
 def cached_inbox(aid: str, folder: str = "INBOX", limit: int = 30, db: DbSession = Depends(get_db)):
     """instant inbox from the local cache — no IMAP round-trip."""
