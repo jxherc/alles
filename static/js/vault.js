@@ -4,28 +4,76 @@ import { populateDropdown } from './dropdown.js';
 
 let _unlocked = false;
 let _token = null;     // the unlock token; sent back on every vault request
-let _schemas = {};     // category -> {fields:[...]}; drives which inputs show
-let _cats = ['password', 'api key', 'card', 'note', 'general'];
 let _entries = [];     // last loaded list, so a row click can open the editor
 let _modalEl = null;   // the open add/edit overlay, if any
 
-const NEW_CAT = '__new__';
 const $ = id => document.getElementById(id);
 
-// what each field looks like in the form. order here = order in the chip picker.
+// each field's label + how it renders. kinds:
+//   text     plain input
+//   textarea multi-line
+//   password masked + generate + strength + show/copy   (only the login password)
+//   secret   masked + show/copy (no generator)          (tokens, card #, cvv-ish secrets)
 const FIELD_DEFS = {
-  username:   { label: 'username',        kind: 'text' },
-  password:   { label: 'password',        kind: 'password' },
-  url:        { label: 'website',         kind: 'text', placeholder: 'https://…' },
-  notes:      { label: 'notes',           kind: 'textarea' },
-  cardholder: { label: 'cardholder name', kind: 'text' },
-  number:     { label: 'card number',     kind: 'text', placeholder: '4242 4242 4242 4242' },
-  expiry:     { label: 'expiry',          kind: 'text', placeholder: 'MM/YY', half: true },
-  cvv:        { label: 'cvv',             kind: 'text', placeholder: '•••', half: true },
-  address:    { label: 'billing address', kind: 'textarea' },
+  username:       { label: 'username',          kind: 'text' },
+  password:       { label: 'password',          kind: 'password' },
+  url:            { label: 'website',           kind: 'text', placeholder: 'https://…' },
+  notes:          { label: 'notes',             kind: 'textarea' },
+  cardholder:     { label: 'cardholder name',   kind: 'text' },
+  number:         { label: 'card number',       kind: 'secret', placeholder: '4242 4242 4242 4242' },
+  expiry:         { label: 'expiry',            kind: 'text', placeholder: 'MM/YY', half: true },
+  cvv:            { label: 'cvv',               kind: 'text', placeholder: '123', half: true },
+  address:        { label: 'billing address',   kind: 'textarea' },
+  apikey:         { label: 'API key / token',   kind: 'secret', placeholder: 'sk-…' },
+  endpoint:       { label: 'endpoint',          kind: 'text', placeholder: 'https://api.…' },
+  fullname:       { label: 'full name',         kind: 'text' },
+  email:          { label: 'email',             kind: 'text' },
+  phone:          { label: 'phone',             kind: 'text' },
+  home_address:   { label: 'address',           kind: 'textarea' },
+  account_holder: { label: 'account holder',    kind: 'text' },
+  bank_name:      { label: 'bank',              kind: 'text' },
+  account_number: { label: 'account number',    kind: 'secret' },
+  routing:        { label: 'routing / sort code', kind: 'text' },
+  private_key:    { label: 'private key',       kind: 'textarea' },
+  public_key:     { label: 'public key',        kind: 'textarea' },
+  passphrase:     { label: 'passphrase',        kind: 'secret' },
+  license_key:    { label: 'license key',       kind: 'text' },
+  registered_to:  { label: 'registered to',     kind: 'text' },
 };
-const ALL_FIELDS = Object.keys(FIELD_DEFS);
-const CARD_FIELDS = ['cardholder', 'number', 'expiry', 'cvv', 'address', 'notes'];
+
+// the item types. selecting one decides which fields the form shows.
+const TYPES = [
+  { key: 'login',    label: 'Login',            fields: ['username', 'password', 'url', 'notes'] },
+  { key: 'apikey',   label: 'API key',          fields: ['apikey', 'endpoint', 'notes'] },
+  { key: 'card',     label: 'Credit card',      fields: ['cardholder', 'number', 'expiry', 'cvv', 'address', 'notes'] },
+  { key: 'note',     label: 'Secure note',      fields: ['notes'] },
+  { key: 'identity', label: 'Identity',         fields: ['fullname', 'email', 'phone', 'home_address', 'notes'] },
+  { key: 'bank',     label: 'Bank account',     fields: ['account_holder', 'bank_name', 'account_number', 'routing', 'notes'] },
+  { key: 'ssh',      label: 'SSH key',          fields: ['private_key', 'public_key', 'passphrase', 'notes'] },
+  { key: 'license',  label: 'Software license', fields: ['license_key', 'registered_to', 'notes'] },
+];
+const TYPE_BY_KEY = Object.fromEntries(TYPES.map(t => [t.key, t]));
+const PRIMARY = {
+  login: 'password', apikey: 'apikey', card: 'number', note: 'notes',
+  identity: 'email', bank: 'account_number', ssh: 'private_key', license: 'license_key',
+};
+
+// map a stored entry's type → one of our form types. handles legacy values
+// (password/card/note from before typed items) and falls back to a field guess.
+function _typeForEntry(entry) {
+  const t = entry.type;
+  if (TYPE_BY_KEY[t]) return t;
+  if (t === 'password') return 'login';
+  if (t === 'card') return 'card';
+  if (t === 'note') return 'note';
+  const f = Object.keys(entry.fields || {});
+  if (f.includes('number') || f.includes('cardholder')) return 'card';
+  if (f.includes('apikey')) return 'apikey';
+  if (f.includes('private_key')) return 'ssh';
+  if (f.length === 1 && f[0] === 'notes') return 'note';
+  return 'login';
+}
+function _typeLabel(entry) { return TYPE_BY_KEY[_typeForEntry(entry)]?.label || 'item'; }
 
 // fetch wrapper that attaches this session's unlock token so the server can
 // bind the request to our unlock (not just "someone unlocked recently")
@@ -45,7 +93,7 @@ export async function loadVaultView() {
   unlocked.style.display = _unlocked ? 'flex' : 'none';
   if (newBtn)  newBtn.style.display  = _unlocked ? '' : 'none';
   if (lockBtn) lockBtn.style.display = _unlocked ? '' : 'none';
-  if (_unlocked) { await _populateCats(); await _loadEntries(); }
+  if (_unlocked) await _loadEntries();
 }
 
 export function initVault() {
@@ -53,31 +101,6 @@ export function initVault() {
   $('vault-lock-btn')?.addEventListener('click', _doLock);
   $('vault-new-btn')?.addEventListener('click', () => openVaultForm());
   $('vault-pw-input')?.addEventListener('keydown', e => { if (e.key === 'Enter') _doUnlock(); });
-}
-
-// legacy schemas used a single "card" marker — expand it into the real fields,
-// drop anything we don't know how to render, and never come back empty
-function _normSchema(fields) {
-  const out = [];
-  for (const f of fields || []) {
-    if (f === 'card') { for (const k of CARD_FIELDS) if (!out.includes(k)) out.push(k); }
-    else if (FIELD_DEFS[f] && !out.includes(f)) out.push(f);
-  }
-  return out.length ? out : ['password', 'notes'];
-}
-
-function _typeOf(fields) {
-  if (fields.includes('number') || fields.includes('cardholder')) return 'card';
-  if (fields.length && fields.every(f => f === 'notes')) return 'note';
-  return 'password';
-}
-
-async function _populateCats() {
-  try {
-    const d = await _vfetch('/api/vault/categories').then(r => r.json());
-    if (d.categories?.length) _cats = d.categories;
-    _schemas = d.schemas || {};
-  } catch {}
 }
 
 // ── add / edit modal ───────────────────────────────────────────────────────
@@ -96,13 +119,8 @@ function openVaultForm(entry = null) {
       <div class="vault-form">
         <div class="vform-field"><label>name</label>
           <input id="vf-name" class="settings-input vform-input" placeholder="e.g. Chase Visa"></div>
-        <div class="vform-field"><label>category</label>
-          <div class="custom-select" id="vf-cat" style="width:100%"></div></div>
-        <input id="vf-cat-custom" class="settings-input vform-input" placeholder="new category name" style="display:none">
-        <div class="vault-schema-pick" id="vf-schema" style="display:none">
-          <span class="vsp-label">fields</span>
-          ${ALL_FIELDS.map(k => `<button type="button" class="vsp-chip" data-f="${k}">${FIELD_DEFS[k].label}</button>`).join('')}
-        </div>
+        <div class="vform-field"><label>type</label>
+          <div class="custom-select" id="vf-type" style="width:100%"></div></div>
         <div class="vform-divider"></div>
         <div id="vf-fields"></div>
       </div>
@@ -114,24 +132,15 @@ function openVaultForm(entry = null) {
     </div>`;
   document.body.appendChild(ov);
   _modalEl = ov;
-  ov._entry = entry;   // stash for the helpers
+  ov._entry = entry;
 
-  const catSel = ov.querySelector('#vf-cat');
-  const opts = [..._cats.map(c => ({ value: c, label: c })), { value: NEW_CAT, label: '+ new category…' }];
-  let initial = editing ? entry.category : (_cats[0] || 'password');
-  if (!_cats.includes(initial)) initial = editing ? initial : _cats[0];
-  // an entry can sit in a category we don't list (e.g. deleted later) — keep it selectable
-  if (editing && !_cats.includes(initial)) opts.unshift({ value: initial, label: initial });
-  populateDropdown(catSel, opts, initial);
-  catSel.addEventListener('change', _onFormCat);
-  ov.querySelector('#vf-cat-custom').addEventListener('input', _onFormCat);
-  ov.querySelectorAll('#vf-schema .vsp-chip').forEach(c => c.addEventListener('click', () => {
-    c.classList.toggle('active');
-    _renderFields(_formSchema(), _editVals());
-  }));
+  const typeSel = ov.querySelector('#vf-type');
+  const initial = editing ? _typeForEntry(entry) : 'login';
+  populateDropdown(typeSel, TYPES.map(t => ({ value: t.key, label: t.label })), initial);
+  typeSel.addEventListener('change', () => _renderFields(_currentFields(), _editVals()));
 
   ov.querySelector('#vf-name').value = editing ? (entry.name || '') : '';
-  _onFormCat();
+  _renderFields(_currentFields(), _editVals());
 
   ov.querySelector('#vf-x').onclick = _closeModal;
   ov.querySelector('#vf-cancel').onclick = _closeModal;
@@ -155,30 +164,14 @@ function _editVals() {
   return { ...(e.fields || {}), username: e.username || '' };
 }
 
-// the field set the form is currently collecting
-function _formSchema() {
-  const sel = _modalEl.querySelector('#vf-cat');
-  let schema;
-  if (sel.value === NEW_CAT) {
-    schema = [..._modalEl.querySelectorAll('#vf-schema .vsp-chip.active')].map(c => c.dataset.f);
-    schema = schema.length ? schema : [];
-  } else {
-    schema = _normSchema(_schemas[sel.value]?.fields);
-  }
-  // when editing, never hide a field the entry actually has
+// fields for the currently-selected type, plus any extra keys an edited entry
+// already carries (so nothing it stored gets hidden)
+function _currentFields() {
+  const tk = _modalEl.querySelector('#vf-type').value;
+  const schema = (TYPE_BY_KEY[tk]?.fields || ['notes']).slice();
   const e = _modalEl._entry;
-  if (e?.fields) {
-    for (const k of Object.keys(e.fields)) if (FIELD_DEFS[k] && !schema.includes(k)) schema.push(k);
-  }
+  if (e?.fields) for (const k of Object.keys(e.fields)) if (FIELD_DEFS[k] && !schema.includes(k)) schema.push(k);
   return schema;
-}
-
-function _onFormCat() {
-  const sel = _modalEl.querySelector('#vf-cat');
-  const isNew = sel.value === NEW_CAT;
-  _modalEl.querySelector('#vf-cat-custom').style.display = isNew ? '' : 'none';
-  _modalEl.querySelector('#vf-schema').style.display = isNew ? '' : 'none';
-  _renderFields(_formSchema(), _editVals());
 }
 
 function _fieldHtml(key) {
@@ -188,17 +181,20 @@ function _fieldHtml(key) {
   if (def.kind === 'textarea')
     return `<div class="vform-field"><label>${def.label}</label>
       <textarea id="${id}" class="settings-input vform-input" rows="2" placeholder="${ph}"></textarea></div>`;
-  if (def.kind === 'password')
+  if (def.kind === 'password' || def.kind === 'secret') {
+    const gen = def.kind === 'password' ? '<button type="button" class="btn" id="vf-gen">⚙ gen</button>' : '';
+    const strength = def.kind === 'password'
+      ? `<div class="vault-strength" id="vf-strength" style="display:none">
+          <span class="vault-strength-bar"><span class="vault-strength-fill"></span></span>
+          <span class="vault-strength-label"></span></div>` : '';
     return `<div class="vform-field"><label>${def.label}</label>
       <div class="vform-pw">
         <input id="${id}" type="password" class="settings-input vform-input" placeholder="${ph}">
         <button type="button" class="act-btn" data-reveal="${id}">show</button>
         <button type="button" class="act-btn" data-copy="${id}">copy</button>
-        <button type="button" class="btn" id="vf-gen">⚙ gen</button>
-      </div>
-      <div class="vault-strength" id="vf-strength" style="display:none">
-        <span class="vault-strength-bar"><span class="vault-strength-fill"></span></span>
-        <span class="vault-strength-label"></span></div></div>`;
+        ${gen}
+      </div>${strength}</div>`;
+  }
   return `<div class="vform-field${def.half ? ' half' : ''}"><label>${def.label}</label>
     <input id="${id}" type="text" class="settings-input vform-input" placeholder="${ph}"></div>`;
 }
@@ -215,13 +211,12 @@ function _renderFields(schema, values = {}) {
       i += 2;
     } else { html += _fieldHtml(k); i++; }
   }
-  box.innerHTML = html || '<div class="vform-empty">pick at least one field above</div>';
+  box.innerHTML = html || '<div class="vform-empty">nothing to fill in</div>';
 
   for (const k of schema) {
     const el = box.querySelector('#vf-f-' + k);
     if (el && values[k] != null) el.value = values[k];
   }
-  // wire the password controls if a password field is present
   box.querySelector('#vf-gen')?.addEventListener('click', _genFormPw);
   box.querySelectorAll('[data-reveal]').forEach(b => b.onclick = () => {
     const inp = box.querySelector('#' + b.dataset.reveal);
@@ -278,10 +273,8 @@ function _showStrength(s) {
 async function _saveForm(editing) {
   const ov = _modalEl;
   const name = ov.querySelector('#vf-name').value.trim();
-  const sel = ov.querySelector('#vf-cat');
-  const isNew = sel.value === NEW_CAT;
-  const cat = (isNew ? ov.querySelector('#vf-cat-custom').value.trim() : sel.value) || 'general';
-  const schema = _formSchema();
+  const typeKey = ov.querySelector('#vf-type').value;
+  const schema = _currentFields();
   const fields = {};
   let username = '';
   for (const key of schema) {
@@ -292,13 +285,10 @@ async function _saveForm(editing) {
   }
   if (!name) { toast('name required', 'error'); return; }
   if (!username && !Object.keys(fields).length) { toast('fill in at least one field', 'error'); return; }
-  if (isNew && cat) {
-    await _vfetch('/api/vault/category-schema', {
-      method: 'PUT', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ name: cat, fields: schema }),
-    }).catch(() => {});
-  }
-  const body = JSON.stringify({ name, type: _typeOf(schema), fields, category: cat, username });
+  const body = JSON.stringify({
+    name, type: typeKey, fields, username,
+    category: TYPE_BY_KEY[typeKey]?.label || typeKey,
+  });
   const id = editing ? ov._entry.id : null;
   const r = await _vfetch(editing ? `/api/vault/${id}` : '/api/vault', {
     method: editing ? 'PATCH' : 'POST',
@@ -307,7 +297,6 @@ async function _saveForm(editing) {
   if (!r.ok) { toast('save failed — is the vault still unlocked?', 'error'); return; }
   toast(editing ? 'saved' : 'entry added', 'success');
   _closeModal();
-  await _populateCats();
   await _loadEntries();
 }
 
@@ -357,7 +346,7 @@ async function _loadEntries() {
     list.innerHTML = _entries.map(e => `
       <div class="vault-entry" data-id="${e.id}" onclick="window._vaultOpen('${e.id}')" title="open">
         <span class="vault-entry-name">${_esc(e.name)}${e.username ? ` <span class="vault-entry-user">${_esc(e.username)}</span>` : ''}</span>
-        <span class="vault-entry-cat">${_esc(e.category)}</span>
+        <span class="vault-entry-cat">${_esc(_typeLabel(e))}</span>
         <span class="vault-entry-grow"></span>
         <button class="act-btn" onclick="event.stopPropagation();window._vaultCopy('${e.id}')">copy</button>
         <button class="act-btn danger" onclick="event.stopPropagation();window._vaultDel('${e.id}')">del</button>
@@ -369,11 +358,16 @@ async function _loadEntries() {
   }
 }
 
+// which field to copy when you hit "copy" on a row
 function _primarySecret(d) {
   const f = d.fields || {};
-  if (d.type === 'card') return f.number || '';
-  if (d.type === 'note') return f.notes || '';
-  return f.password || d.value || '';
+  let tk = TYPE_BY_KEY[d.type] ? d.type
+    : d.type === 'password' ? 'login'
+    : d.type === 'card' ? 'card'
+    : d.type === 'note' ? 'note'
+    : f.number ? 'card' : f.apikey ? 'apikey' : 'login';
+  const k = PRIMARY[tk];
+  return (k && f[k]) || f.password || d.value || Object.values(f).find(Boolean) || '';
 }
 
 window._vaultOpen = async id => {
