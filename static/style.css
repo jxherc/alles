@@ -2349,6 +2349,14 @@ body.is-incognito .incognito-bar {
 .sub-actions { display: flex; gap: 0.3rem; }
 .sub-notdue { font-size: 0.64rem; color: var(--faint); align-self: center; padding: 0 0.3rem; }
 .sub-hike { font-size: 0.62rem; color: #fb923c; border: 1px solid color-mix(in srgb, #fb923c 45%, transparent); border-radius: 3px; padding: 0 0.3rem; }
+/* cash-flow forecast strip */
+.subs-forecast { margin: 0.4rem 0 0.8rem; }
+.subs-fc-head { font-size: 0.72rem; color: var(--muted); margin-bottom: 0.4rem; }
+.subs-fc-bars { display: flex; gap: 0.5rem; align-items: flex-end; }
+.subs-fc-col { display: flex; flex-direction: column; align-items: center; gap: 0.2rem; flex: 1; min-width: 0; }
+.subs-fc-amt { font-size: 0.6rem; color: var(--muted); height: 0.8rem; }
+.subs-fc-bar { width: 60%; max-width: 34px; background: color-mix(in srgb, var(--accent) 60%, transparent); border-radius: 2px 2px 0 0; }
+.subs-fc-m { font-size: 0.6rem; color: var(--faint); }
 .sub-item { position: relative; }
 .sub-hist-pop {
   position: absolute; right: 0; top: 100%; z-index: 30; margin-top: 3px;

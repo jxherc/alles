@@ -9,6 +9,7 @@ let _subs = [];
 let _summary = {};
 let _analytics = null;
 let _upcoming = null;  // renewals due in the next N days + summed cost
+let _forecast = null;  // per-month projected spend (cash-flow)
 let _accounts = [];    // money accounts, for the optional auto-post link
 let _editing = null;   // id of the row currently in edit mode
 
@@ -22,6 +23,8 @@ export async function loadSubs() {
   catch { _analytics = null; }
   try { _upcoming = await fetch('/api/subscriptions/upcoming?days=7').then(r => r.json()); }
   catch { _upcoming = null; }
+  try { _forecast = await fetch('/api/subscriptions/forecast?months=6').then(r => r.json()); }
+  catch { _forecast = null; }
   try { _accounts = (await fetch('/api/money/accounts').then(r => r.json())).filter(a => !a.archived); }
   catch { _accounts = []; }
   _render();
@@ -42,6 +45,21 @@ function _upcomingHtml(u) {
   return `<div class="subs-upcoming">
     <div class="subs-up-head">next ${u.days} days · <strong>${esc(u.currency)}${u.total.toFixed(2)}</strong> · ${u.count} renewal${u.count === 1 ? '' : 's'}</div>
     <div class="subs-up-chips">${chips}</div>
+  </div>`;
+}
+
+function _forecastHtml(f) {
+  if (!f || !f.forecast?.length || !f.total) return '';
+  const max = Math.max(...f.forecast.map(m => m.total), 1);
+  const cols = f.forecast.map(m => `
+    <div class="subs-fc-col" title="${esc(m.month)}: ${esc(f.currency)}${m.total.toFixed(2)}">
+      <span class="subs-fc-amt">${m.total ? esc(f.currency) + m.total.toFixed(0) : ''}</span>
+      <span class="subs-fc-bar" style="height:${Math.max(3, m.total / max * 46).toFixed(0)}px"></span>
+      <span class="subs-fc-m">${esc(m.month.slice(5))}</span>
+    </div>`).join('');
+  return `<div class="subs-forecast">
+    <div class="subs-fc-head">next ${f.months} months · <strong>${esc(f.currency)}${f.total.toFixed(2)}</strong> projected</div>
+    <div class="subs-fc-bars">${cols}</div>
   </div>`;
 }
 
@@ -123,7 +141,7 @@ function _render() {
     list.innerHTML = '<div style="padding:1rem 0;font-size:0.75rem;color:var(--faint)">nothing tracked yet — add your first subscription below</div>';
     return;
   }
-  list.innerHTML = _upcomingHtml(_upcoming) + _chartHtml(_analytics) + _subs.map(s => _editing === s.id ? _editRow(s) : _row(s)).join('');
+  list.innerHTML = _upcomingHtml(_upcoming) + _forecastHtml(_forecast) + _chartHtml(_analytics) + _subs.map(s => _editing === s.id ? _editRow(s) : _row(s)).join('');
   _wireRows(list);
 }
 
