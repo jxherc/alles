@@ -108,14 +108,28 @@ def list_vault(db: DbSession = Depends(get_db), _pw: str = Depends(_master_pw)):
 
 
 _BASE_CATS = ["password", "api key", "card", "note", "general"]
-_FIELD_KEYS = ["username", "password", "url", "notes", "card"]  # canonical, ordered
+# canonical, ordered. "card" stays in for back-compat with schemas saved before
+# cards got broken out into their own fields.
+_FIELD_KEYS = [
+    "username",
+    "password",
+    "url",
+    "notes",
+    "cardholder",
+    "number",
+    "expiry",
+    "cvv",
+    "address",
+    "card",
+]
+_CARD_FIELDS = ["cardholder", "number", "expiry", "cvv", "address", "notes"]
 
 
 def _default_schema(category: str) -> list[str]:
     """which fields a category has by default, when nothing's been saved for it."""
     c = (category or "").lower()
     if "card" in c:
-        return ["card"]
+        return list(_CARD_FIELDS)
     if "note" in c:
         return ["notes"]
     if re.search(r"password|login|account", c):
