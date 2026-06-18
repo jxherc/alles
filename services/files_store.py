@@ -3,12 +3,12 @@ Files app — a browser over a configurable root dir (default data/files).
 single-user, path-traversal safe. mirrors the vault_md safe-path approach.
 """
 
-import shutil
 import mimetypes
-from pathlib import Path
+import shutil
 from datetime import datetime
+from pathlib import Path
 
-from core.settings import load_settings, data_dir
+from core.settings import data_dir, load_settings
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -181,6 +181,65 @@ def search(query: str, limit: int = 100) -> dict:
             results.append(e)
     results.sort(key=lambda e: (e["match"] == "content", e["name"].lower()))
     return {"query": query, "results": results[:limit]}
+
+
+def _walk(base: Path):
+    """yield every non-dotfile file under the root (recursive), skipping any path
+    with a dot-segment. shared by smart folders + tag scans."""
+    for p in base.rglob("*"):
+        if not p.is_file():
+            continue
+        if any(part.startswith(".") for part in p.relative_to(base).parts):
+            continue
+        yield p
+
+
+# office/text-ish extensions that count as "documents" in the smart folder
+_DOC_EXT = _TEXT_EXT | {
+    "pdf",
+    "doc",
+    "docx",
+    "odt",
+    "rtf",
+    "xls",
+    "xlsx",
+    "ods",
+    "ppt",
+    "pptx",
+    "epub",
+}
+
+SMART_KINDS = ("recent", "images", "large", "documents")
+
+
+def smart(kind: str, days: int = 30, limit: int = 200) -> dict:
+    """a virtual, cross-tree view. recent = mtime within `days` (newest first);
+    images / documents = by extension; large = biggest first."""
+    if kind not in SMART_KINDS:
+        raise ValueError(f"unknown smart folder: {kind}")
+    base = files_dir()
+    rows = []
+    cutoff = datetime.now().timestamp() - days * 86400
+    for p in _walk(base):
+        try:
+            e = _entry(p, base)
+        except Exception:
+            continue
+        ext = e["ext"]
+        if kind == "images" and ext not in _IMG:
+            continue
+        if kind == "documents" and ext not in _DOC_EXT:
+            continue
+        if kind == "recent" and p.stat().st_mtime < cutoff:
+            continue
+        rows.append(e)
+    if kind == "large":
+        rows.sort(key=lambda e: -e["size"])
+    elif kind == "recent":
+        rows.sort(key=lambda e: e["mtime"], reverse=True)
+    else:
+        rows.sort(key=lambda e: e["name"].lower())
+    return {"kind": kind, "items": rows[:limit]}
 
 
 def abspath(rel: str) -> Path:
