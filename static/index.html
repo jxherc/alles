@@ -587,16 +587,22 @@
       </div>
       <div class="page-view-footer" id="vault-add-bar" style="display:none;flex-wrap:wrap">
         <input type="text" id="vault-new-name" class="settings-input" placeholder="name" style="flex:1;min-width:90px">
-        <div class="vault-type-seg" id="vault-new-type" data-type="password">
-          <button type="button" class="vts-btn active" data-t="password">password</button>
-          <button type="button" class="vts-btn" data-t="card">card</button>
-          <button type="button" class="vts-btn" data-t="note">note</button>
-        </div>
         <div id="vault-new-cat" class="settings-input custom-select" style="flex:1;min-width:100px"></div>
         <input type="text" id="vault-new-cat-custom" class="settings-input" placeholder="new category" style="flex:1;min-width:100px;display:none">
+        <!-- new-category field picker: which fields this category holds. custom chips (no native checkboxes) -->
+        <div class="vault-schema-pick" id="vault-new-schema" style="display:none">
+          <span class="vsp-label">fields</span>
+          <button type="button" class="vsp-chip" data-f="username">username</button>
+          <button type="button" class="vsp-chip active" data-f="password">password</button>
+          <button type="button" class="vsp-chip" data-f="url">url</button>
+          <button type="button" class="vsp-chip" data-f="notes">notes</button>
+          <button type="button" class="vsp-chip" data-f="card">card</button>
+        </div>
         <input type="text" id="vault-new-username" class="settings-input" placeholder="username" style="flex:1;min-width:100px;display:none">
         <input type="password" id="vault-new-value" class="settings-input vault-f-pw" placeholder="value / password" style="flex:2;min-width:120px">
         <button class="btn vault-f-pw" id="vault-gen-btn" title="generate a strong password">⚙ gen</button>
+        <input type="text" id="vault-new-url" class="settings-input" placeholder="url" style="flex:1;min-width:100px;display:none">
+        <input type="text" id="vault-new-notes" class="settings-input" placeholder="notes" style="flex:1;min-width:100px;display:none">
         <input type="text" id="vault-new-cardholder" class="settings-input vault-f-card" placeholder="cardholder" style="flex:1;min-width:100px;display:none">
         <input type="text" id="vault-new-number" class="settings-input vault-f-card" placeholder="card number" style="flex:1;min-width:120px;display:none">
         <input type="text" id="vault-new-expiry" class="settings-input vault-f-card" placeholder="MM/YY" style="width:70px;display:none">
