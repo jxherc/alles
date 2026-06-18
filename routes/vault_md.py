@@ -240,6 +240,18 @@ async def extract_todos(body: ExtractTodosBody):
         db.close()
 
 
+class QueryBody(BaseModel):
+    filters: list = []
+    sort: dict | None = None
+    limit: int = 0
+
+
+@router.post("/query")
+def query(body: QueryBody):
+    rows = vault_md.query_notes(body.filters, body.sort, body.limit or None)
+    return {"results": rows, "count": len(rows)}
+
+
 class PeriodicBody(BaseModel):
     kind: str
     date: str = ""  # optional ISO YYYY-MM-DD; default today

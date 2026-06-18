@@ -321,6 +321,7 @@ export function initVault() {
   $('wiki-month-btn')?.addEventListener('click', () => openPeriodic('monthly'));
   $('wiki-outline-btn')?.addEventListener('click', toggleOutline);
   $('wiki-props-btn')?.addEventListener('click', toggleProps);
+  $('wiki-query-btn')?.addEventListener('click', toggleQuery);
   $('wiki-todos-btn')?.addEventListener('click', extractTodos);
   $('wiki-taskroll-btn')?.addEventListener('click', toggleTaskRoll);
   $('wiki-history-btn')?.addEventListener('click', toggleHistory);
@@ -911,6 +912,64 @@ async function saveProps() {
     await loadProps();
     toast('properties saved', 'success');
   } catch { toast('failed to save properties', 'error'); }
+}
+
+// ── note query (dataview-lite) ───────────────────────────────────────────────
+const _QOPS = ['eq', 'ne', 'contains', 'gt', 'lt', 'exists', 'missing'];
+let _qFilters = [{ field: 'status', op: 'eq', value: '' }];
+let _qSort = { field: '', dir: 'asc' };
+function toggleQuery() {
+  const p = $('wiki-query'); if (!p) return;
+  const show = p.style.display === 'none';
+  p.style.display = show ? 'block' : 'none';
+  $('wiki-query-btn')?.classList.toggle('active', show);
+  if (show) renderQuery();
+}
+function renderQuery() {
+  const p = $('wiki-query'); if (!p) return;
+  const opOpts = (sel) => _QOPS.map(o => `<option${o === sel ? ' selected' : ''}>${o}</option>`).join('');
+  const rows = _qFilters.map((f, i) => `
+    <div class="wiki-q-row" data-i="${i}">
+      <input class="wiki-q-field" value="${esc(f.field)}" placeholder="field / tag / folder" spellcheck="false">
+      <select class="wiki-q-op">${opOpts(f.op)}</select>
+      <input class="wiki-q-val" value="${esc(f.value)}" placeholder="value" spellcheck="false">
+      <button class="icon-btn wiki-q-del" title="remove">×</button>
+    </div>`).join('');
+  p.innerHTML = `<div class="wiki-outline-head">query notes</div>${rows}
+    <div class="wiki-q-actions">
+      <button class="btn" id="wiki-q-add">+ filter</button>
+      <input class="wiki-q-sort" id="wiki-q-sort" value="${esc(_qSort.field)}" placeholder="sort by field" spellcheck="false">
+      <select id="wiki-q-dir"><option${_qSort.dir === 'asc' ? ' selected' : ''}>asc</option><option${_qSort.dir === 'desc' ? ' selected' : ''}>desc</option></select>
+      <button class="btn primary" id="wiki-q-run">run</button>
+    </div>
+    <div class="wiki-q-results" id="wiki-q-results"></div>`;
+  p.querySelectorAll('.wiki-q-row').forEach(row => {
+    const i = +row.dataset.i;
+    row.querySelector('.wiki-q-field').addEventListener('input', e => _qFilters[i].field = e.target.value);
+    row.querySelector('.wiki-q-op').addEventListener('change', e => _qFilters[i].op = e.target.value);
+    row.querySelector('.wiki-q-val').addEventListener('input', e => _qFilters[i].value = e.target.value);
+    row.querySelector('.wiki-q-del').addEventListener('click', () => { _qFilters.splice(i, 1); if (!_qFilters.length) _qFilters.push({ field: '', op: 'eq', value: '' }); renderQuery(); });
+  });
+  $('wiki-q-add')?.addEventListener('click', () => { _qFilters.push({ field: '', op: 'eq', value: '' }); renderQuery(); });
+  $('wiki-q-sort')?.addEventListener('input', e => _qSort.field = e.target.value);
+  $('wiki-q-dir')?.addEventListener('change', e => _qSort.dir = e.target.value);
+  $('wiki-q-run')?.addEventListener('click', runQuery);
+}
+async function runQuery() {
+  const filters = _qFilters.filter(f => (f.field || '').trim());
+  const body = { filters, limit: 200 };
+  if (_qSort.field.trim()) body.sort = { field: _qSort.field.trim(), dir: _qSort.dir };
+  const box = $('wiki-q-results'); if (box) box.innerHTML = '<div class="wiki-outline-empty">…</div>';
+  let d;
+  try { d = await api('/api/vault-md/query', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }); }
+  catch { if (box) box.innerHTML = '<div class="wiki-outline-empty">query failed</div>'; return; }
+  if (!box) return;
+  if (!d.results.length) { box.innerHTML = '<div class="wiki-outline-empty">no matches</div>'; return; }
+  box.innerHTML = `<div class="wiki-q-count">${d.count} note${d.count !== 1 ? 's' : ''}</div>` + d.results.map(r => {
+    const meta = Object.entries(r.props).slice(0, 3).map(([k, v]) => `${esc(k)}: ${esc(Array.isArray(v) ? v.join(', ') : v)}`).join(' · ');
+    return `<div class="wiki-q-result" data-path="${esc(r.path)}"><span class="wiki-q-name">${esc(r.name)}</span>${meta ? `<span class="wiki-q-meta">${meta}</span>` : ''}</div>`;
+  }).join('');
+  box.querySelectorAll('.wiki-q-result').forEach(el => el.addEventListener('click', () => openFile(el.dataset.path)));
 }
 
 async function openDaily() {
