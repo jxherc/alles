@@ -169,7 +169,38 @@ function setFilter(f) {
   if (_filter === f) return;
   _filter = f;
   document.querySelectorAll('.mail-tab').forEach(t => t.classList.toggle('active', t.dataset.filter === f));
-  loadInbox();
+  if (f === 'drafts') loadDrafts(); else loadInbox();
+}
+
+async function loadDrafts() {
+  const list = $('mail-list'); const main = $('mail-main');
+  main.innerHTML = '';
+  list.innerHTML = '<div class="mail-empty">loading drafts…</div>';
+  let drafts = [];
+  try {
+    const url = _active && _active !== 'all' ? `/api/mail/drafts?account_id=${encodeURIComponent(_active)}` : '/api/mail/drafts';
+    drafts = await fetch(url).then(r => r.json());
+  } catch { list.innerHTML = '<div class="mail-empty">failed to load drafts</div>'; return; }
+  if (!drafts.length) { list.innerHTML = '<div class="mail-empty">no drafts</div>'; return; }
+  list.innerHTML = drafts.map(d => `
+    <div class="mail-row mail-draft-row" data-id="${esc(d.id)}">
+      <div class="mail-row-top"><span class="mail-from">${esc(d.to || '(no recipient)')}</span>
+        <button class="mail-draft-del" data-id="${esc(d.id)}" title="delete draft">×</button></div>
+      <div class="mail-subj">${esc(d.subject || '(no subject)')}</div>
+      <div class="mail-snippet">${esc((d.body || '').slice(0, 80))}</div>
+    </div>`).join('');
+  list.querySelectorAll('.mail-draft-row').forEach(row => {
+    row.addEventListener('click', async e => {
+      if (e.target.closest('.mail-draft-del')) return;
+      const d = await fetch(`/api/mail/drafts/${row.dataset.id}`).then(r => r.json());
+      compose(d);
+    });
+  });
+  list.querySelectorAll('.mail-draft-del').forEach(b => b.addEventListener('click', async e => {
+    e.stopPropagation();
+    await fetch(`/api/mail/drafts/${b.dataset.id}`, { method: 'DELETE' });
+    loadDrafts();
+  }));
 }
 
 async function loadInbox(force = false, silent = false) {
@@ -432,6 +463,7 @@ async function compose(pre = {}) {
       </div>
       <div class="mail-form-actions">
         <button class="btn" id="mc-close">close</button>
+        <button class="btn" id="mc-save">save draft</button>
         <button class="btn primary" id="mc-send">send</button>
       </div>
     </div>
@@ -444,7 +476,18 @@ async function compose(pre = {}) {
     <div id="mc-status" class="mail-status"></div>
   </div>`;
   if ($('mc-account')) populateDropdown($('mc-account'), _accounts.map(a => ({ value: a.id, label: a.name || a.email })), defaultAid);
+  let _draftId = pre.id || '';
   const initial = serializeForm(main);
+  const _draftBody = () => ({
+    id: _draftId, account_id: $('mc-account')?.value || defaultAid,
+    to: $('mc-to').value.trim(), cc: $('mc-cc').value.trim(), bcc: $('mc-bcc').value.trim(),
+    subject: $('mc-subj').value, body: $('mc-body').value,
+    in_reply_to: pre.in_reply_to || '', references: pre.references || '',
+  });
+  $('mc-save').addEventListener('click', async () => {
+    const d = await fetch('/api/mail/drafts', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(_draftBody()) }).then(r => r.json()).catch(() => null);
+    if (d?.id) { _draftId = d.id; toast('draft saved', 'success'); } else toast('save failed', 'error');
+  });
   $('mc-close').addEventListener('click', async () => {
     if (serializeForm(main) !== initial && !await dlgConfirm('discard this draft?')) return;
     main.innerHTML = '';
@@ -460,8 +503,10 @@ async function compose(pre = {}) {
       in_reply_to: pre.in_reply_to || '', references: pre.references || '',
     };
     const r = await fetch(`/api/mail/send/${aid}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }).then(x => x.json()).catch(() => ({ error: 'network' }));
-    if (r.ok) { toast('sent', 'success'); main.innerHTML = ''; loadInbox(); }
-    else { $('mc-status').textContent = 'failed: ' + (r.error || 'unknown'); }
+    if (r.ok) {
+      if (_draftId) fetch(`/api/mail/drafts/${_draftId}`, { method: 'DELETE' }).catch(() => {});  // sent → drop the draft
+      toast('sent', 'success'); main.innerHTML = ''; loadInbox();
+    } else { $('mc-status').textContent = 'failed: ' + (r.error || 'unknown'); }
   });
 }
 
