@@ -3,8 +3,18 @@ import { prompt as dlgPrompt, confirm as dlgConfirm } from './dialog.js';
 import { urlForApp } from './subdomain.js';
 
 let _cwd = '';   // current relative dir
+let _sort = 'name', _order = '';
 
 const $ = id => document.getElementById(id);
+function _pathFromUrl() { return new URLSearchParams(location.search).get('p') || ''; }
+function _writeUrl() {
+  try {
+    const u = new URL(location.href);
+    if (_cwd) u.searchParams.set('p', _cwd); else u.searchParams.delete('p');
+    if (_sort !== 'name') u.searchParams.set('sort', _sort); else u.searchParams.delete('sort');
+    history.replaceState(null, '', u);
+  } catch {}
+}
 const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
 function fmtSize(n) {
@@ -17,18 +27,80 @@ function fmtSize(n) {
 
 export async function loadFiles(path = _cwd) {
   let data;
+  const qs = p => `/api/files/list?path=${encodeURIComponent(p)}&sort=${_sort}&order=${_order}`;
   try {
-    data = await fetch(`/api/files/list?path=${encodeURIComponent(path)}`).then(r => r.json());
+    data = await fetch(qs(path)).then(r => r.json());
   } catch { toast('failed to load files', 'error'); return; }
   if (data.detail) {  // server rejected the path — bounce to root
     _cwd = '';
-    data = await fetch('/api/files/list?path=').then(r => r.json());
+    data = await fetch(qs('')).then(r => r.json());
   } else {
     _cwd = data.path || '';
   }
+  _writeUrl();
   renderCrumb();
+  renderSortBar();
   renderList(data.items || []);
-  if (!_cwd) _injectDocsShortcut();   // at root, surface the docs vault too
+  if (!_cwd) { _injectSmartFolders(); _injectDocsShortcut(); }   // at root, surface smart views + the docs vault
+}
+
+const SORTS = [['name', 'name'], ['size', 'size'], ['mtime', 'date']];
+function renderSortBar() {
+  const bar = $('files-sortbar');
+  if (!bar) return;
+  bar.innerHTML = SORTS.map(([k, l]) =>
+    `<button class="files-sort${k === _sort ? ' on' : ''}" data-k="${k}">${l}${k === _sort ? (_isDesc() ? ' ↓' : ' ↑') : ''}</button>`).join('');
+  bar.querySelectorAll('.files-sort').forEach(b => b.addEventListener('click', () => {
+    const k = b.dataset.k;
+    if (k === _sort) _order = _isDesc() ? 'asc' : 'desc';   // toggle direction
+    else { _sort = k; _order = ''; }                        // new column → sensible default
+    loadFiles();
+  }));
+}
+function _isDesc() {
+  return _order === 'desc' || (_order === '' && (_sort === 'size' || _sort === 'mtime'));
+}
+
+const SMART = [
+  { kind: 'recent', label: 'recent', icon: '🕘' },
+  { kind: 'images', label: 'images', icon: '🖼' },
+  { kind: 'documents', label: 'documents', icon: '📄' },
+  { kind: 'large', label: 'large files', icon: '📦' },
+];
+
+function _injectSmartFolders() {
+  const list = $('files-list');
+  if (!list || list.querySelector('.files-smart-bar')) return;
+  const bar = document.createElement('div');
+  bar.className = 'files-smart-bar';
+  bar.innerHTML = SMART.map(s => `<button class="files-smart" data-kind="${s.kind}">${s.icon} ${s.label}</button>`).join('');
+  bar.querySelectorAll('.files-smart').forEach(btn =>
+    btn.addEventListener('click', () => openSmart(btn.dataset.kind)));
+  list.insertBefore(bar, list.firstChild);
+}
+
+async function openSmart(kind) {
+  let d;
+  try { d = await fetch(`/api/files/smart/${kind}`).then(r => r.json()); }
+  catch { toast('failed to load', 'error'); return; }
+  const label = (SMART.find(s => s.kind === kind) || {}).label || kind;
+  $('files-breadcrumb').innerHTML =
+    `<span class="crumb" id="files-smart-back" data-go="">files</span><span class="crumb-sep">/</span><span style="color:var(--muted)">${esc(label)}</span>`;
+  $('files-smart-back')?.addEventListener('click', () => loadFiles(''));
+  const list = $('files-list');
+  const items = d.items || [];
+  if (!items.length) { list.innerHTML = '<div class="files-empty">nothing here</div>'; return; }
+  list.innerHTML = items.map(it => `
+    <div class="file-row" data-path="${esc(it.path)}" data-img="${it.is_img ? 1 : 0}">
+      <span class="file-icon">${_ic(it.is_img ? 'img' : 'file')}</span>
+      <span class="file-name">${esc(it.path)}</span>
+      <span class="file-meta">${fmtSize(it.size)}</span>
+    </div>`).join('');
+  list.querySelectorAll('.file-row').forEach(row => {
+    const open = () => openPreview(row.dataset.path, row.dataset.img === '1');
+    row.querySelector('.file-name').addEventListener('click', open);
+    row.querySelector('.file-icon').addEventListener('click', open);
+  });
 }
 
 function _countDocs(items) {
@@ -53,6 +125,7 @@ async function _injectDocsShortcut() {
 function renderCrumb() {
   const el = $('files-breadcrumb');
   const parts = _cwd ? _cwd.split('/') : [];
+  if (!parts.length) { el.innerHTML = ''; return; }   // root: title already says "files", no redundant crumb
   let acc = '';
   let html = `<span class="crumb" data-go="">files</span>`;
   for (const p of parts) {
@@ -71,11 +144,13 @@ function renderList(items) {
   }
   list.innerHTML = items.map(it => `
     <div class="file-row" data-path="${esc(it.path)}" data-type="${it.type}" data-img="${it.is_img ? 1 : 0}">
+      <span class="file-dot ${it.color ? 'on c-' + esc(it.color) : ''}"></span>
       <span class="file-icon">${it.type === 'dir' ? _ic('dir') : _ic(it.is_img ? 'img' : 'file')}</span>
-      <span class="file-name">${esc(it.name)}</span>
+      <span class="file-name">${esc(it.name)}${(it.tags && it.tags.length) ? it.tags.map(t => `<span class="file-tag">${esc(t)}</span>`).join('') : ''}</span>
       <span class="file-meta">${it.type === 'file' ? fmtSize(it.size) : ''}</span>
       <span class="file-row-actions">
         ${it.type === 'file' ? `<a class="file-act" href="/api/files/raw?path=${encodeURIComponent(it.path)}&download=1" download title="download">↓</a>` : ''}
+        <button class="file-act" data-act="tag" title="tags & color">⊙</button>
         <button class="file-act" data-act="rename" title="rename">✎</button>
         <button class="file-act" data-act="delete" title="delete">✕</button>
       </span>
@@ -95,9 +170,41 @@ function renderList(items) {
       b.addEventListener('click', async e => {
         e.stopPropagation();
         if (b.dataset.act === 'rename') await renameEntry(path);
+        else if (b.dataset.act === 'tag') await editTags(path, row);
         else await deleteEntry(path, row.dataset.type);
       });
     });
+  });
+}
+
+const COLORS = ['', 'red', 'orange', 'green', 'blue', 'purple', 'gray'];
+
+async function editTags(path, row) {
+  // close any open popover first
+  document.querySelector('.file-tagpop')?.remove();
+  let cur = { tags: [], color: '' };
+  try { cur = await fetch(`/api/files/tags?path=${encodeURIComponent(path)}`).then(r => r.json()); } catch {}
+  const pop = document.createElement('div');
+  pop.className = 'file-tagpop';
+  pop.innerHTML = `
+    <input type="text" class="file-tagin" placeholder="tags, comma separated" value="${esc((cur.tags || []).join(', '))}">
+    <div class="file-colors">${COLORS.map(c => `<button class="file-cdot ${c ? 'c-' + c : 'c-none'} ${c === (cur.color || '') ? 'sel' : ''}" data-c="${c}" title="${c || 'none'}"></button>`).join('')}</div>
+    <div class="file-tagpop-actions"><button class="btn primary" data-save>save</button><button class="btn" data-cancel>cancel</button></div>`;
+  row.appendChild(pop);
+  let color = cur.color || '';
+  pop.querySelectorAll('.file-cdot').forEach(d => d.addEventListener('click', () => {
+    color = d.dataset.c;
+    pop.querySelectorAll('.file-cdot').forEach(x => x.classList.toggle('sel', x === d));
+  }));
+  pop.querySelector('.file-tagin').focus();
+  pop.querySelector('[data-cancel]').addEventListener('click', () => pop.remove());
+  pop.querySelector('[data-save]').addEventListener('click', async () => {
+    const tags = pop.querySelector('.file-tagin').value.split(',').map(s => s.trim()).filter(Boolean);
+    const r = await fetch(`/api/files/tags?path=${encodeURIComponent(path)}`, {
+      method: 'PUT', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ tags, color }),
+    });
+    if (r.ok) { pop.remove(); loadFiles(); } else toast('save failed', 'error');
   });
 }
 
@@ -205,8 +312,14 @@ async function uploadFiles(fileList) {
 
 let _inited = false;
 export function initFiles() {
-  if (_inited) return;
+  if (_inited) {
+    return;
+  }
   _inited = true;
+  // restore folder + sort from the URL so refresh / deep-link lands in the same place
+  _cwd = _pathFromUrl();
+  const us = new URLSearchParams(location.search).get('sort');
+  if (['name', 'size', 'mtime', 'type'].includes(us)) _sort = us;
   $('files-up-btn')?.addEventListener('click', () => {
     if (!_cwd) return;
     loadFiles(_cwd.includes('/') ? _cwd.slice(0, _cwd.lastIndexOf('/')) : '');

@@ -1,8 +1,10 @@
 import { toast } from './util.js';
 import { initCustomDropdown } from './dropdown.js';
 import { initDatePickers } from './datepick.js';
+import { prompt as dlgPrompt } from './dialog.js';
 
 let _events = [];
+let _tasks = [];  // tasks with due dates, overlaid on the month/agenda
 let _calendars = [];
 let _editing = null;
 let _editOcc = null;             // occurrence date when editing a recurring instance
@@ -45,11 +47,13 @@ const evHex = e => hexOf(evColorName(e));
 
 export async function loadCalendar() {
   _bindNav();
-  const [cals, evs, s] = await Promise.all([
+  const [cals, evs, s, tasks] = await Promise.all([
     fetch('/api/calendars').then(r => r.json()).catch(() => []),
     fetch('/api/calendar').then(r => r.json()).catch(() => []),
     fetch('/api/settings').then(r => r.json()).catch(() => ({})),
+    fetch('/api/calendar/tasks').then(r => r.json()).catch(() => []),
   ]);
+  _tasks = Array.isArray(tasks) ? tasks : [];
   _weekStart = s.cal_week_start === 'mon' ? 1 : 0;
   // default-view setting: seed the opening view on first mount (last-used in localStorage
   // wins if present), then only re-apply when the setting itself actually changes (cog save).
@@ -79,6 +83,24 @@ function _bindNav() {
     b.addEventListener('click', () => { _view = b.dataset.view; localStorage.setItem('cal-view', _view); _syncViewBtns(); render(); }));
   _syncViewBtns();
   document.getElementById('cal-sync-btn')?.addEventListener('click', openCaldavPanel);
+  document.getElementById('cal-find')?.addEventListener('click', findTime);
+
+  // quick-add: natural language → event (was a dead input before)
+  const quick = document.getElementById('cal-quick');
+  quick?.addEventListener('keydown', async e => {
+    if (e.key !== 'Enter') return;
+    const text = quick.value.trim();
+    if (!text) return;
+    try {
+      const r = await fetch('/api/calendar/quick', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text }) });
+      if (!r.ok) throw new Error();
+      const ev = await r.json();
+      quick.value = '';
+      toast(`added “${ev.title}”`, 'success');
+      if (ev.start_dt) { _cursor = new Date(ev.start_dt.slice(0, 10) + 'T00:00'); }
+      await loadCalendar();
+    } catch { toast('could not parse that — try “lunch fri 1pm”', 'error'); }
+  });
 
   const imp = document.getElementById('cal-import');
   if (imp && !imp.dataset.bound) {
@@ -302,6 +324,8 @@ function renderMonth() {
   const occ = expand(rangeStart, rangeEnd);
   const byDay = {};
   for (const o of occ) { const k = ymd(o._date); (byDay[k] = byDay[k] || []).push(o); }
+  const tasksByDay = {};
+  for (const t of _tasks) (tasksByDay[t.date] = tasksByDay[t.date] || []).push(t);
 
   const cells = [];
   for (let i = 0; i < startDay; i++) cells.push(null);
@@ -317,13 +341,26 @@ function renderMonth() {
     const chips = evts.slice(0, 4).map(o =>
       `<div class="cal-chip${o._recur ? ' recurring' : ''}" data-id="${o.id}" data-occ="${ymd(o._date)}" style="${chipStyle(o)}" title="${chipTitle(o)}">${o._recur ? '<span class="cal-chip-recur">↻</span>' : ''}${esc((o.all_day ? '' : timeShort(o._date) + ' ') + o.title)}</div>`).join('');
     const more = evts.length > 4 ? `<div class="cal-more">+${evts.length - 4} more</div>` : '';
+    const tchips = (tasksByDay[key] || []).slice(0, 3).map(t =>
+      `<div class="cal-task${t.done ? ' done' : ''}" data-task="${esc(t.id)}" title="task: ${esc(t.title)}"><span class="cal-task-chk">${t.done ? '☑' : '☐'}</span>${esc(t.title)}</div>`).join('');
     html += `<div class="cal-cell${sameDay(cell, today) ? ' today' : ''}" data-date="${key}">
       <div class="cal-cell-num">${cell.getDate()}</div>
-      <div class="cal-cell-events">${chips}${more}</div></div>`;
+      <div class="cal-cell-events">${chips}${more}${tchips}</div></div>`;
   }
   html += '</div>';
   el.innerHTML = html;
-  el.querySelectorAll('.cal-cell:not(.empty)').forEach(c => c.addEventListener('click', ev => {
+  el.querySelectorAll('.cal-cell:not(.empty)').forEach(c => c.addEventListener('click', async ev => {
+    const task = ev.target.closest('.cal-task');
+    if (task) {
+      ev.stopPropagation();
+      const t = _tasks.find(x => x.id === task.dataset.task);
+      if (t) {
+        t.done = !t.done;
+        await fetch(`/api/tasks/${t.id}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ done: t.done }) }).catch(() => {});
+        render();
+      }
+      return;
+    }
     const chip = ev.target.closest('.cal-chip');
     if (chip) { openEvent(chip.dataset.id, chip.dataset.occ); return; }
     openEditor(null, c.dataset.date);
@@ -525,6 +562,32 @@ function chooseScope(verb) {
   });
 }
 
+// ── find a time: show open slots on the focused day, click to book ───────────
+async function findTime() {
+  const mins = parseInt(await dlgPrompt('how many minutes do you need?')) || 60;
+  const dstr = ymd(_cursor);
+  let slots = [];
+  try { slots = (await fetch(`/api/calendar/free?date=${dstr}&minutes=${mins}`).then(r => r.json())).slots || []; }
+  catch { toast('could not load free slots', 'error'); return; }
+  const ov = document.createElement('div');
+  ov.className = 'cal-scope-ov';
+  const fmt = iso => iso.slice(11);
+  ov.innerHTML = `<div class="cal-scope"><div class="cal-scope-h">free on ${dstr} (${mins} min)</div>${
+    slots.length ? slots.map(s => `<button class="btn" data-s="${s.start}" data-e="${s.end}">${fmt(s.start)} – ${fmt(s.end)}</button>`).join('')
+                 : '<div style="color:var(--muted);font-size:0.78rem;padding:0.4rem">no free slots that day</div>'
+  }<button class="btn cal-scope-cancel">cancel</button></div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov || e.target.classList.contains('cal-scope-cancel')) ov.remove(); });
+  ov.querySelectorAll('[data-s]').forEach(b => b.addEventListener('click', async () => {
+    const title = await dlgPrompt('event title:');
+    if (!title?.trim()) { ov.remove(); return; }
+    const start = b.dataset.s;
+    const end = new Date(new Date(start).getTime() + mins * 60000);
+    await fetch('/api/calendar', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ title: title.trim(), start_dt: start, end_dt: localISO(end) }) });
+    ov.remove(); toast('booked', 'success'); loadCalendar();
+  }));
+}
+
 // ── the event editor ─────────────────────────────────────────────────────────
 const REMIND_PRESETS = [[0, 'at time'], [5, '5m'], [10, '10m'], [30, '30m'], [60, '1h'], [1440, '1d']];
 const FREQS = [['', 'does not repeat'], ['daily', 'daily'], ['weekly', 'weekly'], ['monthly', 'monthly'], ['yearly', 'yearly']];
@@ -593,6 +656,7 @@ function openEditor(event, defaultDate, hour, allDay, occ) {
     <textarea class="note-editor-body" id="cal-desc" rows="3" placeholder="description…">${esc(event?.description || '')}</textarea>
     <div class="cal-ed-actions">
       ${isNew ? '' : '<button class="btn" id="cal-del" style="margin-right:auto;color:var(--error);border-color:var(--error)">delete</button>'}
+      ${isNew ? '' : '<button class="btn" id="cal-dup" title="duplicate this event">duplicate</button>'}
       <button class="btn" id="cal-back">← back</button>
       <button class="btn primary" id="cal-save">${isNew ? 'create' : 'save'}</button>
     </div>
@@ -626,6 +690,14 @@ function openEditor(event, defaultDate, hour, allDay, occ) {
 
   document.getElementById('cal-back').addEventListener('click', () => loadCalendar());
   document.getElementById('cal-del')?.addEventListener('click', () => deleteEvent());
+  document.getElementById('cal-dup')?.addEventListener('click', async () => {
+    if (!_editing?.id) return;
+    try {
+      await fetch(`/api/calendar/${_editing.id}/duplicate`, { method: 'POST' });
+      toast('event duplicated', 'success');
+      loadCalendar();
+    } catch { toast('duplicate failed', 'error'); }
+  });
   document.getElementById('cal-save').addEventListener('click', () => saveEvent(byday));
 }
 

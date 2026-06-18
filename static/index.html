@@ -13,7 +13,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/style.css">
+<link rel="stylesheet" href="/static/style.css?v=31">
 <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#0a0a0a">
@@ -222,6 +222,7 @@
           <button class="tasks-tab" data-tab="someday">someday</button>
           <button class="tasks-tab" data-tab="done">history</button>
         </div>
+        <input type="text" id="tasks-search" class="cal-quick tasks-search" placeholder="search tasks…">
       </div>
       <div class="page-view-body" id="tasks-list"></div>
       <div class="page-view-footer">
@@ -248,6 +249,7 @@
         <input type="file" id="cal-import-file" accept=".ics,text/calendar" hidden>
         <button class="btn" id="cal-import" title="import a .ics file">import</button>
         <input type="text" id="cal-quick" class="cal-quick" placeholder="quick add… 'lunch fri 1pm'">
+        <button class="btn" id="cal-find" title="find a free time slot">find time</button>
         <button class="btn" id="cal-sync-btn" title="CalDAV sync">sync</button>
         <button class="btn primary" id="cal-new-btn">+ event</button>
         <button class="icon-btn app-cog" data-app="calendar" title="calendar settings"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2a2 2 0 1 1-4 0V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1A2 2 0 1 1 4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H3a2 2 0 1 1 0-4h.2a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1A2 2 0 1 1 7.2 4.2l.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.6V3a2 2 0 1 1 4 0v.2a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1A2 2 0 1 1 20 7.2l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2a2 2 0 1 1 0 4h-.2a1.7 1.7 0 0 0-1.8 1z"/></svg></button>
@@ -335,6 +337,7 @@
         <span class="page-view-title">activity</span>
         <div class="activity-filters" id="activity-filters"></div>
       </div>
+      <div class="activity-summary" id="activity-summary"></div>
       <div class="page-view-body" id="activity-body"></div>
     </div>
 
@@ -409,6 +412,8 @@
           <span class="page-view-title">docs</span>
           <div class="docs-rail-actions">
             <button class="btn" id="wiki-today-btn" title="today's daily doc">today</button>
+            <button class="btn" id="wiki-week-btn" title="this week's note">week</button>
+            <button class="btn" id="wiki-month-btn" title="this month's note">month</button>
             <button class="btn" id="wiki-graph-btn" title="graph view">graph</button>
             <button class="btn" id="wiki-sort-btn" title="sort: a–z / recently modified">a–z</button>
             <button class="btn" id="wiki-tmpl-btn" title="new from template">tmpl</button>
@@ -427,13 +432,17 @@
           <button class="icon-btn docs-tree-toggle" id="wiki-tree-toggle" title="show / hide files (fullscreen)" aria-label="show or hide files">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
           </button>
+          <button class="btn" id="wiki-home-btn" title="all docs (home)">⊞ all docs</button>
           <span id="wiki-current" class="wiki-current">no doc open</span>
-          <span id="wiki-stats" class="wiki-stats" style="margin-left:auto"></span>
+          <span id="wiki-stats" class="wiki-stats"></span>
           <span id="wiki-save-status" style="font-size:0.66rem;color:var(--muted)"></span>
           <button class="btn" id="wiki-mode-toggle" title="cycle live / source / preview">live</button>
           <button class="btn" id="wiki-ai-toggle" title="ask AI to edit">ai</button>
           <button class="btn" id="wiki-help-btn" title="markdown guide">guide</button>
           <button class="btn" id="wiki-outline-btn">outline</button>
+          <button class="btn" id="wiki-props-btn" title="note properties (frontmatter)">props</button>
+          <button class="btn" id="wiki-query-btn" title="query notes by property / tag (dataview)">query</button>
+          <button class="btn" id="wiki-board-btn" title="kanban board view of this doc">board</button>
           <button class="btn" id="wiki-todos-btn" title="AI-extract action items into tasks">todos</button>
           <button class="btn" id="wiki-taskroll-btn" title="all - [ ] tasks across your docs">tasks</button>
           <button class="btn" id="wiki-history-btn" title="version history">history</button>
@@ -441,19 +450,22 @@
           <button class="btn danger" id="wiki-delete-btn">delete</button>
         </div>
         <div id="wiki-outline" class="wiki-outline" style="display:none"></div>
+        <div id="wiki-props" class="wiki-outline wiki-props" style="display:none"></div>
+        <div id="wiki-query" class="wiki-outline wiki-query" style="display:none"></div>
         <div id="wiki-history" class="wiki-outline" style="display:none"></div>
         <div id="wiki-taskroll" class="wiki-outline wiki-taskroll" style="display:none"></div>
         <div class="wiki-empty-state" id="wiki-empty-state">
-          <div class="we-card">
-            <svg class="we-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/></svg>
-            <div class="we-title">docs</div>
-            <div class="we-sub">markdown notes — linked with [[wikilinks]], with graphs, math, and one-click formatting.</div>
-            <div class="we-actions">
-              <button class="btn primary" id="wiki-empty-new">+ new doc</button>
-              <button class="btn" id="wiki-empty-today">today's note</button>
-              <button class="btn" id="wiki-empty-guide">markdown guide</button>
+          <div class="docs-home">
+            <div class="docs-home-head">
+              <span class="docs-home-title">docs</span>
+              <div class="docs-home-actions">
+                <button class="btn primary" id="wiki-empty-new">+ new doc</button>
+                <button class="btn" id="wiki-empty-today">today's note</button>
+                <button class="btn" id="wiki-empty-guide">guide</button>
+              </div>
             </div>
-            <div class="we-recent" id="wiki-empty-recent"></div>
+            <input type="text" id="docs-home-search" class="settings-input docs-home-search" placeholder="search your docs…">
+            <div class="docs-home-grid" id="wiki-empty-recent"></div>
           </div>
         </div>
         <div id="docs-toolbar" class="docs-toolbar">
@@ -493,9 +505,21 @@
         </div>
       </div>
       <div id="wiki-autocomplete" class="wiki-autocomplete" style="display:none"></div>
+      <div id="wiki-slash" class="wiki-slash" style="display:none"></div>
       <div id="wiki-graph" class="wiki-graph" style="display:none">
-        <div class="wiki-graph-head"><span>graph</span><button class="icon-btn" id="wiki-graph-close">×</button></div>
+        <div class="wiki-graph-head">
+          <span>graph</span>
+          <div class="wiki-graph-ctrls">
+            <button class="btn" id="wiki-graph-local" title="show only notes linked to the open doc">local</button>
+            <input type="text" id="wiki-graph-filter" class="settings-input" placeholder="filter #tag" spellcheck="false">
+            <button class="icon-btn" id="wiki-graph-close">×</button>
+          </div>
+        </div>
         <svg id="wiki-graph-svg" class="wiki-graph-svg"></svg>
+      </div>
+      <div id="wiki-board" class="wiki-graph wiki-board" style="display:none">
+        <div class="wiki-graph-head"><span id="wiki-board-title">board</span><button class="icon-btn" id="wiki-board-close">×</button></div>
+        <div id="wiki-board-cols" class="wiki-board-cols"></div>
       </div>
       <div id="wiki-help" class="wiki-help" style="display:none">
         <div class="wiki-help-head"><span>markdown guide</span><button class="icon-btn" id="wiki-help-close">×</button></div>
@@ -567,9 +591,24 @@
         <input type="text" id="vault-new-name" class="settings-input" placeholder="name" style="flex:1;min-width:90px">
         <div id="vault-new-cat" class="settings-input custom-select" style="flex:1;min-width:100px"></div>
         <input type="text" id="vault-new-cat-custom" class="settings-input" placeholder="new category" style="flex:1;min-width:100px;display:none">
+        <!-- new-category field picker: which fields this category holds. custom chips (no native checkboxes) -->
+        <div class="vault-schema-pick" id="vault-new-schema" style="display:none">
+          <span class="vsp-label">fields</span>
+          <button type="button" class="vsp-chip" data-f="username">username</button>
+          <button type="button" class="vsp-chip active" data-f="password">password</button>
+          <button type="button" class="vsp-chip" data-f="url">url</button>
+          <button type="button" class="vsp-chip" data-f="notes">notes</button>
+          <button type="button" class="vsp-chip" data-f="card">card</button>
+        </div>
         <input type="text" id="vault-new-username" class="settings-input" placeholder="username" style="flex:1;min-width:100px;display:none">
-        <input type="password" id="vault-new-value" class="settings-input" placeholder="value / password" style="flex:2;min-width:120px">
-        <button class="btn" id="vault-gen-btn" title="generate a strong password">⚙ gen</button>
+        <input type="password" id="vault-new-value" class="settings-input vault-f-pw" placeholder="value / password" style="flex:2;min-width:120px">
+        <button class="btn vault-f-pw" id="vault-gen-btn" title="generate a strong password">⚙ gen</button>
+        <input type="text" id="vault-new-url" class="settings-input" placeholder="url" style="flex:1;min-width:100px;display:none">
+        <input type="text" id="vault-new-notes" class="settings-input" placeholder="notes" style="flex:1;min-width:100px;display:none">
+        <input type="text" id="vault-new-cardholder" class="settings-input vault-f-card" placeholder="cardholder" style="flex:1;min-width:100px;display:none">
+        <input type="text" id="vault-new-number" class="settings-input vault-f-card" placeholder="card number" style="flex:1;min-width:120px;display:none">
+        <input type="text" id="vault-new-expiry" class="settings-input vault-f-card" placeholder="MM/YY" style="width:70px;display:none">
+        <input type="text" id="vault-new-cvv" class="settings-input vault-f-card" placeholder="cvv" style="width:60px;display:none">
         <button class="btn primary" id="vault-add-btn">add</button>
         <div id="vault-strength" class="vault-strength" style="width:100%;display:none"><span class="vault-strength-bar"><span class="vault-strength-fill"></span></span><span class="vault-strength-label"></span></div>
       </div>
@@ -580,6 +619,8 @@
       <div class="page-view-head">
         <span class="page-view-title">contacts</span>
         <input type="text" id="contacts-search" class="settings-input" placeholder="search..." style="width:160px">
+        <button class="btn" id="contacts-fav-filter" title="show favorites only">★</button>
+        <button class="btn" id="contacts-bday-btn" title="upcoming birthdays">🎂</button>
         <a class="btn" id="contacts-export-btn" href="/api/contacts/export" title="export vCard">export</a>
         <button class="btn" id="contacts-import-btn" title="import vCard">import</button>
         <input type="file" id="contacts-import-input" accept=".vcf,text/vcard" hidden>
@@ -606,7 +647,10 @@
           <button class="icon-btn app-cog" data-app="files" title="files settings"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2a2 2 0 1 1-4 0V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1A2 2 0 1 1 4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H3a2 2 0 1 1 0-4h.2a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1A2 2 0 1 1 7.2 4.2l.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.6V3a2 2 0 1 1 4 0v.2a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1A2 2 0 1 1 20 7.2l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2a2 2 0 1 1 0 4h-.2a1.7 1.7 0 0 0-1.8 1z"/></svg></button>
         </div>
       </div>
-      <div class="files-breadcrumb" id="files-breadcrumb"></div>
+      <div class="files-subhead">
+        <div class="files-breadcrumb" id="files-breadcrumb"></div>
+        <div class="files-sortbar" id="files-sortbar"></div>
+      </div>
       <div class="page-view-body">
         <div class="files-list" id="files-list"></div>
       </div>
@@ -618,7 +662,10 @@
         <div class="mail-tabs" id="mail-tabs">
           <button class="mail-tab active" data-filter="inbox">inbox</button>
           <button class="mail-tab" data-filter="unread">unread</button>
+          <button class="mail-tab" data-filter="flagged">flagged</button>
+          <button class="mail-tab" data-filter="vip">vip</button>
           <button class="mail-tab" data-filter="sent">sent</button>
+          <button class="mail-tab" data-filter="drafts">drafts</button>
         </div>
         <div id="mail-account" class="settings-input custom-select mail-account-select"></div>
         <input type="text" id="mail-search" class="cal-quick mail-search" placeholder="search mail… (enter)">
@@ -1511,7 +1558,7 @@
 </div>
 
 <script type="module">
-const _v = '30';
+const _v = '31';
 import(`/static/js/app.js?v=${_v}`);
 </script>
 </body>

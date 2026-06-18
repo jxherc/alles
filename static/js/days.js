@@ -141,11 +141,8 @@ function _render() {
     return;
   }
 
-  if (_editing) {
-    const e = derived.find(x => x.id === _editing);
-    if (e) { grid.innerHTML = _editCard(e) + derived.filter(x => x.id !== _editing).map(_card).join(''); _wire(grid); return; }
-  }
-
+  // editing renders the card in place (its own section), not yanked to the top
+  const cardOf = e => e.id === _editing ? _editCard(e) : _card(e);
   const sections = [
     ['today',     derived.filter(x => x.mode === 'today').sort(_byPinThenName)],
     ['upcoming',  derived.filter(x => x.mode === 'countdown').sort(_byPinThenSoonest)],
@@ -153,7 +150,7 @@ function _render() {
   ];
   grid.innerHTML = sections
     .filter(([, list]) => list.length)
-    .map(([label, list]) => `<div class="day-section">${label}</div>` + list.map(_card).join(''))
+    .map(([label, list]) => `<div class="day-section">${label}</div>` + list.map(cardOf).join(''))
     .join('');
   _wire(grid);
 }

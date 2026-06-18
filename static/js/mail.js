@@ -142,8 +142,10 @@ async function fetchInboxFor(account, limit = 35, folder = 'INBOX', quick = fals
   // hasn't moved — keeps the 30s background poll cheap on slow connections
   const url = `/api/mail/inbox/${account.id}?folder=${encodeURIComponent(folder)}&limit=${limit}${quick ? '&quick=1' : ''}`;
   const d = await fetch(url).then(r => r.json());
-  if (d.error) throw new Error(d.error);
-  return (d.messages || []).map(m => ({ ...m, account_id: account.id, account_name: account.name || account.email, folder }));
+  const map = ms => ms.map(m => ({ ...m, account_id: account.id, account_name: account.name || account.email, folder }));
+  // IMAP failed but the server handed back the cached copy → show it (offline-friendly) instead of erroring
+  if (d.error) { if ((d.messages || []).length) return map(d.messages); throw new Error(d.error); }
+  return map(d.messages || []);
 }
 
 // providers don't agree on a sent-folder name; sniff it once per account
@@ -169,7 +171,53 @@ function setFilter(f) {
   if (_filter === f) return;
   _filter = f;
   document.querySelectorAll('.mail-tab').forEach(t => t.classList.toggle('active', t.dataset.filter === f));
-  loadInbox();
+  if (f === 'drafts') loadDrafts();
+  else if (f === 'flagged') loadSmart('flagged');
+  else if (f === 'vip') loadSmart('vip');
+  else loadInbox();
+}
+
+async function loadSmart(filter) {
+  const list = $('mail-list'); const main = $('mail-main');
+  main.innerHTML = '';
+  list.innerHTML = `<div class="mail-empty">loading ${esc(filter)}…</div>`;
+  const accts = _active === 'all' ? _accounts : _accounts.filter(a => a.id === _active);
+  const results = await Promise.allSettled(accts.map(a =>
+    fetch(`/api/mail/smart/${a.id}?filter=${encodeURIComponent(filter)}`).then(r => r.json())));
+  let msgs = [];
+  for (const r of results) if (r.status === 'fulfilled') msgs = msgs.concat(r.value.messages || []);
+  renderInbox(msgs);
+}
+
+async function loadDrafts() {
+  const list = $('mail-list'); const main = $('mail-main');
+  main.innerHTML = '';
+  list.innerHTML = '<div class="mail-empty">loading drafts…</div>';
+  let drafts = [];
+  try {
+    const url = _active && _active !== 'all' ? `/api/mail/drafts?account_id=${encodeURIComponent(_active)}` : '/api/mail/drafts';
+    drafts = await fetch(url).then(r => r.json());
+  } catch { list.innerHTML = '<div class="mail-empty">failed to load drafts</div>'; return; }
+  if (!drafts.length) { list.innerHTML = '<div class="mail-empty">no drafts</div>'; return; }
+  list.innerHTML = drafts.map(d => `
+    <div class="mail-row mail-draft-row" data-id="${esc(d.id)}">
+      <div class="mail-row-top"><span class="mail-from">${esc(d.to || '(no recipient)')}</span>
+        <button class="mail-draft-del" data-id="${esc(d.id)}" title="delete draft">×</button></div>
+      <div class="mail-subj">${esc(d.subject || '(no subject)')}</div>
+      <div class="mail-snippet">${esc((d.body || '').slice(0, 80))}</div>
+    </div>`).join('');
+  list.querySelectorAll('.mail-draft-row').forEach(row => {
+    row.addEventListener('click', async e => {
+      if (e.target.closest('.mail-draft-del')) return;
+      const d = await fetch(`/api/mail/drafts/${row.dataset.id}`).then(r => r.json());
+      compose(d);
+    });
+  });
+  list.querySelectorAll('.mail-draft-del').forEach(b => b.addEventListener('click', async e => {
+    e.stopPropagation();
+    await fetch(`/api/mail/drafts/${b.dataset.id}`, { method: 'DELETE' });
+    loadDrafts();
+  }));
 }
 
 async function loadInbox(force = false, silent = false) {
@@ -241,6 +289,7 @@ const _msgRow = (m, indent = false) => `
       <div class="mail-row-top">
         <span class="mail-from">${esc(fromName(m.from))}</span>
         <span class="mail-date">${esc(shortDate(m.date))}</span>
+        <button class="mail-flag${m.flagged ? ' on' : ''}" data-flag title="flag">${m.flagged ? '★' : '☆'}</button>
       </div>
       <div class="mail-subject">${esc(m.subject)}</div>
       ${_active === 'all' ? `<div class="mail-account-badge">${esc(m.account_name || acctName(m.account_id))}</div>` : ''}
@@ -301,6 +350,16 @@ function _wireRows(list) {
     r.classList.add('sel'); r.classList.remove('unread');
     openMessage(r.dataset.aid, r.dataset.uid, r.dataset.folder);
   }));
+  list.querySelectorAll('.mail-flag').forEach(btn => btn.addEventListener('click', async e => {
+    e.stopPropagation();
+    const row = btn.closest('.mail-row');
+    const on = !btn.classList.contains('on');
+    btn.classList.toggle('on', on); btn.textContent = on ? '★' : '☆';
+    const m = _lastMsgs.find(x => String(x.uid) === row.dataset.uid && (x.account_id || '') === row.dataset.aid);
+    if (m) m.flagged = on;
+    await fetch(`/api/mail/flag/${row.dataset.aid}?uid=${encodeURIComponent(row.dataset.uid)}&folder=${encodeURIComponent(row.dataset.folder)}&flagged=${on}`, { method: 'POST' }).catch(() => {});
+    if (_filter === 'flagged' && !on) row.remove();   // unflagged in the flagged view → drop it
+  }));
 }
 
 async function openMessage(aid, uid, folder = 'INBOX') {
@@ -328,6 +387,8 @@ async function openMessage(aid, uid, folder = 'INBOX') {
       <div class="mail-reader-meta">to ${esc(m.to)} - ${esc(m.date)}</div>
       <div style="display:flex;gap:0.4rem;flex-wrap:wrap">
         <button class="btn" id="mail-reply">reply</button>
+        <button class="btn" id="mail-unread" title="mark as unread">unread</button>
+        <button class="btn" id="mail-vip" title="VIP sender">+ VIP</button>
         <button class="btn" id="mail-to-task" title="create a task from this mail">→ task</button>
         <button class="btn" id="mail-to-cal" title="AI-extract the event and add it to your calendar">→ calendar</button>
         <button class="btn" id="mail-summarize" title="AI summary + action items">summarize</button>
@@ -342,6 +403,24 @@ async function openMessage(aid, uid, folder = 'INBOX') {
   }
   // attachment chips — backend lists/serves them, the reader just never showed them
   loadAttachments(aid, uid, folder);
+  const senderAddr = ((/<([^>]+)>/.exec(m.from) || [, m.from])[1] || '').trim().toLowerCase();
+  $('mail-unread')?.addEventListener('click', async () => {
+    await fetch(`/api/mail/read/${aid}?uid=${encodeURIComponent(uid)}&seen=false&folder=${encodeURIComponent(folder)}`, { method: 'POST' }).catch(() => {});
+    const row = [...document.querySelectorAll('.mail-row')].find(r => r.dataset.uid === String(uid) && r.dataset.aid === aid);
+    if (row) row.classList.add('unread');
+    const lm = _lastMsgs.find(x => String(x.uid) === String(uid) && (x.account_id || '') === aid); if (lm) lm.seen = false;
+    toast('marked unread', 'success');
+  });
+  (async () => {
+    const vips = ((await fetch('/api/mail/vips').then(r => r.json()).catch(() => ({ vips: [] }))).vips || []).map(v => v.toLowerCase());
+    const btn = $('mail-vip'); if (btn) { const on = vips.includes(senderAddr); btn.classList.toggle('on', on); btn.textContent = on ? 'VIP ★' : '+ VIP'; }
+  })();
+  $('mail-vip')?.addEventListener('click', async () => {
+    const btn = $('mail-vip'); const adding = !btn.classList.contains('on');
+    await fetch('/api/mail/vips', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: senderAddr, add: adding }) }).catch(() => {});
+    btn.classList.toggle('on', adding); btn.textContent = adding ? 'VIP ★' : '+ VIP';
+    toast(adding ? 'added to VIP' : 'removed from VIP', 'success');
+  });
   $('mail-reply')?.addEventListener('click', () => {
     const addr = (/<([^>]+)>/.exec(m.from) || [, m.from])[1];
     compose({
@@ -432,6 +511,7 @@ async function compose(pre = {}) {
       </div>
       <div class="mail-form-actions">
         <button class="btn" id="mc-close">close</button>
+        <button class="btn" id="mc-save">save draft</button>
         <button class="btn primary" id="mc-send">send</button>
       </div>
     </div>
@@ -444,7 +524,18 @@ async function compose(pre = {}) {
     <div id="mc-status" class="mail-status"></div>
   </div>`;
   if ($('mc-account')) populateDropdown($('mc-account'), _accounts.map(a => ({ value: a.id, label: a.name || a.email })), defaultAid);
+  let _draftId = pre.id || '';
   const initial = serializeForm(main);
+  const _draftBody = () => ({
+    id: _draftId, account_id: $('mc-account')?.value || defaultAid,
+    to: $('mc-to').value.trim(), cc: $('mc-cc').value.trim(), bcc: $('mc-bcc').value.trim(),
+    subject: $('mc-subj').value, body: $('mc-body').value,
+    in_reply_to: pre.in_reply_to || '', references: pre.references || '',
+  });
+  $('mc-save').addEventListener('click', async () => {
+    const d = await fetch('/api/mail/drafts', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(_draftBody()) }).then(r => r.json()).catch(() => null);
+    if (d?.id) { _draftId = d.id; toast('draft saved', 'success'); } else toast('save failed', 'error');
+  });
   $('mc-close').addEventListener('click', async () => {
     if (serializeForm(main) !== initial && !await dlgConfirm('discard this draft?')) return;
     main.innerHTML = '';
@@ -460,8 +551,10 @@ async function compose(pre = {}) {
       in_reply_to: pre.in_reply_to || '', references: pre.references || '',
     };
     const r = await fetch(`/api/mail/send/${aid}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }).then(x => x.json()).catch(() => ({ error: 'network' }));
-    if (r.ok) { toast('sent', 'success'); main.innerHTML = ''; loadInbox(); }
-    else { $('mc-status').textContent = 'failed: ' + (r.error || 'unknown'); }
+    if (r.ok) {
+      if (_draftId) fetch(`/api/mail/drafts/${_draftId}`, { method: 'DELETE' }).catch(() => {});  // sent → drop the draft
+      toast('sent', 'success'); main.innerHTML = ''; loadInbox();
+    } else { $('mc-status').textContent = 'failed: ' + (r.error || 'unknown'); }
   });
 }
 
