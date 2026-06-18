@@ -8,6 +8,7 @@ const $ = id => document.getElementById(id);
 let _subs = [];
 let _summary = {};
 let _analytics = null;
+let _upcoming = null;  // renewals due in the next N days + summed cost
 let _accounts = [];    // money accounts, for the optional auto-post link
 let _editing = null;   // id of the row currently in edit mode
 
@@ -19,12 +20,30 @@ export async function loadSubs() {
   } catch { _subs = []; _summary = {}; }
   try { _analytics = await fetch('/api/subscriptions/analytics').then(r => r.json()); }
   catch { _analytics = null; }
+  try { _upcoming = await fetch('/api/subscriptions/upcoming?days=7').then(r => r.json()); }
+  catch { _upcoming = null; }
   try { _accounts = (await fetch('/api/money/accounts').then(r => r.json())).filter(a => !a.archived); }
   catch { _accounts = []; }
   _render();
 }
 
 const acctName = id => _accounts.find(a => a.id === id)?.name || '';
+
+function _upcomingHtml(u) {
+  if (!u || !u.count) return '';
+  const chips = u.items.map(s => {
+    const when = s.days_until === 0 ? 'today' : s.days_until === 1 ? 'tomorrow' : `${s.days_until}d`;
+    return `<span class="subs-up-chip" title="${esc(s.name)} renews ${esc(s.next_due)}">
+      <span class="subs-up-name">${esc(s.name)}</span>
+      <span class="subs-up-when${s.days_until <= 1 ? ' soon' : ''}">${when}</span>
+      ${s.price ? `<span class="subs-up-amt">${esc(s.currency)}${s.price.toFixed(2)}</span>` : ''}
+    </span>`;
+  }).join('');
+  return `<div class="subs-upcoming">
+    <div class="subs-up-head">next ${u.days} days · <strong>${esc(u.currency)}${u.total.toFixed(2)}</strong> · ${u.count} renewal${u.count === 1 ? '' : 's'}</div>
+    <div class="subs-up-chips">${chips}</div>
+  </div>`;
+}
 
 function _chartHtml(a) {
   if (!a || !a.count || !a.by_category.length) return '';
@@ -104,7 +123,7 @@ function _render() {
     list.innerHTML = '<div style="padding:1rem 0;font-size:0.75rem;color:var(--faint)">nothing tracked yet — add your first subscription below</div>';
     return;
   }
-  list.innerHTML = _chartHtml(_analytics) + _subs.map(s => _editing === s.id ? _editRow(s) : _row(s)).join('');
+  list.innerHTML = _upcomingHtml(_upcoming) + _chartHtml(_analytics) + _subs.map(s => _editing === s.id ? _editRow(s) : _row(s)).join('');
   _wireRows(list);
 }
 
