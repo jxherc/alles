@@ -494,6 +494,7 @@ class Subscription(Base):
     last_notified_due = Column(String, default="")  # due date we already pushed for
     account_id = Column(String, default="")  # money account to auto-post the charge to (optional)
     last_posted_due = Column(String, default="")  # due date we already posted a txn for
+    trial_end = Column(String, default="")  # ISO date a free trial ends / cancel-by
     created_at = Column(DateTime, default=_now)
 
 
@@ -605,6 +606,7 @@ def init_db():
         ]:
             _add_col(conn, "contacts", _c, _t)
         _add_col(conn, "vault_entries", "type", "TEXT DEFAULT 'password'")
+        _add_col(conn, "subscriptions", "trial_end", "TEXT DEFAULT ''")
         _add_col(conn, "sessions", "persona_id", "TEXT")
         _add_col(conn, "sessions", "project_id", "TEXT")
         _add_col(conn, "sessions", "working_dir", "TEXT DEFAULT ''")
