@@ -10,7 +10,7 @@ import shutil
 from pathlib import Path
 from datetime import datetime
 
-from core.settings import load_settings
+from core.settings import load_settings, data_dir
 
 ROOT = Path(__file__).resolve().parent.parent
 _ALLOWED = {"jpg", "jpeg", "png", "webp", "gif", "bmp"}
@@ -18,7 +18,7 @@ _THUMB = 512
 
 
 def photos_dir() -> Path:
-    d = load_settings().get("photos_dir") or str(ROOT / "data" / "photos")
+    d = load_settings().get("photos_dir") or str(data_dir() / "photos")
     p = Path(d).expanduser()
     if not p.is_absolute():
         p = ROOT / p  # relative dirs anchor to the app root, not cwd
@@ -32,7 +32,7 @@ def thumbs_dir() -> Path:
 
 
 def _resolve_dir(raw) -> Path:
-    p = Path(raw or str(ROOT / "data" / "photos")).expanduser()
+    p = Path(raw or str(data_dir() / "photos")).expanduser()
     if not p.is_absolute():
         p = ROOT / p
     return p.resolve()

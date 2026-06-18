@@ -4,7 +4,13 @@ from dotenv import load_dotenv
 
 load_dotenv(encoding="utf-8-sig")  # utf-8-sig handles windows BOM
 
-_SETTINGS_FILE = Path(__file__).parent.parent / "data" / "settings.json"
+
+def data_dir() -> Path:
+    # base data dir; ALLES_DATA lets an isolated instance (autorun/tests) keep its files separate
+    return Path(os.environ.get("ALLES_DATA") or (Path(__file__).parent.parent / "data"))
+
+
+_SETTINGS_FILE = data_dir() / "settings.json"
 
 _defaults = {
     "default_model": "",
