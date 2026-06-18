@@ -1,5 +1,5 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v4';   // bumped after the docs page/selection + home redesign so clients drop any stale cached shell
+const VERSION = 'v5';   // bumped with the ?v=31 asset stamp so clients drop the stale style.css for good
 const CACHE = `alles-${VERSION}`;
 
 self.addEventListener('install', () => self.skipWaiting());
