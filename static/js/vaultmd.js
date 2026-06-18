@@ -317,6 +317,8 @@ export function initVault() {
     treeEl.addEventListener('drop', e => { if (e.target.closest('.wiki-dir') || !_canDrop(_dragPath, '')) return; e.preventDefault(); moveInto(_dragPath, ''); });
   }
   $('wiki-today-btn')?.addEventListener('click', openDaily);
+  $('wiki-week-btn')?.addEventListener('click', () => openPeriodic('weekly'));
+  $('wiki-month-btn')?.addEventListener('click', () => openPeriodic('monthly'));
   $('wiki-outline-btn')?.addEventListener('click', toggleOutline);
   $('wiki-props-btn')?.addEventListener('click', toggleProps);
   $('wiki-todos-btn')?.addEventListener('click', extractTodos);
@@ -917,6 +919,15 @@ async function openDaily() {
   await fetch('/api/vault-md/file', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ path: name, content: `# ${name}\n\n` }) });
   await loadTree();
   openFile(name + '.md');
+}
+
+// weekly / monthly review notes — server picks the path (ISO week) + seeds a template
+async function openPeriodic(kind) {
+  try {
+    const d = await api('/api/vault-md/periodic', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ kind }) });
+    await loadTree();
+    openFile(d.path);
+  } catch (e) { toast(e.message || `couldn't open ${kind} note`, 'error'); }
 }
 
 function queueSave() {
