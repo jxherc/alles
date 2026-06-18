@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Query, UploadFile, File, Form
+from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
@@ -18,6 +18,14 @@ def list_files(path: str = Query("")):
 @router.get("/search")
 def search_files(q: str = Query(...), limit: int = 100):
     return fs.search(q, limit)
+
+
+@router.get("/smart/{kind}")
+def smart_folder(kind: str, days: int = 30, limit: int = 200):
+    try:
+        return fs.smart(kind, days=days, limit=limit)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
 
 
 @router.get("/read")

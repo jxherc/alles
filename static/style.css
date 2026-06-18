@@ -1909,6 +1909,13 @@ body.is-incognito .incognito-bar {
 }
 .file-act:hover { color: var(--text); }
 .files-empty { color: var(--muted); font-size: 0.78rem; padding: 1rem 0.5rem; }
+.files-smart-bar { display: flex; flex-wrap: wrap; gap: 0.4rem; padding: 0.5rem 0.5rem 0.7rem; border-bottom: 1px solid var(--faint); }
+.files-smart {
+  font-family: inherit; font-size: 0.72rem; cursor: pointer;
+  background: var(--panel); border: 1px solid var(--faint); border-radius: 3px;
+  color: var(--muted); padding: 0.2rem 0.6rem; transition: color 0.15s, border-color 0.15s;
+}
+.files-smart:hover { color: var(--text); border-color: var(--muted); }
 
 .files-preview-card { width: min(720px, 92vw); max-height: 86vh; display: flex; flex-direction: column; }
 .files-preview-head {
