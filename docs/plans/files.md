@@ -39,3 +39,35 @@ Genuine gaps (modern file-manager features that fit single-user self-host):
 
 PDF merge/rotate (needs a new pdf dependency — pypdf isn't installed; out of scope for a single-user file
 manager), bulk multi-select, drag-to-move between folders, versioning, server-side thumbnails, zip/unzip.
+
+---
+
+# files — UI/UX polish (2026-06-18)
+
+Re-audit evidence: `docs/evidence/files/` (findings.md + 6 screenshots + audit.json). Everything works
+(nav, `?p=` routing, sort, smart folders, search, preview, zero console errors). Only defect: header
+balance. Single UI task.
+
+## files-ui-1 — merge breadcrumb + sort into one aligned row; drop redundant root crumb
+
+**Problem (measured):** at root the breadcrumb is a lone "files" (y=109) duplicating the page title, and
+the SORT row (y=138) sits on a separate line below it — two stacked, misaligned strips.
+
+**Change:**
+- `static/js/files.js` `renderCrumb()` — return early with empty breadcrumb at root (`_cwd===''`); keep
+  the clickable `files / …` trail in subfolders.
+- `static/index.html` — wrap `#files-breadcrumb` + `#files-sortbar` in `<div class="files-subhead">`.
+- `static/style.css` — add `.files-subhead` (flex, one baseline, `clamp(0.9rem,3vw,2rem)` h-padding,
+  sort `margin-left:auto`); strip the breadcrumb's centered `max-width/margin/padding`.
+
+**Verify (Playwright `pw_files_ui1.py`, ≥8 assertions, RED before → GREEN after, screenshot, 0 console err):**
+1. `root_no_redundant_crumb` — at root `#files-breadcrumb` text is empty (not "files").
+2. `root_sort_present` — sort name/size/date buttons still visible at root.
+3. `root_one_subhead_row` — breadcrumb + sortbar live in one `.files-subhead`, one baseline (|Δy|<6).
+4. `subfolder_crumb` — inside projects, breadcrumb == "files / projects".
+5. `subfolder_same_row` — in subfolder, breadcrumb and sortbar share one baseline (|Δy|<6).
+6. `crumb_back_to_root` — clicking the `files` crumb returns to root (URL has no `?p`).
+7. `sort_toggle_size` — clicking size activates it with a direction arrow.
+8. `sort_toggle_date` — clicking date activates it.
+9. `sort_right_aligned` — sortbar right edge is pushed right (right of the breadcrumb left edge).
+10. `zero_console_errors` — no console/page errors; screenshot saved.
