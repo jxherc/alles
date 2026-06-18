@@ -30,7 +30,10 @@ class VaultCategorySchemaTests(ApiTest):
         self.assertEqual(_default_schema("account"), ["username", "password", "url", "notes"])
 
     def test_default_schema_card(self):
-        self.assertEqual(_default_schema("card"), ["card"])
+        self.assertEqual(
+            _default_schema("card"),
+            ["cardholder", "number", "expiry", "cvv", "address", "notes"],
+        )
 
     def test_default_schema_note(self):
         self.assertEqual(_default_schema("note"), ["notes"])
@@ -51,7 +54,10 @@ class VaultCategorySchemaTests(ApiTest):
         for c in d["categories"]:
             self.assertIn(c, d["schemas"])
             self.assertIsInstance(d["schemas"][c]["fields"], list)
-        self.assertEqual(d["schemas"]["card"]["fields"], ["card"])
+        self.assertEqual(
+            d["schemas"]["card"]["fields"],
+            ["cardholder", "number", "expiry", "cvv", "address", "notes"],
+        )
         self.assertEqual(
             d["schemas"]["password"]["fields"], ["username", "password", "url", "notes"]
         )
@@ -122,3 +128,77 @@ class VaultCategorySchemaTests(ApiTest):
         got = self.client.get(f"/api/vault/{eid}/reveal", headers=self.h).json()
         self.assertEqual(got["fields"]["password"], "letmein")
         self.assertEqual(got["fields"]["notes"], "ssid: home")
+
+    # ── richer card fields (cardholder/number/expiry/cvv/address) ─────────────
+    def test_put_schema_accepts_all_card_fields(self):
+        # the full card field set must survive the round-trip un-filtered
+        fields = ["cardholder", "number", "expiry", "cvv", "address", "notes"]
+        r = self.client.put(
+            "/api/vault/category-schema",
+            json={"name": "card", "fields": fields},
+            headers=self.h,
+        )
+        self.assertEqual(r.json()["fields"], fields)
+
+    def test_put_schema_keeps_address_drops_junk(self):
+        r = self.client.put(
+            "/api/vault/category-schema",
+            json={"name": "wallet", "fields": ["cardholder", "ssn", "address", "nope"]},
+            headers=self.h,
+        )
+        self.assertEqual(r.json()["fields"], ["cardholder", "address"])
+
+    def test_legacy_card_key_still_accepted(self):
+        # already-saved schemas used the single "card" marker — don't break them
+        r = self.client.put(
+            "/api/vault/category-schema",
+            json={"name": "oldcard", "fields": ["card"]},
+            headers=self.h,
+        )
+        self.assertEqual(r.json()["fields"], ["card"])
+
+    def test_create_card_with_address_reveals_everything(self):
+        eid = self.client.post(
+            "/api/vault",
+            json={
+                "name": "Chase Visa",
+                "category": "card",
+                "type": "card",
+                "fields": {
+                    "cardholder": "Jane Doe",
+                    "number": "4242424242424242",
+                    "expiry": "09/27",
+                    "cvv": "123",
+                    "address": "1 Main St, Springfield",
+                    "notes": "travel card",
+                },
+            },
+            headers=self.h,
+        ).json()["id"]
+        got = self.client.get(f"/api/vault/{eid}/reveal", headers=self.h).json()
+        self.assertEqual(got["fields"]["address"], "1 Main St, Springfield")
+        self.assertEqual(got["fields"]["cardholder"], "Jane Doe")
+        # card meta still computed off the number
+        self.assertEqual(got["card"]["brand"], "Visa")
+        self.assertEqual(got["card"]["last4"], "4242")
+        self.assertTrue(got["card"]["valid"])
+        self.assertTrue(got["card"]["masked"].endswith("4242"))
+
+    def test_create_password_with_username_roundtrips(self):
+        eid = self.client.post(
+            "/api/vault",
+            json={
+                "name": "Github",
+                "category": "password",
+                "type": "password",
+                "username": "octocat",
+                "fields": {"password": "hunter2", "url": "github.com"},
+            },
+            headers=self.h,
+        ).json()["id"]
+        listed = self.client.get("/api/vault", headers=self.h).json()
+        row = [e for e in listed if e["id"] == eid][0]
+        self.assertEqual(row["username"], "octocat")
+        got = self.client.get(f"/api/vault/{eid}/reveal", headers=self.h).json()
+        self.assertEqual(got["fields"]["password"], "hunter2")
+        self.assertEqual(got["fields"]["url"], "github.com")
