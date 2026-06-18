@@ -742,10 +742,44 @@ def unlinked_mentions(name: str) -> list[dict]:
     return out
 
 
-def graph() -> dict:
-    """nodes = notes, edges = resolved [[wikilinks]] between them."""
-    base = vault_dir()
+def _note_tags(text: str) -> set:
+    props, body = parse_frontmatter(text)
+    tags = set()
+    tp = props.get("tags")
+    if isinstance(tp, list):
+        tags.update(str(x).lower() for x in tp)
+    elif isinstance(tp, str) and tp:
+        tags.update(s.strip().lower() for s in tp.split(",") if s.strip())
+    tags.update(m.group(1).lower() for m in _TAG.finditer(body))
+    return tags
+
+
+def _graph_files(tag=None, folder=None) -> list[Path]:
     files = _all_md()
+    if not tag and not folder:
+        return files
+    base = vault_dir()
+    tnorm = (tag or "").lstrip("#").lower()
+    fnorm = (folder or "").lower().rstrip("/")
+    out = []
+    for p in files:
+        rel = str(p.relative_to(base)).replace("\\", "/")
+        if fnorm and not rel.lower().startswith(fnorm + "/"):
+            continue
+        if tnorm:
+            try:
+                text = p.read_text("utf-8", errors="replace")
+            except Exception:
+                text = ""
+            if tnorm not in _note_tags(text):
+                continue
+        out.append(p)
+    return out
+
+
+def _edges_for(files: list[Path]) -> dict:
+    """nodes = the given notes, edges = resolved [[wikilinks]] between them (within the set)."""
+    base = vault_dir()
     by_stem = {p.stem.lower(): p.stem for p in files}
     nodes = [{"id": p.stem, "path": str(p.relative_to(base)).replace("\\", "/")} for p in files]
     edges = []
@@ -758,7 +792,6 @@ def graph() -> dict:
             res = by_stem.get(tgt.lower())
             if res and res != p.stem:
                 edges.append({"source": p.stem, "target": res})
-    # degree for sizing
     deg: dict[str, int] = {}
     for e in edges:
         deg[e["source"]] = deg.get(e["source"], 0) + 1
@@ -766,3 +799,35 @@ def graph() -> dict:
     for n in nodes:
         n["degree"] = deg.get(n["id"], 0)
     return {"nodes": nodes, "edges": edges}
+
+
+def graph(tag=None, folder=None) -> dict:
+    """nodes = notes, edges = resolved [[wikilinks]]. optional tag/folder filter."""
+    return _edges_for(_graph_files(tag, folder))
+
+
+def local_graph(name: str, depth: int = 1) -> dict:
+    """subgraph within `depth` hops of `name` (undirected over wikilinks)."""
+    full = _edges_for(_all_md())
+    idmap = {n["id"].lower(): n["id"] for n in full["nodes"]}
+    start = idmap.get((name or "").strip().lower())
+    if not start:
+        return {"nodes": [], "edges": [], "center": None}
+    adj: dict[str, set] = {}
+    for e in full["edges"]:
+        adj.setdefault(e["source"], set()).add(e["target"])
+        adj.setdefault(e["target"], set()).add(e["source"])
+    keep = {start}
+    frontier = {start}
+    for _ in range(max(0, int(depth))):
+        nxt = set()
+        for node in frontier:
+            nxt |= adj.get(node, set())
+        nxt -= keep
+        if not nxt:
+            break
+        keep |= nxt
+        frontier = nxt
+    nodes = [n for n in full["nodes"] if n["id"] in keep]
+    edges = [e for e in full["edges"] if e["source"] in keep and e["target"] in keep]
+    return {"nodes": nodes, "edges": edges, "center": start}
