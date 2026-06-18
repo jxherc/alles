@@ -8,18 +8,20 @@ renders into a scrollable "your life, lately" feed. /today is the forward-lookin
 slice; this is the backward-looking log.
 """
 
-from datetime import date, datetime, timedelta
+from datetime import datetime, timedelta
+
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session as DbSession
+
 from core.database import (
-    get_db,
-    Task,
-    JournalEntry,
     CalendarEvent,
-    Transaction,
-    Photo,
+    JournalEntry,
     MailAccount,
+    Photo,
     Subscription,
+    Task,
+    Transaction,
+    get_db,
 )
 
 router = APIRouter(prefix="/api")
@@ -59,6 +61,7 @@ def _ev(ts, type_, app, title, subtitle="", view="", eid=""):
 def timeline(
     days: int = Query(30, ge=1, le=365),
     types: str = Query(""),
+    q: str = Query(""),
     limit: int = Query(120, ge=1, le=500),
     db: DbSession = Depends(get_db),
 ):
@@ -234,5 +237,12 @@ def timeline(
             pass
 
     out = [e for e in out if e]
+    ql = (q or "").strip().lower()
+    if ql:  # text filter over title + subtitle, after aggregation
+        out = [
+            e
+            for e in out
+            if ql in (e["title"] or "").lower() or ql in (e["subtitle"] or "").lower()
+        ]
     out.sort(key=lambda e: e["ts"], reverse=True)
     return {"events": out[:limit], "types": sorted(want)}
