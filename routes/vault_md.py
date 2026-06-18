@@ -1,6 +1,7 @@
 import json
-from fastapi import APIRouter, HTTPException, UploadFile, File
-from fastapi.responses import StreamingResponse, Response
+
+from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel
 
 from services import vault_md
@@ -72,7 +73,8 @@ def _snapshot(rel: str, force: bool = False):
     state). autosave fires every keystroke pause, so unforced snapshots are
     rate-limited — you get the pre-session state plus one every ~5 minutes."""
     from datetime import datetime
-    from core.database import SessionLocal, DocRevision
+
+    from core.database import DocRevision, SessionLocal
 
     rel = _norm_path(rel)
     try:
@@ -157,7 +159,7 @@ def rename_file(body: RenameBody):
         raise HTTPException(400, str(e))
     new_path = out.get("path", _norm_path(body.new_path))
     # carry the history along with the doc
-    from core.database import SessionLocal, DocRevision
+    from core.database import DocRevision, SessionLocal
 
     db = SessionLocal()
     try:
@@ -188,7 +190,8 @@ class ExtractTodosBody(BaseModel):
 async def extract_todos(body: ExtractTodosBody):
     """AI-pull action items out of a doc and create real tasks from them."""
     import json as _json
-    from core.database import SessionLocal, ModelEndpoint, Task
+
+    from core.database import ModelEndpoint, SessionLocal, Task
     from services.llm import simple_complete
 
     try:
@@ -237,9 +240,34 @@ async def extract_todos(body: ExtractTodosBody):
         db.close()
 
 
+@router.get("/properties")
+def get_properties(path: str):
+    cur = vault_md.read(_norm_path(path))
+    props, _ = vault_md.parse_frontmatter(cur.get("content", "") or "")
+    return {"path": _norm_path(path), "properties": props, "exists": cur.get("exists", False)}
+
+
+class PropsBody(BaseModel):
+    path: str
+    properties: dict = {}
+
+
+@router.put("/properties")
+def put_properties(body: PropsBody):
+    cur = vault_md.read(_norm_path(body.path))
+    new_content = vault_md.set_frontmatter(cur.get("content", "") or "", body.properties)
+    _snapshot(body.path)
+    out = vault_md.write(body.path, new_content)
+    return {
+        "ok": True,
+        "path": out.get("path", _norm_path(body.path)),
+        "properties": body.properties,
+    }
+
+
 @router.get("/revisions")
 def list_revisions(path: str):
-    from core.database import SessionLocal, DocRevision
+    from core.database import DocRevision, SessionLocal
 
     db = SessionLocal()
     try:
@@ -259,7 +287,7 @@ def list_revisions(path: str):
 
 @router.get("/revisions/{rid}")
 def get_revision(rid: str):
-    from core.database import SessionLocal, DocRevision
+    from core.database import DocRevision, SessionLocal
 
     db = SessionLocal()
     try:
@@ -278,7 +306,7 @@ def get_revision(rid: str):
 
 @router.post("/revisions/{rid}/restore")
 def restore_revision(rid: str):
-    from core.database import SessionLocal, DocRevision
+    from core.database import DocRevision, SessionLocal
 
     db = SessionLocal()
     try:
@@ -297,7 +325,8 @@ def restore_revision(rid: str):
 def diff_revision(path: str, a: str = "", b: str = ""):
     """unified diff between revision `a` and `b`. empty/'current' b = the live file."""
     import difflib
-    from core.database import SessionLocal, DocRevision
+
+    from core.database import DocRevision, SessionLocal
 
     db = SessionLocal()
     try:
@@ -406,6 +435,7 @@ class YoutubeBody(BaseModel):
 async def youtube_to_note(body: YoutubeBody):
     """YouTube URL → transcript → (optional) AI summary → a new doc."""
     import re as _re
+
     from services import youtube
 
     vid = youtube.extract_video_id(body.url)
@@ -420,7 +450,7 @@ async def youtube_to_note(body: YoutubeBody):
 
     summary = ""
     if body.summarize:
-        from core.database import SessionLocal, ModelEndpoint
+        from core.database import ModelEndpoint, SessionLocal
         from services.llm import simple_complete
 
         db = SessionLocal()
@@ -516,7 +546,7 @@ class AiEditBody(BaseModel):
 
 @router.post("/ai-edit")
 async def ai_edit(body: AiEditBody):
-    from core.database import SessionLocal, ModelEndpoint
+    from core.database import ModelEndpoint, SessionLocal
     from services.llm import stream_chat
 
     cur = vault_md.read(body.path)

@@ -318,6 +318,7 @@ export function initVault() {
   }
   $('wiki-today-btn')?.addEventListener('click', openDaily);
   $('wiki-outline-btn')?.addEventListener('click', toggleOutline);
+  $('wiki-props-btn')?.addEventListener('click', toggleProps);
   $('wiki-todos-btn')?.addEventListener('click', extractTodos);
   $('wiki-taskroll-btn')?.addEventListener('click', toggleTaskRoll);
   $('wiki-history-btn')?.addEventListener('click', toggleHistory);
@@ -849,6 +850,65 @@ function jumpToLine(lineNo, text) {
   const pv = $('wiki-preview');
   const h = [...pv.querySelectorAll('h1,h2,h3,h4,h5,h6')].find(x => x.textContent.trim() === text.trim());
   if (h) h.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// ── properties / frontmatter editor ──────────────────────────────────────────
+let _propsRows = [];
+async function toggleProps() {
+  const p = $('wiki-props'); if (!p) return;
+  const show = p.style.display === 'none';
+  p.style.display = show ? 'block' : 'none';
+  $('wiki-props-btn')?.classList.toggle('active', show);
+  if (show) await loadProps();
+}
+async function loadProps() {
+  const p = $('wiki-props'); if (!p) return;
+  if (!_cur) { p.innerHTML = '<div class="wiki-outline-empty">open a doc first</div>'; return; }
+  await flushSave();
+  let props = {};
+  try { props = (await fetch(`/api/vault-md/properties?path=${encodeURIComponent(_cur)}`).then(r => r.json())).properties || {}; }
+  catch { p.innerHTML = '<div class="wiki-outline-empty">failed to load</div>'; return; }
+  _propsRows = Object.entries(props).map(([k, v]) => ({ key: k, value: Array.isArray(v) ? v.join(', ') : String(v), isList: Array.isArray(v) }));
+  renderProps();
+}
+function renderProps() {
+  const p = $('wiki-props'); if (!p) return;
+  const rows = _propsRows.map((r, i) => `
+    <div class="wiki-prop-row" data-i="${i}">
+      <input class="wiki-prop-key" value="${esc(r.key)}" placeholder="property" spellcheck="false">
+      <input class="wiki-prop-val" value="${esc(r.value)}" placeholder="value (comma = list)" spellcheck="false">
+      <button class="icon-btn wiki-prop-del" title="remove">×</button>
+    </div>`).join('');
+  p.innerHTML = `<div class="wiki-outline-head">properties</div>${rows || '<div class="wiki-outline-empty">no properties yet</div>'}
+    <div class="wiki-prop-actions">
+      <button class="btn" id="wiki-prop-add">+ property</button>
+      <button class="btn primary" id="wiki-prop-save">save</button>
+    </div>`;
+  p.querySelectorAll('.wiki-prop-row').forEach(row => {
+    const i = +row.dataset.i;
+    row.querySelector('.wiki-prop-key').addEventListener('input', e => _propsRows[i].key = e.target.value);
+    row.querySelector('.wiki-prop-val').addEventListener('input', e => _propsRows[i].value = e.target.value);
+    row.querySelector('.wiki-prop-del').addEventListener('click', () => { _propsRows.splice(i, 1); renderProps(); });
+  });
+  $('wiki-prop-add')?.addEventListener('click', () => { _propsRows.push({ key: '', value: '', isList: false }); renderProps(); });
+  $('wiki-prop-save')?.addEventListener('click', saveProps);
+}
+async function saveProps() {
+  if (!_cur) return;
+  await flushSave();
+  const props = {};
+  for (const r of _propsRows) {
+    const k = (r.key || '').trim(); if (!k) continue;
+    const v = (r.value || '').trim();
+    props[k] = (r.isList || v.includes(',')) ? v.split(',').map(s => s.trim()).filter(Boolean) : v;
+  }
+  try {
+    await fetch('/api/vault-md/properties', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ path: _cur, properties: props }) });
+    const d = await fetch(`/api/vault-md/file?path=${encodeURIComponent(_cur)}`).then(r => r.json());
+    setEditor(d.content || '');
+    await loadProps();
+    toast('properties saved', 'success');
+  } catch { toast('failed to save properties', 'error'); }
 }
 
 async function openDaily() {
