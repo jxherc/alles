@@ -11,7 +11,7 @@ export async function loadContacts(q = '') {
     list.innerHTML = contacts.map(c => `
       <div class="settings-list-row contact-item" data-id="${c.id}">
         <span class="row-name">${_esc(c.name)}</span>
-        <span class="row-meta">${_esc(c.email || c.phone || '')}</span>
+        <span class="row-meta">${_esc(c.email || c.phone || '')}${c.company ? ' · ' + _esc(c.company) : ''}</span>
         <button class="act-btn" onclick="window._editContact('${c.id}')">edit</button>
         <button class="act-btn danger" onclick="window._delContact('${c.id}')">del</button>
       </div>`).join('');
@@ -52,6 +52,11 @@ window._editContact = async id => {
     { id: 'name',  label: 'name',  value: c.name  || '' },
     { id: 'email', label: 'email', value: c.email || '' },
     { id: 'phone', label: 'phone', value: c.phone || '' },
+    { id: 'company', label: 'company', value: c.company || '' },
+    { id: 'title', label: 'title', value: c.title || '' },
+    { id: 'address', label: 'address', value: c.address || '' },
+    { id: 'birthday', label: 'birthday (YYYY-MM-DD)', value: c.birthday || '' },
+    { id: 'website', label: 'website', value: c.website || '' },
     { id: 'notes', label: 'notes', value: c.notes || '' },
   ]);
   if (!res) return;
