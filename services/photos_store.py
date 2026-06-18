@@ -5,12 +5,12 @@ Originals live in data/photos, thumbs in data/photos/.thumbs. Path-safe like fil
 
 import io
 import json
-import uuid
 import shutil
-from pathlib import Path
+import uuid
 from datetime import datetime
+from pathlib import Path
 
-from core.settings import load_settings, data_dir
+from core.settings import data_dir, load_settings
 
 ROOT = Path(__file__).resolve().parent.parent
 _ALLOWED = {"jpg", "jpeg", "png", "webp", "gif", "bmp"}
@@ -72,6 +72,58 @@ def _safe(name: str) -> Path:
     return p
 
 
+# tags surfaced in the photo info panel (Apple Photos' ⌘I)
+_EXIF_KEEP = (
+    "Make",
+    "Model",
+    "LensModel",
+    "FNumber",
+    "ExposureTime",
+    "ISOSpeedRatings",
+    "FocalLength",
+    "Orientation",
+    "Software",
+    "Flash",
+    "ExposureBiasValue",
+    "WhiteBalance",
+)
+
+
+def _gps_to_decimal(gps):
+    """EXIF GPS IFD → (lat, lon) decimal degrees, or None. keys: 1=latRef 2=lat
+    3=lonRef 4=lon, lat/lon as (deg, min, sec)."""
+    if not gps:
+        return None
+    try:
+
+        def _conv(val, ref):
+            d, m, s = (float(x) for x in val)
+            dec = d + m / 60 + s / 3600
+            return -dec if str(ref).upper() in ("S", "W") else dec
+
+        lat = round(_conv(gps[2], gps.get(1, "N")), 6)
+        lon = round(_conv(gps[4], gps.get(3, "E")), 6)
+        return (lat, lon)
+    except (KeyError, TypeError, ValueError, ZeroDivisionError):
+        return None
+
+
+def _exif_fields(tags: dict):
+    """name-keyed EXIF dict → (taken_at, kept-fields). pure, no PIL."""
+    out = {}
+    taken_at = None
+    dt = tags.get("DateTimeOriginal") or tags.get("DateTime")
+    if dt:
+        try:
+            taken_at = datetime.strptime(str(dt), "%Y:%m:%d %H:%M:%S")
+        except Exception:
+            pass
+    for key in _EXIF_KEEP:
+        if key in tags and tags[key] not in (None, ""):
+            out[key] = str(tags[key])
+    return taken_at, out
+
+
 def _read_exif(img) -> tuple:
     from PIL import ExifTags
 
@@ -80,23 +132,14 @@ def _read_exif(img) -> tuple:
         raw = img.getexif()
         if raw:
             tags = {ExifTags.TAGS.get(k, k): v for k, v in raw.items()}
-            dt = tags.get("DateTimeOriginal") or tags.get("DateTime")
-            if dt:
-                try:
-                    taken_at = datetime.strptime(str(dt), "%Y:%m:%d %H:%M:%S")
-                except Exception:
-                    pass
-            for key in (
-                "Make",
-                "Model",
-                "LensModel",
-                "FNumber",
-                "ExposureTime",
-                "ISOSpeedRatings",
-                "FocalLength",
-            ):
-                if key in tags and tags[key] not in (None, ""):
-                    out[key] = str(tags[key])
+            taken_at, out = _exif_fields(tags)
+            try:
+                gps = raw.get_ifd(0x8825)  # GPSInfo IFD
+            except Exception:
+                gps = None
+            dec = _gps_to_decimal(gps)
+            if dec:
+                out["lat"], out["lon"] = dec[0], dec[1]
     except Exception:
         pass
     return taken_at, out
