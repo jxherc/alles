@@ -12,6 +12,7 @@ const TYPES = [
   { key: 'sub', label: 'subs' },
 ];
 const GLYPH = { journal: '✎', task: '✓', calendar: '◷', money: '$', mail: '✉', photo: '▣', doc: '❏', agent: '⟳', sub: '↻' };
+const LABEL = Object.fromEntries(TYPES.map(t => [t.key, t.label]));
 
 let _days = 30;
 let _off = new Set();   // hidden type keys
@@ -92,6 +93,20 @@ async function load() {
     d = await fetch(`/api/timeline?days=${_days}&limit=200&types=${want.join(',')}${qp}`).then(r => r.json());
   } catch { body.innerHTML = '<div class="activity-empty">couldn’t load activity</div>'; return; }
   render(d.events || []);
+  loadSummary(want);
+}
+
+async function loadSummary(want) {
+  try {
+    const s = await fetch(`/api/timeline/summary?days=${_days}&types=${want.join(',')}`).then(r => r.json());
+    const strip = $('activity-summary');
+    if (!strip) return;
+    if (!s.total) { strip.innerHTML = ''; return; }
+    const chips = s.by_type.map(x =>
+      `<span class="act-sum-chip"><span class="act-sum-glyph act-${x.type}">${GLYPH[x.type] || '·'}</span>${x.count} ${esc(LABEL[x.type] || x.type)}</span>`).join('');
+    const busy = s.busiest ? `<span class="act-sum-busy">busiest · ${dayLabel(s.busiest.date)} (${s.busiest.count})</span>` : '';
+    strip.innerHTML = `<span class="act-sum-total">${s.total} events</span>${chips}${busy}`;
+  } catch {}
 }
 
 function dayLabel(iso) {
