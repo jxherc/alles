@@ -161,28 +161,40 @@ async function loadHeatmap() {
     _heatYear = d.year;
     document.getElementById('jrnl-heat-year').textContent = d.year;
     document.getElementById('jrnl-heat-next').disabled = d.year >= new Date().getFullYear();
-    // github-style: each column = a week (the 7 weekday rows), columns run left→right
-    // from the Sunday on/before Jan 1. columns flex to fill width so the WHOLE year
-    // is always visible — no horizontal scroll, no clipping.
+    // github-style contribution grid: 7 day-rows × ~53 week-columns, weeks left→right
+    // from the Sunday on/before Jan 1. cells are a flat list laid out column-major by
+    // the css grid (grid-auto-flow:column), so each 1fr column fills the full width.
     const start = new Date(Date.UTC(d.year, 0, 1));
     start.setUTCDate(start.getUTCDate() - start.getUTCDay());
     const end = new Date(Date.UTC(d.year, 11, 31));
-    let cols = '';
+    const today = todayISO();
+    let cells = '', weeks = 0;
     for (let c = new Date(start); c <= end; c.setUTCDate(c.getUTCDate() + 7)) {
-      let cells = '';
       for (let r = 0; r < 7; r++) {
         const dt = new Date(c); dt.setUTCDate(dt.getUTCDate() + r);
         const iso = dt.toISOString().slice(0, 10);
-        const inYear = dt.getUTCFullYear() === d.year;
+        const inYear = dt.getUTCFullYear() === d.year;   // padding days from adjacent years stay blank
         const info = d.days[iso];
-        const lvl = info ? info.level : 0;
-        const future = iso > todayISO();
+        const cls = ['jrnl-hc', 'l' + (info ? info.level : 0)];
+        if (!inYear) cls.push('off');
+        if (iso === today) cls.push('today');
+        if (iso === _day) cls.push('sel');
         const title = info ? `${iso} · ${info.words} words ${info.mood || ''}` : iso;
-        cells += `<span class="jrnl-hc l${lvl} ${!inYear || future ? 'off' : ''} ${iso === _day ? 'sel' : ''}" data-d="${inYear && !future ? iso : ''}" title="${title}"></span>`;
+        const clickable = inYear && iso <= today;
+        cells += `<span class="${cls.join(' ')}" data-d="${clickable ? iso : ''}" title="${title}"></span>`;
       }
-      cols += `<div class="jrnl-hcol">${cells}</div>`;
+      weeks++;
     }
-    el.innerHTML = cols;
+    // month labels sit above the column where each month's 1st falls
+    const M = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    let months = '';
+    for (let m = 0; m < 12; m++) {
+      const wk = Math.floor((Date.UTC(d.year, m, 1) - start.getTime()) / (7 * 86400000));
+      months += `<span class="jrnl-hm" style="grid-column:${wk + 1}">${M[m]}</span>`;
+    }
+    el.innerHTML =
+      `<div class="jrnl-heatmonths" style="grid-template-columns:repeat(${weeks},1fr)">${months}</div>` +
+      `<div class="jrnl-heatgrid">${cells}</div>`;
     el.querySelectorAll('.jrnl-hc[data-d]:not([data-d=""])').forEach(c => {
       if (c.dataset.d) c.onclick = () => { _day = c.dataset.d; load(); };
     });

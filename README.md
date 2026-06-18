@@ -6,7 +6,7 @@
 ─────────────────────────────────────────────
 ```
 
-**alles** is a self-hosted everything-app. one program that runs on your own computer and gives you ai chat, email, notes/docs, files, a calendar, tasks, photos, contacts, a password vault, subscription tracking, and countdowns — all behind one login, all storing their data in a single folder you control. nothing phones home. nothing's in someone else's cloud unless you put it there yourself.
+**alles** is a self-hosted everything-app. one program that runs on your own computer and gives you ai chat, email, notes & docs, a journal, files, a calendar, tasks, money & budgets, photos, contacts, an encrypted secrets vault, subscription tracking, and countdowns — all behind one login, all storing their data in a single folder you control. nothing phones home. nothing's in someone else's cloud unless you put it there yourself.
 
 think of **alles** as the whole house, and **aide** as the assistant who lives in it — kind of like what gemini is to google, except it's yours and it can actually open the other rooms: read your mail, edit your docs, add to your calendar, file your tasks. and with automation rules, it keeps doing little jobs for you even when you've closed the laptop.
 
@@ -39,7 +39,7 @@ you do **not** need to be technical to *use* it. you need to be a little technic
 ## table of contents
 
 - [the apps — what you actually get](#the-apps--what-you-actually-get)
-  - [aide (the ai)](#aide-the-ai) · [home](#home) · [today](#today) · [activity](#activity) · [docs](#docs) · [mail](#mail) · [calendar](#calendar) · [tasks](#tasks) · [notes](#notes) · [subs](#subs) · [money](#money) · [days](#days) · [files](#files) · [gallery](#gallery) · [contacts](#contacts) · [secrets](#secrets) · [system](#system) · [automations](#automations)
+  - [aide (the ai)](#aide-the-ai) · [home](#home) · [today](#today) · [activity](#activity) · [docs](#docs) · [mail](#mail) · [calendar](#calendar) · [tasks](#tasks) · [notes](#notes) · [journal](#journal) · [subs](#subs) · [money](#money) · [days](#days) · [files](#files) · [gallery](#gallery) · [contacts](#contacts) · [secrets](#secrets) · [system](#system) · [automations](#automations)
 - [aide in depth](#aide-in-depth)
 - [how the model switch works](#how-the-model-switch-works) — *the part everyone asks about*
 - [the agent in depth](#the-agent-in-depth)
@@ -170,19 +170,24 @@ this is the most feature-dense app, so here's the full list:
 **plain version:** lightweight scratch notes (separate from the full docs app) for when you just want to jot something with zero ceremony — also where home's quick-capture "note" lands as a properly-named note.
 
 ### journal
-**plain version:** a daily diary — one entry a day, with mood, prompts, and a streak.
+**plain version:** a daily diary — one entry a day, with mood, prompts, a streak, and a year-at-a-glance heatmap.
 
 - one entry per day with a **mood** picker, tags, live word count, and gentle autosave
 - a rotating **daily writing prompt**, a **streak** counter (an unwritten today doesn't break it), and **on-this-day** (the same date in past years)
+- a full-year **activity heatmap** — a github-style contribution grid (7 rows × the weeks of the year) that fills in as you write, with year-to-year navigation
 - **search** across every entry, **export** the whole journal to one markdown file
 - an optional **"reflect"** button — a short, warm ai reflection on what you wrote
+- an optional **passcode lock** that gates the journal behind its own code (an access gate, not extra encryption — once you're in it's still fully searchable)
 
 ### subs
 **plain version:** track what you're paying for every month so nothing surprises you.
 
 - weekly / monthly / quarterly / yearly / custom billing cycles
 - due dates roll forward automatically as they pass
+- **mark a renewal paid** only when it's actually due — one click logs a dated payment and advances the next due date by a cycle, with an **undo** for when you hit it by accident (no more clicking "paid" five times and launching the date into next year)
 - **auto-post to money** (optional) — link a subscription to a money account and every time it renews it drops a real dated transaction there, so your spending picture actually includes your subscriptions instead of forecasting them separately (idempotent — it never double-charges)
+- **price-change tracking** — when a subscription's price changes it keeps the old and new, so a quietly-creeping price is something you can actually see
+- a **6-month spend forecast** of what's coming up, and **duplicate detection** that flags two subs that look like the same service
 - a **manage ↗ link** straight to the cancel/billing page you saved
 - monthly **and** yearly totals, plus a **spend-by-category bar chart** (plain CSS, no chart library)
 - a **push notification before anything renews** so you can cancel in time
@@ -235,9 +240,10 @@ this is the most feature-dense app, so here's the full list:
 - *under the hood:* `GET /api/system/stats` ([`services/sysmon.py`](services/sysmon.py)) uses [psutil](https://github.com/giampaolo/psutil) for live cpu%/per-core/uptime/disks; without it, it still shows ram + disk from the static hardware readout (`shutil` + the `hwfit` probe), just no live cpu%. all the gauges are hand-drawn svg — no chart library.
 
 ### secrets
-**plain version:** a password vault. properly encrypted, not just "hidden."
+**plain version:** an encrypted vault — and not just for passwords. each item carries the fields that actually fit what it is.
 
-- stores logins/secrets, organized by category
+- pick a **type** and the form changes to match: **logins** (username · password · website · notes), **credit cards** (cardholder · number · expiry · cvv · billing address), **api keys / tokens**, **secure notes**, and **identities · bank accounts · ssh keys · software licenses** — so a card never asks you for a "password" and an api key reads as a token, not a login
+- click any entry to open it, reveal or copy a field, edit it, or delete it
 - a built-in **password generator** (CSPRNG, skips look-alike characters) and a live **strength meter** that flags common, repetitive, or sequential passwords
 - *under the hood:* each entry is sealed with **aes-256-gcm** (a strong authenticated encryption) under a key derived from your master password with **pbkdf2-hmac-sha-256, 260,000 iterations** (a deliberately slow key-stretch so guessing the password is expensive). the master password is held **in memory only** and never written to disk. locked, the vault is unreadable even to someone holding a full copy of your database.
 
@@ -614,7 +620,7 @@ small touches that keep it snappy and sturdy:
 python -m unittest discover -s tests
 ```
 
-**460+ unit tests** and counting — including a full in-process API harness that drives the real app (via `TestClient` against a throwaway in-memory db, no server/port) so every route has end-to-end coverage, plus `python scripts/stress_test.py` (exercises every app's backend) and `python scripts/live_usage.py` (drives the real app against live AI — a chat, an agent that writes *and runs* a program, web research, compare, and real records across the apps), both writing evidence to `~/alles-test-evidence/<timestamp>/` — plus the docs vault (links, tags, graph, tasks, templates, asset/import handling, unlinked mentions, **rename link-rewriting**), document import, the youtube id parser, the job registry + event bus, the agent's tool-gating + prompt-injection guard + secret-path confinement + action-intent routing + context compaction (and the **tool-history truncation staying valid json**), the **activity-timeline aggregator** and **system-stats snapshot**, the deep-research engine (page extraction, quality filter, the full plan→search→synthesize loop against a fake model), the hardware-aware model fit engine (catalog ranking, quant/version/bandwidth scoring), the natural-language task + calendar parsers (incl. **recurrence + "until"**), journal/files/photos search, the **federated command-palette** surfaces, the subscription + money math (incl. **renewal auto-post** + **CSV dedup**), mail parsing (incl. **threading + reply headers**), the password generator + strength meter, vcard round-tripping, aes-256-gcm crypto, bcrypt auth + the login throttle, the token-usage rollup, the model client, and more.
+**1,000+ unit tests** and counting — including a full in-process API harness that drives the real app (via `TestClient` against a throwaway in-memory db, no server/port) so every route has end-to-end coverage, plus `python scripts/stress_test.py` (exercises every app's backend) and `python scripts/live_usage.py` (drives the real app against live AI — a chat, an agent that writes *and runs* a program, web research, compare, and real records across the apps), both writing evidence to `~/alles-test-evidence/<timestamp>/` — plus the docs vault (links, tags, graph, tasks, templates, asset/import handling, unlinked mentions, **rename link-rewriting**), document import, the youtube id parser, the job registry + event bus, the agent's tool-gating + prompt-injection guard + secret-path confinement + action-intent routing + context compaction (and the **tool-history truncation staying valid json**), the **activity-timeline aggregator** and **system-stats snapshot**, the deep-research engine (page extraction, quality filter, the full plan→search→synthesize loop against a fake model), the hardware-aware model fit engine (catalog ranking, quant/version/bandwidth scoring), the natural-language task + calendar parsers (incl. **recurrence + "until"**), journal/files/photos search, the **federated command-palette** surfaces, the subscription + money math (incl. **renewal auto-post**, **paid/undo + price history + forecast + duplicate detection**, and **CSV dedup**), mail parsing (incl. **threading + reply headers**), the password generator + strength meter, vcard round-tripping, aes-256-gcm crypto, bcrypt auth + the login throttle, the token-usage rollup, the model client, and more.
 
 every push runs the full suite on **GitHub Actions CI** (`.github/workflows/tests.yml`) — it already earned its keep by catching a data file that wasn't committed.
 
