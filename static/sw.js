@@ -1,5 +1,5 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v6';   // bumped with the ?v=32 asset stamp — secrets modal + journal/activity polish
+const VERSION = 'v7';   // bumped with the ?v=33 asset stamp — typed secrets + full-width heatmap
 const CACHE = `alles-${VERSION}`;
 
 self.addEventListener('install', () => self.skipWaiting());
