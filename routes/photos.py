@@ -1,12 +1,13 @@
 import json
 from collections import OrderedDict
 from datetime import datetime
-from fastapi import APIRouter, HTTPException, Depends, Query, UploadFile, File, Form
+
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session as DbSession
 
-from core.database import get_db, Photo, Album
+from core.database import Album, Photo, get_db
 from services import photos_store as ps
 
 router = APIRouter(prefix="/api/photos")
@@ -32,10 +33,12 @@ def _label(d: datetime) -> str:
 
 
 @router.get("/list")
-def list_photos(album: str = Query(""), db: DbSession = Depends(get_db)):
+def list_photos(album: str = Query(""), favorites: bool = Query(False), db: DbSession = Depends(get_db)):
     q = db.query(Photo)
     if album:
         q = q.filter(Photo.album_id == album)
+    if favorites:
+        q = q.filter(Photo.favorite == True)  # noqa: E712
     rows = q.all()
     rows.sort(
         key=lambda p: p.taken_at or p.created_at or datetime.min, reverse=True
@@ -161,6 +164,7 @@ def sync(body: SyncBody, db: DbSession = Depends(get_db)):
 def sync_macos():
     """pull from the macOS Photos library (Mac mini only) then import."""
     import tempfile
+
     from services import photo_sync
 
     try:
