@@ -15,7 +15,10 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import DeclarativeBase, sessionmaker, relationship
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "aide.db")
+# default db lives in data/aide.db; ALLES_DB lets an isolated instance (tests, autorun) point elsewhere
+DB_PATH = os.environ.get("ALLES_DB") or os.path.join(
+    os.path.dirname(__file__), "..", "data", "aide.db"
+)
 engine = create_engine(f"sqlite:///{DB_PATH}", connect_args={"check_same_thread": False})
 
 
