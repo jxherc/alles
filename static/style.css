@@ -3618,7 +3618,9 @@ body.is-incognito .incognito-bar {
   max-width: none; margin: 0; min-height: 50px;
   padding: 0.65rem 1rem;   /* was clamp(…, 4vw, 3.4rem) — a huge dead gap before the title on wide screens */
   gap: 0.35rem; border-bottom: 1px solid var(--faint);
+  justify-content: flex-start;   /* name + stats + buttons as one left cluster, not stranded edge-to-edge */
 }
+.docs-editor-head .wiki-stats { margin-left: 0.5rem; }
 .docs-tree-toggle {
   flex: 0 0 auto;
   margin-left: 0;

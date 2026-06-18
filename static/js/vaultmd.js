@@ -380,6 +380,8 @@ export function initVault() {
   initDocsToolbar();
   applyDocsMode();
   loadTree();
+  const qd = new URLSearchParams(location.search).get('doc');   // deep-link / refresh restore
+  if (qd) openFile(qd);
 }
 
 // ── source (raw textarea) mode ───────────────────────────────────────────────
@@ -681,11 +683,20 @@ function _wireRow(row, kind) {
 }
 
 function _resetEditor() {
-  _cur = null; _syncEmpty();
+  _cur = null; _syncEmpty(); _syncDocUrl();
   setEditor('');
   $('wiki-preview').innerHTML = '';
   $('wiki-backlinks').innerHTML = '';
   const cl = $('wiki-current'); if (cl) cl.textContent = 'no doc open';
+}
+
+// keep the open doc in the URL (?doc=path) so refresh / deep-link restores it
+function _syncDocUrl() {
+  try {
+    const u = new URL(location.href);
+    if (_cur) u.searchParams.set('doc', _cur); else u.searchParams.delete('doc');
+    history.replaceState({}, '', u);
+  } catch {}
 }
 
 export function openNote(path) {
@@ -698,6 +709,7 @@ async function openFile(path) {
   try {
     const d = await fetch(`/api/vault-md/file?path=${encodeURIComponent(path)}`).then(r => r.json());
     _cur = d.path || path;
+    _syncDocUrl();
     _syncEmpty();
     setEditor(d.content || '');
     const currentLabel = $('wiki-current');

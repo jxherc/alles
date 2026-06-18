@@ -44,3 +44,32 @@ command-*action* palette (quick switcher already covers note-open, slash menu co
 selection toolbar / focus-zen mode / auto-hide sidebar / heading-size dropdown / smart-paste URL→link
 (nice-to-have polish; toolbar + image-paste already cover the core). Revisit in phase 15 if they prove to
 matter.
+
+---
+
+# docs — UI/UX polish (2026-06-18)
+
+Re-audit evidence: `docs/evidence/docs/` (findings.md + 4 screenshots + audit.json). Editor flows all
+work, zero console errors. Two defects: no per-doc URL (refresh drops to home — user-reported); and in the
+default tree-hidden state the action buttons strand at the far-right edge with a 482px dead gap.
+
+## docs-ui-1 — per-doc URL routing + editor-head balance
+
+**Change:**
+- `static/js/vaultmd.js`: `openFile()` → `history.replaceState` the path into `?doc=<path>`;
+  `_resetEditor()` clears `?doc`; `initVault()` reads `?doc=` after `loadTree()` and opens it (deep-link +
+  refresh restore the open doc).
+- `static/index.html`: drop the `margin-left:auto` inline on `#wiki-stats`.
+- `static/style.css`: `.docs-editor-head { justify-content: flex-start }` so name + stats + buttons form
+  one left-aligned cluster (no far-right stranding / dead gap), buttons still tightly grouped.
+
+**Verify (Playwright `pw_docs_ui1.py`, ≥8 assertions, RED→GREEN, screenshot, 0 console err):**
+1. `head_no_dead_gap` — first action button within 150px of the doc-name right edge (was 482).
+2. `head_left_aligned` — doc-name, stats, first button all in the left portion (x < viewport/2).
+3. `head_buttons_grouped` — inter-button gaps stay small (<16px) — still one cluster.
+4. `open_sets_doc_url` — opening a doc puts `?doc=` in the URL.
+5. `doc_url_matches_path` — the `?doc=` value equals the opened doc path.
+6. `reload_restores_doc` — after reload, `#wiki-current` == opened doc, empty state hidden.
+7. `deep_link_opens` — visiting `?doc=<path>` directly opens that doc.
+8. `switch_updates_url` — opening a second doc updates `?doc=` to the new path.
+9. `zero_console_errors` — no console/page errors; screenshot saved.
