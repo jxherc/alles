@@ -1,0 +1,17 @@
+[
+  {"id": "p1-gate", "app": "docs", "phase": 1, "plan": "audit docs + build all gap tasks; phase-complete gate", "status": "pending", "completed": 0, "rounds": 0, "tests": []},
+  {"id": "p2-gate", "app": "mail", "phase": 2, "plan": "audit mail vs Apple Mail + build all gap tasks; phase-complete gate", "status": "pending", "completed": 0, "rounds": 0, "tests": []},
+  {"id": "p3-gate", "app": "calendar", "phase": 3, "plan": "audit calendar vs Google Calendar + build all gap tasks; phase-complete gate", "status": "pending", "completed": 0, "rounds": 0, "tests": []},
+  {"id": "p4-gate", "app": "tasks", "phase": 4, "plan": "audit tasks + build all gap tasks; phase-complete gate", "status": "pending", "completed": 0, "rounds": 0, "tests": []},
+  {"id": "p5-gate", "app": "gallery", "phase": 5, "plan": "audit gallery vs Apple Photos + build all gap tasks; phase-complete gate", "status": "pending", "completed": 0, "rounds": 0, "tests": []},
+  {"id": "p6-gate", "app": "contacts", "phase": 6, "plan": "audit contacts + build all gap tasks; phase-complete gate", "status": "pending", "completed": 0, "rounds": 0, "tests": []},
+  {"id": "p7-gate", "app": "secrets", "phase": 7, "plan": "audit secrets/vault + build all gap tasks; phase-complete gate", "status": "pending", "completed": 0, "rounds": 0, "tests": []},
+  {"id": "p8-gate", "app": "subscriptions", "phase": 8, "plan": "audit subscriptions + fix mark-paid period + build all gap tasks; phase-complete gate", "status": "pending", "completed": 0, "rounds": 0, "tests": []},
+  {"id": "p9-gate", "app": "money", "phase": 9, "plan": "audit money + build full personal-finance feature set; phase-complete gate", "status": "pending", "completed": 0, "rounds": 0, "tests": []},
+  {"id": "p10-gate", "app": "journal", "phase": 10, "plan": "audit journal + add lock + journaling features; phase-complete gate", "status": "pending", "completed": 0, "rounds": 0, "tests": []},
+  {"id": "p11-gate", "app": "activity", "phase": 11, "plan": "audit activity + enhance sensibly; phase-complete gate", "status": "pending", "completed": 0, "rounds": 0, "tests": []},
+  {"id": "p12-gate", "app": "files", "phase": 12, "plan": "audit files + add modern file-manager features; phase-complete gate", "status": "pending", "completed": 0, "rounds": 0, "tests": []},
+  {"id": "p13-gate", "app": "days", "phase": 13, "plan": "audit days; add tasks only for real bugs; phase-complete gate", "status": "pending", "completed": 0, "rounds": 0, "tests": []},
+  {"id": "p14-gate", "app": "aide", "phase": 14, "plan": "audit aide + build verified AI gaps only; phase-complete gate", "status": "pending", "completed": 0, "rounds": 0, "tests": []},
+  {"id": "p15-gate", "app": "regression", "phase": 15, "plan": "final full-app regression sweep; log+fix every UI/UX bug; phase-complete gate", "status": "pending", "completed": 0, "rounds": 0, "tests": []}
+]
