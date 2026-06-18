@@ -531,6 +531,23 @@ class Budget(Base):
     created_at = Column(DateTime, default=_now)
 
 
+class RecurringTxn(Base):
+    # a scheduled transaction (rent, salary, loan payment) auto-posted each cycle
+    __tablename__ = "money_recurring"
+    id = Column(String, primary_key=True, default=_uid)
+    account_id = Column(String, ForeignKey("money_accounts.id", ondelete="CASCADE"))
+    amount = Column(Float, default=0.0)  # signed: + income, - expense
+    category = Column(String, default="")
+    payee = Column(String, default="")
+    notes = Column(Text, default="")
+    cycle = Column(String, default="monthly")  # weekly|monthly|quarterly|yearly|custom
+    cycle_days = Column(Integer, default=30)  # only used when cycle == custom
+    next_date = Column(String, default="")  # ISO date of the next occurrence to post
+    active = Column(Boolean, default=True)
+    last_posted = Column(String, default="")  # ISO date we last auto-posted
+    created_at = Column(DateTime, default=_now)
+
+
 class DocRevision(Base):
     __tablename__ = "doc_revisions"
     id = Column(String, primary_key=True, default=_uid)

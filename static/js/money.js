@@ -6,7 +6,7 @@ import { initCustomDropdown, getDropdownValue } from './dropdown.js';
 import { initDatePicker } from './datepick.js';
 
 let _month = _thisMonth();
-let _accounts = [], _txns = [], _budgets = [], _sum = null;
+let _accounts = [], _txns = [], _budgets = [], _sum = null, _recurring = [];
 let _cur = '$';
 let _inited = false;
 let _editTxn = null;   // id of the txn row currently being edited inline
@@ -56,6 +56,9 @@ export function initMoneyPanel() {
 async function load() {
   const lbl = $('money-month-label'); if (lbl) lbl.textContent = _monthLabel(_month);
   try {
+    // post any due recurring txns FIRST (and advance them) so the balances,
+    // transactions and summary we read next all reflect them — no stale first load
+    _recurring = await api('/api/money/recurring').catch(() => []);
     [_accounts, _txns, _budgets, _sum] = await Promise.all([
       api('/api/money/accounts'),
       api(`/api/money/transactions?month=${_month}`),
@@ -86,6 +89,7 @@ function render() {
       <section class="money-card"><h3>spending by category</h3>${catChart()}</section>
       <section class="money-card"><h3>last 6 months</h3>${trendChart()}</section>
       <section class="money-card"><h3>budgets</h3>${budgetsList()}${_budgetForm()}</section>
+      <section class="money-card"><h3>recurring</h3>${recurringList()}${_recurringForm()}</section>
      </div>` +
     `<section class="money-card money-txns"><h3>transactions · ${_monthLabel(_month)}</h3>${addTxnRow()}${transferRow()}${txnList()}</section>`;
   wire();
@@ -155,6 +159,37 @@ function budgetsList() {
       <div class="bg-bar-wrap"><div class="bg-bar ${over ? 'over' : ''}" style="width:${pct}%"></div></div>
     </div>`;
   }).join('') + `</div>`;
+}
+
+const _cycleShort = { weekly: '/wk', monthly: '/mo', quarterly: '/qtr', yearly: '/yr', custom: '·custom' };
+
+function recurringList() {
+  if (!_recurring.length) return '<div class="money-empty-sm">nothing recurring — add rent, salary, a loan…</div>';
+  const an = {}; _accounts.forEach(a => an[a.id] = a.name);
+  return `<div class="recurs">` + _recurring.map(r => `
+    <div class="recur ${r.active ? '' : 'paused'}" data-id="${r.id}">
+      <span class="rc-payee">${esc(r.payee) || esc(r.category) || '—'}</span>
+      <span class="rc-amt ${r.amount >= 0 ? 'pos' : 'neg'}">${signed(r.amount)}<span class="rc-cyc">${_cycleShort[r.cycle] || ''}</span></span>
+      <span class="rc-next" title="next post">${r.active ? esc((r.next_date || '').slice(5)) : 'paused'}</span>
+      <button class="btn rc-toggle" data-toggle-rec="${r.id}" title="${r.active ? 'pause' : 'resume'}">${r.active ? 'pause' : 'resume'}</button>
+      <button class="tx-del" data-del-rec="${r.id}" title="delete">×</button>
+    </div>`).join('') + `</div>`;
+}
+
+function _recurringForm() {
+  if (!_accounts.length) return '';
+  const acctOpts = _accounts.map(a => `${a.id}|${(a.name || '').replace(/[;|]/g, '')}`).join(';');
+  const first = _accounts[0]?.id || '';
+  return `<div class="recur-form">
+    <input type="text" id="rc-payee" class="settings-input" placeholder="payee (e.g. rent)" style="flex:1.3;min-width:100px">
+    <input type="text" id="rc-cat" class="settings-input" placeholder="category" style="flex:1;min-width:80px">
+    <div class="settings-input custom-select" id="rc-sign" data-value="-" data-options="-|expense;+|income" style="width:104px"></div>
+    <input type="text" id="rc-amt" class="settings-input" placeholder="0.00" inputmode="decimal" style="width:84px">
+    <div class="settings-input custom-select" id="rc-cycle" data-value="monthly" data-options="weekly|weekly;monthly|monthly;quarterly|quarterly;yearly|yearly" style="width:120px"></div>
+    <div class="date-input" id="rc-next" data-type="date" data-value="${_today()}" data-ph="next date" style="width:128px"></div>
+    <div class="settings-input custom-select" id="rc-acct" data-value="${esc(first)}" data-options="${esc(acctOpts)}" style="width:128px"></div>
+    <button class="btn primary" id="rc-add">add</button>
+  </div>`;
 }
 
 function addTxnRow() {
@@ -280,6 +315,9 @@ function wire() {
   $('money-body').querySelectorAll('[data-cancel-txn]').forEach(b => b.addEventListener('click', () => { _editTxn = null; render(); }));
   $('money-body').querySelectorAll('[data-del-acct]').forEach(b => b.addEventListener('click', () => delAccount(b.dataset.delAcct)));
   $('money-body').querySelectorAll('[data-del-budget]').forEach(b => b.addEventListener('click', () => delBudget(b.dataset.delBudget)));
+  $('rc-add')?.addEventListener('click', addRecurring);
+  $('money-body').querySelectorAll('[data-del-rec]').forEach(b => b.addEventListener('click', () => delRecurring(b.dataset.delRec)));
+  $('money-body').querySelectorAll('[data-toggle-rec]').forEach(b => b.addEventListener('click', () => toggleRecurring(b.dataset.toggleRec)));
 }
 
 // ── actions ────────────────────────────────────────────────────────────────
@@ -357,4 +395,29 @@ async function addBudget() {
 async function delBudget(id) {
   try { await api(`/api/money/budgets/${id}`, { method: 'DELETE' }); await load(); }
   catch { toast('delete failed', 'error'); }
+}
+async function addRecurring() {
+  const payee = $('rc-payee')?.value.trim();
+  const amtRaw = parseFloat($('rc-amt')?.value);
+  if (!payee && !$('rc-cat')?.value.trim()) { toast('give it a payee or category', 'error'); return; }
+  if (!amtRaw || amtRaw <= 0) { toast('enter an amount', 'error'); return; }
+  const sign = getDropdownValue($('rc-sign')) === '+' ? 1 : -1;
+  try {
+    await api('/api/money/recurring', { method: 'POST', body: {
+      account_id: getDropdownValue($('rc-acct')), amount: sign * amtRaw,
+      category: $('rc-cat').value.trim(), payee, cycle: getDropdownValue($('rc-cycle')),
+      next_date: $('rc-next')?.dataset.value || _today(),
+    } });
+    await load();
+  } catch { toast('couldn\'t add recurring', 'error'); }
+}
+async function delRecurring(id) {
+  if (!await dlgConfirm('stop this recurring transaction?')) return;
+  try { await api(`/api/money/recurring/${id}`, { method: 'DELETE' }); await load(); }
+  catch { toast('delete failed', 'error'); }
+}
+async function toggleRecurring(id) {
+  const r = _recurring.find(x => x.id === id);
+  try { await api(`/api/money/recurring/${id}`, { method: 'PATCH', body: { active: !r.active } }); await load(); }
+  catch { toast('update failed', 'error'); }
 }

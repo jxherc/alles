@@ -2502,6 +2502,19 @@ body.is-incognito .incognito-bar {
 .txn-transfer input.settings-input { background: var(--bg); border: 1px solid var(--faint); }
 .tr-lbl { color: var(--muted); font-size: 0.78rem; }
 .tr-arrow { color: var(--accent); font-size: 0.9rem; }
+.recurs { display: flex; flex-direction: column; gap: 0.1rem; margin-bottom: 0.5rem; }
+.recur { display: flex; align-items: center; gap: 0.5rem; padding: 0.35rem 0.15rem; border-bottom: 1px solid var(--faint); font-size: 0.76rem; }
+.recur:last-child { border-bottom: none; }
+.recur.paused { opacity: 0.55; }
+.rc-payee { flex: 1; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rc-amt { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.rc-amt.pos { color: #4ade80; } .rc-amt.neg { color: var(--text); }
+.rc-cyc { color: var(--muted); font-size: 0.65rem; margin-left: 0.15rem; }
+.rc-next { width: 48px; text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
+.rc-toggle { font-size: 0.66rem; padding: 0.1rem 0.4rem; }
+.recur-form { display: flex; gap: 0.4rem; flex-wrap: wrap; align-items: center; margin-top: 0.5rem; }
+.recur-form > * { height: 32px; box-sizing: border-box; }
+.recur-form input.settings-input { background: var(--bg); border: 1px solid var(--faint); }
 @media (max-width: 720px) { .money-summary { grid-template-columns: repeat(2, 1fr); } .money-grid { grid-template-columns: 1fr; } }
 
 .days-grid {
