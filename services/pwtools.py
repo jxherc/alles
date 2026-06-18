@@ -100,3 +100,48 @@ def estimate_strength(pw: str) -> dict:
         "label": _LABELS[score],
         "warning": warning,
     }
+
+
+# ── payment-card helpers (vault card items) ──────────────────────────────────
+def _digits(number: str) -> str:
+    return "".join(ch for ch in str(number or "") if ch.isdigit())
+
+
+def luhn_valid(number: str) -> bool:
+    d = _digits(number)
+    if len(d) < 12:
+        return False
+    total, alt = 0, False
+    for ch in reversed(d):
+        n = int(ch)
+        if alt:
+            n *= 2
+            if n > 9:
+                n -= 9
+        total += n
+        alt = not alt
+    return total % 10 == 0
+
+
+def card_brand(number: str) -> str:
+    d = _digits(number)
+    if d.startswith("4"):
+        return "Visa"
+    if d[:2] in ("34", "37"):
+        return "Amex"
+    if (d[:2].isdigit() and 51 <= int(d[:2] or 0) <= 55) or (
+        d[:4].isdigit() and 2221 <= int(d[:4] or 0) <= 2720
+    ):
+        return "Mastercard"
+    if d[:2] in ("60", "65") or d.startswith("6011"):
+        return "Discover"
+    return "Card"
+
+
+def card_last4(number: str) -> str:
+    return _digits(number)[-4:]
+
+
+def mask_card(number: str) -> str:
+    d = _digits(number)
+    return ("•" * max(0, len(d) - 4)) + d[-4:] if d else ""

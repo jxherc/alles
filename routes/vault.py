@@ -192,8 +192,18 @@ def reveal_entry(entry_id: str, db: DbSession = Depends(get_db), pw: str = Depen
             raise ValueError
     except (ValueError, TypeError):
         fields = {"password": raw}  # legacy: a bare encrypted string
-    # keep `value` for older callers (the password, when there is one)
-    return {"type": e.type or "password", "fields": fields, "value": fields.get("password", "")}
+    out = {"type": e.type or "password", "fields": fields, "value": fields.get("password", "")}
+    if (e.type or "") == "card" and fields.get("number"):
+        from services.pwtools import card_brand, card_last4, luhn_valid, mask_card
+
+        num = fields["number"]
+        out["card"] = {
+            "brand": card_brand(num),
+            "last4": card_last4(num),
+            "masked": mask_card(num),
+            "valid": luhn_valid(num),
+        }
+    return out
 
 
 @router.delete("/vault/{entry_id}")
