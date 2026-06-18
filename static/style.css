@@ -2240,6 +2240,10 @@ body.is-incognito .incognito-bar {
 .usage-mtotal { text-align: right; color: var(--text); font-variant-numeric: tabular-nums; }
 @media (max-width: 620px) { .usage-cards { grid-template-columns: repeat(2, 1fr); } }
 .vault-strength { align-items: center; gap: 0.5rem; margin-top: 0.4rem; font-size: 0.66rem; color: var(--muted); }
+.vault-type-seg { display: inline-flex; border: 1px solid var(--faint); border-radius: 3px; overflow: hidden; flex-shrink: 0; }
+.vault-type-seg .vts-btn { background: none; border: none; color: var(--muted); font-size: 0.68rem; padding: 0.25rem 0.5rem; cursor: pointer; border-right: 1px solid var(--faint); }
+.vault-type-seg .vts-btn:last-child { border-right: none; }
+.vault-type-seg .vts-btn.active { background: var(--accent); color: #0a0a0a; }
 .vault-strength-bar { flex: 0 0 120px; height: 5px; background: var(--faint); border-radius: 3px; overflow: hidden; }
 .vault-strength-fill { display: block; height: 100%; width: 0; transition: width .2s, background .2s; }
 

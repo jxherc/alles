@@ -39,6 +39,22 @@ export function initVault() {
   document.getElementById('vault-new-cat-custom')?.addEventListener('input', _onCatChange);
   document.getElementById('vault-gen-btn')?.addEventListener('click', _genPw);
   document.getElementById('vault-new-value')?.addEventListener('input', _checkStrength);
+  document.querySelectorAll('#vault-new-type .vts-btn').forEach(b => b.addEventListener('click', () => {
+    document.getElementById('vault-new-type').dataset.type = b.dataset.t;
+    document.querySelectorAll('#vault-new-type .vts-btn').forEach(x => x.classList.toggle('active', x === b));
+    _applyType();
+  }));
+  _applyType();
+}
+
+function _curType() { return document.getElementById('vault-new-type')?.dataset.type || 'password'; }
+
+function _applyType() {
+  const t = _curType();
+  document.querySelectorAll('.vault-f-pw').forEach(el => el.style.display = t === 'card' ? 'none' : '');
+  document.querySelectorAll('.vault-f-card').forEach(el => el.style.display = t === 'card' ? '' : 'none');
+  const v = document.getElementById('vault-new-value');
+  if (v) v.placeholder = t === 'note' ? 'note text' : 'value / password';
 }
 
 async function _genPw() {
@@ -156,21 +172,34 @@ async function _loadEntries() {
 
 async function _addEntry() {
   const name = document.getElementById('vault-new-name')?.value.trim();
-  const val  = document.getElementById('vault-new-value')?.value.trim();
   const sel  = document.getElementById('vault-new-cat');
   const cat  = (sel.value === NEW_CAT
     ? document.getElementById('vault-new-cat-custom').value.trim()
     : sel.value) || 'general';
-  const userEl = document.getElementById('vault-new-username');
-  const username = userEl.style.display !== 'none' ? userEl.value.trim() : '';
-  if (!name || !val) { toast('name and value required', 'error'); return; }
+  const type = _curType();
+  const g = id => document.getElementById(id)?.value.trim() || '';
+  let fields, ok;
+  if (type === 'card') {
+    fields = { cardholder: g('vault-new-cardholder'), number: g('vault-new-number'), expiry: g('vault-new-expiry'), cvv: g('vault-new-cvv') };
+    ok = fields.number;
+  } else if (type === 'note') {
+    fields = { notes: g('vault-new-value') };
+    ok = fields.notes;
+  } else {
+    const userEl = document.getElementById('vault-new-username');
+    fields = { password: g('vault-new-value'), url: '', notes: '' };
+    ok = fields.password;
+    var username = userEl.style.display !== 'none' ? userEl.value.trim() : '';
+  }
+  if (!name || !ok) { toast('name and value required', 'error'); return; }
   const r = await _vfetch('/api/vault', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ name, value: val, category: cat, username }),
+    body: JSON.stringify({ name, type, fields, category: cat, username: username || '' }),
   });
   if (!r.ok) { toast('failed — is vault unlocked?', 'error'); return; }
-  ['vault-new-name','vault-new-value','vault-new-cat-custom','vault-new-username'].forEach(id => {
+  ['vault-new-name','vault-new-value','vault-new-cat-custom','vault-new-username',
+   'vault-new-cardholder','vault-new-number','vault-new-expiry','vault-new-cvv'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
@@ -179,25 +208,38 @@ async function _addEntry() {
   await _loadEntries();
 }
 
+function _revealText(d) {
+  const f = d.fields || {};
+  if (d.type === 'card') {
+    return [f.number, f.expiry && 'exp ' + f.expiry, f.cvv && 'cvv ' + f.cvv, f.cardholder].filter(Boolean).join('  ');
+  }
+  if (d.type === 'note') return f.notes || '';
+  return [f.password || d.value, f.url && '↗ ' + f.url].filter(Boolean).join('  ');
+}
+function _primarySecret(d) {
+  const f = d.fields || {};
+  if (d.type === 'card') return f.number || '';
+  if (d.type === 'note') return f.notes || '';
+  return f.password || d.value || '';
+}
+
 window._vaultReveal = async id => {
   const el = document.getElementById(`vault-val-${id}`);
   if (!el) return;
   if (el.dataset.revealed) { el.textContent = '••••••••'; delete el.dataset.revealed; return; }
   try {
-    const { value } = await _vfetch(`/api/vault/${id}/reveal`).then(r => r.json());
-    el.textContent = value;
+    const d = await _vfetch(`/api/vault/${id}/reveal`).then(r => r.json());
+    el.textContent = _revealText(d) || '(empty)';
     el.dataset.revealed = '1';
   } catch (e) { toast('reveal failed', 'error'); }
 };
 
 window._vaultCopy = async id => {
-  const el = document.getElementById(`vault-val-${id}`);
-  let val = el?.dataset.revealed ? el.textContent : null;
-  if (!val) {
-    try { val = (await _vfetch(`/api/vault/${id}/reveal`).then(r => r.json())).value; } catch { return; }
-  }
-  await navigator.clipboard.writeText(val);
-  toast('copied', 'success');
+  try {
+    const d = await _vfetch(`/api/vault/${id}/reveal`).then(r => r.json());
+    await navigator.clipboard.writeText(_primarySecret(d));
+    toast('copied', 'success');
+  } catch { toast('copy failed', 'error'); }
 };
 
 window._vaultCopyUser = async (id, username) => {
