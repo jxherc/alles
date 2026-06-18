@@ -1,0 +1,21 @@
+{
+  "console_errors": [],
+  "log": [
+    "URL@load: http://docs.localhost:8799/",
+    "empty-state visible: True",
+    "tree files: ['2026-06\\n\u2606\\n\u270e\\n\u2715', '2026-W25\\n\u2606\\n\u270e\\n\u2715', 'alpha\\n\u2606\\n\u270e\\n\u2715', 'beta\\n\u2606\\n\u270e\\n\u2715', 'GA\\n\u2606\\n\u270e\\n\u2715', 'GB\\n\u2606\\n\u270e\\n\u2715', 'GC\\n\u2606\\n\u270e\\n\u2715', 'GD\\n\u2606\\n\u270e\\n\u2715', 'GE\\n\u2606\\n\u270e\\n\u2715', 'q1\\n\u2606\\n\u270e\\n\u2715', 'q2\\n\u2606\\n\u270e\\n\u2715', 'q3\\n\u2606\\n\u270e\\n\u2715']",
+    "opened: Periodic/2026-06.md",
+    "wiki-current: 'Periodic/2026-06'",
+    "URL after open: http://docs.localhost:8799/",
+    "URL has ?doc= : False",
+    "editor-head buttons: [{\"t\": \"live\", \"x\": 640, \"w\": 36}, {\"t\": \"ai\", \"x\": 681, \"w\": 28}, {\"t\": \"guide\", \"x\": 715, \"w\": 47}, {\"t\": \"outline\", \"x\": 767, \"w\": 52}, {\"t\": \"props\", \"x\": 825, \"w\": 47}, {\"t\": \"query\", \"x\": 878, \"w\": 48}, {\"t\": \"board\", \"x\": 931, \"w\": 48}, {\"t\": \"todos\", \"x\": 984, \"w\": 47}, {\"t\": \"tasks\", \"x\": 1037, \"w\": 45}, {\"t\": \"history\", \"x\": 1087, \"w\": 53}, {\"t\": \"export \\u25be\", \"x\": 1146, \"w\": 62}, {\"t\": \"delete\", \"x\": 1213, \"w\": 50}]",
+    "inter-button gaps: [5, 6, 5, 6, 6, 5, 5, 6, 5, 6, 5]",
+    "max gap between buttons: 6",
+    "editor-head box: {'x': 268, 'y': 46, 'width': 1011, 'height': 50}",
+    "after reload URL: http://docs.localhost:8799/",
+    "after reload wiki-current: 'no doc open'",
+    "after reload empty-state visible: True",
+    "DOC SURVIVES RELOAD: False",
+    "CONSOLE ERRORS: []"
+  ]
+}
