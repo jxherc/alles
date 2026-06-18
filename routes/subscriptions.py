@@ -226,6 +226,29 @@ def trials_ending(days: int = 14, db: DbSession = Depends(get_db)):
     return out
 
 
+@router.get("/subscriptions/upcoming")
+def upcoming_renewals(days: int = 7, db: DbSession = Depends(get_db)):
+    """active subs whose next charge lands in the next `days` days, soonest first,
+    plus the summed cost — answers 'what's hitting my card this week, and how much'."""
+    today = date.today()
+    items = []
+    for sub in db.query(Subscription).all():
+        if not sub.active:
+            continue
+        du = (_parse(sub.next_due) - today).days
+        if 0 <= du <= days:
+            items.append(_fmt(sub, today))
+    items.sort(key=lambda s: s["days_until"])
+    total = round(sum(s["price"] or 0 for s in items), 2)
+    return {
+        "days": days,
+        "count": len(items),
+        "total": total,
+        "currency": items[0]["currency"] if items else "$",
+        "items": items,
+    }
+
+
 @router.post("/subscriptions")
 def create_subscription(body: SubBody, db: DbSession = Depends(get_db)):
     _validate(body)
