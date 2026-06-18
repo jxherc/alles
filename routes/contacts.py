@@ -1,5 +1,6 @@
 import json
-from datetime import datetime
+import re
+from datetime import date, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
@@ -8,6 +9,21 @@ from sqlalchemy.orm import Session as DbSession
 from core.database import Contact, get_db
 
 router = APIRouter(prefix="/api")
+
+
+def _days_until_birthday(bday: str, today: date):
+    """days until the next occurrence of this birthday (year-agnostic). accepts
+    YYYY-MM-DD / MM-DD / --MM-DD. returns None if unparseable."""
+    m = re.search(r"(\d{1,2})-(\d{1,2})$", (bday or "").strip())
+    if not m:
+        return None
+    mo, da = int(m.group(1)), int(m.group(2))
+    try:
+        this_year = date(today.year, mo, da)
+    except ValueError:
+        return None
+    nxt = this_year if this_year >= today else date(today.year + 1, mo, da)
+    return (nxt - today).days
 
 
 def _fmt(c: Contact) -> dict:
@@ -51,6 +67,19 @@ def list_contacts(
             or ql in (c.company or "").lower()
         ]
     return [_fmt(c) for c in rows]
+
+
+@router.get("/contacts/birthdays")
+def upcoming_birthdays(days: int = 30, today: str = "", db: DbSession = Depends(get_db)):
+    """contacts with a birthday in the next `days` days (year-agnostic), soonest first."""
+    base = date.fromisoformat(today) if today else date.today()
+    out = []
+    for c in db.query(Contact).filter(Contact.birthday != "").all():
+        du = _days_until_birthday(c.birthday, base)
+        if du is not None and du <= days:
+            out.append({"id": c.id, "name": c.name, "birthday": c.birthday, "days_until": du})
+    out.sort(key=lambda x: x["days_until"])
+    return out
 
 
 @router.get("/contacts/export")

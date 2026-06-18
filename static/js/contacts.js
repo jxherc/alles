@@ -11,6 +11,18 @@ function _wireFav() {
     btn.classList.toggle('active', _favOnly);
     loadContacts(document.getElementById('contacts-search')?.value || '');
   });
+  document.getElementById('contacts-bday-btn')?.addEventListener('click', showBirthdays);
+}
+
+async function showBirthdays() {
+  const list = document.getElementById('contacts-list');
+  if (!list) return;
+  const rows = await fetch('/api/contacts/birthdays?days=60').then(r => r.json()).catch(() => []);
+  if (!rows.length) { list.innerHTML = '<div class="page-empty">no birthdays in the next 60 days</div>'; return; }
+  list.innerHTML = `<div class="contacts-bday-head">upcoming birthdays</div>` + rows.map(b => {
+    const when = b.days_until === 0 ? 'today!' : (b.days_until === 1 ? 'tomorrow' : `in ${b.days_until} days`);
+    return `<div class="settings-list-row contact-item"><span class="row-name">🎂 ${_esc(b.name)}</span><span class="row-meta">${_esc(b.birthday)} · ${when}</span></div>`;
+  }).join('');
 }
 
 export async function loadContacts(q = '') {
