@@ -78,12 +78,15 @@ class MarkPaidApiTests(ApiTest):
         nxt = date.fromisoformat(self._paid(sid))
         self.assertGreater(nxt, date.today())
 
-    def test_future_due_keeps_one_cycle(self):
-        # paying early (due in 5 days) → advance exactly one cycle from that due
+    def test_future_due_rejected_not_due(self):
+        # paying early (not due yet) must be refused — no infinite advancing
         due = date.today() + timedelta(days=5)
         sid = self._sub(cycle="monthly", next_due=due.isoformat())
-        nxt = date.fromisoformat(self._paid(sid))
-        self.assertEqual(nxt, _advance(due, "monthly", 30))
+        r = self.client.post(f"/api/subscriptions/{sid}/paid")
+        self.assertEqual(r.status_code, 400)
+        # unchanged
+        rows = self.client.get("/api/subscriptions").json()["subscriptions"]
+        self.assertEqual([s for s in rows if s["id"] == sid][0]["next_due"], due.isoformat())
 
 
 if __name__ == "__main__":
