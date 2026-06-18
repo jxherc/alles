@@ -2,6 +2,7 @@
 MCP server management — store configs, connect/disconnect, list tools.
 Actual MCP protocol calls use the `mcp` package if available.
 """
+
 import json, logging
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
@@ -14,22 +15,22 @@ router = APIRouter(prefix="/api")
 log = logging.getLogger("aide.mcp")
 
 # in-memory connected sessions
-_sessions: dict[str, object] = {}   # server_id -> mcp ClientSession
-_tools: dict[str, list] = {}        # server_id -> [{name, description, schema}]
-_stacks: dict[str, object] = {}     # server_id -> AsyncExitStack
+_sessions: dict[str, object] = {}  # server_id -> mcp ClientSession
+_tools: dict[str, list] = {}  # server_id -> [{name, description, schema}]
+_stacks: dict[str, object] = {}  # server_id -> AsyncExitStack
 
 
 def _fmt(s: McpServer) -> dict:
     return {
-        "id":         s.id,
-        "name":       s.name,
-        "transport":  s.transport,
-        "command":    s.command,
-        "args":       s.args_list(),
-        "url":        s.url,
-        "enabled":    s.enabled,
-        "connected":  s.id in _sessions,
-        "tools":      _tools.get(s.id, []),
+        "id": s.id,
+        "name": s.name,
+        "transport": s.transport,
+        "command": s.command,
+        "args": s.args_list(),
+        "url": s.url,
+        "enabled": s.enabled,
+        "connected": s.id in _sessions,
+        "tools": _tools.get(s.id, []),
         "disabled_tools": s.disabled_tools_list(),
     }
 
@@ -42,7 +43,7 @@ def list_servers(db: DbSession = Depends(get_db)):
 
 class AddServer(BaseModel):
     name: str
-    transport: str = "stdio"   # stdio | sse
+    transport: str = "stdio"  # stdio | sse
     command: str = ""
     args: list[str] = []
     url: str = ""
@@ -118,6 +119,7 @@ async def call_tool(body: ToolCall):
 
 # ── internal connect/disconnect ───────────────────────────────────────────────
 
+
 async def _connect(server_id: str, db) -> tuple[bool, str]:
     s = db.get(McpServer, server_id)
     if not s:
@@ -133,6 +135,7 @@ async def _connect(server_id: str, db) -> tuple[bool, str]:
             # we store the context manager — connect lazily when tools needed
             # for now just probe by connecting + listing tools
             from contextlib import AsyncExitStack
+
             stack = AsyncExitStack()
             read, write = await stack.enter_async_context(stdio_client(params))
             session = await stack.enter_async_context(ClientSession(read, write))

@@ -2,6 +2,7 @@
 Stored credentials for external services the agent can talk to (github, etc).
 Token comes from the DB Connection row, or falls back to env (GITHUB_TOKEN / *_API_KEY).
 """
+
 import os
 
 from core.database import SessionLocal, Connection

@@ -10,13 +10,16 @@ from tests._client import ApiTest
 
 def _png(path: Path, color=(200, 30, 30)):
     from PIL import Image
+
     img = Image.new("RGB", (24, 24), color)
-    buf = io.BytesIO(); img.save(buf, "PNG")
+    buf = io.BytesIO()
+    img.save(buf, "PNG")
     path.write_bytes(buf.getvalue())
 
 
 class PhotoSyncStoreTest(unittest.TestCase):
     """service-level, with photo dirs + sync state redirected to temp."""
+
     def setUp(self):
         self.pdir = tempfile.TemporaryDirectory()
         self.tdir = tempfile.TemporaryDirectory()
@@ -44,7 +47,10 @@ class PhotoSyncStoreTest(unittest.TestCase):
         from sqlalchemy.orm import sessionmaker
         from sqlalchemy.pool import StaticPool
         import core.database as db
-        eng = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
+
+        eng = create_engine(
+            "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
+        )
         db.Base.metadata.create_all(eng)
         Sess = sessionmaker(bind=eng)
 
@@ -74,6 +80,7 @@ class PhotoSyncStoreTest(unittest.TestCase):
 
     def test_macos_bridge_guarded_off_mac(self):
         import sys
+
         if sys.platform != "darwin":
             with self.assertRaises(NotImplementedError):
                 photo_sync.pull_from_macos_photos("/tmp/whatever")
@@ -108,10 +115,14 @@ class PhotoSyncApiTest(ApiTest):
         self.assertEqual(r.json()["imported"], 1)
 
     def test_sync_route_bad_folder_400(self):
-        self.assertEqual(self.client.post("/api/photos/sync", json={"source": "/no/such/dir/xyz"}).status_code, 400)
+        self.assertEqual(
+            self.client.post("/api/photos/sync", json={"source": "/no/such/dir/xyz"}).status_code,
+            400,
+        )
 
     def test_macos_route_501_off_mac(self):
         import sys
+
         if sys.platform != "darwin":
             self.assertEqual(self.client.post("/api/photos/sync/macos").status_code, 501)
 

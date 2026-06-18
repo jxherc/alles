@@ -17,13 +17,16 @@ def _mask(t: str) -> str:
 @router.get("/connections")
 def list_conns(db: DbSession = Depends(get_db)):
     rows = db.query(Connection).order_by(Connection.service).all()
-    return [{
-        "id": c.id,
-        "service": c.service,
-        "token_masked": _mask(c.token),
-        "connected": bool(c.token),
-        "meta": json.loads(c.meta or "{}"),
-    } for c in rows]
+    return [
+        {
+            "id": c.id,
+            "service": c.service,
+            "token_masked": _mask(c.token),
+            "connected": bool(c.token),
+            "meta": json.loads(c.meta or "{}"),
+        }
+        for c in rows
+    ]
 
 
 class ConnBody(BaseModel):
@@ -62,6 +65,7 @@ async def test_conn(service: str):
     service = service.lower()
     if service == "github":
         from services.agent_tools import _github_api
+
         r = await _github_api("GET", "/user")
         if r.get("error"):
             return {"ok": False, "error": r.get("output", "failed")}

@@ -7,6 +7,7 @@ router = APIRouter(prefix="/api")
 
 _STRIP = {"auth_password_hash", "vault_verifier", "vault_pw_b64"}
 
+
 @router.get("/settings")
 def get_settings():
     s = load_settings()
@@ -45,23 +46,23 @@ class SettingsPatch(BaseModel):
     tts_speed: float | None = None
     tts_auto_play: bool | None = None
     stt_language: str | None = None
-    theme: str | None = None      # '' (dark/default) | 'light' — synced across subdomains
-    accent: str | None = None     # hex like '#818cf8', or '' for the default
+    theme: str | None = None  # '' (dark/default) | 'light' — synced across subdomains
+    accent: str | None = None  # hex like '#818cf8', or '' for the default
     notify_discord_webhook: str | None = None
     notify_telegram_token: str | None = None
     notify_telegram_chat_id: str | None = None
     notify_on_agent_done: bool | None = None
-    outbound_proxy: str | None = None    # e.g. http://127.0.0.1:7890 — routes all egress through it
-    prefer_local_models: bool | None = None   # fallback to a local (ollama) endpoint when available
-    username: str | None = None          # display name, synced across subdomains
+    outbound_proxy: str | None = None  # e.g. http://127.0.0.1:7890 — routes all egress through it
+    prefer_local_models: bool | None = None  # fallback to a local (ollama) endpoint when available
+    username: str | None = None  # display name, synced across subdomains
     # ── per-app settings ──
-    files_dir: str | None = None         # files app root directory
-    photos_dir: str | None = None        # gallery library folder
+    files_dir: str | None = None  # files app root directory
+    photos_dir: str | None = None  # gallery library folder
     cal_default_view: str | None = None  # 'month' | 'week'
-    cal_week_start: str | None = None    # 'sun' | 'mon'
-    system_refresh: int | None = None    # system monitor poll interval (ms)
-    mail_poll_seconds: int | None = None # mail background check interval
-    mail_signature: str | None = None    # appended/prefilled when composing
+    cal_week_start: str | None = None  # 'sun' | 'mon'
+    system_refresh: int | None = None  # system monitor poll interval (ms)
+    mail_poll_seconds: int | None = None  # mail background check interval
+    mail_signature: str | None = None  # appended/prefilled when composing
 
 
 @router.patch("/settings")
@@ -73,13 +74,15 @@ def patch_settings(body: SettingsPatch):
         # the library is indexed by bare filename → carry the files to the new folder
         try:
             from services import photos_store
+
             photos_store.relocate(old_photos)
         except Exception:
             pass
     if "outbound_proxy" in patch:
         try:
             from services import net
-            net.apply_proxy()   # take effect without a restart
+
+            net.apply_proxy()  # take effect without a restart
         except Exception:
             pass
     return out

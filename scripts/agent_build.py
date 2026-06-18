@@ -1,5 +1,7 @@
 """drive the aide agent to build a real app, streaming the run. evidence kept."""
+
 import os, sys, json, time
+
 os.environ["NO_PROXY"] = "localhost,127.0.0.1," + os.environ.get("NO_PROXY", "")
 try:
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -12,7 +14,11 @@ from datetime import datetime
 BASE = "http://localhost:8099"
 WS = Path(r"C:/Users/jxh/agent-builds/termdeck")
 WS.mkdir(parents=True, exist_ok=True)
-EV = Path.home() / "alles-test-evidence" / ("agentbuild_" + datetime.now().strftime("%Y-%m-%d_%H%M%S"))
+EV = (
+    Path.home()
+    / "alles-test-evidence"
+    / ("agentbuild_" + datetime.now().strftime("%Y-%m-%d_%H%M%S"))
+)
 EV.mkdir(parents=True, exist_ok=True)
 
 TASK = """Build a polished terminal markdown slide presenter in Python — a real CLI tool, standard library ONLY (no third-party deps). Project name: deck.
@@ -48,16 +54,30 @@ def main():
     pref = ["claude-sonnet-4-6", "claude-opus-4-8", "claude-sonnet-4-5-20250929"]
     model = next((m for m in pref if m in ms), (ms[0] if ms else "claude-sonnet-4-6"))
     print(f"agent: {ep['name']}/{model}  workspace: {WS}")
-    sid = httpx.post(f"{BASE}/api/sessions", json={
-        "name": "agent-build termdeck", "model": model, "endpoint_id": ep["id"],
-        "working_dir": str(WS), "mode": "agent"}, timeout=20).json()["id"]
+    sid = httpx.post(
+        f"{BASE}/api/sessions",
+        json={
+            "name": "agent-build termdeck",
+            "model": model,
+            "endpoint_id": ep["id"],
+            "working_dir": str(WS),
+            "mode": "agent",
+        },
+        timeout=20,
+    ).json()["id"]
 
     all_tools = []
     msg = TASK
-    for attempt in range(4):   # send 'continue' if it hits the turn limit
-        body = {"session_id": sid, "message": msg, "mode": "agent",
-                "permission_mode": "full_auto", "effort": "high",
-                "model": model, "endpoint_id": ep["id"]}
+    for attempt in range(4):  # send 'continue' if it hits the turn limit
+        body = {
+            "session_id": sid,
+            "message": msg,
+            "mode": "agent",
+            "permission_mode": "full_auto",
+            "effort": "high",
+            "model": model,
+            "endpoint_id": ep["id"],
+        }
         status = "running"
         with httpx.stream("POST", f"{BASE}/api/chat", json=body, timeout=900) as r:
             for line in r.iter_lines():
@@ -84,7 +104,7 @@ def main():
             st = runs[0].get("status") if runs else ""
         except Exception:
             st = ""
-        print(f"  [turn {attempt+1}] run status: {st}")
+        print(f"  [turn {attempt + 1}] run status: {st}")
         if st != "turn_limit":
             break
         msg = "continue"
@@ -94,8 +114,10 @@ def main():
     print(f"tool calls ({len(all_tools)}): {all_tools}")
     (EV / "run.md").write_text(
         f"# agent build — terminal slide presenter\n\nworkspace: {WS}\nsession: {sid}\n\n"
-        f"files: {files}\n\ntool sequence ({len(all_tools)}):\n" + "\n".join(f"- {t}" for t in all_tools),
-        encoding="utf-8")
+        f"files: {files}\n\ntool sequence ({len(all_tools)}):\n"
+        + "\n".join(f"- {t}" for t in all_tools),
+        encoding="utf-8",
+    )
     print(f"evidence: {EV}")
 
 

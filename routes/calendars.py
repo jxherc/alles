@@ -8,8 +8,14 @@ router = APIRouter(prefix="/api")
 
 
 def _fmt(c: Calendar) -> dict:
-    return {"id": c.id, "name": c.name, "color": c.color, "visible": bool(c.visible),
-            "is_default": bool(c.is_default), "sort_order": c.sort_order}
+    return {
+        "id": c.id,
+        "name": c.name,
+        "color": c.color,
+        "visible": bool(c.visible),
+        "is_default": bool(c.is_default),
+        "sort_order": c.sort_order,
+    }
 
 
 def seed_default_calendar():
@@ -18,7 +24,8 @@ def seed_default_calendar():
     try:
         if db.query(Calendar).count() == 0:
             cal = Calendar(name="Personal", color="accent", is_default=True, sort_order=0)
-            db.add(cal); db.commit()
+            db.add(cal)
+            db.commit()
             # adopt orphan events (from before calendars existed)
             db.query(CalendarEvent).filter(
                 (CalendarEvent.calendar_id == "") | (CalendarEvent.calendar_id.is_(None))
@@ -29,8 +36,10 @@ def seed_default_calendar():
 
 
 def _default_id(db) -> str:
-    c = db.query(Calendar).filter(Calendar.is_default == True).first() \
+    c = (
+        db.query(Calendar).filter(Calendar.is_default == True).first()
         or db.query(Calendar).order_by(Calendar.sort_order).first()
+    )
     return c.id if c else ""
 
 
@@ -52,9 +61,15 @@ class CalBody(BaseModel):
 @router.post("/calendars")
 def create_calendar(body: CalBody, db: DbSession = Depends(get_db)):
     n = db.query(Calendar).count()
-    c = Calendar(name=body.name.strip() or "Calendar", color=body.color or "accent",
-                 visible=body.visible, sort_order=n)
-    db.add(c); db.commit(); db.refresh(c)
+    c = Calendar(
+        name=body.name.strip() or "Calendar",
+        color=body.color or "accent",
+        visible=body.visible,
+        sort_order=n,
+    )
+    db.add(c)
+    db.commit()
+    db.refresh(c)
     return _fmt(c)
 
 
@@ -88,5 +103,6 @@ def delete_calendar(cid: str, db: DbSession = Depends(get_db)):
     # move its events to the default calendar instead of nuking them
     dest = _default_id(db)
     db.query(CalendarEvent).filter(CalendarEvent.calendar_id == cid).update({"calendar_id": dest})
-    db.delete(c); db.commit()
+    db.delete(c)
+    db.commit()
     return {"ok": True, "moved_to": dest}

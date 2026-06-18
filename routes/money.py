@@ -1,12 +1,41 @@
+import calendar as _cal
 from collections import defaultdict
-from datetime import datetime
+from datetime import date, datetime, timedelta
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session as DbSession
 
-from core.database import get_db, Account, Transaction, Budget
+from core.database import (
+    Account,
+    Budget,
+    CategoryRule,
+    RecurringTxn,
+    Transaction,
+    get_db,
+)
 
 router = APIRouter(prefix="/api/money")
+
+RECUR_CYCLES = ("weekly", "monthly", "quarterly", "yearly", "custom")
+
+
+def _add_months(d: date, n: int) -> date:
+    y, m = divmod(d.month - 1 + n, 12)
+    y, m = d.year + y, m + 1
+    return date(y, m, min(d.day, _cal.monthrange(y, m)[1]))
+
+
+def _advance(d: date, cycle: str, cycle_days: int) -> date:
+    if cycle == "weekly":
+        return d + timedelta(days=7)
+    if cycle == "monthly":
+        return _add_months(d, 1)
+    if cycle == "quarterly":
+        return _add_months(d, 3)
+    if cycle == "yearly":
+        return _add_months(d, 12)
+    return d + timedelta(days=max(1, cycle_days or 30))
 
 
 # ── accounts ────────────────────────────────────────────────────────────────
@@ -18,9 +47,16 @@ def _balances(db):
 
 
 def _acct(a, balance):
-    return {"id": a.id, "name": a.name, "kind": a.kind, "currency": a.currency,
-            "opening": a.opening, "color": a.color, "archived": bool(a.archived),
-            "balance": round(balance, 2)}
+    return {
+        "id": a.id,
+        "name": a.name,
+        "kind": a.kind,
+        "currency": a.currency,
+        "opening": a.opening,
+        "color": a.color,
+        "archived": bool(a.archived),
+        "balance": round(balance, 2),
+    }
 
 
 @router.get("/accounts")
@@ -40,9 +76,16 @@ class AccountBody(BaseModel):
 
 @router.post("/accounts")
 def create_account(body: AccountBody, db: DbSession = Depends(get_db)):
-    a = Account(name=(body.name or "account").strip() or "account", kind=body.kind,
-                currency=body.currency or "$", opening=body.opening or 0.0, color=body.color or "accent")
-    db.add(a); db.commit(); db.refresh(a)
+    a = Account(
+        name=(body.name or "account").strip() or "account",
+        kind=body.kind,
+        currency=body.currency or "$",
+        opening=body.opening or 0.0,
+        color=body.color or "accent",
+    )
+    db.add(a)
+    db.commit()
+    db.refresh(a)
     return _acct(a, a.opening or 0.0)
 
 
@@ -65,28 +108,98 @@ def delete_account(aid: str, db: DbSession = Depends(get_db)):
     if not a:
         raise HTTPException(404)
     db.query(Transaction).filter(Transaction.account_id == aid).delete()
-    db.delete(a); db.commit()
+    db.delete(a)
+    db.commit()
     return {"ok": True}
+
+
+# ── auto-categorization rules (payee substring → category) ────────────────────
+def _categorize(payee: str, rules) -> str:
+    """first rule whose match is a (case-insensitive) substring of the payee wins."""
+    p = (payee or "").lower()
+    if not p:
+        return ""
+    for r in rules:
+        m = (r.match or "").lower()
+        if m and m in p:
+            return r.category or ""
+    return ""
+
+
+def _rules(db):
+    return db.query(CategoryRule).order_by(CategoryRule.created_at.asc()).all()
 
 
 # ── transactions ──────────────────────────────────────────────────────────────
 def _txn(t):
-    return {"id": t.id, "account_id": t.account_id, "date": t.date, "amount": t.amount,
-            "category": t.category, "payee": t.payee, "notes": t.notes}
+    return {
+        "id": t.id,
+        "account_id": t.account_id,
+        "date": t.date,
+        "amount": t.amount,
+        "category": t.category,
+        "payee": t.payee,
+        "notes": t.notes,
+        "transfer_id": t.transfer_id or "",
+    }
 
 
 @router.get("/transactions")
-def list_txns(account: str = "", month: str = "", category: str = "",
-              limit: int = 500, db: DbSession = Depends(get_db)):
+def list_txns(
+    account: str = "",
+    month: str = "",
+    category: str = "",
+    limit: int = 500,
+    db: DbSession = Depends(get_db),
+):
+    _post_due_recurring(db)
     q = db.query(Transaction)
     if account:
         q = q.filter(Transaction.account_id == account)
     if category:
         q = q.filter(Transaction.category == category)
-    if month:                                   # month = "YYYY-MM"
+    if month:  # month = "YYYY-MM"
         q = q.filter(Transaction.date.like(f"{month}%"))
     rows = q.order_by(Transaction.date.desc(), Transaction.created_at.desc()).limit(limit).all()
     return [_txn(t) for t in rows]
+
+
+@router.get("/transactions/search")
+def search_txns(
+    q: str = "",
+    min_amt: float = None,
+    max_amt: float = None,
+    account: str = "",
+    month: str = "",
+    limit: int = 500,
+    db: DbSession = Depends(get_db),
+):
+    """text search across payee/category/notes + filter by |amount| range, account,
+    month. date-desc. answers 'what did I spend at X' / 'charges over $100'."""
+    query = db.query(Transaction)
+    if account:
+        query = query.filter(Transaction.account_id == account)
+    if month:
+        query = query.filter(Transaction.date.like(f"{month}%"))
+    rows = query.order_by(Transaction.date.desc(), Transaction.created_at.desc()).all()
+    ql = (q or "").strip().lower()
+    out = []
+    for t in rows:
+        if ql and not (
+            ql in (t.payee or "").lower()
+            or ql in (t.category or "").lower()
+            or ql in (t.notes or "").lower()
+        ):
+            continue
+        amt = abs(t.amount or 0.0)
+        if min_amt is not None and amt < min_amt:
+            continue
+        if max_amt is not None and amt > max_amt:
+            continue
+        out.append(_txn(t))
+        if len(out) >= limit:
+            break
+    return out
 
 
 class TxnBody(BaseModel):
@@ -102,10 +215,20 @@ class TxnBody(BaseModel):
 def create_txn(body: TxnBody, db: DbSession = Depends(get_db)):
     if not db.get(Account, body.account_id):
         raise HTTPException(400, "unknown account")
-    t = Transaction(account_id=body.account_id, date=body.date, amount=body.amount,
-                    category=(body.category or "").strip(), payee=(body.payee or "").strip(),
-                    notes=(body.notes or "").strip())
-    db.add(t); db.commit(); db.refresh(t)
+    cat = (body.category or "").strip()
+    if not cat:  # no explicit category → let a rule fill it in from the payee
+        cat = _categorize(body.payee, _rules(db))
+    t = Transaction(
+        account_id=body.account_id,
+        date=body.date,
+        amount=body.amount,
+        category=cat,
+        payee=(body.payee or "").strip(),
+        notes=(body.notes or "").strip(),
+    )
+    db.add(t)
+    db.commit()
+    db.refresh(t)
     return _txn(t)
 
 
@@ -126,14 +249,17 @@ def delete_txn(tid: str, db: DbSession = Depends(get_db)):
     t = db.get(Transaction, tid)
     if not t:
         raise HTTPException(404)
-    db.delete(t); db.commit()
+    db.delete(t)
+    db.commit()
     return {"ok": True}
 
 
 @router.get("/transactions/export.csv")
 def export_txns_csv(db: DbSession = Depends(get_db)):
     """download all transactions as CSV (open in a spreadsheet)."""
-    import csv, io
+    import csv
+    import io
+
     from fastapi.responses import Response
 
     def _safe(v):
@@ -146,10 +272,21 @@ def export_txns_csv(db: DbSession = Depends(get_db)):
     w = csv.writer(buf)
     w.writerow(["date", "amount", "category", "payee", "notes", "account_id"])
     for t in db.query(Transaction).order_by(Transaction.date).all():
-        w.writerow([t.date, t.amount, _safe(t.category or ""), _safe(t.payee or ""),
-                    _safe(t.notes or ""), t.account_id])
-    return Response(buf.getvalue(), media_type="text/csv",
-                    headers={"content-disposition": 'attachment; filename="transactions.csv"'})
+        w.writerow(
+            [
+                t.date,
+                t.amount,
+                _safe(t.category or ""),
+                _safe(t.payee or ""),
+                _safe(t.notes or ""),
+                t.account_id,
+            ]
+        )
+    return Response(
+        buf.getvalue(),
+        media_type="text/csv",
+        headers={"content-disposition": 'attachment; filename="transactions.csv"'},
+    )
 
 
 class CsvImport(BaseModel):
@@ -162,12 +299,17 @@ def import_txns_csv(body: CsvImport, db: DbSession = Depends(get_db)):
     """import transactions from a CSV (e.g. a bank export). needs date + amount
     columns. skips rows that duplicate an existing txn (same date+amount+payee in
     this account) so re-importing an overlapping statement doesn't double-count."""
-    import csv, io
+    import csv
+    import io
+
     if not db.get(Account, body.account_id):
         raise HTTPException(400, "unknown account")
     # existing fingerprints for this account + dups within the file itself
-    seen = {(t.date, round(t.amount or 0.0, 2), (t.payee or "").strip().lower())
-            for t in db.query(Transaction).filter(Transaction.account_id == body.account_id).all()}
+    seen = {
+        (t.date, round(t.amount or 0.0, 2), (t.payee or "").strip().lower())
+        for t in db.query(Transaction).filter(Transaction.account_id == body.account_id).all()
+    }
+    rules = _rules(db)  # auto-categorize rows that arrive without a category
     n = skipped = 0
     for row in csv.DictReader(io.StringIO(body.csv)):
         row = {(k or "").strip().lower(): v for k, v in row.items()}
@@ -184,19 +326,276 @@ def import_txns_csv(body: CsvImport, db: DbSession = Depends(get_db)):
             skipped += 1
             continue
         seen.add(key)
-        db.add(Transaction(account_id=body.account_id, date=date[:10], amount=amt,
-                           category=(row.get("category") or "").strip(), payee=payee,
-                           notes=(row.get("notes") or "").strip()))
+        cat = (row.get("category") or "").strip() or _categorize(payee, rules)
+        db.add(
+            Transaction(
+                account_id=body.account_id,
+                date=date[:10],
+                amount=amt,
+                category=cat,
+                payee=payee,
+                notes=(row.get("notes") or "").strip(),
+            )
+        )
         n += 1
     db.commit()
     return {"imported": n, "skipped": skipped}
 
 
+# ── transfers (move money between your own accounts) ──────────────────────────
+class TransferBody(BaseModel):
+    from_account: str
+    to_account: str
+    amount: float
+    date: str
+    notes: str = ""
+
+
+@router.post("/transfer")
+def create_transfer(body: TransferBody, db: DbSession = Depends(get_db)):
+    """one move, two linked legs (−amount out of `from`, +amount into `to`), both
+    tagged category 'transfer' + a shared transfer_id so the summary can leave them
+    out of income/spending while balances still shift correctly."""
+    if body.from_account == body.to_account:
+        raise HTTPException(400, "pick two different accounts")
+    if (body.amount or 0) <= 0:
+        raise HTTPException(400, "amount must be positive")
+    src = db.get(Account, body.from_account)
+    dst = db.get(Account, body.to_account)
+    if not src or not dst:
+        raise HTTPException(400, "unknown account")
+    import uuid
+
+    tid = uuid.uuid4().hex
+    d = (body.date or "")[:10]
+    out = Transaction(
+        account_id=src.id,
+        date=d,
+        amount=-abs(body.amount),
+        category="transfer",
+        payee=f"→ {dst.name}",
+        notes=(body.notes or "").strip(),
+        transfer_id=tid,
+    )
+    inc = Transaction(
+        account_id=dst.id,
+        date=d,
+        amount=abs(body.amount),
+        category="transfer",
+        payee=f"← {src.name}",
+        notes=(body.notes or "").strip(),
+        transfer_id=tid,
+    )
+    db.add(out)
+    db.add(inc)
+    db.commit()
+    db.refresh(out)
+    db.refresh(inc)
+    return {"transfer_id": tid, "from": _txn(out), "to": _txn(inc)}
+
+
+@router.delete("/transfer/{tid}")
+def delete_transfer(tid: str, db: DbSession = Depends(get_db)):
+    legs = db.query(Transaction).filter(Transaction.transfer_id == tid).all()
+    if not legs:
+        raise HTTPException(404)
+    for t in legs:
+        db.delete(t)
+    db.commit()
+    return {"ok": True, "removed": len(legs)}
+
+
+# ── recurring transactions (rent, salary, loans — auto-posted each cycle) ─────
+_RECUR_CAP = 60  # don't flood the ledger if the app sat unopened for years
+
+
+def _post_due_recurring(db, today: date = None) -> bool:
+    """post a real txn for every occurrence of every active rule that's due up to
+    today, advancing next_date past today. idempotent: re-running posts nothing new
+    because next_date has already moved forward."""
+    today = today or date.today()
+    changed = False
+    for r in db.query(RecurringTxn).filter(RecurringTxn.active == True).all():
+        if not r.next_date:
+            continue
+        try:
+            nd = date.fromisoformat(r.next_date[:10])
+        except ValueError:
+            continue
+        guard = 0
+        while nd <= today and guard < _RECUR_CAP:
+            db.add(
+                Transaction(
+                    account_id=r.account_id,
+                    date=nd.isoformat(),
+                    amount=r.amount or 0.0,
+                    category=r.category or "",
+                    payee=r.payee or "",
+                    notes=r.notes or "",
+                )
+            )
+            r.last_posted = nd.isoformat()
+            nd = _advance(nd, r.cycle, r.cycle_days)
+            guard += 1
+            changed = True
+        r.next_date = nd.isoformat()
+    if changed:
+        db.commit()
+    return changed
+
+
+def _rec(r):
+    return {
+        "id": r.id,
+        "account_id": r.account_id,
+        "amount": r.amount,
+        "category": r.category,
+        "payee": r.payee,
+        "notes": r.notes,
+        "cycle": r.cycle,
+        "cycle_days": r.cycle_days,
+        "next_date": r.next_date,
+        "active": bool(r.active),
+        "last_posted": r.last_posted or "",
+    }
+
+
+@router.get("/recurring")
+def list_recurring(db: DbSession = Depends(get_db)):
+    _post_due_recurring(db)
+    rows = db.query(RecurringTxn).order_by(RecurringTxn.next_date.asc()).all()
+    return [_rec(r) for r in rows]
+
+
+class RecurringBody(BaseModel):
+    account_id: str
+    amount: float = 0.0
+    category: str = ""
+    payee: str = ""
+    notes: str = ""
+    cycle: str = "monthly"
+    cycle_days: int = 30
+    next_date: str
+    active: bool = True
+
+
+@router.post("/recurring")
+def create_recurring(body: RecurringBody, db: DbSession = Depends(get_db)):
+    if not db.get(Account, body.account_id):
+        raise HTTPException(400, "unknown account")
+    if body.cycle not in RECUR_CYCLES:
+        raise HTTPException(400, f"cycle must be one of {', '.join(RECUR_CYCLES)}")
+    try:
+        date.fromisoformat(body.next_date[:10])
+    except ValueError:
+        raise HTTPException(400, "next_date must be an ISO date (YYYY-MM-DD)")
+    r = RecurringTxn(
+        account_id=body.account_id,
+        amount=body.amount or 0.0,
+        category=(body.category or "").strip(),
+        payee=(body.payee or "").strip(),
+        notes=(body.notes or "").strip(),
+        cycle=body.cycle,
+        cycle_days=body.cycle_days or 30,
+        next_date=body.next_date[:10],
+        active=body.active,
+    )
+    db.add(r)
+    db.commit()
+    db.refresh(r)
+    return _rec(r)
+
+
+@router.patch("/recurring/{rid}")
+def update_recurring(rid: str, body: dict, db: DbSession = Depends(get_db)):
+    r = db.get(RecurringTxn, rid)
+    if not r:
+        raise HTTPException(404)
+    if "cycle" in body and body["cycle"] not in RECUR_CYCLES:
+        raise HTTPException(400, f"cycle must be one of {', '.join(RECUR_CYCLES)}")
+    for k in (
+        "account_id",
+        "amount",
+        "category",
+        "payee",
+        "notes",
+        "cycle",
+        "cycle_days",
+        "next_date",
+        "active",
+    ):
+        if k in body:
+            setattr(r, k, body[k])
+    db.commit()
+    return _rec(r)
+
+
+@router.delete("/recurring/{rid}")
+def delete_recurring(rid: str, db: DbSession = Depends(get_db)):
+    r = db.get(RecurringTxn, rid)
+    if not r:
+        raise HTTPException(404)
+    db.delete(r)
+    db.commit()
+    return {"ok": True}
+
+
+# ── category rules CRUD + bulk apply ──────────────────────────────────────────
+@router.get("/rules")
+def list_rules(db: DbSession = Depends(get_db)):
+    return [{"id": r.id, "match": r.match, "category": r.category} for r in _rules(db)]
+
+
+class RuleBody(BaseModel):
+    match: str
+    category: str = ""
+
+
+@router.post("/rules")
+def create_rule(body: RuleBody, db: DbSession = Depends(get_db)):
+    m = (body.match or "").strip()
+    if not m:
+        raise HTTPException(400, "match required")
+    r = CategoryRule(match=m, category=(body.category or "").strip())
+    db.add(r)
+    db.commit()
+    db.refresh(r)
+    return {"id": r.id, "match": r.match, "category": r.category}
+
+
+@router.delete("/rules/{rid}")
+def delete_rule(rid: str, db: DbSession = Depends(get_db)):
+    r = db.get(CategoryRule, rid)
+    if not r:
+        raise HTTPException(404)
+    db.delete(r)
+    db.commit()
+    return {"ok": True}
+
+
+@router.post("/rules/apply")
+def apply_rules(db: DbSession = Depends(get_db)):
+    """back-fill categories on existing uncategorized txns using the current rules."""
+    rules = _rules(db)
+    n = 0
+    for t in db.query(Transaction).all():
+        if t.transfer_id or (t.category or "").strip():
+            continue
+        c = _categorize(t.payee, rules)
+        if c:
+            t.category = c
+            n += 1
+    db.commit()
+    return {"updated": n}
+
+
 # ── budgets (monthly spending caps per category) ──────────────────────────────
 @router.get("/budgets")
 def list_budgets(db: DbSession = Depends(get_db)):
-    return [{"id": b.id, "category": b.category, "limit_amt": b.limit_amt}
-            for b in db.query(Budget).order_by(Budget.category.asc()).all()]
+    return [
+        {"id": b.id, "category": b.category, "limit_amt": b.limit_amt}
+        for b in db.query(Budget).order_by(Budget.category.asc()).all()
+    ]
 
 
 class BudgetBody(BaseModel):
@@ -215,7 +614,8 @@ def upsert_budget(body: BudgetBody, db: DbSession = Depends(get_db)):
     else:
         b = Budget(category=cat, limit_amt=body.limit_amt)
         db.add(b)
-    db.commit(); db.refresh(b)
+    db.commit()
+    db.refresh(b)
     return {"id": b.id, "category": b.category, "limit_amt": b.limit_amt}
 
 
@@ -224,7 +624,8 @@ def delete_budget(bid: str, db: DbSession = Depends(get_db)):
     b = db.get(Budget, bid)
     if not b:
         raise HTTPException(404)
-    db.delete(b); db.commit()
+    db.delete(b)
+    db.commit()
     return {"ok": True}
 
 
@@ -236,7 +637,8 @@ def _recent_months(month: str, n: int = 6):
     for i in range(n - 1, -1, -1):
         mm, yy = m - i, y
         while mm <= 0:
-            mm += 12; yy -= 1
+            mm += 12
+            yy -= 1
         out.append(f"{yy:04d}-{mm:02d}")
     return out
 
@@ -252,6 +654,8 @@ def summary(month: str = "", db: DbSession = Depends(get_db)):
     income = expense = 0.0
     by_cat = defaultdict(float)
     for t in db.query(Transaction).filter(Transaction.date.like(f"{month}%")).all():
+        if t.transfer_id:  # inter-account move, not real income/spending
+            continue
         amt = t.amount or 0.0
         if amt >= 0:
             income += amt
@@ -262,13 +666,20 @@ def summary(month: str = "", db: DbSession = Depends(get_db)):
 
     budgets = []
     for b in db.query(Budget).order_by(Budget.category.asc()).all():
-        budgets.append({"category": b.category, "limit": b.limit_amt,
-                        "spent": round(by_cat.get(b.category, 0.0), 2)})
+        budgets.append(
+            {
+                "category": b.category,
+                "limit": b.limit_amt,
+                "spent": round(by_cat.get(b.category, 0.0), 2),
+            }
+        )
 
     months = _recent_months(month, 6)
     monthset = set(months)
-    tot = {mo: [0.0, 0.0] for mo in months}    # [income, expense]
+    tot = {mo: [0.0, 0.0] for mo in months}  # [income, expense]
     for t in db.query(Transaction).all():
+        if t.transfer_id:  # transfers aren't income or spending
+            continue
         mo = (t.date or "")[:7]
         if mo in monthset:
             amt = t.amount or 0.0
@@ -276,7 +687,10 @@ def summary(month: str = "", db: DbSession = Depends(get_db)):
                 tot[mo][0] += amt
             else:
                 tot[mo][1] += -amt
-    trend = [{"month": mo, "income": round(tot[mo][0], 2), "expense": round(tot[mo][1], 2)} for mo in months]
+    trend = [
+        {"month": mo, "income": round(tot[mo][0], 2), "expense": round(tot[mo][1], 2)}
+        for mo in months
+    ]
 
     return {
         "month": month,

@@ -2,7 +2,7 @@ import unittest
 from datetime import date
 from services.task_nl import parse_task, advance
 
-T = date(2026, 6, 14)   # fixed "today" for determinism
+T = date(2026, 6, 14)  # fixed "today" for determinism
 
 
 class ParseTests(unittest.TestCase):
@@ -20,7 +20,7 @@ class ParseTests(unittest.TestCase):
     def test_every_month_on_day(self):
         p = parse_task("pay rent every 1st", T)
         self.assertEqual(p["repeat"], "monthly")
-        self.assertEqual(p["due_date"], "2026-07-01")   # 1st already passed this month
+        self.assertEqual(p["due_date"], "2026-07-01")  # 1st already passed this month
         self.assertEqual(p["title"], "pay rent")
 
     def test_every_week(self):
@@ -40,7 +40,7 @@ class ParseTests(unittest.TestCase):
     def test_weekday_is_future_and_correct(self):
         p = parse_task("standup friday", T)
         d = date.fromisoformat(p["due_date"])
-        self.assertEqual(d.weekday(), 4)   # friday
+        self.assertEqual(d.weekday(), 4)  # friday
         self.assertGreater(d, T)
 
     def test_plain_title(self):

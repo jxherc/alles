@@ -46,7 +46,7 @@ class FilesStoreTests(unittest.TestCase):
     def test_upload_strips_path_from_name(self):
         fs.save_upload("", "../sneaky.txt", b"x")
         names = [i["name"] for i in fs.listdir("")["items"]]
-        self.assertIn("sneaky.txt", names)   # the ../ was stripped
+        self.assertIn("sneaky.txt", names)  # the ../ was stripped
 
 
 if __name__ == "__main__":

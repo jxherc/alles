@@ -6,11 +6,47 @@ weekly BYDAY (MO,WE,FR), COUNT (end after N), UNTIL (end date), and EXDATE
 (excluded occurrence dates). kept deliberately simple — single-user calendar, not
 a groupware server — but enough to match what the UI lets you build.
 """
+
 import calendar as _cal
 import json
-from datetime import datetime, date, timedelta
+from datetime import date, datetime, timedelta
 
 _WD = {"MO": 0, "TU": 1, "WE": 2, "TH": 3, "FR": 4, "SA": 5, "SU": 6}
+
+
+def free_slots(busy, day, minutes, work_start=9, work_end=18):
+    """open windows on `day` (within work hours) that fit `minutes`, avoiding the
+    busy intervals. busy = list of (start_dt, end_dt). returns [{start, end}] ISO."""
+    from datetime import time as _time
+
+    win_s = datetime.combine(day, _time(work_start, 0))
+    win_e = datetime.combine(day, _time(work_end, 0))
+    iv = []
+    for s, e in busy:
+        s, e = max(s, win_s), min(e, win_e)
+        if e > s:
+            iv.append((s, e))
+    iv.sort()
+    merged = []
+    for s, e in iv:
+        if merged and s <= merged[-1][1]:
+            merged[-1] = (merged[-1][0], max(merged[-1][1], e))
+        else:
+            merged.append((s, e))
+    out = []
+    cur = win_s
+    need = minutes * 60
+    for s, e in merged:
+        if (s - cur).total_seconds() >= need:
+            out.append(
+                {"start": cur.isoformat(timespec="minutes"), "end": s.isoformat(timespec="minutes")}
+            )
+        cur = max(cur, e)
+    if (win_e - cur).total_seconds() >= need:
+        out.append(
+            {"start": cur.isoformat(timespec="minutes"), "end": win_e.isoformat(timespec="minutes")}
+        )
+    return out
 
 
 def _parse_dt(s):
@@ -52,7 +88,8 @@ def _add_months(d, n):
 def _weekly_stream(start, interval, byday):
     days = byday or {start.weekday()}
     monday = (start - timedelta(days=start.weekday())).replace(
-        hour=start.hour, minute=start.minute, second=0, microsecond=0)
+        hour=start.hour, minute=start.minute, second=0, microsecond=0
+    )
     wk = 0
     while True:
         base = monday + timedelta(weeks=wk * interval)
@@ -97,7 +134,11 @@ def expand(event: dict, rs: datetime, re: datetime, cap: int = 1500) -> list[dat
     byday = _byday(event.get("recur_byday")) if rec == "weekly" else set()
     excepts = {str(x)[:10] for x in _json_list(event.get("recur_except"))}
 
-    stream = _weekly_stream(start, interval, byday) if rec == "weekly" else _step_stream(start, rec, interval)
+    stream = (
+        _weekly_stream(start, interval, byday)
+        if rec == "weekly"
+        else _step_stream(start, rec, interval)
+    )
     out, emitted, guard = [], 0, 0
     for cand in stream:
         guard += 1
@@ -107,7 +148,7 @@ def expand(event: dict, rs: datetime, re: datetime, cap: int = 1500) -> list[dat
             break
         if count is not None and emitted >= count:
             break
-        emitted += 1                                  # COUNT counts pre-exclusion (RFC)
+        emitted += 1  # COUNT counts pre-exclusion (RFC)
         if cand.date().isoformat() in excepts:
             continue
         if cand >= re:

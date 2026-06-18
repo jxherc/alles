@@ -25,8 +25,8 @@ class FileSearchTests(unittest.TestCase):
     def test_content_and_name_hits(self):
         r = fs.search("needle")
         paths = {x["path"] for x in r["results"]}
-        self.assertIn("notes.txt", paths)              # content hit
-        self.assertIn("sub/needle_named.txt", paths)   # filename hit
+        self.assertIn("notes.txt", paths)  # content hit
+        self.assertIn("sub/needle_named.txt", paths)  # filename hit
         notes = next(x for x in r["results"] if x["path"] == "notes.txt")
         self.assertIn("needle", notes["snippet"].lower())
         self.assertEqual(notes["match"], "content")

@@ -4,6 +4,7 @@ Persistent-ish agent run state.
 Runs are stored as JSON files so active/recent agent work can be inspected even
 outside the live SSE stream.
 """
+
 import json
 import uuid
 from datetime import datetime
@@ -169,7 +170,13 @@ def run_sources(run_id: str) -> dict:
             continue
         d = e.get("data", {})
         name, args = d.get("name", ""), d.get("args", {}) or {}
-        if name in ("read_file", "write_file", "edit_file", "apply_patch", "revert_file") and args.get("path"):
+        if name in (
+            "read_file",
+            "write_file",
+            "edit_file",
+            "apply_patch",
+            "revert_file",
+        ) and args.get("path"):
             files.add(args["path"])
         elif name in ("web_fetch", "github_get_file") and (args.get("url") or args.get("path")):
             urls.add(args.get("url") or args.get("path"))
@@ -177,5 +184,9 @@ def run_sources(run_id: str) -> dict:
             searches.append(args["query"])
         elif name == "shell" and args.get("command"):
             commands.append(args["command"])
-    return {"files": sorted(files), "urls": sorted(urls),
-            "searches": searches, "commands": commands}
+    return {
+        "files": sorted(files),
+        "urls": sorted(urls),
+        "searches": searches,
+        "commands": commands,
+    }

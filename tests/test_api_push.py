@@ -12,11 +12,19 @@ class PushApiTest(ApiTest):
         # same endpoint again updates in place, not a duplicate row
         self.client.post("/api/push/subscribe", json=body)
         self.assertEqual(self.client.get("/api/push/status").json()["subscriptions"], 1)
-        self.assertEqual(self.client.post("/api/push/unsubscribe", json={"endpoint": body["endpoint"]}).json(), {"ok": True})
+        self.assertEqual(
+            self.client.post("/api/push/unsubscribe", json={"endpoint": body["endpoint"]}).json(),
+            {"ok": True},
+        )
         self.assertEqual(self.client.get("/api/push/status").json()["subscriptions"], 0)
 
     def test_subscribe_incomplete_400(self):
-        self.assertEqual(self.client.post("/api/push/subscribe", json={"endpoint": "https://x", "keys": {}}).status_code, 400)
+        self.assertEqual(
+            self.client.post(
+                "/api/push/subscribe", json={"endpoint": "https://x", "keys": {}}
+            ).status_code,
+            400,
+        )
 
     def test_test_push_without_subscriptions_400(self):
         self.assertEqual(self.client.post("/api/push/test").status_code, 400)

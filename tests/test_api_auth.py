@@ -13,7 +13,7 @@ class AuthApiTest(ApiTest):
         self._tmp = tempfile.TemporaryDirectory()
         self._p = mock.patch.object(cs, "_SETTINGS_FILE", Path(self._tmp.name) / "settings.json")
         self._p.start()
-        self._env = os.environ.pop("AUTH_PASSWORD", None)   # deterministic: no seeded env password
+        self._env = os.environ.pop("AUTH_PASSWORD", None)  # deterministic: no seeded env password
 
     def tearDown(self):
         if self._env is not None:
@@ -28,23 +28,41 @@ class AuthApiTest(ApiTest):
 
     def test_change_requires_correct_current(self):
         self.client.post("/api/auth/change-password", json={"new_password": "first1"})
-        self.assertEqual(self.client.post("/api/auth/change-password",
-                         json={"old_password": "wrong", "new_password": "second1"}).status_code, 401)
-        self.assertEqual(self.client.post("/api/auth/change-password",
-                         json={"old_password": "first1", "new_password": "second1"}).status_code, 200)
+        self.assertEqual(
+            self.client.post(
+                "/api/auth/change-password",
+                json={"old_password": "wrong", "new_password": "second1"},
+            ).status_code,
+            401,
+        )
+        self.assertEqual(
+            self.client.post(
+                "/api/auth/change-password",
+                json={"old_password": "first1", "new_password": "second1"},
+            ).status_code,
+            200,
+        )
 
     def test_short_password_rejected(self):
-        self.assertEqual(self.client.post("/api/auth/change-password", json={"new_password": "ab"}).status_code, 400)
+        self.assertEqual(
+            self.client.post("/api/auth/change-password", json={"new_password": "ab"}).status_code,
+            400,
+        )
 
     def test_change_password_throttles_brute_force(self):
         from core import auth
+
         auth._login_fails.clear()
         self.client.post("/api/auth/change-password", json={"new_password": "first1"})
         # wrong current password, hammered: must eventually rate-limit (429) so the
         # endpoint isn't an unmetered oracle for the master password
-        statuses = [self.client.post("/api/auth/change-password",
-                    json={"old_password": "nope", "new_password": "second1"}).status_code
-                    for _ in range(auth._LOGIN_MAX_FAILS + 1)]
+        statuses = [
+            self.client.post(
+                "/api/auth/change-password",
+                json={"old_password": "nope", "new_password": "second1"},
+            ).status_code
+            for _ in range(auth._LOGIN_MAX_FAILS + 1)
+        ]
         self.assertIn(429, statuses)
         auth._login_fails.clear()
 
@@ -57,10 +75,10 @@ class AuthApiTest(ApiTest):
         saved = os.environ.pop("AUTH_ENABLED", None)
         try:
             cs.save_settings({"auth_enabled": True})
-            self.assertTrue(cs.auth_enabled())            # env unset → settings decides
+            self.assertTrue(cs.auth_enabled())  # env unset → settings decides
             cs.save_settings({"auth_enabled": False})
             self.assertFalse(cs.auth_enabled())
-            os.environ["AUTH_ENABLED"] = "true"           # explicit env wins over settings
+            os.environ["AUTH_ENABLED"] = "true"  # explicit env wins over settings
             self.assertTrue(cs.auth_enabled())
             os.environ["AUTH_ENABLED"] = "false"
             cs.save_settings({"auth_enabled": True})
@@ -72,7 +90,9 @@ class AuthApiTest(ApiTest):
 
     def test_auth_config_enable_needs_password_then_works(self):
         # nothing set yet → can't enable
-        self.assertEqual(self.client.post("/api/auth/config", json={"enabled": True}).status_code, 400)
+        self.assertEqual(
+            self.client.post("/api/auth/config", json={"enabled": True}).status_code, 400
+        )
         # supply a password inline → enables
         r = self.client.post("/api/auth/config", json={"enabled": True, "password": "secret1"})
         self.assertEqual(r.status_code, 200)
@@ -80,9 +100,15 @@ class AuthApiTest(ApiTest):
 
     def test_auth_config_disable_requires_current_password(self):
         from core import auth as cauth
+
         cauth._login_fails.clear()
         self.client.post("/api/auth/config", json={"enabled": True, "password": "secret1"})
-        self.assertEqual(self.client.post("/api/auth/config", json={"enabled": False, "password": "nope"}).status_code, 401)
+        self.assertEqual(
+            self.client.post(
+                "/api/auth/config", json={"enabled": False, "password": "nope"}
+            ).status_code,
+            401,
+        )
         r = self.client.post("/api/auth/config", json={"enabled": False, "password": "secret1"})
         self.assertEqual(r.status_code, 200)
         self.assertFalse(r.json()["enabled"])

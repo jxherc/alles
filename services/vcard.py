@@ -3,8 +3,13 @@ for round-tripping contacts in/out of phones and other address books."""
 
 
 def _esc(s) -> str:
-    return (str(s or "").replace("\\", "\\\\").replace("\n", "\\n")
-            .replace(",", "\\,").replace(";", "\\;"))
+    return (
+        str(s or "")
+        .replace("\\", "\\\\")
+        .replace("\n", "\\n")
+        .replace(",", "\\,")
+        .replace(";", "\\;")
+    )
 
 
 def _unesc(s: str) -> str:
@@ -14,7 +19,8 @@ def _unesc(s: str) -> str:
             out.append({"n": "\n", "N": "\n"}.get(s[i + 1], s[i + 1]))
             i += 2
         else:
-            out.append(s[i]); i += 1
+            out.append(s[i])
+            i += 1
     return "".join(out)
 
 
@@ -29,6 +35,16 @@ def to_vcard(contacts) -> str:
             lines.append("EMAIL;TYPE=INTERNET:" + _esc(c["email"]))
         if c.get("phone"):
             lines.append("TEL:" + _esc(c["phone"]))
+        if c.get("company"):
+            lines.append("ORG:" + _esc(c["company"]))
+        if c.get("title"):
+            lines.append("TITLE:" + _esc(c["title"]))
+        if c.get("address"):
+            lines.append("ADR;TYPE=HOME:;;" + _esc(c["address"]) + ";;;;")
+        if c.get("birthday"):
+            lines.append("BDAY:" + _esc(c["birthday"]))
+        if c.get("website"):
+            lines.append("URL:" + _esc(c["website"]))
         if c.get("notes"):
             lines.append("NOTE:" + _esc(c["notes"]))
         lines.append("END:VCARD")
@@ -41,7 +57,17 @@ def parse_vcards(text: str) -> list[dict]:
         line = raw.strip()
         up = line.upper()
         if up == "BEGIN:VCARD":
-            cur = {"name": "", "email": "", "phone": "", "notes": ""}
+            cur = {
+                "name": "",
+                "email": "",
+                "phone": "",
+                "notes": "",
+                "company": "",
+                "title": "",
+                "address": "",
+                "birthday": "",
+                "website": "",
+            }
         elif up == "END:VCARD":
             if cur and (cur["name"] or cur["email"]):
                 cards.append(cur)
@@ -54,11 +80,24 @@ def parse_vcards(text: str) -> list[dict]:
                 cur["name"] = val
             elif k == "N" and not cur["name"]:
                 p = val.split(";")
-                cur["name"] = " ".join(x for x in [(p[1] if len(p) > 1 else ""), p[0]] if x).strip() or val
+                cur["name"] = (
+                    " ".join(x for x in [(p[1] if len(p) > 1 else ""), p[0]] if x).strip() or val
+                )
             elif k == "EMAIL" and not cur["email"]:
                 cur["email"] = val
             elif k == "TEL" and not cur["phone"]:
                 cur["phone"] = val
+            elif k == "ORG" and not cur["company"]:
+                cur["company"] = val.split(";")[0].strip() or val
+            elif k == "TITLE" and not cur["title"]:
+                cur["title"] = val
+            elif k == "ADR" and not cur["address"]:
+                # ADR is pobox;ext;street;city;region;postal;country — join the non-empty bits
+                cur["address"] = ", ".join(x.strip() for x in val.split(";") if x.strip())
+            elif k == "BDAY" and not cur["birthday"]:
+                cur["birthday"] = val
+            elif k == "URL" and not cur["website"]:
+                cur["website"] = val
             elif k == "NOTE":
                 cur["notes"] = val
     return cards

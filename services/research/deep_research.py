@@ -5,6 +5,7 @@ iterative Think→Search→Extract→Synthesize loop where the LLM drives every
 decision: what to search, what's relevant, what's missing, and when to stop.
 rewired to alles services.llm + services.research.search.
 """
+
 import asyncio
 import json
 import logging
@@ -143,14 +144,12 @@ CATEGORY_PROMPTS = {
 - Start with a quick-compare markdown table of top picks (columns: Name, Price, Best For, Rating)
 - End with a ## Verdict section picking Best Overall and Best Value
 - Still include source citations inline""",
-
     "comparison": """IMPORTANT FORMAT OVERRIDE — this is a COMPARISON report:
 - Create a ## Comparison Table as a markdown table comparing ALL options across key criteria (rows = criteria, columns = options)
 - Use checkmarks, ratings, or short values in cells
 - Write a ## section per option with its strengths, weaknesses, and ideal use case
 - End with ## Best For verdicts (e.g., "**Best for small teams:** Option A because...")
 - Include a ## Shared Considerations section for things that apply to all options""",
-
     "howto": """IMPORTANT FORMAT OVERRIDE — this is a HOW-TO guide:
 - Start with ## Quick Guide — a super concise numbered list (one line per step, no details, just the action). Example: 1. Install X  2. Run Y  3. Configure Z
 - Then ## Prerequisites listing what's needed before starting
@@ -159,7 +158,6 @@ CATEGORY_PROMPTS = {
 - Use blockquotes (> ) for tips and warnings: > **Tip:** ... or > **Warning:** ...
 - End with ## Common Mistakes section
 - Add estimated time and difficulty level near the top""",
-
     "factcheck": """IMPORTANT FORMAT OVERRIDE — this is a FACT-CHECK report:
 - Start with ## The Claim restating what's being checked
 - Create ## Evidence For and ## Evidence Against sections
@@ -223,9 +221,13 @@ class DeepResearcher:
         self._cancelled = True
 
     # ── public ──────────────────────────────────────────────────────────────
-    async def research(self, question: str, prior_report: str = "",
-                       prior_findings: Optional[List[Dict]] = None,
-                       prior_urls: Optional[Set[str]] = None) -> str:
+    async def research(
+        self,
+        question: str,
+        prior_report: str = "",
+        prior_findings: Optional[List[Dict]] = None,
+        prior_urls: Optional[Set[str]] = None,
+    ) -> str:
         self._start_time = time.time()
         findings: List[Dict] = list(prior_findings) if prior_findings else []
         report = prior_report or ""
@@ -260,9 +262,13 @@ class DeepResearcher:
                 logger.warning(f"Round {round_num}: no queries generated, stopping")
                 break
 
-            self._emit(phase="searching", round=round_num, queries=len(queries),
-                       query_preview=queries[0] if queries else "",
-                       total_sources=len(self.urls_fetched))
+            self._emit(
+                phase="searching",
+                round=round_num,
+                queries=len(queries),
+                query_preview=queries[0] if queries else "",
+                total_sources=len(self.urls_fetched),
+            )
 
             round_findings = await self._search_and_extract(queries, question)
             if round_findings:
@@ -270,15 +276,20 @@ class DeepResearcher:
                 self.findings = findings
                 consecutive_empty_rounds = 0
                 logger.info(f"Round {round_num}: extracted {len(round_findings)} findings")
-                self._emit(phase="reading", round=round_num,
-                           new_sources=len(round_findings),
-                           total_sources=len(self.urls_fetched),
-                           total_findings=len(findings))
+                self._emit(
+                    phase="reading",
+                    round=round_num,
+                    new_sources=len(round_findings),
+                    total_sources=len(self.urls_fetched),
+                    total_findings=len(findings),
+                )
             else:
                 consecutive_empty_rounds += 1
-                logger.info(f"Round {round_num}: no new findings ({consecutive_empty_rounds} consecutive empty)")
+                logger.info(
+                    f"Round {round_num}: no new findings ({consecutive_empty_rounds} consecutive empty)"
+                )
                 if consecutive_empty_rounds >= self.max_empty_rounds:
-                    err_detail = self._last_search_error or 'unknown error'
+                    err_detail = self._last_search_error or "unknown error"
                     self._emit(phase="error", message=f"Search engine unavailable: {err_detail}")
                     if not findings:
                         return (
@@ -289,9 +300,12 @@ class DeepResearcher:
                     break
 
             if findings:
-                self._emit(phase="analyzing", round=round_num,
-                           total_sources=len(self.urls_fetched),
-                           total_findings=len(findings))
+                self._emit(
+                    phase="analyzing",
+                    round=round_num,
+                    total_sources=len(self.urls_fetched),
+                    total_findings=len(findings),
+                )
                 report = await self._synthesize(question, findings, report)
 
             if round_num >= self.min_rounds:
@@ -299,30 +313,47 @@ class DeepResearcher:
                     logger.info(f"LLM decided to stop after round {round_num}")
                     break
 
-        self._emit(phase="writing", total_sources=len(self.urls_fetched),
-                   total_findings=len(findings))
+        self._emit(
+            phase="writing", total_sources=len(self.urls_fetched), total_findings=len(findings)
+        )
         if not report:
             if findings:
-                logger.warning("Synthesis produced no report; returning %d findings as fallback", len(findings))
+                logger.warning(
+                    "Synthesis produced no report; returning %d findings as fallback", len(findings)
+                )
                 return self._fallback_report(question, findings)
             return "No information could be gathered for this question."
 
         self.evolving_report = report
         final = await self._final_report(question, report)
         elapsed = time.time() - self._start_time
-        logger.info(f"Research complete: {self.round_count} rounds, {len(findings)} findings, "
-                    f"{len(self.urls_fetched)} URLs, {elapsed:.1f}s")
+        logger.info(
+            f"Research complete: {self.round_count} rounds, {len(findings)} findings, "
+            f"{len(self.urls_fetched)} URLs, {elapsed:.1f}s"
+        )
         return final
 
     # ── llm ─────────────────────────────────────────────────────────────────
-    async def _llm(self, messages: List[Dict], temperature: float = 0.3,
-                   max_tokens: int = 4096, timeout: int = 60) -> str:
+    async def _llm(
+        self,
+        messages: List[Dict],
+        temperature: float = 0.3,
+        max_tokens: int = 4096,
+        timeout: int = 60,
+    ) -> str:
         """accumulate a non-streaming completion off alles' stream_chat, strip thinking.
         timeout is advisory — stream_chat carries its own httpx read timeout."""
         from services.llm import stream_chat
+
         out = []
-        async for ch in stream_chat(messages, self.base_url, self.api_key, self.model,
-                                    max_tokens=max_tokens, temperature=temperature):
+        async for ch in stream_chat(
+            messages,
+            self.base_url,
+            self.api_key,
+            self.model,
+            max_tokens=max_tokens,
+            temperature=temperature,
+        ):
             if "delta" in ch:
                 out.append(ch["delta"])
             elif "error" in ch:
@@ -335,8 +366,9 @@ class DeepResearcher:
     async def _create_plan(self, question: str) -> str:
         prompt = current_date_context() + RESEARCH_PLAN_PROMPT.format(question=question)
         try:
-            response = await self._llm([{"role": "user", "content": prompt}],
-                                       temperature=0.3, max_tokens=1024, timeout=30)
+            response = await self._llm(
+                [{"role": "user", "content": prompt}], temperature=0.3, max_tokens=1024, timeout=30
+            )
             parsed = self._parse_json_object(response)
             if parsed:
                 parts = []
@@ -350,7 +382,9 @@ class DeepResearcher:
             return response
         except Exception as e:
             logger.warning(f"Research planning failed: {e}")
-            self._emit(phase="warning", message="Planning step failed, proceeding with direct search")
+            self._emit(
+                phase="warning", message="Planning step failed, proceeding with direct search"
+            )
             return ""
 
     async def _classify_category(self, question: str) -> Optional[str]:
@@ -363,8 +397,9 @@ class DeepResearcher:
             f"Respond with ONLY the category name, nothing else."
         )
         try:
-            result = await self._llm([{"role": "user", "content": prompt}],
-                                     temperature=0, max_tokens=20, timeout=15)
+            result = await self._llm(
+                [{"role": "user", "content": prompt}], temperature=0, max_tokens=20, timeout=15
+            )
             cat = (result or "").strip().lower()
             first = cat.split()[0].strip(".,\"'*:") if cat.split() else ""
             if first in CATEGORY_PROMPTS:
@@ -381,23 +416,30 @@ class DeepResearcher:
     async def _generate_queries(self, question: str, report: str, round_num: int) -> List[str]:
         if round_num == 1:
             num_queries = 4
-            round_instruction = ("This is the first round — generate broad, diverse queries "
-                                 "that explore the key facets of the question.")
+            round_instruction = (
+                "This is the first round — generate broad, diverse queries "
+                "that explore the key facets of the question."
+            )
         else:
             num_queries = 3
-            round_instruction = ("We already have partial findings.  Generate targeted follow-up "
-                                 "queries to fill gaps, verify claims, or explore specific aspects "
-                                 "that the report doesn't yet cover well.")
+            round_instruction = (
+                "We already have partial findings.  Generate targeted follow-up "
+                "queries to fill gaps, verify claims, or explore specific aspects "
+                "that the report doesn't yet cover well."
+            )
 
         prompt = current_date_context() + QUERY_GEN_PROMPT.format(
             question=question,
             research_plan=self.research_plan or "(No plan — search broadly.)",
             report=report or "(No findings yet.)",
-            round_num=round_num, num_queries=num_queries, round_instruction=round_instruction,
+            round_num=round_num,
+            num_queries=num_queries,
+            round_instruction=round_instruction,
         )
         try:
-            response = await self._llm([{"role": "user", "content": prompt}],
-                                       temperature=0.5, max_tokens=4096)
+            response = await self._llm(
+                [{"role": "user", "content": prompt}], temperature=0.5, max_tokens=4096
+            )
             queries = self._parse_json_array(response)
             new_queries = [q for q in queries if q not in self.queries_used]
             self.queries_used.update(new_queries)
@@ -412,8 +454,9 @@ class DeepResearcher:
     async def _search_and_extract(self, queries: List[str], question: str) -> List[Dict]:
         all_findings: List[Dict] = []
 
-        search_results = await asyncio.gather(*[self._search(q) for q in queries],
-                                              return_exceptions=True)
+        search_results = await asyncio.gather(
+            *[self._search(q) for q in queries], return_exceptions=True
+        )
         urls_to_fetch = []
         for result in search_results:
             if isinstance(result, Exception):
@@ -436,10 +479,13 @@ class DeepResearcher:
 
         async def _bounded_extract(result: Dict) -> Optional[Dict]:
             async with semaphore:
-                return await self._fetch_and_extract(result["url"], question, result.get("title", ""))
+                return await self._fetch_and_extract(
+                    result["url"], question, result.get("title", "")
+                )
 
-        results_gathered = await asyncio.gather(*[_bounded_extract(r) for r in urls_to_fetch],
-                                                return_exceptions=True)
+        results_gathered = await asyncio.gather(
+            *[_bounded_extract(r) for r in urls_to_fetch], return_exceptions=True
+        )
         for result in results_gathered:
             if isinstance(result, Exception):
                 logger.warning(f"Extraction error: {result}")
@@ -451,6 +497,7 @@ class DeepResearcher:
     async def _search(self, query: str) -> List[Dict]:
         try:
             from .search import search_chain
+
             results, prov, err = await search_chain(query, self.search_provider_override, 10)
             if results:
                 if prov and prov not in self.providers_used:
@@ -470,6 +517,7 @@ class DeepResearcher:
         self._emit(phase="reading", url=url, title=display, total_sources=len(self.urls_fetched))
         try:
             from .search import fetch_webpage_content
+
             page = await asyncio.to_thread(fetch_webpage_content, url, 10)
         except Exception as e:
             logger.warning(f"Failed to fetch {url}: {e}")
@@ -480,14 +528,20 @@ class DeepResearcher:
 
         content = page["content"]
         if len(content) > self.max_content_chars:
-            truncated = content[:self.max_content_chars]
-            last_para = truncated.rfind('\n\n')
-            content = truncated[:last_para] if last_para > self.max_content_chars * 0.8 else truncated
+            truncated = content[: self.max_content_chars]
+            last_para = truncated.rfind("\n\n")
+            content = (
+                truncated[:last_para] if last_para > self.max_content_chars * 0.8 else truncated
+            )
 
         prompt = EXTRACTOR_PROMPT.format(webpage_content=content, goal=question)
         try:
-            response = await self._llm([{"role": "user", "content": prompt}],
-                                       temperature=0.2, max_tokens=2048, timeout=self.extraction_timeout)
+            response = await self._llm(
+                [{"role": "user", "content": prompt}],
+                temperature=0.2,
+                max_tokens=2048,
+                timeout=self.extraction_timeout,
+            )
             parsed = self._parse_json_object(response)
             if parsed:
                 parsed["url"] = url
@@ -497,16 +551,21 @@ class DeepResearcher:
                     logger.info(f"Skipping low-quality extraction from {url}")
                     return None
                 return parsed
-            return {"url": url, "title": title or page.get("title", ""),
-                    "og_image": page.get("og_image", ""), "rational": "LLM extraction (raw)",
-                    "evidence": response[:3000], "summary": response[:500]}
+            return {
+                "url": url,
+                "title": title or page.get("title", ""),
+                "og_image": page.get("og_image", ""),
+                "rational": "LLM extraction (raw)",
+                "evidence": response[:3000],
+                "summary": response[:500],
+            }
         except Exception as e:
             logger.warning(f"LLM extraction failed for {url}: {e}")
             return None
 
     # ── synthesize ──────────────────────────────────────────────────────────
     async def _synthesize(self, question: str, findings: List[Dict], current_report: str) -> str:
-        window = findings[-self.synthesis_window:]
+        window = findings[-self.synthesis_window :]
         if len(findings) > self.synthesis_window:
             logger.info(f"Synthesis using last {self.synthesis_window} of {len(findings)} findings")
         findings_text = self._format_findings(window)
@@ -516,8 +575,12 @@ class DeepResearcher:
             new_findings=findings_text,
         )
         try:
-            return await self._llm([{"role": "user", "content": prompt}],
-                                   temperature=0.3, max_tokens=self.max_report_tokens, timeout=180)
+            return await self._llm(
+                [{"role": "user", "content": prompt}],
+                temperature=0.3,
+                max_tokens=self.max_report_tokens,
+                timeout=180,
+            )
         except Exception as e:
             logger.error(f"Synthesis failed: {e}")
             self._emit(phase="warning", message="Synthesis failed, keeping previous report")
@@ -527,10 +590,11 @@ class DeepResearcher:
     async def _should_stop(self, question: str, report: str, round_num: int) -> bool:
         prompt = STOP_PROMPT.format(question=question, report=report, round_num=round_num)
         try:
-            response = await self._llm([{"role": "user", "content": prompt}],
-                                       temperature=0.1, max_tokens=128)
+            response = await self._llm(
+                [{"role": "user", "content": prompt}], temperature=0.1, max_tokens=128
+            )
             clean = strip_thinking(response).strip()
-            answer = re.sub(r'^[\s*_`"\'>#\-]+', '', clean).upper()
+            answer = re.sub(r'^[\s*_`"\'>#\-]+', "", clean).upper()
             should_stop = answer.startswith("YES")
             logger.info(f"Stop decision (round {round_num}): {clean[:120]}")
             return should_stop
@@ -545,23 +609,34 @@ class DeepResearcher:
         if cat_extra:
             prompt += "\n\n" + cat_extra
         try:
-            result = await self._llm([{"role": "user", "content": prompt}],
-                                     temperature=0.3, max_tokens=self.max_report_tokens, timeout=180)
+            result = await self._llm(
+                [{"role": "user", "content": prompt}],
+                temperature=0.3,
+                max_tokens=self.max_report_tokens,
+                timeout=180,
+            )
             if len(result.split()) < 400:
                 logger.info(f"Final report too short ({len(result.split())} words), expanding")
                 self._emit(phase="writing", message="Expanding report...")
-                expanded = await self._llm([
-                    {"role": "user", "content": prompt},
-                    {"role": "assistant", "content": result},
-                    {"role": "user", "content":
-                        "This report is too brief. Please expand it significantly:\n"
-                        "- Add detailed paragraphs for each section (not just bullet points)\n"
-                        "- Include specific data, numbers, and comparisons from the evidence\n"
-                        "- Explain context and significance — don't just list facts\n"
-                        "- Use ## headings and ### subheadings\n"
-                        "- Target at least 1000 words\n"
-                        "Write the full expanded report now."},
-                ], temperature=0.4, max_tokens=self.max_report_tokens, timeout=180)
+                expanded = await self._llm(
+                    [
+                        {"role": "user", "content": prompt},
+                        {"role": "assistant", "content": result},
+                        {
+                            "role": "user",
+                            "content": "This report is too brief. Please expand it significantly:\n"
+                            "- Add detailed paragraphs for each section (not just bullet points)\n"
+                            "- Include specific data, numbers, and comparisons from the evidence\n"
+                            "- Explain context and significance — don't just list facts\n"
+                            "- Use ## headings and ### subheadings\n"
+                            "- Target at least 1000 words\n"
+                            "Write the full expanded report now.",
+                        },
+                    ],
+                    temperature=0.4,
+                    max_tokens=self.max_report_tokens,
+                    timeout=180,
+                )
                 if len(expanded.split()) > len(result.split()):
                     return expanded
             return result
@@ -584,8 +659,8 @@ class DeepResearcher:
     def _strip_code_block(text: str) -> str:
         text = text.strip()
         if text.startswith("```"):
-            text = re.sub(r'^```(?:json)?\s*', '', text)
-            text = re.sub(r'\s*```$', '', text)
+            text = re.sub(r"^```(?:json)?\s*", "", text)
+            text = re.sub(r"\s*```$", "", text)
         return text.strip()
 
     def _parse_json_array(self, text: str) -> List[str]:
@@ -597,12 +672,12 @@ class DeepResearcher:
         except json.JSONDecodeError:
             pass
         # truncated array — repair from the LAST '[' so an echoed example isn't harvested
-        last_start = text.rfind('[')
-        if last_start != -1 and ']' not in text[last_start:]:
+        last_start = text.rfind("[")
+        if last_start != -1 and "]" not in text[last_start:]:
             complete_items = re.findall(r'"([^"]*)"', text[last_start:])
             if complete_items:
                 return complete_items
-        match = re.search(r'\[[\s\S]*\]', text)
+        match = re.search(r"\[[\s\S]*\]", text)
         if match:
             try:
                 parsed = json.loads(match.group())
@@ -612,7 +687,7 @@ class DeepResearcher:
                 pass
         # multiple arrays (echoed example + real one) — keep the LAST parseable
         last_parsed = None
-        for m in re.finditer(r'\[[\s\S]*?\]', text):
+        for m in re.finditer(r"\[[\s\S]*?\]", text):
             try:
                 parsed = json.loads(m.group())
                 if isinstance(parsed, list):
@@ -621,7 +696,7 @@ class DeepResearcher:
                 continue
         if last_parsed is not None:
             return [str(item) for item in last_parsed]
-        arr_start = text.find('[')
+        arr_start = text.find("[")
         if arr_start != -1:
             complete_items = re.findall(r'"([^"]*)"', text[arr_start:])
             if complete_items:
@@ -635,7 +710,7 @@ class DeepResearcher:
             return json.loads(text)
         except json.JSONDecodeError:
             pass
-        match = re.search(r'\{[\s\S]*\}', text)
+        match = re.search(r"\{[\s\S]*\}", text)
         if match:
             try:
                 return json.loads(match.group())

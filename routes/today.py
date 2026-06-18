@@ -5,6 +5,7 @@ calendar, tasks, reminders, subscriptions, day-events, and docs.
 the client passes ?date=YYYY-MM-DD (its LOCAL date). never default to the
 server's date for user-facing day math — the server may run in UTC.
 """
+
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from fastapi import APIRouter, Depends, Query
@@ -56,8 +57,9 @@ def today_view(date_q: str = Query("", alias="date"), db: DbSession = Depends(ge
     for e in db.query(CalendarEvent).all():
         if _event_occurs_on(e, today):
             t = str(e.start_dt)[11:16] if len(str(e.start_dt)) > 10 else ""
-            events.append({"id": e.id, "title": e.title, "time": "" if e.all_day else t,
-                           "all_day": e.all_day})
+            events.append(
+                {"id": e.id, "title": e.title, "time": "" if e.all_day else t, "all_day": e.all_day}
+            )
     events.sort(key=lambda x: (x["time"] == "", x["time"]))
 
     # tasks — overdue and due today (open only), plus the open count
@@ -77,11 +79,11 @@ def today_view(date_q: str = Query("", alias="date"), db: DbSession = Depends(ge
     reminders = []
     for r in db.query(Reminder).filter(Reminder.fired == False).all():
         if r.trigger_at and r.trigger_at.date() <= today:
-            reminders.append({"id": r.id, "text": r.text,
-                              "at": r.trigger_at.strftime("%H:%M")})
+            reminders.append({"id": r.id, "text": r.text, "at": r.trigger_at.strftime("%H:%M")})
 
     # subscriptions — renewing within 7 days
     from routes.subscriptions import _roll, _parse as _sub_parse
+
     subs = db.query(Subscription).filter(Subscription.active == True).all()
     if any(_roll(s, today) for s in subs):
         db.commit()
@@ -89,12 +91,20 @@ def today_view(date_q: str = Query("", alias="date"), db: DbSession = Depends(ge
     for s in subs:
         days_until = (_sub_parse(s.next_due) - today).days
         if 0 <= days_until <= 7:
-            renewing.append({"id": s.id, "name": s.name, "in_days": days_until,
-                             "price": s.price, "currency": s.currency})
+            renewing.append(
+                {
+                    "id": s.id,
+                    "name": s.name,
+                    "in_days": days_until,
+                    "price": s.price,
+                    "currency": s.currency,
+                }
+            )
     renewing.sort(key=lambda x: x["in_days"])
 
     # day-events — today or within 3 days
     from routes.days import _occurrence, _parse as _day_parse
+
     day_events = []
     for ev in db.query(DayEvent).all():
         orig = _day_parse(ev.date)
@@ -113,10 +123,12 @@ def today_view(date_q: str = Query("", alias="date"), db: DbSession = Depends(ge
     recent_docs = []
     try:
         from services.vault_md import _all_md, vault_dir
+
         root = vault_dir()
         files = sorted(_all_md(), key=lambda p: p.stat().st_mtime, reverse=True)[:5]
-        recent_docs = [{"path": str(p.relative_to(root)).replace("\\", "/"),
-                        "name": p.stem} for p in files]
+        recent_docs = [
+            {"path": str(p.relative_to(root)).replace("\\", "/"), "name": p.stem} for p in files
+        ]
     except Exception:
         pass
 

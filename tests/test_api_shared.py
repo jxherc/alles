@@ -6,9 +6,12 @@ class SharedApiTest(ApiTest):
     def _seed_session(self, name="chat"):
         d = self.db()
         s = Session(name=name, model="aide")
-        d.add(s); d.commit()
+        d.add(s)
+        d.commit()
         d.add(Message(session_id=s.id, role="user", content="hello shared"))
-        d.commit(); sid = s.id; d.close()
+        d.commit()
+        sid = s.id
+        d.close()
         return sid
 
     def test_share_idempotent_and_public_view(self):

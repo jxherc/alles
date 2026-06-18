@@ -18,9 +18,14 @@ def _fake_client(status):
         text = ""
 
     class _Client:
-        async def __aenter__(self): return self
-        async def __aexit__(self, *a): return False
-        async def post(self, *a, **k): return _Resp()
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *a):
+            return False
+
+        async def post(self, *a, **k):
+            return _Resp()
 
     return lambda *a, **k: _Client()
 
@@ -30,7 +35,7 @@ class WebPushTest(unittest.TestCase):
         self._tmp = tempfile.TemporaryDirectory()
         self._p = mock.patch.object(wp, "_KEY_FILE", Path(self._tmp.name) / "vapid.pem")
         self._p.start()
-        wp._vapid_key = None   # regenerate against the temp file, not real data/
+        wp._vapid_key = None  # regenerate against the temp file, not real data/
 
     def tearDown(self):
         self._p.stop()
@@ -45,8 +50,8 @@ class WebPushTest(unittest.TestCase):
     def test_public_key_generated_and_stable(self):
         k1 = wp.public_key_b64u()
         self.assertTrue((Path(self._tmp.name) / "vapid.pem").exists())
-        self.assertEqual(len(wp._b64u_dec(k1)), 65)   # uncompressed P-256 point
-        self.assertEqual(k1, wp.public_key_b64u())     # cached → stable
+        self.assertEqual(len(wp._b64u_dec(k1)), 65)  # uncompressed P-256 point
+        self.assertEqual(k1, wp.public_key_b64u())  # cached → stable
 
     def test_vapid_auth_header_shape(self):
         h = wp._vapid_auth("https://push.example.com/abc")
@@ -56,14 +61,19 @@ class WebPushTest(unittest.TestCase):
     def _sub(self):
         ua = ec.generate_private_key(ec.SECP256R1())
         pub = ua.public_key().public_bytes(
-            serialization.Encoding.X962, serialization.PublicFormat.UncompressedPoint)
-        return {"endpoint": "https://push.example/x", "p256dh": wp._b64u(pub), "auth": wp._b64u(os.urandom(16))}
+            serialization.Encoding.X962, serialization.PublicFormat.UncompressedPoint
+        )
+        return {
+            "endpoint": "https://push.example/x",
+            "p256dh": wp._b64u(pub),
+            "auth": wp._b64u(os.urandom(16)),
+        }
 
     def test_encrypt_structure(self):
         body = wp._encrypt(b"hello", self._sub()["p256dh"], self._sub()["auth"])
         rs = struct.unpack("!I", body[16:20])[0]
-        self.assertEqual(rs, 4096)        # record size header
-        self.assertEqual(body[20], 65)    # ephemeral key length
+        self.assertEqual(rs, 4096)  # record size header
+        self.assertEqual(body[20], 65)  # ephemeral key length
         self.assertGreater(len(body), 16 + 5 + 65)
 
     def test_send_push_prunes_on_410(self):

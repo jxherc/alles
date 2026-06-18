@@ -1,34 +1,43 @@
 from datetime import date
-from fastapi import APIRouter, HTTPException, Depends
-from pydantic import BaseModel
 from typing import Optional
+
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 from sqlalchemy.orm import Session as DbSession
-from core.database import get_db, Task
-from services.task_nl import parse_task, advance
+
+from core.database import Task, get_db
+from services.task_nl import advance, parse_task, reschedule_date
 
 router = APIRouter(prefix="/api")
 
 
 def _fmt(t: Task) -> dict:
     return {
-        "id":         t.id,
-        "title":      t.title,
-        "done":       t.done,
-        "priority":   t.priority,
-        "due_date":   t.due_date,
-        "parent_id":  t.parent_id,
-        "tags":       [x for x in (t.tags or "").split(",") if x],
-        "repeat":     t.repeat or "",
-        "notes":      t.notes or "",
-        "project":    t.project or "",
+        "id": t.id,
+        "title": t.title,
+        "done": t.done,
+        "priority": t.priority,
+        "due_date": t.due_date,
+        "parent_id": t.parent_id,
+        "tags": [x for x in (t.tags or "").split(",") if x],
+        "repeat": t.repeat or "",
+        "notes": t.notes or "",
+        "project": t.project or "",
         "sort_order": t.sort_order or 0,
         "created_at": t.created_at.isoformat(),
     }
 
 
 def _ordered(rows):
-    return sorted(rows, key=lambda t: (t.sort_order or 0, -(t.priority or 0),
-                                       t.due_date or "9999", t.created_at.isoformat()))
+    return sorted(
+        rows,
+        key=lambda t: (
+            t.sort_order or 0,
+            -(t.priority or 0),
+            t.due_date or "9999",
+            t.created_at.isoformat(),
+        ),
+    )
 
 
 @router.get("/tasks")
@@ -40,6 +49,42 @@ def list_tasks(project: str = "", tag: str = "", db: DbSession = Depends(get_db)
     if tag:
         rows = [t for t in rows if tag in (t.tags or "").split(",")]
     return [_fmt(t) for t in rows]
+
+
+@router.get("/tasks/search")
+def search_tasks(q: str = "", db: DbSession = Depends(get_db)):
+    """search active tasks by title / notes / tags (case-insensitive substring)."""
+    q = (q or "").strip()
+    if not q:
+        return []
+    rows = _ordered(db.query(Task).filter(Task.done == False).all())
+    ql = q.lower()
+    hits = [
+        t
+        for t in rows
+        if ql in (t.title or "").lower()
+        or ql in (t.notes or "").lower()
+        or ql in (t.tags or "").lower()
+    ]
+    return [_fmt(t) for t in hits]
+
+
+@router.get("/tasks/tree")
+def task_tree(db: DbSession = Depends(get_db)):
+    """active top-level tasks with their subtasks nested + done/total progress."""
+    children: dict[str, list] = {}
+    for t in db.query(Task).all():  # include done subtasks so progress is accurate
+        if t.parent_id:
+            children.setdefault(t.parent_id, []).append(t)
+    tops = _ordered([t for t in db.query(Task).filter(Task.done == False).all() if not t.parent_id])
+    out = []
+    for t in tops:
+        subs = _ordered(children.get(t.id, []))
+        node = _fmt(t)
+        node["subtasks"] = [_fmt(s) for s in subs]
+        node["progress"] = {"done": sum(1 for s in subs if s.done), "total": len(subs)}
+        out.append(node)
+    return out
 
 
 @router.get("/tasks/done")
@@ -54,7 +99,7 @@ def list_view(view: str, db: DbSession = Depends(get_db)):
     today = date.today().isoformat()
     rows = _ordered(db.query(Task).filter(Task.done == False).all())
     if view == "today":
-        rows = [t for t in rows if t.due_date and t.due_date[:10] <= today]   # due or overdue
+        rows = [t for t in rows if t.due_date and t.due_date[:10] <= today]  # due or overdue
     elif view == "upcoming":
         rows = [t for t in rows if t.due_date and t.due_date[:10] > today]
     elif view == "someday":
@@ -73,14 +118,21 @@ class TaskBody(BaseModel):
     repeat: str = ""
     project: str = ""
     notes: str = ""
-    nl: bool = False        # parse the title as natural language
+    nl: bool = False  # parse the title as natural language
 
 
 @router.post("/tasks")
 def create_task(body: TaskBody, db: DbSession = Depends(get_db)):
-    fields = dict(title=body.title, priority=body.priority, due_date=body.due_date,
-                  parent_id=body.parent_id, tags=body.tags, repeat=body.repeat,
-                  project=body.project, notes=body.notes)
+    fields = dict(
+        title=body.title,
+        priority=body.priority,
+        due_date=body.due_date,
+        parent_id=body.parent_id,
+        tags=body.tags,
+        repeat=body.repeat,
+        project=body.project,
+        notes=body.notes,
+    )
     if body.nl:
         p = parse_task(body.title)
         fields["title"] = p["title"]
@@ -89,7 +141,9 @@ def create_task(body: TaskBody, db: DbSession = Depends(get_db)):
         fields["repeat"] = body.repeat or p["repeat"]
         fields["tags"] = body.tags or p["tags"]
     t = Task(**fields)
-    db.add(t); db.commit(); db.refresh(t)
+    db.add(t)
+    db.commit()
+    db.refresh(t)
     return _fmt(t)
 
 
@@ -104,9 +158,17 @@ def quick_add(body: QuickBody, db: DbSession = Depends(get_db)):
     if not body.text.strip():
         raise HTTPException(400, "empty")
     p = parse_task(body.text)
-    t = Task(title=p["title"], priority=p["priority"], due_date=p["due_date"],
-             repeat=p["repeat"], tags=p["tags"], project=body.project)
-    db.add(t); db.commit(); db.refresh(t)
+    t = Task(
+        title=p["title"],
+        priority=p["priority"],
+        due_date=p["due_date"],
+        repeat=p["repeat"],
+        tags=p["tags"],
+        project=body.project,
+    )
+    db.add(t)
+    db.commit()
+    db.refresh(t)
     return _fmt(t)
 
 
@@ -119,24 +181,63 @@ def update_task(tid: str, body: dict, db: DbSession = Depends(get_db)):
     # stamp/clear the completion time as done flips (powers the activity feed)
     if "done" in body and bool(body["done"]) != bool(t.done):
         from datetime import datetime
+
         t.completed_at = datetime.utcnow() if body["done"] else None
     if body.get("done") and not t.done and t.repeat and t.due_date:
         # completing a recurring task rolls it forward to the next occurrence
         nxt = advance(t.due_date, t.repeat)
         if nxt:
-            spawned = Task(title=t.title, priority=t.priority, due_date=nxt,
-                           repeat=t.repeat, tags=t.tags, project=t.project, notes=t.notes,
-                           parent_id=t.parent_id)
+            spawned = Task(
+                title=t.title,
+                priority=t.priority,
+                due_date=nxt,
+                repeat=t.repeat,
+                tags=t.tags,
+                project=t.project,
+                notes=t.notes,
+                parent_id=t.parent_id,
+            )
             db.add(spawned)
-    for f in ("done", "title", "priority", "due_date", "tags", "repeat", "notes", "project", "sort_order", "parent_id"):
+    for f in (
+        "done",
+        "title",
+        "priority",
+        "due_date",
+        "tags",
+        "repeat",
+        "notes",
+        "project",
+        "sort_order",
+        "parent_id",
+    ):
         if f in body:
             setattr(t, f, body[f])
-    db.commit(); db.refresh(t)
+    db.commit()
+    db.refresh(t)
     out = _fmt(t)
     if spawned:
         db.refresh(spawned)
         out["spawned"] = _fmt(spawned)
     return out
+
+
+class RescheduleBody(BaseModel):
+    when: str
+
+
+@router.post("/tasks/{tid}/reschedule")
+def reschedule_task(tid: str, body: RescheduleBody, db: DbSession = Depends(get_db)):
+    """quick reschedule: today | tomorrow | next_week | weekend | <weekday>."""
+    t = db.get(Task, tid)
+    if not t:
+        raise HTTPException(404)
+    try:
+        t.due_date = reschedule_date(body.when)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    db.commit()
+    db.refresh(t)
+    return _fmt(t)
 
 
 class Reorder(BaseModel):
@@ -158,6 +259,7 @@ def delete_task(tid: str, db: DbSession = Depends(get_db)):
     t = db.get(Task, tid)
     if not t:
         raise HTTPException(404)
-    db.query(Task).filter(Task.parent_id == tid).delete()   # cascade subtasks
-    db.delete(t); db.commit()
+    db.query(Task).filter(Task.parent_id == tid).delete()  # cascade subtasks
+    db.delete(t)
+    db.commit()
     return {"ok": True}

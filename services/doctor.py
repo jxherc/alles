@@ -4,6 +4,7 @@ log, and GET /health. each check is cheap and import-light: dependency checks
 use find_spec (no import), and the DB check is lazy, so this module loads even
 when the app's own deps aren't installed yet (that's the whole point of doctor).
 """
+
 import sys
 import importlib.util
 from pathlib import Path
@@ -65,7 +66,7 @@ def check_optional_deps():
     detail = f"{len(present)}/{len(_OPTIONAL)} installed"
     if missing:
         detail += " — not installed: " + ", ".join(missing)
-    return True, "optional dependencies", detail   # always ok — these degrade gracefully
+    return True, "optional dependencies", detail  # always ok — these degrade gracefully
 
 
 def check_data_dir():
@@ -89,6 +90,7 @@ def check_endpoint_configured():
     # lazy import — the DB layer needs sqlalchemy, which may be the very thing missing
     try:
         from core.database import SessionLocal, ModelEndpoint
+
         db = SessionLocal()
         try:
             eps = db.query(ModelEndpoint).filter(ModelEndpoint.enabled == True).all()
@@ -97,13 +99,23 @@ def check_endpoint_configured():
             db.close()
         if usable:
             return True, "ai provider", f"{len(usable)} usable endpoint(s)"
-        return True, "ai provider", "none yet — add one in settings → models (this is normal on a fresh install)"
+        return (
+            True,
+            "ai provider",
+            "none yet — add one in settings → models (this is normal on a fresh install)",
+        )
     except Exception as e:
         return False, "ai provider", f"check skipped: {e}"
 
 
-_CHECKS = [check_python, check_required_deps, check_optional_deps,
-           check_data_dir, check_secret_key, check_endpoint_configured]
+_CHECKS = [
+    check_python,
+    check_required_deps,
+    check_optional_deps,
+    check_data_dir,
+    check_secret_key,
+    check_endpoint_configured,
+]
 
 
 def run_all() -> list[dict]:
@@ -111,7 +123,7 @@ def run_all() -> list[dict]:
     for fn in _CHECKS:
         try:
             ok, label, detail = fn()
-        except Exception as e:           # a check must never crash the doctor
+        except Exception as e:  # a check must never crash the doctor
             ok, label, detail = False, fn.__name__, f"errored: {e}"
         out.append({"ok": ok, "label": label, "detail": detail})
     return out
