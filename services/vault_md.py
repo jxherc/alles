@@ -8,14 +8,14 @@ import re
 import shutil
 from pathlib import Path
 
-from core.settings import load_settings
+from core.settings import load_settings, data_dir
 
 ROOT = Path(__file__).resolve().parent.parent
 
 
 def vault_dir() -> Path:
     s = load_settings()
-    d = s.get("vault_dir") or str(ROOT / "data" / "vault")
+    d = s.get("vault_dir") or str(data_dir() / "vault")
     p = Path(d).expanduser()
     p.mkdir(parents=True, exist_ok=True)
     return p
