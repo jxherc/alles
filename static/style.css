@@ -2932,6 +2932,8 @@ body.is-incognito .incognito-bar {
 .act-range { display: inline-flex; gap: 1px; margin-left: 0.4rem; border: 1px solid var(--faint); border-radius: 3px; overflow: hidden; }
 .act-range-opt { font-family: inherit; font-size: 0.64rem; cursor: pointer; padding: 0.15rem 0.4rem; background: none; border: none; color: var(--muted); }
 .act-range-opt.on { background: var(--faint); color: var(--text); }
+.act-search { font-family: inherit; font-size: 0.7rem; margin-left: auto; padding: 0.2rem 0.5rem; background: var(--bg); border: 1px solid var(--faint); border-radius: 3px; color: var(--text); width: 200px; }
+.act-search:focus { outline: none; border-color: var(--muted); }
 
 .activity-day {
   position: sticky; top: 0; z-index: 1; background: var(--bg);
