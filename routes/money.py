@@ -1,13 +1,34 @@
+import calendar as _cal
 from collections import defaultdict
-from datetime import datetime
+from datetime import date, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session as DbSession
 
-from core.database import Account, Budget, Transaction, get_db
+from core.database import Account, Budget, RecurringTxn, Transaction, get_db
 
 router = APIRouter(prefix="/api/money")
+
+RECUR_CYCLES = ("weekly", "monthly", "quarterly", "yearly", "custom")
+
+
+def _add_months(d: date, n: int) -> date:
+    y, m = divmod(d.month - 1 + n, 12)
+    y, m = d.year + y, m + 1
+    return date(y, m, min(d.day, _cal.monthrange(y, m)[1]))
+
+
+def _advance(d: date, cycle: str, cycle_days: int) -> date:
+    if cycle == "weekly":
+        return d + timedelta(days=7)
+    if cycle == "monthly":
+        return _add_months(d, 1)
+    if cycle == "quarterly":
+        return _add_months(d, 3)
+    if cycle == "yearly":
+        return _add_months(d, 12)
+    return d + timedelta(days=max(1, cycle_days or 30))
 
 
 # ── accounts ────────────────────────────────────────────────────────────────
@@ -107,6 +128,7 @@ def list_txns(
     limit: int = 500,
     db: DbSession = Depends(get_db),
 ):
+    _post_due_recurring(db)
     q = db.query(Transaction)
     if account:
         q = q.filter(Transaction.account_id == account)
@@ -314,6 +336,141 @@ def delete_transfer(tid: str, db: DbSession = Depends(get_db)):
         db.delete(t)
     db.commit()
     return {"ok": True, "removed": len(legs)}
+
+
+# ── recurring transactions (rent, salary, loans — auto-posted each cycle) ─────
+_RECUR_CAP = 60  # don't flood the ledger if the app sat unopened for years
+
+
+def _post_due_recurring(db, today: date = None) -> bool:
+    """post a real txn for every occurrence of every active rule that's due up to
+    today, advancing next_date past today. idempotent: re-running posts nothing new
+    because next_date has already moved forward."""
+    today = today or date.today()
+    changed = False
+    for r in db.query(RecurringTxn).filter(RecurringTxn.active == True).all():
+        if not r.next_date:
+            continue
+        try:
+            nd = date.fromisoformat(r.next_date[:10])
+        except ValueError:
+            continue
+        guard = 0
+        while nd <= today and guard < _RECUR_CAP:
+            db.add(
+                Transaction(
+                    account_id=r.account_id,
+                    date=nd.isoformat(),
+                    amount=r.amount or 0.0,
+                    category=r.category or "",
+                    payee=r.payee or "",
+                    notes=r.notes or "",
+                )
+            )
+            r.last_posted = nd.isoformat()
+            nd = _advance(nd, r.cycle, r.cycle_days)
+            guard += 1
+            changed = True
+        r.next_date = nd.isoformat()
+    if changed:
+        db.commit()
+    return changed
+
+
+def _rec(r):
+    return {
+        "id": r.id,
+        "account_id": r.account_id,
+        "amount": r.amount,
+        "category": r.category,
+        "payee": r.payee,
+        "notes": r.notes,
+        "cycle": r.cycle,
+        "cycle_days": r.cycle_days,
+        "next_date": r.next_date,
+        "active": bool(r.active),
+        "last_posted": r.last_posted or "",
+    }
+
+
+@router.get("/recurring")
+def list_recurring(db: DbSession = Depends(get_db)):
+    _post_due_recurring(db)
+    rows = db.query(RecurringTxn).order_by(RecurringTxn.next_date.asc()).all()
+    return [_rec(r) for r in rows]
+
+
+class RecurringBody(BaseModel):
+    account_id: str
+    amount: float = 0.0
+    category: str = ""
+    payee: str = ""
+    notes: str = ""
+    cycle: str = "monthly"
+    cycle_days: int = 30
+    next_date: str
+    active: bool = True
+
+
+@router.post("/recurring")
+def create_recurring(body: RecurringBody, db: DbSession = Depends(get_db)):
+    if not db.get(Account, body.account_id):
+        raise HTTPException(400, "unknown account")
+    if body.cycle not in RECUR_CYCLES:
+        raise HTTPException(400, f"cycle must be one of {', '.join(RECUR_CYCLES)}")
+    try:
+        date.fromisoformat(body.next_date[:10])
+    except ValueError:
+        raise HTTPException(400, "next_date must be an ISO date (YYYY-MM-DD)")
+    r = RecurringTxn(
+        account_id=body.account_id,
+        amount=body.amount or 0.0,
+        category=(body.category or "").strip(),
+        payee=(body.payee or "").strip(),
+        notes=(body.notes or "").strip(),
+        cycle=body.cycle,
+        cycle_days=body.cycle_days or 30,
+        next_date=body.next_date[:10],
+        active=body.active,
+    )
+    db.add(r)
+    db.commit()
+    db.refresh(r)
+    return _rec(r)
+
+
+@router.patch("/recurring/{rid}")
+def update_recurring(rid: str, body: dict, db: DbSession = Depends(get_db)):
+    r = db.get(RecurringTxn, rid)
+    if not r:
+        raise HTTPException(404)
+    if "cycle" in body and body["cycle"] not in RECUR_CYCLES:
+        raise HTTPException(400, f"cycle must be one of {', '.join(RECUR_CYCLES)}")
+    for k in (
+        "account_id",
+        "amount",
+        "category",
+        "payee",
+        "notes",
+        "cycle",
+        "cycle_days",
+        "next_date",
+        "active",
+    ):
+        if k in body:
+            setattr(r, k, body[k])
+    db.commit()
+    return _rec(r)
+
+
+@router.delete("/recurring/{rid}")
+def delete_recurring(rid: str, db: DbSession = Depends(get_db)):
+    r = db.get(RecurringTxn, rid)
+    if not r:
+        raise HTTPException(404)
+    db.delete(r)
+    db.commit()
+    return {"ok": True}
 
 
 # ── budgets (monthly spending caps per category) ──────────────────────────────
