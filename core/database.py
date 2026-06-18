@@ -1,19 +1,23 @@
-import os, uuid, json
+import json
+import os
+import uuid
 from datetime import datetime
+
 from sqlalchemy import (
-    create_engine,
+    Boolean,
     Column,
+    DateTime,
+    Float,
+    ForeignKey,
+    Integer,
     String,
     Text,
-    Boolean,
-    Integer,
-    Float,
-    DateTime,
-    ForeignKey,
+    create_engine,
     event,
     text,
 )
-from sqlalchemy.orm import DeclarativeBase, sessionmaker, relationship
+from sqlalchemy.orm import DeclarativeBase, relationship, sessionmaker
+from sqlalchemy.types import TypeDecorator
 
 # default db lives in <data>/aide.db; ALLES_DB (or ALLES_DATA via settings.data_dir) isolates it
 from core.settings import data_dir as _data_dir
@@ -34,9 +38,6 @@ SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 
 class Base(DeclarativeBase):
     pass
-
-
-from sqlalchemy.types import TypeDecorator
 
 
 class EncryptedText(TypeDecorator):
@@ -159,13 +160,13 @@ class McpServer(Base):
     def args_list(self):
         try:
             return json.loads(self.args or "[]")
-        except:
+        except Exception:
             return []
 
     def disabled_tools_list(self):
         try:
             return json.loads(self.disabled_tools or "[]")
-        except:
+        except Exception:
             return []
 
 
@@ -295,7 +296,7 @@ class Webhook(Base):
     def events_list(self):
         try:
             return json.loads(self.events or "[]")
-        except:
+        except Exception:
             return []
 
 
@@ -389,6 +390,20 @@ class MailAccount(Base):
     password = Column(EncryptedText, default="")  # AES-GCM at rest, see secretstore
     use_ssl = Column(Boolean, default=True)
     created_at = Column(DateTime, default=_now)
+
+
+class MailDraft(Base):
+    __tablename__ = "mail_drafts"
+    id = Column(String, primary_key=True, default=_uid)
+    account_id = Column(String, default="", index=True)
+    to = Column(Text, default="")
+    cc = Column(Text, default="")
+    bcc = Column(Text, default="")
+    subject = Column(Text, default="")
+    body = Column(Text, default="")
+    in_reply_to = Column(String, default="")
+    references = Column(Text, default="")
+    updated_at = Column(DateTime, default=_now, onupdate=_now)
 
 
 class Album(Base):
@@ -613,7 +628,7 @@ def init_db():
 
 def _encrypt_plaintext_secrets():
     """one-time (idempotent) — seal credentials that predate at-rest encryption"""
-    from services.secretstore import seal, PREFIX
+    from services.secretstore import PREFIX, seal
 
     with engine.begin() as conn:
         for table, col in (("model_endpoints", "api_key"), ("mail_accounts", "password")):
