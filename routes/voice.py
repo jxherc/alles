@@ -1,7 +1,11 @@
-import io, os
-from fastapi import APIRouter, HTTPException, UploadFile, File
+import os
+
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
+from sqlalchemy.orm import Session as DbSession
+
+from core.database import get_db
 from core.settings import load_settings
 
 router = APIRouter(prefix="/api")
@@ -92,3 +96,48 @@ async def text_to_speech(body: TtsRequest):
                     yield chunk
 
     return StreamingResponse(_stream(), media_type="audio/mpeg")
+
+
+class AudioOverviewReq(BaseModel):
+    session_id: str = ""
+    doc_path: str = ""
+    style: str = "summary"  # summary | podcast
+
+
+@router.post("/audio-overview")
+async def audio_overview(body: AudioOverviewReq, db: DbSession = Depends(get_db)):
+    """turn a chat or a doc into a spoken-word script (segments the client plays
+    through TTS). the model writes it; we clean it into ordered segments."""
+    from core.database import ModelEndpoint, Session
+    from services import audio_overview as ao
+
+    # resolve the source material
+    if body.session_id:
+        s = db.get(Session, body.session_id)
+        if not s:
+            raise HTTPException(404, "session not found")
+        parts = []
+        for m in s.messages:
+            if m.role in ("user", "assistant") and (m.content or "").strip():
+                parts.append(f"{m.role}: {m.content.strip()}")
+        source = "\n\n".join(parts)
+    elif body.doc_path:
+        from services import vault_md
+
+        doc = vault_md.read(body.doc_path)
+        if not doc.get("exists"):
+            raise HTTPException(404, "doc not found")
+        source = doc.get("content", "")
+    else:
+        raise HTTPException(400, "give a session_id or doc_path")
+
+    if not (source or "").strip():
+        raise HTTPException(400, "nothing to summarize")
+
+    ep = db.query(ModelEndpoint).filter(ModelEndpoint.enabled == True).first()
+    if not ep or not ep.models_list():
+        raise HTTPException(400, "no model endpoint configured")
+
+    style = body.style if body.style in ("summary", "podcast") else "summary"
+    segments = await ao.generate(source, style, ep.base_url, ep.api_key, ep.models_list()[0])
+    return {"style": style, "segments": segments}
