@@ -460,6 +460,11 @@ def local_graph(name: str, depth: int = 1):
     return vault_md.local_graph(name, depth)
 
 
+@router.get("/slash-commands")
+def slash_commands(q: str = ""):
+    return {"commands": vault_md.filter_slash_commands(q)}
+
+
 @router.post("/asset")
 async def upload_asset(file: UploadFile = File(...)):
     """pasted/dropped image → saved under _assets/, returns the embed path."""

@@ -100,7 +100,7 @@ function ensureCM() {
       onChange: (val) => {
         const ta = $('wiki-source'); if (ta) ta.value = val;
         updateStats();
-        if (!_applyingExternal) queueSave();
+        if (!_applyingExternal) { queueSave(); slashDetect(); }
       },
       wikiComplete: async (q) => {
         const res = await fetch(`/api/vault-md/search?q=${encodeURIComponent(q)}`).then(r => r.json()).catch(() => ({ results: [] }));
@@ -375,6 +375,8 @@ export function initVault() {
     ta.addEventListener('blur', () => setTimeout(hideAc, 120));
     ta.addEventListener('click', () => hideAc());
   }
+  // slash menu nav: capture phase so it beats CM6's own keymap while the menu is open
+  document.addEventListener('keydown', _slashKeydown, true);
   initDocsToolbar();
   applyDocsMode();
   loadTree();
@@ -386,6 +388,7 @@ function onSourceInput() {
   updateStats();
   queueSave();
   autocomplete();
+  slashDetect();
 }
 function onSourceKeydown(e) {
   if ($('wiki-autocomplete')?.style.display === 'block' && _acItems.length) {
@@ -933,6 +936,90 @@ async function saveProps() {
     await loadProps();
     toast('properties saved', 'success');
   } catch { toast('failed to save properties', 'error'); }
+}
+
+// ── slash "/" insert menu (live CM6 + source textarea) ───────────────────────
+let _slashOpen = false, _slashItems = [], _slashSel = 0, _slashCtx = null;
+function _editorCtx() {
+  if (_docsMode === 'source') {
+    const ta = $('wiki-source'); if (!ta) return null;
+    return { mode: 'source', text: ta.value, pos: ta.selectionStart, el: ta };
+  }
+  if (_docsMode === 'live' && _cm?.view) {
+    const v = _cm.view; const head = v.state.selection.main.head;
+    return { mode: 'live', text: v.state.doc.toString(), pos: head, view: v };
+  }
+  return null;
+}
+async function slashDetect() {
+  const ctx = _editorCtx(); if (!ctx) return hideSlash();
+  const { text, pos } = ctx;
+  let i = pos - 1;
+  while (i >= 0 && !/\s/.test(text[i]) && text[i] !== '/') i--;
+  if (i < 0 || text[i] !== '/') return hideSlash();
+  const before = i > 0 ? text[i - 1] : '\n';
+  if (i !== 0 && !/\s/.test(before)) return hideSlash();   // mid-word slash (e.g. a/b) — ignore
+  const q = text.slice(i + 1, pos);
+  if (/\s/.test(q)) return hideSlash();
+  _slashCtx = { ...ctx, start: i, end: pos };
+  let cmds = [];
+  try { cmds = (await fetch(`/api/vault-md/slash-commands?q=${encodeURIComponent(q)}`).then(r => r.json())).commands || []; }
+  catch { return hideSlash(); }
+  if (!cmds.length) return hideSlash();
+  _slashItems = cmds; _slashSel = 0;
+  renderSlash();
+}
+function _caretCoords(ctx) {
+  if (ctx.mode === 'live') {
+    const c = ctx.view.coordsAtPos(ctx.end);
+    return c ? { left: c.left, top: c.bottom } : null;
+  }
+  // textarea: mirror div to find the caret pixel
+  const ta = ctx.el, r = ta.getBoundingClientRect();
+  const div = document.createElement('div'); const s = getComputedStyle(ta);
+  for (const pr of ['fontFamily', 'fontSize', 'fontWeight', 'lineHeight', 'paddingTop', 'paddingLeft', 'paddingRight', 'whiteSpace', 'wordWrap', 'letterSpacing']) div.style[pr] = s[pr];
+  div.style.position = 'absolute'; div.style.visibility = 'hidden'; div.style.whiteSpace = 'pre-wrap'; div.style.wordWrap = 'break-word';
+  div.style.width = ta.clientWidth + 'px';
+  div.textContent = ta.value.slice(0, _slashCtx.end);
+  const span = document.createElement('span'); span.textContent = '​'; div.appendChild(span);
+  document.body.appendChild(div);
+  const top = r.top + (span.offsetTop - ta.scrollTop) + 18;
+  const left = r.left + (span.offsetLeft);
+  div.remove();
+  return { left, top };
+}
+function renderSlash() {
+  const box = $('wiki-slash'); if (!box) return;
+  box.innerHTML = _slashItems.map((c, i) =>
+    `<div class="wiki-slash-item${i === _slashSel ? ' active' : ''}" data-i="${i}"><span class="wiki-slash-label">${esc(c.label)}</span><span class="wiki-slash-id">/${esc(c.id)}</span></div>`).join('');
+  const co = _caretCoords(_slashCtx);
+  if (co) { box.style.left = Math.min(co.left, window.innerWidth - 230) + 'px'; box.style.top = co.top + 'px'; }
+  box.style.display = 'block';
+  _slashOpen = true;
+  box.querySelectorAll('.wiki-slash-item').forEach(el => el.addEventListener('mousedown', e => { e.preventDefault(); pickSlash(+el.dataset.i); }));
+}
+function hideSlash() { const b = $('wiki-slash'); if (b) b.style.display = 'none'; _slashOpen = false; _slashItems = []; }
+function pickSlash(i) {
+  const cmd = _slashItems[i]; if (!cmd || !_slashCtx) return hideSlash();
+  let snip = cmd.snippet, caret;
+  const ci = snip.indexOf('{}');
+  if (ci >= 0) { snip = snip.replace('{}', ''); caret = _slashCtx.start + ci; } else caret = _slashCtx.start + snip.length;
+  if (_slashCtx.mode === 'live') {
+    _slashCtx.view.dispatch({ changes: { from: _slashCtx.start, to: _slashCtx.end, insert: snip }, selection: { anchor: caret } });
+    _slashCtx.view.focus();
+  } else {
+    const ta = _slashCtx.el, v = ta.value;
+    ta.value = v.slice(0, _slashCtx.start) + snip + v.slice(_slashCtx.end);
+    ta.setSelectionRange(caret, caret); ta.focus(); onSourceInput();
+  }
+  hideSlash();
+}
+function _slashKeydown(e) {
+  if (!_slashOpen || !_slashItems.length) return;
+  if (e.key === 'ArrowDown') { e.preventDefault(); e.stopPropagation(); _slashSel = (_slashSel + 1) % _slashItems.length; renderSlash(); }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); e.stopPropagation(); _slashSel = (_slashSel - 1 + _slashItems.length) % _slashItems.length; renderSlash(); }
+  else if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); e.stopPropagation(); pickSlash(_slashSel); }
+  else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); hideSlash(); }
 }
 
 // ── kanban board (over the current doc) ──────────────────────────────────────

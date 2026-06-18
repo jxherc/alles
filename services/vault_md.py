@@ -155,6 +155,59 @@ _PERIODIC_TMPL = {
 _CARD = re.compile(r"^\s*[-*]\s+(?:\[([ xX])\]\s+)?(.*)$")
 _H2 = re.compile(r"^##\s+(.*)$")
 
+# slash "/" insert menu. snippet uses {} as the caret position (frontend convention).
+# {date}/{time} are resolved per request so "today" stays fresh.
+_SLASH = [
+    {"id": "h1", "label": "Heading 1", "snippet": "# {}"},
+    {"id": "h2", "label": "Heading 2", "snippet": "## {}"},
+    {"id": "h3", "label": "Heading 3", "snippet": "### {}"},
+    {"id": "bullet", "label": "Bullet list", "snippet": "- {}"},
+    {"id": "number", "label": "Numbered list", "snippet": "1. {}"},
+    {"id": "todo", "label": "Checkbox / to-do", "snippet": "- [ ] {}"},
+    {"id": "quote", "label": "Quote", "snippet": "> {}"},
+    {"id": "code", "label": "Code block", "snippet": "```\n{}\n```"},
+    {"id": "table", "label": "Table", "snippet": "| {} | col |\n| --- | --- |\n| a | b |"},
+    {"id": "callout", "label": "Callout", "snippet": "> [!note] {}\n> body"},
+    {"id": "math", "label": "Math block", "snippet": "$$\n{}\n$$"},
+    {
+        "id": "mermaid",
+        "label": "Mermaid diagram",
+        "snippet": "```mermaid\ngraph TD;\n  {}A --> B\n```",
+    },
+    {"id": "divider", "label": "Divider", "snippet": "---"},
+    {"id": "wikilink", "label": "Wikilink", "snippet": "[[{}]]"},
+    {"id": "date", "label": "Today's date", "snippet": "{date}"},
+    {"id": "time", "label": "Current time", "snippet": "{time}"},
+]
+
+
+def slash_commands(now=None) -> list[dict]:
+    """insert-menu commands with {date}/{time} resolved."""
+    from datetime import datetime
+
+    now = now or datetime.now()
+    ds, ts = now.strftime("%Y-%m-%d"), now.strftime("%H:%M")
+    out = []
+    for c in _SLASH:
+        snip = c["snippet"].replace("{date}", ds).replace("{time}", ts)
+        out.append({"id": c["id"], "label": c["label"], "snippet": snip})
+    return out
+
+
+def filter_slash_commands(q: str, now=None) -> list[dict]:
+    cmds = slash_commands(now)
+    q = (q or "").strip().lower()
+    if not q:
+        return cmds
+    hits = [c for c in cmds if q in c["id"].lower() or q in c["label"].lower()]
+    hits.sort(
+        key=lambda c: (
+            not (c["id"].lower().startswith(q) or c["label"].lower().startswith(q)),
+            c["label"].lower(),
+        )
+    )
+    return hits
+
 
 def parse_board(content: str) -> list[dict]:
     """parse a markdown doc into kanban columns: `## Heading` = column, list items
