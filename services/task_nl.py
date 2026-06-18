@@ -24,6 +24,24 @@ def _next_weekday(today: date, wd: int, allow_today=False) -> date:
     return today + timedelta(days=delta)
 
 
+def reschedule_date(when: str, today: date | None = None) -> str:
+    """new due date for a quick-reschedule: today | tomorrow | next_week | weekend |
+    <weekday>. raises ValueError on anything else."""
+    today = today or date.today()
+    w = (when or "").strip().lower().replace(" ", "_")
+    if w == "today":
+        return today.isoformat()
+    if w == "tomorrow":
+        return (today + timedelta(days=1)).isoformat()
+    if w == "next_week":
+        return (today + timedelta(days=7)).isoformat()
+    if w == "weekend":
+        return _next_weekday(today, 5, allow_today=True).isoformat()  # Saturday
+    if w in _WD:
+        return _next_weekday(today, _WD[w], allow_today=False).isoformat()
+    raise ValueError("unknown reschedule target")
+
+
 def parse_task(text: str, today: date | None = None) -> dict:
     today = today or date.today()
     out = {"title": "", "due_date": None, "repeat": "", "priority": 0, "tags": ""}

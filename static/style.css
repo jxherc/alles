@@ -2199,6 +2199,18 @@ body.is-incognito .incognito-bar {
 .task-title.done { color: var(--muted); text-decoration: line-through; }
 .task-high { color: var(--accent); font-size: 0.68rem; letter-spacing: 0.04em; }
 .task-child { margin-left: 1.5rem; border-left: 1px solid var(--faint); padding-left: 0.5rem; }
+.task-title { cursor: pointer; }
+.task-p1 { color: var(--muted); }
+.task-p2 { color: var(--signal, #e0a458); }
+.task-p3 { color: var(--error); }
+.task-editor-ov { position: fixed; inset: 0; z-index: 90; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; }
+.task-editor { background: var(--panel); border: 1px solid var(--faint); border-radius: 3px; padding: 0.8rem; width: 380px; max-width: 92vw; display: flex; flex-direction: column; gap: 0.45rem; box-shadow: 0 10px 40px rgba(0,0,0,0.5); }
+.task-editor .te-notes { min-height: 60px; resize: vertical; }
+.te-row { display: flex; align-items: center; gap: 0.5rem; }
+.te-row label { font-size: 0.68rem; color: var(--muted); width: 60px; flex-shrink: 0; }
+.te-resched { display: flex; gap: 0.3rem; flex-wrap: wrap; }
+.te-rs { font-size: 0.66rem; }
+.te-actions { display: flex; justify-content: flex-end; gap: 0.4rem; margin-top: 0.3rem; }
 .task-progress { font-size: 0.64rem; color: var(--muted); border: 1px solid var(--faint); border-radius: 2px; padding: 0 0.25rem; }
 .task-addsub { font-size: 0.62rem; color: var(--muted); background: none; border: 1px dashed var(--faint); border-radius: 2px; padding: 0 0.3rem; cursor: pointer; opacity: 0; transition: opacity 0.15s, color 0.15s; }
 .task-item:hover .task-addsub { opacity: 1; }
