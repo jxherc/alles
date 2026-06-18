@@ -73,3 +73,24 @@ default tree-hidden state the action buttons strand at the far-right edge with a
 7. `deep_link_opens` — visiting `?doc=<path>` directly opens that doc.
 8. `switch_updates_url` — opening a second doc updates `?doc=` to the new path.
 9. `zero_console_errors` — no console/page errors; screenshot saved.
+
+---
+
+# docs — Google-Docs-style page + home (2026-06-18, user follow-up)
+
+User follow-up: text selection in the editor looks awkward (full-bleed grey across the ultra-wide
+editor), and the docs home should look like Google Docs (a gallery of docs; click opens the doc).
+Evidence: `docs/evidence/docs/before-home.png`, `before-selection.png`, `page1-selection.png`.
+
+## docs-page-1 — center the editor as a page + fix selection
+Live CM editor spanned the full 1279px width, so text + selection were full-bleed. `static/style.css`:
+center `.cm-content` (max-width 820px via `.cm-scroller{justify-content:center}` + page padding) and tint
+the selection (`.cm-selectionBackground` → translucent accent) so it reads like a Google-Docs page.
+**Verify (`pw_docs_page1.py`, 8 assertions, screenshot, 0 console err):** content_constrained (<860),
+content_centered_left/right, page_has_padding, editor_editable, selection_within_page (not full-bleed),
+selection_tinted (translucent accent), zero_console_errors.
+
+## docs-home-1 — Google-Docs-style docs home gallery
+Replace the small centered empty-state card (8 pill links) with a real home: a header (+ new doc / today /
+guide) + a search box + a responsive grid of doc **cards** (title · folder · modified date), all docs,
+click → open; plus an "all docs" affordance in the editor head to return home. (see below verify)
