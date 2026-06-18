@@ -5,6 +5,8 @@ rollover, monthly/yearly totals, and push reminders before renewals.
 
 import calendar
 import logging
+import re
+from collections import defaultdict
 from datetime import date, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -267,6 +269,62 @@ def upcoming_renewals(days: int = 7, db: DbSession = Depends(get_db)):
         "currency": items[0]["currency"] if items else "$",
         "items": items,
     }
+
+
+def _norm_name(n: str) -> str:
+    return re.sub(r"[^a-z0-9]", "", (n or "").lower())
+
+
+def _host(url: str) -> str:
+    m = re.search(r"https?://([^/]+)", url or "")
+    if not m:
+        return ""
+    h = m.group(1).lower()
+    return h[4:] if h.startswith("www.") else h
+
+
+@router.get("/subscriptions/duplicates")
+def duplicates(db: DbSession = Depends(get_db)):
+    """flag subs that look like the same service tracked twice — same normalized
+    name OR same url host. union-find so a name-match and a host-match chain together."""
+    subs = db.query(Subscription).all()
+    parent = {s.id: s.id for s in subs}
+
+    def find(x):
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+
+    def union(a, b):
+        parent[find(a)] = find(b)
+
+    by_name, by_host = defaultdict(list), defaultdict(list)
+    for s in subs:
+        nn = _norm_name(s.name)
+        if nn:
+            by_name[nn].append(s.id)
+        h = _host(s.url)
+        if h:
+            by_host[h].append(s.id)
+    for ids in list(by_name.values()) + list(by_host.values()):
+        for other in ids[1:]:
+            union(ids[0], other)
+
+    clusters = defaultdict(list)
+    for s in subs:
+        clusters[find(s.id)].append(s)
+    groups = []
+    for grp in clusters.values():
+        if len(grp) > 1:
+            groups.append(
+                {
+                    "subs": [
+                        {"id": s.id, "name": s.name, "price": s.price, "url": s.url} for s in grp
+                    ]
+                }
+            )
+    return {"groups": groups, "count": len(groups)}
 
 
 @router.get("/subscriptions/forecast")

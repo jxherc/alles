@@ -2349,6 +2349,7 @@ body.is-incognito .incognito-bar {
 .sub-actions { display: flex; gap: 0.3rem; }
 .sub-notdue { font-size: 0.64rem; color: var(--faint); align-self: center; padding: 0 0.3rem; }
 .sub-hike { font-size: 0.62rem; color: #fb923c; border: 1px solid color-mix(in srgb, #fb923c 45%, transparent); border-radius: 3px; padding: 0 0.3rem; }
+.sub-dup { font-size: 0.62rem; color: var(--muted); border: 1px solid var(--faint); border-radius: 3px; padding: 0 0.3rem; }
 /* cash-flow forecast strip */
 .subs-forecast { margin: 0.4rem 0 0.8rem; }
 .subs-fc-head { font-size: 0.72rem; color: var(--muted); margin-bottom: 0.4rem; }
