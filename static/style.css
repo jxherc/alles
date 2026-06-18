@@ -2496,6 +2496,12 @@ body.is-incognito .incognito-bar {
 .tx-del { background: none; border: none; color: var(--faint); cursor: pointer; font-size: 0.95rem; opacity: 0; transition: opacity 0.15s; }
 .txn:hover .tx-del { opacity: 1; }
 .tx-del:hover { color: var(--error); }
+.txn.is-transfer .tx-cat { color: var(--accent); }
+.txn-transfer { display: none; gap: 0.4rem; flex-wrap: wrap; align-items: center; margin-bottom: 0.7rem; padding: 0.5rem 0.55rem; border: 1px dashed var(--faint); border-radius: 3px; }
+.txn-transfer > * { height: 32px; box-sizing: border-box; }
+.txn-transfer input.settings-input { background: var(--bg); border: 1px solid var(--faint); }
+.tr-lbl { color: var(--muted); font-size: 0.78rem; }
+.tr-arrow { color: var(--accent); font-size: 0.9rem; }
 @media (max-width: 720px) { .money-summary { grid-template-columns: repeat(2, 1fr); } .money-grid { grid-template-columns: 1fr; } }
 
 .days-grid {

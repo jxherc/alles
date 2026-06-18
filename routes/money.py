@@ -1,10 +1,11 @@
 from collections import defaultdict
 from datetime import datetime
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session as DbSession
 
-from core.database import get_db, Account, Transaction, Budget
+from core.database import Account, Budget, Transaction, get_db
 
 router = APIRouter(prefix="/api/money")
 
@@ -94,6 +95,7 @@ def _txn(t):
         "category": t.category,
         "payee": t.payee,
         "notes": t.notes,
+        "transfer_id": t.transfer_id or "",
     }
 
 
@@ -168,7 +170,9 @@ def delete_txn(tid: str, db: DbSession = Depends(get_db)):
 @router.get("/transactions/export.csv")
 def export_txns_csv(db: DbSession = Depends(get_db)):
     """download all transactions as CSV (open in a spreadsheet)."""
-    import csv, io
+    import csv
+    import io
+
     from fastapi.responses import Response
 
     def _safe(v):
@@ -208,7 +212,8 @@ def import_txns_csv(body: CsvImport, db: DbSession = Depends(get_db)):
     """import transactions from a CSV (e.g. a bank export). needs date + amount
     columns. skips rows that duplicate an existing txn (same date+amount+payee in
     this account) so re-importing an overlapping statement doesn't double-count."""
-    import csv, io
+    import csv
+    import io
 
     if not db.get(Account, body.account_id):
         raise HTTPException(400, "unknown account")
@@ -246,6 +251,69 @@ def import_txns_csv(body: CsvImport, db: DbSession = Depends(get_db)):
         n += 1
     db.commit()
     return {"imported": n, "skipped": skipped}
+
+
+# ── transfers (move money between your own accounts) ──────────────────────────
+class TransferBody(BaseModel):
+    from_account: str
+    to_account: str
+    amount: float
+    date: str
+    notes: str = ""
+
+
+@router.post("/transfer")
+def create_transfer(body: TransferBody, db: DbSession = Depends(get_db)):
+    """one move, two linked legs (−amount out of `from`, +amount into `to`), both
+    tagged category 'transfer' + a shared transfer_id so the summary can leave them
+    out of income/spending while balances still shift correctly."""
+    if body.from_account == body.to_account:
+        raise HTTPException(400, "pick two different accounts")
+    if (body.amount or 0) <= 0:
+        raise HTTPException(400, "amount must be positive")
+    src = db.get(Account, body.from_account)
+    dst = db.get(Account, body.to_account)
+    if not src or not dst:
+        raise HTTPException(400, "unknown account")
+    import uuid
+
+    tid = uuid.uuid4().hex
+    d = (body.date or "")[:10]
+    out = Transaction(
+        account_id=src.id,
+        date=d,
+        amount=-abs(body.amount),
+        category="transfer",
+        payee=f"→ {dst.name}",
+        notes=(body.notes or "").strip(),
+        transfer_id=tid,
+    )
+    inc = Transaction(
+        account_id=dst.id,
+        date=d,
+        amount=abs(body.amount),
+        category="transfer",
+        payee=f"← {src.name}",
+        notes=(body.notes or "").strip(),
+        transfer_id=tid,
+    )
+    db.add(out)
+    db.add(inc)
+    db.commit()
+    db.refresh(out)
+    db.refresh(inc)
+    return {"transfer_id": tid, "from": _txn(out), "to": _txn(inc)}
+
+
+@router.delete("/transfer/{tid}")
+def delete_transfer(tid: str, db: DbSession = Depends(get_db)):
+    legs = db.query(Transaction).filter(Transaction.transfer_id == tid).all()
+    if not legs:
+        raise HTTPException(404)
+    for t in legs:
+        db.delete(t)
+    db.commit()
+    return {"ok": True, "removed": len(legs)}
 
 
 # ── budgets (monthly spending caps per category) ──────────────────────────────
@@ -313,6 +381,8 @@ def summary(month: str = "", db: DbSession = Depends(get_db)):
     income = expense = 0.0
     by_cat = defaultdict(float)
     for t in db.query(Transaction).filter(Transaction.date.like(f"{month}%")).all():
+        if t.transfer_id:  # inter-account move, not real income/spending
+            continue
         amt = t.amount or 0.0
         if amt >= 0:
             income += amt
@@ -335,6 +405,8 @@ def summary(month: str = "", db: DbSession = Depends(get_db)):
     monthset = set(months)
     tot = {mo: [0.0, 0.0] for mo in months}  # [income, expense]
     for t in db.query(Transaction).all():
+        if t.transfer_id:  # transfers aren't income or spending
+            continue
         mo = (t.date or "")[:7]
         if mo in monthset:
             amt = t.amount or 0.0
