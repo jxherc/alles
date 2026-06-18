@@ -293,7 +293,16 @@ def mark_paid(sid: str, db: DbSession = Depends(get_db)):
                 )
             )
             sub.last_posted_due = paid_for.isoformat()
-    sub.next_due = _advance(paid_for, sub.cycle, sub.cycle_days).isoformat()
+    # advance one full cycle; if the sub was overdue (next_due in the past), keep
+    # advancing whole cycles so a single click lands on the next upcoming due —
+    # not still in the past, and never "just +1 month" regardless of cycle.
+    nxt = _advance(paid_for, sub.cycle, sub.cycle_days)
+    today = date.today()
+    guard = 0
+    while nxt <= today and guard < 600:
+        nxt = _advance(nxt, sub.cycle, sub.cycle_days)
+        guard += 1
+    sub.next_due = nxt.isoformat()
     db.commit()
     return _fmt(sub, date.today())
 
