@@ -36,3 +36,16 @@ fire a wrong "is today" push.
 New features (the spec restricts this phase to bug fixes); the day-of-week one-shot repeat (not a
 supported repeat type); timezone re-architecture (client already recomputes counts against local
 midnight).
+
+
+---
+
+# days — UI/UX polish (2026-06-18)
+
+Evidence: `docs/evidence/days/` (findings + before/after screenshots).
+
+## days-ui-1 — edit card stays in its section (no jump to first grid)
+`_render()` rendered the edit card at the top of a flat section-less list when editing. Fix: render the
+normal `sections` layout always and swap `_editCard` for `_card` only for the editing row in place.
+`static/js/days.js` `_render`. Verify `pw_days_edit.py` (7 assertions, RED->GREEN): edit_card_in_place +
+section_header_before_edit + zero console errors.
