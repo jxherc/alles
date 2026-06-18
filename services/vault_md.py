@@ -152,6 +152,98 @@ _PERIODIC_TMPL = {
 }
 
 
+_CARD = re.compile(r"^\s*[-*]\s+(?:\[([ xX])\]\s+)?(.*)$")
+_H2 = re.compile(r"^##\s+(.*)$")
+
+
+def parse_board(content: str) -> list[dict]:
+    """parse a markdown doc into kanban columns: `## Heading` = column, list items
+    under it = cards. card line numbers are absolute (frontmatter offset included)
+    so they line up with set_task / board_move_card."""
+    lines = (content or "").replace("\r\n", "\n").split("\n")
+    cols: list[dict] = []
+    cur = None
+    in_fm = False
+    for i, ln in enumerate(lines):
+        if i == 0 and ln.strip() == "---":
+            in_fm = True
+            continue
+        if in_fm:
+            if ln.strip() == "---":
+                in_fm = False
+            continue
+        h = _H2.match(ln)
+        if h:
+            cur = {"name": h.group(1).strip(), "cards": []}
+            cols.append(cur)
+            continue
+        if cur is not None:
+            m = _CARD.match(ln)
+            if m and m.group(2).strip():
+                cur["cards"].append(
+                    {
+                        "text": m.group(2).strip(),
+                        "line": i,
+                        "done": (m.group(1) or "").lower() == "x",
+                    }
+                )
+    return cols
+
+
+def _insert_into_column(lines: list[str], column: str, card_line: str):
+    """insert card_line at the end of `## column`'s block, creating the column if absent."""
+    hidx = None
+    for i, ln in enumerate(lines):
+        m = _H2.match(ln)
+        if m and m.group(1).strip().lower() == column.strip().lower():
+            hidx = i
+            break
+    if hidx is None:
+        if lines and lines[-1].strip() != "":
+            lines.append("")
+        lines.append(f"## {column.strip()}")
+        lines.append(card_line)
+        return
+    end = len(lines)
+    for j in range(hidx + 1, len(lines)):
+        if _H2.match(lines[j]):
+            end = j
+            break
+    ins = hidx + 1
+    for j in range(hidx + 1, end):
+        if lines[j].strip() != "":
+            ins = j + 1
+    lines.insert(ins, card_line)
+
+
+def board_add_card(rel: str, column: str, text: str) -> dict:
+    p = _safe(rel)
+    raw = p.read_text("utf-8", errors="replace") if p.is_file() else ""
+    lines = raw.replace("\r\n", "\n").split("\n")
+    _insert_into_column(lines, column, f"- [ ] {text.strip()}")
+    new = "\n".join(lines)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(new, "utf-8")
+    return {"ok": True, "columns": parse_board(new)}
+
+
+def board_move_card(rel: str, line: int, to_col: str) -> dict:
+    p = _safe(rel)
+    if not p.is_file():
+        raise ValueError("not a file")
+    lines = p.read_text("utf-8", errors="replace").replace("\r\n", "\n").split("\n")
+    if line < 0 or line >= len(lines):
+        raise ValueError("line out of range")
+    if not _CARD.match(lines[line]) or not _CARD.match(lines[line]).group(2).strip():
+        raise ValueError("not a card line")
+    card_line = lines[line]
+    del lines[line]
+    _insert_into_column(lines, to_col, card_line)
+    new = "\n".join(lines)
+    p.write_text(new, "utf-8")
+    return {"ok": True, "columns": parse_board(new)}
+
+
 def _cmp_prop(pv, op: str, value: str) -> bool:
     """compare a single frontmatter value against a filter. pv may be str/list/None."""
     if op == "exists":

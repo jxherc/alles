@@ -240,6 +240,42 @@ async def extract_todos(body: ExtractTodosBody):
         db.close()
 
 
+@router.get("/board")
+def get_board(path: str):
+    cur = vault_md.read(_norm_path(path))
+    return {"path": _norm_path(path), "columns": vault_md.parse_board(cur.get("content", "") or "")}
+
+
+class BoardAddBody(BaseModel):
+    path: str
+    column: str
+    text: str
+
+
+@router.post("/board/add")
+def board_add(body: BoardAddBody):
+    _snapshot(body.path)
+    try:
+        return vault_md.board_add_card(_norm_path(body.path), body.column, body.text)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+class BoardMoveBody(BaseModel):
+    path: str
+    line: int
+    to_col: str
+
+
+@router.post("/board/move")
+def board_move(body: BoardMoveBody):
+    _snapshot(body.path)
+    try:
+        return vault_md.board_move_card(_norm_path(body.path), body.line, body.to_col)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
 class QueryBody(BaseModel):
     filters: list = []
     sort: dict | None = None

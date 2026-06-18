@@ -3854,6 +3854,30 @@ body.is-incognito .incognito-bar {
 .wiki-graph-svg { flex: 1; width: 100%; }
 .wg-edge { stroke: var(--faint); stroke-width: 1; }
 .wg-node { cursor: pointer; }
+.wiki-board-cols { flex: 1; display: flex; gap: 0.7rem; padding: 0.8rem; overflow-x: auto; align-items: flex-start; }
+.wiki-board-empty { color: var(--muted); font-size: 0.8rem; padding: 1rem; }
+.wiki-board-col {
+  flex: 0 0 240px; display: flex; flex-direction: column; gap: 0.4rem;
+  background: var(--panel); border: 1px solid var(--faint); border-radius: 3px; padding: 0.5rem; max-height: 100%;
+}
+.wiki-board-colhead { font-size: 0.72rem; color: var(--muted); text-transform: lowercase; letter-spacing: 0.04em; display: flex; justify-content: space-between; }
+.wiki-board-count { color: var(--faint); }
+.wiki-board-cards { display: flex; flex-direction: column; gap: 0.35rem; min-height: 2rem; overflow-y: auto; border-radius: 2px; transition: background 0.15s; }
+.wiki-board-cards.drop { background: #161616; outline: 1px dashed var(--muted); }
+.wiki-board-card {
+  display: flex; gap: 0.4rem; align-items: flex-start; cursor: grab;
+  background: #141414; border: 1px solid var(--faint); border-radius: 2px; padding: 0.35rem 0.45rem;
+  font-size: 0.76rem; color: var(--text); transition: border-color 0.15s, opacity 0.15s;
+}
+.wiki-board-card:hover { border-color: var(--muted); }
+.wiki-board-card.dragging { opacity: 0.4; }
+.wiki-board-card.done .wiki-board-text { text-decoration: line-through; color: var(--muted); }
+.wiki-board-chk { flex: 0 0 12px; width: 12px; height: 12px; margin-top: 2px; border: 1px solid var(--muted); border-radius: 2px; cursor: pointer; }
+.wiki-board-chk[aria-checked="true"] { background: var(--green); border-color: var(--green); }
+.wiki-board-add, .wiki-board-newcol-btn { font-size: 0.68rem; color: var(--muted); background: none; border: 1px dashed var(--faint); border-radius: 2px; padding: 0.25rem; cursor: pointer; }
+.wiki-board-add:hover, .wiki-board-newcol-btn:hover { color: var(--text); border-color: var(--muted); }
+.wiki-board-newcol-btn { flex: 0 0 auto; align-self: flex-start; height: fit-content; }
+#wiki-board-btn.active { color: var(--text); border-color: var(--muted); }
 .wg-node circle { fill: var(--accent); transition: fill 0.15s; }
 .wg-node:hover circle { fill: var(--text); }
 .wg-node text { fill: var(--muted); font-size: 9px; text-anchor: middle; pointer-events: none; }

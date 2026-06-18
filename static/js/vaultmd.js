@@ -322,6 +322,8 @@ export function initVault() {
   $('wiki-outline-btn')?.addEventListener('click', toggleOutline);
   $('wiki-props-btn')?.addEventListener('click', toggleProps);
   $('wiki-query-btn')?.addEventListener('click', toggleQuery);
+  $('wiki-board-btn')?.addEventListener('click', openBoard);
+  $('wiki-board-close')?.addEventListener('click', () => { $('wiki-board').style.display = 'none'; });
   $('wiki-todos-btn')?.addEventListener('click', extractTodos);
   $('wiki-taskroll-btn')?.addEventListener('click', toggleTaskRoll);
   $('wiki-history-btn')?.addEventListener('click', toggleHistory);
@@ -912,6 +914,77 @@ async function saveProps() {
     await loadProps();
     toast('properties saved', 'success');
   } catch { toast('failed to save properties', 'error'); }
+}
+
+// ── kanban board (over the current doc) ──────────────────────────────────────
+let _boardCardDrag = null;  // { line, fromCol }
+async function openBoard() {
+  if (!_cur) { toast('open a doc first', 'error'); return; }
+  await flushSave();
+  $('wiki-board').style.display = 'flex';
+  $('wiki-board-title').textContent = `board · ${_cur.replace(/\.md$/, '')}`;
+  await loadBoard();
+}
+async function loadBoard() {
+  const wrap = $('wiki-board-cols'); if (!wrap) return;
+  let cols = [];
+  try { cols = (await fetch(`/api/vault-md/board?path=${encodeURIComponent(_cur)}`).then(r => r.json())).columns || []; }
+  catch { wrap.innerHTML = '<div class="wiki-outline-empty">failed to load board</div>'; return; }
+  if (!cols.length) { wrap.innerHTML = '<div class="wiki-board-empty">no columns — add a <code>## Heading</code> with <code>- [ ] cards</code> to this doc, or click “+ column”.</div><button class="btn" id="wiki-board-newcol">+ column</button>'; $('wiki-board-newcol')?.addEventListener('click', addColumn); return; }
+  wrap.innerHTML = cols.map(c => `
+    <div class="wiki-board-col" data-col="${esc(c.name)}">
+      <div class="wiki-board-colhead">${esc(c.name)} <span class="wiki-board-count">${c.cards.length}</span></div>
+      <div class="wiki-board-cards" data-col="${esc(c.name)}">
+        ${c.cards.map(card => `<div class="wiki-board-card${card.done ? ' done' : ''}" draggable="true" data-line="${card.line}" data-col="${esc(c.name)}">
+          <span class="wiki-board-chk" data-toggle aria-checked="${card.done}"></span><span class="wiki-board-text">${esc(card.text)}</span></div>`).join('')}
+      </div>
+      <button class="wiki-board-add" data-col="${esc(c.name)}">+ card</button>
+    </div>`).join('') + `<button class="btn wiki-board-newcol-btn" id="wiki-board-newcol">+ column</button>`;
+  wireBoard();
+}
+function wireBoard() {
+  const wrap = $('wiki-board-cols');
+  wrap.querySelectorAll('.wiki-board-card').forEach(card => {
+    card.addEventListener('dragstart', () => { _boardCardDrag = { line: +card.dataset.line, fromCol: card.dataset.col }; card.classList.add('dragging'); });
+    card.addEventListener('dragend', () => { card.classList.remove('dragging'); _boardCardDrag = null; });
+    card.querySelector('[data-toggle]')?.addEventListener('click', async e => {
+      e.stopPropagation();
+      const done = card.querySelector('[data-toggle]').getAttribute('aria-checked') !== 'true';
+      await fetch('/api/vault-md/task', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ path: _cur, line: +card.dataset.line, done }) });
+      await loadBoard(); await reloadCurrentDoc();
+    });
+  });
+  wrap.querySelectorAll('.wiki-board-cards').forEach(zone => {
+    zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drop'); });
+    zone.addEventListener('dragleave', () => zone.classList.remove('drop'));
+    zone.addEventListener('drop', async e => {
+      e.preventDefault(); zone.classList.remove('drop');
+      if (!_boardCardDrag) return;
+      const toCol = zone.dataset.col;
+      if (toCol === _boardCardDrag.fromCol) return;
+      await fetch('/api/vault-md/board/move', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ path: _cur, line: _boardCardDrag.line, to_col: toCol }) });
+      await loadBoard(); await reloadCurrentDoc();
+    });
+  });
+  wrap.querySelectorAll('.wiki-board-add').forEach(btn => btn.addEventListener('click', async () => {
+    const text = await dlgPrompt(`new card in “${btn.dataset.col}”:`);
+    if (!text?.trim()) return;
+    await fetch('/api/vault-md/board/add', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ path: _cur, column: btn.dataset.col, text: text.trim() }) });
+    await loadBoard(); await reloadCurrentDoc();
+  }));
+  $('wiki-board-newcol')?.addEventListener('click', addColumn);
+}
+async function addColumn() {
+  const name = await dlgPrompt('column name:');
+  if (!name?.trim()) return;
+  const text = await dlgPrompt('first card (optional):');
+  await fetch('/api/vault-md/board/add', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ path: _cur, column: name.trim(), text: (text || 'new card').trim() }) });
+  await loadBoard(); await reloadCurrentDoc();
+}
+async function reloadCurrentDoc() {
+  if (!_cur) return;
+  const d = await fetch(`/api/vault-md/file?path=${encodeURIComponent(_cur)}`).then(r => r.json());
+  setEditor(d.content || '');
 }
 
 // ── note query (dataview-lite) ───────────────────────────────────────────────
