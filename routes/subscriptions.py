@@ -154,8 +154,18 @@ def list_subscriptions(db: DbSession = Depends(get_db)):
     counts = dict(
         db.query(SubPayment.sub_id, func.count(SubPayment.id)).group_by(SubPayment.sub_id).all()
     )
+    from core.database import SubPriceChange
+
+    latest_change = {}
+    for c in db.query(SubPriceChange).order_by(SubPriceChange.created_at.asc()).all():
+        latest_change[c.sub_id] = c  # asc → last write wins = most recent
     for it in items:
         it["paid_count"] = counts.get(it["id"], 0)
+        c = latest_change.get(it["id"])
+        it["price_increased"] = bool(c and c.new_price > c.old_price)
+        it["last_price_change"] = (
+            {"old": c.old_price, "new": c.new_price, "date": c.date} if c else None
+        )
     return {
         "subscriptions": items,
         "summary": {
@@ -305,6 +315,17 @@ def update_subscription(sid: str, body: SubPatch, db: DbSession = Depends(get_db
         raise HTTPException(404)
     if body.cycle is not None and body.cycle not in CYCLES:
         raise HTTPException(400, f"cycle must be one of {', '.join(CYCLES)}")
+    if body.price is not None and body.price != (sub.price or 0.0):
+        from core.database import SubPriceChange
+
+        db.add(
+            SubPriceChange(
+                sub_id=sub.id,
+                old_price=sub.price or 0.0,
+                new_price=body.price,
+                date=date.today().isoformat(),
+            )
+        )
     if body.next_due is not None:
         try:
             _parse(body.next_due)
@@ -425,6 +446,21 @@ def undo_payment(sid: str, db: DbSession = Depends(get_db)):
     db.delete(last)
     db.commit()
     return _fmt(sub, date.today())
+
+
+@router.get("/subscriptions/{sid}/price-history")
+def price_history(sid: str, db: DbSession = Depends(get_db)):
+    from core.database import SubPriceChange
+
+    if not db.get(Subscription, sid):
+        raise HTTPException(404)
+    rows = (
+        db.query(SubPriceChange)
+        .filter(SubPriceChange.sub_id == sid)
+        .order_by(SubPriceChange.created_at.desc())
+        .all()
+    )
+    return [{"old": r.old_price, "new": r.new_price, "date": r.date} for r in rows]
 
 
 @router.delete("/subscriptions/{sid}")
