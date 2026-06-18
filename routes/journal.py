@@ -217,6 +217,36 @@ def export_entries(db: DbSession = Depends(get_db), _: None = Depends(_require_u
     return {"markdown": "\n".join(parts), "count": len(rows)}
 
 
+@router.get("/journal/moods")
+def mood_trends(
+    days: int = 30, db: DbSession = Depends(get_db), _: None = Depends(_require_unlock)
+):
+    """mood distribution over the last `days` days — counts per mood (desc), the
+    most-common mood, and how many entries carried a mood."""
+    days = max(1, days)
+    since = (date.today() - timedelta(days=days)).isoformat()
+    rows = db.query(JournalEntry).filter(JournalEntry.date >= since).all()
+    counts: dict[str, int] = {}
+    with_mood = 0
+    for e in rows:
+        m = (e.mood or "").strip()
+        if not m:
+            continue
+        with_mood += 1
+        counts[m] = counts.get(m, 0) + 1
+    dist = sorted(
+        ({"mood": m, "count": c} for m, c in counts.items()),
+        key=lambda x: (-x["count"], x["mood"]),
+    )
+    return {
+        "days": days,
+        "total": len(rows),
+        "with_mood": with_mood,
+        "distribution": dist,
+        "most_common": dist[0]["mood"] if dist else None,
+    }
+
+
 @router.get("/journal/calendar")
 def entry_calendar(
     year: int = 0, db: DbSession = Depends(get_db), _: None = Depends(_require_unlock)

@@ -73,6 +73,8 @@ function buildJournal() {
           <input id="jrnl-search" class="jrnl-tags" placeholder="search entries…" style="margin:0 0 0.5rem">
           <div id="jrnl-results"></div>
           <button class="btn" id="jrnl-export" style="margin-bottom:0.6rem">export .md</button>
+          <div class="jrnl-side-title">mood · last 30 days</div>
+          <div id="jrnl-moodtrend" class="jrnl-moodtrend"></div>
           <div class="jrnl-side-title">on this day</div>
           <div id="jrnl-otd" class="jrnl-otd"><div class="jrnl-empty">nothing from past years yet</div></div>
           <div class="jrnl-side-title">recent</div>
@@ -124,7 +126,24 @@ function buildJournal() {
   load();
   loadPrompt();
   loadOnThisDay();
+  loadMoodTrend();
   refreshLockBtn();
+}
+
+async function loadMoodTrend() {
+  const el = document.getElementById('jrnl-moodtrend');
+  if (!el) return;
+  try {
+    const d = await jget('/api/journal/moods?days=30');
+    if (!d.distribution.length) { el.innerHTML = '<div class="jrnl-empty">no moods logged yet</div>'; return; }
+    const max = Math.max(...d.distribution.map(x => x.count));
+    el.innerHTML = d.distribution.map(x => `
+      <div class="jrnl-mt-row">
+        <span class="jrnl-mt-emoji">${x.mood}</span>
+        <span class="jrnl-mt-bar"><span class="jrnl-mt-fill" style="width:${Math.max(6, x.count / max * 100)}%"></span></span>
+        <span class="jrnl-mt-n">${x.count}</span>
+      </div>`).join('');
+  } catch { el.innerHTML = ''; }
 }
 
 async function refreshLockBtn() {
@@ -248,7 +267,7 @@ async function save(explicit) {
     await jput('/api/journal/' + _day, { content, mood: curMood(), tags });
     document.getElementById('jrnl-saved').textContent = 'saved ' + new Date().toLocaleTimeString();
     if (explicit) toast('entry saved', 'success');
-    loadStats(); loadRecent();
+    loadStats(); loadRecent(); loadMoodTrend();
   } catch (e) {
     if (explicit) toast(e.message || 'save failed', 'error');
   }
