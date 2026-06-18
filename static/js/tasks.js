@@ -54,7 +54,7 @@ function _rowHtml(t, child, progress) {
       ${t.repeat ? `<span class="task-repeat" title="repeats ${t.repeat}">🔁</span>` : ''}
       ${_dueBadge(t.due_date)}
       ${(t.tags || []).map(g => `<span class="task-tag">#${esc(g)}</span>`).join('')}
-      ${t.priority ? '<span class="task-high">high</span>' : ''}
+      ${t.priority ? `<span class="task-high task-p${t.priority}">${['', 'low', 'med', 'high'][t.priority] || 'high'}</span>` : ''}
       ${progress && progress.total ? `<span class="task-progress">${progress.done}/${progress.total}</span>` : ''}
       ${!child ? `<button class="task-addsub" data-id="${t.id}" title="add subtask">+ sub</button>` : ''}
       <button class="task-del" data-id="${t.id}">×</button>
@@ -113,6 +113,53 @@ function _wireRows(list) {
     });
     await loadTasks();
   }));
+  list.querySelectorAll('.task-title').forEach(el => el.addEventListener('click', () => {
+    openTaskEditor(el.closest('.task-item').dataset.id);
+  }));
+}
+
+function openTaskEditor(id) {
+  const t = _findTask(id);
+  if (!t) return;
+  const prio = [[0, 'none'], [1, 'low'], [2, 'med'], [3, 'high']]
+    .map(([v, l]) => `<option value="${v}"${(t.priority || 0) === v ? ' selected' : ''}>${l}</option>`).join('');
+  const rep = [['', 'no repeat'], ['daily', 'daily'], ['weekly', 'weekly'], ['monthly', 'monthly'], ['yearly', 'yearly']]
+    .map(([v, l]) => `<option value="${v}"${(t.repeat || '') === v ? ' selected' : ''}>${l}</option>`).join('');
+  const ov = document.createElement('div');
+  ov.className = 'task-editor-ov';
+  ov.innerHTML = `<div class="task-editor">
+    <input class="settings-input" id="te-title" value="${esc(t.title)}">
+    <textarea class="settings-input te-notes" id="te-notes" placeholder="notes…">${esc(t.notes || '')}</textarea>
+    <div class="te-row"><label>priority</label><select class="settings-input" id="te-prio">${prio}</select></div>
+    <div class="te-row"><label>repeat</label><select class="settings-input" id="te-rep">${rep}</select></div>
+    <div class="te-row"><label>due</label><input class="settings-input" id="te-due" value="${esc((t.due_date || '').slice(0, 10))}" placeholder="YYYY-MM-DD"></div>
+    <div class="te-resched">${['today', 'tomorrow', 'next_week', 'weekend'].map(w => `<button class="btn te-rs" data-w="${w}">${w.replace('_', ' ')}</button>`).join('')}</div>
+    <div class="te-row"><label>tags</label><input class="settings-input" id="te-tags" value="${esc((t.tags || []).join(', '))}" placeholder="comma, separated"></div>
+    <div class="te-row"><label>project</label><input class="settings-input" id="te-proj" value="${esc(t.project || '')}"></div>
+    <div class="te-actions"><button class="btn" id="te-cancel">cancel</button><button class="btn primary" id="te-save">save</button></div>
+  </div>`;
+  document.body.appendChild(ov);
+  const close = () => ov.remove();
+  ov.addEventListener('click', e => { if (e.target === ov) close(); });
+  ov.querySelector('#te-cancel').onclick = close;
+  ov.querySelectorAll('.te-rs').forEach(b => b.addEventListener('click', async () => {
+    const r = await fetch(`/api/tasks/${id}/reschedule`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ when: b.dataset.w }) }).then(r => r.json());
+    if (r.due_date) ov.querySelector('#te-due').value = r.due_date.slice(0, 10);
+  }));
+  ov.querySelector('#te-save').onclick = async () => {
+    const body = {
+      title: ov.querySelector('#te-title').value.trim() || t.title,
+      notes: ov.querySelector('#te-notes').value,
+      priority: parseInt(ov.querySelector('#te-prio').value) || 0,
+      repeat: ov.querySelector('#te-rep').value,
+      due_date: ov.querySelector('#te-due').value.trim() || null,
+      tags: ov.querySelector('#te-tags').value.split(',').map(s => s.trim()).filter(Boolean).join(','),
+      project: ov.querySelector('#te-proj').value.trim(),
+    };
+    await fetch(`/api/tasks/${id}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+    close();
+    loadTasks();
+  };
 }
 
 export async function addTask(title) {
