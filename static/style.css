@@ -3825,6 +3825,14 @@ body.is-incognito .incognito-bar {
 }
 .wiki-ac-item { padding: 0.3rem 0.6rem; font-size: 0.78rem; cursor: pointer; color: var(--muted); }
 .wiki-ac-item:hover, .wiki-ac-item.active { background: #161616; color: var(--text); }
+.wiki-slash {
+  position: fixed; z-index: 80; min-width: 200px; max-width: 230px; max-height: 240px; overflow-y: auto;
+  background: var(--panel); border: 1px solid var(--faint); border-radius: 3px; box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+}
+.wiki-slash-item { display: flex; justify-content: space-between; gap: 0.6rem; align-items: center; padding: 0.3rem 0.6rem; font-size: 0.76rem; cursor: pointer; color: var(--muted); }
+.wiki-slash-item:hover, .wiki-slash-item.active { background: #161616; color: var(--text); }
+.wiki-slash-label { white-space: nowrap; }
+.wiki-slash-id { font-size: 0.62rem; color: var(--faint); }
 
 /* tags */
 .wiki-tags { display: flex; flex-wrap: wrap; gap: 0.25rem; padding: 0 0.8rem 0.55rem; max-height: 80px; overflow-y: auto; }
