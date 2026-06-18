@@ -99,3 +99,18 @@ click → open; plus an "⊞ all docs" button in the editor head to return home.
 **Verify (`pw_docs_home1.py`, 9 assertions, screenshots, 0 console err):** home_shows_on_load,
 home_has_grid, home_cards_rendered (≥5), card_has_title_and_meta, card_opens_doc (sets `?doc`, hides home),
 home_button_returns (clears `?doc`), home_search_filters, home_search_clear_restores, zero_console_errors.
+
+## docs-fix-2 — selection escapes the page + sidebar on the home (user follow-up #2)
+Two things the first pass missed (user re-reported with screenshots):
+- **Selection still spanned the full screen.** Capping only `.cm-content` left CodeMirror's *selection layer*
+  (a sibling in `.cm-scroller`, full editor width) unconstrained — at 1920px the text sat at the far left
+  and the selection bled to ~1800px. Fix: cap the **whole `.cm-editor`** to `max-width:820px` centered
+  (`.wiki-live{justify-content:center}`) so the scroller, content **and** selection layer all stay inside
+  the page; same centered cap for `.wiki-source`/`.wiki-preview`. Now (1920px) the editor is 549→1370 and
+  the selection never exceeds that — copying no longer grabs the empty sides.
+- **Home still showed the tree sidebar** next to the new gallery (redundant). Fix: `#wiki-view.no-note`
+  hides `.wiki-tree-panel` **and** `.docs-editor-head` → the home is the clean gallery only (title + new
+  doc/today/guide + search + centered card grid); the tree + full rail return (via `☰`) once a doc opens.
+**Verify (`pw_docs_fix2.py` @1920, 10 assertions):** home_no_tree_sidebar, home_no_editor_head,
+home_gallery_visible, home_gallery_centered, editor_head_back_when_open, editor_capped (≤840),
+editor_centered, selection_within_page, selection_not_fullbleed, zero_console_errors.
