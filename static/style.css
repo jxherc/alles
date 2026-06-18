@@ -2525,6 +2525,11 @@ body.is-incognito .incognito-bar {
 .rule-form > * { height: 32px; box-sizing: border-box; }
 .rule-form input.settings-input { background: var(--bg); border: 1px solid var(--faint); }
 .rules-apply { font-size: 0.62rem; padding: 0.08rem 0.45rem; margin-left: 0.4rem; vertical-align: middle; }
+.money-txns h3 { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.txn-search-wrap { display: inline-flex; gap: 0.35rem; margin-left: auto; align-items: center; }
+.txn-search-wrap input.settings-input { height: 28px; font-size: 0.72rem; background: var(--bg); border: 1px solid var(--faint); }
+.txn-search-wrap #txn-search { width: 190px; }
+.txn-search-wrap #txn-min, .txn-search-wrap #txn-max { width: 64px; }
 @media (max-width: 720px) { .money-summary { grid-template-columns: repeat(2, 1fr); } .money-grid { grid-template-columns: 1fr; } }
 
 .days-grid {
