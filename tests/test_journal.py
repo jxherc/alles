@@ -82,7 +82,7 @@ class DepthTests(unittest.TestCase):
         self.assertIn("found the needle", ex["markdown"])
         cal = J.entry_calendar(2026, db)
         self.assertIn("2026-06-14", cal["days"])
-        self.assertEqual(cal["days"]["2026-06-14"], 4)  # word count
+        self.assertEqual(cal["days"]["2026-06-14"]["words"], 4)  # enriched shape: words/mood/level
 
 
 if __name__ == "__main__":
