@@ -2284,6 +2284,23 @@ body.is-incognito .incognito-bar {
 .vault-strength-bar { flex: 0 0 120px; height: 5px; background: var(--faint); border-radius: 3px; overflow: hidden; }
 .vault-strength-fill { display: block; height: 100%; width: 0; transition: width .2s, background .2s; }
 
+/* ── add/edit secret modal ── */
+.vault-modal-card { width: 460px; max-width: 94vw; max-height: 88vh; }
+.vault-form { padding: 1rem 1.1rem; overflow-y: auto; display: flex; flex-direction: column; gap: 0.75rem; }
+.vform-field { display: flex; flex-direction: column; gap: 0.28rem; }
+.vform-field > label { font-size: 0.64rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+.vform-input { width: 100%; }
+textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; font: inherit; }
+.vform-row { display: flex; gap: 0.6rem; }
+.vform-row .vform-field { flex: 1; }
+.vform-divider { height: 1px; background: var(--faint); margin: 0.15rem 0; }
+.vform-empty { font-size: 0.74rem; color: var(--muted); padding: 0.4rem 0; }
+.vault-form .vault-schema-pick { padding: 0.1rem 0; }
+.vform-pw { display: flex; align-items: center; gap: 0.35rem; }
+.vform-pw .vform-input { flex: 1; min-width: 0; }
+.vform-pw .act-btn, .vform-pw .btn { flex-shrink: 0; }
+.vault-form-actions { display: flex; align-items: center; gap: 0.5rem; padding: 0.75rem 1.1rem; border-top: 1px solid var(--faint); justify-content: flex-end; }
+
 /* ── image editor ── */
 .ie-modal { position: fixed; inset: 0; z-index: 200; background: rgba(0,0,0,0.85); display: none; align-items: center; justify-content: center; }
 .ie-shell { width: 96vw; height: 94vh; background: var(--bg); border: 1px solid var(--faint); border-radius: 3px; display: flex; flex-direction: column; overflow: hidden; }
@@ -2387,13 +2404,23 @@ body.is-incognito .incognito-bar {
 
 /* new views go full-width with the same tight side padding as tasks/subs/files
    (the default page-view is a narrow 760px centered column = big side bezels) */
-#journal-view .page-view-head, #journal-view .page-view-body { max-width: none; margin-left: 0; margin-right: 0; }
+/* side padding matches the other full-width apps (days / subs) so journal lines up */
+#journal-view .page-view-head, #journal-view .page-view-body {
+  max-width: none; margin-left: 0; margin-right: 0;
+  padding-left: clamp(0.9rem, 3vw, 2.4rem); padding-right: clamp(0.9rem, 3vw, 2.4rem);
+}
 
-/* ── journal ── */
-.jrnl-wrap { display: flex; gap: 1.8rem; padding: 0.4rem 0 1rem; align-items: flex-start; }
-.jrnl-main { flex: 1; min-width: 0; max-width: 760px; margin: 0 auto; }   /* comfortable centered writing column */
-.jrnl-side { width: 280px; flex-shrink: 0; }
-@media (max-width: 860px) { .jrnl-wrap { flex-direction: column; } .jrnl-main { max-width: none; } .jrnl-side { width: 100%; } }
+/* ── journal — vertical: controls + heatmap on top, editor, then extras ── */
+.jrnl-wrap { display: flex; flex-direction: column; gap: 1.4rem; padding: 0.4rem 0 1.5rem; }
+.jrnl-top { display: flex; flex-direction: column; gap: 0.7rem; }
+.jrnl-toolbar { display: flex; align-items: center; gap: 0.6rem; }
+.jrnl-search { flex: 1; margin: 0; }
+.jrnl-results { display: flex; flex-direction: column; gap: 0.2rem; }
+.jrnl-results:empty { display: none; }
+.jrnl-heat-label { flex: 1; }
+.jrnl-main { width: 100%; }
+.jrnl-extras { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.4rem; align-items: start; }
+@media (max-width: 760px) { .jrnl-extras { grid-template-columns: 1fr; } }
 .jrnl-datebar { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.6rem; }
 .jrnl-date { font-size: 1.05rem; font-weight: 500; color: var(--text); }
 .jrnl-words { margin-left: auto; font-size: 0.68rem; color: var(--muted); }
@@ -2427,9 +2454,10 @@ body.is-incognito .incognito-bar {
 .jrnl-heat-head { display: flex; align-items: center; gap: 0.4rem; }
 .jrnl-heat-nav { font-size: 0.7rem; padding: 0 0.35rem; line-height: 1.4; }
 /* vertical: weeks stacked top→bottom, weekday columns — full year shows w/o horizontal clip */
-.jrnl-heatmap { display: flex; flex-direction: column; gap: 3px; padding-bottom: 0.3rem; margin-bottom: 0.3rem; }
-.jrnl-hrow { display: flex; gap: 3px; }
-.jrnl-hc { width: 11px; height: 11px; border-radius: 2px; background: var(--faint); cursor: pointer; }
+/* columns flex to fill the width → the whole year shows, no scroll, scales down on narrow screens */
+.jrnl-heatmap { display: flex; gap: 3px; width: 100%; max-width: 920px; padding-bottom: 0.3rem; margin-bottom: 0.3rem; }
+.jrnl-hcol { flex: 1 1 0; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.jrnl-hc { width: 100%; aspect-ratio: 1 / 1; border-radius: 2px; background: var(--faint); cursor: pointer; }
 .jrnl-hc.off { background: transparent; cursor: default; pointer-events: none; }
 .jrnl-hc.l1 { background: color-mix(in srgb, var(--accent) 30%, var(--faint)); }
 .jrnl-hc.l2 { background: color-mix(in srgb, var(--accent) 55%, var(--faint)); }
@@ -2994,7 +3022,8 @@ body.is-incognito .incognito-bar {
 .act-range-opt.on { background: var(--faint); color: var(--text); }
 .act-search { font-family: inherit; font-size: 0.7rem; margin-left: auto; padding: 0.2rem 0.5rem; background: var(--bg); border: 1px solid var(--faint); border-radius: 3px; color: var(--text); width: 160px; }
 .act-search:focus { outline: none; border-color: var(--muted); }
-.activity-summary { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; padding: 0.4rem 0; font-size: 0.72rem; color: var(--muted); }
+/* match the head/body horizontal padding so the summary's left edge lines up with the title */
+.activity-summary { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; padding: 0.4rem clamp(0.9rem, 3vw, 2rem); font-size: 0.72rem; color: var(--muted); }
 .activity-summary:empty { display: none; }
 .act-sum-total { color: var(--text); font-weight: 600; }
 .act-sum-chip { display: inline-flex; align-items: center; gap: 0.25rem; }
@@ -4220,9 +4249,11 @@ body.is-incognito .incognito-bar {
 .vault-entry {
   display: flex; align-items: center; gap: 0.5rem;
   padding: 0.5rem 1rem; border-bottom: 1px solid var(--faint);
-  font-size: 0.8rem;
+  font-size: 0.8rem; cursor: pointer;
 }
-.vault-entry-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vault-entry:hover { background: var(--panel); }
+.vault-entry-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vault-entry-grow { flex: 1; }
 .vault-entry-user { color: var(--muted); font-size: 0.72rem; }
 .vault-entry-user::before { content: '· '; color: var(--faint); }
 .vault-entry-cat { font-size: 0.65rem; color: var(--muted); border: 1px solid var(--faint); border-radius: 3px; padding: 0.1rem 0.3rem; flex-shrink: 0; }
