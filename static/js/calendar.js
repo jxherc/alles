@@ -3,6 +3,7 @@ import { initCustomDropdown } from './dropdown.js';
 import { initDatePickers } from './datepick.js';
 
 let _events = [];
+let _tasks = [];  // tasks with due dates, overlaid on the month/agenda
 let _calendars = [];
 let _editing = null;
 let _editOcc = null;             // occurrence date when editing a recurring instance
@@ -45,11 +46,13 @@ const evHex = e => hexOf(evColorName(e));
 
 export async function loadCalendar() {
   _bindNav();
-  const [cals, evs, s] = await Promise.all([
+  const [cals, evs, s, tasks] = await Promise.all([
     fetch('/api/calendars').then(r => r.json()).catch(() => []),
     fetch('/api/calendar').then(r => r.json()).catch(() => []),
     fetch('/api/settings').then(r => r.json()).catch(() => ({})),
+    fetch('/api/calendar/tasks').then(r => r.json()).catch(() => []),
   ]);
+  _tasks = Array.isArray(tasks) ? tasks : [];
   _weekStart = s.cal_week_start === 'mon' ? 1 : 0;
   // default-view setting: seed the opening view on first mount (last-used in localStorage
   // wins if present), then only re-apply when the setting itself actually changes (cog save).
@@ -302,6 +305,8 @@ function renderMonth() {
   const occ = expand(rangeStart, rangeEnd);
   const byDay = {};
   for (const o of occ) { const k = ymd(o._date); (byDay[k] = byDay[k] || []).push(o); }
+  const tasksByDay = {};
+  for (const t of _tasks) (tasksByDay[t.date] = tasksByDay[t.date] || []).push(t);
 
   const cells = [];
   for (let i = 0; i < startDay; i++) cells.push(null);
@@ -317,13 +322,26 @@ function renderMonth() {
     const chips = evts.slice(0, 4).map(o =>
       `<div class="cal-chip${o._recur ? ' recurring' : ''}" data-id="${o.id}" data-occ="${ymd(o._date)}" style="${chipStyle(o)}" title="${chipTitle(o)}">${o._recur ? '<span class="cal-chip-recur">↻</span>' : ''}${esc((o.all_day ? '' : timeShort(o._date) + ' ') + o.title)}</div>`).join('');
     const more = evts.length > 4 ? `<div class="cal-more">+${evts.length - 4} more</div>` : '';
+    const tchips = (tasksByDay[key] || []).slice(0, 3).map(t =>
+      `<div class="cal-task${t.done ? ' done' : ''}" data-task="${esc(t.id)}" title="task: ${esc(t.title)}"><span class="cal-task-chk">${t.done ? '☑' : '☐'}</span>${esc(t.title)}</div>`).join('');
     html += `<div class="cal-cell${sameDay(cell, today) ? ' today' : ''}" data-date="${key}">
       <div class="cal-cell-num">${cell.getDate()}</div>
-      <div class="cal-cell-events">${chips}${more}</div></div>`;
+      <div class="cal-cell-events">${chips}${more}${tchips}</div></div>`;
   }
   html += '</div>';
   el.innerHTML = html;
-  el.querySelectorAll('.cal-cell:not(.empty)').forEach(c => c.addEventListener('click', ev => {
+  el.querySelectorAll('.cal-cell:not(.empty)').forEach(c => c.addEventListener('click', async ev => {
+    const task = ev.target.closest('.cal-task');
+    if (task) {
+      ev.stopPropagation();
+      const t = _tasks.find(x => x.id === task.dataset.task);
+      if (t) {
+        t.done = !t.done;
+        await fetch(`/api/tasks/${t.id}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ done: t.done }) }).catch(() => {});
+        render();
+      }
+      return;
+    }
     const chip = ev.target.closest('.cal-chip');
     if (chip) { openEvent(chip.dataset.id, chip.dataset.occ); return; }
     openEditor(null, c.dataset.date);
