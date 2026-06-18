@@ -100,7 +100,7 @@ function ensureCM() {
       onChange: (val) => {
         const ta = $('wiki-source'); if (ta) ta.value = val;
         updateStats();
-        if (!_applyingExternal) queueSave();
+        if (!_applyingExternal) { queueSave(); slashDetect(); }
       },
       wikiComplete: async (q) => {
         const res = await fetch(`/api/vault-md/search?q=${encodeURIComponent(q)}`).then(r => r.json()).catch(() => ({ results: [] }));
@@ -290,7 +290,7 @@ function initDocsToolbar() {
 export function initVault() {
   if (_inited) { loadTree(); return; }
   _inited = true;
-  if (localStorage.getItem('docs-tree-hidden') !== '0') $('wiki-view')?.classList.add('tree-hidden');
+  $('wiki-view')?.classList.add('tree-hidden');   // sidebar always starts closed in a doc — open it with the ☰ toggle
   $('wiki-tree-toggle')?.addEventListener('click', () => {
     const hidden = $('wiki-view')?.classList.toggle('tree-hidden');
     localStorage.setItem('docs-tree-hidden', hidden ? '1' : '0');
@@ -303,6 +303,8 @@ export function initVault() {
     if (on) $('wiki-ai-input')?.focus();
   });
   $('wiki-new-btn')?.addEventListener('click', newNote);
+  $('wiki-home-btn')?.addEventListener('click', () => { _resetEditor(); loadTree(); });   // back to docs home
+  $('docs-home-search')?.addEventListener('input', _paintHome);
   $('wiki-delete-btn')?.addEventListener('click', deleteCurrent);
   $('wiki-export-btn')?.addEventListener('click', e => openExportMenu(e.currentTarget));
   $('wiki-folder-btn')?.addEventListener('click', newFolder);
@@ -317,7 +319,13 @@ export function initVault() {
     treeEl.addEventListener('drop', e => { if (e.target.closest('.wiki-dir') || !_canDrop(_dragPath, '')) return; e.preventDefault(); moveInto(_dragPath, ''); });
   }
   $('wiki-today-btn')?.addEventListener('click', openDaily);
+  $('wiki-week-btn')?.addEventListener('click', () => openPeriodic('weekly'));
+  $('wiki-month-btn')?.addEventListener('click', () => openPeriodic('monthly'));
   $('wiki-outline-btn')?.addEventListener('click', toggleOutline);
+  $('wiki-props-btn')?.addEventListener('click', toggleProps);
+  $('wiki-query-btn')?.addEventListener('click', toggleQuery);
+  $('wiki-board-btn')?.addEventListener('click', openBoard);
+  $('wiki-board-close')?.addEventListener('click', () => { $('wiki-board').style.display = 'none'; });
   $('wiki-todos-btn')?.addEventListener('click', extractTodos);
   $('wiki-taskroll-btn')?.addEventListener('click', toggleTaskRoll);
   $('wiki-history-btn')?.addEventListener('click', toggleHistory);
@@ -333,6 +341,13 @@ export function initVault() {
   });
   $('wiki-graph-btn')?.addEventListener('click', openGraph);
   $('wiki-graph-close')?.addEventListener('click', () => { $('wiki-graph').style.display = 'none'; });
+  $('wiki-graph-local')?.addEventListener('click', () => {
+    _graphLocal = !_graphLocal;
+    $('wiki-graph-local').classList.toggle('active', _graphLocal);
+    fetchGraph();
+  });
+  let _gfT = 0;
+  $('wiki-graph-filter')?.addEventListener('input', () => { clearTimeout(_gfT); _gfT = setTimeout(fetchGraph, 200); });
   $('wiki-help-btn')?.addEventListener('click', () => {
     const h = $('wiki-help');
     if (h) h.style.display = h.style.display === 'none' ? 'block' : 'none';
@@ -362,9 +377,13 @@ export function initVault() {
     ta.addEventListener('blur', () => setTimeout(hideAc, 120));
     ta.addEventListener('click', () => hideAc());
   }
+  // slash menu nav: capture phase so it beats CM6's own keymap while the menu is open
+  document.addEventListener('keydown', _slashKeydown, true);
   initDocsToolbar();
   applyDocsMode();
   loadTree();
+  const qd = new URLSearchParams(location.search).get('doc');   // deep-link / refresh restore
+  if (qd) openFile(qd);
 }
 
 // ── source (raw textarea) mode ───────────────────────────────────────────────
@@ -373,6 +392,7 @@ function onSourceInput() {
   updateStats();
   queueSave();
   autocomplete();
+  slashDetect();
 }
 function onSourceKeydown(e) {
   if ($('wiki-autocomplete')?.style.display === 'block' && _acItems.length) {
@@ -465,15 +485,40 @@ function _flattenFiles(items, out = []) {
   }
   return out;
 }
+let _homeDocs = [];
 function renderRecent(items) {
+  // docs home gallery — all docs as cards, newest first (google-docs style)
+  _homeDocs = _flattenFiles(items).sort((a, b) => (b.mtime || 0) - (a.mtime || 0));
+  _paintHome();
+}
+
+function _fmtDate(mt) {
+  if (!mt) return '';
+  try { return new Date(mt * 1000).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }); }
+  catch { return ''; }
+}
+
+const _DOC_ICON = '<svg class="docs-card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>';
+
+function _paintHome() {
   const el = $('wiki-empty-recent');
   if (!el) return;
-  const files = _flattenFiles(items).slice(0, 8);
-  if (!files.length) { el.innerHTML = ''; return; }
-  el.innerHTML = `<div class="we-recent-label">your docs</div><div class="we-recent-list">`
-    + files.map(f => `<button class="we-recent-item" data-path="${esc(f.path)}">${esc(f.name)}</button>`).join('')
-    + `</div>`;
-  el.querySelectorAll('.we-recent-item').forEach(b => b.addEventListener('click', () => openFile(b.dataset.path)));
+  const q = ($('docs-home-search')?.value || '').toLowerCase().trim();
+  const docs = q
+    ? _homeDocs.filter(f => (f.name || '').toLowerCase().includes(q) || (f.path || '').toLowerCase().includes(q))
+    : _homeDocs;
+  if (!docs.length) {
+    el.innerHTML = `<div class="docs-home-empty">${q ? 'no docs match' : 'no docs yet — make one with + new doc'}</div>`;
+    return;
+  }
+  el.innerHTML = docs.map(f => {
+    const folder = f.path.includes('/') ? f.path.slice(0, f.path.lastIndexOf('/')) : '';
+    const meta = [folder, _fmtDate(f.mtime)].filter(Boolean).join(' · ');
+    return `<button class="docs-card" data-path="${esc(f.path)}">${_DOC_ICON}
+      <span class="docs-card-title">${esc(f.name)}</span>
+      <span class="docs-card-meta">${esc(meta)}</span></button>`;
+  }).join('');
+  el.querySelectorAll('.docs-card').forEach(b => b.addEventListener('click', () => openFile(b.dataset.path)));
 }
 
 function _fileRow(f) {
@@ -558,10 +603,21 @@ async function newFolder() {
 }
 
 // ── graph view ────────────────────────────────────────────────────────────
+let _graphLocal = false;
 async function openGraph() {
-  const box = $('wiki-graph');
-  box.style.display = 'flex';
-  try { renderGraph(await fetch('/api/vault-md/graph').then(r => r.json())); }
+  $('wiki-graph').style.display = 'flex';
+  await fetchGraph();
+}
+async function fetchGraph() {
+  const filt = ($('wiki-graph-filter')?.value || '').trim().replace(/^#/, '');
+  let url;
+  if (_graphLocal && _cur) {
+    const name = _cur.replace(/\.md$/, '').split('/').pop();
+    url = `/api/vault-md/local-graph?name=${encodeURIComponent(name)}&depth=2`;
+  } else {
+    url = filt ? `/api/vault-md/graph?tag=${encodeURIComponent(filt)}` : '/api/vault-md/graph';
+  }
+  try { renderGraph(await fetch(url).then(r => r.json())); }
   catch { toast('graph failed', 'error'); }
 }
 function renderGraph(data) {
@@ -589,7 +645,8 @@ function renderGraph(data) {
   for (const e of edges) html += `<line x1="${idx[e.source].x.toFixed(1)}" y1="${idx[e.source].y.toFixed(1)}" x2="${idx[e.target].x.toFixed(1)}" y2="${idx[e.target].y.toFixed(1)}" class="wg-edge"/>`;
   for (const n of nodes) {
     const r = 4 + Math.min(11, n.degree * 1.6);
-    html += `<g class="wg-node" data-path="${esc(n.path)}"><circle cx="${n.x.toFixed(1)}" cy="${n.y.toFixed(1)}" r="${r}"/><text x="${n.x.toFixed(1)}" y="${(n.y - r - 4).toFixed(1)}">${esc(n.id)}</text></g>`;
+    const isCenter = data.center && n.id === data.center;
+    html += `<g class="wg-node${isCenter ? ' wg-center' : ''}" data-path="${esc(n.path)}"><circle cx="${n.x.toFixed(1)}" cy="${n.y.toFixed(1)}" r="${isCenter ? r + 2 : r}"/><text x="${n.x.toFixed(1)}" y="${(n.y - r - 4).toFixed(1)}">${esc(n.id)}</text></g>`;
   }
   svg.innerHTML = html;
   svg.querySelectorAll('.wg-node').forEach(g => g.addEventListener('click', () => { $('wiki-graph').style.display = 'none'; openFile(g.dataset.path); }));
@@ -653,11 +710,20 @@ function _wireRow(row, kind) {
 }
 
 function _resetEditor() {
-  _cur = null; _syncEmpty();
+  _cur = null; _syncEmpty(); _syncDocUrl();
   setEditor('');
   $('wiki-preview').innerHTML = '';
   $('wiki-backlinks').innerHTML = '';
   const cl = $('wiki-current'); if (cl) cl.textContent = 'no doc open';
+}
+
+// keep the open doc in the URL (?doc=path) so refresh / deep-link restores it
+function _syncDocUrl() {
+  try {
+    const u = new URL(location.href);
+    if (_cur) u.searchParams.set('doc', _cur); else u.searchParams.delete('doc');
+    history.replaceState({}, '', u);
+  } catch {}
 }
 
 export function openNote(path) {
@@ -670,6 +736,7 @@ async function openFile(path) {
   try {
     const d = await fetch(`/api/vault-md/file?path=${encodeURIComponent(path)}`).then(r => r.json());
     _cur = d.path || path;
+    _syncDocUrl();
     _syncEmpty();
     setEditor(d.content || '');
     const currentLabel = $('wiki-current');
@@ -851,12 +918,293 @@ function jumpToLine(lineNo, text) {
   if (h) h.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
+// ── properties / frontmatter editor ──────────────────────────────────────────
+let _propsRows = [];
+async function toggleProps() {
+  const p = $('wiki-props'); if (!p) return;
+  const show = p.style.display === 'none';
+  p.style.display = show ? 'block' : 'none';
+  $('wiki-props-btn')?.classList.toggle('active', show);
+  if (show) await loadProps();
+}
+async function loadProps() {
+  const p = $('wiki-props'); if (!p) return;
+  if (!_cur) { p.innerHTML = '<div class="wiki-outline-empty">open a doc first</div>'; return; }
+  await flushSave();
+  let props = {};
+  try { props = (await fetch(`/api/vault-md/properties?path=${encodeURIComponent(_cur)}`).then(r => r.json())).properties || {}; }
+  catch { p.innerHTML = '<div class="wiki-outline-empty">failed to load</div>'; return; }
+  _propsRows = Object.entries(props).map(([k, v]) => ({ key: k, value: Array.isArray(v) ? v.join(', ') : String(v), isList: Array.isArray(v) }));
+  renderProps();
+}
+function renderProps() {
+  const p = $('wiki-props'); if (!p) return;
+  const rows = _propsRows.map((r, i) => `
+    <div class="wiki-prop-row" data-i="${i}">
+      <input class="wiki-prop-key" value="${esc(r.key)}" placeholder="property" spellcheck="false">
+      <input class="wiki-prop-val" value="${esc(r.value)}" placeholder="value (comma = list)" spellcheck="false">
+      <button class="icon-btn wiki-prop-del" title="remove">×</button>
+    </div>`).join('');
+  p.innerHTML = `<div class="wiki-outline-head">properties</div>${rows || '<div class="wiki-outline-empty">no properties yet</div>'}
+    <div class="wiki-prop-actions">
+      <button class="btn" id="wiki-prop-add">+ property</button>
+      <button class="btn primary" id="wiki-prop-save">save</button>
+    </div>`;
+  p.querySelectorAll('.wiki-prop-row').forEach(row => {
+    const i = +row.dataset.i;
+    row.querySelector('.wiki-prop-key').addEventListener('input', e => _propsRows[i].key = e.target.value);
+    row.querySelector('.wiki-prop-val').addEventListener('input', e => _propsRows[i].value = e.target.value);
+    row.querySelector('.wiki-prop-del').addEventListener('click', () => { _propsRows.splice(i, 1); renderProps(); });
+  });
+  $('wiki-prop-add')?.addEventListener('click', () => { _propsRows.push({ key: '', value: '', isList: false }); renderProps(); });
+  $('wiki-prop-save')?.addEventListener('click', saveProps);
+}
+async function saveProps() {
+  if (!_cur) return;
+  await flushSave();
+  const props = {};
+  for (const r of _propsRows) {
+    const k = (r.key || '').trim(); if (!k) continue;
+    const v = (r.value || '').trim();
+    props[k] = (r.isList || v.includes(',')) ? v.split(',').map(s => s.trim()).filter(Boolean) : v;
+  }
+  try {
+    await fetch('/api/vault-md/properties', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ path: _cur, properties: props }) });
+    const d = await fetch(`/api/vault-md/file?path=${encodeURIComponent(_cur)}`).then(r => r.json());
+    setEditor(d.content || '');
+    await loadProps();
+    toast('properties saved', 'success');
+  } catch { toast('failed to save properties', 'error'); }
+}
+
+// ── slash "/" insert menu (live CM6 + source textarea) ───────────────────────
+let _slashOpen = false, _slashItems = [], _slashSel = 0, _slashCtx = null;
+function _editorCtx() {
+  if (_docsMode === 'source') {
+    const ta = $('wiki-source'); if (!ta) return null;
+    return { mode: 'source', text: ta.value, pos: ta.selectionStart, el: ta };
+  }
+  if (_docsMode === 'live' && _cm?.view) {
+    const v = _cm.view; const head = v.state.selection.main.head;
+    return { mode: 'live', text: v.state.doc.toString(), pos: head, view: v };
+  }
+  return null;
+}
+async function slashDetect() {
+  const ctx = _editorCtx(); if (!ctx) return hideSlash();
+  const { text, pos } = ctx;
+  let i = pos - 1;
+  while (i >= 0 && !/\s/.test(text[i]) && text[i] !== '/') i--;
+  if (i < 0 || text[i] !== '/') return hideSlash();
+  const before = i > 0 ? text[i - 1] : '\n';
+  if (i !== 0 && !/\s/.test(before)) return hideSlash();   // mid-word slash (e.g. a/b) — ignore
+  const q = text.slice(i + 1, pos);
+  if (/\s/.test(q)) return hideSlash();
+  _slashCtx = { ...ctx, start: i, end: pos };
+  let cmds = [];
+  try { cmds = (await fetch(`/api/vault-md/slash-commands?q=${encodeURIComponent(q)}`).then(r => r.json())).commands || []; }
+  catch { return hideSlash(); }
+  if (!cmds.length) return hideSlash();
+  _slashItems = cmds; _slashSel = 0;
+  renderSlash();
+}
+function _caretCoords(ctx) {
+  if (ctx.mode === 'live') {
+    const c = ctx.view.coordsAtPos(ctx.end);
+    return c ? { left: c.left, top: c.bottom } : null;
+  }
+  // textarea: mirror div to find the caret pixel
+  const ta = ctx.el, r = ta.getBoundingClientRect();
+  const div = document.createElement('div'); const s = getComputedStyle(ta);
+  for (const pr of ['fontFamily', 'fontSize', 'fontWeight', 'lineHeight', 'paddingTop', 'paddingLeft', 'paddingRight', 'whiteSpace', 'wordWrap', 'letterSpacing']) div.style[pr] = s[pr];
+  div.style.position = 'absolute'; div.style.visibility = 'hidden'; div.style.whiteSpace = 'pre-wrap'; div.style.wordWrap = 'break-word';
+  div.style.width = ta.clientWidth + 'px';
+  div.textContent = ta.value.slice(0, _slashCtx.end);
+  const span = document.createElement('span'); span.textContent = '​'; div.appendChild(span);
+  document.body.appendChild(div);
+  const top = r.top + (span.offsetTop - ta.scrollTop) + 18;
+  const left = r.left + (span.offsetLeft);
+  div.remove();
+  return { left, top };
+}
+function renderSlash() {
+  const box = $('wiki-slash'); if (!box) return;
+  box.innerHTML = _slashItems.map((c, i) =>
+    `<div class="wiki-slash-item${i === _slashSel ? ' active' : ''}" data-i="${i}"><span class="wiki-slash-label">${esc(c.label)}</span><span class="wiki-slash-id">/${esc(c.id)}</span></div>`).join('');
+  const co = _caretCoords(_slashCtx);
+  if (co) { box.style.left = Math.min(co.left, window.innerWidth - 230) + 'px'; box.style.top = co.top + 'px'; }
+  box.style.display = 'block';
+  _slashOpen = true;
+  box.querySelectorAll('.wiki-slash-item').forEach(el => el.addEventListener('mousedown', e => { e.preventDefault(); pickSlash(+el.dataset.i); }));
+}
+function hideSlash() { const b = $('wiki-slash'); if (b) b.style.display = 'none'; _slashOpen = false; _slashItems = []; }
+function pickSlash(i) {
+  const cmd = _slashItems[i]; if (!cmd || !_slashCtx) return hideSlash();
+  let snip = cmd.snippet, caret;
+  const ci = snip.indexOf('{}');
+  if (ci >= 0) { snip = snip.replace('{}', ''); caret = _slashCtx.start + ci; } else caret = _slashCtx.start + snip.length;
+  if (_slashCtx.mode === 'live') {
+    _slashCtx.view.dispatch({ changes: { from: _slashCtx.start, to: _slashCtx.end, insert: snip }, selection: { anchor: caret } });
+    _slashCtx.view.focus();
+  } else {
+    const ta = _slashCtx.el, v = ta.value;
+    ta.value = v.slice(0, _slashCtx.start) + snip + v.slice(_slashCtx.end);
+    ta.setSelectionRange(caret, caret); ta.focus(); onSourceInput();
+  }
+  hideSlash();
+}
+function _slashKeydown(e) {
+  if (!_slashOpen || !_slashItems.length) return;
+  if (e.key === 'ArrowDown') { e.preventDefault(); e.stopPropagation(); _slashSel = (_slashSel + 1) % _slashItems.length; renderSlash(); }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); e.stopPropagation(); _slashSel = (_slashSel - 1 + _slashItems.length) % _slashItems.length; renderSlash(); }
+  else if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); e.stopPropagation(); pickSlash(_slashSel); }
+  else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); hideSlash(); }
+}
+
+// ── kanban board (over the current doc) ──────────────────────────────────────
+let _boardCardDrag = null;  // { line, fromCol }
+async function openBoard() {
+  if (!_cur) { toast('open a doc first', 'error'); return; }
+  await flushSave();
+  $('wiki-board').style.display = 'flex';
+  $('wiki-board-title').textContent = `board · ${_cur.replace(/\.md$/, '')}`;
+  await loadBoard();
+}
+async function loadBoard() {
+  const wrap = $('wiki-board-cols'); if (!wrap) return;
+  let cols = [];
+  try { cols = (await fetch(`/api/vault-md/board?path=${encodeURIComponent(_cur)}`).then(r => r.json())).columns || []; }
+  catch { wrap.innerHTML = '<div class="wiki-outline-empty">failed to load board</div>'; return; }
+  if (!cols.length) { wrap.innerHTML = '<div class="wiki-board-empty">no columns — add a <code>## Heading</code> with <code>- [ ] cards</code> to this doc, or click “+ column”.</div><button class="btn" id="wiki-board-newcol">+ column</button>'; $('wiki-board-newcol')?.addEventListener('click', addColumn); return; }
+  wrap.innerHTML = cols.map(c => `
+    <div class="wiki-board-col" data-col="${esc(c.name)}">
+      <div class="wiki-board-colhead">${esc(c.name)} <span class="wiki-board-count">${c.cards.length}</span></div>
+      <div class="wiki-board-cards" data-col="${esc(c.name)}">
+        ${c.cards.map(card => `<div class="wiki-board-card${card.done ? ' done' : ''}" draggable="true" data-line="${card.line}" data-col="${esc(c.name)}">
+          <span class="wiki-board-chk" data-toggle aria-checked="${card.done}"></span><span class="wiki-board-text">${esc(card.text)}</span></div>`).join('')}
+      </div>
+      <button class="wiki-board-add" data-col="${esc(c.name)}">+ card</button>
+    </div>`).join('') + `<button class="btn wiki-board-newcol-btn" id="wiki-board-newcol">+ column</button>`;
+  wireBoard();
+}
+function wireBoard() {
+  const wrap = $('wiki-board-cols');
+  wrap.querySelectorAll('.wiki-board-card').forEach(card => {
+    card.addEventListener('dragstart', () => { _boardCardDrag = { line: +card.dataset.line, fromCol: card.dataset.col }; card.classList.add('dragging'); });
+    card.addEventListener('dragend', () => { card.classList.remove('dragging'); _boardCardDrag = null; });
+    card.querySelector('[data-toggle]')?.addEventListener('click', async e => {
+      e.stopPropagation();
+      const done = card.querySelector('[data-toggle]').getAttribute('aria-checked') !== 'true';
+      await fetch('/api/vault-md/task', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ path: _cur, line: +card.dataset.line, done }) });
+      await loadBoard(); await reloadCurrentDoc();
+    });
+  });
+  wrap.querySelectorAll('.wiki-board-cards').forEach(zone => {
+    zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drop'); });
+    zone.addEventListener('dragleave', () => zone.classList.remove('drop'));
+    zone.addEventListener('drop', async e => {
+      e.preventDefault(); zone.classList.remove('drop');
+      if (!_boardCardDrag) return;
+      const toCol = zone.dataset.col;
+      if (toCol === _boardCardDrag.fromCol) return;
+      await fetch('/api/vault-md/board/move', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ path: _cur, line: _boardCardDrag.line, to_col: toCol }) });
+      await loadBoard(); await reloadCurrentDoc();
+    });
+  });
+  wrap.querySelectorAll('.wiki-board-add').forEach(btn => btn.addEventListener('click', async () => {
+    const text = await dlgPrompt(`new card in “${btn.dataset.col}”:`);
+    if (!text?.trim()) return;
+    await fetch('/api/vault-md/board/add', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ path: _cur, column: btn.dataset.col, text: text.trim() }) });
+    await loadBoard(); await reloadCurrentDoc();
+  }));
+  $('wiki-board-newcol')?.addEventListener('click', addColumn);
+}
+async function addColumn() {
+  const name = await dlgPrompt('column name:');
+  if (!name?.trim()) return;
+  const text = await dlgPrompt('first card (optional):');
+  await fetch('/api/vault-md/board/add', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ path: _cur, column: name.trim(), text: (text || 'new card').trim() }) });
+  await loadBoard(); await reloadCurrentDoc();
+}
+async function reloadCurrentDoc() {
+  if (!_cur) return;
+  const d = await fetch(`/api/vault-md/file?path=${encodeURIComponent(_cur)}`).then(r => r.json());
+  setEditor(d.content || '');
+}
+
+// ── note query (dataview-lite) ───────────────────────────────────────────────
+const _QOPS = ['eq', 'ne', 'contains', 'gt', 'lt', 'exists', 'missing'];
+let _qFilters = [{ field: 'status', op: 'eq', value: '' }];
+let _qSort = { field: '', dir: 'asc' };
+function toggleQuery() {
+  const p = $('wiki-query'); if (!p) return;
+  const show = p.style.display === 'none';
+  p.style.display = show ? 'block' : 'none';
+  $('wiki-query-btn')?.classList.toggle('active', show);
+  if (show) renderQuery();
+}
+function renderQuery() {
+  const p = $('wiki-query'); if (!p) return;
+  const opOpts = (sel) => _QOPS.map(o => `<option${o === sel ? ' selected' : ''}>${o}</option>`).join('');
+  const rows = _qFilters.map((f, i) => `
+    <div class="wiki-q-row" data-i="${i}">
+      <input class="wiki-q-field" value="${esc(f.field)}" placeholder="field / tag / folder" spellcheck="false">
+      <select class="wiki-q-op">${opOpts(f.op)}</select>
+      <input class="wiki-q-val" value="${esc(f.value)}" placeholder="value" spellcheck="false">
+      <button class="icon-btn wiki-q-del" title="remove">×</button>
+    </div>`).join('');
+  p.innerHTML = `<div class="wiki-outline-head">query notes</div>${rows}
+    <div class="wiki-q-actions">
+      <button class="btn" id="wiki-q-add">+ filter</button>
+      <input class="wiki-q-sort" id="wiki-q-sort" value="${esc(_qSort.field)}" placeholder="sort by field" spellcheck="false">
+      <select id="wiki-q-dir"><option${_qSort.dir === 'asc' ? ' selected' : ''}>asc</option><option${_qSort.dir === 'desc' ? ' selected' : ''}>desc</option></select>
+      <button class="btn primary" id="wiki-q-run">run</button>
+    </div>
+    <div class="wiki-q-results" id="wiki-q-results"></div>`;
+  p.querySelectorAll('.wiki-q-row').forEach(row => {
+    const i = +row.dataset.i;
+    row.querySelector('.wiki-q-field').addEventListener('input', e => _qFilters[i].field = e.target.value);
+    row.querySelector('.wiki-q-op').addEventListener('change', e => _qFilters[i].op = e.target.value);
+    row.querySelector('.wiki-q-val').addEventListener('input', e => _qFilters[i].value = e.target.value);
+    row.querySelector('.wiki-q-del').addEventListener('click', () => { _qFilters.splice(i, 1); if (!_qFilters.length) _qFilters.push({ field: '', op: 'eq', value: '' }); renderQuery(); });
+  });
+  $('wiki-q-add')?.addEventListener('click', () => { _qFilters.push({ field: '', op: 'eq', value: '' }); renderQuery(); });
+  $('wiki-q-sort')?.addEventListener('input', e => _qSort.field = e.target.value);
+  $('wiki-q-dir')?.addEventListener('change', e => _qSort.dir = e.target.value);
+  $('wiki-q-run')?.addEventListener('click', runQuery);
+}
+async function runQuery() {
+  const filters = _qFilters.filter(f => (f.field || '').trim());
+  const body = { filters, limit: 200 };
+  if (_qSort.field.trim()) body.sort = { field: _qSort.field.trim(), dir: _qSort.dir };
+  const box = $('wiki-q-results'); if (box) box.innerHTML = '<div class="wiki-outline-empty">…</div>';
+  let d;
+  try { d = await api('/api/vault-md/query', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }); }
+  catch { if (box) box.innerHTML = '<div class="wiki-outline-empty">query failed</div>'; return; }
+  if (!box) return;
+  if (!d.results.length) { box.innerHTML = '<div class="wiki-outline-empty">no matches</div>'; return; }
+  box.innerHTML = `<div class="wiki-q-count">${d.count} note${d.count !== 1 ? 's' : ''}</div>` + d.results.map(r => {
+    const meta = Object.entries(r.props).slice(0, 3).map(([k, v]) => `${esc(k)}: ${esc(Array.isArray(v) ? v.join(', ') : v)}`).join(' · ');
+    return `<div class="wiki-q-result" data-path="${esc(r.path)}"><span class="wiki-q-name">${esc(r.name)}</span>${meta ? `<span class="wiki-q-meta">${meta}</span>` : ''}</div>`;
+  }).join('');
+  box.querySelectorAll('.wiki-q-result').forEach(el => el.addEventListener('click', () => openFile(el.dataset.path)));
+}
+
 async function openDaily() {
   const d = new Date();
   const name = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   await fetch('/api/vault-md/file', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ path: name, content: `# ${name}\n\n` }) });
   await loadTree();
   openFile(name + '.md');
+}
+
+// weekly / monthly review notes — server picks the path (ISO week) + seeds a template
+async function openPeriodic(kind) {
+  try {
+    const d = await api('/api/vault-md/periodic', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ kind }) });
+    await loadTree();
+    openFile(d.path);
+  } catch (e) { toast(e.message || `couldn't open ${kind} note`, 'error'); }
 }
 
 function queueSave() {
