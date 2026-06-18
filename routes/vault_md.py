@@ -240,6 +240,27 @@ async def extract_todos(body: ExtractTodosBody):
         db.close()
 
 
+class PeriodicBody(BaseModel):
+    kind: str
+    date: str = ""  # optional ISO YYYY-MM-DD; default today
+
+
+@router.post("/periodic")
+def periodic(body: PeriodicBody):
+    from datetime import date as _date
+
+    d = None
+    if body.date:
+        try:
+            d = _date.fromisoformat(body.date)
+        except ValueError:
+            raise HTTPException(400, "bad date — use YYYY-MM-DD")
+    try:
+        return vault_md.open_or_create_periodic(body.kind, d)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
 @router.get("/properties")
 def get_properties(path: str):
     cur = vault_md.read(_norm_path(path))
