@@ -8,6 +8,9 @@ const $ = id => document.getElementById(id);
 let _subs = [];
 let _summary = {};
 let _analytics = null;
+let _upcoming = null;  // renewals due in the next N days + summed cost
+let _forecast = null;  // per-month projected spend (cash-flow)
+let _dupIds = new Set(); // ids flagged as possible duplicates
 let _accounts = [];    // money accounts, for the optional auto-post link
 let _editing = null;   // id of the row currently in edit mode
 
@@ -19,12 +22,51 @@ export async function loadSubs() {
   } catch { _subs = []; _summary = {}; }
   try { _analytics = await fetch('/api/subscriptions/analytics').then(r => r.json()); }
   catch { _analytics = null; }
+  try { _upcoming = await fetch('/api/subscriptions/upcoming?days=7').then(r => r.json()); }
+  catch { _upcoming = null; }
+  try { _forecast = await fetch('/api/subscriptions/forecast?months=6').then(r => r.json()); }
+  catch { _forecast = null; }
+  try {
+    const dd = await fetch('/api/subscriptions/duplicates').then(r => r.json());
+    _dupIds = new Set((dd.groups || []).flatMap(g => g.subs.map(s => s.id)));
+  } catch { _dupIds = new Set(); }
   try { _accounts = (await fetch('/api/money/accounts').then(r => r.json())).filter(a => !a.archived); }
   catch { _accounts = []; }
   _render();
 }
 
 const acctName = id => _accounts.find(a => a.id === id)?.name || '';
+
+function _upcomingHtml(u) {
+  if (!u || !u.count) return '';
+  const chips = u.items.map(s => {
+    const when = s.days_until === 0 ? 'today' : s.days_until === 1 ? 'tomorrow' : `${s.days_until}d`;
+    return `<span class="subs-up-chip" title="${esc(s.name)} renews ${esc(s.next_due)}">
+      <span class="subs-up-name">${esc(s.name)}</span>
+      <span class="subs-up-when${s.days_until <= 1 ? ' soon' : ''}">${when}</span>
+      ${s.price ? `<span class="subs-up-amt">${esc(s.currency)}${s.price.toFixed(2)}</span>` : ''}
+    </span>`;
+  }).join('');
+  return `<div class="subs-upcoming">
+    <div class="subs-up-head">next ${u.days} days · <strong>${esc(u.currency)}${u.total.toFixed(2)}</strong> · ${u.count} renewal${u.count === 1 ? '' : 's'}</div>
+    <div class="subs-up-chips">${chips}</div>
+  </div>`;
+}
+
+function _forecastHtml(f) {
+  if (!f || !f.forecast?.length || !f.total) return '';
+  const max = Math.max(...f.forecast.map(m => m.total), 1);
+  const cols = f.forecast.map(m => `
+    <div class="subs-fc-col" title="${esc(m.month)}: ${esc(f.currency)}${m.total.toFixed(2)}">
+      <span class="subs-fc-amt">${m.total ? esc(f.currency) + m.total.toFixed(0) : ''}</span>
+      <span class="subs-fc-bar" style="height:${Math.max(3, m.total / max * 46).toFixed(0)}px"></span>
+      <span class="subs-fc-m">${esc(m.month.slice(5))}</span>
+    </div>`).join('');
+  return `<div class="subs-forecast">
+    <div class="subs-fc-head">next ${f.months} months · <strong>${esc(f.currency)}${f.total.toFixed(2)}</strong> projected</div>
+    <div class="subs-fc-bars">${cols}</div>
+  </div>`;
+}
 
 function _chartHtml(a) {
   if (!a || !a.count || !a.by_category.length) return '';
@@ -104,7 +146,7 @@ function _render() {
     list.innerHTML = '<div style="padding:1rem 0;font-size:0.75rem;color:var(--faint)">nothing tracked yet — add your first subscription below</div>';
     return;
   }
-  list.innerHTML = _chartHtml(_analytics) + _subs.map(s => _editing === s.id ? _editRow(s) : _row(s)).join('');
+  list.innerHTML = _upcomingHtml(_upcoming) + _forecastHtml(_forecast) + _chartHtml(_analytics) + _subs.map(s => _editing === s.id ? _editRow(s) : _row(s)).join('');
   _wireRows(list);
 }
 
@@ -118,11 +160,16 @@ function _row(s) {
         ${s.category ? `<span class="sub-cat">${esc(s.category)}</span>` : ''}
         ${s.account_id && acctName(s.account_id) ? `<span class="sub-autopost" title="auto-posts the charge to ${esc(acctName(s.account_id))}">↻ ${esc(acctName(s.account_id))}</span>` : ''}
         ${s.notes ? `<span class="sub-notes" title="${esc(s.notes)}">…</span>` : ''}
+        ${s.trial_days_left != null && s.trial_days_left >= 0 ? `<span class="sub-trial" title="free trial / cancel by ${esc(s.trial_end)}">trial: ${s.trial_days_left === 0 ? 'ends today' : s.trial_days_left + 'd left'}</span>` : ''}
+        ${s.price_increased ? `<span class="sub-hike" title="price went up${s.last_price_change ? ` (${esc(s.currency)}${s.last_price_change.old} → ${esc(s.currency)}${s.last_price_change.new} on ${esc(s.last_price_change.date)})` : ''}">↑ price up</span>` : ''}
+        ${_dupIds.has(s.id) ? `<span class="sub-dup" title="possible duplicate — another tracked subscription matches this name or site">⚠ dup?</span>` : ''}
       </div>
       <span class="sub-price">${esc(s.currency)}${s.price ? s.price.toFixed(2) : '—'}<span class="sub-cycle">${_cycleLabel(s)}</span></span>
       <span class="sub-due${soon ? ' soon' : ''}" title="${esc(s.next_due)}">${s.active ? esc(s.next_due.slice(5)) + ' · ' : ''}${_dueLabel(s)}</span>
       <span class="sub-actions">
-        ${s.active ? `<button class="btn" data-act="paid" title="paid — advance one cycle">paid</button>` : ''}
+        ${s.payable ? `<button class="btn" data-act="paid" title="mark this renewal paid">paid</button>`
+          : (s.active ? `<span class="sub-notdue" title="next charge ${esc(s.next_due)}">not due</span>` : '')}
+        ${s.paid_count ? `<button class="btn" data-act="history" title="payment history + undo">⤺ ${s.paid_count}</button>` : ''}
         <button class="btn" data-act="toggle">${s.active ? 'pause' : 'resume'}</button>
         <button class="btn" data-act="edit">edit</button>
         <button class="btn danger" data-act="del">×</button>
@@ -139,6 +186,7 @@ function _editRow(s) {
       <div class="settings-input custom-select" data-f="cycle" data-value="${esc(s.cycle || 'monthly')}" data-options="weekly|weekly;monthly|monthly;quarterly|quarterly;yearly|yearly;custom|custom" style="width:auto;min-width:96px"></div>
       <input type="text" class="settings-input" data-f="cycle_days" value="${s.cycle_days}" style="width:55px;${s.cycle === 'custom' ? '' : 'display:none'}" title="cycle length in days" inputmode="numeric">
       <div class="date-input" data-f="next_due" data-type="date" data-value="${esc(s.next_due)}" data-ph="due" style="width:135px"></div>
+      <div class="date-input" data-f="trial_end" data-type="date" data-value="${esc(s.trial_end || '')}" data-ph="trial ends" style="width:130px"></div>
       <input type="text" class="settings-input" data-f="category" value="${esc(s.category)}" placeholder="category" style="width:95px">
       <input type="text" class="settings-input" data-f="url" value="${esc(s.url || '')}" placeholder="manage url" style="width:120px">
       <input type="text" class="settings-input" data-f="remind_days" value="${s.remind_days}" style="width:45px" title="push reminder N days before (0 = off)" inputmode="numeric">
@@ -173,8 +221,10 @@ function _wireRows(list) {
       if (act === 'paid') {
         const r = await fetch(`/api/subscriptions/${id}/paid`, { method: 'POST' });
         if (r.ok) toast(`next due ${(await r.json()).next_due}`, 'success');
+        else toast((await r.json()).detail || 'not due yet', 'error');
         loadSubs(); return;
       }
+      if (act === 'history') { await _showHistory(id, row, btn); return; }
       if (act === 'toggle') {
         const s = _subs.find(x => x.id === id);
         await fetch(`/api/subscriptions/${id}`, {
@@ -193,6 +243,7 @@ function _wireRows(list) {
           url: v('url')?.trim() || '', account_id: v('account_id') || '',
           remind_days: parseInt(v('remind_days')) || 0,
           notes: v('notes') || '',
+          trial_end: (v('trial_end') || '').slice(0, 10),
         };
         const r = await fetch(`/api/subscriptions/${id}`, {
           method: 'PATCH', headers: { 'content-type': 'application/json' },
@@ -205,6 +256,29 @@ function _wireRows(list) {
       }
     }));
   });
+}
+
+async function _showHistory(id, row, btn) {
+  document.querySelectorAll('.sub-hist-pop').forEach(p => p.remove());
+  let pays = [];
+  try { pays = await fetch(`/api/subscriptions/${id}/payments`).then(r => r.json()); } catch {}
+  const cur = _subs.find(x => x.id === id)?.currency || '$';
+  const pop = document.createElement('div');
+  pop.className = 'sub-hist-pop';
+  pop.innerHTML = `<div class="sub-hist-head">payments</div>`
+    + (pays.length
+      ? pays.map(p => `<div class="sub-hist-row"><span>${esc(p.date)}</span><span>${esc(cur)}${(p.amount || 0).toFixed(2)}</span></div>`).join('')
+        + `<button class="btn" data-act="undo-last">undo last</button>`
+      : '<div class="sub-hist-empty">no payments yet</div>');
+  row.appendChild(pop);
+  pop.querySelector('[data-act="undo-last"]')?.addEventListener('click', async () => {
+    const r = await fetch(`/api/subscriptions/${id}/payments/undo`, { method: 'POST' });
+    toast(r.ok ? 'payment undone' : 'nothing to undo', r.ok ? 'success' : 'error');
+    loadSubs();
+  });
+  setTimeout(() => document.addEventListener('click', function h(e) {
+    if (!pop.contains(e.target) && e.target !== btn) { pop.remove(); document.removeEventListener('click', h); }
+  }), 0);
 }
 
 function esc(s) {

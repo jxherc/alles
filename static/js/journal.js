@@ -2,28 +2,53 @@
 import { toast, mdToHtml } from './util.js';
 
 const MOODS = ['😄', '🙂', '😐', '😕', '😢', '😠', '😴', '🤔', '🥳', '😍'];
-let _day = todayISO();
+function _dayFromUrl() { const d = new URLSearchParams(location.search).get('d'); return (d && /^\d{4}-\d{2}-\d{2}$/.test(d)) ? d : ''; }
+let _day = _dayFromUrl() || todayISO();
+let _heatYear = null;
 let _saveTimer = null;
 let _built = false;
+let _token = sessionStorage.getItem('journal_token') || '';
 
 function todayISO() { return new Date().toISOString().slice(0, 10); }
+function _setDayUrl() { try { const u = new URL(location.href); u.searchParams.set('d', _day); history.replaceState(null, '', u); } catch {} }
 function esc(s = '') { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+function _setToken(t) { _token = t || ''; if (_token) sessionStorage.setItem('journal_token', _token); else sessionStorage.removeItem('journal_token'); }
+function _authHeaders(extra = {}) { return _token ? { ...extra, 'X-Journal-Token': _token } : extra; }
 function shift(iso, n) { const d = new Date(iso + 'T00:00:00'); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); }
 function pretty(iso) {
   const d = new Date(iso + 'T00:00:00');
   return d.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
 }
 
-async function jget(url) { const r = await fetch(url); if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || r.status); return r.json(); }
+async function jget(url) {
+  const r = await fetch(url, { headers: _authHeaders() });
+  if (r.status === 403) { _setToken(''); showLock('unlock'); throw new Error('locked'); }
+  if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || r.status);
+  return r.json();
+}
 async function jput(url, body) {
-  const r = await fetch(url, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+  const r = await fetch(url, { method: 'PUT', headers: _authHeaders({ 'content-type': 'application/json' }), body: JSON.stringify(body) });
+  if (r.status === 403) { _setToken(''); showLock('unlock'); throw new Error('locked'); }
   if (!r.ok) throw new Error('save failed');
   return r.json();
 }
 
-export function initJournal() {
+export async function initJournal() {
   const body = document.getElementById('journal-body');
   if (!body) return;
+  // gate: if a passcode is set and we don't hold a valid token, show the lock screen
+  let status = { enabled: false };
+  try { status = await jget('/api/journal/lock/status'); } catch {}
+  if (status.enabled && !_token) { showLock('unlock'); return; }
+  buildJournal();
+}
+
+function buildJournal() {
+  const body = document.getElementById('journal-body');
+  if (!body) return;
+  if (!_built || body.querySelector('.jrnl-lock')) {
+    _built = false;   // lock screen replaced the shell — rebuild it
+  }
   if (!_built) {
     body.innerHTML = `
       <div class="jrnl-wrap">
@@ -43,6 +68,7 @@ export function initJournal() {
             <button class="btn primary" id="jrnl-save">save</button>
             <button class="btn" id="jrnl-reflect">✨ reflect</button>
             <span class="jrnl-saved" id="jrnl-saved"></span>
+            <button class="btn jrnl-lock-btn" id="jrnl-lock" title="lock" style="margin-left:auto"></button>
           </div>
           <div class="jrnl-reflection" id="jrnl-reflection" style="display:none"></div>
         </div>
@@ -50,6 +76,14 @@ export function initJournal() {
           <input id="jrnl-search" class="jrnl-tags" placeholder="search entries…" style="margin:0 0 0.5rem">
           <div id="jrnl-results"></div>
           <button class="btn" id="jrnl-export" style="margin-bottom:0.6rem">export .md</button>
+          <div class="jrnl-side-title jrnl-heat-head">
+            <button class="btn jrnl-heat-nav" id="jrnl-heat-prev" title="previous year">‹</button>
+            <span id="jrnl-heat-year"></span>
+            <button class="btn jrnl-heat-nav" id="jrnl-heat-next" title="next year">›</button>
+          </div>
+          <div id="jrnl-heatmap" class="jrnl-heatmap"></div>
+          <div class="jrnl-side-title">mood · last 30 days</div>
+          <div id="jrnl-moodtrend" class="jrnl-moodtrend"></div>
           <div class="jrnl-side-title">on this day</div>
           <div id="jrnl-otd" class="jrnl-otd"><div class="jrnl-empty">nothing from past years yet</div></div>
           <div class="jrnl-side-title">recent</div>
@@ -95,16 +129,165 @@ export function initJournal() {
       a.download = 'journal.md'; a.click();
       URL.revokeObjectURL(a.href);
     });
+    document.getElementById('jrnl-lock').onclick = openLockMenu;
+    document.getElementById('jrnl-heat-prev').onclick = () => { if (_heatYear) { _heatYear--; loadHeatmap(); } };
+    document.getElementById('jrnl-heat-next').onclick = () => { if (_heatYear && _heatYear < new Date().getFullYear()) { _heatYear++; loadHeatmap(); } };
     _built = true;
   }
   load();
   loadPrompt();
   loadOnThisDay();
+  loadMoodTrend();
+  refreshLockBtn();
+}
+
+async function loadHeatmap() {
+  const el = document.getElementById('jrnl-heatmap');
+  if (!el) return;
+  const year = _heatYear || Number(_day.slice(0, 4)) || new Date().getFullYear();
+  try {
+    const d = await jget('/api/journal/calendar?year=' + year);
+    _heatYear = d.year;
+    document.getElementById('jrnl-heat-year').textContent = d.year;
+    document.getElementById('jrnl-heat-next').disabled = d.year >= new Date().getFullYear();
+    // vertical calendar: each row = a week (Sun→Sat), rows stack top→bottom from the
+    // Sunday on/before Jan 1 → full year fits the narrow sidebar with no horizontal scroll
+    const start = new Date(Date.UTC(d.year, 0, 1));
+    start.setUTCDate(start.getUTCDate() - start.getUTCDay());
+    const end = new Date(Date.UTC(d.year, 11, 31));
+    let rows = '';
+    for (let c = new Date(start); c <= end; c.setUTCDate(c.getUTCDate() + 7)) {
+      let cells = '';
+      for (let r = 0; r < 7; r++) {
+        const dt = new Date(c); dt.setUTCDate(dt.getUTCDate() + r);
+        const iso = dt.toISOString().slice(0, 10);
+        const inYear = dt.getUTCFullYear() === d.year;
+        const info = d.days[iso];
+        const lvl = info ? info.level : 0;
+        const future = iso > todayISO();
+        const title = info ? `${iso} · ${info.words} words ${info.mood || ''}` : iso;
+        cells += `<span class="jrnl-hc l${lvl} ${!inYear || future ? 'off' : ''} ${iso === _day ? 'sel' : ''}" data-d="${inYear && !future ? iso : ''}" title="${title}"></span>`;
+      }
+      rows += `<div class="jrnl-hrow">${cells}</div>`;
+    }
+    el.innerHTML = rows;
+    el.querySelectorAll('.jrnl-hc[data-d]:not([data-d=""])').forEach(c => {
+      if (c.dataset.d) c.onclick = () => { _day = c.dataset.d; load(); };
+    });
+  } catch { el.innerHTML = ''; }
+}
+
+async function loadMoodTrend() {
+  const el = document.getElementById('jrnl-moodtrend');
+  if (!el) return;
+  try {
+    const d = await jget('/api/journal/moods?days=30');
+    if (!d.distribution.length) { el.innerHTML = '<div class="jrnl-empty">no moods logged yet</div>'; return; }
+    const max = Math.max(...d.distribution.map(x => x.count));
+    el.innerHTML = d.distribution.map(x => `
+      <div class="jrnl-mt-row">
+        <span class="jrnl-mt-emoji">${x.mood}</span>
+        <span class="jrnl-mt-bar"><span class="jrnl-mt-fill" style="width:${Math.max(6, x.count / max * 100)}%"></span></span>
+        <span class="jrnl-mt-n">${x.count}</span>
+      </div>`).join('');
+  } catch { el.innerHTML = ''; }
+}
+
+async function refreshLockBtn() {
+  const btn = document.getElementById('jrnl-lock');
+  if (!btn) return;
+  try {
+    const s = await jget('/api/journal/lock/status');
+    btn.textContent = s.enabled ? '🔒 lock now' : '🔓 add passcode';
+    btn.dataset.enabled = s.enabled ? '1' : '';
+  } catch {}
+}
+
+async function openLockMenu() {
+  const btn = document.getElementById('jrnl-lock');
+  if (btn?.dataset.enabled) {
+    // enabled + unlocked → offer lock-now / change / disable
+    const choice = await pickLockAction();
+    if (choice === 'lock') { await fetch('/api/journal/lock', { method: 'POST' }); _setToken(''); showLock('unlock'); }
+    else if (choice === 'change') showLock('change');
+    else if (choice === 'disable') showLock('disable');
+  } else {
+    showLock('set');
+  }
+}
+
+// tiny themed action picker rendered inline over the actions row
+function pickLockAction() {
+  return new Promise(resolve => {
+    const host = document.getElementById('jrnl-reflection');
+    host.style.display = 'block';
+    host.innerHTML = `<div class="jrnl-lockmenu">
+      <button class="btn" data-a="lock">lock now</button>
+      <button class="btn" data-a="change">change passcode</button>
+      <button class="btn danger" data-a="disable">disable lock</button>
+      <button class="btn" data-a="">cancel</button>
+    </div>`;
+    host.querySelectorAll('[data-a]').forEach(b => b.onclick = () => { host.style.display = 'none'; host.innerHTML = ''; resolve(b.dataset.a); });
+  });
+}
+
+// the lock screen — modes: unlock | set | change | disable
+function showLock(mode) {
+  const body = document.getElementById('journal-body');
+  if (!body) return;
+  _built = false;
+  const titles = { unlock: 'journal is locked', set: 'set a passcode', change: 'change passcode', disable: 'disable lock' };
+  const needsOld = mode === 'change' || mode === 'disable' || mode === 'unlock';
+  const needsNew = mode === 'set' || mode === 'change';
+  body.innerHTML = `
+    <div class="jrnl-lock">
+      <div class="jrnl-lock-card">
+        <div class="jrnl-lock-icon">🔒</div>
+        <div class="jrnl-lock-title">${titles[mode] || 'journal'}</div>
+        ${needsOld ? `<input type="password" id="jl-old" class="jrnl-tags" placeholder="${mode === 'unlock' ? 'passcode' : 'current passcode'}" autocomplete="off">` : ''}
+        ${needsNew ? `<input type="password" id="jl-new" class="jrnl-tags" placeholder="new passcode" autocomplete="off">` : ''}
+        ${needsNew ? `<input type="password" id="jl-new2" class="jrnl-tags" placeholder="confirm passcode" autocomplete="off">` : ''}
+        <div class="jrnl-lock-actions">
+          <button class="btn primary" id="jl-go">${mode === 'unlock' ? 'unlock' : mode === 'disable' ? 'disable' : 'save'}</button>
+          ${mode !== 'unlock' ? '<button class="btn" id="jl-cancel">cancel</button>' : ''}
+        </div>
+        <div class="jrnl-lock-err" id="jl-err"></div>
+      </div>
+    </div>`;
+  const err = m => { document.getElementById('jl-err').textContent = m; };
+  const first = body.querySelector('input'); first?.focus();
+  body.querySelector('#jl-cancel')?.addEventListener('click', () => { _built = false; buildJournal(); });
+  const submit = async () => {
+    const old = document.getElementById('jl-old')?.value || '';
+    const nw = document.getElementById('jl-new')?.value || '';
+    const nw2 = document.getElementById('jl-new2')?.value || '';
+    try {
+      if (mode === 'unlock') {
+        const r = await fetch('/api/journal/unlock', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ passcode: old }) });
+        if (!r.ok) return err('wrong passcode');
+        _setToken((await r.json()).token); _built = false; buildJournal();
+      } else if (mode === 'disable') {
+        const r = await fetch('/api/journal/lock/disable', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ passcode: old }) });
+        if (!r.ok) return err('wrong passcode'); _setToken(''); _built = false; buildJournal();
+      } else { // set | change
+        if (nw.length < 4) return err('use at least 4 characters');
+        if (nw !== nw2) return err('passcodes don\'t match');
+        const r = await fetch('/api/journal/lock/set', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ passcode: nw, old }) });
+        if (!r.ok) return err((await r.json().catch(() => ({}))).detail || 'failed');
+        const u = await fetch('/api/journal/unlock', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ passcode: nw }) });
+        _setToken((await u.json()).token); _built = false; buildJournal();
+        toast('passcode set', 'success');
+      }
+    } catch { err('something went wrong'); }
+  };
+  document.getElementById('jl-go').addEventListener('click', submit);
+  body.querySelectorAll('input').forEach(i => i.addEventListener('keydown', e => { if (e.key === 'Enter') submit(); }));
 }
 
 function curMood() { return document.querySelector('.jrnl-mood.active')?.dataset.m || ''; }
 
 async function load() {
+  _setDayUrl();
   document.getElementById('jrnl-date').textContent = pretty(_day) + (_day === todayISO() ? '' : '');
   document.getElementById('jrnl-next').disabled = _day >= todayISO();
   try {
@@ -118,6 +301,7 @@ async function load() {
   } catch { /* fresh shell is fine */ }
   loadStats();
   loadRecent();
+  loadHeatmap();
 }
 
 function updateWords() {
@@ -132,7 +316,7 @@ async function save(explicit) {
     await jput('/api/journal/' + _day, { content, mood: curMood(), tags });
     document.getElementById('jrnl-saved').textContent = 'saved ' + new Date().toLocaleTimeString();
     if (explicit) toast('entry saved', 'success');
-    loadStats(); loadRecent();
+    loadStats(); loadRecent(); loadMoodTrend();
   } catch (e) {
     if (explicit) toast(e.message || 'save failed', 'error');
   }

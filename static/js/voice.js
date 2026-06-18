@@ -241,7 +241,9 @@ function _outWaveStop() {
   if (pop) pop.hidden = true;
 }
 
-export async function speak(text) {
+// voiceOverride lets the audio-overview play two hosts in distinct voices.
+// resolves when playback finishes so callers can narrate segments in sequence.
+export async function speak(text, voiceOverride) {
   const s = await fetch('/api/settings').then(r => r.json()).catch(() => ({}));
   const provider = s.tts_provider || 'browser';
 
@@ -250,7 +252,7 @@ export async function speak(text) {
       const r = await fetch('/api/tts', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ text, voice: s.tts_voice || 'alloy' }),
+        body: JSON.stringify({ text, voice: voiceOverride || s.tts_voice || 'alloy' }),
       });
       if (!r.ok) throw new Error(await r.text());
       const buf = await r.arrayBuffer();
@@ -260,38 +262,42 @@ export async function speak(text) {
       src.buffer = decoded;
       const an = ctx.createAnalyser(); an.fftSize = 1024;
       src.connect(an); an.connect(ctx.destination);
-      let ended = false;
-      src.onended = () => { ended = true; _outWaveStop(); ctx.close().catch(() => {}); };
-      src.start();
       const td = new Uint8Array(an.fftSize);
-      _outWaveStart(() => {
-        if (ended) return null;
-        an.getByteTimeDomainData(td);
-        let sum = 0; for (let i = 0; i < td.length; i++) { const v = (td[i] - 128) / 128; sum += v * v; }
-        return Math.min(1, Math.sqrt(sum / td.length) * 9);
+      let ended = false;
+      await new Promise(resolve => {
+        src.onended = () => { ended = true; _outWaveStop(); ctx.close().catch(() => {}); resolve(); };
+        src.start();
+        _outWaveStart(() => {
+          if (ended) return null;
+          an.getByteTimeDomainData(td);
+          let sum = 0; for (let i = 0; i < td.length; i++) { const v = (td[i] - 128) / 128; sum += v * v; }
+          return Math.min(1, Math.sqrt(sum / td.length) * 9);
+        });
       });
     } catch (e) {
       toast('TTS failed — falling back to browser', 'error');
-      _browserSpeak(text);
+      await _browserSpeak(text);
     }
   } else {
-    _browserSpeak(text);
+    await _browserSpeak(text);
   }
 }
 
 async function _browserSpeak(text) {
   const s = await fetch('/api/settings').then(r => r.json()).catch(() => ({}));
-  const utt = new SpeechSynthesisUtterance(text.slice(0, 200));
+  const utt = new SpeechSynthesisUtterance(text.slice(0, 600));
   if (s.tts_speed) utt.rate = parseFloat(s.tts_speed);
   if (s.stt_language) utt.lang = s.stt_language;
-  let speaking = true;
-  utt.onend = utt.onerror = () => { speaking = false; _outWaveStop(); };
   window.speechSynthesis.cancel();   // clear any stuck utterance (a common 'mic/voice broken' cause)
-  window.speechSynthesis.speak(utt);
-  let t = 0;
-  _outWaveStart(() => {
-    if (!speaking && !window.speechSynthesis.speaking) return null;
-    t += 0.3;
-    return 0.3 + 0.32 * Math.abs(Math.sin(t)) + 0.14 * Math.abs(Math.sin(t * 2.7));
+  await new Promise(resolve => {
+    let speaking = true;
+    utt.onend = utt.onerror = () => { speaking = false; _outWaveStop(); resolve(); };
+    window.speechSynthesis.speak(utt);
+    let t = 0;
+    _outWaveStart(() => {
+      if (!speaking && !window.speechSynthesis.speaking) return null;
+      t += 0.3;
+      return 0.3 + 0.32 * Math.abs(Math.sin(t)) + 0.14 * Math.abs(Math.sin(t * 2.7));
+    });
   });
 }

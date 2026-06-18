@@ -27,9 +27,11 @@ function _fillImageModels() {
 export async function loadPhotos() {
   _fillImageModels();
   await loadAlbums();
-  const d = await fetch('/api/photos/list' + (_album ? '?album=' + encodeURIComponent(_album) : ''))
-    .then(r => r.json()).catch(() => ({ moments: [] }));
-  _renderMoments(d, 'gallery empty - upload something');
+  const url = _album === '__fav__'
+    ? '/api/photos/list?favorites=true'
+    : '/api/photos/list' + (_album ? '?album=' + encodeURIComponent(_album) : '');
+  const d = await fetch(url).then(r => r.json()).catch(() => ({ moments: [] }));
+  _renderMoments(d, _album === '__fav__' ? 'no favorites yet' : 'gallery empty - upload something');
 }
 
 async function searchPhotos(q) {
@@ -57,7 +59,7 @@ function _renderMoments(d, emptyMsg) {
 
 async function loadAlbums() {
   const albums = await fetch('/api/photos/albums').then(r => r.json()).catch(() => []);
-  const opts = [{ value: '', label: 'all gallery' },
+  const opts = [{ value: '', label: 'all gallery' }, { value: '__fav__', label: '★ favorites' },
     ...albums.map(a => ({ value: a.id, label: `${a.name} (${a.count})` }))];
   populateDropdown($('photos-album'), opts, _album);
 }
@@ -69,11 +71,17 @@ function openLightbox(id) {
   $('photos-lightbox-img').src = p.original;
   $('photos-dl-btn').href = p.original + '?download=1';
   $('photos-fav-btn').textContent = p.favorite ? '♥ favorited' : '♡ favorite';
-  const ex = p.exif || {};
+  const ex = { ...(p.exif || {}) };
+  const lat = ex.lat, lon = ex.lon;
+  delete ex.lat; delete ex.lon;   // shown as a map link, not raw rows
   const dims = (p.width && p.height) ? `${p.width} × ${p.height}` : '';
   const rows = [['taken', p.taken_at ? new Date(p.taken_at).toLocaleString() : ''], ['size', dims], ...Object.entries(ex)];
-  $('photos-exif').innerHTML = rows.filter(r => r[1]).map(([k, v]) =>
+  let html = rows.filter(r => r[1]).map(([k, v]) =>
     `<div class="photos-exif-row"><span>${esc(k)}</span><span>${esc(v)}</span></div>`).join('');
+  if (lat != null && lon != null) {
+    html += `<div class="photos-exif-row"><span>location</span><span><a class="photos-map-link" href="https://www.openstreetmap.org/?mlat=${lat}&mlon=${lon}#map=15/${lat}/${lon}" target="_blank" rel="noopener">📍 ${lat.toFixed ? lat.toFixed(4) : lat}, ${lon.toFixed ? lon.toFixed(4) : lon}</a></span></div>`;
+  }
+  $('photos-exif').innerHTML = html;
   $('photos-lightbox').style.display = 'flex';
 }
 

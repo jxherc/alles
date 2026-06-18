@@ -5,16 +5,20 @@ import { confirm as dlgConfirm } from './dialog.js';
 import { initCustomDropdown, getDropdownValue } from './dropdown.js';
 import { initDatePicker } from './datepick.js';
 
-let _month = _thisMonth();
-let _accounts = [], _txns = [], _budgets = [], _sum = null;
-let _cur = '$';
-let _inited = false;
-let _editTxn = null;   // id of the txn row currently being edited inline
-
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
 function _thisMonth() { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; }
+function _monthFromUrl() { const m = new URLSearchParams(location.search).get('m'); return (m && /^\d{4}-\d{2}$/.test(m)) ? m : ''; }
+function _setMonthUrl() { try { const u = new URL(location.href); u.searchParams.set('m', _month); history.replaceState(null, '', u); } catch {} }
+
+let _month = _monthFromUrl() || _thisMonth();
+let _accounts = [], _txns = [], _budgets = [], _sum = null, _recurring = [], _rules = [];
+let _searchResults = null;   // array when a search/filter is active, else null
+let _searchTimer = null;
+let _cur = '$';
+let _inited = false;
+let _editTxn = null;   // id of the txn row currently being edited inline
 function _today() { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; }
 function _shiftMonth(m, delta) {
   let [y, mo] = m.split('-').map(Number); mo += delta;
@@ -55,12 +59,18 @@ export function initMoneyPanel() {
 
 async function load() {
   const lbl = $('money-month-label'); if (lbl) lbl.textContent = _monthLabel(_month);
+  _setMonthUrl();
+  _searchResults = null;   // month change / reload clears any active search
   try {
-    [_accounts, _txns, _budgets, _sum] = await Promise.all([
+    // post any due recurring txns FIRST (and advance them) so the balances,
+    // transactions and summary we read next all reflect them — no stale first load
+    _recurring = await api('/api/money/recurring').catch(() => []);
+    [_accounts, _txns, _budgets, _sum, _rules] = await Promise.all([
       api('/api/money/accounts'),
       api(`/api/money/transactions?month=${_month}`),
       api('/api/money/budgets'),
       api(`/api/money/summary?month=${_month}`),
+      api('/api/money/rules').catch(() => []),
     ]);
     _cur = _sum?.currency || (_accounts[0]?.currency) || '$';
   } catch { $('money-body').innerHTML = '<div class="money-empty">failed to load</div>'; return; }
@@ -86,8 +96,20 @@ function render() {
       <section class="money-card"><h3>spending by category</h3>${catChart()}</section>
       <section class="money-card"><h3>last 6 months</h3>${trendChart()}</section>
       <section class="money-card"><h3>budgets</h3>${budgetsList()}${_budgetForm()}</section>
+      <section class="money-card"><h3>recurring</h3>${recurringList()}${_recurringForm()}</section>
+      <section class="money-card"><h3>auto-categorize${_rules.length ? ` <button class="btn rules-apply" id="rules-apply" title="apply to existing uncategorized">apply</button>` : ''}</h3>${rulesList()}${_ruleForm()}</section>
      </div>` +
-    `<section class="money-card money-txns"><h3>transactions · ${_monthLabel(_month)}</h3>${addTxnRow()}${txnList()}</section>`;
+    `<section class="money-card money-txns">
+      <h3>transactions · ${_monthLabel(_month)}
+        <span class="txn-search-wrap">
+          <input type="text" id="txn-search" class="settings-input" placeholder="search payee / category / notes" autocomplete="off">
+          <input type="text" id="txn-min" class="settings-input" placeholder="min $" inputmode="decimal" title="min amount">
+          <input type="text" id="txn-max" class="settings-input" placeholder="max $" inputmode="decimal" title="max amount">
+        </span>
+      </h3>
+      ${addTxnRow()}${transferRow()}
+      <div id="txn-rows">${txnList()}</div>
+    </section>`;
   wire();
 }
 
@@ -157,6 +179,57 @@ function budgetsList() {
   }).join('') + `</div>`;
 }
 
+function rulesList() {
+  if (!_rules.length) return '<div class="money-empty-sm">no rules — auto-tag a payee to a category</div>';
+  return `<div class="rules">` + _rules.map(r => `
+    <div class="rule" data-id="${r.id}">
+      <span class="rl-match">${esc(r.match)}</span>
+      <span class="rl-arrow">→</span>
+      <span class="rl-cat">${esc(r.category) || '<span class="tx-dim">(clear)</span>'}</span>
+      <button class="tx-del" data-del-rule="${r.id}" title="delete">×</button>
+    </div>`).join('') + `</div>`;
+}
+
+function _ruleForm() {
+  return `<div class="rule-form">
+    <input type="text" id="rl-match" class="settings-input" placeholder="if payee contains…" style="flex:1.2;min-width:120px">
+    <span class="rl-arrow">→</span>
+    <input type="text" id="rl-cat" class="settings-input" placeholder="category" style="flex:1;min-width:90px">
+    <button class="btn" id="rl-add">add</button>
+  </div>`;
+}
+
+const _cycleShort = { weekly: '/wk', monthly: '/mo', quarterly: '/qtr', yearly: '/yr', custom: '·custom' };
+
+function recurringList() {
+  if (!_recurring.length) return '<div class="money-empty-sm">nothing recurring — add rent, salary, a loan…</div>';
+  const an = {}; _accounts.forEach(a => an[a.id] = a.name);
+  return `<div class="recurs">` + _recurring.map(r => `
+    <div class="recur ${r.active ? '' : 'paused'}" data-id="${r.id}">
+      <span class="rc-payee">${esc(r.payee) || esc(r.category) || '—'}</span>
+      <span class="rc-amt ${r.amount >= 0 ? 'pos' : 'neg'}">${signed(r.amount)}<span class="rc-cyc">${_cycleShort[r.cycle] || ''}</span></span>
+      <span class="rc-next" title="next post">${r.active ? esc((r.next_date || '').slice(5)) : 'paused'}</span>
+      <button class="btn rc-toggle" data-toggle-rec="${r.id}" title="${r.active ? 'pause' : 'resume'}">${r.active ? 'pause' : 'resume'}</button>
+      <button class="tx-del" data-del-rec="${r.id}" title="delete">×</button>
+    </div>`).join('') + `</div>`;
+}
+
+function _recurringForm() {
+  if (!_accounts.length) return '';
+  const acctOpts = _accounts.map(a => `${a.id}|${(a.name || '').replace(/[;|]/g, '')}`).join(';');
+  const first = _accounts[0]?.id || '';
+  return `<div class="recur-form">
+    <input type="text" id="rc-payee" class="settings-input" placeholder="payee (e.g. rent)" style="flex:1.3;min-width:100px">
+    <input type="text" id="rc-cat" class="settings-input" placeholder="category" style="flex:1;min-width:80px">
+    <div class="settings-input custom-select" id="rc-sign" data-value="-" data-options="-|expense;+|income" style="width:104px"></div>
+    <input type="text" id="rc-amt" class="settings-input" placeholder="0.00" inputmode="decimal" style="width:84px">
+    <div class="settings-input custom-select" id="rc-cycle" data-value="monthly" data-options="weekly|weekly;monthly|monthly;quarterly|quarterly;yearly|yearly" style="width:120px"></div>
+    <div class="date-input" id="rc-next" data-type="date" data-value="${_today()}" data-ph="next date" style="width:128px"></div>
+    <div class="settings-input custom-select" id="rc-acct" data-value="${esc(first)}" data-options="${esc(acctOpts)}" style="width:128px"></div>
+    <button class="btn primary" id="rc-add">add</button>
+  </div>`;
+}
+
 function addTxnRow() {
   const acctOpts = _accounts.map(a => `${a.id}|${(a.name || '').replace(/[;|]/g, '')}`).join(';');
   const first = _accounts[0]?.id || '';
@@ -168,21 +241,47 @@ function addTxnRow() {
     <div class="settings-input custom-select" id="tx-sign" data-value="-" data-options="-|expense;+|income" style="width:106px"></div>
     <input type="text" id="tx-amt" class="settings-input" placeholder="0.00" inputmode="decimal" style="width:96px">
     <button class="btn primary" id="tx-add">add</button>
+    ${_accounts.length >= 2 ? '<button class="btn" id="tx-transfer-toggle" title="move money between accounts">⇄ transfer</button>' : ''}
+  </div>`;
+}
+
+function transferRow() {
+  if (_accounts.length < 2) return '';
+  const opts = _accounts.map(a => `${a.id}|${(a.name || '').replace(/[;|]/g, '')}`).join(';');
+  const a0 = _accounts[0]?.id || '', a1 = _accounts[1]?.id || '';
+  return `<div class="txn-transfer" id="txn-transfer" style="display:none">
+    <span class="tr-lbl">move</span>
+    <div class="settings-input custom-select" id="tr-from" data-value="${esc(a0)}" data-options="${esc(opts)}" style="width:130px"></div>
+    <span class="tr-arrow">→</span>
+    <div class="settings-input custom-select" id="tr-to" data-value="${esc(a1)}" data-options="${esc(opts)}" style="width:130px"></div>
+    <div class="date-input" id="tr-date" data-type="date" data-value="${_today()}" data-ph="date" style="width:128px"></div>
+    <input type="text" id="tr-amt" class="settings-input" placeholder="0.00" inputmode="decimal" style="width:96px">
+    <button class="btn primary" id="tr-do">transfer</button>
   </div>`;
 }
 
 function txnList() {
-  if (!_txns.length) return '<div class="money-empty-sm">no transactions this month</div>';
+  const rows = _searchResults !== null ? _searchResults : _txns;
+  if (!rows.length) return `<div class="money-empty-sm">${_searchResults !== null ? 'no matches' : 'no transactions this month'}</div>`;
   const an = {}; _accounts.forEach(a => an[a.id] = a.name);
-  return `<div class="txns">` + _txns.map(t => _editTxn === t.id ? editTxnRow(t) : `
-    <div class="txn" data-id="${t.id}">
+  return `<div class="txns">` + rows.map(t => {
+    if (_editTxn === t.id && !t.transfer_id) return editTxnRow(t);
+    // transfer legs aren't inline-editable (editing one would desync the pair) and
+    // their × removes the whole transfer, not just this leg
+    const xf = !!t.transfer_id;
+    const ed = xf ? '' : `data-edit-txn="${t.id}"`;
+    return `
+    <div class="txn ${xf ? 'is-transfer' : ''}" data-id="${t.id}">
       <span class="tx-date">${(t.date || '').slice(5)}</span>
-      <span class="tx-payee" data-edit-txn="${t.id}">${esc(t.payee) || '<span class="tx-dim">—</span>'}</span>
-      <span class="tx-cat" data-edit-txn="${t.id}">${t.category ? esc(t.category) : ''}</span>
+      <span class="tx-payee" ${ed}>${esc(t.payee) || '<span class="tx-dim">—</span>'}</span>
+      <span class="tx-cat" ${ed}>${xf ? '⇄ transfer' : (t.category ? esc(t.category) : '')}</span>
       <span class="tx-acct">${esc(an[t.account_id] || '')}</span>
-      <span class="tx-amt ${t.amount >= 0 ? 'pos' : 'neg'}" data-edit-txn="${t.id}">${signed(t.amount)}</span>
-      <button class="tx-del" data-del-txn="${t.id}" title="delete">×</button>
-    </div>`).join('') + `</div>`;
+      <span class="tx-amt ${t.amount >= 0 ? 'pos' : 'neg'}" ${ed}>${signed(t.amount)}</span>
+      ${xf
+        ? `<button class="tx-del" data-del-transfer="${t.transfer_id}" title="delete transfer (both legs)">×</button>`
+        : `<button class="tx-del" data-del-txn="${t.id}" title="delete">×</button>`}
+    </div>`;
+  }).join('') + `</div>`;
 }
 
 function editTxnRow(t) {
@@ -241,12 +340,58 @@ function wire() {
     $('af-name')?.focus();
   });
   $('bf-add')?.addEventListener('click', addBudget);
-  $('money-body').querySelectorAll('[data-del-txn]').forEach(b => b.addEventListener('click', () => delTxn(b.dataset.delTxn)));
-  $('money-body').querySelectorAll('[data-edit-txn]').forEach(el => el.addEventListener('click', () => { _editTxn = el.dataset.editTxn; render(); }));
-  $('money-body').querySelectorAll('[data-save-txn]').forEach(b => b.addEventListener('click', () => saveTxn(b.dataset.saveTxn)));
-  $('money-body').querySelectorAll('[data-cancel-txn]').forEach(b => b.addEventListener('click', () => { _editTxn = null; render(); }));
+  $('tx-transfer-toggle')?.addEventListener('click', () => {
+    const f = $('txn-transfer'); if (!f) return;
+    f.style.display = f.style.display === 'none' ? 'flex' : 'none';
+    if (f.style.display !== 'none') $('tr-amt')?.focus();
+  });
+  $('tr-do')?.addEventListener('click', doTransfer);
+  $('tr-amt')?.addEventListener('keydown', e => { if (e.key === 'Enter') doTransfer(); });
+  ['txn-search', 'txn-min', 'txn-max'].forEach(id => $(id)?.addEventListener('input', () => {
+    clearTimeout(_searchTimer); _searchTimer = setTimeout(applySearch, 220);
+  }));
+  _wireTxnRows();
   $('money-body').querySelectorAll('[data-del-acct]').forEach(b => b.addEventListener('click', () => delAccount(b.dataset.delAcct)));
   $('money-body').querySelectorAll('[data-del-budget]').forEach(b => b.addEventListener('click', () => delBudget(b.dataset.delBudget)));
+  $('rc-add')?.addEventListener('click', addRecurring);
+  $('money-body').querySelectorAll('[data-del-rec]').forEach(b => b.addEventListener('click', () => delRecurring(b.dataset.delRec)));
+  $('money-body').querySelectorAll('[data-toggle-rec]').forEach(b => b.addEventListener('click', () => toggleRecurring(b.dataset.toggleRec)));
+  $('rl-add')?.addEventListener('click', addRule);
+  $('rl-cat')?.addEventListener('keydown', e => { if (e.key === 'Enter') addRule(); });
+  $('rules-apply')?.addEventListener('click', applyRules);
+  $('money-body').querySelectorAll('[data-del-rule]').forEach(b => b.addEventListener('click', () => delRule(b.dataset.delRule)));
+}
+
+// wire the txn row buttons within a root (the whole #txn-rows list); called on full
+// render and again after a search replaces just the list
+function _wireTxnRows() {
+  const root = $('txn-rows'); if (!root) return;
+  root.querySelectorAll('.txn-edit .custom-select').forEach(initCustomDropdown);
+  root.querySelectorAll('.txn-edit .date-input').forEach(initDatePicker);
+  root.querySelectorAll('[data-del-transfer]').forEach(b => b.addEventListener('click', () => delTransfer(b.dataset.delTransfer)));
+  root.querySelectorAll('[data-del-txn]').forEach(b => b.addEventListener('click', () => delTxn(b.dataset.delTxn)));
+  root.querySelectorAll('[data-edit-txn]').forEach(el => el.addEventListener('click', () => { _editTxn = el.dataset.editTxn; render(); }));
+  root.querySelectorAll('[data-save-txn]').forEach(b => b.addEventListener('click', () => saveTxn(b.dataset.saveTxn)));
+  root.querySelectorAll('[data-cancel-txn]').forEach(b => b.addEventListener('click', () => { _editTxn = null; render(); }));
+}
+
+async function applySearch() {
+  const q = $('txn-search')?.value.trim() || '';
+  const mn = $('txn-min')?.value.trim() || '';
+  const mx = $('txn-max')?.value.trim() || '';
+  if (!q && !mn && !mx) {   // nothing to filter → back to the plain month list
+    _searchResults = null;
+    const rows = $('txn-rows'); if (rows) { rows.innerHTML = txnList(); _wireTxnRows(); }
+    return;
+  }
+  const p = new URLSearchParams({ month: _month });
+  if (q) p.set('q', q);
+  if (mn && !isNaN(parseFloat(mn))) p.set('min_amt', parseFloat(mn));
+  if (mx && !isNaN(parseFloat(mx))) p.set('max_amt', parseFloat(mx));
+  try {
+    _searchResults = await api(`/api/money/transactions/search?${p}`);
+  } catch { _searchResults = []; }
+  const rows = $('txn-rows'); if (rows) { rows.innerHTML = txnList(); _wireTxnRows(); }
 }
 
 // ── actions ────────────────────────────────────────────────────────────────
@@ -280,6 +425,24 @@ async function delTxn(id) {
   try { await api(`/api/money/transactions/${id}`, { method: 'DELETE' }); await load(); }
   catch { toast('delete failed', 'error'); }
 }
+async function doTransfer() {
+  const from = getDropdownValue($('tr-from')), to = getDropdownValue($('tr-to'));
+  const amt = parseFloat($('tr-amt')?.value);
+  if (!amt || amt <= 0) { toast('enter an amount', 'error'); return; }
+  if (from === to) { toast('pick two different accounts', 'error'); return; }
+  try {
+    await api('/api/money/transfer', { method: 'POST', body: {
+      from_account: from, to_account: to, amount: amt, date: $('tr-date')?.dataset.value || _today(),
+    } });
+    toast('transferred', 'success');
+    await load();
+  } catch { toast('transfer failed', 'error'); }
+}
+async function delTransfer(tid) {
+  if (!await dlgConfirm('delete this transfer (removes both legs)?')) return;
+  try { await api(`/api/money/transfer/${tid}`, { method: 'DELETE' }); await load(); }
+  catch { toast('delete failed', 'error'); }
+}
 async function saveTxn(id) {
   const row = $('money-body').querySelector(`.txn-edit[data-id="${id}"]`);
   if (!row) return;
@@ -306,4 +469,48 @@ async function addBudget() {
 async function delBudget(id) {
   try { await api(`/api/money/budgets/${id}`, { method: 'DELETE' }); await load(); }
   catch { toast('delete failed', 'error'); }
+}
+async function addRecurring() {
+  const payee = $('rc-payee')?.value.trim();
+  const amtRaw = parseFloat($('rc-amt')?.value);
+  if (!payee && !$('rc-cat')?.value.trim()) { toast('give it a payee or category', 'error'); return; }
+  if (!amtRaw || amtRaw <= 0) { toast('enter an amount', 'error'); return; }
+  const sign = getDropdownValue($('rc-sign')) === '+' ? 1 : -1;
+  try {
+    await api('/api/money/recurring', { method: 'POST', body: {
+      account_id: getDropdownValue($('rc-acct')), amount: sign * amtRaw,
+      category: $('rc-cat').value.trim(), payee, cycle: getDropdownValue($('rc-cycle')),
+      next_date: $('rc-next')?.dataset.value || _today(),
+    } });
+    await load();
+  } catch { toast('couldn\'t add recurring', 'error'); }
+}
+async function delRecurring(id) {
+  if (!await dlgConfirm('stop this recurring transaction?')) return;
+  try { await api(`/api/money/recurring/${id}`, { method: 'DELETE' }); await load(); }
+  catch { toast('delete failed', 'error'); }
+}
+async function toggleRecurring(id) {
+  const r = _recurring.find(x => x.id === id);
+  try { await api(`/api/money/recurring/${id}`, { method: 'PATCH', body: { active: !r.active } }); await load(); }
+  catch { toast('update failed', 'error'); }
+}
+async function addRule() {
+  const match = $('rl-match')?.value.trim();
+  if (!match) { toast('what should it match?', 'error'); return; }
+  try {
+    await api('/api/money/rules', { method: 'POST', body: { match, category: $('rl-cat').value.trim() } });
+    await load();
+  } catch { toast('couldn\'t add rule', 'error'); }
+}
+async function delRule(id) {
+  try { await api(`/api/money/rules/${id}`, { method: 'DELETE' }); await load(); }
+  catch { toast('delete failed', 'error'); }
+}
+async function applyRules() {
+  try {
+    const r = await api('/api/money/rules/apply', { method: 'POST' });
+    toast(r.updated ? `categorized ${r.updated} transaction${r.updated === 1 ? '' : 's'}` : 'nothing to categorize', 'success');
+    await load();
+  } catch { toast('apply failed', 'error'); }
 }
