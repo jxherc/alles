@@ -1,9 +1,11 @@
 import json
 from datetime import datetime
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy.orm import Session as DbSession
-from core.database import get_db, Contact
+
+from core.database import Contact, get_db
 
 router = APIRouter(prefix="/api")
 
@@ -16,9 +18,18 @@ def _fmt(c: Contact) -> dict:
         "phone": c.phone,
         "notes": c.notes,
         "tags": json.loads(c.tags or "[]"),
+        "company": c.company or "",
+        "title": c.title or "",
+        "address": c.address or "",
+        "birthday": c.birthday or "",
+        "website": c.website or "",
+        "favorite": bool(c.favorite),
         "created_at": c.created_at.isoformat(),
         "updated_at": c.updated_at.isoformat(),
     }
+
+
+_RICH = ("company", "title", "address", "birthday", "website")
 
 
 @router.get("/contacts")
@@ -32,6 +43,7 @@ def list_contacts(q: str = Query(""), db: DbSession = Depends(get_db)):
 @router.get("/contacts/export")
 def export_contacts(db: DbSession = Depends(get_db)):
     from fastapi.responses import PlainTextResponse
+
     from services.vcard import to_vcard
 
     cards = [_fmt(c) for c in db.query(Contact).order_by(Contact.name).all()]
@@ -59,6 +71,11 @@ def import_contacts(body: ImportBody, db: DbSession = Depends(get_db)):
                 phone=c.get("phone", ""),
                 notes=c.get("notes", ""),
                 tags="[]",
+                company=c.get("company", ""),
+                title=c.get("title", ""),
+                address=c.get("address", ""),
+                birthday=c.get("birthday", ""),
+                website=c.get("website", ""),
             )
         )
         n += 1
@@ -72,6 +89,11 @@ class CreateContact(BaseModel):
     phone: str = ""
     notes: str = ""
     tags: list[str] = []
+    company: str = ""
+    title: str = ""
+    address: str = ""
+    birthday: str = ""
+    website: str = ""
 
 
 @router.post("/contacts")
@@ -82,6 +104,11 @@ def create_contact(body: CreateContact, db: DbSession = Depends(get_db)):
         phone=body.phone,
         notes=body.notes,
         tags=json.dumps(body.tags),
+        company=body.company,
+        title=body.title,
+        address=body.address,
+        birthday=body.birthday,
+        website=body.website,
     )
     db.add(c)
     db.commit()
@@ -95,6 +122,11 @@ class PatchContact(BaseModel):
     phone: str | None = None
     notes: str | None = None
     tags: list[str] | None = None
+    company: str | None = None
+    title: str | None = None
+    address: str | None = None
+    birthday: str | None = None
+    website: str | None = None
 
 
 @router.patch("/contacts/{cid}")
@@ -112,6 +144,10 @@ def patch_contact(cid: str, body: PatchContact, db: DbSession = Depends(get_db))
         c.notes = body.notes
     if body.tags is not None:
         c.tags = json.dumps(body.tags)
+    for f in _RICH:
+        v = getattr(body, f)
+        if v is not None:
+            setattr(c, f, v)
     c.updated_at = datetime.utcnow()
     db.commit()
     return _fmt(c)
