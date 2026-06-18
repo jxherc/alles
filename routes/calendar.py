@@ -1,9 +1,11 @@
 import json
-from fastapi import APIRouter, HTTPException, Depends
-from pydantic import BaseModel
 from typing import Optional
+
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 from sqlalchemy.orm import Session as DbSession
-from core.database import get_db, Calendar, CalendarEvent
+
+from core.database import Calendar, CalendarEvent, get_db
 
 router = APIRouter(prefix="/api")
 
@@ -56,6 +58,20 @@ def _default_cal(db) -> str:
 def list_events(db: DbSession = Depends(get_db)):
     rows = db.query(CalendarEvent).order_by(CalendarEvent.start_dt.asc()).all()
     return [_fmt(e) for e in rows]
+
+
+@router.get("/calendar/tasks")
+def calendar_tasks(start: str = "", end: str = "", db: DbSession = Depends(get_db)):
+    """tasks that have a due date, as calendar items (overlay, Google Tasks style)."""
+    from core.database import Task
+
+    q = db.query(Task).filter(Task.due_date != None, Task.due_date != "")  # noqa: E711
+    if start:
+        q = q.filter(Task.due_date >= start)
+    if end:
+        q = q.filter(Task.due_date <= end)
+    rows = q.order_by(Task.due_date.asc()).all()
+    return [{"id": t.id, "title": t.title, "date": t.due_date, "done": t.done} for t in rows]
 
 
 @router.get("/calendar/agenda")
@@ -203,6 +219,7 @@ def delete_event(eid: str, scope: str = "all", occ: str = "", db: DbSession = De
 def export_ics(db: DbSession = Depends(get_db)):
     """download every event as a .ics — import into Apple/Google/Outlook calendar."""
     from fastapi.responses import Response
+
     from services.ics import to_ics
 
     rows = db.query(CalendarEvent).order_by(CalendarEvent.start_dt.asc()).all()

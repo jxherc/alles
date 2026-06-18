@@ -2982,6 +2982,14 @@ body.is-incognito .incognito-bar {
 .p-cpubar { font-family: inherit; letter-spacing: -0.5px; color: var(--faint); }
 .p-cpu b { min-width: 1.8rem; text-align: right; }
 .cal-more { font-size: 0.58rem; color: var(--muted); padding-left: 2px; }
+.cal-task {
+  font-size: 0.62rem; color: var(--muted); display: flex; align-items: center; gap: 3px;
+  padding: 1px 3px; border-radius: 2px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  border-left: 2px solid var(--green);
+}
+.cal-task:hover { background: #161616; color: var(--text); }
+.cal-task-chk { flex-shrink: 0; }
+.cal-task.done { text-decoration: line-through; opacity: 0.55; border-left-color: var(--muted); }
 
 /* view toggle + form labels */
 #calendar-list { display: flex; flex-direction: column; }
