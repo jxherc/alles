@@ -269,6 +269,45 @@ def upcoming_renewals(days: int = 7, db: DbSession = Depends(get_db)):
     }
 
 
+@router.get("/subscriptions/forecast")
+def forecast(months: int = 6, db: DbSession = Depends(get_db)):
+    """project each active sub's charges across the next `months` calendar months."""
+    months = max(1, min(24, months))
+    today = date.today()
+    active = [s for s in db.query(Subscription).all() if s.active]
+    buckets = []
+    y, m = today.year, today.month
+    for _ in range(months):
+        buckets.append((y, m))
+        m += 1
+        if m > 12:
+            m, y = 1, y + 1
+    last_y, last_m = buckets[-1]
+    end = date(last_y, last_m, calendar.monthrange(last_y, last_m)[1])
+    totals = {bkt: 0.0 for bkt in buckets}
+    for s in active:
+        d = _parse(s.next_due)
+        guard = 0
+        while d < today and guard < 2000:  # skip charges already in the past
+            d = _advance(d, s.cycle, s.cycle_days)
+            guard += 1
+        while d <= end and guard < 2000:
+            key = (d.year, d.month)
+            if key in totals:
+                totals[key] += s.price or 0.0
+            d = _advance(d, s.cycle, s.cycle_days)
+            guard += 1
+    out = [
+        {"month": f"{by:04d}-{bm:02d}", "total": round(totals[(by, bm)], 2)} for (by, bm) in buckets
+    ]
+    return {
+        "months": months,
+        "currency": active[0].currency if active else "$",
+        "forecast": out,
+        "total": round(sum(x["total"] for x in out), 2),
+    }
+
+
 @router.post("/subscriptions")
 def create_subscription(body: SubBody, db: DbSession = Depends(get_db)):
     _validate(body)
