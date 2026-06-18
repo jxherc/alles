@@ -37,16 +37,16 @@ class DocRevisionTests(unittest.TestCase):
     def test_snapshot_dedup(self):
         vault_md.write("n.md", "same")
         vroute._snapshot("n.md", force=True)
-        vroute._snapshot("n.md", force=True)   # identical on-disk content → skipped
+        vroute._snapshot("n.md", force=True)  # identical on-disk content → skipped
         self.assertEqual(len(vroute.list_revisions("n.md")), 1)
 
     def test_snapshot_and_restore(self):
         vault_md.write("note.md", "v1")
-        vroute._snapshot("note.md", force=True)      # captures v1
+        vroute._snapshot("note.md", force=True)  # captures v1
         vault_md.write("note.md", "v2")
         revs = vroute.list_revisions("note.md")
         self.assertEqual(len(revs), 1)
-        self.assertEqual(revs[0]["size"], 2)         # "v1"
+        self.assertEqual(revs[0]["size"], 2)  # "v1"
         out = vroute.restore_revision(revs[0]["id"])
         self.assertEqual(out["ok"], True)
         self.assertEqual(vault_md.read("note.md")["content"], "v1")

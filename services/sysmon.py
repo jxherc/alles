@@ -5,6 +5,7 @@ uses psutil when present (live cpu%, per-core, real disk list, uptime); degrades
 gracefully to the static hwfit detection + stdlib shutil/ctypes when it isn't, so
 the page still shows ram + disk + the hardware readout, just without the live cpu%.
 """
+
 import getpass
 import os
 import platform
@@ -16,6 +17,7 @@ import time
 def _psutil():
     try:
         import psutil
+
         return psutil
     except Exception:
         return None
@@ -38,7 +40,7 @@ def _os_name() -> str:
     sysname = platform.system()
     if sysname == "Windows":
         try:
-            build = int(platform.version().split(".")[2])   # '10.0.26100' -> 26100
+            build = int(platform.version().split(".")[2])  # '10.0.26100' -> 26100
         except (IndexError, ValueError):
             build = 0
         return f"Windows {'11' if build >= 22000 else platform.release()}"
@@ -52,13 +54,20 @@ def _arch() -> str:
     # 'AMD64' is just the x86-64 ISA name (amd designed it, intel licensed it) —
     # windows reports it for every 64-bit box, intel or amd. show the neutral name.
     m = platform.machine()
-    return {"AMD64": "x86_64", "x86_64": "x86_64", "x86": "x86", "i386": "x86",
-            "i686": "x86", "ARM64": "arm64", "aarch64": "arm64"}.get(m, m or "?")
+    return {
+        "AMD64": "x86_64",
+        "x86_64": "x86_64",
+        "x86": "x86",
+        "i386": "x86",
+        "i686": "x86",
+        "ARM64": "arm64",
+        "aarch64": "arm64",
+    }.get(m, m or "?")
 
 
 # module-level state for rate calcs (the server process persists across polls)
-_net_last = None    # (monotonic, bytes_sent, bytes_recv)
-_dio_last = None    # (monotonic, read_bytes, write_bytes)
+_net_last = None  # (monotonic, bytes_sent, bytes_recv)
+_dio_last = None  # (monotonic, read_bytes, write_bytes)
 
 
 def _net_rates(ps) -> dict:
@@ -75,8 +84,12 @@ def _net_rates(ps) -> dict:
             up = max(0.0, (io.bytes_sent - _net_last[1]) / dt)
             down = max(0.0, (io.bytes_recv - _net_last[2]) / dt)
     _net_last = (now, io.bytes_sent, io.bytes_recv)
-    return {"up_bps": up, "down_bps": down,
-            "sent_total": io.bytes_sent, "recv_total": io.bytes_recv}
+    return {
+        "up_bps": up,
+        "down_bps": down,
+        "sent_total": io.bytes_sent,
+        "recv_total": io.bytes_recv,
+    }
 
 
 def _primary_ip():
@@ -107,7 +120,9 @@ def _net_iface(ps) -> dict:
     primary = _primary_ip()
     if primary:
         for name, al in addrs.items():
-            if any(getattr(a, "family", None) == socket.AF_INET and a.address == primary for a in al):
+            if any(
+                getattr(a, "family", None) == socket.AF_INET and a.address == primary for a in al
+            ):
                 return {"iface": name[:18], "ip": primary, "link_mbps": spd_of(name)}
     # 2. fallback: first up, non-loopback, non-virtual interface with an ipv4
     for name, st in stats.items():
@@ -139,7 +154,7 @@ def _disk_io_rates(ps) -> dict:
     return {"read_bps": rd, "write_bps": wr}
 
 
-_user_cache = {}   # pid -> username (stable per process; lookups are slow on windows)
+_user_cache = {}  # pid -> username (stable per process; lookups are slow on windows)
 
 
 def _processes(ps, limit=24) -> tuple[list, int]:
@@ -150,7 +165,7 @@ def _processes(ps, limit=24) -> tuple[list, int]:
     cand = []
     for p in ps.process_iter(["pid", "name"]):
         pid, name = p.info.get("pid"), (p.info.get("name") or "?")
-        if pid == 0 or name == "System Idle Process":   # win idle process = noise
+        if pid == 0 or name == "System Idle Process":  # win idle process = noise
             continue
         try:
             cand.append((p.cpu_percent(None), pid, name, p))
@@ -179,8 +194,17 @@ def _processes(ps, limit=24) -> tuple[list, int]:
             except Exception:
                 user = ""
             _user_cache[pid] = user
-        procs.append({"pid": pid, "name": name[:28], "cpu": round(cpu, 1),
-                      "mem": round(mem, 1), "rss": rss, "threads": threads, "user": user})
+        procs.append(
+            {
+                "pid": pid,
+                "name": name[:28],
+                "cpu": round(cpu, 1),
+                "mem": round(mem, 1),
+                "rss": rss,
+                "threads": threads,
+                "user": user,
+            }
+        )
     if len(_user_cache) > 4000:
         _user_cache.clear()
     return procs, total
@@ -207,22 +231,36 @@ def _temps(ps):
 
 def snapshot() -> dict:
     from services.local_models import detect_system_info
-    info = detect_system_info()   # cached static hwfit readout
+
+    info = detect_system_info()  # cached static hwfit readout
     ps = _psutil()
 
     out = {
-        "live": bool(ps),   # false → no live cpu%, the rest still works
-        "cpu": {"name": info.get("cpu_name") or "cpu", "cores": info.get("cpu_cores"),
-                "percent": None, "per_core": [], "freq_mhz": None},
+        "live": bool(ps),  # false → no live cpu%, the rest still works
+        "cpu": {
+            "name": info.get("cpu_name") or "cpu",
+            "cores": info.get("cpu_cores"),
+            "percent": None,
+            "per_core": [],
+            "freq_mhz": None,
+        },
         "memory": {"total_gb": 0, "used_gb": 0, "percent": 0},
         "disks": [],
-        "gpu": {"has": bool(info.get("has_gpu")), "name": info.get("gpu_name"),
-                "vram_gb": info.get("gpu_vram_gb"), "count": info.get("gpu_count")},
-        "host": {"os": _os_name(),
-                 "platform": platform.system().lower(),
-                 "hostname": socket.gethostname(), "python": platform.python_version(),
-                 "user": _user(), "arch": _arch(),
-                 "backend": info.get("backend")},
+        "gpu": {
+            "has": bool(info.get("has_gpu")),
+            "name": info.get("gpu_name"),
+            "vram_gb": info.get("gpu_vram_gb"),
+            "count": info.get("gpu_count"),
+        },
+        "host": {
+            "os": _os_name(),
+            "platform": platform.system().lower(),
+            "hostname": socket.gethostname(),
+            "python": platform.python_version(),
+            "user": _user(),
+            "arch": _arch(),
+            "backend": info.get("backend"),
+        },
         "uptime_sec": None,
         "load": None,
         "swap": None,
@@ -244,14 +282,21 @@ def snapshot() -> dict:
         except Exception:
             pass
         vm = ps.virtual_memory()
-        out["memory"] = {"total_gb": _gb(vm.total), "used_gb": _gb(vm.total - vm.available),
-                         "available_gb": _gb(vm.available), "percent": round(vm.percent, 1),
-                         "free_gb": _gb(getattr(vm, "free", 0) or 0),
-                         "cached_gb": _gb(getattr(vm, "cached", 0) or getattr(vm, "buffers", 0) or 0)}
+        out["memory"] = {
+            "total_gb": _gb(vm.total),
+            "used_gb": _gb(vm.total - vm.available),
+            "available_gb": _gb(vm.available),
+            "percent": round(vm.percent, 1),
+            "free_gb": _gb(getattr(vm, "free", 0) or 0),
+            "cached_gb": _gb(getattr(vm, "cached", 0) or getattr(vm, "buffers", 0) or 0),
+        }
         try:
             sw = ps.swap_memory()
-            out["swap"] = {"total_gb": _gb(sw.total), "used_gb": _gb(sw.used),
-                           "percent": round(sw.percent, 1)}
+            out["swap"] = {
+                "total_gb": _gb(sw.total),
+                "used_gb": _gb(sw.used),
+                "percent": round(sw.percent, 1),
+            }
         except Exception:
             pass
         out["net"] = {**_net_rates(ps), **_net_iface(ps)}
@@ -268,9 +313,16 @@ def snapshot() -> dict:
                 continue
             if not u.total:
                 continue
-            out["disks"].append({"mount": p.mountpoint, "total_gb": _gb(u.total),
-                                 "used_gb": _gb(u.used), "free_gb": _gb(u.free),
-                                 "percent": round(u.percent, 1), "fstype": (p.fstype or "")[:8]})
+            out["disks"].append(
+                {
+                    "mount": p.mountpoint,
+                    "total_gb": _gb(u.total),
+                    "used_gb": _gb(u.used),
+                    "free_gb": _gb(u.free),
+                    "percent": round(u.percent, 1),
+                    "fstype": (p.fstype or "")[:8],
+                }
+            )
         try:
             out["uptime_sec"] = int(time.time() - ps.boot_time())
         except Exception:
@@ -283,14 +335,23 @@ def snapshot() -> dict:
         # fallback: ram from the hwfit readout, disk from stdlib shutil
         total, avail = info.get("total_ram_gb") or 0, info.get("available_ram_gb") or 0
         used = max(0.0, total - avail)
-        out["memory"] = {"total_gb": round(total, 1), "used_gb": round(used, 1),
-                         "percent": round(used / total * 100, 1) if total else 0}
+        out["memory"] = {
+            "total_gb": round(total, 1),
+            "used_gb": round(used, 1),
+            "percent": round(used / total * 100, 1) if total else 0,
+        }
         try:
             here = os.path.abspath(".")
             t, u, _f = shutil.disk_usage(here)
             mount = os.path.splitdrive(here)[0] or "/"
-            out["disks"].append({"mount": mount, "total_gb": _gb(t), "used_gb": _gb(u),
-                                 "percent": round(u / t * 100, 1) if t else 0})
+            out["disks"].append(
+                {
+                    "mount": mount,
+                    "total_gb": _gb(t),
+                    "used_gb": _gb(u),
+                    "percent": round(u / t * 100, 1) if t else 0,
+                }
+            )
         except Exception:
             pass
 

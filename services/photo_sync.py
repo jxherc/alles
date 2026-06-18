@@ -8,6 +8,7 @@ the macOS Photos *library* itself (PhotoKit) isn't a plain folder, so the native
 bridge below is the integration seam for the Mac mini: export from the system
 library to a temp dir (osxphotos / PhotoKit), then run the same folder sync.
 """
+
 import sys
 import json
 from pathlib import Path
@@ -61,9 +62,17 @@ def sync_folder(src: str, db=None, limit: int = 2000) -> dict:
                 continue
             try:
                 info = photos_store.import_image(p.read_bytes(), p.name)
-                db.add(Photo(filename=info["filename"], thumb=info["thumb"],
-                             original_name=info["original_name"], width=info["width"],
-                             height=info["height"], taken_at=info["taken_at"], exif=info["exif"]))
+                db.add(
+                    Photo(
+                        filename=info["filename"],
+                        thumb=info["thumb"],
+                        original_name=info["original_name"],
+                        width=info["width"],
+                        height=info["height"],
+                        taken_at=info["taken_at"],
+                        exif=info["exif"],
+                    )
+                )
                 seen[k] = sig
                 imported += 1
             except Exception:
@@ -85,10 +94,12 @@ def pull_from_macos_photos(dest_dir: str) -> dict:
     if sys.platform != "darwin":
         raise NotImplementedError(
             "macOS-only: on the Mac mini, export via osxphotos "
-            "(`osxphotos export <dest> --update`) or PhotoKit, then sync_folder(dest).")
+            "(`osxphotos export <dest> --update`) or PhotoKit, then sync_folder(dest)."
+        )
     # on darwin: shell out to osxphotos if present (kept here as the seam)
     import shutil
     import subprocess
+
     if not shutil.which("osxphotos"):
         raise RuntimeError("osxphotos not installed — `pip install osxphotos` on the Mac")
     Path(dest_dir).mkdir(parents=True, exist_ok=True)

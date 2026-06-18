@@ -69,7 +69,7 @@ class RecurrenceTests(unittest.TestCase):
     def test_every_weekday_keeps_day_for_first_occurrence(self):
         p = parse_event("yoga every monday 6pm", T)
         self.assertEqual(p["recurrence"], "weekly")
-        self.assertEqual(p["start_dt"], "2026-06-15T18:00")   # next monday after sat 6/14
+        self.assertEqual(p["start_dt"], "2026-06-15T18:00")  # next monday after sat 6/14
         self.assertEqual(p["title"], "yoga")
 
     def test_until_clause(self):

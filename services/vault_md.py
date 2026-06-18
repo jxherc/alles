@@ -2,6 +2,7 @@
 Obsidian-style markdown vault: real .md files on disk + wikilinks + backlinks.
 Everything is stored as plain files so the vault is portable and git-able.
 """
+
 import os
 import re
 import shutil
@@ -55,7 +56,9 @@ def tree() -> dict:
                 continue
             rel = str(child.relative_to(base)).replace("\\", "/")
             if child.is_dir():
-                items.append({"type": "dir", "name": child.name, "path": rel, "children": walk(child)})
+                items.append(
+                    {"type": "dir", "name": child.name, "path": rel, "children": walk(child)}
+                )
             elif _is_md(child):
                 try:
                     mt = child.stat().st_mtime
@@ -88,7 +91,11 @@ def create(rel: str, content: str = "") -> dict:
     if p.suffix == "":
         p = p.with_suffix(".md")
     if p.exists():
-        return {"path": str(p.relative_to(vault_dir())).replace("\\", "/"), "ok": True, "existed": True}
+        return {
+            "path": str(p.relative_to(vault_dir())).replace("\\", "/"),
+            "ok": True,
+            "existed": True,
+        }
     p.parent.mkdir(parents=True, exist_ok=True)
     p.write_text(content or f"# {p.stem}\n\n", "utf-8")
     return {"path": str(p.relative_to(vault_dir())).replace("\\", "/"), "ok": True}
@@ -149,8 +156,11 @@ def rewrite_links(old_name: str, new_name: str) -> list[str]:
 
 def _all_md() -> list[Path]:
     base = vault_dir()
-    return [p for p in base.rglob("*")
-            if p.is_file() and _is_md(p) and not p.name.startswith(".") and not _in_sys_dir(p)]
+    return [
+        p
+        for p in base.rglob("*")
+        if p.is_file() and _is_md(p) and not p.name.startswith(".") and not _in_sys_dir(p)
+    ]
 
 
 def note_names() -> list[str]:
@@ -185,8 +195,14 @@ def backlinks(name: str) -> list[dict]:
             if m.group(1).strip().lower() == target:
                 # grab a little surrounding context
                 start = max(0, m.start() - 40)
-                ctx = " ".join(text[start:m.end() + 40].split())
-                out.append({"name": p.stem, "path": str(p.relative_to(base)).replace("\\", "/"), "context": ctx})
+                ctx = " ".join(text[start : m.end() + 40].split())
+                out.append(
+                    {
+                        "name": p.stem,
+                        "path": str(p.relative_to(base)).replace("\\", "/"),
+                        "context": ctx,
+                    }
+                )
                 break
     return out
 
@@ -217,13 +233,18 @@ def find_asset(name: str) -> str | None:
         pass
     target = name.lower()
     for f in base.rglob("*"):
-        if f.is_file() and not f.name.startswith(".") and (f.name.lower() == target or f.stem.lower() == target):
+        if (
+            f.is_file()
+            and not f.name.startswith(".")
+            and (f.name.lower() == target or f.stem.lower() == target)
+        ):
             return str(f.relative_to(base)).replace("\\", "/")
     return None
 
 
 def file_bytes(rel: str):
     import mimetypes
+
     p = _safe(rel)
     if not p.is_file():
         raise ValueError("not a file")
@@ -251,8 +272,10 @@ def full_text_search(q: str, limit: int = 50) -> list[dict]:
         ctx = ""
         if idx >= 0:
             s = max(0, idx - 40)
-            ctx = " ".join(text[s:idx + len(ql) + 50].split())
-        out.append({"name": p.stem, "path": str(p.relative_to(base)).replace("\\", "/"), "context": ctx})
+            ctx = " ".join(text[s : idx + len(ql) + 50].split())
+        out.append(
+            {"name": p.stem, "path": str(p.relative_to(base)).replace("\\", "/"), "context": ctx}
+        )
         if len(out) >= limit:
             break
     out.sort(key=lambda r: (ql not in r["name"].lower(), r["name"].lower()))
@@ -271,7 +294,9 @@ def all_tags() -> list[dict]:
             continue
         for t in {m.group(1) for m in _TAG.finditer(text)}:
             counts[t] = counts.get(t, 0) + 1
-    return [{"tag": t, "count": c} for t, c in sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))]
+    return [
+        {"tag": t, "count": c} for t, c in sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))
+    ]
 
 
 def notes_with_tag(tag: str) -> list[dict]:
@@ -397,8 +422,10 @@ def unlinked_mentions(name: str) -> list[dict]:
         if not m:
             continue
         s = max(0, m.start() - 40)
-        ctx = " ".join(stripped[s:m.end() + 40].split())
-        out.append({"name": p.stem, "path": str(p.relative_to(base)).replace("\\", "/"), "context": ctx})
+        ctx = " ".join(stripped[s : m.end() + 40].split())
+        out.append(
+            {"name": p.stem, "path": str(p.relative_to(base)).replace("\\", "/"), "context": ctx}
+        )
     return out
 
 

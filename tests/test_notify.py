@@ -37,8 +37,10 @@ class NotifyServiceTest(unittest.TestCase):
 
     def test_sends_to_both_channels(self):
         cli = _Client()
-        with mock.patch.object(notify, "_targets", lambda: _cfg("https://discord/wh", "TOK", "123")), \
-             mock.patch.object(notify.httpx, "AsyncClient", lambda *a, **k: cli):
+        with (
+            mock.patch.object(notify, "_targets", lambda: _cfg("https://discord/wh", "TOK", "123")),
+            mock.patch.object(notify.httpx, "AsyncClient", lambda *a, **k: cli),
+        ):
             self.assertTrue(notify.configured())
             res = asyncio.run(notify.send("hello world"))
         self.assertTrue(res["discord"])
@@ -48,12 +50,20 @@ class NotifyServiceTest(unittest.TestCase):
 
     def test_failure_is_swallowed(self):
         class _Boom:
-            async def __aenter__(self): return self
-            async def __aexit__(self, *a): return False
-            async def post(self, *a, **k): raise RuntimeError("network down")
-        with mock.patch.object(notify, "_targets", lambda: _cfg("https://d/wh")), \
-             mock.patch.object(notify.httpx, "AsyncClient", lambda *a, **k: _Boom()):
-            res = asyncio.run(notify.send("x"))   # must not raise
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *a):
+                return False
+
+            async def post(self, *a, **k):
+                raise RuntimeError("network down")
+
+        with (
+            mock.patch.object(notify, "_targets", lambda: _cfg("https://d/wh")),
+            mock.patch.object(notify.httpx, "AsyncClient", lambda *a, **k: _Boom()),
+        ):
+            res = asyncio.run(notify.send("x"))  # must not raise
         self.assertFalse(res["discord"])
 
 
@@ -63,8 +73,10 @@ class NotifyApiTest(ApiTest):
             self.assertTrue(self.client.get("/api/notify/status").json()["configured"])
 
     def test_test_route_sends_when_configured(self):
-        with mock.patch.object(notify, "_targets", lambda: _cfg("https://d/wh")), \
-             mock.patch.object(notify.httpx, "AsyncClient", lambda *a, **k: _Client()):
+        with (
+            mock.patch.object(notify, "_targets", lambda: _cfg("https://d/wh")),
+            mock.patch.object(notify.httpx, "AsyncClient", lambda *a, **k: _Client()),
+        ):
             r = self.client.post("/api/notify/test")
         self.assertEqual(r.status_code, 200)
         self.assertTrue(r.json()["ok"])

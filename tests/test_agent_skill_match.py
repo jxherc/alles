@@ -19,7 +19,9 @@ class AgentSkillMatchTest(unittest.TestCase):
         self.tmp.cleanup()
 
     def test_match_returns_relevant_skill(self):
-        ss.upsert_skill("Invoice Parser", "extract totals from invoices", "when handling an invoice pdf")
+        ss.upsert_skill(
+            "Invoice Parser", "extract totals from invoices", "when handling an invoice pdf"
+        )
         out = asyncio.run(agent_tools._skill_match("parse this invoice for me"))
         self.assertFalse(out["error"])
         self.assertIn("invoice-parser", out["output"])

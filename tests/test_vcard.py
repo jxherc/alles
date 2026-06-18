@@ -5,7 +5,12 @@ from services.vcard import to_vcard, parse_vcards
 class VcardTests(unittest.TestCase):
     def test_roundtrip(self):
         contacts = [
-            {"name": "Ada Lovelace", "email": "ada@x.com", "phone": "+1 555 0100", "notes": "first programmer"},
+            {
+                "name": "Ada Lovelace",
+                "email": "ada@x.com",
+                "phone": "+1 555 0100",
+                "notes": "first programmer",
+            },
             {"name": "Grace Hopper", "email": "grace@navy.mil", "phone": "", "notes": ""},
         ]
         vcf = to_vcard(contacts)
@@ -30,7 +35,7 @@ class VcardTests(unittest.TestCase):
 
     def test_ignores_empty(self):
         self.assertEqual(parse_vcards(""), [])
-        self.assertEqual(parse_vcards("BEGIN:VCARD\nEND:VCARD"), [])   # no name/email
+        self.assertEqual(parse_vcards("BEGIN:VCARD\nEND:VCARD"), [])  # no name/email
 
 
 if __name__ == "__main__":

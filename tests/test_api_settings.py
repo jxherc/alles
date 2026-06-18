@@ -11,7 +11,7 @@ class SettingsApiTest(ApiTest):
         super().setUp()
         self._tmp = tempfile.TemporaryDirectory()
         self._p = mock.patch.object(cs, "_SETTINGS_FILE", Path(self._tmp.name) / "settings.json")
-        self._p.start()   # don't touch the real data/settings.json
+        self._p.start()  # don't touch the real data/settings.json
 
     def tearDown(self):
         self._p.stop()
@@ -30,8 +30,14 @@ class SettingsApiTest(ApiTest):
             self.assertNotIn(secret, s)
 
     def test_patch_persists_ai_defaults(self):
-        r = self.client.patch("/api/settings", json={
-            "default_model": "deepseek-v4-pro", "context_limit": 42, "stream_thinking": False})
+        r = self.client.patch(
+            "/api/settings",
+            json={
+                "default_model": "deepseek-v4-pro",
+                "context_limit": 42,
+                "stream_thinking": False,
+            },
+        )
         self.assertEqual(r.status_code, 200)
         s = self.client.get("/api/settings").json()
         self.assertEqual(s["default_model"], "deepseek-v4-pro")
@@ -41,7 +47,7 @@ class SettingsApiTest(ApiTest):
     def test_patch_appearance_theme_and_accent(self):
         self.client.patch("/api/settings", json={"theme": "light", "accent": "#ff0000"})
         s = self.client.get("/api/settings").json()
-        self.assertEqual(s["theme"], "light")        # synced across subdomains via the server
+        self.assertEqual(s["theme"], "light")  # synced across subdomains via the server
         self.assertEqual(s["accent"], "#ff0000")
         # and they can be reset
         self.client.patch("/api/settings", json={"theme": "", "accent": ""})

@@ -6,6 +6,7 @@ user's own server creds, so everything here is lazy + defensive: it never
 crashes the app, it returns {"error": ...} strings the UI can show. Config is
 stored in data/caldav.json (gitignored, like the rest of data/).
 """
+
 import json
 from pathlib import Path
 from datetime import datetime, timedelta
@@ -17,6 +18,7 @@ CFG_PATH = ROOT / "data" / "caldav.json"
 def available() -> bool:
     try:
         import caldav  # noqa: F401
+
         return True
     except Exception:
         return False
@@ -68,7 +70,9 @@ def sync() -> dict:
         return {"error": f"caldav import failed: {e}"}
 
     try:
-        client = caldav.DAVClient(url=cfg["url"], username=cfg["username"], password=cfg.get("password", ""))
+        client = caldav.DAVClient(
+            url=cfg["url"], username=cfg["username"], password=cfg.get("password", "")
+        )
         principal = client.principal()
         cals = principal.calendars()
     except Exception as e:
@@ -78,6 +82,7 @@ def sync() -> dict:
     cal = cals[0]
 
     from core.database import SessionLocal, CalendarEvent
+
     start = datetime.utcnow() - timedelta(days=180)
     end = datetime.utcnow() + timedelta(days=180)
     pulled = pushed = 0
@@ -105,18 +110,36 @@ def sync() -> dict:
                 all_day = ds and not isinstance(ds.dt, datetime)
                 row = db.query(CalendarEvent).filter(CalendarEvent.caldav_uid == uid).first()
                 if row:
-                    row.title, row.description, row.start_dt, row.end_dt, row.all_day = title, desc, start_dt, end_dt, bool(all_day)
+                    row.title, row.description, row.start_dt, row.end_dt, row.all_day = (
+                        title,
+                        desc,
+                        start_dt,
+                        end_dt,
+                        bool(all_day),
+                    )
                 else:
-                    db.add(CalendarEvent(title=title, description=desc, start_dt=start_dt,
-                                         end_dt=end_dt, all_day=bool(all_day), caldav_uid=uid))
+                    db.add(
+                        CalendarEvent(
+                            title=title,
+                            description=desc,
+                            start_dt=start_dt,
+                            end_dt=end_dt,
+                            all_day=bool(all_day),
+                            caldav_uid=uid,
+                        )
+                    )
                 pulled += 1
             except Exception:
                 continue  # skip a bad event, keep going
 
         # ── push local-only → remote ──
-        locals_ = db.query(CalendarEvent).filter(
-            (CalendarEvent.caldav_uid == None) | (CalendarEvent.caldav_uid == "")  # noqa: E711
-        ).all()
+        locals_ = (
+            db.query(CalendarEvent)
+            .filter(
+                (CalendarEvent.caldav_uid == None) | (CalendarEvent.caldav_uid == "")  # noqa: E711
+            )
+            .all()
+        )
         for le in locals_:
             try:
                 uid = f"alles-{le.id}@alles"

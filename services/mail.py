@@ -7,6 +7,7 @@ instead of SEARCH ALL, make the background poll skip the full re-fetch when the
 mailbox tip hasn't moved, and read a message by pulling ONLY its text/html body
 parts (never the attachments) instead of the whole RFC822 blob.
 """
+
 import base64
 import email
 import email.utils
@@ -27,8 +28,8 @@ _MESSAGE_TTL = 10 * 60.0
 _POOL = {}
 _LIST_CACHE = {}
 _MESSAGE_CACHE = {}
-_LAST_LIST = {}    # (acct, folder, limit) -> last good list (no TTL, for the cheap poll)
-_LAST_SIG = {}     # (acct, folder, limit) -> last mailbox tip signature
+_LAST_LIST = {}  # (acct, folder, limit) -> last good list (no TTL, for the cheap poll)
+_LAST_SIG = {}  # (acct, folder, limit) -> last mailbox tip signature
 _LOCK = threading.Lock()
 
 
@@ -191,11 +192,15 @@ def list_folders(acct) -> list[str]:
     try:
         typ, data = M.list()
         out = []
-        for line in (data or []):
+        for line in data or []:
             try:
                 s = line.decode(errors="replace")
                 if '"' in s:
-                    out.append(s.split('"')[-2] if s.rstrip().endswith('"') else s.split(" ")[-1].strip('"'))
+                    out.append(
+                        s.split('"')[-2]
+                        if s.rstrip().endswith('"')
+                        else s.split(" ")[-1].strip('"')
+                    )
                 else:
                     out.append(s.split(" ")[-1])
             except Exception:
@@ -270,7 +275,9 @@ def fetch_inbox(acct, folder: str = "INBOX", limit: int = 30, quick: bool = Fals
         # newest `limit` messages by sequence number — no SEARCH ALL round trip
         n = int(limit or 30)
         lo = max(1, exists - n + 1)
-        typ, msgd = M.fetch(f"{lo}:{exists}", "(UID FLAGS BODY.PEEK[HEADER.FIELDS (FROM SUBJECT DATE)])")
+        typ, msgd = M.fetch(
+            f"{lo}:{exists}", "(UID FLAGS BODY.PEEK[HEADER.FIELDS (FROM SUBJECT DATE)])"
+        )
         rows = []
         for part in msgd or []:
             if not isinstance(part, tuple):
@@ -281,15 +288,17 @@ def fetch_inbox(acct, folder: str = "INBOX", limit: int = 30, quick: bool = Fals
                 continue
             msg = email.message_from_bytes(part[1] or b"")
             date = msg.get("Date", "")
-            rows.append({
-                "uid": uid,
-                "from": _dec(msg.get("From", "")),
-                "subject": _dec(msg.get("Subject", "(no subject)")),
-                "date": date,
-                "date_ts": _date_ts(date),
-                "seen": b"\\Seen" in meta,
-            })
-        rows.reverse()   # sequence order is oldest→newest; we want newest first
+            rows.append(
+                {
+                    "uid": uid,
+                    "from": _dec(msg.get("From", "")),
+                    "subject": _dec(msg.get("Subject", "(no subject)")),
+                    "date": date,
+                    "date_ts": _date_ts(date),
+                    "seen": b"\\Seen" in meta,
+                }
+            )
+        rows.reverse()  # sequence order is oldest→newest; we want newest first
         out = rows[:n]
         ok = True
         _put_cache(_LIST_CACHE, cache_key, _LIST_TTL, out)
@@ -302,6 +311,7 @@ def fetch_inbox(acct, folder: str = "INBOX", limit: int = 30, quick: bool = Fals
 
 
 # ── reading one message: pull only the text/html body parts ──────────────────
+
 
 def _imap_tokenize(s: str):
     """parse an IMAP parenthesized list (a BODYSTRUCTURE) into nested python
@@ -338,7 +348,7 @@ def _imap_tokenize(s: str):
                 out.append("".join(buf))
             else:
                 start = pos
-                while pos < n and s[pos] not in ' ()':
+                while pos < n and s[pos] not in " ()":
                     pos += 1
                 atom = s[start:pos]
                 out.append(None if atom.upper() == "NIL" else atom)
@@ -375,7 +385,7 @@ def _extract_bodystructure(meta: str):
             elif c == ")":
                 depth -= 1
                 if depth == 0:
-                    return meta[i:j + 1]
+                    return meta[i : j + 1]
         j += 1
     return None
 
@@ -453,12 +463,12 @@ def _fetch_message_parts(M, uid_b):
 
     want = {}
     for p in parts:
-        want.setdefault(p["subtype"], p)   # first plain + first html is plenty
+        want.setdefault(p["subtype"], p)  # first plain + first html is plenty
 
     # fetch every wanted text section in ONE round trip (was one per part — slow on
     # a high-latency link). only sections the bodystructure flagged as text are
     # requested, so an attachment section is never downloaded.
-    spec = " ".join(f'BODY.PEEK[{p["section"]}]' for p in want.values())
+    spec = " ".join(f"BODY.PEEK[{p['section']}]" for p in want.values())
     typ2, pd = M.uid("fetch", uid_b, f"({spec})")
     by_section = {}
     for x in pd or []:
@@ -496,7 +506,7 @@ def _fetch_message_rfc822(M, uid_b):
     """fallback: pull the whole message and walk it (what we used to always do)."""
     typ, msgd = M.uid("fetch", uid_b, "(RFC822)")
     raw = None
-    for part in (msgd or []):
+    for part in msgd or []:
         if isinstance(part, tuple):
             raw = part[1]
     if not raw:
@@ -561,7 +571,7 @@ def mark_seen(acct, uid, folder: str = "INBOX") -> dict:
     M = _imap(acct)
     ok = False
     try:
-        M.select(folder)   # writable (not readonly)
+        M.select(folder)  # writable (not readonly)
         M.uid("store", uid.encode() if isinstance(uid, str) else uid, "+FLAGS", r"(\Seen)")
         ok = True
         # drop cached lists for this folder so a refresh reflects the read state
@@ -578,6 +588,7 @@ def mark_seen(acct, uid, folder: str = "INBOX") -> dict:
 
 
 # ── search ───────────────────────────────────────────────────────────────────
+
 
 def search(acct, query: str, folder: str = "INBOX", limit: int = 40) -> list[dict]:
     """IMAP TEXT search (headers + body) → header rows, newest first. returns []
@@ -596,12 +607,13 @@ def search(acct, query: str, folder: str = "INBOX", limit: int = 40) -> list[dic
         if typ != "OK" or not data:
             ok = True
             return []
-        uids = (data[0] or b"").split()[-int(limit or 40):]   # newest matches
+        uids = (data[0] or b"").split()[-int(limit or 40) :]  # newest matches
         if not uids:
             ok = True
             return []
-        typ, msgd = M.uid("fetch", b",".join(uids),
-                          "(UID FLAGS BODY.PEEK[HEADER.FIELDS (FROM SUBJECT DATE)])")
+        typ, msgd = M.uid(
+            "fetch", b",".join(uids), "(UID FLAGS BODY.PEEK[HEADER.FIELDS (FROM SUBJECT DATE)])"
+        )
         rows = []
         for part in msgd or []:
             if not isinstance(part, tuple):
@@ -612,11 +624,16 @@ def search(acct, query: str, folder: str = "INBOX", limit: int = 40) -> list[dic
                 continue
             msg = email.message_from_bytes(part[1] or b"")
             date = msg.get("Date", "")
-            rows.append({
-                "uid": uid, "from": _dec(msg.get("From", "")),
-                "subject": _dec(msg.get("Subject", "(no subject)")),
-                "date": date, "date_ts": _date_ts(date), "seen": b"\\Seen" in meta,
-            })
+            rows.append(
+                {
+                    "uid": uid,
+                    "from": _dec(msg.get("From", "")),
+                    "subject": _dec(msg.get("Subject", "(no subject)")),
+                    "date": date,
+                    "date_ts": _date_ts(date),
+                    "seen": b"\\Seen" in meta,
+                }
+            )
         rows.sort(key=lambda x: x["date_ts"], reverse=True)
         ok = True
         return rows
@@ -644,21 +661,24 @@ def group_threads(messages: list[dict]) -> list[dict]:
     for msgs in buckets.values():
         msgs = sorted(msgs, key=lambda x: x.get("date_ts", 0), reverse=True)
         top = msgs[0]
-        out.append({
-            "subject": normalize_subject(top.get("subject", "")),
-            "count": len(msgs),
-            "latest_ts": top.get("date_ts", 0),
-            "unseen": sum(1 for x in msgs if not x.get("seen", True)),
-            "uid": top.get("uid"),
-            "from": top.get("from", ""),
-            "date": top.get("date", ""),
-            "messages": msgs,
-        })
+        out.append(
+            {
+                "subject": normalize_subject(top.get("subject", "")),
+                "count": len(msgs),
+                "latest_ts": top.get("date_ts", 0),
+                "unseen": sum(1 for x in msgs if not x.get("seen", True)),
+                "uid": top.get("uid"),
+                "from": top.get("from", ""),
+                "date": top.get("date", ""),
+                "messages": msgs,
+            }
+        )
     out.sort(key=lambda x: x["latest_ts"], reverse=True)
     return out
 
 
 # ── attachments ──────────────────────────────────────────────────────────────
+
 
 def attachments_of(msg) -> list[dict]:
     """list the attachment parts of a parsed email (by walk-index, so a later
@@ -673,12 +693,14 @@ def attachments_of(msg) -> list[dict]:
         if not fn and "attachment" not in disp:
             continue
         payload = p.get_payload(decode=True) or b""
-        out.append({
-            "index": i,
-            "filename": fn or f"attachment-{i}",
-            "content_type": p.get_content_type(),
-            "size": len(payload),
-        })
+        out.append(
+            {
+                "index": i,
+                "filename": fn or f"attachment-{i}",
+                "content_type": p.get_content_type(),
+                "size": len(payload),
+            }
+        )
     return out
 
 
@@ -713,8 +735,11 @@ def fetch_attachment(acct, uid, index: int, folder: str = "INBOX"):
             return None
         for i, p in enumerate(msg.walk()):
             if i == int(index) and not p.is_multipart():
-                return (_dec(p.get_filename() or f"attachment-{i}"),
-                        p.get_content_type(), p.get_payload(decode=True) or b"")
+                return (
+                    _dec(p.get_filename() or f"attachment-{i}"),
+                    p.get_content_type(),
+                    p.get_payload(decode=True) or b"",
+                )
         return None
     finally:
         _release_imap(acct, M, ok)
@@ -727,7 +752,7 @@ def _build_message(acct, to, subject, body, cc="", bcc="", in_reply_to="", refer
     if cc:
         msg["Cc"] = cc
     if bcc:
-        msg["Bcc"] = bcc   # send_message strips this from the wire but uses it for the envelope
+        msg["Bcc"] = bcc  # send_message strips this from the wire but uses it for the envelope
     msg["Subject"] = subject
     # thread replies properly in other clients (Mail.app, Gmail, etc.)
     if in_reply_to:
@@ -737,8 +762,16 @@ def _build_message(acct, to, subject, body, cc="", bcc="", in_reply_to="", refer
     return msg
 
 
-def send_mail(acct, to: str, subject: str, body: str, cc: str = "",
-              bcc: str = "", in_reply_to: str = "", references: str = "") -> dict:
+def send_mail(
+    acct,
+    to: str,
+    subject: str,
+    body: str,
+    cc: str = "",
+    bcc: str = "",
+    in_reply_to: str = "",
+    references: str = "",
+) -> dict:
     host = acct.get("smtp_host", "")
     if not host:
         raise ValueError("no SMTP host configured")
@@ -762,7 +795,7 @@ def send_mail(acct, to: str, subject: str, body: str, cc: str = "",
                     s.starttls()
                     s.ehlo()
                 except smtplib.SMTPNotSupportedError:
-                    pass   # server without STARTTLS (some local/self-hosted servers)
+                    pass  # server without STARTTLS (some local/self-hosted servers)
             try:
                 s.login(user, pw)
                 s.send_message(msg)
@@ -772,8 +805,13 @@ def send_mail(acct, to: str, subject: str, body: str, cc: str = "",
                 except Exception:
                     pass
             return {"ok": True}
-        except (smtplib.SMTPServerDisconnected, smtplib.SMTPConnectError,
-                ConnectionError, TimeoutError, OSError) as e:
+        except (
+            smtplib.SMTPServerDisconnected,
+            smtplib.SMTPConnectError,
+            ConnectionError,
+            TimeoutError,
+            OSError,
+        ) as e:
             last_err = e
             time.sleep(0.8)
     raise last_err or RuntimeError("send failed")

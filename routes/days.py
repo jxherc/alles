@@ -4,6 +4,7 @@ down then flip to counting up; yearly/monthly repeats roll to the next
 occurrence and track which anniversary it is. push notifications fire
 inside each event's reminder window.
 """
+
 import calendar
 import logging
 from datetime import date
@@ -67,9 +68,12 @@ def _ymd_between(a: date, b: date) -> str:
         y -= 1
         m += 12
     parts = []
-    if y: parts.append(f"{y} year{'s' if y != 1 else ''}")
-    if m: parts.append(f"{m} month{'s' if m != 1 else ''}")
-    if d or not parts: parts.append(f"{d} day{'s' if d != 1 else ''}")
+    if y:
+        parts.append(f"{y} year{'s' if y != 1 else ''}")
+    if m:
+        parts.append(f"{m} month{'s' if m != 1 else ''}")
+    if d or not parts:
+        parts.append(f"{d} day{'s' if d != 1 else ''}")
     return " ".join(parts)
 
 
@@ -96,11 +100,21 @@ def _fmt(ev: DayEvent, today: date) -> dict:
                 progress = round(min(1.0, max(0.0, (today - start).days / span)), 3)
         breakdown = _ymd_between(today, target) if days else ""
     return {
-        "id": ev.id, "name": ev.name, "date": ev.date,
-        "repeat": ev.repeat, "category": ev.category, "notes": ev.notes,
-        "pinned": ev.pinned, "notify_days": ev.notify_days,
-        "target": target.isoformat(), "days": days, "count": abs(days),
-        "mode": mode, "nth": nth, "breakdown": breakdown, "progress": progress,
+        "id": ev.id,
+        "name": ev.name,
+        "date": ev.date,
+        "repeat": ev.repeat,
+        "category": ev.category,
+        "notes": ev.notes,
+        "pinned": ev.pinned,
+        "notify_days": ev.notify_days,
+        "target": target.isoformat(),
+        "days": days,
+        "count": abs(days),
+        "mode": mode,
+        "nth": nth,
+        "breakdown": breakdown,
+        "progress": progress,
         "created_at": ev.created_at.isoformat(),
     }
 
@@ -109,8 +123,9 @@ def _fmt(ev: DayEvent, today: date) -> dict:
 def list_days(db: DbSession = Depends(get_db)):
     today = date.today()
     items = [_fmt(e, today) for e in db.query(DayEvent).all()]
-    items.sort(key=lambda x: (x["mode"] != "today", not x["pinned"],
-                              x["mode"] == "since", x["count"]))
+    items.sort(
+        key=lambda x: (x["mode"] != "today", not x["pinned"], x["mode"] == "since", x["count"])
+    )
     return {
         "events": items,
         "summary": {
@@ -145,10 +160,18 @@ def _validate(name: str, dt: str, repeat: str):
 @router.post("/days")
 def create_day(body: DayBody, db: DbSession = Depends(get_db)):
     _validate(body.name, body.date, body.repeat)
-    ev = DayEvent(name=body.name.strip(), date=str(body.date)[:10], repeat=body.repeat,
-                  category=body.category.strip(), notes=body.notes,
-                  pinned=body.pinned, notify_days=body.notify_days)
-    db.add(ev); db.commit(); db.refresh(ev)
+    ev = DayEvent(
+        name=body.name.strip(),
+        date=str(body.date)[:10],
+        repeat=body.repeat,
+        category=body.category.strip(),
+        notes=body.notes,
+        pinned=body.pinned,
+        notify_days=body.notify_days,
+    )
+    db.add(ev)
+    db.commit()
+    db.refresh(ev)
     return _fmt(ev, date.today())
 
 
@@ -175,7 +198,7 @@ def update_day(eid: str, body: DayPatch, db: DbSession = Depends(get_db)):
         except ValueError:
             raise HTTPException(400, "date must be an ISO date (YYYY-MM-DD)")
         ev.date = str(body.date)[:10]
-        ev.last_notified = ""    # date changed → re-arm the push
+        ev.last_notified = ""  # date changed → re-arm the push
     for field in ("name", "repeat", "category", "notes", "pinned", "notify_days"):
         v = getattr(body, field)
         if v is not None:
@@ -189,7 +212,8 @@ def delete_day(eid: str, db: DbSession = Depends(get_db)):
     ev = db.get(DayEvent, eid)
     if not ev:
         raise HTTPException(404)
-    db.delete(ev); db.commit()
+    db.delete(ev)
+    db.commit()
     return {"ok": True}
 
 
@@ -197,6 +221,7 @@ async def check_day_events():
     """called from the background loop — push when an event enters its
     reminder window, once per occurrence."""
     from routes.push import broadcast
+
     today = date.today()
     db = SessionLocal()
     try:
@@ -207,7 +232,7 @@ async def check_day_events():
             else:
                 target, nth = orig, 0
                 if target < today:
-                    continue    # already counting up — nothing to announce
+                    continue  # already counting up — nothing to announce
             days = (target - today).days
             if days > ev.notify_days or ev.last_notified == target.isoformat():
                 continue
@@ -216,8 +241,14 @@ async def check_day_events():
             nth_part = f" ({nth}{_ordinal(nth)} time)" if nth > 1 else ""
             when = "is today" if days == 0 else ("is tomorrow" if days == 1 else f"in {days} days")
             try:
-                await broadcast({"title": "days", "body": f"{ev.name} {when}{nth_part}",
-                                 "url": "/", "tag": f"day-{ev.id}-{target.isoformat()}"})
+                await broadcast(
+                    {
+                        "title": "days",
+                        "body": f"{ev.name} {when}{nth_part}",
+                        "url": "/",
+                        "tag": f"day-{ev.id}-{target.isoformat()}",
+                    }
+                )
             except Exception as e:
                 log.warning(f"day event push failed: {e}")
     finally:

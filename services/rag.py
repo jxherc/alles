@@ -3,6 +3,7 @@ RAG over your vault docs — chunk → embed → retrieve → answer with cited 
 reuses memory_store's fastembed embedder (with a jaccard fallback when it's not
 installed). the index is built lazily and cached; /reindex rebuilds it.
 """
+
 import re
 import logging
 
@@ -11,7 +12,7 @@ from services.vault_md import vault_dir
 
 log = logging.getLogger("aide.rag")
 
-_index = None   # list[{"path","chunk","vec"}] — None means "not built yet"
+_index = None  # list[{"path","chunk","vec"}] — None means "not built yet"
 
 
 def _chunk(text: str, size: int = 700, overlap: int = 120) -> list[str]:
@@ -19,7 +20,7 @@ def _chunk(text: str, size: int = 700, overlap: int = 120) -> list[str]:
     if not text:
         return []
     step = max(1, size - overlap)
-    return [text[i:i + size] for i in range(0, len(text), step)]
+    return [text[i : i + size] for i in range(0, len(text), step)]
 
 
 def _collect() -> list[tuple[str, str]]:
@@ -31,8 +32,12 @@ def _collect() -> list[tuple[str, str]]:
         if any(part.startswith((".", "_")) for part in p.relative_to(base).parts):
             continue
         try:
-            docs.append((str(p.relative_to(base)).replace("\\", "/"),
-                         p.read_text("utf-8", errors="replace")))
+            docs.append(
+                (
+                    str(p.relative_to(base)).replace("\\", "/"),
+                    p.read_text("utf-8", errors="replace"),
+                )
+            )
         except Exception:
             pass
     return docs
@@ -40,9 +45,9 @@ def _collect() -> list[tuple[str, str]]:
 
 def build_index() -> int:
     global _index
-    chunks = [{"path": path, "chunk": c}
-              for path, text in _collect()
-              for c in _chunk(text) if c.strip()]
+    chunks = [
+        {"path": path, "chunk": c} for path, text in _collect() for c in _chunk(text) if c.strip()
+    ]
     if not chunks:
         _index = []
         return 0
@@ -71,8 +76,11 @@ def retrieve(query: str, k: int = 5) -> list[dict]:
     else:
         scored = [(_jaccard(query, c["chunk"]), c) for c in idx]
     scored.sort(key=lambda x: x[0], reverse=True)
-    return [{"path": c["path"], "chunk": c["chunk"], "score": round(s, 3)}
-            for s, c in scored[:k] if s > 0]
+    return [
+        {"path": c["path"], "chunk": c["chunk"], "score": round(s, 3)}
+        for s, c in scored[:k]
+        if s > 0
+    ]
 
 
 async def answer(query: str, base_url: str, api_key: str, model: str, k: int = 5) -> dict:
@@ -80,12 +88,17 @@ async def answer(query: str, base_url: str, api_key: str, model: str, k: int = 5
     if not hits:
         return {"answer": "I couldn't find anything relevant in your docs.", "sources": []}
     from services.llm import simple_complete
+
     ctx = "\n\n".join(f"[{i + 1}] ({h['path']})\n{h['chunk']}" for i, h in enumerate(hits))
     msgs = [
-        {"role": "system", "content": (
-            "Answer the question using ONLY the document excerpts provided. Cite sources "
-            "inline as [1], [2] matching the excerpt numbers. If the excerpts don't contain "
-            "the answer, say so plainly. Be concise and accurate.")},
+        {
+            "role": "system",
+            "content": (
+                "Answer the question using ONLY the document excerpts provided. Cite sources "
+                "inline as [1], [2] matching the excerpt numbers. If the excerpts don't contain "
+                "the answer, say so plainly. Be concise and accurate."
+            ),
+        },
         {"role": "user", "content": f"Excerpts:\n{ctx}\n\nQuestion: {query}"},
     ]
     text = await simple_complete(msgs, base_url, api_key, model, max_tokens=900)

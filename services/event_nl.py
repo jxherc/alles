@@ -7,6 +7,7 @@ reuses the date extraction from task_nl and adds time-of-day parsing.
   "team sync tomorrow"          -> tomorrow, all-day (no time given)
   "standup every weekday 9am"   -> next day, 09:00 (recurrence left to caller)
 """
+
 import re
 from datetime import date, datetime, time, timedelta
 from services.task_nl import _extract_date
@@ -16,10 +17,10 @@ def _extract_time(t: str):
     """return (time, remaining_text) or (None, t)."""
     m = re.search(r"\b(noon|midday)\b", t, re.I)
     if m:
-        return time(12, 0), t[:m.start()] + " " + t[m.end():]
+        return time(12, 0), t[: m.start()] + " " + t[m.end() :]
     m = re.search(r"\b(midnight)\b", t, re.I)
     if m:
-        return time(0, 0), t[:m.start()] + " " + t[m.end():]
+        return time(0, 0), t[: m.start()] + " " + t[m.end() :]
     # 1pm, 1:30pm, 9 am
     m = re.search(r"\b(\d{1,2})(?::(\d{2}))?\s*([ap]\.?m\.?)\b", t, re.I)
     if m:
@@ -27,11 +28,11 @@ def _extract_time(t: str):
         if m.group(3).lower().startswith("p"):
             h += 12
         mn = int(m.group(2) or 0)
-        return time(h % 24, mn), t[:m.start()] + " " + t[m.end():]
+        return time(h % 24, mn), t[: m.start()] + " " + t[m.end() :]
     # 24h 13:00
     m = re.search(r"\b([01]?\d|2[0-3]):([0-5]\d)\b", t)
     if m:
-        return time(int(m.group(1)), int(m.group(2))), t[:m.start()] + " " + t[m.end():]
+        return time(int(m.group(1)), int(m.group(2))), t[: m.start()] + " " + t[m.end() :]
     return None, t
 
 
@@ -40,9 +41,9 @@ def _extract_until(t: str, today: date):
     m = re.search(r"\b(?:until|till|til)\b", t, re.I)
     if not m:
         return None, t
-    due, _ = _extract_date(" " + t[m.end():] + " ", today)
+    due, _ = _extract_date(" " + t[m.end() :] + " ", today)
     if due:
-        return due, t[:m.start()] + " "
+        return due, t[: m.start()] + " "
     return None, t
 
 
@@ -51,26 +52,36 @@ def _extract_recurrence(t: str):
     the weekday is LEFT in the text so the date parser sets the first occurrence."""
     m = re.search(r"\bevery\s+(?=mon|tue|wed|thu|fri|sat|sun)", t, re.I)
     if m:
-        return "weekly", t[:m.start()] + " " + t[m.end():]
-    for pat, rec in ((r"\b(?:every\s*day|daily)\b", "daily"),
-                     (r"\b(?:every\s*week|weekly)\b", "weekly"),
-                     (r"\b(?:every\s*month|monthly)\b", "monthly")):
+        return "weekly", t[: m.start()] + " " + t[m.end() :]
+    for pat, rec in (
+        (r"\b(?:every\s*day|daily)\b", "daily"),
+        (r"\b(?:every\s*week|weekly)\b", "weekly"),
+        (r"\b(?:every\s*month|monthly)\b", "monthly"),
+    ):
         m = re.search(pat, t, re.I)
         if m:
-            return rec, t[:m.start()] + " " + t[m.end():]
+            return rec, t[: m.start()] + " " + t[m.end() :]
     return "", t
 
 
 def parse_event(text: str, today: date | None = None) -> dict:
     today = today or date.today()
-    out = {"title": "", "start_dt": None, "end_dt": None, "all_day": False,
-           "recurrence": "", "recur_until": None}
+    out = {
+        "title": "",
+        "start_dt": None,
+        "end_dt": None,
+        "all_day": False,
+        "recurrence": "",
+        "recur_until": None,
+    }
     t = f" {text.strip()} "
 
     recur_until, t = _extract_until(t, today)
     recurrence, t = _extract_recurrence(t)
     out["recurrence"] = recurrence
-    out["recur_until"] = recur_until if recurrence else None   # 'until' is meaningless without a cycle
+    out["recur_until"] = (
+        recur_until if recurrence else None
+    )  # 'until' is meaningless without a cycle
 
     due, t = _extract_date(t, today)
     tm, t = _extract_time(t)

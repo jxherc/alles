@@ -1,4 +1,5 @@
 """Convert a markdown note to a .docx file (bytes). Reasonable markdown subset."""
+
 import io
 import re
 
@@ -31,7 +32,7 @@ def _style_doc(doc):
         st.font.name = HEAD_FONT
         st.font.size = Pt(sz)
         st.font.bold = True
-        st.font.color.rgb = BLACK   # override Word's default blue headings
+        st.font.color.rgb = BLACK  # override Word's default blue headings
         st.paragraph_format.space_before = Pt(14)
         st.paragraph_format.space_after = Pt(4)
         st.paragraph_format.line_spacing = 1.15
@@ -58,7 +59,8 @@ def _add_inline(p, text):
             r.font.name = CODE_FONT
         elif part.startswith("[[") and part.endswith("]]"):
             inner = part[2:-2].split("|")[-1].split("#")[0].strip()
-            r = p.add_run(inner); r.italic = True   # wikilink → italic text
+            r = p.add_run(inner)
+            r.italic = True  # wikilink → italic text
         else:
             p.add_run(part)
 
@@ -76,8 +78,10 @@ def md_to_docx(md: str, title: str = "") -> bytes:
             if in_code:
                 p = doc.add_paragraph()
                 r = p.add_run("\n".join(code))
-                r.font.name = CODE_FONT; r.font.size = Pt(9.5)
-                code = []; in_code = False
+                r.font.name = CODE_FONT
+                r.font.size = Pt(9.5)
+                code = []
+                in_code = False
             else:
                 in_code = True
             continue
@@ -108,7 +112,8 @@ def md_to_docx(md: str, title: str = "") -> bytes:
         _add_inline(doc.add_paragraph(), s)
 
     if in_code and code:
-        r = doc.add_paragraph().add_run("\n".join(code)); r.font.name = CODE_FONT
+        r = doc.add_paragraph().add_run("\n".join(code))
+        r.font.name = CODE_FONT
 
     buf = io.BytesIO()
     doc.save(buf)

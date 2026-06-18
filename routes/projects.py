@@ -34,10 +34,16 @@ class CreateProject(BaseModel):
 
 @router.post("/projects")
 def create_project(body: CreateProject, db: DbSession = Depends(get_db)):
-    p = Project(name=body.name, description=body.description,
-                system_prompt=body.system_prompt, working_dir=body.working_dir,
-                color=body.color)
-    db.add(p); db.commit(); db.refresh(p)
+    p = Project(
+        name=body.name,
+        description=body.description,
+        system_prompt=body.system_prompt,
+        working_dir=body.working_dir,
+        color=body.color,
+    )
+    db.add(p)
+    db.commit()
+    db.refresh(p)
     return _fmt(p)
 
 
@@ -52,12 +58,18 @@ class PatchProject(BaseModel):
 @router.patch("/projects/{pid}")
 def patch_project(pid: str, body: PatchProject, db: DbSession = Depends(get_db)):
     p = db.get(Project, pid)
-    if not p: raise HTTPException(404)
-    if body.name is not None:          p.name = body.name
-    if body.description is not None:   p.description = body.description
-    if body.system_prompt is not None: p.system_prompt = body.system_prompt
-    if body.working_dir is not None:   p.working_dir = body.working_dir
-    if body.color is not None:         p.color = body.color
+    if not p:
+        raise HTTPException(404)
+    if body.name is not None:
+        p.name = body.name
+    if body.description is not None:
+        p.description = body.description
+    if body.system_prompt is not None:
+        p.system_prompt = body.system_prompt
+    if body.working_dir is not None:
+        p.working_dir = body.working_dir
+    if body.color is not None:
+        p.color = body.color
     db.commit()
     return _fmt(p)
 
@@ -66,11 +78,13 @@ def patch_project(pid: str, body: PatchProject, db: DbSession = Depends(get_db))
 def project_files(pid: str, db: DbSession = Depends(get_db)):
     """the files under the project's working dir — the 'sources' for its workspace page."""
     p = db.get(Project, pid)
-    if not p: raise HTTPException(404)
+    if not p:
+        raise HTTPException(404)
     wd = (p.working_dir or "").strip()
     if not wd:
         return {"files": [], "working_dir": ""}
     from services.agent_tools import workspace_files
+
     try:
         files = workspace_files(wd, "", 200)
     except Exception:
@@ -81,25 +95,32 @@ def project_files(pid: str, db: DbSession = Depends(get_db)):
 @router.delete("/projects/{pid}")
 def delete_project(pid: str, db: DbSession = Depends(get_db)):
     p = db.get(Project, pid)
-    if not p: raise HTTPException(404)
+    if not p:
+        raise HTTPException(404)
     for s in list(p.sessions):
         s.project_id = None
-    db.delete(p); db.commit()
+    db.delete(p)
+    db.commit()
     return {"ok": True}
 
 
 @router.post("/projects/{pid}/sessions/{sid}")
 def assign_session(pid: str, sid: str, db: DbSession = Depends(get_db)):
-    p = db.get(Project, pid); s = db.get(Session, sid)
-    if not p or not s: raise HTTPException(404)
-    s.project_id = pid; db.commit()
+    p = db.get(Project, pid)
+    s = db.get(Session, sid)
+    if not p or not s:
+        raise HTTPException(404)
+    s.project_id = pid
+    db.commit()
     return {"ok": True}
 
 
 @router.delete("/projects/{pid}/sessions/{sid}")
 def unassign_session(pid: str, sid: str, db: DbSession = Depends(get_db)):
     s = db.get(Session, sid)
-    if not s: raise HTTPException(404)
+    if not s:
+        raise HTTPException(404)
     if s.project_id == pid:
-        s.project_id = None; db.commit()
+        s.project_id = None
+        db.commit()
     return {"ok": True}

@@ -13,7 +13,8 @@ class TodayApiTest(ApiTest):
         d.add(Task(title="way overdue", due_date="2000-01-01", done=False))
         d.add(Task(title="done already", due_date=today, done=True))
         d.add(Reminder(text="ping me", trigger_at=datetime.utcnow(), fired=False, type="reminder"))
-        d.commit(); d.close()
+        d.commit()
+        d.close()
 
         r = self.client.get("/api/today").json()
         self.assertIn("today event", [e["title"] for e in r["events"]])

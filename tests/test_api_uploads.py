@@ -18,7 +18,9 @@ class UploadsApiTest(ApiTest):
         super().tearDown()
 
     def test_upload_serve_delete(self):
-        r = self.client.post("/api/uploads", files={"file": ("notes.txt", b"hello world", "text/plain")})
+        r = self.client.post(
+            "/api/uploads", files={"file": ("notes.txt", b"hello world", "text/plain")}
+        )
         self.assertEqual(r.status_code, 200)
         j = r.json()
         self.assertEqual(j["name"], "notes.txt")
@@ -33,7 +35,10 @@ class UploadsApiTest(ApiTest):
         orig = up.MAX_SIZE
         up.MAX_SIZE = 8
         try:
-            r = self.client.post("/api/uploads", files={"file": ("big.bin", b"123456789", "application/octet-stream")})
+            r = self.client.post(
+                "/api/uploads",
+                files={"file": ("big.bin", b"123456789", "application/octet-stream")},
+            )
             self.assertEqual(r.status_code, 400)
         finally:
             up.MAX_SIZE = orig

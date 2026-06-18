@@ -2,6 +2,7 @@
 Photos app — a local photo library (no iCloud). Thumbnails + EXIF via Pillow.
 Originals live in data/photos, thumbs in data/photos/.thumbs. Path-safe like files_store.
 """
+
 import io
 import json
 import uuid
@@ -20,8 +21,8 @@ def photos_dir() -> Path:
     d = load_settings().get("photos_dir") or str(ROOT / "data" / "photos")
     p = Path(d).expanduser()
     if not p.is_absolute():
-        p = ROOT / p          # relative dirs anchor to the app root, not cwd
-    p = p.resolve()           # must be absolute — _safe() compares against resolved children
+        p = ROOT / p  # relative dirs anchor to the app root, not cwd
+    p = p.resolve()  # must be absolute — _safe() compares against resolved children
     (p / ".thumbs").mkdir(parents=True, exist_ok=True)
     return p
 
@@ -42,7 +43,7 @@ def relocate(old_raw):
     new folder. DB rows only keep bare 'uid.ext' names resolved against photos_dir(), so
     without this every prior photo 404s after a folder switch."""
     old = _resolve_dir(old_raw)
-    new = photos_dir()   # resolves + creates the new dir (incl. an empty .thumbs)
+    new = photos_dir()  # resolves + creates the new dir (incl. an empty .thumbs)
     if old == new or not old.exists():
         return
     _merge_move(old, new)
@@ -56,7 +57,7 @@ def _merge_move(src: Path, dst: Path):
         target = dst / item.name
         if item.is_dir():
             _merge_move(item, target)
-        elif not target.exists():   # never clobber a file already in the target
+        elif not target.exists():  # never clobber a file already in the target
             try:
                 shutil.move(str(item), str(target))
             except Exception:
@@ -73,6 +74,7 @@ def _safe(name: str) -> Path:
 
 def _read_exif(img) -> tuple:
     from PIL import ExifTags
+
     taken_at, out = None, {}
     try:
         raw = img.getexif()
@@ -84,7 +86,15 @@ def _read_exif(img) -> tuple:
                     taken_at = datetime.strptime(str(dt), "%Y:%m:%d %H:%M:%S")
                 except Exception:
                     pass
-            for key in ("Make", "Model", "LensModel", "FNumber", "ExposureTime", "ISOSpeedRatings", "FocalLength"):
+            for key in (
+                "Make",
+                "Model",
+                "LensModel",
+                "FNumber",
+                "ExposureTime",
+                "ISOSpeedRatings",
+                "FocalLength",
+            ):
                 if key in tags and tags[key] not in (None, ""):
                     out[key] = str(tags[key])
     except Exception:
@@ -94,6 +104,7 @@ def _read_exif(img) -> tuple:
 
 def import_image(data: bytes, original_name: str) -> dict:
     from PIL import Image, ImageOps
+
     ext = (original_name.rsplit(".", 1)[-1] if "." in original_name else "jpg").lower()
     if ext == "jpeg":
         ext = "jpg"
@@ -104,8 +115,8 @@ def import_image(data: bytes, original_name: str) -> dict:
     (photos_dir() / fname).write_bytes(data)
 
     img = Image.open(io.BytesIO(data))
-    taken_at, exif_out = _read_exif(img)          # read EXIF before transpose
-    img = ImageOps.exif_transpose(img)            # honor orientation for size/thumb
+    taken_at, exif_out = _read_exif(img)  # read EXIF before transpose
+    img = ImageOps.exif_transpose(img)  # honor orientation for size/thumb
     w, h = img.size
     if taken_at is None:
         taken_at = datetime.utcnow()
@@ -116,11 +127,16 @@ def import_image(data: bytes, original_name: str) -> dict:
         t.thumbnail((_THUMB, _THUMB))
         t.save(thumbs_dir() / thumb_name, "JPEG", quality=82)
     except Exception:
-        thumb_name = ""   # original still usable even if the thumb failed
+        thumb_name = ""  # original still usable even if the thumb failed
 
     return {
-        "filename": fname, "thumb": thumb_name, "original_name": original_name,
-        "width": w, "height": h, "taken_at": taken_at, "exif": json.dumps(exif_out),
+        "filename": fname,
+        "thumb": thumb_name,
+        "original_name": original_name,
+        "width": w,
+        "height": h,
+        "taken_at": taken_at,
+        "exif": json.dumps(exif_out),
     }
 
 

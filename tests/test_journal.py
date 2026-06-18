@@ -37,14 +37,16 @@ class StreakTests(unittest.TestCase):
 class CrudTests(unittest.TestCase):
     def test_upsert_is_one_per_day(self):
         db = _mkdb()
-        out = J.upsert_entry("2026-06-14", EntryBody(content="hello world", mood="🙂", tags="x"), db)
+        out = J.upsert_entry(
+            "2026-06-14", EntryBody(content="hello world", mood="🙂", tags="x"), db
+        )
         self.assertEqual(out["words"], 2)
         self.assertEqual(out["mood"], "🙂")
         J.upsert_entry("2026-06-14", EntryBody(content="changed text here now"), db)
         got = J.get_entry("2026-06-14", db)
         self.assertTrue(got["exists"])
         self.assertEqual(got["content"], "changed text here now")
-        self.assertEqual(J.list_entries("", 60, db)["stats"]["total"], 1)   # not duplicated
+        self.assertEqual(J.list_entries("", 60, db)["stats"]["total"], 1)  # not duplicated
 
     def test_get_missing_returns_shell(self):
         got = J.get_entry("2026-01-01", _mkdb())
@@ -59,6 +61,7 @@ class CrudTests(unittest.TestCase):
 
     def test_bad_date_rejected(self):
         from fastapi import HTTPException
+
         with self.assertRaises(HTTPException):
             J.get_entry("not-a-date", _mkdb())
 
@@ -79,7 +82,7 @@ class DepthTests(unittest.TestCase):
         self.assertIn("found the needle", ex["markdown"])
         cal = J.entry_calendar(2026, db)
         self.assertIn("2026-06-14", cal["days"])
-        self.assertEqual(cal["days"]["2026-06-14"], 4)   # word count
+        self.assertEqual(cal["days"]["2026-06-14"], 4)  # word count
 
 
 if __name__ == "__main__":

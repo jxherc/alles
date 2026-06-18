@@ -20,7 +20,9 @@ class SessionsApiTest(ApiTest):
         self.assertEqual([s["id"] for s in lst["today"]], [sid])
 
     def test_create_with_persona_and_project(self):
-        r = self.client.post("/api/sessions", json={"name": "p", "persona_id": "persona-1", "project_id": "proj-1"})
+        r = self.client.post(
+            "/api/sessions", json={"name": "p", "persona_id": "persona-1", "project_id": "proj-1"}
+        )
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.json()["persona_id"], "persona-1")
         self.assertEqual(r.json()["project_id"], "proj-1")
@@ -28,14 +30,15 @@ class SessionsApiTest(ApiTest):
     def test_incognito_hidden_from_list(self):
         self.client.post("/api/sessions", json={"name": "secret", "incognito": True})
         lst = self.client.get("/api/sessions").json()
-        self.assertEqual(lst["today"], [])   # incognito leaves no trace in the sidebar
+        self.assertEqual(lst["today"], [])  # incognito leaves no trace in the sidebar
 
     def test_history_404_and_ok(self):
         self.assertEqual(self.client.get("/api/sessions/nope/history").status_code, 404)
         sid = self.client.post("/api/sessions", json={"name": "h"}).json()["id"]
         d = self.db()
         d.add(Message(session_id=sid, role="user", content="hi there"))
-        d.commit(); d.close()
+        d.commit()
+        d.close()
         h = self.client.get(f"/api/sessions/{sid}/history").json()
         self.assertEqual(h["session"]["id"], sid)
         self.assertEqual([m["content"] for m in h["messages"]], ["hi there"])
@@ -51,7 +54,7 @@ class SessionsApiTest(ApiTest):
         sid = self.client.post("/api/sessions", json={"name": "keep"}).json()["id"]
         self.client.patch(f"/api/sessions/{sid}", json={"starred": True})
         r = self.client.delete(f"/api/sessions/{sid}")
-        self.assertEqual(r.status_code, 400)            # must unstar first
+        self.assertEqual(r.status_code, 400)  # must unstar first
         self.client.patch(f"/api/sessions/{sid}", json={"starred": False})
         self.assertEqual(self.client.delete(f"/api/sessions/{sid}").status_code, 200)
 
@@ -67,12 +70,17 @@ class SessionsApiTest(ApiTest):
         d = self.db()
         base = datetime.utcnow()
         m1 = Message(session_id=sid, role="user", content="first", timestamp=base)
-        m2 = Message(session_id=sid, role="assistant", content="reply", timestamp=base + timedelta(seconds=1))
-        d.add_all([m1, m2]); d.commit(); mid = m1.id; d.close()
+        m2 = Message(
+            session_id=sid, role="assistant", content="reply", timestamp=base + timedelta(seconds=1)
+        )
+        d.add_all([m1, m2])
+        d.commit()
+        mid = m1.id
+        d.close()
         r = self.client.post(f"/api/sessions/{sid}/messages/{mid}/edit", json={"content": "edited"})
         self.assertEqual(r.status_code, 200)
         msgs = self.client.get(f"/api/sessions/{sid}/history").json()["messages"]
-        self.assertEqual([m["content"] for m in msgs], ["edited"])   # the later reply was dropped
+        self.assertEqual([m["content"] for m in msgs], ["edited"])  # the later reply was dropped
 
     def test_auto_name_heuristic_without_endpoint(self):
         sid = self.client.post("/api/sessions", json={"name": "new chat"}).json()["id"]
@@ -80,7 +88,8 @@ class SessionsApiTest(ApiTest):
         self.assertEqual(self.client.post(f"/api/sessions/{sid}/auto-name").status_code, 400)
         d = self.db()
         d.add(Message(session_id=sid, role="user", content="How do I bake sourdough bread at home"))
-        d.commit(); d.close()
+        d.commit()
+        d.close()
         # no enabled endpoint → heuristic strips the "how do i" lead-in, lowercases
         name = self.client.post(f"/api/sessions/{sid}/auto-name").json()["name"]
         self.assertTrue(name.startswith("bake sourdough"))

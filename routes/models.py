@@ -9,16 +9,28 @@ from services.imagegen import is_image_model, image_models as _image_models
 
 router = APIRouter(prefix="/api")
 
-_NON_CHAT = ("embedding", "tts", "whisper", "dall-e", "moderation",
-             "rerank", "clip", "stable-diffusion", "text-embedding")
+_NON_CHAT = (
+    "embedding",
+    "tts",
+    "whisper",
+    "dall-e",
+    "moderation",
+    "rerank",
+    "clip",
+    "stable-diffusion",
+    "text-embedding",
+)
+
 
 def _is_chat_model(mid: str) -> bool:
     ml = mid.lower()
     # keep image-gen models out of the chat list too — they have their own picker
     return not any(x in ml for x in _NON_CHAT) and not is_image_model(mid)
 
+
 def _fmt_endpoint(ep: ModelEndpoint) -> dict:
     import json as _json
+
     try:
         vision = _json.loads(ep.vision_models or "[]")
     except Exception:
@@ -78,7 +90,7 @@ class PatchEndpoint(BaseModel):
     api_key: str | None = None
     enabled: bool | None = None
     vision_models: str | None = None  # json list string
-    image_models: str | None = None   # json list string
+    image_models: str | None = None  # json list string
 
 
 # PATCH /api/models/endpoint/{id}
@@ -87,12 +99,18 @@ def patch_endpoint(ep_id: str, body: PatchEndpoint, db: DbSession = Depends(get_
     ep = db.get(ModelEndpoint, ep_id)
     if not ep:
         raise HTTPException(404)
-    if body.name is not None:          ep.name = body.name
-    if body.base_url is not None:      ep.base_url = body.base_url
-    if body.api_key is not None:       ep.api_key = body.api_key
-    if body.enabled is not None:       ep.enabled = body.enabled
-    if body.vision_models is not None: ep.vision_models = body.vision_models
-    if body.image_models is not None:  ep.image_models = body.image_models
+    if body.name is not None:
+        ep.name = body.name
+    if body.base_url is not None:
+        ep.base_url = body.base_url
+    if body.api_key is not None:
+        ep.api_key = body.api_key
+    if body.enabled is not None:
+        ep.enabled = body.enabled
+    if body.vision_models is not None:
+        ep.vision_models = body.vision_models
+    if body.image_models is not None:
+        ep.image_models = body.image_models
     db.commit()
     return _fmt_endpoint(ep)
 
@@ -110,7 +128,12 @@ def delete_endpoint(ep_id: str, db: DbSession = Depends(get_db)):
 
 # the static Anthropic list is only a FALLBACK for keys that can't hit the
 # models API — the live probe below is what keeps lists current
-_ANTHROPIC_FALLBACK = ["claude-fable-5", "claude-opus-4-8", "claude-sonnet-4-6", "claude-haiku-4-5-20251001"]
+_ANTHROPIC_FALLBACK = [
+    "claude-fable-5",
+    "claude-opus-4-8",
+    "claude-sonnet-4-6",
+    "claude-haiku-4-5-20251001",
+]
 
 
 async def _fetch_raw_model_ids(ep: ModelEndpoint) -> list[str]:
@@ -124,10 +147,13 @@ async def _fetch_raw_model_ids(ep: ModelEndpoint) -> list[str]:
         # their own; the static list is only for keys that can't reach it
         try:
             async with httpx.AsyncClient(timeout=10) as c:
-                r = await c.get(base + "/v1/models?limit=100", headers={
-                    "x-api-key": ep.api_key or "",
-                    "anthropic-version": "2023-06-01",
-                })
+                r = await c.get(
+                    base + "/v1/models?limit=100",
+                    headers={
+                        "x-api-key": ep.api_key or "",
+                        "anthropic-version": "2023-06-01",
+                    },
+                )
                 r.raise_for_status()
                 models = [m["id"] for m in r.json().get("data", [])]
                 if models:
@@ -169,8 +195,10 @@ async def refresh_all_model_lists() -> list[dict]:
     clicking refresh. failures keep the old cache. returns the per-endpoint
     additions so callers (the UI) can announce what's new."""
     import logging
+
     log = logging.getLogger("aide.models")
     from core.database import SessionLocal
+
     db = SessionLocal()
     diffs = []
     try:
@@ -207,6 +235,7 @@ _last_refresh = 0.0
 async def refresh_models(force: bool = False):
     global _last_refresh
     import time as _t
+
     now = _t.time()
     if not force and now - _last_refresh < 60:
         return {"added": [], "endpoints": 0, "skipped": "cooldown"}

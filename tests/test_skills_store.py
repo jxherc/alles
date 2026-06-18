@@ -30,7 +30,9 @@ class SkillsStoreTest(unittest.TestCase):
             ss._path("..")
 
     def test_upsert_get_list_delete(self):
-        ss.upsert_skill("Summarize", "shorten long text", "when asked for a tl;dr", "1. read\n2. condense")
+        ss.upsert_skill(
+            "Summarize", "shorten long text", "when asked for a tl;dr", "1. read\n2. condense"
+        )
         skills = ss.list_skills()
         self.assertEqual(len(skills), 1)
         self.assertEqual(skills[0]["slug"], "summarize")
@@ -49,7 +51,7 @@ class SkillsStoreTest(unittest.TestCase):
         self.assertEqual(ss.get_skill("note-taker")["description"], "v2")
 
     def test_frontmatter_roundtrip_preserves_body_with_dashes(self):
-        body = "step one\n---\nstep two"          # body containing a --- line
+        body = "step one\n---\nstep two"  # body containing a --- line
         ss.upsert_skill("Tricky", "d", "", body)
         self.assertEqual(ss.get_skill("tricky")["body"], body)
 

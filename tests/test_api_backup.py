@@ -16,7 +16,7 @@ class BackupApiTest(ApiTest):
         (self.data / "aide.db").write_bytes(b"fake-sqlite")
         (self.data / "settings.json").write_text('{"x":1}')
         self._orig = bk.DATA_DIR
-        bk.DATA_DIR = self.data   # never zip/overwrite the real data dir
+        bk.DATA_DIR = self.data  # never zip/overwrite the real data dir
 
     def tearDown(self):
         bk.DATA_DIR = self._orig
@@ -46,16 +46,33 @@ class BackupApiTest(ApiTest):
         self.assertTrue((self.data / "uploads" / "a.txt").exists())
 
     def test_restore_rejects_non_zip(self):
-        r = self.client.post("/api/backup/restore", files={"file": ("x.txt", b"not a zip", "text/plain")})
+        r = self.client.post(
+            "/api/backup/restore", files={"file": ("x.txt", b"not a zip", "text/plain")}
+        )
         self.assertEqual(r.status_code, 400)
 
     def test_restore_rejects_zip_without_db(self):
         z = self._zip({"random.txt": b"x"})
-        self.assertEqual(self.client.post("/api/backup/restore", files={"file": ("b.zip", z, "application/zip")}).status_code, 400)
+        self.assertEqual(
+            self.client.post(
+                "/api/backup/restore", files={"file": ("b.zip", z, "application/zip")}
+            ).status_code,
+            400,
+        )
 
     def test_restore_rejects_empty(self):
-        self.assertEqual(self.client.post("/api/backup/restore", files={"file": ("b.zip", b"", "application/zip")}).status_code, 400)
+        self.assertEqual(
+            self.client.post(
+                "/api/backup/restore", files={"file": ("b.zip", b"", "application/zip")}
+            ).status_code,
+            400,
+        )
 
     def test_restore_blocks_zip_slip(self):
         z = self._zip({"aide.db": b"db", "../escape.txt": b"evil"})
-        self.assertEqual(self.client.post("/api/backup/restore", files={"file": ("b.zip", z, "application/zip")}).status_code, 400)
+        self.assertEqual(
+            self.client.post(
+                "/api/backup/restore", files={"file": ("b.zip", z, "application/zip")}
+            ).status_code,
+            400,
+        )

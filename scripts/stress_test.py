@@ -8,6 +8,7 @@ timestamped folder so you can diff over time.
 
 run:  python scripts/stress_test.py
 """
+
 import os
 import sys
 import json
@@ -32,7 +33,7 @@ db.SessionLocal.configure(bind=_eng)
 client = TestClient(app)
 
 OUT = Path.home() / "alles-test-evidence" / datetime.now().strftime("%Y-%m-%d_%H%M%S")
-_results = []   # (area, name, ok, detail)
+_results = []  # (area, name, ok, detail)
 
 
 def _rec(area, name, ok, detail=""):
@@ -67,18 +68,22 @@ def run_sessions():
         log.append(f"POST /api/sessions -> {r.status_code} {json.dumps(r.json())[:200]}")
         sid["id"] = r.json().get("id")
         return r.status_code == 200 and bool(sid["id"]), ""
+
     def listed():
         r = client.get("/api/sessions").json()
         log.append(f"GET /api/sessions -> today={len(r.get('today', []))}")
         return any(s["id"] == sid["id"] for s in r["today"]), ""
+
     def rename():
         r = client.patch(f"/api/sessions/{sid['id']}", json={"name": "renamed"})
         log.append(f"PATCH name -> {r.json().get('name')}")
         return r.json().get("name") == "renamed", ""
+
     def delete():
         r = client.delete(f"/api/sessions/{sid['id']}")
         log.append(f"DELETE -> {r.json()}")
         return r.json().get("ok") is True, ""
+
     check("sessions", "create", create)
     check("sessions", "list shows it", listed)
     check("sessions", "rename", rename)
@@ -86,78 +91,102 @@ def run_sessions():
     area_write("sessions", log)
 
 
-def run_crud(area, base, make, mk_payload, patch_payload=None, name_field="name", upd_method="PATCH"):
+def run_crud(
+    area, base, make, mk_payload, patch_payload=None, name_field="name", upd_method="PATCH"
+):
     """generic crud evidence for a simple resource."""
     log = [f"# {area} — {datetime.now().isoformat()}", ""]
     holder = {}
 
     def create():
         r = client.post(base, json=mk_payload)
-        log.append(f"POST {base} {json.dumps(mk_payload)[:120]} -> {r.status_code} {json.dumps(r.json())[:200]}")
+        log.append(
+            f"POST {base} {json.dumps(mk_payload)[:120]} -> {r.status_code} {json.dumps(r.json())[:200]}"
+        )
         holder["id"] = (r.json() or {}).get("id") or (r.json() or {}).get("slug")
         return r.status_code == 200, ""
+
     def listed():
         r = client.get(base)
         n = len(r.json()) if isinstance(r.json(), list) else len(r.json().get("messages", r.json()))
         log.append(f"GET {base} -> {r.status_code}, {n} item(s)")
         return r.status_code == 200, ""
+
     check(area, "create", create)
     check(area, "list", listed)
     if patch_payload and holder.get("id"):
+
         def patch():
             r = client.request(upd_method, f"{base}/{holder['id']}", json=patch_payload)
-            log.append(f"{upd_method} {base}/{holder['id']} -> {r.status_code} {json.dumps(r.json())[:160]}")
+            log.append(
+                f"{upd_method} {base}/{holder['id']} -> {r.status_code} {json.dumps(r.json())[:160]}"
+            )
             return r.status_code == 200, ""
+
         check(area, "update", patch)
     if holder.get("id"):
+
         def delete():
             r = client.delete(f"{base}/{holder['id']}")
-            log.append(f"DELETE {base}/{holder['id']} -> {r.status_code} {json.dumps(r.json())[:120]}")
+            log.append(
+                f"DELETE {base}/{holder['id']} -> {r.status_code} {json.dumps(r.json())[:120]}"
+            )
             return r.status_code == 200, ""
+
         check(area, "delete", delete)
     area_write(area, log)
 
 
 def run_calendar_nl():
     log = [f"# calendar NL quick-add — {datetime.now().isoformat()}", ""]
+
     def quick():
         r = client.post("/api/calendar/quick", json={"text": "lunch with sam tomorrow 1pm"})
         log.append(f"POST /api/calendar/quick 'lunch with sam tomorrow 1pm' -> {r.status_code}")
         log.append(json.dumps(r.json(), indent=2)[:400])
         j = r.json()
         return r.status_code == 200 and "title" in j and bool(j.get("start_dt")), ""
+
     check("calendar", "NL quick-add parses", quick)
     area_write("calendar_nl", log)
 
 
 def run_tasks_nl():
     log = [f"# tasks NL quick-add — {datetime.now().isoformat()}", ""]
+
     def quick():
         r = client.post("/api/tasks/quick", json={"text": "pay rent every 1st !"})
         log.append(f"POST /api/tasks/quick 'pay rent every 1st !' -> {r.status_code}")
         log.append(json.dumps(r.json(), indent=2)[:400])
         j = r.json()
         return r.status_code == 200 and j.get("repeat") and j.get("priority", 0) >= 1, ""
+
     check("tasks", "NL quick-add (recurring + priority)", quick)
     area_write("tasks_nl", log)
 
 
 def run_health_doctor():
     log = [f"# health / doctor — {datetime.now().isoformat()}", ""]
+
     def deep():
         r = client.get("/health?deep=1").json()
         log.append(json.dumps(r, indent=2))
-        return r.get("ok") is True and any(c["label"] == "required dependencies" for c in r["checks"]), ""
+        return r.get("ok") is True and any(
+            c["label"] == "required dependencies" for c in r["checks"]
+        ), ""
+
     check("health", "deep readiness check", deep)
     area_write("health", log)
 
 
 def run_setup():
     log = [f"# first-run setup status — {datetime.now().isoformat()}", ""]
+
     def status():
         r = client.get("/api/setup/status").json()
         log.append(json.dumps(r, indent=2))
         return "configured" in r and "endpoints" in r, ""
+
     check("setup", "status shape", status)
     area_write("setup", log)
 
@@ -167,7 +196,10 @@ def run_memory():
     holder = {}
 
     def add():
-        r = client.post("/api/memories", json={"text": "I evidence-test alles every night", "category": "identity"})
+        r = client.post(
+            "/api/memories",
+            json={"text": "I evidence-test alles every night", "category": "identity"},
+        )
         log.append(f"POST /api/memories -> {r.status_code} {json.dumps(r.json())[:200]}")
         holder["id"] = r.json().get("id")
         return r.status_code == 200 and bool(holder["id"]), ""
@@ -241,10 +273,12 @@ def run_page_smoke():
         ("settings", "/api/settings"),
     ]
     for name, path in endpoints:
+
         def chk(p=path):
             r = client.get(p)
             log.append(f"GET {p} -> {r.status_code}")
             return r.status_code == 200, f"{p} -> {r.status_code}"
+
         check("pages", name, chk)
     area_write("pages", log)
 
@@ -256,12 +290,48 @@ def main():
     run_setup()
     run_sessions()
     run_crud("projects", "/api/projects", None, {"name": "Ev Project"}, {"description": "d"})
-    run_crud("personas", "/api/personas", None, {"name": "Ev Persona", "system_prompt": "be terse"}, {"name": "Ev2", "system_prompt": "x"})
-    run_crud("contacts", "/api/contacts", None, {"name": "Ev Contact", "email": "e@x.com"}, {"phone": "123"})
-    run_crud("notes", "/api/cookbook", None, {"name": "ev cmd", "prompt": "do {args}"}, {"name": "ev cmd", "prompt": "p", "description": "d"})
-    run_crud("skills", "/api/skills", None, {"name": "Ev Skill", "description": "test", "when_to_use": "during evidence runs"}, {"name": "Ev Skill", "description": "v2"}, upd_method="PUT")
-    run_crud("reminders", "/api/reminders", None, {"text": "ev reminder", "trigger_at": "2099-01-01T09:00:00"})
-    run_crud("webhooks", "/api/webhooks", None, {"name": "evh", "url": "https://example.com"}, {"name": "evh2", "url": "https://example.com", "events": ["message"]})
+    run_crud(
+        "personas",
+        "/api/personas",
+        None,
+        {"name": "Ev Persona", "system_prompt": "be terse"},
+        {"name": "Ev2", "system_prompt": "x"},
+    )
+    run_crud(
+        "contacts",
+        "/api/contacts",
+        None,
+        {"name": "Ev Contact", "email": "e@x.com"},
+        {"phone": "123"},
+    )
+    run_crud(
+        "notes",
+        "/api/cookbook",
+        None,
+        {"name": "ev cmd", "prompt": "do {args}"},
+        {"name": "ev cmd", "prompt": "p", "description": "d"},
+    )
+    run_crud(
+        "skills",
+        "/api/skills",
+        None,
+        {"name": "Ev Skill", "description": "test", "when_to_use": "during evidence runs"},
+        {"name": "Ev Skill", "description": "v2"},
+        upd_method="PUT",
+    )
+    run_crud(
+        "reminders",
+        "/api/reminders",
+        None,
+        {"text": "ev reminder", "trigger_at": "2099-01-01T09:00:00"},
+    )
+    run_crud(
+        "webhooks",
+        "/api/webhooks",
+        None,
+        {"name": "evh", "url": "https://example.com"},
+        {"name": "evh2", "url": "https://example.com", "events": ["message"]},
+    )
     run_calendar_nl()
     run_tasks_nl()
     run_memory()
