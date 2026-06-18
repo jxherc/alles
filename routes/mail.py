@@ -10,19 +10,28 @@ router = APIRouter(prefix="/api/mail")
 
 def _acct_dict(a: MailAccount) -> dict:
     return {
-        "imap_host": a.imap_host, "imap_port": a.imap_port,
-        "smtp_host": a.smtp_host, "smtp_port": a.smtp_port,
-        "username": a.username, "password": a.password,
-        "email": a.email, "use_ssl": a.use_ssl,
+        "imap_host": a.imap_host,
+        "imap_port": a.imap_port,
+        "smtp_host": a.smtp_host,
+        "smtp_port": a.smtp_port,
+        "username": a.username,
+        "password": a.password,
+        "email": a.email,
+        "use_ssl": a.use_ssl,
     }
 
 
-def _fmt(a: MailAccount) -> dict:   # never leaks the password
+def _fmt(a: MailAccount) -> dict:  # never leaks the password
     return {
-        "id": a.id, "name": a.name, "email": a.email,
-        "imap_host": a.imap_host, "imap_port": a.imap_port,
-        "smtp_host": a.smtp_host, "smtp_port": a.smtp_port,
-        "username": a.username, "use_ssl": a.use_ssl,
+        "id": a.id,
+        "name": a.name,
+        "email": a.email,
+        "imap_host": a.imap_host,
+        "imap_port": a.imap_port,
+        "smtp_host": a.smtp_host,
+        "smtp_port": a.smtp_port,
+        "username": a.username,
+        "use_ssl": a.use_ssl,
     }
 
 
@@ -53,7 +62,9 @@ class AcctBody(BaseModel):
 @router.post("/accounts")
 def add_account(body: AcctBody, db: DbSession = Depends(get_db)):
     a = MailAccount(**body.model_dump())
-    db.add(a); db.commit(); db.refresh(a)
+    db.add(a)
+    db.commit()
+    db.refresh(a)
     mailsvc.clear_cache()
     return _fmt(a)
 
@@ -63,7 +74,7 @@ def patch_account(aid: str, body: AcctBody, db: DbSession = Depends(get_db)):
     a = _get(db, aid)
     data = body.model_dump()
     if not data.get("password"):
-        data.pop("password")   # keep the existing password if the form left it blank
+        data.pop("password")  # keep the existing password if the form left it blank
     for k, v in data.items():
         setattr(a, k, v)
     db.commit()
@@ -74,7 +85,8 @@ def patch_account(aid: str, body: AcctBody, db: DbSession = Depends(get_db)):
 @router.delete("/accounts/{aid}")
 def del_account(aid: str, db: DbSession = Depends(get_db)):
     a = _get(db, aid)
-    db.delete(a); db.commit()
+    db.delete(a)
+    db.commit()
     mailsvc.clear_cache()
     return {"ok": True}
 
@@ -90,13 +102,20 @@ def test(aid: str, db: DbSession = Depends(get_db)):
 
 
 @router.get("/inbox/{aid}")
-def inbox(aid: str, folder: str = "INBOX", limit: int = 30, quick: bool = False, db: DbSession = Depends(get_db)):
+def inbox(
+    aid: str,
+    folder: str = "INBOX",
+    limit: int = 30,
+    quick: bool = False,
+    db: DbSession = Depends(get_db),
+):
     from services import mail_cache
+
     a = _get(db, aid)
     try:
         msgs = mailsvc.fetch_inbox(_acct_dict(a), folder, limit, quick=quick)
         try:
-            mail_cache.save(db, aid, folder, msgs)   # warm the cache for instant/offline reads
+            mail_cache.save(db, aid, folder, msgs)  # warm the cache for instant/offline reads
         except Exception:
             pass
         return {"messages": msgs}
@@ -110,6 +129,7 @@ def inbox(aid: str, folder: str = "INBOX", limit: int = 30, quick: bool = False,
 def cached_inbox(aid: str, folder: str = "INBOX", limit: int = 30, db: DbSession = Depends(get_db)):
     """instant inbox from the local cache — no IMAP round-trip."""
     from services import mail_cache
+
     _get(db, aid)
     return {"messages": mail_cache.get(db, aid, folder, limit), "cached": True}
 
@@ -118,6 +138,7 @@ def cached_inbox(aid: str, folder: str = "INBOX", limit: int = 30, db: DbSession
 def cache_search(aid: str, q: str, limit: int = 40, db: DbSession = Depends(get_db)):
     """instant local search over cached headers (offline-friendly)."""
     from services import mail_cache
+
     _get(db, aid)
     return {"messages": mail_cache.search(db, aid, q, limit), "cached": True}
 
@@ -132,7 +153,9 @@ def message(aid: str, uid: str, folder: str = "INBOX", db: DbSession = Depends(g
 
 
 @router.get("/search/{aid}")
-def search_mail(aid: str, q: str, folder: str = "INBOX", limit: int = 40, db: DbSession = Depends(get_db)):
+def search_mail(
+    aid: str, q: str, folder: str = "INBOX", limit: int = 40, db: DbSession = Depends(get_db)
+):
     a = _get(db, aid)
     try:
         return {"messages": mailsvc.search(_acct_dict(a), q, folder, limit)}
@@ -160,9 +183,12 @@ def attachments(aid: str, uid: str, folder: str = "INBOX", db: DbSession = Depen
 
 
 @router.get("/attachment/{aid}")
-def attachment(aid: str, uid: str, index: int, folder: str = "INBOX", db: DbSession = Depends(get_db)):
+def attachment(
+    aid: str, uid: str, index: int, folder: str = "INBOX", db: DbSession = Depends(get_db)
+):
     from fastapi.responses import Response
     from urllib.parse import quote
+
     a = _get(db, aid)
     try:
         res = mailsvc.fetch_attachment(_acct_dict(a), uid, index, folder)
@@ -171,8 +197,11 @@ def attachment(aid: str, uid: str, index: int, folder: str = "INBOX", db: DbSess
     if not res:
         raise HTTPException(404, "attachment not found")
     filename, ctype, data = res
-    return Response(content=data, media_type=ctype or "application/octet-stream",
-                    headers={"content-disposition": f"attachment; filename*=UTF-8''{quote(filename)}"})
+    return Response(
+        content=data,
+        media_type=ctype or "application/octet-stream",
+        headers={"content-disposition": f"attachment; filename*=UTF-8''{quote(filename)}"},
+    )
 
 
 @router.get("/folders/{aid}")
@@ -207,8 +236,16 @@ class SendBody(BaseModel):
 def send(aid: str, body: SendBody, db: DbSession = Depends(get_db)):
     a = _get(db, aid)
     try:
-        return mailsvc.send_mail(_acct_dict(a), body.to, body.subject, body.body, body.cc,
-                                 body.bcc, body.in_reply_to, body.references)
+        return mailsvc.send_mail(
+            _acct_dict(a),
+            body.to,
+            body.subject,
+            body.body,
+            body.cc,
+            body.bcc,
+            body.in_reply_to,
+            body.references,
+        )
     except Exception as e:
         return {"ok": False, "error": str(e)[:200]}
 
@@ -223,6 +260,7 @@ async def summarize_mail(body: SummarizeBody, db: DbSession = Depends(get_db)):
     """AI summary of a mail — bullets + any action items."""
     from core.database import ModelEndpoint
     from services.llm import simple_complete
+
     ep = db.query(ModelEndpoint).filter(ModelEndpoint.enabled == True).first()
     if not ep:
         raise HTTPException(400, "no model endpoint configured")
@@ -230,10 +268,13 @@ async def summarize_mail(body: SummarizeBody, db: DbSession = Depends(get_db)):
     if not model:
         raise HTTPException(400, "no model available")
     prompt = [
-        {"role": "system", "content": (
-            "Summarize the email in 2-4 short bullet points, then if there are any "
-            "action items add a final line starting with 'todo:'. Be terse, plain text only."
-        )},
+        {
+            "role": "system",
+            "content": (
+                "Summarize the email in 2-4 short bullet points, then if there are any "
+                "action items add a final line starting with 'todo:'. Be terse, plain text only."
+            ),
+        },
         {"role": "user", "content": f"Subject: {body.subject}\n\n{body.body[:8000]}"},
     ]
     text = await simple_complete(prompt, ep.base_url, ep.api_key, model, max_tokens=400)
@@ -249,18 +290,20 @@ class MakeTaskBody(BaseModel):
 @router.post("/make-task")
 def make_task(body: MakeTaskBody, db: DbSession = Depends(get_db)):
     from core.database import Task
+
     title = body.title.strip()[:300]
     if not title:
         raise HTTPException(400, "empty title")
     t = Task(title=title)
-    db.add(t); db.commit()
+    db.add(t)
+    db.commit()
     return {"ok": True, "id": t.id}
 
 
 class ExtractEventBody(BaseModel):
     subject: str = ""
     body: str = ""
-    date: str = ""    # the mail's own date header, helps resolve "next tuesday"
+    date: str = ""  # the mail's own date header, helps resolve "next tuesday"
 
 
 @router.post("/extract-event")
@@ -280,17 +323,23 @@ async def extract_event(body: ExtractEventBody, db: DbSession = Depends(get_db))
 
     today = datetime.now().strftime("%A, %Y-%m-%d")
     prompt = [
-        {"role": "system", "content": (
-            "You extract calendar events from emails. Reply with ONLY a JSON object, no prose, "
-            "no code fences. Schema: {\"found\": bool, \"title\": str, \"start\": \"YYYY-MM-DDTHH:MM\", "
-            "\"end\": \"YYYY-MM-DDTHH:MM\" or null, \"location\": str, \"all_day\": bool}. "
-            f"Today is {today}. Resolve relative dates against the email's date when given. "
-            "If the email contains no concrete event (date or time), return {\"found\": false}."
-        )},
-        {"role": "user", "content": (
-            (f"Email date: {body.date}\n" if body.date else "")
-            + f"Subject: {body.subject}\n\n{body.body[:6000]}"
-        )},
+        {
+            "role": "system",
+            "content": (
+                "You extract calendar events from emails. Reply with ONLY a JSON object, no prose, "
+                'no code fences. Schema: {"found": bool, "title": str, "start": "YYYY-MM-DDTHH:MM", '
+                '"end": "YYYY-MM-DDTHH:MM" or null, "location": str, "all_day": bool}. '
+                f"Today is {today}. Resolve relative dates against the email's date when given. "
+                'If the email contains no concrete event (date or time), return {"found": false}.'
+            ),
+        },
+        {
+            "role": "user",
+            "content": (
+                (f"Email date: {body.date}\n" if body.date else "")
+                + f"Subject: {body.subject}\n\n{body.body[:6000]}"
+            ),
+        },
     ]
     raw = await simple_complete(prompt, ep.base_url, ep.api_key, model, max_tokens=300)
     raw = raw.strip().removeprefix("```json").removeprefix("```").removesuffix("```").strip()
@@ -312,6 +361,14 @@ async def extract_event(body: ExtractEventBody, db: DbSession = Depends(get_db))
         all_day=bool(data.get("all_day")),
         color="accent",
     )
-    db.add(ev); db.commit(); db.refresh(ev)
-    return {"found": True, "id": ev.id, "title": ev.title,
-            "start": ev.start_dt, "end": ev.end_dt, "all_day": ev.all_day}
+    db.add(ev)
+    db.commit()
+    db.refresh(ev)
+    return {
+        "found": True,
+        "id": ev.id,
+        "title": ev.title,
+        "start": ev.start_dt,
+        "end": ev.end_dt,
+        "all_day": ev.all_day,
+    }

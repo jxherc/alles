@@ -3,8 +3,13 @@ for round-tripping contacts in/out of phones and other address books."""
 
 
 def _esc(s) -> str:
-    return (str(s or "").replace("\\", "\\\\").replace("\n", "\\n")
-            .replace(",", "\\,").replace(";", "\\;"))
+    return (
+        str(s or "")
+        .replace("\\", "\\\\")
+        .replace("\n", "\\n")
+        .replace(",", "\\,")
+        .replace(";", "\\;")
+    )
 
 
 def _unesc(s: str) -> str:
@@ -14,7 +19,8 @@ def _unesc(s: str) -> str:
             out.append({"n": "\n", "N": "\n"}.get(s[i + 1], s[i + 1]))
             i += 2
         else:
-            out.append(s[i]); i += 1
+            out.append(s[i])
+            i += 1
     return "".join(out)
 
 
@@ -54,7 +60,9 @@ def parse_vcards(text: str) -> list[dict]:
                 cur["name"] = val
             elif k == "N" and not cur["name"]:
                 p = val.split(";")
-                cur["name"] = " ".join(x for x in [(p[1] if len(p) > 1 else ""), p[0]] if x).strip() or val
+                cur["name"] = (
+                    " ".join(x for x in [(p[1] if len(p) > 1 else ""), p[0]] if x).strip() or val
+                )
             elif k == "EMAIL" and not cur["email"]:
                 cur["email"] = val
             elif k == "TEL" and not cur["phone"]:

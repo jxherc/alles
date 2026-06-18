@@ -22,8 +22,9 @@ def _make_fake(behaviors):
     async def fake(messages, base_url, api_key, model, **kw):
         i = state["n"]
         state["n"] += 1
-        for ch in (behaviors[i] if i < len(behaviors) else behaviors[-1]):
+        for ch in behaviors[i] if i < len(behaviors) else behaviors[-1]:
             yield ch
+
     return fake, state
 
 
@@ -34,15 +35,28 @@ def _drive(behaviors, settings=None):
     if settings:
         s.update(settings)
     with tempfile.TemporaryDirectory() as d:
-        with mock.patch.object(agent_state, "DATA_DIR", Path(d)), \
-             mock.patch.object(ar, "stream_chat", fake), \
-             mock.patch.object(ar, "LLM_RETRY_BASE", 0):
+        with (
+            mock.patch.object(agent_state, "DATA_DIR", Path(d)),
+            mock.patch.object(ar, "stream_chat", fake),
+            mock.patch.object(ar, "LLM_RETRY_BASE", 0),
+        ):
+
             async def go():
                 chunks = []
-                async for ch in ar.run_agent([{"role": "user", "content": "hi"}], ep, "m",
-                                             _Stop(), s, [], [], [], session_id="s"):
+                async for ch in ar.run_agent(
+                    [{"role": "user", "content": "hi"}],
+                    ep,
+                    "m",
+                    _Stop(),
+                    s,
+                    [],
+                    [],
+                    [],
+                    session_id="s",
+                ):
                     chunks.append(ch)
                 return chunks
+
             chunks = asyncio.run(go())
             rid = next(c["agent_run"]["id"] for c in chunks if "agent_run" in c)
             status = agent_state.get_run(rid)["status"]
@@ -51,7 +65,7 @@ def _drive(behaviors, settings=None):
 
 class LlmResilienceTests(unittest.TestCase):
     def test_retryable_classification(self):
-        self.assertTrue(ar._retryable(""))                  # empty/transient
+        self.assertTrue(ar._retryable(""))  # empty/transient
         self.assertTrue(ar._retryable("can't connect to host"))
         self.assertTrue(ar._retryable("HTTP 503: bad gateway"))
         self.assertTrue(ar._retryable("HTTP 429: rate limited"))
@@ -62,17 +76,21 @@ class LlmResilienceTests(unittest.TestCase):
         # 1st call blips (empty error), 2nd succeeds with no tool calls → 'done'
         status, calls, _ = _drive([[{"error": ""}], [{"done": True, "usage": {}}]])
         self.assertEqual(status, "done")
-        self.assertEqual(calls, 2)            # it retried instead of aborting
+        self.assertEqual(calls, 2)  # it retried instead of aborting
 
     def test_unrecoverable_after_work_is_stopped_not_error(self):
-        tc = {"call_id": "c1", "name": "todo_update", "args": {"items": [{"step": "x", "status": "in_progress"}]}}
+        tc = {
+            "call_id": "c1",
+            "name": "todo_update",
+            "args": {"items": [{"step": "x", "status": "in_progress"}]},
+        }
         status, _, _ = _drive([[{"tool_call": tc}, {"done": True}], [{"error": "HTTP 400: bad"}]])
-        self.assertEqual(status, "stopped")   # work landed → interrupted, not a clean failure
+        self.assertEqual(status, "stopped")  # work landed → interrupted, not a clean failure
 
     def test_immediate_unrecoverable_with_no_work_is_error(self):
-        status, calls, _ = _drive([[{"error": "HTTP 400: bad"}]])   # non-retryable, nothing done
+        status, calls, _ = _drive([[{"error": "HTTP 400: bad"}]])  # non-retryable, nothing done
         self.assertEqual(status, "error")
-        self.assertEqual(calls, 1)            # no pointless retry on a 4xx
+        self.assertEqual(calls, 1)  # no pointless retry on a 4xx
 
 
 class CapToolContentTests(unittest.TestCase):
@@ -80,7 +98,7 @@ class CapToolContentTests(unittest.TestCase):
         tc = {"output": "Z" * 50000, "error": False}
         content = ar._cap_tool_content(tc)
         # the old bug: sliced the json string + tacked on `"}` → unparseable
-        parsed = json.loads(content)   # must not raise
+        parsed = json.loads(content)  # must not raise
         self.assertFalse(parsed["error"])
         self.assertIn("truncated for context", parsed["output"])
         self.assertLess(len(content), 20000)
@@ -93,10 +111,18 @@ class CapToolContentTests(unittest.TestCase):
         self.assertEqual(json.loads(ar._cap_tool_content(tc)), tc)
 
     def test_hist_chars_counts_image_urls(self):
-        msgs = [{"role": "user", "content": [
-            {"type": "text", "text": "hi"},
-            {"type": "image_url", "image_url": {"url": "data:image/png;base64," + "A" * 5000}},
-        ]}]
+        msgs = [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": "hi"},
+                    {
+                        "type": "image_url",
+                        "image_url": {"url": "data:image/png;base64," + "A" * 5000},
+                    },
+                ],
+            }
+        ]
         self.assertGreaterEqual(ar._hist_chars(msgs), 5000)
 
 
@@ -104,8 +130,13 @@ class TrimHistoryTests(unittest.TestCase):
     def _convo(self, n, size):
         msgs = [{"role": "system", "content": "sys"}]
         for i in range(n):
-            msgs.append({"role": "assistant", "content": "",
-                         "tool_calls": [{"call_id": f"c{i}", "name": "shell", "args": {}}]})
+            msgs.append(
+                {
+                    "role": "assistant",
+                    "content": "",
+                    "tool_calls": [{"call_id": f"c{i}", "name": "shell", "args": {}}],
+                }
+            )
             msgs.append({"role": "tool", "tool_call_id": f"c{i}", "content": "X" * size})
         return msgs
 

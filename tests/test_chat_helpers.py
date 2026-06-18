@@ -7,7 +7,9 @@ from routes.chat import _extract_artifacts, _resolve_mentions
 
 class ArtifactTests(unittest.TestCase):
     def test_full_attrs(self):
-        a = _extract_artifacts('x <aide-artifact type="html" title="Page" lang="js">BODY</aide-artifact> y')
+        a = _extract_artifacts(
+            'x <aide-artifact type="html" title="Page" lang="js">BODY</aide-artifact> y'
+        )
         self.assertEqual(len(a), 1)
         self.assertEqual(a[0]["type"], "html")
         self.assertEqual(a[0]["title"], "Page")
@@ -21,8 +23,14 @@ class ArtifactTests(unittest.TestCase):
         self.assertEqual(a["lang"], "")
 
     def test_multiple(self):
-        self.assertEqual(len(_extract_artifacts(
-            "<aide-artifact>a</aide-artifact> mid <aide-artifact>b</aide-artifact>")), 2)
+        self.assertEqual(
+            len(
+                _extract_artifacts(
+                    "<aide-artifact>a</aide-artifact> mid <aide-artifact>b</aide-artifact>"
+                )
+            ),
+            2,
+        )
 
     def test_none(self):
         self.assertEqual(_extract_artifacts("no artifacts here"), [])

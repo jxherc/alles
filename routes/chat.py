@@ -17,21 +17,24 @@ router = APIRouter(prefix="/api")
 _streams: dict[str, asyncio.Event] = {}
 
 
-_ART_RE = re.compile(r'<aide-artifact([^>]*)>([\s\S]*?)</aide-artifact>')
+_ART_RE = re.compile(r"<aide-artifact([^>]*)>([\s\S]*?)</aide-artifact>")
+
 
 def _extract_artifacts(text: str) -> list[dict]:
     out = []
     for m in _ART_RE.finditer(text):
         attrs, content = m.group(1), m.group(2)
-        t  = re.search(r'type="([^"]*)"', attrs)
+        t = re.search(r'type="([^"]*)"', attrs)
         ti = re.search(r'title="([^"]*)"', attrs)
         la = re.search(r'lang="([^"]*)"', attrs)
-        out.append({
-            "type":    t.group(1)  if t  else "code",
-            "title":   ti.group(1) if ti else "artifact",
-            "lang":    la.group(1) if la else "",
-            "content": content,
-        })
+        out.append(
+            {
+                "type": t.group(1) if t else "code",
+                "title": ti.group(1) if ti else "artifact",
+                "lang": la.group(1) if la else "",
+                "content": content,
+            }
+        )
     return out
 
 
@@ -42,6 +45,7 @@ def _resolve_endpoint(session: Session, db: DbSession) -> ModelEndpoint | None:
     eps = db.query(ModelEndpoint).filter(ModelEndpoint.enabled == True).all()
     from core.settings import load_settings
     from services.routing import pick_endpoint
+
     return pick_endpoint(eps, prefer_local=bool(load_settings().get("prefer_local_models")))
 
 
@@ -77,6 +81,7 @@ def _decide_mode(base_mode: str, pmode: str, message: str, simple: bool, auto_in
         return "agent", True
     if pmode != "chat" and auto_intents:
         from services.agent_intents import message_needs_tools
+
         if message_needs_tools(message):
             return "agent", True
     return "chat", False
@@ -95,6 +100,7 @@ def _resolve_mentions(text: str, cwd: str) -> str:
     """inline @path file references → append file contents for the model"""
     from pathlib import Path
     from services.agent_tools import ROOT
+
     base = Path(cwd) if cwd else ROOT
     blocks, seen = [], set()
     for m in re.finditer(r"(?:^|\s)@([\w./\\-]+)", text):
@@ -115,8 +121,9 @@ def _resolve_mentions(text: str, cwd: str) -> str:
     return text + "\n\n" + "\n\n".join(blocks) if blocks else text
 
 
-def _build_messages(session: Session, user_text: str, settings: dict,
-                    db=None, file_ids: list[str] = None) -> list[dict]:
+def _build_messages(
+    session: Session, user_text: str, settings: dict, db=None, file_ids: list[str] = None
+) -> list[dict]:
     sys_prompt = settings.get("system_prompt", "You are aide, a helpful AI assistant.")
 
     # project system prompt takes priority
@@ -151,6 +158,7 @@ def _build_messages(session: Session, user_text: str, settings: dict,
         from core.database import Upload
         from pathlib import Path
         import base64
+
         text_blocks = []
         image_parts = []
         for fid in file_ids:
@@ -162,14 +170,17 @@ def _build_messages(session: Session, user_text: str, settings: dict,
                 continue
             if rec.mime_type.startswith("image/"):
                 b64 = base64.b64encode(fpath.read_bytes()).decode()
-                image_parts.append({
-                    "type": "image_url",
-                    "image_url": {"url": f"data:{rec.mime_type};base64,{b64}"},
-                })
+                image_parts.append(
+                    {
+                        "type": "image_url",
+                        "image_url": {"url": f"data:{rec.mime_type};base64,{b64}"},
+                    }
+                )
             else:
                 try:
                     text_blocks.append(
-                        f'<file name="{rec.original_name}">\n{fpath.read_text("utf-8", errors="replace")}\n</file>')
+                        f'<file name="{rec.original_name}">\n{fpath.read_text("utf-8", errors="replace")}\n</file>'
+                    )
                 except Exception:
                     pass
         if text_blocks:
@@ -187,12 +198,16 @@ async def _auto_name(session_id: str, user_text: str, ep: ModelEndpoint, model: 
     """rename session after 3rd message — fire and forget"""
     prompt = [
         {"role": "system", "content": "You produce ultra-short chat session titles."},
-        {"role": "user", "content": f"Give a 3-5 word title for a chat that starts with: {user_text[:200]}\nRespond with ONLY the title, no quotes or punctuation."},
+        {
+            "role": "user",
+            "content": f"Give a 3-5 word title for a chat that starts with: {user_text[:200]}\nRespond with ONLY the title, no quotes or punctuation.",
+        },
     ]
     name = await simple_complete(prompt, ep.base_url, ep.api_key, model, max_tokens=20)
     if not name or len(name) > 80:
         return
     from core.database import SessionLocal
+
     db = SessionLocal()
     try:
         s = db.get(Session, session_id)
@@ -206,12 +221,12 @@ async def _auto_name(session_id: str, user_text: str, ep: ModelEndpoint, model: 
 class ChatRequest(BaseModel):
     session_id: str
     message: str
-    mode: str = "chat"   # chat | agent
+    mode: str = "chat"  # chat | agent
     file_ids: list[str] = []
     incognito: bool = False
-    permission_mode: str = ""   # full_auto | approve | plan
-    effort: str = ""            # low | medium | high
-    simple: bool = False        # pure chat — never auto-promote to tools (the home "ask aide")
+    permission_mode: str = ""  # full_auto | approve | plan
+    effort: str = ""  # low | medium | high
+    simple: bool = False  # pure chat — never auto-promote to tools (the home "ask aide")
 
 
 async def _sse(gen):
@@ -240,8 +255,14 @@ async def _stream_and_save(
 
     if mode == "agent":
         async for chunk in run_agent(
-            messages, ep, model, stop_event, settings or {},
-            accumulated, thinking_acc, tool_steps,
+            messages,
+            ep,
+            model,
+            stop_event,
+            settings or {},
+            accumulated,
+            thinking_acc,
+            tool_steps,
             session_id=session_id,
         ):
             if "usage" in chunk:
@@ -252,7 +273,7 @@ async def _stream_and_save(
         if settings and settings.get("temperature") is not None:
             chat_kw["temperature"] = settings["temperature"]
         if settings and settings.get("agent_effort"):
-            chat_kw["effort"] = settings["agent_effort"]   # per-model reasoning effort
+            chat_kw["effort"] = settings["agent_effort"]  # per-model reasoning effort
         async for chunk in stream_chat(messages, ep.base_url, ep.api_key, model, **chat_kw):
             if stop_event.is_set():
                 break
@@ -275,7 +296,7 @@ async def _stream_and_save(
         return
 
     if incognito:
-        return   # don't persist incognito messages
+        return  # don't persist incognito messages
 
     db = db_factory()
     try:
@@ -320,14 +341,19 @@ async def _stream_and_save(
 async def _fire_message_hook(session_id: str, user_text: str, reply: str):
     try:
         from routes.webhooks import fire
-        await fire("message", {"session_id": session_id, "user": user_text[:500], "reply": reply[:500]})
+
+        await fire(
+            "message", {"session_id": session_id, "user": user_text[:500], "reply": reply[:500]}
+        )
     except Exception:
         pass
 
 
 # POST /api/chat
 @router.post("/chat")
-async def chat(body: ChatRequest, background_tasks: BackgroundTasks, db: DbSession = Depends(get_db)):
+async def chat(
+    body: ChatRequest, background_tasks: BackgroundTasks, db: DbSession = Depends(get_db)
+):
     s = db.get(Session, body.session_id)
     if not s:
         raise HTTPException(404, "session not found")
@@ -360,22 +386,34 @@ async def chat(body: ChatRequest, background_tasks: BackgroundTasks, db: DbSessi
         chat_msgs = [m for m in messages if m["role"] != "system"]
         if len(chat_msgs) > threshold * 0.9:
             from services.llm import compact_messages
+
             messages = await compact_messages(messages, ep, model, target_len=threshold)
 
     stop_event = asyncio.Event()
     _streams[body.session_id] = stop_event
 
     from core.database import SessionLocal as _SF
+
     incognito = bool(body.incognito or getattr(s, "incognito", False))
     base_mode = body.mode or getattr(s, "mode", "chat") or "chat"
     pmode = (_p.default_mode if _p else "") or ""
-    mode, force_approve = _decide_mode(base_mode, pmode, body.message, body.simple,
-                                       settings.get("agent_auto_intents", True))
+    mode, force_approve = _decide_mode(
+        base_mode, pmode, body.message, body.simple, settings.get("agent_auto_intents", True)
+    )
     if force_approve and not body.permission_mode:
         settings["agent_permission_mode"] = "approve"
-    gen = _stream_and_save(body.session_id, body.message, messages, ep, model,
-                           stop_event, _SF, incognito=incognito,
-                           mode=mode, settings=settings)
+    gen = _stream_and_save(
+        body.session_id,
+        body.message,
+        messages,
+        ep,
+        model,
+        stop_event,
+        _SF,
+        incognito=incognito,
+        mode=mode,
+        settings=settings,
+    )
 
     async def cleanup_gen():
         try:
@@ -384,8 +422,11 @@ async def chat(body: ChatRequest, background_tasks: BackgroundTasks, db: DbSessi
         finally:
             _streams.pop(body.session_id, None)
 
-    return StreamingResponse(_sse(cleanup_gen()), media_type="text/event-stream",
-                             headers={"cache-control": "no-cache", "x-accel-buffering": "no"})
+    return StreamingResponse(
+        _sse(cleanup_gen()),
+        media_type="text/event-stream",
+        headers={"cache-control": "no-cache", "x-accel-buffering": "no"},
+    )
 
 
 # background agent runs — detached, survive tab close
@@ -407,7 +448,7 @@ async def chat_background(body: ChatRequest, db: DbSession = Depends(get_db)):
 
     settings = load_settings()
     settings["agent_cwd"] = _resolve_working_dir(s)
-    settings["agent_permission_mode"] = "full_auto"   # nothing is watching to approve
+    settings["agent_permission_mode"] = "full_auto"  # nothing is watching to approve
     _p = _resolve_persona(s, db)
     if _p and _p.temperature is not None:
         settings["temperature"] = _p.temperature
@@ -421,13 +462,22 @@ async def chat_background(body: ChatRequest, db: DbSession = Depends(get_db)):
     async def runner():
         try:
             async for _ in _stream_and_save(
-                body.session_id, body.message, messages, ep, model,
-                stop_event, _SF, incognito=False, mode="agent", settings=settings,
+                body.session_id,
+                body.message,
+                messages,
+                ep,
+                model,
+                stop_event,
+                _SF,
+                incognito=False,
+                mode="agent",
+                settings=settings,
             ):
                 pass
             # ping Discord/Telegram when a long background run wraps up
             try:
                 from services import notify
+
                 if settings.get("notify_on_agent_done") and notify.configured():
                     await notify.send(f"✓ aide finished a background run: {body.message[:140]}")
             except Exception:

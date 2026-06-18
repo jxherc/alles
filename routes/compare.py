@@ -35,7 +35,9 @@ async def start_compare(body: CompareRequest):
 
     compare_id = str(uuid.uuid4())
     settings = load_settings()
-    sys_prompt = body.system_prompt or settings.get("system_prompt", "You are aide, a helpful AI assistant.")
+    sys_prompt = body.system_prompt or settings.get(
+        "system_prompt", "You are aide, a helpful AI assistant."
+    )
 
     db = SessionLocal()
     try:
@@ -67,8 +69,9 @@ async def compare_stream(compare_id: str, idx: int):
     from services.llm import stream_chat
 
     async def _gen():
-        async for chunk in stream_chat(entry["msgs"], entry["ep"].base_url,
-                                        entry["ep"].api_key, entry["model"]):
+        async for chunk in stream_chat(
+            entry["msgs"], entry["ep"].base_url, entry["ep"].api_key, entry["model"]
+        ):
             if entry["stop"].is_set():
                 break
             if "delta" in chunk:
@@ -82,8 +85,11 @@ async def compare_stream(compare_id: str, idx: int):
                 break
         yield "data: [DONE]\n\n"
 
-    return StreamingResponse(_gen(), media_type="text/event-stream",
-                              headers={"cache-control": "no-cache", "x-accel-buffering": "no"})
+    return StreamingResponse(
+        _gen(),
+        media_type="text/event-stream",
+        headers={"cache-control": "no-cache", "x-accel-buffering": "no"},
+    )
 
 
 @router.delete("/compare/{compare_id}")

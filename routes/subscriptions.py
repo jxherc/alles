@@ -2,6 +2,7 @@
 subscription manager — recurring costs with billing cycles, due-date
 rollover, monthly/yearly totals, and push reminders before renewals.
 """
+
 import calendar
 import logging
 from datetime import date, timedelta
@@ -26,10 +27,14 @@ def _add_months(d: date, n: int) -> date:
 
 
 def _advance(d: date, cycle: str, cycle_days: int) -> date:
-    if cycle == "weekly":    return d + timedelta(days=7)
-    if cycle == "monthly":   return _add_months(d, 1)
-    if cycle == "quarterly": return _add_months(d, 3)
-    if cycle == "yearly":    return _add_months(d, 12)
+    if cycle == "weekly":
+        return d + timedelta(days=7)
+    if cycle == "monthly":
+        return _add_months(d, 1)
+    if cycle == "quarterly":
+        return _add_months(d, 3)
+    if cycle == "yearly":
+        return _add_months(d, 12)
     return d + timedelta(days=max(1, cycle_days or 30))
 
 
@@ -51,7 +56,7 @@ def _roll(sub: Subscription, today: date) -> bool:
     return changed
 
 
-_POST_CAP = 36   # don't flood if the app sat unopened for years
+_POST_CAP = 36  # don't flood if the app sat unopened for years
 
 
 def _roll_and_post(sub: Subscription, today: date, db) -> bool:
@@ -61,24 +66,33 @@ def _roll_and_post(sub: Subscription, today: date, db) -> bool:
     if not sub.active:
         return False
     from core.database import Transaction
+
     d = _parse(sub.next_due)
     charges = []
     while d < today:
-        charges.append(d)        # this due date rolled over → a charge happened
+        charges.append(d)  # this due date rolled over → a charge happened
         d = _advance(d, sub.cycle, sub.cycle_days)
     if not charges:
         return False
     from core.database import Account
+
     sub.next_due = d.isoformat()
     if (sub.account_id or "") and db.get(Account, sub.account_id):
         last = sub.last_posted_due or ""
         for cd in charges[-_POST_CAP:]:
             iso = cd.isoformat()
-            if iso <= last:       # already posted this (or an earlier) renewal
+            if iso <= last:  # already posted this (or an earlier) renewal
                 continue
-            db.add(Transaction(account_id=sub.account_id, date=iso, amount=-abs(sub.price or 0.0),
-                               category=(sub.category or "subscriptions"), payee=sub.name,
-                               notes="auto: subscription renewal"))
+            db.add(
+                Transaction(
+                    account_id=sub.account_id,
+                    date=iso,
+                    amount=-abs(sub.price or 0.0),
+                    category=(sub.category or "subscriptions"),
+                    payee=sub.name,
+                    notes="auto: subscription renewal",
+                )
+            )
             sub.last_posted_due = iso
     return True
 
@@ -91,14 +105,20 @@ def _monthly_cost(sub: Subscription) -> float:
 
 def _fmt(sub: Subscription, today: date) -> dict:
     return {
-        "id": sub.id, "name": sub.name,
-        "price": sub.price, "currency": sub.currency,
-        "cycle": sub.cycle, "cycle_days": sub.cycle_days,
+        "id": sub.id,
+        "name": sub.name,
+        "price": sub.price,
+        "currency": sub.currency,
+        "cycle": sub.cycle,
+        "cycle_days": sub.cycle_days,
         "next_due": sub.next_due,
         "days_until": (_parse(sub.next_due) - today).days,
         "monthly_cost": round(_monthly_cost(sub), 2),
-        "category": sub.category, "url": sub.url, "notes": sub.notes,
-        "active": sub.active, "remind_days": sub.remind_days,
+        "category": sub.category,
+        "url": sub.url,
+        "notes": sub.notes,
+        "active": sub.active,
+        "remind_days": sub.remind_days,
         "account_id": sub.account_id or "",
         "created_at": sub.created_at.isoformat(),
     }
@@ -112,8 +132,7 @@ def list_subscriptions(db: DbSession = Depends(get_db)):
         db.commit()
     active = [s for s in subs if s.active]
     monthly = sum(_monthly_cost(s) for s in active)
-    items = sorted((_fmt(s, today) for s in subs),
-                   key=lambda x: (not x["active"], x["days_until"]))
+    items = sorted((_fmt(s, today) for s in subs), key=lambda x: (not x["active"], x["days_until"]))
     return {
         "subscriptions": items,
         "summary": {
@@ -142,10 +161,14 @@ def analytics(db: DbSession = Depends(get_db)):
         "yearly_total": round(monthly * 12, 2),
         "currency": active[0].currency if active else "$",
         "count": len(active),
-        "by_category": [{"name": k, "monthly": round(v, 2)}
-                        for k, v in sorted(by_cat.items(), key=lambda x: -x[1])],
-        "by_cycle": [{"name": k, "monthly": round(v, 2)}
-                     for k, v in sorted(by_cycle.items(), key=lambda x: -x[1])],
+        "by_category": [
+            {"name": k, "monthly": round(v, 2)}
+            for k, v in sorted(by_cat.items(), key=lambda x: -x[1])
+        ],
+        "by_cycle": [
+            {"name": k, "monthly": round(v, 2)}
+            for k, v in sorted(by_cycle.items(), key=lambda x: -x[1])
+        ],
     }
 
 
@@ -180,13 +203,21 @@ def _validate(body: SubBody):
 def create_subscription(body: SubBody, db: DbSession = Depends(get_db)):
     _validate(body)
     sub = Subscription(
-        name=body.name.strip(), price=body.price, currency=body.currency or "$",
-        cycle=body.cycle, cycle_days=body.cycle_days,
-        next_due=str(body.next_due)[:10], category=body.category.strip(),
-        url=body.url.strip(), notes=body.notes, remind_days=max(0, body.remind_days),
+        name=body.name.strip(),
+        price=body.price,
+        currency=body.currency or "$",
+        cycle=body.cycle,
+        cycle_days=body.cycle_days,
+        next_due=str(body.next_due)[:10],
+        category=body.category.strip(),
+        url=body.url.strip(),
+        notes=body.notes,
+        remind_days=max(0, body.remind_days),
         account_id=(body.account_id or "").strip(),
     )
-    db.add(sub); db.commit(); db.refresh(sub)
+    db.add(sub)
+    db.commit()
+    db.refresh(sub)
     return _fmt(sub, date.today())
 
 
@@ -218,9 +249,20 @@ def update_subscription(sid: str, body: SubPatch, db: DbSession = Depends(get_db
         except ValueError:
             raise HTTPException(400, "next_due must be an ISO date (YYYY-MM-DD)")
         sub.next_due = str(body.next_due)[:10]
-        sub.last_notified_due = ""    # date changed → re-arm the renewal push
-    for field in ("name", "price", "currency", "cycle", "cycle_days",
-                  "category", "url", "notes", "active", "remind_days", "account_id"):
+        sub.last_notified_due = ""  # date changed → re-arm the renewal push
+    for field in (
+        "name",
+        "price",
+        "currency",
+        "cycle",
+        "cycle_days",
+        "category",
+        "url",
+        "notes",
+        "active",
+        "remind_days",
+        "account_id",
+    ):
         v = getattr(body, field)
         if v is not None:
             setattr(sub, field, v)
@@ -238,10 +280,18 @@ def mark_paid(sid: str, db: DbSession = Depends(get_db)):
     paid_for = _parse(sub.next_due)
     if (sub.account_id or "") and (sub.last_posted_due or "") < paid_for.isoformat():
         from core.database import Account, Transaction
+
         if db.get(Account, sub.account_id):
-            db.add(Transaction(account_id=sub.account_id, date=paid_for.isoformat(),
-                               amount=-abs(sub.price or 0.0), category=(sub.category or "subscriptions"),
-                               payee=sub.name, notes="auto: subscription renewal"))
+            db.add(
+                Transaction(
+                    account_id=sub.account_id,
+                    date=paid_for.isoformat(),
+                    amount=-abs(sub.price or 0.0),
+                    category=(sub.category or "subscriptions"),
+                    payee=sub.name,
+                    notes="auto: subscription renewal",
+                )
+            )
             sub.last_posted_due = paid_for.isoformat()
     sub.next_due = _advance(paid_for, sub.cycle, sub.cycle_days).isoformat()
     db.commit()
@@ -253,7 +303,8 @@ def delete_subscription(sid: str, db: DbSession = Depends(get_db)):
     sub = db.get(Subscription, sid)
     if not sub:
         raise HTTPException(404)
-    db.delete(sub); db.commit()
+    db.delete(sub)
+    db.commit()
     return {"ok": True}
 
 
@@ -261,6 +312,7 @@ async def check_renewals():
     """called from the background loop — push once per billing period when a
     renewal is within the subscription's reminder window."""
     from routes.push import broadcast
+
     today = date.today()
     db = SessionLocal()
     try:
@@ -278,9 +330,14 @@ async def check_renewals():
             when = "today" if days <= 0 else ("tomorrow" if days == 1 else f"in {days} days")
             price = f" — {s.currency}{s.price:g}" if s.price else ""
             try:
-                await broadcast({"title": "subscription renewal",
-                                 "body": f"{s.name} renews {when}{price}",
-                                 "url": "/", "tag": f"sub-{s.id}-{s.next_due}"})
+                await broadcast(
+                    {
+                        "title": "subscription renewal",
+                        "body": f"{s.name} renews {when}{price}",
+                        "url": "/",
+                        "tag": f"sub-{s.id}-{s.next_due}",
+                    }
+                )
             except Exception as e:
                 log.warning(f"renewal push failed: {e}")
     finally:

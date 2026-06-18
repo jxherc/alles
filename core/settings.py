@@ -17,22 +17,22 @@ _defaults = {
     "agent_max_tokens": 0,
     "agent_permission_mode": "full_auto",
     "agent_allowed_roots": [],
-    "agent_context_files": True,        # read AGENTS.md from working dir
-    "agent_sandbox": False,             # run shell inside docker
+    "agent_context_files": True,  # read AGENTS.md from working dir
+    "agent_sandbox": False,  # run shell inside docker
     "agent_sandbox_image": "alpine:latest",
-    "agent_sandbox_no_net": False,      # --network none in sandbox
-    "agent_computer_use": False,        # enable screenshot/click/type tools
-    "agent_subagents": True,            # allow spawn_agent delegation
+    "agent_sandbox_no_net": False,  # --network none in sandbox
+    "agent_computer_use": False,  # enable screenshot/click/type tools
+    "agent_subagents": True,  # allow spawn_agent delegation
     # per-tool/path permission rules: [{tool: glob, path: glob, action: allow|ask|deny}]
     # layered over agent_permission_mode, last match wins
     "permission_rules": [],
     "auto_compact": True,
     "compact_threshold": 30,
-    "stt_provider": "browser",    # browser | local | whisper_api
-    "stt_model": "base",          # faster-whisper size for local: tiny|base|small|medium|large-v3
-    "tts_provider": "browser",    # openai | browser
+    "stt_provider": "browser",  # browser | local | whisper_api
+    "stt_model": "base",  # faster-whisper size for local: tiny|base|small|medium|large-v3
+    "tts_provider": "browser",  # openai | browser
     "tts_voice": "alloy",
-    "openai_api_key": "",         # for TTS/STT
+    "openai_api_key": "",  # for TTS/STT
     "search_provider": "duckduckgo",
     "search_result_count": 5,
     "search_fallback_chain": ["duckduckgo"],
@@ -47,7 +47,7 @@ _defaults = {
     "tts_speed": 1.0,
     "tts_auto_play": False,
     "stt_language": "",
-    "base_domain": "localhost",   # apex domain; each app lives on {app}.{base_domain}
+    "base_domain": "localhost",  # apex domain; each app lives on {app}.{base_domain}
     # on by default: when a plain chat message clearly asks aide to DO an app thing
     # (check mail, add to calendar, remind me, what's on my schedule…) it acts on it
     # instead of just talking about it. auto-promoted runs gate mutations behind approval.
@@ -64,17 +64,18 @@ _ARTIFACT_INSTRUCTIONS = (
     "When producing any complete, renderable output — an HTML page or component, "
     "an SVG graphic, a runnable code snippet, or a formatted markdown document — "
     "wrap it in an artifact tag instead of a bare code block:\n\n"
-    "<aide-artifact type=\"html|svg|code|markdown\" title=\"short title\" lang=\"python\">\n"
+    '<aide-artifact type="html|svg|code|markdown" title="short title" lang="python">\n'
     "...content...\n"
     "</aide-artifact>\n\n"
     "Types:\n"
     "- html: full HTML pages/components\n"
     "- svg: SVG graphics\n"
-    "- code: runnable code (set lang= to the language, e.g. lang=\"python\")\n"
+    '- code: runnable code (set lang= to the language, e.g. lang="python")\n'
     "- markdown: formatted documents\n\n"
     "Only wrap complete, self-contained outputs — not fragments or inline examples. "
     "You may still write brief explanatory text before the artifact."
 )
+
 
 def load_settings() -> dict:
     s = dict(_defaults)
@@ -85,6 +86,7 @@ def load_settings() -> dict:
             pass
     return s
 
+
 def save_settings(patch: dict):
     s = load_settings()
     s.update(patch)
@@ -94,9 +96,11 @@ def save_settings(patch: dict):
     _SETTINGS_FILE.write_text(json.dumps(s, indent=2), "utf-8")
     return s
 
+
 # env helpers
 def get_secret_key() -> str:
     return os.getenv("SECRET_KEY", "dev-secret-change-me")
+
 
 def auth_enabled() -> bool:
     # an explicit AUTH_ENABLED env wins (on OR off) so a .env / tests stay authoritative.
@@ -107,15 +111,19 @@ def auth_enabled() -> bool:
         return env.lower() in ("true", "1", "yes")
     return bool(load_settings().get("auth_enabled"))
 
+
 def get_port() -> int:
     return int(os.getenv("PORT", "8000"))
+
 
 def base_domain() -> str:
     # env wins so you can point a real domain at it without editing settings.json
     return os.getenv("BASE_DOMAIN", "") or load_settings().get("base_domain", "localhost")
 
+
 def deepseek_api_key() -> str:
     return os.getenv("DEEPSEEK_API_KEY", "")
+
 
 def anthropic_api_key() -> str:
     return os.getenv("ANTHROPIC_API_KEY", "")

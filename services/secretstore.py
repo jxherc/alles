@@ -10,6 +10,7 @@ contains readable credentials; keep the key file with it when moving data/.
 values are prefixed "enc1:"; anything without the prefix is treated as legacy
 plaintext and passed through, so existing rows keep working until re-saved.
 """
+
 import os, base64
 from pathlib import Path
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
@@ -32,7 +33,7 @@ def _load_key() -> bytes:
             try:
                 os.chmod(_KEY_FILE, 0o600)
             except OSError:
-                pass   # best effort — not supported on windows
+                pass  # best effort — not supported on windows
     return _key
 
 
@@ -47,5 +48,5 @@ def seal(plaintext: str) -> str:
 def unseal(value: str) -> str:
     if not value or not value.startswith(PREFIX):
         return value or ""
-    blob = base64.b64decode(value[len(PREFIX):])
+    blob = base64.b64decode(value[len(PREFIX) :])
     return AESGCM(_load_key()).decrypt(blob[:_NONCE_LEN], blob[_NONCE_LEN:], None).decode()

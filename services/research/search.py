@@ -5,14 +5,17 @@ the provider functions moved here from the old research_engine.py (they were
 solid and already wired to alles settings). added: trafilatura-based page
 reader and a chain helper that tells you which provider actually answered.
 """
+
 import os, re, logging, urllib.parse
 import html as _htmlmod
 import httpx
 
 log = logging.getLogger("aide.research.search")
 
-_UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-       "(KHTML, like Gecko) Chrome/122.0 Safari/537.36")
+_UA = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/122.0 Safari/537.36"
+)
 
 
 def _strip_tags(s: str) -> str:
@@ -22,7 +25,11 @@ def _strip_tags(s: str) -> str:
 def _html_to_text(html: str) -> str:
     """crude but dependency-free html → readable text — the fallback when
     trafilatura isn't installed or comes back empty."""
-    html = re.sub(r"(?is)<(script|style|noscript|head|nav|footer|header|aside|form|svg)[^>]*>.*?</\1>", " ", html)
+    html = re.sub(
+        r"(?is)<(script|style|noscript|head|nav|footer|header|aside|form|svg)[^>]*>.*?</\1>",
+        " ",
+        html,
+    )
     html = re.sub(r"(?is)<br\s*/?>", "\n", html)
     html = re.sub(r"(?is)</(p|div|li|h[1-6]|tr|section|article)>", "\n", html)
     text = _htmlmod.unescape(re.sub(r"(?is)<[^>]+>", " ", html))
@@ -42,8 +49,7 @@ def fetch_webpage_content(url: str, timeout: int = 10) -> dict:
     if not url or not url.startswith("http"):
         return blank
     try:
-        r = httpx.get(url, timeout=timeout, follow_redirects=True,
-                      headers={"user-agent": _UA})
+        r = httpx.get(url, timeout=timeout, follow_redirects=True, headers={"user-agent": _UA})
         ct = r.headers.get("content-type", "")
         if ct and "html" not in ct and "text" not in ct:
             return blank
@@ -64,39 +70,56 @@ def fetch_webpage_content(url: str, timeout: int = 10) -> dict:
     content = ""
     try:
         import trafilatura
-        content = trafilatura.extract(html, include_comments=False,
-                                      include_tables=True, favor_recall=True) or ""
+
+        content = (
+            trafilatura.extract(
+                html, include_comments=False, include_tables=True, favor_recall=True
+            )
+            or ""
+        )
     except Exception:
         content = ""
     if not content.strip():
         content = _html_to_text(html)
-    return {"success": bool(content.strip()), "content": content,
-            "title": title, "og_image": og}
+    return {"success": bool(content.strip()), "content": content, "title": title, "og_image": og}
 
 
 # ── providers ───────────────────────────────────────────────────────────────
 
+
 async def _search_tavily(query, api_key, max_results=5):
     async with httpx.AsyncClient(timeout=15) as c:
-        r = await c.post("https://api.tavily.com/search", json={
-            "api_key": api_key, "query": query,
-            "max_results": max_results, "include_raw_content": False,
-        })
+        r = await c.post(
+            "https://api.tavily.com/search",
+            json={
+                "api_key": api_key,
+                "query": query,
+                "max_results": max_results,
+                "include_raw_content": False,
+            },
+        )
         r.raise_for_status()
         data = r.json()
-    return [{"url": x["url"], "title": x.get("title", ""), "snippet": x.get("content", "")}
-            for x in data.get("results", [])]
+    return [
+        {"url": x["url"], "title": x.get("title", ""), "snippet": x.get("content", "")}
+        for x in data.get("results", [])
+    ]
 
 
 async def _search_brave(query, api_key, max_results=5):
     async with httpx.AsyncClient(timeout=15) as c:
-        r = await c.get("https://api.search.brave.com/res/v1/web/search",
-                        params={"q": query, "count": max_results},
-                        headers={"X-Subscription-Token": api_key, "user-agent": "aide-research/1.0"})
+        r = await c.get(
+            "https://api.search.brave.com/res/v1/web/search",
+            params={"q": query, "count": max_results},
+            headers={"X-Subscription-Token": api_key, "user-agent": "aide-research/1.0"},
+        )
         r.raise_for_status()
         data = r.json()
-    return [{"url": x.get("url", ""), "title": x.get("title", ""), "snippet": x.get("description", "")}
-            for x in data.get("web", {}).get("results", []) if x.get("url")]
+    return [
+        {"url": x.get("url", ""), "title": x.get("title", ""), "snippet": x.get("description", "")}
+        for x in data.get("web", {}).get("results", [])
+        if x.get("url")
+    ]
 
 
 async def _search_searxng(query, base_url, max_results=5):
@@ -105,29 +128,42 @@ async def _search_searxng(query, base_url, max_results=5):
         r = await c.get(url, params={"q": query, "format": "json"})
         r.raise_for_status()
         data = r.json()
-    return [{"url": x.get("url", ""), "title": x.get("title", ""), "snippet": x.get("content", "")}
-            for x in data.get("results", [])[:max_results] if x.get("url")]
+    return [
+        {"url": x.get("url", ""), "title": x.get("title", ""), "snippet": x.get("content", "")}
+        for x in data.get("results", [])[:max_results]
+        if x.get("url")
+    ]
 
 
 async def _search_google_pse(query, api_key, cx, max_results=5):
     async with httpx.AsyncClient(timeout=15) as c:
-        r = await c.get("https://www.googleapis.com/customsearch/v1", params={
-            "key": api_key, "cx": cx, "q": query, "num": min(max_results, 10)})
+        r = await c.get(
+            "https://www.googleapis.com/customsearch/v1",
+            params={"key": api_key, "cx": cx, "q": query, "num": min(max_results, 10)},
+        )
         r.raise_for_status()
         data = r.json()
-    return [{"url": x.get("link", ""), "title": x.get("title", ""), "snippet": x.get("snippet", "")}
-            for x in data.get("items", []) if x.get("link")]
+    return [
+        {"url": x.get("link", ""), "title": x.get("title", ""), "snippet": x.get("snippet", "")}
+        for x in data.get("items", [])
+        if x.get("link")
+    ]
 
 
 async def _search_serper(query, api_key, max_results=5):
     async with httpx.AsyncClient(timeout=15) as c:
-        r = await c.post("https://google.serper.dev/search",
-                         json={"q": query, "num": max_results},
-                         headers={"X-API-KEY": api_key, "user-agent": "aide-research/1.0"})
+        r = await c.post(
+            "https://google.serper.dev/search",
+            json={"q": query, "num": max_results},
+            headers={"X-API-KEY": api_key, "user-agent": "aide-research/1.0"},
+        )
         r.raise_for_status()
         data = r.json()
-    return [{"url": x.get("link", ""), "title": x.get("title", ""), "snippet": x.get("snippet", "")}
-            for x in data.get("organic", []) if x.get("link")]
+    return [
+        {"url": x.get("link", ""), "title": x.get("title", ""), "snippet": x.get("snippet", "")}
+        for x in data.get("organic", [])
+        if x.get("link")
+    ]
 
 
 def _ddg_unwrap(href: str) -> str:
@@ -148,12 +184,16 @@ def _parse_ddg_html(html: str) -> list:
         title = _strip_tags(m.group(2))
         if url.startswith("http") and title:
             out.append({"url": url, "title": title, "snippet": ""})
-    snips = [_strip_tags(s) for s in re.findall(r'class="result__snippet"[^>]*>(.*?)</a>', html, re.S)]
+    snips = [
+        _strip_tags(s) for s in re.findall(r'class="result__snippet"[^>]*>(.*?)</a>', html, re.S)
+    ]
     for i, s in enumerate(snips):
         if i < len(out):
             out[i]["snippet"] = s
-    if not out:   # lite.duckduckgo.com layout
-        for m in re.finditer(r'<a[^>]+class="result-link"[^>]+href="([^"]+)"[^>]*>(.*?)</a>', html, re.S):
+    if not out:  # lite.duckduckgo.com layout
+        for m in re.finditer(
+            r'<a[^>]+class="result-link"[^>]+href="([^"]+)"[^>]*>(.*?)</a>', html, re.S
+        ):
             url = _ddg_unwrap(m.group(1))
             title = _strip_tags(m.group(2))
             if url.startswith("http") and title:
@@ -166,14 +206,24 @@ async def _search_duckduckgo(query, max_results=6):
     # the lib got renamed duckduckgo_search -> ddgs, so try the new name first.
     try:
         import asyncio
+
         try:
             from ddgs import DDGS
         except ImportError:
             from duckduckgo_search import DDGS
+
         def _go():
             with DDGS() as d:
-                return [{"url": r.get("href", ""), "title": r.get("title", ""), "snippet": r.get("body", "")}
-                        for r in d.text(query, max_results=max_results) if r.get("href")]
+                return [
+                    {
+                        "url": r.get("href", ""),
+                        "title": r.get("title", ""),
+                        "snippet": r.get("body", ""),
+                    }
+                    for r in d.text(query, max_results=max_results)
+                    if r.get("href")
+                ]
+
         hits = await asyncio.to_thread(_go)
         if hits:
             return hits[:max_results]
@@ -197,11 +247,20 @@ async def _search_duckduckgo(query, max_results=6):
 
 
 async def _search_wikipedia(query, max_results=6):
-    async with httpx.AsyncClient(timeout=12, follow_redirects=True,
-                                 headers={"user-agent": _UA}) as c:
-        r = await c.get("https://en.wikipedia.org/w/api.php", params={
-            "action": "query", "format": "json", "list": "search",
-            "srsearch": query, "srlimit": max_results, "srprop": "snippet"})
+    async with httpx.AsyncClient(
+        timeout=12, follow_redirects=True, headers={"user-agent": _UA}
+    ) as c:
+        r = await c.get(
+            "https://en.wikipedia.org/w/api.php",
+            params={
+                "action": "query",
+                "format": "json",
+                "list": "search",
+                "srsearch": query,
+                "srlimit": max_results,
+                "srprop": "snippet",
+            },
+        )
         r.raise_for_status()
         data = r.json()
     out = []
@@ -209,11 +268,14 @@ async def _search_wikipedia(query, max_results=6):
         title = x.get("title", "")
         if not title:
             continue
-        out.append({
-            "url": "https://en.wikipedia.org/wiki/" + urllib.parse.quote(title.replace(" ", "_")),
-            "title": title,
-            "snippet": _strip_tags(x.get("snippet", "")),
-        })
+        out.append(
+            {
+                "url": "https://en.wikipedia.org/wiki/"
+                + urllib.parse.quote(title.replace(" ", "_")),
+                "title": title,
+                "snippet": _strip_tags(x.get("snippet", "")),
+            }
+        )
     return out
 
 
@@ -275,9 +337,14 @@ async def search_chain(query, override=None, max_results=10):
     last_error is set when every provider in the chain came back empty/failed
     so the engine can tell the user *why* instead of a bare 'no results'."""
     from core.settings import load_settings
+
     s = load_settings()
-    primary = (override or "").strip() or s.get("research_search_provider") \
-        or s.get("search_provider") or "duckduckgo"
+    primary = (
+        (override or "").strip()
+        or s.get("research_search_provider")
+        or s.get("search_provider")
+        or "duckduckgo"
+    )
     if primary == "disabled":
         return [], None, None
     chain = _provider_chain(primary, s.get("search_fallback_chain"))

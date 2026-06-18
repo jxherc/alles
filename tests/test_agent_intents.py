@@ -21,7 +21,7 @@ class AgentIntentsTest(unittest.TestCase):
         for m in [
             "what's on my calendar today",
             "what is my schedule tomorrow",
-            "what do i have on my calendar?",          # the one real usage caught
+            "what do i have on my calendar?",  # the one real usage caught
             "what do i have on my calendar this week",
             "do i have anything on my calendar",
             "check my calendar",
@@ -43,7 +43,7 @@ class AgentIntentsTest(unittest.TestCase):
         for m in [
             "what is the capital of france",
             "explain how transformers work",
-            "how do i add an event in google calendar",   # asking how, not asking aide to do it
+            "how do i add an event in google calendar",  # asking how, not asking aide to do it
             "tell me a joke",
             "what does grep do",
             "write me a poem about the sea",

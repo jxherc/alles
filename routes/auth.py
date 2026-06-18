@@ -2,11 +2,19 @@ import os
 from fastapi import APIRouter, HTTPException, Response, Cookie, Request
 from pydantic import BaseModel
 from core.settings import load_settings, save_settings, base_domain
-from core.auth import (hash_password, verify_password,
-                       create_session_token, store_token,
-                       verify_session, revoke_token,
-                       make_handoff, redeem_handoff,
-                       login_blocked, record_login_fail, clear_login_fails)
+from core.auth import (
+    hash_password,
+    verify_password,
+    create_session_token,
+    store_token,
+    verify_session,
+    revoke_token,
+    make_handoff,
+    redeem_handoff,
+    login_blocked,
+    record_login_fail,
+    clear_login_fails,
+)
 
 router = APIRouter(prefix="/api/auth")
 
@@ -22,8 +30,14 @@ def _cookie_domain_kw() -> dict:
 
 
 def _set_session_cookie(response: Response, token: str):
-    response.set_cookie("aide_session", token, httponly=True,
-                        max_age=30 * 86400, samesite="lax", **_cookie_domain_kw())
+    response.set_cookie(
+        "aide_session",
+        token,
+        httponly=True,
+        max_age=30 * 86400,
+        samesite="lax",
+        **_cookie_domain_kw(),
+    )
 
 
 class LoginBody(BaseModel):
@@ -49,7 +63,7 @@ def login(body: LoginBody, response: Response, request: Request):
         record_login_fail(ip)
         raise HTTPException(401, "invalid password")
 
-    clear_login_fails(ip)   # good login wipes the slate for this IP
+    clear_login_fails(ip)  # good login wipes the slate for this IP
     token = create_session_token()
     store_token(token)
     _set_session_cookie(response, token)
@@ -67,6 +81,7 @@ def logout(response: Response, aide_session: str | None = Cookie(None)):
 @router.get("/me")
 def me(aide_session: str | None = Cookie(None)):
     from core.settings import auth_enabled
+
     bd = base_domain()
     username = load_settings().get("username", "")
     if not auth_enabled():

@@ -1,8 +1,15 @@
 from datetime import datetime, timedelta
 
 from tests._client import ApiTest
-from core.database import (Task, JournalEntry, CalendarEvent, Account, Transaction,
-                          Subscription, Photo)
+from core.database import (
+    Task,
+    JournalEntry,
+    CalendarEvent,
+    Account,
+    Transaction,
+    Subscription,
+    Photo,
+)
 
 
 # DB-backed sources only — 'agent' and 'doc' read shared on-disk state
@@ -22,11 +29,24 @@ class TimelineApiTest(ApiTest):
         t1 = Task(title="ship feature", done=True, completed_at=now - timedelta(hours=1))
         t2 = Task(title="old todo", done=False, created_at=now - timedelta(days=2))
         d.add_all([t1, t2])
-        d.add(JournalEntry(date="2026-06-15", content="a good day", mood="🙂",
-                           updated_at=now - timedelta(hours=3)))
-        acct = Account(name="checking", opening=0.0); d.add(acct); d.commit()
-        d.add(Transaction(account_id=acct.id, date=(now.date()).isoformat(), amount=-12.5, payee="cafe"))
-        d.commit(); d.close()
+        d.add(
+            JournalEntry(
+                date="2026-06-15",
+                content="a good day",
+                mood="🙂",
+                updated_at=now - timedelta(hours=3),
+            )
+        )
+        acct = Account(name="checking", opening=0.0)
+        d.add(acct)
+        d.commit()
+        d.add(
+            Transaction(
+                account_id=acct.id, date=(now.date()).isoformat(), amount=-12.5, payee="cafe"
+            )
+        )
+        d.commit()
+        d.close()
 
         r = self.client.get("/api/timeline", params={"days": 7, "types": DBT}).json()
         evs = r["events"]
@@ -43,14 +63,18 @@ class TimelineApiTest(ApiTest):
         d = self.db()
         d.add(Task(title="only task", done=True, completed_at=datetime.utcnow()))
         d.add(JournalEntry(date="2026-06-15", content="hi", updated_at=datetime.utcnow()))
-        d.commit(); d.close()
+        d.commit()
+        d.close()
         r = self.client.get("/api/timeline", params={"types": "task"}).json()
         self.assertTrue(all(e["type"] == "task" for e in r["events"]))
         self.assertTrue(any(e["type"] == "task" for e in r["events"]))
 
     def test_window_excludes_old(self):
         d = self.db()
-        d.add(Task(title="ancient", done=True, completed_at=datetime.utcnow() - timedelta(days=400)))
-        d.commit(); d.close()
+        d.add(
+            Task(title="ancient", done=True, completed_at=datetime.utcnow() - timedelta(days=400))
+        )
+        d.commit()
+        d.close()
         r = self.client.get("/api/timeline", params={"days": 30, "types": DBT}).json()
         self.assertEqual(r["events"], [])

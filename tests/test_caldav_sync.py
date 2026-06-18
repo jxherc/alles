@@ -18,16 +18,16 @@ class CaldavSyncTests(unittest.TestCase):
 
     def test_save_keeps_password_when_blank(self):
         cd.save_cfg({"url": "u1", "username": "me", "password": "secret"})
-        cd.save_cfg({"url": "u2", "username": "me", "password": ""})   # editing without re-typing pw
+        cd.save_cfg({"url": "u2", "username": "me", "password": ""})  # editing without re-typing pw
         cfg = cd.load_cfg()
         self.assertEqual(cfg["url"], "u2")
-        self.assertEqual(cfg["password"], "secret")   # preserved
+        self.assertEqual(cfg["password"], "secret")  # preserved
 
     def test_status_shape(self):
         s = cd.status()
         self.assertIn("available", s)
         self.assertIn("connected", s)
-        self.assertFalse(s["connected"])   # nothing configured
+        self.assertFalse(s["connected"])  # nothing configured
 
     def test_sync_is_graceful(self):
         # no caldav lib and/or no config → an {"error": ...} dict, never a crash

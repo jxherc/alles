@@ -5,6 +5,7 @@ frontmatter (name / description / when_to_use) + a markdown body, matching the
 SKILL.md convention agent_tools already reads. match() scores skills against a
 request so the right one surfaces automatically.
 """
+
 import re
 from pathlib import Path
 
@@ -45,7 +46,7 @@ def _parse(text: str) -> dict:
                 if ":" in line:
                     k, v = line.split(":", 1)
                     meta[k.strip()] = v.strip().strip('"')
-            body = text[end + 4:].lstrip("\n")
+            body = text[end + 4 :].lstrip("\n")
     return {"meta": meta, "body": body}
 
 
@@ -62,13 +63,15 @@ def list_skills() -> list[dict]:
         try:
             parsed = _parse(d.read_text("utf-8", errors="replace"))
             m = parsed["meta"]
-            out.append({
-                "slug": d.parent.name,
-                "name": m.get("name", d.parent.name),
-                "description": m.get("description", ""),
-                "when_to_use": m.get("when_to_use", ""),
-                "size": len(parsed["body"]),
-            })
+            out.append(
+                {
+                    "slug": d.parent.name,
+                    "name": m.get("name", d.parent.name),
+                    "description": m.get("description", ""),
+                    "when_to_use": m.get("when_to_use", ""),
+                    "size": len(parsed["body"]),
+                }
+            )
         except Exception:
             continue
     return out
@@ -81,8 +84,10 @@ def get_skill(slug: str) -> dict | None:
     parsed = _parse(p.read_text("utf-8", errors="replace"))
     m = parsed["meta"]
     return {
-        "slug": _slug(slug), "name": m.get("name", slug),
-        "description": m.get("description", ""), "when_to_use": m.get("when_to_use", ""),
+        "slug": _slug(slug),
+        "name": m.get("name", slug),
+        "description": m.get("description", ""),
+        "when_to_use": m.get("when_to_use", ""),
         "body": parsed["body"],
     }
 
@@ -113,7 +118,7 @@ def delete_skill(slug: str) -> bool:
         return False
     p.unlink()
     try:
-        p.parent.rmdir()       # drop the now-empty skill folder
+        p.parent.rmdir()  # drop the now-empty skill folder
     except OSError:
         pass
     return True
@@ -143,27 +148,37 @@ def search(q: str) -> list[dict]:
     ql = (q or "").lower()
     if not ql:
         return list_skills()
-    return [s for s in list_skills()
-            if ql in (s["name"] + s["description"] + s["when_to_use"]).lower()]
+    return [
+        s for s in list_skills() if ql in (s["name"] + s["description"] + s["when_to_use"]).lower()
+    ]
 
 
 # ── starter skills (seeded once on first boot so the app isn't empty) ──────────
 _SEED_SENTINEL = ".seeded"
 _STARTERS = [
-    ("Summarize", "condense long text into the key points",
-     "when the user wants a tl;dr, recap, or summary of something long",
-     "1. read the whole input first.\n2. pull out the 3-5 load-bearing points.\n"
-     "3. write them as tight bullets, no filler.\n4. end with a one-line takeaway."),
-    ("Web Research", "research a topic and answer with cited sources",
-     "when asked to look something up, research, or find current info",
-     "1. break the question into 2-3 specific sub-queries.\n2. search the web for each.\n"
-     "3. read the best sources (not just snippets).\n4. synthesize a direct answer.\n"
-     "5. cite each claim with its source url."),
-    ("Code Review", "review a change for bugs, then clarity",
-     "when reviewing a diff, PR, or a chunk of code",
-     "1. understand what the change is trying to do.\n2. look for correctness bugs first "
-     "(edge cases, off-by-one, null/empty, error paths).\n3. then clarity/naming/dead code.\n"
-     "4. report findings worst-first; suggest a concrete fix for each."),
+    (
+        "Summarize",
+        "condense long text into the key points",
+        "when the user wants a tl;dr, recap, or summary of something long",
+        "1. read the whole input first.\n2. pull out the 3-5 load-bearing points.\n"
+        "3. write them as tight bullets, no filler.\n4. end with a one-line takeaway.",
+    ),
+    (
+        "Web Research",
+        "research a topic and answer with cited sources",
+        "when asked to look something up, research, or find current info",
+        "1. break the question into 2-3 specific sub-queries.\n2. search the web for each.\n"
+        "3. read the best sources (not just snippets).\n4. synthesize a direct answer.\n"
+        "5. cite each claim with its source url.",
+    ),
+    (
+        "Code Review",
+        "review a change for bugs, then clarity",
+        "when reviewing a diff, PR, or a chunk of code",
+        "1. understand what the change is trying to do.\n2. look for correctness bugs first "
+        "(edge cases, off-by-one, null/empty, error paths).\n3. then clarity/naming/dead code.\n"
+        "4. report findings worst-first; suggest a concrete fix for each.",
+    ),
 ]
 
 

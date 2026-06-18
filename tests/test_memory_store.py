@@ -11,7 +11,9 @@ from services import memory_store as ms
 
 class MemoryStoreTest(unittest.TestCase):
     def setUp(self):
-        self.eng = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
+        self.eng = create_engine(
+            "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
+        )
         db.Base.metadata.create_all(self.eng)
         self._p = mock.patch.object(ms, "SessionLocal", sessionmaker(bind=self.eng))
         self._p.start()
@@ -28,7 +30,7 @@ class MemoryStoreTest(unittest.TestCase):
 
     def test_add_get_delete(self):
         m = ms.add_memory("I am a teacher")
-        self.assertEqual(m["category"], "identity")   # auto-detected
+        self.assertEqual(m["category"], "identity")  # auto-detected
         self.assertEqual([x["id"] for x in ms.get_all_memories()], [m["id"]])
         self.assertTrue(ms.delete_memory(m["id"]))
         self.assertEqual(ms.get_all_memories(), [])
@@ -42,13 +44,14 @@ class MemoryStoreTest(unittest.TestCase):
         self.assertIsNone(ms.update_memory("nope", text="x"))
 
     def test_search_ranks_relevant_and_pins_first(self):
-        ms.add_memory("I love hiking in the mountains")     # preference
-        ms.add_memory("the weather is cold today")          # general
+        ms.add_memory("I love hiking in the mountains")  # preference
+        ms.add_memory("the weather is cold today")  # general
         ms.add_memory("always remember this", pinned=True)
         res = [r["text"] for r in ms.search_memories("what do I like to do")]
-        self.assertEqual(res[0], "always remember this")    # pinned first regardless of score
-        self.assertLess(res.index("I love hiking in the mountains"),
-                        res.index("the weather is cold today"))   # more relevant ranks higher
+        self.assertEqual(res[0], "always remember this")  # pinned first regardless of score
+        self.assertLess(
+            res.index("I love hiking in the mountains"), res.index("the weather is cold today")
+        )  # more relevant ranks higher
 
     def test_inject_memories_builds_prompt(self):
         ms.add_memory("I am vegetarian")

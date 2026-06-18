@@ -4,6 +4,7 @@ resolution favors a local model (ollama / localhost) so cheap/private chats stay
 on-device — but only if a local endpoint actually exists, otherwise nothing
 changes. an explicitly chosen endpoint on a session always wins over this.
 """
+
 _LOCAL_HINTS = ("localhost", "127.0.0.1", "0.0.0.0", "11434", "ollama")
 
 

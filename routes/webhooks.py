@@ -9,16 +9,22 @@ log = logging.getLogger("aide.webhooks")
 
 _VALID_EVENTS = {"message", "research_done", "session_created", "session_renamed"}
 
+
 def _fmt(w: Webhook) -> dict:
     return {
-        "id": w.id, "name": w.name, "url": w.url,
-        "events": w.events_list(), "enabled": w.enabled,
+        "id": w.id,
+        "name": w.name,
+        "url": w.url,
+        "events": w.events_list(),
+        "enabled": w.enabled,
         "created_at": w.created_at.isoformat(),
     }
+
 
 @router.get("/webhooks")
 def list_webhooks(db: DbSession = Depends(get_db)):
     return [_fmt(w) for w in db.query(Webhook).all()]
+
 
 class WebhookBody(BaseModel):
     name: str
@@ -26,28 +32,39 @@ class WebhookBody(BaseModel):
     events: list[str] = ["message"]
     enabled: bool = True
 
+
 @router.post("/webhooks")
 def create_webhook(body: WebhookBody, db: DbSession = Depends(get_db)):
     events = [e for e in body.events if e in _VALID_EVENTS]
     w = Webhook(name=body.name, url=body.url, events=json.dumps(events), enabled=body.enabled)
-    db.add(w); db.commit(); db.refresh(w)
+    db.add(w)
+    db.commit()
+    db.refresh(w)
     return _fmt(w)
+
 
 @router.patch("/webhooks/{wid}")
 def update_webhook(wid: str, body: WebhookBody, db: DbSession = Depends(get_db)):
     w = db.get(Webhook, wid)
-    if not w: raise HTTPException(404)
-    w.name = body.name; w.url = body.url
+    if not w:
+        raise HTTPException(404)
+    w.name = body.name
+    w.url = body.url
     w.events = json.dumps([e for e in body.events if e in _VALID_EVENTS])
     w.enabled = body.enabled
-    db.commit(); return _fmt(w)
+    db.commit()
+    return _fmt(w)
+
 
 @router.delete("/webhooks/{wid}")
 def delete_webhook(wid: str, db: DbSession = Depends(get_db)):
     w = db.get(Webhook, wid)
-    if not w: raise HTTPException(404)
-    db.delete(w); db.commit()
+    if not w:
+        raise HTTPException(404)
+    db.delete(w)
+    db.commit()
     return {"ok": True}
+
 
 @router.get("/webhooks/events")
 def valid_events():

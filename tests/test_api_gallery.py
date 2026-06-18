@@ -10,7 +10,7 @@ class GalleryApiTest(ApiTest):
         super().setUp()
         self._tmp = tempfile.TemporaryDirectory()
         self._orig_dir = gal.GALLERY_DIR
-        gal.GALLERY_DIR = Path(self._tmp.name)   # don't write into the real data/gallery
+        gal.GALLERY_DIR = Path(self._tmp.name)  # don't write into the real data/gallery
 
     def tearDown(self):
         gal.GALLERY_DIR = self._orig_dir
@@ -18,9 +18,11 @@ class GalleryApiTest(ApiTest):
         super().tearDown()
 
     def _upload(self, name="pic.png", data=b"\x89PNG\r\n\x1a\n"):
-        return self.client.post("/api/gallery/upload",
-                                files={"file": (name, data, "image/png")},
-                                data={"prompt": "a cat", "tags": "animals"})
+        return self.client.post(
+            "/api/gallery/upload",
+            files={"file": (name, data, "image/png")},
+            data={"prompt": "a cat", "tags": "animals"},
+        )
 
     def test_list_empty(self):
         self.assertEqual(self.client.get("/api/gallery").json(), [])

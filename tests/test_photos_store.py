@@ -33,7 +33,7 @@ class PhotosStoreTests(unittest.TestCase):
         self.assertTrue(info["thumb"])
         self.assertTrue(ps.original_path(info["filename"]).is_file())
         self.assertTrue(ps.thumb_path(info["thumb"]).is_file())
-        self.assertIsNotNone(info["taken_at"])   # EXIF or now() fallback
+        self.assertIsNotNone(info["taken_at"])  # EXIF or now() fallback
 
     def test_thumb_is_bounded(self):
         info = ps.import_image(_png(size=(2000, 1500)), "big.png")
