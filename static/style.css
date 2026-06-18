@@ -1877,11 +1877,15 @@ body.is-incognito .incognito-bar {
 
 /* ── files ── */
 .files-actions { display: flex; gap: 0.4rem; }
+/* breadcrumb (left) + sort (right) share one aligned row under the header */
+.files-subhead {
+  display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;
+  padding: 0.2rem clamp(0.9rem, 3vw, 2rem) 0.55rem;
+  flex-shrink: 0;
+}
 .files-breadcrumb {
-  max-width: 760px; width: 100%; margin: 0 auto;
-  padding: 0.1rem 1.5rem 0.6rem;
   display: flex; align-items: center; gap: 0.25rem; flex-wrap: wrap;
-  font-size: 0.75rem; color: var(--muted); flex-shrink: 0;
+  font-size: 0.75rem; color: var(--muted); min-height: 1.1rem;
 }
 .crumb { cursor: pointer; }
 .crumb:hover { color: var(--text); }
@@ -1929,7 +1933,7 @@ body.is-incognito .incognito-bar {
 .file-cdot.c-none { background: transparent; color: var(--muted); }
 .file-cdot.sel { outline: 2px solid var(--text); outline-offset: 1px; }
 .file-tagpop-actions { display: flex; gap: 0.4rem; }
-.files-sortbar { display: flex; gap: 0.3rem; padding: 0.3rem 0.5rem; align-items: center; }
+.files-sortbar { display: flex; gap: 0.3rem; margin-left: auto; align-items: center; }
 .files-sortbar::before { content: 'sort'; font-size: 0.64rem; color: var(--faint); text-transform: uppercase; letter-spacing: 0.05em; margin-right: 0.2rem; }
 .files-sort { font-family: inherit; font-size: 0.7rem; cursor: pointer; background: none; border: 1px solid transparent; border-radius: 3px; color: var(--muted); padding: 0.1rem 0.45rem; }
 .files-sort:hover { color: var(--text); }
