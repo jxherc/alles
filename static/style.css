@@ -2934,6 +2934,12 @@ body.is-incognito .incognito-bar {
 .act-range-opt.on { background: var(--faint); color: var(--text); }
 .act-search { font-family: inherit; font-size: 0.7rem; margin-left: auto; padding: 0.2rem 0.5rem; background: var(--bg); border: 1px solid var(--faint); border-radius: 3px; color: var(--text); width: 200px; }
 .act-search:focus { outline: none; border-color: var(--muted); }
+.activity-summary { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; padding: 0.4rem 0; font-size: 0.72rem; color: var(--muted); }
+.activity-summary:empty { display: none; }
+.act-sum-total { color: var(--text); font-weight: 600; }
+.act-sum-chip { display: inline-flex; align-items: center; gap: 0.25rem; }
+.act-sum-glyph { font-size: 0.78rem; }
+.act-sum-busy { margin-left: auto; color: var(--muted); }
 
 .activity-day {
   position: sticky; top: 0; z-index: 1; background: var(--bg);
