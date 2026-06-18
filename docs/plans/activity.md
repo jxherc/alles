@@ -43,5 +43,7 @@ Evidence: `docs/evidence/activity/` (findings + before/after).
 
 ## activity-ui-1 — rebalance filters + summary
 Filters were crammed right (double `margin-left:auto`), 200px search oversized, "busiest" isolated far
-right. Fix (`static/style.css`): filter bar on its own left-aligned row under the title
-(`#activity-view .page-view-head{flex-wrap}` + `.activity-filters{flex-basis:100
+right. Fix (`static/style.css`): filter bar drops to its own left-aligned row under the title (head
+`flex-wrap` + `.activity-filters` `flex-basis:100%`), search narrowed to 160px (single right-align), and
+`.act-sum-busy` auto-margin dropped so the summary reads left-to-right.
+Verify `pw_activity_balance.py` (7 assertions, RED→GREEN, screenshot, zero console errors).
