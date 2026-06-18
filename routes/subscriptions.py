@@ -6,10 +6,12 @@ rollover, monthly/yearly totals, and push reminders before renewals.
 import calendar
 import logging
 from datetime import date, timedelta
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session as DbSession
-from core.database import get_db, SessionLocal, Subscription
+
+from core.database import SessionLocal, Subscription, get_db
 
 router = APIRouter(prefix="/api")
 log = logging.getLogger("aide.subs")
@@ -103,9 +105,20 @@ def _monthly_cost(sub: Subscription) -> float:
     return sub.price * _PER_MONTH.get(sub.cycle, 1.0)
 
 
+def _trial_days_left(sub, today: date):
+    if not (sub.trial_end or ""):
+        return None
+    try:
+        return (_parse(sub.trial_end) - today).days
+    except ValueError:
+        return None
+
+
 def _fmt(sub: Subscription, today: date) -> dict:
     return {
         "id": sub.id,
+        "trial_end": sub.trial_end or "",
+        "trial_days_left": _trial_days_left(sub, today),
         "name": sub.name,
         "price": sub.price,
         "currency": sub.currency,
@@ -184,6 +197,7 @@ class SubBody(BaseModel):
     notes: str = ""
     remind_days: int = 1
     account_id: str = ""
+    trial_end: str = ""
 
 
 def _validate(body: SubBody):
@@ -197,6 +211,19 @@ def _validate(body: SubBody):
         _parse(body.next_due)
     except ValueError:
         raise HTTPException(400, "next_due must be an ISO date (YYYY-MM-DD)")
+
+
+@router.get("/subscriptions/trials")
+def trials_ending(days: int = 14, db: DbSession = Depends(get_db)):
+    """subscriptions whose free trial / cancel-by lands in the next `days` days."""
+    today = date.today()
+    out = []
+    for sub in db.query(Subscription).all():
+        dl = _trial_days_left(sub, today)
+        if dl is not None and 0 <= dl <= days:
+            out.append(_fmt(sub, today))
+    out.sort(key=lambda s: s["trial_days_left"])
+    return out
 
 
 @router.post("/subscriptions")
@@ -214,6 +241,7 @@ def create_subscription(body: SubBody, db: DbSession = Depends(get_db)):
         notes=body.notes,
         remind_days=max(0, body.remind_days),
         account_id=(body.account_id or "").strip(),
+        trial_end=str(body.trial_end or "")[:10],
     )
     db.add(sub)
     db.commit()
@@ -234,6 +262,7 @@ class SubPatch(BaseModel):
     active: bool | None = None
     remind_days: int | None = None
     account_id: str | None = None
+    trial_end: str | None = None
 
 
 @router.patch("/subscriptions/{sid}")
@@ -262,6 +291,7 @@ def update_subscription(sid: str, body: SubPatch, db: DbSession = Depends(get_db
         "active",
         "remind_days",
         "account_id",
+        "trial_end",
     ):
         v = getattr(body, field)
         if v is not None:
