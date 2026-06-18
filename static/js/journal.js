@@ -52,6 +52,21 @@ function buildJournal() {
   if (!_built) {
     body.innerHTML = `
       <div class="jrnl-wrap">
+        <div class="jrnl-top">
+          <div class="jrnl-toolbar">
+            <input id="jrnl-search" class="jrnl-tags jrnl-search" placeholder="search entries…">
+            <button class="btn" id="jrnl-export">export</button>
+            <button class="btn jrnl-lock-btn" id="jrnl-lock" title="lock"></button>
+          </div>
+          <div id="jrnl-results" class="jrnl-results"></div>
+          <div class="jrnl-side-title jrnl-heat-head">
+            <span class="jrnl-heat-label">activity</span>
+            <button class="btn jrnl-heat-nav" id="jrnl-heat-prev" title="previous year">‹</button>
+            <span id="jrnl-heat-year"></span>
+            <button class="btn jrnl-heat-nav" id="jrnl-heat-next" title="next year">›</button>
+          </div>
+          <div id="jrnl-heatmap" class="jrnl-heatmap"></div>
+        </div>
         <div class="jrnl-main">
           <div class="jrnl-datebar">
             <button class="btn" id="jrnl-prev" title="previous day">‹</button>
@@ -68,26 +83,22 @@ function buildJournal() {
             <button class="btn primary" id="jrnl-save">save</button>
             <button class="btn" id="jrnl-reflect">✨ reflect</button>
             <span class="jrnl-saved" id="jrnl-saved"></span>
-            <button class="btn jrnl-lock-btn" id="jrnl-lock" title="lock" style="margin-left:auto"></button>
           </div>
           <div class="jrnl-reflection" id="jrnl-reflection" style="display:none"></div>
         </div>
-        <div class="jrnl-side">
-          <input id="jrnl-search" class="jrnl-tags" placeholder="search entries…" style="margin:0 0 0.5rem">
-          <div id="jrnl-results"></div>
-          <button class="btn" id="jrnl-export" style="margin-bottom:0.6rem">export .md</button>
-          <div class="jrnl-side-title jrnl-heat-head">
-            <button class="btn jrnl-heat-nav" id="jrnl-heat-prev" title="previous year">‹</button>
-            <span id="jrnl-heat-year"></span>
-            <button class="btn jrnl-heat-nav" id="jrnl-heat-next" title="next year">›</button>
+        <div class="jrnl-extras">
+          <div class="jrnl-col">
+            <div class="jrnl-side-title">mood · last 30 days</div>
+            <div id="jrnl-moodtrend" class="jrnl-moodtrend"></div>
           </div>
-          <div id="jrnl-heatmap" class="jrnl-heatmap"></div>
-          <div class="jrnl-side-title">mood · last 30 days</div>
-          <div id="jrnl-moodtrend" class="jrnl-moodtrend"></div>
-          <div class="jrnl-side-title">on this day</div>
-          <div id="jrnl-otd" class="jrnl-otd"><div class="jrnl-empty">nothing from past years yet</div></div>
-          <div class="jrnl-side-title">recent</div>
-          <div id="jrnl-recent" class="jrnl-recent"></div>
+          <div class="jrnl-col">
+            <div class="jrnl-side-title">on this day</div>
+            <div id="jrnl-otd" class="jrnl-otd"><div class="jrnl-empty">nothing from past years yet</div></div>
+          </div>
+          <div class="jrnl-col">
+            <div class="jrnl-side-title">recent</div>
+            <div id="jrnl-recent" class="jrnl-recent"></div>
+          </div>
         </div>
       </div>`;
 
@@ -150,12 +161,13 @@ async function loadHeatmap() {
     _heatYear = d.year;
     document.getElementById('jrnl-heat-year').textContent = d.year;
     document.getElementById('jrnl-heat-next').disabled = d.year >= new Date().getFullYear();
-    // vertical calendar: each row = a week (Sun→Sat), rows stack top→bottom from the
-    // Sunday on/before Jan 1 → full year fits the narrow sidebar with no horizontal scroll
+    // github-style: each column = a week (the 7 weekday rows), columns run left→right
+    // from the Sunday on/before Jan 1. columns flex to fill width so the WHOLE year
+    // is always visible — no horizontal scroll, no clipping.
     const start = new Date(Date.UTC(d.year, 0, 1));
     start.setUTCDate(start.getUTCDate() - start.getUTCDay());
     const end = new Date(Date.UTC(d.year, 11, 31));
-    let rows = '';
+    let cols = '';
     for (let c = new Date(start); c <= end; c.setUTCDate(c.getUTCDate() + 7)) {
       let cells = '';
       for (let r = 0; r < 7; r++) {
@@ -168,9 +180,9 @@ async function loadHeatmap() {
         const title = info ? `${iso} · ${info.words} words ${info.mood || ''}` : iso;
         cells += `<span class="jrnl-hc l${lvl} ${!inYear || future ? 'off' : ''} ${iso === _day ? 'sel' : ''}" data-d="${inYear && !future ? iso : ''}" title="${title}"></span>`;
       }
-      rows += `<div class="jrnl-hrow">${cells}</div>`;
+      cols += `<div class="jrnl-hcol">${cells}</div>`;
     }
-    el.innerHTML = rows;
+    el.innerHTML = cols;
     el.querySelectorAll('.jrnl-hc[data-d]:not([data-d=""])').forEach(c => {
       if (c.dataset.d) c.onclick = () => { _day = c.dataset.d; load(); };
     });
