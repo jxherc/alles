@@ -3,12 +3,11 @@ Obsidian-style markdown vault: real .md files on disk + wikilinks + backlinks.
 Everything is stored as plain files so the vault is portable and git-able.
 """
 
-import os
 import re
 import shutil
 from pathlib import Path
 
-from core.settings import load_settings, data_dir
+from core.settings import data_dir, load_settings
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -84,6 +83,67 @@ def write(rel: str, content: str) -> dict:
     p.parent.mkdir(parents=True, exist_ok=True)
     p.write_text(content or "", "utf-8")
     return {"path": str(p.relative_to(vault_dir())).replace("\\", "/"), "ok": True}
+
+
+def parse_frontmatter(content: str):
+    """split a leading --- yaml-ish block off the top. returns (props, body).
+    handles `key: value`, inline `key: [a, b]` lists and block `- item` lists.
+    no closing fence → treated as plain content (props {})."""
+    text = (content or "").replace("\r\n", "\n")
+    lines = text.split("\n")
+    if not lines or lines[0] != "---":
+        return {}, content or ""
+    close = None
+    for i in range(1, len(lines)):
+        if lines[i].strip() == "---":
+            close = i
+            break
+    if close is None:
+        return {}, content or ""
+    fm = lines[1:close]
+    body = "\n".join(lines[close + 1 :])
+    props: dict = {}
+    i = 0
+    while i < len(fm):
+        m = re.match(r"^([A-Za-z0-9_][\w \-]*?):\s*(.*)$", fm[i])
+        if not m:
+            i += 1
+            continue
+        key, val = m.group(1).strip(), m.group(2).strip()
+        if val == "":
+            # maybe a block list follows
+            items, j = [], i + 1
+            while j < len(fm) and re.match(r"^\s*-\s+", fm[j]):
+                items.append(re.sub(r"^\s*-\s+", "", fm[j]).strip())
+                j += 1
+            if items:
+                props[key] = items
+                i = j
+                continue
+            props[key] = ""
+        elif val.startswith("[") and val.endswith("]"):
+            inner = val[1:-1].strip()
+            props[key] = [s.strip() for s in inner.split(",") if s.strip()] if inner else []
+        else:
+            props[key] = val
+        i += 1
+    return props, body
+
+
+def set_frontmatter(content: str, props: dict) -> str:
+    """rewrite the leading frontmatter block to exactly `props`, keeping the body.
+    empty props → strip the block entirely."""
+    _, body = parse_frontmatter(content)
+    if not props:
+        return body
+    out = ["---"]
+    for k, v in props.items():
+        if isinstance(v, list):
+            out.append(f"{k}: [{', '.join(str(x) for x in v)}]")
+        else:
+            out.append(f"{k}: {v}")
+    out.append("---")
+    return "\n".join(out) + "\n" + body
 
 
 def create(rel: str, content: str = "") -> dict:
