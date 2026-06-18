@@ -6,7 +6,7 @@ import { initCustomDropdown, getDropdownValue } from './dropdown.js';
 import { initDatePicker } from './datepick.js';
 
 let _month = _thisMonth();
-let _accounts = [], _txns = [], _budgets = [], _sum = null, _recurring = [];
+let _accounts = [], _txns = [], _budgets = [], _sum = null, _recurring = [], _rules = [];
 let _cur = '$';
 let _inited = false;
 let _editTxn = null;   // id of the txn row currently being edited inline
@@ -59,11 +59,12 @@ async function load() {
     // post any due recurring txns FIRST (and advance them) so the balances,
     // transactions and summary we read next all reflect them — no stale first load
     _recurring = await api('/api/money/recurring').catch(() => []);
-    [_accounts, _txns, _budgets, _sum] = await Promise.all([
+    [_accounts, _txns, _budgets, _sum, _rules] = await Promise.all([
       api('/api/money/accounts'),
       api(`/api/money/transactions?month=${_month}`),
       api('/api/money/budgets'),
       api(`/api/money/summary?month=${_month}`),
+      api('/api/money/rules').catch(() => []),
     ]);
     _cur = _sum?.currency || (_accounts[0]?.currency) || '$';
   } catch { $('money-body').innerHTML = '<div class="money-empty">failed to load</div>'; return; }
@@ -90,6 +91,7 @@ function render() {
       <section class="money-card"><h3>last 6 months</h3>${trendChart()}</section>
       <section class="money-card"><h3>budgets</h3>${budgetsList()}${_budgetForm()}</section>
       <section class="money-card"><h3>recurring</h3>${recurringList()}${_recurringForm()}</section>
+      <section class="money-card"><h3>auto-categorize${_rules.length ? ` <button class="btn rules-apply" id="rules-apply" title="apply to existing uncategorized">apply</button>` : ''}</h3>${rulesList()}${_ruleForm()}</section>
      </div>` +
     `<section class="money-card money-txns"><h3>transactions · ${_monthLabel(_month)}</h3>${addTxnRow()}${transferRow()}${txnList()}</section>`;
   wire();
@@ -159,6 +161,26 @@ function budgetsList() {
       <div class="bg-bar-wrap"><div class="bg-bar ${over ? 'over' : ''}" style="width:${pct}%"></div></div>
     </div>`;
   }).join('') + `</div>`;
+}
+
+function rulesList() {
+  if (!_rules.length) return '<div class="money-empty-sm">no rules — auto-tag a payee to a category</div>';
+  return `<div class="rules">` + _rules.map(r => `
+    <div class="rule" data-id="${r.id}">
+      <span class="rl-match">${esc(r.match)}</span>
+      <span class="rl-arrow">→</span>
+      <span class="rl-cat">${esc(r.category) || '<span class="tx-dim">(clear)</span>'}</span>
+      <button class="tx-del" data-del-rule="${r.id}" title="delete">×</button>
+    </div>`).join('') + `</div>`;
+}
+
+function _ruleForm() {
+  return `<div class="rule-form">
+    <input type="text" id="rl-match" class="settings-input" placeholder="if payee contains…" style="flex:1.2;min-width:120px">
+    <span class="rl-arrow">→</span>
+    <input type="text" id="rl-cat" class="settings-input" placeholder="category" style="flex:1;min-width:90px">
+    <button class="btn" id="rl-add">add</button>
+  </div>`;
 }
 
 const _cycleShort = { weekly: '/wk', monthly: '/mo', quarterly: '/qtr', yearly: '/yr', custom: '·custom' };
@@ -318,6 +340,10 @@ function wire() {
   $('rc-add')?.addEventListener('click', addRecurring);
   $('money-body').querySelectorAll('[data-del-rec]').forEach(b => b.addEventListener('click', () => delRecurring(b.dataset.delRec)));
   $('money-body').querySelectorAll('[data-toggle-rec]').forEach(b => b.addEventListener('click', () => toggleRecurring(b.dataset.toggleRec)));
+  $('rl-add')?.addEventListener('click', addRule);
+  $('rl-cat')?.addEventListener('keydown', e => { if (e.key === 'Enter') addRule(); });
+  $('rules-apply')?.addEventListener('click', applyRules);
+  $('money-body').querySelectorAll('[data-del-rule]').forEach(b => b.addEventListener('click', () => delRule(b.dataset.delRule)));
 }
 
 // ── actions ────────────────────────────────────────────────────────────────
@@ -420,4 +446,23 @@ async function toggleRecurring(id) {
   const r = _recurring.find(x => x.id === id);
   try { await api(`/api/money/recurring/${id}`, { method: 'PATCH', body: { active: !r.active } }); await load(); }
   catch { toast('update failed', 'error'); }
+}
+async function addRule() {
+  const match = $('rl-match')?.value.trim();
+  if (!match) { toast('what should it match?', 'error'); return; }
+  try {
+    await api('/api/money/rules', { method: 'POST', body: { match, category: $('rl-cat').value.trim() } });
+    await load();
+  } catch { toast('couldn\'t add rule', 'error'); }
+}
+async function delRule(id) {
+  try { await api(`/api/money/rules/${id}`, { method: 'DELETE' }); await load(); }
+  catch { toast('delete failed', 'error'); }
+}
+async function applyRules() {
+  try {
+    const r = await api('/api/money/rules/apply', { method: 'POST' });
+    toast(r.updated ? `categorized ${r.updated} transaction${r.updated === 1 ? '' : 's'}` : 'nothing to categorize', 'success');
+    await load();
+  } catch { toast('apply failed', 'error'); }
 }

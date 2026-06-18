@@ -6,7 +6,14 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session as DbSession
 
-from core.database import Account, Budget, RecurringTxn, Transaction, get_db
+from core.database import (
+    Account,
+    Budget,
+    CategoryRule,
+    RecurringTxn,
+    Transaction,
+    get_db,
+)
 
 router = APIRouter(prefix="/api/money")
 
@@ -106,6 +113,23 @@ def delete_account(aid: str, db: DbSession = Depends(get_db)):
     return {"ok": True}
 
 
+# ── auto-categorization rules (payee substring → category) ────────────────────
+def _categorize(payee: str, rules) -> str:
+    """first rule whose match is a (case-insensitive) substring of the payee wins."""
+    p = (payee or "").lower()
+    if not p:
+        return ""
+    for r in rules:
+        m = (r.match or "").lower()
+        if m and m in p:
+            return r.category or ""
+    return ""
+
+
+def _rules(db):
+    return db.query(CategoryRule).order_by(CategoryRule.created_at.asc()).all()
+
+
 # ── transactions ──────────────────────────────────────────────────────────────
 def _txn(t):
     return {
@@ -153,11 +177,14 @@ class TxnBody(BaseModel):
 def create_txn(body: TxnBody, db: DbSession = Depends(get_db)):
     if not db.get(Account, body.account_id):
         raise HTTPException(400, "unknown account")
+    cat = (body.category or "").strip()
+    if not cat:  # no explicit category → let a rule fill it in from the payee
+        cat = _categorize(body.payee, _rules(db))
     t = Transaction(
         account_id=body.account_id,
         date=body.date,
         amount=body.amount,
-        category=(body.category or "").strip(),
+        category=cat,
         payee=(body.payee or "").strip(),
         notes=(body.notes or "").strip(),
     )
@@ -244,6 +271,7 @@ def import_txns_csv(body: CsvImport, db: DbSession = Depends(get_db)):
         (t.date, round(t.amount or 0.0, 2), (t.payee or "").strip().lower())
         for t in db.query(Transaction).filter(Transaction.account_id == body.account_id).all()
     }
+    rules = _rules(db)  # auto-categorize rows that arrive without a category
     n = skipped = 0
     for row in csv.DictReader(io.StringIO(body.csv)):
         row = {(k or "").strip().lower(): v for k, v in row.items()}
@@ -260,12 +288,13 @@ def import_txns_csv(body: CsvImport, db: DbSession = Depends(get_db)):
             skipped += 1
             continue
         seen.add(key)
+        cat = (row.get("category") or "").strip() or _categorize(payee, rules)
         db.add(
             Transaction(
                 account_id=body.account_id,
                 date=date[:10],
                 amount=amt,
-                category=(row.get("category") or "").strip(),
+                category=cat,
                 payee=payee,
                 notes=(row.get("notes") or "").strip(),
             )
@@ -471,6 +500,55 @@ def delete_recurring(rid: str, db: DbSession = Depends(get_db)):
     db.delete(r)
     db.commit()
     return {"ok": True}
+
+
+# ── category rules CRUD + bulk apply ──────────────────────────────────────────
+@router.get("/rules")
+def list_rules(db: DbSession = Depends(get_db)):
+    return [{"id": r.id, "match": r.match, "category": r.category} for r in _rules(db)]
+
+
+class RuleBody(BaseModel):
+    match: str
+    category: str = ""
+
+
+@router.post("/rules")
+def create_rule(body: RuleBody, db: DbSession = Depends(get_db)):
+    m = (body.match or "").strip()
+    if not m:
+        raise HTTPException(400, "match required")
+    r = CategoryRule(match=m, category=(body.category or "").strip())
+    db.add(r)
+    db.commit()
+    db.refresh(r)
+    return {"id": r.id, "match": r.match, "category": r.category}
+
+
+@router.delete("/rules/{rid}")
+def delete_rule(rid: str, db: DbSession = Depends(get_db)):
+    r = db.get(CategoryRule, rid)
+    if not r:
+        raise HTTPException(404)
+    db.delete(r)
+    db.commit()
+    return {"ok": True}
+
+
+@router.post("/rules/apply")
+def apply_rules(db: DbSession = Depends(get_db)):
+    """back-fill categories on existing uncategorized txns using the current rules."""
+    rules = _rules(db)
+    n = 0
+    for t in db.query(Transaction).all():
+        if t.transfer_id or (t.category or "").strip():
+            continue
+        c = _categorize(t.payee, rules)
+        if c:
+            t.category = c
+            n += 1
+    db.commit()
+    return {"updated": n}
 
 
 # ── budgets (monthly spending caps per category) ──────────────────────────────
