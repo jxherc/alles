@@ -54,8 +54,9 @@ def search(db, query, kind=None, k: int = 5) -> list[dict]:
     if not rows:
         return []
     qv = _embed([query]) if query else None
+    use_vec = bool(qv and any(r.vec for r in rows))
     scored = []
-    if qv and any(r.vec for r in rows):
+    if use_vec:
         qvec = qv[0]
         for r in rows:
             if not r.vec:
@@ -69,10 +70,13 @@ def search(db, query, kind=None, k: int = 5) -> list[dict]:
         for r in rows:
             scored.append((_jaccard(query or "", r.text), r))
     scored.sort(key=lambda x: x[0], reverse=True)
+    # cosine has a high baseline (bge scores ~0.5 even for unrelated text), so ">0" would match
+    # everything — gate vector hits at a real relevance floor. keyword overlap (jaccard) keeps ">0".
+    floor = 0.6 if use_vec else 0.0
     return [
         {"kind": r.kind, "ref": r.ref, "chunk": r.text, "score": round(s, 4)}
         for s, r in scored[:k]
-        if s > 0
+        if s > floor
     ]
 
 
