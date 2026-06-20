@@ -37,7 +37,8 @@ def _embed(texts: list[str]) -> list[list[float]] | None:
     if not model:
         return None
     try:
-        return [list(v) for v in model.embed(texts)]
+        # cast to py float — fastembed yields numpy float32 which json.dumps chokes on
+        return [[float(x) for x in v] for v in model.embed(texts)]
     except Exception:
         return None
 

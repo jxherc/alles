@@ -8,7 +8,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 JS = (ROOT / "static" / "js" / "vaultmd.js").read_text(encoding="utf-8")
 CSS = (ROOT / "static" / "style.css").read_text(encoding="utf-8")
-CM = (ROOT / ".cmbuild" / "cm-entry.js").read_text(encoding="utf-8")
+# .cmbuild is a git-ignored build artifact — absent in CI; the columns test skips without it
+_CM_PATH = ROOT / ".cmbuild" / "cm-entry.js"
+CM = _CM_PATH.read_text(encoding="utf-8") if _CM_PATH.exists() else ""
 
 
 class DocsPanelToggles(unittest.TestCase):
@@ -59,6 +61,7 @@ class DocsPanelToggles(unittest.TestCase):
             self.assertIn(f"#wiki-{b}-btn.active", rule)
 
 
+@unittest.skipUnless(CM, ".cmbuild/cm-entry.js build artifact not present")
 class DocsColumns(unittest.TestCase):
     def test_columns_widget_in_cm_source(self):
         self.assertIn("class ColumnsWidget", CM)
