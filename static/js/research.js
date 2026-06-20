@@ -1,5 +1,5 @@
 import { mdToHtml } from './util.js';
-import { getActiveId, showMessages, scrollDown } from './sessions.js';
+import { ensureSession, showMessages, scrollDown } from './sessions.js';
 
 let _active = false;
 let _sessionId = null;
@@ -14,7 +14,7 @@ export function setResearchMode(on) {
 
 
 export async function runResearch(query) {
-  const sid = getActiveId();
+  const sid = await ensureSession();   // create a session on a fresh chat so research can run
   if (!sid) return;
   _sessionId = sid;
 
@@ -31,29 +31,33 @@ export async function runResearch(query) {
   const resRow = document.createElement('div');
   resRow.className = 'msg-row';
   resRow.innerHTML = `
-    <div class="research-card" id="research-card-${sid}">
+    <div class="research-card">
       <div class="research-header">
         <span class="research-label">
-          <span class="live-dot" id="research-dot"></span>
+          <span class="live-dot rs-dot"></span>
           researching
         </span>
-        <button class="act-btn" id="research-cancel-btn">cancel</button>
+        <button class="act-btn rs-cancel">cancel</button>
       </div>
-      <div class="research-steps" id="research-steps"></div>
-      <div class="research-report" id="research-report" style="display:none"></div>
-      <div class="research-stats" id="research-stats" style="display:none"></div>
-      <div class="research-sources" id="research-sources" style="display:none"></div>
+      <div class="research-steps rs-steps"><div class="research-step rs-warming">searching the web…</div></div>
+      <div class="research-report rs-report" style="display:none"></div>
+      <div class="research-stats rs-stats" style="display:none"></div>
+      <div class="research-sources rs-sources" style="display:none"></div>
     </div>`;
   container.appendChild(resRow);
   scrollDown();
 
-  const stepsEl   = document.getElementById('research-steps');
-  const reportEl  = document.getElementById('research-report');
-  const statsEl   = document.getElementById('research-stats');
-  const sourcesEl = document.getElementById('research-sources');
-  const dot       = document.getElementById('research-dot');
+  // scope every ref to THIS card (classes, not shared ids — a 2nd query must not write
+  // into the 1st card). a warming line keeps the card from looking blank while we wait.
+  const stepsEl   = resRow.querySelector('.rs-steps');
+  const reportEl  = resRow.querySelector('.rs-report');
+  const statsEl   = resRow.querySelector('.rs-stats');
+  const sourcesEl = resRow.querySelector('.rs-sources');
+  const dot       = resRow.querySelector('.rs-dot');
+  const cancelBtn = resRow.querySelector('.rs-cancel');
+  const clearWarming = () => resRow.querySelector('.rs-warming')?.remove();
 
-  document.getElementById('research-cancel-btn').addEventListener('click', () => {
+  cancelBtn.addEventListener('click', () => {
     fetch(`/api/research/${sid}/cancel`, { method: 'POST' }).catch(() => {});
   });
 
@@ -81,6 +85,8 @@ export async function runResearch(query) {
     });
 
     if (!r.ok) {
+      clearWarming();
+      dot.style.animation = 'none'; dot.style.opacity = '0.4';
       stepsEl.innerHTML += `<div class="research-step error">${escHtml(await r.text())}</div>`;
       return;
     }
@@ -105,6 +111,7 @@ export async function runResearch(query) {
         try { ev = JSON.parse(raw); } catch { continue; }
 
         if (ev.type === 'step') {
+          clearWarming();
           const s = document.createElement('div');
           s.className = 'research-step';
           s.textContent = ev.text;
@@ -120,6 +127,7 @@ export async function runResearch(query) {
 
         // kept for back-compat with the old engine's streamed shapes
         else if (ev.type === 'finding') {
+          clearWarming();
           const s = document.createElement('div');
           s.className = 'research-finding';
           s.textContent = '→ ' + ev.text;
@@ -127,6 +135,7 @@ export async function runResearch(query) {
           scrollDown();
         }
         else if (ev.type === 'report_delta') {
+          clearWarming();
           reportAccum += ev.text;
           reportEl.style.display = 'block';
           reportEl.innerHTML = mdToHtml(reportAccum);
@@ -134,11 +143,15 @@ export async function runResearch(query) {
         }
 
         else if (ev.type === 'done') {
+          clearWarming();
           dot.style.animation = 'none';
           dot.style.opacity = '0.4';
-          document.getElementById('research-cancel-btn').style.display = 'none';
+          cancelBtn.style.display = 'none';
           reportEl.style.display = 'block';
-          reportEl.innerHTML = mdToHtml(ev.report || reportAccum);
+          const finalReport = (ev.report || reportAccum).trim();
+          reportEl.innerHTML = finalReport
+            ? mdToHtml(finalReport)
+            : '<div class="research-step">no results — try rephrasing your question.</div>';
 
           if (ev.stats && Object.keys(ev.stats).length) {
             statsEl.style.display = 'block';
@@ -164,6 +177,8 @@ export async function runResearch(query) {
       }
     }
   } catch (e) {
+    clearWarming();
+    dot.style.animation = 'none'; dot.style.opacity = '0.4';
     stepsEl.innerHTML += `<div class="research-step error">${escHtml(e.message)}</div>`;
   }
 }

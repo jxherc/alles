@@ -58,3 +58,62 @@ class SettingsApiTest(ApiTest):
     def test_unknown_keys_ignored(self):
         self.client.patch("/api/settings", json={"totally_made_up_key": "x"})
         self.assertNotIn("totally_made_up_key", self.client.get("/api/settings").json())
+
+    def test_patch_notification_settings(self):
+        r = self.client.patch(
+            "/api/settings",
+            json={
+                "notify_discord_webhook": "https://discord.com/api/webhooks/123/abc",
+                "notify_on_agent_done": True,
+            },
+        )
+        self.assertEqual(r.status_code, 200)
+        s = self.client.get("/api/settings").json()
+        self.assertEqual(s["notify_discord_webhook"], "https://discord.com/api/webhooks/123/abc")
+        self.assertTrue(s["notify_on_agent_done"])
+
+    def test_patch_calendar_settings(self):
+        r = self.client.patch(
+            "/api/settings",
+            json={
+                "cal_default_view": "week",
+                "cal_week_start": "mon",
+                "cal_default_duration_min": 60,
+            },
+        )
+        self.assertEqual(r.status_code, 200)
+        s = self.client.get("/api/settings").json()
+        self.assertEqual(s["cal_default_view"], "week")
+        self.assertEqual(s["cal_week_start"], "mon")
+        self.assertEqual(s["cal_default_duration_min"], 60)
+
+    def test_patch_multiple_writes_accumulate(self):
+        # two separate patches both stick — second doesn't erase first
+        self.client.patch("/api/settings", json={"username": "alice"})
+        self.client.patch("/api/settings", json={"theme": "light"})
+        s = self.client.get("/api/settings").json()
+        self.assertEqual(s["username"], "alice")
+        self.assertEqual(s["theme"], "light")
+
+    def test_patch_bool_flags(self):
+        self.client.patch(
+            "/api/settings",
+            json={"memory_auto_inject": True, "tts_auto_play": False, "auto_compact": True},
+        )
+        s = self.client.get("/api/settings").json()
+        self.assertTrue(s["memory_auto_inject"])
+        self.assertFalse(s["tts_auto_play"])
+        self.assertTrue(s["auto_compact"])
+
+    def test_patch_agent_permission_mode(self):
+        self.client.patch("/api/settings", json={"agent_permission_mode": "approve"})
+        s = self.client.get("/api/settings").json()
+        self.assertEqual(s["agent_permission_mode"], "approve")
+
+    def test_options_endpoint(self):
+        r = self.client.get("/api/automations/options")
+        self.assertEqual(r.status_code, 200)
+        d = r.json()
+        self.assertIn("triggers", d)
+        self.assertIn("actions", d)
+        self.assertGreater(len(d["triggers"]), 0)

@@ -48,6 +48,53 @@ class FilesStoreTests(unittest.TestCase):
         names = [i["name"] for i in fs.listdir("")["items"]]
         self.assertIn("sneaky.txt", names)  # the ../ was stripped
 
+    def test_read_binary_returns_not_text(self):
+        fs.save_upload("", "img.png", b"\x89PNG\r\n\x1a\n\x00\x00\x00")
+        r = fs.read_text("img.png")
+        self.assertFalse(r["is_text"])
+        self.assertEqual(r["content"], "")
+
+    def test_rename_moves_across_dirs(self):
+        fs.mkdir("src_dir")
+        fs.mkdir("dst_dir")
+        fs.save_upload("src_dir", "file.txt", b"data")
+        fs.rename("src_dir/file.txt", "dst_dir/file.txt")
+        self.assertEqual(fs.listdir("src_dir")["items"], [])
+        self.assertEqual(fs.listdir("dst_dir")["items"][0]["name"], "file.txt")
+
+    def test_listdir_dirs_float_to_top(self):
+        fs.mkdir("zzz_dir")
+        fs.save_upload("", "aaa.txt", b"x")
+        items = fs.listdir("")["items"]
+        types = [i["type"] for i in items]
+        # all dirs come before files
+        last_dir = max((idx for idx, t in enumerate(types) if t == "dir"), default=-1)
+        first_file = min((idx for idx, t in enumerate(types) if t == "file"), default=99)
+        self.assertLess(last_dir, first_file)
+
+    def test_search_by_name_and_content(self):
+        fs.save_upload("", "match_me.txt", b"something unrelated")
+        fs.save_upload("", "other.txt", b"this has the magic word xyzzy in it")
+        r = fs.search("match_me")
+        names = [e["name"] for e in r["results"]]
+        self.assertIn("match_me.txt", names)
+        r2 = fs.search("xyzzy")
+        names2 = [e["name"] for e in r2["results"]]
+        self.assertIn("other.txt", names2)
+
+    def test_search_empty_query_returns_empty(self):
+        fs.save_upload("", "file.txt", b"content")
+        r = fs.search("")
+        self.assertEqual(r["results"], [])
+
+    def test_smart_images_only_images(self):
+        fs.save_upload("", "photo.png", b"fakepng")
+        fs.save_upload("", "readme.txt", b"text")
+        r = fs.smart("images")
+        names = [e["name"] for e in r["items"]]
+        self.assertIn("photo.png", names)
+        self.assertNotIn("readme.txt", names)
+
 
 if __name__ == "__main__":
     unittest.main()

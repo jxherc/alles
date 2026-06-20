@@ -3,7 +3,7 @@ import {
   appendUserMsg, createStreamingAiRow, scrollDown,
   showMessages, updateSessionName, createSession, getActiveId, markActive,
 } from './sessions.js';
-import { getSelected, getCurrentEndpoint, isImageSelected } from './models.js';
+import { getSelected, getCurrentEndpoint, isImageSelected, getImageSlot } from './models.js';
 import { openArtifact, extractArtifacts, stripArtifacts } from './artifacts.js';
 import { getAttachments, clearAttachments } from './uploads.js';
 import { isIncognitoMode, getPermMode, getEffort } from './modes.js';
@@ -117,8 +117,11 @@ export async function sendMessage(text) {
   const sel = getSelected();
   if (!sel) { toast('select a model first', 'error'); return; }
 
-  // image model picked → generate an image instead of chatting
-  if (isImageSelected()) { _sendImage(text, sessionId, freshSession); return; }
+  // image model picked as the primary → generate (legacy single-pick path)
+  if (isImageSelected()) { _sendImage(text, sessionId, freshSession, getSelected()); return; }
+  // companion image slot set + the message reads like an image request → route to it
+  const imgSlot = getImageSlot();
+  if (imgSlot && _looksLikeImageRequest(text)) { _sendImage(text, sessionId, freshSession, imgSlot); return; }
 
   showMessages();
   appendUserMsg(text);
@@ -654,10 +657,22 @@ export function stopStream() {
 }
 
 
+// rough "is the user asking for a picture" check — only used to auto-route a chat turn to the
+// companion image slot. conservative on purpose: an explicit /image|/draw lead-in, or a
+// generation verb paired with a visual noun. plain chat must NOT trip it.
+function _looksLikeImageRequest(t) {
+  const s = String(t).toLowerCase().trim();
+  if (/^\/(image|img|draw|gen)\b/.test(s)) return true;
+  if (/^(draw|sketch|paint|render|imagine)\b/.test(s)) return true;
+  return /\b(draw|generate|create|make|render|paint|design|produce)\b[^.!?]*\b(image|picture|pic|photo|drawing|art|artwork|illustration|logo|icon|wallpaper|poster|painting|portrait|render)\b/.test(s);
+}
+
 // image-gen turn: same chat thread, but hit the image endpoint. backend saves the
 // pic to the gallery + a document and persists the turn, so it survives a reload.
-async function _sendImage(prompt, sessionId, fresh) {
-  const sel = getSelected();
+// `target` is {endpointId, model} — the primary (legacy) or the companion image slot.
+async function _sendImage(prompt, sessionId, fresh, target) {
+  const sel = target || getSelected();
+  prompt = prompt.replace(/^\/(image|img|draw|gen)\s+/i, '');   // drop the slash lead-in if any
   showMessages();
   appendUserMsg(prompt);
   clearAttachments();

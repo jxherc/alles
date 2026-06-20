@@ -1,0 +1,8 @@
+PASS  rules_panel_opens
+PASS  add_rule
+PASS  rule_persists_reload
+PASS  run_rules
+PASS  vacation_saves
+PASS  delete_rule
+PASS  smart_suggest_graceful
+PASS  zero_console_errors

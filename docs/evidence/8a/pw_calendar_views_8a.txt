@@ -1,0 +1,8 @@
+PASS  agenda_year_buttons
+PASS  secondary_tz_shows
+PASS  agenda_view_renders
+PASS  year_view_renders
+PASS  working_hours_shaded
+PASS  subscription_add
+PASS  subscription_lists
+PASS  zero_console_errors

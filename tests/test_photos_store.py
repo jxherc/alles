@@ -54,6 +54,45 @@ class PhotosStoreTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             ps._safe("../../secret")
 
+    def test_jpeg_ext_normalized_to_jpg(self):
+        info = ps.import_image(_png(), "photo.jpeg")
+        self.assertTrue(info["filename"].endswith(".jpg"))
+
+    def test_import_gif(self):
+        buf = io.BytesIO()
+        from PIL import Image
+
+        Image.new("P", (10, 10), 0).save(buf, "GIF")
+        info = ps.import_image(buf.getvalue(), "anim.gif")
+        self.assertTrue(info["filename"].endswith(".gif"))
+        self.assertTrue(ps.original_path(info["filename"]).is_file())
+
+    def test_delete_missing_files_is_silent(self):
+        # should not raise even if files don't exist
+        ps.delete_files("nonexistent_" + "x" * 32 + ".jpg", "nonexistent_thumb.jpg")
+
+    def test_original_path_resolves_inside_dir(self):
+        info = ps.import_image(_png(), "test.png")
+        p = ps.original_path(info["filename"])
+        base = ps.photos_dir()
+        self.assertTrue(p.is_relative_to(base))
+
+    def test_collage_single_image(self):
+        info = ps.import_image(_png(size=(100, 100)), "col.png")
+        orig = ps.original_path(info["filename"])
+        result = ps.make_collage([orig], cols=1, cell=100)
+        self.assertIsInstance(result, bytes)
+        self.assertTrue(len(result) > 0)
+
+    def test_import_video_stored_as_is(self):
+        data = b"\x00\x00\x00\x20ftyp"  # fake mp4 header
+        info = ps.import_video(data, "clip.mp4")
+        self.assertTrue(info["filename"].endswith(".mp4"))
+        self.assertEqual(info["thumb"], "")
+        self.assertTrue(info["is_video"])
+        p = ps.original_path(info["filename"])
+        self.assertTrue(p.is_file())
+
 
 if __name__ == "__main__":
     unittest.main()

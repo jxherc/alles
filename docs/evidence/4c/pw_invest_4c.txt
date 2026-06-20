@@ -1,0 +1,8 @@
+PASS  forecast_stat_shows
+PASS  networth_graph_renders
+PASS  alerts_strip_shows
+PASS  holding_add_shows_value
+PASS  holding_gain_colored
+PASS  holding_remove
+PASS  dashboard_hide_persists
+PASS  zero_console_errors

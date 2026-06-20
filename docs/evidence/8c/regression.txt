@@ -1,0 +1,16 @@
+PASS  apex       errors=0
+PASS  aide       errors=0
+PASS  mail       errors=0
+PASS  docs       errors=0
+PASS  gallery    errors=0
+PASS  calendar   errors=0
+PASS  tasks      errors=0
+PASS  subs       errors=0
+PASS  money      errors=0
+PASS  days       errors=0
+PASS  journal    errors=0
+PASS  activity   errors=0
+PASS  system     errors=0
+PASS  files      errors=0
+PASS  contacts   errors=0
+PASS  secrets    errors=0

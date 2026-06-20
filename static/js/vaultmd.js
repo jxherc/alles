@@ -7,9 +7,14 @@
 // directly (no lossy round-trip), so a save can never corrupt the file.
 import { mdToHtml, toast, enhanceMarkdown, api } from './util.js';
 import { prompt as dlgPrompt, confirm as dlgConfirm } from './dialog.js';
+import { initCanvas, openCanvas, setCanvasNoteOpener } from './canvas.js';
 
 let _cur = null;
 let _saveT = 0;
+let _hoverT = 0;
+let _bookmarks = [];
+let _tabs = [];
+let _split = false, _splitDoc = null;
 let _inited = false;
 let _sortMode = localStorage.getItem('docs-sort') || 'name';   // 'name' | 'recent'
 
@@ -164,7 +169,148 @@ function wrapSel(pre, suf) { _liveFmt() ? _cm.wrap(pre, suf) : taWrap(pre, suf);
 function toggleLinePrefix(p) { _liveFmt() ? _cm.linePrefix(p) : taLinePrefix(p); }
 function insertBlock(s) { _liveFmt() ? _cm.insertBlock(s) : taBlock(s); }
 function insertLink() { wrapSel('[', '](url)'); }
-function insertImage() { wrapSel('![', '](url)'); }
+// img toolbar button → small dialog: paste a URL or upload a file from the device.
+// url → ![](url); upload → ![[asset]] (goes through the same vault asset route as paste/drop)
+function openImageDialog(btn) {
+  document.getElementById('wiki-img-pop')?.remove();
+  if (!_cur) { toast('open a doc first', 'error'); return; }
+  const pop = document.createElement('div');
+  pop.id = 'wiki-img-pop'; pop.className = 'wiki-menu-pop wiki-img-pop';
+  pop.innerHTML = `<input id="wiki-img-url" type="text" placeholder="paste image URL…" autocomplete="off">
+    <div class="wip-actions">
+      <button id="wiki-img-insert" class="wmp-item wip-primary">insert</button>
+      <button id="wiki-img-upload" class="wmp-item">upload from device</button>
+    </div>
+    <input id="wiki-img-file" type="file" accept="image/*" hidden>`;
+  document.body.appendChild(pop);
+  const r = (btn || $('docs-toolbar')).getBoundingClientRect();
+  pop.style.left = Math.min(r.left, window.innerWidth - 290) + 'px';
+  pop.style.top = (r.bottom + 5) + 'px';
+  const url = pop.querySelector('#wiki-img-url');
+  url.focus();
+  const close = () => pop.remove();
+  const doUrl = () => { const v = url.value.trim(); if (!v) { toast('enter an image url', 'error'); return; } insertBlock(`![](${v})`); close(); };
+  pop.querySelector('#wiki-img-insert').addEventListener('click', doUrl);
+  url.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); doUrl(); } else if (e.key === 'Escape') close(); });
+  const file = pop.querySelector('#wiki-img-file');
+  pop.querySelector('#wiki-img-upload').addEventListener('click', () => file.click());
+  file.addEventListener('change', async () => {
+    const f = file.files?.[0]; if (!f) return;
+    try { const path = await uploadImage(f); insertBlock(`![[${path}]]`); } catch {}
+    close();
+  });
+  setTimeout(() => document.addEventListener('mousedown', function h(ev) { if (!pop.contains(ev.target) && ev.target !== btn) { close(); document.removeEventListener('mousedown', h); } }), 0);
+}
+
+// ── docs settings (3t): AI status + which model the docs AI uses ─────────────
+async function openDocsSettings(btn) {
+  document.getElementById('wiki-docs-settings-pop')?.remove();
+  const [eps, settings] = await Promise.all([
+    fetch('/api/models').then(r => r.json()).catch(() => []),
+    fetch('/api/settings').then(r => r.json()).catch(() => ({})),
+  ]);
+  const models = [];
+  (eps || []).forEach(ep => (ep.models || []).forEach(m => models.push({ ep: ep.name || ep.base_url, model: m })));
+  const cur = (settings.docs_ai_model || '').trim();
+  const ready = models.length > 0;
+  const usingModel = (ready && cur && models.some(m => m.model === cur)) ? cur : (models[0]?.model || '');
+  const pop = document.createElement('div');
+  pop.id = 'wiki-docs-settings-pop'; pop.className = 'wiki-menu-pop wiki-docs-settings-pop';
+  pop.innerHTML = `<div class="wds-title">docs settings</div>
+    <div class="wds-status ${ready ? 'ok' : 'off'}"><span class="wds-dot"></span>${ready ? `AI ready · using <b>${esc(usingModel || '—')}</b>` : 'no model — add one in settings → models'}</div>
+    <div class="wds-label">AI model for docs (rewrite / ask / to-dos)</div>
+    <div class="wds-models">${ready
+      ? models.map(m => `<button class="wds-model${m.model === usingModel ? ' on' : ''}" data-m="${esc(m.model)}"><span class="wds-m-name">${esc(m.model)}</span><span class="wds-m-ep">${esc(m.ep)}</span></button>`).join('')
+      : '<div class="wmp-empty">connect a model endpoint in the main settings first</div>'}</div>`;
+  document.body.appendChild(pop);
+  const r = btn.getBoundingClientRect();
+  pop.style.left = Math.max(8, Math.min(r.left, window.innerWidth - 280)) + 'px';
+  pop.style.top = (r.bottom + 5) + 'px';
+  pop.querySelectorAll('.wds-model').forEach(b => b.addEventListener('click', async () => {
+    await fetch('/api/settings', { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ docs_ai_model: b.dataset.m }) });
+    pop.querySelectorAll('.wds-model').forEach(x => x.classList.toggle('on', x === b));
+    pop.querySelector('.wds-status b') && (pop.querySelector('.wds-status b').textContent = b.dataset.m);
+    toast('docs AI model set', 'success');
+  }));
+  setTimeout(() => document.addEventListener('mousedown', function h(ev) { if (!pop.contains(ev.target) && ev.target !== btn) { pop.remove(); document.removeEventListener('mousedown', h); } }), 0);
+}
+
+// ── custom right-click menu (3i): cut/copy/paste, format, headings, AI on selection ──
+function _docSel() {
+  if (_docsMode === 'live' && _cm) {
+    const r = _cm.view.state.selection.main;
+    return { text: _cm.view.state.sliceDoc(r.from, r.to), from: r.from, to: r.to };
+  }
+  const ta = $('wiki-source');
+  if (ta) return { text: ta.value.slice(ta.selectionStart, ta.selectionEnd), from: ta.selectionStart, to: ta.selectionEnd };
+  return { text: '', from: 0, to: 0 };
+}
+function _docRestoreSel(sel) {
+  if (_docsMode === 'live' && _cm) { _cm.view.dispatch({ selection: { anchor: sel.from, head: sel.to } }); _cm.view.focus(); }
+}
+function _docReplaceSel(sel, text) {
+  if (_docsMode === 'live' && _cm) {
+    _cm.view.dispatch({ changes: { from: sel.from, to: sel.to, insert: text }, selection: { anchor: sel.from + text.length } });
+    _cm.view.focus();
+  } else {
+    const ta = $('wiki-source'); if (!ta) return;
+    ta.setRangeText(text, sel.from, sel.to, 'end'); ta.dispatchEvent(new Event('input')); ta.focus();
+  }
+}
+async function _docPaste(sel) {
+  try { const t = await navigator.clipboard.readText(); if (t) _docReplaceSel(sel, t); }
+  catch { toast('paste needs clipboard access', 'error'); }
+}
+async function _aiSnippet(action, sel) {
+  if (!sel.text.trim()) { toast('select some text first', 'error'); return; }
+  toast(`ai ${action}…`, '');
+  try {
+    const r = await fetch('/api/vault-md/ai-snippet', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text: sel.text, action }) });
+    if (!r.ok) { toast('ai unavailable — add a model in settings', 'error'); return; }
+    const d = await r.json();
+    if (d.text) { _docReplaceSel(sel, d.text); toast('done', 'success'); }
+    else toast('ai returned nothing', 'error');
+  } catch { toast('ai failed', 'error'); }
+}
+function openDocsContextMenu(e) {
+  e.preventDefault();
+  document.getElementById('docs-ctx')?.remove();
+  const sel = _docSel();
+  const has = !!sel.text.trim();
+  const menu = document.createElement('div');
+  menu.id = 'docs-ctx'; menu.className = 'ctx-menu docs-ctx';
+  const it = (act, label, dis) => `<div class="ctx-item${dis ? ' ctx-dis' : ''}" data-act="${act}">${label}</div>`;
+  menu.innerHTML =
+    it('cut', 'cut', !has) + it('copy', 'copy', !has) + it('paste', 'paste') +
+    '<div class="ctx-sep"></div>' +
+    it('bold', 'bold') + it('italic', 'italic') + it('code', 'code') + it('link', 'link') +
+    '<div class="ctx-sep"></div>' +
+    it('h1', 'heading 1') + it('h2', 'heading 2') +
+    '<div class="ctx-sep"></div><div class="ctx-label">ai</div>' +
+    it('ai-rewrite', 'rewrite', !has) + it('ai-summarize', 'summarize', !has) + it('ai-fix', 'fix grammar', !has);
+  document.body.appendChild(menu);
+  menu.style.left = Math.min(e.clientX, window.innerWidth - 190) + 'px';
+  menu.style.top = Math.min(e.clientY, window.innerHeight - menu.offsetHeight - 8) + 'px';
+  const close = () => menu.remove();
+  menu.querySelectorAll('.ctx-item:not(.ctx-dis)').forEach(b => b.addEventListener('mousedown', ev => {
+    ev.preventDefault();
+    const act = b.dataset.act; close();
+    if (act === 'cut') document.execCommand('cut');
+    else if (act === 'copy') document.execCommand('copy');
+    else if (act === 'paste') _docPaste(sel);
+    else if (act.startsWith('ai-')) _aiSnippet(act.slice(3), sel);
+    else {
+      _docRestoreSel(sel);
+      if (act === 'bold') wrapSel('**', '**');
+      else if (act === 'italic') wrapSel('*', '*');
+      else if (act === 'code') wrapSel('`', '`');
+      else if (act === 'link') insertLink();
+      else if (act === 'h1') toggleLinePrefix('# ');
+      else if (act === 'h2') toggleLinePrefix('## ');
+    }
+  }));
+  setTimeout(() => document.addEventListener('mousedown', function h(ev) { if (!menu.contains(ev.target)) { close(); document.removeEventListener('mousedown', h); } }), 0);
+}
 function insertWiki() { wrapSel('[[', ']]'); }
 
 // textarea (source mode) editing helpers
@@ -269,11 +415,13 @@ const _FMT = {
   h1: () => toggleLinePrefix('# '), h2: () => toggleLinePrefix('## '), h3: () => toggleLinePrefix('### '),
   bullet: () => toggleLinePrefix('- '), olist: () => toggleLinePrefix('1. '), check: () => toggleLinePrefix('- [ ] '),
   quote: () => toggleLinePrefix('> '),
-  link: () => insertLink(), image: () => insertImage(), wiki: () => insertWiki(),
-  hr: () => insertBlock('---'),
+  link: () => insertLink(), image: (b) => openImageDialog(b), wiki: () => insertWiki(),
+  hr: () => insertBlock('\n---\n'),   // blank line before so '---' is a divider, not a setext heading
   table: () => insertBlock('| {}col 1 | col 2 |\n| --- | --- |\n| a | b |'),
   codeblock: () => insertBlock('```\n{}\n```'),
   callout: () => insertBlock('> [!note] {}title\n> body'),
+  toggle: () => insertBlock('> [!toggle] {}title\n> hidden body'),
+  columns: () => insertBlock('::: columns\n{}left column\n+++\nright column\n:::'),
   math: () => insertBlock('$$\n{}\n$$'),
   mermaid: () => insertBlock('```mermaid\ngraph TD;\n  {}A --> B\n```'),
 };
@@ -283,13 +431,14 @@ function initDocsToolbar() {
   if (!bar || _toolbarInited) return;
   _toolbarInited = true;
   bar.querySelectorAll('.dt-btn[data-fmt]').forEach(b =>
-    b.addEventListener('mousedown', e => { e.preventDefault(); _FMT[b.dataset.fmt]?.(); }));
+    b.addEventListener('mousedown', e => { e.preventDefault(); _FMT[b.dataset.fmt]?.(b); }));
   $('dt-color-btn')?.addEventListener('mousedown', e => { e.preventDefault(); _toggleColorPalette(e.currentTarget); });
 }
 
 export function initVault() {
   if (_inited) { loadTree(); return; }
   _inited = true;
+  _loadBookmarks().then(_paintHome);
   $('wiki-view')?.classList.add('tree-hidden');   // sidebar always starts closed in a doc — open it with the ☰ toggle
   $('wiki-tree-toggle')?.addEventListener('click', () => {
     const hidden = $('wiki-view')?.classList.toggle('tree-hidden');
@@ -324,10 +473,29 @@ export function initVault() {
   $('wiki-outline-btn')?.addEventListener('click', toggleOutline);
   $('wiki-props-btn')?.addEventListener('click', toggleProps);
   $('wiki-query-btn')?.addEventListener('click', toggleQuery);
-  $('wiki-board-btn')?.addEventListener('click', openBoard);
+  $('wiki-ask-btn')?.addEventListener('click', toggleAsk);
+  $('wiki-ask-go')?.addEventListener('click', runAsk);
+  $('wiki-ask-input')?.addEventListener('keydown', e => { if (e.key === 'Enter') runAsk(); });
+  $('wiki-comments-btn')?.addEventListener('click', toggleComments);
+  $('wiki-preview')?.addEventListener('mouseup', _onDocSelect);
+  $('wiki-live')?.addEventListener('mouseup', _onDocSelect);   // 3m: comment from a live-mode selection too
+  $('wiki-comment-fab')?.addEventListener('mousedown', e => { e.preventDefault(); _addCommentFromSelection(); });
+  $('wiki-base-btn')?.addEventListener('click', toggleBase);
+  initCanvas();
+  setCanvasNoteOpener(openByName);
+  // canvas / board / tasks live on the docs HOME now (3k), not the in-doc toolbar
+  $('wiki-home-canvas')?.addEventListener('click', async () => {
+    const name = await dlgPrompt('canvas name:', 'board');
+    if (name) openCanvas(name);
+  });
+  { const cv = new URLSearchParams(location.search).get('canvas'); if (cv) setTimeout(() => openCanvas(cv), 300); }
+  $('wiki-split-btn')?.addEventListener('click', toggleSplit);
+  _initSplitDivider();
+  _restoreTabs();
+  $('wiki-home-board')?.addEventListener('click', openBoard);
   $('wiki-board-close')?.addEventListener('click', () => { $('wiki-board').style.display = 'none'; });
-  $('wiki-todos-btn')?.addEventListener('click', extractTodos);
-  $('wiki-taskroll-btn')?.addEventListener('click', toggleTaskRoll);
+  $('wiki-todos-btn')?.addEventListener('click', e => openTodosExplainer(e.currentTarget));
+  $('wiki-home-tasks')?.addEventListener('click', toggleTaskRoll);
   $('wiki-history-btn')?.addEventListener('click', toggleHistory);
   _syncSortBtn();
   // docs-scoped shortcuts: Ctrl/Cmd+O quick switcher, Ctrl/Cmd+F find (live mode)
@@ -348,11 +516,7 @@ export function initVault() {
   });
   let _gfT = 0;
   $('wiki-graph-filter')?.addEventListener('input', () => { clearTimeout(_gfT); _gfT = setTimeout(fetchGraph, 200); });
-  $('wiki-help-btn')?.addEventListener('click', () => {
-    const h = $('wiki-help');
-    if (h) h.style.display = h.style.display === 'none' ? 'block' : 'none';
-  });
-  $('wiki-help-close')?.addEventListener('click', () => { $('wiki-help').style.display = 'none'; });
+  $('wiki-docs-settings')?.addEventListener('click', e => openDocsSettings(e.currentTarget));
   let _searchT = 0;
   $('wiki-search')?.addEventListener('input', e => {
     clearTimeout(_searchT);
@@ -364,9 +528,36 @@ export function initVault() {
     const a = e.target.closest('.wikilink');
     if (a) { e.preventDefault(); openByName(a.dataset.note); }
   });
+  // hover preview of a linked note (2a)
+  $('wiki-preview')?.addEventListener('mouseover', e => {
+    const a = e.target.closest('.wikilink');
+    if (!a || !a.dataset.note) return;
+    clearTimeout(_hoverT);
+    _hoverT = setTimeout(() => showLinkPreview(a), 350);
+  });
+  $('wiki-preview')?.addEventListener('mouseout', e => {
+    if (e.target.closest('.wikilink')) { clearTimeout(_hoverT); hideLinkPreview(); }
+  });
+  // live-editor links (3e): single click edits (CM default); ⌘/ctrl-click opens; hover shows the target
+  $('wiki-live')?.addEventListener('mousedown', e => {
+    const a = e.target.closest('a.cm-link, .wikilink');
+    if (a && (e.metaKey || e.ctrlKey)) {
+      e.preventDefault(); e.stopPropagation();
+      if (a.classList.contains('wikilink') && a.dataset.note) openByName(a.dataset.note);
+      else if (a.getAttribute('href')) window.open(a.getAttribute('href'), '_blank', 'noopener');
+    }
+  }, true);
+  $('wiki-live')?.addEventListener('mouseover', e => {
+    const a = e.target.closest('a.cm-link'); if (!a) return;
+    clearTimeout(_hoverT); _hoverT = setTimeout(() => showUrlTip(a), 280);
+  });
+  $('wiki-live')?.addEventListener('mouseout', e => {
+    if (e.target.closest('a.cm-link')) { clearTimeout(_hoverT); hideUrlTip(); }
+  });
+  $('wiki-live')?.addEventListener('contextmenu', openDocsContextMenu);
+  $('wiki-source')?.addEventListener('contextmenu', openDocsContextMenu);
   $('wiki-empty-new')?.addEventListener('click', newNote);
   $('wiki-empty-today')?.addEventListener('click', openDaily);
-  $('wiki-empty-guide')?.addEventListener('click', () => { const h = $('wiki-help'); if (h) h.style.display = 'block'; });
   $('wiki-ai-send')?.addEventListener('click', aiEdit);
   $('wiki-ai-input')?.addEventListener('keydown', e => { if (e.key === 'Enter') aiEdit(); });
 
@@ -511,14 +702,31 @@ function _paintHome() {
     el.innerHTML = `<div class="docs-home-empty">${q ? 'no docs match' : 'no docs yet — make one with + new doc'}</div>`;
     return;
   }
-  el.innerHTML = docs.map(f => {
+  let head = '';
+  if (!q && _bookmarks.length) {
+    head = `<div class="docs-bookmarks" id="docs-bookmarks"><div class="docs-bookmarks-label">★ bookmarks</div>`
+      + _bookmarks.map(b => `<button class="docs-bm" data-path="${esc(b.path)}">${esc(b.title || b.path)}</button>`).join('')
+      + `</div>`;
+  }
+  el.innerHTML = head + docs.map(f => {
     const folder = f.path.includes('/') ? f.path.slice(0, f.path.lastIndexOf('/')) : '';
     const meta = [folder, _fmtDate(f.mtime)].filter(Boolean).join(' · ');
-    return `<button class="docs-card" data-path="${esc(f.path)}">${_DOC_ICON}
+    const star = _isBookmarked(f.path) ? '★' : '☆';
+    return `<div class="docs-card" data-path="${esc(f.path)}">${_DOC_ICON}
       <span class="docs-card-title">${esc(f.name)}</span>
-      <span class="docs-card-meta">${esc(meta)}</span></button>`;
+      <span class="docs-card-meta">${esc(meta)}</span>
+      <button class="docs-card-star${_isBookmarked(f.path) ? ' on' : ''}" data-bm="${esc(f.path)}" title="bookmark">${star}</button></div>`;
   }).join('');
-  el.querySelectorAll('.docs-card').forEach(b => b.addEventListener('click', () => openFile(b.dataset.path)));
+  el.querySelectorAll('.docs-card').forEach(c => c.addEventListener('click', e => {
+    if (e.target.closest('.docs-card-star')) return;   // star handled separately
+    openFile(c.dataset.path);
+  }));
+  el.querySelectorAll('.docs-bm').forEach(b => b.addEventListener('click', () => openFile(b.dataset.path)));
+  el.querySelectorAll('.docs-card-star').forEach(s => s.addEventListener('click', async e => {
+    e.stopPropagation();
+    await _bookmarkPath(s.dataset.bm);
+    _paintHome();   // repaint so the star + bookmarks strip update
+  }));
 }
 
 function _fileRow(f) {
@@ -564,10 +772,44 @@ async function loadTags() {
   if (!el) return;
   try {
     const d = await fetch('/api/vault-md/tags').then(r => r.json());
-    el.innerHTML = (d.tags || []).map(t =>
-      `<span class="wiki-tag${t.tag === _activeTag ? ' active' : ''}" data-tag="${esc(t.tag)}">#${esc(t.tag)} <em>${t.count}</em></span>`).join('');
+    el.innerHTML = _renderTagTree(d.tags || []);
     el.querySelectorAll('.wiki-tag').forEach(t => t.addEventListener('click', () => filterByTag(t.dataset.tag)));
+    el.querySelectorAll('.wiki-tag-toggle').forEach(tg => tg.addEventListener('click', e => {
+      e.stopPropagation();
+      tg.closest('.wiki-tag-node')?.classList.toggle('collapsed');
+      tg.textContent = tg.closest('.wiki-tag-node')?.classList.contains('collapsed') ? '▸' : '▾';
+    }));
   } catch {}
+}
+
+// nest #a/b/c tags into a collapsible tree (2a)
+function _tagTree(tags) {
+  const root = { children: {}, count: 0, full: '' };
+  for (const { tag, count } of tags) {
+    let node = root, acc = '';
+    const parts = String(tag).split('/');
+    parts.forEach((p, i) => {
+      acc = acc ? acc + '/' + p : p;
+      node.children[p] = node.children[p] || { children: {}, count: 0, full: acc };
+      node = node.children[p];
+      if (i === parts.length - 1) node.count = count;
+    });
+  }
+  return root;
+}
+function _tagNodeHtml(name, node, depth) {
+  const kids = Object.entries(node.children);
+  const pad = `style="padding-left:${depth * 0.7}rem"`;
+  let h = '<div class="wiki-tag-node">';
+  h += `<span class="wiki-tag${node.full === _activeTag ? ' active' : ''}" data-tag="${esc(node.full)}" ${pad}>`;
+  if (kids.length) h += '<span class="wiki-tag-toggle">▾</span> ';
+  h += `#${esc(name)}${node.count ? ` <em>${node.count}</em>` : ''}</span>`;
+  if (kids.length) h += '<div class="wiki-tag-children">' + kids.map(([n, c]) => _tagNodeHtml(n, c, depth + 1)).join('') + '</div>';
+  return h + '</div>';
+}
+function _renderTagTree(tags) {
+  const root = _tagTree(tags);
+  return Object.entries(root.children).map(([n, c]) => _tagNodeHtml(n, c, 0)).join('');
 }
 
 async function filterByTag(tag) {
@@ -703,7 +945,11 @@ function _wireRow(row, kind) {
     } else {
       if (!await dlgConfirm(`delete ${kind} "${path}"?`)) return;
       await fetch(`/api/vault-md/file?path=${encodeURIComponent(path)}`, { method: 'DELETE' });
+      // 3q: drop the deleted file (or everything under a deleted folder) from open tabs
+      _tabs = _tabs.filter(x => x !== path && !x.startsWith(path + '/'));
+      _persistTabs();
       if (_cur && (_cur === path || _cur.startsWith(path + '/'))) _resetEditor();
+      renderTabs();
       loadTree();
     }
   }));
@@ -741,11 +987,142 @@ async function openFile(path) {
     setEditor(d.content || '');
     const currentLabel = $('wiki-current');
     if (currentLabel) currentLabel.textContent = _cur.replace(/\.md$/, '');
+    _addTab(_cur);
+    if (_split) renderSplit();
     loadBacklinks();
+    loadComments();  // refresh anchors + thread count for this doc (3e)
     document.querySelectorAll('.wiki-file').forEach(f => f.classList.toggle('active', f.dataset.path === _cur));
     if (_docsMode === 'live') { _cm?.view.requestMeasure(); _cm?.focus(); }
     else if (_docsMode === 'source') $('wiki-source')?.focus();
   } catch { toast('failed to open doc', 'error'); }
+}
+
+// ── tabs, split (2e) ──────────────────────────────────────────────────────────
+function _restoreTabs() {
+  try { _tabs = JSON.parse(localStorage.getItem('docs-tabs') || '[]'); } catch { _tabs = []; }
+  renderTabs();
+}
+function _persistTabs() { try { localStorage.setItem('docs-tabs', JSON.stringify(_tabs)); } catch {} }
+function _addTab(path) { if (path && !_tabs.includes(path)) { _tabs.push(path); _persistTabs(); } renderTabs(); }
+function renderTabs() {
+  const el = $('wiki-tabs'); if (!el) return;
+  el.innerHTML = _tabs.map(p =>
+    `<span class="wiki-tab${p === _cur ? ' active' : ''}" data-path="${esc(p)}"><span class="wiki-tab-name">${esc(p.replace(/\.md$/, '').split('/').pop())}</span><span class="wiki-tab-close" data-close="${esc(p)}">×</span></span>`).join('');
+  el.querySelectorAll('.wiki-tab-name').forEach(t => t.addEventListener('click', () => openFile(t.closest('.wiki-tab').dataset.path)));
+  el.querySelectorAll('.wiki-tab-close').forEach(c => c.addEventListener('click', e => { e.stopPropagation(); closeTab(c.dataset.close); }));
+}
+function closeTab(path) {
+  _tabs = _tabs.filter(p => p !== path); _persistTabs();
+  if (_cur === path) { if (_tabs.length) openFile(_tabs[_tabs.length - 1]); else { _resetEditor(); renderTabs(); } }
+  else renderTabs();
+}
+function toggleSplit() {
+  _split = !_split;
+  $('wiki-view')?.classList.toggle('split-on', _split);
+  $('wiki-split-btn')?.classList.toggle('active', _split);
+  if (_split) { openSplitPicker(); } else { _splitDoc = null; }
+}
+// pick which doc loads on the other side — scope to open tabs or all docs
+function openSplitPicker(scope) {
+  document.getElementById('split-picker')?.remove();
+  scope = scope || 'all';
+  const open = _tabs.filter(p => p !== _cur);
+  const all = (_homeDocs || []).map(f => f.path).filter(p => p !== _cur);
+  const list = scope === 'open' ? open : all;
+  const pop = document.createElement('div');
+  pop.id = 'split-picker'; pop.className = 'wiki-menu-pop split-picker';
+  pop.innerHTML =
+    `<div class="sp-scope"><button class="sp-tab${scope === 'open' ? ' on' : ''}" data-s="open">open docs</button>`
+    + `<button class="sp-tab${scope === 'all' ? ' on' : ''}" data-s="all">all docs</button></div>`
+    + `<div class="sp-list">`
+    + (list.length ? list.map(p => `<button class="sp-item" data-p="${esc(p)}">${esc(p.replace(/\.md$/, '').split('/').pop())}</button>`).join('')
+      : `<div class="wmp-empty">${scope === 'open' ? 'no other open docs' : 'no other docs'}</div>`)
+    + `</div>`;
+  document.body.appendChild(pop);
+  const btn = $('wiki-split-btn'); const r = btn ? btn.getBoundingClientRect() : { left: 200, bottom: 100 };
+  pop.style.left = Math.min(r.left, window.innerWidth - 260) + 'px';
+  pop.style.top = (r.bottom + 5) + 'px';
+  pop.querySelectorAll('.sp-tab').forEach(t => t.addEventListener('click', () => openSplitPicker(t.dataset.s)));
+  pop.querySelectorAll('.sp-item').forEach(b => b.addEventListener('click', () => { _splitDoc = b.dataset.p; pop.remove(); renderSplit(); }));
+  setTimeout(() => document.addEventListener('mousedown', function h(ev) { if (!pop.contains(ev.target) && ev.target !== btn) { pop.remove(); document.removeEventListener('mousedown', h); } }), 0);
+}
+function renderSplit() {
+  const pane = $('wiki-split-pane'); if (!pane) return;
+  const other = _splitDoc || [..._tabs].reverse().find(p => p !== _cur);
+  if (!other) { pane.innerHTML = '<div class="wiki-outline-empty">pick a doc to show side-by-side</div>'; return; }
+  fetch(`/api/vault-md/file?path=${encodeURIComponent(other)}`).then(r => r.json()).then(d => {
+    pane.innerHTML = `<div class="wiki-split-head">${esc(other.replace(/\.md$/, '').split('/').pop())}<button class="wiki-split-pick" title="change doc">change</button></div><div class="wiki-split-body">${mdToHtml(d.content || '')}</div>`;
+    pane.querySelector('.wiki-split-pick')?.addEventListener('click', () => openSplitPicker());
+  }).catch(() => {});
+}
+// draggable divider → set the right pane's width (clamped 20–80%)
+function _initSplitDivider() {
+  const div = $('wiki-split-divider'); if (!div || div._wired) return; div._wired = true;
+  const wrap = div.closest('.wiki-edit-wrap');
+  let dragging = false;
+  div.addEventListener('pointerdown', e => { dragging = true; div.setPointerCapture(e.pointerId); e.preventDefault(); });
+  div.addEventListener('pointermove', e => {
+    if (!dragging || !wrap) return;
+    const r = wrap.getBoundingClientRect();
+    let pct = (r.right - e.clientX) / r.width * 100;   // pane is on the right
+    pct = Math.max(20, Math.min(80, pct));
+    wrap.style.setProperty('--split', pct + '%');
+  });
+  const stop = e => { dragging = false; try { div.releasePointerCapture(e.pointerId); } catch {} };
+  div.addEventListener('pointerup', stop);
+  div.addEventListener('pointercancel', stop);
+}
+
+// ── hover preview of a linked note (2a) ───────────────────────────────────────
+async function showLinkPreview(a) {
+  const name = a.dataset.note;
+  let d;
+  try { d = await fetch(`/api/vault-md/preview?name=${encodeURIComponent(name)}`).then(r => r.json()); }
+  catch { return; }
+  if (!d.found) return;
+  hideLinkPreview();
+  const pop = document.createElement('div');
+  pop.className = 'wiki-hoverpop';
+  pop.id = 'wiki-hoverpop';
+  pop.innerHTML = `<div class="wiki-hoverpop-title">${esc(d.title)}</div><div class="wiki-hoverpop-body">${esc(d.excerpt) || '<em>empty note</em>'}</div>`;
+  document.body.appendChild(pop);
+  const r = a.getBoundingClientRect();
+  pop.style.left = Math.max(8, Math.min(r.left, window.innerWidth - 340)) + 'px';
+  pop.style.top = (r.bottom + 6) + 'px';
+}
+function hideLinkPreview() { document.getElementById('wiki-hoverpop')?.remove(); }
+// small tooltip showing a rendered link's real destination (live mode)
+function showUrlTip(a) {
+  hideUrlTip();
+  const url = a.getAttribute('href') || '';
+  if (!url) return;
+  const tip = document.createElement('div');
+  tip.id = 'wiki-url-tip'; tip.className = 'wiki-url-tip';
+  tip.innerHTML = `<span class="wut-url">${esc(url)}</span><span class="wut-hint">${navigator.platform.includes('Mac') ? '⌘' : 'ctrl'}-click to open</span>`;
+  document.body.appendChild(tip);
+  const r = a.getBoundingClientRect();
+  tip.style.left = Math.max(8, Math.min(r.left, window.innerWidth - 340)) + 'px';
+  tip.style.top = (r.bottom + 6) + 'px';
+}
+function hideUrlTip() { document.getElementById('wiki-url-tip')?.remove(); }
+
+// ── bookmarks (2a) ────────────────────────────────────────────────────────────
+async function _loadBookmarks() {
+  try { _bookmarks = (await fetch('/api/vault-md/bookmarks').then(r => r.json())).bookmarks || []; }
+  catch { _bookmarks = []; }
+}
+function _isBookmarked(path) { return _bookmarks.some(b => b.path === path); }
+// bookmark a doc by path (3k: callable from the home doc cards, no open doc needed)
+async function _bookmarkPath(path) {
+  if (!path) return;
+  try {
+    const r = await fetch('/api/vault-md/bookmarks', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ path, title: path.replace(/\.md$/, '').split('/').pop() }),
+    }).then(r => r.json());
+    _bookmarks = r.bookmarks || [];
+    toast(r.bookmarked ? 'bookmarked' : 'bookmark removed', '');
+  } catch { toast('failed', 'error'); }
 }
 
 async function openByName(name) {
@@ -763,20 +1140,202 @@ function renderPreview() {
   let fmHtml = '';
   const fm = src.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?/);
   if (fm) { fmHtml = renderFrontmatter(fm[1]); src = src.slice(fm[0].length); }
+  // live embeds (3b): a standalone allow-listed URL line, or ![embed](url) → iframe.
+  // stash as a token before markdown so it isn't mangled, restore after.
+  const _embeds = [];
+  const _stash = url => { _embeds.push(url); return `%%LIVEEMBED${_embeds.length - 1}%%`; };
+  src = src.replace(/^!\[embed\]\((https?:\/\/[^\s)]+)\)\s*$/gim, (_, u) => _stash(u));
+  src = src.replace(/^(https?:\/\/(?:www\.)?(?:youtube\.com|youtu\.be|open(?:street)?map\.org|twitter\.com|x\.com)\/[^\s]+)\s*$/gim, (_, u) => _stash(u));
   let html = mdToHtml(src);
+  html = html.replace(/%%LIVEEMBED(\d+)%%/g, (_, i) => _liveEmbed(_embeds[+i]));
+  // synced blocks (3b): ![[note#^id]] mirrors a block — must run before the whole-note embed
+  html = html.replace(/!\[\[([^\]#|]+)#\^([A-Za-z0-9_-]+)\]\]/g, (_, note, id) =>
+    `<div class="md-syncblock" data-note="${esc(note.trim())}" data-block="${esc(id)}"><span class="md-embed-loading">…</span></div>`);
   html = html.replace(/!\[\[([^\]|#]+?)(?:#[^\]|]*)?(?:\|([^\]]+))?\]\]/g, (_, name, alias) => embedHtml(name.trim(), alias));
   html = html.replace(/\[\[([^\]|#]+)(?:#[^\]|]*)?(?:\|([^\]]+))?\]\]/g, (_, name, alias) => `<a class="wikilink" data-note="${esc(name.trim())}">${esc((alias || name).trim())}</a>`);
   html = html.replace(/(^|[\s(>])#([A-Za-z0-9][A-Za-z0-9_/\-]*)/g, (_, pre, tag) => `${pre}<span class="md-tag" data-tag="${esc(tag)}">#${esc(tag)}</span>`);
+  // @date mentions (3a) — @today / @tomorrow / @YYYY-MM-DD
+  html = html.replace(/(^|[\s(>])@(today|tomorrow|\d{4}-\d{2}-\d{2})\b/g, (_, pre, d) => `${pre}<span class="md-datemention">📅 ${esc(d)}</span>`);
+  // template buttons (3c): %%button: Name%% → inserts the named template
+  html = html.replace(/%%button:\s*([^%]+?)\s*%%/g, (_, name) => `<button class="md-tmpl-btn" data-tmpl="${esc(name.trim())}">+ ${esc(name.trim())}</button>`);
   $('wiki-preview').innerHTML = fmHtml + html;
+  $('wiki-preview').querySelectorAll('.md-tmpl-btn').forEach(btn => btn.addEventListener('click', () => insertTemplateByName(btn.dataset.tmpl)));
   enhanceMarkdown($('wiki-preview'));
   fillEmbeds();
+  fillSyncBlocks();
+  fillQueryBlocks();
+  fillFormBlocks();
+  _applyCommentMarks();
   if ($('wiki-outline') && $('wiki-outline').style.display !== 'none') updateOutline();
+}
+
+// allow-listed live embeds → sandboxed iframe (3b)
+function _liveEmbed(url) {
+  let src = '';
+  let m;
+  if ((m = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]+)/))) src = `https://www.youtube.com/embed/${m[1]}`;
+  else if (/open(?:street)?map\.org/.test(url)) {
+    src = url.replace('/#map=', '/export/embed.html?#map=');
+    if (!src.includes('embed')) src = 'https://www.openstreetmap.org/export/embed.html';
+  } else if (/twitter\.com|x\.com/.test(url)) {
+    return `<blockquote class="md-embed-tweet"><a href="${esc(url)}" target="_blank" rel="noopener">view tweet ↗</a></blockquote>`;
+  } else src = url;
+  return `<div class="md-live-embed"><iframe src="${esc(src)}" loading="lazy" sandbox="allow-scripts allow-same-origin allow-popups" referrerpolicy="no-referrer" allowfullscreen></iframe></div>`;
+}
+
+async function insertTemplateByName(name) {
+  try {
+    const d = await fetch('/api/vault-md/templates').then(r => r.json());
+    const t = (d.templates || []).find(x => x.name.toLowerCase() === name.toLowerCase());
+    if (!t) { toast('template not found', 'error'); return; }
+    setEditor(getEditor() + '\n' + t.content);
+    queueSave();
+    toast('inserted ' + name, '');
+  } catch { toast('insert failed', 'error'); }
+}
+
+function fillSyncBlocks() {
+  $('wiki-preview')?.querySelectorAll('.md-syncblock[data-note]').forEach(async el => {
+    const note = el.dataset.note, id = el.dataset.block;
+    try {
+      const d = await fetch(`/api/vault-md/block?path=${encodeURIComponent(note)}&id=${encodeURIComponent(id)}`).then(r => r.json());
+      el.innerHTML = d.found
+        ? `<div class="md-syncblock-body">${mdToHtml(d.text)}</div><div class="md-syncblock-src">↔ synced from ${esc(note)}</div>`
+        : `<div class="md-embed-loading">block ^${esc(id)} not found in ${esc(note)}</div>`;
+    } catch { el.innerHTML = '<div class="md-embed-loading">could not load block</div>'; }
+  });
+}
+
+// render inline ```query / ```dataview fences as live tables (2b)
+async function fillQueryBlocks() {
+  const blocks = $('wiki-preview')?.querySelectorAll('code.language-query, code.language-dataview');
+  if (!blocks || !blocks.length) return;
+  for (const code of blocks) {
+    const pre = code.closest('pre') || code;
+    const spec = code.textContent || '';
+    let d;
+    try {
+      d = await fetch('/api/vault-md/query-block', {
+        method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ spec }),
+      }).then(r => r.json());
+    } catch { continue; }
+    const wrap = document.createElement('div');
+    wrap.className = 'wiki-queryblock';
+    wrap.innerHTML = _renderQueryResult(d);
+    pre.replaceWith(wrap);
+    wrap.querySelectorAll('.wikilink').forEach(a =>
+      a.addEventListener('click', e => { e.preventDefault(); openByName(a.dataset.note); }));
+  }
+}
+// render ```form fences as a fillable form that appends a row to the target note (3d)
+function fillFormBlocks() {
+  const blocks = $('wiki-preview')?.querySelectorAll('code.language-form');
+  if (!blocks || !blocks.length) return;
+  for (const code of blocks) {
+    const pre = code.closest('pre') || code;
+    const spec = {};
+    for (const line of (code.textContent || '').split('\n')) {
+      const m = line.match(/^\s*([A-Za-z0-9_]+)\s*:\s*(.+)$/);
+      if (m) spec[m[1].toLowerCase()] = m[2].trim();
+    }
+    const target = spec.target || '';
+    const fields = (spec.fields || '').split(',').map(s => s.trim()).filter(Boolean);
+    const wrap = document.createElement('form');
+    wrap.className = 'wiki-form';
+    if (!target || !fields.length) {
+      wrap.innerHTML = '<div class="wiki-outline-empty">form needs `target:` and `fields:`</div>';
+      pre.replaceWith(wrap);
+      continue;
+    }
+    wrap.innerHTML = fields.map(f =>
+      `<label class="wiki-form-field"><span>${esc(f)}</span><input name="${esc(f)}" class="settings-input" autocomplete="off"></label>`).join('') +
+      `<button type="submit" class="btn primary wiki-form-submit">submit</button><span class="wiki-form-msg"></span>`;
+    wrap.addEventListener('submit', async e => {
+      e.preventDefault();
+      const values = {};
+      fields.forEach(f => { values[f] = wrap.querySelector(`[name="${CSS.escape(f)}"]`)?.value || ''; });
+      const msg = wrap.querySelector('.wiki-form-msg');
+      try {
+        const d = await fetch('/api/vault-md/form-submit', {
+          method: 'POST', headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ target, fields, values }),
+        }).then(r => r.json());
+        if (msg) msg.textContent = d.ok ? `saved (row ${d.count})` : 'failed';
+        fields.forEach(f => { const i = wrap.querySelector(`[name="${CSS.escape(f)}"]`); if (i) i.value = ''; });
+      } catch { if (msg) msg.textContent = 'failed'; }
+    });
+    pre.replaceWith(wrap);
+  }
+}
+function _renderQueryResult(d) {
+  const link = r => `<a class="wikilink" data-note="${esc(r.name)}">${esc(r.name)}</a>`;
+  const head = `<div class="wiki-qb-head">${d.count} result${d.count === 1 ? '' : 's'}${d.group ? ` · grouped by ${esc(d.group)}` : ''}</div>`;
+  if (d.group && d.groups) {
+    const chart = d.chart ? _renderChart(d.chart, d.groups) : '';
+    return head + chart + d.groups.map(g =>
+      `<div class="wiki-qb-group"><div class="wiki-qb-gkey">${esc(g.key)} <span class="wiki-qb-gcount">${g.count != null ? g.count : g.rows.length}</span></div>${g.rows.map(link).join(' · ')}</div>`).join('');
+  }
+  if (!d.rows || !d.rows.length) return '<div class="wiki-qb-head">no results</div>';
+  return head + '<ul class="wiki-qb-list">' + d.rows.map(r => `<li>${link(r)}</li>`).join('') + '</ul>';
+}
+// inline svg chart over grouped query results (3d). type = bar | pie | line.
+function _renderChart(type, groups) {
+  const data = (groups || []).map(g => ({ k: String(g.key), v: g.count != null ? g.count : (g.rows || []).length }));
+  if (!data.length) return '';
+  const max = Math.max(1, ...data.map(d => d.v));
+  const palette = ['#818cf8', '#4ade80', '#f87171', '#fbbf24', '#22d3ee', '#c084fc', '#fb923c', '#34d399'];
+  const W = 360, H = 160;
+  if (type === 'pie') {
+    const total = data.reduce((s, d) => s + d.v, 0) || 1;
+    let a0 = -Math.PI / 2;
+    const R = 60, cx = 80, cy = 80;
+    const slices = data.map((d, i) => {
+      const a1 = a0 + (d.v / total) * Math.PI * 2;
+      const x0 = cx + R * Math.cos(a0), y0 = cy + R * Math.sin(a0);
+      const x1 = cx + R * Math.cos(a1), y1 = cy + R * Math.sin(a1);
+      const large = (a1 - a0) > Math.PI ? 1 : 0;
+      a0 = a1;
+      return `<path d="M${cx},${cy} L${x0.toFixed(1)},${y0.toFixed(1)} A${R},${R} 0 ${large} 1 ${x1.toFixed(1)},${y1.toFixed(1)} Z" fill="${palette[i % palette.length]}"></path>`;
+    }).join('');
+    const legend = data.map((d, i) => `<div class="wiki-chart-leg"><span style="background:${palette[i % palette.length]}"></span>${esc(d.k)} (${d.v})</div>`).join('');
+    return `<div class="wiki-chart"><svg viewBox="0 0 160 160" width="160" height="160">${slices}</svg><div class="wiki-chart-legend">${legend}</div></div>`;
+  }
+  if (type === 'line') {
+    const step = data.length > 1 ? (W - 40) / (data.length - 1) : 0;
+    const pts = data.map((d, i) => `${(20 + i * step).toFixed(1)},${(H - 20 - (d.v / max) * (H - 40)).toFixed(1)}`);
+    const dots = pts.map((p, i) => { const [x, y] = p.split(','); return `<circle cx="${x}" cy="${y}" r="3" fill="#818cf8"></circle><text x="${x}" y="${H - 4}" font-size="9" fill="#6e6e6e" text-anchor="middle">${esc(data[i].k.slice(0, 6))}</text>`; }).join('');
+    return `<div class="wiki-chart"><svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}"><polyline points="${pts.join(' ')}" fill="none" stroke="#818cf8" stroke-width="2"></polyline>${dots}</svg></div>`;
+  }
+  // bar (default)
+  const bw = Math.min(48, (W - 40) / data.length - 8);
+  const bars = data.map((d, i) => {
+    const x = 20 + i * ((W - 40) / data.length);
+    const h = (d.v / max) * (H - 40);
+    const y = H - 20 - h;
+    return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" fill="${palette[i % palette.length]}"></rect>` +
+      `<text x="${(x + bw / 2).toFixed(1)}" y="${(y - 3).toFixed(1)}" font-size="9" fill="#e8e6e3" text-anchor="middle">${d.v}</text>` +
+      `<text x="${(x + bw / 2).toFixed(1)}" y="${H - 4}" font-size="9" fill="#6e6e6e" text-anchor="middle">${esc(d.k.slice(0, 8))}</text>`;
+  }).join('');
+  return `<div class="wiki-chart"><svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}">${bars}</svg></div>`;
 }
 function renderFrontmatter(raw) {
   const rows = [];
   for (const line of raw.split('\n')) { const m = line.match(/^([A-Za-z0-9_][\w \-]*):\s*(.*)$/); if (m) rows.push([m[1].trim(), m[2].trim()]); }
   if (!rows.length) return '';
-  return `<div class="md-frontmatter">` + rows.map(([k, v]) => `<div class="md-fm-row"><span class="md-fm-key">${esc(k)}</span><span class="md-fm-val">${esc(v || '—')}</span></div>`).join('') + `</div>`;
+  // page cover + icon/emoji banner (3a)
+  const get = k => (rows.find(r => r[0].toLowerCase() === k) || [])[1] || '';
+  const cover = get('cover'), icon = get('icon');
+  let banner = '';
+  if (cover) {
+    const src = /^https?:\/\//.test(cover) ? cover : `/api/vault-md/raw?path=${encodeURIComponent(cover)}`;
+    banner += `<div class="md-cover" style="background-image:url('${esc(src)}')"></div>`;
+  }
+  if (icon) banner += `<div class="md-page-icon">${esc(icon)}</div>`;
+  const shown = rows.filter(r => !['cover', 'icon'].includes(r[0].toLowerCase()));
+  const fm = shown.length
+    ? `<div class="md-frontmatter">` + shown.map(([k, v]) => `<div class="md-fm-row"><span class="md-fm-key">${esc(k)}</span><span class="md-fm-val">${esc(v || '—')}</span></div>`).join('') + `</div>`
+    : '';
+  return banner + fm;
 }
 const _IMG_RE = /\.(png|jpe?g|gif|webp|svg|bmp|ico)$/i;
 function embedHtml(name, alias) {
@@ -802,7 +1361,28 @@ function fillEmbeds() {
   });
 }
 
-async function extractTodos() {
+// 3s: explain what AI todo-extraction does before running it (like the other panels)
+function openTodosExplainer(btn) {
+  const already = document.getElementById('wiki-todos-pop');
+  // re-clicking the todos button closes the popup (real toggle, like the side panels)
+  if (already) { already.remove(); btn.classList.remove('active'); return; }
+  if (!_cur) { toast('open a doc first', 'error'); return; }
+  _closeOtherPanels('wiki-todos');            // opening todos closes any open side panel
+  btn.classList.add('active');                // and lights its own indicator
+  const pop = document.createElement('div');
+  pop.id = 'wiki-todos-pop'; pop.className = 'wiki-menu-pop wiki-explainer-pop';
+  pop.innerHTML = `<div class="wep-title">extract to-dos with AI</div>
+    <div class="wep-body">scans this doc for action items — checkboxes, “TODO”, and anything that reads like a task — and creates real tasks from them in the <b>tasks</b> app. The doc isn’t changed.</div>
+    <button class="wmp-item wep-go" id="wiki-todos-go">extract to-dos</button>`;
+  document.body.appendChild(pop);
+  const r = btn.getBoundingClientRect();
+  pop.style.left = Math.min(r.left, window.innerWidth - 280) + 'px';
+  pop.style.top = (r.bottom + 5) + 'px';
+  const close = () => { pop.remove(); btn.classList.remove('active'); };
+  pop.querySelector('#wiki-todos-go').addEventListener('click', () => { close(); _runExtractTodos(); });
+  setTimeout(() => document.addEventListener('mousedown', function h(ev) { if (!pop.contains(ev.target) && ev.target !== btn) { close(); document.removeEventListener('mousedown', h); } }), 0);
+}
+async function _runExtractTodos() {
   if (!_cur) { toast('open a doc first', 'error'); return; }
   await flushSave();
   const btn = $('wiki-todos-btn');
@@ -817,13 +1397,7 @@ async function extractTodos() {
   btn.disabled = false; btn.textContent = 'todos';
 }
 
-function toggleHistory() {
-  const p = $('wiki-history'); if (!p) return;
-  const show = p.style.display === 'none';
-  p.style.display = show ? 'block' : 'none';
-  $('wiki-history-btn')?.classList.toggle('active', show);
-  if (show) loadHistory();
-}
+function toggleHistory() { _togglePanel('wiki-history', 'wiki-history-btn', loadHistory); }
 function _revAgo(iso) {
   const s = (Date.now() - new Date(iso + 'Z').getTime()) / 1000;
   if (s < 90) return 'just now';
@@ -839,12 +1413,13 @@ async function loadHistory() {
   try { revs = await fetch(`/api/vault-md/revisions?path=${encodeURIComponent(_cur)}`).then(r => r.json()); }
   catch { panel.innerHTML = '<div style="font-size:0.72rem;color:var(--error)">failed to load history</div>'; return; }
   if (!revs.length) { panel.innerHTML = '<div style="font-size:0.72rem;color:var(--muted)">no earlier versions yet — snapshots are taken as you edit</div>'; return; }
-  panel.innerHTML = revs.map(r => `
+  panel.innerHTML = '<div class="wiki-rev-label">version history</div>' + revs.map(r => `
     <div class="wiki-rev" data-rev="${r.id}">
-      <div style="display:flex;align-items:center;gap:0.5rem;padding:0.25rem 0;font-size:0.72rem">
-        <span>${_revAgo(r.created_at)}</span><span style="color:var(--muted)">${(r.size / 1000).toFixed(1)}k</span><span style="flex:1"></span>
-        <button class="btn" data-rev-diff="${r.id}" style="font-size:0.66rem">diff</button>
-        <button class="btn" data-rev-restore="${r.id}" style="font-size:0.66rem">restore</button>
+      <div class="wiki-rev-row">
+        <span class="wiki-rev-when">${_revAgo(r.created_at)}</span>
+        <span class="wiki-rev-size">${(r.size / 1000).toFixed(1)}k</span>
+        <button class="btn wiki-rev-btn" data-rev-diff="${r.id}">diff</button>
+        <button class="btn wiki-rev-btn" data-rev-restore="${r.id}">restore</button>
       </div>
       <div class="wiki-rev-diff" style="display:none"></div>
     </div>`).join('');
@@ -876,16 +1451,45 @@ function _renderDiff(txt) {
     else if (l.startsWith('@@')) c = 'var(--accent)';
     return `<span style="color:${c}">${esc(l)}</span>`;
   }).join('\n');
-  return `<pre style="margin:0.3rem 0 0.5rem;padding:0.4rem;background:var(--panel);border:1px solid var(--faint);border-radius:3px;font-size:0.66rem;white-space:pre-wrap;overflow-x:auto">${body}</pre>`;
+  return `<pre class="wiki-rev-diff-pre">${body}</pre>`;
 }
 
-function toggleOutline() {
-  const p = $('wiki-outline'); if (!p) return;
-  const show = p.style.display === 'none';
-  p.style.display = show ? 'block' : 'none';
-  $('wiki-outline-btn')?.classList.toggle('active', show);
-  if (show) updateOutline();
+// side panels are an accordion — opening one closes the rest so you never get
+// multiple "active" (glowing) buttons for panels that aren't actually shown.
+const _SIDE_PANELS = [
+  ['wiki-outline', 'wiki-outline-btn'],
+  ['wiki-props', 'wiki-props-btn'],
+  ['wiki-query', 'wiki-query-btn'],
+  ['wiki-ask', 'wiki-ask-btn'],
+  ['wiki-history', 'wiki-history-btn'],
+  ['wiki-comments', 'wiki-comments-btn'],
+  ['wiki-base', 'wiki-base-btn'],
+  ['wiki-taskroll', 'wiki-taskroll-btn'],
+];
+function _closeOtherPanels(keep) {
+  for (const [panel, btn] of _SIDE_PANELS) {
+    if (panel === keep) continue;
+    const p = $(panel); if (p) p.style.display = 'none';
+    $(btn)?.classList.remove('active');
+  }
+  // the todos explainer is a popup, not a side panel — close it + drop its indicator too
+  if (keep !== 'wiki-todos') {
+    document.getElementById('wiki-todos-pop')?.remove();
+    $('wiki-todos-btn')?.classList.remove('active');
+  }
 }
+
+// one toggle for every docs side panel: opening one closes the rest, the button glows while open
+function _togglePanel(panelId, btnId, onShow) {
+  const p = $(panelId); if (!p) return;
+  const show = p.style.display === 'none' || !p.style.display;
+  _closeOtherPanels(panelId);
+  p.style.display = show ? 'block' : 'none';
+  $(btnId)?.classList.toggle('active', show);
+  if (show && onShow) onShow();
+}
+
+function toggleOutline() { _togglePanel('wiki-outline', 'wiki-outline-btn', updateOutline); }
 function updateOutline() {
   const panel = $('wiki-outline'); if (!panel) return;
   const lines = getEditor().split('\n');
@@ -896,9 +1500,9 @@ function updateOutline() {
     const m = line.match(/^(#{1,6})\s+(.+)$/);
     if (m) heads.push({ level: m[1].length, text: m[2].trim(), line: i });
   });
-  if (!heads.length) { panel.innerHTML = '<div class="wiki-outline-empty">no headings</div>'; return; }
-  panel.innerHTML = `<div class="wiki-outline-head">outline</div>` + heads.map(h =>
-    `<div class="wiki-outline-item" data-line="${h.line}" style="padding-left:${(h.level - 1) * 0.7}rem">${esc(h.text)}</div>`).join('');
+  if (!heads.length) { panel.innerHTML = '<div class="wiki-outline-head">outline</div><div class="wiki-outline-empty">no headings yet — start a line with <code>#</code> (or <code>##</code>, <code>###</code>…) and it shows up here as a jump-to link</div>'; return; }
+  panel.innerHTML = `<div class="wiki-outline-head">outline · ${heads.length} heading${heads.length !== 1 ? 's' : ''}</div>` + heads.map(h =>
+    `<div class="wiki-outline-item lvl${h.level}" data-line="${h.line}" style="padding-left:${0.7 + (h.level - 1) * 0.85}rem">${esc(h.text)}</div>`).join('');
   panel.querySelectorAll('.wiki-outline-item').forEach(el => el.addEventListener('click', () => jumpToLine(+el.dataset.line, el.textContent)));
 }
 function jumpToLine(lineNo, text) {
@@ -920,13 +1524,7 @@ function jumpToLine(lineNo, text) {
 
 // ── properties / frontmatter editor ──────────────────────────────────────────
 let _propsRows = [];
-async function toggleProps() {
-  const p = $('wiki-props'); if (!p) return;
-  const show = p.style.display === 'none';
-  p.style.display = show ? 'block' : 'none';
-  $('wiki-props-btn')?.classList.toggle('active', show);
-  if (show) await loadProps();
-}
+function toggleProps() { _togglePanel('wiki-props', 'wiki-props-btn', loadProps); }
 async function loadProps() {
   const p = $('wiki-props'); if (!p) return;
   if (!_cur) { p.innerHTML = '<div class="wiki-outline-empty">open a doc first</div>'; return; }
@@ -1136,12 +1734,246 @@ async function reloadCurrentDoc() {
 const _QOPS = ['eq', 'ne', 'contains', 'gt', 'lt', 'exists', 'missing'];
 let _qFilters = [{ field: 'status', op: 'eq', value: '' }];
 let _qSort = { field: '', dir: 'asc' };
+// ── Bases: a folder as a database (2c) ────────────────────────────────────────
+let _baseView = 'table';
+let _baseData = null;
+let _baseFolder = '';
+function toggleBase() { _togglePanel('wiki-base', 'wiki-base-btn', openBase); }
+async function openBase() {
+  _baseFolder = _cur && _cur.includes('/') ? _cur.slice(0, _cur.lastIndexOf('/')) : '';
+  try { _baseData = await fetch(`/api/vault-md/base?folder=${encodeURIComponent(_baseFolder)}`).then(r => r.json()); }
+  catch { _baseData = { columns: [], rows: [] }; }
+  renderBase();
+}
+function renderBase() {
+  const p = $('wiki-base'); if (!p || !_baseData) return;
+  const views = ['table', 'gallery', 'list'];
+  const sw = `<div class="wiki-base-head"><span class="wiki-base-folder">${esc(_baseFolder || '(root)')}</span>`
+    + `<span class="wiki-base-views">${views.map(v => `<button class="wiki-base-vbtn${v === _baseView ? ' active' : ''}" data-v="${v}">${v}</button>`).join('')}`
+    + `<button class="wiki-base-vbtn" id="wiki-base-newrow" title="add a new note (row) to this folder">+ row</button>`
+    + `<button class="wiki-base-vbtn" id="wiki-base-publish" title="publish this folder as a site">publish site</button></span></div>`;
+  const rows = _baseData.rows || [], cols = _baseData.columns || [];
+  let body = '';
+  if (!rows.length) body = '<div class="wiki-outline-empty">no notes in this folder</div>';
+  else if (_baseView === 'list') {
+    body = '<ul class="wiki-base-list">' + rows.map(r => `<li class="wiki-base-open" data-path="${esc(r.path)}">${esc(r.name)}</li>`).join('') + '</ul>';
+  } else if (_baseView === 'gallery') {
+    body = '<div class="wiki-base-gallery">' + rows.map(r =>
+      `<div class="wiki-base-card wiki-base-open" data-path="${esc(r.path)}"><div class="wiki-base-card-title">${esc(r.name)}</div>`
+      + cols.slice(0, 3).map(c => `<div class="wiki-base-card-prop">${esc(c)}: ${esc(_cellVal(r.props[c]))}</div>`).join('') + '</div>').join('') + '</div>';
+  } else {
+    body = '<table class="wiki-base-table"><thead><tr><th>name</th>' + cols.map(c => `<th>${esc(c)}</th>`).join('') + '</tr></thead><tbody>'
+      + rows.map(r => `<tr><td class="wiki-base-open" data-path="${esc(r.path)}">${esc(r.name)}</td>`
+        + cols.map(c => `<td class="wiki-base-cell" data-path="${esc(r.path)}" data-key="${esc(c)}">${esc(_cellVal(r.props[c]))}</td>`).join('') + '</tr>').join('')
+      + '</tbody></table>';
+  }
+  p.innerHTML = sw + body;
+  p.querySelectorAll('.wiki-base-vbtn[data-v]').forEach(b => b.addEventListener('click', () => { _baseView = b.dataset.v; renderBase(); }));
+  $('wiki-base-newrow')?.addEventListener('click', baseNewRow);
+  $('wiki-base-publish')?.addEventListener('click', basePublish);
+  p.querySelectorAll('.wiki-base-open').forEach(el => el.addEventListener('click', () => openFile(el.dataset.path)));
+  p.querySelectorAll('.wiki-base-cell').forEach(td => td.addEventListener('click', () => editBaseCell(td)));
+}
+function _cellVal(v) { return Array.isArray(v) ? v.join(', ') : (v == null ? '' : String(v)); }
+async function baseNewRow() {
+  const name = await dlgPrompt('new note name:');
+  if (!name) return;
+  const cols = (_baseData && _baseData.columns) || [];
+  const fm = cols.length ? '---\n' + cols.map(c => `${c}: `).join('\n') + '\n---\n' : '';
+  const path = (_baseFolder ? _baseFolder + '/' : '') + name.replace(/\.md$/, '');
+  try {
+    await fetch('/api/vault-md/file', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ path, content: fm }) });
+    toast('row added', '');
+    openBase();
+  } catch { toast('failed', 'error'); }
+}
+async function basePublish() {
+  try {
+    const d = await fetch('/api/vault-md/publish-folder', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ folder: _baseFolder }) }).then(r => r.json());
+    const idx = (d.published || [])[0];
+    if (idx) { try { await navigator.clipboard.writeText(location.origin + idx.url); } catch {} }
+    toast(`published ${d.count} page(s) — link copied`, '');
+  } catch { toast('publish failed', 'error'); }
+}
+function editBaseCell(td) {
+  if (td.querySelector('input')) return;
+  const path = td.dataset.path, key = td.dataset.key, old = td.textContent;
+  td.innerHTML = `<input class="wiki-base-input" value="${esc(old)}">`;
+  const inp = td.querySelector('input'); inp.focus(); inp.select();
+  const save = async () => {
+    const val = inp.value;
+    try {
+      await fetch('/api/vault-md/base-cell', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ path, key, value: val }) });
+      const row = (_baseData.rows || []).find(r => r.path === path);
+      if (row) { if (val === '') delete row.props[key]; else row.props[key] = val; }
+      td.textContent = val;
+    } catch { td.textContent = old; toast('cell save failed', 'error'); }
+  };
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); inp.blur(); } if (e.key === 'Escape') { td.textContent = old; } });
+  inp.addEventListener('blur', save);
+}
+
 function toggleQuery() {
   const p = $('wiki-query'); if (!p) return;
-  const show = p.style.display === 'none';
+  const show = p.style.display === 'none' || !p.style.display;
+  _closeOtherPanels('wiki-query');
   p.style.display = show ? 'block' : 'none';
   $('wiki-query-btn')?.classList.toggle('active', show);
   if (show) renderQuery();
+}
+
+// ask-anything across the whole vault (3d) — retrieval over the 1c text index
+function toggleAsk() {
+  _togglePanel('wiki-ask', 'wiki-ask-btn', () => { _loadClipBookmarklet(); $('wiki-ask-input')?.focus(); });
+}
+async function runAsk() {
+  const q = ($('wiki-ask-input')?.value || '').trim();
+  const out = $('wiki-ask-results'); if (!out) return;
+  if (!q) { out.innerHTML = '<div class="wiki-outline-empty">type a question</div>'; return; }
+  out.innerHTML = '<div class="wiki-outline-empty">searching…</div>';
+  let d;
+  try { d = await fetch(`/api/vault-md/ask?q=${encodeURIComponent(q)}`).then(r => r.json()); }
+  catch { out.innerHTML = '<div class="wiki-outline-empty">search failed</div>'; return; }
+  const hits = d.sources || [];
+  if (!hits.length) { out.innerHTML = '<div class="wiki-outline-empty">no matching notes</div>'; return; }
+  out.innerHTML = `<div class="wiki-qb-head">${hits.length} source${hits.length === 1 ? '' : 's'}</div>` +
+    hits.map(h => {
+      const ref = h.ref || '';
+      const snip = (h.chunk || '').replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, '').trim().slice(0, 220);
+      return `<div class="wiki-ask-hit" data-path="${esc(ref)}"><div class="wiki-ask-hit-name">${esc(ref)}</div><div class="wiki-ask-hit-snip">${esc(snip)}</div></div>`;
+    }).join('');
+  out.querySelectorAll('.wiki-ask-hit[data-path]').forEach(el =>
+    el.addEventListener('click', () => openFile(el.dataset.path)));
+}
+async function _loadClipBookmarklet() {
+  const a = $('wiki-clip-bm'); if (!a || a.dataset.ready) return;
+  try {
+    const d = await fetch('/api/vault-md/clipper-bookmarklet').then(r => r.json());
+    a.setAttribute('href', d.bookmarklet || '#');
+    a.dataset.ready = '1';
+  } catch {}
+}
+
+// ── inline comments (3e) ──────────────────────────────────────────────────────
+let _commentThreads = [];
+let _commentAnchors = [];
+let _selText = '';
+
+function toggleComments() { _togglePanel('wiki-comments', 'wiki-comments-btn', loadComments); }
+async function loadComments() {
+  const p = $('wiki-comments');
+  if (!_cur) { _commentThreads = []; _commentAnchors = []; if (p) p.innerHTML = '<div class="wiki-outline-empty">open a doc first</div>'; _updateCommentCount(); return; }
+  try { _commentThreads = (await fetch(`/api/vault-md/comments?path=${encodeURIComponent(_cur)}`).then(r => r.json())).threads || []; }
+  catch { return; }
+  _commentAnchors = _commentThreads.filter(t => !t.resolved && t.anchor && !t.orphaned).map(t => t.anchor);
+  renderComments();
+  _applyCommentMarks();
+  _updateCommentCount();
+}
+function _updateCommentCount() {
+  const el = $('wiki-comments-count'); if (!el) return;
+  const open = _commentThreads.filter(t => !t.resolved).length;
+  el.textContent = open ? String(open) : '';
+}
+function renderComments() {
+  const p = $('wiki-comments'); if (!p) return;
+  if (!_commentThreads.length) { p.innerHTML = '<div class="wiki-outline-empty">no comments yet — select any text in the editor and click the “comment” chip to start a thread</div>'; return; }
+  p.innerHTML = _commentThreads.map(t => {
+    const replies = (t.replies || []).map(r =>
+      `<div class="wiki-cmt-reply"><span class="wiki-cmt-author">${esc(r.author)}</span> ${esc(r.body)}</div>`).join('');
+    const anchor = t.anchor
+      ? `<div class="wiki-cmt-anchor${t.orphaned ? ' orphaned' : ''}">“${esc(t.anchor.slice(0, 80))}”${t.orphaned ? ' <span class="wiki-cmt-orphan">(orphaned)</span>' : ''}</div>`
+      : '';
+    return `<div class="wiki-cmt-thread${t.resolved ? ' resolved' : ''}" data-id="${esc(t.id)}">
+      ${anchor}
+      <div class="wiki-cmt-body"><span class="wiki-cmt-author">${esc(t.author)}</span> ${esc(t.body)}</div>
+      ${replies}
+      <div class="wiki-cmt-actions">
+        <input class="settings-input wiki-cmt-reply-input" placeholder="reply…" data-id="${esc(t.id)}">
+        <button class="btn wiki-cmt-resolve" data-id="${esc(t.id)}">${t.resolved ? 'reopen' : 'resolve'}</button>
+        <button class="btn danger wiki-cmt-del" data-id="${esc(t.id)}">del</button>
+      </div>
+    </div>`;
+  }).join('');
+  p.querySelectorAll('.wiki-cmt-resolve').forEach(b => b.addEventListener('click', () => _resolveComment(b.dataset.id)));
+  p.querySelectorAll('.wiki-cmt-del').forEach(b => b.addEventListener('click', () => _deleteComment(b.dataset.id)));
+  p.querySelectorAll('.wiki-cmt-reply-input').forEach(i =>
+    i.addEventListener('keydown', e => { if (e.key === 'Enter' && i.value.trim()) _replyComment(i.dataset.id, i.value.trim()); }));
+}
+// show the "comment" FAB above whatever text is selected (preview OR live editor)
+function _onDocSelect() {
+  const fab = $('wiki-comment-fab'); if (!fab) return;
+  const sel = window.getSelection();
+  const text = (sel ? sel.toString() : '').trim();
+  if (!text || !_cur) { fab.style.display = 'none'; return; }
+  try {
+    // sit just past the END of the selection (last line), not over the text — otherwise it
+    // covers the selection and blocks right-clicking it. fixed-positioned → viewport coords.
+    const rng = sel.getRangeAt(0);
+    const rects = rng.getClientRects();
+    const end = rects.length ? rects[rects.length - 1] : rng.getBoundingClientRect();
+    fab.style.top = `${Math.max(8, end.top - 2)}px`;
+    fab.style.left = `${Math.min(window.innerWidth - 96, end.right + 8)}px`;
+  } catch {}
+  _selText = text.slice(0, 300);
+  fab.style.display = 'block';
+}
+async function _addCommentFromSelection() {
+  const fab = $('wiki-comment-fab'); if (fab) fab.style.display = 'none';
+  if (!_selText || !_cur) return;
+  const body = await dlgPrompt(`comment on “${_selText.slice(0, 40)}${_selText.length > 40 ? '…' : ''}”:`);
+  if (!body || !body.trim()) return;
+  try {
+    await fetch('/api/vault-md/comments', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ path: _cur, anchor: _selText, body: body.trim() }),
+    });
+    toast('comment added', '');
+    const p = $('wiki-comments'); if (p && (p.style.display === 'none' || !p.style.display)) { _closeOtherPanels('wiki-comments'); p.style.display = 'block'; $('wiki-comments-btn')?.classList.add('active'); }
+    await loadComments();
+  } catch { toast('failed to add comment', 'error'); }
+}
+async function _replyComment(id, body) {
+  try {
+    await fetch('/api/vault-md/comments', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ parent_id: id, body }),
+    });
+    await loadComments();
+  } catch { toast('reply failed', 'error'); }
+}
+async function _resolveComment(id) {
+  try { await fetch(`/api/vault-md/comments/${id}/resolve`, { method: 'POST' }); await loadComments(); }
+  catch { toast('failed', 'error'); }
+}
+async function _deleteComment(id) {
+  if (!await dlgConfirm('delete this comment thread?')) return;
+  try { await fetch(`/api/vault-md/comments/${id}`, { method: 'DELETE' }); await loadComments(); }
+  catch { toast('failed', 'error'); }
+}
+function _applyCommentMarks() {
+  const pv = $('wiki-preview'); if (!pv || !_commentAnchors.length) return;
+  pv.querySelectorAll('mark.wiki-cmark').forEach(m => { m.replaceWith(...m.childNodes); });
+  for (const anchor of _commentAnchors) {
+    if (!anchor || anchor.length < 2) continue;
+    _markFirst(pv, anchor);
+  }
+}
+function _markFirst(root, text) {
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
+  let node;
+  while ((node = walker.nextNode())) {
+    if (node.parentElement?.classList.contains('wiki-cmark')) continue;
+    const idx = node.nodeValue.indexOf(text);
+    if (idx === -1) continue;
+    const range = document.createRange();
+    range.setStart(node, idx);
+    range.setEnd(node, idx + text.length);
+    const mark = document.createElement('mark');
+    mark.className = 'wiki-cmark';
+    try { range.surroundContents(mark); } catch { continue; }
+    return;
+  }
 }
 function renderQuery() {
   const p = $('wiki-query'); if (!p) return;
@@ -1159,7 +1991,10 @@ function renderQuery() {
       <input class="wiki-q-sort" id="wiki-q-sort" value="${esc(_qSort.field)}" placeholder="sort by field" spellcheck="false">
       <select id="wiki-q-dir"><option${_qSort.dir === 'asc' ? ' selected' : ''}>asc</option><option${_qSort.dir === 'desc' ? ' selected' : ''}>desc</option></select>
       <button class="btn primary" id="wiki-q-run">run</button>
+      <button class="btn" id="wiki-q-insert" title="insert as a live query block in the doc">insert block</button>
+      <button class="btn" id="wiki-q-save" title="save these filters as a named view">save view</button>
     </div>
+    <div class="wiki-q-views" id="wiki-q-views"></div>
     <div class="wiki-q-results" id="wiki-q-results"></div>`;
   p.querySelectorAll('.wiki-q-row').forEach(row => {
     const i = +row.dataset.i;
@@ -1172,6 +2007,54 @@ function renderQuery() {
   $('wiki-q-sort')?.addEventListener('input', e => _qSort.field = e.target.value);
   $('wiki-q-dir')?.addEventListener('change', e => _qSort.dir = e.target.value);
   $('wiki-q-run')?.addEventListener('click', runQuery);
+  $('wiki-q-insert')?.addEventListener('click', insertQueryBlock);
+  $('wiki-q-save')?.addEventListener('click', saveView);
+  _loadViews();
+}
+
+function _qToSpec() {
+  const lines = [];
+  for (const f of _qFilters) if ((f.field || '').trim()) lines.push(`${f.field.trim()}: ${(f.value || '').trim()}`);
+  if (_qSort.field.trim()) lines.push(`sort: ${_qSort.field.trim()} ${_qSort.dir}`);
+  return lines.join('\n');
+}
+function insertQueryBlock() {
+  const spec = _qToSpec();
+  if (!spec) { toast('add a filter first', 'error'); return; }
+  setEditor(getEditor() + '\n```query\n' + spec + '\n```\n');
+  queueSave();
+  toast('query block inserted', '');
+}
+async function saveView() {
+  const name = await dlgPrompt('name this view:');
+  if (!name) return;
+  try {
+    await fetch('/api/vault-md/views', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name, spec: _qToSpec() }) });
+    toast('view saved', '');
+  } catch { toast('save failed', 'error'); }
+  _loadViews();
+}
+async function _loadViews() {
+  const box = $('wiki-q-views'); if (!box) return;
+  let views = [];
+  try { views = (await fetch('/api/vault-md/views').then(r => r.json())).views || []; } catch {}
+  if (!views.length) { box.innerHTML = ''; return; }
+  box.innerHTML = '<span class="wiki-q-views-label">saved:</span> ' + views.map(v =>
+    `<span class="wiki-q-view" data-spec="${esc(v.spec)}">${esc(v.name)}</span>`).join(' ');
+  box.querySelectorAll('.wiki-q-view').forEach(el => el.addEventListener('click', () => {
+    _loadSpecIntoBuilder(el.dataset.spec);
+    renderQuery();
+  }));
+}
+function _loadSpecIntoBuilder(spec) {
+  _qFilters = []; _qSort = { field: '', dir: 'asc' };
+  for (const line of (spec || '').split('\n')) {
+    const i = line.indexOf(':'); if (i < 0) continue;
+    const k = line.slice(0, i).trim(), v = line.slice(i + 1).trim();
+    if (k === 'sort') { const p = v.split(' '); _qSort = { field: p[0] || '', dir: p[1] || 'asc' }; }
+    else if (k && k !== 'limit' && k !== 'group') _qFilters.push({ field: k, op: 'eq', value: v });
+  }
+  if (!_qFilters.length) _qFilters.push({ field: '', op: 'eq', value: '' });
 }
 async function runQuery() {
   const filters = _qFilters.filter(f => (f.field || '').trim());
@@ -1236,10 +2119,12 @@ async function loadBacklinks() {
     ]);
     const links = bl.backlinks || [], ment = ul.mentions || [];
     const row = b => `<div class="wiki-bl" data-path="${esc(b.path)}"><b>${esc(b.name)}</b> <span>${esc(b.context)}</span></div>`;
-    let html = '';
+    const explainer = '<div class="wiki-bl-explainer">backlinks — other docs that <code>[[link]]</code> to this one; <b>unlinked mentions</b> name it in plain text without a link yet.</div>';
+    let html = explainer;
     if (links.length) html += `<div class="wiki-bl-head">${links.length} backlink${links.length > 1 ? 's' : ''}</div>` + links.map(row).join('');
     if (ment.length) html += `<div class="wiki-bl-head wiki-bl-unlinked">${ment.length} unlinked mention${ment.length > 1 ? 's' : ''}</div>` + ment.map(row).join('');
-    el.innerHTML = html || '<span class="wiki-bl-empty">no backlinks</span>';
+    if (!links.length && !ment.length) html += '<span class="wiki-bl-empty">nothing links here yet — add <code>[[' + esc(name) + ']]</code> in another doc to create a backlink</span>';
+    el.innerHTML = html;
     el.querySelectorAll('.wiki-bl').forEach(b => b.addEventListener('click', () => openFile(b.dataset.path)));
   } catch {}
 }
@@ -1397,13 +2282,7 @@ async function importDoc(e) {
 }
 
 // ── tasks rollup (every - [ ] across the vault) ──────────────────────────────
-function toggleTaskRoll() {
-  const p = $('wiki-taskroll'); if (!p) return;
-  const show = p.style.display === 'none';
-  p.style.display = show ? 'block' : 'none';
-  $('wiki-taskroll-btn')?.classList.toggle('active', show);
-  if (show) loadTaskRoll();
-}
+function toggleTaskRoll() { _togglePanel('wiki-taskroll', 'wiki-taskroll-btn', loadTaskRoll); }
 async function loadTaskRoll() {
   const p = $('wiki-taskroll'); if (!p) return;
   p.innerHTML = '<div class="wiki-tr-head">loading…</div>';
@@ -1479,8 +2358,9 @@ async function newNote() {
 async function deleteCurrent() {
   if (!_cur) return;
   if (!await dlgConfirm(`delete ${_cur}?`)) return;
-  await fetch(`/api/vault-md/file?path=${encodeURIComponent(_cur)}`, { method: 'DELETE' });
-  _resetEditor();
+  const p = _cur;
+  await fetch(`/api/vault-md/file?path=${encodeURIComponent(p)}`, { method: 'DELETE' });
+  closeTab(p);   // 3q: drop the deleted doc from the open-tabs strip + switch away
   loadTree();
 }
 

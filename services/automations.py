@@ -18,13 +18,13 @@ templates may use {from} {subject} {name} {date} {path} {tag} {price} — unknow
 placeholders are left as-is rather than crashing the rule.
 """
 
-import json, asyncio, logging
+import json, asyncio, logging, fnmatch
 from datetime import datetime, date
 from core.database import SessionLocal, AutomationRule, Task, Note
 
 log = logging.getLogger("aide.automations")
 
-TRIGGERS = ("mail_from", "sub_renewing", "day_event_near", "daily_at", "doc_tag")
+TRIGGERS = ("mail_from", "sub_renewing", "day_event_near", "daily_at", "doc_tag", "agent_tool")
 ACTIONS = ("create_task", "push", "create_note", "push_digest")
 
 _MAIL_POLL_EVERY = 30  # seconds between IMAP polls for mail_from rules (pooled connections + 10s list cache keep this cheap)
@@ -251,6 +251,34 @@ async def _check_mail_rule(db, rule, st):
     st["uids"] = seen_uids
     rule.state = json.dumps(st)
     db.commit()
+
+
+async def on_agent_tool(tool: str, args: dict, result, run_id: str = ""):
+    """called from the agent run loop after every tool — fires agent_tool rules (10a).
+
+    trigger_arg is an fnmatch glob over the tool name (e.g. write_* or *). No once-per
+    dedupe: a hook is meant to fire each time its tool runs.
+    """
+    db = SessionLocal()
+    try:
+        rules = (
+            db.query(AutomationRule)
+            .filter(AutomationRule.enabled == True, AutomationRule.trigger == "agent_tool")
+            .all()
+        )
+        for rule in rules:
+            glob = (rule.trigger_arg or "*").strip() or "*"
+            if not fnmatch.fnmatch(tool, glob):
+                continue
+            await _fire(
+                db,
+                rule,
+                {"tool": tool, "name": tool, "run_id": run_id or "", "dedupe": f"{run_id}:{tool}"},
+            )
+    except Exception as e:
+        log.warning(f"agent_tool automation failed: {e}")
+    finally:
+        db.close()
 
 
 async def on_doc_saved(path: str, content: str):

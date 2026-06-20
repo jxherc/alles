@@ -1,0 +1,10 @@
+PASS  sidebar_visible_on_aide
+PASS  sidebar_hidden_on_subapp
+PASS  crumb_present_on_subapp
+PASS  crossjump_back_to_hub
+PASS  apex_is_hub
+PASS  aide_is_aide
+PASS  subapps_are_subapp
+PASS  every_host_boots
+PASS  right_app_active_each_host
+PASS  every_host_zero_errors

@@ -14,7 +14,7 @@ import httpx
 # broad on purpose ("all the possible ones"): covers the common families across
 # OpenAI, Google, and the OSS/local diffusion world. a custom id can still be typed.
 _IMAGE_RE = re.compile(
-    r"dall-?e|gpt-image|imagen|image-?gen|"
+    r"dall-?e|gpt-image|\bsora\b|imagen|image-?gen|"
     r"stable-?diffusion|sdxl|\bsd[-_ ]?(?:xl|3|3\.5|2|1\.5|turbo)\b|"
     r"flux|playground-v|kandinsky|kolors|hunyuan-?(?:image|dit)|qwen-?image|"
     r"recraft|ideogram|seedream|seededit|aura-?flow|pixart|cogview|janus|"

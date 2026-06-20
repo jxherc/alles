@@ -243,6 +243,50 @@ class CalendarEvent(Base):
     recur_until = Column(String, nullable=True)  # ISO date, optional series end
     recur_except = Column(Text, default="[]")  # json: excluded occurrence dates
     caldav_uid = Column(String, nullable=True)  # set when synced from/to CalDAV
+    subscription_id = Column(String, nullable=True)  # 8a: set when pulled from an ICS-URL feed
+    meeting_url = Column(String, default="")  # 8b: video-meeting link (paste or generated)
+    created_at = Column(DateTime, default=_now)
+
+
+class EventAttendee(Base):
+    """8b — a structured invitee on an event, with a per-person RSVP token."""
+
+    __tablename__ = "event_attendees"
+    id = Column(String, primary_key=True, default=_uid)
+    event_id = Column(String, nullable=False)
+    name = Column(String, default="")
+    email = Column(String, default="")
+    status = Column(String, default="invited")  # invited | accepted | declined | tentative
+    token = Column(String, default=_uid)  # public RSVP token
+    created_at = Column(DateTime, default=_now)
+
+
+class BookingPage(Base):
+    """8b — a public appointment page; guests pick a free slot which becomes an event."""
+
+    __tablename__ = "booking_pages"
+    id = Column(String, primary_key=True, default=_uid)
+    token = Column(String, default=_uid)
+    title = Column(String, default="Book a time")
+    duration_min = Column(Integer, default=30)
+    work_start = Column(Integer, default=9)
+    work_end = Column(Integer, default=17)
+    days_ahead = Column(Integer, default=14)
+    calendar_id = Column(String, default="")
+    created_at = Column(DateTime, default=_now)
+
+
+class CalendarSubscription(Base):
+    """8a — a read-only external calendar fed by an ICS URL (Google/Apple public feed,
+    holidays, sports). refreshed on a timer; its events are full-replaced each sync."""
+
+    __tablename__ = "calendar_subscriptions"
+    id = Column(String, primary_key=True, default=_uid)
+    name = Column(String, nullable=False)
+    url = Column(String, nullable=False)
+    calendar_id = Column(String, default="")  # the Calendar layer its events land in
+    last_synced = Column(String, default="")  # ISO time of last successful/attempted sync
+    last_status = Column(String, default="")  # 'ok' | 'error: ...'
     created_at = Column(DateTime, default=_now)
 
 
@@ -281,6 +325,17 @@ class Persona(Base):
         Text, default=""
     )  # prefilled into the composer when picked (merged from templates)
     is_default = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=_now)
+
+
+class PersonaDoc(Base):
+    """10d — a knowledge file attached to a persona. The text lives in the 1c index under
+    kind=persona:<id>; this row keeps the title for listing."""
+
+    __tablename__ = "persona_docs"
+    id = Column(String, primary_key=True, default=_uid)
+    persona_id = Column(String, nullable=False, index=True)
+    title = Column(String, default="untitled")
     created_at = Column(DateTime, default=_now)
 
 
@@ -355,14 +410,64 @@ class Document(Base):
     updated_at = Column(DateTime, default=_now)
 
 
+class Vault(Base):
+    """9c — a separate vault with its own master password. The 'default' vault absorbs
+    legacy single-vault entries + the old settings verifier."""
+
+    __tablename__ = "vaults"
+    id = Column(String, primary_key=True, default=_uid)
+    name = Column(String, nullable=False, default="Personal")
+    verifier = Column(String, default="")  # salt+derived-key blob (no plaintext)
+    travel_safe = Column(Boolean, default=False)  # reachable while Travel Mode is on
+    biometric_blob = Column(Text, default="")  # 9c-2: master pw wrapped for biometric release
+    created_at = Column(DateTime, default=_now)
+
+
 class VaultEntry(Base):
     __tablename__ = "vault_entries"
     id = Column(String, primary_key=True, default=_uid)
+    vault_id = Column(String, default="default")  # 9c — which vault this entry belongs to
     name = Column(String, nullable=False)
     username = Column(String, default="")  # for password entries
     value_encrypted = Column(Text, default="")  # base64 ciphertext+nonce (JSON of fields)
     category = Column(String, default="general")
     type = Column(String, default="password")  # password | card | note
+    created_at = Column(DateTime, default=_now)
+
+
+class VaultAttachment(Base):
+    """9b — an encrypted file attached to a vault entry (blob on disk, AES-GCM)."""
+
+    __tablename__ = "vault_attachments"
+    id = Column(String, primary_key=True, default=_uid)
+    entry_id = Column(String, nullable=False)
+    filename = Column(String, default="")
+    size = Column(Integer, default=0)  # plaintext size
+    created_at = Column(DateTime, default=_now)
+
+
+class VaultShare(Base):
+    """9b — a per-item share: only the envelope ciphertext lives here; the key is in the URL."""
+
+    __tablename__ = "vault_shares"
+    id = Column(String, primary_key=True, default=_uid)
+    token = Column(String, default=_uid)
+    entry_id = Column(String, nullable=False)
+    blob = Column(Text, default="")  # base64 nonce+ct (random-key envelope)
+    created_at = Column(DateTime, default=_now)
+
+
+class WebAuthnCredential(Base):
+    """9c — a registered platform authenticator that can release a vault's unlock token."""
+
+    __tablename__ = "webauthn_credentials"
+    id = Column(String, primary_key=True, default=_uid)
+    vault_id = Column(String, default="default")
+    label = Column(String, default="")
+    credential_id = Column(String, default="")  # b64
+    public_key = Column(Text, default="")  # b64 SPKI DER (ES256)
+    sign_count = Column(Integer, default=0)
+    role = Column(String, default="")  # "" = biometric/primary, "2fa" = hardware second factor (9d)
     created_at = Column(DateTime, default=_now)
 
 
@@ -380,8 +485,44 @@ class Contact(Base):
     birthday = Column(String, default="")  # ISO date or MM-DD
     website = Column(String, default="")
     favorite = Column(Boolean, default=False)
+    avatar = Column(String, default="")  # 8c: stored avatar filename
+    is_me = Column(Boolean, default=False)  # 8c: the single "Me" card
+    carddav_uid = Column(String, default="")  # 8d: vCard UID for two-way sync
+    carddav_href = Column(String, default="")  # 8d: resource path on the server
+    carddav_etag = Column(String, default="")  # 8d: last-seen etag
     created_at = Column(DateTime, default=_now)
     updated_at = Column(DateTime, default=_now)
+
+
+class ContactField(Base):
+    """8c — a labeled multi-value field on a contact (work email, home phone, …)."""
+
+    __tablename__ = "contact_fields"
+    id = Column(String, primary_key=True, default=_uid)
+    contact_id = Column(String, nullable=False)
+    kind = Column(String, default="custom")  # email|phone|address|url|social|custom
+    label = Column(String, default="")  # home|work|mobile|... freeform
+    value = Column(Text, default="")
+    sort_order = Column(Integer, default=0)
+
+
+class ContactGroup(Base):
+    """8c — a contact group; manual members, or smart membership by tag/company."""
+
+    __tablename__ = "contact_groups"
+    id = Column(String, primary_key=True, default=_uid)
+    name = Column(String, nullable=False)
+    smart = Column(Boolean, default=False)
+    rule_tag = Column(String, default="")
+    rule_company = Column(String, default="")
+    created_at = Column(DateTime, default=_now)
+
+
+class ContactGroupMember(Base):
+    __tablename__ = "contact_group_members"
+    id = Column(String, primary_key=True, default=_uid)
+    group_id = Column(String, nullable=False)
+    contact_id = Column(String, nullable=False)
 
 
 class MailAccount(Base):
@@ -433,6 +574,11 @@ class Photo(Base):
     taken_at = Column(DateTime, nullable=True)  # EXIF DateTimeOriginal, else file mtime
     exif = Column(Text, default="{}")
     favorite = Column(Boolean, default=False)
+    caption = Column(Text, default="")  # 7a — free-text caption
+    keywords = Column(String, default="")  # 7a — csv of normalized keywords/tags
+    hidden = Column(Boolean, default=False)  # 7a — hidden/locked album (gated on vault unlock)
+    is_video = Column(Boolean, default=False)  # 7c — mp4/mov/etc; played, not thumbnailed
+    deleted_at = Column(DateTime, nullable=True)  # soft-delete (1d trash); None = live
     created_at = Column(DateTime, default=_now)  # import time
 
 
@@ -495,6 +641,7 @@ class Subscription(Base):
     account_id = Column(String, default="")  # money account to auto-post the charge to (optional)
     last_posted_due = Column(String, default="")  # due date we already posted a txn for
     trial_end = Column(String, default="")  # ISO date a free trial ends / cancel-by
+    cancel_url = Column(String, default="")  # explicit "how to cancel" link / steps (4e)
     created_at = Column(DateTime, default=_now)
 
 
@@ -529,6 +676,7 @@ class Account(Base):
     opening = Column(Float, default=0.0)  # starting balance; live balance = opening + txns
     color = Column(String, default="accent")
     archived = Column(Boolean, default=False)
+    low_balance = Column(Float, default=0.0)  # alert threshold; 0 = off (4e)
     created_at = Column(DateTime, default=_now)
 
 
@@ -542,6 +690,20 @@ class Transaction(Base):
     payee = Column(String, default="")
     notes = Column(Text, default="")
     transfer_id = Column(String, default="")  # links the two legs of an inter-account transfer
+    tags = Column(Text, default="")  # csv structured tags (4a)
+    receipt_id = Column(String, default="")  # Upload.id of an attached receipt (4a)
+    cleared = Column(Boolean, default=False)  # reconciled-against-statement flag (4a)
+    created_at = Column(DateTime, default=_now)
+
+
+class TxnSplit(Base):
+    # one piece of a split transaction (4a) — re-buckets a txn's amount across
+    # several categories. amount is the positive magnitude of this slice.
+    __tablename__ = "money_txn_splits"
+    id = Column(String, primary_key=True, default=_uid)
+    txn_id = Column(String, ForeignKey("money_transactions.id", ondelete="CASCADE"), index=True)
+    category = Column(String, default="")
+    amount = Column(Float, default=0.0)  # magnitude of this slice (always positive)
     created_at = Column(DateTime, default=_now)
 
 
@@ -550,6 +712,26 @@ class Budget(Base):
     id = Column(String, primary_key=True, default=_uid)
     category = Column(String, nullable=False)
     limit_amt = Column(Float, default=0.0)  # monthly spending cap for this category
+    created_at = Column(DateTime, default=_now)
+
+
+class BudgetAssignment(Base):
+    # YNAB envelope: money assigned to a category for a given month (4b)
+    __tablename__ = "money_assignments"
+    id = Column(String, primary_key=True, default=_uid)
+    category = Column(String, nullable=False, index=True)
+    month = Column(String, nullable=False, index=True)  # YYYY-MM
+    assigned = Column(Float, default=0.0)
+    created_at = Column(DateTime, default=_now)
+
+
+class FundingTarget(Base):
+    # YNAB funding target: want `amount` in `category` by `target_date` (4b)
+    __tablename__ = "money_targets"
+    id = Column(String, primary_key=True, default=_uid)
+    category = Column(String, nullable=False, unique=True)
+    amount = Column(Float, default=0.0)
+    target_date = Column(String, default="")
     created_at = Column(DateTime, default=_now)
 
 
@@ -570,6 +752,40 @@ class RecurringTxn(Base):
     created_at = Column(DateTime, default=_now)
 
 
+class Goal(Base):
+    # a savings or debt-payoff goal (4d). savings: current grows to target; debt:
+    # current is the remaining balance shrinking to 0. monthly drives the ETA.
+    __tablename__ = "money_goals"
+    id = Column(String, primary_key=True, default=_uid)
+    name = Column(String, nullable=False)
+    kind = Column(String, default="savings")  # savings | debt
+    target = Column(Float, default=0.0)
+    current = Column(Float, default=0.0)
+    monthly = Column(Float, default=0.0)  # planned monthly contribution / payment
+    created_at = Column(DateTime, default=_now)
+
+
+class Holding(Base):
+    # a manual investment holding (4c): value = qty*price, gain = qty*(price − cost_basis)
+    __tablename__ = "money_holdings"
+    id = Column(String, primary_key=True, default=_uid)
+    symbol = Column(String, nullable=False)
+    name = Column(String, default="")
+    qty = Column(Float, default=0.0)
+    cost_basis = Column(Float, default=0.0)  # per-share cost
+    price = Column(Float, default=0.0)  # latest (manual) price per share
+    created_at = Column(DateTime, default=_now)
+
+
+class Watch(Base):
+    # a watched payee/category (4c) — drives alerts when matching txns land
+    __tablename__ = "money_watches"
+    id = Column(String, primary_key=True, default=_uid)
+    kind = Column(String, default="category")  # payee | category
+    value = Column(String, nullable=False)
+    created_at = Column(DateTime, default=_now)
+
+
 class CategoryRule(Base):
     # payee substring → category, applied to typed/imported txns with no category
     __tablename__ = "money_category_rules"
@@ -587,6 +803,7 @@ class FileTag(Base):
     path = Column(String, unique=True, index=True)  # files-root-relative
     tags = Column(String, default="")  # csv of normalized (lowercased) tags
     color = Column(String, default="")  # swatch name: red/orange/green/blue/purple/gray
+    starred = Column(Boolean, default=False)  # favorite flag (6a)
     created_at = Column(DateTime, default=_now)
 
 
@@ -595,6 +812,85 @@ class DocRevision(Base):
     id = Column(String, primary_key=True, default=_uid)
     path = Column(String, nullable=False, index=True)  # vault-relative, normalized
     content = Column(Text, default="")
+    created_at = Column(DateTime, default=_now)
+
+
+class IndexChunk(Base):
+    # reusable, persistent, multi-kind text index (1c) — shared by docs RAG (3d)
+    # and code semantic search (10a). vec is a JSON float list, or "" when no embedder.
+    __tablename__ = "index_chunks"
+    id = Column(String, primary_key=True, default=_uid)
+    kind = Column(String, nullable=False, index=True)  # doc | code | ...
+    ref = Column(String, nullable=False, index=True)  # vault path, symbol id, ...
+    chunk_no = Column(Integer, default=0)
+    text = Column(Text, default="")
+    vec = Column(Text, default="")  # json.dumps(list[float]) or ""
+    created_at = Column(DateTime, default=_now)
+
+
+class FileVersion(Base):
+    # generic file version history (1e) — blobs stored under <data>/.versions, deduped by sha.
+    __tablename__ = "file_versions"
+    id = Column(String, primary_key=True, default=_uid)
+    path = Column(String, nullable=False, index=True)  # files-relative path
+    sha = Column(String, default="")
+    size = Column(Integer, default=0)
+    stored = Column(String, default="")  # blob filename in the versions dir
+    created_at = Column(DateTime, default=_now)
+
+
+class TrashItem(Base):
+    # generic soft-delete registry (1d). files stash their bytes in the trash dir;
+    # photos flip Photo.deleted_at. restore/purge dispatch on kind. expires_at drives purge.
+    __tablename__ = "trash_items"
+    id = Column(String, primary_key=True, default=_uid)
+    kind = Column(String, nullable=False, index=True)  # file | photo
+    ref = Column(String, nullable=False)  # files-relative path | photo id
+    name = Column(String, default="")
+    payload = Column(Text, default="{}")  # json: {trash_name, is_dir, ...}
+    trashed_at = Column(DateTime, default=_now)
+    expires_at = Column(DateTime, nullable=True)
+
+
+class Share(Base):
+    # generic read-only share/publish for any resource (1a). sessions keep their
+    # own share_token column for back-compat; this covers doc/file/photo/etc.
+    __tablename__ = "shares"
+    id = Column(String, primary_key=True, default=_uid)
+    token = Column(
+        String, unique=True, index=True, nullable=False, default=lambda: uuid.uuid4().hex
+    )
+    kind = Column(String, nullable=False)  # doc|file|photo|album|contact|event|session
+    ref = Column(String, nullable=False)  # resource id, or vault/files-relative path
+    level = Column(String, default="view")  # view | download
+    created_at = Column(DateTime, default=_now)
+
+
+class DocComment(Base):
+    # inline comments anchored to a quoted span of a doc (3e). a thread root has
+    # parent_id == None; replies point at the root via parent_id. anchor holds the
+    # quoted text — orphaned (computed on read) when it no longer occurs in the note.
+    __tablename__ = "doc_comments"
+    id = Column(String, primary_key=True, default=_uid)
+    doc = Column(String, nullable=False, index=True)  # vault-relative path
+    anchor = Column(Text, default="")  # the quoted text the thread is pinned to
+    body = Column(Text, default="")
+    author = Column(String, default="me")
+    parent_id = Column(String, nullable=True, index=True)  # None = thread root
+    resolved = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=_now)
+
+
+class FileComment(Base):
+    # comments on a file in the files app (6c), keyed by files-relative path. threaded like
+    # DocComment: a root has parent_id == None, replies point at the root via parent_id.
+    __tablename__ = "file_comments"
+    id = Column(String, primary_key=True, default=_uid)
+    path = Column(String, nullable=False, index=True)  # files-root-relative
+    body = Column(Text, default="")
+    author = Column(String, default="me")
+    parent_id = Column(String, nullable=True, index=True)  # None = thread root
+    resolved = Column(Boolean, default=False)
     created_at = Column(DateTime, default=_now)
 
 
@@ -621,7 +917,51 @@ class CachedMessage(Base):
     date_ts = Column(Float, default=0)
     seen = Column(Boolean, default=False)
     flagged = Column(Boolean, default=False)  # local star/flag (Apple Mail style)
+    list_unsubscribe = Column(Text, default="")  # raw List-Unsubscribe header (5a)
+    muted = Column(Boolean, default=False)  # muted thread → hidden from lists (5a)
+    snoozed_until = Column(String, default="")  # ISO time; hidden until then (5b)
+    labels = Column(Text, default="")  # csv user labels (5e)
     cached_at = Column(DateTime, default=_now)
+
+
+class MailRule(Base):
+    # a triage rule (5d): if match_field contains match_value → action
+    __tablename__ = "mail_rules"
+    id = Column(String, primary_key=True, default=_uid)
+    match_field = Column(String, default="from")  # from | subject
+    match_value = Column(String, default="")
+    action = Column(String, default="markread")  # markread | mute | label | autoreply
+    action_arg = Column(String, default="")
+    enabled = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=_now)
+
+
+class ScheduledMail(Base):
+    # an outbound message queued to send at send_at (5b). also powers undo-send
+    # (schedule a few seconds out, cancel within the window).
+    __tablename__ = "mail_scheduled"
+    id = Column(String, primary_key=True, default=_uid)
+    account_id = Column(String, index=True, nullable=False)
+    to = Column(Text, default="")
+    cc = Column(Text, default="")
+    bcc = Column(Text, default="")
+    subject = Column(Text, default="")
+    body = Column(Text, default="")
+    html = Column(Text, default="")  # optional HTML alternative (5c)
+    in_reply_to = Column(String, default="")
+    references = Column(String, default="")
+    send_at = Column(String, default="")  # ISO datetime
+    status = Column(String, default="scheduled")  # scheduled | sent | canceled
+    created_at = Column(DateTime, default=_now)
+
+
+class SavedSearch(Base):
+    # a named mail search / smart mailbox (5a) — stores a query with operators
+    __tablename__ = "mail_saved_searches"
+    id = Column(String, primary_key=True, default=_uid)
+    name = Column(String, nullable=False)
+    query = Column(Text, default="")
+    created_at = Column(DateTime, default=_now)
 
 
 class SessionTemplate(Base):
@@ -656,6 +996,24 @@ def init_db():
     # migrations — safe to run multiple times (all idempotent)
     with engine.connect() as conn:
         _add_col(conn, "cached_messages", "flagged", "BOOLEAN DEFAULT 0")
+        # 4a — transaction depth: tags, receipt attachment, cleared/reconcile state
+        _add_col(conn, "money_transactions", "tags", "TEXT DEFAULT ''")
+        _add_col(conn, "money_transactions", "receipt_id", "TEXT DEFAULT ''")
+        _add_col(conn, "money_transactions", "cleared", "BOOLEAN DEFAULT 0")
+        # 4e — cancellation helper + low-balance alerts
+        _add_col(conn, "subscriptions", "cancel_url", "TEXT DEFAULT ''")
+        _add_col(conn, "money_accounts", "low_balance", "FLOAT DEFAULT 0")
+        # 5a — mail triage: list-unsubscribe + muted threads
+        _add_col(conn, "cached_messages", "list_unsubscribe", "TEXT DEFAULT ''")
+        _add_col(conn, "cached_messages", "muted", "BOOLEAN DEFAULT 0")
+        # 5b — snooze
+        _add_col(conn, "cached_messages", "snoozed_until", "TEXT DEFAULT ''")
+        # 5c — scheduled HTML body
+        _add_col(conn, "mail_scheduled", "html", "TEXT DEFAULT ''")
+        # 5e — message labels
+        _add_col(conn, "cached_messages", "labels", "TEXT DEFAULT ''")
+        # 6a — starred files
+        _add_col(conn, "file_tags", "starred", "BOOLEAN DEFAULT 0")
         for _c, _t in [
             ("company", "TEXT DEFAULT ''"),
             ("title", "TEXT DEFAULT ''"),
@@ -705,6 +1063,28 @@ def init_db():
         _add_col(conn, "calendar_events", "recur_byday", "TEXT DEFAULT ''")
         _add_col(conn, "calendar_events", "recur_count", "INTEGER")
         _add_col(conn, "calendar_events", "recur_except", "TEXT DEFAULT '[]'")
+        _add_col(conn, "photos", "deleted_at", "DATETIME")
+        # 7a — captions/keywords + hidden album
+        _add_col(conn, "photos", "caption", "TEXT DEFAULT ''")
+        _add_col(conn, "photos", "keywords", "TEXT DEFAULT ''")
+        _add_col(conn, "photos", "hidden", "BOOLEAN DEFAULT 0")
+        # 7c — video assets
+        _add_col(conn, "photos", "is_video", "BOOLEAN DEFAULT 0")
+        # 8a — ICS URL subscriptions
+        _add_col(conn, "calendar_events", "subscription_id", "VARCHAR")
+        # 8b — video links (attendees/booking pages are new tables, no _add_col needed)
+        _add_col(conn, "calendar_events", "meeting_url", "VARCHAR DEFAULT ''")
+        # 8c — contact avatar + Me card (fields/groups are new tables)
+        _add_col(conn, "contacts", "avatar", "VARCHAR DEFAULT ''")
+        _add_col(conn, "contacts", "is_me", "BOOLEAN DEFAULT 0")
+        # 8d — CardDAV sync columns
+        _add_col(conn, "contacts", "carddav_uid", "VARCHAR DEFAULT ''")
+        _add_col(conn, "contacts", "carddav_href", "VARCHAR DEFAULT ''")
+        _add_col(conn, "contacts", "carddav_etag", "VARCHAR DEFAULT ''")
+        # 9c — multi-vault: scope existing entries to the default vault
+        _add_col(conn, "vault_entries", "vault_id", "TEXT DEFAULT 'default'")
+        _add_col(conn, "vaults", "biometric_blob", "TEXT DEFAULT ''")
+        _add_col(conn, "webauthn_credentials", "role", "TEXT DEFAULT ''")
     _encrypt_plaintext_secrets()
 
 

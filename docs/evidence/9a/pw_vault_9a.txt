@@ -1,0 +1,8 @@
+PASS  watchtower_button
+PASS  totp_field_in_form
+PASS  totp_code_shows_on_reveal
+PASS  totp_countdown
+PASS  watchtower_renders
+PASS  watchtower_lists_weak
+PASS  watchtower_lists_reused
+PASS  zero_console_errors

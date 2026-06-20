@@ -1,6 +1,7 @@
 // journal — one entry per day. mood + tags + prompt + streak + on-this-day + AI reflect.
 import { toast, mdToHtml } from './util.js';
 
+const _si = n => (window.icon ? window.icon(n) : '');   // central icon set, load-order safe
 const MOODS = ['😄', '🙂', '😐', '😕', '😢', '😠', '😴', '🤔', '🥳', '😍'];
 function _dayFromUrl() { const d = new URLSearchParams(location.search).get('d'); return (d && /^\d{4}-\d{2}-\d{2}$/.test(d)) ? d : ''; }
 let _day = _dayFromUrl() || todayISO();
@@ -81,7 +82,7 @@ function buildJournal() {
           <input id="jrnl-tags" class="jrnl-tags" placeholder="tags (comma separated)">
           <div class="jrnl-actions">
             <button class="btn primary" id="jrnl-save">save</button>
-            <button class="btn" id="jrnl-reflect">✨ reflect</button>
+            <button class="btn" id="jrnl-reflect">${_si('sparkles')} reflect</button>
             <span class="jrnl-saved" id="jrnl-saved"></span>
           </div>
           <div class="jrnl-reflection" id="jrnl-reflection" style="display:none"></div>
@@ -222,7 +223,7 @@ async function refreshLockBtn() {
   if (!btn) return;
   try {
     const s = await jget('/api/journal/lock/status');
-    btn.textContent = s.enabled ? '🔒 lock now' : '🔓 add passcode';
+    btn.innerHTML = s.enabled ? `${_si('lock')} lock options` : `${_si('unlock')} add passcode`;
     btn.dataset.enabled = s.enabled ? '1' : '';
   } catch {}
 }
@@ -240,18 +241,25 @@ async function openLockMenu() {
   }
 }
 
-// tiny themed action picker rendered inline over the actions row
+// themed action dropdown anchored under the lock button (was buried in the reflection panel)
 function pickLockAction() {
   return new Promise(resolve => {
-    const host = document.getElementById('jrnl-reflection');
-    host.style.display = 'block';
-    host.innerHTML = `<div class="jrnl-lockmenu">
+    document.querySelector('.jrnl-lockmenu')?.remove();
+    const btn = document.getElementById('jrnl-lock');
+    const menu = document.createElement('div');
+    menu.className = 'jrnl-lockmenu';
+    menu.innerHTML = `
       <button class="btn" data-a="lock">lock now</button>
       <button class="btn" data-a="change">change passcode</button>
-      <button class="btn danger" data-a="disable">disable lock</button>
-      <button class="btn" data-a="">cancel</button>
-    </div>`;
-    host.querySelectorAll('[data-a]').forEach(b => b.onclick = () => { host.style.display = 'none'; host.innerHTML = ''; resolve(b.dataset.a); });
+      <button class="btn danger" data-a="disable">disable lock</button>`;
+    document.body.appendChild(menu);
+    const r = btn.getBoundingClientRect();
+    menu.style.top = (r.bottom + 4) + 'px';
+    menu.style.left = Math.max(8, Math.min(r.left, window.innerWidth - menu.offsetWidth - 8)) + 'px';
+    const done = v => { menu.remove(); document.removeEventListener('mousedown', out); resolve(v); };
+    const out = e => { if (!menu.contains(e.target) && e.target !== btn) done(''); };
+    menu.querySelectorAll('[data-a]').forEach(b => b.onclick = () => done(b.dataset.a));
+    setTimeout(() => document.addEventListener('mousedown', out), 0);
   });
 }
 
@@ -266,7 +274,7 @@ function showLock(mode) {
   body.innerHTML = `
     <div class="jrnl-lock">
       <div class="jrnl-lock-card">
-        <div class="jrnl-lock-icon">🔒</div>
+        <div class="jrnl-lock-icon">${_si('lock')}</div>
         <div class="jrnl-lock-title">${titles[mode] || 'journal'}</div>
         ${needsOld ? `<input type="password" id="jl-old" class="jrnl-tags" placeholder="${mode === 'unlock' ? 'passcode' : 'current passcode'}" autocomplete="off">` : ''}
         ${needsNew ? `<input type="password" id="jl-new" class="jrnl-tags" placeholder="new passcode" autocomplete="off">` : ''}
@@ -351,7 +359,7 @@ async function loadStats() {
     const d = await jget('/api/journal');
     const s = d.stats || {};
     const el = document.getElementById('journal-stats');
-    if (el) el.textContent = `🔥 ${s.streak || 0} day streak · ${s.total || 0} entries · ${s.this_month || 0} this month`;
+    if (el) el.innerHTML = `${_si('fire')} ${s.streak || 0} day streak · ${s.total || 0} entries · ${s.this_month || 0} this month`;
   } catch {}
 }
 
@@ -407,5 +415,5 @@ async function reflect() {
   } catch (e) {
     toast(e.message || 'reflect failed', 'error');
   }
-  btn.disabled = false; btn.textContent = '✨ reflect';
+  btn.disabled = false; btn.innerHTML = `${_si('sparkles')} reflect`;
 }

@@ -1,0 +1,8 @@
+PASS  map_option_present
+PASS  memories_option_present
+PASS  map_renders_leaflet
+PASS  map_has_marker
+PASS  marker_opens_lightbox
+PASS  memories_section_renders
+PASS  collage_button_makes_photo
+PASS  zero_console_errors

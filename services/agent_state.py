@@ -38,6 +38,7 @@ def start_run(session_id: str, model: str, max_turns: int, cwd: str = "") -> dic
         "status": "running",
         "max_turns": max_turns,
         "turn": 0,
+        "text": "",  # accumulated assistant prose, persisted each turn for reconnect (10b)
         "todos": [],
         "events": [],
         "tool_steps": [],

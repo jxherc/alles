@@ -35,6 +35,60 @@ class NetProxyTest(unittest.TestCase):
         self.assertEqual(os.environ.get("HTTPS_PROXY"), "http://127.0.0.1:7890")
         self.assertEqual(os.environ.get("HTTP_PROXY"), "http://127.0.0.1:7890")
 
+    def test_whitespace_only_proxy_is_noop(self):
+        cs.save_settings({"outbound_proxy": "   "})
+        os.environ.pop("HTTPS_PROXY", None)
+        os.environ.pop("HTTP_PROXY", None)
+        result = net.apply_proxy()
+        self.assertEqual(result, "")
+        self.assertIsNone(os.environ.get("HTTPS_PROXY"))
+        self.assertIsNone(os.environ.get("HTTP_PROXY"))
+
+    def test_empty_string_proxy_is_noop(self):
+        cs.save_settings({"outbound_proxy": ""})
+        os.environ.pop("HTTPS_PROXY", None)
+        result = net.apply_proxy()
+        self.assertEqual(result, "")
+        self.assertIsNone(os.environ.get("HTTPS_PROXY"))
+
+    def test_idempotent_double_call(self):
+        cs.save_settings({"outbound_proxy": "http://proxy.local:3128"})
+        r1 = net.apply_proxy()
+        r2 = net.apply_proxy()
+        self.assertEqual(r1, r2)
+        self.assertEqual(os.environ.get("HTTPS_PROXY"), "http://proxy.local:3128")
+
+    def test_changing_proxy_updates_env(self):
+        cs.save_settings({"outbound_proxy": "http://first.proxy:1111"})
+        net.apply_proxy()
+        cs.save_settings({"outbound_proxy": "http://second.proxy:2222"})
+        net.apply_proxy()
+        self.assertEqual(os.environ.get("HTTPS_PROXY"), "http://second.proxy:2222")
+        self.assertEqual(os.environ.get("HTTP_PROXY"), "http://second.proxy:2222")
+
+    def test_return_type_is_str(self):
+        result = net.apply_proxy()
+        self.assertIsInstance(result, str)
+
+    def test_proxy_none_in_settings_is_noop(self):
+        cs.save_settings({"outbound_proxy": None})
+        os.environ.pop("HTTPS_PROXY", None)
+        result = net.apply_proxy()
+        self.assertEqual(result, "")
+        self.assertIsNone(os.environ.get("HTTPS_PROXY"))
+
+    def test_no_settings_file_is_noop(self):
+        # settings file never written → fresh state → no proxy
+        os.environ.pop("HTTPS_PROXY", None)
+        result = net.apply_proxy()
+        self.assertEqual(result, "")
+        self.assertIsNone(os.environ.get("HTTPS_PROXY"))
+
+    def test_both_env_vars_set_together(self):
+        cs.save_settings({"outbound_proxy": "http://corp.proxy:8080"})
+        net.apply_proxy()
+        self.assertEqual(os.environ.get("HTTP_PROXY"), os.environ.get("HTTPS_PROXY"))
+
 
 if __name__ == "__main__":
     unittest.main()

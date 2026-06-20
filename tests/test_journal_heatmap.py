@@ -1,10 +1,27 @@
+import tempfile
 from datetime import date
+from pathlib import Path
+from unittest import mock
 
+import core.settings
 from core.database import JournalEntry
 from tests._client import ApiTest
 
 
 class JournalHeatmapTests(ApiTest):
+    def setUp(self):
+        super().setUp()
+        # hermetic settings so the dev's real journal passcode can't lock these out
+        self._sf = tempfile.NamedTemporaryFile(suffix=".json", delete=False)
+        self._sf.close()
+        self.sp = mock.patch.object(core.settings, "_SETTINGS_FILE", Path(self._sf.name))
+        self.sp.start()
+
+    def tearDown(self):
+        self.sp.stop()
+        Path(self._sf.name).unlink(missing_ok=True)
+        super().tearDown()
+
     def _seed(self, day, words, mood=""):
         d = self.db()
         d.add(JournalEntry(date=day, content=" ".join(["w"] * words), mood=mood))

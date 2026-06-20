@@ -1,10 +1,11 @@
 import io
 import tempfile
 import unittest
+from datetime import datetime
 from pathlib import Path
 from unittest import mock
 
-from services import photos_store, photo_sync
+from services import photo_sync, photos_store
 from tests._client import ApiTest
 
 
@@ -46,6 +47,7 @@ class PhotoSyncStoreTest(unittest.TestCase):
         from sqlalchemy import create_engine
         from sqlalchemy.orm import sessionmaker
         from sqlalchemy.pool import StaticPool
+
         import core.database as db
 
         eng = create_engine(
@@ -84,6 +86,93 @@ class PhotoSyncStoreTest(unittest.TestCase):
         if sys.platform != "darwin":
             with self.assertRaises(NotImplementedError):
                 photo_sync.pull_from_macos_photos("/tmp/whatever")
+
+
+class ParseTakeoutSidecarTest(unittest.TestCase):
+    def test_full_sidecar(self):
+        data = {
+            "photoTakenTime": {"timestamp": "1609459200"},
+            "geoData": {"latitude": 35.6762, "longitude": 139.6503},
+        }
+        r = photo_sync.parse_takeout_sidecar(data)
+        self.assertEqual(r["taken_at"], datetime(2021, 1, 1, 0, 0, 0))
+        self.assertAlmostEqual(r["lat"], 35.6762, places=4)
+        self.assertAlmostEqual(r["lon"], 139.6503, places=4)
+
+    def test_zero_latlon_ignored(self):
+        # takeout writes 0.0/0.0 when no GPS — don't store those
+        data = {
+            "photoTakenTime": {"timestamp": "1609459200"},
+            "geoData": {"latitude": 0.0, "longitude": 0.0},
+        }
+        r = photo_sync.parse_takeout_sidecar(data)
+        self.assertNotIn("lat", r)
+        self.assertNotIn("lon", r)
+
+    def test_bad_timestamp_skipped(self):
+        data = {"photoTakenTime": {"timestamp": "notanumber"}}
+        r = photo_sync.parse_takeout_sidecar(data)
+        self.assertNotIn("taken_at", r)
+
+    def test_empty_sidecar(self):
+        self.assertEqual(photo_sync.parse_takeout_sidecar({}), {})
+
+
+class RunWatchTest(unittest.TestCase):
+    def setUp(self):
+        self.pdir = tempfile.TemporaryDirectory()
+        self.tdir = tempfile.TemporaryDirectory()
+        self.state = tempfile.TemporaryDirectory()
+        self._patches = [
+            mock.patch.object(photos_store, "photos_dir", lambda: Path(self.pdir.name)),
+            mock.patch.object(photos_store, "thumbs_dir", lambda: Path(self.tdir.name)),
+            mock.patch.object(photo_sync, "_STATE", Path(self.state.name) / "state.json"),
+        ]
+        for p in self._patches:
+            p.start()
+
+    def tearDown(self):
+        for p in self._patches:
+            p.stop()
+        for d in (self.pdir, self.tdir, self.state):
+            d.cleanup()
+
+    def test_run_watch_no_folder_configured(self):
+        with mock.patch("services.photo_sync.load_settings", return_value={}):
+            r = photo_sync.run_watch()
+        self.assertEqual(r["skipped"], "no watch folder")
+
+    def test_run_watch_missing_folder(self):
+        with mock.patch(
+            "services.photo_sync.load_settings",
+            return_value={"photos_watch_folder": "/no/such/dir/xyz123"},
+        ):
+            r = photo_sync.run_watch()
+        self.assertEqual(r["skipped"], "folder not found")
+
+    def test_run_watch_imports_new_files(self):
+        from sqlalchemy import create_engine
+        from sqlalchemy.orm import sessionmaker
+        from sqlalchemy.pool import StaticPool
+
+        import core.database as db
+
+        src = tempfile.TemporaryDirectory()
+        _png(Path(src.name) / "w.png", (100, 150, 200))
+        eng = create_engine(
+            "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
+        )
+        db.Base.metadata.create_all(eng)
+        sess = sessionmaker(bind=eng)()
+        with mock.patch(
+            "services.photo_sync.load_settings",
+            return_value={"photos_watch_folder": src.name},
+        ):
+            r = photo_sync.run_watch(db=sess)
+        sess.close()
+        src.cleanup()
+        self.assertEqual(r["imported"], 1)
+        self.assertEqual(r["failed"], 0)
 
 
 class PhotoSyncApiTest(ApiTest):

@@ -1,0 +1,9 @@
+aide: loaded, console_errors=0, share_affordances=0
+docs: loaded, console_errors=1, share_affordances=0
+    errs: ['error:Failed to load resource: net::ERR_CONNECTION_CLOSED']
+files: loaded, console_errors=0, share_affordances=0
+secrets: loaded, console_errors=0, share_affordances=0
+photos: loaded, console_errors=1, share_affordances=0
+    errs: ['error:Failed to load resource: the server responded with a status of 401 (Unauthorized)']
+contacts: loaded, console_errors=0, share_affordances=0
+calendar: loaded, console_errors=0, share_affordances=0

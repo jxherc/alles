@@ -14,6 +14,7 @@ from core.settings import data_dir, load_settings
 
 ROOT = Path(__file__).resolve().parent.parent
 _ALLOWED = {"jpg", "jpeg", "png", "webp", "gif", "bmp"}
+_VIDEO = {"mp4", "mov", "m4v", "webm"}  # 7c — no ffmpeg here, so stored + played, not thumbnailed
 _THUMB = 512
 
 
@@ -145,6 +146,36 @@ def _read_exif(img) -> tuple:
     return taken_at, out
 
 
+def _ext_of(original_name: str) -> str:
+    ext = (original_name.rsplit(".", 1)[-1] if "." in original_name else "").lower()
+    return "jpg" if ext == "jpeg" else ext
+
+
+def import_media(data: bytes, original_name: str) -> dict:
+    """dispatch by extension: video → stored as-is (no decode), else image."""
+    if _ext_of(original_name) in _VIDEO:
+        return import_video(data, original_name)
+    return import_image(data, original_name)
+
+
+def import_video(data: bytes, original_name: str) -> dict:
+    ext = _ext_of(original_name)
+    if ext not in _VIDEO:
+        raise ValueError(f"unsupported video type: .{ext}")
+    fname = uuid.uuid4().hex + "." + ext
+    (photos_dir() / fname).write_bytes(data)
+    return {
+        "filename": fname,
+        "thumb": "",  # no ffmpeg → no poster frame; the UI shows a ▶ badge instead
+        "original_name": original_name,
+        "width": 0,
+        "height": 0,
+        "taken_at": datetime.utcnow(),
+        "exif": json.dumps({}),
+        "is_video": True,
+    }
+
+
 def import_image(data: bytes, original_name: str) -> dict:
     from PIL import Image, ImageOps
 
@@ -180,7 +211,34 @@ def import_image(data: bytes, original_name: str) -> dict:
         "height": h,
         "taken_at": taken_at,
         "exif": json.dumps(exif_out),
+        "is_video": False,
     }
+
+
+def make_collage(paths, cols=3, cell=400) -> bytes:
+    """grid collage from a list of image paths. square cells (center-cropped), even gaps
+    handled by the caller's background. returns PNG bytes. no ML, just Pillow."""
+    from PIL import Image, ImageOps
+
+    imgs = []
+    for p in paths:
+        try:
+            im = Image.open(p).convert("RGB")
+            imgs.append(ImageOps.fit(im, (cell, cell), Image.LANCZOS))
+        except Exception:
+            pass  # skip anything unreadable
+    if not imgs:
+        raise ValueError("no usable images")
+    cols = max(1, int(cols))
+    rows = (len(imgs) + cols - 1) // cols
+    canvas = Image.new("RGB", (cols * cell, rows * cell), (10, 10, 10))
+    for i, im in enumerate(imgs):
+        x = (i % cols) * cell
+        y = (i // cols) * cell
+        canvas.paste(im, (x, y))
+    buf = io.BytesIO()
+    canvas.save(buf, "PNG")
+    return buf.getvalue()
 
 
 def original_path(filename: str) -> Path:

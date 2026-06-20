@@ -7,9 +7,10 @@ pretending. on the Mac these are the wiring points for Keychain + EventKit.
   - export_calendar / export_reminders : pull from the Calendar/Reminders apps (EventKit)
 """
 
-import sys
+import os
 import shutil
 import subprocess
+import sys
 
 
 def is_mac() -> bool:
@@ -19,6 +20,43 @@ def is_mac() -> bool:
 def _require_darwin():
     if not is_mac():
         raise NotImplementedError("macOS only — this runs on the Mac mini, not the test box")
+
+
+def icloud_drive_dir() -> str | None:
+    """the iCloud Drive folder on macOS (watch-folder ingestion target), else None (11a)."""
+    if not is_mac():
+        return None
+    p = os.path.expanduser("~/Library/Mobile Documents/com~apple~CloudDocs")
+    return p if os.path.isdir(p) else p  # return the canonical path even if not yet present
+
+
+def capabilities() -> dict:
+    """what native integration is reachable here — drives the settings status card (11a).
+    off-darwin everything is unavailable (the feature fails loud, honestly)."""
+    mac = is_mac()
+    return {
+        "platform": sys.platform,
+        "available": mac,
+        "keychain": mac and shutil.which("security") is not None,
+        "eventkit": mac and shutil.which("icalBuddy") is not None,
+        "photokit": mac and shutil.which("osxphotos") is not None,
+        "icloud": bool(mac and icloud_drive_dir()),
+    }
+
+
+def _parse_ical_output(text: str) -> list[dict]:
+    """turn icalBuddy's bulleted output into structured rows: a `•`/`*` line starts an event
+    (its title); indented lines below are that event's detail. cross-platform pure parsing."""
+    rows = []
+    for line in (text or "").splitlines():
+        s = line.strip()
+        if not s:
+            continue
+        if s[0] in "•*-" and (len(s) == 1 or s[1] == " "):
+            rows.append({"title": s[1:].strip(), "detail": ""})
+        elif rows:
+            rows[-1]["detail"] = (rows[-1]["detail"] + " " + s).strip()
+    return rows
 
 
 # ── Keychain (uses the built-in `security` CLI, no extra deps) ─────────────────
@@ -62,7 +100,7 @@ def export_calendar() -> list[dict]:
         text=True,
         check=True,
     )
-    return [{"raw": line} for line in r.stdout.splitlines() if line.strip()]
+    return _parse_ical_output(r.stdout)
 
 
 def export_reminders() -> list[dict]:
@@ -75,4 +113,4 @@ def export_reminders() -> list[dict]:
         text=True,
         check=True,
     )
-    return [{"raw": line} for line in r.stdout.splitlines() if line.strip()]
+    return _parse_ical_output(r.stdout)
