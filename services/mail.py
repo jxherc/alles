@@ -275,7 +275,8 @@ def fetch_inbox(acct, folder: str = "INBOX", limit: int = 30, quick: bool = Fals
         n = int(limit or 30)
         lo = max(1, exists - n + 1)
         typ, msgd = M.fetch(
-            f"{lo}:{exists}", "(UID FLAGS BODY.PEEK[HEADER.FIELDS (FROM SUBJECT DATE)])"
+            f"{lo}:{exists}",
+            "(UID FLAGS BODY.PEEK[HEADER.FIELDS (FROM SUBJECT DATE LIST-UNSUBSCRIBE)])",
         )
         rows = []
         for part in msgd or []:
@@ -295,6 +296,7 @@ def fetch_inbox(acct, folder: str = "INBOX", limit: int = 30, quick: bool = Fals
                     "date": date,
                     "date_ts": _date_ts(date),
                     "seen": b"\\Seen" in meta,
+                    "list_unsubscribe": msg.get("List-Unsubscribe", ""),
                 }
             )
         rows.reverse()  # sequence order is oldest→newest; we want newest first
@@ -686,6 +688,94 @@ def normalize_subject(s: str) -> str:
     return s or "(no subject)"
 
 
+_SOCIAL = (
+    "facebook",
+    "twitter",
+    "x.com",
+    "linkedin",
+    "instagram",
+    "tiktok",
+    "reddit",
+    "youtube",
+    "pinterest",
+)
+_PROMO = (
+    "sale",
+    "% off",
+    "deal",
+    "discount",
+    "coupon",
+    "offer",
+    "newsletter",
+    "unsubscribe",
+    "promo",
+)
+
+
+def categorize(sender: str, subject: str, list_unsubscribe: str = "") -> str:
+    """Gmail-style inbox category from headers (5e): primary | social | promotions | updates."""
+    s = (sender or "").lower()
+    subj = (subject or "").lower()
+    if any(d in s for d in _SOCIAL):
+        return "social"
+    if list_unsubscribe or any(w in subj for w in _PROMO) or "newsletter" in s or "marketing" in s:
+        return "promotions"
+    if (
+        "no-reply" in s
+        or "noreply" in s
+        or "notification" in s
+        or "notify" in s
+        or "donotreply" in s
+    ):
+        return "updates"
+    return "primary"
+
+
+def parse_list_unsubscribe(header: str) -> dict:
+    """pull the http(s) and mailto targets out of a List-Unsubscribe header (5a)."""
+    http = mailto = ""
+    for uri in re.findall(r"<([^>]+)>", header or ""):
+        u = uri.strip()
+        if u.lower().startswith("http") and not http:
+            http = u
+        elif u.lower().startswith("mailto:") and not mailto:
+            mailto = u
+    return {"http": http, "mailto": mailto}
+
+
+def parse_search_query(q: str) -> dict:
+    """parse Gmail-style operators (from:/to:/subject:/has:attachment/before:/after:) out of a
+    search string; the leftover words become the free-text match (5a)."""
+    spec = {
+        "from": "",
+        "to": "",
+        "subject": "",
+        "has_attachment": False,
+        "before": "",
+        "after": "",
+        "text": "",
+    }
+    words = []
+    for tok in (q or "").split():
+        low = tok.lower()
+        if low.startswith("from:"):
+            spec["from"] = tok[5:]
+        elif low.startswith("to:"):
+            spec["to"] = tok[3:]
+        elif low.startswith("subject:"):
+            spec["subject"] = tok[8:]
+        elif low.startswith("before:"):
+            spec["before"] = tok[7:]
+        elif low.startswith("after:"):
+            spec["after"] = tok[6:]
+        elif low in ("has:attachment", "has:attachments"):
+            spec["has_attachment"] = True
+        else:
+            words.append(tok)
+    spec["text"] = " ".join(words)
+    return spec
+
+
 def group_threads(messages: list[dict]) -> list[dict]:
     """collapse a flat list (from fetch_inbox) into conversations keyed on the
     re:/fwd:-stripped subject. each thread carries its messages newest-first."""
@@ -780,7 +870,9 @@ def fetch_attachment(acct, uid, index: int, folder: str = "INBOX"):
         _release_imap(acct, M, ok)
 
 
-def _build_message(acct, to, subject, body, cc="", bcc="", in_reply_to="", references=""):
+def _build_message(
+    acct, to, subject, body, cc="", bcc="", in_reply_to="", references="", html="", inline=None
+):
     msg = EmailMessage()
     msg["From"] = acct.get("email") or acct.get("username", "")
     msg["To"] = to
@@ -794,6 +886,17 @@ def _build_message(acct, to, subject, body, cc="", bcc="", in_reply_to="", refer
         msg["In-Reply-To"] = in_reply_to
         msg["References"] = (references + " " + in_reply_to).strip() if references else in_reply_to
     msg.set_content(body or "")
+    if html:  # multipart/alternative; inline images go related off the html part (5c)
+        msg.add_alternative(html, subtype="html")
+        if inline:
+            html_part = msg.get_payload()[-1]
+            for img in inline:
+                html_part.add_related(
+                    img["data"],
+                    maintype="image",
+                    subtype=img.get("subtype", "png"),
+                    cid=f"<{img['cid']}>",
+                )
     return msg
 
 
@@ -806,11 +909,15 @@ def send_mail(
     bcc: str = "",
     in_reply_to: str = "",
     references: str = "",
+    html: str = "",
+    inline=None,
 ) -> dict:
     host = acct.get("smtp_host", "")
     if not host:
         raise ValueError("no SMTP host configured")
-    msg = _build_message(acct, to, subject, body, cc, bcc, in_reply_to, references)
+    msg = _build_message(
+        acct, to, subject, body, cc, bcc, in_reply_to, references, html=html, inline=inline
+    )
     port = int(acct.get("smtp_port") or 587)
     user = acct.get("username") or acct.get("email", "")
     pw = acct.get("password", "")

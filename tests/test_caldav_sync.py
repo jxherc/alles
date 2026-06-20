@@ -34,6 +34,40 @@ class CaldavSyncTests(unittest.TestCase):
         r = cd.sync()
         self.assertIn("error", r)
 
+    def test_save_and_load_roundtrip(self):
+        cfg = {"url": "https://cal.example.com", "username": "bob", "password": "hunter2"}
+        cd.save_cfg(cfg)
+        loaded = cd.load_cfg()
+        self.assertEqual(loaded["url"], "https://cal.example.com")
+        self.assertEqual(loaded["username"], "bob")
+        self.assertEqual(loaded["password"], "hunter2")
+
+    def test_load_cfg_missing_returns_empty(self):
+        # no file written yet → empty dict
+        self.assertEqual(cd.load_cfg(), {})
+
+    def test_status_connected_when_all_fields_present(self):
+        cd.save_cfg({"url": "https://u", "username": "u", "password": "p"})
+        s = cd.status()
+        self.assertTrue(s["connected"])
+
+    def test_status_not_connected_when_password_missing(self):
+        cd.save_cfg({"url": "https://u", "username": "u", "password": ""})
+        s = cd.status()
+        self.assertFalse(s["connected"])
+
+    def test_status_exposes_url_and_username(self):
+        cd.save_cfg({"url": "https://dav.mine.com", "username": "alice", "password": "x"})
+        s = cd.status()
+        self.assertEqual(s["url"], "https://dav.mine.com")
+        self.assertEqual(s["username"], "alice")
+
+    def test_save_overwrites_url_keeps_old_password(self):
+        cd.save_cfg({"url": "old", "username": "me", "password": "oldpw"})
+        cd.save_cfg({"url": "new", "username": "me", "password": ""})
+        self.assertEqual(cd.load_cfg()["url"], "new")
+        self.assertEqual(cd.load_cfg()["password"], "oldpw")
+
 
 if __name__ == "__main__":
     unittest.main()

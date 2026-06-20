@@ -1,0 +1,8 @@
+PASS  caption_saves
+PASS  keywords_save
+PASS  caption_shows_on_reopen
+PASS  favorites_filter_works
+PASS  hide_removes_from_grid
+PASS  hidden_album_prompts_unlock
+PASS  hidden_album_lists_after_unlock
+PASS  zero_console_errors

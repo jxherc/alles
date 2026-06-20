@@ -11,6 +11,25 @@ from core.settings import load_settings
 router = APIRouter(prefix="/api")
 
 
+# ── 10f — realtime (full-duplex) voice, gated on a real provider ──
+@router.get("/voice/realtime/status")
+def realtime_status(db: DbSession = Depends(get_db)):
+    from services import realtime
+
+    return realtime.status(db)
+
+
+@router.post("/voice/realtime/session")
+def realtime_session(db: DbSession = Depends(get_db)):
+    from services import realtime
+
+    ep, model = realtime.find_realtime_endpoint(db)
+    if not ep:
+        raise HTTPException(503, realtime.status(db)["reason"])
+    # real connection descriptor — the client negotiates the WS/WebRTC session with the provider
+    return {"provider": "openai-realtime", "base_url": ep.base_url, "model": model}
+
+
 @router.post("/stt")
 async def speech_to_text(file: UploadFile = File(...)):
     s = load_settings()

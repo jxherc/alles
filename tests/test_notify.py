@@ -10,6 +10,10 @@ class _Resp:
     status_code = 204
 
 
+class _Resp4xx:
+    status_code = 400
+
+
 class _Client:
     def __init__(self):
         self.calls = []
@@ -23,6 +27,21 @@ class _Client:
     async def post(self, url, **k):
         self.calls.append(url)
         return _Resp()
+
+
+class _Client4xx:
+    def __init__(self):
+        self.calls = []
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *a):
+        return False
+
+    async def post(self, url, **k):
+        self.calls.append(url)
+        return _Resp4xx()
 
 
 def _cfg(discord="", token="", chat=""):
@@ -65,6 +84,25 @@ class NotifyServiceTest(unittest.TestCase):
         ):
             res = asyncio.run(notify.send("x"))  # must not raise
         self.assertFalse(res["discord"])
+
+    def test_configured_discord_only(self):
+        with mock.patch.object(notify, "_targets", lambda: _cfg(discord="https://d/wh")):
+            self.assertTrue(notify.configured())
+
+    def test_empty_text_is_noop_when_configured(self):
+        with mock.patch.object(notify, "_targets", lambda: _cfg("https://d/wh")):
+            res = asyncio.run(notify.send(""))
+        self.assertIsNone(res["discord"])
+        self.assertIsNone(res["telegram"])
+
+    def test_4xx_response_discord_false(self):
+        with (
+            mock.patch.object(notify, "_targets", lambda: _cfg("https://d/wh")),
+            mock.patch.object(notify.httpx, "AsyncClient", lambda *a, **k: _Client4xx()),
+        ):
+            res = asyncio.run(notify.send("ping"))
+        self.assertFalse(res["discord"])
+        self.assertIsNone(res["telegram"])
 
 
 class NotifyApiTest(ApiTest):

@@ -1,6 +1,7 @@
 import re
 
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import Response
 from pydantic import BaseModel
 
 from services import skills_store
@@ -94,6 +95,32 @@ def get(slug: str):
     if not s:
         raise HTTPException(404, "skill not found")
     return s
+
+
+# 10c — marketplace-lite: export a skill to share, update a git-backed one from source
+@router.get("/{slug}/export")
+def export_skill(slug: str):
+    md = skills_store.export_md(slug)
+    if md is None:
+        raise HTTPException(404, "skill not found")
+    return Response(
+        content=md,
+        media_type="text/markdown",
+        headers={"content-disposition": f'attachment; filename="{slug}.SKILL.md"'},
+    )
+
+
+@router.post("/{slug}/update")
+def update_from_source(slug: str):
+    try:
+        r = skills_store.update_from_source(slug)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except Exception as e:
+        raise HTTPException(502, f"update failed: {e}")
+    if r.get("error") == "not found":
+        raise HTTPException(404, "skill not found")
+    return r
 
 
 class SkillBody(BaseModel):

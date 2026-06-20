@@ -53,6 +53,7 @@ from routes import (
     shared as shared_routes,
     files as files_routes,
     caldav as caldav_routes,
+    carddav as carddav_routes,
     mail as mail_routes,
     photos as photos_routes,
     push as push_routes,
@@ -66,6 +67,9 @@ from routes import (
     rag as rag_routes,
     images as images_routes,
     skills as skills_routes,
+    textindex as textindex_routes,
+    code as code_routes,
+    macos as macos_routes,
 )
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s  %(name)s  %(message)s")
@@ -259,12 +263,38 @@ def _register_jobs():
 
         await fire_due()
 
+    async def _outbox():
+        from services.mail_outbox import _job
+
+        await _job()
+
+    async def _photo_watch():
+        from services.photo_sync import run_watch
+
+        run_watch()
+
+    async def _ics_subs():
+        from routes.calendar import refresh_all_subscriptions
+
+        await refresh_all_subscriptions()
+
+    async def _carddav_auto():
+        # ticks every 10 min; actually syncs only when the user's interval is due (7b)
+        from services import carddav_sync
+
+        if carddav_sync.due_for_sync(time.time()):
+            carddav_sync.sync()
+
     jobs.register("subscriptions", _subs, 30)
     jobs.register("day_events", _days, 30)
     jobs.register("automations", _autos, 30)
     jobs.register("reminders", _fire_due_reminders, 30)
     jobs.register("calendar_reminders", _cal_reminders, 30)
+    jobs.register("mail_outbox", _outbox, 30)  # flush scheduled sends (5b)
     jobs.register("model_refresh", _models, 6 * 3600)  # runs at boot, then every 6h
+    jobs.register("photo_watch", _photo_watch, 300, run_at_start=False)  # 7c phone backup
+    jobs.register("ics_subscriptions", _ics_subs, 3600, run_at_start=False)  # 8a calendar feeds
+    jobs.register("carddav_auto", _carddav_auto, 600, run_at_start=False)  # 7b contacts auto-sync
 
 
 async def _reminder_loop():
@@ -506,6 +536,7 @@ app.include_router(research_routes.router)
 app.include_router(journal_routes.router)
 app.include_router(usage_routes.router)
 app.include_router(rag_routes.router)
+app.include_router(textindex_routes.router)
 app.include_router(images_routes.router)
 app.include_router(skills_routes.router)
 from routes import notify as notify_routes
@@ -543,6 +574,7 @@ app.include_router(template_routes.router)
 app.include_router(shared_routes.router)
 app.include_router(files_routes.router)
 app.include_router(caldav_routes.router)
+app.include_router(carddav_routes.router)
 app.include_router(mail_routes.router)
 app.include_router(photos_routes.router)
 app.include_router(push_routes.router)
@@ -553,6 +585,8 @@ app.include_router(automation_routes.router)
 app.include_router(money_routes.router)
 app.include_router(timeline_routes.router)
 app.include_router(system_routes.router)
+app.include_router(code_routes.router)
+app.include_router(macos_routes.router)
 
 
 # static files — no-cache so JS/CSS always reloads
@@ -591,6 +625,29 @@ async def service_worker():
 @app.get("/manifest.json")
 async def manifest():
     return FileResponse(str(static_dir / "manifest.json"), media_type="application/manifest+json")
+
+
+@app.get("/api/pwa/precache")
+async def pwa_precache():
+    # 11b: the SW fetches this on install to precache the whole app shell so a cold offline
+    # load actually boots. enumerated at runtime so a new js module is covered automatically
+    # (no build manifest to drift). the JS module graph is requested without a ?v query — only
+    # the index.html entry import + the stylesheet carry the stamp — so mirror that here.
+    import re
+
+    html = (static_dir / "index.html").read_text(encoding="utf-8")
+    m = re.search(r"\?v=(\d+)", html)
+    stamp = m.group(1) if m else "1"
+    urls = ["/", "/manifest.json", f"/static/style.css?v={stamp}"]
+    for ic in ("icon-192.png", "icon-512.png", "icon-maskable-512.png"):
+        if (static_dir / "icons" / ic).exists():
+            urls.append(f"/static/icons/{ic}")
+    for p in sorted((static_dir / "js").glob("*.js")):
+        urls.append(f"/static/js/app.js?v={stamp}" if p.name == "app.js" else f"/static/js/{p.name}")
+    for v in ("vendor/cm6.bundle.js",):
+        if (static_dir / v).exists():
+            urls.append(f"/static/{v}")
+    return {"urls": urls}
 
 
 @app.get("/health")

@@ -1,5 +1,5 @@
-from tests._client import ApiTest
 from core.database import Session
+from tests._client import ApiTest
 
 
 class ProjectsApiTest(ApiTest):
@@ -66,3 +66,49 @@ class ProjectsApiTest(ApiTest):
         self.assertIsNotNone(s)  # session survives
         self.assertIsNone(s.project_id)  # just unlinked
         d.close()
+
+    def test_create_returns_all_fields(self):
+        p = self.client.post(
+            "/api/projects",
+            json={"name": "full", "description": "desc", "system_prompt": "sp", "color": "#ff0"},
+        ).json()
+        self.assertEqual(p["name"], "full")
+        self.assertEqual(p["description"], "desc")
+        self.assertEqual(p["system_prompt"], "sp")
+        self.assertEqual(p["color"], "#ff0")
+        self.assertIn("id", p)
+        self.assertIn("created_at", p)
+
+    def test_patch_system_prompt_and_color(self):
+        pid = self.client.post("/api/projects", json={"name": "p"}).json()["id"]
+        d = self.client.patch(
+            f"/api/projects/{pid}", json={"system_prompt": "be terse", "color": "#123"}
+        ).json()
+        self.assertEqual(d["system_prompt"], "be terse")
+        self.assertEqual(d["color"], "#123")
+
+    def test_unassign_session_not_in_project_is_noop(self):
+        # unassigning a session that belongs to a different project → ok, session untouched
+        pid1 = self.client.post("/api/projects", json={"name": "a"}).json()["id"]
+        pid2 = self.client.post("/api/projects", json={"name": "b"}).json()["id"]
+        d = self.db()
+        s = Session(name="chat", project_id=pid1)
+        d.add(s)
+        d.commit()
+        sid = s.id
+        d.close()
+        # try to unassign from pid2 — session belongs to pid1
+        r = self.client.delete(f"/api/projects/{pid2}/sessions/{sid}")
+        self.assertEqual(r.json(), {"ok": True})
+        d = self.db()
+        s = d.get(Session, sid)
+        self.assertEqual(s.project_id, pid1)  # still linked to pid1
+        d.close()
+
+    def test_multiple_projects_list_order(self):
+        self.client.post("/api/projects", json={"name": "alpha"})
+        self.client.post("/api/projects", json={"name": "beta"})
+        lst = self.client.get("/api/projects").json()
+        self.assertEqual(len(lst), 2)
+        self.assertEqual(lst[0]["name"], "alpha")
+        self.assertEqual(lst[1]["name"], "beta")

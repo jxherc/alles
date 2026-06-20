@@ -39,9 +39,12 @@ export function initSkills() {
           <div class="s-field"><label>procedure (markdown)</label><textarea id="skl-bodytext" class="settings-textarea" rows="14" placeholder="the steps, in plain markdown…"></textarea></div>
           <div class="skl-actions">
             <button class="btn primary" id="skl-save">save</button>
+            <button class="btn" id="skl-export" style="display:none" title="download this skill's SKILL.md to share">export</button>
+            <button class="btn" id="skl-update" style="display:none" title="re-pull this skill from its git source">update</button>
             <button class="btn danger" id="skl-del" style="display:none">delete</button>
             <span id="skl-status" class="skl-status"></span>
           </div>
+          <div id="skl-source" class="skl-source" style="display:none"></div>
         </div>
       </div>`;
     $('skl-new').onclick = () => _editNew();
@@ -50,6 +53,8 @@ export function initSkills() {
     $('skl-upload').onclick = () => $('skl-file').click();
     $('skl-file').onchange = _uploadFiles;
     $('skl-save').onclick = _save;
+    $('skl-export').onclick = _export;
+    $('skl-update').onclick = _update;
     $('skl-del').onclick = _delete;
     let t;
     $('skl-search').oninput = e => { clearTimeout(t); t = setTimeout(() => _loadList(e.target.value), 200); };
@@ -71,7 +76,7 @@ async function _loadList(q) {
   }
   el.innerHTML = skills.map(s => `
     <div class="skl-row${s.slug === _cur ? ' active' : ''}" data-slug="${esc(s.slug)}">
-      <div class="skl-row-name">${esc(s.name)}</div>
+      <div class="skl-row-name">${esc(s.name)}${s.source ? '<span class="skl-git" title="git-backed — can be updated from source">git</span>' : ''}</div>
       <div class="skl-row-desc">${esc(s.description) || '<em>no description</em>'}</div>
     </div>`).join('');
   el.querySelectorAll('.skl-row').forEach(r => r.onclick = () => _open(r.dataset.slug));
@@ -141,6 +146,9 @@ function _editNew() {
   $('skl-when').value = '';
   $('skl-bodytext').value = '';
   $('skl-del').style.display = 'none';
+  $('skl-export').style.display = 'none';
+  $('skl-update').style.display = 'none';
+  $('skl-source').style.display = 'none';
   $('skl-status').textContent = '';
   document.querySelectorAll('.skl-row.active').forEach(r => r.classList.remove('active'));
 }
@@ -155,8 +163,37 @@ async function _open(slug) {
   $('skl-when').value = s.when_to_use || '';
   $('skl-bodytext').value = s.body || '';
   $('skl-del').style.display = '';
+  $('skl-export').style.display = '';
   $('skl-status').textContent = '';
+  if (s.source) {
+    $('skl-update').style.display = '';
+    $('skl-source').style.display = '';
+    $('skl-source').innerHTML = `git-backed · <a href="${esc(s.source)}" target="_blank" rel="noopener">${esc(s.source)}</a>`;
+  } else {
+    $('skl-update').style.display = 'none';
+    $('skl-source').style.display = 'none';
+  }
   document.querySelectorAll('.skl-row').forEach(r => r.classList.toggle('active', r.dataset.slug === slug));
+}
+
+function _export() {
+  if (!_cur) return;
+  const a = document.createElement('a');
+  a.href = `/api/skills/${encodeURIComponent(_cur)}/export`;
+  a.download = `${_cur}.SKILL.md`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+
+async function _update() {
+  if (!_cur) return;
+  toast('updating from source…');
+  try {
+    const r = await _api(`/api/skills/${encodeURIComponent(_cur)}/update`, { method: 'POST' });
+    toast(r.updated ? 'updated from source' : 'no source to update from', r.updated ? 'success' : '');
+    if (r.updated) { _open(_cur); _loadList($('skl-search').value); }
+  } catch (e) { toast('update failed: ' + e.message, 'error'); }
 }
 
 async function _save() {

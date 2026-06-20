@@ -1,0 +1,8 @@
+PASS  share_album_button
+PASS  share_mints_token
+PASS  public_album_grid_opens
+PASS  video_badge_on_cell
+PASS  lightbox_plays_video
+PASS  image_still_uses_img
+PASS  watch_folder_setting_saves
+PASS  zero_console_errors

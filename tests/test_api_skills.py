@@ -17,6 +17,12 @@ class SkillsApiTest(ApiTest):
         self._tmp.cleanup()
         super().tearDown()
 
+    def _create(self, name="Test Skill", desc="does stuff", when="when testing", body="steps"):
+        return self.client.post(
+            "/api/skills",
+            json={"name": name, "description": desc, "when_to_use": when, "body": body},
+        )
+
     def test_crud_flow(self):
         self.assertEqual(self.client.get("/api/skills").json(), [])
         r = self.client.post(
@@ -77,3 +83,37 @@ class SkillsApiTest(ApiTest):
         cat2 = self.client.get("/api/skills/catalog").json()
         self.assertTrue([c["installed"] for c in cat2 if c["slug"] == slug][0])
         self.assertTrue(any(s["slug"] == slug for s in self.client.get("/api/skills").json()))
+
+    def test_slug_is_lowercased_and_hyphenated(self):
+        r = self._create(name="My Cool Skill")
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.json()["slug"], "my-cool-skill")
+
+    def test_list_returns_metadata_not_body(self):
+        self._create(name="Listed Skill", body="very long body content here")
+        lst = self.client.get("/api/skills").json()
+        self.assertEqual(len(lst), 1)
+        self.assertNotIn("body", lst[0])  # list endpoint omits body
+        self.assertIn("description", lst[0])
+
+    def test_put_updates_body(self):
+        slug = self._create(name="Update Me", body="old body").json()["slug"]
+        self.client.put(
+            f"/api/skills/{slug}",
+            json={"name": "Update Me", "description": "desc", "body": "new body"},
+        )
+        self.assertEqual(self.client.get(f"/api/skills/{slug}").json()["body"], "new body")
+
+    def test_match_no_results_for_unrelated_query(self):
+        self._create(name="Spreadsheet Expert", desc="excel formulas", when="analyzing data")
+        m = self.client.get("/api/skills/match", params={"q": "zzzzzunrelated"}).json()
+        self.assertEqual(m["matches"], [])
+
+    def test_special_chars_in_name_slugified(self):
+        r = self._create(name="C++ Helper!")
+        self.assertEqual(r.status_code, 200)
+        slug = r.json()["slug"]
+        # slug should only have safe chars
+        import re
+
+        self.assertRegex(slug, r"^[a-z0-9._-]+$")

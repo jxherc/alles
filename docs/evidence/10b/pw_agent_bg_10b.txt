@@ -1,0 +1,7 @@
+PASS  reattach_finds_live_run
+PASS  reattach_indicator_shows
+PASS  reattach_renders_progress
+PASS  reattach_survives_reload
+PASS  done_clears_indicator
+PASS  no_live_run_no_reattach
+PASS  zero_console_errors

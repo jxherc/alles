@@ -15,6 +15,7 @@ from datetime import datetime
 from pathlib import Path
 
 from core.database import Photo, SessionLocal
+from core.settings import load_settings
 from services import photos_store
 
 _IMG_EXT = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".heic", ".bmp"}
@@ -130,6 +131,18 @@ def sync_folder(src: str, db=None, limit: int = 2000) -> dict:
         if own:
             db.close()
     return {"imported": imported, "skipped": skipped, "failed": failed}
+
+
+def run_watch(db=None, limit: int = 2000) -> dict:
+    """phone-camera backup (7c): if a watch folder is configured, pull new shots from it.
+    safe to call on a timer — no-ops when unset/missing, dedups via sync_folder state."""
+    folder = (load_settings().get("photos_watch_folder") or "").strip()
+    if not folder:
+        return {"skipped": "no watch folder"}
+    root = Path(folder).expanduser()
+    if not root.exists() or not root.is_dir():
+        return {"skipped": "folder not found"}
+    return sync_folder(str(root), db, limit)
 
 
 # ── macOS native bridge (Mac mini) ────────────────────────────────────────────

@@ -49,6 +49,79 @@ class AddServer(BaseModel):
     url: str = ""
 
 
+# 10d — one-click connector presets (curated; args interpolate {placeholders} from params)
+MCP_PRESETS = [
+    {
+        "id": "filesystem",
+        "name": "Filesystem",
+        "transport": "stdio",
+        "command": "npx",
+        "args": ["-y", "@modelcontextprotocol/server-filesystem", "{root}"],
+        "description": "Read/write files under a folder (set {root}).",
+    },
+    {
+        "id": "github",
+        "name": "GitHub",
+        "transport": "stdio",
+        "command": "npx",
+        "args": ["-y", "@modelcontextprotocol/server-github"],
+        "description": "GitHub repos, issues, PRs — needs GITHUB_TOKEN in the environment.",
+    },
+    {
+        "id": "brave",
+        "name": "Brave Search",
+        "transport": "stdio",
+        "command": "npx",
+        "args": ["-y", "@modelcontextprotocol/server-brave-search"],
+        "description": "Web search — needs BRAVE_API_KEY.",
+    },
+    {
+        "id": "sqlite",
+        "name": "SQLite",
+        "transport": "stdio",
+        "command": "npx",
+        "args": ["-y", "@modelcontextprotocol/server-sqlite", "{db_path}"],
+        "description": "Query a local SQLite database (set {db_path}).",
+    },
+    {
+        "id": "fetch",
+        "name": "Fetch",
+        "transport": "stdio",
+        "command": "npx",
+        "args": ["-y", "@modelcontextprotocol/server-fetch"],
+        "description": "Fetch and read web pages as markdown.",
+    },
+]
+
+
+@router.get("/mcp/presets")
+def list_presets():
+    return MCP_PRESETS
+
+
+class PresetParams(BaseModel):
+    params: dict = {}
+
+
+@router.post("/mcp/presets/{preset_id}")
+async def add_preset(preset_id: str, body: PresetParams = None, db: DbSession = Depends(get_db)):
+    p = next((x for x in MCP_PRESETS if x["id"] == preset_id), None)
+    if not p:
+        raise HTTPException(404, "unknown preset")
+    params = (body.params if body else {}) or {}
+
+    def _fill(a):
+        try:
+            return a.format(**params)
+        except (KeyError, IndexError):
+            return a  # leave unknown placeholders for the user to edit
+
+    args = [_fill(a) for a in p["args"]]
+    return await add_server(
+        AddServer(name=p["name"], transport=p["transport"], command=p["command"], args=args), db
+    )
+
+
 # POST /api/mcp/servers
 @router.post("/mcp/servers")
 async def add_server(body: AddServer, db: DbSession = Depends(get_db)):

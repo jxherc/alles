@@ -54,3 +54,37 @@ def decrypt(master_pw: str, ciphertext_b64: str) -> str:
     ct = blob[_SALT_LEN + _NONCE_LEN :]
     key = derive_key(master_pw, salt)
     return AESGCM(key).decrypt(nonce, ct, None).decode()
+
+
+def encrypt_bytes(master_pw: str, data: bytes) -> bytes:
+    """master-pw AES-GCM for binary blobs (9b attachments). returns salt+nonce+ct bytes."""
+    salt = os.urandom(_SALT_LEN)
+    nonce = os.urandom(_NONCE_LEN)
+    key = derive_key(master_pw, salt)
+    ct = AESGCM(key).encrypt(nonce, data, None)
+    return salt + nonce + ct
+
+
+def decrypt_bytes(master_pw: str, blob: bytes) -> bytes:
+    salt = blob[:_SALT_LEN]
+    nonce = blob[_SALT_LEN : _SALT_LEN + _NONCE_LEN]
+    ct = blob[_SALT_LEN + _NONCE_LEN :]
+    key = derive_key(master_pw, salt)
+    return AESGCM(key).decrypt(nonce, ct, None)
+
+
+def envelope_encrypt(plaintext: str) -> tuple[str, str]:
+    """encrypt with a FRESH random key (not the master pw). returns (key_b64, blob_b64),
+    where blob = nonce+ct. used for per-item share links — the key travels in the URL
+    fragment so the server only ever stores the ciphertext (9b)."""
+    key = os.urandom(32)
+    nonce = os.urandom(_NONCE_LEN)
+    ct = AESGCM(key).encrypt(nonce, plaintext.encode(), None)
+    return base64.urlsafe_b64encode(key).decode(), base64.b64encode(nonce + ct).decode()
+
+
+def envelope_decrypt(key_b64: str, blob_b64: str) -> str:
+    key = base64.urlsafe_b64decode(key_b64)
+    blob = base64.b64decode(blob_b64)
+    nonce, ct = blob[:_NONCE_LEN], blob[_NONCE_LEN:]
+    return AESGCM(key).decrypt(nonce, ct, None).decode()

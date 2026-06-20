@@ -55,6 +55,54 @@ class AgentStateTest(unittest.TestCase):
         self.assertIn(a["id"], incomplete)
         self.assertNotIn(b["id"], incomplete)
 
+    def test_update_run_patches_fields(self):
+        r = ast.start_run("s", "m", 10)
+        ast.update_run(r["id"], turn=3, text="hello")
+        got = ast.get_run(r["id"])
+        self.assertEqual(got["turn"], 3)
+        self.assertEqual(got["text"], "hello")
+
+    def test_get_run_nonexistent_returns_none(self):
+        self.assertIsNone(ast.get_run("does-not-exist"))
+
+    def test_add_checkpoint_stored(self):
+        r = ast.start_run("s", "m", 10)
+        ast.add_checkpoint(r["id"], {"path": "/tmp/foo.py", "original": "x = 1"})
+        got = ast.get_run(r["id"])
+        self.assertEqual(len(got["checkpoints"]), 1)
+        self.assertEqual(got["checkpoints"][0]["path"], "/tmp/foo.py")
+
+    def test_find_active_run_by_session(self):
+        r = ast.start_run("sess-abc", "m", 10)
+        found = ast.find_active_run("sess-abc")
+        self.assertIsNotNone(found)
+        self.assertEqual(found["id"], r["id"])
+
+    def test_find_active_run_unknown_session_none(self):
+        self.assertIsNone(ast.find_active_run("no-such-session"))
+
+    def test_run_sources_extracts_files_and_searches(self):
+        r = ast.start_run("s", "m", 10)
+        ast.record_event(
+            r["id"], "tool_start", {"name": "read_file", "args": {"path": "/tmp/a.py"}}
+        )
+        ast.record_event(
+            r["id"], "tool_start", {"name": "web_search", "args": {"query": "python asyncio"}}
+        )
+        ast.record_event(
+            r["id"], "tool_start", {"name": "write_file", "args": {"path": "/tmp/b.py"}}
+        )
+        src = ast.run_sources(r["id"])
+        self.assertIn("/tmp/a.py", src["files"])
+        self.assertIn("/tmp/b.py", src["files"])
+        self.assertIn("python asyncio", src["searches"])
+
+    def test_finish_run_removes_from_active(self):
+        r = ast.start_run("s", "m", 10)
+        self.assertIn(r["id"], ast._active)
+        ast.finish_run(r["id"], "done")
+        self.assertNotIn(r["id"], ast._active)
+
 
 if __name__ == "__main__":
     unittest.main()

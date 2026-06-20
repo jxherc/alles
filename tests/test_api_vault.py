@@ -21,6 +21,10 @@ class VaultApiTest(ApiTest):
         self._tmp.cleanup()
         super().tearDown()
 
+    def _unlock(self, pw="hunter2"):
+        tok = self.client.post("/api/vault/unlock", json={"password": pw}).json()["token"]
+        return {"X-Vault-Token": tok}
+
     def test_generate_and_strength_no_unlock(self):
         g = self.client.get("/api/vault/generate", params={"length": 24}).json()
         self.assertEqual(len(g["password"]), 24)
@@ -80,3 +84,58 @@ class VaultApiTest(ApiTest):
         self.assertEqual(
             self.client.post("/api/vault/unlock", json={"password": "wrong"}).status_code, 401
         )
+
+    def test_patch_entry_name_and_username(self):
+        h = self._unlock()
+        eid = self.client.post(
+            "/api/vault", json={"name": "old", "value": "secret", "username": "alice"}, headers=h
+        ).json()["id"]
+        r = self.client.patch(
+            f"/api/vault/{eid}", json={"name": "new", "username": "bob"}, headers=h
+        )
+        self.assertEqual(r.status_code, 200)
+        # reveal should still decrypt the original value
+        rv = self.client.get(f"/api/vault/{eid}/reveal", headers=h).json()
+        self.assertEqual(rv["value"], "secret")
+        # metadata in list should reflect patch
+        lst = self.client.get("/api/vault", headers=h).json()
+        self.assertEqual(lst[0]["name"], "new")
+        self.assertEqual(lst[0]["username"], "bob")
+
+    def test_patch_entry_value(self):
+        h = self._unlock()
+        eid = self.client.post(
+            "/api/vault", json={"name": "mykey", "value": "v1"}, headers=h
+        ).json()["id"]
+        self.client.patch(f"/api/vault/{eid}", json={"value": "v2"}, headers=h)
+        rv = self.client.get(f"/api/vault/{eid}/reveal", headers=h).json()
+        self.assertEqual(rv["value"], "v2")
+
+    def test_delete_entry(self):
+        h = self._unlock()
+        eid = self.client.post(
+            "/api/vault", json={"name": "to-del", "value": "x"}, headers=h
+        ).json()["id"]
+        self.assertEqual(self.client.delete(f"/api/vault/{eid}", headers=h).json(), {"ok": True})
+        self.assertEqual(self.client.get("/api/vault", headers=h).json(), [])
+
+    def test_reveal_missing_404(self):
+        h = self._unlock()
+        self.assertEqual(self.client.get("/api/vault/nope/reveal", headers=h).status_code, 404)
+
+    def test_generate_length_param(self):
+        g12 = self.client.get("/api/vault/generate", params={"length": 12}).json()
+        g32 = self.client.get("/api/vault/generate", params={"length": 32}).json()
+        self.assertEqual(len(g12["password"]), 12)
+        self.assertEqual(len(g32["password"]), 32)
+
+    def test_strength_empty_password(self):
+        s = self.client.post("/api/vault/strength", json={"password": ""}).json()
+        self.assertEqual(s["score"], 0)
+        self.assertIn("warning", s)
+
+    def test_strength_strong_password(self):
+        s = self.client.post(
+            "/api/vault/strength", json={"password": "X7$kQpR!mLzN2@vW9#"}
+        ).json()
+        self.assertGreaterEqual(s["score"], 3)

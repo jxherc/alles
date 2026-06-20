@@ -4,6 +4,7 @@
 // numbers are never off by the server's timezone.
 import { toast } from './util.js';
 import { initCustomDropdown } from './dropdown.js';
+const _si = n => (window.icon ? window.icon(n) : '');   // central icon set, load-order safe
 import { initDatePicker } from './datepick.js';
 import { confirm as dlgConfirm } from './dialog.js';
 
@@ -113,8 +114,8 @@ function _fmtDate(e) {
 
 function _metaLine(e) {
   const bits = [_fmtDate(e)];
-  if (e.repeat === 'yearly') bits.push(`↻ yearly${e.nth > 0 ? ` · ${e.nth}${_ord(e.nth)}` : ''}`);
-  if (e.repeat === 'monthly') bits.push(`↻ monthly${e.nth > 0 ? ` · ${e.nth}${_ord(e.nth)}` : ''}`);
+  if (e.repeat === 'yearly') bits.push(`${_si('refresh')} yearly${e.nth > 0 ? ` · ${e.nth}${_ord(e.nth)}` : ''}`);
+  if (e.repeat === 'monthly') bits.push(`${_si('refresh')} monthly${e.nth > 0 ? ` · ${e.nth}${_ord(e.nth)}` : ''}`);
   if (e.category) bits.push(esc(e.category));
   return bits.join(' · ');
 }
@@ -166,8 +167,8 @@ function _card(e) {
   const tip = e.breakdown ? `${esc(e.breakdown)}${e.notes ? ' — ' + esc(e.notes) : ''}` : esc(e.notes || '');
   return `
     <div class="day-card${e.mode === 'today' ? ' today' : ''}${e.mode === 'since' ? ' since' : ''}${e.days >= 1 && e.days <= 3 ? ' soon' : ''}" data-id="${e.id}"${tip ? ` title="${tip}"` : ''}>
-      <button class="day-pin${e.pinned ? ' on' : ''}" data-act="pin" title="${e.pinned ? 'unpin' : 'pin to top'}">★</button>
-      <div class="day-num">${e.mode === 'today' ? '🎉' : e.count.toLocaleString()}</div>
+      <button class="day-pin${e.pinned ? ' on' : ''}" data-act="pin" title="${e.pinned ? 'unpin' : 'pin to top'}">${_si(e.pinned ? 'star-fill' : 'star')}</button>
+      <div class="day-num">${e.mode === 'today' ? _si('party') : e.count.toLocaleString()}</div>
       <div class="day-unit">${_unitLabel(e)}</div>
       <div class="day-name">${esc(e.name)}</div>
       <div class="day-meta">${_metaLine(e)}</div>

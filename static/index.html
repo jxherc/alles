@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="description" content="your everything-app, self-hosted">
 <title>alles</title>
 <script>
   const _t = localStorage.getItem('aide-theme');
@@ -13,11 +14,12 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/style.css?v=33">
+<link rel="stylesheet" href="/static/style.css?v=95">
 <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#0a0a0a">
 <link rel="apple-touch-icon" href="/static/icons/icon-192.png">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="alles">
@@ -25,6 +27,9 @@
 <body class="preboot">
 
 <div class="app">
+
+  <!-- 11b: dim layer behind the off-canvas sidebar drawer on phones (tap to close) -->
+  <div class="nav-backdrop" id="nav-backdrop"></div>
 
   <!-- sidebar -->
   <aside class="sidebar">
@@ -71,6 +76,11 @@
             <span class="live-dot" id="live-dot"></span>
             <span id="model-label">no model</span>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <button class="model-btn img-slot-btn" id="image-slot-btn" title="image model — click to remove" style="display:none">
+            <span class="img-slot-ic" id="image-slot-ic"></span>
+            <span id="image-slot-label"></span>
+            <span class="img-slot-x">×</span>
           </button>
           <button class="model-btn" id="persona-btn" title="persona" style="display:none">
             <span id="persona-label">persona</span>
@@ -121,17 +131,21 @@
           </div>
         </div>
         <div class="home-firstrun" id="home-firstrun" style="display:none"></div>
-        <div class="home-today" id="home-today" style="display:none"></div>
-        <div class="home-capture" id="home-capture">
-          <div class="hc-modes">
-            <button class="hc-mode active" data-mode="note">note</button>
-            <button class="hc-mode" data-mode="task">task</button>
+        <!-- order: schedule → note/task capture → quick message → everything else.
+             schedule + capture share one box so their spacing reads as a single block. -->
+        <div class="home-board">
+          <div class="home-today" id="home-today" style="display:none"></div>
+          <div class="home-capture" id="home-capture">
+            <div class="hc-modes">
+              <button class="hc-mode active" data-mode="note">note</button>
+              <button class="hc-mode" data-mode="task">task</button>
+            </div>
+            <input type="text" id="hc-input" class="hc-input" placeholder="capture a note…" spellcheck="true" autocomplete="off">
+            <button class="btn primary hc-save" id="hc-save">save</button>
           </div>
-          <input type="text" id="hc-input" class="hc-input" placeholder="capture a note…" spellcheck="true" autocomplete="off">
-          <button class="btn primary hc-save" id="hc-save">save</button>
         </div>
 
-        <!-- ask aide about my day — a simple, tool-free aide right on the home -->
+        <!-- quick message to aide (plain) + a dedicated "about my day" rundown button -->
         <div class="home-ask" id="home-ask">
           <div class="home-ask-reply" id="home-ask-reply" style="display:none"></div>
           <div class="home-ask-bar">
@@ -139,17 +153,18 @@
             <button class="ha-tool" id="ha-upload" title="attach a text file" aria-label="attach">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
             </button>
-            <input type="text" id="ha-input" class="home-ask-input" placeholder="ask aide about your day…" autocomplete="off">
+            <input type="text" id="ha-input" class="home-ask-input" placeholder="quick message…" autocomplete="off">
             <button class="ha-tool" id="ha-voice" title="voice input" aria-label="voice">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
             </button>
             <div id="ha-model" class="home-ask-model custom-select" title="model"></div>
-            <button class="btn primary ha-send" id="ha-send">ask</button>
-            <button class="btn ha-goto" id="ha-goto" title="open the full aide">aide ↗</button>
+            <button class="btn primary ha-send" id="ha-send">send</button>
           </div>
         </div>
 
+        <!-- everything else -->
         <div class="home-grid" id="home-grid"></div>
+
         <div class="home-foot">
           <span class="live-dot"></span>
           <span id="home-clock"></span>
@@ -240,10 +255,12 @@
           <button class="btn" id="cal-next" title="next">›</button>
         </div>
         <span id="cal-month-label" class="cal-month-title"></span>
-        <div class="cal-view-toggle" style="margin-left:auto">
-          <button class="btn cal-view-btn" data-view="month">month</button>
-          <button class="btn cal-view-btn" data-view="week">week</button>
-          <button class="btn cal-view-btn" data-view="day">day</button>
+        <div class="seg seg-cal" id="cal-view" style="margin-left:auto">
+          <button type="button" class="seg-opt" data-view="month">month</button>
+          <button type="button" class="seg-opt" data-view="week">week</button>
+          <button type="button" class="seg-opt" data-view="day">day</button>
+          <button type="button" class="seg-opt" data-view="agenda">agenda</button>
+          <button type="button" class="seg-opt" data-view="year">year</button>
         </div>
         <a class="btn" id="cal-export" href="/api/calendar/export.ics" download title="export to .ics (Apple/Google/Outlook)">export</a>
         <input type="file" id="cal-import-file" accept=".ics,text/calendar" hidden>
@@ -438,20 +455,40 @@
           <span id="wiki-save-status" style="font-size:0.66rem;color:var(--muted)"></span>
           <button class="btn" id="wiki-mode-toggle" title="cycle live / source / preview">live</button>
           <button class="btn" id="wiki-ai-toggle" title="ask AI to edit">ai</button>
-          <button class="btn" id="wiki-help-btn" title="markdown guide">guide</button>
+          <button class="btn" id="wiki-ask-btn" title="ask anything across all your notes">ask</button>
+          <button class="btn" id="wiki-docs-settings" title="docs settings — AI model">⚙</button>
           <button class="btn" id="wiki-outline-btn">outline</button>
           <button class="btn" id="wiki-props-btn" title="note properties (frontmatter)">props</button>
           <button class="btn" id="wiki-query-btn" title="query notes by property / tag (dataview)">query</button>
-          <button class="btn" id="wiki-board-btn" title="kanban board view of this doc">board</button>
+          <button class="btn" id="wiki-base-btn" title="view this folder as a database (table/gallery/list)">base</button>
           <button class="btn" id="wiki-todos-btn" title="AI-extract action items into tasks">todos</button>
-          <button class="btn" id="wiki-taskroll-btn" title="all - [ ] tasks across your docs">tasks</button>
           <button class="btn" id="wiki-history-btn" title="version history">history</button>
+          <button class="btn" id="wiki-comments-btn" title="inline comments">💬 <span id="wiki-comments-count"></span></button>
+          <button class="btn" id="wiki-split-btn" title="split view — second pane side by side">split</button>
           <button class="btn" id="wiki-export-btn" title="export this doc">export ▾</button>
           <button class="btn danger" id="wiki-delete-btn">delete</button>
         </div>
         <div id="wiki-outline" class="wiki-outline" style="display:none"></div>
         <div id="wiki-props" class="wiki-outline wiki-props" style="display:none"></div>
         <div id="wiki-query" class="wiki-outline wiki-query" style="display:none"></div>
+        <div id="wiki-ask" class="wiki-outline wiki-ask" style="display:none">
+          <div class="wiki-ask-bar">
+            <input type="text" id="wiki-ask-input" class="settings-input" placeholder="ask your notes…" spellcheck="false">
+            <button class="btn primary" id="wiki-ask-go">ask</button>
+          </div>
+          <div id="wiki-ask-results" class="wiki-ask-results"></div>
+          <details class="wiki-ask-clip">
+            <summary>web clipper</summary>
+            <div class="wiki-ask-clip-body">
+              <p>drag this to your bookmarks bar to clip the current page into <code>clips/</code>:</p>
+              <a id="wiki-clip-bm" class="btn" href="#" onclick="return false">📎 clip to alles</a>
+            </div>
+          </details>
+        </div>
+        <div id="wiki-comments" class="wiki-outline wiki-comments" style="display:none"></div>
+        <button id="wiki-comment-fab" class="wiki-comment-fab" style="display:none">💬 comment</button>
+        <div id="wiki-base" class="wiki-outline wiki-base" style="display:none"></div>
+        <div id="wiki-tabs" class="wiki-tabs"></div>
         <div id="wiki-history" class="wiki-outline" style="display:none"></div>
         <div id="wiki-taskroll" class="wiki-outline wiki-taskroll" style="display:none"></div>
         <div class="wiki-empty-state" id="wiki-empty-state">
@@ -460,8 +497,10 @@
               <span class="docs-home-title">docs</span>
               <div class="docs-home-actions">
                 <button class="btn primary" id="wiki-empty-new">+ new doc</button>
+                <button class="btn" id="wiki-home-canvas">+ new canvas</button>
+                <button class="btn" id="wiki-home-board">+ new board</button>
                 <button class="btn" id="wiki-empty-today">today's note</button>
-                <button class="btn" id="wiki-empty-guide">guide</button>
+                <button class="btn" id="wiki-home-tasks">tasks</button>
               </div>
             </div>
             <input type="text" id="docs-home-search" class="settings-input docs-home-search" placeholder="search your docs…">
@@ -491,12 +530,16 @@
           <button class="dt-btn dt-wide" data-fmt="table" title="table">table</button>
           <button class="dt-btn dt-wide" data-fmt="codeblock" title="code block">code</button>
           <button class="dt-btn dt-wide" data-fmt="callout" title="callout">callout</button>
+          <button class="dt-btn dt-wide" data-fmt="toggle" title="collapsible toggle">toggle</button>
+          <button class="dt-btn dt-wide" data-fmt="columns" title="side-by-side columns">columns</button>
           <button class="dt-btn" data-fmt="hr" title="divider">—</button>
         </div>
         <div class="wiki-edit-wrap">
           <div id="wiki-live" class="wiki-live"></div>
           <textarea id="wiki-source" class="wiki-source" spellcheck="true" placeholder="raw markdown — [[link]] another doc, # for a heading."></textarea>
           <div class="wiki-preview" id="wiki-preview"></div>
+          <div class="wiki-split-divider" id="wiki-split-divider" style="display:none"></div>
+          <div class="wiki-split-pane" id="wiki-split-pane" style="display:none"></div>
         </div>
         <div class="wiki-backlinks" id="wiki-backlinks"></div>
         <div class="doc-ai-bar">
@@ -521,33 +564,7 @@
         <div class="wiki-graph-head"><span id="wiki-board-title">board</span><button class="icon-btn" id="wiki-board-close">×</button></div>
         <div id="wiki-board-cols" class="wiki-board-cols"></div>
       </div>
-      <div id="wiki-help" class="wiki-help" style="display:none">
-        <div class="wiki-help-head"><span>markdown guide</span><button class="icon-btn" id="wiki-help-close">×</button></div>
-        <div class="wiki-help-body">
-          <div class="wiki-help-row"><code># H1  ## H2  ### H3</code><span>headings</span></div>
-          <div class="wiki-help-row"><code>**bold**</code><span>bold</span></div>
-          <div class="wiki-help-row"><code>*italic*</code><span>italic</span></div>
-          <div class="wiki-help-row"><code>~~strike~~</code><span>strikethrough</span></div>
-          <div class="wiki-help-row"><code>==highlight==</code><span>highlight</span></div>
-          <div class="wiki-help-row"><code>{color:red}text{/color}</code><span>font color (name or #hex)</span></div>
-          <div class="wiki-help-row"><code>`code`</code><span>inline code</span></div>
-          <div class="wiki-help-row"><code>```lang … ```</code><span>code block (run js/py/html)</span></div>
-          <div class="wiki-help-row"><code>&gt; quote</code><span>blockquote</span></div>
-          <div class="wiki-help-row"><code>- item</code><span>bullet list</span></div>
-          <div class="wiki-help-row"><code>1. item</code><span>numbered list</span></div>
-          <div class="wiki-help-row"><code>- [ ] todo · - [x] done</code><span>task list</span></div>
-          <div class="wiki-help-row"><code>[text](url)</code><span>link</span></div>
-          <div class="wiki-help-row"><code>![alt](url)</code><span>image</span></div>
-          <div class="wiki-help-row"><code>[[doc]] · [[doc|alias]]</code><span>link another doc</span></div>
-          <div class="wiki-help-row"><code>![[doc]] · ![[pic.png]]</code><span>embed a doc or image</span></div>
-          <div class="wiki-help-row"><code>#tag</code><span>tag (click to filter)</span></div>
-          <div class="wiki-help-row"><code>&gt; [!note] title</code><span>callout (note · tip · warning · danger)</span></div>
-          <div class="wiki-help-row"><code>| a | b | · |---|---|</code><span>table (header + separator row)</span></div>
-          <div class="wiki-help-row"><code>---</code><span>divider</span></div>
-          <div class="wiki-help-row"><code>--- &#10; key: value &#10; ---</code><span>frontmatter (top of doc)</span></div>
-        </div>
-      </div>
-    </div>
+    </div><!-- /#wiki-view — was missing, which nested every later view + the composer inside the docs view -->
 
     <!-- ── compare view ── -->
     <div class="page-view compare-layout" id="compare-view" style="display:none">
@@ -573,9 +590,15 @@
     <div class="page-view" id="vault-view" style="display:none">
       <div class="page-view-head">
         <span class="page-view-title">secrets</span>
-        <span style="margin-left:auto;display:flex;gap:0.4rem">
+        <span style="margin-left:auto;display:flex;gap:0.4rem;align-items:center">
+          <div class="custom-select vault-switcher" id="vault-switcher" style="display:none;min-width:130px"></div>
+          <button class="btn" id="vault-add-btn" style="display:none" title="new vault">+ vault</button>
+          <button class="btn ic-btn-lbl" id="vault-travel-btn" style="display:none" title="Travel Mode — hide vaults not marked travel-safe">travel</button>
+          <button class="btn ic-btn-lbl" id="vault-bio-add-btn" style="display:none" title="enable biometric unlock for this vault">biometric</button>
           <button class="btn primary" id="vault-new-btn" style="display:none">+ new</button>
+          <button class="btn ic-btn-lbl" id="vault-watchtower-btn" style="display:none" title="security check">watchtower</button>
           <button class="btn" id="vault-lock-btn" style="display:none">lock</button>
+          <button class="btn ic-btn-lbl" id="vault-manage-btn" style="display:none" title="vault settings">settings</button>
         </span>
       </div>
       <div id="vault-locked" class="vault-lock-screen">
@@ -586,6 +609,7 @@
         <span>enter master password to unlock</span>
         <input type="password" id="vault-pw-input" class="settings-input" placeholder="master password" style="width:220px;text-align:center">
         <button class="btn primary" id="vault-unlock-btn">unlock</button>
+        <button class="btn ic-btn-lbl" id="vault-bio-unlock-btn" style="display:none">unlock with biometric</button>
       </div>
       <div id="vault-unlocked" style="display:none;flex-direction:column;flex:1;overflow:hidden">
         <div class="page-view-body" id="vault-entry-list"></div>
@@ -595,14 +619,17 @@
 
     <!-- ── contacts view ── -->
     <div class="page-view" id="contacts-view" style="display:none">
-      <div class="page-view-head">
+      <div class="page-view-head contacts-head">
         <span class="page-view-title">contacts</span>
-        <input type="text" id="contacts-search" class="settings-input" placeholder="search..." style="width:160px">
-        <button class="btn" id="contacts-fav-filter" title="show favorites only">★</button>
-        <button class="btn" id="contacts-bday-btn" title="upcoming birthdays">🎂</button>
+        <input type="text" id="contacts-search" class="settings-input contacts-search" placeholder="search...">
+        <button class="btn" id="contacts-fav-filter" title="show favorites only">favorites</button>
+        <button class="btn" id="contacts-bday-btn" title="upcoming birthdays">birthdays</button>
+        <button class="btn" id="contacts-groups-btn" title="groups">groups</button>
+        <button class="btn" id="contacts-dups-btn" title="find duplicates">duplicates</button>
         <a class="btn" id="contacts-export-btn" href="/api/contacts/export" title="export vCard">export</a>
         <button class="btn" id="contacts-import-btn" title="import vCard">import</button>
         <input type="file" id="contacts-import-input" accept=".vcf,text/vcard" hidden>
+        <button class="icon-btn app-cog" data-app="contacts" title="contacts settings"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2a2 2 0 1 1-4 0V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1A2 2 0 1 1 4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H3a2 2 0 1 1 0-4h.2a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1A2 2 0 1 1 7.2 4.2l.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.6V3a2 2 0 1 1 4 0v.2a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1A2 2 0 1 1 20 7.2l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2a2 2 0 1 1 0 4h-.2a1.7 1.7 0 0 0-1.8 1z"/></svg></button>
       </div>
       <div class="page-view-body" id="contacts-list"></div>
       <div class="page-view-footer">
@@ -620,6 +647,7 @@
         <div class="files-actions">
           <button class="btn" id="files-up-btn" title="up one folder">↑ up</button>
           <button class="btn" id="files-mkdir-btn">+ folder</button>
+          <button class="btn" id="files-view-toggle" title="grid / list view">▦ grid</button>
           <button class="btn" id="files-upload-btn">upload</button>
           <input type="file" id="files-upload-input" multiple hidden>
           <input type="text" id="files-search" class="cal-quick" placeholder="search files…">
@@ -638,25 +666,19 @@
     <!-- ── mail view ── -->
     <div class="page-view" id="mail-view" style="display:none">
       <div class="page-view-head mail-head">
-        <div class="mail-tabs" id="mail-tabs">
-          <button class="mail-tab active" data-filter="inbox">inbox</button>
-          <button class="mail-tab" data-filter="unread">unread</button>
-          <button class="mail-tab" data-filter="flagged">flagged</button>
-          <button class="mail-tab" data-filter="vip">vip</button>
-          <button class="mail-tab" data-filter="sent">sent</button>
-          <button class="mail-tab" data-filter="drafts">drafts</button>
-        </div>
+        <button class="icon-btn mail-sidebar-toggle" id="mail-sidebar-toggle" title="toggle folders">☰</button>
         <div id="mail-account" class="settings-input custom-select mail-account-select"></div>
-        <input type="text" id="mail-search" class="cal-quick mail-search" placeholder="search mail… (enter)">
+        <input type="text" id="mail-search" class="cal-quick mail-search" placeholder="search mail…">
         <div class="mail-head-actions">
-          <button class="btn" id="mail-threads-btn" title="group by conversation" aria-pressed="false">threads</button>
           <button class="btn" id="mail-refresh-btn">refresh</button>
           <button class="btn primary" id="mail-compose-btn">compose</button>
-          <button class="btn" id="mail-accounts-btn" title="accounts">accounts</button>
           <button class="icon-btn app-cog" data-app="mail" title="mail settings"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2a2 2 0 1 1-4 0V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1A2 2 0 1 1 4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H3a2 2 0 1 1 0-4h.2a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1A2 2 0 1 1 7.2 4.2l.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.6V3a2 2 0 1 1 4 0v.2a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1A2 2 0 1 1 20 7.2l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2a2 2 0 1 1 0 4h-.2a1.7 1.7 0 0 0-1.8 1z"/></svg></button>
         </div>
       </div>
+      <div class="mail-saved" id="mail-saved"></div>
+      <div class="mail-scheduled" id="mail-scheduled"></div>
       <div class="mail-layout">
+        <nav class="mail-sidebar" id="mail-sidebar"></nav>
         <div class="mail-list" id="mail-list"></div>
         <div class="mail-main" id="mail-main"></div>
       </div>
@@ -664,15 +686,17 @@
 
     <!-- gallery view -->
     <div class="page-view" id="photos-view" style="display:none">
-      <div class="page-view-head" style="gap:0.4rem">
+      <div class="page-view-head photos-head">
         <span class="page-view-title">gallery</span>
-        <div id="photos-album" class="settings-input custom-select" style="font-size:0.72rem;width:auto;max-width:180px"></div>
-        <button class="btn" id="photos-newalbum-btn" style="font-size:0.72rem">+ album</button>
-        <div id="photos-model" class="settings-input custom-select" data-placeholder="model" style="font-size:0.72rem;width:auto;max-width:170px" title="image model"></div>
-        <button class="btn" id="photos-gen-btn" style="font-size:0.72rem" title="generate an image with AI">✨ generate</button>
-        <input type="text" id="photos-search" class="cal-quick" placeholder="search photos…" style="font-size:0.72rem">
+        <div id="photos-album" class="settings-input custom-select photos-album-sel"></div>
+        <button class="btn" id="photos-newalbum-btn">+ album</button>
+        <button class="btn ic-btn-lbl" id="photos-share-album-btn" title="share the selected album as a read-only link"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><line x1="8.2" y1="10.8" x2="15.8" y2="7.2"/><line x1="8.2" y1="13.2" x2="15.8" y2="16.8"/></svg> share</button>
+        <div id="photos-model" class="settings-input custom-select photos-model-sel" data-placeholder="model" title="image model"></div>
+        <button class="btn ic-btn-lbl" id="photos-gen-btn" title="generate an image with AI"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.8 4.6L18.5 9.4 13.8 11.2 12 16l-1.8-4.8L5.5 9.4l4.7-1.8z"/><path d="M18 15l.7 1.8L20.5 17.5l-1.8.7L18 20l-.7-1.8L15.5 17.5l1.8-.7z"/></svg> generate</button>
+        <input type="text" id="photos-search" class="cal-quick photos-search" placeholder="search photos…">
         <input type="file" id="photos-upload-input" accept="image/*" multiple hidden>
-        <button class="btn primary" id="photos-upload-btn" style="font-size:0.72rem;margin-left:auto">upload</button>
+        <button class="btn photos-trash ic-btn-lbl" id="photos-trash-btn" title="recently deleted"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 7 20 7"/><path d="M6 7l1 13h10l1-13"/><path d="M9.5 7V4.5h5V7"/><line x1="10" y1="10.5" x2="10" y2="16.5"/><line x1="14" y1="10.5" x2="14" y2="16.5"/></svg> trash</button>
+        <button class="btn primary" id="photos-upload-btn">upload</button>
         <button class="icon-btn app-cog" data-app="photos" title="gallery settings"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2a2 2 0 1 1-4 0V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1A2 2 0 1 1 4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H3a2 2 0 1 1 0-4h.2a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1A2 2 0 1 1 7.2 4.2l.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.6V3a2 2 0 1 1 4 0v.2a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1A2 2 0 1 1 20 7.2l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2a2 2 0 1 1 0 4h-.2a1.7 1.7 0 0 0-1.8 1z"/></svg></button>
       </div>
       <div class="page-view-body"><div class="photos-grid" id="photos-grid"></div></div>
@@ -726,6 +750,10 @@
             <button class="c-tool mic-corner" id="mic-btn" title="voice input" aria-label="voice input">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
             </button>
+            <!-- 10f — full-duplex live voice, shown only when a realtime provider is configured -->
+            <button class="c-tool" id="live-voice-btn" title="live voice (full-duplex)" aria-label="live voice" style="display:none">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M2 12h3l2-7 4 14 3-9 2 4h6"/></svg>
+            </button>
             <button class="stop-btn" id="stop-btn" aria-label="stop">■</button>
             <button class="send-btn" id="send-btn" aria-label="send">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>
@@ -775,6 +803,15 @@
   </div>
 </div>
 
+<!-- shown when the server can't be reached (e.g. PWA shell opened while alles isn't started) -->
+<div class="login-screen" id="notrunning-screen" style="display:none">
+  <div class="login-inner">
+    <div class="login-brand">alles <span class="login-sep">/ not started</span></div>
+    <div class="notrunning-msg">can't reach the server — alles isn't running. start it, then retry.</div>
+    <button class="login-btn" id="notrunning-retry">retry</button>
+  </div>
+</div>
+
 <!-- drop overlay -->
 <div class="drop-overlay" id="drop-overlay" style="display:none">
   <span>drop files to attach</span>
@@ -808,13 +845,20 @@
 <div class="modal-overlay" id="photos-lightbox" style="display:none">
   <div class="photos-lightbox-inner">
     <img class="photos-lightbox-img" id="photos-lightbox-img" src="" alt="">
+    <video class="photos-lightbox-img" id="photos-lightbox-video" controls playsinline style="display:none"></video>
     <div class="photos-lightbox-side">
       <div class="photos-lightbox-actions">
         <button class="btn" id="photos-fav-btn">favorite</button>
+        <button class="btn" id="photos-hide-btn" title="move to the hidden album">hide</button>
         <button class="btn" id="photos-edit-btn">edit</button>
         <a class="btn" id="photos-dl-btn" href="#" download>download</a>
         <button class="btn danger" id="photos-del-btn">delete</button>
         <button class="btn" id="photos-close-btn">close</button>
+      </div>
+      <div class="photos-meta">
+        <input type="text" id="photos-caption" class="settings-input photos-meta-in" placeholder="add a caption…">
+        <input type="text" id="photos-keywords" class="settings-input photos-meta-in" placeholder="keywords, comma separated">
+        <button class="btn primary" id="photos-meta-save" style="font-size:0.68rem">save caption & keywords</button>
       </div>
       <div class="photos-exif" id="photos-exif"></div>
     </div>
@@ -822,7 +866,17 @@
 </div>
 
 <!-- toast container -->
+<div id="canvas-view" class="canvas-view" style="display:none">
+  <div class="canvas-bar">
+    <span id="canvas-title" class="canvas-title"></span>
+    <button class="btn" id="canvas-add">+ node</button>
+    <button class="btn" id="canvas-add-note">+ note link</button>
+    <button class="btn" id="canvas-close" style="margin-left:auto">close</button>
+  </div>
+  <div id="canvas-surface" class="canvas-surface"></div>
+</div>
 <div class="toast-container" id="toast-container"></div>
+<div id="sync-indicator" class="sync-indicator" style="display:none"></div>
 
 <!-- context menu -->
 <div class="ctx-menu" id="ctx-menu" style="display:none"></div>
@@ -853,6 +907,8 @@
     <div class="mm-panel" id="mm-panel-models">
       <div class="modal-search">
         <input type="text" id="model-search-input" placeholder="search models...">
+        <span class="newest-only-label">newest only</span>
+        <div class="s-switch newest-only-switch" id="mm-newest-switch" title="show only the newest model of each family"></div>
         <button class="btn mm-refresh-all" id="mm-refresh-all" title="re-probe every endpoint for new models">refresh</button>
       </div>
       <div class="modal-body" id="model-list"></div>
@@ -1301,7 +1357,7 @@
               <div class="s-field"><label>name</label><input type="text" class="settings-input" id="persona-name" placeholder="name" style="width:100%"></div>
               <div class="s-field"><label>system prompt</label><textarea class="settings-textarea" id="persona-prompt" rows="6" placeholder="You are..." style="width:100%;resize:vertical"></textarea></div>
               <div class="s-field"><label>starter message <span style="color:var(--muted);font-weight:400">— prefilled into the composer when you pick this persona (optional)</span></label><textarea class="settings-textarea" id="persona-initial" rows="2" placeholder="e.g. Please review this code:" style="width:100%;resize:vertical"></textarea></div>
-              <div class="s-field"><label>pinned model</label><select class="settings-input" id="persona-model" style="width:100%"><option value="">— use chat's model</option></select></div>
+              <div class="s-field"><label>pinned model</label><div class="settings-input custom-select" id="persona-model" style="width:100%"></div></div>
               <div class="s-field persona-temp-field">
                 <div class="persona-temp-head">
                   <label style="margin:0">temperature</label>
@@ -1332,6 +1388,18 @@
               <div style="display:flex;gap:.5rem">
                 <button class="btn primary" id="persona-add-btn" style="flex:1">add persona</button>
                 <button class="btn" id="persona-cancel-btn" hidden>cancel</button>
+              </div>
+              <!-- 10d — knowledge files + share, only meaningful for a saved persona -->
+              <div id="persona-extra" hidden style="margin-top:0.85rem;border-top:1px solid var(--faint);padding-top:0.85rem">
+                <div class="s-field"><label>knowledge files <span style="color:var(--muted);font-weight:400">— this assistant answers from these</span></label>
+                  <div id="persona-docs" class="persona-docs"></div>
+                  <div style="display:flex;gap:.4rem;margin-top:.4rem">
+                    <input type="text" class="settings-input" id="persona-doc-title" placeholder="title" style="flex:0 0 30%">
+                    <input type="text" class="settings-input" id="persona-doc-content" placeholder="paste knowledge text…" style="flex:1">
+                    <button class="btn" id="persona-doc-add">add</button>
+                  </div>
+                </div>
+                <button class="btn" id="persona-share-btn" style="margin-top:.5rem">🔗 share this assistant</button>
               </div>
             </div>
           </div>
@@ -1397,9 +1465,20 @@
             </div>
             <div class="s-card-body">
               <div id="mcp-server-list" style="margin-bottom:0.75rem"></div>
+              <div class="s-field"><label>one-click presets</label><div id="mcp-presets" class="mcp-presets"></div></div>
               <div class="s-field"><label>name</label><input type="text" class="settings-input" id="mcp-name" style="width:100%"></div>
               <div class="s-field"><label>command</label><input type="text" class="settings-input" id="mcp-command" placeholder="npx -y @modelcontextprotocol/server-filesystem /path" style="width:100%"></div>
               <button class="btn primary" id="mcp-add-btn" style="width:100%">add server</button>
+            </div>
+          </div>
+          <!-- 11a — macOS native integration status (Mac mini only) -->
+          <div class="s-card">
+            <div class="s-card-head">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+              macOS integration
+            </div>
+            <div class="s-card-body">
+              <div id="macos-status" class="macos-status"></div>
             </div>
           </div>
           <div class="s-card">
@@ -1537,7 +1616,7 @@
 </div>
 
 <script type="module">
-const _v = '33';
+const _v = '95';
 import(`/static/js/app.js?v=${_v}`);
 </script>
 </body>

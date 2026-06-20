@@ -1,0 +1,8 @@
+PASS  tmpl_button_renders
+PASS  tmpl_button_inserts
+PASS  base_newrow_button
+PASS  base_newrow_creates
+PASS  base_publish_button
+PASS  base_publish_mints
+PASS  published_site_navigable
+PASS  zero_console_errors

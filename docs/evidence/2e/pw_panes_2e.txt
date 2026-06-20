@@ -1,0 +1,10 @@
+PASS  theme_applies
+PASS  tabs_two
+PASS  tab_switch
+PASS  split_visible
+PASS  split_shows_other
+PASS  tab_close
+PASS  tabs_persist_reload
+PASS  offline_edit_queued
+PASS  offline_edit_persists
+PASS  zero_console_errors
