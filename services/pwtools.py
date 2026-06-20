@@ -145,3 +145,106 @@ def card_last4(number: str) -> str:
 def mask_card(number: str) -> str:
     d = _digits(number)
     return ("•" * max(0, len(d) - 4)) + d[-4:] if d else ""
+
+
+# ── TOTP (RFC 6238) + Watchtower (9a) ─────────────────────────────────────────
+def _b32key(secret: str) -> bytes:
+    import base64
+
+    s = (secret or "").strip().replace(" ", "").upper()
+    s += "=" * (-len(s) % 8)  # pad to a multiple of 8 for b32decode
+    return base64.b32decode(s)
+
+
+def totp_now(secret: str, period: int = 30, digits: int = 6, t: float | None = None) -> str:
+    """RFC 6238 TOTP code. SHA1, configurable period/digits. no third-party dep."""
+    import hashlib
+    import hmac
+    import struct
+    import time
+
+    if t is None:
+        t = time.time()
+    counter = int(t // period)
+    h = hmac.new(_b32key(secret), struct.pack(">Q", counter), hashlib.sha1).digest()
+    o = h[-1] & 0x0F
+    code = (struct.unpack(">I", h[o : o + 4])[0] & 0x7FFFFFFF) % (10**digits)
+    return str(code).zfill(digits)
+
+
+def totp_remaining(period: int = 30, t: float | None = None) -> int:
+    import time
+
+    if t is None:
+        t = time.time()
+    return period - int(t % period)
+
+
+def totp_secret(length: int = 32) -> str:
+    """a fresh random base32 secret for a new authenticator-app enrolment."""
+    import base64
+
+    raw = secrets.token_bytes(length * 5 // 8 + 1)
+    return base64.b32encode(raw).decode().rstrip("=")[:length]
+
+
+def totp_verify(secret: str, code: str, period: int = 30, window: int = 1, t: float | None = None):
+    """accept a code from the current step ±window (clock-skew tolerance). constant-ish compare."""
+    import time
+
+    if not (code or "").strip().isdigit():
+        return False
+    if t is None:
+        t = time.time()
+    code = code.strip()
+    for off in range(-window, window + 1):
+        if secrets.compare_digest(totp_now(secret, period=period, t=t + off * period), code):
+            return True
+    return False
+
+
+def totp_uri(secret: str, label: str = "vault", issuer: str = "alles") -> str:
+    """otpauth:// provisioning URI for QR enrolment."""
+    from urllib.parse import quote
+
+    return (
+        f"otpauth://totp/{quote(issuer)}:{quote(label)}"
+        f"?secret={secret}&issuer={quote(issuer)}&period=30&digits=6"
+    )
+
+
+def is_weak(pw: str) -> bool:
+    return estimate_strength(pw or "")["score"] <= 1
+
+
+def find_reused(entries: list[dict]) -> list[list[str]]:
+    """entries = [{id, password}] → groups of ids that share a (non-empty) password."""
+    by_pw: dict[str, list[str]] = {}
+    for e in entries:
+        pw = (e.get("password") or "").strip()
+        if pw:
+            by_pw.setdefault(pw, []).append(e["id"])
+    return [ids for ids in by_pw.values() if len(ids) >= 2]
+
+
+def breach_count(password: str, fetch) -> int:
+    """HIBP k-anonymity: SHA1 the password, send the first 5 hex chars to `fetch(prefix)`,
+    match the suffix in the returned 'SUFFIX:count' lines. the full password never leaves."""
+    import hashlib
+
+    if not password:
+        return 0
+    sha = hashlib.sha1(password.encode()).hexdigest().upper()
+    prefix, suffix = sha[:5], sha[5:]
+    try:
+        text = fetch(prefix) or ""
+    except Exception:
+        return 0
+    for line in text.splitlines():
+        parts = line.strip().split(":")
+        if len(parts) == 2 and parts[0].strip().upper() == suffix:
+            try:
+                return int(parts[1])
+            except ValueError:
+                return 0
+    return 0

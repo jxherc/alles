@@ -1,0 +1,8 @@
+PASS  passkey_type_present
+PASS  create_passkey_adds_entry
+PASS  passkey_listed
+PASS  twofa_toggle_present
+PASS  autofill_info_present
+PASS  extension_link_present
+PASS  twofa_toggle_persists
+PASS  zero_console_errors

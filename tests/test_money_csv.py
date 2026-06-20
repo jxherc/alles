@@ -1,5 +1,5 @@
+from core.database import Account
 from tests._client import ApiTest
-from core.database import Account, Transaction
 
 
 class MoneyCsvTest(ApiTest):
@@ -94,6 +94,26 @@ class MoneyCsvTest(ApiTest):
         ).json()
         self.assertEqual(third["imported"], 1)
         self.assertEqual(third["skipped"], 1)
+
+    def test_export_csv_has_header_row(self):
+        aid = self._account()
+        self.client.post(
+            "/api/money/transactions",
+            json={"account_id": aid, "date": "2026-06-10", "amount": 5.0},
+        )
+        text = self.client.get("/api/money/transactions/export.csv").text
+        header = text.splitlines()[0]
+        for col in ("date", "amount", "category", "payee", "notes", "account_id"):
+            self.assertIn(col, header)
+
+    def test_notes_preserved_in_export(self):
+        aid = self._account()
+        self.client.post(
+            "/api/money/transactions",
+            json={"account_id": aid, "date": "2026-06-11", "amount": -3.0, "notes": "split lunch"},
+        )
+        text = self.client.get("/api/money/transactions/export.csv").text
+        self.assertIn("split lunch", text)
 
     def test_export_neutralizes_formula_injection(self):
         aid = self._account()

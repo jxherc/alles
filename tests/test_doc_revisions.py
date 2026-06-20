@@ -8,8 +8,8 @@ from sqlalchemy.orm import sessionmaker
 
 import core.database as db_mod
 from core.database import DocRevision
-from services import vault_md
 from routes import vault_md as vroute
+from services import vault_md
 
 
 class DocRevisionTests(unittest.TestCase):
@@ -67,6 +67,48 @@ class DocRevisionTests(unittest.TestCase):
         vroute._snapshot("e.md", force=True)
         rid = vroute.list_revisions("e.md")[0]["id"]
         self.assertEqual(vroute.diff_revision("e.md", a=rid)["diff"], "")
+
+    def test_snapshot_nonexistent_file_is_noop(self):
+        # shouldn't blow up, just silently skip
+        vroute._snapshot("ghost.md", force=True)
+        self.assertEqual(vroute.list_revisions("ghost.md"), [])
+
+    def test_multiple_versions_ordered_newest_first(self):
+        vault_md.write("seq.md", "alpha")
+        vroute._snapshot("seq.md", force=True)
+        vault_md.write("seq.md", "beta")
+        vroute._snapshot("seq.md", force=True)
+        vault_md.write("seq.md", "gamma")
+        vroute._snapshot("seq.md", force=True)
+        revs = vroute.list_revisions("seq.md")
+        self.assertEqual(len(revs), 3)
+        # sizes: alpha=5, beta=4, gamma=5 — all different content, so 3 revisions
+        sizes = [r["size"] for r in revs]
+        self.assertEqual(len(sizes), 3)
+
+    def test_norm_path_nested(self):
+        self.assertEqual(vroute._norm_path("sub/page"), "sub/page.md")
+        self.assertEqual(vroute._norm_path("sub/page.md"), "sub/page.md")
+
+    def test_restore_revision_writes_content(self):
+        vault_md.write("r.md", "original")
+        vroute._snapshot("r.md", force=True)
+        rid = vroute.list_revisions("r.md")[0]["id"]
+        vault_md.write("r.md", "changed a lot")
+        vroute.restore_revision(rid)
+        self.assertEqual(vault_md.read("r.md")["content"], "original")
+
+    def test_diff_between_two_revisions(self):
+        vault_md.write("two.md", "aaa\n")
+        vroute._snapshot("two.md", force=True)
+        rid_a = vroute.list_revisions("two.md")[0]["id"]
+        vault_md.write("two.md", "bbb\n")
+        vroute._snapshot("two.md", force=True)
+        revs = vroute.list_revisions("two.md")
+        rid_b = revs[0]["id"]  # newest
+        d = vroute.diff_revision("two.md", a=rid_a, b=rid_b)["diff"]
+        self.assertIn("-aaa", d)
+        self.assertIn("+bbb", d)
 
 
 if __name__ == "__main__":

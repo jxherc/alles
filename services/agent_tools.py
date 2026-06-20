@@ -1244,6 +1244,10 @@ async def execute(name: str, args: dict) -> dict:
         return await _calendar_delete(args.get("id", ""))
     if name == "task_list":
         return await _task_list(bool(args.get("include_done")))
+    if name in ("browse_open", "browse_read", "browse_click", "browse_type", "browse_screenshot"):
+        return await _browse(name, args)
+    if name == "search_code":
+        return await _search_code(args.get("query", ""), int(args.get("k") or 8))
     if name == "task_add":
         return await _task_add(args.get("title", ""))
     if name == "task_done":
@@ -1343,6 +1347,45 @@ async def _task_list(include_done):
         rows = q.order_by(Task.created_at.desc()).all()
         out = [f"- [{'x' if t.done else ' '}] ({t.id[:8]}) {t.title}" for t in rows]
         return {"output": "\n".join(out) if out else "no tasks"}
+    finally:
+        db.close()
+
+
+async def _browse(name, args) -> dict:
+    """DOM-level browser automation (10e) — distinct from pixel computer-use."""
+    from services.browser_tool import _b
+
+    try:
+        if name == "browse_open":
+            url = (args.get("url") or "").strip()
+            if not url:
+                return {"output": "url required", "error": True}
+            landed = await _b.navigate(url)
+            return {"output": f"opened {landed}"}
+        if name == "browse_read":
+            return {"output": await _b.read_text()}
+        if name == "browse_click":
+            return {
+                "output": f"clicked {args.get('selector', '')} → {await _b.click(args.get('selector', ''))}"
+            }
+        if name == "browse_type":
+            val = await _b.type_text(args.get("selector", ""), args.get("text", ""))
+            return {"output": f"typed into {args.get('selector', '')} (value now: {val})"}
+        if name == "browse_screenshot":
+            return {"output": "screenshot captured", "image": await _b.screenshot()}
+    except Exception as e:
+        return {"output": f"browser error: {e}", "error": True}
+    return {"output": "unknown browse op", "error": True}
+
+
+async def _search_code(query, k=8):
+    """semantic search over the indexed codebase (10a)."""
+    from core.database import SessionLocal
+    from services import codeindex
+
+    db = SessionLocal()
+    try:
+        return {"query": query, "hits": codeindex.search(db, query, k)}
     finally:
         db.close()
 
@@ -2103,6 +2146,37 @@ APP_TOOL_DEFS = [
     _tool(
         "task_list", "List tasks / todos.", {"include_done": {"type": "boolean", "default": False}}
     ),
+    _tool(
+        "search_code",
+        "Semantic search over the indexed codebase — find code by meaning, not just text. "
+        "Returns ranked file/chunk hits.",
+        {
+            "query": {"type": "string", "description": "what you're looking for"},
+            "k": {"type": "integer", "default": 8},
+        },
+        ["query"],
+    ),
+    _tool(
+        "browse_open",
+        "Open a URL in a real headless browser (DOM-level, distinct from computer-use). "
+        "Persists across turns so you can browse statefully.",
+        {"url": {"type": "string"}},
+        ["url"],
+    ),
+    _tool("browse_read", "Read the visible text of the current browser page.", {}),
+    _tool(
+        "browse_click",
+        "Click an element on the current page by CSS selector.",
+        {"selector": {"type": "string"}},
+        ["selector"],
+    ),
+    _tool(
+        "browse_type",
+        "Type text into an input/textarea on the current page by CSS selector.",
+        {"selector": {"type": "string"}, "text": {"type": "string"}},
+        ["selector", "text"],
+    ),
+    _tool("browse_screenshot", "Screenshot the current browser page (returns a PNG).", {}),
     _tool("task_add", "Add a task / todo.", {"title": {"type": "string"}}, ["title"]),
     _tool(
         "task_done",
@@ -2180,6 +2254,9 @@ MUTATING_TOOLS = {
     "computer_type",
     "computer_key",
     "computer_scroll",
+    "browse_open",
+    "browse_click",
+    "browse_type",
     "mcp_call_tool",
     "opencode_run",
     "spawn_agent",

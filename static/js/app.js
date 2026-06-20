@@ -1,6 +1,11 @@
 import { loadSessions, initSessions, newChat, showWelcome, createSession, renderSidebar, exportActiveSessionMarkdown, getActiveId, saveDraft, clearDraft } from './sessions.js';
 import { loadModels, renderModelList, renderSidebarModelList, addEndpoint, getSelected, getCurrentEndpoint, initModelModal, prettyModel } from './models.js';
 import { populateDropdown } from './dropdown.js';
+import { icon, iconEl, ICON_NAMES } from './icons.js';
+// expose globally so the inline-HTML modules can call icon() without each importing it
+window.icon = icon; window.iconEl = iconEl; window.ICON_NAMES = ICON_NAMES;
+import { chooseBootState } from './bootstate.js';
+import { providerKey } from './brandlogo.js';
 import { sendMessage, stopStream, hideConnBanner } from './chat.js';
 import { toast, closeAllModals, mdToHtml, api } from './util.js';
 import { runResearch, setResearchMode, isResearchMode } from './research.js';
@@ -28,6 +33,7 @@ import { initPrivacyHandlers } from './privacy.js';
 import { loadShortcuts, matchesShortcut } from './shortcuts.js';
 import { startReminderPoll, initReminderPanel, loadReminders } from './reminders.js';
 import { registerServiceWorker } from './push.js';
+import { initSync } from './sync.js';
 
 window._mdToHtml = mdToHtml;
 
@@ -48,7 +54,20 @@ async function init() {
   }
 
   let me = {};
-  try { me = await fetch('/api/auth/me').then(r => r.json()); setBaseDomain(me.base_domain); } catch {}
+  let reachable = true;
+  try {
+    me = await fetch('/api/auth/me').then(r => r.json());
+    setBaseDomain(me.base_domain);
+    localStorage.setItem('alles_auth_cache', JSON.stringify(me));   // remember for offline
+  } catch {
+    // 11b: offline → trust the last known session so the installed PWA still opens
+    reachable = false;
+    try { me = JSON.parse(localStorage.getItem('alles_auth_cache') || '{}'); } catch {}
+    if (me.base_domain) setBaseDomain(me.base_domain);
+  }
+
+  // server unreachable + nothing cached → say "not running", don't bounce to a dead login wall
+  if (chooseBootState(reachable, me.authenticated) === 'notrunning') { _showNotRunning(); return; }
 
   // 2. apex acting as the SSO broker: an app bounced here (?_sso=app.host) for a session
   const ssoTarget = params.get('_sso');
@@ -103,19 +122,22 @@ async function _boot() {
   applyVis();
   _syncAppearance();   // pull theme/accent from the server so it matches across subdomains
   if (localStorage.getItem('aide-sidebar-hidden')) document.body.classList.add('sidebar-hidden');
-  await loadModels();
-  await loadProjects();
-  await initSessions();
+  // 11b: on a phone the rail is a drawer — start it closed (don't persist, it's width-driven)
+  if (window.matchMedia('(max-width: 480px)').matches) document.body.classList.add('sidebar-hidden');
+  // these hit the server; offline they'll fail — don't let that abort the shell render (11b)
+  try { await loadModels(); } catch {}
+  try { await loadProjects(); } catch {}
+  try { await initSessions(); } catch {}
   const ta = document.getElementById('composer-ta');
   initSlash(ta);
-  const { initMentions } = await import('./mentions.js');
-  initMentions(ta);
+  try { const { initMentions } = await import('./mentions.js'); initMentions(ta); } catch {}
   initSearch();
   initDropZone();
   initVault();
   initPrivacyHandlers();
   startReminderPoll();
   registerServiceWorker();
+  initSync();
   bindEvents();
   // per-app settings gears (header cogs) + the reload hooks they call after saving
   initAppCogs();
@@ -149,7 +171,7 @@ function applySubdomainScope() {
   document.body.classList.toggle('is-subapp', onSubApp);
   document.body.dataset.app = app.app;
   document.title = onHub ? 'alles' : `${app.app} / alles`;
-  renderAppCrumb(app.app);
+  renderAppCrumb(app.app, sub);
 
   // chats + composer chrome belong to aide only
   _show('sidebar-toggle-btn', onAide);
@@ -178,17 +200,43 @@ function applySubdomainScope() {
 
 function _show(id, on) { const e = document.getElementById(id); if (e) e.style.display = on ? '' : 'none'; }
 
-function renderAppCrumb(appName) {
+function renderAppCrumb(appName, sub) {
   const crumb = document.getElementById('app-crumb');
   if (!crumb) return;
-  crumb.replaceChildren();
-  crumb.appendChild(document.createTextNode(appName));
-  if (appName !== 'alles') {
-    const parent = document.createElement('span');
-    parent.textContent = ' / alles';
-    crumb.appendChild(parent);
+  if (appName === 'alles') {                 // on the hub: just the wordmark, nowhere to go
+    crumb.replaceChildren(document.createTextNode('alles'));
+    crumb.title = 'home';
+    return;
   }
-  crumb.title = appName === 'alles' ? 'home' : 'back to alles';
+  _buildCrumb(crumb, appName, sub || appName);
+}
+
+// two real anchors so middle-click / ctrl-click opens the target in a new tab natively.
+// left-click is intercepted for in-session SPA nav (see _wireCrumbNav).
+function _buildCrumb(el, appName, appSub) {
+  const appA = document.createElement('a');
+  appA.className = 'crumb-app'; appA.textContent = appName;
+  appA.href = urlForApp(appSub); appA.title = `open ${appName}`;
+  const sep = document.createElement('span');
+  sep.className = 'crumb-sep'; sep.textContent = ' / ';
+  const rootA = document.createElement('a');
+  rootA.className = 'crumb-root'; rootA.textContent = 'alles';
+  rootA.href = urlForApp(''); rootA.title = 'alles home';
+  el.replaceChildren(appA, sep, rootA);
+}
+
+function _wireCrumbNav(el) {
+  if (!el || el.dataset.crumbWired) return;
+  el.dataset.crumbWired = '1';
+  el.addEventListener('click', e => {
+    if (e.metaKey || e.ctrlKey || e.shiftKey) return;   // let the browser open a new tab
+    const root = e.target.closest('.crumb-root');
+    if (root) {                                  // "alles" → the hub (needs an SSO handoff)
+      e.preventDefault();
+      if (currentSub()) crossNav(''); else showHomeView();
+    }
+    // the app-name part: let its href (the app's own root) load → that app's home page
+  });
 }
 
 // cross-app jump → full-page nav to that app's subdomain, carrying an SSO handoff code
@@ -199,6 +247,18 @@ async function crossNav(sub) {
     if (code) url += (url.includes('?') ? '&' : '?') + '_auth=' + encodeURIComponent(code);
   } catch {}
   location.assign(url);
+}
+
+function _showNotRunning() {
+  document.body.classList.remove('preboot');
+  document.body.classList.add('login-mode');
+  const screen = document.getElementById('notrunning-screen');
+  if (screen) screen.style.display = 'flex';
+  const retry = document.getElementById('notrunning-retry');
+  if (retry && !retry.dataset.wired) {
+    retry.dataset.wired = '1';
+    retry.addEventListener('click', () => location.reload());
+  }
 }
 
 function _showLoginScreen() {
@@ -427,9 +487,9 @@ async function _wireHomeAsk() {
     const withModels = eps.filter(e => (e.cached_models || e.models || []).length);
     const opts = [];
     for (const e of withModels) for (const m of (e.cached_models || e.models || []))
-      // just the model name, same as the aide model selector (endpoint still in the value)
-      opts.push({ value: `${e.id}::${m}`, label: prettyModel(m) });
-    if (!opts.length) opts.push({ value: '', label: 'no model — add one in settings' });
+      // model name + a glowing brand logo (endpoint still in the value)
+      opts.push({ value: `${e.id}::${m}`, label: prettyModel(m), icon: providerKey([e.provider, e.name, e.base_url, m].filter(Boolean).join(' ')) });
+    if (!opts.length) opts.push({ value: '', label: 'no model' });
     // default to whatever model the app is already on, not the first of a huge list
     const cur = getSelected();
     const want = cur?.model ? `${cur.endpointId || getCurrentEndpoint()?.id}::${cur.model}` : null;
@@ -442,28 +502,32 @@ async function _wireHomeAsk() {
     try { _haAttach = `\n\n[attached ${f.name}]:\n` + (await f.text()).slice(0, 4000); toast(`attached ${f.name}`, 'success'); }
     catch { toast('could not read that file', 'error'); }
   });
-  document.getElementById('ha-goto')?.addEventListener('click', () => navigateTo('chat'));
   document.getElementById('ha-voice')?.addEventListener('click', async () => {
     try { (await import('./voice.js')).dictateInto?.(inp); }
     catch { toast('voice input lives in the full aide', 'error'); }
   });
 
-  const ask = async () => {
-    const q = inp.value.trim(); if (!q) return;
+  // withDay=true → the "about my day" button: tuck today's summary in front (and ask for a
+  // rundown if the box is empty). withDay=false → a plain quick message to aide.
+  const ask = async (withDay) => {
+    let q = inp.value.trim();
+    if (!withDay && !q) return;
     const [eid, model] = (sel.value || '::').split('::');
     if (!eid) { toast('add a model in settings first', 'error'); return; }
     rep.style.display = 'block'; rep.textContent = '…'; send.disabled = true;
-    // day context so the simple aide can actually talk about today
     let ctx = '';
-    try {
-      const d = await fetch('/api/today').then(r => r.json());
-      const bits = [];
-      if (d.events?.length) bits.push('events: ' + d.events.map(e => `${e.time || 'all-day'} ${e.title}`).join('; '));
-      if (d.tasks?.overdue?.length) bits.push('overdue: ' + d.tasks.overdue.map(t => t.title).join('; '));
-      if (d.tasks?.due_today?.length) bits.push('due today: ' + d.tasks.due_today.map(t => t.title).join('; '));
-      if (d.reminders?.length) bits.push('reminders: ' + d.reminders.map(r => r.text).join('; '));
-      if (bits.length) ctx = `(my day so far — ${bits.join(' | ')})\n\n`;
-    } catch {}
+    if (withDay) {
+      try {
+        const d = await fetch('/api/today').then(r => r.json());
+        const bits = [];
+        if (d.events?.length) bits.push('events: ' + d.events.map(e => `${e.time || 'all-day'} ${e.title}`).join('; '));
+        if (d.tasks?.overdue?.length) bits.push('overdue: ' + d.tasks.overdue.map(t => t.title).join('; '));
+        if (d.tasks?.due_today?.length) bits.push('due today: ' + d.tasks.due_today.map(t => t.title).join('; '));
+        if (d.reminders?.length) bits.push('reminders: ' + d.reminders.map(r => r.text).join('; '));
+        if (bits.length) ctx = `(my day so far — ${bits.join(' | ')})\n\n`;
+      } catch {}
+      if (!q) q = 'how is my day looking? give me a quick rundown.';
+    }
     if (!_haSession) {
       _haSession = (await fetch('/api/sessions', { method: 'POST', headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ name: 'home: ask aide', model, endpoint_id: eid, incognito: true }) }).then(x => x.json())).id;
@@ -488,8 +552,9 @@ async function _wireHomeAsk() {
     } catch { rep.textContent = 'failed — try again'; }
     send.disabled = false; inp.value = ''; _haAttach = '';
   };
-  send.addEventListener('click', ask);
-  inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); ask(); } });
+  send.addEventListener('click', () => ask(false));
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); ask(false); } });
+  document.getElementById('ha-day')?.addEventListener('click', () => ask(true));
 }
 
 // fresh-install nudge: if no AI provider is wired up yet, chat is a dead end —
@@ -919,10 +984,7 @@ function bindEvents() {
     nameInput.value = localStorage.getItem('alles-name') || '';
     nameInput.addEventListener('input', () => localStorage.setItem('alles-name', nameInput.value.trim()));
   }
-  document.getElementById('app-crumb')?.addEventListener('click', () => {
-    if (currentSub()) crossNav('');
-    else showHomeView();
-  });
+  _wireCrumbNav(document.getElementById('app-crumb'));
 
   // persona picker
   document.getElementById('persona-btn').addEventListener('click', openPersonaPicker);
@@ -991,6 +1053,8 @@ function bindEvents() {
   document.getElementById('attach-btn')?.addEventListener('click', () => {
     document.getElementById('file-input-hidden')?.click();
   });
+  // 10f — reveal live voice if a realtime provider is configured (gated otherwise)
+  import('./voice.js').then(m => m.initLiveVoice?.()).catch(() => {});
   document.getElementById('file-input-hidden')?.addEventListener('change', async e => {
     for (const f of e.target.files) await attachFile(f);
     e.target.value = '';
@@ -1020,14 +1084,22 @@ function bindEvents() {
     loadContacts();
   });
 
+  // 11b: tapping the dim backdrop closes the phone drawer
+  document.getElementById('nav-backdrop')?.addEventListener('click', () => {
+    document.body.classList.add('sidebar-hidden');
+  });
+
   // sidebar nav + brand-as-home
   document.querySelectorAll('.nav-item').forEach(el => {
-    el.addEventListener('click', () => navigateTo(el.dataset.view));
+    el.addEventListener('click', () => {
+      navigateTo(el.dataset.view);
+      // on a phone, a nav tap should also slide the drawer shut
+      if (window.matchMedia('(max-width: 480px)').matches) document.body.classList.add('sidebar-hidden');
+    });
   });
-  document.getElementById('brand-home')?.addEventListener('click', () => {
-    if (currentSub()) crossNav('');   // on an app subdomain → back to the hub (with SSO handoff)
-    else showHomeView();
-  });
+  // aide's sidebar wordmark gets the same split-nav (aide part → aide root, alles → hub, mid-click new tab)
+  const brand = document.getElementById('brand-home');
+  if (brand) { _buildCrumb(brand, 'aide', 'aide'); _wireCrumbNav(brand); }
 
   // modal overlays close on backdrop click (except settings which manages itself)
   document.querySelectorAll('.modal-overlay:not(#settings-modal)').forEach(o => {

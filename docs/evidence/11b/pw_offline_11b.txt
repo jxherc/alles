@@ -1,0 +1,11 @@
+PASS  sw_version_bumped
+PASS  precache_list_nonempty
+PASS  shell_precached_on_install
+PASS  static_assets_cached
+PASS  manifest_cached
+PASS  js_modules_precached
+PASS  cold_offline_boots
+PASS  offline_not_login_wall
+PASS  offline_hub_renders
+PASS  pending_indicator_present
+PASS  zero_console_errors

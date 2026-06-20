@@ -107,8 +107,62 @@ def delete_persona(pid: str, db: DbSession = Depends(get_db)):
     p = db.get(Persona, pid)
     if not p:
         raise HTTPException(404)
+    from services import persona_docs
+
+    persona_docs.purge(db, pid)  # 10d — drop attached knowledge files + their index chunks
     db.delete(p)
     db.commit()
+    return {"ok": True}
+
+
+# ── 10d — persona knowledge files (a custom assistant answers from its own docs) ──
+class PersonaDocBody(BaseModel):
+    title: str = ""
+    content: str = ""
+
+
+@router.get("/personas/{pid}/docs")
+def list_persona_docs(pid: str, db: DbSession = Depends(get_db)):
+    from services import persona_docs
+
+    return [{"id": d.id, "title": d.title} for d in persona_docs.list_docs(db, pid)]
+
+
+@router.post("/personas/{pid}/docs")
+def add_persona_doc(pid: str, body: PersonaDocBody, db: DbSession = Depends(get_db)):
+    if not db.get(Persona, pid):
+        raise HTTPException(404)
+    from services import persona_docs
+
+    doc = persona_docs.attach(db, pid, body.title, body.content)
+    return {"id": doc.id, "title": doc.title}
+
+
+@router.delete("/personas/{pid}/docs/{doc_id}")
+def remove_persona_doc(pid: str, doc_id: str, db: DbSession = Depends(get_db)):
+    from services import persona_docs
+
+    if not persona_docs.detach(db, pid, doc_id):
+        raise HTTPException(404)
+    return {"ok": True}
+
+
+# ── 10d — share a persona as a read-only bundle others can recreate (1a) ──
+@router.post("/personas/{pid}/share")
+def share_persona(pid: str, db: DbSession = Depends(get_db)):
+    if not db.get(Persona, pid):
+        raise HTTPException(404)
+    from services import share
+
+    sh = share.mint(db, "persona", pid)
+    return {"token": sh.token, "url": f"/s/{sh.token}"}
+
+
+@router.delete("/personas/{pid}/share")
+def unshare_persona(pid: str, db: DbSession = Depends(get_db)):
+    from services import share
+
+    share.revoke_ref(db, "persona", pid)
     return {"ok": True}
 
 

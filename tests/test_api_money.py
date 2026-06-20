@@ -30,3 +30,77 @@ class MoneyApiTest(ApiTest):
         a = self.client.post("/api/money/accounts", json={"name": "x"}).json()
         self.assertEqual(self.client.get("/api/money/summary").status_code, 200)
         self.assertEqual(self.client.delete(f"/api/money/accounts/{a['id']}").status_code, 200)
+
+    def test_delete_account_removes_it_from_list(self):
+        a = self.client.post("/api/money/accounts", json={"name": "temp"}).json()
+        self.client.delete(f"/api/money/accounts/{a['id']}")
+        ids = [acc["id"] for acc in self.client.get("/api/money/accounts").json()]
+        self.assertNotIn(a["id"], ids)
+
+    def test_delete_unknown_account_404(self):
+        r = self.client.delete("/api/money/accounts/doesnotexist")
+        self.assertEqual(r.status_code, 404)
+
+    def test_update_account_name(self):
+        a = self.client.post("/api/money/accounts", json={"name": "old"}).json()
+        r = self.client.patch(f"/api/money/accounts/{a['id']}", json={"name": "new"})
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.json()["name"], "new")
+
+    def test_transfer_creates_two_linked_legs(self):
+        a = self.client.post("/api/money/accounts", json={"name": "src", "opening": 500.0}).json()
+        b = self.client.post("/api/money/accounts", json={"name": "dst"}).json()
+        r = self.client.post(
+            "/api/money/transfer",
+            json={
+                "from_account": a["id"],
+                "to_account": b["id"],
+                "amount": 100.0,
+                "date": "2026-06-01",
+            },
+        )
+        self.assertEqual(r.status_code, 200)
+        d = r.json()
+        self.assertIn("transfer_id", d)
+        self.assertEqual(d["from"]["amount"], -100.0)
+        self.assertEqual(d["to"]["amount"], 100.0)
+
+    def test_transfer_same_account_400(self):
+        a = self.client.post("/api/money/accounts", json={"name": "only"}).json()
+        r = self.client.post(
+            "/api/money/transfer",
+            json={
+                "from_account": a["id"],
+                "to_account": a["id"],
+                "amount": 10.0,
+                "date": "2026-06-01",
+            },
+        )
+        self.assertEqual(r.status_code, 400)
+
+    def test_category_rule_auto_applied(self):
+        a = self.client.post("/api/money/accounts", json={"name": "bank"}).json()
+        self.client.post("/api/money/rules", json={"match": "starbucks", "category": "coffee"})
+        t = self.client.post(
+            "/api/money/transactions",
+            json={
+                "account_id": a["id"],
+                "date": "2026-06-01",
+                "amount": -5.0,
+                "payee": "Starbucks Downtown",
+            },
+        ).json()
+        self.assertEqual(t["category"], "coffee")
+
+    def test_reconcile_shows_difference(self):
+        a = self.client.post("/api/money/accounts", json={"name": "chk", "opening": 200.0}).json()
+        aid = a["id"]
+        self.client.post(
+            "/api/money/transactions",
+            json={"account_id": aid, "date": "2026-06-01", "amount": -50.0, "cleared": True},
+        )
+        r = self.client.get(f"/api/money/accounts/{aid}/reconcile?statement=150.0")
+        self.assertEqual(r.status_code, 200)
+        d = r.json()
+        self.assertEqual(d["cleared_balance"], 150.0)
+        self.assertTrue(d["reconciled"])

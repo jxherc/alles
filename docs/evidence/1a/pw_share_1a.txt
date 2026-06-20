@@ -1,0 +1,8 @@
+PASS  docs_publish_button_present
+PASS  docs_publish_mints_and_copies
+PASS  docs_shared_state_shows
+PASS  public_doc_link_opens_readonly
+PASS  docs_unpublish_revokes
+PASS  files_share_action_present
+PASS  files_share_mints
+PASS  zero_console_errors

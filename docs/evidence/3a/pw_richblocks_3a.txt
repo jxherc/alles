@@ -1,0 +1,10 @@
+PASS  toggle_renders
+PASS  toggle_summary
+PASS  columns_render
+PASS  cover_renders
+PASS  icon_renders
+PASS  datemention_renders
+PASS  toolbar_has_toggle
+PASS  toolbar_has_columns
+PASS  toolbar_insert_columns
+PASS  zero_console_errors

@@ -1,0 +1,9 @@
+PASS  persona_editor_opens
+PASS  knowledge_section_present
+PASS  persona_share_button
+PASS  add_knowledge_file
+PASS  remove_knowledge
+PASS  persona_share_button_clicks
+PASS  mcp_presets_visible
+PASS  add_preset_one_click
+PASS  zero_console_errors

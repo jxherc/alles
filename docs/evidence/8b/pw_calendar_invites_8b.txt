@@ -1,0 +1,8 @@
+PASS  video_button_fills_link
+PASS  invite_adds_attendee
+PASS  attendee_status_shows
+PASS  rsvp_updates_status
+PASS  booking_page_create
+PASS  booking_public_lists_slots
+PASS  booking_creates_event
+PASS  zero_console_errors

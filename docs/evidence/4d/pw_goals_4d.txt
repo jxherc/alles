@@ -1,0 +1,8 @@
+PASS  goals_add_shows_progress
+PASS  goal_eta_shows
+PASS  report_runs_totals
+PASS  report_export_link
+PASS  base_currency_rollup
+PASS  goals_persist_reload
+PASS  goal_remove
+PASS  zero_console_errors

@@ -1,0 +1,8 @@
+PASS  ask_panel_opens
+PASS  ask_shows_sources
+PASS  ask_source_opens_doc
+PASS  clipper_bookmarklet_shown
+PASS  chart_renders_svg
+PASS  form_block_renders_inputs
+PASS  form_submit_appends_row
+PASS  zero_console_errors

@@ -1,7 +1,7 @@
 from unittest import mock
 
-from tests._client import ApiTest
 from services import sysmon
+from tests._client import ApiTest
 
 
 class OsArchTest(ApiTest):
@@ -26,6 +26,32 @@ class OsArchTest(ApiTest):
             self.assertEqual(sysmon._arch(), "x86_64")
         with mock.patch.object(sysmon.platform, "machine", lambda: "ARM64"):
             self.assertEqual(sysmon._arch(), "arm64")
+
+    def test_arch_i386_maps_to_x86(self):
+        with mock.patch.object(sysmon.platform, "machine", lambda: "i386"):
+            self.assertEqual(sysmon._arch(), "x86")
+        with mock.patch.object(sysmon.platform, "machine", lambda: "i686"):
+            self.assertEqual(sysmon._arch(), "x86")
+
+    def test_arch_unknown_falls_back_to_raw(self):
+        with mock.patch.object(sysmon.platform, "machine", lambda: "mips64"):
+            self.assertEqual(sysmon._arch(), "mips64")
+        with mock.patch.object(sysmon.platform, "machine", lambda: ""):
+            self.assertEqual(sysmon._arch(), "?")
+
+    def test_darwin_os_name(self):
+        with (
+            mock.patch.object(sysmon.platform, "system", lambda: "Darwin"),
+            mock.patch("platform.mac_ver", return_value=("14.5", ("", "", ""), "")),
+        ):
+            result = sysmon._os_name()
+            self.assertTrue(result.startswith("macOS"))
+
+    def test_gb_helper(self):
+        self.assertEqual(sysmon._gb(1_000_000_000), 1.0)
+        self.assertEqual(sysmon._gb(None), 0.0)
+        self.assertEqual(sysmon._gb(0), 0.0)
+        self.assertEqual(sysmon._gb(1_500_000_000), 1.5)
 
 
 class SystemStatsTest(ApiTest):

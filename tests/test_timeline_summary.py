@@ -1,7 +1,11 @@
-from datetime import date, timedelta
+from datetime import datetime, timedelta
 
 from core.database import Account, Task, Transaction
 from tests._client import ApiTest
+
+# tasks are dated by created_at (utcnow), money by its date column — seed both on the
+# same UTC basis so "busiest day" is deterministic across the local-vs-UTC midnight split
+TODAY = datetime.utcnow().date()
 
 
 class TimelineSummaryTests(ApiTest):
@@ -11,8 +15,8 @@ class TimelineSummaryTests(ApiTest):
         acct = Account(name="Checking", opening=0)
         d.add(acct)
         d.flush()
-        today = date.today().isoformat()
-        yest = (date.today() - timedelta(days=1)).isoformat()
+        today = TODAY.isoformat()
+        yest = (TODAY - timedelta(days=1)).isoformat()
         # 3 money today, 1 money yesterday
         for i in range(3):
             d.add(Transaction(account_id=acct.id, date=today, amount=-(i + 1), payee=f"p{i}"))
@@ -45,7 +49,7 @@ class TimelineSummaryTests(ApiTest):
     def test_busiest_day(self):
         # today has 3 money + 1 task = 4, yesterday has 1 → today is busiest
         busiest = self._sum()["busiest"]
-        self.assertEqual(busiest["date"], date.today().isoformat())
+        self.assertEqual(busiest["date"], TODAY.isoformat())
         self.assertEqual(busiest["count"], 4)
 
     def test_busiest_none_when_empty(self):
@@ -62,7 +66,7 @@ class TimelineSummaryTests(ApiTest):
     def test_days_window_excludes_old(self):
         d = self.db()
         acct = d.query(Account).first()
-        old = (date.today() - timedelta(days=60)).isoformat()
+        old = (TODAY - timedelta(days=60)).isoformat()
         d.add(Transaction(account_id=acct.id, date=old, amount=-5, payee="old"))
         d.commit()
         d.close()

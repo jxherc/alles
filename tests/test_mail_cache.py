@@ -1,6 +1,6 @@
-from tests._client import ApiTest
 from core.database import MailAccount
 from services import mail_cache
+from tests._client import ApiTest
 
 
 def _msgs():
@@ -85,3 +85,43 @@ class MailCacheTest(ApiTest):
 
     def test_cached_route_unknown_account_404(self):
         self.assertEqual(self.client.get("/api/mail/cached/nope").status_code, 404)
+
+    def test_set_flag_and_get_filtered_flagged(self):
+        d = self.db()
+        mail_cache.save(d, "acct", "INBOX", _msgs())
+        mail_cache.set_flag(d, "acct", "INBOX", "2", True)
+        flagged = mail_cache.get_filtered(d, "acct", flagged=True)
+        d.close()
+        self.assertEqual([m["uid"] for m in flagged], ["2"])
+        self.assertTrue(flagged[0]["flagged"])
+
+    def test_archive_removes_message(self):
+        d = self.db()
+        mail_cache.save(d, "acct", "INBOX", _msgs())
+        n = mail_cache.archive(d, "acct", "INBOX", "1")
+        remaining = [m["uid"] for m in mail_cache.get(d, "acct", "INBOX")]
+        d.close()
+        self.assertEqual(n, 1)
+        self.assertNotIn("1", remaining)
+        self.assertIn("2", remaining)
+
+    def test_add_label_and_by_label(self):
+        d = self.db()
+        mail_cache.save(d, "acct", "INBOX", _msgs())
+        mail_cache.add_label(d, "acct", "INBOX", "3", "work")
+        labelled = mail_cache.by_label(d, "acct", "work")
+        d.close()
+        self.assertEqual(len(labelled), 1)
+        self.assertEqual(labelled[0]["uid"], "3")
+        self.assertIn("work", labelled[0]["labels"])
+
+    def test_snooze_hides_from_get_and_appears_in_snoozed(self):
+        d = self.db()
+        mail_cache.save(d, "acct", "INBOX", _msgs())
+        mail_cache.snooze(d, "acct", "INBOX", "2", "2099-01-01T00:00:00")
+        visible = [m["uid"] for m in mail_cache.get(d, "acct", "INBOX")]
+        snoozed = mail_cache.snoozed(d, "acct")
+        d.close()
+        self.assertNotIn("2", visible)
+        self.assertEqual(len(snoozed), 1)
+        self.assertEqual(snoozed[0]["uid"], "2")

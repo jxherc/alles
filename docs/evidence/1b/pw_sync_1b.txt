@@ -1,0 +1,9 @@
+PASS  sw_controls
+PASS  offline_write_returns_queued
+PASS  outbox_has_entry
+PASS  indicator_shows_pending
+PASS  queue_persisted_idb
+PASS  survives_reload_and_replays
+PASS  server_received_write
+PASS  indicator_clears
+PASS  zero_console_errors

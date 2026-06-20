@@ -1,0 +1,40 @@
+### 7a gallery API — real request/response dumps
+
+== POST /api/photos/upload ==
+  uploaded id=00a3df67-b397-4962-9679-109fa8bc6d87
+
+== PATCH caption+keywords (Beach, Sunset, beach -> normalized csv) ==
+{
+    "id": "00a3df67-b397-4962-9679-109fa8bc6d87",
+    "thumb": "/api/photos/thumb/00a3df67-b397-4962-9679-109fa8bc6d87",
+    "original": "/api/photos/original/00a3df67-b397-4962-9679-109fa8bc6d87",
+    "width": 24,
+    "height": 24,
+    "taken_at": "2026-06-19T13:30:38.798836",
+    "favorite": false,
+    "album_id": null,
+    "original_name": "audit.png",
+    "caption": "sunset over the bay",
+    "keywords": [
+        "beach",
+        "sunset"
+    ],
+    "hidden": false,
+    "exif": {}
+}
+
+== GET /search?q=sunset (caption hit) / q=beach (keyword hit) ==
+  sunset count 1
+  beach count  1
+
+== PATCH hidden=true -> /list excludes it ==
+  /list count (expect 0): 0
+
+== GET /hidden without token (expect 403) ==
+  status=403
+
+== unlock vault -> GET /hidden with token ==
+  hidden count (expect 1): 1
+
+== favorite=true -> /list?favorites=true ==
+  fav count (expect 1): 1

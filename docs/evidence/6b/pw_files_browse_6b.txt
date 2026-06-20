@@ -1,0 +1,8 @@
+PASS  grid_toggle
+PASS  grid_shows_thumb
+PASS  list_toggle_back
+PASS  docx_preview_text
+PASS  preview_pane_opens
+PASS  duplicates_lists_group
+PASS  activity_lists
+PASS  zero_console_errors
