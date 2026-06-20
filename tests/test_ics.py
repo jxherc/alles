@@ -1,6 +1,6 @@
-from tests._client import ApiTest
 from core.database import CalendarEvent
 from services import ics
+from tests._client import ApiTest
 
 
 class IcsServiceTest(ApiTest):  # ApiTest only for convenience; these are pure
@@ -54,6 +54,51 @@ class IcsServiceTest(ApiTest):  # ApiTest only for convenience; these are pure
         out = ics.parse_ics(text)
         self.assertEqual(out[0]["title"], "Team sync")
         self.assertEqual(out[0]["start_dt"], "2026-06-20T09:00:00")
+
+    def test_special_chars_in_title_roundtrip(self):
+        evs = [
+            {
+                "id": "5",
+                "title": "Colon: yes; backslash\\ here",
+                "start_dt": "2026-08-01T10:00:00",
+                "all_day": False,
+            }
+        ]
+        out = ics.parse_ics(ics.to_ics(evs))
+        self.assertEqual(out[0]["title"], "Colon: yes; backslash\\ here")
+
+    def test_description_newlines_survive_roundtrip(self):
+        evs = [
+            {
+                "id": "6",
+                "title": "X",
+                "start_dt": "2026-09-01T08:00:00",
+                "all_day": False,
+                "description": "line a\nline b\nline c",
+            }
+        ]
+        out = ics.parse_ics(ics.to_ics(evs))
+        self.assertIn("line a", out[0]["description"])
+        self.assertIn("line b", out[0]["description"])
+
+    def test_event_missing_end_dt_ok(self):
+        evs = [{"id": "7", "title": "No end", "start_dt": "2026-10-01T09:00:00", "all_day": False}]
+        out = ics.parse_ics(ics.to_ics(evs))
+        self.assertEqual(len(out), 1)
+        self.assertIsNone(out[0].get("end_dt"))
+
+    def test_multiple_events(self):
+        evs = [
+            {"id": "a", "title": "First", "start_dt": "2026-01-01T00:00:00", "all_day": False},
+            {"id": "b", "title": "Second", "start_dt": "2026-01-02T00:00:00", "all_day": False},
+        ]
+        out = ics.parse_ics(ics.to_ics(evs))
+        self.assertEqual(len(out), 2)
+        titles = {e["title"] for e in out}
+        self.assertEqual(titles, {"First", "Second"})
+
+    def test_parse_empty_string(self):
+        self.assertEqual(ics.parse_ics(""), [])
 
 
 class IcsApiTest(ApiTest):

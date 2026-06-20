@@ -1,0 +1,21 @@
+### 7b audit — current state (pre-build) of places & memories
+== GET /api/photos/map (expect 404 — no map endpoint yet) ==
+  status=405
+== GET /api/photos/memories (expect 404 — no memories endpoint yet) ==
+  status=405
+== POST /api/photos/collage (expect 404) ==
+  status=405
+== existing: /api/photos/list works ==
+  status=200
+
+### 7b post-build — live endpoints with real seeded data
+== GET /api/photos/map (seeded GPS point) ==
+  count 1
+   e5b7e36b 37.7749 -122.4194
+== GET /api/photos/memories (on this day, prior year) ==
+  count 2
+   1 yr ago 2025-06-19 -> 2 photos
+== POST /api/photos/collage from the two memory photos ==
+  new photo 1276b2de 1200 x 400
+== POST /api/photos/collage with empty ids (expect 400) ==
+  status=400

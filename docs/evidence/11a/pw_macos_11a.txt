@@ -1,0 +1,8 @@
+PASS  macos_card_present
+PASS  card_header_present
+PASS  status_fetched
+PASS  status_endpoint_reachable
+PASS  available_matches_platform
+PASS  shows_unavailable_off_darwin
+PASS  mentions_mac_mini
+PASS  zero_console_errors

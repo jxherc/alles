@@ -1,7 +1,15 @@
 // custom select — replaces native <select> everywhere so the UI stays ours.
 // options live in el.dataset.options ("val|label;val|label"), so they can be
 // swapped at runtime (mail accounts, photo albums, etc.) without re-wiring.
+// an option may also carry a leading icon (raw svg html) — stored off-band in
+// el._iconHtml keyed by value so it can't clash with the |/; serialization.
+import { providerLogo } from './brandlogo.js';
 let _open = null;
+
+function _iconFor(el, value) {
+  const h = el._iconHtml && el._iconHtml[value];
+  return h ? h + ' ' : '';
+}
 
 export function initCustomDropdowns(root = document) {
   root.querySelectorAll('.custom-select').forEach(initCustomDropdown);
@@ -62,6 +70,12 @@ export function setDropdownValue(el, value) {
 export function populateDropdown(el, options, value) {
   if (!el) return;
   el.dataset.options = options.map(o => `${o.value}|${o.label ?? o.value}`).join(';');
+  // off-band icon map: o.icon = 'provider' → a glowing brand logo; o.iconHtml = raw svg
+  el._iconHtml = {};
+  for (const o of options) {
+    if (o.iconHtml) el._iconHtml[o.value] = o.iconHtml;
+    else if (o.icon) el._iconHtml[o.value] = providerLogo(o.icon);
+  }
   if (el.dataset.dropdownReady !== '1') initCustomDropdown(el);
   el.value = value != null ? String(value) : (options[0]?.value || '');
 }
@@ -87,7 +101,7 @@ function _renderTrigger(el) {
   const opts = _readOptions(el);
   const label = opts.find(o => o.value === el.dataset.value)?.label || el.dataset.placeholder || 'select';
   el.innerHTML = `
-    <span class="custom-select-label">${_esc(label)}</span>
+    <span class="custom-select-label">${_iconFor(el, el.dataset.value)}${_esc(label)}</span>
     <svg class="custom-select-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
   `;
 }
@@ -119,7 +133,7 @@ function _renderPanel(el) {
   const opts = _readOptions(el);
   panel.innerHTML = opts.map((opt, idx) => `
     <button type="button" class="custom-dropdown-option${opt.value === el.dataset.value ? ' selected' : ''}${idx === _open.activeIndex ? ' active' : ''}" data-index="${idx}" role="option" aria-selected="${opt.value === el.dataset.value}">
-      ${_esc(opt.label)}
+      ${_iconFor(el, opt.value)}${_esc(opt.label)}
     </button>
   `).join('');
   panel.querySelectorAll('.custom-dropdown-option').forEach(btn => {

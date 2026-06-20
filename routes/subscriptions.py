@@ -132,6 +132,7 @@ def _fmt(sub: Subscription, today: date) -> dict:
         "monthly_cost": round(_monthly_cost(sub), 2),
         "category": sub.category,
         "url": sub.url,
+        "cancel_url": sub.cancel_url or "",
         "notes": sub.notes,
         "active": sub.active,
         "remind_days": sub.remind_days,
@@ -216,6 +217,7 @@ class SubBody(BaseModel):
     next_due: str
     category: str = ""
     url: str = ""
+    cancel_url: str = ""
     notes: str = ""
     remind_days: int = 1
     account_id: str = ""
@@ -246,6 +248,46 @@ def trials_ending(days: int = 14, db: DbSession = Depends(get_db)):
             out.append(_fmt(sub, today))
     out.sort(key=lambda s: s["trial_days_left"])
     return out
+
+
+_CYCLE_DAYS = {"weekly": 7, "monthly": 30, "quarterly": 91, "yearly": 365}
+
+
+def _cycle_len(sub) -> int:
+    return _CYCLE_DAYS.get(sub.cycle, max(1, sub.cycle_days or 30))
+
+
+@router.get("/subscriptions/unused")
+def unused_subscriptions(cycles: int = 2, as_of: str = "", db: DbSession = Depends(get_db)):
+    """active subs with no matching money charge (name in payee/notes/category) in the
+    last `cycles` cycle-lengths — likely forgotten/unused (4e)."""
+    from core.database import Transaction
+
+    today = _parse(as_of) if as_of else date.today()
+    charges = [t for t in db.query(Transaction).all() if (t.amount or 0.0) < 0]
+    out = []
+    for sub in db.query(Subscription).filter(Subscription.active == True).all():  # noqa: E712
+        name = (sub.name or "").strip().lower()
+        if not name:
+            continue
+        win = _cycle_len(sub) * max(1, cycles)
+        cutoff = today - timedelta(days=win)
+        matched = False
+        for t in charges:
+            hay = f"{t.payee or ''} {t.notes or ''} {t.category or ''}".lower()
+            if name in hay:
+                try:
+                    td = _parse(t.date)
+                except ValueError:
+                    continue
+                if cutoff <= td <= today:
+                    matched = True
+                    break
+        if not matched:
+            row = _fmt(sub, today)
+            row["no_charge_days"] = win
+            out.append(row)
+    return {"unused": out}
 
 
 @router.get("/subscriptions/upcoming")
@@ -378,6 +420,7 @@ def create_subscription(body: SubBody, db: DbSession = Depends(get_db)):
         next_due=str(body.next_due)[:10],
         category=body.category.strip(),
         url=body.url.strip(),
+        cancel_url=(body.cancel_url or "").strip(),
         notes=body.notes,
         remind_days=max(0, body.remind_days),
         account_id=(body.account_id or "").strip(),
@@ -398,6 +441,7 @@ class SubPatch(BaseModel):
     next_due: str | None = None
     category: str | None = None
     url: str | None = None
+    cancel_url: str | None = None
     notes: str | None = None
     active: bool | None = None
     remind_days: int | None = None
@@ -438,6 +482,7 @@ def update_subscription(sid: str, body: SubPatch, db: DbSession = Depends(get_db
         "cycle_days",
         "category",
         "url",
+        "cancel_url",
         "notes",
         "active",
         "remind_days",
@@ -604,3 +649,19 @@ async def check_renewals():
                 log.warning(f"renewal push failed: {e}")
     finally:
         db.close()
+
+
+@router.get("/subscriptions/detect")
+def detect_subscriptions(db: DbSession = Depends(get_db)):
+    """propose recurring charges from the money ledger (1f engine) that aren't already
+    tracked as subs. 4e turns a candidate into a real subscription."""
+    from core.database import Transaction
+    from services import txn_ingest
+
+    txns = [
+        {"date": t.date, "amount": t.amount, "payee": t.payee} for t in db.query(Transaction).all()
+    ]
+    cands = txn_ingest.detect_recurring(txns)
+    existing = {(s.name or "").strip().lower() for s in db.query(Subscription).all()}
+    out = [c for c in cands if (c["payee"] or "").strip().lower() not in existing]
+    return {"candidates": out}

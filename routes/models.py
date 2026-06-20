@@ -89,6 +89,7 @@ class PatchEndpoint(BaseModel):
     base_url: str | None = None
     api_key: str | None = None
     enabled: bool | None = None
+    models: list[str] | None = None  # manually set the chat model list (no live probe needed)
     vision_models: str | None = None  # json list string
     image_models: str | None = None  # json list string
 
@@ -107,6 +108,10 @@ def patch_endpoint(ep_id: str, body: PatchEndpoint, db: DbSession = Depends(get_
         ep.api_key = body.api_key
     if body.enabled is not None:
         ep.enabled = body.enabled
+    if body.models is not None:
+        import json as _json
+
+        ep.cached_models = _json.dumps(body.models)
     if body.vision_models is not None:
         ep.vision_models = body.vision_models
     if body.image_models is not None:
@@ -129,11 +134,61 @@ def delete_endpoint(ep_id: str, db: DbSession = Depends(get_db)):
 # the static Anthropic list is only a FALLBACK for keys that can't hit the
 # models API — the live probe below is what keeps lists current
 _ANTHROPIC_FALLBACK = [
-    "claude-fable-5",
     "claude-opus-4-8",
     "claude-sonnet-4-6",
     "claude-haiku-4-5-20251001",
 ]
+
+# per-provider FALLBACK line-ups (current flagships + a couple of superseded ones so "newest
+# only" has something to collapse). only used when the live /v1/models probe can't run — no
+# api key, or it errors — so the picker + newest-only still work with no keys at all. a real
+# key always wins: refresh replaces these with whatever the provider actually returns.
+_PROVIDER_FALLBACK = {
+    "openai": [
+        "gpt-5.5", "gpt-5.5-pro", "gpt-5", "gpt-4o", "gpt-4o-mini", "o3", "o4-mini",
+        "gpt-4.1", "gpt-image-2", "dall-e-3", "sora-2",
+    ],
+    "anthropic": _ANTHROPIC_FALLBACK,
+    "deepseek": ["deepseek-chat", "deepseek-reasoner"],
+    "moonshot": [
+        "kimi-k2.7", "kimi-k2-turbo-preview", "kimi-latest",
+        "moonshot-v1-128k", "moonshot-v1-32k", "moonshot-v1-8k",
+    ],
+    "groq": [
+        "llama-3.3-70b-versatile", "llama-3.1-8b-instant",
+        "deepseek-r1-distill-llama-70b", "qwen-2.5-32b", "gemma2-9b-it",
+        "moonshotai/kimi-k2-instruct",
+    ],
+    "xai": [
+        "grok-4", "grok-4-fast-reasoning", "grok-3", "grok-3-mini", "grok-2-image-1212",
+    ],
+    "gemini": [
+        "gemini-2.5-pro", "gemini-2.5-flash", "gemini-2.5-flash-lite",
+        "gemini-2.0-flash", "imagen-4.0-generate-001",
+    ],
+    "mistral": [
+        "mistral-large-latest", "mistral-medium-latest", "mistral-small-latest",
+        "codestral-latest", "pixtral-large-latest", "magistral-medium-latest",
+    ],
+    "perplexity": [
+        "sonar", "sonar-pro", "sonar-reasoning", "sonar-reasoning-pro", "sonar-deep-research",
+    ],
+    "together": [
+        "meta-llama/Llama-3.3-70B-Instruct-Turbo", "deepseek-ai/DeepSeek-R1",
+        "Qwen/Qwen2.5-72B-Instruct-Turbo", "black-forest-labs/FLUX.1-schnell",
+    ],
+    "fireworks": [
+        "accounts/fireworks/models/llama-v3p3-70b-instruct",
+        "accounts/fireworks/models/deepseek-r1",
+        "accounts/fireworks/models/qwen2p5-72b-instruct",
+    ],
+    "cohere": ["command-a-03-2025", "command-r-plus", "command-r", "command-r7b"],
+    "openrouter": [
+        "anthropic/claude-opus-4-8", "anthropic/claude-sonnet-4-6",
+        "openai/gpt-5.5", "openai/gpt-4o", "google/gemini-2.5-pro",
+        "x-ai/grok-4", "deepseek/deepseek-r1", "meta-llama/llama-3.3-70b-instruct",
+    ],
+}
 
 
 async def _fetch_raw_model_ids(ep: ModelEndpoint) -> list[str]:
@@ -171,11 +226,22 @@ async def _fetch_raw_model_ids(ep: ModelEndpoint) -> list[str]:
     headers = {"content-type": "application/json"}
     if ep.api_key:
         headers["authorization"] = f"Bearer {ep.api_key}"
-    async with httpx.AsyncClient(timeout=10) as c:
-        r = await c.get(base + "/v1/models", headers=headers)
-        r.raise_for_status()
-        data = r.json()
-    return [x["id"] for x in data.get("data", [])]
+    # a real key + a reachable models API wins. on no key / error / empty, fall back to the
+    # known current line-up so the picker + newest-only still work offline (no keys).
+    try:
+        async with httpx.AsyncClient(timeout=10) as c:
+            r = await c.get(base + "/v1/models", headers=headers)
+            r.raise_for_status()
+            data = r.json()
+        ids = [x["id"] for x in data.get("data", [])]
+        if ids:
+            return ids
+    except Exception:
+        pass
+    fallback = _PROVIDER_FALLBACK.get(provider)
+    if fallback:
+        return list(fallback)
+    raise RuntimeError(f"no models for {ep.name}: probe failed and no fallback for '{provider}'")
 
 
 async def fetch_models_split(ep: ModelEndpoint) -> tuple[list[str], list[str]]:

@@ -1,0 +1,9 @@
+PASS  base_panel_opens
+PASS  base_table_renders
+PASS  base_has_columns
+PASS  cell_present
+PASS  cell_edit_persists
+PASS  view_switch_gallery
+PASS  view_switch_list
+PASS  row_opens_doc
+PASS  zero_console_errors

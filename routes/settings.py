@@ -58,8 +58,13 @@ class SettingsPatch(BaseModel):
     # ── per-app settings ──
     files_dir: str | None = None  # files app root directory
     photos_dir: str | None = None  # gallery library folder
+    photos_watch_folder: str | None = None  # 7c phone-backup watch folder
     cal_default_view: str | None = None  # 'month' | 'week'
     cal_week_start: str | None = None  # 'sun' | 'mon'
+    cal_default_duration_min: int | None = None  # 8a default event length
+    cal_work_start: int | None = None  # 8a working-hours shading start (hour 0-23)
+    cal_work_end: int | None = None  # 8a working-hours shading end (hour 0-23)
+    cal_secondary_tz: str | None = None  # 8a secondary timezone (IANA name)
     system_refresh: int | None = None  # system monitor poll interval (ms)
     mail_poll_seconds: int | None = None  # mail background check interval
     mail_signature: str | None = None  # appended/prefilled when composing

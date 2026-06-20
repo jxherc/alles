@@ -1,0 +1,191 @@
+=== glyph -> total count ===
+  '─' U+2500  x4346  <-- candidate
+  '—' U+2014  x315
+  '…' U+2026  x124
+  '·' U+00B7  x113
+  '→' U+2192  x100
+  '×' U+00D7  x54
+  '✓' U+2713  x16  <-- candidate
+  '★' U+2605  x15  <-- candidate
+  '“' U+201C  x14
+  '”' U+201D  x14
+  '✕' U+2715  x11  <-- candidate
+  '↻' U+21BB  x10  <-- candidate
+  '–' U+2013  x9
+  '←' U+2190  x9
+  '‹' U+2039  x8  <-- candidate
+  '›' U+203A  x8  <-- candidate
+  '☆' U+2606  x8  <-- candidate
+  '✨' U+2728  x7  <-- candidate
+  '▾' U+25BE  x7  <-- candidate
+  '🔗' U+1F517  x6  <-- candidate
+  '↑' U+2191  x6
+  '🔒' U+1F512  x6  <-- candidate
+  '’' U+2019  x5
+  '📎' U+1F4CE  x5  <-- candidate
+  '✈' U+2708  x5  <-- candidate
+  '✎' U+270E  x4  <-- candidate
+  '⟳' U+27F3  x4  <-- candidate
+  '−' U+2212  x4  <-- candidate
+  '○' U+25CB  x4  <-- candidate
+  '↔' U+2194  x4  <-- candidate
+  '🎉' U+1F389  x4  <-- candidate
+  '↓' U+2193  x4
+  '💬' U+1F4AC  x4  <-- candidate
+  '↗' U+2197  x4  <-- candidate
+  '█' U+2588  x4  <-- candidate
+  '◷' U+25F7  x3  <-- candidate
+  '▴' U+25B4  x3  <-- candidate
+  '⚠' U+26A0  x3  <-- candidate
+  '📄' U+1F4C4  x3  <-- candidate
+  '🗑' U+1F5D1  x3  <-- candidate
+  '▸' U+25B8  x3  <-- candidate
+  '📅' U+1F4C5  x3  <-- candidate
+  '✉' U+2709  x2  <-- candidate
+  '☐' U+2610  x2  <-- candidate
+  '☑' U+2611  x2  <-- candidate
+  '🎂' U+1F382  x2  <-- candidate
+  '📍' U+1F4CD  x2  <-- candidate
+  '☰' U+2630  x2  <-- candidate
+  '▦' U+25A6  x2  <-- candidate
+  '🖼' U+1F5BC  x2  <-- candidate
+  '↩' U+21A9  x2  <-- candidate
+  '🔓' U+1F513  x2  <-- candidate
+  '⊘' U+2298  x2  <-- candidate
+  '💤' U+1F4A4  x2  <-- candidate
+  '•' U+2022  x2
+  '＋' U+FF0B  x2  <-- candidate
+  '👁' U+1F441  x2  <-- candidate
+  '🎨' U+1F3A8  x2  <-- candidate
+  '⇄' U+21C4  x2  <-- candidate
+  '⊞' U+229E  x2  <-- candidate
+  '▶' U+25B6  x2  <-- candidate
+  '♥' U+2665  x2  <-- candidate
+  '♡' U+2661  x2  <-- candidate
+  '■' U+25A0  x2  <-- candidate
+  '⣿' U+28FF  x2  <-- candidate
+  '░' U+2591  x2  <-- candidate
+  '├' U+251C  x2  <-- candidate
+  '└' U+2514  x2  <-- candidate
+  '▲' U+25B2  x2  <-- candidate
+  'Σ' U+03A3  x2  <-- candidate
+  '⚙' U+2699  x2  <-- candidate
+  '▣' U+25A3  x1  <-- candidate
+  '❏' U+274F  x1  <-- candidate
+  '◔' U+25D4  x1  <-- candidate
+  '⧗' U+29D7  x1  <-- candidate
+  '≡' U+2261  x1  <-- candidate
+  '🔊' U+1F50A  x1  <-- candidate
+  '🎙' U+1F399  x1  <-- candidate
+  '📹' U+1F4F9  x1  <-- candidate
+  '✗' U+2717  x1  <-- candidate
+  '▍' U+258D  x1  <-- candidate
+  '²' U+00B2  x1  <-- candidate
+  '🕘' U+1F558  x1  <-- candidate
+  '📦' U+1F4E6  x1  <-- candidate
+  '📈' U+1F4C8  x1  <-- candidate
+  '🧬' U+1F9EC  x1  <-- candidate
+  '⇗' U+21D7  x1  <-- candidate
+  '⏱' U+23F1  x1  <-- candidate
+  '⊙' U+2299  x1  <-- candidate
+  '⟲' U+27F2  x1  <-- candidate
+  '⇆' U+21C6  x1  <-- candidate
+  '⇅' U+21C5  x1  <-- candidate
+  '😄' U+1F604  x1  <-- candidate
+  '🙂' U+1F642  x1  <-- candidate
+  '😐' U+1F610  x1  <-- candidate
+  '😕' U+1F615  x1  <-- candidate
+  '😢' U+1F622  x1  <-- candidate
+  '😠' U+1F620  x1  <-- candidate
+  '😴' U+1F634  x1  <-- candidate
+  '🤔' U+1F914  x1  <-- candidate
+  '🥳' U+1F973  x1  <-- candidate
+  '😍' U+1F60D  x1  <-- candidate
+  '🔥' U+1F525  x1  <-- candidate
+  '🏷' U+1F3F7  x1  <-- candidate
+  '🔇' U+1F507  x1  <-- candidate
+  '🗄' U+1F5C4  x1  <-- candidate
+  '🕒' U+1F552  x1  <-- candidate
+  '🔻' U+1F53B  x1  <-- candidate
+  '↺' U+21BA  x1  <-- candidate
+  '⚖' U+2696  x1  <-- candidate
+  '🎯' U+1F3AF  x1  <-- candidate
+  '⊟' U+229F  x1  <-- candidate
+  '©' U+00A9  x1  <-- candidate
+  '🗺' U+1F5FA  x1  <-- candidate
+  'à' U+00E0  x1  <-- candidate
+  '☀' U+2600  x1  <-- candidate
+  '📥' U+1F4E5  x1  <-- candidate
+  '💳' U+1F4B3  x1  <-- candidate
+  '👋' U+1F44B  x1  <-- candidate
+  '⊕' U+2295  x1  <-- candidate
+  '↳' U+21B3  x1  <-- candidate
+  '⤺' U+293A  x1  <-- candidate
+  '▁' U+2581  x1  <-- candidate
+  '▂' U+2582  x1  <-- candidate
+  '▃' U+2583  x1  <-- candidate
+  '▄' U+2584  x1  <-- candidate
+  '▅' U+2585  x1  <-- candidate
+  '▆' U+2586  x1  <-- candidate
+  '▇' U+2587  x1  <-- candidate
+  '°' U+00B0  x1
+  '🔁' U+1F501  x1  <-- candidate
+  '◳' U+25F3  x1  <-- candidate
+  '◫' U+25EB  x1  <-- candidate
+  '\u200b' U+200B  x1  <-- candidate
+  '🛡' U+1F6E1  x1  <-- candidate
+
+=== files by glyph count ===
+  static/js\settings.js: 1257
+  static/js\vaultmd.js: 1036
+  static/js\app.js: 702
+  static/js\money.js: 358
+  static/js\calendar.js: 349
+  static/js\vault.js: 269
+  static/index.html: 220
+  static/js\days.js: 202
+  static/js\slash.js: 159
+  static/js\models.js: 147
+  static/js\mail.js: 93
+  static/js\modes.js: 93
+  static/js\system.js: 86
+  static/js\sessions.js: 55
+  static/js\files.js: 47
+  static/js\journal.js: 37
+  static/js\photos.js: 30
+  static/js\subs.js: 26
+  static/js\chat.js: 23
+  static/js\contacts.js: 19
+  static/js\runs.js: 18
+  static/js\skills.js: 18
+  static/js\activity.js: 16
+  static/js\voice.js: 15
+  static/js\setupwizard.js: 14
+  static/js\util.js: 13
+  static/js\projectview.js: 10
+  static/js\cookbook.js: 9
+  static/js\search.js: 9
+  static/js\datepick.js: 8
+  static/js\uploads.js: 8
+  static/js\imgeditor.js: 7
+  static/js\agentview.js: 4
+  static/js\appsettings.js: 4
+  static/js\bgrun.js: 4
+  static/js\canvas.js: 4
+  static/js\subdomain.js: 4
+  static/js\tasks.js: 4
+  static/js\usage.js: 4
+  static/js\dropdown.js: 3
+  static/js\documents.js: 2
+  static/js\notes.js: 2
+  static/js\push.js: 2
+  static/js\ragquery.js: 2
+  static/js\reminders.js: 2
+  static/js\shortcuts.js: 2
+  static/js\sync.js: 2
+  static/js\compare.js: 1
+  static/js\dialog.js: 1
+  static/js\memory.js: 1
+  static/js\mentions.js: 1
+  static/js\projects.js: 1
+  static/js\research.js: 1

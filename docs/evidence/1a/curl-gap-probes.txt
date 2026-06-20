@@ -1,0 +1,10 @@
+=== 1a GAP PROBES — resources that SHOULD be shareable but aren't yet ===
+POST /api/vault-md/share -> 404
+POST /api/files/share -> 404
+POST /api/photos/share -> 405
+POST /api/vault/share -> 405
+POST /api/contacts/share -> 405
+POST /api/calendar/share -> 405
+POST /api/albums/share -> 404
+
+(404/405 = not implemented; this is the 1a gap)

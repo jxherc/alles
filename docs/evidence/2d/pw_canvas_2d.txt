@@ -1,0 +1,9 @@
+PASS  canvas_opens
+PASS  add_node
+PASS  two_nodes
+PASS  drag_moves_node
+PASS  connect_creates_edge
+PASS  nodes_persist_after_reload
+PASS  edge_persists_after_reload
+PASS  delete_node
+PASS  zero_console_errors

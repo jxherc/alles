@@ -1,0 +1,47 @@
+=== 1a SHARE AUDIT — Fri Jun 19 09:06:00 CST 2026 ===
+
+### POST /api/sessions/73cfacbf-71ab-4fa4-89ec-81f7e7aefcc0/share  (mint token)
+{"token":"1e6e1eb9ffb24c74b68ea0d0573e61af","url":"/s/1e6e1eb9ffb24c74b68ea0d0573e61af"}
+TOKEN=1e6e1eb9ffb24c74b68ea0d0573e61af
+
+### POST again (idempotent? same token?)
+{"token":"1e6e1eb9ffb24c74b68ea0d0573e61af","url":"/s/1e6e1eb9ffb24c74b68ea0d0573e61af"}
+
+### GET /s/1e6e1eb9ffb24c74b68ea0d0573e61af  (public viewer, first 1200 chars)
+<!DOCTYPE html>
+<html><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Trip planning chat</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#0a0a0a;color:#e8e6e3;font-family:Inter,-apple-system,sans-serif;min-height:100vh}
+  .header{padding:1rem 1.5rem;border-bottom:1px solid #1e1e1e;display:flex;align-items:center;gap:0.75rem}
+  .brand{font-size:0.8rem;color:#6e6e6e}
+  .title{font-size:0.95rem;font-weight:500}
+  .badge{font-size:0.65rem;color:#818cf8;border:1px solid #818cf8;border-radius:2px;padding:0.1rem 0.35rem}
+  @media print{.no-print{display:none}}
+</style>
+</head><body>
+<div class="header no-print">
+  <span class="brand">aide</span>
+  <span class="title">Trip planning chat</span>
+  <span class="badge">read-only</span>
+  <button onclick="window.print()" style="margin-left:auto;background:none;border:1px solid #2e2e2e;color:#e8e6e3;padding:0.25rem 0.75rem;cursor:pointer;font-size:0.72rem;border-radius:2px">print</button>
+</div>
+<div><div style="padding:1rem 1.5rem;background:transparent;border-bottom:1px solid #1e1e1e">
+            <div style="font-size:0.7rem;color:#6e6e6e;margin-bottom:0.4
+
+### GET /s/1e6e1eb9ffb24c74b68ea0d0573e61af  HTTP status
+status=200
+
+### DELETE /api/sessions/73cfacbf-71ab-4fa4-89ec-81f7e7aefcc0/share  (revoke)
+{"ok":true}
+
+### GET /s/1e6e1eb9ffb24c74b68ea0d0573e61af after revoke  (expect 404)
+status=404
+
+### GET /s/bogustoken  (expect 404)
+status=404
+
+### POST share on unknown session (expect 404)
+status=404

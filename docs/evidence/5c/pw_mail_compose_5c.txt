@@ -1,0 +1,8 @@
+PASS  compose_has_richbar
+PASS  bold_wraps_selection
+PASS  signature_picker_present
+PASS  signature_appends
+PASS  image_btn_inserts_img
+PASS  add_signature
+PASS  html_sent_or_queued
+PASS  zero_console_errors

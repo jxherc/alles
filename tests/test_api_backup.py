@@ -1,5 +1,6 @@
 import io
 import tempfile
+import unittest
 import zipfile
 from pathlib import Path
 
@@ -76,3 +77,28 @@ class BackupApiTest(ApiTest):
             ).status_code,
             400,
         )
+
+    def test_export_includes_uploads(self):
+        (self.data / "uploads").mkdir()
+        (self.data / "uploads" / "photo.jpg").write_bytes(b"jpeg-data")
+        r = self.client.get("/api/backup")
+        with zipfile.ZipFile(io.BytesIO(r.content)) as zf:
+            self.assertIn("uploads/photo.jpg", zf.namelist())
+
+    def test_export_content_disposition_header(self):
+        r = self.client.get("/api/backup")
+        cd = r.headers.get("content-disposition", "")
+        self.assertIn("attachment", cd)
+        self.assertIn(".zip", cd)
+
+    def test_restore_ok_response_shape(self):
+        z = self._zip({"aide.db": b"db"})
+        r = self.client.post("/api/backup/restore", files={"file": ("b.zip", z, "application/zip")})
+        self.assertEqual(r.status_code, 200)
+        body = r.json()
+        self.assertIn("ok", body)
+        self.assertTrue(body["ok"])
+
+
+if __name__ == "__main__":
+    unittest.main()

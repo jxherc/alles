@@ -1,0 +1,8 @@
+PASS  quota_bar_shows
+PASS  star_toggle_on
+PASS  star_persists_reload
+PASS  starred_filter_lists
+PASS  star_toggle_off
+PASS  versions_still_work
+PASS  trash_still_works
+PASS  zero_console_errors

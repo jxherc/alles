@@ -5,7 +5,14 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session as DbSession
 
-from core.database import Calendar, CalendarEvent, get_db
+from core.database import (
+    BookingPage,
+    Calendar,
+    CalendarEvent,
+    CalendarSubscription,
+    EventAttendee,
+    get_db,
+)
 
 router = APIRouter(prefix="/api")
 
@@ -37,8 +44,29 @@ def _fmt(e: CalendarEvent) -> dict:
         "recur_count": e.recur_count,
         "recur_until": e.recur_until,
         "recur_except": _jl(e.recur_except),
+        "meeting_url": e.meeting_url or "",
         "created_at": e.created_at.isoformat(),
     }
+
+
+def _default_duration() -> int:
+    """minutes to use when an event has a start but no end (8a). settings, else 60."""
+    from core.settings import load_settings
+
+    try:
+        v = int(load_settings().get("cal_default_duration_min") or 60)
+        return v if v > 0 else 60
+    except (ValueError, TypeError):
+        return 60
+
+
+def _plus_minutes(iso: str, minutes: int):
+    from datetime import datetime, timedelta
+
+    try:
+        return (datetime.fromisoformat(iso) + timedelta(minutes=minutes)).isoformat()
+    except (ValueError, TypeError):
+        return None
 
 
 def _default_cal(db) -> str:
@@ -158,10 +186,13 @@ def quick_event(body: QuickEvent, db: DbSession = Depends(get_db)):
     if not body.text.strip():
         raise HTTPException(400, "empty")
     p = parse_event(body.text)
+    end = p["end_dt"]
+    if not p["all_day"] and not end and p["start_dt"]:
+        end = _plus_minutes(p["start_dt"], _default_duration()) or end
     e = CalendarEvent(
         title=p["title"],
         start_dt=p["start_dt"],
-        end_dt=p["end_dt"],
+        end_dt=end,
         all_day=p["all_day"],
         recurrence=p.get("recurrence", ""),
         recur_until=p.get("recur_until"),
@@ -189,6 +220,7 @@ class EventBody(BaseModel):
     recur_count: Optional[int] = None
     recur_until: Optional[str] = None
     recur_except: list[str] = []
+    meeting_url: str = ""
 
 
 @router.post("/calendar")
@@ -197,6 +229,8 @@ def create_event(body: EventBody, db: DbSession = Depends(get_db)):
     data["calendar_id"] = data.get("calendar_id") or _default_cal(db)
     data["reminders"] = json.dumps(data.get("reminders") or [])
     data["recur_except"] = json.dumps(data.get("recur_except") or [])
+    if not data["all_day"] and not data.get("end_dt") and data.get("start_dt"):
+        data["end_dt"] = _plus_minutes(data["start_dt"], _default_duration()) or data.get("end_dt")
     e = CalendarEvent(**data)
     db.add(e)
     db.commit()
@@ -221,6 +255,7 @@ class EventPatch(BaseModel):
     recur_count: Optional[int] = None
     recur_until: Optional[str] = None
     recur_except: Optional[list[str]] = None
+    meeting_url: Optional[str] = None
 
 
 @router.patch("/calendar/{eid}")
@@ -307,3 +342,321 @@ def import_ics(body: IcsImport, db: DbSession = Depends(get_db)):
         n += 1
     db.commit()
     return {"imported": n}
+
+
+# ── ICS URL subscriptions (8a) ────────────────────────────────────────────────
+def fetch_ics(url: str) -> str:
+    """fetch a remote .ics. isolated so tests can patch it (no network)."""
+    import httpx
+
+    # webcal:// is just http(s) for an ICS feed
+    u = url.strip()
+    if u.lower().startswith("webcal://"):
+        u = "https://" + u[len("webcal://") :]
+    r = httpx.get(u, timeout=20, follow_redirects=True)
+    r.raise_for_status()
+    return r.text
+
+
+def refresh_subscription(db, sub: CalendarSubscription, ics_text: str) -> int:
+    """full-replace this subscription's events from the given ICS text."""
+    from datetime import datetime
+
+    from services.ics import parse_ics
+
+    db.query(CalendarEvent).filter(CalendarEvent.subscription_id == sub.id).delete()
+    n = 0
+    for ev in parse_ics(ics_text or ""):
+        db.add(
+            CalendarEvent(
+                title=ev["title"] or "(untitled)",
+                start_dt=ev["start_dt"],
+                end_dt=ev.get("end_dt"),
+                all_day=ev.get("all_day", False),
+                description=ev.get("description", ""),
+                calendar_id=sub.calendar_id,
+                subscription_id=sub.id,
+            )
+        )
+        n += 1
+    sub.last_synced = datetime.utcnow().isoformat()
+    sub.last_status = "ok"
+    db.commit()
+    return n
+
+
+def _sub_out(db, s: CalendarSubscription) -> dict:
+    cnt = db.query(CalendarEvent).filter(CalendarEvent.subscription_id == s.id).count()
+    return {
+        "id": s.id,
+        "name": s.name,
+        "url": s.url,
+        "calendar_id": s.calendar_id,
+        "last_synced": s.last_synced or "",
+        "last_status": s.last_status or "",
+        "event_count": cnt,
+    }
+
+
+class SubBody(BaseModel):
+    name: str
+    url: str
+    calendar_id: str = ""
+
+
+@router.get("/calendar/subscriptions")
+def list_subscriptions(db: DbSession = Depends(get_db)):
+    return [_sub_out(db, s) for s in db.query(CalendarSubscription).all()]
+
+
+@router.post("/calendar/subscriptions")
+def create_subscription(body: SubBody, db: DbSession = Depends(get_db)):
+    if not body.url.strip():
+        raise HTTPException(400, "url required")
+    cid = body.calendar_id or ""
+    if not cid:  # give the feed its own calendar layer
+        c = Calendar(name=body.name or "Subscription", color="accent")
+        db.add(c)
+        db.commit()
+        db.refresh(c)
+        cid = c.id
+    sub = CalendarSubscription(
+        name=body.name or "Subscription", url=body.url.strip(), calendar_id=cid
+    )
+    db.add(sub)
+    db.commit()
+    db.refresh(sub)
+    # best-effort initial sync (never fail the create on a bad feed)
+    try:
+        refresh_subscription(db, sub, fetch_ics(sub.url))
+    except Exception as e:
+        sub.last_status = f"error: {e}"
+        db.commit()
+    return _sub_out(db, sub)
+
+
+@router.post("/calendar/subscriptions/{sid}/refresh")
+def refresh_subscription_endpoint(sid: str, db: DbSession = Depends(get_db)):
+    sub = db.get(CalendarSubscription, sid)
+    if not sub:
+        raise HTTPException(404)
+    try:
+        refresh_subscription(db, sub, fetch_ics(sub.url))
+    except Exception as e:
+        from datetime import datetime
+
+        sub.last_synced = datetime.utcnow().isoformat()
+        sub.last_status = f"error: {e}"
+        db.commit()
+    return _sub_out(db, sub)
+
+
+@router.delete("/calendar/subscriptions/{sid}")
+def delete_subscription(sid: str, db: DbSession = Depends(get_db)):
+    sub = db.get(CalendarSubscription, sid)
+    if not sub:
+        raise HTTPException(404)
+    db.query(CalendarEvent).filter(CalendarEvent.subscription_id == sid).delete()
+    db.delete(sub)
+    db.commit()
+    return {"ok": True}
+
+
+async def refresh_all_subscriptions():
+    """hourly job — re-pull every configured ICS feed."""
+    from core.database import SessionLocal
+
+    db = SessionLocal()
+    try:
+        for sub in db.query(CalendarSubscription).all():
+            try:
+                refresh_subscription(db, sub, fetch_ics(sub.url))
+            except Exception as e:
+                from datetime import datetime
+
+                sub.last_synced = datetime.utcnow().isoformat()
+                sub.last_status = f"error: {e}"
+                db.commit()
+    finally:
+        db.close()
+
+
+# ── invites + RSVP + video links (8b) ─────────────────────────────────────────
+_RSVP_STATUSES = {"invited", "accepted", "declined", "tentative"}
+
+
+def _att_out(a: EventAttendee) -> dict:
+    return {
+        "id": a.id,
+        "event_id": a.event_id,
+        "name": a.name,
+        "email": a.email,
+        "status": a.status,
+        "token": a.token,
+    }
+
+
+def _send_invite_email(att: EventAttendee, ev: CalendarEvent) -> bool:
+    """best-effort invite email. returns True if sent. isolated so tests stub it."""
+    from core.settings import load_settings
+    from services.mail import send_mail
+
+    accts = load_settings().get("mail_accounts") or []
+    if not accts or not att.email:
+        return False
+    acct = accts[0]
+    body = f"You're invited to: {ev.title}\nWhen: {ev.start_dt}\nRSVP: /rsvp/{att.token}"
+    send_mail(acct, att.email, f"Invite: {ev.title}", body)
+    return True
+
+
+class InviteBody(BaseModel):
+    name: str = ""
+    email: str = ""
+
+
+@router.post("/calendar/{eid}/invite")
+def invite(eid: str, body: InviteBody, db: DbSession = Depends(get_db)):
+    ev = db.get(CalendarEvent, eid)
+    if not ev:
+        raise HTTPException(404)
+    att = EventAttendee(event_id=eid, name=body.name.strip(), email=body.email.strip())
+    db.add(att)
+    db.commit()
+    db.refresh(att)
+    try:
+        _send_invite_email(att, ev)
+    except Exception:
+        pass  # never fail the invite on a mail hiccup
+    return _att_out(att)
+
+
+@router.get("/calendar/{eid}/attendees")
+def list_attendees(eid: str, db: DbSession = Depends(get_db)):
+    rows = db.query(EventAttendee).filter(EventAttendee.event_id == eid).all()
+    return [_att_out(a) for a in rows]
+
+
+@router.delete("/calendar/attendees/{aid}")
+def delete_attendee(aid: str, db: DbSession = Depends(get_db)):
+    a = db.get(EventAttendee, aid)
+    if not a:
+        raise HTTPException(404)
+    db.delete(a)
+    db.commit()
+    return {"ok": True}
+
+
+@router.post("/calendar/{eid}/meeting-link")
+def add_meeting_link(eid: str, db: DbSession = Depends(get_db)):
+    """generate a Jitsi room for an event and store it."""
+    from services.meet import jitsi_url
+
+    ev = db.get(CalendarEvent, eid)
+    if not ev:
+        raise HTTPException(404)
+    ev.meeting_url = jitsi_url(ev.title)
+    db.commit()
+    return {"meeting_url": ev.meeting_url}
+
+
+# ── booking pages (8b) ────────────────────────────────────────────────────────
+def _bp_out(b: BookingPage) -> dict:
+    return {
+        "id": b.id,
+        "token": b.token,
+        "title": b.title,
+        "duration_min": b.duration_min,
+        "work_start": b.work_start,
+        "work_end": b.work_end,
+        "days_ahead": b.days_ahead,
+        "calendar_id": b.calendar_id,
+        "url": f"/book/{b.token}",
+    }
+
+
+def compute_booking_slots(db, page: BookingPage, date_str: str) -> list[dict]:
+    """discrete bookable start times on a date for a booking page (steps the free
+    windows by the page's duration). returns [{start,end}] ISO (minute precision)."""
+    from datetime import date as _date
+    from datetime import datetime as _dt
+    from datetime import timedelta as _td
+
+    from services.recur import expand, free_slots
+
+    try:
+        day = _date.fromisoformat(date_str)
+    except ValueError:
+        return []
+    rs = _dt.combine(day, _dt.min.time())
+    re_ = rs + _td(days=1)
+    busy = []
+    for e in db.query(CalendarEvent).all():
+        if e.all_day:
+            continue
+        try:
+            base_s = _dt.fromisoformat(e.start_dt)
+            base_e = _dt.fromisoformat(e.end_dt) if e.end_dt else base_s + _td(hours=1)
+            dur = base_e - base_s
+        except (ValueError, TypeError):
+            continue
+        if e.recurrence:
+            for occ in expand(_fmt(e), rs, re_):
+                busy.append((occ, occ + dur))
+        elif rs <= base_s < re_:
+            busy.append((base_s, base_e))
+    windows = free_slots(busy, day, page.duration_min, page.work_start, page.work_end)
+    step = _td(minutes=page.duration_min)
+    out = []
+    for w in windows:
+        cur = _dt.fromisoformat(w["start"])
+        wend = _dt.fromisoformat(w["end"])
+        while cur + step <= wend:
+            out.append(
+                {
+                    "start": cur.isoformat(timespec="minutes"),
+                    "end": (cur + step).isoformat(timespec="minutes"),
+                }
+            )
+            cur += step
+    return out
+
+
+class BookingPageBody(BaseModel):
+    title: str = "Book a time"
+    duration_min: int = 30
+    work_start: int = 9
+    work_end: int = 17
+    days_ahead: int = 14
+    calendar_id: str = ""
+
+
+@router.get("/calendar/booking-pages")
+def list_booking_pages(db: DbSession = Depends(get_db)):
+    return [_bp_out(b) for b in db.query(BookingPage).all()]
+
+
+@router.post("/calendar/booking-pages")
+def create_booking_page(body: BookingPageBody, db: DbSession = Depends(get_db)):
+    b = BookingPage(
+        title=body.title or "Book a time",
+        duration_min=max(5, body.duration_min),
+        work_start=body.work_start,
+        work_end=body.work_end,
+        days_ahead=max(1, body.days_ahead),
+        calendar_id=body.calendar_id or _default_cal(db),
+    )
+    db.add(b)
+    db.commit()
+    db.refresh(b)
+    return _bp_out(b)
+
+
+@router.delete("/calendar/booking-pages/{bid}")
+def delete_booking_page(bid: str, db: DbSession = Depends(get_db)):
+    b = db.get(BookingPage, bid)
+    if not b:
+        raise HTTPException(404)
+    db.delete(b)
+    db.commit()
+    return {"ok": True}

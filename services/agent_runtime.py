@@ -298,6 +298,18 @@ async def run_agent(
     run_id = run["id"]
     yield {"agent_run": {"id": run_id, "status": "running", "max_turns": max_turns}}
 
+    # 10a — optional per-run git worktree isolation: run on a detached copy off HEAD so
+    # parallel runs don't stomp each other. repoint agent_cwd so every file/shell op follows.
+    _orig_cwd = settings.get("agent_cwd", "")
+    _worktree = None
+    if settings.get("agent_worktree"):
+        from services import worktrees
+
+        _worktree = worktrees.setup(_orig_cwd, run_id)
+        if _worktree:
+            settings = {**settings, "agent_cwd": _worktree}
+            update_run(run_id, worktree=_worktree, cwd=_worktree)
+
     # tools read sandbox/cwd/computer-use config + ep/model (for sub-agents) from here
     set_agent_ctx(settings=settings, ep=ep, model=model, run_id=run_id)
 
@@ -398,10 +410,14 @@ async def run_agent(
                 return
 
             if not tool_calls:
+                # persist the final prose so a reconnecting client sees the answer (10b)
+                update_run(run_id, text="".join(accumulated))
                 yield {"done": True, "usage": usage}
                 finish_run(run_id, "done")
                 return
 
+            # persist prose-so-far each turn so a mid-run reconnect shows progress (10b)
+            update_run(run_id, text="".join(accumulated))
             agent_messages.append(
                 {
                     "role": "assistant",
@@ -552,6 +568,13 @@ async def run_agent(
 
                 record_event(run_id, "tool_result", step)
                 update_run(run_id, tool_steps=tool_steps)
+                # 10a — fire any user "agent_tool" automation rules for this tool
+                try:
+                    from services.automations import on_agent_tool
+
+                    await on_agent_tool(name, args, step, run_id)
+                except Exception:
+                    pass
                 if name == "todo_update" and not step["error"]:
                     try:
                         todos = json.loads(step["output"]).get("todos", [])
@@ -601,3 +624,11 @@ async def run_agent(
         record_event(run_id, "error", {"error": str(e)})
         finish_run(run_id, "error")
         raise
+    finally:
+        if _worktree:
+            try:
+                from services import worktrees
+
+                worktrees.teardown(_orig_cwd, _worktree)
+            except Exception:
+                pass

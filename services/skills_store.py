@@ -50,10 +50,12 @@ def _parse(text: str) -> dict:
     return {"meta": meta, "body": body}
 
 
-def _serialize(name, description, when_to_use, body) -> str:
+def _serialize(name, description, when_to_use, body, source="") -> str:
     fm = [f"name: {name}", f"description: {description}"]
     if when_to_use:
         fm.append(f"when_to_use: {when_to_use}")
+    if source:
+        fm.append(f"source: {source}")  # 10c — where a git-backed skill came from
     return "---\n" + "\n".join(fm) + "\n---\n\n" + (body or "")
 
 
@@ -69,6 +71,7 @@ def list_skills() -> list[dict]:
                     "name": m.get("name", d.parent.name),
                     "description": m.get("description", ""),
                     "when_to_use": m.get("when_to_use", ""),
+                    "source": m.get("source", ""),
                     "size": len(parsed["body"]),
                 }
             )
@@ -88,28 +91,59 @@ def get_skill(slug: str) -> dict | None:
         "name": m.get("name", slug),
         "description": m.get("description", ""),
         "when_to_use": m.get("when_to_use", ""),
+        "source": m.get("source", ""),
         "body": parsed["body"],
     }
 
 
-def upsert_skill(name, description="", when_to_use="", body="", slug=None) -> dict:
+def upsert_skill(name, description="", when_to_use="", body="", slug=None, source="") -> dict:
     s = _slug(slug or name)
     p = _path(s)
     p.parent.mkdir(parents=True, exist_ok=True)
-    p.write_text(_serialize(name, description, when_to_use, body), "utf-8")
+    p.write_text(_serialize(name, description, when_to_use, body, source), "utf-8")
     return {"slug": s, "ok": True}
 
 
-def upsert_from_md(text: str, fallback_name: str = None) -> dict:
+def upsert_from_md(text: str, fallback_name: str = None, source="") -> dict:
     """take a raw SKILL.md (frontmatter + body) and store it. used by upload + github
     import. the frontmatter name wins; fallback_name (e.g. the source folder) covers
-    files that skipped it."""
+    files that skipped it. source records where a git-backed skill came from (10c)."""
     parsed = _parse(text or "")
     m = parsed["meta"]
     name = (m.get("name") or fallback_name or "").strip()
     if not name:
         raise ValueError("skill has no name (add a frontmatter 'name:' line)")
-    return upsert_skill(name, m.get("description", ""), m.get("when_to_use", ""), parsed["body"])
+    return upsert_skill(
+        name,
+        m.get("description", ""),
+        m.get("when_to_use", ""),
+        parsed["body"],
+        source=source or m.get("source", ""),
+    )
+
+
+def export_md(slug: str) -> str | None:
+    """the full SKILL.md text, for sharing/downloading a skill (10c)."""
+    p = _path(slug)
+    return p.read_text("utf-8", errors="replace") if p.exists() else None
+
+
+def export_all() -> list[dict]:
+    return [{"slug": s["slug"], "md": export_md(s["slug"]) or ""} for s in list_skills()]
+
+
+def update_from_source(slug: str) -> dict:
+    """re-pull a git-backed skill from its recorded source. no-op if it has none (10c)."""
+    sk = get_skill(slug)
+    if not sk:
+        return {"updated": False, "error": "not found"}
+    src = sk.get("source", "")
+    if not src:
+        return {"updated": False}
+    from . import skills_github
+
+    skills_github.import_from_github(src)
+    return {"updated": True, "source": src}
 
 
 def delete_skill(slug: str) -> bool:

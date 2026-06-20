@@ -51,6 +51,47 @@ class AgentIntentsTest(unittest.TestCase):
         ]:
             self.assertFalse(message_needs_tools(m), f"should NOT promote: {m!r}")
 
+    def test_empty_string_never_promotes(self):
+        self.assertFalse(message_needs_tools(""))
+
+    def test_shell_commands_promote(self):
+        for m in [
+            "run npm install in the backend folder",
+            "pip install requests",
+            "docker compose up",
+        ]:
+            self.assertTrue(message_needs_tools(m), f"should promote: {m!r}")
+
+    def test_code_editing_promotes(self):
+        for m in [
+            "fix the bug in the auth function",
+            "refactor the login class",
+            "add a test for the payment method",
+        ]:
+            self.assertTrue(message_needs_tools(m), f"should promote: {m!r}")
+
+    def test_research_promotes(self):
+        for m in [
+            "research the best laptops for developers",
+            "deep dive into rust's ownership model",
+            "look into the latest react updates",
+        ]:
+            self.assertTrue(message_needs_tools(m), f"should promote: {m!r}")
+
+    def test_case_insensitive(self):
+        # patterns use re.I so casing shouldn't matter
+        self.assertTrue(message_needs_tools("REMIND ME to do laundry"))
+        self.assertTrue(message_needs_tools("Check My Inbox"))
+        self.assertFalse(message_needs_tools("WHAT IS THE CAPITAL OF FRANCE"))
+
+    def test_email_actions_promote(self):
+        for m in [
+            "send an email to sarah about the meeting",
+            "write a message to the team",
+            "reply to john's email",
+        ]:
+            self.assertTrue(message_needs_tools(m), f"should promote: {m!r}")
+
 
 if __name__ == "__main__":
     unittest.main()

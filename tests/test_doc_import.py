@@ -56,6 +56,36 @@ class DocImportTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             doc_import.import_document("a.pdf", b"%PDF-1.4 not a real pdf")
 
+    def test_html_em_italic_and_ol(self):
+        html = "<p><em>slanted</em> and <i>also</i></p><ol><li>first</li><li>second</li></ol>"
+        c = doc_import.import_document("x.html", html.encode())["content"]
+        self.assertIn("*slanted*", c)
+        self.assertIn("*also*", c)
+        self.assertIn("1. first", c)
+        self.assertIn("2. second", c)
+
+    def test_name_strips_path_and_ext(self):
+        r = doc_import.import_document("path/to/doc.txt", b"x")
+        self.assertEqual(r["name"], "doc")
+
+    def test_htm_extension_works(self):
+        html = "<h2>Sub</h2><p>body</p>"
+        c = doc_import.import_document("page.htm", html.encode())["content"]
+        self.assertIn("## Sub", c)
+        self.assertIn("body", c)
+
+    def test_docx_heading2_and_numbered_list(self):
+        from docx import Document
+
+        doc = Document()
+        doc.add_heading("Chapter Two", level=2)
+        doc.add_paragraph("step one", style="List Number")
+        buf = io.BytesIO()
+        doc.save(buf)
+        c = doc_import.import_document("doc.docx", buf.getvalue())["content"]
+        self.assertIn("## Chapter Two", c)
+        self.assertIn("1. step one", c)
+
 
 if __name__ == "__main__":
     unittest.main()

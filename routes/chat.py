@@ -121,6 +121,12 @@ def _resolve_mentions(text: str, cwd: str) -> str:
     return text + "\n\n" + "\n\n".join(blocks) if blocks else text
 
 
+def _is_video_upload(rec) -> bool:
+    from services.video_frames import is_video
+
+    return is_video(getattr(rec, "mime_type", "") or "", getattr(rec, "original_name", "") or "")
+
+
 def _build_messages(
     session: Session, user_text: str, settings: dict, db=None, file_ids: list[str] = None
 ) -> list[dict]:
@@ -137,6 +143,18 @@ def _build_messages(
         persona = _resolve_persona(session, db)
         if persona and persona.system_prompt:
             sys_prompt = persona.system_prompt
+        # 10d — let a persona answer from its attached knowledge files
+        if persona:
+            try:
+                from services.persona_docs import knowledge_block
+
+                kb = knowledge_block(db, persona.id, user_text)
+                if kb:
+                    sys_prompt = (
+                        sys_prompt.rstrip() + "\n\n### Knowledge (from attached files)\n" + kb
+                    )
+            except Exception:
+                pass
 
     if settings.get("memory_auto_inject", True):
         mem_ctx = inject_memories(user_text)
@@ -176,6 +194,12 @@ def _build_messages(
                         "image_url": {"url": f"data:{rec.mime_type};base64,{b64}"},
                     }
                 )
+            elif _is_video_upload(rec):
+                # 10e — sample frames so a vision model can understand the clip
+                from services.video_frames import extract_frames
+
+                for url in extract_frames(str(fpath)):
+                    image_parts.append({"type": "image_url", "image_url": {"url": url}})
             else:
                 try:
                     text_blocks.append(

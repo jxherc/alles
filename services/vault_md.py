@@ -3,6 +3,7 @@ Obsidian-style markdown vault: real .md files on disk + wikilinks + backlinks.
 Everything is stored as plain files so the vault is portable and git-able.
 """
 
+import json
 import re
 import shutil
 from pathlib import Path
@@ -411,6 +412,236 @@ def query_notes(filters=None, sort=None, limit=None) -> list[dict]:
     if limit:
         rows = rows[: int(limit)]
     return rows
+
+
+def parse_query_spec(text):
+    """parse a ```query``` fence body (line-based `key: value`) into a query spec (2b).
+    special keys: sort (`field [asc|desc]`), limit, group. tag/folder/name are query
+    fields; anything else is a frontmatter-property eq filter."""
+    filters, sort, limit, group, chart = [], None, None, None, None
+    for raw in (text or "").splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#") or ":" not in line:
+            continue
+        key, val = line.split(":", 1)
+        key, val = key.strip().lower(), val.strip()
+        if not val:
+            continue
+        if key == "sort":
+            parts = val.split()
+            sort = {"field": parts[0], "dir": (parts[1].lower() if len(parts) > 1 else "asc")}
+        elif key == "limit":
+            try:
+                limit = int(val)
+            except ValueError:
+                pass
+        elif key == "group":
+            group = val
+        elif key == "chart":
+            chart = val.lower()  # bar | pie | line — drives an inline svg in preview (3d)
+        else:
+            filters.append({"field": key, "op": "eq", "value": val})
+    return {"filters": filters, "sort": sort, "limit": limit, "group": group, "chart": chart}
+
+
+def query_block(text):
+    """run a query-fence spec → rows (+ server-side grouping when `group:` is set)."""
+    spec = parse_query_spec(text)
+    rows = query_notes(spec["filters"], spec["sort"], spec["limit"])
+    slim = [
+        {"name": r["name"], "path": r["path"], "tags": r["tags"], "props": r["props"]} for r in rows
+    ]
+    out = {"count": len(rows), "group": spec.get("group"), "chart": spec.get("chart"), "rows": slim}
+    if spec.get("group"):
+        g = {}
+        for r in rows:
+            k = r["props"].get(spec["group"], "")
+            if isinstance(k, list):
+                k = ", ".join(str(x) for x in k)
+            g.setdefault(str(k) or "—", []).append({"name": r["name"], "path": r["path"]})
+        out["groups"] = [{"key": k, "count": len(v), "rows": v} for k, v in sorted(g.items())]
+    return out
+
+
+def append_form_row(target, values, fields=None):
+    """append a submission as a markdown table row to `target` (3d form blocks).
+    builds the header from `fields` (or the value keys) on first submit; later submits
+    reuse the existing table. returns the data-row count after the append."""
+    rel = target if str(target).endswith(".md") else f"{target}.md"
+    doc = read(rel)
+    content = doc.get("content", "") if doc.get("exists") else ""
+    cols = [c.strip() for c in (fields or list(values.keys())) if str(c).strip()]
+    if not cols:
+        cols = [k for k in values.keys()]
+    header = "| " + " | ".join(cols) + " |"
+    sep = "| " + " | ".join("---" for _ in cols) + " |"
+    body = content.rstrip("\n")
+    if header not in content:
+        block = header + "\n" + sep
+        body = (body + "\n\n" + block) if body else block
+
+    def cell(v):
+        return str(v).replace("|", "\\|").replace("\n", " ").strip()
+
+    row = "| " + " | ".join(cell(values.get(c, "")) for c in cols) + " |"
+    body = body + "\n" + row
+    out = write(rel, body + "\n")
+    table_lines = [ln for ln in body.splitlines() if ln.strip().startswith("|")]
+    return {"ok": True, "path": out.get("path", rel), "count": max(0, len(table_lines) - 2)}
+
+
+def find_block(rel, block_id):
+    """resolve a `^block-id` anchor in a note → its block text (3b synced blocks).
+    the marker is a trailing ` ^id` on a line; returns that line (marker stripped).
+    if ^id sits on its own line, returns the preceding non-empty line/paragraph."""
+    doc = read(rel)
+    if not doc.get("exists") and not rel.endswith(".md"):
+        doc = read(rel + ".md")  # wikilink names arrive without the extension
+    if not doc.get("exists"):
+        return {"found": False, "text": ""}
+    bid = block_id.lstrip("^").strip()
+    lines = (doc.get("content") or "").replace("\r\n", "\n").split("\n")
+    for i, ln in enumerate(lines):
+        m = re.search(r"\s\^([A-Za-z0-9_-]+)\s*$", ln)
+        if m and m.group(1) == bid:
+            text = re.sub(r"\s\^[A-Za-z0-9_-]+\s*$", "", ln).strip()
+            if not text:  # marker on its own line → take the paragraph above
+                j = i - 1
+                buf = []
+                while j >= 0 and lines[j].strip():
+                    buf.insert(0, lines[j])
+                    j -= 1
+                text = "\n".join(buf).strip()
+            return {"found": True, "text": text}
+        if ln.strip() == f"^{bid}":  # marker alone on the line
+            j = i - 1
+            buf = []
+            while j >= 0 and lines[j].strip():
+                buf.insert(0, lines[j])
+                j -= 1
+            return {"found": True, "text": "\n".join(buf).strip()}
+    return {"found": False, "text": ""}
+
+
+_THEME_FILE = "_vault-theme.css"
+
+
+def theme_css_read():
+    """read the per-vault CSS snippet file (2e)."""
+    p = _safe(_THEME_FILE)
+    return p.read_text("utf-8", errors="replace") if p.exists() else ""
+
+
+def theme_css_write(css):
+    p = _safe(_THEME_FILE)
+    p.write_text(css or "", "utf-8")
+    return {"ok": True}
+
+
+def canvas_read(rel):
+    """read a .canvas JSON file (2d). returns {nodes, edges} (empty for a new canvas)."""
+    if not rel.endswith(".canvas"):
+        rel += ".canvas"
+    p = _safe(rel)
+    if not p.exists():
+        return {"path": rel, "nodes": [], "edges": [], "exists": False}
+    try:
+        data = json.loads(p.read_text("utf-8") or "{}")
+    except Exception:
+        data = {}
+    return {
+        "path": rel,
+        "nodes": data.get("nodes", []),
+        "edges": data.get("edges", []),
+        "exists": True,
+    }
+
+
+def canvas_write(rel, nodes, edges):
+    if not rel.endswith(".canvas"):
+        rel += ".canvas"
+    p = _safe(rel)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(json.dumps({"nodes": nodes or [], "edges": edges or []}, indent=2), "utf-8")
+    return {"path": str(p.relative_to(vault_dir())).replace("\\", "/"), "ok": True}
+
+
+def canvas_list():
+    base = vault_dir()
+    out = []
+    for p in base.rglob("*.canvas"):
+        if any(part.startswith((".", "_")) for part in p.relative_to(base).parts):
+            continue
+        out.append(str(p.relative_to(base)).replace("\\", "/"))
+    return sorted(out)
+
+
+def _link_name(v):
+    # accept "Name", "[[Name]]", "[[Name|alias]]", or "[Name]" (frontmatter list-parse artifact)
+    s = str(v or "").strip().strip("[]").strip()
+    return s.split("|")[0].split("#")[0].strip()
+
+
+def _to_num(v):
+    try:
+        return float(str(v).replace(",", ""))
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def base_view(folder="", sort=None):
+    """treat a folder as a database (2c): rows = notes, columns = union of frontmatter
+    keys. cells are editable via set-cell (writes back to frontmatter)."""
+    filters = [{"field": "folder", "op": "eq", "value": folder}] if folder else []
+    rows = query_notes(filters, sort, None)
+    cols, seen = [], set()
+    for r in rows:
+        for k in r["props"].keys():
+            if k != "tags" and k not in seen:
+                seen.add(k)
+                cols.append(k)
+    return {
+        "folder": folder,
+        "columns": cols,
+        "rows": [
+            {"name": r["name"], "path": r["path"], "props": r["props"], "tags": r["tags"]}
+            for r in rows
+        ],
+    }
+
+
+def set_cell(path, key, value):
+    """set one frontmatter key on a note (a Base cell edit)."""
+    cur = read(path)
+    props, _ = parse_frontmatter(cur.get("content", "") or "")
+    if value == "" or value is None:
+        props.pop(key, None)
+    else:
+        props[key] = value
+    write(path, set_frontmatter(cur.get("content", "") or "", props))
+    return props
+
+
+def base_rollup(folder, relation_field, target=None, agg="count"):
+    """rollup (2c): for each note in `folder`, aggregate over notes that reference it
+    via `relation_field`. agg = count | sum (sum needs a numeric `target` prop)."""
+    parents = query_notes(
+        [{"field": "folder", "op": "eq", "value": folder}] if folder else [], None, None
+    )
+    allnotes = query_notes([], None, None)
+    out = []
+    for p in parents:
+        related = []
+        for m in allnotes:
+            rv = m["props"].get(relation_field)
+            names = rv if isinstance(rv, list) else [rv]
+            if p["name"].lower() in [_link_name(x).lower() for x in names if x]:
+                related.append(m)
+        val = (
+            len(related) if agg != "sum" else sum(_to_num(m["props"].get(target)) for m in related)
+        )
+        out.append({"name": p["name"], "path": p["path"], "value": val, "related": len(related)})
+    return out
 
 
 def periodic_path(kind: str, d=None) -> str:

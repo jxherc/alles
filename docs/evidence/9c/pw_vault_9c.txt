@@ -1,0 +1,10 @@
+PASS  biometric_unlock_hidden_without_credential
+PASS  vault_switcher_present
+PASS  vault_add_button_present
+PASS  travel_toggle_present
+PASS  biometric_enable_present
+PASS  create_vault_adds_to_switcher
+PASS  switched_into_empty_vault
+PASS  switch_vault_shows_its_entries
+PASS  travel_flag_persists
+PASS  zero_console_errors

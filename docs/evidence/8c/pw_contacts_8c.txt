@@ -1,0 +1,8 @@
+PASS  address_map_link
+PASS  field_add_shows
+PASS  avatar_uploads
+PASS  me_badge
+PASS  group_create
+PASS  smart_group_lists
+PASS  duplicate_merge
+PASS  zero_console_errors
