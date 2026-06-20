@@ -91,6 +91,10 @@ every one of these is a real, finished app — not a placeholder. they each live
 
 <p align="center"><img src="docs/screenshots/aide.png" width="760" alt="aide — model switcher, agent/chat toggle, chat history + tools sidebar"></p>
 
+**the model picker** — every endpoint you add shows up here, each provider in its own brand colour with its real logo (OpenAI green, Anthropic gold, Moonshot purple — never mistaken for one another). image-generation models are flagged with a 🎨, so you can run a **chat model and an image model together** (talk to Sonnet, draw with gpt-image). a **newest-only** toggle collapses each family to its latest release, and the list refreshes from every provider — with a built-in fallback line-up so it's already populated before you've even added a key.
+
+<p align="center"><img src="docs/screenshots/models.png" width="760" alt="the model picker — every provider in its brand colour, image models flagged with 🎨, a newest-only toggle"></p>
+
 ### home
 **plain version:** the front page. a launcher you can arrange however you like, with a box to jot something down fast.
 
@@ -235,6 +239,9 @@ this is the most feature-dense app, so here's the full list:
 - browse folders, upload, rename, delete, and **search** — by filename *and* inside text files, with a snippet of where the match was
 - **inline preview** without downloading: images, **pdfs** (in a real pdf viewer), **video**, **audio**, and text/markdown
 - download anything with one click
+- **smart folders** (recent / images / documents / large / starred / recently-deleted) and a storage bar showing real disk usage, free space, and what the vault itself takes up
+
+<p align="center"><img src="docs/screenshots/files.png" width="760" alt="files — smart folders, search, and a storage bar with real free/used disk space"></p>
 
 ### gallery
 **plain version:** a local photo library that feels like icloud/google photos, minus the company.
@@ -250,6 +257,8 @@ this is the most feature-dense app, so here's the full list:
 
 - name / email / phone / notes / tags, searchable
 - **vCard import / export** — round-trips with your phone and any other address book
+
+<p align="center"><img src="docs/screenshots/contacts.png" width="760" alt="contacts — a searchable address book the ai can read when drafting mail"></p>
 
 ### system
 **plain version:** a live look at how hard your computer is working — like Task Manager / Activity Monitor, built in.
