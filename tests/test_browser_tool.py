@@ -5,6 +5,14 @@ from pathlib import Path
 
 from services import browser_tool as bt
 
+# playwright is an optional dep (not in requirements.txt) — skip the whole module without it
+try:
+    import playwright  # noqa: F401
+
+    _HAVE_PW = True
+except Exception:
+    _HAVE_PW = False
+
 _HTML = """<!doctype html><html><body>
 <h1 id="t">hello browser</h1>
 <button id="b" onclick="document.getElementById('t').innerText='clicked now'">go</button>
@@ -19,6 +27,7 @@ def _page_url():
     return p.as_uri()
 
 
+@unittest.skipUnless(_HAVE_PW, "playwright not installed")
 class BrowserToolTests(unittest.TestCase):
     def test_navigate_and_read(self):
         url = _page_url()
@@ -96,6 +105,7 @@ class BrowserToolTests(unittest.TestCase):
         self.assertIsNone(asyncio.run(go()))
 
 
+@unittest.skipUnless(_HAVE_PW, "playwright not installed")
 class BrowserToolAgentTests(unittest.TestCase):
     def test_tool_browse_open_and_read(self):
         import services.agent_tools as at
