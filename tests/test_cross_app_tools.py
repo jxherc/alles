@@ -1,7 +1,7 @@
 import unittest
 
-from services import agent_tools as at
 from routes import search
+from services import agent_tools as at
 
 
 class CrossAppToolTests(unittest.TestCase):
@@ -55,6 +55,33 @@ class CrossAppToolTests(unittest.TestCase):
         ):
             self.assertIn(mut, at.MUTATING_TOOLS)
 
+    def test_full_auto_has_more_tools_than_plan(self):
+        full = self._names({"agent_permission_mode": "full_auto"})
+        plan = self._names({"agent_permission_mode": "plan"})
+        self.assertGreater(len(full), len(plan))
+
+    def test_shell_in_mutating_set(self):
+        self.assertIn("shell", at.MUTATING_TOOLS)
+        self.assertIn("write_file", at.MUTATING_TOOLS)
+
+    def test_decide_permission_full_auto_allows_mutations(self):
+        p = at.decide_permission("write_file", {"path": "/tmp/x.txt"}, "full_auto", [])
+        self.assertEqual(p, "allow")
+
+    def test_decide_permission_plan_denies_mutations(self):
+        p = at.decide_permission("write_file", {"path": "/tmp/x.txt"}, "plan", [])
+        self.assertEqual(p, "deny")
+
+    def test_decide_permission_approve_asks(self):
+        p = at.decide_permission("shell", {"command": "ls"}, "approve", [])
+        self.assertEqual(p, "ask")
+
+    def test_decide_permission_rule_override_wins(self):
+        # user rule that always allows shell
+        rules = [{"tool": "shell", "action": "allow"}]
+        p = at.decide_permission("shell", {"command": "ls"}, "approve", rules)
+        self.assertEqual(p, "allow")
+
 
 class SearchHelperTests(unittest.TestCase):
     def test_snip_centers_match(self):
@@ -66,6 +93,17 @@ class SearchHelperTests(unittest.TestCase):
 
     def test_snip_no_match_takes_head(self):
         self.assertTrue(search._snip("abc def ghi", "zzz").startswith("abc"))
+
+    def test_snip_strips_newlines(self):
+        # multiline text — snip should collapse newlines
+        t = "hello\nNEEDLE\nworld"
+        s = search._snip(t, "needle")
+        self.assertNotIn("\n", s)
+
+    def test_snip_at_start(self):
+        # match at very beginning — no room to go left
+        s = search._snip("NEEDLE rest of text", "needle")
+        self.assertTrue(s.startswith("NEEDLE"))
 
 
 if __name__ == "__main__":

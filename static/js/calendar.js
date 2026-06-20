@@ -2,6 +2,7 @@ import { toast } from './util.js';
 import { initCustomDropdown } from './dropdown.js';
 import { initDatePickers } from './datepick.js';
 import { prompt as dlgPrompt } from './dialog.js';
+const _si = n => (window.icon ? window.icon(n) : '');   // central icon set, load-order safe
 
 let _events = [];
 let _tasks = [];  // tasks with due dates, overlaid on the month/agenda
@@ -19,6 +20,9 @@ let _prefill = null;             // {start,end} for a drag-created event
 
 const WD = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 let _weekStart = 0;   // 0 = sunday, 1 = monday (per-app setting)
+let _workStart = 9, _workEnd = 18;   // 8a working-hours shading (week/day grid)
+let _secondaryTz = '';               // 8a secondary timezone (IANA name) for a world clock
+let _subs = [];                      // 8a ICS-URL subscriptions
 const _wdLabels = () => _weekStart ? [...WD.slice(1), WD[0]] : WD;
 // leading blanks before the 1st, honoring week-start
 const _lead = (y, m) => (new Date(y, m, 1).getDay() - _weekStart + 7) % 7;
@@ -47,14 +51,19 @@ const evHex = e => hexOf(evColorName(e));
 
 export async function loadCalendar() {
   _bindNav();
-  const [cals, evs, s, tasks] = await Promise.all([
+  const [cals, evs, s, tasks, subs] = await Promise.all([
     fetch('/api/calendars').then(r => r.json()).catch(() => []),
     fetch('/api/calendar').then(r => r.json()).catch(() => []),
     fetch('/api/settings').then(r => r.json()).catch(() => ({})),
     fetch('/api/calendar/tasks').then(r => r.json()).catch(() => []),
+    fetch('/api/calendar/subscriptions').then(r => r.json()).catch(() => []),
   ]);
   _tasks = Array.isArray(tasks) ? tasks : [];
+  _subs = Array.isArray(subs) ? subs : [];
   _weekStart = s.cal_week_start === 'mon' ? 1 : 0;
+  _workStart = Number.isFinite(+s.cal_work_start) && s.cal_work_start !== '' ? +s.cal_work_start : 9;
+  _workEnd = Number.isFinite(+s.cal_work_end) && s.cal_work_end !== '' ? +s.cal_work_end : 18;
+  _secondaryTz = (s.cal_secondary_tz || '').trim();
   // default-view setting: seed the opening view on first mount (last-used in localStorage
   // wins if present), then only re-apply when the setting itself actually changes (cog save).
   // otherwise leave _view alone so navigating / editing doesn't yank you out of week/day.
@@ -79,7 +88,7 @@ function _bindNav() {
   document.getElementById('cal-prev')?.addEventListener('click', () => shift(-1));
   document.getElementById('cal-next')?.addEventListener('click', () => shift(1));
   document.getElementById('cal-today')?.addEventListener('click', () => { _cursor = new Date(); _miniCursor = new Date(); render(); renderSidebar(); });
-  document.querySelectorAll('.cal-view-btn').forEach(b =>
+  document.querySelectorAll('#cal-view .seg-opt').forEach(b =>
     b.addEventListener('click', () => { _view = b.dataset.view; localStorage.setItem('cal-view', _view); _syncViewBtns(); render(); }));
   _syncViewBtns();
   document.getElementById('cal-sync-btn')?.addEventListener('click', openCaldavPanel);
@@ -121,7 +130,7 @@ function _bindNav() {
 }
 
 function _syncViewBtns() {
-  document.querySelectorAll('.cal-view-btn').forEach(b => b.classList.toggle('active', b.dataset.view === _view));
+  document.querySelectorAll('#cal-view .seg-opt').forEach(b => b.classList.toggle('active', b.dataset.view === _view));
 }
 
 function shift(dir) {
@@ -140,15 +149,113 @@ function renderSidebar() {
   el.innerHTML = `
     <input type="text" id="cal-search" class="cal-side-search" placeholder="search events…" value="${esc(_search)}">
     <div class="cal-mini" id="cal-mini"></div>
+    ${_clockHtml()}
     <div class="cal-cals">
       <div class="cal-cals-head"><span>my calendars</span><button class="cal-cal-add" id="cal-cal-add" title="new calendar">+</button></div>
       <div id="cal-cals-list"></div>
+    </div>
+    <div class="cal-cals cal-feeds">
+      <div class="cal-cals-head"><span>subscriptions</span><button class="cal-cal-add" id="cal-feed-add" title="subscribe to an ICS URL">+</button></div>
+      <div id="cal-feeds-list"></div>
+    </div>
+    <div class="cal-cals cal-bookings">
+      <div class="cal-cals-head"><span>booking pages</span><button class="cal-cal-add" id="cal-book-add" title="new booking page">+</button></div>
+      <div id="cal-book-list"></div>
     </div>`;
   renderMini();
   renderCalList();
+  renderFeeds();
+  renderBookingPages();
   const s = document.getElementById('cal-search');
   s.addEventListener('input', () => { _search = s.value.trim(); render(); });
   document.getElementById('cal-cal-add').addEventListener('click', () => calForm(null));
+  document.getElementById('cal-feed-add').addEventListener('click', addFeed);
+  document.getElementById('cal-book-add').addEventListener('click', addBookingPage);
+}
+
+let _bookingPages = [];
+async function renderBookingPages() {
+  const el = document.getElementById('cal-book-list');
+  if (!el) return;
+  _bookingPages = await fetch('/api/calendar/booking-pages').then(r => r.json()).catch(() => []);
+  if (!_bookingPages.length) { el.innerHTML = '<div class="cal-feed-empty">none yet</div>'; return; }
+  el.innerHTML = _bookingPages.map(b => `
+    <div class="cal-feed-row" data-id="${b.id}">
+      <span class="cal-feed-name" title="${b.duration_min}-min slots">${esc(b.title)}</span>
+      <button class="cal-feed-x" data-act="copy" title="copy public link">${_si('link')}</button>
+      <button class="cal-feed-x" data-act="del" title="delete">×</button>
+    </div>`).join('');
+  el.querySelectorAll('.cal-feed-row').forEach(row => {
+    const b = _bookingPages.find(x => x.id === row.dataset.id);
+    row.querySelector('[data-act="copy"]').addEventListener('click', async () => {
+      const url = location.origin + b.url;
+      try { await navigator.clipboard.writeText(url); toast('booking link copied', 'success'); }
+      catch { toast(url, ''); }
+    });
+    row.querySelector('[data-act="del"]').addEventListener('click', async () => {
+      await fetch(`/api/calendar/booking-pages/${b.id}`, { method: 'DELETE' });
+      renderBookingPages();
+    });
+  });
+}
+
+async function addBookingPage() {
+  const title = await dlgPrompt('booking page title:', 'Book a time');
+  if (title === null) return;
+  const dur = await dlgPrompt('slot length in minutes:', '30');
+  try {
+    await fetch('/api/calendar/booking-pages', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ title: title?.trim() || 'Book a time', duration_min: parseInt(dur) || 30 }),
+    });
+    toast('booking page created', 'success');
+    renderBookingPages();
+  } catch { toast('failed', 'error'); }
+}
+
+// 8a — secondary timezone world clock
+function _clockHtml() {
+  if (!_secondaryTz) return '';
+  let t = '';
+  try {
+    t = new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: _secondaryTz });
+  } catch { return ''; }
+  const label = _secondaryTz.split('/').pop().replace(/_/g, ' ');
+  return `<div class="cal-worldclock" id="cal-worldclock" title="${esc(_secondaryTz)}"><span class="cal-wc-zone">${esc(label)}</span><span class="cal-wc-time">${esc(t)}</span></div>`;
+}
+
+function renderFeeds() {
+  const el = document.getElementById('cal-feeds-list');
+  if (!el) return;
+  if (!_subs.length) { el.innerHTML = '<div class="cal-feed-empty">no feeds yet</div>'; return; }
+  el.innerHTML = _subs.map(s => `
+    <div class="cal-feed-row" data-id="${s.id}">
+      <span class="cal-cal-chk on" style="--cc:var(--accent)"></span>
+      <span class="cal-feed-name" title="${esc(s.url)} · ${esc(s.last_status || '')}">${esc(s.name)} <span class="cal-feed-n">${s.event_count}</span></span>
+      <button class="cal-feed-x" data-act="del" title="remove">×</button>
+    </div>`).join('');
+  el.querySelectorAll('.cal-feed-row').forEach(row => {
+    row.querySelector('[data-act="del"]').addEventListener('click', async () => {
+      await fetch(`/api/calendar/subscriptions/${row.dataset.id}`, { method: 'DELETE' });
+      loadCalendar();
+    });
+  });
+}
+
+async function addFeed() {
+  const url = await dlgPrompt('ICS feed URL (Google/Apple public calendar, holidays…):');
+  if (!url?.trim()) return;
+  const name = await dlgPrompt('name this subscription:', 'Subscription');
+  toast('subscribing…');
+  try {
+    const r = await fetch('/api/calendar/subscriptions', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ name: name?.trim() || 'Subscription', url: url.trim() }),
+    });
+    if (!r.ok) throw 0;
+    toast('subscribed', 'success');
+    loadCalendar();
+  } catch { toast('subscription failed', 'error'); }
 }
 
 function renderMini() {
@@ -306,7 +413,63 @@ function render() {
   const lbl = document.getElementById('cal-month-label');
   if (_view === 'month') { if (lbl) lbl.textContent = _cursor.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }); renderMonth(); }
   else if (_view === 'week') renderWeek(lbl);
+  else if (_view === 'agenda') renderAgenda(lbl);
+  else if (_view === 'year') renderYear(lbl);
   else renderDay(lbl);
+}
+
+// agenda (8a) — flat upcoming list grouped by day, from /calendar/agenda
+async function renderAgenda(lbl) {
+  if (lbl) lbl.textContent = 'agenda';
+  const el = document.getElementById('calendar-list');
+  if (!el) return;
+  const d = await fetch('/api/calendar/agenda?days=60').then(r => r.json()).catch(() => ({ days: [] }));
+  if (!d.days?.length) { el.innerHTML = '<div class="cal-agenda-empty">nothing coming up</div>'; return; }
+  let html = '<div class="cal-agenda">';
+  for (const g of d.days) {
+    const dd = new Date(g.date + 'T00:00:00');
+    html += `<div class="cal-agenda-day"><div class="cal-agenda-date">${dd.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</div><div class="cal-agenda-evs">`;
+    for (const o of g.events) {
+      const t = o.all_day ? 'all day' : timeShort(o.start_dt);
+      html += `<div class="cal-agenda-ev" data-id="${o.id}"><span class="cal-agenda-dot" style="background:${evHex(o)}"></span><span class="cal-agenda-time">${esc(t)}</span><span class="cal-agenda-title">${esc(o.title)}</span></div>`;
+    }
+    html += '</div></div>';
+  }
+  html += '</div>';
+  el.innerHTML = html;
+  el.querySelectorAll('.cal-agenda-ev').forEach(r => r.addEventListener('click', () => openEvent(r.dataset.id, null)));
+}
+
+// year (8a) — 12 mini-months; click a day jumps to the day view
+function renderYear(lbl) {
+  const year = _cursor.getFullYear();
+  if (lbl) lbl.textContent = String(year);
+  const el = document.getElementById('calendar-list');
+  if (!el) return;
+  const today = new Date();
+  const dotDays = new Set(_events.map(e => (e.start_dt || '').slice(0, 10)));
+  let html = '<div class="cal-year">';
+  for (let m = 0; m < 12; m++) {
+    const startDay = _lead(year, m);
+    const dim = new Date(year, m + 1, 0).getDate();
+    html += `<div class="cal-year-month"><div class="cal-year-mname">${new Date(year, m, 1).toLocaleDateString('en-US', { month: 'long' })}</div><div class="cal-year-grid">`;
+    for (const w of (_weekStart ? ['M', 'T', 'W', 'T', 'F', 'S', 'S'] : ['S', 'M', 'T', 'W', 'T', 'F', 'S'])) html += `<div class="cal-year-wd">${w}</div>`;
+    for (let i = 0; i < startDay; i++) html += '<div></div>';
+    for (let dnum = 1; dnum <= dim; dnum++) {
+      const date = new Date(year, m, dnum);
+      const k = ymd(date);
+      const cls = ['cal-year-day'];
+      if (sameDay(date, today)) cls.push('today');
+      if (dotDays.has(k)) cls.push('has');
+      html += `<div class="${cls.join(' ')}" data-date="${k}">${dnum}</div>`;
+    }
+    html += '</div></div>';
+  }
+  html += '</div>';
+  el.innerHTML = html;
+  el.querySelectorAll('.cal-year-day').forEach(c => c.addEventListener('click', () => {
+    _cursor = new Date(c.dataset.date + 'T00:00:00'); _view = 'day'; localStorage.setItem('cal-view', _view); _syncViewBtns(); render();
+  }));
 }
 
 const chipStyle = o => `background:${evHex(o)};color:#0a0a0a`;
@@ -339,10 +502,10 @@ function renderMonth() {
     const key = ymd(cell);
     const evts = (byDay[key] || []).sort((a, b) => (a.all_day ? 0 : a._date) - (b.all_day ? 0 : b._date));
     const chips = evts.slice(0, 4).map(o =>
-      `<div class="cal-chip${o._recur ? ' recurring' : ''}" data-id="${o.id}" data-occ="${ymd(o._date)}" style="${chipStyle(o)}" title="${chipTitle(o)}">${o._recur ? '<span class="cal-chip-recur">↻</span>' : ''}${esc((o.all_day ? '' : timeShort(o._date) + ' ') + o.title)}</div>`).join('');
+      `<div class="cal-chip${o._recur ? ' recurring' : ''}" data-id="${o.id}" data-occ="${ymd(o._date)}" style="${chipStyle(o)}" title="${chipTitle(o)}">${o._recur ? `<span class="cal-chip-recur">${_si('refresh')}</span>` : ''}${esc((o.all_day ? '' : timeShort(o._date) + ' ') + o.title)}</div>`).join('');
     const more = evts.length > 4 ? `<div class="cal-more">+${evts.length - 4} more</div>` : '';
     const tchips = (tasksByDay[key] || []).slice(0, 3).map(t =>
-      `<div class="cal-task${t.done ? ' done' : ''}" data-task="${esc(t.id)}" title="task: ${esc(t.title)}"><span class="cal-task-chk">${t.done ? '☑' : '☐'}</span>${esc(t.title)}</div>`).join('');
+      `<div class="cal-task${t.done ? ' done' : ''}" data-task="${esc(t.id)}" title="task: ${esc(t.title)}"><span class="cal-task-chk${t.done ? ' on' : ''}">${t.done ? _si('check') : ''}</span>${esc(t.title)}</div>`).join('');
     html += `<div class="cal-cell${sameDay(cell, today) ? ' today' : ''}" data-date="${key}">
       <div class="cal-cell-num">${cell.getDate()}</div>
       <div class="cal-cell-events">${chips}${more}${tchips}</div></div>`;
@@ -393,7 +556,7 @@ function renderTimeGrid(el, days, occ) {
   let allday = '<div class="cal-tg-gutter">all-day</div>';
   for (const d of days) {
     const items = occ.filter(o => o.all_day && sameDay(o._date, d))
-      .map(o => `<div class="cal-allday-ev${o._recur ? ' recurring' : ''}" data-id="${o.id}" data-occ="${ymd(o._date)}" style="${chipStyle(o)}" title="${chipTitle(o)}">${o._recur ? '<span class="cal-chip-recur">↻</span>' : ''}${esc(o.title)}</div>`).join('');
+      .map(o => `<div class="cal-allday-ev${o._recur ? ' recurring' : ''}" data-id="${o.id}" data-occ="${ymd(o._date)}" style="${chipStyle(o)}" title="${chipTitle(o)}">${o._recur ? `<span class="cal-chip-recur">${_si('refresh')}</span>` : ''}${esc(o.title)}</div>`).join('');
     allday += `<div class="cal-tg-allday" data-date="${ymd(d)}">${items}</div>`;
   }
   let gutter = '';
@@ -407,11 +570,11 @@ function renderTimeGrid(el, days, occ) {
       const durH = Math.max(0.5, (be - bs) / 3600000);
       const top = (o._date.getHours() + o._date.getMinutes() / 60) * HOUR_H;
       const hx = evHex(o);
-      evHtml += `<div class="cal-tev${o._recur ? ' recurring' : ''}" data-id="${o.id}" data-occ="${ymd(o._date)}" style="top:${top}px;height:${durH * HOUR_H - 2}px;background:color-mix(in srgb, ${hx} 24%, transparent);border-left:3px solid ${hx}" title="${chipTitle(o)}"><b>${esc(timeShort(o._date))}</b> ${o._recur ? '<span class="cal-chip-recur">↻</span>' : ''}${esc(o.title)}${o.location ? `<span class="cal-tev-loc">${esc(o.location)}</span>` : ''}<span class="cal-tev-resize"></span></div>`;
+      evHtml += `<div class="cal-tev${o._recur ? ' recurring' : ''}" data-id="${o.id}" data-occ="${ymd(o._date)}" style="top:${top}px;height:${durH * HOUR_H - 2}px;background:color-mix(in srgb, ${hx} 24%, transparent);border-left:3px solid ${hx}" title="${chipTitle(o)}"><b>${esc(timeShort(o._date))}</b> ${o._recur ? `<span class="cal-chip-recur">${_si('refresh')}</span>` : ''}${esc(o.title)}${o.location ? `<span class="cal-tev-loc">${esc(o.location)}</span>` : ''}<span class="cal-tev-resize"></span></div>`;
     }
     const isToday = sameDay(d, today);
     const nowLine = isToday ? `<div class="cal-now-line" style="top:${nowTop}px"></div>` : '';
-    const lines = Array.from({ length: 24 }, (_, h) => `<div class="cal-tg-slot" style="height:${HOUR_H}px" data-date="${ymd(d)}" data-hour="${h}"></div>`).join('');
+    const lines = Array.from({ length: 24 }, (_, h) => `<div class="cal-tg-slot${h < _workStart || h >= _workEnd ? ' offhours' : ''}" style="height:${HOUR_H}px" data-date="${ymd(d)}" data-hour="${h}"></div>`).join('');
     cols += `<div class="cal-tg-col">${lines}${nowLine}${evHtml}</div>`;
   }
   el.innerHTML = `<div class="cal-timegrid ${days.length === 1 ? 'one-day' : ''}" style="--cols:${days.length}">
@@ -647,6 +810,21 @@ function openEditor(event, defaultDate, hour, allDay, occ) {
       <div><div class="cal-flabel">guests</div><input class="settings-input" id="cal-guests" value="${esc(event?.guests || '')}" placeholder="comma-separated" style="width:100%"></div>
     </div>
 
+    <div class="cal-flabel">video call</div>
+    <div class="cal-meet-row">
+      <input class="settings-input" id="cal-meeting" value="${esc(event?.meeting_url || '')}" placeholder="paste a link or generate one" style="flex:1">
+      <button class="btn" id="cal-meet-gen" type="button" title="generate a Jitsi room">${_si('video')} add</button>
+      ${event?.meeting_url ? `<a class="btn" id="cal-meet-open" href="${esc(event.meeting_url)}" target="_blank" rel="noopener">join</a>` : ''}
+    </div>
+
+    ${isNew ? '' : `<div class="cal-flabel">invites &amp; rsvp</div>
+    <div class="cal-invites" id="cal-invites"></div>
+    <div class="cal-invite-add">
+      <input class="settings-input" id="cal-inv-name" placeholder="name" style="flex:1">
+      <input class="settings-input" id="cal-inv-email" placeholder="email" style="flex:1.4">
+      <button class="btn" id="cal-inv-btn" type="button">invite</button>
+    </div>`}
+
     <div class="cal-flabel">color</div>
     <div class="cal-swatches" id="cal-colors">
       <span class="cal-sw cal-sw-def ${color === '' ? 'sel' : ''}" data-c="" title="calendar default">○</span>
@@ -657,7 +835,7 @@ function openEditor(event, defaultDate, hour, allDay, occ) {
     <div class="cal-ed-actions">
       ${isNew ? '' : '<button class="btn" id="cal-del" style="margin-right:auto;color:var(--error);border-color:var(--error)">delete</button>'}
       ${isNew ? '' : '<button class="btn" id="cal-dup" title="duplicate this event">duplicate</button>'}
-      <button class="btn" id="cal-back">← back</button>
+      <button class="btn ic-btn-lbl" id="cal-back">${_si('chevron-left')} back</button>
       <button class="btn primary" id="cal-save">${isNew ? 'create' : 'save'}</button>
     </div>
   </div>`;
@@ -699,6 +877,58 @@ function openEditor(event, defaultDate, hour, allDay, occ) {
     } catch { toast('duplicate failed', 'error'); }
   });
   document.getElementById('cal-save').addEventListener('click', () => saveEvent(byday));
+
+  // 8b — video call link generator
+  document.getElementById('cal-meet-gen')?.addEventListener('click', async () => {
+    const inp = document.getElementById('cal-meeting');
+    if (event?.id) {
+      try {
+        const d = await fetch(`/api/calendar/${event.id}/meeting-link`, { method: 'POST' }).then(r => r.json());
+        inp.value = d.meeting_url; toast('video room added', 'success');
+      } catch { toast('failed', 'error'); }
+    } else {
+      // new event: mint a room name client-side; saved with the event
+      const slug = (document.getElementById('cal-title').value || 'Meet').replace(/[^a-zA-Z0-9]+/g, '').slice(0, 24) || 'Meet';
+      inp.value = `https://meet.jit.si/${slug}-${Math.random().toString(36).slice(2, 12)}`;
+    }
+  });
+
+  // 8b — invites + rsvp (existing events only)
+  if (event?.id) renderAttendees(event.id);
+  document.getElementById('cal-inv-btn')?.addEventListener('click', async () => {
+    const name = document.getElementById('cal-inv-name').value.trim();
+    const email = document.getElementById('cal-inv-email').value.trim();
+    if (!name && !email) { toast('name or email needed', ''); return; }
+    try {
+      await fetch(`/api/calendar/${event.id}/invite`, {
+        method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name, email }),
+      });
+      document.getElementById('cal-inv-name').value = '';
+      document.getElementById('cal-inv-email').value = '';
+      renderAttendees(event.id);
+    } catch { toast('invite failed', 'error'); }
+  });
+}
+
+const RSVP_LABEL = { invited: 'invited', accepted: 'yes', declined: 'no', tentative: 'maybe' };
+
+async function renderAttendees(eid) {
+  const box = document.getElementById('cal-invites');
+  if (!box) return;
+  const list = await fetch(`/api/calendar/${eid}/attendees`).then(r => r.json()).catch(() => []);
+  if (!list.length) { box.innerHTML = '<div class="cal-inv-empty">no invites yet</div>'; return; }
+  box.innerHTML = list.map(a => `
+    <div class="cal-inv-row" data-id="${a.id}">
+      <span class="cal-inv-who">${esc(a.name || a.email)}</span>
+      <span class="cal-inv-status s-${a.status}">${RSVP_LABEL[a.status] || a.status}</span>
+      <button class="cal-inv-x" data-act="del" title="remove">×</button>
+    </div>`).join('');
+  box.querySelectorAll('.cal-inv-row').forEach(row => {
+    row.querySelector('[data-act="del"]').addEventListener('click', async () => {
+      await fetch(`/api/calendar/attendees/${row.dataset.id}`, { method: 'DELETE' });
+      renderAttendees(eid);
+    });
+  });
 }
 
 function parseBydayJs(s) {
@@ -716,6 +946,7 @@ function collectBody(byday) {
     description: document.getElementById('cal-desc').value,
     location: document.getElementById('cal-loc').value.trim(),
     guests: document.getElementById('cal-guests').value.trim(),
+    meeting_url: document.getElementById('cal-meeting')?.value.trim() || '',
     start_dt: document.getElementById('cal-start').value,
     end_dt: document.getElementById('cal-end').value || null,
     all_day: document.getElementById('cal-allday').getAttribute('aria-checked') === 'true',
@@ -796,7 +1027,7 @@ async function openCaldavPanel() {
     <div class="cal-flabel" style="margin-top:0.4rem">app password</div>
     <input class="settings-input" id="cd-pass" type="password" placeholder="app-specific password" style="width:100%">
     <div class="cal-ed-actions">
-      <button class="btn" id="cd-back">← back</button>
+      <button class="btn ic-btn-lbl" id="cd-back">${_si('chevron-left')} back</button>
       <button class="btn" id="cd-save">save</button>
       <button class="btn primary" id="cd-sync">sync now</button>
     </div>

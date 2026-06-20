@@ -72,7 +72,7 @@ function _onPaneOpen(name) {
   if (name === 'appearance') loadAppearancePane();
   if (name === 'voice')      loadVoicePane();
   if (name === 'personas')   { loadPersonas(); loadCookbook(); }
-  if (name === 'tools')      { loadAgentStatus(); loadMcpServers(); loadConnections(); loadPermRules(); }
+  if (name === 'tools')      { loadAgentStatus(); loadMcpServers(); loadConnections(); loadPermRules(); loadMacosStatus(); }
   if (name === 'developer')  { loadTokens(); loadWebhooks(); loadShortcutSettings(); }
   if (name === 'rules')      loadRulesPane();
 }
@@ -213,6 +213,8 @@ function _initSettings() {
 
   // ── tools (mcp) ──
   document.getElementById('mcp-add-btn')?.addEventListener('click', addMcpServer);
+  document.getElementById('persona-doc-add')?.addEventListener('click', _addPersonaDoc);
+  document.getElementById('persona-share-btn')?.addEventListener('click', _sharePersona);
   document.getElementById('agent-status-refresh-btn')?.addEventListener('click', loadAgentStatus);
 
   // ── developer ──
@@ -963,15 +965,14 @@ function _fillPersonaModels(selected = '') {
   const sel = document.getElementById('persona-model');
   if (!sel) return;
   const eps = window._endpoints || [];
-  let html = '<option value="">— use chat\'s model</option>';
+  const opts = [{ value: '', label: "— use chat's model" }];
   for (const ep of eps) {
-    for (const m of (ep.models || [])) html += `<option value="${_esc(m)}">${_esc(m)}</option>`;
+    for (const m of (ep.models || [])) opts.push({ value: m, label: m });
   }
   // keep a pinned model that isn't in any endpoint's list (e.g. a renamed/removed one)
   if (selected && !eps.some(ep => (ep.models || []).includes(selected)))
-    html += `<option value="${_esc(selected)}">${_esc(selected)} (not in any endpoint)</option>`;
-  sel.innerHTML = html;
-  sel.value = selected || '';
+    opts.push({ value: selected, label: `${selected} (not in any endpoint)` });
+  populateDropdown(sel, opts, selected || '');   // custom dropdown — no native <select>
 }
 
 export async function loadPersonas() {
@@ -1009,9 +1010,54 @@ window._editPersona = id => {
   if (title) { title.textContent = `editing "${p.name}"`; title.hidden = false; }
   document.getElementById('persona-add-btn').textContent = 'save changes';
   document.getElementById('persona-cancel-btn').hidden = false;
+  const extra = document.getElementById('persona-extra');
+  if (extra) extra.hidden = false;   // 10d — knowledge files + share for a saved persona
+  _loadPersonaDocs(id);
   loadPersonas();   // re-render so the active row highlights
   document.getElementById('persona-prompt').focus();
 };
+
+// 10d — persona knowledge files + share
+async function _loadPersonaDocs(pid) {
+  const box = document.getElementById('persona-docs');
+  if (!box) return;
+  let docs;
+  try { docs = await fetch(`/api/personas/${pid}/docs`).then(r => r.json()); }
+  catch { box.innerHTML = ''; return; }
+  box.innerHTML = docs.length
+    ? docs.map(d => `<div class="persona-doc-row"><span>📄 ${_esc(d.title)}</span>` +
+        `<button class="act-btn" data-id="${_escAttr(d.id)}">remove</button></div>`).join('')
+    : '<div class="settings-row-empty">no knowledge files yet</div>';
+  box.querySelectorAll('.act-btn').forEach(b => b.onclick = async () => {
+    await fetch(`/api/personas/${pid}/docs/${b.dataset.id}`, { method: 'DELETE' });
+    _loadPersonaDocs(pid);
+  });
+}
+
+async function _addPersonaDoc() {
+  if (!_editingPersona) return;
+  const title = document.getElementById('persona-doc-title').value.trim();
+  const content = document.getElementById('persona-doc-content').value.trim();
+  if (!content) { toast('paste some text first', 'error'); return; }
+  await fetch(`/api/personas/${_editingPersona}/docs`, {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ title: title || 'untitled', content }),
+  });
+  document.getElementById('persona-doc-title').value = '';
+  document.getElementById('persona-doc-content').value = '';
+  toast('knowledge file added', 'success');
+  _loadPersonaDocs(_editingPersona);
+}
+
+async function _sharePersona() {
+  if (!_editingPersona) return;
+  try {
+    const r = await fetch(`/api/personas/${_editingPersona}/share`, { method: 'POST' }).then(x => x.json());
+    const url = location.origin + r.url;
+    try { await navigator.clipboard.writeText(url); toast('share link copied', 'success'); }
+    catch { toast(url, ''); }
+  } catch { toast('share failed', 'error'); }
+}
 
 function _resetPersonaForm() {
   _editingPersona = null;
@@ -1025,6 +1071,7 @@ function _resetPersonaForm() {
   const title = document.getElementById('persona-form-title'); if (title) title.hidden = true;
   document.getElementById('persona-add-btn').textContent = 'add persona';
   document.getElementById('persona-cancel-btn').hidden = true;
+  const extra = document.getElementById('persona-extra'); if (extra) extra.hidden = true;
   loadPersonas();
 }
 
@@ -1155,6 +1202,7 @@ async function loadAgentStatus() {
 export async function loadMcpServers() {
   const el = document.getElementById('mcp-server-list');
   if (!el) return;
+  _loadMcpPresets();  // 10d — render presets regardless of how many servers exist
   try {
     const servers = await fetch('/api/mcp/servers').then(r => r.json());
     if (!servers.length) { el.innerHTML = '<div class="settings-row-empty">no servers</div>'; return; }
@@ -1166,6 +1214,52 @@ export async function loadMcpServers() {
         <button class="act-btn" data-id="${s.id}" onclick="window._rmMcp(this)">remove</button>
       </div>`).join('');
   } catch { el.innerHTML = '<div class="settings-row-empty">failed to load</div>'; }
+}
+
+// 11a — macOS native integration status (available only on the Mac mini)
+async function loadMacosStatus() {
+  const box = document.getElementById('macos-status');
+  if (!box) return;
+  let cap;
+  try { cap = await fetch('/api/macos/status').then(r => r.json()); }
+  catch { box.innerHTML = '<div class="settings-row-empty">status unavailable</div>'; return; }
+  const dot = ok => `<span class="status-dot" style="background:${ok ? 'var(--green)' : 'var(--faint)'}"></span>`;
+  const row = (label, ok) => `<div class="macos-row">${dot(ok)}<span>${label}</span></div>`;
+  if (!cap.available) {
+    box.innerHTML = `<div class="settings-row-empty">unavailable on ${_esc(cap.platform)} — `
+      + 'macOS native integration runs on the Mac mini.</div>';
+    return;
+  }
+  box.innerHTML = '<div class="macos-avail">✓ available</div>'
+    + row('Keychain', cap.keychain)
+    + row('Calendar / Reminders (EventKit)', cap.eventkit)
+    + row('Photos (PhotoKit)', cap.photokit)
+    + row('iCloud Drive', cap.icloud);
+}
+
+// 10d — one-click connector presets
+async function _loadMcpPresets() {
+  const box = document.getElementById('mcp-presets');
+  if (!box) return;
+  let presets;
+  try { presets = await fetch('/api/mcp/presets').then(r => r.json()); }
+  catch { box.innerHTML = ''; return; }
+  box.innerHTML = presets.map(p =>
+    `<button class="btn mcp-preset" data-id="${_escAttr(p.id)}" title="${_escAttr(p.description)}">+ ${_esc(p.name)}</button>`
+  ).join('');
+  box.querySelectorAll('.mcp-preset').forEach(b => b.onclick = () => _addMcpPreset(b.dataset.id));
+}
+
+async function _addMcpPreset(id) {
+  toast('adding connector…');
+  try {
+    const r = await fetch(`/api/mcp/presets/${encodeURIComponent(id)}`, {
+      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ params: {} }),
+    });
+    if (!r.ok) throw new Error(r.status);
+    toast('connector added — edit its args if it needs a path/key', 'success');
+    loadMcpServers();
+  } catch { toast('could not add connector', 'error'); }
 }
 
 window._rmMcp = async btn => {

@@ -1,13 +1,15 @@
+import asyncio
+import json
 import os
 import struct
-import asyncio
 import tempfile
+import time
 import unittest
 from pathlib import Path
 from unittest import mock
 
-from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import ec
 
 from services import webpush as wp
 
@@ -83,6 +85,51 @@ class WebPushTest(unittest.TestCase):
     def test_send_push_alive_on_201(self):
         with mock.patch.object(wp.httpx, "AsyncClient", _fake_client(201)):
             self.assertTrue(asyncio.run(wp.send_push(self._sub(), {"title": "t"})))
+
+    def test_b64u_empty_bytes(self):
+        # empty payload should roundtrip cleanly and produce empty string
+        self.assertEqual(wp._b64u(b""), "")
+        self.assertEqual(wp._b64u_dec(""), b"")
+
+    def test_vapid_jwt_claims(self):
+        # parse the three JWT parts and verify aud + exp fields are sensible
+        h = wp._vapid_auth("https://fcm.googleapis.com/push/abc")
+        # format: "vapid t=<header>.<payload>.<sig>, k=<pubkey>"
+        token_part = h[len("vapid t=") :].split(", k=")[0]
+        parts = token_part.split(".")
+        self.assertEqual(len(parts), 3)
+        header_json = json.loads(wp._b64u_dec(parts[0]))
+        self.assertEqual(header_json["alg"], "ES256")
+        payload_json = json.loads(wp._b64u_dec(parts[1]))
+        self.assertEqual(payload_json["aud"], "https://fcm.googleapis.com")
+        self.assertGreater(payload_json["exp"], int(time.time()))
+
+    def test_encrypt_two_calls_differ(self):
+        # each call picks a fresh salt+ephemeral key, so ciphertext must differ
+        sub = self._sub()
+        c1 = wp._encrypt(b"same msg", sub["p256dh"], sub["auth"])
+        c2 = wp._encrypt(b"same msg", sub["p256dh"], sub["auth"])
+        self.assertNotEqual(c1, c2)
+
+    def test_send_push_survives_network_exception(self):
+        # network errors should return True (treat as transient, don't prune)
+        class _ErrClient:
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *a):
+                return False
+
+            async def post(self, *a, **k):
+                raise OSError("connection refused")
+
+        with mock.patch.object(wp.httpx, "AsyncClient", lambda *a, **k: _ErrClient()):
+            self.assertTrue(asyncio.run(wp.send_push(self._sub(), {"title": "t"})))
+
+    def test_send_push_prunes_on_404(self):
+        # 404 is also a dead subscription, should return False
+        with mock.patch.object(wp.httpx, "AsyncClient", _fake_client(404)):
+            self.assertFalse(asyncio.run(wp.send_push(self._sub(), {"title": "t"})))
 
 
 if __name__ == "__main__":

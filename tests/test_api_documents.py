@@ -39,3 +39,61 @@ class DocumentsApiTest(ApiTest):
             self.client.post("/api/documents/nope/ai-edit", json={"instruction": "x"}).status_code,
             404,
         )
+
+    def test_defaults(self):
+        d = self.client.post("/api/documents", json={}).json()
+        self.assertEqual(d["title"], "untitled")
+        self.assertEqual(d["doc_type"], "md")
+        self.assertEqual(d["content"], "")
+        self.assertEqual(d["content_len"], 0)
+
+    def test_list_no_content_field(self):
+        self.client.post("/api/documents", json={"title": "x", "content": "abc"})
+        lst = self.client.get("/api/documents").json()
+        self.assertEqual(len(lst), 1)
+        self.assertNotIn("content", lst[0])
+        self.assertIn("content_len", lst[0])
+
+    def test_ordering_newest_first(self):
+        a = self.client.post("/api/documents", json={"title": "a"}).json()["id"]
+        b = self.client.post("/api/documents", json={"title": "b"}).json()["id"]
+        # touch a so it becomes most recently updated
+        self.client.patch(f"/api/documents/{a}", json={"title": "a2"})
+        ids = [x["id"] for x in self.client.get("/api/documents").json()]
+        self.assertEqual(ids[0], a)
+        self.assertEqual(ids[1], b)
+
+    def test_patch_only_content_keeps_title(self):
+        did = self.client.post(
+            "/api/documents", json={"title": "keep-me", "content": "old"}
+        ).json()["id"]
+        r = self.client.patch(f"/api/documents/{did}", json={"content": "new"}).json()
+        self.assertEqual(r["title"], "keep-me")
+        self.assertEqual(r["content"], "new")
+
+    def test_patch_only_title_keeps_content(self):
+        did = self.client.post("/api/documents", json={"title": "t", "content": "stay"}).json()[
+            "id"
+        ]
+        r = self.client.patch(f"/api/documents/{did}", json={"title": "renamed"}).json()
+        self.assertEqual(r["title"], "renamed")
+        self.assertEqual(r["content"], "stay")
+
+    def test_patch_doc_type(self):
+        did = self.client.post("/api/documents", json={"title": "t", "doc_type": "md"}).json()["id"]
+        r = self.client.patch(f"/api/documents/{did}", json={"doc_type": "txt"}).json()
+        self.assertEqual(r["doc_type"], "txt")
+
+    def test_content_len_updates_after_patch(self):
+        did = self.client.post("/api/documents", json={"content": "hi"}).json()["id"]
+        self.assertEqual(self.client.get(f"/api/documents/{did}").json()["content_len"], 2)
+        self.client.patch(f"/api/documents/{did}", json={"content": "longer now"})
+        self.assertEqual(self.client.get(f"/api/documents/{did}").json()["content_len"], 10)
+
+    def test_multiple_docs_in_list(self):
+        ids = set()
+        for i in range(3):
+            ids.add(self.client.post("/api/documents", json={"title": f"d{i}"}).json()["id"])
+        lst = self.client.get("/api/documents").json()
+        self.assertEqual(len(lst), 3)
+        self.assertEqual({x["id"] for x in lst}, ids)

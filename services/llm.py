@@ -364,9 +364,10 @@ async def _parse_openai(resp) -> AsyncGenerator[dict, None]:
         except Exception:
             continue
 
-        if "usage" in d and not d.get("choices"):
+        # grab usage whenever it shows up — combined with the finish chunk OR in a
+        # trailing usage-only chunk (deepseek/openai/groq send it after finish_reason).
+        if d.get("usage"):
             usage = d["usage"]
-            continue
 
         choices = d.get("choices") or []
         if not choices:
@@ -397,7 +398,9 @@ async def _parse_openai(resp) -> AsyncGenerator[dict, None]:
 
         fr = choices[0].get("finish_reason")
         if fr and fr != "tool_calls":
-            # emit tool calls if finish_reason came before [DONE]
+            # emit accumulated tool calls now, but DON'T return — OpenAI-compat sends the
+            # usage in a trailing chunk after finish_reason (with include_usage), so
+            # returning here dropped token counts for every provider but Anthropic.
             for idx in sorted(tool_acc):
                 tc = tool_acc[idx]
                 try:
@@ -406,8 +409,8 @@ async def _parse_openai(resp) -> AsyncGenerator[dict, None]:
                     args = {}
                 yield {"tool_call": {"call_id": tc["id"], "name": tc["name"], "args": args}}
             tool_acc.clear()
-            yield {"done": True, "usage": usage}
-            return
+            # keep reading for the trailing usage chunk + [DONE]
+            continue
 
     yield {"done": True, "usage": usage}
 

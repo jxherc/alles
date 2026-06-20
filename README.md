@@ -565,7 +565,7 @@ web push implemented straight from the rfcs — zero extra dependencies
 
 the dependency list is deliberately small — `fastapi`, `uvicorn`, `httpx`, `sqlalchemy`, `pydantic`, `cryptography`, `bcrypt`, `fastembed`, `python-docx`, `pillow`, `psutil` (the live system monitor), plus `beautifulsoup4` + `trafilatura` + `ddgs` for research (reading and searching the web). optional extras are opt-in and clearly marked: `pyautogui` (agent computer-use), `faster-whisper` (offline voice), `caldav` (calendar sync), `pypdf` (pdf import).
 
-the frontend is genuinely just files: `static/index.html` is the whole app shell, `static/js/` is **one es module per feature** (~40 of them — `app.js`, `chat.js`, `vaultmd.js`, `mail.js`, `agent`-related, etc.) imported by `app.js`, and `static/style.css` holds the design tokens (sharp, monochrome, 2–3px radii, no shadows). "view source" actually shows you the app. the **one** exception is the docs editor: codemirror 6 is vendored as a single pre-built file (`static/vendor/cm6.bundle.js`), so there's still no build step you have to run.
+the frontend is genuinely just files: `static/index.html` is the whole app shell, `static/js/` is **one es module per feature** (~40 of them — `app.js`, `chat.js`, `vaultmd.js`, `mail.js`, `agent`-related, etc.) imported by `app.js`, and `static/style.css` holds the design tokens (sharp, monochrome, 2–3px radii, no shadows). "view source" actually shows you the app. the only pre-built drop-ins are two vendored files — codemirror 6 for the docs editor (`static/vendor/cm6.bundle.js`) and leaflet for the gallery places map (`static/vendor/leaflet/`) — so there's still no build step you have to run.
 
 ---
 
@@ -607,7 +607,7 @@ alles/
     ├── index.html         the app shell
     ├── style.css          design tokens + all styling
     ├── sw.js              service worker (offline shell + push)
-    ├── vendor/            the prebuilt codemirror 6 bundle (no build step)
+    ├── vendor/            prebuilt drop-ins: codemirror 6 + leaflet (no build step)
     └── js/                ~40 es modules, one per feature, imported by app.js
 ```
 
@@ -657,7 +657,7 @@ every push runs the full suite on **GitHub Actions CI** (`.github/workflows/test
 
 aide was inspired by **[odysseus](https://github.com/pewdiepie-archdaemon/odysseus)** by pewdiepie-archdaemon. the concept — a self-hosted personal ai with memory, research mode, shell access, mcp, a multi-provider model backend, and a suite of apps around it — comes from that project. alles is an independent reimplementation written from scratch, but odysseus is where the idea came from and it deserves the credit. go give that repo a star. full note in [ACKNOWLEDGMENTS.md](./ACKNOWLEDGMENTS.md).
 
-it stands on the shoulders of some great open-source work: [fastapi](https://fastapi.tiangolo.com) + [uvicorn](https://www.uvicorn.org), [sqlalchemy](https://www.sqlalchemy.org), [httpx](https://www.python-httpx.org), [fastembed](https://github.com/qdrant/fastembed), [codemirror](https://codemirror.net), [katex](https://katex.org), [mermaid](https://mermaid.js.org), [pillow](https://python-pillow.org), [python-docx](https://python-docx.readthedocs.io), [pypdf](https://pypdf.readthedocs.io), [cryptography](https://cryptography.io), and python's own `imaplib`/`smtplib`. models come from whichever provider you point it at; local ones via [ollama](https://ollama.com).
+it stands on the shoulders of some great open-source work: [fastapi](https://fastapi.tiangolo.com) + [uvicorn](https://www.uvicorn.org), [sqlalchemy](https://www.sqlalchemy.org), [httpx](https://www.python-httpx.org), [fastembed](https://github.com/qdrant/fastembed), [codemirror](https://codemirror.net), [leaflet](https://leafletjs.com) with map tiles from [openstreetmap](https://www.openstreetmap.org/copyright), [katex](https://katex.org), [mermaid](https://mermaid.js.org), [pillow](https://python-pillow.org), [python-docx](https://python-docx.readthedocs.io), [pypdf](https://pypdf.readthedocs.io), [cryptography](https://cryptography.io), and python's own `imaplib`/`smtplib`. models come from whichever provider you point it at; local ones via [ollama](https://ollama.com).
 
 ---
 

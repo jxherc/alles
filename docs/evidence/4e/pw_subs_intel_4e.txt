@@ -1,0 +1,8 @@
+PASS  detected_strip_or_empty
+PASS  adopt_creates_sub
+PASS  unused_badge_shows
+PASS  cancel_by_shows
+PASS  cancel_url_saves_and_links
+PASS  low_balance_alert_chip
+PASS  low_balance_threshold_settable
+PASS  zero_console_errors

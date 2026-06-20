@@ -1,0 +1,10 @@
+PASS  files_deleted_hidden_from_listing
+PASS  files_trash_button_present
+PASS  files_in_trash_after_delete
+PASS  files_restored_back
+PASS  files_gone_from_trash_after_restore
+PASS  photos_trash_button_present
+PASS  photos_deleted_hidden
+PASS  photos_in_trash
+PASS  photos_restored_back
+PASS  zero_console_errors

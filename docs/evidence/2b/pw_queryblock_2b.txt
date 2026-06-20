@@ -1,0 +1,8 @@
+PASS  queryblock_rendered
+PASS  queryblock_has_results
+PASS  queryblock_grouped
+PASS  query_panel_opens
+PASS  save_view_works
+PASS  saved_view_persists
+PASS  insert_block_adds_fence
+PASS  zero_console_errors

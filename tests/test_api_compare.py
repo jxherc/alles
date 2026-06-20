@@ -1,7 +1,7 @@
 import json
 
-from tests._client import ApiTest
 from core.database import ModelEndpoint
+from tests._client import ApiTest
 
 
 class CompareApiTest(ApiTest):
@@ -38,3 +38,64 @@ class CompareApiTest(ApiTest):
 
     def test_stream_bad_id_404(self):
         self.assertEqual(self.client.get("/api/compare/nope/stream/0").status_code, 404)
+
+    def test_delete_missing_id_ok(self):
+        # deleting a non-existent compare_id should still return ok (idempotent)
+        r = self.client.delete("/api/compare/no-such-id")
+        self.assertEqual(r.json(), {"ok": True})
+
+    def test_stream_bad_index_404(self):
+        eid = self._endpoint()
+        r = self.client.post(
+            "/api/compare",
+            json={"message": "hi", "models": [{"endpoint_id": eid, "model": "m1"}]},
+        ).json()
+        cid = r["compare_id"]
+        # slot 99 doesn't exist
+        self.assertEqual(self.client.get(f"/api/compare/{cid}/stream/99").status_code, 404)
+
+    def test_two_endpoints_both_counted(self):
+        d = self.db()
+        ep1 = ModelEndpoint(name="E1", base_url="http://a", cached_models=json.dumps(["ma"]))
+        ep2 = ModelEndpoint(name="E2", base_url="http://b", cached_models=json.dumps(["mb"]))
+        d.add_all([ep1, ep2])
+        d.commit()
+        eid1, eid2 = ep1.id, ep2.id
+        d.close()
+        r = self.client.post(
+            "/api/compare",
+            json={
+                "message": "compare",
+                "models": [
+                    {"endpoint_id": eid1, "model": "ma"},
+                    {"endpoint_id": eid2, "model": "mb"},
+                ],
+            },
+        ).json()
+        self.assertEqual(r["count"], 2)
+
+    def test_compare_id_is_uuid_string(self):
+        eid = self._endpoint()
+        r = self.client.post(
+            "/api/compare",
+            json={"message": "hi", "models": [{"endpoint_id": eid, "model": "m1"}]},
+        ).json()
+        import uuid
+
+        # should parse as a valid UUID
+        uuid.UUID(r["compare_id"])  # raises ValueError if not valid
+
+    def test_mixed_valid_and_invalid_endpoints(self):
+        eid = self._endpoint()
+        r = self.client.post(
+            "/api/compare",
+            json={
+                "message": "hi",
+                "models": [
+                    {"endpoint_id": eid, "model": "m1"},
+                    {"endpoint_id": "bogus", "model": "x"},
+                ],
+            },
+        ).json()
+        # only the real one makes it in
+        self.assertEqual(r["count"], 1)

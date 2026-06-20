@@ -1,0 +1,12 @@
+PASS  fold_gutter_present
+PASS  fold_marker_clickable
+PASS  fold_collapses_section
+PASS  preview_wikilink_present
+PASS  hover_preview_appears
+PASS  hover_preview_has_excerpt
+PASS  bookmark_toggles_on
+PASS  bookmark_shows_on_home
+PASS  bookmark_home_opens_doc
+PASS  tag_tree_nested
+PASS  tag_tree_toggle_collapses
+PASS  zero_console_errors

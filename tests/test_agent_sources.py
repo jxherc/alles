@@ -42,6 +42,56 @@ class AgentSourcesTest(unittest.TestCase):
     def test_missing_run(self):
         self.assertEqual(ast.run_sources("nope"), {})
 
+    def test_edit_file_tracked_as_file(self):
+        r = ast.start_run("s2", "m", 5)
+        rid = r["id"]
+        ast.record_event(rid, "tool_start", {"name": "edit_file", "args": {"path": "routes/x.py"}})
+        src = ast.run_sources(rid)
+        self.assertIn("routes/x.py", src["files"])
+
+    def test_apply_patch_tracked_as_file(self):
+        r = ast.start_run("s3", "m", 5)
+        rid = r["id"]
+        ast.record_event(rid, "tool_start", {"name": "apply_patch", "args": {"path": "main.py"}})
+        src = ast.run_sources(rid)
+        self.assertIn("main.py", src["files"])
+
+    def test_github_get_file_tracked_as_url(self):
+        r = ast.start_run("s4", "m", 5)
+        rid = r["id"]
+        ast.record_event(
+            rid,
+            "tool_start",
+            {"name": "github_get_file", "args": {"path": "https://github.com/org/repo/file.py"}},
+        )
+        src = ast.run_sources(rid)
+        self.assertIn("https://github.com/org/repo/file.py", src["urls"])
+
+    def test_no_events_gives_empty_lists(self):
+        r = ast.start_run("s5", "m", 5)
+        src = ast.run_sources(r["id"])
+        self.assertEqual(src["files"], [])
+        self.assertEqual(src["urls"], [])
+        self.assertEqual(src["searches"], [])
+        self.assertEqual(src["commands"], [])
+
+    def test_duplicate_files_deduplicated(self):
+        r = ast.start_run("s6", "m", 5)
+        rid = r["id"]
+        ast.record_event(rid, "tool_start", {"name": "read_file", "args": {"path": "app.py"}})
+        ast.record_event(rid, "tool_start", {"name": "read_file", "args": {"path": "app.py"}})
+        src = ast.run_sources(rid)
+        self.assertEqual(src["files"].count("app.py"), 1)
+
+    def test_searches_preserve_order(self):
+        r = ast.start_run("s7", "m", 5)
+        rid = r["id"]
+        ast.record_event(rid, "tool_start", {"name": "web_search", "args": {"query": "alpha"}})
+        ast.record_event(rid, "tool_start", {"name": "web_search", "args": {"query": "beta"}})
+        ast.record_event(rid, "tool_start", {"name": "web_search", "args": {"query": "gamma"}})
+        src = ast.run_sources(rid)
+        self.assertEqual(src["searches"], ["alpha", "beta", "gamma"])
+
 
 class RunsSummaryTest(unittest.TestCase):
     def setUp(self):

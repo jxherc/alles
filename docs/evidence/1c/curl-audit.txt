@@ -1,0 +1,8 @@
+=== 1c audit: existing rag (vault-only, in-memory) ===
+## GET /api/rag/status
+{"indexed":0,"built":false}
+## POST /api/rag/reindex
+{"indexed":0}
+## probe generic index endpoints (expect 404 — not built)
+/api/index/search -> 404
+/api/index/reindex -> 404

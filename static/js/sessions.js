@@ -4,6 +4,7 @@ import { renderProjectFolders, loadProjects, getProjects } from './projects.js';
 import { applyResponsePrivacy, stripEmojis, welcomeEnabled } from './privacy.js';
 import { renderAgentSteps } from './agentview.js';
 import { isIncognitoMode } from './modes.js';
+import { getCurrentEndpoint, getSelected } from './models.js';
 
 let _sessions = { today: [], yesterday: [], earlier: [] };
 let _activeId = null;
@@ -259,10 +260,15 @@ export async function selectSession(id) {
     try {
       window._refreshPersonaBtn?.();
     } catch (e) {}
+    // 10b — if a background agent run is still going for this session, reattach to it
+    import('./bgrun.js').then(m => m.reattach(id)).catch(() => {});
   } catch (e) {
     console.error('selectSession', e);
   }
 }
+
+// let bgrun.js refresh the conversation once a background run finishes
+window._reloadActiveSession = () => { if (_activeId) selectSession(_activeId); };
 
 
 function renderMessages(msgs) {
@@ -627,6 +633,20 @@ export async function createSession(model = '', endpointId = '', options = {}) {
   return s;
 }
 
+
+// return the active session id, or lazily create one (so research/docs-ask work on a
+// fresh chat exactly like a normal first message does).
+export async function ensureSession(options = {}) {
+  const existing = getActiveId();
+  if (existing) return existing;
+  const ep = getCurrentEndpoint();
+  if (!ep) { toast('no endpoint configured — add one via the model picker', 'error'); return null; }
+  const model = getSelected()?.model || ep.models?.[0] || '';
+  const s = await createSession(model, ep.id, options);
+  if (!s) { toast('failed to create session', 'error'); return null; }
+  markActive(s.id);
+  return s.id;
+}
 
 export function updateSessionName(id, name) {
   _allSessions.forEach(s => { if (s.id === id) s.name = name; });

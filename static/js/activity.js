@@ -56,8 +56,8 @@ function renderFilters() {
   if (!wrap) return;
   const chips = TYPES.map(t =>
     `<button class="act-chip${_off.has(t.key) ? ' off' : ''}" data-k="${t.key}">${GLYPH[t.key]} ${t.label}</button>`).join('');
-  const ranges = `<span class="act-range">${RANGES.map(([d, l]) =>
-    `<button class="act-range-opt${d === _days ? ' on' : ''}" data-d="${d}">${l}</button>`).join('')}</span>`;
+  const ranges = `<span class="seg seg-sm act-seg">${RANGES.map(([d, l]) =>
+    `<button class="seg-opt${d === _days ? ' active' : ''}" data-d="${d}">${l}</button>`).join('')}</span>`;
   const search = `<input type="text" id="act-search" class="act-search" placeholder="search activity…" value="${esc(_q)}">`;
   wrap.innerHTML = chips + ranges + search;
   wrap.querySelectorAll('.act-chip').forEach(b => b.addEventListener('click', () => {
@@ -68,9 +68,9 @@ function renderFilters() {
     _writeUrl();
     load();
   }));
-  wrap.querySelectorAll('.act-range-opt').forEach(b => b.addEventListener('click', () => {
+  wrap.querySelectorAll('.act-seg .seg-opt').forEach(b => b.addEventListener('click', () => {
     _days = +b.dataset.d || 30;
-    wrap.querySelectorAll('.act-range-opt').forEach(x => x.classList.toggle('on', x === b));
+    wrap.querySelectorAll('.act-seg .seg-opt').forEach(x => x.classList.toggle('active', x === b));
     _writeUrl();
     load();
   }));

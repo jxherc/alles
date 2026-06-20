@@ -1,0 +1,8 @@
+PASS  carddav_button
+PASS  connect_dialog_opens
+PASS  dialog_has_fields
+PASS  connect_saves_status
+PASS  status_connected_after
+PASS  sync_button_calls
+PASS  disconnect_clears
+PASS  zero_console_errors

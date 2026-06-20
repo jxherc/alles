@@ -1,0 +1,8 @@
+PASS  versions_button_present
+PASS  popover_opens
+PASS  popover_lists_version
+PASS  current_is_latest_before_restore
+PASS  restore_reverts_content
+PASS  popover_closed_after_restore
+PASS  restore_is_undoable
+PASS  zero_console_errors

@@ -1,25 +1,10 @@
 import { toast } from './util.js';
 import { confirm as _dlgConfirm } from './dialog.js';
+import { providerLogo, providerKey, brandColor } from './brandlogo.js';
+import { sortModels, filterNewest } from './modelfilter.js';
 
 let _endpoints = [];
 let _selected = null;   // { endpointId, model }
-
-const _PROVIDER_COLOR = {
-  deepseek:   '#4d9ef5',
-  anthropic:  '#d4a574',
-  openai:     '#74aa9c',
-  openrouter: '#818cf8',
-  ollama:     '#6e6e6e',
-  groq:       '#f59e0b',
-  moonshot:   '#a78bfa',
-  xai:        '#60a5fa',
-  gemini:     '#34d399',
-  mistral:    '#f97316',
-  perplexity: '#22d3ee',
-  together:   '#fb7185',
-  fireworks:  '#fbbf24',
-  cohere:     '#a3e635',
-};
 
 const PRESETS = [
   { name: 'OpenAI',      url: 'https://api.openai.com',                              key: 'sk-...' },
@@ -68,7 +53,15 @@ export function getCurrentEndpoint() {
 // "claude-opus-4-8" → "opus 4.8", "deepseek-v4-flash" → "deepseek v4 flash"
 export function prettyModel(id = '') {
   let s = String(id).split('/').pop();                          // drop "vendor/" prefix
+  // deepseek branding: drop the word "deepseek", map the two tiers to v4 pro / v4 flash
+  const ds = s.toLowerCase();
+  if (ds.includes('deepseek') || ds.includes('reasoner')) {
+    if (ds.includes('reasoner')) return 'v4 pro';
+    if (ds.includes('chat')) return 'v4 flash';
+    s = s.replace(/deepseek[-_]?/i, '');
+  }
   s = s.replace(/^claude-/, '');                                // redundant w/ opus/sonnet/haiku
+  s = s.replace(/^kimi[-_]?/i, '');                             // moonshot/kimi → just the model (e.g. "k2.7 code")
   s = s.replace(/[-_ ]?20\d{2}[-_]?\d{2}[-_]?\d{2}$/, '');      // drop trailing release date
   s = s.replace(/(\d)[-_](\d)/g, '$1.$2');                      // version dashes → dots (4-8 → 4.8)
   s = s.replace(/[-_]/g, ' ').trim();                           // the rest → spaces
@@ -82,96 +75,75 @@ export function isImageSelected() {
   return !!ep && (ep.image_models || []).includes(_selected.model);
 }
 
-// ── sorting: class-grouped, newest-first ────────────────────────────────────
-// providers hand back model lists in arbitrary order. rank each id by class/tier
-// (flagship → mini) then recency (date, then version) so the headline + newest
-// models sit on top and a family stays grouped together. heuristic, but covers
-// the common provider ladders; falls back to alpha.
-function _modelRank(id) {
-  const s = String(id).toLowerCase();
-  const TIERS = [
-    [/opus|gpt-5|o3|o4|grok-4|ultra|-pro\b|reasoner|405b/, 6],
-    [/sonnet|gpt-4o|gpt-4\.1|o1\b|deepseek-r1|grok-3|72b|-70b|large/, 5],
-    [/haiku|gpt-4\b|deepseek-v3|deepseek-chat|gemini-[12]\.\d-pro|-3[234]b|medium/, 4],
-    [/mini|flash\b|turbo|coder|small|-(7|8|9)b\b/, 3],
-    [/nano|lite|tiny|gemma|phi|-[1-3]b\b/, 2],
-  ];
-  let tier = 1;
-  for (const [re, t] of TIERS) if (re.test(s)) { tier = t; break; }
-  // a release date (if present) — only a tiebreaker; newest families often have none
-  const dm = s.match(/(20\d{2})[-_]?(\d{2})[-_]?(\d{2})/);
-  const dscore = dm ? Number(dm[1] + dm[2] + dm[3]) : 0;
-  // version = the FIRST number once dates + size tokens are gone. (max-number trips
-  // on "70b" and the date digits; first-number tracks the family version: claude-3-…
-  // → 3, gpt-4o → 4, gemini-2.5-pro → 2.5.)
-  const cleaned = s.replace(/(20\d{2})[-_]?\d{2}[-_]?\d{2}/g, ' ').replace(/\d+(\.\d+)?b\b/g, ' ');
-  // major.minor so 4-8 (4.08) sorts above 4-5 (4.05); size tokens already stripped
-  const nums = (cleaned.match(/\d+(\.\d+)?/g) || []).map(parseFloat);
-  let ver = nums.length ? nums[0] + Math.min(nums[1] || 0, 99) / 100 : 0;
-  if (/latest|preview|exp|thinking/.test(s)) ver += 0.25;
-  return { tier, ver, dscore };
-}
-function _sortModels(models) {
-  return [...models].sort((a, b) => {
-    const x = _modelRank(a), y = _modelRank(b);
-    return (y.tier - x.tier) || (y.ver - x.ver) || (y.dscore - x.dscore) || a.localeCompare(b);
-  });
+function _isImageModel(endpointId, model) {
+  const ep = _endpoints.find(e => e.id === endpointId);
+  return !!ep && (ep.image_models || []).includes(model);
 }
 
-// ── "newest only" — collapse each family to its latest release ───────────────
+// optional companion image-gen model — the "image slot" — kept separate from the primary chat
+// model so you can run e.g. sonnet (chat) + gpt-image-2 (images) at once. chat auto-routes
+// image requests here. selecting an image model in the picker fills this instead of swapping
+// out the chat model.
+let _imageSlot = JSON.parse(localStorage.getItem('aide-image-model') || 'null');
+export function getImageSlot() {
+  if (!_imageSlot) return null;
+  // drop it if a refresh pruned the model (no longer offered by the endpoint)
+  if (!_isImageModel(_imageSlot.endpointId, _imageSlot.model)) return null;
+  return _imageSlot;
+}
+export function setImageSlot(endpointId, model) {
+  _imageSlot = (endpointId && model) ? { endpointId, model } : null;
+  if (_imageSlot) localStorage.setItem('aide-image-model', JSON.stringify(_imageSlot));
+  else localStorage.removeItem('aide-image-model');
+  updateTopbar();
+  renderModelList(document.getElementById('model-search-input')?.value || '');
+  renderSidebarModelList(document.getElementById('sidebar-model-search')?.value || '');
+}
+
+// ordering + "newest only" collapsing live in modelfilter.js (pure, unit-tested). this module
+// just owns the toggle state and passes it in.
 let _newestOnly = localStorage.getItem('aide-newest-only') === '1';
 export function getNewestOnly() { return _newestOnly; }
 export function setNewestOnly(on) {
   _newestOnly = !!on;
   localStorage.setItem('aide-newest-only', _newestOnly ? '1' : '0');
+  // keep every newest-only switch in the ui in sync (top picker modal + models page)
+  document.querySelectorAll('.newest-only-switch, #newest-only-switch').forEach(sw => sw.classList.toggle('on', _newestOnly));
   renderModelList(document.getElementById('model-search-input')?.value || '');
   renderSidebarModelList(document.getElementById('sidebar-model-search')?.value || '');
 }
-
-// family = the id with versions + dates stripped, so opus-4-8 / opus-4-5 / 3-opus
-// all collapse to "claude opus" and we keep just the newest.
-function _familyKey(id) {
-  return String(id).toLowerCase().split('/').pop()
-    .replace(/(20\d{2})[-_]?\d{2}[-_]?\d{2}/g, ' ')   // dates
-    .replace(/\d+(\.\d+)?/g, ' ')                       // version numbers
-    .replace(/[-_.]+/g, ' ').replace(/\s+/g, ' ').trim();
-}
-// finer than _modelRank.ver: major.minor so 4-8 (4.08) beats 4-5 (4.05)
-function _verScore(id) {
-  const nums = (String(id).toLowerCase().replace(/(20\d{2})[-_]?\d{2}[-_]?\d{2}/g, ' ')
-    .match(/\d+(\.\d+)?/g) || []).map(parseFloat);
-  if (!nums.length) return 0;
-  return nums[0] + Math.min(nums[1] || 0, 99) / 100;
-}
-function _dateScore(id) {
-  const m = String(id).match(/(20\d{2})[-_]?(\d{2})[-_]?(\d{2})/);
-  return m ? Number(m[1] + m[2] + m[3]) : 0;
-}
-function _filterNewest(models) {
-  if (!_newestOnly) return models;
-  const best = new Map();
-  for (const m of models) {
-    const k = _familyKey(m), cur = best.get(k);
-    if (!cur) { best.set(k, m); continue; }
-    const newer = _verScore(m) > _verScore(cur) ||
-      (_verScore(m) === _verScore(cur) && _dateScore(m) > _dateScore(cur));
-    if (newer) best.set(k, m);
-  }
-  const keep = new Set(best.values());
-  return models.filter(m => keep.has(m));
-}
+const _filterNewest = m => filterNewest(m, _newestOnly);
 
 function updateTopbar() {
   const label = document.getElementById('model-label');
   const dot = document.getElementById('live-dot');
   if (_selected) {
     label.textContent = prettyModel(_selected.model);
-    dot.classList.remove('offline');
     const ep = getCurrentEndpoint();
+    // the "glowing thing" becomes the provider's glowing brand logo
+    dot.classList.remove('offline');
+    dot.classList.add('has-logo');
+    dot.innerHTML = providerLogo(providerKey([ep && ep.provider, ep && ep.name, ep && ep.base_url, _selected.model].filter(Boolean).join(' ')), { size: 13 });
     if (ep) window._currentEndpoint = ep;
   } else {
     label.textContent = 'no model';
+    dot.classList.remove('has-logo');
+    dot.innerHTML = '';
     dot.classList.add('offline');
+  }
+  // companion image-slot chip
+  const slotBtn = document.getElementById('image-slot-btn');
+  if (slotBtn) {
+    const slot = getImageSlot();
+    // hide it when the primary IS the image model (legacy single-pick) — no point showing twice
+    if (slot && !(isImageSelected() && _selected.model === slot.model)) {
+      const ep = _endpoints.find(e => e.id === slot.endpointId);
+      document.getElementById('image-slot-label').textContent = prettyModel(slot.model);
+      document.getElementById('image-slot-ic').innerHTML = providerLogo(providerKey([ep && ep.provider, ep && ep.name, ep && ep.base_url, slot.model].filter(Boolean).join(' ')), { size: 12 });
+      slotBtn.style.display = '';
+    } else {
+      slotBtn.style.display = 'none';
+    }
   }
 }
 
@@ -182,10 +154,15 @@ export function renderModelList(filter = '') {
   let html = '';
   for (const ep of _endpoints) {
     const keep = m => !fl || m.toLowerCase().includes(fl);
-    const models = _filterNewest(_sortModels(ep.models.filter(keep)));
-    const imgs = _filterNewest(_sortModels((ep.image_models || []).filter(keep)));
+    const models = _filterNewest(sortModels(ep.models.filter(keep)));
+    const imgs = _filterNewest(sortModels((ep.image_models || []).filter(keep)));
     if (!models.length && !imgs.length && fl) continue;
-    const color = _PROVIDER_COLOR[ep.provider] || '#6e6e6e';
+    // detect from provider + name + url so openai-compatible endpoints (moonshot, groq,
+    // openrouter…) get their real brand colour + logo, not the generic openai one. raw
+    // ep.provider would paint moonshot/groq the same teal as gpt (they report 'openai').
+    const epCtx = [ep.provider, ep.name, ep.base_url].filter(Boolean).join(' ');
+    const color = brandColor(providerKey(epCtx));
+    const logoFor = m => providerLogo(providerKey(epCtx + ' ' + m), { size: 14 });
     html += `<div class="provider-label" style="color:${color}">${ep.name}</div>`;
     if (!models.length && !imgs.length) {
       html += `<div style="padding:0.3rem 1rem;font-size:0.72rem;color:var(--muted)">
@@ -198,14 +175,15 @@ export function renderModelList(filter = '') {
       const isActive = _selected?.endpointId === ep.id && _selected?.model === m;
       const eye = visionSet.has(m) ? '<span class="model-vision-badge" title="vision">👁</span>' : '';
       html += `<div class="model-row${isActive ? ' active' : ''}" data-ep="${ep.id}" data-model="${escAttr(m)}">
-        <div class="model-dot"></div>
+        ${logoFor(m)}
         <span class="model-name" title="${escAttr(m)}">${escHtml(prettyModel(m))}</span>${eye}
       </div>`;
     }
     for (const m of imgs) {
-      const isActive = _selected?.endpointId === ep.id && _selected?.model === m;
+      const isActive = (_imageSlot?.endpointId === ep.id && _imageSlot?.model === m) ||
+        (_selected?.endpointId === ep.id && _selected?.model === m);
       html += `<div class="model-row model-row-img${isActive ? ' active' : ''}" data-ep="${ep.id}" data-model="${escAttr(m)}">
-        <div class="model-dot"></div>
+        ${logoFor(m)}
         <span class="model-name" title="${escAttr(m)}">${escHtml(prettyModel(m))}</span><span class="model-img-badge" title="image generation">🎨</span>
       </div>`;
     }
@@ -224,20 +202,21 @@ export function renderSidebarModelList(filter = '') {
   let html = '';
   for (const ep of _endpoints) {
     const keep = m => !fl || m.toLowerCase().includes(fl) || ep.name.toLowerCase().includes(fl);
-    const models = _filterNewest(_sortModels(ep.models.filter(keep)));
-    const imgs = _filterNewest(_sortModels((ep.image_models || []).filter(keep)));
+    const models = _filterNewest(sortModels(ep.models.filter(keep)));
+    const imgs = _filterNewest(sortModels((ep.image_models || []).filter(keep)));
     if (!models.length && !imgs.length && fl) continue;
-    const color = _PROVIDER_COLOR[ep.provider] || '#6e6e6e';
+    const epCtx = [ep.provider, ep.name, ep.base_url].filter(Boolean).join(' ');
     html += `<div class="sidebar-model-provider">
-      <span class="provider-dot" style="background:${color}"></span>
-      <span>${escHtml(ep.name)}</span>
+      ${providerLogo(providerKey(epCtx), { size: 13 })}
+      <span style="color:${brandColor(providerKey(epCtx))}">${escHtml(ep.name)}</span>
     </div>`;
     if (!models.length && !imgs.length) {
       html += `<div class="sidebar-model-empty">no cached models</div>`;
       continue;
     }
     const row = (m, img) => {
-      const isActive = _selected?.endpointId === ep.id && _selected?.model === m;
+      const isActive = (_selected?.endpointId === ep.id && _selected?.model === m) ||
+        (img && _imageSlot?.endpointId === ep.id && _imageSlot?.model === m);
       return `<button class="sidebar-model-row${isActive ? ' active' : ''}${img ? ' sidebar-model-img' : ''}" data-ep="${ep.id}" data-model="${escAttr(m)}" title="${escAttr(m)}">
         <span>${escHtml(prettyModel(m))}</span>${img ? '<span class="model-img-badge" title="image generation">🎨</span>' : ''}
       </button>`;
@@ -253,6 +232,18 @@ export function renderSidebarModelList(filter = '') {
 }
 
 export function selectModel(endpointId, model) {
+  // an image model fills the companion image slot and leaves the chat model alone. only when
+  // there's no chat model yet do we also seed the primary, so image-only use still works.
+  if (_isImageModel(endpointId, model)) {
+    setImageSlot(endpointId, model);
+    if (!_selected) {
+      _selected = { endpointId, model };
+      localStorage.setItem('aide-model', JSON.stringify(_selected));
+      updateTopbar();
+    }
+    document.getElementById('model-modal').style.display = 'none';
+    return;
+  }
   _selected = { endpointId, model };
   localStorage.setItem('aide-model', JSON.stringify(_selected));
   updateTopbar();
@@ -280,7 +271,7 @@ export function renderEndpointList() {
     return;
   }
   el.innerHTML = _endpoints.map(ep => {
-    const color = _PROVIDER_COLOR[ep.provider] || '#6e6e6e';
+    const color = brandColor(providerKey([ep.provider, ep.name, ep.base_url].filter(Boolean).join(' ')));
     return `
     <div class="mm-ep-card" data-id="${ep.id}">
       <div class="mm-ep-card-head">
@@ -385,16 +376,17 @@ function _renderPresets() {
 }
 
 export function initModelModal() {
-  // newest-only toggle on the models page
-  const newestSw = document.getElementById('newest-only-switch');
-  if (newestSw) {
-    newestSw.classList.toggle('on', _newestOnly);
-    newestSw.addEventListener('click', () => {
-      const on = !newestSw.classList.contains('on');
-      newestSw.classList.toggle('on', on);
-      setNewestOnly(on);
-    });
-  }
+  // newest-only toggle — both the models page (#newest-only-switch) and the top picker modal
+  // (.newest-only-switch) share the same state; setNewestOnly() re-syncs every switch.
+  document.querySelectorAll('.newest-only-switch, #newest-only-switch').forEach(sw => {
+    sw.classList.toggle('on', _newestOnly);
+    sw.addEventListener('click', () => setNewestOnly(!sw.classList.contains('on')));
+  });
+  // clicking the image-slot chip drops the companion image model
+  document.getElementById('image-slot-btn')?.addEventListener('click', () => {
+    setImageSlot(null, null);
+    toast('image model cleared', '');
+  });
   // refresh model lists when the picker opens (debounced) + manual button
   document.getElementById('model-btn')?.addEventListener('click', maybeAutoRefresh);
   document.getElementById('mm-refresh-all')?.addEventListener('click', async () => {
