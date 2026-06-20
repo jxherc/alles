@@ -13,6 +13,8 @@ let _forecast = null;  // per-month projected spend (cash-flow)
 let _dupIds = new Set(); // ids flagged as possible duplicates
 let _accounts = [];    // money accounts, for the optional auto-post link
 let _editing = null;   // id of the row currently in edit mode
+let _unusedIds = new Set();   // subs with no recent matching charge (4e)
+let _detected = [];    // recurring-charge candidates not yet tracked (4e)
 
 export async function loadSubs() {
   try {
@@ -32,6 +34,10 @@ export async function loadSubs() {
   } catch { _dupIds = new Set(); }
   try { _accounts = (await fetch('/api/money/accounts').then(r => r.json())).filter(a => !a.archived); }
   catch { _accounts = []; }
+  try { _unusedIds = new Set(((await fetch('/api/subscriptions/unused?cycles=2').then(r => r.json())).unused || []).map(s => s.id)); }
+  catch { _unusedIds = new Set(); }
+  try { _detected = (await fetch('/api/subscriptions/detect').then(r => r.json())).candidates || []; }
+  catch { _detected = []; }
   _render();
 }
 
@@ -142,12 +148,36 @@ function _render() {
   }
   const list = $('subs-list');
   if (!list) return;
+  const detected = _detectedHtml();
   if (!_subs.length) {
-    list.innerHTML = '<div style="padding:1rem 0;font-size:0.75rem;color:var(--faint)">nothing tracked yet — add your first subscription below</div>';
+    list.innerHTML = detected + '<div style="padding:1rem 0;font-size:0.75rem;color:var(--faint)">nothing tracked yet — add your first subscription below</div>';
+    _wireDetected(list);
     return;
   }
-  list.innerHTML = _upcomingHtml(_upcoming) + _forecastHtml(_forecast) + _chartHtml(_analytics) + _subs.map(s => _editing === s.id ? _editRow(s) : _row(s)).join('');
+  list.innerHTML = detected + _upcomingHtml(_upcoming) + _forecastHtml(_forecast) + _chartHtml(_analytics) + _subs.map(s => _editing === s.id ? _editRow(s) : _row(s)).join('');
   _wireRows(list);
+  _wireDetected(list);
+}
+
+function _detectedHtml() {
+  if (!_detected || !_detected.length) return '';
+  const chips = _detected.slice(0, 6).map((c, i) => {
+    const amt = Math.abs(c.amount || 0).toFixed(2);
+    return `<span class="sub-detected">${esc(c.payee || '?')} · ${amt} · ${esc(c.cycle || '')} <button class="btn" data-adopt="${i}" title="track this as a subscription">+ track</button></span>`;
+  }).join('');
+  return `<div class="subs-detected"><span class="subs-detected-lbl">detected recurring charges</span>${chips}</div>`;
+}
+function _wireDetected(list) {
+  list.querySelectorAll('[data-adopt]').forEach(b => b.addEventListener('click', async () => {
+    const c = _detected[+b.dataset.adopt]; if (!c) return;
+    const due = new Date().toISOString().slice(0, 10);
+    await fetch('/api/subscriptions', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ name: c.payee || 'subscription', price: Math.abs(c.amount || 0), cycle: c.cycle || 'monthly', next_due: due }),
+    });
+    toast(`now tracking ${c.payee || ''}`, 'success');
+    loadSubs();
+  }));
 }
 
 function _row(s) {
@@ -163,6 +193,8 @@ function _row(s) {
         ${s.trial_days_left != null && s.trial_days_left >= 0 ? `<span class="sub-trial" title="free trial / cancel by ${esc(s.trial_end)}">trial: ${s.trial_days_left === 0 ? 'ends today' : s.trial_days_left + 'd left'}</span>` : ''}
         ${s.price_increased ? `<span class="sub-hike" title="price went up${s.last_price_change ? ` (${esc(s.currency)}${s.last_price_change.old} → ${esc(s.currency)}${s.last_price_change.new} on ${esc(s.last_price_change.date)})` : ''}">↑ price up</span>` : ''}
         ${_dupIds.has(s.id) ? `<span class="sub-dup" title="possible duplicate — another tracked subscription matches this name or site">⚠ dup?</span>` : ''}
+        ${_unusedIds.has(s.id) ? `<button class="sub-unused" data-act="edit" title="no matching charge in the last 2 cycles — click to review / cancel">💤 unused?</button>` : ''}
+        ${s.cancel_url ? `<a class="sub-cancel-link" href="${esc(s.cancel_url)}" target="_blank" rel="noreferrer" title="how to cancel ${esc(s.name)}">✕ cancel</a>` : ''}
       </div>
       <span class="sub-price">${esc(s.currency)}${s.price ? s.price.toFixed(2) : '—'}<span class="sub-cycle">${_cycleLabel(s)}</span></span>
       <span class="sub-due${soon ? ' soon' : ''}" title="${esc(s.next_due)}">${s.active ? esc(s.next_due.slice(5)) + ' · ' : ''}${_dueLabel(s)}</span>
@@ -189,6 +221,7 @@ function _editRow(s) {
       <div class="date-input" data-f="trial_end" data-type="date" data-value="${esc(s.trial_end || '')}" data-ph="trial ends" style="width:130px"></div>
       <input type="text" class="settings-input" data-f="category" value="${esc(s.category)}" placeholder="category" style="width:95px">
       <input type="text" class="settings-input" data-f="url" value="${esc(s.url || '')}" placeholder="manage url" style="width:120px">
+      <input type="text" class="settings-input" data-f="cancel_url" value="${esc(s.cancel_url || '')}" placeholder="cancel url / how-to" style="width:130px" title="how to cancel">
       <input type="text" class="settings-input" data-f="remind_days" value="${s.remind_days}" style="width:45px" title="push reminder N days before (0 = off)" inputmode="numeric">
       <div class="settings-input custom-select" data-f="account_id" data-value="${esc(s.account_id || '')}" data-options="${['|no auto-post', ..._accounts.map(a => `${a.id}|↻ ${a.name}`)].map(esc).join(';')}" style="width:auto;min-width:120px" title="auto-post the charge to a money account"></div>
       <input type="text" class="settings-input" data-f="notes" value="${esc(s.notes)}" placeholder="notes" style="flex:1;min-width:80px">
@@ -240,7 +273,8 @@ function _wireRows(list) {
           price: parseFloat(v('price')) || 0,
           cycle: v('cycle'), cycle_days: parseInt(v('cycle_days')) || 30,
           next_due: v('next_due'), category: v('category')?.trim() || '',
-          url: v('url')?.trim() || '', account_id: v('account_id') || '',
+          url: v('url')?.trim() || '', cancel_url: v('cancel_url')?.trim() || '',
+          account_id: v('account_id') || '',
           remind_days: parseInt(v('remind_days')) || 0,
           notes: v('notes') || '',
           trial_end: (v('trial_end') || '').slice(0, 10),

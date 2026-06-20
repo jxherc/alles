@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>alles</title>
+<style>
+  html,body { margin:0; height:100%; background:#0a0a0a; color:#e8e6e3;
+    font-family:-apple-system,system-ui,sans-serif; display:flex;
+    align-items:center; justify-content:center; }
+  .wrap { text-align:center; opacity:.8; }
+  .wrap b { color:#818cf8; }
+</style>
+</head>
+<body>
+  <!-- the native shell loads server.url (the live alles PWA) from capacitor.config.json.
+       this page is only the local splash shown for the split-second before that load,
+       and the fallback if the host is unreachable. -->
+  <div class="wrap">
+    <p><b>alles</b></p>
+    <p id="msg">connecting…</p>
+  </div>
+  <script>
+    // if the remote shell never takes over, tell the user where to look. idk why
+    // 6s but it's enough to rule out a fast network.
+    setTimeout(() => {
+      const m = document.getElementById('msg');
+      if (m) m.textContent = "can't reach your alles server — check the host in capacitor.config.json";
+    }, 6000);
+  </script>
+</body>
+</html>

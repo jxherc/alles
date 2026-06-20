@@ -58,5 +58,50 @@ class AttachmentTests(unittest.TestCase):
         self.assertEqual(m.attachments_of(msg), [])
 
 
+class CategorizeTests(unittest.TestCase):
+    def test_social_sender(self):
+        self.assertEqual(m.categorize("noreply@facebook.com", "You have a new friend"), "social")
+
+    def test_list_unsubscribe_is_promotions(self):
+        self.assertEqual(
+            m.categorize("shop@store.com", "Your order", "<https://unsub.example.com>"),
+            "promotions",
+        )
+
+    def test_noreply_sender_is_updates(self):
+        self.assertEqual(m.categorize("no-reply@service.com", "Your account update"), "updates")
+
+    def test_normal_sender_is_primary(self):
+        self.assertEqual(m.categorize("alice@example.com", "Hey, lunch?"), "primary")
+
+
+class ParseSearchQueryTests(unittest.TestCase):
+    def test_from_and_subject_operators(self):
+        spec = m.parse_search_query("from:alice@x.com subject:invoice hello")
+        self.assertEqual(spec["from"], "alice@x.com")
+        self.assertEqual(spec["subject"], "invoice")
+        self.assertEqual(spec["text"], "hello")
+        self.assertFalse(spec["has_attachment"])
+
+    def test_has_attachment_flag(self):
+        spec = m.parse_search_query("has:attachment budget")
+        self.assertTrue(spec["has_attachment"])
+        self.assertEqual(spec["text"], "budget")
+
+
+class ParseListUnsubscribeTests(unittest.TestCase):
+    def test_extracts_both_http_and_mailto(self):
+        header = "<https://unsub.example.com>, <mailto:unsub@example.com>"
+        result = m.parse_list_unsubscribe(header)
+        self.assertEqual(result["http"], "https://unsub.example.com")
+        self.assertEqual(result["mailto"], "mailto:unsub@example.com")
+
+    def test_http_only(self):
+        header = "<https://unsub.example.com>"
+        result = m.parse_list_unsubscribe(header)
+        self.assertEqual(result["http"], "https://unsub.example.com")
+        self.assertEqual(result["mailto"], "")
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -1,4 +1,5 @@
 import unittest
+
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -43,6 +44,15 @@ class MonthlyCostTests(unittest.TestCase):
             places=2,
         )
 
+    def test_zero_price(self):
+        self.assertEqual(S._monthly_cost(_sub(price=0, cycle="yearly")), 0)
+
+    def test_custom_cycle_days_1(self):
+        # daily billing — 30.44 per month
+        self.assertAlmostEqual(
+            S._monthly_cost(_sub(cycle="custom", price=1, cycle_days=1)), 30.44, places=1
+        )
+
 
 class AnalyticsTests(unittest.TestCase):
     def test_breakdown_excludes_inactive_and_sorts(self):
@@ -64,11 +74,44 @@ class AnalyticsTests(unittest.TestCase):
         self.assertEqual(a["by_category"][0]["name"], "streaming")  # biggest first
         self.assertAlmostEqual(a["monthly_total"], 26.0, places=1)
 
+    def test_analytics_empty(self):
+        db = _mkdb()
+        a = S.analytics(db)
+        self.assertEqual(a["count"], 0)
+        self.assertEqual(a["monthly_total"], 0)
+        self.assertEqual(a["by_category"], [])
+
+    def test_analytics_by_cycle_grouping(self):
+        db = _mkdb()
+        db.add_all(
+            [
+                _sub(name="A", price=10, cycle="monthly"),
+                _sub(name="B", price=120, cycle="yearly"),
+            ]
+        )
+        db.commit()
+        a = S.analytics(db)
+        by_cycle = {c["name"]: c["monthly"] for c in a["by_cycle"]}
+        self.assertIn("monthly", by_cycle)
+        self.assertIn("yearly", by_cycle)
+        self.assertAlmostEqual(by_cycle["monthly"], 10, places=1)
+        self.assertAlmostEqual(by_cycle["yearly"], 10, places=1)
+
+    def test_analytics_uncategorized_bucket(self):
+        # sub with no category goes into 'uncategorized'
+        db = _mkdb()
+        db.add(_sub(name="mystery", price=5, category=""))
+        db.commit()
+        a = S.analytics(db)
+        cats = {c["name"] for c in a["by_category"]}
+        self.assertIn("uncategorized", cats)
+
 
 class AutoPostTests(unittest.TestCase):
     def _setup(self, days_ago=3, cycle="monthly", account=True):
         from datetime import date, timedelta
-        from core.database import Account, Transaction
+
+        from core.database import Account
 
         db = _mkdb_full()
         acct = Account(name="checking", opening=0.0)
@@ -88,6 +131,7 @@ class AutoPostTests(unittest.TestCase):
 
     def test_posts_charge_to_linked_account(self):
         from datetime import date
+
         from core.database import Transaction
 
         db, sub, acct, due = self._setup()
@@ -105,6 +149,7 @@ class AutoPostTests(unittest.TestCase):
 
     def test_idempotent_second_roll_no_double_post(self):
         from datetime import date
+
         from core.database import Transaction
 
         db, sub, acct, due = self._setup()
@@ -117,6 +162,7 @@ class AutoPostTests(unittest.TestCase):
 
     def test_unlinked_sub_rolls_but_posts_nothing(self):
         from datetime import date
+
         from core.database import Transaction
 
         db, sub, acct, due = self._setup(account=False)
@@ -124,6 +170,16 @@ class AutoPostTests(unittest.TestCase):
         db.commit()
         self.assertTrue(changed)
         self.assertEqual(db.query(Transaction).count(), 0)
+
+    def test_inactive_sub_not_rolled(self):
+        from datetime import date
+
+        db, sub, acct, due = self._setup()
+        sub.active = False
+        db.commit()
+        changed = S._roll_and_post(sub, date.today(), db)
+        self.assertFalse(changed)
+        self.assertEqual(sub.next_due, due)  # unchanged
 
 
 if __name__ == "__main__":

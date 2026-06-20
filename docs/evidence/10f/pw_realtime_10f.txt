@@ -1,0 +1,8 @@
+PASS  status_reports_unavailable_default
+PASS  status_endpoint_reachable
+PASS  affordance_in_dom
+PASS  realtime_btn_hidden_when_gated
+PASS  gated_session_blocked
+PASS  session_descriptor_returned_when_available
+PASS  btn_appears_when_provider
+PASS  zero_console_errors

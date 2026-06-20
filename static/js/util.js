@@ -61,6 +61,11 @@ export function mdToHtml(text) {
   // font color: {color:red}text{/color} — restricted to safe css color chars
   out = out.replace(/\{color:([^}]+)\}([\s\S]*?)\{\/color\}/g, (full, c, inner) =>
     /^[#\w(),.%\s-]+$/.test(c.trim()) ? `<span style="color:${c.trim()}">${inner}</span>` : full);
+  // columns: "::: columns" / colA / "+++" / colB / ":::" (3a)
+  out = out.replace(/^::: ?columns[^\n]*\n([\s\S]*?)\n::: *$/gm, (m, inner) => {
+    const cols = inner.split(/\n\+\+\+\n/).map(c => `<div class="md-col">${c.trim().replace(/\n/g, '<br>')}</div>`).join('');
+    return `<div class="md-columns">${cols}</div>`;
+  });
   // blockquotes + obsidian callouts ( > [!note] Title )
   out = out.replace(/(?:^&gt;\s?.*(?:\n|$))+/gm, m => {
     const body = m.replace(/^&gt;\s?/gm, '').replace(/\n+$/, '');
@@ -68,6 +73,9 @@ export function mdToHtml(text) {
     if (cal) {
       const type = cal[1].toLowerCase();
       const rest = (cal[3] || '').trim();
+      if (type === 'toggle') {   // collapsible block (3a)
+        return `<details class="md-toggle"><summary>${cal[2] || 'toggle'}</summary>${rest ? `<div class="md-toggle-body">${rest.replace(/\n/g, '<br>')}</div>` : ''}</details>`;
+      }
       return `<div class="md-callout md-callout-${type}"><div class="md-callout-title">${cal[2] || type}</div>${rest ? `<div class="md-callout-body">${rest.replace(/\n/g, '<br>')}</div>` : ''}</div>`;
     }
     return `<blockquote>${body.trim().replace(/\n/g, '<br>')}</blockquote>`;
@@ -229,6 +237,36 @@ export function toast(msg, type = '', duration = 3000) {
   el.textContent = msg;
   c.appendChild(el);
   setTimeout(() => el.remove(), duration);
+}
+
+
+// generic share/publish (1a) — mint a public read-only link for any resource,
+// copy it, and toast. kind = doc|file|photo|... ref = id or vault/files path.
+export async function shareResource(kind, ref, level = 'view') {
+  const r = await fetch('/api/share', {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ kind, ref, level }),
+  });
+  if (!r.ok) { toast('share failed', 'error'); return null; }
+  const j = await r.json();
+  const url = location.origin + j.url;
+  try { await navigator.clipboard.writeText(url); toast('public link copied', ''); }
+  catch { toast(url, ''); }   // clipboard blocked (insecure ctx) — at least show it
+  return j;
+}
+
+export async function unshareResource(kind, ref) {
+  const r = await fetch('/api/share', {
+    method: 'DELETE', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ kind, ref }),
+  });
+  return r.ok;
+}
+
+export async function shareState(kind, ref) {
+  const r = await fetch(`/api/share?kind=${encodeURIComponent(kind)}&ref=${encodeURIComponent(ref)}`);
+  if (!r.ok) return null;
+  return r.json();
 }
 
 

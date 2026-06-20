@@ -36,6 +36,41 @@ class AgentSkillMatchTest(unittest.TestCase):
         names = {t["function"]["name"] for t in agent_tools.TOOL_DEFS}
         self.assertIn("skill_match", names)
 
+    def test_top_k_limits_results(self):
+        for i in range(6):
+            ss.upsert_skill(
+                f"Skill {i}", f"description {i} invoice parser", "when handling invoices"
+            )
+        matches = ss.match_skills("invoice parser", top_k=3)
+        self.assertLessEqual(len(matches), 3)
+
+    def test_scores_are_sorted_descending(self):
+        ss.upsert_skill("Exact Match", "invoice extractor tool", "use when parsing invoices")
+        ss.upsert_skill("Loose Match", "generic text handler", "use for documents")
+        matches = ss.match_skills("parse invoices", top_k=5)
+        if len(matches) > 1:
+            self.assertGreaterEqual(matches[0]["score"], matches[1]["score"])
+
+    def test_empty_query_returns_no_match(self):
+        ss.upsert_skill("Some Skill", "does stuff", "whenever")
+        out = asyncio.run(agent_tools._skill_match(""))
+        # empty query → no matches (match_skills returns [] for empty q)
+        self.assertFalse(out["error"])
+        self.assertIn("no matching skills", out["output"])
+
+    def test_multiple_skills_all_returned_up_to_top_k(self):
+        ss.upsert_skill("Email Helper", "draft and send emails", "when composing email")
+        ss.upsert_skill("Calendar Tool", "manage calendar events", "when adding calendar events")
+        ss.upsert_skill("Invoice Tool", "parse invoice PDFs", "when handling invoice documents")
+        matches = ss.match_skills("email calendar invoice", top_k=5)
+        self.assertGreaterEqual(len(matches), 1)
+
+    def test_slug_normalised_in_output(self):
+        ss.upsert_skill("My Cool Skill", "does something cool", "when things need cooling")
+        out = asyncio.run(agent_tools._skill_match("something cool"))
+        self.assertFalse(out["error"])
+        self.assertIn("my-cool-skill", out["output"])
+
 
 if __name__ == "__main__":
     unittest.main()

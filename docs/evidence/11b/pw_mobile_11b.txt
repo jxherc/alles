@@ -1,0 +1,10 @@
+PASS  topbar_visible
+PASS  sidebar_hidden_by_default
+PASS  no_horizontal_overflow
+PASS  toggle_opens_drawer
+PASS  backdrop_present_when_open
+PASS  drawer_overlays
+PASS  navitems_tappable_height
+PASS  navitem_closes_drawer
+PASS  modal_fits_viewport
+PASS  zero_console_errors

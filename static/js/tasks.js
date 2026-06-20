@@ -1,5 +1,6 @@
 import { toast } from './util.js';
 import { prompt as dlgPrompt } from './dialog.js';
+const _si = n => (window.icon ? window.icon(n) : '');   // central icon set, load-order safe
 
 let _tasks = [];
 let _tree = [];
@@ -51,7 +52,7 @@ function _rowHtml(t, child, progress) {
     <div class="task-item${child ? ' task-child' : ''}" data-id="${t.id}">
       <button class="task-check${t.done ? ' done' : ''}" data-id="${t.id}"></button>
       <span class="task-title${t.done ? ' done' : ''}">${esc(t.title)}</span>
-      ${t.repeat ? `<span class="task-repeat" title="repeats ${t.repeat}">🔁</span>` : ''}
+      ${t.repeat ? `<span class="task-repeat" title="repeats ${t.repeat}">${_si('refresh')}</span>` : ''}
       ${_dueBadge(t.due_date)}
       ${(t.tags || []).map(g => `<span class="task-tag">#${esc(g)}</span>`).join('')}
       ${t.priority ? `<span class="task-high task-p${t.priority}">${['', 'low', 'med', 'high'][t.priority] || 'high'}</span>` : ''}

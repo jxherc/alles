@@ -1,12 +1,83 @@
 import json
 
-from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel
+from sqlalchemy.orm import Session as DbSession
 
-from services import vault_md
+from core.database import DocComment, get_db
+from services import share, vault_md
 
 router = APIRouter(prefix="/api/vault-md")
+
+
+class PublishFolderBody(BaseModel):
+    folder: str = ""
+
+
+@router.post("/publish-folder")
+def publish_folder(body: PublishFolderBody, db: DbSession = Depends(get_db)):
+    """publish every doc in a folder as a navigable read-only site (3c, uses 1a)."""
+    base = vault_md.vault_dir()
+    folder = (body.folder or "").strip().strip("/")
+    out = []
+    for p in base.rglob("*.md"):
+        rel = str(p.relative_to(base)).replace("\\", "/")
+        if any(part.startswith((".", "_")) for part in rel.split("/")):
+            continue
+        in_folder = rel.startswith(folder + "/") if folder else "/" not in rel
+        if not in_folder:
+            continue
+        s = share.mint(db, "doc", rel)
+        out.append({"path": rel, "token": s.token, "url": f"/s/{s.token}"})
+    return {"published": out, "count": len(out)}
+
+
+# 1c: keep the reusable text index in sync with the vault (best-effort, never breaks a save)
+def _reindex_doc(path, content):
+    try:
+        from core.database import SessionLocal
+        from services import textindex
+
+        db = SessionLocal()
+        try:
+            textindex.index(db, "doc", path, content)
+        finally:
+            db.close()
+    except Exception:
+        pass
+
+
+def _unindex_doc(path):
+    try:
+        from core.database import SessionLocal
+        from services import textindex
+
+        db = SessionLocal()
+        try:
+            textindex.remove(db, "doc", path)
+        finally:
+            db.close()
+    except Exception:
+        pass
+
+
+def _docs_ai(db):
+    """resolve (endpoint, model) for docs AI — honour the `docs_ai_model` setting if it
+    names a model an enabled endpoint serves, else fall back to the first enabled endpoint."""
+    from core.database import ModelEndpoint
+    from core.settings import load_settings
+
+    pref = (load_settings().get("docs_ai_model") or "").strip()
+    eps = db.query(ModelEndpoint).filter(ModelEndpoint.enabled == True).all()
+    if pref:
+        for ep in eps:
+            if pref in ep.models_list():
+                return ep, pref
+    ep = eps[0] if eps else None
+    if not ep:
+        return None, ""
+    return ep, (ep.models_list()[0] if ep.models_list() else "")
 
 
 @router.get("/export-docx")
@@ -122,6 +193,7 @@ async def write_file(body: WriteBody):
         await on_doc_saved(out.get("path", body.path), body.content or "")
     except Exception:
         pass  # automations must never break a save
+    _reindex_doc(out.get("path", body.path), body.content or "")
     return out
 
 
@@ -141,9 +213,11 @@ def create_file(body: PathBody):
 @router.delete("/file")
 def delete_file(path: str):
     try:
-        return vault_md.delete(path)
+        out = vault_md.delete(path)
     except ValueError as e:
         raise HTTPException(400, str(e))
+    _unindex_doc(path)
+    return out
 
 
 class RenameBody(BaseModel):
@@ -179,6 +253,8 @@ def rename_file(body: RenameBody):
             for bl in vault_md.backlinks(old_stem):
                 _snapshot(bl["path"], force=True)
             out["links_rewritten"] = len(vault_md.rewrite_links(old_stem, new_stem))
+    _unindex_doc(_norm_path(body.path))
+    _reindex_doc(new_path, vault_md.read(new_path).get("content", ""))
     return out
 
 
@@ -191,7 +267,7 @@ async def extract_todos(body: ExtractTodosBody):
     """AI-pull action items out of a doc and create real tasks from them."""
     import json as _json
 
-    from core.database import ModelEndpoint, SessionLocal, Task
+    from core.database import SessionLocal, Task
     from services.llm import simple_complete
 
     try:
@@ -203,10 +279,9 @@ async def extract_todos(body: ExtractTodosBody):
 
     db = SessionLocal()
     try:
-        ep = db.query(ModelEndpoint).filter(ModelEndpoint.enabled == True).first()
+        ep, model = _docs_ai(db)
         if not ep:
             raise HTTPException(400, "no model endpoint configured")
-        model = ep.models_list()[0] if ep.models_list() else ""
         if not model:
             raise HTTPException(400, "no model available")
         prompt = [
@@ -425,6 +500,349 @@ def search(q: str = ""):
     return {"results": vault_md.search(q)}
 
 
+@router.get("/ask")
+def ask_vault(q: str = "", db: DbSession = Depends(get_db)):
+    """ask-anything over the vault (3d) — semantic retrieval via the 1c text index."""
+    from routes.textindex import _collect_docs
+    from services import textindex
+
+    if not textindex.stats(db).get("doc"):
+        textindex.reindex_kind(db, "doc", _collect_docs())
+    hits = textindex.search(db, q, kind="doc", k=6) if q else []
+    return {"q": q, "sources": hits}
+
+
+class ClipBody(BaseModel):
+    url: str = ""
+    title: str = ""
+    content: str = ""
+
+
+@router.post("/clip")
+def web_clip(body: ClipBody):
+    """web-clipper target (3d): save a clipped page as a note under clips/."""
+    title = (body.title or "clip").strip() or "clip"
+    safe = "".join(c for c in title if c.isalnum() or c in " -_").strip()[:60] or "clip"
+    md = f"# {title}\n\n"
+    if body.url:
+        md += f"source: {body.url}\n\n"
+    md += body.content or ""
+    out = vault_md.write(f"clips/{safe}", md)
+    return {"ok": True, "path": out.get("path", f"clips/{safe}.md")}
+
+
+@router.get("/clipper-bookmarklet")
+def clipper_bookmarklet(request: Request):
+    """the bookmarklet JS the user drags to their bookmarks bar (3d).
+    origin is taken from the request so the dragged bookmarklet posts back to this instance."""
+    origin = str(request.base_url).rstrip("/")
+    js = (
+        "javascript:(function(){var t=document.title,u=location.href,"
+        "s=window.getSelection().toString()||document.body.innerText.slice(0,4000);"
+        "fetch('"
+        + origin
+        + "/api/vault-md/clip',{method:'POST',headers:{'content-type':'application/json'},"
+        "body:JSON.stringify({url:u,title:t,content:s})}).then(()=>alert('clipped to alles'));})()"
+    )
+    return {"bookmarklet": js}
+
+
+class FormBody(BaseModel):
+    path: str = ""
+    target: str = ""
+    fields: list[str] = []
+    values: dict = {}
+
+
+@router.post("/form-submit")
+def form_submit(body: FormBody):
+    """append a form submission as a row to the target note (3d form blocks)."""
+    target = (body.target or "").strip()
+    if not target:
+        raise HTTPException(400, "target required")
+    _snapshot(target)
+    out = vault_md.append_form_row(target, body.values or {}, body.fields or None)
+    _reindex_doc(out["path"], vault_md.read(out["path"]).get("content", ""))
+    return out
+
+
+# ---- inline comments (3e) ----
+class CommentBody(BaseModel):
+    path: str = ""
+    anchor: str = ""
+    body: str = ""
+    author: str = "me"
+    parent_id: str | None = None
+
+
+def _comment_dict(c):
+    return {
+        "id": c.id,
+        "doc": c.doc,
+        "anchor": c.anchor or "",
+        "body": c.body or "",
+        "author": c.author or "me",
+        "parent_id": c.parent_id,
+        "resolved": bool(c.resolved),
+        "created_at": c.created_at.isoformat() if c.created_at else None,
+    }
+
+
+@router.post("/comments")
+def add_comment(body: CommentBody, db: DbSession = Depends(get_db)):
+    """create a thread root (with path+anchor) or a reply (with parent_id)."""
+    if not (body.body or "").strip():
+        raise HTTPException(400, "comment body required")
+    if body.parent_id:
+        parent = db.query(DocComment).filter_by(id=body.parent_id).first()
+        if not parent:
+            raise HTTPException(404, "parent comment not found")
+        root = (
+            parent
+            if parent.parent_id is None
+            else db.query(DocComment).filter_by(id=parent.parent_id).first()
+        )
+        c = DocComment(
+            doc=root.doc,
+            anchor=root.anchor,
+            body=body.body.strip(),
+            author=body.author or "me",
+            parent_id=root.id,
+        )
+    else:
+        if not (body.path or "").strip():
+            raise HTTPException(400, "path required")
+        c = DocComment(
+            doc=_norm_path(body.path),
+            anchor=body.anchor or "",
+            body=body.body.strip(),
+            author=body.author or "me",
+            parent_id=None,
+        )
+    db.add(c)
+    db.commit()
+    db.refresh(c)
+    return _comment_dict(c)
+
+
+@router.get("/comments")
+def list_comments(path: str, db: DbSession = Depends(get_db)):
+    """threads for a doc — each root plus its replies, with an anchor-orphaned flag."""
+    doc = _norm_path(path)
+    content = vault_md.read(doc).get("content", "")
+    rows = db.query(DocComment).filter_by(doc=doc).order_by(DocComment.created_at.asc()).all()
+    threads = []
+    for root in [c for c in rows if c.parent_id is None]:
+        t = _comment_dict(root)
+        t["replies"] = [_comment_dict(c) for c in rows if c.parent_id == root.id]
+        t["orphaned"] = bool(root.anchor) and root.anchor not in content
+        threads.append(t)
+    return {"threads": threads}
+
+
+@router.post("/comments/{cid}/resolve")
+def resolve_comment(cid: str, db: DbSession = Depends(get_db)):
+    """toggle the resolved flag on a thread (always via its root)."""
+    c = db.query(DocComment).filter_by(id=cid).first()
+    if not c:
+        raise HTTPException(404, "comment not found")
+    root = c if c.parent_id is None else db.query(DocComment).filter_by(id=c.parent_id).first()
+    root.resolved = not bool(root.resolved)
+    db.commit()
+    return {"id": root.id, "resolved": bool(root.resolved)}
+
+
+@router.delete("/comments/{cid}")
+def delete_comment(cid: str, db: DbSession = Depends(get_db)):
+    """delete a comment; deleting a root also drops its replies."""
+    c = db.query(DocComment).filter_by(id=cid).first()
+    if not c:
+        raise HTTPException(404, "comment not found")
+    if c.parent_id is None:
+        db.query(DocComment).filter_by(parent_id=c.id).delete()
+    db.delete(c)
+    db.commit()
+    return {"ok": True}
+
+
+@router.get("/block")
+def get_block(path: str, id: str):
+    """resolve a synced-block reference note#^id → its text (3b)."""
+    return vault_md.find_block(path, id)
+
+
+@router.get("/theme-css")
+def get_theme_css():
+    return {"css": vault_md.theme_css_read()}
+
+
+class ThemeBody(BaseModel):
+    css: str = ""
+
+
+@router.put("/theme-css")
+def put_theme_css(body: ThemeBody):
+    """save a per-vault CSS snippet (2e) — auto-injected on the docs view."""
+    return vault_md.theme_css_write(body.css)
+
+
+@router.get("/canvases")
+def list_canvases():
+    return {"canvases": vault_md.canvas_list()}
+
+
+@router.get("/canvas")
+def read_canvas(path: str):
+    return vault_md.canvas_read(path)
+
+
+class CanvasBody(BaseModel):
+    path: str
+    nodes: list = []
+    edges: list = []
+
+
+@router.put("/canvas")
+def write_canvas(body: CanvasBody):
+    """save a spatial canvas (.canvas JSON) (2d)."""
+    try:
+        return vault_md.canvas_write(body.path, body.nodes, body.edges)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+@router.get("/base")
+def base_view(folder: str = "", sort_field: str = "", sort_dir: str = "asc"):
+    """folder-as-database view (2c)."""
+    sort = {"field": sort_field, "dir": sort_dir} if sort_field else None
+    return vault_md.base_view(folder, sort)
+
+
+class CellBody(BaseModel):
+    path: str
+    key: str
+    value: str = ""
+
+
+@router.post("/base-cell")
+async def base_cell(body: CellBody):
+    """edit one Base cell → writes back to the note's frontmatter (2c).
+    also fires doc automations so a Base edit can trigger rules (3d in-DB automations)."""
+    _snapshot(body.path)
+    props = vault_md.set_cell(body.path, body.key, body.value)
+    try:
+        from services.automations import on_doc_saved
+
+        await on_doc_saved(_norm_path(body.path), vault_md.read(body.path).get("content", ""))
+    except Exception:
+        pass
+    return {"ok": True, "path": _norm_path(body.path), "properties": props}
+
+
+@router.get("/base-rollup")
+def base_rollup(folder: str = "", relation: str = "", target: str = "", agg: str = "count"):
+    return {"rows": vault_md.base_rollup(folder, relation, target or None, agg)}
+
+
+class QueryBlockBody(BaseModel):
+    spec: str = ""
+
+
+@router.post("/query-block")
+def query_block(body: QueryBlockBody):
+    """run an inline ```query``` fence spec (2b)."""
+    return vault_md.query_block(body.spec)
+
+
+@router.get("/views")
+def get_views():
+    from core.settings import load_settings
+
+    return {"views": load_settings().get("docs_saved_views", [])}
+
+
+class ViewBody(BaseModel):
+    name: str
+    spec: str = ""
+
+
+@router.post("/views")
+def save_view(body: ViewBody):
+    """save (or update) a named query view (2b)."""
+    from core.settings import load_settings, save_settings
+
+    name = (body.name or "").strip()
+    if not name:
+        raise HTTPException(400, "name required")
+    views = [v for v in load_settings().get("docs_saved_views", []) if v.get("name") != name]
+    views.append({"name": name, "spec": body.spec})
+    save_settings({"docs_saved_views": views})
+    return {"ok": True, "views": views}
+
+
+@router.delete("/views")
+def delete_view(name: str):
+    from core.settings import load_settings, save_settings
+
+    views = [v for v in load_settings().get("docs_saved_views", []) if v.get("name") != name]
+    save_settings({"docs_saved_views": views})
+    return {"ok": True, "views": views}
+
+
+@router.get("/bookmarks")
+def get_bookmarks():
+    from core.settings import load_settings
+
+    return {"bookmarks": load_settings().get("docs_bookmarks", [])}
+
+
+class BookmarkBody(BaseModel):
+    path: str
+    title: str = ""
+
+
+@router.post("/bookmarks")
+def toggle_bookmark(body: BookmarkBody):
+    """toggle a doc bookmark (2a). returns the new state + full list."""
+    from core.settings import load_settings, save_settings
+
+    bms = list(load_settings().get("docs_bookmarks", []))
+    if any(b.get("path") == body.path for b in bms):
+        bms = [b for b in bms if b.get("path") != body.path]
+        on = False
+    else:
+        bms.append({"path": body.path, "title": body.title or body.path})
+        on = True
+    save_settings({"docs_bookmarks": bms})
+    return {"bookmarked": on, "bookmarks": bms}
+
+
+@router.get("/preview")
+def preview_note(name: str):
+    """resolve a wikilink name → a short excerpt for the hover preview (2a)."""
+    name = (name or "").strip()
+    if not name:
+        return {"found": False, "excerpt": ""}
+    hits = vault_md.search(name)
+    hit = next((h for h in hits if (h.get("name", "").lower() == name.lower())), None)
+    if not hit and hits:
+        hit = hits[0]
+    if not hit:
+        return {"found": False, "excerpt": ""}
+    doc = vault_md.read(hit["path"])
+    body = doc.get("content", "")
+    try:
+        _, body = vault_md.parse_frontmatter(body)
+    except Exception:
+        pass
+    return {
+        "found": True,
+        "path": hit["path"],
+        "title": hit.get("name", name),
+        "excerpt": body.strip()[:240],
+    }
+
+
 @router.get("/backlinks")
 def backlinks(name: str):
     return {"backlinks": vault_md.backlinks(name)}
@@ -529,13 +947,12 @@ async def youtube_to_note(body: YoutubeBody):
 
     summary = ""
     if body.summarize:
-        from core.database import ModelEndpoint, SessionLocal
+        from core.database import SessionLocal
         from services.llm import simple_complete
 
         db = SessionLocal()
         try:
-            ep = db.query(ModelEndpoint).filter(ModelEndpoint.enabled == True).first()
-            model = ep.models_list()[0] if ep and ep.models_list() else ""
+            ep, model = _docs_ai(db)
         finally:
             db.close()
         if ep and model:
@@ -618,6 +1035,52 @@ def make_folder(body: FolderBody):
         raise HTTPException(400, str(e))
 
 
+class AiSnippetBody(BaseModel):
+    text: str
+    action: str = "rewrite"
+
+
+# context-menu AI actions act on the selected text only (not the whole doc like ai-edit)
+_SNIPPET_PROMPTS = {
+    "rewrite": "Rewrite the text to read more clearly and naturally, keeping its meaning and any markdown.",
+    "summarize": "Summarize the text in one or two short sentences.",
+    "fix": "Fix spelling and grammar in the text. Keep the wording and any markdown otherwise unchanged.",
+}
+
+
+@router.post("/ai-snippet")
+async def ai_snippet(body: AiSnippetBody):
+    from core.database import SessionLocal
+    from services.llm import simple_complete
+
+    text = (body.text or "").strip()
+    if not text:
+        raise HTTPException(400, "no text selected")
+    sys_prompt = _SNIPPET_PROMPTS.get(body.action, _SNIPPET_PROMPTS["rewrite"])
+    db = SessionLocal()
+    try:
+        ep, model = _docs_ai(db)
+        if not ep:
+            raise HTTPException(400, "no model endpoint configured")
+        if not model:
+            raise HTTPException(400, "no model available")
+        base_url, api_key = ep.base_url, ep.api_key
+    finally:
+        db.close()
+    msgs = [
+        {
+            "role": "system",
+            "content": sys_prompt
+            + " Return ONLY the resulting text — no commentary, no code fences.",
+        },
+        {"role": "user", "content": text[:6000]},
+    ]
+    out = await simple_complete(msgs, base_url, api_key, model, max_tokens=600)
+    out = (out or "").strip()
+    out = out.removeprefix("```").removesuffix("```").strip()
+    return {"text": out, "action": body.action}
+
+
 class AiEditBody(BaseModel):
     path: str
     instruction: str
@@ -625,7 +1088,7 @@ class AiEditBody(BaseModel):
 
 @router.post("/ai-edit")
 async def ai_edit(body: AiEditBody):
-    from core.database import ModelEndpoint, SessionLocal
+    from core.database import SessionLocal
     from services.llm import stream_chat
 
     cur = vault_md.read(body.path)
@@ -633,12 +1096,11 @@ async def ai_edit(body: AiEditBody):
         raise HTTPException(404, "note not found")
     db = SessionLocal()
     try:
-        ep = db.query(ModelEndpoint).filter(ModelEndpoint.enabled == True).first()
+        ep, model = _docs_ai(db)
     finally:
         db.close()
     if not ep:
         raise HTTPException(400, "no endpoint configured")
-    model = ep.models_list()[0] if ep.models_list() else ""
     if not model:
         raise HTTPException(400, "no model available")
 

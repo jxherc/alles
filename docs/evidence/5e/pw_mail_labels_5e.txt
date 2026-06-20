@@ -1,0 +1,8 @@
+PASS  category_tabs_present
+PASS  promotions_tab_filters
+PASS  primary_tab_back
+PASS  label_add
+PASS  label_chip_shows
+PASS  label_filter
+PASS  label_persists_reload
+PASS  zero_console_errors

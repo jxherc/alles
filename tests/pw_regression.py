@@ -1,0 +1,92 @@
+"""generic full-app regression sweep — load every subdomain, assert zero real
+console errors, screenshot each. reused after every microversion.
+
+  python tests/pw_regression.py <port> <evidence_dir>
+  e.g. python tests/pw_regression.py 8812 docs/evidence/1b/regression
+"""
+
+import sys
+from pathlib import Path
+
+from playwright.sync_api import sync_playwright
+
+SUBS = [
+    "",  # apex hub
+    "aide",
+    "mail",
+    "docs",
+    "gallery",
+    "calendar",
+    "tasks",
+    "subs",
+    "money",
+    "days",
+    "journal",
+    "activity",
+    "system",
+    "files",
+    "contacts",
+    "secrets",
+]
+IGNORE = (
+    "ERR_CONNECTION_CLOSED",
+    "ERR_ABORTED",
+    "ERR_NETWORK_CHANGED",
+    "favicon",
+    "401",
+    "Failed to load resource",
+    "net::",
+)
+
+
+def main():
+    port = sys.argv[1] if len(sys.argv) > 1 else "8800"
+    evid = Path(sys.argv[2] if len(sys.argv) > 2 else "docs/evidence/regression")
+    evid.mkdir(parents=True, exist_ok=True)
+    base = f"localhost:{port}"
+    rows = []
+    ok_all = True
+    with sync_playwright() as p:
+        b = p.chromium.launch()
+        for sub in SUBS:
+            host = f"{sub}.{base}" if sub else base
+            pg = b.new_page()
+            errs = []
+            pg.on(
+                "console",
+                lambda m, e=errs: (
+                    e.append(m.text)
+                    if m.type == "error" and not any(x in m.text for x in IGNORE)
+                    else None
+                ),
+            )
+            pg.on(
+                "pageerror",
+                lambda ex, e=errs: (
+                    e.append(str(ex)) if not any(x in str(ex) for x in IGNORE) else None
+                ),
+            )
+            try:
+                pg.goto(f"http://{host}/", wait_until="domcontentloaded", timeout=20000)
+                pg.wait_for_timeout(1800)
+                pg.screenshot(path=str(evid / f"{sub or 'apex'}.png"))
+                ok = len(errs) == 0
+                ok_all = ok_all and ok
+                rows.append(
+                    f"{'PASS' if ok else 'FAIL'}  {sub or 'apex':10} errors={len(errs)}"
+                    + (f" {errs[:3]}" if errs else "")
+                )
+            except Exception as ex:
+                ok_all = False
+                rows.append(f"FAIL  {sub or 'apex':10} EXCEPTION {ex}")
+            pg.close()
+        b.close()
+    out = "\n".join(rows)
+    (evid.parent / "regression.txt").write_text(out, encoding="utf-8")
+    print(out)
+    print(f"\n{'ALL CLEAN' if ok_all else 'ISSUES FOUND'}")
+    return 0 if ok_all else 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

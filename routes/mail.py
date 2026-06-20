@@ -48,6 +48,41 @@ def save_draft(body: DraftBody, db: DbSession = Depends(get_db)):
     return _draft_fmt(d)
 
 
+@router.get("/recipients")
+def recipients(q: str = "", limit: int = 12, db: DbSession = Depends(get_db)):
+    """address-autocomplete source (4d): distinct correspondents from the mail cache,
+    optionally filtered by a substring. names are kept so the picker can show 'Name <addr>'."""
+    import re
+
+    from core.database import CachedMessage
+
+    seen, out = set(), []
+    ql = (q or "").strip().lower()
+    rows = (
+        db.query(CachedMessage.sender)
+        .filter(CachedMessage.sender != "")
+        .order_by(CachedMessage.date_ts.desc())
+        .limit(2000)
+        .all()
+    )
+    for (sender,) in rows:
+        m = re.search(r"([^<>\s]+@[^<>\s]+)", sender or "")
+        if not m:
+            continue
+        addr = m.group(1).strip().strip(",;")
+        name = re.sub(r"<[^>]*>", "", sender).strip().strip('"').strip()
+        key = addr.lower()
+        if key in seen:
+            continue
+        if ql and ql not in key and ql not in name.lower():
+            continue
+        seen.add(key)
+        out.append({"email": addr, "name": name if name and name.lower() != key else ""})
+        if len(out) >= max(1, min(limit, 50)):
+            break
+    return {"recipients": out}
+
+
 @router.get("/drafts")
 def list_drafts(account_id: str = "", db: DbSession = Depends(get_db)):
     q = db.query(MailDraft)
@@ -294,6 +329,412 @@ def cache_search(aid: str, q: str, limit: int = 40, db: DbSession = Depends(get_
 
     _get(db, aid)
     return {"messages": mail_cache.search(db, aid, q, limit), "cached": True}
+
+
+# ── triage: advanced search, mute, archive, saved searches (5a) ───────────────
+@router.get("/adv-search/{aid}")
+def adv_search(aid: str, q: str = "", limit: int = 50, db: DbSession = Depends(get_db)):
+    """cache search honoring from:/subject:/before:/after:/text operators."""
+    from services import mail_cache
+
+    _get(db, aid)
+    spec = mailsvc.parse_search_query(q)
+    return {
+        "messages": mail_cache.advanced_search(db, aid, spec, limit),
+        "spec": spec,
+        "cached": True,
+    }
+
+
+class MuteBody(BaseModel):
+    subject: str
+
+
+@router.post("/mute/{aid}")
+def mute_thread(aid: str, body: MuteBody, db: DbSession = Depends(get_db)):
+    from services import mail_cache
+
+    _get(db, aid)
+    return {"muted": mail_cache.mute(db, aid, body.subject)}
+
+
+class ArchiveBody(BaseModel):
+    uid: str
+    folder: str = "INBOX"
+
+
+@router.post("/archive/{aid}")
+def archive_message(aid: str, body: ArchiveBody, db: DbSession = Depends(get_db)):
+    from services import mail_cache
+
+    acct = _get(db, aid)
+    # best-effort IMAP move to an Archive folder; never blocks the local archive
+    try:
+        if hasattr(mailsvc, "move_message"):
+            mailsvc.move_message(acct, body.uid, "Archive", body.folder)
+    except Exception:
+        pass
+    return {"archived": mail_cache.archive(db, aid, body.folder, body.uid)}
+
+
+class SavedSearchBody(BaseModel):
+    name: str
+    query: str = ""
+
+
+@router.get("/saved-searches")
+def list_saved_searches(db: DbSession = Depends(get_db)):
+    from core.database import SavedSearch
+
+    rows = db.query(SavedSearch).order_by(SavedSearch.created_at.asc()).all()
+    return {"searches": [{"id": s.id, "name": s.name, "query": s.query or ""} for s in rows]}
+
+
+@router.post("/saved-searches")
+def add_saved_search(body: SavedSearchBody, db: DbSession = Depends(get_db)):
+    from core.database import SavedSearch
+
+    name = (body.name or "").strip()
+    if not name:
+        raise HTTPException(400, "name required")
+    s = SavedSearch(name=name, query=(body.query or "").strip())
+    db.add(s)
+    db.commit()
+    db.refresh(s)
+    return {"id": s.id, "name": s.name, "query": s.query or ""}
+
+
+@router.delete("/saved-searches/{sid}")
+def delete_saved_search(sid: str, db: DbSession = Depends(get_db)):
+    from core.database import SavedSearch
+
+    s = db.get(SavedSearch, sid)
+    if not s:
+        raise HTTPException(404)
+    db.delete(s)
+    db.commit()
+    return {"ok": True}
+
+
+# ── send control: schedule, undo, snooze (5b) ────────────────────────────────
+def _sched_fmt(s):
+    return {
+        "id": s.id,
+        "account_id": s.account_id,
+        "to": s.to,
+        "cc": s.cc,
+        "bcc": s.bcc,
+        "subject": s.subject,
+        "body": s.body,
+        "send_at": s.send_at,
+        "status": s.status,
+    }
+
+
+class ScheduleBody(BaseModel):
+    to: str = ""
+    cc: str = ""
+    bcc: str = ""
+    subject: str = ""
+    body: str = ""
+    html: str = ""
+    in_reply_to: str = ""
+    references: str = ""
+    send_at: str = ""
+
+
+@router.post("/schedule/{aid}")
+def schedule_send(aid: str, body: ScheduleBody, db: DbSession = Depends(get_db)):
+    from core.database import ScheduledMail
+
+    _get(db, aid)
+    s = ScheduledMail(account_id=aid, status="scheduled", **body.model_dump())
+    db.add(s)
+    db.commit()
+    db.refresh(s)
+    return _sched_fmt(s)
+
+
+class UndoableBody(BaseModel):
+    to: str = ""
+    cc: str = ""
+    bcc: str = ""
+    subject: str = ""
+    body: str = ""
+    html: str = ""
+    in_reply_to: str = ""
+    references: str = ""
+    delay: int = 10  # seconds the message sits in the outbox so you can undo
+
+
+@router.post("/send-undoable/{aid}")
+def send_undoable(aid: str, body: UndoableBody, db: DbSession = Depends(get_db)):
+    """schedule a send a few seconds out so it can be undone (canceled) in the window."""
+    from datetime import datetime, timedelta
+
+    from core.database import ScheduledMail
+
+    _get(db, aid)
+    send_at = (datetime.utcnow() + timedelta(seconds=max(1, body.delay))).isoformat()
+    data = body.model_dump()
+    data.pop("delay", None)
+    s = ScheduledMail(account_id=aid, status="scheduled", send_at=send_at, **data)
+    db.add(s)
+    db.commit()
+    db.refresh(s)
+    return _sched_fmt(s)
+
+
+@router.get("/scheduled")
+def list_scheduled(db: DbSession = Depends(get_db)):
+    from core.database import ScheduledMail
+
+    rows = (
+        db.query(ScheduledMail)
+        .filter(ScheduledMail.status == "scheduled")
+        .order_by(ScheduledMail.send_at.asc())
+        .all()
+    )
+    return {"scheduled": [_sched_fmt(s) for s in rows]}
+
+
+@router.post("/scheduled/{sid}/cancel")
+def cancel_scheduled(sid: str, db: DbSession = Depends(get_db)):
+    from core.database import ScheduledMail
+
+    s = db.get(ScheduledMail, sid)
+    if not s:
+        raise HTTPException(404)
+    s.status = "canceled"
+    db.commit()
+    return {"ok": True, "status": s.status}
+
+
+class SnoozeBody(BaseModel):
+    uid: str
+    until: str
+    folder: str = "INBOX"
+
+
+@router.post("/snooze/{aid}")
+def snooze_message(aid: str, body: SnoozeBody, db: DbSession = Depends(get_db)):
+    from services import mail_cache
+
+    _get(db, aid)
+    return {"snoozed": mail_cache.snooze(db, aid, body.folder, body.uid, body.until)}
+
+
+@router.get("/snoozed/{aid}")
+def list_snoozed(aid: str, db: DbSession = Depends(get_db)):
+    from services import mail_cache
+
+    _get(db, aid)
+    return {"snoozed": mail_cache.snoozed(db, aid)}
+
+
+# ── signatures (5c) ───────────────────────────────────────────────────────────
+class SignatureBody(BaseModel):
+    id: str = ""
+    name: str = ""
+    body: str = ""
+
+
+@router.get("/signatures")
+def list_signatures():
+    from core.settings import load_settings
+
+    return {"signatures": load_settings().get("mail_signatures", [])}
+
+
+@router.post("/signatures")
+def save_signature(body: SignatureBody):
+    import uuid
+
+    from core.settings import load_settings, save_settings
+
+    sigs = [s for s in load_settings().get("mail_signatures", []) if s.get("id")]
+    sid = body.id or uuid.uuid4().hex
+    row = {"id": sid, "name": (body.name or "signature").strip(), "body": body.body or ""}
+    sigs = [s for s in sigs if s["id"] != sid] + [row]
+    save_settings({"mail_signatures": sigs})
+    return row
+
+
+@router.delete("/signatures/{sid}")
+def delete_signature(sid: str):
+    from core.settings import load_settings, save_settings
+
+    sigs = [s for s in load_settings().get("mail_signatures", []) if s.get("id") != sid]
+    save_settings({"mail_signatures": sigs})
+    return {"ok": True}
+
+
+# ── rules engine, vacation responder, smart reply (5d) ───────────────────────
+def _rule_fmt(r):
+    return {
+        "id": r.id,
+        "match_field": r.match_field,
+        "match_value": r.match_value,
+        "action": r.action,
+        "action_arg": r.action_arg or "",
+        "enabled": bool(r.enabled),
+    }
+
+
+class RuleBody(BaseModel):
+    match_field: str = "from"
+    match_value: str = ""
+    action: str = "markread"
+    action_arg: str = ""
+    enabled: bool = True
+
+
+@router.get("/rules")
+def list_rules(db: DbSession = Depends(get_db)):
+    from core.database import MailRule
+
+    rows = db.query(MailRule).order_by(MailRule.created_at.asc()).all()
+    return {"rules": [_rule_fmt(r) for r in rows]}
+
+
+@router.post("/rules")
+def add_rule(body: RuleBody, db: DbSession = Depends(get_db)):
+    from core.database import MailRule
+
+    r = MailRule(
+        match_field=body.match_field if body.match_field in ("from", "subject") else "from",
+        match_value=(body.match_value or "").strip(),
+        action=body.action
+        if body.action in ("markread", "mute", "label", "autoreply")
+        else "markread",
+        action_arg=(body.action_arg or "").strip(),
+        enabled=body.enabled,
+    )
+    db.add(r)
+    db.commit()
+    db.refresh(r)
+    return _rule_fmt(r)
+
+
+@router.delete("/rules/{rid}")
+def delete_rule(rid: str, db: DbSession = Depends(get_db)):
+    from core.database import MailRule
+
+    r = db.get(MailRule, rid)
+    if not r:
+        raise HTTPException(404)
+    db.delete(r)
+    db.commit()
+    return {"ok": True}
+
+
+@router.post("/rules/run/{aid}")
+def run_rules(aid: str, db: DbSession = Depends(get_db)):
+    from core.database import MailRule
+    from services import mail_rules
+
+    _get(db, aid)
+    rules = [_rule_fmt(r) for r in db.query(MailRule).filter(MailRule.enabled == True).all()]  # noqa: E712
+    return {"applied": mail_rules.run_on_cache(db, aid, rules)}
+
+
+class VacationBody(BaseModel):
+    enabled: bool = False
+    subject: str = "Out of office"
+    body: str = ""
+
+
+@router.get("/vacation")
+def get_vacation():
+    from core.settings import load_settings
+
+    return load_settings().get(
+        "mail_vacation", {"enabled": False, "subject": "Out of office", "body": ""}
+    )
+
+
+@router.post("/vacation")
+def set_vacation(body: VacationBody):
+    from core.settings import save_settings
+
+    v = body.model_dump()
+    save_settings({"mail_vacation": v})
+    return v
+
+
+class SmartReplyBody(BaseModel):
+    text: str = ""
+
+
+@router.post("/smart-reply")
+async def smart_reply(body: SmartReplyBody, db: DbSession = Depends(get_db)):
+    """LLM reply suggestions — gated on an enabled model endpoint (disabled → empty)."""
+    from core.database import ModelEndpoint
+
+    ep = db.query(ModelEndpoint).filter(ModelEndpoint.enabled == True).first()  # noqa: E712
+    if not ep:
+        return {"enabled": False, "suggestions": []}
+    try:
+        from services.llm import stream_chat
+
+        prompt = (
+            "Suggest exactly 3 short, distinct email replies to the message below. "
+            "One per line, no numbering, no preamble.\n\n" + (body.text or "")[:4000]
+        )
+        model = (ep.models or "").split(",")[0].strip() if getattr(ep, "models", "") else ""
+        out = ""
+        async for chunk in stream_chat(
+            [{"role": "user", "content": prompt}], ep.base_url, ep.api_key, model
+        ):
+            if chunk.get("delta"):
+                out += chunk["delta"]
+        suggestions = [s.strip("-• ").strip() for s in out.splitlines() if s.strip()][:3]
+        return {"enabled": True, "suggestions": suggestions}
+    except Exception as e:
+        return {"enabled": True, "suggestions": [], "error": str(e)[:200]}
+
+
+# ── labels + category tabs + idle (5e) ───────────────────────────────────────
+class LabelsBody(BaseModel):
+    uid: str
+    labels: list[str] = []
+    folder: str = "INBOX"
+
+
+@router.post("/labels/{aid}")
+def set_labels(aid: str, body: LabelsBody, db: DbSession = Depends(get_db)):
+    from services import mail_cache
+
+    _get(db, aid)
+    return {"ok": bool(mail_cache.set_labels(db, aid, body.folder, body.uid, body.labels))}
+
+
+@router.get("/by-label/{aid}")
+def by_label(aid: str, label: str, db: DbSession = Depends(get_db)):
+    from services import mail_cache
+
+    _get(db, aid)
+    return {"messages": mail_cache.by_label(db, aid, label)}
+
+
+@router.get("/category/{aid}")
+def category(aid: str, cat: str = "primary", db: DbSession = Depends(get_db)):
+    from services import mail_cache
+
+    _get(db, aid)
+    return {"messages": mail_cache.by_category(db, aid, cat)}
+
+
+@router.get("/idle-status/{aid}")
+def idle_status(aid: str, db: DbSession = Depends(get_db)):
+    """report whether the server supports IDLE push (best-effort, network)."""
+    from services import mail_idle
+
+    a = _get(db, aid)
+    try:
+        return {"idle": mail_idle.idle_available(_acct_dict(a))}
+    except Exception:
+        return {"idle": False}
 
 
 @router.get("/message/{aid}")

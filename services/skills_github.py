@@ -73,7 +73,9 @@ def import_from_github(url):
 
     if kind == "file":
         text = _fetch(owner, repo, branch, path)
-        s = skills_store.upsert_from_md(text, _folder(path) or repo)
+        # record the source so the skill can be updated later (10c)
+        src = f"https://github.com/{owner}/{repo}/blob/{branch}/{path}"
+        s = skills_store.upsert_from_md(text, _folder(path) or repo, source=src)
         return {"imported": [s["slug"]], "failed": 0}
 
     branch = branch or _default_branch(owner, repo)
@@ -85,7 +87,10 @@ def import_from_github(url):
     for p in paths:
         try:
             text = _fetch(owner, repo, branch, p)
-            imported.append(skills_store.upsert_from_md(text, _folder(p) or repo)["slug"])
+            src = f"https://github.com/{owner}/{repo}/blob/{branch}/{p}"
+            imported.append(
+                skills_store.upsert_from_md(text, _folder(p) or repo, source=src)["slug"]
+            )
         except Exception:
             failed += 1
     if not imported:
