@@ -75,7 +75,8 @@ async def refresh_feeds():
         seen = {u for (u,) in db.query(ReadItem.url).all()}
         for feed in feeds:
             try:
-                r = await httpx.AsyncClient(timeout=15).get(feed.url, follow_redirects=True)
+                async with httpx.AsyncClient(timeout=15) as c:
+                    r = await c.get(feed.url, follow_redirects=True)
                 parsed = parse_feed(r.text)
             except Exception as e:
                 log.warning(f"feed fetch failed {feed.url}: {e}")
