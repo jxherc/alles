@@ -72,8 +72,10 @@ function _render() {
   body.innerHTML = `
     <div class="health-bar">
       <div class="health-ranges">${RANGES.map(([d, l]) => `<button class="health-chip${_days === d ? ' active' : ''}" data-days="${d}">${l}</button>`).join('')}</div>
-      <button class="btn" id="health-import" title="import a date,kind,value,unit csv">import</button>
-      <button class="btn primary" id="health-add-toggle">${_si('plus')} entry</button>
+      <div class="health-bar-actions">
+        <button class="btn" id="health-import" title="import a date,kind,value,unit csv">import</button>
+        <button class="btn primary" id="health-add-toggle">${_si('plus')} entry</button>
+      </div>
     </div>
     ${_adding ? _addForm() : ''}
     ${_data.kinds.length ? `<div class="health-grid">${_data.kinds.map(_kindCard).join('')}</div>`
