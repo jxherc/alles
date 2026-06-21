@@ -63,6 +63,8 @@ def _fmt(b: Book) -> dict:
 # ── endpoints ──────────────────────────────────────────────────────────────────
 @router.get("/books/overview")
 def overview(db: DbSession = Depends(get_db)):
+    from core.settings import load_settings
+
     books = db.query(Book).order_by(Book.created_at.desc()).all()
     shelves = {s: [] for s in STATUSES}
     for b in books:
@@ -71,7 +73,20 @@ def overview(db: DbSession = Depends(get_db)):
         "shelves": shelves,
         "this_year": year_count(books, date.today().year),
         "total": len(books),
+        "goal": int(load_settings().get("reading_goal", 0) or 0),
     }
+
+
+class GoalBody(BaseModel):
+    goal: int = 0
+
+
+@router.put("/books/goal")
+def set_goal(body: GoalBody):
+    from core.settings import save_settings
+
+    save_settings({"reading_goal": max(0, body.goal)})
+    return {"goal": max(0, body.goal)}
 
 
 @router.get("/books/lookup")

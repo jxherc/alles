@@ -64,6 +64,7 @@ _defaults = {
     "cal_default_view": "month",
     "cal_week_start": "sun",
     "system_refresh": 1500,
+    "reading_goal": 0,  # books-per-year target (0 = off)
     "mail_poll_seconds": 30,
     "mail_signature": "",
     "mail_vips": [],  # VIP sender emails (Apple Mail style)

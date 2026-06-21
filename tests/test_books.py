@@ -97,3 +97,33 @@ class BookApiTests(ApiTest):
         bid = self._create().json()["id"]
         self.assertEqual(self.client.delete(f"/api/books/{bid}").status_code, 200)
         self.assertEqual(self.client.delete(f"/api/books/{bid}").status_code, 404)
+
+
+class BookGoalTests(ApiTest):
+    def setUp(self):
+        super().setUp()
+        import tempfile
+        from pathlib import Path
+        from unittest import mock
+
+        import core.settings
+
+        self._tmp = tempfile.NamedTemporaryFile(suffix=".json", delete=False)
+        self._tmp.close()
+        self._patcher = mock.patch.object(core.settings, "_SETTINGS_FILE", Path(self._tmp.name))
+        self._patcher.start()
+
+    def tearDown(self):
+        self._patcher.stop()
+        super().tearDown()
+
+    def test_goal_defaults_to_zero_in_overview(self):
+        self.assertEqual(self.client.get("/api/books/overview").json().get("goal"), 0)
+
+    def test_set_goal_shows_in_overview(self):
+        self.assertEqual(self.client.put("/api/books/goal", json={"goal": 24}).status_code, 200)
+        self.assertEqual(self.client.get("/api/books/overview").json()["goal"], 24)
+
+    def test_goal_clamped_nonnegative(self):
+        self.client.put("/api/books/goal", json={"goal": -5})
+        self.assertEqual(self.client.get("/api/books/overview").json()["goal"], 0)
