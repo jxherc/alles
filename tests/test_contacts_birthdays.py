@@ -30,6 +30,15 @@ class DaysUntilTests(unittest.TestCase):
     def test_empty(self):
         self.assertIsNone(_days_until_birthday("", T))
 
+    def test_leap_day_birthday_doesnt_crash(self):
+        # Feb 29 birthday seen from a leap year, before the date → next occurrence is
+        # in a non-leap year. used to raise ValueError (date(2027,2,29)); now clamps to 28.
+        leap_today = date(2028, 6, 1)  # 2028 is a leap year, after Feb
+        du = _days_until_birthday("2000-02-29", leap_today)
+        self.assertIsNotNone(du)
+        # 2029 isn't leap → Feb 28; from 2028-06-01 that's ~272 days out
+        self.assertEqual(du, (date(2029, 2, 28) - leap_today).days)
+
 
 class BirthdaysApiTests(ApiTest):
     def setUp(self):
@@ -66,6 +75,11 @@ class BirthdaysApiTests(ApiTest):
 
     def test_wide_window_includes_later(self):
         self.assertIn("Later", [b["name"] for b in self._b(days=120)])
+
+    def test_junk_today_param_doesnt_crash(self):
+        # a bad ?today= used to 500 — now it falls back to the real today
+        r = self.client.get("/api/contacts/birthdays", params={"today": "garbage", "days": 30})
+        self.assertEqual(r.status_code, 200)
 
 
 if __name__ == "__main__":
