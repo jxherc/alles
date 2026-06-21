@@ -1,7 +1,7 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v77';   // richer empty states for books+health
+const VERSION = 'v78';   // fix books/health blank page on api error
 const CACHE = `alles-${VERSION}`;
-const STAMP = '103';   // keep in sync with index.html ?v= / const _v
+const STAMP = '104';   // keep in sync with index.html ?v= / const _v
 
 // 1b: mutating writes that should be queued when offline
 const MUTATING = ['POST', 'PUT', 'PATCH', 'DELETE'];

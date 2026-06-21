@@ -14,9 +14,16 @@ const SHELVES = [['reading', 'reading'], ['want', 'want to read'], ['done', 'rea
 
 export function initBooks() { loadBooks(); }
 
+const _EMPTY = () => ({ shelves: { want: [], reading: [], done: [] }, this_year: 0, total: 0 });
+
 export async function loadBooks() {
-  try { _data = await fetch('/api/books/overview').then(r => r.json()); }
-  catch { _data = { shelves: { want: [], reading: [], done: [] }, this_year: 0, total: 0 }; }
+  // check r.ok — a non-2xx (e.g. a 401 on a subdomain) still returns JSON, and a
+  // {detail:…} body with no `shelves` would crash _render and blank the page.
+  try {
+    const r = await fetch('/api/books/overview');
+    _data = r.ok ? await r.json() : _EMPTY();
+  } catch { _data = _EMPTY(); }
+  if (!_data || !_data.shelves) _data = _EMPTY();
   _render();
 }
 
@@ -54,8 +61,9 @@ function _card(b) {
 function _render() {
   const body = $('books-body');
   if (!body) return;
+  const shelves = _data.shelves || {};
   const shelfHtml = SHELVES.map(([k, label]) => {
-    const list = _data.shelves[k] || [];
+    const list = shelves[k] || [];
     if (!list.length && !_adding) return '';
     return `<div class="book-shelf"><div class="book-shelf-h">${label} <span>${list.length}</span></div><div class="book-grid">${list.map(_card).join('')}</div></div>`;
   }).join('');
