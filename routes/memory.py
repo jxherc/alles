@@ -9,6 +9,7 @@ from services.memory_store import (
     delete_memory,
     update_memory,
     search_memories,
+    debug_search,
 )
 
 router = APIRouter(prefix="/api")
@@ -66,6 +67,14 @@ class SearchQuery(BaseModel):
 @router.post("/memories/search")
 def search(body: SearchQuery):
     return search_memories(body.query, top_k=body.top_k)
+
+
+# POST /api/memories/debug — show which memories fire for a query + scores
+@router.post("/memories/debug")
+def debug(body: SearchQuery):
+    """relevance debugging: every memory ranked with its score, base similarity,
+    category boost, and the retrieval method (vector vs keyword fallback)."""
+    return debug_search(body.query, top_k=body.top_k)
 
 
 class ExtractRequest(BaseModel):

@@ -53,6 +53,25 @@ class MemoryStoreTest(unittest.TestCase):
             res.index("I love hiking in the mountains"), res.index("the weather is cold today")
         )  # more relevant ranks higher
 
+    def test_debug_search_exposes_scores_and_method(self):
+        ms.add_memory("I love hiking in the mountains")
+        ms.add_memory("the weather is cold today")
+        ms.add_memory("always remember this", pinned=True)
+        out = ms.debug_search("what do I like to do")
+        self.assertIn(out["method"], ("vector", "jaccard"))
+        self.assertEqual(out["results"][0]["pinned"], True)  # pinned listed first
+        # every row carries a score + base + boost breakdown
+        for r in out["results"]:
+            self.assertIn("score", r)
+            self.assertIn("base", r)
+            self.assertIn("boost", r)
+        # the relevant one outscores the irrelevant one among the non-pinned
+        rest = {r["text"]: r["score"] for r in out["results"] if not r["pinned"]}
+        self.assertGreater(rest["I love hiking in the mountains"], rest["the weather is cold today"])
+
+    def test_debug_search_empty(self):
+        self.assertEqual(ms.debug_search("anything")["results"], [])
+
     def test_inject_memories_builds_prompt(self):
         ms.add_memory("I am vegetarian")
         out = ms.inject_memories("what should I cook")

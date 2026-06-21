@@ -202,6 +202,35 @@ def search_memories(query: str, top_k: int = 6) -> list[dict]:
         db.close()
 
 
+def debug_search(query: str, top_k: int = 10) -> dict:
+    """same scoring as search_memories, but exposes the scores + method so you can
+    see WHY a memory does/doesn't fire for a query (relevance debugging)."""
+    db = SessionLocal()
+    try:
+        all_mems = db.query(Memory).all()
+        if not all_mems:
+            return {"method": "none", "category": _detect_category(query), "results": []}
+
+        q_cat = _detect_category(query)
+        boosts = _QUERY_BOOST.get(q_cat, {})
+
+        # score every memory so pinned ones show their relevance too
+        vecs = _embed([query] + [m.text for m in all_mems])
+        method = "vector" if vecs else "jaccard"
+        rows = []
+        for i, m in enumerate(all_mems):
+            base = _cosine(vecs[0], vecs[i + 1]) if vecs else _jaccard(query, m.text)
+            boost = boosts.get(m.category, 0.0)
+            rows.append({**_fmt(m), "score": round(base + boost, 4),
+                         "base": round(base, 4), "boost": round(boost, 4),
+                         "pinned": bool(m.pinned)})
+        # pinned first (they always inject), then the rest by score
+        rows.sort(key=lambda r: (not r["pinned"], -r["score"]))
+        return {"method": method, "category": q_cat, "results": rows[:top_k]}
+    finally:
+        db.close()
+
+
 def inject_memories(query: str, top_k: int = 6) -> str:
     """returns a system-prompt string to inject, or '' if nothing relevant"""
     parts = []
