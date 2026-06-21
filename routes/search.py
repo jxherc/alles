@@ -12,6 +12,10 @@ from core.database import (
     Subscription,
     Photo,
     MailAccount,
+    Book,
+    ReadItem,
+    Habit,
+    Monitor,
 )
 
 router = APIRouter(prefix="/api")
@@ -66,6 +70,10 @@ def search(q: str = Query(""), db: DbSession = Depends(get_db)):
         "money": [],
         "subs": [],
         "photos": [],
+        "books": [],
+        "read": [],
+        "habits": [],
+        "watch": [],
     }
     if not q.strip():
         return empty
@@ -199,5 +207,41 @@ def search(q: str = Query(""), db: DbSession = Depends(get_db)):
         res["mail"] = mail_hits[:_LIMIT]
     except Exception:
         res["mail"] = []
+
+    # books — title or author
+    books = (
+        db.query(Book)
+        .filter(or_(Book.title.ilike(pat), Book.author.ilike(pat)))
+        .limit(_LIMIT)
+        .all()
+    )
+    res["books"] = [
+        {"id": b.id, "title": b.title, "author": b.author, "status": b.status} for b in books
+    ]
+
+    # read-later — title, site, or stored body text
+    items = (
+        db.query(ReadItem)
+        .filter(
+            or_(ReadItem.title.ilike(pat), ReadItem.site.ilike(pat), ReadItem.text.ilike(pat))
+        )
+        .order_by(ReadItem.added_at.desc())
+        .limit(_LIMIT)
+        .all()
+    )
+    res["read"] = [{"id": it.id, "title": it.title, "site": it.site} for it in items]
+
+    # habits — by name
+    habits = db.query(Habit).filter(Habit.name.ilike(pat)).limit(_LIMIT).all()
+    res["habits"] = [{"id": h.id, "name": h.name} for h in habits]
+
+    # watch — monitors by name or url
+    mons = (
+        db.query(Monitor)
+        .filter(or_(Monitor.name.ilike(pat), Monitor.url.ilike(pat)))
+        .limit(_LIMIT)
+        .all()
+    )
+    res["watch"] = [{"id": m.id, "name": m.name, "url": m.url} for m in mons]
 
     return res
