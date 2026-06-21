@@ -9,6 +9,10 @@ from core.database import (
     Transaction,
     Subscription,
     Photo,
+    Book,
+    ReadItem,
+    Habit,
+    Monitor,
 )
 
 
@@ -28,9 +32,27 @@ class SearchApiTest(ApiTest):
                 "money",
                 "subs",
                 "photos",
+                "books",
+                "read",
+                "habits",
+                "watch",
             },
         )
         self.assertTrue(all(r[k] == [] for k in r))
+
+    def test_finds_new_apps(self):
+        d = self.db()
+        d.add(Book(title="zptest Dune", author="Herbert", status="reading"))
+        d.add(ReadItem(url="https://x.com", title="zptest article", text="b", site="x.com"))
+        d.add(Habit(name="zptest habit"))
+        d.add(Monitor(name="zptest site", url="https://x.com", kind="http"))
+        d.commit()
+        d.close()
+        r = self.client.get("/api/search", params={"q": "zptest"}).json()
+        self.assertEqual([b["title"] for b in r["books"]], ["zptest Dune"])
+        self.assertEqual([i["title"] for i in r["read"]], ["zptest article"])
+        self.assertEqual([h["name"] for h in r["habits"]], ["zptest habit"])
+        self.assertEqual([m["name"] for m in r["watch"]], ["zptest site"])
 
     def test_finds_money_and_subs(self):
         d = self.db()
