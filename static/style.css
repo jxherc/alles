@@ -5857,12 +5857,16 @@ input.cp-swatch-input { width: 34px; height: 22px; border: 1px solid var(--faint
 .health-empty { padding: 1.2rem 0; font-size: 0.75rem; color: var(--faint); max-width: 460px; }
 .health-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 0.7rem; margin-bottom: 1.6rem; }
 .health-card { border: 1px solid var(--faint); border-radius: 4px; background: var(--panel); padding: 0.8rem 0.9rem; }
-.health-card-h { font-size: 0.68rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 0.3rem; }
+.health-card-h { font-size: 0.68rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 0.3rem; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
+.health-target-btn { background: none; border: 1px solid var(--faint); border-radius: 3px; color: var(--muted); font-size: 0.58rem; letter-spacing: 0.03em; padding: 1px 5px; cursor: pointer; text-transform: none; white-space: nowrap; }
+.health-target-btn:hover { color: var(--text); border-color: var(--muted); }
+.health-target-btn.on { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, transparent); }
 .health-latest { font-size: 1.6rem; font-weight: 600; color: var(--text); line-height: 1; margin-bottom: 0.5rem; }
 .health-latest span { font-size: 0.8rem; color: var(--muted); font-weight: 400; margin-left: 0.2rem; }
 .health-chart { width: 100%; height: 70px; display: block; }
 .health-chart polyline { fill: none; stroke: var(--accent); stroke-width: 1.5; vector-effect: non-scaling-stroke; }
 .health-chart circle { fill: var(--accent); }
+.health-chart .health-goal-line { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 3 3; vector-effect: non-scaling-stroke; opacity: 0.7; }
 .health-spark-empty { font-size: 0.66rem; color: var(--faint); height: 70px; display: flex; align-items: center; }
 .health-card-meta { font-size: 0.66rem; color: var(--faint); margin-top: 0.4rem; }
 .health-add { border: 1px solid var(--faint); border-left: 2px solid var(--accent); border-radius: 4px; background: var(--panel); padding: 0.8rem; margin-bottom: 1.2rem; max-width: 520px; display: flex; flex-direction: column; gap: 0.5rem; }
