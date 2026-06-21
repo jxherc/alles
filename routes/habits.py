@@ -165,6 +165,10 @@ def toggle(hid: str, body: ToggleBody, db: DbSession = Depends(get_db)):
     if not h:
         raise HTTPException(404)
     d = (body.date or date.today().isoformat())[:10]
+    try:
+        _d(d)  # don't let a junk date land in the log — it'd blow up the overview later
+    except ValueError:
+        raise HTTPException(400, "date must be ISO (YYYY-MM-DD)")
     existing = db.query(HabitLog).filter(HabitLog.habit_id == hid, HabitLog.date == d).first()
     if existing:
         db.delete(existing)

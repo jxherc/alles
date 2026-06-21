@@ -85,6 +85,16 @@ class HabitApiTests(ApiTest):
         r2 = self.client.post(f"/api/habits/{hid}/toggle", json={"date": "2026-06-20"})
         self.assertFalse(r2.json()["done"])
 
+    def test_toggle_rejects_junk_date(self):
+        # a junk date used to land in the log and 500 the overview later
+        hid = self._create().json()["id"]
+        self.assertEqual(
+            self.client.post(f"/api/habits/{hid}/toggle", json={"date": "garbage"}).status_code,
+            400,
+        )
+        # overview still fine — nothing poisoned the log
+        self.assertEqual(self.client.get("/api/habits/overview").status_code, 200)
+
     def test_toggle_idempotent_no_duplicate_logs(self):
         hid = self._create().json()["id"]
         for _ in range(3):
