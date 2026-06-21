@@ -94,6 +94,7 @@ window._pickWinner = async (idx) => {
     await fetch(`/api/compare/${_compareId}`, { method: 'DELETE' }).catch(() => {});
     _compareId = null;
   }
+  loadCompareLeaderboard();   // reflect the vote just cast
 };
 
 function _esc(s = '') {
@@ -119,6 +120,24 @@ export function initCompareView() {
     if (!modelList.length) { toast('select at least one model', 'error'); return; }
     await runCompare(msg, modelList);
   });
+}
+
+// blind-vote win rates — so the votes you cast on "pick winner" actually show up
+export async function loadCompareLeaderboard() {
+  const el = document.getElementById('compare-leaderboard');
+  if (!el) return;
+  let stats;
+  try { stats = await (await fetch('/api/compare/stats')).json(); }
+  catch { el.innerHTML = ''; return; }
+  if (!stats.models?.length) { el.innerHTML = ''; return; }
+  el.innerHTML = `
+    <div class="compare-lb-head">leaderboard · ${stats.votes} votes</div>
+    ${stats.models.map(m => `
+      <div class="compare-lb-row">
+        <span class="compare-lb-name">${_esc(m.model)}</span>
+        <span class="compare-lb-rate">${Math.round(m.win_rate * 100)}%</span>
+        <span class="compare-lb-wl">${m.wins}–${m.losses}</span>
+      </div>`).join('')}`;
 }
 
 export async function loadCompareModels() {
