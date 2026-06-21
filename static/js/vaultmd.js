@@ -485,7 +485,7 @@ export function initVault() {
   setCanvasNoteOpener(openByName);
   // canvas / board / tasks live on the docs HOME now (3k), not the in-doc toolbar
   $('wiki-home-canvas')?.addEventListener('click', async () => {
-    const name = await dlgPrompt('canvas name:', 'board');
+    const name = await dlgPrompt('canvas name:', 'canvas');
     if (name) openCanvas(name);
   });
   { const cv = new URLSearchParams(location.search).get('canvas'); if (cv) setTimeout(() => openCanvas(cv), 300); }
