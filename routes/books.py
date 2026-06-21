@@ -187,8 +187,20 @@ def import_books(body: ImportBody, db: DbSession = Depends(get_db)):
     from services.imports import parse_goodreads_csv
 
     rows = parse_goodreads_csv(body.text or "")
+
+    # dedupe so re-running an export doesn't double the shelf. key on isbn when we
+    # have one, else title+author (lowercased). seed from what's already saved.
+    def _key(isbn, title, author):
+        i = (isbn or "").strip().lower()
+        return ("isbn", i) if i else ("ta", (title or "").strip().lower(), (author or "").strip().lower())
+
+    seen = {_key(b.isbn, b.title, b.author) for b in db.query(Book).all()}
     n = 0
     for r in rows:
+        k = _key(r["isbn"], r["title"], r["author"])
+        if k in seen:
+            continue
+        seen.add(k)
         db.add(
             Book(
                 title=r["title"],
