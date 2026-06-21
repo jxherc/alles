@@ -72,6 +72,7 @@ function _render() {
   body.innerHTML = `
     <div class="health-bar">
       <div class="health-ranges">${RANGES.map(([d, l]) => `<button class="health-chip${_days === d ? ' active' : ''}" data-days="${d}">${l}</button>`).join('')}</div>
+      <button class="btn" id="health-import" title="import a date,kind,value,unit csv">import</button>
       <button class="btn primary" id="health-add-toggle">${_si('plus')} entry</button>
     </div>
     ${_adding ? _addForm() : ''}
@@ -112,6 +113,16 @@ function _wire(body) {
   body.querySelectorAll('.health-chip').forEach(c => c.addEventListener('click', () => { _days = +c.dataset.days; loadHealth(); }));
   $('health-add-toggle')?.addEventListener('click', () => { _adding = !_adding; _render(); });
   $('health-empty-add')?.addEventListener('click', () => { _adding = true; _render(); });
+  $('health-import')?.addEventListener('click', () => {
+    const inp = document.createElement('input'); inp.type = 'file'; inp.accept = '.csv,text/csv';
+    inp.onchange = async () => {
+      const f = inp.files[0]; if (!f) return;
+      const r = await fetch('/api/health/import', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text: await f.text() }) });
+      const d = await r.json().catch(() => ({}));
+      toast(`imported ${d.imported || 0} entr${d.imported === 1 ? 'y' : 'ies'}`, 'success'); loadHealth();
+    };
+    inp.click();
+  });
 
   if (_adding) {
     const kindEl = $('health-kind');

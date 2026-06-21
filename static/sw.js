@@ -1,7 +1,7 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v84';   // watch public status page
+const VERSION = 'v85';   // csv import (goodreads + health)
 const CACHE = `alles-${VERSION}`;
-const STAMP = '110';   // keep in sync with index.html ?v= / const _v
+const STAMP = '111';   // keep in sync with index.html ?v= / const _v
 
 // 1b: mutating writes that should be queued when offline
 const MUTATING = ['POST', 'PUT', 'PATCH', 'DELETE'];
