@@ -1252,6 +1252,28 @@ async def execute(name: str, args: dict) -> dict:
         return await _task_add(args.get("title", ""))
     if name == "task_done":
         return await _task_done(args.get("id", ""), bool(args.get("done", True)))
+    if name == "book_add":
+        return await _book_add(args)
+    if name == "books_list":
+        return await _books_list(args)
+    if name == "health_log":
+        return await _health_log(args)
+    if name == "health_summary":
+        return await _health_summary(args)
+    if name == "habit_add":
+        return await _habit_add(args)
+    if name == "habit_log":
+        return await _habit_log(args)
+    if name == "habits_list":
+        return await _habits_list(args)
+    if name == "read_save":
+        return await _read_save(args)
+    if name == "read_list":
+        return await _read_list(args)
+    if name == "watch_add":
+        return await _watch_add(args)
+    if name == "watch_status":
+        return await _watch_status(args)
     if name == "note_list":
         return await _note_list()
     if name == "note_read":
@@ -1415,6 +1437,272 @@ async def _task_done(tid, done):
         t.done = done
         db.commit()
         return {"output": f"task {tid} marked {'done' if done else 'not done'}"}
+    finally:
+        db.close()
+
+
+# ── personal-app tools: books / health / habits / read / watch ────────────────
+async def _book_add(a):
+    from datetime import date
+
+    from core.database import Book, SessionLocal
+
+    title = (a.get("title") or "").strip()
+    if not title:
+        return {"output": "title required", "error": True}
+    status = a.get("status") or "want"
+    if status not in ("want", "reading", "done"):
+        return {"output": "status must be want, reading or done", "error": True}
+    db = SessionLocal()
+    try:
+        b = Book(
+            title=title,
+            author=(a.get("author") or "").strip(),
+            status=status,
+            started=date.today().isoformat() if status == "reading" else "",
+            finished=date.today().isoformat() if status == "done" else "",
+        )
+        db.add(b)
+        db.commit()
+        db.refresh(b)
+        return {"output": f"added '{title}' to the {status} shelf ({b.id[:8]})"}
+    finally:
+        db.close()
+
+
+async def _books_list(a):
+    from core.database import Book, SessionLocal
+
+    db = SessionLocal()
+    try:
+        rows = db.query(Book).order_by(Book.created_at.desc()).all()
+        if not rows:
+            return {"output": "no books yet"}
+        out = []
+        for b in rows:
+            line = f"- [{b.status}] {b.title}"
+            if b.author:
+                line += f" — {b.author}"
+            if b.rating:
+                line += f" ({b.rating}/5)"
+            out.append(line)
+        return {"output": "\n".join(out)}
+    finally:
+        db.close()
+
+
+async def _health_log(a):
+    from datetime import date
+
+    from core.database import HealthEntry, SessionLocal
+
+    try:
+        value = float(a.get("value"))
+    except (TypeError, ValueError):
+        return {"output": "value must be a number", "error": True}
+    kind = (a.get("kind") or "custom").strip() or "custom"
+    db = SessionLocal()
+    try:
+        e = HealthEntry(
+            kind=kind,
+            value=value,
+            unit=(a.get("unit") or "").strip(),
+            note=(a.get("note") or "").strip(),
+            date=date.today().isoformat(),
+        )
+        db.add(e)
+        db.commit()
+        unit = f" {e.unit}" if e.unit else ""
+        return {"output": f"logged {kind} {value}{unit} for today"}
+    finally:
+        db.close()
+
+
+async def _health_summary(a):
+    from core.database import HealthEntry, SessionLocal
+
+    db = SessionLocal()
+    try:
+        rows = db.query(HealthEntry).order_by(HealthEntry.id.desc()).all()
+        if not rows:
+            return {"output": "no health entries yet"}
+        latest = {}
+        for e in rows:
+            latest.setdefault(e.kind, e)
+        out = [
+            f"- {k}: {v.value}{(' ' + v.unit) if v.unit else ''} (latest {v.date})"
+            for k, v in latest.items()
+        ]
+        return {"output": "\n".join(out)}
+    finally:
+        db.close()
+
+
+async def _habit_add(a):
+    from core.database import Habit, SessionLocal
+
+    name = (a.get("name") or "").strip()
+    if not name:
+        return {"output": "name required", "error": True}
+    cadence = a.get("cadence") or "daily"
+    db = SessionLocal()
+    try:
+        h = Habit(name=name, cadence=cadence if cadence in ("daily", "weekly") else "daily")
+        db.add(h)
+        db.commit()
+        db.refresh(h)
+        return {"output": f"added habit '{name}' ({h.id[:8]})"}
+    finally:
+        db.close()
+
+
+async def _habit_log(a):
+    from datetime import date
+
+    from core.database import Habit, HabitLog, SessionLocal
+
+    name = (a.get("name") or "").strip()
+    db = SessionLocal()
+    try:
+        h = db.query(Habit).filter(Habit.name == name).first()
+        if not h:
+            return {"output": f"no habit named '{name}'", "error": True}
+        today = date.today().isoformat()
+        if (
+            db.query(HabitLog)
+            .filter(HabitLog.habit_id == h.id, HabitLog.date == today)
+            .first()
+        ):
+            return {"output": f"'{name}' is already marked done today"}
+        db.add(HabitLog(habit_id=h.id, date=today))
+        db.commit()
+        return {"output": f"marked '{name}' done for today"}
+    finally:
+        db.close()
+
+
+async def _habits_list(a):
+    from datetime import date
+
+    from core.database import Habit, HabitLog, SessionLocal
+
+    db = SessionLocal()
+    try:
+        rows = (
+            db.query(Habit)
+            .filter(Habit.archived == False)  # noqa: E712
+            .order_by(Habit.created_at)
+            .all()
+        )
+        if not rows:
+            return {"output": "no habits yet"}
+        today = date.today().isoformat()
+        out = []
+        for h in rows:
+            done = (
+                db.query(HabitLog)
+                .filter(HabitLog.habit_id == h.id, HabitLog.date == today)
+                .first()
+            )
+            out.append(f"- {'[x]' if done else '[ ]'} {h.name} ({h.cadence})")
+        return {"output": "\n".join(out)}
+    finally:
+        db.close()
+
+
+async def _read_save(a):
+    from urllib.parse import urlparse
+
+    from core.database import ReadItem, SessionLocal
+    from services.research.search import fetch_webpage_content
+
+    url = (a.get("url") or "").strip()
+    if not url:
+        return {"output": "url required", "error": True}
+    if not url.startswith("http"):
+        url = "https://" + url
+    res = fetch_webpage_content(url)
+    text = res.get("content", "") if res else ""
+    host = urlparse(url).hostname or ""
+    site = host[4:] if host.startswith("www.") else host
+    title = (res.get("title") if res else "") or site or url
+    db = SessionLocal()
+    try:
+        it = ReadItem(
+            url=url,
+            title=title[:300],
+            text=text,
+            excerpt=(text[:240].rstrip() + "…") if len(text) > 240 else text,
+            site=site,
+            image=(res.get("og_image", "") if res else ""),
+            read_minutes=max(1, round(len(text.split()) / 200)),
+        )
+        db.add(it)
+        db.commit()
+        return {"output": f"saved '{title}' to read-later"}
+    finally:
+        db.close()
+
+
+async def _read_list(a):
+    from core.database import ReadItem, SessionLocal
+
+    db = SessionLocal()
+    try:
+        rows = (
+            db.query(ReadItem)
+            .filter(ReadItem.archived == False)  # noqa: E712
+            .order_by(ReadItem.added_at.desc())
+            .all()
+        )
+        if not rows:
+            return {"output": "nothing saved yet"}
+        out = [f"- {'(read) ' if it.read_at else ''}{it.title} — {it.site}" for it in rows]
+        return {"output": "\n".join(out)}
+    finally:
+        db.close()
+
+
+async def _watch_add(a):
+    from core.database import Monitor, SessionLocal
+
+    name = (a.get("name") or "").strip()
+    url = (a.get("url") or "").strip()
+    if not name or not url:
+        return {"output": "name and url required", "error": True}
+    kind = a.get("kind") or "http"
+    if kind not in ("http", "health", "cert"):
+        return {"output": "kind must be http, health or cert", "error": True}
+    db = SessionLocal()
+    try:
+        m = Monitor(name=name, url=url, kind=kind)
+        db.add(m)
+        db.commit()
+        db.refresh(m)
+        return {"output": f"now watching '{name}' ({url})"}
+    finally:
+        db.close()
+
+
+async def _watch_status(a):
+    from core.database import Monitor, MonitorCheck, SessionLocal
+
+    db = SessionLocal()
+    try:
+        rows = db.query(Monitor).order_by(Monitor.created_at).all()
+        if not rows:
+            return {"output": "no monitors"}
+        out = []
+        for m in rows:
+            last = (
+                db.query(MonitorCheck)
+                .filter(MonitorCheck.monitor_id == m.id)
+                .order_by(MonitorCheck.id.desc())
+                .first()
+            )
+            status = ("up" if last.ok else "down") if last else "unknown"
+            out.append(f"- {status}: {m.name} ({m.url})")
+        return {"output": "\n".join(out)}
     finally:
         db.close()
 
@@ -2237,6 +2525,72 @@ APP_TOOL_DEFS = [
         },
         ["to"],
     ),
+    # ── personal apps: books / health / habits / read / watch ──
+    _tool(
+        "book_add",
+        "Add a book to the reading list.",
+        {
+            "title": {"type": "string"},
+            "author": {"type": "string", "default": ""},
+            "status": {
+                "type": "string",
+                "enum": ["want", "reading", "done"],
+                "default": "want",
+            },
+        },
+        ["title"],
+    ),
+    _tool("books_list", "List books on the reading list with their shelf and rating.", {}),
+    _tool(
+        "health_log",
+        "Log a health/fitness measurement for today (weight, sleep, workout, etc).",
+        {
+            "kind": {
+                "type": "string",
+                "description": "weight | sleep | workout | med | custom",
+                "default": "custom",
+            },
+            "value": {"type": "number"},
+            "unit": {"type": "string", "default": ""},
+            "note": {"type": "string", "default": ""},
+        },
+        ["value"],
+    ),
+    _tool("health_summary", "Show the latest reading for each tracked health metric.", {}),
+    _tool(
+        "habit_add",
+        "Create a habit to track.",
+        {
+            "name": {"type": "string"},
+            "cadence": {"type": "string", "enum": ["daily", "weekly"], "default": "daily"},
+        },
+        ["name"],
+    ),
+    _tool(
+        "habit_log",
+        "Mark a habit done for today, by name.",
+        {"name": {"type": "string"}},
+        ["name"],
+    ),
+    _tool("habits_list", "List habits and whether each is done today.", {}),
+    _tool(
+        "read_save",
+        "Save a URL to the read-later archive (fetches + stores the readable text).",
+        {"url": {"type": "string"}},
+        ["url"],
+    ),
+    _tool("read_list", "List saved read-later items.", {}),
+    _tool(
+        "watch_add",
+        "Add an uptime/status monitor for an external site, endpoint or cert.",
+        {
+            "name": {"type": "string"},
+            "url": {"type": "string"},
+            "kind": {"type": "string", "enum": ["http", "health", "cert"], "default": "http"},
+        },
+        ["name", "url"],
+    ),
+    _tool("watch_status", "Show each monitor's latest up/down status.", {}),
 ]
 
 
@@ -2270,6 +2624,12 @@ MUTATING_TOOLS = {
     "note_write",
     "contact_add",
     "mail_send",
+    "book_add",
+    "health_log",
+    "habit_add",
+    "habit_log",
+    "read_save",
+    "watch_add",
 }
 # subset that produces a file diff we can preview
 _DIFF_TOOLS = {"write_file", "edit_file", "apply_patch"}
