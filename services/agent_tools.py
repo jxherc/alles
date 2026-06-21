@@ -670,6 +670,13 @@ async def _skill_load(name_or_path: str) -> dict:
             return {"output": _safe_text(p.read_text("utf-8", errors="replace")), "error": False}
         for sf in _skill_files():
             if sf.parent.name == target:
+                try:  # count it only if it's one of the user's own alles skills
+                    from services import skills_store
+
+                    if sf.parent.parent == skills_store.SKILLS_DIR:
+                        skills_store.record_use(target)
+                except Exception:
+                    pass
                 return {
                     "output": _safe_text(sf.read_text("utf-8", errors="replace")),
                     "error": False,

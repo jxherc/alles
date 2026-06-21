@@ -1,4 +1,4 @@
-import { loadSessions, initSessions, newChat, showWelcome, createSession, renderSidebar, exportActiveSessionMarkdown, getActiveId, saveDraft, clearDraft } from './sessions.js';
+import { loadSessions, initSessions, newChat, showWelcome, createSession, renderSidebar, exportActiveSessionMarkdown, downloadSession, getActiveId, saveDraft, clearDraft } from './sessions.js';
 import { loadModels, renderModelList, renderSidebarModelList, addEndpoint, getSelected, getCurrentEndpoint, initModelModal, prettyModel } from './models.js';
 import { populateDropdown } from './dropdown.js';
 import { icon, iconEl, ICON_NAMES } from './icons.js';
@@ -1029,7 +1029,11 @@ function bindEvents() {
     menu.className = 'ctx-menu';
     menu.style.cssText = `display:block;right:${window.innerWidth - rect.right}px;top:${rect.bottom + 4}px;left:auto`;
     menu.innerHTML = `
-      <div class="ctx-item" data-a="export">export markdown</div>
+      <div class="ctx-item" data-a="export-md">export markdown</div>
+      <div class="ctx-item" data-a="export-html">export html</div>
+      <div class="ctx-item" data-a="export-json">export json</div>
+      <div class="ctx-item" data-a="export-txt">export text</div>
+      <div class="ctx-sep"></div>
       <div class="ctx-item" data-a="share">copy share link</div>
       <div class="ctx-item" data-a="print">print / save pdf</div>
       <div class="ctx-sep"></div>
@@ -1037,7 +1041,7 @@ function bindEvents() {
       <div class="ctx-item" data-a="audio-podcast">🎙 podcast overview</div>`;
     menu.addEventListener('click', e => {
       const a = e.target.closest('.ctx-item')?.dataset.a;
-      if (a === 'export') exportActiveSessionMarkdown();
+      if (a?.startsWith('export-')) downloadSession(a.slice(7));
       if (a === 'share')  _shareSession();
       if (a === 'print')  _printSession();
       if (a === 'audio-summary') _playAudioOverview('summary');
@@ -1131,7 +1135,16 @@ function bindEvents() {
 
   document.addEventListener('keydown', e => {
     const shortcuts = loadShortcuts();
-    if (e.key === 'Escape') { closeAllModals(); closeSettings(); closeSearch(); closeMoreTools(); closeShellPanel(); }
+    if (e.key === 'Escape') {
+      // if a reply is streaming, Esc stops it first; otherwise it closes overlays
+      const stopBtn = document.getElementById('stop-btn');
+      if (stopBtn?.classList.contains('visible')) { stopStream(); return; }
+      closeAllModals(); closeSettings(); closeSearch(); closeMoreTools(); closeShellPanel();
+    }
+    else if (matchesShortcut(e, shortcuts.focus_input)) {
+      const ta = document.getElementById('composer-ta');
+      if (ta && ta.offsetParent !== null) { e.preventDefault(); ta.focus(); }
+    }
     else if (matchesShortcut(e, shortcuts.search)) { e.preventDefault(); openSearch(); }
     else if (matchesShortcut(e, shortcuts.settings)) { e.preventDefault(); openSettings(); }
     else if (matchesShortcut(e, shortcuts.sidebar) && document.body.classList.contains('is-aide')) { e.preventDefault(); document.body.classList.toggle('sidebar-hidden'); }

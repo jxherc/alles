@@ -86,3 +86,37 @@ class WebhooksApiTest(ApiTest):
     def test_events_list_returns_sorted(self):
         ev = self.client.get("/api/webhooks/events").json()
         self.assertEqual(ev, sorted(ev))
+
+    def test_create_generates_secret_and_status_fields(self):
+        w = self.client.post("/api/webhooks", json={"name": "s", "url": "https://x.io"}).json()
+        self.assertTrue(w["secret"])  # signing key minted on create
+        self.assertEqual(w["last_status"], "")
+        self.assertIsNone(w["last_triggered"])
+
+    def test_sign_matches_hmac(self):
+        import hmac, hashlib
+        from routes.webhooks import _sign
+
+        raw = b'{"a":1}'
+        expect = "sha256=" + hmac.new(b"k", raw, hashlib.sha256).hexdigest()
+        self.assertEqual(_sign("k", raw), expect)
+
+    def test_test_endpoint_records_status(self):
+        from unittest import mock
+
+        wid = self.client.post(
+            "/api/webhooks", json={"name": "t", "url": "https://x.io"}
+        ).json()["id"]
+
+        async def _ok(w, body):
+            return ("ok", "")
+
+        with mock.patch("routes.webhooks._deliver", _ok):
+            r = self.client.post(f"/api/webhooks/{wid}/test")
+        self.assertEqual(r.json()["status"], "ok")
+        w = self.client.get("/api/webhooks").json()[0]
+        self.assertEqual(w["last_status"], "ok")
+        self.assertIsNotNone(w["last_triggered"])
+
+    def test_test_endpoint_404(self):
+        self.assertEqual(self.client.post("/api/webhooks/nope/test").status_code, 404)
