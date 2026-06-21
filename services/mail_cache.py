@@ -266,11 +266,11 @@ def snoozed(db, account_id) -> list[dict]:
 
 
 def search(db, account_id: str, q: str, limit: int = 40) -> list[dict]:
-    like = f"%{q}%"
+    like = "%" + q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
     rows = (
         db.query(CachedMessage)
         .filter(CachedMessage.account_id == account_id)
-        .filter(CachedMessage.subject.ilike(like) | CachedMessage.sender.ilike(like))
+        .filter(CachedMessage.subject.ilike(like, escape="\\") | CachedMessage.sender.ilike(like, escape="\\"))
         .order_by(CachedMessage.date_ts.desc())
         .limit(limit)
         .all()

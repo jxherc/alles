@@ -78,20 +78,22 @@ def search(q: str = Query(""), db: DbSession = Depends(get_db)):
     if not q.strip():
         return empty
 
-    pat = f"%{q}%"
+    # escape LIKE wildcards so a query like "100%" or "node_modules" matches
+    # literally instead of treating % / _ as wildcards
+    pat = "%" + q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
     ql = q.lower()
     res = dict(empty)
 
     # chats — session names + message bodies
     by_name = (
         db.query(Session)
-        .filter(Session.archived == False, Session.name.ilike(pat))
+        .filter(Session.archived == False, Session.name.ilike(pat, escape="\\"))
         .limit(_LIMIT)
         .all()
     )
     seen = {s.id for s in by_name}
     chats = [{"session_id": s.id, "session_name": s.name, "snippet": s.name} for s in by_name]
-    for m in db.query(Message).filter(Message.content.ilike(pat)).limit(_LIMIT * 3).all():
+    for m in db.query(Message).filter(Message.content.ilike(pat, escape="\\")).limit(_LIMIT * 3).all():
         if m.session_id in seen:
             continue
         seen.add(m.session_id)
@@ -109,13 +111,13 @@ def search(q: str = Query(""), db: DbSession = Depends(get_db)):
         res["notes"] = []
 
     # tasks
-    tasks = db.query(Task).filter(Task.title.ilike(pat)).limit(_LIMIT).all()
+    tasks = db.query(Task).filter(Task.title.ilike(pat, escape="\\")).limit(_LIMIT).all()
     res["tasks"] = [{"id": t.id, "title": t.title, "done": bool(t.done)} for t in tasks]
 
     # calendar
     evs = (
         db.query(CalendarEvent)
-        .filter(or_(CalendarEvent.title.ilike(pat), CalendarEvent.description.ilike(pat)))
+        .filter(or_(CalendarEvent.title.ilike(pat, escape="\\"), CalendarEvent.description.ilike(pat, escape="\\")))
         .limit(_LIMIT)
         .all()
     )
@@ -126,10 +128,10 @@ def search(q: str = Query(""), db: DbSession = Depends(get_db)):
         db.query(Contact)
         .filter(
             or_(
-                Contact.name.ilike(pat),
-                Contact.email.ilike(pat),
-                Contact.phone.ilike(pat),
-                Contact.notes.ilike(pat),
+                Contact.name.ilike(pat, escape="\\"),
+                Contact.email.ilike(pat, escape="\\"),
+                Contact.phone.ilike(pat, escape="\\"),
+                Contact.notes.ilike(pat, escape="\\"),
             )
         )
         .limit(_LIMIT)
@@ -152,9 +154,9 @@ def search(q: str = Query(""), db: DbSession = Depends(get_db)):
         db.query(Transaction)
         .filter(
             or_(
-                Transaction.payee.ilike(pat),
-                Transaction.category.ilike(pat),
-                Transaction.notes.ilike(pat),
+                Transaction.payee.ilike(pat, escape="\\"),
+                Transaction.category.ilike(pat, escape="\\"),
+                Transaction.notes.ilike(pat, escape="\\"),
             )
         )
         .order_by(Transaction.date.desc())
@@ -174,7 +176,7 @@ def search(q: str = Query(""), db: DbSession = Depends(get_db)):
     # subscriptions — by name/category
     subs = (
         db.query(Subscription)
-        .filter(or_(Subscription.name.ilike(pat), Subscription.category.ilike(pat)))
+        .filter(or_(Subscription.name.ilike(pat, escape="\\"), Subscription.category.ilike(pat, escape="\\")))
         .limit(_LIMIT)
         .all()
     )
@@ -186,7 +188,7 @@ def search(q: str = Query(""), db: DbSession = Depends(get_db)):
     # photos — by original filename
     photos = (
         db.query(Photo)
-        .filter(Photo.original_name.ilike(pat))
+        .filter(Photo.original_name.ilike(pat, escape="\\"))
         .order_by(Photo.created_at.desc())
         .limit(_LIMIT)
         .all()
@@ -211,7 +213,7 @@ def search(q: str = Query(""), db: DbSession = Depends(get_db)):
     # books — title or author
     books = (
         db.query(Book)
-        .filter(or_(Book.title.ilike(pat), Book.author.ilike(pat)))
+        .filter(or_(Book.title.ilike(pat, escape="\\"), Book.author.ilike(pat, escape="\\")))
         .limit(_LIMIT)
         .all()
     )
@@ -223,7 +225,7 @@ def search(q: str = Query(""), db: DbSession = Depends(get_db)):
     items = (
         db.query(ReadItem)
         .filter(
-            or_(ReadItem.title.ilike(pat), ReadItem.site.ilike(pat), ReadItem.text.ilike(pat))
+            or_(ReadItem.title.ilike(pat, escape="\\"), ReadItem.site.ilike(pat, escape="\\"), ReadItem.text.ilike(pat, escape="\\"))
         )
         .order_by(ReadItem.added_at.desc())
         .limit(_LIMIT)
@@ -232,13 +234,13 @@ def search(q: str = Query(""), db: DbSession = Depends(get_db)):
     res["read"] = [{"id": it.id, "title": it.title, "site": it.site} for it in items]
 
     # habits — by name
-    habits = db.query(Habit).filter(Habit.name.ilike(pat)).limit(_LIMIT).all()
+    habits = db.query(Habit).filter(Habit.name.ilike(pat, escape="\\")).limit(_LIMIT).all()
     res["habits"] = [{"id": h.id, "name": h.name} for h in habits]
 
     # watch — monitors by name or url
     mons = (
         db.query(Monitor)
-        .filter(or_(Monitor.name.ilike(pat), Monitor.url.ilike(pat)))
+        .filter(or_(Monitor.name.ilike(pat, escape="\\"), Monitor.url.ilike(pat, escape="\\")))
         .limit(_LIMIT)
         .all()
     )
