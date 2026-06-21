@@ -108,6 +108,29 @@ def set_target(body: TargetBody):
     return {"kind": body.kind, "target": targets.get(body.kind)}
 
 
+class ImportBody(BaseModel):
+    text: str = ""
+
+
+@router.post("/health/import")
+def import_health(body: ImportBody, db: DbSession = Depends(get_db)):
+    """import a simple date/kind/value/unit csv. returns how many rows were added."""
+    from services.imports import parse_health_csv
+
+    rows = parse_health_csv(body.text or "")
+    n = 0
+    for r in rows:
+        d = (r["date"] or date.today().isoformat())[:10]
+        try:
+            _d(d)
+        except ValueError:
+            d = date.today().isoformat()
+        db.add(HealthEntry(kind=r["kind"], value=r["value"], unit=r["unit"], date=d))
+        n += 1
+    db.commit()
+    return {"imported": n}
+
+
 class EntryBody(BaseModel):
     kind: str
     value: float

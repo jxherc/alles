@@ -177,6 +177,35 @@ def update_book(bid: str, body: BookPatch, db: DbSession = Depends(get_db)):
     return _fmt(b)
 
 
+class ImportBody(BaseModel):
+    text: str = ""
+
+
+@router.post("/books/import")
+def import_books(body: ImportBody, db: DbSession = Depends(get_db)):
+    """import a goodreads library export (csv text). returns how many were added."""
+    from services.imports import parse_goodreads_csv
+
+    rows = parse_goodreads_csv(body.text or "")
+    n = 0
+    for r in rows:
+        db.add(
+            Book(
+                title=r["title"],
+                author=r["author"],
+                status=r["status"] if r["status"] in STATUSES else "want",
+                rating=clamp_rating(r["rating"]),
+                finished=r["finished"],
+                started=date.today().isoformat() if r["status"] == "reading" else "",
+                isbn=r["isbn"],
+                year=r["year"],
+            )
+        )
+        n += 1
+    db.commit()
+    return {"imported": n}
+
+
 @router.delete("/books/{bid}")
 def delete_book(bid: str, db: DbSession = Depends(get_db)):
     b = db.get(Book, bid)
