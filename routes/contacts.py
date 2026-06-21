@@ -1,3 +1,4 @@
+import calendar as _cal
 import json
 import re
 from datetime import date, datetime
@@ -43,11 +44,16 @@ def _days_until_birthday(bday: str, today: date):
     if not m:
         return None
     mo, da = int(m.group(1)), int(m.group(2))
-    try:
-        this_year = date(today.year, mo, da)
-    except ValueError:
+    if not (1 <= mo <= 12) or da < 1:
         return None
-    nxt = this_year if this_year >= today else date(today.year + 1, mo, da)
+
+    def _mk(y):
+        # clamp so a Feb-29 birthday lands on the 28th in a non-leap year instead
+        # of throwing (which used to 500 the whole birthdays endpoint)
+        return date(y, mo, min(da, _cal.monthrange(y, mo)[1]))
+
+    this_year = _mk(today.year)
+    nxt = this_year if this_year >= today else _mk(today.year + 1)
     return (nxt - today).days
 
 
@@ -100,7 +106,10 @@ def list_contacts(
 @router.get("/contacts/birthdays")
 def upcoming_birthdays(days: int = 30, today: str = "", db: DbSession = Depends(get_db)):
     """contacts with a birthday in the next `days` days (year-agnostic), soonest first."""
-    base = date.fromisoformat(today) if today else date.today()
+    try:
+        base = date.fromisoformat(today) if today else date.today()
+    except ValueError:
+        base = date.today()
     out = []
     for c in db.query(Contact).filter(Contact.birthday != "").all():
         du = _days_until_birthday(c.birthday, base)
