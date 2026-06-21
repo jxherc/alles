@@ -467,6 +467,9 @@ const HOME_TILES = [
   { view: 'health',   name: 'health',   desc: 'weight, sleep…',   icon: 'health' },
 ];
 
+// command-palette nav source (the ⌘K search renders a "go to" group from this)
+window._navCommands = HOME_TILES.map(t => ({ view: t.view, label: t.name, hint: t.desc }));
+
 // ── home tiles: drag-reorder + hide/show (persisted) + quick capture ─────────
 const HOME_ORDER_KEY = 'alles-home-order';
 const HOME_HIDDEN_KEY = 'alles-home-hidden';

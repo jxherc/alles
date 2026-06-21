@@ -1,3 +1,5 @@
+import { filterCommands } from './palette.js';
+
 let _debounce = null;
 
 export function openSearch() {
@@ -66,16 +68,26 @@ function _row(attrs, name, snip) {
 
 function _renderResults(d, q) {
   const { chats = [], notes = [], tasks = [], calendar = [], contacts = [],
-          memories = [], mail = [], money = [], subs = [], photos = [] } = d || {};
+          memories = [], mail = [], money = [], subs = [], photos = [],
+          books = [], read = [], habits = [], watch = [] } = d || {};
   const container = document.getElementById('search-results');
   if (!container) return;
 
+  // "go to" — fuzzy-match the query against every app/view, so you can jump even
+  // when the view has no matching data yet (a true command-palette behaviour)
+  const navHits = q ? filterCommands(window._navCommands || [], q).slice(0, 6) : [];
+
   let html = '';
+  html += _group('go to',    navHits,  c => _row(`data-type="nav" data-view="${_esc(c.view)}"`, c.label, c.hint));
   html += _group('chats',    chats,    c => _row(`data-type="chat" data-id="${_esc(c.session_id)}"`, c.session_name, c.snippet));
   html += _group('docs',     notes,    n => _row(`data-type="note" data-path="${_esc(n.path)}"`, n.name, n.snippet));
   html += _group('mail',     mail,     m => _row(`data-type="nav" data-view="mail"`, m.subject, _fromName(m.from)));
   html += _group('tasks',    tasks,    t => _row(`data-type="nav" data-view="tasks"`, t.title, t.done ? 'done' : ''));
   html += _group('calendar', calendar, e => _row(`data-type="nav" data-view="calendar"`, e.title, e.when));
+  html += _group('books',    books,    b => _row(`data-type="nav" data-view="books"`, b.title, [b.author, b.status].filter(Boolean).join(' · ')));
+  html += _group('read',     read,     i => _row(`data-type="nav" data-view="read"`, i.title, i.site));
+  html += _group('habits',   habits,   h => _row(`data-type="nav" data-view="habits"`, h.name, ''));
+  html += _group('watch',    watch,    m => _row(`data-type="nav" data-view="watch"`, m.name, m.url));
   html += _group('money',    money,    t => _row(`data-type="nav" data-view="money"`, t.payee, `${_money(t.amount)} · ${t.when}`));
   html += _group('subs',     subs,     s => _row(`data-type="nav" data-view="subs"`, s.name, s.snippet));
   html += _group('contacts', contacts, c => _row(`data-type="nav" data-view="contacts"`, c.name, c.snippet));
