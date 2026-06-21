@@ -6,13 +6,78 @@ SKILL.md convention agent_tools already reads. match() scores skills against a
 request so the right one surfaces automatically.
 """
 
+import json
 import re
+import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 SKILLS_DIR = ROOT / "data" / "skills"
 
 _SLUG_RE = re.compile(r"[^a-z0-9._-]+")
+
+# usage sidecar — kept out of the SKILL.md so loading a skill doesn't rewrite it.
+# { slug: {"uses": int, "last_used": epoch, "pinned": bool} }
+_USAGE_FILE = "_usage.json"
+
+
+def _usage_path() -> Path:
+    return _dir() / _USAGE_FILE
+
+
+def _load_usage() -> dict:
+    p = _usage_path()
+    if not p.exists():
+        return {}
+    try:
+        d = json.loads(p.read_text("utf-8"))
+        return d if isinstance(d, dict) else {}
+    except Exception:
+        return {}
+
+
+def _save_usage(d: dict):
+    try:
+        _usage_path().write_text(json.dumps(d), "utf-8")
+    except Exception:
+        pass
+
+
+def usefulness(u: dict) -> float:
+    """one number to sort skills by. pinned always wins, then usage, then recency."""
+    uses = u.get("uses", 0) or 0
+    last = u.get("last_used", 0) or 0
+    score = float(uses)
+    if last:
+        age_days = max(0.0, (time.time() - last) / 86400)
+        score += 2.0 / (1 + age_days)  # recency nudge, decays over days
+    if u.get("pinned"):
+        score += 1e6
+    return score
+
+
+def record_use(slug: str):
+    """bump a skill's use count — the real 'this was useful' signal is loading it."""
+    try:
+        s = _slug(slug)
+    except Exception:
+        return
+    d = _load_usage()
+    row = d.get(s) or {}
+    row["uses"] = (row.get("uses", 0) or 0) + 1
+    row["last_used"] = int(time.time())
+    d[s] = row
+    _save_usage(d)
+
+
+def set_pinned(slug: str, pinned: bool) -> bool:
+    s = _slug(slug)
+    d = _load_usage()
+    row = d.get(s) or {}
+    row["pinned"] = bool(pinned)
+    d[s] = row
+    _save_usage(d)
+    return row["pinned"]
 
 
 def _slug(name: str) -> str:
@@ -60,11 +125,13 @@ def _serialize(name, description, when_to_use, body, source="") -> str:
 
 
 def list_skills() -> list[dict]:
+    usage = _load_usage()
     out = []
     for d in sorted(_dir().glob("*/SKILL.md")):
         try:
             parsed = _parse(d.read_text("utf-8", errors="replace"))
             m = parsed["meta"]
+            u = usage.get(d.parent.name) or {}
             out.append(
                 {
                     "slug": d.parent.name,
@@ -73,10 +140,16 @@ def list_skills() -> list[dict]:
                     "when_to_use": m.get("when_to_use", ""),
                     "source": m.get("source", ""),
                     "size": len(parsed["body"]),
+                    "uses": u.get("uses", 0) or 0,
+                    "last_used": u.get("last_used", 0) or 0,
+                    "pinned": bool(u.get("pinned")),
+                    "score": round(usefulness(u), 3),
                 }
             )
         except Exception:
             continue
+    # most useful first (pinned → used → recent), name as a stable tie-break
+    out.sort(key=lambda s: (-s["score"], s["name"].lower()))
     return out
 
 
@@ -86,6 +159,7 @@ def get_skill(slug: str) -> dict | None:
         return None
     parsed = _parse(p.read_text("utf-8", errors="replace"))
     m = parsed["meta"]
+    u = _load_usage().get(_slug(slug)) or {}
     return {
         "slug": _slug(slug),
         "name": m.get("name", slug),
@@ -93,6 +167,9 @@ def get_skill(slug: str) -> dict | None:
         "when_to_use": m.get("when_to_use", ""),
         "source": m.get("source", ""),
         "body": parsed["body"],
+        "uses": u.get("uses", 0) or 0,
+        "last_used": u.get("last_used", 0) or 0,
+        "pinned": bool(u.get("pinned")),
     }
 
 
@@ -155,6 +232,9 @@ def delete_skill(slug: str) -> bool:
         p.parent.rmdir()  # drop the now-empty skill folder
     except OSError:
         pass
+    d = _load_usage()
+    if d.pop(_slug(slug), None) is not None:
+        _save_usage(d)
     return True
 
 
@@ -173,7 +253,10 @@ def match_skills(query: str, top_k: int = 3) -> list[dict]:
         overlap = len(q & hay)
         if not hay or not overlap:
             continue
-        scored.append((overlap / len(q | hay), s))
+        base = overlap / len(q | hay)
+        # nudge skills the user actually reaches for up the list
+        boost = 1.0 + (0.1 if s.get("uses") else 0) + (0.25 if s.get("pinned") else 0)
+        scored.append((base * boost, s))
     scored.sort(key=lambda x: x[0], reverse=True)
     return [{**s, "score": round(sc, 3)} for sc, s in scored[:top_k]]
 
@@ -230,6 +313,38 @@ def seed_starters() -> int:
                 n += 1
         except Exception:
             pass
+    try:
+        sentinel.write_text("1")
+    except Exception:
+        pass
+    return n
+
+
+_LIB_SENTINEL = ".lib_seeded"
+
+
+def seed_library() -> int:
+    """on first boot install the WHOLE bundled catalog, so the app ships full instead
+    of empty — no manual adding. runs once (own sentinel), skips anything already there,
+    falls back to the 3 starters if the library somehow has nothing."""
+    d = _dir()
+    sentinel = d / _LIB_SENTINEL
+    if sentinel.exists():
+        return 0
+    from services import skills_catalog
+
+    items = skills_catalog.items()
+    n = 0
+    if items:
+        for it in items:
+            try:
+                if not _path(it["slug"]).exists():
+                    upsert_skill(it["name"], it["description"], it["when_to_use"], it["body"])
+                    n += 1
+            except Exception:
+                pass
+    else:
+        n = seed_starters()
     try:
         sentinel.write_text("1")
     except Exception:

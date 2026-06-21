@@ -424,7 +424,7 @@ async def lifespan(app: FastAPI):
     try:
         from services import skills_store
 
-        skills_store.seed_starters()  # first-boot starter skills so the app isn't empty
+        skills_store.seed_library()  # first-boot: install the whole bundled catalog
     except Exception:
         pass
     try:

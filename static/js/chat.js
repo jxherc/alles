@@ -562,6 +562,8 @@ export async function sendMessage(text) {
         html += `<button class="act-btn" onclick="copyMsg(this)">copy</button>`;
         html += `<button class="act-btn" onclick="saveMsgAs(this,'note')" title="save this reply as a note">+note</button>`;
         html += `<button class="act-btn" onclick="saveMsgAs(this,'task')" title="first line becomes a task">+task</button>`;
+        html += `<button class="msg-rewrite-btn act-btn" data-style="shorter" title="rewrite shorter">shorter</button>`;
+        html += `<button class="msg-rewrite-btn act-btn" data-style="simpler" title="rewrite simpler">simpler</button>`;
       }
       if (artifacts.length) {
         wrap.dataset.artifacts = JSON.stringify(artifacts);
@@ -569,6 +571,7 @@ export async function sendMessage(text) {
       }
       actions.innerHTML = html;
       wrap.appendChild(actions);
+      if (cleanText) import('./sessions.js').then(m => m.wireRewriteButtons(actions));
     }
 
     // auto-open the first artifact

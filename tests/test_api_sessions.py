@@ -1,7 +1,9 @@
+import json
 from datetime import datetime, timedelta
+from unittest import mock
 
 from tests._client import ApiTest
-from core.database import Session, Message
+from core.database import Session, Message, ModelEndpoint
 
 
 class SessionsApiTest(ApiTest):
@@ -26,6 +28,86 @@ class SessionsApiTest(ApiTest):
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.json()["persona_id"], "persona-1")
         self.assertEqual(r.json()["project_id"], "proj-1")
+
+    def test_export_formats(self):
+        sid = self.client.post("/api/sessions", json={"name": "My Chat"}).json()["id"]
+        d = self.db()
+        d.add(Message(session_id=sid, role="user", content="hi <b>there</b>"))
+        d.add(Message(session_id=sid, role="assistant", content="hello back"))
+        d.commit()
+        d.close()
+
+        # markdown (default)
+        md = self.client.get(f"/api/sessions/{sid}/export")
+        self.assertEqual(md.status_code, 200)
+        self.assertIn("# My Chat", md.text)
+        self.assertIn('filename="my-chat.md"', md.headers["content-disposition"])
+
+        # json — structured, parseable
+        import json as _j
+
+        data = _j.loads(self.client.get(f"/api/sessions/{sid}/export?fmt=json").text)
+        self.assertEqual([m["role"] for m in data["messages"]], ["user", "assistant"])
+
+        # html — escapes content (no raw tag injection)
+        h = self.client.get(f"/api/sessions/{sid}/export?fmt=html")
+        self.assertIn("text/html", h.headers["content-type"])
+        self.assertIn("&lt;b&gt;there&lt;/b&gt;", h.text)
+        self.assertNotIn("<b>there</b>", h.text)
+
+        # txt
+        t = self.client.get(f"/api/sessions/{sid}/export?fmt=txt")
+        self.assertIn("USER:", t.text)
+
+    def test_export_bad_format_400_and_missing_404(self):
+        sid = self.client.post("/api/sessions", json={"name": "x"}).json()["id"]
+        self.assertEqual(self.client.get(f"/api/sessions/{sid}/export?fmt=pdf").status_code, 400)
+        self.assertEqual(self.client.get("/api/sessions/nope/export").status_code, 404)
+
+    def _seed_chat_with_reply(self):
+        d = self.db()
+        ep = ModelEndpoint(name="e", base_url="http://x", api_key="k",
+                           cached_models=json.dumps(["m1"]))
+        d.add(ep)
+        d.flush()
+        s = Session(name="c", model="m1", endpoint_id=ep.id)
+        d.add(s)
+        d.flush()
+        d.add(Message(session_id=s.id, role="user", content="explain quantum tunneling"))
+        am = Message(session_id=s.id, role="assistant", content="a very long winded answer " * 20)
+        d.add(am)
+        d.commit()
+        sid, mid = s.id, am.id
+        d.close()
+        return sid, mid
+
+    def test_rewrite_replaces_assistant_content(self):
+        sid, mid = self._seed_chat_with_reply()
+
+        async def _fake(messages, base, key, model, max_tokens=256):
+            return "short version."
+
+        with mock.patch("routes.chat.simple_complete", _fake):
+            r = self.client.post("/api/chat/rewrite",
+                                 json={"session_id": sid, "style": "shorter", "msg_id": mid})
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.json()["content"], "short version.")
+        # persisted
+        h = self.client.get(f"/api/sessions/{sid}/history").json()
+        last = [m for m in h["messages"] if m["role"] == "assistant"][-1]
+        self.assertEqual(last["content"], "short version.")
+
+    def test_rewrite_bad_style_400(self):
+        sid, mid = self._seed_chat_with_reply()
+        r = self.client.post("/api/chat/rewrite",
+                             json={"session_id": sid, "style": "spicy", "msg_id": mid})
+        self.assertEqual(r.status_code, 400)
+
+    def test_rewrite_missing_message_404(self):
+        sid, _ = self._seed_chat_with_reply()
+        r = self.client.post("/api/chat/rewrite",
+                             json={"session_id": sid, "style": "shorter", "msg_id": "nope"})
+        self.assertEqual(r.status_code, 404)
 
     def test_incognito_hidden_from_list(self):
         self.client.post("/api/sessions", json={"name": "secret", "incognito": True})

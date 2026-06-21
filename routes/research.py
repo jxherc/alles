@@ -8,16 +8,40 @@ from services.research import run_research, get_task, cancel_task
 router = APIRouter(prefix="/api")
 
 
+def _is_chat_model(mid: str) -> bool:
+    # embedding/rerank/audio models can't do research — skip them
+    m = (mid or "").lower()
+    return bool(m) and not any(
+        b in m for b in ("embed", "rerank", "whisper", "tts", "moderation")
+    )
+
+
+def _first_chat_model(ep) -> str:
+    return next((m for m in (ep.models_list() or []) if _is_chat_model(m)), "")
+
+
 def _resolve_ep():
     from core.database import SessionLocal, ModelEndpoint
+    from core.settings import load_settings
 
     db = SessionLocal()
     try:
-        ep = db.query(ModelEndpoint).filter(ModelEndpoint.enabled == True).first()
-        if not ep:
-            return None, None, None
-        model = ep.models_list()[0] if ep.models_list() else ""
-        return ep.base_url, ep.api_key, model
+        st = load_settings()
+        # prefer the user's configured default endpoint+model
+        dep_id = st.get("default_endpoint_id") or ""
+        if dep_id:
+            ep = db.get(ModelEndpoint, dep_id)
+            if ep and ep.enabled:
+                dmodel = st.get("default_model") or ""
+                model = dmodel if _is_chat_model(dmodel) else _first_chat_model(ep)
+                if model:
+                    return ep.base_url, ep.api_key, model
+        # fallback: first enabled endpoint that actually has a chat model
+        for ep in db.query(ModelEndpoint).filter(ModelEndpoint.enabled == True).all():  # noqa: E712
+            model = _first_chat_model(ep)
+            if model:
+                return ep.base_url, ep.api_key, model
+        return None, None, None
     finally:
         db.close()
 

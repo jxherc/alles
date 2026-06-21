@@ -1,7 +1,10 @@
+import html as _html
+import json as _json
 import re as _re
 from datetime import datetime, timedelta
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi.responses import Response
 from pydantic import BaseModel
 from sqlalchemy.orm import Session as DbSession
 
@@ -300,6 +303,67 @@ async def auto_name_session(session_id: str, db: DbSession = Depends(get_db)):
     s.name = await _generate_title(first_user, ep, model)
     db.commit()
     return {"name": s.name}
+
+
+_EXPORT_MIME = {
+    "md": "text/markdown",
+    "json": "application/json",
+    "txt": "text/plain",
+    "html": "text/html",
+}
+
+
+def _render_export(s: Session, msgs: list, fmt: str) -> str:
+    name = s.name or "chat"
+    if fmt == "json":
+        return _json.dumps(
+            {
+                "name": s.name,
+                "model": s.model,
+                "created_at": s.created_at.isoformat(),
+                "messages": [
+                    {"role": m.role, "content": m.content, "timestamp": m.timestamp.isoformat()}
+                    for m in msgs
+                ],
+            },
+            indent=2,
+            ensure_ascii=False,
+        )
+    if fmt == "txt":
+        return f"{name}\n\n" + "\n\n".join(f"{m.role.upper()}:\n{m.content}" for m in msgs)
+    if fmt == "html":
+        rows = "\n".join(
+            f'<div class="m {_html.escape(m.role)}"><div class="r">{_html.escape(m.role)}</div>'
+            f'<div class="c">{_html.escape(m.content)}</div></div>'
+            for m in msgs
+        )
+        return (
+            "<!doctype html><meta charset=utf-8>"
+            f"<title>{_html.escape(name)}</title>"
+            "<style>body{max-width:760px;margin:2rem auto;padding:0 1rem;"
+            "font:15px/1.6 -apple-system,Segoe UI,sans-serif;color:#1a1a1a}"
+            "h1{font-size:1.4rem}.m{margin:1.2rem 0;padding:.2rem 0 1.2rem;border-bottom:1px solid #eee}"
+            ".r{font-size:.72rem;text-transform:uppercase;letter-spacing:.04em;color:#888;margin-bottom:.3rem}"
+            ".c{white-space:pre-wrap}.m.user .c{color:#333}</style>"
+            f"<h1>{_html.escape(name)}</h1>{rows}"
+        )
+    # default: markdown
+    return f"# {name}\n\n" + "\n\n---\n\n".join(f"**{m.role}:**\n\n{m.content}" for m in msgs)
+
+
+# GET /api/sessions/{id}/export?fmt=md|json|txt|html
+@router.get("/sessions/{session_id}/export")
+def export_session(session_id: str, fmt: str = "md", db: DbSession = Depends(get_db)):
+    s = _session_or_404(session_id, db)
+    if fmt not in _EXPORT_MIME:
+        raise HTTPException(400, "unsupported format")
+    text = _render_export(s, list(s.messages), fmt)
+    safe = _re.sub(r"[^a-z0-9]+", "-", (s.name or "chat").lower()).strip("-") or "chat"
+    return Response(
+        content=text,
+        media_type=_EXPORT_MIME[fmt],
+        headers={"content-disposition": f'attachment; filename="{safe}.{fmt}"'},
+    )
 
 
 # GET /api/sessions/archived

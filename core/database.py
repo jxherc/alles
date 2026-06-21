@@ -346,6 +346,10 @@ class Webhook(Base):
     url = Column(String, nullable=False)
     events = Column(Text, default="[]")  # json list: message, research_done, session_created
     enabled = Column(Boolean, default=True)
+    secret = Column(String, default="")  # HMAC-SHA256 signing key for X-Alles-Signature
+    last_status = Column(String, default="")  # "ok" | "NNN" http code | "error"
+    last_error = Column(String, default="")
+    last_triggered = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=_now)
 
     def events_list(self):
@@ -1194,6 +1198,11 @@ def init_db():
         _add_col(conn, "vault_entries", "vault_id", "TEXT DEFAULT 'default'")
         _add_col(conn, "vaults", "biometric_blob", "TEXT DEFAULT ''")
         _add_col(conn, "webauthn_credentials", "role", "TEXT DEFAULT ''")
+        # webhook hardening — signing secret + delivery status
+        _add_col(conn, "webhooks", "secret", "TEXT DEFAULT ''")
+        _add_col(conn, "webhooks", "last_status", "TEXT DEFAULT ''")
+        _add_col(conn, "webhooks", "last_error", "TEXT DEFAULT ''")
+        _add_col(conn, "webhooks", "last_triggered", "DATETIME")
     _encrypt_plaintext_secrets()
 
 

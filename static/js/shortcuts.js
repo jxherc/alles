@@ -6,6 +6,8 @@ export const DEFAULT_SHORTCUTS = {
   settings: 'Ctrl+,',
   new_chat: 'Alt+N',        // Ctrl+N is the browser's new-window — don't fight it
   send: 'Ctrl+Enter',
+  focus_input: 'Ctrl+/',    // jump to the composer from anywhere
+  stop: 'Escape',           // stop an in-flight generation (also closes overlays)
 };
 
 // combos the OS/browser already own — binding these would either never fire or

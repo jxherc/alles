@@ -109,6 +109,19 @@ class SkillsApiTest(ApiTest):
         m = self.client.get("/api/skills/match", params={"q": "zzzzzunrelated"}).json()
         self.assertEqual(m["matches"], [])
 
+    def test_pin_endpoint_sorts_and_404s(self):
+        self._create(name="Plain")
+        pinned = self._create(name="Star").json()["slug"]
+        r = self.client.post(f"/api/skills/{pinned}/pin", json={"pinned": True})
+        self.assertEqual(r.status_code, 200)
+        self.assertTrue(r.json()["pinned"])
+        # list now sorted with the pinned one first, carrying the rank fields
+        lst = self.client.get("/api/skills").json()
+        self.assertEqual(lst[0]["slug"], "star")
+        self.assertTrue(lst[0]["pinned"])
+        self.assertIn("uses", lst[0])
+        self.assertEqual(self.client.post("/api/skills/nope/pin", json={"pinned": True}).status_code, 404)
+
     def test_special_chars_in_name_slugified(self):
         r = self._create(name="C++ Helper!")
         self.assertEqual(r.status_code, 200)
