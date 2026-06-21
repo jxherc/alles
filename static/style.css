@@ -4983,6 +4983,13 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 }
 .compare-winner { border: 1px solid var(--accent) !important; }
 .compare-loser { opacity: 0.5; }
+/* blind-vote leaderboard */
+.compare-lb-head { font-size: 0.68rem; color: var(--muted); letter-spacing: 0.04em; margin: 0 0 0.45rem; padding-bottom: 0.4rem; border-bottom: 1px solid var(--faint); }
+.compare-lb-row { display: flex; align-items: center; gap: 0.5rem; padding: 0.2rem 0; font-size: 0.7rem; }
+.compare-lb-row:last-child { margin-bottom: 0.7rem; }
+.compare-lb-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
+.compare-lb-rate { color: var(--accent); }
+.compare-lb-wl { color: var(--muted); font-size: 0.62rem; }
 .compare-model-row {
   display: flex; align-items: center; gap: 0.5rem;
   padding: 0.25rem 0; font-size: 0.73rem; color: var(--muted); cursor: pointer;
