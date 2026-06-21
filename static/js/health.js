@@ -2,7 +2,7 @@
 // latest reading + a hand-drawn trend line per metric over a range. mirrors panel conventions.
 import { toast } from './util.js';
 import { initCustomDropdown } from './dropdown.js';
-import { confirm as dlgConfirm } from './dialog.js';
+import { confirm as dlgConfirm, prompt as dlgPrompt } from './dialog.js';
 const _si = n => (window.icon ? window.icon(n) : '');
 
 const $ = id => document.getElementById(id);
@@ -32,27 +32,34 @@ export async function loadHealth() {
 
 function esc(s) { return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
 
-function _line(series) {
+function _line(series, target) {
   if (!series || series.length < 2) return '<div class="health-spark-empty">need 2+ entries to chart</div>';
   const w = 260, h = 70, pad = 4;
   const vals = series.map(p => p.value);
-  const min = Math.min(...vals), max = Math.max(...vals), span = (max - min) || 1;
+  let min = Math.min(...vals), max = Math.max(...vals);
+  const hasT = target != null && !Number.isNaN(target);
+  if (hasT) { min = Math.min(min, target); max = Math.max(max, target); }   // keep the goal line in frame
+  const span = (max - min) || 1;
   const n = series.length;
   const x = i => pad + (i / (n - 1)) * (w - 2 * pad);
   const y = v => pad + (1 - (v - min) / span) * (h - 2 * pad);
   const pts = series.map((p, i) => `${x(i).toFixed(1)},${y(p.value).toFixed(1)}`).join(' ');
   const dots = series.map((p, i) => `<circle cx="${x(i).toFixed(1)}" cy="${y(p.value).toFixed(1)}" r="1.6"/>`).join('');
-  return `<svg class="health-chart" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none"><polyline points="${pts}"/>${dots}</svg>`;
+  const goal = hasT ? `<line class="health-goal-line" x1="0" y1="${y(target).toFixed(1)}" x2="${w}" y2="${y(target).toFixed(1)}"/>` : '';
+  return `<svg class="health-chart" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">${goal}<polyline points="${pts}"/>${dots}</svg>`;
 }
 
 function _kindCard(k) {
   const unit = (k.latest && k.latest.unit) || KIND_UNIT[k.kind] || '';
   const label = k.label || KIND_LABEL[k.kind] || k.kind;
+  const tgt = (typeof k.target === 'number') ? k.target : null;
   return `
-    <div class="health-card">
-      <div class="health-card-h">${esc(label)}</div>
+    <div class="health-card" data-kind="${esc(k.kind)}">
+      <div class="health-card-h">${esc(label)}
+        <button class="health-target-btn${tgt != null ? ' on' : ''}" data-act="set-target" title="set a target">${tgt != null ? `◎ ${_fmtNum(tgt)}` : 'set target'}</button>
+      </div>
       <div class="health-latest">${k.latest ? `${_fmtNum(k.latest.value)}<span>${esc(unit)}</span>` : '—'}</div>
-      ${_line(k.series)}
+      ${_line(k.series, tgt)}
       <div class="health-card-meta">${k.latest ? esc(k.latest.date) : 'no entries'} · ${k.series.length} in range</div>
     </div>`;
 }
@@ -116,6 +123,15 @@ function _wire(body) {
     $('health-value')?.addEventListener('keydown', e => { if (e.key === 'Enter') _create(); });
     $('health-cancel')?.addEventListener('click', () => { _adding = false; _render(); });
   }
+
+  body.querySelectorAll('.health-card[data-kind] [data-act="set-target"]').forEach(btn => btn.addEventListener('click', async () => {
+    const kind = btn.closest('.health-card').dataset.kind;
+    const cur = (_data.kinds.find(k => k.kind === kind) || {}).target;
+    const v = await dlgPrompt(`target for ${kind}? (0 to clear)`, String(cur || ''));
+    if (v == null) return;
+    await fetch('/api/health/target', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ kind, value: parseFloat(v) || 0 }) });
+    loadHealth();
+  }));
 
   body.querySelectorAll('.health-row[data-id]').forEach(row => {
     row.querySelector('[data-act="del"]')?.addEventListener('click', async () => {

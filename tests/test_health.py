@@ -93,3 +93,44 @@ class HealthApiTests(ApiTest):
         r = self.client.patch(f"/api/health/{eid}", json={"value": 81.0, "note": "post lunch"})
         self.assertEqual(r.json()["value"], 81.0)
         self.assertEqual(r.json()["note"], "post lunch")
+
+
+class HealthTargetTests(ApiTest):
+    def setUp(self):
+        super().setUp()
+        import tempfile
+        from pathlib import Path
+        from unittest import mock
+
+        import core.settings
+
+        self._tmp = tempfile.NamedTemporaryFile(suffix=".json", delete=False)
+        self._tmp.close()
+        self._patcher = mock.patch.object(core.settings, "_SETTINGS_FILE", Path(self._tmp.name))
+        self._patcher.start()
+
+    def tearDown(self):
+        self._patcher.stop()
+        super().tearDown()
+
+    def _kind(self, kind):
+        ov = self.client.get("/api/health/overview").json()
+        return next((k for k in ov["kinds"] if k["kind"] == kind), None)
+
+    def test_target_absent_is_none(self):
+        self.client.post("/api/health", json={"kind": "sleep", "value": 7})
+        self.assertIsNone(self._kind("sleep").get("target"))
+
+    def test_set_target_appears_in_overview(self):
+        self.client.post("/api/health", json={"kind": "weight", "value": 72, "unit": "kg"})
+        self.assertEqual(
+            self.client.put("/api/health/target", json={"kind": "weight", "value": 68}).status_code,
+            200,
+        )
+        self.assertEqual(self._kind("weight")["target"], 68)
+
+    def test_zero_clears_target(self):
+        self.client.post("/api/health", json={"kind": "weight", "value": 72})
+        self.client.put("/api/health/target", json={"kind": "weight", "value": 68})
+        self.client.put("/api/health/target", json={"kind": "weight", "value": 0})
+        self.assertIsNone(self._kind("weight").get("target"))

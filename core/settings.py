@@ -65,6 +65,7 @@ _defaults = {
     "cal_week_start": "sun",
     "system_refresh": 1500,
     "reading_goal": 0,  # books-per-year target (0 = off)
+    "health_targets": {},  # per-metric goal value, {kind: target}
     "mail_poll_seconds": 30,
     "mail_signature": "",
     "mail_vips": [],  # VIP sender emails (Apple Mail style)
