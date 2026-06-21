@@ -92,6 +92,39 @@ class AgentIntentsTest(unittest.TestCase):
         ]:
             self.assertTrue(message_needs_tools(m), f"should promote: {m!r}")
 
+    def test_personal_app_actions_promote(self):
+        for m in [
+            # health
+            "log my weight 72.3 kg",
+            "track my sleep",
+            "record my workout",
+            # books
+            "add dune to my reading list",
+            "i finished reading the hobbit",
+            "add a book to my reading list",
+            # read-later
+            "save this link to read later",
+            "read this later: https://example.com/post",
+            # habits
+            "mark my reading habit done",
+            "did i do my habits today",
+            # watch
+            "is example.com up",
+            "is my website down",
+            "add a monitor for my site",
+        ]:
+            self.assertTrue(message_needs_tools(m), f"should promote: {m!r}")
+
+    def test_personal_app_lookalikes_do_not_promote(self):
+        # these mention the same nouns but aren't asking aide to act
+        for m in [
+            "what's a good book to read",
+            "how do i lose weight",
+            "what is a good habit to build",
+            "why is the sky blue",
+        ]:
+            self.assertFalse(message_needs_tools(m), f"should NOT promote: {m!r}")
+
 
 if __name__ == "__main__":
     unittest.main()

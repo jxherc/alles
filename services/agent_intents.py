@@ -67,6 +67,17 @@ _PATTERNS = tuple(
         r"\b(?:npm|pnpm|yarn|pip|pip3|cargo|go|pytest|docker|make|poetry|uv)\s+(?:install|run|build|test|start|add|i|exec|up|compose)\b",
         # code editing
         rf"{_PLEASE}(?:fix|refactor|implement|add|change|update|edit|rename|delete)\b.{{0,80}}\b(?:file|function|class|bug|code|test|method)\b",
+        # personal apps: health / books / read-later / habits / watch
+        r"\b(?:log|track|record)\b.{0,30}\b(?:my\s+)?(?:weight|sleep|workout|run|steps|calories|water|mood|measurement|blood\s+pressure)\b",
+        r"\b(?:add|put|log)\b.{0,40}\b(?:reading\s+list|to-?read\s+list|book\s*shelf)\b",
+        r"\bfinished\s+reading\b",
+        r"\bread\s+(?:this|it|that)\b.{0,20}\blater\b",
+        r"\b(?:add|save)\b.{0,30}\bread[\s-]?later\b",
+        r"\bsave\s+(?:this\s+|the\s+)?(?:link|article|page|url|post)\b",
+        r"\b(?:mark|log|check\s+off|complete)\b.{0,30}\bhabit",
+        r"\bdid\s+i\b.{0,30}\bhabits?\b",
+        r"\bis\s+(?:my\s+|the\s+)?(?:\S+\.\w{2,}|site|website|server|host|service|endpoint|app|page)\b.{0,25}\b(?:up|down|online|offline|reachable|responding|working)\b",
+        r"\b(?:add|set\s+up|create)\b.{0,25}\bmonitor\b",
     )
 )
 
