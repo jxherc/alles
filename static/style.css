@@ -5758,6 +5758,15 @@ input.cp-swatch-input { width: 34px; height: 22px; border: 1px solid var(--faint
 #read-body { padding: 1rem clamp(0.9rem, 3vw, 2rem) 2rem; overflow-y: auto; }
 .read-add { display: flex; gap: 0.4rem; margin-bottom: 0.9rem; max-width: 640px; }
 .read-add .settings-input { flex: 1; }
+.read-feeds { max-width: 640px; margin: 0 0 1rem; padding: 0.7rem; border: 1px solid var(--faint); border-radius: 4px; background: var(--panel); }
+.read-feeds-add { display: flex; gap: 0.4rem; margin-bottom: 0.6rem; }
+.read-feeds-add .settings-input { flex: 1; }
+.read-feeds-list { display: flex; flex-direction: column; gap: 0.3rem; }
+.read-feed-row { display: flex; align-items: center; gap: 0.5rem; font-size: 0.74rem; padding: 0.25rem 0; border-top: 1px solid var(--faint); }
+.read-feed-title { color: var(--text); flex: 0 0 auto; max-width: 45%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.read-feed-url { color: var(--muted); font-family: 'JetBrains Mono', monospace; font-size: 0.66rem; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.read-feed-row .icon-btn { margin-left: auto; }
+.read-feeds-empty { font-size: 0.72rem; color: var(--faint); }
 .read-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; margin-bottom: 1rem; flex-wrap: wrap; }
 .read-filters { display: flex; gap: 0.3rem; }
 .read-chip { background: none; border: 1px solid var(--faint); border-radius: 3px; color: var(--muted); padding: 0.25rem 0.6rem; font-size: 0.7rem; cursor: pointer; }

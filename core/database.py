@@ -1051,6 +1051,16 @@ class ReadItem(Base):
     tags = Column(String, default="")  # comma-separated
 
 
+class ReadFeed(Base):
+    # an rss/atom feed polled in the background; new entries auto-save as ReadItems
+    __tablename__ = "read_feeds"
+    id = Column(String, primary_key=True, default=_uid)
+    url = Column(String, nullable=False, unique=True)
+    title = Column(String, default="")
+    last_checked = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=_now)
+
+
 class Book(Base):
     # reading list: books with shelves (want/reading/done), rating, notes
     __tablename__ = "books"

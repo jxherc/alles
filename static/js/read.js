@@ -10,8 +10,28 @@ let _items = [];
 let _filter = 'all';
 let _q = '';
 let _open = null;   // full item being read
+let _feeds = [];
+let _showFeeds = false;
 
 export function initRead() { loadRead(); }
+
+async function loadFeeds() {
+  try { _feeds = (await fetch('/api/read/feeds').then(r => r.json())).feeds || []; }
+  catch { _feeds = []; }
+}
+
+function _feedsPanel() {
+  return `<div class="read-feeds">
+    <div class="read-feeds-add">
+      <input type="text" id="feed-url" class="settings-input" placeholder="rss / atom feed url…" spellcheck="false">
+      <button class="btn" id="feed-add">add feed</button>
+      <button class="btn" id="feed-refresh" title="poll all feeds now">refresh</button>
+    </div>
+    ${_feeds.length ? `<div class="read-feeds-list">${_feeds.map(f => `
+      <div class="read-feed-row"><span class="read-feed-title">${esc(f.title || f.url)}</span><span class="read-feed-url">${esc(f.url)}</span><button class="icon-btn danger" data-feed-del="${f.id}" title="remove feed">${_si('trash')}</button></div>`).join('')}</div>`
+      : '<div class="read-feeds-empty">no feeds yet — add an rss/atom url and new posts auto-save into your list.</div>'}
+  </div>`;
+}
 
 export async function loadRead() {
   const params = new URLSearchParams();
@@ -36,9 +56,10 @@ function _render() {
       <button class="btn primary" id="read-save">${_si('plus')} save</button>
     </div>
     <div class="read-toolbar">
-      <div class="read-filters">${FILTERS.map(([k, l]) => `<button class="read-chip${_filter === k ? ' active' : ''}" data-filter="${k}">${l}</button>`).join('')}</div>
+      <div class="read-filters">${FILTERS.map(([k, l]) => `<button class="read-chip${_filter === k ? ' active' : ''}" data-filter="${k}">${l}</button>`).join('')}<button class="read-chip${_showFeeds ? ' active' : ''}" id="read-feeds-btn" title="rss feeds">feeds</button></div>
       <div class="read-search"><input type="text" id="read-q" class="settings-input" placeholder="search saved…" value="${esc(_q)}" spellcheck="false"></div>
     </div>
+    ${_showFeeds ? _feedsPanel() : ''}
     ${_items.length ? `<div class="read-list">${_items.map(_card).join('')}</div>`
       : `<div class="read-empty">${_q ? 'nothing matches that search.' : 'nothing saved yet — paste a link above and alles will keep the article text here, searchable, forever.'}</div>`}`;
   _wire(body);
@@ -84,6 +105,33 @@ function _wire(body) {
   const save = () => _save();
   $('read-save')?.addEventListener('click', save);
   $('read-url')?.addEventListener('keydown', e => { if (e.key === 'Enter') save(); });
+
+  $('read-feeds-btn')?.addEventListener('click', async () => {
+    _showFeeds = !_showFeeds;
+    if (_showFeeds) await loadFeeds();
+    _render();
+  });
+  if (_showFeeds) {
+    const addFeed = async () => {
+      const url = $('feed-url')?.value.trim();
+      if (!url) return;
+      const r = await fetch('/api/read/feeds', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ url }) });
+      if (!r.ok) { toast((await r.json()).detail || 'failed', 'error'); return; }
+      await loadFeeds(); _render();
+    };
+    $('feed-add')?.addEventListener('click', addFeed);
+    $('feed-url')?.addEventListener('keydown', e => { if (e.key === 'Enter') addFeed(); });
+    $('feed-refresh')?.addEventListener('click', async () => {
+      const btn = $('feed-refresh'); if (btn) btn.textContent = '…';
+      await fetch('/api/read/feeds/refresh', { method: 'POST' });
+      toast('feeds refreshed', 'success');
+      await loadFeeds(); await loadRead();   // loadRead re-renders with any new items
+    });
+    body.querySelectorAll('[data-feed-del]').forEach(b => b.addEventListener('click', async () => {
+      await fetch(`/api/read/feeds/${b.dataset.feedDel}`, { method: 'DELETE' });
+      await loadFeeds(); _render();
+    }));
+  }
 
   const qEl = $('read-q');
   if (qEl) {
