@@ -78,6 +78,7 @@ function _render() {
     <div class="books-bar">
       <div class="books-summary">${_data.total ? `${_data.total} book${_data.total !== 1 ? 's' : ''}${goal ? '' : ` · ${yr} read this year`}` : ''}</div>
       ${goalHtml}
+      <button class="btn" id="books-import" title="import a Goodreads export (.csv)">import</button>
       <button class="btn primary" id="books-add-toggle">${_si('plus')} book</button>
     </div>
     ${_adding ? _addForm() : ''}
@@ -114,6 +115,16 @@ function _addForm() {
 function _wire(body) {
   $('books-add-toggle')?.addEventListener('click', () => { _adding = !_adding; _lookup = []; _render(); });
   $('books-empty-add')?.addEventListener('click', () => { _adding = true; _lookup = []; _render(); });
+  $('books-import')?.addEventListener('click', () => {
+    const inp = document.createElement('input'); inp.type = 'file'; inp.accept = '.csv,text/csv';
+    inp.onchange = async () => {
+      const f = inp.files[0]; if (!f) return;
+      const r = await fetch('/api/books/import', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text: await f.text() }) });
+      const d = await r.json().catch(() => ({}));
+      toast(`imported ${d.imported || 0} book${d.imported === 1 ? '' : 's'}`, 'success'); loadBooks();
+    };
+    inp.click();
+  });
   body.querySelector('[data-act="set-goal"]')?.addEventListener('click', async () => {
     const v = await dlgPrompt('books to read this year? (0 to turn off)', String(_data.goal || 0));
     if (v == null) return;
