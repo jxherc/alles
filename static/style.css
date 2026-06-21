@@ -2584,6 +2584,13 @@ mark.wiki-cmark { background: rgba(129, 140, 248, 0.28); color: inherit; border-
 }
 .note-card:hover { border-color: var(--muted); background: var(--panel); }
 .note-card.pinned { border-left: 2px solid var(--accent); padding-left: calc(0.9rem - 2px); }
+/* note tags + tag filter bar */
+.note-tagbar { display: flex; flex-wrap: wrap; gap: 0.3rem; padding: 0 0 0.5rem; }
+.note-tag-chip { font-size: 0.62rem; color: var(--muted); background: none; border: 1px solid var(--faint); border-radius: 3px; padding: 0.1rem 0.4rem; cursor: pointer; }
+.note-tag-chip:hover { border-color: var(--muted); color: var(--text); }
+.note-tag-chip.on { color: var(--accent); border-color: var(--accent); }
+.note-tags { display: flex; flex-wrap: wrap; gap: 0.25rem; margin-top: 0.3rem; }
+.note-tag { font-size: 0.58rem; color: var(--muted); border: 1px solid var(--faint); border-radius: 3px; padding: 0 0.25rem; }
 .note-title {
   font-size: 0.82rem; font-weight: 500; color: var(--text);
   margin-bottom: 0.2rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;

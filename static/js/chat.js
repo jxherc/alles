@@ -701,7 +701,7 @@ async function _sendImage(prompt, sessionId, fresh, target) {
     body.appendChild(content);
     body.classList.add('done');
     if (fresh && d.doc_id && d.doc_title) updateSessionName(sessionId, d.doc_title);
-    toast(d.doc_id ? 'saved to documents' : 'image generated', 'success');
+    toast(d.doc_id ? 'saved to docs' : 'image generated', 'success');
   } catch (e) {
     body.innerHTML = '';
     const err = document.createElement('div');
