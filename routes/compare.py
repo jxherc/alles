@@ -98,3 +98,49 @@ def stop_compare(compare_id: str):
     for s in streams:
         s["stop"].set()
     return {"ok": True}
+
+
+class VoteBody(BaseModel):
+    winner: str
+    loser: str = ""
+
+
+@router.post("/compare/vote")
+def record_vote(body: VoteBody):
+    """record which model won a head-to-head — feeds the win-rate leaderboard."""
+    from core.database import SessionLocal, ModelVote
+
+    if not body.winner.strip():
+        raise HTTPException(400, "winner required")
+    db = SessionLocal()
+    try:
+        db.add(ModelVote(winner=body.winner.strip(), loser=body.loser.strip()))
+        db.commit()
+    finally:
+        db.close()
+    return {"ok": True}
+
+
+@router.get("/compare/stats")
+def compare_stats():
+    """per-model wins/losses/win-rate, most-won first."""
+    from core.database import SessionLocal, ModelVote
+
+    db = SessionLocal()
+    try:
+        votes = db.query(ModelVote).all()
+        tally: dict[str, dict] = {}
+        for v in votes:
+            tally.setdefault(v.winner, {"model": v.winner, "wins": 0, "losses": 0})["wins"] += 1
+            if v.loser:
+                tally.setdefault(v.loser, {"model": v.loser, "wins": 0, "losses": 0})["losses"] += 1
+    finally:
+        db.close()
+    rows = []
+    for r in tally.values():
+        total = r["wins"] + r["losses"]
+        r["total"] = total
+        r["win_rate"] = round(r["wins"] / total, 3) if total else 0.0
+        rows.append(r)
+    rows.sort(key=lambda r: (-r["wins"], -r["win_rate"]))
+    return {"votes": len(votes), "models": rows}

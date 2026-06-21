@@ -1,3 +1,4 @@
+import json
 from datetime import datetime
 
 from fastapi import APIRouter, HTTPException, Depends
@@ -7,6 +8,26 @@ from sqlalchemy.orm import Session as DbSession
 from core.database import get_db, Note
 
 router = APIRouter(prefix="/api")
+
+
+def _items_list(s) -> list[dict]:
+    try:
+        rows = json.loads(s or "[]")
+    except Exception:
+        return []
+    out = []
+    for r in rows if isinstance(rows, list) else []:
+        if isinstance(r, dict) and "text" in r:
+            out.append({"text": str(r["text"]), "done": bool(r.get("done"))})
+    return out
+
+
+def _norm_items(items) -> str:
+    clean = []
+    for r in items or []:
+        if isinstance(r, dict) and str(r.get("text", "")).strip():
+            clean.append({"text": str(r["text"]).strip(), "done": bool(r.get("done"))})
+    return json.dumps(clean)
 
 
 def _tags_list(s) -> list[str]:
@@ -34,6 +55,8 @@ def _fmt(n: Note) -> dict:
         "pinned": n.pinned,
         "archived": n.archived,
         "tags": _tags_list(getattr(n, "tags", "")),
+        "items": _items_list(getattr(n, "items", "[]")),
+        "due": getattr(n, "due", "") or "",
         "created_at": n.created_at.isoformat(),
         "updated_at": n.updated_at.isoformat(),
     }
@@ -77,11 +100,19 @@ class NoteBody(BaseModel):
     content: str = ""
     pinned: Optional[bool] = None
     tags: Optional[list[str] | str] = None
+    items: Optional[list[dict]] = None
+    due: Optional[str] = None
 
 
 @router.post("/notes")
 def create_note(body: NoteBody, db: DbSession = Depends(get_db)):
-    n = Note(title=body.title, content=body.content, tags=_norm_tags(body.tags))
+    n = Note(
+        title=body.title,
+        content=body.content,
+        tags=_norm_tags(body.tags),
+        items=_norm_items(body.items),
+        due=(body.due or "").strip(),
+    )
     db.add(n)
     db.commit()
     db.refresh(n)
@@ -101,6 +132,10 @@ def update_note(nid: str, body: NoteBody, db: DbSession = Depends(get_db)):
         n.pinned = body.pinned
     if body.tags is not None:
         n.tags = _norm_tags(body.tags)
+    if body.items is not None:
+        n.items = _norm_items(body.items)
+    if body.due is not None:
+        n.due = body.due.strip()
     n.updated_at = datetime.utcnow()
     db.commit()
     return _fmt(n)

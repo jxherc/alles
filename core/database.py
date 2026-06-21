@@ -178,6 +178,8 @@ class Note(Base):
     pinned = Column(Boolean, default=False)
     archived = Column(Boolean, default=False)
     tags = Column(String, default="")  # comma-separated
+    items = Column(Text, default="[]")  # checklist: json list of {text, done}
+    due = Column(String, default="")  # optional ISO date (YYYY-MM-DD)
     created_at = Column(DateTime, default=_now)
     updated_at = Column(DateTime, default=_now)
 
@@ -959,6 +961,15 @@ class SavedSearch(Base):
     created_at = Column(DateTime, default=_now)
 
 
+class ModelVote(Base):
+    # a single blind-compare vote: winner model beat loser model
+    __tablename__ = "model_votes"
+    id = Column(String, primary_key=True, default=_uid)
+    winner = Column(String, nullable=False)
+    loser = Column(String, default="")
+    created_at = Column(DateTime, default=_now)
+
+
 class Connection(Base):
     __tablename__ = "connections"
     id = Column(String, primary_key=True, default=_uid)
@@ -1186,6 +1197,8 @@ def init_db():
         _add_col(conn, "webhooks", "last_error", "TEXT DEFAULT ''")
         _add_col(conn, "webhooks", "last_triggered", "DATETIME")
         _add_col(conn, "notes", "tags", "TEXT DEFAULT ''")
+        _add_col(conn, "notes", "items", "TEXT DEFAULT '[]'")
+        _add_col(conn, "notes", "due", "TEXT DEFAULT ''")
     _encrypt_plaintext_secrets()
 
 

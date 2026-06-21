@@ -57,6 +57,10 @@ function renderNotes() {
     <div class="note-card${n.pinned ? ' pinned' : ''}" data-id="${n.id}">
       <div class="note-title">${esc(n.title || 'untitled')}</div>
       <div class="note-preview">${esc(n.content.slice(0, 80)) || '—'}</div>
+      ${(n.due || n.items?.length) ? `<div class="note-meta-row">
+        ${n.due ? `<span class="note-due${_isOverdue(n.due) ? ' overdue' : ''}">${_isOverdue(n.due) ? 'overdue' : 'due'} ${esc(n.due)}</span>` : ''}
+        ${n.items?.length ? `<span class="note-progress">✓ ${n.items.filter(i => i.done).length}/${n.items.length}</span>` : ''}
+      </div>` : ''}
       ${n.tags?.length ? `<div class="note-tags">${n.tags.map(t => `<span class="note-tag">${esc(t)}</span>`).join('')}</div>` : ''}
       <div class="note-actions">
         <button class="act-btn note-pin-btn" data-id="${n.id}" data-pinned="${n.pinned}">${n.pinned ? 'unpin' : 'pin'}</button>
@@ -113,13 +117,21 @@ function openEditor(note) {
   list.innerHTML = `
     <div class="note-editor">
       <input class="note-editor-title" id="note-edit-title" value="${esc(note.title)}" placeholder="title...">
-      <textarea class="note-editor-body" id="note-edit-body" rows="8">${esc(note.content)}</textarea>
-      <input class="note-editor-title" id="note-edit-tags" value="${esc((note.tags || []).join(', '))}" placeholder="tags, comma separated…" style="font-size:0.78rem">
+      <textarea class="note-editor-body" id="note-edit-body" rows="7">${esc(note.content)}</textarea>
+      <div class="note-checklist" id="note-checklist"></div>
+      <button class="act-btn" id="note-add-item" style="align-self:flex-start">+ checklist item</button>
+      <div class="note-editor-fields">
+        <input class="note-editor-title" id="note-edit-tags" value="${esc((note.tags || []).join(', '))}" placeholder="tags, comma separated…" style="font-size:0.78rem;flex:1">
+        <input type="date" class="note-editor-title" id="note-edit-due" value="${esc(note.due || '')}" style="font-size:0.78rem;width:auto" title="due date">
+      </div>
       <div style="display:flex;gap:0.4rem;justify-content:flex-end">
         <button class="btn" id="note-back-btn">← back</button>
         <button class="btn primary" id="note-save-btn">save</button>
       </div>
     </div>`;
+
+  (note.items || []).forEach(it => _addChecklistRow(it.text, it.done));
+  document.getElementById('note-add-item').addEventListener('click', () => _addChecklistRow('', false, true));
 
   document.getElementById('note-back-btn').addEventListener('click', async () => {
     await saveCurrentNote();
@@ -132,16 +144,44 @@ function openEditor(note) {
   });
 }
 
+function _addChecklistRow(text = '', done = false, focus = false) {
+  const box = document.getElementById('note-checklist');
+  if (!box) return;
+  const row = document.createElement('div');
+  row.className = 'note-cl-row';
+  row.innerHTML = `
+    <input type="checkbox" class="note-cl-done" ${done ? 'checked' : ''}>
+    <input type="text" class="note-cl-text" value="${esc(text)}" placeholder="item…">
+    <button class="act-btn note-cl-del" title="remove">✕</button>`;
+  row.querySelector('.note-cl-del').addEventListener('click', () => row.remove());
+  box.appendChild(row);
+  if (focus) row.querySelector('.note-cl-text').focus();
+}
+
+function _gatherItems() {
+  return [...document.querySelectorAll('#note-checklist .note-cl-row')]
+    .map(r => ({ text: r.querySelector('.note-cl-text').value.trim(), done: r.querySelector('.note-cl-done').checked }))
+    .filter(i => i.text);
+}
+
+function _isOverdue(due) {
+  if (!due) return false;
+  const today = new Date().toISOString().slice(0, 10);
+  return due < today;
+}
+
 
 async function saveCurrentNote() {
   if (!_editing) return;
   const title = document.getElementById('note-edit-title')?.value || '';
   const content = document.getElementById('note-edit-body')?.value || '';
   const tags = (document.getElementById('note-edit-tags')?.value || '').split(',').map(t => t.trim()).filter(Boolean);
+  const due = document.getElementById('note-edit-due')?.value || '';
+  const items = _gatherItems();
   await fetch(`/api/notes/${_editing.id}`, {
     method: 'PATCH',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ title, content, tags }),
+    body: JSON.stringify({ title, content, tags, items, due }),
   });
   _editing = null;
 }
