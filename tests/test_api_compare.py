@@ -99,3 +99,21 @@ class CompareApiTest(ApiTest):
         ).json()
         # only the real one makes it in
         self.assertEqual(r["count"], 1)
+
+    # ── blind-vote leaderboard ──
+    def test_vote_requires_winner(self):
+        self.assertEqual(self.client.post("/api/compare/vote", json={"winner": " "}).status_code, 400)
+
+    def test_vote_and_stats_winrate(self):
+        self.client.post("/api/compare/vote", json={"winner": "gpt", "loser": "claude"})
+        self.client.post("/api/compare/vote", json={"winner": "gpt", "loser": "claude"})
+        self.client.post("/api/compare/vote", json={"winner": "claude", "loser": "gpt"})
+        stats = self.client.get("/api/compare/stats").json()
+        self.assertEqual(stats["votes"], 3)
+        by = {m["model"]: m for m in stats["models"]}
+        self.assertEqual((by["gpt"]["wins"], by["gpt"]["losses"]), (2, 1))
+        self.assertEqual(by["gpt"]["win_rate"], round(2 / 3, 3))
+        self.assertEqual(stats["models"][0]["model"], "gpt")  # most wins first
+
+    def test_stats_empty(self):
+        self.assertEqual(self.client.get("/api/compare/stats").json(), {"votes": 0, "models": []})

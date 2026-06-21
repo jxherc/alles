@@ -2,9 +2,11 @@ import { mdToHtml, toast } from './util.js';
 import { getSelected, getCurrentEndpoint } from './models.js';
 
 let _compareId = null;
+let _models = [];   // model list for the active comparison, for vote recording
 
 export async function runCompare(message, modelList) {
   if (!message.trim() || !modelList.length) return;
+  _models = modelList;
 
   const r = await fetch('/api/compare', {
     method: 'POST',
@@ -77,6 +79,17 @@ window._pickWinner = async (idx) => {
     col.classList.toggle('compare-loser', i !== idx);
   });
   toast('winner picked', 'success');
+  // record the win against each other model so the leaderboard builds up over time
+  const winner = _models[idx]?.model;
+  if (winner) {
+    for (let i = 0; i < _models.length; i++) {
+      if (i === idx) continue;
+      fetch('/api/compare/vote', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ winner, loser: _models[i]?.model || '' }),
+      }).catch(() => {});
+    }
+  }
   if (_compareId) {
     await fetch(`/api/compare/${_compareId}`, { method: 'DELETE' }).catch(() => {});
     _compareId = null;

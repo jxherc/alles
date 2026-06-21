@@ -53,3 +53,27 @@ class NotesApiTest(ApiTest):
         self.assertEqual(
             self.client.post("/api/notes/nope/archive", json={"archived": True}).status_code, 404
         )
+
+    def test_checklist_items_roundtrip_and_clean(self):
+        n = self._mk(title="todo", items=[
+            {"text": "buy milk", "done": False},
+            {"text": "  ", "done": True},          # blank → dropped
+            {"text": "call mom", "done": True},
+            {"bogus": 1},                           # malformed → dropped
+        ])
+        self.assertEqual(n["items"], [
+            {"text": "buy milk", "done": False},
+            {"text": "call mom", "done": True},
+        ])
+
+    def test_toggle_item_via_patch(self):
+        nid = self._mk(title="t", items=[{"text": "a", "done": False}])["id"]
+        n = self.client.patch(f"/api/notes/{nid}", json={"items": [{"text": "a", "done": True}]}).json()
+        self.assertTrue(n["items"][0]["done"])
+
+    def test_due_date_stored(self):
+        n = self._mk(title="deadline", due="2026-07-01")
+        self.assertEqual(n["due"], "2026-07-01")
+        # clearing it
+        n2 = self.client.patch(f"/api/notes/{n['id']}", json={"due": ""}).json()
+        self.assertEqual(n2["due"], "")

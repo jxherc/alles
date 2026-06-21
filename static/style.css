@@ -2591,6 +2591,15 @@ mark.wiki-cmark { background: rgba(129, 140, 248, 0.28); color: inherit; border-
 .note-tag-chip.on { color: var(--accent); border-color: var(--accent); }
 .note-tags { display: flex; flex-wrap: wrap; gap: 0.25rem; margin-top: 0.3rem; }
 .note-tag { font-size: 0.58rem; color: var(--muted); border: 1px solid var(--faint); border-radius: 3px; padding: 0 0.25rem; }
+/* note due badge + checklist progress */
+.note-meta-row { display: flex; gap: 0.4rem; align-items: center; margin-top: 0.3rem; }
+.note-due { font-size: 0.6rem; color: var(--muted); border: 1px solid var(--faint); border-radius: 3px; padding: 0 0.3rem; }
+.note-due.overdue { color: var(--error, #d66); border-color: currentColor; }
+.note-progress { font-size: 0.6rem; color: var(--muted); }
+.note-checklist { display: flex; flex-direction: column; gap: 0.25rem; }
+.note-cl-row { display: flex; align-items: center; gap: 0.4rem; }
+.note-cl-row .note-cl-text { flex: 1; background: var(--panel); border: 1px solid var(--faint); border-radius: 3px; color: var(--text); font-size: 0.78rem; padding: 0.2rem 0.4rem; }
+.note-editor-fields { display: flex; gap: 0.4rem; }
 .note-title {
   font-size: 0.82rem; font-weight: 500; color: var(--text);
   margin-bottom: 0.2rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
