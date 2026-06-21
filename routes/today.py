@@ -6,8 +6,7 @@ the client passes ?date=YYYY-MM-DD (its LOCAL date). never default to the
 server's date for user-facing day math — the server may run in UTC.
 """
 
-from datetime import date, datetime, timedelta
-from pathlib import Path
+from datetime import date
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session as DbSession
 from core.database import get_db, CalendarEvent, Task, Reminder, Subscription, DayEvent

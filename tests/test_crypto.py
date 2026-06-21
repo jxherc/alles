@@ -1,4 +1,3 @@
-import base64
 import unittest
 from services import crypto
 from services import secretstore as ss
