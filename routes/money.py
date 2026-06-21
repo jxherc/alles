@@ -923,7 +923,14 @@ def envelope(month: str = "", db: DbSession = Depends(get_db)):
 @router.get("/age-of-money")
 def age_of_money(db: DbSession = Depends(get_db)):
     """FIFO-match income to spending; amount-weighted average age (days) of recent spending."""
-    txns = [t for t in db.query(Transaction).all() if not t.transfer_id]
+    def _d(s):
+        try:
+            return date.fromisoformat(str(s)[:10])
+        except (TypeError, ValueError):
+            return None
+
+    # skip txns with a junk date so one bad import row can't 500 the whole endpoint
+    txns = [t for t in db.query(Transaction).all() if not t.transfer_id and _d(t.date)]
     incomes = sorted(
         ([t.date, t.amount] for t in txns if (t.amount or 0.0) > 0), key=lambda x: x[0]
     )
@@ -934,11 +941,11 @@ def age_of_money(db: DbSession = Depends(get_db)):
     batches = []  # (expense_date, age_days, amount)
     qi = 0
     for ed, need in expenses:
-        ed_d = date.fromisoformat(ed)
+        ed_d = _d(ed)
         while need > 0.005 and qi < len(queue):
             idate, iremain = queue[qi]
             take = min(need, iremain)
-            age = (ed_d - date.fromisoformat(idate)).days
+            age = (ed_d - _d(idate)).days
             batches.append((ed, age, take))
             need -= take
             queue[qi][1] -= take
