@@ -67,6 +67,13 @@ class ImportRouteTests(ApiTest):
         titles = [b["title"] for s in ov["shelves"].values() for b in s]
         self.assertIn("Dune", titles)
 
+    def test_books_reimport_is_idempotent(self):
+        # re-running the same export shouldn't double the shelf
+        self.assertEqual(self.client.post("/api/books/import", json={"text": GOODREADS}).json()["imported"], 4)
+        r2 = self.client.post("/api/books/import", json={"text": GOODREADS})
+        self.assertEqual(r2.json()["imported"], 0)
+        self.assertEqual(self.client.get("/api/books/overview").json()["total"], 4)
+
     def test_health_import_creates_entries(self):
         r = self.client.post("/api/health/import", json={"text": HEALTH})
         self.assertEqual(r.status_code, 200)
