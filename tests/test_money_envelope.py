@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from core.database import Account
+from core.database import Account, Transaction
 from tests._client import ApiTest
 
 
@@ -95,6 +95,19 @@ class MoneyEnvelopeTests(ApiTest):
         self._txn(-50, "food", date="2026-06-11")
         d = self.client.get("/api/money/age-of-money").json()
         self.assertIsNone(d["age"])
+
+    def test_age_of_money_survives_junk_date(self):
+        # a transaction with a junk date (e.g. from a sloppy ofx/csv import) used to
+        # 500 the endpoint via an unguarded date.fromisoformat — now it's skipped
+        self._txn(100, "salary", date="2026-06-01")
+        self._txn(-50, "food", date="2026-06-11")
+        db = self.db()
+        db.add(Transaction(account_id=self.aid, date="2026-13-99", amount=-9.0, category="x"))
+        db.commit()
+        db.close()
+        r = self.client.get("/api/money/age-of-money")
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.json()["age"], 10)  # the valid pair still computes
 
     def test_envelope_spent_honors_splits(self):
         t = self._txn(-100, "shopping")
