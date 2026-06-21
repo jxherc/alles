@@ -69,6 +69,12 @@ class SubsIntelTests(ApiTest):
         ).json()
         self.assertTrue(any(s["name"] == "Netflix" for s in d["unused"]))
 
+    def test_unused_junk_as_of_doesnt_crash(self):
+        self._acct()
+        self._sub("Netflix")
+        r = self.client.get("/api/subscriptions/unused", params={"as_of": "garbage"})
+        self.assertEqual(r.status_code, 200)  # falls back to today instead of 500
+
     def test_unused_excludes_recent_charge(self):
         aid = self._acct()
         self._sub("Spotify")
