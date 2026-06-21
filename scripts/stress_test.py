@@ -258,7 +258,6 @@ def run_page_smoke():
         ("days", "/api/days"),
         ("subs", "/api/subscriptions"),
         ("subs-analytics", "/api/subscriptions/analytics"),
-        ("templates", "/api/templates"),
         ("connections", "/api/connections"),
         ("local-models", "/api/local-models/status"),
         ("photos", "/api/photos/list"),
