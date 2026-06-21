@@ -263,7 +263,10 @@ def unused_subscriptions(cycles: int = 2, as_of: str = "", db: DbSession = Depen
     last `cycles` cycle-lengths — likely forgotten/unused (4e)."""
     from core.database import Transaction
 
-    today = _parse(as_of) if as_of else date.today()
+    try:
+        today = _parse(as_of) if as_of else date.today()
+    except ValueError:
+        today = date.today()
     charges = [t for t in db.query(Transaction).all() if (t.amount or 0.0) < 0]
     out = []
     for sub in db.query(Subscription).filter(Subscription.active == True).all():  # noqa: E712
