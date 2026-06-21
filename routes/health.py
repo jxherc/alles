@@ -63,6 +63,9 @@ def list_entries(kind: str = "", db: DbSession = Depends(get_db)):
 
 @router.get("/health/overview")
 def overview(days: int = 365, db: DbSession = Depends(get_db)):
+    from core.settings import load_settings
+
+    targets = load_settings().get("health_targets") or {}
     since = (date.today() - timedelta(days=max(1, days))).isoformat()
     rows = db.query(HealthEntry).filter(HealthEntry.date >= since).all()
     all_rows = db.query(HealthEntry).all()  # latest ignores the range window
@@ -74,15 +77,35 @@ def overview(days: int = 365, db: DbSession = Depends(get_db)):
             continue
         seen.add(e.kind)
         lt = latest.get(e.kind)
+        t = targets.get(e.kind)
         out.append(
             {
                 "kind": e.kind,
                 "label": e.label,
                 "latest": {"date": lt.date, "value": lt.value, "unit": lt.unit} if lt else None,
                 "series": series_for(rows, e.kind),
+                "target": t if isinstance(t, (int, float)) and t > 0 else None,
             }
         )
     return {"kinds": out, "days": days}
+
+
+class TargetBody(BaseModel):
+    kind: str
+    value: float = 0
+
+
+@router.put("/health/target")
+def set_target(body: TargetBody):
+    from core.settings import load_settings, save_settings
+
+    targets = dict(load_settings().get("health_targets") or {})
+    if body.value and body.value > 0:
+        targets[body.kind] = body.value
+    else:
+        targets.pop(body.kind, None)  # 0 / negative clears it
+    save_settings({"health_targets": targets})
+    return {"kind": body.kind, "target": targets.get(body.kind)}
 
 
 class EntryBody(BaseModel):
