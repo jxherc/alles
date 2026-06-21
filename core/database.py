@@ -982,6 +982,105 @@ class Connection(Base):
     created_at = Column(DateTime, default=_now)
 
 
+class Monitor(Base):
+    # watch — an external thing to keep an eye on (a site, a /health endpoint, a cert)
+    __tablename__ = "monitors"
+    id = Column(String, primary_key=True, default=_uid)
+    name = Column(String, nullable=False)
+    url = Column(String, nullable=False)
+    kind = Column(String, default="http")  # http | health | cert
+    interval_secs = Column(Integer, default=300)
+    expect_status = Column(Integer, default=0)  # 0 = accept any 2xx/3xx
+    expect_keyword = Column(String, default="")  # must appear in body (health/http)
+    latency_ceiling_ms = Column(Integer, default=0)  # 0 = no ceiling
+    enabled = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=_now)
+
+
+class MonitorCheck(Base):
+    # one probe result; we keep a rolling window per monitor (pruned in record_check)
+    # int PK = sqlite rowid = insertion order, so "newest first" is deterministic even
+    # when several checks land in the same (coarse, on windows) utcnow() tick
+    __tablename__ = "monitor_checks"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    monitor_id = Column(String, index=True)
+    ts = Column(DateTime, default=_now)
+    ok = Column(Boolean, default=False)
+    status_code = Column(Integer, default=0)
+    latency_ms = Column(Integer, default=0)
+    error = Column(String, default="")
+    detail = Column(String, default="")  # e.g. "30d" cert days-left
+
+
+class Habit(Base):
+    __tablename__ = "habits"
+    id = Column(String, primary_key=True, default=_uid)
+    name = Column(String, nullable=False)
+    icon = Column(String, default="")
+    color = Column(String, default="")
+    cadence = Column(String, default="daily")  # daily | weekly
+    target = Column(Integer, default=1)  # times per week (weekly cadence)
+    created_at = Column(DateTime, default=_now)
+    archived = Column(Boolean, default=False)
+
+
+class HabitLog(Base):
+    # presence of a row = the habit was done on that date (one per habit/day)
+    __tablename__ = "habit_logs"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    habit_id = Column(String, index=True)
+    date = Column(String, index=True)  # ISO YYYY-MM-DD (viewer-local)
+    created_at = Column(DateTime, default=_now)
+
+
+class ReadItem(Base):
+    # read-later archive: a saved URL with its extracted readable text for offline search
+    __tablename__ = "read_items"
+    id = Column(String, primary_key=True, default=_uid)
+    url = Column(String, nullable=False)
+    title = Column(String, default="")
+    text = Column(Text, default="")
+    excerpt = Column(String, default="")
+    site = Column(String, default="")
+    image = Column(String, default="")
+    read_minutes = Column(Integer, default=1)
+    added_at = Column(DateTime, default=_now)
+    read_at = Column(String, default="")  # iso when marked read; "" = unread
+    fav = Column(Boolean, default=False)
+    archived = Column(Boolean, default=False)
+    tags = Column(String, default="")  # comma-separated
+
+
+class Book(Base):
+    # reading list: books with shelves (want/reading/done), rating, notes
+    __tablename__ = "books"
+    id = Column(String, primary_key=True, default=_uid)
+    title = Column(String, nullable=False)
+    author = Column(String, default="")
+    status = Column(String, default="want")  # want | reading | done
+    rating = Column(Integer, default=0)  # 0-5
+    started = Column(String, default="")
+    finished = Column(String, default="")
+    cover = Column(String, default="")
+    notes = Column(Text, default="")
+    isbn = Column(String, default="")
+    year = Column(Integer, default=0)
+    created_at = Column(DateTime, default=_now)
+
+
+class HealthEntry(Base):
+    # health/fitness log: a single measurement (weight, sleep hrs, workout min, med, custom)
+    __tablename__ = "health_entries"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    kind = Column(String, index=True)  # weight | sleep | workout | med | custom
+    date = Column(String, index=True)  # ISO YYYY-MM-DD (viewer-local)
+    value = Column(Float, default=0.0)
+    unit = Column(String, default="")
+    note = Column(String, default="")
+    label = Column(String, default="")  # for custom kinds
+    created_at = Column(DateTime, default=_now)
+
+
 def _add_col(conn, table, col, col_type):
     try:
         conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {col} {col_type}"))

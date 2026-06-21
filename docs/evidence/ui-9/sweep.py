@@ -11,7 +11,7 @@ IGNORE = ("ERR_", "favicon", "401", "403", "Failed to load resource", "net::", "
 # every host the SPA serves (apex + aide + the apps)
 HOSTS = [
     "", "aide", "docs", "mail", "files", "calendar", "tasks", "gallery", "contacts",
-    "journal", "days", "money", "subs", "reminders", "secrets", "system",
+    "journal", "days", "money", "subs", "reminders", "secrets", "system", "watch", "habits", "read", "books", "health",
 ]
 
 
@@ -104,6 +104,31 @@ def run():
           const cv=document.createElement('canvas');cv.width=6;cv.height=6;cv.getContext('2d').fillRect(0,0,6,6);
           const bl=await new Promise(r=>cv.toBlob(r,'image/png'));const fd=new FormData();fd.append('file',bl,'p.png');
           await fetch('/api/photos/upload',{method:'POST',body:fd});
+        }"""))
+
+        # watch: add a monitor through the UI, then check it
+        deep("watch", "watch add monitor", lambda pg: pg.evaluate("""async () => {
+          await fetch('/api/watch',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({name:'sweep mon',url:'http://127.0.0.1:1',kind:'http'})});
+        }"""))
+
+        # habits: add a habit, then toggle today on its week strip
+        deep("habits", "habits add+toggle", lambda pg: pg.evaluate("""async () => {
+          await fetch('/api/habits',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({name:'sweep habit',cadence:'daily'})});
+        }"""))
+
+        # read: save a link (uses the research extractor; 127.0.0.1 is fine, extraction just empties)
+        deep("read", "read save link", lambda pg: pg.evaluate("""async () => {
+          await fetch('/api/read',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({url:'http://example.com'})});
+        }"""))
+
+        # books: add a book to the reading list
+        deep("books", "books add", lambda pg: pg.evaluate("""async () => {
+          await fetch('/api/books',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({title:'Sweep Test Book',status:'want'})});
+        }"""))
+
+        # health: log a measurement
+        deep("health", "health log entry", lambda pg: pg.evaluate("""async () => {
+          await fetch('/api/health',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({kind:'weight',value:80,unit:'kg'})});
         }"""))
 
         # secrets: unlock, open settings (exercises the Stage-8 panels), lock

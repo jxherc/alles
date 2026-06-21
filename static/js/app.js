@@ -294,7 +294,7 @@ init();
 const _VIEW_IDS = [
   'home-view', 'chat', 'notes-view', 'tasks-view', 'calendar-view', 'gallery-view',
   'models-view', 'brain-view', 'wiki-view', 'compare-view', 'vault-view', 'contacts-view',
-  'reminders-view', 'files-view', 'mail-view', 'photos-view', 'subs-view', 'money-view', 'days-view', 'journal-view', 'cookbook-view', 'usage-view', 'skills-view', 'activity-view', 'system-view',
+  'reminders-view', 'files-view', 'mail-view', 'photos-view', 'subs-view', 'money-view', 'days-view', 'journal-view', 'cookbook-view', 'usage-view', 'skills-view', 'activity-view', 'system-view', 'watch-view', 'habits-view', 'read-view', 'books-view', 'health-view',
 ];
 
 function hideAllViews() {
@@ -357,6 +357,11 @@ const showDaysView       = () => showView('days-view',      'days',      async (
 const showJournalView    = () => showView('journal-view',   'journal',   async () => { (await import('./journal.js')).initJournal(); });
 const showActivityView   = () => showView('activity-view',  'activity',  async () => { (await import('./activity.js')).initActivity(); });
 const showSystemView     = () => showView('system-view',    'system',    async () => { (await import('./system.js')).initSystem(); });
+const showWatchView      = () => showView('watch-view',     'watch',     async () => { (await import('./watch.js')).initWatch(); });
+const showHabitsView     = () => showView('habits-view',    'habits',    async () => { (await import('./habits.js')).initHabits(); });
+const showReadView       = () => showView('read-view',      'read',      async () => { (await import('./read.js')).initRead(); });
+const showBooksView      = () => showView('books-view',     'books',     async () => { (await import('./books.js')).initBooks(); });
+const showHealthView     = () => showView('health-view',    'health',    async () => { (await import('./health.js')).initHealth(); });
 const showCookbookView   = () => showView('cookbook-view',  'cookbook',  async () => { (await import('./cookbook.js')).initCookbook(); });
 const showSkillsView     = () => showView('skills-view',    'skills',    async () => { (await import('./skills.js')).initSkills(); });
 const showUsageView      = () => showView('usage-view',     'usage',     async () => { (await import('./usage.js')).initUsage(); });
@@ -393,6 +398,11 @@ function navigateTo(v) {
   else if (v === 'journal')   showJournalView();
   else if (v === 'activity')  showActivityView();
   else if (v === 'system')    showSystemView();
+  else if (v === 'watch')     showWatchView();
+  else if (v === 'habits')    showHabitsView();
+  else if (v === 'read')      showReadView();
+  else if (v === 'books')     showBooksView();
+  else if (v === 'health')    showHealthView();
   else if (v === 'cookbook')  showCookbookView();
   else if (v === 'usage')     showUsageView();
   else if (v === 'skills')    showSkillsView();
@@ -426,6 +436,11 @@ const _ICON = {
   usage: '<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>',
   activity: '<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>',
   system: '<rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/>',
+  watch: '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/>',
+  habits: '<path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>',
+  read: '<path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>',
+  books: '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>',
+  health: '<path d="M3 12h4l2 5 4-12 2 7h6"/>',
 };
 const _svg = (k) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">${_ICON[k] || ''}</svg>`;
 
@@ -445,6 +460,11 @@ const HOME_TILES = [
   { view: 'journal',  name: 'journal',  desc: 'daily entries',   icon: 'journal' },
   { view: 'activity', name: 'activity', desc: 'everything, lately', icon: 'activity' },
   { view: 'system',   name: 'system',   desc: 'live machine stats', icon: 'system' },
+  { view: 'watch',    name: 'watch',    desc: 'uptime & status',  icon: 'watch' },
+  { view: 'habits',   name: 'habits',   desc: 'daily streaks',    icon: 'habits' },
+  { view: 'read',     name: 'read',     desc: 'read-later',       icon: 'read' },
+  { view: 'books',    name: 'books',    desc: 'reading list',     icon: 'books' },
+  { view: 'health',   name: 'health',   desc: 'weight, sleep…',   icon: 'health' },
 ];
 
 // ── home tiles: drag-reorder + hide/show (persisted) + quick capture ─────────
@@ -1369,18 +1389,11 @@ function toggleTheme() {
 // appearance (theme + accent) is stored server-side too, so it's the same on every
 // subdomain. localStorage stays as the instant pre-paint cache (see index.html head).
 async function _syncAppearance() {
-  let s;
-  try { s = await fetch('/api/settings').then(r => r.json()); } catch { return; }
-  const root = document.documentElement;
-  if ('theme' in s) {
-    if (s.theme === 'light') { root.dataset.theme = 'light'; localStorage.setItem('aide-theme', 'light'); }
-    else { delete root.dataset.theme; localStorage.removeItem('aide-theme'); }
-  }
-  if ('accent' in s) {
-    if (s.accent) { root.style.setProperty('--accent', s.accent); localStorage.setItem('aide-accent', s.accent); }
-    else { root.style.removeProperty('--accent'); localStorage.removeItem('aide-accent'); }
-  }
-  updateFavicon();
+  // the advanced theme engine owns the full appearance object (colors, font, density,
+  // background, frosted). it applies the cached theme instantly, then reconciles with
+  // the server — and falls back to the legacy theme/accent settings when nothing's saved.
+  try { (await import('./theme.js')).initAppearance(); }
+  catch { updateFavicon(); }
 }
 
 // favicon tracks the appearance: a square box matching the theme bg + the accent dot.
