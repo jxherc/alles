@@ -1,7 +1,7 @@
 // books — a reading list with shelves (want / reading / done), covers, star ratings,
 // notes, and a keyless OpenLibrary lookup to autofill. mirrors the panel conventions.
 import { toast } from './util.js';
-import { confirm as dlgConfirm } from './dialog.js';
+import { confirm as dlgConfirm, prompt as dlgPrompt } from './dialog.js';
 const _si = n => (window.icon ? window.icon(n) : '');
 
 const $ = id => document.getElementById(id);
@@ -67,9 +67,17 @@ function _render() {
     if (!list.length && !_adding) return '';
     return `<div class="book-shelf"><div class="book-shelf-h">${label} <span>${list.length}</span></div><div class="book-grid">${list.map(_card).join('')}</div></div>`;
   }).join('');
+  const goal = _data.goal || 0, yr = _data.this_year || 0;
+  const goalHtml = goal > 0
+    ? `<div class="books-goal" data-act="set-goal" title="reading goal — click to change">
+         <span>${yr} / ${goal} this year${yr >= goal ? ' ✓' : ''}</span>
+         <div class="books-goal-bar"><i style="width:${Math.min(100, Math.round(yr / goal * 100))}%"></i></div>
+       </div>`
+    : `<button class="books-goal-set" data-act="set-goal">+ reading goal</button>`;
   body.innerHTML = `
     <div class="books-bar">
-      <div class="books-summary">${_data.total ? `${_data.total} book${_data.total !== 1 ? 's' : ''} · ${_data.this_year} read this year` : ''}</div>
+      <div class="books-summary">${_data.total ? `${_data.total} book${_data.total !== 1 ? 's' : ''}${goal ? '' : ` · ${yr} read this year`}` : ''}</div>
+      ${goalHtml}
       <button class="btn primary" id="books-add-toggle">${_si('plus')} book</button>
     </div>
     ${_adding ? _addForm() : ''}
@@ -106,6 +114,13 @@ function _addForm() {
 function _wire(body) {
   $('books-add-toggle')?.addEventListener('click', () => { _adding = !_adding; _lookup = []; _render(); });
   $('books-empty-add')?.addEventListener('click', () => { _adding = true; _lookup = []; _render(); });
+  body.querySelector('[data-act="set-goal"]')?.addEventListener('click', async () => {
+    const v = await dlgPrompt('books to read this year? (0 to turn off)', String(_data.goal || 0));
+    if (v == null) return;
+    const n = Math.max(0, parseInt(v, 10) || 0);
+    await fetch('/api/books/goal', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ goal: n }) });
+    loadBooks();
+  });
 
   if (_adding) {
     const doSearch = async () => {
