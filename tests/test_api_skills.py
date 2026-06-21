@@ -127,6 +127,5 @@ class SkillsApiTest(ApiTest):
         self.assertEqual(r.status_code, 200)
         slug = r.json()["slug"]
         # slug should only have safe chars
-        import re
 
         self.assertRegex(slug, r"^[a-z0-9._-]+$")

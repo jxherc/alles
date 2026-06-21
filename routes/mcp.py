@@ -6,7 +6,6 @@ Actual MCP protocol calls use the `mcp` package if available.
 import json, logging
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from typing import Optional
 from core.database import get_db, McpServer, SessionLocal
 from sqlalchemy.orm import Session as DbSession
 from fastapi import Depends

@@ -261,7 +261,6 @@ def _inject_contacts(query: str) -> str:
         matched = [c for c in contacts if c.name.lower() in q_lower]
         if not matched:
             return ""
-        import json
 
         lines = []
         for c in matched:

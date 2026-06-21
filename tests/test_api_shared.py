@@ -1,5 +1,5 @@
 from tests._client import ApiTest
-from core.database import Session, Message, Share
+from core.database import Session, Message
 
 
 class SharedApiTest(ApiTest):

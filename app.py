@@ -1,4 +1,4 @@
-import os, json, logging, asyncio, time
+import json, logging, asyncio, time
 from datetime import datetime
 from pathlib import Path
 from contextlib import asynccontextmanager
@@ -10,9 +10,6 @@ from fastapi.responses import FileResponse
 
 from core.database import init_db, SessionLocal, ModelEndpoint
 from core.settings import deepseek_api_key, anthropic_api_key, get_port, auth_enabled
-from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.requests import Request as StarletteRequest
-from starlette.responses import JSONResponse
 from routes import (
     chat,
     sessions,
