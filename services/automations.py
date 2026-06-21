@@ -86,26 +86,10 @@ async def _fire(db, rule, ctx: dict):
 
 
 def _digest(db) -> str:
-    """compact one-line day summary for push"""
-    from routes.today import today_view
+    """day summary for push — the full briefing (events, tasks, habits, reading, health)"""
+    from services.briefing import compose_briefing
 
-    d = today_view(date_q="", db=db)
-    bits = []
-    if d["events"]:
-        first = d["events"][0]
-        bits.append(
-            f"{len(d['events'])} event{'s' if len(d['events']) != 1 else ''} (first: {first['time'] or 'all-day'} {first['title']})"
-        )
-    od, dt_ = len(d["tasks"]["overdue"]), len(d["tasks"]["due_today"])
-    if od:
-        bits.append(f"{od} overdue task{'s' if od != 1 else ''}")
-    if dt_:
-        bits.append(f"{dt_} due today")
-    if d["renewing"]:
-        bits.append(
-            f"{len(d['renewing'])} renewal{'s' if len(d['renewing']) != 1 else ''} this week"
-        )
-    return " · ".join(bits) or "clear day — nothing scheduled"
+    return compose_briefing(db)["body"]
 
 
 async def run_automations():
