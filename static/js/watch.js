@@ -10,6 +10,7 @@ const _si = n => (window.icon ? window.icon(n) : '');
 const $ = id => document.getElementById(id);
 let _mons = [];
 let _ai = null;
+let _statusCfg = { enabled: false };
 let _editing = null;
 let _adding = false;
 let _poll = null;
@@ -34,6 +35,9 @@ export async function loadWatch() {
   try {
     _ai = await fetch('/api/usage/summary').then(r => r.json());
   } catch { _ai = null; }
+  try {
+    _statusCfg = await fetch('/api/status/config').then(r => r.json());
+  } catch { _statusCfg = { enabled: false }; }
   _render();
 }
 
@@ -110,6 +114,8 @@ function _render() {
     <div class="watch-bar">
       <div class="watch-summary">${sumBits.join(' · ') || 'no monitors'}</div>
       <div class="watch-bar-actions">
+        ${_statusCfg.enabled ? `<a class="btn" href="/status" target="_blank" rel="noopener" title="public status page">status page ↗</a>` : ''}
+        <button class="btn${_statusCfg.enabled ? ' primary' : ''}" id="watch-status-toggle" title="toggle the public /status page">status: ${_statusCfg.enabled ? 'public' : 'off'}</button>
         <button class="btn" id="watch-refresh-all">${_si('refresh')} refresh all</button>
         <button class="btn primary" id="watch-add-toggle">${_si('plus')} monitor</button>
       </div>
@@ -215,6 +221,12 @@ function _wire(body) {
 
   $('watch-refresh-all')?.addEventListener('click', _checkAll);
   $('watch-add-toggle')?.addEventListener('click', () => { _adding = !_adding; _editing = null; _render(); });
+  $('watch-status-toggle')?.addEventListener('click', async () => {
+    const next = !_statusCfg.enabled;
+    _statusCfg = await fetch('/api/status/config', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ enabled: next }) }).then(r => r.json());
+    toast(next ? 'status page is now public at /status' : 'status page turned off', next ? 'success' : 'info');
+    _render();
+  });
 
   // add form
   const addCard = body.querySelector('.watch-add');
