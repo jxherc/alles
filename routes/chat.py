@@ -230,7 +230,6 @@ async def _auto_name(session_id: str, user_text: str, ep: ModelEndpoint, model: 
     name = await simple_complete(prompt, ep.base_url, ep.api_key, model, max_tokens=20)
     if not name or len(name) > 80:
         return
-    from core.database import SessionLocal
 
     db = SessionLocal()
     try:

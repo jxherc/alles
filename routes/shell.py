@@ -2,7 +2,7 @@
 shell execution — admin only, streams output via SSE.
 """
 
-import os, sys, asyncio, json, shutil, logging
+import os, sys, asyncio, json, logging
 from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel

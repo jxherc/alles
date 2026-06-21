@@ -1,7 +1,5 @@
-import json
 
 from tests._client import ApiTest
-from core.database import Calendar, CalendarEvent
 
 
 class CalendarsApiTest(ApiTest):

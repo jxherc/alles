@@ -27,7 +27,6 @@ class CompareRequest(BaseModel):
 @router.post("/compare")
 async def start_compare(body: CompareRequest):
     from core.database import SessionLocal, ModelEndpoint
-    from services.llm import stream_chat
     from core.settings import load_settings
 
     if not body.models:

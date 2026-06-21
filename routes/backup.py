@@ -1,4 +1,4 @@
-import io, os, zipfile, shutil, tempfile
+import io, zipfile, shutil
 from pathlib import Path
 from datetime import datetime
 from fastapi import APIRouter, HTTPException, UploadFile, File

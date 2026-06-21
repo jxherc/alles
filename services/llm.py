@@ -3,7 +3,7 @@ provider-agnostic streaming LLM client.
 yields dicts: {"delta": str} | {"thinking": str} | {"done": True, "usage": {...}}
 """
 
-import json, time, asyncio
+import json, time
 from typing import AsyncGenerator
 import httpx
 
@@ -283,7 +283,7 @@ async def stream_chat(
 ) -> AsyncGenerator[dict, None]:
 
     if _is_cooling(base_url):
-        yield {"error": f"endpoint cooling down, retry in a moment"}
+        yield {"error": "endpoint cooling down, retry in a moment"}
         return
 
     provider = detect_provider(base_url)
