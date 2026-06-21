@@ -5791,6 +5791,15 @@ input.cp-swatch-input { width: 34px; height: 22px; border: 1px solid var(--faint
 #books-body { padding: 1rem clamp(0.9rem, 3vw, 2rem) 2rem; overflow-y: auto; }
 .books-bar { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; margin-bottom: 1rem; }
 .books-summary { font-size: 0.78rem; color: var(--muted); }
+.books-bar { display: flex; align-items: center; gap: 0.9rem; }
+.books-bar .books-summary { flex: 0 0 auto; }
+.books-goal { display: flex; flex-direction: column; gap: 3px; min-width: 130px; max-width: 220px; cursor: pointer; margin-left: auto; }
+.books-goal span { font-size: 0.7rem; color: var(--muted); letter-spacing: 0.02em; }
+.books-goal:hover span { color: var(--text); }
+.books-goal-bar { height: 4px; border-radius: 3px; background: var(--faint); overflow: hidden; }
+.books-goal-bar i { display: block; height: 100%; background: var(--accent); border-radius: 3px; transition: width 0.5s var(--ease, cubic-bezier(0.2,0.7,0.2,1)); }
+.books-goal-set { margin-left: auto; background: none; border: 1px dashed var(--faint); border-radius: 3px; color: var(--muted); font-size: 0.7rem; padding: 0.2rem 0.5rem; cursor: pointer; letter-spacing: 0.02em; }
+.books-goal-set:hover { color: var(--text); border-color: var(--muted); }
 .books-empty { padding: 1.2rem 0; font-size: 0.75rem; color: var(--faint); max-width: 480px; }
 
 /* shared first-run empty state — give otherwise-blank views some presence */
