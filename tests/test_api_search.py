@@ -113,6 +113,18 @@ class SearchApiTest(ApiTest):
         r = self.client.get("/api/search", params={"q": "zptest"}).json()
         self.assertEqual(r["tasks"], [])
 
+    def test_like_wildcards_are_literal(self):
+        # "_" / "%" must match literally, not act as SQL LIKE wildcards
+        d = self.db()
+        d.add(Task(title="node_modules cleanup"))
+        d.add(Task(title="nodeXmodules decoy"))
+        d.commit()
+        d.close()
+        r = self.client.get("/api/search", params={"q": "node_modules"}).json()
+        titles = [t["title"] for t in r["tasks"]]
+        self.assertIn("node_modules cleanup", titles)
+        self.assertNotIn("nodeXmodules decoy", titles)
+
     def test_whitespace_only_query_returns_empty(self):
         d = self.db()
         d.add(Task(title="zpwhite task"))
