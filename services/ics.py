@@ -73,17 +73,29 @@ def to_ics(events: list[dict]) -> str:
 
 
 def _parse_dt(val: str) -> tuple[str, bool]:
-    """ICS date/datetime -> (ISO string, all_day)."""
+    """ICS date/datetime -> (ISO string, all_day). returns ('', …) when the value
+    is digit-shaped but not a real date (e.g. month 13) so a single broken VEVENT
+    can't crash the whole import/feed-sync."""
     val = val.strip()
     if "T" in val:  # 20260619T140000
         m = re.match(r"(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})?", val)
         if m:
             y, mo, d, h, mi, s = m.groups()
-            return f"{y}-{mo}-{d}T{h}:{mi}:{s or '00'}", False
+            iso = f"{y}-{mo}-{d}T{h}:{mi}:{s or '00'}"
+            try:
+                datetime.fromisoformat(iso)
+            except ValueError:
+                return "", False
+            return iso, False
     m = re.match(r"(\d{4})(\d{2})(\d{2})", val)  # 20260619
     if m:
         y, mo, d = m.groups()
-        return f"{y}-{mo}-{d}", True
+        iso = f"{y}-{mo}-{d}"
+        try:
+            date.fromisoformat(iso)
+        except ValueError:
+            return "", True
+        return iso, True
     return val, False
 
 
@@ -110,6 +122,7 @@ def parse_ics(text: str) -> list[dict]:
                 cur["start_dt"], cur["all_day"] = _parse_dt(val)
             elif name == "DTEND":
                 end_iso, end_all_day = _parse_dt(val)
-                # reverse the export: an all-day exclusive end → inclusive last day
-                cur["end_dt"] = _add_days(end_iso, -1) if end_all_day else end_iso
+                if end_iso:
+                    # reverse the export: an all-day exclusive end → inclusive last day
+                    cur["end_dt"] = _add_days(end_iso, -1) if end_all_day else end_iso
     return events

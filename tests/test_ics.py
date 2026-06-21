@@ -100,6 +100,30 @@ class IcsServiceTest(ApiTest):  # ApiTest only for convenience; these are pure
     def test_parse_empty_string(self):
         self.assertEqual(ics.parse_ics(""), [])
 
+    def test_malformed_date_doesnt_crash_feed(self):
+        # a digit-shaped but impossible date (month 13) used to raise inside parse_ics
+        # and abort the whole import — wiping a subscription mid-sync. now it's skipped
+        # and the valid event around it still comes through.
+        text = (
+            "BEGIN:VCALENDAR\r\n"
+            "BEGIN:VEVENT\r\nSUMMARY:Broken\r\nDTSTART:20261399\r\nDTEND:20261499\r\nEND:VEVENT\r\n"
+            "BEGIN:VEVENT\r\nSUMMARY:Good\r\nDTSTART:20260620T090000\r\nDTEND:20260620T093000\r\nEND:VEVENT\r\n"
+            "END:VCALENDAR\r\n"
+        )
+        out = ics.parse_ics(text)
+        self.assertEqual([e["title"] for e in out], ["Good"])
+
+    def test_malformed_dtend_keeps_event(self):
+        # bad DTEND alone shouldn't drop the event or crash — just leaves end open
+        text = (
+            "BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nSUMMARY:Half\r\n"
+            "DTSTART:20260620T090000\r\nDTEND:20260640T990000\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"
+        )
+        out = ics.parse_ics(text)
+        self.assertEqual(len(out), 1)
+        self.assertEqual(out[0]["title"], "Half")
+        self.assertIsNone(out[0]["end_dt"])
+
 
 class IcsApiTest(ApiTest):
     def test_export_then_import(self):
