@@ -159,7 +159,7 @@ async def generate_in_chat(body: ChatImageBody, db: DbSession = Depends(get_db))
     db.commit()
     db.refresh(note)
 
-    assistant_md = f"{img_md}\n\n`✓ saved to docs` · {title}"
+    assistant_md = f"{img_md}\n\n`✓ saved to notes` · {title}"
 
     db.add(Message(session_id=s.id, role="user", content=body.prompt))
     db.add(
