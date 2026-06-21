@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from sqlalchemy.orm import Session as DbSession
 
-from core.database import get_db, ModelEndpoint, Photo, Session, Message, Document
+from core.database import get_db, ModelEndpoint, Photo, Session, Message, Note
 from services import photos_store as ps
 from routes.photos import _fmt
 
@@ -149,17 +149,17 @@ async def generate_in_chat(body: ChatImageBody, db: DbSession = Depends(get_db))
 
     img_md = "\n\n".join(f"![{alt}](/api/photos/original/{p.id})" for p in saved)
 
-    # file it in documents too so it's easy to find later
-    doc = Document(
+    # file it in docs (notes — the live docs app) too so it's easy to find later
+    note = Note(
         title=title,
-        doc_type="md",
         content=f"# {title}\n\n*image · {body.model or ep.name}*\n\n{img_md}\n",
+        tags="image",
     )
-    db.add(doc)
+    db.add(note)
     db.commit()
-    db.refresh(doc)
+    db.refresh(note)
 
-    assistant_md = f"{img_md}\n\n`✓ saved to documents` · {title}"
+    assistant_md = f"{img_md}\n\n`✓ saved to docs` · {title}"
 
     db.add(Message(session_id=s.id, role="user", content=body.prompt))
     db.add(
@@ -167,7 +167,7 @@ async def generate_in_chat(body: ChatImageBody, db: DbSession = Depends(get_db))
             session_id=s.id,
             role="assistant",
             content=assistant_md,
-            meta=json.dumps({"model": body.model, "image": True, "doc_id": doc.id}),
+            meta=json.dumps({"model": body.model, "image": True, "note_id": note.id}),
         )
     )
     if not s.name or s.name == "new chat":
@@ -178,7 +178,7 @@ async def generate_in_chat(body: ChatImageBody, db: DbSession = Depends(get_db))
 
     return {
         "content": assistant_md,
-        "doc_id": doc.id,
+        "doc_id": note.id,  # frontend uses this as a "saved" flag + to rename the chat
         "doc_title": title,
         "images": [{"id": p.id, "original": f"/api/photos/original/{p.id}"} for p in saved],
     }

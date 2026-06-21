@@ -177,6 +177,7 @@ class Note(Base):
     content = Column(Text, default="")
     pinned = Column(Boolean, default=False)
     archived = Column(Boolean, default=False)
+    tags = Column(String, default="")  # comma-separated
     created_at = Column(DateTime, default=_now)
     updated_at = Column(DateTime, default=_now)
 
@@ -402,16 +403,6 @@ class Upload(Base):
     size = Column(Integer, default=0)
     session_id = Column(String, nullable=True)
     created_at = Column(DateTime, default=_now)
-
-
-class Document(Base):
-    __tablename__ = "documents"
-    id = Column(String, primary_key=True, default=_uid)
-    title = Column(String, default="untitled")
-    content = Column(Text, default="")
-    doc_type = Column(String, default="md")  # md | txt | html | csv
-    created_at = Column(DateTime, default=_now)
-    updated_at = Column(DateTime, default=_now)
 
 
 class Vault(Base):
@@ -968,15 +959,6 @@ class SavedSearch(Base):
     created_at = Column(DateTime, default=_now)
 
 
-class SessionTemplate(Base):
-    __tablename__ = "session_templates"
-    id = Column(String, primary_key=True, default=_uid)
-    name = Column(String, nullable=False)
-    system_prompt = Column(Text, default="")
-    initial_message = Column(Text, default="")
-    created_at = Column(DateTime, default=_now)
-
-
 class Connection(Base):
     __tablename__ = "connections"
     id = Column(String, primary_key=True, default=_uid)
@@ -1203,6 +1185,7 @@ def init_db():
         _add_col(conn, "webhooks", "last_status", "TEXT DEFAULT ''")
         _add_col(conn, "webhooks", "last_error", "TEXT DEFAULT ''")
         _add_col(conn, "webhooks", "last_triggered", "DATETIME")
+        _add_col(conn, "notes", "tags", "TEXT DEFAULT ''")
     _encrypt_plaintext_secrets()
 
 

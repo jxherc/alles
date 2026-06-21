@@ -87,7 +87,7 @@ class ImagesApiTest(ApiTest):
         from pathlib import Path
         import services.imagegen as ig
         import services.photos_store as pstore
-        from core.database import Session as Sess, ModelEndpoint, Document, Message
+        from core.database import Session as Sess, ModelEndpoint, Note, Message
 
         buf = BytesIO()
         Image.new("RGB", (4, 4), (200, 30, 30)).save(buf, "PNG")
@@ -132,10 +132,10 @@ class ImagesApiTest(ApiTest):
 
         self.assertEqual(r.status_code, 200, r.text)
         j = r.json()
-        self.assertIn("saved to documents", j["content"])
+        self.assertIn("saved to docs", j["content"])
         self.assertTrue(j["doc_id"])
         d = self.db()
-        self.assertEqual(d.query(Document).count(), 1)
+        self.assertEqual(d.query(Note).count(), 1)  # filed as a note (the live docs app)
         self.assertEqual(d.query(Message).filter_by(session_id=sid).count(), 2)
         self.assertEqual(d.get(Sess, sid).name, "a red square")
         d.close()
@@ -147,7 +147,7 @@ class ImagesApiTest(ApiTest):
             self.skipTest("PIL not available")
         from io import BytesIO
         import services.imagegen as ig
-        from core.database import Session as Sess, ModelEndpoint, Document, Message
+        from core.database import Session as Sess, ModelEndpoint, Note, Message
 
         buf = BytesIO()
         Image.new("RGB", (4, 4), (20, 200, 30)).save(buf, "PNG")
@@ -187,6 +187,6 @@ class ImagesApiTest(ApiTest):
         self.assertIsNone(j["doc_id"])
         self.assertIn("data:image", j["content"])  # inlined, not a gallery url
         d = self.db()
-        self.assertEqual(d.query(Document).count(), 0)
+        self.assertEqual(d.query(Note).count(), 0)
         self.assertEqual(d.query(Message).filter_by(session_id=sid).count(), 0)
         d.close()

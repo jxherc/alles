@@ -36,7 +36,6 @@ from routes import (
     auth as auth_routes,
     voice as voice_routes,
     search as search_routes,
-    documents as doc_routes,
     compare as compare_routes,
     vault as vault_routes,
     openai_compat as oai_routes,
@@ -49,7 +48,6 @@ from routes import (
 )
 from routes import (
     reminders as reminder_routes,
-    templates as template_routes,
     shared as shared_routes,
     files as files_routes,
     caldav as caldav_routes,
@@ -579,7 +577,6 @@ app.include_router(upload_routes.router)
 app.include_router(project_routes.router)
 app.include_router(voice_routes.router)
 app.include_router(search_routes.router)
-app.include_router(doc_routes.router)
 app.include_router(compare_routes.router)
 app.include_router(vault_routes.router)
 app.include_router(oai_routes.router)
@@ -590,7 +587,6 @@ app.include_router(connection_routes.router)
 app.include_router(local_model_routes.router)
 app.include_router(vault_md_routes.router)
 app.include_router(reminder_routes.router)
-app.include_router(template_routes.router)
 app.include_router(shared_routes.router)
 app.include_router(files_routes.router)
 app.include_router(caldav_routes.router)
