@@ -18,10 +18,15 @@ const RANGES = [[7, '7d'], [30, '30d'], [90, '90d'], [365, '1y']];
 export function initHealth() { loadHealth(); }
 
 export async function loadHealth() {
+  // check r.ok — a non-2xx (e.g. a 401 on a subdomain) still returns JSON, and a
+  // {detail:…} body with no `kinds` would crash _render and blank the page.
   try {
-    _data = await fetch('/api/health/overview?days=' + _days).then(r => r.json());
-    _entries = (await fetch('/api/health').then(r => r.json())).entries || [];
+    const ro = await fetch('/api/health/overview?days=' + _days);
+    _data = ro.ok ? await ro.json() : { kinds: [], days: _days };
+    const re = await fetch('/api/health');
+    _entries = re.ok ? ((await re.json()).entries || []) : [];
   } catch { _data = { kinds: [], days: _days }; _entries = []; }
+  if (!_data || !Array.isArray(_data.kinds)) _data = { kinds: [], days: _days };
   _render();
 }
 
