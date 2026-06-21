@@ -54,6 +54,7 @@ from routes import (
     files as files_routes,
     caldav as caldav_routes,
     carddav as carddav_routes,
+    briefing as briefing_routes,
     mail as mail_routes,
     photos as photos_routes,
     push as push_routes,
@@ -590,6 +591,7 @@ app.include_router(carddav_routes.router)
 app.include_router(mail_routes.router)
 app.include_router(photos_routes.router)
 app.include_router(push_routes.router)
+app.include_router(briefing_routes.router)
 app.include_router(subscription_routes.router)
 app.include_router(days_routes.router)
 app.include_router(today_routes.router)
