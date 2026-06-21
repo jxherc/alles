@@ -261,6 +261,21 @@ class ParseOpenAITests(unittest.TestCase):
         self.assertEqual(tc["tool_call"]["name"], "shell")
         self.assertEqual(tc["tool_call"]["args"], {"cmd": "ls"})
 
+    def test_tool_call_flushed_without_done_sentinel(self):
+        # some openai-compat servers end the stream without a [DONE] line. the tool
+        # call must still be emitted (it was getting dropped on the fallthrough path).
+        lines = [
+            'data: {"choices":[{"delta":{"tool_calls":[{"index":0,"id":"c9","function":{"name":"search","arguments":"{\\"q\\":\\"x\\"}"}}]}}]}',
+            'data: {"choices":[{"delta":{},"finish_reason":"tool_calls"}]}',
+        ]
+        evts = self._run(lines)
+        tc = next((e for e in evts if "tool_call" in e), None)
+        self.assertIsNotNone(tc, "tool call was dropped when stream ended without [DONE]")
+        self.assertEqual(tc["tool_call"]["name"], "search")
+        self.assertEqual(tc["tool_call"]["args"], {"q": "x"})
+        # and exactly one tool_call event (no duplicate flush)
+        self.assertEqual(sum(1 for e in evts if "tool_call" in e), 1)
+
     def test_usage_captured(self):
         lines = [
             'data: {"choices":[{"delta":{"content":"x"},"finish_reason":"stop"}],"usage":{"prompt_tokens":5,"completion_tokens":2}}',

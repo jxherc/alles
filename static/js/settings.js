@@ -646,6 +646,11 @@ function loadAppearancePane() {
     }
   }
   _loadThemeColorControls();
+  const teBtn = document.getElementById('s-open-theme-editor');
+  if (teBtn && !teBtn.dataset.bound) {
+    teBtn.dataset.bound = '1';
+    teBtn.addEventListener('click', async () => { (await import('./theme.js')).openThemeEditor(); });
+  }
 }
 
 // ── theme mode + accent color ─────────────────────────────────────────────────

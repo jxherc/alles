@@ -70,6 +70,12 @@ from routes import (
     textindex as textindex_routes,
     code as code_routes,
     macos as macos_routes,
+    watch as watch_routes,
+    appearance as appearance_routes,
+    habits as habits_routes,
+    read as read_routes,
+    books as books_routes,
+    health as health_routes,
 )
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s  %(name)s  %(message)s")
@@ -285,6 +291,11 @@ def _register_jobs():
         if carddav_sync.due_for_sync(time.time()):
             carddav_sync.sync()
 
+    async def _watch():
+        from routes.watch import run_checks
+
+        await run_checks()
+
     jobs.register("subscriptions", _subs, 30)
     jobs.register("day_events", _days, 30)
     jobs.register("automations", _autos, 30)
@@ -295,6 +306,7 @@ def _register_jobs():
     jobs.register("photo_watch", _photo_watch, 300, run_at_start=False)  # 7c phone backup
     jobs.register("ics_subscriptions", _ics_subs, 3600, run_at_start=False)  # 8a calendar feeds
     jobs.register("carddav_auto", _carddav_auto, 600, run_at_start=False)  # 7b contacts auto-sync
+    jobs.register("watch", _watch, 60, run_at_start=False)  # uptime/cert/health probes
 
 
 async def _reminder_loop():
@@ -587,6 +599,12 @@ app.include_router(timeline_routes.router)
 app.include_router(system_routes.router)
 app.include_router(code_routes.router)
 app.include_router(macos_routes.router)
+app.include_router(watch_routes.router)
+app.include_router(appearance_routes.router)
+app.include_router(habits_routes.router)
+app.include_router(read_routes.router)
+app.include_router(books_routes.router)
+app.include_router(health_routes.router)
 
 
 # static files — no-cache so JS/CSS always reloads

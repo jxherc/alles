@@ -412,6 +412,15 @@ async def _parse_openai(resp) -> AsyncGenerator[dict, None]:
             # keep reading for the trailing usage chunk + [DONE]
             continue
 
+    # stream ended without a [DONE] sentinel (some openai-compat servers skip it).
+    # flush any tool calls still accumulated, else a tool turn silently emits nothing.
+    for idx in sorted(tool_acc):
+        tc = tool_acc[idx]
+        try:
+            args = json.loads("".join(tc["args"]))
+        except Exception:
+            args = {}
+        yield {"tool_call": {"call_id": tc["id"], "name": tc["name"], "args": args}}
     yield {"done": True, "usage": usage}
 
 
