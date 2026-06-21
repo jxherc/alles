@@ -13,7 +13,7 @@ from pydantic import BaseModel
 from sqlalchemy import or_
 from sqlalchemy.orm import Session as DbSession
 
-from core.database import ReadItem, get_db
+from core.database import ReadFeed, ReadItem, get_db
 from services.research.search import fetch_webpage_content
 
 router = APIRouter(prefix="/api")
@@ -84,6 +84,61 @@ def list_items(filter: str = "", q: str = "", tag: str = "", db: DbSession = Dep
         query = query.filter(ReadItem.tags.ilike(f"%{tag}%"))
     rows = query.order_by(ReadItem.added_at.desc()).all()
     return {"items": [_fmt(r) for r in rows]}
+
+
+# ── rss/atom feeds — defined before /read/{rid} so "feeds" isn't read as an id ──
+class FeedBody(BaseModel):
+    url: str
+
+
+@router.get("/read/feeds")
+def list_feeds(db: DbSession = Depends(get_db)):
+    rows = db.query(ReadFeed).order_by(ReadFeed.created_at).all()
+    return {
+        "feeds": [
+            {
+                "id": f.id,
+                "url": f.url,
+                "title": f.title,
+                "last_checked": f.last_checked.isoformat() if f.last_checked else "",
+            }
+            for f in rows
+        ]
+    }
+
+
+@router.post("/read/feeds")
+def add_feed(body: FeedBody, db: DbSession = Depends(get_db)):
+    url = (body.url or "").strip()
+    if not url:
+        raise HTTPException(400, "url required")
+    if not url.startswith("http"):
+        url = "https://" + url
+    if db.query(ReadFeed).filter_by(url=url).first():
+        raise HTTPException(400, "feed already added")
+    f = ReadFeed(url=url)
+    db.add(f)
+    db.commit()
+    db.refresh(f)
+    return {"id": f.id, "url": f.url}
+
+
+@router.delete("/read/feeds/{fid}")
+def delete_feed(fid: str, db: DbSession = Depends(get_db)):
+    f = db.get(ReadFeed, fid)
+    if not f:
+        raise HTTPException(404)
+    db.delete(f)
+    db.commit()
+    return {"ok": True}
+
+
+@router.post("/read/feeds/refresh")
+async def refresh_now():
+    from services.read_feeds import refresh_feeds
+
+    await refresh_feeds()
+    return {"ok": True}
 
 
 @router.get("/read/{rid}")

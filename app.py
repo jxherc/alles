@@ -297,6 +297,12 @@ def _register_jobs():
 
         await run_checks()
 
+    async def _read_feeds():
+        from services.read_feeds import refresh_feeds
+
+        await refresh_feeds()
+
+    jobs.register("read_feeds", _read_feeds, 1800, run_at_start=False)  # rss auto-save (30 min)
     jobs.register("subscriptions", _subs, 30)
     jobs.register("day_events", _days, 30)
     jobs.register("automations", _autos, 30)
