@@ -325,6 +325,28 @@ def cmd_doctor(args=()):
     print("ready to go.  start with:  alles start")
 
 
+def cmd_test(args=()):
+    """run the test suites — python (unittest) + js (node:test). pass `py` or `js` to scope."""
+    import subprocess
+
+    which = args[0] if args else "all"
+    rc = 0
+    if which in ("all", "py"):
+        print("• python tests")
+        rc |= subprocess.call([sys.executable, "-m", "unittest", "discover", "-s", "tests"])
+    if which in ("all", "js"):
+        print("• js tests")
+        from pathlib import Path
+
+        # pass files explicitly — `node --test <dir>` mis-reports on windows
+        js = sorted(str(p) for p in Path("tests/js").glob("*.test.mjs"))
+        if js:
+            rc |= subprocess.call(["node", "--test", *js])
+        else:
+            print("  (no js tests)")
+    sys.exit(1 if rc else 0)
+
+
 COMMANDS = {
     "start": cmd_start,
     "stop": cmd_stop,
@@ -334,6 +356,7 @@ COMMANDS = {
     "update": cmd_update,
     "open": cmd_open,
     "doctor": cmd_doctor,
+    "test": cmd_test,
 }
 
 
