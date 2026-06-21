@@ -48,7 +48,7 @@ function renderNotes() {
   if (!list) return;
 
   if (!_notes.length) {
-    const msg = _q || _tag ? 'no matches' : 'no docs yet';
+    const msg = _q || _tag ? 'no matches' : 'no notes yet';
     list.innerHTML = `<div style="padding:1rem 0;font-size:0.75rem;color:var(--faint)">${msg}</div>`;
     return;
   }

@@ -448,6 +448,7 @@ const HOME_TILES = [
   { view: 'chat',     name: 'aide',     desc: 'chat, agent',     icon: 'chat' },
   { view: 'mail',     name: 'mail',     desc: 'inbox & sending', icon: 'mail' },
   { view: 'wiki',     name: 'docs',     desc: 'linked notes',    icon: 'notes' },
+  { view: 'notes',    name: 'notes',    desc: 'quick notes',     icon: 'tasks' },
   { view: 'files',    name: 'files',    desc: 'your files',      icon: 'files' },
   { view: 'calendar', name: 'calendar', desc: 'schedule',        icon: 'calendar' },
   { view: 'tasks',    name: 'tasks',    desc: 'to-dos',          icon: 'tasks' },

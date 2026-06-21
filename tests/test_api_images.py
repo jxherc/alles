@@ -132,7 +132,7 @@ class ImagesApiTest(ApiTest):
 
         self.assertEqual(r.status_code, 200, r.text)
         j = r.json()
-        self.assertIn("saved to docs", j["content"])
+        self.assertIn("saved to notes", j["content"])
         self.assertTrue(j["doc_id"])
         d = self.db()
         self.assertEqual(d.query(Note).count(), 1)  # filed as a note (the live docs app)
