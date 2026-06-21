@@ -1,7 +1,7 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v69';   // mail icons, files quota, brand colours, newest-only fix, image slot
+const VERSION = 'v77';   // richer empty states for books+health
 const CACHE = `alles-${VERSION}`;
-const STAMP = '95';   // keep in sync with index.html ?v= / const _v
+const STAMP = '103';   // keep in sync with index.html ?v= / const _v
 
 // 1b: mutating writes that should be queued when offline
 const MUTATING = ['POST', 'PUT', 'PATCH', 'DELETE'];

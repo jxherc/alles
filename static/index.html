@@ -6,15 +6,31 @@
 <meta name="description" content="your everything-app, self-hosted">
 <title>alles</title>
 <script>
-  const _t = localStorage.getItem('aide-theme');
-  if (_t) document.documentElement.dataset.theme = _t;
-  const _a = localStorage.getItem('aide-accent');
-  if (_a) document.documentElement.style.setProperty('--accent', _a);
+  // pre-paint: apply the cached advanced theme so there's no flash before theme.js loads
+  (function () {
+    var r = document.documentElement, st = r.style;
+    try {
+      var a = JSON.parse(localStorage.getItem('alles-appearance') || 'null');
+      if (a && a.colors) {
+        var c = a.colors, FM = { sans: "'Inter', sans-serif", mono: "'JetBrains Mono', monospace", serif: "Georgia, serif" };
+        if (c.bg) st.setProperty('--bg', c.bg); if (c.text) st.setProperty('--text', c.text);
+        if (c.panel) st.setProperty('--panel', c.panel); if (c.faint) st.setProperty('--faint', c.faint);
+        if (c.accent) st.setProperty('--accent', c.accent);
+        var n = parseInt((c.bg || '#0a0a0a').replace('#', ''), 16);
+        if ((((n >> 16 & 255) * 0.299 + (n >> 8 & 255) * 0.587 + (n & 255) * 0.114) / 255) > 0.5) r.dataset.theme = 'light';
+        st.setProperty('--font-family', FM[a.font] || FM.sans);
+        if (a.density && a.density !== 'comfortable') r.classList.add('density-' + a.density);
+        return;
+      }
+    } catch (e) {}
+    var _t = localStorage.getItem('aide-theme'); if (_t) r.dataset.theme = _t;
+    var _a = localStorage.getItem('aide-accent'); if (_a) st.setProperty('--accent', _a);
+  })();
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/style.css?v=95">
+<link rel="stylesheet" href="/static/style.css?v=103">
 <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#0a0a0a">
@@ -366,6 +382,46 @@
         <button class="icon-btn app-cog" data-app="system" title="system settings"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2a2 2 0 1 1-4 0V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1A2 2 0 1 1 4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H3a2 2 0 1 1 0-4h.2a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1A2 2 0 1 1 7.2 4.2l.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.6V3a2 2 0 1 1 4 0v.2a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1A2 2 0 1 1 20 7.2l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2a2 2 0 1 1 0 4h-.2a1.7 1.7 0 0 0-1.8 1z"/></svg></button>
       </div>
       <div class="page-view-body" id="system-body"></div>
+    </div>
+
+    <!-- ── watch (uptime/status) view ── -->
+    <div class="page-view" id="watch-view" style="display:none">
+      <div class="page-view-head">
+        <span class="page-view-title">watch</span>
+      </div>
+      <div class="page-view-body" id="watch-body"></div>
+    </div>
+
+    <!-- ── habits view ── -->
+    <div class="page-view" id="habits-view" style="display:none">
+      <div class="page-view-head">
+        <span class="page-view-title">habits</span>
+      </div>
+      <div class="page-view-body" id="habits-body"></div>
+    </div>
+
+    <!-- ── read-later view ── -->
+    <div class="page-view" id="read-view" style="display:none">
+      <div class="page-view-head">
+        <span class="page-view-title">read</span>
+      </div>
+      <div class="page-view-body" id="read-body"></div>
+    </div>
+
+    <!-- ── books (reading list) view ── -->
+    <div class="page-view" id="books-view" style="display:none">
+      <div class="page-view-head">
+        <span class="page-view-title">books</span>
+      </div>
+      <div class="page-view-body" id="books-body"></div>
+    </div>
+
+    <!-- ── health log view ── -->
+    <div class="page-view" id="health-view" style="display:none">
+      <div class="page-view-head">
+        <span class="page-view-title">health</span>
+      </div>
+      <div class="page-view-body" id="health-body"></div>
     </div>
 
     <!-- ── subscriptions view ── -->
@@ -1244,6 +1300,10 @@
                   <button class="btn" id="s-accent-reset" style="font-size:0.68rem;padding:0.2rem 0.55rem">reset</button>
                 </div>
               </div>
+              <div class="s-field" style="margin-top:0.7rem">
+                <label>full theme <span style="color:var(--muted);font-weight:400">— presets, every color, fonts, backgrounds</span></label>
+                <button class="btn primary" id="s-open-theme-editor" style="margin-top:0.35rem">open theme editor</button>
+              </div>
             </div>
           </div>
           <div class="s-card">
@@ -1616,7 +1676,7 @@
 </div>
 
 <script type="module">
-const _v = '95';
+const _v = '103';
 import(`/static/js/app.js?v=${_v}`);
 </script>
 </body>
