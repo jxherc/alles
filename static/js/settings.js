@@ -1387,14 +1387,30 @@ async function loadWebhooks() {
   if (!el) return;
   const hooks = await fetch('/api/webhooks').then(r => r.json()).catch(() => []);
   if (!hooks.length) { el.innerHTML = '<div class="settings-row-empty">no webhooks</div>'; return; }
-  el.innerHTML = hooks.map(h => `
+  el.innerHTML = hooks.map(h => {
+    const st = h.last_status === 'ok' ? ' · ✓ ok'
+      : h.last_status ? ` · ✕ ${_esc(h.last_error || h.last_status)}` : '';
+    return `
     <div class="settings-list-row">
       <span class="status-dot" style="background:${h.enabled ? 'var(--green)' : 'var(--faint)'}"></span>
       <span class="row-name">${_esc(h.name)}</span>
-      <span class="row-meta">${h.events.join(', ')}</span>
+      <span class="row-meta">${h.events.join(', ')}${st}</span>
+      ${h.secret ? `<code class="wh-secret" title="HMAC-SHA256 signing key — verify the X-Alles-Signature header with this" onclick="navigator.clipboard.writeText('${_esc(h.secret)}');window._toastCopied&&window._toastCopied()" style="font-size:0.6rem;color:var(--muted);max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer">${_esc(h.secret)}</code>` : ''}
+      <button class="act-btn" data-id="${h.id}" onclick="window._testWebhook(this)">test</button>
       <button class="act-btn" data-id="${h.id}" onclick="window._rmWebhook(this)">remove</button>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
+
+window._testWebhook = async btn => {
+  btn.disabled = true; const old = btn.textContent; btn.textContent = '…';
+  try {
+    const r = await fetch(`/api/webhooks/${btn.dataset.id}/test`, { method: 'POST' }).then(r => r.json());
+    toast(r.status === 'ok' ? 'webhook delivered ✓' : `failed: ${r.error || r.status}`, r.status === 'ok' ? 'success' : 'error');
+  } catch { toast('test failed', 'error'); }
+  btn.disabled = false; btn.textContent = old;
+  loadWebhooks();
+};
 
 window._rmWebhook = async btn => {
   await fetch(`/api/webhooks/${btn.dataset.id}`, { method: 'DELETE' });

@@ -530,6 +530,60 @@ def chat_status(session_id: str):
     return {"streaming": session_id in _streams}
 
 
+_REWRITE_STYLES = {
+    "shorter": "Rewrite the assistant reply below to be significantly shorter and tighter — keep every load-bearing point, cut filler. Same format.",
+    "simpler": "Rewrite the assistant reply below in plainer, simpler language anyone can follow. Keep the meaning, drop jargon.",
+    "formal": "Rewrite the assistant reply below in a more formal, professional tone. Keep the content.",
+    "casual": "Rewrite the assistant reply below in a warmer, more casual tone. Keep the content.",
+}
+
+
+class RewriteBody(BaseModel):
+    session_id: str
+    style: str = "shorter"
+    msg_id: str = ""  # which assistant message to rewrite; default = the last one
+
+
+# POST /api/chat/rewrite — rewrite an assistant message in place (no agent loop)
+@router.post("/chat/rewrite")
+async def rewrite_last(body: RewriteBody, db: DbSession = Depends(get_db)):
+    instr = _REWRITE_STYLES.get(body.style)
+    if not instr:
+        raise HTTPException(400, "unknown style")
+    s = db.get(Session, body.session_id)
+    if not s:
+        raise HTTPException(404, "session not found")
+    if body.msg_id:
+        last = db.get(Message, body.msg_id)
+        if not last or last.session_id != body.session_id or last.role != "assistant":
+            raise HTTPException(404, "assistant message not found")
+    else:
+        last = (
+            db.query(Message)
+            .filter(Message.session_id == body.session_id, Message.role == "assistant")
+            .order_by(Message.timestamp.desc())
+            .first()
+        )
+    if not last or not last.content.strip():
+        raise HTTPException(400, "no assistant reply to rewrite")
+
+    ep = _resolve_endpoint(s, db)
+    model = s.model or (ep.models_list()[0] if ep and ep.models_list() else "")
+    if not ep or not model:
+        raise HTTPException(400, "no model endpoint configured")
+
+    prompt = [
+        {"role": "system", "content": instr + " Output ONLY the rewritten reply, nothing else."},
+        {"role": "user", "content": last.content},
+    ]
+    out = (await simple_complete(prompt, ep.base_url, ep.api_key, model, max_tokens=2000)).strip()
+    if not out:
+        raise HTTPException(502, "rewrite produced nothing")
+    last.content = out
+    db.commit()
+    return {"content": out, "msg_id": last.id}
+
+
 # GET /api/sessions/{session_id}/messages/{msg_id}/artifact/{idx}
 @router.get("/sessions/{session_id}/messages/{msg_id}/artifact/{idx}")
 def get_artifact(session_id: str, msg_id: str, idx: int, db: DbSession = Depends(get_db)):

@@ -80,6 +80,58 @@ class SkillsStoreTest(unittest.TestCase):
         self.assertEqual(ss.seed_starters(), 0)
         self.assertEqual(len(ss.list_skills()), len(ss._STARTERS) - 1)
 
+    def test_record_use_counts_and_ranks_to_top(self):
+        ss.upsert_skill("Alpha", "a")
+        ss.upsert_skill("Beta", "b")
+        ss.record_use("beta")
+        ss.record_use("beta")
+        got = {s["slug"]: s for s in ss.list_skills()}
+        self.assertEqual(got["beta"]["uses"], 2)
+        self.assertEqual(got["alpha"]["uses"], 0)
+        # most-used sorts first
+        self.assertEqual(ss.list_skills()[0]["slug"], "beta")
+
+    def test_pin_sorts_above_usage(self):
+        ss.upsert_skill("Used", "x")
+        ss.upsert_skill("Pinned", "y")
+        ss.record_use("used")
+        ss.record_use("used")
+        self.assertTrue(ss.set_pinned("pinned", True))
+        self.assertEqual(ss.list_skills()[0]["slug"], "pinned")
+        self.assertTrue(ss.list_skills()[0]["pinned"])
+        # unpin → the used one comes back to the top
+        ss.set_pinned("pinned", False)
+        self.assertEqual(ss.list_skills()[0]["slug"], "used")
+
+    def test_delete_clears_usage(self):
+        ss.upsert_skill("Gone", "z")
+        ss.record_use("gone")
+        ss.delete_skill("gone")
+        self.assertEqual(ss._load_usage(), {})
+        # re-creating with the same slug starts fresh, not stale counts
+        ss.upsert_skill("Gone", "z")
+        self.assertEqual(ss.get_skill("gone")["uses"], 0)
+
+    def test_match_boosts_used_skills(self):
+        ss.upsert_skill("Email A", "draft emails", "when composing an email")
+        ss.upsert_skill("Email B", "draft emails", "when composing an email")
+        ss.record_use("email-b")
+        # identical text → usage breaks the tie
+        self.assertEqual(ss.match_skills("compose an email")[0]["slug"], "email-b")
+
+    def test_seed_library_installs_whole_catalog_once(self):
+        fake = [
+            {"slug": "one", "name": "One", "description": "d1", "when_to_use": "", "body": "b1"},
+            {"slug": "two", "name": "Two", "description": "d2", "when_to_use": "", "body": "b2"},
+        ]
+        with mock.patch("services.skills_catalog.items", return_value=fake):
+            self.assertEqual(ss.seed_library(), 2)
+            self.assertEqual(len(ss.list_skills()), 2)
+            # sentinel → second run is a no-op even after deleting one
+            ss.delete_skill("one")
+            self.assertEqual(ss.seed_library(), 0)
+            self.assertEqual(len(ss.list_skills()), 1)
+
 
 if __name__ == "__main__":
     unittest.main()

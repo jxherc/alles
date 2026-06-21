@@ -110,6 +110,18 @@ def export_skill(slug: str):
     )
 
 
+class PinBody(BaseModel):
+    pinned: bool = True
+
+
+@router.post("/{slug}/pin")
+def pin(slug: str, body: PinBody):
+    """pin a skill to the top of the list (sorts above usage/recency)."""
+    if not skills_store.get_skill(slug):
+        raise HTTPException(404, "skill not found")
+    return {"pinned": skills_store.set_pinned(slug, body.pinned)}
+
+
 @router.post("/{slug}/update")
 def update_from_source(slug: str):
     try:

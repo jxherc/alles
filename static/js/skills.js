@@ -76,10 +76,28 @@ async function _loadList(q) {
   }
   el.innerHTML = skills.map(s => `
     <div class="skl-row${s.slug === _cur ? ' active' : ''}" data-slug="${esc(s.slug)}">
-      <div class="skl-row-name">${esc(s.name)}${s.source ? '<span class="skl-git" title="git-backed — can be updated from source">git</span>' : ''}</div>
+      <div class="skl-row-name">
+        <button class="skl-pin${s.pinned ? ' on' : ''}" data-pin="${esc(s.slug)}" title="${s.pinned ? 'unpin' : 'pin to top'}">${s.pinned ? '★' : '☆'}</button>
+        <span class="skl-row-title">${esc(s.name)}</span>
+        ${s.source ? '<span class="skl-git" title="git-backed — can be updated from source">git</span>' : ''}
+        ${s.uses ? `<span class="skl-uses" title="loaded ${s.uses} time${s.uses === 1 ? '' : 's'}">${s.uses}×</span>` : ''}
+      </div>
       <div class="skl-row-desc">${esc(s.description) || '<em>no description</em>'}</div>
     </div>`).join('');
   el.querySelectorAll('.skl-row').forEach(r => r.onclick = () => _open(r.dataset.slug));
+  el.querySelectorAll('.skl-pin').forEach(b => b.addEventListener('click', e => {
+    e.stopPropagation();
+    _togglePin(b.dataset.pin, !b.classList.contains('on'));
+  }));
+}
+
+async function _togglePin(slug, pinned) {
+  try {
+    await _api(`/api/skills/${encodeURIComponent(slug)}/pin`, {
+      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ pinned }),
+    });
+    _loadList($('skl-search').value || '');   // re-sort, pinned jumps to top
+  } catch { toast('pin failed', 'error'); }
 }
 
 // the built-in library — browse + one-click install ready-made skills

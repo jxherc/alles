@@ -356,8 +356,11 @@ export function appendAiMsg(text, thinking, toolSteps) {
   const actions = document.createElement('div');
   actions.className = 'msg-actions';
   actions.innerHTML = `<button class="act-btn" onclick="copyMsg(this)">copy</button>
-    <button class="msg-regen-btn act-btn" title="regenerate">regen</button>`;
+    <button class="msg-regen-btn act-btn" title="regenerate">regen</button>
+    <button class="msg-rewrite-btn act-btn" data-style="shorter" title="rewrite shorter">shorter</button>
+    <button class="msg-rewrite-btn act-btn" data-style="simpler" title="rewrite simpler">simpler</button>`;
   wrap.appendChild(actions);
+  wireRewriteButtons(actions);
 
   document.getElementById('messages').appendChild(row);
   scrollDown();
@@ -412,6 +415,36 @@ function _wireBranchButtons(container) {
         btn.disabled = false;
         const { toast } = await import('./util.js');
         toast('couldn\'t branch this chat', 'error');
+      }
+    });
+  });
+}
+
+export function wireRewriteButtons(scope) {
+  scope.querySelectorAll('.msg-rewrite-btn').forEach(btn => {
+    btn.addEventListener('click', async e => {
+      e.stopPropagation();
+      const row = btn.closest('.msg-row');
+      const content = row?.querySelector('.ai-content');
+      if (!content || !_activeId) return;
+      const style = btn.dataset.style;
+      const siblings = row.querySelectorAll('.msg-rewrite-btn');
+      siblings.forEach(b => b.disabled = true);
+      const old = btn.textContent; btn.textContent = '…';
+      try {
+        const r = await fetch('/api/chat/rewrite', {
+          method: 'POST', headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ session_id: _activeId, style, msg_id: row.dataset.msgId || '' }),
+        });
+        if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || 'rewrite failed');
+        const { content: text } = await r.json();
+        content.innerHTML = _md(text);
+        toast(`rewritten ${style}`, 'success');
+      } catch (err) {
+        toast(String(err.message || err), 'error');
+      } finally {
+        siblings.forEach(b => b.disabled = false);
+        btn.textContent = old;
       }
     });
   });
@@ -603,22 +636,20 @@ export function updateSessionHeader(session) {
   // token count stays hidden until chat.js populates it
 }
 
-export async function exportActiveSessionMarkdown() {
+// download the active chat in any format — the server builds md/json/txt/html
+export function downloadSession(fmt = 'md') {
   if (!_activeId) { toast('no active chat', 'error'); return; }
-  const r = await fetch(`/api/sessions/${_activeId}/history`);
-  if (!r.ok) { toast('export failed', 'error'); return; }
-  const { session, messages } = await r.json();
-  const md = messages
-    .map(m => `**${m.role}:**\n\n${m.content}`)
-    .join('\n\n---\n\n');
-  const blob = new Blob([md], { type: 'text/markdown' });
   const a = Object.assign(document.createElement('a'), {
-    href: URL.createObjectURL(blob),
-    download: `${(session?.name || 'chat').replace(/[^a-z0-9]/gi, '-')}.md`,
+    href: `/api/sessions/${_activeId}/export?fmt=${fmt}`,
+    download: '',   // let the content-disposition filename win
   });
+  document.body.appendChild(a);
   a.click();
-  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  a.remove();
 }
+
+// kept for the /export slash command + older callers
+export async function exportActiveSessionMarkdown() { downloadSession('md'); }
 
 
 export async function createSession(model = '', endpointId = '', options = {}) {
