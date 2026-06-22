@@ -48,15 +48,17 @@ function renderNotes() {
   if (!list) return;
 
   if (!_notes.length) {
-    const msg = _q || _tag ? 'no matches' : 'no notes yet';
-    list.innerHTML = `<div style="padding:1rem 0;font-size:0.75rem;color:var(--faint)">${msg}</div>`;
+    const filtered = _q || _tag;
+    const title = filtered ? 'no notes match that' : 'no notes yet';
+    const sub = filtered ? 'try a different search or tag.' : 'jot a thought, a list, anything — hit + new note.';
+    list.innerHTML = `<div class="notes-empty"><div class="notes-empty-title">${title}</div><div class="notes-empty-sub">${sub}</div></div>`;
     return;
   }
 
   list.innerHTML = _notes.map(n => `
     <div class="note-card${n.pinned ? ' pinned' : ''}" data-id="${n.id}">
       <div class="note-title">${esc(n.title || 'untitled')}</div>
-      <div class="note-preview">${esc(n.content.slice(0, 80)) || '—'}</div>
+      <div class="note-preview">${esc(n.content.slice(0, 200)) || '—'}</div>
       ${(n.due || n.items?.length) ? `<div class="note-meta-row">
         ${n.due ? `<span class="note-due${_isOverdue(n.due) ? ' overdue' : ''}">${_isOverdue(n.due) ? 'overdue' : 'due'} ${esc(n.due)}</span>` : ''}
         ${n.items?.length ? `<span class="note-progress">✓ ${n.items.filter(i => i.done).length}/${n.items.length}</span>` : ''}
