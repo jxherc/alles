@@ -1,9 +1,13 @@
+import time
+
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session as DbSession
 
 from core.database import MailAccount, MailDraft, get_db
 from services import mail as mailsvc
+from services import mail_oauth
 
 router = APIRouter(prefix="/api/mail")
 
@@ -110,6 +114,7 @@ def delete_draft(did: str, db: DbSession = Depends(get_db)):
 
 def _acct_dict(a: MailAccount) -> dict:
     return {
+        "id": a.id,
         "imap_host": a.imap_host,
         "imap_port": a.imap_port,
         "smtp_host": a.smtp_host,
@@ -118,10 +123,14 @@ def _acct_dict(a: MailAccount) -> dict:
         "password": a.password,
         "email": a.email,
         "use_ssl": a.use_ssl,
+        "auth_type": a.auth_type,
+        "oauth_access_token": a.oauth_access_token,
+        "oauth_refresh_token": a.oauth_refresh_token,
+        "oauth_expires_at": a.oauth_expires_at,
     }
 
 
-def _fmt(a: MailAccount) -> dict:  # never leaks the password
+def _fmt(a: MailAccount) -> dict:  # never leaks the password or tokens
     return {
         "id": a.id,
         "name": a.name,
@@ -132,6 +141,8 @@ def _fmt(a: MailAccount) -> dict:  # never leaks the password
         "smtp_port": a.smtp_port,
         "username": a.username,
         "use_ssl": a.use_ssl,
+        "auth_type": a.auth_type,
+        "oauth_provider": a.oauth_provider,
     }
 
 
@@ -199,6 +210,58 @@ def test(aid: str, db: DbSession = Depends(get_db)):
         return mailsvc.check(_acct_dict(a))
     except Exception as e:
         return {"ok": False, "error": str(e)[:200]}
+
+
+# ── google oauth ("sign in with google") ──────────────────────────────────────
+@router.get("/oauth/status")
+def oauth_status():
+    return {"configured": mail_oauth.configured(), "redirect_uri": mail_oauth.redirect_uri()}
+
+
+@router.get("/oauth/google/start")
+def oauth_start():
+    if not mail_oauth.configured():
+        raise HTTPException(400, "google oauth not configured")
+    return RedirectResponse(mail_oauth.auth_url(mail_oauth.make_state()))
+
+
+@router.get("/oauth/google/callback")
+def oauth_callback(code: str = "", state: str = "", error: str = "",
+                   db: DbSession = Depends(get_db)):
+    def _back(status):
+        return RedirectResponse(f"/?mailoauth={status}")
+
+    if error:
+        return _back("denied")
+    if not mail_oauth.check_state(state):
+        return _back("badstate")
+    try:
+        tok = mail_oauth.exchange_code(code)
+        access = tok.get("access_token", "")
+        email = mail_oauth.fetch_email(access)
+    except Exception:
+        return _back("failed")
+    if not email:
+        return _back("noemail")
+
+    a = db.query(MailAccount).filter(MailAccount.email == email).first()
+    if not a:
+        a = MailAccount(email=email, name=email)
+        db.add(a)
+    a.auth_type = "oauth"
+    a.oauth_provider = "google"
+    a.username = email
+    a.password = ""  # oauth accounts carry no password
+    a.imap_host, a.imap_port = mail_oauth.GMAIL_IMAP
+    a.smtp_host, a.smtp_port = mail_oauth.GMAIL_SMTP
+    a.use_ssl = True
+    a.oauth_access_token = access
+    if tok.get("refresh_token"):  # google only returns it on first consent
+        a.oauth_refresh_token = tok["refresh_token"]
+    a.oauth_expires_at = time.time() + int(tok.get("expires_in", 3600))
+    db.commit()
+    mailsvc.clear_cache()
+    return _back("ok")
 
 
 @router.get("/inbox/{aid}")
