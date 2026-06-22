@@ -1,7 +1,7 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v90';   // skills ui redesign — category rail + card grid
+const VERSION = 'v91';   // library sources + skill preview
 const CACHE = `alles-${VERSION}`;
-const STAMP = '116';   // keep in sync with index.html ?v= / const _v
+const STAMP = '117';   // keep in sync with index.html ?v= / const _v
 
 // 1b: mutating writes that should be queued when offline
 const MUTATING = ['POST', 'PUT', 'PATCH', 'DELETE'];
