@@ -117,6 +117,11 @@ def delete_account(aid: str, db: DbSession = Depends(get_db)):
     a = db.get(Account, aid)
     if not a:
         raise HTTPException(404)
+    # transfer legs share a string transfer_id (no FK), so unlink the partner legs in
+    # other accounts before we nuke this account's txns — keeps the moved money as plain txns
+    xfer_ids = [x[0] for x in db.query(Transaction.transfer_id).filter(Transaction.account_id == aid, Transaction.transfer_id != "").all()]
+    if xfer_ids:
+        db.query(Transaction).filter(Transaction.transfer_id.in_(xfer_ids), Transaction.account_id != aid).update({Transaction.transfer_id: ""}, synchronize_session=False)
     db.query(Transaction).filter(Transaction.account_id == aid).delete()
     db.delete(a)
     db.commit()
