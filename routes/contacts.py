@@ -192,6 +192,11 @@ def create_contact(body: CreateContact, db: DbSession = Depends(get_db)):
     db.add(c)
     db.commit()
     db.refresh(c)
+    try:
+        from services import personal_index
+        personal_index.index_record(db, "contact", c)
+    except Exception:
+        pass
     return _fmt(c, db)
 
 
@@ -237,6 +242,11 @@ def patch_contact(cid: str, body: PatchContact, db: DbSession = Depends(get_db))
         c.favorite = body.favorite
     c.updated_at = datetime.utcnow()
     db.commit()
+    try:
+        from services import personal_index
+        personal_index.index_record(db, "contact", c)
+    except Exception:
+        pass
     return _fmt(c, db)
 
 
@@ -247,6 +257,11 @@ def delete_contact(cid: str, db: DbSession = Depends(get_db)):
         raise HTTPException(404)
     db.delete(c)
     db.commit()
+    try:
+        from services import personal_index
+        personal_index.remove_record(db, "contact", cid)
+    except Exception:
+        pass
     return {"ok": True}
 
 
@@ -289,6 +304,11 @@ def add_field(cid: str, body: FieldBody, db: DbSession = Depends(get_db)):
     db.add(f)
     db.commit()
     db.refresh(f)
+    try:
+        from services import personal_index
+        personal_index.index_record(db, "contact", db.query(Contact).filter_by(id=cid).first())
+    except Exception:
+        pass
     return {"id": f.id, "kind": f.kind, "label": f.label, "value": f.value}
 
 
@@ -299,6 +319,11 @@ def delete_field(cid: str, fid: str, db: DbSession = Depends(get_db)):
         raise HTTPException(404)
     db.delete(f)
     db.commit()
+    try:
+        from services import personal_index
+        personal_index.index_record(db, "contact", db.query(Contact).filter_by(id=cid).first())
+    except Exception:
+        pass
     return {"ok": True}
 
 

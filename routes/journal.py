@@ -318,6 +318,11 @@ def upsert_entry(
         db.add(e)
     db.commit()
     db.refresh(e)
+    try:
+        from services import personal_index
+        personal_index.index_record(db, "journal", e)
+    except Exception:
+        pass
     return _fmt(e)
 
 
@@ -328,6 +333,11 @@ def delete_entry(day: str, db: DbSession = Depends(get_db), _: None = Depends(_r
         raise HTTPException(404)
     db.delete(e)
     db.commit()
+    try:
+        from services import personal_index
+        personal_index.remove_record(db, "journal", str(day)[:10])
+    except Exception:
+        pass
     return {"ok": True}
 
 
