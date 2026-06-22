@@ -691,8 +691,10 @@ async def ping(cached: bool = False):
 
 
 if __name__ == "__main__":
+    import os
     import uvicorn
 
     port = get_port()
-    log.info(f"starting alles on http://localhost:{port}")
-    uvicorn.run("app:app", host="0.0.0.0", port=port, reload=False)
+    do_reload = bool(os.environ.get("ALLES_RELOAD"))   # ALLES_RELOAD=1 -> hot-reload on .py edits (dev)
+    log.info(f"starting alles on http://localhost:{port}{' (reload)' if do_reload else ''}")
+    uvicorn.run("app:app", host="0.0.0.0", port=port, reload=do_reload)
