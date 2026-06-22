@@ -38,6 +38,17 @@ def main():
         else:
             r["github_browse_resolves"] = False
 
+        # back to built-in, click a card -> preview drawer with a body
+        pg.eval_on_selector(".skl-rail-cat[data-src='builtin']", "el => el.click()")
+        pg.wait_for_timeout(500)
+        pg.eval_on_selector("#skl-grid .skl-card .skl-card-name", "el => el.click()")
+        pg.wait_for_timeout(400)
+        r["preview_opens"] = pg.eval_on_selector("#skl-drawer", "el => !!el && el.classList.contains('open')")
+        r["preview_has_body"] = pg.eval_on_selector("#skl-drawer .skl-pv-body", "el => !!el && el.textContent.trim().length > 0")
+        pg.keyboard.press("Escape")
+        pg.wait_for_timeout(300)
+        r["preview_esc_closes"] = pg.eval_on_selector("#skl-drawer", "el => !el || !el.classList.contains('open')")
+
         r["no_console_errors"] = len(errs) == 0
         b.close()
     ok = all(r.values())
