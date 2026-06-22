@@ -204,6 +204,9 @@ def edit_message(session_id: str, msg_id: str, body: EditMessage, db: DbSession 
     )
     for m in later:
         db.delete(m)
+    s = db.get(Session, session_id)
+    if s:
+        s.message_count = max(0, (s.message_count or 0) - len(later))
     db.commit()
     return {"ok": True}
 

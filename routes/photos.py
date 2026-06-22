@@ -418,7 +418,11 @@ def patch_photo(pid: str, body: PatchPhoto, db: DbSession = Depends(get_db)):
 def albums(db: DbSession = Depends(get_db)):
     out = []
     for a in db.query(Album).order_by(Album.created_at.desc()).all():
-        n = db.query(Photo).filter(Photo.album_id == a.id).count()
+        n = db.query(Photo).filter(
+            Photo.album_id == a.id,
+            Photo.deleted_at == None,  # noqa: E711
+            (Photo.hidden == False) | (Photo.hidden == None),  # noqa: E711,E712
+        ).count()
         out.append({"id": a.id, "name": a.name, "count": n})
     return out
 

@@ -298,6 +298,8 @@ def delete_event(eid: str, scope: str = "all", occ: str = "", db: DbSession = De
             return {"ok": True, "scope": "following"}
         except ValueError:
             pass
+    # no FK on EventAttendee.event_id, clean up its rows by hand
+    db.query(EventAttendee).filter(EventAttendee.event_id == eid).delete()
     db.delete(e)
     db.commit()
     return {"ok": True}
