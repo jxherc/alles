@@ -2,7 +2,7 @@
 // animated backgrounds, frosted glass, custom themes, import/export. colors map to the
 // alles tokens: bg / text / panel / faint / accent. pure color algos + the canvas
 // patterns are ported from odysseus; the editor UI + apply engine are alles-native.
-import { attachColorPicker, initColorPickers } from './colorpicker.js';
+import { initColorPickers } from './colorpicker.js';
 import { generateHarmony, lum as _lum, mix as _mix } from './color.js';
 import { toast } from './util.js';
 export { generateHarmony };

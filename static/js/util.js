@@ -255,29 +255,9 @@ export async function shareResource(kind, ref, level = 'view') {
   return j;
 }
 
-export async function unshareResource(kind, ref) {
-  const r = await fetch('/api/share', {
-    method: 'DELETE', headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ kind, ref }),
-  });
-  return r.ok;
-}
-
-export async function shareState(kind, ref) {
-  const r = await fetch(`/api/share?kind=${encodeURIComponent(kind)}&ref=${encodeURIComponent(ref)}`);
-  if (!r.ok) return null;
-  return r.json();
-}
-
-
 export function closeAllModals() {
   document.querySelectorAll('.modal-overlay').forEach(m => m.style.display = 'none');
   document.getElementById('ctx-menu').style.display = 'none';
-}
-
-export function resetNavToChat() {
-  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-  document.querySelector('.nav-item[data-view="chat"]')?.classList.add('active');
 }
 
 

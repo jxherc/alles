@@ -1,5 +1,4 @@
 import { mdToHtml, toast } from './util.js';
-import { getSelected, getCurrentEndpoint } from './models.js';
 
 let _compareId = null;
 let _models = [];   // model list for the active comparison, for vote recording

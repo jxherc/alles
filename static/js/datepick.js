@@ -25,7 +25,6 @@ export function initDatePicker(el) {
 }
 
 export const getDateValue = el => el?.dataset?.value || '';
-export function setDateValue(el, v) { if (!el) return; if (el.dataset.dpReady !== '1') initDatePicker(el); el.value = v || ''; }
 
 const _isDate = el => el.dataset.type === 'date';
 const _z = n => String(n).padStart(2, '0');

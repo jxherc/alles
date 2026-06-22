@@ -34,10 +34,6 @@ export async function assignSession(projectId, sessionId) {
   await fetch(`/api/projects/${projectId}/sessions/${sessionId}`, { method: 'POST' });
 }
 
-export async function unassignSession(projectId, sessionId) {
-  await fetch(`/api/projects/${projectId}/sessions/${sessionId}`, { method: 'DELETE' });
-}
-
 // render project folders above the session list
 export function renderProjectFolders(sessions, onSelect, onChange) {
   const list = document.getElementById('session-list');

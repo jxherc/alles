@@ -1,7 +1,5 @@
 // cookbook — browse the 900+ model catalog ranked against your actual hardware
 // (the hwfit/llmfit engine). discover what fits, at what quant, how fast.
-import { toast } from './util.js';
-
 let _built = false;
 let _searchTimer = null;
 
