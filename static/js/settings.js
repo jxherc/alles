@@ -1472,6 +1472,9 @@ async function loadProactivePane() {
   sw('s-prox-cat-habit', 'pidx_proactive_cat_habit', true);
   sw('s-prox-cat-read', 'pidx_proactive_cat_read', true);
   sw('s-prox-cat-health', 'pidx_proactive_cat_health', true);
+  sw('s-prox-cat-money', 'pidx_proactive_cat_money', true);
+  sw('s-prox-cat-mail', 'pidx_proactive_cat_mail', true);
+  sw('s-prox-cat-journal', 'pidx_proactive_cat_journal', false);
 
   const num = (id, key) => {
     const el = document.getElementById(id);

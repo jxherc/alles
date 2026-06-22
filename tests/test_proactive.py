@@ -97,7 +97,10 @@ class ProactiveGateTests(_IsolatedSettings):
 
     def test_scheduled_nothing_new_after_seen(self):
         import core.settings as cfg
-        cfg.save_settings({"pidx_proactive_enabled": True})  # enable scheduled path
+        # enable scheduled path; equal quiet bounds = never quiet, so the test is
+        # not wall-clock dependent
+        cfg.save_settings({"pidx_proactive_enabled": True,
+                           "pidx_proactive_quiet_start": 0, "pidx_proactive_quiet_end": 0})
         d = self.db()
         d.add(Task(title="pay rent", done=False, due_date=_iso(-2)))
         d.commit()

@@ -98,6 +98,9 @@ class SettingsPatch(BaseModel):
     pidx_proactive_cat_habit: bool | None = None
     pidx_proactive_cat_read: bool | None = None
     pidx_proactive_cat_health: bool | None = None
+    pidx_proactive_cat_money: bool | None = None
+    pidx_proactive_cat_mail: bool | None = None
+    pidx_proactive_cat_journal: bool | None = None
 
 
 @router.patch("/settings")
