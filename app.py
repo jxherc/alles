@@ -308,6 +308,11 @@ def _register_jobs():
         finally:
             db.close()
 
+    async def _proactive():
+        from services import proactive
+
+        await proactive.run()
+
     jobs.register("read_feeds", _read_feeds, 1800, run_at_start=False)  # rss auto-save (30 min)
     jobs.register("subscriptions", _subs, 30)
     jobs.register("day_events", _days, 30)
@@ -321,6 +326,9 @@ def _register_jobs():
     jobs.register("carddav_auto", _carddav_auto, 600, run_at_start=False)  # 7b contacts auto-sync
     jobs.register("watch", _watch, 60, run_at_start=False)  # uptime/cert/health probes
     jobs.register("personal_reconcile", _reconcile, 120, run_at_start=False)
+    from services.proactive import _interval_seconds
+
+    jobs.register("proactive", _proactive, _interval_seconds(), run_at_start=False)  # advisory cards
 
 
 async def _reminder_loop():
