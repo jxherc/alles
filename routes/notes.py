@@ -109,6 +109,7 @@ def create_note(body: NoteBody, db: DbSession = Depends(get_db)):
     n = Note(
         title=body.title,
         content=body.content,
+        pinned=bool(body.pinned),
         tags=_norm_tags(body.tags),
         items=_norm_items(body.items),
         due=(body.due or "").strip(),

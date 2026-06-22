@@ -4659,6 +4659,31 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 #wiki-view.no-note #wiki-history-btn,
 #wiki-view.no-note #wiki-export-btn,
 #wiki-view.no-note #wiki-delete-btn { display: none; }
+
+/* sidebar docs/notes switch */
+.docs-sections { display: flex; gap: 0.3rem; padding: 0.4rem 0 0.55rem; }
+.docs-sec-btn {
+  flex: 1; background: none; border: 1px solid var(--faint); border-radius: 4px;
+  color: var(--muted); font: inherit; font-size: 0.74rem; padding: 0.3rem 0; cursor: pointer;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+.docs-sec-btn:hover { color: var(--text); border-color: var(--muted); }
+.docs-sec-btn.active { color: var(--text); border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); }
+
+/* notes section: board takes over the main pane, docs tree/editor hidden */
+.wiki-notes { flex: 1; display: none; flex-direction: column; overflow-y: auto; padding: 2rem clamp(1rem, 4vw, 3rem); }
+#wiki-view.notes-mode #wiki-notes { display: flex; }
+#wiki-view.notes-mode .wiki-empty-state,
+#wiki-view.notes-mode .docs-editor-head,
+#wiki-view.notes-mode .wiki-edit-wrap,
+#wiki-view.notes-mode .wiki-backlinks,
+#wiki-view.notes-mode .doc-ai-bar,
+#wiki-view.notes-mode #docs-toolbar,
+#wiki-view.notes-mode #wiki-tabs,
+#wiki-view.notes-mode #wiki-tree,
+#wiki-view.notes-mode #wiki-tags,
+#wiki-view.notes-mode .docs-search,
+#wiki-view.notes-mode .docs-rail-actions { display: none; }
 .wiki-preview .wikilink { color: var(--accent); text-decoration: none; border-bottom: 1px dashed color-mix(in srgb, var(--accent) 50%, transparent); cursor: pointer; }
 .wiki-preview .wikilink:hover { border-bottom-style: solid; }
 /* markdown elements (docs preview + AI chat + embeds) */

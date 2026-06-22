@@ -1,5 +1,5 @@
-import { loadSessions, initSessions, newChat, showWelcome, createSession, renderSidebar, exportActiveSessionMarkdown, downloadSession, getActiveId, saveDraft, clearDraft } from './sessions.js';
-import { loadModels, renderModelList, renderSidebarModelList, addEndpoint, getSelected, getCurrentEndpoint, initModelModal, prettyModel } from './models.js';
+import { initSessions, newChat, createSession, renderSidebar, downloadSession, getActiveId, saveDraft, clearDraft } from './sessions.js';
+import { loadModels, renderModelList, renderSidebarModelList, getSelected, getCurrentEndpoint, initModelModal, prettyModel } from './models.js';
 import { populateDropdown } from './dropdown.js';
 import { icon, iconEl, ICON_NAMES } from './icons.js';
 // expose globally so the inline-HTML modules can call icon() without each importing it
@@ -10,7 +10,6 @@ import { sendMessage, stopStream, hideConnBanner } from './chat.js';
 import { toast, closeAllModals, mdToHtml, api } from './util.js';
 import { runResearch, setResearchMode, isResearchMode } from './research.js';
 import { runDocsQuery, setDocsMode, isDocsMode } from './ragquery.js';
-import { loadNotes, newNote } from './notes.js';
 import { loadTasks, addTask } from './tasks.js';
 import { loadCalendar, newEvent } from './calendar.js';
 import { loadGallery, initGalleryUpload } from './gallery.js';
@@ -28,10 +27,10 @@ import { loadPhotos, initPhotos } from './photos.js';
 import { setBaseDomain, parseHost, appForSub, viewToSub, urlForApp, currentSub, SUBDOMAIN_VIEWS } from './subdomain.js';
 import { loadBrainPanel } from './brain.js';
 import { openSettings, closeSettings, applyVis } from './settings.js';
-import { toggleIncognitoMode, setIncognitoMode, getPermMode, setPermMode, permLabel, getEffort, setEffort } from './modes.js';
+import { setIncognitoMode, getPermMode, setPermMode, getEffort, setEffort } from './modes.js';
 import { initPrivacyHandlers } from './privacy.js';
 import { loadShortcuts, matchesShortcut } from './shortcuts.js';
-import { startReminderPoll, initReminderPanel, loadReminders } from './reminders.js';
+import { startReminderPoll, initReminderPanel } from './reminders.js';
 import { registerServiceWorker } from './push.js';
 import { initSync } from './sync.js';
 
@@ -292,7 +291,7 @@ init();
 
 // ── views ─────────────────────────────────────────────────────────────────────
 const _VIEW_IDS = [
-  'home-view', 'chat', 'notes-view', 'tasks-view', 'calendar-view', 'gallery-view',
+  'home-view', 'chat', 'tasks-view', 'calendar-view', 'gallery-view',
   'models-view', 'brain-view', 'wiki-view', 'compare-view', 'vault-view', 'contacts-view',
   'reminders-view', 'files-view', 'mail-view', 'photos-view', 'subs-view', 'money-view', 'days-view', 'journal-view', 'cookbook-view', 'usage-view', 'skills-view', 'activity-view', 'system-view', 'watch-view', 'habits-view', 'read-view', 'books-view', 'health-view',
 ];
@@ -342,7 +341,6 @@ window._askInChat = (q, web = false) => {
 };
 const showModelsView  = () => showView('models-view',   'models',   () => renderSidebarModelList(document.getElementById('sidebar-model-search')?.value || ''));
 const showBrainView   = () => showView('brain-view',    'brain',    loadBrainPanel);
-const showNotesView    = () => showView('notes-view',    'notes',    loadNotes);
 const showTasksView    = () => showView('tasks-view',    'tasks',    loadTasks);
 const showCalendarView = () => showView('calendar-view', 'calendar', loadCalendar);
 const showGalleryView  = () => showView('gallery-view',  'gallery',  () => { loadGallery(); initGalleryUpload(); });
@@ -383,7 +381,6 @@ function navigateTo(v) {
   else if (v === 'chat')      showChatView();
   else if (v === 'models')    showModelsView();
   else if (v === 'brain')     showBrainView();
-  else if (v === 'notes')     showNotesView();
   else if (v === 'tasks')     showTasksView();
   else if (v === 'calendar')  showCalendarView();
   else if (v === 'gallery')   showGalleryView();
@@ -448,7 +445,6 @@ const HOME_TILES = [
   { view: 'chat',     name: 'aide',     desc: 'chat, agent',     icon: 'chat' },
   { view: 'mail',     name: 'mail',     desc: 'inbox & sending', icon: 'mail' },
   { view: 'wiki',     name: 'docs',     desc: 'linked notes',    icon: 'notes' },
-  { view: 'notes',    name: 'notes',    desc: 'quick notes',     icon: 'tasks' },
   { view: 'files',    name: 'files',    desc: 'your files',      icon: 'files' },
   { view: 'calendar', name: 'calendar', desc: 'schedule',        icon: 'calendar' },
   { view: 'tasks',    name: 'tasks',    desc: 'to-dos',          icon: 'tasks' },
@@ -999,7 +995,6 @@ function bindEvents() {
     refreshEffortLabel();
     effortBtn.addEventListener('click', e => { e.stopPropagation(); _openEffortMenu(effortBtn); });
   }
-  document.getElementById('theme-btn')?.addEventListener('click', toggleTheme);   // removed from topbar → lives in settings → appearance
   document.getElementById('topbar-settings-btn')?.addEventListener('click', openSettings);
 
   // your name → used by aide's greeting (client-only, no server round-trip)
@@ -1058,17 +1053,8 @@ function bindEvents() {
     localStorage.setItem('aide-sidebar-hidden', document.body.classList.contains('sidebar-hidden') ? '1' : '');
   });
 
-  // notes / tasks / calendar / gallery
-  document.getElementById('note-new-btn').addEventListener('click', newNote);
+  // tasks / calendar / gallery
   document.getElementById('cal-new-btn').addEventListener('click', newEvent);
-  const calQuick = document.getElementById('cal-quick');
-  calQuick?.addEventListener('keydown', async e => {
-    if (e.key !== 'Enter' || !calQuick.value.trim()) return;
-    await fetch('/api/calendar/quick', { method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ text: calQuick.value.trim() }) });
-    calQuick.value = '';
-    loadCalendar();
-  });
   const taskInput = document.getElementById('task-add-input');
   document.getElementById('task-add-btn').addEventListener('click', async () => {
     await addTask(taskInput.value.trim()); taskInput.value = '';
@@ -1193,8 +1179,6 @@ async function _playAudioOverview(style) {
 async function _shareSession() {
   const sid = window._currentSession?.id;
   if (!sid) { toast('open a chat first', 'error'); return; }
-  const btn = document.getElementById('session-share-btn');
-  btn.textContent = '...'; btn.disabled = true;
   try {
     const r = await fetch(`/api/sessions/${sid}/share`, { method: 'POST' });
     const { url } = await r.json();
@@ -1202,7 +1186,6 @@ async function _shareSession() {
     await navigator.clipboard.writeText(full);
     toast('share link copied to clipboard', 'success');
   } catch { toast('share failed', 'error'); }
-  btn.textContent = 'share'; btn.disabled = false;
 }
 
 function _printSession() {
@@ -1232,12 +1215,14 @@ function toggleMoreTools() {
   menu.innerHTML = `
     <div class="ctx-item" data-tool="research">research mode</div>
     <div class="ctx-item" data-tool="attach">attach file</div>
+    <div class="ctx-item" data-tool="shell">shell command</div>
   `;
   menu.addEventListener('click', e => {
     e.stopPropagation();
     const tool = e.target.closest('.ctx-item')?.dataset.tool;
     if (tool === 'research') document.getElementById('research-toggle-btn')?.click();
     if (tool === 'attach') document.getElementById('attach-btn')?.click();
+    if (tool === 'shell') openShellPanel();
     closeMoreTools();
   });
   document.body.appendChild(menu);
@@ -1391,16 +1376,6 @@ function _openEffortMenu(anchor) {
   setTimeout(() => document.addEventListener('click', function h(e) {
     if (!menu.contains(e.target) && e.target !== anchor) { menu.remove(); document.removeEventListener('click', h); }
   }), 0);
-}
-
-function toggleTheme() {
-  const root = document.documentElement;
-  if (root.dataset.theme === 'light') {
-    delete root.dataset.theme; localStorage.removeItem('aide-theme');
-  } else {
-    root.dataset.theme = 'light'; localStorage.setItem('aide-theme', 'light');
-  }
-  updateFavicon();
 }
 
 // appearance (theme + accent) is stored server-side too, so it's the same on every
