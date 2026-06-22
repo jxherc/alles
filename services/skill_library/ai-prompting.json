@@ -9,31 +9,31 @@
     "name": "Design Agent",
     "description": "spec an autonomous agent: its role, tools, loop, and stop conditions",
     "when_to_use": "when the user wants to build an AI agent that acts in steps with tools",
-    "body": "1. write the one-sentence job and the single success metric before anything else.\n2. list the tools it gets, and for each, when NOT to call it.\n3. define the loop: observe, decide, act, check, repeat — name the exit condition.\n4. add guardrails: max steps, irreversible-action confirms, what to never touch.\n5. decide what it does when stuck: retry, ask, or bail — pick one, write it down.\n6. specify the final handoff format so the caller can consume it."
+    "body": "1. write the one-sentence job and the single success metric before anything else.\n2. list the tools it gets, and for each, when NOT to call it.\n3. define the loop: observe, decide, act, check, repeat - name the exit condition.\n4. add guardrails: max steps, irreversible-action confirms, what to never touch.\n5. decide what it does when stuck: retry, ask, or bail - pick one, write it down.\n6. specify the final handoff format so the caller can consume it."
   },
   {
     "name": "Structured Output",
     "description": "force model output into a strict, parseable schema",
     "when_to_use": "when the user needs the model to return json or a fixed format a program will parse",
-    "body": "1. define the exact schema: every key, its type, required vs optional.\n2. give one filled example, then say 'output only this, no prose'.\n3. pin down enums and formats (dates, ids, units) so values aren't free text.\n4. say what to put when a value is unknown (null, empty string — pick one).\n5. add a guard: if it can't comply, return an error object, never half-valid data.\n6. validate the result against the schema before trusting it downstream."
+    "body": "1. define the exact schema: every key, its type, required vs optional.\n2. give one filled example, then say 'output only this, no prose'.\n3. pin down enums and formats (dates, ids, units) so values aren't free text.\n4. say what to put when a value is unknown (null, empty string - pick one).\n5. add a guard: if it can't comply, return an error object, never half-valid data.\n6. validate the result against the schema before trusting it downstream."
   },
   {
     "name": "Few-Shot Examples",
     "description": "pick and order examples that teach the model the pattern by demonstration",
     "when_to_use": "when a task is easier to show than describe, or the model keeps missing the format",
-    "body": "1. choose 2-5 examples that cover the real range, including one tricky edge.\n2. make every example identical in structure so the pattern is unmistakable.\n3. order easy-to-hard, put the most representative one last (recency bias).\n4. include a near-miss with its correction if a specific error keeps recurring.\n5. keep inputs realistic, not toy — the model copies the vibe, not just the form.\n6. end with the live input in the exact same shape as the examples."
+    "body": "1. choose 2-5 examples that cover the real range, including one tricky edge.\n2. make every example identical in structure so the pattern is unmistakable.\n3. order easy-to-hard, put the most representative one last (recency bias).\n4. include a near-miss with its correction if a specific error keeps recurring.\n5. keep inputs realistic, not toy - the model copies the vibe, not just the form.\n6. end with the live input in the exact same shape as the examples."
   },
   {
     "name": "Critique Answer",
     "description": "review an AI-generated answer for errors, gaps, and unsupported claims",
     "when_to_use": "when the user wants a second pass over an answer before they trust or ship it",
-    "body": "1. read it once for what it claims, ignore the tone.\n2. check each factual claim: supported, plausible, or invented.\n3. hunt for the silent gap — the question it dodged or half-answered.\n4. test the logic: does the conclusion actually follow from the steps.\n5. list issues by severity, wrong-facts first, nitpicks last.\n6. give the one fix that most improves it, not a rewrite."
+    "body": "1. read it once for what it claims, ignore the tone.\n2. check each factual claim: supported, plausible, or invented.\n3. hunt for the silent gap - the question it dodged or half-answered.\n4. test the logic: does the conclusion actually follow from the steps.\n5. list issues by severity, wrong-facts first, nitpicks last.\n6. give the one fix that most improves it, not a rewrite."
   },
   {
     "name": "Reduce Hallucination",
     "description": "rework a prompt so the model invents fewer facts",
     "when_to_use": "when the model keeps making up facts, citations, or details",
-    "body": "1. give it the source material instead of asking from memory.\n2. add an explicit out: 'say i don't know if it's not in the source'.\n3. ban unsourced specifics — names, numbers, urls, quotes — unless grounded.\n4. ask it to cite the exact span it used for each claim.\n5. split recall from reasoning: get the facts first, then reason in a second pass.\n6. verify the riskiest claim independently before relying on the whole answer."
+    "body": "1. give it the source material instead of asking from memory.\n2. add an explicit out: 'say i don't know if it's not in the source'.\n3. ban unsourced specifics - names, numbers, urls, quotes - unless grounded.\n4. ask it to cite the exact span it used for each claim.\n5. split recall from reasoning: get the facts first, then reason in a second pass.\n6. verify the riskiest claim independently before relying on the whole answer."
   },
   {
     "name": "Chain Of Thought",
@@ -45,42 +45,102 @@
     "name": "Refine Iteratively",
     "description": "improve an output over rounds instead of regenerating from scratch",
     "when_to_use": "when a first draft is close but the user wants it better through feedback loops",
-    "body": "1. keep the draft, change one dimension per round, not everything at once.\n2. give feedback as concrete edits, not vibes ('cut intro', 'add a number here').\n3. tell it what to keep, models often discard the good parts on a rewrite.\n4. diff each round against the last so progress is visible.\n5. stop when the marginal change stops helping — name that bar up front.\n6. lock the final version and restate why it's done."
+    "body": "1. keep the draft, change one dimension per round, not everything at once.\n2. give feedback as concrete edits, not vibes ('cut intro', 'add a number here').\n3. tell it what to keep, models often discard the good parts on a rewrite.\n4. diff each round against the last so progress is visible.\n5. stop when the marginal change stops helping - name that bar up front.\n6. lock the final version and restate why it's done."
   },
   {
     "name": "Set Persona",
     "description": "give the model a role and voice that fits the audience and task",
     "when_to_use": "when the user wants the output to sound like a specific expert, tone, or character",
-    "body": "1. pick the role for the expertise it implies, not for flavor.\n2. define the audience — the persona only matters relative to who's reading.\n3. set 3 concrete voice traits (terse, blunt, no jargon) over adjectives like 'professional'.\n4. give a one-line sample of the target voice as a calibration anchor.\n5. state what the persona must never do (no hedging, no disclaimers, no lists).\n6. keep expertise honest — a persona doesn't make invented facts true."
+    "body": "1. pick the role for the expertise it implies, not for flavor.\n2. define the audience - the persona only matters relative to who's reading.\n3. set 3 concrete voice traits (terse, blunt, no jargon) over adjectives like 'professional'.\n4. give a one-line sample of the target voice as a calibration anchor.\n5. state what the persona must never do (no hedging, no disclaimers, no lists).\n6. keep expertise honest - a persona doesn't make invented facts true."
   },
   {
     "name": "Decompose Task",
     "description": "split a big request into ordered subtasks the model can do reliably",
     "when_to_use": "when a single prompt is too big and the model drops parts or loses the thread",
-    "body": "1. list every distinct thing the request actually asks for.\n2. order them by dependency — what must finish before the next can start.\n3. make each subtask have one clear output that feeds the next.\n4. run them as separate prompts, passing each result forward.\n5. keep a running checklist so nothing silently gets skipped.\n6. assemble the pieces and check the whole against the original ask."
+    "body": "1. list every distinct thing the request actually asks for.\n2. order them by dependency - what must finish before the next can start.\n3. make each subtask have one clear output that feeds the next.\n4. run them as separate prompts, passing each result forward.\n5. keep a running checklist so nothing silently gets skipped.\n6. assemble the pieces and check the whole against the original ask."
   },
   {
     "name": "Constrain Output",
     "description": "bound length, scope, and style so the model stops over-answering",
     "when_to_use": "when responses are too long, off-topic, or padded with filler",
-    "body": "1. set a hard ceiling: word count, bullet count, or sentence count.\n2. scope it: 'only X, do not cover Y or background'.\n3. ban the usual padding — preambles, summaries, 'it's important to note', caveats.\n4. demand the answer lead with the conclusion, not build up to it.\n5. if it must choose, tell it to pick one and not list alternatives.\n6. check the result against the ceiling and cut, don't accept overflow."
+    "body": "1. set a hard ceiling: word count, bullet count, or sentence count.\n2. scope it: 'only X, do not cover Y or background'.\n3. ban the usual padding - preambles, summaries, 'it's important to note', caveats.\n4. demand the answer lead with the conclusion, not build up to it.\n5. if it must choose, tell it to pick one and not list alternatives.\n6. check the result against the ceiling and cut, don't accept overflow."
   },
   {
     "name": "Debug Prompt",
     "description": "diagnose why a prompt gives wrong, inconsistent, or off-format output",
     "when_to_use": "when a prompt isn't working and the user doesn't know which part is at fault",
-    "body": "1. reproduce the bad output once so you're fixing the real failure.\n2. classify it: wrong facts, wrong format, wrong scope, or refusal.\n3. strip the prompt to its core and add back one instruction at a time.\n4. check for conflicts — two instructions fighting cause flaky output.\n5. fix the single highest-impact line, re-run, confirm the change.\n6. lock in the fix and note what broke it so it doesn't regress."
+    "body": "1. reproduce the bad output once so you're fixing the real failure.\n2. classify it: wrong facts, wrong format, wrong scope, or refusal.\n3. strip the prompt to its core and add back one instruction at a time.\n4. check for conflicts - two instructions fighting cause flaky output.\n5. fix the single highest-impact line, re-run, confirm the change.\n6. lock in the fix and note what broke it so it doesn't regress."
   },
   {
     "name": "LLM As Judge",
     "description": "set up the model to score or rank outputs against a rubric",
     "when_to_use": "when the user wants to auto-evaluate or compare AI outputs at scale",
-    "body": "1. write the rubric as 3-5 criteria with explicit pass/fail or a numeric scale.\n2. define each score level concretely so two judges would agree.\n3. give the judge the criteria, the input, and the output — nothing it can bias on.\n4. require a reason per score before the score, not after.\n5. for pairwise, randomize order to kill position bias, judge once each way.\n6. spot-check the judge against a few human-rated cases before trusting it."
+    "body": "1. write the rubric as 3-5 criteria with explicit pass/fail or a numeric scale.\n2. define each score level concretely so two judges would agree.\n3. give the judge the criteria, the input, and the output - nothing it can bias on.\n4. require a reason per score before the score, not after.\n5. for pairwise, randomize order to kill position bias, judge once each way.\n6. spot-check the judge against a few human-rated cases before trusting it."
   },
   {
     "name": "Ground With Context",
     "description": "feed the model the right source material so answers stay anchored to truth",
     "when_to_use": "when answers must come from specific documents, data, or a knowledge base (rag)",
     "body": "1. retrieve only the passages that actually bear on the question, drop the rest.\n2. label each chunk with its source so citations are traceable.\n3. put the question and the instruction after the context, not before.\n4. tell it to answer only from the provided context, not prior knowledge.\n5. handle the empty case: 'if the context doesn't cover it, say so'.\n6. have it quote or cite the chunk backing each claim."
+  },
+  {
+    "name": "Subagent Driven Dev",
+    "description": "execute a plan by dispatching a focused implementer subagent per task, reviewing each before moving on",
+    "when_to_use": "when you have a written implementation plan and want to run each task in isolation with review checkpoints",
+    "body": "1. read the full plan and number every discrete task before starting.\n2. spawn a fresh subagent for task 1 only - give it the task, relevant context, and a concrete done condition.\n3. review the subagent's output against the done condition before accepting it.\n4. if it fails, give the subagent one targeted correction and re-run; escalate to human if it fails twice.\n5. pass accepted outputs as context into the next task's subagent - never share global state.\n6. after all tasks, run a broad review across all outputs and fix any integration gaps."
+  },
+  {
+    "name": "Parallel Agents",
+    "description": "fan out independent tasks to concurrent agents instead of running them in series",
+    "when_to_use": "when 2 or more tasks have no shared state and no ordering dependency between them",
+    "body": "1. confirm independence: each task's output doesn't depend on another's result.\n2. write a clean, self-contained prompt for each task with all needed context included.\n3. dispatch all agents at the same time - don't wait for one to finish before starting another.\n4. collect all results, then check for conflicts or gaps where the outputs must integrate.\n5. merge results in a final step, resolving any overlaps explicitly.\n6. if any agent fails, retry that one in isolation without rerunning the others."
+  },
+  {
+    "name": "Design A Skill",
+    "description": "author a reusable skill with tight description, clear triggers, and a concrete step-by-step body",
+    "when_to_use": "when you want to create or improve a reusable skill for a skill library or agent system",
+    "body": "1. write the description as a single lowercase phrase - what it does, not what it is.\n2. write when_to_use starting with 'when' - the exact trigger condition that calls this skill.\n3. write the body as 4-6 numbered imperative steps, terse and concrete, no fluff.\n4. make step 1 always gather or validate the input before doing anything.\n5. make the last step confirm or hand off the result in a usable form.\n6. test it on a real example in your head - if a step is vague, replace it with the exact action."
+  },
+  {
+    "name": "Build A Subagent",
+    "description": "define a subagent precisely: its role, tools, triggers, and behavior boundaries",
+    "when_to_use": "when designing a subagent that will be dispatched by an orchestrator or used as a reusable component",
+    "body": "1. write the one-line job: 'this agent takes X and produces Y'.\n2. list every tool it gets access to, and for each, write the condition that allows its use.\n3. write the when_to_use trigger - what the orchestrator checks before dispatching this agent.\n4. define the output contract: exact format, required fields, and what an error response looks like.\n5. add hard limits: max turns, actions it must never take, and what to do when stuck.\n6. write one concrete example trigger and expected output to validate the spec."
+  },
+  {
+    "name": "Context Window Plan",
+    "description": "structure a long task so it fits and stays coherent within a context limit",
+    "when_to_use": "when a task has more content than fits in one context or the model starts losing earlier details",
+    "body": "1. estimate total tokens: inputs + expected outputs, rough is fine.\n2. split into chunks where each fits in the window with room for the output.\n3. design each chunk to be independently useful - don't require memory of previous chunks.\n4. carry forward only the minimal summary or state needed for continuity.\n5. at each boundary, explicitly re-state the overall goal and what has been decided so far.\n6. do a final pass that assembles all chunks and checks consistency end-to-end."
+  },
+  {
+    "name": "Prompt Versioning",
+    "description": "track prompt changes and their effect on output so you can roll back or improve deliberately",
+    "when_to_use": "when iterating on a prompt across sessions and you need to know what changed and why",
+    "body": "1. store each prompt with a version label and the date it was changed.\n2. record the exact change made and the reason (not just the result).\n3. for each version, log a representative input and the output it produced.\n4. when evaluating, run the same test input against old and new versions side by side.\n5. keep a score or pass/fail against your rubric for each version.\n6. mark one version as 'current best' and never modify it in place - always fork."
+  },
+  {
+    "name": "Evaluate Model",
+    "description": "compare two or more models on a task using real inputs and a consistent rubric",
+    "when_to_use": "when choosing which model to use for a task or checking if a cheaper model is good enough",
+    "body": "1. pick 5-10 real inputs that represent the actual range of the task, including hard cases.\n2. run each input through every model with the same prompt, same temperature.\n3. score every output on the same rubric - write the rubric before running, not after.\n4. tally by criteria, not just overall, so you can see where each model wins or loses.\n5. note cost and latency per model alongside quality scores.\n6. pick the cheapest model that clears your minimum quality bar, not the best-scoring one."
+  },
+  {
+    "name": "Tool Use Prompt",
+    "description": "write a prompt that steers the model to call tools correctly and only when needed",
+    "when_to_use": "when the model over-calls tools, calls the wrong one, or ignores tools it should use",
+    "body": "1. give each tool a one-line description that states exactly when to call it vs not.\n2. write an explicit policy: prefer reasoning over tool calls unless the answer requires live data.\n3. for each tool, show one example call and one case where you would skip it and reason directly.\n4. if tools must chain, say the order and what from step n feeds step n+1.\n5. define what to do on tool error: retry once, fall back, or surface the error.\n6. tell it what a finished answer looks like so it knows when to stop calling tools."
+  },
+  {
+    "name": "Summarise Thread",
+    "description": "compress a long conversation or document thread into a dense, action-ready briefing",
+    "when_to_use": "when a long conversation needs to be handed off, archived, or used as context for a next step",
+    "body": "1. read the whole thread before writing anything.\n2. extract: decisions made, open questions, and any action items - those three only.\n3. strip all back-and-forth that didn't change the conclusion.\n4. order by importance to the next reader, not chronologically.\n5. flag anything unresolved that the next person must handle.\n6. cap at 200 words unless the thread is enormous - compress harder before expanding."
+  },
+  {
+    "name": "Prompt Compression",
+    "description": "shrink a prompt to the minimum that produces the same quality output",
+    "when_to_use": "when a prompt is getting long and you want to cut cost, tokens, or clutter without losing quality",
+    "body": "1. run the current prompt and record the output as your baseline.\n2. cut anything that doesn't change the output: greetings, restatements, obvious constraints.\n3. merge any two instructions that say the same thing from different angles.\n4. test the trimmed version - output must match baseline on 3 different inputs.\n5. if quality drops, add back the single cut that caused it, nothing else.\n6. repeat until removing anything breaks output - that's your minimum viable prompt."
   }
 ]

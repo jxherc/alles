@@ -82,5 +82,65 @@
     "description": "back-plan a focused cram-free run-up to a test",
     "when_to_use": "when the user has an exam coming and wants to prepare efficiently",
     "body": "1. get the date, format, and topic weighting of the exam.\n2. rank topics by weight times their current weakness.\n3. schedule active recall and past-paper days, not re-reading.\n4. build a one-page cheat sheet of the highest-yield facts.\n5. set a taper: light review and sleep the night before."
+  },
+  {
+    "name": "Olympiad Math",
+    "description": "solve competition math with full rigor, proof steps, and adversarial checking",
+    "when_to_use": "when the user has an imo/putnam/usamo/aime or other competition math problem to solve",
+    "body": "1. read the problem twice; restate it in your own words and name every constraint.\n2. explore: try small cases, draw a diagram, or guess the answer before proving.\n3. write the full proof one logical step at a time, citing what justifies each jump.\n4. adversarially check: try to break each step with a counterexample or edge case.\n5. if a flaw is found, patch it and re-check; only declare done when no attack works.\n6. present the clean solution with key insight boxed at the top."
+  },
+  {
+    "name": "Teach By Analogy",
+    "description": "build a chain of analogies that walk someone from what they know to a new concept",
+    "when_to_use": "when a simple explanation failed and the user needs a bridge from their existing knowledge",
+    "body": "1. ask what familiar domains the user already knows well.\n2. map the new concept's structure onto the familiar domain, piece by piece.\n3. run the analogy forward to predict something - then show the concept agrees.\n4. name where the analogy breaks (every analogy does somewhere).\n5. let the concept stand on its own after the bridge, no more crutch."
+  },
+  {
+    "name": "Spaced Review",
+    "description": "schedule the next review of learned material using spaced repetition logic",
+    "when_to_use": "when the user just learned something and wants to know when to revisit it",
+    "body": "1. ask what was just learned and how confident they feel (1-5).\n2. map confidence to an interval: 1→1 day, 2→3 days, 3→7, 4→14, 5→30.\n3. list the exact dates for the next 4 reviews.\n4. give 3 retrieval-practice prompts to use at each review session.\n5. remind them to reset the interval if they blank on it at review."
+  },
+  {
+    "name": "Socratic Drill",
+    "description": "lead the user to an answer through questions rather than telling them",
+    "when_to_use": "when the user wants to be guided to figure something out themselves instead of being told",
+    "body": "1. ask one question that makes them state what they already know about this.\n2. respond only with the next question that closes the gap, never the answer.\n3. if stuck, give a hint that opens a door, not the room.\n4. keep asking until they articulate the conclusion themselves.\n5. confirm their phrasing is right or lightly correct it, then step back."
+  },
+  {
+    "name": "Knowledge Audit",
+    "description": "map exactly what the user knows, doesn't know, and has wrong about a topic",
+    "when_to_use": "when the user wants to know where they actually stand on a topic before studying",
+    "body": "1. ask them to brain-dump everything they think they know, no judgment.\n2. sort each claim into: solid, shaky, or wrong.\n3. call out the wrong ones with a short correction and why it matters.\n4. identify the 3 biggest gaps most likely to block future understanding.\n5. output a prioritized list of what to study first based on gaps."
+  },
+  {
+    "name": "First Principles",
+    "description": "rebuild a topic from scratch starting only from what can't be denied",
+    "when_to_use": "when the user wants a deep conceptual grounding instead of surface-level facts",
+    "body": "1. strip out all received wisdom and start from what can be directly verified.\n2. list the 3-5 axioms or observations the whole topic rests on.\n3. derive each major idea strictly from those foundations, one step at a time.\n4. flag every place where convention or definition is doing work.\n5. restate the original topic after - it should now feel inevitable."
+  },
+  {
+    "name": "Counter Argue",
+    "description": "steelman and then attack the user's understanding to stress-test it",
+    "when_to_use": "when the user wants to pressure-test an idea or position they hold",
+    "body": "1. ask them to state their position as clearly and strongly as possible.\n2. steelman it: make it even stronger than they did.\n3. now attack it with the 3 best real objections, not strawmen.\n4. ask them to rebut each one.\n5. identify which objections survived and what that means for the position."
+  },
+  {
+    "name": "Speed Read Prep",
+    "description": "prep a text for maximum retention when time is short",
+    "when_to_use": "when the user has a lot to read and too little time",
+    "body": "1. skim headings, abstract, intro, and conclusion first to get the skeleton.\n2. identify 3 questions the text must answer for your purposes.\n3. read only the sections that directly answer those questions.\n4. note one sentence per section as the takeaway.\n5. consolidate into a 5-bullet summary and flag what to circle back to if time allows."
+  },
+  {
+    "name": "Language Immersion",
+    "description": "design a daily immersion routine for picking up a language without classes",
+    "when_to_use": "when the user wants to learn a language and prefers immersion over textbooks",
+    "body": "1. lock in current level and available minutes per day.\n2. assign input sources: one audio (podcast/show) + one text (reader/news) matched to level.\n3. set a daily output habit: one short spoken or written sentence, no skipping.\n4. add one anki session capped at 15 min for high-frequency vocab only.\n5. pick a weekly milestone (ep watched, page read, chat) to track progress."
+  },
+  {
+    "name": "Note Taking System",
+    "description": "set up a personal note-taking method matched to how the user actually thinks",
+    "when_to_use": "when the user wants to build a note-taking habit or their current system isn't working",
+    "body": "1. ask what they're note-taking for (classes, reading, work, all of it).\n2. recommend one system matched to their use case (cornell, zettelkasten, outline, etc).\n3. give the exact template or page structure to start with.\n4. define the one daily habit that makes the system self-maintaining.\n5. describe the 15-min weekly pass that stops notes from going stale."
   }
 ]
