@@ -247,6 +247,37 @@ def _upsert(db, cards, sigs):
     return written
 
 
+async def _maybe_push(db, s):
+    """web-push the urgent new cards, if the user opted into the push channel. caps
+    to the top 2 per run so a busy day doesn't spam the lock screen."""
+    if s.get("pidx_proactive_channel", "inapp") != "push":
+        return 0
+    push_min = int(s.get("pidx_proactive_push_min", 70))
+    rows = (
+        db.query(ProactiveItem)
+        .filter(ProactiveItem.dismissed == False, ProactiveItem.pushed == False,  # noqa: E712
+                ProactiveItem.urgency >= push_min)
+        .order_by(ProactiveItem.urgency.desc())
+        .limit(2)
+        .all()
+    )
+    if not rows:
+        return 0
+    from routes.push import broadcast
+
+    sent = 0
+    for r in rows:
+        try:
+            await broadcast({"title": "aide", "body": r.title, "url": "/",
+                             "tag": f"proactive-{r.id}"})
+            r.pushed = True
+            sent += 1
+        except Exception as e:
+            log.warning(f"proactive push failed: {e}")
+    db.commit()
+    return sent
+
+
 async def run(force=False):
     """one proactive pass. force=True (manual 'run now') bypasses the master
     toggle, the interval, quiet hours, and the 'nothing new' gate so it can be
@@ -276,7 +307,9 @@ async def run(force=False):
             return {"ran": False, "reason": "nothing_new"}
         cards = await _reason(db, sigs, s)
         written = _upsert(db, cards, sigs)
+        pushed = await _maybe_push(db, s)
         _save_seen(db, {x["key"] for x in sigs})
-        return {"ran": True, "signals": len(sigs), "cards": len(cards), "written": written}
+        return {"ran": True, "signals": len(sigs), "cards": len(cards),
+                "written": written, "pushed": pushed}
     finally:
         db.close()

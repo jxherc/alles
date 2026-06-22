@@ -1491,6 +1491,20 @@ async function loadProactivePane() {
   num('s-prox-qstart', 'pidx_proactive_quiet_start');
   num('s-prox-qend', 'pidx_proactive_quiet_end');
 
+  // channel is a string ("push" | "inapp"), drive it from one switch
+  const pushEl = document.getElementById('s-prox-push');
+  if (pushEl) {
+    _setSwitch(pushEl, s.pidx_proactive_channel === 'push');
+    if (!pushEl.dataset.bound) {
+      pushEl.dataset.bound = '1';
+      pushEl.addEventListener('click', () => {
+        const next = !pushEl.classList.contains('on');
+        _setSwitch(pushEl, next);
+        _patchSetting('pidx_proactive_channel', next ? 'push' : 'inapp');
+      });
+    }
+  }
+
   const run = document.getElementById('s-prox-run');
   const status = document.getElementById('s-prox-status');
   if (run && !run.dataset.bound) {

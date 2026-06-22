@@ -30,7 +30,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/style.css?v=123">
+<link rel="stylesheet" href="/static/style.css?v=124">
 <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#0a0a0a">
@@ -1742,6 +1742,7 @@
                 to
                 <input type="number" min="0" max="23" id="s-prox-qend" style="width:3.4rem;background:var(--panel);border:1px solid var(--faint);color:var(--text);border-radius:3px;padding:0.2rem 0.3rem;font-size:0.75rem">
               </div>
+              <div class="s-toggle-row" style="margin-top:0.5rem"><div><div class="s-toggle-label">send push for urgent</div><div class="s-toggle-desc">web-push high-priority cards (needs notifications on)</div></div><div class="s-switch" id="s-prox-push"></div></div>
               <div id="s-prox-status" style="font-size:0.7rem;color:var(--muted);margin:0.6rem 0"></div>
               <button class="btn" id="s-prox-run">run now</button>
             </div>
@@ -1754,7 +1755,7 @@
 </div>
 
 <script type="module">
-const _v = '123';
+const _v = '124';
 import(`/static/js/app.js?v=${_v}`);
 </script>
 </body>
