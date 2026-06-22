@@ -2416,6 +2416,16 @@ mark.wiki-cmark { background: rgba(129, 140, 248, 0.28); color: inherit; border-
 }
 .mail-provider-note a { color: var(--text); text-decoration: none; border-bottom: 1px solid var(--faint); }
 .mail-provider-note a:hover { border-bottom-color: var(--muted); }
+/* guided app-password quick-login */
+.mail-guide:empty { display: none; }
+.mail-guide {
+  display: flex; flex-direction: column; gap: 0.5rem;
+  padding: 0.6rem 0.7rem; border: 1px solid var(--faint); border-radius: 3px; background: var(--panel);
+}
+.mail-getpw { align-self: flex-start; font-size: 0.74rem; text-decoration: none; }
+.mail-steps { margin: 0; padding-left: 1.1rem; font-size: 0.72rem; color: var(--muted); line-height: 1.6; }
+.mail-status-test { color: var(--muted); }
+.mail-status-err { color: var(--error); }
 
 /* ── photos ── */
 /* 6a — coherent gallery header: one control size, tidy spacing */
