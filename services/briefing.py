@@ -1,91 +1,65 @@
-"""daily briefing — a small morning digest pulled from the local apps (calendar,
-tasks, habits, reading list, subscriptions, health). pure compose_briefing() so it's
-testable; the job in app.py broadcasts it via web push once a day."""
+"""daily briefing - a small morning digest pulled from the local apps (calendar,
+tasks, habits, reading list, subscriptions, health). the per-app queries now live
+in services.signals (shared with the today widget + proactive agent); this just
+formats the signals into digest lines. the job in app.py broadcasts it via web
+push once a day."""
 
-from datetime import date, timedelta
-
-
-def _d(s):
-    try:
-        return date.fromisoformat(str(s)[:10])
-    except (TypeError, ValueError):
-        return None
+from datetime import date
 
 
 def compose_briefing(db, today=None) -> dict:
     """gather today's digest. returns {title, body, lines, has_content}."""
-    from core.database import (
-        Book,
-        CalendarEvent,
-        Habit,
-        HabitLog,
-        HealthEntry,
-        Subscription,
-        Task,
-    )
+    from services import signals
 
     today = today or date.today()
-    iso = today.isoformat()
+    g = signals.by_category(
+        signals.gather(db, today, categories={"event", "task", "habit", "book", "sub", "health"})
+    )
     lines = []
 
-    # today's calendar events
-    evs = (
-        db.query(CalendarEvent)
-        .filter(CalendarEvent.start_dt.like(iso + "%"))
-        .order_by(CalendarEvent.start_dt)
-        .all()
-    )
+    # today's calendar events (sorted by start, first 4)
+    evs = sorted(g.get("event", []), key=lambda s: s["data"]["start_dt"])
     if evs:
-        names = ", ".join(e.title for e in evs[:4])
+        names = ", ".join(s["data"]["title"] for s in evs[:4])
         more = f" +{len(evs) - 4} more" if len(evs) > 4 else ""
         lines.append(f"{len(evs)} event{'s' if len(evs) != 1 else ''} today — {names}{more}")
 
-    # open tasks (overdue / due-today first)
-    tasks = db.query(Task).filter(Task.done == False).all()  # noqa: E712
-    if tasks:
-        due = [t for t in tasks if t.due_date and _d(t.due_date) and _d(t.due_date) <= today]
-        pick = due or tasks
-        names = ", ".join(t.title for t in pick[:4])
-        label = "due" if due else "open"
-        lines.append(f"{len(pick)} {label} task{'s' if len(pick) != 1 else ''} — {names}")
+    # tasks - due/overdue first, else fall back to any open task
+    due = sorted((s["data"] for s in g.get("task", [])), key=lambda d: (d["due"], d["title"]))
+    if due:
+        names = ", ".join(d["title"] for d in due[:4])
+        lines.append(f"{len(due)} due task{'s' if len(due) != 1 else ''} — {names}")
+    else:
+        from core.database import Task
 
-    # habits not yet done today
-    habits = db.query(Habit).filter(Habit.archived == False).all()  # noqa: E712
-    todo = [
-        h
-        for h in habits
-        if not db.query(HabitLog)
-        .filter(HabitLog.habit_id == h.id, HabitLog.date == iso)
-        .first()
-    ]
+        opens = db.query(Task).filter(Task.done == False).all()  # noqa: E712
+        if opens:
+            names = ", ".join(t.title for t in opens[:4])
+            lines.append(f"{len(opens)} open task{'s' if len(opens) != 1 else ''} — {names}")
+
+    # habits not yet done today (first 6)
+    todo = [s["data"] for s in g.get("habit", [])]
     if todo:
-        lines.append(f"habits left — {', '.join(h.name for h in todo[:6])}")
+        lines.append(f"habits left — {', '.join(d['name'] for d in todo[:6])}")
 
-    # currently reading
-    reading = db.query(Book).filter(Book.status == "reading").all()
+    # currently reading (first 4)
+    reading = [s["data"] for s in g.get("book", [])]
     if reading:
-        lines.append(f"reading — {', '.join(b.title for b in reading[:4])}")
+        lines.append(f"reading — {', '.join(d['title'] for d in reading[:4])}")
 
-    # subscriptions renewing within their reminder window (or overdue)
-    soon = []
-    for s in db.query(Subscription).filter(Subscription.active == True).all():  # noqa: E712
-        d = _d(s.next_due)
-        if d and d <= today + timedelta(days=max(0, s.remind_days or 0)):
-            soon.append(s)
+    # subscriptions renewing within their own reminder window (first 4)
+    soon = [d for d in (s["data"] for s in g.get("sub", [])) if d["in_days"] <= d["remind_days"]]
+    soon.sort(key=lambda d: d["in_days"])
     if soon:
-        bits = ", ".join(f"{s.name} ({s.currency}{s.price:g})" for s in soon[:4])
+        bits = ", ".join(f"{d['name']} ({d['currency']}{d['price']:g})" for d in soon[:4])
         lines.append(f"renewing soon — {bits}")
 
     # latest weight (the most-tracked metric)
-    w = (
-        db.query(HealthEntry)
-        .filter(HealthEntry.kind == "weight")
-        .order_by(HealthEntry.id.desc())
-        .first()
-    )
+    w = [s["data"] for s in g.get("health", [])]
     if w:
-        unit = f" {w.unit}" if w.unit else ""
-        lines.append(f"weight — {w.value:g}{unit} (last logged {w.date})")
+        d0 = w[0]
+        unit = f" {d0['unit']}" if d0["unit"] else ""
+        lines.append(f"weight — {d0['value']:g}{unit} (last logged {d0['date']})")
 
     return {
         "title": f"your {today:%A} briefing",
