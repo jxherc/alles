@@ -125,6 +125,8 @@ def _serialize(name, description, when_to_use, body, source="") -> str:
 
 
 def list_skills() -> list[dict]:
+    from services import skills_catalog  # lazy: avoids an import cycle
+
     usage = _load_usage()
     out = []
     for d in sorted(_dir().glob("*/SKILL.md")):
@@ -132,6 +134,9 @@ def list_skills() -> list[dict]:
             parsed = _parse(d.read_text("utf-8", errors="replace"))
             m = parsed["meta"]
             u = usage.get(d.parent.name) or {}
+            # category = frontmatter if present, else looked up from the bundled
+            # library (every seeded skill came from a themed file); '' for custom ones
+            cat = m.get("category") or skills_catalog.category_for(d.parent.name)
             out.append(
                 {
                     "slug": d.parent.name,
@@ -139,6 +144,7 @@ def list_skills() -> list[dict]:
                     "description": m.get("description", ""),
                     "when_to_use": m.get("when_to_use", ""),
                     "source": m.get("source", ""),
+                    "category": cat,
                     "size": len(parsed["body"]),
                     "uses": u.get("uses", 0) or 0,
                     "last_used": u.get("last_used", 0) or 0,
