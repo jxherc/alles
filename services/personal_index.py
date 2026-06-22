@@ -87,6 +87,20 @@ def _iter_books(db):
     from core.database import Book
     return db.query(Book).all()
 
+def _cm():
+    from core.database import CachedMessage
+    return CachedMessage
+
+def _mail_text(db, m):
+    return " ".join(x for x in (m.subject, m.sender) if x)
+
+def _get_mail(db, ref):
+    acct, _, uid = (ref or "").partition(":")
+    return db.query(_cm()).filter_by(account_id=acct, uid=uid).first()
+
+def _iter_mail(db):
+    return db.query(_cm()).all()
+
 _ADAPTERS = {
     "note": {
         "text": _note_text,
@@ -115,6 +129,11 @@ _ADAPTERS = {
         "text": _book_text, "ref": lambda o: o.id, "get": _get_book,
         "label": lambda o: o.title or "(book)", "link": lambda ref: f"/?app=books#{ref}",
         "iter": _iter_books,
+    },
+    "mail": {
+        "text": _mail_text, "ref": lambda o: f"{o.account_id}:{o.uid}", "get": _get_mail,
+        "iter": _iter_mail,
+        "label": lambda o: o.subject or "(no subject)", "link": lambda ref: "/?app=mail",
     },
 }
 
@@ -212,5 +231,42 @@ def clear(db) -> int:
     db.commit()
     return n
 
+def _fetch_mail_body(db, msg) -> str:
+    """best-effort body fetch; isolated so tests can monkeypatch it.
+    uses services.mail.fetch_message(acct_dict, uid) which is what the mail route uses."""
+    try:
+        from core.database import MailAccount
+        from services.secretstore import unseal
+        acct_row = db.query(MailAccount).filter_by(id=msg.account_id).first()
+        if not acct_row:
+            return ""
+        # build the dict fetch_message expects (same shape as the route does)
+        acct = {
+            "imap_host": acct_row.imap_host,
+            "imap_port": acct_row.imap_port,
+            "username": acct_row.username,
+            "email": acct_row.email,
+            "password": unseal(acct_row.password) if acct_row.password else "",
+            "use_ssl": acct_row.use_ssl,
+        }
+        from services import mail as mailsvc
+        full = mailsvc.fetch_message(acct, msg.uid)
+        return (full or {}).get("text") or (full or {}).get("html") or ""
+    except Exception:
+        return ""
+
 def _index_mail_batch(db, limit=20) -> int:
-    return 0  # real implementation in A6
+    if not _source_enabled("mail"):
+        return 0
+    rows = db.query(_cm()).filter_by(body_indexed=False).limit(limit).all()
+    done = 0
+    for m in rows:
+        body = _fetch_mail_body(db, m)
+        text = " ".join(x for x in (m.subject, m.sender, body) if x)
+        if text.strip():
+            textindex.index(db, "mail", f"{m.account_id}:{m.uid}", text)
+        m.body_indexed = True
+        done += 1
+    if done:
+        db.commit()
+    return done
