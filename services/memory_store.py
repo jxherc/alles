@@ -195,7 +195,7 @@ def search_memories(query: str, top_k: int = 6) -> list[dict]:
                 scored.append((sim, m))
 
         scored.sort(key=lambda x: x[0], reverse=True)
-        top = [m for _, m in scored[: top_k - len(pinned)]]
+        top = [m for _, m in scored[: max(0, top_k - len(pinned))]]
 
         return [_fmt(m) for m in pinned] + [_fmt(m) for m in top]
     finally:
