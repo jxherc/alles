@@ -10,21 +10,26 @@ the `key` bakes in the relevant period so the same situation yields the same key
 across runs (dedupe), and a new period (next renewal cycle) yields a new key.
 """
 
-from datetime import date
+from datetime import date, datetime
 
 from core.database import (
+    Account,
     Book,
+    Budget,
+    CachedMessage,
     CalendarEvent,
     DayEvent,
     Habit,
     HabitLog,
     HealthEntry,
+    JournalEntry,
     Reminder,
     Subscription,
     Task,
 )
 
-CATEGORIES = ("task", "event", "reminder", "sub", "day_event", "habit", "book", "health")
+CATEGORIES = ("task", "event", "reminder", "sub", "day_event", "habit", "book", "health",
+              "budget", "account", "mail", "journal")
 
 
 def _journal_locked():
@@ -207,6 +212,94 @@ def _health(db, today):
                  {"kind": "weight", "value": w.value, "unit": w.unit, "date": w.date})]
 
 
+def _budget(db, today):
+    from routes.money import _spending_by_cat
+
+    month = today.strftime("%Y-%m")
+    spent = _spending_by_cat(db, month)
+    out = []
+    for b in db.query(Budget).all():
+        lim = b.limit_amt or 0
+        if lim <= 0 or spent.get(b.category, 0.0) < lim:
+            continue
+        used = spent.get(b.category, 0.0)
+        u = 70 if used >= lim * 1.5 else 55
+        out.append(_sig("budget", f"budget_over:{b.category}:{month}", u,
+                        f"{b.category} over budget",
+                        f"spent {used:.0f} of {lim:.0f} this month", "money",
+                        {"category": b.category, "spent": round(used, 2), "limit": lim,
+                         "over": round(used - lim, 2)}))
+    return out
+
+
+def _accounts(db, today):
+    from routes.money import _balances
+
+    bal = _balances(db)
+    out = []
+    for a in db.query(Account).filter(Account.archived == False).all():  # noqa: E712
+        thr = a.low_balance or 0
+        if thr <= 0:
+            continue
+        balance = (a.opening or 0.0) + bal.get(a.id, 0.0)
+        if balance >= thr:
+            continue
+        out.append(_sig("account", f"account_low:{a.id}", 70, f"{a.name} balance low",
+                        f"{a.currency}{balance:.0f} (under {a.currency}{thr:.0f})", "money",
+                        {"id": a.id, "name": a.name, "balance": round(balance, 2),
+                         "threshold": thr, "currency": a.currency}))
+    return out
+
+
+def _mail(db, today):
+    from core.settings import load_settings
+    from services.mail import is_vip
+
+    vips = load_settings().get("mail_vips", [])
+    now_iso = datetime.utcnow().isoformat()
+    out = []
+    rows = (
+        db.query(CachedMessage)
+        .filter(CachedMessage.seen == False, CachedMessage.muted == False,  # noqa: E712
+                CachedMessage.folder == "INBOX")
+        .order_by(CachedMessage.date_ts.desc())
+        .limit(60)
+        .all()
+    )
+    for m in rows:
+        if m.snoozed_until and m.snoozed_until > now_iso:
+            continue
+        vip = is_vip(m.sender, vips)
+        if not (m.flagged or vip):
+            continue
+        who = (m.sender or "").split("<")[0].strip() or (m.sender or "")
+        out.append(_sig("mail", f"mail_important:{m.account_id}:{m.uid}", 60 if vip else 50,
+                        f"{'vip' if vip else 'flagged'}: {m.subject or '(no subject)'}",
+                        f"from {who}", "mail",
+                        {"account_id": m.account_id, "uid": m.uid, "sender": m.sender,
+                         "subject": m.subject, "vip": vip}))
+        if len(out) >= 5:
+            break
+    return out
+
+
+def _journal(db, today):
+    if _journal_locked():  # never surface journal activity while it's passcode-locked
+        return []
+    last = db.query(JournalEntry).order_by(JournalEntry.date.desc()).first()
+    if not last or not last.date:  # don't nag someone who has never journaled
+        return []
+    try:
+        gap = (today - date.fromisoformat(str(last.date)[:10])).days
+    except ValueError:
+        return []
+    if gap < 3:
+        return []
+    return [_sig("journal", f"journal_stale:{last.date}", 25, "journal is getting stale",
+                 f"no entry in {gap} days", "journal",
+                 {"last_date": last.date, "gap_days": gap})]
+
+
 _COLLECTORS = {
     "task": _tasks,
     "event": _events,
@@ -216,6 +309,10 @@ _COLLECTORS = {
     "habit": _habits,
     "book": _books,
     "health": _health,
+    "budget": _budget,
+    "account": _accounts,
+    "mail": _mail,
+    "journal": _journal,
 }
 
 
