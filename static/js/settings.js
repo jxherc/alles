@@ -75,6 +75,7 @@ function _onPaneOpen(name) {
   if (name === 'tools')      { loadAgentStatus(); loadMcpServers(); loadConnections(); loadPermRules(); loadMacosStatus(); }
   if (name === 'developer')  { loadTokens(); loadWebhooks(); loadShortcutSettings(); }
   if (name === 'rules')      loadRulesPane();
+  if (name === 'recall')     loadRecallPane();
 }
 
 // ── open / close ──────────────────────────────────────────────────────────────
@@ -104,6 +105,9 @@ export function closeSettings() {
   const modal = document.getElementById('settings-modal');
   if (modal) modal.style.display = 'none';
 }
+
+// expose for playwright tests + external callers
+window._openSettings = openSettings;
 
 // ── init (runs once) ──────────────────────────────────────────────────────────
 function _initSettings() {
@@ -1423,6 +1427,26 @@ async function addWebhook() {
   ['wh-name','wh-url'].forEach(id => document.getElementById(id).value = '');
   toast('webhook added', 'success');
   loadWebhooks();
+}
+
+// ── recall pane ───────────────────────────────────────────────────────────────
+async function loadRecallPane() {
+  const s = await fetch('/api/settings').then(r => r.json()).catch(() => ({}));
+  const keys = ['enabled', 'mail', 'note', 'journal', 'contact', 'read', 'book'];
+  for (const k of keys) {
+    const el = document.getElementById('s-pidx-' + k);
+    if (el) _bindSwitch(el, () => s['pidx_' + k] !== false, v => _patchSetting('pidx_' + k, v));
+  }
+  const stats = await fetch('/api/recall/stats').then(r => r.json()).catch(() => null);
+  const el = document.getElementById('s-pidx-stats');
+  if (el && stats) {
+    const total = Object.values(stats.by_kind || {}).reduce((a, b) => a + b, 0);
+    el.textContent = `${total} chunks indexed · ${stats.mail_pending || 0} mail bodies pending`;
+  }
+  const rb = document.getElementById('s-pidx-reindex');
+  if (rb && !rb.dataset.bound) { rb.dataset.bound = '1'; rb.addEventListener('click', async () => { rb.disabled = true; await fetch('/api/recall/reindex', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' }); rb.disabled = false; loadRecallPane(); }); }
+  const cb = document.getElementById('s-pidx-clear');
+  if (cb && !cb.dataset.bound) { cb.dataset.bound = '1'; cb.addEventListener('click', async () => { if (!await _dlgConfirm('clear the recall index?')) return; await fetch('/api/recall/clear', { method: 'POST' }); loadRecallPane(); }); }
 }
 
 // ── helpers ───────────────────────────────────────────────────────────────────

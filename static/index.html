@@ -30,7 +30,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/style.css?v=119">
+<link rel="stylesheet" href="/static/style.css?v=120">
 <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#0a0a0a">
@@ -1053,6 +1053,10 @@
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           backup
         </div>
+        <div class="s-nav-item" data-pane="recall">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          recall
+        </div>
       </nav>
 
       <!-- content area -->
@@ -1682,13 +1686,36 @@
           </div>
         </div>
 
+        <div class="s-pane" id="s-pane-recall">
+          <div class="s-card">
+            <div class="s-card-head">personal recall</div>
+            <div class="s-card-body">
+              <p style="font-size:0.75rem;color:var(--muted);margin-bottom:0.6rem">
+                let aide search your own notes, journal, mail, contacts, saved articles and books.
+                the vault is never indexed; the journal honours its lock. answering sends matched snippets
+                to your chosen model - use a local model for fully offline recall.
+              </p>
+              <div class="s-toggle-row"><div><div class="s-toggle-label">enable recall index</div></div><div class="s-switch" id="s-pidx-enabled"></div></div>
+              <div class="s-toggle-row"><div><div class="s-toggle-label">mail</div></div><div class="s-switch" id="s-pidx-mail"></div></div>
+              <div class="s-toggle-row"><div><div class="s-toggle-label">notes</div></div><div class="s-switch" id="s-pidx-note"></div></div>
+              <div class="s-toggle-row"><div><div class="s-toggle-label">journal</div></div><div class="s-switch" id="s-pidx-journal"></div></div>
+              <div class="s-toggle-row"><div><div class="s-toggle-label">contacts</div></div><div class="s-switch" id="s-pidx-contact"></div></div>
+              <div class="s-toggle-row"><div><div class="s-toggle-label">read-later</div></div><div class="s-switch" id="s-pidx-read"></div></div>
+              <div class="s-toggle-row"><div><div class="s-toggle-label">books</div></div><div class="s-switch" id="s-pidx-book"></div></div>
+              <div id="s-pidx-stats" style="font-size:0.7rem;color:var(--muted);margin:0.6rem 0"></div>
+              <button class="btn" id="s-pidx-reindex">reindex now</button>
+              <button class="btn danger" id="s-pidx-clear">clear index</button>
+            </div>
+          </div>
+        </div>
+
       </div><!-- /s-content -->
     </div><!-- /s-layout -->
   </div><!-- /s-modal -->
 </div>
 
 <script type="module">
-const _v = '119';
+const _v = '120';
 import(`/static/js/app.js?v=${_v}`);
 </script>
 </body>
