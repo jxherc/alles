@@ -1414,7 +1414,8 @@ async def _search_code(query, k=8):
 
     db = SessionLocal()
     try:
-        return {"query": query, "hits": codeindex.search(db, query, k)}
+        hits = codeindex.search(db, query, k)
+        return {"output": json.dumps({"query": query, "hits": hits}, indent=2), "error": False, "hits": hits}
     finally:
         db.close()
 
