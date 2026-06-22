@@ -1,10 +1,27 @@
 import asyncio
 import json
+import tempfile
 from datetime import date, datetime, timedelta
+from pathlib import Path
 
+import core.settings as cfg
 from core.database import ProactiveItem, Task
 from services import proactive
 from tests._client import ApiTest
+
+
+class _IsolatedSettings(ApiTest):
+    """isolate the settings file so run() reads a clean (off-by-default) config
+    and never touches the real data/settings.json."""
+
+    def setUp(self):
+        super().setUp()
+        self._orig_file = cfg._SETTINGS_FILE
+        cfg._SETTINGS_FILE = Path(tempfile.mkdtemp()) / "settings.json"
+
+    def tearDown(self):
+        cfg._SETTINGS_FILE = self._orig_file
+        super().tearDown()
 
 
 def _iso(n):
@@ -20,7 +37,7 @@ def _sig(key, cat="task", urg=70):
             "detail": "d", "link": "tasks", "data": {}}
 
 
-class ProactiveGateTests(ApiTest):
+class ProactiveGateTests(_IsolatedSettings):
     def test_disabled_by_default_no_run(self):
         called = {"reason": False}
 
