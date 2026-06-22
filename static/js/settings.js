@@ -76,6 +76,7 @@ function _onPaneOpen(name) {
   if (name === 'developer')  { loadTokens(); loadWebhooks(); loadShortcutSettings(); }
   if (name === 'rules')      loadRulesPane();
   if (name === 'recall')     loadRecallPane();
+  if (name === 'proactive')  loadProactivePane();
 }
 
 // ── open / close ──────────────────────────────────────────────────────────────
@@ -1447,6 +1448,62 @@ async function loadRecallPane() {
   if (rb && !rb.dataset.bound) { rb.dataset.bound = '1'; rb.addEventListener('click', async () => { rb.disabled = true; await fetch('/api/recall/reindex', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' }); rb.disabled = false; loadRecallPane(); }); }
   const cb = document.getElementById('s-pidx-clear');
   if (cb && !cb.dataset.bound) { cb.dataset.bound = '1'; cb.addEventListener('click', async () => { if (!await _dlgConfirm('clear the recall index?')) return; await fetch('/api/recall/clear', { method: 'POST' }); loadRecallPane(); }); }
+}
+
+async function loadProactivePane() {
+  const s = await fetch('/api/settings').then(r => r.json()).catch(() => ({}));
+  // bind a switch once (visual state refreshed every open), guard against listener leak
+  const sw = (id, key, defOn) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    _setSwitch(el, s[key] === undefined ? defOn : !!s[key]);
+    if (el.dataset.bound) return;
+    el.dataset.bound = '1';
+    el.addEventListener('click', () => {
+      const next = !el.classList.contains('on');
+      _setSwitch(el, next);
+      _patchSetting(key, next);
+    });
+  };
+  sw('s-prox-enabled', 'pidx_proactive_enabled', false);
+  sw('s-prox-cat-task', 'pidx_proactive_cat_task', true);
+  sw('s-prox-cat-sub', 'pidx_proactive_cat_sub', true);
+  sw('s-prox-cat-event', 'pidx_proactive_cat_event', true);
+  sw('s-prox-cat-habit', 'pidx_proactive_cat_habit', true);
+  sw('s-prox-cat-read', 'pidx_proactive_cat_read', true);
+  sw('s-prox-cat-health', 'pidx_proactive_cat_health', true);
+
+  const num = (id, key) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (s[key] !== undefined) el.value = s[key];
+    if (el.dataset.bound) return;
+    el.dataset.bound = '1';
+    el.addEventListener('change', () => {
+      const v = parseInt(el.value, 10);
+      if (!isNaN(v)) _patchSetting(key, v);
+    });
+  };
+  num('s-prox-hours', 'pidx_proactive_every_hours');
+  num('s-prox-qstart', 'pidx_proactive_quiet_start');
+  num('s-prox-qend', 'pidx_proactive_quiet_end');
+
+  const run = document.getElementById('s-prox-run');
+  const status = document.getElementById('s-prox-status');
+  if (run && !run.dataset.bound) {
+    run.dataset.bound = '1';
+    run.addEventListener('click', async () => {
+      run.disabled = true;
+      if (status) status.textContent = 'thinking...';
+      try {
+        const r = await fetch('/api/proactive/run', { method: 'POST' }).then(r => r.json());
+        if (status) status.textContent = r.ran
+          ? `done - ${r.written} new card${r.written === 1 ? '' : 's'} from ${r.signals} signal${r.signals === 1 ? '' : 's'}`
+          : `nothing to show (${r.reason})`;
+      } catch { if (status) status.textContent = 'run failed'; }
+      run.disabled = false;
+    });
+  }
 }
 
 // ── helpers ───────────────────────────────────────────────────────────────────
