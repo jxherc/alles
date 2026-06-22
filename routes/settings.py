@@ -6,7 +6,7 @@ from core.settings import load_settings, save_settings
 router = APIRouter(prefix="/api")
 
 
-_STRIP = {"auth_password_hash", "vault_verifier", "vault_pw_b64"}
+_STRIP = {"auth_password_hash", "vault_verifier", "vault_pw_b64", "mail_oauth_client_secret"}
 
 
 @router.get("/settings")
@@ -102,6 +102,9 @@ class SettingsPatch(BaseModel):
     pidx_proactive_cat_money: bool | None = None
     pidx_proactive_cat_mail: bool | None = None
     pidx_proactive_cat_journal: bool | None = None
+    mail_oauth_client_id: str | None = None
+    mail_oauth_client_secret: str | None = None
+    mail_oauth_redirect_base: str | None = None
 
 
 @router.patch("/settings")
