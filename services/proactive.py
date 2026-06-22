@@ -146,11 +146,14 @@ def _parse_suggestions(raw, sigs):
         arr = json.loads(text[a:b + 1])
     except Exception:
         return []
+    def _dedash(t):  # the user hates em/en dashes; keep aide's cards clean
+        return t.replace("—", "-").replace("–", "-").strip()
+
     out = []
     for it in arr:
         if not isinstance(it, dict):
             continue
-        title = str(it.get("title", "")).strip()
+        title = _dedash(str(it.get("title", "")))
         if not title:
             continue
         sk = [k for k in (it.get("source_keys") or []) if k in valid]
@@ -163,7 +166,7 @@ def _parse_suggestions(raw, sigs):
             score = max(0, min(100, int(it.get("score", 50))))
         except (TypeError, ValueError):
             score = 50
-        out.append({"title": title[:120], "body": str(it.get("body", "")).strip()[:400],
+        out.append({"title": title[:120], "body": _dedash(str(it.get("body", "")))[:400],
                     "link": link, "score": score, "source_keys": sk})
     return out
 
