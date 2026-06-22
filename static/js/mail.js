@@ -115,12 +115,12 @@ const readCache = () => { try { return JSON.parse(localStorage.getItem(cacheKey(
 const writeCache = msgs => { try { localStorage.setItem(cacheKey(), JSON.stringify(msgs.slice(0, 40))); } catch {} };
 
 const PRESETS = [
-  { key: 'gmail', label: 'Gmail', re: /@gmail\.com$/i, imap: 'imap.gmail.com', smtp: 'smtp.gmail.com', help: 'https://support.google.com/mail/answer/7126229', note: 'Use an app password if 2FA is on.' },
-  { key: 'outlook', label: 'Outlook', re: /@(outlook|hotmail|live)\.com$/i, imap: 'outlook.office365.com', smtp: 'smtp.office365.com', help: 'https://support.microsoft.com/office/pop-imap-and-smtp-settings', note: 'Works for Outlook, Hotmail, and Live accounts.' },
-  { key: 'icloud', label: 'iCloud', re: /@(icloud|me|mac)\.com$/i, imap: 'imap.mail.me.com', smtp: 'smtp.mail.me.com', help: 'https://support.apple.com/102525', note: 'Use an app-specific password from Apple ID settings.' },
-  { key: 'yahoo', label: 'Yahoo', re: /@yahoo\.com$/i, imap: 'imap.mail.yahoo.com', smtp: 'smtp.mail.yahoo.com', help: 'https://help.yahoo.com/kb/SLN4075.html', note: 'Use an app password when account security requires it.' },
-  { key: 'fastmail', label: 'Fastmail', re: /@fastmail\.com$/i, imap: 'imap.fastmail.com', smtp: 'smtp.fastmail.com', help: 'https://www.fastmail.help/hc/en-us/articles/1500000278342', note: 'Fastmail supports custom domains too.' },
-  { key: 'domain', label: 'Own domain', re: /@[^@\s]+\.[^@\s]+$/i, imap: '', smtp: '', help: '', note: 'Use your domain mailbox or self-hosted IMAP/SMTP server.' },
+  { key: 'gmail', label: 'Gmail', re: /@gmail\.com$/i, imap: 'imap.gmail.com', smtp: 'smtp.gmail.com', apppw: 'https://myaccount.google.com/apppasswords', help: 'https://support.google.com/mail/answer/7126229', note: 'Gmail needs an app password (not your normal one), and 2-step verification must be on.' },
+  { key: 'outlook', label: 'Outlook', re: /@(outlook|hotmail|live)\.com$/i, imap: 'outlook.office365.com', smtp: 'smtp.office365.com', apppw: 'https://account.live.com/proofs/AppPassword', help: 'https://support.microsoft.com/office/pop-imap-and-smtp-settings', note: 'Outlook/Hotmail/Live need an app password (turn it on under account security).' },
+  { key: 'icloud', label: 'iCloud', re: /@(icloud|me|mac)\.com$/i, imap: 'imap.mail.me.com', smtp: 'smtp.mail.me.com', apppw: 'https://account.apple.com/account/manage', help: 'https://support.apple.com/102525', note: 'iCloud needs an app-specific password from your Apple ID.' },
+  { key: 'yahoo', label: 'Yahoo', re: /@yahoo\.com$/i, imap: 'imap.mail.yahoo.com', smtp: 'smtp.mail.yahoo.com', apppw: 'https://login.yahoo.com/account/security/app-passwords', help: 'https://help.yahoo.com/kb/SLN4075.html', note: 'Yahoo needs an app password from account security.' },
+  { key: 'fastmail', label: 'Fastmail', re: /@fastmail\.com$/i, imap: 'imap.fastmail.com', smtp: 'smtp.fastmail.com', apppw: 'https://app.fastmail.com/settings/security/apppassword', help: 'https://www.fastmail.help/hc/en-us/articles/1500000278342', note: 'Create an app password in Fastmail settings (custom domains work too).' },
+  { key: 'domain', label: 'Own domain', re: /@[^@\s]+\.[^@\s]+$/i, imap: '', smtp: '', apppw: '', help: '', note: 'Use your domain mailbox or self-hosted IMAP/SMTP server.' },
 ];
 
 function domainFromEmail(email) {
@@ -1091,6 +1091,7 @@ function acctForm(acct) {
       ${PRESETS.map(p => `<button class="mail-provider-btn" type="button" data-provider="${esc(p.key)}">${esc(p.label)}</button>`).join('')}
     </div>
     <div class="mail-provider-note" id="ma-provider-note">pick a provider, or paste your own IMAP/SMTP hosts.</div>
+    <div class="mail-guide" id="ma-guide"></div>
     <div class="mail-form-grid">
       <input class="settings-input" id="ma-imaph" placeholder="imap host" value="${esc(a.imap_host || '')}">
       <input class="settings-input" id="ma-imapp" placeholder="imap port" value="${esc(a.imap_port || 993)}">
@@ -1121,6 +1122,21 @@ function acctForm(acct) {
     $('ma-imapp').value = 993;
     $('ma-smtpp').value = 587;
     if (!$('ma-user').value) $('ma-user').value = em;
+    // the quick-login guide: one tap to the exact app-password page + steps
+    const guide = $('ma-guide');
+    if (guide) {
+      if (p && p.apppw) {
+        guide.innerHTML = `
+          <a class="btn primary mail-getpw" href="${esc(p.apppw)}" target="_blank" rel="noreferrer">get app password →</a>
+          <ol class="mail-steps">
+            <li>opens ${esc(p.label)}'s app-password page - sign in if it asks</li>
+            <li>create one (name it "alles") and copy the code</li>
+            <li>paste it in the password box below, then hit save</li>
+          </ol>`;
+      } else {
+        guide.innerHTML = '';
+      }
+    }
   };
   document.querySelectorAll('.mail-provider-btn').forEach(btn => {
     btn.addEventListener('click', () => applyProvider(PRESETS.find(p => p.key === btn.dataset.provider)));
@@ -1146,23 +1162,52 @@ function acctForm(acct) {
     if (serializeForm(main) !== initial && !await dlgConfirm('discard account changes?')) return;
     accountsPanel();
   });
+  // `existing` flips to the created account after a POST, so re-saving after a
+  // failed test edits it instead of making a duplicate
+  let existing = acct;
   $('ma-save').addEventListener('click', async () => {
     const body = collect();
     if (!body.email || !body.imap_host || !body.smtp_host) {
       toast('email, imap, and smtp are required', 'error');
       return;
     }
+    if (!existing && !body.password) { toast('paste your app password first', 'error'); return; }
     $('ma-status').textContent = 'saving...';
-    const url = acct ? `/api/mail/accounts/${acct.id}` : '/api/mail/accounts';
-    const method = acct ? 'PATCH' : 'POST';
+    const url = existing ? `/api/mail/accounts/${existing.id}` : '/api/mail/accounts';
+    const method = existing ? 'PATCH' : 'POST';
     const res = await fetch(url, { method, headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }).then(r => r.json()).catch(() => ({ error: 'network' }));
     if (res.error) { $('ma-status').textContent = 'failed: ' + res.error; return; }
-    _active = res.id || acct?.id || _active;
+    if (res.id) existing = res;   // now in edit mode
+    const id = existing?.id;
+    _active = id || _active;
     localStorage.setItem('alles-mail-account-mode', _active);
-    toast('saved', 'success');
-    await loadMail();
-    accountsPanel();
+    // auto-test so the user knows right away whether the password worked
+    $('ma-status').innerHTML = '<span class="mail-status-test">testing connection...</span>';
+    const t = id ? await fetch(`/api/mail/test/${id}`).then(r => r.json()).catch(() => ({ ok: false, error: 'network' })) : { ok: true };
+    if (t.ok) {
+      toast('connected ✓', 'success');
+      await loadMail();
+      accountsPanel();
+    } else {
+      $('ma-status').innerHTML = `<span class="mail-status-err">saved, but couldn't connect: ${esc(friendlyMailError(t.error))}</span>`;
+    }
   });
+}
+
+// turn a raw IMAP/SMTP error into something a human can act on
+function friendlyMailError(err) {
+  const e = (err || '').toLowerCase();
+  if (e.includes('application-specific password') || e.includes('badcredentials') || e.includes('support.google'))
+    return 'this provider wants an app password, not your normal password - tap "get app password" above.';
+  if (e.includes('authenticationfailed') || e.includes('invalid credentials') || e.includes('authentication failed') || e.includes('not accepted') || e.includes('login failed'))
+    return 'login rejected - paste the app password with no spaces, and make sure 2-step verification is on.';
+  if (e.includes('getaddrinfo') || e.includes('name or service') || e.includes('nodename') || e.includes('temporary failure in name'))
+    return "couldn't reach the server - double-check the imap host.";
+  if (e.includes('timed out') || e.includes('timeout'))
+    return 'connection timed out - check the host/port or your network.';
+  if (e.includes('certificate') || e.includes(' ssl') || e.includes('tls'))
+    return 'tls problem - check the ports (993 imap, 587 smtp).';
+  return err || 'unknown error';
 }
 
 function serializeForm(root) {
