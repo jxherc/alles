@@ -624,6 +624,15 @@ class ProactiveItem(Base):
     updated_at = Column(DateTime, default=_now)
 
 
+class ProactiveState(Base):
+    # single-row scratch: which signal keys the agent has already been shown, so a
+    # scheduled run only fires when something genuinely new turns up (not every tick)
+    __tablename__ = "proactive_state"
+    id = Column(String, primary_key=True, default="singleton")
+    seen_keys = Column(Text, default="[]")  # json list of signal keys presented last run
+    updated_at = Column(DateTime, default=_now)
+
+
 class DayEvent(Base):
     __tablename__ = "day_events"
     id = Column(String, primary_key=True, default=_uid)
