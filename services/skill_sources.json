@@ -1,0 +1,6 @@
+[
+  {"id": "anthropic", "name": "anthropic/skills", "url": "https://github.com/anthropics/skills", "branch": "main", "description": "official anthropic agent skills - documents, mcp, creative, enterprise", "count": 18},
+  {"id": "superpowers", "name": "superpowers", "url": "https://github.com/obra/superpowers", "branch": "main", "description": "workflow skills - tdd, debugging, brainstorming, planning, code review", "count": 14},
+  {"id": "composio", "name": "composio collection", "url": "https://github.com/ComposioHQ/awesome-claude-skills", "branch": "master", "description": "huge community collection across every domain", "count": 864},
+  {"id": "daymade", "name": "daymade marketplace", "url": "https://github.com/daymade/claude-code-skills", "branch": "main", "description": "curated production-ready dev-workflow skills", "count": 64}
+]
