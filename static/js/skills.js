@@ -6,6 +6,7 @@ import { confirm as dlgConfirm, prompt as dlgPrompt } from './dialog.js';
 
 let _built = false;
 let _cur = null;            // slug open in the drawer, or null for a new one
+let _matchSeq = 0;          // bumps per match call so stale responses don't clobber newer ones
 
 const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 const $ = id => document.getElementById(id);
@@ -48,6 +49,7 @@ export function initSkills() {
       <div class="skills2">
         <div class="skl-head">
           <input id="skl-search" class="settings-input skl-search" placeholder="search skills…">
+          <button class="btn" id="skl-match">⌕ what aide picks</button>
           <button class="btn primary" id="skl-new">+ new</button>
         </div>
         <div class="skl-body">
@@ -59,6 +61,7 @@ export function initSkills() {
     let t;
     $('skl-search').oninput = e => { clearTimeout(t); t = setTimeout(() => { _state.q = e.target.value.trim(); _render(); }, 200); };
     $('skl-new').onclick = () => _openDrawer(null);
+    $('skl-match').onclick = () => _openMatch();
     // rail clicks (delegated): category select + library/github/upload actions
     $('skl-rail').addEventListener('click', e => {
       const cat = e.target.closest('.skl-rail-cat');
@@ -172,14 +175,30 @@ function _renderGrid(list) {
     grid.innerHTML = list.map(_state.source === 'builtin' ? _libCard : _srcCard).join('');
   } else {
     const sorted = [...list].sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0));
-    grid.innerHTML = sorted.map(_card).join('');
+    // explain the order, but only on the plain installed grid (not while searching)
+    const hint = _state.q ? '' : '<div class="skl-rankhint">ranked by usefulness - pinned first, then most-used, then recent</div>';
+    grid.innerHTML = hint + sorted.map(_card).join('');
   }
   _bindCards(grid);
+}
+
+// short relative time from epoch SECONDS. '' if never used
+function _ago(epoch) {
+  if (!epoch) return '';
+  const s = Math.max(0, Math.floor(Date.now() / 1000 - epoch));
+  if (s < 60) return 'just now';
+  const m = Math.floor(s / 60); if (m < 60) return m + 'm';
+  const h = Math.floor(m / 60); if (h < 24) return h + 'h';
+  const d = Math.floor(h / 24); if (d < 7) return d + 'd';
+  const w = Math.floor(d / 7); if (w < 5) return w + 'w';
+  const mo = Math.floor(d / 30); if (mo < 12) return mo + 'mo';
+  return Math.floor(d / 365) + 'y';
 }
 
 function _card(s) {
   const badges = [
     s.uses ? `<span class="skl-badge" title="loaded ${s.uses}×">${s.uses}×</span>` : '',
+    s.last_used ? `<span class="skl-badge muted" title="last used">${_ago(s.last_used)}</span>` : '',
     s.source ? '<span class="skl-badge git" title="git-backed">git</span>' : '',
   ].join('');
   const acts = `<div class="skl-card-acts">
@@ -326,6 +345,60 @@ function _openPreview(s, opts) {
     _closeDrawer();
     _browseSource(_state.source);
   };
+}
+
+// "what aide picks" - read-only preview of the agent's auto-pick for a task.
+// reuses the same drawer shell/close pattern as _openPreview.
+function _openMatch() {
+  const host = $('skl-drawer-host');
+  if (!host) return;
+  _matchSeq++;  // ignore any late response from a previously-open drawer
+  host.innerHTML = `
+    <div class="skl-drawer-backdrop open" id="skl-drawer-bd"></div>
+    <aside class="skl-drawer open" id="skl-drawer">
+      <div class="skl-drawer-head"><span>what would aide load?</span><button class="skl-drawer-x" id="skl-d-close">✕</button></div>
+      <div class="skl-drawer-body">
+        <input id="skl-match-q" class="settings-input" placeholder="describe a task…">
+        <div id="skl-match-results" class="skl-match-results"><div class="skl-match-hint">type a task to see which skills rank</div></div>
+      </div>
+    </aside>`;
+  $('skl-d-close').onclick = _closeDrawer;
+  $('skl-drawer-bd').onclick = _closeDrawer;
+  document.removeEventListener('keydown', _drawerEsc);
+  document.addEventListener('keydown', _drawerEsc);
+  const inp = $('skl-match-q');
+  let t;
+  const go = () => _runMatch(inp.value.trim());
+  inp.oninput = () => { clearTimeout(t); t = setTimeout(go, 250); };
+  inp.onkeydown = e => { if (e.key === 'Enter') { clearTimeout(t); go(); } };
+  inp.focus();
+}
+
+async function _runMatch(q) {
+  const seq = ++_matchSeq;  // claim this generation; bail later if a newer call superseded us
+  const box = $('skl-match-results');
+  if (!box) return;
+  if (!q) { box.innerHTML = '<div class="skl-match-hint">type a task to see which skills rank</div>'; return; }
+  let data;
+  try { data = await _api(`/api/skills/match?q=${encodeURIComponent(q)}&k=8`); }
+  catch { if (seq === _matchSeq) box.innerHTML = '<div class="skl-match-hint" style="color:var(--error)">match failed</div>'; return; }
+  if (seq !== _matchSeq) return;  // a newer query landed while we were waiting, drop this
+  const matches = data.matches || [];
+  if (!matches.length) { box.innerHTML = '<div class="skl-match-hint">no skill matches that yet</div>'; return; }
+  const top = matches[0].score || 1;
+  box.innerHTML = matches.map((m, i) => {
+    const w = Math.max(2, Math.round((m.score / top) * 100));
+    const tag = i === 0 ? '<span class="skl-match-auto">auto-loaded</span>' : '';
+    return `
+      <div class="skl-match-row${i === 0 ? ' top' : ''}">
+        <div class="skl-match-top">
+          <span class="skl-match-name">${esc(m.name)}</span>${tag}
+          <span class="skl-match-score">${m.score.toFixed(2)}</span>
+        </div>
+        ${m.description ? `<div class="skl-match-desc">${esc(m.description)}</div>` : ''}
+        <div class="skl-match-bar"><span style="width:${w}%"></span></div>
+      </div>`;
+  }).join('');
 }
 
 async function _install(slugs) {
