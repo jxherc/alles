@@ -245,10 +245,13 @@ async def run(force=False):
         return {"ran": False, "reason": "quiet_hours"}
     db = SessionLocal()
     try:
-        sigs = signals.gather(db, categories=_enabled_categories(s))
+        # prune against the FULL signal set - a card should only be dropped when its
+        # situation actually resolved, not when the user toggled its category off
+        full = signals.gather(db)
+        _prune_resolved(db, full)
+        cats = _enabled_categories(s)
         min_u = int(s.get("pidx_proactive_min_urgency", 1))
-        sigs = [x for x in sigs if x["urgency"] >= min_u]
-        _prune_resolved(db, sigs)
+        sigs = [x for x in full if x["category"] in cats and x["urgency"] >= min_u]
         if not sigs:
             return {"ran": False, "reason": "no_signals"}
         if not _has_uncarded(db, sigs):

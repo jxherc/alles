@@ -8,11 +8,15 @@ server's date for user-facing day math - the server may run in UTC.
 """
 
 from datetime import date
+
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session as DbSession
-from core.database import get_db, Subscription, Task
+
+from core.database import Subscription, Task, get_db
 from services import signals
-from services.signals import _event_occurs_on  # re-export: routes.today._event_occurs_on
+from services.signals import (
+    _event_occurs_on,  # noqa: F401  re-export for routes.today._event_occurs_on
+)
 
 router = APIRouter(prefix="/api")
 

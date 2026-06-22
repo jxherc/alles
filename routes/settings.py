@@ -1,5 +1,6 @@
 from fastapi import APIRouter
 from pydantic import BaseModel
+
 from core.settings import load_settings, save_settings
 
 router = APIRouter(prefix="/api")
@@ -88,6 +89,7 @@ class SettingsPatch(BaseModel):
     pidx_proactive_quiet_start: int | None = None
     pidx_proactive_quiet_end: int | None = None
     pidx_proactive_channel: str | None = None
+    proactive_model: str | None = None
     pidx_proactive_min_urgency: int | None = None
     pidx_proactive_max_tokens: int | None = None
     pidx_proactive_cat_task: bool | None = None
