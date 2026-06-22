@@ -606,6 +606,24 @@ class AutomationRule(Base):
     created_at = Column(DateTime, default=_now)
 
 
+class ProactiveItem(Base):
+    __tablename__ = "proactive_items"
+    id = Column(String, primary_key=True, default=_uid)
+    dedupe_key = Column(String, index=True, nullable=False)  # one live card per key
+    category = Column(String, default="")
+    title = Column(String, nullable=False)
+    body = Column(Text, default="")
+    link = Column(String, default="")  # in-app nav: a view id or deep path
+    score = Column(Integer, default=50)  # agent importance 0..100 -> ordering
+    urgency = Column(Integer, default=0)  # carried from the source signal
+    source_keys = Column(Text, default="[]")  # json list of signal keys summarized
+    status = Column(String, default="new")  # new | seen | dismissed | acted
+    dismissed = Column(Boolean, default=False)
+    pushed = Column(Boolean, default=False)  # web push already sent
+    created_at = Column(DateTime, default=_now)
+    updated_at = Column(DateTime, default=_now)
+
+
 class DayEvent(Base):
     __tablename__ = "day_events"
     id = Column(String, primary_key=True, default=_uid)
