@@ -49,6 +49,13 @@ def _pretty(path):
     return folder.replace("-", " ").replace("_", " ").strip()
 
 
+def _dir(path):
+    # parent breadcrumb: everything above the skill's own folder + SKILL.md
+    # "a/b/c/SKILL.md" -> "a / b", "foo/SKILL.md" -> "", "SKILL.md" -> ""
+    parts = path.split("/")[:-2]   # drop own folder + SKILL.md
+    return " / ".join(parts).replace("-", " ").replace("_", " ")
+
+
 def _owner_repo_branch(src):
     owner, repo, _b, _p, _k = skills_github._parse_url(src["url"])
     branch = src.get("branch") or skills_github._default_branch(owner, repo)
@@ -67,7 +74,8 @@ def browse(sid) -> dict:
         return hit[1]
     owner, repo, branch = _owner_repo_branch(src)
     paths = skills_github._skill_paths(owner, repo, branch)
-    skills = [{"name": _pretty(p), "path": p, "import_url": _blob_url(owner, repo, branch, p)}
+    skills = [{"name": _pretty(p), "path": p, "dir": _dir(p),
+               "import_url": _blob_url(owner, repo, branch, p)}
               for p in sorted(paths)]
     data = {"kind": "github", "repo_url": src["url"], "skills": skills}
     _cache[sid] = (time.time(), data)
