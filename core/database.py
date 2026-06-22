@@ -534,6 +534,12 @@ class MailAccount(Base):
     username = Column(String, default="")
     password = Column(EncryptedText, default="")  # AES-GCM at rest, see secretstore
     use_ssl = Column(Boolean, default=True)
+    # oauth ("sign in with google") - tokens sealed at rest, no password stored
+    auth_type = Column(String, default="password")  # password | oauth
+    oauth_provider = Column(String, default="")  # google
+    oauth_access_token = Column(EncryptedText, default="")
+    oauth_refresh_token = Column(EncryptedText, default="")
+    oauth_expires_at = Column(Float, default=0.0)  # unix ts the access token expires
     created_at = Column(DateTime, default=_now)
 
 
@@ -1228,6 +1234,12 @@ def init_db():
         _add_col(conn, "notes", "items", "TEXT DEFAULT '[]'")
         _add_col(conn, "notes", "due", "TEXT DEFAULT ''")
         _add_col(conn, "cached_messages", "body_indexed", "BOOLEAN DEFAULT 0")
+        # mail oauth (sign in with google)
+        _add_col(conn, "mail_accounts", "auth_type", "TEXT DEFAULT 'password'")
+        _add_col(conn, "mail_accounts", "oauth_provider", "TEXT DEFAULT ''")
+        _add_col(conn, "mail_accounts", "oauth_access_token", "TEXT DEFAULT ''")
+        _add_col(conn, "mail_accounts", "oauth_refresh_token", "TEXT DEFAULT ''")
+        _add_col(conn, "mail_accounts", "oauth_expires_at", "FLOAT DEFAULT 0")
     _encrypt_plaintext_secrets()
 
 
