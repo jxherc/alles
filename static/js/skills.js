@@ -36,7 +36,7 @@ const _CAT_ORDER = [
 const _catOf = s => (s.category && _CAT_LABEL[s.category]) ? s.category : 'custom';
 
 // ── view state ────────────────────────────────────────────────────────────────
-let _state = { mode: 'installed', cat: 'all', q: '', source: null };
+let _state = { mode: 'installed', cat: 'all', q: '', source: null, libCat: 'all' };
 let _data = [];
 let _sources = [];
 
@@ -64,6 +64,7 @@ export function initSkills() {
       const cat = e.target.closest('.skl-rail-cat');
       if (cat) {
         if (cat.dataset.src) { _state.q = ''; if ($('skl-search')) $('skl-search').value = ''; _browseSource(cat.dataset.src); return; }
+        if (cat.dataset.libcat) { _state.libCat = cat.dataset.libcat; _render(); return; }   // re-filter only, no re-browse
         _state.cat = cat.dataset.cat; _render(); return;
       }
       const act = e.target.closest('.skl-rail-act')?.dataset.act;
@@ -73,7 +74,7 @@ export function initSkills() {
     });
     _built = true;
   }
-  _state = { mode: 'installed', cat: 'all', q: '', source: null };
+  _state = { mode: 'installed', cat: 'all', q: '', source: null, libCat: 'all' };
   _refresh();
 }
 
@@ -99,8 +100,11 @@ function _catCounts(rows) {
 function _visible() {
   const ql = _state.q.toLowerCase();
   if (_state.mode === 'library') {
-    if (!ql) return _data;
-    return _data.filter(s => (`${s.name || ''} ${s.description || ''} ${s.when_to_use || ''}`).toLowerCase().includes(ql));
+    const catOn = _state.source === 'builtin' && _state.libCat !== 'all';
+    let rows = _data;
+    if (catOn) rows = rows.filter(s => _catOf(s) === _state.libCat);
+    if (!ql) return rows;
+    return rows.filter(s => (`${s.name || ''} ${s.description || ''} ${s.when_to_use || ''} ${s.path || ''} ${s.dir || ''}`).toLowerCase().includes(ql));
   }
   return _data.filter(s => {
     if (ql) return (`${s.name} ${s.description} ${s.when_to_use || ''}`).toLowerCase().includes(ql);
@@ -125,6 +129,18 @@ function _renderRail() {
       html += `<button class="skl-rail-cat${active ? ' active' : ''}" data-src="${esc(s.id)}">
           <span class="skl-rail-label">${esc(s.name)}</span><span class="skl-rail-count">${s.count || ''}</span>
         </button>`;
+    }
+    // builtin is a flat wall of skills, give it a category sub-filter
+    if (_state.source === 'builtin') {
+      const counts = _catCounts(_data);
+      const lrow = (key, label) => counts[key]
+        ? `<button class="skl-rail-cat${_state.libCat === key ? ' active' : ''}" data-libcat="${key}">
+             <span class="skl-rail-label">${esc(label)}</span><span class="skl-rail-count">${counts[key]}</span>
+           </button>` : '';
+      html += '<div class="skl-rail-sub">filter</div>';
+      html += lrow('all', 'all');
+      for (const k of _CAT_ORDER) if (k !== 'custom') html += lrow(k, _CAT_LABEL[k]);
+      html += lrow('custom', 'custom');
     }
   } else {
     const counts = _catCounts(_data);
@@ -166,11 +182,7 @@ function _card(s) {
     s.uses ? `<span class="skl-badge" title="loaded ${s.uses}×">${s.uses}×</span>` : '',
     s.source ? '<span class="skl-badge git" title="git-backed">git</span>' : '',
   ].join('');
-  const acts = _state.mode === 'library'
-    ? (s.installed
-        ? '<span class="skl-added" title="installed">✓ added</span>'
-        : `<button class="skl-add" data-act="add" data-slug="${esc(s.slug)}">+ add</button>`)
-    : `<div class="skl-card-acts">
+  const acts = `<div class="skl-card-acts">
          <button class="skl-pin${s.pinned ? ' on' : ''}" data-act="pin" title="${s.pinned ? 'unpin' : 'pin to top'}">${s.pinned ? '★' : '☆'}</button>
          <button class="skl-del-q" data-act="del" title="delete">🗑</button>
        </div>`;
@@ -223,7 +235,7 @@ async function _deleteCard(slug) {
 // ── library mode ────────────────────────────────────────────────────────────
 async function _toggleLibrary() {
   if (_state.mode === 'library') {
-    _state.mode = 'installed'; _state.cat = 'all'; _state.q = ''; _state.source = null;
+    _state.mode = 'installed'; _state.cat = 'all'; _state.q = ''; _state.source = null; _state.libCat = 'all';
     if ($('skl-search')) $('skl-search').value = '';
     _refresh(); return;
   }
@@ -236,6 +248,7 @@ async function _toggleLibrary() {
 
 async function _browseSource(id) {
   _state.source = id;
+  _state.libCat = 'all';   // switching sources / re-entering library clears the sub-filter
   _renderRail();
   const grid = $('skl-grid');
   if (grid) grid.innerHTML = '<div class="skl-empty">loading…</div>';
@@ -256,8 +269,8 @@ const _libCard = s => `
 const _srcCard = s => `
   <div class="skl-card" data-path="${esc(s.path)}" data-url="${esc(s.import_url)}" data-kind="github">
     <div class="skl-card-top"><span class="skl-card-name">${esc(s.name)}</span></div>
-    <div class="skl-card-desc skl-card-path">${esc(s.path)}</div>
-    <button class="skl-add" data-act="add">+ add</button>
+    ${s.dir ? `<div class="skl-card-desc skl-card-dir">${esc(s.dir)}</div>` : ''}
+    ${s.installed ? '<span class="skl-added">✓ added</span>' : '<button class="skl-add" data-act="add">+ add</button>'}
   </div>`;
 
 async function _addFromLibrary(c) {

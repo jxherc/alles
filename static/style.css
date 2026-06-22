@@ -2977,6 +2977,7 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 .skl-rail-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .skl-rail-count { font-size: 0.62rem; color: var(--muted); }
 .skl-rail-results { font-size: 0.66rem; color: var(--accent); padding: 0.28rem 0.5rem; }
+.skl-rail-sub { font-size: 0.62rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; padding: 0.5rem 0.5rem 0.15rem; }
 .skl-rail-foot { display: flex; flex-direction: column; gap: 1px; margin-top: 0.6rem; padding-top: 0.5rem; border-top: 1px solid var(--faint); }
 .skl-rail-act { background: none; border: 0; color: var(--muted); font: inherit; font-size: 0.72rem;
   text-align: left; padding: 0.28rem 0.5rem; cursor: pointer; transition: color 0.15s; }
@@ -5987,7 +5988,7 @@ input.cp-swatch-input { width: 34px; height: 22px; border: 1px solid var(--faint
 .health-row .icon-btn.danger:hover { color: var(--error); }
 @media (max-width: 560px) { .health-row { grid-template-columns: 70px 60px 1fr auto; } .health-row-note { display: none; } }
 
-.skl-card-path { font-family: var(--mono, monospace); font-size: 0.6rem; opacity: 0.7; }
+.skl-card-dir { font-size: 0.62rem; opacity: 0.75; }
 .skl-pv-when { font-size: 0.72rem; color: var(--muted); }
 .skl-pv-desc { font-size: 0.78rem; color: var(--text); }
 .skl-pv-body { white-space: pre-wrap; font-family: var(--mono, monospace); font-size: 0.72rem; color: var(--text); background: var(--panel); border: 1px solid var(--faint); border-radius: 3px; padding: 0.6rem; overflow-x: auto; margin: 0; }
