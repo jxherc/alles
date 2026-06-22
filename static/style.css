@@ -5986,3 +5986,5 @@ input.cp-swatch-input { width: 34px; height: 22px; border: 1px solid var(--faint
 .health-row .icon-btn svg { width: 13px; height: 13px; }
 .health-row .icon-btn.danger:hover { color: var(--error); }
 @media (max-width: 560px) { .health-row { grid-template-columns: 70px 60px 1fr auto; } .health-row-note { display: none; } }
+
+.skl-card-path { font-family: var(--mono, monospace); font-size: 0.6rem; opacity: 0.7; }
