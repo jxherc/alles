@@ -1,7 +1,7 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v88';   // docs: canvas-name prompt default was 'board'
+const VERSION = 'v89';   // skills grouped by category + notes board + research cancel
 const CACHE = `alles-${VERSION}`;
-const STAMP = '114';   // keep in sync with index.html ?v= / const _v
+const STAMP = '115';   // keep in sync with index.html ?v= / const _v
 
 // 1b: mutating writes that should be queued when offline
 const MUTATING = ['POST', 'PUT', 'PATCH', 'DELETE'];
