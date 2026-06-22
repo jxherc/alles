@@ -1,4 +1,3 @@
-import { toast } from './util.js';
 import { prompt as dlgPrompt } from './dialog.js';
 const _si = n => (window.icon ? window.icon(n) : '');   // central icon set, load-order safe
 
