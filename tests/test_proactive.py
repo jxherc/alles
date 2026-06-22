@@ -192,3 +192,52 @@ class ProactiveQuietHoursTests(ApiTest):
     def test_equal_bounds_never_quiet(self):
         s = {"pidx_proactive_quiet_start": 0, "pidx_proactive_quiet_end": 0}
         self.assertFalse(proactive._in_quiet_hours(s, datetime(2026, 1, 1, 3, 0)))
+
+
+class ProactivePushTests(ApiTest):
+    def _patch_broadcast(self):
+        import routes.push as push
+        sent = []
+
+        async def fake(payload):
+            sent.append(payload)
+            return 1
+
+        orig = push.broadcast
+        push.broadcast = fake
+        self.addCleanup(lambda: setattr(push, "broadcast", orig))
+        return sent
+
+    def _card(self, **kw):
+        d = self.db()
+        defaults = dict(dedupe_key="k", title="card", urgency=90, source_keys="[]")
+        defaults.update(kw)
+        d.add(ProactiveItem(**defaults))
+        d.commit()
+        return d
+
+    def test_inapp_channel_no_push(self):
+        sent = self._patch_broadcast()
+        d = self._card()
+        n = _run(proactive._maybe_push(d, {"pidx_proactive_channel": "inapp"}))
+        self.assertEqual(n, 0)
+        self.assertEqual(sent, [])
+        d.close()
+
+    def test_push_channel_pushes_urgent_once(self):
+        sent = self._patch_broadcast()
+        d = self._card(title="urgent thing", urgency=90)
+        s = {"pidx_proactive_channel": "push", "pidx_proactive_push_min": 70}
+        self.assertEqual(_run(proactive._maybe_push(d, s)), 1)
+        self.assertEqual(sent[0]["body"], "urgent thing")
+        # pushed flag set -> not pushed again
+        self.assertEqual(_run(proactive._maybe_push(d, s)), 0)
+        d.close()
+
+    def test_below_threshold_not_pushed(self):
+        self._patch_broadcast()
+        d = self._card(urgency=40)
+        n = _run(proactive._maybe_push(d, {"pidx_proactive_channel": "push",
+                                           "pidx_proactive_push_min": 70}))
+        self.assertEqual(n, 0)
+        d.close()

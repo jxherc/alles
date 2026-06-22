@@ -89,6 +89,7 @@ class SettingsPatch(BaseModel):
     pidx_proactive_quiet_start: int | None = None
     pidx_proactive_quiet_end: int | None = None
     pidx_proactive_channel: str | None = None
+    pidx_proactive_push_min: int | None = None
     proactive_model: str | None = None
     pidx_proactive_min_urgency: int | None = None
     pidx_proactive_max_tokens: int | None = None
