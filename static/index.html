@@ -30,7 +30,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/style.css?v=128">
+<link rel="stylesheet" href="/static/style.css?v=129">
 <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#0a0a0a">
@@ -559,8 +559,6 @@
               <span class="docs-home-title">docs</span>
               <div class="docs-home-actions">
                 <button class="btn primary" id="wiki-empty-new">+ new doc</button>
-                <button class="btn" id="wiki-home-canvas">+ new canvas</button>
-                <button class="btn" id="wiki-home-board">+ new board</button>
                 <button class="btn" id="wiki-empty-today">today's note</button>
                 <button class="btn" id="wiki-home-tasks">tasks</button>
                 <button class="btn" id="docs-home-notes">notes</button>
@@ -635,10 +633,6 @@
           </div>
         </div>
         <svg id="wiki-graph-svg" class="wiki-graph-svg"></svg>
-      </div>
-      <div id="wiki-board" class="wiki-graph wiki-board" style="display:none">
-        <div class="wiki-graph-head"><span id="wiki-board-title">board</span><button class="icon-btn" id="wiki-board-close">×</button></div>
-        <div id="wiki-board-cols" class="wiki-board-cols"></div>
       </div>
     </div><!-- /#wiki-view — was missing, which nested every later view + the composer inside the docs view -->
 
@@ -943,15 +937,6 @@
 </div>
 
 <!-- toast container -->
-<div id="canvas-view" class="canvas-view" style="display:none">
-  <div class="canvas-bar">
-    <span id="canvas-title" class="canvas-title"></span>
-    <button class="btn" id="canvas-add">+ node</button>
-    <button class="btn" id="canvas-add-note">+ note link</button>
-    <button class="btn" id="canvas-close" style="margin-left:auto">close</button>
-  </div>
-  <div id="canvas-surface" class="canvas-surface"></div>
-</div>
 <div class="toast-container" id="toast-container"></div>
 <div id="sync-indicator" class="sync-indicator" style="display:none"></div>
 
@@ -1766,7 +1751,7 @@
 </div>
 
 <script type="module">
-const _v = '128';
+const _v = '129';
 import(`/static/js/app.js?v=${_v}`);
 </script>
 </body>
