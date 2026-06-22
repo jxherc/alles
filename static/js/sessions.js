@@ -1,6 +1,6 @@
 import { toast } from './util.js';
 import { confirm as _dlgConfirm, prompt as _dlgPrompt } from './dialog.js';
-import { renderProjectFolders, loadProjects, getProjects } from './projects.js';
+import { renderProjectFolders, loadProjects, getProjects, createProject, assignSession } from './projects.js';
 import { applyResponsePrivacy, stripEmojis, welcomeEnabled } from './privacy.js';
 import { renderAgentSteps } from './agentview.js';
 import { isIncognitoMode } from './modes.js';
@@ -766,14 +766,9 @@ function openCtxMenu(e, id) {
       } else if (action === 'new-project') {
         const name = await _dlgPrompt('project name:');
         if (!name?.trim()) return;
-        const r = await fetch('/api/projects', {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ name: name.trim() }),
-        });
-        if (r.ok) {
-          const p = await r.json();
-          await fetch(`/api/projects/${p.id}/sessions/${id}`, { method: 'POST' });
+        const p = await createProject(name.trim());
+        if (p) {
+          await assignSession(p.id, id);   // file this chat into the new project
           await loadProjects();
           await loadSessions();
           toast(`project "${name}" created`, 'success');
