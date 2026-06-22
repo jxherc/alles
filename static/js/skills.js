@@ -64,6 +64,76 @@ export function initSkills() {
   _loadList('');
 }
 
+// browse-by-category: each skill carries its real category from the backend (the
+// library file it came from — coding.json → 'coding'); custom/imported ones have none.
+// label + display order for the known library categories; anything else → 'custom'.
+const _CAT_LABEL = {
+  'ai-prompting': 'ai & prompting', coding: 'coding', 'devops-git': 'devops & git',
+  'testing-debugging': 'testing & debugging', 'data-sql': 'data & sql', utilities: 'utilities',
+  research: 'research', writing: 'writing', 'marketing-content': 'marketing & content',
+  communication: 'communication', creativity: 'creativity', 'design-ux': 'design & ux',
+  decision: 'decisions', learning: 'learning', productivity: 'productivity',
+  'life-health': 'life & health', 'personal-finance': 'personal finance',
+  'career-business': 'career & business', custom: 'custom',
+};
+const _CAT_ORDER = [
+  'ai-prompting', 'coding', 'devops-git', 'testing-debugging', 'data-sql', 'utilities',
+  'research', 'writing', 'marketing-content', 'communication', 'creativity', 'design-ux',
+  'decision', 'learning', 'productivity', 'life-health', 'personal-finance', 'career-business',
+  'custom',
+];
+const _catOf = s => (s.category && _CAT_LABEL[s.category]) ? s.category : 'custom';
+
+const _collapsed = () => { try { return JSON.parse(localStorage.getItem('skl-collapsed') || '{}'); } catch { return {}; } };
+const _setCollapsed = m => localStorage.setItem('skl-collapsed', JSON.stringify(m));
+
+// pinned skills get pulled into their own group on top, the rest bucket by category
+function _groupRows(skills) {
+  const buckets = {};
+  for (const s of skills) { if (s.pinned) continue; (buckets[_catOf(s)] ||= []).push(s); }
+  const groups = [];
+  const pinned = skills.filter(s => s.pinned);
+  if (pinned.length) groups.push({ key: 'pinned', label: 'pinned', items: pinned });
+  for (const k of _CAT_ORDER) if (buckets[k]?.length) groups.push({ key: k, label: _CAT_LABEL[k], items: buckets[k] });
+  return groups;
+}
+
+// prefix namespaces the collapse state so the installed list and the library don't share it
+function _renderGrouped(el, skills, rowHtml, forceOpen, prefix = '') {
+  const col = _collapsed();
+  el.innerHTML = _groupRows(skills).map(g => {
+    const ck = prefix + g.key;
+    const open = forceOpen || !col[ck];
+    return `<div class="skl-group${open ? '' : ' collapsed'}" data-grp="${ck}">
+      <div class="skl-group-head">
+        <span class="skl-group-chev">${open ? '▾' : '▸'}</span>
+        <span class="skl-group-label">${esc(g.label)}</span>
+        <span class="skl-group-count">${g.items.length}</span>
+      </div>
+      <div class="skl-group-body">${g.items.map(rowHtml).join('')}</div>
+    </div>`;
+  }).join('');
+  el.querySelectorAll('.skl-group-head').forEach(h => h.addEventListener('click', () => {
+    const g = h.parentElement;
+    const nowCollapsed = g.classList.toggle('collapsed');
+    h.querySelector('.skl-group-chev').textContent = nowCollapsed ? '▸' : '▾';
+    const m = _collapsed();
+    if (nowCollapsed) m[g.dataset.grp] = true; else delete m[g.dataset.grp];
+    _setCollapsed(m);
+  }));
+}
+
+const _skillRow = s => `
+  <div class="skl-row${s.slug === _cur ? ' active' : ''}" data-slug="${esc(s.slug)}">
+    <div class="skl-row-name">
+      <button class="skl-pin${s.pinned ? ' on' : ''}" data-pin="${esc(s.slug)}" title="${s.pinned ? 'unpin' : 'pin to top'}">${s.pinned ? '★' : '☆'}</button>
+      <span class="skl-row-title">${esc(s.name)}</span>
+      ${s.source ? '<span class="skl-git" title="git-backed — can be updated from source">git</span>' : ''}
+      ${s.uses ? `<span class="skl-uses" title="loaded ${s.uses} time${s.uses === 1 ? '' : 's'}">${s.uses}×</span>` : ''}
+    </div>
+    <div class="skl-row-desc">${esc(s.description) || '<em>no description</em>'}</div>
+  </div>`;
+
 async function _loadList(q) {
   const el = $('skl-list');
   if (!el) return;
@@ -74,16 +144,7 @@ async function _loadList(q) {
     el.innerHTML = `<div class="skl-empty">${q ? 'no matches' : 'no skills yet — make one the agent can reuse'}</div>`;
     return;
   }
-  el.innerHTML = skills.map(s => `
-    <div class="skl-row${s.slug === _cur ? ' active' : ''}" data-slug="${esc(s.slug)}">
-      <div class="skl-row-name">
-        <button class="skl-pin${s.pinned ? ' on' : ''}" data-pin="${esc(s.slug)}" title="${s.pinned ? 'unpin' : 'pin to top'}">${s.pinned ? '★' : '☆'}</button>
-        <span class="skl-row-title">${esc(s.name)}</span>
-        ${s.source ? '<span class="skl-git" title="git-backed — can be updated from source">git</span>' : ''}
-        ${s.uses ? `<span class="skl-uses" title="loaded ${s.uses} time${s.uses === 1 ? '' : 's'}">${s.uses}×</span>` : ''}
-      </div>
-      <div class="skl-row-desc">${esc(s.description) || '<em>no description</em>'}</div>
-    </div>`).join('');
+  _renderGrouped(el, skills, _skillRow, !!q, 'list:');   // a search keeps every group open
   el.querySelectorAll('.skl-row').forEach(r => r.onclick = () => _open(r.dataset.slug));
   el.querySelectorAll('.skl-pin').forEach(b => b.addEventListener('click', e => {
     e.stopPropagation();
@@ -109,16 +170,18 @@ async function _showLibrary() {
   try { cat = await _api('/api/skills/catalog'); }
   catch { el.innerHTML = '<div class="skl-empty" style="color:var(--error)">failed to load</div>'; return; }
   const remaining = cat.filter(c => !c.installed).length;
+  const libRow = c => `
+    <div class="skl-row skl-lib-row">
+      <div style="flex:1;min-width:0">
+        <div class="skl-row-name"><span class="skl-row-title">${esc(c.name)}</span></div>
+        <div class="skl-row-desc">${esc(c.description)}</div>
+      </div>
+      ${c.installed ? '<span class="skl-installed">✓ added</span>' : `<button class="btn skl-add" data-slug="${esc(c.slug)}">add</button>`}
+    </div>`;
   el.innerHTML =
     `<div class="skl-lib-head"><span>library · ${cat.length}</span>${remaining ? `<button class="btn skl-addall">add all (${remaining})</button>` : '<span class="skl-installed">all added ✓</span>'}</div>` +
-    cat.map(c => `
-      <div class="skl-row skl-lib-row">
-        <div style="flex:1;min-width:0">
-          <div class="skl-row-name">${esc(c.name)}</div>
-          <div class="skl-row-desc">${esc(c.description)}</div>
-        </div>
-        ${c.installed ? '<span class="skl-installed">✓ added</span>' : `<button class="btn skl-add" data-slug="${esc(c.slug)}">add</button>`}
-      </div>`).join('');
+    '<div id="skl-grp-host"></div>';
+  _renderGrouped($('skl-grp-host'), cat, libRow, false, 'lib:');
   el.querySelector('.skl-addall')?.addEventListener('click', () => _install(cat.filter(c => !c.installed).map(c => c.slug)));
   el.querySelectorAll('.skl-add').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); _install([b.dataset.slug]); }));
 }

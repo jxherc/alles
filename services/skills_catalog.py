@@ -43,7 +43,8 @@ def _load() -> list[dict]:
             try:
                 data = json.loads(f.read_text("utf-8"))
                 if isinstance(data, list):
-                    out.extend(x for x in data if isinstance(x, dict) and x.get("name"))
+                    # the file the skill lives in IS its category (coding.json → coding)
+                    out.extend({**x, "category": f.stem} for x in data if isinstance(x, dict) and x.get("name"))
             except Exception:
                 continue
     return out or _BASE
@@ -69,9 +70,21 @@ def items() -> list[dict]:
                 "description": c.get("description", ""),
                 "when_to_use": c.get("when_to_use", ""),
                 "body": c.get("body", ""),
+                "category": c.get("category", ""),
             }
         )
     return out
+
+
+_cat_map = None
+
+
+def category_for(slug: str) -> str:
+    """which library file a slug came from — the skill's real category. cached."""
+    global _cat_map
+    if _cat_map is None:
+        _cat_map = {it["slug"]: it.get("category", "") for it in items()}
+    return _cat_map.get(slug, "")
 
 
 def get(slug: str):
