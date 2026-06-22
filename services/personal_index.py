@@ -4,7 +4,6 @@ embedding live in services/textindex.py. privacy: the vault is never indexed, th
 honours its passcode lock, and each source is toggle-able in settings."""
 
 import json
-import time as _time
 
 from core.settings import load_settings
 from services import textindex
@@ -256,17 +255,19 @@ def _fetch_mail_body(db, msg) -> str:
         return ""
 
 def _index_mail_batch(db, limit=20) -> int:
+    from core.database import CachedMessage
     if not _source_enabled("mail"):
         return 0
-    rows = db.query(_cm()).filter_by(body_indexed=False).limit(limit).all()
+    rows = db.query(CachedMessage).filter_by(body_indexed=False).limit(limit).all()
     done = 0
     for m in rows:
         body = _fetch_mail_body(db, m)
         text = " ".join(x for x in (m.subject, m.sender, body) if x)
         if text.strip():
             textindex.index(db, "mail", f"{m.account_id}:{m.uid}", text)
-        m.body_indexed = True
-        done += 1
+        if body:  # only mark done once we actually got the body; else retry next tick
+            m.body_indexed = True
+            done += 1
     if done:
         db.commit()
     return done
