@@ -84,7 +84,8 @@ _defaults = {
     "pidx_proactive_every_hours": 6,
     "pidx_proactive_quiet_start": 22,
     "pidx_proactive_quiet_end": 7,
-    "pidx_proactive_channel": "inapp",
+    "pidx_proactive_channel": "inapp",  # "inapp" (cards only) | "push" (also web-push urgent ones)
+    "pidx_proactive_push_min": 70,  # only push cards at/above this urgency
     "proactive_model": "",  # optional model override; "" = first model on the picked endpoint
     "pidx_proactive_min_urgency": 1,
     "pidx_proactive_max_tokens": 3000,  # must cover thinking + answer for reasoning models

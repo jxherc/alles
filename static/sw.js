@@ -1,7 +1,7 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v97';   // proactive depth: money/mail/journal signals + toggles
+const VERSION = 'v98';   // proactive push channel for urgent cards
 const CACHE = `alles-${VERSION}`;
-const STAMP = '123';   // keep in sync with index.html ?v= / const _v
+const STAMP = '124';   // keep in sync with index.html ?v= / const _v
 
 // 1b: mutating writes that should be queued when offline
 const MUTATING = ['POST', 'PUT', 'PATCH', 'DELETE'];
