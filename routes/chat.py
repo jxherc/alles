@@ -315,8 +315,6 @@ async def _stream_and_save(
 
     # save to db
     full_text = "".join(accumulated)
-    if not full_text:
-        return
 
     if incognito:
         return  # don't persist incognito messages
@@ -328,35 +326,40 @@ async def _stream_and_save(
             return
 
         # save user message if not already there (first time)
+        # do this even if the model returned nothing, otherwise the just-sent
+        # user turn vanishes on reload when a completion comes back empty/errored
         last = s.messages[-1] if s.messages else None
         if not last or last.role != "user" or last.content != user_text:
             um = Message(session_id=session_id, role="user", content=user_text)
             db.add(um)
 
-        meta = {"usage": usage, "model": model}
-        if thinking_acc:
-            meta["thinking"] = "".join(thinking_acc)
-        if tool_steps:
-            meta["tool_steps"] = tool_steps
-        artifacts = _extract_artifacts(full_text)
-        if artifacts:
-            meta["artifacts"] = artifacts
-        am = Message(
-            session_id=session_id,
-            role="assistant",
-            content=full_text,
-            meta=json.dumps(meta),
-        )
-        db.add(am)
-        s.message_count = (s.message_count or 0) + 1
-        s.last_message_at = datetime.utcnow()
+        if full_text:
+            meta = {"usage": usage, "model": model}
+            if thinking_acc:
+                meta["thinking"] = "".join(thinking_acc)
+            if tool_steps:
+                meta["tool_steps"] = tool_steps
+            artifacts = _extract_artifacts(full_text)
+            if artifacts:
+                meta["artifacts"] = artifacts
+            am = Message(
+                session_id=session_id,
+                role="assistant",
+                content=full_text,
+                meta=json.dumps(meta),
+            )
+            db.add(am)
+            s.message_count = (s.message_count or 0) + 1
+            s.last_message_at = datetime.utcnow()
+
         db.commit()
 
         # (auto-naming is now driven by the frontend after the first reply so the
         #  sidebar updates immediately — see chat.js)
 
         # fire webhook
-        asyncio.create_task(_fire_message_hook(session_id, user_text, full_text))
+        if full_text:
+            asyncio.create_task(_fire_message_hook(session_id, user_text, full_text))
     finally:
         db.close()
 
