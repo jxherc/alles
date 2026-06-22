@@ -298,6 +298,15 @@ def _register_jobs():
 
         await refresh_feeds()
 
+    async def _reconcile():
+        from core.database import SessionLocal
+        from services import personal_index
+        db = SessionLocal()
+        try:
+            personal_index.reconcile(db)
+        finally:
+            db.close()
+
     jobs.register("read_feeds", _read_feeds, 1800, run_at_start=False)  # rss auto-save (30 min)
     jobs.register("subscriptions", _subs, 30)
     jobs.register("day_events", _days, 30)
@@ -310,6 +319,7 @@ def _register_jobs():
     jobs.register("ics_subscriptions", _ics_subs, 3600, run_at_start=False)  # 8a calendar feeds
     jobs.register("carddav_auto", _carddav_auto, 600, run_at_start=False)  # 7b contacts auto-sync
     jobs.register("watch", _watch, 60, run_at_start=False)  # uptime/cert/health probes
+    jobs.register("personal_reconcile", _reconcile, 120, run_at_start=False)
 
 
 async def _reminder_loop():
