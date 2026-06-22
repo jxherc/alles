@@ -286,7 +286,7 @@ function _openPreview(s, opts) {
   const addCtl = opts.installed
     ? '<span class="skl-added">✓ added</span>'
     : '<button class="btn primary" id="skl-pv-add">+ add</button>';
-  const srcLink = s.source_url ? `<a class="skl-pv-src" href="${esc(s.source_url)}" target="_blank" rel="noopener">view source</a>` : '';
+  const srcLink = (s.source_url && /^https?:\/\//i.test(s.source_url)) ? `<a class="skl-pv-src" href="${esc(s.source_url)}" target="_blank" rel="noopener">view source</a>` : '';
   host.innerHTML = `
     <div class="skl-drawer-backdrop open" id="skl-drawer-bd"></div>
     <aside class="skl-drawer open" id="skl-drawer">
