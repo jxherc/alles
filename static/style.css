@@ -3399,6 +3399,15 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 .ht-warn { color: var(--error); font-size: 0.68rem; letter-spacing: 0.03em; }
 .ht-empty { font-size: 0.78rem; color: var(--muted); padding: 0.1rem 0.25rem; }
 .home-today .btn { align-self: flex-start; font-size: 0.7rem; margin-top: 0.15rem; }
+/* proactive suggestion cards in the today strip */
+.ht-card { align-items: center; }
+.ht-sub { color: var(--muted); }
+.ht-x {
+  margin-left: auto; flex-shrink: 0; width: 18px; height: 18px; line-height: 1;
+  font-size: 0.7rem; color: var(--muted); opacity: 0; padding: 0;
+}
+.ht-row:hover .ht-x { opacity: 1; }
+.ht-x:hover { color: var(--text); }
 
 /* ── schedule-send popup ── */
 .schedule-pop {

@@ -15,10 +15,10 @@ from services import signals
 
 log = logging.getLogger(__name__)
 
-# views a card may deep-link to; anything else gets blanked
+# views a card may deep-link to (must be real navigateTo names); else blanked
 ALLOWED_LINKS = {
-    "tasks", "calendar", "reminders", "subscriptions", "days",
-    "habits", "books", "health", "money", "mail", "notes", "home",
+    "tasks", "calendar", "reminders", "subs", "days", "habits", "read", "books",
+    "health", "money", "mail", "journal", "contacts", "home",
 }
 
 # signal category -> the settings switch that gates it
