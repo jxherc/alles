@@ -8,6 +8,7 @@
 import { mdToHtml, toast, enhanceMarkdown, api } from './util.js';
 import { prompt as dlgPrompt, confirm as dlgConfirm } from './dialog.js';
 import { initCanvas, openCanvas, setCanvasNoteOpener } from './canvas.js';
+import { loadNotes, newNote as newQuickNote, saveCurrentNote } from './notes.js';
 
 let _cur = null;
 let _saveT = 0;
@@ -22,6 +23,29 @@ const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const _syncEmpty = () => $('wiki-view')?.classList.toggle('no-note', !_cur);
 const _docsVisible = () => { const v = $('wiki-view'); return v && v.style.display !== 'none' && v.offsetParent !== null; };
+
+// docs has two sections in the sidebar: the file tree ('docs') and the quick-notes
+// board ('notes'). notes is db-backed (/api/notes), separate from the .md files.
+let _treeWasHidden = false;
+async function showSection(name) {
+  const v = $('wiki-view');
+  if (!v) return;
+  const notes = name === 'notes';
+  const leavingNotes = !notes && v.classList.contains('notes-mode');
+  if (leavingNotes) await saveCurrentNote();   // don't lose an in-progress note edit
+  if (notes) _treeWasHidden = v.classList.contains('tree-hidden');   // remember the sidebar pref
+  v.classList.toggle('notes-mode', notes);
+  $('docs-sections')?.querySelectorAll('.docs-sec-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.section === name));
+  if (notes) {
+    v.classList.remove('no-note', 'tree-hidden');   // keep sidebar (for the switch) + board visible
+    _closeOtherPanels(null);                          // drop any docs side-panel floating over the board
+    loadNotes();
+  } else {
+    if (leavingNotes && _treeWasHidden) v.classList.add('tree-hidden');   // restore collapsed sidebar
+    _syncEmpty();
+  }
+}
 
 // pinned/favorite docs (paths) — kept in localStorage, shown atop the tree
 function _pinned() { try { return JSON.parse(localStorage.getItem('docs-pinned') || '[]'); } catch { return []; } }
@@ -436,7 +460,7 @@ function initDocsToolbar() {
 }
 
 export function initVault() {
-  if (_inited) { loadTree(); return; }
+  if (_inited) { showSection('docs'); loadTree(); return; }   // re-entry: clear any stale notes-mode
   _inited = true;
   _loadBookmarks().then(_paintHome);
   $('wiki-view')?.classList.add('tree-hidden');   // sidebar always starts closed in a doc — open it with the ☰ toggle
@@ -452,7 +476,11 @@ export function initVault() {
     if (on) $('wiki-ai-input')?.focus();
   });
   $('wiki-new-btn')?.addEventListener('click', newNote);
-  $('wiki-home-btn')?.addEventListener('click', () => { _resetEditor(); loadTree(); });   // back to docs home
+  $('docs-sections')?.querySelectorAll('.docs-sec-btn').forEach(b =>
+    b.addEventListener('click', () => showSection(b.dataset.section)));
+  $('docs-home-notes')?.addEventListener('click', () => showSection('notes'));   // entry from the docs home
+  $('note-new-btn')?.addEventListener('click', () => newQuickNote());
+  $('wiki-home-btn')?.addEventListener('click', () => { showSection('docs'); _resetEditor(); loadTree(); });   // back to docs home
   $('docs-home-search')?.addEventListener('input', _paintHome);
   $('wiki-delete-btn')?.addEventListener('click', deleteCurrent);
   $('wiki-export-btn')?.addEventListener('click', e => openExportMenu(e.currentTarget));
@@ -979,6 +1007,9 @@ export function openNote(path) {
 
 async function openFile(path) {
   await flushSave();
+  $('wiki-view')?.classList.remove('notes-mode');   // opening a doc leaves the notes board
+  $('docs-sections')?.querySelector('.docs-sec-btn[data-section="docs"]')?.classList.add('active');
+  $('docs-sections')?.querySelector('.docs-sec-btn[data-section="notes"]')?.classList.remove('active');
   try {
     const d = await fetch(`/api/vault-md/file?path=${encodeURIComponent(path)}`).then(r => r.json());
     _cur = d.path || path;
