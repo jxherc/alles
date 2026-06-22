@@ -68,6 +68,8 @@ export function newChat() {
   saveDraft();              // keep whatever was half-typed in the outgoing convo
   _activeId = null;
   window._currentSession = null;
+  window._pendingPersona = null;       // fresh chat starts with no persona pre-picked
+  window._refreshPersonaBtn?.();        // keep the persona button visible + pickable pre-send
   if (location.hash) history.replaceState(null, '', location.pathname + location.search);
   document.getElementById('messages').innerHTML = '';
   document.querySelectorAll('.session-item').forEach(el => el.classList.remove('active'));

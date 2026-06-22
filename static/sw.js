@@ -1,7 +1,7 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v104';   // notes redesign
+const VERSION = 'v105';   // personas pickable on fresh chat
 const CACHE = `alles-${VERSION}`;
-const STAMP = '130';   // keep in sync with index.html ?v= / const _v
+const STAMP = '131';   // keep in sync with index.html ?v= / const _v
 
 // 1b: mutating writes that should be queued when offline
 const MUTATING = ['POST', 'PUT', 'PATCH', 'DELETE'];

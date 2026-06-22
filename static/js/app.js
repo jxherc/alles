@@ -1499,15 +1499,13 @@ export async function refreshPersonaBtn() {
   const btn   = document.getElementById('persona-btn');
   const label = document.getElementById('persona-label');
   const session = window._currentSession;
-  if (!session) { btn.style.display = 'none'; applyPersonaAccent(null); return; }
-  const active = _personas.find(p => p.id === session.persona_id) || _personas.find(p => p.is_default);
-  if (active) {
-    btn.style.display = 'flex'; label.textContent = active.name;
-  } else if (_personas.length > 0) {
-    btn.style.display = 'flex'; label.textContent = 'no persona';
-  } else {
-    btn.style.display = 'none';
-  }
+  if (!_personas.length) { btn.style.display = 'none'; applyPersonaAccent(null); return; }
+  // on a fresh chat (no session yet) reflect the pending pick so you can choose a persona
+  // BEFORE the first message instead of the button just vanishing
+  const pid = session ? session.persona_id : window._pendingPersona;
+  const active = _personas.find(p => p.id === pid) || (session ? _personas.find(p => p.is_default) : null);
+  btn.style.display = 'flex';
+  label.textContent = active ? active.name : 'no persona';
   applyPersonaAccent(active?.accent || null);
 }
 
@@ -1515,39 +1513,41 @@ window._refreshPersonaBtn = refreshPersonaBtn;
 
 async function openPersonaPicker() {
   if (!_personas.length) _personas = await fetch('/api/personas').then(r => r.json());
-  const session = window._currentSession;
-  if (!session) return;
+  if (!_personas.length) return;
+  const session = window._currentSession;   // may be null on a fresh chat -> use a pending pick
   const existing = document.getElementById('_persona_picker');
   if (existing) { existing.remove(); return; }
+  const setPersona = async (pid) => {
+    if (session) {
+      await fetch(`/api/sessions/${session.id}`, {
+        method: 'PATCH', headers: {'content-type':'application/json'},
+        body: JSON.stringify({ persona_id: pid || '' }),
+      });
+      window._currentSession.persona_id = pid || null;
+    } else {
+      window._pendingPersona = pid || null;   // applied when the session is created on first send
+    }
+    refreshPersonaBtn();
+  };
   const picker = document.createElement('div');
   picker.id = '_persona_picker';
   picker.className = 'ctx-menu';
   picker.style.cssText = 'display:block;top:50px;left:260px;min-width:160px';
   const none = document.createElement('div');
   none.className = 'ctx-item'; none.textContent = '— none';
-  none.addEventListener('click', async () => {
-    await fetch(`/api/sessions/${session.id}`, {
-      method: 'PATCH', headers: {'content-type':'application/json'},
-      body: JSON.stringify({ persona_id: '' }),
-    });
-    window._currentSession.persona_id = null; refreshPersonaBtn(); picker.remove();
-  });
+  none.addEventListener('click', async () => { await setPersona(''); picker.remove(); });
   picker.appendChild(none);
   for (const p of _personas) {
     const item = document.createElement('div');
     item.className = 'ctx-item'; item.textContent = p.name;
     item.addEventListener('click', async () => {
-      await fetch(`/api/sessions/${session.id}`, {
-        method: 'PATCH', headers: {'content-type':'application/json'},
-        body: JSON.stringify({ persona_id: p.id }),
-      });
-      window._currentSession.persona_id = p.id;
-      // a persona's starter message prefills the composer (if empty) — merged from templates
+      await setPersona(p.id);
+      // a persona's starter message prefills the composer (if empty)
       const ta = document.getElementById('composer-ta');
       if (p.initial_message && ta && !ta.value.trim()) {
         ta.value = p.initial_message; ta.dispatchEvent(new Event('input', { bubbles: true })); ta.focus();
       }
-      toast(`persona set: ${p.name}`, 'success'); refreshPersonaBtn(); picker.remove();
+      toast(`persona set: ${p.name}`, 'success'); picker.remove();
     });
     picker.appendChild(item);
   }
