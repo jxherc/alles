@@ -75,7 +75,7 @@ class ProactiveGateTests(_IsolatedSettings):
         self.assertEqual(d.query(ProactiveItem).count(), 1)
         d.close()
 
-    def test_second_run_no_dup(self):
+    def test_second_force_run_no_dup(self):
         d = self.db()
         d.add(Task(title="pay rent", done=False, due_date=_iso(-2)))
         d.commit()
@@ -88,12 +88,35 @@ class ProactiveGateTests(_IsolatedSettings):
         self._patch_reason(_fake)
         _run(proactive.run(force=True))
         out2 = _run(proactive.run(force=True))
-        # everything is already carded -> no second call, still one card
-        self.assertFalse(out2["ran"])
-        self.assertEqual(out2["reason"], "all_carded")
+        # force always re-runs, but the upsert dedups -> still exactly one card
+        self.assertTrue(out2["ran"])
+        self.assertEqual(out2["written"], 0)
         d = self.db()
         self.assertEqual(d.query(ProactiveItem).count(), 1)
         d.close()
+
+    def test_scheduled_nothing_new_after_seen(self):
+        import core.settings as cfg
+        cfg.save_settings({"pidx_proactive_enabled": True})  # enable scheduled path
+        d = self.db()
+        d.add(Task(title="pay rent", done=False, due_date=_iso(-2)))
+        d.commit()
+        d.close()
+
+        calls = {"n": 0}
+
+        async def _fake(db, sigs, s):
+            calls["n"] += 1
+            return [{"title": "pay rent", "body": "overdue", "link": "tasks",
+                     "score": 80, "source_keys": [sigs[0]["key"]]}]
+
+        self._patch_reason(_fake)
+        first = _run(proactive.run(force=False))   # master on, new signal -> runs
+        self.assertTrue(first["ran"])
+        second = _run(proactive.run(force=False))  # nothing new -> no model call
+        self.assertFalse(second["ran"])
+        self.assertEqual(second["reason"], "nothing_new")
+        self.assertEqual(calls["n"], 1)
 
     def _patch_reason(self, fn):
         orig = proactive._reason
