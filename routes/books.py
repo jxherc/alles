@@ -138,6 +138,11 @@ def create_book(body: BookBody, db: DbSession = Depends(get_db)):
     db.add(b)
     db.commit()
     db.refresh(b)
+    try:
+        from services import personal_index
+        personal_index.index_record(db, "book", b)
+    except Exception:
+        pass
     return _fmt(b)
 
 
@@ -174,6 +179,11 @@ def update_book(bid: str, body: BookPatch, db: DbSession = Depends(get_db)):
         if v is not None:
             setattr(b, f, v.strip() if isinstance(v, str) and f in ("title", "author") else v)
     db.commit()
+    try:
+        from services import personal_index
+        personal_index.index_record(db, "book", b)
+    except Exception:
+        pass
     return _fmt(b)
 
 
@@ -225,4 +235,9 @@ def delete_book(bid: str, db: DbSession = Depends(get_db)):
         raise HTTPException(404)
     db.delete(b)
     db.commit()
+    try:
+        from services import personal_index
+        personal_index.remove_record(db, "book", bid)
+    except Exception:
+        pass
     return {"ok": True}

@@ -176,6 +176,11 @@ def save_item(body: SaveBody, db: DbSession = Depends(get_db)):
     db.add(it)
     db.commit()
     db.refresh(it)
+    try:
+        from services import personal_index
+        personal_index.index_record(db, "read", it)
+    except Exception:
+        pass
     return _fmt(it)
 
 
@@ -197,6 +202,11 @@ def patch_item(rid: str, body: ReadPatch, db: DbSession = Depends(get_db)):
     if body.archived is not None:
         it.archived = body.archived
     db.commit()
+    try:
+        from services import personal_index
+        personal_index.index_record(db, "read", it)
+    except Exception:
+        pass
     return _fmt(it)
 
 
@@ -207,6 +217,11 @@ def toggle_read(rid: str, db: DbSession = Depends(get_db)):
         raise HTTPException(404)
     it.read_at = "" if it.read_at else datetime.utcnow().isoformat()
     db.commit()
+    try:
+        from services import personal_index
+        personal_index.index_record(db, "read", it)
+    except Exception:
+        pass
     return {"read": bool(it.read_at), "read_at": it.read_at}
 
 
@@ -217,4 +232,9 @@ def delete_item(rid: str, db: DbSession = Depends(get_db)):
         raise HTTPException(404)
     db.delete(it)
     db.commit()
+    try:
+        from services import personal_index
+        personal_index.remove_record(db, "read", rid)
+    except Exception:
+        pass
     return {"ok": True}

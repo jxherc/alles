@@ -117,6 +117,11 @@ def create_note(body: NoteBody, db: DbSession = Depends(get_db)):
     db.add(n)
     db.commit()
     db.refresh(n)
+    try:
+        from services import personal_index
+        personal_index.index_record(db, "note", n)
+    except Exception:
+        pass
     return _fmt(n)
 
 
@@ -139,6 +144,11 @@ def update_note(nid: str, body: NoteBody, db: DbSession = Depends(get_db)):
         n.due = body.due.strip()
     n.updated_at = datetime.utcnow()
     db.commit()
+    try:
+        from services import personal_index
+        personal_index.index_record(db, "note", n)
+    except Exception:
+        pass
     return _fmt(n)
 
 
@@ -164,4 +174,9 @@ def delete_note(nid: str, db: DbSession = Depends(get_db)):
         raise HTTPException(404)
     db.delete(n)
     db.commit()
+    try:
+        from services import personal_index
+        personal_index.remove_record(db, "note", nid)
+    except Exception:
+        pass
     return {"ok": True}
