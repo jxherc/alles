@@ -25,6 +25,10 @@ class SettingsPatch(BaseModel):
     agent_max_tokens: int | None = None
     agent_permission_mode: str | None = None
     agent_allowed_roots: list[str] | None = None
+    agent_context_files: bool | None = None
+    agent_sandbox: bool | None = None
+    agent_computer_use: bool | None = None
+    agent_subagents: bool | None = None
     permission_rules: list | None = None
     auto_compact: bool | None = None
     compact_threshold: int | None = None
@@ -68,6 +72,8 @@ class SettingsPatch(BaseModel):
     system_refresh: int | None = None  # system monitor poll interval (ms)
     mail_poll_seconds: int | None = None  # mail background check interval
     mail_signature: str | None = None  # appended/prefilled when composing
+    mail_threads: str | None = None  # group mail by conversation
+    docs_ai_model: str | None = None  # model for docs AI edits
 
 
 @router.patch("/settings")
