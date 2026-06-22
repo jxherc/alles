@@ -36,6 +36,36 @@ def _get_note(db, ref):
     from core.database import Note
     return db.query(Note).filter_by(id=ref).first()
 
+def _journal_text(db, e):
+    return " ".join(x for x in (e.content, e.mood, e.tags) if x)
+
+def _get_journal(db, ref):
+    from core.database import JournalEntry
+    return db.query(JournalEntry).filter_by(date=ref).first()
+
+def _contact_text(db, c):
+    from core.database import ContactField
+    fv = " ".join(f.value for f in db.query(ContactField).filter_by(contact_id=c.id).all() if f.value)
+    return " ".join(x for x in (c.name, c.company, c.title, c.notes, c.email, c.phone, c.address, fv) if x)
+
+def _get_contact(db, ref):
+    from core.database import Contact
+    return db.query(Contact).filter_by(id=ref).first()
+
+def _read_text(db, r):
+    return " ".join(x for x in (r.title, r.excerpt, r.text, r.tags) if x)
+
+def _get_read(db, ref):
+    from core.database import ReadItem
+    return db.query(ReadItem).filter_by(id=ref).first()
+
+def _book_text(db, b):
+    return " ".join(x for x in (b.title, b.author, b.notes) if x)
+
+def _get_book(db, ref):
+    from core.database import Book
+    return db.query(Book).filter_by(id=ref).first()
+
 _ADAPTERS = {
     "note": {
         "text": _note_text,
@@ -43,6 +73,22 @@ _ADAPTERS = {
         "get": _get_note,
         "label": lambda o: o.title or "(untitled note)",
         "link": lambda ref: f"/?app=notes#{ref}",
+    },
+    "journal": {
+        "text": _journal_text, "ref": lambda o: o.date, "get": _get_journal,
+        "label": lambda o: f"journal {o.date}", "link": lambda ref: f"/?app=journal#{ref}",
+    },
+    "contact": {
+        "text": _contact_text, "ref": lambda o: o.id, "get": _get_contact,
+        "label": lambda o: o.name or "(no name)", "link": lambda ref: f"/?app=contacts#{ref}",
+    },
+    "read": {
+        "text": _read_text, "ref": lambda o: o.id, "get": _get_read,
+        "label": lambda o: o.title or o.url or "(saved item)", "link": lambda ref: f"/?app=read#{ref}",
+    },
+    "book": {
+        "text": _book_text, "ref": lambda o: o.id, "get": _get_book,
+        "label": lambda o: o.title or "(book)", "link": lambda ref: f"/?app=books#{ref}",
     },
 }
 
