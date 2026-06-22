@@ -276,7 +276,9 @@ async def refresh_all_model_lists() -> list[dict]:
                 if added:
                     log.info(f"{ep.name}: new models available — {', '.join(added[:5])}")
                     diffs.append({"endpoint": ep.name, "added": added})
-            if imgs and imgs != ep.image_models_list():
+            # set even when empty so a stale/cross-contaminated image list gets cleared
+            # (the probe succeeded if we got here; [] means this endpoint has no image models)
+            if imgs != ep.image_models_list():
                 ep.image_models = json.dumps(imgs)
                 changed = True
             if changed:
