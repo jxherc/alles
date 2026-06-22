@@ -36,6 +36,16 @@ _ACTION_META = [
         "arg": "note content — {from} {subject} {name} {date} {path}",
     },
     {"value": "push_digest", "label": "push my day digest", "arg": "(no template needed)"},
+    {
+        "value": "notify",
+        "label": "send to discord / telegram",
+        "arg": "message text — {from} {subject} {name} {date}",
+    },
+    {
+        "value": "notify_digest",
+        "label": "send my day digest to discord / telegram",
+        "arg": "(no template needed)",
+    },
 ]
 
 
