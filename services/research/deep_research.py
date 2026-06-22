@@ -313,6 +313,10 @@ class DeepResearcher:
                     logger.info(f"LLM decided to stop after round {round_num}")
                     break
 
+        if self._cancelled:
+            logger.info("Research cancelled before final report")
+            return report or (self._fallback_report(question, findings) if findings else "Research cancelled.")
+
         self._emit(
             phase="writing", total_sources=len(self.urls_fetched), total_findings=len(findings)
         )
@@ -345,22 +349,28 @@ class DeepResearcher:
         timeout is advisory — stream_chat carries its own httpx read timeout."""
         from services.llm import stream_chat
 
-        out = []
-        async for ch in stream_chat(
-            messages,
-            self.base_url,
-            self.api_key,
-            self.model,
-            max_tokens=max_tokens,
-            temperature=temperature,
-        ):
-            if "delta" in ch:
-                out.append(ch["delta"])
-            elif "error" in ch:
-                raise RuntimeError(ch["error"])
-            elif ch.get("done"):
-                break
-        return strip_thinking("".join(out).strip()) or ""
+        async def _accumulate() -> str:
+            out = []
+            async for ch in stream_chat(
+                messages,
+                self.base_url,
+                self.api_key,
+                self.model,
+                max_tokens=max_tokens,
+                temperature=temperature,
+            ):
+                if "delta" in ch:
+                    out.append(ch["delta"])
+                elif "error" in ch:
+                    raise RuntimeError(ch["error"])
+                elif ch.get("done"):
+                    break
+            return strip_thinking("".join(out).strip()) or ""
+
+        try:
+            return await asyncio.wait_for(_accumulate(), timeout=timeout)
+        except asyncio.TimeoutError:
+            raise RuntimeError(f"llm call exceeded {timeout}s")
 
     # ── plan ────────────────────────────────────────────────────────────────
     async def _create_plan(self, question: str) -> str:
@@ -458,7 +468,10 @@ class DeepResearcher:
             *[self._search(q) for q in queries], return_exceptions=True
         )
         urls_to_fetch = []
+        cap = self.max_urls_per_round * len(queries)
         for result in search_results:
+            if len(urls_to_fetch) >= cap:
+                break
             if isinstance(result, Exception):
                 logger.warning(f"Search error: {result}")
                 continue
@@ -469,7 +482,7 @@ class DeepResearcher:
                 if url and url not in self.urls_fetched:
                     urls_to_fetch.append(r)
                     self.urls_fetched.add(url)
-                if len(urls_to_fetch) >= self.max_urls_per_round * len(queries):
+                if len(urls_to_fetch) >= cap:
                     break
 
         if self._cancelled or self._time_exceeded():
@@ -551,6 +564,9 @@ class DeepResearcher:
                     logger.info(f"Skipping low-quality extraction from {url}")
                     return None
                 return parsed
+            if is_low_quality(response[:500]):
+                logger.info(f"Skipping low-quality raw extraction from {url}")
+                return None
             return {
                 "url": url,
                 "title": title or page.get("title", ""),

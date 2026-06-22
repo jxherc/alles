@@ -57,8 +57,21 @@ export async function runResearch(query) {
   const cancelBtn = resRow.querySelector('.rs-cancel');
   const clearWarming = () => resRow.querySelector('.rs-warming')?.remove();
 
+  let cancelled = false;
   cancelBtn.addEventListener('click', () => {
+    if (cancelled) return;
+    cancelled = true;
     fetch(`/api/research/${sid}/cancel`, { method: 'POST' }).catch(() => {});
+    cancelBtn.disabled = true;
+    cancelBtn.textContent = 'cancelling…';
+    dot.style.animation = 'none';
+    dot.style.opacity = '0.4';
+    clearWarming();
+    const s = document.createElement('div');
+    s.className = 'research-step';
+    s.textContent = 'cancelling… (finishing the current report)';
+    stepsEl.appendChild(s);
+    scrollDown();
   });
 
   let reportAccum = '';
@@ -163,10 +176,14 @@ export async function runResearch(query) {
           // final dedup'd source list (overwrites the live one)
           if (ev.sources?.length) {
             sourcesEl.style.display = 'block';
-            sourcesEl.innerHTML = '<div class="sources-label">sources</div>' +
-              ev.sources.map(s =>
-                `<a class="source-link" href="${s.url}" target="_blank" rel="noopener">${escHtml(s.title || s.url)}</a>`
-              ).join('');
+            sourcesEl.innerHTML = '<div class="sources-label">sources</div>';
+            for (const s of ev.sources) {
+              const a = document.createElement('a');
+              a.className = 'source-link';
+              a.href = s.url; a.target = '_blank'; a.rel = 'noopener';
+              a.textContent = s.title || s.url;
+              sourcesEl.appendChild(a);
+            }
           }
           scrollDown();
         }
