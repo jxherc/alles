@@ -38,9 +38,55 @@ def main():
         else:
             r["github_browse_resolves"] = False
 
-        # back to built-in, click a card -> preview drawer with a body
+        # back to built-in for the catalog grid
         pg.eval_on_selector(".skl-rail-cat[data-src='builtin']", "el => el.click()")
         pg.wait_for_timeout(500)
+
+        # builtin category sub-filter: rail shows libcat rows, clicking one narrows the grid
+        libcats = pg.eval_on_selector_all(".skl-rail-cat[data-libcat]", "els => els.map(e => e.dataset.libcat)")
+        r["libcat_filter_present"] = len(libcats) >= 2 and "all" in libcats
+        all_n = pg.eval_on_selector_all("#skl-grid .skl-card", "els => els.length")
+        # pick a non-'all' category row and click it
+        pick = next((c for c in libcats if c != "all"), None)
+        if pick:
+            pg.eval_on_selector(f".skl-rail-cat[data-libcat='{pick}']", "el => el.click()")
+            pg.wait_for_timeout(300)
+            cat_n = pg.eval_on_selector_all("#skl-grid .skl-card", "els => els.length")
+            r["libcat_narrows"] = 0 < cat_n < all_n
+            # search composes with the active category (narrows further or stays within)
+            pg.fill("#skl-search", "the")
+            pg.wait_for_timeout(400)
+            search_n = pg.eval_on_selector_all("#skl-grid .skl-card", "els => els.length")
+            r["search_composes_with_cat"] = search_n <= cat_n
+            pg.fill("#skl-search", "")
+            pg.wait_for_timeout(400)
+            # clicking 'all' restores the full grid
+            pg.eval_on_selector(".skl-rail-cat[data-libcat='all']", "el => el.click()")
+            pg.wait_for_timeout(300)
+            restored = pg.eval_on_selector_all("#skl-grid .skl-card", "els => els.length")
+            r["libcat_all_restores"] = restored == all_n
+        else:
+            r["libcat_narrows"] = r["search_composes_with_cat"] = r["libcat_all_restores"] = False
+
+        # github card rendering (network-live -> soft): if a github browse yields cards,
+        # check breadcrumb + added/+add render. skip cleanly if offline / no cards.
+        if gh:
+            pg.eval_on_selector(f".skl-rail-cat[data-src='{gh[0]}']", "el => el.click()")
+            pg.wait_for_timeout(2500)
+            ncards = pg.eval_on_selector_all("#skl-grid .skl-card[data-kind='github']", "els => els.length")
+            if ncards > 0:
+                # every github card has either a +add button or an 'added' span
+                r["gh_card_has_action"] = pg.eval_on_selector_all(
+                    "#skl-grid .skl-card[data-kind='github']",
+                    "els => els.every(e => e.querySelector('.skl-add') || e.querySelector('.skl-added'))")
+                # breadcrumb shows where present (some skills sit at repo root -> no dir, that's fine)
+                r["gh_breadcrumb_renders"] = pg.eval_on_selector_all(
+                    "#skl-grid .skl-card-dir", "els => els.every(e => e.textContent.trim().length > 0)")
+            else:
+                print("(github browse returned no cards - offline? skipping gh render checks)")
+            # back to builtin so the trailing checks below run against the catalog
+            pg.eval_on_selector(".skl-rail-cat[data-src='builtin']", "el => el.click()")
+            pg.wait_for_timeout(500)
         pg.eval_on_selector("#skl-grid .skl-card .skl-card-name", "el => el.click()")
         pg.wait_for_timeout(400)
         r["preview_opens"] = pg.eval_on_selector("#skl-drawer", "el => !!el && el.classList.contains('open')")

@@ -47,6 +47,11 @@ def browse_source(sid: str):
     if data.get("kind") == "builtin":
         have = {s["slug"] for s in skills_store.list_skills()}
         data["skills"] = [{**it, "installed": it["slug"] in have} for it in data["skills"]]
+    elif data.get("kind") == "github":
+        # an imported github skill stores source == the blob url == the card's import_url
+        srcs = {s.get("source") for s in skills_store.list_skills() if s.get("source")}
+        # don't mutate the cached dict (browse caches github results ~600s)
+        data = {**data, "skills": [{**it, "installed": it.get("import_url") in srcs} for it in data["skills"]]}
     return data
 
 

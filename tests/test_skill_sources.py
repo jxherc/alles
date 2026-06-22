@@ -14,6 +14,8 @@ def main():
     r["builtin_browse"] = b["kind"] == "builtin" and len(b["skills"]) > 0 and "body" in b["skills"][0]
     # pure url builder
     r["blob_url"] = ss._blob_url("o", "r", "main", "a/b/SKILL.md") == "https://github.com/o/r/blob/main/a/b/SKILL.md"
+    # pure breadcrumb builder (offline coverage for _dir's slicing)
+    r["dir_breadcrumb"] = ss._dir("a/b/c/SKILL.md") == "a / b" and ss._dir("foo/SKILL.md") == "" and ss._dir("SKILL.md") == ""
     # unknown source
     try:
         ss.browse("nope"); r["unknown_raises"] = False
