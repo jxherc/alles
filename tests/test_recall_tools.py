@@ -21,3 +21,19 @@ def test_recall_tool_finds_note():
     out = asyncio.run(agent_tools.execute("recall", {"query": "garage door code"}))
     assert not out.get("error")
     assert "garage code" in out["output"]
+
+
+from core.database import Account, Transaction
+from datetime import date
+
+def test_money_query_totals():
+    db = _bind_memory_db()
+    db.add(Account(id="ac", name="Checking", kind="checking", currency="$", opening=100.0)); db.commit()
+    mo = date.today().strftime("%Y-%m")
+    db.add(Transaction(id="t1", account_id="ac", date=f"{mo}-05", amount=-12.5, category="coffee", payee="Blue Bottle")); db.commit()
+    db.add(Transaction(id="t2", account_id="ac", date=f"{mo}-06", amount=-7.5, category="coffee", payee="Local Cafe")); db.commit()
+    out = asyncio.run(agent_tools.execute("money_query", {"query": "coffee"}))
+    assert not out.get("error")
+    assert "Checking" in out["output"]
+    assert "coffee" in out["output"].lower()
+    assert "20.0" in out["output"] or "20.00" in out["output"]  # matched 'coffee' spend
