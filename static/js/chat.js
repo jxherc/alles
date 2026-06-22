@@ -107,6 +107,18 @@ export async function sendMessage(text) {
     const model = getSelected()?.model || ep.models[0] || '';
     const s = await createSession(model, ep.id, { incognito: isIncognitoMode(), mode: getMode() });
     if (!s) { toast('failed to create session', 'error'); return; }
+    // carry over a persona picked before the session existed (fresh-chat picker)
+    if (window._pendingPersona) {
+      try {
+        await fetch(`/api/sessions/${s.id}`, {
+          method: 'PATCH', headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ persona_id: window._pendingPersona }),
+        });
+        s.persona_id = window._pendingPersona;
+      } catch {}
+      window._pendingPersona = null;
+    }
+    window._currentSession = s;
     sessionId = s.id;
     freshSession = true;     // first message ever → auto-name it after the reply
     markActive(sessionId);   // highlight + set active, don't re-render
