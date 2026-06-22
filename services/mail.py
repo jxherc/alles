@@ -116,7 +116,14 @@ def _imap(acct) -> imaplib.IMAP4:
                 pass
     M = _open_imap(acct)
     try:
-        M.login(acct.get("username") or acct.get("email", ""), acct.get("password", ""))
+        if acct.get("auth_type") == "oauth":
+            from services import mail_oauth
+
+            tok = mail_oauth.ensure_access_token(acct)
+            authstr = mail_oauth.xoauth2(acct.get("email", ""), tok)
+            M.authenticate("XOAUTH2", lambda _challenge: authstr.encode())
+        else:
+            M.login(acct.get("username") or acct.get("email", ""), acct.get("password", ""))
     except Exception:
         try:
             M.logout()
@@ -939,7 +946,14 @@ def send_mail(
                 except smtplib.SMTPNotSupportedError:
                     pass  # server without STARTTLS (some local/self-hosted servers)
             try:
-                s.login(user, pw)
+                if acct.get("auth_type") == "oauth":
+                    from services import mail_oauth
+
+                    tok = mail_oauth.ensure_access_token(acct)
+                    s.auth("XOAUTH2",
+                           lambda challenge=None: mail_oauth.xoauth2(acct.get("email", ""), tok))
+                else:
+                    s.login(user, pw)
                 s.send_message(msg)
             finally:
                 try:
