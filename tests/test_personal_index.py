@@ -81,7 +81,21 @@ def test_no_vault_adapter():
     db = _db()
     assert pix.index_record(db, "vault", object()) == 0
 
-from core.database import IndexChunk
+from core.database import IndexChunk, CachedMessage
+
+def test_mail_subject_indexed_and_body_batch(monkeypatch):
+    db = _db()
+    m = CachedMessage(id="m1", account_id="acc", uid="42", sender="sam@acme.com", subject="trip plans")
+    db.add(m); db.commit()
+    # subject/sender searchable immediately via the adapter
+    pix.index_record(db, "mail", m)
+    assert pix.search(db, "trip plans sam", kinds=["mail"], k=5)
+    # body indexer pulls the body and re-indexes, flips body_indexed
+    monkeypatch.setattr(pix, "_fetch_mail_body", lambda db, msg: "we leave friday from the north station")
+    n = pix._index_mail_batch(db, limit=10)
+    assert n == 1
+    assert db.query(CachedMessage).filter_by(id="m1").first().body_indexed is True
+    assert pix.search(db, "north station friday", kinds=["mail"], k=5)
 
 def test_backfill_and_reconcile_orphans():
     db = _db()
