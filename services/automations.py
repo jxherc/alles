@@ -9,10 +9,12 @@ triggers
   doc_tag <tag>           a doc is saved containing #tag (fires from the save route)
 
 actions
-  create_task   action_arg = task title template
-  push          action_arg = notification body template
-  create_note   action_arg = note content template
-  push_digest   push a summary of today (events/tasks/renewals) — for daily_at
+  create_task    action_arg = task title template
+  push           action_arg = notification body template
+  create_note    action_arg = note content template
+  push_digest    push a summary of today (events/tasks/renewals) — for daily_at
+  notify         send action_arg text to discord / telegram
+  notify_digest  send today's briefing to discord / telegram — for daily_at
 
 templates may use {from} {subject} {name} {date} {path} {tag} {price} — unknown
 placeholders are left as-is rather than crashing the rule.
@@ -25,7 +27,7 @@ from core.database import SessionLocal, AutomationRule, Task, Note
 log = logging.getLogger("aide.automations")
 
 TRIGGERS = ("mail_from", "sub_renewing", "day_event_near", "daily_at", "doc_tag", "agent_tool")
-ACTIONS = ("create_task", "push", "create_note", "push_digest")
+ACTIONS = ("create_task", "push", "create_note", "push_digest", "notify", "notify_digest")
 
 _MAIL_POLL_EVERY = 30  # seconds between IMAP polls for mail_from rules (pooled connections + 10s list cache keep this cheap)
 
@@ -80,6 +82,14 @@ async def _fire(db, rule, ctx: dict):
             await broadcast(
                 {"title": "your day", "body": body, "url": "/", "tag": f"digest-{rule.id}"}
             )
+        elif rule.action == "notify":
+            from services import notify
+
+            await notify.send(text[:1500])
+        elif rule.action == "notify_digest":
+            from services import notify
+
+            await notify.send(_digest(db))
         log.info(f"automation fired: {rule.name or rule.id} -> {rule.action}")
     except Exception as e:
         log.warning(f"automation action failed ({rule.name or rule.id}): {e}")
