@@ -80,3 +80,26 @@ def test_no_vault_adapter():
     # indexing an unknown kind is a no-op
     db = _db()
     assert pix.index_record(db, "vault", object()) == 0
+
+from core.database import IndexChunk
+
+def test_backfill_and_reconcile_orphans():
+    db = _db()
+    db.add(Note(id="a", title="alpha note", content="keep me")); db.commit()
+    db.add(Note(id="b", title="beta note", content="delete me")); db.commit()
+    assert pix.reindex_source(db, "note") == 2 or pix.reindex_source(db, "note") > 0
+    # delete row b at the table level WITHOUT a hook -> index now has an orphan
+    db.query(Note).filter_by(id="b").delete(); db.commit()
+    res = pix.reconcile(db)
+    assert res["orphans"] >= 1
+    refs = {c.ref for c in db.query(IndexChunk).filter_by(kind="note").all()}
+    assert "b" not in refs and "a" in refs
+
+def test_stats_and_clear():
+    db = _db()
+    db.add(Note(id="s1", title="x", content="hello world")); db.commit()
+    pix.reindex_source(db, "note")
+    st = pix.stats(db)
+    assert st["by_kind"].get("note", 0) >= 1
+    assert pix.clear(db) >= 1
+    assert pix.stats(db)["by_kind"].get("note", 0) == 0
