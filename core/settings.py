@@ -98,6 +98,10 @@ _defaults = {
     "pidx_proactive_cat_money": True,
     "pidx_proactive_cat_mail": True,
     "pidx_proactive_cat_journal": False,  # privacy-sensitive; off by default + honors the lock
+    # mail oauth ("sign in with google") - the user's own google cloud oauth client
+    "mail_oauth_client_id": "",
+    "mail_oauth_client_secret": "",
+    "mail_oauth_redirect_base": "",  # "" -> http://localhost:8000 ; set if you reach the app elsewhere
 }
 
 _ARTIFACT_INSTRUCTIONS = (
