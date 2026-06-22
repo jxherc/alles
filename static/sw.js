@@ -1,7 +1,7 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v103';   // remove canvas + board
+const VERSION = 'v104';   // notes redesign
 const CACHE = `alles-${VERSION}`;
-const STAMP = '129';   // keep in sync with index.html ?v= / const _v
+const STAMP = '130';   // keep in sync with index.html ?v= / const _v
 
 // 1b: mutating writes that should be queued when offline
 const MUTATING = ['POST', 'PUT', 'PATCH', 'DELETE'];

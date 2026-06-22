@@ -2599,14 +2599,19 @@ mark.wiki-cmark { background: rgba(129, 140, 248, 0.28); color: inherit; border-
 .page-view-footer input::placeholder { color: var(--muted); }
 
 /* note card */
+#notes-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 0.5rem; align-items: start; }
 .note-card {
   border: 1px solid var(--faint); border-radius: 3px;
-  padding: 0.75rem 0.9rem; margin-bottom: 0.4rem;
+  padding: 0.65rem 0.75rem; margin-bottom: 0;
+  display: flex; flex-direction: column; gap: 0.28rem; min-height: 82px;
   cursor: pointer; transition: border-color 0.2s, background 0.2s;
-  position: relative;
+  position: relative; overflow: hidden;
 }
 .note-card:hover { border-color: var(--muted); background: var(--panel); }
-.note-card.pinned { border-left: 2px solid var(--accent); padding-left: calc(0.9rem - 2px); }
+.note-card.pinned { border-left: 2px solid var(--accent); padding-left: calc(0.75rem - 2px); }
+.notes-empty { grid-column: 1 / -1; text-align: center; padding: 2.4rem 1rem; }
+.notes-empty-title { font-size: 0.85rem; color: var(--text); margin-bottom: 0.3rem; }
+.notes-empty-sub { font-size: 0.72rem; color: var(--muted); }
 /* note tags + tag filter bar */
 .note-tagbar { display: flex; flex-wrap: wrap; gap: 0.3rem; padding: 0 0 0.5rem; }
 .note-tag-chip { font-size: 0.62rem; color: var(--muted); background: none; border: 1px solid var(--faint); border-radius: 3px; padding: 0.1rem 0.4rem; cursor: pointer; }
@@ -2625,15 +2630,16 @@ mark.wiki-cmark { background: rgba(129, 140, 248, 0.28); color: inherit; border-
 .note-editor-fields { display: flex; gap: 0.4rem; }
 .note-title {
   font-size: 0.82rem; font-weight: 500; color: var(--text);
-  margin-bottom: 0.2rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 1.5rem;
 }
 .note-preview {
-  font-size: 0.75rem; color: var(--muted);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  font-size: 0.74rem; color: var(--muted); line-height: 1.45;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
 }
 .note-actions {
-  position: absolute; right: 0.75rem; top: 50%; transform: translateY(-50%);
+  position: absolute; right: 0.4rem; top: 0.4rem; transform: none;
   display: flex; gap: 0; opacity: 0; transition: opacity 0.15s;
+  background: var(--panel); border-radius: 3px;
 }
 .note-card:hover .note-actions { opacity: 1; }
 
