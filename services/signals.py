@@ -146,7 +146,7 @@ def _subs(db, today):
             u = 25
         detail = f"renews in {in_days}d" if in_days >= 0 else f"overdue {-in_days}d"
         out.append(_sig("sub", f"sub_renew:{s.id}:{s.next_due}", u, s.name, detail,
-                        "subscriptions",
+                        "subs",
                         {"id": s.id, "name": s.name, "in_days": in_days, "price": s.price,
                          "currency": s.currency, "remind_days": rd}))
     return out
