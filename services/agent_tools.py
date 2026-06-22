@@ -44,6 +44,7 @@ def _settings() -> dict:
 
 
 TOOL_PERMISSION = {
+    "recall": "read",
     "shell": "shell",
     "read_file": "read",
     "write_file": "write",
@@ -1301,6 +1302,8 @@ async def execute(name: str, args: dict) -> dict:
         return await _mail_send(
             args.get("to", ""), args.get("subject", ""), args.get("body", ""), args.get("cc", "")
         )
+    if name == "recall":
+        return await _recall(args.get("query", ""), int(args.get("top_k") or 8))
     return {"output": f"unknown tool: {name}", "error": True}
 
 
@@ -1855,6 +1858,23 @@ async def _mail_send(to, subject, body, cc):
         return {"output": f"sent to {to}"}
     except Exception as e:
         return {"output": f"send failed: {e}", "error": True}
+
+
+async def _recall(query, top_k):
+    from core.database import SessionLocal
+    from services import personal_index
+    db = SessionLocal()
+    try:
+        hits = personal_index.search(db, query, k=int(top_k or 8))
+        if not hits:
+            return {"output": "no matches in your indexed data", "error": False}
+        lines = []
+        for h in hits:
+            snip = (h.get("chunk") or "")[:200].replace("\n", " ")
+            lines.append(f"[{h['score']}] {h['label']} ({h['link']}): {snip}")
+        return {"output": "\n".join(lines), "error": False}
+    finally:
+        db.close()
 
 
 async def stream_execute(name: str, args: dict):
@@ -2599,6 +2619,18 @@ APP_TOOL_DEFS = [
         ["name", "url"],
     ),
     _tool("watch_status", "Show each monitor's latest up/down status.", {}),
+    _tool(
+        "recall",
+        "Semantically recall the user's own saved text - their notes, journal, mail, contacts, "
+        "saved articles, and books. Use for 'find / what did / remember / which' questions about "
+        "the user's life. Cite each fact with the returned source link; if nothing comes back, say "
+        "you found nothing rather than guessing.",
+        {
+            "query": {"type": "string", "description": "what to look for"},
+            "top_k": {"type": "integer", "default": 8},
+        },
+        ["query"],
+    ),
 ]
 
 
@@ -2685,6 +2717,7 @@ def decide_permission(name, args, mode, rules):
 # results). their output is wrapped so the model treats it as DATA, not instructions —
 # the classic prompt-injection vector ("ignore previous instructions…" hidden in a page).
 UNTRUSTED_TOOLS = {
+    "recall",
     "web_fetch",
     "web_search",
     "read_file",
