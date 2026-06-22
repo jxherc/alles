@@ -71,6 +71,14 @@ _defaults = {
     "mail_poll_seconds": 30,
     "mail_signature": "",
     "mail_vips": [],  # VIP sender emails (Apple Mail style)
+    # personal recall index toggles
+    "pidx_enabled": True,
+    "pidx_mail": True,
+    "pidx_note": True,
+    "pidx_journal": True,
+    "pidx_contact": True,
+    "pidx_read": True,
+    "pidx_book": True,
 }
 
 _ARTIFACT_INSTRUCTIONS = (

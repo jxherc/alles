@@ -74,6 +74,14 @@ class SettingsPatch(BaseModel):
     mail_signature: str | None = None  # appended/prefilled when composing
     mail_threads: str | None = None  # group mail by conversation
     docs_ai_model: str | None = None  # model for docs AI edits
+    # personal recall index toggles
+    pidx_enabled: bool | None = None
+    pidx_mail: bool | None = None
+    pidx_note: bool | None = None
+    pidx_journal: bool | None = None
+    pidx_contact: bool | None = None
+    pidx_read: bool | None = None
+    pidx_book: bool | None = None
 
 
 @router.patch("/settings")
