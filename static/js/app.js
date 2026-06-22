@@ -756,6 +756,12 @@ async function _renderToday() {
   if (unread.length)
     row('mail', '✉', `${unread.length} unread — ${_escT((unread[0].subject || '').slice(0, 50))}`);
 
+  // proactive cards — advisory suggestions aide surfaced on its own
+  let cards = [];
+  try { cards = await fetch('/api/proactive').then(r => r.json()); } catch {}
+  for (const c of (cards || []).slice(0, 4))
+    rows.push(`<div class="ht-row ht-card" data-go="${c.link || 'home'}"><span class="ht-ico">✦</span><span class="ht-body">${_escT(c.title)}${c.body ? ` <span class="ht-sub">— ${_escT(c.body)}</span>` : ''}</span><button class="icon-btn ht-x" data-dismiss="${c.id}" title="dismiss">✕</button></div>`);
+
   // recents aren't "today" items — when they're all we have, lead with the
   // clear-day note so the strip still reads as a day view
   const scheduled = rows.length;
@@ -768,6 +774,11 @@ async function _renderToday() {
   el.style.display = 'flex';
 
   el.querySelectorAll('.ht-row').forEach(r => r.addEventListener('click', () => navigateTo(r.dataset.go)));
+  el.querySelectorAll('.ht-x').forEach(b => b.addEventListener('click', async (ev) => {
+    ev.stopPropagation();
+    try { await fetch(`/api/proactive/${b.dataset.dismiss}/dismiss`, { method: 'POST' }); } catch {}
+    b.closest('.ht-row')?.remove();
+  }));
   document.getElementById('ht-ask')?.addEventListener('click', () => _askAideAboutToday(d, unread));
 }
 
