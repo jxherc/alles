@@ -109,6 +109,18 @@ def test_backfill_and_reconcile_orphans():
     refs = {c.ref for c in db.query(IndexChunk).filter_by(kind="note").all()}
     assert "b" not in refs and "a" in refs
 
+def test_mail_failed_fetch_retryable(monkeypatch):
+    db = _db()
+    m = CachedMessage(id="m2", account_id="acc", uid="99", sender="x@y.com", subject="retryable subject")
+    db.add(m); db.commit()
+    # failed fetch returns empty string
+    monkeypatch.setattr(pix, "_fetch_mail_body", lambda db, msg: "")
+    n = pix._index_mail_batch(db, limit=10)
+    assert n == 0  # nothing marked done
+    assert db.query(CachedMessage).filter_by(id="m2").first().body_indexed is False  # still retryable
+    # subject is still searchable (it was indexed via text even without a body)
+    assert pix.search(db, "retryable", kinds=["mail"], k=5)
+
 def test_stats_and_clear():
     db = _db()
     db.add(Note(id="s1", title="x", content="hello world")); db.commit()

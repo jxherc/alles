@@ -1888,6 +1888,7 @@ async def _money_query(query):
         accts = db.query(Account).filter_by(archived=False).all()
         txns = db.query(Transaction).all()
         bal = {a.id: (a.opening or 0.0) for a in accts}
+        txns = [t for t in txns if t.account_id in bal]  # scope to non-archived accounts
         for t in txns:
             if t.account_id in bal:
                 bal[t.account_id] += (t.amount or 0.0)
