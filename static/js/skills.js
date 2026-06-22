@@ -36,8 +36,9 @@ const _CAT_ORDER = [
 const _catOf = s => (s.category && _CAT_LABEL[s.category]) ? s.category : 'custom';
 
 // ── view state ────────────────────────────────────────────────────────────────
-let _state = { mode: 'installed', cat: 'all', q: '', editing: null };
-let _data = [];   // raw rows for the current mode (installed skills or catalog items)
+let _state = { mode: 'installed', cat: 'all', q: '', source: null };
+let _data = [];
+let _sources = [];
 
 export function initSkills() {
   const body = $('skills-body');
@@ -61,7 +62,10 @@ export function initSkills() {
     // rail clicks (delegated): category select + library/github/upload actions
     $('skl-rail').addEventListener('click', e => {
       const cat = e.target.closest('.skl-rail-cat');
-      if (cat) { _state.cat = cat.dataset.cat; _render(); return; }
+      if (cat) {
+        if (cat.dataset.src) { _state.q = ''; if ($('skl-search')) $('skl-search').value = ''; _browseSource(cat.dataset.src); return; }
+        _state.cat = cat.dataset.cat; _render(); return;
+      }
       const act = e.target.closest('.skl-rail-act')?.dataset.act;
       if (act === 'library') _toggleLibrary();
       else if (act === 'github') _importGithub();
@@ -69,21 +73,16 @@ export function initSkills() {
     });
     _built = true;
   }
-  _state = { mode: 'installed', cat: 'all', q: '', editing: null };
+  _state = { mode: 'installed', cat: 'all', q: '', source: null };
   _refresh();
 }
 
 async function _refresh() {
+  if (_state.mode === 'library') return _browseSource(_state.source || 'builtin');
   const grid = $('skl-grid');
   if (grid) grid.innerHTML = '<div class="skl-empty">loading…</div>';
-  try {
-    _data = _state.mode === 'library'
-      ? await _api('/api/skills/catalog')
-      : await _api('/api/skills' + (_state.q ? `?q=${encodeURIComponent(_state.q)}` : ''));
-  } catch {
-    if (grid) grid.innerHTML = '<div class="skl-empty" style="color:var(--error)">failed to load</div>';
-    return;
-  }
+  try { _data = await _api('/api/skills' + (_state.q ? `?q=${encodeURIComponent(_state.q)}` : '')); }
+  catch { if (grid) grid.innerHTML = '<div class="skl-empty" style="color:var(--error)">failed to load</div>'; return; }
   _render();
 }
 
@@ -99,6 +98,10 @@ function _catCounts(rows) {
 
 function _visible() {
   const ql = _state.q.toLowerCase();
+  if (_state.mode === 'library') {
+    if (!ql) return _data;
+    return _data.filter(s => (`${s.name || ''} ${s.description || ''} ${s.when_to_use || ''}`).toLowerCase().includes(ql));
+  }
   return _data.filter(s => {
     if (ql) return (`${s.name} ${s.description} ${s.when_to_use || ''}`).toLowerCase().includes(ql);
     if (_state.cat === 'pinned') return !!s.pinned;
@@ -108,23 +111,33 @@ function _visible() {
 }
 
 function _render() {
-  _renderRail(_catCounts(_data));
+  _renderRail();
   _renderGrid(_visible());
 }
 
-function _renderRail(counts) {
+function _renderRail() {
   const rail = $('skl-rail');
   if (!rail) return;
-  const row = (key, label) => counts[key]
-    ? `<button class="skl-rail-cat${_state.cat === key ? ' active' : ''}" data-cat="${key}">
-         <span class="skl-rail-label">${esc(label)}</span><span class="skl-rail-count">${counts[key]}</span>
-       </button>` : '';
   let html = '';
-  if (_state.q) html += `<div class="skl-rail-results">results · ${_visible().length}</div>`;
-  if (counts.pinned) html += row('pinned', 'pinned');
-  html += row('all', _state.mode === 'library' ? 'library' : 'all');
-  for (const k of _CAT_ORDER) if (k !== 'custom') html += row(k, _CAT_LABEL[k]);
-  html += row('custom', 'custom');
+  if (_state.mode === 'library') {
+    for (const s of _sources) {
+      const active = s.id === _state.source;
+      html += `<button class="skl-rail-cat${active ? ' active' : ''}" data-src="${esc(s.id)}">
+          <span class="skl-rail-label">${esc(s.name)}</span><span class="skl-rail-count">${s.count || ''}</span>
+        </button>`;
+    }
+  } else {
+    const counts = _catCounts(_data);
+    const row = (key, label) => counts[key]
+      ? `<button class="skl-rail-cat${_state.cat === key ? ' active' : ''}" data-cat="${key}">
+           <span class="skl-rail-label">${esc(label)}</span><span class="skl-rail-count">${counts[key]}</span>
+         </button>` : '';
+    if (_state.q) html += `<div class="skl-rail-results">results · ${_visible().length}</div>`;
+    if (counts.pinned) html += row('pinned', 'pinned');
+    html += row('all', 'all');
+    for (const k of _CAT_ORDER) if (k !== 'custom') html += row(k, _CAT_LABEL[k]);
+    html += row('custom', 'custom');
+  }
   html += `<div class="skl-rail-foot">
       <button class="skl-rail-act${_state.mode === 'library' ? ' active' : ''}" data-act="library">⊕ library</button>
       <button class="skl-rail-act" data-act="github">↳ github</button>
@@ -138,19 +151,13 @@ function _renderRail(counts) {
 function _renderGrid(list) {
   const grid = $('skl-grid');
   if (!grid) return;
-  if (!list.length) {
-    grid.innerHTML = `<div class="skl-empty">${_state.q ? 'no matches' : 'nothing here yet'}</div>`;
-    return;
-  }
-  // pinned float to the top (installed mode); catalog rows have no pinned flag
-  const sorted = [...list].sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0));
-  let head = '';
+  if (!list.length) { grid.innerHTML = `<div class="skl-empty">${_state.q ? 'no matches' : 'nothing here'}</div>`; return; }
   if (_state.mode === 'library') {
-    const remaining = _data.filter(c => !c.installed).length;
-    head = `<div class="skl-lib-bar">library · ${_data.length}${remaining ? ` · <button class="btn skl-addall">add all (${remaining})</button>` : ' · all added ✓'}</div>`;
+    grid.innerHTML = list.map(_state.source === 'builtin' ? _libCard : _srcCard).join('');
+  } else {
+    const sorted = [...list].sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0));
+    grid.innerHTML = sorted.map(_card).join('');
   }
-  grid.innerHTML = head + sorted.map(_card).join('');
-  if (_state.mode === 'library') grid.querySelector('.skl-addall')?.addEventListener('click', () => _install(_data.filter(c => !c.installed).map(c => c.slug)));
   _bindCards(grid);
 }
 
@@ -182,8 +189,11 @@ function _bindCards(root) {
   root.querySelectorAll('.skl-card').forEach(c => {
     c.onclick = e => {
       const act = e.target.closest('[data-act]')?.dataset.act;
-      if (act === 'add') { e.stopPropagation(); _install([c.dataset.slug]); return; }
-      if (_state.mode === 'library') return;   // library cards: only the add button acts
+      if (_state.mode === 'library') {
+        if (act === 'add') { e.stopPropagation(); _addFromLibrary(c); return; }
+        _previewLibrary(c);
+        return;
+      }
       if (act === 'pin') { e.stopPropagation(); _togglePin(c.dataset.slug, !e.target.classList.contains('on')); }
       else if (act === 'del') { e.stopPropagation(); _deleteCard(c.dataset.slug); }
       else _openDrawer(c.dataset.slug);
@@ -211,13 +221,55 @@ async function _deleteCard(slug) {
 }
 
 // ── library mode ────────────────────────────────────────────────────────────
-function _toggleLibrary() {
-  _state.mode = _state.mode === 'library' ? 'installed' : 'library';
-  _state.cat = 'all';
-  _state.q = '';
+async function _toggleLibrary() {
+  if (_state.mode === 'library') {
+    _state.mode = 'installed'; _state.cat = 'all'; _state.q = ''; _state.source = null;
+    if ($('skl-search')) $('skl-search').value = '';
+    _refresh(); return;
+  }
+  _state.mode = 'library'; _state.q = '';
   if ($('skl-search')) $('skl-search').value = '';
-  _refresh();
+  try { _sources = await _api('/api/skills/sources'); }
+  catch { _sources = [{ id: 'builtin', name: 'built-in', kind: 'builtin', count: 0 }]; }
+  _browseSource('builtin');
 }
+
+async function _browseSource(id) {
+  _state.source = id;
+  _renderRail();
+  const grid = $('skl-grid');
+  if (grid) grid.innerHTML = '<div class="skl-empty">loading…</div>';
+  let data;
+  try { data = await _api(`/api/skills/sources/${encodeURIComponent(id)}/browse`); }
+  catch { if (grid) grid.innerHTML = '<div class="skl-empty" style="color:var(--error)">couldn\'t reach this source</div>'; return; }
+  _data = data.skills || [];
+  _render();
+}
+
+const _libCard = s => `
+  <div class="skl-card" data-slug="${esc(s.slug)}" data-kind="builtin">
+    <div class="skl-card-top"><span class="skl-card-name">${esc(s.name)}</span></div>
+    <div class="skl-card-desc">${esc(s.description) || ''}</div>
+    ${s.installed ? '<span class="skl-added">✓ added</span>' : '<button class="skl-add" data-act="add">+ add</button>'}
+  </div>`;
+
+const _srcCard = s => `
+  <div class="skl-card" data-path="${esc(s.path)}" data-url="${esc(s.import_url)}" data-kind="github">
+    <div class="skl-card-top"><span class="skl-card-name">${esc(s.name)}</span></div>
+    <div class="skl-card-desc skl-card-path">${esc(s.path)}</div>
+    <button class="skl-add" data-act="add">+ add</button>
+  </div>`;
+
+async function _addFromLibrary(c) {
+  if (c.dataset.kind === 'builtin') { await _install([c.dataset.slug]); return; }
+  try {
+    await _api('/api/skills/import-github', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ url: c.dataset.url }) });
+    toast('added', 'success');
+    _browseSource(_state.source);
+  } catch { toast('add failed', 'error'); }
+}
+
+function _previewLibrary(c) { /* Task 3 */ }
 
 async function _install(slugs) {
   if (!slugs.length) return;
