@@ -367,6 +367,7 @@ const showFilesView      = () => showView('files-view',     'files',     () => {
 const showMailView       = () => showView('mail-view',      'mail',      loadMail);
 const showPhotosView     = () => showView('photos-view',    'photos',    () => { initPhotos(); loadPhotos(); });
 const showHomeView       = () => showView('home-view',      'home',      renderHome);
+const showProactiveView  = () => showView('proactive-view', 'proactive', loadProactiveFeed);
 
 // central nav dispatch — used by both the sidebar nav-items and the home tiles
 function navigateTo(v) {
@@ -389,6 +390,7 @@ function navigateTo(v) {
   else if (v === 'vault')     showVaultView();
   else if (v === 'contacts')  showContactsView();
   else if (v === 'reminders') showRemindersView();
+  else if (v === 'proactive') showProactiveView();
   else if (v === 'subs')      showSubsView();
   else if (v === 'money')     showMoneyView();
   else if (v === 'days')      showDaysView();
@@ -780,6 +782,46 @@ async function _renderToday() {
     b.closest('.ht-row')?.remove();
   }));
   document.getElementById('ht-ask')?.addEventListener('click', () => _askAideAboutToday(d, unread));
+}
+
+// the dedicated proactive feed (its own nav view) — all live cards, not just the
+// top few the today strip shows
+async function loadProactiveFeed() {
+  const el = document.getElementById('prox-feed');
+  if (!el) return;
+  const runBtn = document.getElementById('prox-feed-run');
+  if (runBtn && !runBtn.dataset.bound) {
+    runBtn.dataset.bound = '1';
+    runBtn.addEventListener('click', async () => {
+      runBtn.disabled = true; runBtn.textContent = 'thinking…';
+      try { await fetch('/api/proactive/run', { method: 'POST' }); } catch {}
+      runBtn.disabled = false; runBtn.textContent = 'run now';
+      loadProactiveFeed();
+    });
+  }
+  let cards = [];
+  try { cards = await fetch('/api/proactive').then(r => r.json()); } catch {}
+  if (!cards.length) {
+    el.innerHTML = '<div class="prox-empty">nothing right now — aide surfaces things here as they come up.</div>';
+    return;
+  }
+  el.innerHTML = cards.map(c => `
+    <div class="prox-card" data-go="${c.link || 'home'}">
+      <div class="prox-card-main">
+        <div class="prox-card-title">${_escT(c.title)}</div>
+        ${c.body ? `<div class="prox-card-body">${_escT(c.body)}</div>` : ''}
+      </div>
+      <span class="prox-card-cat">${_escT(c.category || '')}</span>
+      <button class="icon-btn prox-card-x" data-dismiss="${c.id}" title="dismiss">✕</button>
+    </div>`).join('');
+  el.querySelectorAll('.prox-card').forEach(card =>
+    card.addEventListener('click', () => navigateTo(card.dataset.go)));
+  el.querySelectorAll('.prox-card-x').forEach(b => b.addEventListener('click', async (ev) => {
+    ev.stopPropagation();
+    try { await fetch(`/api/proactive/${b.dataset.dismiss}/dismiss`, { method: 'POST' }); } catch {}
+    b.closest('.prox-card')?.remove();
+    if (!document.querySelector('.prox-card')) loadProactiveFeed();
+  }));
 }
 
 function _askAideAboutToday(d, unread) {

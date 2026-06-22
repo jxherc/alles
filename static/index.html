@@ -30,7 +30,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/style.css?v=124">
+<link rel="stylesheet" href="/static/style.css?v=125">
 <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#0a0a0a">
@@ -72,6 +72,7 @@
         <div class="nav-item" data-view="usage">usage</div>
         <div class="nav-item" data-view="skills">skills</div>
         <div class="nav-item" data-view="reminders">reminders</div>
+        <div class="nav-item" data-view="proactive">proactive</div>
         <div class="nav-item" data-view="compare">compare</div>
       </div>
       <div class="nav-sep"></div>
@@ -315,6 +316,17 @@
         <div style="font-size:0.7rem;color:var(--muted);margin-top:0.5rem">
           tip: use <code>/remind in 2h check deployment</code> or <code>/send at 3pm summarize my day</code> from chat
         </div>
+      </div>
+    </div>
+
+    <!-- ── proactive feed ── -->
+    <div class="page-view" id="proactive-view" style="display:none">
+      <div class="page-view-head">
+        <span class="page-view-title">proactive</span>
+        <button class="btn" id="prox-feed-run" style="margin-left:auto;font-size:0.72rem">run now</button>
+      </div>
+      <div class="page-view-body">
+        <div id="prox-feed" class="prox-feed"></div>
       </div>
     </div>
 
@@ -1755,7 +1767,7 @@
 </div>
 
 <script type="module">
-const _v = '124';
+const _v = '125';
 import(`/static/js/app.js?v=${_v}`);
 </script>
 </body>

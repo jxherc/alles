@@ -3410,6 +3410,22 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 }
 .ht-row:hover .ht-x { opacity: 1; }
 .ht-x:hover { color: var(--text); }
+/* dedicated proactive feed view */
+.prox-feed { display: flex; flex-direction: column; gap: 0.4rem; }
+.prox-card {
+  display: flex; align-items: flex-start; gap: 0.6rem;
+  padding: 0.6rem 0.7rem; border: 1px solid var(--faint); border-radius: 3px;
+  background: var(--panel); cursor: pointer;
+}
+.prox-card:hover { border-color: var(--muted); }
+.prox-card-main { flex: 1; min-width: 0; }
+.prox-card-title { font-size: 0.82rem; color: var(--text); }
+.prox-card-body { font-size: 0.74rem; color: var(--muted); margin-top: 0.15rem; }
+.prox-card-cat { font-size: 0.6rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; flex-shrink: 0; padding-top: 0.15rem; }
+.prox-card-x { flex-shrink: 0; width: 20px; height: 20px; font-size: 0.7rem; color: var(--muted); opacity: 0; padding: 0; }
+.prox-card:hover .prox-card-x { opacity: 1; }
+.prox-card-x:hover { color: var(--text); }
+.prox-empty { font-size: 0.78rem; color: var(--muted); padding: 1rem 0.2rem; }
 
 /* ── schedule-send popup ── */
 .schedule-pop {
