@@ -1,7 +1,7 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v93';   // skill ranking surface
+const VERSION = 'v94';   // personal recall settings
 const CACHE = `alles-${VERSION}`;
-const STAMP = '119';   // keep in sync with index.html ?v= / const _v
+const STAMP = '120';   // keep in sync with index.html ?v= / const _v
 
 // 1b: mutating writes that should be queued when offline
 const MUTATING = ['POST', 'PUT', 'PATCH', 'DELETE'];
