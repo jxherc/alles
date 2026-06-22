@@ -82,5 +82,65 @@
     "description": "tallies assets minus debts into one tracked number",
     "when_to_use": "when the user wants a single snapshot of their financial position or to track progress",
     "body": "1. list assets: cash, accounts, investments, property, anything resellable at honest value.\n2. list liabilities: every loan, card balance, and amount owed.\n3. subtract liabilities from assets for the net worth figure.\n4. note the 1-2 line items moving it most so they know the levers.\n5. set a cadence (monthly/quarterly) to re-run and compare the trend."
+  },
+  {
+    "name": "Tax Estimate",
+    "description": "quickly sizes the tax bill or refund before filing season",
+    "when_to_use": "when the user wants a rough sense of what they owe or will get back before they file",
+    "body": "1. get total gross income from all sources for the year.\n2. ask about obvious deductions: retirement contributions, student loan interest, hsa, standard vs itemized.\n3. estimate taxable income and apply the relevant federal brackets.\n4. subtract withholding already paid to find owe or refund.\n5. flag any surprise areas (side income, capital gains, underpayment penalty risk).\n6. give the rough number and say whether to adjust withholding now."
+  },
+  {
+    "name": "50/30/20 Check",
+    "description": "scores current spend against the 50/30/20 rule and shows what's off",
+    "when_to_use": "when the user wants a quick gut-check on whether their spending split is healthy",
+    "body": "1. get net monthly income and actual spend by category.\n2. sort categories into needs (50%), wants (30%), savings/debt (20%).\n3. calculate the percentage falling in each bucket vs the target.\n4. highlight the one bucket most over and by how much in dollars.\n5. suggest the single shift that brings the worst bucket back in range."
+  },
+  {
+    "name": "Credit Score",
+    "description": "explains what's hurting or helping the score and what to fix first",
+    "when_to_use": "when the user wants to understand or improve their credit score",
+    "body": "1. ask for the current score range and the top negative factors if they have a report.\n2. map each factor to its weight: payment history 35%, utilization 30%, length 15%, mix/new 20%.\n3. rank the factors by impact and ease of fix.\n4. give one concrete action for the highest-impact fixable item (pay down card x to below 30% of limit, etc.).\n5. set a realistic timeline for visible score movement."
+  },
+  {
+    "name": "Refi Math",
+    "description": "calculates if refinancing a loan actually saves money after closing costs",
+    "when_to_use": "when the user is considering refinancing a mortgage, auto loan, or student loan",
+    "body": "1. get current rate, remaining balance, remaining term, and monthly payment.\n2. get the new rate, new term, and estimated closing costs or fees.\n3. calculate new monthly payment and the monthly savings.\n4. divide total closing costs by monthly savings to get the break-even month.\n5. compare break-even to how long they plan to hold the loan - refi only wins if they stay past it."
+  },
+  {
+    "name": "Investment Basics",
+    "description": "explains a financial product or term in plain language without jargon",
+    "when_to_use": "when the user asks what something is (etf, bond, roth, index fund, etc.) and wants a plain explanation",
+    "body": "1. identify the exact term or product they asked about.\n2. describe it in one sentence as if explaining to someone with no finance background.\n3. say how it actually works mechanically (what you buy, how you earn, who holds it).\n4. name the main risk and the main benefit.\n5. give a concrete one-line example with real numbers if it helps."
+  },
+  {
+    "name": "Side Income",
+    "description": "sizes up a side hustle's real after-cost, after-tax earnings",
+    "when_to_use": "when the user is thinking about starting or evaluating a side gig or freelance income stream",
+    "body": "1. get the expected gross revenue and hours per month.\n2. subtract direct costs (supplies, platform fees, mileage, tools).\n3. estimate self-employment tax and income tax on the net profit.\n4. compute true hourly rate after costs and taxes.\n5. compare to their current job's hourly equivalent and flag whether it's worth the time."
+  },
+  {
+    "name": "Irregular Income",
+    "description": "builds a stable spending system when income varies month to month",
+    "when_to_use": "when the user is freelance, commission-based, or has unpredictable income",
+    "body": "1. find the lowest single-month income over the past year - that's the floor to budget from.\n2. set fixed expenses to be coverable by the floor, not the average.\n3. in good months, fill an income-smoothing buffer before spending anything extra.\n4. define what counts as 'surplus' and route it: buffer first, then debt/savings, then discretionary.\n5. give a simple rule: if buffer is full and bills are covered, the rest is free to spend."
+  },
+  {
+    "name": "Money Tradeoff",
+    "description": "shows what else the money could do before committing it",
+    "when_to_use": "when the user is about to make a large financial decision and should weigh alternatives",
+    "body": "1. note the amount being considered and its intended use.\n2. list 2-3 realistic alternative uses: paying debt, investing, emergency fund, etc.\n3. calculate the rough 5-year value of each alternative (debt interest saved, investment return at 7%).\n4. contrast that with the value or enjoyment from the intended use.\n5. present the tradeoff plainly and let them decide - don't moralize, just make the cost visible."
+  },
+  {
+    "name": "Windfall Plan",
+    "description": "allocates an unexpected lump sum without wasting it",
+    "when_to_use": "when the user receives unexpected money (bonus, tax refund, inheritance, gift) and wants to use it well",
+    "body": "1. get the amount and whether any tax is still owed on it.\n2. lock in a split order: emergency fund gap → high-interest debt → savings goal → invest → spend.\n3. ask if there's a specific goal the money was mentally earmarked for.\n4. fill each bucket in order until the money runs out, stopping when it does.\n5. give the final dollar breakdown across buckets and note anything left as guilt-free spend."
+  },
+  {
+    "name": "Insurance Check",
+    "description": "reviews whether current coverage is adequate or over-bought",
+    "when_to_use": "when the user wants to know if they have the right amount or type of insurance",
+    "body": "1. list the types they currently have and monthly or annual premiums.\n2. for each, ask what the deductible and payout limit are.\n3. flag obvious gaps (no renters/term life with dependents, no umbrella with assets) or clear over-coverage.\n4. estimate whether the gap between premium savings and risk exposure is worth switching.\n5. give 1-2 concrete changes: cancel x, add y, or raise deductible on z to drop premium by $n/mo."
   }
 ]

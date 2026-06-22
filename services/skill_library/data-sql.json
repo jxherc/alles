@@ -3,19 +3,19 @@
     "name": "Write Query",
     "description": "turn a plain-language data question into a correct sql query",
     "when_to_use": "when the user asks for data that requires a select, join, or aggregation they haven't written",
-    "body": "1. restate the question and confirm which tables/columns hold the answer.\n2. sketch the grain: one row per what (user, order, day) before writing select.\n3. build from clauses inward — from, joins, where, group by, having, order by.\n4. add explicit column aliases and avoid select * in anything reusable.\n5. dry-run on a limit 100 subset and eyeball the shape before trusting it."
+    "body": "1. restate the question and confirm which tables/columns hold the answer.\n2. sketch the grain: one row per what (user, order, day) before writing select.\n3. build from clauses inward - from, joins, where, group by, having, order by.\n4. add explicit column aliases and avoid select * in anything reusable.\n5. dry-run on a limit 100 subset and eyeball the shape before trusting it."
   },
   {
     "name": "Clean Dataset",
     "description": "fix a messy table so it's safe to analyze",
     "when_to_use": "when the user hands over a raw csv or table full of nulls, dupes, or junk values",
-    "body": "1. profile first: row count, null rate per column, distinct counts, min/max.\n2. dedupe on the real key, not the whole row — find what should be unique.\n3. normalize types: trim strings, cast dates, coerce numerics, unify casing.\n4. decide null policy per column (drop, fill, flag) and write it down.\n5. quarantine bad rows into a reject table instead of silently dropping them.\n6. re-profile after and confirm the counts moved the way you expected."
+    "body": "1. profile first: row count, null rate per column, distinct counts, min/max.\n2. dedupe on the real key, not the whole row - find what should be unique.\n3. normalize types: trim strings, cast dates, coerce numerics, unify casing.\n4. decide null policy per column (drop, fill, flag) and write it down.\n5. quarantine bad rows into a reject table instead of silently dropping them.\n6. re-profile after and confirm the counts moved the way you expected."
   },
   {
     "name": "Explore Data",
     "description": "get oriented in an unfamiliar dataset before doing real work",
     "when_to_use": "when the user points at a new table or db and asks what's in it or where to start",
-    "body": "1. list tables and row counts to find the big/important ones.\n2. for each key table dump schema + 10 sample rows to see actual values.\n3. check distincts and top values on categorical columns for hidden categories.\n4. find the keys and how tables join — look for shared id columns.\n5. flag anything weird (sentinel dates, 0 vs null, encoded enums) for the user."
+    "body": "1. list tables and row counts to find the big/important ones.\n2. for each key table dump schema + 10 sample rows to see actual values.\n3. check distincts and top values on categorical columns for hidden categories.\n4. find the keys and how tables join - look for shared id columns.\n5. flag anything weird (sentinel dates, 0 vs null, encoded enums) for the user."
   },
   {
     "name": "Spreadsheet Formula",
@@ -33,7 +33,7 @@
     "name": "Explain Plan",
     "description": "read a query plan and say why a query is slow",
     "when_to_use": "when the user complains a query is slow or asks how the engine runs it",
-    "body": "1. run explain analyze (not just explain) to get real timings and row counts.\n2. read bottom-up — find the node eating the most time or rows.\n3. spot the usual suspects: seq scans on big tables, nested loops over big sets, estimate vs actual row blowups.\n4. tie each problem to a fix: index, rewrite join, add filter, update stats.\n5. report the single biggest win first, not a laundry list."
+    "body": "1. run explain analyze (not just explain) to get real timings and row counts.\n2. read bottom-up - find the node eating the most time or rows.\n3. spot the usual suspects: seq scans on big tables, nested loops over big sets, estimate vs actual row blowups.\n4. tie each problem to a fix: index, rewrite join, add filter, update stats.\n5. report the single biggest win first, not a laundry list."
   },
   {
     "name": "Optimize Query",
@@ -45,25 +45,25 @@
     "name": "Join Tables",
     "description": "combine tables correctly without dropping or duplicating rows",
     "when_to_use": "when the user needs data from multiple tables and joins are involved or going wrong",
-    "body": "1. state the grain of each table and which is the driving table.\n2. pick join type from intent: inner keeps matches, left keeps all of the driver.\n3. join on the full key, not a partial one, to avoid fan-out duplicates.\n4. after joining, check row count vs the driver — a jump means a many-side blew up.\n5. handle nulls from outer joins explicitly with coalesce where needed."
+    "body": "1. state the grain of each table and which is the driving table.\n2. pick join type from intent: inner keeps matches, left keeps all of the driver.\n3. join on the full key, not a partial one, to avoid fan-out duplicates.\n4. after joining, check row count vs the driver - a jump means a many-side blew up.\n5. handle nulls from outer joins explicitly with coalesce where needed."
   },
   {
     "name": "Window Function",
     "description": "compute running totals, ranks, or row-relative metrics",
     "when_to_use": "when the user wants per-group rankings, running sums, or compare-to-previous-row math",
-    "body": "1. decide partition by (the group) and order by (the sequence within it).\n2. pick the function: row_number/rank for ordering, sum over for running totals, lag/lead for neighbors.\n3. set the frame explicitly (rows between) when it's a running or moving calc.\n4. remember windows run after where — use a subquery/cte to filter on their output.\n5. verify on one partition by hand to confirm the ordering is right."
+    "body": "1. decide partition by (the group) and order by (the sequence within it).\n2. pick the function: row_number/rank for ordering, sum over for running totals, lag/lead for neighbors.\n3. set the frame explicitly (rows between) when it's a running or moving calc.\n4. remember windows run after where - use a subquery/cte to filter on their output.\n5. verify on one partition by hand to confirm the ordering is right."
   },
   {
     "name": "Dedup Rows",
     "description": "remove duplicate records while keeping the right one",
     "when_to_use": "when the user has duplicate rows and needs exactly one per entity",
-    "body": "1. define what makes a duplicate — the business key, not all columns.\n2. count dupes per key first so you know the scale of the problem.\n3. pick the keeper rule (latest updated, non-null, highest id) and order by it.\n4. use row_number() over (partition by key order by rule) and keep rn = 1.\n5. confirm post-count equals distinct key count before replacing the table."
+    "body": "1. define what makes a duplicate - the business key, not all columns.\n2. count dupes per key first so you know the scale of the problem.\n3. pick the keeper rule (latest updated, non-null, highest id) and order by it.\n4. use row_number() over (partition by key order by rule) and keep rn = 1.\n5. confirm post-count equals distinct key count before replacing the table."
   },
   {
     "name": "Aggregate Metrics",
     "description": "roll raw rows up into summary numbers correctly",
     "when_to_use": "when the user asks for totals, averages, rates, or counts grouped by something",
-    "body": "1. confirm the grouping dimension and the exact metric definition.\n2. watch count(*) vs count(col) vs count(distinct col) — they answer different questions.\n3. compute rates as sum(num)/sum(den), never avg of per-row ratios.\n4. decide how nulls and zeros should affect each metric and handle explicitly.\n5. cross-check the grand total against an ungrouped query."
+    "body": "1. confirm the grouping dimension and the exact metric definition.\n2. watch count(*) vs count(col) vs count(distinct col) - they answer different questions.\n3. compute rates as sum(num)/sum(den), never avg of per-row ratios.\n4. decide how nulls and zeros should affect each metric and handle explicitly.\n5. cross-check the grand total against an ungrouped query."
   },
   {
     "name": "Date Bucketing",
@@ -75,12 +75,72 @@
     "name": "Validate Data",
     "description": "write checks that catch bad or surprising data",
     "when_to_use": "when the user wants to trust a table or guard a pipeline against bad rows",
-    "body": "1. list the invariants: not-null keys, unique ids, valid ranges, allowed enums.\n2. write one query per invariant that returns the violating rows, not just a count.\n3. add referential checks — orphan foreign keys, sums that should reconcile.\n4. add freshness/volume checks (max date recent, row count in expected band).\n5. surface failures loudly with the offending rows so they're actionable."
+    "body": "1. list the invariants: not-null keys, unique ids, valid ranges, allowed enums.\n2. write one query per invariant that returns the violating rows, not just a count.\n3. add referential checks - orphan foreign keys, sums that should reconcile.\n4. add freshness/volume checks (max date recent, row count in expected band).\n5. surface failures loudly with the offending rows so they're actionable."
   },
   {
     "name": "Translate SQL",
     "description": "port a query between sql dialects",
     "when_to_use": "when the user has a query written for one database and needs it on another",
     "body": "1. identify source and target dialect and the version-specific features in play.\n2. swap dialect-specific syntax: limit vs top, date functions, string concat, casts.\n3. replace unsupported functions with equivalents or a small workaround cte.\n4. recheck quoting/identifier rules and null/boolean handling differences.\n5. run on the target against sample data and diff results vs the original."
+  },
+  {
+    "name": "Schema Design",
+    "description": "design normalized tables for a new data model",
+    "when_to_use": "when the user is creating a new database or deciding how to structure tables and relationships",
+    "body": "1. identify entities, their attributes, and the relationships between them.\n2. assign a primary key to each table - prefer surrogate int/uuid over composite naturals.\n3. normalize to 3nf: no partial deps, no transitive deps; flatten only where performance demands it.\n4. define foreign keys explicitly and decide cascade behavior (restrict vs cascade).\n5. add indexes on fk columns and any column likely to appear in where or join.\n6. write a short data dictionary: one line per column saying what each value means."
+  },
+  {
+    "name": "Funnel Analysis",
+    "description": "measure drop-off at each step of a conversion sequence",
+    "when_to_use": "when the user wants to see how many users reach each step of a flow (signup, checkout, etc)",
+    "body": "1. define each step and its event/table, in strict sequence order.\n2. build a cte per step: distinct users who completed it, timestamped.\n3. left-join each step to the prior step on user id so non-completers are visible.\n4. compute count and conversion % at each step vs step 1 and vs prior step.\n5. check for people skipping steps - decide if that's valid or a data issue."
+  },
+  {
+    "name": "Cohort Retention",
+    "description": "track how many users from a signup cohort come back each period",
+    "when_to_use": "when the user wants a week-over-week or month-over-month retention grid by signup cohort",
+    "body": "1. assign each user a cohort = the truncated period of their first event.\n2. for each (cohort, period) pair count distinct users who were active.\n3. compute retention % = active / cohort_size, not vs prior period.\n4. pivot into a grid: rows = cohort, columns = period 0, 1, 2...\n5. sanity-check period 0 = 100% for every cohort; flag if it's not."
+  },
+  {
+    "name": "Regex Extract",
+    "description": "pull structured pieces out of messy text strings using regex",
+    "when_to_use": "when the user has a column of freeform text and wants to parse out emails, ids, urls, or patterns",
+    "body": "1. look at 20-30 real examples to find the consistent pattern and edge cases.\n2. write the regex anchored as tightly as possible to avoid false matches.\n3. use dialect-appropriate function (regexp_matches, regexp_substr, extract) with capture groups.\n4. return both the match and the original so you can spot failures.\n5. count nulls/empties post-extract to see how many rows the pattern missed and why."
+  },
+  {
+    "name": "Incremental Load",
+    "description": "load only new or changed rows into a target table",
+    "when_to_use": "when the user wants to refresh a table efficiently without full reloads",
+    "body": "1. identify the watermark column (updated_at, id, sequence) that marks new data.\n2. read the current max watermark from the target table.\n3. query source for rows where watermark > last_max.\n4. upsert: insert new rows, update changed ones (match on business key, not source pk).\n5. write the new max watermark to a metadata table after a successful run.\n6. add a reconciliation check comparing row counts after load to catch gaps."
+  },
+  {
+    "name": "Outlier Detection",
+    "description": "find rows that are statistically far from normal in a numeric column",
+    "when_to_use": "when the user suspects extreme or wrong values in a numeric column and wants to flag them",
+    "body": "1. compute mean and stddev (or median and iqr if the distribution is skewed).\n2. flag rows outside mean ± 3σ or below q1-1.5*iqr / above q3+1.5*iqr.\n3. return the flagged rows alongside their z-score or iqr multiple so severity is visible.\n4. segment by a category column if outliers differ by group (e.g., by product, region).\n5. never delete outliers - surface them for human review with context."
+  },
+  {
+    "name": "Slowly Changing Dimension",
+    "description": "track historical changes to dimension attributes over time",
+    "when_to_use": "when the user needs to know what an attribute was at a past point in time (e.g., customer tier, product price)",
+    "body": "1. choose scd type: type 2 (new row per change) for full history, type 1 (overwrite) for current-only.\n2. for type 2 add effective_from, effective_to (null = current), and is_current columns.\n3. on update: set effective_to = now and is_current = false on old row, insert new row.\n4. join fact tables on key and date between effective_from and effective_to.\n5. add a unique constraint on (key, effective_from) and test with a real update sequence."
+  },
+  {
+    "name": "Export Formatter",
+    "description": "shape query output for clean delivery as csv, json, or a report",
+    "when_to_use": "when the user needs the data in a specific format for a downstream tool, dashboard, or stakeholder",
+    "body": "1. ask what the consumer expects: csv with headers, json array, flat vs nested, encoding.\n2. rename columns to human-readable labels (spaces ok in csv, camelCase for json).\n3. format dates and numbers for the audience (iso for machines, locale format for humans).\n4. null-coalesce to empty string or 0 depending on what the consumer will do with it.\n5. include a row count or checksum in the filename or a trailer row so the receiver can spot truncation."
+  },
+  {
+    "name": "Column Profiler",
+    "description": "quickly characterize every column in a table with statistics and sample values",
+    "when_to_use": "when the user wants a fast overview of all columns in a table before deciding how to use them",
+    "body": "1. for each column compute null %, distinct count, min, max, and mode.\n2. for numerics add avg, stddev, and p10/p50/p90 percentiles.\n3. for strings add avg length, max length, and top-5 most frequent values.\n4. flag constant columns (distinct = 1) and near-unique columns (distinct ≈ row count).\n5. output one row per column so it fits in a single scannable result set."
+  },
+  {
+    "name": "Lookup Table",
+    "description": "build or extend a reference mapping table from raw data or a list",
+    "when_to_use": "when the user has codes, abbreviations, or ids that need human-readable labels or category mappings",
+    "body": "1. enumerate the source codes from the actual data using select distinct, not guessing.\n2. map each code to its label - use a values() cte for small lists, a separate seed table for large ones.\n3. left-join back to the source and filter is_null(label) to find unmapped codes.\n4. add a default/'unknown' row so unmapped codes don't silently null out downstream.\n5. document the source of truth for the mapping so it can be updated without guessing."
   }
 ]

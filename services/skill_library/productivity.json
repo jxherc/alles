@@ -15,25 +15,25 @@
     "name": "Break Down Project",
     "description": "split a big vague project into ordered concrete tasks",
     "when_to_use": "when the user has a goal too big to start and asks how to tackle it",
-    "body": "1. restate the end goal in one sentence so done is obvious.\n2. work backwards: list the milestones between now and done.\n3. under each milestone, write tasks small enough to finish in one sitting.\n4. mark dependencies — what must happen before what.\n5. pick the single first task that unblocks the most.\n6. return the tree plus that first task highlighted."
+    "body": "1. restate the end goal in one sentence so done is obvious.\n2. work backwards: list the milestones between now and done.\n3. under each milestone, write tasks small enough to finish in one sitting.\n4. mark dependencies - what must happen before what.\n5. pick the single first task that unblocks the most.\n6. return the tree plus that first task highlighted."
   },
   {
     "name": "Weekly Review",
     "description": "run a structured look-back and look-ahead for the week",
     "when_to_use": "when the user wants to review the week or reset for the next one",
-    "body": "1. gather what got done, what slipped, and what got abandoned.\n2. name the one thing that went well and the one that didn't.\n3. clear stale items — close, delegate, or consciously drop them.\n4. carry forward only what still matters into next week.\n5. set 1-3 priorities for the coming week.\n6. end with a single sentence of what to change in how you work."
+    "body": "1. gather what got done, what slipped, and what got abandoned.\n2. name the one thing that went well and the one that didn't.\n3. clear stale items - close, delegate, or consciously drop them.\n4. carry forward only what still matters into next week.\n5. set 1-3 priorities for the coming week.\n6. end with a single sentence of what to change in how you work."
   },
   {
     "name": "Timebox Tasks",
     "description": "assign each task a fixed time budget and a stop point",
     "when_to_use": "when the user keeps overrunning or asks to timebox their work",
-    "body": "1. take the task list and estimate each in 15-minute units.\n2. cap any single box at 90 minutes — split bigger ones.\n3. assign a hard start and stop time to each box.\n4. add a 5-10 minute buffer between boxes.\n5. decide upfront what good enough looks like for each box.\n6. return the boxed schedule and the rule: stop when the box ends."
+    "body": "1. take the task list and estimate each in 15-minute units.\n2. cap any single box at 90 minutes - split bigger ones.\n3. assign a hard start and stop time to each box.\n4. add a 5-10 minute buffer between boxes.\n5. decide upfront what good enough looks like for each box.\n6. return the boxed schedule and the rule: stop when the box ends."
   },
   {
     "name": "Unblock Myself",
     "description": "diagnose why a task is stuck and find the smallest next move",
     "when_to_use": "when the user is stuck, procrastinating, or says they can't start",
-    "body": "1. ask what exactly is blocking — unclear, waiting, scared, or bored.\n2. if unclear: define done in one sentence.\n3. if waiting: identify who to ping and draft the ask.\n4. if scared or bored: shrink the task until the first step takes 2 minutes.\n5. name that 2-minute step out loud.\n6. tell them to do only that step, nothing more."
+    "body": "1. ask what exactly is blocking - unclear, waiting, scared, or bored.\n2. if unclear: define done in one sentence.\n3. if waiting: identify who to ping and draft the ask.\n4. if scared or bored: shrink the task until the first step takes 2 minutes.\n5. name that 2-minute step out loud.\n6. tell them to do only that step, nothing more."
   },
   {
     "name": "Estimate Effort",
@@ -51,7 +51,7 @@
     "name": "Set Goals",
     "description": "turn a fuzzy intention into measurable goals with a deadline",
     "when_to_use": "when the user wants to set goals or says they want to get better at something",
-    "body": "1. pin down the outcome they actually want, not the activity.\n2. make it measurable — a number or a yes/no you can check.\n3. set a real deadline and a midpoint check-in.\n4. list the 2-3 habits or tasks that drive the number.\n5. name the first action to take this week.\n6. write each goal as one testable sentence."
+    "body": "1. pin down the outcome they actually want, not the activity.\n2. make it measurable - a number or a yes/no you can check.\n3. set a real deadline and a midpoint check-in.\n4. list the 2-3 habits or tasks that drive the number.\n5. name the first action to take this week.\n6. write each goal as one testable sentence."
   },
   {
     "name": "Daily Standup",
@@ -63,24 +63,84 @@
     "name": "Decide Fast",
     "description": "force a clear decision when the user is stuck choosing",
     "when_to_use": "when the user is dithering between options and needs to pick",
-    "body": "1. state the decision and the real deadline to make it.\n2. list the genuine options — usually 2-3, kill the fake ones.\n3. name the one criterion that matters most here.\n4. score each option only against that criterion.\n5. check: is this reversible? if yes, decide now and move.\n6. give a clear recommendation and the trigger to revisit it."
+    "body": "1. state the decision and the real deadline to make it.\n2. list the genuine options - usually 2-3, kill the fake ones.\n3. name the one criterion that matters most here.\n4. score each option only against that criterion.\n5. check: is this reversible? if yes, decide now and move.\n6. give a clear recommendation and the trigger to revisit it."
   },
   {
     "name": "Batch Similar",
     "description": "group scattered tasks by context to cut switching cost",
     "when_to_use": "when the user has many small tasks of different kinds",
-    "body": "1. tag each task by context — calls, errands, writing, admin, deep work.\n2. group all tasks sharing a context into one batch.\n3. order batches by energy: deep work when fresh, admin when tired.\n4. assign each batch a single time block.\n5. silence other contexts during a batch — no switching.\n6. return the batched plan with block times."
+    "body": "1. tag each task by context - calls, errands, writing, admin, deep work.\n2. group all tasks sharing a context into one batch.\n3. order batches by energy: deep work when fresh, admin when tired.\n4. assign each batch a single time block.\n5. silence other contexts during a batch - no switching.\n6. return the batched plan with block times."
   },
   {
     "name": "Recover Plan",
     "description": "rebuild a workable plan after a day or week went off the rails",
     "when_to_use": "when the user fell behind and the original plan is now useless",
-    "body": "1. stop and accept the old plan is dead — don't relitigate it.\n2. list what's truly still due and strip the rest.\n3. find the one thing that, if done, salvages the day.\n4. clear the calendar of anything skippable to make room.\n5. rebuild a short plan for the time actually left.\n6. set the lowest bar that still counts as a win today."
+    "body": "1. stop and accept the old plan is dead - don't relitigate it.\n2. list what's truly still due and strip the rest.\n3. find the one thing that, if done, salvages the day.\n4. clear the calendar of anything skippable to make room.\n5. rebuild a short plan for the time actually left.\n6. set the lowest bar that still counts as a win today."
   },
   {
     "name": "Define Done",
     "description": "write a clear finish line so a vague task becomes actionable",
     "when_to_use": "when a task is fuzzy and the user can't tell when it's complete",
-    "body": "1. ask what specifically will be true when this is finished.\n2. turn that into a checkable condition, not a feeling.\n3. strip scope creep — name what is explicitly out of bounds.\n4. set the quality bar: rough draft, shippable, or polished.\n5. list the artifacts that prove it's done.\n6. restate the task as one sentence ending in a clear done test."
+    "body": "1. ask what specifically will be true when this is finished.\n2. turn that into a checkable condition, not a feeling.\n3. strip scope creep - name what is explicitly out of bounds.\n4. set the quality bar: rough draft, shippable, or polished.\n5. list the artifacts that prove it's done.\n6. restate the task as one sentence ending in a clear done test."
+  },
+  {
+    "name": "Brainstorm To Design",
+    "description": "turn a vague idea into a concrete design through guided dialogue before building anything",
+    "when_to_use": "when the user has a rough idea but hasn't figured out what to actually build",
+    "body": "1. ask one focused question to expose the real need - what problem does this solve?\n2. once the need is clear, ask one more: who uses it and how often?\n3. propose 2-3 distinct approaches, named, one-sentence each.\n4. ask the user to pick or mix - don't assume.\n5. from the chosen direction, write a concrete design: scope, key pieces, what's out.\n6. confirm the design before touching any implementation."
+  },
+  {
+    "name": "Write A Plan",
+    "description": "turn a spec or idea into a step-by-step implementation plan with exact tasks and tests",
+    "when_to_use": "when the user has a spec or clear goal and needs a plan before coding",
+    "body": "1. restate the goal in one sentence - make done testable.\n2. list the files or areas that will change.\n3. break work into bite-sized tasks, each finishable in one session.\n4. order tasks so each one can be tested before the next starts.\n5. add a test or check for each task (what passing looks like).\n6. mark natural commit points and note any risky steps."
+  },
+  {
+    "name": "Execute A Plan",
+    "description": "work through a written plan task-by-task with checkpoints between each step",
+    "when_to_use": "when the user has a written plan and is ready to execute it step by step",
+    "body": "1. read the full plan and confirm the starting task.\n2. do only that task - nothing from later steps.\n3. run the defined test or check for that task before moving.\n4. if the test fails, fix it before continuing - don't skip.\n5. report what was done and what passed, then ask to proceed.\n6. repeat until all tasks are checked off, then summarize what changed."
+  },
+  {
+    "name": "Delegate Task",
+    "description": "turn a task into a clear handoff another person can actually execute",
+    "when_to_use": "when the user needs to hand a task to someone else without losing it",
+    "body": "1. state what needs to happen and why it matters.\n2. define done in one checkable sentence.\n3. list the resources, access, or context the person needs.\n4. set a deadline and a check-in point before the deadline.\n5. name what to do if they get stuck (who to ask, what to decide).\n6. write it as a short brief the person can act on without follow-up questions."
+  },
+  {
+    "name": "Capture Thoughts",
+    "description": "dump scattered thoughts into an organized set of actions and ideas",
+    "when_to_use": "when the user brain-dumps a mess of ideas, worries, or to-dos",
+    "body": "1. read the whole dump without judging or sorting yet.\n2. pull out anything that's a concrete next action.\n3. pull out anything that's an idea to revisit later (not now).\n4. flag anything that's a worry - reframe as a question or task.\n5. drop anything that's noise - venting, irrelevant, already handled.\n6. return: action list (with owner), ideas list, and any open questions."
+  },
+  {
+    "name": "Kill Scope Creep",
+    "description": "cut a project back to its original scope when it's grown out of control",
+    "when_to_use": "when the user's project has ballooned and they're losing sight of the original goal",
+    "body": "1. restate the original goal in one sentence.\n2. list everything that's been added since the start.\n3. for each addition ask: does this get us to the original goal faster? if no, cut it.\n4. move cut items to a 'later' list, not the trash - they might matter next.\n5. restate the now-trimmed plan and the new earliest ship date.\n6. set a rule for accepting new scope: only if it's essential to the core goal."
+  },
+  {
+    "name": "Sprint Plan",
+    "description": "plan a focused 1-2 week work sprint with a single clear goal",
+    "when_to_use": "when the user wants to set up a sprint or short focused work period",
+    "body": "1. pick one goal for the sprint - just one, this is the win condition.\n2. list the tasks needed to hit that goal, estimate each in days.\n3. cut anything that doesn't directly serve the sprint goal.\n4. protect at least one full day for review, fixes, and cleanup.\n5. name the biggest risk that could derail the sprint.\n6. write the sprint as: goal, task list with day estimates, risk, and done condition."
+  },
+  {
+    "name": "Meeting Prep",
+    "description": "prepare a clear agenda and desired outcome before a meeting",
+    "when_to_use": "when the user has a meeting coming up and wants to use the time well",
+    "body": "1. name the one thing this meeting must decide or produce.\n2. list the 2-3 agenda items that lead to that outcome.\n3. note what each participant needs to come prepared with.\n4. set a time limit per agenda item.\n5. draft any materials or questions to send ahead.\n6. write the open question or decision as one sentence at the top of the agenda."
+  },
+  {
+    "name": "After Action Review",
+    "description": "extract lessons from a finished project or event so they stick",
+    "when_to_use": "when the user finishes a project, sprint, or event and wants to learn from it",
+    "body": "1. state what was supposed to happen (goal, plan, expectation).\n2. state what actually happened - facts, not blame.\n3. list 2-3 things that went well and why.\n4. list 2-3 things that didn't and what caused them.\n5. turn each 'what didn't' into one concrete change for next time.\n6. write the top 3 changes as next-time rules the user can actually remember."
+  },
+  {
+    "name": "Focus Block",
+    "description": "set up a distraction-free deep work session with a clear target",
+    "when_to_use": "when the user wants to do focused deep work and needs to structure the session",
+    "body": "1. name the single output to produce in this session - be specific.\n2. set the session length (default 90 min) and a hard end time.\n3. list distractions to kill before starting: phone, notifications, tabs.\n4. define the first action to take - make it so obvious there's no ramp-up.\n5. set a halfway check: are you on track? if not, cut scope, not quality.\n6. at the end, write one sentence on what was produced and what's next."
   }
 ]

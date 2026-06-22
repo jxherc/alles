@@ -82,5 +82,65 @@
     "description": "convert code between sync and async styles",
     "when_to_use": "when the user wants blocking code made async or callbacks modernized",
     "body": "1. find every blocking or callback call in the path.\n2. propagate async outward: callers must await too.\n3. swap blocking apis for their async equivalents.\n4. handle concurrency where parallel work is safe, sequence where it isn't.\n5. preserve error handling across the await boundaries."
+  },
+  {
+    "name": "Request Code Review",
+    "description": "package a diff so a reviewer can verify it meets intent before merge",
+    "when_to_use": "when the user is done with a change and wants it reviewed or is about to merge",
+    "body": "1. state what the change is supposed to do in one sentence.\n2. show the diff or summarize files touched with the key lines.\n3. note any tradeoffs, assumptions, or things left out intentionally.\n4. list what you already checked: tests run, edge cases thought about.\n5. ask specific questions about anything you're unsure of."
+  },
+  {
+    "name": "Receive Code Review",
+    "description": "handle review feedback with rigor - verify each comment, push back when wrong",
+    "when_to_use": "when the user receives review comments and wants help deciding what to act on",
+    "body": "1. read every comment fully before doing anything.\n2. for each item, decide: valid bug, style opinion, or factually wrong?\n3. apply valid bugs and agreed style changes, note what you changed.\n4. push back on wrong comments with a concrete counter-argument and evidence.\n5. don't silently implement things you disagree with just to close the thread."
+  },
+  {
+    "name": "Build MCP Server",
+    "description": "wrap an api as a model context protocol server that exposes tools to an llm",
+    "when_to_use": "when the user wants to make a service or api callable by claude or another llm via mcp",
+    "body": "1. list the api's operations you want to expose as named tools.\n2. define each tool: name, description, input schema, and what it returns.\n3. write the server in sdk of choice (python mcp or ts @modelcontextprotocol/sdk).\n4. map each tool handler to the real api call, surface errors cleanly.\n5. run the server locally, test with mcp inspector or a claude client config.\n6. write a one-paragraph stdio or sse usage note so callers can connect."
+  },
+  {
+    "name": "Write Migration",
+    "description": "write a database migration script that is safe to run in production",
+    "when_to_use": "when the user wants to add, drop, or alter a table or column",
+    "body": "1. state the before and after schema clearly.\n2. write the up migration: additive changes first, destructive last.\n3. write the down migration so it can be rolled back.\n4. flag any data transforms needed and do them in a separate step.\n5. note locks or table-size concerns that could block prod."
+  },
+  {
+    "name": "Stub API Client",
+    "description": "generate a typed client wrapper around a rest or graphql api",
+    "when_to_use": "when the user wants to call an external api cleanly without hand-rolling fetch each time",
+    "body": "1. take the api spec or a few real endpoints as input.\n2. define a base client with auth, base url, and error handling.\n3. add one method per endpoint: named, typed params, typed return.\n4. handle 4xx/5xx distinctly so callers can branch on error type.\n5. include one usage snippet showing the most common call."
+  },
+  {
+    "name": "Audit Dependencies",
+    "description": "review project dependencies for outdated, unused, or risky packages",
+    "when_to_use": "when the user wants to know what deps are bloated, outdated, or potentially unsafe",
+    "body": "1. list all direct deps and their current vs latest versions.\n2. flag any with known cves or that haven't had a release in 2+ years.\n3. find packages that are imported nowhere and can be removed.\n4. spot overlapping deps that do the same job.\n5. suggest concrete upgrades or removals with their risk level."
+  },
+  {
+    "name": "Generate CLI",
+    "description": "wire a script or library into a usable command-line tool",
+    "when_to_use": "when the user wants to expose functionality as a cli command with flags and help text",
+    "body": "1. pick the right arg parser for the language (argparse, click, yargs, cobra, etc).\n2. define subcommands or flags that map 1:1 to the underlying functions.\n3. add sensible defaults and required vs optional flags.\n4. wire help text so --help is self-documenting without a readme.\n5. handle stdin/stdout/stderr and exit codes properly."
+  },
+  {
+    "name": "Design Data Model",
+    "description": "sketch a data model or schema for a feature before writing code",
+    "when_to_use": "when the user is starting a feature and needs to figure out what tables or types to create",
+    "body": "1. list the real-world entities and their relationships.\n2. pick the right structure: relational, document, kv, or hybrid.\n3. define fields, types, and nullable vs required for each entity.\n4. show foreign keys, indexes, and any denormalization decisions.\n5. call out anything that will hurt at scale or be annoying to change later."
+  },
+  {
+    "name": "Code Golf",
+    "description": "shrink code to its shortest correct form, usually for fun or learning",
+    "when_to_use": "when the user wants the shortest possible code that still works correctly",
+    "body": "1. understand exactly what the code must do, including edge cases.\n2. find the language's built-ins that collapse the most lines.\n3. chain operations, use comprehensions, exploit defaults.\n4. verify the tiny version still handles all the edge cases.\n5. show before/after and note any correctness tradeoffs made."
+  },
+  {
+    "name": "Harden Security",
+    "description": "find and fix common security holes in application code",
+    "when_to_use": "when the user wants code checked for security issues like injection, auth flaws, or data exposure",
+    "body": "1. scan for the obvious: sql injection, xss, path traversal, unvalidated input.\n2. check auth: are endpoints protected, are tokens verified, is there rate limiting?\n3. look for secrets hardcoded or logged accidentally.\n4. flag any data that flows from user input to a shell, query, or eval.\n5. give a ranked list: critical first, then medium, with a one-line fix each."
   }
 ]

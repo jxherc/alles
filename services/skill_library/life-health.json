@@ -82,5 +82,65 @@
     "description": "generates thoughtful gift ideas matched to a person and occasion",
     "when_to_use": "when the user needs gift ideas for someone and is stuck",
     "body": "1. gather the recipient's relationship, age, interests, occasion, and budget.\n2. note what they already love or recently mentioned wanting, and what to avoid (allergies, dupes).\n3. brainstorm across types: a useful thing, an experience, a consumable, and a personal/handmade option.\n4. shortlist 3-5 that fit budget and ship in time, each with a one-line why-they'd-like-it.\n5. add a small add-on or presentation touch to lift the main gift."
+  },
+  {
+    "name": "Stretch Routine",
+    "description": "builds a short daily stretch sequence for flexibility or pain relief",
+    "when_to_use": "when the user has tight muscles, back pain, or wants to start stretching daily",
+    "body": "1. ask where they feel tight or sore, and whether the goal is pain relief or general mobility.\n2. pick 5-7 stretches that hit the problem areas plus their antagonists (tight hip flexors, stretch glutes too).\n3. order them: standing first, then floor, so position changes are minimal.\n4. assign hold times (30-60s static for end-of-day, 10-15s dynamic for warmup).\n5. anchor the routine to an existing cue (waking up, after workout, before bed).\n6. flag any stretch to skip if a joint is actively painful, not just stiff."
+  },
+  {
+    "name": "Medication Tracker",
+    "description": "sets up a simple system to track and never miss doses",
+    "when_to_use": "when the user takes regular medications or supplements and keeps forgetting doses",
+    "body": "1. list every medication, dose, and required timing (with food, empty stomach, specific time).\n2. spot conflicts: anything that cannot be taken together or within certain hours of each other.\n3. design the fewest alarm moments by batching meds with the same timing window.\n4. pick a storage spot visible at dose time (next to coffee maker, by toothbrush).\n5. define the missed-dose rule for each: take late, skip, or check the label."
+  },
+  {
+    "name": "Injury Recovery",
+    "description": "maps out a safe return to activity after a minor injury",
+    "when_to_use": "when the user has a minor injury (sprain, strain, soreness) and wants to recover without making it worse",
+    "body": "1. get the injury type, when it happened, current pain level, and any diagnosis.\n2. run the RICE check for the first 48-72h: rest, ice 20min on/off, compress, elevate.\n3. set a red-flag list (numbness, swelling not going down, cannot bear weight) -- any of those means see a doctor.\n4. outline a phased return: pain-free rest, then gentle range-of-motion, then light load, then full activity, each gated on zero pain at the previous level.\n5. name 2-3 safe alternative exercises to keep moving without stressing the injury."
+  },
+  {
+    "name": "Skin Care",
+    "description": "builds a minimal effective skincare routine for the user skin type and concerns",
+    "when_to_use": "when the user wants to start skincare or simplify an existing routine that is not working",
+    "body": "1. identify skin type (oily, dry, combo, sensitive) and top concern (acne, dryness, texture, aging, dark spots).\n2. lock in the non-negotiable base: cleanser, moisturizer, SPF in the morning.\n3. add one active for the concern (niacinamide for pores, retinol for aging, AHA/BHA for texture) -- not multiple at once.\n4. set the order: cleanser then toner then actives then moisturizer then SPF.\n5. introduce new actives one at a time, 2 weeks apart, to catch what causes a reaction.\n6. flag what to avoid layering together (retinol and AHA same night)."
+  },
+  {
+    "name": "Cut Alcohol",
+    "description": "makes a concrete plan to cut back or quit drinking",
+    "when_to_use": "when the user wants to drink less, take a break from alcohol, or quit entirely",
+    "body": "1. clarify the goal: cut back, go dry for a period, or quit for good -- tactics differ.\n2. set a specific rule (no alcohol weekdays, max 2 drinks, dry month) rather than a vague intention.\n3. identify the main trigger situations (after work, social events, boredom) and plan a substitution for each.\n4. remove alcohol from the home so the default changes.\n5. flag that heavy daily drinkers should not quit cold turkey -- sudden withdrawal is medically dangerous, see a doctor.\n6. pick a check-in date 2 weeks out and define what counts as a slip vs a restart."
+  },
+  {
+    "name": "Posture Fix",
+    "description": "identifies posture problems and gives targeted corrections for desk or phone use",
+    "when_to_use": "when the user has neck pain, back ache, or knows their posture is bad from sitting or phone use",
+    "body": "1. ask where the pain or tension is and what the typical setup looks like (desk, couch, standing).\n2. identify the likely culprit posture (forward head, rounded shoulders, anterior pelvic tilt).\n3. give a quick self-check: ear over shoulder over hip when standing, top of screen at eye level at desk.\n4. prescribe 2-3 corrective micro-habits: chin tucks, shoulder rolls, a posture reminder every 30 min.\n5. suggest one ergonomic fix with the most impact (monitor height, chair depth, phone height).\n6. add one strengthening exercise for the underactive muscles (typically deep neck flexors or lower traps)."
+  },
+  {
+    "name": "Batch Cook",
+    "description": "plans a 2-hour batch cook session so the fridge is stocked for the week",
+    "when_to_use": "when the user wants to meal prep in bulk and not cook every night",
+    "body": "1. pick 2-3 versatile base components that combine: one protein, one grain, one roasted veg.\n2. choose components that share oven temp or are mostly hands-off so things cook in parallel.\n3. write a single cook order with what goes in when, staggered by cook time.\n4. add 1-2 sauces or dressings to make the same base taste different mid-week.\n5. label containers with the date; note what keeps 4 days vs what to freeze on day 1."
+  },
+  {
+    "name": "Mental Reset",
+    "description": "structured decompression after a hard day to actually switch off",
+    "when_to_use": "when the user cannot stop thinking about work or stress and needs to mentally clock out",
+    "body": "1. do a full brain dump: write every open loop, worry, or task on paper -- do not process, just capture.\n2. review the list and mark anything with a clear next action; schedule or dismiss everything else.\n3. set a physical transition (change clothes, short walk, close the laptop) to signal the day is done.\n4. pick one absorbing activity that requires attention and is purely for enjoyment.\n5. no problem-solving or planning allowed for the next hour -- if a thought comes up, add it to the list for tomorrow."
+  },
+  {
+    "name": "Calorie Check",
+    "description": "estimates daily calorie and protein needs for a stated body goal",
+    "when_to_use": "when the user wants to lose fat, gain muscle, or just understand how much to eat",
+    "body": "1. get height, weight, age, sex, and activity level (sedentary, light, moderate, active).\n2. estimate TDEE using Mifflin-St Jeor times an activity factor; show the rough number.\n3. set the calorie target: deficit for fat loss (300-500 below TDEE), surplus for muscle (200-300 above).\n4. set a protein floor: 0.7-1g per lb of bodyweight, higher end if cutting or training hard.\n5. convert the numbers into a practical daily picture (meals plus snack, rough portions) so it is actionable."
+  },
+  {
+    "name": "Focus Session",
+    "description": "sets up a distraction-free deep work block for a specific task",
+    "when_to_use": "when the user needs to do focused work and keeps getting sidetracked or procrastinating",
+    "body": "1. pick one concrete task with a clear done condition; vague tasks get vague focus.\n2. set a timer: 25-50 min on, 5-10 min off -- commit before starting.\n3. close every notification, tab, and app not needed; phone face-down or in another room.\n4. write a quick start sentence or the first tiny action so starting is frictionless.\n5. define what done looks like before the session starts, and keep a parking lot note for stray thoughts so the brain lets them go."
   }
 ]

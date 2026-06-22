@@ -82,5 +82,65 @@
     "description": "break a creative block with forced prompts and constraints",
     "when_to_use": "when the user is stuck, staring at a blank page, or out of ideas",
     "body": "1. ask what they've got so far, even if it's nothing.\n2. shrink the task to the smallest possible next move.\n3. throw 3 unsticking prompts: do it badly on purpose, copy then twist, write the worst version.\n4. impose one weird constraint to force a fresh angle.\n5. get one rough output on the page and build from it."
+  },
+  {
+    "name": "Tone Shift",
+    "description": "rewrite a piece of content in a completely different tone or voice",
+    "when_to_use": "when the user wants to change the feel of existing writing without changing the meaning",
+    "body": "1. identify the current tone (formal, cold, dry, etc.) and the target tone.\n2. list 3 surface signals of the target tone: sentence length, word choice, rhythm.\n3. rewrite applying those signals throughout.\n4. check nothing important was dropped in the shift.\n5. offer a second version at the far extreme of the target tone."
+  },
+  {
+    "name": "Villain Motive",
+    "description": "give an antagonist or obstacle a believable, non-cliché motivation",
+    "when_to_use": "when the user's story, game, or pitch has a villain or rival that feels flat or evil-for-evil's-sake",
+    "body": "1. strip the cliché motive (power, greed, revenge) and start over.\n2. give them a goal a reasonable person could sympathize with.\n3. show the one moment their logic broke and became the problem.\n4. add a cost they pay to pursue it, so they're not free.\n5. write two lines of their internal justification in their voice."
+  },
+  {
+    "name": "Scene Sketch",
+    "description": "write a rough scene draft given a situation and characters",
+    "when_to_use": "when the user needs prose for a specific moment in a story and doesn't know how to start",
+    "body": "1. confirm who's in the scene, where, and what's at stake.\n2. open mid-action, skip setup.\n3. let conflict drive each beat - someone wants something another resists.\n4. plant one detail that does double duty (mood + character).\n5. end on a hook, a change, or an unanswered question."
+  },
+  {
+    "name": "Absurdist Riff",
+    "description": "push an idea to its absurd extreme for comedic or creative effect",
+    "when_to_use": "when the user wants something weird, funny, or to break out of a serious frame",
+    "body": "1. take the premise and escalate one element to an impossible degree.\n2. play it completely straight - no winking at the camera.\n3. follow the internal logic wherever it goes.\n4. find the mundane human problem that still lives at the center of the absurdity.\n5. deliver it as a short paragraph or a pitch line."
+  },
+  {
+    "name": "Sensory Anchors",
+    "description": "add concrete sensory detail to make a scene or description feel real",
+    "when_to_use": "when the user's writing feels vague or tells instead of shows",
+    "body": "1. mark every abstract or generic word in the passage.\n2. replace with a specific detail from one of the five senses.\n3. don't over-stack - aim for one strong sensory hit per paragraph.\n4. check the details agree: the season, the light, the setting.\n5. read it back - if you can picture it, it works."
+  },
+  {
+    "name": "Logline Forge",
+    "description": "write a one-sentence story logline that sells the concept",
+    "when_to_use": "when the user has a story idea and needs to compress it into a pitch-ready single sentence",
+    "body": "1. lock protagonist, flaw or want, the obstacle, and the stakes.\n2. use the form: [who] [wants what] [but what blocks them] [with what on the line].\n3. write 3 versions at different specificity levels.\n4. cut adjectives and adverbs, let nouns and verbs carry it.\n5. pick the one that raises the most questions in the fewest words."
+  },
+  {
+    "name": "Constraint Sprint",
+    "description": "generate creative output under a tight artificial rule",
+    "when_to_use": "when the user wants to make something but needs a forcing function or a game to play",
+    "body": "1. set a constraint that's specific and slightly annoying (no adjectives, exactly 6 words, one vowel only).\n2. state the goal in one line.\n3. produce 3 outputs that satisfy both the goal and the constraint.\n4. note which constraint pressure created something you wouldn't have found otherwise.\n5. offer to relax one rule and retry if nothing landed."
+  },
+  {
+    "name": "Symbol System",
+    "description": "design a set of recurring symbols or motifs for a creative work",
+    "when_to_use": "when the user is building a story, world, or brand and wants thematic coherence",
+    "body": "1. find the central theme or tension the work is about.\n2. pick a primary symbol that embodies it literally and metaphorically.\n3. extend it into 3-4 motifs that can repeat in different contexts.\n4. show how each motif can flip or darken as the work progresses.\n5. list places to seed them so they feel organic not planted."
+  },
+  {
+    "name": "Pov Swap",
+    "description": "retell an existing scene or argument from a different point of view",
+    "when_to_use": "when the user wants to deepen a story, defuse a conflict, or explore a situation from another angle",
+    "body": "1. identify whose pov is currently missing or underexplored.\n2. list what that character knows, wants, and fears that the reader doesn't.\n3. rewrite the key moment from their perspective.\n4. find one detail that changes or complicates the original read.\n5. note what the shift reveals about both characters."
+  },
+  {
+    "name": "Anti-Brief",
+    "description": "define what the creative work must never be to sharpen what it should be",
+    "when_to_use": "when the user is starting a creative project and needs to narrow scope by ruling things out",
+    "body": "1. list what's most cliché or expected for this type of project.\n2. explicitly rule out 5-8 of them as hard noes.\n3. find what's left and name the territory that's now open.\n4. translate each no into its positive inverse (not dark → warm but sharp).\n5. write the brief in 3 lines using only the inverse language."
   }
 ]
