@@ -1,4 +1,3 @@
-import json
 from datetime import date, timedelta
 
 from core.database import ProactiveItem, Task

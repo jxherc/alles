@@ -85,6 +85,7 @@ _defaults = {
     "pidx_proactive_quiet_start": 22,
     "pidx_proactive_quiet_end": 7,
     "pidx_proactive_channel": "inapp",
+    "proactive_model": "",  # optional model override; "" = first model on the picked endpoint
     "pidx_proactive_min_urgency": 1,
     "pidx_proactive_max_tokens": 800,
     "pidx_proactive_cat_task": True,
