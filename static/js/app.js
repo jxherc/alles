@@ -473,7 +473,7 @@ const HOME_TILES = [
   { view: 'system',   name: 'system',   desc: 'live machine stats', icon: 'system' },
   { view: 'watch',    name: 'watch',    desc: 'uptime & status',  icon: 'watch' },
   { view: 'habits',   name: 'habits',   desc: 'daily streaks',    icon: 'habits' },
-  { view: 'read',     name: 'read',     desc: 'read-later',       icon: 'read' },
+  { view: 'read',     name: 'watchlist', desc: 'watch later',     icon: 'read' },
   { view: 'books',    name: 'books',    desc: 'reading list',     icon: 'books' },
   { view: 'health',   name: 'health',   desc: 'weight, sleep…',   icon: 'health' },
 ];

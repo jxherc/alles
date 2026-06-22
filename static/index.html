@@ -30,7 +30,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/style.css?v=127">
+<link rel="stylesheet" href="/static/style.css?v=128">
 <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#0a0a0a">
@@ -406,7 +406,7 @@
     <!-- ── read-later view ── -->
     <div class="page-view" id="read-view" style="display:none">
       <div class="page-view-head">
-        <span class="page-view-title">read</span>
+        <span class="page-view-title">watchlist</span>
       </div>
       <div class="page-view-body" id="read-body"></div>
     </div>
@@ -512,7 +512,6 @@
           <button class="icon-btn docs-tree-toggle" id="wiki-tree-toggle" title="show / hide files (fullscreen)" aria-label="show or hide files">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
           </button>
-          <button class="btn" id="wiki-home-btn" title="all docs (home)">⊞ all docs</button>
           <span id="wiki-current" class="wiki-current">no doc open</span>
           <span id="wiki-stats" class="wiki-stats"></span>
           <span id="wiki-save-status" style="font-size:0.66rem;color:var(--muted)"></span>
@@ -1767,7 +1766,7 @@
 </div>
 
 <script type="module">
-const _v = '127';
+const _v = '128';
 import(`/static/js/app.js?v=${_v}`);
 </script>
 </body>
