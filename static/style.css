@@ -2042,10 +2042,12 @@ mark.wiki-cmark { background: rgba(129, 140, 248, 0.28); color: inherit; border-
 .ha-tool:hover { color: var(--text); }
 .ha-tool svg { width: 17px; height: 17px; }
 .home-ask-model.custom-select {
+  position: relative; display: flex; align-items: center;  /* no .settings-input -> set these so the chevron anchors inside the chip */
   background: var(--bg); color: var(--text); border: 1px solid var(--faint); border-radius: 3px;
-  font-size: 0.72rem; padding: 0.25rem 0.45rem; min-height: 0; width: auto; max-width: 160px; flex-shrink: 0;
+  font-size: 0.72rem; padding: 0.25rem 1.25rem 0.25rem 0.45rem; min-height: 0; width: auto; max-width: 160px; flex-shrink: 0;
 }
 .home-ask-model.custom-select .custom-select-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.home-ask-model.custom-select .custom-select-chevron { right: 0.35rem; }
 .ha-send, .ha-goto { font-size: 0.76rem; padding: 0.3rem 0.7rem; flex-shrink: 0; }
 .hc-modes { display: flex; gap: 0.15rem; flex-shrink: 0; }
 .hc-mode {
