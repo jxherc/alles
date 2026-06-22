@@ -9,7 +9,7 @@ import json
 import logging
 from datetime import datetime
 
-from core.database import ModelEndpoint, ProactiveItem, SessionLocal
+from core.database import ModelEndpoint, ProactiveItem, ProactiveState, SessionLocal
 from core.settings import load_settings
 from services import signals
 
@@ -193,16 +193,25 @@ def _prune_resolved(db, sigs):
     db.commit()
 
 
-def _has_uncarded(db, sigs):
-    """is there a signal not already covered by an existing card? dismissed cards
-    suppress their signals too, so a dismissed situation won't re-trigger a run."""
-    covered = set()
-    for item in db.query(ProactiveItem).all():
-        try:
-            covered.update(json.loads(item.source_keys or "[]"))
-        except Exception:
-            pass
-    return any(x["key"] not in covered for x in sigs)
+def _load_seen(db):
+    st = db.get(ProactiveState, "singleton")
+    if not st:
+        return set()
+    try:
+        return set(json.loads(st.seen_keys or "[]"))
+    except Exception:
+        return set()
+
+
+def _save_seen(db, keys):
+    st = db.get(ProactiveState, "singleton")
+    blob = json.dumps(sorted(keys))
+    if st:
+        st.seen_keys = blob
+        st.updated_at = datetime.utcnow()
+    else:
+        db.add(ProactiveState(id="singleton", seen_keys=blob))
+    db.commit()
 
 
 def _upsert(db, cards, sigs):
@@ -236,8 +245,12 @@ def _upsert(db, cards, sigs):
 
 async def run(force=False):
     """one proactive pass. force=True (manual 'run now') bypasses the master
-    toggle, the interval, and quiet hours so it can be tested before being turned
-    on; the no-signal / already-carded gates always apply (no pointless spend)."""
+    toggle, the interval, quiet hours, and the 'nothing new' gate so it can be
+    tested on demand; the no-signal gate always applies (no pointless spend).
+
+    a scheduled run only fires when a signal turns up that the agent hasn't been
+    shown before - the model legitimately skips trivial signals, so gating on
+    'every signal carded' would re-run forever. we gate on 'genuinely new' instead."""
     s = load_settings()
     if not force and not s.get("pidx_proactive_enabled", False):
         return {"ran": False, "reason": "disabled"}
@@ -254,10 +267,12 @@ async def run(force=False):
         sigs = [x for x in full if x["category"] in cats and x["urgency"] >= min_u]
         if not sigs:
             return {"ran": False, "reason": "no_signals"}
-        if not _has_uncarded(db, sigs):
-            return {"ran": False, "reason": "all_carded"}
+        seen = _load_seen(db)
+        if not force and all(x["key"] in seen for x in sigs):
+            return {"ran": False, "reason": "nothing_new"}
         cards = await _reason(db, sigs, s)
         written = _upsert(db, cards, sigs)
+        _save_seen(db, {x["key"] for x in sigs})
         return {"ran": True, "signals": len(sigs), "cards": len(cards), "written": written}
     finally:
         db.close()
