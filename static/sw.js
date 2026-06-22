@@ -1,7 +1,7 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v100';   // guided mail quick-login (app-password helper + auto-test)
+const VERSION = 'v101';   // mail oauth sign-in with google
 const CACHE = `alles-${VERSION}`;
-const STAMP = '126';   // keep in sync with index.html ?v= / const _v
+const STAMP = '127';   // keep in sync with index.html ?v= / const _v
 
 // 1b: mutating writes that should be queued when offline
 const MUTATING = ['POST', 'PUT', 'PATCH', 'DELETE'];

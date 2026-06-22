@@ -154,6 +154,18 @@ async function _boot() {
     history.replaceState(null, '', location.pathname + location.hash);
     setTimeout(() => window._askInChat(_ask, _p.get('web') === '1'), 350);
   }
+
+  // bounced back from the google sign-in flow → report + open mail
+  const _mo = _p.get('mailoauth');
+  if (_mo) {
+    history.replaceState(null, '', location.pathname + location.hash);
+    const msg = {
+      ok: 'gmail connected ✓', denied: 'google sign-in cancelled',
+      badstate: 'sign-in expired, try again', failed: "couldn't reach google, try again",
+      noemail: "couldn't read your email from google",
+    }[_mo] || 'google sign-in finished';
+    setTimeout(() => { toast(msg, _mo === 'ok' ? 'success' : 'error'); navigateTo('mail'); }, 300);
+  }
 }
 
 // configure the SPA for whichever subdomain we're on: apex = the hub; an app
