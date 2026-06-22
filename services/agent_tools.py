@@ -45,6 +45,7 @@ def _settings() -> dict:
 
 TOOL_PERMISSION = {
     "recall": "read",
+    "money_query": "read",
     "shell": "shell",
     "read_file": "read",
     "write_file": "write",
@@ -1304,6 +1305,8 @@ async def execute(name: str, args: dict) -> dict:
         )
     if name == "recall":
         return await _recall(args.get("query", ""), int(args.get("top_k") or 8))
+    if name == "money_query":
+        return await _money_query(args.get("query", ""))
     return {"output": f"unknown tool: {name}", "error": True}
 
 
@@ -1873,6 +1876,46 @@ async def _recall(query, top_k):
             snip = (h.get("chunk") or "")[:200].replace("\n", " ")
             lines.append(f"[{h['score']}] {h['label']} ({h['link']}): {snip}")
         return {"output": "\n".join(lines), "error": False}
+    finally:
+        db.close()
+
+
+async def _money_query(query):
+    from core.database import SessionLocal, Account, Transaction
+    from datetime import date
+    db = SessionLocal()
+    try:
+        accts = db.query(Account).filter_by(archived=False).all()
+        txns = db.query(Transaction).all()
+        bal = {a.id: (a.opening or 0.0) for a in accts}
+        for t in txns:
+            if t.account_id in bal:
+                bal[t.account_id] += (t.amount or 0.0)
+        lines = [f"{a.name} ({a.kind}): {a.currency}{bal[a.id]:.2f}" for a in accts]
+        net = sum(bal.values())
+        mo = date.today().strftime("%Y-%m")
+        cats, inc, exp = {}, 0.0, 0.0
+        for t in txns:
+            if (t.date or "").startswith(mo):
+                amt = t.amount or 0.0
+                if amt >= 0:
+                    inc += amt
+                else:
+                    exp += -amt
+                    c = t.category or "uncategorized"
+                    cats[c] = cats.get(c, 0.0) + (-amt)
+        top = sorted(cats.items(), key=lambda x: -x[1])[:8]
+        out = (
+            "accounts:\n" + "\n".join(lines) +
+            f"\nnet worth: {net:.2f}\n\nthis month ({mo}): income {inc:.2f}, spent {exp:.2f}\n" +
+            "by category:\n" + "\n".join(f"  {c}: {v:.2f}" for c, v in top)
+        )
+        q = (query or "").lower().strip()
+        if q:
+            match = [t for t in txns if q in ((t.payee or "") + " " + (t.category or "") + " " + (t.notes or "")).lower()]
+            spent = sum(-(t.amount or 0.0) for t in match if (t.amount or 0.0) < 0)
+            out += f"\n\nmatching '{query}': {len(match)} txns, spent {spent:.2f}"
+        return {"output": out, "error": False}
     finally:
         db.close()
 
@@ -2630,6 +2673,14 @@ APP_TOOL_DEFS = [
             "top_k": {"type": "integer", "default": 8},
         },
         ["query"],
+    ),
+    _tool(
+        "money_query",
+        "Read-only money analytics: account balances, net worth, this-month income/spend, spend by "
+        "category, and the total matching a payee/category term. Use for 'how much did I spend / "
+        "what's my balance' questions.",
+        {"query": {"type": "string", "description": "optional payee/category to total, e.g. 'coffee'"}},
+        [],
     ),
 ]
 
