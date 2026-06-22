@@ -31,6 +31,10 @@ _CAT_SETTING = {
     "habit": "pidx_proactive_cat_habit",
     "book": "pidx_proactive_cat_read",
     "health": "pidx_proactive_cat_health",
+    "budget": "pidx_proactive_cat_money",
+    "account": "pidx_proactive_cat_money",   # budget + low balance ride the money toggle
+    "mail": "pidx_proactive_cat_mail",
+    "journal": "pidx_proactive_cat_journal",
 }
 
 
