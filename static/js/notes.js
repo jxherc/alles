@@ -171,7 +171,7 @@ function _isOverdue(due) {
 }
 
 
-async function saveCurrentNote() {
+export async function saveCurrentNote() {
   if (!_editing) return;
   const title = document.getElementById('note-edit-title')?.value || '';
   const content = document.getElementById('note-edit-body')?.value || '';

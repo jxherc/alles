@@ -233,17 +233,6 @@
       </div>
     </div>
 
-    <!-- docs scratchpad view -->
-    <div class="page-view" id="notes-view" style="display:none">
-      <div class="page-view-head">
-        <span class="page-view-title">notes</span>
-        <input id="note-search" class="settings-input" placeholder="search notes…" style="flex:1;max-width:240px;margin:0 0.5rem">
-        <button class="btn primary" id="note-new-btn">+ new</button>
-      </div>
-      <div id="note-tagbar" class="note-tagbar"></div>
-      <div class="page-view-body" id="notes-list"></div>
-    </div>
-
     <!-- ── tasks view ── -->
     <div class="page-view" id="tasks-view" style="display:none">
       <div class="page-view-head">
@@ -498,6 +487,10 @@
             <input type="file" id="wiki-import-input" accept=".md,.markdown,.txt,.docx,.html,.htm,.pdf" style="display:none">
           </div>
         </div>
+        <div class="docs-sections" id="docs-sections">
+          <button class="docs-sec-btn active" data-section="docs">docs</button>
+          <button class="docs-sec-btn" data-section="notes">notes</button>
+        </div>
         <input type="text" id="wiki-search" class="settings-input docs-search" placeholder="search docs...">
         <div id="wiki-tags" class="wiki-tags"></div>
         <div id="wiki-tree" class="wiki-tree"></div>
@@ -559,10 +552,24 @@
                 <button class="btn" id="wiki-home-board">+ new board</button>
                 <button class="btn" id="wiki-empty-today">today's note</button>
                 <button class="btn" id="wiki-home-tasks">tasks</button>
+                <button class="btn" id="docs-home-notes">notes</button>
               </div>
             </div>
             <input type="text" id="docs-home-search" class="settings-input docs-home-search" placeholder="search your docs…">
             <div class="docs-home-grid" id="wiki-empty-recent"></div>
+          </div>
+        </div>
+        <div class="wiki-notes" id="wiki-notes">
+          <div class="docs-home">
+            <div class="docs-home-head">
+              <span class="docs-home-title">notes</span>
+              <div class="docs-home-actions">
+                <input id="note-search" class="settings-input" placeholder="search notes…" style="max-width:240px">
+                <button class="btn primary" id="note-new-btn">+ new note</button>
+              </div>
+            </div>
+            <div id="note-tagbar" class="note-tagbar"></div>
+            <div id="notes-list"></div>
           </div>
         </div>
         <div id="docs-toolbar" class="docs-toolbar">
