@@ -1,7 +1,7 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v99';   // dedicated proactive feed view
+const VERSION = 'v100';   // guided mail quick-login (app-password helper + auto-test)
 const CACHE = `alles-${VERSION}`;
-const STAMP = '125';   // keep in sync with index.html ?v= / const _v
+const STAMP = '126';   // keep in sync with index.html ?v= / const _v
 
 // 1b: mutating writes that should be queued when offline
 const MUTATING = ['POST', 'PUT', 'PATCH', 'DELETE'];
