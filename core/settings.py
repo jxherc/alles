@@ -94,6 +94,9 @@ _defaults = {
     "pidx_proactive_cat_habit": True,
     "pidx_proactive_cat_read": True,
     "pidx_proactive_cat_health": True,
+    "pidx_proactive_cat_money": True,
+    "pidx_proactive_cat_mail": True,
+    "pidx_proactive_cat_journal": False,  # privacy-sensitive; off by default + honors the lock
 }
 
 _ARTIFACT_INSTRUCTIONS = (

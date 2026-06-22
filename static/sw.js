@@ -1,7 +1,7 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v96';   // fix escaped chevron on home ask-aide model picker
+const VERSION = 'v97';   // proactive depth: money/mail/journal signals + toggles
 const CACHE = `alles-${VERSION}`;
-const STAMP = '122';   // keep in sync with index.html ?v= / const _v
+const STAMP = '123';   // keep in sync with index.html ?v= / const _v
 
 // 1b: mutating writes that should be queued when offline
 const MUTATING = ['POST', 'PUT', 'PATCH', 'DELETE'];
