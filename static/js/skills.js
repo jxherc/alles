@@ -1,10 +1,11 @@
 // skills — manage reusable procedures (SKILL.md on disk) that the agent can
-// discover + load. master/detail: pick from the list, edit on the right.
+// discover + load. category rail on the left, a card grid in the middle, and the
+// editor in a right slide-over drawer. library is just a mode of the same surface.
 import { toast } from './util.js';
 import { confirm as dlgConfirm, prompt as dlgPrompt } from './dialog.js';
 
 let _built = false;
-let _cur = null;            // slug being edited, or null for a new one
+let _cur = null;            // slug open in the drawer, or null for a new one
 
 const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 const $ = id => document.getElementById(id);
@@ -15,58 +16,8 @@ async function _api(url, opts) {
   return r.json();
 }
 
-export function initSkills() {
-  const body = $('skills-body');
-  if (!body) return;
-  if (!_built) {
-    body.innerHTML = `
-      <div class="skills-wrap">
-        <div class="skills-side">
-          <input id="skl-search" class="settings-input" placeholder="search skills…">
-          <button class="btn" id="skl-new" style="width:100%;margin:0.5rem 0 0.35rem">+ new skill</button>
-          <button class="btn" id="skl-library" style="width:100%;margin:0 0 0.35rem">⊕ browse library</button>
-          <div class="skl-import-row">
-            <button class="btn" id="skl-github" title="import SKILL.md from a github repo, folder, or file">↳ github</button>
-            <button class="btn" id="skl-upload" title="upload SKILL.md file(s)">↑ upload</button>
-          </div>
-          <input type="file" id="skl-file" accept=".md,.markdown,.txt" multiple style="display:none">
-          <div id="skl-list" class="skl-list"></div>
-        </div>
-        <div class="skills-main">
-          <div class="s-field"><label>name</label><input id="skl-name" class="settings-input" placeholder="e.g. PDF form filler"></div>
-          <div class="s-field"><label>description</label><input id="skl-desc" class="settings-input" placeholder="one line — what it does"></div>
-          <div class="s-field"><label>when to use</label><input id="skl-when" class="settings-input" placeholder="the trigger — when the agent should reach for this"></div>
-          <div class="s-field"><label>procedure (markdown)</label><textarea id="skl-bodytext" class="settings-textarea" rows="14" placeholder="the steps, in plain markdown…"></textarea></div>
-          <div class="skl-actions">
-            <button class="btn primary" id="skl-save">save</button>
-            <button class="btn" id="skl-export" style="display:none" title="download this skill's SKILL.md to share">export</button>
-            <button class="btn" id="skl-update" style="display:none" title="re-pull this skill from its git source">update</button>
-            <button class="btn danger" id="skl-del" style="display:none">delete</button>
-            <span id="skl-status" class="skl-status"></span>
-          </div>
-          <div id="skl-source" class="skl-source" style="display:none"></div>
-        </div>
-      </div>`;
-    $('skl-new').onclick = () => _editNew();
-    $('skl-library').onclick = _showLibrary;
-    $('skl-github').onclick = _importGithub;
-    $('skl-upload').onclick = () => $('skl-file').click();
-    $('skl-file').onchange = _uploadFiles;
-    $('skl-save').onclick = _save;
-    $('skl-export').onclick = _export;
-    $('skl-update').onclick = _update;
-    $('skl-del').onclick = _delete;
-    let t;
-    $('skl-search').oninput = e => { clearTimeout(t); t = setTimeout(() => _loadList(e.target.value), 200); };
-    _built = true;
-  }
-  _editNew();
-  _loadList('');
-}
-
-// browse-by-category: each skill carries its real category from the backend (the
-// library file it came from — coding.json → 'coding'); custom/imported ones have none.
-// label + display order for the known library categories; anything else → 'custom'.
+// each skill carries its category from the backend (the library file it came from —
+// coding.json → 'coding'); custom/imported ones have none → bucketed as 'custom'.
 const _CAT_LABEL = {
   'ai-prompting': 'ai & prompting', coding: 'coding', 'devops-git': 'devops & git',
   'testing-debugging': 'testing & debugging', 'data-sql': 'data & sql', utilities: 'utilities',
@@ -84,72 +35,160 @@ const _CAT_ORDER = [
 ];
 const _catOf = s => (s.category && _CAT_LABEL[s.category]) ? s.category : 'custom';
 
-const _collapsed = () => { try { return JSON.parse(localStorage.getItem('skl-collapsed') || '{}'); } catch { return {}; } };
-const _setCollapsed = m => localStorage.setItem('skl-collapsed', JSON.stringify(m));
+// ── view state ────────────────────────────────────────────────────────────────
+let _state = { mode: 'installed', cat: 'all', q: '', editing: null };
+let _data = [];   // raw rows for the current mode (installed skills or catalog items)
 
-// pinned skills get pulled into their own group on top, the rest bucket by category
-function _groupRows(skills) {
-  const buckets = {};
-  for (const s of skills) { if (s.pinned) continue; (buckets[_catOf(s)] ||= []).push(s); }
-  const groups = [];
-  const pinned = skills.filter(s => s.pinned);
-  if (pinned.length) groups.push({ key: 'pinned', label: 'pinned', items: pinned });
-  for (const k of _CAT_ORDER) if (buckets[k]?.length) groups.push({ key: k, label: _CAT_LABEL[k], items: buckets[k] });
-  return groups;
+export function initSkills() {
+  const body = $('skills-body');
+  if (!body) return;
+  if (!_built) {
+    body.innerHTML = `
+      <div class="skills2">
+        <div class="skl-head">
+          <input id="skl-search" class="settings-input skl-search" placeholder="search skills…">
+          <button class="btn primary" id="skl-new">+ new</button>
+        </div>
+        <div class="skl-body">
+          <nav class="skl-rail" id="skl-rail"></nav>
+          <div class="skl-grid" id="skl-grid"></div>
+        </div>
+        <div id="skl-drawer-host"></div>
+      </div>`;
+    let t;
+    $('skl-search').oninput = e => { clearTimeout(t); t = setTimeout(() => { _state.q = e.target.value.trim(); _render(); }, 200); };
+    $('skl-new').onclick = () => _openDrawer(null);
+    // rail clicks (delegated): category select + library/github/upload actions
+    $('skl-rail').addEventListener('click', e => {
+      const cat = e.target.closest('.skl-rail-cat');
+      if (cat) { _state.cat = cat.dataset.cat; _render(); return; }
+      const act = e.target.closest('.skl-rail-act')?.dataset.act;
+      if (act === 'library') _toggleLibrary();
+      else if (act === 'github') _importGithub();
+      else if (act === 'upload') $('skl-file')?.click();
+    });
+    _built = true;
+  }
+  _state = { mode: 'installed', cat: 'all', q: '', editing: null };
+  _refresh();
 }
 
-// prefix namespaces the collapse state so the installed list and the library don't share it
-function _renderGrouped(el, skills, rowHtml, forceOpen, prefix = '') {
-  const col = _collapsed();
-  el.innerHTML = _groupRows(skills).map(g => {
-    const ck = prefix + g.key;
-    const open = forceOpen || !col[ck];
-    return `<div class="skl-group${open ? '' : ' collapsed'}" data-grp="${ck}">
-      <div class="skl-group-head">
-        <span class="skl-group-chev">${open ? '▾' : '▸'}</span>
-        <span class="skl-group-label">${esc(g.label)}</span>
-        <span class="skl-group-count">${g.items.length}</span>
-      </div>
-      <div class="skl-group-body">${g.items.map(rowHtml).join('')}</div>
-    </div>`;
-  }).join('');
-  el.querySelectorAll('.skl-group-head').forEach(h => h.addEventListener('click', () => {
-    const g = h.parentElement;
-    const nowCollapsed = g.classList.toggle('collapsed');
-    h.querySelector('.skl-group-chev').textContent = nowCollapsed ? '▸' : '▾';
-    const m = _collapsed();
-    if (nowCollapsed) m[g.dataset.grp] = true; else delete m[g.dataset.grp];
-    _setCollapsed(m);
-  }));
-}
-
-const _skillRow = s => `
-  <div class="skl-row${s.slug === _cur ? ' active' : ''}" data-slug="${esc(s.slug)}">
-    <div class="skl-row-name">
-      <button class="skl-pin${s.pinned ? ' on' : ''}" data-pin="${esc(s.slug)}" title="${s.pinned ? 'unpin' : 'pin to top'}">${s.pinned ? '★' : '☆'}</button>
-      <span class="skl-row-title">${esc(s.name)}</span>
-      ${s.source ? '<span class="skl-git" title="git-backed — can be updated from source">git</span>' : ''}
-      ${s.uses ? `<span class="skl-uses" title="loaded ${s.uses} time${s.uses === 1 ? '' : 's'}">${s.uses}×</span>` : ''}
-    </div>
-    <div class="skl-row-desc">${esc(s.description) || '<em>no description</em>'}</div>
-  </div>`;
-
-async function _loadList(q) {
-  const el = $('skl-list');
-  if (!el) return;
-  let skills;
-  try { skills = await _api('/api/skills' + (q ? `?q=${encodeURIComponent(q)}` : '')); }
-  catch { el.innerHTML = '<div class="skl-empty" style="color:var(--error)">failed to load</div>'; return; }
-  if (!skills.length) {
-    el.innerHTML = `<div class="skl-empty">${q ? 'no matches' : 'no skills yet — make one the agent can reuse'}</div>`;
+async function _refresh() {
+  const grid = $('skl-grid');
+  if (grid) grid.innerHTML = '<div class="skl-empty">loading…</div>';
+  try {
+    _data = _state.mode === 'library'
+      ? await _api('/api/skills/catalog')
+      : await _api('/api/skills' + (_state.q ? `?q=${encodeURIComponent(_state.q)}` : ''));
+  } catch {
+    if (grid) grid.innerHTML = '<div class="skl-empty" style="color:var(--error)">failed to load</div>';
     return;
   }
-  _renderGrouped(el, skills, _skillRow, !!q, 'list:');   // a search keeps every group open
-  el.querySelectorAll('.skl-row').forEach(r => r.onclick = () => _open(r.dataset.slug));
-  el.querySelectorAll('.skl-pin').forEach(b => b.addEventListener('click', e => {
-    e.stopPropagation();
-    _togglePin(b.dataset.pin, !b.classList.contains('on'));
-  }));
+  _render();
+}
+
+function _catCounts(rows) {
+  const c = { all: rows.length, pinned: 0 };
+  for (const s of rows) {
+    if (s.pinned) c.pinned++;
+    const k = _catOf(s);
+    c[k] = (c[k] || 0) + 1;
+  }
+  return c;
+}
+
+function _visible() {
+  const ql = _state.q.toLowerCase();
+  return _data.filter(s => {
+    if (ql) return (`${s.name} ${s.description} ${s.when_to_use || ''}`).toLowerCase().includes(ql);
+    if (_state.cat === 'pinned') return !!s.pinned;
+    if (_state.cat !== 'all') return _catOf(s) === _state.cat;
+    return true;
+  });
+}
+
+function _render() {
+  _renderRail(_catCounts(_data));
+  _renderGrid(_visible());
+}
+
+function _renderRail(counts) {
+  const rail = $('skl-rail');
+  if (!rail) return;
+  const row = (key, label) => counts[key]
+    ? `<button class="skl-rail-cat${_state.cat === key ? ' active' : ''}" data-cat="${key}">
+         <span class="skl-rail-label">${esc(label)}</span><span class="skl-rail-count">${counts[key]}</span>
+       </button>` : '';
+  let html = '';
+  if (_state.q) html += `<div class="skl-rail-results">results · ${_visible().length}</div>`;
+  if (counts.pinned) html += row('pinned', 'pinned');
+  html += row('all', _state.mode === 'library' ? 'library' : 'all');
+  for (const k of _CAT_ORDER) if (k !== 'custom') html += row(k, _CAT_LABEL[k]);
+  html += row('custom', 'custom');
+  html += `<div class="skl-rail-foot">
+      <button class="skl-rail-act${_state.mode === 'library' ? ' active' : ''}" data-act="library">⊕ library</button>
+      <button class="skl-rail-act" data-act="github">↳ github</button>
+      <button class="skl-rail-act" data-act="upload">↑ upload</button>
+    </div>
+    <input type="file" id="skl-file" accept=".md,.markdown,.txt" multiple style="display:none">`;
+  rail.innerHTML = html;
+  const f = $('skl-file'); if (f) f.onchange = _uploadFiles;
+}
+
+function _renderGrid(list) {
+  const grid = $('skl-grid');
+  if (!grid) return;
+  if (!list.length) {
+    grid.innerHTML = `<div class="skl-empty">${_state.q ? 'no matches' : 'nothing here yet'}</div>`;
+    return;
+  }
+  // pinned float to the top (installed mode); catalog rows have no pinned flag
+  const sorted = [...list].sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0));
+  let head = '';
+  if (_state.mode === 'library') {
+    const remaining = _data.filter(c => !c.installed).length;
+    head = `<div class="skl-lib-bar">library · ${_data.length}${remaining ? ` · <button class="btn skl-addall">add all (${remaining})</button>` : ' · all added ✓'}</div>`;
+  }
+  grid.innerHTML = head + sorted.map(_card).join('');
+  if (_state.mode === 'library') grid.querySelector('.skl-addall')?.addEventListener('click', () => _install(_data.filter(c => !c.installed).map(c => c.slug)));
+  _bindCards(grid);
+}
+
+function _card(s) {
+  const badges = [
+    s.uses ? `<span class="skl-badge" title="loaded ${s.uses}×">${s.uses}×</span>` : '',
+    s.source ? '<span class="skl-badge git" title="git-backed">git</span>' : '',
+  ].join('');
+  const acts = _state.mode === 'library'
+    ? (s.installed
+        ? '<span class="skl-added" title="installed">✓ added</span>'
+        : `<button class="skl-add" data-act="add" data-slug="${esc(s.slug)}">+ add</button>`)
+    : `<div class="skl-card-acts">
+         <button class="skl-pin${s.pinned ? ' on' : ''}" data-act="pin" title="${s.pinned ? 'unpin' : 'pin to top'}">${s.pinned ? '★' : '☆'}</button>
+         <button class="skl-del-q" data-act="del" title="delete">🗑</button>
+       </div>`;
+  return `
+    <div class="skl-card${s.slug === _cur ? ' active' : ''}" data-slug="${esc(s.slug)}">
+      <div class="skl-card-top">
+        <span class="skl-card-name">${esc(s.name)}</span>
+        ${badges}
+      </div>
+      <div class="skl-card-desc">${esc(s.description) || '<em>no description</em>'}</div>
+      ${acts}
+    </div>`;
+}
+
+function _bindCards(root) {
+  root.querySelectorAll('.skl-card').forEach(c => {
+    c.onclick = e => {
+      const act = e.target.closest('[data-act]')?.dataset.act;
+      if (act === 'add') { e.stopPropagation(); _install([c.dataset.slug]); return; }
+      if (_state.mode === 'library') return;   // library cards: only the add button acts
+      if (act === 'pin') { e.stopPropagation(); _togglePin(c.dataset.slug, !e.target.classList.contains('on')); }
+      else if (act === 'del') { e.stopPropagation(); _deleteCard(c.dataset.slug); }
+      else _openDrawer(c.dataset.slug);
+    };
+  });
 }
 
 async function _togglePin(slug, pinned) {
@@ -157,33 +196,27 @@ async function _togglePin(slug, pinned) {
     await _api(`/api/skills/${encodeURIComponent(slug)}/pin`, {
       method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ pinned }),
     });
-    _loadList($('skl-search').value || '');   // re-sort, pinned jumps to top
+    await _refresh();
   } catch { toast('pin failed', 'error'); }
 }
 
-// the built-in library — browse + one-click install ready-made skills
-async function _showLibrary() {
-  const el = $('skl-list');
-  if (!el) return;
-  el.innerHTML = '<div class="skl-empty">loading…</div>';
-  let cat;
-  try { cat = await _api('/api/skills/catalog'); }
-  catch { el.innerHTML = '<div class="skl-empty" style="color:var(--error)">failed to load</div>'; return; }
-  const remaining = cat.filter(c => !c.installed).length;
-  const libRow = c => `
-    <div class="skl-row skl-lib-row">
-      <div style="flex:1;min-width:0">
-        <div class="skl-row-name"><span class="skl-row-title">${esc(c.name)}</span></div>
-        <div class="skl-row-desc">${esc(c.description)}</div>
-      </div>
-      ${c.installed ? '<span class="skl-installed">✓ added</span>' : `<button class="btn skl-add" data-slug="${esc(c.slug)}">add</button>`}
-    </div>`;
-  el.innerHTML =
-    `<div class="skl-lib-head"><span>library · ${cat.length}</span>${remaining ? `<button class="btn skl-addall">add all (${remaining})</button>` : '<span class="skl-installed">all added ✓</span>'}</div>` +
-    '<div id="skl-grp-host"></div>';
-  _renderGrouped($('skl-grp-host'), cat, libRow, false, 'lib:');
-  el.querySelector('.skl-addall')?.addEventListener('click', () => _install(cat.filter(c => !c.installed).map(c => c.slug)));
-  el.querySelectorAll('.skl-add').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); _install([b.dataset.slug]); }));
+async function _deleteCard(slug) {
+  if (!await dlgConfirm('delete this skill?')) return;
+  try {
+    await _api(`/api/skills/${encodeURIComponent(slug)}`, { method: 'DELETE' });
+    toast('skill deleted', 'success');
+    if (_cur === slug) _closeDrawer();
+    await _refresh();
+  } catch { toast('delete failed', 'error'); }
+}
+
+// ── library mode ────────────────────────────────────────────────────────────
+function _toggleLibrary() {
+  _state.mode = _state.mode === 'library' ? 'installed' : 'library';
+  _state.cat = 'all';
+  _state.q = '';
+  if ($('skl-search')) $('skl-search').value = '';
+  _refresh();
 }
 
 async function _install(slugs) {
@@ -191,7 +224,7 @@ async function _install(slugs) {
   try {
     const r = await _api('/api/skills/install', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ slugs }) });
     toast(`added ${r.installed} skill${r.installed === 1 ? '' : 's'}`, 'success');
-    _showLibrary();
+    await _refresh();
   } catch { toast('install failed', 'error'); }
 }
 
@@ -203,7 +236,7 @@ async function _importGithub() {
     const r = await _api('/api/skills/import-github', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ url: url.trim() }) });
     const n = r.imported.length;
     toast(`imported ${n} skill${n === 1 ? '' : 's'}${r.failed ? `, ${r.failed} failed` : ''}`, n ? 'success' : 'error');
-    _loadList('');
+    _refresh();
   } catch (e) { toast('github import failed: ' + e.message, 'error'); }
 }
 
@@ -216,86 +249,96 @@ async function _uploadFiles(e) {
     const r = await _api('/api/skills/upload', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ items }) });
     const n = r.imported.length;
     toast(`uploaded ${n} skill${n === 1 ? '' : 's'}${r.failed ? `, ${r.failed} skipped` : ''}`, n ? 'success' : 'error');
-    _loadList('');
+    _refresh();
   } catch (e) { toast('upload failed: ' + e.message, 'error'); }
 }
 
-function _editNew() {
-  _cur = null;
-  $('skl-name').value = '';
-  $('skl-desc').value = '';
-  $('skl-when').value = '';
-  $('skl-bodytext').value = '';
-  $('skl-del').style.display = 'none';
-  $('skl-export').style.display = 'none';
-  $('skl-update').style.display = 'none';
-  $('skl-source').style.display = 'none';
-  $('skl-status').textContent = '';
-  document.querySelectorAll('.skl-row.active').forEach(r => r.classList.remove('active'));
+// ── editor drawer ───────────────────────────────────────────────────────────
+function _drawerHtml() {
+  return `
+    <div class="skl-drawer-backdrop" id="skl-drawer-bd"></div>
+    <aside class="skl-drawer" id="skl-drawer">
+      <div class="skl-drawer-head">
+        <span id="skl-d-heading">new skill</span>
+        <button class="skl-drawer-x" id="skl-d-close" title="close">✕</button>
+      </div>
+      <div class="skl-drawer-body">
+        <div class="s-field"><label>name</label><input id="skl-d-name" class="settings-input" placeholder="e.g. PDF form filler"></div>
+        <div class="s-field"><label>description</label><input id="skl-d-desc" class="settings-input" placeholder="one line — what it does"></div>
+        <div class="s-field"><label>when to use</label><input id="skl-d-when" class="settings-input" placeholder="the trigger"></div>
+        <div class="s-field"><label>procedure (markdown)</label><textarea id="skl-d-body" class="settings-textarea" rows="14"></textarea></div>
+        <div class="skl-drawer-acts">
+          <button class="btn primary" id="skl-d-save">save</button>
+          <button class="btn" id="skl-d-export" style="display:none">export</button>
+          <button class="btn" id="skl-d-update" style="display:none">update</button>
+          <button class="btn danger" id="skl-d-del" style="display:none">delete</button>
+          <span id="skl-d-status" class="skl-status"></span>
+        </div>
+        <div id="skl-d-source" class="skl-source" style="display:none"></div>
+      </div>
+    </aside>`;
 }
 
-async function _open(slug) {
-  let s;
-  try { s = await _api(`/api/skills/${encodeURIComponent(slug)}`); }
-  catch { toast('failed to open skill', 'error'); return; }
-  _cur = s.slug;
-  $('skl-name').value = s.name || '';
-  $('skl-desc').value = s.description || '';
-  $('skl-when').value = s.when_to_use || '';
-  $('skl-bodytext').value = s.body || '';
-  $('skl-del').style.display = '';
-  $('skl-export').style.display = '';
-  $('skl-status').textContent = '';
-  if (s.source) {
-    $('skl-update').style.display = '';
-    $('skl-source').style.display = '';
-    $('skl-source').innerHTML = `git-backed · <a href="${esc(s.source)}" target="_blank" rel="noopener">${esc(s.source)}</a>`;
-  } else {
-    $('skl-update').style.display = 'none';
-    $('skl-source').style.display = 'none';
+async function _openDrawer(slug) {
+  const host = $('skl-drawer-host');
+  if (!host) return;
+  if (!$('skl-drawer')) {
+    host.innerHTML = _drawerHtml();
+    $('skl-d-close').onclick = _closeDrawer;
+    $('skl-drawer-bd').onclick = _closeDrawer;
+    $('skl-d-save').onclick = _save;
+    $('skl-d-export').onclick = _export;
+    $('skl-d-update').onclick = _update;
+    $('skl-d-del').onclick = _delete;
+    document.addEventListener('keydown', _drawerEsc);
   }
-  document.querySelectorAll('.skl-row').forEach(r => r.classList.toggle('active', r.dataset.slug === slug));
+  let s = { name: '', description: '', when_to_use: '', body: '', source: '' };
+  if (slug) {
+    try { s = await _api(`/api/skills/${encodeURIComponent(slug)}`); }
+    catch { toast('failed to open skill', 'error'); return; }
+  }
+  _cur = slug || null;
+  $('skl-d-heading').textContent = slug ? 'edit skill' : 'new skill';
+  $('skl-d-name').value = s.name || '';
+  $('skl-d-desc').value = s.description || '';
+  $('skl-d-when').value = s.when_to_use || '';
+  $('skl-d-body').value = s.body || '';
+  $('skl-d-status').textContent = '';
+  $('skl-d-del').style.display = slug ? '' : 'none';
+  $('skl-d-export').style.display = slug ? '' : 'none';
+  if (s.source) {
+    $('skl-d-update').style.display = ''; $('skl-d-source').style.display = '';
+    $('skl-d-source').innerHTML = `git-backed · <a href="${esc(s.source)}" target="_blank" rel="noopener">${esc(s.source)}</a>`;
+  } else { $('skl-d-update').style.display = 'none'; $('skl-d-source').style.display = 'none'; }
+  $('skl-drawer').classList.add('open');
+  $('skl-drawer-bd').classList.add('open');
+  document.querySelectorAll('.skl-card').forEach(c => c.classList.toggle('active', c.dataset.slug === slug));
+  $('skl-d-name').focus();
 }
 
-function _export() {
-  if (!_cur) return;
-  const a = document.createElement('a');
-  a.href = `/api/skills/${encodeURIComponent(_cur)}/export`;
-  a.download = `${_cur}.SKILL.md`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
+function _closeDrawer() {
+  $('skl-drawer')?.classList.remove('open');
+  $('skl-drawer-bd')?.classList.remove('open');
+  _cur = null;
+  document.querySelectorAll('.skl-card.active').forEach(c => c.classList.remove('active'));
 }
-
-async function _update() {
-  if (!_cur) return;
-  toast('updating from source…');
-  try {
-    const r = await _api(`/api/skills/${encodeURIComponent(_cur)}/update`, { method: 'POST' });
-    toast(r.updated ? 'updated from source' : 'no source to update from', r.updated ? 'success' : '');
-    if (r.updated) { _open(_cur); _loadList($('skl-search').value); }
-  } catch (e) { toast('update failed: ' + e.message, 'error'); }
-}
+function _drawerEsc(e) { if (e.key === 'Escape' && $('skl-drawer')?.classList.contains('open')) _closeDrawer(); }
 
 async function _save() {
-  const name = $('skl-name').value.trim();
+  const name = $('skl-d-name').value.trim();
   if (!name) { toast('give the skill a name', 'error'); return; }
-  const payload = {
-    name,
-    description: $('skl-desc').value.trim(),
-    when_to_use: $('skl-when').value.trim(),
-    body: $('skl-bodytext').value,
-  };
+  const payload = { name, description: $('skl-d-desc').value.trim(), when_to_use: $('skl-d-when').value.trim(), body: $('skl-d-body').value };
   try {
     const res = _cur
       ? await _api(`/api/skills/${encodeURIComponent(_cur)}`, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) })
       : await _api('/api/skills', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) });
     _cur = res.slug;
-    $('skl-del').style.display = '';
-    $('skl-status').textContent = 'saved';
-    setTimeout(() => { if ($('skl-status')) $('skl-status').textContent = ''; }, 1500);
+    $('skl-d-del').style.display = ''; $('skl-d-export').style.display = '';
+    $('skl-d-heading').textContent = 'edit skill';
+    $('skl-d-status').textContent = 'saved';
+    setTimeout(() => { if ($('skl-d-status')) $('skl-d-status').textContent = ''; }, 1500);
     toast('skill saved', 'success');
-    _loadList($('skl-search').value);
+    await _refresh();
   } catch (e) { toast('save failed: ' + e.message, 'error'); }
 }
 
@@ -305,7 +348,25 @@ async function _delete() {
   try {
     await _api(`/api/skills/${encodeURIComponent(_cur)}`, { method: 'DELETE' });
     toast('skill deleted', 'success');
-    _editNew();
-    _loadList($('skl-search').value);
+    _closeDrawer();
+    await _refresh();
   } catch { toast('delete failed', 'error'); }
+}
+
+function _export() {
+  if (!_cur) return;
+  const a = document.createElement('a');
+  a.href = `/api/skills/${encodeURIComponent(_cur)}/export`;
+  a.download = `${_cur}.SKILL.md`;
+  document.body.appendChild(a); a.click(); a.remove();
+}
+
+async function _update() {
+  if (!_cur) return;
+  toast('updating from source…');
+  try {
+    const r = await _api(`/api/skills/${encodeURIComponent(_cur)}/update`, { method: 'POST' });
+    toast(r.updated ? 'updated from source' : 'no source to update from', r.updated ? 'success' : '');
+    if (r.updated) { _openDrawer(_cur); await _refresh(); }
+  } catch (e) { toast('update failed: ' + e.message, 'error'); }
 }
