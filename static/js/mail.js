@@ -1085,6 +1085,7 @@ function acctForm(acct) {
         <button class="btn primary" id="ma-save">save</button>
       </div>
     </div>
+    <div class="mail-oauth" id="ma-oauth"></div>
     <input class="settings-input" id="ma-email" placeholder="email address" value="${esc(a.email || '')}">
     <input class="settings-input" id="ma-name" placeholder="label (optional)" value="${esc(a.name || '')}">
     <div class="mail-provider-row">
@@ -1191,6 +1192,50 @@ function acctForm(acct) {
     } else {
       $('ma-status').innerHTML = `<span class="mail-status-err">saved, but couldn't connect: ${esc(friendlyMailError(t.error))}</span>`;
     }
+  });
+
+  renderOauthBox(acct);
+}
+
+// the "sign in with google" box (or its one-time setup) at the top of the form
+async function renderOauthBox(acct) {
+  const box = $('ma-oauth');
+  if (!box) return;
+  let st = {};
+  try { st = await fetch('/api/mail/oauth/status').then(r => r.json()); } catch {}
+  const editingOauth = acct && acct.auth_type === 'oauth';
+  if (st.configured) {
+    box.innerHTML = `
+      <a class="btn primary mail-google-btn" href="/api/mail/oauth/google/start">${editingOauth ? 'reconnect with google' : 'sign in with google'}</a>
+      <div class="mail-or">or set it up by hand</div>`;
+    return;
+  }
+  box.innerHTML = `<details class="mail-oauth-setup"${editingOauth ? '' : ' open'}>
+    <summary>set up "sign in with google" (one-time)</summary>
+    <div class="mail-oauth-steps">
+      <p>create an OAuth client in <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noreferrer">google cloud console</a> (type: web application), then paste the keys here.</p>
+      <p>register this exact redirect url on that client:</p>
+      <code class="mail-redirect">${esc(st.redirect_uri || '')}</code>
+      <input class="settings-input" id="ma-cid" placeholder="client id">
+      <input class="settings-input" type="password" id="ma-csec" placeholder="client secret">
+      <input class="settings-input" id="ma-rbase" placeholder="redirect base (blank = http://localhost:8000)">
+      <button class="btn primary" id="ma-oauth-save">save google keys</button>
+    </div>
+  </details>
+  <div class="mail-or">or add manually</div>`;
+  $('ma-oauth-save')?.addEventListener('click', async () => {
+    const patch = {
+      mail_oauth_client_id: $('ma-cid').value.trim(),
+      mail_oauth_client_secret: $('ma-csec').value.trim(),
+    };
+    const rb = $('ma-rbase').value.trim();
+    if (rb) patch.mail_oauth_redirect_base = rb;
+    if (!patch.mail_oauth_client_id || !patch.mail_oauth_client_secret) {
+      toast('paste both client id and secret', 'error'); return;
+    }
+    await fetch('/api/settings', { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify(patch) });
+    toast('google keys saved', 'success');
+    renderOauthBox(acct);   // re-render -> now shows the sign-in button
   });
 }
 
