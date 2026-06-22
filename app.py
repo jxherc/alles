@@ -73,6 +73,7 @@ from routes import (
     read as read_routes,
     books as books_routes,
     health as health_routes,
+    recall as recall_routes,
 )
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s  %(name)s  %(message)s")
@@ -618,6 +619,7 @@ app.include_router(habits_routes.router)
 app.include_router(read_routes.router)
 app.include_router(books_routes.router)
 app.include_router(health_routes.router)
+app.include_router(recall_routes.router)
 
 
 # static files — no-cache so JS/CSS always reloads
