@@ -5988,3 +5988,8 @@ input.cp-swatch-input { width: 34px; height: 22px; border: 1px solid var(--faint
 @media (max-width: 560px) { .health-row { grid-template-columns: 70px 60px 1fr auto; } .health-row-note { display: none; } }
 
 .skl-card-path { font-family: var(--mono, monospace); font-size: 0.6rem; opacity: 0.7; }
+.skl-pv-when { font-size: 0.72rem; color: var(--muted); }
+.skl-pv-desc { font-size: 0.78rem; color: var(--text); }
+.skl-pv-body { white-space: pre-wrap; font-family: var(--mono, monospace); font-size: 0.72rem; color: var(--text); background: var(--panel); border: 1px solid var(--faint); border-radius: 3px; padding: 0.6rem; overflow-x: auto; margin: 0; }
+.skl-pv-src { font-size: 0.7rem; color: var(--accent); text-decoration: none; }
+.skl-pv-src:hover { text-decoration: underline; }

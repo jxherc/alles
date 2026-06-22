@@ -269,7 +269,51 @@ async function _addFromLibrary(c) {
   } catch { toast('add failed', 'error'); }
 }
 
-function _previewLibrary(c) { /* Task 3 */ }
+function _previewLibrary(c) {
+  if (c.dataset.kind === 'builtin') {
+    const s = _data.find(x => x.slug === c.dataset.slug);
+    if (s) _openPreview(s, { builtin: true, slug: s.slug, installed: !!s.installed });
+    return;
+  }
+  _api(`/api/skills/sources/${encodeURIComponent(_state.source)}/preview?path=${encodeURIComponent(c.dataset.path)}`)
+    .then(s => _openPreview(s, { builtin: false, url: c.dataset.url }))
+    .catch(() => toast("couldn't fetch skill", 'error'));
+}
+
+function _openPreview(s, opts) {
+  const host = $('skl-drawer-host');
+  if (!host) return;
+  const addCtl = opts.installed
+    ? '<span class="skl-added">✓ added</span>'
+    : '<button class="btn primary" id="skl-pv-add">+ add</button>';
+  const srcLink = s.source_url ? `<a class="skl-pv-src" href="${esc(s.source_url)}" target="_blank" rel="noopener">view source</a>` : '';
+  host.innerHTML = `
+    <div class="skl-drawer-backdrop open" id="skl-drawer-bd"></div>
+    <aside class="skl-drawer open" id="skl-drawer">
+      <div class="skl-drawer-head"><span>${esc(s.name)}</span><button class="skl-drawer-x" id="skl-d-close">✕</button></div>
+      <div class="skl-drawer-body">
+        ${s.when_to_use ? `<div class="skl-pv-when"><b>when:</b> ${esc(s.when_to_use)}</div>` : ''}
+        ${s.description ? `<div class="skl-pv-desc">${esc(s.description)}</div>` : ''}
+        <pre class="skl-pv-body">${esc(s.body || '')}</pre>
+        <div class="skl-drawer-acts">${addCtl}${srcLink}</div>
+      </div>
+    </aside>`;
+  $('skl-d-close').onclick = _closeDrawer;
+  $('skl-drawer-bd').onclick = _closeDrawer;
+  document.removeEventListener('keydown', _drawerEsc);
+  document.addEventListener('keydown', _drawerEsc);
+  const add = $('skl-pv-add');
+  if (add) add.onclick = async () => {
+    add.disabled = true;
+    if (opts.builtin) { await _install([opts.slug]); }
+    else {
+      try { await _api('/api/skills/import-github', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ url: opts.url }) }); toast('added', 'success'); }
+      catch { toast('add failed', 'error'); add.disabled = false; return; }
+    }
+    _closeDrawer();
+    _browseSource(_state.source);
+  };
+}
 
 async function _install(slugs) {
   if (!slugs.length) return;
@@ -334,16 +378,15 @@ function _drawerHtml() {
 async function _openDrawer(slug) {
   const host = $('skl-drawer-host');
   if (!host) return;
-  if (!$('skl-drawer')) {
-    host.innerHTML = _drawerHtml();
-    $('skl-d-close').onclick = _closeDrawer;
-    $('skl-drawer-bd').onclick = _closeDrawer;
-    $('skl-d-save').onclick = _save;
-    $('skl-d-export').onclick = _export;
-    $('skl-d-update').onclick = _update;
-    $('skl-d-del').onclick = _delete;
-    document.addEventListener('keydown', _drawerEsc);
-  }
+  host.innerHTML = _drawerHtml();
+  $('skl-d-close').onclick = _closeDrawer;
+  $('skl-drawer-bd').onclick = _closeDrawer;
+  $('skl-d-save').onclick = _save;
+  $('skl-d-export').onclick = _export;
+  $('skl-d-update').onclick = _update;
+  $('skl-d-del').onclick = _delete;
+  document.removeEventListener('keydown', _drawerEsc);
+  document.addEventListener('keydown', _drawerEsc);
   let s = { name: '', description: '', when_to_use: '', body: '', source: '' };
   if (slug) {
     try { s = await _api(`/api/skills/${encodeURIComponent(slug)}`); }
