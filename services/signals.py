@@ -153,7 +153,8 @@ def _subs(db, today):
 
 
 def _day_events(db, today):
-    from routes.days import _occurrence, _parse as _dp
+    from routes.days import _occurrence
+    from routes.days import _parse as _dp
 
     out = []
     for ev in db.query(DayEvent).all():
