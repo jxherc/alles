@@ -26,3 +26,27 @@ def test_remove_record():
     pix.index_record(db, "note", n)
     assert pix.remove_record(db, "note", "n2") >= 1
     assert not pix.search(db, "throwaway", k=5)
+
+from core.database import JournalEntry, Contact, ContactField, ReadItem, Book
+
+def test_journal_contact_read_book(monkeypatch):
+    import services.personal_index as pixmod
+    monkeypatch.setattr(pixmod, "_journal_locked", lambda: False)
+    db = _db()
+    db.add(JournalEntry(id="j1", date="2026-03-04", content="felt good about the move", mood="happy")); db.commit()
+    db.add(Contact(id="c1", name="Sam Rivera", company="Acme", notes="met at the trip")); db.commit()
+    db.add(ContactField(id="cf1", contact_id="c1", kind="email", label="work", value="sam@acme.com")); db.commit()
+    db.add(ReadItem(id="r1", url="http://x", title="rust tips", text="ownership and borrowing")); db.commit()
+    db.add(Book(id="b1", title="Dune", author="Herbert", notes="reread the desert parts")); db.commit()
+    for kind, ref, obj_q, q, want in [
+        ("journal", "2026-03-04", JournalEntry, "felt good move", "journal 2026-03-04"),
+        ("contact", "c1", Contact, "sam acme trip", "Sam Rivera"),
+        ("read", "r1", ReadItem, "ownership borrowing", "rust tips"),
+        ("book", "b1", Book, "desert reread", "Dune"),
+    ]:
+        obj = db.query(obj_q).filter_by(id=ref).first() if kind != "journal" else db.query(JournalEntry).filter_by(date=ref).first()
+        assert pix.index_record(db, kind, obj) > 0
+        hits = pix.search(db, q, kinds=[kind], k=5)
+        assert hits and hits[0]["label"] == want
+    # contact field value is searchable too
+    assert any(h["ref"] == "c1" for h in pix.search(db, "sam@acme.com", kinds=["contact"], k=5))
