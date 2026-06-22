@@ -82,6 +82,20 @@ class SettingsPatch(BaseModel):
     pidx_contact: bool | None = None
     pidx_read: bool | None = None
     pidx_book: bool | None = None
+    # proactive agent
+    pidx_proactive_enabled: bool | None = None
+    pidx_proactive_every_hours: int | None = None
+    pidx_proactive_quiet_start: int | None = None
+    pidx_proactive_quiet_end: int | None = None
+    pidx_proactive_channel: str | None = None
+    pidx_proactive_min_urgency: int | None = None
+    pidx_proactive_max_tokens: int | None = None
+    pidx_proactive_cat_task: bool | None = None
+    pidx_proactive_cat_sub: bool | None = None
+    pidx_proactive_cat_event: bool | None = None
+    pidx_proactive_cat_habit: bool | None = None
+    pidx_proactive_cat_read: bool | None = None
+    pidx_proactive_cat_health: bool | None = None
 
 
 @router.patch("/settings")

@@ -79,6 +79,20 @@ _defaults = {
     "pidx_contact": True,
     "pidx_read": True,
     "pidx_book": True,
+    # proactive agent (advisory suggestion cards) - default OFF, it spends tokens
+    "pidx_proactive_enabled": False,
+    "pidx_proactive_every_hours": 6,
+    "pidx_proactive_quiet_start": 22,
+    "pidx_proactive_quiet_end": 7,
+    "pidx_proactive_channel": "inapp",
+    "pidx_proactive_min_urgency": 1,
+    "pidx_proactive_max_tokens": 800,
+    "pidx_proactive_cat_task": True,
+    "pidx_proactive_cat_sub": True,
+    "pidx_proactive_cat_event": True,
+    "pidx_proactive_cat_habit": True,
+    "pidx_proactive_cat_read": True,
+    "pidx_proactive_cat_health": True,
 }
 
 _ARTIFACT_INSTRUCTIONS = (

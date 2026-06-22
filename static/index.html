@@ -1057,6 +1057,10 @@
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
           recall
         </div>
+        <div class="s-nav-item" data-pane="proactive">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.6 4.6L18 9l-4.4 1.4L12 15l-1.6-4.6L6 9l4.4-1.4z"/></svg>
+          proactive
+        </div>
       </nav>
 
       <!-- content area -->
@@ -1705,6 +1709,38 @@
               <div id="s-pidx-stats" style="font-size:0.7rem;color:var(--muted);margin:0.6rem 0"></div>
               <button class="btn" id="s-pidx-reindex">reindex now</button>
               <button class="btn danger" id="s-pidx-clear">clear index</button>
+            </div>
+          </div>
+        </div>
+        <div class="s-pane" id="s-pane-proactive">
+          <div class="s-card">
+            <div class="s-card-head">proactive</div>
+            <div class="s-card-body">
+              <p style="font-size:0.75rem;color:var(--muted);margin-bottom:0.6rem">
+                aide checks your day on a schedule and drops short advisory cards into the home today strip -
+                overdue tasks, renewals, habits and the like. it never acts on its own; you click through.
+                off by default since it runs the model on a timer (it spends tokens). hit "run now" to try it.
+              </p>
+              <div class="s-toggle-row"><div><div class="s-toggle-label">enable proactive agent</div></div><div class="s-switch" id="s-prox-enabled"></div></div>
+              <div class="s-toggle-row"><div><div class="s-toggle-label">tasks &amp; reminders</div></div><div class="s-switch" id="s-prox-cat-task"></div></div>
+              <div class="s-toggle-row"><div><div class="s-toggle-label">subscriptions</div></div><div class="s-switch" id="s-prox-cat-sub"></div></div>
+              <div class="s-toggle-row"><div><div class="s-toggle-label">calendar &amp; day-events</div></div><div class="s-switch" id="s-prox-cat-event"></div></div>
+              <div class="s-toggle-row"><div><div class="s-toggle-label">habits</div></div><div class="s-switch" id="s-prox-cat-habit"></div></div>
+              <div class="s-toggle-row"><div><div class="s-toggle-label">reading</div></div><div class="s-switch" id="s-prox-cat-read"></div></div>
+              <div class="s-toggle-row"><div><div class="s-toggle-label">health</div></div><div class="s-switch" id="s-prox-cat-health"></div></div>
+              <div style="display:flex;align-items:center;gap:0.5rem;margin-top:0.7rem;font-size:0.75rem;color:var(--muted)">
+                run every
+                <input type="number" min="1" max="168" id="s-prox-hours" style="width:4rem;background:var(--panel);border:1px solid var(--faint);color:var(--text);border-radius:3px;padding:0.2rem 0.3rem;font-size:0.75rem">
+                hours
+              </div>
+              <div style="display:flex;align-items:center;gap:0.5rem;margin-top:0.4rem;font-size:0.75rem;color:var(--muted)">
+                quiet hours
+                <input type="number" min="0" max="23" id="s-prox-qstart" style="width:3.4rem;background:var(--panel);border:1px solid var(--faint);color:var(--text);border-radius:3px;padding:0.2rem 0.3rem;font-size:0.75rem">
+                to
+                <input type="number" min="0" max="23" id="s-prox-qend" style="width:3.4rem;background:var(--panel);border:1px solid var(--faint);color:var(--text);border-radius:3px;padding:0.2rem 0.3rem;font-size:0.75rem">
+              </div>
+              <div id="s-prox-status" style="font-size:0.7rem;color:var(--muted);margin:0.6rem 0"></div>
+              <button class="btn" id="s-prox-run">run now</button>
             </div>
           </div>
         </div>
