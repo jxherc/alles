@@ -82,5 +82,65 @@
     "description": "break a genuine deadlock between options that score nearly equal",
     "when_to_use": "when analysis has stalled because two options come out roughly the same",
     "body": "1. confirm the options are actually tied, not just unfinished analysis.\n2. since payoff is even, switch the criterion to downside, regret, or reversibility.\n3. run a quick gut check: flip a coin and notice which result disappoints you.\n4. pick the option that's easier to undo or that you'd regret less.\n5. decide now and move, the cost of more deliberation exceeds the gap."
+  },
+  {
+    "name": "Forced Ranking",
+    "description": "rank options by forcing pairwise comparisons when everything feels equally important",
+    "when_to_use": "when the user has multiple options they rate similarly and can't pick",
+    "body": "1. list all options.\n2. compare each pair head-to-head, pick the winner, no ties.\n3. tally wins per option.\n4. sort by win count to get a strict rank.\n5. name the top option and confirm the rank feels right before acting."
+  },
+  {
+    "name": "Regret Minimisation",
+    "description": "pick the choice you'd be least likely to regret at age 80",
+    "when_to_use": "when the user is paralysed by fear and needs a long-horizon gut-check",
+    "body": "1. project forward to old age, looking back at this moment.\n2. ask which option you'd regret not trying more - failure or inaction.\n3. separate regret from embarrassment: short-term embarrassment fades, regret compounds.\n4. name the option that survives the 80-year test.\n5. note any near-term sacrifice worth making to avoid long-run regret."
+  },
+  {
+    "name": "Constraint Inventory",
+    "description": "surface the real constraints before exploring options so you don't waste time on non-starters",
+    "when_to_use": "when the user jumps into option-picking without knowing what rules the decision",
+    "body": "1. list every hard constraint: budget, time, people, legal, technical.\n2. separate hard limits from soft preferences.\n3. discard any option that breaks a hard constraint immediately.\n4. rank remaining options by how well they fit the soft ones.\n5. flag if the hard constraints are so tight no good option exists, and say so."
+  },
+  {
+    "name": "Separate Feeling",
+    "description": "split emotional reaction from analytical judgment so both get heard",
+    "when_to_use": "when the user's gut and the data disagree and they're frozen",
+    "body": "1. have them state the data-driven conclusion plainly.\n2. have them state the gut reaction plainly, without defending it.\n3. ask what the gut is actually sensing: fear, excitement, mistrust of the data.\n4. check if the feeling contains information the analysis missed.\n5. integrate both, then call a direction that neither pure logic nor pure gut would alone."
+  },
+  {
+    "name": "Minimum Viable Decision",
+    "description": "find the smallest decision that unblocks progress without over-committing",
+    "when_to_use": "when a big decision is stalling action and a smaller provisional choice would do",
+    "body": "1. clarify what is actually blocked right now because of this decision.\n2. find the minimum commitment that unblocks it without closing other doors.\n3. confirm the partial move is reversible or cheap to correct.\n4. make only that call, defer the rest until more info exists.\n5. set a trigger: the event that brings the bigger decision back."
+  },
+  {
+    "name": "Outside View",
+    "description": "ground a prediction by looking at base rates instead of only the specific case",
+    "when_to_use": "when the user is estimating likelihood or time and anchoring too hard on their own situation",
+    "body": "1. ask what class of thing this is (project, startup, medical procedure, etc.).\n2. find the base rate: how often does this class of thing succeed/finish on time/work.\n3. use that base rate as the default estimate before adjusting.\n4. adjust only for specific features that genuinely distinguish this case from the reference class.\n5. compare the adjusted estimate to the user's intuitive one and resolve the gap."
+  },
+  {
+    "name": "Decision Journal",
+    "description": "log the reasoning behind a decision now so you can audit it later",
+    "when_to_use": "when the user is about to make a high-stakes call and wants to stay honest about their reasoning",
+    "body": "1. record the decision being made and the date.\n2. list the options that were on the table.\n3. state the key facts and assumptions that drove the choice.\n4. note confidence level and what would prove it wrong.\n5. set a review date to check outcomes against the original reasoning."
+  },
+  {
+    "name": "Consensus Check",
+    "description": "find out whether stakeholders actually agree or are just politely nodding",
+    "when_to_use": "when a group decision needs to hold and you suspect surface agreement is hiding real dissent",
+    "body": "1. restate the decision clearly and have each party confirm understanding.\n2. ask each one: what would make you reverse this after the fact.\n3. surface those reversal conditions, map where they conflict.\n4. for each conflict, resolve it explicitly before leaving the room.\n5. write the decision down with owner and conditions; silent nods don't count."
+  },
+  {
+    "name": "Time Pressure Audit",
+    "description": "check whether the deadline is real or manufactured before rushing a decision",
+    "when_to_use": "when the user feels forced to decide now and is skipping analysis because of urgency",
+    "body": "1. name the deadline and who set it.\n2. ask what actually happens if the decision slips 24h or a week.\n3. separate external hard deadlines from internal urgency or social pressure.\n4. if the deadline is soft, buy the time needed for adequate analysis.\n5. if the deadline is hard, acknowledge the constraint and cut analysis to the one most critical question."
+  },
+  {
+    "name": "Reference Class Forecasting",
+    "description": "predict how long or how much something will cost by comparing to similar past cases",
+    "when_to_use": "when the user is estimating effort, cost, or timeline and you suspect planning-fallacy optimism",
+    "body": "1. identify 3-5 real past projects or cases similar in type and scale.\n2. record actuals: how long/expensive they were vs initial estimate.\n3. compute the average overrun ratio from those cases.\n4. apply that ratio to the user's current estimate as a sanity check.\n5. use the adjusted number as the working estimate unless specific evidence justifies optimism."
   }
 ]

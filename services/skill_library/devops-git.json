@@ -3,13 +3,13 @@
     "name": "Commit Message",
     "description": "write a clear conventional commit from a staged diff",
     "when_to_use": "when the user asks to commit changes or write a commit message",
-    "body": "1. run `git diff --staged` and read what actually changed.\n2. pick the type (feat/fix/refactor/docs/chore/test) and a scope from the touched area.\n3. write a <=50 char subject in imperative mood, no trailing period.\n4. add a body only if the why isn't obvious — explain intent, not the diff.\n5. commit; do not push unless asked."
+    "body": "1. run `git diff --staged` and read what actually changed.\n2. pick the type (feat/fix/refactor/docs/chore/test) and a scope from the touched area.\n3. write a <=50 char subject in imperative mood, no trailing period.\n4. add a body only if the why isn't obvious - explain intent, not the diff.\n5. commit; do not push unless asked."
   },
   {
     "name": "Resolve Conflict",
     "description": "work through a merge or rebase conflict safely",
     "when_to_use": "when the user hits merge conflicts during merge, rebase, or cherry-pick",
-    "body": "1. run `git status` to list conflicted files and the operation in progress.\n2. open each file, read both sides — keep intent from both, not just one branch.\n3. delete the `<<<<<<< ======= >>>>>>>` markers, leave valid code.\n4. build/test the merged result before continuing.\n5. `git add` resolved files, then continue the op (`--continue`), never blind-`--theirs`.\n6. if it's a mess, `git merge --abort` and rethink the approach."
+    "body": "1. run `git status` to list conflicted files and the operation in progress.\n2. open each file, read both sides - keep intent from both, not just one branch.\n3. delete the `<<<<<<< ======= >>>>>>>` markers, leave valid code.\n4. build/test the merged result before continuing.\n5. `git add` resolved files, then continue the op (`--continue`), never blind-`--theirs`.\n6. if it's a mess, `git merge --abort` and rethink the approach."
   },
   {
     "name": "Write Dockerfile",
@@ -27,31 +27,31 @@
     "name": "Read Stacktrace",
     "description": "trace an exception back to the real root cause",
     "when_to_use": "when the user pastes a stack trace or error and wants it diagnosed",
-    "body": "1. read the bottom exception type + message first — that's the actual failure.\n2. for chained traces, find the deepest `caused by` / `during handling`.\n3. walk frames top-down to the first one in the user's own code, not the library.\n4. open that file:line and inspect the variables/null/typing at fault.\n5. reproduce minimally, then propose the fix at the root, not a swallow."
+    "body": "1. read the bottom exception type + message first - that's the actual failure.\n2. for chained traces, find the deepest `caused by` / `during handling`.\n3. walk frames top-down to the first one in the user's own code, not the library.\n4. open that file:line and inspect the variables/null/typing at fault.\n5. reproduce minimally, then propose the fix at the root, not a swallow."
   },
   {
     "name": "Incident Postmortem",
     "description": "write a blameless postmortem after an outage",
     "when_to_use": "when the user wants to document an incident or postmortem",
-    "body": "1. state impact up top: what broke, who/how many hit, duration, severity.\n2. build a UTC timeline — detection, escalation, mitigation, resolution.\n3. separate trigger, root cause, and contributing factors; stay blameless.\n4. note what went well and what slowed recovery honestly.\n5. list action items with owners + due dates, each tied to a real gap.\n6. add detection/alerting follow-ups so it's caught faster next time."
+    "body": "1. state impact up top: what broke, who/how many hit, duration, severity.\n2. build a UTC timeline - detection, escalation, mitigation, resolution.\n3. separate trigger, root cause, and contributing factors; stay blameless.\n4. note what went well and what slowed recovery honestly.\n5. list action items with owners + due dates, each tied to a real gap.\n6. add detection/alerting follow-ups so it's caught faster next time."
   },
   {
     "name": "Roll Back",
     "description": "revert a bad deploy or commit cleanly under pressure",
     "when_to_use": "when a deploy or commit broke production and the user needs to undo it",
-    "body": "1. confirm what's live and what the last-known-good version/sha was.\n2. prefer redeploying the good artifact or `git revert` over force-pushing history.\n3. if a shared branch, never reset --hard; use revert so the undo is itself a commit.\n4. roll forward db migrations carefully — many aren't reversible, check before reverting.\n5. verify health/metrics recover after rollback.\n6. capture the bad sha for the postmortem before moving on."
+    "body": "1. confirm what's live and what the last-known-good version/sha was.\n2. prefer redeploying the good artifact or `git revert` over force-pushing history.\n3. if a shared branch, never reset --hard; use revert so the undo is itself a commit.\n4. roll forward db migrations carefully - many aren't reversible, check before reverting.\n5. verify health/metrics recover after rollback.\n6. capture the bad sha for the postmortem before moving on."
   },
   {
     "name": "Debug Container",
     "description": "diagnose why a container crashes, restarts, or won't start",
     "when_to_use": "when a docker or k8s container is crashlooping or exiting unexpectedly",
-    "body": "1. `docker ps -a` / `kubectl get pods` — read status and exit code (137=OOM, 1=app err).\n2. pull logs (`docker logs`, `kubectl logs --previous`) for the crashed instance.\n3. for OOM, check memory limits vs actual usage; bump or fix the leak.\n4. for config issues, exec a shell in or override entrypoint with sh to inspect env/files.\n5. check the CMD actually exists and is exec-form; verify mounts and ports.\n6. fix root cause, rebuild, and watch it stay up before declaring done."
+    "body": "1. `docker ps -a` / `kubectl get pods` - read status and exit code (137=OOM, 1=app err).\n2. pull logs (`docker logs`, `kubectl logs --previous`) for the crashed instance.\n3. for OOM, check memory limits vs actual usage; bump or fix the leak.\n4. for config issues, exec a shell in or override entrypoint with sh to inspect env/files.\n5. check the CMD actually exists and is exec-form; verify mounts and ports.\n6. fix root cause, rebuild, and watch it stay up before declaring done."
   },
   {
     "name": "Branch Cleanup",
     "description": "prune stale local and remote branches without losing work",
     "when_to_use": "when the user wants to clean up old or merged git branches",
-    "body": "1. `git fetch --prune` to drop refs deleted on the remote.\n2. `git branch --merged main` to find branches safely folded in.\n3. eyeball the list — never delete current, main, or in-flight work.\n4. delete merged locals with `git branch -d` (lowercase, refuses unmerged).\n5. for confirmed-dead remotes, `git push origin --delete <branch>`.\n6. leave anything ambiguous alone and flag it for the owner."
+    "body": "1. `git fetch --prune` to drop refs deleted on the remote.\n2. `git branch --merged main` to find branches safely folded in.\n3. eyeball the list - never delete current, main, or in-flight work.\n4. delete merged locals with `git branch -d` (lowercase, refuses unmerged).\n5. for confirmed-dead remotes, `git push origin --delete <branch>`.\n6. leave anything ambiguous alone and flag it for the owner."
   },
   {
     "name": "Tag Release",
@@ -69,18 +69,90 @@
     "name": "Secrets Hygiene",
     "description": "remove a leaked secret and stop it recurring",
     "when_to_use": "when a credential, key, or token got committed or exposed",
-    "body": "1. rotate/revoke the secret first — assume it's already compromised.\n2. remove it from history (git-filter-repo or BFG), not just the latest commit.\n3. force-push the cleaned history and have collaborators re-clone.\n4. move the value into env vars or a secrets manager, reference not inline.\n5. add the path to .gitignore and a pre-commit secret scanner (gitleaks).\n6. audit logs for any use during the exposure window."
+    "body": "1. rotate/revoke the secret first - assume it's already compromised.\n2. remove it from history (git-filter-repo or BFG), not just the latest commit.\n3. force-push the cleaned history and have collaborators re-clone.\n4. move the value into env vars or a secrets manager, reference not inline.\n5. add the path to .gitignore and a pre-commit secret scanner (gitleaks).\n6. audit logs for any use during the exposure window."
   },
   {
     "name": "Healthcheck Probe",
     "description": "design liveness/readiness checks that fail for the right reasons",
     "when_to_use": "when the user needs health endpoints or k8s liveness/readiness probes",
-    "body": "1. split readiness (can serve traffic now) from liveness (process is wedged).\n2. readiness should check real deps — db, cache — so traffic waits for them.\n3. keep liveness cheap and dependency-free so a slow db doesn't kill pods.\n4. set timeouts/thresholds above normal p99 to avoid flapping restarts.\n5. return proper status codes + a tiny body; no heavy work per probe.\n6. test by killing a dep and confirming only readiness drops."
+    "body": "1. split readiness (can serve traffic now) from liveness (process is wedged).\n2. readiness should check real deps - db, cache - so traffic waits for them.\n3. keep liveness cheap and dependency-free so a slow db doesn't kill pods.\n4. set timeouts/thresholds above normal p99 to avoid flapping restarts.\n5. return proper status codes + a tiny body; no heavy work per probe.\n6. test by killing a dep and confirming only readiness drops."
   },
   {
     "name": "Tail Logs",
     "description": "find the signal in production logs during an active issue",
     "when_to_use": "when the user is investigating a live problem and needs to read logs",
-    "body": "1. fix the time window to around the incident, in UTC.\n2. filter by request id / trace id / user to follow one failing path end to end.\n3. grep error+warn first, then widen to surrounding context lines.\n4. correlate across services on the shared trace id, not guesswork.\n5. note the first anomalous line — earlier than the loud errors usually.\n6. capture the smoking-gun lines for the ticket before logs rotate out."
+    "body": "1. fix the time window to around the incident, in UTC.\n2. filter by request id / trace id / user to follow one failing path end to end.\n3. grep error+warn first, then widen to surrounding context lines.\n4. correlate across services on the shared trace id, not guesswork.\n5. note the first anomalous line - earlier than the loud errors usually.\n6. capture the smoking-gun lines for the ticket before logs rotate out."
+  },
+  {
+    "name": "Git Worktrees",
+    "description": "isolate feature work in a separate worktree so main stays untouched",
+    "when_to_use": "when starting feature work that needs isolation from the current workspace or before executing an implementation plan",
+    "body": "1. check existing worktrees with `git worktree list`.\n2. `git worktree add ../<name> -b <branch>` to spin up a sibling dir.\n3. do all work in the new dir - main workspace is unaffected.\n4. switching is free: just cd between dirs, no stash needed.\n5. when done, `git worktree remove <path>` and delete the branch if merged."
+  },
+  {
+    "name": "Finish A Branch",
+    "description": "land completed work - fast-forward merge, PR, or branch cleanup",
+    "when_to_use": "when implementation is done and tests pass and the user needs to decide how to integrate",
+    "body": "1. confirm all tests pass and there are no uncommitted changes.\n2. decide the landing strategy: ff-merge if solo, PR if team review is needed.\n3. for PR: push branch, open with clear title + body, assign reviewers.\n4. for direct merge: `git checkout main && git merge --ff-only <branch>`.\n5. delete the branch after merge (`git branch -d`, remote `--delete`).\n6. tag if this is a release-worthy milestone."
+  },
+  {
+    "name": "Stash Work",
+    "description": "safely shelve uncommitted changes to switch context fast",
+    "when_to_use": "when the user needs to switch branches but has unfinished work they don't want to commit",
+    "body": "1. `git stash push -m 'description'` - always give it a name.\n2. verify stash was captured: `git stash list`.\n3. switch branches and do the other task.\n4. come back and `git stash pop` to restore; conflicts resolve like normal merges.\n5. if the stash is no longer needed, `git stash drop` to avoid clutter."
+  },
+  {
+    "name": "Rebase Commits",
+    "description": "squash, reorder, or reword commits before merging",
+    "when_to_use": "when the user wants to clean up commit history before a PR or merge",
+    "body": "1. `git log --oneline` to count commits since branching off main.\n2. `git rebase -i HEAD~N` to open the interactive list.\n3. squash wip/fixup commits into their parent; reword unclear messages.\n4. never rebase commits that others have already pulled.\n5. force-push with lease after: `git push --force-with-lease`."
+  },
+  {
+    "name": "Docker Compose Dev",
+    "description": "wire up a multi-service local dev environment with compose",
+    "when_to_use": "when the user wants to run multiple services (app, db, cache) locally together",
+    "body": "1. define each service in `docker-compose.yml` with its image or build context.\n2. use named volumes for persistent data (db, uploads); avoid bind-mounts for installed deps.\n3. set env vars in a `.env` file and reference with `${VAR}` in compose.\n4. add a `depends_on` + healthcheck so the app waits for db to be ready.\n5. `docker compose up --build` to start; `down -v` to nuke state and start clean."
+  },
+  {
+    "name": "Automate Version Bump",
+    "description": "script a version bump commit across all files that need updating",
+    "when_to_use": "when cutting a release and multiple files track the version number",
+    "body": "1. list every file that embeds the version (package.json, pyproject.toml, __init__.py, etc.).\n2. use sed/jq/toml tooling to update each; never edit by hand across files.\n3. run the build to confirm nothing broke.\n4. commit only the version-bump files with message `chore: bump version to X.Y.Z`.\n5. tag immediately after so the sha is clean: `git tag -a vX.Y.Z -m vX.Y.Z`."
+  },
+  {
+    "name": "Diff Review",
+    "description": "walk through a diff and flag risky, confusing, or broken parts",
+    "when_to_use": "when the user wants a quick review of a diff or staged changes before committing",
+    "body": "1. `git diff` or `git diff --staged` depending on what is being reviewed.\n2. read each hunk for correctness - does the new code actually do what the commit claims?\n3. flag: deleted error handling, hardcoded values, missing tests for new branches.\n4. note any obvious naming confusion or logic that looks off.\n5. return a short list of issues + a go/no-go verdict."
+  },
+  {
+    "name": "Monitor Deploy",
+    "description": "watch a deployment land and confirm it is healthy before moving on",
+    "when_to_use": "when the user just triggered a deploy and wants to verify it went through cleanly",
+    "body": "1. know the deployment target (k8s rollout, fly.io, render, etc.) and its status command.\n2. watch the rollout: `kubectl rollout status`, or check the platform's deploy log.\n3. once pods/instances flip, hit a health endpoint and confirm 200.\n4. tail application logs for 2-3 min watching for new errors or panics.\n5. check key metrics (error rate, latency) did not spike after cutover.\n6. if anything looks off, initiate rollback immediately, do not wait."
+  },
+  {
+    "name": "Git Alias Setup",
+    "description": "install useful git aliases to speed up daily workflow",
+    "when_to_use": "when the user wants to streamline their git workflow or asks for time-saving shortcuts",
+    "body": "1. add to `~/.gitconfig` under `[alias]` - no external tools needed.\n2. core ones worth adding: `st=status -sb`, `lg=log --oneline --graph --decorate --all`, `pushf=push --force-with-lease`.\n3. for quick wip: `wip=!git add -A && git commit -m wip`.\n4. `git config --global alias.<name> '<command>'` to add without editing the file.\n5. keep aliases obvious; weird shorthands cause confusion when pairing."
+  },
+  {
+    "name": "Lint In CI",
+    "description": "add a linting step to ci that blocks merges on violations",
+    "when_to_use": "when the user wants automated code style or quality checks enforced in their pipeline",
+    "body": "1. pick the linter(s) for the stack (eslint, ruff, golangci-lint, etc.).\n2. add a dedicated ci job that runs the linter; do not fold it into the test step.\n3. configure the linter to exit non-zero on violations so ci fails.\n4. add a config file (.eslintrc, ruff.toml) to the repo so rules are version-controlled.\n5. run autofix locally before committing: document the command in the README.\n6. ignore generated files and vendor dirs explicitly in the config."
+  },
+  {
+    "name": "Cherry Pick Fix",
+    "description": "copy a specific commit from one branch to another without a full merge",
+    "when_to_use": "when a bug fix on main needs to land on a release branch or vice versa",
+    "body": "1. get the sha of the commit to copy: `git log --oneline <source-branch>`.\n2. switch to the target branch.\n3. `git cherry-pick <sha>` - resolve conflicts if they arise like a normal merge.\n4. verify the change works in the target context; the code may differ there.\n5. push the branch; do not cherry-pick blindly into shared branches without checking."
+  },
+  {
+    "name": "Dependency Update",
+    "description": "update deps safely without breaking the build",
+    "when_to_use": "when the user wants to update dependencies or sees out-of-date packages",
+    "body": "1. `npm outdated` / `pip list --outdated` / `go list -m -u all` to see what is behind.\n2. update minor/patch first; major versions one at a time.\n3. run the full test suite after each major bump before moving to the next.\n4. read the changelog for any breaking changes before bumping a major.\n5. commit lockfile changes separately from code changes for clean history."
   }
 ]

@@ -45,13 +45,13 @@
     "name": "Detect Bias",
     "description": "surface slant, framing, and selective evidence in a piece of content",
     "when_to_use": "when the user wants to know if an article or argument is biased",
-    "body": "1. identify what the piece is trying to get you to believe or do.\n2. separate factual claims from loaded language and framing.\n3. check what's omitted: missing counterpoints, inconvenient data.\n4. look at source selection — are only one side's experts quoted.\n5. name the likely angle and who benefits from it.\n6. note what you'd need to read to get the other side."
+    "body": "1. identify what the piece is trying to get you to believe or do.\n2. separate factual claims from loaded language and framing.\n3. check what's omitted: missing counterpoints, inconvenient data.\n4. look at source selection - are only one side's experts quoted.\n5. name the likely angle and who benefits from it.\n6. note what you'd need to read to get the other side."
   },
   {
     "name": "Trace Origin",
     "description": "track a claim, quote, or statistic back to its original source",
     "when_to_use": "when the user wants to know where a viral fact or quote actually came from",
-    "body": "1. search the exact phrasing in quotes to find earliest uses.\n2. follow the citation chain backward, source to source.\n3. find the original document, study, or recording — not the summary.\n4. check if the claim was distorted or stripped of context along the way.\n5. report the true origin and the original wording.\n6. flag if it's misattributed, fabricated, or taken out of context."
+    "body": "1. search the exact phrasing in quotes to find earliest uses.\n2. follow the citation chain backward, source to source.\n3. find the original document, study, or recording - not the summary.\n4. check if the claim was distorted or stripped of context along the way.\n5. report the true origin and the original wording.\n6. flag if it's misattributed, fabricated, or taken out of context."
   },
   {
     "name": "Pros Cons",
@@ -63,13 +63,13 @@
     "name": "Spot Check",
     "description": "quickly sanity-test a number or stat for plausibility before trusting it",
     "when_to_use": "when a figure looks off or the user wants a fast reality check",
-    "body": "1. restate the number and its units precisely.\n2. estimate the right order of magnitude from first principles.\n3. compare against a known reference point you trust.\n4. check the denominator and timeframe — per what, over what.\n5. flag if it's off by 10x or the units don't add up.\n6. say plausible / suspicious and the rough true range."
+    "body": "1. restate the number and its units precisely.\n2. estimate the right order of magnitude from first principles.\n3. compare against a known reference point you trust.\n4. check the denominator and timeframe - per what, over what.\n5. flag if it's off by 10x or the units don't add up.\n6. say plausible / suspicious and the rough true range."
   },
   {
     "name": "Survey Opinion",
     "description": "gather the range of expert and community views on a contested topic",
     "when_to_use": "when the user asks what people or experts think about a debated subject",
-    "body": "1. identify the main camps before collecting quotes.\n2. find a credible representative for each position.\n3. capture each view in its own strongest form, no strawmen.\n4. note where the disagreement is factual vs values-based.\n5. show rough weight — is one view fringe or mainstream.\n6. end without forcing a false balance; say if one side has the evidence."
+    "body": "1. identify the main camps before collecting quotes.\n2. find a credible representative for each position.\n3. capture each view in its own strongest form, no strawmen.\n4. note where the disagreement is factual vs values-based.\n5. show rough weight - is one view fringe or mainstream.\n6. end without forcing a false balance; say if one side has the evidence."
   },
   {
     "name": "Build Timeline",
@@ -82,5 +82,65 @@
     "description": "give a precise, sourced definition and disambiguate competing meanings",
     "when_to_use": "when the user asks what a term means or when a word is being used ambiguously",
     "body": "1. find the authoritative or field-standard definition first.\n2. state it plainly, then the technical version if they differ.\n3. note competing or domain-specific meanings to avoid confusion.\n4. give one concrete example and one near-miss it's often confused with.\n5. cite where the definition comes from.\n6. one line on which sense applies to the user's context."
+  },
+  {
+    "name": "Explain Stat",
+    "description": "unpack what a statistic actually measures and whether it means what it implies",
+    "when_to_use": "when the user sees a percentage, rate, or metric and wants to know if it's meaningful",
+    "body": "1. identify the exact metric: what it counts and what it excludes.\n2. find the sample size and population so you know who it applies to.\n3. check absolute vs relative framing - relative numbers often hide small absolutes.\n4. look for the baseline: compared to what, over what period.\n5. flag if the stat is cherry-picked, outdated, or mismatched to the claim.\n6. give the plain-english version of what it actually shows."
+  },
+  {
+    "name": "Find Primary",
+    "description": "track down the original document, data set, or recording behind a secondhand reference",
+    "when_to_use": "when the user has a secondhand citation and wants the actual source",
+    "body": "1. note the full citation details given: author, date, title, publication.\n2. search for the original directly using those details.\n3. check institutional repositories, government sites, or preprint servers before paywalls.\n4. if paywalled, look for an open-access version or author copy.\n5. confirm the document matches what was cited, not a different edition.\n6. return the direct link and flag if only an abstract is freely available."
+  },
+  {
+    "name": "Map Stakeholders",
+    "description": "identify who has a stake in an issue and what each party wants",
+    "when_to_use": "when the user needs to understand the players and incentives behind a debate or decision",
+    "body": "1. list all groups with a direct interest: who gains, who loses, who decides.\n2. for each group, state their position and their underlying motivation.\n3. note power asymmetries - who can act, who can only react.\n4. flag hidden stakeholders whose role isn't obvious.\n5. map conflicts: which parties are directly opposed and why.\n6. close with who shapes the outcome most and what would change their position."
+  },
+  {
+    "name": "Estimate Scale",
+    "description": "ballpark the size of something using publicly available data and reasoning",
+    "when_to_use": "when the user wants a rough order-of-magnitude answer with no exact data available",
+    "body": "1. break the question into countable sub-components (fermi decomposition).\n2. find or estimate each component from real reference points.\n3. multiply through and note the uncertainty at each step.\n4. sanity-check the result against one known comparable.\n5. give the estimate as a range, not a false-precise number.\n6. state which assumption drives the result most so the user can adjust it."
+  },
+  {
+    "name": "Audit Methodology",
+    "description": "check whether a study's methods actually support its conclusions",
+    "when_to_use": "when the user wants to know if a study's design is sound before trusting the results",
+    "body": "1. read the methods section for sample size, selection method, and controls.\n2. check whether the outcome measured is what the headline claims.\n3. look for confounders the authors didn't control for.\n4. check if the statistical tests match the data type and study design.\n5. note p-hacking signs: lots of outcomes, no pre-registration.\n6. verdict: findings are reliable / overstated / exploratory-only, and the key reason."
+  },
+  {
+    "name": "Identify Gaps",
+    "description": "find what's missing or unresearched in a body of knowledge",
+    "when_to_use": "when the user wants to know what's still unknown or poorly studied on a topic",
+    "body": "1. survey what's well-established and set it aside.\n2. look at where existing studies contradict each other - that's a gap.\n3. check what populations, time periods, or contexts haven't been studied.\n4. look for questions experts keep flagging as needing more research.\n5. note where the data simply doesn't exist yet.\n6. list the top 3 gaps ranked by how much they'd change conclusions if answered."
+  },
+  {
+    "name": "Track Record",
+    "description": "check an expert's or organisation's history of accuracy and credibility",
+    "when_to_use": "when the user wants to know if a person or org giving a claim has been right before",
+    "body": "1. find past predictions or claims this source made on record.\n2. check which ones were right, wrong, or quietly walked back.\n3. look for retractions, corrections, or disciplinary actions.\n4. check funding and affiliations for structural conflicts of interest.\n5. compare their track record to peers in the same field.\n6. verdict: reliable voice / mixed record / credibility concerns, with the key example."
+  },
+  {
+    "name": "Check Currency",
+    "description": "verify that information is still up to date and hasn't been superseded",
+    "when_to_use": "when the user is relying on information that might be outdated in a fast-moving area",
+    "body": "1. note the publication date of the source in question.\n2. search for newer sources on the same topic from the past 12 months.\n3. check if guidelines, regulations, or consensus have changed since.\n4. look for formal retractions or updates to the original.\n5. note how fast this field changes and whether the gap matters.\n6. say still current / stale / superseded and point to the fresher source."
+  },
+  {
+    "name": "Summarize Debate",
+    "description": "map out the core arguments on both sides of an ongoing controversy",
+    "when_to_use": "when the user asks about an active disagreement and wants both sides laid out fairly",
+    "body": "1. define the exact point of disagreement - what's actually contested.\n2. lay out the strongest argument for position A, no weakening.\n3. lay out the strongest argument for position B, same standard.\n4. identify what evidence would settle it if both sides accept empiricism.\n5. note if the disagreement is factual, values-based, or definitional.\n6. say where the weight of evidence sits now without forcing false balance."
+  },
+  {
+    "name": "Reverse Lookup",
+    "description": "find the question that a given answer or conclusion was designed to support",
+    "when_to_use": "when the user suspects an argument or report was written backward from a desired conclusion",
+    "body": "1. identify the conclusion the piece lands on.\n2. ask who benefits if that conclusion is accepted.\n3. check if the evidence selection feels exhaustive or curated to fit.\n4. look for what contrary evidence is absent or minimised.\n5. see if the research was commissioned or timed around a decision.\n6. flag if the framing suggests motivated reasoning and name the likely motive."
   }
 ]

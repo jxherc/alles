@@ -82,5 +82,59 @@
     "description": "rewrite new text to match the voice of a provided sample",
     "when_to_use": "when the user gives a sample and wants more writing that sounds like it",
     "body": "1. study the sample for sentence length, vocabulary, rhythm, and quirks.\n2. note its tone and any recurring tics (em-dashes, fragments, slang).\n3. write the new content with the same fingerprints, not just the same topic.\n4. avoid drifting into generic prose when the source has personality.\n5. compare a paragraph against the sample and adjust until they rhyme."
+  },
+  {
+    "name": "Write Bio",
+    "description": "draft a short professional or personal bio for a stated context",
+    "when_to_use": "when the user needs a bio for a profile, speaker page, press kit, or about section",
+    "body": "1. ask or infer: who is this for, and where will it appear.\n2. lead with the most relevant credential or role for that context.\n3. add one line of concrete achievement or differentiator.\n4. keep it third-person unless the context clearly wants first-person.\n5. hit the target length (tweet, short, full) and stop there."
+  },
+  {
+    "name": "Write Apology",
+    "description": "draft a sincere, specific apology that takes responsibility without over-explaining",
+    "when_to_use": "when the user needs to apologize to someone in writing",
+    "body": "1. state what happened without passive voice or blame-shifting.\n2. name the impact on the other person, not just the mistake itself.\n3. say sorry directly - no 'sorry if you felt' constructions.\n4. offer a concrete remedy or next step if one exists.\n5. keep it short; long apologies read as self-defense."
+  },
+  {
+    "name": "Write Hook",
+    "description": "craft an opening line or paragraph that grabs attention",
+    "when_to_use": "when the user's opening is flat, slow, or they need a strong first line",
+    "body": "1. read what the piece is really about so the hook earns its reveal.\n2. draft 5-6 hook options: question, bold claim, scene, statistic, paradox.\n3. kill any that start with 'I', 'This', 'In today's world', or a dictionary def.\n4. pick the one that creates the sharpest pull into the next sentence.\n5. make sure the piece can actually deliver on what the hook implies."
+  },
+  {
+    "name": "Cut Jargon",
+    "description": "replace insider terms and buzzwords with plain language",
+    "when_to_use": "when the text is full of jargon, acronyms, or corporate-speak that a layperson won't follow",
+    "body": "1. list every term the target reader might not know.\n2. for each, write the simplest plain-english equivalent.\n3. swap them in; keep technical terms only where precision actually matters.\n4. flag any where the translation loses important nuance.\n5. reread the result as if you're seeing the topic for the first time."
+  },
+  {
+    "name": "Argument Map",
+    "description": "identify the main claim and supporting points in a piece of writing",
+    "when_to_use": "when the user wants to understand or analyse the logical structure of an argument",
+    "body": "1. read the whole piece once without annotating.\n2. state the central claim in one sentence.\n3. list the supporting claims that back it up.\n4. note any that are unsupported assertions vs backed by evidence.\n5. flag logical gaps or jumps the reader has to take on faith."
+  },
+  {
+    "name": "Ghost Post",
+    "description": "write a social media post or thread in the user's voice",
+    "when_to_use": "when the user wants a tweet, linkedin post, or thread written for them to publish",
+    "body": "1. pin down the platform, goal (inform, promote, spark discussion), and tone.\n2. ask for a sample of their past posts or infer voice from the prompt.\n3. draft the post respecting the platform's length and norms.\n4. for threads, make the first post work standalone.\n5. don't over-hashtag; add them only where they actually reach people."
+  },
+  {
+    "name": "Closing Call",
+    "description": "write a persuasive closing paragraph or call to action",
+    "when_to_use": "when the user needs a strong ending to a pitch, essay, post, or email",
+    "body": "1. read the piece to know what action or feeling it's building toward.\n2. restate the core payoff in one fresh sentence, not a copy-paste of the intro.\n3. make the desired action explicit and easy to visualize.\n4. create a small sense of consequence or urgency without hype.\n5. end on a word that lands - not 'please' or 'thanks' or 'feel free to'."
+  },
+  {
+    "name": "Transition Fix",
+    "description": "add or improve transitions so sections connect smoothly",
+    "when_to_use": "when the writing jumps between ideas with no connective tissue or abrupt topic changes",
+    "body": "1. read across section breaks and note where the logic jumps without warning.\n2. write a bridging sentence at each gap that names what just happened and where we're going.\n3. vary transition type: contrast, consequence, example, time, restatement.\n4. cut any filler transitions that just signal movement without adding meaning.\n5. reread the joins to confirm they're invisible and earned."
+  },
+  {
+    "name": "Passive Voice Fix",
+    "description": "rewrite passive constructions as direct, active sentences",
+    "when_to_use": "when the user's writing is weak or evasive due to heavy passive voice",
+    "body": "1. scan for 'was/were/is/are/been + past participle' patterns.\n2. for each, name who does the action and put them at the front.\n3. rewrite as subject → verb → object.\n4. keep passive only where the actor is unknown or genuinely irrelevant.\n5. check that nothing softened into wrongness during the swap."
   }
 ]

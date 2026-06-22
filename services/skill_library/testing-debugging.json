@@ -9,7 +9,7 @@
     "name": "Debug Error",
     "description": "track a thrown error or stack trace back to its root cause",
     "when_to_use": "when the user pastes an exception, crash, or failing run and wants it fixed",
-    "body": "1. read the full stack trace bottom-up, find the deepest frame in their own code.\n2. open that line and check the actual values flowing in, not what should be there.\n3. form one hypothesis for the cause, state it before touching anything.\n4. make the smallest change that tests the hypothesis, re-run to confirm.\n5. if wrong, revert and form the next hypothesis — don't stack guesses."
+    "body": "1. read the full stack trace bottom-up, find the deepest frame in their own code.\n2. open that line and check the actual values flowing in, not what should be there.\n3. form one hypothesis for the cause, state it before touching anything.\n4. make the smallest change that tests the hypothesis, re-run to confirm.\n5. if wrong, revert and form the next hypothesis - don't stack guesses."
   },
   {
     "name": "Minimal Repro",
@@ -27,13 +27,13 @@
     "name": "Find Flaky Test",
     "description": "isolate why a test passes sometimes and fails other times",
     "when_to_use": "when a test fails intermittently or only in ci",
-    "body": "1. run the test alone in a loop (20-50x) to confirm it flakes solo vs only in a suite.\n2. if only in a suite, suspect shared state — global vars, db rows, temp files, ordering.\n3. check for time, randomness, or async races: unmocked clock, no seed, missing await.\n4. fix the source of nondeterminism, don't just add a retry or sleep.\n5. re-loop the test to prove it's now stable before closing."
+    "body": "1. run the test alone in a loop (20-50x) to confirm it flakes solo vs only in a suite.\n2. if only in a suite, suspect shared state - global vars, db rows, temp files, ordering.\n3. check for time, randomness, or async races: unmocked clock, no seed, missing await.\n4. fix the source of nondeterminism, don't just add a retry or sleep.\n5. re-loop the test to prove it's now stable before closing."
   },
   {
     "name": "Profile Slow Code",
     "description": "find and confirm the real bottleneck in slow code",
     "when_to_use": "when something is too slow and the user wants it faster",
-    "body": "1. measure first — time the whole operation so you have a baseline number.\n2. profile with the language's profiler, sort by cumulative time.\n3. look at the top 1-2 functions, ignore everything below them for now.\n4. check for the usual suspects: n+1 queries, work inside loops, repeated parsing.\n5. fix the top one, re-measure, report before/after — stop when it's good enough."
+    "body": "1. measure first - time the whole operation so you have a baseline number.\n2. profile with the language's profiler, sort by cumulative time.\n3. look at the top 1-2 functions, ignore everything below them for now.\n4. check for the usual suspects: n+1 queries, work inside loops, repeated parsing.\n5. fix the top one, re-measure, report before/after - stop when it's good enough."
   },
   {
     "name": "Bisect Regression",
@@ -51,36 +51,96 @@
     "name": "Test Edge Cases",
     "description": "enumerate and test the boundary and degenerate inputs of code",
     "when_to_use": "when code looks correct on normal input but its edges are untested",
-    "body": "1. list the input domains: empty, single, max, negative, null, unicode, duplicates.\n2. for each, write down the expected output before coding the assertion.\n3. add one test per distinct edge, named for the case it covers.\n4. run them — any surprise failure is a real bug, fix the code not the test.\n5. note any edge the code intentionally rejects and assert that rejection."
+    "body": "1. list the input domains: empty, single, max, negative, null, unicode, duplicates.\n2. for each, write down the expected output before coding the assertion.\n3. add one test per distinct edge, named for the case it covers.\n4. run them - any surprise failure is a real bug, fix the code not the test.\n5. note any edge the code intentionally rejects and assert that rejection."
   },
   {
     "name": "Reproduce Bug Report",
     "description": "turn a vague user bug report into a deterministic reproduction",
     "when_to_use": "when someone reports a bug but you can't yet trigger it yourself",
-    "body": "1. extract the exact steps, environment, and version from the report.\n2. match their setup as closely as you can locally before changing anything.\n3. follow the steps literally — if it doesn't repro, ask for the one missing detail.\n4. once it repros, capture it as a failing test so it can't silently return.\n5. only then start fixing, against that test."
+    "body": "1. extract the exact steps, environment, and version from the report.\n2. match their setup as closely as you can locally before changing anything.\n3. follow the steps literally - if it doesn't repro, ask for the one missing detail.\n4. once it repros, capture it as a failing test so it can't silently return.\n5. only then start fixing, against that test."
   },
   {
     "name": "Diagnose Hang",
     "description": "figure out why a process is stuck and not progressing",
     "when_to_use": "when code hangs, freezes, or never returns instead of erroring",
-    "body": "1. confirm it's hung not just slow — check cpu: pegged means loop, idle means wait.\n2. dump the stack of the live process (thread dump, py-spy, ctrl-\\, debugger attach).\n3. read where it's parked: a lock, a join, a network read, an infinite loop.\n4. trace who holds the resource it's waiting on, or what should end the loop.\n5. fix the deadlock/missing-timeout/exit-condition, re-run to confirm it completes."
+    "body": "1. confirm it's hung not just slow - check cpu: pegged means loop, idle means wait.\n2. dump the stack of the live process (thread dump, py-spy, ctrl-\\, debugger attach).\n3. read where it's parked: a lock, a join, a network read, an infinite loop.\n4. trace who holds the resource it's waiting on, or what should end the loop.\n5. fix the deadlock/missing-timeout/exit-condition, re-run to confirm it completes."
   },
   {
     "name": "Snapshot Test",
     "description": "capture and compare output snapshots for complex structured results",
     "when_to_use": "when output is large or nested and hand-writing assertions is impractical",
-    "body": "1. pick stable, deterministic output — strip timestamps, ids, ordering first.\n2. generate the snapshot once and read it to confirm it's actually correct.\n3. commit the snapshot so future diffs are reviewable.\n4. on failure, read the diff and decide: real regression or intended change.\n5. only update the snapshot deliberately, never blanket-accept all updates."
+    "body": "1. pick stable, deterministic output - strip timestamps, ids, ordering first.\n2. generate the snapshot once and read it to confirm it's actually correct.\n3. commit the snapshot so future diffs are reviewable.\n4. on failure, read the diff and decide: real regression or intended change.\n5. only update the snapshot deliberately, never blanket-accept all updates."
   },
   {
     "name": "Triage Failures",
     "description": "sort a wall of failing tests into root causes fast",
     "when_to_use": "when a test run comes back with many failures at once",
-    "body": "1. read the failure summary, group by identical error message or file.\n2. find the common root — usually one broken import, fixture, or config feeds many.\n3. fix the shared cause first, re-run, watch the count collapse.\n4. repeat on the next-largest cluster until only true singletons remain.\n5. handle the remaining one-offs individually, last."
+    "body": "1. read the failure summary, group by identical error message or file.\n2. find the common root - usually one broken import, fixture, or config feeds many.\n3. fix the shared cause first, re-run, watch the count collapse.\n4. repeat on the next-largest cluster until only true singletons remain.\n5. handle the remaining one-offs individually, last."
   },
   {
     "name": "Assert Invariants",
     "description": "add runtime assertions to catch broken assumptions early",
     "when_to_use": "when a bug comes from a silently violated assumption deep in the code",
-    "body": "1. name the thing that must always be true (non-null, sorted, within range, summed).\n2. assert it right where it must hold, with a message naming the invariant.\n3. run the existing flow — if the assert fires, you've localized the bug.\n4. trace upstream to where the invariant first broke, fix it there.\n5. keep cheap asserts in; pull expensive ones once the cause is settled."
+    "body": "1. name the thing that must always be true (non-null, sorted, within range, summed).\n2. assert it right where it must hold, with a message naming the invariant.\n3. run the existing flow - if the assert fires, you've localized the bug.\n4. trace upstream to where the invariant first broke, fix it there.\n5. keep cheap asserts in; pull expensive ones once the cause is settled."
+  },
+  {
+    "name": "Systematic Debug",
+    "description": "find the root cause before touching any fix",
+    "when_to_use": "when something is broken and the urge is to just try stuff without really knowing why",
+    "body": "1. reproduce it reliably first - if you can't reliably trigger it, stop and do that.\n2. read the full error, don't skim - the exact message and line matter.\n3. trace data flow backward from the failure point, noting where expected diverges from actual.\n4. form one specific hypothesis, write it down.\n5. test it with the smallest possible change, observe the result.\n6. if wrong, revert fully and form the next hypothesis - no stacking guesses."
+  },
+  {
+    "name": "TDD Loop",
+    "description": "write the failing test first, then the minimal code to make it pass",
+    "when_to_use": "when implementing a feature or fixing a bug with test coverage from the start",
+    "body": "1. write the test that captures the desired behavior - run it, confirm it fails for the right reason.\n2. write the minimum code that makes it pass, nothing more.\n3. run again, confirm green - if it was already passing, the test was wrong.\n4. refactor code and test for clarity, re-run to stay green.\n5. commit only after the cycle is clean."
+  },
+  {
+    "name": "Verify Before Done",
+    "description": "run verification before claiming a fix or feature is complete",
+    "when_to_use": "when about to say something is done, fixed, or passing",
+    "body": "1. do not claim done without running the actual verification command.\n2. run the test, build, lint, or smoke check relevant to the change.\n3. read the output - \"0 failures\" and \"1 skipped\" are not the same.\n4. if it fails, fix it before reporting, don't explain why it would have worked.\n5. paste or describe the concrete output that proves it, then call it done."
+  },
+  {
+    "name": "Coverage Gap",
+    "description": "find which code paths have no test coverage and fill the most important ones",
+    "when_to_use": "when coverage is unknown or dropping and you need to know what's unprotected",
+    "body": "1. run coverage with the existing test suite, generate a report.\n2. sort by least-covered files in core logic, ignore generated or config files.\n3. read the uncovered lines - mark which are risky (error paths, auth, data writes) vs trivial.\n4. write tests for the top risky gaps first, skip boilerplate getters for now.\n5. re-run coverage and report the delta."
+  },
+  {
+    "name": "Regression Test",
+    "description": "write a test that locks in current behavior so it can't silently break again",
+    "when_to_use": "when fixing a bug that had no test and must not regress",
+    "body": "1. before fixing, write a test that fails with the current buggy behavior.\n2. confirm it fails - that's your proof the bug is real and testable.\n3. apply the fix, confirm the test now passes.\n4. name the test after the bug or ticket so it's traceable.\n5. commit test and fix together."
+  },
+  {
+    "name": "Trace API Call",
+    "description": "follow an outgoing api call end-to-end to find where it breaks",
+    "when_to_use": "when a network request fails or returns unexpected data and you don't know if it's the client or server",
+    "body": "1. log the full request: method, url, headers (masked), body before it goes out.\n2. log the raw response: status, headers, body - before any parsing.\n3. compare request to what the api expects, spot the mismatch.\n4. if response is wrong, confirm with curl/httpie directly to rule out client bugs.\n5. fix at the correct layer: bad payload → fix caller, bad response → fix handler."
+  },
+  {
+    "name": "Isolate Environment",
+    "description": "rule out environment differences as the cause of a bug",
+    "when_to_use": "when something works on one machine or env but not another",
+    "body": "1. list what differs: node/python version, env vars, installed packages, os.\n2. diff the lockfiles or requirement pins between both environments.\n3. check env vars - missing or wrong values cause most \"it works locally\" bugs.\n4. run in the same env the bug appears in, not a local approximation.\n5. fix the env config or pin the dependency, verify both sides agree."
+  },
+  {
+    "name": "Dead Code Hunt",
+    "description": "find and remove code that is never reached or called",
+    "when_to_use": "when the codebase has code that looks unused but you want confirmation before deleting",
+    "body": "1. run a static dead-code tool (knip, vulture, ts-prune) or search for references manually.\n2. for each candidate, grep for callers across the repo including dynamic paths.\n3. check if it's exported - external consumers count even if no internal call exists.\n4. delete one thing at a time, run tests after each removal.\n5. if tests still pass and nothing imports it, it's gone - commit."
+  },
+  {
+    "name": "Memory Leak Check",
+    "description": "detect and locate unbounded memory growth in a running process",
+    "when_to_use": "when memory climbs over time without stabilizing and you need to find what's accumulating",
+    "body": "1. take a baseline heap snapshot or rss reading before any work starts.\n2. run the workload once, take a second snapshot, diff the two.\n3. look for object counts that grew and didn't shrink - lists, caches, listeners.\n4. find where those objects are created and whether anything clears or limits them.\n5. fix the retention (cap the cache, remove the listener, close the resource), re-run to confirm rss stabilizes."
+  },
+  {
+    "name": "Test Fixture Setup",
+    "description": "build clean, reusable test data and setup so tests stay independent",
+    "when_to_use": "when tests share mutable state or setup is copy-pasted across many test files",
+    "body": "1. identify what state each test actually needs, ignore what it assumes from prior tests.\n2. move repeated setup into a factory function or fixture - one place, no copy-paste.\n3. each test creates its own data from the factory, never mutates shared objects.\n4. teardown must undo exactly what setup did - don't rely on test order for cleanup.\n5. run tests in random order to confirm they still pass."
   }
 ]

@@ -82,5 +82,65 @@
     "description": "analyze a competitor's messaging and surface positioning gaps",
     "when_to_use": "when the user wants to analyze a competitor's marketing, copy, or positioning",
     "body": "1. pull their homepage hero, value prop, pricing framing, and main cta.\n2. note their target audience, tone, and the proof they lean on.\n3. list what they do well and where the messaging is weak or vague.\n4. find the gap or angle they're not claiming.\n5. recommend 3 concrete moves to differentiate against them."
+  },
+  {
+    "name": "Press Release",
+    "description": "draft a newsworthy press release with a tight inverted-pyramid structure",
+    "when_to_use": "when the user needs to announce a launch, milestone, or news item to media or the public",
+    "body": "1. confirm the news angle, embargo date, and the one quote to anchor it.\n2. write a headline that works as a standalone news sentence.\n3. lead paragraph: who, what, when, where, why in under 40 words.\n4. body: add context, data, and a spokesperson quote in inverted-pyramid order.\n5. close with a boilerplate about the company and media contact details."
+  },
+  {
+    "name": "Case Study",
+    "description": "write a before-after customer story that sells through proof",
+    "when_to_use": "when the user wants to turn a customer win into a marketing case study or success story",
+    "body": "1. gather customer name, vertical, problem, solution used, and measurable results.\n2. structure as: situation, complication, action, result (scar).\n3. open with the result so the reader knows payoff is coming.\n4. back every claim with a specific number or quote.\n5. close with a pull quote and a one-line cta to try the product."
+  },
+  {
+    "name": "Tagline Options",
+    "description": "generate punchy tagline candidates with rationale",
+    "when_to_use": "when the user needs a slogan, catchphrase, or tagline for a brand, product, or campaign",
+    "body": "1. lock the audience, core feeling, and the one thing the brand must own.\n2. draft 10 taglines spanning styles (action, outcome, personality, provocation).\n3. keep each under 7 words, no jargon, no clichés.\n4. cut to the top 5, add a one-line rationale for each.\n5. flag which works best for ads vs brand-building vs spoken pitch."
+  },
+  {
+    "name": "Campaign Brief",
+    "description": "write a one-page creative brief that aligns a campaign before production starts",
+    "when_to_use": "when the user is kicking off a campaign and needs to align on goals, audience, and message before producing assets",
+    "body": "1. fill the 5 slots: business goal, audience, single-minded message, tone, and success metric.\n2. write a one-line campaign idea sentence a creative team can react to.\n3. list deliverables, channels, and timeline at a glance.\n4. name what's in-scope and explicitly what's out-of-scope.\n5. flag open decisions and who owns each one."
+  },
+  {
+    "name": "Video Script",
+    "description": "write a short-form or explainer video script with scene and voiceover",
+    "when_to_use": "when the user needs a script for a product video, explainer, reel, or youtube ad",
+    "body": "1. set format: length in seconds, style (talking-head/animation/screen-record), goal.\n2. write a hook in the first 3 seconds that earns the next 30.\n3. structure as problem → demo/insight → payoff, one idea per scene.\n4. write visual directions in [brackets], keep vo tight-1 word/second target.\n5. close with a spoken cta and hold a visual slate with link or offer."
+  },
+  {
+    "name": "Testimonial Polish",
+    "description": "edit raw customer quotes into punchy, credible testimonials without fabricating",
+    "when_to_use": "when the user has raw customer feedback and wants to turn it into usable testimonials",
+    "body": "1. read the raw quote without editing intent-note the strongest authentic claim.\n2. cut filler words and rambles, keep the customer's own vocabulary.\n3. tighten to 1-3 sentences max, lead with the specific result.\n4. if a number is vague, flag it for the customer to confirm, don't invent one.\n5. add a display name + role + company line beneath each polished quote."
+  },
+  {
+    "name": "Referral Program",
+    "description": "design a referral program structure with incentives and messaging",
+    "when_to_use": "when the user wants to build or improve a referral, word-of-mouth, or affiliate program",
+    "body": "1. decide the reward structure: one-sided vs two-sided, and what the reward is.\n2. set the sharing moment-when in the user journey to surface it.\n3. draft the invite message the referrer sends (short, personal, benefit-first).\n4. write the landing copy the referred friend sees after clicking.\n5. define tracking, payout trigger, and fraud limit before launch."
+  },
+  {
+    "name": "Podcast Pitch",
+    "description": "write a personalised podcast guest pitch that gets a reply",
+    "when_to_use": "when the user wants to pitch themselves or a client as a podcast guest",
+    "body": "1. listen to or read notes on a recent episode to nail the show's angle.\n2. open by referencing something specific from that episode-not generic praise.\n3. introduce the guest in one line: who they are and what they've done.\n4. pitch 2-3 episode angle ideas with a concrete talking-point for each.\n5. keep the email under 150 words and end with a single soft ask."
+  },
+  {
+    "name": "Objection Responses",
+    "description": "write sales copy or scripts that preempt and handle common buyer objections",
+    "when_to_use": "when the user wants to address customer objections in copy, a sales deck, or a faq section",
+    "body": "1. list the top 5-7 objections buyers raise (price, trust, timing, alternatives, complexity).\n2. for each, acknowledge the concern before countering it.\n3. reframe price objections with cost-of-inaction or roi math.\n4. handle trust with specific proof: stats, guarantees, logos, named customers.\n5. output each as a question-answer pair usable in faq, deck, or call script."
+  },
+  {
+    "name": "Launch Checklist",
+    "description": "build a pre-launch marketing checklist covering every channel and asset",
+    "when_to_use": "when the user is planning a product launch, campaign go-live, or content drop and needs to make sure nothing is missed",
+    "body": "1. set the launch date and work backwards to identify deadline dependencies.\n2. list asset categories: copy, visuals, email, social, paid, pr, site.\n3. under each, itemize every piece needed with owner and done-by date.\n4. add a 48-hour pre-launch sanity check row: links, tracking pixels, legal sign-off.\n5. include a day-of monitor list and a rollback plan if something breaks."
   }
 ]

@@ -82,5 +82,65 @@
     "description": "rewrites a message to fit the right register for the audience",
     "when_to_use": "when the user has a draft that's too stiff, too casual, or off for the reader",
     "body": "1. name the reader and the relationship, that sets the register.\n2. decide the target: warmer, more formal, more direct, softer.\n3. cut hedging (\"just\", \"maybe\", \"sorry to bother\") if they want directness.\n4. strip jargon and corporate filler if they want human.\n5. match their channel's norms, slack isn't email isn't a letter.\n6. read it aloud once, if it sounds like a press release, loosen it."
+  },
+  {
+    "name": "Intro Request",
+    "description": "asks someone to introduce you to a third party without being awkward",
+    "when_to_use": "when the user wants to be connected to someone through a mutual contact",
+    "body": "1. make it easy by sending a forwardable blurb about yourself (3 sentences).\n2. explain why this specific person is the right connection, not just 'i want to meet them'.\n3. give the connector an out - 'only if it makes sense to you'.\n4. keep the ask in one email, not a pre-ask then the real ask.\n5. say what you'll do once connected so they're not left wondering."
+  },
+  {
+    "name": "Escalate Issue",
+    "description": "writes an escalation message that moves things without burning bridges",
+    "when_to_use": "when something is stuck and the user needs to involve a higher level without looking like they're complaining",
+    "body": "1. open with what you've already tried and when, no one should be surprised.\n2. state the impact of continued inaction in concrete terms (cost, deadline, risk).\n3. ask for a specific decision or action, not just attention.\n4. keep it factual and calm, urgency is conveyed by facts not tone.\n5. cc only the people who actually need to act or know."
+  },
+  {
+    "name": "Set Expectations",
+    "description": "proactively defines scope, timeline, or availability to prevent misunderstandings",
+    "when_to_use": "when the user is taking on work or starting something and wants to align upfront",
+    "body": "1. name what is and isn't included before anyone assumes.\n2. give a realistic timeline with a single firm milestone.\n3. say what you need from them to hit it.\n4. flag the one most likely risk and how you'll handle it.\n5. end by asking if this matches their expectations, not assuming it does."
+  },
+  {
+    "name": "Negotiate Timeline",
+    "description": "pushes back on a deadline or scope without looking like you're dodging work",
+    "when_to_use": "when the user has been given a timeline that doesn't work and needs to renegotiate",
+    "body": "1. acknowledge why the deadline matters to them first.\n2. show what's already on your plate, data beats excuses.\n3. offer a specific counter-date you can actually hit.\n4. or offer a partial delivery by their date and the rest later.\n5. frame it as 'here's how we get this done right' not 'i can't'."
+  },
+  {
+    "name": "Thank You Note",
+    "description": "writes a specific and genuine thank-you that doesn't sound generic",
+    "when_to_use": "when the user wants to thank someone for help, a gift, or a favor",
+    "body": "1. name the exact thing they did, not just 'thank you for everything'.\n2. say what it meant or how it actually helped.\n3. one detail that shows you noticed makes it real.\n4. if there's a next step or you'd like to return the favor, say it.\n5. keep it under 5 sentences, length doesn't equal sincerity."
+  },
+  {
+    "name": "Announce Change",
+    "description": "communicates a process, team, or product change so people aren't blindsided",
+    "when_to_use": "when the user needs to tell a group about something that's changing",
+    "body": "1. lead with what's changing and when, not the backstory.\n2. say why in one line, people accept change better with a real reason.\n3. tell them what stays the same so the change feels bounded.\n4. list any action they need to take, if any.\n5. give them a single contact or place to ask questions.\n6. send before the change, not after."
+  },
+  {
+    "name": "Complaint Letter",
+    "description": "writes a firm complaint that demands resolution without sounding unhinged",
+    "when_to_use": "when the user wants to formally complain to a company or person and get results",
+    "body": "1. open with the facts: what happened, when, order/account numbers.\n2. state the impact on you concisely.\n3. say exactly what resolution you want (refund, replacement, action).\n4. set a deadline for their response.\n5. note any prior attempts to resolve it.\n6. close professionally - you want results not revenge."
+  },
+  {
+    "name": "Reference Write",
+    "description": "writes a strong recommendation or reference letter for someone",
+    "when_to_use": "when the user is asked to write a reference or letter of recommendation",
+    "body": "1. open with how you know them and for how long.\n2. pick two or three concrete strengths that fit the role they're going for.\n3. back each one with a specific story or outcome, not adjectives.\n4. address the biggest concern a reader might have preemptively if you can.\n5. close with a clear endorsement and offer to be contacted."
+  },
+  {
+    "name": "Slack Message",
+    "description": "writes a focused async message that gets a clear response",
+    "when_to_use": "when the user needs to send a chat message that requires a decision or response",
+    "body": "1. front-load the ask or point, don't build up to it.\n2. use one message not five, write it all then send.\n3. bold the action item or question so it can't be skimmed past.\n4. if it needs a decision, give 2-3 options to pick from.\n5. say when you need it by, 'whenever you can' means never."
+  },
+  {
+    "name": "Pitch Idea",
+    "description": "frames a new idea or proposal so it gets a fair hearing instead of an instant no",
+    "when_to_use": "when the user wants to propose something to a manager, team, or client",
+    "body": "1. open with the problem you're solving, not the solution.\n2. say why now, what makes this the right moment.\n3. pitch the solution in 2-3 sentences, keep it crisp.\n4. name the cost (time, money, effort) honestly, don't hide it.\n5. say what success looks like and when you'd know if it's working.\n6. end with the smallest possible first step to try it."
   }
 ]

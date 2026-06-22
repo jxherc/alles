@@ -82,5 +82,65 @@
     "description": "structure a focused agenda that ends with decisions",
     "when_to_use": "when the user is running a meeting and wants it to not waste time",
     "body": "1. state the single objective; if there isn't one, suggest an email instead.\n2. list only attendees who decide or do, mark optional folks.\n3. break the time into agenda items, each with an owner and a desired outcome (decide/inform/brainstorm).\n4. timebox each item and front-load the highest-stakes decision.\n5. leave the last 5 min for owners + deadlines on action items.\n6. send it ahead with any pre-read so the meeting is for deciding, not reading."
+  },
+  {
+    "name": "Job Description",
+    "description": "write a clear, attractive job posting that filters for the right candidates",
+    "when_to_use": "when the user needs to hire and wants to write a job listing",
+    "body": "1. get the role, team size, must-haves, and one dealbreaker that disqualifies.\n2. open with the problem the hire solves, not a company-about-us block.\n3. list must-have requirements under 5 items, nice-to-haves separately.\n4. describe the actual day-to-day in 3-4 bullet points, concrete not vague.\n5. include comp range -- postings without it get ignored or low-quality apps.\n6. close with the next step, clear timeline, and who they will actually talk to."
+  },
+  {
+    "name": "Client Proposal",
+    "description": "draft a project proposal that converts a lead into a paying client",
+    "when_to_use": "when the user needs to send a proposal after a client conversation",
+    "body": "1. restate their problem in their own words so they feel heard.\n2. lay out the scope in phases with a clear deliverable for each phase.\n3. give a timeline with milestones, not just a final deadline.\n4. price it with a single recommended option; add a stripped-down alternative if needed.\n5. name the terms that protect both sides: payment schedule, revision limit, kill fee.\n6. end with a clear expiry date on the proposal and one-click yes path."
+  },
+  {
+    "name": "Equity Breakdown",
+    "description": "explain and evaluate equity in an offer or startup deal",
+    "when_to_use": "when the user received equity as part of an offer or investment and wants to understand it",
+    "body": "1. get the offer details: shares or %, vesting schedule, cliff, strike price, valuation.\n2. calculate the current paper value and the diluted % assuming a funding round.\n3. explain cliff and vesting in plain terms so they know when they actually own it.\n4. outline the scenarios: acquisition, ipo, shutdown -- what happens to the equity.\n5. flag red flags: no cliff, full acceleration on change of control, no option pool info.\n6. end with a verdict on whether the equity makes the comp competitive at this stage."
+  },
+  {
+    "name": "Invoice Draft",
+    "description": "create a professional invoice ready to send to a client",
+    "when_to_use": "when the user needs to bill a client for work done",
+    "body": "1. get the client name, work description, amount, and due date.\n2. assign an invoice number (date-based format if none exists: YYYYMMDD-01).\n3. itemize the work line-by-line with rate and quantity so there is no room to dispute.\n4. add payment terms clearly: due date, accepted methods, and late fee if any.\n5. include payment details right in the doc, no hunting for them.\n6. note any outstanding balance from previous invoices if applicable."
+  },
+  {
+    "name": "Reference Request",
+    "description": "write a message asking someone to be a professional reference",
+    "when_to_use": "when the user needs to ask someone for a job reference",
+    "body": "1. remind them of a specific project or win you shared to jog the memory.\n2. tell them the role and company so they can tailor what they say.\n3. ask explicitly if they are comfortable being a reference, make it easy to decline.\n4. give them the likely timeline and contact method (call, email, form).\n5. share 2-3 things you would love them to emphasize so their words land.\n6. commit to a thank-you note and update on outcome either way."
+  },
+  {
+    "name": "Freelance Contract",
+    "description": "draft the key clauses of a freelance services agreement",
+    "when_to_use": "when the user is starting freelance work and needs a basic contract",
+    "body": "1. name the parties, the exact deliverable, and the final deadline.\n2. set the payment amount, schedule, and trigger (on delivery, milestones, net-30).\n3. define how many revisions are included and what out-of-scope work costs.\n4. add ip ownership: who owns the work on final payment, what the freelancer can keep or show.\n5. include a kill fee so both sides are covered if the project dies mid-way.\n6. add a dispute clause (jurisdiction + mediation-first) and a no-poach period if relevant."
+  },
+  {
+    "name": "Competitor Analysis",
+    "description": "map the competitive landscape for a product or service",
+    "when_to_use": "when the user wants to understand who else is in their market and how they compare",
+    "body": "1. get the product, the target customer, and the key buying criteria.\n2. list 4-6 real competitors (direct, indirect, and the diy alternative).\n3. build a comparison grid: criteria as rows, competitors as columns, honest ratings.\n4. find the whitespace -- what is being under-served or ignored by all of them.\n5. identify which competitor is most dangerous and why.\n6. summarize the defensible position in one sentence."
+  },
+  {
+    "name": "Board Update",
+    "description": "structure a concise board or investor update",
+    "when_to_use": "when the user needs to send a monthly or quarterly update to investors or advisors",
+    "body": "1. open with the headline number and whether you are on track, ahead, or behind.\n2. 3 wins: concrete, specific, tied to metrics.\n3. 3 concerns or risks: honest, no spin, with the plan to address each.\n4. asks: list exactly what you need from the board (intros, advice, decisions).\n5. key metrics table: same 5-7 numbers every time so progress is trackable.\n6. close with next milestone and expected date, one sentence."
+  },
+  {
+    "name": "Severance Review",
+    "description": "evaluate a severance package and flag what to push back on",
+    "when_to_use": "when the user was laid off or fired and received a severance offer",
+    "body": "1. get the package details: weeks of pay, benefits continuation, equity treatment, non-disparagement, non-compete.\n2. benchmark the offer against industry norm for tenure and seniority (1-2 weeks per year is the common floor).\n3. flag any clause that restricts their next move: non-compete scope, non-solicit duration, forced arbitration.\n4. identify 2-3 things worth negotiating: more weeks, extended benefits, unvested equity acceleration.\n5. draft the negotiation response: thank, ask, justify with brief logic, stay warm.\n6. note the signing deadline and that they should not sign under pressure before understanding every clause."
+  },
+  {
+    "name": "One Pager",
+    "description": "write a one-page executive summary for a business, product, or idea",
+    "when_to_use": "when the user needs to pitch or explain something concisely on a single page",
+    "body": "1. get the audience and the single action you want them to take after reading.\n2. open with the problem in one line -- make the pain undeniable.\n3. solution block: what it is, how it works, key differentiator.\n4. traction block: one strong proof point (users, revenue, results, notable name).\n5. ask or next step block: exactly what you want from the reader.\n6. keep it scannable with short paragraphs or labeled sections; cut every word that does not earn its place."
   }
 ]
