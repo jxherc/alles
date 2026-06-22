@@ -1594,6 +1594,7 @@ let _editingRule = null;   // rule id being edited (null = adding a new one)
 // one-click starting points — prefill the form with a sensible rule to tweak
 const _RULE_PRESETS = [
   { label: '☀ morning digest', trigger: 'daily_at', trigger_arg: '08:00', action: 'push_digest', action_arg: '', name: 'morning digest' },
+  { label: '✈ briefing → discord/telegram', trigger: 'daily_at', trigger_arg: '08:00', action: 'notify_digest', action_arg: '', name: 'morning briefing' },
   { label: '📥 important email → task', trigger: 'mail_from', trigger_arg: '', action: 'create_task', action_arg: '{subject} — from {from}', name: '' },
   { label: '💳 renewal heads-up', trigger: 'sub_renewing', trigger_arg: '3', action: 'push', action_arg: '{name} renews in 3 days', name: 'renewal reminder' },
   { label: '📅 upcoming day', trigger: 'day_event_near', trigger_arg: '7', action: 'push', action_arg: '{name} is in a week', name: '' },
@@ -1616,7 +1617,7 @@ async function loadRulesPane() {
       document.getElementById('rule-trigger-arg').placeholder = t?.arg || '…';
       const actArg = document.getElementById('rule-action-arg');
       actArg.placeholder = a?.arg || '…';
-      actArg.style.display = actEl.dataset.value === 'push_digest' ? 'none' : '';
+      actArg.style.display = ['push_digest', 'notify_digest'].includes(actEl.dataset.value) ? 'none' : '';
     };
     trigEl.addEventListener('change', syncPh);
     actEl.addEventListener('change', syncPh);
@@ -1627,6 +1628,20 @@ async function loadRulesPane() {
     document.getElementById('rule-add-btn')?.addEventListener('click', _addRule);
     document.getElementById('rule-cancel-btn')?.addEventListener('click', _resetRuleForm);
     _renderRulePresets();
+  }
+  // delivery channels (discord / telegram) persist as settings; the notify actions use them
+  const s = await fetch('/api/settings').then(r => r.json()).catch(() => ({}));
+  for (const [id, key] of [['s-notify-discord', 'notify_discord_webhook'],
+                           ['s-notify-tgtoken', 'notify_telegram_token'],
+                           ['s-notify-tgchat', 'notify_telegram_chat_id']]) {
+    const el = document.getElementById(id);
+    if (!el) continue;
+    if (s[key] !== undefined && document.activeElement !== el) el.value = s[key] || '';
+    if (!el.dataset.bound) {
+      el.dataset.bound = '1';
+      let t;
+      el.addEventListener('input', () => { clearTimeout(t); t = setTimeout(() => _patchSetting(key, el.value.trim()), 500); });
+    }
   }
   _renderRules();
 }

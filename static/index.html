@@ -30,7 +30,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/style.css?v=131">
+<link rel="stylesheet" href="/static/style.css?v=132">
 <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#0a0a0a">
@@ -1658,6 +1658,15 @@
               </div>
             </div>
           </div>
+          <div class="s-card">
+            <div class="s-card-head">delivery channels</div>
+            <div class="s-card-body">
+              <p style="font-size:0.72rem;color:var(--muted);margin-bottom:0.6rem">the "send to discord / telegram" actions use these. paste a discord webhook url and/or a telegram bot token + chat id.</p>
+              <input type="text" id="s-notify-discord" class="settings-input" placeholder="discord webhook url" style="width:100%;margin-bottom:0.45rem">
+              <input type="text" id="s-notify-tgtoken" class="settings-input" placeholder="telegram bot token" style="width:100%;margin-bottom:0.45rem">
+              <input type="text" id="s-notify-tgchat" class="settings-input" placeholder="telegram chat id" style="width:100%">
+            </div>
+          </div>
         </div>
 
         <div class="s-pane" id="s-pane-backup">
@@ -1751,7 +1760,7 @@
 </div>
 
 <script type="module">
-const _v = '131';
+const _v = '132';
 import(`/static/js/app.js?v=${_v}`);
 </script>
 </body>
