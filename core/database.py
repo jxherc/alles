@@ -918,6 +918,7 @@ class CachedMessage(Base):
     muted = Column(Boolean, default=False)  # muted thread → hidden from lists (5a)
     snoozed_until = Column(String, default="")  # ISO time; hidden until then (5b)
     labels = Column(Text, default="")  # csv user labels (5e)
+    body_indexed = Column(Boolean, default=False)  # personal-rag: body pulled into the recall index
     cached_at = Column(DateTime, default=_now)
 
 
@@ -1199,6 +1200,7 @@ def init_db():
         _add_col(conn, "notes", "tags", "TEXT DEFAULT ''")
         _add_col(conn, "notes", "items", "TEXT DEFAULT '[]'")
         _add_col(conn, "notes", "due", "TEXT DEFAULT ''")
+        _add_col(conn, "cached_messages", "body_indexed", "BOOLEAN DEFAULT 0")
     _encrypt_plaintext_secrets()
 
 
