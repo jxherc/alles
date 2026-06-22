@@ -250,12 +250,6 @@ async def fetch_models_split(ep: ModelEndpoint) -> tuple[list[str], list[str]]:
     return [m for m in raw if _is_chat_model(m)], _image_models(raw)
 
 
-async def fetch_provider_models(ep: ModelEndpoint) -> list[str]:
-    """chat models only — kept for callers that just want the chat list."""
-    chat, _ = await fetch_models_split(ep)
-    return chat
-
-
 async def refresh_all_model_lists() -> list[dict]:
     """re-probe every enabled endpoint so new provider models appear without anyone
     clicking refresh. failures keep the old cache. returns the per-endpoint

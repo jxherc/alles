@@ -1,7 +1,5 @@
 // per-app settings — a gear in an app's header opens a small popover of just that
 // app's options, saved to settings.json. custom controls only (no native selects).
-import { toast } from './util.js';
-
 const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
 const SPECS = {

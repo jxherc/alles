@@ -148,10 +148,7 @@ const _RAMP = ['#4ade80', '#7ee05a', '#b6e84b', '#e8d23e', '#f6a738', '#f6783a',
 const _RAMP_DN = ['#2dd4bf', '#33c7cf', '#39b3e5', '#4a9bea', '#5b8def'];
 const _RAMP_UP = ['#a78bfa', '#b58cf8', '#c08cf8', '#d479f4', '#e879f9'];
 function _step(f, ramp) { return ramp[Math.min(ramp.length - 1, Math.max(0, Math.floor(f * ramp.length)))]; }
-const vgrad = (r, rows) => _step(rows > 1 ? r / (rows - 1) : 0, _RAMP);
 const hgrad = (i, w) => _step(w > 1 ? i / (w - 1) : 0, _RAMP);
-const vgradDown = (r, rows) => _step(rows > 1 ? r / (rows - 1) : 0, _RAMP_DN);
-const vgradUp = (r, rows) => _step(rows > 1 ? r / (rows - 1) : 0, _RAMP_UP);
 
 const BLOCKS = [' ', '▁', '▂', '▃', '▄', '▅', '▆', '▇', '█'];
 const glyph = v => BLOCKS[Math.max(0, Math.min(8, Math.round((v / 100) * 8)))];

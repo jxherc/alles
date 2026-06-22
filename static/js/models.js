@@ -103,7 +103,6 @@ export function setImageSlot(endpointId, model) {
 // ordering + "newest only" collapsing live in modelfilter.js (pure, unit-tested). this module
 // just owns the toggle state and passes it in.
 let _newestOnly = localStorage.getItem('aide-newest-only') === '1';
-export function getNewestOnly() { return _newestOnly; }
 export function setNewestOnly(on) {
   _newestOnly = !!on;
   localStorage.setItem('aide-newest-only', _newestOnly ? '1' : '0');

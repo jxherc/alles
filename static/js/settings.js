@@ -686,7 +686,6 @@ function _markAccent() {
   document.querySelectorAll('#s-accent-swatches .accent-swatch').forEach(s =>
     s.classList.toggle('active', s.dataset.hex.toLowerCase() === cur));
   const hexInp = document.getElementById('s-accent-hex'); if (hexInp) hexInp.value = cur;
-  const colorInp = document.getElementById('s-accent-custom'); if (colorInp && /^#[0-9a-f]{6}$/i.test(cur)) colorInp.value = cur;
 }
 function _loadThemeColorControls() {
   // theme mode buttons
@@ -703,8 +702,6 @@ function _loadThemeColorControls() {
       `<button class="accent-swatch" data-hex="${hex}" title="${name}" style="background:${hex}"></button>`).join('');
     box.querySelectorAll('.accent-swatch').forEach(s => s.addEventListener('click', () => applyAccent(s.dataset.hex)));
   }
-  const colorInp = document.getElementById('s-accent-custom');
-  if (colorInp && !colorInp.dataset.bound) { colorInp.dataset.bound = '1'; colorInp.addEventListener('input', () => applyAccent(colorInp.value)); }
   const hexInp = document.getElementById('s-accent-hex');
   if (hexInp && !hexInp.dataset.bound) {
     hexInp.dataset.bound = '1';
