@@ -29,6 +29,38 @@ def catalog():
     return [{**it, "installed": it["slug"] in have} for it in skills_catalog.items()]
 
 
+@router.get("/sources")
+def sources():
+    from services import skill_sources
+    return skill_sources.list_sources()
+
+
+@router.get("/sources/{sid}/browse")
+def browse_source(sid: str):
+    from services import skill_sources
+    try:
+        data = skill_sources.browse(sid)
+    except ValueError as e:
+        raise HTTPException(404, str(e))
+    except Exception as e:
+        raise HTTPException(502, f"couldn't reach this source: {e}")
+    if data.get("kind") == "builtin":
+        have = {s["slug"] for s in skills_store.list_skills()}
+        data["skills"] = [{**it, "installed": it["slug"] in have} for it in data["skills"]]
+    return data
+
+
+@router.get("/sources/{sid}/preview")
+def preview_source(sid: str, path: str):
+    from services import skill_sources
+    try:
+        return skill_sources.preview(sid, path)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except Exception as e:
+        raise HTTPException(502, f"couldn't fetch skill: {e}")
+
+
 class InstallBody(BaseModel):
     slugs: list[str] = []
 
