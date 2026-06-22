@@ -50,3 +50,33 @@ def test_journal_contact_read_book(monkeypatch):
         assert hits and hits[0]["label"] == want
     # contact field value is searchable too
     assert any(h["ref"] == "c1" for h in pix.search(db, "sam@acme.com", kinds=["contact"], k=5))
+
+import services.personal_index as pixmod
+
+def test_journal_lock_blocks_and_drops(monkeypatch):
+    db = _db()
+    e = JournalEntry(id="j9", date="2026-01-01", content="secret thoughts")
+    db.add(e); db.commit()
+    # index while unlocked
+    monkeypatch.setattr(pixmod, "_journal_locked", lambda: False)
+    pix.index_record(db, "journal", e)
+    assert pix.search(db, "secret thoughts", kinds=["journal"], k=5)
+    monkeypatch.setattr(pixmod, "_journal_locked", lambda: True)
+    # re-indexing a locked journal removes it instead of indexing
+    pix.index_record(db, "journal", e)
+    assert not pix.search(db, "secret thoughts", kinds=["journal"], k=5)
+
+def test_disabled_source_not_indexed(monkeypatch):
+    db = _db()
+    n = Note(id="nz", title="hidden", content="should not index")
+    db.add(n); db.commit()
+    monkeypatch.setattr(pixmod, "_source_enabled", lambda k: k != "note")
+    assert pix.index_record(db, "note", n) == 0
+    assert not pix.search(db, "hidden", kinds=["note"], k=5)
+
+def test_no_vault_adapter():
+    assert "vault" not in pix._ADAPTERS
+    assert "vault" not in pix.PERSONAL_KINDS
+    # indexing an unknown kind is a no-op
+    db = _db()
+    assert pix.index_record(db, "vault", object()) == 0
