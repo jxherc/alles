@@ -67,6 +67,19 @@ class TextIndexTests(ApiTest):
         self.assertTrue(hits)
         self.assertEqual(hits[0]["ref"], "tax.md")
 
+    def test_search_finds_unembedded_chunk_in_mixed_index(self):
+        # a chunk indexed before the embedder was available (vec="") must stay findable
+        # by keyword even after other chunks get embedded — not silently dropped
+        d = self.db()
+        with mock.patch.object(textindex, "_embed", fake_embed):
+            textindex.index(d, "doc", "embedded.md", "cat cat cat")  # gets a real vec
+        d.add(IndexChunk(kind="doc", ref="old.md", chunk_no=0,
+                         text="annual tax invoice details", vec=""))
+        d.commit()
+        with mock.patch.object(textindex, "_embed", fake_embed):
+            hits = textindex.search(d, "tax invoice", k=5)
+        self.assertIn("old.md", {h["ref"] for h in hits})
+
     def test_search_empty_index(self):
         d = self.db()
         self.assertEqual(textindex.search(d, "anything"), [])
