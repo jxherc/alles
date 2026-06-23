@@ -4,7 +4,7 @@
 const _g = typeof window !== 'undefined' ? window : {};
 
 export function escapeHtml(s) {
-  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
 // allow only safe url schemes in rendered markdown; block javascript:/vbscript:/data: etc.

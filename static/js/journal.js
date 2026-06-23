@@ -12,7 +12,7 @@ let _token = sessionStorage.getItem('journal_token') || '';
 
 function todayISO() { return new Date().toISOString().slice(0, 10); }
 function _setDayUrl() { try { const u = new URL(location.href); u.searchParams.set('d', _day); history.replaceState(null, '', u); } catch {} }
-function esc(s = '') { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+function esc(s = '') { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
 function _setToken(t) { _token = t || ''; if (_token) sessionStorage.setItem('journal_token', _token); else sessionStorage.removeItem('journal_token'); }
 function _authHeaders(extra = {}) { return _token ? { ...extra, 'X-Journal-Token': _token } : extra; }
 function shift(iso, n) { const d = new Date(iso + 'T00:00:00'); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); }

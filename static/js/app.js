@@ -730,7 +730,7 @@ async function _quickCapture(text, asTask) {
 }
 
 // ── today strip: events, tasks, reminders, renewals, mail, recent docs ──────
-const _escT = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+const _escT = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 
 async function _renderToday() {
   const el = document.getElementById('home-today');

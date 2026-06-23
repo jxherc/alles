@@ -3,7 +3,15 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { _safeUrl, mdToHtml } from '../../static/js/util.js';
+import { _safeUrl, escapeHtml, mdToHtml } from '../../static/js/util.js';
+
+test('escapeHtml escapes quotes (attribute-injection defense)', () => {
+  const out = escapeHtml('" onfocus=alert(1) x="<b>');
+  assert.ok(!out.includes('"')); // no raw double-quote can break out of value="..."
+  assert.ok(!out.includes("'"));
+  assert.ok(out.includes('&quot;'));
+  assert.ok(out.includes('&lt;b&gt;'));
+});
 
 test('_safeUrl blocks dangerous schemes', () => {
   assert.equal(_safeUrl('javascript:alert(1)'), '#');

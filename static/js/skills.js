@@ -8,7 +8,7 @@ let _built = false;
 let _cur = null;            // slug open in the drawer, or null for a new one
 let _matchSeq = 0;          // bumps per match call so stale responses don't clobber newer ones
 
-const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 const $ = id => document.getElementById(id);
 
 async function _api(url, opts) {
