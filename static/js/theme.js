@@ -505,6 +505,22 @@ export function setMode(mode) {
   return a;
 }
 
+// the "default" theme tile is a clean slate / escape hatch from a fancy preset: keep only
+// the base light/dark feel + the current accent (and saved custom themes), and reset
+// EVERYTHING else — font, density, pattern, frosted glass, bg effect — back to defaults.
+// (setMode above only flips light/dark for the mode toggle, so it keeps those prefs.)
+export function resetToDefault(mode) {
+  const a = loadLocal();
+  const base = mode === 'light' ? PRESETS.light : PRESETS.dark;
+  const accent = a.colors && a.colors.accent;
+  const d = DEFAULT();
+  d.preset = mode === 'light' ? 'light' : 'dark';
+  d.colors = { ...base.colors, accent: accent || base.colors.accent };
+  d.customThemes = a.customThemes || {};
+  applyAppearance(d); save(d);
+  return d;
+}
+
 // override just the accent (''/null restores the active preset's own accent). writes into
 // the appearance object so it survives reload (the old aide-accent path was clobbered by it).
 export function setAccent(hex) {
@@ -628,7 +644,7 @@ function _wireEditor(m) {
     // the synthetic "default" tile drops back onto the base theme, keeping the light/dark
     // feel of whatever you were on + the current accent.
     if (b.dataset.preset === 'default') {
-      const a = setMode(_lum(_draft.colors?.bg || '#0a0a0a') > 0.5 ? 'light' : 'dark');
+      const a = resetToDefault(_lum(_draft.colors?.bg || '#0a0a0a') > 0.5 ? 'light' : 'dark');
       _draft = a; _onEditorChange && _onEditorChange(_draft); _renderEditor();
       return;
     }
