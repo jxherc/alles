@@ -12,8 +12,17 @@ def to_json(rows):
     return json.dumps(rows, indent=2, default=str)
 
 
+def _csv_safe(v):
+    """neutralize spreadsheet formula injection: a cell starting with = + - @ (or a tab/CR) is
+    evaluated as a formula by Excel/Sheets/LibreOffice. prefix a ' so it's treated as text."""
+    if isinstance(v, str) and v and v[0] in ("=", "+", "-", "@", "\t", "\r"):
+        return "'" + v
+    return v
+
+
 def to_csv(rows):
-    """list of dicts -> CSV (header = union of keys, first-seen order). RFC-4180 quoting."""
+    """list of dicts -> CSV (header = union of keys, first-seen order). RFC-4180 quoting +
+    formula-injection neutralization on cell values."""
     rows = list(rows or [])
     if not rows:
         return ""
@@ -30,7 +39,7 @@ def to_csv(rows):
     w = csv.DictWriter(buf, fieldnames=cols, extrasaction="ignore", lineterminator="\n")
     w.writeheader()
     for r in rows:
-        w.writerow({k: ("" if r.get(k) is None else r.get(k)) for k in cols})
+        w.writerow({k: ("" if r.get(k) is None else _csv_safe(r.get(k))) for k in cols})
     return buf.getvalue()
 
 
