@@ -1,7 +1,7 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v119';   // split button only on expense rows (income can't be split)
+const VERSION = 'v120';   // default-theme dark/light buttons fully reset (not just the tile)
 const CACHE = `alles-${VERSION}`;
-const STAMP = '145';   // keep in sync with index.html ?v= / const _v
+const STAMP = '146';   // keep in sync with index.html ?v= / const _v
 
 // 1b: mutating writes that should be queued when offline
 const MUTATING = ['POST', 'PUT', 'PATCH', 'DELETE'];

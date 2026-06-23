@@ -492,23 +492,10 @@ function _commit() { applyAppearance(_draft); save(_draft); _onEditorChange && _
 // ── public appearance API (used by the settings "default theme" controls) ───────
 export function getAppearance() { return loadLocal(); }
 
-// switch the default theme's light/dark base while KEEPING the current accent. this is
-// also the escape hatch from a fancy preset (sets preset back to dark/light).
-export function setMode(mode) {
-  const a = loadLocal();
-  const base = mode === 'light' ? PRESETS.light : PRESETS.dark;
-  const accent = a.colors && a.colors.accent;
-  a.preset = mode === 'light' ? 'light' : 'dark';
-  a.colors = { ...base.colors, accent: accent || base.colors.accent };
-  a.bgPattern = 'none';
-  applyAppearance(a); save(a);
-  return a;
-}
-
-// the "default" theme tile is a clean slate / escape hatch from a fancy preset: keep only
-// the base light/dark feel + the current accent (and saved custom themes), and reset
-// EVERYTHING else — font, density, pattern, frosted glass, bg effect — back to defaults.
-// (setMode above only flips light/dark for the mode toggle, so it keeps those prefs.)
+// the "default theme" controls (light/dark buttons AND the default preset tile) are a clean
+// slate / escape hatch from a fancy preset: keep only the base light/dark feel + the current
+// accent (and saved custom themes), and reset EVERYTHING else — font, density, pattern,
+// frosted glass, bg effect — back to defaults.
 export function resetToDefault(mode) {
   const a = loadLocal();
   const base = mode === 'light' ? PRESETS.light : PRESETS.dark;
