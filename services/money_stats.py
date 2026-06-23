@@ -6,12 +6,15 @@ from services.forecast import _recent_months, category_averages
 from services.money_query import _norm_payee
 
 
-def category_anomalies(db, *, as_of, months=3, ratio=1.5, min_amount=50.0):
-    """categories whose THIS-month spend is >= ratio x the historical monthly average."""
+def category_anomalies(db, *, as_of, months=3, ratio=1.5, min_amount=50.0, cur=None):
+    """categories whose THIS-month spend is >= ratio x the historical monthly average.
+    pass `cur` (this month's spend-by-category) to reuse an already-computed dict and
+    skip a redundant full transaction scan."""
     from routes.money import _spending_by_cat
 
     avg = category_averages(db, months=months, as_of=as_of)
-    cur = _spending_by_cat(db, as_of.strftime("%Y-%m"))
+    if cur is None:
+        cur = _spending_by_cat(db, as_of.strftime("%Y-%m"))
     out = []
     for cat, spent in cur.items():
         base = avg.get(cat, 0.0)

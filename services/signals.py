@@ -363,16 +363,17 @@ def _budget(db, today):
                 "budget", key, u, label, f"spent {used:.0f} of {lim:.0f} this month", "money", data
             )
         )
-    out.extend(_anomalies(db, today, month))  # 2c - spend spikes + new merchants
+    out.extend(_anomalies(db, today, month, spent))  # 2c - spend spikes + new merchants
     return out
 
 
-def _anomalies(db, today, month):
+def _anomalies(db, today, month, spent):
     """2c - category spend spikes vs history + first-time merchants. ride the budget family."""
     from services import money_stats
 
     out = []
-    for a in money_stats.category_anomalies(db, as_of=today):
+    # reuse the spend dict _budget already computed instead of re-scanning transactions
+    for a in money_stats.category_anomalies(db, as_of=today, cur=spent):
         out.append(
             _sig(
                 "budget",
