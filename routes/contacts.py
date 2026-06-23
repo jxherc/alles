@@ -528,17 +528,17 @@ def duplicates(db: DbSession = Depends(get_db)):
     def union(a, b):
         parent[find(a)] = find(b)
 
+    # all email fields in one query, grouped by contact — avoids an N+1 (one query per contact)
+    field_emails = {}
+    for f in db.query(ContactField).filter(ContactField.kind == "email").all():
+        field_emails.setdefault(f.contact_id, []).append(f.value)
+
     by_name, by_email = {}, {}
     for c in contacts:
         nm = (c.name or "").strip().lower()
         if nm:
             by_name.setdefault(nm, []).append(c.id)
-        for em in [c.email] + [
-            f.value
-            for f in db.query(ContactField)
-            .filter(ContactField.contact_id == c.id, ContactField.kind == "email")
-            .all()
-        ]:
+        for em in [c.email] + field_emails.get(c.id, []):
             em = (em or "").strip().lower()
             if em:
                 by_email.setdefault(em, []).append(c.id)
