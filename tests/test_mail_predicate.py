@@ -106,5 +106,29 @@ class MatchTests(unittest.TestCase):
         self.assertTrue(mp.match_one("label:urgent", m))
 
 
+class PathologicalInputTests(unittest.TestCase):
+    """deep nesting / huge queries must not RecursionError into a 500 (DoS)."""
+
+    def test_deep_parens_no_crash(self):
+        q = "(" * 5000 + "a" + ")" * 5000
+        # must return a bool (treating the pathological query as no-match), never raise
+        self.assertIsInstance(mp.match_one(q, _msg(sender="a@x")), bool)
+
+    def test_long_not_chain_no_crash(self):
+        q = "NOT " * 2000 + "a"
+        self.assertIsInstance(mp.match_one(q, _msg()), bool)
+
+    def test_long_and_chain_no_crash(self):
+        q = " AND ".join(["from:x"] * 3000)
+        self.assertIsInstance(mp.match_one(q, _msg(sender="x@y")), bool)
+
+    def test_unbalanced_parens_no_crash(self):
+        self.assertIsInstance(mp.match_one("(" * 10000, _msg()), bool)
+
+    def test_match_list_pathological(self):
+        # match() over a list must also stay safe
+        self.assertIsInstance(mp.match("(" * 5000, [_msg(), _msg()]), list)
+
+
 if __name__ == "__main__":
     unittest.main()
