@@ -1,7 +1,7 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v118';   // default theme tile fully resets (no carried-over glass/pattern/density)
+const VERSION = 'v119';   // split button only on expense rows (income can't be split)
 const CACHE = `alles-${VERSION}`;
-const STAMP = '144';   // keep in sync with index.html ?v= / const _v
+const STAMP = '145';   // keep in sync with index.html ?v= / const _v
 
 // 1b: mutating writes that should be queued when offline
 const MUTATING = ['POST', 'PUT', 'PATCH', 'DELETE'];

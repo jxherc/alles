@@ -416,9 +416,10 @@ function _renderTxnMain(t, an) {
   const ed = xf ? '' : `data-edit-txn="${t.id}"`;
   const tags = (t.tags || '').split(',').filter(Boolean)
     .map(tg => `<span class="tx-tag" data-tag="${esc(tg)}" title="filter by ${esc(tg)}">${esc(tg)}</span>`).join('');
+  const canSplit = (t.amount || 0) < 0;  // only an expense divides across categories (matches the api)
   const actions = xf ? '' : `<span class="tx-actions">
     <button class="tx-clear ${t.cleared ? 'on' : ''}" data-clear-txn="${t.id}" title="${t.cleared ? 'cleared' : 'mark cleared'}">${t.cleared ? '✓' : '○'}</button>
-    <button class="tx-split-btn ${t.split ? 'on' : ''}" data-split-txn="${t.id}" title="split across categories">${t.split ? '⊟' : '⊞'}</button>
+    ${canSplit ? `<button class="tx-split-btn ${t.split ? 'on' : ''}" data-split-txn="${t.id}" title="split across categories">${t.split ? '⊟' : '⊞'}</button>` : ''}
     ${t.receipt_id
       ? `<a class="tx-receipt" href="/api/uploads/${esc(t.receipt_id)}" target="_blank" rel="noopener" title="view receipt">📎</a>`
       : `<button class="tx-receipt-btn" data-receipt-txn="${t.id}" title="attach receipt">📎</button>`}
