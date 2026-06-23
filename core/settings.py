@@ -98,6 +98,19 @@ _defaults = {
     "pidx_proactive_cat_money": True,
     "pidx_proactive_cat_mail": True,
     "pidx_proactive_cat_journal": False,  # privacy-sensitive; off by default + honors the lock
+    "pidx_proactive_synthesis": True,  # 1b - record signal history + merge derived trend/corr signals
+    "user_model_distill": False,  # 1c - auto-distill a user model (spends tokens; off by default)
+    "session_context_inject": True,  # 1d - inject a per-session mode/topic/project block into aide
+    "insights_enabled": False,  # 1e - cross-domain causal insights (spends tokens; off by default)
+    "intent_suggestions": True,  # 1f - predicted next-step composer suggestions
+    "holdings_autoprice": False,  # 2d - periodically refresh holding prices from an external source
+    "tax_reminders": False,  # 2f - quarterly estimated-tax set-aside reminders (off by default)
+    "tax_setaside_rate": 0.25,  # 2f - fraction of quarterly income to suggest setting aside
+    "extra_clip_search": False,  # 5e - opt-in optional/native extras (all off; gated on availability)
+    "extra_ocr": False,
+    "extra_photokit": False,
+    "extra_eventkit": False,
+    "extra_keychain": False,
     # mail oauth ("sign in with google") - the user's own google cloud oauth client
     "mail_oauth_client_id": "",
     "mail_oauth_client_secret": "",

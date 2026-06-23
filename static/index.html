@@ -30,7 +30,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/style.css?v=132">
+<link rel="stylesheet" href="/static/style.css?v=135">
 <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#0a0a0a">
@@ -778,6 +778,7 @@
 
     <!-- ── composer (hidden in memory view) ── -->
     <div class="composer-outer" id="composer-outer">
+      <div id="aide-suggest-chips" class="aide-suggest" style="display:none"></div>
       <div id="attachment-chips" style="display:none;flex-wrap:wrap;gap:0.3rem;padding:0.3rem 0.75rem 0"></div>
       <div id="attachment-preview" class="attach-preview"></div>
       <div class="composer-box">
@@ -1021,9 +1022,17 @@
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
           search
         </div>
-        <div class="s-nav-item" data-pane="appearance">
+        <div class="s-nav-item" data-pane="general">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="7" r="4"/><path d="M5.5 21a6.5 6.5 0 0 1 13 0"/></svg>
+          general
+        </div>
+        <div class="s-nav-item" data-pane="security">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          security
+        </div>
+        <div class="s-nav-item" data-pane="themes">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
-          appearance
+          themes
         </div>
         <div class="s-nav-item" data-pane="voice">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/></svg>
@@ -1263,7 +1272,7 @@
         </div>
 
         <!-- ── appearance pane ── -->
-        <div class="s-pane" id="s-pane-appearance">
+        <div class="s-pane" id="s-pane-general">
           <div class="s-card">
             <div class="s-card-head">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
@@ -1277,46 +1286,6 @@
               <div class="s-field">
                 <label>username <span style="color:var(--muted);font-weight:400">— synced across your apps</span></label>
                 <input type="text" class="settings-input" id="s-username" placeholder="e.g. jxh" style="width:100%">
-              </div>
-            </div>
-          </div>
-          <div class="s-card">
-            <div class="s-card-head">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-              password
-            </div>
-            <div class="s-card-body">
-              <div class="s-toggle-row"><div><div class="s-toggle-label">require password</div><div class="s-toggle-desc">lock alles behind your password</div></div><div class="s-switch" id="s-auth-enable"></div></div>
-              <div class="s-field"><label>current password</label><input type="password" class="settings-input" id="s-pw-old" placeholder="leave blank if none set" style="width:100%"></div>
-              <div class="s-field"><label>new password</label><input type="password" class="settings-input" id="s-pw-new" placeholder="at least 4 characters" style="width:100%"></div>
-              <div class="s-field"><label>verify password <span style="color:var(--muted);font-weight:400">— enter it again</span></label><input type="password" class="settings-input" id="s-pw-new2" placeholder="re-enter new password" style="width:100%"></div>
-              <button class="btn primary" id="s-pw-save" style="width:100%;margin-top:0.3rem">change password</button>
-            </div>
-          </div>
-          <div class="s-card">
-            <div class="s-card-head">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r=".5"/><circle cx="17.5" cy="10.5" r=".5"/><circle cx="8.5" cy="7.5" r=".5"/><circle cx="6.5" cy="12.5" r=".5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.555C21.965 6.012 17.461 2 12 2z"/></svg>
-              theme & color
-            </div>
-            <div class="s-card-body">
-              <div class="s-field">
-                <label>mode</label>
-                <div class="theme-mode-row">
-                  <button class="theme-mode-btn" data-theme-mode="dark">dark</button>
-                  <button class="theme-mode-btn" data-theme-mode="light">light</button>
-                </div>
-              </div>
-              <div class="s-field" style="margin-top:0.6rem">
-                <label>accent color <span style="color:var(--muted);font-weight:400">— the highlight used everywhere</span></label>
-                <div class="accent-swatches" id="s-accent-swatches"></div>
-                <div class="accent-custom">
-                  <input type="text" id="s-accent-hex" class="settings-input" placeholder="type a #hex color" spellcheck="false" style="width:160px">
-                  <button class="btn" id="s-accent-reset" style="font-size:0.68rem;padding:0.2rem 0.55rem">reset</button>
-                </div>
-              </div>
-              <div class="s-field" style="margin-top:0.7rem">
-                <label>full theme <span style="color:var(--muted);font-weight:400">— presets, every color, fonts, backgrounds</span></label>
-                <button class="btn primary" id="s-open-theme-editor" style="margin-top:0.35rem">open theme editor</button>
               </div>
             </div>
           </div>
@@ -1356,6 +1325,60 @@
               <div class="s-toggle-row"><div><div class="s-toggle-label">secrets</div></div><div class="s-switch s-vis-toggle" data-vis=".nav-item[data-view='vault']" data-vis-key="nav-vault"></div></div>
               <div class="s-toggle-row"><div><div class="s-toggle-label">contacts</div></div><div class="s-switch s-vis-toggle" data-vis=".nav-item[data-view='contacts']" data-vis-key="nav-contacts"></div></div>
               <div class="s-toggle-row"><div><div class="s-toggle-label">gallery</div></div><div class="s-switch s-vis-toggle" data-vis=".nav-item[data-view='photos']" data-vis-key="nav-photos"></div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── security pane (alles-scope) ── -->
+        <div class="s-pane" id="s-pane-security">
+          <div class="s-card">
+            <div class="s-card-head">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              password
+            </div>
+            <div class="s-card-body">
+              <div class="s-toggle-row"><div><div class="s-toggle-label">require password</div><div class="s-toggle-desc">lock alles behind your password</div></div><div class="s-switch" id="s-auth-enable"></div></div>
+              <div class="s-field"><label>current password</label><input type="password" class="settings-input" id="s-pw-old" placeholder="leave blank if none set" style="width:100%"></div>
+              <div class="s-field"><label>new password</label><input type="password" class="settings-input" id="s-pw-new" placeholder="at least 4 characters" style="width:100%"></div>
+              <div class="s-field"><label>verify password <span style="color:var(--muted);font-weight:400">— enter it again</span></label><input type="password" class="settings-input" id="s-pw-new2" placeholder="re-enter new password" style="width:100%"></div>
+              <button class="btn primary" id="s-pw-save" style="width:100%;margin-top:0.3rem">change password</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── themes pane (alles-scope) ── -->
+        <div class="s-pane" id="s-pane-themes">
+          <div class="s-card">
+            <div class="s-card-head">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+              default theme
+            </div>
+            <div class="s-card-body" id="s-default-theme">
+              <div class="s-default-lock" id="s-theme-lock-note" style="display:none"></div>
+              <div class="s-field">
+                <label>mode</label>
+                <div class="theme-mode-row" id="s-theme-mode-row">
+                  <button class="theme-mode-btn" data-theme-mode="dark">dark</button>
+                  <button class="theme-mode-btn" data-theme-mode="light">light</button>
+                </div>
+              </div>
+              <div class="s-field" style="margin-top:0.6rem">
+                <label>accent color <span style="color:var(--muted);font-weight:400">— the highlight used everywhere</span></label>
+                <div class="accent-swatches" id="s-accent-swatches"></div>
+                <div class="accent-custom">
+                  <input type="text" id="s-accent-hex" class="settings-input" placeholder="type a #hex color" spellcheck="false" style="width:160px">
+                  <button class="btn" id="s-accent-reset" style="font-size:0.68rem;padding:0.2rem 0.55rem">reset</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="s-card">
+            <div class="s-card-head">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r=".5"/><circle cx="17.5" cy="10.5" r=".5"/><circle cx="8.5" cy="7.5" r=".5"/><circle cx="6.5" cy="12.5" r=".5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.555C21.965 6.012 17.461 2 12 2z"/></svg>
+              presets &amp; customization
+            </div>
+            <div class="s-card-body">
+              <div id="theme-editor-inline"></div>
             </div>
           </div>
         </div>
@@ -1760,7 +1783,7 @@
 </div>
 
 <script type="module">
-const _v = '132';
+const _v = '135';
 import(`/static/js/app.js?v=${_v}`);
 </script>
 </body>

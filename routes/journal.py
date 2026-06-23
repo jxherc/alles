@@ -94,7 +94,7 @@ def lock_disable(body: PasscodeBody):
 PROMPTS = [
     "What's one thing that went well today?",
     "What's been on your mind lately?",
-    "Describe a small moment you don't want to forget.",
+    "What's a small moment you don't want to forget?",
     "What are you grateful for right now?",
     "What drained you today, and what filled you back up?",
     "If today had a title, what would it be?",

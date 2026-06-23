@@ -1,9 +1,11 @@
 from pathlib import Path
-from fastapi import APIRouter, HTTPException, Depends
-from pydantic import BaseModel
 from typing import Optional
+
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 from sqlalchemy.orm import Session as DbSession
-from core.database import get_db, Persona
+
+from core.database import Persona, get_db
 
 router = APIRouter(prefix="/api")
 
@@ -17,6 +19,8 @@ def _fmt(p: Persona) -> dict:
         "model": p.model,
         "temperature": p.temperature,
         "default_mode": p.default_mode,
+        "blocked_scopes": p.blocked_scopes or "",
+        "blocked_tools": p.blocked_tools or "",
         "accent": p.accent,
         "initial_message": p.initial_message or "",
         "is_default": p.is_default,
@@ -36,6 +40,8 @@ class PersonaBody(BaseModel):
     model: str = ""
     temperature: Optional[float] = None
     default_mode: str = ""
+    blocked_scopes: str = ""
+    blocked_tools: str = ""
     accent: str = ""
     initial_message: str = ""
     is_default: bool = False
@@ -61,6 +67,8 @@ class PersonaPatch(BaseModel):
     model: Optional[str] = None
     temperature: Optional[float] = None
     default_mode: Optional[str] = None
+    blocked_scopes: Optional[str] = None
+    blocked_tools: Optional[str] = None
     accent: Optional[str] = None
     initial_message: Optional[str] = None
     is_default: Optional[bool] = None

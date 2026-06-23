@@ -15,9 +15,10 @@ def list_skills(q: str = ""):
 
 
 @router.get("/match")
-def match(q: str, k: int = 3):
-    """best skills for a request — drives auto-suggest in chat/agent."""
-    return {"matches": skills_store.match_skills(q, k)}
+def match(q: str, k: int = 3, semantic: bool = False):
+    """best skills for a request — drives auto-suggest in chat/agent. 3f: semantic=cosine+feedback."""
+    fn = skills_store.match_skills_semantic if semantic else skills_store.match_skills
+    return {"matches": fn(q, k)}
 
 
 @router.get("/catalog")
@@ -32,12 +33,14 @@ def catalog():
 @router.get("/sources")
 def sources():
     from services import skill_sources
+
     return skill_sources.list_sources()
 
 
 @router.get("/sources/{sid}/browse")
 def browse_source(sid: str):
     from services import skill_sources
+
     try:
         data = skill_sources.browse(sid)
     except ValueError as e:
@@ -51,13 +54,17 @@ def browse_source(sid: str):
         # an imported github skill stores source == the blob url == the card's import_url
         srcs = {s.get("source") for s in skills_store.list_skills() if s.get("source")}
         # don't mutate the cached dict (browse caches github results ~600s)
-        data = {**data, "skills": [{**it, "installed": it.get("import_url") in srcs} for it in data["skills"]]}
+        data = {
+            **data,
+            "skills": [{**it, "installed": it.get("import_url") in srcs} for it in data["skills"]],
+        }
     return data
 
 
 @router.get("/sources/{sid}/preview")
 def preview_source(sid: str, path: str):
     from services import skill_sources
+
     try:
         return skill_sources.preview(sid, path)
     except ValueError as e:
@@ -157,6 +164,18 @@ def pin(slug: str, body: PinBody):
     if not skills_store.get_skill(slug):
         raise HTTPException(404, "skill not found")
     return {"pinned": skills_store.set_pinned(slug, body.pinned)}
+
+
+class FeedbackBody(BaseModel):
+    helpful: bool = True
+
+
+@router.post("/{slug}/feedback")
+def feedback(slug: str, body: FeedbackBody):
+    """3f - record whether a surfaced skill actually helped; feeds the learned rank weight."""
+    if not skills_store.get_skill(slug):
+        raise HTTPException(404, "skill not found")
+    return {"ok": True, "stats": skills_store.record_feedback(slug, body.helpful)}
 
 
 @router.post("/{slug}/update")

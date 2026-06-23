@@ -774,7 +774,7 @@ async function _renderToday() {
   let cards = [];
   try { cards = await fetch('/api/proactive').then(r => r.json()); } catch {}
   for (const c of (cards || []).slice(0, 4))
-    rows.push(`<div class="ht-row ht-card" data-go="${c.link || 'home'}"><span class="ht-ico">✦</span><span class="ht-body">${_escT(c.title)}${c.body ? ` <span class="ht-sub">— ${_escT(c.body)}</span>` : ''}</span><button class="icon-btn ht-x" data-dismiss="${c.id}" title="dismiss">✕</button></div>`);
+    rows.push(`<div class="ht-row ht-card" data-go="${c.link || 'home'}" data-act="${c.id}"><span class="ht-ico">✦</span><span class="ht-body">${_escT(c.title)}${c.body ? ` <span class="ht-sub">- ${_escT(c.body)}</span>` : ''}</span><button class="icon-btn ht-x" data-dismiss="${c.id}" title="dismiss">✕</button></div>`);
 
   // recents aren't "today" items — when they're all we have, lead with the
   // clear-day note so the strip still reads as a day view
@@ -787,7 +787,11 @@ async function _renderToday() {
     <button class="btn" id="ht-ask">ask aide about my day</button>`;
   el.style.display = 'flex';
 
-  el.querySelectorAll('.ht-row').forEach(r => r.addEventListener('click', () => navigateTo(r.dataset.go)));
+  el.querySelectorAll('.ht-row').forEach(r => r.addEventListener('click', () => {
+    // clicking a proactive card = acting on it -> teaches the feed to favor this card type (1a)
+    if (r.dataset.act) fetch(`/api/proactive/${r.dataset.act}/act`, { method: 'POST' }).catch(() => {});
+    navigateTo(r.dataset.go);
+  }));
   el.querySelectorAll('.ht-x').forEach(b => b.addEventListener('click', async (ev) => {
     ev.stopPropagation();
     try { await fetch(`/api/proactive/${b.dataset.dismiss}/dismiss`, { method: 'POST' }); } catch {}
@@ -1487,8 +1491,11 @@ let _personas = [];
 export function applyPersonaAccent(hex) {
   const root = document.documentElement;
   if (hex) { root.style.setProperty('--accent', hex); updateFavicon(); return; }
-  const u = localStorage.getItem('aide-accent');
-  if (u) root.style.setProperty('--accent', u);
+  // revert to the user's global accent — now lives in the appearance object (aide-accent legacy)
+  let acc = '';
+  try { acc = (JSON.parse(localStorage.getItem('alles-appearance') || '{}').colors || {}).accent || ''; } catch { /* bad json */ }
+  acc = acc || localStorage.getItem('aide-accent');
+  if (acc) root.style.setProperty('--accent', acc);
   else root.style.removeProperty('--accent');
   updateFavicon();
 }

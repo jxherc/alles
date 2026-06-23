@@ -14,7 +14,7 @@
 [data-theme="light"] {
   --bg:    #f5f4f1;
   --text:  #111111;
-  --muted: #888888;
+  --muted: #767676;   /* darker than the old #888 so secondary text clears ~3.8:1 on light */
   --faint: #d4d2ce;
   --panel: #efede9;
 }
@@ -1296,10 +1296,12 @@ body.is-incognito .incognito-bar {
   margin: 0 0.35rem 0.05rem;
   transition: background 0.12s, color 0.12s;
 }
-/* alles-wide (hub) settings: only appearance + backup, hide the aide panes */
-#settings-modal.alles-scope .s-nav-item:not([data-pane="appearance"]):not([data-pane="backup"]) { display: none; }
-/* appearance + the security cards inside it are alles-wide → hide them from aide's own settings */
-#settings-modal:not(.alles-scope) .s-nav-item[data-pane="appearance"] { display: none; }
+/* alles-wide (hub) settings: only general / security / themes / backup, hide the aide panes */
+#settings-modal.alles-scope .s-nav-item:not([data-pane="general"]):not([data-pane="security"]):not([data-pane="themes"]):not([data-pane="backup"]) { display: none; }
+/* general / security / themes are alles-wide → hide them from aide's own settings */
+#settings-modal:not(.alles-scope) .s-nav-item[data-pane="general"],
+#settings-modal:not(.alles-scope) .s-nav-item[data-pane="security"],
+#settings-modal:not(.alles-scope) .s-nav-item[data-pane="themes"] { display: none; }
 .s-nav-item svg { flex-shrink: 0; opacity: 0.6; }
 .s-nav-item:hover { background: var(--panel); color: var(--text); }
 .s-nav-item:hover svg { opacity: 1; }
@@ -4260,7 +4262,7 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 
 .drop-overlay {
   position: fixed; inset: 0; z-index: 900;
-  background: rgba(10,10,10,0.85);
+  background: color-mix(in srgb, var(--bg) 88%, transparent);   /* theme-derived, was hardcoded dark */
   display: flex; align-items: center; justify-content: center;
   font-size: 0.9rem; color: var(--muted);
   border: 2px dashed var(--faint);
@@ -4355,7 +4357,9 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 /* ── login screen ── */
 .login-screen {
   position: fixed; inset: 0; z-index: 1000;
-  background: rgba(10,10,10,0.72);
+  /* theme-derived scrim so the brand/input (var(--text)) stay readable on light themes.
+     was a hardcoded dark rgba which went dark-on-dark on blossom/sakura/etc. */
+  background: color-mix(in srgb, var(--bg) 82%, transparent);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
   display: flex; align-items: center; justify-content: center;
@@ -5885,6 +5889,16 @@ input.cp-swatch-input { width: 34px; height: 22px; border: 1px solid var(--faint
 .te-empty { font-size: 0.7rem; color: var(--faint); }
 .te-foot { display: flex; justify-content: flex-end; gap: 0.4rem; border-top: 1px solid var(--faint); padding-top: 0.8rem; }
 
+/* inline editor (themes settings pane) — same controls, no modal chrome */
+.te-inline-editor .te-body-inline { padding: 0; overflow: visible; }
+.te-inline-editor .te-foot { justify-content: flex-start; }
+.te-inline-editor .te-sec:last-child { margin-bottom: 0; }
+/* locked default-theme controls while a fancy preset owns mode + accent */
+.s-default-lock { font-size: 0.7rem; color: var(--muted); border: 1px solid var(--faint); border-radius: 3px; padding: 0.4rem 0.55rem; margin-bottom: 0.7rem; line-height: 1.4; }
+#s-default-theme.locked .theme-mode-row,
+#s-default-theme.locked .accent-swatches,
+#s-default-theme.locked .accent-custom { opacity: 0.4; pointer-events: none; filter: grayscale(0.4); }
+
 /* ── habits ───────────────────────────────────────────────────────────────────── */
 #habits-body { padding: 1rem clamp(0.9rem, 3vw, 2rem) 2rem; overflow-y: auto; }
 .habits-bar { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; margin-bottom: 1rem; }
@@ -6063,3 +6077,12 @@ input.cp-swatch-input { width: 34px; height: 22px; border: 1px solid var(--faint
 .skl-pv-body { white-space: pre-wrap; font-family: var(--mono, monospace); font-size: 0.72rem; color: var(--text); background: var(--panel); border: 1px solid var(--faint); border-radius: 3px; padding: 0.6rem; overflow-x: auto; margin: 0; }
 .skl-pv-src { font-size: 0.7rem; color: var(--accent); text-decoration: none; }
 .skl-pv-src:hover { text-decoration: underline; }
+
+/* 1f - aide suggestion chips */
+.aide-suggest { display: flex; flex-wrap: wrap; gap: 0.35rem; padding: 0.4rem 0.75rem 0.1rem; }
+.aide-chip {
+  background: var(--panel); border: 1px solid var(--faint); color: var(--muted);
+  border-radius: 3px; padding: 0.2rem 0.55rem; font-size: 0.72rem; font-family: inherit;
+  cursor: pointer; transition: color 0.15s, border-color 0.15s;
+}
+.aide-chip:hover { color: var(--text); border-color: var(--muted); }

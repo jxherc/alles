@@ -1911,11 +1911,10 @@ async def _money_query(query):
             f"\nnet worth: {net:.2f}\n\nthis month ({mo}): income {inc:.2f}, spent {exp:.2f}\n" +
             "by category:\n" + "\n".join(f"  {c}: {v:.2f}" for c, v in top)
         )
-        q = (query or "").lower().strip()
-        if q:
-            match = [t for t in txns if q in ((t.payee or "") + " " + (t.category or "") + " " + (t.notes or "")).lower()]
-            spent = sum(-(t.amount or 0.0) for t in match if (t.amount or 0.0) < 0)
-            out += f"\n\nmatching '{query}': {len(match)} txns, spent {spent:.2f}"
+        if (query or "").strip():
+            from services import money_query as mq
+
+            out += "\n\n" + mq.answer(db, query)  # 2a - temporal + merchant + compare NL answer
         return {"output": out, "error": False}
     finally:
         db.close()

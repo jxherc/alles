@@ -88,6 +88,33 @@ def list_events(db: DbSession = Depends(get_db)):
     return [_fmt(e) for e in rows]
 
 
+@router.get("/calendar/conflicts")
+def calendar_conflicts(db: DbSession = Depends(get_db)):
+    """4a - overlapping timed events (scheduling advisor)."""
+    from services import cal_conflict
+
+    rows = [_fmt(e) for e in db.query(CalendarEvent).all()]
+    return {"conflicts": cal_conflict.conflicts(rows)}
+
+
+@router.get("/calendar/free-slots")
+def calendar_free_slots(
+    day: str,
+    day_start: str = "09:00",
+    day_end: str = "17:00",
+    duration_min: int = 30,
+    db: DbSession = Depends(get_db),
+):
+    """4a - open slots on `day` that fit a `duration_min` meeting."""
+    from services import cal_conflict
+
+    rows = [_fmt(e) for e in db.query(CalendarEvent).all()]
+    slots = cal_conflict.free_slots(
+        rows, day, day_start=day_start, day_end=day_end, duration_min=duration_min
+    )
+    return {"day": day, "slots": slots}
+
+
 @router.get("/calendar/tasks")
 def calendar_tasks(start: str = "", end: str = "", db: DbSession = Depends(get_db)):
     """tasks that have a due date, as calendar items (overlay, Google Tasks style)."""

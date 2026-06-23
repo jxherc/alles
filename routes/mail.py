@@ -226,8 +226,9 @@ def oauth_start():
 
 
 @router.get("/oauth/google/callback")
-def oauth_callback(code: str = "", state: str = "", error: str = "",
-                   db: DbSession = Depends(get_db)):
+def oauth_callback(
+    code: str = "", state: str = "", error: str = "", db: DbSession = Depends(get_db)
+):
     def _back(status):
         return RedirectResponse(f"/?mailoauth={status}")
 
@@ -409,6 +410,17 @@ def adv_search(aid: str, q: str = "", limit: int = 50, db: DbSession = Depends(g
     }
 
 
+@router.get("/smart-search/{aid}")
+def smart_search(aid: str, q: str = "", limit: int = 200, db: DbSession = Depends(get_db)):
+    """2j - boolean smart mailbox: (from:x OR subject:y) AND NOT label:z over the cache."""
+    from services import mail_cache, mail_predicate
+
+    _get(db, aid)
+    rows = mail_cache.get_filtered(db, aid, limit=max(limit, 500))
+    msgs = mail_predicate.match(q, rows)[:limit]
+    return {"messages": msgs, "count": len(msgs), "query": q}
+
+
 class MuteBody(BaseModel):
     subject: str
 
@@ -433,11 +445,32 @@ def archive_message(aid: str, body: ArchiveBody, db: DbSession = Depends(get_db)
     acct = _get(db, aid)
     # best-effort IMAP move to an Archive folder; never blocks the local archive
     try:
-        if hasattr(mailsvc, "move_message"):
-            mailsvc.move_message(acct, body.uid, "Archive", body.folder)
+        mailsvc.move_message(acct, body.uid, "Archive", body.folder)
     except Exception:
         pass
     return {"archived": mail_cache.archive(db, aid, body.folder, body.uid)}
+
+
+class MoveBody(BaseModel):
+    uid: str
+    dest: str
+    folder: str = "INBOX"
+
+
+@router.post("/move/{aid}")
+def move_message(aid: str, body: MoveBody, db: DbSession = Depends(get_db)):
+    """2h - move a message to another IMAP folder (best-effort server-side, drops it from cache)."""
+    from services import mail_cache
+
+    acct = _get(db, aid)
+    moved = False
+    try:
+        mailsvc.move_message(acct, body.uid, body.dest, body.folder)
+        moved = True
+    except Exception:
+        pass
+    mail_cache.archive(db, aid, body.folder, body.uid)  # drop from the source cache view
+    return {"ok": True, "moved_on_server": moved, "dest": body.dest}
 
 
 class SavedSearchBody(BaseModel):
@@ -723,6 +756,23 @@ def set_vacation(body: VacationBody):
     v = body.model_dump()
     save_settings({"mail_vacation": v})
     return v
+
+
+@router.post("/vacation/run/{aid}")
+def run_vacation(aid: str, db: DbSession = Depends(get_db)):
+    """2g - send the vacation auto-reply (one per sender per day) for an account's inbox."""
+    from datetime import date
+
+    from core.settings import load_settings, save_settings
+    from services import mail_rules
+
+    _get(db, aid)
+    cfg = load_settings()
+    vac = cfg.get("mail_vacation", {"enabled": False})
+    state = cfg.get("mail_vacation_state", {})
+    n, new_state = mail_rules.run_vacation(db, aid, vac, state, date.today().isoformat())
+    save_settings({"mail_vacation_state": new_state})
+    return {"sent": n}
 
 
 class SmartReplyBody(BaseModel):

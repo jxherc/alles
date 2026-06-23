@@ -19,6 +19,39 @@ from core.database import (
 router = APIRouter(prefix="/api")
 
 
+# 4a - contact relationship graph
+class LinkBody(BaseModel):
+    to_id: str
+    kind: str = ""
+
+
+@router.get("/contacts/{cid}/related")
+def contact_related(cid: str, kind: str = "", db: DbSession = Depends(get_db)):
+    from services import contacts_graph
+
+    return {"related": contacts_graph.neighbors(db, cid, kind=kind or None)}
+
+
+@router.post("/contacts/{cid}/links")
+def contact_link(cid: str, body: LinkBody, db: DbSession = Depends(get_db)):
+    from services import contacts_graph
+
+    if not db.get(Contact, cid) or not db.get(Contact, body.to_id):
+        raise HTTPException(404, "contact not found")
+    try:
+        contacts_graph.link(db, cid, body.to_id, body.kind)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return {"related": contacts_graph.neighbors(db, cid)}
+
+
+@router.delete("/contacts/{cid}/links/{other_id}")
+def contact_unlink(cid: str, other_id: str, db: DbSession = Depends(get_db)):
+    from services import contacts_graph
+
+    return {"removed": contacts_graph.unlink(db, cid, other_id)}
+
+
 def _avatar_dir():
     from core.settings import data_dir
 

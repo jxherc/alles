@@ -9,6 +9,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session as DbSession
 
 from core.database import Message, ModelEndpoint, Session, get_db
+from services import lifecycle
 
 
 async def _fire(event: str, data: dict):
@@ -53,8 +54,8 @@ def _fmt_session(s: Session) -> dict:
 def list_sessions(db: DbSession = Depends(get_db)):
     # incognito sessions never show in the sidebar — no trace
     rows = (
-        db.query(Session)
-        .filter(Session.archived == False, Session.incognito == False)
+        lifecycle.active(db.query(Session))
+        .filter(Session.incognito == False)  # noqa: E712 - incognito has no lifecycle policy
         .order_by(Session.last_message_at.desc())
         .all()
     )

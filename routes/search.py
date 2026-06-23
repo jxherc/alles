@@ -1,21 +1,22 @@
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy.orm import Session as DbSession
 from sqlalchemy import or_
+from sqlalchemy.orm import Session as DbSession
+
 from core.database import (
-    get_db,
-    Session,
-    Message,
-    Task,
+    Book,
     CalendarEvent,
     Contact,
-    Transaction,
-    Subscription,
-    Photo,
-    MailAccount,
-    Book,
-    ReadItem,
     Habit,
+    MailAccount,
+    Message,
     Monitor,
+    Photo,
+    ReadItem,
+    Session,
+    Subscription,
+    Task,
+    Transaction,
+    get_db,
 )
 
 router = APIRouter(prefix="/api")
@@ -57,6 +58,15 @@ def _search_vault(q: str, limit: int) -> list[dict]:
 
 
 # GET /api/search — one search across every alles app
+@router.get("/search/fts")
+def fts_search(q: str = Query(""), kind: str = "", limit: int = 20, db: DbSession = Depends(get_db)):
+    """3i - first-class FTS5 search: phrase ("a b"), negation (a NOT b), prefix (foo*), field-ranked."""
+    from services import fts
+
+    fts.ensure(db)
+    return {"results": fts.search(db, q, kind=kind or None, limit=limit)}
+
+
 @router.get("/search")
 def search(q: str = Query(""), db: DbSession = Depends(get_db)):
     empty = {

@@ -1,11 +1,13 @@
 import json
 from datetime import datetime
-
-from fastapi import APIRouter, HTTPException, Depends
-from pydantic import BaseModel
 from typing import Optional
+
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 from sqlalchemy.orm import Session as DbSession
-from core.database import get_db, Note
+
+from core.database import Note, get_db
+from services import lifecycle
 
 router = APIRouter(prefix="/api")
 
@@ -65,12 +67,9 @@ def _fmt(n: Note) -> dict:
 @router.get("/notes")
 def list_notes(q: str = "", tag: str = "", archived: bool = False,
                db: DbSession = Depends(get_db)):
-    rows = (
-        db.query(Note)
-        .filter(Note.archived == archived)
-        .order_by(Note.pinned.desc(), Note.updated_at.desc())
-        .all()
-    )
+    q0 = db.query(Note)
+    q0 = lifecycle.inactive(q0) if archived else lifecycle.active(q0)
+    rows = q0.order_by(Note.pinned.desc(), Note.updated_at.desc()).all()
     if tag:
         t = tag.strip().lower()
         rows = [n for n in rows if t in _tags_list(n.tags)]
@@ -89,7 +88,7 @@ def list_notes(q: str = "", tag: str = "", archived: bool = False,
 @router.get("/notes/tags")
 def list_tags(db: DbSession = Depends(get_db)):
     counts = {}
-    for n in db.query(Note).filter(Note.archived == False).all():
+    for n in lifecycle.active(db.query(Note)).all():
         for t in _tags_list(n.tags):
             counts[t] = counts.get(t, 0) + 1
     return [{"tag": t, "count": c} for t, c in sorted(counts.items())]
