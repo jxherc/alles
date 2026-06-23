@@ -8,7 +8,7 @@ import {
   setSensitiveBlur, setTextOnlyEmojis, setWelcomeEnabled,
 } from './privacy.js';
 import { loadShortcuts, saveShortcuts, eventToShortcut, isReservedShortcut } from './shortcuts.js';
-import { setAccent as _themeSetAccent, setMode as _themeSetMode, getAppearance as _getAppearance, renderThemeEditorInto, isBasePreset } from './theme.js';
+import { setAccent as _themeSetAccent, resetToDefault as _resetToDefault, getAppearance as _getAppearance, renderThemeEditorInto, isBasePreset } from './theme.js';
 
 // ── visibility prefs (appearance toggles) ────────────────────────────────────
 const VIS_KEY = 'aide-ui-vis';
@@ -709,7 +709,9 @@ function applyAccent(hex) {
   _patchSettings({ accent: hex || '' });      // legacy mirror so other subdomains stay in sync
 }
 function applyThemeMode(mode) {
-  _themeSetMode(mode === 'light' ? 'light' : 'dark');   // sets the default base, keeps the accent
+  // "default theme" = a clean slate: reset every fancy extra (frosted/pattern/density/font/
+  // effect) to default for the chosen base, same as the default preset tile. keeps the accent.
+  _resetToDefault(mode === 'light' ? 'light' : 'dark');
   _markMode();
   window._updateFavicon?.();
   _patchSettings({ theme: mode === 'light' ? 'light' : '' });
