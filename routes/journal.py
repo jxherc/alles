@@ -148,17 +148,18 @@ def list_entries(
     if month:  # YYYY-MM
         q = q.filter(JournalEntry.date.like(f"{month[:7]}-%"))
     rows = q.order_by(JournalEntry.date.desc()).all()
-    all_dates = (
-        {r.date for r in rows} if month else {r.date for r in db.query(JournalEntry.date).all()}
-    )
+    # all entry dates, fetched once — stats are always whole-journal, never the month
+    # filter (else "this month" reads 0 whenever you browse a past month)
+    days = {r.date for r in db.query(JournalEntry.date).all()}
     today = date.today()
+    mo = today.isoformat()[:7]
     return {
         "entries": [_fmt(e) for e in rows[:limit]],
         "stats": {
             "total": db.query(JournalEntry).count(),
-            "this_month": sum(1 for d in all_dates if d.startswith(today.isoformat()[:7])),
-            "streak": _streak({r.date for r in db.query(JournalEntry.date).all()}, today),
-            "wrote_today": today.isoformat() in {r.date for r in db.query(JournalEntry.date).all()},
+            "this_month": sum(1 for d in days if (d or "").startswith(mo)),
+            "streak": _streak(days, today),
+            "wrote_today": today.isoformat() in days,
         },
     }
 
