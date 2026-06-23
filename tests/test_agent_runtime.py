@@ -63,6 +63,28 @@ def _drive(behaviors, settings=None):
     return status, state["n"], chunks
 
 
+class FillUnansweredToolsTests(unittest.TestCase):
+    def test_stub_for_unanswered_call(self):
+        # 2 tool_calls, only the first got a result (stop interrupted the batch) -> the
+        # second must get a stub tool message so the history stays valid for a resume
+        msgs = [{"role": "assistant", "tool_calls": [{"call_id": "c1"}, {"call_id": "c2"}]}]
+        ar._fill_unanswered_tools(msgs, [{"call_id": "c1"}, {"call_id": "c2"}], 0, {"c1"})
+        tool_msgs = [m for m in msgs if m.get("role") == "tool"]
+        self.assertEqual([m["tool_call_id"] for m in tool_msgs], ["c2"])
+        self.assertEqual(tool_msgs[0]["content"], "[interrupted]")
+
+    def test_nothing_added_when_all_answered(self):
+        msgs = []
+        ar._fill_unanswered_tools(msgs, [{"call_id": "c1"}], 0, {"c1"})
+        self.assertEqual(msgs, [])
+
+    def test_synthetic_call_id_matches_loop(self):
+        # a call with no call_id uses the same f"tool-{turn}-{ci}" id the run loop assigns
+        msgs = []
+        ar._fill_unanswered_tools(msgs, [{}, {}], 3, set())
+        self.assertEqual([m["tool_call_id"] for m in msgs], ["tool-3-0", "tool-3-1"])
+
+
 class LlmResilienceTests(unittest.TestCase):
     def test_retryable_classification(self):
         self.assertTrue(ar._retryable(""))  # empty/transient
