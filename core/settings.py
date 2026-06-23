@@ -144,13 +144,34 @@ def load_settings() -> dict:
     return s
 
 
+def _drop_non_finite(obj):
+    """drop nan/inf floats anywhere in the settings tree. persisting them writes Infinity/NaN
+    literals that then 500 every settings read (fastapi can't serialize non-finite). dropped keys
+    fall back to their default on the next load."""
+    import math
+
+    if isinstance(obj, dict):
+        return {
+            k: _drop_non_finite(v)
+            for k, v in obj.items()
+            if not (isinstance(v, float) and not math.isfinite(v))
+        }
+    if isinstance(obj, list):
+        return [
+            _drop_non_finite(v) for v in obj if not (isinstance(v, float) and not math.isfinite(v))
+        ]
+    return obj
+
+
 def save_settings(patch: dict):
     s = load_settings()
     s.update(patch)
     # never persist the vault password — strip it if it snuck in
     s.pop("vault_pw_b64", None)
+    s = _drop_non_finite(s)
     _SETTINGS_FILE.parent.mkdir(parents=True, exist_ok=True)
-    _SETTINGS_FILE.write_text(json.dumps(s, indent=2), "utf-8")
+    # allow_nan=False is a backstop in case a non-finite slips past the sanitizer
+    _SETTINGS_FILE.write_text(json.dumps(s, indent=2, allow_nan=False), "utf-8")
     return s
 
 
