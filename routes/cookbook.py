@@ -1,7 +1,8 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session as DbSession
-from core.database import get_db, CookbookEntry
+
+from core.database import CookbookEntry, get_db
 
 router = APIRouter(prefix="/api")
 
@@ -38,14 +39,24 @@ def create_entry(body: EntryBody, db: DbSession = Depends(get_db)):
     return _fmt(e)
 
 
+class EntryPatch(BaseModel):
+    name: str | None = None
+    description: str | None = None
+    prompt: str | None = None
+
+
 @router.patch("/cookbook/{eid}")
-def update_entry(eid: str, body: EntryBody, db: DbSession = Depends(get_db)):
+def update_entry(eid: str, body: EntryPatch, db: DbSession = Depends(get_db)):
     e = db.get(CookbookEntry, eid)
     if not e:
         raise HTTPException(404)
-    e.name = body.name.lower().replace(" ", "-")
-    e.description = body.description
-    e.prompt = body.prompt
+    data = body.model_dump(exclude_unset=True)  # only touch fields the caller actually sent
+    if "name" in data and data["name"] is not None:
+        e.name = data["name"].lower().replace(" ", "-")
+    if "description" in data and data["description"] is not None:
+        e.description = data["description"]
+    if "prompt" in data and data["prompt"] is not None:
+        e.prompt = data["prompt"]
     db.commit()
     return _fmt(e)
 
