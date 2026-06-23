@@ -102,6 +102,8 @@ def duplicate_persona(pid: str, db: DbSession = Depends(get_db)):
         default_mode=p.default_mode,
         accent=p.accent,
         initial_message=p.initial_message,
+        blocked_scopes=p.blocked_scopes,  # carry the sandbox over, else the copy is unrestricted
+        blocked_tools=p.blocked_tools,
         is_default=False,
     )
     db.add(dup)

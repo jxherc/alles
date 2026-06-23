@@ -1,7 +1,7 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v115';   // home settings gear opens general pane, not a blank 'appearance'
+const VERSION = 'v116';   // fresh-chat persona button shows the default persona, not 'no persona'
 const CACHE = `alles-${VERSION}`;
-const STAMP = '141';   // keep in sync with index.html ?v= / const _v
+const STAMP = '142';   // keep in sync with index.html ?v= / const _v
 
 // 1b: mutating writes that should be queued when offline
 const MUTATING = ['POST', 'PUT', 'PATCH', 'DELETE'];
