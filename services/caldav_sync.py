@@ -71,6 +71,20 @@ def _iso(dt) -> str:
     return dt.strftime("%Y-%m-%d") + "T00:00:00"
 
 
+def _event_ics(uid: str, title: str, start_dt: str, all_day: bool) -> str:
+    """a minimal VEVENT for push. all-day events must be DTSTART;VALUE=DATE (a date) — the
+    old code emitted DTSTART:YYYYMMDDT000000, a timed-midnight event. timed events stay
+    floating local wall-clock (we store no tz, so no Z, which would shift them)."""
+    if all_day:
+        dtstart = f"DTSTART;VALUE=DATE:{(start_dt or '')[:10].replace('-', '')}"
+    else:
+        dtstart = f"DTSTART:{(start_dt or '').replace('-', '').replace(':', '')}"
+    return (
+        "BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//alles//EN\nBEGIN:VEVENT\n"
+        f"UID:{uid}\nSUMMARY:{_ics_esc(title)}\n{dtstart}\nEND:VEVENT\nEND:VCALENDAR\n"
+    )
+
+
 def sync() -> dict:
     if not available():
         return {"error": "caldav not installed — run: pip install caldav"}
@@ -157,11 +171,7 @@ def sync() -> dict:
         for le in locals_:
             try:
                 uid = f"alles-{le.id}@alles"
-                dt = (le.start_dt or "").replace("-", "").replace(":", "")
-                ics = (
-                    "BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//alles//EN\nBEGIN:VEVENT\n"
-                    f"UID:{uid}\nSUMMARY:{_ics_esc(le.title)}\nDTSTART:{dt}\nEND:VEVENT\nEND:VCALENDAR\n"
-                )
+                ics = _event_ics(uid, le.title, le.start_dt, le.all_day)
                 cal.save_event(ics)
                 le.caldav_uid = uid
                 pushed += 1
