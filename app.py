@@ -307,9 +307,15 @@ async def _fire_due_reminders():
             r.notified = True
             db.commit()
             try:
-                await push_broadcast(
+                sent = await push_broadcast(
                     {"title": "reminder", "body": r.text, "url": "/", "tag": f"reminder-{r.id}"}
                 )
+                # push reached a browser -> the user's been told, so mark it fired: it won't
+                # linger as "overdue" in the list or re-toast on next open. with no live
+                # subscriptions, leave it unfired so an open tab still toasts it via /due.
+                if sent:
+                    r.fired = True
+                    db.commit()
             except Exception as e:
                 log.warning(f"reminder push failed: {e}")
 
