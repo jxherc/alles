@@ -85,6 +85,22 @@ class FillUnansweredToolsTests(unittest.TestCase):
         self.assertEqual([m["tool_call_id"] for m in msgs], ["tool-3-0", "tool-3-1"])
 
 
+class KeepStreamedOutputTests(unittest.TestCase):
+    def test_interrupted_stream_keeps_partial(self):
+        # result never arrived (stopped) -> fall back to the streamed buffer
+        r = ar._keep_streamed_output({"output": "", "error": False}, "partial shell output")
+        self.assertEqual(r["output"], "partial shell output")
+
+    def test_real_result_wins(self):
+        # a result that carries output is authoritative — don't clobber it with the buffer
+        r = ar._keep_streamed_output({"output": "final", "error": False}, "streamed tail")
+        self.assertEqual(r["output"], "final")
+
+    def test_no_output_either_way(self):
+        r = ar._keep_streamed_output({"output": "", "error": False}, "")
+        self.assertEqual(r["output"], "")
+
+
 class LlmResilienceTests(unittest.TestCase):
     def test_retryable_classification(self):
         self.assertTrue(ar._retryable(""))  # empty/transient

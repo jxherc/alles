@@ -96,6 +96,15 @@ def _cap_tool_content(tool_content: dict) -> str:
     return content
 
 
+def _keep_streamed_output(result, streamed):
+    """if a streamed tool was interrupted before emitting its result, the streamed buffer is
+    the only output we have — fall back to it so the partial output isn't lost. a result that
+    already carries output (the normal path) wins."""
+    if not result.get("output") and streamed:
+        return {**result, "output": streamed}
+    return result
+
+
 def _fill_unanswered_tools(agent_messages, tool_calls, turn, answered):
     """append a stub tool message for any tool_call that never got a result — e.g. when a
     stop interrupts the batch. an assistant message with tool_calls that lack matching tool
@@ -573,6 +582,9 @@ async def run_agent(
                             yield {"tool_delta": {"call_id": call_id, "text": text}}
                         elif event["type"] == "result":
                             result = event.get("result", result)
+                    # a stop before the result event leaves result empty — keep the streamed
+                    # buffer so the partial output isn't lost (persisted step + model message)
+                    result = _keep_streamed_output(result, step.get("output", ""))
                     step["output"] = result.get("output", step.get("output", ""))
                     step["error"] = bool(result.get("error"))
 
