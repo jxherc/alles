@@ -43,6 +43,19 @@ class MoneyDepthTests(ApiTest):
         self.assertEqual(db.query(TxnSplit).filter_by(txn_id=t["id"]).count(), 2)
         db.close()
 
+    def test_put_splits_rejects_income(self):
+        # splits only model how an EXPENSE divides across categories; _spending_by_cat
+        # skips income (amount >= 0), so splits saved on an income row are dead data.
+        t = self._txn(500, "salary", "Acme")  # positive = income
+        r = self.client.put(
+            f"/api/money/transactions/{t['id']}/splits",
+            json={"splits": [{"category": "a", "amount": 100}]},
+        )
+        self.assertEqual(r.status_code, 400)
+        db = self.db()
+        self.assertEqual(db.query(TxnSplit).filter_by(txn_id=t["id"]).count(), 0)
+        db.close()
+
     def test_get_splits_lists(self):
         t = self._txn(-50, "shopping")
         self.client.put(
