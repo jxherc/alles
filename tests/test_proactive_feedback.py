@@ -88,6 +88,21 @@ class FeedbackUnitTests(unittest.TestCase):
         self.assertGreaterEqual(proactive._category_weight(self.s, "x"), 0.5)
         self.assertLessEqual(proactive._category_weight(self.s, "y"), 1.5)
 
+    def test_bulk_weight_map_matches_per_category(self):
+        # the one-scan _all_category_weights (used by _upsert) and feedback_stats must
+        # produce the exact same weight as the per-category query, just without the N+1
+        for _ in range(6):
+            self.s.add(db.ProactiveOutcome(category="sub", outcome="dismissed"))
+        for _ in range(4):
+            self.s.add(db.ProactiveOutcome(category="task", outcome="acted"))
+        self.s.commit()
+        bulk = proactive._all_category_weights(self.s)
+        stats = proactive.feedback_stats(self.s)
+        for cat in ("sub", "task"):
+            per_cat = round(proactive._category_weight(self.s, cat), 3)
+            self.assertEqual(round(bulk[cat], 3), per_cat)
+            self.assertEqual(stats[cat]["weight"], per_cat)
+
     def test_upsert_applies_weight(self):
         # cold start: score unchanged from base
         sigs = [{"key": "task_overdue:1", "urgency": 70, "category": "task"}]
