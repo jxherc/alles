@@ -1,7 +1,7 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v111';   // envelope amount column no longer wraps
+const VERSION = 'v112';   // chat msg-count fix + safe inline-edit blur
 const CACHE = `alles-${VERSION}`;
-const STAMP = '137';   // keep in sync with index.html ?v= / const _v
+const STAMP = '138';   // keep in sync with index.html ?v= / const _v
 
 // 1b: mutating writes that should be queued when offline
 const MUTATING = ['POST', 'PUT', 'PATCH', 'DELETE'];

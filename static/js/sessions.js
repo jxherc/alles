@@ -96,7 +96,7 @@ export function renderSidebar(filter = '') {
 
   let src = _allSessions;
   if (fl) {
-    src = _allSessions.filter(s => s.name.toLowerCase().includes(fl));
+    src = _allSessions.filter(s => (s.name || '').toLowerCase().includes(fl));
   }
 
   if (!src.length) {
@@ -467,7 +467,15 @@ function _wireEditButtons(container) {
       bubble.replaceWith(ta);
       ta.focus();
 
+      let done = false;  // guard so we only resolve the edit once
+      const restore = () => {
+        if (done) return; done = true;
+        const b = document.createElement('div');
+        b.className = 'user-bubble'; b.textContent = original;
+        if (ta.isConnected) ta.replaceWith(b);
+      };
       const save = async () => {
+        if (done) return; done = true;
         const newText = ta.value.trim() || original;
         const msgId = row?.dataset.msgId;
         const sid = _activeId;
@@ -493,15 +501,14 @@ function _wireEditButtons(container) {
 
       ta.addEventListener('keydown', e => {
         if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); save(); }
-        if (e.key === 'Escape') {
-          const b = document.createElement('div');
-          b.className = 'user-bubble'; b.textContent = original;
-          ta.replaceWith(b);
-        }
+        if (e.key === 'Escape') { e.preventDefault(); restore(); }
       });
       ta.addEventListener('blur', () => {
-        // only save if still in DOM
-        if (ta.isConnected) save();
+        // clicking away only commits a real change — an unchanged blur (e.g. you
+        // clicked another message's edit pencil) just cancels, so it can't silently
+        // wipe everything after this row and re-send
+        if (ta.value.trim() === original.trim()) restore();
+        else save();
       });
     });
   });
