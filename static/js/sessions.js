@@ -765,7 +765,9 @@ function openCtxMenu(e, id) {
       } else if (action === 'archive') {
         await fetch(`/api/sessions/${id}/archive`, { method: 'POST' });
         await loadSessions();
-        if (id === _activeId || _activeId === null) newChat();
+        // only reset the view if we archived the chat we're actually looking at —
+        // archiving some other session while on a fresh chat shouldn't wipe it
+        if (id === _activeId) newChat();
       } else if (action === 'move-project') {
         const pid = item.dataset.pid;
         await fetch(`/api/projects/${pid}/sessions/${id}`, { method: 'POST' });
