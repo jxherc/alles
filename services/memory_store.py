@@ -167,7 +167,7 @@ def update_memory(
 def search_memories(query: str, top_k: int = 6) -> list[dict]:
     db = SessionLocal()
     try:
-        all_mems = db.query(Memory).all()
+        all_mems = db.query(Memory).filter(Memory.vetoed == False).all()  # noqa: E712 - hide vetoed (1c)
         if not all_mems:
             return []
 

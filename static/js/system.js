@@ -5,7 +5,14 @@
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-const HIST = 720;   // ~18min @1.5s — more history = each graph shows a wider span (zoomed out)
+export const HIST = 720;   // ~18min @1.5s — more history = each graph shows a wider span (zoomed out)
+
+// how many columns a graph of pixel width `w` should draw. capped at HIST: a graph wider than
+// the history we keep would otherwise left-pad the extra columns with zeros forever, leaving a
+// permanent blank strip on the left (#40 — "a third didn't finish" on wide screens).
+export function graphCols(w, bw = 2) {
+  return Math.min(HIST, Math.max(1, Math.floor((w || 0) / bw)));
+}
 const cpuHist = [], ramHist = [], netDownHist = [], netUpHist = [], dioHist = [];
 const coreHist = [];   // per-core %, coreHist[i] = that core's history
 
@@ -189,8 +196,9 @@ function drawGraph(canvas, hist, ramp, max) {
   const ctx = canvas.getContext('2d');
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, w, h);
-  const bw = 2;                                  // bar pitch in px
-  const n = Math.max(1, Math.floor(w / bw));
+  const n = graphCols(w);                        // capped at HIST so the box always fills (#40)
+  const bw = w / n;                              // stretch the pitch to cover the full width
+  canvas.dataset.cols = n;                       // exposed for tests
   const data = _window(hist, n);                 // scrolls in from the right
   const m = max || Math.max(1, ...data);
   // bottom→top gradient; a short bar only shows the cool low end, a tall one runs hot
@@ -201,7 +209,7 @@ function drawGraph(canvas, hist, ramp, max) {
     const v = Math.min(Math.max(data[i], 0), m) / m;
     if (v <= 0) continue;
     const bh = Math.max(1, v * h);
-    ctx.fillRect(i * bw, h - bh, bw - 0.6, bh);  // 0.6px gap → discrete strokes
+    ctx.fillRect(i * bw, h - bh, Math.max(1, bw - 0.6), bh);  // small gap → discrete strokes
   }
 }
 

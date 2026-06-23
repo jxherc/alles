@@ -7,7 +7,10 @@ events on the queue, we run research() as a task and drain the queue, then yield
 a final done event. keeps run_research's old signature so routes stay drop-in.
 """
 
-import asyncio, json, time, logging
+import asyncio
+import json
+import logging
+import time
 from pathlib import Path
 from typing import AsyncGenerator
 
@@ -162,6 +165,20 @@ async def run_research(
             stats=stats,
         )
         _save_task(session_id, state)
+
+        # 3g - persist findings to the cross-session fact cache (best-effort; never break research)
+        try:
+            from core.database import SessionLocal
+            from services.research import fact_cache
+
+            _fdb = SessionLocal()
+            try:
+                fact_cache.store(_fdb, researcher.findings, query)
+            finally:
+                _fdb.close()
+        except Exception:
+            pass
+
         yield {"type": "done", "report": report, "sources": sources[:15], "stats": stats}
 
         try:

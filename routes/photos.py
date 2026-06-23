@@ -63,6 +63,39 @@ def _label(d: datetime) -> str:
     return f"{d.strftime('%B')} {d.day}, {d.year}"  # avoid %-d (not on Windows)
 
 
+@router.get("/smart")
+def smart_photos(
+    period: str = Query("month"),
+    from_date: str = Query(""),
+    to_date: str = Query(""),
+    keyword: str = Query(""),
+    db: DbSession = Depends(get_db),
+):
+    """4c - smart albums: EXIF-date grouping (period=month|day) + optional date-range / keyword filter."""
+    from services import smart_albums
+
+    rows = (
+        db.query(Photo)
+        .filter(Photo.deleted_at == None)  # noqa: E711
+        .filter((Photo.hidden == False) | (Photo.hidden == None))  # noqa: E711,E712
+        .all()
+    )
+    photos = [
+        {
+            "id": p.id,
+            "taken_at": p.taken_at.isoformat() if p.taken_at else "",
+            "keywords": p.keywords or "",
+        }
+        for p in rows
+    ]
+    if from_date and to_date:
+        photos = smart_albums.in_range(photos, from_date, to_date)
+    if keyword:
+        photos = smart_albums.by_keyword(photos, keyword)
+    groups = smart_albums.group_by_period(photos, period=period)
+    return {"groups": {k: [p["id"] for p in v] for k, v in groups.items()}, "count": len(photos)}
+
+
 @router.get("/list")
 def list_photos(
     album: str = Query(""), favorites: bool = Query(False), db: DbSession = Depends(get_db)
@@ -418,11 +451,15 @@ def patch_photo(pid: str, body: PatchPhoto, db: DbSession = Depends(get_db)):
 def albums(db: DbSession = Depends(get_db)):
     out = []
     for a in db.query(Album).order_by(Album.created_at.desc()).all():
-        n = db.query(Photo).filter(
-            Photo.album_id == a.id,
-            Photo.deleted_at == None,  # noqa: E711
-            (Photo.hidden == False) | (Photo.hidden == None),  # noqa: E711,E712
-        ).count()
+        n = (
+            db.query(Photo)
+            .filter(
+                Photo.album_id == a.id,
+                Photo.deleted_at == None,  # noqa: E711
+                (Photo.hidden == False) | (Photo.hidden == None),  # noqa: E711,E712
+            )
+            .count()
+        )
         out.append({"id": a.id, "name": a.name, "count": n})
     return out
 

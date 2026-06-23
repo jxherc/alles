@@ -15,6 +15,7 @@ from core.database import (
     Goal,
     Holding,
     RecurringTxn,
+    TagRule,
     Transaction,
     TxnSplit,
     Watch,
@@ -119,9 +120,16 @@ def delete_account(aid: str, db: DbSession = Depends(get_db)):
         raise HTTPException(404)
     # transfer legs share a string transfer_id (no FK), so unlink the partner legs in
     # other accounts before we nuke this account's txns — keeps the moved money as plain txns
-    xfer_ids = [x[0] for x in db.query(Transaction.transfer_id).filter(Transaction.account_id == aid, Transaction.transfer_id != "").all()]
+    xfer_ids = [
+        x[0]
+        for x in db.query(Transaction.transfer_id)
+        .filter(Transaction.account_id == aid, Transaction.transfer_id != "")
+        .all()
+    ]
     if xfer_ids:
-        db.query(Transaction).filter(Transaction.transfer_id.in_(xfer_ids), Transaction.account_id != aid).update({Transaction.transfer_id: ""}, synchronize_session=False)
+        db.query(Transaction).filter(
+            Transaction.transfer_id.in_(xfer_ids), Transaction.account_id != aid
+        ).update({Transaction.transfer_id: ""}, synchronize_session=False)
     db.query(Transaction).filter(Transaction.account_id == aid).delete()
     db.delete(a)
     db.commit()
@@ -166,6 +174,10 @@ def _categorize(payee: str, rules) -> str:
 
 def _rules(db):
     return db.query(CategoryRule).order_by(CategoryRule.created_at.asc()).all()
+
+
+def _tag_rules(db):
+    return db.query(TagRule).order_by(TagRule.created_at.asc()).all()
 
 
 def _distribute(t, splits_by_txn, by):
@@ -315,6 +327,9 @@ def create_txn(body: TxnBody, db: DbSession = Depends(get_db)):
     cat = (body.category or "").strip()
     if not cat:  # no explicit category → let a rule fill it in from the payee
         cat = _categorize(body.payee, _rules(db))
+    from services import tag_rules
+
+    tags = tag_rules.apply_rules(body.payee, _tag_rules(db), existing=_norm_tags(body.tags))
     t = Transaction(
         account_id=body.account_id,
         date=body.date,
@@ -322,7 +337,7 @@ def create_txn(body: TxnBody, db: DbSession = Depends(get_db)):
         category=cat,
         payee=(body.payee or "").strip(),
         notes=(body.notes or "").strip(),
-        tags=_norm_tags(body.tags),
+        tags=tags,
         receipt_id=(body.receipt_id or "").strip(),
         cleared=bool(body.cleared),
     )
@@ -456,6 +471,9 @@ def import_txns_csv(body: CsvImport, db: DbSession = Depends(get_db)):
         for t in db.query(Transaction).filter(Transaction.account_id == body.account_id).all()
     }
     rules = _rules(db)  # auto-categorize rows that arrive without a category
+    from services import tag_rules
+
+    trules = _tag_rules(db)
     n = skipped = 0
     for row in csv.DictReader(io.StringIO(body.csv)):
         row = {(k or "").strip().lower(): v for k, v in row.items()}
@@ -481,6 +499,9 @@ def import_txns_csv(body: CsvImport, db: DbSession = Depends(get_db)):
                 category=cat,
                 payee=payee,
                 notes=(row.get("notes") or "").strip(),
+                tags=tag_rules.apply_rules(
+                    payee, trules, existing=_norm_tags(row.get("tags") or "")
+                ),
             )
         )
         n += 1
@@ -505,6 +526,9 @@ def import_txns_ofx(body: OfxImport, db: DbSession = Depends(get_db)):
         for t in db.query(Transaction).filter(Transaction.account_id == body.account_id).all()
     }
     rules = _rules(db)
+    from services import tag_rules
+
+    trules = _tag_rules(db)
     n = skipped = 0
     for row in txn_ingest.parse_ofx(body.ofx):
         payee = (row.get("payee") or "").strip()
@@ -521,6 +545,7 @@ def import_txns_ofx(body: OfxImport, db: DbSession = Depends(get_db)):
                 category=_categorize(payee, rules),
                 payee=payee,
                 notes=(row.get("memo") or "").strip(),
+                tags=tag_rules.apply_rules(payee, trules),
             )
         )
         n += 1
@@ -787,34 +812,96 @@ def apply_rules(db: DbSession = Depends(get_db)):
     return {"updated": n}
 
 
+# ── tag rules CRUD + bulk apply (2e) ──────────────────────────────────────────
+@router.get("/tag-rules")
+def list_tag_rules(db: DbSession = Depends(get_db)):
+    return [{"id": r.id, "match": r.match, "tags": r.tags} for r in _tag_rules(db)]
+
+
+class TagRuleBody(BaseModel):
+    match: str
+    tags: str = ""
+
+
+@router.post("/tag-rules")
+def create_tag_rule(body: TagRuleBody, db: DbSession = Depends(get_db)):
+    m = (body.match or "").strip()
+    if not m:
+        raise HTTPException(400, "match required")
+    r = TagRule(match=m, tags=_norm_tags(body.tags))
+    db.add(r)
+    db.commit()
+    db.refresh(r)
+    return {"id": r.id, "match": r.match, "tags": r.tags}
+
+
+@router.delete("/tag-rules/{rid}")
+def delete_tag_rule(rid: str, db: DbSession = Depends(get_db)):
+    r = db.get(TagRule, rid)
+    if not r:
+        raise HTTPException(404)
+    db.delete(r)
+    db.commit()
+    return {"ok": True}
+
+
+@router.post("/tag-rules/apply")
+def apply_tag_rules(db: DbSession = Depends(get_db)):
+    """back-fill tags on existing txns from the current tag rules (merges, never drops)."""
+    from services import tag_rules
+
+    rules = _tag_rules(db)
+    n = 0
+    for t in db.query(Transaction).all():
+        if t.transfer_id:
+            continue
+        new = tag_rules.apply_rules(t.payee, rules, existing=t.tags or "")
+        if new != (t.tags or ""):
+            t.tags = new
+            n += 1
+    db.commit()
+    return {"updated": n}
+
+
 # ── budgets (monthly spending caps per category) ──────────────────────────────
 @router.get("/budgets")
 def list_budgets(db: DbSession = Depends(get_db)):
     return [
-        {"id": b.id, "category": b.category, "limit_amt": b.limit_amt}
+        {"id": b.id, "category": b.category, "tag": b.tag or "", "limit_amt": b.limit_amt}
         for b in db.query(Budget).order_by(Budget.category.asc()).all()
     ]
 
 
 class BudgetBody(BaseModel):
-    category: str
+    category: str = ""
+    tag: str = ""  # 2e - set this (with category empty) for a tag budget
     limit_amt: float = 0.0
 
 
 @router.post("/budgets")
 def upsert_budget(body: BudgetBody, db: DbSession = Depends(get_db)):
     cat = (body.category or "").strip()
-    if not cat:
-        raise HTTPException(400, "category required")
-    b = db.query(Budget).filter(Budget.category == cat).first()
-    if b:
-        b.limit_amt = body.limit_amt
+    tag = (body.tag or "").strip().lower()
+    if not cat and not tag:
+        raise HTTPException(400, "category or tag required")
+    if tag:
+        b = db.query(Budget).filter(Budget.tag == tag).first()
+        if not b:
+            b = Budget(category="", tag=tag)
+            db.add(b)
     else:
-        b = Budget(category=cat, limit_amt=body.limit_amt)
-        db.add(b)
+        b = (
+            db.query(Budget)
+            .filter(Budget.category == cat, (Budget.tag == "") | (Budget.tag.is_(None)))
+            .first()
+        )
+        if not b:
+            b = Budget(category=cat)
+            db.add(b)
+    b.limit_amt = body.limit_amt
     db.commit()
     db.refresh(b)
-    return {"id": b.id, "category": b.category, "limit_amt": b.limit_amt}
+    return {"id": b.id, "category": b.category, "tag": b.tag or "", "limit_amt": b.limit_amt}
 
 
 @router.delete("/budgets/{bid}")
@@ -928,6 +1015,7 @@ def envelope(month: str = "", db: DbSession = Depends(get_db)):
 @router.get("/age-of-money")
 def age_of_money(db: DbSession = Depends(get_db)):
     """FIFO-match income to spending; amount-weighted average age (days) of recent spending."""
+
     def _d(s):
         try:
             return date.fromisoformat(str(s)[:10])
@@ -981,8 +1069,15 @@ def _net_worth_at(db, accounts, date_str):
 
 
 @router.get("/forecast")
-def forecast(month: str = "", as_of: str = "", db: DbSession = Depends(get_db)):
-    """project the end-of-month balance from today's balance + remaining recurring txns."""
+def forecast(
+    month: str = "",
+    as_of: str = "",
+    skip: str = "",
+    income_delta: float = 0.0,
+    db: DbSession = Depends(get_db),
+):
+    """project the end-of-month balance from today's balance + remaining recurring txns. 2b adds
+    a per-category projection (`categories`) + what-if (`skip` comma payees, `income_delta`)."""
     if not month:
         month = datetime.utcnow().strftime("%Y-%m")
     try:
@@ -1015,6 +1110,13 @@ def forecast(month: str = "", as_of: str = "", db: DbSession = Depends(get_db)):
             d = _advance(d, r.cycle, r.cycle_days or 30)
             guard += 1
     occ.sort(key=lambda x: x["date"])
+    from services import forecast as forecast_svc
+
+    skip_payees = [s.strip() for s in skip.split(",") if s.strip()]
+    occ = forecast_svc.apply_scenario(
+        occ, skip_payees=skip_payees, income_delta=income_delta, at=end.isoformat()
+    )
+    occ.sort(key=lambda x: x["date"])
     bal = start
     line = [{"date": as_of_d.isoformat(), "balance": round(bal, 2)}]
     for o in occ:
@@ -1027,6 +1129,7 @@ def forecast(month: str = "", as_of: str = "", db: DbSession = Depends(get_db)):
         "projected": round(bal, 2),
         "recurring": occ,
         "line": line,
+        "categories": forecast_svc.category_averages(db, as_of=as_of_d),
     }
 
 
@@ -1121,6 +1224,45 @@ def delete_holding(hid: str, db: DbSession = Depends(get_db)):
     db.delete(h)
     db.commit()
     return {"ok": True}
+
+
+@router.post("/holdings/refresh")
+def refresh_holdings(db: DbSession = Depends(get_db)):
+    # 2d - reprice from the external source (best-effort; returns {updated, prices})
+    from services import price_fetch
+
+    return price_fetch.refresh(db)
+
+
+@router.get("/holdings/{sym}/history")
+def holding_history(sym: str, db: DbSession = Depends(get_db)):
+    from services import price_fetch
+
+    return {
+        "history": price_fetch.history(db, sym),
+        "return_pct": price_fetch.return_since_first(db, sym),
+    }
+
+
+@router.get("/income/summary")
+def income_summary(month: str = "", db: DbSession = Depends(get_db)):
+    """2f - income by type for a month + rolling average + the current tax-quarter set-aside."""
+    from services import income
+
+    today = date.today()
+    mo = (month or today.strftime("%Y-%m")).strip()
+    from core.settings import load_settings
+
+    rate = load_settings().get("tax_setaside_rate", 0.25) or 0.25
+    return {
+        "month": mo,
+        "by_type": income.by_type(db, mo),
+        "rolling_avg": income.rolling_income(db, months=3, as_of=today),
+        "quarter": income.current_quarter(today),
+        "quarter_income": income.quarter_income(db, today),
+        "set_aside": income.set_aside(db, today, rate=rate),
+        "rate": rate,
+    }
 
 
 class WatchBody(BaseModel):

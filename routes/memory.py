@@ -1,17 +1,60 @@
-from fastapi import APIRouter, HTTPException, BackgroundTasks
-from pydantic import BaseModel
 from typing import Optional
+
+from fastapi import APIRouter, BackgroundTasks, HTTPException
+from pydantic import BaseModel
 
 from services.memory_store import (
     add_memory,
-    get_all_memories,
-    delete_memory,
-    update_memory,
-    search_memories,
     debug_search,
+    delete_memory,
+    get_all_memories,
+    search_memories,
+    update_memory,
 )
 
 router = APIRouter(prefix="/api")
+
+
+@router.get("/memory/distilled")
+def list_distilled():
+    """the auto-distilled user-model facts (1c) - source=distilled, highest confidence first."""
+    from core.database import Memory, SessionLocal
+
+    db = SessionLocal()
+    try:
+        rows = (
+            db.query(Memory)
+            .filter(Memory.source == "distilled")
+            .order_by(Memory.confidence.desc(), Memory.timestamp.desc())
+            .all()
+        )
+        return [
+            {
+                "id": m.id,
+                "text": m.text,
+                "category": m.category,
+                "confidence": m.confidence,
+                "provenance": m.provenance,
+                "vetoed": m.vetoed,
+                "pinned": m.pinned,
+            }
+            for m in rows
+        ]
+    finally:
+        db.close()
+
+
+@router.post("/memory/{mid}/veto")
+def veto_distilled(mid: str):
+    """hide a distilled fact + keep it from being re-distilled."""
+    from core.database import SessionLocal
+    from services import user_model
+
+    db = SessionLocal()
+    try:
+        return {"ok": user_model.veto(db, mid)}
+    finally:
+        db.close()
 
 
 # GET /api/memories
@@ -103,7 +146,8 @@ async def extract_from_session(body: ExtractRequest, bg: BackgroundTasks):
         db.close()
 
     # find a working endpoint
-    from core.database import SessionLocal as SL, ModelEndpoint
+    from core.database import ModelEndpoint
+    from core.database import SessionLocal as SL
 
     db2 = SL()
     try:

@@ -42,6 +42,30 @@ export function mix(a, b, t) {
 
 export function lum(hex) { const { r, g, b } = hexToRgb(hex); return (0.299 * r + 0.587 * g + 0.114 * b) / 255; }
 
+// WCAG relative luminance (gamma-corrected) + contrast ratio. used to keep --muted
+// readable on light themes, where a flat 0.5 mix only lands ~2.8:1.
+export function relLum(hex) {
+  const { r, g, b } = hexToRgb(hex);
+  const f = v => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
+  return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b);
+}
+export function contrast(a, b) {
+  const L1 = relLum(a), L2 = relLum(b);
+  return (Math.max(L1, L2) + 0.05) / (Math.min(L1, L2) + 0.05);
+}
+// muted secondary-text colour: start at the subtle 0.5 blend, then nudge toward text
+// until it clears `floor` contrast against bg. dark themes already pass at 0.5 so they
+// stay untouched; light themes get darkened just enough to read.
+export function mutedFor(text, bg, panel = bg, floor = 3.2) {
+  // secondary text lands on both --bg and --panel; clear `floor` against the harder one.
+  const worst = m => Math.min(contrast(m, bg), contrast(m, panel));
+  let t = 0.5, m = mix(text, bg, t);
+  // nudge toward text until we clear `floor`; on pale themes whose text itself is low
+  // contrast (e.g. cute) we can't reach 3.2, so best-effort down to ~text and stop.
+  while (t > 0.06 && worst(m) < floor) { t -= 0.04; m = mix(text, bg, t); }
+  return m;
+}
+
 export function generateHarmony(accentHex, type, mode) {
   const [h, s] = hexToHSL(accentHex);
   const dark = mode === 'dark';

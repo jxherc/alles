@@ -70,6 +70,58 @@ def record_use(slug: str):
     _save_usage(d)
 
 
+def record_feedback(slug: str, helpful: bool):
+    """3f - explicit 'did this skill help?' signal, separate from being loaded."""
+    try:
+        s = _slug(slug)
+    except Exception:
+        return
+    d = _load_usage()
+    row = d.get(s) or {}
+    key = "helped" if helpful else "missed"
+    row[key] = (row.get(key, 0) or 0) + 1
+    d[s] = row
+    _save_usage(d)
+    return row
+
+
+def _feedback_weight(row: dict) -> float:
+    """3f - 0.5..1.5 bounded multiplier from helped vs missed. cold start (no feedback) = 1.0."""
+    h = row.get("helped", 0) or 0
+    m = row.get("missed", 0) or 0
+    if h + m == 0:
+        return 1.0
+    return round(0.5 + h / (h + m), 3)
+
+
+def match_skills_semantic(query: str, top_k: int = 3, *, embed_fn=None) -> list[dict]:
+    """3f - rank skills by cosine(embed(query), embed(skill text)), folding in the learned feedback
+    weight + pinned boost. falls back to token overlap when embeddings aren't available."""
+    if not (query or "").strip():
+        return []
+    skills = list_skills()
+    if not skills:
+        return []
+    if embed_fn is None:
+        from services.memory_store import _embed as embed_fn  # noqa: N813
+    texts = [f"{s['name']} {s['description']} {s['when_to_use']}" for s in skills]
+    vecs = embed_fn([query] + texts)
+    if not vecs:  # no embedding backend -> keyword fallback
+        return match_skills(query, top_k)
+    from services.memory_store import _cosine
+
+    usage = _load_usage()
+    qv, svs = vecs[0], vecs[1:]
+    scored = []
+    for s, v in zip(skills, svs):
+        sim = _cosine(qv, v)
+        w = _feedback_weight(usage.get(s.get("slug", ""), {}))
+        boost = 1.25 if s.get("pinned") else 1.0
+        scored.append((sim * w * boost, s))
+    scored.sort(key=lambda x: x[0], reverse=True)
+    return [{**s, "score": round(sc, 3)} for sc, s in scored[:top_k]]
+
+
 def set_pinned(slug: str, pinned: bool) -> bool:
     s = _slug(slug)
     d = _load_usage()

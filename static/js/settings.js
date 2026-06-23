@@ -8,6 +8,7 @@ import {
   setSensitiveBlur, setTextOnlyEmojis, setWelcomeEnabled,
 } from './privacy.js';
 import { loadShortcuts, saveShortcuts, eventToShortcut, isReservedShortcut } from './shortcuts.js';
+import { setAccent as _themeSetAccent, setMode as _themeSetMode, getAppearance as _getAppearance, renderThemeEditorInto, isBasePreset } from './theme.js';
 
 // ── visibility prefs (appearance toggles) ────────────────────────────────────
 const VIS_KEY = 'aide-ui-vis';
@@ -69,7 +70,8 @@ function _onPaneOpen(name) {
   if (name === 'ai')         loadAiPane();
   if (name === 'memory')     initMemoryPanel();
   if (name === 'search')     loadSearchPane();
-  if (name === 'appearance') loadAppearancePane();
+  if (name === 'general' || name === 'security' || name === 'themes') loadAppearancePane();
+  if (name === 'themes')     loadThemesPane();
   if (name === 'voice')      loadVoicePane();
   if (name === 'personas')   { loadPersonas(); loadCookbook(); }
   if (name === 'tools')      { loadAgentStatus(); loadMcpServers(); loadConnections(); loadPermRules(); loadMacosStatus(); }
@@ -90,7 +92,7 @@ export function openSettings(pane, allesOnly = false) {
   modal.classList.toggle('alles-scope', allesOnly);
   const title = document.querySelector('#settings-modal .s-title');
   if (title) title.textContent = allesOnly ? 'alles settings' : 'settings';
-  if (!pane) pane = allesOnly ? 'appearance' : 'models';
+  if (!pane) pane = allesOnly ? 'general' : 'models';
   if (!_bound) { _initSettings(); _bound = true; }
   // update compat url labels
   const port = location.port || '8000';
@@ -651,11 +653,36 @@ function loadAppearancePane() {
     }
   }
   _loadThemeColorControls();
-  const teBtn = document.getElementById('s-open-theme-editor');
-  if (teBtn && !teBtn.dataset.bound) {
-    teBtn.dataset.bound = '1';
-    teBtn.addEventListener('click', async () => { (await import('./theme.js')).openThemeEditor(); });
+}
+
+// themes pane: the inline full editor + keeping the default-theme controls' lock state in
+// sync (a fancy preset owns mode + accent, so those controls lock while it's active).
+let _inlineEditorBuilt = false;
+function loadThemesPane() {
+  const host = document.getElementById('theme-editor-inline');
+  if (host && !_inlineEditorBuilt) {
+    _inlineEditorBuilt = true;
+    renderThemeEditorInto(host, { onChange: _refreshThemeLock });
   }
+  _refreshThemeLock();
+}
+
+// when a fancy preset is active, the default-theme mode + accent are dictated by it — lock
+// those controls (visually + functionally) and say so; picking 'default' in the editor (or
+// a mode button, which always drops to default) unlocks them.
+function _refreshThemeLock() {
+  let preset = 'dark';
+  try { preset = _getAppearance().preset || 'dark'; } catch { /* default */ }
+  const locked = !isBasePreset(preset) && preset !== 'custom';
+  const note = document.getElementById('s-theme-lock-note');
+  const dt = document.getElementById('s-default-theme');
+  if (dt) dt.classList.toggle('locked', locked);
+  if (note) {
+    note.style.display = locked ? '' : 'none';
+    note.textContent = locked ? `mode + accent are set by the "${preset}" theme — pick "default" below to customize them` : '';
+  }
+  _markAccent();
+  _markMode();
 }
 
 // ── theme mode + accent color ─────────────────────────────────────────────────
@@ -665,26 +692,25 @@ const ACCENT_PRESETS = [
   ['#f87171', 'red'], ['#f472b6', 'pink'], ['#e879f9', 'fuchsia'], ['#e8e6e3', 'mono'],
 ];
 const DEFAULT_ACCENT = '#818cf8';
-const _curAccent = () => (localStorage.getItem('aide-accent') || DEFAULT_ACCENT).toLowerCase();
+// accent + mode now live in the unified appearance object (theme.js), so they survive reload
+// and stop fighting presets. these read/write through that, not the old aide-* localStorage.
+const _curAccent = () => {
+  let a; try { a = _getAppearance(); } catch { /* default */ }
+  return ((a && a.colors && a.colors.accent) || DEFAULT_ACCENT).toLowerCase();
+};
 
 function applyAccent(hex) {
-  if (hex) {
-    document.documentElement.style.setProperty('--accent', hex);
-    localStorage.setItem('aide-accent', hex);
-  } else {
-    document.documentElement.style.removeProperty('--accent');
-    localStorage.removeItem('aide-accent');
-  }
+  _themeSetAccent(hex || '');                 // writes colors.accent into the appearance object
   _markAccent();
   window._updateFavicon?.();
-  _patchSettings({ accent: hex || '' });   // persist server-side → same accent on every subdomain
+  _patchSettings({ accent: hex || '' });      // legacy mirror so other subdomains stay in sync
 }
 function applyThemeMode(mode) {
-  if (mode === 'light') { document.documentElement.dataset.theme = 'light'; localStorage.setItem('aide-theme', 'light'); }
-  else { delete document.documentElement.dataset.theme; localStorage.removeItem('aide-theme'); }
-  document.querySelectorAll('.theme-mode-btn').forEach(b => b.classList.toggle('active', b.dataset.themeMode === (mode === 'light' ? 'light' : 'dark')));
+  _themeSetMode(mode === 'light' ? 'light' : 'dark');   // sets the default base, keeps the accent
+  _markMode();
   window._updateFavicon?.();
-  _patchSettings({ theme: mode === 'light' ? 'light' : '' });   // persist server-side → synced
+  _patchSettings({ theme: mode === 'light' ? 'light' : '' });
+  _refreshThemeLock();                        // switching to default unlocks the controls
 }
 function _markAccent() {
   const cur = _curAccent();
@@ -692,11 +718,14 @@ function _markAccent() {
     s.classList.toggle('active', s.dataset.hex.toLowerCase() === cur));
   const hexInp = document.getElementById('s-accent-hex'); if (hexInp) hexInp.value = cur;
 }
+function _markMode() {
+  const cur = document.documentElement.dataset.theme === 'light' ? 'light' : 'dark';
+  document.querySelectorAll('.theme-mode-btn').forEach(b => b.classList.toggle('active', b.dataset.themeMode === cur));
+}
 function _loadThemeColorControls() {
   // theme mode buttons
-  const curMode = document.documentElement.dataset.theme === 'light' ? 'light' : 'dark';
+  _markMode();
   document.querySelectorAll('.theme-mode-btn').forEach(b => {
-    b.classList.toggle('active', b.dataset.themeMode === curMode);
     if (!b.dataset.bound) { b.dataset.bound = '1'; b.addEventListener('click', () => applyThemeMode(b.dataset.themeMode)); }
   });
   // accent swatches

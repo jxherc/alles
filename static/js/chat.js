@@ -729,3 +729,37 @@ async function _sendImage(prompt, sessionId, fresh, target) {
 function getMode() {
   return document.getElementById('mode-agent').classList.contains('active') ? 'agent' : 'chat';
 }
+
+// 1f - predicted next-step suggestion chips above the composer. fetches on focus + after a
+// pause in typing; clicking a chip drops its prompt into the composer.
+async function _loadAideSuggestions() {
+  const box = document.getElementById('aide-suggest-chips');
+  const ta = document.getElementById('composer-ta');
+  if (!box || !ta) return;
+  let sugg = [];
+  try {
+    const sid = window._currentSession?.id || '';
+    const q = encodeURIComponent((ta.value || '').slice(0, 200));
+    sugg = await fetch(`/api/aide/suggestions?q=${q}&session_id=${sid}`).then(r => r.json());
+  } catch { /* offline */ }
+  if (!sugg || !sugg.length) { box.style.display = 'none'; box.replaceChildren(); return; }
+  box.replaceChildren(...sugg.map(s => {
+    const b = document.createElement('button');
+    b.className = 'aide-chip';
+    b.textContent = s.label;
+    b.addEventListener('click', () => {
+      ta.value = s.label; ta.focus(); ta.dispatchEvent(new Event('input'));
+      box.style.display = 'none';
+    });
+    return b;
+  }));
+  box.style.display = 'flex';
+}
+
+(function _wireAideSuggestions() {
+  const ta = document.getElementById('composer-ta');
+  if (!ta) return;
+  let t;
+  ta.addEventListener('focus', _loadAideSuggestions);
+  ta.addEventListener('input', () => { clearTimeout(t); t = setTimeout(_loadAideSuggestions, 700); });
+})();

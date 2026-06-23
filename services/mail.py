@@ -283,7 +283,8 @@ def fetch_inbox(acct, folder: str = "INBOX", limit: int = 30, quick: bool = Fals
         lo = max(1, exists - n + 1)
         typ, msgd = M.fetch(
             f"{lo}:{exists}",
-            "(UID FLAGS BODY.PEEK[HEADER.FIELDS (FROM SUBJECT DATE LIST-UNSUBSCRIBE)])",
+            "(UID FLAGS BODY.PEEK[HEADER.FIELDS (FROM SUBJECT DATE LIST-UNSUBSCRIBE "
+            "MESSAGE-ID IN-REPLY-TO REFERENCES)])",
         )
         rows = []
         for part in msgd or []:
@@ -304,6 +305,9 @@ def fetch_inbox(acct, folder: str = "INBOX", limit: int = 30, quick: bool = Fals
                     "date_ts": _date_ts(date),
                     "seen": b"\\Seen" in meta,
                     "list_unsubscribe": msg.get("List-Unsubscribe", ""),
+                    "message_id": (msg.get("Message-ID", "") or "").strip(),
+                    "in_reply_to": (msg.get("In-Reply-To", "") or "").strip(),
+                    "references": (msg.get("References", "") or "").strip(),
                 }
             )
         rows.reverse()  # sequence order is oldest→newest; we want newest first
@@ -631,6 +635,118 @@ def mark_seen(acct, uid, folder: str = "INBOX") -> dict:
         _release_imap(acct, M, ok)
 
 
+# ── threading (2i): RFC-5322 reference graph ─────────────────────────────────
+
+
+def _ref_ids(s: str) -> list[str]:
+    """pull <message-id> tokens out of a References / In-Reply-To header."""
+    return re.findall(r"<[^>\s]+>", s or "")
+
+
+def thread_messages(msgs: list[dict]) -> list[dict]:
+    """assign a stable thread_id to each message via the message-id <-> references/in-reply-to
+    graph (union-find). subject-independent. canonical id = smallest id in the component; a message
+    with no headers gets its own uid-keyed singleton thread. returns copies with thread_id set."""
+    parent = {}
+
+    def find(x):
+        parent.setdefault(x, x)
+        root = x
+        while parent[root] != root:
+            root = parent[root]
+        while parent[x] != root:
+            parent[x], x = root, parent[x]
+        return root
+
+    def union(a, b):
+        parent[find(a)] = find(b)
+
+    keys = []
+    for m in msgs:
+        mid = (m.get("message_id") or "").strip()
+        node = mid or ("uid:" + str(m.get("uid", "")))
+        keys.append(node)
+        find(node)
+        for r in _ref_ids(m.get("references", "")) + _ref_ids(m.get("in_reply_to", "")):
+            union(node, r)
+
+    comps = {}
+    for node in list(parent):
+        comps.setdefault(find(node), []).append(node)
+    canon = {root: min(members) for root, members in comps.items()}
+
+    out = []
+    for m, node in zip(msgs, keys):
+        mm = dict(m)
+        mm["thread_id"] = canon[find(node)]
+        out.append(mm)
+    return out
+
+
+# ── folder ops (2h): move / copy / soft-delete ───────────────────────────────
+
+
+def _has_move(M) -> bool:
+    try:
+        return any("MOVE" in str(c).upper() for c in (M.capabilities or ()))
+    except Exception:
+        return False
+
+
+def _do_move(M, uid, dest, src):
+    """move one uid from src to dest. UID MOVE (RFC 6851) when the server has it, else the
+    portable COPY + \\Deleted + EXPUNGE dance. operates on an already-open connection."""
+    M.select(src)
+    u = uid.encode() if isinstance(uid, str) else uid
+    if _has_move(M):
+        M.uid("MOVE", u, dest)
+    else:
+        M.uid("COPY", u, dest)
+        M.uid("STORE", u, "+FLAGS", r"(\Deleted)")
+        M.expunge()
+    return True
+
+
+def move_message(acct, uid, dest, src: str = "INBOX") -> dict:
+    """move a message to another folder (best-effort, server-side)."""
+    M = _imap(acct)
+    ok = False
+    try:
+        _do_move(M, uid, dest, src)
+        ok = True
+        return {"ok": True, "uid": str(uid), "dest": dest}
+    finally:
+        _release_imap(acct, M, ok)
+
+
+def copy_message(acct, uid, dest, src: str = "INBOX") -> dict:
+    """copy a message into another folder, leaving the original in place."""
+    M = _imap(acct)
+    ok = False
+    try:
+        M.select(src)
+        M.uid("COPY", uid.encode() if isinstance(uid, str) else uid, dest)
+        ok = True
+        return {"ok": True}
+    finally:
+        _release_imap(acct, M, ok)
+
+
+def delete_message(acct, uid, folder: str = "INBOX") -> dict:
+    """soft-delete: flag \\Deleted + expunge from the folder (best-effort)."""
+    M = _imap(acct)
+    ok = False
+    try:
+        M.select(folder)
+        u = uid.encode() if isinstance(uid, str) else uid
+        M.uid("STORE", u, "+FLAGS", r"(\Deleted)")
+        M.expunge()
+        ok = True
+        return {"ok": True}
+    finally:
+        _release_imap(acct, M, ok)
+
+
 # ── search ───────────────────────────────────────────────────────────────────
 
 
@@ -950,8 +1066,10 @@ def send_mail(
                     from services import mail_oauth
 
                     tok = mail_oauth.ensure_access_token(acct)
-                    s.auth("XOAUTH2",
-                           lambda challenge=None: mail_oauth.xoauth2(acct.get("email", ""), tok))
+                    s.auth(
+                        "XOAUTH2",
+                        lambda challenge=None: mail_oauth.xoauth2(acct.get("email", ""), tok),
+                    )
                 else:
                     s.login(user, pw)
                 s.send_message(msg)

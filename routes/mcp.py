@@ -3,12 +3,15 @@ MCP server management — store configs, connect/disconnect, list tools.
 Actual MCP protocol calls use the `mcp` package if available.
 """
 
-import json, logging
-from fastapi import APIRouter, HTTPException
+import json
+import logging
+
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel
-from core.database import get_db, McpServer, SessionLocal
 from sqlalchemy.orm import Session as DbSession
-from fastapi import Depends
+
+from core.database import McpServer, SessionLocal, get_db
 
 router = APIRouter(prefix="/api")
 log = logging.getLogger("aide.mcp")
@@ -38,6 +41,17 @@ def _fmt(s: McpServer) -> dict:
 @router.get("/mcp/servers")
 def list_servers(db: DbSession = Depends(get_db)):
     return [_fmt(s) for s in db.query(McpServer).all()]
+
+
+# 3d - alles AS an MCP server: JSON-RPC channel exposing our own capability registry
+@router.post("/mcp/rpc")
+async def mcp_rpc(req: dict):
+    from services import mcp_server
+
+    resp = await mcp_server.handle(req)
+    if resp is None:  # notification - no response body
+        return Response(status_code=204)
+    return JSONResponse(resp)
 
 
 class AddServer(BaseModel):

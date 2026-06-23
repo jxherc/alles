@@ -1,20 +1,38 @@
-import re, json, asyncio
+import asyncio
+import json
+import re
 from datetime import datetime
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
+
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session as DbSession
 
-from core.database import get_db, Session, Message, ModelEndpoint, Persona, SessionLocal
-from core.settings import load_settings, _ARTIFACT_INSTRUCTIONS
-from services.llm import stream_chat, simple_complete
+from core.database import Message, ModelEndpoint, Persona, Session, SessionLocal, get_db
+from core.settings import _ARTIFACT_INSTRUCTIONS, load_settings
+from services.agent_runtime import merge_usage, run_agent
+from services.llm import simple_complete, stream_chat
 from services.memory_store import inject_memories
-from services.agent_runtime import run_agent, merge_usage
 
 router = APIRouter(prefix="/api")
 
 # active stream registry — session_id → asyncio.Event for stop
 _streams: dict[str, asyncio.Event] = {}
+
+
+@router.get("/aide/suggestions")
+def aide_suggestions(q: str = "", session_id: str = ""):
+    """1f - predicted next-step suggestions for the composer (signals + the in-progress text)."""
+    if not load_settings().get("intent_suggestions", True):
+        return []
+    from services import intent
+
+    db = SessionLocal()
+    try:
+        session = db.get(Session, session_id) if session_id else None
+        return intent.predict_suggestions(db, message=q, session=session, limit=2)
+    finally:
+        db.close()
 
 
 _ART_RE = re.compile(r"<aide-artifact([^>]*)>([\s\S]*?)</aide-artifact>")
@@ -99,6 +117,7 @@ def _resolve_working_dir(session: Session) -> str:
 def _resolve_mentions(text: str, cwd: str) -> str:
     """inline @path file references → append file contents for the model"""
     from pathlib import Path
+
     from services.agent_tools import ROOT
 
     base = Path(cwd) if cwd else ROOT
@@ -161,6 +180,17 @@ def _build_messages(
         if mem_ctx:
             sys_prompt = sys_prompt.rstrip() + "\n\n" + mem_ctx
 
+    # 1d - a compact per-session context (mode/topic/project) so aide stays coherent across turns
+    if settings.get("session_context_inject", True) and db and session is not None:
+        try:
+            from services.session_context import summarize as _session_summary
+
+            sc_block = _session_summary(db, session)
+            if sc_block:
+                sys_prompt = sys_prompt.rstrip() + "\n\n" + sc_block
+        except Exception:
+            pass
+
     if settings.get("artifacts_enabled", True):
         sys_prompt = sys_prompt.rstrip() + "\n\n" + _ARTIFACT_INSTRUCTIONS
 
@@ -173,9 +203,10 @@ def _build_messages(
     # handle file attachments
     user_content: list | str = user_text
     if file_ids and db:
-        from core.database import Upload
-        from pathlib import Path
         import base64
+        from pathlib import Path
+
+        from core.database import Upload
 
         text_blocks = []
         image_parts = []
