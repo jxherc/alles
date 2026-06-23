@@ -8,10 +8,24 @@ stored in data/caldav.json (gitignored, like the rest of data/).
 """
 
 import json
-from pathlib import Path
 from datetime import datetime, timedelta
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+
+
+def _ics_esc(s) -> str:
+    """RFC-5545 TEXT escaping + strip raw CR/LF so a title can't inject extra ical lines/components."""
+    return (
+        str(s or "")
+        .replace("\\", "\\\\")
+        .replace(";", "\\;")
+        .replace(",", "\\,")
+        .replace("\r", "")
+        .replace("\n", "\\n")
+    )
+
+
 CFG_PATH = ROOT / "data" / "caldav.json"
 
 
@@ -81,7 +95,7 @@ def sync() -> dict:
         return {"error": "no calendars found on the server"}
     cal = cals[0]
 
-    from core.database import SessionLocal, CalendarEvent
+    from core.database import CalendarEvent, SessionLocal
 
     start = datetime.utcnow() - timedelta(days=180)
     end = datetime.utcnow() + timedelta(days=180)
@@ -146,7 +160,7 @@ def sync() -> dict:
                 dt = (le.start_dt or "").replace("-", "").replace(":", "")
                 ics = (
                     "BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//alles//EN\nBEGIN:VEVENT\n"
-                    f"UID:{uid}\nSUMMARY:{le.title}\nDTSTART:{dt}\nEND:VEVENT\nEND:VCALENDAR\n"
+                    f"UID:{uid}\nSUMMARY:{_ics_esc(le.title)}\nDTSTART:{dt}\nEND:VEVENT\nEND:VCALENDAR\n"
                 )
                 cal.save_event(ics)
                 le.caldav_uid = uid
