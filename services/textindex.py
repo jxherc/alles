@@ -54,29 +54,29 @@ def search(db, query, kind=None, k: int = 5) -> list[dict]:
     if not rows:
         return []
     qv = _embed([query]) if query else None
-    use_vec = bool(qv and any(r.vec for r in rows))
+    qvec = qv[0] if qv else None
+    # score each row by what it actually has: cosine for embedded chunks, keyword overlap
+    # for chunks indexed before the embedder was available (vec="") — otherwise those
+    # un-embedded chunks get silently dropped the moment ANY chunk has a vector.
+    # cosine has a high baseline (bge ~0.5 even for unrelated text) so it needs a real
+    # floor (0.6); jaccard keeps the >0 floor. each row passes its own gate.
     scored = []
-    if use_vec:
-        qvec = qv[0]
-        for r in rows:
-            if not r.vec:
-                continue
+    for r in rows:
+        if qvec and r.vec:
             try:
-                v = json.loads(r.vec)
+                s = _cosine(qvec, json.loads(r.vec))
             except Exception:
                 continue
-            scored.append((_cosine(qvec, v), r))
-    else:
-        for r in rows:
-            scored.append((_jaccard(query or "", r.text), r))
+            if s > 0.6:
+                scored.append((s, r))
+        else:
+            s = _jaccard(query or "", r.text)
+            if s > 0.0:
+                scored.append((s, r))
     scored.sort(key=lambda x: x[0], reverse=True)
-    # cosine has a high baseline (bge scores ~0.5 even for unrelated text), so ">0" would match
-    # everything — gate vector hits at a real relevance floor. keyword overlap (jaccard) keeps ">0".
-    floor = 0.6 if use_vec else 0.0
     return [
         {"kind": r.kind, "ref": r.ref, "chunk": r.text, "score": round(s, 4)}
         for s, r in scored[:k]
-        if s > floor
     ]
 
 
