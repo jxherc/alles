@@ -90,7 +90,12 @@ class FeedApiTests(ApiTest):
             async def get(self, *a, **k):
                 return FakeResp()
 
-        with mock.patch("httpx.AsyncClient", FakeClient):
+        import services.net_guard as ng
+
+        with (
+            mock.patch("httpx.AsyncClient", FakeClient),
+            mock.patch.object(ng, "is_safe_url", lambda u: True),  # fake host won't resolve; bypass guard
+        ):
             from services.read_feeds import refresh_feeds
 
             asyncio.run(refresh_feeds())

@@ -83,8 +83,12 @@ async def refresh_feeds():
         if not feeds:
             return
         seen = {u for (u,) in db.query(ReadItem.url).all()}
+        from services.net_guard import is_safe_url
+
         for feed in feeds:
             try:
+                if not is_safe_url(feed.url):  # SSRF guard (loopback/metadata; LAN feeds allowed)
+                    continue
                 async with httpx.AsyncClient(timeout=15) as c:
                     r = await c.get(feed.url, follow_redirects=True)
                 parsed = parse_feed(r.text)

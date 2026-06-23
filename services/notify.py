@@ -39,8 +39,10 @@ async def send(text: str) -> dict:
     out = {"discord": None, "telegram": None}
     if not text:
         return out
+    from services.net_guard import is_safe_url
+
     async with httpx.AsyncClient(timeout=8.0) as c:
-        if t["discord"]:
+        if t["discord"] and is_safe_url(t["discord"]):  # SSRF guard on the webhook url
             try:
                 r = await c.post(t["discord"], json={"content": text[:1900]})
                 out["discord"] = r.status_code < 300

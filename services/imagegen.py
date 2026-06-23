@@ -7,6 +7,7 @@ providers that don't do images just error clearly.
 
 import base64
 import re
+
 import httpx
 
 # which model ids are image-generation models — used to split a provider's model
@@ -70,8 +71,12 @@ async def generate(
         if out:
             return out
         # some servers return urls instead of b64 — fetch them in the same client
+        from services.net_guard import is_safe_url
+
         for item in data.get("data", []):
             if item.get("url"):
+                if not is_safe_url(item["url"]):  # SSRF: image-api response url can't be internal
+                    continue
                 try:
                     ir = await c.get(item["url"])
                     if (
