@@ -7,7 +7,7 @@ const USE_CASES = ['general', 'coding', 'reasoning', 'chat', 'multimodal', 'embe
 const SORTS = [['score', 'best fit'], ['speed', 'fastest'], ['vram', 'most VRAM'], ['params', 'biggest'], ['newest', 'newest']];
 const FIT_LABEL = { perfect: 'perfect', good: 'good', marginal: 'tight', too_tight: "won't fit" };
 
-function esc(s = '') { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+function esc(s = '') { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
 async function cget(url) { const r = await fetch(url); if (!r.ok) throw new Error(r.status); return r.json(); }
 
 export function initCookbook() {

@@ -3,7 +3,7 @@
 // memory/swap breakdown, up/down network graphs, a disk panel, and a top-process
 // table. all monospace + hand-rendered, polled live. no chart library.
 const $ = id => document.getElementById(id);
-const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 
 export const HIST = 720;   // ~18min @1.5s — more history = each graph shows a wider span (zoomed out)
 

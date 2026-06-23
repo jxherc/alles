@@ -8,7 +8,7 @@ const DESTRUCTIVE = new Set(['shell', 'bash', 'write_file', 'edit_file', 'apply_
   'computer_click', 'computer_type', 'computer_key', 'computer_scroll']);
 
 function esc(s = '') {
-  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
 function summary(name, a = {}) {
