@@ -1,10 +1,22 @@
 import asyncio
+import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 import core.database as DB
 from core.database import Base, Note
 from services import personal_index as pix
 from services import agent_tools
+
+# these tests rebind the GLOBAL DB.SessionLocal so the agent tools (which open their own
+# SessionLocal internally) hit an in-memory db. capture the real one at import and put it
+# back after every test, or it leaks and breaks every later test that opens a session.
+_ORIG_SESSIONLOCAL = DB.SessionLocal
+
+
+@pytest.fixture(autouse=True)
+def _restore_sessionlocal():
+    yield
+    DB.SessionLocal = _ORIG_SESSIONLOCAL
 
 
 def _bind_memory_db():
