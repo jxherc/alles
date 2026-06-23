@@ -1,7 +1,18 @@
 // shared helpers
 
+// browser window when present, a throwaway object under node (so this module imports in tests)
+const _g = typeof window !== 'undefined' ? window : {};
+
 export function escapeHtml(s) {
   return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// allow only safe url schemes in rendered markdown; block javascript:/vbscript:/data: etc.
+// relative paths, anchors, http(s), mailto, and tel are fine.
+export function _safeUrl(u) {
+  const t = String(u || '').trim();
+  if (/^\s*(javascript|vbscript|data|file):/i.test(t)) return '#';
+  return t.replace(/"/g, '%22');
 }
 
 // very minimal markdown → html
@@ -47,9 +58,10 @@ export function mdToHtml(text) {
   out = out.replace(/^(#{1,6})\s+(.+)$/gm, (_, h, t) => `<h${h.length}>${t}</h${h.length}>`);
   // horizontal rule (before inline * so *** isn't eaten by italic)
   out = out.replace(/^\s*(?:---|\*\*\*|___)\s*$/gm, '<hr>');
-  // images then links ( ! [ ] ( ) survived escapeHtml )
-  out = out.replace(/!\[([^\]]*)\]\(([^)\s]+)\)/g, '<img class="md-img" src="$2" alt="$1">');
-  out = out.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noreferrer">$1</a>');
+  // images then links ( ! [ ] ( ) survived escapeHtml ). filter the url scheme so
+  // [x](javascript:alert(1)) / data: can't render a clickable script link (click-XSS on untrusted md).
+  out = out.replace(/!\[([^\]]*)\]\(([^)\s]+)\)/g, (_, alt, u) => `<img class="md-img" src="${_safeUrl(u)}" alt="${alt}">`);
+  out = out.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (_, txt, u) => `<a href="${_safeUrl(u)}" target="_blank" rel="noreferrer">${txt}</a>`);
   // bold, italic, strikethrough, ==highlight==
   out = out.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
   out = out.replace(/\*(.+?)\*/g, '<em>$1</em>');
@@ -206,7 +218,7 @@ export async function enhanceMarkdown(root) {
     } catch {}
   }
 }
-window.enhanceMarkdown = enhanceMarkdown;
+_g.enhanceMarkdown = enhanceMarkdown;
 
 
 // thin fetch wrapper — json in/out by default, throws on !ok with the server's
@@ -262,7 +274,7 @@ export function closeAllModals() {
 
 
 // copy code button — global so inline onclick works
-window.copyCode = function(btn) {
+_g.copyCode = function(btn) {
   const pre = btn.closest('.code-block').querySelector('pre');
   navigator.clipboard.writeText(pre.innerText).then(() => {
     btn.textContent = 'copied';
@@ -271,7 +283,7 @@ window.copyCode = function(btn) {
 };
 
 // run code button
-window.runCode = async function(btn) {
+_g.runCode = async function(btn) {
   const block = btn.closest('.code-block');
   const lang  = (block.dataset.lang || '').toLowerCase();
   const code  = block.querySelector('pre')?.innerText || '';
