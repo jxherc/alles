@@ -27,7 +27,9 @@ def category_averages(db, *, months=3, as_of=None):
     accts = {a.id for a in db.query(Account).filter_by(archived=False).all()}
     totals = {}
     for t in db.query(Transaction).all():
-        if t.account_id not in accts or (t.amount or 0) >= 0:
+        # skip income (>=0) AND transfer legs (inter-account moves aren't spending) - same rule as
+        # routes/money._spending_by_cat, which these stats must stay consistent with.
+        if t.account_id not in accts or (t.amount or 0) >= 0 or t.transfer_id:
             continue
         if (t.date or "")[:7] in periods:
             c = t.category or "uncategorized"
