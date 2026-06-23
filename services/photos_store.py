@@ -185,13 +185,20 @@ def import_image(data: bytes, original_name: str) -> dict:
     if ext not in _ALLOWED:
         raise ValueError(f"unsupported image type: .{ext}")
 
+    # decode BEFORE writing to disk: a corrupt/truncated/fake image or a decompression bomb raises
+    # UnidentifiedImageError / OSError / DecompressionBombError - turn those into a clean 400 and
+    # don't leave an orphan file behind (the old code wrote the bytes first, then 500'd on decode).
+    try:
+        img = Image.open(io.BytesIO(data))
+        taken_at, exif_out = _read_exif(img)  # read EXIF before transpose
+        img = ImageOps.exif_transpose(img)  # honor orientation for size/thumb
+        w, h = img.size
+        img.load()  # force a full decode so a bomb/corruption fails here, not later
+    except Exception as e:
+        raise ValueError(f"not a valid image: {type(e).__name__}")
+
     fname = uuid.uuid4().hex + "." + ext
     (photos_dir() / fname).write_bytes(data)
-
-    img = Image.open(io.BytesIO(data))
-    taken_at, exif_out = _read_exif(img)  # read EXIF before transpose
-    img = ImageOps.exif_transpose(img)  # honor orientation for size/thumb
-    w, h = img.size
     if taken_at is None:
         taken_at = datetime.utcnow()
 
