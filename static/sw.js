@@ -1,7 +1,7 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v116';   // fresh-chat persona button shows the default persona, not 'no persona'
+const VERSION = 'v117';   // recurring days-event no longer shows 'since' for viewers east of server
 const CACHE = `alles-${VERSION}`;
-const STAMP = '142';   // keep in sync with index.html ?v= / const _v
+const STAMP = '143';   // keep in sync with index.html ?v= / const _v
 
 // 1b: mutating writes that should be queued when offline
 const MUTATING = ['POST', 'PUT', 'PATCH', 'DELETE'];

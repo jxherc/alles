@@ -76,10 +76,14 @@ function _breakdown(a, b) {
 }
 
 // recompute count/mode/breakdown against the viewer's local today
-function _derive(e) {
-  const today = _todayLocal();
+// (today is injectable for tests; defaults to the real local midnight)
+export function _derive(e, today = _todayLocal()) {
   const target = new Date(e.target + 'T00:00:00');
-  const days = Math.round((target - today) / 86400000);
+  let days = Math.round((target - today) / 86400000);
+  // the server resolves a recurring event to its next occurrence, never the past — so if a
+  // viewer east of the server computes a small negative on the event day, that's a timezone
+  // artifact, not "since". clamp it to today instead of flipping to "N days since".
+  if (e.repeat && e.repeat !== 'none' && days < 0) days = 0;
   const mode = days === 0 ? 'today' : (days > 0 ? 'countdown' : 'since');
   return { ...e, days, count: Math.abs(days), mode, breakdown: days ? _breakdown(today, target) : '' };
 }
