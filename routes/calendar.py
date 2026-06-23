@@ -382,6 +382,9 @@ def fetch_ics(url: str) -> str:
     u = url.strip()
     if u.lower().startswith("webcal://"):
         u = "https://" + u[len("webcal://") :]
+    from services.net_guard import assert_safe_url
+
+    assert_safe_url(u)  # SSRF guard: a subscription url can't point at internal/metadata addresses
     r = httpx.get(u, timeout=20, follow_redirects=True)
     r.raise_for_status()
     return r.text

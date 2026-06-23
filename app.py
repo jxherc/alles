@@ -728,7 +728,12 @@ class TokenAuthMiddleware:
                 await self._deny(send, "invalid token")
                 return
 
-        if auth_enabled() and path.startswith("/api/") and not path.startswith("/api/auth"):
+        # gate /api/ AND /v1/ (the openai-compat router) - both drive the model + the user's data.
+        # /api/auth/* stays open so login works; public /s/ /book/ /rsvp/ aren't under these prefixes.
+        gated = path.startswith("/v1/") or (
+            path.startswith("/api/") and not path.startswith("/api/auth")
+        )
+        if auth_enabled() and gated:
             from core.auth import verify_session
 
             cookie = _cookie_val(headers.get(b"cookie", b"").decode("latin-1"), "aide_session")

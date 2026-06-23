@@ -6,8 +6,12 @@ solid and already wired to alles settings). added: trafilatura-based page
 reader and a chain helper that tells you which provider actually answered.
 """
 
-import os, re, logging, urllib.parse
 import html as _htmlmod
+import logging
+import os
+import re
+import urllib.parse
+
 import httpx
 
 log = logging.getLogger("aide.research.search")
@@ -47,6 +51,10 @@ def fetch_webpage_content(url: str, timeout: int = 10) -> dict:
     raises — research must not die on one bad link."""
     blank = {"success": False, "content": "", "title": "", "og_image": ""}
     if not url or not url.startswith("http"):
+        return blank
+    from services.net_guard import is_safe_url
+
+    if not is_safe_url(url):  # SSRF guard: don't let a url point at internal/metadata addresses
         return blank
     try:
         r = httpx.get(url, timeout=timeout, follow_redirects=True, headers={"user-agent": _UA})

@@ -556,6 +556,10 @@ async def _web_fetch(url: str, max_chars: int = 12000) -> dict:
         parsed = urlparse(url)
         if parsed.scheme not in ("http", "https"):
             return {"output": "only http/https URLs are allowed", "error": True}
+        from services.net_guard import is_safe_url
+
+        if not is_safe_url(url):  # SSRF: a prompt-injected agent can't fetch internal/metadata urls
+            return {"output": "refusing to fetch an internal/non-public url", "error": True}
         async with httpx.AsyncClient(timeout=20, follow_redirects=True) as c:
             r = await c.get(url, headers={"user-agent": "aide-agent/1.0"})
             r.raise_for_status()
@@ -2839,15 +2843,20 @@ def guard_untrusted(name: str, output: str):
 
 
 def _patch_targets(patch: str) -> list[str]:
-    """pull target file paths out of a unified diff (+++ b/path lines)"""
+    """every path a unified/git diff would WRITE OR DELETE - so the permission guard sees all of them.
+    a deletion has '+++ /dev/null' (so the old code that only read +++ b/ missed it and let an agent
+    delete a guarded path), and git rename/copy headers name their own targets; cover them all."""
     out = []
     for line in (patch or "").splitlines():
-        if line.startswith("+++ "):
+        p = None
+        if line.startswith("+++ ") or line.startswith("--- "):  # add/modify (+++) and delete (---)
             p = line[4:].strip()
-            if p.startswith("b/"):
+            if p.startswith(("a/", "b/")):
                 p = p[2:]
-            if p and p != "/dev/null":
-                out.append(p)
+        elif line.startswith(("rename from ", "rename to ", "copy from ", "copy to ")):
+            p = line.split(" ", 2)[2].strip()
+        if p and p not in ("/dev/null", "") and not p.startswith("/dev/null"):
+            out.append(p)
     return out
 
 
