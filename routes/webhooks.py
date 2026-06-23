@@ -1,9 +1,16 @@
-import json, hmac, hashlib, secrets, httpx, logging
+import hashlib
+import hmac
+import json
+import logging
+import secrets
 from datetime import datetime
-from fastapi import APIRouter, HTTPException, Depends
+
+import httpx
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session as DbSession
-from core.database import get_db, Webhook, SessionLocal
+
+from core.database import SessionLocal, Webhook, get_db
 
 router = APIRouter(prefix="/api")
 log = logging.getLogger("aide.webhooks")
@@ -33,6 +40,10 @@ def _sign(secret: str, raw: bytes) -> str:
 
 async def _deliver(w: Webhook, body: dict) -> tuple[str, str]:
     """post to one hook with signature + retries. returns (status, error)."""
+    from services.net_guard import is_safe_url
+
+    if not is_safe_url(w.url):  # SSRF: a hook url can't target the app's own loopback / metadata
+        return "error", "blocked: non-public url"
     raw = json.dumps(body).encode()
     headers = {"content-type": "application/json"}
     if w.secret:
