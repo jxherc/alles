@@ -22,6 +22,15 @@ class HealthLogicTests(ApiTest):
     def test_latest_per_kind_empty(self):
         self.assertEqual(latest_per_kind([]), {})
 
+    def test_latest_per_kind_same_day_correction(self):
+        # log a value, then correct it the same day — the later (corrected) row wins,
+        # not the first one seen (docstring: "by date, then insertion")
+        entries = [
+            self._e("weight", "2026-06-23", 80),  # typo
+            self._e("weight", "2026-06-23", 75),  # correction, same day
+        ]
+        self.assertEqual(latest_per_kind(entries)["weight"].value, 75)
+
     def test_series_for_sorted_asc(self):
         entries = [
             self._e("weight", "2026-06-20", 79),

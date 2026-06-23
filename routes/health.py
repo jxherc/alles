@@ -27,7 +27,9 @@ def latest_per_kind(entries) -> dict:
     out = {}
     for e in entries:
         cur = out.get(e.kind)
-        if cur is None or str(e.date) > str(cur.date):
+        # >= so a same-day correction (later-inserted row) replaces the earlier one —
+        # entries arrive in insertion order, matching the "by date, then insertion" contract
+        if cur is None or str(e.date) >= str(cur.date):
             out[e.kind] = e
     return out
 
@@ -82,7 +84,8 @@ def overview(days: int = 365, db: DbSession = Depends(get_db)):
     targets = load_settings().get("health_targets") or {}
     since = (date.today() - timedelta(days=max(1, days))).isoformat()
     rows = db.query(HealthEntry).filter(HealthEntry.date >= since).all()
-    all_rows = db.query(HealthEntry).all()  # latest ignores the range window
+    # order by id so latest_per_kind sees insertion order (same-day correction wins)
+    all_rows = db.query(HealthEntry).order_by(HealthEntry.id.asc()).all()  # latest ignores the range window
     latest = latest_per_kind(all_rows)
     out = []
     seen = set()
