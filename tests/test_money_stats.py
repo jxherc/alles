@@ -52,6 +52,19 @@ class StatsTests(unittest.TestCase):
         g = next(a for a in anoms if a["category"] == "groceries")
         self.assertGreaterEqual(g["ratio"], 1.5)
 
+    def test_category_anomaly_cur_param_equivalent(self):
+        # passing a precomputed spend dict (cur=) must give the same result as computing
+        # it internally — the optimization that avoids a redundant scan in signals.gather
+        self._baseline_groceries()
+        self._txn("2026-06-12", -300, "groceries")
+        from routes.money import _spending_by_cat
+
+        cur = _spending_by_cat(self.s, TODAY.strftime("%Y-%m"))
+        self.assertEqual(
+            money_stats.category_anomalies(self.s, as_of=TODAY),
+            money_stats.category_anomalies(self.s, as_of=TODAY, cur=cur),
+        )
+
     def test_category_normal_not_flagged(self):
         self._baseline_groceries()
         self._txn("2026-06-12", -110, "groceries")  # ~1.1x, within tolerance
