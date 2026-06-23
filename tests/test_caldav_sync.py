@@ -16,6 +16,18 @@ class CaldavSyncTests(unittest.TestCase):
         self._p.stop()
         self.tmp.cleanup()
 
+    def test_event_ics_all_day_uses_value_date(self):
+        # an all-day event must be DTSTART;VALUE=DATE:YYYYMMDD, NOT a timed midnight event
+        ics = cd._event_ics("u1", "Birthday", "2026-06-23T00:00:00", True)
+        self.assertIn("DTSTART;VALUE=DATE:20260623", ics)
+        self.assertNotIn("T000000", ics)  # not a timed event
+        self.assertIn("SUMMARY:Birthday", ics)
+
+    def test_event_ics_timed_keeps_time(self):
+        ics = cd._event_ics("u2", "Meeting", "2026-06-23T14:30:00", False)
+        self.assertIn("DTSTART:20260623T143000", ics)
+        self.assertNotIn("VALUE=DATE", ics)
+
     def test_save_keeps_password_when_blank(self):
         cd.save_cfg({"url": "u1", "username": "me", "password": "secret"})
         cd.save_cfg({"url": "u2", "username": "me", "password": ""})  # editing without re-typing pw
