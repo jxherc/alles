@@ -70,6 +70,22 @@ class CardDavTests(ApiTest):
         self.assertIn("FN:Jane Q", v)
         self.assertIn("UID:u-9", v)
 
+    def test_build_vcard_round_trips_all_fields(self):
+        # a pushed contact must keep title/address/birthday/website/notes — the pull side
+        # (parse_vcards) reads them, so build_vcard must emit them or they're lost on sync
+        from services import carddav_sync
+        from services.vcard import parse_vcards
+
+        c = {
+            "name": "Ada", "email": "a@x.com", "phone": "123", "company": "Analytical",
+            "title": "Countess", "address": "12 Baker St", "birthday": "1815-12-10",
+            "website": "https://ada.example", "notes": "first programmer",
+        }
+        got = parse_vcards(carddav_sync.build_vcard(c, "u-1"))[0]
+        for k in ("title", "birthday", "website", "notes"):
+            self.assertEqual(got[k], c[k])
+        self.assertIn("Baker St", got["address"])
+
     def test_sync_pull_creates(self):
         from services import carddav_sync
 
