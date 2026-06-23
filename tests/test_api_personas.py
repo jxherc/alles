@@ -70,6 +70,17 @@ class PersonasApiTest(ApiTest):
         dup = self.client.post(f"/api/personas/{p['id']}/duplicate").json()
         self.assertEqual(dup["initial_message"], "explain this:")
 
+    def test_duplicate_keeps_tool_restrictions(self):
+        # a sandboxed persona's blocks MUST survive duplication, else the copy is
+        # silently unsandboxed (a permission leak)
+        p = self.client.post(
+            "/api/personas",
+            json={"name": "locked", "blocked_scopes": "shell", "blocked_tools": "write_file"},
+        ).json()
+        dup = self.client.post(f"/api/personas/{p['id']}/duplicate").json()
+        self.assertEqual(dup["blocked_scopes"], "shell")
+        self.assertEqual(dup["blocked_tools"], "write_file")
+
     def test_default_mode_roundtrip(self):
         pid = self.client.post(
             "/api/personas", json={"name": "ag", "default_mode": "agent"}

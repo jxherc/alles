@@ -1510,7 +1510,9 @@ export async function refreshPersonaBtn() {
   // on a fresh chat (no session yet) reflect the pending pick so you can choose a persona
   // BEFORE the first message instead of the button just vanishing
   const pid = session ? session.persona_id : window._pendingPersona;
-  const active = _personas.find(p => p.id === pid) || (session ? _personas.find(p => p.is_default) : null);
+  // the backend (_resolve_persona) falls back to the default persona whenever a session
+  // has no persona_id — including a fresh chat — so reflect that instead of lying "no persona"
+  const active = _personas.find(p => p.id === pid) || _personas.find(p => p.is_default);
   btn.style.display = 'flex';
   label.textContent = active ? active.name : 'no persona';
   applyPersonaAccent(active?.accent || null);
