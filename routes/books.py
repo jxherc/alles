@@ -166,11 +166,16 @@ def update_book(bid: str, body: BookPatch, db: DbSession = Depends(get_db)):
     if body.status is not None:
         if body.status not in STATUSES:
             raise HTTPException(400, f"status must be one of {', '.join(STATUSES)}")
-        # stamp milestones when moving shelves (only if not already set)
-        if body.status == "reading" and not b.started:
-            b.started = date.today().isoformat()
-        if body.status == "done" and not b.finished:
-            b.finished = date.today().isoformat()
+        # stamp/clear milestones when moving shelves so the dates match the shelf
+        if body.status == "reading":
+            if not b.started:
+                b.started = date.today().isoformat()
+            b.finished = ""  # (re-)reading: it's not finished anymore
+        elif body.status == "done":
+            if not b.finished:
+                b.finished = date.today().isoformat()
+        elif body.status == "want":
+            b.started = b.finished = ""  # not started yet
         b.status = body.status
     if body.rating is not None:
         b.rating = clamp_rating(body.rating)
