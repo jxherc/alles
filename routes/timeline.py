@@ -64,7 +64,11 @@ def _aggregate(db, want: set, days: int) -> list:
     cutoff_d = cutoff.date()
     out = []
 
-    if "journal" in want:
+    # respect the journal passcode lock: when a passcode is set, the timeline (which carries no unlock
+    # token) must not leak journal mood/content — same "locked = hidden" contract as signals.
+    from core.settings import load_settings
+
+    if "journal" in want and not load_settings().get("journal_passcode", ""):
         for j in db.query(JournalEntry).all():
             jd = _dt(j.updated_at or j.created_at)
             if jd and jd >= cutoff:

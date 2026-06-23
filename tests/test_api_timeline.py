@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+from unittest import mock
 
 from core.database import (
     Account,
@@ -15,6 +16,22 @@ DBT = "journal,task,calendar,money,sub,photo,mail"
 
 
 class TimelineApiTest(ApiTest):
+    def setUp(self):
+        super().setUp()
+        # the timeline now honors the journal passcode lock; isolate these tests from whatever
+        # passcode the real settings file holds so the unlocked-journal path stays deterministic.
+        import core.settings as cs
+
+        _orig = cs.load_settings
+        self._sp = mock.patch.object(
+            cs, "load_settings", lambda: {**_orig(), "journal_passcode": ""}
+        )
+        self._sp.start()
+
+    def tearDown(self):
+        self._sp.stop()
+        super().tearDown()
+
     def test_empty(self):
         r = self.client.get("/api/timeline", params={"types": DBT}).json()
         self.assertEqual(r["events"], [])

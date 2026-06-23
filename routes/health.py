@@ -156,8 +156,12 @@ class EntryBody(BaseModel):
 
 @router.post("/health")
 def create_entry(body: EntryBody, db: DbSession = Depends(get_db)):
+    import math
+
     if body.kind not in KINDS:
         raise HTTPException(400, f"kind must be one of {', '.join(KINDS)}")
+    if not math.isfinite(body.value):
+        raise HTTPException(400, "value must be a finite number")
     d = (body.date or date.today().isoformat())[:10]
     try:
         _d(d)
