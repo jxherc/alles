@@ -87,6 +87,32 @@ class MailOutboxTests(ApiTest):
         sent = mail_outbox.process_due(self.db(), send_fn=lambda a, m: None)
         self.assertEqual(sent, 0)
 
+    def test_process_due_failed_send_stays_scheduled(self):
+        # a send failure must NOT mark the mail sent — otherwise it vanishes with no retry
+        s = self._schedule("2020-01-01T00:00:00")
+
+        def boom(a, m):
+            raise RuntimeError("smtp down")
+
+        sent = mail_outbox.process_due(self.db(), send_fn=boom)
+        self.assertEqual(sent, 0)
+        db = self.db()
+        self.assertEqual(db.get(ScheduledMail, s["id"]).status, "scheduled")  # still queued
+        db.close()
+
+    def test_process_due_missing_account_stays_scheduled(self):
+        # account deleted -> can't send -> leave it queued, don't silently mark it sent
+        s = self._schedule("2020-01-01T00:00:00")
+        db = self.db()
+        db.delete(db.get(MailAccount, self.aid))
+        db.commit()
+        db.close()
+        sent = mail_outbox.process_due(self.db(), send_fn=lambda a, m: None)
+        self.assertEqual(sent, 0)
+        db = self.db()
+        self.assertEqual(db.get(ScheduledMail, s["id"]).status, "scheduled")
+        db.close()
+
     def test_send_undoable_schedules_future(self):
         d = self.client.post(
             f"/api/mail/send-undoable/{self.aid}",
