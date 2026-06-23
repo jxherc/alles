@@ -88,6 +88,22 @@ class BookApiTests(ApiTest):
         r = self.client.patch(f"/api/books/{bid}", json={"rating": 99})
         self.assertEqual(r.json()["rating"], 5)
 
+    def test_reread_clears_finished(self):
+        # move a finished book back to "reading" — it shouldn't keep a finished date
+        bid = self._create().json()["id"]
+        self.client.patch(f"/api/books/{bid}", json={"status": "done"})
+        r = self.client.patch(f"/api/books/{bid}", json={"status": "reading"})
+        self.assertEqual(r.json()["status"], "reading")
+        self.assertFalse(r.json()["finished"])  # cleared on the re-read
+
+    def test_back_to_want_clears_dates(self):
+        # "want to read" means not started — clear any started/finished
+        bid = self._create().json()["id"]
+        self.client.patch(f"/api/books/{bid}", json={"status": "done"})
+        r = self.client.patch(f"/api/books/{bid}", json={"status": "want"})
+        self.assertFalse(r.json()["finished"])
+        self.assertFalse(r.json()["started"])
+
     def test_patch_notes(self):
         bid = self._create().json()["id"]
         r = self.client.patch(f"/api/books/{bid}", json={"notes": "great worldbuilding"})
