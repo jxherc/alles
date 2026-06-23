@@ -42,6 +42,20 @@ class AgentStateTextTests(unittest.TestCase):
         agent_state.finish_run(r["id"], "done")
         self.assertIsNone(agent_state.find_active_run("sess-x"))
 
+    def test_record_event_patch_persists_and_writes_once(self):
+        r = agent_state.start_run("s1", "m", 6)
+        steps = [{"name": "shell", "output": "ok"}]
+        # the event AND the patched field both persist
+        agent_state.record_event(r["id"], "tool_result", {"x": 1}, tool_steps=steps)
+        agent_state._active.clear()  # force a disk read
+        got = agent_state.get_run(r["id"])
+        self.assertEqual(got["tool_steps"], steps)
+        self.assertEqual(got["events"][-1]["type"], "tool_result")
+        # and it's a single file write (was record_event + update_run = two before)
+        with mock.patch.object(agent_state, "_save") as save:
+            agent_state.record_event(r["id"], "tool_result", {}, tool_steps=steps)
+            self.assertEqual(save.call_count, 1)
+
 
 class RuntimeTextPersistTests(unittest.TestCase):
     def test_run_persists_text_incrementally(self):

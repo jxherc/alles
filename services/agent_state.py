@@ -52,13 +52,17 @@ def start_run(session_id: str, model: str, max_turns: int, cwd: str = "") -> dic
     return state
 
 
-def record_event(run_id: str, event_type: str, data: dict | None = None):
+def record_event(run_id: str, event_type: str, data: dict | None = None, **patch):
+    """log an event. pass extra state fields as kwargs (e.g. tool_steps=...) to apply them
+    in the SAME write instead of a separate update_run — one file rewrite per tool, not two."""
     state = get_run(run_id)
     if not state:
         return
     event = {"time": _now(), "type": event_type, "data": data or {}}
     state.setdefault("events", []).append(event)
     state["events"] = state["events"][-300:]
+    if patch:
+        state.update(patch)
     state["updated_at"] = event["time"]
     _active[state["id"]] = state
     _save(state)
