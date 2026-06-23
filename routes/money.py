@@ -411,6 +411,10 @@ def put_splits(tid: str, body: SplitsBody, db: DbSession = Depends(get_db)):
     t = db.get(Transaction, tid)
     if not t:
         raise HTTPException(404)
+    # splits model how an expense divides across categories — _spending_by_cat skips
+    # income (amount >= 0) and transfers, so splits on those would never show up.
+    if t.transfer_id or (t.amount or 0.0) >= 0:
+        raise HTTPException(400, "only an expense transaction can be split")
     items = [s for s in body.splits if (s.category or "").strip() and (s.amount or 0) > 0]
     total = round(sum(s.amount for s in items), 2)
     if total > round(abs(t.amount or 0.0), 2) + 0.005:
