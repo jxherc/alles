@@ -693,6 +693,13 @@ def _has_move(M) -> bool:
         return False
 
 
+def _has_uidplus(M) -> bool:
+    try:
+        return any("UIDPLUS" in str(c).upper() for c in (M.capabilities or ()))
+    except Exception:
+        return False
+
+
 def _do_move(M, uid, dest, src):
     """move one uid from src to dest. UID MOVE (RFC 6851) when the server has it, else the
     portable COPY + \\Deleted + EXPUNGE dance. operates on an already-open connection."""
@@ -703,7 +710,13 @@ def _do_move(M, uid, dest, src):
     else:
         M.uid("COPY", u, dest)
         M.uid("STORE", u, "+FLAGS", r"(\Deleted)")
-        M.expunge()
+        # scope the expunge to JUST this uid (UIDPLUS) — a plain EXPUNGE would purge every
+        # other \Deleted message the user has flagged in this folder. fall back only if the
+        # server has neither MOVE nor UIDPLUS.
+        if _has_uidplus(M):
+            M.uid("EXPUNGE", u)
+        else:
+            M.expunge()
     return True
 
 
