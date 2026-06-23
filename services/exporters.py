@@ -112,7 +112,23 @@ def _contacts_vcard(db):
     from core.database import Contact
     from services.vcard import to_vcard
 
-    return to_vcard(db.query(Contact).all())
+    # to_vcard wants dicts (c.get(...)), not ORM rows — passing Contact objects crashes
+    rows = db.query(Contact).order_by(Contact.name).all()
+    cards = [
+        {
+            "name": c.name or "",
+            "email": c.email or "",
+            "phone": c.phone or "",
+            "company": c.company or "",
+            "title": c.title or "",
+            "address": c.address or "",
+            "birthday": c.birthday or "",
+            "website": c.website or "",
+            "notes": c.notes or "",
+        }
+        for c in rows
+    ]
+    return to_vcard(cards)
 
 
 def _calendar_ics(db):
