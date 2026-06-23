@@ -640,8 +640,8 @@ async def run_agent(
                         if isinstance(tool_content.get("output"), str):
                             tool_content["output"] += v
 
-                record_event(run_id, "tool_result", step)
-                update_run(run_id, tool_steps=tool_steps)
+                # one write, not two: log the result + sync tool_steps in the same save
+                record_event(run_id, "tool_result", step, tool_steps=tool_steps)
                 # 10a — fire any user "agent_tool" automation rules for this tool
                 try:
                     from services.automations import on_agent_tool
