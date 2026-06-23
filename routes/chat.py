@@ -252,29 +252,6 @@ def _build_messages(
     return msgs
 
 
-async def _auto_name(session_id: str, user_text: str, ep: ModelEndpoint, model: str):
-    """rename session after 3rd message — fire and forget"""
-    prompt = [
-        {"role": "system", "content": "You produce ultra-short chat session titles."},
-        {
-            "role": "user",
-            "content": f"Give a 3-5 word title for a chat that starts with: {user_text[:200]}\nRespond with ONLY the title, no quotes or punctuation.",
-        },
-    ]
-    name = await simple_complete(prompt, ep.base_url, ep.api_key, model, max_tokens=20)
-    if not name or len(name) > 80:
-        return
-
-    db = SessionLocal()
-    try:
-        s = db.get(Session, session_id)
-        if s:
-            s.name = name.strip().lower()
-            db.commit()
-    finally:
-        db.close()
-
-
 class ChatRequest(BaseModel):
     session_id: str
     message: str
@@ -363,9 +340,11 @@ async def _stream_and_save(
         # do this even if the model returned nothing, otherwise the just-sent
         # user turn vanishes on reload when a completion comes back empty/errored
         last = s.messages[-1] if s.messages else None
+        added = 0
         if not last or last.role != "user" or last.content != user_text:
             um = Message(session_id=session_id, role="user", content=user_text)
             db.add(um)
+            added += 1
 
         if full_text:
             meta = {"usage": usage, "model": model}
@@ -383,8 +362,13 @@ async def _stream_and_save(
                 meta=json.dumps(meta),
             )
             db.add(am)
-            s.message_count = (s.message_count or 0) + 1
+            added += 1
             s.last_message_at = datetime.utcnow()
+
+        # count every row we actually saved (user + assistant), not just one —
+        # otherwise the sidebar count drifts a message behind every turn
+        if added:
+            s.message_count = (s.message_count or 0) + added
 
         db.commit()
 
