@@ -1,9 +1,11 @@
 import shutil
 from pathlib import Path
-from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Form
+
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session as DbSession
-from core.database import get_db, GalleryImage
+
+from core.database import GalleryImage, get_db
 
 router = APIRouter(prefix="/api")
 
@@ -61,7 +63,18 @@ def serve_file(filename: str):
     path = (GALLERY_DIR / filename).resolve()
     if not path.is_relative_to(GALLERY_DIR.resolve()) or not path.is_file():
         raise HTTPException(404)
-    return FileResponse(str(path))
+    return _serve_safely(path)
+
+
+def _serve_safely(path: Path) -> FileResponse:
+    """serve a user-uploaded file. svg/html can carry <script> that runs same-origin if rendered as
+    a document, so force those to download (an <img src> still renders them); nosniff everywhere."""
+    headers = {"X-Content-Type-Options": "nosniff"}
+    risky = path.suffix.lower() in (".svg", ".svgz", ".html", ".htm", ".xml", ".xhtml")
+    disp = "attachment" if risky else "inline"
+    return FileResponse(
+        str(path), headers=headers, filename=path.name, content_disposition_type=disp
+    )
 
 
 @router.delete("/gallery/{iid}")

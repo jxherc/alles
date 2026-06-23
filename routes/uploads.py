@@ -1,9 +1,11 @@
 import uuid
 from pathlib import Path
-from fastapi import APIRouter, HTTPException, UploadFile, File, Depends
+
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session as DbSession
-from core.database import get_db, Upload
+
+from core.database import Upload, get_db
 
 router = APIRouter(prefix="/api")
 
@@ -41,7 +43,23 @@ def serve_upload(upload_id: str, db: DbSession = Depends(get_db)):
     fpath = UPLOAD_DIR / rec.filename
     if not fpath.exists():
         raise HTTPException(404)
-    return FileResponse(str(fpath), media_type=rec.mime_type, filename=rec.original_name)
+    # client-supplied mime_type: neutralize svg/html so a stored <script> can't run as a document
+    mime = rec.mime_type or "application/octet-stream"
+    if any(x in mime.lower() for x in ("svg", "html", "xml")) or fpath.suffix.lower() in (
+        ".svg",
+        ".svgz",
+        ".html",
+        ".htm",
+        ".xml",
+        ".xhtml",
+    ):
+        mime = "application/octet-stream"
+    return FileResponse(
+        str(fpath),
+        media_type=mime,
+        filename=rec.original_name,
+        headers={"X-Content-Type-Options": "nosniff"},
+    )
 
 
 @router.delete("/uploads/{upload_id}")
