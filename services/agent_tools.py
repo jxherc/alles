@@ -47,6 +47,7 @@ TOOL_PERMISSION = {
     "recall": "read",
     "money_query": "read",
     "shell": "shell",
+    "bash": "shell",  # models sometimes emit "bash"; dispatched as shell, so scope it like shell too
     "read_file": "read",
     "write_file": "write",
     "edit_file": "write",
