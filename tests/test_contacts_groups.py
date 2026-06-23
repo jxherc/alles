@@ -70,6 +70,19 @@ class ContactsGroupsTests(ApiTest):
         self._contact("Unique Two", email="two@x.com")
         self.assertEqual(self.client.get("/api/contacts/duplicates").json(), [])
 
+    def test_duplicates_by_contactfield_email(self):
+        # two contacts share an email stored as a ContactField (not the primary email
+        # column) — they still cluster as duplicates
+        a = self._contact("Different One")
+        b = self._contact("Different Two")
+        db = self.db()
+        db.add(ContactField(contact_id=a, kind="email", label="work", value="shared@x.com"))
+        db.add(ContactField(contact_id=b, kind="email", label="home", value="shared@x.com"))
+        db.commit()
+        db.close()
+        dups = self.client.get("/api/contacts/duplicates").json()
+        self.assertTrue(any(len(c["contacts"]) >= 2 for c in dups))
+
     def test_merge_combines_fields(self):
         a = self._contact("Primary", email="", tags=json.dumps(["x"]))
         b = self._contact("Other", email="b@x.com", tags=json.dumps(["y"]))
