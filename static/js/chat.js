@@ -281,7 +281,9 @@ export async function sendMessage(text) {
 
         if (chunk.error) {
           cursor?.remove();
-          body.innerHTML += `<div class="error-msg">${escHtml(chunk.error)}</div>`;
+          // appendChild, not innerHTML += — the latter re-parses all of body and
+          // detaches the live tool/agent nodes (toolEls/agentEl) + their listeners
+          appendError(body, chunk.error);
           if (isConnError(chunk.error)) showConnBanner(chunk.error);
           break;
         }
@@ -490,7 +492,7 @@ export async function sendMessage(text) {
 
   } catch (e) {
     if (e.name !== 'AbortError') {
-      body.innerHTML += `<div class="error-msg">stream error: ${escHtml(e.message)}</div>`;
+      appendError(body, `stream error: ${e.message}`);
       if (isConnError(e.message)) showConnBanner(e.message);
     }
   } finally {
@@ -634,6 +636,14 @@ function escHtml(s = '') {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
+// append an error line without nuking the live message DOM (textContent = no escaping needed)
+function appendError(body, msg) {
+  const el = document.createElement('div');
+  el.className = 'error-msg';
+  el.textContent = msg;
+  body.appendChild(el);
+}
+
 // connect-type failures (vs a real HTTP error from the provider) → worth the banner
 function isConnError(msg = '') {
   return /can'?t connect|connect\s?error|connection (refused|error|reset|timed ?out|aborted)|failed to (establish|connect)|ECONNREFUSED|ENOTFOUND|getaddrinfo|name resolution|cooling down|network is unreachable|read ?timed ?out/i.test(String(msg));
@@ -750,16 +760,17 @@ async function _loadAideSuggestions() {
     b.addEventListener('click', () => {
       ta.value = s.label; ta.focus(); ta.dispatchEvent(new Event('input'));
       box.style.display = 'none';
+      clearTimeout(_suggT);  // the input we just fired re-arms the debounce; cancel it so the box stays dismissed
     });
     return b;
   }));
   box.style.display = 'flex';
 }
 
+let _suggT;
 (function _wireAideSuggestions() {
   const ta = document.getElementById('composer-ta');
   if (!ta) return;
-  let t;
   ta.addEventListener('focus', _loadAideSuggestions);
-  ta.addEventListener('input', () => { clearTimeout(t); t = setTimeout(_loadAideSuggestions, 700); });
+  ta.addEventListener('input', () => { clearTimeout(_suggT); _suggT = setTimeout(_loadAideSuggestions, 700); });
 })();
