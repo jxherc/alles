@@ -337,14 +337,32 @@ def book(token: str, body: BookBody, db: DbSession = Depends(get_db)):
     page = db.query(BookingPage).filter(BookingPage.token == token).first()
     if not page:
         raise HTTPException(404)
+    # enforce the page's booking window: no past dates, no further out than days_ahead. without this
+    # anyone with the link can spam events into the owner's calendar arbitrarily far past/future.
+    from datetime import date as _date
+    from datetime import datetime, timedelta
+
+    try:
+        d = _date.fromisoformat(body.date)
+    except ValueError:
+        raise HTTPException(400, "bad date")
+    today = _date.today()
+    if d < today or d > today + timedelta(days=max(0, page.days_ahead or 0)):
+        raise HTTPException(409, "that date is outside the booking window")
     start = f"{body.date}T{body.time}:00" if len(body.time) == 5 else f"{body.date}T{body.time}"
     want = f"{body.date}T{body.time}"[:16]
     slots = compute_booking_slots(db, page, body.date)
     if not any(s["start"][:16] == want for s in slots):
         raise HTTPException(409, "that time isn't available")
-    from datetime import datetime, timedelta
-
     end = (datetime.fromisoformat(start) + timedelta(minutes=page.duration_min)).isoformat()
+    # defensive overlap re-check right before insert (the slot list was computed above; a parallel
+    # booking could have taken it). cheap backstop against double-booking.
+    if (
+        db.query(CalendarEvent)
+        .filter(CalendarEvent.calendar_id == page.calendar_id, CalendarEvent.start_dt == start)
+        .first()
+    ):
+        raise HTTPException(409, "that time was just taken")
     ev = CalendarEvent(
         title=f"{page.title}: {body.name}".strip(": "),
         start_dt=start,

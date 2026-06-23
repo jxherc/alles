@@ -103,14 +103,26 @@ def parse_report(xml: str) -> list[dict]:
     return out
 
 
+def _vc_esc(s) -> str:
+    """vCard TEXT escaping + strip raw CR/LF so a field can't inject extra vcard lines."""
+    return (
+        str(s or "")
+        .replace("\\", "\\\\")
+        .replace(";", "\\;")
+        .replace(",", "\\,")
+        .replace("\r", "")
+        .replace("\n", "\\n")
+    )
+
+
 def build_vcard(contact: dict, uid: str) -> str:
-    lines = ["BEGIN:VCARD", "VERSION:3.0", f"UID:{uid}", f"FN:{contact.get('name', '')}"]
+    lines = ["BEGIN:VCARD", "VERSION:3.0", f"UID:{uid}", f"FN:{_vc_esc(contact.get('name', ''))}"]
     if contact.get("email"):
-        lines.append(f"EMAIL:{contact['email']}")
+        lines.append(f"EMAIL:{_vc_esc(contact['email'])}")
     if contact.get("phone"):
-        lines.append(f"TEL:{contact['phone']}")
+        lines.append(f"TEL:{_vc_esc(contact['phone'])}")
     if contact.get("company"):
-        lines.append(f"ORG:{contact['company']}")
+        lines.append(f"ORG:{_vc_esc(contact['company'])}")
     lines.append("END:VCARD")
     return "\n".join(lines)
 
