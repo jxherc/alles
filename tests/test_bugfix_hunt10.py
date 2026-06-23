@@ -13,13 +13,11 @@ from services import net_guard
 
 
 class NetGuardTests(unittest.TestCase):
-    def test_blocks_internal_ip_literals(self):
+    def test_blocks_loopback_and_metadata(self):
+        # the confirmed exploit targets: the app itself (loopback) + cloud metadata (link-local)
         for u in (
             "http://127.0.0.1/x",
             "http://169.254.169.254/latest/meta-data/",
-            "http://10.0.0.1/",
-            "http://192.168.1.5/admin",
-            "http://172.16.0.1/",
             "http://[::1]/",
             "http://0.0.0.0/",
         ):
@@ -35,6 +33,11 @@ class NetGuardTests(unittest.TestCase):
     def test_allows_public_ip_literal(self):
         # 8.8.8.8 is public; checked as a literal so no DNS is needed offline
         self.assertTrue(net_guard.is_safe_url("http://8.8.8.8/"))
+
+    def test_allows_private_lan(self):
+        # self-hosted app: the owner's own LAN services are a legitimate fetch target
+        self.assertTrue(net_guard.is_safe_url("http://192.168.1.10/cal.ics"))
+        self.assertTrue(net_guard.is_safe_url("http://10.0.0.5/feed.xml"))
 
     def test_assert_raises_on_internal(self):
         with self.assertRaises(ValueError):

@@ -15,13 +15,12 @@ def _blocked_ip(ip_str) -> bool:
         ip = ipaddress.ip_address(ip_str)
     except ValueError:
         return True  # can't parse -> refuse
+    # block the addresses that are NEVER a legitimate fetch target: the app itself (loopback), the
+    # cloud metadata + link-local range (169.254/16, credential theft), 0.0.0.0, multicast/reserved.
+    # private LAN (10/192.168/172.16) is ALLOWED on purpose: this is a self-hosted app and the owner
+    # legitimately integrates with their own LAN services (a home calendar server, an internal feed).
     return (
-        ip.is_loopback
-        or ip.is_private
-        or ip.is_link_local
-        or ip.is_reserved
-        or ip.is_multicast
-        or ip.is_unspecified
+        ip.is_loopback or ip.is_link_local or ip.is_reserved or ip.is_multicast or ip.is_unspecified
     )
 
 
