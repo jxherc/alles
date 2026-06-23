@@ -123,6 +123,18 @@ def build_vcard(contact: dict, uid: str) -> str:
         lines.append(f"TEL:{_vc_esc(contact['phone'])}")
     if contact.get("company"):
         lines.append(f"ORG:{_vc_esc(contact['company'])}")
+    # push the rest of the fields too (the pull side parses them) — else a locally-created
+    # contact loses its title/address/birthday/website/notes on the server
+    if contact.get("title"):
+        lines.append(f"TITLE:{_vc_esc(contact['title'])}")
+    if contact.get("address"):
+        lines.append(f"ADR;TYPE=HOME:;;{_vc_esc(contact['address'])};;;;")
+    if contact.get("birthday"):
+        lines.append(f"BDAY:{_vc_esc(contact['birthday'])}")
+    if contact.get("website"):
+        lines.append(f"URL:{_vc_esc(contact['website'])}")
+    if contact.get("notes"):
+        lines.append(f"NOTE:{_vc_esc(contact['notes'])}")
     lines.append("END:VCARD")
     return "\n".join(lines)
 
