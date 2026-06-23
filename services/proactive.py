@@ -273,14 +273,10 @@ def record_outcome(db, item, outcome):
     db.commit()
 
 
-def _category_weight(db, cat):
-    """learned per-category score multiplier, bounded [0.5, 1.5]. cold-start neutral (1.0);
-    acts pull it up, dismisses down, ignores weakly down. +3 smoothing keeps a cold/quiet
-    category near 1.0 so it still gets shown."""
-    rows = db.query(ProactiveOutcome.outcome).filter(ProactiveOutcome.category == cat).all()
-    acts = sum(1 for (o,) in rows if o == "acted")
-    dis = sum(1 for (o,) in rows if o == "dismissed")
-    ign = sum(1 for (o,) in rows if o == "ignored")
+def _weight_from_counts(acts, dis, ign):
+    """learned per-category score multiplier from outcome counts, bounded [0.5, 1.5].
+    cold-start neutral (1.0); acts pull it up, dismisses down, ignores weakly down. +3
+    smoothing keeps a cold/quiet category near 1.0 so it still gets shown."""
     total = acts + dis + ign
     if not total:
         return 1.0
@@ -289,33 +285,56 @@ def _category_weight(db, cat):
     return max(0.5, min(1.5, w))
 
 
-def feedback_stats(db):
-    """per-category {acted, dismissed, ignored, act_rate, weight} for the stats surface."""
+def _outcome_counts(db):
+    """{category: {acted, dismissed, ignored}} from a single pass over outcomes."""
     out = {}
     for cat, o in db.query(ProactiveOutcome.category, ProactiveOutcome.outcome).all():
         c = out.setdefault(cat or "", {"acted": 0, "dismissed": 0, "ignored": 0})
         if o in c:
             c[o] += 1
-    for cat, c in out.items():
-        tot = c["acted"] + c["dismissed"] + c["ignored"]
-        c["act_rate"] = round(c["acted"] / tot, 3) if tot else 0.0
-        c["weight"] = round(_category_weight(db, cat), 3)
     return out
 
 
-def _weighted(db, base, cat):
-    return max(0, min(100, round(base * _category_weight(db, cat))))
+def _category_weight(db, cat):
+    """db-backed single-category weight (one filtered query). for bulk paths prefer
+    _all_category_weights so the whole table isn't re-scanned per category."""
+    rows = db.query(ProactiveOutcome.outcome).filter(ProactiveOutcome.category == cat).all()
+    acts = sum(1 for (o,) in rows if o == "acted")
+    dis = sum(1 for (o,) in rows if o == "dismissed")
+    ign = sum(1 for (o,) in rows if o == "ignored")
+    return _weight_from_counts(acts, dis, ign)
+
+
+def _all_category_weights(db):
+    """{category: weight} from one scan — avoids an N+1 over outcomes."""
+    return {cat: _weight_from_counts(c["acted"], c["dismissed"], c["ignored"])
+            for cat, c in _outcome_counts(db).items()}
+
+
+def feedback_stats(db):
+    """per-category {acted, dismissed, ignored, act_rate, weight} for the stats surface."""
+    out = _outcome_counts(db)
+    for c in out.values():
+        tot = c["acted"] + c["dismissed"] + c["ignored"]
+        c["act_rate"] = round(c["acted"] / tot, 3) if tot else 0.0
+        c["weight"] = round(_weight_from_counts(c["acted"], c["dismissed"], c["ignored"]), 3)
+    return out
+
+
+def _weighted(base, cat, weights):
+    return max(0, min(100, round(base * weights.get(cat, 1.0))))
 
 
 def _upsert(db, cards, sigs):
     key_urgency = {x["key"]: x["urgency"] for x in sigs}
     key_cat = {x["key"]: x["category"] for x in sigs}
+    weights = _all_category_weights(db)  # one scan, reused for every card below
     written = 0
     for c in cards:
         dk = _dedupe_key(c["source_keys"])
         urg = max((key_urgency.get(k, 0) for k in c["source_keys"]), default=0)
         cat = next((key_cat[k] for k in c["source_keys"] if k in key_cat), "")
-        score = _weighted(db, c["score"], cat)  # fold in the learned per-category weight
+        score = _weighted(c["score"], cat, weights)  # fold in the learned per-category weight
         live = (
             db.query(ProactiveItem)
             .filter(ProactiveItem.dedupe_key == dk, ProactiveItem.dismissed == False)  # noqa: E712
