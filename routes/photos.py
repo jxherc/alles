@@ -5,6 +5,7 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
+from sqlalchemy import func
 from sqlalchemy.orm import Session as DbSession
 
 from core.database import Album, Photo, TrashItem, get_db
@@ -449,19 +450,21 @@ def patch_photo(pid: str, body: PatchPhoto, db: DbSession = Depends(get_db)):
 # ── albums ──
 @router.get("/albums")
 def albums(db: DbSession = Depends(get_db)):
-    out = []
-    for a in db.query(Album).order_by(Album.created_at.desc()).all():
-        n = (
-            db.query(Photo)
-            .filter(
-                Photo.album_id == a.id,
-                Photo.deleted_at == None,  # noqa: E711
-                (Photo.hidden == False) | (Photo.hidden == None),  # noqa: E711,E712
-            )
-            .count()
+    # one grouped count for every album instead of a count query per album (N+1)
+    counts = dict(
+        db.query(Photo.album_id, func.count(Photo.id))
+        .filter(
+            Photo.album_id != None,  # noqa: E711
+            Photo.deleted_at == None,  # noqa: E711
+            (Photo.hidden == False) | (Photo.hidden == None),  # noqa: E711,E712
         )
-        out.append({"id": a.id, "name": a.name, "count": n})
-    return out
+        .group_by(Photo.album_id)
+        .all()
+    )
+    return [
+        {"id": a.id, "name": a.name, "count": counts.get(a.id, 0)}
+        for a in db.query(Album).order_by(Album.created_at.desc()).all()
+    ]
 
 
 class AlbumBody(BaseModel):

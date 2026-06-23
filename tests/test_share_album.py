@@ -122,6 +122,20 @@ class ShareAlbumTests(ApiTest):
         self.assertNotIn(hid, html)
         self.assertNotIn(gone, html)
 
+    def test_albums_count_excludes_hidden_deleted_and_empty_is_zero(self):
+        a = self._album("Counted")
+        self._album("EmptyOne")
+        live = self._upload("l.png")
+        hid = self._upload("h.png")
+        gone = self._upload("g.png")
+        for p in (live, hid, gone):
+            self._add(p, a)
+        self.client.patch(f"/api/photos/{hid}", json={"hidden": True})
+        self.client.delete(f"/api/photos/{gone}")
+        counts = {r["name"]: r["count"] for r in self.client.get("/api/photos/albums").json()}
+        self.assertEqual(counts["Counted"], 1)   # only the live photo counts
+        self.assertEqual(counts["EmptyOne"], 0)  # an album with no photos reports 0
+
     def test_album_empty_ok(self):
         aid = self._album("Empty")
         tok = self._mint(aid)
