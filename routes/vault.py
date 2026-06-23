@@ -301,6 +301,10 @@ def change_vault_password(body: ChangePw, db: DbSession = Depends(get_db), ctx: 
     for aid, blob in new_att_blobs.items():
         (_attach_dir() / f"{aid}.enc").write_bytes(blob)
     v.verifier = make_verifier(new)
+    if v.biometric_blob:
+        # the blob wraps the master password under the server key — re-wrap it or a biometric
+        # unlock would keep releasing the OLD password and brick every decrypt
+        v.biometric_blob = encrypt(_server_key(), new)
     if vid == DEFAULT_VAULT:
         save_settings({"vault_verifier": v.verifier})  # keep the legacy master mirror in sync
     db.commit()

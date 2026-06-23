@@ -188,3 +188,20 @@ class WebAuthnApiTests(ApiTest):
         d.close()
         self.assertTrue(blob)
         self.assertNotIn("m1", blob)  # the master pw is never stored in the clear
+
+    def test_biometric_blob_rewrapped_on_password_change(self):
+        # changing the master password must re-wrap the biometric blob, else a later
+        # biometric unlock releases the OLD password and every decrypt fails (vault bricked)
+        self._register()
+        r = self.client.post(
+            "/api/vault/vaults/password", json={"new_password": "m2"}, headers=self.h
+        )
+        self.assertEqual(r.status_code, 200)
+        from core.database import Vault
+        from routes.vault import _server_key
+        from services.crypto import decrypt
+
+        d = self.db()
+        blob = d.get(Vault, "default").biometric_blob
+        d.close()
+        self.assertEqual(decrypt(_server_key(), blob), "m2")  # now releases the NEW password
