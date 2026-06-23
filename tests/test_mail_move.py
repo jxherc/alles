@@ -8,9 +8,14 @@ from services import mail as mailsvc
 
 
 class FakeIMAP:
-    def __init__(self, has_move=False):
+    def __init__(self, has_move=False, has_uidplus=False):
         self.calls = []
-        self._caps = ("IMAP4REV1", "MOVE") if has_move else ("IMAP4REV1",)
+        caps = ["IMAP4REV1"]
+        if has_move:
+            caps.append("MOVE")
+        if has_uidplus:
+            caps.append("UIDPLUS")
+        self._caps = tuple(caps)
 
     @property
     def capabilities(self):
@@ -46,6 +51,14 @@ class DoMoveTests(unittest.TestCase):
         self.assertIn("copy", kinds)
         self.assertIn("store", kinds)
         self.assertIn(("expunge",), M.calls)
+
+    def test_uidplus_scopes_expunge_to_the_one_uid(self):
+        # with UIDPLUS, expunge only this uid — a plain EXPUNGE would purge every other
+        # \Deleted message the user flagged in the folder
+        M = FakeIMAP(has_move=False, has_uidplus=True)
+        mailsvc._do_move(M, "42", "Archive", "INBOX")
+        self.assertIn(("uid", "expunge", "42"), M.calls)  # scoped UID EXPUNGE
+        self.assertNotIn(("expunge",), M.calls)            # not the folder-wide expunge
 
     def test_selects_source_first(self):
         M = FakeIMAP()
