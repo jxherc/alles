@@ -70,12 +70,13 @@ def process_due(db, now_iso=None, send_fn=None):
     for m in db.query(ScheduledMail).filter(ScheduledMail.status == "scheduled").all():
         if (m.send_at or "") and m.send_at <= now_iso:
             acct = db.get(MailAccount, m.account_id)
+            if not acct:
+                continue  # account gone — leave it queued so it can send once restored
             try:
-                if acct:
-                    send_fn(acct, m)
+                send_fn(acct, m)
             except Exception:
-                pass  # best-effort — never let one bad send wedge the queue
-            m.status = "sent"
+                continue  # transient failure — stays scheduled, retried next tick (never marked sent)
+            m.status = "sent"  # only on a real successful send
             n += 1
     db.commit()
     return n
