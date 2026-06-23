@@ -32,6 +32,12 @@ class TermTests(unittest.TestCase):
         self.assertTrue(mp.match_one("acme", _msg(sender="bob@acme.com")))
         self.assertTrue(mp.match_one("lunch", _msg(subject="lunch?")))
 
+    def test_to_does_not_match_sender(self):
+        # 'to:' is a recipient filter; it must NOT match a message FROM that address
+        m = _msg(sender="alice@x.com", subject="hi")
+        m["to"] = ""
+        self.assertFalse(mp.match_one("to:alice", m))
+
     def test_label_term(self):
         self.assertTrue(mp.match_one("label:work", _msg(labels=["work", "x"])))
         self.assertFalse(mp.match_one("label:work", _msg(labels=["home"])))

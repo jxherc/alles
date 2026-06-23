@@ -61,6 +61,16 @@ test('dedupe: order preserved for distinct resources', () => {
   assert.deepEqual(dedupe(q).map((x) => x.url), ['/api/a', '/api/b', '/api/c']);
 });
 
+test('dedupe: two POSTs to same collection stay separate (creates)', () => {
+  const q = [
+    { method: 'POST', url: '/api/tasks', body: { t: 'a' } },
+    { method: 'POST', url: '/api/tasks', body: { t: 'b' } },
+  ];
+  const out = dedupe(q);
+  assert.equal(out.length, 2); // both creates survive
+  assert.deepEqual(out.map((o) => o.body.t), ['a', 'b']);
+});
+
 test('summarize: count', () => {
   assert.equal(summarize([{ method: 'POST', url: '/api/x' }]).count, 1);
   assert.equal(summarize([]).count, 0);

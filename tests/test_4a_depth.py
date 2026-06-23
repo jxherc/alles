@@ -124,6 +124,11 @@ class ConflictTests(unittest.TestCase):
         )
         self.assertEqual(slots, [])
 
+    def test_free_slots_bad_day_no_crash(self):
+        # a malformed day must not raise (was a 500 via datetime.fromisoformat)
+        for bad in ("notadate", "2026-13-99", ""):
+            self.assertEqual(cal_conflict.free_slots([], bad), [])
+
 
 if __name__ == "__main__":
     unittest.main()
