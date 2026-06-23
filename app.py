@@ -436,6 +436,7 @@ def _register_jobs():
     async def _reconcile():
         from core.database import SessionLocal
         from services import personal_index
+
         db = SessionLocal()
         try:
             personal_index.reconcile(db)
@@ -496,7 +497,9 @@ def _register_jobs():
     jobs.register("read_feeds", _read_feeds, 1800, run_at_start=False)  # rss auto-save (30 min)
     jobs.register("holdings_price", _holdings_price, 6 * 3600, run_at_start=False)  # 2d (gated)
     jobs.register("blob_gc", _blob_gc, 6 * 3600, run_at_start=False)  # 0d - purge orphaned blobs
-    jobs.register("user_model", _user_model, 24 * 3600, run_at_start=False)  # 1c daily distill (gated)
+    jobs.register(
+        "user_model", _user_model, 24 * 3600, run_at_start=False
+    )  # 1c daily distill (gated)
     jobs.register("insights", _insights, 24 * 3600, run_at_start=False)  # 1e daily insights (gated)
     jobs.register("subscriptions", _subs, 30)
     jobs.register("day_events", _days, 30)
@@ -512,7 +515,9 @@ def _register_jobs():
     jobs.register("personal_reconcile", _reconcile, 120, run_at_start=False)
     from services.proactive import _interval_seconds
 
-    jobs.register("proactive", _proactive, _interval_seconds(), run_at_start=False)  # advisory cards
+    jobs.register(
+        "proactive", _proactive, _interval_seconds(), run_at_start=False
+    )  # advisory cards
 
 
 async def _reminder_loop():
@@ -671,7 +676,11 @@ app = FastAPI(title="alles", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    # NOT allow_credentials: "*" origins + credentials makes starlette reflect the Origin and return
+    # Access-Control-Allow-Credentials:true, letting any site read /api responses with the user's
+    # session cookie. the SPA is same-origin (CORS doesn't apply), so credentialed cross-origin
+    # access is purely an attack surface, not a feature.
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -876,7 +885,9 @@ async def pwa_precache():
         if (static_dir / "icons" / ic).exists():
             urls.append(f"/static/icons/{ic}")
     for p in sorted((static_dir / "js").glob("*.js")):
-        urls.append(f"/static/js/app.js?v={stamp}" if p.name == "app.js" else f"/static/js/{p.name}")
+        urls.append(
+            f"/static/js/app.js?v={stamp}" if p.name == "app.js" else f"/static/js/{p.name}"
+        )
     for v in ("vendor/cm6.bundle.js",):
         if (static_dir / v).exists():
             urls.append(f"/static/{v}")
@@ -908,6 +919,8 @@ if __name__ == "__main__":
     import uvicorn
 
     port = get_port()
-    do_reload = bool(os.environ.get("ALLES_RELOAD"))   # ALLES_RELOAD=1 -> hot-reload on .py edits (dev)
+    do_reload = bool(
+        os.environ.get("ALLES_RELOAD")
+    )  # ALLES_RELOAD=1 -> hot-reload on .py edits (dev)
     log.info(f"starting alles on http://localhost:{port}{' (reload)' if do_reload else ''}")
     uvicorn.run("app:app", host="0.0.0.0", port=port, reload=do_reload)

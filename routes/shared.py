@@ -682,4 +682,13 @@ def _link_published(html, pubs):
 
 
 def _esc(s=""):
-    return str(s).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    # escape quotes too (not just & < >): _esc is used inside HTML attributes (e.g. a photo caption
+    # in alt="..."), where a raw " breaks out and enables XSS. harmless in text contexts.
+    return (
+        str(s)
+        .replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace('"', "&quot;")
+        .replace("'", "&#39;")
+    )
