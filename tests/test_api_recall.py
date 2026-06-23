@@ -17,12 +17,29 @@ def test_pidx_settings_defaults_and_patch():
 from fastapi.testclient import TestClient
 
 def test_recall_endpoints():
-    from app import app
-    with TestClient(app) as c:
-        r = c.get("/api/recall/stats")
-        assert r.status_code == 200
-        assert "by_kind" in r.json()
-        r = c.post("/api/recall/reindex", json={})
-        assert r.status_code == 200
-        r = c.post("/api/recall/clear", json={})
-        assert r.status_code == 200
+    # bind to an isolated in-memory db so this doesn't run against (or depend on) whatever
+    # global engine a prior test left behind — other tests swap db.engine and this one used
+    # the global one via TestClient, making it order-dependent
+    import core.database as db
+    from sqlalchemy import create_engine
+    from sqlalchemy.pool import StaticPool
+
+    eng = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
+    db.Base.metadata.create_all(eng)
+    orig = db.engine
+    db.engine = eng
+    db.SessionLocal.configure(bind=eng)
+    try:
+        from app import app
+        with TestClient(app) as c:
+            r = c.get("/api/recall/stats")
+            assert r.status_code == 200
+            assert "by_kind" in r.json()
+            r = c.post("/api/recall/reindex", json={})
+            assert r.status_code == 200
+            r = c.post("/api/recall/clear", json={})
+            assert r.status_code == 200
+    finally:
+        db.SessionLocal.configure(bind=orig)
+        db.engine = orig
+        eng.dispose()
