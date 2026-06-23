@@ -154,7 +154,7 @@ function renderItem(s) {
 }
 
 function escHtml(s) {
-  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
 function _loadSessionOrder() {
@@ -555,7 +555,7 @@ export function scrollDown() {
 
 
 // claude-style greeting: time-of-day, your name, and a little variety per refresh
-function _escName(s) { return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+function _escName(s) { return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
 function greetingHtml() {
   const h = new Date().getHours();
   const name = (localStorage.getItem('alles-name') || '').trim();

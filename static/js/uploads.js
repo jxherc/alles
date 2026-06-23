@@ -108,7 +108,7 @@ window._closeAttachPreview = () => {
 };
 
 function _escHtml(s) {
-  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
 // drag-and-drop (chat file attach). only reacts to real files dragged in from
