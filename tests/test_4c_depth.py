@@ -96,5 +96,81 @@ class SmartAlbumTests(unittest.TestCase):
         self.assertEqual([p["id"] for p in sa.by_keyword(photos, "beach")], ["a"])
 
 
+class ShareViewerGateTests(unittest.TestCase):
+    """the public /s/{token} viewer must enforce expiry + password (was bypassed via lookup())."""
+
+    def setUp(self):
+        self.eng = create_engine(
+            "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
+        )
+        db.Base.metadata.create_all(self.eng)
+        self._orig = db.engine
+        db.engine = self.eng
+        db.SessionLocal.configure(bind=self.eng)
+        from fastapi.testclient import TestClient
+
+        from app import app
+
+        self.c = TestClient(app)
+
+    def tearDown(self):
+        db.SessionLocal.configure(bind=self._orig)
+        db.engine = self._orig
+        self.eng.dispose()
+
+    def _mint(self, **kw):
+        s = db.SessionLocal()
+        sh = share.mint(s, "doc", "note.md", **kw)
+        tok = sh.token
+        s.close()
+        return tok
+
+    def test_expired_share_blocked(self):
+        tok = self._mint(expires_at="2000-01-01T00:00:00")
+        r = self.c.get(f"/s/{tok}", follow_redirects=True)
+        self.assertEqual(r.status_code, 410)
+
+    def test_password_share_requires_password(self):
+        tok = self._mint(password="hunter2")
+        self.assertEqual(self.c.get(f"/s/{tok}").status_code, 401)  # no pw
+        self.assertEqual(self.c.get(f"/s/{tok}", params={"pw": "wrong"}).status_code, 401)
+
+    def test_correct_password_passes_gate(self):
+        tok = self._mint(password="hunter2")
+        r = self.c.get(f"/s/{tok}", params={"pw": "hunter2"})
+        # gate passed -> not 401/410 (content read may 404 since the doc doesn't exist, that's fine)
+        self.assertNotIn(r.status_code, (401, 410))
+
+    def test_open_share_still_works(self):
+        tok = self._mint()
+        self.assertNotIn(self.c.get(f"/s/{tok}").status_code, (401, 410))
+
+
+class TxnLimitClampTests(unittest.TestCase):
+    def setUp(self):
+        self.eng = create_engine(
+            "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
+        )
+        db.Base.metadata.create_all(self.eng)
+        self._orig = db.engine
+        db.engine = self.eng
+        db.SessionLocal.configure(bind=self.eng)
+        from fastapi.testclient import TestClient
+
+        from app import app
+
+        self.c = TestClient(app)
+
+    def tearDown(self):
+        db.SessionLocal.configure(bind=self._orig)
+        db.engine = self._orig
+        self.eng.dispose()
+
+    def test_huge_limit_no_overflow(self):
+        # a value larger than a 64-bit int used to 500 via sqlite OverflowError
+        r = self.c.get("/api/money/transactions", params={"limit": 99999999999999999999})
+        self.assertEqual(r.status_code, 200)
+
+
 if __name__ == "__main__":
     unittest.main()

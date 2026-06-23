@@ -6,6 +6,7 @@ helpers take an open db session so routes pass Depends(get_db) and tests pass se
 """
 
 import hashlib
+import hmac
 import html as _html
 import re
 import uuid
@@ -66,7 +67,7 @@ def check_password(share, pw):
     h = getattr(share, "password_hash", "") or ""
     if not h:
         return True  # open share
-    return _pw_hash(pw or "") == h
+    return hmac.compare_digest(_pw_hash(pw or ""), h)  # constant-time
 
 
 def resolve(db, token, password="", *, now=None):
