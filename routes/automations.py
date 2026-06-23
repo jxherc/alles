@@ -18,6 +18,7 @@ _TRIGGER_META = [
     {"value": "day_event_near", "label": "days-event is within…", "arg": "days (e.g. 7)"},
     {"value": "daily_at", "label": "every day at…", "arg": "HH:MM (server time)"},
     {"value": "doc_tag", "label": "doc saved with #tag…", "arg": "tag (e.g. invoice)"},
+    {"value": "agent_tool", "label": "agent uses a tool…", "arg": "tool name or glob (e.g. write_* or *)"},
 ]
 _ACTION_META = [
     {
