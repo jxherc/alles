@@ -3,20 +3,30 @@ ReadItems. parse_feed/new_items are pure (unit-tested); refresh_feeds runs in th
 background job and does the network + db work."""
 
 import logging
+import re
 import xml.etree.ElementTree as ET
 from datetime import datetime
 
 log = logging.getLogger("alles.readfeeds")
+
+# strip any DOCTYPE (incl. its internal subset) so a malicious feed can't define entities -
+# ElementTree expands internal entities, which makes billion-laughs entity-expansion bombs possible.
+_DOCTYPE = re.compile(rb"<!DOCTYPE\b[^>\[]*(\[[\s\S]*?\])?\s*>", re.IGNORECASE)
 
 
 def _tag(el):
     return el.tag.rsplit("}", 1)[-1].lower()
 
 
+def _strip_doctype(xml):
+    raw = xml.encode("utf-8", "replace") if isinstance(xml, str) else xml
+    return _DOCTYPE.sub(b"", raw)
+
+
 def parse_feed(xml) -> dict:
     """parse rss or atom → {title, items:[{title, link}]}. never raises."""
     try:
-        root = ET.fromstring(xml.strip() if isinstance(xml, str) else xml)
+        root = ET.fromstring(_strip_doctype(xml.strip() if isinstance(xml, str) else xml))
     except Exception:
         return {"title": "", "items": []}
 
@@ -35,7 +45,7 @@ def parse_feed(xml) -> dict:
                     links.append((c.get("rel"), href.strip()))
         link = ""
         for rel, href in links:
-            if rel in (None, "alternate"):   # the article URL, not self/enclosure
+            if rel in (None, "alternate"):  # the article URL, not self/enclosure
                 link = href
                 break
         if not link and links:
@@ -84,7 +94,7 @@ async def refresh_feeds():
             if parsed["title"] and not feed.title:
                 feed.title = parsed["title"][:200]
             fresh = new_items(parsed["items"], seen)
-            for it in fresh[:25]:   # cap per poll so a big feed can't flood
+            for it in fresh[:25]:  # cap per poll so a big feed can't flood
                 host = ""
                 try:
                     from urllib.parse import urlparse

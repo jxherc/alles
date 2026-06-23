@@ -196,6 +196,9 @@ def _build_messages(
 
     msgs = [{"role": "system", "content": sys_prompt}]
     limit = settings.get("context_limit", 40)
+    limit = max(
+        1, int(limit) if isinstance(limit, (int, float)) else 40
+    )  # 0/neg would dump all history
     history = list(session.messages)[-limit:]
     for m in history:
         msgs.append({"role": m.role, "content": m.content})

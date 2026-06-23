@@ -10,6 +10,7 @@ all optional; if nothing's set, send() is a no-op.
 """
 
 import logging
+
 import httpx
 
 log = logging.getLogger("aide.notify")
@@ -54,6 +55,7 @@ async def send(text: str) -> dict:
                 )
                 out["telegram"] = r.status_code < 300
             except Exception as e:
-                log.warning(f"telegram notify failed: {e}")
+                # str(e) can carry the request url incl. the bot token — log only the type
+                log.warning("telegram notify failed: %s", type(e).__name__)
                 out["telegram"] = False
     return out
