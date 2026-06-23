@@ -96,6 +96,16 @@ def _cap_tool_content(tool_content: dict) -> str:
     return content
 
 
+def _fill_unanswered_tools(agent_messages, tool_calls, turn, answered):
+    """append a stub tool message for any tool_call that never got a result — e.g. when a
+    stop interrupts the batch. an assistant message with tool_calls that lack matching tool
+    messages is malformed and the api rejects it on the next (resume) request."""
+    for ci, call in enumerate(tool_calls):
+        cid = call.get("call_id") or f"tool-{turn}-{ci}"
+        if cid not in answered:
+            agent_messages.append({"role": "tool", "tool_call_id": cid, "content": "[interrupted]"})
+
+
 def _hist_chars(messages: list[dict]) -> int:
     n = 0
     for m in messages:
@@ -473,6 +483,7 @@ async def run_agent(
             )
 
             turn_images = []  # screenshots to feed back as vision input this turn
+            answered = set()  # call_ids that got a tool result (so a stop mid-batch can stub the rest)
 
             for ci, call in enumerate(tool_calls):
                 if stop_event.is_set():
@@ -653,6 +664,11 @@ async def run_agent(
                         "content": content,
                     }
                 )
+                answered.add(call_id)
+
+            # a stop mid-batch leaves the assistant message's tool_calls partly unanswered;
+            # backfill a stub for each so a resume never sends malformed history to the api
+            _fill_unanswered_tools(agent_messages, tool_calls, turn, answered)
 
             # after the tool batch, hand screenshots to the model as image input
             if turn_images and not stop_event.is_set():
