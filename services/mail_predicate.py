@@ -100,8 +100,16 @@ def _term(tok):
     return ("term", "text", tok.strip('"').lower())
 
 
+# cap query complexity: the recursive-descent parser + recursive evaluate would otherwise overflow
+# python's recursion limit on a deeply-nested query (e.g. 500+ parens) and 500 the request.
+_MAX_TOKENS = 400
+
+
 def parse(query):
-    return _Parser(_tokenize(query)).parse()
+    toks = _tokenize(query)
+    if len(toks) > _MAX_TOKENS:
+        raise ValueError("query too complex")
+    return _Parser(toks).parse()
 
 
 def _labels(msg):
@@ -153,9 +161,23 @@ def evaluate(node, msg):
 
 
 def match_one(query, msg):
-    return evaluate(parse(query), msg)
+    # a malformed / too-complex query matches nothing rather than raising (no 500 on hostile input)
+    try:
+        return evaluate(parse(query), msg)
+    except Exception:
+        return False
 
 
 def match(query, msgs):
-    ast = parse(query)
-    return [m for m in msgs if evaluate(ast, m)]
+    try:
+        ast = parse(query)
+    except Exception:
+        return []
+    out = []
+    for m in msgs:
+        try:
+            if evaluate(ast, m):
+                out.append(m)
+        except Exception:
+            continue
+    return out
