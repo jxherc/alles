@@ -36,7 +36,8 @@ def new_merchants(db, *, as_of, months=3, min_amount=20.0):
     accts = {a.id for a in db.query(Account).filter_by(archived=False).all()}
     cur_m, prior_m = {}, set()
     for t in db.query(Transaction).all():
-        if t.account_id not in accts or (t.amount or 0) >= 0:
+        # income (>=0) + transfer legs are not merchant spending (consistent with _spending_by_cat)
+        if t.account_id not in accts or (t.amount or 0) >= 0 or t.transfer_id:
             continue
         m = _norm_payee(t.payee or "")
         if not m:
