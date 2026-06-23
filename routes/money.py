@@ -258,6 +258,7 @@ def list_txns(
     db: DbSession = Depends(get_db),
 ):
     _post_due_recurring(db)
+    limit = max(1, min(int(limit), 10000))  # clamp: a huge value overflows sqlite's INTEGER -> 500
     q = db.query(Transaction)
     if account:
         q = q.filter(Transaction.account_id == account)

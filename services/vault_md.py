@@ -18,7 +18,7 @@ def vault_dir() -> Path:
     d = s.get("vault_dir") or str(data_dir() / "vault")
     p = Path(d).expanduser()
     p.mkdir(parents=True, exist_ok=True)
-    return p
+    return p.resolve()  # resolve so _safe()'s absolute-child containment holds for a relative dir
 
 
 def _safe(rel: str) -> Path:

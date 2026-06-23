@@ -95,9 +95,49 @@ def _not_found():
     )
 
 
+_PAGE = (
+    "<html><body style='font:14px/1.6 sans-serif;padding:2rem;background:#0a0a0a;color:#e8e6e3'>"
+)
+
+
+def _expired_page():
+    return HTMLResponse(_PAGE + "<h2>this link has expired</h2></body></html>", status_code=410)
+
+
+def _locked_page(token: str, wrong: bool):
+    import html as _h
+
+    msg = "<p style='color:#e06c75'>wrong password</p>" if wrong else ""
+    return HTMLResponse(
+        _PAGE
+        + "<h2>password required</h2>"
+        + msg
+        + f"<form method='get' action='/s/{_h.escape(token)}'>"
+        "<input type='password' name='pw' autofocus "
+        "style='padding:.5rem;background:#1a1a1a;color:#e8e6e3;border:1px solid #333;border-radius:3px'>"
+        "<button style='padding:.5rem 1rem;margin-left:.5rem'>open</button></form></body></html>",
+        status_code=401,
+    )
+
+
+def _share_gate(sh, token: str, pw: str):
+    """4c - returns a page to show INSTEAD of the content when a share is expired or locked, or None
+    to proceed. fixes the bypass where the viewer used share.lookup() and ignored expiry/password."""
+    if not sh:
+        return None  # let the caller's existing not-found handling run
+    if share.is_expired(sh):
+        return _expired_page()
+    if not share.check_password(sh, pw):
+        return _locked_page(token, wrong=bool(pw))
+    return None
+
+
 @router.get("/s/{token}", response_class=HTMLResponse)
-def view_shared(token: str, db: DbSession = Depends(get_db)):
+def view_shared(token: str, pw: str = "", db: DbSession = Depends(get_db)):
     sh = share.lookup(db, token)
+    gate = _share_gate(sh, token, pw)
+    if gate is not None:
+        return gate
     if sh:
         if sh.kind == "doc":
             doc = vault_md.read(sh.ref)
@@ -179,11 +219,14 @@ def view_shared(token: str, db: DbSession = Depends(get_db)):
 
 
 @router.get("/s/{token}/{subpath:path}")
-def view_shared_child(token: str, subpath: str, db: DbSession = Depends(get_db)):
+def view_shared_child(token: str, subpath: str, pw: str = "", db: DbSession = Depends(get_db)):
     """serve a single resource inside a shared folder/album, confined to it (no traversal)."""
     sh = share.lookup(db, token)
     if not sh:
         return _not_found()
+    gate = _share_gate(sh, token, pw)
+    if gate is not None:
+        return gate
     if sh.kind == "album":
         ph = db.get(Photo, subpath)
         if not ph or ph.album_id != sh.ref or ph.deleted_at is not None or ph.hidden:
