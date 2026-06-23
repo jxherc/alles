@@ -226,9 +226,10 @@ def _prune_resolved(db, sigs):
         except Exception:
             sk = []
         if sk and not any(k in live for k in sk):
-            # shown but never acted/dismissed before the situation resolved -> ignored
-            if item.status != "acted":
-                record_outcome(db, item, "ignored")
+            # shown but never acted/dismissed before the situation resolved -> ignored.
+            # (acted/dismissed cards have dismissed==True, so they're already filtered out
+            # by the query above — no need to guard on status here.)
+            record_outcome(db, item, "ignored")
             db.delete(item)
     db.commit()
 
