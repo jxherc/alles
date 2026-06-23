@@ -93,6 +93,13 @@ class RuleEditTests(ApiTest):
         self.assertIn("push", actions)
         self.assertIn("create_task", actions)
 
+    def test_every_wired_trigger_is_in_the_dropdown(self):
+        # a trigger that's wired but missing from options is unreachable from the UI
+        from services.automations import TRIGGERS
+
+        exposed = {t["value"] for t in self.client.get("/api/automations/options").json()["triggers"]}
+        self.assertEqual(set(TRIGGERS), exposed)
+
     def test_patch_action_arg_only(self):
         # patching just the arg leaves everything else alone
         rid = self.client.post(
