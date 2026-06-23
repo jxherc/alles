@@ -395,7 +395,11 @@ async def run_agent(
             # that's already done work.
             llm_error = None
             for attempt in range(LLM_RETRIES + 1):
-                produced = False
+                # "committed" = real output landed (answer text or a tool call). thinking is
+                # throwaway reasoning and must NOT block a retry — reasoning models stream it
+                # before any answer, so a transient blip mid-thought would otherwise kill the run.
+                committed = False
+                think_mark = len(thinking_acc)  # so a retry can drop this attempt's partial thinking
                 err_chunk = None
                 async for chunk in stream_chat(
                     agent_messages, ep.base_url, ep.api_key, model, **llm_kwargs
@@ -407,23 +411,22 @@ async def run_agent(
                         break
                     if "thinking" in chunk:
                         thinking_acc.append(chunk["thinking"])
-                        produced = True
                         yield chunk
                     elif "delta" in chunk:
                         turn_text.append(chunk["delta"])
                         accumulated.append(chunk["delta"])
-                        produced = True
+                        committed = True
                         yield chunk
                     elif "tool_call" in chunk:
                         tool_calls.append(chunk["tool_call"])
-                        produced = True
+                        committed = True
                     elif "done" in chunk:
                         usage = merge_usage(usage, chunk.get("usage", {}))
                 if stop_event.is_set() or err_chunk is None:
                     break
-                # got an error. retry only if nothing streamed yet + it's transient.
+                # got an error. retry only if no REAL output streamed yet + it's transient.
                 if (
-                    not produced
+                    not committed
                     and attempt < LLM_RETRIES
                     and _retryable(err_chunk.get("error", ""))
                 ):
@@ -437,6 +440,7 @@ async def run_agent(
                     await asyncio.sleep(min(8.0, LLM_RETRY_BASE * (2**attempt)))
                     turn_text = []
                     tool_calls = []
+                    del thinking_acc[think_mark:]  # drop the failed attempt's partial thinking
                     continue
                 llm_error = err_chunk
                 break

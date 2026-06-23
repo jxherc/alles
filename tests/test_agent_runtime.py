@@ -92,6 +92,16 @@ class LlmResilienceTests(unittest.TestCase):
         self.assertEqual(status, "error")
         self.assertEqual(calls, 1)  # no pointless retry on a 4xx
 
+    def test_transient_error_after_thinking_still_retries(self):
+        # reasoning models stream thinking BEFORE any answer/tool-call; a transient blip
+        # during the thinking phase must still retry — thinking is throwaway, not real output
+        status, calls, _ = _drive([
+            [{"thinking": "let me reason "}, {"error": ""}],  # blip mid-thought
+            [{"done": True, "usage": {}}],                    # retry succeeds
+        ])
+        self.assertEqual(status, "done")
+        self.assertEqual(calls, 2)  # retried despite the earlier thinking chunk
+
 
 class CapToolContentTests(unittest.TestCase):
     def test_large_output_stays_valid_json(self):
