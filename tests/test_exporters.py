@@ -86,6 +86,18 @@ class ExportDispatchTests(unittest.TestCase):
         content, _, _ = ex.export(self.s, "transactions", "csv")
         self.assertIn("store", content)
 
+    def test_export_contacts_vcard(self):
+        # this path used to crash: it passed ORM Contact rows to to_vcard (which does
+        # c.get(...)), and dropped company/title/address/birthday/website/notes
+        self.s.add(db.Contact(name="Ada Lovelace", email="ada@x.com", company="Analytical",
+                              notes="enchantress of numbers"))
+        self.s.commit()
+        content, _, _ = ex.export(self.s, "contacts", "vcard")
+        self.assertIn("BEGIN:VCARD", content)
+        self.assertIn("Ada Lovelace", content)
+        self.assertIn("ada@x.com", content)
+        self.assertIn("Analytical", content)  # a field that was silently dropped before
+
     def test_unknown_kind(self):
         with self.assertRaises(ValueError):
             ex.export(self.s, "nope", "csv")
