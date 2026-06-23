@@ -1,4 +1,5 @@
 import calendar as _cal
+import math
 from collections import defaultdict
 from datetime import date, datetime, timedelta
 
@@ -47,10 +48,16 @@ def _advance(d: date, cycle: str, cycle_days: int) -> date:
 
 
 # ── accounts ────────────────────────────────────────────────────────────────
+def _fin(x):
+    """non-finite (nan/inf) amounts brick JSON serialization + every money read. coerce to 0 on the
+    read path so one poisoned row can't take down the whole section, and reject them on input."""
+    return x if isinstance(x, (int, float)) and math.isfinite(x) else 0.0
+
+
 def _balances(db):
     bal = defaultdict(float)
     for t in db.query(Transaction).all():
-        bal[t.account_id] += t.amount or 0.0
+        bal[t.account_id] += _fin(t.amount)
     return bal
 
 
@@ -230,7 +237,7 @@ def _txn(t):
         "id": t.id,
         "account_id": t.account_id,
         "date": t.date,
-        "amount": t.amount,
+        "amount": _fin(t.amount),
         "category": t.category,
         "payee": t.payee,
         "notes": t.notes,
@@ -324,6 +331,8 @@ class TxnBody(BaseModel):
 def create_txn(body: TxnBody, db: DbSession = Depends(get_db)):
     if not db.get(Account, body.account_id):
         raise HTTPException(400, "unknown account")
+    if not math.isfinite(body.amount):
+        raise HTTPException(400, "amount must be a finite number")
     cat = (body.category or "").strip()
     if not cat:  # no explicit category → let a rule fill it in from the payee
         cat = _categorize(body.payee, _rules(db))
@@ -482,7 +491,8 @@ def import_txns_csv(body: CsvImport, db: DbSession = Depends(get_db)):
             amt = float(str(row.get("amount") or "").replace(",", "").replace("$", "").strip())
         except ValueError:
             continue
-        if not date:
+        if not date or not math.isfinite(amt):  # 'inf'/'nan' parse fine but poison the section
+            skipped += 1
             continue
         payee = (row.get("payee") or row.get("description") or "").strip()
         key = (date[:10], round(amt, 2), payee.lower())
@@ -532,6 +542,9 @@ def import_txns_ofx(body: OfxImport, db: DbSession = Depends(get_db)):
     n = skipped = 0
     for row in txn_ingest.parse_ofx(body.ofx):
         payee = (row.get("payee") or "").strip()
+        if not math.isfinite(row.get("amount") or 0.0):
+            skipped += 1
+            continue
         key = (row["date"][:10], round(row["amount"], 2), payee.lower())
         if key in seen:
             skipped += 1
@@ -581,7 +594,7 @@ def create_transfer(body: TransferBody, db: DbSession = Depends(get_db)):
     out of income/spending while balances still shift correctly."""
     if body.from_account == body.to_account:
         raise HTTPException(400, "pick two different accounts")
-    if (body.amount or 0) <= 0:
+    if not math.isfinite(body.amount) or (body.amount or 0) <= 0:
         raise HTTPException(400, "amount must be positive")
     src = db.get(Account, body.from_account)
     dst = db.get(Account, body.to_account)

@@ -141,6 +141,13 @@ def _is_secret_path(p) -> bool:
     return bool(_SECRET_RE.search(str(p).replace("\\", "/")))
 
 
+def _skip_secret(p) -> bool:
+    """true when a path is a secret store and the agent isn't explicitly allowed to touch them.
+    used by the enumeration/read tools (list/glob/grep/code_symbols) so they can't bypass the
+    read_file secret guard and exfiltrate ~/.ssh, .env, *.pem, credentials line by line."""
+    return _is_secret_path(p) and not _settings().get("agent_allow_secrets")
+
+
 def _allowed_roots() -> list:
     s = _settings()
     roots = [ROOT.resolve()]
@@ -434,6 +441,8 @@ async def _list_files(path: str = ".", depth: int = 1) -> dict:
             rel_depth = len(item.parts) - base_parts
             if rel_depth > max(1, depth):
                 continue
+            if _skip_secret(item):
+                continue
             rel = item.relative_to(root)
             lines.append(("[dir] " if item.is_dir() else "      ") + str(rel))
             if len(lines) >= 500:
@@ -449,6 +458,8 @@ async def _glob_files(pattern: str, path: str = ".", head_limit: int = 0) -> dic
         root = _resolve(path)
         matches = []
         for item in root.rglob("*"):
+            if _skip_secret(item):
+                continue
             rel = str(item.relative_to(root)).replace("\\", "/")
             if fnmatch.fnmatch(rel, pattern):
                 try:
@@ -485,7 +496,7 @@ async def _grep_files(
         if output_mode in ("files_with_matches", "count"):
             out = []
             for item in root.rglob(file_glob):
-                if not item.is_file():
+                if not item.is_file() or _skip_secret(item):
                     continue
                 try:
                     n = sum(
@@ -504,7 +515,7 @@ async def _grep_files(
 
         rows = []
         for item in root.rglob(file_glob):
-            if not item.is_file():
+            if not item.is_file() or _skip_secret(item):
                 continue
             try:
                 lines = item.read_text("utf-8", errors="replace").splitlines()
@@ -952,6 +963,8 @@ async def _code_symbols(path: str = ".", name_filter: str = "") -> dict:
         rows = []
         nf = name_filter.lower()
         for f in files:
+            if _skip_secret(f):
+                continue
             pats = _SYMBOL_PATTERNS.get(f.suffix.lower())
             if not pats:
                 continue
@@ -1421,7 +1434,11 @@ async def _search_code(query, k=8):
     db = SessionLocal()
     try:
         hits = codeindex.search(db, query, k)
-        return {"output": json.dumps({"query": query, "hits": hits}, indent=2), "error": False, "hits": hits}
+        return {
+            "output": json.dumps({"query": query, "hits": hits}, indent=2),
+            "error": False,
+            "hits": hits,
+        }
     finally:
         db.close()
 
@@ -1582,11 +1599,7 @@ async def _habit_log(a):
         if not h:
             return {"output": f"no habit named '{name}'", "error": True}
         today = date.today().isoformat()
-        if (
-            db.query(HabitLog)
-            .filter(HabitLog.habit_id == h.id, HabitLog.date == today)
-            .first()
-        ):
+        if db.query(HabitLog).filter(HabitLog.habit_id == h.id, HabitLog.date == today).first():
             return {"output": f"'{name}' is already marked done today"}
         db.add(HabitLog(habit_id=h.id, date=today))
         db.commit()
@@ -1614,9 +1627,7 @@ async def _habits_list(a):
         out = []
         for h in rows:
             done = (
-                db.query(HabitLog)
-                .filter(HabitLog.habit_id == h.id, HabitLog.date == today)
-                .first()
+                db.query(HabitLog).filter(HabitLog.habit_id == h.id, HabitLog.date == today).first()
             )
             out.append(f"- {'[x]' if done else '[ ]'} {h.name} ({h.cadence})")
         return {"output": "\n".join(out)}
@@ -1866,6 +1877,7 @@ async def _mail_send(to, subject, body, cc):
 async def _recall(query, top_k):
     from core.database import SessionLocal
     from services import personal_index
+
     db = SessionLocal()
     try:
         hits = personal_index.search(db, query, k=int(top_k or 8))
@@ -1883,6 +1895,7 @@ async def _recall(query, top_k):
 async def _money_query(query):
     from core.database import SessionLocal, Account, Transaction
     from datetime import date
+
     db = SessionLocal()
     try:
         accts = db.query(Account).filter_by(archived=False).all()
@@ -1891,7 +1904,7 @@ async def _money_query(query):
         txns = [t for t in txns if t.account_id in bal]  # scope to non-archived accounts
         for t in txns:
             if t.account_id in bal:
-                bal[t.account_id] += (t.amount or 0.0)
+                bal[t.account_id] += t.amount or 0.0
         lines = [f"{a.name} ({a.kind}): {a.currency}{bal[a.id]:.2f}" for a in accts]
         net = sum(bal.values())
         mo = date.today().strftime("%Y-%m")
@@ -1907,9 +1920,11 @@ async def _money_query(query):
                     cats[c] = cats.get(c, 0.0) + (-amt)
         top = sorted(cats.items(), key=lambda x: -x[1])[:8]
         out = (
-            "accounts:\n" + "\n".join(lines) +
-            f"\nnet worth: {net:.2f}\n\nthis month ({mo}): income {inc:.2f}, spent {exp:.2f}\n" +
-            "by category:\n" + "\n".join(f"  {c}: {v:.2f}" for c, v in top)
+            "accounts:\n"
+            + "\n".join(lines)
+            + f"\nnet worth: {net:.2f}\n\nthis month ({mo}): income {inc:.2f}, spent {exp:.2f}\n"
+            + "by category:\n"
+            + "\n".join(f"  {c}: {v:.2f}" for c, v in top)
         )
         if (query or "").strip():
             from services import money_query as mq
@@ -2679,7 +2694,12 @@ APP_TOOL_DEFS = [
         "Read-only money analytics: account balances, net worth, this-month income/spend, spend by "
         "category, and the total matching a payee/category term. Use for 'how much did I spend / "
         "what's my balance' questions.",
-        {"query": {"type": "string", "description": "optional payee/category to total, e.g. 'coffee'"}},
+        {
+            "query": {
+                "type": "string",
+                "description": "optional payee/category to total, e.g. 'coffee'",
+            }
+        },
         [],
     ),
 ]
