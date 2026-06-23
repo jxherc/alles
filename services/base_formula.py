@@ -9,13 +9,33 @@ import ast
 import operator
 import re
 
+# operand bounds so a user formula can't wedge the process: 9**9**9 is a ~370M-digit int,
+# 'ab'*5e7 is a 100MB string. cap both well above any real computed-field need.
+_MAX_EXP = 256
+_MAX_REPEAT = 100_000
+
+
+def _pow(a, b):
+    if isinstance(b, (int, float)) and abs(b) > _MAX_EXP:
+        raise ValueError("exponent too large")
+    return operator.pow(a, b)
+
+
+def _mul(a, b):
+    # string/list repetition with a big count blows up memory
+    for x, y in ((a, b), (b, a)):
+        if isinstance(x, (str, list, tuple)) and isinstance(y, int) and y > _MAX_REPEAT:
+            raise ValueError("repeat count too large")
+    return operator.mul(a, b)
+
+
 _BINOPS = {
     ast.Add: operator.add,
     ast.Sub: operator.sub,
-    ast.Mult: operator.mul,
+    ast.Mult: _mul,
     ast.Div: operator.truediv,
     ast.Mod: operator.mod,
-    ast.Pow: operator.pow,
+    ast.Pow: _pow,
     ast.FloorDiv: operator.floordiv,
 }
 _CMP = {

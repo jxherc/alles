@@ -14,23 +14,21 @@ export function isQueueable(method, url) {
 }
 
 export function dedupe(queue) {
-  // walk in order; for each resource url keep only what matters. a DELETE wipes earlier writes to the
-  // same url; a later write to a url supersedes an earlier write (last-write-wins). distinct urls keep
-  // their first-seen order.
-  const byUrl = new Map(); // url -> index in `out`
+  // collapse only IDEMPOTENT ops on the same resource url: a later PUT/PATCH/DELETE supersedes an
+  // earlier write to that url (last-write-wins). POST is a CREATE - two POSTs to the same collection
+  // are two distinct new resources, so they never collapse. distinct urls keep first-seen order.
+  const byUrl = new Map(); // url -> index in `out` (only tracked for idempotent ops)
   const out = [];
   for (const op of queue || []) {
     const url = op.url;
-    const isDelete = (op.method || '').toUpperCase() === 'DELETE';
-    if (byUrl.has(url)) {
-      const idx = byUrl.get(url);
-      out[idx] = op; // supersede (covers write->write and write->delete)
+    const method = (op.method || '').toUpperCase();
+    const idempotent = method === 'PUT' || method === 'PATCH' || method === 'DELETE';
+    if (idempotent && byUrl.has(url)) {
+      out[byUrl.get(url)] = op; // supersede the earlier write to this resource
     } else {
-      byUrl.set(url, out.length);
+      if (idempotent) byUrl.set(url, out.length);
       out.push(op);
     }
-    // a delete leaves the slot as the delete; nothing else needed
-    void isDelete;
   }
   return out.filter(Boolean);
 }
