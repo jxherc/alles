@@ -1,7 +1,7 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v113';   // chat stream-error no longer nukes live DOM; chip + archive fixes
+const VERSION = 'v114';   // long tokens/urls in chat+docs wrap instead of overflowing
 const CACHE = `alles-${VERSION}`;
-const STAMP = '139';   // keep in sync with index.html ?v= / const _v
+const STAMP = '140';   // keep in sync with index.html ?v= / const _v
 
 // 1b: mutating writes that should be queued when offline
 const MUTATING = ['POST', 'PUT', 'PATCH', 'DELETE'];
