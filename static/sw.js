@@ -1,7 +1,7 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v117';   // recurring days-event no longer shows 'since' for viewers east of server
+const VERSION = 'v118';   // default theme tile fully resets (no carried-over glass/pattern/density)
 const CACHE = `alles-${VERSION}`;
-const STAMP = '143';   // keep in sync with index.html ?v= / const _v
+const STAMP = '144';   // keep in sync with index.html ?v= / const _v
 
 // 1b: mutating writes that should be queued when offline
 const MUTATING = ['POST', 'PUT', 'PATCH', 'DELETE'];
