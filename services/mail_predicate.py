@@ -117,7 +117,7 @@ def _term_matches(field, value, msg):
     if field == "from":
         return value in sender
     if field == "to":
-        return value in (msg.get("to") or "").lower() or value in sender
+        return value in (msg.get("to") or "").lower()  # recipient only, not the sender
     if field == "subject":
         return value in subject
     if field == "label":

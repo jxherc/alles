@@ -61,6 +61,23 @@ class FormulaTests(unittest.TestCase):
         self.assertIsInstance(out, dict)
         self.assertIn("error", out)
 
+    def test_huge_power_rejected(self):
+        # 9**9**9 would compute a ~370M-digit int and hang the process - must be refused fast
+        out = bf.evaluate("9**9**9", {})
+        self.assertIsInstance(out, dict)
+        self.assertIn("error", out)
+
+    def test_small_power_still_works(self):
+        self.assertEqual(bf.evaluate("{a} ** 2", {"a": 5}), 25)
+
+    def test_huge_string_mult_rejected(self):
+        out = bf.evaluate("'ab' * 50000000", {})
+        self.assertIsInstance(out, dict)
+        self.assertIn("error", out)
+
+    def test_small_repeat_ok(self):
+        self.assertEqual(bf.evaluate("'-' * 3", {}), "---")
+
 
 if __name__ == "__main__":
     unittest.main()

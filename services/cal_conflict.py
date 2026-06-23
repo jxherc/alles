@@ -37,8 +37,11 @@ def conflicts(events):
 
 def free_slots(events, day, *, day_start="09:00", day_end="17:00", duration_min=30):
     """gaps on `day` (>= duration_min) not covered by any timed event, within the working window."""
-    lo = datetime.fromisoformat(f"{day}T{day_start}")
-    hi = datetime.fromisoformat(f"{day}T{day_end}")
+    try:
+        lo = datetime.fromisoformat(f"{day}T{day_start}")
+        hi = datetime.fromisoformat(f"{day}T{day_end}")
+    except ValueError:
+        return []  # malformed day/time -> no slots rather than a 500
     busy = []
     for ev in events:
         sp = _span(ev)
