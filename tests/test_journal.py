@@ -48,6 +48,15 @@ class CrudTests(unittest.TestCase):
         self.assertEqual(got["content"], "changed text here now")
         self.assertEqual(J.list_entries("", 60, db)["stats"]["total"], 1)  # not duplicated
 
+    def test_this_month_stat_ignores_month_filter(self):
+        # browsing a past month must NOT zero out the "this month" stat — it's the
+        # current month's count regardless of which month the list is scoped to
+        db = _mkdb()
+        J.upsert_entry(date.today().isoformat(), EntryBody(content="current month entry"), db)
+        J.upsert_entry("2020-01-15", EntryBody(content="ancient entry"), db)
+        stats = J.list_entries("2020-01", 60, db)["stats"]
+        self.assertEqual(stats["this_month"], 1)   # the current-month entry, not 0
+
     def test_get_missing_returns_shell(self):
         got = J.get_entry("2026-01-01", _mkdb())
         self.assertFalse(got["exists"])
