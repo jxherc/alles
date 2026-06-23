@@ -686,7 +686,7 @@ function _wireQuickCapture() {
   if (_qcWired) return; _qcWired = true;
   const inp = document.getElementById('hc-input'), save = document.getElementById('hc-save');
   document.getElementById('home-edit-btn')?.addEventListener('click', _toggleHomeEdit);
-  document.getElementById('home-settings-btn')?.addEventListener('click', () => openSettings('appearance', true));
+  document.getElementById('home-settings-btn')?.addEventListener('click', () => openSettings('general', true));
   document.querySelectorAll('.hc-mode').forEach(b => b.addEventListener('click', () => {
     _qcMode = b.dataset.mode;
     document.querySelectorAll('.hc-mode').forEach(x => x.classList.toggle('active', x === b));
@@ -896,7 +896,7 @@ function _renderHomeGreeting() {
   el.style.cursor = 'pointer';
   if (!el.dataset.wired) {
     el.dataset.wired = '1';
-    el.addEventListener('click', () => openSettings('appearance'));
+    el.addEventListener('click', () => openSettings('general'));
   }
   let tag = document.getElementById('home-tagline');
   if (!tag) {

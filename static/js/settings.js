@@ -57,6 +57,9 @@ function _bindSwitch(el, getter, setter) {
 let _activePane = 'models';
 
 function _switchPane(name) {
+  // unknown pane key (e.g. a stale 'appearance') would leave every pane inactive →
+  // a blank modal. fall back to 'general', which exists in both scopes.
+  if (!document.getElementById(`s-pane-${name}`)) name = 'general';
   _activePane = name;
   document.querySelectorAll('.s-nav-item').forEach(n =>
     n.classList.toggle('active', n.dataset.pane === name));
