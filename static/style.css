@@ -3255,11 +3255,11 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 .env-tbb.over .env-tbb-num { color: var(--error); }
 .env-tbb-lbl { font-size: 0.68rem; color: var(--muted); }
 .env-rows { display: flex; flex-direction: column; gap: 0.3rem; }
-.env-row { display: grid; grid-template-columns: 1fr 80px 64px 64px; gap: 0.4rem; align-items: center; font-size: 0.76rem; }
+.env-row { display: grid; grid-template-columns: 1fr 70px 82px 82px; gap: 0.4rem; align-items: center; font-size: 0.76rem; }
 .env-cat { color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .env-assign { height: 26px; text-align: right; }
-.env-spent { text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
-.env-avail { text-align: right; font-variant-numeric: tabular-nums; }
+.env-spent { text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.env-avail { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .env-avail.pos { color: var(--green); } .env-avail.neg { color: var(--error); }
 .env-target { grid-column: 1 / -1; position: relative; height: 14px; background: var(--bg); border-radius: 7px; overflow: hidden; margin-bottom: 0.2rem; }
 .env-target-bar { height: 100%; background: var(--accent); opacity: 0.5; }
