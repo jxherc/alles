@@ -82,6 +82,17 @@ def _fmt(h: Habit, dates: set | None = None, today: date | None = None) -> dict:
 
 
 # ── endpoints ──────────────────────────────────────────────────────────────────
+@router.get("/habits/{hid}/risk")
+def habit_risk(hid: str, window: int = 14, db: DbSession = Depends(get_db)):
+    """4b - failure risk today from the recent completion pattern."""
+    from services import life_stats
+
+    if not db.get(Habit, hid):
+        raise HTTPException(404, "habit not found")
+    done = [r.date for r in db.query(HabitLog).filter_by(habit_id=hid).all()]
+    return life_stats.habit_failure_risk(done, date.today(), window=window)
+
+
 @router.get("/habits/overview")
 def overview(date_q: str = "", db: DbSession = Depends(get_db)):
     today = _d(date_q) if date_q else date.today()

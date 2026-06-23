@@ -23,6 +23,7 @@ def _to_msg(r: CachedMessage) -> dict:
         "snoozed_until": r.snoozed_until or "",
         "labels": [x for x in (r.labels or "").split(",") if x],
         "account_id": r.account_id,
+        "thread_id": r.thread_id or "",
         "cached": True,
     }
 
@@ -105,7 +106,9 @@ def save(db, account_id: str, folder: str, msgs: list[dict]) -> int:
         for r in db.query(CachedMessage).filter_by(account_id=account_id, folder=folder)
     }
     db.query(CachedMessage).filter_by(account_id=account_id, folder=folder).delete()
-    for m in msgs:
+    from services.mail import thread_messages
+
+    for m in thread_messages(msgs):  # 2i - assign reference-graph thread_id
         uid = str(m.get("uid", ""))
         pf, pm, ps, pl = prev.get(uid, (False, False, "", ""))
         db.add(
@@ -123,6 +126,10 @@ def save(db, account_id: str, folder: str, msgs: list[dict]) -> int:
                 list_unsubscribe=m.get("list_unsubscribe", "") or "",
                 snoozed_until=m.get("snoozed_until", ps) or "",  # snooze survives re-fetch
                 labels=m.get("labels", pl) or "",  # labels survive re-fetch
+                message_id=m.get("message_id", "") or "",
+                in_reply_to=m.get("in_reply_to", "") or "",
+                references=m.get("references", "") or "",
+                thread_id=m.get("thread_id", "") or "",
             )
         )
     db.commit()
@@ -270,7 +277,10 @@ def search(db, account_id: str, q: str, limit: int = 40) -> list[dict]:
     rows = (
         db.query(CachedMessage)
         .filter(CachedMessage.account_id == account_id)
-        .filter(CachedMessage.subject.ilike(like, escape="\\") | CachedMessage.sender.ilike(like, escape="\\"))
+        .filter(
+            CachedMessage.subject.ilike(like, escape="\\")
+            | CachedMessage.sender.ilike(like, escape="\\")
+        )
         .order_by(CachedMessage.date_ts.desc())
         .limit(limit)
         .all()

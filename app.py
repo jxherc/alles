@@ -1,80 +1,212 @@
-import json, logging, asyncio, time
+import asyncio
+import json
+import logging
+import time
+from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
-from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
-from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
-from core.database import init_db, SessionLocal, ModelEndpoint
-from core.settings import deepseek_api_key, anthropic_api_key, get_port, auth_enabled
+from core.database import ModelEndpoint, SessionLocal, init_db
+from core.settings import anthropic_api_key, auth_enabled, deepseek_api_key, get_port
+from services import events as _events  # noqa: F401 - installs the 0c mutation spine
+from routes import (
+    agent as agent_routes,
+)
+from routes import (
+    api_tokens as token_routes,
+)
+from routes import (
+    appearance as appearance_routes,
+)
+from routes import (
+    auth as auth_routes,
+)
+from routes import (
+    automations as automation_routes,
+)
+from routes import (
+    backup as backup_routes,
+)
+from routes import (
+    books as books_routes,
+)
+from routes import (
+    briefing as briefing_routes,
+)
+from routes import (
+    caldav as caldav_routes,
+)
+from routes import (
+    calendar as calendar_routes,
+)
+from routes import (
+    calendars as calendars_routes,
+)
+from routes import (
+    carddav as carddav_routes,
+)
 from routes import (
     chat,
-    sessions,
     models,
-    settings as settings_routes,
-    memory as memory_routes,
-    research as research_routes,
-    shell as shell_routes,
-    mcp as mcp_routes,
-    notes as notes_routes,
-    tasks as tasks_routes,
-    calendar as calendar_routes,
-    calendars as calendars_routes,
-    gallery as gallery_routes,
-    cookbook as cookbook_routes,
-    personas as personas_routes,
-    webhooks as webhook_routes,
-    api_tokens as token_routes,
-    uploads as upload_routes,
-    projects as project_routes,
-    auth as auth_routes,
-    voice as voice_routes,
-    search as search_routes,
+    sessions,
+)
+from routes import (
+    code as code_routes,
+)
+from routes import (
     compare as compare_routes,
-    vault as vault_routes,
-    openai_compat as oai_routes,
-    contacts as contact_routes,
-    backup as backup_routes,
-    agent as agent_routes,
+)
+from routes import (
     connections as connection_routes,
+)
+from routes import (
+    contacts as contact_routes,
+)
+from routes import (
+    cookbook as cookbook_routes,
+)
+from routes import (
+    days as days_routes,
+)
+from routes import (
+    files as files_routes,
+)
+from routes import (
+    gallery as gallery_routes,
+)
+from routes import (
+    habits as habits_routes,
+)
+from routes import (
+    health as health_routes,
+)
+from routes import (
+    images as images_routes,
+)
+from routes import (
+    insights as insights_routes,
+)
+from routes import (
+    journal as journal_routes,
+)
+from routes import (
     local_models as local_model_routes,
-    vault_md as vault_md_routes,
+)
+from routes import (
+    macos as macos_routes,
+)
+from routes import (
+    mail as mail_routes,
+)
+from routes import (
+    mcp as mcp_routes,
+)
+from routes import (
+    memory as memory_routes,
+)
+from routes import (
+    money as money_routes,
+)
+from routes import (
+    notes as notes_routes,
+)
+from routes import (
+    openai_compat as oai_routes,
+)
+from routes import (
+    personas as personas_routes,
+)
+from routes import (
+    photos as photos_routes,
+)
+from routes import (
+    proactive as proactive_routes,
+)
+from routes import (
+    projects as project_routes,
+)
+from routes import (
+    push as push_routes,
+)
+from routes import (
+    rag as rag_routes,
+)
+from routes import (
+    read as read_routes,
+)
+from routes import (
+    capabilities as capabilities_routes,
+)
+from routes import (
+    chains as chains_routes,
+)
+from routes import (
+    export as export_routes,
+)
+from routes import (
+    recall as recall_routes,
 )
 from routes import (
     reminders as reminder_routes,
+)
+from routes import (
+    research as research_routes,
+)
+from routes import (
+    search as search_routes,
+)
+from routes import (
+    settings as settings_routes,
+)
+from routes import (
     shared as shared_routes,
-    files as files_routes,
-    caldav as caldav_routes,
-    carddav as carddav_routes,
-    briefing as briefing_routes,
-    status as status_routes,
-    mail as mail_routes,
-    photos as photos_routes,
-    push as push_routes,
-    subscriptions as subscription_routes,
-    days as days_routes,
-    today as today_routes,
-    automations as automation_routes,
-    money as money_routes,
-    journal as journal_routes,
-    usage as usage_routes,
-    rag as rag_routes,
-    images as images_routes,
+)
+from routes import (
+    shell as shell_routes,
+)
+from routes import (
     skills as skills_routes,
+)
+from routes import (
+    status as status_routes,
+)
+from routes import (
+    subscriptions as subscription_routes,
+)
+from routes import (
+    tasks as tasks_routes,
+)
+from routes import (
     textindex as textindex_routes,
-    code as code_routes,
-    macos as macos_routes,
+)
+from routes import (
+    today as today_routes,
+)
+from routes import (
+    uploads as upload_routes,
+)
+from routes import (
+    usage as usage_routes,
+)
+from routes import (
+    vault as vault_routes,
+)
+from routes import (
+    vault_md as vault_md_routes,
+)
+from routes import (
+    voice as voice_routes,
+)
+from routes import (
     watch as watch_routes,
-    appearance as appearance_routes,
-    habits as habits_routes,
-    read as read_routes,
-    books as books_routes,
-    health as health_routes,
-    recall as recall_routes,
-    proactive as proactive_routes,
+)
+from routes import (
+    webhooks as webhook_routes,
 )
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s  %(name)s  %(message)s")
@@ -151,10 +283,10 @@ async def _bootstrap_anthropic():
 async def _fire_due_reminders():
     """plain reminders → web push once; scheduled 'message' reminders → run the
     model and drop the reply into the session. (a registered 30s job)"""
-    from core.database import SessionLocal, Reminder, Session
-    from services.llm import stream_chat
+    from core.database import Reminder, Session, SessionLocal
     from core.settings import load_settings
     from routes.push import broadcast as push_broadcast
+    from services.llm import stream_chat
 
     now = datetime.utcnow()
     db = SessionLocal()
@@ -198,8 +330,9 @@ async def _fire_due_reminders():
             s = db.get(Session, r.session_id)
             if not s:
                 continue
-            from core.database import Message, ModelEndpoint
             from datetime import datetime as dt
+
+            from core.database import Message, ModelEndpoint
 
             ep = db.get(ModelEndpoint, s.endpoint_id)
             if not ep:
@@ -314,7 +447,57 @@ def _register_jobs():
 
         await proactive.run()
 
+    async def _blob_gc():
+        from core.database import SessionLocal
+        from services import blobstore
+
+        db = SessionLocal()
+        try:
+            blobstore.gc(db)
+        finally:
+            db.close()
+
+    async def _user_model():
+        from core.database import SessionLocal
+        from core.settings import load_settings
+        from services import user_model
+
+        if not load_settings().get("user_model_distill", False):
+            return  # gated - spends tokens
+        db = SessionLocal()
+        try:
+            await user_model.distill_async(db)
+        finally:
+            db.close()
+
+    async def _insights():
+        from core.database import SessionLocal
+        from services import insights
+
+        db = SessionLocal()
+        try:
+            await insights.generate_async(db)  # internally gated on insights_enabled
+        finally:
+            db.close()
+
+    async def _holdings_price():
+        from core.database import SessionLocal
+        from core.settings import load_settings
+        from services import price_fetch
+
+        if not load_settings().get("holdings_autoprice", False):
+            return  # gated - hits the network; opt-in
+        db = SessionLocal()
+        try:
+            price_fetch.refresh(db)
+        finally:
+            db.close()
+
     jobs.register("read_feeds", _read_feeds, 1800, run_at_start=False)  # rss auto-save (30 min)
+    jobs.register("holdings_price", _holdings_price, 6 * 3600, run_at_start=False)  # 2d (gated)
+    jobs.register("blob_gc", _blob_gc, 6 * 3600, run_at_start=False)  # 0d - purge orphaned blobs
+    jobs.register("user_model", _user_model, 24 * 3600, run_at_start=False)  # 1c daily distill (gated)
+    jobs.register("insights", _insights, 24 * 3600, run_at_start=False)  # 1e daily insights (gated)
     jobs.register("subscriptions", _subs, 30)
     jobs.register("day_events", _days, 30)
     jobs.register("automations", _autos, 30)
@@ -350,7 +533,8 @@ async def _reminder_loop():
 
 def _cleanup_empty_sessions():
     """drop sessions that never got a message (abandoned 'new chat' / incognito leftovers)"""
-    from core.database import Message as Msg, Session
+    from core.database import Message as Msg
+    from core.database import Session
 
     db = SessionLocal()
     try:
@@ -377,7 +561,9 @@ _last_ping: dict = {}
 async def _probe_endpoints() -> dict:
     """GET each enabled endpoint's base host. ok=True means reachable (any HTTP code)."""
     import httpx
-    from core.database import SessionLocal as SL, ModelEndpoint as ME
+
+    from core.database import ModelEndpoint as ME
+    from core.database import SessionLocal as SL
 
     db = SL()
     try:
@@ -575,8 +761,8 @@ app.include_router(textindex_routes.router)
 app.include_router(images_routes.router)
 app.include_router(skills_routes.router)
 from routes import notify as notify_routes
-from routes import timeline as timeline_routes
 from routes import system as system_routes
+from routes import timeline as timeline_routes
 
 app.include_router(notify_routes.router)
 app.include_router(shell_routes.router)
@@ -620,6 +806,7 @@ app.include_router(automation_routes.router)
 app.include_router(money_routes.router)
 app.include_router(timeline_routes.router)
 app.include_router(system_routes.router)
+app.include_router(insights_routes.router)
 app.include_router(code_routes.router)
 app.include_router(macos_routes.router)
 app.include_router(watch_routes.router)
@@ -628,6 +815,9 @@ app.include_router(habits_routes.router)
 app.include_router(read_routes.router)
 app.include_router(books_routes.router)
 app.include_router(health_routes.router)
+app.include_router(capabilities_routes.router)
+app.include_router(chains_routes.router)
+app.include_router(export_routes.router)
 app.include_router(recall_routes.router)
 app.include_router(proactive_routes.router)
 
@@ -714,6 +904,7 @@ async def ping(cached: bool = False):
 
 if __name__ == "__main__":
     import os
+
     import uvicorn
 
     port = get_port()

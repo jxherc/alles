@@ -372,6 +372,15 @@ def duplicates(db: DbSession = Depends(get_db)):
     return {"groups": groups, "count": len(groups)}
 
 
+@router.get("/subscriptions/overlaps")
+def overlaps(db: DbSession = Depends(get_db)):
+    """flag paying for 2+ services in the same redundant category (spotify + apple music). 2f"""
+    from services import sub_overlap
+
+    groups = sub_overlap.overlaps(db.query(Subscription).all())
+    return {"groups": groups, "count": len(groups)}
+
+
 @router.get("/subscriptions/forecast")
 def forecast(months: int = 6, db: DbSession = Depends(get_db)):
     """project each active sub's charges across the next `months` calendar months."""

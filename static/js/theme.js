@@ -3,7 +3,7 @@
 // alles tokens: bg / text / panel / faint / accent. pure color algos + the canvas
 // patterns are ported from odysseus; the editor UI + apply engine are alles-native.
 import { initColorPickers } from './colorpicker.js';
-import { generateHarmony, lum as _lum, mix as _mix } from './color.js';
+import { generateHarmony, lum as _lum, mix as _mix, mutedFor as _mutedFor } from './color.js';
 import { toast } from './util.js';
 export { generateHarmony };
 
@@ -89,7 +89,7 @@ export function applyAppearance(a) {
   const root = document.documentElement;
   const set = (k, v) => { if (v) root.style.setProperty(k, v); };
   set('--bg', c.bg); set('--text', c.text); set('--panel', c.panel); set('--faint', c.faint); set('--accent', c.accent);
-  if (c.text && c.bg) root.style.setProperty('--muted', _mix(c.text, c.bg, 0.5));
+  if (c.text && c.bg) root.style.setProperty('--muted', _mutedFor(c.text, c.bg, c.panel || c.bg));
   if (c.bg) (_lum(c.bg) > 0.5) ? (root.dataset.theme = 'light') : delete root.dataset.theme;
   root.style.setProperty('--font-family', FONT_MAP[a.font] || FONT_MAP.sans);
   root.classList.remove('density-compact', 'density-spacious');
@@ -471,18 +471,63 @@ function _initWaves() {
   draw();
 }
 
-// ── editor modal ──────────────────────────────────────────────────────────────
+// ── editor (modal OR inline) ───────────────────────────────────────────────────
 let _draft = null;
+let _editorRoot = null;        // where the editor paints: the modal #theme-editor or an inline el
+let _editorInline = false;     // inline drops the overlay/close/done chrome + folds dark/light into 'default'
+let _onEditorChange = null;    // settings.js hook — refresh the lock state on every commit
 const PATTERNS = ['none', 'dots', 'grid', 'crosshatch', 'scanlines', 'synapse', 'rain', 'snow', 'embers',
   'fireflies', 'bubbles', 'starfield', 'constellations', 'sparkles', 'petals', 'matrix', 'aurora', 'waves'];
 // patterns with no tunable color/intensity (pure CSS) — hide the effect controls for these
 const NO_FX = new Set(['none', 'dots', 'grid', 'crosshatch', 'scanlines']);
 const BASE_LABELS = [['bg', 'background'], ['text', 'text'], ['panel', 'panel'], ['faint', 'border'], ['accent', 'accent']];
 
-function _commit() { applyAppearance(_draft); save(_draft); }
+// the two base presets ARE the "default theme" (its dark + light modes); the editor's
+// preset grid treats everything else as a real preset.
+export const BASE_PRESETS = ['dark', 'light'];
+export const isBasePreset = n => BASE_PRESETS.includes(n);
+
+function _commit() { applyAppearance(_draft); save(_draft); _onEditorChange && _onEditorChange(_draft); }
+
+// ── public appearance API (used by the settings "default theme" controls) ───────
+export function getAppearance() { return loadLocal(); }
+
+// switch the default theme's light/dark base while KEEPING the current accent. this is
+// also the escape hatch from a fancy preset (sets preset back to dark/light).
+export function setMode(mode) {
+  const a = loadLocal();
+  const base = mode === 'light' ? PRESETS.light : PRESETS.dark;
+  const accent = a.colors && a.colors.accent;
+  a.preset = mode === 'light' ? 'light' : 'dark';
+  a.colors = { ...base.colors, accent: accent || base.colors.accent };
+  a.bgPattern = 'none';
+  applyAppearance(a); save(a);
+  return a;
+}
+
+// override just the accent (''/null restores the active preset's own accent). writes into
+// the appearance object so it survives reload (the old aide-accent path was clobbered by it).
+export function setAccent(hex) {
+  const a = loadLocal();
+  a.colors = { ...(a.colors || PRESETS.dark.colors) };
+  if (hex) a.colors.accent = hex;
+  else { const base = PRESETS[a.preset] || PRESETS.dark; a.colors.accent = base.colors.accent; }
+  applyAppearance(a); save(a);
+  return a;
+}
+
+// render the editor inline into `el` (no modal chrome). opts.onChange fires after each commit.
+export function renderThemeEditorInto(el, opts = {}) {
+  if (!el) return;
+  _draft = loadLocal();
+  _editorRoot = el; _editorInline = true; _onEditorChange = opts.onChange || null;
+  el.classList.add('te-inline-editor');
+  _renderEditor();
+}
 
 export function openThemeEditor() {
   _draft = loadLocal();
+  _editorInline = false; _onEditorChange = null;
   document.getElementById('theme-editor-overlay')?.remove();
   const ov = document.createElement('div');
   ov.id = 'theme-editor-overlay';
@@ -490,6 +535,7 @@ export function openThemeEditor() {
   ov.innerHTML = '<div class="te-modal" id="theme-editor"></div>';
   document.body.appendChild(ov);
   ov.addEventListener('mousedown', e => { if (e.target === ov) _close(); });
+  _editorRoot = document.getElementById('theme-editor');
   _renderEditor();
 }
 function _close() { document.getElementById('theme-editor-overlay')?.remove(); }
@@ -506,15 +552,32 @@ function _seg(field, opts) {
   return `<div class="te-seg" data-seg="${field}">${opts.map(o => `<button class="te-seg-opt${_draft[field] === o ? ' active' : ''}" data-val="${o}">${o}</button>`).join('')}</div>`;
 }
 
+// the inline preset grid hides dark/light (they're the "default theme") and leads with a
+// single "default" tile that drops you back onto the base theme.
+function _defaultTile() {
+  const active = isBasePreset(_draft.preset);
+  return `<button class="te-preset${active ? ' active' : ''}" data-preset="default" title="default">
+    <span class="te-preset-quad"><i style="background:#0a0a0a"></i><i style="background:#f5f4f1"></i><i style="background:var(--accent)"></i><i style="background:#e8e6e3"></i></span>
+    <span class="te-preset-name">default</span></button>`;
+}
+function _presetGridHtml() {
+  if (_editorInline) {
+    return _defaultTile() + Object.entries(PRESETS).filter(([n]) => !isBasePreset(n)).map(([n, p]) => _swatch(n, p.colors)).join('');
+  }
+  return Object.entries(PRESETS).map(([n, p]) => _swatch(n, p.colors)).join('');
+}
+
 function _renderEditor() {
-  const m = document.getElementById('theme-editor');
+  const m = _editorRoot;
   if (!m) return;
   const c = _draft.colors;
   const ct = _draft.customThemes || {};
+  const head = _editorInline ? '' : `<div class="te-head"><span class="te-title">theme editor</span><button class="icon-btn" id="te-close" title="close">${window.icon ? window.icon('close') : '×'}</button></div>`;
+  const bodyOpen = _editorInline ? '<div class="te-body te-body-inline">' : '<div class="te-body">';
   m.innerHTML = `
-    <div class="te-head"><span class="te-title">theme editor</span><button class="icon-btn" id="te-close" title="close">${window.icon ? window.icon('close') : '×'}</button></div>
-    <div class="te-body">
-      <div class="te-sec"><div class="te-sec-h">presets</div><div class="te-presets">${Object.entries(PRESETS).map(([n, p]) => _swatch(n, p.colors)).join('')}</div></div>
+    ${head}
+    ${bodyOpen}
+      <div class="te-sec"><div class="te-sec-h">presets</div><div class="te-presets">${_presetGridHtml()}</div></div>
 
       <div class="te-sec"><div class="te-sec-h">colors</div><div class="te-colors">
         ${BASE_LABELS.map(([k, label]) => `<label class="te-color"><input type="color" data-color="${k}" value="${esc(c[k])}"><span>${label}</span></label>`).join('')}
@@ -550,7 +613,7 @@ function _renderEditor() {
         <button class="btn" id="te-export">export</button>
         <button class="btn" id="te-import">import</button>
         <button class="btn" id="te-reset">reset to default</button>
-        <button class="btn primary" id="te-done">done</button>
+        ${_editorInline ? '' : '<button class="btn primary" id="te-done">done</button>'}
       </div>
     </div>`;
   _wireEditor(m);
@@ -558,14 +621,23 @@ function _renderEditor() {
 
 function _wireEditor(m) {
   initColorPickers(m);
-  m.querySelector('#te-close').onclick = _close;
-  m.querySelector('#te-done').onclick = _close;
+  m.querySelector('#te-close')?.addEventListener('click', _close);
+  m.querySelector('#te-done')?.addEventListener('click', _close);
 
   m.querySelectorAll('.te-preset').forEach(b => b.onclick = () => {
+    // the synthetic "default" tile drops back onto the base theme, keeping the light/dark
+    // feel of whatever you were on + the current accent.
+    if (b.dataset.preset === 'default') {
+      const a = setMode(_lum(_draft.colors?.bg || '#0a0a0a') > 0.5 ? 'light' : 'dark');
+      _draft = a; _onEditorChange && _onEditorChange(_draft); _renderEditor();
+      return;
+    }
     const p = PRESETS[b.dataset.preset];
     _draft.preset = b.dataset.preset;
     _draft.colors = { ...p.colors };
-    if (p.pattern) _draft.bgPattern = p.pattern;
+    // a preset OWNS its background: turn on the one it ships with, else clear any stale
+    // pattern from the theme you switched away from (so 'default' etc. land on no bg).
+    _draft.bgPattern = p.pattern || 'none';
     _commit(); _renderEditor();
   });
 

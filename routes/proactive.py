@@ -35,8 +35,37 @@ def dismiss(item_id: str):
             return {"ok": False}
         it.dismissed = True
         it.status = "dismissed"
+        proactive.record_outcome(db, it, "dismissed")  # 1a feedback
         db.commit()
         return {"ok": True}
+    finally:
+        db.close()
+
+
+@router.post("/{item_id}/act")
+def act(item_id: str):
+    """the user engaged with a card (clicked through). records a positive outcome and removes
+    it from the feed, so the per-category weight learns to favor this card type."""
+    db = SessionLocal()
+    try:
+        it = db.get(ProactiveItem, item_id)
+        if not it:
+            return {"ok": False}
+        it.status = "acted"
+        it.dismissed = True  # leaves the feed
+        proactive.record_outcome(db, it, "acted")  # 1a feedback
+        db.commit()
+        return {"ok": True}
+    finally:
+        db.close()
+
+
+@router.get("/stats")
+def stats():
+    """per-category act/dismiss/ignore counts + rate + the learned weight."""
+    db = SessionLocal()
+    try:
+        return proactive.feedback_stats(db)
     finally:
         db.close()
 

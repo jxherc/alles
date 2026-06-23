@@ -52,6 +52,20 @@ def _fmt(e: HealthEntry) -> dict:
 
 
 # ── endpoints ──────────────────────────────────────────────────────────────────
+@router.get("/health/{kind}/anomalies")
+def health_anomalies(kind: str, k: float = 2.0, db: DbSession = Depends(get_db)):
+    """4b - robust (MAD) anomaly flags + baseline for a health metric."""
+    from services import life_stats
+
+    rows = db.query(HealthEntry).filter_by(kind=kind).order_by(HealthEntry.date.asc()).all()
+    series = [(r.date, r.value or 0.0) for r in rows]
+    return {
+        "kind": kind,
+        "baseline": life_stats.health_baseline([v for _, v in series]),
+        "anomalies": life_stats.health_anomalies(series, k=k),
+    }
+
+
 @router.get("/health")
 def list_entries(kind: str = "", db: DbSession = Depends(get_db)):
     q = db.query(HealthEntry)

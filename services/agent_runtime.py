@@ -10,20 +10,20 @@ from pathlib import Path
 from typing import AsyncGenerator
 
 from core.database import ModelEndpoint
+from services import policy
+from services.agent_state import finish_run, record_event, start_run, update_run
 from services.agent_tools import (
-    build_tool_defs,
-    stream_execute,
-    ROOT,
-    set_agent_ctx,
     MUTATING_TOOLS,
-    preview_change,
-    capture_checkpoint,
+    ROOT,
     UNTRUSTED_TOOLS,
+    build_tool_defs,
+    capture_checkpoint,
     guard_untrusted,
-    decide_permission,
+    preview_change,
+    set_agent_ctx,
+    stream_execute,
 )
-from services.agent_state import start_run, record_event, update_run, finish_run
-from services.llm import stream_chat, clear_cooldown
+from services.llm import clear_cooldown, stream_chat
 
 # a single flaky model/network call shouldn't kill a whole agent run. retry
 # transient errors a couple times before giving up; tests patch the base to 0.
@@ -298,6 +298,48 @@ async def run_agent(
     run_id = run["id"]
     yield {"agent_run": {"id": run_id, "status": "running", "max_turns": max_turns}}
 
+    # 3b - persona policy: a persona can block tool scopes/names for the session. detach into a plain
+    # holder so we don't lazy-load on a closed session inside the permission gate.
+    _persona = None
+    if session_id:
+        try:
+            from core.database import Session as _Sess
+            from core.database import SessionLocal as _SL
+
+            _pdb = _SL()
+            try:
+                _s = _pdb.get(_Sess, session_id)
+                if _s and _s.persona_id and _s.persona:
+                    _persona = type(
+                        "P",
+                        (),
+                        {
+                            "blocked_scopes": _s.persona.blocked_scopes or "",
+                            "blocked_tools": _s.persona.blocked_tools or "",
+                        },
+                    )()
+            finally:
+                _pdb.close()
+        except Exception:
+            _persona = None
+
+    # 3e - stamp the run with the user's intent (last user message) so run_analysis can summarize,
+    # cluster, and pull it as a precedent later.
+    try:
+        _intent = ""
+        for m in reversed(messages or []):
+            if m.get("role") == "user":
+                c = m.get("content")
+                _intent = c if isinstance(c, str) else next(
+                    (p.get("text", "") for p in c if isinstance(p, dict) and p.get("type") == "text"),
+                    "",
+                )
+                break
+        if _intent:
+            update_run(run_id, intent=_intent[:500])
+    except Exception:
+        pass
+
     # 10a — optional per-run git worktree isolation: run on a detached copy off HEAD so
     # parallel runs don't stomp each other. repoint agent_cwd so every file/shell op follows.
     _orig_cwd = settings.get("agent_cwd", "")
@@ -447,8 +489,13 @@ async def run_agent(
 
                 # ── permission gate: mode + per-tool/path rules (allow|ask|deny) ──
                 mode = settings.get("agent_permission_mode") or "full_auto"
-                decision = decide_permission(
-                    name, args, mode, settings.get("permission_rules") or []
+                decision = policy.gate(
+                    name,
+                    args,
+                    mode=mode,
+                    rules=settings.get("permission_rules") or [],
+                    persona=_persona,
+                    disabled=settings.get("disabled_tools") or (),
                 )
                 gate = None  # set to a result dict to skip execution
                 diff = None

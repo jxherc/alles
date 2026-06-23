@@ -744,6 +744,24 @@ def base_rollup(folder: str = "", relation: str = "", target: str = "", agg: str
     return {"rows": vault_md.base_rollup(folder, relation, target or None, agg)}
 
 
+class FormulaBody(BaseModel):
+    formula: str
+    folder: str = ""
+
+
+@router.post("/base-formula")
+def base_formula(body: FormulaBody):
+    """4d - compute a formula column across a Base folder's rows ({price} * {qty}, ternaries, ...)."""
+    from services import base_formula as bf
+
+    view = vault_md.base_view(body.folder)
+    out = [
+        {"path": r["path"], "name": r["name"], "value": bf.evaluate(body.formula, r["props"])}
+        for r in view["rows"]
+    ]
+    return {"results": out}
+
+
 class QueryBlockBody(BaseModel):
     spec: str = ""
 

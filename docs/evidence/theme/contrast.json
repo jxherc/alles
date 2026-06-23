@@ -1,0 +1,352 @@
+{
+ "dark": {
+  "home": [
+   {
+    "sel": "span#home-clock",
+    "text": "tuesday, june 23 \u00b7 1:11 am",
+    "color": "rgb(46, 46, 46)",
+    "bg": "rgb(10,10,10)",
+    "ratio": 1.46
+   }
+  ],
+  "journal": [],
+  "money": [],
+  "wiki": [],
+  "calendar": [],
+  "aide": [
+   {
+    "sel": "span#home-clock",
+    "text": "tuesday, june 23 \u00b7 1:11 am",
+    "color": "rgb(46, 46, 46)",
+    "bg": "rgb(10,10,10)",
+    "ratio": 1.46
+   }
+  ],
+  "login": []
+ },
+ "midnight": {
+  "home": [
+   {
+    "sel": "span#home-clock",
+    "text": "tuesday, june 23 \u00b7 1:11 am",
+    "color": "rgb(46, 46, 46)",
+    "bg": "rgb(10,10,10)",
+    "ratio": 1.46
+   }
+  ],
+  "journal": [
+   {
+    "sel": "button.jrnl-mood",
+    "text": "\ud83d\ude04",
+    "color": "rgb(0, 0, 0)",
+    "bg": "rgb(13,17,23)",
+    "ratio": 1.11
+   }
+  ],
+  "money": [],
+  "wiki": [],
+  "calendar": [],
+  "aide": [],
+  "login": []
+ },
+ "light": {
+  "home": [
+   {
+    "sel": "span#home-clock",
+    "text": "tuesday, june 23 \u00b7 1:11 am",
+    "color": "rgb(46, 46, 46)",
+    "bg": "rgb(10,10,10)",
+    "ratio": 1.46
+   }
+  ],
+  "journal": [],
+  "money": [],
+  "wiki": [],
+  "calendar": [],
+  "aide": [
+   {
+    "sel": "span#home-clock",
+    "text": "tuesday, june 23 \u00b7 1:11 am",
+    "color": "rgb(46, 46, 46)",
+    "bg": "rgb(10,10,10)",
+    "ratio": 1.46
+   }
+  ],
+  "login": []
+ },
+ "blossom": {
+  "home": [
+   {
+    "sel": "span#home-clock",
+    "text": "tuesday, june 23 \u00b7 1:11 am",
+    "color": "rgb(46, 46, 46)",
+    "bg": "rgb(10,10,10)",
+    "ratio": 1.46
+   }
+  ],
+  "journal": [],
+  "money": [],
+  "wiki": [],
+  "calendar": [],
+  "aide": [
+   {
+    "sel": "span#home-clock",
+    "text": "tuesday, june 23 \u00b7 1:11 am",
+    "color": "rgb(46, 46, 46)",
+    "bg": "rgb(10,10,10)",
+    "ratio": 1.46
+   }
+  ],
+  "login": []
+ },
+ "sakura": {
+  "home": [
+   {
+    "sel": "span#home-clock",
+    "text": "tuesday, june 23 \u00b7 1:11 am",
+    "color": "rgb(46, 46, 46)",
+    "bg": "rgb(10,10,10)",
+    "ratio": 1.46
+   }
+  ],
+  "journal": [],
+  "money": [],
+  "wiki": [],
+  "calendar": [],
+  "aide": [
+   {
+    "sel": "span#home-clock",
+    "text": "tuesday, june 23 \u00b7 1:11 am",
+    "color": "rgb(46, 46, 46)",
+    "bg": "rgb(10,10,10)",
+    "ratio": 1.46
+   }
+  ],
+  "login": []
+ },
+ "paper": {
+  "home": [
+   {
+    "sel": "span#home-clock",
+    "text": "tuesday, june 23 \u00b7 1:11 am",
+    "color": "rgb(46, 46, 46)",
+    "bg": "rgb(10,10,10)",
+    "ratio": 1.46
+   }
+  ],
+  "journal": [],
+  "money": [],
+  "wiki": [],
+  "calendar": [],
+  "aide": [
+   {
+    "sel": "span#home-clock",
+    "text": "tuesday, june 23 \u00b7 1:11 am",
+    "color": "rgb(46, 46, 46)",
+    "bg": "rgb(10,10,10)",
+    "ratio": 1.46
+   }
+  ],
+  "login": []
+ },
+ "lavender": {
+  "home": [
+   {
+    "sel": "span#home-clock",
+    "text": "tuesday, june 23 \u00b7 1:11 am",
+    "color": "rgb(46, 46, 46)",
+    "bg": "rgb(10,10,10)",
+    "ratio": 1.46
+   }
+  ],
+  "journal": [],
+  "money": [],
+  "wiki": [],
+  "calendar": [],
+  "aide": [
+   {
+    "sel": "span#home-clock",
+    "text": "tuesday, june 23 \u00b7 1:11 am",
+    "color": "rgb(46, 46, 46)",
+    "bg": "rgb(10,10,10)",
+    "ratio": 1.46
+   }
+  ],
+  "login": []
+ },
+ "solarlight": {
+  "home": [
+   {
+    "sel": "span#home-clock",
+    "text": "tuesday, june 23 \u00b7 1:11 am",
+    "color": "rgb(46, 46, 46)",
+    "bg": "rgb(10,10,10)",
+    "ratio": 1.46
+   }
+  ],
+  "journal": [],
+  "money": [],
+  "wiki": [],
+  "calendar": [],
+  "aide": [
+   {
+    "sel": "span#home-clock",
+    "text": "tuesday, june 23 \u00b7 1:11 am",
+    "color": "rgb(46, 46, 46)",
+    "bg": "rgb(10,10,10)",
+    "ratio": 1.46
+   }
+  ],
+  "login": []
+ },
+ "sand": {
+  "home": [
+   {
+    "sel": "span#home-clock",
+    "text": "tuesday, june 23 \u00b7 1:12 am",
+    "color": "rgb(46, 46, 46)",
+    "bg": "rgb(10,10,10)",
+    "ratio": 1.46
+   }
+  ],
+  "journal": [],
+  "money": [],
+  "wiki": [],
+  "calendar": [],
+  "aide": [
+   {
+    "sel": "span#home-clock",
+    "text": "tuesday, june 23 \u00b7 1:12 am",
+    "color": "rgb(46, 46, 46)",
+    "bg": "rgb(10,10,10)",
+    "ratio": 1.46
+   }
+  ],
+  "login": []
+ },
+ "steel": {
+  "home": [
+   {
+    "sel": "span#home-clock",
+    "text": "tuesday, june 23 \u00b7 1:12 am",
+    "color": "rgb(46, 46, 46)",
+    "bg": "rgb(10,10,10)",
+    "ratio": 1.46
+   }
+  ],
+  "journal": [],
+  "money": [],
+  "wiki": [],
+  "calendar": [],
+  "aide": [
+   {
+    "sel": "span#home-clock",
+    "text": "tuesday, june 23 \u00b7 1:12 am",
+    "color": "rgb(46, 46, 46)",
+    "bg": "rgb(10,10,10)",
+    "ratio": 1.46
+   }
+  ],
+  "login": []
+ },
+ "coral": {
+  "home": [
+   {
+    "sel": "span#home-clock",
+    "text": "tuesday, june 23 \u00b7 1:12 am",
+    "color": "rgb(46, 46, 46)",
+    "bg": "rgb(10,10,10)",
+    "ratio": 1.46
+   }
+  ],
+  "journal": [],
+  "money": [],
+  "wiki": [],
+  "calendar": [],
+  "aide": [
+   {
+    "sel": "span#home-clock",
+    "text": "tuesday, june 23 \u00b7 1:12 am",
+    "color": "rgb(46, 46, 46)",
+    "bg": "rgb(10,10,10)",
+    "ratio": 1.46
+   }
+  ],
+  "login": []
+ },
+ "ice": {
+  "home": [
+   {
+    "sel": "span#home-clock",
+    "text": "tuesday, june 23 \u00b7 1:12 am",
+    "color": "rgb(46, 46, 46)",
+    "bg": "rgb(10,10,10)",
+    "ratio": 1.46
+   }
+  ],
+  "journal": [],
+  "money": [],
+  "wiki": [],
+  "calendar": [],
+  "aide": [
+   {
+    "sel": "span#home-clock",
+    "text": "tuesday, june 23 \u00b7 1:12 am",
+    "color": "rgb(46, 46, 46)",
+    "bg": "rgb(10,10,10)",
+    "ratio": 1.46
+   }
+  ],
+  "login": []
+ },
+ "peach": {
+  "home": [
+   {
+    "sel": "span#home-clock",
+    "text": "tuesday, june 23 \u00b7 1:12 am",
+    "color": "rgb(46, 46, 46)",
+    "bg": "rgb(10,10,10)",
+    "ratio": 1.46
+   }
+  ],
+  "journal": [],
+  "money": [],
+  "wiki": [],
+  "calendar": [],
+  "aide": [
+   {
+    "sel": "span#home-clock",
+    "text": "tuesday, june 23 \u00b7 1:12 am",
+    "color": "rgb(46, 46, 46)",
+    "bg": "rgb(10,10,10)",
+    "ratio": 1.46
+   }
+  ],
+  "login": []
+ },
+ "cute": {
+  "home": [
+   {
+    "sel": "span#home-clock",
+    "text": "tuesday, june 23 \u00b7 1:12 am",
+    "color": "rgb(46, 46, 46)",
+    "bg": "rgb(10,10,10)",
+    "ratio": 1.46
+   }
+  ],
+  "journal": [],
+  "money": [],
+  "wiki": [],
+  "calendar": [],
+  "aide": [
+   {
+    "sel": "span#home-clock",
+    "text": "tuesday, june 23 \u00b7 1:12 am",
+    "color": "rgb(46, 46, 46)",
+    "bg": "rgb(10,10,10)",
+    "ratio": 1.46
+   }
+  ],
+  "login": []
+ }
+}

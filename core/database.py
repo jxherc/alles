@@ -321,6 +321,8 @@ class Persona(Base):
     model = Column(String, default="")  # override model, or "" = use session default
     temperature = Column(Float, nullable=True)  # pinned sampling temp, or null = provider default
     default_mode = Column(String, default="")  # "" auto | "chat" pure-chat | "agent" always tools
+    blocked_scopes = Column(String, default="")  # 3b - csv permission scopes this persona may NOT use
+    blocked_tools = Column(String, default="")  # 3b - csv tool names this persona may NOT use
     accent = Column(
         String, default=""
     )  # hex accent that re-themes the app when active, "" = use global
@@ -339,6 +341,36 @@ class PersonaDoc(Base):
     id = Column(String, primary_key=True, default=_uid)
     persona_id = Column(String, nullable=False, index=True)
     title = Column(String, default="untitled")
+    created_at = Column(DateTime, default=_now)
+
+
+class ContactLink(Base):
+    # 4a - a typed edge in the contact relationship graph (spouse/manager/colleague/...)
+    __tablename__ = "contact_links"
+    id = Column(String, primary_key=True, default=_uid)
+    from_id = Column(String, index=True, nullable=False)
+    to_id = Column(String, index=True, nullable=False)
+    kind = Column(String, default="")
+    created_at = Column(DateTime, default=_now)
+
+
+class ResearchFinding(Base):
+    # 3g - cross-session deep-research fact cache: one extracted finding, keyed by URL
+    __tablename__ = "research_findings"
+    id = Column(String, primary_key=True, default=_uid)
+    url = Column(String, index=True, default="")
+    question = Column(Text, default="")
+    title = Column(String, default="")
+    summary = Column(Text, default="")
+    ts = Column(DateTime, default=_now)
+
+
+class ToolChain(Base):
+    # 3c - a saved macro: an ordered list of capability invocations run atomically
+    __tablename__ = "tool_chains"
+    id = Column(String, primary_key=True, default=_uid)
+    name = Column(String, nullable=False)
+    steps = Column(Text, default="[]")  # json: [{kind, name, args}, ...]
     created_at = Column(DateTime, default=_now)
 
 
@@ -377,10 +409,15 @@ class Memory(Base):
     id = Column(String, primary_key=True, default=_uid)
     text = Column(Text, nullable=False)
     category = Column(String, default="general")  # identity | preference | fact | task | general
-    source = Column(String, default="manual")  # manual | extracted | imported
+    source = Column(String, default="manual")  # manual | extracted | imported | distilled
     session_id = Column(String, nullable=True)  # which session it came from
     pinned = Column(Boolean, default=False)  # always inject if pinned
     timestamp = Column(DateTime, default=_now)
+    # 1c - auto-distilled user-model facts: a learned confidence, a veto (hide + never
+    # re-distill), and where the fact came from.
+    confidence = Column(Float, default=1.0)
+    vetoed = Column(Boolean, default=False)
+    provenance = Column(String, default="")
 
 
 class Project(Base):
@@ -639,6 +676,86 @@ class ProactiveState(Base):
     updated_at = Column(DateTime, default=_now)
 
 
+class ProactiveOutcome(Base):
+    # one row per card fate (1a feedback loop). lets proactive learn which card types the owner
+    # acts on vs ignores, and at what latency (cadence). drives a per-category score weight.
+    __tablename__ = "proactive_outcomes"
+    id = Column(String, primary_key=True, default=_uid)
+    item_id = Column(String, index=True, default="")
+    dedupe_key = Column(String, default="")
+    category = Column(String, index=True, default="")
+    outcome = Column(String, nullable=False)  # acted | dismissed | ignored
+    latency_sec = Column(Float, default=0.0)  # card age when the outcome landed
+    created_at = Column(DateTime, default=_now)
+
+
+class Insight(Base):
+    # cross-domain causal insight (1e) - a higher-level meta-pattern found over weeks of data,
+    # with cited evidence. default-off generation; the user pins or dismisses.
+    __tablename__ = "insights"
+    id = Column(String, primary_key=True, default=_uid)
+    kind = Column(String, default="")  # productivity | spending | mood | habit | ...
+    title = Column(String, nullable=False)
+    body = Column(Text, default="")
+    evidence = Column(Text, default="[]")  # json list of evidence refs / signal keys
+    dedupe_key = Column(String, index=True, default="")  # hash of the sorted evidence set
+    pinned = Column(Boolean, default=False)
+    dismissed = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=_now)
+
+
+class SignalSnapshot(Base):
+    # rolling history of signals (1b). written on the periodic proactive path (NOT in the pure
+    # gather()), so synthesize() can detect trends + cross-category correlation over time.
+    __tablename__ = "signal_snapshots"
+    id = Column(String, primary_key=True, default=_uid)
+    ts = Column(DateTime, default=_now, index=True)
+    category = Column(String, index=True, default="")
+    key = Column(String, default="")
+    urgency = Column(Integer, default=0)
+    data = Column(Text, default="{}")
+
+
+class MutationEvent(Base):
+    # durable log of every state change on a tracked model (0c spine). written by
+    # SQLAlchemy mapper listeners in services/events.py, in the SAME transaction as the
+    # change, so it commits/rolls-back with it. audit + history + the event stream the
+    # learning brain consumes.
+    __tablename__ = "mutation_events"
+    id = Column(String, primary_key=True, default=_uid)
+    entity_kind = Column(String, index=True, nullable=False)  # the table name
+    entity_id = Column(String, index=True, default="")
+    op = Column(String, nullable=False)  # insert | update | delete
+    fields = Column(Text, default="{}")  # json: new (insert) or changed (update) columns
+    actor = Column(String, default="")
+    ts = Column(DateTime, default=_now, index=True)
+
+
+class Blob(Base):
+    # content-addressed binary store (0d). one row per unique content (sha256); files live at
+    # <data>/.blobs/<sha[:2]>/<sha>. refcount tracks how many Attachments point here so a GC can
+    # purge orphans. dedup: the same bytes stored twice = one Blob, refcount 2.
+    __tablename__ = "blobs"
+    id = Column(String, primary_key=True, default=_uid)
+    sha256 = Column(String, unique=True, index=True, nullable=False)
+    size = Column(Integer, default=0)
+    mime = Column(String, default="")
+    refcount = Column(Integer, default=0)
+    created_at = Column(DateTime, default=_now)
+
+
+class Attachment(Base):
+    # generic join from any resource (kind+id) to a Blob, so file-versioning, sharing, export
+    # and dedup work uniformly across upload/photo/vault/etc.
+    __tablename__ = "attachments"
+    id = Column(String, primary_key=True, default=_uid)
+    resource_kind = Column(String, index=True, default="")
+    resource_id = Column(String, index=True, default="")
+    blob_id = Column(String, index=True, nullable=False)
+    meta = Column(Text, default="{}")
+    created_at = Column(DateTime, default=_now)
+
+
 class DayEvent(Base):
     __tablename__ = "day_events"
     id = Column(String, primary_key=True, default=_uid)
@@ -741,7 +858,17 @@ class Budget(Base):
     __tablename__ = "money_budgets"
     id = Column(String, primary_key=True, default=_uid)
     category = Column(String, nullable=False)
+    tag = Column(String, default="")  # 2e - if set, this is a tag budget (hierarchy-rolled)
     limit_amt = Column(Float, default=0.0)  # monthly spending cap for this category
+    created_at = Column(DateTime, default=_now)
+
+
+class TagRule(Base):
+    # 2e - payee substring -> tag(s), auto-applied to typed/imported txns (like CategoryRule)
+    __tablename__ = "money_tag_rules"
+    id = Column(String, primary_key=True, default=_uid)
+    match = Column(String, nullable=False)  # case-insensitive substring of the payee
+    tags = Column(String, default="")  # csv of tags to add
     created_at = Column(DateTime, default=_now)
 
 
@@ -805,6 +932,15 @@ class Holding(Base):
     cost_basis = Column(Float, default=0.0)  # per-share cost
     price = Column(Float, default=0.0)  # latest (manual) price per share
     created_at = Column(DateTime, default=_now)
+
+
+class PriceHistory(Base):
+    # 2d - one row per symbol per price refresh, so holdings get a trend + return-since-first
+    __tablename__ = "money_price_history"
+    id = Column(String, primary_key=True, default=_uid)
+    symbol = Column(String, nullable=False, index=True)
+    price = Column(Float, default=0.0)
+    ts = Column(DateTime, default=_now)
 
 
 class Watch(Base):
@@ -893,6 +1029,8 @@ class Share(Base):
     kind = Column(String, nullable=False)  # doc|file|photo|album|contact|event|session
     ref = Column(String, nullable=False)  # resource id, or vault/files-relative path
     level = Column(String, default="view")  # view | download
+    expires_at = Column(String, default="")  # 4c - ISO datetime; "" = never expires
+    password_hash = Column(String, default="")  # 4c - sha256 of the access password; "" = open
     created_at = Column(DateTime, default=_now)
 
 
@@ -951,6 +1089,11 @@ class CachedMessage(Base):
     muted = Column(Boolean, default=False)  # muted thread → hidden from lists (5a)
     snoozed_until = Column(String, default="")  # ISO time; hidden until then (5b)
     labels = Column(Text, default="")  # csv user labels (5e)
+    autoreplied = Column(Boolean, default=False)  # 2g - a rule autoreply already enqueued for this msg
+    message_id = Column(String, default="")  # 2i - RFC-5322 Message-ID header
+    in_reply_to = Column(String, default="")  # 2i - In-Reply-To header
+    references = Column(Text, default="")  # 2i - References header (space-sep id list)
+    thread_id = Column(String, default="", index=True)  # 2i - reference-graph thread root
     body_indexed = Column(Boolean, default=False)  # personal-rag: body pulled into the recall index
     cached_at = Column(DateTime, default=_now)
 
@@ -1122,124 +1265,12 @@ class HealthEntry(Base):
     created_at = Column(DateTime, default=_now)
 
 
-def _add_col(conn, table, col, col_type):
-    try:
-        conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {col} {col_type}"))
-        conn.commit()
-    except Exception:
-        pass
-
-
 def init_db():
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
     Base.metadata.create_all(engine)
-    # migrations — safe to run multiple times (all idempotent)
-    with engine.connect() as conn:
-        _add_col(conn, "cached_messages", "flagged", "BOOLEAN DEFAULT 0")
-        # 4a — transaction depth: tags, receipt attachment, cleared/reconcile state
-        _add_col(conn, "money_transactions", "tags", "TEXT DEFAULT ''")
-        _add_col(conn, "money_transactions", "receipt_id", "TEXT DEFAULT ''")
-        _add_col(conn, "money_transactions", "cleared", "BOOLEAN DEFAULT 0")
-        # 4e — cancellation helper + low-balance alerts
-        _add_col(conn, "subscriptions", "cancel_url", "TEXT DEFAULT ''")
-        _add_col(conn, "money_accounts", "low_balance", "FLOAT DEFAULT 0")
-        # 5a — mail triage: list-unsubscribe + muted threads
-        _add_col(conn, "cached_messages", "list_unsubscribe", "TEXT DEFAULT ''")
-        _add_col(conn, "cached_messages", "muted", "BOOLEAN DEFAULT 0")
-        # 5b — snooze
-        _add_col(conn, "cached_messages", "snoozed_until", "TEXT DEFAULT ''")
-        # 5c — scheduled HTML body
-        _add_col(conn, "mail_scheduled", "html", "TEXT DEFAULT ''")
-        # 5e — message labels
-        _add_col(conn, "cached_messages", "labels", "TEXT DEFAULT ''")
-        # 6a — starred files
-        _add_col(conn, "file_tags", "starred", "BOOLEAN DEFAULT 0")
-        for _c, _t in [
-            ("company", "TEXT DEFAULT ''"),
-            ("title", "TEXT DEFAULT ''"),
-            ("address", "TEXT DEFAULT ''"),
-            ("birthday", "TEXT DEFAULT ''"),
-            ("website", "TEXT DEFAULT ''"),
-            ("favorite", "BOOLEAN DEFAULT 0"),
-        ]:
-            _add_col(conn, "contacts", _c, _t)
-        _add_col(conn, "vault_entries", "type", "TEXT DEFAULT 'password'")
-        _add_col(conn, "subscriptions", "trial_end", "TEXT DEFAULT ''")
-        _add_col(conn, "money_transactions", "transfer_id", "TEXT DEFAULT ''")
-        _add_col(conn, "sessions", "persona_id", "TEXT")
-        _add_col(conn, "sessions", "project_id", "TEXT")
-        _add_col(conn, "sessions", "working_dir", "TEXT DEFAULT ''")
-        _add_col(conn, "sessions", "incognito", "BOOLEAN DEFAULT 0")
-        _add_col(conn, "sessions", "mode", "TEXT DEFAULT 'chat'")
-        _add_col(conn, "sessions", "starred", "BOOLEAN DEFAULT 0")
-        _add_col(conn, "sessions", "archived", "BOOLEAN DEFAULT 0")
-        _add_col(conn, "sessions", "share_token", "TEXT")
-        _add_col(conn, "model_endpoints", "vision_models", "TEXT DEFAULT '[]'")
-        _add_col(conn, "model_endpoints", "image_models", "TEXT DEFAULT '[]'")
-        _add_col(conn, "personas", "initial_message", "TEXT DEFAULT ''")
-        _add_col(conn, "projects", "working_dir", "TEXT DEFAULT ''")
-        _add_col(conn, "vault_entries", "username", "TEXT DEFAULT ''")
-        _add_col(conn, "calendar_events", "recurrence", "TEXT DEFAULT ''")
-        _add_col(conn, "calendar_events", "recur_until", "TEXT")
-        _add_col(conn, "calendar_events", "caldav_uid", "TEXT")
-        _add_col(conn, "reminders", "notified", "BOOLEAN DEFAULT 0")
-        _add_col(conn, "tasks", "parent_id", "TEXT")
-        _add_col(conn, "tasks", "tags", "TEXT DEFAULT ''")
-        _add_col(conn, "tasks", "repeat", "TEXT DEFAULT ''")
-        _add_col(conn, "tasks", "notes", "TEXT DEFAULT ''")
-        _add_col(conn, "tasks", "project", "TEXT DEFAULT ''")
-        _add_col(conn, "tasks", "sort_order", "INTEGER DEFAULT 0")
-        _add_col(conn, "personas", "temperature", "REAL")
-        _add_col(conn, "personas", "default_mode", "TEXT DEFAULT ''")
-        _add_col(conn, "personas", "accent", "TEXT DEFAULT ''")
-        _add_col(conn, "subscriptions", "account_id", "TEXT DEFAULT ''")
-        _add_col(conn, "subscriptions", "last_posted_due", "TEXT DEFAULT ''")
-        _add_col(conn, "tasks", "completed_at", "DATETIME")
-        _add_col(conn, "calendar_events", "calendar_id", "TEXT DEFAULT ''")
-        _add_col(conn, "calendar_events", "location", "TEXT DEFAULT ''")
-        _add_col(conn, "calendar_events", "guests", "TEXT DEFAULT ''")
-        _add_col(conn, "calendar_events", "reminders", "TEXT DEFAULT '[]'")
-        _add_col(conn, "calendar_events", "recur_interval", "INTEGER DEFAULT 1")
-        _add_col(conn, "calendar_events", "recur_byday", "TEXT DEFAULT ''")
-        _add_col(conn, "calendar_events", "recur_count", "INTEGER")
-        _add_col(conn, "calendar_events", "recur_except", "TEXT DEFAULT '[]'")
-        _add_col(conn, "photos", "deleted_at", "DATETIME")
-        # 7a — captions/keywords + hidden album
-        _add_col(conn, "photos", "caption", "TEXT DEFAULT ''")
-        _add_col(conn, "photos", "keywords", "TEXT DEFAULT ''")
-        _add_col(conn, "photos", "hidden", "BOOLEAN DEFAULT 0")
-        # 7c — video assets
-        _add_col(conn, "photos", "is_video", "BOOLEAN DEFAULT 0")
-        # 8a — ICS URL subscriptions
-        _add_col(conn, "calendar_events", "subscription_id", "VARCHAR")
-        # 8b — video links (attendees/booking pages are new tables, no _add_col needed)
-        _add_col(conn, "calendar_events", "meeting_url", "VARCHAR DEFAULT ''")
-        # 8c — contact avatar + Me card (fields/groups are new tables)
-        _add_col(conn, "contacts", "avatar", "VARCHAR DEFAULT ''")
-        _add_col(conn, "contacts", "is_me", "BOOLEAN DEFAULT 0")
-        # 8d — CardDAV sync columns
-        _add_col(conn, "contacts", "carddav_uid", "VARCHAR DEFAULT ''")
-        _add_col(conn, "contacts", "carddav_href", "VARCHAR DEFAULT ''")
-        _add_col(conn, "contacts", "carddav_etag", "VARCHAR DEFAULT ''")
-        # 9c — multi-vault: scope existing entries to the default vault
-        _add_col(conn, "vault_entries", "vault_id", "TEXT DEFAULT 'default'")
-        _add_col(conn, "vaults", "biometric_blob", "TEXT DEFAULT ''")
-        _add_col(conn, "webauthn_credentials", "role", "TEXT DEFAULT ''")
-        # webhook hardening — signing secret + delivery status
-        _add_col(conn, "webhooks", "secret", "TEXT DEFAULT ''")
-        _add_col(conn, "webhooks", "last_status", "TEXT DEFAULT ''")
-        _add_col(conn, "webhooks", "last_error", "TEXT DEFAULT ''")
-        _add_col(conn, "webhooks", "last_triggered", "DATETIME")
-        _add_col(conn, "notes", "tags", "TEXT DEFAULT ''")
-        _add_col(conn, "notes", "items", "TEXT DEFAULT '[]'")
-        _add_col(conn, "notes", "due", "TEXT DEFAULT ''")
-        _add_col(conn, "cached_messages", "body_indexed", "BOOLEAN DEFAULT 0")
-        # mail oauth (sign in with google)
-        _add_col(conn, "mail_accounts", "auth_type", "TEXT DEFAULT 'password'")
-        _add_col(conn, "mail_accounts", "oauth_provider", "TEXT DEFAULT ''")
-        _add_col(conn, "mail_accounts", "oauth_access_token", "TEXT DEFAULT ''")
-        _add_col(conn, "mail_accounts", "oauth_refresh_token", "TEXT DEFAULT ''")
-        _add_col(conn, "mail_accounts", "oauth_expires_at", "FLOAT DEFAULT 0")
+    # schema migrations (versioned runner; baseline self-heals every boot)
+    from core.migrations import run_migrations
+    run_migrations(engine)
     _encrypt_plaintext_secrets()
 
 

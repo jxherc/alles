@@ -10,7 +10,8 @@ the `key` bakes in the relevant period so the same situation yields the same key
 across runs (dedupe), and a new period (next renewal cycle) yields a new key.
 """
 
-from datetime import date, datetime
+import json
+from datetime import date, datetime, timedelta
 
 from core.database import (
     Account,
@@ -24,12 +25,25 @@ from core.database import (
     HealthEntry,
     JournalEntry,
     Reminder,
+    SignalSnapshot,
     Subscription,
     Task,
 )
 
-CATEGORIES = ("task", "event", "reminder", "sub", "day_event", "habit", "book", "health",
-              "budget", "account", "mail", "journal")
+CATEGORIES = (
+    "task",
+    "event",
+    "reminder",
+    "sub",
+    "day_event",
+    "habit",
+    "book",
+    "health",
+    "budget",
+    "account",
+    "mail",
+    "journal",
+)
 
 
 def _journal_locked():
@@ -81,6 +95,7 @@ def _event_occurs_on(e: CalendarEvent, day: date) -> bool:
 
 # -- collectors: one family each, returning a list of signals -----------------
 
+
 def _tasks(db, today):
     iso = today.isoformat()
     out = []
@@ -89,15 +104,41 @@ def _tasks(db, today):
             continue
         d = str(t.due_date)[:10]
         if d < iso:
-            out.append(_sig("task", f"task_overdue:{t.id}", 70 + (15 if t.priority else 0),
-                            t.title, f"overdue since {d}", "tasks",
-                            {"id": t.id, "title": t.title, "due": d, "priority": t.priority,
-                             "overdue": True}))
+            out.append(
+                _sig(
+                    "task",
+                    f"task_overdue:{t.id}",
+                    70 + (15 if t.priority else 0),
+                    t.title,
+                    f"overdue since {d}",
+                    "tasks",
+                    {
+                        "id": t.id,
+                        "title": t.title,
+                        "due": d,
+                        "priority": t.priority,
+                        "overdue": True,
+                    },
+                )
+            )
         elif d == iso:
-            out.append(_sig("task", f"task_due:{t.id}", 50 + (15 if t.priority else 0),
-                            t.title, "due today", "tasks",
-                            {"id": t.id, "title": t.title, "due": d, "priority": t.priority,
-                             "overdue": False}))
+            out.append(
+                _sig(
+                    "task",
+                    f"task_due:{t.id}",
+                    50 + (15 if t.priority else 0),
+                    t.title,
+                    "due today",
+                    "tasks",
+                    {
+                        "id": t.id,
+                        "title": t.title,
+                        "due": d,
+                        "priority": t.priority,
+                        "overdue": False,
+                    },
+                )
+            )
     return out
 
 
@@ -110,10 +151,23 @@ def _events(db, today):
         full = str(e.start_dt)
         t = full[11:16] if len(full) > 10 else ""
         timed = (not e.all_day) and bool(t)
-        out.append(_sig("event", f"event:{e.id}:{iso}", 40 if timed else 30,
-                        e.title, t or "all day", "calendar",
-                        {"id": e.id, "title": e.title, "time": "" if e.all_day else t,
-                         "all_day": e.all_day, "start_dt": full}))
+        out.append(
+            _sig(
+                "event",
+                f"event:{e.id}:{iso}",
+                40 if timed else 30,
+                e.title,
+                t or "all day",
+                "calendar",
+                {
+                    "id": e.id,
+                    "title": e.title,
+                    "time": "" if e.all_day else t,
+                    "all_day": e.all_day,
+                    "start_dt": full,
+                },
+            )
+        )
     return out
 
 
@@ -122,8 +176,17 @@ def _reminders(db, today):
     for r in db.query(Reminder).filter(Reminder.fired == False).all():  # noqa: E712
         if r.trigger_at and r.trigger_at.date() <= today:
             at = r.trigger_at.strftime("%H:%M")
-            out.append(_sig("reminder", f"reminder:{r.id}", 60, r.text, f"reminder {at}",
-                            "reminders", {"id": r.id, "text": r.text, "at": at}))
+            out.append(
+                _sig(
+                    "reminder",
+                    f"reminder:{r.id}",
+                    60,
+                    r.text,
+                    f"reminder {at}",
+                    "reminders",
+                    {"id": r.id, "text": r.text, "at": at},
+                )
+            )
     return out
 
 
@@ -150,10 +213,24 @@ def _subs(db, today):
         else:
             u = 25
         detail = f"renews in {in_days}d" if in_days >= 0 else f"overdue {-in_days}d"
-        out.append(_sig("sub", f"sub_renew:{s.id}:{s.next_due}", u, s.name, detail,
-                        "subs",
-                        {"id": s.id, "name": s.name, "in_days": in_days, "price": s.price,
-                         "currency": s.currency, "remind_days": rd}))
+        out.append(
+            _sig(
+                "sub",
+                f"sub_renew:{s.id}:{s.next_due}",
+                u,
+                s.name,
+                detail,
+                "subs",
+                {
+                    "id": s.id,
+                    "name": s.name,
+                    "in_days": in_days,
+                    "price": s.price,
+                    "currency": s.currency,
+                    "remind_days": rd,
+                },
+            )
+        )
     return out
 
 
@@ -173,8 +250,17 @@ def _day_events(db, today):
         diff = (target - today).days
         if 0 <= diff <= 14:
             u = 60 if diff <= 1 else (45 if diff <= 3 else 20)
-            out.append(_sig("day_event", f"day_event:{ev.id}:{target.isoformat()}", u, ev.name,
-                            f"in {diff}d", "days", {"id": ev.id, "name": ev.name, "in_days": diff}))
+            out.append(
+                _sig(
+                    "day_event",
+                    f"day_event:{ev.id}:{target.isoformat()}",
+                    u,
+                    ev.name,
+                    f"in {diff}d",
+                    "days",
+                    {"id": ev.id, "name": ev.name, "in_days": diff},
+                )
+            )
     return out
 
 
@@ -184,16 +270,34 @@ def _habits(db, today):
     for h in db.query(Habit).filter(Habit.archived == False).all():  # noqa: E712
         done = db.query(HabitLog).filter(HabitLog.habit_id == h.id, HabitLog.date == iso).first()
         if not done:
-            out.append(_sig("habit", f"habit_gap:{h.id}:{iso}", 30, h.name, "not done today",
-                            "habits", {"id": h.id, "name": h.name}))
+            out.append(
+                _sig(
+                    "habit",
+                    f"habit_gap:{h.id}:{iso}",
+                    30,
+                    h.name,
+                    "not done today",
+                    "habits",
+                    {"id": h.id, "name": h.name},
+                )
+            )
     return out
 
 
 def _books(db, today):
     out = []
     for b in db.query(Book).filter(Book.status == "reading").all():
-        out.append(_sig("book", f"book_reading:{b.id}", 15, b.title, "currently reading",
-                        "books", {"id": b.id, "title": b.title}))
+        out.append(
+            _sig(
+                "book",
+                f"book_reading:{b.id}",
+                15,
+                b.title,
+                "currently reading",
+                "books",
+                {"id": b.id, "title": b.title},
+            )
+        )
     return out
 
 
@@ -207,9 +311,17 @@ def _health(db, today):
     if not w:
         return []
     unit = f" {w.unit}" if w.unit else ""
-    return [_sig("health", f"health_weight:{w.id}", 10, f"weight {w.value:g}{unit}",
-                 f"last logged {w.date}", "health",
-                 {"kind": "weight", "value": w.value, "unit": w.unit, "date": w.date})]
+    return [
+        _sig(
+            "health",
+            f"health_weight:{w.id}",
+            10,
+            f"weight {w.value:g}{unit}",
+            f"last logged {w.date}",
+            "health",
+            {"kind": "weight", "value": w.value, "unit": w.unit, "date": w.date},
+        )
+    ]
 
 
 def _budget(db, today):
@@ -218,17 +330,72 @@ def _budget(db, today):
     month = today.strftime("%Y-%m")
     spent = _spending_by_cat(db, month)
     out = []
+    by_tag = None
     for b in db.query(Budget).all():
         lim = b.limit_amt or 0
-        if lim <= 0 or spent.get(b.category, 0.0) < lim:
+        if lim <= 0:
             continue
-        used = spent.get(b.category, 0.0)
+        tag = (getattr(b, "tag", "") or "").strip().lower()
+        if tag:  # 2e - tag budget, rolled up through the hierarchy
+            if by_tag is None:
+                from services.tag_rules import spending_by_tag
+
+                by_tag = spending_by_tag(db, month)
+            used = by_tag.get(tag, 0.0)
+            if used < lim:
+                continue
+            key, label = f"budget_over:tag:{tag}:{month}", f"#{tag} over budget"
+            data = {"tag": tag, "spent": round(used, 2), "limit": lim, "over": round(used - lim, 2)}
+        else:
+            used = spent.get(b.category, 0.0)
+            if used < lim:
+                continue
+            key, label = f"budget_over:{b.category}:{month}", f"{b.category} over budget"
+            data = {
+                "category": b.category,
+                "spent": round(used, 2),
+                "limit": lim,
+                "over": round(used - lim, 2),
+            }
         u = 70 if used >= lim * 1.5 else 55
-        out.append(_sig("budget", f"budget_over:{b.category}:{month}", u,
-                        f"{b.category} over budget",
-                        f"spent {used:.0f} of {lim:.0f} this month", "money",
-                        {"category": b.category, "spent": round(used, 2), "limit": lim,
-                         "over": round(used - lim, 2)}))
+        out.append(
+            _sig(
+                "budget", key, u, label, f"spent {used:.0f} of {lim:.0f} this month", "money", data
+            )
+        )
+    out.extend(_anomalies(db, today, month))  # 2c - spend spikes + new merchants
+    return out
+
+
+def _anomalies(db, today, month):
+    """2c - category spend spikes vs history + first-time merchants. ride the budget family."""
+    from services import money_stats
+
+    out = []
+    for a in money_stats.category_anomalies(db, as_of=today):
+        out.append(
+            _sig(
+                "budget",
+                f"anomaly:cat:{a['category']}:{month}",
+                65,
+                f"{a['category']} spending spike",
+                f"{a['current']:.0f} this month vs ~{a['baseline']:.0f} usual ({a['ratio']}x)",
+                "money",
+                a,
+            )
+        )
+    for nm in money_stats.new_merchants(db, as_of=today)[:3]:
+        out.append(
+            _sig(
+                "budget",
+                f"anomaly:merchant:{nm['merchant']}:{month}",
+                45,
+                f"new merchant: {nm['merchant']}",
+                f"first time spending here this month ({nm['amount']:.0f})",
+                "money",
+                nm,
+            )
+        )
     return out
 
 
@@ -237,6 +404,7 @@ def _accounts(db, today):
 
     bal = _balances(db)
     out = []
+    out.extend(_tax_reminder(db, today))  # 2f - quarterly estimated-tax set-aside (gated)
     for a in db.query(Account).filter(Account.archived == False).all():  # noqa: E712
         thr = a.low_balance or 0
         if thr <= 0:
@@ -244,11 +412,58 @@ def _accounts(db, today):
         balance = (a.opening or 0.0) + bal.get(a.id, 0.0)
         if balance >= thr:
             continue
-        out.append(_sig("account", f"account_low:{a.id}", 70, f"{a.name} balance low",
-                        f"{a.currency}{balance:.0f} (under {a.currency}{thr:.0f})", "money",
-                        {"id": a.id, "name": a.name, "balance": round(balance, 2),
-                         "threshold": thr, "currency": a.currency}))
+        out.append(
+            _sig(
+                "account",
+                f"account_low:{a.id}",
+                70,
+                f"{a.name} balance low",
+                f"{a.currency}{balance:.0f} (under {a.currency}{thr:.0f})",
+                "money",
+                {
+                    "id": a.id,
+                    "name": a.name,
+                    "balance": round(balance, 2),
+                    "threshold": thr,
+                    "currency": a.currency,
+                },
+            )
+        )
     return out
+
+
+def _tax_reminder(db, today):
+    from core.settings import load_settings
+    from services import income
+
+    cfg = load_settings()
+    if not cfg.get("tax_reminders", False):
+        return []
+    q = income.upcoming_due(today)
+    if not q:
+        return []
+    earned = income.due_quarter_income(db, q)
+    if earned <= 0:
+        return []
+    rate = cfg.get("tax_setaside_rate", 0.25) or 0.25
+    aside = round(earned * rate, 2)
+    return [
+        _sig(
+            "account",
+            f"tax_quarter:{q['label']}:{q['due']}",
+            60,
+            f"{q['label']} estimated taxes due {q['due']}",
+            f"set aside ~{aside:.0f} ({int(rate * 100)}% of {earned:.0f} earned)",
+            "money",
+            {
+                "quarter": q["label"],
+                "due": q["due"],
+                "earned": earned,
+                "set_aside": aside,
+                "rate": rate,
+            },
+        )
+    ]
 
 
 def _mail(db, today):
@@ -260,8 +475,11 @@ def _mail(db, today):
     out = []
     rows = (
         db.query(CachedMessage)
-        .filter(CachedMessage.seen == False, CachedMessage.muted == False,  # noqa: E712
-                CachedMessage.folder == "INBOX")
+        .filter(
+            CachedMessage.seen == False,
+            CachedMessage.muted == False,  # noqa: E712
+            CachedMessage.folder == "INBOX",
+        )
         .order_by(CachedMessage.date_ts.desc())
         .limit(60)
         .all()
@@ -273,11 +491,23 @@ def _mail(db, today):
         if not (m.flagged or vip):
             continue
         who = (m.sender or "").split("<")[0].strip() or (m.sender or "")
-        out.append(_sig("mail", f"mail_important:{m.account_id}:{m.uid}", 60 if vip else 50,
-                        f"{'vip' if vip else 'flagged'}: {m.subject or '(no subject)'}",
-                        f"from {who}", "mail",
-                        {"account_id": m.account_id, "uid": m.uid, "sender": m.sender,
-                         "subject": m.subject, "vip": vip}))
+        out.append(
+            _sig(
+                "mail",
+                f"mail_important:{m.account_id}:{m.uid}",
+                60 if vip else 50,
+                f"{'vip' if vip else 'flagged'}: {m.subject or '(no subject)'}",
+                f"from {who}",
+                "mail",
+                {
+                    "account_id": m.account_id,
+                    "uid": m.uid,
+                    "sender": m.sender,
+                    "subject": m.subject,
+                    "vip": vip,
+                },
+            )
+        )
         if len(out) >= 5:
             break
     return out
@@ -295,9 +525,17 @@ def _journal(db, today):
         return []
     if gap < 3:
         return []
-    return [_sig("journal", f"journal_stale:{last.date}", 25, "journal is getting stale",
-                 f"no entry in {gap} days", "journal",
-                 {"last_date": last.date, "gap_days": gap})]
+    return [
+        _sig(
+            "journal",
+            f"journal_stale:{last.date}",
+            25,
+            "journal is getting stale",
+            f"no entry in {gap} days",
+            "journal",
+            {"last_date": last.date, "gap_days": gap},
+        )
+    ]
 
 
 _COLLECTORS = {
@@ -335,3 +573,99 @@ def by_category(sigs) -> dict:
     for s in sigs:
         g.setdefault(s["category"], []).append(s)
     return g
+
+
+# ── history + synthesis (1b) ────────────────────────────────────────────────────────
+# NOTE: record_snapshot WRITES - call it only on the periodic proactive path, never from
+# gather() (which stays pure + runs on every page load). synthesize() is a pure read.
+def record_snapshot(db, sigs, *, keep_days=30, now=None):
+    """persist the current signal set as one snapshot, then trim history older than keep_days."""
+    now = now or datetime.utcnow()
+    n = 0
+    for sg in sigs:
+        db.add(
+            SignalSnapshot(
+                ts=now,
+                category=sg.get("category", ""),
+                key=sg.get("key", ""),
+                urgency=int(sg.get("urgency", 0)),
+                data=json.dumps(sg.get("data") or {}),
+            )
+        )
+        n += 1
+    db.query(SignalSnapshot).filter(SignalSnapshot.ts < now - timedelta(days=keep_days)).delete()
+    db.commit()
+    return n
+
+
+def synthesize(db, now=None, *, window_days=14, trend_min_delta=1.0, corr_min_frac=0.5):
+    """read recent snapshot history and emit DERIVED signals (trend:<cat>, corr:<a>:<b>) with an
+    `explain`. pure read. needs >=2 distinct snapshot times to say anything."""
+    now = now or datetime.utcnow()
+    rows = (
+        db.query(SignalSnapshot)
+        .filter(SignalSnapshot.ts >= now - timedelta(days=window_days))
+        .all()
+    )
+    if not rows:
+        return []
+    snaps = {}  # ts -> {category: count}
+    for r in rows:
+        snaps.setdefault(r.ts, {})
+        snaps[r.ts][r.category] = snaps[r.ts].get(r.category, 0) + 1
+    times = sorted(snaps)
+    if len(times) < 2:
+        return []
+    cats = sorted({c for t in times for c in snaps[t]})
+    out = []
+    # TREND: a category whose mean count in the late half of the window rose vs the early half
+    half = len(times) // 2
+    early_t, late_t = (times[:half] or times[:1]), times[half:]
+    for cat in cats:
+        em = sum(snaps[t].get(cat, 0) for t in early_t) / len(early_t)
+        lm = sum(snaps[t].get(cat, 0) for t in late_t) / len(late_t)
+        delta = lm - em
+        if delta >= trend_min_delta:
+            out.append(
+                {
+                    **_sig(
+                        "trend",
+                        f"trend:{cat}",
+                        min(90, 40 + int(delta * 10)),
+                        f"{cat} is trending up",
+                        f"{cat} signals rose from ~{em:.0f} to ~{lm:.0f} over the last {window_days}d",
+                        "",
+                        {
+                            "delta": round(delta, 2),
+                            "from": round(em, 2),
+                            "to": round(lm, 2),
+                            "cat": cat,
+                        },
+                    ),
+                    "explain": f"the count of {cat} signals climbed across recent snapshots (~{em:.0f} -> ~{lm:.0f}).",
+                }
+            )
+    # CORR: two categories that co-occur in the same snapshots above a fraction of the window
+    n_t = len(times)
+    need = max(2, int(corr_min_frac * n_t))
+    for i in range(len(cats)):
+        for j in range(i + 1, len(cats)):
+            a, b = cats[i], cats[j]
+            both = sum(1 for t in times if snaps[t].get(a, 0) > 0 and snaps[t].get(b, 0) > 0)
+            if both >= need and both / n_t >= corr_min_frac:
+                out.append(
+                    {
+                        **_sig(
+                            "corr",
+                            f"corr:{a}:{b}",
+                            min(70, 30 + int(both / n_t * 40)),
+                            f"{a} + {b} keep showing up together",
+                            f"{a} and {b} co-occurred in {both}/{n_t} recent snapshots",
+                            "",
+                            {"a": a, "b": b, "both": both, "snapshots": n_t},
+                        ),
+                        "explain": f"{a} and {b} appeared together in {both} of {n_t} recent snapshots - they may be linked.",
+                    }
+                )
+    out.sort(key=lambda x: -x["urgency"])
+    return out

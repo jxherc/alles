@@ -1,9 +1,12 @@
 import json
-from fastapi import APIRouter, HTTPException
+
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
+from sqlalchemy.orm import Session as DbSession
 
-from services.research import run_research, get_task, cancel_task
+from core.database import get_db
+from services.research import cancel_task, get_task, run_research
 
 router = APIRouter(prefix="/api")
 
@@ -21,7 +24,7 @@ def _first_chat_model(ep) -> str:
 
 
 def _resolve_ep():
-    from core.database import SessionLocal, ModelEndpoint
+    from core.database import ModelEndpoint, SessionLocal
     from core.settings import load_settings
 
     db = SessionLocal()
@@ -83,6 +86,16 @@ async def start_research(body: ResearchRequest):
 
 
 # GET /api/research/{session_id}  — full task state
+# 3g - declared before /research/{session_id} so "cache" isn't captured as a session id
+@router.get("/research/cache")
+def research_cache(q: str = "", db: DbSession = Depends(get_db)):
+    """cache-first lookup over the cross-session research fact cache, + contradiction flags."""
+    from services.research import fact_cache
+
+    hits = fact_cache.cached(db, q) if q else []
+    return {"findings": hits, "contradictions": fact_cache.contradictions(hits)}
+
+
 @router.get("/research/{session_id}")
 def get_research(session_id: str):
     t = get_task(session_id)

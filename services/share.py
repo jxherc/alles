@@ -5,20 +5,26 @@ column for back-compat; this covers doc/file/photo and (later) album/contact/eve
 helpers take an open db session so routes pass Depends(get_db) and tests pass self.db().
 """
 
+import hashlib
 import html as _html
 import re
 import uuid
+from datetime import datetime
 
 from core.database import Share
 
 VALID_KINDS = {"doc", "file", "folder", "photo", "album", "contact", "event", "session", "persona"}
 
 
+def _pw_hash(pw):
+    return hashlib.sha256(("alles-share:" + pw).encode()).hexdigest() if pw else ""
+
+
 def _norm(kind, ref):
     return (kind or "").strip().lower(), (ref or "").strip()
 
 
-def mint(db, kind, ref, level="view"):
+def mint(db, kind, ref, level="view", *, expires_at=None, password=None):
     kind, ref = _norm(kind, ref)
     if kind not in VALID_KINDS:
         raise ValueError(f"bad kind: {kind!r}")
@@ -27,14 +33,47 @@ def mint(db, kind, ref, level="view"):
     level = "download" if level == "download" else "view"
     s = db.query(Share).filter_by(kind=kind, ref=ref).first()
     if s:
-        if s.level != level:  # idempotent, but allow a level change
-            s.level = level
-            db.commit()
+        s.level = level  # idempotent, but refresh level/expiry/password
+        if expires_at is not None:
+            s.expires_at = expires_at or ""
+        if password is not None:
+            s.password_hash = _pw_hash(password)
+        db.commit()
         return s
-    s = Share(token=uuid.uuid4().hex, kind=kind, ref=ref, level=level)
+    s = Share(
+        token=uuid.uuid4().hex,
+        kind=kind,
+        ref=ref,
+        level=level,
+        expires_at=expires_at or "",
+        password_hash=_pw_hash(password),
+    )
     db.add(s)
     db.commit()
     db.refresh(s)
+    return s
+
+
+def is_expired(share, now=None):
+    exp = (getattr(share, "expires_at", "") or "").strip()
+    if not exp:
+        return False
+    now = now or datetime.utcnow().isoformat()
+    return now >= exp
+
+
+def check_password(share, pw):
+    h = getattr(share, "password_hash", "") or ""
+    if not h:
+        return True  # open share
+    return _pw_hash(pw or "") == h
+
+
+def resolve(db, token, password="", *, now=None):
+    """the share for a token only if it's live (not expired) and the password (if any) matches."""
+    s = lookup(db, token)
+    if not s or is_expired(s, now) or not check_password(s, password):
+        return None
     return s
 
 

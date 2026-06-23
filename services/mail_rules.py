@@ -1,8 +1,38 @@
-"""mail rules engine + vacation responder (5d). matching + vacation logic are pure;
-applying to the cache (markread/mute) is the locally-testable action (IMAP move/label and
-the auto-reply send stay best-effort elsewhere)."""
+"""mail rules engine + vacation responder (5d, completed 2g). matching + vacation logic are pure;
+applying to the cache (markread/mute/label) + enqueuing autoreplies/vacation sends into the outbox
+are locally testable against the db."""
 
-from core.database import CachedMessage
+from datetime import datetime
+
+from core.database import CachedMessage, ScheduledMail
+
+
+def _add_label(csv, label):
+    """append `label` to a csv label string, lowercased + deduped, order-preserving."""
+    label = (label or "").strip().lower()
+    seen, out = set(), []
+    for t in (csv or "").split(","):
+        t = t.strip().lower()
+        if t and t not in seen:
+            seen.add(t)
+            out.append(t)
+    if label and label not in seen:
+        out.append(label)
+    return ",".join(out)
+
+
+def _enqueue(db, account_id, to, subject, body):
+    """queue an outbound reply for the existing outbox job to send (send_at=now)."""
+    m = ScheduledMail(
+        account_id=account_id,
+        to=to,
+        subject=subject,
+        body=body or "",
+        send_at=datetime.utcnow().isoformat(),
+        status="scheduled",
+    )
+    db.add(m)
+    return m
 
 
 def _field(rule, name, default=""):
@@ -29,19 +59,50 @@ def apply_rules(msg, rules):
 
 
 def run_on_cache(db, account_id, rules):
-    """apply markread / mute rules over an account's cached messages. returns count applied."""
+    """apply markread / mute / label / autoreply rules over an account's cached messages.
+    returns count applied. label dedupes; autoreply enqueues once per message (autoreplied guard)."""
     n = 0
     for row in db.query(CachedMessage).filter_by(account_id=account_id).all():
         msg = {"from": row.sender or "", "subject": row.subject or ""}
         for act in apply_rules(msg, rules):
-            if act["action"] == "markread" and not row.seen:
+            a, arg = act["action"], act.get("action_arg", "")
+            if a == "markread" and not row.seen:
                 row.seen = True
                 n += 1
-            elif act["action"] == "mute" and not row.muted:
+            elif a == "mute" and not row.muted:
                 row.muted = True
+                n += 1
+            elif a == "label":
+                new = _add_label(row.labels, arg)
+                if new != (row.labels or ""):
+                    row.labels = new
+                    n += 1
+            elif a == "autoreply" and not row.autoreplied and (row.sender or "").strip():
+                subj = row.subject or ""
+                subj = subj if subj.lower().startswith("re:") else f"Re: {subj}"
+                _enqueue(db, account_id, row.sender, subj, arg)
+                row.autoreplied = True
                 n += 1
     db.commit()
     return n
+
+
+def run_vacation(db, account_id, vac, state, today):
+    """walk the account's cached senders, enqueue a vacation reply once per sender per day.
+    returns (count_enqueued, new_state). caller persists state (settings)."""
+    state = dict(state or {})
+    n = 0
+    seen_senders = []
+    for row in db.query(CachedMessage).filter_by(account_id=account_id, folder="INBOX").all():
+        if row.sender in seen_senders:
+            continue
+        seen_senders.append(row.sender)
+        reply, state = vacation_reply_for(row.sender, vac, state, today)
+        if reply:
+            _enqueue(db, account_id, reply["to"], reply["subject"], reply["body"])
+            n += 1
+    db.commit()
+    return n, state
 
 
 def vacation_reply_for(sender, vac, state, today):

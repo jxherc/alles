@@ -161,11 +161,12 @@ class MovedToHomeTests(unittest.TestCase):
         for bid in ("wiki-canvas-btn", "wiki-board-btn", "wiki-bookmark-btn"):
             self.assertNotIn(bid, INDEX)
 
-    def test_home_gains_new_canvas_board_tasks(self):
-        for bid in ("wiki-home-canvas", "wiki-home-board", "wiki-home-tasks"):
-            self.assertIn(bid, INDEX)
-        self.assertIn("wiki-home-canvas", VAULTMD)
-        self.assertIn("wiki-home-board", VAULTMD)
+    def test_home_has_tasks_not_canvas_board(self):
+        # canvas + board were removed from docs; the tasks tile stays on the home.
+        self.assertIn("wiki-home-tasks", INDEX)
+        for gone in ("wiki-home-canvas", "wiki-home-board"):
+            self.assertNotIn(gone, INDEX)
+            self.assertNotIn(gone, VAULTMD)
 
     def test_cards_are_bookmarkable(self):
         self.assertIn("docs-card-star", VAULTMD)

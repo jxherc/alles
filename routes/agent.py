@@ -1,10 +1,9 @@
-from fastapi import APIRouter
-from fastapi import HTTPException
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from services.agent_tools import agent_status, revert_run
-from services.agent_state import list_runs, get_run, find_active_run
 from services.agent_runtime import resolve_permission
+from services.agent_state import find_active_run, get_run, list_runs
+from services.agent_tools import agent_status, revert_run
 
 router = APIRouter(prefix="/api")
 
@@ -27,8 +26,9 @@ def agent_revert(run_id: str):
 @router.get("/agent/files")
 def agent_files(q: str = "", session_id: str = "", limit: int = 30):
     """workspace files for @-mention autocomplete"""
+    from core.database import Session as Sess
+    from core.database import SessionLocal
     from services.agent_tools import workspace_files
-    from core.database import SessionLocal, Session as Sess
 
     cwd = ""
     if session_id:
@@ -103,12 +103,39 @@ def incomplete_runs(limit: int = 20):
     return list_incomplete(limit)
 
 
+# 3e - declared before /agent/runs/{run_id} so "analysis" isn't captured as a run_id
+@router.get("/agent/runs/analysis")
+def runs_analysis(limit: int = 50):
+    """summaries + intent clusters over recent agent runs."""
+    from services import run_analysis
+
+    runs = run_analysis.load_runs(limit=limit)
+    clusters = run_analysis.cluster_by_intent(runs)
+    return {
+        "summaries": [run_analysis.summarize(r) for r in runs],
+        "clusters": [
+            {"intent": k, "count": len(v), "runs": v} for k, v in sorted(clusters.items())
+        ],
+    }
+
+
 @router.get("/agent/runs/{run_id}")
 def run_detail(run_id: str):
     run = get_run(run_id)
     if not run:
         raise HTTPException(404, "agent run not found")
     return run
+
+
+@router.get("/agent/runs/{run_id}/replay-plan")
+def run_replay_plan(run_id: str, model: str = "", effort: str = ""):
+    """3e - rebuild a past run's input to re-submit (optionally on a different model/effort)."""
+    from services import run_analysis
+
+    run = get_run(run_id)
+    if not run:
+        raise HTTPException(404, "agent run not found")
+    return run_analysis.replay_plan(run, model=model or None, effort=effort or None)
 
 
 @router.get("/agent/runs/{run_id}/events")

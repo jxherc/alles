@@ -207,7 +207,7 @@ def reconcile(db) -> dict:
         for ref in refs:
             if ad["get"](db, ref) is None:
                 orphans += textindex.remove(db, kind, ref)
-    mailed = _index_mail_batch(db)  # stub returns 0 until A6
+    mailed = _index_mail_batch(db)  # pulls bodies for unindexed mail + folds them into recall
     from datetime import datetime
     _last_reconcile = datetime.utcnow().isoformat(timespec="seconds")
     return {"orphans": orphans, "mail_indexed": mailed}
