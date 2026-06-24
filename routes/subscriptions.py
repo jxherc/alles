@@ -596,8 +596,24 @@ def undo_payment(sid: str, db: DbSession = Depends(get_db)):
         if t:
             db.delete(t)
     sub.next_due = last.date
-    sub.last_posted_due = ""  # let a re-pay re-post the charge
+    paid_date = last.date
     db.delete(last)
+    db.flush()
+    # restore the idempotency marker to its pre-payment state instead of wiping it to "" (which
+    # made the next roll re-post every already-charged renewal). keep it < the undone cycle so a
+    # re-pay can re-post exactly that charge.
+    prev = (
+        db.query(SubPayment)
+        .filter(SubPayment.sub_id == sid)
+        .order_by(SubPayment.created_at.desc())
+        .first()
+    )
+    if prev:
+        sub.last_posted_due = prev.date
+    else:
+        from datetime import timedelta
+
+        sub.last_posted_due = (_parse(paid_date) - timedelta(days=1)).isoformat()
     db.commit()
     return _fmt(sub, date.today())
 
