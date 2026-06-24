@@ -74,6 +74,7 @@ export async function loadFiles(path = _cwd) {
   if (!_cwd) { _injectSmartFolders(); _injectDocsShortcut(); }   // at root, surface smart views + the docs vault
 }
 
+let _quotaCache = null;   // {at, data} — disk free space barely moves between folder clicks
 async function _renderQuota() {
   let host = $('files-quota');
   if (!host) {
@@ -86,7 +87,9 @@ async function _renderQuota() {
     else { const list = $('files-list'); list.parentNode.insertBefore(host, list); }
   }
   try {
-    const q = await fetch('/api/files/quota').then(r => r.json());
+    let q;
+    if (_quotaCache && Date.now() - _quotaCache.at < 30000) q = _quotaCache.data;
+    else { q = await fetch('/api/files/quota').then(r => r.json()); _quotaCache = { at: Date.now(), data: q }; }
     // bar = how full the DISK is (used = total-free), not the tiny vault footprint —
     // otherwise 89 B of a 2 TB disk reads as a permanently-empty bar.
     const diskUsed = Math.max(0, (q.total || 0) - (q.free || 0));
@@ -378,9 +381,20 @@ async function toggleStar(path, btn) {
 
 const COLORS = ['', 'red', 'orange', 'green', 'blue', 'purple', 'gray'];
 
+// one shared dismissal for every file popover: drop any open one, and close on outside-click/Escape
+function _closeFilePopovers() { document.querySelectorAll('.file-tagpop').forEach(p => p.remove()); }
+function _armPopDismiss(pop) {
+  setTimeout(() => {
+    const cleanup = () => { document.removeEventListener('mousedown', onDoc); document.removeEventListener('keydown', onKey); };
+    const onDoc = e => { if (!pop.contains(e.target)) { pop.remove(); cleanup(); } };
+    const onKey = e => { if (e.key === 'Escape') { pop.remove(); cleanup(); } };
+    document.addEventListener('mousedown', onDoc);
+    document.addEventListener('keydown', onKey);
+  }, 0);
+}
+
 async function editTags(path, row) {
-  // close any open popover first
-  document.querySelector('.file-tagpop')?.remove();
+  _closeFilePopovers();
   let cur = { tags: [], color: '' };
   try { cur = await fetch(`/api/files/tags?path=${encodeURIComponent(path)}`).then(r => r.json()); } catch {}
   const pop = document.createElement('div');
@@ -390,6 +404,7 @@ async function editTags(path, row) {
     <div class="file-colors">${COLORS.map(c => `<button class="file-cdot ${c ? 'c-' + c : 'c-none'} ${c === (cur.color || '') ? 'sel' : ''}" data-c="${c}" title="${c || 'none'}"></button>`).join('')}</div>
     <div class="file-tagpop-actions"><button class="btn primary" data-save>save</button><button class="btn" data-cancel>cancel</button></div>`;
   row.appendChild(pop);
+  _armPopDismiss(pop);
   let color = cur.color || '';
   pop.querySelectorAll('.file-cdot').forEach(d => d.addEventListener('click', () => {
     color = d.dataset.c;
@@ -408,7 +423,7 @@ async function editTags(path, row) {
 }
 
 async function openVersions(path, row) {
-  row.querySelector('.file-tagpop')?.remove();
+  _closeFilePopovers();
   let vs = [];
   try { vs = await fetch(`/api/files/versions?path=${encodeURIComponent(path)}`).then(r => r.json()); } catch {}
   const pop = document.createElement('div');
@@ -420,6 +435,7 @@ async function openVersions(path, row) {
     : '<div style="font-size:0.72rem;color:var(--muted)">no earlier versions</div>';
   pop.innerHTML = body + '<div class="file-tagpop-actions"><button class="btn" data-cancel>close</button></div>';
   row.appendChild(pop);
+  _armPopDismiss(pop);
   pop.querySelector('[data-cancel]').addEventListener('click', () => pop.remove());
   pop.querySelectorAll('[data-restore]').forEach(btn => btn.addEventListener('click', async () => {
     try {
@@ -431,10 +447,11 @@ async function openVersions(path, row) {
 }
 
 async function openComments(path, row) {
-  row.querySelector('.file-tagpop')?.remove();
+  _closeFilePopovers();
   const pop = document.createElement('div');
   pop.className = 'file-tagpop file-commentpop';
   row.appendChild(pop);
+  _armPopDismiss(pop);
   await _renderComments(pop, path, row);
 }
 
