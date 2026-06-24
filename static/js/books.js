@@ -49,7 +49,7 @@ function _card(b) {
         <div class="book-title">${esc(b.title)}</div>
         <div class="book-author">${esc(b.author || '')}${b.year ? ` · ${b.year}` : ''}</div>
         ${_stars(b)}
-        <div class="book-move">${others.map(k => `<button class="book-move-btn" data-move="${k}">${k === 'done' ? 'finished' : k === 'reading' ? 'reading' : 'want'}</button>`).join('')}</div>
+        <div class="book-move">${others.map(k => `<button class="book-move-btn" data-move="${k}">${k === 'done' ? 'read' : k === 'reading' ? 'reading' : 'want'}</button>`).join('')}</div>
         ${b.id === _editingNotes
           ? `<div class="book-notes-edit"><textarea class="settings-input" data-f="notes" rows="3" placeholder="your notes…">${esc(b.notes)}</textarea><div class="book-notes-actions"><button class="btn primary" data-act="save-notes">save</button><button class="btn" data-act="cancel-notes">cancel</button></div></div>`
           : (b.notes ? `<div class="book-notes" data-act="notes">${esc(b.notes)}</div>` : `<button class="book-add-note" data-act="notes">+ note</button>`)}
@@ -137,10 +137,15 @@ function _wire(body) {
     const doSearch = async () => {
       const q = $('book-q')?.value.trim();
       if (!q) return;
+      // grab whatever's already typed so the re-render below doesn't blow it away
+      const keep = { title: $('book-title')?.value || '', author: $('book-author')?.value || '' };
       const btn = $('book-search'); if (btn) btn.textContent = '…';
       try { _lookup = (await fetch('/api/books/lookup?q=' + encodeURIComponent(q)).then(r => r.json())).results || []; }
       catch { _lookup = []; }
       _render();
+      if ($('book-q')) $('book-q').value = q;
+      if ($('book-title')) $('book-title').value = keep.title;
+      if ($('book-author')) $('book-author').value = keep.author;
     };
     $('book-search')?.addEventListener('click', doSearch);
     $('book-q')?.addEventListener('keydown', e => { if (e.key === 'Enter') doSearch(); });

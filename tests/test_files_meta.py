@@ -48,6 +48,15 @@ class FilesMetaTests(ApiTest):
         r = self.client.post("/api/files/rename", json={"path": "a.txt", "to": "b.txt"})
         self.assertEqual(r.status_code, 400)
 
+    def test_empty_tags_creates_no_row(self):
+        from core.database import FileTag
+
+        self._w("a.txt")
+        self.client.put("/api/files/tags?path=a.txt", json={"tags": [], "color": ""})
+        db = self.db()
+        self.assertEqual(db.query(FileTag).filter_by(path="a.txt").count(), 0)
+        db.close()
+
     def test_delete_clears_tag_metadata(self):
         self._w("a.txt")
         self.client.put("/api/files/star?path=a.txt", json={"starred": True})
