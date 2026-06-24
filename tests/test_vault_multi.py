@@ -41,6 +41,25 @@ class VaultMultiTests(ApiTest):
     def _id_of(self, name):
         return next(v["id"] for v in self._vaults() if v["name"] == name)
 
+    def test_patch_entry_rejects_cross_vault(self):
+        # patching an entry while a DIFFERENT vault is unlocked re-encrypted it under the wrong
+        # key (silent data loss). it must 404 instead, leaving the entry intact.
+        eid = self.client.post(
+            "/api/vault", json={"name": "Email", "fields": {"password": "secret-pw"}}, headers=self.h
+        ).json()["id"]
+        self._mk_vault("Work", "wpw")
+        wtok = self.client.post(
+            "/api/vault/unlock", json={"password": "wpw", "vault_id": self._id_of("Work")}
+        ).json()["token"]
+        r = self.client.patch(
+            f"/api/vault/{eid}", json={"fields": {"password": "hacked"}},
+            headers={"X-Vault-Token": wtok},
+        )
+        self.assertEqual(r.status_code, 404)
+        # original still decrypts with its own vault
+        rev = self.client.get(f"/api/vault/{eid}/reveal", headers=self.h).json()
+        self.assertEqual(rev["value"], "secret-pw")
+
     # ── multiple vaults ──────────────────────────────────────────────────────
     def test_default_vault_exists(self):
         ids = [v["id"] for v in self._vaults()]

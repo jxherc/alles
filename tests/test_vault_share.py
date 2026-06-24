@@ -36,6 +36,16 @@ class VaultShareTests(ApiTest):
         self.assertTrue(d["key"])
         self.assertIn(f"#{d['key']}", d["url"])
 
+    def test_delete_entry_kills_share_link(self):
+        # deleting a secret must revoke its public share link, not leave it live + decryptable
+        d = self._mint()
+        self.assertEqual(self.client.get(f"/sv/{d['token']}/data").status_code, 200)
+        self.client.delete(f"/api/vault/{self.eid}", headers=self.h)
+        db = self.db()
+        self.assertEqual(db.query(VaultShare).filter(VaultShare.entry_id == self.eid).count(), 0)
+        db.close()
+        self.assertNotEqual(self.client.get(f"/sv/{d['token']}/data").status_code, 200)
+
     def test_data_is_ciphertext(self):
         d = self._mint()
         body = self.client.get(f"/sv/{d['token']}/data").json()
