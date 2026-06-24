@@ -37,7 +37,10 @@ def _inline_from_html(html):
 def _default_send(acct, m):
     from services import mail as mailsvc
 
+    # carry the full account incl. auth_type + oauth tokens, or an oauth (sign-in-with-google)
+    # account falls through to a password login with an empty password and never delivers
     acct_dict = {
+        "id": acct.id,
         "imap_host": acct.imap_host,
         "imap_port": acct.imap_port,
         "smtp_host": acct.smtp_host,
@@ -46,6 +49,10 @@ def _default_send(acct, m):
         "password": acct.password,
         "email": acct.email,
         "use_ssl": acct.use_ssl,
+        "auth_type": acct.auth_type,
+        "oauth_access_token": acct.oauth_access_token,
+        "oauth_refresh_token": acct.oauth_refresh_token,
+        "oauth_expires_at": acct.oauth_expires_at,
     }
     html, inline = _inline_from_html(getattr(m, "html", "") or "")
     mailsvc.send_mail(
