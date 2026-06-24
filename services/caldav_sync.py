@@ -135,7 +135,17 @@ def sync() -> dict:
                 end_dt = _iso(de.dt) if de else None
                 if not start_dt:
                     continue
-                all_day = ds and not isinstance(ds.dt, datetime)
+                all_day = bool(ds and not isinstance(ds.dt, datetime))
+                # all-day DTEND is exclusive in RFC 5545; store the inclusive last day to match
+                # the rest of the app (ics.parse_ics + locally-created events)
+                if all_day and end_dt:
+                    from datetime import date as _date
+                    from datetime import timedelta as _td
+
+                    try:
+                        end_dt = (_date.fromisoformat(end_dt[:10]) - _td(days=1)).isoformat()
+                    except ValueError:
+                        pass
                 row = db.query(CalendarEvent).filter(CalendarEvent.caldav_uid == uid).first()
                 if row:
                     row.title, row.description, row.start_dt, row.end_dt, row.all_day = (
