@@ -176,23 +176,32 @@ def import_contacts(body: ImportBody, db: DbSession = Depends(get_db)):
     from services.vcard import parse_vcards
 
     n = 0
+    created = []
     for c in parse_vcards(body.vcard):
-        db.add(
-            Contact(
-                name=c["name"],
-                email=c.get("email", ""),
-                phone=c.get("phone", ""),
-                notes=c.get("notes", ""),
-                tags="[]",
-                company=c.get("company", ""),
-                title=c.get("title", ""),
-                address=c.get("address", ""),
-                birthday=c.get("birthday", ""),
-                website=c.get("website", ""),
-            )
+        row = Contact(
+            name=c["name"],
+            email=c.get("email", ""),
+            phone=c.get("phone", ""),
+            notes=c.get("notes", ""),
+            tags="[]",
+            company=c.get("company", ""),
+            title=c.get("title", ""),
+            address=c.get("address", ""),
+            birthday=c.get("birthday", ""),
+            website=c.get("website", ""),
         )
+        db.add(row)
+        created.append(row)
         n += 1
     db.commit()
+    # index them like create_contact does, or imported contacts are invisible to global search
+    try:
+        from services import personal_index
+
+        for row in created:
+            personal_index.index_record(db, "contact", row)
+    except Exception:
+        pass
     return {"imported": n}
 
 
@@ -295,6 +304,8 @@ def delete_contact(cid: str, db: DbSession = Depends(get_db)):
     db.query(ContactLink).filter(
         (ContactLink.from_id == cid) | (ContactLink.to_id == cid)
     ).delete()
+    if c.avatar:  # don't leak the avatar blob on disk
+        (_avatar_dir() / c.avatar).unlink(missing_ok=True)
     db.delete(c)
     db.commit()
     try:
@@ -587,14 +598,43 @@ def merge_contacts(body: MergeBody, db: DbSession = Depends(get_db)):
     # append notes
     if (o.notes or "").strip():
         p.notes = ((p.notes or "").strip() + "\n" + o.notes).strip()
+    oid = o.id
     # move labeled fields + group memberships
-    db.query(ContactField).filter(ContactField.contact_id == o.id).update(
+    db.query(ContactField).filter(ContactField.contact_id == oid).update(
         {ContactField.contact_id: p.id}
     )
-    db.query(ContactGroupMember).filter(ContactGroupMember.contact_id == o.id).update(
+    db.query(ContactGroupMember).filter(ContactGroupMember.contact_id == oid).update(
         {ContactGroupMember.contact_id: p.id}
+    )
+    # re-point relationship edges too, then drop any self-loop the merge just created
+    db.query(ContactLink).filter(ContactLink.from_id == oid).update(
+        {ContactLink.from_id: p.id}, synchronize_session=False
+    )
+    db.query(ContactLink).filter(ContactLink.to_id == oid).update(
+        {ContactLink.to_id: p.id}, synchronize_session=False
+    )
+    db.query(ContactLink).filter(ContactLink.from_id == ContactLink.to_id).delete(
+        synchronize_session=False
     )
     p.updated_at = datetime.utcnow()
     db.delete(o)
     db.commit()
+    # keep global search in step: drop the merged-away contact, re-index the primary
+    try:
+        from services import personal_index
+
+        personal_index.remove_record(db, "contact", oid)
+        personal_index.index_record(db, "contact", p)
+    except Exception:
+        pass
     return _fmt(p, db)
+
+
+# registered last so it can't shadow the literal /contacts/me, /contacts/groups, etc.
+@router.get("/contacts/{cid}")
+def get_contact(cid: str, db: DbSession = Depends(get_db)):
+    """one contact - lets the detail view fetch a single card instead of the whole list."""
+    c = db.get(Contact, cid)
+    if not c:
+        raise HTTPException(404)
+    return _fmt(c, db)

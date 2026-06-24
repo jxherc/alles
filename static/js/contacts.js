@@ -85,7 +85,8 @@ async function showBirthdays() {
 
 function _avatarHtml(c, big) {
   const sz = big ? 'contact-av-lg' : 'contact-av';
-  if (c.avatar) return `<img class="${sz}" src="/api/contacts/${c.id}/avatar?ts=${Date.now()}" alt="">`;
+  // cache-key on the contact's own version, not Date.now(), or every keystroke re-downloads every avatar
+  if (c.avatar) return `<img class="${sz}" src="/api/contacts/${c.id}/avatar?v=${encodeURIComponent(c.updated_at || c.avatar)}" alt="">`;
   const init = (c.name || '?').trim()[0]?.toUpperCase() || '?';
   return `<span class="${sz} contact-av-ph">${_esc(init)}</span>`;
 }
@@ -135,7 +136,7 @@ const SCALARS = [['email', 'email'], ['phone', 'phone'], ['company', 'company'],
   ['address', 'address'], ['birthday', 'birthday (YYYY-MM-DD)'], ['website', 'website']];
 
 async function openContact(id) {
-  const c = (await fetch('/api/contacts').then(r => r.json())).find(x => x.id === id);
+  const c = await fetch('/api/contacts/' + id).then(r => r.ok ? r.json() : null).catch(() => null);
   if (!c) return;
   const list = document.getElementById('contacts-list');
   const mapLink = (c.address || '').trim()
@@ -217,8 +218,11 @@ async function showGroups() {
   document.getElementById('cg-back').addEventListener('click', () => loadContacts());
   document.getElementById('cg-add').addEventListener('click', addGroup);
   const cg = document.getElementById('cg-list');
-  for (const g of groups) {
-    const members = await fetch(`/api/contacts/groups/${g.id}/members`).then(r => r.json()).catch(() => []);
+  // fetch every group's members in parallel instead of one serialized round-trip per group
+  const memberLists = await Promise.all(groups.map(g =>
+    fetch(`/api/contacts/groups/${g.id}/members`).then(r => r.json()).catch(() => [])));
+  groups.forEach((g, gi) => {
+    const members = memberLists[gi];
     const div = document.createElement('div');
     div.className = 'settings-list-row';
     div.innerHTML = `<span class="row-name">${_esc(g.name)}${g.smart ? ' <span class="contact-me-badge">smart</span>' : ''}</span>
@@ -228,7 +232,7 @@ async function showGroups() {
       await fetch(`/api/contacts/groups/${g.id}`, { method: 'DELETE' }); showGroups();
     });
     cg.appendChild(div);
-  }
+  });
 }
 
 async function addGroup() {
@@ -249,11 +253,16 @@ async function showDuplicates() {
     + clusters.map((cl, i) => `
       <div class="dup-cluster" data-i="${i}">
         ${cl.contacts.map(c => `<div class="dup-row"><span class="row-name">${_esc(c.name)}</span><span class="row-meta">${_esc(c.email || c.phone || '')}</span></div>`).join('')}
-        <button class="btn" data-merge="${cl.contacts[0].id}" data-other="${cl.contacts[1].id}">merge these</button>
+        <button class="btn" data-merge="${i}">merge these</button>
       </div>`).join('');
   document.getElementById('cdup-back').addEventListener('click', () => loadContacts());
   list.querySelectorAll('[data-merge]').forEach(b => b.addEventListener('click', async () => {
-    await fetch('/api/contacts/merge', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ primary_id: b.dataset.merge, other_id: b.dataset.other }) });
+    const cl = clusters[Number(b.dataset.merge)];
+    if (!cl) return;
+    const primary = cl.contacts[0].id;
+    for (const o of cl.contacts.slice(1)) {  // merge the WHOLE cluster, not just the first pair
+      await fetch('/api/contacts/merge', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ primary_id: primary, other_id: o.id }) });
+    }
     toast('merged', 'success'); showDuplicates();
   }));
 }
