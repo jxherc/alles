@@ -93,7 +93,7 @@ function _renderUserModel(facts, settings) {
     return;
   }
   el.innerHTML = live.map(f => {
-    const pct = Math.round((f.confidence == null ? 0 : f.confidence) * 100);
+    const pct = Math.max(0, Math.min(100, Math.round((Number(f.confidence) || 0) * 100)));
     return `<div class="um-fact${f.pinned ? ' pinned' : ''}">
       <div class="um-fact-main">
         <div class="um-fact-text">${_esc(f.text || '')}</div>

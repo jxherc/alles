@@ -96,6 +96,27 @@ class IncognitoEvidenceTests(_DBCase):
         self.assertFalse(any("incognito topic" in t for t in ev["topics"]))
 
 
+class ParserRobustnessTests(_DBCase):
+    def test_insights_parse_numeric_title_no_crash(self):
+        out = insights._parse('[{"title":123,"body":456,"evidence":[1,2]}]')
+        self.assertIsInstance(out, list)
+
+    def test_parse_facts_numeric_text_no_crash(self):
+        out = user_model._parse_facts('[{"text":123,"confidence":0.5}]')
+        self.assertIsInstance(out, list)
+
+    def test_apply_insights_numeric_fields_no_crash(self):
+        n = insights.apply_insights(self.s, [{"title": 123, "body": 456, "evidence": ["e"]}])
+        self.assertIsInstance(n, int)
+
+    def test_apply_distilled_caps_text_300(self):
+        user_model.apply_distilled(
+            self.s, [{"text": "Q" * 9999, "category": "fact", "confidence": 0.7}]
+        )
+        m = self.s.query(db.Memory).filter(db.Memory.source == "distilled").first()
+        self.assertLessEqual(len(m.text), 300)
+
+
 class BuildMessagesTests(_DBCase):
     def _sys(self, extra):
         from routes.chat import _build_messages

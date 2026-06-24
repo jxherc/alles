@@ -41,6 +41,39 @@ proactive learning 1a) visible in the UI and actually inform aide.
 - `node --check` on brain.js + settings.js clean; `ruff check`/`format` clean on touched py.
 - cache stamp bumped sw.js v122 / STAMP 148, index.html style.css?v=148 + _v=148.
 
+## Stress test (round 2)
+
+Hammered the feature on three fronts; found + fixed 4 robustness issues (all pre-existing in the
+parsing layer but now on a user-facing path).
+
+### backend (in-process, tests/../scratchpad/stress_backend.py)
+- parser fuzzing: 24 malformed insight inputs + 31 fact inputs (empty, non-json, non-list, numeric
+  fields, 20k-char title, 5000-item array, XSS strings, em/en-dashes, emoji, null bytes).
+  FOUND: `insights._parse` + `user_model._parse_facts` crashed on a NON-STRING title/text
+  (`'int' object has no attribute 'strip'`) -> a misbehaving model would 500 the generate button.
+  FIXED: coerce with `str(...)` in the guards (+ `apply_insights`/`apply_distilled` fields).
+- FOUND: `apply_distilled` did not cap text to 300 like `apply_insights` caps its fields.
+  FIXED: cap `str(...)[:300]`.
+- injection bounds under 2000 insights + 2000 facts: inject stays <= limit lines, pinned first,
+  total prompt block sane (<25k / <6k), vetoed + low-confidence never appear, `_build_messages`
+  bounded (<30k) with both blocks present.
+
+### http concurrency (stress_http.py, 810 reqs @ 24 workers)
+- 0 5xx, 0 transport errors. veto/pin/dismiss/run/list hammered concurrently. (clean 404s were the
+  decay job deleting faded facts mid-storm - expected.)
+
+### frontend XSS + edge values + volume (tests/pw_brain_stress.py)
+- XSS payloads in title/body/evidence/text/provenance render as INERT escaped text (no alert, no
+  injected img/svg/script nodes, window.__xss never set).
+- FOUND: a string/negative/null/>1 confidence produced `NaN%` / an overflowing bar.
+  FIXED brain.js: `pct = clamp(0,100, round(Number(conf)||0 *100))`.
+- FOUND: a 6000-char unbreakable token ran to the viewport edge.
+  FIXED css: `overflow-wrap: anywhere` on the text containers (wraps cleanly now).
+- volume: 502 insights + 505 facts render, no horizontal overflow.
+- evidence: brain_stress.png.
+
+After hardening: full suite 3304 green; cache bumped v123 / 149.
+
 ## Notes
 - brain lives on the `aide` subdomain; the Playwright test boots there with an authed /api/auth/me
   mock so the full app inits (the apex hub does not bind the brain controls).
