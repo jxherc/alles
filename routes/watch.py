@@ -22,7 +22,7 @@ router = APIRouter(prefix="/api")
 log = logging.getLogger("alles.watch")
 
 KINDS = ("http", "health", "cert")
-KEEP = 200  # checks kept per monitor
+KEEP = 2200  # checks kept per monitor (~7.6 days at the 300s default, so the 7d uptime is real)
 
 
 # ── pure logic (unit-tested without any network) ───────────────────────────────
