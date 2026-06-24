@@ -206,6 +206,7 @@ async function _switchVault(id) {
     });
     if (!r.ok) { toast('wrong password for that vault', 'error'); _renderSwitcher(); return; }
     const j = await r.json();
+    if (j.requires_2fa) { await _do2fa(pw, { ...j, vault_id: id }); return; }  // 2fa vault was unreachable via the switcher
     _token = j.token; _vaultId = j.vault_id;
     await _loadEntries(); await _loadVaults();
     toast('switched vault', 'success');
@@ -1098,20 +1099,55 @@ async function _doUnlock() {
 // falls back to the passkey/security-key challenge if that's the only method enrolled.
 async function _do2fa(pw, j) {
   const methods = j.methods || [];
+  const vid = j.vault_id || _vaultId;  // target the vault being unlocked, not the active one
   if (methods.includes('totp')) {
     const code = await _promptCode('enter your authenticator code');
     if (code == null) return;
     const r = await fetch('/api/vault/unlock/2fa/totp', {
       method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ vault_id: _vaultId, password: pw, code }),
+      body: JSON.stringify({ vault_id: vid, password: pw, code }),
     });
     if (!r.ok) { toast('wrong authenticator code', 'error'); return; }
     const d = await r.json();
-    _token = d.token; _unlocked = true; $('vault-pw-input').value = '';
+    _token = d.token; _vaultId = d.vault_id || vid; _unlocked = true;
+    if ($('vault-pw-input')) $('vault-pw-input').value = '';
     await loadVaultView();
     return;
   }
-  toast('this vault needs its security key — use “unlock with biometric”', 'error');
+  if (methods.includes('passkey')) { await _do2faPasskey(pw, j, vid); return; }
+  toast('this vault needs a second factor that is not set up here', 'error');
+}
+
+// security-key (FIDO2) second factor: the /unlock response already handed us the challenge +
+// allowed credentials (routes/vault.py:157-166), so get an assertion for the role=2fa key and
+// verify it at /unlock/2fa. mirrors _bioUnlock, which is the proven biometric path.
+async function _do2faPasskey(pw, j, vid) {
+  if (!window.PublicKeyCredential) { toast('security keys not supported in this browser', 'error'); return; }
+  if (!j.credentials?.length || !j.challenge) { toast('no security key set up for this vault', 'error'); return; }
+  try {
+    const assertion = await navigator.credentials.get({ publicKey: {
+      challenge: _b64ToBuf(j.challenge),
+      timeout: 60000,
+      userVerification: 'preferred',
+      allowCredentials: j.credentials.map(c => ({ type: 'public-key', id: _b64ToBuf(c) })),
+    } });
+    const resp = assertion.response;
+    const r = await fetch('/api/vault/unlock/2fa', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        vault_id: vid, password: pw,
+        credential_id: _b64(assertion.rawId),
+        authenticator_data: _b64(resp.authenticatorData),
+        client_data_json: _b64(resp.clientDataJSON),
+        signature: _b64(resp.signature),
+      }),
+    });
+    if (!r.ok) { toast('security key unlock failed', 'error'); return; }
+    const d = await r.json();
+    _token = d.token; _vaultId = d.vault_id || vid; _unlocked = true;
+    if ($('vault-pw-input')) $('vault-pw-input').value = '';
+    await loadVaultView();
+  } catch (e) { toast('security key unlock cancelled', ''); }
 }
 
 // a tiny numeric-code prompt → resolves to the string or null
