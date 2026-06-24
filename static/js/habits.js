@@ -87,6 +87,14 @@ function _cadenceSelect(v) {
   return `<div class="settings-input custom-select" data-f="cadence" data-value="${esc(v || 'daily')}" data-options="daily|every day;weekly|a few times a week"></div>`;
 }
 
+const HABIT_COLORS = ['', '#818cf8', '#34d399', '#f472b6', '#fbbf24', '#60a5fa', '#f87171', '#a78bfa'];
+
+function _colorPicker(sel) {
+  return `<div class="habit-colors" data-f="color" data-value="${esc(sel || '')}">
+    ${HABIT_COLORS.map(c => `<span class="habit-sw${(sel || '') === c ? ' sel' : ''}" data-c="${c}" style="${c ? `background:${c}` : ''}" title="${c || 'default'}">${c ? '' : '○'}</span>`).join('')}
+  </div>`;
+}
+
 function _editCard(h) {
   return `
     <div class="habit-card editing" data-id="${h.id}">
@@ -96,6 +104,7 @@ function _editCard(h) {
         ${_cadenceSelect(h.cadence)}
         <input type="text" class="settings-input" data-f="target" value="${h.target}" inputmode="numeric" placeholder="x / week" title="weekly target">
       </div>
+      ${_colorPicker(h.color)}
       <div class="habit-actions">
         <button class="btn primary" data-act="save">save</button>
         <button class="btn" data-act="cancel">cancel</button>
@@ -113,6 +122,7 @@ function _addForm() {
         ${_cadenceSelect('daily')}
         <input type="text" class="settings-input" data-f="target" value="3" inputmode="numeric" placeholder="x / week">
       </div>
+      ${_colorPicker('')}
       <div class="habit-actions">
         <button class="btn primary" data-act="create">add habit</button>
         <button class="btn" data-act="cancel-add">cancel</button>
@@ -123,6 +133,12 @@ function _addForm() {
 function _wire(body) {
   body.querySelectorAll('.custom-select').forEach(initCustomDropdown);
   $('habits-add-toggle')?.addEventListener('click', () => { _adding = !_adding; _editing = null; _render(); });
+
+  body.querySelectorAll('.habit-colors').forEach(box => box.querySelectorAll('.habit-sw').forEach(sw =>
+    sw.addEventListener('click', () => {
+      box.dataset.value = sw.dataset.c;
+      box.querySelectorAll('.habit-sw').forEach(x => x.classList.toggle('sel', x === sw));
+    })));
 
   const add = body.querySelector('.habit-add');
   if (add) {
@@ -156,7 +172,7 @@ function _wire(body) {
         const t = parseInt(v('target')?.value, 10);
         const r = await fetch(`/api/habits/${id}`, {
           method: 'PATCH', headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ name: v('name')?.value.trim(), icon: v('icon')?.value.trim(), cadence: v('cadence')?.dataset.value, target: Number.isNaN(t) ? undefined : t }),
+          body: JSON.stringify({ name: v('name')?.value.trim(), icon: v('icon')?.value.trim(), color: v('color')?.dataset.value || '', cadence: v('cadence')?.dataset.value, target: Number.isNaN(t) ? undefined : t }),
         });
         if (!r.ok) { toast((await r.json()).detail || 'save failed', 'error'); return; }
         _editing = null; toast('saved', 'success'); loadHabits(); return;
@@ -172,7 +188,7 @@ async function _create(card) {
   const t = parseInt(v('target')?.value, 10);
   const r = await fetch('/api/habits', {
     method: 'POST', headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ name, icon: v('icon')?.value.trim() || '', cadence: v('cadence')?.dataset.value || 'daily', target: Number.isNaN(t) ? 3 : t }),
+    body: JSON.stringify({ name, icon: v('icon')?.value.trim() || '', color: v('color')?.dataset.value || '', cadence: v('cadence')?.dataset.value || 'daily', target: Number.isNaN(t) ? 3 : t }),
   });
   if (!r.ok) { toast((await r.json()).detail || 'failed', 'error'); return; }
   _adding = false; toast(`tracking ${name}`, 'success'); loadHabits();
