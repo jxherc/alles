@@ -169,6 +169,23 @@ async function openStarred() {
   renderList(items);
 }
 
+// 4c - browse every file carrying a tag, from anywhere in the tree
+async function openByTag(tag) {
+  _rerender = () => openByTag(tag);
+  let d;
+  try { d = await fetch('/api/files/by-tag?tag=' + encodeURIComponent(tag)).then(r => r.json()); }
+  catch { toast('failed to load', 'error'); return; }
+  _smartCrumb('tagged #' + tag);
+  const items = (d.items || []).map(i => ({
+    path: i.path, name: i.path.split('/').pop(), type: 'file',
+    is_img: /\.(png|jpe?g|gif|webp|svg|bmp)$/i.test(i.path), size: 0,
+    tags: i.tags || [], color: i.color || '',
+  }));
+  if (!items.length) { $('files-list').innerHTML = `<div class="files-empty">no files tagged #${esc(tag)}</div>`; return; }
+  _setGrid(false);
+  renderList(items);
+}
+
 async function openTrash() {
   _rerender = openTrash;
   let items;
@@ -331,7 +348,7 @@ function renderList(items) {
       ${_view === 'grid' ? _thumb(it) : ''}
       <span class="file-dot ${it.color ? 'on c-' + esc(it.color) : ''}"></span>
       <span class="file-icon">${it.type === 'dir' ? _ic('dir') : _ic(it.is_img ? 'img' : 'file')}</span>
-      <span class="file-name">${esc(it.name)}${(it.tags && it.tags.length) ? it.tags.map(t => `<span class="file-tag">${esc(t)}</span>`).join('') : ''}</span>
+      <span class="file-name">${esc(it.name)}${(it.tags && it.tags.length) ? it.tags.map(t => `<span class="file-tag" data-tag="${esc(t)}" title="show all #${esc(t)}">${esc(t)}</span>`).join('') : ''}</span>
       <span class="file-meta">${it.type === 'file' ? fmtSize(it.size) : ''}</span>
       <span class="file-row-actions">
         <button class="file-act file-star${it.starred ? ' on' : ''}" data-act="star" title="star">${_si(it.starred ? 'star-fill' : 'star')}</button>
@@ -347,6 +364,10 @@ function renderList(items) {
 
   list.querySelectorAll('.file-row').forEach(row => {
     const path = row.dataset.path;
+    row.querySelectorAll('.file-tag[data-tag]').forEach(tg => tg.addEventListener('click', e => {
+      e.stopPropagation();   // don't open/navigate the row
+      openByTag(tg.dataset.tag);
+    }));
     row.querySelector('.file-name').addEventListener('click', () => {
       if (row.dataset.type === 'dir') loadFiles(path);
       else openPreview(path, row.dataset.img === '1');

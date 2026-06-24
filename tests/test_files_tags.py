@@ -96,3 +96,15 @@ class FilesTagTests(ApiTest):
         g = self._get("b.txt")
         self.assertEqual(g["color"], "green")
         self.assertEqual(g["tags"], [])
+
+    def test_by_tag_lists_matching_files(self):
+        self._put("a.txt", tags=["work", "urgent"])
+        self._put("sub/c.txt", tags=["work"])
+        self._put("b.txt", tags=["home"])
+        d = self.client.get("/api/files/by-tag", params={"tag": "work"}).json()
+        paths = sorted(i["path"] for i in d["items"])
+        self.assertEqual(paths, ["a.txt", "sub/c.txt"])
+
+    def test_by_tag_empty(self):
+        self._put("a.txt", tags=["work"])
+        self.assertEqual(self.client.get("/api/files/by-tag", params={"tag": "nope"}).json()["items"], [])
