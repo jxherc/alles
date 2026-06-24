@@ -350,6 +350,44 @@ function calForm(cal) {
   });
 }
 
+// the day-keys an occurrence covers. a multi-day all-day event (end date > start) spans every
+// day in [start, end] inclusive (the whole app stores all-day end as the inclusive last day);
+// everything else is just its start day. recurring events stay on the start day (their end_dt is
+// the master's, not the occurrence's, so spanning would be wrong).
+function _spanKeys(o) {
+  const startK = ymd(o._date);
+  if (!o.all_day || !o.end_dt || o._recur) return [startK];
+  const start = new Date(o._date); start.setHours(0, 0, 0, 0);
+  const end = new Date(String(o.end_dt).slice(0, 10) + 'T00:00:00');
+  if (isNaN(end) || end <= start) return [startK];
+  const out = [];
+  for (const cur = new Date(start); cur <= end && out.length < 366; cur.setDate(cur.getDate() + 1)) out.push(ymd(cur));
+  return out;
+}
+
+// pack overlapping timed events into side-by-side columns so a covered event isn't hidden.
+// sets .col (which sub-column) and .ncols (how many the cluster needs) on each item.
+function _layoutCols(evs) {
+  evs.sort((a, b) => a.startMs - b.startMs || a.endMs - b.endMs);
+  let cluster = [], clusterEnd = -Infinity, colEnds = [];
+  const flush = () => {
+    const n = cluster.reduce((m, e) => Math.max(m, e.col + 1), 1);
+    cluster.forEach(e => { e.ncols = n; });
+    cluster = []; colEnds = [];
+  };
+  for (const e of evs) {
+    if (e.startMs >= clusterEnd) flush();   // a gap → start a fresh cluster
+    let col = colEnds.findIndex(end => end <= e.startMs);
+    if (col === -1) col = colEnds.length;
+    colEnds[col] = e.endMs;
+    e.col = col;
+    cluster.push(e);
+    clusterEnd = Math.max(clusterEnd, e.endMs);
+  }
+  flush();
+  return evs;
+}
+
 // ── recurrence expansion (mirrors services/recur.py) ─────────────────────────
 const PYWD = { MO: 0, TU: 1, WE: 2, TH: 3, FR: 4, SA: 5, SU: 6 };
 const parseByday = s => new Set((s || '').split(',').map(t => PYWD[t.trim().toUpperCase()]).filter(v => v != null));
@@ -496,7 +534,7 @@ function renderMonth() {
   const rangeEnd = new Date(year, month, daysInMonth + 7);
   const occ = expand(rangeStart, rangeEnd);
   const byDay = {};
-  for (const o of occ) { const k = ymd(o._date); (byDay[k] = byDay[k] || []).push(o); }
+  for (const o of occ) for (const k of _spanKeys(o)) (byDay[k] = byDay[k] || []).push(o);
   const tasksByDay = {};
   for (const t of _tasks) (tasksByDay[t.date] = tasksByDay[t.date] || []).push(t);
 
@@ -565,7 +603,7 @@ function renderTimeGrid(el, days, occ) {
   for (const d of days) head += `<div class="cal-tg-dayhead${sameDay(d, today) ? ' today' : ''}" data-date="${ymd(d)}"><span class="cal-tg-wd">${WD[d.getDay()]}</span> <span class="cal-tg-dn">${d.getDate()}</span></div>`;
   let allday = '<div class="cal-tg-gutter">all-day</div>';
   for (const d of days) {
-    const items = occ.filter(o => o.all_day && sameDay(o._date, d))
+    const items = occ.filter(o => o.all_day && _spanKeys(o).includes(ymd(d)))
       .map(o => `<div class="cal-allday-ev${o._recur ? ' recurring' : ''}" data-id="${o.id}" data-occ="${ymd(o._date)}" style="${chipStyle(o)}" title="${chipTitle(o)}">${o._recur ? `<span class="cal-chip-recur">${_si('refresh')}</span>` : ''}${esc(o.title)}</div>`).join('');
     allday += `<div class="cal-tg-allday" data-date="${ymd(d)}">${items}</div>`;
   }
@@ -575,12 +613,20 @@ function renderTimeGrid(el, days, occ) {
   let cols = '';
   for (const d of days) {
     let evHtml = '';
-    for (const o of occ.filter(x => !x.all_day && sameDay(x._date, d))) {
+    const dayEvs = occ.filter(x => !x.all_day && sameDay(x._date, d)).map(o => {
       const bs = new Date(o.start_dt), be = o.end_dt ? new Date(o.end_dt) : new Date(bs.getTime() + 3600000);
       const durH = Math.max(0.5, (be - bs) / 3600000);
+      const startMs = o._date.getTime();
+      return { o, durH, startMs, endMs: startMs + durH * 3600000 };
+    });
+    _layoutCols(dayEvs);
+    for (const it of dayEvs) {
+      const o = it.o;
       const top = (o._date.getHours() + o._date.getMinutes() / 60) * HOUR_H;
       const hx = evHex(o);
-      evHtml += `<div class="cal-tev${o._recur ? ' recurring' : ''}" data-id="${o.id}" data-occ="${ymd(o._date)}" style="top:${top}px;height:${durH * HOUR_H - 2}px;background:color-mix(in srgb, ${hx} 24%, transparent);border-left:3px solid ${hx}" title="${chipTitle(o)}"><b>${esc(timeShort(o._date))}</b> ${o._recur ? `<span class="cal-chip-recur">${_si('refresh')}</span>` : ''}${esc(o.title)}${o.location ? `<span class="cal-tev-loc">${esc(o.location)}</span>` : ''}<span class="cal-tev-resize"></span></div>`;
+      const w = `calc((100% - 4px) / ${it.ncols})`;
+      const left = `calc(2px + ${it.col} * (100% - 4px) / ${it.ncols})`;
+      evHtml += `<div class="cal-tev${o._recur ? ' recurring' : ''}" data-id="${o.id}" data-occ="${ymd(o._date)}" style="top:${top}px;height:${it.durH * HOUR_H - 2}px;left:${left};width:${w};right:auto;background:color-mix(in srgb, ${hx} 24%, transparent);border-left:3px solid ${hx}" title="${chipTitle(o)}"><b>${esc(timeShort(o._date))}</b> ${o._recur ? `<span class="cal-chip-recur">${_si('refresh')}</span>` : ''}${esc(o.title)}${o.location ? `<span class="cal-tev-loc">${esc(o.location)}</span>` : ''}<span class="cal-tev-resize"></span></div>`;
     }
     const isToday = sameDay(d, today);
     const nowLine = isToday ? `<div class="cal-now-line" style="top:${nowTop}px"></div>` : '';
