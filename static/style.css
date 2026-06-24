@@ -4055,6 +4055,12 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 .cal-inv-x, .cal-feed-x { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 0.85rem; padding: 0 0.15rem; }
 .cal-inv-x:hover { color: var(--error); }
 .cal-inv-empty { color: var(--muted); font-size: 0.7rem; }
+.cal-inv-suggest { display: flex; flex-wrap: wrap; align-items: center; gap: 0.3rem; margin-bottom: 0.4rem; }
+.cal-inv-suggest-lbl { flex-basis: 100%; color: var(--muted); font-size: 0.66rem; }
+.cal-inv-chip { background: none; border: 1px solid #2a2a2a; border-radius: 3px; color: var(--text); cursor: pointer; font-size: 0.72rem; padding: 0.1rem 0.4rem; }
+.cal-inv-chip:hover { border-color: var(--accent); color: var(--accent); }
+.cal-inv-chip-kind { color: var(--muted); font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.03em; margin-left: 0.15rem; }
+.cal-inv-chip:hover .cal-inv-chip-kind { color: var(--accent); }
 .cal-invite-add { display: flex; gap: 0.3rem; margin-bottom: 0.4rem; }
 .cal-tev {
   position: absolute; left: 2px; right: 2px; z-index: 2;

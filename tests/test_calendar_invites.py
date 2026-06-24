@@ -105,3 +105,47 @@ class CalendarInvitesTests(ApiTest):
         self.assertEqual(
             self.client.post(f"/rsvp/{tok}", json={"status": "tentative"}).status_code, 200
         )
+
+    # ── 4a smart-invite suggestions ─────────────────────────────────────────
+    def _contact(self, name, email=""):
+        return self.client.post("/api/contacts", json={"name": name, "email": email}).json()["id"]
+
+    def _link(self, a, b, kind):
+        self.client.post(f"/api/contacts/{a}/links", json={"to_id": b, "kind": kind})
+
+    def _suggest(self, eid):
+        return self.client.get(f"/api/calendar/{eid}/invite-suggestions").json()["suggestions"]
+
+    def test_suggests_contact_linked_to_an_invitee(self):
+        eid = self._event()
+        ann = self._contact("Ann", "ann@x.com")
+        bob = self._contact("Bob", "bob@x.com")
+        self._link(ann, bob, "spouse")
+        self._invite(eid, "Ann", "ann@x.com")  # matched to the Ann contact by email
+        sugg = self._suggest(eid)
+        self.assertEqual([(s["name"], s["kind"]) for s in sugg], [("Bob", "spouse")])
+
+    def test_suggestion_excludes_already_invited(self):
+        eid = self._event()
+        ann = self._contact("Ann", "ann@x.com")
+        bob = self._contact("Bob", "bob@x.com")
+        self._link(ann, bob, "colleague")
+        self._invite(eid, "Ann", "ann@x.com")
+        self._invite(eid, "Bob", "bob@x.com")  # bob is already on the event
+        self.assertEqual(self._suggest(eid), [])
+
+    def test_no_suggestions_when_invitee_unknown(self):
+        eid = self._event()
+        self._invite(eid, "Stranger", "stranger@nowhere.com")  # not a contact
+        self.assertEqual(self._suggest(eid), [])
+
+    def test_suggestion_matches_invitee_by_name(self):
+        eid = self._event()
+        ann = self._contact("Ann Smith")  # no email on file
+        cara = self._contact("Cara", "cara@x.com")
+        self._link(ann, cara, "friend")
+        self._invite(eid, "Ann Smith", "")  # matched by name
+        self.assertEqual([s["name"] for s in self._suggest(eid)], ["Cara"])
+
+    def test_invite_suggestions_unknown_event_404(self):
+        self.assertEqual(self.client.get("/api/calendar/nope/invite-suggestions").status_code, 404)
