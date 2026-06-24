@@ -23,10 +23,14 @@ def _norm_tags(tags) -> list[str]:
     return out
 
 
-def _tag_map(db) -> dict:
-    """path → {tags, color, starred} for every tagged file, to decorate listings cheaply."""
+def _tag_map(db, paths=None) -> dict:
+    """path → {tags, color, starred}, to decorate listings cheaply. bounded to `paths` when given
+    so listing a folder doesn't scan the entire FileTag table."""
+    q = db.query(FileTag)
+    if paths is not None:
+        q = q.filter(FileTag.path.in_(paths))
     out = {}
-    for r in db.query(FileTag).all():
+    for r in q.all():
         out[r.path] = {
             "tags": [t for t in (r.tags or "").split(",") if t],
             "color": r.color or "",
@@ -44,10 +48,13 @@ def _decorate(items, tmap):
     return items
 
 
-def _comment_counts(db) -> dict:
-    """path → number of comments (roots + replies), to badge listings (6c)."""
+def _comment_counts(db, paths=None) -> dict:
+    """path → number of comments (roots + replies), to badge listings (6c). bounded to `paths`."""
+    q = db.query(FileComment.path)
+    if paths is not None:
+        q = q.filter(FileComment.path.in_(paths))
     out = {}
-    for (p,) in db.query(FileComment.path).all():
+    for (p,) in q.all():
         out[p] = out.get(p, 0) + 1
     return out
 
@@ -63,8 +70,9 @@ def list_files(
         d = fs.listdir(path, sort=sort, order=order)
     except ValueError as e:
         raise HTTPException(400, str(e))
-    _decorate(d["items"], _tag_map(db))
-    cc = _comment_counts(db)
+    paths = [it["path"] for it in d["items"]]
+    _decorate(d["items"], _tag_map(db, paths))
+    cc = _comment_counts(db, paths)
     for it in d["items"]:
         it["comments"] = cc.get(it["path"], 0)
     return d
@@ -91,13 +99,20 @@ def get_tags(path: str = Query(...), db: DbSession = Depends(get_db)):
 def set_tags(path: str = Query(...), body: TagBody = None, db: DbSession = Depends(get_db)):
     body = body or TagBody()
     r = db.query(FileTag).filter(FileTag.path == path).first()
+    new_tags = ",".join(_norm_tags(body.tags)) if body.tags is not None else (r.tags if r else "")
+    new_color = body.color.strip() if body.color is not None else (r.color if r else "")
+    starred = bool(r.starred) if r else False
+    # nothing worth storing? don't create (or delete an existing) all-empty row - it's just scan noise
+    if not (new_tags or "").strip() and not (new_color or "").strip() and not starred:
+        if r:
+            db.delete(r)
+            db.commit()
+        return {"path": path, "tags": [], "color": ""}
     if not r:
         r = FileTag(path=path)
         db.add(r)
-    if body.tags is not None:
-        r.tags = ",".join(_norm_tags(body.tags))
-    if body.color is not None:
-        r.color = body.color.strip()
+    r.tags = new_tags
+    r.color = new_color
     db.commit()
     return {
         "path": path,
