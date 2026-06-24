@@ -6,6 +6,7 @@ const _si = n => (window.icon ? window.icon(n) : '');   // central icon set, loa
 
 let _events = [];
 let _tasks = [];  // tasks with due dates, overlaid on the month/agenda
+let _birthdays = [];  // contact birthdays, overlaid as annual all-day items
 let _calendars = [];
 let _editing = null;
 let _editOcc = null;             // occurrence date when editing a recurring instance
@@ -62,15 +63,17 @@ function _tickWorldClock() {
 export async function loadCalendar() {
   _bindNav();
   _tickWorldClock();
-  const [cals, evs, s, tasks, subs] = await Promise.all([
+  const [cals, evs, s, tasks, subs, bdays] = await Promise.all([
     fetch('/api/calendars').then(r => r.json()).catch(() => []),
     fetch('/api/calendar').then(r => r.json()).catch(() => []),
     fetch('/api/settings').then(r => r.json()).catch(() => ({})),
     fetch('/api/calendar/tasks').then(r => r.json()).catch(() => []),
     fetch('/api/calendar/subscriptions').then(r => r.json()).catch(() => []),
+    fetch('/api/calendar/birthdays').then(r => r.json()).catch(() => []),
   ]);
   _tasks = Array.isArray(tasks) ? tasks : [];
   _subs = Array.isArray(subs) ? subs : [];
+  _birthdays = Array.isArray(bdays) ? bdays : [];
   _weekStart = s.cal_week_start === 'mon' ? 1 : 0;
   _workStart = Number.isFinite(+s.cal_work_start) && s.cal_work_start !== '' ? +s.cal_work_start : 9;
   _workEnd = Number.isFinite(+s.cal_work_end) && s.cal_work_end !== '' ? +s.cal_work_end : 18;
@@ -523,6 +526,19 @@ function renderYear(lbl) {
 const chipStyle = o => `background:${evHex(o)};color:#0a0a0a`;
 const chipTitle = o => `${esc(o.title)}${o.location ? ' · ' + esc(o.location) : ''}${o._recur ? ' (repeats)' : ''}`;
 
+// 4a — birthdays keyed by "MM-DD" (year-agnostic), and a lookup for a given Date
+function _bdayMap() {
+  const m = {};
+  for (const b of _birthdays) {
+    const k = String(b.month).padStart(2, '0') + '-' + String(b.day).padStart(2, '0');
+    (m[k] = m[k] || []).push(b.name);
+  }
+  return m;
+}
+const _bdayKey = d => String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+const _bdayChips = (map, d) => (map[_bdayKey(d)] || []).slice(0, 2)
+  .map(n => `<div class="cal-bday" title="${esc(n)}'s birthday">${_si('cake')} ${esc(n)}</div>`).join('');
+
 function renderMonth() {
   const el = document.getElementById('calendar-list');
   if (!el) return;
@@ -537,6 +553,7 @@ function renderMonth() {
   for (const o of occ) for (const k of _spanKeys(o)) (byDay[k] = byDay[k] || []).push(o);
   const tasksByDay = {};
   for (const t of _tasks) (tasksByDay[t.date] = tasksByDay[t.date] || []).push(t);
+  const bmap = _bdayMap();
 
   const cells = [];
   for (let i = 0; i < startDay; i++) cells.push(null);
@@ -556,7 +573,7 @@ function renderMonth() {
       `<div class="cal-task${t.done ? ' done' : ''}" data-task="${esc(t.id)}" title="task: ${esc(t.title)}"><span class="cal-task-chk${t.done ? ' on' : ''}">${t.done ? _si('check') : ''}</span>${esc(t.title)}</div>`).join('');
     html += `<div class="cal-cell${sameDay(cell, today) ? ' today' : ''}" data-date="${key}">
       <div class="cal-cell-num">${cell.getDate()}</div>
-      <div class="cal-cell-events">${chips}${more}${tchips}</div></div>`;
+      <div class="cal-cell-events">${chips}${more}${tchips}${_bdayChips(bmap, cell)}</div></div>`;
   }
   html += '</div>';
   el.innerHTML = html;
@@ -602,10 +619,11 @@ function renderTimeGrid(el, days, occ) {
   let head = '<div class="cal-tg-gutter-head"></div>';
   for (const d of days) head += `<div class="cal-tg-dayhead${sameDay(d, today) ? ' today' : ''}" data-date="${ymd(d)}"><span class="cal-tg-wd">${WD[d.getDay()]}</span> <span class="cal-tg-dn">${d.getDate()}</span></div>`;
   let allday = '<div class="cal-tg-gutter">all-day</div>';
+  const bmap = _bdayMap();
   for (const d of days) {
     const items = occ.filter(o => o.all_day && _spanKeys(o).includes(ymd(d)))
       .map(o => `<div class="cal-allday-ev${o._recur ? ' recurring' : ''}" data-id="${o.id}" data-occ="${ymd(o._date)}" style="${chipStyle(o)}" title="${chipTitle(o)}">${o._recur ? `<span class="cal-chip-recur">${_si('refresh')}</span>` : ''}${esc(o.title)}</div>`).join('');
-    allday += `<div class="cal-tg-allday" data-date="${ymd(d)}">${items}</div>`;
+    allday += `<div class="cal-tg-allday" data-date="${ymd(d)}">${items}${_bdayChips(bmap, d)}</div>`;
   }
   let gutter = '';
   for (let h = 0; h < 24; h++) gutter += `<div class="cal-tg-hour" style="height:${HOUR_H}px">${h === 0 ? '' : (h % 12 || 12) + (h < 12 ? 'a' : 'p')}</div>`;
