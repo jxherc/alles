@@ -103,6 +103,8 @@ _defaults = {
     "session_context_inject": True,  # 1d - inject a per-session mode/topic/project block into aide
     "insights_enabled": False,  # 1e - cross-domain causal insights (spends tokens; off by default)
     "intent_suggestions": True,  # 1f - predicted next-step composer suggestions
+    "insights_auto_inject": True,  # surface-brain - weave active insights into aide's prompt
+    "distilled_auto_inject": True,  # surface-brain - inject the distilled user-model into aide
     "holdings_autoprice": False,  # 2d - periodically refresh holding prices from an external source
     "tax_reminders": False,  # 2f - quarterly estimated-tax set-aside reminders (off by default)
     "tax_setaside_rate": 0.25,  # 2f - fraction of quarterly income to suggest setting aside

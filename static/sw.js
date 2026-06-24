@@ -1,7 +1,7 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v121';   // switching back to default also resets the accent tint from a fancy preset
+const VERSION = 'v122';   // surface the brain: insights + user-model dashboard, intelligence settings, aide injection
 const CACHE = `alles-${VERSION}`;
-const STAMP = '147';   // keep in sync with index.html ?v= / const _v
+const STAMP = '148';   // keep in sync with index.html ?v= / const _v
 
 // 1b: mutating writes that should be queued when offline
 const MUTATING = ['POST', 'PUT', 'PATCH', 'DELETE'];

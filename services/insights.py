@@ -61,6 +61,32 @@ def apply_insights(db, items):
     return n
 
 
+def active_insights(db, limit=8):
+    """live insights (not dismissed), pinned first - same ordering the list route uses."""
+    return (
+        db.query(Insight)
+        .filter(Insight.dismissed == False)  # noqa: E712
+        .order_by(Insight.pinned.desc(), Insight.created_at.desc())
+        .limit(limit)
+        .all()
+    )
+
+
+def inject_active_insights(db, limit=8):
+    """a short system-prompt block of the user's cross-domain insights, or '' if none."""
+    rows = active_insights(db, limit=limit)
+    if not rows:
+        return ""
+    lines = []
+    for i in rows:
+        body = (i.body or "").strip()
+        lines.append(f"- {i.title}: {body}" if body else f"- {i.title}")
+    return (
+        "cross-domain insights about the user's patterns (weave in when relevant):\n"
+        + "\n".join(lines)
+    )
+
+
 def _parse(raw):
     text = (raw or "").strip()
     a, b = text.find("["), text.rfind("]")

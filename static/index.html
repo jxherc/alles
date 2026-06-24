@@ -30,7 +30,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/style.css?v=147">
+<link rel="stylesheet" href="/static/style.css?v=148">
 <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#0a0a0a">
@@ -230,6 +230,18 @@
           <div class="brain-section-title">recent memories</div>
           <div id="brain-memories"></div>
           <button class="btn" id="brain-open-memory-btn" style="margin-top:0.65rem">open memory</button>
+        </div>
+        <div class="brain-section">
+          <div class="brain-section-title brain-sec-head">insights<button class="btn brain-sec-btn" id="brain-insights-run">generate</button></div>
+          <div id="brain-insights"></div>
+        </div>
+        <div class="brain-section">
+          <div class="brain-section-title brain-sec-head">what aide learned about you<button class="btn brain-sec-btn" id="brain-usermodel-run">refresh</button></div>
+          <div id="brain-usermodel"></div>
+        </div>
+        <div class="brain-section">
+          <div class="brain-section-title">proactive learning</div>
+          <div id="brain-proxstats"></div>
         </div>
       </div>
     </div>
@@ -1066,6 +1078,10 @@
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.6 4.6L18 9l-4.4 1.4L12 15l-1.6-4.6L6 9l4.4-1.4z"/></svg>
           proactive
         </div>
+        <div class="s-nav-item" data-pane="intelligence">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/></svg>
+          intelligence
+        </div>
       </nav>
 
       <!-- content area -->
@@ -1772,7 +1788,33 @@
               </div>
               <div class="s-toggle-row" style="margin-top:0.5rem"><div><div class="s-toggle-label">send push for urgent</div><div class="s-toggle-desc">web-push high-priority cards (needs notifications on)</div></div><div class="s-switch" id="s-prox-push"></div></div>
               <div id="s-prox-status" style="font-size:0.7rem;color:var(--muted);margin:0.6rem 0"></div>
+              <div id="s-prox-learning" class="s-prox-learning"></div>
               <button class="btn" id="s-prox-run">run now</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="s-pane" id="s-pane-intelligence">
+          <div class="s-card">
+            <div class="s-card-head">intelligence</div>
+            <div class="s-card-body">
+              <p style="font-size:0.75rem;color:var(--muted);margin-bottom:0.6rem">
+                aide can learn from how you use alles - find cross-domain insights, build a model of
+                your preferences, and weave both into its answers. the learning passes spend tokens so
+                they are off by default; the inject + suggestion switches are cheap and on. see what it
+                finds in the <b>brain</b> page.
+              </p>
+              <div class="s-toggle-row"><div><div class="s-toggle-label">cross-domain insights</div><div class="s-toggle-desc">a periodic pass that finds patterns across your data (spends tokens)</div></div><div class="s-switch" id="s-intel-insights"></div></div>
+              <div class="s-toggle-row"><div><div class="s-toggle-label">inject insights into aide</div></div><div class="s-switch" id="s-intel-insights-inject"></div></div>
+              <div class="s-toggle-row"><div><div class="s-toggle-label">learn about you (user model)</div><div class="s-toggle-desc">distill durable facts from your behavior (spends tokens)</div></div><div class="s-switch" id="s-intel-distill"></div></div>
+              <div class="s-toggle-row"><div><div class="s-toggle-label">inject what it learned into aide</div></div><div class="s-switch" id="s-intel-distill-inject"></div></div>
+              <div class="s-toggle-row"><div><div class="s-toggle-label">composer suggestions</div><div class="s-toggle-desc">predicted next-step chips above the message box</div></div><div class="s-switch" id="s-intel-suggest"></div></div>
+              <div class="s-toggle-row"><div><div class="s-toggle-label">session context</div><div class="s-toggle-desc">keep aide aware of the current topic across turns</div></div><div class="s-switch" id="s-intel-session"></div></div>
+              <div id="s-intel-status" style="font-size:0.7rem;color:var(--muted);margin:0.6rem 0"></div>
+              <div style="display:flex;gap:0.4rem">
+                <button class="btn" id="s-intel-insights-run">generate insights</button>
+                <button class="btn" id="s-intel-distill-run">distill now</button>
+              </div>
             </div>
           </div>
         </div>
@@ -1783,7 +1825,7 @@
 </div>
 
 <script type="module">
-const _v = '147';
+const _v = '148';
 import(`/static/js/app.js?v=${_v}`);
 </script>
 </body>

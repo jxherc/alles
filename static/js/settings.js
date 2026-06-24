@@ -82,6 +82,7 @@ function _onPaneOpen(name) {
   if (name === 'rules')      loadRulesPane();
   if (name === 'recall')     loadRecallPane();
   if (name === 'proactive')  loadProactivePane();
+  if (name === 'intelligence') loadIntelligencePane();
 }
 
 // ── open / close ──────────────────────────────────────────────────────────────
@@ -1557,6 +1558,58 @@ async function loadProactivePane() {
       run.disabled = false;
     });
   }
+
+  // learned per-category weights - shows the user the loop is actually adapting
+  const learn = document.getElementById('s-prox-learning');
+  if (learn) {
+    const stats = await fetch('/api/proactive/stats').then(r => r.json()).catch(() => ({}));
+    const cats = Object.entries(stats || {}).filter(([, c]) => (c.acted || 0) + (c.dismissed || 0) + (c.ignored || 0) > 0);
+    learn.innerHTML = cats.length
+      ? '<div class="s-prox-learn-h">learned from your clicks</div>' + cats
+          .sort((a, b) => (b[1].act_rate || 0) - (a[1].act_rate || 0))
+          .map(([cat, c]) => `<div class="prox-stat-row"><span class="prox-stat-cat">${_esc(cat)}</span><span class="prox-stat-nums">${Math.round((c.act_rate || 0) * 100)}% acted</span><span class="prox-stat-weight">x${(c.weight == null ? 1 : c.weight).toFixed(2)}</span></div>`).join('')
+      : '';
+  }
+}
+
+async function loadIntelligencePane() {
+  const s = await fetch('/api/settings').then(r => r.json()).catch(() => ({}));
+  const sw = (id, key, defOn) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    _setSwitch(el, s[key] === undefined ? defOn : !!s[key]);
+    if (el.dataset.bound) return;
+    el.dataset.bound = '1';
+    el.addEventListener('click', () => {
+      const next = !el.classList.contains('on');
+      _setSwitch(el, next);
+      _patchSetting(key, next);
+    });
+  };
+  sw('s-intel-insights', 'insights_enabled', false);
+  sw('s-intel-insights-inject', 'insights_auto_inject', true);
+  sw('s-intel-distill', 'user_model_distill', false);
+  sw('s-intel-distill-inject', 'distilled_auto_inject', true);
+  sw('s-intel-suggest', 'intent_suggestions', true);
+  sw('s-intel-session', 'session_context_inject', true);
+
+  const status = document.getElementById('s-intel-status');
+  const runBtn = (id, path, label) => {
+    const b = document.getElementById(id);
+    if (!b || b.dataset.bound) return;
+    b.dataset.bound = '1';
+    b.addEventListener('click', async () => {
+      b.disabled = true;
+      if (status) status.textContent = 'thinking...';
+      try {
+        const r = await fetch(path, { method: 'POST' }).then(r => r.json());
+        if (status) status.textContent = `done - ${r.count || 0} new ${label}`;
+      } catch { if (status) status.textContent = 'run failed'; }
+      b.disabled = false;
+    });
+  };
+  runBtn('s-intel-insights-run', '/api/insights/run', 'insight(s)');
+  runBtn('s-intel-distill-run', '/api/memory/distill/run', 'fact(s)');
 }
 
 // ── helpers ───────────────────────────────────────────────────────────────────

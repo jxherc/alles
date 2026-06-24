@@ -2594,9 +2594,49 @@ mark.wiki-cmark { background: rgba(129, 140, 248, 0.28); color: inherit; border-
   line-height: 1.45;
   margin-top: 0.15rem;
 }
+
+/* surface-brain: insights / user-model / proactive-learning sections */
+.brain-sec-head { display: flex; align-items: center; gap: 0.5rem; }
+.brain-sec-btn { margin-left: auto; font-size: 0.68rem; padding: 0.15rem 0.5rem; }
+.brain-empty { color: var(--muted); font-size: 0.74rem; line-height: 1.5; }
+.brain-enable { margin-left: 0.25rem; color: var(--accent); }
+
+.brain-insight, .um-fact {
+  display: flex; gap: 0.6rem; align-items: flex-start;
+  padding: 0.5rem 0; border-top: 1px solid var(--faint);
+}
+.brain-insight:first-child, .um-fact:first-child { border-top: none; padding-top: 0; }
+.brain-insight-main, .um-fact-main { flex: 1; min-width: 0; }
+.brain-insight-title { font-size: 0.8rem; color: var(--text); }
+.brain-insight.pinned .brain-insight-title::before,
+.um-fact.pinned .um-fact-text::before { content: "* "; color: var(--accent); }
+.brain-insight-body { font-size: 0.74rem; color: var(--muted); margin-top: 0.15rem; line-height: 1.45; }
+.brain-insight-ev { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.35rem; }
+.ev-tag {
+  font-size: 0.64rem; color: var(--muted);
+  border: 1px solid var(--faint); border-radius: 3px;
+  padding: 0.05rem 0.3rem; background: var(--panel);
+}
+.brain-insight-acts, .um-fact-acts { display: flex; flex-shrink: 0; gap: 0.1rem; }
+
+.um-fact-text { font-size: 0.78rem; color: var(--text); line-height: 1.4; }
+.um-fact-meta { display: flex; align-items: center; gap: 0.45rem; margin-top: 0.25rem; font-size: 0.66rem; color: var(--muted); }
+.um-conf { display: inline-block; width: 48px; height: 4px; border-radius: 2px; background: var(--faint); overflow: hidden; }
+.um-conf i { display: block; height: 100%; background: var(--accent); }
+
+.prox-stat-row { display: flex; align-items: baseline; gap: 0.6rem; padding: 0.35rem 0; border-top: 1px solid var(--faint); font-size: 0.74rem; }
+.prox-stat-row:first-child { border-top: none; }
+.prox-stat-cat { color: var(--text); min-width: 5rem; text-transform: lowercase; }
+.prox-stat-nums { color: var(--muted); flex: 1; font-size: 0.7rem; }
+.prox-stat-weight { color: var(--accent); flex-shrink: 0; font-variant-numeric: tabular-nums; }
+
+.s-prox-learning { margin: 0.4rem 0 0.7rem; }
+.s-prox-learn-h { font-size: 0.68rem; color: var(--muted); letter-spacing: 0.04em; margin-bottom: 0.2rem; }
+
 @media (max-width: 720px) {
   .brain-grid,
   .brain-context { grid-template-columns: repeat(2, 1fr); }
+  .prox-stat-row { flex-wrap: wrap; }
 }
 .page-view-footer input::placeholder { color: var(--muted); }
 
