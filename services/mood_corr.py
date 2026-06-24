@@ -62,7 +62,7 @@ def _explain(label, rho):
 def correlations(db, *, days=180, min_overlap=6):
     """mood vs each behavior over the last `days`. returns {ok, correlations:[{label, rho, n,
     explain}], ...}. needs >= min_overlap shared days per pair to report it."""
-    from core.database import Habit, HabitLog, HealthEntry, JournalEntry
+    from core.database import Habit, HabitLog, HealthEntry, JournalEntry, Task
 
     since = (_date.today() - timedelta(days=max(1, days))).isoformat()
 
@@ -109,6 +109,15 @@ def correlations(db, *, days=180, min_overlap=6):
         hv.setdefault(key, {}).setdefault(h.date, []).append(h.value or 0.0)
     for key, byday in hv.items():
         series[f"health:{key}"] = {d: sum(v) / len(v) for d, v in byday.items()}
+
+    # task<->life balance: tasks finished per day (by completed_at), counted on journaled days
+    finished = {}
+    for t in db.query(Task).filter(Task.completed_at != None).all():  # noqa: E711
+        if t.completed_at:
+            d = t.completed_at.date().isoformat()
+            finished[d] = finished.get(d, 0) + 1
+    if finished:
+        series["tasks completed"] = {d: float(finished.get(d, 0)) for d in mood}
 
     out = []
     for label, s in series.items():
