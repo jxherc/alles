@@ -37,9 +37,17 @@ export async function loadRead() {
   const params = new URLSearchParams();
   if (_filter && _filter !== 'all') params.set('filter', _filter);
   if (_q) params.set('q', _q);
+  // the search box triggers loadRead on a debounce; _render rebuilds the whole body
+  // so remember if we were typing in it + the caret, and put focus back after.
+  const wasSearching = document.activeElement?.id === 'read-q';
+  const caret = wasSearching ? document.activeElement.selectionStart : null;
   try { _items = (await fetch('/api/read?' + params).then(r => r.json())).items || []; }
   catch { _items = []; }
   _render();
+  if (wasSearching) {
+    const q = $('read-q');
+    if (q) { q.focus(); if (caret != null) try { q.setSelectionRange(caret, caret); } catch {} }
+  }
 }
 
 function esc(s) { return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }

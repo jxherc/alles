@@ -1,7 +1,7 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v142';   // calendar: contact birthdays overlay
+const VERSION = 'v143';   // read: keep search-box focus + caret across the debounced reload
 const CACHE = `alles-${VERSION}`;
-const STAMP = '168';   // keep in sync with index.html ?v= / const _v
+const STAMP = '169';   // keep in sync with index.html ?v= / const _v
 
 // 1b: mutating writes that should be queued when offline
 const MUTATING = ['POST', 'PUT', 'PATCH', 'DELETE'];
