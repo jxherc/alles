@@ -1,6 +1,9 @@
 import { toast } from './util.js';
 import { confirm as _dlgConfirm, prompt as _dlgPrompt, fields as _dlgFields } from './dialog.js';
-import { initCustomDropdown, getDropdownValue } from './dropdown.js';
+import { initCustomDropdown, getDropdownValue, populateDropdown } from './dropdown.js';
+
+// 4a - typed relationship kinds (mirrors services/contacts_graph _INVERSE)
+const REL_KINDS = ['friend', 'colleague', 'spouse', 'partner', 'sibling', 'parent', 'child', 'manager', 'report', 'mentor', 'mentee'];
 
 let _favOnly = false;
 let _wired = false;
@@ -136,7 +139,11 @@ const SCALARS = [['email', 'email'], ['phone', 'phone'], ['company', 'company'],
   ['address', 'address'], ['birthday', 'birthday (YYYY-MM-DD)'], ['website', 'website']];
 
 async function openContact(id) {
-  const c = await fetch('/api/contacts/' + id).then(r => r.ok ? r.json() : null).catch(() => null);
+  const [c, rels, all] = await Promise.all([
+    fetch('/api/contacts/' + id).then(r => r.ok ? r.json() : null).catch(() => null),
+    fetch(`/api/contacts/${id}/related`).then(r => r.ok ? r.json() : { related: [] }).then(j => j.related || []).catch(() => []),
+    fetch('/api/contacts').then(r => r.ok ? r.json() : []).catch(() => []),
+  ]);
   if (!c) return;
   const list = document.getElementById('contacts-list');
   const mapLink = (c.address || '').trim()
@@ -161,6 +168,13 @@ async function openContact(id) {
         <input class="settings-input" id="cd-flabel" placeholder="label (home/work…)">
         <input class="settings-input" id="cd-fvalue" placeholder="value">
         <button class="btn" id="cd-fadd">add field</button>
+      </div>
+      <div class="cd-section-title">relationships</div>
+      <div id="cd-rels"></div>
+      <div class="cd-addrel" id="cd-addrel">
+        <div class="settings-input custom-select" id="cd-relwho" data-placeholder="contact" style="min-width:120px"></div>
+        <div class="settings-input custom-select" id="cd-relkind" data-options="${REL_KINDS.map(k => k + '|' + k).join(';')}" style="width:auto;min-width:90px"></div>
+        <button class="btn" id="cd-reladd">link</button>
       </div>
       <div class="cd-actions"><button class="btn primary" id="cd-save">save</button></div>
     </div>`;
@@ -191,6 +205,43 @@ async function openContact(id) {
     openContact(id);
   });
   renderFields(c);
+  renderRels(id, rels);
+
+  // relationship picker: everyone except this contact + the ones already linked
+  const linked = new Set(rels.map(r => r.id));
+  const cands = all.filter(x => x.id !== id && !linked.has(x.id));
+  const addRow = document.getElementById('cd-addrel');
+  if (!cands.length) {
+    addRow.innerHTML = '<div class="cd-nofields">add more contacts to link them</div>';
+  } else {
+    populateDropdown(document.getElementById('cd-relwho'), cands.map(x => ({ value: x.id, label: x.name })));
+    initCustomDropdown(document.getElementById('cd-relkind'));
+    document.getElementById('cd-reladd').addEventListener('click', async () => {
+      const who = getDropdownValue(document.getElementById('cd-relwho'));
+      const kind = getDropdownValue(document.getElementById('cd-relkind'));
+      if (!who) { toast('pick a contact', ''); return; }
+      const r = await fetch(`/api/contacts/${id}/links`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ to_id: who, kind }) });
+      if (!r.ok) { toast('link failed', 'error'); return; }
+      openContact(id);
+    });
+  }
+}
+
+function renderRels(cid, rels) {
+  const box = document.getElementById('cd-rels');
+  if (!box) return;
+  if (!rels.length) { box.innerHTML = '<div class="cd-nofields">no relationships yet</div>'; return; }
+  box.innerHTML = rels.map(r => `
+    <div class="cd-rel-row">
+      <button class="cd-rel-name" data-go="${r.id}">${_esc(r.name)}</button>
+      <span class="cd-rel-kind">${_esc(r.kind || 'linked')}</span>
+      <button class="cd-field-x" data-unlink="${r.id}" title="remove">×</button>
+    </div>`).join('');
+  box.querySelectorAll('[data-go]').forEach(b => b.addEventListener('click', () => openContact(b.dataset.go)));
+  box.querySelectorAll('[data-unlink]').forEach(b => b.addEventListener('click', async () => {
+    await fetch(`/api/contacts/${cid}/links/${b.dataset.unlink}`, { method: 'DELETE' });
+    openContact(cid);
+  }));
 }
 
 function renderFields(c) {
