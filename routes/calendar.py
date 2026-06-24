@@ -616,6 +616,19 @@ def delete_attendee(aid: str, db: DbSession = Depends(get_db)):
     return {"ok": True}
 
 
+@router.get("/calendar/{eid}/invite-suggestions")
+def invite_suggestions(eid: str, db: DbSession = Depends(get_db)):
+    """4a smart-invite: people in your contacts linked to whoever's already invited."""
+    ev = db.get(CalendarEvent, eid)
+    if not ev:
+        raise HTTPException(404)
+    from services import contacts_graph
+
+    atts = db.query(EventAttendee).filter(EventAttendee.event_id == eid).all()
+    sugg = contacts_graph.suggest_for_attendees(db, [{"name": a.name, "email": a.email} for a in atts])
+    return {"suggestions": sugg}
+
+
 @router.post("/calendar/{eid}/meeting-link")
 def add_meeting_link(eid: str, db: DbSession = Depends(get_db)):
     """generate a Jitsi room for an event and store it."""

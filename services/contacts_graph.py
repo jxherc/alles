@@ -79,3 +79,51 @@ def related_for_invite(db, invitee_ids):
             seen.add(n["id"])
             out.append(n)
     return out
+
+
+def _contact_lookup(db):
+    """email(lower)->cid and name(lower)->cid maps across all contacts (primary email + email
+    fields). first match wins so a primary email isn't shadowed by a field."""
+    from core.database import Contact, ContactField
+
+    contacts = db.query(Contact).all()
+    by_email, by_name = {}, {}
+    for c in contacts:
+        if c.email:
+            by_email.setdefault(c.email.strip().lower(), c.id)
+        if c.name:
+            by_name.setdefault(c.name.strip().lower(), c.id)
+    for f in db.query(ContactField).filter(ContactField.kind == "email").all():
+        if f.value:
+            by_email.setdefault(f.value.strip().lower(), f.contact_id)
+    return contacts, by_email, by_name
+
+
+def suggest_for_attendees(db, attendees):
+    """given event attendees [{name,email}], match the ones we know to a contact, then suggest
+    their linked contacts (skipping anyone already on the event). each suggestion carries the
+    relationship kind (its tie to an invitee) so the ui can say why it's suggested."""
+    contacts, by_email, by_name = _contact_lookup(db)
+    cmap = {c.id: c for c in contacts}
+    have_emails = {(a.get("email") or "").strip().lower() for a in attendees if a.get("email")}
+    have_names = {(a.get("name") or "").strip().lower() for a in attendees if a.get("name")}
+    seeds = set()
+    for a in attendees:
+        e = (a.get("email") or "").strip().lower()
+        n = (a.get("name") or "").strip().lower()
+        if e and e in by_email:
+            seeds.add(by_email[e])
+        elif n and n in by_name:
+            seeds.add(by_name[n])
+    out = []
+    for r in related_for_invite(db, list(seeds)):
+        c = cmap.get(r["id"])
+        if not c:
+            continue
+        email = (c.email or "").strip()
+        if email and email.lower() in have_emails:
+            continue
+        if not email and (c.name or "").strip().lower() in have_names:
+            continue
+        out.append({"id": c.id, "name": c.name, "email": email, "kind": r["kind"]})
+    return out
