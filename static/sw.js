@@ -1,7 +1,7 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v140';   // calendar: smart-invite suggestions from the contact graph
+const VERSION = 'v141';   // calendar: scheduling advisor (conflict warning + free-slot finder)
 const CACHE = `alles-${VERSION}`;
-const STAMP = '166';   // keep in sync with index.html ?v= / const _v
+const STAMP = '167';   // keep in sync with index.html ?v= / const _v
 
 // 1b: mutating writes that should be queued when offline
 const MUTATING = ['POST', 'PUT', 'PATCH', 'DELETE'];
