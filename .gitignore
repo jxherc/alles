@@ -12,6 +12,13 @@ data/
 !services/hwfit/data/
 !services/hwfit/data/hf_models.json
 
+# stray runtime dbs + restore backups at the repo root — never track user data
+/aide.db
+/aide.db-shm
+/aide.db-wal
+/autorun_test.db
+aide-pre-restore-*/
+
 # logs
 *.log
 server*.log
