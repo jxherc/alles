@@ -362,6 +362,16 @@ def update_txn(tid: str, body: dict, db: DbSession = Depends(get_db)):
     t = db.get(Transaction, tid)
     if not t:
         raise HTTPException(404)
+    # validate like create_txn does, or a bad PATCH silently corrupts a real money value
+    if "amount" in body:
+        try:
+            body["amount"] = float(body["amount"])
+        except (TypeError, ValueError):
+            raise HTTPException(400, "amount must be a number")
+        if not math.isfinite(body["amount"]):
+            raise HTTPException(400, "amount must be a finite number")
+    if "account_id" in body and not db.get(Account, body["account_id"]):
+        raise HTTPException(400, "unknown account")
     for k in ("account_id", "date", "amount", "category", "payee", "notes", "receipt_id"):
         if k in body:
             setattr(t, k, body[k])
