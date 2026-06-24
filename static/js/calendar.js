@@ -881,6 +881,7 @@ function openEditor(event, defaultDate, hour, allDay, occ) {
 
     ${isNew ? '' : `<div class="cal-flabel">invites &amp; rsvp</div>
     <div class="cal-invites" id="cal-invites"></div>
+    <div class="cal-inv-suggest" id="cal-inv-suggest"></div>
     <div class="cal-invite-add">
       <input class="settings-input" id="cal-inv-name" placeholder="name" style="flex:1">
       <input class="settings-input" id="cal-inv-email" placeholder="email" style="flex:1.4">
@@ -978,19 +979,44 @@ async function renderAttendees(eid) {
   const box = document.getElementById('cal-invites');
   if (!box) return;
   const list = await fetch(`/api/calendar/${eid}/attendees`).then(r => r.json()).catch(() => []);
-  if (!list.length) { box.innerHTML = '<div class="cal-inv-empty">no invites yet</div>'; return; }
-  box.innerHTML = list.map(a => `
-    <div class="cal-inv-row" data-id="${a.id}">
-      <span class="cal-inv-who">${esc(a.name || a.email)}</span>
-      <span class="cal-inv-status s-${a.status}">${RSVP_LABEL[a.status] || a.status}</span>
-      <button class="cal-inv-x" data-act="del" title="remove">×</button>
-    </div>`).join('');
-  box.querySelectorAll('.cal-inv-row').forEach(row => {
-    row.querySelector('[data-act="del"]').addEventListener('click', async () => {
-      await fetch(`/api/calendar/attendees/${row.dataset.id}`, { method: 'DELETE' });
-      renderAttendees(eid);
+  if (!list.length) {
+    box.innerHTML = '<div class="cal-inv-empty">no invites yet</div>';
+  } else {
+    box.innerHTML = list.map(a => `
+      <div class="cal-inv-row" data-id="${a.id}">
+        <span class="cal-inv-who">${esc(a.name || a.email)}</span>
+        <span class="cal-inv-status s-${a.status}">${RSVP_LABEL[a.status] || a.status}</span>
+        <button class="cal-inv-x" data-act="del" title="remove">×</button>
+      </div>`).join('');
+    box.querySelectorAll('.cal-inv-row').forEach(row => {
+      row.querySelector('[data-act="del"]').addEventListener('click', async () => {
+        await fetch(`/api/calendar/attendees/${row.dataset.id}`, { method: 'DELETE' });
+        renderAttendees(eid);
+      });
     });
-  });
+  }
+  renderInviteSuggestions(eid);
+}
+
+// 4a — suggest contacts linked to whoever's already invited; one click invites them
+async function renderInviteSuggestions(eid) {
+  const box = document.getElementById('cal-inv-suggest');
+  if (!box) return;
+  const sugg = await fetch(`/api/calendar/${eid}/invite-suggestions`)
+    .then(r => r.ok ? r.json() : { suggestions: [] }).then(j => j.suggestions || []).catch(() => []);
+  if (!sugg.length) { box.innerHTML = ''; return; }
+  box.innerHTML = '<div class="cal-inv-suggest-lbl">suggested from your contacts</div>'
+    + sugg.map(s => `
+      <button class="cal-inv-chip" type="button" data-name="${esc(s.name)}" data-email="${esc(s.email)}" title="${esc(s.kind || 'linked')} of an invitee">
+        + ${esc(s.name)}${s.kind ? ` <span class="cal-inv-chip-kind">${esc(s.kind)}</span>` : ''}
+      </button>`).join('');
+  box.querySelectorAll('.cal-inv-chip').forEach(b => b.addEventListener('click', async () => {
+    await fetch(`/api/calendar/${eid}/invite`, {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ name: b.dataset.name, email: b.dataset.email }),
+    });
+    renderAttendees(eid);
+  }));
 }
 
 function parseBydayJs(s) {
