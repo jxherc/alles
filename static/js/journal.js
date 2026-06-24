@@ -319,8 +319,9 @@ function showLock(mode) {
 function curMood() { return document.querySelector('.jrnl-mood.active')?.dataset.m || ''; }
 
 async function load() {
+  clearTimeout(_saveTimer);  // cancel a pending autosave or it fires after the day swaps and writes the wrong day
   _setDayUrl();
-  document.getElementById('jrnl-date').textContent = pretty(_day) + (_day === todayISO() ? '' : '');
+  document.getElementById('jrnl-date').textContent = pretty(_day);
   document.getElementById('jrnl-next').disabled = _day >= todayISO();
   try {
     const e = await jget('/api/journal/' + _day);
@@ -377,9 +378,10 @@ async function loadOnThisDay() {
     const el = document.getElementById('jrnl-otd');
     if (!el) return;
     if (!d.entries.length) { el.innerHTML = '<div class="jrnl-empty">nothing from past years yet</div>'; return; }
-    el.innerHTML = d.entries.map(e =>
-      `<div class="jrnl-otd-row" data-d="${e.date}"><b>${e.date.slice(0, 4)}</b> ${e.mood || ''} ${esc((e.content || '').slice(0, 90))}…</div>`
-    ).join('');
+    el.innerHTML = d.entries.map(e => {
+      const c = e.content || '';
+      return `<div class="jrnl-otd-row" data-d="${e.date}"><b>${e.date.slice(0, 4)}</b> ${e.mood || ''} ${esc(c.slice(0, 90))}${c.length > 90 ? '…' : ''}</div>`;
+    }).join('');
     el.querySelectorAll('.jrnl-otd-row').forEach(r => r.onclick = () => { _day = r.dataset.d; load(); });
   } catch {}
 }

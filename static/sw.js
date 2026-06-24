@@ -1,7 +1,7 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v126';   // vault 2fa switch + passkey unlock, journal reflect auth
+const VERSION = 'v127';   // mail poll only on inbox, journal autosave race + otd ellipsis
 const CACHE = `alles-${VERSION}`;
-const STAMP = '152';   // keep in sync with index.html ?v= / const _v
+const STAMP = '153';   // keep in sync with index.html ?v= / const _v
 
 // 1b: mutating writes that should be queued when offline
 const MUTATING = ['POST', 'PUT', 'PATCH', 'DELETE'];
