@@ -757,7 +757,7 @@ async function compose(pre = {}) {
         <button class="btn" id="mc-close">close</button>
         <button class="btn" id="mc-save">save draft</button>
         <span class="mc-sched-wrap" id="mc-sched-wrap" style="display:none">
-          <input class="settings-input date-input mc-sched-date" id="mc-sched-date" placeholder="date">
+          <input class="settings-input date-input mc-sched-date" id="mc-sched-date" data-type="date" placeholder="date">
           <input class="settings-input mc-sched-time" id="mc-sched-time" placeholder="HH:MM" value="09:00" maxlength="5">
         </span>
         <button class="btn" id="mc-schedule" title="schedule for later">schedule</button>

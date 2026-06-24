@@ -113,6 +113,43 @@ class MailOutboxTests(ApiTest):
         self.assertEqual(db.get(ScheduledMail, s["id"]).status, "scheduled")
         db.close()
 
+    def test_default_send_carries_oauth_fields(self):
+        # an oauth (sign-in-with-google) account must send via XOAUTH2, not an empty-password login
+        import services.mail as mailsvc
+
+        db = self.db()
+        acct = db.get(MailAccount, self.aid)
+        acct.auth_type = "oauth"
+        acct.oauth_access_token = "tok123"
+        acct.oauth_refresh_token = "ref123"
+        db.commit()
+        cap = {}
+        orig = mailsvc.send_mail
+        mailsvc.send_mail = lambda ad, *a, **k: cap.update(ad)
+        try:
+            m = type("M", (), {"to": "b@x.com", "subject": "s", "body": "b", "cc": "",
+                               "bcc": "", "in_reply_to": "", "references": "", "html": ""})()
+            mail_outbox._default_send(acct, m)
+        finally:
+            mailsvc.send_mail = orig
+            db.close()
+        self.assertEqual(cap.get("auth_type"), "oauth")
+        self.assertEqual(cap.get("oauth_access_token"), "tok123")
+
+    def test_archive_passes_acct_dict_not_orm(self):
+        # the IMAP move must get a plain dict (move_message calls acct.get(...)); an ORM object raises
+        import services.mail as mailsvc
+
+        self._msg(555)
+        seen = {}
+        orig = mailsvc.move_message
+        mailsvc.move_message = lambda ad, *a, **k: seen.update(is_dict=isinstance(ad, dict))
+        try:
+            self.client.post(f"/api/mail/archive/{self.aid}", json={"uid": "555", "folder": "INBOX"})
+        finally:
+            mailsvc.move_message = orig
+        self.assertTrue(seen.get("is_dict"))
+
     def test_send_undoable_schedules_future(self):
         d = self.client.post(
             f"/api/mail/send-undoable/{self.aid}",

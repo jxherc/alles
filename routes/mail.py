@@ -445,7 +445,7 @@ def archive_message(aid: str, body: ArchiveBody, db: DbSession = Depends(get_db)
     acct = _get(db, aid)
     # best-effort IMAP move to an Archive folder; never blocks the local archive
     try:
-        mailsvc.move_message(acct, body.uid, "Archive", body.folder)
+        mailsvc.move_message(_acct_dict(acct), body.uid, "Archive", body.folder)
     except Exception:
         pass
     return {"archived": mail_cache.archive(db, aid, body.folder, body.uid)}
@@ -465,7 +465,7 @@ def move_message(aid: str, body: MoveBody, db: DbSession = Depends(get_db)):
     acct = _get(db, aid)
     moved = False
     try:
-        mailsvc.move_message(acct, body.uid, body.dest, body.folder)
+        mailsvc.move_message(_acct_dict(acct), body.uid, body.dest, body.folder)
         moved = True
     except Exception:
         pass
