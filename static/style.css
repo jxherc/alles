@@ -3981,6 +3981,12 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 #cal-meet-gen .ic, #cal-back .ic, #cd-back .ic, #jrnl-reflect .ic { width: 13px; height: 13px; vertical-align: -0.12em; }
 #journal-stats .ic { width: 12px; height: 12px; vertical-align: -0.1em; }
 .cal-task.done { text-decoration: line-through; opacity: 0.55; border-left-color: var(--muted); }
+.cal-bday {
+  font-size: 0.62rem; color: var(--accent); display: flex; align-items: center; gap: 3px;
+  padding: 1px 3px; border-radius: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  border-left: 2px solid var(--accent);
+}
+.cal-bday .ic { width: 11px; height: 11px; flex-shrink: 0; }
 
 /* view toggle + form labels */
 #calendar-list { display: flex; flex-direction: column; }
