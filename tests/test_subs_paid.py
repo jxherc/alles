@@ -51,12 +51,15 @@ class MarkPaidApiTests(ApiTest):
         return self.client.post(f"/api/subscriptions/{sid}/paid").json()["next_due"]
 
     def test_yearly_advances_one_year_not_month(self):
-        sid = self._sub(cycle="yearly", next_due="2026-06-18")
-        self.assertEqual(self._paid(sid), "2027-06-18")
+        # anchor on today so the test can't rot as the real date moves past a hardcoded due
+        base = date.today()
+        sid = self._sub(cycle="yearly", next_due=base.isoformat())
+        self.assertEqual(self._paid(sid), _advance(base, "yearly", 0).isoformat())
 
     def test_weekly_advances_week(self):
-        sid = self._sub(cycle="weekly", next_due="2026-06-18")
-        self.assertEqual(self._paid(sid), "2026-06-25")
+        base = date.today()
+        sid = self._sub(cycle="weekly", next_due=base.isoformat())
+        self.assertEqual(self._paid(sid), (base + timedelta(days=7)).isoformat())
 
     def test_ontime_monthly_advances_one_month(self):
         today = date.today()
