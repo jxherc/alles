@@ -1333,7 +1333,7 @@ function _renderChart(type, groups) {
     const h = (d.v / max) * (H - 40);
     const y = H - 20 - h;
     return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" fill="${palette[i % palette.length]}"></rect>` +
-      `<text x="${(x + bw / 2).toFixed(1)}" y="${(y - 3).toFixed(1)}" font-size="9" fill="#e8e6e3" text-anchor="middle">${d.v}</text>` +
+      `<text x="${(x + bw / 2).toFixed(1)}" y="${(y - 3).toFixed(1)}" font-size="9" fill="currentColor" text-anchor="middle">${d.v}</text>` +
       `<text x="${(x + bw / 2).toFixed(1)}" y="${H - 4}" font-size="9" fill="#6e6e6e" text-anchor="middle">${esc(d.k.slice(0, 8))}</text>`;
   }).join('');
   return `<div class="wiki-chart"><svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}">${bars}</svg></div>`;

@@ -616,6 +616,9 @@ def set_cell(path, key, value):
     props, _ = parse_frontmatter(cur.get("content", "") or "")
     if value == "" or value is None:
         props.pop(key, None)
+    elif isinstance(props.get(key), list):
+        # the prop was a list (rendered "a, b" in the cell); keep it a list, don't flatten to a string
+        props[key] = [v.strip() for v in str(value).split(",") if v.strip()]
     else:
         props[key] = value
     write(path, set_frontmatter(cur.get("content", "") or "", props))
