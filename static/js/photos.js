@@ -244,7 +244,7 @@ let _inited = false;
 export function initPhotos() {
   if (_inited) return;
   _inited = true;
-  $('photos-album')?.addEventListener('change', e => { _album = e.target.value; loadPhotos(); });
+  $('photos-album')?.addEventListener('change', e => { _album = e.target.value; const s = $('photos-search'); if (s) s.value = ''; loadPhotos(); });
   $('photos-model')?.addEventListener('change', () => {
     localStorage.setItem('alles-image-model', getDropdownValue($('photos-model')) || '');
   });
@@ -361,7 +361,9 @@ async function uploadPhotos(files) {
   let n = 0;
   for (const f of files) {
     const fd = new FormData();
-    if (_album) fd.append('album_id', _album);
+    // virtual filters (__fav__/__hidden__/__map__/__memories__) are not real albums — attaching
+    // their id would tag the photo with a bogus album that no /albums row matches
+    if (_album && !_album.startsWith('__')) fd.append('album_id', _album);
     fd.append('file', f);
     const r = await fetch('/api/photos/upload', { method: 'POST', body: fd });
     if (r.ok) n++; else toast('upload failed: ' + f.name, 'error');
