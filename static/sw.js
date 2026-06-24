@@ -1,7 +1,7 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v145';   // journal: what-moves-your-mood correlations panel
+const VERSION = 'v146';   // health: baseline band + anomaly flag on each metric card
 const CACHE = `alles-${VERSION}`;
-const STAMP = '171';   // keep in sync with index.html ?v= / const _v
+const STAMP = '172';   // keep in sync with index.html ?v= / const _v
 
 // 1b: mutating writes that should be queued when offline
 const MUTATING = ['POST', 'PUT', 'PATCH', 'DELETE'];
