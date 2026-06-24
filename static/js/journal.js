@@ -407,7 +407,8 @@ async function reflect() {
   await save(false);
   btn.disabled = true; btn.textContent = 'reflecting…';
   try {
-    const r = await fetch('/api/journal/' + _day + '/reflect', { method: 'POST' });
+    const r = await fetch('/api/journal/' + _day + '/reflect', { method: 'POST', headers: _authHeaders() });
+    if (r.status === 403) { _setToken(''); showLock('unlock'); throw new Error('locked'); }
     const d = await r.json();
     if (!r.ok) throw new Error(d.detail || 'reflect failed');
     box.innerHTML = mdToHtml(d.reflection || '');
