@@ -63,11 +63,14 @@ function _weekStrip(h) {
 
 function _card(h) {
   const accent = h.color || 'var(--accent)';
+  const slip = h.risk && h.risk.slipping
+    ? `<span class="habit-slip" title="${esc(h.risk.reason)}">slipping</span>` : '';
   return `
-    <div class="habit-card" data-id="${h.id}" style="--habit-accent:${esc(accent)}">
+    <div class="habit-card${slip ? ' at-risk' : ''}" data-id="${h.id}" style="--habit-accent:${esc(accent)}">
       <div class="habit-top">
         ${h.icon ? `<span class="habit-icon">${esc(h.icon)}</span>` : ''}
         <div class="habit-name">${esc(h.name)}</div>
+        ${slip}
         <span class="habit-streak${h.streak > 0 ? ' on' : ''}" title="current streak">${h.streak}${_si('fire')}</span>
         <div class="habit-actions">
           <button class="icon-btn" data-act="edit" title="edit">${_si('edit')}</button>
