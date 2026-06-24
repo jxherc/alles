@@ -14,10 +14,10 @@ def _mkdb():
 
 
 def _mkdb_full():
-    from core.database import Account, Transaction
+    from core.database import Account, SubPayment, Transaction
 
     eng = create_engine("sqlite:///:memory:")
-    for m in (Account, Transaction, Subscription):
+    for m in (Account, Transaction, Subscription, SubPayment):
         m.__table__.create(eng)
     return sessionmaker(bind=eng)()
 
@@ -146,6 +146,18 @@ class AutoPostTests(unittest.TestCase):
         self.assertEqual(txns[0].account_id, acct.id)
         self.assertEqual(sub.last_posted_due, due)
         self.assertGreater(sub.next_due, due)  # rolled forward
+
+    def test_autopost_records_a_payment(self):
+        from datetime import date
+
+        from core.database import SubPayment
+
+        db, sub, acct, due = self._setup()
+        S._roll_and_post(sub, date.today(), db)
+        db.commit()
+        pays = db.query(SubPayment).filter_by(sub_id=sub.id).all()
+        self.assertEqual(len(pays), 1)  # auto-posted renewal now has a history row + undo path
+        self.assertTrue(pays[0].txn_id)
 
     def test_idempotent_second_roll_no_double_post(self):
         from datetime import date

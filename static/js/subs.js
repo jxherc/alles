@@ -84,7 +84,7 @@ function _chartHtml(a) {
       <span class="subs-bar-val">${esc(a.currency)}${c.monthly.toFixed(2)}</span>
     </div>`).join('');
   return `<div class="subs-chart">
-    <div class="subs-chart-title">${esc(a.currency)}${a.monthly_total}/mo · ${esc(a.currency)}${a.yearly_total}/yr · spend by category</div>
+    <div class="subs-chart-title">${esc(a.currency)}${(a.monthly_total || 0).toFixed(2)}/mo · ${esc(a.currency)}${(a.yearly_total || 0).toFixed(2)}/yr · spend by category</div>
     ${bars}
   </div>`;
 }

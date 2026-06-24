@@ -69,7 +69,7 @@ def _roll_and_post(sub: Subscription, today: date, db) -> bool:
     last_posted_due so the same renewal is never double-posted."""
     if not sub.active:
         return False
-    from core.database import Transaction
+    from core.database import Account, SubPayment, Transaction
 
     d = _parse(sub.next_due)
     charges = []
@@ -78,7 +78,6 @@ def _roll_and_post(sub: Subscription, today: date, db) -> bool:
         d = _advance(d, sub.cycle, sub.cycle_days)
     if not charges:
         return False
-    from core.database import Account
 
     sub.next_due = d.isoformat()
     if (sub.account_id or "") and db.get(Account, sub.account_id):
@@ -87,16 +86,18 @@ def _roll_and_post(sub: Subscription, today: date, db) -> bool:
             iso = cd.isoformat()
             if iso <= last:  # already posted this (or an earlier) renewal
                 continue
-            db.add(
-                Transaction(
-                    account_id=sub.account_id,
-                    date=iso,
-                    amount=-abs(sub.price or 0.0),
-                    category=(sub.category or "subscriptions"),
-                    payee=sub.name,
-                    notes="auto: subscription renewal",
-                )
+            txn = Transaction(
+                account_id=sub.account_id,
+                date=iso,
+                amount=-abs(sub.price or 0.0),
+                category=(sub.category or "subscriptions"),
+                payee=sub.name,
+                notes="auto: subscription renewal",
             )
+            db.add(txn)
+            db.flush()
+            # record the payment too so auto-posted renewals show in history and can be undone
+            db.add(SubPayment(sub_id=sub.id, date=iso, amount=sub.price or 0.0, txn_id=txn.id))
             sub.last_posted_due = iso
     return True
 
