@@ -129,6 +129,24 @@ def calendar_tasks(start: str = "", end: str = "", db: DbSession = Depends(get_d
     return [{"id": t.id, "title": t.title, "date": t.due_date, "done": t.done} for t in rows]
 
 
+@router.get("/calendar/birthdays")
+def calendar_birthdays(db: DbSession = Depends(get_db)):
+    """4a - contact birthdays as an annual all-day overlay. returns month/day (year-agnostic) so
+    the frontend can drop them on whatever year it's showing."""
+    from core.database import Contact
+
+    out = []
+    for c in db.query(Contact).filter(Contact.birthday != None, Contact.birthday != "").all():  # noqa: E711
+        parts = (c.birthday or "").strip().split("-")
+        try:
+            mo, da = (int(parts[1]), int(parts[2])) if len(parts) == 3 else (int(parts[0]), int(parts[1]))
+        except (ValueError, IndexError):
+            continue  # unparseable birthday, skip it rather than 500
+        if 1 <= mo <= 12 and 1 <= da <= 31:
+            out.append({"id": c.id, "name": c.name, "month": mo, "day": da})
+    return out
+
+
 @router.post("/calendar/{eid}/duplicate")
 def duplicate_event(eid: str, db: DbSession = Depends(get_db)):
     """clone an event (new id), same fields — Google Calendar 'duplicate'."""
