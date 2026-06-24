@@ -1599,13 +1599,27 @@ def summary(month: str = "", db: DbSession = Depends(get_db)):
     by_cat = _spending_by_cat(db, month)
     cats = sorted(([c, round(v, 2)] for c, v in by_cat.items()), key=lambda x: -x[1])
 
+    budget_rows = db.query(Budget).order_by(Budget.category.asc()).all()
+    # tag budgets store category="" so by_cat can't see them - sum this month's tagged expenses
+    tag_budgets = [b for b in budget_rows if (b.tag or "").strip()]
+    tag_spend: dict[str, float] = {}
+    if tag_budgets:
+        for t in db.query(Transaction).all():
+            if t.transfer_id or (t.amount or 0.0) >= 0 or (t.date or "")[:7] != month:
+                continue
+            tags = set(_norm_tags(t.tags or "").split(","))
+            for b in tag_budgets:
+                if b.tag in tags:
+                    tag_spend[b.id] = tag_spend.get(b.id, 0.0) + abs(t.amount or 0.0)
     budgets = []
-    for b in db.query(Budget).order_by(Budget.category.asc()).all():
+    for b in budget_rows:
+        is_tag = bool((b.tag or "").strip())
         budgets.append(
             {
-                "category": b.category,
+                "category": b.tag if is_tag else b.category,  # show the tag name, not a blank
+                "tag": b.tag or "",
                 "limit": b.limit_amt,
-                "spent": round(by_cat.get(b.category, 0.0), 2),
+                "spent": round(tag_spend.get(b.id, 0.0) if is_tag else by_cat.get(b.category, 0.0), 2),
             }
         )
 

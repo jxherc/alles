@@ -566,12 +566,6 @@ def stop_chat(session_id: str):
     return {"ok": False, "msg": "no active stream"}
 
 
-# GET /api/chat/status/{session_id}
-@router.get("/chat/status/{session_id}")
-def chat_status(session_id: str):
-    return {"streaming": session_id in _streams}
-
-
 _REWRITE_STYLES = {
     "shorter": "Rewrite the assistant reply below to be significantly shorter and tighter — keep every load-bearing point, cut filler. Same format.",
     "simpler": "Rewrite the assistant reply below in plainer, simpler language anyone can follow. Keep the meaning, drop jargon.",
@@ -624,16 +618,3 @@ async def rewrite_last(body: RewriteBody, db: DbSession = Depends(get_db)):
     last.content = out
     db.commit()
     return {"content": out, "msg_id": last.id}
-
-
-# GET /api/sessions/{session_id}/messages/{msg_id}/artifact/{idx}
-@router.get("/sessions/{session_id}/messages/{msg_id}/artifact/{idx}")
-def get_artifact(session_id: str, msg_id: str, idx: int, db: DbSession = Depends(get_db)):
-    msg = db.get(Message, msg_id)
-    if not msg or msg.session_id != session_id:
-        raise HTTPException(404)
-    meta = msg.meta_dict()
-    arts = meta.get("artifacts", [])
-    if idx >= len(arts):
-        raise HTTPException(404)
-    return arts[idx]
