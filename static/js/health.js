@@ -53,12 +53,17 @@ function _kindCard(k) {
   const unit = (k.latest && k.latest.unit) || KIND_UNIT[k.kind] || '';
   const label = k.label || KIND_LABEL[k.kind] || k.kind;
   const tgt = (typeof k.target === 'number') ? k.target : null;
+  const anom = k.anomaly
+    ? `<span class="health-anom ${k.anomaly.dir}" title="outside your usual range">${k.anomaly.dir === 'high' ? '▲ above usual' : '▼ below usual'}</span>` : '';
+  const base = (k.baseline && k.baseline.n >= 5)
+    ? `<div class="health-baseline">usual ${_fmtNum(k.baseline.mean)}<span>${esc(unit)}</span> <span class="health-pm">± ${_fmtNum(k.baseline.std)}</span></div>` : '';
   return `
     <div class="health-card" data-kind="${esc(k.kind)}">
       <div class="health-card-h">${esc(label)}
         <button class="health-target-btn${tgt != null ? ' on' : ''}" data-act="set-target" title="set a target">${tgt != null ? `◎ ${_fmtNum(tgt)}` : 'set target'}</button>
       </div>
-      <div class="health-latest">${k.latest ? `${_fmtNum(k.latest.value)}<span>${esc(unit)}</span>` : '—'}</div>
+      <div class="health-latest">${k.latest ? `${_fmtNum(k.latest.value)}<span>${esc(unit)}</span>` : '—'}${anom}</div>
+      ${base}
       ${_line(k.series, tgt)}
       <div class="health-card-meta">${k.latest ? esc(k.latest.date) : 'no entries'} · ${k.series.length} in range</div>
     </div>`;

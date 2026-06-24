@@ -118,6 +118,34 @@ class HealthApiTests(ApiTest):
         self.assertEqual(r.json()["value"], 81.0)
         self.assertEqual(r.json()["note"], "post lunch")
 
+    def test_overview_has_baseline(self):
+        for i, v in enumerate([7, 7, 8, 7, 7, 8]):  # steady sleep
+            self._create(kind="sleep", value=v, date=f"2026-06-{10 + i:02d}")
+        s = next(k for k in self.client.get("/api/health/overview").json()["kinds"] if k["kind"] == "sleep")
+        self.assertGreaterEqual(s["baseline"]["n"], 5)
+        self.assertAlmostEqual(s["baseline"]["mean"], 44 / 6, places=2)
+
+    def test_overview_flags_latest_anomaly(self):
+        for i, v in enumerate([7, 8, 6, 7, 8, 6, 7]):  # varied baseline so MAD > 0
+            self._create(kind="sleep", value=v, date=f"2026-06-{10 + i:02d}")
+        self._create(kind="sleep", value=2.0, date="2026-06-20")  # latest is way low
+        s = next(k for k in self.client.get("/api/health/overview").json()["kinds"] if k["kind"] == "sleep")
+        self.assertEqual(s["latest"]["value"], 2.0)
+        self.assertEqual(s["anomaly"]["dir"], "low")
+
+    def test_overview_no_anomaly_when_steady(self):
+        for i, v in enumerate([7, 8, 6, 7, 8, 7]):  # normal day, nothing odd
+            self._create(kind="sleep", value=v, date=f"2026-06-{10 + i:02d}")
+        s = next(k for k in self.client.get("/api/health/overview").json()["kinds"] if k["kind"] == "sleep")
+        self.assertIsNone(s["anomaly"])
+
+    def test_anomalies_route(self):
+        for i, v in enumerate([7, 8, 6, 7, 8, 2]):
+            self._create(kind="sleep", value=v, date=f"2026-06-{10 + i:02d}")
+        r = self.client.get("/api/health/sleep/anomalies").json()
+        self.assertIn("baseline", r)
+        self.assertTrue(any(a["value"] == 2 for a in r["anomalies"]))
+
 
 class HealthTargetTests(ApiTest):
     def setUp(self):

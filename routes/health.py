@@ -80,6 +80,7 @@ def list_entries(kind: str = "", db: DbSession = Depends(get_db)):
 @router.get("/health/overview")
 def overview(days: int = 365, db: DbSession = Depends(get_db)):
     from core.settings import load_settings
+    from services import life_stats
 
     targets = load_settings().get("health_targets") or {}
     since = (date.today() - timedelta(days=max(1, days))).isoformat()
@@ -98,6 +99,10 @@ def overview(days: int = 365, db: DbSession = Depends(get_db)):
         lt = latest_kl.get(key)
         t = targets.get(e.kind)
         ser = [r for r in rows if (r.kind, r.label or "") == key]
+        # 4b - baseline + flag whether the latest value sits outside the usual range (robust MAD)
+        raw = sorted(((r.date, r.value or 0.0) for r in ser), key=lambda p: p[0])
+        anoms = {a["date"]: a for a in life_stats.health_anomalies(raw)}
+        latest_anom = anoms.get(lt.date) if lt else None
         out.append(
             {
                 "kind": e.kind,
@@ -105,6 +110,12 @@ def overview(days: int = 365, db: DbSession = Depends(get_db)):
                 "latest": {"date": lt.date, "value": lt.value, "unit": lt.unit} if lt else None,
                 "series": series_for(ser, e.kind),
                 "target": t if isinstance(t, (int, float)) and t > 0 else None,
+                "baseline": life_stats.health_baseline([v for _, v in raw]),
+                "anomaly": (
+                    {"z": latest_anom["z"], "dir": "high" if latest_anom["z"] > 0 else "low"}
+                    if latest_anom
+                    else None
+                ),
             }
         )
     return {"kinds": out, "days": days}
