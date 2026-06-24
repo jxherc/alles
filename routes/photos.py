@@ -339,18 +339,22 @@ def sync(body: SyncBody, db: DbSession = Depends(get_db)):
 @router.post("/sync/macos")
 def sync_macos():
     """pull from the macOS Photos library (Mac mini only) then import."""
+    import shutil
     import tempfile
 
     from services import photo_sync
 
+    dest = tempfile.mkdtemp(prefix="alles-photos-")
     try:
-        dest = tempfile.mkdtemp(prefix="alles-photos-")
         photo_sync.pull_from_macos_photos(dest)
         return photo_sync.sync_folder(dest)
     except NotImplementedError as e:
         raise HTTPException(501, str(e))
     except Exception as e:
         raise HTTPException(500, str(e))
+    finally:
+        # the originals are already copied into the library by import; don't leak the GB-sized export
+        shutil.rmtree(dest, ignore_errors=True)
 
 
 @router.get("/thumb/{pid}")
