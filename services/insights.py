@@ -39,7 +39,7 @@ def apply_insights(db, items):
     existing = {i.dedupe_key for i in db.query(Insight).all()}  # includes dismissed
     n = 0
     for it in items or []:
-        title = (it.get("title") or "").strip()
+        title = str(it.get("title") or "").strip()
         if not title:
             continue
         ev = [str(e) for e in (it.get("evidence") or [])]
@@ -50,7 +50,7 @@ def apply_insights(db, items):
         db.add(
             Insight(
                 title=title[:200],
-                body=(it.get("body") or "")[:1000],
+                body=str(it.get("body") or "")[:1000],
                 kind=(it.get("kind") or ""),
                 evidence=json.dumps(ev),
                 dedupe_key=dk,
@@ -98,7 +98,7 @@ def _parse(raw):
         return []
     out = []
     for it in arr:
-        if isinstance(it, dict) and (it.get("title") or "").strip():
+        if isinstance(it, dict) and str(it.get("title") or "").strip():
             out.append(
                 {
                     "title": str(it["title"]).strip().replace("—", "-").replace("–", "-"),
