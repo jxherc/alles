@@ -13,6 +13,7 @@ from core.database import (
     ContactField,
     ContactGroup,
     ContactGroupMember,
+    ContactLink,
     get_db,
 )
 
@@ -288,6 +289,12 @@ def delete_contact(cid: str, db: DbSession = Depends(get_db)):
     c = db.get(Contact, cid)
     if not c:
         raise HTTPException(404)
+    # these tables key on contact_id with no FK cascade, so clean them up or they orphan
+    db.query(ContactField).filter(ContactField.contact_id == cid).delete()
+    db.query(ContactGroupMember).filter(ContactGroupMember.contact_id == cid).delete()
+    db.query(ContactLink).filter(
+        (ContactLink.from_id == cid) | (ContactLink.to_id == cid)
+    ).delete()
     db.delete(c)
     db.commit()
     try:

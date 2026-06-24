@@ -26,6 +26,31 @@ class MoneyApiTest(ApiTest):
         )
         self.assertEqual(r.status_code, 400)
 
+    def test_patch_txn_rejects_non_finite_amount(self):
+        # update_txn must reject inf/nan like create does, else the amount silently becomes $0
+        a = self.client.post("/api/money/accounts", json={"name": "chk"}).json()
+        t = self.client.post(
+            "/api/money/transactions",
+            json={"account_id": a["id"], "date": "2026-06-01", "amount": -20.0},
+        ).json()
+        r = self.client.patch(
+            f"/api/money/transactions/{t['id']}",
+            content='{"amount": 1e999}',  # parses to inf
+            headers={"content-type": "application/json"},
+        )
+        self.assertEqual(r.status_code, 400)
+
+    def test_patch_txn_rejects_unknown_account(self):
+        a = self.client.post("/api/money/accounts", json={"name": "chk2"}).json()
+        t = self.client.post(
+            "/api/money/transactions",
+            json={"account_id": a["id"], "date": "2026-06-01", "amount": -5.0},
+        ).json()
+        r = self.client.patch(
+            f"/api/money/transactions/{t['id']}", json={"account_id": "ghost"}
+        )
+        self.assertEqual(r.status_code, 400)
+
     def test_summary_and_delete(self):
         a = self.client.post("/api/money/accounts", json={"name": "x"}).json()
         self.assertEqual(self.client.get("/api/money/summary").status_code, 200)
