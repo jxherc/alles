@@ -25,7 +25,7 @@ function _onVis() {
   if (document.hidden) { _stopPoll(); }
   else { loadWatch(); _startPoll(); }
 }
-function _startPoll() { _stopPoll(); _poll = setInterval(() => { if (!document.hidden) _refreshQuiet(); }, 15000); }
+function _startPoll() { _stopPoll(); _poll = setInterval(() => { if (document.hidden || document.getElementById('watch-view')?.style.display === 'none') return; _refreshQuiet(); }, 15000); }
 function _stopPoll() { if (_poll) { clearInterval(_poll); _poll = null; } }
 
 export async function loadWatch() {

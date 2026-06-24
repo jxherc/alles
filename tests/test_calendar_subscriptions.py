@@ -83,6 +83,34 @@ class CalendarSubscriptionTests(ApiTest):
         self.assertIsNone(db.get(CalendarSubscription, sid))
         db.close()
 
+    def test_delete_cleans_up_auto_created_calendar(self):
+        from core.database import Calendar
+
+        with mock.patch("routes.calendar.fetch_ics", return_value=""):
+            d = self._create()
+        sid, cid = d["id"], d["calendar_id"]
+        self._refresh(sid, ICS_2)
+        self.client.delete(f"/api/calendar/subscriptions/{sid}")
+        db = self.db()
+        self.assertIsNone(db.get(Calendar, cid))  # orphan feed layer removed, not left behind
+        db.close()
+
+    def test_duplicate_drops_subscription_id(self):
+        with mock.patch("routes.calendar.fetch_ics", return_value=""):
+            sid = self._create()["id"]
+        self._refresh(sid, ICS_2)
+        ev = self._events_for(sid)[0]
+        # find the event id
+        evs = self.client.get("/api/calendar").json()
+        eid = next(e["id"] for e in (evs if isinstance(evs, list) else evs.get("events", [])) if e["title"] == ev[0])
+        dup = self.client.post(f"/api/calendar/{eid}/duplicate").json()
+        from core.database import CalendarEvent
+
+        db = self.db()
+        clone = db.get(CalendarEvent, dup["id"])
+        self.assertFalse(clone.subscription_id)  # a duplicate is a local event, not feed-owned
+        db.close()
+
     def test_list_with_counts(self):
         with mock.patch("routes.calendar.fetch_ics", return_value=""):
             sid = self._create()["id"]
