@@ -3014,6 +3014,10 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 .jrnl-corr-dot.neg { background: var(--error); }
 .jrnl-corr-text { flex: 1; color: var(--text); line-height: 1.35; }
 .jrnl-corr-n { font-size: 0.66rem; color: var(--muted); font-variant-numeric: tabular-nums; flex-shrink: 0; }
+.jrnl-topics { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+.jrnl-topic { background: none; border: 1px solid var(--faint); border-radius: 3px; color: var(--muted); cursor: pointer; font-size: 0.7rem; padding: 0.1rem 0.4rem; }
+.jrnl-topic:hover { border-color: var(--accent); color: var(--accent); }
+.jrnl-topic span { color: var(--faint); margin-left: 0.15rem; font-variant-numeric: tabular-nums; }
 .jrnl-heat-head { display: flex; align-items: center; gap: 0.4rem; }
 .jrnl-heat-nav { font-size: 0.7rem; padding: 0 0.35rem; line-height: 1.4; }
 /* full-year contribution strip: month labels on top, 7×~53 grid filling the full width */
