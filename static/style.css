@@ -6042,6 +6042,11 @@ input.cp-swatch-input { width: 34px; height: 22px; border: 1px solid var(--faint
 .read-list { display: flex; flex-direction: column; gap: 0.6rem; max-width: 760px; }
 .read-empty { padding: 1.2rem 0; font-size: 0.75rem; color: var(--faint); max-width: 480px; }
 .read-stats { font-size: 0.72rem; color: var(--muted); margin: -0.4rem 0 0.9rem; padding-left: 0.1rem; }
+.read-tag { background: none; border: none; padding: 0; cursor: pointer; color: var(--muted); font: inherit; }
+.read-tag:hover { color: var(--accent); text-decoration: underline; }
+.read-tag.active { color: var(--accent); }
+.read-tagfilter { display: flex; align-items: center; gap: 0.5rem; font-size: 0.72rem; color: var(--muted); margin: -0.4rem 0 0.8rem; }
+.read-tagfilter .btn { font-size: 0.66rem; padding: 0.05rem 0.4rem; }
 .read-card { border: 1px solid var(--faint); border-radius: 4px; background: var(--panel); display: flex; gap: 0.5rem; padding: 0.75rem 0.9rem; transition: border-color 0.12s; }
 .read-card:hover { border-color: var(--muted); }
 .read-card.is-read { opacity: 0.62; }

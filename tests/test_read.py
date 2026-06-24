@@ -156,3 +156,23 @@ class ReadStatsTests(ApiTest):
         s = self.client.get("/api/read/stats").json()
         self.assertEqual(s["unread"], 0)
         self.assertEqual(s["days_to_clear"], 0)
+
+
+class ReadTagFilterTests(ApiTest):
+    def _mk(self, title, tags):
+        from core.database import ReadItem
+
+        s = self.db()
+        s.add(ReadItem(url=title, title=title, text="x", tags=tags))
+        s.commit()
+        s.close()
+
+    def test_tag_filter_matches(self):
+        self._mk("A", "python, ml")
+        self._mk("B", "cooking")
+        items = self.client.get("/api/read", params={"tag": "python"}).json()["items"]
+        self.assertEqual([i["title"] for i in items], ["A"])
+
+    def test_tag_filter_no_match(self):
+        self._mk("A", "python")
+        self.assertEqual(self.client.get("/api/read", params={"tag": "rust"}).json()["items"], [])
