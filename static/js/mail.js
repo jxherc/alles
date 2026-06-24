@@ -441,7 +441,9 @@ export async function startMailPoll() {
   _pollTimer = setInterval(() => {
     const view = $('mail-view');
     if (!view || view.style.display === 'none' || document.hidden) return;
-    if (_filter === 'sent' || !_accounts.length) return;
+    // only the plain inbox/unread views are what loadInbox renders; polling while on flagged/
+    // vip/drafts/a category/a label would silently clobber that view with the full inbox
+    if (!_accounts.length || (_filter !== 'inbox' && _filter !== 'unread')) return;
     loadInbox(false, true).catch(() => {});
   }, ms);
   if (_pollWired) return;
