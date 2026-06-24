@@ -652,6 +652,66 @@ function openEvent(id, occ) {
   if (ev) openEditor(ev, null, null, false, occ);
 }
 
+// 4a — the proposed [start,end) from the editor's pickers, or null if not a valid timed span
+function _proposedSpan() {
+  const sVal = document.getElementById('cal-start')?.value;
+  if (!sVal) return null;
+  const a = new Date(sVal);
+  const eVal = document.getElementById('cal-end')?.value;
+  const b = eVal ? new Date(eVal) : new Date(a.getTime() + 30 * 60000);
+  if (isNaN(a) || isNaN(b) || b <= a) return null;
+  return [a, b];
+}
+
+// live double-booking hint: does the proposed time overlap any existing timed occurrence that day
+function checkConflict() {
+  const warn = document.getElementById('cal-conflict');
+  if (!warn) return;
+  const allDay = document.getElementById('cal-allday')?.getAttribute('aria-checked') === 'true';
+  const span = _proposedSpan();
+  if (allDay || !span) { warn.textContent = ''; return; }
+  const [a, b] = span;
+  const ds = new Date(a); ds.setHours(0, 0, 0, 0);
+  const de = new Date(ds); de.setDate(de.getDate() + 1);
+  const hits = [];
+  for (const o of expand(ds, de)) {
+    if (o.all_day) continue;
+    if (_editing && o.id === _editing.id) continue;   // an event never conflicts with itself
+    const bs = new Date(o.start_dt), be = o.end_dt ? new Date(o.end_dt) : new Date(bs.getTime() + 3600000);
+    const os = o._date, oe = new Date(os.getTime() + (be - bs));
+    if (a < oe && os < b) hits.push(o.title || '(untitled)');
+    if (hits.length >= 3) break;
+  }
+  warn.textContent = hits.length ? `overlaps ${hits.join(', ')}` : '';
+}
+
+function _addMin(hhmm, min) {
+  const [h, m] = hhmm.split(':').map(Number);
+  const t = h * 60 + m + min;
+  return `${String(Math.floor(t / 60) % 24).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`;
+}
+
+// find free time: reuses the /free-slots advisor for the chosen day, fills the time on click
+async function findFreeSlots() {
+  const box = document.getElementById('cal-slots');
+  if (!box) return;
+  const day = (document.getElementById('cal-start')?.value || '').slice(0, 10);
+  if (!day) { toast('set a start date first', ''); return; }
+  const span = _proposedSpan();
+  const dur = span ? Math.max(15, Math.round((span[1] - span[0]) / 60000)) : 30;
+  const slots = await fetch(`/api/calendar/free-slots?day=${day}&duration_min=${dur}`)
+    .then(r => r.ok ? r.json() : { slots: [] }).then(j => j.slots || []).catch(() => []);
+  if (!slots.length) { box.innerHTML = '<div class="cal-slots-empty">no free slots in your 9-5 that day</div>'; return; }
+  box.innerHTML = slots.map(s =>
+    `<button class="cal-slot-chip" type="button" data-start="${s.start}">${s.start} - ${s.end}</button>`).join('');
+  box.querySelectorAll('.cal-slot-chip').forEach(b => b.addEventListener('click', () => {
+    document.getElementById('cal-start').value = `${day}T${b.dataset.start}`;
+    document.getElementById('cal-end').value = `${day}T${_addMin(b.dataset.start, dur)}`;
+    box.innerHTML = '';
+    checkConflict();
+  }));
+}
+
 // ── drag: create / move / resize timed events in week & day views ────────────
 function attachDrag(el, days) {
   const body = el.querySelector('.cal-tg-body');
@@ -845,6 +905,11 @@ function openEditor(event, defaultDate, hour, allDay, occ) {
       <div><div class="cal-flabel">start</div><div class="date-input" id="cal-start" data-type="datetime" data-value="${start}" data-ph="start" style="width:100%"></div></div>
       <div><div class="cal-flabel">end</div><div class="date-input" id="cal-end" data-type="datetime" data-value="${endVal}" data-ph="end (optional)" style="width:100%"></div></div>
     </div>
+    <div class="cal-sched">
+      <button class="btn cal-sched-btn" id="cal-freeslot" type="button">find free time</button>
+      <span class="cal-conflict" id="cal-conflict"></span>
+    </div>
+    <div class="cal-slots" id="cal-slots"></div>
     <div class="cal-ed-row">
       <label class="cal-flabel cal-chk-row" id="cal-allday-row"><span class="chk" id="cal-allday" role="checkbox" aria-checked="${event?.all_day || allDay ? 'true' : 'false'}"></span> all day</label>
       <div class="cal-cal-pick"><span class="cal-flabel">calendar</span>
@@ -907,10 +972,17 @@ function openEditor(event, defaultDate, hour, allDay, occ) {
   initCustomDropdown(document.getElementById('cal-calendar'));
   initDatePickers(el);
 
+  // 4a scheduling advisor: live overlap warning + free-slot finder (timed events only)
+  document.getElementById('cal-start')?.addEventListener('change', checkConflict);
+  document.getElementById('cal-end')?.addEventListener('change', checkConflict);
+  document.getElementById('cal-freeslot')?.addEventListener('click', findFreeSlots);
+  checkConflict();
+
   document.getElementById('cal-allday-row').addEventListener('click', e => {
     if (e.target.closest('.date-input')) return;
     const c = document.getElementById('cal-allday');
     c.setAttribute('aria-checked', c.getAttribute('aria-checked') === 'true' ? 'false' : 'true');
+    checkConflict();   // all-day events never conflict; clear/refresh the hint
   });
   const recSel = document.getElementById('cal-recur');
   recSel.addEventListener('change', () => {
