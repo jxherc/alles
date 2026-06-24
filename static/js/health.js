@@ -104,6 +104,7 @@ function _addForm() {
         <input type="text" class="settings-input health-unit" id="health-unit" value="kg" placeholder="unit">
       </div>
       <div class="health-add-row">
+        <input type="text" class="settings-input" id="health-label" placeholder="metric name (for custom)">
         <input type="text" class="settings-input" id="health-note" placeholder="note (optional)">
         <button class="btn primary" id="health-create">add</button>
         <button class="btn" id="health-cancel">cancel</button>
@@ -161,7 +162,7 @@ async function _create() {
   if (raw === '' || Number.isNaN(value)) { toast('enter a number', 'error'); return; }
   const r = await fetch('/api/health', {
     method: 'POST', headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ kind, value, unit: $('health-unit')?.value.trim() || '', note: $('health-note')?.value.trim() || '' }),
+    body: JSON.stringify({ kind, value, unit: $('health-unit')?.value.trim() || '', note: $('health-note')?.value.trim() || '', label: kind === 'custom' ? ($('health-label')?.value.trim() || '') : '' }),
   });
   if (!r.ok) { toast('failed to add', 'error'); return; }
   _adding = false; toast('logged', 'success'); loadHealth();
