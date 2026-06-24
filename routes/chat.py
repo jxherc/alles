@@ -180,6 +180,28 @@ def _build_messages(
         if mem_ctx:
             sys_prompt = sys_prompt.rstrip() + "\n\n" + mem_ctx
 
+    # surface-brain - let aide weave in the cross-domain insights it found
+    if db and settings.get("insights_auto_inject", True):
+        try:
+            from services.insights import inject_active_insights
+
+            ins_ctx = inject_active_insights(db)
+            if ins_ctx:
+                sys_prompt = sys_prompt.rstrip() + "\n\n" + ins_ctx
+        except Exception:
+            pass
+
+    # surface-brain - feed the distilled user-model (what we learned about you) into the prompt
+    if db and settings.get("distilled_auto_inject", True):
+        try:
+            from services.user_model import inject_distilled
+
+            dist_ctx = inject_distilled(db)
+            if dist_ctx:
+                sys_prompt = sys_prompt.rstrip() + "\n\n" + dist_ctx
+        except Exception:
+            pass
+
     # 1d - a compact per-session context (mode/topic/project) so aide stays coherent across turns
     if settings.get("session_context_inject", True) and db and session is not None:
         try:

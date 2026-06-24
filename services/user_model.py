@@ -24,7 +24,13 @@ def gather_evidence(db, *, sessions=20):
 
     topics = [
         s.name
-        for s in db.query(Sess).order_by(Sess.last_message_at.desc()).limit(sessions).all()
+        # incognito = no trace: never let its name become distilled evidence (matches the
+        # sidebar's incognito exclusion in routes/sessions.py)
+        for s in db.query(Sess)
+        .filter(Sess.incognito == False)  # noqa: E712
+        .order_by(Sess.last_message_at.desc())
+        .limit(sessions)
+        .all()
         if s.name
     ]
     prefs = proactive.feedback_stats(db)  # reuse 1a: per-category act_rate
@@ -82,6 +88,26 @@ def veto(db, mid):
     m.vetoed = True
     db.commit()
     return True
+
+
+def inject_distilled(db, *, threshold=0.5, limit=8):
+    """a short system-prompt block of what's been learned about the user, or '' if none.
+    excludes vetoed + low-confidence facts; highest confidence first."""
+    rows = (
+        db.query(Memory)
+        .filter(
+            Memory.source == "distilled",
+            Memory.vetoed == False,  # noqa: E712
+            Memory.confidence >= threshold,
+        )
+        .order_by(Memory.confidence.desc(), Memory.timestamp.desc())
+        .limit(limit)
+        .all()
+    )
+    if not rows:
+        return ""
+    lines = [f"- {m.text}" for m in rows]
+    return "what you've learned about the user from their behavior:\n" + "\n".join(lines)
 
 
 def _parse_facts(raw):

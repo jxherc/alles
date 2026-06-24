@@ -107,6 +107,8 @@ class SettingsPatch(BaseModel):
     session_context_inject: bool | None = None
     insights_enabled: bool | None = None
     intent_suggestions: bool | None = None
+    insights_auto_inject: bool | None = None
+    distilled_auto_inject: bool | None = None
     holdings_autoprice: bool | None = None
     tax_reminders: bool | None = None
     tax_setaside_rate: float | None = None

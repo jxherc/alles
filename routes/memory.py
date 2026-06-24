@@ -44,6 +44,21 @@ def list_distilled():
         db.close()
 
 
+@router.post("/memory/distill/run")
+async def distill_run():
+    """manual 'distill now' - run the user-model distillation pass on demand (parity with the
+    insights/proactive run-now buttons). returns how many new facts were learned."""
+    from core.database import SessionLocal
+    from services import user_model
+
+    db = SessionLocal()
+    try:
+        n = await user_model.distill_async(db)
+        return {"ran": True, "count": n}
+    finally:
+        db.close()
+
+
 @router.post("/memory/{mid}/veto")
 def veto_distilled(mid: str):
     """hide a distilled fact + keep it from being re-distilled."""
