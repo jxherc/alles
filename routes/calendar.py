@@ -184,20 +184,36 @@ def free_time(
 
 @router.get("/calendar/agenda")
 def agenda(days: int = 30, db: DbSession = Depends(get_db)):
-    """upcoming events grouped by day — a flat agenda list for the next N days."""
-    from datetime import date, timedelta
+    """upcoming events grouped by day — a flat agenda list for the next N days. recurring events
+    are expanded into their occurrences (a weekly event whose master start is in the past still
+    has upcoming instances), matching the month/week views."""
+    from datetime import date, datetime, timedelta
 
-    today = date.today().isoformat()
-    until = (date.today() + timedelta(days=days)).isoformat()
-    rows = (
-        db.query(CalendarEvent)
-        .filter(CalendarEvent.start_dt >= today, CalendarEvent.start_dt <= until + "T99")
-        .order_by(CalendarEvent.start_dt.asc())
-        .all()
-    )
+    from services.recur import expand
+
+    today = date.today()
+    until = today + timedelta(days=days)
+    today_s, until_s = today.isoformat(), until.isoformat()
+    rs = datetime.combine(today, datetime.min.time())
+    re_ = datetime.combine(until, datetime.max.time())
     groups: dict[str, list] = {}
-    for e in rows:
-        groups.setdefault(e.start_dt[:10], []).append(_fmt(e))
+    for e in db.query(CalendarEvent).all():
+        base = _fmt(e)
+        if e.recurrence:
+            try:
+                start0 = datetime.fromisoformat(e.start_dt)
+                dur = (datetime.fromisoformat(e.end_dt) - start0) if e.end_dt else timedelta(hours=1)
+            except (ValueError, TypeError):
+                continue
+            for occ in expand(base, rs, re_):
+                ev = dict(base, start_dt=occ.isoformat(), end_dt=(occ + dur).isoformat(), recurring=True)
+                groups.setdefault(occ.date().isoformat(), []).append(ev)
+        else:
+            d = (e.start_dt or "")[:10]
+            if today_s <= d <= until_s:
+                groups.setdefault(d, []).append(base)
+    for evs in groups.values():
+        evs.sort(key=lambda x: x["start_dt"])
     return {"days": [{"date": d, "events": groups[d]} for d in sorted(groups)]}
 
 

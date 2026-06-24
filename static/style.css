@@ -4016,6 +4016,7 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 .cal-agenda-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
 .cal-agenda-time { color: var(--muted); font-size: 0.7rem; width: 64px; flex-shrink: 0; }
 .cal-agenda-title { font-size: 0.78rem; color: var(--text); }
+.cal-agenda-recur { color: var(--muted); font-size: 0.68rem; }
 /* 8a year view */
 .cal-year { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 1rem; padding: 0.5rem; }
 .cal-year-month { }

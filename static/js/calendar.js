@@ -431,13 +431,13 @@ async function renderAgenda(lbl) {
     html += `<div class="cal-agenda-day"><div class="cal-agenda-date">${dd.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</div><div class="cal-agenda-evs">`;
     for (const o of g.events) {
       const t = o.all_day ? 'all day' : timeShort(o.start_dt);
-      html += `<div class="cal-agenda-ev" data-id="${o.id}"><span class="cal-agenda-dot" style="background:${evHex(o)}"></span><span class="cal-agenda-time">${esc(t)}</span><span class="cal-agenda-title">${esc(o.title)}</span></div>`;
+      html += `<div class="cal-agenda-ev" data-id="${o.id}" data-occ="${o.recurring ? o.start_dt.slice(0, 10) : ''}"><span class="cal-agenda-dot" style="background:${evHex(o)}"></span><span class="cal-agenda-time">${esc(t)}</span><span class="cal-agenda-title">${esc(o.title)}${o.recurring ? ' <span class="cal-agenda-recur">(repeats)</span>' : ''}</span></div>`;
     }
     html += '</div></div>';
   }
   html += '</div>';
   el.innerHTML = html;
-  el.querySelectorAll('.cal-agenda-ev').forEach(r => r.addEventListener('click', () => openEvent(r.dataset.id, null)));
+  el.querySelectorAll('.cal-agenda-ev').forEach(r => r.addEventListener('click', () => openEvent(r.dataset.id, r.dataset.occ || null)));
 }
 
 // year (8a) — 12 mini-months; click a day jumps to the day view
@@ -766,8 +766,14 @@ function openEditor(event, defaultDate, hour, allDay, occ) {
   const isNew = !event;
   const now = new Date(); now.setMinutes(0, 0, 0);
   const hh = hour != null ? String(hour).padStart(2, '0') : '09';
-  const start = pf?.start || event?.start_dt?.slice(0, 16) || (defaultDate ? `${defaultDate}T${hh}:00` : now.toISOString().slice(0, 16));
-  const endVal = pf?.end || event?.end_dt?.slice(0, 16) || '';
+  // editing a specific occurrence of a recurring event: keep the master's time-of-day but use
+  // the clicked occurrence's date (occ), not the master's original start
+  const mStart = event?.start_dt?.slice(0, 16) || '';
+  const mEnd = event?.end_dt?.slice(0, 16) || '';
+  const occStart = (occ && mStart) ? occ + mStart.slice(10) : '';
+  const occEnd = (occ && mEnd) ? occ + mEnd.slice(10) : '';
+  const start = pf?.start || occStart || mStart || (defaultDate ? `${defaultDate}T${hh}:00` : now.toISOString().slice(0, 16));
+  const endVal = pf?.end || occEnd || mEnd || '';
   const defaultCal = event?.calendar_id || (_calendars.find(c => c.is_default)?.id || _calendars[0]?.id || '');
   const rec = event?.recurrence || '';
   const reminders = new Set(event?.reminders || (isNew ? [10] : []));

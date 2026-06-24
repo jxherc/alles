@@ -1,7 +1,7 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v124';   // mail: fix oauth scheduled-send, server-side archive/move, schedule date format
+const VERSION = 'v125';   // money txn validation, contacts delete cascade, calendar agenda recurrence + occurrence edit
 const CACHE = `alles-${VERSION}`;
-const STAMP = '150';   // keep in sync with index.html ?v= / const _v
+const STAMP = '151';   // keep in sync with index.html ?v= / const _v
 
 // 1b: mutating writes that should be queued when offline
 const MUTATING = ['POST', 'PUT', 'PATCH', 'DELETE'];
