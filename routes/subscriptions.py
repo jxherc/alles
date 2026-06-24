@@ -550,7 +550,7 @@ def mark_paid(sid: str, db: DbSession = Depends(get_db)):
     # lands on the next upcoming due (cycle-correct, never just "+1 month").
     nxt = _advance(paid_for, sub.cycle, sub.cycle_days)
     guard = 0
-    while nxt <= today and guard < 600:
+    while nxt < today and guard < 600:  # only skip strictly-past cycles; a due-today stays payable (matches _roll)
         nxt = _advance(nxt, sub.cycle, sub.cycle_days)
         guard += 1
     sub.next_due = nxt.isoformat()
