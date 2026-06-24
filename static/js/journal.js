@@ -97,6 +97,10 @@ function buildJournal() {
             <div id="jrnl-moodcorr" class="jrnl-moodcorr"></div>
           </div>
           <div class="jrnl-col">
+            <div class="jrnl-side-title">topics</div>
+            <div id="jrnl-topics" class="jrnl-topics"></div>
+          </div>
+          <div class="jrnl-col">
             <div class="jrnl-side-title">on this day</div>
             <div id="jrnl-otd" class="jrnl-otd"><div class="jrnl-empty">nothing from past years yet</div></div>
           </div>
@@ -155,6 +159,7 @@ function buildJournal() {
   loadOnThisDay();
   loadMoodTrend();
   loadMoodCorr();
+  loadTopics();
   refreshLockBtn();
 }
 
@@ -239,6 +244,25 @@ async function loadMoodCorr() {
         <span class="jrnl-corr-text">${esc(c.explain)}</span>
         <span class="jrnl-corr-n" title="${c.n} days with both logged">${c.rho >= 0 ? '+' : ''}${c.rho.toFixed(2)}</span>
       </div>`).join('');
+  } catch { el.innerHTML = ''; }
+}
+
+// 4b - the topics you write about; click one to thread the related entries via search
+async function loadTopics() {
+  const el = document.getElementById('jrnl-topics');
+  if (!el) return;
+  try {
+    const d = await jget('/api/journal/tags');
+    if (!d.tags || !d.tags.length) { el.innerHTML = '<div class="jrnl-empty">tag entries to see your topics</div>'; return; }
+    el.innerHTML = d.tags.map(t =>
+      `<button class="jrnl-topic" data-tag="${esc(t.tag)}">#${esc(t.tag)} <span>${t.count}</span></button>`).join('');
+    el.querySelectorAll('.jrnl-topic').forEach(b => b.onclick = () => {
+      const inp = document.getElementById('jrnl-search');
+      if (!inp) return;
+      inp.value = b.dataset.tag;
+      inp.dispatchEvent(new Event('input', { bubbles: true }));
+      inp.scrollIntoView({ block: 'nearest' });
+    });
   } catch { el.innerHTML = ''; }
 }
 
@@ -373,7 +397,7 @@ async function save(explicit) {
     await jput('/api/journal/' + _day, { content, mood: curMood(), tags });
     document.getElementById('jrnl-saved').textContent = 'saved ' + new Date().toLocaleTimeString();
     if (explicit) toast('entry saved', 'success');
-    loadStats(); loadRecent(); loadMoodTrend(); loadMoodCorr();
+    loadStats(); loadRecent(); loadMoodTrend(); loadMoodCorr(); loadTopics();
   } catch (e) {
     if (explicit) toast(e.message || 'save failed', 'error');
   }

@@ -95,3 +95,43 @@ class JournalMoodTests(ApiTest):
     def test_blank_mood_not_in_distribution(self):
         self._seed(0, "")
         self.assertEqual(self._moods()["distribution"], [])
+
+
+class JournalTagsTests(ApiTest):
+    def setUp(self):
+        super().setUp()
+        self._sf = tempfile.NamedTemporaryFile(suffix=".json", delete=False)
+        self._sf.close()
+        self.sp = mock.patch.object(core.settings, "_SETTINGS_FILE", Path(self._sf.name))
+        self.sp.start()
+
+    def tearDown(self):
+        self.sp.stop()
+        Path(self._sf.name).unlink(missing_ok=True)
+        super().tearDown()
+
+    def _seed(self, days_ago, tags):
+        d = self.db()
+        day = (date.today() - timedelta(days=days_ago)).isoformat()
+        d.add(JournalEntry(date=day, content="x", tags=tags))
+        d.commit()
+        d.close()
+
+    def test_empty(self):
+        self.assertEqual(self.client.get("/api/journal/tags").json()["tags"], [])
+
+    def test_counts_and_order(self):
+        self._seed(0, "work, gym")
+        self._seed(1, "work")
+        self._seed(2, "Work")  # case-folded onto "work"
+        self._seed(3, "gym")
+        tags = self.client.get("/api/journal/tags").json()["tags"]
+        d = {t["tag"]: t["count"] for t in tags}
+        self.assertEqual(d["work"], 3)
+        self.assertEqual(d["gym"], 2)
+        self.assertEqual(tags[0]["tag"], "work")  # most-used first
+
+    def test_limit(self):
+        for i in range(20):
+            self._seed(i, f"tag{i}")
+        self.assertEqual(len(self.client.get("/api/journal/tags", params={"limit": 5}).json()["tags"]), 5)
