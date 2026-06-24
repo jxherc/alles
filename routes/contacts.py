@@ -53,6 +53,38 @@ def contact_unlink(cid: str, other_id: str, db: DbSession = Depends(get_db)):
     return {"removed": contacts_graph.unlink(db, cid, other_id)}
 
 
+@router.get("/contacts/{cid}/events")
+def contact_events(cid: str, db: DbSession = Depends(get_db)):
+    """4a CRM-lite: calendar events this contact is an attendee of (matched by email, or by
+    name when the invite carried no email). a simple shared-history timeline."""
+    from core.database import CalendarEvent, EventAttendee
+
+    c = db.get(Contact, cid)
+    if not c:
+        raise HTTPException(404)
+    emails = {c.email.strip().lower()} if (c.email or "").strip() else set()
+    for f in db.query(ContactField).filter_by(contact_id=cid, kind="email").all():
+        if f.value:
+            emails.add(f.value.strip().lower())
+    name = (c.name or "").strip().lower()
+
+    rsvp = {}
+    for a in db.query(EventAttendee).all():
+        ae = (a.email or "").strip().lower()
+        an = (a.name or "").strip().lower()
+        if (ae and ae in emails) or (not ae and an and an == name):
+            rsvp[a.event_id] = a.status
+    if not rsvp:
+        return {"events": []}
+    out = [
+        {"id": e.id, "title": e.title, "start_dt": e.start_dt, "all_day": bool(e.all_day),
+         "status": rsvp.get(e.id, "")}
+        for e in db.query(CalendarEvent).filter(CalendarEvent.id.in_(rsvp)).all()
+    ]
+    out.sort(key=lambda x: x["start_dt"] or "")
+    return {"events": out}
+
+
 def _avatar_dir():
     from core.settings import data_dir
 
