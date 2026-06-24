@@ -1,7 +1,7 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v151';   // journal: topics chips (most-used tags, click to thread entries)
+const VERSION = 'v152';   // files: click a tag to see every file carrying it
 const CACHE = `alles-${VERSION}`;
-const STAMP = '177';   // keep in sync with index.html ?v= / const _v
+const STAMP = '178';   // keep in sync with index.html ?v= / const _v
 
 // 1b: mutating writes that should be queued when offline
 const MUTATING = ['POST', 'PUT', 'PATCH', 'DELETE'];
