@@ -1,7 +1,7 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v147';   // habits: flag a habit you are letting slip
+const VERSION = 'v148';   // read: unread-queue capacity planner
 const CACHE = `alles-${VERSION}`;
-const STAMP = '173';   // keep in sync with index.html ?v= / const _v
+const STAMP = '174';   // keep in sync with index.html ?v= / const _v
 
 // 1b: mutating writes that should be queued when offline
 const MUTATING = ['POST', 'PUT', 'PATCH', 'DELETE'];

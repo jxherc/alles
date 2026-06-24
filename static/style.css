@@ -6038,6 +6038,7 @@ input.cp-swatch-input { width: 34px; height: 22px; border: 1px solid var(--faint
 .read-search .settings-input { width: 200px; max-width: 50vw; }
 .read-list { display: flex; flex-direction: column; gap: 0.6rem; max-width: 760px; }
 .read-empty { padding: 1.2rem 0; font-size: 0.75rem; color: var(--faint); max-width: 480px; }
+.read-stats { font-size: 0.72rem; color: var(--muted); margin: -0.4rem 0 0.9rem; padding-left: 0.1rem; }
 .read-card { border: 1px solid var(--faint); border-radius: 4px; background: var(--panel); display: flex; gap: 0.5rem; padding: 0.75rem 0.9rem; transition: border-color 0.12s; }
 .read-card:hover { border-color: var(--muted); }
 .read-card.is-read { opacity: 0.62; }

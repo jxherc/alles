@@ -109,3 +109,50 @@ class ReadApiTests(ApiTest):
         rid = self._save().json()["id"]
         self.assertEqual(self.client.delete(f"/api/read/{rid}").status_code, 200)
         self.assertEqual(self.client.get(f"/api/read/{rid}").status_code, 404)
+
+
+class ReadStatsTests(ApiTest):
+    def _mk(self, minutes, read=False, archived=False, read_at=None):
+        from core.database import ReadItem
+
+        s = self.db()
+        s.add(ReadItem(
+            url="u", title="t", text="x", read_minutes=minutes, archived=archived,
+            read_at=(read_at or ("2020-01-01T00:00:00" if read else "")),
+        ))
+        s.commit()
+        s.close()
+
+    def test_stats_sums_unread_only(self):
+        self._mk(10)
+        self._mk(20)
+        self._mk(30, read=True)       # read -> not in queue
+        self._mk(40, archived=True)   # archived -> not in queue
+        s = self.client.get("/api/read/stats").json()
+        self.assertEqual(s["unread"], 2)
+        self.assertEqual(s["minutes"], 30)
+        self.assertEqual(s["longest"], 20)
+
+    def test_stats_default_pace_when_no_history(self):
+        self._mk(60)
+        s = self.client.get("/api/read/stats").json()
+        self.assertFalse(s["measured"])
+        self.assertEqual(s["pace_per_day"], 20)
+        self.assertEqual(s["days_to_clear"], 3)  # 60 / 20
+
+    def test_stats_uses_measured_pace(self):
+        from datetime import datetime
+
+        recent = datetime.utcnow().isoformat()
+        self._mk(100)  # unread queue
+        for _ in range(10):
+            self._mk(150, read_at=recent)  # 1500 min read in the last 30 days -> 50/day
+        s = self.client.get("/api/read/stats").json()
+        self.assertTrue(s["measured"])
+        self.assertEqual(s["pace_per_day"], 50)
+        self.assertEqual(s["days_to_clear"], 2)  # ceil(100 / 50)
+
+    def test_stats_empty(self):
+        s = self.client.get("/api/read/stats").json()
+        self.assertEqual(s["unread"], 0)
+        self.assertEqual(s["days_to_clear"], 0)
