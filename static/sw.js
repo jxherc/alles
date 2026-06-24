@@ -1,7 +1,7 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v134';   // files: quota cache, popover dismissal, scoped tag queries, no empty tag rows; books label
+const VERSION = 'v135';   // calendar dup/sub cleanup, watch uptime window + poll gate
 const CACHE = `alles-${VERSION}`;
-const STAMP = '160';   // keep in sync with index.html ?v= / const _v
+const STAMP = '161';   // keep in sync with index.html ?v= / const _v
 
 // 1b: mutating writes that should be queued when offline
 const MUTATING = ['POST', 'PUT', 'PATCH', 'DELETE'];

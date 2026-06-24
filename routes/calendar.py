@@ -135,7 +135,14 @@ def duplicate_event(eid: str, db: DbSession = Depends(get_db)):
     e = db.get(CalendarEvent, eid)
     if not e:
         raise HTTPException(404)
-    cols = {c.name for c in CalendarEvent.__table__.columns} - {"id", "created_at", "caldav_uid"}
+    # drop subscription_id too: a clone tagged with the feed id gets wiped on the next feed
+    # refresh (which deletes all events for that subscription). a duplicate is a local event.
+    cols = {c.name for c in CalendarEvent.__table__.columns} - {
+        "id",
+        "created_at",
+        "caldav_uid",
+        "subscription_id",
+    }
     clone = CalendarEvent(**{c: getattr(e, c) for c in cols})
     db.add(clone)
     db.commit()
@@ -504,9 +511,24 @@ def delete_subscription(sid: str, db: DbSession = Depends(get_db)):
     sub = db.get(CalendarSubscription, sid)
     if not sub:
         raise HTTPException(404)
+    cid = sub.calendar_id
     db.query(CalendarEvent).filter(CalendarEvent.subscription_id == sid).delete()
     db.delete(sub)
     db.commit()
+    # clean up the dedicated calendar layer create_subscription auto-made, if it's now empty and
+    # unreferenced, instead of leaving an orphan layer in the sidebar after every add/remove cycle
+    if cid:
+        cal = db.get(Calendar, cid)
+        if cal and not getattr(cal, "is_default", False):
+            has_events = db.query(CalendarEvent).filter(CalendarEvent.calendar_id == cid).count()
+            has_subs = (
+                db.query(CalendarSubscription)
+                .filter(CalendarSubscription.calendar_id == cid)
+                .count()
+            )
+            if not has_events and not has_subs:
+                db.delete(cal)
+                db.commit()
     return {"ok": True}
 
 
@@ -530,7 +552,6 @@ async def refresh_all_subscriptions():
 
 
 # ── invites + RSVP + video links (8b) ─────────────────────────────────────────
-_RSVP_STATUSES = {"invited", "accepted", "declined", "tentative"}
 
 
 def _att_out(a: EventAttendee) -> dict:
