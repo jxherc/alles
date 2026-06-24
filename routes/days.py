@@ -122,7 +122,7 @@ def _fmt(ev: DayEvent, today: date) -> dict:
         "nth": nth,
         "breakdown": breakdown,
         "progress": progress,
-        "created_at": ev.created_at.isoformat(),
+        "created_at": ev.created_at.isoformat() if ev.created_at else None,
     }
 
 
@@ -206,7 +206,11 @@ def update_day(eid: str, body: DayPatch, db: DbSession = Depends(get_db)):
             raise HTTPException(400, "date must be an ISO date (YYYY-MM-DD)")
         ev.date = str(body.date)[:10]
         ev.last_notified = ""  # date changed → re-arm the push
-    for field in ("name", "repeat", "category", "notes", "pinned", "notify_days"):
+    if body.name is not None:
+        if not body.name.strip():  # match create_day: don't let a save blank the name
+            raise HTTPException(400, "name required")
+        ev.name = body.name.strip()
+    for field in ("repeat", "category", "notes", "pinned", "notify_days"):
         v = getattr(body, field)
         if v is not None:
             setattr(ev, field, v)

@@ -75,6 +75,23 @@ class FutureRepeatApiTests(ApiTest):
             "/api/days", json={"name": name, "date": dt, "repeat": repeat}
         ).json()
 
+    def test_patch_blank_name_rejected(self):
+        d = self._mk("Birthday", date.today().isoformat(), "yearly")
+        r = self.client.patch(f"/api/days/{d['id']}", json={"name": "   "})
+        self.assertEqual(r.status_code, 400)
+        # original name intact
+        got = self.client.get("/api/days").json()
+        names = [e["name"] for e in (got if isinstance(got, list) else got.get("events", []))]
+        self.assertIn("Birthday", names)
+
+    def test_fmt_survives_null_created_at(self):
+        from core.database import DayEvent
+        d = self.db()
+        d.add(DayEvent(name="legacy", date=date.today().isoformat(), created_at=None))
+        d.commit()
+        d.close()
+        self.assertEqual(self.client.get("/api/days").status_code, 200)
+
     def test_api_future_yearly_not_today(self):
         # 2 years out, yearly → must not be mode "today" with negative nth
         fut = date(date.today().year + 2, 1, 1).isoformat()
