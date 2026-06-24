@@ -99,6 +99,22 @@ class BuilderTests(unittest.TestCase):
         sleep = next(c for c in out["correlations"] if c["label"] == "health:sleep")
         self.assertGreater(sleep["rho"], 0.5)
 
+    def test_tasks_completed_correlation(self):
+        import datetime as _dt
+
+        # finish tasks on good-mood days, none on bad-mood days -> positive link
+        for i in range(8):
+            good = i < 4
+            self._journal(i, "😄" if good else "😢")
+            if good:
+                self.s.add(db.Task(title=f"t{i}", done=True, completed_at=_dt.datetime.combine(
+                    _dt.date.fromisoformat(self._day(i)), _dt.time(12, 0))))
+        self.s.commit()
+        out = mc.correlations(self.s, min_overlap=6)
+        tc = next(c for c in out["correlations"] if c["label"] == "tasks completed")
+        self.assertGreater(tc["rho"], 0.4)
+        self.assertIn("tasks completed", tc["explain"])
+
     def test_archived_habit_excluded(self):
         h = db.Habit(name="old", archived=True)
         self.s.add(h)
