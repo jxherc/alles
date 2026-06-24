@@ -7,6 +7,7 @@ const _si = n => (window.icon ? window.icon(n) : '');
 
 const $ = id => document.getElementById(id);
 let _items = [];
+let _stats = null;
 let _filter = 'all';
 let _q = '';
 let _open = null;   // full item being read
@@ -41,8 +42,14 @@ export async function loadRead() {
   // so remember if we were typing in it + the caret, and put focus back after.
   const wasSearching = document.activeElement?.id === 'read-q';
   const caret = wasSearching ? document.activeElement.selectionStart : null;
-  try { _items = (await fetch('/api/read?' + params).then(r => r.json())).items || []; }
-  catch { _items = []; }
+  try {
+    const [items, stats] = await Promise.all([
+      fetch('/api/read?' + params).then(r => r.json()),
+      fetch('/api/read/stats').then(r => r.json()).catch(() => null),
+    ]);
+    _items = items.items || [];
+    _stats = stats;
+  } catch { _items = []; }
   _render();
   if (wasSearching) {
     const q = $('read-q');
@@ -68,9 +75,25 @@ function _render() {
       <div class="read-search"><input type="text" id="read-q" class="settings-input" placeholder="search saved…" value="${esc(_q)}" spellcheck="false"></div>
     </div>
     ${_showFeeds ? _feedsPanel() : ''}
+    ${_statsBar()}
     ${_items.length ? `<div class="read-list">${_items.map(_card).join('')}</div>`
       : `<div class="read-empty">${_q ? 'nothing matches that search.' : 'nothing saved yet — paste a link above and alles will keep the article text here, searchable, forever.'}</div>`}`;
   _wire(body);
+}
+
+function _fmtMin(m) {
+  if (m < 60) return `${m} min`;
+  const h = Math.floor(m / 60), mm = m % 60;
+  return mm ? `${h}h ${mm}m` : `${h}h`;
+}
+
+// 4b - reading-queue capacity: how much is stacked up + roughly how long to clear it
+function _statsBar() {
+  const s = _stats;
+  if (!s || !s.unread) return '';
+  const days = s.days_to_clear
+    ? ` · about ${s.days_to_clear} day${s.days_to_clear === 1 ? '' : 's'} at ${s.pace_per_day} min/day` : '';
+  return `<div class="read-stats">${s.unread} unread · ${_fmtMin(s.minutes)} to read${days}</div>`;
 }
 
 function _card(it) {

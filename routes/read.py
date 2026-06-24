@@ -86,6 +86,34 @@ def list_items(filter: str = "", q: str = "", tag: str = "", db: DbSession = Dep
     return {"items": [_fmt(r) for r in rows]}
 
 
+@router.get("/read/stats")
+def read_stats(db: DbSession = Depends(get_db)):
+    """4b - capacity planner for the unread queue: how much reading is stacked up and roughly
+    how long to clear it at your recent pace (falls back to a 20 min/day assumption)."""
+    import math
+    from datetime import date, timedelta
+
+    unread = (
+        db.query(ReadItem)
+        .filter(ReadItem.archived == False, ReadItem.read_at == "")  # noqa: E712
+        .all()
+    )
+    total = sum(it.read_minutes or 0 for it in unread)
+    longest = max((it.read_minutes or 0 for it in unread), default=0)
+    cut = (date.today() - timedelta(days=30)).isoformat()
+    recent = db.query(ReadItem).filter(ReadItem.read_at >= cut, ReadItem.read_at != "").all()
+    measured = sum(it.read_minutes or 0 for it in recent) / 30.0
+    pace = measured if measured >= 5 else 20.0
+    return {
+        "unread": len(unread),
+        "minutes": total,
+        "longest": longest,
+        "pace_per_day": round(pace),
+        "measured": measured >= 5,
+        "days_to_clear": math.ceil(total / pace) if total else 0,
+    }
+
+
 # ── rss/atom feeds — defined before /read/{rid} so "feeds" isn't read as an id ──
 class FeedBody(BaseModel):
     url: str
