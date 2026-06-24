@@ -46,7 +46,7 @@ def apply_distilled(db, facts, provenance=""):
     vetoed = {_norm(m.text) for m in db.query(Memory).filter(Memory.vetoed == True).all()}  # noqa: E712
     n = 0
     for f in facts or []:
-        txt = (f.get("text") or "").strip()
+        txt = str(f.get("text") or "").strip()[:300]
         if not txt:
             continue
         key = _norm(txt)
@@ -121,7 +121,7 @@ def _parse_facts(raw):
         return []
     out = []
     for it in arr:
-        if isinstance(it, dict) and (it.get("text") or "").strip():
+        if isinstance(it, dict) and str(it.get("text") or "").strip():
             try:
                 conf = max(0.0, min(1.0, float(it.get("confidence", 0.6))))
             except (TypeError, ValueError):

@@ -1,7 +1,7 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v122';   // surface the brain: insights + user-model dashboard, intelligence settings, aide injection
+const VERSION = 'v123';   // brain dashboard hardening: clamp confidence bar, wrap long tokens
 const CACHE = `alles-${VERSION}`;
-const STAMP = '148';   // keep in sync with index.html ?v= / const _v
+const STAMP = '149';   // keep in sync with index.html ?v= / const _v
 
 // 1b: mutating writes that should be queued when offline
 const MUTATING = ['POST', 'PUT', 'PATCH', 'DELETE'];
