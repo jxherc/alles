@@ -84,23 +84,26 @@ def overview(days: int = 365, db: DbSession = Depends(get_db)):
     targets = load_settings().get("health_targets") or {}
     since = (date.today() - timedelta(days=max(1, days))).isoformat()
     rows = db.query(HealthEntry).filter(HealthEntry.date >= since).all()
-    # order by id so latest_per_kind sees insertion order (same-day correction wins)
-    all_rows = db.query(HealthEntry).order_by(HealthEntry.id.asc()).all()  # latest ignores the range window
-    latest = latest_per_kind(all_rows)
+    # order by id so the latest map sees insertion order (a same-day correction wins). key by
+    # (kind, label) so distinct custom metrics (e.g. blood pressure vs steps) get their own card.
+    all_rows = db.query(HealthEntry).order_by(HealthEntry.id.asc()).all()
+    latest_kl = {(e.kind, e.label or ""): e for e in all_rows}
     out = []
     seen = set()
-    for e in all_rows:
-        if e.kind in seen:
+    for e in rows:  # only metrics with an entry IN the selected range get a card
+        key = (e.kind, e.label or "")
+        if key in seen:
             continue
-        seen.add(e.kind)
-        lt = latest.get(e.kind)
+        seen.add(key)
+        lt = latest_kl.get(key)
         t = targets.get(e.kind)
+        ser = [r for r in rows if (r.kind, r.label or "") == key]
         out.append(
             {
                 "kind": e.kind,
                 "label": e.label,
                 "latest": {"date": lt.date, "value": lt.value, "unit": lt.unit} if lt else None,
-                "series": series_for(rows, e.kind),
+                "series": series_for(ser, e.kind),
                 "target": t if isinstance(t, (int, float)) and t > 0 else None,
             }
         )
@@ -142,7 +145,12 @@ def import_health(body: ImportBody, db: DbSession = Depends(get_db)):
             _d(d)
         except ValueError:
             d = date.today().isoformat()
-        db.add(HealthEntry(kind=r["kind"], value=r["value"], unit=r["unit"], date=d))
+        # create_entry only allows KINDS; keep imports consistent - an out-of-set kind becomes a
+        # labeled custom metric instead of a kind the manual add path would reject
+        kind, label = r["kind"], ""
+        if kind not in KINDS:
+            kind, label = "custom", r["kind"]
+        db.add(HealthEntry(kind=kind, label=label, value=r["value"], unit=r["unit"], date=d))
         n += 1
     db.commit()
     return {"imported": n}

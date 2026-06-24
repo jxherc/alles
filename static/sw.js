@@ -1,7 +1,7 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v132';   // subs: auto-post records a payment row, analytics total formatting
+const VERSION = 'v133';   // health custom-metric labels + range cards, habits target clamp + n+1 fix
 const CACHE = `alles-${VERSION}`;
-const STAMP = '158';   // keep in sync with index.html ?v= / const _v
+const STAMP = '159';   // keep in sync with index.html ?v= / const _v
 
 // 1b: mutating writes that should be queued when offline
 const MUTATING = ['POST', 'PUT', 'PATCH', 'DELETE'];

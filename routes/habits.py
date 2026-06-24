@@ -96,9 +96,15 @@ def habit_risk(hid: str, window: int = 14, db: DbSession = Depends(get_db)):
 @router.get("/habits/overview")
 def overview(date_q: str = "", db: DbSession = Depends(get_db)):
     today = _d(date_q) if date_q else date.today()
-    out = []
-    for h in db.query(Habit).filter(Habit.archived == False).order_by(Habit.created_at).all():  # noqa: E712
-        out.append(_fmt(h, _dates_for(db, h.id), today))
+    habits = db.query(Habit).filter(Habit.archived == False).order_by(Habit.created_at).all()  # noqa: E712
+    # one query for all logs instead of one per habit (was H+1 round-trips on every overview load)
+    by_habit: dict[str, set] = {}
+    if habits:
+        for hid, d in db.query(HabitLog.habit_id, HabitLog.date).filter(
+            HabitLog.habit_id.in_([h.id for h in habits])
+        ).all():
+            by_habit.setdefault(hid, set()).add(d)
+    out = [_fmt(h, by_habit.get(h.id, set()), today) for h in habits]
     return {"habits": out}
 
 
@@ -150,6 +156,8 @@ def update_habit(hid: str, body: HabitPatch, db: DbSession = Depends(get_db)):
         if v is not None:
             if isinstance(v, str) and f in ("name", "icon", "color"):
                 v = v.strip()
+            if f == "target":  # clamp like create_habit, or a 0/negative target renders "3/0 this week"
+                v = max(1, int(v))
             setattr(h, f, v)
     db.commit()
     return _fmt(h, _dates_for(db, h.id))
