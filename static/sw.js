@@ -1,7 +1,7 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v120';   // default-theme dark/light buttons fully reset (not just the tile)
+const VERSION = 'v121';   // switching back to default also resets the accent tint from a fancy preset
 const CACHE = `alles-${VERSION}`;
-const STAMP = '146';   // keep in sync with index.html ?v= / const _v
+const STAMP = '147';   // keep in sync with index.html ?v= / const _v
 
 // 1b: mutating writes that should be queued when offline
 const MUTATING = ['POST', 'PUT', 'PATCH', 'DELETE'];

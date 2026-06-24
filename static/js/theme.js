@@ -499,10 +499,13 @@ export function getAppearance() { return loadLocal(); }
 export function resetToDefault(mode) {
   const a = loadLocal();
   const base = mode === 'light' ? PRESETS.light : PRESETS.dark;
-  const accent = a.colors && a.colors.accent;
+  // a fancy preset OWNS its accent (it's the preset's tint, not yours) — so leaving it drops
+  // the tint back to the real default. a plain base/custom theme keeps the accent you picked.
+  const fromFancy = a.preset && !isBasePreset(a.preset) && a.preset !== 'custom';
+  const accent = (!fromFancy && a.colors && a.colors.accent) || base.colors.accent;
   const d = DEFAULT();
   d.preset = mode === 'light' ? 'light' : 'dark';
-  d.colors = { ...base.colors, accent: accent || base.colors.accent };
+  d.colors = { ...base.colors, accent };
   d.customThemes = a.customThemes || {};
   applyAppearance(d); save(d);
   return d;
