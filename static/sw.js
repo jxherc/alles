@@ -1,7 +1,7 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v138';   // files: persist sort direction in the url
+const VERSION = 'v139';   // contacts: surface the relationship graph in the detail view
 const CACHE = `alles-${VERSION}`;
-const STAMP = '164';   // keep in sync with index.html ?v= / const _v
+const STAMP = '165';   // keep in sync with index.html ?v= / const _v
 
 // 1b: mutating writes that should be queued when offline
 const MUTATING = ['POST', 'PUT', 'PATCH', 'DELETE'];
