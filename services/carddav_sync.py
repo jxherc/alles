@@ -174,7 +174,9 @@ def sync(client=None, db=None) -> dict:
             if not row:
                 row = Contact(name=c.get("name") or "(no name)", carddav_uid=uid)
                 db.add(row)
-            for k in ("name", "email", "phone", "company", "title", "address", "website"):
+            # birthday + notes are parsed (BDAY/NOTE) and pushed, so pull them too or a synced
+            # contact silently loses them locally (and never reaches the birthdays panel)
+            for k in ("name", "email", "phone", "company", "title", "address", "website", "birthday", "notes"):
                 if c.get(k):
                     setattr(row, k, c[k])
             row.carddav_href = e.get("href", "")
