@@ -248,6 +248,21 @@ def mood_trends(
     }
 
 
+@router.get("/journal/tags")
+def journal_tags(
+    limit: int = 12, db: DbSession = Depends(get_db), _: None = Depends(_require_unlock)
+):
+    """4b - the topics you write about most: tag -> count, desc. powers the topics chips."""
+    counts: dict[str, int] = {}
+    for (tags,) in db.query(JournalEntry.tags).all():
+        for t in (tags or "").split(","):
+            t = t.strip().lower()
+            if t:
+                counts[t] = counts.get(t, 0) + 1
+    top = sorted(counts.items(), key=lambda x: (-x[1], x[0]))[: max(1, limit)]
+    return {"tags": [{"tag": t, "count": c} for t, c in top]}
+
+
 @router.get("/journal/mood-correlations")
 def mood_correlations(
     days: int = 180, db: DbSession = Depends(get_db), _: None = Depends(_require_unlock)
