@@ -6016,6 +6016,9 @@ input.cp-swatch-input { width: 34px; height: 22px; border: 1px solid var(--faint
 .habit-edit-row { display: flex; gap: 0.4rem; }
 .habit-edit-row .settings-input { flex: 1; min-width: 0; }
 .habit-edit-row .habit-icon-in { max-width: 64px; flex: 0 0 64px; text-align: center; }
+.habit-colors { display: flex; gap: 0.4rem; align-items: center; }
+.habit-sw { width: 18px; height: 18px; border-radius: 50%; cursor: pointer; border: 1px solid var(--faint); display: inline-flex; align-items: center; justify-content: center; color: var(--muted); font-size: 0.7rem; box-sizing: border-box; }
+.habit-sw.sel { outline: 2px solid var(--text); outline-offset: 1px; }
 
 /* ── read-later ───────────────────────────────────────────────────────────────── */
 #read-body { padding: 1rem clamp(0.9rem, 3vw, 2rem) 2rem; overflow-y: auto; }

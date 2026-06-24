@@ -136,6 +136,15 @@ class HabitApiTests(ApiTest):
     def _overview_one(self, hid):
         return next(x for x in self.client.get("/api/habits/overview").json()["habits"] if x["id"] == hid)
 
+    def test_patch_color_persists(self):
+        hid = self._create().json()["id"]
+        self.client.patch(f"/api/habits/{hid}", json={"color": "#34d399"})
+        self.assertEqual(self._overview_one(hid)["color"], "#34d399")
+
+    def test_create_with_color(self):
+        hid = self._create(color="#f472b6").json()["id"]
+        self.assertEqual(self._overview_one(hid)["color"], "#f472b6")
+
     def test_new_habit_not_slipping(self):
         hid = self._create().json()["id"]  # created just now
         h = self._overview_one(hid)
