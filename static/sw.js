@@ -1,7 +1,7 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v128';   // tasks: bang priority scale, local reschedule staging, clear search on add
+const VERSION = 'v129';   // notes: folder-rename revision carry, chart label theme color, base list cell
 const CACHE = `alles-${VERSION}`;
-const STAMP = '154';   // keep in sync with index.html ?v= / const _v
+const STAMP = '155';   // keep in sync with index.html ?v= / const _v
 
 // 1b: mutating writes that should be queued when offline
 const MUTATING = ['POST', 'PUT', 'PATCH', 'DELETE'];

@@ -232,12 +232,25 @@ def rename_file(body: RenameBody):
     except ValueError as e:
         raise HTTPException(400, str(e))
     new_path = out.get("path", _norm_path(body.new_path))
-    # carry the history along with the doc
+    is_file = new_path.lower().endswith((".md", ".markdown"))
+    old_norm = _norm_path(body.path)
+    # carry the history along with the doc. a folder rename moves many child docs, so re-point
+    # every revision under the old folder prefix (the single path-equality update only fits files).
     from core.database import DocRevision, SessionLocal
 
+    moved = {}  # old child path -> new child path (for folder renames, to fix the index too)
     db = SessionLocal()
     try:
-        db.query(DocRevision).filter_by(path=_norm_path(body.path)).update({"path": new_path})
+        if is_file:
+            db.query(DocRevision).filter_by(path=old_norm).update({"path": new_path})
+        else:
+            old_pre = body.path.strip("/") + "/"
+            new_pre = new_path.strip("/") + "/"
+            for r in db.query(DocRevision).all():
+                if r.path and r.path.startswith(old_pre):
+                    np = new_pre + r.path[len(old_pre):]
+                    moved[r.path] = np
+                    r.path = np
         db.commit()
     finally:
         db.close()
@@ -253,8 +266,16 @@ def rename_file(body: RenameBody):
             for bl in vault_md.backlinks(old_stem):
                 _snapshot(bl["path"], force=True)
             out["links_rewritten"] = len(vault_md.rewrite_links(old_stem, new_stem))
-    _unindex_doc(_norm_path(body.path))
-    _reindex_doc(new_path, vault_md.read(new_path).get("content", ""))
+    # keep the search index in step: a file swaps one entry; a folder re-keys each moved child
+    # (the old single-path calls inserted a bogus "<folder>.md" entry and left the children stale)
+    if is_file:
+        _unindex_doc(old_norm)
+        _reindex_doc(new_path, vault_md.read(new_path).get("content", ""))
+    else:
+        for old_p, new_p in moved.items():
+            _unindex_doc(old_p)
+            if new_p.lower().endswith((".md", ".markdown")):
+                _reindex_doc(new_p, vault_md.read(new_p).get("content", ""))
     return out
 
 
@@ -474,7 +495,8 @@ def diff_revision(path: str, a: str = "", b: str = ""):
 
     db = SessionLocal()
     try:
-        old = (db.get(DocRevision, a).content if a and db.get(DocRevision, a) else "") or ""
+        ra = db.get(DocRevision, a) if a else None
+        old = (ra.content if ra else "") or ""
         if not b or b == "current":
             new = vault_md.read(_norm_path(path)).get("content", "") or ""
             blabel = "current"

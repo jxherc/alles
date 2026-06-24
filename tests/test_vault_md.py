@@ -149,5 +149,19 @@ class VaultTests(unittest.TestCase):
         self.assertEqual(home["degree"], 3)  # 2 out + 1 in
 
 
+    def test_set_cell_keeps_a_list_prop_a_list(self):
+        # editing a list-valued frontmatter cell must not flatten it to a comma string
+        vault_md.write("n.md", "---\npeople:\n  - alice\n  - bob\n---\nbody")
+        vault_md.set_cell("n.md", "people", "alice, bob, carol")
+        props, _ = vault_md.parse_frontmatter(vault_md.read("n.md")["content"])
+        self.assertEqual(props["people"], ["alice", "bob", "carol"])
+
+    def test_set_cell_scalar_stays_scalar(self):
+        vault_md.write("n2.md", "---\ntitle: hi\n---\nbody")
+        vault_md.set_cell("n2.md", "title", "hello there")
+        props, _ = vault_md.parse_frontmatter(vault_md.read("n2.md")["content"])
+        self.assertEqual(props["title"], "hello there")
+
+
 if __name__ == "__main__":
     unittest.main()
