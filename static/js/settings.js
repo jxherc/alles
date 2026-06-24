@@ -710,9 +710,11 @@ function applyAccent(hex) {
 }
 function applyThemeMode(mode) {
   // "default theme" = a clean slate: reset every fancy extra (frosted/pattern/density/font/
-  // effect) to default for the chosen base, same as the default preset tile. keeps the accent.
+  // effect) to default for the chosen base, same as the default preset tile. leaving a fancy
+  // preset also drops its accent tint back to default; a plain base keeps the accent you set.
   _resetToDefault(mode === 'light' ? 'light' : 'dark');
   _markMode();
+  _markAccent();   // the tint may have reset — re-mark the active swatch
   window._updateFavicon?.();
   _patchSettings({ theme: mode === 'light' ? 'light' : '' });
   _refreshThemeLock();                        // switching to default unlocks the controls
