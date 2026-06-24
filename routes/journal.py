@@ -248,6 +248,16 @@ def mood_trends(
     }
 
 
+@router.get("/journal/mood-correlations")
+def mood_correlations(
+    days: int = 180, db: DbSession = Depends(get_db), _: None = Depends(_require_unlock)
+):
+    """4b - what behaviors track with your mood (explainable Spearman). gated by the lock."""
+    from services import mood_corr
+
+    return mood_corr.correlations(db, days=days)
+
+
 def _heat_level(words: int) -> int:
     """word count → contribution intensity 0-4. 0 only for an empty entry; any
     writing is at least 1 so a written day always shows on the heatmap."""
