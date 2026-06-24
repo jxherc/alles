@@ -109,6 +109,22 @@ class SubPaymentTests(ApiTest):
         self.assertEqual(d.query(Transaction).filter(Transaction.account_id == aid).count(), 0)
         d.close()
 
+    def test_undo_does_not_wipe_idempotency_marker(self):
+        # undo set last_posted_due="" which made the next roll re-post already-charged renewals.
+        # it must stay non-empty, but stay < the undone cycle so a re-pay can re-post that one.
+        from core.database import Subscription
+
+        aid = self._acct()
+        due = (date.today() - timedelta(days=40)).isoformat()
+        sid = self._sub(cycle="monthly", next_due=due, account_id=aid, price=9.0)
+        self._pay(sid)
+        self.client.post(f"/api/subscriptions/{sid}/payments/undo")
+        d = self.db()
+        sub = d.get(Subscription, sid)
+        self.assertNotEqual(sub.last_posted_due, "")
+        self.assertLess(sub.last_posted_due, due)
+        d.close()
+
     def test_pay_unknown_404(self):
         self.assertEqual(self.client.post("/api/subscriptions/nope/paid").status_code, 404)
 

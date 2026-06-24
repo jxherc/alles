@@ -7,6 +7,29 @@ from core.database import Session, Message, ModelEndpoint
 
 
 class SessionsApiTest(ApiTest):
+    def test_edit_deletes_same_timestamp_reply(self):
+        # a coarse clock can stamp the user msg and its assistant reply identically; editing the
+        # user msg must still drop the stale reply (and everything after), not leave it dangling
+        d = self.db()
+        s = Session(name="c")
+        d.add(s)
+        d.flush()
+        ts = datetime(2026, 6, 1, 12, 0, 0)
+        u = Message(session_id=s.id, role="user", content="q", timestamp=ts)
+        a = Message(session_id=s.id, role="assistant", content="old answer", timestamp=ts)
+        d.add_all([u, a])
+        d.commit()
+        sid, uid, aid = s.id, u.id, a.id
+        d.close()
+
+        r = self.client.post(f"/api/sessions/{sid}/messages/{uid}/edit", json={"content": "q2"})
+        self.assertEqual(r.status_code, 200)
+
+        d = self.db()
+        self.assertEqual(d.get(Message, uid).content, "q2")
+        self.assertIsNone(d.get(Message, aid))  # stale same-timestamp reply removed
+        d.close()
+
     def test_list_empty_shape(self):
         r = self.client.get("/api/sessions")
         self.assertEqual(r.status_code, 200)

@@ -197,10 +197,17 @@ def edit_message(session_id: str, msg_id: str, body: EditMessage, db: DbSession 
     if not msg or msg.session_id != session_id:
         raise HTTPException(404)
     msg.content = body.content
-    # hard-delete everything after this message
+    # hard-delete everything after this message. order by rowid (insertion order), not timestamp:
+    # a coarse clock can stamp a turn's user msg + assistant reply identically, and a strict
+    # timestamp > would leave the stale reply behind.
+    from sqlalchemy import text
+
+    row = db.execute(text("SELECT rowid FROM messages WHERE id = :i"), {"i": msg_id}).scalar()
     later = (
         db.query(Message)
-        .filter(Message.session_id == session_id, Message.timestamp > msg.timestamp)
+        .filter(Message.session_id == session_id)
+        .filter(text("messages.rowid > :r"))
+        .params(r=row)
         .all()
     )
     for m in later:
