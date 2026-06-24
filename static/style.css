@@ -3007,6 +3007,13 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 .jrnl-mt-bar { flex: 1; height: 8px; background: var(--faint); border-radius: 2px; overflow: hidden; }
 .jrnl-mt-fill { display: block; height: 100%; background: var(--accent); }
 .jrnl-mt-n { font-size: 0.66rem; color: var(--muted); min-width: 1.2rem; text-align: right; font-variant-numeric: tabular-nums; }
+.jrnl-moodcorr { display: flex; flex-direction: column; gap: 0.3rem; margin-bottom: 0.3rem; }
+.jrnl-corr-row { display: flex; align-items: baseline; gap: 0.45rem; font-size: 0.72rem; }
+.jrnl-corr-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; align-self: center; }
+.jrnl-corr-dot.pos { background: var(--green); }
+.jrnl-corr-dot.neg { background: var(--error); }
+.jrnl-corr-text { flex: 1; color: var(--text); line-height: 1.35; }
+.jrnl-corr-n { font-size: 0.66rem; color: var(--muted); font-variant-numeric: tabular-nums; flex-shrink: 0; }
 .jrnl-heat-head { display: flex; align-items: center; gap: 0.4rem; }
 .jrnl-heat-nav { font-size: 0.7rem; padding: 0 0.35rem; line-height: 1.4; }
 /* full-year contribution strip: month labels on top, 7×~53 grid filling the full width */

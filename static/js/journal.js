@@ -93,6 +93,10 @@ function buildJournal() {
             <div id="jrnl-moodtrend" class="jrnl-moodtrend"></div>
           </div>
           <div class="jrnl-col">
+            <div class="jrnl-side-title">what moves your mood</div>
+            <div id="jrnl-moodcorr" class="jrnl-moodcorr"></div>
+          </div>
+          <div class="jrnl-col">
             <div class="jrnl-side-title">on this day</div>
             <div id="jrnl-otd" class="jrnl-otd"><div class="jrnl-empty">nothing from past years yet</div></div>
           </div>
@@ -150,6 +154,7 @@ function buildJournal() {
   loadPrompt();
   loadOnThisDay();
   loadMoodTrend();
+  loadMoodCorr();
   refreshLockBtn();
 }
 
@@ -214,6 +219,25 @@ async function loadMoodTrend() {
         <span class="jrnl-mt-emoji">${x.mood}</span>
         <span class="jrnl-mt-bar"><span class="jrnl-mt-fill" style="width:${Math.max(6, x.count / max * 100)}%"></span></span>
         <span class="jrnl-mt-n">${x.count}</span>
+      </div>`).join('');
+  } catch { el.innerHTML = ''; }
+}
+
+// 4b - what behaviors track with mood (explainable Spearman); needs enough logged days
+async function loadMoodCorr() {
+  const el = document.getElementById('jrnl-moodcorr');
+  if (!el) return;
+  try {
+    const d = await jget('/api/journal/mood-correlations');
+    if (!d.ok || !d.correlations.length) {
+      el.innerHTML = `<div class="jrnl-empty">${esc(d.reason || 'log mood + habits/health for a couple weeks to see links')}</div>`;
+      return;
+    }
+    el.innerHTML = d.correlations.slice(0, 6).map(c => `
+      <div class="jrnl-corr-row">
+        <span class="jrnl-corr-dot ${c.rho >= 0 ? 'pos' : 'neg'}"></span>
+        <span class="jrnl-corr-text">${esc(c.explain)}</span>
+        <span class="jrnl-corr-n" title="${c.n} days with both logged">${c.rho >= 0 ? '+' : ''}${c.rho.toFixed(2)}</span>
       </div>`).join('');
   } catch { el.innerHTML = ''; }
 }
@@ -349,7 +373,7 @@ async function save(explicit) {
     await jput('/api/journal/' + _day, { content, mood: curMood(), tags });
     document.getElementById('jrnl-saved').textContent = 'saved ' + new Date().toLocaleTimeString();
     if (explicit) toast('entry saved', 'success');
-    loadStats(); loadRecent(); loadMoodTrend();
+    loadStats(); loadRecent(); loadMoodTrend(); loadMoodCorr();
   } catch (e) {
     if (explicit) toast(e.message || 'save failed', 'error');
   }
