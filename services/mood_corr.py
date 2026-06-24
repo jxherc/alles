@@ -10,6 +10,8 @@ import re
 from datetime import date as _date
 from datetime import timedelta
 
+from services.life_stats import spearman  # tie-corrected rank correlation (shared)
+
 # the journal mood picker (static/js/journal.js MOODS) plus common typed/synced words/emoji.
 # scale: 5 great .. 1 awful. unknown -> None (that day is skipped, not guessed).
 _MOOD = {
@@ -44,37 +46,6 @@ def mood_score(s):
         if ch in _MOOD:
             return _MOOD[ch]
     return None
-
-
-def _rank(xs):
-    """average ranks (1-based), ties share the mean of their positions."""
-    order = sorted(range(len(xs)), key=lambda i: xs[i])
-    ranks = [0.0] * len(xs)
-    i = 0
-    while i < len(xs):
-        j = i
-        while j + 1 < len(xs) and xs[order[j + 1]] == xs[order[i]]:
-            j += 1
-        avg = (i + j) / 2.0 + 1
-        for k in range(i, j + 1):
-            ranks[order[k]] = avg
-        i = j + 1
-    return ranks
-
-
-def spearman(xs, ys):
-    """tie-corrected Spearman rho, or None if too few points / no variance."""
-    n = len(xs)
-    if n < 3:
-        return None
-    rx, ry = _rank(xs), _rank(ys)
-    mx, my = sum(rx) / n, sum(ry) / n
-    num = sum((a - mx) * (b - my) for a, b in zip(rx, ry))
-    dx = sum((a - mx) ** 2 for a in rx)
-    dy = sum((b - my) ** 2 for b in ry)
-    if dx == 0 or dy == 0:
-        return None
-    return num / (dx * dy) ** 0.5
 
 
 def _explain(label, rho):
