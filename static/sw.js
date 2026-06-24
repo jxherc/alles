@@ -1,7 +1,7 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v135';   // calendar dup/sub cleanup, watch uptime window + poll gate
+const VERSION = 'v136';   // money tag-budget spend + nw chart align, calendar world-clock/feed, drop dead chat routes
 const CACHE = `alles-${VERSION}`;
-const STAMP = '161';   // keep in sync with index.html ?v= / const _v
+const STAMP = '162';   // keep in sync with index.html ?v= / const _v
 
 // 1b: mutating writes that should be queued when offline
 const MUTATING = ['POST', 'PUT', 'PATCH', 'DELETE'];
