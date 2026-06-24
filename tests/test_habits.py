@@ -75,6 +75,13 @@ class HabitApiTests(ApiTest):
     def test_create_requires_name(self):
         self.assertEqual(self.client.post("/api/habits", json={"name": "  "}).status_code, 400)
 
+    def test_patch_clamps_target(self):
+        hid = self._create(target=3).json()["id"]
+        self.client.patch(f"/api/habits/{hid}", json={"target": 0})
+        ov = self.client.get("/api/habits/overview").json()["habits"]
+        h = next(x for x in ov if x["id"] == hid)
+        self.assertGreaterEqual(h["target"], 1)  # never 0/negative
+
     def test_create_rejects_bad_cadence(self):
         self.assertEqual(self._create(cadence="hourly").status_code, 400)
 
