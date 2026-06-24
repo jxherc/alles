@@ -95,6 +95,8 @@ def habit_risk(hid: str, window: int = 14, db: DbSession = Depends(get_db)):
 
 @router.get("/habits/overview")
 def overview(date_q: str = "", db: DbSession = Depends(get_db)):
+    from services import life_stats
+
     today = _d(date_q) if date_q else date.today()
     habits = db.query(Habit).filter(Habit.archived == False).order_by(Habit.created_at).all()  # noqa: E712
     # one query for all logs instead of one per habit (was H+1 round-trips on every overview load)
@@ -104,7 +106,17 @@ def overview(date_q: str = "", db: DbSession = Depends(get_db)):
             HabitLog.habit_id.in_([h.id for h in habits])
         ).all():
             by_habit.setdefault(hid, set()).add(d)
-    out = [_fmt(h, by_habit.get(h.id, set()), today) for h in habits]
+    out = []
+    for h in habits:
+        done = by_habit.get(h.id, set())
+        card = _fmt(h, done, today)
+        risk = life_stats.habit_failure_risk(done, today)
+        # only nudge once there's enough history to judge (>= a week old) and you've actually
+        # let it slide (low recent rate + no current streak) - never flag a brand-new habit
+        age = (today - h.created_at.date()).days if h.created_at else 999
+        risk["slipping"] = bool(age >= 7 and risk["recent_rate"] < 0.4 and card["streak"] == 0)
+        card["risk"] = risk
+        out.append(card)
     return {"habits": out}
 
 

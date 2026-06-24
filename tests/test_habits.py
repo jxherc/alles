@@ -122,6 +122,41 @@ class HabitApiTests(ApiTest):
         self.assertTrue(h["done_today"])
         self.assertGreaterEqual(h["streak"], 1)
 
+    # 4b slipping nudge
+    def _age(self, hid, days):
+        from datetime import datetime, timedelta
+
+        from core.database import Habit
+
+        s = self.db()
+        s.get(Habit, hid).created_at = datetime.utcnow() - timedelta(days=days)
+        s.commit()
+        s.close()
+
+    def _overview_one(self, hid):
+        return next(x for x in self.client.get("/api/habits/overview").json()["habits"] if x["id"] == hid)
+
+    def test_new_habit_not_slipping(self):
+        hid = self._create().json()["id"]  # created just now
+        h = self._overview_one(hid)
+        self.assertIn("risk", h)
+        self.assertFalse(h["risk"]["slipping"])  # too new to judge
+
+    def test_old_unlogged_habit_slipping(self):
+        hid = self._create().json()["id"]
+        self._age(hid, 30)  # existed a month, never done lately
+        self.assertTrue(self._overview_one(hid)["risk"]["slipping"])
+
+    def test_active_habit_not_slipping(self):
+        from datetime import timedelta
+
+        hid = self._create().json()["id"]
+        self._age(hid, 30)
+        today = date.today()
+        for i in range(10):  # done most recent days -> high rate + a streak
+            self.client.post(f"/api/habits/{hid}/toggle", json={"date": (today - timedelta(days=i)).isoformat()})
+        self.assertFalse(self._overview_one(hid)["risk"]["slipping"])
+
     def test_patch_updates(self):
         hid = self._create().json()["id"]
         r = self.client.patch(f"/api/habits/{hid}", json={"name": "Read 30m", "target": 5})
