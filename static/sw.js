@@ -1,7 +1,7 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v137';   // calendar multi-day events span all days + overlapping events side-by-side; caldav all-day end fix
+const VERSION = 'v138';   // files: persist sort direction in the url
 const CACHE = `alles-${VERSION}`;
-const STAMP = '163';   // keep in sync with index.html ?v= / const _v
+const STAMP = '164';   // keep in sync with index.html ?v= / const _v
 
 // 1b: mutating writes that should be queued when offline
 const MUTATING = ['POST', 'PUT', 'PATCH', 'DELETE'];
