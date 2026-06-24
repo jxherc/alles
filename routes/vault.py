@@ -319,7 +319,12 @@ def delete_vault(vid: str, db: DbSession = Depends(get_db), _pw: str = Depends(_
     v = db.get(Vault, vid)
     if not v:
         raise HTTPException(404)
-    db.query(VaultEntry).filter(VaultEntry.vault_id == vid).delete()
+    eids = [r.id for r in db.query(VaultEntry).filter(VaultEntry.vault_id == vid).all()]
+    _purge_entry_data(db, eids)  # shares + attachment blobs for every entry in the vault
+    db.query(WebAuthnCredential).filter(WebAuthnCredential.vault_id == vid).delete(
+        synchronize_session=False
+    )
+    db.query(VaultEntry).filter(VaultEntry.vault_id == vid).delete(synchronize_session=False)
     db.delete(v)
     db.commit()
     return {"ok": True}
@@ -513,10 +518,13 @@ class PatchEntry(BaseModel):
 
 @router.patch("/vault/{entry_id}")
 def patch_entry(
-    entry_id: str, body: PatchEntry, db: DbSession = Depends(get_db), pw: str = Depends(_master_pw)
+    entry_id: str, body: PatchEntry, db: DbSession = Depends(get_db), ctx: tuple = Depends(_ctx)
 ):
+    pw, vid = ctx
     e = db.get(VaultEntry, entry_id)
-    if not e:
+    # scope to the unlocked vault, or patching re-encrypts another vault's entry under this
+    # vault's key and bricks it (same guard passkey_sign uses)
+    if not e or e.vault_id != vid:
         raise HTTPException(404)
     if body.name is not None:
         e.name = body.name
@@ -563,11 +571,25 @@ def reveal_entry(entry_id: str, db: DbSession = Depends(get_db), pw: str = Depen
     return out
 
 
+def _purge_entry_data(db, eids):
+    """delete an entry's share links + attachments (rows AND .enc blobs) so a deleted secret
+    can't keep serving from a live /sv link or leak ciphertext on disk."""
+    if not eids:
+        return
+    db.query(VaultShare).filter(VaultShare.entry_id.in_(eids)).delete(synchronize_session=False)
+    for a in db.query(VaultAttachment).filter(VaultAttachment.entry_id.in_(eids)).all():
+        (_attach_dir() / f"{a.id}.enc").unlink(missing_ok=True)
+    db.query(VaultAttachment).filter(VaultAttachment.entry_id.in_(eids)).delete(
+        synchronize_session=False
+    )
+
+
 @router.delete("/vault/{entry_id}")
 def delete_entry(entry_id: str, db: DbSession = Depends(get_db), _pw: str = Depends(_master_pw)):
     e = db.get(VaultEntry, entry_id)
     if not e:
         raise HTTPException(404)
+    _purge_entry_data(db, [entry_id])
     db.delete(e)
     db.commit()
     return {"ok": True}
