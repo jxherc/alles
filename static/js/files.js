@@ -14,6 +14,7 @@ function _writeUrl() {
     const u = new URL(location.href);
     if (_cwd) u.searchParams.set('p', _cwd); else u.searchParams.delete('p');
     if (_sort !== 'name') u.searchParams.set('sort', _sort); else u.searchParams.delete('sort');
+    if (_order === 'asc' || _order === 'desc') u.searchParams.set('order', _order); else u.searchParams.delete('order');
     history.replaceState(null, '', u);
   } catch {}
 }
@@ -639,8 +640,11 @@ export function initFiles() {
   _inited = true;
   // restore folder + sort from the URL so refresh / deep-link lands in the same place
   _cwd = _pathFromUrl();
-  const us = new URLSearchParams(location.search).get('sort');
+  const sp = new URLSearchParams(location.search);
+  const us = sp.get('sort');
   if (['name', 'size', 'mtime', 'type'].includes(us)) _sort = us;
+  const uo = sp.get('order');
+  if (uo === 'asc' || uo === 'desc') _order = uo;   // restore the direction too, not just the column
   try { if (localStorage.getItem('files-view') === 'grid') _view = 'grid'; } catch {}
   _syncViewToggle();
   $('files-view-toggle')?.addEventListener('click', () => {
