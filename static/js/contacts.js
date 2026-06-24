@@ -139,10 +139,11 @@ const SCALARS = [['email', 'email'], ['phone', 'phone'], ['company', 'company'],
   ['address', 'address'], ['birthday', 'birthday (YYYY-MM-DD)'], ['website', 'website']];
 
 async function openContact(id) {
-  const [c, rels, all] = await Promise.all([
+  const [c, rels, all, evs] = await Promise.all([
     fetch('/api/contacts/' + id).then(r => r.ok ? r.json() : null).catch(() => null),
     fetch(`/api/contacts/${id}/related`).then(r => r.ok ? r.json() : { related: [] }).then(j => j.related || []).catch(() => []),
     fetch('/api/contacts').then(r => r.ok ? r.json() : []).catch(() => []),
+    fetch(`/api/contacts/${id}/events`).then(r => r.ok ? r.json() : { events: [] }).then(j => j.events || []).catch(() => []),
   ]);
   if (!c) return;
   const list = document.getElementById('contacts-list');
@@ -176,6 +177,7 @@ async function openContact(id) {
         <div class="settings-input custom-select" id="cd-relkind" data-options="${REL_KINDS.map(k => k + '|' + k).join(';')}" style="width:auto;min-width:90px"></div>
         <button class="btn" id="cd-reladd">link</button>
       </div>
+      <div id="cd-events"></div>
       <div class="cd-actions"><button class="btn primary" id="cd-save">save</button></div>
     </div>`;
   document.getElementById('cd-back').addEventListener('click', () => loadContacts());
@@ -206,6 +208,7 @@ async function openContact(id) {
   });
   renderFields(c);
   renderRels(id, rels);
+  renderContactEvents(evs);
 
   // relationship picker: everyone except this contact + the ones already linked
   const linked = new Set(rels.map(r => r.id));
@@ -242,6 +245,33 @@ function renderRels(cid, rels) {
     await fetch(`/api/contacts/${cid}/links/${b.dataset.unlink}`, { method: 'DELETE' });
     openContact(cid);
   }));
+}
+
+const _RSVP_LBL = { invited: 'invited', accepted: 'yes', declined: 'no', tentative: 'maybe' };
+
+// 4a CRM-lite — shared calendar events: upcoming first, then a few recent past ones (dimmed)
+function renderContactEvents(events) {
+  const box = document.getElementById('cd-events');
+  if (!box) return;
+  if (!events.length) { box.innerHTML = ''; return; }   // keep the card clean when there's nothing
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const upcoming = [], past = [];
+  for (const e of events) {
+    const d = new Date(e.start_dt);
+    (isNaN(d) || d >= today ? upcoming : past).push(e);
+  }
+  past.reverse();   // most recent first
+  const row = e => {
+    const d = new Date(e.start_dt);
+    const isPast = !isNaN(d) && d < today;
+    const dl = isNaN(d) ? _esc(e.start_dt || '')
+      : _esc(d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+        + (e.all_day ? '' : ' ' + d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })));
+    const rsvp = e.status ? `<span class="cd-ev-rsvp s-${_esc(e.status)}">${_RSVP_LBL[e.status] || _esc(e.status)}</span>` : '';
+    return `<div class="cd-ev-row${isPast ? ' past' : ''}"><span class="cd-ev-date">${dl}</span><span class="cd-ev-title">${_esc(e.title || '(untitled)')}</span>${rsvp}</div>`;
+  };
+  box.innerHTML = '<div class="cd-section-title">shared events</div>'
+    + upcoming.map(row).join('') + past.slice(0, 5).map(row).join('');
 }
 
 function renderFields(c) {
