@@ -10,6 +10,7 @@ let _items = [];
 let _stats = null;
 let _filter = 'all';
 let _q = '';
+let _tag = '';
 let _open = null;   // full item being read
 let _feeds = [];
 let _showFeeds = false;
@@ -38,6 +39,7 @@ export async function loadRead() {
   const params = new URLSearchParams();
   if (_filter && _filter !== 'all') params.set('filter', _filter);
   if (_q) params.set('q', _q);
+  if (_tag) params.set('tag', _tag);
   // the search box triggers loadRead on a debounce; _render rebuilds the whole body
   // so remember if we were typing in it + the caret, and put focus back after.
   const wasSearching = document.activeElement?.id === 'read-q';
@@ -75,6 +77,7 @@ function _render() {
       <div class="read-search"><input type="text" id="read-q" class="settings-input" placeholder="search saved…" value="${esc(_q)}" spellcheck="false"></div>
     </div>
     ${_showFeeds ? _feedsPanel() : ''}
+    ${_tag ? `<div class="read-tagfilter">showing <span class="read-tag active">#${esc(_tag)}</span><button class="btn" id="read-tag-clear">clear</button></div>` : ''}
     ${_statsBar()}
     ${_items.length ? `<div class="read-list">${_items.map(_card).join('')}</div>`
       : `<div class="read-empty">${_q ? 'nothing matches that search.' : 'nothing saved yet — paste a link above and alles will keep the article text here, searchable, forever.'}</div>`}`;
@@ -103,7 +106,7 @@ function _card(it) {
       <div class="read-card-main" data-open="${it.id}">
         <div class="read-card-title">${it.fav ? `<span class="read-fav-dot">${_si('star')}</span>` : ''}${esc(it.title)}</div>
         <div class="read-card-excerpt">${esc(it.excerpt)}</div>
-        <div class="read-card-meta">${esc(it.site)} · ${it.read_minutes} min${it.read ? ' · read' : ''}${tags.length ? ' · ' + tags.map(t => `#${esc(t)}`).join(' ') : ''}</div>
+        <div class="read-card-meta">${esc(it.site)} · ${it.read_minutes} min${it.read ? ' · read' : ''}${tags.length ? ' · ' + tags.map(t => `<button class="read-tag" data-tag="${esc(t)}">#${esc(t)}</button>`).join(' ') : ''}</div>
       </div>
       <div class="read-card-actions">
         <button class="icon-btn${it.fav ? ' on' : ''}" data-act="fav" title="${it.fav ? 'unstar' : 'star'}">${_si(it.fav ? 'star-fill' : 'star')}</button>
@@ -170,6 +173,13 @@ function _wire(body) {
     qEl.addEventListener('input', () => { clearTimeout(t); t = setTimeout(() => { _q = qEl.value.trim(); loadRead(); }, 300); });
   }
   body.querySelectorAll('.read-chip').forEach(c => c.addEventListener('click', () => { _filter = c.dataset.filter; loadRead(); }));
+
+  // click a tag to filter by it; stop the click bubbling up to the card-open handler
+  body.querySelectorAll('.read-card .read-tag').forEach(t => t.addEventListener('click', e => {
+    e.stopPropagation();
+    _tag = t.dataset.tag; loadRead();
+  }));
+  $('read-tag-clear')?.addEventListener('click', () => { _tag = ''; loadRead(); });
 
   body.querySelectorAll('[data-open]').forEach(el => el.addEventListener('click', async () => {
     try { _open = await fetch(`/api/read/${el.dataset.open}`).then(r => r.json()); _render(); }
