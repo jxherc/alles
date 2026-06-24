@@ -91,7 +91,6 @@ window.openArtifactFromMsg = function(btn) {
 };
 
 let _streaming = false;
-let _bgStreams = new Map();   // session_id → partial accumulated text (for background streams)
 
 
 export async function sendMessage(text) {

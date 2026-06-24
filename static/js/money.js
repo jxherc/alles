@@ -159,8 +159,9 @@ function networthCard() {
   if (h.length < 2) return '<div class="money-empty-sm">not enough history yet</div>';
   const vals = h.map(x => x.net_worth);
   const min = Math.min(...vals), max = Math.max(...vals), span = (max - min) || 1;
-  const W = 280, H = 110, step = W / (h.length - 1);
-  const pts = h.map((x, i) => `${(i * step).toFixed(1)},${(H - ((x.net_worth - min) / span) * (H - 16) - 8).toFixed(1)}`);
+  // center each point in its 1/n slot so the polyline lines up under the slot-centered month labels
+  const W = 280, H = 110, step = W / h.length;
+  const pts = h.map((x, i) => `${((i + 0.5) * step).toFixed(1)},${(H - ((x.net_worth - min) / span) * (H - 16) - 8).toFixed(1)}`);
   const labels = h.map((x, i) => `<span style="width:${100 / h.length}%">${x.month.slice(5)}</span>`).join('');
   return `<svg class="nw-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><polyline points="${pts.join(' ')}" fill="none" stroke="var(--accent)" stroke-width="2"></polyline></svg>
     <div class="trend-labels">${labels}</div>

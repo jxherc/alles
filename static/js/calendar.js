@@ -49,8 +49,19 @@ const hexOf = name => PALETTE[name] || (String(name || '').startsWith('#') ? nam
 const evColorName = e => e.color || calById(e.calendar_id)?.color || 'accent';
 const evHex = e => hexOf(evColorName(e));
 
+let _clockTimer = null;
+function _tickWorldClock() {
+  if (_clockTimer) return;  // one interval, updates whatever clock is in the DOM
+  _clockTimer = setInterval(() => {
+    const el = document.querySelector('#cal-worldclock .cal-wc-time');
+    if (!el || !_secondaryTz) return;
+    try { el.textContent = new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: _secondaryTz }); } catch {}
+  }, 60000);
+}
+
 export async function loadCalendar() {
   _bindNav();
+  _tickWorldClock();
   const [cals, evs, s, tasks, subs] = await Promise.all([
     fetch('/api/calendars').then(r => r.json()).catch(() => []),
     fetch('/api/calendar').then(r => r.json()).catch(() => []),
@@ -230,7 +241,6 @@ function renderFeeds() {
   if (!_subs.length) { el.innerHTML = '<div class="cal-feed-empty">no feeds yet</div>'; return; }
   el.innerHTML = _subs.map(s => `
     <div class="cal-feed-row" data-id="${s.id}">
-      <span class="cal-cal-chk on" style="--cc:var(--accent)"></span>
       <span class="cal-feed-name" title="${esc(s.url)} · ${esc(s.last_status || '')}">${esc(s.name)} <span class="cal-feed-n">${s.event_count}</span></span>
       <button class="cal-feed-x" data-act="del" title="remove">×</button>
     </div>`).join('');

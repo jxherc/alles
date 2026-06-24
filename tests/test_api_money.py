@@ -2,6 +2,21 @@ from tests._client import ApiTest
 
 
 class MoneyApiTest(ApiTest):
+    def test_tag_budget_reports_tag_spend(self):
+        from datetime import date
+
+        a = self.client.post("/api/money/accounts", json={"name": "chk"}).json()
+        today = date.today().isoformat()
+        self.client.post(
+            "/api/money/transactions",
+            json={"account_id": a["id"], "date": today, "amount": -24.0, "tags": "coffee"},
+        )
+        self.client.post("/api/money/budgets", json={"tag": "coffee", "limit_amt": 40})
+        s = self.client.get("/api/money/summary").json()
+        b = next(x for x in s["budgets"] if x.get("tag") == "coffee")
+        self.assertEqual(b["spent"], 24.0)  # was 0.0 with a blank label
+        self.assertEqual(b["category"], "coffee")
+
     def test_account_balance_reflects_transactions(self):
         a = self.client.post(
             "/api/money/accounts", json={"name": "checking", "opening": 100.0}
