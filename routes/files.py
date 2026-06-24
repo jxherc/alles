@@ -417,14 +417,32 @@ class RenameBody(BaseModel):
     to: str
 
 
+def _meta_models():
+    from core.database import FileVersion
+
+    return (FileTag, FileComment, FileVersion)
+
+
 @router.post("/rename")
-def rename(body: RenameBody):
+def rename(body: RenameBody, db: DbSession = Depends(get_db)):
     try:
-        return fs.rename(body.path, body.to)
+        res = fs.rename(body.path, body.to)
     except FileNotFoundError:
         raise HTTPException(404, "not found")
     except ValueError as e:
         raise HTTPException(400, str(e))
+    # carry the file's tags / comments / version history to the new path (incl. children of a
+    # renamed folder), or they orphan and pollute the smart folders forever
+    old, new = body.path, res.get("path", body.to)
+    pre = old.rstrip("/") + "/"
+    for Model in _meta_models():
+        for r in db.query(Model).all():
+            if r.path == old:
+                r.path = new
+            elif r.path and r.path.startswith(pre):
+                r.path = new.rstrip("/") + "/" + r.path[len(pre):]
+    db.commit()
+    return res
 
 
 @router.delete("/delete")
@@ -438,6 +456,13 @@ def delete(path: str = Query(...), db: DbSession = Depends(get_db)):
     if not p.exists():
         raise HTTPException(404, "not found")
     trash.soft_delete_file(db, path, p)  # move to trash instead of hard-delete (1d)
+    # drop the tag/comment rows so the deleted file stops haunting the starred / by-tag views
+    pre = path.rstrip("/") + "/"
+    for Model in (FileTag, FileComment):
+        for r in db.query(Model).all():
+            if r.path == path or (r.path and r.path.startswith(pre)):
+                db.delete(r)
+    db.commit()
     return {"ok": True, "trashed": True}
 
 

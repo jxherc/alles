@@ -106,6 +106,8 @@ def read_text(rel: str, limit: int = 200_000) -> dict:
 
 def mkdir(rel: str) -> dict:
     p = _safe(rel)
+    if p.exists() and not p.is_dir():
+        raise ValueError("a file with that name already exists")
     p.mkdir(parents=True, exist_ok=True)
     return {"ok": True, "path": str(p.relative_to(files_dir())).replace("\\", "/")}
 
@@ -126,6 +128,9 @@ def rename(rel: str, new_rel: str) -> dict:
     dst = _safe(new_rel)
     if not src.exists():
         raise FileNotFoundError(rel)
+    if dst.exists() and dst != src:
+        # bare src.rename clobbers on posix / raises FileExistsError (a 500) on windows
+        raise ValueError("a file or folder with that name already exists")
     dst.parent.mkdir(parents=True, exist_ok=True)
     src.rename(dst)
     return {"ok": True, "path": str(dst.relative_to(files_dir())).replace("\\", "/")}
