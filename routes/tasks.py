@@ -73,10 +73,11 @@ def search_tasks(q: str = "", db: DbSession = Depends(get_db)):
 def task_tree(db: DbSession = Depends(get_db)):
     """active top-level tasks with their subtasks nested + done/total progress."""
     children: dict[str, list] = {}
-    for t in db.query(Task).all():  # include done subtasks so progress is accurate
+    rows = db.query(Task).all()  # one scan; includes done subtasks so progress is accurate
+    for t in rows:
         if t.parent_id:
             children.setdefault(t.parent_id, []).append(t)
-    tops = _ordered([t for t in db.query(Task).filter(Task.done == False).all() if not t.parent_id])
+    tops = _ordered([t for t in rows if not t.parent_id and not t.done])
     out = []
     for t in tops:
         subs = _ordered(children.get(t.id, []))

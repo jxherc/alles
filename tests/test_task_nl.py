@@ -13,9 +13,15 @@ class ParseTests(unittest.TestCase):
 
     def test_priority_and_tags(self):
         p = parse_task("submit report #work !", T)
-        self.assertEqual(p["priority"], 1)
+        self.assertEqual(p["priority"], 2)  # single ! = med on the 0-3 scale
         self.assertEqual(p["tags"], "work")
         self.assertEqual(p["title"], "submit report")
+
+    def test_double_bang_is_high(self):
+        # !! must not collapse to the same level as ! (the bug); it's high (3)
+        p = parse_task("call mom tomorrow !!", T)
+        self.assertEqual(p["priority"], 3)
+        self.assertEqual(p["title"], "call mom")
 
     def test_every_month_on_day(self):
         p = parse_task("pay rent every 1st", T)

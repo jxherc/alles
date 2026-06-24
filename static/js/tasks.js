@@ -142,9 +142,9 @@ function openTaskEditor(id) {
   const close = () => ov.remove();
   ov.addEventListener('click', e => { if (e.target === ov) close(); });
   ov.querySelector('#te-cancel').onclick = close;
-  ov.querySelectorAll('.te-rs').forEach(b => b.addEventListener('click', async () => {
-    const r = await fetch(`/api/tasks/${id}/reschedule`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ when: b.dataset.w }) }).then(r => r.json());
-    if (r.due_date) ov.querySelector('#te-due').value = r.due_date.slice(0, 10);
+  // stage the date in the input only (no server write) so "save" persists it and "cancel" cancels
+  ov.querySelectorAll('.te-rs').forEach(b => b.addEventListener('click', () => {
+    ov.querySelector('#te-due').value = _reschedDate(b.dataset.w);
   }));
   ov.querySelector('#te-save').onclick = async () => {
     const body = {
@@ -162,6 +162,16 @@ function openTaskEditor(id) {
   };
 }
 
+// quick-reschedule date, computed locally to mirror services/task_nl.reschedule_date
+function _reschedDate(w) {
+  const d = new Date(); d.setHours(0, 0, 0, 0);
+  if (w === 'tomorrow') d.setDate(d.getDate() + 1);
+  else if (w === 'next_week') d.setDate(d.getDate() + 7);
+  else if (w === 'weekend') d.setDate(d.getDate() + ((6 - d.getDay() + 7) % 7));  // next Saturday (today if Sat)
+  const z = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())}`;
+}
+
 export async function addTask(title) {
   if (!title.trim()) return;
   // natural-language quick add — parses due date / repeat / #tags / ! priority
@@ -173,6 +183,11 @@ export async function addTask(title) {
   if (_tab === 'done') {   // jump back to a visible list so the new task shows
     _tab = 'active';
     document.querySelectorAll('.tasks-tab').forEach(x => x.classList.toggle('active', x.dataset.tab === 'active'));
+  }
+  if (_search) {   // a stale search filter would hide the new task — clear it like the done-tab case
+    _search = '';
+    const si = document.getElementById('tasks-search');
+    if (si) si.value = '';
   }
   await loadTasks();
 }

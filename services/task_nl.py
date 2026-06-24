@@ -47,9 +47,10 @@ def parse_task(text: str, today: date | None = None) -> dict:
     out = {"title": "", "due_date": None, "repeat": "", "priority": 0, "tags": ""}
     t = f" {text.strip()} "
 
-    # priority — a standalone ! or !! anywhere
-    if re.search(r"\s!{1,2}(?=\s)", t):
-        out["priority"] = 1
+    # priority — a standalone ! (high-ish) or !! (high), on the app's 0=none..3=high scale
+    m = re.search(r"\s(!{1,2})(?=\s)", t)
+    if m:
+        out["priority"] = 3 if len(m.group(1)) == 2 else 2
         t = re.sub(r"\s!{1,2}(?=\s)", " ", t)
 
     # tags — #word
