@@ -278,6 +278,7 @@ export function renderEndpointList() {
         <span class="mm-ep-name" style="font-weight:500">${escHtml(ep.name)}</span>
         <span style="font-size:0.68rem;color:var(--muted)">${ep.models.length} models</span>
         <div class="mm-ep-actions" style="margin-left:auto;display:flex;gap:0.25rem">
+          <button class="btn mm-test-btn" data-id="${ep.id}" title="test completion" ${!ep.models.length ? 'disabled' : ''}>test</button>
           <button class="btn mm-probe-btn" data-id="${ep.id}" title="probe models">probe</button>
           <button class="act-btn mm-del-btn" data-id="${ep.id}">×</button>
         </div>
@@ -341,6 +342,19 @@ export function renderEndpointList() {
         renderEndpointList();
       } catch { toast('probe failed', 'error'); }
       btn.textContent = 'probe'; btn.disabled = false;
+    });
+  });
+
+  el.querySelectorAll('.mm-test-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      btn.textContent = '…'; btn.disabled = true;
+      try {
+        const r = await fetch(`/api/models/endpoint/${btn.dataset.id}/test`, { method: 'POST' });
+        if (!r.ok) throw new Error(await r.text());
+        const d = await r.json();
+        toast(`success! model responded: ${d.response}`, 'success', 4000);
+      } catch (e) { toast('test failed', 'error'); }
+      btn.textContent = 'test'; btn.disabled = false;
     });
   });
 
