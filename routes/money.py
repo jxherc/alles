@@ -55,9 +55,11 @@ def _fin(x):
 
 
 def _balances(db):
+    from sqlalchemy import func
     bal = defaultdict(float)
-    for t in db.query(Transaction).all():
-        bal[t.account_id] += _fin(t.amount)
+    rows = db.query(Transaction.account_id, func.sum(Transaction.amount)).group_by(Transaction.account_id).all()
+    for acct_id, total in rows:
+        bal[acct_id] = _fin(total or 0.0)
     return bal
 
 
