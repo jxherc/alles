@@ -275,6 +275,11 @@ aide looks like a normal chat box. the differences are under it:
 - **it compares.** run the same prompt across several models at once and vote on the winner.
 - **personas & projects.** personas are saved system prompts (give it a character/role). projects group related chats with shared context and files.
 - **artifacts.** ask for a webpage/chart/snippet and it renders live in a sandboxed frame next to the chat.
+
+<p align="center">
+  <img src="docs/evidence/surface-brain/intelligence_pane.png" width="680" alt="aide — intelligence pane showing proactive learning and facts">
+</p>
+
 - **voice.** push-to-talk speech-to-text in, text-to-speech out — local (`faster-whisper`) or via a provider, your choice in settings.
 - **reasoning view.** for "thinking" models (deepseek-r1, qwen3, claude extended thinking) you get a live "thought for n s" timer and can read the reasoning.
 
@@ -445,6 +450,22 @@ copy `.env.example` to `.env`. **everything is optional** — alles runs fine wi
 
 ## architecture: one server, many subdomains
 
+
+```mermaid
+graph td
+    subagent[agent loop & tools] --> llm_client[services/llm.py (streaming model switch)]
+    llm_client --> openai[openai / groq / deepseek api]
+    llm_client --> anthropic[anthropic api]
+    llm_client --> ollama[local ollama]
+    
+    app_router[fastapi routes] --> core_db[core/database.py (sqlite + sqlalchemy)]
+    app_router --> bg_jobs[services/jobs.py (event bus)]
+    
+    browser[browser *.localhost] --> pwa[vanilla js + service worker]
+    pwa --> app_router
+```
+
+
 alles is **one server** serving **one single-page app**, but each app gets its own subdomain so it feels like a real suite:
 
 ```
@@ -494,6 +515,10 @@ alles is scriptable. two flavors:
 - **platform:** `/api/settings`, `/api/today`, `/api/timeline` (the activity feed), `/api/system/stats` (live machine stats), `/api/backup` (+ `/restore`), `/api/tokens`, `/api/webhooks`, `/api/push/*`, `/api/mcp/*`, `/api/connections`, `/api/automations`, `/api/jobs`
 
 protect it with **api tokens** (settings → tokens) and, if exposed, **`auth_enabled`**.
+
+
+*under the hood:* the api uses `fastapi` standard pydantic models for validation, but keeps things loose where it makes sense (like dynamic agent arguments). streaming routes use `streamingresponse` pumping async generator yields directly from `httpx`. the open-api compatible layer specifically intercepts the `messages` array, unrolls them into the internal `chatrole` format, routes them to `detect_provider`, and then restructures the sse stream to look exactly like openai's `v1/chat/completions` chunks.
+
 
 ---
 
