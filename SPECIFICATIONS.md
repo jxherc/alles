@@ -388,7 +388,19 @@ the whole point of self-hosting is that nothing is magic. here's what each app *
 
 - **docs** — your notes are **real `.md` files** in `data/vault/` (path configurable). the editor is **codemirror 6** doing obsidian-style live preview; it edits the plain text directly, so *what's saved equals what you typed*. `[[wikilinks]]`, backlinks, unlinked mentions, `#tags`, `![[embeds]]`, frontmatter, the graph, the outline, the task rollup, and word count are all computed over those files on demand. images you paste/drop go to `data/vault/_assets/`; templates live in `data/vault/_templates/` (both hidden from the tree). math renders with katex, diagrams with mermaid (lazy-loaded from a cdn; raw text shown if you're offline). every save writes a revision row you can restore.
 - **mail** — a thin client over python's stdlib `imaplib`/`smtplib` (no mail dependency). it pools live imap connections, caches reads, loads the inbox by sequence range (no slow `search all`), and opens a message by fetching only its text/html body parts (not attachments) for speed on bad links. a background poll only re-fetches when the mailbox actually changed. credentials are stored locally, encrypted, and never sent back to the browser.
-- **research** — an *iterresearch*-style deep-research loop (the model drives every decision): it plans the question into sub-topics, fires several search queries per round in parallel (tavily / brave / searxng / google programmable search / serper if you have a key, else duckduckgo → wikipedia for free), reads the top pages with [trafilatura](https://github.com/adbar/trafilatura) (pulls the real article, drops nav/ads), extracts findings, rolls them into an evolving report, and **decides itself when it's covered the question** — then writes a long, cited, magazine-quality report (auto-formatted for product / comparison / how-to / fact-check questions). streamed live with sources as they're found.
+- **research** — an *iterresearch*-style deep-research loop (the model drives every decision):
+
+```mermaid
+graph TD
+    query[user research query] --> planner[agent plans sub-topics]
+    planner --> search[parallel web searches]
+    search --> read[fetch & extract text]
+    read --> extract[extract findings]
+    extract --> check{enough info?}
+    check -->|no| search
+    check -->|yes| write[synthesize cited report]
+```
+ it plans the question into sub-topics, fires several search queries per round in parallel (tavily / brave / searxng / google programmable search / serper if you have a key, else duckduckgo → wikipedia for free), reads the top pages with [trafilatura](https://github.com/adbar/trafilatura) (pulls the real article, drops nav/ads), extracts findings, rolls them into an evolving report, and **decides itself when it's covered the question** — then writes a long, cited, magazine-quality report (auto-formatted for product / comparison / how-to / fact-check questions). streamed live with sources as they're found.
 - **calendar** — events in sqlite with recurrence expanded on the fly; optional two-way caldav sync if you install `caldav` and add credentials.
 - **gallery / photos** — you import photos; pillow makes thumbnails and reads exif; they're grouped into date "moments." stored as plain files under `data/`.
 - **secrets** — entries sealed with aes-256-gcm under a pbkdf2-hmac-sha-256 (260k iterations) key derived from your master password, which lives in memory only.
