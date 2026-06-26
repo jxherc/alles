@@ -6,13 +6,16 @@
 ─────────────────────────────────────────────
 ```
 
-**alles** is a self-hosted everything-app. one program that runs on your own computer and gives you ai chat, email, notes & docs, a journal, files, a calendar, tasks, money & budgets, photos, contacts, an encrypted secrets vault, subscription tracking, and countdowns — all behind one login, all storing their data in a single folder you control. nothing phones home.
+**alles** is a self-hosted everything-app. one single python program that runs on your machine and gives you ai chat, email, linked docs, a journal, files, a calendar, tasks, money & budgets, photos, contacts, a secrets vault, subscription tracking, and countdowns. all behind one login. all storing data in a single folder you control. nothing phones home.
 
 think of **alles** as the whole house, and **aide** as the assistant who lives in it — like what gemini is to google, except it's yours and it can actually open the other rooms: read your mail, edit your docs, add to your calendar, file your tasks.
 
 it's *one python process*. no build step, no bundler, no `node_modules`, no account, no analytics. you clone it, run `python app.py`, and open a browser. that's the entire setup.
 
-<p align="center"><img src="docs/screenshots/aide.png" width="760" alt="aide — the ai chat and full app sidebar"></p>
+<p align="center">
+  <img src="docs/screenshots/aide.png" width="760" alt="aide — the ai chat and full app sidebar">
+</p>
+<p align="center"><em>one interface to run your whole digital life.</em></p>
 
 ---
 
