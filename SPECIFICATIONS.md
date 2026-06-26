@@ -342,6 +342,18 @@ aide also **exposes its own** openai-compatible api (`get /v1/models`, `post /v1
 
 *under the hood:* it's a multi-turn loop ([`services/agent_runtime.py`](services/agent_runtime.py)). each turn the model can call tools; results feed back in; it keeps going until done or it hits a turn limit (6 / 18 / 36 turns for low / medium / high "effort"). long runs auto-trim old tool output to stay within the context window, and screenshots are fed back as real vision input.
 
+
+```mermaid
+graph TD
+    user[user prompt / intent] --> agent_loop{agent runtime}
+    agent_loop -->|call tool| tools[tool execution]
+    tools -->|file/shell/api| result[tool result]
+    result --> agent_loop
+    agent_loop -->|stream| UI[user interface]
+    
+    tools -.-> guard[injection guard & secret-path confinement]
+```
+
 **the toolset (~58 tools), by category:**
 
 - **files:** `read_file`, `write_file`, `edit_file` (exact find/replace), `apply_patch` (unified diffs), `list_files`, `glob_files`, `grep_files`, `revert_file`
@@ -526,7 +538,17 @@ protect it with **api tokens** (settings → tokens) and, if exposed, **`auth_en
 
 everything is in one folder, **`data/`**:
 
-- **`data/aide.db`** — a single sqlite database file (wal mode) holding the structured stuff. it's a wide schema — **~70 tables** covering: chat (`sessions`, `messages`, `model_endpoints`, `mcp_servers`), notes/journal/tasks (`notes`, `journal_entries`, `tasks`), calendar (`calendars`, `calendar_events`, `event_attendees`, `booking_pages`, `calendar_subscriptions`), money (`money_accounts`, `money_transactions`, `money_budgets`, `money_goals`, `money_holdings`, `money_recurring`, …), subscriptions (`subscriptions`, `sub_payments`, `sub_price_changes`), contacts (`contacts`, `contact_fields`, `contact_groups`), mail (`mail_accounts`, `mail_drafts`, `cached_messages`, `mail_rules`, `mail_scheduled`), photos (`albums`, `photos`), the vault (`vaults`, `vault_entries`, `vault_attachments`, `webauthn_credentials`), plus `personas`, `projects`, `memories`, `reminders`, `automation_rules`, `day_events`, `habits`, `health_entries`, `books`, `read_items`, `monitors`, `webhooks`, `api_tokens`, `connections`, and more.
+- **`data/aide.db`** — a single sqlite database file (wal mode) holding the structured stuff.
+
+```mermaid
+erDiagram
+    SESSIONS ||--o{ MESSAGES : contains
+    NOTES ||--o{ TASKS : spawns
+    MAIL_ACCOUNTS ||--o{ CACHED_MESSAGES : syncs
+    MONEY_ACCOUNTS ||--o{ MONEY_TRANSACTIONS : holds
+    VAULTS ||--o{ VAULT_ENTRIES : secures
+```
+ it's a wide schema — **~70 tables** covering: chat (`sessions`, `messages`, `model_endpoints`, `mcp_servers`), notes/journal/tasks (`notes`, `journal_entries`, `tasks`), calendar (`calendars`, `calendar_events`, `event_attendees`, `booking_pages`, `calendar_subscriptions`), money (`money_accounts`, `money_transactions`, `money_budgets`, `money_goals`, `money_holdings`, `money_recurring`, …), subscriptions (`subscriptions`, `sub_payments`, `sub_price_changes`), contacts (`contacts`, `contact_fields`, `contact_groups`), mail (`mail_accounts`, `mail_drafts`, `cached_messages`, `mail_rules`, `mail_scheduled`), photos (`albums`, `photos`), the vault (`vaults`, `vault_entries`, `vault_attachments`, `webauthn_credentials`), plus `personas`, `projects`, `memories`, `reminders`, `automation_rules`, `day_events`, `habits`, `health_entries`, `books`, `read_items`, `monitors`, `webhooks`, `api_tokens`, `connections`, and more.
 - **`data/vault/`** — your docs as plain `.md` files (with `_assets/` for embedded images and `_templates/` for templates).
 - **`data/skills/`** — agent skills as `skill.md` files (frontmatter + steps).
 - **`data/`** (other) — uploads, photos, gallery, and file-app content as plain files; **`data/secret.key`** — the encryption key for stored credentials.
