@@ -323,3 +323,30 @@ async def probe_endpoint(ep_id: str, db: DbSession = Depends(get_db)):
     ep.image_models = json.dumps(imgs)
     db.commit()
     return {"models": models, "image_models": imgs}
+
+# POST /api/models/endpoint/{id}/test — actually try generating text using a known model
+@router.post("/models/endpoint/{ep_id}/test")
+async def test_endpoint(ep_id: str, db: DbSession = Depends(get_db)):
+    from services.llm import simple_complete
+    ep = db.get(ModelEndpoint, ep_id)
+    if not ep:
+        raise HTTPException(404)
+    
+    models = ep.models_list()
+    if not models:
+        raise HTTPException(400, "no models available to test. probe first.")
+        
+    # use the first available chat model
+    test_model = models[0]
+    
+    try:
+        res = await simple_complete(
+            [{"role": "user", "content": "respond with the word 'pong' and nothing else."}],
+            base_url=ep.base_url,
+            api_key=ep.api_key,
+            model=test_model,
+            max_tokens=10
+        )
+        return {"ok": True, "model": test_model, "response": res}
+    except Exception as e:
+        raise HTTPException(502, f"test failed with model {test_model}: {str(e)}")
