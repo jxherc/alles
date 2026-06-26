@@ -12,7 +12,7 @@ think of **alles** as the whole house, and **aide** as the assistant who lives i
 
 it's *one python process*. no build step, no bundler, no `node_modules`, no account, no analytics. you clone it, run `python app.py`, and open a browser. that's the entire setup.
 
-<p align="center"><img src="docs/screenshots/home.png" width="760" alt="alles home — the day digest, quick-capture, the aide ask bar, and the app grid"></p>
+<p align="center"><img src="docs/screenshots/aide.png" width="760" alt="aide — the ai chat and full app sidebar"></p>
 
 ---
 
@@ -51,18 +51,18 @@ each one is a real, finished app — they live on their own subdomain so it feel
 | **notes** | lightweight scratch notes for zero-ceremony jotting |
 | **journal** | a daily diary with mood, prompts, a streak, and a year heatmap |
 | **subs** | subscription tracker — renewals, forecast, price-change tracking, auto-post to money |
-| **money** | accounts, transactions, budgets, CSV import, charts |
+| **money** | accounts, transactions, budgets, csv import, charts |
 | **days** | countdowns and day-counts (birthdays, anniversaries) |
 | **files** | a file browser with inline preview (pdf/video/audio/images) and search |
 | **gallery** | a local photo library with moments, albums, exif search |
-| **contacts** | an address book the ai can read (e.g. when drafting mail), with vCard import/export |
+| **contacts** | an address book the ai can read (e.g. when drafting mail), with vcard import/export |
 | **system** | a built-in live system monitor (cpu/ram/disk/gpu) |
 | **secrets** | an encrypted vault with typed entries (logins, cards, api keys, notes…) |
 | **automations** | *when this happens, do that* — set a rule once and alles runs it |
 
-plus the smaller stuff: global search (Cmd/Ctrl+K), scheduled messages, prompt cookbook, webhooks, api tokens, an openai-compatible api, backup/restore to a zip, light/dark themes with a custom accent, and it installs like a pwa with real push notifications.
+plus the smaller stuff: global search (cmd/ctrl+k), scheduled messages, prompt cookbook, webhooks, api tokens, an openai-compatible api, backup/restore to a zip, light/dark themes with a custom accent, and it installs like a pwa with real push notifications.
 
-**→ full details on every app, the internals, the api, and the architecture are in [SPECIFICATIONS.md](./SPECIFICATIONS.md).**
+**→ full details on every app, the internals, the api, and the architecture are in [specifications.md](./specifications.md).**
 
 ---
 
@@ -79,19 +79,19 @@ python app.py
 
 open **http://localhost:8000** and you're in.
 
-**no api key is needed to boot.** mail, docs, files, calendar, tasks, subs, days, photos, contacts, secrets — all work out of the box. when you want aide to talk, add a model under **settings → models** (one click for openai / anthropic / deepseek / groq / gemini / ollama and ~10 more), or drop a key like `DEEPSEEK_API_KEY` into `.env`.
+**no api key is needed to boot.** mail, docs, files, calendar, tasks, subs, days, photos, contacts, secrets — all work out of the box. when you want aide to talk, add a model under **settings → models** (one click for openai / anthropic / deepseek / groq / gemini / ollama and ~10 more), or drop a key like `deepseek_api_key` into `.env`.
 
 **prefer docker?** `docker build -t alles . && docker run -p 8000:8000 -v alles-data:/app/data alles` — the `data/` volume keeps your db, vault, uploads, and keys across rebuilds.
 
 **want it fully offline and free?** install [ollama](https://ollama.com), `ollama pull` a model, add an endpoint pointing at `http://localhost:11434` — no key or internet needed for the ai.
 
-> **before you put it on a network:** alles ships with auth off. set `AUTH_ENABLED=true`, a strong `AUTH_PASSWORD`, and a real `SECRET_KEY` first. details in the [security section](./SPECIFICATIONS.md#security--read-before-exposing-it).
+> **before you put it on a network:** alles ships with auth off. set `auth_enabled=true`, a strong `auth_password`, and a real `secret_key` first. details in the [security section](./specifications.md#security--read-before-exposing-it).
 
 ---
 
 ## what it's based on
 
-aide was inspired by **[odysseus](https://github.com/pewdiepie-archdaemon/odysseus)** by pewdiepie-archdaemon. the concept — a self-hosted personal ai with memory, research mode, shell access, mcp, a multi-provider model backend, and a suite of apps around it — comes from that project. alles is an independent reimplementation written from scratch, but odysseus is where the idea came from and it deserves the credit. go give that repo a star. full note in [ACKNOWLEDGMENTS.md](./ACKNOWLEDGMENTS.md).
+aide was inspired by **[odysseus](https://github.com/pewdiepie-archdaemon/odysseus)** by pewdiepie-archdaemon. the concept — a self-hosted personal ai with memory, research mode, shell access, mcp, a multi-provider model backend, and a suite of apps around it — comes from that project. alles is an independent reimplementation written from scratch, but odysseus is where the idea came from and it deserves the credit. go give that repo a star. full note in [acknowledgments.md](./acknowledgments.md).
 
 it stands on the shoulders of some great open-source work: [fastapi](https://fastapi.tiangolo.com) + [uvicorn](https://www.uvicorn.org), [sqlalchemy](https://www.sqlalchemy.org), [httpx](https://www.python-httpx.org), [fastembed](https://github.com/qdrant/fastembed), [codemirror](https://codemirror.net), [leaflet](https://leafletjs.com) with map tiles from [openstreetmap](https://www.openstreetmap.org/copyright), [katex](https://katex.org), [mermaid](https://mermaid.js.org), [pillow](https://python-pillow.org), [python-docx](https://python-docx.readthedocs.io), [pypdf](https://pypdf.readthedocs.io), [cryptography](https://cryptography.io), and python's own `imaplib`/`smtplib`. models come from whichever provider you point it at; local ones via [ollama](https://ollama.com).
 
