@@ -2,7 +2,7 @@
 
 the full, precise reference for **alles**: every app in depth, how the ai and agent work,
 the wire protocols, the architecture, the api, the data model, the stack, and the security
-model. the [README](./README.md) is the plain-english overview; this is the detail behind it.
+model. the [readme](./readme.md) is the plain-english overview; this is the detail behind it.
 
 > **two-audience note:** kept readable two ways. if you're not a programmer, read the plain
 > sentences and skip the grey "*under the hood*" bits — you'll still understand what every
@@ -42,7 +42,7 @@ every one of these is a real, finished app — not a placeholder. they each live
 - streaming chat (the reply types itself out live, word by word)
 - works with any provider: claude, openai/gpt, deepseek, gemini, groq, mistral, a local model, and ~15 others — switch any time, even mid-conversation
 - **agent mode** — a do-it-for-me mode with files, shell, web, and cross-app tools (full section below)
-- **app actions from plain chat** — just ask ("what's on my calendar", "any new emails", "remind me to call the dentist", "add lunch friday 1pm") and aide does it; reads happen freely, anything that changes/sends asks first. plus Discord/Telegram pings when a long run finishes.
+- **app actions from plain chat** — just ask ("what's on my calendar", "any new emails", "remind me to call the dentist", "add lunch friday 1pm") and aide does it; reads happen freely, anything that changes/sends asks first. plus discord/telegram pings when a long run finishes.
 - **research mode** — searches the web, *reads the pages*, and writes you a cited report
 - **compare** — run one prompt against several models at once, side by side, and vote
 - **long-term memory** — it remembers facts/preferences across all your chats
@@ -59,12 +59,14 @@ every one of these is a real, finished app — not a placeholder. they each live
 
 <p align="center"><img src="docs/screenshots/aide.png" width="760" alt="aide — model switcher, agent/chat toggle, chat history + tools sidebar"></p>
 
-**the model picker** — every endpoint you add shows up here, each provider in its own brand colour with its real logo (OpenAI green, Anthropic gold, Moonshot purple — never mistaken for one another). image-generation models are flagged with a 🎨, so you can run a **chat model and an image model together** (talk to Sonnet, draw with gpt-image). a **newest-only** toggle collapses each family to its latest release, and the list refreshes from every provider — with a built-in fallback line-up so it's already populated before you've even added a key.
+**the model picker** — every endpoint you add shows up here, each provider in its own brand colour with its real logo (openai green, anthropic gold, moonshot purple — never mistaken for one another). image-generation models are flagged with a 🎨, so you can run a **chat model and an image model together** (talk to sonnet, draw with gpt-image). a **newest-only** toggle collapses each family to its latest release, and the list refreshes from every provider — with a built-in fallback line-up so it's already populated before you've even added a key.
 
 <p align="center"><img src="docs/screenshots/models.png" width="760" alt="the model picker — every provider in its brand colour, image models flagged with 🎨, a newest-only toggle"></p>
 
 ### home
 **plain version:** the front page. a launcher you can arrange however you like, with a box to jot something down fast.
+
+<p align="center"><img src="docs/screenshots/home.png" width="760" alt="home — the launcher and quick-capture box"></p>
 
 - a grid of tiles, one per app — **drag them to reorder**, and when you drag, a glowing line shows exactly where the tile will drop
 - hit **customize** to rearrange or **hide** apps you never use (×/+ on each tile); your layout is remembered
@@ -96,12 +98,12 @@ this is the most feature-dense app, so here's the full list:
 - **`[[wikilinks]]`** to link notes together, **backlinks** (see what links *to* this note), and **unlinked mentions** (notes that name this one in plain text but haven't linked it yet)
 - **rename-safe links** — renaming a note rewrites every `[[link]]` to it across the whole vault (aliases and `#headings` preserved), so refactoring never silently breaks your graph; the change is snapshotted so it's undoable
 - **`[[` autocomplete** — start typing a link and it suggests your notes
-- **find & replace** inside a doc (Ctrl+F)
+- **find & replace** inside a doc (ctrl+f)
 - **a graph view** — your notes as dots, links as lines, drag-explore
 - **`#tags`** with a clickable tag sidebar + filter, and **`![[embeds]]`** to pull one note (or an image) inside another
 - **frontmatter** (the `key: value` block at the top) rendered as a clean property table
 - **paste smarts:** paste a web link onto selected text → it becomes a link; paste or drop an **image** → it uploads and embeds automatically
-- **quick switcher** (Cmd/Ctrl+O) — fuzzy-jump to any doc by name
+- **quick switcher** (cmd/ctrl+o) — fuzzy-jump to any doc by name
 - **pin** favorite docs to the top, **sort** the tree a–z or by recently-edited, **foldable folders**, and **drag files into folders** to organize (with a drop highlight)
 - **templates** — new-from-template menu (seeds starter meeting/daily/project templates with `{{date}}`/`{{title}}` tokens)
 - **task rollup** — every `- [ ] checkbox` across all your notes in one panel, tickable from there
@@ -123,7 +125,7 @@ this is the most feature-dense app, so here's the full list:
 - live inbox that auto-refreshes; open, read, and reply to mail
 - **conversation threads** — a toggle collapses the inbox into conversations (everything with the same subject, re:/fwd: stripped), expand one to read the whole back-and-forth
 - **attachments** — a message shows its attachments as chips you click to download (the body still loads attachment-free for speed)
-- compose and send with **cc + bcc**; replies set the proper `In-Reply-To`/`References` headers so they thread correctly in Apple Mail, Gmail, and everywhere else
+- compose and send with **cc + bcc**; replies set the proper `in-reply-to`/`references` headers so they thread correctly in apple mail, gmail, and everywhere else
 - **ai:** summarize a long thread, turn an email into a task, or turn an email into a calendar event (the ai reads out the date/time/title for you)
 - **fast + offline-tolerant:** a persistent header cache means the inbox opens instantly and still shows your last sync when the network's slow or down; local search over the cache is instant
 - *under the hood:* built directly on python's standard `imaplib`/`smtplib` — no third-party mail library. it pools live connections, caches what it's read, loads the inbox by range (not a slow "search everything"), and opens a message by pulling *only* its text/html body — not the attachments — so it stays fast on a weak connection.
@@ -133,7 +135,7 @@ this is the most feature-dense app, so here's the full list:
 
 - real time-grid week and day views, a month grid, and an **agenda list**
 - **recurring events** — daily / weekly / monthly, with a small **↻ marker** on every repeating occurrence so you never mistake one instance for a one-off
-- **import / export `.ics`** — round-trip with Apple Calendar, Google, Outlook (export everything, or import a `.ics` someone sent you)
+- **import / export `.ics`** — round-trip with apple calendar, google, outlook (export everything, or import a `.ics` someone sent you)
 - **natural-language quick-add** right in the header — "lunch with sam friday 1pm" makes the timed event; "team sync tomorrow" makes an all-day one; and it now understands repeats too — "standup daily 9am", "yoga every monday 6pm", "class every week until 2026-08-01"
 - optional **two-way sync with caldav** (the open calendar-sync standard used by icloud and google) if you add your credentials
 
@@ -144,7 +146,7 @@ this is the most feature-dense app, so here's the full list:
 
 - **natural-language quick-add** — "pay rent every 1st !" or "call mom tomorrow #home" parses the due date, repeat, `#tags` and `!` priority for you (deterministic, no deps, all local)
 - **recurring tasks** — finish one and it rolls forward to the next occurrence (daily / weekly / monthly / yearly, leap-day safe)
-- **Today / Upcoming / Someday** views by due date, plus tags, subtasks, projects, and manual drag-reorder
+- **today / upcoming / someday** views by due date, plus tags, subtasks, projects, and manual drag-reorder
 - **active / history tabs** — checking a task off doesn't make it vanish; the **history** tab shows everything you've completed, and you can un-check one to send it back
 - tasks created anywhere (quick-capture, "extract to-dos" from a doc, the ai's `task_add` tool) all land here
 
@@ -175,7 +177,7 @@ this is the most feature-dense app, so here's the full list:
 - **price-change tracking** — when a subscription's price changes it keeps the old and new, so a quietly-creeping price is something you can actually see
 - a **6-month spend forecast** of what's coming up, and **duplicate detection** that flags two subs that look like the same service
 - a **manage ↗ link** straight to the cancel/billing page you saved
-- monthly **and** yearly totals, plus a **spend-by-category bar chart** (plain CSS, no chart library)
+- monthly **and** yearly totals, plus a **spend-by-category bar chart** (plain css, no chart library)
 - a **push notification before anything renews** so you can cancel in time
 
 <p align="center"><img src="docs/screenshots/subs.png" width="760" alt="subs — renewals, a 6-month forecast, and spend by category"></p>
@@ -185,9 +187,9 @@ this is the most feature-dense app, so here's the full list:
 
 - **accounts** (checking / savings / cash / credit / investment) with live balances + a net-worth roll-up
 - **transactions** — log income/expenses with a category + payee, browse by month, quick-add, **click a row to edit it inline**, delete
-- **CSV import / export** — pull in a bank statement (it maps a `Description` column to the payee, copes with `$`/commas) and **skips rows you already imported** (matched on date + amount + payee) so re-importing an overlapping statement doesn't double-count; or export everything to a spreadsheet
+- **csv import / export** — pull in a bank statement (it maps a `description` column to the payee, copes with `$`/commas) and **skips rows you already imported** (matched on date + amount + payee) so re-importing an overlapping statement doesn't double-count; or export everything to a spreadsheet
 - **budgets** — set a monthly cap per category; a progress bar turns red when you go over
-- **charts** — spending-by-category bars and a 6-month income-vs-spent trend (plain SVG, no chart library)
+- **charts** — spending-by-category bars and a 6-month income-vs-spent trend (plain svg, no chart library)
 - this-month cards: net worth · income · spent · net
 
 <p align="center"><img src="docs/screenshots/money.png" width="760" alt="money — accounts, spending by category, budgets, and a 6-month trend"></p>
@@ -217,24 +219,24 @@ this is the most feature-dense app, so here's the full list:
 - your photos grouped into date "moments," plus albums and favorites
 - **search** by filename, camera (from exif), or date — "june 2026", a `2026-06` prefix, or just a year
 - reads **exif** (the camera/date info baked into a photo) and makes thumbnails automatically
-- **folder sync** — point `/api/photos/sync` at an iCloud Drive / Photos-export / Dropbox folder and it pulls in new shots (deduped); on the Mac mini a PhotoKit/osxphotos bridge feeds the same path
+- **folder sync** — point `/api/photos/sync` at an icloud drive / photos-export / dropbox folder and it pulls in new shots (deduped); on the mac mini a photokit/osxphotos bridge feeds the same path
 - everything stored as plain files under `data/` — they're just your photos in a folder
 
 ### contacts
 **plain version:** an address book — and one the ai can read and use (e.g. when drafting mail).
 
 - name / email / phone / notes / tags, searchable
-- **vCard import / export** — round-trips with your phone and any other address book
+- **vcard import / export** — round-trips with your phone and any other address book
 
 <p align="center"><img src="docs/screenshots/contacts.png" width="760" alt="contacts — a searchable address book the ai can read when drafting mail"></p>
 
 ### system
-**plain version:** a live look at how hard your computer is working — like Task Manager / Activity Monitor, built in.
+**plain version:** a live look at how hard your computer is working — like task manager / activity monitor, built in.
 
 - **ring gauges** for cpu and memory, a per-core bar strip, and **cpu/ram history sparklines** that fill in as you watch — refreshing every couple seconds
 - disk-usage bars per drive, plus a card with your gpu, vram, cpu model, backend, and uptime
 - the gauges go from accent → amber → red as a number heats up, so a pegged core or a full disk is obvious at a glance
-- *under the hood:* `GET /api/system/stats` ([`services/sysmon.py`](services/sysmon.py)) uses [psutil](https://github.com/giampaolo/psutil) for live cpu%/per-core/uptime/disks; without it, it still shows ram + disk from the static hardware readout (`shutil` + the `hwfit` probe), just no live cpu%. all the gauges are hand-drawn svg — no chart library.
+- *under the hood:* `get /api/system/stats` ([`services/sysmon.py`](services/sysmon.py)) uses [psutil](https://github.com/giampaolo/psutil) for live cpu%/per-core/uptime/disks; without it, it still shows ram + disk from the static hardware readout (`shutil` + the `hwfit` probe), just no live cpu%. all the gauges are hand-drawn svg — no chart library.
 
 <p align="center"><img src="docs/screenshots/system.png" width="760" alt="system — a built-in live system monitor"></p>
 
@@ -243,7 +245,7 @@ this is the most feature-dense app, so here's the full list:
 
 - pick a **type** and the form changes to match: **logins** (username · password · website · notes), **credit cards** (cardholder · number · expiry · cvv · billing address), **api keys / tokens**, **secure notes**, and **identities · bank accounts · ssh keys · software licenses** — so a card never asks you for a "password" and an api key reads as a token, not a login
 - click any entry to open it, reveal or copy a field, edit it, or delete it
-- a built-in **password generator** (CSPRNG, skips look-alike characters) and a live **strength meter** that flags common, repetitive, or sequential passwords
+- a built-in **password generator** (csprng, skips look-alike characters) and a live **strength meter** that flags common, repetitive, or sequential passwords
 - *under the hood:* each entry is sealed with **aes-256-gcm** (a strong authenticated encryption) under a key derived from your master password with **pbkdf2-hmac-sha-256, 260,000 iterations** (a deliberately slow key-stretch so guessing the password is expensive). the master password is held **in memory only** and never written to disk. locked, the vault is unreadable even to someone holding a full copy of your database.
 
 <p align="center">
@@ -257,7 +259,7 @@ this is the most feature-dense app, so here's the full list:
 - examples: mail from a certain sender → make a task · a subscription is about to renew → push me · a doc gets saved with `#urgent` → do something · every morning → build me a day digest
 - *under the hood:* rules live in the database and fire off a small background job system (see [under the hood](#how-each-app-works-under-the-hood))
 
-**and the smaller stuff:** global search across everything (Cmd/Ctrl+K), scheduled messages (right-click send → have aide message you later), prompt templates / a cookbook, webhooks, api tokens, an openai-compatible api so other tools can use alles as their "openai," backup & restore to a zip, light/dark themes **with a customizable accent color**, and it **installs like an app** (it's a pwa with real push notifications — add it to your home screen/dock and reminders reach you with every tab closed).
+**and the smaller stuff:** global search across everything (cmd/ctrl+k), scheduled messages (right-click send → have aide message you later), prompt templates / a cookbook, webhooks, api tokens, an openai-compatible api so other tools can use alles as their "openai," backup & restore to a zip, light/dark themes **with a customizable accent color**, and it **installs like an app** (it's a pwa with real push notifications — add it to your home screen/dock and reminders reach you with every tab closed).
 
 ---
 
@@ -274,7 +276,7 @@ aide looks like a normal chat box. the differences are under it:
 - **personas & projects.** personas are saved system prompts (give it a character/role). projects group related chats with shared context and files.
 - **artifacts.** ask for a webpage/chart/snippet and it renders live in a sandboxed frame next to the chat.
 - **voice.** push-to-talk speech-to-text in, text-to-speech out — local (`faster-whisper`) or via a provider, your choice in settings.
-- **reasoning view.** for "thinking" models (deepseek-r1, qwen3, claude extended thinking) you get a live "thought for N s" timer and can read the reasoning.
+- **reasoning view.** for "thinking" models (deepseek-r1, qwen3, claude extended thinking) you get a live "thought for n s" timer and can read the reasoning.
 
 ---
 
@@ -300,7 +302,7 @@ def detect_provider(base_url):
     if "cohere"          in url: return "cohere"
     if "openai.com"      in url: return "openai"
     if ":11434" in url or "ollama" in url: return "ollama"
-    return "openai"   # anything else: treat as OpenAI-compatible
+    return "openai"   # anything else: treat as openai-compatible
 ```
 
 **plain version:** there are really only three "languages" ai providers speak. aide speaks all three and translates, so you never have to care which one answered.
@@ -309,9 +311,9 @@ def detect_provider(base_url):
 
 | protocol | who speaks it | endpoint | notes |
 |---|---|---|---|
-| **openai-compatible** | openai, deepseek, groq, openrouter, moonshot/kimi, xai/grok, gemini, mistral, perplexity, together, fireworks, cohere, vllm, lm studio, **+ anything that copies the format** | `POST /v1/chat/completions` | the default and the fallback |
-| **anthropic messages** | claude | `POST /v1/messages` | different headers, system-prompt placement, and tool/vision shapes |
-| **ollama native** | local models via [ollama](https://ollama.com) | `POST /api/chat` | point an endpoint at `http://localhost:11434` and you're fully offline, no keys |
+| **openai-compatible** | openai, deepseek, groq, openrouter, moonshot/kimi, xai/grok, gemini, mistral, perplexity, together, fireworks, cohere, vllm, lm studio, **+ anything that copies the format** | `post /v1/chat/completions` | the default and the fallback |
+| **anthropic messages** | claude | `post /v1/messages` | different headers, system-prompt placement, and tool/vision shapes |
+| **ollama native** | local models via [ollama](https://ollama.com) | `post /api/chat` | point an endpoint at `http://localhost:11434` and you're fully offline, no keys |
 
 for each, aide builds the correct request body, sends it, and streams the reply back through a parser that **normalizes everything into the same internal events**: `{"delta": …}` for text, `{"thinking": …}` for reasoning tokens, `{"tool_call": …}` for function calls, and `{"done": …, "usage": …}` at the end. the rest of the app only ever sees those four shapes.
 
@@ -321,11 +323,11 @@ details that matter in practice:
 - **reasoning models** that go quiet before answering show an elapsed-time heartbeat so the ui never looks frozen.
 - **vision / tool-calls / tool-results** are translated per provider (e.g. openai `tool_calls` ⇄ anthropic `tool_use` blocks; base64 images ⇄ anthropic image blocks).
 - **auto-failover + cooldown:** an endpoint that errors twice gets a 20-second cooldown so one dead provider doesn't stall you.
-- **localhost stays direct:** behind an http proxy (e.g. clash), aide honors `NO_PROXY` and sends `localhost`/`127.0.0.1` straight through, so a local model never gets proxied.
+- **localhost stays direct:** behind an http proxy (e.g. clash), aide honors `no_proxy` and sends `localhost`/`127.0.0.1` straight through, so a local model never gets proxied.
 - **model lists auto-refresh:** aide periodically re-pulls each provider's available models (and on demand), so new releases show up on their own.
-- **zero-config start:** put `DEEPSEEK_API_KEY` or `ANTHROPIC_API_KEY` in `.env` and the matching endpoint is created on first boot — or add any endpoint in the ui with one click (presets for everything above).
+- **zero-config start:** put `deepseek_api_key` or `anthropic_api_key` in `.env` and the matching endpoint is created on first boot — or add any endpoint in the ui with one click (presets for everything above).
 
-aide also **exposes its own** openai-compatible api (`GET /v1/models`, `POST /v1/chat/completions`), so other tools can point at alles as if it were openai.
+aide also **exposes its own** openai-compatible api (`get /v1/models`, `post /v1/chat/completions`), so other tools can point at alles as if it were openai.
 
 ---
 
@@ -358,8 +360,8 @@ aide also **exposes its own** openai-compatible api (`GET /v1/models`, `POST /v1
 - **prompt-injection guard** — when the agent reads something it didn't write (a web page, an email, a file, repo contents, an mcp result), that text is wrapped as *data, not instructions* before it goes back to the model, and scanned for the classic attacks ("ignore previous instructions," "reveal your system prompt," "email the api key to…"). anything that trips gets flagged. so a booby-trapped webpage can't quietly hijack a run. *(it's a seatbelt, not a force field — see security.)*
 - **secret-path confinement** — the file tools refuse to touch credential/secret stores (`~/.ssh`, `~/.aws`, `.env`, `*.pem`, `id_rsa`, `.netrc`, `.docker/config.json`…) by default, even if a prompt-injection tries to make the agent exfiltrate them. you can opt out (`agent_allow_secrets`) and optionally confine all writes to the workspace (`agent_confine_workspace`)
 - **sandbox** — the shell can run inside a docker container with the workspace mounted at `/work` and (optionally) no network, so commands can't touch your real filesystem
-- **action intents** (opt-in) — a plain chat turn that's clearly asking aide to *do* something ("add lunch to my calendar", "run npm install", "research X") can auto-promote into agent mode (`agent_auto_intents`); off by default so a normal chat never gets hijacked
-- a project-level **`AGENTS.md`** (or `aide.md`) in the working folder is auto-loaded as standing instructions — the same cross-tool convention claude code and others use
+- **action intents** (opt-in) — a plain chat turn that's clearly asking aide to *do* something ("add lunch to my calendar", "run npm install", "research x") can auto-promote into agent mode (`agent_auto_intents`); off by default so a normal chat never gets hijacked
+- a project-level **`agents.md`** (or `aide.md`) in the working folder is auto-loaded as standing instructions — the same cross-tool convention claude code and others use
 
 ---
 
@@ -368,7 +370,7 @@ aide also **exposes its own** openai-compatible api (`GET /v1/models`, `POST /v1
 the whole point of self-hosting is that nothing is magic. here's what each app *actually does*:
 
 - **docs** — your notes are **real `.md` files** in `data/vault/` (path configurable). the editor is **codemirror 6** doing obsidian-style live preview; it edits the plain text directly, so *what's saved equals what you typed*. `[[wikilinks]]`, backlinks, unlinked mentions, `#tags`, `![[embeds]]`, frontmatter, the graph, the outline, the task rollup, and word count are all computed over those files on demand. images you paste/drop go to `data/vault/_assets/`; templates live in `data/vault/_templates/` (both hidden from the tree). math renders with katex, diagrams with mermaid (lazy-loaded from a cdn; raw text shown if you're offline). every save writes a revision row you can restore.
-- **mail** — a thin client over python's stdlib `imaplib`/`smtplib` (no mail dependency). it pools live imap connections, caches reads, loads the inbox by sequence range (no slow `SEARCH ALL`), and opens a message by fetching only its text/html body parts (not attachments) for speed on bad links. a background poll only re-fetches when the mailbox actually changed. credentials are stored locally, encrypted, and never sent back to the browser.
+- **mail** — a thin client over python's stdlib `imaplib`/`smtplib` (no mail dependency). it pools live imap connections, caches reads, loads the inbox by sequence range (no slow `search all`), and opens a message by fetching only its text/html body parts (not attachments) for speed on bad links. a background poll only re-fetches when the mailbox actually changed. credentials are stored locally, encrypted, and never sent back to the browser.
 - **research** — an *iterresearch*-style deep-research loop (the model drives every decision): it plans the question into sub-topics, fires several search queries per round in parallel (tavily / brave / searxng / google programmable search / serper if you have a key, else duckduckgo → wikipedia for free), reads the top pages with [trafilatura](https://github.com/adbar/trafilatura) (pulls the real article, drops nav/ads), extracts findings, rolls them into an evolving report, and **decides itself when it's covered the question** — then writes a long, cited, magazine-quality report (auto-formatted for product / comparison / how-to / fact-check questions). streamed live with sources as they're found.
 - **calendar** — events in sqlite with recurrence expanded on the fly; optional two-way caldav sync if you install `caldav` and add credentials.
 - **gallery / photos** — you import photos; pillow makes thumbnails and reads exif; they're grouped into date "moments." stored as plain files under `data/`.
@@ -382,16 +384,16 @@ the whole point of self-hosting is that nothing is magic. here's what each app *
 
 | shortcut | does |
 |---|---|
-| **Ctrl/Cmd + K** | command palette — search everything (chats, docs, mail, tasks, calendar, money, subs, photos, …) + "ask aide" / "research the web" |
-| **Ctrl/Cmd + O** | (in docs) quick-switch to any note by name |
-| **Ctrl/Cmd + F** | (in docs) find & replace inside the current note |
-| **Ctrl/Cmd + B** | toggle the sidebar |
-| **Ctrl/Cmd + ,** | open settings |
-| **Ctrl/Cmd + N** | new chat |
-| **Ctrl/Cmd + Enter** | send |
-| **Ctrl/Cmd + B / I / E / K** | (in docs) bold / italic / inline-code / link |
+| **ctrl/cmd + k** | command palette — search everything (chats, docs, mail, tasks, calendar, money, subs, photos, …) + "ask aide" / "research the web" |
+| **ctrl/cmd + o** | (in docs) quick-switch to any note by name |
+| **ctrl/cmd + f** | (in docs) find & replace inside the current note |
+| **ctrl/cmd + b** | toggle the sidebar |
+| **ctrl/cmd + ,** | open settings |
+| **ctrl/cmd + n** | new chat |
+| **ctrl/cmd + enter** | send |
+| **ctrl/cmd + b / i / e / k** | (in docs) bold / italic / inline-code / link |
 
-shortcuts are remappable in settings. global search is one command palette across the whole suite — chats, docs, **mail** (over the local header cache, instant), tasks, calendar, contacts, memories, **money**, **subscriptions**, and **photos** — grouped by app, and clicking a result jumps to it in its app (even on another subdomain). it also carries two **action rails**: **ask aide** drops your query straight into chat, and **research the web** kicks off a deep-research run — so the place you search is also where you act. summoned from any app with Ctrl/Cmd+K.
+shortcuts are remappable in settings. global search is one command palette across the whole suite — chats, docs, **mail** (over the local header cache, instant), tasks, calendar, contacts, memories, **money**, **subscriptions**, and **photos** — grouped by app, and clicking a result jumps to it in its app (even on another subdomain). it also carries two **action rails**: **ask aide** drops your query straight into chat, and **research the web** kicks off a deep-research run — so the place you search is also where you act. summoned from any app with ctrl/cmd+k.
 
 ---
 
@@ -404,21 +406,21 @@ alles start         start in the background (waits until it's actually up)
 alles stop          stop it
 alles restart       restart it
 alles status        running/stopped + url + reachability
-alles logs [N]      print the last N log lines (default 60)
+alles logs [n]      print the last n log lines (default 60)
 alles logs -f       follow the log live
 alles update        git pull, then restart
 alles open          open the browser
 alles doctor        check the install is ready (deps, data dir, provider)
 ```
 
-`alles doctor` is the first thing to run on a fresh checkout — it reports your python version, which required/optional deps are present, whether the data dir is writable, and whether an AI provider is configured yet, then tells you if you're good to `start`.
+`alles doctor` is the first thing to run on a fresh checkout — it reports your python version, which required/optional deps are present, whether the data dir is writable, and whether an ai provider is configured yet, then tells you if you're good to `start`.
 
-- **windows (powershell):** `.\alles.cmd start` (powershell needs the `.\`), or just `alles start` if the folder is on your `PATH`
+- **windows (powershell):** `.\alles.cmd start` (powershell needs the `.\`), or just `alles start` if the folder is on your `path`
 - **windows (cmd):** `alles.cmd start`
 - **macos / linux / git bash:** `./alles start`
 - **anywhere:** `python app.py`
 
-the launchers find `python3`/`python` on their own. add the alles folder to your `PATH` to type `alles` from any directory.
+the launchers find `python3`/`python` on their own. add the alles folder to your `path` to type `alles` from any directory.
 
 ---
 
@@ -428,14 +430,14 @@ copy `.env.example` to `.env`. **everything is optional** — alles runs fine wi
 
 | var | default | what it does |
 |---|---|---|
-| `DEEPSEEK_API_KEY` | — | auto-creates a deepseek endpoint on first boot |
-| `ANTHROPIC_API_KEY` | — | auto-creates an anthropic (claude) endpoint on first boot |
-| `PORT` | `8000` | port to serve on |
-| `SECRET_KEY` | `dev-secret` | signs your login cookie — **change this before exposing alles to a network** |
-| `AUTH_ENABLED` | `false` | set `true` to require a password to log in |
-| `AUTH_PASSWORD` | — | that password |
-| `BASE_DOMAIN` | — | your real domain, for the subdomain setup (see architecture) |
-| `TAVILY_API_KEY` | — | better research search (falls back to duckduckgo + wikipedia, no key needed) |
+| `deepseek_api_key` | — | auto-creates a deepseek endpoint on first boot |
+| `anthropic_api_key` | — | auto-creates an anthropic (claude) endpoint on first boot |
+| `port` | `8000` | port to serve on |
+| `secret_key` | `dev-secret` | signs your login cookie — **change this before exposing alles to a network** |
+| `auth_enabled` | `false` | set `true` to require a password to log in |
+| `auth_password` | — | that password |
+| `base_domain` | — | your real domain, for the subdomain setup (see architecture) |
+| `tavily_api_key` | — | better research search (falls back to duckduckgo + wikipedia, no key needed) |
 
 **everything else is configured in the app, under settings** — no files to hand-edit. that includes: model endpoints, mail accounts, the search provider (tavily / brave / searxng / google pse / serper) and fallback chain, voice (stt/tts provider, model, language, voice, speed), the agent (permission mode, max turns/tokens, docker sandbox + image + no-net, sub-agents, computer-use, context files, allowed roots), the system prompt, memory auto-inject, artifacts on/off, context limit + auto-compact, themes/appearance, caldav accounts, webhooks, and api tokens. all of those persist as a settings row in the database.
 
@@ -461,11 +463,11 @@ activity.localhost       the cross-app activity timeline
 system.localhost         the live system monitor
 ```
 
-`static/js/subdomain.js` maps each host to the views it shows; `app.js` scopes the sidebar to that app and `navigateTo()` cross-jumps between them. this works **today with zero dns setup** — browsers route `*.localhost` to your own machine automatically.
+`static/js/subdomain.js` maps each host to the views it shows; `app.js` scopes the sidebar to that app and `navigateto()` cross-jumps between them. this works **today with zero dns setup** — browsers route `*.localhost` to your own machine automatically.
 
 **one login across all of them.** because a cookie set for `localhost` isn't sent to `*.localhost` subdomains, alles logs you in per-host and quietly relays the session on first cross-navigation via a one-time handoff code — so you authenticate once and every app just works, even on a direct visit or a bookmark.
 
-**on a real domain:** set `BASE_DOMAIN=yourdomain`, put a wildcard reverse proxy in front (e.g. caddy: `*.yourdomain, yourdomain { reverse_proxy 127.0.0.1:8000 }`), and cookies become `Domain=yourdomain; Secure` so single-sign-on spans every subdomain over https.
+**on a real domain:** set `base_domain=yourdomain`, put a wildcard reverse proxy in front (e.g. caddy: `*.yourdomain, yourdomain { reverse_proxy 127.0.0.1:8000 }`), and cookies become `domain=yourdomain; secure` so single-sign-on spans every subdomain over https.
 
 ---
 
@@ -477,21 +479,21 @@ alles is scriptable. two flavors:
 
 | method | path | does |
 |---|---|---|
-| `GET` | `/v1/models` | list available models |
-| `POST` | `/v1/chat/completions` | chat (streaming or not), openai request/response shape |
+| `get` | `/v1/models` | list available models |
+| `post` | `/v1/chat/completions` | chat (streaming or not), openai request/response shape |
 
 **2. the native rest api** (everything the ui uses; all under `/api`). a representative slice:
 
-- **chat/agent:** `POST /api/chat`, `POST /api/chat/stop/{id}`, `GET /api/sessions`, `POST /api/agent/background`, `GET /api/agent/runs`, `GET /api/agent/runs/{id}/sources`, `POST /api/agent/runs/{id}/revert`, `POST /api/research`
-- **docs:** `GET /api/vault-md/tree`, `GET/PUT/POST/DELETE /api/vault-md/file`, `/search`, `/grep`, `/graph`, `/tags`, `/backlinks`, `/unlinked`, `/tasks`, `/templates`, `/youtube`, `/import`, `/export-docx`, `/revisions`
-- **mail:** `GET /api/mail/accounts`, `GET /api/mail/inbox/{id}`, `GET /api/mail/threads/{id}`, `GET /api/mail/message/{id}`, `GET /api/mail/attachments/{id}`, `GET /api/mail/attachment/{id}`, `POST /api/mail/send/{id}`, `POST /api/mail/summarize`, `POST /api/mail/make-task`, `POST /api/mail/extract-event`
-- **tasks/calendar/notes/contacts/subs/days:** standard `GET/POST/PATCH/DELETE` on `/api/tasks`, `/api/calendar`, `/api/notes`, `/api/contacts`, `/api/subscriptions`, `/api/days`
+- **chat/agent:** `post /api/chat`, `post /api/chat/stop/{id}`, `get /api/sessions`, `post /api/agent/background`, `get /api/agent/runs`, `get /api/agent/runs/{id}/sources`, `post /api/agent/runs/{id}/revert`, `post /api/research`
+- **docs:** `get /api/vault-md/tree`, `get/put/post/delete /api/vault-md/file`, `/search`, `/grep`, `/graph`, `/tags`, `/backlinks`, `/unlinked`, `/tasks`, `/templates`, `/youtube`, `/import`, `/export-docx`, `/revisions`
+- **mail:** `get /api/mail/accounts`, `get /api/mail/inbox/{id}`, `get /api/mail/threads/{id}`, `get /api/mail/message/{id}`, `get /api/mail/attachments/{id}`, `get /api/mail/attachment/{id}`, `post /api/mail/send/{id}`, `post /api/mail/summarize`, `post /api/mail/make-task`, `post /api/mail/extract-event`
+- **tasks/calendar/notes/contacts/subs/days:** standard `get/post/patch/delete` on `/api/tasks`, `/api/calendar`, `/api/notes`, `/api/contacts`, `/api/subscriptions`, `/api/days`
 - **files/photos:** `/api/files/{list,raw,upload,mkdir,rename,delete}`, `/api/photos/{gallery,gallery/upload,albums,thumb}`
 - **secrets:** `/api/vault` (+ `/unlock`, `/lock`, `/{id}/reveal`)
 - **memory/personas/projects/cookbook:** `/api/memories` (+ `/search`, `/extract`), `/api/personas`, `/api/projects`, `/api/cookbook`
 - **platform:** `/api/settings`, `/api/today`, `/api/timeline` (the activity feed), `/api/system/stats` (live machine stats), `/api/backup` (+ `/restore`), `/api/tokens`, `/api/webhooks`, `/api/push/*`, `/api/mcp/*`, `/api/connections`, `/api/automations`, `/api/jobs`
 
-protect it with **api tokens** (settings → tokens) and, if exposed, **`AUTH_ENABLED`**.
+protect it with **api tokens** (settings → tokens) and, if exposed, **`auth_enabled`**.
 
 ---
 
@@ -499,9 +501,9 @@ protect it with **api tokens** (settings → tokens) and, if exposed, **`AUTH_EN
 
 everything is in one folder, **`data/`**:
 
-- **`data/aide.db`** — a single sqlite database file (WAL mode) holding the structured stuff. it's a wide schema — **~70 tables** covering: chat (`sessions`, `messages`, `model_endpoints`, `mcp_servers`), notes/journal/tasks (`notes`, `journal_entries`, `tasks`), calendar (`calendars`, `calendar_events`, `event_attendees`, `booking_pages`, `calendar_subscriptions`), money (`money_accounts`, `money_transactions`, `money_budgets`, `money_goals`, `money_holdings`, `money_recurring`, …), subscriptions (`subscriptions`, `sub_payments`, `sub_price_changes`), contacts (`contacts`, `contact_fields`, `contact_groups`), mail (`mail_accounts`, `mail_drafts`, `cached_messages`, `mail_rules`, `mail_scheduled`), photos (`albums`, `photos`), the vault (`vaults`, `vault_entries`, `vault_attachments`, `webauthn_credentials`), plus `personas`, `projects`, `memories`, `reminders`, `automation_rules`, `day_events`, `habits`, `health_entries`, `books`, `read_items`, `monitors`, `webhooks`, `api_tokens`, `connections`, and more.
+- **`data/aide.db`** — a single sqlite database file (wal mode) holding the structured stuff. it's a wide schema — **~70 tables** covering: chat (`sessions`, `messages`, `model_endpoints`, `mcp_servers`), notes/journal/tasks (`notes`, `journal_entries`, `tasks`), calendar (`calendars`, `calendar_events`, `event_attendees`, `booking_pages`, `calendar_subscriptions`), money (`money_accounts`, `money_transactions`, `money_budgets`, `money_goals`, `money_holdings`, `money_recurring`, …), subscriptions (`subscriptions`, `sub_payments`, `sub_price_changes`), contacts (`contacts`, `contact_fields`, `contact_groups`), mail (`mail_accounts`, `mail_drafts`, `cached_messages`, `mail_rules`, `mail_scheduled`), photos (`albums`, `photos`), the vault (`vaults`, `vault_entries`, `vault_attachments`, `webauthn_credentials`), plus `personas`, `projects`, `memories`, `reminders`, `automation_rules`, `day_events`, `habits`, `health_entries`, `books`, `read_items`, `monitors`, `webhooks`, `api_tokens`, `connections`, and more.
 - **`data/vault/`** — your docs as plain `.md` files (with `_assets/` for embedded images and `_templates/` for templates).
-- **`data/skills/`** — agent skills as `SKILL.md` files (frontmatter + steps).
+- **`data/skills/`** — agent skills as `skill.md` files (frontmatter + steps).
 - **`data/`** (other) — uploads, photos, gallery, and file-app content as plain files; **`data/secret.key`** — the encryption key for stored credentials.
 
 *under the hood:* the schema is sqlalchemy models in [`core/database.py`](core/database.py) with lightweight in-place column migrations (it adds new columns to existing tables on boot, so upgrades don't wipe your db). server-side secrets (model api keys, mail passwords) are sealed at rest with aes-256-gcm under `data/secret.key`. **back up the `data/` folder and you've backed up your entire alles** — or use settings → backup for a zip.
@@ -572,8 +574,8 @@ alles/
 
 alles is built for **one person on their own machine.** read this before you put it on a network.
 
-- **it ships open.** auth is off by default. if alles is reachable beyond localhost, set `AUTH_ENABLED=true`, a strong `AUTH_PASSWORD`, and a real `SECRET_KEY` **first**. without auth, anyone who can reach the port can read your mail and files and run shell commands as you.
-- **login is rate-limited.** once auth is on, a single IP that fails the password 8 times in 5 minutes is blocked (HTTP 429) — basic brute-force insurance for the day alles sits behind a domain.
+- **it ships open.** auth is off by default. if alles is reachable beyond localhost, set `auth_enabled=true`, a strong `auth_password`, and a real `secret_key` **first**. without auth, anyone who can reach the port can read your mail and files and run shell commands as you.
+- **login is rate-limited.** once auth is on, a single ip that fails the password 8 times in 5 minutes is blocked (http 429) — basic brute-force insurance for the day alles sits behind a domain.
 - **aide has hands.** agent mode and the shell tools run real commands on the machine alles is on. that's the point — but don't hand access to people or models you don't trust. the prompt-injection guard reduces the risk of a malicious web page/email steering the agent, but treat it as a seatbelt, not a force field.
 - **credentials are encrypted at rest with a local key.** model api keys and mail passwords are sealed with aes-256-gcm under `data/secret.key`. this protects the database file if it leaks *on its own* — it does **not** protect against someone who has the whole `data/` folder, because the server must be able to decrypt unattended.
 - **backups are the whole safe, key included.** a backup zip contains the database **and** the keys so restores just work — which means a backup is exactly as sensitive as your live data. store it like a password.
@@ -602,6 +604,6 @@ small touches that keep it snappy and sturdy:
 python -m unittest discover -s tests
 ```
 
-**1,000+ unit tests** and counting — including a full in-process API harness that drives the real app (via `TestClient` against a throwaway in-memory db, no server/port) so every route has end-to-end coverage, plus `python scripts/stress_test.py` (exercises every app's backend) and `python scripts/live_usage.py` (drives the real app against live AI — a chat, an agent that writes *and runs* a program, web research, compare, and real records across the apps), both writing evidence to `~/alles-test-evidence/<timestamp>/` — plus the docs vault (links, tags, graph, tasks, templates, asset/import handling, unlinked mentions, **rename link-rewriting**), document import, the youtube id parser, the job registry + event bus, the agent's tool-gating + prompt-injection guard + secret-path confinement + action-intent routing + context compaction (and the **tool-history truncation staying valid json**), the **activity-timeline aggregator** and **system-stats snapshot**, the deep-research engine (page extraction, quality filter, the full plan→search→synthesize loop against a fake model), the hardware-aware model fit engine (catalog ranking, quant/version/bandwidth scoring), the natural-language task + calendar parsers (incl. **recurrence + "until"**), journal/files/photos search, the **federated command-palette** surfaces, the subscription + money math (incl. **renewal auto-post**, **paid/undo + price history + forecast + duplicate detection**, and **CSV dedup**), mail parsing (incl. **threading + reply headers**), the password generator + strength meter, vcard round-tripping, aes-256-gcm crypto, bcrypt auth + the login throttle, the token-usage rollup, the model client, and more.
+**1,000+ unit tests** and counting — including a full in-process api harness that drives the real app (via `testclient` against a throwaway in-memory db, no server/port) so every route has end-to-end coverage, plus `python scripts/stress_test.py` (exercises every app's backend) and `python scripts/live_usage.py` (drives the real app against live ai — a chat, an agent that writes *and runs* a program, web research, compare, and real records across the apps), both writing evidence to `~/alles-test-evidence/<timestamp>/` — plus the docs vault (links, tags, graph, tasks, templates, asset/import handling, unlinked mentions, **rename link-rewriting**), document import, the youtube id parser, the job registry + event bus, the agent's tool-gating + prompt-injection guard + secret-path confinement + action-intent routing + context compaction (and the **tool-history truncation staying valid json**), the **activity-timeline aggregator** and **system-stats snapshot**, the deep-research engine (page extraction, quality filter, the full plan→search→synthesize loop against a fake model), the hardware-aware model fit engine (catalog ranking, quant/version/bandwidth scoring), the natural-language task + calendar parsers (incl. **recurrence + "until"**), journal/files/photos search, the **federated command-palette** surfaces, the subscription + money math (incl. **renewal auto-post**, **paid/undo + price history + forecast + duplicate detection**, and **csv dedup**), mail parsing (incl. **threading + reply headers**), the password generator + strength meter, vcard round-tripping, aes-256-gcm crypto, bcrypt auth + the login throttle, the token-usage rollup, the model client, and more.
 
-every push runs the full suite on **GitHub Actions CI** (`.github/workflows/tests.yml`) — it already earned its keep by catching a data file that wasn't committed.
+every push runs the full suite on **github actions ci** (`.github/workflows/tests.yml`) — it already earned its keep by catching a data file that wasn't committed.
