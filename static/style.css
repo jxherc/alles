@@ -5778,7 +5778,6 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 }
 
 /* ── compact mode ── */
-body.compact { --ui-gap: 0.3rem; }
 body.compact .session-item { padding: 0.25rem 0.75rem; }
 body.compact .msg { margin-bottom: 0.75rem; }
 body.compact .page-view-head { padding: 0.45rem 0.75rem; }
