@@ -19,13 +19,21 @@ it's *one python process*. no build step, no bundler, no `node_modules`, no acco
 
 ---
 
+## what it runs on
+
+- **backend**: python 3.11, fastapi, sqlite, sqlalchemy
+- **frontend**: vanilla js, es modules, plain css (no build step, no bundler)
+- **ai layer**: httpx (streaming), fastembed (local vectors), unified openai/anthropic/ollama client
+- **extras**: web push (native), codemirror 6 (markdown), trafilatura (web scraping)
+
+
 ## the 30-second version
 
 - **everything in one place, one login.** stop bouncing between fifteen tabs and ten companies.
 - **it's yours.** all your data is plain files + one database in a folder called `data/`. copy that folder = you've copied your whole life. delete the app = you still have your files.
 - **the ai isn't a gimmick.** it talks to *any* model (claude, gpt, deepseek, gemini, a local model — switchable mid-chat), it remembers things across conversations, and in "agent" mode it can actually *do* things: edit files, run commands, search the web, touch your other apps.
 - **private by default.** no telemetry, no cloud, runs offline if you want (with a local model).
-- **single user, on purpose.** this is *your* workspace, not a service you host for a hundred people.
+- **single user, on purpose.** this is *your* workspace, not a service you host for a hundred people. it's your personal un-siloed digital brain.
 
 ## is this for me?
 
