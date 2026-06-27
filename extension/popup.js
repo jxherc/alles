@@ -14,7 +14,9 @@ $('go').addEventListener('click', async () => {
   for (const cred of list) {
     const row = document.createElement('div');
     row.className = 'row';
-    row.innerHTML = `<span>${cred.name}</span>`;
+    const span = document.createElement('span');
+    span.textContent = cred.name;   // textContent, not innerHTML — a cred name like "A<B" or "&" shouldn't render as markup
+    row.appendChild(span);
     const b = document.createElement('button');
     b.textContent = 'fill';
     b.onclick = () => chrome.tabs.sendMessage(tab.id, { type: 'alles-fill', cred });
