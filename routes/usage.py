@@ -99,4 +99,4 @@ def usage_by_session(limit: int = 30, db: DbSession = Depends(get_db)):
             }
         )
     rows.sort(key=lambda r: -r["total"])
-    return {"sessions": rows[:limit]}
+    return {"sessions": rows[: max(0, limit)]}  # negative limit would slice off the top sessions
