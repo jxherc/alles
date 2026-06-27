@@ -2978,7 +2978,9 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 .jrnl-heat-label { flex: 1; }
 .jrnl-main { width: 100%; }
 .jrnl-extras { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.4rem; align-items: start; }
-@media (max-width: 760px) { .jrnl-extras { grid-template-columns: 1fr; } }
+/* minmax(0,1fr) not 1fr — a plain 1fr track won't shrink below a wide child's min-content
+   (the mood-corr matrix), so it overflowed the column on mobile. matches the desktop rule. */
+@media (max-width: 760px) { .jrnl-extras { grid-template-columns: minmax(0, 1fr); } }
 .jrnl-datebar { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.6rem; }
 .jrnl-date { font-size: 1.05rem; font-weight: 500; color: var(--text); }
 .jrnl-words { margin-left: auto; font-size: 0.68rem; color: var(--muted); }
