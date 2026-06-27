@@ -5,13 +5,19 @@ from datetime import datetime
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from core.database import Message
+from core.database import Base, Message
 from routes import usage as U
 
 
 def _mkdb():
     eng = create_engine("sqlite:///:memory:")
     Message.__table__.create(eng)
+    return sessionmaker(bind=eng)()
+
+
+def _mkdb_full():
+    eng = create_engine("sqlite:///:memory:")
+    Base.metadata.create_all(eng)  # by-session does db.get(Session, ...), needs that table too
     return sessionmaker(bind=eng)()
 
 
@@ -148,6 +154,29 @@ class UsageTests(unittest.TestCase):
         self.assertIn("a", names)
         self.assertIn("b", names)
         self.assertEqual(len(s["by_model"]), 2)
+
+
+class BySessionLimitTests(unittest.TestCase):
+    def _seed(self, db, sid, p, c):
+        db.add(Message(session_id=sid, role="assistant", content="x",
+                       meta=json.dumps({"usage": {"prompt_tokens": p, "completion_tokens": c}})))
+        db.commit()
+
+    def test_negative_limit_returns_empty_not_all_but_one(self):
+        db = _mkdb_full()
+        self._seed(db, "a", 100, 50)
+        self._seed(db, "b", 10, 5)
+        self._seed(db, "c", 1, 1)
+        # ?limit=-1 used to do rows[:-1] (drop a session); a negative cap should yield nothing
+        self.assertEqual(U.usage_by_session(limit=-1, db=db)["sessions"], [])
+
+    def test_positive_limit_caps_to_top(self):
+        db = _mkdb_full()
+        self._seed(db, "a", 100, 50)
+        self._seed(db, "b", 10, 5)
+        out = U.usage_by_session(limit=1, db=db)["sessions"]
+        self.assertEqual(len(out), 1)
+        self.assertEqual(out[0]["total"], 150)  # the biggest session
 
 
 if __name__ == "__main__":
