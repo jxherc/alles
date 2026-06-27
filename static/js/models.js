@@ -482,7 +482,10 @@ export async function addEndpoint(name, url, key) {
   });
   if (!r.ok) throw new Error(await r.text());
   const ep = await r.json();
-  await fetch(`/api/models/endpoint/${ep.id}/probe`, { method: 'POST' }).catch(() => {});
+  await fetch(`/api/models/endpoint/${ep.id}/probe`, { method: 'POST' }).catch(e => {
+    console.error(`probe failed for ${ep.name}:`, e);
+    toast(`probe failed for ${ep.name}`, 'error');
+  });
   await loadModels();
   return ep;
 }

@@ -187,7 +187,7 @@ class WebAuthnApiTests(ApiTest):
         blob = d.get(Vault, "default").biometric_blob
         d.close()
         self.assertTrue(blob)
-        self.assertNotIn("m1", blob)  # the master pw is never stored in the clear
+        self.assertNotIn(b"m1", base64.b64decode(blob))  # the master pw is never stored in the clear
 
     def test_biometric_blob_rewrapped_on_password_change(self):
         # changing the master password must re-wrap the biometric blob, else a later

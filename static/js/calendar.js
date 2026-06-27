@@ -101,7 +101,7 @@ function _bindNav() {
   _navBound = true;
   document.getElementById('cal-prev')?.addEventListener('click', () => shift(-1));
   document.getElementById('cal-next')?.addEventListener('click', () => shift(1));
-  document.getElementById('cal-today')?.addEventListener('click', () => { _cursor = new Date(); _miniCursor = new Date(); render(); renderSidebar(); });
+  document.getElementById('cal-today')?.addEventListener('click', () => { _cursor = new Date(); _miniCursor = new Date(); render(); renderMini(); });
   document.querySelectorAll('#cal-view .seg-opt').forEach(b =>
     b.addEventListener('click', () => { _view = b.dataset.view; localStorage.setItem('cal-view', _view); _syncViewBtns(); render(); }));
   _syncViewBtns();
@@ -153,7 +153,7 @@ function shift(dir) {
   else _cursor.setDate(_cursor.getDate() + dir);
   _miniCursor = new Date(_cursor);
   render();
-  renderSidebar();
+  renderMini();
 }
 
 // ── sidebar: search + mini-month + my-calendars ──────────────────────────────

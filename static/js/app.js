@@ -567,6 +567,7 @@ async function _wireHomeAsk() {
         body: JSON.stringify({ name: 'home: ask aide', model, endpoint_id: eid, incognito: true }) }).then(x => x.json())).id;
     }
     let text = '';
+    let pendingRender = false;
     try {
       const resp = await fetch('/api/chat', { method: 'POST', headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ session_id: _haSession, message: ctx + q + _haAttach, mode: 'chat', simple: true }) });
@@ -579,10 +580,23 @@ async function _wireHomeAsk() {
           const line = buf.slice(0, i); buf = buf.slice(i + 2);
           if (line.startsWith('data: ')) {
             const dd = line.slice(6); if (dd === '[DONE]') break;
-            try { const ev = JSON.parse(dd); if (ev.delta) { text += ev.delta; rep.innerHTML = mdToHtml(text); } } catch {}
+            try {
+              const ev = JSON.parse(dd);
+              if (ev.delta) {
+                text += ev.delta;
+                if (!pendingRender) {
+                  pendingRender = true;
+                  requestAnimationFrame(() => {
+                    rep.innerHTML = mdToHtml(text);
+                    pendingRender = false;
+                  });
+                }
+              }
+            } catch {}
           }
         }
       }
+      rep.innerHTML = mdToHtml(text);
     } catch { rep.textContent = 'failed — try again'; }
     send.disabled = false; inp.value = ''; _haAttach = '';
   };
@@ -893,19 +907,11 @@ function _renderHomeGreeting() {
   }
   // greeting doubles as the way in to set your name
   el.title = 'click to set your name';
-  el.style.cursor = 'pointer';
+  
   if (!el.dataset.wired) {
     el.dataset.wired = '1';
     el.addEventListener('click', () => openSettings('general'));
   }
-  let tag = document.getElementById('home-tagline');
-  if (!tag) {
-    tag = document.createElement('div');
-    tag.id = 'home-tagline';
-    tag.className = 'home-tagline';
-    el.insertAdjacentElement('afterend', tag);
-  }
-  tag.textContent = 'your everything, in one place';
 }
 
 let _homeClockTimer = null;
@@ -1541,7 +1547,9 @@ async function openPersonaPicker() {
   const picker = document.createElement('div');
   picker.id = '_persona_picker';
   picker.className = 'ctx-menu';
-  picker.style.cssText = 'display:block;top:50px;left:260px;min-width:160px';
+  const btn = document.getElementById('persona-btn');
+  const rect = btn.getBoundingClientRect();
+  picker.style.cssText = `display:block;left:${rect.left}px;top:${rect.bottom + 4}px;min-width:160px`;
   const none = document.createElement('div');
   none.className = 'ctx-item'; none.textContent = '— none';
   none.addEventListener('click', async () => { await setPersona(''); picker.remove(); });

@@ -42,7 +42,7 @@ function _field(f, val) {
   }
   if (f.type === 'action') return `<button type="button" class="aps-action" data-act="${esc(f.act)}">${esc(f.label)}</button>`;
   if (f.type === 'textarea') return `<div class="aps-field"><label>${f.label}</label><textarea class="settings-textarea" data-k="${f.k}" rows="2" placeholder="${esc(f.ph || '')}">${esc(val || '')}</textarea></div>`;
-  return `<div class="aps-field"><label>${f.label}</label><input class="settings-input" data-k="${f.k}" placeholder="${esc(f.ph || '')}" value="${esc(val || '')}" style="width:100%"></div>`;
+  return `<div class="aps-field"><label>${f.label}</label><input class="settings-input" data-k="${f.k}" placeholder="${esc(f.ph || '')}" value="${esc(val || '')}"></div>`;
 }
 
 function _patch(spec, k, v) {
@@ -92,11 +92,13 @@ export async function openAppSettings(app, anchor) {
   setTimeout(() => document.addEventListener('click', _outside), 0);
 }
 
+let _cogsBound = false;
 // wire any `.app-cog` button (data-app) found in the DOM
 export function initAppCogs() {
-  document.querySelectorAll('.app-cog').forEach(btn => {
-    if (btn.dataset.cogBound) return;
-    btn.dataset.cogBound = '1';
-    btn.addEventListener('click', e => { e.stopPropagation(); openAppSettings(btn.dataset.app, btn); });
+  if (_cogsBound) return;
+  _cogsBound = true;
+  document.addEventListener('click', e => {
+    const btn = e.target.closest('.app-cog');
+    if (btn) { e.stopPropagation(); openAppSettings(btn.dataset.app, btn); }
   });
 }
