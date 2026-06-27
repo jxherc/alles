@@ -85,6 +85,43 @@ class BackupApiTest(ApiTest):
         with zipfile.ZipFile(io.BytesIO(r.content)) as zf:
             self.assertIn("uploads/photo.jpg", zf.namelist())
 
+    def test_export_checkpoints_wal_so_recent_writes_are_backed_up(self):
+        # WAL mode keeps recent commits in aide.db-wal; the backup ships only aide.db, so without
+        # a checkpoint the backed-up db is missing them. write data into the wal, export, then open
+        # the backed-up aide.db ALONE (no -wal) and confirm the row made it in.
+        import sqlalchemy as sa
+
+        import core.database as db
+
+        dbfile = self.data / "aide.db"
+        dbfile.unlink()  # drop the fake one; make a real WAL db here
+        eng = sa.create_engine(f"sqlite:///{dbfile.as_posix()}")
+        with eng.connect() as c:
+            c.exec_driver_sql("PRAGMA journal_mode=WAL")
+            c.exec_driver_sql("CREATE TABLE t (x TEXT)")
+            c.exec_driver_sql("INSERT INTO t VALUES ('hello-wal')")
+            c.commit()  # committed to the -wal, NOT checkpointed into aide.db
+
+        orig = db.engine
+        db.engine = eng  # the backup checkpoints core.database.engine
+        try:
+            r = self.client.get("/api/backup")
+            with zipfile.ZipFile(io.BytesIO(r.content)) as zf:
+                backed = zf.read("aide.db")
+        finally:
+            db.engine = orig
+            eng.dispose()
+
+        out = Path(self._tmp.name) / "restored.db"  # open standalone, no wal beside it
+        out.write_bytes(backed)
+        chk = sa.create_engine(f"sqlite:///{out.as_posix()}")
+        try:
+            with chk.connect() as c:
+                rows = c.exec_driver_sql("SELECT x FROM t").fetchall()
+        finally:
+            chk.dispose()
+        self.assertEqual(rows, [("hello-wal",)])
+
     def test_export_content_disposition_header(self):
         r = self.client.get("/api/backup")
         cd = r.headers.get("content-disposition", "")
