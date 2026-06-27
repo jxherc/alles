@@ -1,3 +1,4 @@
+import asyncio
 import hashlib
 import hmac
 import json
@@ -58,7 +59,8 @@ async def _deliver(w: Webhook, body: dict) -> tuple[str, str]:
                 err = f"http {r.status_code}"
             except Exception as e:
                 err = str(e)
-            # don't sleep after the last try
+            if attempt < _RETRIES - 1:  # back off between tries, don't sleep after the last one
+                await asyncio.sleep(0.5 * (attempt + 1))
     log.warning(f"webhook {w.name} failed after {_RETRIES}: {err}")
     return "error", err
 

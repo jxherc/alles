@@ -120,3 +120,40 @@ class WebhooksApiTest(ApiTest):
 
     def test_test_endpoint_404(self):
         self.assertEqual(self.client.post("/api/webhooks/nope/test").status_code, 404)
+
+    def test_deliver_retries_with_backoff_between_tries(self):
+        # a failing endpoint should be retried _RETRIES times, sleeping BETWEEN attempts but not
+        # after the last one (the comment promised a backoff that wasn't actually implemented)
+        import asyncio
+        from types import SimpleNamespace
+        from unittest import mock
+
+        from routes import webhooks as wh
+
+        calls = {"post": 0}
+
+        class _Resp:
+            status_code = 500
+
+        class _Client:
+            def __init__(self, *a, **k): pass
+            async def __aenter__(self): return self
+            async def __aexit__(self, *a): return False
+            async def post(self, *a, **k):
+                calls["post"] += 1
+                return _Resp()
+
+        sleeps = []
+
+        async def _fake_sleep(s): sleeps.append(s)
+
+        # public IP literal so the SSRF guard passes without a DNS lookup
+        w = SimpleNamespace(url="http://93.184.216.34/hook", secret="", name="t")
+        with mock.patch.object(wh.httpx, "AsyncClient", _Client), \
+             mock.patch.object(wh.asyncio, "sleep", _fake_sleep):
+            status, err = asyncio.run(wh._deliver(w, {"event": "test"}))
+
+        self.assertEqual(status, "error")
+        self.assertEqual(calls["post"], wh._RETRIES)        # tried every attempt
+        self.assertEqual(len(sleeps), wh._RETRIES - 1)      # slept between, not after the last
+        self.assertTrue(all(s > 0 for s in sleeps))
