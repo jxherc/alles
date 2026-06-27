@@ -16,9 +16,17 @@ def export_backup():
 
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
-        # DB
+        # DB — flush the WAL into the main file first. we're WAL mode, so recent writes live in
+        # aide.db-wal (which we don't ship); without a checkpoint the backed-up aide.db is missing
+        # everything still sitting in the wal.
         db_path = DATA_DIR / "aide.db"
         if db_path.exists():
+            try:
+                from core.database import engine
+                with engine.connect() as conn:
+                    conn.exec_driver_sql("PRAGMA wal_checkpoint(TRUNCATE)")
+            except Exception:
+                pass  # best-effort; still ship whatever's on disk
             zf.write(db_path, "aide.db")
         # settings
         sj = DATA_DIR / "settings.json"
