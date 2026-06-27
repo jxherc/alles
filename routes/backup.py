@@ -93,6 +93,13 @@ async def restore_backup(file: UploadFile = File(...)):
                 dest.parent.mkdir(parents=True, exist_ok=True)
                 dest.write_bytes(zf.read(name))
 
+            # drop stale wal/shm sidecars from the pre-restore db — they don't belong to the
+            # db we just wrote, and SQLite would otherwise replay the old wal onto it on reload
+            if "aide.db" in names:
+                for side in ("aide.db-wal", "aide.db-shm"):
+                    if side not in names:
+                        (DATA_DIR / side).unlink(missing_ok=True)
+
     except HTTPException:
         raise
     except Exception as e:
