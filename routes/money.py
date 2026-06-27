@@ -459,7 +459,9 @@ def export_txns_csv(db: DbSession = Depends(get_db)):
 
     buf = io.StringIO()
     w = csv.writer(buf)
-    w.writerow(["date", "amount", "category", "payee", "notes", "account_id"])
+    # include tags — import already reads a tags column, so without it an export→re-import
+    # round-trip silently drops every transaction's tags
+    w.writerow(["date", "amount", "category", "payee", "notes", "tags", "account_id"])
     for t in db.query(Transaction).order_by(Transaction.date).all():
         w.writerow(
             [
@@ -468,6 +470,7 @@ def export_txns_csv(db: DbSession = Depends(get_db)):
                 _safe(t.category or ""),
                 _safe(t.payee or ""),
                 _safe(t.notes or ""),
+                _safe(t.tags or ""),
                 t.account_id,
             ]
         )
