@@ -4014,6 +4014,9 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 /* let the toolbar wrap as whole controls (not split labels / cog off-screen) when narrow */
 #calendar-view .page-view-head { flex-wrap: wrap; row-gap: 0.4rem; }
 #calendar-view .page-view-head .btn { white-space: nowrap; }
+/* same wrap fix for money — export/import used to clip off the right edge on mobile */
+#money-view .page-view-head { flex-wrap: wrap; row-gap: 0.4rem; }
+#money-view .page-view-head .btn { white-space: nowrap; }
 /* 5c — calendar view switcher is the shared segmented control, sized a touch larger than seg-sm */
 .seg.seg-cal { display: inline-flex; flex-shrink: 0; }
 .seg.seg-cal .seg-opt { flex: 0 0 auto; padding: 0.26rem 0.7rem; font-size: 0.7rem; letter-spacing: 0.02em; white-space: nowrap; }
