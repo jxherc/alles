@@ -53,6 +53,8 @@ class CompareApiTest(ApiTest):
         cid = r["compare_id"]
         # slot 99 doesn't exist
         self.assertEqual(self.client.get(f"/api/compare/{cid}/stream/99").status_code, 404)
+        # a negative index used to slip past the guard and stream the LAST model instead of 404
+        self.assertEqual(self.client.get(f"/api/compare/{cid}/stream/-1").status_code, 404)
 
     def test_two_endpoints_both_counted(self):
         d = self.db()
