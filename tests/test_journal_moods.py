@@ -135,3 +135,9 @@ class JournalTagsTests(ApiTest):
         for i in range(20):
             self._seed(i, f"tag{i}")
         self.assertEqual(len(self.client.get("/api/journal/tags", params={"limit": 5}).json()["tags"]), 5)
+
+    def test_limit_zero_returns_none(self):
+        # limit=0 used to return 1 row (max(1,limit)); should be empty
+        self._seed(0, "work")
+        self._seed(1, "gym")
+        self.assertEqual(self.client.get("/api/journal/tags", params={"limit": 0}).json()["tags"], [])
