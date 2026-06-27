@@ -1,7 +1,7 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v157';   // subs row: wrap sub-main so unused badge stops overlapping price on mobile
+const VERSION = 'v158';   // days view: fix map(_derive) crash that rendered zero day-cards
 const CACHE = `alles-${VERSION}`;
-const STAMP = '183';   // keep in sync with index.html ?v= / const _v
+const STAMP = '184';   // keep in sync with index.html ?v= / const _v
 
 // 1b: mutating writes that should be queued when offline
 const MUTATING = ['POST', 'PUT', 'PATCH', 'DELETE'];

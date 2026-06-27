@@ -31,3 +31,14 @@ test('a recurring event on the viewer-server-aligned day is today', () => {
   const r = _derive({ target: '2026-06-24', repeat: 'month' }, JUN24);
   assert.equal(r.mode, 'today');
 });
+
+test('mapping _derive over a list does not crash on the index arg', () => {
+  // regression: _events.map(_derive) passes (e, index) — the index must not be used as `today`.
+  // before the guard this threw "getFullYear is not a function" and rendered zero day-cards.
+  const evs = [{ target: '2026-12-25', repeat: 'none' }, { target: '2027-01-01', repeat: 'none' }];
+  assert.doesNotThrow(() => evs.map(_derive));
+  const viaIndex = _derive(evs[0], 0);   // arg2 = a number, like .map gives
+  const viaDefault = _derive(evs[0]);
+  assert.equal(viaIndex.mode, viaDefault.mode);   // index ignored → same as default today
+  assert.equal(viaIndex.count, viaDefault.count);
+});

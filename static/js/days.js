@@ -78,6 +78,7 @@ function _breakdown(a, b) {
 // recompute count/mode/breakdown against the viewer's local today
 // (today is injectable for tests; defaults to the real local midnight)
 export function _derive(e, today = _todayLocal()) {
+  if (!(today instanceof Date)) today = _todayLocal();  // guard: Array.map passes the index as arg 2
   const target = new Date(e.target + 'T00:00:00');
   let days = Math.round((target - today) / 86400000);
   // the server resolves a recurring event to its next occurrence, never the past — so if a
@@ -130,7 +131,7 @@ function _render() {
   const grid = $('days-grid');
   if (!grid) return;
 
-  const derived = _events.map(_derive);
+  const derived = _events.map(e => _derive(e));  // not map(_derive) — that leaks the index in as `today`
   const sum = $('days-summary');
   if (sum) {
     const c = m => derived.filter(x => x.mode === m).length;
