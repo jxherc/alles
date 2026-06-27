@@ -21,6 +21,14 @@ class McpApiTest(ApiTest):
     def test_list_empty(self):
         self.assertEqual(self.client.get("/api/mcp/servers").json(), [])
 
+    def test_registry_shared_via_leaf_module(self):
+        # the session/tool registry must BE the leaf services.mcp_registry dicts, so routes.mcp and
+        # services.agent_tools share state without a routes<->services import cycle. if someone
+        # reintroduces a local `_sessions = {}` in routes/mcp this breaks (and the cycle returns).
+        from services import mcp_registry
+        self.assertIs(mcp._sessions, mcp_registry.sessions)
+        self.assertIs(mcp._tools, mcp_registry.tools)
+
     def test_add_list_delete(self):
         s = self.client.post(
             "/api/mcp/servers", json={"name": "fs", "command": "echo", "args": ["hi"]}
