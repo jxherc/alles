@@ -75,6 +75,12 @@ class HabitApiTests(ApiTest):
     def test_create_requires_name(self):
         self.assertEqual(self.client.post("/api/habits", json={"name": "  "}).status_code, 400)
 
+    def test_risk_window_zero_no_500(self):
+        hid = self._create().json()["id"]
+        r = self.client.get(f"/api/habits/{hid}/risk", params={"window": 0})
+        self.assertEqual(r.status_code, 200)
+        self.assertIn("risk", r.json())
+
     def test_patch_clamps_target(self):
         hid = self._create(target=3).json()["id"]
         self.client.patch(f"/api/habits/{hid}", json={"target": 0})

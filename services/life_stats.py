@@ -89,6 +89,7 @@ def correlate(pairs):
 
 def habit_failure_risk(done_dates, today, *, window=14):
     """risk (0..1) of failing today, from the recent completion rate over `window` days."""
+    window = max(1, int(window))  # ?window=0 from the risk endpoint would divide by zero; negatives are nonsense too
     if isinstance(today, str):
         today = datetime.date.fromisoformat(today)
     done = set(done_dates or [])

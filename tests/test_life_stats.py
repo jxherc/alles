@@ -62,6 +62,16 @@ class HabitRiskTests(unittest.TestCase):
         out = ls.habit_failure_risk([], self.TODAY, window=14)
         self.assertTrue(out["reason"])
 
+    def test_zero_window_does_not_divide_by_zero(self):
+        # the risk endpoint passes ?window straight through; window=0 used to 500
+        out = ls.habit_failure_risk(["2026-06-22"], self.TODAY, window=0)
+        self.assertIn("risk", out)
+        self.assertGreaterEqual(out["recent_rate"], 0.0)
+
+    def test_negative_window_clamped(self):
+        out = ls.habit_failure_risk([], self.TODAY, window=-5)
+        self.assertIn("risk", out)
+
 
 class HealthTests(unittest.TestCase):
     def test_baseline(self):
