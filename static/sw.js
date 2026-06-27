@@ -1,7 +1,7 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v158';   // days view: fix map(_derive) crash that rendered zero day-cards
+const VERSION = 'v159';   // journal: mobile mood panel overflowed (1fr -> minmax(0,1fr))
 const CACHE = `alles-${VERSION}`;
-const STAMP = '184';   // keep in sync with index.html ?v= / const _v
+const STAMP = '185';   // keep in sync with index.html ?v= / const _v
 
 // 1b: mutating writes that should be queued when offline
 const MUTATING = ['POST', 'PUT', 'PATCH', 'DELETE'];
