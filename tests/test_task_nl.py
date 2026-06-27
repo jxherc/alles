@@ -29,6 +29,22 @@ class ParseTests(unittest.TestCase):
         self.assertEqual(p["due_date"], "2026-07-01")  # 1st already passed this month
         self.assertEqual(p["title"], "pay rent")
 
+    def test_every_31st_clamps_to_month_end(self):
+        # used to flatten to the 28th; june has no 31st so the first hit is the 30th
+        p = parse_task("pay rent every 31st", T)
+        self.assertEqual(p["repeat"], "monthly")
+        self.assertEqual(p["due_date"], "2026-06-30")
+
+    def test_every_30th_this_month(self):
+        p = parse_task("pay rent every 30th", T)
+        self.assertEqual(p["due_date"], "2026-06-30")
+
+    def test_every_0th_does_not_crash(self):
+        # junk input shouldn't 500 via date.replace(day=0)
+        p = parse_task("do thing every 0th", T)
+        self.assertEqual(p["repeat"], "monthly")
+        self.assertTrue(p["due_date"])
+
     def test_every_week(self):
         p = parse_task("water plants every week", T)
         self.assertEqual(p["repeat"], "weekly")
