@@ -205,14 +205,16 @@ def _distribute(t, splits_by_txn, by):
         by[(t.category or "uncategorized")] += -amt
 
 
-def _spending_by_cat(db, month, upto=False):
+def _spending_by_cat(db, month, upto=False, txns=None, splits_by_txn=None):
     """expense per category for a month (or cumulatively through it, `upto=True`),
     honoring splits + excluding transfers. shared by summary + the envelope view (4b)."""
-    splits_by_txn = defaultdict(list)
-    for s in db.query(TxnSplit).all():
-        splits_by_txn[s.txn_id].append(s)
+    if splits_by_txn is None:
+        splits_by_txn = defaultdict(list)
+        for s in db.query(TxnSplit).all():
+            splits_by_txn[s.txn_id].append(s)
     by = defaultdict(float)
-    for t in db.query(Transaction).all():
+    _txns = txns if txns is not None else db.query(Transaction).all()
+    for t in _txns:
         if t.transfer_id or (t.amount or 0.0) >= 0:
             continue
         mo = (t.date or "")[:7]
@@ -1088,11 +1090,13 @@ def _last_day(month):
     return date(y, m, _cal.monthrange(y, m)[1])
 
 
-def _net_worth_at(db, accounts, date_str):
+def _net_worth_at(db, accounts, date_str, txns=None):
     """opening balances + every txn dated on/before date_str (running net worth)."""
     aset = {a.id for a in accounts if not a.archived}
     nw = sum((a.opening or 0.0) for a in accounts if not a.archived)
-    for t in db.query(Transaction).all():
+    if txns is None:
+        txns = db.query(Transaction).all()
+    for t in txns:
         if t.account_id in aset and (t.date or "") <= date_str:
             nw += t.amount or 0.0
     return round(nw, 2)
@@ -1167,6 +1171,7 @@ def forecast(
 def networth_history(months: int = 6, as_of: str = "", db: DbSession = Depends(get_db)):
     end_month = as_of[:7] if as_of else datetime.utcnow().strftime("%Y-%m")
     accounts = db.query(Account).all()
+    txns = db.query(Transaction).all()
     y, m = int(end_month[:4]), int(end_month[5:7])
     seq = []
     for _ in range(max(1, months)):
@@ -1177,7 +1182,7 @@ def networth_history(months: int = 6, as_of: str = "", db: DbSession = Depends(g
     out = []
     for mo in reversed(seq):
         out.append(
-            {"month": mo, "net_worth": _net_worth_at(db, accounts, _last_day(mo).isoformat())}
+            {"month": mo, "net_worth": _net_worth_at(db, accounts, _last_day(mo).isoformat(), txns)}
         )
     return out
 
@@ -1589,8 +1594,16 @@ def summary(month: str = "", db: DbSession = Depends(get_db)):
     bal = _balances(db)
     net_worth = sum((a.opening or 0.0) + bal.get(a.id, 0.0) for a in accounts if not a.archived)
 
+    # fetch all transactions and splits once to avoid N+1 scans
+    all_txns = db.query(Transaction).all()
+    splits_by_txn = defaultdict(list)
+    for s in db.query(TxnSplit).all():
+        splits_by_txn[s.txn_id].append(s)
+
     income = expense = 0.0
-    for t in db.query(Transaction).filter(Transaction.date.like(f"{month}%")).all():
+    for t in all_txns:
+        if (t.date or "")[:7] != month:
+            continue
         if t.transfer_id:  # inter-account move, not real income/spending
             continue
         amt = t.amount or 0.0
@@ -1598,7 +1611,8 @@ def summary(month: str = "", db: DbSession = Depends(get_db)):
             income += amt
         else:
             expense += -amt
-    by_cat = _spending_by_cat(db, month)
+
+    by_cat = _spending_by_cat(db, month, txns=all_txns, splits_by_txn=splits_by_txn)
     cats = sorted(([c, round(v, 2)] for c, v in by_cat.items()), key=lambda x: -x[1])
 
     budget_rows = db.query(Budget).order_by(Budget.category.asc()).all()
@@ -1606,7 +1620,7 @@ def summary(month: str = "", db: DbSession = Depends(get_db)):
     tag_budgets = [b for b in budget_rows if (b.tag or "").strip()]
     tag_spend: dict[str, float] = {}
     if tag_budgets:
-        for t in db.query(Transaction).all():
+        for t in all_txns:
             if t.transfer_id or (t.amount or 0.0) >= 0 or (t.date or "")[:7] != month:
                 continue
             tags = set(_norm_tags(t.tags or "").split(","))
@@ -1628,7 +1642,7 @@ def summary(month: str = "", db: DbSession = Depends(get_db)):
     months = _recent_months(month, 6)
     monthset = set(months)
     tot = {mo: [0.0, 0.0] for mo in months}  # [income, expense]
-    for t in db.query(Transaction).all():
+    for t in all_txns:
         if t.transfer_id:  # transfers aren't income or spending
             continue
         mo = (t.date or "")[:7]

@@ -169,7 +169,7 @@ export async function sendMessage(text) {
     const toks = outTok || Math.max(1, Math.round(accText.length / 4));  // real if known, else ~chars/4
     const approx = outTok ? '' : '~';
     const rate = secs > 0.3 ? ` · ${Math.round(toks / secs)} tok/s` : '';
-    statsEl.textContent = `${approx}${toks.toLocaleString()} tok${rate}` + (final ? '' : ' ▍');
+    statsEl.textContent = `${approx}${toks.toLocaleString()} tok${rate}`;
   };
 
   // freeze the thinking block: stop the live timer, show "thought for Xs", collapse
@@ -183,7 +183,7 @@ export async function sendMessage(text) {
     if (label) label.textContent = `thought for ${secs}s`;
     if (timer) timer.textContent = '';
     thinkingEl.classList.remove('thinking-live');
-    thinkingEl.open = false;
+    thinkingEl.classList.remove('open');
   };
 
   const addCursor = (target) => {
@@ -346,7 +346,10 @@ export async function sendMessage(text) {
               <span class="agent-step-summary">${escHtml(toolSummary(t.name, t.args))}</span>
               <span class="agent-step-status">running</span>
             </div>
-            <details class="agent-step-args-wrap"><summary>args</summary><pre class="agent-step-args">${escHtml(JSON.stringify(t.args || {}, null, 2))}</pre></details>
+            <div class="agent-step-args-wrap custom-disclosure">
+              <div class="custom-summary" onclick="this.parentElement.classList.toggle('open')">args</div>
+              <pre class="agent-step-args custom-details">${escHtml(JSON.stringify(t.args || {}, null, 2))}</pre>
+            </div>
             <pre class="agent-step-output"></pre>
           `;
           panel.appendChild(step);
@@ -453,10 +456,13 @@ export async function sendMessage(text) {
           accThink += chunk.thinking;
           if (!thinkingEl) {
             thinkStart = Date.now();
-            thinkingEl = document.createElement('details');
-            thinkingEl.className = 'thinking-block thinking-live';
-            thinkingEl.open = true;
-            thinkingEl.innerHTML = '<summary><span class="think-label">thinking</span><span class="think-timer"></span></summary><div class="thinking-content"></div>';
+            thinkingEl = document.createElement('div');
+            thinkingEl.className = 'thinking-block thinking-live custom-disclosure open';
+            thinkingEl.innerHTML = `
+              <div class="custom-summary" onclick="this.parentElement.classList.toggle('open')">
+                <span class="think-label">thinking</span><span class="think-timer"></span>
+              </div>
+              <div class="thinking-content custom-details"></div>`;
             body.insertBefore(thinkingEl, body.firstChild);
             // live elapsed timer while reasoning
             thinkTimer = setInterval(() => {
@@ -503,7 +509,7 @@ export async function sendMessage(text) {
 
     // provenance — let the reader see what the run actually touched
     if (agentEl && runId) {
-      const sum = agentEl.querySelector('summary');
+      const sum = agentEl.querySelector('.custom-summary') || agentEl.querySelector('summary');
       if (sum && !sum.querySelector('.agent-sources-btn')) {
         const sb = document.createElement('button');
         sb.className = 'agent-sources-btn';
@@ -530,7 +536,7 @@ export async function sendMessage(text) {
 
     // revert control — only if the agent actually edited files this run
     if (agentEl && runId && hadEdits) {
-      const sum = agentEl.querySelector('summary');
+      const sum = agentEl.querySelector('.custom-summary') || agentEl.querySelector('summary');
       if (sum && !sum.querySelector('.agent-revert-btn')) {
         const rb = document.createElement('button');
         rb.className = 'agent-revert-btn';
@@ -605,10 +611,11 @@ export async function sendMessage(text) {
 
   function ensureAgentPanel() {
     if (agentEl) return agentEl.querySelector('.agent-step-list');
-    agentEl = document.createElement('details');
-    agentEl.className = 'agent-steps';
-    agentEl.open = true;
-    agentEl.innerHTML = '<summary>agent steps</summary><div class="agent-step-list"></div>';
+    agentEl = document.createElement('div');
+    agentEl.className = 'agent-steps custom-disclosure open';
+    agentEl.innerHTML = `
+      <div class="custom-summary" onclick="this.parentElement.classList.toggle('open')">agent steps</div>
+      <div class="agent-step-list custom-details"></div>`;
     body.insertBefore(agentEl, body.firstChild);
     return agentEl.querySelector('.agent-step-list');
   }
