@@ -45,3 +45,21 @@ class CalendarAdvisorTests(ApiTest):
         r = self.client.get("/api/calendar/free-slots?day=notaday")
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.json()["slots"], [])
+
+    def test_free_slots_event_after_hours_does_not_extend_window(self):
+        # an 18:00-19:00 event is outside the 09:00-17:00 window; the free slot must end at 17:00,
+        # not spill out to 18:00 (the event start)
+        self._ev("Dinner", "2026-07-03T18:00:00", "2026-07-03T19:00:00")
+        slots = self.client.get(
+            "/api/calendar/free-slots?day=2026-07-03&duration_min=30"
+        ).json()["slots"]
+        self.assertEqual(slots, [{"start": "09:00", "end": "17:00"}])
+
+    def test_free_slots_event_spanning_close_clips_to_window(self):
+        # event runs 16:30-20:00; the busy time inside hours ends at 17:00, so no slot after it
+        self._ev("Long", "2026-07-04T16:30:00", "2026-07-04T20:00:00")
+        slots = self.client.get(
+            "/api/calendar/free-slots?day=2026-07-04&duration_min=30"
+        ).json()["slots"]
+        self.assertTrue(all(s["end"] <= "17:00" for s in slots))
+        self.assertFalse(any(s["start"] >= "17:00" for s in slots))
