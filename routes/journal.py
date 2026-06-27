@@ -259,7 +259,7 @@ def journal_tags(
             t = t.strip().lower()
             if t:
                 counts[t] = counts.get(t, 0) + 1
-    top = sorted(counts.items(), key=lambda x: (-x[1], x[0]))[: max(1, limit)]
+    top = sorted(counts.items(), key=lambda x: (-x[1], x[0]))[: max(0, limit)]
     return {"tags": [{"tag": t, "count": c} for t, c in top]}
 
 
