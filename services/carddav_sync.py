@@ -191,8 +191,15 @@ def sync(client=None, db=None) -> dict:
         )
         for c in locals_:
             uid = f"alles-{c.id}"
+            # pass every field build_vcard knows — passing only 4 here dropped
+            # title/address/birthday/website/notes on push (the server got a partial contact)
             text = build_vcard(
-                {"name": c.name, "email": c.email, "phone": c.phone, "company": c.company}, uid
+                {
+                    "name": c.name, "email": c.email, "phone": c.phone, "company": c.company,
+                    "title": c.title, "address": c.address, "birthday": c.birthday,
+                    "website": c.website, "notes": c.notes,
+                },
+                uid,
             )
             try:
                 href = client.put(uid, text)
