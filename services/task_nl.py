@@ -78,9 +78,14 @@ def parse_task(text: str, today: date | None = None) -> dict:
         elif word.startswith("year"):
             out["repeat"] = "yearly"
         elif m.group(2):  # "every 1st" → monthly on that day
+            import calendar
+
             out["repeat"] = "monthly"
             dom = int(m.group(2))
-            cand = today.replace(day=min(dom, 28))
+            # clamp to this month's real last day, not a flat 28 — otherwise "every 31st" always
+            # landed on the 28th. max(1,...) guards a junk "every 0th" from hitting day=0.
+            last = calendar.monthrange(today.year, today.month)[1]
+            cand = today.replace(day=max(1, min(dom, last)))
             out["due_date"] = (cand if cand >= today else _add_month(cand)).isoformat()
         else:  # weekday → weekly, anchor to next one
             out["repeat"] = "weekly"
