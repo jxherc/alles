@@ -1,7 +1,7 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v153';   // models: add endpoint test button
+const VERSION = 'v154';   // polish pass: disclosures, css classes, mail logging
 const CACHE = `alles-${VERSION}`;
-const STAMP = '179';   // keep in sync with index.html ?v= / const _v
+const STAMP = '180';   // keep in sync with index.html ?v= / const _v
 
 // 1b: mutating writes that should be queued when offline
 const MUTATING = ['POST', 'PUT', 'PATCH', 'DELETE'];
