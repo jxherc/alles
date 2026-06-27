@@ -49,6 +49,14 @@ class TextIndexTests(ApiTest):
         self.assertTrue(hits)
         self.assertEqual(hits[0]["ref"], "cats.md")
 
+    def test_search_negative_k_returns_empty_not_all_but_one(self):
+        d = self.db()
+        with mock.patch.object(textindex, "_embed", fake_embed):
+            textindex.index(d, "doc", "a.md", "all about the cat")
+            textindex.index(d, "doc", "b.md", "more about the cat")
+            # k=-1 used to do scored[:-1] (drop the last hit); a negative cap should yield nothing
+            self.assertEqual(textindex.search(d, "cat", k=-1), [])
+
     def test_search_kind_scoped(self):
         d = self.db()
         with mock.patch.object(textindex, "_embed", fake_embed):

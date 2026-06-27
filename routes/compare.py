@@ -61,7 +61,7 @@ async def start_compare(body: CompareRequest):
 @router.get("/compare/{compare_id}/stream/{idx}")
 async def compare_stream(compare_id: str, idx: int):
     streams = _active.get(compare_id)
-    if not streams or idx >= len(streams):
+    if not streams or idx < 0 or idx >= len(streams):  # idx<0 would index from the end (wrong stream)
         raise HTTPException(404)
 
     entry = streams[idx]

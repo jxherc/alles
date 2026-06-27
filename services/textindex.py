@@ -76,7 +76,7 @@ def search(db, query, kind=None, k: int = 5) -> list[dict]:
     scored.sort(key=lambda x: x[0], reverse=True)
     return [
         {"kind": r.kind, "ref": r.ref, "chunk": r.text, "score": round(s, 4)}
-        for s, r in scored[:k]
+        for s, r in scored[: max(0, k)]  # negative k would drop the last hit instead of capping
     ]
 
 
