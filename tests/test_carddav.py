@@ -124,6 +124,24 @@ class CardDavTests(ApiTest):
         self.assertEqual(res["pushed"], 1)
         self.assertEqual(len(client.puts), 1)
 
+    def test_push_includes_all_fields_not_just_four(self):
+        from services import carddav_sync
+
+        db = self.db()
+        db.add(Contact(name="Full Contact", email="f@x.com", phone="555", company="Acme",
+                       title="CEO", address="1 Main St", birthday="1990-04-01",
+                       website="https://f.example", notes="met at conf"))
+        db.commit()
+        client = FakeClient([])
+        carddav_sync.sync(client=client, db=self.db())
+        vcard = client.puts[0][1]  # (uid, text, href)
+        # the push used to pass only name/email/phone/company; these would be missing on the server
+        self.assertIn("TITLE:CEO", vcard)
+        self.assertIn("1 Main St", vcard)        # ADR
+        self.assertIn("BDAY:1990-04-01", vcard)
+        self.assertIn("URL:https://f.example", vcard)
+        self.assertIn("NOTE:met at conf", vcard)
+
     def test_push_sets_uid(self):
         from services import carddav_sync
 
