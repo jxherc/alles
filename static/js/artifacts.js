@@ -57,10 +57,13 @@ export function stripArtifacts(text) {
   return text.replace(/<aide-artifact[^>]*>[\s\S]*?<\/aide-artifact>/g, '').trim();
 }
 
-// wire close button + escape key
-document.getElementById('artifact-close-btn')?.addEventListener('click', closeArtifactPanel);
-document.addEventListener('keydown', e => {
-  if (e.key === 'Escape' && document.getElementById('artifact-panel')?.classList.contains('open')) {
-    closeArtifactPanel();
-  }
-});
+// wire close button + escape key — guarded so the module is import-safe outside a browser
+// (it crashed on `document` at load, which also kept the pure parsers untestable)
+if (typeof document !== 'undefined') {
+  document.getElementById('artifact-close-btn')?.addEventListener('click', closeArtifactPanel);
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && document.getElementById('artifact-panel')?.classList.contains('open')) {
+      closeArtifactPanel();
+    }
+  });
+}
