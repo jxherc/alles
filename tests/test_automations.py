@@ -71,6 +71,27 @@ class RuleEditTests(ApiTest):
         )
         self.assertEqual(good.status_code, 200)
 
+    def test_daily_at_rejects_out_of_range(self):
+        # "25:99" matches \d{2}:\d{2} but no clock reaches it, so the rule would silently never fire
+        for t in ("25:99", "24:00", "08:60", "99:99"):
+            r = self.client.post(
+                "/api/automations",
+                json={"trigger": "daily_at", "trigger_arg": t, "action": "push"},
+            )
+            self.assertEqual(r.status_code, 400, t)
+
+    def test_patch_validates_daily_at_time(self):
+        rid = self.client.post(
+            "/api/automations",
+            json={"trigger": "daily_at", "trigger_arg": "08:00", "action": "push"},
+        ).json()["id"]
+        # patching to a bogus time must be rejected, not silently stored
+        bad = self.client.patch(f"/api/automations/{rid}", json={"trigger_arg": "25:00"})
+        self.assertEqual(bad.status_code, 400)
+        ok = self.client.patch(f"/api/automations/{rid}", json={"trigger_arg": "09:15"})
+        self.assertEqual(ok.status_code, 200)
+        self.assertEqual(ok.json()["trigger_arg"], "09:15")
+
     def test_patch_enabled_toggle(self):
         rid = self.client.post(
             "/api/automations",
