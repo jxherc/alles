@@ -71,18 +71,38 @@ def _iso(dt) -> str:
     return dt.strftime("%Y-%m-%d") + "T00:00:00"
 
 
-def _event_ics(uid: str, title: str, start_dt: str, all_day: bool) -> str:
-    """a minimal VEVENT for push. all-day events must be DTSTART;VALUE=DATE (a date) — the
-    old code emitted DTSTART:YYYYMMDDT000000, a timed-midnight event. timed events stay
-    floating local wall-clock (we store no tz, so no Z, which would shift them)."""
+def _event_ics(
+    uid: str, title: str, start_dt: str, all_day: bool, end_dt: str = "", description: str = ""
+) -> str:
+    """a VEVENT for push. all-day events must be DTSTART;VALUE=DATE (a date) — the old code
+    emitted DTSTART:YYYYMMDDT000000, a timed-midnight event. timed events stay floating local
+    wall-clock (we store no tz, so no Z, which would shift them).
+
+    DTEND + DESCRIPTION are included so a pushed event keeps its end time and notes: without
+    DTEND the next pull reads no end and nulls the local end_dt (the round-trip lost the end)."""
+    lines = [
+        "BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//alles//EN", "BEGIN:VEVENT",
+        f"UID:{uid}", f"SUMMARY:{_ics_esc(title)}",
+    ]
     if all_day:
-        dtstart = f"DTSTART;VALUE=DATE:{(start_dt or '')[:10].replace('-', '')}"
+        lines.append(f"DTSTART;VALUE=DATE:{(start_dt or '')[:10].replace('-', '')}")
+        if end_dt:
+            # stored end is the inclusive last day; RFC all-day DTEND is exclusive → +1 day
+            from datetime import date as _date
+            from datetime import timedelta as _td
+            try:
+                excl = _date.fromisoformat(end_dt[:10]) + _td(days=1)
+                lines.append(f"DTEND;VALUE=DATE:{excl.isoformat().replace('-', '')}")
+            except ValueError:
+                pass
     else:
-        dtstart = f"DTSTART:{(start_dt or '').replace('-', '').replace(':', '')}"
-    return (
-        "BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//alles//EN\nBEGIN:VEVENT\n"
-        f"UID:{uid}\nSUMMARY:{_ics_esc(title)}\n{dtstart}\nEND:VEVENT\nEND:VCALENDAR\n"
-    )
+        lines.append(f"DTSTART:{(start_dt or '').replace('-', '').replace(':', '')}")
+        if end_dt:
+            lines.append(f"DTEND:{end_dt.replace('-', '').replace(':', '')}")
+    if description:
+        lines.append(f"DESCRIPTION:{_ics_esc(description)}")
+    lines += ["END:VEVENT", "END:VCALENDAR", ""]
+    return "\n".join(lines)
 
 
 def sync() -> dict:
@@ -181,7 +201,9 @@ def sync() -> dict:
         for le in locals_:
             try:
                 uid = f"alles-{le.id}@alles"
-                ics = _event_ics(uid, le.title, le.start_dt, le.all_day)
+                ics = _event_ics(
+                    uid, le.title, le.start_dt, le.all_day, le.end_dt or "", le.description or ""
+                )
                 cal.save_event(ics)
                 le.caldav_uid = uid
                 pushed += 1
