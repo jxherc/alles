@@ -46,6 +46,18 @@ class BackupApiTest(ApiTest):
         self.assertEqual((self.data / "aide.db").read_bytes(), b"restored-db")
         self.assertTrue((self.data / "uploads" / "a.txt").exists())
 
+    def test_restore_removes_stale_wal_shm(self):
+        # a wal/shm left over from the pre-restore db must be cleared, else SQLite replays the
+        # old wal onto the freshly restored aide.db on the next open
+        (self.data / "aide.db-wal").write_bytes(b"stale-wal")
+        (self.data / "aide.db-shm").write_bytes(b"stale-shm")
+        z = self._zip({"aide.db": b"restored-db"})
+        r = self.client.post("/api/backup/restore", files={"file": ("b.zip", z, "application/zip")})
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual((self.data / "aide.db").read_bytes(), b"restored-db")
+        self.assertFalse((self.data / "aide.db-wal").exists())
+        self.assertFalse((self.data / "aide.db-shm").exists())
+
     def test_restore_rejects_non_zip(self):
         r = self.client.post(
             "/api/backup/restore", files={"file": ("x.txt", b"not a zip", "text/plain")}
