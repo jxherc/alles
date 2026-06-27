@@ -18,11 +18,11 @@ async function _loadAddrBook() {
       const e0 = c.email || (c.emails && c.emails[0] && (c.emails[0].value || c.emails[0])) || '';
       if (e0) book.push({ email: String(e0), name: c.name || c.full_name || '' });
     });
-  } catch {}
+  } catch (e) { console.error(e); }
   try {
     const rs = (await fetch('/api/mail/recipients?limit=300').then(r => r.json())).recipients || [];
     rs.forEach(r => book.push({ email: r.email, name: r.name || '' }));
-  } catch {}
+  } catch (e) { console.error(e); }
   const seen = new Set(); _addrBook = [];
   for (const e of book) { const k = (e.email || '').toLowerCase(); if (k && !seen.has(k)) { seen.add(k); _addrBook.push(e); } }
   return _addrBook;
@@ -97,11 +97,12 @@ const threadKey = s => (String(s ?? '').replace(_subjPrefix, '').trim() || '(no 
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+const catchErr = msg => e => { console.error(msg || 'Error:', e); if (msg) toast(msg, 'error'); };
 const fromName = f => {
   const m = /^(.*?)\s*<([^>]+)>/.exec(f || '');
   return (m ? (m[1].replace(/"/g, '').trim() || m[2]) : f) || '(unknown)';
 };
-const shortDate = d => { try { return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); } catch { return ''; } };
+const shortDate = d => { try { return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); } catch (e) { console.error(e); return ''; } };
 const acctName = id => {
   const a = _accounts.find(x => x.id === id);
   return a ? (a.name || a.email || 'mail') : 'mail';
@@ -111,8 +112,8 @@ const acctName = id => {
 // first hit is never instant. cache the last list per account+folder and show it
 // immediately while the fresh fetch runs in the background.
 const cacheKey = () => `mail-cache-${_active}-${_filter === 'sent' ? 'sent' : 'inbox'}`;
-const readCache = () => { try { return JSON.parse(localStorage.getItem(cacheKey()) || 'null'); } catch { return null; } };
-const writeCache = msgs => { try { localStorage.setItem(cacheKey(), JSON.stringify(msgs.slice(0, 40))); } catch {} };
+const readCache = () => { try { return JSON.parse(localStorage.getItem(cacheKey()) || 'null'); } catch (e) { console.error(e); return null; } };
+const writeCache = msgs => { try { localStorage.setItem(cacheKey(), JSON.stringify(msgs.slice(0, 40))); } catch (e) { console.error(e); } };
 
 const PRESETS = [
   { key: 'gmail', label: 'Gmail', re: /@gmail\.com$/i, imap: 'imap.gmail.com', smtp: 'smtp.gmail.com', apppw: 'https://myaccount.google.com/apppasswords', help: 'https://support.google.com/mail/answer/7126229', note: 'Gmail needs an app password (not your normal one), and 2-step verification must be on.' },
@@ -164,7 +165,7 @@ export function initMail() {
 }
 
 async function _applyThreadsSetting() {
-  try { _threads = (await fetch('/api/settings').then(r => r.json())).mail_threads === 'group'; } catch {}
+  try { _threads = (await fetch('/api/settings').then(r => r.json())).mail_threads === 'group'; } catch (e) { console.error(e); }
 }
 
 async function searchMail(q) {
@@ -180,7 +181,7 @@ async function searchMail(q) {
     try {
       const d = await fetch(`/api/mail/adv-search/${a.id}?q=${encodeURIComponent(q)}&limit=40`).then(r => r.json());
       (d.messages || []).forEach(msg => { msg.account_id = a.id; msg.account_name = a.name || a.email; all.push(msg); });
-    } catch {}
+    } catch (e) { console.error(e); }
   }));
   if (!all.length) { list.innerHTML = `<div class="mail-empty">no mail matches “${esc(q)}”</div>`; return; }
   renderInbox(all);
@@ -197,7 +198,7 @@ function _reloadCurrent() {
 async function _renderSavedBar() {
   const bar = $('mail-saved'); if (!bar) return;
   let saved = [];
-  try { saved = (await fetch('/api/mail/saved-searches').then(r => r.json())).searches || []; } catch {}
+  try { saved = (await fetch('/api/mail/saved-searches').then(r => r.json())).searches || []; } catch (e) { console.error(e); }
   const chips = saved.map(s => `<span class="mail-saved-chip" data-q="${esc(s.query)}">${esc(s.name)}<button class="mail-saved-del" data-del="${esc(s.id)}" title="remove">×</button></span>`).join('');
   const saveBtn = _lastSearch ? `<button class="btn mail-saved-save" id="mail-saved-save" title="save this search">★ save “${esc(_lastSearch.slice(0, 20))}”</button>` : '';
   bar.innerHTML = chips + saveBtn;
@@ -208,7 +209,7 @@ async function _renderSavedBar() {
   }));
   bar.querySelectorAll('.mail-saved-del').forEach(b => b.addEventListener('click', async e => {
     e.stopPropagation();
-    await fetch(`/api/mail/saved-searches/${b.dataset.del}`, { method: 'DELETE' }).catch(() => {});
+    await fetch(`/api/mail/saved-searches/${b.dataset.del}`, { method: 'DELETE' }).catch(catchErr('failed to delete search'));
     _renderSavedBar();
   }));
   $('mail-saved-save')?.addEventListener('click', async () => {
@@ -216,7 +217,7 @@ async function _renderSavedBar() {
     await fetch('/api/mail/saved-searches', {
       method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ name, query: _lastSearch }),
-    }).catch(() => {});
+    }).catch(catchErr('failed to save search'));
     toast('search saved', '');
     _renderSavedBar();
   });
@@ -225,7 +226,7 @@ async function _renderSavedBar() {
 export async function loadMail() {
   initMail();
   startMailPoll();
-  _accounts = await fetch('/api/mail/accounts').then(r => r.json()).catch(() => []);
+  _accounts = await fetch('/api/mail/accounts').then(r => r.json()).catch(e => { console.error(e); return []; });
   if (_accounts.length > 1 && !localStorage.getItem('alles-mail-account-mode')) _active = 'all';
   syncAccountSelect();
   if (!_accounts.length) {
@@ -269,7 +270,7 @@ async function fetchInboxFor(account, limit = 35, folder = 'INBOX', quick = fals
 // providers don't agree on a sent-folder name; sniff it once per account
 async function sentFolderFor(account) {
   if (_sentFolders[account.id]) return _sentFolders[account.id];
-  const d = await fetch(`/api/mail/folders/${account.id}`).then(r => r.json()).catch(() => ({ folders: [] }));
+  const d = await fetch(`/api/mail/folders/${account.id}`).then(r => r.json()).catch(e => { console.error(e); return { folders: [] }; });
   const f = (d.folders || []).find(x => /sent/i.test(x)) || 'Sent';
   _sentFolders[account.id] = f;
   return f;
@@ -367,7 +368,7 @@ async function loadDrafts() {
   try {
     const url = _active && _active !== 'all' ? `/api/mail/drafts?account_id=${encodeURIComponent(_active)}` : '/api/mail/drafts';
     drafts = await fetch(url).then(r => r.json());
-  } catch { list.innerHTML = '<div class="mail-empty">failed to load drafts</div>'; return; }
+  } catch (e) { console.error(e); list.innerHTML = '<div class="mail-empty">failed to load drafts</div>'; return; }
   if (!drafts.length) { list.innerHTML = '<div class="mail-empty">no drafts</div>'; return; }
   list.innerHTML = drafts.map(d => `
     <div class="mail-row mail-draft-row" data-id="${esc(d.id)}">
@@ -436,7 +437,7 @@ export async function startMailPoll() {
   const gen = ++_pollGen;   // newer call wins the await race so a stale one can't leak a 2nd interval
   if (_pollTimer) { clearInterval(_pollTimer); _pollTimer = null; }
   let ms = 30000;
-  try { ms = Math.max(10, Number((await fetch('/api/settings').then(r => r.json())).mail_poll_seconds) || 30) * 1000; } catch {}
+  try { ms = Math.max(10, Number((await fetch('/api/settings').then(r => r.json())).mail_poll_seconds) || 30) * 1000; } catch (e) { console.error(e); }
   if (gen !== _pollGen) return;   // superseded while awaiting
   _pollTimer = setInterval(() => {
     const view = $('mail-view');
@@ -444,14 +445,14 @@ export async function startMailPoll() {
     // only the plain inbox/unread views are what loadInbox renders; polling while on flagged/
     // vip/drafts/a category/a label would silently clobber that view with the full inbox
     if (!_accounts.length || (_filter !== 'inbox' && _filter !== 'unread')) return;
-    loadInbox(false, true).catch(() => {});
+    loadInbox(false, true).catch(console.error);
   }, ms);
   if (_pollWired) return;
   _pollWired = true;
   document.addEventListener('visibilitychange', () => {
     // catch up immediately when the tab comes back
     if (!document.hidden && $('mail-view')?.style.display !== 'none' && _accounts.length) {
-      loadInbox(false, true).catch(() => {});
+      loadInbox(false, true).catch(console.error);
     }
   });
 }
@@ -546,7 +547,7 @@ function _wireRows(list) {
     btn.classList.toggle('on', on); btn.innerHTML = _si(on ? 'star-fill' : 'star');
     const m = _lastMsgs.find(x => String(x.uid) === row.dataset.uid && (x.account_id || '') === row.dataset.aid);
     if (m) m.flagged = on;
-    await fetch(`/api/mail/flag/${row.dataset.aid}?uid=${encodeURIComponent(row.dataset.uid)}&folder=${encodeURIComponent(row.dataset.folder)}&flagged=${on}`, { method: 'POST' }).catch(() => {});
+    await fetch(`/api/mail/flag/${row.dataset.aid}?uid=${encodeURIComponent(row.dataset.uid)}&folder=${encodeURIComponent(row.dataset.folder)}&flagged=${on}`, { method: 'POST' }).catch(catchErr('failed to flag message'));
     if (_filter === 'flagged' && !on) row.remove();   // unflagged in the flagged view → drop it
   }));
   // 5a triage row actions
@@ -563,7 +564,7 @@ function _wireRows(list) {
     await fetch(`/api/mail/mute/${row.dataset.aid}`, {
       method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ subject: row.dataset.subject }),
-    }).catch(() => {});
+    }).catch(console.error);
     toast('thread muted', '');
     _reloadCurrent();
   }));
@@ -573,7 +574,7 @@ function _wireRows(list) {
     await fetch(`/api/mail/archive/${row.dataset.aid}`, {
       method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ uid: row.dataset.uid, folder: row.dataset.folder }),
-    }).catch(() => {});
+    }).catch(console.error);
     row.remove();
     toast('archived', '');
   }));
@@ -586,7 +587,7 @@ function _wireRows(list) {
     await fetch(`/api/mail/labels/${row.dataset.aid}`, {
       method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ uid: row.dataset.uid, folder: row.dataset.folder, labels }),
-    }).catch(() => {});
+    }).catch(console.error);
     if (m) m.labels = labels;
     renderInbox(_lastMsgs);
     toast('labeled', '');
@@ -602,7 +603,7 @@ function _wireRows(list) {
     await fetch(`/api/mail/snooze/${row.dataset.aid}`, {
       method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ uid: row.dataset.uid, folder: row.dataset.folder, until }),
-    }).catch(() => {});
+    }).catch(console.error);
     row.remove();
     toast('snoozed until tomorrow', '');
   }));
@@ -614,13 +615,13 @@ async function openMessage(aid, uid, folder = 'INBOX') {
   let m;
   try {
     m = await fetch(`/api/mail/message/${aid}?uid=${encodeURIComponent(uid)}&folder=${encodeURIComponent(folder)}`).then(r => r.json());
-  } catch {
+  } catch (e) { console.error(e);
     main.innerHTML = '<div class="mail-empty">failed to load message</div>';
     return;
   }
   if (m.error) { main.innerHTML = `<div class="mail-empty">${esc(m.error)}</div>`; return; }
   // actually mark it read on the server (+ locally so a refresh stays read)
-  fetch(`/api/mail/seen/${aid}?uid=${encodeURIComponent(uid)}&folder=${encodeURIComponent(folder)}`, { method: 'POST' }).catch(() => {});
+  fetch(`/api/mail/seen/${aid}?uid=${encodeURIComponent(uid)}&folder=${encodeURIComponent(folder)}`, { method: 'POST' }).catch(console.error);
   markSeenLocal(aid, uid);
   const bodyHtml = m.html
     ? `<iframe class="mail-body-frame" sandbox></iframe>`
@@ -651,19 +652,19 @@ async function openMessage(aid, uid, folder = 'INBOX') {
   loadAttachments(aid, uid, folder);
   const senderAddr = ((/<([^>]+)>/.exec(m.from) || [, m.from])[1] || '').trim().toLowerCase();
   $('mail-unread')?.addEventListener('click', async () => {
-    await fetch(`/api/mail/read/${aid}?uid=${encodeURIComponent(uid)}&seen=false&folder=${encodeURIComponent(folder)}`, { method: 'POST' }).catch(() => {});
+    await fetch(`/api/mail/read/${aid}?uid=${encodeURIComponent(uid)}&seen=false&folder=${encodeURIComponent(folder)}`, { method: 'POST' }).catch(console.error);
     const row = [...document.querySelectorAll('.mail-row')].find(r => r.dataset.uid === String(uid) && r.dataset.aid === aid);
     if (row) row.classList.add('unread');
     const lm = _lastMsgs.find(x => String(x.uid) === String(uid) && (x.account_id || '') === aid); if (lm) lm.seen = false;
     toast('marked unread', 'success');
   });
   (async () => {
-    const vips = ((await fetch('/api/mail/vips').then(r => r.json()).catch(() => ({ vips: [] }))).vips || []).map(v => v.toLowerCase());
+    const vips = ((await fetch('/api/mail/vips').then(r => r.json()).catch(e => { console.error(e); return { vips: [] }; })).vips || []).map(v => v.toLowerCase());
     const btn = $('mail-vip'); if (btn) { const on = vips.includes(senderAddr); btn.classList.toggle('on', on); btn.textContent = on ? 'VIP ★' : '+ VIP'; }
   })();
   $('mail-vip')?.addEventListener('click', async () => {
     const btn = $('mail-vip'); const adding = !btn.classList.contains('on');
-    await fetch('/api/mail/vips', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: senderAddr, add: adding }) }).catch(() => {});
+    await fetch('/api/mail/vips', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: senderAddr, add: adding }) }).catch(console.error);
     btn.classList.toggle('on', adding); btn.textContent = adding ? 'VIP ★' : '+ VIP';
     toast(adding ? 'added to VIP' : 'removed from VIP', 'success');
   });
@@ -695,7 +696,7 @@ async function openMessage(aid, uid, folder = 'INBOX') {
       const d = await r.json();
       if (!r.ok) toast(d.detail || 'summarize failed', 'error');
       else { box.textContent = d.summary; box.style.display = 'block'; }
-    } catch { toast('summarize failed', 'error'); }
+    } catch (e) { console.error(e); toast('summarize failed', 'error'); }
     btn.disabled = false; btn.textContent = 'summarize';
   });
   $('mail-to-cal')?.addEventListener('click', async () => {
@@ -713,7 +714,7 @@ async function openMessage(aid, uid, folder = 'INBOX') {
         const when = d.all_day ? d.start.slice(0, 10) : d.start.replace('T', ' ');
         toast(`added to calendar: ${d.title} — ${when}`, 'success');
       }
-    } catch { toast('extraction failed', 'error'); }
+    } catch (e) { console.error(e); toast('extraction failed', 'error'); }
     btn.disabled = false; btn.textContent = '→ calendar';
   });
 }
@@ -724,7 +725,7 @@ async function loadAttachments(aid, uid, folder) {
   let d;
   try {
     d = await fetch(`/api/mail/attachments/${aid}?uid=${encodeURIComponent(uid)}&folder=${encodeURIComponent(folder)}`).then(r => r.json());
-  } catch { return; }
+  } catch (e) { console.error(e); return; }
   const atts = d?.attachments || [];
   if (!atts.length) return;
   const head = $('mail-main')?.querySelector('.mail-reader-head');
@@ -745,7 +746,7 @@ async function compose(pre = {}) {
     try {
       const sig = (await fetch('/api/settings').then(r => r.json())).mail_signature;
       if (sig) pre = { ...pre, body: '\n\n' + sig };
-    } catch {}
+    } catch (e) { console.error(e); }
   }
   const main = $('mail-main');
   const defaultAid = pre.account_id || (_active !== 'all' ? _active : _accounts[0]?.id);
@@ -817,7 +818,7 @@ async function compose(pre = {}) {
   // rich-compose toolbar + signatures (5c)
   _wireRichCompose(defaultAid);
   $('mc-save').addEventListener('click', async () => {
-    const d = await fetch('/api/mail/drafts', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(_draftBody()) }).then(r => r.json()).catch(() => null);
+    const d = await fetch('/api/mail/drafts', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(_draftBody()) }).then(r => r.json()).catch(e => { console.error(e); return null; });
     if (d?.id) { _draftId = d.id; toast('draft saved', 'success'); } else toast('save failed', 'error');
   });
   $('mc-close').addEventListener('click', async () => {
@@ -853,9 +854,9 @@ async function compose(pre = {}) {
     const r = await fetch(`/api/mail/schedule/${aid}`, {
       method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ ..._composeBody(), send_at }),
-    }).then(x => x.json()).catch(() => null);
+    }).then(x => x.json()).catch(e => { console.error(e); return null; });
     if (r?.id) {
-      if (_draftId) fetch(`/api/mail/drafts/${_draftId}`, { method: 'DELETE' }).catch(() => {});
+      if (_draftId) fetch(`/api/mail/drafts/${_draftId}`, { method: 'DELETE' }).catch(console.error);
       toast('scheduled', 'success'); main.innerHTML = ''; _renderScheduled(); loadInbox();
     } else toast('schedule failed', 'error');
   });
@@ -867,9 +868,9 @@ async function compose(pre = {}) {
     const r = await fetch(`/api/mail/send-undoable/${aid}`, {
       method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ ..._composeBody(), delay: 8 }),
-    }).then(x => x.json()).catch(() => null);
+    }).then(x => x.json()).catch(e => { console.error(e); return null; });
     if (r?.id) {
-      if (_draftId) fetch(`/api/mail/drafts/${_draftId}`, { method: 'DELETE' }).catch(() => {});
+      if (_draftId) fetch(`/api/mail/drafts/${_draftId}`, { method: 'DELETE' }).catch(console.error);
       main.innerHTML = '';
       _showUndoBar(r.id);
       loadInbox();
@@ -892,7 +893,7 @@ async function _wireRichCompose(defaultAid) {
     const ctx = $('mc-html')?.innerText || $('mc-subj')?.value || '';
     let d;
     try { d = await fetch('/api/mail/smart-reply', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text: ctx }) }).then(r => r.json()); }
-    catch { d = { enabled: false, suggestions: [] }; }
+    catch (e) { console.error(e); d = { enabled: false, suggestions: [] }; }
     if (!d.enabled) { box.innerHTML = '<span class="mail-suggest-off">configure a model in aide to get reply suggestions</span>'; return; }
     if (!d.suggestions.length) { box.innerHTML = '<span class="mail-suggest-off">no suggestions</span>'; return; }
     box.innerHTML = d.suggestions.map((s, i) => `<button class="btn mc-suggest-chip" data-i="${i}">${esc(s.slice(0, 80))}</button>`).join('');
@@ -908,11 +909,11 @@ async function _wireRichCompose(defaultAid) {
       const up = await fetch('/api/uploads', { method: 'POST', body: fd }).then(r => r.json());
       const ed = $('mc-html'); ed?.focus();
       document.execCommand('insertHTML', false, `<img src="/api/uploads/${up.id}" alt="${esc(up.name || '')}" style="max-width:100%">`);
-    } catch { toast('image upload failed', 'error'); }
+    } catch (e) { console.error(e); toast('image upload failed', 'error'); }
   });
   // signature chips — click to append (5c)
   let sigs = [];
-  try { sigs = (await fetch('/api/mail/signatures').then(r => r.json())).signatures || []; } catch {}
+  try { sigs = (await fetch('/api/mail/signatures').then(r => r.json())).signatures || []; } catch (e) { console.error(e); }
   const list = $('mc-sig-list');
   if (list) {
     list.innerHTML = sigs.map(s => `<button class="btn mc-sig-chip" data-sig="${esc(s.id)}" title="insert signature">✎ ${esc(s.name)}</button>`).join('');
@@ -928,7 +929,7 @@ async function _wireRichCompose(defaultAid) {
     await fetch('/api/mail/signatures', {
       method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ name, body: bodyTxt }),
-    }).catch(() => {});
+    }).catch(console.error);
     toast('signature saved', 'success');
     _wireRichCompose(defaultAid);  // refresh the picker
   });
@@ -947,7 +948,7 @@ function _showUndoBar(scheduledId) {
   const t = setTimeout(hide, 8000);
   $('mail-undo-btn').addEventListener('click', async () => {
     clearTimeout(t);
-    await fetch(`/api/mail/scheduled/${scheduledId}/cancel`, { method: 'POST' }).catch(() => {});
+    await fetch(`/api/mail/scheduled/${scheduledId}/cancel`, { method: 'POST' }).catch(console.error);
     toast('send canceled', '');
     hide();
     _renderScheduled();
@@ -958,12 +959,12 @@ function _showUndoBar(scheduledId) {
 async function _renderScheduled() {
   const bar = $('mail-scheduled'); if (!bar) return;
   let items = [];
-  try { items = (await fetch('/api/mail/scheduled').then(r => r.json())).scheduled || []; } catch {}
+  try { items = (await fetch('/api/mail/scheduled').then(r => r.json())).scheduled || []; } catch (e) { console.error(e); }
   if (!items.length) { bar.innerHTML = ''; return; }
   bar.innerHTML = `<span class="mail-sched-lbl">scheduled</span>` + items.map(s =>
     `<span class="mail-sched-chip" title="to ${esc(s.to)}">🕒 ${esc(s.subject || '(no subject)')} · ${esc((s.send_at || '').slice(0, 16))}<button class="mail-sched-cancel" data-cancel="${esc(s.id)}" title="cancel">×</button></span>`).join('');
   bar.querySelectorAll('.mail-sched-cancel').forEach(b => b.addEventListener('click', async () => {
-    await fetch(`/api/mail/scheduled/${b.dataset.cancel}/cancel`, { method: 'POST' }).catch(() => {});
+    await fetch(`/api/mail/scheduled/${b.dataset.cancel}/cancel`, { method: 'POST' }).catch(console.error);
     _renderScheduled();
   }));
 }
@@ -972,8 +973,8 @@ async function rulesPanel() {
   const main = $('mail-main');
   main.innerHTML = '<div class="mail-empty">loading rules…</div>';
   let rules = [], vac = { enabled: false, subject: 'Out of office', body: '' };
-  try { rules = (await fetch('/api/mail/rules').then(r => r.json())).rules || []; } catch {}
-  try { vac = await fetch('/api/mail/vacation').then(r => r.json()); } catch {}
+  try { rules = (await fetch('/api/mail/rules').then(r => r.json())).rules || []; } catch (e) { console.error(e); }
+  try { vac = await fetch('/api/mail/vacation').then(r => r.json()); } catch (e) { console.error(e); }
   const ruleRows = rules.map(r => `
     <div class="mail-rule-row" data-id="${esc(r.id)}">
       <span>if <b>${esc(r.match_field)}</b> contains “${esc(r.match_value)}” → <b>${esc(r.action)}</b>${r.action_arg ? ` (${esc(r.action_arg)})` : ''}</span>
@@ -1008,7 +1009,7 @@ async function rulesPanel() {
     $('mv-enabled').textContent = (on ? '✓ ' : '') + "auto-reply when I'm away";
   });
   main.querySelectorAll('.mail-rule-del').forEach(b => b.addEventListener('click', async () => {
-    await fetch(`/api/mail/rules/${b.dataset.id}`, { method: 'DELETE' }).catch(() => {});
+    await fetch(`/api/mail/rules/${b.dataset.id}`, { method: 'DELETE' }).catch(console.error);
     rulesPanel();
   }));
   $('mr-add').addEventListener('click', async () => {
@@ -1017,13 +1018,13 @@ async function rulesPanel() {
     await fetch('/api/mail/rules', {
       method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ match_field: getDropdownValue($('mr-field')) || 'from', match_value: val, action: getDropdownValue($('mr-action')) || 'markread', action_arg: $('mr-arg').value.trim() }),
-    }).catch(() => {});
+    }).catch(console.error);
     rulesPanel();
   });
   $('mr-run').addEventListener('click', async () => {
     let total = 0;
     for (const a of _accounts) {
-      const d = await fetch(`/api/mail/rules/run/${a.id}`, { method: 'POST' }).then(r => r.json()).catch(() => ({ applied: 0 }));
+      const d = await fetch(`/api/mail/rules/run/${a.id}`, { method: 'POST' }).then(r => r.json()).catch(e => { console.error(e); return { applied: 0 }; });
       total += d.applied || 0;
     }
     $('mr-run-status').textContent = `applied to ${total} message(s)`;
@@ -1033,7 +1034,7 @@ async function rulesPanel() {
     await fetch('/api/mail/vacation', {
       method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ enabled: $('mv-enabled').getAttribute('aria-pressed') === 'true', subject: $('mv-subject').value, body: $('mv-body').value }),
-    }).catch(() => {});
+    }).catch(console.error);
     toast('vacation reply saved', 'success');
   });
 }
@@ -1178,7 +1179,7 @@ function acctForm(acct) {
     $('ma-status').textContent = 'saving...';
     const url = existing ? `/api/mail/accounts/${existing.id}` : '/api/mail/accounts';
     const method = existing ? 'PATCH' : 'POST';
-    const res = await fetch(url, { method, headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }).then(r => r.json()).catch(() => ({ error: 'network' }));
+    const res = await fetch(url, { method, headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }).then(r => r.json()).catch(e => { console.error(e); return { error: 'network' }; });
     if (res.error) { $('ma-status').textContent = 'failed: ' + res.error; return; }
     if (res.id) existing = res;   // now in edit mode
     const id = existing?.id;
@@ -1186,7 +1187,7 @@ function acctForm(acct) {
     localStorage.setItem('alles-mail-account-mode', _active);
     // auto-test so the user knows right away whether the password worked
     $('ma-status').innerHTML = '<span class="mail-status-test">testing connection...</span>';
-    const t = id ? await fetch(`/api/mail/test/${id}`).then(r => r.json()).catch(() => ({ ok: false, error: 'network' })) : { ok: true };
+    const t = id ? await fetch(`/api/mail/test/${id}`).then(r => r.json()).catch(e => { console.error(e); return { ok: false, error: 'network' }; }) : { ok: true };
     if (t.ok) {
       toast('connected ✓', 'success');
       await loadMail();
@@ -1204,7 +1205,7 @@ async function renderOauthBox(acct) {
   const box = $('ma-oauth');
   if (!box) return;
   let st = {};
-  try { st = await fetch('/api/mail/oauth/status').then(r => r.json()); } catch {}
+  try { st = await fetch('/api/mail/oauth/status').then(r => r.json()); } catch (e) { console.error(e); }
   const editingOauth = acct && acct.auth_type === 'oauth';
   if (st.configured) {
     box.innerHTML = `

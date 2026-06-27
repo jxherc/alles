@@ -36,7 +36,10 @@ function _stars(b) {
 }
 
 function _cover(b) {
-  if (b.cover) return `<img class="book-cover" src="${esc(b.cover)}" alt="" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'book-cover book-cover-ph',textContent:${JSON.stringify((b.title || '?')[0].toUpperCase())}}))">`;
+  if (b.cover) {
+    const ph = (b.title || '?')[0].toUpperCase();
+    return `<img class="book-cover" src="${esc(b.cover)}" alt="" loading="lazy" data-ph="${esc(ph)}" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'book-cover book-cover-ph',textContent:this.dataset.ph}))">`;
+  }
   return `<div class="book-cover book-cover-ph">${esc((b.title || '?')[0].toUpperCase())}</div>`;
 }
 

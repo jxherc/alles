@@ -17,15 +17,21 @@ data/
 /aide.db-shm
 /aide.db-wal
 /autorun_test.db
+/alles.db
 aide-pre-restore-*/
+# stray tmp scratch files (the .tmp_*/ rule above only matches dirs)
+.tmp_*
 
 # logs
 *.log
 server*.log
 
-# ide / local tooling
+# ide / local tooling + agent instruction files — never track
 .claude/
 .vscode/
+CLAUDE.md
+AGENTS.md
+aide.md
 
 # python
 venv/

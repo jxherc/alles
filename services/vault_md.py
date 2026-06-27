@@ -25,7 +25,9 @@ def _safe(rel: str) -> Path:
     """resolve a path inside the vault, rejecting traversal."""
     base = vault_dir()
     p = (base / (rel or "").lstrip("/\\")).resolve()
-    if base not in p.parents and p != base:
+    try:
+        p.relative_to(base)
+    except ValueError:
         raise ValueError("path escapes vault")
     return p
 

@@ -270,11 +270,6 @@ IMAGE_MODEL_REGISTRY = [
 ]
 
 
-def get_image_models():
-    """Return the image model registry."""
-    return IMAGE_MODEL_REGISTRY
-
-
 def rank_image_models(system, search=None, sort="fit"):
     """Score and rank image models against detected hardware.
 

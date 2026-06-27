@@ -1372,6 +1372,7 @@ body.is-incognito .incognito-bar {
   color: var(--text); font-family: inherit; font-size: 0.82rem;
   padding: 0.3rem 0; outline: none;
   transition: border-color 0.2s ease;
+  width: 100%; box-sizing: border-box;
 }
 /* custom checkbox — replaces native <input type=checkbox> so the UI stays ours */
 .chk {
@@ -1952,7 +1953,7 @@ mark.wiki-cmark { background: rgba(129, 140, 248, 0.28); color: inherit; border-
   font-size: 2.5rem; font-weight: 600; letter-spacing: -0.045em; color: var(--text);
   line-height: 1;
 }
-.home-greeting { font-size: 1.05rem; color: var(--text); margin-top: 0.75rem; letter-spacing: 0.01em; }
+.home-greeting { font-size: 1.05rem; color: var(--text); margin-top: 0.75rem; letter-spacing: 0.01em; cursor: pointer; }
 .home-greeting .accent { color: var(--accent); }
 .home-greeting:hover { color: var(--accent); transition: color 0.15s ease; }
 .home-tagline { font-size: 0.72rem; color: var(--muted); margin-top: 0.2rem; letter-spacing: 0.02em; }
@@ -6191,3 +6192,46 @@ input.cp-swatch-input { width: 34px; height: 22px; border: 1px solid var(--faint
   cursor: pointer; transition: color 0.15s, border-color 0.15s;
 }
 .aide-chip:hover { color: var(--text); border-color: var(--muted); }
+
+/* ── inline input styles replaced ── */
+.search-prompt-input {
+  width: 100%;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--faint);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.9rem;
+  padding: 0.4rem 0;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.search-prompt-input:focus { border-color: var(--muted); }
+
+.gallery-prompt-input {
+  width: 100%;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--faint);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.8rem;
+  padding: 0.3rem 0;
+  outline: none;
+  margin-bottom: 1rem;
+  transition: border-color 0.2s;
+}
+.gallery-prompt-input:focus { border-color: var(--muted); }
+
+/* Custom Disclosure Styles replacing Native Details */
+.custom-disclosure > .custom-details { display: none; }
+.custom-disclosure.open > .custom-details { display: block; }
+.thinking-block .custom-summary { cursor: pointer; color: var(--muted); font-style: normal; display: flex; align-items: center; user-select: none; }
+.thinking-block .custom-summary::before { content: '+'; color: var(--faint); display: inline-block; margin-right: 0.35rem; }
+.thinking-block.open .custom-summary::before { content: '-'; }
+.agent-steps .custom-summary { cursor: pointer; color: var(--muted); display: flex; align-items: center; user-select: none; }
+.agent-steps .custom-summary::before { content: '+'; color: var(--faint); display: inline-block; margin-right: 0.35rem; }
+.agent-steps.open .custom-summary::before { content: '-'; }
+.agent-step-args-wrap .custom-summary { cursor: pointer; color: var(--faint); font-size: 0.62rem; letter-spacing: 0.04em; user-select: none; display: flex; }
+.agent-step-args-wrap .custom-summary::before { content: '▸ '; }
+.agent-step-args-wrap.open .custom-summary::before { content: '▾ '; }

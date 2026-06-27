@@ -989,7 +989,7 @@ function _buildPersonaAccents() {
   box.querySelectorAll('.pa-swatch').forEach(s => s.addEventListener('click', () => {
     _setPersonaAccent(s.dataset.hex);
     // live preview the re-theme as you pick (reset/save restores the real active accent)
-    document.documentElement.style.setProperty('--accent', s.dataset.hex || (localStorage.getItem('aide-accent') || '#818cf8'));
+    document.documentElement.style.setProperty('--accent', s.dataset.hex || ((JSON.parse(localStorage.getItem('alles-appearance')||'{}').colors||{}).accent || '#818cf8'));
   }));
 }
 

@@ -142,6 +142,7 @@
         <div class="home-head">
           <div class="home-brand">alles</div>
           <div class="home-greeting" id="home-greeting"></div>
+          <div id="home-tagline" class="home-tagline">your everything, in one place</div>
           <div class="home-head-actions">
             <button class="btn" id="home-settings-btn" title="alles settings">settings</button>
             <button class="btn home-edit-btn" id="home-edit-btn" title="rearrange & hide tiles">customize</button>
@@ -305,7 +306,7 @@
         <button class="btn primary" id="gallery-upload-btn">+ upload</button>
       </div>
       <div class="page-view-body">
-        <input type="text" id="gallery-prompt-input" placeholder="prompt / caption (optional)" style="width:100%;background:none;border:none;border-bottom:1px solid var(--faint);color:var(--text);font:inherit;font-size:0.8rem;padding:0.3rem 0;outline:none;margin-bottom:1rem;transition:border-color 0.2s" onfocus="this.style.borderColor='var(--muted)'" onblur="this.style.borderColor='var(--faint)'">
+        <input type="text" id="gallery-prompt-input" placeholder="prompt / caption (optional)" class="gallery-prompt-input">
         <div class="gallery-grid" id="gallery-grid"></div>
       </div>
     </div>
@@ -646,7 +647,7 @@
         </div>
         <svg id="wiki-graph-svg" class="wiki-graph-svg"></svg>
       </div>
-    </div><!-- /#wiki-view — was missing, which nested every later view + the composer inside the docs view -->
+    </div><!-- /#wiki-view -->
 
     <!-- ── compare view ── -->
     <div class="page-view compare-layout" id="compare-view" style="display:none">
@@ -905,7 +906,7 @@
 <div class="modal-overlay" id="search-modal" style="display:none">
   <div class="modal-card search-card">
     <div class="modal-search" style="padding:0.75rem 1rem">
-      <input type="text" id="search-input" placeholder="search everything..." style="width:100%;background:none;border:none;border-bottom:1px solid var(--faint);color:var(--text);font:inherit;font-size:0.9rem;padding:0.4rem 0;outline:none;transition:border-color 0.2s" onfocus="this.style.borderColor='var(--muted)'" onblur="this.style.borderColor='var(--faint)'">
+      <input type="text" id="search-input" placeholder="search everything..." class="search-prompt-input">
     </div>
     <div class="modal-body" id="search-results" style="max-height:420px;overflow-y:auto"></div>
   </div>
