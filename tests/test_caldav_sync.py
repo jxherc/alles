@@ -28,6 +28,24 @@ class CaldavSyncTests(unittest.TestCase):
         self.assertIn("DTSTART:20260623T143000", ics)
         self.assertNotIn("VALUE=DATE", ics)
 
+    def test_event_ics_timed_includes_end_and_description(self):
+        # without DTEND a pushed event loses its end time on the next pull (round-trip data loss)
+        ics = cd._event_ics(
+            "u3", "Meeting", "2026-06-23T14:30:00", False,
+            end_dt="2026-06-23T15:30:00", description="quarterly sync",
+        )
+        self.assertIn("DTEND:20260623T153000", ics)
+        self.assertIn("DESCRIPTION:quarterly sync", ics)
+
+    def test_event_ics_all_day_end_is_exclusive(self):
+        # stored end is the inclusive last day; RFC all-day DTEND is exclusive → +1 day
+        ics = cd._event_ics("u4", "Trip", "2026-07-01T00:00:00", True, end_dt="2026-07-03")
+        self.assertIn("DTEND;VALUE=DATE:20260704", ics)  # jul 3 inclusive → jul 4 exclusive
+
+    def test_event_ics_no_end_omits_dtend(self):
+        ics = cd._event_ics("u5", "Solo", "2026-06-23T14:30:00", False)
+        self.assertNotIn("DTEND", ics)
+
     def test_save_keeps_password_when_blank(self):
         cd.save_cfg({"url": "u1", "username": "me", "password": "secret"})
         cd.save_cfg({"url": "u2", "username": "me", "password": ""})  # editing without re-typing pw
