@@ -706,10 +706,10 @@ async def _skill_load(name_or_path: str) -> dict:
 
 async def _mcp_list_tools() -> dict:
     try:
-        from routes import mcp
+        from services import mcp_registry
 
         rows = []
-        for sid, tools in mcp._tools.items():
+        for sid, tools in mcp_registry.tools.items():
             for t in tools:
                 rows.append(
                     {
@@ -726,9 +726,9 @@ async def _mcp_list_tools() -> dict:
 
 async def _mcp_call_tool(server_id: str, tool_name: str, arguments: dict | None = None) -> dict:
     try:
-        from routes import mcp
+        from services import mcp_registry
 
-        session = mcp._sessions.get(server_id)
+        session = mcp_registry.sessions.get(server_id)
         if not session:
             return {"output": f"MCP server not connected: {server_id}", "error": True}
         result = await session.call_tool(tool_name, arguments or {})
