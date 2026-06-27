@@ -97,6 +97,14 @@ class BackupApiTest(ApiTest):
         with zipfile.ZipFile(io.BytesIO(r.content)) as zf:
             self.assertIn("uploads/photo.jpg", zf.namelist())
 
+    def test_export_includes_vault_attachments(self):
+        # encrypted attachment blobs live on disk, not in aide.db — they must be in the backup
+        (self.data / "vault_attachments").mkdir()
+        (self.data / "vault_attachments" / "abc.enc").write_bytes(b"ciphertext")
+        r = self.client.get("/api/backup")
+        with zipfile.ZipFile(io.BytesIO(r.content)) as zf:
+            self.assertIn("vault_attachments/abc.enc", zf.namelist())
+
     def test_export_checkpoints_wal_so_recent_writes_are_backed_up(self):
         # WAL mode keeps recent commits in aide.db-wal; the backup ships only aide.db, so without
         # a checkpoint the backed-up db is missing them. write data into the wal, export, then open
