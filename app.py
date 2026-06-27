@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -905,10 +905,30 @@ async def pwa_precache():
     return {"urls": urls}
 
 
+def _request_authed(request: Request) -> bool:
+    """bearer token or session cookie — mirrors TokenAuthMiddleware, for the few public routes
+    that want to vary their output by auth."""
+    auth = request.headers.get("authorization", "")
+    if auth.startswith("Bearer aide_") or auth.startswith("Bearer alles_"):
+        from routes.api_tokens import verify_token
+
+        db = SessionLocal()
+        try:
+            if verify_token(auth.split(" ", 1)[1], db):
+                return True
+        finally:
+            db.close()
+    from core.auth import verify_session
+
+    return verify_session(request.cookies.get("aide_session", ""))
+
+
 @app.get("/health")
-def health(deep: bool = False):
-    # default stays a cheap liveness ping; ?deep=1 runs the full readiness check
-    if deep:
+def health(request: Request, deep: bool = False):
+    # default stays a cheap liveness ping. ?deep=1 runs the full readiness check, but its details
+    # (data-dir PATH, installed deps, provider/key state) are internal — only expose them in local
+    # mode (no auth) or to an authenticated caller, never to an anonymous client when auth is on.
+    if deep and (not auth_enabled() or _request_authed(request)):
         from services import doctor
 
         return {"ok": doctor.healthy(), "checks": doctor.run_all()}
