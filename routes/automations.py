@@ -81,22 +81,30 @@ class RuleBody(BaseModel):
     action_arg: str = ""
 
 
+def _validate_trigger_arg(trigger: str, trigger_arg: str):
+    arg = (trigger_arg or "").strip()
+    if trigger == "daily_at":
+        import re
+
+        m = re.fullmatch(r"(\d{2}):(\d{2})", arg)
+        # 2-digit each is required so the scheduler's HH:MM string-compare works; also reject
+        # times that fit the shape but no clock ever reaches ("25:99" → rule silently never fires)
+        if not m or int(m.group(1)) > 23 or int(m.group(2)) > 59:
+            raise HTTPException(400, "daily_at needs a valid HH:MM time (00:00–23:59)")
+    if trigger in ("sub_renewing", "day_event_near"):
+        try:
+            int(arg or "3")
+        except ValueError:
+            raise HTTPException(400, "this trigger needs a number of days")
+
+
 @router.post("/automations")
 def create_rule(body: RuleBody, db: DbSession = Depends(get_db)):
     if body.trigger not in TRIGGERS:
         raise HTTPException(400, f"trigger must be one of {', '.join(TRIGGERS)}")
     if body.action not in ACTIONS:
         raise HTTPException(400, f"action must be one of {', '.join(ACTIONS)}")
-    if body.trigger == "daily_at":
-        import re
-
-        if not re.fullmatch(r"\d{2}:\d{2}", body.trigger_arg.strip()):
-            raise HTTPException(400, "daily_at needs a HH:MM time")
-    if body.trigger in ("sub_renewing", "day_event_near"):
-        try:
-            int(body.trigger_arg or "3")
-        except ValueError:
-            raise HTTPException(400, "this trigger needs a number of days")
+    _validate_trigger_arg(body.trigger, body.trigger_arg)
     name = body.name.strip() or f"{body.trigger} → {body.action}"
     r = AutomationRule(
         name=name,
@@ -129,6 +137,11 @@ def patch_rule(rid: str, body: RulePatch, db: DbSession = Depends(get_db)):
         raise HTTPException(400, "unknown trigger")
     if body.action is not None and body.action not in ACTIONS:
         raise HTTPException(400, "unknown action")
+    # validate the arg against the trigger it'll actually run under (new one if changing, else current)
+    if body.trigger is not None or body.trigger_arg is not None:
+        eff_trigger = body.trigger if body.trigger is not None else r.trigger
+        eff_arg = body.trigger_arg if body.trigger_arg is not None else r.trigger_arg
+        _validate_trigger_arg(eff_trigger, eff_arg)
     for f in ("name", "trigger", "trigger_arg", "action", "action_arg", "enabled"):
         v = getattr(body, f)
         if v is not None:
