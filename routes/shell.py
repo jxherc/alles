@@ -5,7 +5,7 @@ shell execution — admin only, streams output via SSE.
 import os, sys, asyncio, json, logging
 from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from core.auth import require_auth
 
 router = APIRouter(prefix="/api", dependencies=[Depends(require_auth)])
@@ -30,7 +30,7 @@ def _find_shell():
 
 class ExecRequest(BaseModel):
     command: str
-    timeout: int = _TIMEOUT_EXEC
+    timeout: int = Field(_TIMEOUT_EXEC, ge=1)  # a 0/negative timeout "times out" instantly, running nothing
 
 
 # POST /api/shell/exec  — blocking, returns stdout/stderr/exit_code
@@ -62,7 +62,7 @@ async def shell_exec(body: ExecRequest):
 
 class StreamRequest(BaseModel):
     command: str
-    timeout: int = _TIMEOUT_STREAM
+    timeout: int = Field(_TIMEOUT_STREAM, ge=1)
 
 
 async def _stream_proc(command: str, timeout: int):
@@ -105,7 +105,7 @@ async def _stream_proc(command: str, timeout: int):
 
 class PyExecRequest(BaseModel):
     code: str
-    timeout: int = 30
+    timeout: int = Field(30, ge=1)
 
 
 # POST /api/execute/python — run python code, return stdout/stderr
