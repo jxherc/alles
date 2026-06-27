@@ -7,6 +7,7 @@
 import asyncio
 import os
 import unittest
+import unittest.mock
 
 os.environ["AUTH_ENABLED"] = "false"
 from services import net_guard
@@ -38,6 +39,23 @@ class NetGuardTests(unittest.TestCase):
         # self-hosted app: the owner's own LAN services are a legitimate fetch target
         self.assertTrue(net_guard.is_safe_url("http://192.168.1.10/cal.ics"))
         self.assertTrue(net_guard.is_safe_url("http://10.0.0.5/feed.xml"))
+
+    def test_allows_public_hostname(self):
+        # regression: a normal domain must resolve + pass, not get blocked as if the name
+        # itself were an unparseable ip (which used to kill every domain fetch — feeds, ics, etc.)
+        with unittest.mock.patch(
+            "services.net_guard.socket.getaddrinfo",
+            return_value=[(2, 1, 6, "", ("93.184.216.34", 0))],
+        ):
+            self.assertTrue(net_guard.is_safe_url("https://example.com/"))
+
+    def test_blocks_hostname_resolving_internal(self):
+        # a name that resolves to loopback is still blocked (dns-rebinding style)
+        with unittest.mock.patch(
+            "services.net_guard.socket.getaddrinfo",
+            return_value=[(2, 1, 6, "", ("127.0.0.1", 0))],
+        ):
+            self.assertFalse(net_guard.is_safe_url("https://sneaky.example/"))
 
     def test_assert_raises_on_internal(self):
         with self.assertRaises(ValueError):
