@@ -46,7 +46,11 @@ def free_slots(events, day, *, day_start="09:00", day_end="17:00", duration_min=
     for ev in events:
         sp = _span(ev)
         if sp and sp[0].date().isoformat() == day:
-            busy.append(sp)
+            # clip to the working window so an event outside hours (e.g. 18:00-19:00 with a
+            # 17:00 day_end) can't make a free slot spill past day_end
+            s, e = max(sp[0], lo), min(sp[1], hi)
+            if e > s:
+                busy.append((s, e))
     busy.sort()
     out = []
     cursor = lo
