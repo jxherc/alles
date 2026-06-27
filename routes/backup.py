@@ -53,6 +53,13 @@ def export_backup():
             for f in gallery_dir.iterdir():
                 if f.is_file():
                     zf.write(f, f"gallery/{f.name}")
+        # encrypted vault attachments — their .enc blobs live on disk, not in aide.db, so
+        # without this a restore loses every secret attachment
+        att_dir = DATA_DIR / "vault_attachments"
+        if att_dir.exists():
+            for f in att_dir.iterdir():
+                if f.is_file():
+                    zf.write(f, f"vault_attachments/{f.name}")
 
     buf.seek(0)
     return StreamingResponse(
