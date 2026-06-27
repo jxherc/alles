@@ -134,7 +134,7 @@ _SECRET_RE = re.compile(r"""(?ix)
   | (?:^|[/\\])id_(?:rsa|dsa|ecdsa|ed25519)(?:\.pub)?$
   | (?:^|[/\\])\.env(?:\.[\w.-]+)?$
   | (?:^|[/\\])credentials(?:\.\w+)?$
-  | \.(?:pem|pfx|p12|keystore)$
+  | \.(?:pem|pfx|p12|keystore|key)$
 """)
 
 

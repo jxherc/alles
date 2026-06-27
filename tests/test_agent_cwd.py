@@ -38,6 +38,9 @@ class AgentCwdTest(unittest.TestCase):
         self.assertTrue(at._is_secret_path("/app/.env"))
         self.assertTrue(at._is_secret_path("/data/credentials.json"))
         self.assertTrue(at._is_secret_path("/cert/server.pem"))
+        # the app's own master at-rest key decrypts every vault entry / api key / mail password
+        self.assertTrue(at._is_secret_path("data/secret.key"))
+        self.assertTrue(at._is_secret_path("/etc/ssl/private/server.key"))
 
     def test_normal_paths_not_flagged(self):
         self.assertFalse(at._is_secret_path("/home/user/code/app.py"))
