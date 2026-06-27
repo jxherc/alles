@@ -458,8 +458,9 @@ def refresh_subscription(db, sub: CalendarSubscription, ics_text: str) -> int:
     return n
 
 
-def _sub_out(db, s: CalendarSubscription) -> dict:
-    cnt = db.query(CalendarEvent).filter(CalendarEvent.subscription_id == s.id).count()
+def _sub_out(db, s: CalendarSubscription, cnt: int | None = None) -> dict:
+    if cnt is None:
+        cnt = db.query(CalendarEvent).filter(CalendarEvent.subscription_id == s.id).count()
     return {
         "id": s.id,
         "name": s.name,
@@ -479,7 +480,17 @@ class SubBody(BaseModel):
 
 @router.get("/calendar/subscriptions")
 def list_subscriptions(db: DbSession = Depends(get_db)):
-    return [_sub_out(db, s) for s in db.query(CalendarSubscription).all()]
+    from sqlalchemy import func
+
+    subs = db.query(CalendarSubscription).all()
+    # one grouped count instead of a count() per subscription (was N+1)
+    counts = dict(
+        db.query(CalendarEvent.subscription_id, func.count(CalendarEvent.id))
+        .filter(CalendarEvent.subscription_id != None)  # noqa: E711
+        .group_by(CalendarEvent.subscription_id)
+        .all()
+    )
+    return [_sub_out(db, s, counts.get(s.id, 0)) for s in subs]
 
 
 @router.post("/calendar/subscriptions")
