@@ -33,11 +33,13 @@ def is_safe_url(url: str) -> bool:
     if p.scheme not in ("http", "https") or not p.hostname:
         return False
     host = p.hostname
-    # a bare ip host: check it directly (covers ipv4/ipv6 literals + bracketed ipv6)
+    # a bare ip host: check it directly (covers ipv4/ipv6 literals + bracketed ipv6).
+    # _blocked_ip() doesn't raise on a non-ip (it returns True), so test for an ip literal
+    # explicitly here — otherwise every hostname falls into the "blocked" branch and real
+    # domains can never be fetched.
     try:
-        if _blocked_ip(host):
-            return False
-        return True  # it parsed as an ip and isn't blocked
+        ipaddress.ip_address(host)
+        return not _blocked_ip(host)
     except ValueError:
         pass
     # a name: resolve and block if ANY resolved address is internal
