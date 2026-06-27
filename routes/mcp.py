@@ -12,14 +12,16 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session as DbSession
 
 from core.database import McpServer, SessionLocal, get_db
+# the connected-session + tool registry lives in a leaf module so services/agent_tools.py can
+# read it without importing routes.mcp (which would close a routes->services->routes cycle)
+from services.mcp_registry import sessions as _sessions  # server_id -> mcp ClientSession
+from services.mcp_registry import tools as _tools  # server_id -> [{name, description, schema}]
 
 router = APIRouter(prefix="/api")
 log = logging.getLogger("aide.mcp")
 
 # in-memory connected sessions
-_sessions: dict[str, object] = {}  # server_id -> mcp ClientSession
-_tools: dict[str, list] = {}  # server_id -> [{name, description, schema}]
-_stacks: dict[str, object] = {}  # server_id -> AsyncExitStack
+_stacks: dict[str, object] = {}  # server_id -> AsyncExitStack (only used here)
 
 
 def _fmt(s: McpServer) -> dict:
