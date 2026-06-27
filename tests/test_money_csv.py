@@ -40,6 +40,30 @@ class MoneyCsvTest(ApiTest):
         )
         self.assertEqual(r.json()["imported"], 2)
 
+    def test_tags_survive_export_import_roundtrip(self):
+        from core.database import Transaction
+
+        aid = self._account()
+        self.client.post(
+            "/api/money/transactions",
+            json={
+                "account_id": aid, "date": "2026-06-03", "amount": -8.0,
+                "category": "food", "payee": "Blue Bottle", "tags": "coffee, work",
+            },
+        )
+        text = self.client.get("/api/money/transactions/export.csv").text
+        self.assertIn("tags", text.splitlines()[0])  # header has the column now
+        aid2 = self._account()
+        self.client.post(
+            "/api/money/transactions/import.csv", json={"csv": text, "account_id": aid2}
+        )
+        d = self.db()
+        t = d.query(Transaction).filter(Transaction.account_id == aid2).first()
+        tags = (t.tags or "")
+        d.close()
+        self.assertIn("coffee", tags)
+        self.assertIn("work", tags)  # both manual tags preserved through the round-trip
+
     def test_import_bank_style_csv(self):
         aid = self._account()
         csv_text = (
