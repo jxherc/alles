@@ -1,7 +1,7 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v155';   // money header wrap fix (mobile import button clip)
+const VERSION = 'v156';   // wrap all page-view-heads + files-actions on narrow widths
 const CACHE = `alles-${VERSION}`;
-const STAMP = '181';   // keep in sync with index.html ?v= / const _v
+const STAMP = '182';   // keep in sync with index.html ?v= / const _v
 
 // 1b: mutating writes that should be queued when offline
 const MUTATING = ['POST', 'PUT', 'PATCH', 'DELETE'];

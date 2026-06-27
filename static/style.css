@@ -1908,6 +1908,9 @@ mark.wiki-cmark { background: rgba(129, 140, 248, 0.28); color: inherit; border-
   padding: 1.5rem clamp(0.9rem, 3vw, 2rem) 0.75rem;
   display: flex; align-items: center; justify-content: space-between;
   flex-shrink: 0;
+  /* wrap whole controls to a new row when narrow instead of clipping toolbar buttons off the
+     right edge — only kicks in when the head would overflow, so desktop single rows are unchanged */
+  flex-wrap: wrap; row-gap: 0.4rem;
 }
 .page-view-title {
   font-size: 1.1rem; font-weight: 600; letter-spacing: -0.01em;
@@ -2129,7 +2132,7 @@ mark.wiki-cmark { background: rgba(129, 140, 248, 0.28); color: inherit; border-
 }
 
 /* ── files ── */
-.files-actions { display: flex; gap: 0.4rem; }
+.files-actions { display: flex; gap: 0.4rem; flex-wrap: wrap; }
 /* breadcrumb (left) + sort (right) share one aligned row under the header */
 .files-subhead {
   display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;
