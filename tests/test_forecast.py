@@ -148,6 +148,19 @@ class EndpointTests(unittest.TestCase):
         ).json()["projected"]
         self.assertAlmostEqual(boosted - base, 500.0, places=1)
 
+    def test_forecast_bad_month_no_crash(self):
+        # ?month=2026 used to hit int("") -> 500; now falls back to current month
+        for bad in ("2026", "x", "2026-13", ""):
+            r = self.c.get(f"/api/money/forecast?month={bad}")
+            self.assertEqual(r.status_code, 200, bad)
+            self.assertIn("projected", r.json())
+
+    def test_networth_history_bad_as_of_no_crash(self):
+        for bad in ("2026", "garbage", "2026-99"):
+            r = self.c.get(f"/api/money/networth-history?as_of={bad}")
+            self.assertEqual(r.status_code, 200, bad)
+            self.assertIsInstance(r.json(), list)
+
 
 if __name__ == "__main__":
     unittest.main()

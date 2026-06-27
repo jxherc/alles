@@ -1085,8 +1085,21 @@ def age_of_money(db: DbSession = Depends(get_db)):
 
 
 # ── forecast, net-worth history, holdings, watches, alerts (Simplifi), 4c ─────
+def _ym(month):
+    # parse 'YYYY-MM' (or longer) -> (year, month). bad/short input falls back to the current
+    # month instead of blowing up with a 500 (int("") on a stray ?month=2026 etc)
+    try:
+        y, m = int(month[:4]), int(month[5:7])
+        if not (1 <= m <= 12):
+            raise ValueError
+        return y, m
+    except (ValueError, IndexError):
+        now = datetime.utcnow()
+        return now.year, now.month
+
+
 def _last_day(month):
-    y, m = int(month[:4]), int(month[5:7])
+    y, m = _ym(month)
     return date(y, m, _cal.monthrange(y, m)[1])
 
 
@@ -1172,7 +1185,7 @@ def networth_history(months: int = 6, as_of: str = "", db: DbSession = Depends(g
     end_month = as_of[:7] if as_of else datetime.utcnow().strftime("%Y-%m")
     accounts = db.query(Account).all()
     txns = db.query(Transaction).all()
-    y, m = int(end_month[:4]), int(end_month[5:7])
+    y, m = _ym(end_month)
     seq = []
     for _ in range(max(1, months)):
         seq.append(f"{y:04d}-{m:02d}")
