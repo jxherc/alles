@@ -119,6 +119,20 @@ class CalendarSubscriptionTests(ApiTest):
         sub = next(s for s in lst if s["id"] == sid)
         self.assertEqual(sub["event_count"], 2)
 
+    def test_list_counts_per_sub_multiple(self):
+        # batched grouped count must map each sub to ITS own count (2, 1, and 0 for an empty one)
+        with mock.patch("routes.calendar.fetch_ics", return_value=""):
+            a = self._create(name="A", url="https://example.com/a.ics")["id"]
+            b = self._create(name="B", url="https://example.com/b.ics")["id"]
+            c = self._create(name="C", url="https://example.com/c.ics")["id"]
+        self._refresh(a, ICS_2)  # 2 events
+        self._refresh(b, ICS_1)  # 1 event
+        # c stays empty
+        lst = {s["id"]: s["event_count"] for s in self.client.get("/api/calendar/subscriptions").json()}
+        self.assertEqual(lst[a], 2)
+        self.assertEqual(lst[b], 1)
+        self.assertEqual(lst[c], 0)
+
     def test_events_linked_to_calendar(self):
         with mock.patch("routes.calendar.fetch_ics", return_value=""):
             d = self._create()
