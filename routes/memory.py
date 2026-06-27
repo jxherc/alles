@@ -197,9 +197,10 @@ async def extract_from_session(body: ExtractRequest, bg: BackgroundTasks):
     lines = [re.sub(r"^[-*\d.]+\s*", "", l).strip() for l in raw.splitlines()]
     lines = [l for l in lines if len(l) > 10]
 
+    n = max(0, body.max_memories)  # negative would slice off the newest extracted line instead of capping
     count = 0
-    for line in lines[: body.max_memories]:
+    for line in lines[:n]:
         add_memory(line, source="extracted", session_id=body.session_id)
         count += 1
 
-    return {"extracted": count, "memories": lines[: body.max_memories]}
+    return {"extracted": count, "memories": lines[:n]}
