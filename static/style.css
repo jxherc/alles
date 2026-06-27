@@ -2882,7 +2882,9 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 .sub-item.paused .sub-name,
 .sub-item.paused .sub-price,
 .sub-item.paused .sub-due { color: var(--muted); }
-.sub-main { display: flex; align-items: center; gap: 0.45rem; flex: 1; min-width: 140px; }
+/* wrap own children (name/tags/badges) instead of letting the last badge spill past the box
+   and overlap the price when the row is narrow */
+.sub-main { display: flex; align-items: center; gap: 0.45rem; flex: 1; min-width: 140px; flex-wrap: wrap; row-gap: 0.25rem; }
 .sub-name { font-size: 0.82rem; color: var(--text); }
 .sub-cat {
   font-size: 0.62rem; color: var(--muted);
