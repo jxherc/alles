@@ -1,7 +1,7 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v154';   // polish pass: disclosures, css classes, mail logging
+const VERSION = 'v155';   // money header wrap fix (mobile import button clip)
 const CACHE = `alles-${VERSION}`;
-const STAMP = '180';   // keep in sync with index.html ?v= / const _v
+const STAMP = '181';   // keep in sync with index.html ?v= / const _v
 
 // 1b: mutating writes that should be queued when offline
 const MUTATING = ['POST', 'PUT', 'PATCH', 'DELETE'];
