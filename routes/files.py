@@ -182,17 +182,25 @@ def duplicates():
     from collections import defaultdict
 
     base = fs.files_dir()
-    groups = defaultdict(list)
+    # bucket by size first: identical content => identical size, so a file with a unique size
+    # can't have a dup and never needs to be read/hashed (was hashing every byte of every file).
+    by_size = defaultdict(list)
     for p in base.rglob("*"):
         try:
-            if not p.is_file() or p.stat().st_size == 0:
-                continue
-            h = hashlib.sha256(p.read_bytes()).hexdigest()
-            groups[h].append(
-                {"path": str(p.relative_to(base)).replace("\\", "/"), "size": p.stat().st_size}
-            )
+            if p.is_file() and (sz := p.stat().st_size):
+                by_size[sz].append(p)
         except OSError:
             pass
+    groups = defaultdict(list)
+    for sz, plist in by_size.items():
+        if len(plist) < 2:
+            continue
+        for p in plist:
+            try:
+                h = hashlib.sha256(p.read_bytes()).hexdigest()
+            except OSError:
+                continue
+            groups[h].append({"path": str(p.relative_to(base)).replace("\\", "/"), "size": sz})
     out = [
         {"hash": h, "size": items[0]["size"], "paths": [i["path"] for i in items]}
         for h, items in groups.items()
