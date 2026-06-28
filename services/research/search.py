@@ -52,12 +52,11 @@ def fetch_webpage_content(url: str, timeout: int = 10) -> dict:
     blank = {"success": False, "content": "", "title": "", "og_image": ""}
     if not url or not url.startswith("http"):
         return blank
-    from services.net_guard import is_safe_url
+    from services.net_guard import safe_get
 
-    if not is_safe_url(url):  # SSRF guard: don't let a url point at internal/metadata addresses
-        return blank
     try:
-        r = httpx.get(url, timeout=timeout, follow_redirects=True, headers={"user-agent": _UA})
+        # SSRF guard re-checked on every redirect hop (a public url can 302 to internal/metadata)
+        r = safe_get(url, timeout=timeout, headers={"user-agent": _UA})
         ct = r.headers.get("content-type", "")
         if ct and "html" not in ct and "text" not in ct:
             return blank

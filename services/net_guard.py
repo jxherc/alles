@@ -55,3 +55,22 @@ def is_safe_url(url: str) -> bool:
 def assert_safe_url(url: str):
     if not is_safe_url(url):
         raise ValueError(f"refusing to fetch a non-public url: {url!r}")
+
+
+def safe_get(url: str, *, timeout=20, headers=None, max_redirects=6):
+    """httpx.get with the SSRF guard re-checked on EVERY redirect hop — plain
+    follow_redirects=True is bypassable: a public url can 302 to http://169.254.169.254/
+    or localhost and the original-url check never sees it. raises ValueError on a non-public
+    hop. returns the final httpx.Response."""
+    import httpx
+
+    cur = url
+    with httpx.Client(timeout=timeout, follow_redirects=False) as c:
+        for _ in range(max_redirects):
+            assert_safe_url(cur)
+            r = c.get(cur, headers=headers or {})
+            loc = r.headers.get("location") if r.is_redirect else None
+            if not loc:
+                return r
+            cur = str(httpx.URL(cur).join(loc))  # resolve relative redirects
+    raise ValueError("too many redirects")
