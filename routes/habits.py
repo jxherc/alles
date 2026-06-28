@@ -97,7 +97,13 @@ def habit_risk(hid: str, window: int = 14, db: DbSession = Depends(get_db)):
 def overview(date_q: str = "", db: DbSession = Depends(get_db)):
     from services import life_stats
 
-    today = _d(date_q) if date_q else date.today()
+    if date_q:
+        try:
+            today = _d(date_q)  # same junk-date guard as toggle, else 500 on bad input
+        except ValueError:
+            raise HTTPException(400, "date_q must be ISO (YYYY-MM-DD)")
+    else:
+        today = date.today()
     habits = db.query(Habit).filter(Habit.archived == False).order_by(Habit.created_at).all()  # noqa: E712
     # one query for all logs instead of one per habit (was H+1 round-trips on every overview load)
     by_habit: dict[str, set] = {}
