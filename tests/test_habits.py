@@ -108,6 +108,13 @@ class HabitApiTests(ApiTest):
         # overview still fine — nothing poisoned the log
         self.assertEqual(self.client.get("/api/habits/overview").status_code, 200)
 
+    def test_overview_rejects_junk_date_q(self):
+        # bad date_q used to raise ValueError -> 500; now a clean 400
+        self.assertEqual(self.client.get("/api/habits/overview", params={"date_q": "garbage"}).status_code, 400)
+        self.assertEqual(self.client.get("/api/habits/overview", params={"date_q": "2026-13-40"}).status_code, 400)
+        # a valid date_q still works
+        self.assertEqual(self.client.get("/api/habits/overview", params={"date_q": "2026-06-20"}).status_code, 200)
+
     def test_toggle_idempotent_no_duplicate_logs(self):
         hid = self._create().json()["id"]
         for _ in range(3):
