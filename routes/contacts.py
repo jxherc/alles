@@ -648,6 +648,20 @@ def merge_contacts(body: MergeBody, db: DbSession = Depends(get_db)):
     db.query(ContactLink).filter(ContactLink.from_id == ContactLink.to_id).delete(
         synchronize_session=False
     )
+    # re-pointing can collide a moved edge with one the primary already had (both contacts
+    # linked to the same relative). there's no unique constraint, so collapse dup (from,to) pairs
+    # or related/neighbors would list that relative twice.
+    seen = set()
+    for lk in (
+        db.query(ContactLink)
+        .filter((ContactLink.from_id == p.id) | (ContactLink.to_id == p.id))
+        .all()
+    ):
+        k = (lk.from_id, lk.to_id)
+        if k in seen:
+            db.delete(lk)
+        else:
+            seen.add(k)
     p.updated_at = datetime.utcnow()
     db.delete(o)
     db.commit()
