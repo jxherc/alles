@@ -60,6 +60,29 @@ class FilesBrowseTests(ApiTest):
         self._w("e2.txt", "")
         self.assertEqual(self.client.get("/api/files/duplicates").json()["groups"], [])
 
+    def test_dup_same_size_diff_content_not_grouped_and_unique_skipped(self):
+        import hashlib
+
+        self._w("s1.txt", "AAAA")  # size 4, unique content
+        self._w("s2.txt", "BBBB")  # size 4, unique content (shares size with s1)
+        self._w("t1.txt", "hello")  # size 5
+        self._w("t2.txt", "hello")  # size 5 (a real content dup)
+        self._w("lonely.txt", "a one-of-a-kind length")  # unique size -> never hashed
+        real = hashlib.sha256
+        hashed = []
+
+        def spy(b=b""):
+            hashed.append(bytes(b))
+            return real(b)
+
+        with mock.patch("hashlib.sha256", side_effect=spy):
+            groups = self.client.get("/api/files/duplicates").json()["groups"]
+        # correctness: only the identical pair groups; same-size-different-content does not
+        self.assertEqual([sorted(g["paths"]) for g in groups], [["t1.txt", "t2.txt"]])
+        # perf: the unique-size file is never read/hashed; the shared-size ones are
+        self.assertNotIn(b"a one-of-a-kind length", hashed)
+        self.assertIn(b"hello", hashed)
+
     def test_dup_sorted_by_group_size(self):
         # a 3-file group should sort before a 2-file group
         for n in ("a", "b", "c"):
