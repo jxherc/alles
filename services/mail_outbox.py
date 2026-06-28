@@ -84,8 +84,8 @@ def process_due(db, now_iso=None, send_fn=None):
             except Exception:
                 continue  # transient failure — stays scheduled, retried next tick (never marked sent)
             m.status = "sent"  # only on a real successful send
+            db.commit()  # persist each send before the next: a crash mid-batch must not re-send it
             n += 1
-    db.commit()
     return n
 
 
