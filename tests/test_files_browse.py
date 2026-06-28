@@ -128,6 +128,23 @@ class FilesBrowseTests(ApiTest):
         self.assertEqual(d["kind"], "xlsx")
         self.assertIn("error", d)
 
+    def test_preview_xlsx_closes_workbook(self):
+        # read-only openpyxl keeps the file handle open until .close(); preview must close it.
+        # openpyxl isn't installed, so inject a fake module to exercise the real code path.
+        import sys
+        import types
+
+        self._w("sheet.xlsx", b"ignored; load_workbook is mocked")
+        wb = mock.MagicMock()
+        wb.active.iter_rows.return_value = [("a", "b"), (1, None)]
+        fake = types.ModuleType("openpyxl")
+        fake.load_workbook = mock.MagicMock(return_value=wb)
+        with mock.patch.dict(sys.modules, {"openpyxl": fake}):
+            d = self.client.get("/api/files/preview?path=sheet.xlsx").json()
+        self.assertEqual(d["kind"], "xlsx")
+        self.assertEqual(d["rows"], [["a", "b"], ["1", ""]])  # None -> "", ints -> str
+        wb.close.assert_called_once()
+
     # ---- activity ----
     def test_activity_recent_first(self):
         now = time.time()

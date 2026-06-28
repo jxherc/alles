@@ -238,11 +238,13 @@ def preview(path: str = Query(...)):
             import openpyxl
 
             wb = openpyxl.load_workbook(str(p), read_only=True, data_only=True)
-            ws = wb.active
-            rows = [
-                [("" if c is None else str(c)) for c in row]
-                for row in ws.iter_rows(values_only=True)
-            ]
+            try:
+                rows = [
+                    [("" if c is None else str(c)) for c in row]
+                    for row in wb.active.iter_rows(values_only=True)
+                ]
+            finally:
+                wb.close()  # read_only mode holds the file handle open until close()
             return {"kind": "xlsx", "rows": rows[:200]}
         except ImportError:
             return {"kind": "xlsx", "error": "openpyxl not installed (pip install openpyxl)"}
