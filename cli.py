@@ -11,6 +11,8 @@ alles CLI
   alles update         git pull, then restart
   alles open           open the browser
   alles doctor         check the install is ready (deps, data dir, provider)
+  alles install        put `alles` on your PATH so you can run it from anywhere
+  alles uninstall      remove the PATH launcher again
 
 windows: alles.cmd   unix/git-bash: ./alles   or just: python app.py
 """
@@ -27,8 +29,8 @@ except Exception:  # dotenv is a dep, but never let a missing
 
 
 ROOT = Path(__file__).parent
-PID_FILE = ROOT / "data" / "aide.pid"
-LOG_FILE = ROOT / "data" / "aide-server.log"
+PID_FILE = ROOT / "data" / "alles.pid"
+LOG_FILE = ROOT / "data" / "alles-server.log"
 
 load_dotenv(ROOT / ".env", encoding="utf-8-sig")
 
@@ -325,6 +327,79 @@ def cmd_doctor(args=()):
     print("ready to go.  start with:  alles start")
 
 
+def _unix_bin_dirs():
+    # ~/.local/bin first (no sudo), then /usr/local/bin (global, may need sudo)
+    return [Path.home() / ".local" / "bin", Path("/usr/local/bin")]
+
+
+def cmd_install(args=()):
+    """make `alles` runnable from any directory on mac/linux.
+
+    writes a tiny launcher onto your PATH that calls THIS python (so a venv is
+    remembered) with the full path to cli.py — no cd, no activating the venv."""
+    if IS_WIN:
+        print("windows: this folder already has alles.cmd. to run it from anywhere,")
+        print("add this folder to your PATH:")
+        print(f"  {ROOT}")
+        return
+
+    py = sys.executable or "python3"
+    cli = ROOT / "cli.py"
+
+    chosen = None
+    for d in _unix_bin_dirs():
+        try:
+            d.mkdir(parents=True, exist_ok=True)
+            t = d / ".alles_write_test"
+            t.write_text("x")
+            t.unlink()
+            chosen = d
+            break
+        except Exception:
+            continue  # not writable (e.g. /usr/local/bin without sudo) — try next
+
+    if not chosen:
+        print("no writable bin dir on PATH. install it yourself with sudo:")
+        print(f"  sudo tee /usr/local/bin/alles >/dev/null <<EOF")
+        print(f"  #!/usr/bin/env bash")
+        print(f'  exec "{py}" "{cli}" "$@"')
+        print(f"  EOF")
+        print(f"  sudo chmod +x /usr/local/bin/alles")
+        return
+
+    launcher = chosen / "alles"
+    launcher.write_text(f'#!/usr/bin/env bash\nexec "{py}" "{cli}" "$@"\n')
+    launcher.chmod(0o755)
+    print(f"installed launcher: {launcher}")
+    print(f"  -> {py} {cli}")
+
+    on_path = str(chosen) in os.environ.get("PATH", "").split(os.pathsep)
+    if on_path:
+        print("\nready — run it from anywhere:  alles start")
+    else:
+        rc = "~/.zshrc" if os.environ.get("SHELL", "").endswith("zsh") else "~/.bashrc"
+        print(f"\n{chosen} isn't on your PATH yet. add it once:")
+        print(f'  echo \'export PATH="{chosen}:$PATH"\' >> {rc} && source {rc}')
+        print("then:  alles start")
+
+
+def cmd_uninstall(args=()):
+    """remove the launcher that `alles install` created."""
+    if IS_WIN:
+        print("windows: remove this folder from your PATH manually.")
+        return
+    removed = []
+    for d in _unix_bin_dirs():
+        p = d / "alles"
+        try:
+            if p.is_symlink() or p.exists():
+                p.unlink()
+                removed.append(str(p))
+        except Exception as e:
+            print(f"couldn't remove {p}: {e}")
+    print("removed: " + ", ".join(removed) if removed else "nothing to remove")
+
+
 def cmd_test(args=()):
     """run the test suites — python (unittest) + js (node:test). pass `py` or `js` to scope."""
     import subprocess
@@ -356,6 +431,8 @@ COMMANDS = {
     "update": cmd_update,
     "open": cmd_open,
     "doctor": cmd_doctor,
+    "install": cmd_install,
+    "uninstall": cmd_uninstall,
     "test": cmd_test,
 }
 
