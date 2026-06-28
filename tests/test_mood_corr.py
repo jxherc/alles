@@ -126,6 +126,21 @@ class BuilderTests(unittest.TestCase):
         out = mc.correlations(self.s, min_overlap=6)
         self.assertFalse(any(c["label"] == "habit:old" for c in out["correlations"]))
 
+    def test_archived_habit_excluded_from_done_total(self):
+        # an archived habit's logs must not feed the "habits done (total)" aggregate either.
+        # log on alternating days so the aggregate has variance and would otherwise show up.
+        h = db.Habit(name="old", archived=True)
+        self.s.add(h)
+        self.s.commit()
+        for i in range(8):
+            good = i % 2 == 0
+            self._journal(i, "😄" if good else "😢")
+            if good:
+                self.s.add(db.HabitLog(habit_id=h.id, date=self._day(i)))
+        self.s.commit()
+        out = mc.correlations(self.s, min_overlap=6)
+        self.assertFalse(any(c["label"] == "habits done (total)" for c in out["correlations"]))
+
 
 class RouteTests(ApiTest):
     def setUp(self):
