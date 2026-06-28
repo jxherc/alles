@@ -138,9 +138,12 @@ def rename(rel: str, new_rel: str) -> dict:
 
 
 def save_upload(rel_dir: str, filename: str, data: bytes) -> dict:
+    name = Path(filename or "").name  # strip any path from the upload name
+    if not name or set(name) <= {"."}:
+        # "", ".", "..", "..." all resolve to the dir itself -> write_bytes would 500
+        raise ValueError("invalid filename")
     d = _safe(rel_dir)
     d.mkdir(parents=True, exist_ok=True)
-    name = Path(filename).name  # strip any path from the upload name
     dst = _safe(str((Path(rel_dir) / name))) if rel_dir else _safe(name)
     dst.write_bytes(data)
     return {"ok": True, "name": name, "path": str(dst.relative_to(files_dir())).replace("\\", "/")}

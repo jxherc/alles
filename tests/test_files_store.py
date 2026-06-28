@@ -43,6 +43,12 @@ class FilesStoreTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             fs.delete("")
 
+    def test_save_upload_rejects_dot_only_names(self):
+        # ".", "..", "..." and "" all reduce to the dir itself; must not write onto it
+        for bad in ("", ".", "..", "..."):
+            with self.assertRaises(ValueError):
+                fs.save_upload("", bad, b"x")
+
     def test_upload_strips_path_from_name(self):
         fs.save_upload("", "../sneaky.txt", b"x")
         names = [i["name"] for i in fs.listdir("")["items"]]
