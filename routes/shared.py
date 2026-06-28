@@ -95,6 +95,21 @@ def _not_found():
     )
 
 
+# svg/html/xml can carry <script> that runs same-origin if rendered as a document. these links are
+# public + unauthenticated, so force the risky types to download even on a "view" share, and nosniff
+# everything (an <img src> still renders an svg, but it can't run script that way). mirrors gallery._serve_safely.
+_RISKY_EXT = (".svg", ".svgz", ".html", ".htm", ".xml", ".xhtml")
+
+
+def _file_resp(p, level):
+    mt = mimetypes.guess_type(p.name)[0] or "application/octet-stream"
+    disp = "attachment" if (p.suffix.lower() in _RISKY_EXT or level == "download") else "inline"
+    return FileResponse(
+        p, media_type=mt, filename=p.name, content_disposition_type=disp,
+        headers={"X-Content-Type-Options": "nosniff"},
+    )
+
+
 _PAGE = (
     "<html><body style='font:14px/1.6 sans-serif;padding:2rem;background:#0a0a0a;color:#e8e6e3'>"
 )
@@ -158,9 +173,7 @@ def view_shared(token: str, pw: str = "", db: DbSession = Depends(get_db)):
                 return _not_found()
             if not p.exists() or not p.is_file():
                 return _not_found()
-            mt = mimetypes.guess_type(p.name)[0] or "application/octet-stream"
-            disp = "attachment" if sh.level == "download" else "inline"
-            return FileResponse(p, media_type=mt, filename=p.name, content_disposition_type=disp)
+            return _file_resp(p, sh.level)
         if sh.kind == "folder":
             try:
                 base = files_store.abspath(sh.ref)
@@ -248,9 +261,7 @@ def view_shared_child(token: str, subpath: str, pw: str = "", db: DbSession = De
         return _not_found()
     if not target.is_file():
         return _not_found()
-    mt = mimetypes.guess_type(target.name)[0] or "application/octet-stream"
-    disp = "attachment" if sh.level == "download" else "inline"
-    return FileResponse(target, media_type=mt, filename=target.name, content_disposition_type=disp)
+    return _file_resp(target, sh.level)
 
 
 _RSVP_STATUSES = {"invited", "accepted", "declined", "tentative"}
