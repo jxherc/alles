@@ -84,9 +84,11 @@ def correlations(db, *, days=180, min_overlap=6):
     # habits: 1 if done that day else 0, windowed from the habit's first log (days before you
     # tracked it aren't "missed"). a habit with no logs has no signal, so it's skipped.
     habits = db.query(Habit).filter(Habit.archived == False).all()  # noqa: E712
+    active = {h.id for h in habits}
     done = {}
     for log in db.query(HabitLog).filter(HabitLog.date >= since).all():
-        done.setdefault(log.habit_id, set()).add(log.date)
+        if log.habit_id in active:  # archived habits' logs must not feed the aggregate either
+            done.setdefault(log.habit_id, set()).add(log.date)
     for h in habits:
         hdates = done.get(h.id, set())
         if not hdates:
