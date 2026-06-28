@@ -48,6 +48,18 @@ export function parseHost() {
   return { sub, base, port, scheme };
 }
 
+// can this host actually do per-app subdomains? *.localhost works in browsers,
+// and a real configured domain works behind the wildcard proxy. a bare IP (or any
+// plain hostname) can't — so we run everything on one origin and switch in-page.
+function _isIp(h) { return /^\d{1,3}(\.\d{1,3}){3}$/.test(h) || h.includes(':'); }
+export function singleHost() {
+  const h = location.hostname;
+  if (h === 'localhost' || h.endsWith('.localhost')) return false;
+  if (_base && _base !== 'localhost' && _base.includes('.') && !_isIp(_base) &&
+      (h === _base || h.endsWith('.' + _base))) return false;
+  return true;
+}
+
 export function currentSub() { return parseHost().sub; }
 
 export function appForSub(sub) { return SUBDOMAIN_VIEWS[sub] || SUBDOMAIN_VIEWS['']; }
