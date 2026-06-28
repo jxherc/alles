@@ -147,14 +147,16 @@ def list_entries(
     q = db.query(JournalEntry)
     if month:  # YYYY-MM
         q = q.filter(JournalEntry.date.like(f"{month[:7]}-%"))
-    rows = q.order_by(JournalEntry.date.desc()).all()
+    # limit in SQL — entries is only ever the first `limit`; stats below come from their own
+    # light queries, so there's no reason to pull every (full-content) row into memory.
+    rows = q.order_by(JournalEntry.date.desc()).limit(limit).all() if limit > 0 else []
     # all entry dates, fetched once — stats are always whole-journal, never the month
     # filter (else "this month" reads 0 whenever you browse a past month)
     days = {r.date for r in db.query(JournalEntry.date).all()}
     today = date.today()
     mo = today.isoformat()[:7]
     return {
-        "entries": [_fmt(e) for e in rows[:limit]],
+        "entries": [_fmt(e) for e in rows],
         "stats": {
             "total": db.query(JournalEntry).count(),
             "this_month": sum(1 for d in days if (d or "").startswith(mo)),

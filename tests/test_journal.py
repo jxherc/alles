@@ -48,6 +48,16 @@ class CrudTests(unittest.TestCase):
         self.assertEqual(got["content"], "changed text here now")
         self.assertEqual(J.list_entries("", 60, db)["stats"]["total"], 1)  # not duplicated
 
+    def test_list_limit_caps_entries_not_stats(self):
+        db = _mkdb()
+        for i in range(5):
+            J.upsert_entry(f"2026-06-1{i}", EntryBody(content=f"entry {i}"), db)
+        out = J.list_entries("", 2, db)
+        self.assertEqual(len(out["entries"]), 2)  # capped to limit
+        self.assertEqual(out["entries"][0]["date"], "2026-06-14")  # newest first
+        self.assertEqual(out["stats"]["total"], 5)  # stats still see all
+        self.assertEqual(J.list_entries("", 0, db)["entries"], [])  # limit 0 -> none
+
     def test_this_month_stat_ignores_month_filter(self):
         # browsing a past month must NOT zero out the "this month" stat — it's the
         # current month's count regardless of which month the list is scoped to
