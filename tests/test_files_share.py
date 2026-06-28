@@ -18,6 +18,8 @@ class FilesShareTests(ApiTest):
         (self.root / "proj" / "notes.txt").write_text("some notes")
         (self.root / "proj" / "sub").mkdir()
         (self.root / "proj" / "sub" / "deep.txt").write_text("deep file")
+        (self.root / "proj" / "evil.html").write_text("<script>alert(1)</script>")
+        (self.root / "proj" / "pic.svg").write_text("<svg onload=alert(1)></svg>")
         (self.root / "secret.txt").write_text("top secret")  # sibling, outside proj
 
     def tearDown(self):
@@ -74,6 +76,30 @@ class FilesShareTests(ApiTest):
         tok = self._mint("folder", "proj", level="download").json()["token"]
         r = self.client.get(f"/s/{tok}/spec.txt")
         self.assertIn("attachment", r.headers.get("content-disposition", ""))
+
+    # ---- xss hardening: risky uploads must not render inline on a public link ----
+    def test_shared_html_file_forced_to_download_even_on_view(self):
+        tok = self._mint("file", "proj/evil.html", level="view").json()["token"]
+        r = self.client.get(f"/s/{tok}")
+        self.assertIn("attachment", r.headers.get("content-disposition", ""))
+        self.assertEqual(r.headers.get("x-content-type-options"), "nosniff")
+
+    def test_shared_svg_file_forced_to_download(self):
+        tok = self._mint("file", "proj/pic.svg", level="view").json()["token"]
+        r = self.client.get(f"/s/{tok}")
+        self.assertIn("attachment", r.headers.get("content-disposition", ""))
+
+    def test_folder_child_html_forced_to_download(self):
+        tok = self._mint("folder", "proj", level="view").json()["token"]
+        r = self.client.get(f"/s/{tok}/evil.html")
+        self.assertIn("attachment", r.headers.get("content-disposition", ""))
+        self.assertEqual(r.headers.get("x-content-type-options"), "nosniff")
+
+    def test_shared_plain_file_stays_inline_with_nosniff(self):
+        tok = self._mint("file", "proj/spec.txt", level="view").json()["token"]
+        r = self.client.get(f"/s/{tok}")
+        self.assertNotIn("attachment", r.headers.get("content-disposition", ""))
+        self.assertEqual(r.headers.get("x-content-type-options"), "nosniff")
 
     # ---- file comments ----
     def _add(self, path="proj/spec.txt", body="hi", parent_id=None):
