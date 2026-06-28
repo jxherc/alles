@@ -14,7 +14,9 @@ a bare word is a text match over from+subject. operators are case-insensitive. e
 
 import re
 
-_TOKEN = re.compile(r'\(|\)|"[^"]*"|[^()\s]+')  # parens are delimiters even when glued to a term
+# field:"quoted phrase" must stay one token (else it split into field:word AND text:word).
+# parens are delimiters even when glued to a term.
+_TOKEN = re.compile(r'[^()\s:"]+:"[^"]*"|"[^"]*"|\(|\)|[^()\s]+')
 
 
 def _tokenize(q):

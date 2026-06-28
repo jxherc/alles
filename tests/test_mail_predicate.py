@@ -52,6 +52,13 @@ class TermTests(unittest.TestCase):
         self.assertTrue(mp.match_one('subject:"team lunch"', _msg(subject="our TEAM LUNCH today")))
         self.assertFalse(mp.match_one('subject:"team lunch"', _msg(subject="team meeting")))
 
+    def test_quoted_phrase_not_split_into_terms(self):
+        # field:"a b" must match the PHRASE in that field, not (field:a AND text:b).
+        # used to tokenize as subject:"team + lunch" -> wrong, broader results.
+        self.assertTrue(mp.match_one('subject:"team lunch"', _msg(subject="our weekly team lunch")))
+        # reversed words: phrase absent -> must NOT match (the split bug matched this)
+        self.assertFalse(mp.match_one('subject:"team lunch"', _msg(subject="lunch with the team")))
+
 
 class BooleanTests(unittest.TestCase):
     def test_implicit_and(self):
