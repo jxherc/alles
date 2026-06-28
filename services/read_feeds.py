@@ -73,8 +73,6 @@ def new_items(items, existing_urls) -> list:
 
 async def refresh_feeds():
     """poll every feed, save new entries to read-later. called from the job loop."""
-    import httpx
-
     from core.database import ReadFeed, ReadItem, SessionLocal
 
     db = SessionLocal()
@@ -83,14 +81,12 @@ async def refresh_feeds():
         if not feeds:
             return
         seen = {u for (u,) in db.query(ReadItem.url).all()}
-        from services.net_guard import is_safe_url
+        from services.net_guard import safe_get_async
 
         for feed in feeds:
             try:
-                if not is_safe_url(feed.url):  # SSRF guard (loopback/metadata; LAN feeds allowed)
-                    continue
-                async with httpx.AsyncClient(timeout=15) as c:
-                    r = await c.get(feed.url, follow_redirects=True)
+                # SSRF guard re-checked on every redirect hop (a feed url could 302 to internal)
+                r = await safe_get_async(feed.url, timeout=15)
                 parsed = parse_feed(r.text)
             except Exception as e:
                 log.warning(f"feed fetch failed {feed.url}: {e}")
