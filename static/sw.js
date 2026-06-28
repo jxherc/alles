@@ -1,7 +1,7 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v160';   // journal: guard module-level image-slot parse so corrupt ls cant break boot
+const VERSION = 'v161';   // journal: artifact panel as full-screen overlay on mobile (was clipped 420px)
 const CACHE = `alles-${VERSION}`;
-const STAMP = '186';   // keep in sync with index.html ?v= / const _v
+const STAMP = '187';   // keep in sync with index.html ?v= / const _v
 
 // 1b: mutating writes that should be queued when offline
 const MUTATING = ['POST', 'PUT', 'PATCH', 'DELETE'];
