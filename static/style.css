@@ -5029,7 +5029,7 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 /* frontmatter properties */
 .md-frontmatter {
   border: 1px solid var(--faint); border-radius: 3px; margin-bottom: 1rem;
-  padding: 0.4rem 0.2rem; background: #0d0d0d;
+  padding: 0.4rem 0.2rem; background: var(--panel);  /* was #0d0d0d = black in light theme */
 }
 .md-fm-row { display: flex; gap: 0.6rem; padding: 0.12rem 0.6rem; font-size: 0.76rem; }
 .md-fm-key { color: var(--muted); min-width: 110px; }
@@ -5513,8 +5513,8 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 }
 .mail-row:hover { background: var(--panel); }
 .mail-row.sel {
-  background: #101010;
-  border-left-color: var(--muted);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);  /* was #101010 = black in light theme */
+  border-left-color: var(--accent);
 }
 .mail-row-top {
   display: flex;
