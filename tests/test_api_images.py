@@ -137,6 +137,8 @@ class ImagesApiTest(ApiTest):
         d = self.db()
         self.assertEqual(d.query(Note).count(), 1)  # filed as a note (the live docs app)
         self.assertEqual(d.query(Message).filter_by(session_id=sid).count(), 2)
+        # the stored count must match the 2 rows actually written (was +1, drifting the sidebar)
+        self.assertEqual(d.get(Sess, sid).message_count, 2)
         self.assertEqual(d.get(Sess, sid).name, "a red square")
         d.close()
 
