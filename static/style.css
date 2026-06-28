@@ -4323,6 +4323,14 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
   border-radius: 3px; border: 1px solid var(--faint);
 }
 
+/* mobile: the 420px side panel doesn't fit next to the chat, so open it as a
+   full-screen overlay and let the head/body reflow instead of clipping */
+@media (max-width: 720px) {
+  .artifact-panel { position: fixed; top: 0; right: 0; bottom: 0; z-index: 60; border-left: none; }
+  .artifact-panel.open { width: 100vw; }
+  .artifact-panel-head, .artifact-body { min-width: 0; }
+}
+
 /* ── file uploads ── */
 .attach-chip {
   display: flex; align-items: center; gap: 0.3rem;
