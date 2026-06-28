@@ -81,6 +81,24 @@ class VcardTests(unittest.TestCase):
         for i, p in enumerate(parsed):
             self.assertEqual(p["name"], f"Person {i}")
 
+    def test_unfolds_rfc_line_folding(self):
+        # phones/CardDAV fold long values onto a continuation line starting with a space
+        # (RFC 2426). the wrapped half used to be silently dropped on import.
+        vcf = (
+            "BEGIN:VCARD\r\n"
+            "VERSION:3.0\r\n"
+            "FN:Long Note Person\r\n"
+            "NOTE:this note is long enough that the exporter wrapped it across two physi\r\n"
+            " cal lines\r\n"
+            "END:VCARD\r\n"
+        )
+        p = parse_vcards(vcf)
+        self.assertEqual(len(p), 1)
+        self.assertEqual(
+            p[0]["notes"],
+            "this note is long enough that the exporter wrapped it across two physical lines",
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
