@@ -198,8 +198,7 @@ def view_shared(token: str, pw: str = "", db: DbSession = Depends(get_db)):
             p = photos_store.photos_dir() / ph.filename
             if not p.exists():
                 return _not_found()
-            mt = mimetypes.guess_type(p.name)[0] or "application/octet-stream"
-            return FileResponse(p, media_type=mt, content_disposition_type="inline")
+            return _file_resp(p, "view")
         if sh.kind == "album":
             alb = db.get(Album, sh.ref)
             if not alb:
@@ -247,8 +246,7 @@ def view_shared_child(token: str, subpath: str, pw: str = "", db: DbSession = De
         p = photos_store.photos_dir() / ph.filename
         if not p.is_file():
             return _not_found()
-        mt = mimetypes.guess_type(p.name)[0] or "application/octet-stream"
-        return FileResponse(p, media_type=mt, content_disposition_type="inline")
+        return _file_resp(p, "view")
     if sh.kind != "folder":
         return _not_found()
     try:
