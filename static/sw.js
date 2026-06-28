@@ -1,7 +1,7 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v163';   // journal: selected mail row + md frontmatter were hardcoded black in light theme
+const VERSION = 'v164';   // journal: shell input + agent diff block were black w/ dark text = unreadable in light theme
 const CACHE = `alles-${VERSION}`;
-const STAMP = '189';   // keep in sync with index.html ?v= / const _v
+const STAMP = '190';   // keep in sync with index.html ?v= / const _v
 
 // 1b: mutating writes that should be queued when offline
 const MUTATING = ['POST', 'PUT', 'PATCH', 'DELETE'];
