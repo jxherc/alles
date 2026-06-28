@@ -100,6 +100,27 @@ class MailOutboxTests(ApiTest):
         self.assertEqual(db.get(ScheduledMail, s["id"]).status, "scheduled")  # still queued
         db.close()
 
+    def test_crash_mid_batch_keeps_earlier_send_committed(self):
+        # send #1, then a crash (BaseException escapes) before the batch would commit.
+        # #1 must already be persisted as 'sent' so the next tick can't re-send it.
+        self._schedule("2020-01-01T00:00:00", subject="first")
+        self._schedule("2020-01-01T00:00:01", subject="second")
+        sess = self.db()
+        calls = []
+
+        def crashy(a, m):
+            calls.append(m.id)
+            if len(calls) == 2:
+                raise KeyboardInterrupt("simulated crash before batch commit")
+
+        with self.assertRaises(KeyboardInterrupt):
+            mail_outbox.process_due(sess, send_fn=crashy)
+        sess.rollback()  # a dead process drops its uncommitted txn
+        sess.close()
+        db = self.db()
+        self.assertEqual(db.get(ScheduledMail, calls[0]).status, "sent")
+        db.close()
+
     def test_process_due_missing_account_stays_scheduled(self):
         # account deleted -> can't send -> leave it queued, don't silently mark it sent
         s = self._schedule("2020-01-01T00:00:00")
