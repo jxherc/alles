@@ -82,6 +82,8 @@ class ShareAlbumTests(ApiTest):
         r = self.client.get(f"/s/{tok}/{a}")
         self.assertEqual(r.status_code, 200)
         self.assertTrue(r.headers["content-type"].startswith("image/"))
+        # public image responses must carry nosniff so a browser can't sniff them into a doc
+        self.assertEqual(r.headers.get("x-content-type-options"), "nosniff")
 
     def test_album_child_non_member_404(self):
         aid = self._album()
@@ -141,3 +143,11 @@ class ShareAlbumTests(ApiTest):
         tok = self._mint(aid)
         r = self.client.get(f"/s/{tok}")
         self.assertEqual(r.status_code, 200)
+
+    def test_single_photo_share_has_nosniff(self):
+        pid = self._upload("solo.png")
+        tok = self.client.post("/api/share", json={"kind": "photo", "ref": pid}).json()["token"]
+        r = self.client.get(f"/s/{tok}")
+        self.assertEqual(r.status_code, 200)
+        self.assertTrue(r.headers["content-type"].startswith("image/"))
+        self.assertEqual(r.headers.get("x-content-type-options"), "nosniff")
