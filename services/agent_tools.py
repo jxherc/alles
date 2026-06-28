@@ -559,10 +559,20 @@ async def _web_fetch(url: str, max_chars: int = 12000) -> dict:
             return {"output": "only http/https URLs are allowed", "error": True}
         from services.net_guard import is_safe_url
 
-        if not is_safe_url(url):  # SSRF: a prompt-injected agent can't fetch internal/metadata urls
-            return {"output": "refusing to fetch an internal/non-public url", "error": True}
-        async with httpx.AsyncClient(timeout=20, follow_redirects=True) as c:
-            r = await c.get(url, headers={"user-agent": "aide-agent/1.0"})
+        # follow redirects MANUALLY so every hop is SSRF-checked — with httpx follow_redirects=True a
+        # public url could 302 to http://169.254.169.254 / localhost and the guard never sees it.
+        async with httpx.AsyncClient(timeout=20, follow_redirects=False) as c:
+            cur = url
+            for _hop in range(6):
+                if not is_safe_url(cur):
+                    return {"output": "refusing to fetch an internal/non-public url", "error": True}
+                r = await c.get(cur, headers={"user-agent": "aide-agent/1.0"})
+                loc = r.headers.get("location") if r.is_redirect else None
+                if not loc:
+                    break
+                cur = str(httpx.URL(cur).join(loc))  # resolve relative redirects
+            else:
+                return {"output": "too many redirects", "error": True}
             r.raise_for_status()
         text = r.text
         if "html" in r.headers.get("content-type", ""):
