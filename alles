@@ -9,7 +9,8 @@ done
 dir="$(cd -P "$(dirname "$src")" && pwd)"
 
 for py in python3 python; do
-  if command -v "$py" >/dev/null 2>&1; then exec "$py" "$dir/cli.py" "$@"; fi
+  # skip the windows store python3 stub — it's on PATH but isn't real python
+  if command -v "$py" >/dev/null 2>&1 && "$py" -c '' >/dev/null 2>&1; then exec "$py" "$dir/cli.py" "$@"; fi
 done
 echo "alles: no python found on PATH — install Python 3.11+ (python3)" >&2
 exit 1

@@ -26,6 +26,9 @@ aide-pre-restore-*/
 *.log
 server*.log
 
+# graphify knowledge-graph output — local only, never track
+graphify-out/
+
 # ide / local tooling + agent instruction files — never track
 .claude/
 .vscode/

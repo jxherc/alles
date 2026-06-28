@@ -90,6 +90,18 @@ python app.py
 
 open **http://localhost:8000** and you're in.
 
+**want the `alles` command everywhere (mac/linux)?** run `./alles install` once — it
+drops a small launcher on your PATH pointing at the python you're using (venv and
+all), so from then on `alles start` / `alles stop` / `alles logs` work from any
+directory, no `cd`, no activating the venv. `./alles uninstall` removes it again.
+on a server with a venv that's just:
+
+```bash
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+./alles install      # now `alles start` works anywhere
+```
+
 **no api key is needed to boot.** mail, docs, files, calendar, tasks, subs, days, photos, contacts, secrets — all work out of the box. when you want aide to talk, add a model under **settings → models** (one click for openai / anthropic / deepseek / groq / gemini / ollama and ~10 more), or drop a key like `deepseek_api_key` into `.env`.
 
 **prefer docker?** `docker build -t alles . && docker run -p 8000:8000 -v alles-data:/app/data alles` — the `data/` volume keeps your db, vault, uploads, and keys across rebuilds.
