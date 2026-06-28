@@ -3806,8 +3806,9 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
   cursor: pointer; transition: background 0.12s; overflow: hidden;
 }
 .cal-cell:hover { background: var(--panel); }
-.cal-cell.empty { background: #0c0c0c; cursor: default; }
-.cal-cell.empty:hover { background: #0c0c0c; }
+/* out-of-month padding cells: recessed surface, theme-aware (was hardcoded #0c0c0c = black in light) */
+.cal-cell.empty { background: var(--panel); cursor: default; }
+.cal-cell.empty:hover { background: var(--panel); }
 .cal-cell-num { font-size: 0.72rem; color: var(--muted); margin-bottom: 0.2rem; }
 .cal-cell.today .cal-cell-num {
   color: var(--bg); background: var(--accent);
@@ -4043,10 +4044,10 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 .cal-tg-scroll { flex: 1; overflow-y: auto; min-height: 0; }
 .cal-tg-hour { font-size: 0.58rem; color: var(--muted); text-align: right; padding-right: 0.3rem; border-top: 1px solid var(--faint); box-sizing: border-box; }
 .cal-tg-col { position: relative; border-left: 1px solid var(--faint); }
-.cal-tg-slot { border-top: 1px solid #161616; box-sizing: border-box; cursor: pointer; }
+.cal-tg-slot { border-top: 1px solid var(--faint); box-sizing: border-box; cursor: pointer; }
 .cal-tg-slot:hover { background: var(--panel); }
-.cal-tg-slot.offhours { background: #0d0d0d; }   /* 8a working-hours shading */
-.cal-tg-slot.offhours:hover { background: #131313; }
+.cal-tg-slot.offhours { background: var(--panel); }   /* 8a working-hours shading (theme-aware; was #0d0d0d = black in light) */
+.cal-tg-slot.offhours:hover { background: color-mix(in srgb, var(--panel) 70%, var(--faint)); }
 /* 8a agenda view */
 .cal-agenda { max-width: 760px; margin: 0 auto; padding: 0.5rem 0; }
 .cal-agenda-empty, .cal-agenda-day + .cal-agenda-empty { color: var(--muted); padding: 2rem; text-align: center; }
