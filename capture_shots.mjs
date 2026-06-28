@@ -15,7 +15,20 @@ async function findChrome() {
 }
 const P = 8799;
 const OUT = 'docs/screenshots';
+const THEME = process.env.SHOT_THEME || 'dark';   // 'dark' | 'light' | '' (leave whatever the server saved)
 const wait = ms => new Promise(r => setTimeout(r, ms));
+
+// force a theme for the shot without persisting it (DOM-only). runs AFTER boot+server-reconcile so it
+// sticks. uses the app's own applyAppearance with the dark/light preset palette.
+async function applyTheme(page, mode) {
+  if (!mode) return;
+  await page.evaluate(async (m) => {
+    const mod = await import('/static/js/theme.js');
+    const base = m === 'light' ? mod.PRESETS.light : mod.PRESETS.dark;
+    const cur = mod.getAppearance ? mod.getAppearance() : {};
+    mod.applyAppearance({ ...cur, preset: m, colors: { ...base.colors } });
+  }, mode).catch(e => console.error('theme switch failed:', e.message));
+}
 
 // [file, url, optional async (page)=>{} for interaction before the shot]
 const SHOTS = [
@@ -52,6 +65,8 @@ try {
   for (const [name, url, fn] of SHOTS) {
     await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
     await wait(3200);                       // SPA boots + paints (never networkidle — system polls)
+    await applyTheme(page, THEME);          // force the chosen theme (default dark) before the shot
+    await wait(400);
     if (fn) await fn(page);
     await page.screenshot({ path: `${OUT}/${name}.png` });
     console.log('saved', name);
