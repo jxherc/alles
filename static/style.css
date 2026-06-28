@@ -646,7 +646,7 @@ body:not(.is-aide) .aide-only { display: none !important; }
   padding: 0.4rem 0.5rem;
   border: 1px solid var(--faint);
   border-radius: 3px;
-  background: #060606;
+  background: var(--panel);  /* was #060606 = black + dark text = unreadable in light theme */
   font-family: 'JetBrains Mono', monospace;
   font-size: 0.7rem;
   line-height: 1.5;
@@ -946,7 +946,7 @@ code {
   border-bottom: 1px solid var(--faint);
   outline: none;
   padding: 0.6rem;
-  background: #050505;
+  background: var(--panel);  /* was #050505 = black + dark text = unreadable in light theme */
   color: var(--text);
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 0.78rem;
