@@ -87,7 +87,8 @@ def read_text(rel: str, limit: int = 200_000) -> dict:
     if not p.is_file():
         raise ValueError("not a file")
     mime = mimetypes.guess_type(p.name)[0] or "application/octet-stream"
-    raw = p.read_bytes()[:limit]
+    with p.open("rb") as f:
+        raw = f.read(limit)  # stream just the head; don't slurp a 100MB file to hand back 200KB
     try:
         text = raw.decode("utf-8")
         is_text = True

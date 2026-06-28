@@ -48,6 +48,19 @@ class FilesStoreTests(unittest.TestCase):
         names = [i["name"] for i in fs.listdir("")["items"]]
         self.assertIn("sneaky.txt", names)  # the ../ was stripped
 
+    def test_read_text_reads_only_head_up_to_limit(self):
+        # big file: only the head up to `limit` is decoded, but full size is still reported
+        fs.save_upload("", "big.txt", b"A" * 5000)
+        r = fs.read_text("big.txt", limit=1000)
+        self.assertEqual(len(r["content"]), 1000)
+        self.assertTrue(r["truncated"])
+        self.assertEqual(r["size"], 5000)
+        # small file: full content, not truncated
+        fs.save_upload("", "small.txt", b"hello")
+        r2 = fs.read_text("small.txt", limit=1000)
+        self.assertEqual(r2["content"], "hello")
+        self.assertFalse(r2["truncated"])
+
     def test_read_binary_returns_not_text(self):
         fs.save_upload("", "img.png", b"\x89PNG\r\n\x1a\n\x00\x00\x00")
         r = fs.read_text("img.png")
