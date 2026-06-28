@@ -6,6 +6,9 @@ import { sortModels, filterNewest } from './modelfilter.js';
 let _endpoints = [];
 let _selected = null;   // { endpointId, model }
 
+// safe ls read — corrupt json here used to throw at module load and kill app boot
+function _ls(key) { try { return JSON.parse(localStorage.getItem(key) || 'null'); } catch { return null; } }
+
 const PRESETS = [
   { name: 'OpenAI',      url: 'https://api.openai.com',                              key: 'sk-...' },
   { name: 'Anthropic',   url: 'https://api.anthropic.com',                           key: 'sk-ant-...' },
@@ -84,7 +87,7 @@ function _isImageModel(endpointId, model) {
 // model so you can run e.g. sonnet (chat) + gpt-image-2 (images) at once. chat auto-routes
 // image requests here. selecting an image model in the picker fills this instead of swapping
 // out the chat model.
-let _imageSlot = JSON.parse(localStorage.getItem('aide-image-model') || 'null');
+let _imageSlot = _ls('aide-image-model');
 export function getImageSlot() {
   if (!_imageSlot) return null;
   // drop it if a refresh pruned the model (no longer offered by the endpoint)
