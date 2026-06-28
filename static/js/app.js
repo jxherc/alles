@@ -24,7 +24,7 @@ import { loadFiles, initFiles } from './files.js';
 import { loadMail, startMailPoll } from './mail.js';
 import { initAppCogs } from './appsettings.js';
 import { loadPhotos, initPhotos } from './photos.js';
-import { setBaseDomain, parseHost, appForSub, viewToSub, urlForApp, currentSub, SUBDOMAIN_VIEWS } from './subdomain.js';
+import { setBaseDomain, parseHost, appForSub, viewToSub, urlForApp, currentSub, singleHost, SUBDOMAIN_VIEWS } from './subdomain.js';
 import { loadBrainPanel } from './brain.js';
 import { openSettings, closeSettings, applyVis } from './settings.js';
 import { setIncognitoMode, getPermMode, setPermMode, getEffort, setEffort } from './modes.js';
@@ -242,16 +242,37 @@ function _wireCrumbNav(el) {
   el.addEventListener('click', e => {
     if (e.metaKey || e.ctrlKey || e.shiftKey) return;   // let the browser open a new tab
     const root = e.target.closest('.crumb-root');
-    if (root) {                                  // "alles" → the hub (needs an SSO handoff)
+    if (root) {                                  // "alles" → back to the launcher / hub
       e.preventDefault();
-      if (currentSub()) crossNav(''); else showHomeView();
+      if (singleHost()) navigateTo('home');
+      else if (currentSub()) crossNav(''); else showHomeView();
     }
     // the app-name part: let its href (the app's own root) load → that app's home page
   });
 }
 
+// single host (raw ip / no subdomains): there's nowhere to jump to, so we fake the
+// per-app chrome (crumb + title) as the user moves between apps in-page.
+function _shChrome(v) {
+  const sub = viewToSub(v);
+  const app = appForSub(sub);
+  const onHome = v === 'home';
+  document.body.classList.toggle('is-hub', onHome);
+  document.body.classList.toggle('is-subapp', !onHome);
+  document.body.classList.remove('is-aide');
+  document.body.dataset.app = app.app;
+  document.title = onHome ? 'alles' : `${app.app} / alles`;
+  _show('app-crumb', !onHome);
+  const crumb = document.getElementById('app-crumb');
+  if (crumb) {
+    if (onHome) crumb.replaceChildren(document.createTextNode('alles'));
+    else _buildCrumb(crumb, app.app, sub || app.app);
+  }
+}
+
 // cross-app jump → full-page nav to that app's subdomain, carrying an SSO handoff code
 async function crossNav(sub) {
+  if (singleHost()) { navigateTo(appForSub(sub).primary); return; }  // one origin → in-page
   let url = urlForApp(sub);
   try {
     const { code } = await fetch('/api/auth/handoff').then(r => r.json());
@@ -385,11 +406,13 @@ const showProactiveView  = () => showView('proactive-view', 'proactive', loadPro
 function navigateTo(v) {
   // memory now lives inside settings, not as its own view
   if (v === 'memory') { openSettings('memory'); return; }
-  // a view that lives on another subdomain → full-page jump (with SSO handoff)
-  if (v !== 'settings') {
+  // a view that lives on another subdomain → full-page jump (with SSO handoff).
+  // on a single host there are no subdomains, so we just render it here instead.
+  if (v !== 'settings' && !singleHost()) {
     const dest = viewToSub(v);
     if (dest !== currentSub()) { crossNav(dest); return; }
   }
+  if (singleHost() && v !== 'settings') _shChrome(v);
   if      (v === 'home')      showHomeView();
   else if (v === 'chat')      showChatView();
   else if (v === 'models')    showModelsView();

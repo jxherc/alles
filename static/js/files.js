@@ -317,7 +317,10 @@ async function _injectDocsShortcut() {
   row.className = 'file-row files-doc-shortcut';
   row.style.cursor = 'pointer';
   row.innerHTML = `<span class="file-icon">${_si('file')}</span><span class="file-name">documents</span><span class="file-meta">${n} note${n === 1 ? '' : 's'} · open in docs →</span>`;
-  row.addEventListener('click', () => { try { window.location.href = urlForApp('docs'); } catch { location.hash = ''; } });
+  row.addEventListener('click', () => {
+    if (window._navigateTo) return window._navigateTo('wiki');   // works on one host or across subdomains
+    try { window.location.href = urlForApp('docs'); } catch { location.hash = ''; }
+  });
   list.insertBefore(row, list.firstChild);
 }
 
