@@ -417,16 +417,14 @@ def import_ics(body: IcsImport, db: DbSession = Depends(get_db)):
 # ── ICS URL subscriptions (8a) ────────────────────────────────────────────────
 def fetch_ics(url: str) -> str:
     """fetch a remote .ics. isolated so tests can patch it (no network)."""
-    import httpx
-
     # webcal:// is just http(s) for an ICS feed
     u = url.strip()
     if u.lower().startswith("webcal://"):
         u = "https://" + u[len("webcal://") :]
-    from services.net_guard import assert_safe_url
+    from services.net_guard import safe_get
 
-    assert_safe_url(u)  # SSRF guard: a subscription url can't point at internal/metadata addresses
-    r = httpx.get(u, timeout=20, follow_redirects=True)
+    # SSRF guard re-checked on every redirect hop (a feed url could 302 to an internal address)
+    r = safe_get(u, timeout=20)
     r.raise_for_status()
     return r.text
 
