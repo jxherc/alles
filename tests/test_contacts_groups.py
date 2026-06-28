@@ -108,3 +108,15 @@ class ContactsGroupsTests(ApiTest):
         a = self._contact("P")
         r = self.client.post("/api/contacts/merge", json={"primary_id": a, "other_id": "nope"})
         self.assertEqual(r.status_code, 404)
+
+    def test_merge_dedups_shared_relationship_edges(self):
+        # a and b are both linked to the same relative x; merging b into a must not leave
+        # two a->x edges (related used to list x twice).
+        a, b, x = self._contact("A"), self._contact("B"), self._contact("X")
+        self.client.post(f"/api/contacts/{a}/links", json={"to_id": x, "kind": "sibling"})
+        self.client.post(f"/api/contacts/{b}/links", json={"to_id": x, "kind": "sibling"})
+        self.client.post("/api/contacts/merge", json={"primary_id": a, "other_id": b})
+        fwd = self.client.get(f"/api/contacts/{a}/related").json()["related"]
+        self.assertEqual(len([r for r in fwd if r["id"] == x]), 1)
+        rev = self.client.get(f"/api/contacts/{x}/related").json()["related"]
+        self.assertEqual(len([r for r in rev if r["id"] == a]), 1)
