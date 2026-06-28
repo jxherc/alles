@@ -110,6 +110,12 @@ class FileVersionTests(ApiTest):
         vs = self.client.get("/api/files/versions", params={"path": "v.txt"}).json()
         self.assertEqual(len(vs), 2)
 
+    def test_upload_pathological_filename_rejected(self):
+        # names that strip to nothing ("." "/" "...") used to write onto the dir itself -> 500.
+        # now a clean 400. (empty "" is rejected earlier by fastapi's File(...) as 422.)
+        for fn in (".", "/", "..."):
+            self.assertEqual(self._upload(fn, "data").status_code, 400, f"{fn!r}")
+
     def test_api_versions_list_shape(self):
         self._upload("s.txt", "a")
         self._upload("s.txt", "b")
