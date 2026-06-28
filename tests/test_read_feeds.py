@@ -76,6 +76,8 @@ class FeedApiTests(ApiTest):
 
         class FakeResp:
             text = RSS
+            is_redirect = False
+            headers: dict = {}
 
         class FakeClient:
             def __init__(self, *a, **k):

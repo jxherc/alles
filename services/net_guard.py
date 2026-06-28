@@ -74,3 +74,19 @@ def safe_get(url: str, *, timeout=20, headers=None, max_redirects=6):
                 return r
             cur = str(httpx.URL(cur).join(loc))  # resolve relative redirects
     raise ValueError("too many redirects")
+
+
+async def safe_get_async(url: str, *, timeout=20, headers=None, max_redirects=6):
+    """async twin of safe_get — SSRF guard re-checked on every redirect hop."""
+    import httpx
+
+    cur = url
+    async with httpx.AsyncClient(timeout=timeout, follow_redirects=False) as c:
+        for _ in range(max_redirects):
+            assert_safe_url(cur)
+            r = await c.get(cur, headers=headers or {})
+            loc = r.headers.get("location") if r.is_redirect else None
+            if not loc:
+                return r
+            cur = str(httpx.URL(cur).join(loc))
+    raise ValueError("too many redirects")
