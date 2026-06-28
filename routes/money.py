@@ -961,7 +961,7 @@ def assign_envelope(body: AssignBody, db: DbSession = Depends(get_db)):
     cat = (body.category or "").strip()
     if not cat:
         raise HTTPException(400, "category required")
-    month = (body.month or "").strip() or datetime.utcnow().strftime("%Y-%m")
+    month = (body.month or "").strip() or date.today().strftime("%Y-%m")
     row = db.query(BudgetAssignment).filter_by(
         category=cat, month=month
     ).first() or BudgetAssignment(category=cat, month=month)
@@ -999,7 +999,7 @@ def set_target(body: TargetBody, db: DbSession = Depends(get_db)):
 @router.get("/envelope")
 def envelope(month: str = "", db: DbSession = Depends(get_db)):
     if not month:
-        month = datetime.utcnow().strftime("%Y-%m")
+        month = date.today().strftime("%Y-%m")
     spent_now = _spending_by_cat(db, month)
     spent_upto = _spending_by_cat(db, month, upto=True)
     assigns = db.query(BudgetAssignment).all()
@@ -1097,8 +1097,8 @@ def _ym(month):
             raise ValueError
         return y, m
     except (ValueError, IndexError):
-        now = datetime.utcnow()
-        return now.year, now.month
+        t = date.today()
+        return t.year, t.month
 
 
 def _last_day(month):
@@ -1129,11 +1129,11 @@ def forecast(
     """project the end-of-month balance from today's balance + remaining recurring txns. 2b adds
     a per-category projection (`categories`) + what-if (`skip` comma payees, `income_delta`)."""
     if not month:
-        month = datetime.utcnow().strftime("%Y-%m")
+        month = date.today().strftime("%Y-%m")
     try:
-        as_of_d = date.fromisoformat(as_of) if as_of else datetime.utcnow().date()
+        as_of_d = date.fromisoformat(as_of) if as_of else date.today()
     except ValueError:
-        as_of_d = datetime.utcnow().date()
+        as_of_d = date.today()
     end = _last_day(month)
     accounts = db.query(Account).all()
     start = _net_worth_at(db, accounts, as_of_d.isoformat())
@@ -1185,7 +1185,7 @@ def forecast(
 
 @router.get("/networth-history")
 def networth_history(months: int = 6, as_of: str = "", db: DbSession = Depends(get_db)):
-    end_month = as_of[:7] if as_of else datetime.utcnow().strftime("%Y-%m")
+    end_month = as_of[:7] if as_of else date.today().strftime("%Y-%m")
     accounts = db.query(Account).all()
     txns = db.query(Transaction).all()
     y, m = _ym(end_month)
@@ -1356,11 +1356,11 @@ def delete_watch(wid: str, db: DbSession = Depends(get_db)):
 @router.get("/alerts")
 def alerts(month: str = "", big: float = 200.0, as_of: str = "", db: DbSession = Depends(get_db)):
     if not month:
-        month = datetime.utcnow().strftime("%Y-%m")
+        month = date.today().strftime("%Y-%m")
     try:
-        as_of_d = date.fromisoformat(as_of) if as_of else datetime.utcnow().date()
+        as_of_d = date.fromisoformat(as_of) if as_of else date.today()
     except ValueError:
-        as_of_d = datetime.utcnow().date()
+        as_of_d = date.today()
     watches = db.query(Watch).all()
     large, watch_hits = [], []
     for t in db.query(Transaction).filter(Transaction.date.like(f"{month}%")).all():
@@ -1605,7 +1605,7 @@ def _recent_months(month: str, n: int = 6):
 @router.get("/summary")
 def summary(month: str = "", db: DbSession = Depends(get_db)):
     if not month:
-        month = datetime.utcnow().strftime("%Y-%m")
+        month = date.today().strftime("%Y-%m")
     accounts = db.query(Account).all()
     bal = _balances(db)
     net_worth = sum((a.opening or 0.0) + bal.get(a.id, 0.0) for a in accounts if not a.archived)
