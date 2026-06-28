@@ -153,15 +153,16 @@ def _extract_date(t: str, today: date):
     return None, t
 
 
-def _add_month(d: date) -> date:
+def _add_month(d: date, anchor: int | None = None) -> date:
     y, m = (d.year + 1, 1) if d.month == 12 else (d.year, d.month + 1)
     import calendar
 
-    return date(y, m, min(d.day, calendar.monthrange(y, m)[1]))
+    return date(y, m, min(anchor or d.day, calendar.monthrange(y, m)[1]))
 
 
-def advance(due: str, repeat: str) -> str | None:
-    """next due date for a recurring task once the current one is done."""
+def advance(due: str, repeat: str, anchor: int | None = None) -> str | None:
+    """next due date for a recurring task once the current one is done. `anchor` is the original
+    day-of-month — pass it so monthly/yearly don't drift the day down after a short month."""
     if not due or not repeat:
         return None
     try:
@@ -173,10 +174,9 @@ def advance(due: str, repeat: str) -> str | None:
     if repeat == "weekly":
         return (d + timedelta(days=7)).isoformat()
     if repeat == "monthly":
-        return _add_month(d).isoformat()
+        return _add_month(d, anchor).isoformat()
     if repeat == "yearly":
-        try:
-            return d.replace(year=d.year + 1).isoformat()
-        except ValueError:  # feb 29
-            return d.replace(year=d.year + 1, day=28).isoformat()
+        import calendar
+        y = d.year + 1
+        return date(y, d.month, min(anchor or d.day, calendar.monthrange(y, d.month)[1])).isoformat()
     return None

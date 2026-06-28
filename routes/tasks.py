@@ -141,6 +141,8 @@ def create_task(body: TaskBody, db: DbSession = Depends(get_db)):
         fields["due_date"] = body.due_date or p["due_date"]
         fields["repeat"] = body.repeat or p["repeat"]
         fields["tags"] = body.tags or p["tags"]
+    if fields.get("repeat") and (fields.get("due_date") or "")[:10] and len(fields["due_date"]) >= 10:
+        fields["anchor_day"] = int(fields["due_date"][8:10])  # pin the day so monthly/yearly don't drift
     t = Task(**fields)
     db.add(t)
     db.commit()
@@ -159,11 +161,13 @@ def quick_add(body: QuickBody, db: DbSession = Depends(get_db)):
     if not body.text.strip():
         raise HTTPException(400, "empty")
     p = parse_task(body.text)
+    _due = p["due_date"] or ""
     t = Task(
         title=p["title"],
         priority=p["priority"],
         due_date=p["due_date"],
         repeat=p["repeat"],
+        anchor_day=(int(_due[8:10]) if p["repeat"] and len(_due) >= 10 else None),
         tags=p["tags"],
         project=body.project,
     )
@@ -186,13 +190,15 @@ def update_task(tid: str, body: dict, db: DbSession = Depends(get_db)):
         t.completed_at = datetime.utcnow() if body["done"] else None
     if body.get("done") and not t.done and t.repeat and t.due_date:
         # completing a recurring task rolls it forward to the next occurrence
-        nxt = advance(t.due_date, t.repeat)
+        anchor = t.anchor_day or (int(t.due_date[8:10]) if len(t.due_date) >= 10 else None)
+        nxt = advance(t.due_date, t.repeat, anchor)
         if nxt:
             spawned = Task(
                 title=t.title,
                 priority=t.priority,
                 due_date=nxt,
                 repeat=t.repeat,
+                anchor_day=anchor,
                 tags=t.tags,
                 project=t.project,
                 notes=t.notes,
@@ -213,6 +219,9 @@ def update_task(tid: str, body: dict, db: DbSession = Depends(get_db)):
     ):
         if f in body:
             setattr(t, f, body[f])
+    # keep the drift anchor in sync if the due date was edited on a repeating task
+    if ("due_date" in body or "repeat" in body):
+        t.anchor_day = int(t.due_date[8:10]) if (t.repeat and t.due_date and len(t.due_date) >= 10) else None
     db.commit()
     db.refresh(t)
     out = _fmt(t)
