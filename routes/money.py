@@ -29,21 +29,23 @@ router = APIRouter(prefix="/api/money")
 RECUR_CYCLES = ("weekly", "monthly", "quarterly", "yearly", "custom")
 
 
-def _add_months(d: date, n: int) -> date:
+def _add_months(d: date, n: int, anchor: int | None = None) -> date:
+    # clamp from the ANCHOR day (original day-of-month), not the possibly-already-clamped d.day, so a
+    # bill due the 31st goes 31 -> feb 28 -> mar 31 instead of drifting down to the 28th forever
     y, m = divmod(d.month - 1 + n, 12)
     y, m = d.year + y, m + 1
-    return date(y, m, min(d.day, _cal.monthrange(y, m)[1]))
+    return date(y, m, min(anchor or d.day, _cal.monthrange(y, m)[1]))
 
 
-def _advance(d: date, cycle: str, cycle_days: int) -> date:
+def _advance(d: date, cycle: str, cycle_days: int, anchor: int | None = None) -> date:
     if cycle == "weekly":
         return d + timedelta(days=7)
     if cycle == "monthly":
-        return _add_months(d, 1)
+        return _add_months(d, 1, anchor)
     if cycle == "quarterly":
-        return _add_months(d, 3)
+        return _add_months(d, 3, anchor)
     if cycle == "yearly":
-        return _add_months(d, 12)
+        return _add_months(d, 12, anchor)
     return d + timedelta(days=max(1, cycle_days or 30))
 
 
@@ -680,6 +682,7 @@ def _post_due_recurring(db, today: date = None) -> bool:
             nd = date.fromisoformat(r.next_date[:10])
         except ValueError:
             continue
+        anchor = r.anchor_day or nd.day  # clamp every occurrence from here, not the last clamped date
         guard = 0
         while nd <= today and guard < _RECUR_CAP:
             db.add(
@@ -693,7 +696,7 @@ def _post_due_recurring(db, today: date = None) -> bool:
                 )
             )
             r.last_posted = nd.isoformat()
-            nd = _advance(nd, r.cycle, r.cycle_days)
+            nd = _advance(nd, r.cycle, r.cycle_days, anchor)
             guard += 1
             changed = True
         r.next_date = nd.isoformat()
@@ -756,6 +759,7 @@ def create_recurring(body: RecurringBody, db: DbSession = Depends(get_db)):
         cycle=body.cycle,
         cycle_days=body.cycle_days or 30,
         next_date=body.next_date[:10],
+        anchor_day=date.fromisoformat(body.next_date[:10]).day,
         active=body.active,
     )
     db.add(r)
@@ -784,6 +788,8 @@ def update_recurring(rid: str, body: dict, db: DbSession = Depends(get_db)):
     ):
         if k in body:
             setattr(r, k, body[k])
+    if "next_date" in body and len(r.next_date or "") >= 10:
+        r.anchor_day = date.fromisoformat(r.next_date[:10]).day  # keep the drift anchor in sync
     db.commit()
     return _rec(r)
 

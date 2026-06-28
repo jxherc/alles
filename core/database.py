@@ -205,6 +205,7 @@ class Task(Base):
     parent_id = Column(String, nullable=True)  # subtasks point at their parent
     tags = Column(String, default="")  # comma-separated
     repeat = Column(String, default="")  # ''|daily|weekly|monthly|yearly
+    anchor_day = Column(Integer, nullable=True)  # original day-of-month so monthly/yearly repeats don't drift
     notes = Column(Text, default="")
     project = Column(String, default="")
     sort_order = Column(Integer, default=0)  # manual drag-reorder
@@ -904,6 +905,7 @@ class RecurringTxn(Base):
     cycle = Column(String, default="monthly")  # weekly|monthly|quarterly|yearly|custom
     cycle_days = Column(Integer, default=30)  # only used when cycle == custom
     next_date = Column(String, default="")  # ISO date of the next occurrence to post
+    anchor_day = Column(Integer, nullable=True)  # original day-of-month so monthly/yearly don't drift after short months
     active = Column(Boolean, default=True)
     last_posted = Column(String, default="")  # ISO date we last auto-posted
     created_at = Column(DateTime, default=_now)
