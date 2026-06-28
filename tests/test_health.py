@@ -97,6 +97,14 @@ class HealthApiTests(ApiTest):
         self.assertEqual(len(w["series"]), 2)
         self.assertEqual(w["series"][0]["value"], 80)  # oldest first
 
+    def test_overview_latest_by_date_not_insertion(self):
+        # backfilling an older-dated row after a newer one must NOT make it "latest"
+        self._create(value=79, date="2026-06-20")  # newer date, lower id
+        self._create(value=80, date="2026-06-18")  # older date, higher id (backfill)
+        ov = self.client.get("/api/health/overview").json()
+        w = next(k for k in ov["kinds"] if k["kind"] == "weight")
+        self.assertEqual(w["latest"]["value"], 79)  # newest date wins, not newest insertion
+
     def test_overview_range_excludes_old(self):
         old = (date.today() - timedelta(days=400)).isoformat()
         self._create(value=99, date=old)

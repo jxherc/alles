@@ -85,10 +85,16 @@ def overview(days: int = 365, db: DbSession = Depends(get_db)):
     targets = load_settings().get("health_targets") or {}
     since = (date.today() - timedelta(days=max(1, days))).isoformat()
     rows = db.query(HealthEntry).filter(HealthEntry.date >= since).all()
-    # order by id so the latest map sees insertion order (a same-day correction wins). key by
-    # (kind, label) so distinct custom metrics (e.g. blood pressure vs steps) get their own card.
+    # latest per (kind, label) by DATE, ties broken by insertion (id-asc + >=) — so a backfilled
+    # older-dated row can't beat a newer one. key by (kind, label) so distinct custom metrics
+    # (e.g. blood pressure vs steps) get their own card.
     all_rows = db.query(HealthEntry).order_by(HealthEntry.id.asc()).all()
-    latest_kl = {(e.kind, e.label or ""): e for e in all_rows}
+    latest_kl: dict = {}
+    for e in all_rows:
+        key = (e.kind, e.label or "")
+        cur = latest_kl.get(key)
+        if cur is None or str(e.date) >= str(cur.date):
+            latest_kl[key] = e
     out = []
     seen = set()
     for e in rows:  # only metrics with an entry IN the selected range get a card
