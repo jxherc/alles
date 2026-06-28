@@ -92,8 +92,18 @@ class SearchTests(_Base):
 
     def test_malformed_query_safe(self):
         fts.index(self.s, "note", "n1", "safe content")
-        # an unbalanced quote must not raise
-        self.assertIsInstance(fts.search(self.s, '"unbalanced'), list)
+        # various fts5 syntax errors must degrade to [] instead of raising
+        for bad in ['"unbalanced', "AND", "NEAR(", "badcol:term", "*"]:
+            self.assertIsInstance(fts.search(self.s, bad), list, bad)
+
+    def test_session_recovers_after_malformed_query(self):
+        # contract: a malformed search leaves the session fully usable — later reads AND writes
+        # still work (the except path rolls back defensively to guarantee this).
+        fts.index(self.s, "note", "n1", "the quick brown fox")
+        fts.search(self.s, '"unbalanced')          # poisons + should self-heal
+        self.assertEqual(self._refs(fts.search(self.s, "fox")), ["n1"])  # valid search still works
+        fts.index(self.s, "note", "n2", "another fox")                   # writes still work too
+        self.assertEqual(set(self._refs(fts.search(self.s, "fox"))), {"n1", "n2"})
 
 
 if __name__ == "__main__":
