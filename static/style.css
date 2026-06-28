@@ -2276,9 +2276,6 @@ mark.wiki-cmark { background: rgba(129, 140, 248, 0.28); color: inherit; border-
 .file-creplyin, .file-caddin { flex: 1; min-width: 0; }
 
 /* ── mail ── */
-.mail-layout { flex: 1; display: flex; min-height: 0; border-top: 1px solid var(--faint); }
-.mail-list { width: 340px; flex-shrink: 0; overflow-y: auto; border-right: 1px solid var(--faint); }
-.mail-main { flex: 1; overflow-y: auto; min-width: 0; }
 /* Gmail-style folder sidebar (4b) */
 .mail-sidebar { width: 170px; flex-shrink: 0; overflow-y: auto; overflow-x: hidden; border-right: 1px solid var(--faint); padding: 0.55rem 0.4rem; display: flex; flex-direction: column; gap: 0.08rem; transition: width 0.28s cubic-bezier(0.4, 0, 0.2, 1); }
 #mail-view.sidebar-collapsed .mail-sidebar { width: 52px; }
@@ -2293,15 +2290,7 @@ mark.wiki-cmark { background: rgba(129, 140, 248, 0.28); color: inherit; border-
 .mail-nav-ic svg { width: 100%; height: 100%; }
 .mail-sidebar-toggle { font-size: 1.05rem; line-height: 1; color: var(--muted); }
 .mail-sidebar-toggle:hover { color: var(--text); }
-.mail-empty { color: var(--muted); font-size: 0.78rem; padding: 1.5rem; text-align: center; line-height: 1.6; }
-.mail-row { padding: 0.55rem 0.8rem; border-bottom: 1px solid var(--faint); cursor: pointer; transition: background 0.12s; }
-.mail-row:hover { background: var(--panel); }
 .mail-row.sel { background: var(--panel); border-left: 2px solid var(--accent); }
-.mail-row-top { display: flex; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.15rem; }
-.mail-from { font-size: 0.78rem; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.mail-row.unread .mail-from { font-weight: 600; }
-.mail-row.unread .mail-subject { color: var(--text); }
-.mail-date { font-size: 0.68rem; color: var(--muted); flex-shrink: 0; }
 .mail-flag { flex-shrink: 0; background: none; border: none; cursor: pointer; color: var(--muted); font-size: 0.8rem; line-height: 1; padding: 0 0 0 0.2rem; opacity: 0.5; transition: opacity 0.15s, color 0.15s; }
 .mail-row:hover .mail-flag { opacity: 1; }
 /* 5a triage row actions + saved searches */
@@ -2347,15 +2336,8 @@ mark.wiki-cmark { background: rgba(129, 140, 248, 0.28); color: inherit; border-
 .mail-label-chip:hover { border-color: var(--accent); }
 .mail-flag.on { color: var(--accent); opacity: 1; }
 #mail-vip.on { color: var(--accent); border-color: var(--accent); }
-.mail-subject { font-size: 0.74rem; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .mail-reader { display: flex; flex-direction: column; height: 100%; }
-.mail-reader-head { padding: 1rem 1.2rem 0.7rem; border-bottom: 1px solid var(--faint); flex-shrink: 0; }
-.mail-reader-subject { font-size: 1.05rem; color: var(--text); font-weight: 500; margin-bottom: 0.4rem; }
-.mail-reader-meta { font-size: 0.72rem; color: var(--muted); }
-.mail-reader-meta b { color: var(--text); font-weight: 500; }
-.mail-reader-body { flex: 1; overflow-y: auto; padding: 1rem 1.2rem; }
-.mail-body-frame { width: 100%; min-height: 60vh; border: none; background: #fff; border-radius: 3px; }
 .mail-body-text { font-family: 'Inter', sans-serif; font-size: 0.85rem; color: var(--text); white-space: pre-wrap; word-break: break-word; margin: 0; }
 
 /* attachment chips in the reader */
@@ -2400,29 +2382,6 @@ mark.wiki-cmark { background: rgba(129, 140, 248, 0.28); color: inherit; border-
 .mc-sched-wrap { display: inline-flex; gap: 0.25rem; }
 .mc-sched-date, .mc-sched-time { height: 30px; font-size: 0.72rem; }
 .mc-sched-time { width: 64px; text-align: center; }
-.mail-form-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 0.5rem; }
-.mail-acct-row { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; padding: 0.45rem 0; border-bottom: 1px solid var(--faint); font-size: 0.8rem; }
-.mail-service-links,
-.mail-provider-row {
-  display: flex; flex-wrap: wrap; gap: 0.35rem;
-}
-.mail-service-link,
-.mail-provider-btn {
-  background: none; border: 1px solid var(--faint); border-radius: 3px;
-  color: var(--muted); font: inherit; font-size: 0.68rem;
-  padding: 0.22rem 0.5rem; text-decoration: none; cursor: pointer;
-  transition: color 0.2s ease, border-color 0.2s ease, background 0.2s ease;
-}
-.mail-service-link:hover,
-.mail-provider-btn:hover {
-  color: var(--text); border-color: var(--muted); background: var(--panel);
-}
-.mail-provider-note {
-  font-size: 0.72rem; color: var(--muted); line-height: 1.5;
-  border-left: 1px solid var(--faint); padding-left: 0.6rem;
-}
-.mail-provider-note a { color: var(--text); text-decoration: none; border-bottom: 1px solid var(--faint); }
-.mail-provider-note a:hover { border-bottom-color: var(--muted); }
 /* guided app-password quick-login */
 .mail-guide:empty { display: none; }
 .mail-guide {

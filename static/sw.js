@@ -1,7 +1,7 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v164';   // journal: shell input + agent diff block were black w/ dark text = unreadable in light theme
+const VERSION = 'v165';   // journal: removed 26 dead duplicate mail css rules (verified 0 computed-style change)
 const CACHE = `alles-${VERSION}`;
-const STAMP = '190';   // keep in sync with index.html ?v= / const _v
+const STAMP = '191';   // keep in sync with index.html ?v= / const _v
 
 // 1b: mutating writes that should be queued when offline
 const MUTATING = ['POST', 'PUT', 'PATCH', 'DELETE'];
