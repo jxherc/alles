@@ -1,7 +1,7 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v161';   // journal: artifact panel as full-screen overlay on mobile (was clipped 420px)
+const VERSION = 'v162';   // journal: calendar out-of-month + off-hours cells were hardcoded black in light theme
 const CACHE = `alles-${VERSION}`;
-const STAMP = '187';   // keep in sync with index.html ?v= / const _v
+const STAMP = '188';   // keep in sync with index.html ?v= / const _v
 
 // 1b: mutating writes that should be queued when offline
 const MUTATING = ['POST', 'PUT', 'PATCH', 'DELETE'];
