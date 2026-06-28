@@ -1958,7 +1958,13 @@ async def stream_execute(name: str, args: dict):
         ):
             yield event
         return
-    result = await execute(name, args)
+    try:
+        result = await execute(name, args)
+    except Exception as e:
+        # a dispatch-level error (e.g. the model passed a non-numeric limit -> int() raises before
+        # the tool body's own try/except) should come back as a tool error the model can correct,
+        # not abort the whole agent turn.
+        result = {"output": f"tool '{name}' failed: {e}", "error": True}
     yield {"type": "result", "result": result}
 
 
