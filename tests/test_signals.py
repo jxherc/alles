@@ -5,6 +5,7 @@ from core.database import (
     CalendarEvent,
     Habit,
     HabitLog,
+    HealthEntry,
     Reminder,
     Subscription,
     Task,
@@ -24,6 +25,16 @@ class SignalsTests(ApiTest):
             return signals.gather(d, **kw)
         finally:
             d.close()
+
+    def test_weight_signal_latest_by_date_not_insertion(self):
+        d = self.db()
+        d.add(HealthEntry(kind="weight", value=79, unit="kg", date=_iso(-1)))  # newer date, lower id
+        d.add(HealthEntry(kind="weight", value=80, unit="kg", date=_iso(-3)))  # backfill: older, higher id
+        d.commit()
+        d.close()
+        h = [s for s in self._gather() if s["category"] == "health"]
+        self.assertEqual(len(h), 1)
+        self.assertEqual(h[0]["data"]["value"], 79)  # newest-dated wins, not the backfilled 80
 
     def test_overdue_task_signal(self):
         d = self.db()
