@@ -53,7 +53,16 @@ def to_vcard(contacts) -> str:
 
 def parse_vcards(text: str) -> list[dict]:
     cards, cur = [], None
-    for raw in (text or "").splitlines():
+    # RFC2426 folding: a line starting with space/tab continues the previous one. unfold
+    # before we strip(), else the continuation gets dropped and long NOTE/ADR values lose half.
+    src = (text or "").replace("\r\n", "\n").replace("\r", "\n")
+    rows: list[str] = []
+    for r in src.split("\n"):
+        if r[:1] in (" ", "\t") and rows:
+            rows[-1] += r[1:]
+        else:
+            rows.append(r)
+    for raw in rows:
         line = raw.strip()
         up = line.upper()
         if up == "BEGIN:VCARD":
