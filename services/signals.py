@@ -305,7 +305,7 @@ def _health(db, today):
     w = (
         db.query(HealthEntry)
         .filter(HealthEntry.kind == "weight")
-        .order_by(HealthEntry.id.desc())
+        .order_by(HealthEntry.date.desc(), HealthEntry.id.desc())  # latest by date, not insertion
         .first()
     )
     if not w:
