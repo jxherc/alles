@@ -60,6 +60,13 @@ def export_backup():
             for f in att_dir.iterdir():
                 if f.is_file():
                     zf.write(f, f"vault_attachments/{f.name}")
+        # the markdown vault — notes + docs live here as files now, so a backup without it
+        # loses every note. recurse (the vault has subfolders: Notes/, _assets/, etc.)
+        vault_d = DATA_DIR / "vault"
+        if vault_d.exists():
+            for f in vault_d.rglob("*"):
+                if f.is_file():
+                    zf.write(f, f"vault/{f.relative_to(vault_d).as_posix()}")
 
     buf.seek(0)
     return StreamingResponse(
