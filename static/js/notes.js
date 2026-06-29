@@ -135,6 +135,7 @@ function openEditor(note) {
         <input type="date" class="note-editor-title" id="note-edit-due" value="${esc(note.due || '')}" style="font-size:0.78rem;width:auto" title="due date">
       </div>
       <div style="display:flex;gap:0.4rem;justify-content:flex-end">
+        <button class="btn" id="note-obsidian-btn" title="open this note in Obsidian">obsidian</button>
         <button class="btn" id="note-back-btn">← back</button>
         <button class="btn primary" id="note-save-btn">save</button>
       </div>
@@ -142,6 +143,13 @@ function openEditor(note) {
 
   (note.items || []).forEach(it => _addChecklistRow(it.text, it.done));
   document.getElementById('note-add-item').addEventListener('click', () => _addChecklistRow('', false, true));
+
+  document.getElementById('note-obsidian-btn')?.addEventListener('click', async () => {
+    if (!_editing) return;
+    const rel = 'Notes/' + _editing.id + '.md';
+    const r = await fetch('/api/vault-location?path=' + encodeURIComponent(rel)).then(r => r.json()).catch(() => null);
+    if (r?.obsidian) location.href = r.obsidian;
+  });
 
   document.getElementById('note-back-btn').addEventListener('click', async () => {
     await saveCurrentNote();

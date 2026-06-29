@@ -16,14 +16,21 @@ def get_settings():
 
 
 @router.get("/vault-location")
-def vault_location():
-    """resolved vault folder + an obsidian deep-link, for the 'connect to Obsidian' setup."""
+def vault_location(path: str = ""):
+    """resolved vault folder + an obsidian deep-link. with ?path=<rel>, the link opens that
+    specific note in Obsidian; without it, the vault folder."""
     from urllib.parse import quote
 
     from services import vault_md
 
-    p = str(vault_md.vault_dir())
-    return {"path": p, "obsidian": "obsidian://open?path=" + quote(p)}
+    base = str(vault_md.vault_dir())
+    target = base
+    if path:
+        try:
+            target = str(vault_md._safe(path))  # abs file path, traversal-guarded
+        except ValueError:
+            target = base
+    return {"path": base, "obsidian": "obsidian://open?path=" + quote(target)}
 
 
 class SettingsPatch(BaseModel):
