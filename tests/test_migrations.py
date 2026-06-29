@@ -193,6 +193,8 @@ class BaselineAndInitTests(unittest.TestCase):
         with open("docs/evidence/0a-migrations/baseline-schema.json") as f:
             base = json.load(f)
         for t, expected_cols in base["columns"].items():
+            if t == "notes":
+                continue  # the notes table was retired in m0010 (notes live in the vault now)
             self.assertIn(t, tables, f"table {t} missing after init_db")
             # later numbered migrations may ADD columns (e.g. m0002 -> memories); the invariant
             # is that no baseline column is ever LOST, not byte-equality.
@@ -217,18 +219,18 @@ class BaselineAndInitTests(unittest.TestCase):
         try:
             db.init_db()
             con = sqlite3.connect(path)
-            con.execute("ALTER TABLE notes DROP COLUMN due")
+            con.execute("ALTER TABLE tasks DROP COLUMN notes")  # notes-table retired; use tasks.notes
             con.commit()
             con.close()
-            db.init_db()  # baseline ALWAYS re-runs -> re-adds notes.due
+            db.init_db()  # baseline ALWAYS re-runs -> re-adds tasks.notes
             con = sqlite3.connect(path)
-            cols = {r[1] for r in con.execute("PRAGMA table_info(notes)")}
+            cols = {r[1] for r in con.execute("PRAGMA table_info(tasks)")}
             con.close()
         finally:
             db.engine.dispose()
             db.DB_PATH, db.engine = orig
             db.SessionLocal.configure(bind=db.engine)
-        self.assertIn("due", cols)
+        self.assertIn("notes", cols)
 
 
 if __name__ == "__main__":
