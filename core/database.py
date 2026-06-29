@@ -170,18 +170,8 @@ class McpServer(Base):
             return []
 
 
-class Note(Base):
-    __tablename__ = "notes"
-    id = Column(String, primary_key=True, default=_uid)
-    title = Column(String, default="")
-    content = Column(Text, default="")
-    pinned = Column(Boolean, default=False)
-    archived = Column(Boolean, default=False)
-    tags = Column(String, default="")  # comma-separated
-    items = Column(Text, default="[]")  # checklist: json list of {text, done}
-    due = Column(String, default="")  # optional ISO date (YYYY-MM-DD)
-    created_at = Column(DateTime, default=_now)
-    updated_at = Column(DateTime, default=_now)
+# the `notes` table was retired (m0010) — notes live in the markdown vault now
+# (services/notes_vault.py), so there is no Note model anymore.
 
 
 class JournalEntry(Base):

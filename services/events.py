@@ -23,7 +23,6 @@ from core.database import (
     Habit,
     JournalEntry,
     MutationEvent,
-    Note,
     ProactiveItem,
     SessionLocal,
     Subscription,
@@ -34,7 +33,7 @@ from core.database import (
 
 log = logging.getLogger("alles.events")
 
-TRACKED = (Task, Transaction, Subscription, CalendarEvent, Note, JournalEntry, Habit, ProactiveItem)
+TRACKED = (Task, Transaction, Subscription, CalendarEvent, JournalEntry, Habit, ProactiveItem)
 
 _subscribers = []  # sync callables: fn(list[dict])
 

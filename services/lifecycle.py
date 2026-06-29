@@ -14,12 +14,11 @@ not the meaning. cascade-trash of owned children is a future extension point, no
 
 import datetime
 
-from core.database import Account, Habit, Note, Photo, ReadItem, Session
+from core.database import Account, Habit, Photo, ReadItem, Session
 
 # model -> (column name, kind). kind: "flag" = archived bool, "ts" = deleted_at datetime.
 LIFECYCLE = {
     Session: ("archived", "flag"),
-    Note: ("archived", "flag"),
     Account: ("archived", "flag"),
     Habit: ("archived", "flag"),
     ReadItem: ("archived", "flag"),
