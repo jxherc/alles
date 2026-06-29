@@ -30,7 +30,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/style.css?v=191">
+<link rel="stylesheet" href="/static/style.css?v=194">
 <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#0a0a0a">
@@ -494,22 +494,14 @@
     </div>
 
 
-    <!-- docs: markdown files on disk -->
+    <!-- docs: a thin markdown reader — editing happens in Obsidian -->
     <div class="page-view" id="wiki-view" style="display:none">
       <div class="wiki-tree-panel">
         <div class="page-view-head docs-rail-head">
           <span class="page-view-title">docs</span>
           <div class="docs-rail-actions">
-            <button class="btn" id="wiki-today-btn" title="today's daily doc">today</button>
-            <button class="btn" id="wiki-week-btn" title="this week's note">week</button>
-            <button class="btn" id="wiki-month-btn" title="this month's note">month</button>
-            <button class="btn" id="wiki-graph-btn" title="graph view">graph</button>
-            <button class="btn" id="wiki-sort-btn" title="sort: a–z / recently modified">a–z</button>
-            <button class="btn" id="wiki-tmpl-btn" title="new from template">tmpl</button>
-            <button class="btn" id="wiki-import-btn" title="import .md / .txt / .docx / .html / .pdf">import</button>
             <button class="btn" id="wiki-folder-btn" title="new folder">+dir</button>
             <button class="btn primary docs-rail-new" id="wiki-new-btn">+doc</button>
-            <input type="file" id="wiki-import-input" accept=".md,.markdown,.txt,.docx,.html,.htm,.pdf" style="display:none">
           </div>
         </div>
         <div class="docs-sections" id="docs-sections">
@@ -522,58 +514,29 @@
       </div>
       <div class="wiki-main">
         <div class="page-view-head docs-editor-head">
-          <button class="icon-btn docs-tree-toggle" id="wiki-tree-toggle" title="show / hide files (fullscreen)" aria-label="show or hide files">
+          <button class="icon-btn docs-tree-toggle" id="wiki-tree-toggle" title="show / hide files" aria-label="show or hide files">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
           </button>
           <span id="wiki-current" class="wiki-current">no doc open</span>
           <span id="wiki-stats" class="wiki-stats"></span>
-          <span id="wiki-save-status" style="font-size:0.66rem;color:var(--muted)"></span>
-          <button class="btn" id="wiki-mode-toggle" title="cycle live / source / preview">live</button>
-          <button class="btn" id="wiki-ai-toggle" title="ask AI to edit">ai</button>
-          <button class="btn" id="wiki-ask-btn" title="ask anything across all your notes">ask</button>
-          <button class="btn" id="wiki-docs-settings" title="docs settings — AI model">⚙</button>
-          <button class="btn" id="wiki-outline-btn">outline</button>
-          <button class="btn" id="wiki-props-btn" title="note properties (frontmatter)">props</button>
-          <button class="btn" id="wiki-query-btn" title="query notes by property / tag (dataview)">query</button>
-          <button class="btn" id="wiki-base-btn" title="view this folder as a database (table/gallery/list)">base</button>
-          <button class="btn" id="wiki-todos-btn" title="AI-extract action items into tasks">todos</button>
-          <button class="btn" id="wiki-history-btn" title="version history">history</button>
-          <button class="btn" id="wiki-comments-btn" title="inline comments">💬 <span id="wiki-comments-count"></span></button>
-          <button class="btn" id="wiki-split-btn" title="split view — second pane side by side">split</button>
-          <button class="btn" id="wiki-export-btn" title="export this doc">export ▾</button>
+          <button class="btn" id="wiki-ask-btn" title="ask anything across your notes">ask</button>
+          <button class="btn" id="wiki-obsidian-btn" title="open this doc in Obsidian">open in Obsidian</button>
+          <button class="btn" id="wiki-rename-btn" title="rename this doc">rename</button>
           <button class="btn danger" id="wiki-delete-btn">delete</button>
         </div>
-        <div id="wiki-outline" class="wiki-outline" style="display:none"></div>
-        <div id="wiki-props" class="wiki-outline wiki-props" style="display:none"></div>
-        <div id="wiki-query" class="wiki-outline wiki-query" style="display:none"></div>
         <div id="wiki-ask" class="wiki-outline wiki-ask" style="display:none">
           <div class="wiki-ask-bar">
             <input type="text" id="wiki-ask-input" class="settings-input" placeholder="ask your notes…" spellcheck="false">
             <button class="btn primary" id="wiki-ask-go">ask</button>
           </div>
           <div id="wiki-ask-results" class="wiki-ask-results"></div>
-          <details class="wiki-ask-clip">
-            <summary>web clipper</summary>
-            <div class="wiki-ask-clip-body">
-              <p>drag this to your bookmarks bar to clip the current page into <code>clips/</code>:</p>
-              <a id="wiki-clip-bm" class="btn" href="#" onclick="return false">📎 clip to alles</a>
-            </div>
-          </details>
         </div>
-        <div id="wiki-comments" class="wiki-outline wiki-comments" style="display:none"></div>
-        <button id="wiki-comment-fab" class="wiki-comment-fab" style="display:none">💬 comment</button>
-        <div id="wiki-base" class="wiki-outline wiki-base" style="display:none"></div>
-        <div id="wiki-tabs" class="wiki-tabs"></div>
-        <div id="wiki-history" class="wiki-outline" style="display:none"></div>
-        <div id="wiki-taskroll" class="wiki-outline wiki-taskroll" style="display:none"></div>
         <div class="wiki-empty-state" id="wiki-empty-state">
           <div class="docs-home">
             <div class="docs-home-head">
               <span class="docs-home-title">docs</span>
               <div class="docs-home-actions">
                 <button class="btn primary" id="wiki-empty-new">+ new doc</button>
-                <button class="btn" id="wiki-empty-today">today's note</button>
-                <button class="btn" id="wiki-home-tasks">tasks</button>
                 <button class="btn" id="docs-home-notes">notes</button>
               </div>
             </div>
@@ -588,64 +551,15 @@
               <div class="docs-home-actions">
                 <input id="note-search" class="settings-input" placeholder="search notes…" style="max-width:240px">
                 <button class="btn primary" id="note-new-btn">+ new note</button>
+                <button class="icon-btn app-cog" data-app="notes" title="notes &amp; docs settings"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2a2 2 0 1 1-4 0V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1A2 2 0 1 1 4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H3a2 2 0 1 1 0-4h.2a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1A2 2 0 1 1 7.2 4.2l.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.6V3a2 2 0 1 1 4 0v.2a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1A2 2 0 1 1 20 7.2l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2a2 2 0 1 1 0 4h-.2a1.7 1.7 0 0 0-1.8 1z"/></svg></button>
               </div>
             </div>
             <div id="note-tagbar" class="note-tagbar"></div>
             <div id="notes-list"></div>
           </div>
         </div>
-        <div id="docs-toolbar" class="docs-toolbar">
-          <button class="dt-btn" data-fmt="h1" title="heading 1">H1</button>
-          <button class="dt-btn" data-fmt="h2" title="heading 2">H2</button>
-          <button class="dt-btn" data-fmt="h3" title="heading 3">H3</button>
-          <span class="dt-sep"></span>
-          <button class="dt-btn" data-fmt="bold" title="bold (Ctrl+B)"><b>B</b></button>
-          <button class="dt-btn" data-fmt="italic" title="italic (Ctrl+I)"><i>I</i></button>
-          <button class="dt-btn" data-fmt="strike" title="strikethrough"><span style="text-decoration:line-through">S</span></button>
-          <button class="dt-btn" data-fmt="highlight" title="highlight (Ctrl+Shift+H)"><span class="dt-hl">H</span></button>
-          <button class="dt-btn" id="dt-color-btn" title="text color"><span class="dt-color-a">A</span></button>
-          <button class="dt-btn" data-fmt="code" title="inline code (Ctrl+E)">&lt;/&gt;</button>
-          <span class="dt-sep"></span>
-          <button class="dt-btn" data-fmt="bullet" title="bullet list">•</button>
-          <button class="dt-btn" data-fmt="olist" title="numbered list">1.</button>
-          <button class="dt-btn" data-fmt="check" title="checklist">☑</button>
-          <button class="dt-btn" data-fmt="quote" title="quote">&ldquo;</button>
-          <span class="dt-sep"></span>
-          <button class="dt-btn dt-wide" data-fmt="link" title="link (Ctrl+K)">link</button>
-          <button class="dt-btn dt-wide" data-fmt="image" title="image">img</button>
-          <button class="dt-btn dt-wide" data-fmt="wiki" title="link another doc">[[ ]]</button>
-          <button class="dt-btn dt-wide" data-fmt="table" title="table">table</button>
-          <button class="dt-btn dt-wide" data-fmt="codeblock" title="code block">code</button>
-          <button class="dt-btn dt-wide" data-fmt="callout" title="callout">callout</button>
-          <button class="dt-btn dt-wide" data-fmt="toggle" title="collapsible toggle">toggle</button>
-          <button class="dt-btn dt-wide" data-fmt="columns" title="side-by-side columns">columns</button>
-          <button class="dt-btn" data-fmt="hr" title="divider">—</button>
-        </div>
-        <div class="wiki-edit-wrap">
-          <div id="wiki-live" class="wiki-live"></div>
-          <textarea id="wiki-source" class="wiki-source" spellcheck="true" placeholder="raw markdown — [[link]] another doc, # for a heading."></textarea>
-          <div class="wiki-preview" id="wiki-preview"></div>
-          <div class="wiki-split-divider" id="wiki-split-divider" style="display:none"></div>
-          <div class="wiki-split-pane" id="wiki-split-pane" style="display:none"></div>
-        </div>
+        <div class="wiki-preview" id="wiki-preview" style="display:none"></div>
         <div class="wiki-backlinks" id="wiki-backlinks"></div>
-        <div class="doc-ai-bar">
-          <input type="text" id="wiki-ai-input" placeholder="tell the AI what to change (e.g. 'summarize', 'fix grammar', 'expand the intro')...">
-          <button class="btn primary" id="wiki-ai-send">ask</button>
-        </div>
-      </div>
-      <div id="wiki-autocomplete" class="wiki-autocomplete" style="display:none"></div>
-      <div id="wiki-slash" class="wiki-slash" style="display:none"></div>
-      <div id="wiki-graph" class="wiki-graph" style="display:none">
-        <div class="wiki-graph-head">
-          <span>graph</span>
-          <div class="wiki-graph-ctrls">
-            <button class="btn" id="wiki-graph-local" title="show only notes linked to the open doc">local</button>
-            <input type="text" id="wiki-graph-filter" class="settings-input" placeholder="filter #tag" spellcheck="false">
-            <button class="icon-btn" id="wiki-graph-close">×</button>
-          </div>
-        </div>
-        <svg id="wiki-graph-svg" class="wiki-graph-svg"></svg>
       </div>
     </div><!-- /#wiki-view -->
 
@@ -1826,7 +1740,7 @@
 </div>
 
 <script type="module">
-const _v = '191';
+const _v = '194';
 import(`/static/js/app.js?v=${_v}`);
 </script>
 </body>
