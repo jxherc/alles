@@ -15,6 +15,17 @@ def get_settings():
     return {k: v for k, v in s.items() if k not in _STRIP}
 
 
+@router.get("/vault-location")
+def vault_location():
+    """resolved vault folder + an obsidian deep-link, for the 'connect to Obsidian' setup."""
+    from urllib.parse import quote
+
+    from services import vault_md
+
+    p = str(vault_md.vault_dir())
+    return {"path": p, "obsidian": "obsidian://open?path=" + quote(p)}
+
+
 class SettingsPatch(BaseModel):
     default_model: str | None = None
     default_endpoint_id: str | None = None
@@ -61,6 +72,7 @@ class SettingsPatch(BaseModel):
     prefer_local_models: bool | None = None  # fallback to a local (ollama) endpoint when available
     username: str | None = None  # display name, synced across subdomains
     # ── per-app settings ──
+    vault_dir: str | None = None  # markdown vault folder — point at an Obsidian vault
     files_dir: str | None = None  # files app root directory
     photos_dir: str | None = None  # gallery library folder
     photos_watch_folder: str | None = None  # 7c phone-backup watch folder
@@ -140,6 +152,19 @@ def patch_settings(body: SettingsPatch):
             from services import net
 
             net.apply_proxy()  # take effect without a restart
+        except Exception:
+            pass
+    if "vault_dir" in patch:
+        # pointed at a different (e.g. Obsidian) vault → rebuild the note index from it
+        try:
+            from core.database import SessionLocal
+            from services import personal_index
+
+            db = SessionLocal()
+            try:
+                personal_index.reindex_source(db, "note")
+            finally:
+                db.close()
         except Exception:
             pass
     return out
