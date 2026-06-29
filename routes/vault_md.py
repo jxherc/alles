@@ -32,6 +32,13 @@ def _is_note(path):
     return (path or "").replace("\\", "/").startswith("Notes/")
 
 
+def _journal_day(path):
+    # journal daily notes (Journal/YYYY-MM-DD.md) are synced to the DB + indexed as the
+    # "journal" kind by services/journal_vault, not as docs. returns the day or None.
+    from services import journal_vault
+    return journal_vault.is_daily(path)
+
+
 def _note_stem(path):
     from pathlib import PurePosixPath
     return PurePosixPath((path or "").replace("\\", "/")).stem
@@ -48,12 +55,30 @@ def _reindex_doc(path, content):
             if _is_note(path):
                 from services import personal_index
                 personal_index.index_record(db, "note", _note_stem(path))
+            elif _journal_day(path):
+                pass  # journal daily notes are synced + indexed via the watcher, not as docs
             else:
                 textindex.index(db, "doc", path, content)
         finally:
             db.close()
     except Exception:
         pass
+
+
+def _sync_changed(path):
+    """a file changed on disk: fold journal daily notes back into the DB, index everything else."""
+    day = _journal_day(path)
+    if day:
+        from core.database import SessionLocal
+        from services import journal_vault
+
+        db = SessionLocal()
+        try:
+            journal_vault.sync_from_vault(db, day)
+        finally:
+            db.close()
+        return
+    _reindex_doc(path, vault_md.read(path).get("content", ""))
 
 
 def _unindex_doc(path):
@@ -290,9 +315,9 @@ async def stream():
                 continue
             idle = 0
             prev = cur
-            for p in changed:  # keep the index fresh (idempotent)
+            for p in changed:  # keep the index fresh (idempotent); journal notes sync to the DB
                 try:
-                    await asyncio.to_thread(lambda q=p: _reindex_doc(q, vault_md.read(q).get("content", "")))
+                    await asyncio.to_thread(lambda q=p: _sync_changed(q))
                 except Exception:
                     pass
             for p in removed:

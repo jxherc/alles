@@ -39,6 +39,10 @@ const SPECS = {
   contacts: { title: 'contacts', fields: [
     { type: 'action', label: 'CardDAV sync', act: '_contactsCardDav' },
   ] },
+  journal: { title: 'journal', apply: () => window._reloadJournal?.(), fields: [
+    { k: 'journal_mirror_vault', type: 'toggle', label: 'mirror to Obsidian daily notes' },
+    { type: 'note', text: 'Writes each entry to Journal/YYYY-MM-DD.md in your vault, editable in Obsidian and synced back. Off by default. Setting a journal passcode pauses this and removes the mirrored files.' },
+  ] },
 };
 
 let _open = null;
@@ -47,6 +51,9 @@ function _field(f, val) {
   if (f.type === 'choice') {
     return `<div class="aps-field"><label>${f.label}</label><div class="seg" data-k="${f.k}"${f.num ? ' data-num="1"' : ''}>` +
       f.opts.map(([v, l]) => `<button type="button" class="seg-opt${String(val) === String(v) ? ' active' : ''}" data-val="${v}">${l}</button>`).join('') + `</div></div>`;
+  }
+  if (f.type === 'toggle') {
+    return `<div class="aps-field aps-toggle" style="display:flex;align-items:center;justify-content:space-between;gap:10px"><label style="margin:0">${f.label}</label><div class="s-switch${val ? ' on' : ''}" data-tk="${f.k}"></div></div>`;
   }
   if (f.type === 'note') return `<div class="aps-note" style="font-size:0.72rem;opacity:0.7;line-height:1.45;margin:2px 0 6px">${esc(f.text)}</div>`;
   if (f.type === 'action') return `<button type="button" class="aps-action" data-act="${esc(f.act)}">${esc(f.label)}</button>`;
@@ -106,6 +113,12 @@ export async function openAppSettings(app, anchor) {
       _patch(spec, seg.dataset.k, num ? Number(opt.dataset.val) : opt.dataset.val);
     }));
   });
+  // toggles
+  pop.querySelectorAll('.s-switch[data-tk]').forEach(sw => sw.addEventListener('click', () => {
+    const on = !sw.classList.contains('on');
+    sw.classList.toggle('on', on);
+    _patch(spec, sw.dataset.tk, on);
+  }));
   // text / textarea (debounced)
   pop.querySelectorAll('input[data-k], textarea[data-k]').forEach(el => {
     let t; el.addEventListener('input', () => { clearTimeout(t); t = setTimeout(() => _patch(spec, el.dataset.k, el.value.trim()), 500); });
