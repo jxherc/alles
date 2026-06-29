@@ -13,3 +13,8 @@ class VaultLocationTest(VaultApiTest):
         from routes.settings import SettingsPatch
 
         self.assertIn("vault_dir", SettingsPatch.model_fields)
+
+    def test_vault_location_per_file_deeplink(self):
+        r = self.client.get("/api/vault-location", params={"path": "Notes/foo.md"}).json()
+        self.assertTrue(r["obsidian"].startswith("obsidian://open?path="))
+        self.assertIn("Notes", r["obsidian"])  # points at the file, not just the vault
