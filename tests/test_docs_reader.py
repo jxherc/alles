@@ -44,6 +44,21 @@ class DocsReaderTest(VaultApiTest):
         self.assertEqual(r.status_code, 200)
         self.assertIsInstance(r.json()["sources"], list)
 
+    def test_watcher_signature_detects_changes(self):
+        from routes.vault_md import _sig_diff, _vault_sig
+        from services import vault_md
+
+        self._new("watched", "v1")
+        sig1 = _vault_sig()
+        self.assertIn("watched.md", sig1)
+        vault_md.write("watched.md", "v2 — changed in obsidian")  # external edit
+        changed, removed = _sig_diff(sig1, _vault_sig())
+        self.assertIn("watched.md", changed)
+        sig2 = _vault_sig()
+        vault_md.delete("watched.md")
+        changed2, removed2 = _sig_diff(sig2, _vault_sig())
+        self.assertIn("watched.md", removed2)
+
     def test_removed_editor_routes_are_gone(self):
         self.assertIn(self.client.put("/api/vault-md/file", json={"path": "x", "content": "y"}).status_code, (404, 405))
         self.assertIn(self.client.get("/api/vault-md/graph").status_code, (404, 405))

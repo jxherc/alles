@@ -9,7 +9,7 @@ The `services/vault_md.py` SERVICE layer is untouched (agents, search, notes all
 """
 
 from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import Response
+from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session as DbSession
 
@@ -241,3 +241,66 @@ def make_folder(body: FolderBody):
         return vault_md.create_folder(body.path)
     except ValueError as e:
         raise HTTPException(400, str(e))
+
+
+# ── live two-way: notice files changed on disk (e.g. edited in Obsidian) ───────
+def _vault_sig() -> dict:
+    """mtime:size signature of every .md in the vault — cheap change detection."""
+    base = vault_md.vault_dir()
+    out = {}
+    for p in base.rglob("*.md"):
+        rel = str(p.relative_to(base)).replace("\\", "/")
+        if any(part.startswith(".") for part in rel.split("/")):
+            continue
+        try:
+            st = p.stat()
+            out[rel] = f"{int(st.st_mtime)}:{st.st_size}"
+        except OSError:
+            pass
+    return out
+
+
+def _sig_diff(prev: dict, cur: dict):
+    """(changed_or_added, removed) rel-paths between two signatures."""
+    changed = [p for p in cur if prev.get(p) != cur[p]]
+    removed = [p for p in prev if p not in cur]
+    return changed, removed
+
+
+@router.get("/stream")
+async def stream():
+    """SSE: push {changed, removed} when vault files change on disk, and reindex the changed
+    docs so search/recall reflect Obsidian edits. the UI re-renders on each event."""
+    import asyncio
+    import json as _json
+
+    async def gen():
+        prev = await asyncio.to_thread(_vault_sig)
+        yield 'data: {"hello":1}\n\n'
+        idle = 0
+        while True:
+            await asyncio.sleep(2)
+            cur = await asyncio.to_thread(_vault_sig)
+            changed, removed = _sig_diff(prev, cur)
+            if not (changed or removed):
+                idle += 1
+                if idle >= 10:  # ~20s keepalive
+                    idle = 0
+                    yield ": ping\n\n"
+                continue
+            idle = 0
+            prev = cur
+            for p in changed:  # keep the index fresh (idempotent)
+                try:
+                    await asyncio.to_thread(lambda q=p: _reindex_doc(q, vault_md.read(q).get("content", "")))
+                except Exception:
+                    pass
+            for p in removed:
+                _unindex_doc(p)
+            yield f"data: {_json.dumps({'changed': changed, 'removed': removed})}\n\n"
+
+    return StreamingResponse(
+        gen(),
+        media_type="text/event-stream",
+        headers={"cache-control": "no-cache", "x-accel-buffering": "no"},
+    )
