@@ -24,7 +24,12 @@ class TextIndexApiTests(ApiTest):
         super().tearDown()
 
     def _save(self, path, content):
-        return self.client.put("/api/vault-md/file", json={"path": path, "content": content})
+        # editing moved to Obsidian; write via the service + reindex (what the old PUT route did)
+        from routes.vault_md import _reindex_doc
+
+        out = vault_md.write(path, content)
+        _reindex_doc(out.get("path", path), content)
+        return out
 
     def test_save_indexes_doc(self):
         self._save("note.md", "alpha bravo charlie keyword")

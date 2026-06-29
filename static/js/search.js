@@ -120,7 +120,7 @@ async function _go(el) {
     selectSession(el.dataset.id);
   } else if (type === 'note') {
     window._navigateTo?.('wiki');
-    const { openNote } = await import('./vaultmd.js');
+    const { openNote } = await import('./docs.js');
     openNote(el.dataset.path);
   } else {
     // nav — may be a different subdomain; navigateTo cross-jumps with SSO when needed
