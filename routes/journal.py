@@ -59,6 +59,11 @@ def lock_set(body: PasscodeBody):
         raise HTTPException(401, "wrong current passcode")
     save_settings({"journal_passcode": make_verifier(body.passcode)})
     _unlock_tokens.clear()  # force a fresh unlock with the new passcode
+    try:
+        from services import journal_vault
+        journal_vault.purge()  # locking re-privatises: drop the plaintext mirror files
+    except Exception:
+        pass
     return {"ok": True, "enabled": True}
 
 
@@ -87,6 +92,12 @@ def lock_disable(body: PasscodeBody):
         raise HTTPException(401, "wrong passcode")
     save_settings({"journal_passcode": ""})
     _unlock_tokens.clear()
+    try:
+        from services import journal_vault
+        if journal_vault.enabled():  # mirror still on → rebuild the daily notes
+            journal_vault.backfill()
+    except Exception:
+        pass
     return {"ok": True, "enabled": False}
 
 
@@ -351,6 +362,12 @@ def upsert_entry(
         personal_index.index_record(db, "journal", e)
     except Exception:
         pass
+    try:
+        from services import journal_vault
+        if journal_vault.enabled():
+            journal_vault.write_entry(e.date, e.content or "", e.mood or "", e.tags or "")
+    except Exception:
+        pass
     return _fmt(e)
 
 
@@ -364,6 +381,11 @@ def delete_entry(day: str, db: DbSession = Depends(get_db), _: None = Depends(_r
     try:
         from services import personal_index
         personal_index.remove_record(db, "journal", str(day)[:10])
+    except Exception:
+        pass
+    try:
+        from services import journal_vault
+        journal_vault.delete_entry(str(day)[:10])  # remove the mirror file too
     except Exception:
         pass
     return {"ok": True}

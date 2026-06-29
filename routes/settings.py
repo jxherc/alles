@@ -116,6 +116,7 @@ class SettingsPatch(BaseModel):
     mail_signature: str | None = None  # appended/prefilled when composing
     mail_threads: str | None = None  # group mail by conversation
     docs_ai_model: str | None = None  # model for docs AI edits
+    journal_mirror_vault: bool | None = None  # mirror journal entries to Journal/ daily notes
     # personal recall index toggles
     pidx_enabled: bool | None = None
     pidx_mail: bool | None = None
@@ -194,6 +195,17 @@ def patch_settings(body: SettingsPatch):
                 personal_index.reindex_source(db, "note")
             finally:
                 db.close()
+        except Exception:
+            pass
+    if "journal_mirror_vault" in patch:
+        # toggled on → backfill existing entries to the vault; off → drop the mirror files
+        try:
+            from services import journal_vault
+
+            if patch["journal_mirror_vault"] and not load_settings().get("journal_passcode"):
+                journal_vault.backfill()
+            else:
+                journal_vault.purge()
         except Exception:
             pass
     return out
