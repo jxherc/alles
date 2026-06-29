@@ -1317,8 +1317,12 @@ async def execute(name: str, args: dict) -> dict:
         return await _note_read(args.get("name", ""))
     if name == "note_write":
         return await _note_write(args.get("path", ""), args.get("content", ""))
+    if name == "note_append":
+        return await _note_append(args.get("path", ""), args.get("content", ""))
     if name == "note_search":
         return await _note_search(args.get("query", ""))
+    if name == "note_backlinks":
+        return await _note_backlinks(args.get("name", ""))
     if name == "contact_list":
         return await _contact_list(args.get("query", ""))
     if name == "contact_add":
@@ -1747,6 +1751,56 @@ async def _watch_status(a):
         db.close()
 
 
+def _resolve_note(s, fuzzy=True):
+    """name-or-path -> a vault rel path. paths / *.md are used as-is; a bare name is matched
+    to an existing note (exact first, then fuzzy when allowed), else becomes <name>.md."""
+    from services import vault_md
+
+    s = (s or "").strip()
+    if not s:
+        return ""
+    rel = s.replace("\\", "/")
+    if "/" in rel or rel.lower().endswith((".md", ".markdown")):
+        return rel if rel.lower().endswith((".md", ".markdown")) else rel + ".md"
+    hits = vault_md.search(s, limit=5)
+    exact = next((h for h in hits if h["name"].lower() == s.lower()), None)
+    if exact:
+        return exact["path"]
+    if fuzzy and hits:
+        return hits[0]["path"]
+    return f"{s}.md"
+
+
+def _vault_reindex(rel, content=None):
+    """keep search/recall fresh after an agent write — mirrors routes.vault_md._reindex_doc:
+    Notes/ -> 'note' kind, journal daily notes skipped, everything else -> 'doc'. best-effort."""
+    try:
+        from core.database import SessionLocal
+        from services import journal_vault, vault_md
+
+        rel = (rel or "").replace("\\", "/")
+        if not rel.lower().endswith((".md", ".markdown")):
+            rel += ".md"
+        db = SessionLocal()
+        try:
+            if rel.startswith("Notes/"):
+                from pathlib import PurePosixPath
+
+                from services import personal_index
+                personal_index.index_record(db, "note", PurePosixPath(rel).stem)
+            elif journal_vault.is_daily(rel):
+                pass  # journal daily notes index via the journal pipeline, not as docs
+            else:
+                from services import textindex
+                if content is None:
+                    content = vault_md.read(rel).get("content", "")
+                textindex.index(db, "doc", rel, content)
+        finally:
+            db.close()
+    except Exception:
+        pass
+
+
 async def _note_list():
     from services import vault_md
 
@@ -1757,13 +1811,10 @@ async def _note_list():
 async def _note_read(name):
     from services import vault_md
 
-    hits = vault_md.search(name, limit=5)
-    hit = next((h for h in hits if h["name"].lower() == name.lower()), None) or (
-        hits[0] if hits else None
-    )
-    if not hit:
+    rel = _resolve_note(name, fuzzy=True)
+    d = vault_md.read(rel)
+    if not d.get("exists"):
         return {"output": f"note not found: {name}", "error": True}
-    d = vault_md.read(hit["path"])
     return {"output": d.get("content", "") or "(empty note)"}
 
 
@@ -1771,15 +1822,39 @@ async def _note_write(path, content):
     from services import vault_md
 
     res = vault_md.write(path, content)
-    return {"output": f"saved note {res.get('path', path)}"}
+    rel = res.get("path", path)
+    _vault_reindex(rel, content)
+    return {"output": f"saved note {rel}"}
+
+
+async def _note_append(path, content):
+    from services import vault_md
+
+    rel = _resolve_note(path, fuzzy=False)  # don't append into a loosely-matched note
+    cur = vault_md.read(rel)
+    body = cur.get("content", "") if cur.get("exists") else ""
+    add = (content or "").strip()
+    new = (body.rstrip() + "\n\n" + add + "\n") if body.strip() else add + "\n"
+    res = vault_md.write(rel, new)
+    out_rel = res.get("path", rel)
+    _vault_reindex(out_rel, new)
+    return {"output": f"{'appended to' if body.strip() else 'created'} note {out_rel}"}
 
 
 async def _note_search(q):
     from services import vault_md
 
     res = vault_md.full_text_search(q, limit=12)
-    out = [f"- {r['name']}: {(r.get('context') or '')[:80]}" for r in res]
+    out = [f"- {r['name']} ({r['path']}): {(r.get('context') or '')[:80]}" for r in res]
     return {"output": "\n".join(out) if out else "no matches"}
+
+
+async def _note_backlinks(name):
+    from services import vault_md
+
+    bl = vault_md.backlinks(name)
+    out = [f"- {b['name']} ({b['path']}): {(b.get('context') or '')[:80]}" for b in bl]
+    return {"output": "\n".join(out) if out else f"no notes link to {name}"}
 
 
 async def _contact_list(q):
@@ -2583,10 +2658,16 @@ APP_TOOL_DEFS = [
         ["id"],
     ),
     _tool("note_list", "List all vault note names.", {}),
-    _tool("note_read", "Read a vault note by name.", {"name": {"type": "string"}}, ["name"]),
+    _tool(
+        "note_read",
+        "Read a vault note or doc by name or path (e.g. 'Ideas' or 'Projects/Ideas.md').",
+        {"name": {"type": "string"}},
+        ["name"],
+    ),
     _tool(
         "note_write",
-        "Create or overwrite a vault note (path = note name, folders ok).",
+        "Create or OVERWRITE a vault note/doc (path = note name or path, folders ok). "
+        "Destructive — to add to an existing note without losing it, use note_append.",
         {
             "path": {"type": "string"},
             "content": {"type": "string"},
@@ -2594,7 +2675,25 @@ APP_TOOL_DEFS = [
         ["path", "content"],
     ),
     _tool(
-        "note_search", "Full-text search the vault notes.", {"query": {"type": "string"}}, ["query"]
+        "note_append",
+        "Append text to a vault note/doc (creates it if missing). Safe additive write.",
+        {
+            "path": {"type": "string"},
+            "content": {"type": "string"},
+        },
+        ["path", "content"],
+    ),
+    _tool(
+        "note_search",
+        "Full-text search the vault (notes + docs). Returns name, path and a snippet.",
+        {"query": {"type": "string"}},
+        ["query"],
+    ),
+    _tool(
+        "note_backlinks",
+        "List vault notes that link ([[name]]) to a given note — for traversing related notes.",
+        {"name": {"type": "string"}},
+        ["name"],
     ),
     _tool("contact_list", "List or search contacts.", {"query": {"type": "string", "default": ""}}),
     _tool(
@@ -2754,6 +2853,7 @@ MUTATING_TOOLS = {
     "task_add",
     "task_done",
     "note_write",
+    "note_append",
     "contact_add",
     "mail_send",
     "book_add",
@@ -2821,6 +2921,7 @@ UNTRUSTED_TOOLS = {
     "mcp_call_tool",
     "note_read",
     "note_search",
+    "note_backlinks",
 }
 
 # phrases that look like an injected instruction smuggled inside fetched content
