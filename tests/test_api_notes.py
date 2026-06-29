@@ -1,9 +1,25 @@
-from tests._client import ApiTest
+from tests._client import VaultApiTest
 
 
-class NotesApiTest(ApiTest):
+class NotesApiTest(VaultApiTest):
     def _mk(self, **kw):
         return self.client.post("/api/notes", json=kw).json()
+
+    def test_pin_toggle_preserves_title_and_content(self):
+        # regression (F01, blocker): the pin button sends a partial PATCH with only
+        # {pinned:...}. NoteBody used to default title/content to "" so update_note's
+        # `is not None` was always true and silently wiped both on every pin/unpin.
+        nid = self._mk(title="keep me", content="important body")["id"]
+        pinned = self.client.patch(f"/api/notes/{nid}", json={"pinned": True}).json()
+        self.assertEqual(pinned["title"], "keep me")
+        self.assertEqual(pinned["content"], "important body")
+        self.assertTrue(pinned["pinned"])
+        unp = self.client.patch(f"/api/notes/{nid}", json={"pinned": False}).json()
+        self.assertEqual(unp["title"], "keep me")
+        self.assertEqual(unp["content"], "important body")
+        # explicit empty content must still be honored when actually sent
+        cleared = self.client.patch(f"/api/notes/{nid}", json={"content": ""}).json()
+        self.assertEqual(cleared["content"], "")
 
     def test_create_with_tags_normalized(self):
         n = self._mk(title="t", content="c", tags=["Work", "work", " Urgent "])

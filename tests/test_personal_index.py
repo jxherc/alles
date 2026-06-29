@@ -1,7 +1,7 @@
 # tests/test_personal_index.py
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from core.database import Base, Note
+from core.database import Base
 from services import personal_index as pix
 
 def _db():
@@ -9,22 +9,28 @@ def _db():
     Base.metadata.create_all(eng)
     return sessionmaker(bind=eng)()
 
-def test_note_indexed_and_searchable():
-    db = _db()
-    n = Note(id="n1", title="apartment hunt", content="viewed a 2br near the park", tags="home")
-    db.add(n); db.commit()
-    assert pix.index_record(db, "note", n) > 0
-    hits = pix.search(db, "apartment park", k=5)
-    assert any(h["ref"] == "n1" and h["kind"] == "note" for h in hits)
-    assert hits[0]["label"] == "apartment hunt"
-    assert hits[0]["link"] == "/?app=notes#n1"
+def _vault(monkeypatch, tmp_path):
+    # notes are vault files now; point the vault at a throwaway dir
+    monkeypatch.setattr("services.vault_md.vault_dir", lambda: tmp_path)
+    from services import notes_vault
+    return notes_vault
 
-def test_remove_record():
+def test_note_indexed_and_searchable(monkeypatch, tmp_path):
+    nv = _vault(monkeypatch, tmp_path)
     db = _db()
-    n = Note(id="n2", title="temp", content="throwaway")
-    db.add(n); db.commit()
-    pix.index_record(db, "note", n)
-    assert pix.remove_record(db, "note", "n2") >= 1
+    n = nv.create(title="apartment hunt", content="viewed a 2br near the park", tags=["home"])
+    assert pix.index_record(db, "note", n["id"]) > 0
+    hits = pix.search(db, "apartment park", k=5)
+    assert any(h["ref"] == n["id"] and h["kind"] == "note" for h in hits)
+    assert hits[0]["label"] == "apartment hunt"
+    assert hits[0]["link"] == "/?app=notes#apartment hunt"
+
+def test_remove_record(monkeypatch, tmp_path):
+    nv = _vault(monkeypatch, tmp_path)
+    db = _db()
+    n = nv.create(title="temp", content="throwaway")
+    pix.index_record(db, "note", n["id"])
+    assert pix.remove_record(db, "note", n["id"]) >= 1
     assert not pix.search(db, "throwaway", k=5)
 
 from core.database import JournalEntry, Contact, ContactField, ReadItem, Book
@@ -66,12 +72,12 @@ def test_journal_lock_blocks_and_drops(monkeypatch):
     pix.index_record(db, "journal", e)
     assert not pix.search(db, "secret thoughts", kinds=["journal"], k=5)
 
-def test_disabled_source_not_indexed(monkeypatch):
+def test_disabled_source_not_indexed(monkeypatch, tmp_path):
+    nv = _vault(monkeypatch, tmp_path)
     db = _db()
-    n = Note(id="nz", title="hidden", content="should not index")
-    db.add(n); db.commit()
+    n = nv.create(title="hidden", content="should not index")
     monkeypatch.setattr(pixmod, "_source_enabled", lambda k: k != "note")
-    assert pix.index_record(db, "note", n) == 0
+    assert pix.index_record(db, "note", n["id"]) == 0
     assert not pix.search(db, "hidden", kinds=["note"], k=5)
 
 def test_no_vault_adapter():
@@ -97,17 +103,18 @@ def test_mail_subject_indexed_and_body_batch(monkeypatch):
     assert db.query(CachedMessage).filter_by(id="m1").first().body_indexed is True
     assert pix.search(db, "north station friday", kinds=["mail"], k=5)
 
-def test_backfill_and_reconcile_orphans():
+def test_backfill_and_reconcile_orphans(monkeypatch, tmp_path):
+    nv = _vault(monkeypatch, tmp_path)
     db = _db()
-    db.add(Note(id="a", title="alpha note", content="keep me")); db.commit()
-    db.add(Note(id="b", title="beta note", content="delete me")); db.commit()
-    assert pix.reindex_source(db, "note") == 2 or pix.reindex_source(db, "note") > 0
-    # delete row b at the table level WITHOUT a hook -> index now has an orphan
-    db.query(Note).filter_by(id="b").delete(); db.commit()
+    nv.create(title="alpha note", content="keep me")
+    b = nv.create(title="beta note", content="delete me")
+    assert pix.reindex_source(db, "note") > 0
+    # delete the note FILE without a hook -> index now has an orphan
+    nv.delete(b["id"])
     res = pix.reconcile(db)
     assert res["orphans"] >= 1
     refs = {c.ref for c in db.query(IndexChunk).filter_by(kind="note").all()}
-    assert "b" not in refs and "a" in refs
+    assert "beta note" not in refs and "alpha note" in refs
 
 def test_mail_failed_fetch_retryable(monkeypatch):
     db = _db()
@@ -121,9 +128,10 @@ def test_mail_failed_fetch_retryable(monkeypatch):
     # subject is still searchable (it was indexed via text even without a body)
     assert pix.search(db, "retryable", kinds=["mail"], k=5)
 
-def test_stats_and_clear():
+def test_stats_and_clear(monkeypatch, tmp_path):
+    nv = _vault(monkeypatch, tmp_path)
     db = _db()
-    db.add(Note(id="s1", title="x", content="hello world")); db.commit()
+    nv.create(title="x", content="hello world")
     pix.reindex_source(db, "note")
     st = pix.stats(db)
     assert st["by_kind"].get("note", 0) >= 1

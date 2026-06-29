@@ -40,3 +40,29 @@ class ApiTest(unittest.TestCase):
     # convenience: open a session bound to the test db (for seeding rows directly)
     def db(self):
         return db.SessionLocal()
+
+
+class VaultApiTest(ApiTest):
+    """ApiTest + a throwaway vault dir per test. ApiTest only isolates the DB; the vault
+    is real files on disk (vault_dir()), so without this any test that writes notes/docs
+    would clobber data/vault."""
+
+    def setUp(self):
+        super().setUp()
+        import shutil
+        import tempfile
+        from pathlib import Path
+
+        from services import vault_md
+
+        self._vault_tmp = tempfile.mkdtemp()
+        self._vault_cleanup = shutil.rmtree
+        self._orig_vault_dir = vault_md.vault_dir
+        vault_md.vault_dir = lambda: Path(self._vault_tmp).resolve()
+
+    def tearDown(self):
+        from services import vault_md
+
+        vault_md.vault_dir = self._orig_vault_dir
+        self._vault_cleanup(self._vault_tmp, ignore_errors=True)
+        super().tearDown()

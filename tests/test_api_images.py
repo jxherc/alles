@@ -1,11 +1,11 @@
 import json
-from tests._client import ApiTest
+from tests._client import VaultApiTest
 from core.database import ModelEndpoint
 from services.imagegen import is_image_model, image_models
 from routes.models import _is_chat_model
 
 
-class ImagesApiTest(ApiTest):
+class ImagesApiTest(VaultApiTest):
     def test_empty_prompt_400(self):
         self.assertEqual(
             self.client.post("/api/images/generate", json={"prompt": "  "}).status_code, 400
@@ -87,7 +87,8 @@ class ImagesApiTest(ApiTest):
         from pathlib import Path
         import services.imagegen as ig
         import services.photos_store as pstore
-        from core.database import Session as Sess, ModelEndpoint, Note, Message
+        from core.database import Session as Sess, ModelEndpoint, Message
+        from services import notes_vault
 
         buf = BytesIO()
         Image.new("RGB", (4, 4), (200, 30, 30)).save(buf, "PNG")
@@ -134,8 +135,8 @@ class ImagesApiTest(ApiTest):
         j = r.json()
         self.assertIn("saved to notes", j["content"])
         self.assertTrue(j["doc_id"])
+        self.assertEqual(len(notes_vault.all_notes()), 1)  # filed as a vault note (the live docs app)
         d = self.db()
-        self.assertEqual(d.query(Note).count(), 1)  # filed as a note (the live docs app)
         self.assertEqual(d.query(Message).filter_by(session_id=sid).count(), 2)
         # the stored count must match the 2 rows actually written (was +1, drifting the sidebar)
         self.assertEqual(d.get(Sess, sid).message_count, 2)
@@ -149,7 +150,8 @@ class ImagesApiTest(ApiTest):
             self.skipTest("PIL not available")
         from io import BytesIO
         import services.imagegen as ig
-        from core.database import Session as Sess, ModelEndpoint, Note, Message
+        from core.database import Session as Sess, ModelEndpoint, Message
+        from services import notes_vault
 
         buf = BytesIO()
         Image.new("RGB", (4, 4), (20, 200, 30)).save(buf, "PNG")
@@ -188,7 +190,7 @@ class ImagesApiTest(ApiTest):
         j = r.json()
         self.assertIsNone(j["doc_id"])
         self.assertIn("data:image", j["content"])  # inlined, not a gallery url
+        self.assertEqual(len(notes_vault.all_notes()), 0)  # incognito leaves no vault note
         d = self.db()
-        self.assertEqual(d.query(Note).count(), 0)
         self.assertEqual(d.query(Message).filter_by(session_id=sid).count(), 0)
         d.close()

@@ -24,17 +24,19 @@ def _journal_locked():
 
 
 # -- adapters: each maps a record -> text/ref/label, and a ref -> link ---------
-def _note_text(db, n):
-    items = ""
-    try:
-        items = " ".join(i.get("text", "") for i in json.loads(n.items or "[]"))
-    except Exception:
-        items = ""
-    return " ".join(x for x in (n.title, n.content, items, n.tags) if x)
+def _note_text(db, o):
+    # o is a stem (from index_record) or a note dict (from iter) — both resolve to the file
+    from services import notes_vault
+    n = notes_vault.get(o) if isinstance(o, str) else o
+    if not n:
+        return ""
+    items = " ".join(i.get("text", "") for i in (n.get("items") or []))
+    tags = " ".join(n.get("tags") or [])
+    return " ".join(x for x in (n.get("title"), n.get("content"), items, tags) if x)
 
 def _get_note(db, ref):
-    from core.database import Note
-    return db.query(Note).filter_by(id=ref).first()
+    from services import notes_vault
+    return notes_vault.get(ref)
 
 def _journal_text(db, e):
     return " ".join(x for x in (e.content, e.mood, e.tags) if x)
@@ -67,8 +69,8 @@ def _get_book(db, ref):
     return db.query(Book).filter_by(id=ref).first()
 
 def _iter_notes(db):
-    from core.database import Note
-    return db.query(Note).all()
+    from services import notes_vault
+    return notes_vault.all_notes()
 
 def _iter_journal(db):
     from core.database import JournalEntry
@@ -103,9 +105,9 @@ def _iter_mail(db):
 _ADAPTERS = {
     "note": {
         "text": _note_text,
-        "ref": lambda o: o.id,
+        "ref": lambda o: o if isinstance(o, str) else o["id"],  # stem
         "get": _get_note,
-        "label": lambda o: o.title or "(untitled note)",
+        "label": lambda o: (o.get("title") if isinstance(o, dict) else o) or "(untitled note)",
         "link": lambda ref: f"/?app=notes#{ref}",
         "iter": _iter_notes,
     },

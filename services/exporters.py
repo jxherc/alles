@@ -76,18 +76,19 @@ def _tasks(db):
 
 
 def _notes(db):
-    from core.database import Note
+    from services import notes_vault
 
+    rows = sorted(notes_vault.all_notes(), key=lambda n: n["created_at"])
     return [
         {
-            "id": n.id,
-            "title": n.title or "",
-            "content": n.content or "",
-            "tags": n.tags or "",
-            "pinned": bool(n.pinned),
-            "archived": bool(n.archived),
+            "id": n["id"],
+            "title": n["title"],
+            "content": n["content"],
+            "tags": ",".join(n["tags"]),
+            "pinned": n["pinned"],
+            "archived": n["archived"],
         }
-        for n in db.query(Note).order_by(Note.created_at.asc()).all()
+        for n in rows
     ]
 
 

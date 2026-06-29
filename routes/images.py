@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from sqlalchemy.orm import Session as DbSession
 
-from core.database import get_db, ModelEndpoint, Photo, Session, Message, Note
+from core.database import get_db, ModelEndpoint, Photo, Session, Message
 from services import photos_store as ps
 from routes.photos import _fmt
 
@@ -149,15 +149,19 @@ async def generate_in_chat(body: ChatImageBody, db: DbSession = Depends(get_db))
 
     img_md = "\n\n".join(f"![{alt}](/api/photos/original/{p.id})" for p in saved)
 
-    # file it in docs (notes — the live docs app) too so it's easy to find later
-    note = Note(
+    # file it in the vault (notes — the live docs app) too so it's easy to find later
+    from services import notes_vault
+
+    note = notes_vault.create(
         title=title,
         content=f"# {title}\n\n*image · {body.model or ep.name}*\n\n{img_md}\n",
-        tags="image",
+        tags=["image"],
     )
-    db.add(note)
-    db.commit()
-    db.refresh(note)
+    try:
+        from services import personal_index
+        personal_index.index_record(db, "note", note["id"])
+    except Exception:
+        pass
 
     assistant_md = f"{img_md}\n\n`✓ saved to notes` · {title}"
 
@@ -167,7 +171,7 @@ async def generate_in_chat(body: ChatImageBody, db: DbSession = Depends(get_db))
             session_id=s.id,
             role="assistant",
             content=assistant_md,
-            meta=json.dumps({"model": body.model, "image": True, "note_id": note.id}),
+            meta=json.dumps({"model": body.model, "image": True, "note_id": note["id"]}),
         )
     )
     if not s.name or s.name == "new chat":
@@ -178,7 +182,7 @@ async def generate_in_chat(body: ChatImageBody, db: DbSession = Depends(get_db))
 
     return {
         "content": assistant_md,
-        "doc_id": note.id,  # frontend uses this as a "saved" flag + to rename the chat
+        "doc_id": note["id"],  # frontend uses this as a "saved" flag + to rename the chat
         "doc_title": title,
         "images": [{"id": p.id, "original": f"/api/photos/original/{p.id}"} for p in saved],
     }

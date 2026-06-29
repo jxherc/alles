@@ -43,6 +43,11 @@ class EncoderTests(unittest.TestCase):
 
 class ExportDispatchTests(unittest.TestCase):
     def setUp(self):
+        import tempfile
+        from pathlib import Path
+
+        from services import notes_vault, vault_md
+
         self.eng = create_engine(
             "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
         )
@@ -50,9 +55,13 @@ class ExportDispatchTests(unittest.TestCase):
         self._orig = db.engine
         db.engine = self.eng
         db.SessionLocal.configure(bind=self.eng)
+        # notes live in the vault now → isolate it and seed there, not the DB
+        self._vault_tmp = tempfile.mkdtemp()
+        self._orig_vault_dir = vault_md.vault_dir
+        vault_md.vault_dir = lambda: Path(self._vault_tmp).resolve()
+        notes_vault.create(title="idea", content="a note body")
         self.s = db.SessionLocal()
         self.s.add(db.Task(title="ship it", done=False))
-        self.s.add(db.Note(title="idea", content="a note body"))
         acc = db.Account(name="chk", kind="checking", opening=0.0)
         self.s.add(acc)
         self.s.commit()
@@ -62,7 +71,13 @@ class ExportDispatchTests(unittest.TestCase):
         self.s.commit()
 
     def tearDown(self):
+        import shutil
+
+        from services import vault_md
+
         self.s.close()
+        vault_md.vault_dir = self._orig_vault_dir
+        shutil.rmtree(self._vault_tmp, ignore_errors=True)
         db.SessionLocal.configure(bind=self._orig)
         db.engine = self._orig
         self.eng.dispose()
