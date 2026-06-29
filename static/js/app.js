@@ -378,7 +378,7 @@ const showTasksView    = () => showView('tasks-view',    'tasks',    loadTasks);
 const showCalendarView = () => showView('calendar-view', 'calendar', loadCalendar);
 const showGalleryView  = () => showView('gallery-view',  'gallery',  () => { loadGallery(); initGalleryUpload(); });
 const showCompareView  = () => showView('compare-view',  'compare',  () => { initCompareView(); loadCompareModels(); loadCompareLeaderboard(); });
-const showWikiView     = () => showView('wiki-view',     'wiki',     async () => { (await import('./vaultmd.js')).initVault(); });
+const showWikiView     = () => showView('wiki-view',     'wiki',     async () => { (await import('./docs.js')).initDocs(); });
 const showVaultView      = () => showView('vault-view',      'vault',     loadVaultView);
 const showContactsView   = () => showView('contacts-view',  'contacts',  () => loadContacts());
 const showRemindersView  = () => showView('reminders-view', 'reminders', initReminderPanel);
@@ -996,7 +996,11 @@ function bindEvents() {
   const ta = document.getElementById('composer-ta');
 
   ta.addEventListener('keydown', e => {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); doSend(); }
+    // Enter (incl. Ctrl/Cmd+Enter) sends; Shift+Enter is a newline. stopPropagation so the
+    // event doesn't ALSO reach the document-level `send` shortcut and fire doSend twice. (don't
+    // exclude ctrl/meta here — the global shortcut is 'Ctrl+Enter' and never matches Cmd+Enter
+    // on mac, so excluding metaKey would leave Cmd+Enter dead.)
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); e.stopPropagation(); doSend(); }
   });
   // dim send when empty (but never while recording — it doubles as the stop)
   const _sendBtn = document.getElementById('send-btn');
@@ -1242,7 +1246,8 @@ function bindEvents() {
   });
   // share-btn removed — export/share/print now in topbar-session-actions
 
-  setInterval(loadModels, 30000);
+  // only poll models where the picker actually lives (aide) — other subapps have no model UI
+  if (document.body.classList.contains('is-aide')) setInterval(loadModels, 30000);
 }
 
 let _aoPlaying = false;
@@ -1335,12 +1340,16 @@ function closeMoreTools() {
 // ── send ──────────────────────────────────────────────────────────────────────
 async function doSend() {
   const ta = document.getElementById('composer-ta');
-  const text = ta.value.trim();
+  let text = ta.value.trim();
   if (!text) return;
   if (await tryExecuteSlashCommand(text)) {
     ta.value = ''; ta.style.height = 'auto'; clearDraft();
     return;
   }
+  // a cookbook slash command rewrites the composer to its expanded prompt and returns
+  // false ("let normal send handle it") — re-read so we send the expansion, not "/name args".
+  text = ta.value.trim();
+  if (!text) return;
   ta.value = ''; ta.style.height = 'auto'; clearDraft();
   if (isResearchMode()) runResearch(text);
   else if (isDocsMode()) runDocsQuery(text);
