@@ -1,4 +1,5 @@
 from fastapi import APIRouter
+from fastapi.responses import Response
 from pydantic import BaseModel
 
 from core.settings import load_settings, save_settings
@@ -31,6 +32,27 @@ def vault_location(path: str = ""):
         except ValueError:
             target = base
     return {"path": base, "obsidian": "obsidian://open?path=" + quote(target)}
+
+
+@router.get("/download/obsidian-plugin")
+def download_obsidian_plugin():
+    """zip the bundled Obsidian companion plugin → drop into your vault's .obsidian/plugins/."""
+    import io
+    import zipfile
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parent.parent / "static" / "plugins" / "obsidian-alles"
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        for f in root.rglob("*"):
+            if f.is_file():
+                zf.write(f, f"alles/{f.relative_to(root).as_posix()}")
+    buf.seek(0)
+    return Response(
+        content=buf.read(),
+        media_type="application/zip",
+        headers={"content-disposition": 'attachment; filename="obsidian-alles-plugin.zip"'},
+    )
 
 
 class SettingsPatch(BaseModel):

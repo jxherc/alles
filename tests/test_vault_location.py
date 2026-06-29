@@ -18,3 +18,13 @@ class VaultLocationTest(VaultApiTest):
         r = self.client.get("/api/vault-location", params={"path": "Notes/foo.md"}).json()
         self.assertTrue(r["obsidian"].startswith("obsidian://open?path="))
         self.assertIn("Notes", r["obsidian"])  # points at the file, not just the vault
+
+    def test_obsidian_plugin_download(self):
+        import io
+        import zipfile
+
+        r = self.client.get("/api/download/obsidian-plugin")
+        self.assertEqual(r.status_code, 200)
+        names = zipfile.ZipFile(io.BytesIO(r.content)).namelist()
+        self.assertIn("alles/manifest.json", names)
+        self.assertIn("alles/main.js", names)

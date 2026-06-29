@@ -5,9 +5,11 @@ const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').re
 const SPECS = {
   notes: { title: 'notes & docs', apply: () => window._reloadNotes?.(), fields: [
     { k: 'vault_dir', type: 'text', label: 'vault folder (Obsidian)', ph: 'data/vault' },
-    { type: 'note', text: 'Your notes & docs live here as plain markdown. Point this at an Obsidian vault folder — or copy the path below and "Open folder as vault" in Obsidian. Sync it across devices with Syncthing.' },
+    { type: 'note', text: 'Your notes & docs live here as plain markdown. Point this at an Obsidian vault folder — or copy the path and "Open folder as vault" in Obsidian.' },
     { type: 'action', label: 'open in Obsidian', act: '_openInObsidian' },
     { type: 'action', label: 'copy vault path', act: '_copyVaultPath' },
+    { type: 'note', text: 'Sync across devices: install Syncthing here and on your phone/laptop, add this vault folder on each, and link them — Obsidian then opens the same notes everywhere.' },
+    { type: 'action', label: 'download Obsidian plugin', act: '_downloadPlugin' },
   ] },
   files: { title: 'files', apply: () => window._reloadFiles?.(), fields: [
     { k: 'files_dir', type: 'text', label: 'root directory', ph: 'data/files' },
@@ -71,7 +73,8 @@ async function _copyVaultPath() {
   try { await navigator.clipboard.writeText(loc.path); } catch {}
   import('./util.js').then(m => m.toast?.('vault path copied', 'success')).catch(() => {});
 }
-const ACTIONS = { _openInObsidian, _copyVaultPath };
+function _downloadPlugin() { location.href = '/api/download/obsidian-plugin'; }
+const ACTIONS = { _openInObsidian, _copyVaultPath, _downloadPlugin };
 
 export function closeAppSettings() {
   if (_open) { _open.pop.remove(); document.removeEventListener('click', _outside); _open = null; }

@@ -1,0 +1,9 @@
+{
+  "id": "alles",
+  "name": "alles",
+  "version": "0.1.0",
+  "minAppVersion": "1.0.0",
+  "description": "Open the current note in your alles app (and jump back).",
+  "author": "jxherc",
+  "isDesktopOnly": false
+}
