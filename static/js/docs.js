@@ -8,6 +8,7 @@ let _cur = null;        // open doc rel-path, or null
 let _tree = null;
 let _wired = false;
 let _es = null;         // live file-watch stream
+let _deepLinked = false;
 
 const $ = id => document.getElementById(id);
 const show = (el, on) => { if (el) el.style.display = on ? '' : 'none'; };
@@ -23,6 +24,11 @@ export function initDocs() {
   loadTags();
   showSection('docs');
   _watch();
+  // the obsidian plugin links here as /?app=wiki#<note name> — open it (once)
+  if (!_deepLinked && location.hash.length > 1) {
+    _deepLinked = true;
+    openByName(decodeURIComponent(location.hash.slice(1)));
+  }
 }
 
 // live two-way: refresh when files change on disk (e.g. edited in Obsidian)
