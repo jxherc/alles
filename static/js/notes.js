@@ -223,3 +223,6 @@ export async function newNote() {
 function esc(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
+
+// let settings "apply" + the vault file-watcher refresh the list
+if (typeof window !== 'undefined') window._reloadNotes = loadNotes;
