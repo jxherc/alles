@@ -284,3 +284,48 @@ def tag_counts() -> list[dict]:
 def all_notes() -> list[dict]:
     """every note incl. archived — for the index reindex + export."""
     return _all()
+
+
+# ── migration (DB notes -> vault files) ──────────────────────────────────────
+def existing_legacy_ids() -> set:
+    """legacy_id of every already-migrated note file, so the migration is idempotent."""
+    base = vault_md.vault_dir() / NOTES_DIR
+    if not base.is_dir():
+        return set()
+    out = set()
+    for p in base.glob("*.md"):
+        lid = _legacy(p.stem)
+        if lid:
+            out.add(lid)
+    return out
+
+
+def migrate_note(*, title, content, pinned, archived, tags, items, due, created_iso, legacy_id) -> str:
+    """write one legacy DB note as a vault file, carrying its archived flag + legacy_id.
+    items may be a json string (the old Text column) or a list."""
+    import json
+    if isinstance(items, str):
+        try:
+            items = json.loads(items or "[]")
+        except Exception:
+            items = []
+    stem = _unique(_fname(title))
+    md = _compose(content or "", _norm_items(items), _norm_tags(tags), bool(pinned),
+                  bool(archived), (due or "").strip(), created_iso or _now_iso(), legacy_id)
+    vault_md.write(_rel(stem), md)
+    return stem
+
+
+def migration_plan(db) -> list[dict]:
+    """dry-run: what the notes->vault migration WOULD do, without writing anything."""
+    from sqlalchemy import text
+    done = existing_legacy_ids()
+    out = []
+    for row in db.execute(text("SELECT id, title FROM notes")).fetchall():
+        nid, title = row[0], row[1]
+        out.append({
+            "id": nid,
+            "target": f"{NOTES_DIR}/{_fname(title)}.md",
+            "action": "skip" if nid in done else "create",
+        })
+    return out
