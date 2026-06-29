@@ -7,6 +7,7 @@ let _section = 'docs';
 let _cur = null;        // open doc rel-path, or null
 let _tree = null;
 let _wired = false;
+let _es = null;         // live file-watch stream
 
 const $ = id => document.getElementById(id);
 const show = (el, on) => { if (el) el.style.display = on ? '' : 'none'; };
@@ -21,6 +22,25 @@ export function initDocs() {
   loadTree();
   loadTags();
   showSection('docs');
+  _watch();
+}
+
+// live two-way: refresh when files change on disk (e.g. edited in Obsidian)
+function _watch() {
+  if (_es || typeof EventSource === 'undefined') return;
+  try {
+    _es = new EventSource('/api/vault-md/stream');
+    _es.onmessage = e => {
+      let d; try { d = JSON.parse(e.data); } catch { return; }
+      const ch = [...(d.changed || []), ...(d.removed || [])];
+      if (!ch.length) return;
+      if ($('wiki-view')?.style.display === 'none') return;  // not on screen
+      if (_section === 'notes') { window._reloadNotes?.(); return; }
+      loadTree();
+      if (_cur && ch.includes(_cur)) openNote(_cur);  // re-read the open doc
+    };
+    _es.onerror = () => {};  // EventSource auto-reconnects
+  } catch {}
 }
 
 function _wire() {
