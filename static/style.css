@@ -2608,9 +2608,9 @@ mark.wiki-cmark { background: rgba(129, 140, 248, 0.28); color: inherit; border-
 /* note card */
 #notes-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 0.5rem; align-items: start; }
 .note-card {
-  border: 1px solid var(--faint); border-radius: 3px;
+  border: 1px solid var(--faint); border-radius: 6px;
   padding: 0.65rem 0.75rem; margin-bottom: 0;
-  display: flex; flex-direction: column; gap: 0.28rem; min-height: 82px;
+  display: flex; flex-direction: column; gap: 0.28rem;
   cursor: pointer; transition: border-color 0.2s, background 0.2s;
   position: relative; overflow: hidden;
 }
