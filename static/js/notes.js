@@ -5,6 +5,7 @@ let _editing = null;
 let _q = '';
 let _tag = '';      // active tag filter, '' = all
 let _searchWired = false;
+let _deepLinked = false;
 
 export async function loadNotes() {
   _wireSearch();
@@ -15,6 +16,13 @@ export async function loadNotes() {
   _notes = await r.json();
   renderNotes();
   _renderTagbar();
+  // recall links here as /?app=notes#<stem> — open that note once
+  if (!_deepLinked && location.hash.length > 1) {
+    _deepLinked = true;
+    const want = decodeURIComponent(location.hash.slice(1));
+    const hit = _notes.find(n => n.id === want);
+    if (hit) openEditor(hit);
+  }
 }
 
 function _wireSearch() {
@@ -56,7 +64,7 @@ function renderNotes() {
   }
 
   list.innerHTML = _notes.map(n => `
-    <div class="note-card${n.pinned ? ' pinned' : ''}" data-id="${n.id}">
+    <div class="note-card${n.pinned ? ' pinned' : ''}" data-id="${esc(n.id)}">
       <div class="note-title">${esc(n.title || 'untitled')}</div>
       <div class="note-preview">${esc(n.content.slice(0, 200)) || '—'}</div>
       ${(n.due || n.items?.length) ? `<div class="note-meta-row">
@@ -65,9 +73,9 @@ function renderNotes() {
       </div>` : ''}
       ${n.tags?.length ? `<div class="note-tags">${n.tags.map(t => `<span class="note-tag">${esc(t)}</span>`).join('')}</div>` : ''}
       <div class="note-actions">
-        <button class="act-btn note-pin-btn" data-id="${n.id}" data-pinned="${n.pinned}">${n.pinned ? 'unpin' : 'pin'}</button>
-        <button class="act-btn note-archive-btn" data-id="${n.id}">archive</button>
-        <button class="act-btn note-del-btn" data-id="${n.id}">delete</button>
+        <button class="act-btn note-pin-btn" data-id="${esc(n.id)}" data-pinned="${n.pinned}">${n.pinned ? 'unpin' : 'pin'}</button>
+        <button class="act-btn note-archive-btn" data-id="${esc(n.id)}">archive</button>
+        <button class="act-btn note-del-btn" data-id="${esc(n.id)}">delete</button>
       </div>
     </div>`).join('');
 
@@ -81,7 +89,7 @@ function renderNotes() {
   list.querySelectorAll('.note-del-btn').forEach(btn => {
     btn.addEventListener('click', async e => {
       e.stopPropagation();
-      await fetch(`/api/notes/${btn.dataset.id}`, { method: 'DELETE' });
+      await fetch(`/api/notes/${encodeURIComponent(btn.dataset.id)}`, { method: 'DELETE' });
       await loadNotes();
     });
   });
@@ -89,7 +97,7 @@ function renderNotes() {
   list.querySelectorAll('.note-archive-btn').forEach(btn => {
     btn.addEventListener('click', async e => {
       e.stopPropagation();
-      await fetch(`/api/notes/${btn.dataset.id}/archive`, {
+      await fetch(`/api/notes/${encodeURIComponent(btn.dataset.id)}/archive`, {
         method: 'POST', headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ archived: true }),
       });
@@ -101,7 +109,7 @@ function renderNotes() {
   list.querySelectorAll('.note-pin-btn').forEach(btn => {
     btn.addEventListener('click', async e => {
       e.stopPropagation();
-      await fetch(`/api/notes/${btn.dataset.id}`, {
+      await fetch(`/api/notes/${encodeURIComponent(btn.dataset.id)}`, {
         method: 'PATCH',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ pinned: btn.dataset.pinned === 'false' }),
@@ -141,7 +149,12 @@ function openEditor(note) {
   });
 
   document.getElementById('note-save-btn').addEventListener('click', async () => {
-    await saveCurrentNote();
+    const prevId = _editing?.id;
+    const updated = await saveCurrentNote();
+    // a retitle renamed the file (new id) → rebuild the editor on the fresh note so further
+    // edits hit the right file; otherwise just keep editing the same one
+    if (updated && updated.id !== prevId) openEditor(updated);
+    else if (updated) _editing = updated;
     toast('saved', 'success');
   });
 }
@@ -174,18 +187,24 @@ function _isOverdue(due) {
 
 
 export async function saveCurrentNote() {
-  if (!_editing) return;
+  if (!_editing) return null;
   const title = document.getElementById('note-edit-title')?.value || '';
   const content = document.getElementById('note-edit-body')?.value || '';
   const tags = (document.getElementById('note-edit-tags')?.value || '').split(',').map(t => t.trim()).filter(Boolean);
   const due = document.getElementById('note-edit-due')?.value || '';
   const items = _gatherItems();
-  await fetch(`/api/notes/${_editing.id}`, {
-    method: 'PATCH',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ title, content, tags, items, due }),
-  });
+  // the id is the filename stem — retitling renames the file, so the response can carry a NEW id
+  let updated = null;
+  try {
+    const r = await fetch(`/api/notes/${encodeURIComponent(_editing.id)}`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ title, content, tags, items, due }),
+    });
+    updated = await r.json();
+  } catch {}
   _editing = null;
+  return updated;
 }
 
 
