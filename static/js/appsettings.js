@@ -3,6 +3,12 @@
 const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
 const SPECS = {
+  notes: { title: 'notes & docs', apply: () => window._reloadNotes?.(), fields: [
+    { k: 'vault_dir', type: 'text', label: 'vault folder (Obsidian)', ph: 'data/vault' },
+    { type: 'note', text: 'Your notes & docs live here as plain markdown. Point this at an Obsidian vault folder — or copy the path below and "Open folder as vault" in Obsidian. Sync it across devices with Syncthing.' },
+    { type: 'action', label: 'open in Obsidian', act: '_openInObsidian' },
+    { type: 'action', label: 'copy vault path', act: '_copyVaultPath' },
+  ] },
   files: { title: 'files', apply: () => window._reloadFiles?.(), fields: [
     { k: 'files_dir', type: 'text', label: 'root directory', ph: 'data/files' },
   ] },
@@ -40,6 +46,7 @@ function _field(f, val) {
     return `<div class="aps-field"><label>${f.label}</label><div class="seg" data-k="${f.k}"${f.num ? ' data-num="1"' : ''}>` +
       f.opts.map(([v, l]) => `<button type="button" class="seg-opt${String(val) === String(v) ? ' active' : ''}" data-val="${v}">${l}</button>`).join('') + `</div></div>`;
   }
+  if (f.type === 'note') return `<div class="aps-note" style="font-size:0.72rem;opacity:0.7;line-height:1.45;margin:2px 0 6px">${esc(f.text)}</div>`;
   if (f.type === 'action') return `<button type="button" class="aps-action" data-act="${esc(f.act)}">${esc(f.label)}</button>`;
   if (f.type === 'textarea') return `<div class="aps-field"><label>${f.label}</label><textarea class="settings-textarea" data-k="${f.k}" rows="2" placeholder="${esc(f.ph || '')}">${esc(val || '')}</textarea></div>`;
   return `<div class="aps-field"><label>${f.label}</label><input class="settings-input" data-k="${f.k}" placeholder="${esc(f.ph || '')}" value="${esc(val || '')}"></div>`;
@@ -49,6 +56,22 @@ function _patch(spec, k, v) {
   fetch('/api/settings', { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ [k]: v }) })
     .then(() => spec.apply?.()).catch(() => {});
 }
+
+// built-in actions (the "connect to Obsidian" buttons), resolved before any window.* hook
+async function _vaultLoc() {
+  return fetch('/api/vault-location').then(r => r.json()).catch(() => null);
+}
+async function _openInObsidian() {
+  const loc = await _vaultLoc();
+  if (loc?.obsidian) location.href = loc.obsidian;  // best-effort; needs the folder added as a vault
+}
+async function _copyVaultPath() {
+  const loc = await _vaultLoc();
+  if (!loc?.path) return;
+  try { await navigator.clipboard.writeText(loc.path); } catch {}
+  import('./util.js').then(m => m.toast?.('vault path copied', 'success')).catch(() => {});
+}
+const ACTIONS = { _openInObsidian, _copyVaultPath };
 
 export function closeAppSettings() {
   if (_open) { _open.pop.remove(); document.removeEventListener('click', _outside); _open = null; }
@@ -87,7 +110,7 @@ export async function openAppSettings(app, anchor) {
   // action buttons (e.g. mail's accounts / rules panels) → close the popover, run the hook
   pop.querySelectorAll('.aps-action').forEach(btn => btn.addEventListener('click', () => {
     closeAppSettings();
-    window[btn.dataset.act]?.();
+    (ACTIONS[btn.dataset.act] || window[btn.dataset.act])?.();
   }));
   setTimeout(() => document.addEventListener('click', _outside), 0);
 }
