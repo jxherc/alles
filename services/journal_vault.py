@@ -46,8 +46,14 @@ def _compose(content, mood, tags) -> str:
         fm.append(f"mood: {mood}")
     if tags:
         fm.append(f"tags: {tags}")
-    head = "---\n" + "\n".join(fm) + "\n---\n\n" if fm else ""
-    return head + (content or "").strip() + "\n"
+    body = (content or "").strip()
+    if fm:
+        return "---\n" + "\n".join(fm) + "\n---\n\n" + body + "\n"
+    # no frontmatter, but if the body itself opens with a --- block, an empty fence stops
+    # parse_frontmatter from swallowing it as the note's frontmatter (round-trip safe)
+    if body.startswith("---"):
+        return "---\n---\n\n" + body + "\n"
+    return body + "\n"
 
 
 def write_entry(day, content, mood="", tags=""):
@@ -99,7 +105,9 @@ def sync_from_vault(db, day):
     if parsed is None:  # file gone — leave the DB row alone (deletes go through the app)
         return
     e = db.query(JournalEntry).filter(JournalEntry.date == day).first()
-    if e and (e.content or "") == parsed["content"] and (e.mood or "") == parsed["mood"] \
+    # compare stripped — the mirror file holds the stripped body, so a raw DB value that only
+    # differs by surrounding whitespace is still "in sync" (don't rewrite/strip it on echo)
+    if e and (e.content or "").strip() == parsed["content"] and (e.mood or "") == parsed["mood"] \
             and (e.tags or "") == parsed["tags"]:
         return
     if e:
@@ -130,13 +138,29 @@ def backfill():
 
 
 def purge():
-    """remove every mirrored daily note (mirror turned off / a passcode set)."""
+    """remove every mirrored daily note (mirror turned off / a passcode set), and clear any
+    stale 'doc' index chunks so a previously-leaked diary can't survive in search after lock."""
     base = vault_md.vault_dir() / JOURNAL_DIR
     if not base.is_dir():
         return
+    removed = []
     for p in base.glob("*.md"):
         if _DATE.match(p.stem):
             try:
                 p.unlink()
+                removed.append(f"{JOURNAL_DIR}/{p.name}")
             except OSError:
                 pass
+    if removed:
+        try:
+            from core.database import SessionLocal
+            from services import textindex
+
+            db = SessionLocal()
+            try:
+                for rel in removed:
+                    textindex.remove(db, "doc", rel)
+            finally:
+                db.close()
+        except Exception:
+            pass

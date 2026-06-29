@@ -114,3 +114,73 @@ class JournalVaultTests(VaultApiTest):
         self.assertIsNone(journal_vault.is_daily("Journal/notes.md"))
         self.assertIsNone(journal_vault.is_daily("Notes/2026-06-29.md"))
         self.assertIsNone(journal_vault.is_daily("Journal/sub/2026-06-29.md"))
+
+    # ── regressions (found in QA) ───────────────────────────────────────────────
+    def test_journal_not_collected_as_doc(self):
+        # privacy: diary daily notes must never enter the ungated "doc" index
+        from routes.textindex import _collect_docs
+
+        self._mirror_on()
+        self.client.put("/api/journal/2026-06-29", json={"content": "DIARYSECRET here"})
+        rels = [r for r, _ in _collect_docs()]
+        self.assertNotIn("Journal/2026-06-29.md", rels)
+
+    def test_journal_secret_not_in_doc_search(self):
+        from services import textindex
+
+        self._mirror_on()
+        self.client.put("/api/journal/2026-06-29", json={"content": "DIARYSECRET here"})
+        self.client.post("/api/index/reindex")  # full doc reindex
+        db = self.db()
+        try:
+            hits = textindex.search(db, "DIARYSECRET", kind="doc", k=5)
+        finally:
+            db.close()
+        self.assertEqual(hits, [])
+
+    def test_purge_clears_stale_doc_chunks(self):
+        # if a diary ever leaked into "doc", locking must clear it too
+        from services import textindex
+
+        self._mirror_on()
+        db = self.db()
+        try:
+            textindex.index(db, "doc", "Journal/2026-06-29.md", "LEAKEDSECRET")
+        finally:
+            db.close()
+        self.client.put("/api/journal/2026-06-29", json={"content": "x"})
+        self.client.post("/api/journal/lock/set", json={"passcode": "1234"})  # purges
+        db = self.db()
+        try:
+            hits = textindex.search(db, "LEAKEDSECRET", kind="doc", k=5)
+        finally:
+            db.close()
+        self.assertEqual(hits, [])
+
+    def test_content_with_leading_frontmatter_roundtrips(self):
+        self._mirror_on()
+        body = "---\nfoo: bar\n---\n\nthe real body"
+        self.client.put("/api/journal/2026-06-29", json={"content": body})
+        got = journal_vault.read_entry("2026-06-29")
+        self.assertEqual(got["content"], body)  # leading --- block survives, not eaten as FM
+
+    def test_whitespace_content_does_not_churn(self):
+        from core.database import JournalEntry
+
+        self._mirror_on()
+        self.client.put("/api/journal/2026-06-29", json={"content": "hello\n\n"})
+        db = self.db()
+        try:
+            journal_vault.sync_from_vault(db, "2026-06-29")  # the watcher echo
+            e = db.query(JournalEntry).filter_by(date="2026-06-29").first()
+            self.assertEqual(e.content, "hello\n\n")  # not silently stripped on echo
+        finally:
+            db.close()
+
+    def test_lock_disable_rebuilds_mirror(self):
+        self._mirror_on()
+        self.client.put("/api/journal/2026-06-29", json={"content": "x"})
+        self.client.post("/api/journal/lock/set", json={"passcode": "1234"})
+        self.assertFalse(self._file("2026-06-29").exists())
+        self.client.post("/api/journal/lock/disable", json={"passcode": "1234"})
+        self.assertTrue(self._file("2026-06-29").exists())
