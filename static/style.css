@@ -4503,13 +4503,12 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
   font-size: 0.88rem;
 }
 .docs-rail-actions {
-  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.25rem;
+  display: grid; grid-template-columns: 1fr 1fr; gap: 0.3rem;
 }
 .docs-rail-actions .btn {
-  min-width: 0; padding: 0.24rem 0.25rem; font-size: 0.62rem;
+  min-width: 0; padding: 0.3rem 0.4rem; font-size: 0.7rem;
   letter-spacing: 0; text-align: center;
 }
-.docs-rail-actions .docs-rail-new { grid-column: 1 / -1; }
 .docs-search {
   margin: 0.15rem 0.8rem 0.55rem; width: calc(100% - 1.6rem);
   font-size: 0.78rem; padding: 0.3rem 0;
@@ -4791,6 +4790,12 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 .docs-home-search { width: 100%; margin-bottom: 1.3rem; }
 .docs-home-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 0.8rem; }
 .docs-home-empty { color: var(--muted); font-size: 0.82rem; padding: 2rem 0; }
+.docs-home-card {
+  border: 1px solid var(--faint); border-radius: 6px; padding: 0.7rem 0.8rem; cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.docs-home-card:hover { border-color: var(--muted); background: color-mix(in srgb, var(--text) 4%, transparent); }
+.docs-home-card .dhc-title { font-size: 0.82rem; color: var(--text); }
 .docs-card {
   position: relative;
   text-align: left; display: flex; flex-direction: column; gap: 0.5rem;
@@ -4830,7 +4835,7 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 #wiki-view.no-note #wiki-delete-btn { display: none; }
 
 /* sidebar docs/notes switch */
-.docs-sections { display: flex; gap: 0.3rem; padding: 0.4rem 0 0.55rem; }
+.docs-sections { display: flex; gap: 0.3rem; padding: 0.4rem 0.8rem 0.55rem; }
 .docs-sec-btn {
   flex: 1; background: none; border: 1px solid var(--faint); border-radius: 4px;
   color: var(--muted); font: inherit; font-size: 0.74rem; padding: 0.3rem 0; cursor: pointer;
@@ -5148,7 +5153,7 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
   .wiki-tree-panel {
     width: 100%; max-height: 42vh; border-right: none; border-bottom: 1px solid var(--faint);
   }
-  .docs-rail-actions { grid-template-columns: repeat(3, minmax(58px, 1fr)); }
+  .docs-rail-actions { grid-template-columns: 1fr 1fr; }
   .docs-editor-head { padding: 0.65rem 0.85rem; flex-wrap: wrap; }
   .wiki-source, .wiki-preview { padding: 1.2rem 0.9rem; }
   .doc-ai-bar { padding: 0.55rem 0.85rem; }

@@ -11,7 +11,9 @@ let _es = null;         // live file-watch stream
 let _deepLinked = false;
 
 const $ = id => document.getElementById(id);
-const show = (el, on) => { if (el) el.style.display = on ? '' : 'none'; };
+// several of these panes default to display:none in css (the old editor toggled classes),
+// so show() must set a real display value, not '' (which falls back to none)
+const show = (el, on, disp = 'flex') => { if (el) el.style.display = on ? disp : 'none'; };
 const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const stem = p => (p || '').split('/').pop().replace(/\.(md|markdown)$/i, '');
 
@@ -77,7 +79,7 @@ function _wire() {
   // ask
   $('wiki-ask-btn')?.addEventListener('click', () => {
     const a = $('wiki-ask'); const on = a.style.display === 'none' || !a.style.display;
-    show(a, on); if (on) $('wiki-ask-input')?.focus();
+    show(a, on, 'block'); if (on) $('wiki-ask-input')?.focus();
   });
   $('wiki-ask-go')?.addEventListener('click', runAsk);
   $('wiki-ask-input')?.addEventListener('keydown', e => { if (e.key === 'Enter') runAsk(); });
@@ -96,12 +98,12 @@ function showSection(sec) {
     b.classList.toggle('active', b.dataset.section === sec));
   const docs = sec === 'docs';
   show(document.querySelector('.wiki-tree-panel'), docs);
-  show($('wiki-notes'), !docs);
+  show($('wiki-notes'), !docs, 'block');
   show(document.querySelector('.docs-editor-head'), docs);
   if (docs) {
     show($('wiki-empty-state'), !_cur);
-    show($('wiki-preview'), !!_cur);
-    show($('wiki-backlinks'), !!_cur);
+    show($('wiki-preview'), !!_cur, 'block');
+    show($('wiki-backlinks'), !!_cur, 'block');
   } else {
     show($('wiki-empty-state'), false);
     show($('wiki-preview'), false);
@@ -177,7 +179,7 @@ export async function openNote(path) {
   enhanceMarkdown(pv);
   if ($('wiki-current')) $('wiki-current').textContent = stem(_cur);
   show($('wiki-empty-state'), false);
-  show(pv, true);
+  show(pv, true, 'block');
   loadBacklinks();
   // mark the active row
   document.querySelectorAll('#wiki-tree .wiki-file').forEach(el =>
