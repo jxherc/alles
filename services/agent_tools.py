@@ -1811,8 +1811,11 @@ async def _note_list():
 async def _note_read(name):
     from services import vault_md
 
-    rel = _resolve_note(name, fuzzy=True)
-    d = vault_md.read(rel)
+    try:
+        rel = _resolve_note(name, fuzzy=True)
+        d = vault_md.read(rel)
+    except ValueError as e:
+        return {"output": str(e), "error": True}
     if not d.get("exists"):
         return {"output": f"note not found: {name}", "error": True}
     return {"output": d.get("content", "") or "(empty note)"}
@@ -1821,7 +1824,10 @@ async def _note_read(name):
 async def _note_write(path, content):
     from services import vault_md
 
-    res = vault_md.write(path, content)
+    try:
+        res = vault_md.write(path, content)
+    except ValueError as e:
+        return {"output": str(e), "error": True}
     rel = res.get("path", path)
     _vault_reindex(rel, content)
     return {"output": f"saved note {rel}"}
@@ -1830,12 +1836,15 @@ async def _note_write(path, content):
 async def _note_append(path, content):
     from services import vault_md
 
-    rel = _resolve_note(path, fuzzy=False)  # don't append into a loosely-matched note
-    cur = vault_md.read(rel)
-    body = cur.get("content", "") if cur.get("exists") else ""
-    add = (content or "").strip()
-    new = (body.rstrip() + "\n\n" + add + "\n") if body.strip() else add + "\n"
-    res = vault_md.write(rel, new)
+    try:
+        rel = _resolve_note(path, fuzzy=False)  # don't append into a loosely-matched note
+        cur = vault_md.read(rel)
+        body = cur.get("content", "") if cur.get("exists") else ""
+        add = (content or "").strip()
+        new = (body.rstrip() + "\n\n" + add + "\n") if body.strip() else add + "\n"
+        res = vault_md.write(rel, new)
+    except ValueError as e:
+        return {"output": str(e), "error": True}
     out_rel = res.get("path", rel)
     _vault_reindex(out_rel, new)
     return {"output": f"{'appended to' if body.strip() else 'created'} note {out_rel}"}

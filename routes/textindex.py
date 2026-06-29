@@ -15,21 +15,21 @@ def search(q: str = "", kind: str = "", k: int = 5, db: DbSession = Depends(get_
 
 
 def _collect_docs():
+    from services import journal_vault
+
     base = vault_md.vault_dir()  # dynamic so a patched vault dir is honored
     items = []
     for p in base.rglob("*.md"):
+        rel = str(p.relative_to(base)).replace("\\", "/")
         rel_parts = p.relative_to(base).parts
         if any(part.startswith((".", "_")) for part in rel_parts):
             continue
         if rel_parts and rel_parts[0] == "Notes":  # notes are the "note" kind, not "doc"
             continue
+        if journal_vault.is_daily(rel):  # diary daily notes are the "journal" kind — never "doc"
+            continue
         try:
-            items.append(
-                (
-                    str(p.relative_to(base)).replace("\\", "/"),
-                    p.read_text("utf-8", errors="replace"),
-                )
-            )
+            items.append((rel, p.read_text("utf-8", errors="replace")))
         except Exception:
             pass
     return items

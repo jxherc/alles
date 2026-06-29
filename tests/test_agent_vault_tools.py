@@ -93,3 +93,16 @@ class AgentVaultToolsTests(VaultApiTest):
         plan = {t["function"]["name"] for t in at.build_tool_defs({"agent_permission_mode": "plan"})}
         self.assertNotIn("note_append", plan)  # mutating → hidden
         self.assertIn("note_backlinks", plan)  # read → stays
+
+    # ── safety: traversal paths return a clean error, not an uncaught crash ──────
+    def test_traversal_path_returns_error(self):
+        cases = [
+            ("note_read", {"name": "../../escape"}),
+            ("note_write", {"path": "../../escape", "content": "x"}),
+            ("note_append", {"path": "../../escape", "content": "x"}),
+        ]
+        for tool, args in cases:
+            r = self.ex(tool, args)
+            self.assertTrue(r.get("error"), f"{tool} should error on a traversal path")
+        # nothing escaped the vault
+        self.assertFalse((vault_md.vault_dir().parent / "escape.md").exists())
