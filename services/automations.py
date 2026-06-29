@@ -22,7 +22,7 @@ placeholders are left as-is rather than crashing the rule.
 
 import json, asyncio, logging, fnmatch
 from datetime import datetime, date
-from core.database import SessionLocal, AutomationRule, Task, Note
+from core.database import SessionLocal, AutomationRule, Task
 
 log = logging.getLogger("aide.automations")
 
@@ -62,8 +62,8 @@ async def _fire(db, rule, ctx: dict):
             db.add(Task(title=text[:300]))
             db.commit()
         elif rule.action == "create_note":
-            db.add(Note(title=(rule.name or "automation")[:120], content=text))
-            db.commit()
+            from services import notes_vault
+            notes_vault.create(title=(rule.name or "automation")[:120], content=text)
         elif rule.action == "push":
             from routes.push import broadcast
 

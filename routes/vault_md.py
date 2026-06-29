@@ -33,6 +33,17 @@ def publish_folder(body: PublishFolderBody, db: DbSession = Depends(get_db)):
     return {"published": out, "count": len(out)}
 
 
+def _is_note(path):
+    # notes live under Notes/ and are indexed as the "note" kind (keyed by stem), not "doc",
+    # so editing one in the docs app doesn't double-index it. see services/notes_vault.py
+    return (path or "").replace("\\", "/").startswith("Notes/")
+
+
+def _note_stem(path):
+    from pathlib import PurePosixPath
+    return PurePosixPath((path or "").replace("\\", "/")).stem
+
+
 # 1c: keep the reusable text index in sync with the vault (best-effort, never breaks a save)
 def _reindex_doc(path, content):
     try:
@@ -41,7 +52,11 @@ def _reindex_doc(path, content):
 
         db = SessionLocal()
         try:
-            textindex.index(db, "doc", path, content)
+            if _is_note(path):
+                from services import personal_index
+                personal_index.index_record(db, "note", _note_stem(path))
+            else:
+                textindex.index(db, "doc", path, content)
         finally:
             db.close()
     except Exception:
@@ -55,7 +70,11 @@ def _unindex_doc(path):
 
         db = SessionLocal()
         try:
-            textindex.remove(db, "doc", path)
+            if _is_note(path):
+                from services import personal_index
+                personal_index.remove_record(db, "note", _note_stem(path))
+            else:
+                textindex.remove(db, "doc", path)
         finally:
             db.close()
     except Exception:

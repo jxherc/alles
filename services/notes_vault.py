@@ -279,3 +279,8 @@ def tag_counts() -> list[dict]:
         for t in r["tags"]:
             counts[t] = counts.get(t, 0) + 1
     return [{"tag": t, "count": c} for t, c in sorted(counts.items())]
+
+
+def all_notes() -> list[dict]:
+    """every note incl. archived — for the index reindex + export."""
+    return _all()

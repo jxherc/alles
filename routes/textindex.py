@@ -18,7 +18,10 @@ def _collect_docs():
     base = vault_md.vault_dir()  # dynamic so a patched vault dir is honored
     items = []
     for p in base.rglob("*.md"):
-        if any(part.startswith((".", "_")) for part in p.relative_to(base).parts):
+        rel_parts = p.relative_to(base).parts
+        if any(part.startswith((".", "_")) for part in rel_parts):
+            continue
+        if rel_parts and rel_parts[0] == "Notes":  # notes are the "note" kind, not "doc"
             continue
         try:
             items.append(

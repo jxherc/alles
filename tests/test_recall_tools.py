@@ -1,12 +1,16 @@
 import asyncio
+import shutil
+import tempfile
 import unittest
 from datetime import date
+from pathlib import Path
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 import core.database as DB
-from core.database import Base, Note, Account, Transaction
+from core.database import Base, Account, Transaction
 from services import personal_index as pix
 from services import agent_tools
+from services import vault_md
 
 # these tests rebind the GLOBAL DB.SessionLocal so the agent tools (which open their own
 # SessionLocal internally) hit an in-memory db. capture the real one at import and put it
@@ -25,12 +29,21 @@ class RecallToolsTests(unittest.TestCase):
         return DB.SessionLocal()
 
     def test_recall_tool_finds_note(self):
-        db = self._bind_memory_db()
-        db.add(Note(id="n1", title="garage code", content="the side door code is 4417")); db.commit()
-        pix.index_record(db, "note", db.query(Note).filter_by(id="n1").first())
-        out = asyncio.run(agent_tools.execute("recall", {"query": "garage door code"}))
-        self.assertFalse(out.get("error"))
-        self.assertIn("garage code", out["output"])
+        from services import notes_vault
+
+        tmp = tempfile.mkdtemp()
+        orig_vault = vault_md.vault_dir
+        vault_md.vault_dir = lambda: Path(tmp).resolve()
+        try:
+            db = self._bind_memory_db()
+            n = notes_vault.create(title="garage code", content="the side door code is 4417")
+            pix.index_record(db, "note", n["id"])
+            out = asyncio.run(agent_tools.execute("recall", {"query": "garage door code"}))
+            self.assertFalse(out.get("error"))
+            self.assertIn("garage code", out["output"])
+        finally:
+            vault_md.vault_dir = orig_vault
+            shutil.rmtree(tmp, ignore_errors=True)
 
     def test_money_query_totals(self):
         db = self._bind_memory_db()
