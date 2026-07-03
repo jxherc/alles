@@ -2478,7 +2478,6 @@ mark.wiki-cmark { background: rgba(129, 140, 248, 0.28); color: inherit; border-
 .photos-mapview .leaflet-control-attribution a { color: var(--accent); }
 .photos-mapview .leaflet-bar a { background: var(--panel); color: var(--text); border-color: var(--faint); }
 .photos-mapview .leaflet-bar a:hover { background: var(--faint); }
-.photos-collage-btn { vertical-align: middle; }
 /* 7c video cells — poster frame + play badge */
 .photos-cellvid { width: 100%; height: 100%; object-fit: cover; display: block; background: var(--panel); }
 .photos-cell.video .photos-vbadge { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); color: #fff; pointer-events: none; filter: drop-shadow(0 1px 4px rgba(0,0,0,0.8)); }

@@ -673,49 +673,6 @@ def memories(date: str = Query(""), db: DbSession = Depends(get_db)):
     return {"groups": groups, "count": sum(len(g["items"]) for g in groups)}
 
 
-class CollageBody(BaseModel):
-    ids: list[str]
-    cols: int = 3
-
-
-@router.post("/collage")
-def collage(body: CollageBody, db: DbSession = Depends(get_db)):
-    """build a PIL grid collage from the given photos and save it as a new photo."""
-    if not body.ids:
-        raise HTTPException(400, "no photos given")
-    paths = []
-    for pid in body.ids:
-        p = db.get(Photo, pid)
-        if not p or p.deleted_at is not None:
-            continue  # skip unknown / trashed
-        op = ps.original_path(p.filename)
-        if op.is_file():
-            paths.append(op)
-    if not paths:
-        raise HTTPException(400, "no usable photos")
-    try:
-        raw = ps.make_collage(paths, cols=body.cols)
-    except ValueError as e:
-        raise HTTPException(400, str(e))
-    info = ps.import_image(raw, "collage.png")
-    np = Photo(
-        filename=info["filename"],
-        thumb=info["thumb"],
-        original_name=info["original_name"],
-        width=info["width"],
-        height=info["height"],
-        taken_at=info["taken_at"],
-        exif=info["exif"],
-        aspect_ratio=info.get("aspect_ratio"),
-        preview=info.get("preview", ""),
-        checksum=info.get("checksum"),
-    )
-    db.add(np)
-    db.commit()
-    db.refresh(np)
-    return _fmt(np)
-
-
 class EditSaveBody(BaseModel):
     data_url: str
     name: str = "edited.png"
