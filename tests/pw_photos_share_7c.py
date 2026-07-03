@@ -65,10 +65,14 @@ def main():
         pg.reload(wait_until="domcontentloaded")
         pg.wait_for_selector(".photos-cell", timeout=12000)
 
-        def set_album(val):
-            pg.eval_on_selector(
-                "#photos-album",
-                "(el, v) => { el.value=v; el.dispatchEvent(new Event('change',{bubbles:true})); }",
+        def select_view(val):
+            pg.evaluate(
+                """v => {
+                  const b = [...document.querySelectorAll('.photos-nav-item[data-view]')]
+                    .find(x => x.dataset.view === v);
+                  if (!b) throw new Error('missing photos view ' + v);
+                  b.click();
+                }""",
                 val,
             )
 
@@ -76,7 +80,7 @@ def main():
         r["share_album_button"] = pg.query_selector("#photos-share-album-btn") is not None
 
         # ---- selecting a real album + share mints a token ----
-        set_album(aid)
+        select_view(aid)
         pg.wait_for_timeout(400)
         pg.eval_on_selector("#photos-share-album-btn", "el => el.click()")
         tok = None
@@ -101,7 +105,7 @@ def main():
         else:
             r["public_album_grid_opens"] = False
 
-        set_album("")
+        select_view("")
         pg.wait_for_selector(f'.photos-cell[data-id="{vid}"]', timeout=8000)
 
         # ---- video cell shows the badge ----

@@ -22,6 +22,16 @@ alles bundles or builds on these open-source projects, with thanks:
 - **Map tiles © [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors**
   ([ODbL](https://opendatacommons.org/licenses/odbl/)) — the tiles shown in the places map come
   from OpenStreetMap; the attribution is displayed on the map as required.
+- **City data © [GeoNames](https://www.geonames.org)** ([CC BY 4.0](https://creativecommons.org/licenses/by/4.0/))
+  — the `cities15000` + country list bundled as `services/places_cities.csv` /
+  `services/places_countries.csv`; powers the gallery's offline reverse-geocoding (Places view).
+- **[OpenAI CLIP](https://github.com/openai/CLIP)** (MIT) via **[Immich's ONNX export](https://huggingface.co/immich-app/ViT-B-32__openai)**
+  — the optional `ViT-B-32` model powering the gallery's "smart" semantic search, run locally with
+  **[ONNX Runtime](https://onnxruntime.ai)** (MIT) + **[Hugging Face tokenizers](https://github.com/huggingface/tokenizers)**
+  (Apache-2.0). Models are downloaded by the user into `models/clip/`, not bundled.
+- **[InsightFace](https://github.com/deepinsight/insightface)** (MIT) — the optional `buffalo_l`
+  face detection + ArcFace recognition models powering the gallery's "people" view (face grouping),
+  run locally on CPU via ONNX Runtime. The models auto-download into `models/faces/`, not bundled.
 - And the rest of the stack: [FastAPI](https://fastapi.tiangolo.com), [Uvicorn](https://www.uvicorn.org),
   [SQLAlchemy](https://www.sqlalchemy.org), [httpx](https://www.python-httpx.org),
   [fastembed](https://github.com/qdrant/fastembed), [KaTeX](https://katex.org),

@@ -1,7 +1,7 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v165';   // journal: removed 26 dead duplicate mail css rules (verified 0 computed-style change)
+const VERSION = 'v178';   // photos: people & faces (phase 7a)
 const CACHE = `alles-${VERSION}`;
-const STAMP = '191';   // keep in sync with index.html ?v= / const _v
+const STAMP = '203';   // keep in sync with index.html ?v= / const _v
 
 // 1b: mutating writes that should be queued when offline
 const MUTATING = ['POST', 'PUT', 'PATCH', 'DELETE'];
