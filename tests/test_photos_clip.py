@@ -42,7 +42,8 @@ class ClipSemanticTests(ApiTest):
     def test_search_ranks_by_cosine(self):
         a = self._photo(name="a.jpg", clipvec=_e(0))
         self._photo(name="b.jpg", clipvec=_e(1))
-        with mock.patch.object(clip, "embed_text", return_value=_e(0)):
+        with mock.patch.object(clip, "available", return_value=True), \
+             mock.patch.object(clip, "embed_text", return_value=_e(0)):
             db = self.db()
             hits = clip.search(db, "x")
             db.close()
@@ -50,7 +51,8 @@ class ClipSemanticTests(ApiTest):
 
     def test_search_skips_failed_blobs(self):
         self._photo(name="bad.jpg", clipvec=None, clip=b"")  # failed-index marker
-        with mock.patch.object(clip, "embed_text", return_value=_e(0)):
+        with mock.patch.object(clip, "available", return_value=True), \
+             mock.patch.object(clip, "embed_text", return_value=_e(0)):
             db = self.db()
             hits = clip.search(db, "x")
             db.close()
