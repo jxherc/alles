@@ -4,5 +4,5 @@ PASS  map_renders_leaflet
 PASS  map_has_marker
 PASS  marker_opens_lightbox
 PASS  memories_section_renders
-PASS  collage_button_makes_photo
+PASS  memories_show_photos
 PASS  zero_console_errors

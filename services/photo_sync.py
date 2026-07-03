@@ -118,6 +118,10 @@ def sync_folder(src: str, db=None, limit: int = 2000) -> dict:
                         height=info["height"],
                         taken_at=info["taken_at"],
                         exif=info["exif"],
+                        is_video=info.get("is_video", False),
+                        aspect_ratio=info.get("aspect_ratio"),
+                        preview=info.get("preview", ""),
+                        checksum=info.get("checksum"),
                     )
                 )
                 seen[k] = sig

@@ -14,7 +14,7 @@ GONE = ["🔗", "✨", "🗑", "♥", "♡", "▶", "🔒", "🗺", "📍", "↩
 
 def _photos_block():
     a = INDEX.index('id="photos-view"')
-    head = INDEX[a : INDEX.index("page-view-body", a)]
+    head = INDEX[a : INDEX.index("photos-layout", a)]
     lb = INDEX[INDEX.index('id="photos-lightbox"') :]
     lb = lb[: lb.index("</div>\n</div>") + 6]
     return head + lb
@@ -26,7 +26,11 @@ class GalleryIcons(unittest.TestCase):
             self.assertNotIn(g, PHOTOS, f"{g!r} still in photos.js")
 
     def test_no_emoji_in_photos_markup(self):
+        import re
+
         block = _photos_block()
+        # the shortcuts legend legitimately shows the literal arrow keys inside <kbd> chips
+        block = re.sub(r"<kbd>.*?</kbd>", "", block)
         for g in GONE:
             self.assertNotIn(g, block, f"{g!r} still in gallery markup")
 
@@ -36,14 +40,20 @@ class GalleryIcons(unittest.TestCase):
         self.assertGreater(PHOTOS.count("_si("), 10)
 
     def test_header_buttons_carry_inline_icons(self):
-        # share / generate / trash render an <svg class="ic"> in the static markup
+        # share renders an <svg class="ic"> in the static markup
+        # (generate/trash moved out of the header in phase 1 — gen dropped, trash → sidebar)
         block = _photos_block()
-        for bid in ("photos-share-album-btn", "photos-gen-btn", "photos-trash-btn"):
-            i = block.index(bid)
-            self.assertIn('svg class="ic"', block[i : i + 400], f"{bid} missing inline icon")
+        i = block.index("photos-share-album-btn")
+        self.assertIn('svg class="ic"', block[i : i + 400], "share button missing inline icon")
 
     def test_lightbox_actions_decorated_in_js(self):
         for name in ("edit", "download", "trash", "close", "eye-off"):
+            self.assertIn(f"_si('{name}')", PHOTOS)
+
+    def test_lightbox_keyboard_and_nav_icons(self):
+        # phase 3: arrow stepping + shortcuts handler, chevron / info icons
+        self.assertIn("addEventListener('keydown'", PHOTOS)
+        for name in ("info", "chevron-left", "chevron-right", "archive"):
             self.assertIn(f"_si('{name}')", PHOTOS)
 
     def test_fav_badge_is_an_icon_not_css_glyph(self):
@@ -53,10 +63,12 @@ class GalleryIcons(unittest.TestCase):
         self.assertNotRegex(CSS, r"\.photos-cell\.fav::after\s*\{[^}]*content:\s*'♥'")
         self.assertRegex(CSS, r"\.photos-fav-badge\s+\.ic")
 
-    def test_album_options_use_icon_map(self):
-        self.assertIn("_iconHtml", PHOTOS)
-        self.assertIn("__fav__: _si('star')", PHOTOS)
-        self.assertIn("__hidden__: _si('lock')", PHOTOS)
+    def test_sidebar_nav_uses_icon_map(self):
+        # the left rail builds each nav item's glyph through the central icon set (_si(ic))
+        self.assertIn("photos-nav-item", PHOTOS)
+        self.assertIn("_si(ic)", PHOTOS)
+        for name in ("'image'", "'map-pin'", "'sparkles'", "'folder'", "'heart'", "'lock'", "'trash'"):
+            self.assertIn(name, PHOTOS, f"sidebar icon {name} missing")
 
     def test_video_badge_uses_play_icon(self):
         self.assertIn("_si('play')", PHOTOS)

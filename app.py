@@ -464,6 +464,49 @@ def _register_jobs():
         finally:
             db.close()
 
+    async def _clip_index():
+        # phase 7b: embed un-indexed photos for semantic search. only runs if the optional CLIP
+        # models are present; onnxruntime inference is off the loop. chips through in batches.
+        from services import clip
+
+        if not clip.available():
+            return
+
+        def _job():
+            from core.database import SessionLocal
+
+            db = SessionLocal()
+            try:
+                n = clip.index_pending(db, limit=40)
+                if n:
+                    log.info(f"clip-indexed {n} photo(s) for semantic search")
+            finally:
+                db.close()
+
+        await asyncio.to_thread(_job)
+
+    async def _faces_index():
+        # phase 7a: detect + embed faces, then cluster them into people. only runs if the optional
+        # InsightFace models are present; inference + clustering are off the loop, in batches.
+        from services import faces
+
+        if not faces.available():
+            return
+
+        def _job():
+            from core.database import SessionLocal
+
+            db = SessionLocal()
+            try:
+                n = faces.index_pending(db, limit=20)
+                ch = faces.cluster(db)
+                if n or ch:
+                    log.info(f"face-indexed {n} face(s), {ch} cluster change(s)")
+            finally:
+                db.close()
+
+        await asyncio.to_thread(_job)
+
     async def _user_model():
         from core.database import SessionLocal
         from core.settings import load_settings
@@ -503,6 +546,8 @@ def _register_jobs():
     jobs.register("read_feeds", _read_feeds, 1800, run_at_start=False)  # rss auto-save (30 min)
     jobs.register("holdings_price", _holdings_price, 6 * 3600, run_at_start=False)  # 2d (gated)
     jobs.register("blob_gc", _blob_gc, 6 * 3600, run_at_start=False)  # 0d - purge orphaned blobs
+    jobs.register("clip_index", _clip_index, 60, run_at_start=False)  # 7b semantic-search indexing
+    jobs.register("faces_index", _faces_index, 90, run_at_start=False)  # 7a face detect + cluster
     jobs.register(
         "user_model", _user_model, 24 * 3600, run_at_start=False
     )  # 1c daily distill (gated)
@@ -651,6 +696,25 @@ async def lifespan(app: FastAPI):
         seed_default_calendar()  # first-boot 'Personal' calendar + adopt orphan events
     except Exception:
         pass
+
+    async def _photo_backfill():
+        # phase 4: fill aspect_ratio / preview / checksum on photos imported before the columns
+        # existed. gated on checksum==null so it's a cheap no-op once done; off-thread (opens images)
+        def _job():
+            from core.database import SessionLocal as SL
+            from services import photos_store
+
+            db = SL()
+            try:
+                n = photos_store.backfill_perf(db)
+                if n:
+                    log.info(f"backfilled perf fields on {n} photo(s)")
+            finally:
+                db.close()
+
+        await asyncio.to_thread(_job)
+
+    asyncio.create_task(_photo_backfill())
     try:
         from services import agent_state
 

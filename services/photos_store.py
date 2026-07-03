@@ -3,6 +3,8 @@ Photos app — a local photo library (no iCloud). Thumbnails + EXIF via Pillow.
 Originals live in data/photos, thumbs in data/photos/.thumbs. Path-safe like files_store.
 """
 
+import base64
+import hashlib
 import io
 import json
 import shutil
@@ -158,6 +160,18 @@ def import_media(data: bytes, original_name: str) -> dict:
     return import_image(data, original_name)
 
 
+def _preview_b64(img) -> str:
+    """tiny ~24px base64 jpeg — the browser upscales it into a blur-up placeholder. no deps."""
+    try:
+        t = img.convert("RGB")
+        t.thumbnail((24, 24))
+        buf = io.BytesIO()
+        t.save(buf, "JPEG", quality=40)
+        return base64.b64encode(buf.getvalue()).decode()
+    except Exception:
+        return ""
+
+
 def import_video(data: bytes, original_name: str) -> dict:
     ext = _ext_of(original_name)
     if ext not in _VIDEO:
@@ -173,6 +187,9 @@ def import_video(data: bytes, original_name: str) -> dict:
         "taken_at": datetime.utcnow(),
         "exif": json.dumps({}),
         "is_video": True,
+        "aspect_ratio": None,
+        "preview": "",
+        "checksum": hashlib.sha256(data).hexdigest(),
     }
 
 
@@ -219,7 +236,42 @@ def import_image(data: bytes, original_name: str) -> dict:
         "taken_at": taken_at,
         "exif": json.dumps(exif_out),
         "is_video": False,
+        "aspect_ratio": (w / h) if (w and h) else None,
+        "preview": _preview_b64(img),
+        "checksum": hashlib.sha256(data).hexdigest(),
     }
+
+
+def backfill_perf(db) -> int:
+    """fill aspect_ratio / preview / checksum on rows imported before phase 4. gated on
+    checksum being null, so it processes each photo once and is a cheap no-op after that."""
+    from PIL import Image, ImageOps
+
+    from core.database import Photo
+
+    rows = db.query(Photo).filter(Photo.checksum == None).all()  # noqa: E711
+    n = 0
+    for p in rows:
+        if not p.filename:
+            continue
+        op = _safe(p.filename)
+        if not op.is_file():
+            continue
+        try:
+            data = op.read_bytes()
+            p.checksum = hashlib.sha256(data).hexdigest()
+            if not p.is_video:
+                im = ImageOps.exif_transpose(Image.open(io.BytesIO(data)))
+                w, h = im.size
+                if w and h:
+                    p.aspect_ratio = w / h
+                p.preview = _preview_b64(im)
+            n += 1
+        except Exception:
+            continue
+    if n:
+        db.commit()
+    return n
 
 
 def make_collage(paths, cols=3, cell=400) -> bytes:
