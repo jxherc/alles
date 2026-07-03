@@ -6,9 +6,9 @@ Audited the gallery's GPS/places/memories area by reading the code and hitting a
 ## Audit — state before the build
 - GPS EXIF → decimal lat/lon already extracted (`photos_store._gps_to_decimal`, surfaced as
   `exif.lat/lon`); the lightbox already shows a per-photo OpenStreetMap **link**.
-- No **map view**, no **memories** ("on this day"), no **collage** — confirmed by `GET /api/photos/map`,
-  `GET /api/photos/memories`, `POST /api/photos/collage` all returning 405 (the path fell through to the
-  `/{pid}` route — i.e. unimplemented). See `audit_dumps.txt`.
+- No **map view** and no **memories** ("on this day") — confirmed by `GET /api/photos/map` and
+  `GET /api/photos/memories` returning 405 (the path fell through to the `/{pid}` route — i.e.
+  unimplemented). See `audit_dumps.txt`.
 - `static/vendor/` had only `cm6.bundle.js`. unpkg reachable for vendoring Leaflet; OSM tiles reachable
   with a normal browser UA.
 
@@ -18,22 +18,21 @@ Backend (`routes/photos.py`, `services/photos_store.py`):
   only, excludes hidden + deleted.
 - `GET /api/photos/memories?date=YYYY-MM-DD` (default today) → `{groups:[{years_ago,year,date,items}],count}`,
   same month/day in strictly earlier years, grouped + sorted most-recent-first, excludes hidden + deleted.
-- `POST /api/photos/collage {ids,cols?}` → `photos_store.make_collage` builds a square-cell PIL grid and it
-  is saved as a new photo; empty ids → 400, unknown ids skipped, no usable images → 400.
+- `POST /api/photos/collage` is not part of the shipped gallery. Later cleanup keeps it 405.
 
 Frontend (`static/js/photos.js`, `static/style.css`, `static/index.html`, `static/vendor/leaflet/*`):
 - Vendored Leaflet 1.9.4 (js + css + marker images). Lazy-loaded only when the map opens.
-- Album dropdown gains `🗺 map` and `✨ memories` virtual views (same pattern as favorites/hidden).
+- Sidebar gains map and memories virtual views.
 - Map view: full-width OSM map, an accent `circleMarker` per located photo, click → lightbox.
-- Memories view: "N years ago" sections of on-this-day photos, each with a make-collage button.
+- Memories view: "N years ago" sections of on-this-day photos.
 - Cache stamps bumped: `?v=62`, `_v='62'`, SW `v36`.
 
 ## Exercised with real input (live, see `audit_dumps.txt`)
 - `/map` → 1 located point (37.7749,-122.4194). `/memories` → "1 yr ago 2025-06-19 → 2 photos".
-- `/collage` of the two memory photos → new 1200×400 photo (3 cols default, 2 imgs → 1 row). Empty ids → 400.
+- `/collage` is intentionally absent from the gallery after the Immich cleanup.
 
 ## Bugs / imperfections found
-- **App bugs: none.** Both views and collage work end to end.
+- **App bugs: none.** Map and memories work end to end.
 - Test-only fixes while writing the Playwright test (not app issues):
   - Leaflet sets the `leaflet-container` class on the target element itself, not a child — my first
     descendant selector never matched; corrected to `#photos-mapview.leaflet-container`.

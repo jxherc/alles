@@ -274,32 +274,6 @@ def backfill_perf(db) -> int:
     return n
 
 
-def make_collage(paths, cols=3, cell=400) -> bytes:
-    """grid collage from a list of image paths. square cells (center-cropped), even gaps
-    handled by the caller's background. returns PNG bytes. no ML, just Pillow."""
-    from PIL import Image, ImageOps
-
-    imgs = []
-    for p in paths:
-        try:
-            im = Image.open(p).convert("RGB")
-            imgs.append(ImageOps.fit(im, (cell, cell), Image.LANCZOS))
-        except Exception:
-            pass  # skip anything unreadable
-    if not imgs:
-        raise ValueError("no usable images")
-    cols = max(1, int(cols))
-    rows = (len(imgs) + cols - 1) // cols
-    canvas = Image.new("RGB", (cols * cell, rows * cell), (10, 10, 10))
-    for i, im in enumerate(imgs):
-        x = (i % cols) * cell
-        y = (i // cols) * cell
-        canvas.paste(im, (x, y))
-    buf = io.BytesIO()
-    canvas.save(buf, "PNG")
-    return buf.getvalue()
-
-
 def original_path(filename: str) -> Path:
     return _safe(filename)
 
