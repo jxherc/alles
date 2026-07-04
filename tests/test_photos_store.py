@@ -77,13 +77,6 @@ class PhotosStoreTests(unittest.TestCase):
         base = ps.photos_dir()
         self.assertTrue(p.is_relative_to(base))
 
-    def test_collage_single_image(self):
-        info = ps.import_image(_png(size=(100, 100)), "col.png")
-        orig = ps.original_path(info["filename"])
-        result = ps.make_collage([orig], cols=1, cell=100)
-        self.assertIsInstance(result, bytes)
-        self.assertTrue(len(result) > 0)
-
     def test_import_video_stored_as_is(self):
         data = b"\x00\x00\x00\x20ftyp"  # fake mp4 header
         info = ps.import_video(data, "clip.mp4")

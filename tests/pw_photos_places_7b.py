@@ -1,4 +1,4 @@
-"""7b UI verification — places map (Leaflet/OSM) + memories/collage. photos.localhost:8862.
+"""7b UI verification — places map (Leaflet/OSM) + memories. photos.localhost:8862.
 Start a server first with the matching ALLES_DATA, e.g.:
   ALLES_DATA=/tmp/alles7b PORT=8862 AUTH_ENABLED=false python app.py
 The map needs GPS and memories need a prior-year date, which the upload API can't set, so we
@@ -8,7 +8,7 @@ seed via /upload and then patch exif/taken_at straight into the server's sqlite 
 import os
 import sqlite3
 import sys
-from datetime import date
+from datetime import datetime
 from pathlib import Path
 
 from playwright.sync_api import sync_playwright
@@ -61,7 +61,7 @@ def main():
         pid_m1 = pg.evaluate(_SEED, "memone.png")
         pid_m2 = pg.evaluate(_SEED, "memtwo.png")
 
-        ly = date.today().replace(year=date.today().year - 1)
+        ly = datetime.utcnow().date().replace(year=datetime.utcnow().year - 1)
         taken = f"{ly.year:04d}-{ly.month:02d}-{ly.day:02d} 12:00:00.000000"
         con = sqlite3.connect(str(DATA / "aide.db"), timeout=10)
         con.execute("PRAGMA busy_timeout=8000")
@@ -74,20 +74,29 @@ def main():
         con.commit()
         con.close()
 
-        def set_album(val):
-            pg.eval_on_selector(
-                "#photos-album",
-                "(el, v) => { el.value=v; el.dispatchEvent(new Event('change',{bubbles:true})); }",
+        def select_view(val):
+            pg.evaluate(
+                """v => {
+                  const b = [...document.querySelectorAll('.photos-nav-item[data-view]')]
+                    .find(x => x.dataset.view === v);
+                  if (!b) throw new Error('missing photos view ' + v);
+                  b.click();
+                }""",
                 val,
             )
 
-        # ---- map option present in the dropdown ----
-        opts = pg.eval_on_selector("#photos-album", "el => el.dataset.options || ''")
-        r["map_option_present"] = "__map__" in opts
-        r["memories_option_present"] = "__memories__" in opts
+        def view_exists(val):
+            return pg.evaluate(
+                "v => [...document.querySelectorAll('.photos-nav-item[data-view]')].some(x => x.dataset.view === v)",
+                val,
+            )
+
+        # ---- map option present in the sidebar ----
+        r["map_option_present"] = view_exists("__map__")
+        r["memories_option_present"] = view_exists("__memories__")
 
         # ---- map renders Leaflet + a marker, marker opens the lightbox ----
-        set_album("__map__")
+        select_view("__map__")
         # Leaflet puts the leaflet-container class on the target el itself
         pg.wait_for_selector("#photos-mapview.leaflet-container", timeout=12000)
         r["map_renders_leaflet"] = (
@@ -108,25 +117,12 @@ def main():
         pg.wait_for_selector("#photos-lightbox", state="hidden", timeout=5000)
 
         # ---- memories section renders ----
-        set_album("__memories__")
+        select_view("__memories__")
         pg.wait_for_selector(".photos-moment-label", timeout=10000)
         label = pg.text_content(".photos-moment-label") or ""
         r["memories_section_renders"] = "year ago" in label
+        r["memories_show_photos"] = len(pg.query_selector_all(".photos-cell")) >= 2
         pg.screenshot(path=str(EVID / "memories.png"))
-
-        # ---- collage button creates a new photo ----
-        def list_count():
-            return pg.evaluate("() => fetch('/api/photos/list').then(r=>r.json()).then(d=>d.count)")
-
-        count_before = list_count()
-        pg.eval_on_selector(".photos-collage-btn", "el => el.click()")
-        count_after = count_before
-        for _ in range(20):  # poll up to ~10s for the collage to be saved
-            pg.wait_for_timeout(500)
-            count_after = list_count()
-            if count_after > count_before:
-                break
-        r["collage_button_makes_photo"] = count_after == count_before + 1
 
         r["zero_console_errors"] = len(errs) == 0
         b.close()

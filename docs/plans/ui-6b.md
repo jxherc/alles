@@ -11,7 +11,7 @@ of the app. `static/js/photos.js` gained a `_si()` `window.icon` guard.
   download → `download`, delete → `trash`, close → `close` (decorated in `openLightbox`).
 - **Album dropdown**: ★/🔒/🗺/✨ option-label emoji → the dropdown's per-option `_iconHtml` map
   (star/lock/map-pin/sparkles); labels are now plain text.
-- **Misc**: location 📍 → `map-pin`, locked-album empty states 🔒 → `lock`, collage ✨ → `sparkles`,
+- **Misc**: location 📍 → `map-pin`, locked-album empty states 🔒 → `lock`,
   trash-back ← → `chevron-left`, restore ↩ → `undo`.
 
 Tests: `tests/test_photos_icons.py` (8 source-contract: no emoji in js/markup, header inline icons,
