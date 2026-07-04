@@ -10,6 +10,7 @@ from sqlalchemy import (
     Float,
     ForeignKey,
     Integer,
+    LargeBinary,
     String,
     Text,
     create_engine,
@@ -608,9 +609,38 @@ class Photo(Base):
     caption = Column(Text, default="")  # 7a — free-text caption
     keywords = Column(String, default="")  # 7a — csv of normalized keywords/tags
     hidden = Column(Boolean, default=False)  # 7a — hidden/locked album (gated on vault unlock)
+    archived = Column(Boolean, default=False)  # out of the main timeline, still in the library
     is_video = Column(Boolean, default=False)  # 7c — mp4/mov/etc; played, not thumbnailed
     deleted_at = Column(DateTime, nullable=True)  # soft-delete (1d trash); None = live
     created_at = Column(DateTime, default=_now)  # import time
+    aspect_ratio = Column(Float, nullable=True)  # w/h, served for the justified grid (phase 4)
+    preview = Column(Text, default="")  # tiny base64 jpeg — upscaled = a blur-up placeholder
+    checksum = Column(String, nullable=True)  # sha256 of the original bytes (dedupe, phase 6)
+    stack_id = Column(String, nullable=True)  # cover photo's id, shared by stack members (phase 6)
+    clip = Column(LargeBinary, nullable=True)  # CLIP image embedding (512 float32) for semantic search
+    faces_at = Column(DateTime, nullable=True)  # when face detection last ran (null = not scanned yet)
+
+
+class Person(Base):
+    # a face cluster — one real person. unnamed until the user names it (phase 7a)
+    __tablename__ = "people"
+    id = Column(String, primary_key=True, default=_uid)
+    name = Column(String, default="")  # blank = unnamed cluster
+    cover_face_id = Column(String, nullable=True)  # the face shown as the avatar
+    hidden = Column(Boolean, default=False)  # "not a person" / hide from the People row
+    created_at = Column(DateTime, default=_now)
+
+
+class Face(Base):
+    # one detected face in one photo, with its 512-d ArcFace embedding (phase 7a)
+    __tablename__ = "faces"
+    id = Column(String, primary_key=True, default=_uid)
+    photo_id = Column(String, ForeignKey("photos.id", ondelete="CASCADE"), nullable=False, index=True)
+    person_id = Column(String, ForeignKey("people.id", ondelete="SET NULL"), nullable=True, index=True)
+    bbox = Column(String, default="")  # "x1,y1,x2,y2" in original-pixel coords
+    det_score = Column(Float, default=0.0)
+    embedding = Column(LargeBinary, nullable=True)  # 512 float32, L2-normalized
+    created_at = Column(DateTime, default=_now)
 
 
 class Reminder(Base):

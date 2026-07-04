@@ -87,7 +87,7 @@ commit + a GitHub Release only after the final microversion and a clean regressi
 | 6c | Share | file/folder share links + permission levels (1a), comments | M |
 | **7** | **gallery — Photos parity (metadata-first)** | organize, places, share | **M** |
 | 7a | Organize & recover | captions/keywords/tags, hidden/locked album, trash (1d), favorites filter | S |
-| 7b | Places & memories | GPS map view, date-based Memories/collages (no ML) | M |
+| 7b | Places & memories | GPS map view, date-based Memories (no ML) | M |
 | 7c | Share & motion | shared albums (1a), Live-Photo/video assets, phone-backup watch-folder | M |
 | **8** | **calendar & contacts — scheduling & sync** | views, invites, sync | **L** |
 | 8a | Views & scheduling | agenda + year view, default durations, ICS-URL subscribe, tz/working-hours | M |
@@ -401,9 +401,9 @@ Built first because 2+ apps each depend on them; ordered by first consumer (docs
 **7b — Places & memories** · M
 - **Places map view** — cluster photos by existing GPS EXIF on a Leaflet/OSM map (no API key).
   *Why: GPS is already extracted; only the map view is missing.* · M
-- **Date-based Memories/collages** — "a year ago" highlights + PIL collage (no ML). · M ·
+- **Date-based Memories** — "a year ago" highlights (no ML, no collage). · M ·
   files (7b): `static/js/photos.js`, `routes/photos.py`, `services/photos_store.py` · ✓ map
-  shows located photos; a memory collage generates.
+  shows located photos; memories render prior-year photos.
 
 **7c — Share & motion** · M · deps: 1a
 - **Shared albums** (1a read-only link), **Live-Photo/video assets** (accept mov/mp4, ffmpeg

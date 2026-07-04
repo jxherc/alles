@@ -30,7 +30,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/style.css?v=194">
+<link rel="stylesheet" href="/static/style.css?v=203">
 <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#0a0a0a">
@@ -686,19 +686,43 @@
     <!-- gallery view -->
     <div class="page-view" id="photos-view" style="display:none">
       <div class="page-view-head photos-head">
-        <span class="page-view-title">gallery</span>
-        <div id="photos-album" class="settings-input custom-select photos-album-sel"></div>
-        <button class="btn" id="photos-newalbum-btn">+ album</button>
-        <button class="btn ic-btn-lbl" id="photos-share-album-btn" title="share the selected album as a read-only link"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><line x1="8.2" y1="10.8" x2="15.8" y2="7.2"/><line x1="8.2" y1="13.2" x2="15.8" y2="16.8"/></svg> share</button>
-        <div id="photos-model" class="settings-input custom-select photos-model-sel" data-placeholder="model" title="image model"></div>
-        <button class="btn ic-btn-lbl" id="photos-gen-btn" title="generate an image with AI"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.8 4.6L18.5 9.4 13.8 11.2 12 16l-1.8-4.8L5.5 9.4l4.7-1.8z"/><path d="M18 15l.7 1.8L20.5 17.5l-1.8.7L18 20l-.7-1.8L15.5 17.5l1.8-.7z"/></svg> generate</button>
+        <span class="page-view-title" id="photos-head-title">photos</span>
         <input type="text" id="photos-search" class="cal-quick photos-search" placeholder="search photos…">
-        <input type="file" id="photos-upload-input" accept="image/*" multiple hidden>
-        <button class="btn photos-trash ic-btn-lbl" id="photos-trash-btn" title="recently deleted"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 7 20 7"/><path d="M6 7l1 13h10l1-13"/><path d="M9.5 7V4.5h5V7"/><line x1="10" y1="10.5" x2="10" y2="16.5"/><line x1="14" y1="10.5" x2="14" y2="16.5"/></svg> trash</button>
+        <button class="btn ic-btn-lbl" id="photos-smart-btn" title="smart search — find by content" hidden>smart</button>
+        <button class="btn ic-btn-lbl" id="photos-filter-btn" title="filter the timeline">filter</button>
+        <button class="btn ic-btn-lbl photos-share-album-btn" id="photos-share-album-btn" title="share the open album as a read-only link"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><line x1="8.2" y1="10.8" x2="15.8" y2="7.2"/><line x1="8.2" y1="13.2" x2="15.8" y2="16.8"/></svg> share</button>
+        <input type="file" id="photos-upload-input" accept="image/*,video/*" multiple hidden>
         <button class="btn primary" id="photos-upload-btn">upload</button>
         <button class="icon-btn app-cog" data-app="photos" title="gallery settings"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2a2 2 0 1 1-4 0V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1A2 2 0 1 1 4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H3a2 2 0 1 1 0-4h.2a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1A2 2 0 1 1 7.2 4.2l.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.6V3a2 2 0 1 1 4 0v.2a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1A2 2 0 1 1 20 7.2l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2a2 2 0 1 1 0 4h-.2a1.7 1.7 0 0 0-1.8 1z"/></svg></button>
       </div>
-      <div class="page-view-body"><div class="photos-grid" id="photos-grid"></div></div>
+      <div class="photos-selbar" id="photos-selbar">
+        <button class="icon-btn photos-sel-clear" id="photos-sel-clear" title="clear selection">×</button>
+        <span class="photos-sel-count" id="photos-sel-count">0 selected</span>
+        <div class="photos-sel-actions">
+          <button class="btn ic-btn-lbl" id="photos-sel-fav">favorite</button>
+          <button class="btn ic-btn-lbl" id="photos-sel-archive">archive</button>
+          <button class="btn ic-btn-lbl" id="photos-sel-stack">stack</button>
+          <button class="btn ic-btn-lbl" id="photos-sel-album">add to album</button>
+          <button class="btn ic-btn-lbl danger" id="photos-sel-del">delete</button>
+        </div>
+      </div>
+      <div class="photos-filterbar" id="photos-filterbar" hidden>
+        <div class="photos-filt-seg" id="photos-filt-type">
+          <button class="active" data-type="">all</button>
+          <button data-type="image">photos</button>
+          <button data-type="video">videos</button>
+        </div>
+        <select class="settings-input photos-filt-cam" id="photos-filt-camera"><option value="">any camera</option></select>
+        <label class="photos-filt-date">from <input type="date" id="photos-filt-from" class="settings-input"></label>
+        <label class="photos-filt-date">to <input type="date" id="photos-filt-to" class="settings-input"></label>
+        <button class="btn photos-filt-clear" id="photos-filt-clear">clear</button>
+      </div>
+      <div class="photos-layout">
+        <nav class="photos-sidebar" id="photos-sidebar"></nav>
+        <div class="photos-scroll" id="photos-scroll"><div class="photos-grid" id="photos-grid"></div></div>
+        <div class="photos-scrubber" id="photos-scrubber"><div class="photos-scrub-thumb" id="photos-scrub-thumb"></div></div>
+        <div class="photos-scrub-pill" id="photos-scrub-pill" hidden></div>
+      </div>
     </div>
 
     <!-- floating dot-wave shown while the assistant is speaking (TTS) -->
@@ -843,24 +867,47 @@
 
 <!-- photo lightbox -->
 <div class="modal-overlay" id="photos-lightbox" style="display:none">
-  <div class="photos-lightbox-inner">
-    <img class="photos-lightbox-img" id="photos-lightbox-img" src="" alt="">
-    <video class="photos-lightbox-img" id="photos-lightbox-video" controls playsinline style="display:none"></video>
-    <div class="photos-lightbox-side">
-      <div class="photos-lightbox-actions">
-        <button class="btn" id="photos-fav-btn">favorite</button>
-        <button class="btn" id="photos-hide-btn" title="move to the hidden album">hide</button>
-        <button class="btn" id="photos-edit-btn">edit</button>
-        <a class="btn" id="photos-dl-btn" href="#" download>download</a>
-        <button class="btn danger" id="photos-del-btn">delete</button>
-        <button class="btn" id="photos-close-btn">close</button>
-      </div>
-      <div class="photos-meta">
-        <input type="text" id="photos-caption" class="settings-input photos-meta-in" placeholder="add a caption…">
-        <input type="text" id="photos-keywords" class="settings-input photos-meta-in" placeholder="keywords, comma separated">
-        <button class="btn primary" id="photos-meta-save" style="font-size:0.68rem">save caption & keywords</button>
-      </div>
-      <div class="photos-exif" id="photos-exif"></div>
+  <div class="photos-lb-top">
+    <button class="btn photos-lb-close" id="photos-close-btn">close</button>
+    <div class="photos-lb-actions">
+      <button class="btn" id="photos-fav-btn">favorite</button>
+      <button class="btn" id="photos-archive-btn">archive</button>
+      <button class="btn" id="photos-hide-btn" title="move to the hidden album">hide</button>
+      <button class="btn" id="photos-edit-btn">edit</button>
+      <a class="btn" id="photos-dl-btn" href="#" download>download</a>
+      <button class="btn" id="photos-info-btn" title="info (i)">info</button>
+      <button class="btn danger" id="photos-del-btn">delete</button>
+    </div>
+  </div>
+  <div class="photos-lb-body">
+  <div class="photos-lb-stage" id="photos-lb-stage">
+    <button class="photos-lb-nav prev" id="photos-prev-btn" title="previous"></button>
+    <div class="photos-lb-media" id="photos-lb-media">
+      <img class="photos-lightbox-img" id="photos-lightbox-img" src="" alt="">
+      <video class="photos-lightbox-img" id="photos-lightbox-video" controls playsinline style="display:none"></video>
+    </div>
+    <button class="photos-lb-nav next" id="photos-next-btn" title="next"></button>
+  </div>
+  <aside class="photos-lb-drawer" id="photos-lb-drawer">
+    <div class="photos-meta">
+      <input type="text" id="photos-caption" class="settings-input photos-meta-in" placeholder="add a caption…">
+      <input type="text" id="photos-keywords" class="settings-input photos-meta-in" placeholder="keywords, comma separated">
+      <button class="btn primary" id="photos-meta-save" style="font-size:0.68rem">save caption & keywords</button>
+    </div>
+    <div class="photos-faces" id="photos-faces" style="display:none"></div>
+    <div class="photos-exif" id="photos-exif"></div>
+  </aside>
+  </div>
+  <div class="photos-lb-help" id="photos-lb-help" hidden>
+    <div class="photos-lb-help-card">
+      <div class="photos-lb-help-title">shortcuts</div>
+      <div class="photos-lb-help-row"><kbd>←</kbd><kbd>→</kbd><span>previous / next</span></div>
+      <div class="photos-lb-help-row"><kbd>f</kbd><span>favorite</span></div>
+      <div class="photos-lb-help-row"><kbd>shift</kbd><kbd>a</kbd><span>archive</span></div>
+      <div class="photos-lb-help-row"><kbd>del</kbd><span>move to trash</span></div>
+      <div class="photos-lb-help-row"><kbd>i</kbd><span>info panel</span></div>
+      <div class="photos-lb-help-row"><kbd>esc</kbd><span>close</span></div>
+      <div class="photos-lb-help-row"><kbd>?</kbd><span>this help</span></div>
     </div>
   </div>
 </div>
@@ -1741,7 +1788,7 @@
 </div>
 
 <script type="module">
-const _v = '194';
+const _v = '203';
 import(`/static/js/app.js?v=${_v}`);
 </script>
 </body>

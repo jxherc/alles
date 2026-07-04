@@ -22,7 +22,7 @@ def _png_bytes(color=(120, 90, 200), size=(40, 30)):
 class PhotosPlacesTests(ApiTest):
     def setUp(self):
         super().setUp()
-        # isolate the on-disk photo library so upload/collage don't touch real data/
+        # isolate the on-disk photo library so uploads don't touch real data/
         self._tmp = tempfile.mkdtemp(prefix="alles7b-")
         self._prev_data = os.environ.get("ALLES_DATA")
         os.environ["ALLES_DATA"] = self._tmp
@@ -134,37 +134,7 @@ class PhotosPlacesTests(ApiTest):
         d = self.client.get("/api/photos/memories").json()
         self.assertGreaterEqual(d["count"], 1)
 
-    # ---- collage ----
-    def test_collage_creates_new_photo(self):
-        a = self._upload("a.png", (200, 0, 0))
-        b = self._upload("b.png", (0, 200, 0))
-        before = self.client.get("/api/photos/list").json()["count"]
-        r = self.client.post("/api/photos/collage", json={"ids": [a, b]})
-        self.assertEqual(r.status_code, 200)
-        self.assertIn("id", r.json())
-        after = self.client.get("/api/photos/list").json()["count"]
-        self.assertEqual(after, before + 1)
-
-    def test_collage_empty_400(self):
-        r = self.client.post("/api/photos/collage", json={"ids": []})
-        self.assertEqual(r.status_code, 400)
-
-    def test_collage_skips_unknown_ids(self):
+    def test_collage_endpoint_is_gone(self):
         a = self._upload("a.png", (200, 0, 0))
         r = self.client.post("/api/photos/collage", json={"ids": [a, "does-not-exist"]})
-        self.assertEqual(r.status_code, 200)
-
-    def test_make_collage_dimensions(self):
-        from services import photos_store as ps
-
-        paths = []
-        for i, c in enumerate([(200, 0, 0), (0, 200, 0), (0, 0, 200)]):
-            p = Path(self._tmp) / f"src{i}.png"
-            p.write_bytes(_png_bytes(c, (60, 40)))
-            paths.append(p)
-        raw = ps.make_collage(paths, cols=2, cell=100)
-        from PIL import Image
-
-        img = Image.open(io.BytesIO(raw))
-        # 3 images, 2 cols -> 2 rows; width = 2*100, height = 2*100 (square cells)
-        self.assertEqual(img.size, (200, 200))
+        self.assertEqual(r.status_code, 405)

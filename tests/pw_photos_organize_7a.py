@@ -72,10 +72,14 @@ def main():
         def grid_ids():
             return pg.eval_on_selector_all(".photos-cell", "els => els.map(e => e.dataset.id)")
 
-        def set_album(val):
-            pg.eval_on_selector(
-                "#photos-album",
-                "(el, v) => { el.value=v; el.dispatchEvent(new Event('change',{bubbles:true})); }",
+        def select_view(val):
+            pg.evaluate(
+                """v => {
+                  const b = [...document.querySelectorAll('.photos-nav-item[data-view]')]
+                    .find(x => x.dataset.view === v);
+                  if (!b) throw new Error('missing photos view ' + v);
+                  b.click();
+                }""",
                 val,
             )
 
@@ -118,7 +122,7 @@ def main():
         pg.eval_on_selector("#photos-fav-btn", "el => el.click()")
         pg.wait_for_timeout(400)
         close_lb()
-        set_album("__fav__")
+        select_view("__fav__")
         # wait until the filter has actually re-rendered: a known non-fav (id0) drops out
         wait_grid(f"ids.includes('{id1}') && !ids.includes('{id0}')", "fav-only rendered")
         fav_ids = grid_ids()
@@ -126,7 +130,7 @@ def main():
         r["favorites_filter_works"] = id1 in fav_ids and id0 not in fav_ids and id2 not in fav_ids
 
         # back to the full gallery
-        set_album("")
+        select_view("")
         wait_grid(f"ids.includes('{id2}')", "back to all")
 
         # ---- hide removes from the grid ----
@@ -137,7 +141,7 @@ def main():
         r["hide_removes_from_grid"] = id2 not in grid_now and id0 in grid_now
 
         # ---- hidden album prompts for the master password ----
-        set_album("__hidden__")
+        select_view("__hidden__")
         pg.wait_for_selector("#_di", timeout=6000)
         r["hidden_album_prompts_unlock"] = pg.query_selector("#_di") is not None
 

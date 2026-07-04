@@ -10,6 +10,7 @@ bcrypt                # password hashing (core/auth.py)
 fastembed
 python-docx          # vault .docx export
 pillow               # photos app — thumbnails + EXIF
+numpy                # photos — justified layout math, places reverse-geocode, clip vectors
 beautifulsoup4       # research — html parsing
 trafilatura          # research — main-article extraction (strips nav/ads/boilerplate)
 ddgs                 # research — keyless web search (formerly duckduckgo-search)
@@ -20,3 +21,11 @@ psutil               # system monitor — live cpu/ram/disk (degrades gracefully
 # faster-whisper
 # optional — calendar CalDAV sync (iCloud/Google). install if you enable it.
 # caldav
+# optional — CLIP semantic search (photos "smart" search). install these, then drop the
+# immich-app/ViT-B-32__openai ONNX models into models/clip/ (visual/, textual/) to enable.
+# onnxruntime
+# tokenizers
+# optional — face recognition (photos "people"). install insightface (pulls in opencv/scipy/
+# scikit-image); the buffalo_l models auto-download into models/faces/ on first run.
+# insightface
+# onnxruntime
