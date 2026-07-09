@@ -9,7 +9,11 @@ _REF = re.compile(r"\{\{(\d+)(?:\.([a-zA-Z0-9_]+))?\}\}")
 
 
 def _render(value, results):
-    """substitute {{N}} (whole prior result) / {{N.key}} (a field of it) inside a string."""
+    """substitute {{N}} / {{N.key}} refs inside strings, including nested args."""
+    if isinstance(value, dict):
+        return {k: _render(v, results) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_render(v, results) for v in value]
     if not isinstance(value, str):
         return value
 
@@ -30,7 +34,7 @@ def _render(value, results):
 
 
 def _render_args(args, results):
-    return {k: _render(v, results) for k, v in (args or {}).items()}
+    return _render(args or {}, results)
 
 
 async def run_chain(steps, *, invoke, ctx=None):

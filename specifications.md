@@ -354,7 +354,7 @@ graph TD
     tools -.-> guard[injection guard & secret-path confinement]
 ```
 
-**the toolset (~58 tools), by category:**
+**the toolset (~60 tools), by category:**
 
 - **files:** `read_file`, `write_file`, `edit_file` (exact find/replace), `apply_patch` (unified diffs), `list_files`, `glob_files`, `grep_files`, `revert_file`
 - **shell:** `shell` / `bash` (optionally sandboxed in docker), `execute python`
@@ -462,7 +462,7 @@ copy `.env.example` to `.env`. **everything is optional** — alles runs fine wi
 | `deepseek_api_key` | — | auto-creates a deepseek endpoint on first boot |
 | `anthropic_api_key` | — | auto-creates an anthropic (claude) endpoint on first boot |
 | `port` | `8000` | port to serve on |
-| `secret_key` | `dev-secret` | signs your login cookie — **change this before exposing alles to a network** |
+| `secret_key` | `dev-secret-change-me` | signs your login cookie — **change this before exposing alles to a network** |
 | `auth_enabled` | `false` | set `true` to require a password to log in |
 | `auth_password` | — | that password |
 | `base_domain` | — | your real domain, for the subdomain setup (see architecture) |
@@ -494,18 +494,26 @@ alles is **one server** serving **one single-page app**, but each app gets its o
 
 ```
 alles.localhost          the hub (launcher / home)
-aide.localhost           chat, agent, memory, compare, ai gallery, cookbook, usage, skills
+aide.localhost           chat, agent, memory, compare, brain, models, reminders, ai gallery, cookbook, usage, skills
 mail.localhost           mail
-docs.localhost           docs (notes)
+docs.localhost           docs (notes — `notes.localhost` is an alias)
 calendar.localhost       calendar
 tasks.localhost          tasks
+subs.localhost           subscription tracker
+money.localhost          accounts, budgets, transactions
+days.localhost           countdowns
 journal.localhost        journal
+habits.localhost         habit tracker
+health.localhost         health / fitness log
+read.localhost           read-later archive
+books.localhost          reading list
 files.localhost          files
-gallery.localhost        photos
+gallery.localhost        photos (`photos.localhost` is an alias)
 contacts.localhost       contacts
 secrets.localhost        the vault
 activity.localhost       the cross-app activity timeline
-system.localhost         the live system monitor
+system.localhost         the live system monitor (this machine)
+watch.localhost          uptime monitoring for external sites/endpoints
 ```
 
 `static/js/subdomain.js` maps each host to the views it shows; `app.js` scopes the sidebar to that app and `navigateto()` cross-jumps between them. this works **today with zero dns setup** — browsers route `*.localhost` to your own machine automatically.
@@ -581,7 +589,7 @@ web push implemented straight from the rfcs — zero extra dependencies
 
 the dependency list is deliberately small — `fastapi`, `uvicorn`, `httpx`, `sqlalchemy`, `pydantic`, `cryptography`, `bcrypt`, `fastembed`, `python-docx`, `pillow`, `psutil` (the live system monitor), plus `beautifulsoup4` + `trafilatura` + `ddgs` for research (reading and searching the web). optional extras are opt-in and clearly marked: `pyautogui` (agent computer-use), `faster-whisper` (offline voice), `caldav` (calendar sync), `pypdf` (pdf import).
 
-the frontend is genuinely just files: `static/index.html` is the whole app shell, `static/js/` is **one es module per feature** (~40 of them — `app.js`, `chat.js`, `vaultmd.js`, `mail.js`, `agent`-related, etc.) imported by `app.js`, and `static/style.css` holds the design tokens (sharp, monochrome, 2–3px radii, no shadows). "view source" actually shows you the app. the only pre-built drop-ins are two vendored files — codemirror 6 for the docs editor (`static/vendor/cm6.bundle.js`) and leaflet for the gallery places map (`static/vendor/leaflet/`) — so there's still no build step you have to run.
+the frontend is genuinely just files: `static/index.html` is the whole app shell, `static/js/` is **one es module per feature** (~70 of them — `app.js`, `chat.js`, `vaultmd.js`, `mail.js`, `agent`-related, etc.) imported by `app.js`, and `static/style.css` holds the design tokens (sharp, monochrome, 2–3px radii, no shadows). "view source" actually shows you the app. the only pre-built drop-ins are two vendored files — codemirror 6 for the docs editor (`static/vendor/cm6.bundle.js`) and leaflet for the gallery places map (`static/vendor/leaflet/`) — so there's still no build step you have to run.
 
 ---
 
@@ -624,7 +632,7 @@ alles/
     ├── style.css          design tokens + all styling
     ├── sw.js              service worker (offline shell + push)
     ├── vendor/            prebuilt drop-ins: codemirror 6 + leaflet (no build step)
-    └── js/                ~40 es modules, one per feature, imported by app.js
+    └── js/                ~70 es modules, one per feature, imported by app.js
 ```
 
 ---

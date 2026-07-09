@@ -15,11 +15,15 @@ from datetime import datetime
 from pathlib import Path
 
 from core.database import Photo, SessionLocal
-from core.settings import load_settings
+from core.settings import data_dir, load_settings
 from services import photos_store
 
-_IMG_EXT = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".heic", ".bmp"}
-_STATE = Path(__file__).resolve().parent.parent / "data" / "photo_sync_state.json"
+_IMG_EXT = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".heic", ".heif", ".bmp"}
+_STATE: Path | None = None
+
+
+def _state_file() -> Path:
+    return _STATE or data_dir() / "photo_sync_state.json"
 
 
 def parse_takeout_sidecar(data: dict) -> dict:
@@ -56,14 +60,15 @@ def _find_sidecar(p: Path):
 
 def _load_state() -> dict:
     try:
-        return json.loads(_STATE.read_text("utf-8"))
+        return json.loads(_state_file().read_text("utf-8"))
     except Exception:
         return {}
 
 
 def _save_state(s: dict):
-    _STATE.parent.mkdir(parents=True, exist_ok=True)
-    _STATE.write_text(json.dumps(s), "utf-8")
+    path = _state_file()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(s), "utf-8")
 
 
 def _sig(p: Path) -> str:

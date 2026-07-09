@@ -64,6 +64,10 @@ export function currentSub() { return parseHost().sub; }
 
 export function appForSub(sub) { return SUBDOMAIN_VIEWS[sub] || SUBDOMAIN_VIEWS['']; }
 
+export function shouldPollModels(sub = parseHost().sub, oneHost = singleHost()) {
+  return oneHost || appForSub(sub).app === 'aide';
+}
+
 // which subdomain owns a view (settings has none — it's a global modal)
 export function viewToSub(viewId) {
   for (const [sub, cfg] of Object.entries(SUBDOMAIN_VIEWS)) {

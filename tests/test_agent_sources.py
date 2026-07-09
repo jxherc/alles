@@ -113,7 +113,9 @@ class RunsSummaryTest(unittest.TestCase):
         ast.update_run(
             rid,
             tool_steps=[{"name": "shell"}, {"name": "read_file"}],
-            todos=[{"text": "do a", "status": "done"}, {"text": "do b", "status": "pending"}],
+            # F93: use the shape _todo_update actually emits ({step, status:completed}),
+            # not the old {text, done} the route never produced — that masked F18.
+            todos=[{"step": "do a", "status": "completed"}, {"step": "do b", "status": "pending"}],
             checkpoints=[{"path": "x.py"}],
         )
         ast.record_event(rid, "tool_start", {"name": "read_file", "args": {"path": "x.py"}})

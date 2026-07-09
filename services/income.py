@@ -33,7 +33,17 @@ def classify(payee):
 
 
 def _income_txns(db):
-    return [t for t in db.query(Transaction).all() if (t.amount or 0.0) > 0 and not t.transfer_id]
+    from sqlalchemy import or_
+
+    # income only, transfers excluded — filtered in sql instead of scanning every txn
+    return (
+        db.query(Transaction)
+        .filter(
+            Transaction.amount > 0,
+            or_(Transaction.transfer_id.is_(None), Transaction.transfer_id == ""),
+        )
+        .all()
+    )
 
 
 def by_type(db, month):
@@ -91,6 +101,7 @@ def set_aside(db, as_of, rate=0.25):
 def upcoming_due(as_of, window_days=21):
     """the quarter whose DUE date lands within [as_of, as_of+window], with its earning window
     resolved to concrete dates. returns None if no due date is near. used by the reminder signal."""
+    candidates = []
     for yr in (as_of.year - 1, as_of.year, as_of.year + 1):
         for label, start, end, due, due_next in _QUARTERS:
             due_date = datetime.date(yr + 1 if due_next else yr, *due)
@@ -98,14 +109,17 @@ def upcoming_due(as_of, window_days=21):
             if 0 <= delta <= window_days:
                 s = datetime.date(yr, *start)
                 e = datetime.date(yr, *end)
-                return {
-                    "label": label,
-                    "start": s.isoformat(),
-                    "end": e.isoformat(),
-                    "due": due_date.isoformat(),
-                    "days": delta,
-                }
-    return None
+                candidates.append((due_date, label, s, e, delta))
+    if not candidates:
+        return None
+    due_date, label, s, e, delta = min(candidates, key=lambda c: c[0])
+    return {
+        "label": label,
+        "start": s.isoformat(),
+        "end": e.isoformat(),
+        "due": due_date.isoformat(),
+        "days": delta,
+    }
 
 
 def due_quarter_income(db, q):

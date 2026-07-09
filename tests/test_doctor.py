@@ -1,4 +1,7 @@
+import os
+import tempfile
 import unittest
+from pathlib import Path
 from unittest import mock
 
 from services import doctor
@@ -57,23 +60,33 @@ class DoctorTest(unittest.TestCase):
 
     def test_check_secret_key_absent(self):
         # key doesn't exist → still ok (will be generated), but detail says so
-        with mock.patch.object(doctor, "ROOT", doctor.ROOT / "__nonexistent_dir_xyz__"):
-            ok, label, detail = doctor.check_secret_key()
+        old = os.environ.get("ALLES_DATA")
+        try:
+            with tempfile.TemporaryDirectory() as tmp:
+                os.environ["ALLES_DATA"] = tmp
+                ok, label, detail = doctor.check_secret_key()
+        finally:
+            if old is None:
+                os.environ.pop("ALLES_DATA", None)
+            else:
+                os.environ["ALLES_DATA"] = old
         self.assertTrue(ok)  # absent key is never a hard failure
         self.assertIn("generated", detail)
         self.assertEqual(label, "at-rest encryption key")
 
     def test_check_secret_key_present(self):
-        import tempfile
-
-        with tempfile.TemporaryDirectory() as tmp:
-            from pathlib import Path
-
-            root = Path(tmp)
-            (root / "data").mkdir()
-            (root / "data" / "secret.key").write_text("dummy")
-            with mock.patch.object(doctor, "ROOT", root):
+        old = os.environ.get("ALLES_DATA")
+        try:
+            with tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                (root / "secret.key").write_text("dummy")
+                os.environ["ALLES_DATA"] = str(root)
                 ok, label, detail = doctor.check_secret_key()
+        finally:
+            if old is None:
+                os.environ.pop("ALLES_DATA", None)
+            else:
+                os.environ["ALLES_DATA"] = old
         self.assertTrue(ok)
         self.assertEqual(detail, "present")
 

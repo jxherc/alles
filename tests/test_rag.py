@@ -1,3 +1,4 @@
+import threading
 import unittest
 
 from services import rag
@@ -83,6 +84,30 @@ class RetrieveTests(unittest.TestCase):
             self.assertIn("score", hits[0])
             self.assertIn("chunk", hits[0])
             self.assertIn("path", hits[0])
+
+
+class AnswerTests(unittest.IsolatedAsyncioTestCase):
+    async def test_answer_runs_retrieve_off_loop(self):
+        loop_tid = threading.get_ident()
+        seen = {}
+        orig = rag.retrieve
+
+        def fake_retrieve(query, k=5):
+            seen["tid"] = threading.get_ident()
+            seen["query"] = query
+            seen["k"] = k
+            return []
+
+        rag.retrieve = fake_retrieve
+        try:
+            out = await rag.answer("where are the notes", "http://model", "key", "m", k=2)
+        finally:
+            rag.retrieve = orig
+
+        self.assertEqual(seen["query"], "where are the notes")
+        self.assertEqual(seen["k"], 2)
+        self.assertNotEqual(seen["tid"], loop_tid)
+        self.assertEqual(out["sources"], [])
 
 
 if __name__ == "__main__":

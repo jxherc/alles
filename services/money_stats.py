@@ -34,14 +34,26 @@ def new_merchants(db, *, as_of, months=3, min_amount=20.0):
     """normalized merchants seen THIS month but not in the prior `months`."""
     from core.database import Account, Transaction
 
+    from sqlalchemy import or_
+
     cur_month = as_of.strftime("%Y-%m")
     prior = set(_recent_months(as_of, months))
     accts = {a.id for a in db.query(Account).filter_by(archived=False).all()}
     cur_m, prior_m = {}, set()
-    for t in db.query(Transaction).all():
-        # income (>=0) + transfer legs are not merchant spending (consistent with _spending_by_cat)
-        if t.account_id not in accts or (t.amount or 0) >= 0 or t.transfer_id:
-            continue
+    # spend / transfer / account predicates in sql (consistent with _spending_by_cat) so we don't
+    # scan income + transfers + archived-account rows in python
+    rows = (
+        db.query(Transaction)
+        .filter(
+            Transaction.account_id.in_(accts),
+            Transaction.amount < 0,
+            or_(Transaction.transfer_id.is_(None), Transaction.transfer_id == ""),
+        )
+        .all()
+        if accts
+        else []
+    )
+    for t in rows:
         m = _norm_payee(t.payee or "")
         if not m:
             continue

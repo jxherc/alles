@@ -72,6 +72,11 @@ def _byday(s):
 
 
 def _json_list(s):
+    # callers are inconsistent: the DB stores recur_except as a json string, but
+    # routes/_fmt hands us an already-parsed list. accept both — json.loads on a
+    # list throws, which used to silently drop every EXDATE on the expand path.
+    if isinstance(s, list):
+        return s
     try:
         v = json.loads(s or "[]")
         return v if isinstance(v, list) else []
@@ -130,7 +135,8 @@ def expand(event: dict, rs: datetime, re: datetime, cap: int = 1500) -> list[dat
     interval = max(1, int(event.get("recur_interval") or 1))
     until = _end_of_day(event.get("recur_until"))
     count = event.get("recur_count")
-    count = int(count) if count else None
+    # count=0 is falsy but means "zero occurrences", not "no limit" — only None/"" disable it
+    count = int(count) if count is not None and str(count) != "" else None
     byday = _byday(event.get("recur_byday")) if rec == "weekly" else set()
     excepts = {str(x)[:10] for x in _json_list(event.get("recur_except"))}
 

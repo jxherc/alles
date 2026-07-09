@@ -110,6 +110,21 @@ class FileVersionTests(ApiTest):
         vs = self.client.get("/api/files/versions", params={"path": "v.txt"}).json()
         self.assertEqual(len(vs), 2)
 
+    def test_api_delete_removes_versions_and_blob(self):
+        self._upload("gone.txt", "a")
+        self._upload("gone.txt", "b")
+        d = self.db()
+        v = d.query(FileVersion).filter_by(path="gone.txt").first()
+        blob = fv.versions_dir() / v.stored
+        self.assertTrue(blob.exists())
+
+        r = self.client.request("DELETE", "/api/files/delete", params={"path": "gone.txt"})
+
+        self.assertEqual(r.status_code, 200)
+        d.expire_all()
+        self.assertEqual(d.query(FileVersion).filter_by(path="gone.txt").count(), 0)
+        self.assertFalse(blob.exists())
+
     def test_upload_pathological_filename_rejected(self):
         # names that strip to nothing ("." "/" "...") used to write onto the dir itself -> 500.
         # now a clean 400. (empty "" is rejected earlier by fastapi's File(...) as 422.)

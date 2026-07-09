@@ -33,10 +33,10 @@ def today_view(date_q: str = Query("", alias="date"), db: DbSession = Depends(ge
     today = _safe_date(date_q) if date_q else date.today()
 
     # roll overdue subs forward first (a write) so signals reads fresh next_due
-    from routes.subscriptions import _roll
+    from routes.subscriptions import _roll_and_post
 
     subs = db.query(Subscription).filter(Subscription.active == True).all()  # noqa: E712
-    if any(_roll(s, today) for s in subs):
+    if any(_roll_and_post(s, today, db) for s in subs):
         db.commit()
 
     g = signals.by_category(

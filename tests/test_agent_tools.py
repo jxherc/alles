@@ -3,6 +3,7 @@ import os
 import subprocess
 import tempfile
 import unittest
+from unittest import mock
 
 from services import agent_tools as at
 
@@ -34,6 +35,28 @@ class ToolGatingTests(unittest.TestCase):
             self.assertIn(w, at.MUTATING_TOOLS)
         for r in ("read_file", "grep_files", "git_status", "code_symbols"):
             self.assertNotIn(r, at.MUTATING_TOOLS)
+
+
+class SubAgentTurnCapTests(unittest.TestCase):
+    def tearDown(self):
+        at.set_agent_ctx({})
+
+    def test_subagent_passes_real_turn_cap(self):
+        seen = {}
+
+        async def fake_run_agent(messages, ep, model, stop, settings, acc, think, steps):
+            seen.update(settings)
+            acc.append("done")
+            yield {"agent_run": {"id": "r1", "max_turns": 999}}
+
+        at.set_agent_ctx({"agent_effort": "max", "agent_max_turns": 24}, ep=object(), model="m")
+        with mock.patch("services.agent_runtime.run_agent", fake_run_agent):
+            out = asyncio.run(at._run_subagent("check this"))
+
+        self.assertEqual(out, "done")
+        self.assertEqual(seen["agent_max_turns"], 10)
+        self.assertEqual(seen["_agent_turn_cap"], 10)
+        self.assertFalse(seen["agent_subagents"])
 
 
 class PreviewChangeTests(unittest.TestCase):
@@ -134,6 +157,48 @@ class FileToolTests(unittest.TestCase):
             out = asyncio.run(at._glob_files("*.txt", d, 2))["output"]
             self.assertEqual(len([l for l in out.splitlines() if l.endswith(".txt")]), 2)
             self.assertIn("more", out)
+
+    def test_file_tools_skip_heavy_dirs(self):
+        with tempfile.TemporaryDirectory() as d:
+            with open(os.path.join(d, "keep.txt"), "w") as f:
+                f.write("needle\n")
+            for sub in ("node_modules", ".git", ".venv", "data"):
+                os.makedirs(os.path.join(d, sub))
+                with open(os.path.join(d, sub, "junk.txt"), "w") as f:
+                    f.write("needle\n")
+
+            listed = asyncio.run(at._list_files(d, 3))["output"]
+            self.assertIn("keep.txt", listed)
+            self.assertNotIn("node_modules", listed)
+            self.assertNotIn(".git", listed)
+            self.assertNotIn(".venv", listed)
+            self.assertNotIn("data", listed)
+
+            globbed = asyncio.run(at._glob_files("*.txt", d))["output"]
+            self.assertIn("keep.txt", globbed)
+            self.assertNotIn("junk.txt", globbed)
+
+            grepped = asyncio.run(at._grep_files("needle", d, "*", "content"))["output"]
+            self.assertIn("keep.txt:1: needle", grepped)
+            self.assertNotIn("junk.txt", grepped)
+
+            data_root = os.path.join(d, "data")
+            explicit = asyncio.run(at._grep_files("needle", data_root, "*", "content"))["output"]
+            self.assertIn("junk.txt:1: needle", explicit)
+
+    def test_grep_skips_binary_files(self):
+        with tempfile.TemporaryDirectory() as d:
+            with open(os.path.join(d, "note.txt"), "w") as f:
+                f.write("needle\n")
+            with open(os.path.join(d, "logo.png"), "wb") as f:
+                f.write(b"\x00needle\x00")
+            with open(os.path.join(d, "blob.dat"), "wb") as f:
+                f.write(b"abc\x00needle")
+
+            out = asyncio.run(at._grep_files("needle", d, "*", "content"))["output"]
+            self.assertIn("note.txt:1: needle", out)
+            self.assertNotIn("logo.png", out)
+            self.assertNotIn("blob.dat", out)
 
 
 class InjectionGuardTests(unittest.TestCase):

@@ -749,6 +749,43 @@ class SyncBody(BaseModel):
     source: str  # a folder path (iCloud Drive / Photos export / any synced dir)
 
 
+@router.post("/rescan")
+def rescan(db: DbSession = Depends(get_db)):
+    """register loose files already sitting in the photos folder."""
+    root = ps.photos_dir()
+    known = {r[0] for r in db.query(Photo.filename).all()}
+    added = skipped = failed = 0
+    for p in sorted(root.iterdir()):
+        if p.is_dir() or p.name.startswith(".") or p.name in known:
+            continue
+        try:
+            info = ps.register_existing(p)
+            db.add(
+                Photo(
+                    filename=info["filename"],
+                    thumb=info["thumb"],
+                    original_name=info["original_name"],
+                    width=info["width"],
+                    height=info["height"],
+                    taken_at=info["taken_at"],
+                    exif=info["exif"],
+                    aspect_ratio=info.get("aspect_ratio"),
+                    preview=info.get("preview", ""),
+                    checksum=info.get("checksum"),
+                    is_video=info.get("is_video", False),
+                )
+            )
+            known.add(info["filename"])
+            added += 1
+        except Exception:
+            failed += 1
+    db.commit()
+    for p in root.iterdir():
+        if p.is_file() and p.name in known:
+            skipped += 1
+    return {"added": added, "skipped": skipped - added, "failed": failed}
+
+
 @router.post("/sync")
 def sync(body: SyncBody, db: DbSession = Depends(get_db)):
     """import new images from a folder, skipping anything already pulled in."""
@@ -789,6 +826,8 @@ def thumb(pid: str, db: DbSession = Depends(get_db)):
     tp = ps.thumb_path(p.thumb)
     if tp and tp.is_file():
         return FileResponse(str(tp))
+    if p.is_video:
+        raise HTTPException(404)
     op = ps.original_path(p.filename)  # fall back to the original if no thumb
     if op.is_file():
         return FileResponse(str(op))
@@ -830,6 +869,8 @@ def photo_trash(db: DbSession = Depends(get_db)):
         {
             "id": p.id,
             "thumb": f"/api/photos/thumb/{p.id}",
+            "original": f"/api/photos/original/{p.id}",
+            "is_video": bool(p.is_video),
             "original_name": p.original_name,
             "deleted_at": p.deleted_at.isoformat() if p.deleted_at else None,
         }

@@ -64,9 +64,13 @@ class VaultTests(unittest.TestCase):
         names = {b["name"] for b in bl}
         self.assertEqual(names, {"one", "two"})  # case-insensitive, excludes self
 
-    def test_wikilink_with_alias_and_heading(self):
-        vault_md.write("x.md", "[[Note|shown text]] and [[Other#section]]")
-        self.assertEqual(vault_md.outgoing_links("x.md"), ["Note", "Other"])
+    def test_backlinks_match_alias_and_heading_targets(self):
+        vault_md.write("target.md", "i am the target")
+        vault_md.write("alias.md", "[[target|shown text]]")
+        vault_md.write("heading.md", "[[Target#section]]")
+        vault_md.write("other.md", "[[targeted]]")
+        names = {b["name"] for b in vault_md.backlinks("target")}
+        self.assertEqual(names, {"alias", "heading"})
 
     def test_path_traversal_blocked(self):
         with self.assertRaises(ValueError):

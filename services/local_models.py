@@ -13,11 +13,10 @@ from pathlib import Path
 import httpx
 
 from core.database import ModelEndpoint
-from core.settings import save_settings
-
+from core.settings import data_dir, save_settings
 
 OLLAMA_BASE_URL = os.environ.get("AIDE_OLLAMA_URL", "http://localhost:11434").rstrip("/")
-DATA_DIR = Path(__file__).resolve().parent.parent / "data"
+DATA_DIR: Path | None = None
 MODEL_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:/+-]{0,127}$")
 
 PRESETS = [
@@ -97,6 +96,10 @@ _MAX_JOBS = 40
 
 def _run(cmd: list[str], timeout: int = 8) -> subprocess.CompletedProcess:
     return subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+
+
+def _data_dir() -> Path:
+    return DATA_DIR or data_dir()
 
 
 def _ollama_http_client(**kw):
@@ -330,8 +333,9 @@ def start_ollama() -> dict:
     if _serve_proc and _serve_proc.poll() is None:
         return {"ok": True, "started": False, "pid": _serve_proc.pid}
 
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
-    log = open(DATA_DIR / "ollama.log", "a", encoding="utf-8")
+    root = _data_dir()
+    root.mkdir(parents=True, exist_ok=True)
+    log = open(root / "ollama.log", "a", encoding="utf-8")
     kwargs = {"stdout": log, "stderr": log}
     if platform.system().lower() == "windows":
         kwargs["creationflags"] = getattr(subprocess, "CREATE_NO_WINDOW", 0)

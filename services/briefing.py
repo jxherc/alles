@@ -1,8 +1,8 @@
 """daily briefing - a small morning digest pulled from the local apps (calendar,
 tasks, habits, reading list, subscriptions, health). the per-app queries now live
 in services.signals (shared with the today widget + proactive agent); this just
-formats the signals into digest lines. the job in app.py broadcasts it via web
-push once a day."""
+formats the signals into digest lines. routes.briefing previews/sends it on
+demand, and services.automations reuses it for daily_at digest rules."""
 
 from datetime import date
 

@@ -12,9 +12,11 @@ class AgentStateTest(unittest.TestCase):
         self._p = mock.patch.object(ast, "DATA_DIR", Path(self.tmp.name))
         self._p.start()
         ast._active.clear()
+        ast._clear_disk_active_cache()
 
     def tearDown(self):
         ast._active.clear()
+        ast._clear_disk_active_cache()
         self._p.stop()
         self.tmp.cleanup()
 
@@ -80,6 +82,21 @@ class AgentStateTest(unittest.TestCase):
 
     def test_find_active_run_unknown_session_none(self):
         self.assertIsNone(ast.find_active_run("no-such-session"))
+
+    def test_find_active_run_disk_fallback_is_cached(self):
+        r = ast.start_run("sess-disk", "m", 10)
+        ast._active.clear()
+        with mock.patch.object(ast, "list_runs", wraps=ast.list_runs) as lr:
+            self.assertEqual(ast.find_active_run("sess-disk")["id"], r["id"])
+            self.assertEqual(ast.find_active_run("sess-disk")["id"], r["id"])
+        self.assertEqual(lr.call_count, 1)
+
+    def test_find_active_run_cache_clears_on_save(self):
+        r = ast.start_run("sess-disk", "m", 10)
+        ast._active.clear()
+        self.assertEqual(ast.find_active_run("sess-disk")["id"], r["id"])
+        ast.finish_run(r["id"], "done")
+        self.assertIsNone(ast.find_active_run("sess-disk"))
 
     def test_run_sources_extracts_files_and_searches(self):
         r = ast.start_run("s", "m", 10)

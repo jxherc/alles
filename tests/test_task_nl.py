@@ -23,6 +23,36 @@ class ParseTests(unittest.TestCase):
         self.assertEqual(p["priority"], 3)
         self.assertEqual(p["title"], "call mom")
 
+    def test_month_name_date(self):
+        # F13: month-name dates used to never parse, so the task silently lost its due date
+        p = parse_task("submit report june 20", T)
+        self.assertEqual(p["due_date"], "2026-06-20")
+        self.assertEqual(p["title"], "submit report")
+
+    def test_month_name_day_first(self):
+        p = parse_task("party 20 june", T)
+        self.assertEqual(p["due_date"], "2026-06-20")
+        self.assertEqual(p["title"], "party")
+
+    def test_month_name_abbrev_with_ordinal(self):
+        p = parse_task("renew passport dec 25th", T)
+        self.assertEqual(p["due_date"], "2026-12-25")
+
+    def test_month_name_past_rolls_to_next_year(self):
+        # jan 3 is before the fixed today (jun 14 2026) -> next year's jan
+        p = parse_task("taxes jan 3", T)
+        self.assertEqual(p["due_date"], "2027-01-03")
+
+    def test_month_name_explicit_year(self):
+        p = parse_task("deadline june 20 2027", T)
+        self.assertEqual(p["due_date"], "2027-06-20")
+
+    def test_month_name_bare_year_is_not_a_day(self):
+        # "june 2027" has no day-of-month — must NOT read "20" out of "2027" as the day
+        p = parse_task("plan trip june 2027", T)
+        self.assertIsNone(p["due_date"])
+        self.assertIn("2027", p["title"])  # the text is left intact, not half-eaten
+
     def test_every_month_on_day(self):
         p = parse_task("pay rent every 1st", T)
         self.assertEqual(p["repeat"], "monthly")

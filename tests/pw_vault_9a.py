@@ -100,7 +100,7 @@ def main():
         r["totp_countdown"] = "s" in (pg.text_content(".vault-totp-secs") or "")
         pg.screenshot(path=str(EVID / "totp.png"))
         pg.eval_on_selector("#vf-cancel", "el => el.click()")
-        pg.wait_for_timeout(200)
+        pg.wait_for_selector(".vault-modal", state="detached", timeout=5000)
 
         # ---- watchtower panel ----
         pg.eval_on_selector("#vault-watchtower-btn", "el => el.click()")

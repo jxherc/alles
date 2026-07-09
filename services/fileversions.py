@@ -11,6 +11,8 @@ import shutil
 import uuid
 from pathlib import Path
 
+from sqlalchemy import or_
+
 from core.database import FileVersion
 from core.settings import data_dir
 
@@ -69,6 +71,25 @@ def _prune(db, rel):
 
 def list_versions(db, rel) -> list[FileVersion]:
     return db.query(FileVersion).filter_by(path=rel).order_by(FileVersion.created_at.desc()).all()
+
+
+def delete_for_path(db, rel) -> int:
+    pre = (rel or "").rstrip("/") + "/"
+    rows = db.query(FileVersion).filter(
+        or_(FileVersion.path == rel, FileVersion.path.startswith(pre))
+    ).all()
+    stored = {r.stored for r in rows if r.stored}
+    for r in rows:
+        db.delete(r)
+    db.commit()
+    for name in stored:
+        if db.query(FileVersion).filter_by(stored=name).first():
+            continue
+        try:
+            (versions_dir() / name).unlink(missing_ok=True)
+        except OSError:
+            pass
+    return len(rows)
 
 
 def get(db, vid) -> FileVersion | None:

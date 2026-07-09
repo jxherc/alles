@@ -1,4 +1,4 @@
-import { toast } from './util.js';
+import { toast, escapeHtml } from './util.js';
 import { exportActiveSessionMarkdown } from './sessions.js';
 
 // ── built-in command registry ────────────────────────────────────────
@@ -88,10 +88,14 @@ function _handleInput(ta) {
 
   if (!line.startsWith('/') || line.includes(' ')) { _hide(); return; }
   const query = line.slice(1).toLowerCase();
-  // show ALL when just "/" — filter when query has chars
+  // show ALL when just "/" — filter when query has chars (case-insensitive, null-safe so a
+  // mixed-case cookbook name / missing description still matches without throwing)
   const all = _allEntries();
   const matches = query
-    ? all.filter(e => e.name.startsWith(query) || e.name.includes(query) || e.description.includes(query))
+    ? all.filter(e => {
+        const n = (e.name || '').toLowerCase(), d = (e.description || '').toLowerCase();
+        return n.startsWith(query) || n.includes(query) || d.includes(query);
+      })
     : all;
   if (!matches.length) { _hide(); return; }
   _show(matches, ta, lineStart, cursor, !query);
@@ -114,11 +118,13 @@ function _show(matches, ta, lineStart, cursor, grouped = false) {
     for (const [cat, entries] of Object.entries(cats)) {
       html += `<div class="slash-cat-label">${cat}</div>`;
       for (const e of entries) {
-        const argsHtml = e.args ? `<span class="slash-args">${e.args}</span>` : '';
+        // escape — args like <task>/<text> are otherwise parsed as html tags and vanish,
+        // and cookbook name/desc are user-authored (self-xss)
+        const argsHtml = e.args ? `<span class="slash-args">${escapeHtml(e.args)}</span>` : '';
         const tag = e.cat === 'cookbook' ? '<span class="slash-tag">saved</span>' : '';
         html += `<div class="slash-item${flatIdx === 0 ? ' selected' : ''}" data-idx="${flatIdx}">
-          <span class="slash-cmd"><span class="slash-name">/${e.name}</span>${argsHtml}</span>
-          <span class="slash-desc">${e.description}</span>${tag}
+          <span class="slash-cmd"><span class="slash-name">/${escapeHtml(e.name)}</span>${argsHtml}</span>
+          <span class="slash-desc">${escapeHtml(e.description || '')}</span>${tag}
         </div>`;
         flatIdx++;
       }
@@ -127,11 +133,11 @@ function _show(matches, ta, lineStart, cursor, grouped = false) {
   } else {
     // filtered mode — flat list, prefix-sorted
     _popup.innerHTML = matches.map((e, i) => {
-      const argsHtml = e.args ? `<span class="slash-args">${e.args}</span>` : '';
+      const argsHtml = e.args ? `<span class="slash-args">${escapeHtml(e.args)}</span>` : '';
       const tag = e.cat === 'cookbook' ? '<span class="slash-tag">saved</span>' : '';
       return `<div class="slash-item${i === 0 ? ' selected' : ''}" data-idx="${i}">
-        <span class="slash-cmd"><span class="slash-name">/${e.name}</span>${argsHtml}</span>
-        <span class="slash-desc">${e.description}</span>${tag}
+        <span class="slash-cmd"><span class="slash-name">/${escapeHtml(e.name)}</span>${argsHtml}</span>
+        <span class="slash-desc">${escapeHtml(e.description || '')}</span>${tag}
       </div>`;
     }).join('');
   }
@@ -214,13 +220,21 @@ export async function tryExecuteSlashCommand(text) {
   const cmd  = parts[0].slice(1).toLowerCase();
   const args = parts.slice(1).join(' ').trim();
 
-  // cookbook entries take priority over same-named builtins
-  const cbEntry = _cookbook.find(e => e.name === cmd);
+  // cookbook entries take priority over same-named builtins (cmd is already lowercased)
+  const cbEntry = _cookbook.find(e => e.name.toLowerCase() === cmd);
   if (cbEntry) {
-    // substitute args placeholder if present, else just use the prompt
+    // substitute args placeholder if present, else just use the prompt. function replacer so
+    // args containing $&, $1, $` aren't treated as replacement patterns
+    const expanded = cbEntry.prompt.replace(/\{args\}|\$1/g, () => args);
+    if (!expanded.trim()) {
+      // an args-only template invoked with no args expands to nothing — say so instead of
+      // silently swallowing the send (doSend bails on an empty composer).
+      toast(`/${cmd} needs an argument`, 'error');
+      return true;   // handled (suppress the empty send)
+    }
     const ta = document.getElementById('composer-ta');
     if (ta) {
-      ta.value = cbEntry.prompt.replace(/\{args\}|\$1/g, args);
+      ta.value = expanded;
       ta.style.height = 'auto';
       ta.style.height = Math.min(ta.scrollHeight, 220) + 'px';
     }

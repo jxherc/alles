@@ -13,6 +13,8 @@ def data_dir() -> Path:
 
 
 _SETTINGS_FILE = data_dir() / "settings.json"
+_SETTINGS_CACHE: dict | None = None
+_SETTINGS_CACHE_SIG: tuple[str, int, int] | None = None
 
 _defaults = {
     "default_model": "",
@@ -136,13 +138,33 @@ _ARTIFACT_INSTRUCTIONS = (
 )
 
 
+def _settings_sig() -> tuple[str, int, int]:
+    try:
+        st = _SETTINGS_FILE.stat()
+        return (str(_SETTINGS_FILE), st.st_mtime_ns, st.st_size)
+    except OSError:
+        return (str(_SETTINGS_FILE), -1, -1)
+
+
+def _clear_settings_cache():
+    global _SETTINGS_CACHE, _SETTINGS_CACHE_SIG
+    _SETTINGS_CACHE = None
+    _SETTINGS_CACHE_SIG = None
+
+
 def load_settings() -> dict:
+    global _SETTINGS_CACHE, _SETTINGS_CACHE_SIG
+    sig = _settings_sig()
+    if _SETTINGS_CACHE is not None and _SETTINGS_CACHE_SIG == sig:
+        return dict(_SETTINGS_CACHE)
     s = dict(_defaults)
-    if _SETTINGS_FILE.exists():
+    if sig[1] != -1:
         try:
             s.update(json.loads(_SETTINGS_FILE.read_text("utf-8")))
         except Exception:
             pass
+    _SETTINGS_CACHE = dict(s)
+    _SETTINGS_CACHE_SIG = sig
     return s
 
 
@@ -166,6 +188,7 @@ def _drop_non_finite(obj):
 
 
 def save_settings(patch: dict):
+    global _SETTINGS_CACHE, _SETTINGS_CACHE_SIG
     s = load_settings()
     s.update(patch)
     # never persist the vault password — strip it if it snuck in
@@ -174,6 +197,8 @@ def save_settings(patch: dict):
     _SETTINGS_FILE.parent.mkdir(parents=True, exist_ok=True)
     # allow_nan=False is a backstop in case a non-finite slips past the sanitizer
     _SETTINGS_FILE.write_text(json.dumps(s, indent=2, allow_nan=False), "utf-8")
+    _SETTINGS_CACHE = dict(s)
+    _SETTINGS_CACHE_SIG = _settings_sig()
     return s
 
 

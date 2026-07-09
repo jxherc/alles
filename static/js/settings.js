@@ -45,12 +45,14 @@ function _setSwitch(el, on) {
 }
 
 function _bindSwitch(el, getter, setter) {
+  if (!el) return;
   _setSwitch(el, getter());
-  el.addEventListener('click', () => {
+  // onclick keeps pane re-open from stacking handlers
+  el.onclick = () => {
     const next = !el.classList.contains('on');
     _setSwitch(el, next);
     setter(next);
-  });
+  };
 }
 
 // ── pane navigation ───────────────────────────────────────────────────────────
@@ -577,7 +579,8 @@ function _updateSearchStatus(s) {
   const needsKey = { tavily:'tavily_api_key', brave:'brave_api_key', google_pse:'google_pse_api_key', serper:'serper_api_key' };
   const needsUrl = { searxng:'searxng_url' };
   const keyField = needsKey[prov]; const urlField = needsUrl[prov];
-  const missing  = (keyField && !s[keyField]) || (urlField && !s[urlField]);
+  const hasKey = keyField ? (s[keyField] || s[`${keyField}_configured`]) : true;
+  const missing  = (keyField && !hasKey) || (urlField && !s[urlField]);
   el.textContent = `active: ${labels[prov]||prov} · ${count} results${missing?' · missing credentials':''}`;
   el.style.color  = missing ? 'var(--error)' : 'var(--muted)';
 }

@@ -2,8 +2,10 @@ import json
 from datetime import datetime, timedelta
 from unittest import mock
 
+from sqlalchemy import event
+
+from core.database import Message, ModelEndpoint, Session
 from tests._client import ApiTest
-from core.database import Session, Message, ModelEndpoint
 
 
 class SessionsApiTest(ApiTest):
@@ -34,6 +36,40 @@ class SessionsApiTest(ApiTest):
         r = self.client.get("/api/sessions")
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.json(), {"today": [], "yesterday": [], "earlier": []})
+
+    def test_empty_session_cleanup_is_bulk(self):
+        from app import _cleanup_empty_sessions
+
+        d = self.db()
+        empties = [Session(name=f"empty {i}") for i in range(5)]
+        starred = Session(name="keep starred", starred=True)
+        chat = Session(name="keep chat")
+        d.add_all(empties + [starred, chat])
+        d.flush()
+        d.add(Message(session_id=chat.id, role="user", content="hi"))
+        ids = {s.id for s in empties}
+        keep = {starred.id, chat.id}
+        d.commit()
+        d.close()
+
+        stmts = []
+
+        def track(_conn, _cursor, statement, *_args):
+            stmts.append(statement.lower())
+
+        event.listen(self.eng, "before_cursor_execute", track)
+        try:
+            _cleanup_empty_sessions()
+        finally:
+            event.remove(self.eng, "before_cursor_execute", track)
+
+        d = self.db()
+        left = {s.id for s in d.query(Session).all()}
+        d.close()
+        self.assertFalse(ids & left)
+        self.assertTrue(keep <= left)
+        self.assertFalse(any("count(" in s for s in stmts))
+        self.assertLessEqual(sum(s.lstrip().startswith("select") for s in stmts), 1)
 
     def test_create_then_listed_today(self):
         r = self.client.post("/api/sessions", json={"name": "hello chat"})

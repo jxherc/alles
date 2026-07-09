@@ -45,7 +45,8 @@ SERVICE_CATEGORY = {
 def _service_cat(name):
     n = re.sub(r"\s+", " ", (name or "").lower()).strip()
     for key, cat in SERVICE_CATEGORY.items():
-        if key in n:
+        # whole-word match — substring over-matched ("box" inside dropbox, "max" inside anything)
+        if re.search(r"\b" + re.escape(key) + r"\b", n):
             return cat
     return ""
 

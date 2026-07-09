@@ -1,3 +1,5 @@
+from sqlalchemy import event
+
 from tests._client import ApiTest
 
 
@@ -27,6 +29,19 @@ class MoneySearchTests(ApiTest):
 
     def _search(self, **params):
         return self.client.get("/api/money/transactions/search", params=params).json()
+
+    def _capture_sql(self, fn):
+        sql = []
+
+        def before_cursor_execute(_conn, _cursor, statement, _params, _ctx, _many):
+            sql.append(" ".join(statement.lower().split()))
+
+        event.listen(self.eng, "before_cursor_execute", before_cursor_execute)
+        try:
+            res = fn()
+        finally:
+            event.remove(self.eng, "before_cursor_execute", before_cursor_execute)
+        return res, sql
 
     def test_search_by_payee(self):
         r = self._search(q="netflix")
@@ -78,3 +93,17 @@ class MoneySearchTests(ApiTest):
     def test_sorted_date_desc(self):
         dates = [t["date"] for t in self._search()]
         self.assertEqual(dates, sorted(dates, reverse=True))
+
+    def test_search_filters_are_in_sql_before_limit(self):
+        res, sql = self._capture_sql(
+            lambda: self.client.get(
+                "/api/money/transactions/search",
+                params={"q": "netflix", "min_amt": 10, "limit": 1},
+            ).json()
+        )
+
+        self.assertEqual([t["payee"] for t in res], ["Netflix"])
+        stmt = next(s for s in sql if " from money_transactions" in s and " limit " in s)
+        self.assertIn(" where ", stmt)
+        self.assertIn("lower(money_transactions.payee)", stmt)
+        self.assertIn("abs(money_transactions.amount)", stmt)

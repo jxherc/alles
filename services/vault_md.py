@@ -809,14 +809,6 @@ def backlinks(name: str) -> list[dict]:
     return out
 
 
-def outgoing_links(rel: str) -> list[str]:
-    p = _safe(rel)
-    if not p.exists():
-        return []
-    text = p.read_text("utf-8", errors="replace")
-    return sorted({m.group(1).strip() for m in _WIKILINK.finditer(text)})
-
-
 def create_folder(rel: str) -> dict:
     p = _safe(rel)
     p.mkdir(parents=True, exist_ok=True)

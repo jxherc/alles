@@ -14,23 +14,30 @@ import time
 from pathlib import Path
 from typing import AsyncGenerator
 
+from core.settings import data_dir
+
 from .deep_research import DeepResearcher
 
 log = logging.getLogger("aide.research")
 
-DATA_DIR = Path(__file__).parent.parent.parent / "data" / "research"
-DATA_DIR.mkdir(parents=True, exist_ok=True)
+DATA_DIR: Path | None = None
 
 _tasks: dict[str, dict] = {}  # session_id → task state (live, in-memory)
 
 
+def task_dir() -> Path:
+    d = DATA_DIR or data_dir() / "research"
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
 def _save_task(session_id: str, state: dict):
     dump = {k: v for k, v in state.items() if not k.startswith("_")}
-    (DATA_DIR / f"{session_id}.json").write_text(json.dumps(dump, indent=2), "utf-8")
+    (task_dir() / f"{session_id}.json").write_text(json.dumps(dump, indent=2), "utf-8")
 
 
 def _load_task(session_id: str) -> dict | None:
-    p = DATA_DIR / f"{session_id}.json"
+    p = task_dir() / f"{session_id}.json"
     if p.exists():
         try:
             return json.loads(p.read_text("utf-8"))

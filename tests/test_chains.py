@@ -99,6 +99,27 @@ class RunTests(unittest.TestCase):
         _run([{"name": "x", "args": {"q": "{{9.nope}}"}}], inv)
         self.assertEqual(captured["args"]["q"], "{{9.nope}}")  # no such step -> unchanged
 
+    def test_nested_args_are_templated(self):
+        captured = {}
+
+        async def inv(name, args, kind="tool"):
+            if name == "b":
+                captured["args"] = args
+            return {"value": "hello", "id": "abc"}
+
+        _run([
+            {"name": "a"},
+            {
+                "name": "b",
+                "args": {
+                    "payload": {"query": "{{0.value}}", "meta": ["id", "{{0.id}}"]},
+                    "plain": 7,
+                },
+            },
+        ], inv)
+        self.assertEqual(captured["args"]["payload"], {"query": "hello", "meta": ["id", "abc"]})
+        self.assertEqual(captured["args"]["plain"], 7)
+
     def test_non_string_args_untouched(self):
         captured = {}
 

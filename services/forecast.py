@@ -22,15 +22,26 @@ def category_averages(db, *, months=3, as_of=None):
     non-archived accounts only)."""
     from core.database import Account, Transaction
 
+    from sqlalchemy import or_
+
     as_of = as_of or date.today()
     periods = set(_recent_months(as_of, months))
     accts = {a.id for a in db.query(Account).filter_by(archived=False).all()}
+    if not accts:
+        return {}
     totals = {}
-    for t in db.query(Transaction).all():
-        # skip income (>=0) AND transfer legs (inter-account moves aren't spending) - same rule as
-        # routes/money._spending_by_cat, which these stats must stay consistent with.
-        if t.account_id not in accts or (t.amount or 0) >= 0 or t.transfer_id:
-            continue
+    # push the spend/transfer/account predicates into sql (same rule as routes/money._spending_by_cat)
+    # so we don't drag income + transfers + archived-account rows into python every call
+    rows = (
+        db.query(Transaction)
+        .filter(
+            Transaction.account_id.in_(accts),
+            Transaction.amount < 0,
+            or_(Transaction.transfer_id.is_(None), Transaction.transfer_id == ""),
+        )
+        .all()
+    )
+    for t in rows:
         if (t.date or "")[:7] in periods:
             c = t.category or "uncategorized"
             totals[c] = totals.get(c, 0.0) + (-(t.amount or 0.0))

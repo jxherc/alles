@@ -15,14 +15,14 @@ def _inline_from_html(html):
 
     def get_bytes(uid):
         from core.database import SessionLocal, Upload
-        from routes.uploads import UPLOAD_DIR
+        from routes.uploads import upload_dir
 
         db = SessionLocal()
         try:
             up = db.get(Upload, uid)
             if not up:
                 return (None, None)
-            p = UPLOAD_DIR / up.filename
+            p = upload_dir() / up.filename
             return (
                 (p.read_bytes(), (up.mime_type or "image/png").split("/")[-1])
                 if p.exists()

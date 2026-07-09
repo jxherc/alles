@@ -29,6 +29,24 @@ from services.llm import clear_cooldown, stream_chat
 # transient errors a couple times before giving up; tests patch the base to 0.
 LLM_RETRIES = 2
 LLM_RETRY_BASE = 1.5  # seconds; backoff = base * 2**(attempt-1), capped
+EFFORT_TURNS = {"low": 6, "medium": 18, "high": 36, "xhigh": 60, "max": 100}
+
+
+def _turn_int(v, default: int) -> int:
+    try:
+        return int(v or default)
+    except (TypeError, ValueError):
+        return default
+
+
+def _agent_max_turns(settings: dict) -> int:
+    settings = settings or {}
+    eff = (settings.get("agent_effort") or "medium").lower()
+    turns = EFFORT_TURNS.get(eff) or _turn_int(settings.get("agent_max_turns"), 24)
+    cap = settings.get("_agent_turn_cap")
+    if cap is not None:
+        turns = min(turns, _turn_int(cap, turns))
+    return max(1, turns)
 
 
 def _retryable(msg: str) -> bool:
@@ -207,9 +225,7 @@ def merge_usage(total: dict, part: dict) -> dict:
 
 def agent_system_note(settings: dict) -> str:
     eff = (settings.get("agent_effort") or "medium").lower()
-    max_turns = {"low": 6, "medium": 18, "high": 36, "xhigh": 60, "max": 100}.get(eff) or int(
-        settings.get("agent_max_turns", 24) or 24
-    )
+    max_turns = _agent_max_turns(settings)
     opencode = (
         "installed"
         if shutil.which("opencode")
@@ -308,9 +324,7 @@ async def run_agent(
 ) -> AsyncGenerator[dict, None]:
     # effort drives how many turns the agent gets (falls back to configured max)
     eff = (settings.get("agent_effort") or "medium").lower()
-    max_turns = {"low": 6, "medium": 18, "high": 36, "xhigh": 60, "max": 100}.get(eff) or int(
-        settings.get("agent_max_turns", 24) or 24
-    )
+    max_turns = _agent_max_turns(settings)
     run = start_run(
         session_id=session_id, model=model, max_turns=max_turns, cwd=settings.get("agent_cwd", "")
     )

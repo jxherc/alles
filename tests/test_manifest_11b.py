@@ -64,6 +64,29 @@ class ManifestTests(ApiTest):
             self.assertTrue(sc.get("name"))
             self.assertTrue(sc.get("url"))
 
+    def test_shortcuts_stay_same_origin(self):
+        for sc in self._manifest()["shortcuts"]:
+            url = sc["url"]
+            self.assertTrue(url.startswith("/"), f"shortcut should be relative: {url}")
+            self.assertFalse(url.startswith("//"), f"shortcut should not be protocol-relative: {url}")
+            self.assertNotIn("localhost", url)
+
+    def test_shortcuts_target_app_query(self):
+        got = {sc["short_name"]: sc["url"] for sc in self._manifest()["shortcuts"]}
+        want = {
+            "Chat": "/?app=chat",
+            "Tasks": "/?app=tasks",
+            "Journal": "/?app=journal",
+        }
+        for name, url in want.items():
+            self.assertEqual(got.get(name), url)
+
+    def test_shortcut_query_boots_app_nav(self):
+        js = (STATIC / "js" / "app.js").read_text(encoding="utf-8")
+        self.assertIn("_p.get('app')", js)
+        self.assertIn("_p.get('view')", js)
+        self.assertIn("navigateTo(_v)", js)
+
     def test_index_has_viewport(self):
         html = self.client.get("/").text
         self.assertIn('name="viewport"', html)

@@ -318,6 +318,10 @@ def update_monitor(mid: str, body: MonitorPatch, db: DbSession = Depends(get_db)
     m = db.get(Monitor, mid)
     if not m:
         raise HTTPException(404)
+    if body.name is not None and not body.name.strip():
+        raise HTTPException(400, "name required")
+    if body.url is not None and not body.url.strip():
+        raise HTTPException(400, "url required")
     if body.kind is not None and body.kind not in KINDS:
         raise HTTPException(400, f"kind must be one of {', '.join(KINDS)}")
     for field in (
@@ -332,6 +336,12 @@ def update_monitor(mid: str, body: MonitorPatch, db: DbSession = Depends(get_db)
     ):
         v = getattr(body, field)
         if v is not None:
+            if field in ("name", "url", "expect_keyword"):
+                v = v.strip()
+            elif field == "interval_secs":
+                v = max(10, v)
+            elif field == "latency_ceiling_ms":
+                v = max(0, v)
             setattr(m, field, v)
     db.commit()
     return _fmt(m)

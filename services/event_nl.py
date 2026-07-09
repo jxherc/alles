@@ -50,6 +50,10 @@ def _extract_duration(t: str):
 def _parse_clock(s: str):
     """parse a bare clock token → (time, had_meridiem) or (None, False)."""
     s = s.strip()
+    if re.match(r"(noon|midday)$", s, re.I):
+        return time(12, 0), True  # unambiguous, so the start-inherit logic leaves it alone
+    if re.match(r"midnight$", s, re.I):
+        return time(0, 0), True
     m = re.match(r"(\d{1,2})(?::(\d{2}))?\s*([ap])\.?m\.?$", s, re.I)
     if m:
         h = int(m.group(1)) % 12
@@ -63,21 +67,23 @@ def _parse_clock(s: str):
 
 
 def _extract_time_range(t: str):
-    """'1-2pm' / '3pm to 4:30pm' / '9-10am' → (start, end, remaining). the end must
-    carry an am/pm; a start without one inherits it."""
-    m = re.search(
-        r"\b(\d{1,2}(?::\d{2})?\s*(?:[ap]\.?m\.?)?)\s*(?:to|until|-|–)\s*(\d{1,2}(?::\d{2})?\s*[ap]\.?m\.?)\b",
-        t,
-        re.I,
-    )
+    """'1-2pm' / '3pm to 4:30pm' / '9-10am' / 'noon to 2pm' → (start, end, remaining). the end
+    must carry an am/pm (or be noon/midnight); a start without one inherits it when sensible."""
+    clk = r"(?:noon|midday|midnight|\d{1,2}(?::\d{2})?\s*(?:[ap]\.?m\.?)?)"
+    clk_end = r"(?:noon|midday|midnight|\d{1,2}(?::\d{2})?\s*[ap]\.?m\.?)"
+    m = re.search(rf"\b({clk})\s*(?:to|until|-|–)\s*({clk_end})\b", t, re.I)
     if not m:
         return None, None, t
     st, st_mer = _parse_clock(m.group(1))
     en, en_mer = _parse_clock(m.group(2))
     if st is None or en is None:
         return None, None, t
-    if not st_mer and en_mer and st.hour < 12 and en.hour >= 12:
-        st = time((st.hour + 12) % 24, st.minute)
+    # bare start inherits the end's pm — but only if that keeps it before the end, so
+    # "11-1pm" stays 11am-1pm (not 11pm) and "9-5pm" stays 9am-5pm
+    if not st_mer and en_mer and st.hour < 12:
+        bumped = (st.hour + 12) * 60 + st.minute
+        if bumped < en.hour * 60 + en.minute:
+            st = time((st.hour + 12) % 24, st.minute)
     return st, en, t[: m.start()] + " " + t[m.end() :]
 
 
@@ -138,7 +144,7 @@ def parse_event(text: str, today: date | None = None) -> dict:
         start = datetime.combine(d, rng_start)
         end = datetime.combine(d, rng_end)
         if end <= start:
-            end += timedelta(hours=12)  # e.g. crossed midday wrong way
+            end += timedelta(days=1)  # range runs past midnight (e.g. 9pm-5am, noon-midnight)
         out["start_dt"] = start.isoformat(timespec="minutes")
         out["end_dt"] = end.isoformat(timespec="minutes")
         out["all_day"] = False

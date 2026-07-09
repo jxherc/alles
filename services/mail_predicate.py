@@ -162,14 +162,6 @@ def evaluate(node, msg):
     return False
 
 
-def match_one(query, msg):
-    # a malformed / too-complex query matches nothing rather than raising (no 500 on hostile input)
-    try:
-        return evaluate(parse(query), msg)
-    except Exception:
-        return False
-
-
 def match(query, msgs):
     try:
         ast = parse(query)

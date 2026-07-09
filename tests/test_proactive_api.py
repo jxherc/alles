@@ -1,6 +1,6 @@
 from datetime import date, timedelta
 
-from core.database import ProactiveItem, Task
+from core.database import ProactiveItem, ProactiveOutcome, Task
 from services import proactive
 from tests._client import ApiTest
 
@@ -34,6 +34,33 @@ class ProactiveApiTests(ApiTest):
         r = self.client.post(f"/api/proactive/{rid}/dismiss").json()
         self.assertTrue(r["ok"])
         self.assertEqual(self.client.get("/api/proactive").json(), [])
+
+    def test_dismiss_is_idempotent(self):
+        rid = self._seed_card(dedupe_key="a", title="x")
+        self.client.post(f"/api/proactive/{rid}/dismiss")
+        self.client.post(f"/api/proactive/{rid}/dismiss")
+
+        d = self.db()
+        try:
+            rows = d.query(ProactiveOutcome).filter(ProactiveOutcome.item_id == rid).all()
+            self.assertEqual(len(rows), 1)
+            self.assertEqual(rows[0].outcome, "dismissed")
+        finally:
+            d.close()
+
+    def test_first_terminal_outcome_wins(self):
+        rid = self._seed_card(dedupe_key="a", title="x")
+        self.client.post(f"/api/proactive/{rid}/dismiss")
+        self.client.post(f"/api/proactive/{rid}/act")
+
+        d = self.db()
+        try:
+            item = d.get(ProactiveItem, rid)
+            rows = d.query(ProactiveOutcome).filter(ProactiveOutcome.item_id == rid).all()
+            self.assertEqual(item.status, "dismissed")
+            self.assertEqual([r.outcome for r in rows], ["dismissed"])
+        finally:
+            d.close()
 
     def test_dismiss_missing(self):
         r = self.client.post("/api/proactive/nope/dismiss").json()

@@ -15,7 +15,8 @@ from pathlib import Path
 from core.settings import data_dir, load_settings
 
 ROOT = Path(__file__).resolve().parent.parent
-_ALLOWED = {"jpg", "jpeg", "png", "webp", "gif", "bmp"}
+_HEIF = {"heic", "heif"}
+_ALLOWED = {"jpg", "jpeg", "png", "webp", "gif", "bmp"} | _HEIF
 _VIDEO = {"mp4", "mov", "m4v", "webm"}  # 7c — no ffmpeg here, so stored + played, not thumbnailed
 _THUMB = 512
 
@@ -153,6 +154,35 @@ def _ext_of(original_name: str) -> str:
     return "jpg" if ext == "jpeg" else ext
 
 
+def _looks_heif(data: bytes) -> bool:
+    brands = (b"heic", b"heix", b"hevc", b"hevx", b"heif", b"mif1", b"msf1")
+    return len(data or b"") >= 12 and data[4:8] == b"ftyp" and any(b in data[8:40] for b in brands)
+
+
+def _register_heif():
+    try:
+        from pillow_heif import register_heif_opener
+
+        register_heif_opener()
+    except Exception:
+        pass
+
+
+def _store_original_only(data: bytes, original_name: str, ext: str, err: Exception) -> dict:
+    fname = uuid.uuid4().hex + "." + ext
+    (photos_dir() / fname).write_bytes(data)
+    return {
+        "filename": fname,
+        "thumb": "",
+        "original_name": original_name,
+        "width": 0,
+        "height": 0,
+        "taken_at": datetime.utcnow(),
+        "exif": json.dumps({"format": ext, "decode_error": type(err).__name__}),
+        "is_video": False,
+    }
+
+
 def import_media(data: bytes, original_name: str) -> dict:
     """dispatch by extension: video → stored as-is (no decode), else image."""
     if _ext_of(original_name) in _VIDEO:
@@ -196,11 +226,11 @@ def import_video(data: bytes, original_name: str) -> dict:
 def import_image(data: bytes, original_name: str) -> dict:
     from PIL import Image, ImageOps
 
-    ext = (original_name.rsplit(".", 1)[-1] if "." in original_name else "jpg").lower()
-    if ext == "jpeg":
-        ext = "jpg"
+    ext = _ext_of(original_name) or "jpg"
     if ext not in _ALLOWED:
         raise ValueError(f"unsupported image type: .{ext}")
+    if ext in _HEIF:
+        _register_heif()
 
     # decode BEFORE writing to disk: a corrupt/truncated/fake image or a decompression bomb raises
     # UnidentifiedImageError / OSError / DecompressionBombError - turn those into a clean 400 and
@@ -212,6 +242,8 @@ def import_image(data: bytes, original_name: str) -> dict:
         w, h = img.size
         img.load()  # force a full decode so a bomb/corruption fails here, not later
     except Exception as e:
+        if ext in _HEIF and _looks_heif(data):
+            return _store_original_only(data, original_name, ext, e)
         raise ValueError(f"not a valid image: {type(e).__name__}")
 
     fname = uuid.uuid4().hex + "." + ext
@@ -234,6 +266,80 @@ def import_image(data: bytes, original_name: str) -> dict:
         "width": w,
         "height": h,
         "taken_at": taken_at,
+        "exif": json.dumps(exif_out),
+        "is_video": False,
+        "aspect_ratio": (w / h) if (w and h) else None,
+        "preview": _preview_b64(img),
+        "checksum": hashlib.sha256(data).hexdigest(),
+    }
+
+
+def register_existing(path: Path) -> dict:
+    from PIL import Image, ImageOps
+
+    base = photos_dir().resolve()
+    p = path.resolve()
+    if p == base or base not in p.parents or ".thumbs" in p.parts:
+        raise ValueError("path escapes photos root")
+    ext = p.suffix.lower().lstrip(".")
+    if ext not in (_ALLOWED | _VIDEO):
+        raise ValueError(f"unsupported media type: .{ext}")
+    data = p.read_bytes()
+    rel = p.relative_to(base).as_posix()
+    if ext in _VIDEO:
+        return {
+            "filename": rel,
+            "thumb": "",
+            "original_name": p.name,
+            "width": 0,
+            "height": 0,
+            "taken_at": datetime.utcfromtimestamp(p.stat().st_mtime),
+            "exif": json.dumps({}),
+            "is_video": True,
+            "aspect_ratio": None,
+            "preview": "",
+            "checksum": hashlib.sha256(data).hexdigest(),
+        }
+    if ext in _HEIF:
+        _register_heif()
+    try:
+        img = Image.open(io.BytesIO(data))
+        taken_at, exif_out = _read_exif(img)
+        img = ImageOps.exif_transpose(img)
+        w, h = img.size
+        img.load()
+    except Exception as e:
+        if ext in _HEIF and _looks_heif(data):
+            return {
+                "filename": rel,
+                "thumb": "",
+                "original_name": p.name,
+                "width": 0,
+                "height": 0,
+                "taken_at": datetime.utcfromtimestamp(p.stat().st_mtime),
+                "exif": json.dumps({"format": ext, "decode_error": type(e).__name__}),
+                "is_video": False,
+                "aspect_ratio": None,
+                "preview": "",
+                "checksum": hashlib.sha256(data).hexdigest(),
+            }
+        raise ValueError(f"not a valid image: {type(e).__name__}")
+
+    thumb_name = Path(rel).with_suffix(".jpg").name
+    try:
+        t = img.convert("RGB")
+        t.thumbnail((_THUMB, _THUMB))
+        t.save(thumbs_dir() / thumb_name, "JPEG", quality=82)
+    except Exception:
+        thumb_name = ""
+
+    return {
+        "filename": rel,
+        "thumb": thumb_name,
+        "original_name": p.name,
+        "width": w,
+        "height": h,
+        "taken_at": taken_at or datetime.utcfromtimestamp(p.stat().st_mtime),
         "exif": json.dumps(exif_out),
         "is_video": False,
         "aspect_ratio": (w / h) if (w and h) else None,

@@ -37,6 +37,8 @@ def main():
         pg.evaluate(
             """async () => {
                 const J = o => ({method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(o)});
+                const iso = d => d.toISOString().slice(0, 10);
+                const addDays = n => { const d = new Date(); d.setDate(d.getDate() + n); return iso(d); };
                 for (const s of (await fetch('/api/subscriptions').then(r=>r.json())).subscriptions) await fetch('/api/subscriptions/'+s.id,{method:'DELETE'});
                 for (const a of await fetch('/api/money/accounts').then(r=>r.json())) await fetch('/api/money/accounts/'+a.id,{method:'DELETE'});
                 // a low-balance account (20 < 100)
@@ -45,8 +47,8 @@ def main():
                 for (const d of ['2026-02-05','2026-03-05','2026-04-05','2026-05-05'])
                     await fetch('/api/money/transactions', J({account_id:a.id,date:d,amount:-10,payee:'Cloud Co'}));
                 // a sub with no charge (unused) and one with a cancel-by date
-                await fetch('/api/subscriptions', J({name:'Netflix',price:15,cycle:'monthly',next_due:'2026-07-01'}));
-                await fetch('/api/subscriptions', J({name:'TrialApp',price:5,cycle:'monthly',next_due:'2026-07-10',trial_end:'2026-06-25'}));
+                await fetch('/api/subscriptions', J({name:'Netflix',price:15,cycle:'monthly',next_due:addDays(20)}));
+                await fetch('/api/subscriptions', J({name:'TrialApp',price:5,cycle:'monthly',next_due:addDays(25),trial_end:addDays(5)}));
             }"""
         )
         pg.goto(f"{SUBS}/", wait_until="domcontentloaded")

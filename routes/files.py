@@ -3,6 +3,7 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
+from sqlalchemy import or_
 from sqlalchemy.orm import Session as DbSession
 
 from core.database import FileComment, FileTag, get_db
@@ -197,7 +198,14 @@ def duplicates():
             continue
         for p in plist:
             try:
-                h = hashlib.sha256(p.read_bytes()).hexdigest()
+                hsh = None
+                with p.open("rb") as f:
+                    for chunk in iter(lambda: f.read(1024 * 1024), b""):
+                        if hsh is None:
+                            hsh = hashlib.sha256(chunk)
+                        else:
+                            hsh.update(chunk)
+                h = hsh.hexdigest() if hsh else hashlib.sha256().hexdigest()
             except OSError:
                 continue
             groups[h].append({"path": str(p.relative_to(base)).replace("\\", "/"), "size": sz})
@@ -448,6 +456,11 @@ def _meta_models():
     return (FileTag, FileComment, FileVersion)
 
 
+def _path_filter(Model, path):
+    pre = (path or "").rstrip("/") + "/"
+    return or_(Model.path == path, Model.path.startswith(pre))
+
+
 @router.post("/rename")
 def rename(body: RenameBody, db: DbSession = Depends(get_db)):
     try:
@@ -461,7 +474,7 @@ def rename(body: RenameBody, db: DbSession = Depends(get_db)):
     old, new = body.path, res.get("path", body.to)
     pre = old.rstrip("/") + "/"
     for Model in _meta_models():
-        for r in db.query(Model).all():
+        for r in db.query(Model).filter(_path_filter(Model, old)).all():
             if r.path == old:
                 r.path = new
             elif r.path and r.path.startswith(pre):
@@ -482,12 +495,10 @@ def delete(path: str = Query(...), db: DbSession = Depends(get_db)):
         raise HTTPException(404, "not found")
     trash.soft_delete_file(db, path, p)  # move to trash instead of hard-delete (1d)
     # drop the tag/comment rows so the deleted file stops haunting the starred / by-tag views
-    pre = path.rstrip("/") + "/"
     for Model in (FileTag, FileComment):
-        for r in db.query(Model).all():
-            if r.path == path or (r.path and r.path.startswith(pre)):
-                db.delete(r)
-    db.commit()
+        for r in db.query(Model).filter(_path_filter(Model, path)).all():
+            db.delete(r)
+    fileversions.delete_for_path(db, path)
     return {"ok": True, "trashed": True}
 
 

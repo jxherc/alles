@@ -1,13 +1,23 @@
-import json, uuid, asyncio
+import asyncio
+import json
+import uuid
 from pathlib import Path
+
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
+from core.settings import data_dir
+
 router = APIRouter(prefix="/api")
 
-_COMPARE_DIR = Path(__file__).parent.parent / "data" / "compare"
-_COMPARE_DIR.mkdir(parents=True, exist_ok=True)
+_COMPARE_DIR: Path | None = None
+
+
+def compare_dir() -> Path:
+    d = _COMPARE_DIR or data_dir() / "compare"
+    d.mkdir(parents=True, exist_ok=True)
+    return d
 
 # active compare tasks: compare_id → list of (endpoint, model, messages, stop_event)
 _active: dict[str, list] = {}
@@ -26,7 +36,7 @@ class CompareRequest(BaseModel):
 
 @router.post("/compare")
 async def start_compare(body: CompareRequest):
-    from core.database import SessionLocal, ModelEndpoint
+    from core.database import ModelEndpoint, SessionLocal
     from core.settings import load_settings
 
     if not body.models:
@@ -107,7 +117,7 @@ class VoteBody(BaseModel):
 @router.post("/compare/vote")
 def record_vote(body: VoteBody):
     """record which model won a head-to-head — feeds the win-rate leaderboard."""
-    from core.database import SessionLocal, ModelVote
+    from core.database import ModelVote, SessionLocal
 
     if not body.winner.strip():
         raise HTTPException(400, "winner required")
@@ -123,7 +133,7 @@ def record_vote(body: VoteBody):
 @router.get("/compare/stats")
 def compare_stats():
     """per-model wins/losses/win-rate, most-won first."""
-    from core.database import SessionLocal, ModelVote
+    from core.database import ModelVote, SessionLocal
 
     db = SessionLocal()
     try:

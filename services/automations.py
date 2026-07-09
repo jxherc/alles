@@ -20,9 +20,13 @@ templates may use {from} {subject} {name} {date} {path} {tag} {price} — unknow
 placeholders are left as-is rather than crashing the rule.
 """
 
-import json, asyncio, logging, fnmatch
-from datetime import datetime, date
-from core.database import SessionLocal, AutomationRule, Task
+import asyncio
+import fnmatch
+import json
+import logging
+from datetime import date, datetime
+
+from core.database import AutomationRule, SessionLocal, Task
 
 log = logging.getLogger("aide.automations")
 
@@ -152,7 +156,8 @@ async def run_automations():
 
                 elif rule.trigger == "day_event_near":
                     from core.database import DayEvent
-                    from routes.days import _occurrence, _parse as day_parse
+                    from routes.days import _occurrence
+                    from routes.days import _parse as day_parse
 
                     days = int(rule.trigger_arg or 3)
                     done = st.get("done", {})
@@ -205,7 +210,6 @@ async def _check_mail_rule(db, rule, st):
     if not needle:
         return
     seen_uids = st.get("uids", {})
-    first_run = not seen_uids
     for a in db.query(MailAccount).all():
         acct = {
             "imap_host": a.imap_host,
@@ -223,9 +227,10 @@ async def _check_mail_rule(db, rule, st):
             log.warning(f"automation mail poll failed for {a.email}: {e}")
             continue
         top = max((int(m.get("uid", 0)) for m in msgs), default=0)
+        first_run = a.id not in seen_uids
         last = int(seen_uids.get(a.id, 0))
         seen_uids[a.id] = max(top, last)
-        if first_run:  # don't storm actions for historical mail
+        if first_run:  # don't storm actions for historical mail on this account
             continue
         for m in msgs:
             if int(m.get("uid", 0)) <= last:

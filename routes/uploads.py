@@ -6,13 +6,19 @@ from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session as DbSession
 
 from core.database import Upload, get_db
+from core.settings import data_dir
 
 router = APIRouter(prefix="/api")
 
-UPLOAD_DIR = Path(__file__).parent.parent / "data" / "uploads"
-UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+UPLOAD_DIR: Path | None = None
 
 MAX_SIZE = 20 * 1024 * 1024  # 20MB
+
+
+def upload_dir() -> Path:
+    d = UPLOAD_DIR or data_dir() / "uploads"
+    d.mkdir(parents=True, exist_ok=True)
+    return d
 
 
 @router.post("/uploads")
@@ -24,7 +30,7 @@ async def upload_file(file: UploadFile = File(...), db: DbSession = Depends(get_
     mime = file.content_type or "application/octet-stream"
     ext = Path(file.filename or "file").suffix.lower()
     fname = f"{uuid.uuid4()}{ext}"
-    (UPLOAD_DIR / fname).write_bytes(content)
+    upload_dir().joinpath(fname).write_bytes(content)
 
     rec = Upload(
         filename=fname, original_name=file.filename or fname, mime_type=mime, size=len(content)
@@ -40,7 +46,7 @@ def serve_upload(upload_id: str, db: DbSession = Depends(get_db)):
     rec = db.get(Upload, upload_id)
     if not rec:
         raise HTTPException(404)
-    fpath = UPLOAD_DIR / rec.filename
+    fpath = upload_dir() / rec.filename
     if not fpath.exists():
         raise HTTPException(404)
     # client-supplied mime_type: neutralize svg/html so a stored <script> can't run as a document
@@ -67,7 +73,7 @@ def delete_upload(upload_id: str, db: DbSession = Depends(get_db)):
     rec = db.get(Upload, upload_id)
     if not rec:
         raise HTTPException(404)
-    fpath = UPLOAD_DIR / rec.filename
+    fpath = upload_dir() / rec.filename
     if fpath.exists():
         fpath.unlink()
     db.delete(rec)

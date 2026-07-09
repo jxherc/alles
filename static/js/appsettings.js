@@ -47,7 +47,15 @@ const SPECS = {
 
 let _open = null;
 
-function _field(f, val) {
+export function appSettingValue(el) {
+  const v = (el.value || '').trim();
+  if (el.dataset.num !== '1') return v;
+  if (v === '') return '';
+  const n = Number(v);
+  return Number.isFinite(n) ? n : v;
+}
+
+export function renderAppSettingField(f, val) {
   if (f.type === 'choice') {
     return `<div class="aps-field"><label>${f.label}</label><div class="seg" data-k="${f.k}"${f.num ? ' data-num="1"' : ''}>` +
       f.opts.map(([v, l]) => `<button type="button" class="seg-opt${String(val) === String(v) ? ' active' : ''}" data-val="${v}">${l}</button>`).join('') + `</div></div>`;
@@ -58,7 +66,8 @@ function _field(f, val) {
   if (f.type === 'note') return `<div class="aps-note" style="font-size:0.72rem;opacity:0.7;line-height:1.45;margin:2px 0 6px">${esc(f.text)}</div>`;
   if (f.type === 'action') return `<button type="button" class="aps-action" data-act="${esc(f.act)}">${esc(f.label)}</button>`;
   if (f.type === 'textarea') return `<div class="aps-field"><label>${f.label}</label><textarea class="settings-textarea" data-k="${f.k}" rows="2" placeholder="${esc(f.ph || '')}">${esc(val || '')}</textarea></div>`;
-  return `<div class="aps-field"><label>${f.label}</label><input class="settings-input" data-k="${f.k}" placeholder="${esc(f.ph || '')}" value="${esc(val || '')}"></div>`;
+  const num = f.num ? ' data-num="1" inputmode="numeric"' : '';
+  return `<div class="aps-field"><label>${f.label}</label><input class="settings-input" data-k="${f.k}"${num} placeholder="${esc(f.ph || '')}" value="${esc(val ?? '')}"></div>`;
 }
 
 function _patch(spec, k, v) {
@@ -98,7 +107,7 @@ export async function openAppSettings(app, anchor) {
   const s = await fetch('/api/settings').then(r => r.json()).catch(() => ({}));
   const pop = document.createElement('div');
   pop.className = 'app-settings-pop';
-  pop.innerHTML = `<div class="app-settings-title">${spec.title} settings</div>` + spec.fields.map(f => _field(f, s[f.k])).join('');
+  pop.innerHTML = `<div class="app-settings-title">${spec.title} settings</div>` + spec.fields.map(f => renderAppSettingField(f, s[f.k])).join('');
   document.body.appendChild(pop);
   const r = anchor.getBoundingClientRect();
   pop.style.top = (r.bottom + 6) + 'px';
@@ -121,7 +130,7 @@ export async function openAppSettings(app, anchor) {
   }));
   // text / textarea (debounced)
   pop.querySelectorAll('input[data-k], textarea[data-k]').forEach(el => {
-    let t; el.addEventListener('input', () => { clearTimeout(t); t = setTimeout(() => _patch(spec, el.dataset.k, el.value.trim()), 500); });
+    let t; el.addEventListener('input', () => { clearTimeout(t); t = setTimeout(() => _patch(spec, el.dataset.k, appSettingValue(el)), 500); });
   });
   // action buttons (e.g. mail's accounts / rules panels) → close the popover, run the hook
   pop.querySelectorAll('.aps-action').forEach(btn => btn.addEventListener('click', () => {

@@ -9,12 +9,21 @@ import json
 
 PROTOCOL_VERSION = "2024-11-05"
 SERVER_INFO = {"name": "alles", "version": "1.0.0"}
+_BOOTSTRAPPED = False
+
+
+def _capabilities():
+    from services import capabilities
+
+    global _BOOTSTRAPPED
+    if not _BOOTSTRAPPED or not capabilities.all():
+        capabilities.bootstrap()
+        _BOOTSTRAPPED = True
+    return capabilities
 
 
 def _tool_list():
-    from services import capabilities
-
-    capabilities.bootstrap()
+    capabilities = _capabilities()
     out = []
     for c in capabilities.all(kind="tool"):
         out.append(
@@ -29,9 +38,7 @@ def _tool_list():
 
 
 async def _call(name, arguments):
-    from services import capabilities
-
-    capabilities.bootstrap()
+    capabilities = _capabilities()
     try:
         res = await capabilities.invoke(name, arguments or {})
     except Exception as e:

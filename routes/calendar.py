@@ -106,9 +106,35 @@ def calendar_free_slots(
     db: DbSession = Depends(get_db),
 ):
     """4a - open slots on `day` that fit a `duration_min` meeting."""
-    from services import cal_conflict
+    from datetime import date as _date
+    from datetime import datetime as _dt
+    from datetime import timedelta as _td
 
-    rows = [_fmt(e) for e in db.query(CalendarEvent).all()]
+    from services import cal_conflict
+    from services.recur import expand
+
+    try:
+        d = _date.fromisoformat(day)
+    except ValueError:
+        return {"day": day, "slots": []}  # bad day -> no slots rather than a 500
+    rs = _dt.combine(d, _dt.min.time())
+    re_ = rs + _td(days=1)
+    # expand recurring events onto `day` first, or a weekly/daily meeting whose master
+    # start is on another date is invisible to free_slots and we'd offer a busy slot.
+    rows = []
+    for e in db.query(CalendarEvent).all():
+        base = _fmt(e)
+        if e.recurrence:
+            try:
+                bs = _dt.fromisoformat((e.start_dt or "")[:16])
+                be = _dt.fromisoformat((e.end_dt or "")[:16]) if e.end_dt else bs + _td(minutes=30)
+                dur = be - bs
+            except (ValueError, TypeError):
+                dur = _td(minutes=30)
+            for occ in expand(base, rs, re_):
+                rows.append(dict(base, start_dt=occ.isoformat(), end_dt=(occ + dur).isoformat()))
+        else:
+            rows.append(base)
     slots = cal_conflict.free_slots(
         rows, day, day_start=day_start, day_end=day_end, duration_min=duration_min
     )
@@ -262,6 +288,7 @@ def quick_event(body: QuickEvent, db: DbSession = Depends(get_db)):
         start_dt=p["start_dt"],
         end_dt=end,
         all_day=p["all_day"],
+        calendar_id=_default_cal(db),  # else it's an orphan with no layer (can't filter/color)
         recurrence=p.get("recurrence", ""),
         recur_until=p.get("recur_until"),
     )
@@ -399,6 +426,7 @@ def import_ics(body: IcsImport, db: DbSession = Depends(get_db)):
     from services.ics import parse_ics
 
     n = 0
+    cid = _default_cal(db)  # land imports on the default layer instead of leaving them orphaned
     for ev in parse_ics(body.ics):
         db.add(
             CalendarEvent(
@@ -407,6 +435,7 @@ def import_ics(body: IcsImport, db: DbSession = Depends(get_db)):
                 end_dt=ev.get("end_dt"),
                 all_day=ev.get("all_day", False),
                 description=ev.get("description", ""),
+                calendar_id=cid,
             )
         )
         n += 1

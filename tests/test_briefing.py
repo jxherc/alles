@@ -11,6 +11,12 @@ class BriefingTests(ApiTest):
     DAY = date(2026, 6, 21)
     ISO = "2026-06-21"
 
+    def test_module_docstring_names_current_send_paths(self):
+        doc = briefing.__doc__ or ""
+        self.assertIn("routes.briefing", doc)
+        self.assertIn("services.automations", doc)
+        self.assertNotIn("job in app.py", doc)
+
     def test_empty_briefing_has_no_content(self):
         b = briefing.compose_briefing(self.db(), today=self.DAY)
         self.assertFalse(b["has_content"])

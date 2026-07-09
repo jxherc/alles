@@ -92,15 +92,27 @@ class TotpWatchtowerTests(ApiTest):
     # ── Watchtower endpoint ──
     def test_watchtower_weak(self):
         self._entry("Weak", {"password": "123"})
-        d = self.client.get("/api/vault/watchtower", headers=self.h).json()
+        with mock.patch("routes.vault._hibp_fetch", return_value=""):
+            d = self.client.get("/api/vault/watchtower", headers=self.h).json()
         self.assertTrue(any(w["name"] == "Weak" for w in d["weak"]))
 
     def test_watchtower_reused(self):
         self._entry("A", {"password": "Repeated-Pw-1!"})
         self._entry("B", {"password": "Repeated-Pw-1!"})
-        d = self.client.get("/api/vault/watchtower", headers=self.h).json()
+        with mock.patch("routes.vault._hibp_fetch", return_value=""):
+            d = self.client.get("/api/vault/watchtower", headers=self.h).json()
         self.assertTrue(d["reused"])
         self.assertTrue(any(len(g["names"]) >= 2 for g in d["reused"]))
+
+    def test_watchtower_offline_breach_lookup_still_returns_local_findings(self):
+        self._entry("Weak", {"password": "123"})
+        self._entry("A", {"password": "Repeated-Pw-1!"})
+        self._entry("B", {"password": "Repeated-Pw-1!"})
+        with mock.patch("routes.vault._hibp_fetch", side_effect=RuntimeError("offline")):
+            d = self.client.get("/api/vault/watchtower", headers=self.h).json()
+        self.assertTrue(any(w["name"] == "Weak" for w in d["weak"]))
+        self.assertTrue(any(set(g["names"]) == {"A", "B"} for g in d["reused"]))
+        self.assertEqual(d["breached"], [])
 
     def test_watchtower_breached(self):
         self._entry("Pwned", {"password": "password"})

@@ -47,12 +47,20 @@ def expand(csv):
 
 def spending_by_tag(db, month):
     """expense rolled up per tag for `month`, honoring hierarchy. income + transfers excluded."""
+    from sqlalchemy import or_
+
     by = {}
-    for t in db.query(Transaction).all():
-        if t.transfer_id or (t.amount or 0.0) >= 0:
-            continue
-        if (t.date or "")[:7] != month:
-            continue
+    # month + expense + transfer filters in sql instead of a full-table scan
+    rows = (
+        db.query(Transaction)
+        .filter(
+            Transaction.date.like(f"{month}%"),
+            Transaction.amount < 0,
+            or_(Transaction.transfer_id.is_(None), Transaction.transfer_id == ""),
+        )
+        .all()
+    )
+    for t in rows:
         for tag in expand(t.tags or ""):
             by[tag] = by.get(tag, 0.0) + (-(t.amount or 0.0))
     return by

@@ -15,6 +15,10 @@ def _png(color=(40, 120, 90), size=(60, 40)) -> bytes:
     return buf.getvalue()
 
 
+def _heic() -> bytes:
+    return b"\x00\x00\x00\x18ftypheic\x00\x00\x00\x00heicmif1" + (b"\x00" * 32)
+
+
 class PhotosStoreTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -43,6 +47,17 @@ class PhotosStoreTests(unittest.TestCase):
     def test_unsupported_ext_rejected(self):
         with self.assertRaises(ValueError):
             ps.import_image(b"xx", "evil.exe")
+
+    def test_heic_original_is_stored_when_decoder_missing(self):
+        info = ps.import_image(_heic(), "phone.heic")
+        self.assertTrue(info["filename"].endswith(".heic"))
+        self.assertEqual(info["thumb"], "")
+        self.assertEqual((info["width"], info["height"]), (0, 0))
+        self.assertEqual(ps.original_path(info["filename"]).read_bytes(), _heic())
+
+    def test_fake_heic_is_rejected(self):
+        with self.assertRaises(ValueError):
+            ps.import_image(b"not actually heic", "fake.heic")
 
     def test_delete_removes_files(self):
         info = ps.import_image(_png(), "a.png")

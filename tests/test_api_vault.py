@@ -63,7 +63,7 @@ class VaultApiTest(ApiTest):
         self.assertEqual(rv["value"], "ghp_secret")
 
         # lock → access denied again
-        self.assertEqual(self.client.post("/api/vault/lock").json(), {"ok": True})
+        self.assertEqual(self.client.post("/api/vault/lock", headers=h).json(), {"ok": True})
         self.assertEqual(self.client.get(f"/api/vault/{eid}/reveal", headers=h).status_code, 403)
 
     def test_unlock_token_is_required_not_just_any_unlock(self):
@@ -122,6 +122,38 @@ class VaultApiTest(ApiTest):
     def test_reveal_missing_404(self):
         h = self._unlock()
         self.assertEqual(self.client.get("/api/vault/nope/reveal", headers=h).status_code, 404)
+
+    def test_entry_endpoints_scope_to_unlocked_vault(self):
+        # regression (F15, security): unlocking vault A must not let you reveal/delete/
+        # attach-to/share an entry that lives in vault B. before the fix these per-entry
+        # endpoints only checked the password, not e.vault_id, so they crossed vaults.
+        ha = self._unlock("masterA")  # default vault, token A
+        vid_b = self.client.post(
+            "/api/vault/vaults", json={"name": "work", "password": "masterB"}, headers=ha
+        ).json()["id"]
+        hb = {
+            "X-Vault-Token": self.client.post(
+                "/api/vault/unlock", json={"password": "masterB", "vault_id": vid_b}
+            ).json()["token"]
+        }
+        # secret created inside vault B
+        eid = self.client.post(
+            "/api/vault", json={"name": "vaultB-secret", "value": "topsecret"}, headers=hb
+        ).json()["id"]
+
+        # vault A's token must NOT reach vault B's entry
+        self.assertEqual(self.client.get(f"/api/vault/{eid}/reveal", headers=ha).status_code, 404)
+        self.assertEqual(self.client.delete(f"/api/vault/{eid}", headers=ha).status_code, 404)
+        self.assertEqual(
+            self.client.get(f"/api/vault/{eid}/attachments", headers=ha).status_code, 404
+        )
+        self.assertEqual(
+            self.client.post(f"/api/vault/{eid}/share", headers=ha).status_code, 404
+        )
+        # the entry is untouched: vault B can still read it
+        self.assertEqual(
+            self.client.get(f"/api/vault/{eid}/reveal", headers=hb).json()["value"], "topsecret"
+        )
 
     def test_generate_length_param(self):
         g12 = self.client.get("/api/vault/generate", params={"length": 12}).json()

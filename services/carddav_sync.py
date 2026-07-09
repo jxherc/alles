@@ -29,7 +29,12 @@ _INTERVALS = {"off": 0, "hourly": 3600, "daily": 86400}
 
 def save_cfg(cfg: dict):
     cur = load_cfg()
-    if not cfg.get("password") and cur.get("password"):
+    if (
+        not cfg.get("password")
+        and cur.get("password")
+        and cfg.get("url") == cur.get("url")
+        and cfg.get("username") == cur.get("username")
+    ):
         cfg["password"] = cur["password"]  # UI doesn't echo the password back
     # interval + last_sync are sticky — connect/disconnect shouldn't wipe them
     for k in ("interval", "last_sync"):

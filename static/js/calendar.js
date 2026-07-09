@@ -15,6 +15,7 @@ let _view = localStorage.getItem('cal-view') || 'month';
 let _viewBooted = false;          // has loadCalendar seeded the view once this session
 let _lastDefaultView = null;      // last cal_default_view we applied (detects a cog change)
 let _search = '';
+let _searchTimer = null;
 let _miniCursor = new Date();    // month shown in the mini-navigator
 let _navBound = false;
 let _prefill = null;             // {start,end} for a drag-created event
@@ -28,6 +29,7 @@ const _wdLabels = () => _weekStart ? [...WD.slice(1), WD[0]] : WD;
 // leading blanks before the 1st, honoring week-start
 const _lead = (y, m) => (new Date(y, m, 1).getDay() - _weekStart + 7) % 7;
 const HOUR_H = 44;
+export const CAL_SEARCH_DEBOUNCE_MS = 180;
 const _pad = n => String(n).padStart(2, '0');
 const ymd = d => `${d.getFullYear()}-${_pad(d.getMonth() + 1)}-${_pad(d.getDate())}`;
 const localISO = d => `${ymd(d)}T${_pad(d.getHours())}:${_pad(d.getMinutes())}`;
@@ -148,7 +150,9 @@ function _syncViewBtns() {
 }
 
 function shift(dir) {
-  if (_view === 'month') _cursor.setMonth(_cursor.getMonth() + dir);
+  // use addMonths (defined below, hoisted) — it clamps the day to the target month so plain
+  // setMonth() can't overflow May 31 -> Jul 1 and silently skip a month from a 29th-31st cursor.
+  if (_view === 'month') _cursor = addMonths(_cursor, dir);
   else if (_view === 'week') _cursor.setDate(_cursor.getDate() + 7 * dir);
   else _cursor.setDate(_cursor.getDate() + dir);
   _miniCursor = new Date(_cursor);
@@ -181,10 +185,19 @@ function renderSidebar() {
   renderFeeds();
   renderBookingPages();
   const s = document.getElementById('cal-search');
-  s.addEventListener('input', () => { _search = s.value.trim(); render(); });
+  s.addEventListener('input', () => queueSearchRender(s.value, render));
   document.getElementById('cal-cal-add').addEventListener('click', () => calForm(null));
   document.getElementById('cal-feed-add').addEventListener('click', addFeed);
   document.getElementById('cal-book-add').addEventListener('click', addBookingPage);
+}
+
+export function queueSearchRender(value, renderFn = render, delay = CAL_SEARCH_DEBOUNCE_MS) {
+  _search = String(value ?? '').trim();
+  if (_searchTimer) clearTimeout(_searchTimer);
+  _searchTimer = setTimeout(() => {
+    _searchTimer = null;
+    renderFn();
+  }, delay);
 }
 
 let _bookingPages = [];
@@ -294,7 +307,7 @@ function renderMini() {
   html += '</div>';
   el.innerHTML = html;
   el.querySelectorAll('.cal-mini-nav').forEach(b => b.addEventListener('click', () => {
-    _miniCursor.setMonth(_miniCursor.getMonth() + (+b.dataset.d)); renderMini();
+    _miniCursor = addMonths(_miniCursor, +b.dataset.d); renderMini();  // clamp, else 29-31 skips a month
   }));
   el.querySelectorAll('.cal-mini-day').forEach(c => c.addEventListener('click', () => {
     _cursor = new Date(c.dataset.date + 'T00:00:00'); render(); renderMini();
@@ -394,7 +407,7 @@ function _layoutCols(evs) {
 // ── recurrence expansion (mirrors services/recur.py) ─────────────────────────
 const PYWD = { MO: 0, TU: 1, WE: 2, TH: 3, FR: 4, SA: 5, SU: 6 };
 const parseByday = s => new Set((s || '').split(',').map(t => PYWD[t.trim().toUpperCase()]).filter(v => v != null));
-function addMonths(d, n) {
+export function addMonths(d, n) {
   const x = new Date(d); const day = d.getDate();
   x.setDate(1); x.setMonth(x.getMonth() + n);
   x.setDate(Math.min(day, new Date(x.getFullYear(), x.getMonth() + 1, 0).getDate()));
@@ -498,7 +511,11 @@ function renderYear(lbl) {
   const el = document.getElementById('calendar-list');
   if (!el) return;
   const today = new Date();
-  const dotDays = new Set(_events.map(e => (e.start_dt || '').slice(0, 10)));
+  // expand recurrences across the whole year so a repeating event dots every occurrence,
+  // not just its first date — and respect calendar-visibility filters like the other views.
+  const dotDays = new Set(
+    expand(new Date(year, 0, 1), new Date(year + 1, 0, 1)).map(o => ymd(o._date))
+  );
   let html = '<div class="cal-year">';
   for (let m = 0; m < 12; m++) {
     const startDay = _lead(year, m);
@@ -808,10 +825,11 @@ function attachDrag(el, days) {
   body.addEventListener('mousedown', down);
 }
 
-function buildCopy(ev, ov) {
+export function buildCopy(ev, ov) {
   return {
     title: ev.title, calendar_id: ev.calendar_id, description: ev.description,
     location: ev.location, guests: ev.guests, all_day: ev.all_day, color: ev.color,
+    meeting_url: ev.meeting_url || '',
     reminders: ev.reminders || [], start_dt: ev.start_dt, end_dt: ev.end_dt,
     recurrence: ev.recurrence, recur_interval: ev.recur_interval, recur_byday: ev.recur_byday,
     recur_count: ev.recur_count, recur_until: ev.recur_until, ...ov,

@@ -67,30 +67,24 @@ def _sig(category, key, urgency, title, detail, link, data):
 
 
 def _event_occurs_on(e: CalendarEvent, day: date) -> bool:
-    """does a (possibly recurring) calendar event land on `day`? canonical copy -
-    routes.today re-exports this so existing callers/tests keep working."""
-    try:
-        start = date.fromisoformat(str(e.start_dt)[:10])
-    except ValueError:
-        return False
-    if start > day:
-        return False
-    rec = (e.recurrence or "").strip()
-    if e.recur_until:
-        try:
-            if date.fromisoformat(str(e.recur_until)[:10]) < day:
-                return False
-        except ValueError:
-            pass
-    if not rec:
-        return start == day
-    if rec == "daily":
-        return True
-    if rec == "weekly":
-        return start.weekday() == day.weekday()
-    if rec == "monthly":
-        return start.day == day.day
-    return start == day
+    """does a (possibly recurring) calendar event land on `day`? delegates to the real
+    recurrence engine (recur.expand) so the today widget / briefing agree with the calendar —
+    interval, weekly byday, count and excluded dates all honored. routes.today re-exports this."""
+    from services import recur
+
+    # getattr w/ defaults so a partial event stub (tests, lightweight callers) still works —
+    # not every object handed in carries the full recur_* column set
+    ev = {
+        "start_dt": getattr(e, "start_dt", None),
+        "recurrence": getattr(e, "recurrence", ""),
+        "recur_interval": getattr(e, "recur_interval", 1),
+        "recur_byday": getattr(e, "recur_byday", ""),
+        "recur_count": getattr(e, "recur_count", None),
+        "recur_until": getattr(e, "recur_until", None),
+        "recur_except": getattr(e, "recur_except", "[]"),
+    }
+    rs = datetime.combine(day, datetime.min.time())
+    return bool(recur.expand(ev, rs, rs + timedelta(days=1)))
 
 
 # -- collectors: one family each, returning a list of signals -----------------

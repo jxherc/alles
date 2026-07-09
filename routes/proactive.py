@@ -5,6 +5,8 @@ from services import proactive
 
 router = APIRouter(prefix="/api/proactive")
 
+_DONE = {"dismissed", "acted"}
+
 
 @router.get("")
 def list_items():
@@ -33,6 +35,8 @@ def dismiss(item_id: str):
         it = db.get(ProactiveItem, item_id)
         if not it:
             return {"ok": False}
+        if it.status in _DONE:
+            return {"ok": True}
         it.dismissed = True
         it.status = "dismissed"
         proactive.record_outcome(db, it, "dismissed")  # 1a feedback
@@ -51,6 +55,8 @@ def act(item_id: str):
         it = db.get(ProactiveItem, item_id)
         if not it:
             return {"ok": False}
+        if it.status in _DONE:
+            return {"ok": True}
         it.status = "acted"
         it.dismissed = True  # leaves the feed
         proactive.record_outcome(db, it, "acted")  # 1a feedback

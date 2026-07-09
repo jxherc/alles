@@ -3,7 +3,7 @@ import re
 import secrets
 import time
 
-from fastapi import APIRouter, Depends, File, Header, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Header, HTTPException, Request, UploadFile
 from fastapi.responses import Response
 from pydantic import BaseModel
 from sqlalchemy import func
@@ -55,6 +55,27 @@ def _master_pw(x_vault_token: str | None = Header(None)) -> str:
     return _ctx(x_vault_token)[0]
 
 
+# every per-entry / per-attachment endpoint has to scope to the unlocked vault. without it,
+# unlocking vault A lets you reveal/delete/attach-to/share vault B's entries (cross-vault
+# read, data loss, and re-encrypt-under-wrong-key corruption). a vault mismatch is a 404 —
+# same guard patch_entry already uses.
+def _scoped_entry(db, entry_id: str, vid: str) -> "VaultEntry":
+    e = db.get(VaultEntry, entry_id)
+    if not e or e.vault_id != vid:
+        raise HTTPException(404)
+    return e
+
+
+def _scoped_attachment(db, aid: str, vid: str) -> "VaultAttachment":
+    a = db.get(VaultAttachment, aid)
+    if not a:
+        raise HTTPException(404)
+    e = db.get(VaultEntry, a.entry_id)
+    if not e or e.vault_id != vid:
+        raise HTTPException(404)
+    return a
+
+
 def _travel_on() -> bool:
     return bool(load_settings().get("vault_travel_mode"))
 
@@ -78,6 +99,18 @@ def _totp_map() -> dict:
 
 def _has_totp_2fa(vid: str) -> bool:
     return bool(_totp_map().get(vid))
+
+
+def _drop_vault_settings(vid: str):
+    s = load_settings()
+    patch = {}
+    for key in ("vault_require_2fa", "vault_2fa_totp"):
+        m = dict(s.get(key) or {})
+        if vid in m:
+            m.pop(vid, None)
+            patch[key] = m
+    if patch:
+        save_settings(patch)
 
 
 def _ensure_default(db) -> Vault:
@@ -171,8 +204,9 @@ def vault_unlock(body: UnlockBody, db: DbSession = Depends(get_db)):
 
 
 @router.post("/vault/lock")
-def vault_lock():
-    _unlock_tokens.clear()
+def vault_lock(x_vault_token: str | None = Header(None)):
+    if x_vault_token:
+        _unlock_tokens.pop(x_vault_token, None)
     return {"ok": True}
 
 
@@ -279,6 +313,7 @@ def change_vault_password(body: ChangePw, db: DbSession = Depends(get_db), ctx: 
     entries = db.query(VaultEntry).filter(VaultEntry.vault_id == vid).all()
     eids = [e.id for e in entries]
     new_entry_blobs = {}
+    old_att_blobs = {}
     try:
         for e in entries:
             new_entry_blobs[e.id] = encrypt(new, decrypt(old_pw, e.value_encrypted))
@@ -291,23 +326,38 @@ def change_vault_password(body: ChangePw, db: DbSession = Depends(get_db), ctx: 
         for a in atts:
             p = _attach_dir() / f"{a.id}.enc"
             if p.exists():
-                new_att_blobs[a.id] = encrypt_bytes(new, decrypt_bytes(old_pw, p.read_bytes()))
+                raw = p.read_bytes()
+                old_att_blobs[a.id] = raw
+                new_att_blobs[a.id] = encrypt_bytes(new, decrypt_bytes(old_pw, raw))
     except Exception:
         raise HTTPException(500, "re-key failed — nothing changed")
 
     # all crypto succeeded → commit the new ciphertext + verifier
-    for e in entries:
-        e.value_encrypted = new_entry_blobs[e.id]
-    for aid, blob in new_att_blobs.items():
-        (_attach_dir() / f"{aid}.enc").write_bytes(blob)
-    v.verifier = make_verifier(new)
-    if v.biometric_blob:
-        # the blob wraps the master password under the server key — re-wrap it or a biometric
-        # unlock would keep releasing the OLD password and brick every decrypt
-        v.biometric_blob = encrypt(_server_key(), new)
+    wrote = []
+    try:
+        for e in entries:
+            e.value_encrypted = new_entry_blobs[e.id]
+        for aid, blob in new_att_blobs.items():
+            (_attach_dir() / f"{aid}.enc").write_bytes(blob)
+            wrote.append(aid)
+        v.verifier = make_verifier(new)
+        if v.biometric_blob:
+            # the blob wraps the master password under the server key — re-wrap it or a biometric
+            # unlock would keep releasing the OLD password and brick every decrypt
+            v.biometric_blob = encrypt(_server_key(), new)
+        db.commit()
+    except Exception:
+        db.rollback()
+        for aid in wrote:
+            old_blob = old_att_blobs.get(aid)
+            if old_blob is not None:
+                try:
+                    (_attach_dir() / f"{aid}.enc").write_bytes(old_blob)
+                except Exception:
+                    pass
+        raise HTTPException(500, "re-key failed — nothing changed")
     if vid == DEFAULT_VAULT:
         save_settings({"vault_verifier": v.verifier})  # keep the legacy master mirror in sync
-    db.commit()
     # the caller's token still holds the old pw — hand back a fresh one bound to the new password
     return {"ok": True, "token": _mint(new, vid), "vault_id": vid}
 
@@ -327,6 +377,7 @@ def delete_vault(vid: str, db: DbSession = Depends(get_db), _pw: str = Depends(_
     db.query(VaultEntry).filter(VaultEntry.vault_id == vid).delete(synchronize_session=False)
     db.delete(v)
     db.commit()
+    _drop_vault_settings(vid)
     return {"ok": True}
 
 
@@ -521,11 +572,9 @@ def patch_entry(
     entry_id: str, body: PatchEntry, db: DbSession = Depends(get_db), ctx: tuple = Depends(_ctx)
 ):
     pw, vid = ctx
-    e = db.get(VaultEntry, entry_id)
     # scope to the unlocked vault, or patching re-encrypts another vault's entry under this
-    # vault's key and bricks it (same guard passkey_sign uses)
-    if not e or e.vault_id != vid:
-        raise HTTPException(404)
+    # vault's key and bricks it
+    e = _scoped_entry(db, entry_id, vid)
     if body.name is not None:
         e.name = body.name
     if body.category is not None:
@@ -543,10 +592,9 @@ def patch_entry(
 
 
 @router.get("/vault/{entry_id}/reveal")
-def reveal_entry(entry_id: str, db: DbSession = Depends(get_db), pw: str = Depends(_master_pw)):
-    e = db.get(VaultEntry, entry_id)
-    if not e:
-        raise HTTPException(404)
+def reveal_entry(entry_id: str, db: DbSession = Depends(get_db), ctx: tuple = Depends(_ctx)):
+    pw, vid = ctx
+    e = _scoped_entry(db, entry_id, vid)
     try:
         raw = decrypt(pw, e.value_encrypted)
     except Exception:
@@ -585,10 +633,9 @@ def _purge_entry_data(db, eids):
 
 
 @router.delete("/vault/{entry_id}")
-def delete_entry(entry_id: str, db: DbSession = Depends(get_db), _pw: str = Depends(_master_pw)):
-    e = db.get(VaultEntry, entry_id)
-    if not e:
-        raise HTTPException(404)
+def delete_entry(entry_id: str, db: DbSession = Depends(get_db), ctx: tuple = Depends(_ctx)):
+    _, vid = ctx
+    e = _scoped_entry(db, entry_id, vid)
     _purge_entry_data(db, [entry_id])
     db.delete(e)
     db.commit()
@@ -606,10 +653,9 @@ def _entry_fields(e, pw):
 
 
 @router.get("/vault/{entry_id}/totp")
-def entry_totp(entry_id: str, db: DbSession = Depends(get_db), pw: str = Depends(_master_pw)):
-    e = db.get(VaultEntry, entry_id)
-    if not e:
-        raise HTTPException(404)
+def entry_totp(entry_id: str, db: DbSession = Depends(get_db), ctx: tuple = Depends(_ctx)):
+    pw, vid = ctx
+    e = _scoped_entry(db, entry_id, vid)
     secret = (_entry_fields(e, pw).get("totp") or "").strip()
     if not secret:
         raise HTTPException(404, "no totp secret on this entry")
@@ -625,13 +671,18 @@ def _hibp_fetch(prefix: str) -> str:
     """fetch the HIBP k-anonymity range for a sha1 prefix (only 5 hex chars leave the box)."""
     import httpx
 
-    r = httpx.get(f"https://api.pwnedpasswords.com/range/{prefix}", timeout=15)
+    r = httpx.get(
+        f"https://api.pwnedpasswords.com/range/{prefix}",
+        timeout=httpx.Timeout(1.5, connect=0.8),
+    )
     r.raise_for_status()
     return r.text
 
 
 @router.get("/vault/watchtower")
 def watchtower(db: DbSession = Depends(get_db), ctx: tuple = Depends(_ctx)):
+    import time
+
     from services.pwtools import breach_count, find_reused, is_weak
 
     pw, vid = ctx
@@ -651,10 +702,11 @@ def watchtower(db: DbSession = Depends(get_db), ctx: tuple = Depends(_ctx)):
 
     breached = []
     seen = {}  # cache prefix→count per distinct password to limit calls
+    deadline = time.monotonic() + 3.0
     for i in items:
         cnt = seen.get(i["password"])
         if cnt is None:
-            cnt = breach_count(i["password"], _hibp_fetch)
+            cnt = breach_count(i["password"], _hibp_fetch) if time.monotonic() < deadline else 0
             seen[i["password"]] = cnt
         if cnt > 0:
             breached.append({"id": i["id"], "name": i["name"], "count": cnt})
@@ -681,13 +733,12 @@ async def add_attachment(
     entry_id: str,
     file: UploadFile = File(...),
     db: DbSession = Depends(get_db),
-    pw: str = Depends(_master_pw),
+    ctx: tuple = Depends(_ctx),
 ):
     from services.crypto import encrypt_bytes
 
-    e = db.get(VaultEntry, entry_id)
-    if not e:
-        raise HTTPException(404)
+    pw, vid = ctx
+    _scoped_entry(db, entry_id, vid)
     data = await file.read()
     if len(data) > 25 * 1024 * 1024:
         raise HTTPException(400, "attachment too large (25MB max)")
@@ -701,19 +752,20 @@ async def add_attachment(
 
 @router.get("/vault/{entry_id}/attachments")
 def list_attachments(
-    entry_id: str, db: DbSession = Depends(get_db), _pw: str = Depends(_master_pw)
+    entry_id: str, db: DbSession = Depends(get_db), ctx: tuple = Depends(_ctx)
 ):
+    _, vid = ctx
+    _scoped_entry(db, entry_id, vid)
     rows = db.query(VaultAttachment).filter(VaultAttachment.entry_id == entry_id).all()
     return [{"id": a.id, "filename": a.filename, "size": a.size} for a in rows]
 
 
 @router.get("/vault/attachments/{aid}")
-def download_attachment(aid: str, db: DbSession = Depends(get_db), pw: str = Depends(_master_pw)):
+def download_attachment(aid: str, db: DbSession = Depends(get_db), ctx: tuple = Depends(_ctx)):
     from services.crypto import decrypt_bytes
 
-    a = db.get(VaultAttachment, aid)
-    if not a:
-        raise HTTPException(404)
+    pw, vid = ctx
+    a = _scoped_attachment(db, aid, vid)
     p = _attach_dir() / f"{aid}.enc"
     if not p.is_file():
         raise HTTPException(404)
@@ -732,10 +784,9 @@ def download_attachment(aid: str, db: DbSession = Depends(get_db), pw: str = Dep
 
 
 @router.delete("/vault/attachments/{aid}")
-def delete_attachment(aid: str, db: DbSession = Depends(get_db), _pw: str = Depends(_master_pw)):
-    a = db.get(VaultAttachment, aid)
-    if not a:
-        raise HTTPException(404)
+def delete_attachment(aid: str, db: DbSession = Depends(get_db), ctx: tuple = Depends(_ctx)):
+    _, vid = ctx
+    a = _scoped_attachment(db, aid, vid)
     try:
         (_attach_dir() / f"{aid}.enc").unlink(missing_ok=True)
     except Exception:
@@ -747,12 +798,11 @@ def delete_attachment(aid: str, db: DbSession = Depends(get_db), _pw: str = Depe
 
 # ── per-item share (9b) — random-key envelope; key travels in the URL fragment ─
 @router.post("/vault/{entry_id}/share")
-def share_entry(entry_id: str, db: DbSession = Depends(get_db), pw: str = Depends(_master_pw)):
+def share_entry(entry_id: str, db: DbSession = Depends(get_db), ctx: tuple = Depends(_ctx)):
     from services.crypto import envelope_encrypt
 
-    e = db.get(VaultEntry, entry_id)
-    if not e:
-        raise HTTPException(404)
+    pw, vid = ctx
+    e = _scoped_entry(db, entry_id, vid)
     fields = _entry_fields(e, pw)
     payload = json.dumps({"name": e.name, "type": e.type or "password", "fields": fields})
     key, blob = envelope_encrypt(payload)
@@ -770,8 +820,10 @@ def share_entry(entry_id: str, db: DbSession = Depends(get_db), pw: str = Depend
 
 @router.delete("/vault/{entry_id}/share")
 def revoke_entry_share(
-    entry_id: str, db: DbSession = Depends(get_db), _pw: str = Depends(_master_pw)
+    entry_id: str, db: DbSession = Depends(get_db), ctx: tuple = Depends(_ctx)
 ):
+    _, vid = ctx
+    _scoped_entry(db, entry_id, vid)
     db.query(VaultShare).filter(VaultShare.entry_id == entry_id).delete()
     db.commit()
     return {"ok": True}
@@ -783,6 +835,10 @@ def revoke_entry_share(
 # blob lives on disk, but only a verified assertion unwraps it.
 _wa_challenges: dict[str, tuple[float, str]] = {}  # vault_id -> (exp, challenge)
 _WA_TTL = 300
+
+
+def _request_origin(request: Request) -> str:
+    return (request.headers.get("origin") or str(request.base_url).rstrip("/")).rstrip("/")
 
 
 def _server_key() -> str:
@@ -823,7 +879,11 @@ def webauthn_register(
 @router.get("/vault/webauthn/credentials")
 def webauthn_credentials(db: DbSession = Depends(get_db), ctx: tuple = Depends(_ctx)):
     vid = ctx[1]
-    rows = db.query(WebAuthnCredential).filter(WebAuthnCredential.vault_id == vid).all()
+    rows = (
+        db.query(WebAuthnCredential)
+        .filter(WebAuthnCredential.vault_id == vid, WebAuthnCredential.role != "2fa")
+        .all()
+    )
     return [{"id": c.id, "label": c.label, "credential_id": c.credential_id} for c in rows]
 
 
@@ -832,7 +892,20 @@ def webauthn_delete(cid: str, db: DbSession = Depends(get_db), _pw: str = Depend
     c = db.get(WebAuthnCredential, cid)
     if not c:
         raise HTTPException(404)
+    vid = c.vault_id
+    if c.role == "2fa":
+        raise HTTPException(404)
     db.delete(c)
+    db.flush()
+    left = (
+        db.query(WebAuthnCredential)
+        .filter(WebAuthnCredential.vault_id == vid, WebAuthnCredential.role != "2fa")
+        .count()
+    )
+    if left == 0:
+        v = db.get(Vault, vid)
+        if v:
+            v.biometric_blob = ""
     db.commit()
     return {"ok": True}
 
@@ -857,8 +930,8 @@ class WaUnlock(BaseModel):
 
 
 @router.post("/vault/webauthn/unlock")
-def webauthn_unlock(body: WaUnlock, db: DbSession = Depends(get_db)):
-    from services.webauthn import verify_assertion
+def webauthn_unlock(body: WaUnlock, request: Request, db: DbSession = Depends(get_db)):
+    from services.webauthn import sign_count, verify_assertion
 
     _ensure_default(db)
     vid = body.vault_id or DEFAULT_VAULT
@@ -881,7 +954,14 @@ def webauthn_unlock(body: WaUnlock, db: DbSession = Depends(get_db)):
     if not cred:
         raise HTTPException(404, "unknown credential")
     if not verify_assertion(
-        cred.public_key, body.authenticator_data, body.client_data_json, body.signature, entry[1]
+        cred.public_key,
+        body.authenticator_data,
+        body.client_data_json,
+        body.signature,
+        entry[1],
+        _request_origin(request),
+        previous_sign_count=cred.sign_count or 0,
+        require_user_verification=True,
     ):
         raise HTTPException(401, "assertion failed")
     if not v.biometric_blob:
@@ -890,6 +970,8 @@ def webauthn_unlock(body: WaUnlock, db: DbSession = Depends(get_db)):
         pw = decrypt(_server_key(), v.biometric_blob)
     except Exception:
         raise HTTPException(500, "biometric unwrap failed")
+    cred.sign_count = max(cred.sign_count or 0, sign_count(body.authenticator_data))
+    db.commit()
     return {"token": _mint(pw, vid), "vault_id": vid}
 
 
@@ -1113,8 +1195,8 @@ class TwoFaUnlock(BaseModel):
 
 
 @router.post("/vault/unlock/2fa")
-def twofa_unlock(body: TwoFaUnlock, db: DbSession = Depends(get_db)):
-    from services.webauthn import verify_assertion
+def twofa_unlock(body: TwoFaUnlock, request: Request, db: DbSession = Depends(get_db)):
+    from services.webauthn import sign_count, verify_assertion
 
     _ensure_default(db)
     vid = body.vault_id or DEFAULT_VAULT
@@ -1140,9 +1222,17 @@ def twofa_unlock(body: TwoFaUnlock, db: DbSession = Depends(get_db)):
     if not entry or time.time() > entry[0]:
         raise HTTPException(401, "challenge expired")
     if not verify_assertion(
-        cred.public_key, body.authenticator_data, body.client_data_json, body.signature, entry[1]
+        cred.public_key,
+        body.authenticator_data,
+        body.client_data_json,
+        body.signature,
+        entry[1],
+        _request_origin(request),
+        previous_sign_count=cred.sign_count or 0,
     ):
         raise HTTPException(401, "assertion failed")
+    cred.sign_count = max(cred.sign_count or 0, sign_count(body.authenticator_data))
+    db.commit()
     return {"token": _mint(body.password, vid), "vault_id": vid}
 
 

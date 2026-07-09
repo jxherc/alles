@@ -1,4 +1,5 @@
 import json
+
 from tests._client import ApiTest
 
 
@@ -136,8 +137,10 @@ class PersonasApiTest(ApiTest):
         self.assertEqual(self.client.post("/api/personas/nope/duplicate").status_code, 404)
 
     def test_seed_default_personas(self):
-        import tempfile, os
+        import os
+        import tempfile
         from pathlib import Path
+
         from routes import personas as pmod
 
         orig = pmod._SEED_SENTINEL
@@ -158,8 +161,8 @@ class PersonasApiTest(ApiTest):
                 tmp.unlink()
 
     def test_persona_pins_model_and_switches_endpoint(self):
+        from core.database import ModelEndpoint, Persona, Session
         from routes.chat import _apply_persona_model
-        from core.database import ModelEndpoint, Session, Persona
 
         db = self.db()
         ep1 = ModelEndpoint(
@@ -192,4 +195,30 @@ class PersonasApiTest(ApiTest):
         db.commit()
         same_ep, same_model = _apply_persona_model(s, ep1, "m1", db)
         self.assertEqual((same_ep.id, same_model), (ep1.id, "m1"))
+        db.close()
+
+    def test_persona_pinned_missing_model_is_rejected(self):
+        from fastapi import HTTPException
+
+        from core.database import ModelEndpoint, Persona, Session
+        from routes.chat import _apply_persona_model
+
+        db = self.db()
+        ep = ModelEndpoint(
+            name="e1",
+            base_url="http://x",
+            api_key="",
+            enabled=True,
+            cached_models=json.dumps(["m1"]),
+        )
+        p = Persona(name="coder", model="missing-model")
+        db.add_all([ep, p])
+        db.commit()
+        s = Session(name="t", persona_id=p.id, endpoint_id=ep.id)
+        db.add(s)
+        db.commit()
+        with self.assertRaises(HTTPException) as err:
+            _apply_persona_model(s, ep, "m1", db)
+        self.assertEqual(err.exception.status_code, 400)
+        self.assertIn("persona model unavailable", err.exception.detail)
         db.close()

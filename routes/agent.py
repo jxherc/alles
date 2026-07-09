@@ -77,12 +77,16 @@ def runs(limit: int = 20, summary: bool = False):
         lite["steps"] = len(r.get("tool_steps", []) or [])
         lite["edits"] = len(r.get("checkpoints", []) or [])
         todos = r.get("todos", []) or []
+        # the producer (_todo_update) emits {step, status: pending|in_progress|completed}.
+        # read `step` + "completed" (the real shape); the text/done fallbacks are just
+        # belt-and-suspenders for any legacy payload.
         lite["todo"] = next(
-            (t.get("text") or t.get("title") for t in todos if isinstance(t, dict)), ""
+            (t.get("step") or t.get("text") or t.get("title") for t in todos if isinstance(t, dict)),
+            "",
         )
         lite["todos_total"] = len(todos)
         lite["todos_done"] = sum(
-            1 for t in todos if isinstance(t, dict) and t.get("status") == "done"
+            1 for t in todos if isinstance(t, dict) and t.get("status") in ("completed", "done")
         )
         out.append(lite)
     return out

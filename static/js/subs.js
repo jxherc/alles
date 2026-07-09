@@ -17,27 +17,26 @@ let _unusedIds = new Set();   // subs with no recent matching charge (4e)
 let _detected = [];    // recurring-charge candidates not yet tracked (4e)
 
 export async function loadSubs() {
-  try {
-    const d = await fetch('/api/subscriptions').then(r => r.json());
-    _subs = d.subscriptions || [];
-    _summary = d.summary || {};
-  } catch { _subs = []; _summary = {}; }
-  try { _analytics = await fetch('/api/subscriptions/analytics').then(r => r.json()); }
-  catch { _analytics = null; }
-  try { _upcoming = await fetch('/api/subscriptions/upcoming?days=7').then(r => r.json()); }
-  catch { _upcoming = null; }
-  try { _forecast = await fetch('/api/subscriptions/forecast?months=6').then(r => r.json()); }
-  catch { _forecast = null; }
-  try {
-    const dd = await fetch('/api/subscriptions/duplicates').then(r => r.json());
-    _dupIds = new Set((dd.groups || []).flatMap(g => g.subs.map(s => s.id)));
-  } catch { _dupIds = new Set(); }
-  try { _accounts = (await fetch('/api/money/accounts').then(r => r.json())).filter(a => !a.archived); }
-  catch { _accounts = []; }
-  try { _unusedIds = new Set(((await fetch('/api/subscriptions/unused?cycles=2').then(r => r.json())).unused || []).map(s => s.id)); }
-  catch { _unusedIds = new Set(); }
-  try { _detected = (await fetch('/api/subscriptions/detect').then(r => r.json())).candidates || []; }
-  catch { _detected = []; }
+  const get = path => fetch(path).then(r => r.json()).catch(() => null);
+  const [d, analytics, upcoming, forecast, dd, accounts, unused, detected] = await Promise.all([
+    get('/api/subscriptions'),
+    get('/api/subscriptions/analytics'),
+    get('/api/subscriptions/upcoming?days=7'),
+    get('/api/subscriptions/forecast?months=6'),
+    get('/api/subscriptions/duplicates'),
+    get('/api/money/accounts'),
+    get('/api/subscriptions/unused?cycles=2'),
+    get('/api/subscriptions/detect'),
+  ]);
+  _subs = d?.subscriptions || [];
+  _summary = d?.summary || {};
+  _analytics = analytics;
+  _upcoming = upcoming;
+  _forecast = forecast;
+  _dupIds = new Set((dd?.groups || []).flatMap(g => (g.subs || []).map(s => s.id)));
+  _accounts = (accounts || []).filter(a => !a.archived);
+  _unusedIds = new Set(((unused?.unused || []).map(s => s.id)));
+  _detected = detected?.candidates || [];
   _render();
 }
 

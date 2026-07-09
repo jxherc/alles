@@ -5,6 +5,7 @@ import os
 import tempfile
 from pathlib import Path
 from unittest import mock
+from urllib.parse import urlsplit
 
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec
@@ -25,11 +26,12 @@ def _keypair():
     return priv, der
 
 
-def _assertion(priv, challenge):
+def _assertion(priv, challenge, *, origin="http://localhost:8000", counter=1):
     client_data = json.dumps(
-        {"type": "webauthn.get", "challenge": challenge, "origin": "http://localhost:8000"}
+        {"type": "webauthn.get", "challenge": challenge, "origin": origin}
     ).encode()
-    auth_data = os.urandom(37)
+    host = (urlsplit(origin).hostname or "").lower()
+    auth_data = hashlib.sha256(host.encode()).digest() + b"\x01" + counter.to_bytes(4, "big")
     sig = priv.sign(auth_data + hashlib.sha256(client_data).digest(), ec.ECDSA(hashes.SHA256()))
     return auth_data, client_data, sig
 
@@ -48,6 +50,7 @@ class HwKey2faTests(ApiTest):
         self.h = {"X-Vault-Token": self.tok}
         self.priv, self.der = _keypair()
         self.cred_id = _b64(os.urandom(16))
+        self.origin = {"Origin": "http://localhost:8000"}
 
     def tearDown(self):
         self.sp.stop()
@@ -104,6 +107,7 @@ class HwKey2faTests(ApiTest):
                 "client_data_json": _b64(cd),
                 "signature": _b64(sig),
             },
+            headers=self.origin,
         )
         self.assertEqual(r.status_code, 200)
         tok = r.json()["token"]
@@ -126,6 +130,7 @@ class HwKey2faTests(ApiTest):
                 "client_data_json": _b64(cd),
                 "signature": _b64(sig),
             },
+            headers=self.origin,
         )
         self.assertEqual(r.status_code, 401)
 
@@ -146,6 +151,7 @@ class HwKey2faTests(ApiTest):
                 "client_data_json": _b64(cd),
                 "signature": _b64(bytes(bad)),
             },
+            headers=self.origin,
         )
         self.assertEqual(r.status_code, 401)
 
@@ -164,6 +170,7 @@ class HwKey2faTests(ApiTest):
                 "client_data_json": _b64(cd),
                 "signature": _b64(sig),
             },
+            headers=self.origin,
         )
         self.assertEqual(r.status_code, 404)
 

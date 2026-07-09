@@ -205,7 +205,8 @@ def create_file(body: PathBody):
         out = vault_md.create(body.path, body.content)
     except ValueError as e:
         raise HTTPException(400, str(e))
-    _reindex_doc(out.get("path", _norm_path(body.path)), body.content or "")
+    path = out.get("path", _norm_path(body.path))
+    _reindex_doc(path, vault_md.read(path).get("content", ""))
     return out
 
 

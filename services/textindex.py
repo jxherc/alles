@@ -28,15 +28,20 @@ def index(db, kind, ref, text) -> int:
     kind = (kind or "").strip()
     ref = (ref or "").strip()
     db.query(IndexChunk).filter_by(kind=kind, ref=ref).delete()
+    n = _add_chunks(db, kind, ref, text)
+    db.commit()
+    return n
+
+
+def _add_chunks(db, kind, ref, text) -> int:
+    ref = (ref or "").strip()
     chunks = [c for c in _chunk(text) if c.strip()]
     if not chunks:
-        db.commit()
         return 0
     vecs = _embed(chunks)
     for i, c in enumerate(chunks):
         v = json.dumps(vecs[i]) if vecs else ""
         db.add(IndexChunk(kind=kind, ref=ref, chunk_no=i, text=c, vec=v))
-    db.commit()
     return len(chunks)
 
 
@@ -82,11 +87,12 @@ def search(db, query, kind=None, k: int = 5) -> list[dict]:
 
 def reindex_kind(db, kind, items) -> int:
     """wipe a whole kind and rebuild from items = iterable of (ref, text)."""
+    kind = (kind or "").strip()
     db.query(IndexChunk).filter_by(kind=kind).delete()
-    db.commit()
     n = 0
     for ref, text in items:
-        n += index(db, kind, ref, text)
+        n += _add_chunks(db, kind, ref, text)
+    db.commit()
     return n
 
 

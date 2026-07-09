@@ -100,8 +100,11 @@ export function sourcesHtml(src) {
 }
 
 function detailHtml(run, src, id) {
-  const todos = (run.todos || []).map(t =>
-    `<div class="run-todo ${t.status === 'done' ? 'done' : ''}">${t.status === 'done' ? '✓' : '○'} ${esc(t.text || t.title || '')}</div>`).join('');
+  const todos = (run.todos || []).map(t => {
+    // producer emits {step, status: pending|in_progress|completed}; tolerate legacy text/done too
+    const done = t.status === 'completed' || t.status === 'done';
+    return `<div class="run-todo ${done ? 'done' : ''}">${done ? '✓' : '○'} ${esc(t.step || t.text || t.title || '')}</div>`;
+  }).join('');
   const steps = (run.tool_steps || []).slice(-12).map(s =>
     `<span class="run-step ${s.error ? 'err' : ''}" title="${esc(s.output || '')}">${esc(s.name || s.tool || 'tool')}</span>`).join('');
   const editN = (run.checkpoints || []).length;
