@@ -32,6 +32,11 @@ engine = create_engine(f"sqlite:///{DB_PATH}", connect_args={"check_same_thread"
 def _set_wal(conn, _):
     conn.execute("pragma journal_mode=wal")
     conn.execute("pragma foreign_keys=on")
+    # keep sqlite from failing fast when background writes overlap
+    conn.execute("pragma busy_timeout=5000")
+    conn.execute("pragma synchronous=normal")
+    conn.execute("pragma cache_size=-16000")  # ~16MB page cache (negative = KiB)
+    conn.execute("pragma temp_store=memory")
 
 
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
@@ -1102,11 +1107,13 @@ class CachedMessage(Base):
     folder = Column(String, default="INBOX", index=True)
     uid = Column(String, nullable=False)
     sender = Column(Text, default="")
+    recipients = Column(Text, default="")
     subject = Column(Text, default="")
     date = Column(String, default="")
     date_ts = Column(Float, default=0)
     seen = Column(Boolean, default=False)
     flagged = Column(Boolean, default=False)  # local star/flag (Apple Mail style)
+    has_attachment = Column(Boolean, default=False)
     list_unsubscribe = Column(Text, default="")  # raw List-Unsubscribe header (5a)
     muted = Column(Boolean, default=False)  # muted thread → hidden from lists (5a)
     snoozed_until = Column(String, default="")  # ISO time; hidden until then (5b)

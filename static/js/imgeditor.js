@@ -4,7 +4,16 @@ import { toast } from './util.js';
 
 let S = null;   // editor state
 
+export function closeEditor() {
+  if (!S) return;
+  const modal = S.modal;
+  S.cleanup?.();
+  modal.style.display = 'none';
+  S = null;
+}
+
 export function openEditor(url, opts = {}) {
+  closeEditor();
   let modal = document.getElementById('imgeditor-modal');
   if (!modal) {
     modal = document.createElement('div');
@@ -56,16 +65,18 @@ export function openEditor(url, opts = {}) {
     crop: null, history: [],
     name: opts.name || 'edited.png', onSaved: opts.onSaved || null,
   };
+  const st = S;
 
   const img = new Image();
   img.onload = () => {
+    if (S !== st) return;
     canvas.width = img.naturalWidth;
     canvas.height = img.naturalHeight;
     S.ctx.drawImage(img, 0, 0);
     applyFilter();
     renderPanel();
   };
-  img.onerror = () => toast('couldn’t load the image', 'error');
+  img.onerror = () => { if (S === st) toast('couldn’t load the image', 'error'); };
   img.src = url;
 
   modal.querySelector('.ie-tools').addEventListener('click', e => {
@@ -150,7 +161,7 @@ function restore(c) {
 }
 
 function act(a) {
-  if (a === 'close') { S.modal.style.display = 'none'; S = null; return; }
+  if (a === 'close') { closeEditor(); return; }
   if (a === 'undo') { const c = S.history.pop(); if (c) restore(c); else toast('nothing to undo'); return; }
   if (a === 'reset') { S.adjust = { b: 100, c: 100, s: 100, gray: false, sepia: false }; applyFilter(); renderPanel(); return; }
   if (a === 'rotl') return rotate(-90);
@@ -193,8 +204,10 @@ function coords(e) {
 
 function wireCanvas() {
   const cv = S.canvas, rect = S.modal.querySelector('#ie-crop-rect');
+  const st = S;
   let cropStart = null;
-  cv.addEventListener('mousedown', e => {
+  const down = e => {
+    if (S !== st) return;
     const [x, y] = coords(e);
     if (S.tool === 'brush') {
       snapshot(); S.drawing = true; [S.lastX, S.lastY] = [x, y];
@@ -208,8 +221,9 @@ function wireCanvas() {
       cropStart = { sx: e.clientX, sy: e.clientY };
       S.crop = null;
     }
-  });
-  window.addEventListener('mousemove', e => {
+  };
+  const move = e => {
+    if (S !== st) return;
     if (S.drawing && S.tool === 'brush') {
       const [x, y] = coords(e);
       const ctx = S.ctx;
@@ -232,8 +246,20 @@ function wireCanvas() {
         h: h / cr.height * S.canvas.height,
       };
     }
-  });
-  window.addEventListener('mouseup', () => { S.drawing = false; cropStart = null; });
+  };
+  const up = () => {
+    if (S !== st) return;
+    S.drawing = false; cropStart = null;
+  };
+  cv.addEventListener('mousedown', down);
+  window.addEventListener('mousemove', move);
+  window.addEventListener('mouseup', up);
+  S.cleanup = () => {
+    cv.removeEventListener('mousedown', down);
+    window.removeEventListener('mousemove', move);
+    window.removeEventListener('mouseup', up);
+    st.drawing = false; cropStart = null;
+  };
 }
 
 function applyCrop() {
@@ -273,7 +299,7 @@ async function exportImage(download) {
     if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || 'save failed');
     toast('saved to gallery', 'success');
     const cb = S.onSaved;
-    S.modal.style.display = 'none'; S = null;
+    closeEditor();
     if (cb) cb();
   } catch (e) {
     toast(e.message || 'save failed', 'error');

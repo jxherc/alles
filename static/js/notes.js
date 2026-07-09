@@ -28,12 +28,14 @@ export async function loadNotes() {
 function _wireSearch() {
   if (_searchWired) return;
   const inp = document.getElementById('note-search');
-  if (!inp) return;
+  const newBtn = document.getElementById('note-new-btn');
+  if (!inp && !newBtn) return;
   let t;
-  inp.addEventListener('input', e => {
+  inp?.addEventListener('input', e => {
     clearTimeout(t);
     t = setTimeout(() => { _q = e.target.value.trim(); loadNotes(); }, 200);
   });
+  newBtn?.addEventListener('click', newNote);
   _searchWired = true;
 }
 

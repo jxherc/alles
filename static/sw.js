@@ -1,5 +1,5 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v178';   // photos: people & faces (phase 7a)
+const VERSION = 'v179';   // gallery merge + current shell refresh
 const CACHE = `alles-${VERSION}`;
 const STAMP = '203';   // keep in sync with index.html ?v= / const _v
 
@@ -58,10 +58,12 @@ self.addEventListener('fetch', e => {
   // public share viewers must always be live so a revoked link can't resolve from cache
   if (url.pathname.startsWith('/s/') || url.pathname.startsWith('/sv/')) return;
 
-  // vendor bundles: stale-while-revalidate — serve cache instantly for speed +
-  // offline, but always refetch in the background so a rebuilt bundle (the file
-  // name isn't content-hashed) gets picked up on the next load
-  if (url.pathname.startsWith('/static/vendor/')) {
+  // ALL static assets (the ~70 app js modules + css + vendor bundles): stale-while-
+  // revalidate — serve from cache instantly (every subdomain is a full page load, so
+  // network-first re-downloaded the whole module graph on each app switch — laggy over a
+  // network). the CACHE name carries VERSION, so an activate() wipe on a version bump pulls
+  // fresh code; we also refetch in the background so an unversioned import can't go stale.
+  if (url.pathname.startsWith('/static/')) {
     e.respondWith((async () => {
       const c = await caches.open(CACHE);
       const hit = await c.match(e.request);

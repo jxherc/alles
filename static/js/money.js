@@ -570,15 +570,17 @@ function _wireTxnRows() {
   root.querySelectorAll('.split-row-del').forEach(b => b.addEventListener('click', () => { _splitRows = _readSplitRows(); _splitRows.splice(+b.dataset.i, 1); if (!_splitRows.length) _splitRows = [{ category: '', amount: '' }]; renderTxns(); }));
 }
 
-async function applySearch() {
+export async function applySearch() {
   const q = $('txn-search')?.value.trim() || '';
   const mn = $('txn-min')?.value.trim() || '';
   const mx = $('txn-max')?.value.trim() || '';
   if (!q && !mn && !mx) {   // nothing to filter → back to the plain month list
     _searchResults = null;
+    _tagFilter = '';
     const rows = $('txn-rows'); if (rows) { rows.innerHTML = txnList(); _wireTxnRows(); }
     return;
   }
+  _tagFilter = '';
   const p = new URLSearchParams({ month: _month });
   if (q) p.set('q', q);
   if (mn && !isNaN(parseFloat(mn))) p.set('min_amt', parseFloat(mn));
@@ -677,7 +679,7 @@ async function toggleCleared(id) {
     await load();
   } catch { toast('failed', 'error'); }
 }
-async function filterByTag(tag) {
+export async function filterByTag(tag) {
   _tagFilter = tag;
   try { _searchResults = await api(`/api/money/transactions?tag=${encodeURIComponent(tag)}`); }
   catch { _searchResults = []; }

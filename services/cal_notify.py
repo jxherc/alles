@@ -8,25 +8,35 @@ import json
 from datetime import datetime, timedelta
 from pathlib import Path
 
-_FIRES = Path(__file__).parent.parent / "data" / "cal_fires.json"
+from core.settings import data_dir
+
+_FIRES: Path | None = None
 _fired = None
+_fired_path: Path | None = None
 _GRACE = 120  # seconds after the reminder time we still consider it "due"
 
 
+def _fires_file() -> Path:
+    return _FIRES or data_dir() / "cal_fires.json"
+
+
 def _load():
-    global _fired
-    if _fired is None:
+    global _fired, _fired_path
+    path = _fires_file()
+    if _fired is None or _fired_path != path:
         try:
-            _fired = set(json.loads(_FIRES.read_text("utf-8")))
+            _fired = set(json.loads(path.read_text("utf-8")))
         except Exception:
             _fired = set()
+        _fired_path = path
     return _fired
 
 
 def _save():
     try:
-        _FIRES.parent.mkdir(parents=True, exist_ok=True)
-        _FIRES.write_text(json.dumps(sorted(_fired)), "utf-8")
+        path = _fires_file()
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(sorted(_fired)), "utf-8")
     except Exception:
         pass
 
@@ -45,9 +55,9 @@ def _ev_dict(e):
 
 
 async def fire_due():
-    from core.database import SessionLocal, CalendarEvent
-    from services import recur
+    from core.database import CalendarEvent, SessionLocal
     from routes.push import broadcast
+    from services import recur
 
     fired = _load()
     now = datetime.now()

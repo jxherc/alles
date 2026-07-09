@@ -126,6 +126,35 @@ class WatchApiTests(ApiTest):
         self.assertEqual(r.json()["name"], "Renamed")
         self.assertFalse(r.json()["enabled"])
 
+    def test_patch_rejects_blank_name_and_url(self):
+        mid = self._create().json()["id"]
+        self.assertEqual(self.client.patch(f"/api/watch/{mid}", json={"name": ""}).status_code, 400)
+        self.assertEqual(self.client.patch(f"/api/watch/{mid}", json={"url": "  "}).status_code, 400)
+
+    def test_patch_rejects_bad_kind(self):
+        mid = self._create().json()["id"]
+        self.assertEqual(self.client.patch(f"/api/watch/{mid}", json={"kind": "banana"}).status_code, 400)
+
+    def test_patch_clamps_and_trims_like_create(self):
+        mid = self._create().json()["id"]
+        r = self.client.patch(
+            f"/api/watch/{mid}",
+            json={
+                "name": "  Renamed  ",
+                "url": "  https://example.org  ",
+                "expect_keyword": "  ready  ",
+                "interval_secs": 1,
+                "latency_ceiling_ms": -20,
+            },
+        )
+        self.assertEqual(r.status_code, 200)
+        j = r.json()
+        self.assertEqual(j["name"], "Renamed")
+        self.assertEqual(j["url"], "https://example.org")
+        self.assertEqual(j["expect_keyword"], "ready")
+        self.assertEqual(j["interval_secs"], 10)
+        self.assertEqual(j["latency_ceiling_ms"], 0)
+
     def test_patch_unknown_404(self):
         self.assertEqual(self.client.patch("/api/watch/nope", json={"name": "z"}).status_code, 404)
 

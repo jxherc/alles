@@ -61,13 +61,18 @@ each one is a real, finished app — they live on their own subdomain so it feel
 | **tasks** | natural-language to-dos with recurring, priorities, tags, subtasks, smart views |
 | **notes** | lightweight scratch notes for zero-ceremony jotting |
 | **journal** | a daily diary with mood, prompts, a streak, and a year heatmap |
+| **habits** | a habit tracker — a grid of days you toggle done, with streaks and completion stats |
+| **health** | a simple health log — weight, sleep, workouts, meds or any custom metric, with trends |
 | **subs** | subscription tracker — renewals, forecast, price-change tracking, auto-post to money |
 | **money** | accounts, transactions, budgets, csv import, charts |
 | **days** | countdowns and day-counts (birthdays, anniversaries) |
 | **files** | a file browser with inline preview (pdf/video/audio/images) and search |
 | **gallery** | a local photo library with moments, albums, exif search |
+| **read** | a read-later archive — save a url, it fetches and stores the readable page text so it survives the original going away |
+| **books** | a reading list — want / reading / done shelves, ratings, and notes |
 | **contacts** | an address book the ai can read (e.g. when drafting mail), with vcard import/export |
 | **system** | a built-in live system monitor (cpu/ram/disk/gpu) |
+| **watch** | uptime monitoring for *external* things — sites, `/health` endpoints, tls certs — with an optional public status page |
 | **secrets** | an encrypted vault with typed entries (logins, cards, api keys, notes…) |
 | **automations** | *when this happens, do that* — set a rule once and alles runs it |
 

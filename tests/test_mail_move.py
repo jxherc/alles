@@ -95,11 +95,6 @@ class WrapperTests(unittest.TestCase):
         out = mailsvc.move_message({}, b"99", "Archive", "INBOX")
         self.assertTrue(out["ok"])
 
-    def test_copy_message(self):
-        mailsvc.copy_message({}, "5", "Saved", "INBOX")
-        self.assertTrue(any(c[0] == "uid" and c[1] == "copy" for c in self.fake.calls))
-        self.assertEqual(self.released, [True])
-
     def test_delete_message_flags_and_expunges(self):
         mailsvc.delete_message({}, "5", "INBOX")
         kinds = [c[1] for c in self.fake.calls if c[0] == "uid"]
@@ -114,6 +109,34 @@ class WrapperTests(unittest.TestCase):
         with self.assertRaises(OSError):
             mailsvc.move_message({}, "1", "Archive", "INBOX")
         self.assertEqual(self.released, [False])  # released with ok=False
+
+
+class ImapPoolTests(unittest.TestCase):
+    def tearDown(self):
+        with mailsvc._LOCK:
+            mailsvc._POOL.clear()
+
+    def test_release_logs_out_replaced_connection_after_unlock(self):
+        acct = {"imap_host": "imap.test", "imap_port": 993, "username": "me", "use_ssl": True}
+
+        class Probe:
+            lock_was_free = None
+
+            def logout(self):
+                self.lock_was_free = mailsvc._LOCK.acquire(blocking=False)
+                if self.lock_was_free:
+                    mailsvc._LOCK.release()
+
+        old = Probe()
+        new = Probe()
+        key = mailsvc._acct_key(acct)
+        with mailsvc._LOCK:
+            mailsvc._POOL[key] = (old, 0)
+
+        mailsvc._release_imap(acct, new, ok=True)
+
+        self.assertTrue(old.lock_was_free)
+        self.assertIs(mailsvc._POOL[key][0], new)
 
 
 if __name__ == "__main__":

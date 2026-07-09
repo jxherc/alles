@@ -93,6 +93,15 @@ def _avatar_dir():
     return d
 
 
+def _unlink_avatar(name: str):
+    if not name:
+        return
+    try:
+        (_avatar_dir() / name).unlink(missing_ok=True)
+    except OSError:
+        pass
+
+
 def _fields_of(db, cid):
     rows = (
         db.query(ContactField)
@@ -336,8 +345,7 @@ def delete_contact(cid: str, db: DbSession = Depends(get_db)):
     db.query(ContactLink).filter(
         (ContactLink.from_id == cid) | (ContactLink.to_id == cid)
     ).delete()
-    if c.avatar:  # don't leak the avatar blob on disk
-        (_avatar_dir() / c.avatar).unlink(missing_ok=True)
+    _unlink_avatar(c.avatar)
     db.delete(c)
     db.commit()
     try:
@@ -448,10 +456,7 @@ def delete_avatar(cid: str, db: DbSession = Depends(get_db)):
     if not c:
         raise HTTPException(404)
     if c.avatar:
-        try:
-            (_avatar_dir() / c.avatar).unlink(missing_ok=True)
-        except Exception:
-            pass
+        _unlink_avatar(c.avatar)
         c.avatar = ""
         db.commit()
     return {"ok": True}
@@ -630,6 +635,11 @@ def merge_contacts(body: MergeBody, db: DbSession = Depends(get_db)):
     # append notes
     if (o.notes or "").strip():
         p.notes = ((p.notes or "").strip() + "\n" + o.notes).strip()
+    if o.avatar:
+        if not p.avatar:
+            p.avatar = o.avatar
+        elif o.avatar != p.avatar:
+            _unlink_avatar(o.avatar)
     oid = o.id
     # move labeled fields + group memberships
     db.query(ContactField).filter(ContactField.contact_id == oid).update(

@@ -563,7 +563,7 @@ function _seg(field, opts) {
 function _defaultTile() {
   const active = isBasePreset(_draft.preset);
   return `<button class="te-preset${active ? ' active' : ''}" data-preset="default" title="default">
-    <span class="te-preset-quad"><i style="background:#0a0a0a"></i><i style="background:#f5f4f1"></i><i style="background:var(--accent)"></i><i style="background:#e8e6e3"></i></span>
+    <span class="te-preset-quad"><i style="background:#0a0a0a"></i><i style="background:#0e0e0e"></i><i style="background:#818cf8"></i><i style="background:#e8e6e3"></i></span>
     <span class="te-preset-name">default</span></button>`;
 }
 function _presetGridHtml() {
@@ -631,10 +631,9 @@ function _wireEditor(m) {
   m.querySelector('#te-done')?.addEventListener('click', _close);
 
   m.querySelectorAll('.te-preset').forEach(b => b.onclick = () => {
-    // the synthetic "default" tile drops back onto the base theme, keeping the light/dark
-    // feel of whatever you were on + the current accent.
+    // default means the real alles base: black + purple.
     if (b.dataset.preset === 'default') {
-      const a = resetToDefault(_lum(_draft.colors?.bg || '#0a0a0a') > 0.5 ? 'light' : 'dark');
+      const a = resetToDefault('dark');
       _draft = a; _onEditorChange && _onEditorChange(_draft); _renderEditor();
       return;
     }

@@ -83,6 +83,15 @@ class FilesBrowseTests(ApiTest):
         self.assertNotIn(b"a one-of-a-kind length", hashed)
         self.assertIn(b"hello", hashed)
 
+    def test_dup_hashes_without_read_bytes(self):
+        self._w("a.bin", b"x" * 4096)
+        self._w("b.bin", b"x" * 4096)
+
+        with mock.patch.object(Path, "read_bytes", side_effect=AssertionError("full read")):
+            groups = self.client.get("/api/files/duplicates").json()["groups"]
+
+        self.assertEqual([sorted(g["paths"]) for g in groups], [["a.bin", "b.bin"]])
+
     def test_dup_sorted_by_group_size(self):
         # a 3-file group should sort before a 2-file group
         for n in ("a", "b", "c"):

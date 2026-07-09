@@ -98,6 +98,41 @@ class HandlerTests(unittest.TestCase):
         # either a JSON-RPC error or an isError result is acceptable; must not raise
         self.assertTrue("error" in r or r["result"].get("isError"))
 
+    def test_capabilities_bootstrap_once_for_repeated_rpc(self):
+        from services import capabilities
+
+        calls = []
+        orig_bootstrap = capabilities.bootstrap
+        orig_invoke = capabilities.invoke
+        orig_bootstrapped = mcp_server._BOOTSTRAPPED
+
+        def counted_bootstrap():
+            calls.append("bootstrap")
+            return orig_bootstrap()
+
+        async def fake_invoke(name, args, kind="tool"):
+            return {"name": name, "args": args}
+
+        capabilities.clear()
+        mcp_server._BOOTSTRAPPED = False
+        capabilities.bootstrap = counted_bootstrap
+        capabilities.invoke = fake_invoke
+        try:
+            _h({"jsonrpc": "2.0", "id": 8, "method": "tools/list"})
+            _h(
+                {
+                    "jsonrpc": "2.0",
+                    "id": 9,
+                    "method": "tools/call",
+                    "params": {"name": "recall", "arguments": {"query": "hi"}},
+                }
+            )
+        finally:
+            capabilities.bootstrap = orig_bootstrap
+            capabilities.invoke = orig_invoke
+            mcp_server._BOOTSTRAPPED = orig_bootstrapped
+        self.assertEqual(calls, ["bootstrap"])
+
 
 class EndpointTests(unittest.TestCase):
     def setUp(self):

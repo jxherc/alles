@@ -85,3 +85,16 @@ class SubUpcomingTests(ApiTest):
         for k in ("days", "count", "total", "currency", "items"):
             self.assertIn(k, r)
         self.assertEqual(r["count"], len(r["items"]))
+
+    def test_malformed_next_due_does_not_break_list_or_upcoming(self):
+        self._seed(name="Bad", next_due="not-a-date")
+        self._seed(name="Good", next_due=_due_in(2))
+
+        lst = self.client.get("/api/subscriptions")
+        self.assertEqual(lst.status_code, 200)
+        bad = next(s for s in lst.json()["subscriptions"] if s["name"] == "Bad")
+        self.assertIsNone(bad["days_until"])
+        self.assertFalse(bad["payable"])
+
+        up = self._get(7)
+        self.assertEqual([i["name"] for i in up["items"]], ["Good"])

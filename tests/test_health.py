@@ -31,6 +31,16 @@ class HealthLogicTests(ApiTest):
         ]
         self.assertEqual(latest_per_kind(entries)["weight"].value, 75)
 
+    def test_latest_per_kind_custom_key(self):
+        entries = [
+            HealthEntry(kind="custom", label="steps", date="2026-06-18", value=5000),
+            HealthEntry(kind="custom", label="bp", date="2026-06-19", value=120),
+            HealthEntry(kind="custom", label="steps", date="2026-06-20", value=7000),
+        ]
+        latest = latest_per_kind(entries, key=lambda e: (e.kind, e.label or ""))
+        self.assertEqual(latest[("custom", "steps")].value, 7000)
+        self.assertEqual(latest[("custom", "bp")].value, 120)
+
     def test_series_for_sorted_asc(self):
         entries = [
             self._e("weight", "2026-06-20", 79),

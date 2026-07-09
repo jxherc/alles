@@ -12,6 +12,26 @@ class CalendarAdvisorTests(ApiTest):
         db.commit()
         db.close()
 
+    def _rec_ev(self, title, s, e, recurrence="daily", **kw):
+        db = self.db()
+        db.add(CalendarEvent(title=title, start_dt=s, end_dt=e, recurrence=recurrence, **kw))
+        db.commit()
+        db.close()
+
+    def test_free_slots_accounts_for_recurring_events(self):
+        # regression (F14): a daily 10:00-11:00 standup whose master start is a week earlier
+        # must still mark 10:00-11:00 busy on the queried day. before the fix, free-slots only
+        # looked at master events, so it offered an already-busy recurring slot as free.
+        self._rec_ev("Standup", "2026-07-01T10:00:00", "2026-07-01T11:00:00", recurrence="daily")
+        slots = self.client.get(
+            "/api/calendar/free-slots?day=2026-07-08&duration_min=30"
+        ).json()["slots"]
+        self.assertFalse(
+            any(s["start"] <= "10:00" and s["end"] > "10:00" for s in slots),
+            f"recurring standup not treated as busy: {slots}",
+        )
+        self.assertTrue(any(s["start"] == "09:00" and s["end"] == "10:00" for s in slots))
+
     def test_conflicts_detects_overlap(self):
         self._ev("A", "2026-07-01T10:00:00", "2026-07-01T11:00:00")
         self._ev("B", "2026-07-01T10:30:00", "2026-07-01T11:30:00")

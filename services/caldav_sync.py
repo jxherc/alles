@@ -11,7 +11,7 @@ import json
 from datetime import datetime, timedelta
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
+from core.settings import data_dir
 
 
 def _ics_esc(s) -> str:
@@ -26,7 +26,11 @@ def _ics_esc(s) -> str:
     )
 
 
-CFG_PATH = ROOT / "data" / "caldav.json"
+CFG_PATH: Path | None = None
+
+
+def _cfg_path() -> Path:
+    return CFG_PATH or data_dir() / "caldav.json"
 
 
 def available() -> bool:
@@ -40,7 +44,7 @@ def available() -> bool:
 
 def load_cfg() -> dict:
     try:
-        return json.loads(CFG_PATH.read_text("utf-8"))
+        return json.loads(_cfg_path().read_text("utf-8"))
     except Exception:
         return {}
 
@@ -50,8 +54,9 @@ def save_cfg(cfg: dict):
     # keep the existing password if a blank one is sent (UI doesn't echo it back)
     if not cfg.get("password") and cur.get("password"):
         cfg["password"] = cur["password"]
-    CFG_PATH.parent.mkdir(parents=True, exist_ok=True)
-    CFG_PATH.write_text(json.dumps(cfg), "utf-8")
+    p = _cfg_path()
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(json.dumps(cfg), "utf-8")
 
 
 def status() -> dict:
@@ -69,6 +74,22 @@ def _iso(dt) -> str:
         return dt.strftime("%Y-%m-%dT%H:%M:%S")
     # date only
     return dt.strftime("%Y-%m-%d") + "T00:00:00"
+
+
+def _ical_dt(value: str) -> str:
+    raw = str(value or "").strip()
+    if not raw:
+        return ""
+    try:
+        return datetime.fromisoformat(raw).strftime("%Y%m%dT%H%M%S")
+    except ValueError:
+        pass
+    compact = raw.replace("-", "").replace(":", "").replace(" ", "T")
+    if "T" not in compact:
+        return compact
+    day, tm = compact.split("T", 1)
+    tm = "".join(ch for ch in tm if ch.isdigit())
+    return f"{day[:8]}T{tm[:6].ljust(6, '0')}"
 
 
 def _event_ics(
@@ -96,9 +117,9 @@ def _event_ics(
             except ValueError:
                 pass
     else:
-        lines.append(f"DTSTART:{(start_dt or '').replace('-', '').replace(':', '')}")
+        lines.append(f"DTSTART:{_ical_dt(start_dt)}")
         if end_dt:
-            lines.append(f"DTEND:{end_dt.replace('-', '').replace(':', '')}")
+            lines.append(f"DTEND:{_ical_dt(end_dt)}")
     if description:
         lines.append(f"DESCRIPTION:{_ics_esc(description)}")
     lines += ["END:VEVENT", "END:VCALENDAR", ""]

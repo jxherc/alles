@@ -12,6 +12,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session as DbSession
 
 from core.database import McpServer, SessionLocal, get_db
+
 # the connected-session + tool registry lives in a leaf module so services/agent_tools.py can
 # read it without importing routes.mcp (which would close a routes->services->routes cycle)
 from services.mcp_registry import sessions as _sessions  # server_id -> mcp ClientSession
@@ -34,9 +35,18 @@ def _fmt(s: McpServer) -> dict:
         "url": s.url,
         "enabled": s.enabled,
         "connected": s.id in _sessions,
-        "tools": _tools.get(s.id, []),
+        "tools": _enabled_tools(s),
         "disabled_tools": s.disabled_tools_list(),
     }
+
+
+def _disabled_set(s: McpServer) -> set[str]:
+    return {str(x) for x in s.disabled_tools_list()}
+
+
+def _enabled_tools(s: McpServer) -> list[dict]:
+    disabled = _disabled_set(s)
+    return [t for t in _tools.get(s.id, []) if t.get("name") not in disabled]
 
 
 # GET /api/mcp/servers
@@ -194,10 +204,13 @@ class ToolCall(BaseModel):
 
 # POST /api/mcp/call
 @router.post("/mcp/call")
-async def call_tool(body: ToolCall):
+async def call_tool(body: ToolCall, db: DbSession = Depends(get_db)):
     session = _sessions.get(body.server_id)
     if not session:
         raise HTTPException(400, "server not connected")
+    s = db.get(McpServer, body.server_id)
+    if s and body.tool_name in _disabled_set(s):
+        raise HTTPException(403, "tool disabled")
     try:
         result = await session.call_tool(body.tool_name, body.arguments)
         return {"result": str(result)}
@@ -214,31 +227,44 @@ async def _connect(server_id: str, db) -> tuple[bool, str]:
         return False, "not found"
     await _disconnect(server_id)
     try:
-        from mcp import ClientSession, StdioServerParameters
-        from mcp.client.stdio import stdio_client
+        from contextlib import AsyncExitStack
 
-        if s.transport == "stdio":
-            args = s.args_list()
-            params = StdioServerParameters(command=s.command, args=args)
-            # we store the context manager — connect lazily when tools needed
-            # for now just probe by connecting + listing tools
-            from contextlib import AsyncExitStack
+        from mcp import ClientSession
 
-            stack = AsyncExitStack()
-            read, write = await stack.enter_async_context(stdio_client(params))
+        stack = AsyncExitStack()
+        try:
+            if s.transport == "stdio":
+                from mcp import StdioServerParameters
+                from mcp.client.stdio import stdio_client
+
+                args = s.args_list()
+                params = StdioServerParameters(command=s.command, args=args)
+                read, write = await stack.enter_async_context(stdio_client(params))
+            elif s.transport == "sse":
+                from mcp.client.sse import sse_client
+
+                if not (s.url or "").strip():
+                    return False, "url required for sse transport"
+                read, write = await stack.enter_async_context(sse_client(s.url))
+            else:
+                return False, "transport must be stdio or sse"
+
             session = await stack.enter_async_context(ClientSession(read, write))
             await session.initialize()
             tools_resp = await session.list_tools()
             _sessions[server_id] = session
             _stacks[server_id] = stack
+            disabled = _disabled_set(s)
             _tools[server_id] = [
                 {"name": t.name, "description": t.description or "", "schema": t.inputSchema}
                 for t in tools_resp.tools
+                if t.name not in disabled
             ]
             log.info(f"MCP connected: {s.name} ({len(_tools[server_id])} tools)")
             return True, ""
-        else:
-            return False, "SSE transport not yet supported"
+        except Exception:
+            await stack.aclose()
+            raise
     except ImportError:
         return False, "mcp package not installed — pip install mcp"
     except Exception as e:

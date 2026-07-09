@@ -4,7 +4,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { graphCols, HIST } from '../../static/js/system.js';
+import { graphCols, HIST, procCpuLabel } from '../../static/js/system.js';
 
 test('HIST is the history cap', () => {
   assert.equal(HIST, 720);
@@ -53,4 +53,10 @@ test('full fill: a buffer of HIST samples covers every column (no permanent dead
     const n = graphCols(w);
     assert.ok(HIST >= n, `w=${w}: HIST(${HIST}) < cols(${n}) would leave ${n - HIST} blank cols`);
   }
+});
+
+test('process cpu label tolerates missing samples', () => {
+  assert.equal(procCpuLabel(null), '  —');
+  assert.equal(procCpuLabel(undefined), '  —');
+  assert.equal(procCpuLabel(7.4), '  7');
 });

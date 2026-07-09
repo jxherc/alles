@@ -413,9 +413,11 @@ def _register_jobs():
         await _job()
 
     async def _photo_watch():
+        # PIL decode + a full folder walk — run off the event loop so the periodic scan
+        # doesn't freeze every other request while it churns through images.
         from services.photo_sync import run_watch
 
-        run_watch()
+        await asyncio.to_thread(run_watch)
 
     async def _ics_subs():
         from routes.calendar import refresh_all_subscriptions
@@ -427,7 +429,7 @@ def _register_jobs():
         from services import carddav_sync
 
         if carddav_sync.due_for_sync(time.time()):
-            carddav_sync.sync()
+            await asyncio.to_thread(carddav_sync.sync)  # blocking CardDAV HTTP — off the loop
 
     async def _watch():
         from routes.watch import run_checks
@@ -440,14 +442,19 @@ def _register_jobs():
         await refresh_feeds()
 
     async def _reconcile():
-        from core.database import SessionLocal
-        from services import personal_index
+        # synchronous IMAP body fetches + fastembed encodes — the worst loop-blocker of the
+        # job set. run the whole thing (session included, so it's thread-local) off the loop.
+        def _job():
+            from core.database import SessionLocal
+            from services import personal_index
 
-        db = SessionLocal()
-        try:
-            personal_index.reconcile(db)
-        finally:
-            db.close()
+            db = SessionLocal()
+            try:
+                personal_index.reconcile(db)
+            finally:
+                db.close()
+
+        await asyncio.to_thread(_job)
 
     async def _proactive():
         from services import proactive
@@ -455,14 +462,58 @@ def _register_jobs():
         await proactive.run()
 
     async def _blob_gc():
+        def _job():
+            from core.database import SessionLocal
+            from services import blobstore
+
+            db = SessionLocal()
+            try:
+                blobstore.gc(db)  # walks blob dir + stats files — off the loop
+            finally:
+                db.close()
+
+        await asyncio.to_thread(_job)
+
+    async def _user_model():
         from core.database import SessionLocal
-        from services import blobstore
+        from core.settings import load_settings
+        from services import user_model
+
+        if not load_settings().get("user_model_distill", False):
+            return  # gated - spends tokens
+        db = SessionLocal()
+        try:
+            await user_model.distill_async(db)
+        finally:
+            db.close()
+
+    async def _insights():
+        from core.database import SessionLocal
+        from services import insights
 
         db = SessionLocal()
         try:
-            blobstore.gc(db)
+            await insights.generate_async(db)  # internally gated on insights_enabled
         finally:
             db.close()
+
+    async def _holdings_price():
+        from core.settings import load_settings
+
+        if not load_settings().get("holdings_autoprice", False):
+            return  # gated - hits the network; opt-in
+
+        def _job():
+            from core.database import SessionLocal
+            from services import price_fetch
+
+            db = SessionLocal()
+            try:
+                price_fetch.refresh(db)  # blocking price HTTP — off the loop
+            finally:
+                db.close()
+
+        await asyncio.to_thread(_job)
 
     async def _clip_index():
         # phase 7b: embed un-indexed photos for semantic search. only runs if the optional CLIP
@@ -507,42 +558,6 @@ def _register_jobs():
 
         await asyncio.to_thread(_job)
 
-    async def _user_model():
-        from core.database import SessionLocal
-        from core.settings import load_settings
-        from services import user_model
-
-        if not load_settings().get("user_model_distill", False):
-            return  # gated - spends tokens
-        db = SessionLocal()
-        try:
-            await user_model.distill_async(db)
-        finally:
-            db.close()
-
-    async def _insights():
-        from core.database import SessionLocal
-        from services import insights
-
-        db = SessionLocal()
-        try:
-            await insights.generate_async(db)  # internally gated on insights_enabled
-        finally:
-            db.close()
-
-    async def _holdings_price():
-        from core.database import SessionLocal
-        from core.settings import load_settings
-        from services import price_fetch
-
-        if not load_settings().get("holdings_autoprice", False):
-            return  # gated - hits the network; opt-in
-        db = SessionLocal()
-        try:
-            price_fetch.refresh(db)
-        finally:
-            db.close()
-
     jobs.register("read_feeds", _read_feeds, 1800, run_at_start=False)  # rss auto-save (30 min)
     jobs.register("holdings_price", _holdings_price, 6 * 3600, run_at_start=False)  # 2d (gated)
     jobs.register("blob_gc", _blob_gc, 6 * 3600, run_at_start=False)  # 0d - purge orphaned blobs
@@ -567,7 +582,11 @@ def _register_jobs():
     from services.proactive import _interval_seconds
 
     jobs.register(
-        "proactive", _proactive, _interval_seconds(), run_at_start=False
+        "proactive",
+        _proactive,
+        _interval_seconds(),
+        run_at_start=False,
+        interval_fn=_interval_seconds,
     )  # advisory cards
 
 
@@ -594,13 +613,22 @@ def _cleanup_empty_sessions():
 
     db = SessionLocal()
     try:
+        empty_ids = [
+            sid
+            for (sid,) in (
+                db.query(Session.id)
+                .outerjoin(Msg, Msg.session_id == Session.id)
+                .filter(Session.starred.is_(False), Msg.id.is_(None))
+                .all()
+            )
+        ]
         gone = 0
-        for s in db.query(Session).all():
-            if s.starred:
-                continue
-            if db.query(Msg).filter(Msg.session_id == s.id).count() == 0:
-                db.delete(s)
-                gone += 1
+        if empty_ids:
+            gone = (
+                db.query(Session)
+                .filter(Session.id.in_(empty_ids))
+                .delete(synchronize_session=False)
+            )
         if gone:
             db.commit()
             log.info(f"cleaned {gone} empty session(s)")

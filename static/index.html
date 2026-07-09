@@ -30,7 +30,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/style.css?v=203">
+<link rel="stylesheet" href="/static/style.css?v=204">
 <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#0a0a0a">
@@ -300,11 +300,12 @@
 
     <!-- aide gallery view (AI image generation — lives inside aide) -->
     <div class="page-view" id="gallery-view" style="display:none">
-      <div class="page-view-head">
-        <span class="page-view-title">gallery</span>
-        <input type="file" id="gallery-file-input" accept="image/*" style="display:none">
-        <button class="btn primary" id="gallery-upload-btn">+ upload</button>
-      </div>
+        <div class="page-view-head">
+          <span class="page-view-title">gallery</span>
+          <input type="file" id="gallery-file-input" accept="image/*" style="display:none">
+          <button class="btn" id="gallery-scan-btn">scan</button>
+          <button class="btn primary" id="gallery-upload-btn">+ upload</button>
+        </div>
       <div class="page-view-body">
         <input type="text" id="gallery-prompt-input" placeholder="prompt / caption (optional)" class="gallery-prompt-input">
         <div class="gallery-grid" id="gallery-grid"></div>
@@ -692,6 +693,7 @@
         <button class="btn ic-btn-lbl" id="photos-filter-btn" title="filter the timeline">filter</button>
         <button class="btn ic-btn-lbl photos-share-album-btn" id="photos-share-album-btn" title="share the open album as a read-only link"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><line x1="8.2" y1="10.8" x2="15.8" y2="7.2"/><line x1="8.2" y1="13.2" x2="15.8" y2="16.8"/></svg> share</button>
         <input type="file" id="photos-upload-input" accept="image/*,video/*" multiple hidden>
+        <button class="btn ic-btn-lbl" id="photos-rescan-btn" title="scan the photos folder">scan folder</button>
         <button class="btn primary" id="photos-upload-btn">upload</button>
         <button class="icon-btn app-cog" data-app="photos" title="gallery settings"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2a2 2 0 1 1-4 0V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1A2 2 0 1 1 4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H3a2 2 0 1 1 0-4h.2a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1A2 2 0 1 1 7.2 4.2l.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.6V3a2 2 0 1 1 4 0v.2a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1A2 2 0 1 1 20 7.2l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2a2 2 0 1 1 0 4h-.2a1.7 1.7 0 0 0-1.8 1z"/></svg></button>
       </div>
@@ -1788,7 +1790,7 @@
 </div>
 
 <script type="module">
-const _v = '203';
+const _v = '204';
 import(`/static/js/app.js?v=${_v}`);
 </script>
 </body>

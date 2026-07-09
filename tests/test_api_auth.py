@@ -13,11 +13,13 @@ class AuthApiTest(ApiTest):
         self._tmp = tempfile.TemporaryDirectory()
         self._p = mock.patch.object(cs, "_SETTINGS_FILE", Path(self._tmp.name) / "settings.json")
         self._p.start()
+        cs._clear_settings_cache()
         self._env = os.environ.pop("AUTH_PASSWORD", None)  # deterministic: no seeded env password
 
     def tearDown(self):
         if self._env is not None:
             os.environ["AUTH_PASSWORD"] = self._env
+        cs._clear_settings_cache()
         self._p.stop()
         self._tmp.cleanup()
         super().tearDown()
@@ -87,6 +89,30 @@ class AuthApiTest(ApiTest):
             os.environ.pop("AUTH_ENABLED", None)
             if saved is not None:
                 os.environ["AUTH_ENABLED"] = saved
+
+    def test_auth_enabled_settings_read_is_cached(self):
+        saved = os.environ.pop("AUTH_ENABLED", None)
+        try:
+            cs._clear_settings_cache()
+            cs._SETTINGS_FILE.write_text('{"auth_enabled": true}', "utf-8")
+            calls = []
+            path_cls = type(cs._SETTINGS_FILE)
+            orig = path_cls.read_text
+
+            def tracked(self, *args, **kwargs):
+                if self == cs._SETTINGS_FILE:
+                    calls.append(str(self))
+                return orig(self, *args, **kwargs)
+
+            with mock.patch.object(path_cls, "read_text", tracked):
+                self.assertTrue(cs.auth_enabled())
+                self.assertTrue(cs.auth_enabled())
+            self.assertEqual(len(calls), 1)
+        finally:
+            os.environ.pop("AUTH_ENABLED", None)
+            if saved is not None:
+                os.environ["AUTH_ENABLED"] = saved
+            cs._clear_settings_cache()
 
     def test_auth_config_enable_needs_password_then_works(self):
         # nothing set yet → can't enable

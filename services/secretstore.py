@@ -11,29 +11,40 @@ values are prefixed "enc1:"; anything without the prefix is treated as legacy
 plaintext and passed through, so existing rows keep working until re-saved.
 """
 
-import os, base64
+import base64
+import os
 from pathlib import Path
+
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+
+from core.settings import data_dir
 
 PREFIX = "enc1:"
 _NONCE_LEN = 12
-_KEY_FILE = Path(__file__).resolve().parent.parent / "data" / "secret.key"
+_KEY_FILE: Path | None = None
 _key: bytes | None = None
+_key_path: Path | None = None
+
+
+def _key_file() -> Path:
+    return _KEY_FILE or data_dir() / "secret.key"
 
 
 def _load_key() -> bytes:
-    global _key
-    if _key is None:
-        _KEY_FILE.parent.mkdir(parents=True, exist_ok=True)
-        if _KEY_FILE.exists():
-            _key = base64.b64decode(_KEY_FILE.read_text().strip())
+    global _key, _key_path
+    path = _key_file()
+    if _key is None or _key_path != path:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        if path.exists():
+            _key = base64.b64decode(path.read_text().strip())
         else:
             _key = os.urandom(32)
-            _KEY_FILE.write_text(base64.b64encode(_key).decode())
+            path.write_text(base64.b64encode(_key).decode())
             try:
-                os.chmod(_KEY_FILE, 0o600)
+                os.chmod(path, 0o600)
             except OSError:
                 pass  # best effort — not supported on windows
+        _key_path = path
     return _key
 
 

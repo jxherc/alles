@@ -45,12 +45,14 @@ def main():
             """async () => {
                 const accts = await fetch('/api/money/accounts').then(r=>r.json());
                 for (const a of accts) await fetch('/api/money/accounts/'+a.id,{method:'DELETE'});
+                const now = new Date();
+                const ym = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0');
                 const a = await fetch('/api/money/accounts',{method:'POST',headers:{'content-type':'application/json'},
                     body:JSON.stringify({name:'Test Checking',kind:'checking',opening:100})}).then(r=>r.json());
                 await fetch('/api/money/transactions',{method:'POST',headers:{'content-type':'application/json'},
-                    body:JSON.stringify({account_id:a.id,date:'2026-06-10',amount:-50,category:'shopping',payee:'Target',tags:'food, home'})});
+                    body:JSON.stringify({account_id:a.id,date:ym+'-10',amount:-50,category:'shopping',payee:'Target',tags:'food, home'})});
                 await fetch('/api/money/transactions',{method:'POST',headers:{'content-type':'application/json'},
-                    body:JSON.stringify({account_id:a.id,date:'2026-06-09',amount:-30,category:'coffee',payee:'Cafe',tags:'food'})});
+                    body:JSON.stringify({account_id:a.id,date:ym+'-09',amount:-30,category:'coffee',payee:'Cafe',tags:'food'})});
             }"""
         )
         pg.goto(f"{MONEY}/", wait_until="domcontentloaded")

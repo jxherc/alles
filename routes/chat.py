@@ -3,7 +3,7 @@ import json
 import re
 from datetime import datetime
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session as DbSession
@@ -85,6 +85,7 @@ def _apply_persona_model(session: Session, ep: ModelEndpoint, model: str, db):
         for e in db.query(ModelEndpoint).filter(ModelEndpoint.enabled == True).all():
             if model in (e.models_list() or []):
                 return e, model
+        raise HTTPException(400, f"persona model unavailable: {model}")
     return ep, model
 
 
@@ -147,7 +148,8 @@ def _is_video_upload(rec) -> bool:
 
 
 def _build_messages(
-    session: Session, user_text: str, settings: dict, db=None, file_ids: list[str] = None
+    session: Session, user_text: str, settings: dict, db=None, file_ids: list[str] = None,
+    mem_ctx: str = None,
 ) -> list[dict]:
     sys_prompt = settings.get("system_prompt", "You are aide, a helpful AI assistant.")
 
@@ -176,9 +178,12 @@ def _build_messages(
                 pass
 
     if settings.get("memory_auto_inject", True):
-        mem_ctx = inject_memories(user_text)
-        if mem_ctx:
-            sys_prompt = sys_prompt.rstrip() + "\n\n" + mem_ctx
+        # mem_ctx may be pre-computed off the event loop by an async caller (the embed is
+        # CPU-bound and used to freeze the whole server per chat turn); only embed inline
+        # here as a fallback for sync callers.
+        mc = mem_ctx if mem_ctx is not None else inject_memories(user_text)
+        if mc:
+            sys_prompt = sys_prompt.rstrip() + "\n\n" + mc
 
     # surface-brain - let aide weave in the cross-domain insights it found
     if db and settings.get("insights_auto_inject", True):
@@ -221,7 +226,18 @@ def _build_messages(
     limit = max(
         1, int(limit) if isinstance(limit, (int, float)) else 40
     )  # 0/neg would dump all history
-    history = list(session.messages)[-limit:]
+    if db is not None:
+        # pull just the last `limit` rows in sql — loading the whole relationship dragged the
+        # entire session history into memory on every turn
+        history = (
+            db.query(Message)
+            .filter(Message.session_id == session.id)
+            .order_by(Message.timestamp.desc())
+            .limit(limit)
+            .all()
+        )[::-1]
+    else:
+        history = list(session.messages)[-limit:]
     for m in history:
         msgs.append({"role": m.role, "content": m.content})
 
@@ -229,9 +245,9 @@ def _build_messages(
     user_content: list | str = user_text
     if file_ids and db:
         import base64
-        from pathlib import Path
 
         from core.database import Upload
+        from routes.uploads import upload_dir
 
         text_blocks = []
         image_parts = []
@@ -239,7 +255,7 @@ def _build_messages(
             rec = db.get(Upload, fid)
             if not rec:
                 continue
-            fpath = Path(__file__).parent.parent / "data" / "uploads" / rec.filename
+            fpath = upload_dir() / rec.filename
             if not fpath.exists():
                 continue
             if rec.mime_type.startswith("image/"):
@@ -361,7 +377,13 @@ async def _stream_and_save(
         # save user message if not already there (first time)
         # do this even if the model returned nothing, otherwise the just-sent
         # user turn vanishes on reload when a completion comes back empty/errored
-        last = s.messages[-1] if s.messages else None
+        # most recent row only — loading s.messages dragged the whole history in just to dedup
+        last = (
+            db.query(Message)
+            .filter(Message.session_id == session_id)
+            .order_by(Message.timestamp.desc())
+            .first()
+        )
         added = 0
         if not last or last.role != "user" or last.content != user_text:
             um = Message(session_id=session_id, role="user", content=user_text)
@@ -417,9 +439,7 @@ async def _fire_message_hook(session_id: str, user_text: str, reply: str):
 
 # POST /api/chat
 @router.post("/chat")
-async def chat(
-    body: ChatRequest, background_tasks: BackgroundTasks, db: DbSession = Depends(get_db)
-):
+async def chat(body: ChatRequest, db: DbSession = Depends(get_db)):
     s = db.get(Session, body.session_id)
     if not s:
         raise HTTPException(404, "session not found")
@@ -444,7 +464,14 @@ async def chat(
         settings["agent_effort"] = body.effort
     # @path mentions → inline file contents for the model (saved msg stays clean)
     aug_text = _resolve_mentions(body.message, settings["agent_cwd"])
-    messages = _build_messages(s, aug_text, settings, db, body.file_ids)
+    # embed memories OFF the event loop — fastembed is CPU-bound and would otherwise freeze
+    # every other request (and SSE stream) for the duration of each chat turn
+    mem_ctx = (
+        await asyncio.to_thread(inject_memories, aug_text)
+        if settings.get("memory_auto_inject", True)
+        else ""
+    )
+    messages = _build_messages(s, aug_text, settings, db, body.file_ids, mem_ctx=mem_ctx)
 
     # context compaction
     if settings.get("auto_compact", True):
@@ -519,7 +546,12 @@ async def chat_background(body: ChatRequest, db: DbSession = Depends(get_db)):
     if _p and _p.temperature is not None:
         settings["temperature"] = _p.temperature
     aug_text = _resolve_mentions(body.message, settings["agent_cwd"])
-    messages = _build_messages(s, aug_text, settings, db, body.file_ids)
+    mem_ctx = (
+        await asyncio.to_thread(inject_memories, aug_text)
+        if settings.get("memory_auto_inject", True)
+        else ""
+    )
+    messages = _build_messages(s, aug_text, settings, db, body.file_ids, mem_ctx=mem_ctx)
 
     stop_event = asyncio.Event()
     _streams[body.session_id] = stop_event

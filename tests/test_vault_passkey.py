@@ -4,6 +4,7 @@ import os
 import tempfile
 from pathlib import Path
 from unittest import mock
+from urllib.parse import urlsplit
 
 import core.settings
 from tests._client import ApiTest
@@ -15,12 +16,12 @@ def _b64(b):
 
 def _client_assertion(challenge):
     """build the authenticatorData + clientDataJSON a relying party would hand us to sign."""
-    import hashlib  # noqa: F401 (kept for parity with webauthn test helper)
+    import hashlib
 
-    client_data = json.dumps(
-        {"type": "webauthn.get", "challenge": challenge, "origin": "https://example.com"}
-    ).encode()
-    auth_data = os.urandom(37)
+    origin = "https://example.com"
+    client_data = json.dumps({"type": "webauthn.get", "challenge": challenge, "origin": origin}).encode()
+    host = (urlsplit(origin).hostname or "").lower()
+    auth_data = hashlib.sha256(host.encode()).digest() + b"\x01" + (1).to_bytes(4, "big")
     return auth_data, client_data
 
 

@@ -8,7 +8,10 @@ import tempfile
 from pathlib import Path
 from unittest import mock
 
+from fastapi import HTTPException
+
 import core.settings
+from routes import vault as vault_routes
 from tests._client import ApiTest
 
 
@@ -106,6 +109,39 @@ class VaultMainRekey(ApiTest):
         self.assertEqual(r.status_code, 200)
         ntok = self._unlock("m2").json()["token"]
         dl = self.client.get(f"/api/vault/attachments/{aid}", headers={"X-Vault-Token": ntok})
+        self.assertEqual(dl.status_code, 200)
+        self.assertEqual(dl.content, blob)
+
+    def test_change_password_restores_attachment_if_commit_fails(self):
+        self._mk("Work", "wpw")
+        wid = self._id_of("Work")
+        wh = {"X-Vault-Token": self._unlock("wpw", wid).json()["token"]}
+        eid = self._entry(wh)
+        blob = b"keep me readable"
+        up = self.client.post(
+            f"/api/vault/{eid}/attachments",
+            files={"file": ("s.bin", io.BytesIO(blob), "application/octet-stream")},
+            headers=wh,
+        )
+        aid = up.json()["id"]
+        path = Path(self._tmp) / "vault_attachments" / f"{aid}.enc"
+        old_cipher = path.read_bytes()
+
+        db = self.db()
+        try:
+            with mock.patch.object(db, "commit", side_effect=RuntimeError("commit died")):
+                with self.assertRaises(HTTPException) as err:
+                    vault_routes.change_vault_password(
+                        vault_routes.ChangePw(new_password="wpw2"), db=db, ctx=("wpw", wid)
+                    )
+            self.assertEqual(err.exception.status_code, 500)
+        finally:
+            db.close()
+
+        self.assertEqual(path.read_bytes(), old_cipher)
+        self.assertEqual(self._unlock("wpw", wid).status_code, 200)
+        self.assertEqual(self._unlock("wpw2", wid).status_code, 401)
+        dl = self.client.get(f"/api/vault/attachments/{aid}", headers=wh)
         self.assertEqual(dl.status_code, 200)
         self.assertEqual(dl.content, blob)
 

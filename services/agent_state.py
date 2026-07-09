@@ -10,23 +10,53 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 
+from core.settings import data_dir
 
-DATA_DIR = Path(__file__).parent.parent / "data" / "agent_runs"
-DATA_DIR.mkdir(parents=True, exist_ok=True)
+DATA_DIR: Path | None = None
 
 _active: dict[str, dict] = {}
+_disk_active_by_session: dict[str, dict] | None = None
+_disk_active_dir: Path | None = None
 
 
 def _now() -> str:
     return datetime.utcnow().isoformat()
 
 
+def run_dir() -> Path:
+    d = DATA_DIR or data_dir() / "agent_runs"
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
 def _path(run_id: str) -> Path:
-    return DATA_DIR / f"{run_id}.json"
+    return run_dir() / f"{run_id}.json"
+
+
+def _clear_disk_active_cache():
+    global _disk_active_by_session, _disk_active_dir
+    _disk_active_by_session = None
+    _disk_active_dir = None
 
 
 def _save(state: dict):
     _path(state["id"]).write_text(json.dumps(state, indent=2), "utf-8")
+    _clear_disk_active_cache()
+
+
+def _disk_active_runs() -> dict[str, dict]:
+    global _disk_active_by_session, _disk_active_dir
+    d = run_dir()
+    if _disk_active_by_session is not None and _disk_active_dir == d:
+        return _disk_active_by_session
+    rows = {}
+    for st in list_runs(limit=40):
+        sid = st.get("session_id")
+        if sid and st.get("status") == "running" and sid not in rows:
+            rows[sid] = st
+    _disk_active_by_session = rows
+    _disk_active_dir = d
+    return rows
 
 
 def start_run(session_id: str, model: str, max_turns: int, cwd: str = "") -> dict:
@@ -121,17 +151,12 @@ def find_active_run(session_id: str) -> dict | None:
     for st in _active.values():
         if st.get("session_id") == session_id and st.get("status") == "running":
             return st
-    # _active is memory-only — after a process restart a run can still be
-    # marked running on disk; surface that too so it can be inspected/reverted.
-    for st in list_runs(limit=40):
-        if st.get("session_id") == session_id and st.get("status") == "running":
-            return st
-    return None
+    return _disk_active_runs().get(session_id)
 
 
 def list_runs(limit: int = 20) -> list[dict]:
     rows = []
-    for p in sorted(DATA_DIR.glob("*.json"), key=lambda x: x.stat().st_mtime, reverse=True):
+    for p in sorted(run_dir().glob("*.json"), key=lambda x: x.stat().st_mtime, reverse=True):
         try:
             rows.append(json.loads(p.read_text("utf-8")))
         except Exception:

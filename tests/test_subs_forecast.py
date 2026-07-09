@@ -75,3 +75,9 @@ class SubForecastTests(ApiTest):
         self.assertEqual(fc["total"], 0.0)
         self.assertEqual(fc["currency"], "$")
         self.assertEqual(len(fc["forecast"]), 6)
+
+    def test_malformed_next_due_is_skipped(self):
+        self._sub(name="Bad", price=99.0, next_due="not-a-date")
+        self._sub(name="Good", price=10.0, next_due=date.today().isoformat())
+        fc = self._fc(1)
+        self.assertEqual(fc["total"], 10.0)

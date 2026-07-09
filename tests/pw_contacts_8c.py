@@ -81,7 +81,7 @@ def main():
 
         # ---- set as me, back to list, badge shows ----
         pg.eval_on_selector("#cd-me", "el => el.click()")
-        pg.wait_for_selector("#cd-back", timeout=8000)
+        pg.wait_for_function("document.getElementById('cd-me')?.classList.contains('primary')")
         pg.eval_on_selector("#cd-back", "el => el.click()")
         # a dropped keep-alive can make loadContacts show "failed to load"; reload once if so
         try:

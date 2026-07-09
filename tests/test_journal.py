@@ -1,5 +1,6 @@
 import unittest
 from datetime import date, timedelta
+
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -83,6 +84,9 @@ class CrudTests(unittest.TestCase):
 
         with self.assertRaises(HTTPException):
             J.get_entry("not-a-date", _mkdb())
+        with self.assertRaises(HTTPException) as err:
+            J.delete_entry("not-a-date", _mkdb())
+        self.assertEqual(err.exception.status_code, 400)
 
     def test_prompt_is_question(self):
         self.assertIn("?", J.todays_prompt()["prompt"])

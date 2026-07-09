@@ -4,10 +4,11 @@ reuses memory_store's fastembed embedder (with a jaccard fallback when it's not
 installed). the index is built lazily and cached; /reindex rebuilds it.
 """
 
-import re
+import asyncio
 import logging
+import re
 
-from services.memory_store import _embed, _cosine, _jaccard
+from services.memory_store import _cosine, _embed, _jaccard
 from services.vault_md import vault_dir
 
 log = logging.getLogger("aide.rag")
@@ -84,7 +85,7 @@ def retrieve(query: str, k: int = 5) -> list[dict]:
 
 
 async def answer(query: str, base_url: str, api_key: str, model: str, k: int = 5) -> dict:
-    hits = retrieve(query, k)
+    hits = await asyncio.to_thread(retrieve, query, k)
     if not hits:
         return {"answer": "I couldn't find anything relevant in your docs.", "sources": []}
     from services.llm import simple_complete

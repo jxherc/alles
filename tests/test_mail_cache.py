@@ -16,10 +16,12 @@ def _msgs():
         {
             "uid": "2",
             "from": "bob@y.com",
+            "to": "billing@me.com",
             "subject": "Invoice #42",
             "date": "d2",
             "date_ts": 300,
             "seen": False,
+            "has_attachment": True,
         },
         {
             "uid": "3",
@@ -65,6 +67,22 @@ class MailCacheTest(ApiTest):
         self.assertEqual([m["uid"] for m in mail_cache.search(d, "acct", "bob")], ["2"])
         d.close()
 
+    def test_advanced_search_to_and_attachment(self):
+        d = self.db()
+        mail_cache.save(d, "acct", "INBOX", _msgs())
+        self.assertEqual(
+            [m["uid"] for m in mail_cache.advanced_search(d, "acct", {"to": "billing"})],
+            ["2"],
+        )
+        self.assertEqual(
+            [
+                m["uid"]
+                for m in mail_cache.advanced_search(d, "acct", {"has_attachment": True})
+            ],
+            ["2"],
+        )
+        d.close()
+
     def test_cached_route_instant(self):
         aid = self._account()
         d = self.db()
@@ -105,10 +123,10 @@ class MailCacheTest(ApiTest):
         self.assertNotIn("1", remaining)
         self.assertIn("2", remaining)
 
-    def test_add_label_and_by_label(self):
+    def test_set_labels_and_by_label(self):
         d = self.db()
         mail_cache.save(d, "acct", "INBOX", _msgs())
-        mail_cache.add_label(d, "acct", "INBOX", "3", "work")
+        mail_cache.set_labels(d, "acct", "INBOX", "3", ["work"])
         labelled = mail_cache.by_label(d, "acct", "work")
         d.close()
         self.assertEqual(len(labelled), 1)

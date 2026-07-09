@@ -80,11 +80,11 @@ class WebPushTest(unittest.TestCase):
 
     def test_send_push_prunes_on_410(self):
         with mock.patch.object(wp.httpx, "AsyncClient", _fake_client(410)):
-            self.assertFalse(asyncio.run(wp.send_push(self._sub(), {"title": "t"})))
+            self.assertEqual(asyncio.run(wp.send_push(self._sub(), {"title": "t"})), "gone")
 
     def test_send_push_alive_on_201(self):
         with mock.patch.object(wp.httpx, "AsyncClient", _fake_client(201)):
-            self.assertTrue(asyncio.run(wp.send_push(self._sub(), {"title": "t"})))
+            self.assertEqual(asyncio.run(wp.send_push(self._sub(), {"title": "t"})), "sent")
 
     def test_b64u_empty_bytes(self):
         # empty payload should roundtrip cleanly and produce empty string
@@ -112,7 +112,6 @@ class WebPushTest(unittest.TestCase):
         self.assertNotEqual(c1, c2)
 
     def test_send_push_survives_network_exception(self):
-        # network errors should return True (treat as transient, don't prune)
         class _ErrClient:
             async def __aenter__(self):
                 return self
@@ -124,12 +123,15 @@ class WebPushTest(unittest.TestCase):
                 raise OSError("connection refused")
 
         with mock.patch.object(wp.httpx, "AsyncClient", lambda *a, **k: _ErrClient()):
-            self.assertTrue(asyncio.run(wp.send_push(self._sub(), {"title": "t"})))
+            self.assertEqual(asyncio.run(wp.send_push(self._sub(), {"title": "t"})), "failed")
 
     def test_send_push_prunes_on_404(self):
-        # 404 is also a dead subscription, should return False
         with mock.patch.object(wp.httpx, "AsyncClient", _fake_client(404)):
-            self.assertFalse(asyncio.run(wp.send_push(self._sub(), {"title": "t"})))
+            self.assertEqual(asyncio.run(wp.send_push(self._sub(), {"title": "t"})), "gone")
+
+    def test_send_push_failed_on_500(self):
+        with mock.patch.object(wp.httpx, "AsyncClient", _fake_client(500)):
+            self.assertEqual(asyncio.run(wp.send_push(self._sub(), {"title": "t"})), "failed")
 
 
 if __name__ == "__main__":

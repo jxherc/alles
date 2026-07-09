@@ -4,6 +4,7 @@ if installed, else scrapes the watch page's caption tracks → timedtext. Gracef
 when transcripts are unavailable or YouTube blocks the server.
 """
 
+import asyncio
 import html as _html
 import json
 import re
@@ -33,7 +34,7 @@ async def fetch_transcript(video_id: str):
     try:
         from youtube_transcript_api import YouTubeTranscriptApi
 
-        parts = YouTubeTranscriptApi.get_transcript(video_id)
+        parts = await asyncio.to_thread(YouTubeTranscriptApi.get_transcript, video_id)
         text = re.sub(r"\s+", " ", " ".join(p.get("text", "") for p in parts)).strip()
         if text:
             return ("", text)

@@ -9,6 +9,7 @@ import sys
 from playwright.sync_api import sync_playwright
 
 PORT = int(os.environ.get("AUDIT_PORT", "8823"))
+HOST = os.environ.get("AUDIT_HOST", "127.0.0.1")
 results, fails, errs = {}, [], []
 
 def check(name, cond):
@@ -21,7 +22,7 @@ def main():
         b = p.chromium.launch()
         pg = b.new_context(service_workers="block", viewport={"width": 1300, "height": 900}).new_page()
         pg.on("console", lambda m: errs.append(m.text) if m.type == "error" and "favicon" not in m.text and "net::" not in m.text else None)
-        pg.goto(f"http://localhost:{PORT}/", wait_until="domcontentloaded")
+        pg.goto(f"http://{HOST}:{PORT}/", wait_until="domcontentloaded")
         pg.wait_for_timeout(800)
         # start from a clean default theme
         pg.evaluate("()=>{localStorage.removeItem('alles-appearance');localStorage.removeItem('aide-accent');localStorage.removeItem('aide-theme');}")
@@ -55,6 +56,9 @@ def main():
         pg.wait_for_timeout(450)
         check("default_unlocks", pg.eval_on_selector("#s-default-theme", "el=>!el.classList.contains('locked')"))
         check("default_bg_none", pg.evaluate("()=>![...document.body.classList].some(c=>c.startsWith('bg-pattern-'))"))
+        check("default_is_dark", pg.evaluate("()=>document.documentElement.dataset.theme!=='light'"))
+        acc_default = pg.evaluate("()=>(JSON.parse(localStorage.getItem('alles-appearance')||'{}').colors||{}).accent")
+        check("default_is_purple", (acc_default or "").lower() == "#818cf8")
 
         # ── #34: accent survives reload (the core bug) ──
         pg.eval_on_selector('#s-accent-swatches .accent-swatch[data-hex="#a78bfa"]', "el=>el.click()")

@@ -112,7 +112,7 @@ class EndpointTests(unittest.TestCase):
         db.engine = self._orig
         self.eng.dispose()
 
-    def _recurring(self, payee, amount, next_date):
+    def _recurring(self, payee, amount, next_date, anchor_day=None):
         self.s.add(
             db.RecurringTxn(
                 account_id=self.a.id,
@@ -120,6 +120,7 @@ class EndpointTests(unittest.TestCase):
                 amount=amount,
                 cycle="monthly",
                 next_date=next_date,
+                anchor_day=anchor_day,
                 active=True,
             )
         )
@@ -154,6 +155,14 @@ class EndpointTests(unittest.TestCase):
             r = self.c.get(f"/api/money/forecast?month={bad}")
             self.assertEqual(r.status_code, 200, bad)
             self.assertIn("projected", r.json())
+
+    def test_forecast_recurring_uses_anchor_day(self):
+        self._recurring("rent", -50.0, "2026-01-31", anchor_day=31)
+        r = self.c.get("/api/money/forecast?month=2026-03&as_of=2026-02-01").json()
+        dates = [x["date"] for x in r["recurring"]]
+        self.assertIn("2026-02-28", dates)
+        self.assertIn("2026-03-31", dates)
+        self.assertNotIn("2026-03-28", dates)
 
     def test_networth_history_bad_as_of_no_crash(self):
         for bad in ("2026", "garbage", "2026-99"):

@@ -6,6 +6,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session as DbSession
 
 from core.database import Persona, get_db
+from core.settings import data_dir
 
 router = APIRouter(prefix="/api")
 
@@ -177,7 +178,11 @@ def unshare_persona(pid: str, db: DbSession = Depends(get_db)):
 
 
 # ── starter personas (seeded once on first boot so the picker isn't empty) ──────
-_SEED_SENTINEL = Path(__file__).resolve().parent.parent / "data" / ".personas_seeded"
+_SEED_SENTINEL: Path | None = None
+
+
+def seed_sentinel() -> Path:
+    return _SEED_SENTINEL or data_dir() / ".personas_seeded"
 
 _STARTERS = [
     (
@@ -220,7 +225,8 @@ _STARTERS = [
 
 def seed_default_personas() -> int:
     """write the starter personas once. a sentinel file means deleting them sticks."""
-    if _SEED_SENTINEL.exists():
+    sentinel = seed_sentinel()
+    if sentinel.exists():
         return 0
     from core.database import SessionLocal
 
@@ -235,8 +241,8 @@ def seed_default_personas() -> int:
     finally:
         db.close()
     try:
-        _SEED_SENTINEL.parent.mkdir(parents=True, exist_ok=True)
-        _SEED_SENTINEL.write_text("1")
+        sentinel.parent.mkdir(parents=True, exist_ok=True)
+        sentinel.write_text("1")
     except Exception:
         pass
     return n

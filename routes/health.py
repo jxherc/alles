@@ -22,15 +22,17 @@ def _d(s: str) -> date:
 
 
 # ── pure logic ──────────────────────────────────────────────────────────────────
-def latest_per_kind(entries) -> dict:
-    """most-recent entry per kind (by date, then insertion)."""
+def latest_per_kind(entries, key=None) -> dict:
+    """most-recent entry per kind/key (by date, then insertion)."""
+    key = key or (lambda e: e.kind)
     out = {}
     for e in entries:
-        cur = out.get(e.kind)
+        k = key(e)
+        cur = out.get(k)
         # >= so a same-day correction (later-inserted row) replaces the earlier one —
         # entries arrive in insertion order, matching the "by date, then insertion" contract
         if cur is None or str(e.date) >= str(cur.date):
-            out[e.kind] = e
+            out[k] = e
     return out
 
 
@@ -85,36 +87,31 @@ def overview(days: int = 365, db: DbSession = Depends(get_db)):
     targets = load_settings().get("health_targets") or {}
     since = (date.today() - timedelta(days=max(1, days))).isoformat()
     rows = db.query(HealthEntry).filter(HealthEntry.date >= since).all()
-    # latest per (kind, label) by DATE, ties broken by insertion (id-asc + >=) — so a backfilled
-    # older-dated row can't beat a newer one. key by (kind, label) so distinct custom metrics
-    # (e.g. blood pressure vs steps) get their own card.
-    all_rows = db.query(HealthEntry).order_by(HealthEntry.id.asc()).all()
-    latest_kl: dict = {}
-    for e in all_rows:
+    # bucket the in-range rows by (kind, label) once, tracking the latest per key by DATE (ties
+    # broken by insertion via id-asc + >=) so a backfilled older-dated row can't beat a newer one.
+    # a metric only gets a card if it has an entry in range, and for any such metric its globally
+    # latest entry is necessarily in range too — so the in-range rows are all we need (no full scan).
+    by_key: dict = {}
+    rows = sorted(rows, key=lambda r: r.id)
+    latest_kl = latest_per_kind(rows, key=lambda e: (e.kind, e.label or ""))
+    for e in rows:
         key = (e.kind, e.label or "")
-        cur = latest_kl.get(key)
-        if cur is None or str(e.date) >= str(cur.date):
-            latest_kl[key] = e
+        by_key.setdefault(key, []).append(e)
     out = []
-    seen = set()
-    for e in rows:  # only metrics with an entry IN the selected range get a card
-        key = (e.kind, e.label or "")
-        if key in seen:
-            continue
-        seen.add(key)
+    for key, ser in by_key.items():
+        rep = ser[0]  # representative entry for the card's kind/label
         lt = latest_kl.get(key)
-        t = targets.get(e.kind)
-        ser = [r for r in rows if (r.kind, r.label or "") == key]
+        t = targets.get(rep.kind)
         # 4b - baseline + flag whether the latest value sits outside the usual range (robust MAD)
         raw = sorted(((r.date, r.value or 0.0) for r in ser), key=lambda p: p[0])
         anoms = {a["date"]: a for a in life_stats.health_anomalies(raw)}
         latest_anom = anoms.get(lt.date) if lt else None
         out.append(
             {
-                "kind": e.kind,
-                "label": e.label,
+                "kind": rep.kind,
+                "label": rep.label,
                 "latest": {"date": lt.date, "value": lt.value, "unit": lt.unit} if lt else None,
-                "series": series_for(ser, e.kind),
+                "series": series_for(ser, rep.kind),
                 "target": t if isinstance(t, (int, float)) and t > 0 else None,
                 "baseline": life_stats.health_baseline([v for _, v in raw]),
                 "anomaly": (

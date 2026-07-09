@@ -3,8 +3,9 @@ applying to the cache (markread/mute/label) + enqueuing autoreplies/vacation sen
 are locally testable against the db."""
 
 from datetime import datetime
+from email.utils import parseaddr
 
-from core.database import CachedMessage, ScheduledMail
+from core.database import CachedMessage, MailAccount, ScheduledMail
 
 
 def _add_label(csv, label):
@@ -39,6 +40,17 @@ def _field(rule, name, default=""):
     return rule.get(name, default) if isinstance(rule, dict) else getattr(rule, name, default)
 
 
+def _addr(s):
+    return (parseaddr(s or "")[1] or s or "").strip().lower()
+
+
+def _self_addrs(db, account_id):
+    acct = db.get(MailAccount, account_id)
+    if not acct:
+        return set()
+    return {a for a in (_addr(acct.email), _addr(acct.username)) if a}
+
+
 def apply_rules(msg, rules):
     """matched actions for one message: [{action, action_arg}] over enabled rules."""
     out = []
@@ -62,7 +74,8 @@ def run_on_cache(db, account_id, rules):
     """apply markread / mute / label / autoreply rules over an account's cached messages.
     returns count applied. label dedupes; autoreply enqueues once per message (autoreplied guard)."""
     n = 0
-    for row in db.query(CachedMessage).filter_by(account_id=account_id).all():
+    own = _self_addrs(db, account_id)
+    for row in db.query(CachedMessage).filter_by(account_id=account_id, folder="INBOX").all():
         msg = {"from": row.sender or "", "subject": row.subject or ""}
         for act in apply_rules(msg, rules):
             a, arg = act["action"], act.get("action_arg", "")
@@ -77,7 +90,10 @@ def run_on_cache(db, account_id, rules):
                 if new != (row.labels or ""):
                     row.labels = new
                     n += 1
-            elif a == "autoreply" and not row.autoreplied and (row.sender or "").strip():
+            elif a == "autoreply" and not row.autoreplied:
+                sender = _addr(row.sender)
+                if not sender or sender in own:
+                    continue
                 subj = row.subject or ""
                 subj = subj if subj.lower().startswith("re:") else f"Re: {subj}"
                 _enqueue(db, account_id, row.sender, subj, arg)

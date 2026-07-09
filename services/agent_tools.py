@@ -20,6 +20,7 @@ from urllib.parse import urlparse
 
 import httpx
 
+from core.settings import data_dir
 
 ROOT = Path(__file__).parent.parent
 CODEX_HOME = Path(os.getenv("CODEX_HOME") or Path.home() / ".codex")
@@ -147,6 +148,116 @@ def _skip_secret(p) -> bool:
     used by the enumeration/read tools (list/glob/grep/code_symbols) so they can't bypass the
     read_file secret guard and exfiltrate ~/.ssh, .env, *.pem, credentials line by line."""
     return _is_secret_path(p) and not _settings().get("agent_allow_secrets")
+
+
+_SCAN_SKIP_DIRS = {
+    ".git",
+    ".hg",
+    ".svn",
+    "node_modules",
+    "__pycache__",
+    ".venv",
+    "venv",
+    "env",
+    "dist",
+    "build",
+    ".next",
+    ".cache",
+    ".pytest_cache",
+    ".mypy_cache",
+    ".ruff_cache",
+    "graphify-out",
+}
+
+_SCAN_SKIP_ROOT_DIRS = {"data"}
+
+_BINARY_EXTS = {
+    ".7z",
+    ".bin",
+    ".db",
+    ".dll",
+    ".dylib",
+    ".exe",
+    ".gif",
+    ".gz",
+    ".ico",
+    ".jpeg",
+    ".jpg",
+    ".mov",
+    ".mp3",
+    ".mp4",
+    ".ogg",
+    ".otf",
+    ".pdf",
+    ".png",
+    ".pyc",
+    ".rar",
+    ".so",
+    ".sqlite",
+    ".tar",
+    ".ttf",
+    ".wav",
+    ".webp",
+    ".woff",
+    ".woff2",
+    ".zip",
+}
+
+
+def _skip_scan_path(p, root: Path | None = None) -> bool:
+    if _skip_secret(p):
+        return True
+    pp = Path(p)
+    if any(str(part).lower() in _SCAN_SKIP_DIRS for part in pp.parts):
+        return True
+    if root is not None:
+        try:
+            rel = pp.relative_to(root)
+            return bool(rel.parts and rel.parts[0].lower() in _SCAN_SKIP_ROOT_DIRS)
+        except ValueError:
+            return False
+    return False
+
+
+def _iter_scan(root: Path, *, include_dirs: bool = False, max_depth: int | None = None):
+    base_parts = len(root.parts)
+    for cur, dirnames, filenames in os.walk(root):
+        curp = Path(cur)
+        cur_depth = len(curp.parts) - base_parts
+        kept = []
+        for name in sorted(dirnames):
+            dp = curp / name
+            if _skip_scan_path(dp, root):
+                continue
+            child_depth = cur_depth + 1
+            if include_dirs and (max_depth is None or child_depth <= max_depth):
+                yield dp
+            if max_depth is None or child_depth < max_depth:
+                kept.append(name)
+        dirnames[:] = kept
+
+        if max_depth is not None and cur_depth + 1 > max_depth:
+            continue
+        for name in sorted(filenames):
+            fp = curp / name
+            if not _skip_scan_path(fp, root):
+                yield fp
+
+
+def _scan_rel(root: Path, item: Path) -> str:
+    if root.is_file() and item == root:
+        return item.name
+    return str(item.relative_to(root)).replace("\\", "/")
+
+
+def _skip_binary_file(p: Path) -> bool:
+    if p.suffix.lower() in _BINARY_EXTS:
+        return True
+    try:
+        with p.open("rb") as f:
+            return b"\0" in f.read(2048)
+    except OSError:
+        return True
 
 
 def _allowed_roots() -> list:
@@ -437,13 +548,7 @@ async def _list_files(path: str = ".", depth: int = 1) -> dict:
         if root.is_file():
             return {"output": str(root), "error": False}
         lines = []
-        base_parts = len(root.parts)
-        for item in sorted(root.rglob("*")):
-            rel_depth = len(item.parts) - base_parts
-            if rel_depth > max(1, depth):
-                continue
-            if _skip_secret(item):
-                continue
+        for item in _iter_scan(root, include_dirs=True, max_depth=max(1, depth)):
             rel = item.relative_to(root)
             lines.append(("[dir] " if item.is_dir() else "      ") + str(rel))
             if len(lines) >= 500:
@@ -458,11 +563,14 @@ async def _glob_files(pattern: str, path: str = ".", head_limit: int = 0) -> dic
     try:
         root = _resolve(path)
         matches = []
-        for item in root.rglob("*"):
-            if _skip_secret(item):
-                continue
-            rel = str(item.relative_to(root)).replace("\\", "/")
-            if fnmatch.fnmatch(rel, pattern):
+        if root.is_file() and _skip_scan_path(root):
+            items = []
+        else:
+            items = [root] if root.is_file() else _iter_scan(root, include_dirs=True)
+        pat = pattern or "*"
+        for item in items:
+            rel = _scan_rel(root, item)
+            if fnmatch.fnmatch(rel, pat):
                 try:
                     mt = item.stat().st_mtime
                 except OSError:
@@ -493,11 +601,19 @@ async def _grep_files(
         root = _resolve(path)
         rx = re.compile(pattern, re.IGNORECASE if ignore_case else 0)
         cap = head_limit or (300 if output_mode == "content" else 1000)
+        file_pat = file_glob or "*"
 
         if output_mode in ("files_with_matches", "count"):
             out = []
-            for item in root.rglob(file_glob):
-                if not item.is_file() or _skip_secret(item):
+            items = [root] if root.is_file() else _iter_scan(root)
+            for item in items:
+                rel = _scan_rel(root, item)
+                if (
+                    not item.is_file()
+                    or _skip_scan_path(item)
+                    or _skip_binary_file(item)
+                    or not fnmatch.fnmatch(rel, file_pat)
+                ):
                     continue
                 try:
                     n = sum(
@@ -508,21 +624,26 @@ async def _grep_files(
                 except Exception:
                     continue
                 if n:
-                    rel = str(item.relative_to(root)).replace("\\", "/")
                     out.append(f"{rel}:{n}" if output_mode == "count" else rel)
                 if len(out) >= cap:
                     break
             return {"output": "\n".join(out) or "(no matches)", "error": False}
 
         rows = []
-        for item in root.rglob(file_glob):
-            if not item.is_file() or _skip_secret(item):
+        items = [root] if root.is_file() else _iter_scan(root)
+        for item in items:
+            rel = _scan_rel(root, item)
+            if (
+                not item.is_file()
+                or _skip_scan_path(item)
+                or _skip_binary_file(item)
+                or not fnmatch.fnmatch(rel, file_pat)
+            ):
                 continue
             try:
                 lines = item.read_text("utf-8", errors="replace").splitlines()
             except Exception:
                 continue
-            rel = str(item.relative_to(root)).replace("\\", "/")
             for i, line in enumerate(lines):
                 if not rx.search(line):
                     continue
@@ -608,8 +729,10 @@ async def _memory_add(text: str, category: str = "", pinned: bool = False) -> di
 
 
 def _skill_files() -> list[Path]:
+    from services import skills_store
+
     roots = [
-        Path(__file__).resolve().parent.parent / "data" / "skills",  # user's own alles skills
+        skills_store.skills_dir(),  # user's own alles skills
         CODEX_HOME / "skills",
         CODEX_HOME / "skills" / ".system",
         CODEX_HOME / "plugins" / "cache",
@@ -638,7 +761,7 @@ async def _skill_list() -> dict:
             except Exception:
                 continue
 
-        from core.database import SessionLocal, CookbookEntry
+        from core.database import CookbookEntry, SessionLocal
 
         db = SessionLocal()
         try:
@@ -678,7 +801,7 @@ async def _skill_load(name_or_path: str) -> dict:
         target = name_or_path.strip()
         if target.startswith("cookbook/") or target.startswith("cookbook:"):
             key = target.split("/", 1)[-1].split(":", 1)[-1]
-            from core.database import SessionLocal, CookbookEntry
+            from core.database import CookbookEntry, SessionLocal
 
             db = SessionLocal()
             try:
@@ -701,7 +824,7 @@ async def _skill_load(name_or_path: str) -> dict:
                 try:  # count it only if it's one of the user's own alles skills
                     from services import skills_store
 
-                    if sf.parent.parent == skills_store.SKILLS_DIR:
+                    if sf.parent.parent == skills_store.skills_dir():
                         skills_store.record_use(target)
                 except Exception:
                     pass
@@ -718,9 +841,12 @@ async def _mcp_list_tools() -> dict:
     try:
         from services import mcp_registry
 
+        disabled = _mcp_disabled_map()
         rows = []
         for sid, tools in mcp_registry.tools.items():
             for t in tools:
+                if t.get("name") in disabled.get(sid, set()):
+                    continue
                 rows.append(
                     {
                         "server_id": sid,
@@ -734,10 +860,29 @@ async def _mcp_list_tools() -> dict:
         return {"output": str(e), "error": True}
 
 
+def _mcp_disabled_map() -> dict[str, set[str]]:
+    try:
+        from core.database import McpServer, SessionLocal
+
+        db = SessionLocal()
+        try:
+            return {s.id: {str(x) for x in s.disabled_tools_list()} for s in db.query(McpServer)}
+        finally:
+            db.close()
+    except Exception:
+        return {}
+
+
+def _mcp_tool_disabled(server_id: str, tool_name: str) -> bool:
+    return tool_name in _mcp_disabled_map().get(server_id, set())
+
+
 async def _mcp_call_tool(server_id: str, tool_name: str, arguments: dict | None = None) -> dict:
     try:
         from services import mcp_registry
 
+        if _mcp_tool_disabled(server_id, tool_name):
+            return {"output": f"MCP tool disabled: {tool_name}", "error": True}
         session = mcp_registry.sessions.get(server_id)
         if not session:
             return {"output": f"MCP server not connected: {server_id}", "error": True}
@@ -784,7 +929,7 @@ async def _opencode_run(prompt: str, cwd: str = ".", model: str = "", agent: str
 
 # ── computer use (pyautogui) ────────────────────────────────────────────────
 def _shots_dir() -> Path:
-    d = ROOT / "data" / "agent_shots"
+    d = data_dir() / "agent_shots"
     d.mkdir(parents=True, exist_ok=True)
     return d
 
@@ -901,7 +1046,13 @@ async def _run_subagent(task: str, cwd: str = "") -> str:
     if not ep or not model:
         return "[sub-agent error: no endpoint/model in context]"
     sub = dict(_settings())
-    sub["agent_max_turns"] = min(int(sub.get("agent_max_turns", 24) or 24), 10)
+    try:
+        cap = int(sub.get("agent_max_turns", 24) or 24)
+    except (TypeError, ValueError):
+        cap = 24
+    cap = max(1, min(cap, 10))
+    sub["agent_max_turns"] = cap
+    sub["_agent_turn_cap"] = cap
     sub["agent_subagents"] = False  # no recursive spawning
     if cwd:
         sub["agent_cwd"] = cwd
@@ -1344,7 +1495,7 @@ async def execute(name: str, args: dict) -> dict:
 
 # ── cross-app tool implementations ──────────────────────────────────────────
 async def _calendar_list(start, end):
-    from core.database import SessionLocal, CalendarEvent
+    from core.database import CalendarEvent, SessionLocal
 
     db = SessionLocal()
     try:
@@ -1366,7 +1517,7 @@ async def _calendar_list(start, end):
 
 
 async def _calendar_create(a):
-    from core.database import SessionLocal, CalendarEvent
+    from core.database import CalendarEvent, SessionLocal
 
     db = SessionLocal()
     try:
@@ -1388,7 +1539,7 @@ async def _calendar_create(a):
 
 
 async def _calendar_delete(eid):
-    from core.database import SessionLocal, CalendarEvent
+    from core.database import CalendarEvent, SessionLocal
 
     db = SessionLocal()
     try:
@@ -1867,7 +2018,7 @@ async def _note_backlinks(name):
 
 
 async def _contact_list(q):
-    from core.database import SessionLocal, Contact
+    from core.database import Contact, SessionLocal
 
     db = SessionLocal()
     try:
@@ -1887,7 +2038,7 @@ async def _contact_list(q):
 
 
 async def _contact_add(a):
-    from core.database import SessionLocal, Contact
+    from core.database import Contact, SessionLocal
 
     db = SessionLocal()
     try:
@@ -1907,7 +2058,7 @@ async def _contact_add(a):
 
 
 def _first_mail_acct():
-    from core.database import SessionLocal, MailAccount
+    from core.database import MailAccount, SessionLocal
 
     db = SessionLocal()
     try:
@@ -1992,8 +2143,9 @@ async def _recall(query, top_k):
 
 
 async def _money_query(query):
-    from core.database import SessionLocal, Account, Transaction
     from datetime import date
+
+    from core.database import Account, SessionLocal, Transaction
 
     db = SessionLocal()
     try:

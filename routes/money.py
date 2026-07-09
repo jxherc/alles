@@ -1,10 +1,11 @@
 import calendar as _cal
 import math
 from collections import defaultdict
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session as DbSession
 
 from core.database import (
@@ -27,6 +28,25 @@ from services import fx
 router = APIRouter(prefix="/api/money")
 
 RECUR_CYCLES = ("weekly", "monthly", "quarterly", "yearly", "custom")
+
+
+def _like_esc(s: str) -> str:
+    """escape LIKE wildcards so a search term with % or _ matches literally, not as a wildcard."""
+    return s.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+
+def _need_floats(body, *fields):
+    """coerce the named body fields to finite floats in place; 400 on junk. the dict PATCH
+    routes setattr numeric fields raw, so bad input used to bubble up as an ugly 500."""
+    for f in fields:
+        if f in body and body[f] is not None:
+            try:
+                v = float(body[f])
+            except (TypeError, ValueError):
+                raise HTTPException(400, f"{f} must be a number")
+            if not math.isfinite(v):
+                raise HTTPException(400, f"{f} must be a finite number")
+            body[f] = v
 
 
 def _add_months(d: date, n: int, anchor: int | None = None) -> date:
@@ -116,6 +136,7 @@ def update_account(aid: str, body: dict, db: DbSession = Depends(get_db)):
     a = db.get(Account, aid)
     if not a:
         raise HTTPException(404)
+    _need_floats(body, "opening", "low_balance")
     for k in ("name", "kind", "currency", "opening", "color", "archived", "low_balance"):
         if k in body:
             setattr(a, k, body[k])
@@ -271,11 +292,16 @@ def list_txns(
     if category:
         q = q.filter(Transaction.category == category)
     if tag:  # tags are stored csv-normalized → substring match on a single tag
-        q = q.filter(Transaction.tags.like(f"%{tag.strip().lower()}%"))
+        q = q.filter(Transaction.tags.like(f"%{_like_esc(tag.strip().lower())}%", escape="\\"))
     if month:  # month = "YYYY-MM"
         q = q.filter(Transaction.date.like(f"{month}%"))
     rows = q.order_by(Transaction.date.desc(), Transaction.created_at.desc()).limit(limit).all()
-    split_ids = {r[0] for r in db.query(TxnSplit.txn_id).distinct().all()}
+    # only check splits for the rows we're returning, not the whole splits table
+    ids = [t.id for t in rows]
+    split_ids = (
+        {r[0] for r in db.query(TxnSplit.txn_id).filter(TxnSplit.txn_id.in_(ids)).distinct().all()}
+        if ids else set()
+    )
     out = []
     for t in rows:
         d = _txn(t)
@@ -301,25 +327,26 @@ def search_txns(
         query = query.filter(Transaction.account_id == account)
     if month:
         query = query.filter(Transaction.date.like(f"{month}%"))
-    rows = query.order_by(Transaction.date.desc(), Transaction.created_at.desc()).all()
     ql = (q or "").strip().lower()
-    out = []
-    for t in rows:
-        if ql and not (
-            ql in (t.payee or "").lower()
-            or ql in (t.category or "").lower()
-            or ql in (t.notes or "").lower()
-        ):
-            continue
-        amt = abs(t.amount or 0.0)
-        if min_amt is not None and amt < min_amt:
-            continue
-        if max_amt is not None and amt > max_amt:
-            continue
-        out.append(_txn(t))
-        if len(out) >= limit:
-            break
-    return out
+    if ql:  # push the text match into sql instead of scanning every row in python
+        like = f"%{_like_esc(ql)}%"
+        query = query.filter(
+            or_(
+                func.lower(Transaction.payee).like(like, escape="\\"),
+                func.lower(Transaction.category).like(like, escape="\\"),
+                func.lower(Transaction.notes).like(like, escape="\\"),
+            )
+        )
+    if min_amt is not None:
+        query = query.filter(func.abs(Transaction.amount) >= min_amt)
+    if max_amt is not None:
+        query = query.filter(func.abs(Transaction.amount) <= max_amt)
+    rows = (
+        query.order_by(Transaction.date.desc(), Transaction.created_at.desc())
+        .limit(max(1, limit))
+        .all()
+    )
+    return [_txn(t) for t in rows]
 
 
 class TxnBody(BaseModel):
@@ -775,6 +802,18 @@ def update_recurring(rid: str, body: dict, db: DbSession = Depends(get_db)):
         raise HTTPException(404)
     if "cycle" in body and body["cycle"] not in RECUR_CYCLES:
         raise HTTPException(400, f"cycle must be one of {', '.join(RECUR_CYCLES)}")
+    _need_floats(body, "amount")
+    if body.get("cycle_days") is not None:
+        try:
+            body["cycle_days"] = int(body["cycle_days"])
+        except (TypeError, ValueError):
+            raise HTTPException(400, "cycle_days must be an integer")
+    if "next_date" in body:  # validate + normalize to a clean ISO string (accepts int or str)
+        try:
+            _nd = date.fromisoformat(str(body["next_date"])[:10])
+        except ValueError:
+            raise HTTPException(400, "next_date must be an ISO date (YYYY-MM-DD)")
+        body["next_date"] = _nd.isoformat()  # store dashed str so anchor calc can't choke on an int
     for k in (
         "account_id",
         "amount",
@@ -788,7 +827,7 @@ def update_recurring(rid: str, body: dict, db: DbSession = Depends(get_db)):
     ):
         if k in body:
             setattr(r, k, body[k])
-    if "next_date" in body and len(r.next_date or "") >= 10:
+    if "next_date" in body:
         r.anchor_day = date.fromisoformat(r.next_date[:10]).day  # keep the drift anchor in sync
     db.commit()
     return _rec(r)
@@ -1006,8 +1045,14 @@ def set_target(body: TargetBody, db: DbSession = Depends(get_db)):
 def envelope(month: str = "", db: DbSession = Depends(get_db)):
     if not month:
         month = date.today().strftime("%Y-%m")
-    spent_now = _spending_by_cat(db, month)
-    spent_upto = _spending_by_cat(db, month, upto=True)
+    # fetch txns + splits once and reuse — both _spending_by_cat calls and the income sum below
+    # otherwise each call re-scanned the whole Transaction + TxnSplit tables (4b perf)
+    all_txns = db.query(Transaction).all()
+    splits_by_txn = defaultdict(list)
+    for s in db.query(TxnSplit).all():
+        splits_by_txn[s.txn_id].append(s)
+    spent_now = _spending_by_cat(db, month, txns=all_txns, splits_by_txn=splits_by_txn)
+    spent_upto = _spending_by_cat(db, month, upto=True, txns=all_txns, splits_by_txn=splits_by_txn)
     assigns = db.query(BudgetAssignment).all()
     assigned_now = {a.category: a.assigned for a in assigns if a.month == month}
     assigned_upto = defaultdict(float)
@@ -1040,8 +1085,8 @@ def envelope(month: str = "", db: DbSession = Depends(get_db)):
 
     income = sum(
         t.amount or 0.0
-        for t in db.query(Transaction).filter(Transaction.date.like(f"{month}%")).all()
-        if not t.transfer_id and (t.amount or 0.0) > 0
+        for t in all_txns
+        if (t.date or "")[:7] == month and not t.transfer_id and (t.amount or 0.0) > 0
     )
     assigned_total = round(sum(assigned_now.values()), 2)
     return {
@@ -1078,6 +1123,12 @@ def age_of_money(db: DbSession = Depends(get_db)):
         ed_d = _d(ed)
         while need > 0.005 and qi < len(queue):
             idate, iremain = queue[qi]
+            # you can't spend money you haven't received yet. the queue is date-sorted, so if the
+            # oldest unspent income is dated after this expense, no earlier income funds it — the
+            # spend is "unfunded", skip it (don't emit a negative-age batch). a later expense can
+            # still draw on this lot, so leave qi where it is.
+            if _d(idate) > ed_d:
+                break
             take = min(need, iremain)
             age = (ed_d - _d(idate)).days
             batches.append((ed, age, take))
@@ -1151,9 +1202,10 @@ def forecast(
             d = date.fromisoformat(r.next_date)
         except ValueError:
             continue
+        anchor = r.anchor_day or d.day
         guard = 0
         while d <= as_of_d and guard < 600:
-            d = _advance(d, r.cycle, r.cycle_days or 30)
+            d = _advance(d, r.cycle, r.cycle_days or 30, anchor)
             guard += 1
         while d <= end and guard < 600:
             occ.append(
@@ -1163,7 +1215,7 @@ def forecast(
                     "payee": r.payee or r.category or "recurring",
                 }
             )
-            d = _advance(d, r.cycle, r.cycle_days or 30)
+            d = _advance(d, r.cycle, r.cycle_days or 30, anchor)
             guard += 1
     occ.sort(key=lambda x: x["date"])
     from services import forecast as forecast_svc
@@ -1193,7 +1245,14 @@ def forecast(
 def networth_history(months: int = 6, as_of: str = "", db: DbSession = Depends(get_db)):
     end_month = as_of[:7] if as_of else date.today().strftime("%Y-%m")
     accounts = db.query(Account).all()
-    txns = db.query(Transaction).all()
+    aset = {a.id for a in accounts if not a.archived}
+    base = sum((a.opening or 0.0) for a in accounts if not a.archived)
+    # sort our txns once, then sweep cumulatively across month boundaries instead of
+    # re-scanning the whole txn list per month (was O(months * txns))
+    txns = sorted(
+        (t for t in db.query(Transaction).all() if t.account_id in aset),
+        key=lambda t: t.date or "",
+    )
     y, m = _ym(end_month)
     seq = []
     for _ in range(max(1, months)):
@@ -1202,10 +1261,13 @@ def networth_history(months: int = 6, as_of: str = "", db: DbSession = Depends(g
         if m == 0:
             m, y = 12, y - 1
     out = []
-    for mo in reversed(seq):
-        out.append(
-            {"month": mo, "net_worth": _net_worth_at(db, accounts, _last_day(mo).isoformat(), txns)}
-        )
+    nw, i = base, 0
+    for mo in reversed(seq):  # oldest -> newest so the running total only moves forward
+        cutoff = _last_day(mo).isoformat()
+        while i < len(txns) and (txns[i].date or "") <= cutoff:
+            nw += txns[i].amount or 0.0
+            i += 1
+        out.append({"month": mo, "net_worth": round(nw, 2)})
     return out
 
 
@@ -1266,6 +1328,7 @@ def update_holding(hid: str, body: dict, db: DbSession = Depends(get_db)):
     h = db.get(Holding, hid)
     if not h:
         raise HTTPException(404)
+    _need_floats(body, "qty", "cost_basis", "price")
     for k in ("symbol", "name", "qty", "cost_basis", "price"):
         if k in body:
             setattr(h, k, body[k])
@@ -1427,8 +1490,6 @@ def alerts(month: str = "", big: float = 200.0, as_of: str = "", db: DbSession =
 
 # ── goals, reports, multi-currency (4d) ───────────────────────────────────────
 def _goal(g):
-    import math
-
     target = g.target or 0.0
     current = g.current or 0.0
     if g.kind == "debt":
@@ -1490,6 +1551,7 @@ def update_goal(gid: str, body: dict, db: DbSession = Depends(get_db)):
     g = db.get(Goal, gid)
     if not g:
         raise HTTPException(404)
+    _need_floats(body, "target", "current", "monthly")
     for k in ("name", "kind", "target", "current", "monthly"):
         if k in body:
             setattr(g, k, body[k])
@@ -1596,8 +1658,7 @@ def networth_base(base: str = "USD", db: DbSession = Depends(get_db)):
 
 # ── summary — powers the cards + charts ───────────────────────────────────────
 def _recent_months(month: str, n: int = 6):
-    base = datetime.strptime(month + "-01", "%Y-%m-%d")
-    y, m = base.year, base.month
+    y, m = _ym(month)  # safe parse — a bad/empty month falls back to today instead of a 500
     out = []
     for i in range(n - 1, -1, -1):
         mm, yy = m - i, y

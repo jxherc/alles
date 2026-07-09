@@ -130,3 +130,15 @@ class TextIndexTests(ApiTest):
         self.assertGreaterEqual(n, 1)
         refs = {r.ref for r in d.query(IndexChunk).filter_by(kind="doc").all()}
         self.assertEqual(refs, {"new.md"})
+
+    def test_reindex_kind_commits_once(self):
+        d = self.db()
+        textindex.index(d, "doc", "old.md", "old content")
+        with (
+            mock.patch.object(textindex, "_embed", lambda texts: None),
+            mock.patch.object(d, "commit", wraps=d.commit) as commit,
+        ):
+            n = textindex.reindex_kind(d, "doc", [("a.md", "alpha"), ("b.md", "beta")])
+
+        self.assertEqual(n, 2)
+        self.assertEqual(commit.call_count, 1)

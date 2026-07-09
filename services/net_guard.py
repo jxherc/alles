@@ -1,8 +1,10 @@
 """shared SSRF guard for server-side URL fetches (feeds, calendar ics, research, agent web_fetch).
 
-a single chokepoint that blocks http(s) requests to loopback / private / link-local / cloud-metadata
-addresses, so a user/model-supplied url (incl. one reached via a redirect, since we resolve the host)
-can't make the server read internal services or the cloud metadata endpoint (169.254.169.254).
+a single chokepoint that blocks http(s) requests to loopback, link-local/cloud-metadata,
+reserved, multicast, and unspecified addresses, so a user/model-supplied url (incl. one
+reached via a redirect, since we resolve the host) can't make the server read itself or
+the cloud metadata endpoint (169.254.169.254). private LAN addresses are allowed on purpose
+for self-hosted installs.
 """
 
 import ipaddress
@@ -25,7 +27,7 @@ def _blocked_ip(ip_str) -> bool:
 
 
 def is_safe_url(url: str) -> bool:
-    """True only for an http(s) url whose host resolves entirely to PUBLIC addresses."""
+    """True only for an http(s) url whose host resolves without blocked addresses."""
     try:
         p = urlparse((url or "").strip())
     except ValueError:
@@ -54,13 +56,13 @@ def is_safe_url(url: str) -> bool:
 
 def assert_safe_url(url: str):
     if not is_safe_url(url):
-        raise ValueError(f"refusing to fetch a non-public url: {url!r}")
+        raise ValueError(f"refusing to fetch a blocked url: {url!r}")
 
 
 def safe_get(url: str, *, timeout=20, headers=None, max_redirects=6):
     """httpx.get with the SSRF guard re-checked on EVERY redirect hop — plain
     follow_redirects=True is bypassable: a public url can 302 to http://169.254.169.254/
-    or localhost and the original-url check never sees it. raises ValueError on a non-public
+    or localhost and the original-url check never sees it. raises ValueError on a blocked
     hop. returns the final httpx.Response."""
     import httpx
 

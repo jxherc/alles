@@ -1,7 +1,26 @@
+from unittest import mock
+
 from tests._client import ApiTest
 
 
+async def _sent(*a, **k):
+    return "sent"
+
+
+async def _failed(*a, **k):
+    return "failed"
+
+
+async def _gone(*a, **k):
+    return "gone"
+
+
 class PushApiTest(ApiTest):
+    def _sub(self, endpoint="https://push.example/abc"):
+        return self.client.post(
+            "/api/push/subscribe", json={"endpoint": endpoint, "keys": {"p256dh": "k", "auth": "a"}}
+        )
+
     def test_status_starts_zero(self):
         self.assertEqual(self.client.get("/api/push/status").json(), {"subscriptions": 0})
 
@@ -73,3 +92,26 @@ class PushApiTest(ApiTest):
         )
         # still just one row
         self.assertEqual(self.client.get("/api/push/status").json()["subscriptions"], 1)
+
+    def test_test_push_counts_only_sent(self):
+        self._sub()
+        with mock.patch("routes.push.webpush.send_push", _sent):
+            r = self.client.post("/api/push/test")
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.json()["sent"], 1)
+
+    def test_test_push_failure_is_not_reported_sent(self):
+        self._sub()
+        with mock.patch("routes.push.webpush.send_push", _failed):
+            r = self.client.post("/api/push/test")
+        self.assertEqual(r.status_code, 502)
+        self.assertEqual(r.json()["detail"], "push delivery failed")
+        self.assertEqual(self.client.get("/api/push/status").json()["subscriptions"], 1)
+
+    def test_test_push_prunes_dead_subscription(self):
+        self._sub()
+        with mock.patch("routes.push.webpush.send_push", _gone):
+            r = self.client.post("/api/push/test")
+        self.assertEqual(r.status_code, 400)
+        self.assertEqual(r.json()["detail"], "no live push subscriptions registered")
+        self.assertEqual(self.client.get("/api/push/status").json()["subscriptions"], 0)

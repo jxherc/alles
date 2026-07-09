@@ -111,6 +111,15 @@ class VaultMultiTests(ApiTest):
         self.assertEqual(r.status_code, 200)
         self.assertTrue(r.json().get("token"))
 
+    def test_lock_only_revokes_caller_token(self):
+        tok2 = self.client.post("/api/vault/unlock", json={"password": "m1"}).json()["token"]
+        self.assertEqual(self.client.post("/api/vault/lock", headers=self.h).status_code, 200)
+
+        self.assertEqual(self.client.get("/api/vault", headers=self.h).status_code, 403)
+        self.assertEqual(
+            self.client.get("/api/vault", headers={"X-Vault-Token": tok2}).status_code, 200
+        )
+
     def test_rename_and_flag_vault(self):
         self._mk_vault("Work", "wpw")
         vid = self._id_of("Work")
@@ -128,6 +137,24 @@ class VaultMultiTests(ApiTest):
             self.client.delete(f"/api/vault/vaults/{vid}", headers=self.h).status_code, 200
         )
         self.assertNotIn("Tmp", [v["name"] for v in self._vaults()])
+
+    def test_delete_vault_cleans_2fa_settings(self):
+        self._mk_vault("Tmp", "t")
+        vid = self._id_of("Tmp")
+        core.settings.save_settings({
+            "vault_require_2fa": {vid: True, "default": True},
+            "vault_2fa_totp": {vid: "tmp-secret", "default": "main-secret"},
+        })
+
+        self.assertEqual(
+            self.client.delete(f"/api/vault/vaults/{vid}", headers=self.h).status_code, 200
+        )
+
+        s = core.settings.load_settings()
+        self.assertNotIn(vid, s.get("vault_require_2fa") or {})
+        self.assertNotIn(vid, s.get("vault_2fa_totp") or {})
+        self.assertTrue((s.get("vault_require_2fa") or {}).get("default"))
+        self.assertEqual((s.get("vault_2fa_totp") or {}).get("default"), "main-secret")
 
     def test_cannot_delete_default(self):
         self.assertEqual(

@@ -43,50 +43,6 @@ def spearman(xs, ys):
     return _pearson(_rank(xs), _rank(ys))
 
 
-_MOOD = {
-    5: ("great", "amazing", "ecstatic", "joyful", "fantastic", "excellent", "😄", "😁", "🤩"),
-    4: ("happy", "good", "content", "calm", "relaxed", "🙂", "😊"),
-    3: ("meh", "ok", "okay", "neutral", "fine", "😐"),
-    2: ("down", "tired", "anxious", "stressed", "low", "😕", "😟"),
-    1: ("sad", "awful", "terrible", "depressed", "miserable", "angry", "😢", "😞", "😠"),
-}
-
-
-def mood_score(s):
-    """map a mood word/emoji to 1..5; unknown -> 3 (neutral)."""
-    t = (s or "").strip().lower()
-    for score, words in _MOOD.items():
-        if any(w in t for w in words):
-            return score
-    return 3
-
-
-def _strength(rho):
-    a = abs(rho)
-    if a >= 0.6:
-        return "strong"
-    if a >= 0.3:
-        return "moderate"
-    if a >= 0.1:
-        return "weak"
-    return "none"
-
-
-def correlate(pairs):
-    """pairs = [(x, y)]. returns {rho, n, strength, direction} (explainable)."""
-    xs = [p[0] for p in pairs]
-    ys = [p[1] for p in pairs]
-    rho = spearman(xs, ys)
-    if rho is None:
-        return {"rho": None, "n": len(pairs), "strength": "none", "direction": "none"}
-    return {
-        "rho": round(rho, 3),
-        "n": len(pairs),
-        "strength": _strength(rho),
-        "direction": "positive" if rho > 0 else ("negative" if rho < 0 else "none"),
-    }
-
-
 def habit_failure_risk(done_dates, today, *, window=14):
     """risk (0..1) of failing today, from the recent completion rate over `window` days."""
     window = max(1, int(window))  # ?window=0 from the risk endpoint would divide by zero; negatives are nonsense too

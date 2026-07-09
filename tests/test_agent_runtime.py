@@ -208,6 +208,10 @@ class TrimHistoryTests(unittest.TestCase):
 
 
 class EffortTurnsTests(unittest.TestCase):
+    def test_subagent_turn_cap_limits_effort_turns(self):
+        self.assertEqual(ar._agent_max_turns({"agent_effort": "max", "_agent_turn_cap": 10}), 10)
+        self.assertEqual(ar._agent_max_turns({"agent_effort": "high", "_agent_turn_cap": 4}), 4)
+
     def test_system_note_mentions_effort(self):
         note_low = ar.agent_system_note({"agent_effort": "low"})
         note_high = ar.agent_system_note({"agent_effort": "high"})

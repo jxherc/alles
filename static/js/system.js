@@ -234,6 +234,11 @@ function cpuBar(pct) {
   for (let i = 0; i < w; i++) s += i < f ? `<span style="color:${hgrad(i, w)}">█</span>` : '░';
   return s;
 }
+export function procCpuLabel(cpu) {
+  if (cpu == null || cpu === '') return '  —';
+  const n = Number(cpu);
+  return Number.isFinite(n) ? String(n.toFixed(0)).padStart(3) : '  —';
+}
 function uptime(sec) {
   if (!sec) return '—';
   const d = Math.floor(sec / 86400), h = Math.floor(sec % 86400 / 3600), m = Math.floor(sec % 3600 / 60);
@@ -381,7 +386,7 @@ function render(s) {
       <span class="p-thr">${p.threads || ''}</span>
       <span class="p-user">${esc(p.user || '')}</span>
       <span class="p-mem">${memMB(p.rss)}</span>
-      <span class="p-cpu"><span class="p-cpubar">${cpuBar(p.cpu)}</span><b style="color:${heat(p.cpu)}">${String(p.cpu.toFixed(0)).padStart(3)}</b></span>
+      <span class="p-cpu"><span class="p-cpubar">${cpuBar(p.cpu)}</span><b style="color:${heat(p.cpu)}">${procCpuLabel(p.cpu)}</b></span>
     </div>`).join('') || '<span class="g-dim">no process data — needs psutil</span>');
 }
 

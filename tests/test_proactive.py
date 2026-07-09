@@ -97,6 +97,7 @@ class ProactiveGateTests(_IsolatedSettings):
 
     def test_scheduled_nothing_new_after_seen(self):
         import core.settings as cfg
+
         # enable scheduled path; equal quiet bounds = never quiet, so the test is
         # not wall-clock dependent
         cfg.save_settings({"pidx_proactive_enabled": True,
@@ -120,6 +121,42 @@ class ProactiveGateTests(_IsolatedSettings):
         self.assertFalse(second["ran"])
         self.assertEqual(second["reason"], "nothing_new")
         self.assertEqual(calls["n"], 1)
+
+    def test_model_failure_does_not_mark_seen(self):
+        import core.settings as cfg
+
+        cfg.save_settings({
+            "pidx_proactive_enabled": True,
+            "pidx_proactive_quiet_start": 0,
+            "pidx_proactive_quiet_end": 0,
+        })
+        d = self.db()
+        d.add(Task(title="pay rent", done=False, due_date=_iso(-2)))
+        d.commit()
+        d.close()
+
+        orig = proactive._reason
+
+        async def _fail(db, sigs, s):
+            return None
+
+        proactive._reason = _fail
+        self.addCleanup(lambda: setattr(proactive, "_reason", orig))
+        first = _run(proactive.run(force=False))
+        self.assertFalse(first["ran"])
+        self.assertEqual(first["reason"], "model_failed")
+        d = self.db()
+        self.assertEqual(proactive._load_seen(d), set())
+        d.close()
+
+        async def _ok(db, sigs, s):
+            return [{"title": "pay rent", "body": "overdue", "link": "tasks",
+                     "score": 80, "source_keys": [sigs[0]["key"]]}]
+
+        proactive._reason = _ok
+        second = _run(proactive.run(force=False))
+        self.assertTrue(second["ran"])
+        self.assertEqual(second["written"], 1)
 
     def _patch_reason(self, fn):
         orig = proactive._reason

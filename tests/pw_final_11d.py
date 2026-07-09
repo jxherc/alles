@@ -1,5 +1,5 @@
 """11d-2 — final DEEP sweep. pw_regression just loads each host; this drives a real
-interaction in several apps (open a modal, add a task, create today's doc, quick-add a
+interaction in several apps (open a modal, add a task, create a doc, quick-add a
 calendar event, render the journal) and cross-navigates the ecosystem, asserting 0 real
 console errors throughout. The capstone regression for the whole build.
 
@@ -7,6 +7,7 @@ console errors throughout. The capstone regression for the whole build.
   python tests/pw_final_11d.py
 """
 
+import os
 import sys
 from pathlib import Path
 
@@ -16,6 +17,11 @@ PORT = "8881"
 BASE = f"localhost:{PORT}"
 EVID = Path(__file__).resolve().parent.parent / "docs" / "evidence" / "11d"
 IGNORE = ("ERR_", "favicon", "401", "403", "Failed to load resource", "net::", "Load failed")
+ONLY = {x.strip() for x in os.environ.get("PW_ONLY", "").split(",") if x.strip()}
+
+
+def mark(s):
+    print(s, flush=True)
 
 
 def _wire(pg, errs):
@@ -33,97 +39,119 @@ def _wire(pg, errs):
     )
 
 
+def _want(name):
+    return not ONLY or name in ONLY
+
+
 def main():
     EVID.mkdir(parents=True, exist_ok=True)
     r = {}
     errs = []
     with sync_playwright() as p:
         b = p.chromium.launch()
+        try:
+            # ── aide: open + close the settings modal ────────────────────────────────
+            if _want("aide"):
+                mark("aide settings")
+                pg = b.new_page()
+                _wire(pg, errs)
+                pg.goto(f"http://aide.{BASE}/", wait_until="domcontentloaded")
+                pg.wait_for_selector(".app", timeout=15000)
+                pg.wait_for_timeout(700)
+                pg.eval_on_selector("#topbar-settings-btn", "el => el.click()")
+                pg.wait_for_selector("#settings-modal .s-modal", timeout=8000)
+                r["aide_settings_modal_opens"] = pg.is_visible("#settings-modal")
+                pg.keyboard.press("Escape")
+                pg.wait_for_timeout(400)
+                r["aide_settings_modal_closes"] = not pg.is_visible("#settings-modal")
+                pg.close()
 
-        # ── aide: open + close the settings modal ────────────────────────────────
-        pg = b.new_page()
-        _wire(pg, errs)
-        pg.goto(f"http://aide.{BASE}/", wait_until="domcontentloaded")
-        pg.wait_for_selector(".app", timeout=15000)
-        pg.wait_for_timeout(700)
-        pg.eval_on_selector("#topbar-settings-btn", "el => el.click()")
-        pg.wait_for_selector("#settings-modal .s-modal", timeout=8000)
-        r["aide_settings_modal_opens"] = pg.is_visible("#settings-modal")
-        pg.keyboard.press("Escape")
-        pg.wait_for_timeout(400)
-        r["aide_settings_modal_closes"] = not pg.is_visible("#settings-modal")
-        pg.close()
+            # ── tasks: add a task, see it land in the list ───────────────────────────
+            if _want("tasks"):
+                mark("tasks add")
+                pg = b.new_page()
+                _wire(pg, errs)
+                pg.goto(f"http://tasks.{BASE}/", wait_until="domcontentloaded")
+                pg.wait_for_selector("#task-add-input", timeout=15000)
+                pg.wait_for_timeout(500)
+                pg.fill("#task-add-input", "ship the final sweep")
+                pg.press("#task-add-input", "Enter")
+                pg.wait_for_timeout(1200)
+                r["tasks_add_reflects_in_list"] = "ship the final sweep" in (
+                    pg.text_content("#tasks-list") or ""
+                )
+                pg.screenshot(path=str(EVID / "final-tasks.png"))
+                pg.close()
 
-        # ── tasks: add a task, see it land in the list ───────────────────────────
-        pg = b.new_page()
-        _wire(pg, errs)
-        pg.goto(f"http://tasks.{BASE}/", wait_until="domcontentloaded")
-        pg.wait_for_selector("#task-add-input", timeout=15000)
-        pg.wait_for_timeout(500)
-        pg.fill("#task-add-input", "ship the final sweep")
-        pg.press("#task-add-input", "Enter")
-        pg.wait_for_timeout(1200)
-        r["tasks_add_reflects_in_list"] = "ship the final sweep" in (
-            pg.text_content("#tasks-list") or ""
-        )
-        pg.screenshot(path=str(EVID / "final-tasks.png"))
-        pg.close()
+            # ── docs: create a doc and open it in the reader ─────────────────────────
+            if _want("docs"):
+                mark("docs new")
+                pg = b.new_page()
+                _wire(pg, errs)
+                pg.goto(f"http://docs.{BASE}/", wait_until="domcontentloaded")
+                pg.wait_for_selector("#wiki-view", timeout=15000)
+                pg.wait_for_timeout(700)
+                r["docs_view_renders"] = pg.is_visible("#wiki-view")
+                pg.once("dialog", lambda d: d.accept("final sweep doc"))
+                pg.click("#wiki-new-btn")
+                pg.wait_for_function(
+                    "'final sweep doc' === document.getElementById('wiki-current').textContent",
+                    timeout=8000,
+                )
+                r["docs_new_doc_opens"] = True
+                pg.close()
 
-        # ── docs: open today's daily doc into the editor ─────────────────────────
-        pg = b.new_page()
-        _wire(pg, errs)
-        pg.goto(f"http://docs.{BASE}/", wait_until="domcontentloaded")
-        pg.wait_for_selector("#wiki-view", timeout=15000)
-        pg.wait_for_timeout(700)
-        r["docs_view_renders"] = pg.is_visible("#wiki-view")
-        pg.eval_on_selector("#wiki-today-btn", "el => el.click()")
-        pg.wait_for_timeout(1000)
-        # the CodeMirror editor surface should be present after opening a doc
-        r["docs_today_doc_opens"] = pg.query_selector(".cm-editor") is not None
-        pg.close()
+            # ── calendar: quick-add an event (NL parse) ──────────────────────────────
+            if _want("calendar"):
+                mark("calendar quick add")
+                pg = b.new_page()
+                _wire(pg, errs)
+                pg.goto(f"http://calendar.{BASE}/", wait_until="domcontentloaded")
+                pg.wait_for_selector("#cal-quick", timeout=15000)
+                pg.wait_for_timeout(500)
+                pg.fill("#cal-quick", "lunch with sam fri 1pm")
+                pg.press("#cal-quick", "Enter")
+                pg.wait_for_timeout(1200)
+                r["calendar_quick_add_no_error"] = True  # asserted via the aggregate error count
+                pg.close()
 
-        # ── calendar: quick-add an event (NL parse) ──────────────────────────────
-        pg = b.new_page()
-        _wire(pg, errs)
-        pg.goto(f"http://calendar.{BASE}/", wait_until="domcontentloaded")
-        pg.wait_for_selector("#cal-quick", timeout=15000)
-        pg.wait_for_timeout(500)
-        pg.fill("#cal-quick", "lunch with sam fri 1pm")
-        pg.press("#cal-quick", "Enter")
-        pg.wait_for_timeout(1200)
-        r["calendar_quick_add_no_error"] = True  # asserted via the aggregate error count
-        pg.close()
+            # ── journal: renders its view + stats ────────────────────────────────────
+            if _want("journal"):
+                mark("journal render")
+                pg = b.new_page()
+                _wire(pg, errs)
+                pg.goto(f"http://journal.{BASE}/", wait_until="domcontentloaded")
+                pg.wait_for_selector("#journal-view", timeout=15000)
+                pg.wait_for_timeout(700)
+                r["journal_renders"] = pg.is_visible("#journal-view")
+                pg.close()
 
-        # ── journal: renders its view + stats ────────────────────────────────────
-        pg = b.new_page()
-        _wire(pg, errs)
-        pg.goto(f"http://journal.{BASE}/", wait_until="domcontentloaded")
-        pg.wait_for_selector("#journal-view", timeout=15000)
-        pg.wait_for_timeout(700)
-        r["journal_renders"] = pg.is_visible("#journal-view")
-        pg.close()
+            # ── cross-nav: from the hub, a tile jumps to its app subdomain ───────────
+            if _want("crossnav"):
+                mark("crossnav")
+                pg = b.new_page()
+                _wire(pg, errs)
+                pg.goto(f"http://{BASE}/", wait_until="domcontentloaded")
+                pg.wait_for_selector('.home-tile[data-go="money"]', timeout=15000)
+                pg.wait_for_timeout(500)
+                pg.eval_on_selector('.home-tile[data-go="money"]', "el => el.click()")
+                pg.wait_for_timeout(1800)
+                r["crossnav_hub_to_app"] = "money" in pg.evaluate("() => location.hostname")
+                pg.screenshot(path=str(EVID / "final-crossnav.png"))
+                pg.close()
 
-        # ── cross-nav: from the hub, a tile jumps to its app subdomain ───────────
-        pg = b.new_page()
-        _wire(pg, errs)
-        pg.goto(f"http://{BASE}/", wait_until="domcontentloaded")
-        pg.wait_for_selector('.home-tile[data-go="money"]', timeout=15000)
-        pg.wait_for_timeout(500)
-        pg.eval_on_selector('.home-tile[data-go="money"]', "el => el.click()")
-        pg.wait_for_timeout(1800)
-        r["crossnav_hub_to_app"] = "money" in pg.evaluate("() => location.hostname")
-        pg.screenshot(path=str(EVID / "final-crossnav.png"))
-        pg.close()
-
-        r["deep_sweep_zero_console_errors"] = len(errs) == 0
-        b.close()
+            if ONLY and not r:
+                r["pw_only_matched_any_step"] = False
+            r["deep_sweep_zero_console_errors"] = len(errs) == 0
+        finally:
+            b.close()
 
     ok = all(r.values())
     lines = [f"{'PASS' if v else 'FAIL'}  {k}" for k, v in r.items()]
     if errs:
         lines.append(f"console_errors: {errs[:8]}")
     out = "\n".join(lines)
-    (EVID / "pw_final_11d.txt").write_text(out, encoding="utf-8")
+    (EVID / "pw_final_11d.txt").write_text(out, encoding="utf-8", newline="\n")
     print(out)
     print(f"\n{sum(bool(v) for v in r.values())}/{len(r)} assertions passed")
     return 0 if ok else 1

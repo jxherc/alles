@@ -201,16 +201,16 @@ def _parse_suggestions(raw, sigs):
 
 
 async def _reason(db, sigs, s):
-    """run aide over the signals -> list of suggestion dicts. [] on any failure."""
+    """run aide over the signals -> list of suggestion dicts. None means retry later."""
     ep, model = _resolve_endpoint_model(db, s)
     if not ep:
-        return []
+        return None
     messages = _build_messages(sigs, _recall_context(db, sigs, s))
     try:
         raw = await _run_model(messages, ep, model, s)
     except Exception as e:
         log.warning(f"proactive model call failed: {e}")
-        return []
+        return None
     return _parse_suggestions(raw, sigs)
 
 
@@ -440,6 +440,8 @@ async def run(force=False):
         if not force and all(x["key"] in seen for x in sigs):
             return {"ran": False, "reason": "nothing_new"}
         cards = await _reason(db, sigs, s)
+        if cards is None:
+            return {"ran": False, "reason": "model_failed", "signals": len(sigs)}
         written = _upsert(db, cards, sigs)
         pushed = await _maybe_push(db, s)
         _save_seen(db, {x["key"] for x in sigs})

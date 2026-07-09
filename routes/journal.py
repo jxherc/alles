@@ -373,19 +373,23 @@ def upsert_entry(
 
 @router.delete("/journal/{day}")
 def delete_entry(day: str, db: DbSession = Depends(get_db), _: None = Depends(_require_unlock)):
-    e = db.query(JournalEntry).filter(JournalEntry.date == str(day)[:10]).first()
+    try:
+        day = _iso(day)
+    except ValueError:
+        raise HTTPException(400, "date must be ISO (YYYY-MM-DD)")
+    e = db.query(JournalEntry).filter(JournalEntry.date == day).first()
     if not e:
         raise HTTPException(404)
     db.delete(e)
     db.commit()
     try:
         from services import personal_index
-        personal_index.remove_record(db, "journal", str(day)[:10])
+        personal_index.remove_record(db, "journal", day)
     except Exception:
         pass
     try:
         from services import journal_vault
-        journal_vault.delete_entry(str(day)[:10])  # remove the mirror file too
+        journal_vault.delete_entry(day)  # remove the mirror file too
     except Exception:
         pass
     return {"ok": True}

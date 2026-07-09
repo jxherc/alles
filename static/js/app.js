@@ -24,7 +24,7 @@ import { loadFiles, initFiles } from './files.js';
 import { loadMail, startMailPoll } from './mail.js';
 import { initAppCogs } from './appsettings.js';
 import { loadPhotos, initPhotos } from './photos.js';
-import { setBaseDomain, parseHost, appForSub, viewToSub, urlForApp, currentSub, singleHost, SUBDOMAIN_VIEWS } from './subdomain.js';
+import { setBaseDomain, parseHost, appForSub, viewToSub, urlForApp, currentSub, singleHost, SUBDOMAIN_VIEWS, shouldPollModels } from './subdomain.js';
 import { loadBrainPanel } from './brain.js';
 import { openSettings, closeSettings, applyVis } from './settings.js';
 import { setIncognitoMode, getPermMode, setPermMode, getEffort, setEffort } from './modes.js';
@@ -79,15 +79,12 @@ async function init() {
   // 3. not authed here → bounce to the apex ONCE to pick up an existing session
   if (!me.authenticated) {
     if (parseHost().sub && !hadAuthCode) {
-      sessionStorage.setItem('alles_sso_tried', '1');
       location.assign(urlForApp('') + '?_sso=' + encodeURIComponent(location.host));
       return;
     }
-    sessionStorage.removeItem('alles_sso_tried');
     _showLoginScreen();
     return;
   }
-  sessionStorage.removeItem('alles_sso_tried');
   await _boot();
 }
 
@@ -165,6 +162,12 @@ async function _boot() {
       noemail: "couldn't read your email from google",
     }[_mo] || 'google sign-in finished';
     setTimeout(() => { toast(msg, _mo === 'ok' ? 'success' : 'error'); navigateTo('mail'); }, 300);
+  }
+
+  const _v = _p.get('app') || _p.get('view');
+  if (_v && !_ask && !_mo && /^[a-z0-9_-]+$/i.test(_v)) {
+    history.replaceState(null, '', location.pathname + location.hash);
+    setTimeout(() => navigateTo(_v), 0);
   }
 }
 
@@ -310,7 +313,6 @@ function _showLoginScreen() {
     if (r.ok) {
       if (screen) screen.style.display = 'none';
       document.body.classList.remove('login-mode');
-      sessionStorage.removeItem('alles_sso_tried');
       if (_pendingSso) { _ssoRedirect(_pendingSso); return; }   // came from an app → relay back
       _boot();
     } else toast('wrong password', 'error');
@@ -930,7 +932,7 @@ function _renderHomeGreeting() {
   }
   // greeting doubles as the way in to set your name
   el.title = 'click to set your name';
-  
+
   if (!el.dataset.wired) {
     el.dataset.wired = '1';
     el.addEventListener('click', () => openSettings('general'));
@@ -1246,8 +1248,8 @@ function bindEvents() {
   });
   // share-btn removed — export/share/print now in topbar-session-actions
 
-  // only poll models where the picker actually lives (aide) — other subapps have no model UI
-  if (document.body.classList.contains('is-aide')) setInterval(loadModels, 30000);
+  // body.is-aide is set after bindEvents on first boot, so decide from the host
+  if (shouldPollModels()) setInterval(loadModels, 30000);
 }
 
 let _aoPlaying = false;

@@ -7,19 +7,28 @@ subscribe against its public key, so deleting the file invalidates every
 existing subscription.
 """
 
-import os, json, time, base64, struct, logging
+import base64
+import json
+import logging
+import os
+import struct
+import time
 from pathlib import Path
+
 import httpx
+from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives.asymmetric.utils import decode_dss_signature
-from cryptography.hazmat.primitives import hashes, serialization
-from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+from cryptography.hazmat.primitives.kdf.hkdf import HKDF
+
+from core.settings import data_dir
 
 log = logging.getLogger("aide.webpush")
 
-_KEY_FILE = Path(__file__).resolve().parent.parent / "data" / "vapid.pem"
+_KEY_FILE: Path | None = None
 _vapid_key: ec.EllipticCurvePrivateKey | None = None
+_vapid_path: Path | None = None
 
 
 def _b64u(data: bytes) -> str:
@@ -30,15 +39,20 @@ def _b64u_dec(s: str) -> bytes:
     return base64.urlsafe_b64decode(s + "=" * (-len(s) % 4))
 
 
+def _key_file() -> Path:
+    return _KEY_FILE or data_dir() / "vapid.pem"
+
+
 def _load_vapid() -> ec.EllipticCurvePrivateKey:
-    global _vapid_key
-    if _vapid_key is None:
-        if _KEY_FILE.exists():
-            _vapid_key = serialization.load_pem_private_key(_KEY_FILE.read_bytes(), password=None)
+    global _vapid_key, _vapid_path
+    path = _key_file()
+    if _vapid_key is None or _vapid_path != path:
+        if path.exists():
+            _vapid_key = serialization.load_pem_private_key(path.read_bytes(), password=None)
         else:
             _vapid_key = ec.generate_private_key(ec.SECP256R1())
-            _KEY_FILE.parent.mkdir(parents=True, exist_ok=True)
-            _KEY_FILE.write_bytes(
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(
                 _vapid_key.private_bytes(
                     serialization.Encoding.PEM,
                     serialization.PrivateFormat.PKCS8,
@@ -46,9 +60,10 @@ def _load_vapid() -> ec.EllipticCurvePrivateKey:
                 )
             )
             try:
-                os.chmod(_KEY_FILE, 0o600)
+                os.chmod(path, 0o600)
             except OSError:
                 pass
+        _vapid_path = path
     return _vapid_key
 
 
@@ -98,9 +113,8 @@ def _encrypt(plaintext: bytes, p256dh: str, auth: str) -> bytes:
     return salt + struct.pack("!IB", 4096, len(as_pub_raw)) + as_pub_raw + ct
 
 
-async def send_push(sub: dict, payload: dict, ttl: int = 86400) -> bool:
-    """deliver one push. returns False when the subscription is gone (404/410)
-    so the caller can prune it; transient failures still return True."""
+async def send_push(sub: dict, payload: dict, ttl: int = 86400) -> str:
+    """deliver one push: sent, gone, or failed."""
     endpoint = sub["endpoint"]
     body = _encrypt(json.dumps(payload).encode(), sub["p256dh"], sub["auth"])
     headers = {
@@ -114,9 +128,10 @@ async def send_push(sub: dict, payload: dict, ttl: int = 86400) -> bool:
             r = await c.post(endpoint, content=body, headers=headers)
     except Exception as e:
         log.warning(f"push delivery failed: {e}")
-        return True
+        return "failed"
     if r.status_code in (404, 410):
-        return False
-    if r.status_code >= 400:
+        return "gone"
+    if r.status_code >= 300:
         log.warning(f"push rejected {r.status_code}: {r.text[:200]}")
-    return True
+        return "failed"
+    return "sent"

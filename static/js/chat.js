@@ -57,7 +57,7 @@ window.copyMsg = function(btn) {
   });
 };
 
-// save an assistant message as a note / task / reminder
+// save an assistant message as a note or task
 window.saveMsgAs = async function(btn, kind) {
   const text = btn.closest('.ai-wrap')?.querySelector('.ai-content')?.innerText?.trim();
   if (!text) return;
@@ -91,6 +91,8 @@ window.openArtifactFromMsg = function(btn) {
 };
 
 let _streaming = false;
+let _chatAbort = null;
+let _streamToken = 0;
 
 
 export async function sendMessage(text) {
@@ -138,6 +140,9 @@ export async function sendMessage(text) {
   scrollDown();
 
   setStreaming(true);
+  const ctrl = new AbortController();
+  const streamToken = ++_streamToken;
+  _chatAbort = ctrl;
 
   const { row, body } = createStreamingAiRow();
 
@@ -239,6 +244,7 @@ export async function sendMessage(text) {
         permission_mode: getMode() === 'agent' ? getPermMode() : '',
         effort: getEffort(getSelected()?.model),   // per-model effort, applies to chat + agent
       }),
+      signal: ctrl.signal,
     });
 
     if (!r.ok) {
@@ -501,6 +507,7 @@ export async function sendMessage(text) {
       if (isConnError(e.message)) showConnBanner(e.message);
     }
   } finally {
+    if (_chatAbort === ctrl) _chatAbort = null;
     if (renderTimer) { clearTimeout(renderTimer); renderTimer = 0; }
     finishThinking();   // freeze timer even if the reply was thinking-only
     updateStats(true);  // final token count + tok/s (real if usage was sent)
@@ -597,7 +604,7 @@ export async function sendMessage(text) {
       openArtifact(a.content, a.type, a.title, a.lang);
     }
 
-    setStreaming(false);
+    if (_streamToken === streamToken) setStreaming(false);
     scrollDown();
 
     // name the chat from its first message (async; updates the sidebar when ready)
@@ -681,6 +688,8 @@ function setStreaming(val) {
 
 export function stopStream() {
   const sid = getActiveId();
+  _chatAbort?.abort();
+  _chatAbort = null;
   if (sid) fetch(`/api/chat/stop/${sid}`, { method: 'POST' }).catch(() => {});
   setStreaming(false);
 }

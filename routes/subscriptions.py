@@ -46,11 +46,20 @@ def _parse(s: str) -> date:
     return date.fromisoformat(str(s)[:10])
 
 
+def _parse_maybe(s: str):
+    try:
+        return _parse(s)
+    except ValueError:
+        return None
+
+
 def _roll(sub: Subscription, today: date) -> bool:
     """advance an overdue next_due until it's in the future. returns changed."""
     if not sub.active:
         return False
-    d = _parse(sub.next_due)
+    d = _parse_maybe(sub.next_due)
+    if not d:
+        return False
     changed = False
     while d < today:
         d = _advance(d, sub.cycle, sub.cycle_days)
@@ -71,7 +80,9 @@ def _roll_and_post(sub: Subscription, today: date, db) -> bool:
         return False
     from core.database import Account, SubPayment, Transaction
 
-    d = _parse(sub.next_due)
+    d = _parse_maybe(sub.next_due)
+    if not d:
+        return False
     charges = []
     while d < today:
         charges.append(d)  # this due date rolled over → a charge happened
@@ -118,6 +129,8 @@ def _trial_days_left(sub, today: date):
 
 
 def _fmt(sub: Subscription, today: date) -> dict:
+    due = _parse_maybe(sub.next_due)
+    days = (due - today).days if due else None
     return {
         "id": sub.id,
         "trial_end": sub.trial_end or "",
@@ -128,8 +141,8 @@ def _fmt(sub: Subscription, today: date) -> dict:
         "cycle": sub.cycle,
         "cycle_days": sub.cycle_days,
         "next_due": sub.next_due,
-        "days_until": (_parse(sub.next_due) - today).days,
-        "payable": sub.active and (_parse(sub.next_due) - today).days <= 0,
+        "days_until": days,
+        "payable": sub.active and days is not None and days <= 0,
         "monthly_cost": round(_monthly_cost(sub), 2),
         "category": sub.category,
         "url": sub.url,
@@ -150,7 +163,10 @@ def list_subscriptions(db: DbSession = Depends(get_db)):
         db.commit()
     active = [s for s in subs if s.active]
     monthly = sum(_monthly_cost(s) for s in active)
-    items = sorted((_fmt(s, today) for s in subs), key=lambda x: (not x["active"], x["days_until"]))
+    items = sorted(
+        (_fmt(s, today) for s in subs),
+        key=lambda x: (not x["active"], x["days_until"] is None, x["days_until"] or 0),
+    )
     from sqlalchemy import func
 
     from core.database import SubPayment
@@ -303,7 +319,10 @@ def upcoming_renewals(days: int = 7, db: DbSession = Depends(get_db)):
     for sub in db.query(Subscription).all():
         if not sub.active:
             continue
-        du = (_parse(sub.next_due) - today).days
+        due = _parse_maybe(sub.next_due)
+        if not due:
+            continue
+        du = (due - today).days
         if 0 <= du <= days:
             items.append(_fmt(sub, today))
     items.sort(key=lambda s: s["days_until"])
@@ -399,7 +418,9 @@ def forecast(months: int = 6, db: DbSession = Depends(get_db)):
     end = date(last_y, last_m, calendar.monthrange(last_y, last_m)[1])
     totals = {bkt: 0.0 for bkt in buckets}
     for s in active:
-        d = _parse(s.next_due)
+        d = _parse_maybe(s.next_due)
+        if not d:
+            continue
         guard = 0
         while d < today and guard < 2000:  # skip charges already in the past
             d = _advance(d, s.cycle, s.cycle_days)

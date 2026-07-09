@@ -6,12 +6,15 @@ let _activeCategory = 'all';
 
 const CATEGORIES = ['all', 'identity', 'preference', 'fact', 'task', 'general'];
 
+export function filterMemoriesByCategory(mems, cat = _activeCategory) {
+  return cat === 'all' ? mems : mems.filter(m => m.category === cat);
+}
+
 export async function loadMemories() {
   const r = await fetch('/api/memories');
   _memories = await r.json();
   _renderCategoryFilter();
-  const filtered = _activeCategory === 'all' ? _memories : _memories.filter(m => m.category === _activeCategory);
-  renderMemories(filtered);
+  renderMemories(filterMemoriesByCategory(_memories));
 }
 
 function _renderCategoryFilter() {
@@ -24,8 +27,7 @@ function _renderCategoryFilter() {
     btn.addEventListener('click', () => {
       _activeCategory = btn.dataset.cat;
       _renderCategoryFilter();
-      const filtered = _activeCategory === 'all' ? _memories : _memories.filter(m => m.category === _activeCategory);
-      renderMemories(filtered);
+      renderMemories(filterMemoriesByCategory(_memories));
     });
   });
 }
@@ -119,14 +121,14 @@ export function initMemoryPanel() {
   document.getElementById('mem-search')?.addEventListener('input', e => {
     clearTimeout(_searchTimeout);
     const q = e.target.value.trim();
-    if (!q) { renderMemories(_memories); return; }
+    if (!q) { renderMemories(filterMemoriesByCategory(_memories)); return; }
     _searchTimeout = setTimeout(async () => {
       const r = await fetch('/api/memories/search', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ query: q, top_k: 20 }),
       });
-      renderMemories(await r.json());
+      renderMemories(filterMemoriesByCategory(await r.json()));
     }, 300);
   });
 

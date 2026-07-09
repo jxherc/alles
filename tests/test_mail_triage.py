@@ -27,7 +27,17 @@ class MailTriageTests(ApiTest):
         self.aid = self.acct.id
         db.close()
 
-    def _msg(self, uid, sender, subject, date="2026-06-10", list_unsubscribe="", muted=False):
+    def _msg(
+        self,
+        uid,
+        sender,
+        subject,
+        date="2026-06-10",
+        list_unsubscribe="",
+        muted=False,
+        recipients="",
+        has_attachment=False,
+    ):
         db = self.db()
         db.add(
             CachedMessage(
@@ -35,10 +45,12 @@ class MailTriageTests(ApiTest):
                 folder="INBOX",
                 uid=str(uid),
                 sender=sender,
+                recipients=recipients,
                 subject=subject,
                 date=date,
                 date_ts=_ts(date),
                 seen=False,
+                has_attachment=has_attachment,
                 list_unsubscribe=list_unsubscribe,
                 muted=muted,
             )
@@ -91,6 +103,20 @@ class MailTriageTests(ApiTest):
             f"/api/mail/adv-search/{self.aid}", params={"q": "subject:invoice"}
         ).json()
         self.assertEqual([m["uid"] for m in d["messages"]], ["1"])
+
+    def test_adv_search_to(self):
+        self._msg(1, "boss@x.com", "from boss", recipients="me@x.com")
+        self._msg(2, "updates@x.com", "to boss", recipients="Boss <boss@x.com>")
+        d = self.client.get(f"/api/mail/adv-search/{self.aid}", params={"q": "to:boss"}).json()
+        self.assertEqual([m["uid"] for m in d["messages"]], ["2"])
+
+    def test_adv_search_has_attachment(self):
+        self._msg(1, "a@x.com", "plain")
+        self._msg(2, "b@x.com", "report", has_attachment=True)
+        d = self.client.get(
+            f"/api/mail/adv-search/{self.aid}", params={"q": "has:attachment"}
+        ).json()
+        self.assertEqual([m["uid"] for m in d["messages"]], ["2"])
 
     def test_adv_search_before_after(self):
         self._msg(1, "a@x.com", "early", date="2026-06-01")

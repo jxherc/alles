@@ -1,5 +1,10 @@
+import asyncio
+import json
 import unittest
+from unittest import mock
 
+from core.database import AutomationRule, MailAccount
+from services import automations
 from services.automations import _render, _trim
 from tests._client import ApiTest
 
@@ -165,6 +170,43 @@ class TrimTests(unittest.TestCase):
     def test_trim_noop_when_small(self):
         d = {"a": 1, "b": 2}
         self.assertIs(_trim(d, keep=200), d)
+
+
+class MailAutomationTests(ApiTest):
+    def test_new_mail_account_is_baselined_not_fired(self):
+        db = self.db()
+        old = MailAccount(id="old", email="old@example.com")
+        new = MailAccount(id="new", email="new@example.com")
+        rule = AutomationRule(
+            trigger="mail_from",
+            trigger_arg="boss@",
+            action="create_task",
+            action_arg="{subject}",
+            state=json.dumps({"uids": {"old": 9}}),
+        )
+        db.add_all([old, new, rule])
+        db.commit()
+
+        def fake_fetch(acct, folder, limit):
+            if acct["email"] == "old@example.com":
+                return [{"uid": "10", "from": "boss@example.com", "subject": "new boss mail"}]
+            return [{"uid": "100", "from": "boss@example.com", "subject": "historic boss mail"}]
+
+        fired = []
+
+        async def fake_fire(_db, _rule, ctx):
+            fired.append(ctx)
+
+        with (
+            mock.patch("services.mail.fetch_inbox", fake_fetch),
+            mock.patch.object(automations, "_fire", fake_fire),
+        ):
+            asyncio.run(automations._check_mail_rule(db, rule, json.loads(rule.state)))
+
+        self.assertEqual([f["subject"] for f in fired], ["new boss mail"])
+        db.refresh(rule)
+        self.assertEqual(json.loads(rule.state)["uids"], {"old": 10, "new": 100})
+        db.close()
 
 
 if __name__ == "__main__":

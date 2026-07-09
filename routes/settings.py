@@ -7,13 +7,48 @@ from core.settings import load_settings, save_settings
 router = APIRouter(prefix="/api")
 
 
-_STRIP = {"auth_password_hash", "vault_verifier", "vault_pw_b64", "mail_oauth_client_secret"}
+_SECRET_KEYS = {
+    "auth_password_hash",
+    "vault_verifier",
+    "vault_pw_b64",
+    "vault_biometric_key",
+    "vault_2fa_totp",
+    "journal_passcode",
+    "mail_oauth_client_secret",
+    "openai_api_key",
+    "tavily_api_key",
+    "brave_api_key",
+    "google_pse_api_key",
+    "serper_api_key",
+    "notify_discord_webhook",
+    "notify_telegram_token",
+}
+_CONFIG_FLAGS = {
+    "mail_oauth_client_secret",
+    "openai_api_key",
+    "tavily_api_key",
+    "brave_api_key",
+    "google_pse_api_key",
+    "serper_api_key",
+    "notify_discord_webhook",
+    "notify_telegram_token",
+}
+
+
+def _public_settings(s: dict) -> dict:
+    out = {}
+    for k, v in s.items():
+        if k in _SECRET_KEYS:
+            if k in _CONFIG_FLAGS:
+                out[f"{k}_configured"] = bool(v)
+            continue
+        out[k] = v
+    return out
 
 
 @router.get("/settings")
 def get_settings():
-    s = load_settings()
-    return {k: v for k, v in s.items() if k not in _STRIP}
+    return _public_settings(load_settings())
 
 
 @router.get("/vault-location")
@@ -208,4 +243,4 @@ def patch_settings(body: SettingsPatch):
                 journal_vault.purge()
         except Exception:
             pass
-    return out
+    return _public_settings(out)

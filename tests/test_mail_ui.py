@@ -83,6 +83,13 @@ class SearchAndAccounts4c(unittest.TestCase):
         self.assertIn("label: 'all inboxes'", MAIL)
         self.assertIn("value: 'all'", MAIL)
 
+    def test_refocus_refresh_preserves_current_view(self):
+        self.assertIn("_reloadCurrent({ silent: true })", MAIL)
+        self.assertIn("_reloadCurrent({ force: true })", MAIL)
+        self.assertIn("if (_labelFilter) return loadByLabel(_labelFilter);", MAIL)
+        self.assertIn("if (_filter.startsWith('cat:')) return loadCategory(_filter.slice(4));", MAIL)
+        self.assertIn("_searchView || _labelFilter", MAIL)
+
 
 class Compose4d(unittest.TestCase):
     def test_chip_fields_replace_plain_inputs(self):

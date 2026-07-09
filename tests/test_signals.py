@@ -112,6 +112,20 @@ class SignalsTests(ApiTest):
         self.assertEqual(len(e), 1)
         self.assertEqual(e[0]["data"]["time"], "12:00")
 
+    def test_monthly_31st_event_signal_appears_on_short_month_clamp(self):
+        d = self.db()
+        d.add(CalendarEvent(
+            title="monthly close",
+            start_dt="2026-01-31T08:00:00",
+            recurrence="monthly",
+            all_day=False,
+        ))
+        d.commit()
+        d.close()
+
+        e = self._gather(today=date(2026, 2, 28), categories={"event"})
+        self.assertEqual([s["title"] for s in e], ["monthly close"])
+
     def test_reminder_signal(self):
         d = self.db()
         d.add(Reminder(text="call mom", trigger_at=datetime.utcnow(), fired=False))

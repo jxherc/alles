@@ -111,6 +111,20 @@ class TodayApiTest(ApiTest):
         titles = [e["title"] for e in r["events"]]
         self.assertIn("weekly monday", titles)
 
+    def test_monthly_31st_recurring_event_appears_on_short_month_clamp(self):
+        d = self.db()
+        d.add(CalendarEvent(
+            title="monthly close",
+            start_dt="2026-01-31T08:00:00",
+            recurrence="monthly",
+            all_day=False,
+        ))
+        d.commit()
+        d.close()
+
+        r = self.client.get("/api/today?date=2026-02-28").json()
+        self.assertIn("monthly close", [e["title"] for e in r["events"]])
+
     def test_task_without_due_date_not_in_overdue_or_due_today(self):
         d = self.db()
         d.add(Task(title="floaty task", done=False))

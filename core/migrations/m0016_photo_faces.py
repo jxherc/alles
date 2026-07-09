@@ -1,4 +1,4 @@
-"""m0013 - face recognition (phase 7a). adds photos.faces_at (when detection last ran; null =
+"""m0016 - face recognition (phase 7a). adds photos.faces_at (when detection last ran; null =
 not scanned), and the people + faces tables. the tables themselves are created by
 Base.metadata.create_all on boot — this migration only handles the new column on the existing
 photos table. idempotent."""
@@ -7,7 +7,7 @@ from sqlalchemy import text
 
 from core.migrations.runner import add_column
 
-VERSION = 13
+VERSION = 16
 NAME = "photo_faces"
 
 

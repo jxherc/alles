@@ -28,9 +28,9 @@ class _Base(unittest.TestCase):
         db.engine = self._orig
         self.eng.dispose()
 
-    def _msg(self, sender="boss@acme.com", subject="hi", uid="1", **kw):
+    def _msg(self, sender="boss@acme.com", subject="hi", uid="1", folder="INBOX", **kw):
         m = db.CachedMessage(
-            account_id="A1", folder="INBOX", uid=uid, sender=sender, subject=subject, **kw
+            account_id="A1", folder=folder, uid=uid, sender=sender, subject=subject, **kw
         )
         self.s.add(m)
         self.s.commit()
@@ -69,6 +69,16 @@ class LabelTests(_Base):
         mail_rules.run_on_cache(self.s, "A1", rules)
         self.s.refresh(m)
         self.assertEqual(set(m.labels.split(",")), {"personal", "work"})
+
+    def test_rules_ignore_non_inbox_cached_messages(self):
+        m = self._msg(folder="Sent", seen=False)
+        rules = [
+            {"match_field": "from", "match_value": "acme", "action": "markread"}
+        ]
+        n = mail_rules.run_on_cache(self.s, "A1", rules)
+        self.s.refresh(m)
+        self.assertEqual(n, 0)
+        self.assertFalse(m.seen)
 
 
 class AutoreplyTests(_Base):
@@ -118,6 +128,24 @@ class AutoreplyTests(_Base):
         ]
         mail_rules.run_on_cache(self.s, "A1", rules)
         self.assertTrue(self._scheduled()[0].subject.lower().startswith("re:"))
+
+    def test_autoreply_skips_self_sender(self):
+        self.s.add(db.MailAccount(id="A1", email="me@x.com", username="me@x.com"))
+        self.s.commit()
+        m = self._msg(sender="Me <me@x.com>", subject="note to self")
+        rules = [
+            {
+                "match_field": "from",
+                "match_value": "me@x.com",
+                "action": "autoreply",
+                "action_arg": "ok",
+            }
+        ]
+        n = mail_rules.run_on_cache(self.s, "A1", rules)
+        self.s.refresh(m)
+        self.assertEqual(n, 0)
+        self.assertEqual(self._scheduled(), [])
+        self.assertFalse(m.autoreplied)
 
 
 class VacationTests(_Base):

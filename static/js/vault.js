@@ -672,7 +672,7 @@ async function _enableBiometric() {
       rp: { name: 'alles vault' },
       user: { id: new TextEncoder().encode('vault:' + _vaultId), name: 'vault:' + _vaultId, displayName: 'vault' },
       pubKeyCredParams: [{ type: 'public-key', alg: -7 }],  // ES256
-      authenticatorSelection: { userVerification: 'preferred' },
+      authenticatorSelection: { userVerification: 'required' },
       timeout: 60000,
     }});
     const pub = cred.response.getPublicKey();  // SPKI DER
@@ -705,7 +705,7 @@ async function _bioUnlock() {
     const assertion = await navigator.credentials.get({ publicKey: {
       challenge: _b64ToBuf(d.challenge),
       timeout: 60000,
-      userVerification: 'preferred',
+      userVerification: 'required',
       allowCredentials: d.credentials.map(c => ({ type: 'public-key', id: _b64ToBuf(c) })),
     }});
     const r = await fetch('/api/vault/webauthn/unlock', {
@@ -1175,7 +1175,7 @@ function _promptCode(title) {
 }
 
 async function _doLock() {
-  await fetch('/api/vault/lock', { method: 'POST' }).catch(() => {});
+  await fetch('/api/vault/lock', { method: 'POST', headers: _token ? { 'X-Vault-Token': _token } : {} }).catch(() => {});
   _token = null;
   _unlocked = false;
   _vaultId = 'default';

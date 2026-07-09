@@ -54,7 +54,8 @@ function _justify(items, containerW, targetH, gap) {
 
 // one grid cell — videos (7c) get a <video> poster + a play badge instead of an <img>.
 // the cell's background is a tiny base64 preview (phase 4) so it shows a blur-up while the thumb loads.
-function _cellHtml(p, w, h) {
+function _cellHtml(p, w, h, extra = '') {
+  if (typeof w === 'string') { extra = w; w = h = null; }
   const bg = p.preview ? `;background-image:url(${p.preview})` : '';
   const dim = (w && h) ? ` style="width:${w}px;height:${h}px${bg}"` : (bg ? ` style="${bg.slice(1)}"` : '');
   const inner = p.is_video
@@ -64,7 +65,7 @@ function _cellHtml(p, w, h) {
   const stackBadge = (p.stack_count > 1) ? `<span class="photos-stack-badge">${_si('copy')} ${p.stack_count}</span>` : '';
   const sel = _sel.has(p.id) ? ' sel' : '';
   return `<div class="photos-cell${p.favorite ? ' fav' : ''}${p.is_video ? ' video' : ''}${sel}" data-id="${p.id}"${dim}>`
-    + `<button class="photos-check" data-id="${p.id}" aria-label="select">${_si('check')}</button>${inner}${favBadge}${stackBadge}</div>`;
+    + `<button class="photos-check" data-id="${p.id}" aria-label="select">${_si('check')}</button>${inner}${favBadge}${stackBadge}${extra}</div>`;
 }
 
 // paint a set of {label, items} buckets as sticky-header justified rows; remembers itself for resize
@@ -814,6 +815,17 @@ export function initPhotos() {
   _initFaces();
   $('photos-upload-btn')?.addEventListener('click', () => $('photos-upload-input')?.click());
   $('photos-upload-input')?.addEventListener('change', e => { uploadPhotos(e.target.files); e.target.value = ''; });
+  $('photos-rescan-btn')?.addEventListener('click', async () => {
+    try {
+      const r = await fetch('/api/photos/rescan', { method: 'POST' });
+      if (!r.ok) throw new Error(await r.text());
+      const d = await r.json();
+      toast(`scan added ${d.added || 0}`, 'success');
+      await loadPhotos();
+    } catch (e) {
+      toast('scan failed: ' + e.message, 'error');
+    }
+  });
   $('photos-share-album-btn')?.addEventListener('click', shareAlbum);
   // selection action bar
   $('photos-sel-clear')?.addEventListener('click', _clearSel);
@@ -970,9 +982,8 @@ async function openPhotoTrash() {
     + '<div class="photos-moment-grid">';
   if (!items.length) html += '<div class="photos-empty" style="grid-column:1/-1">trash is empty</div>';
   for (const p of items) {
-    html += `<div class="photos-cell" data-id="${p.id}" style="position:relative">`
-      + `<img loading="lazy" src="${p.thumb}" alt="">`
-      + `<button class="btn photos-restore" data-id="${p.id}" style="position:absolute;bottom:4px;left:4px;font-size:0.62rem">${_si('undo')} restore</button></div>`;
+    const restore = `<button class="btn photos-restore" data-id="${p.id}" style="position:absolute;bottom:4px;left:4px;font-size:0.62rem">${_si('undo')} restore</button>`;
+    html += _cellHtml(p, restore);
   }
   html += '</div></div>';
   grid.innerHTML = html;

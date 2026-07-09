@@ -28,6 +28,13 @@ class CaldavSyncTests(unittest.TestCase):
         self.assertIn("DTSTART:20260623T143000", ics)
         self.assertNotIn("VALUE=DATE", ics)
 
+    def test_event_ics_timed_pads_missing_seconds(self):
+        ics = cd._event_ics(
+            "u2b", "Meeting", "2026-06-23T14:30", False, end_dt="2026-06-23T15:05"
+        )
+        self.assertIn("DTSTART:20260623T143000", ics)
+        self.assertIn("DTEND:20260623T150500", ics)
+
     def test_event_ics_timed_includes_end_and_description(self):
         # without DTEND a pushed event loses its end time on the next pull (round-trip data loss)
         ics = cd._event_ics(

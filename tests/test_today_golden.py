@@ -4,7 +4,15 @@ stable fields (titles, times, order, counts, in_days)."""
 
 from datetime import date, datetime, timedelta
 
-from core.database import CalendarEvent, DayEvent, Reminder, Subscription, Task
+from core.database import (
+    Account,
+    CalendarEvent,
+    DayEvent,
+    Reminder,
+    Subscription,
+    Task,
+    Transaction,
+)
 from tests._client import ApiTest
 
 
@@ -71,3 +79,39 @@ class TodayGoldenTests(ApiTest):
         # keys present
         for k in ("date", "events", "tasks", "reminders", "renewing", "day_events", "recent_docs"):
             self.assertIn(k, r)
+
+    def test_today_posts_overdue_linked_subscription_once(self):
+        d = self.db()
+        acct = Account(name="Checking", opening=100)
+        d.add(acct)
+        d.commit()
+        due = _iso(-1)
+        sub = Subscription(
+            name="backup",
+            price=7.5,
+            currency="$",
+            cycle="monthly",
+            active=True,
+            next_due=due,
+            account_id=acct.id,
+        )
+        d.add(sub)
+        d.commit()
+        sid, aid = sub.id, acct.id
+        d.close()
+
+        self.client.get("/api/today", params={"date": date.today().isoformat()})
+        self.client.get("/api/today", params={"date": date.today().isoformat()})
+
+        d = self.db()
+        try:
+            txns = d.query(Transaction).filter(Transaction.account_id == aid).all()
+            self.assertEqual(len(txns), 1)
+            self.assertEqual(txns[0].date, due)
+            self.assertEqual(txns[0].amount, -7.5)
+            self.assertEqual(txns[0].payee, "backup")
+            sub = d.get(Subscription, sid)
+            self.assertEqual(sub.last_posted_due, due)
+            self.assertGreater(date.fromisoformat(sub.next_due), date.today())
+        finally:
+            d.close()

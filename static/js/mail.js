@@ -90,6 +90,8 @@ const _sentFolders = {};      // account_id -> detected sent folder name
 const _expanded = new Set();  // thread keys currently expanded
 let _lastMsgs = [];           // last rendered message set (for re-render on toggle)
 let _lastSearch = '';         // last advanced-search query (5a, for the save-search button)
+let _searchView = '';         // active search results view, if any
+let _labelFilter = '';        // active label chip view, if any
 
 // mirror services.mail.normalize_subject — strip re:/fwd:/aw:… so a conversation collapses
 const _subjPrefix = /^(?:\s*(?:re|fwd|fw|aw|wg)\s*:\s*)+/i;
@@ -146,9 +148,9 @@ export function initMail() {
   $('mail-account')?.addEventListener('change', e => {
     _active = e.target.value;
     localStorage.setItem('alles-mail-account-mode', _active);
-    loadInbox();
+    _reloadCurrent({ force: true });
   });
-  $('mail-refresh-btn')?.addEventListener('click', () => loadInbox(true));
+  $('mail-refresh-btn')?.addEventListener('click', () => _reloadCurrent({ force: true }));
   // conversation grouping is a mail-settings toggle now (4a) — not a toolbar button
   _applyThreadsSetting();
   window._reloadMail = () => { _applyThreadsSetting().then(() => { _expanded.clear(); renderInbox(_lastMsgs); }); };
@@ -169,6 +171,8 @@ async function _applyThreadsSetting() {
 }
 
 async function searchMail(q) {
+  _searchView = q;
+  _labelFilter = '';
   const list = $('mail-list');
   list.innerHTML = '<div class="mail-empty">searching…</div>';
   _lastSearch = q;
@@ -187,11 +191,14 @@ async function searchMail(q) {
   renderInbox(all);
 }
 
-function _reloadCurrent() {
-  if (_filter === 'flagged') loadSmart('flagged');
-  else if (_filter === 'vip') loadSmart('vip');
-  else if (_filter === 'drafts') loadDrafts();
-  else loadInbox();
+function _reloadCurrent({ force = false, silent = false } = {}) {
+  if (_searchView) return searchMail(_searchView);
+  if (_labelFilter) return loadByLabel(_labelFilter);
+  if (_filter === 'flagged') return loadSmart('flagged');
+  if (_filter === 'vip') return loadSmart('vip');
+  if (_filter === 'drafts') return loadDrafts();
+  if (_filter.startsWith('cat:')) return loadCategory(_filter.slice(4));
+  return loadInbox(force, silent);
 }
 
 // saved searches (5a): a chip bar above the list — save the current query, click to run, × to drop
@@ -316,7 +323,9 @@ function _initMailSidebar() {
 }
 
 function setFilter(f) {
-  if (_filter === f) return;
+  if (_filter === f && !_searchView && !_labelFilter) return;
+  _searchView = '';
+  _labelFilter = '';
   _filter = f;
   document.querySelectorAll('.mail-nav-item').forEach(t => t.classList.toggle('active', t.dataset.filter === f));
   if (f === 'drafts') loadDrafts();
@@ -327,6 +336,8 @@ function setFilter(f) {
 }
 
 async function loadCategory(cat) {
+  _searchView = '';
+  _labelFilter = '';
   const list = $('mail-list'); const main = $('mail-main'); main.innerHTML = '';
   list.innerHTML = `<div class="mail-empty">loading ${esc(cat)}…</div>`;
   const accts = _active === 'all' ? _accounts : _accounts.filter(a => a.id === _active);
@@ -338,6 +349,8 @@ async function loadCategory(cat) {
 }
 
 async function loadByLabel(label) {
+  _searchView = '';
+  _labelFilter = label;
   const list = $('mail-list'); const main = $('mail-main'); main.innerHTML = '';
   list.innerHTML = `<div class="mail-empty">label “${esc(label)}”…</div>`;
   const accts = _active === 'all' ? _accounts : _accounts.filter(a => a.id === _active);
@@ -349,6 +362,8 @@ async function loadByLabel(label) {
 }
 
 async function loadSmart(filter) {
+  _searchView = '';
+  _labelFilter = '';
   const list = $('mail-list'); const main = $('mail-main');
   main.innerHTML = '';
   list.innerHTML = `<div class="mail-empty">loading ${esc(filter)}…</div>`;
@@ -361,6 +376,8 @@ async function loadSmart(filter) {
 }
 
 async function loadDrafts() {
+  _searchView = '';
+  _labelFilter = '';
   const list = $('mail-list'); const main = $('mail-main');
   main.innerHTML = '';
   list.innerHTML = '<div class="mail-empty">loading drafts…</div>';
@@ -392,6 +409,8 @@ async function loadDrafts() {
 }
 
 async function loadInbox(force = false, silent = false) {
+  _searchView = '';
+  _labelFilter = '';
   const list = $('mail-list');
   const main = $('mail-main');
   if (!_accounts.length) return;
@@ -444,7 +463,7 @@ export async function startMailPoll() {
     if (!view || view.style.display === 'none' || document.hidden) return;
     // only the plain inbox/unread views are what loadInbox renders; polling while on flagged/
     // vip/drafts/a category/a label would silently clobber that view with the full inbox
-    if (!_accounts.length || (_filter !== 'inbox' && _filter !== 'unread')) return;
+    if (!_accounts.length || _searchView || _labelFilter || (_filter !== 'inbox' && _filter !== 'unread')) return;
     loadInbox(false, true).catch(console.error);
   }, ms);
   if (_pollWired) return;
@@ -452,7 +471,7 @@ export async function startMailPoll() {
   document.addEventListener('visibilitychange', () => {
     // catch up immediately when the tab comes back
     if (!document.hidden && $('mail-view')?.style.display !== 'none' && _accounts.length) {
-      loadInbox(false, true).catch(console.error);
+      _reloadCurrent({ silent: true })?.catch(console.error);
     }
   });
 }

@@ -205,6 +205,14 @@ def update_task(tid: str, body: dict, db: DbSession = Depends(get_db)):
                 parent_id=t.parent_id,
             )
             db.add(spawned)
+    # priority/sort_order feed an int sort key in _ordered — a non-int gets stored then 500s
+    # every list/tree/search path, so coerce up front and reject junk with a 400
+    for numf in ("priority", "sort_order"):
+        if body.get(numf) is not None:
+            try:
+                body[numf] = int(body[numf])
+            except (TypeError, ValueError):
+                raise HTTPException(400, f"{numf} must be an integer")
     for f in (
         "done",
         "title",
