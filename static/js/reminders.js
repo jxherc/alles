@@ -78,8 +78,8 @@ async function _checkDue() {
     const due = await r.json();
     for (const rem of due) {
       toast(`reminder: ${rem.text}`, 'success');
-      // update local list
-      _reminders = _reminders.filter(x => x.id !== rem.id);
+      const ack = await fetch(`/api/reminders/${rem.id}/ack`, { method: 'POST' });
+      if (ack.ok) _reminders = _reminders.filter(x => x.id !== rem.id);
     }
     if (due.length) _render();
   } catch {}

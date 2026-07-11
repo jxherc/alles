@@ -238,14 +238,35 @@ function _initSettings() {
   document.getElementById('backup-export-btn')?.addEventListener('click', () => {
     window.location = '/api/backup';
   });
+  document.getElementById('backup-key-export-btn')?.addEventListener('click', () => {
+    window.location = '/api/backup/recovery-key';
+  });
+  document.getElementById('backup-recovery-key-input')?.addEventListener('change', e => {
+    const name = document.getElementById('backup-recovery-key-name');
+    if (name) name.textContent = e.target.files[0]?.name || 'no separate key selected';
+  });
   document.getElementById('backup-restore-input')?.addEventListener('change', async e => {
     const file = e.target.files[0];
     if (!file) return;
+    const status = document.getElementById('backup-restore-status');
+    if (status) { status.hidden = false; status.textContent = 'checking backup…'; }
     const fd = new FormData(); fd.append('file', file);
+    const keyInput = document.getElementById('backup-recovery-key-input');
+    if (keyInput?.files[0]) fd.append('recovery_key', keyInput.files[0]);
     const r = await fetch('/api/backup/restore', { method: 'POST', body: fd });
-    if (r.ok) { toast('restore complete — reloading…', 'success'); setTimeout(() => location.reload(), 1500); }
-    else toast('restore failed', 'error');
+    const data = await r.json().catch(() => ({}));
+    if (r.ok) {
+      const command = data.apply_command || 'alles restore apply <restore-id>';
+      if (status) status.textContent = `verified and staged. live data is unchanged. stop Alles, then run: ${command}`;
+      toast('backup verified and staged', 'success');
+    } else {
+      if (status) status.textContent = data.detail || 'backup check failed';
+      toast(data.detail || 'backup check failed', 'error');
+    }
     e.target.value = '';
+    if (keyInput) keyInput.value = '';
+    const keyName = document.getElementById('backup-recovery-key-name');
+    if (keyName) keyName.textContent = 'no separate key selected';
   });
 
   document.querySelectorAll('.shortcut-input').forEach(inp => {
@@ -1280,7 +1301,7 @@ async function loadMacosStatus() {
   box.innerHTML = '<div class="macos-avail">✓ available</div>'
     + row('Keychain', cap.keychain)
     + row('Calendar / Reminders (EventKit)', cap.eventkit)
-    + row('Photos (PhotoKit)', cap.photokit)
+    + row(`Photos (PhotoKit)${cap.photokit_authorization && !cap.photokit_ready ? ` — ${_esc(cap.photokit_authorization.replace('_', ' '))}` : ''}`, cap.photokit_ready)
     + row('iCloud Drive', cap.icloud);
 }
 
@@ -1783,6 +1804,7 @@ async function _renderRules() {
       <div class="rule-row-main">
         <span class="rule-row-name">${_esc(r.name)}</span>
         <span class="rule-row-desc">${_esc(label(_ruleOpts.triggers, r.trigger))} <b>${_esc(r.trigger_arg)}</b> → ${_esc(label(_ruleOpts.actions, r.action))}${r.action_arg ? `: <i>${_esc(r.action_arg.slice(0, 60))}</i>` : ''}</span>
+        ${r.last_attempt && r.last_attempt.status !== 'succeeded' ? `<span class="rule-row-desc" title="${_esc(r.last_attempt.error || '')}">last attempt: <b>${_esc(r.last_attempt.status)}</b></span>` : ''}
       </div>
       <button class="btn" data-act="test" title="run once with sample data">test</button>
       <button class="btn" data-act="toggle">${r.enabled ? 'pause' : 'resume'}</button>

@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+import os
 import time
 from contextlib import asynccontextmanager
 from datetime import datetime
@@ -12,6 +13,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from core.database import ModelEndpoint, SessionLocal, init_db
+from core.server_config import bind_host
 from core.settings import anthropic_api_key, auth_enabled, deepseek_api_key, get_port
 from services import events as _events  # noqa: F401 - installs the 0c mutation spine
 from routes import (
@@ -285,7 +287,7 @@ async def _fire_due_reminders():
     model and drop the reply into the session. (a registered 30s job)"""
     from core.database import Reminder, Session, SessionLocal
     from core.settings import load_settings
-    from routes.push import broadcast as push_broadcast
+    from routes.push import broadcast_result as push_broadcast_result
     from services.llm import stream_chat
 
     now = datetime.utcnow()
@@ -304,33 +306,38 @@ async def _fire_due_reminders():
             .all()
         )
         for r in plain:
+            # ``notified`` is the durable delivery claim. If the process stops
+            # after the provider accepts the push, this row will not be retried.
             r.notified = True
             db.commit()
             try:
-                sent = await push_broadcast(
+                result = await push_broadcast_result(
                     {"title": "reminder", "body": r.text, "url": "/", "tag": f"reminder-{r.id}"}
                 )
                 # push reached a browser -> the user's been told, so mark it fired: it won't
                 # linger as "overdue" in the list or re-toast on next open. with no live
                 # subscriptions, leave it unfired so an open tab still toasts it via /due.
-                if sent:
+                if result["sent"]:
                     r.fired = True
-                    db.commit()
+                elif not result["uncertain"]:
+                    # No provider may have accepted it, so a later safe retry is allowed.
+                    r.notified = False
+                db.commit()
             except Exception as e:
-                log.warning(f"reminder push failed: {e}")
+                # The call may have delivered before raising. Keep the claim set.
+                log.warning("reminder push outcome uncertain: %s", type(e).__name__)
 
         due = (
             db.query(Reminder)
             .filter(
                 Reminder.trigger_at <= now,
                 Reminder.fired == False,
+                Reminder.notified == False,
                 Reminder.type == "message",
             )
             .all()
         )
         for r in due:
-            r.fired = True
-            db.commit()
             if not r.session_id:
                 continue
             s = db.get(Session, r.session_id)
@@ -343,6 +350,11 @@ async def _fire_due_reminders():
             ep = db.get(ModelEndpoint, s.endpoint_id)
             if not ep:
                 continue
+            # Scheduled model calls can cost money even if the process stops
+            # before their response is saved. Claim first; a stale claim waits
+            # for owner review instead of spending again automatically.
+            r.notified = True
+            db.commit()
             settings = load_settings()
             msgs = [{"role": "system", "content": settings.get("system_prompt", "You are aide.")}]
             for m in list(s.messages)[-20:]:
@@ -362,12 +374,13 @@ async def _fire_due_reminders():
             am = Message(session_id=s.id, role="assistant", content=full)
             db.add(um)
             db.add(am)
+            r.fired = True
             s.message_count = (s.message_count or 0) + 2
             s.last_message_at = dt.utcnow()
             db.commit()
             log.info(f"fired scheduled message for session {s.id}")
             try:
-                await push_broadcast(
+                await push_broadcast_result(
                     {"title": "aide", "body": full[:160], "url": "/", "tag": f"message-{r.id}"}
                 )
             except Exception as e:
@@ -695,78 +708,147 @@ async def _connectivity_selftest():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    init_db()
+    from core.settings import data_dir as configured_data_dir
+    from services.instance_lock import InstanceLock
+    from services.restore_apply import maintenance_lock_path
+    from services.update_safety import update_lock_path, update_start_allowed
+
+    preflight = os.environ.get("ALLES_RECOVERY_PREFLIGHT") == "1"
+    live_data = configured_data_dir().expanduser().resolve()
+    if not preflight and maintenance_lock_path(live_data).exists():
+        raise RuntimeError(
+            "an offline restore is unfinished; run `alles restore recover` before starting Alles"
+        )
+    if (
+        not preflight
+        and update_lock_path(live_data).exists()
+        and not update_start_allowed(live_data, os.environ.get("ALLES_UPDATE_TOKEN"))
+    ):
+        raise RuntimeError(
+            "an offline update is unfinished; run `alles update rollback` before starting Alles"
+        )
+
+    instance_lock = InstanceLock(live_data)
+    instance_lock.acquire()
+    reminder_task = None
+    photo_backfill_task = None
+    connectivity_task = None
     try:
-        from services import net
+        init_db()
+        if preflight:
+            log.info("alles recovery preflight ready")
+            yield
+            return
 
-        if net.apply_proxy():
-            log.info("outbound proxy applied from settings")
-    except Exception:
-        pass
-    await _bootstrap_deepseek()
-    await _bootstrap_anthropic()
-    _cleanup_empty_sessions()
-    try:
-        from services import skills_store
+        # A previous process may have stopped after an external action but before
+        # saving its result. Resolve those claims before the job loop can run so
+        # they are visible as uncertain and are never retried blindly.
+        from services.automations import reconcile_interrupted_attempts
 
-        skills_store.seed_library()  # first-boot: install the whole bundled catalog
-    except Exception:
-        pass
-    try:
-        from routes.personas import seed_default_personas
+        interrupted_automations = reconcile_interrupted_attempts()
+        if interrupted_automations:
+            log.warning(
+                "marked %s interrupted automation attempt(s) uncertain",
+                interrupted_automations,
+            )
 
-        seed_default_personas()  # first-boot starter personas
-    except Exception:
-        pass
-    try:
-        from routes.calendars import seed_default_calendar
+        try:
+            from services import net
 
-        seed_default_calendar()  # first-boot 'Personal' calendar + adopt orphan events
-    except Exception:
-        pass
+            if net.apply_proxy():
+                log.info("outbound proxy applied from settings")
+        except Exception:
+            pass
+        await _bootstrap_deepseek()
+        await _bootstrap_anthropic()
+        _cleanup_empty_sessions()
+        try:
+            from services import skills_store
 
-    async def _photo_backfill():
-        # phase 4: fill aspect_ratio / preview / checksum on photos imported before the columns
-        # existed. gated on checksum==null so it's a cheap no-op once done; off-thread (opens images)
-        def _job():
-            from core.database import SessionLocal as SL
-            from services import photos_store
+            skills_store.seed_library()  # first-boot: install the whole bundled catalog
+        except Exception:
+            pass
+        try:
+            from routes.personas import seed_default_personas
 
-            db = SL()
+            seed_default_personas()  # first-boot starter personas
+        except Exception:
+            pass
+        try:
+            from routes.calendars import seed_default_calendar
+
+            seed_default_calendar()  # first-boot 'Personal' calendar + adopt orphan events
+        except Exception:
+            pass
+
+        async def _photo_backfill():
+            # phase 4: fill aspect_ratio / preview / checksum on photos imported before the columns
+            # existed. gated on checksum==null so it's a cheap no-op once done; off-thread (opens images)
+            def _job():
+                from core.database import SessionLocal as SL
+                from services import photos_store
+
+                db = SL()
+                try:
+                    n = photos_store.backfill_perf(db)
+                    if n:
+                        log.info(f"backfilled perf fields on {n} photo(s)")
+                finally:
+                    db.close()
+
+            await asyncio.to_thread(_job)
+
+        photo_backfill_task = asyncio.create_task(_photo_backfill())
+        try:
+            from services import agent_state
+
+            n = (
+                agent_state.reconcile_interrupted()
+            )  # zombie 'running' runs from a dead process → interrupted
+            if n:
+                log.info(f"reconciled {n} interrupted agent run(s) from a previous process")
+        except Exception:
+            pass
+        try:
+            from routes.mcp import connect_all
+
+            await connect_all()
+        except Exception:
+            pass
+        reminder_task = asyncio.create_task(_reminder_loop())
+        connectivity_task = asyncio.create_task(
+            _connectivity_selftest()
+        )  # fire-and-forget, logs a warning if outbound is dead
+        log.info("alles ready")
+        yield
+    finally:
+        if reminder_task is not None:
+            reminder_task.cancel()
             try:
-                n = photos_store.backfill_perf(db)
-                if n:
-                    log.info(f"backfilled perf fields on {n} photo(s)")
-            finally:
-                db.close()
-
-        await asyncio.to_thread(_job)
-
-    asyncio.create_task(_photo_backfill())
-    try:
-        from services import agent_state
-
-        n = (
-            agent_state.reconcile_interrupted()
-        )  # zombie 'running' runs from a dead process → interrupted
-        if n:
-            log.info(f"reconciled {n} interrupted agent run(s) from a previous process")
-    except Exception:
-        pass
-    try:
-        from routes.mcp import connect_all
-
-        await connect_all()
-    except Exception:
-        pass
-    task = asyncio.create_task(_reminder_loop())
-    asyncio.create_task(
-        _connectivity_selftest()
-    )  # fire-and-forget, logs a warning if outbound is dead
-    log.info("alles ready")
-    yield
-    task.cancel()
-    log.info("alles shutting down")
+                await reminder_task
+            except asyncio.CancelledError:
+                pass
+            except Exception as exc:
+                log.warning("background job loop stopped with %s", type(exc).__name__)
+        if connectivity_task is not None:
+            connectivity_task.cancel()
+            try:
+                await connectivity_task
+            except asyncio.CancelledError:
+                pass
+            except Exception as exc:
+                log.warning("connectivity check stopped with %s", type(exc).__name__)
+        if photo_backfill_task is not None:
+            # ``asyncio.to_thread`` keeps running after cancellation. Wait for this
+            # database writer before releasing the single-instance lock.
+            try:
+                await photo_backfill_task
+            except asyncio.CancelledError:
+                pass
+            except Exception as exc:
+                log.warning("photo backfill stopped with %s", type(exc).__name__)
+        instance_lock.release()
+        log.info("alles shutting down")
 
 
 app = FastAPI(title="alles", lifespan=lifespan)
@@ -1037,13 +1119,13 @@ async def ping(cached: bool = False):
 
 
 if __name__ == "__main__":
-    import os
-
     import uvicorn
 
     port = get_port()
+    host = bind_host()
     do_reload = bool(
         os.environ.get("ALLES_RELOAD")
     )  # ALLES_RELOAD=1 -> hot-reload on .py edits (dev)
-    log.info(f"starting alles on http://localhost:{port}{' (reload)' if do_reload else ''}")
-    uvicorn.run("app:app", host="0.0.0.0", port=port, reload=do_reload)
+    display_host = "localhost" if host in {"127.0.0.1", "::1", "0.0.0.0", "::"} else host
+    log.info(f"starting alles on http://{display_host}:{port}{' (reload)' if do_reload else ''}")
+    uvicorn.run("app:app", host=host, port=port, reload=do_reload)

@@ -2382,8 +2382,7 @@ mark.wiki-cmark { background: rgba(129, 140, 248, 0.28); color: inherit; border-
   --photos-rail-w: 184px;
   --photos-rail-pad: 0.45rem;
   --photos-nav-pad: 0.55rem;
-  --photos-nav-ic-w: 0.82rem;
-  --photos-nav-label-x: calc(var(--photos-rail-pad) + var(--photos-nav-pad) + var(--photos-nav-ic-w) + 0.6rem);
+  --photos-rail-content-x: calc(var(--photos-rail-pad) + var(--photos-nav-pad));
 }
 .photos-head { gap: 0.45rem; align-items: center; }
 .photos-head .btn, .photos-head .photos-search { font-size: 0.72rem; }
@@ -2587,7 +2586,7 @@ mark.wiki-cmark { background: rgba(129, 140, 248, 0.28); color: inherit; border-
 @media (min-width: 701px) {
   #photos-view .photos-head {
     position: relative;
-    padding-left: var(--photos-nav-label-x);
+    padding-left: var(--photos-rail-content-x);
   }
   #photos-view .photos-head::after {
     content: '';

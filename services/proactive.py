@@ -308,8 +308,10 @@ def _category_weight(db, cat):
 
 def _all_category_weights(db):
     """{category: weight} from one scan — avoids an N+1 over outcomes."""
-    return {cat: _weight_from_counts(c["acted"], c["dismissed"], c["ignored"])
-            for cat, c in _outcome_counts(db).items()}
+    return {
+        cat: _weight_from_counts(c["acted"], c["dismissed"], c["ignored"])
+        for cat, c in _outcome_counts(db).items()
+    }
 
 
 def feedback_stats(db):
@@ -395,19 +397,25 @@ async def _maybe_push(db, s):
     )
     if not rows:
         return 0
-    from routes.push import broadcast
+    from routes.push import broadcast_result
 
     sent = 0
     for r in rows:
+        # Claim before sending. ``pushed`` also quarantines an uncertain result;
+        # a confirmed no-delivery result clears it for a safe later retry.
+        r.pushed = True
+        db.commit()
         try:
-            await broadcast(
+            result = await broadcast_result(
                 {"title": "aide", "body": r.title, "url": "/", "tag": f"proactive-{r.id}"}
             )
-            r.pushed = True
-            sent += 1
+            if result["sent"]:
+                sent += 1
+            elif not result["uncertain"]:
+                r.pushed = False
+            db.commit()
         except Exception as e:
-            log.warning(f"proactive push failed: {e}")
-    db.commit()
+            log.warning("proactive push outcome uncertain: %s", type(e).__name__)
     return sent
 
 

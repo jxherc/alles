@@ -445,9 +445,9 @@ async function _renderManageExtra() {
     master password on this device so you can unlock <i>without typing it</i> — it replaces the password,
     it isn't a second factor. A <b>passkey 2FA</b> is an extra check on top of the password and may ask
     for the same device's biometrics to release the key.</p>
-    <div class="mv-autofill" id="vault-autofill-info">
-      <span class="mv-autofill-text">Browser autofill: load the <code>extension/</code> folder as an unpacked extension, paste an unlock token, and it fills logins from this vault on matching sites.</span>
-      <a class="mv-autofill-link ic-btn-lbl" href="https://developer.chrome.com/docs/extensions/get-started" id="vault-ext-link" target="_blank" rel="noopener">how to load it ${_si('external')}</a>
+    <div class="mv-autofill" id="vault-autofill-info" role="note" aria-label="browser autofill status">
+      <span class="mv-autofill-text"><b>browser autofill is off.</b> the old extension used a vault-wide unlock token, so it was retired.</span>
+      <span class="mv-autofill-text">remove or reload the old extension. until a safely paired replacement is ready, reveal and copy logins here in Passwords.</span>
     </div>`;
   box.querySelector('#mv-2fa').onclick = async () => {
     try {

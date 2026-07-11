@@ -14,8 +14,8 @@ import time
 from datetime import datetime
 from typing import Callable, Dict, List, Optional, Set
 
-from .research_utils import strip_thinking, is_low_quality
 from .goal_based_extractor import EXTRACTOR_PROMPT
+from .research_utils import is_low_quality, strip_thinking
 
 logger = logging.getLogger("aide.research")
 
@@ -231,6 +231,7 @@ class DeepResearcher:
         self._start_time = time.time()
         findings: List[Dict] = list(prior_findings) if prior_findings else []
         report = prior_report or ""
+        empty_reason = "No usable evidence was returned."
 
         self._emit(phase="planning")
         self.research_plan = await self._create_plan(question)
@@ -260,6 +261,7 @@ class DeepResearcher:
             queries = await self._generate_queries(question, report, round_num)
             if not queries:
                 logger.warning(f"Round {round_num}: no queries generated, stopping")
+                empty_reason = "The model did not produce usable search queries."
                 break
 
             self._emit(
@@ -326,7 +328,7 @@ class DeepResearcher:
                     "Synthesis produced no report; returning %d findings as fallback", len(findings)
                 )
                 return self._fallback_report(question, findings)
-            return "No information could be gathered for this question."
+            return self._no_information_report(empty_reason)
 
         self.evolving_report = report
         final = await self._final_report(question, report)
@@ -336,6 +338,17 @@ class DeepResearcher:
             f"{len(self.urls_fetched)} URLs, {elapsed:.1f}s"
         )
         return final
+
+    def _no_information_report(self, reason: str) -> str:
+        """Actionable fallback for the named empty deep-research regression."""
+        detail = self._last_search_error or reason
+        return (
+            "## Research incomplete\n\n"
+            "Alles could not gather enough usable evidence to write a reliable report.\n\n"
+            f"**What failed:** {detail}\n\n"
+            "You can **Retry**, **Broaden search**, **Edit query**, or "
+            "**Return to normal results**."
+        )
 
     # ── llm ─────────────────────────────────────────────────────────────────
     async def _llm(

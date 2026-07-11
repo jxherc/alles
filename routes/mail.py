@@ -587,7 +587,7 @@ def list_scheduled(db: DbSession = Depends(get_db)):
 
     rows = (
         db.query(ScheduledMail)
-        .filter(ScheduledMail.status == "scheduled")
+        .filter(ScheduledMail.status.in_(("scheduled", "sending", "uncertain")))
         .order_by(ScheduledMail.send_at.asc())
         .all()
     )

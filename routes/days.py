@@ -231,7 +231,7 @@ def delete_day(eid: str, db: DbSession = Depends(get_db)):
 async def check_day_events():
     """called from the background loop — push when an event enters its
     reminder window, once per occurrence."""
-    from routes.push import broadcast
+    from routes.push import broadcast_result
 
     today = date.today()
     db = SessionLocal()
@@ -244,15 +244,21 @@ async def check_day_events():
                 target, nth = orig, 0
                 if target < today:
                     continue  # already counting up — nothing to announce
+            target_key = target.isoformat()
+            terminal_markers = {
+                target_key,
+                f"pending:{target_key}",
+                f"uncertain:{target_key}",
+            }
             days = (target - today).days
-            if days > ev.notify_days or ev.last_notified == target.isoformat():
+            if days > ev.notify_days or ev.last_notified in terminal_markers:
                 continue
-            ev.last_notified = target.isoformat()
-            db.commit()
             nth_part = f" ({nth}{_ordinal(nth)} time)" if nth > 1 else ""
             when = "is today" if days == 0 else ("is tomorrow" if days == 1 else f"in {days} days")
+            ev.last_notified = f"pending:{target_key}"
+            db.commit()
             try:
-                await broadcast(
+                result = await broadcast_result(
                     {
                         "title": "days",
                         "body": f"{ev.name} {when}{nth_part}",
@@ -260,8 +266,17 @@ async def check_day_events():
                         "tag": f"day-{ev.id}-{target.isoformat()}",
                     }
                 )
+                if result["sent"]:
+                    ev.last_notified = target_key
+                elif result["uncertain"]:
+                    ev.last_notified = f"uncertain:{target_key}"
+                else:
+                    ev.last_notified = ""
+                db.commit()
             except Exception as e:
-                log.warning(f"day event push failed: {e}")
+                ev.last_notified = f"uncertain:{target_key}"
+                db.commit()
+                log.warning("day event push outcome uncertain: %s", type(e).__name__)
     finally:
         db.close()
 

@@ -10,6 +10,8 @@ reads rows with raw SQL (not the ORM) so it keeps working after the Note model i
 
 from sqlalchemy import text
 
+from core.migrations.runner import add_column
+
 VERSION = 9
 NAME = "notes_to_vault"
 
@@ -22,6 +24,13 @@ def up(conn):
     have = {r[0] for r in conn.execute(text("SELECT name FROM sqlite_master WHERE type='table'"))}
     if "notes" not in have:
         return
+
+    # Beta 0.1.0 shipped before these optional fields existed. Heal that exact legacy shape
+    # here because this migration reads the columns directly and the retired table is no longer
+    # part of the normal ORM schema.
+    add_column(conn, "notes", "tags", "TEXT DEFAULT ''")
+    add_column(conn, "notes", "items", "TEXT DEFAULT '[]'")
+    add_column(conn, "notes", "due", "TEXT DEFAULT ''")
 
     from services import notes_vault
 

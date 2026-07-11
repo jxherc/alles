@@ -5,6 +5,7 @@ from pathlib import Path
 from unittest import mock
 
 import core.settings
+import routes.vault as vault_routes
 from tests._client import ApiTest
 
 EXT = Path(__file__).resolve().parent.parent / "extension"
@@ -24,6 +25,7 @@ class AutofillMatchTests(ApiTest):
         self.h = {"X-Vault-Token": self.tok}
 
     def tearDown(self):
+        vault_routes._unlock_tokens.pop(self.tok, None)
         self.sp.stop()
         Path(self._sf.name).unlink(missing_ok=True)
         if self._prev is None:
@@ -33,7 +35,7 @@ class AutofillMatchTests(ApiTest):
         super().tearDown()
 
     def _add(self, name, url, user="me", pw="pw", typ="login"):
-        self.client.post(
+        response = self.client.post(
             "/api/vault",
             json={
                 "name": name,
@@ -43,6 +45,8 @@ class AutofillMatchTests(ApiTest):
             },
             headers=self.h,
         )
+        self.assertEqual(response.status_code, 200)
+        return response.json()
 
     def _match(self, domain, headers=None):
         return self.client.get(
@@ -51,45 +55,33 @@ class AutofillMatchTests(ApiTest):
             headers=headers if headers is not None else self.h,
         )
 
-    def test_match_by_host(self):
-        self._add("GitHub", "https://github.com/login")
-        m = self._match("github.com").json()
-        self.assertEqual([x["name"] for x in m], ["GitHub"])
+    def test_retired_route_is_gone_with_or_without_a_valid_token(self):
+        for headers in (self.h, {}):
+            with self.subTest(headers=bool(headers)):
+                response = self._match("github.com", headers=headers)
+                self.assertEqual(response.status_code, 410)
+                self.assertIn("retired", response.json()["detail"])
 
-    def test_match_strips_www(self):
-        self._add("GitHub", "https://www.github.com")
-        self.assertEqual(len(self._match("github.com").json()), 1)
-
-    def test_match_subdomain(self):
-        self._add("GitHub", "https://github.com")
-        self.assertEqual(len(self._match("gist.github.com").json()), 1)
-
-    def test_no_match_empty(self):
-        self._add("GitHub", "https://github.com")
-        self.assertEqual(self._match("example.org").json(), [])
-
-    def test_match_requires_unlock(self):
-        self.assertEqual(self._match("github.com", headers={}).status_code, 403)
-
-    def test_match_returns_credentials(self):
+    def test_retired_route_never_returns_credentials(self):
         self._add("GitHub", "https://github.com", user="octocat", pw="s3cret")
-        m = self._match("github.com").json()[0]
-        self.assertEqual(m["username"], "octocat")
-        self.assertEqual(m["password"], "s3cret")
+        response = self._match("github.com")
+        self.assertEqual(response.status_code, 410)
+        self.assertNotIn("octocat", response.text)
+        self.assertNotIn("s3cret", response.text)
 
-    def test_match_only_logins(self):
-        self._add("GitHub", "https://github.com")
-        # a secure note that happens to mention a url shouldn't autofill
-        self.client.post(
-            "/api/vault",
-            json={"name": "note", "type": "note", "fields": {"notes": "github.com is great"}},
+    def test_rejected_extension_call_revokes_the_exact_unlock_token(self):
+        self.assertIn(self.tok, vault_routes._unlock_tokens)
+        self.assertEqual(self._match("github.com").status_code, 410)
+        self.assertNotIn(self.tok, vault_routes._unlock_tokens)
+
+    def test_normal_passwords_web_reveal_still_works(self):
+        created = self._add("GitHub", "https://github.com", user="octocat", pw="s3cret")
+        response = self.client.get(
+            f"/api/vault/{created['id']}/reveal",
             headers=self.h,
         )
-        self.assertEqual(len(self._match("github.com").json()), 1)
-
-    def test_match_case_insensitive(self):
-        self._add("GitHub", "https://github.com")
-        self.assertEqual(len(self._match("GitHub.com").json()), 1)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["fields"]["password"], "s3cret")
 
 
 class ExtensionFilesTests(ApiTest):
@@ -98,7 +90,18 @@ class ExtensionFilesTests(ApiTest):
         self.assertEqual(man["manifest_version"], 3)
         self.assertTrue(man.get("name"))
 
-    def test_extension_has_content_script(self):
+    def test_extension_is_a_permission_free_notice_shell(self):
         man = json.loads((EXT / "manifest.json").read_text(encoding="utf-8"))
-        cs = man["content_scripts"][0]["js"][0]
-        self.assertTrue((EXT / cs).is_file())
+        for key in ("permissions", "host_permissions", "background", "content_scripts"):
+            self.assertNotIn(key, man)
+        self.assertFalse((EXT / "background.js").exists())
+        self.assertFalse((EXT / "content.js").exists())
+        self.assertFalse((EXT / "popup.js").exists())
+
+    def test_extension_contains_no_vault_token_flow(self):
+        source = "\n".join(path.read_text("utf-8") for path in EXT.iterdir() if path.is_file())
+        self.assertNotIn("X-Vault-Token", source)
+        self.assertNotIn("chrome.storage", source)
+        self.assertNotIn("<all_urls>", source)
+        self.assertIn("browser autofill is off", source)
+        self.assertIn("open Passwords in Alles", source)

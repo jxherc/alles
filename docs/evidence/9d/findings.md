@@ -1,5 +1,9 @@
 # 9d — passkeys & autofill: implementation + regression
 
+> Historical evidence. The browser extension described below was retired in Afterlife Phase 0. It no
+> longer receives credentials, page access, host permissions, or a vault token. Passwords in Alles is
+> the safe fallback until a narrowly paired replacement exists.
+
 Built depth-first, strict TDD (RED→GREEN), ruff + node --check clean.
 
 - **9d-1 passkey storage + use** — `services/passkey.py` (ES256 keypair + WebAuthn-style sign,

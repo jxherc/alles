@@ -10,6 +10,7 @@ bcrypt                # password hashing (core/auth.py)
 fastembed
 python-docx          # vault .docx export
 pillow               # photos app — thumbnails + EXIF
+pillow-heif; sys_platform == "darwin"  # photos — HEIC/HEIF decode + thumbnails on macOS
 numpy                # photos — justified layout math, places reverse-geocode, clip vectors
 beautifulsoup4       # research — html parsing
 trafilatura          # research — main-article extraction (strips nav/ads/boilerplate)

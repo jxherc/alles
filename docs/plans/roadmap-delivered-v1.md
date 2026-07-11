@@ -1,5 +1,8 @@
 # alles — long-term build roadmap
 
+> **Historical stage:** [Flesh and Blood](stages/02-flesh-and-blood.md). This is not the active roadmap.
+> See [Afterlife](afterlife/README.md) for the current direction.
+
 ## Context
 
 `alles` is a self-hosted, single-user everything-app (FastAPI + SQLite + vanilla-JS SPA,
@@ -465,6 +468,8 @@ Built first because 2+ apps each depend on them; ordered by first consumer (docs
   hides flagged items; biometric unlocks on a supported device.
 
 **9d — Passkeys & autofill** · L
+- **Afterlife Phase 0 retirement:** the broad-token autofill prototype is no longer active. Its route
+  returns `410 Gone`, the extension bundle is permission-free, and the web Passwords app is the fallback.
 - **Passkey storage**, **hardware-key (FIDO2/YubiKey) 2FA for unlock**, **local browser-
   extension autofill** (a thin extension talking to the localhost vault API). · files:
   `routes/vault.py`, `static/js/vault.js`, new `extension/` · ✓ store/use a passkey entry; a

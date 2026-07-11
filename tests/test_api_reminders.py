@@ -23,14 +23,28 @@ class RemindersApiTest(ApiTest):
             400,
         )
 
-    def test_due_marks_fired_and_drops_from_list(self):
+    def test_due_is_read_only_until_client_acknowledges_delivery(self):
         past = (datetime.utcnow() - timedelta(minutes=5)).isoformat()
-        self.client.post("/api/reminders", json={"text": "overdue", "trigger_at": past})
+        created = self.client.post(
+            "/api/reminders", json={"text": "overdue", "trigger_at": past}
+        ).json()
         due = self.client.get("/api/reminders/due").json()
         self.assertEqual([x["text"] for x in due], ["overdue"])
-        # marked fired → no longer in the active list, and not due again
+        self.assertEqual(
+            [x["id"] for x in self.client.get("/api/reminders").json()], [created["id"]]
+        )
+        self.assertEqual(
+            [x["id"] for x in self.client.get("/api/reminders/due").json()], [created["id"]]
+        )
+
+        ack = self.client.post(f"/api/reminders/{created['id']}/ack")
+        self.assertEqual(ack.status_code, 200)
+        self.assertTrue(ack.json()["fired"])
         self.assertEqual(self.client.get("/api/reminders").json(), [])
         self.assertEqual(self.client.get("/api/reminders/due").json(), [])
+
+    def test_ack_missing_reminder_404(self):
+        self.assertEqual(self.client.post("/api/reminders/missing/ack").status_code, 404)
 
     def test_delete_missing_404(self):
         self.assertEqual(self.client.delete("/api/reminders/nope").status_code, 404)

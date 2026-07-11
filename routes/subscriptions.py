@@ -571,7 +571,9 @@ def mark_paid(sid: str, db: DbSession = Depends(get_db)):
     # lands on the next upcoming due (cycle-correct, never just "+1 month").
     nxt = _advance(paid_for, sub.cycle, sub.cycle_days)
     guard = 0
-    while nxt < today and guard < 600:  # only skip strictly-past cycles; a due-today stays payable (matches _roll)
+    while (
+        nxt < today and guard < 600
+    ):  # only skip strictly-past cycles; a due-today stays payable (matches _roll)
         nxt = _advance(nxt, sub.cycle, sub.cycle_days)
         guard += 1
     sub.next_due = nxt.isoformat()
@@ -668,7 +670,7 @@ def delete_subscription(sid: str, db: DbSession = Depends(get_db)):
 async def check_renewals():
     """called from the background loop — push once per billing period when a
     renewal is within the subscription's reminder window."""
-    from routes.push import broadcast
+    from routes.push import broadcast_result
 
     today = date.today()
     db = SessionLocal()
@@ -677,17 +679,25 @@ async def check_renewals():
         if any(_roll_and_post(s, today, db) for s in subs):
             db.commit()
         for s in subs:
-            if s.remind_days <= 0 or s.last_notified_due == s.next_due:
+            due_key = s.next_due
+            terminal_markers = {
+                due_key,
+                f"pending:{due_key}",
+                f"uncertain:{due_key}",
+            }
+            if s.remind_days <= 0 or s.last_notified_due in terminal_markers:
                 continue
             days = (_parse(s.next_due) - today).days
             if days > s.remind_days:
                 continue
-            s.last_notified_due = s.next_due
-            db.commit()
             when = "today" if days <= 0 else ("tomorrow" if days == 1 else f"in {days} days")
             price = f" — {s.currency}{s.price:g}" if s.price else ""
+            # Claim before the provider call. A crash leaves ``pending`` behind,
+            # which is treated as uncertain instead of being sent again.
+            s.last_notified_due = f"pending:{due_key}"
+            db.commit()
             try:
-                await broadcast(
+                result = await broadcast_result(
                     {
                         "title": "subscription renewal",
                         "body": f"{s.name} renews {when}{price}",
@@ -695,8 +705,17 @@ async def check_renewals():
                         "tag": f"sub-{s.id}-{s.next_due}",
                     }
                 )
+                if result["sent"]:
+                    s.last_notified_due = due_key
+                elif result["uncertain"]:
+                    s.last_notified_due = f"uncertain:{due_key}"
+                else:
+                    s.last_notified_due = ""
+                db.commit()
             except Exception as e:
-                log.warning(f"renewal push failed: {e}")
+                s.last_notified_due = f"uncertain:{due_key}"
+                db.commit()
+                log.warning("renewal push outcome uncertain: %s", type(e).__name__)
     finally:
         db.close()
 

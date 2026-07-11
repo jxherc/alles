@@ -219,7 +219,7 @@ this is the most feature-dense app, so here's the full list:
 - your photos grouped into date "moments," plus albums and favorites
 - **search** by filename, camera (from exif), or date — "june 2026", a `2026-06` prefix, or just a year
 - reads **exif** (the camera/date info baked into a photo) and makes thumbnails automatically
-- **folder sync** — point `/api/photos/sync` at an icloud drive / photos-export / dropbox folder and it pulls in new shots (deduped); on the mac mini a photokit/osxphotos bridge feeds the same path
+- **folder + Apple Photos sync** — point `/api/photos/sync` at an icloud drive / photos-export / dropbox folder, or use the gallery's macOS-only Apple Photos action for confirmed, permission-gated batches of up to 500 visible items (Hidden stays excluded); stable source identity prevents repeat imports from duplicating the library while local hidden/favorite choices remain local
 - everything stored as plain files under `data/` — they're just your photos in a folder
 
 ### contacts
@@ -257,9 +257,9 @@ this is the most feature-dense app, so here's the full list:
 **plain version:** *when this happens, do that.* set a rule once and alles runs it for you.
 
 - examples: mail from a certain sender → make a task · a subscription is about to renew → push me · a doc gets saved with `#urgent` → do something · every morning → build me a day digest
-- *under the hood:* rules live in the database and fire off a small background job system (see [under the hood](#how-each-app-works-under-the-hood))
+- *under the hood:* rules live in the database and fire off a small background job system (see [under the hood](#how-each-app-works-under-the-hood)). each occurrence is claimed before it acts, then saved as succeeded, failed, or uncertain. an uncertain external result is shown for review and is not retried automatically.
 
-**and the smaller stuff:** global search across everything (cmd/ctrl+k), scheduled messages (right-click send → have aide message you later), prompt templates / a cookbook, webhooks, api tokens, an openai-compatible api so other tools can use alles as their "openai," backup & restore to a zip, light/dark themes **with a customizable accent color**, and it **installs like an app** (it's a pwa with real push notifications — add it to your home screen/dock and reminders reach you with every tab closed).
+**and the smaller stuff:** global search across everything (cmd/ctrl+k), scheduled messages (right-click send → have aide message you later), prompt templates / a cookbook, webhooks, api tokens, an openai-compatible api so other tools can use alles as their "openai," encrypted backup with a separately saved recovery key and offline staged restore, light/dark themes **with a customizable accent color**, and it **installs like an app** (it's a pwa with real push notifications — add it to your home screen/dock and reminders reach you with every tab closed).
 
 ---
 
@@ -404,7 +404,7 @@ graph TD
 - **calendar** — events in sqlite with recurrence expanded on the fly; optional two-way caldav sync if you install `caldav` and add credentials.
 - **gallery / photos** — you import photos; pillow makes thumbnails and reads exif; they're grouped into date "moments." stored as plain files under `data/`.
 - **secrets** — entries sealed with aes-256-gcm under a pbkdf2-hmac-sha-256 (260k iterations) key derived from your master password, which lives in memory only.
-- **automations & jobs** — a small background **job registry + event bus** ([`services/jobs.py`](services/jobs.py)) ticks the recurring work every 30 seconds: subscription renewals, day-event checks, scheduled reminders/messages, automation rules, and a periodic model-list refresh. rules live in the db and fire on events (mail arrived, doc saved, renewal soon, every morning). new features can register their own jobs or react to events without wiring into the main loop.
+- **automations & jobs** — a small background **job registry + event bus** ([`services/jobs.py`](services/jobs.py)) ticks the recurring work every 30 seconds: subscription renewals, day-event checks, scheduled reminders/messages, automation rules, and a periodic model-list refresh. rules live in the db and fire on events (mail arrived, doc saved, renewal soon, every morning). durable occurrence claims prevent duplicate work after a crash; ambiguous external results stop as `uncertain` instead of retrying blindly. new features can register their own jobs or react to events without wiring into the main loop.
 - **push notifications** — web push implemented straight from the rfcs (vapid keys + message encryption) with **no third-party library**, so reminders, renewals, and scheduled messages reach you even with every tab closed.
 
 ---
@@ -437,12 +437,17 @@ alles restart       restart it
 alles status        running/stopped + url + reachability
 alles logs [n]      print the last n log lines (default 60)
 alles logs -f       follow the log live
-alles update        git pull, then restart
+alles update        stage + verify a fast-forward release, then health-check it
+alles update rollback
+                    restore the previous verified code and data
+alles update accept accept a healthy update, keep its encrypted backup, and remove temp copies
 alles open          open the browser
 alles doctor        check the install is ready (deps, data dir, provider)
 ```
 
 `alles doctor` is the first thing to run on a fresh checkout — it reports your python version, which required/optional deps are present, whether the data dir is writable, and whether an ai provider is configured yet, then tells you if you're good to `start`.
+
+updates do not pull into a running install. alles fetches a pinned fast-forward commit into a detached worktree, compiles both the server and cli, runs a rollback-control probe, stops verified writers, creates an encrypted exact-data backup, and boots the migrated candidate twice before switching. the live checkout and health endpoint are rechecked before data moves. rollback is crash-resumable and refuses unknown processes, unrelated restores, dirty code, or a late edit; accepting an update keeps the encrypted backup and removes its temporary full copies.
 
 - **windows (powershell):** `.\alles.cmd start` (powershell needs the `.\`), or just `alles start` if the folder is on your `path`
 - **windows (cmd):** `alles.cmd start`
@@ -493,7 +498,7 @@ graph td
 alles is **one server** serving **one single-page app**, but each app gets its own subdomain so it feels like a real suite:
 
 ```
-alles.localhost          the hub (launcher / home)
+localhost                the hub (launcher / home; use the bare configured base host)
 aide.localhost           chat, agent, memory, compare, brain, models, reminders, ai gallery, cookbook, usage, skills
 mail.localhost           mail
 docs.localhost           docs (notes — `notes.localhost` is an alias)
@@ -544,9 +549,9 @@ alles is scriptable. two flavors:
 - **files/photos:** `/api/files/{list,raw,upload,mkdir,rename,delete}`, `/api/photos/{gallery,gallery/upload,albums,thumb}`
 - **secrets:** `/api/vault` (+ `/unlock`, `/lock`, `/{id}/reveal`)
 - **memory/personas/projects/cookbook:** `/api/memories` (+ `/search`, `/extract`), `/api/personas`, `/api/projects`, `/api/cookbook`
-- **platform:** `/api/settings`, `/api/today`, `/api/timeline` (the activity feed), `/api/system/stats` (live machine stats), `/api/backup` (+ `/restore`), `/api/tokens`, `/api/webhooks`, `/api/push/*`, `/api/mcp/*`, `/api/connections`, `/api/automations`, `/api/jobs`
+- **platform:** `/api/settings`, `/api/today`, `/api/timeline` (the activity feed), `/api/system/stats` (live machine stats), `/api/system/build`, `/api/backup` (+ `/restore`), `/api/tokens`, `/api/webhooks`, `/api/push/*`, `/api/mcp/*`, `/api/connections`, `/api/automations`
 
-protect it with **api tokens** (settings → tokens) and, if exposed, **`auth_enabled`**.
+if it is exposed, enable login protection. current api tokens are unscoped, and with auth enabled a bearer token still needs the session cookie; they are not yet a replacement for login.
 
 
 *under the hood:* the api uses `fastapi` standard pydantic models for validation, but keeps things loose where it makes sense (like dynamic agent arguments). streaming routes use `streamingresponse` pumping async generator yields directly from `httpx`. the open-api compatible layer specifically intercepts the `messages` array, unrolls them into the internal `chatrole` format, routes them to `detect_provider`, and then restructures the sse stream to look exactly like openai's `v1/chat/completions` chunks.
@@ -556,7 +561,7 @@ protect it with **api tokens** (settings → tokens) and, if exposed, **`auth_en
 
 ## your data: where everything lives
 
-everything is in one folder, **`data/`**:
+local state defaults to **`ALLES_DATA`** (`data/` in a normal checkout). Vault, Files, Photos, Project, watch, and model-cache roots can deliberately point elsewhere, so they stay separate recovery boundaries:
 
 - **`data/aide.db`** — a single sqlite database file (wal mode) holding the structured stuff.
 
@@ -568,12 +573,22 @@ erDiagram
     MONEY_ACCOUNTS ||--o{ MONEY_TRANSACTIONS : holds
     VAULTS ||--o{ VAULT_ENTRIES : secures
 ```
- it's a wide schema — **~70 tables** covering: chat (`sessions`, `messages`, `model_endpoints`, `mcp_servers`), notes/journal/tasks (`notes`, `journal_entries`, `tasks`), calendar (`calendars`, `calendar_events`, `event_attendees`, `booking_pages`, `calendar_subscriptions`), money (`money_accounts`, `money_transactions`, `money_budgets`, `money_goals`, `money_holdings`, `money_recurring`, …), subscriptions (`subscriptions`, `sub_payments`, `sub_price_changes`), contacts (`contacts`, `contact_fields`, `contact_groups`), mail (`mail_accounts`, `mail_drafts`, `cached_messages`, `mail_rules`, `mail_scheduled`), photos (`albums`, `photos`), the vault (`vaults`, `vault_entries`, `vault_attachments`, `webauthn_credentials`), plus `personas`, `projects`, `memories`, `reminders`, `automation_rules`, `day_events`, `habits`, `health_entries`, `books`, `read_items`, `monitors`, `webhooks`, `api_tokens`, `connections`, and more.
+ it's a wide schema — **about 90 tables** covering: chat (`sessions`, `messages`, `model_endpoints`, `mcp_servers`), notes/journal/tasks (`journal_entries`, `tasks`), calendar (`calendars`, `calendar_events`, `event_attendees`, `booking_pages`, `calendar_subscriptions`), money (`money_accounts`, `money_transactions`, `money_budgets`, `money_goals`, `money_holdings`, `money_recurring`, …), subscriptions (`subscriptions`, `sub_payments`, `sub_price_changes`), contacts (`contacts`, `contact_fields`, `contact_groups`), mail (`mail_accounts`, `mail_drafts`, `cached_messages`, `mail_rules`, `mail_scheduled`), photos (`albums`, `photos`), the vault (`vaults`, `vault_entries`, `vault_attachments`, `webauthn_credentials`), plus `personas`, `projects`, `memories`, `reminders`, `automation_rules`, `automation_attempts`, `day_events`, `habits`, `health_entries`, `books`, `read_items`, `monitors`, `webhooks`, `api_tokens`, `connections`, and more.
 - **`data/vault/`** — your docs as plain `.md` files (with `_assets/` for embedded images and `_templates/` for templates).
 - **`data/skills/`** — agent skills as `skill.md` files (frontmatter + steps).
 - **`data/`** (other) — uploads, photos, gallery, and file-app content as plain files; **`data/secret.key`** — the encryption key for stored credentials.
 
-*under the hood:* the schema is sqlalchemy models in [`core/database.py`](core/database.py) with lightweight in-place column migrations (it adds new columns to existing tables on boot, so upgrades don't wipe your db). server-side secrets (model api keys, mail passwords) are sealed at rest with aes-256-gcm under `data/secret.key`. **back up the `data/` folder and you've backed up your entire alles** — or use settings → backup for a zip.
+*under the hood:* the schema is sqlalchemy models in [`core/database.py`](core/database.py) with versioned migrations. server-side secrets (model api keys, mail passwords) are sealed at rest with aes-256-gcm under `data/secret.key`. settings → backup creates an authenticated encrypted `.alles-backup` with a hashed manifest. save its recovery key separately. restore verifies into staging, boots and migrates there twice, swaps only while writers are stopped, health-checks the installed copy, and automatically puts the original data back if validation fails.
+
+### current trust map
+
+Alles is one FastAPI owner process with a browser client. SQLite owns structured state; the Markdown
+Vault owns human-authored knowledge; configured Files and Photos roots own managed bytes. Models,
+search, mail, calendars, contacts, MCP peers, notification providers, public links, native helpers, and
+external folders are separate trust zones. Their input is data, not trusted instruction.
+
+The full code-audited map, route hash, public surface, hosts, deep links, jobs, and known gaps are recorded
+in [`docs/plans/afterlife/current-trust-map.md`](docs/plans/afterlife/current-trust-map.md).
 
 ---
 
@@ -645,8 +660,9 @@ alles is built for **one person on their own machine.** read this before you put
 - **login is rate-limited.** once auth is on, a single ip that fails the password 8 times in 5 minutes is blocked (http 429) — basic brute-force insurance for the day alles sits behind a domain.
 - **aide has hands.** agent mode and the shell tools run real commands on the machine alles is on. that's the point — but don't hand access to people or models you don't trust. the prompt-injection guard reduces the risk of a malicious web page/email steering the agent, but treat it as a seatbelt, not a force field.
 - **credentials are encrypted at rest with a local key.** model api keys and mail passwords are sealed with aes-256-gcm under `data/secret.key`. this protects the database file if it leaks *on its own* — it does **not** protect against someone who has the whole `data/` folder, because the server must be able to decrypt unattended.
-- **backups are the whole safe, key included.** a backup zip contains the database **and** the keys so restores just work — which means a backup is exactly as sensitive as your live data. store it like a password.
+- **full backups are encrypted before download.** the encrypted container includes the database, required application keys, selected managed files, and a hashed manifest. the separate recovery key is never printed in logs; export it once and keep that copy away from the server. old plaintext ZIP backups can still be safely staged for compatibility.
 - **the password vault is different.** vault secrets are encrypted with your **master password**, which never touches disk. no master password, no plaintext — not even from a full copy of `data/`.
+- **the old browser-autofill prototype is retired.** it reused a vault-wide unlock token, so `/api/vault/match` now revokes the exact pasted token and returns `410 Gone` without resolving or extending it. the bundled extension is a permission-free notice only; use Passwords in Alles to reveal and copy logins until a safely paired replacement exists.
 - **no warranty.** this is a self-hosted hobby project, not an audited security product. it tries hard; you run it at your own risk.
 
 ---

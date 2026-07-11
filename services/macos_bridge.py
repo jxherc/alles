@@ -34,12 +34,20 @@ def capabilities() -> dict:
     """what native integration is reachable here — drives the settings status card (11a).
     off-darwin everything is unavailable (the feature fails loud, honestly)."""
     mac = is_mac()
+    try:
+        from services import photokit as native_photokit
+
+        photos = native_photokit.status()
+    except Exception:
+        photos = {"available": False, "ready": False, "authorization": "unavailable"}
     return {
         "platform": sys.platform,
         "available": mac,
         "keychain": mac and shutil.which("security") is not None,
         "eventkit": mac and shutil.which("icalBuddy") is not None,
-        "photokit": mac and shutil.which("osxphotos") is not None,
+        "photokit": bool(photos["available"]),
+        "photokit_ready": bool(photos["ready"]),
+        "photokit_authorization": photos["authorization"],
         "icloud": bool(mac and icloud_drive_dir()),
     }
 

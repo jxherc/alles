@@ -1,8 +1,9 @@
-import io
 import os
+import sqlite3
 import tempfile
 import unittest
 import zipfile
+from contextlib import closing
 from pathlib import Path
 
 import routes.backup as backup
@@ -20,6 +21,7 @@ import services.skills_store as skills_store
 import services.webpush as webpush
 from core.database import Session, Upload
 from routes import personas
+from services.recovery_crypto import decrypt_recovery_container, load_recovery_key
 from services.research import handler as research_handler
 from tests._client import ApiTest
 
@@ -162,12 +164,27 @@ class DataDirIsolationApiTest(ApiTest):
         self.tmp.cleanup()
 
     def test_backup_export_uses_alles_data(self):
-        (self.root / "aide.db").write_bytes(b"isolated-db")
+        with closing(sqlite3.connect(self.root / "aide.db")) as conn:
+            conn.execute("CREATE TABLE sessions (id TEXT PRIMARY KEY, name TEXT)")
+            conn.execute("CREATE TABLE tasks (id TEXT PRIMARY KEY, title TEXT)")
+            conn.execute(
+                "CREATE TABLE schema_migrations "
+                "(version INTEGER PRIMARY KEY, name TEXT, applied_at TEXT)"
+            )
+            conn.execute("INSERT INTO schema_migrations VALUES (1, 'baseline', '')")
+            conn.execute("CREATE TABLE isolated_backup (value TEXT)")
+            conn.commit()
         (self.root / "settings.json").write_text('{"marker":"isolated"}')
         r = self.client.get("/api/backup")
         self.assertEqual(r.status_code, 200)
-        with zipfile.ZipFile(io.BytesIO(r.content)) as zf:
-            self.assertEqual(zf.read("settings.json"), b'{"marker":"isolated"}')
+        encrypted = Path(self.tmp.name) / "isolated.alles-backup"
+        plaintext = Path(self.tmp.name) / "isolated.zip"
+        encrypted.write_bytes(r.content)
+        decrypt_recovery_container(
+            encrypted, plaintext, load_recovery_key(self.root / "recovery.key")
+        )
+        with zipfile.ZipFile(plaintext) as zf:
+            self.assertEqual(zf.read("payload/data/settings.json"), b'{"marker":"isolated"}')
 
     def test_upload_and_gallery_write_under_alles_data(self):
         r = self.client.post("/api/uploads", files={"file": ("a.txt", b"a", "text/plain")})

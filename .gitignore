@@ -5,6 +5,8 @@ __pycache__/
 
 # data — all of it, nothing personal should be tracked
 data/
+.*-recovery/
+.*-update-maintenance.json
 # throwaway ALLES_DATA dirs from isolated test runs (each holds a scratch aide.db + vault)
 .tmp_*/
 # ...except the hwfit model catalog: it's reference data that ships with the
@@ -29,8 +31,13 @@ server*.log
 # graphify knowledge-graph output — local only, never track
 graphify-out/
 
+# local roadmap notes from earlier planning sessions
+alles-road-report.md
+docs/roadmap/
+
 # ide / local tooling + agent instruction files — never track
 .claude/
+.Codex/
 .vscode/
 CLAUDE.md
 AGENTS.md

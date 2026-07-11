@@ -980,8 +980,11 @@ async function _renderScheduled() {
   let items = [];
   try { items = (await fetch('/api/mail/scheduled').then(r => r.json())).scheduled || []; } catch (e) { console.error(e); }
   if (!items.length) { bar.innerHTML = ''; return; }
-  bar.innerHTML = `<span class="mail-sched-lbl">scheduled</span>` + items.map(s =>
-    `<span class="mail-sched-chip" title="to ${esc(s.to)}">🕒 ${esc(s.subject || '(no subject)')} · ${esc((s.send_at || '').slice(0, 16))}<button class="mail-sched-cancel" data-cancel="${esc(s.id)}" title="cancel">×</button></span>`).join('');
+  bar.innerHTML = `<span class="mail-sched-lbl">outbox</span>` + items.map(s => {
+    const uncertain = s.status === 'uncertain' || s.status === 'sending';
+    const state = uncertain ? 'delivery uncertain — check Sent before trying again' : (s.send_at || '').slice(0, 16);
+    return `<span class="mail-sched-chip" title="${uncertain ? esc(state) : `to ${esc(s.to)}`}">${uncertain ? '⚠' : '🕒'} ${esc(s.subject || '(no subject)')} · ${esc(state)}<button class="mail-sched-cancel" data-cancel="${esc(s.id)}" title="remove from outbox">×</button></span>`;
+  }).join('');
   bar.querySelectorAll('.mail-sched-cancel').forEach(b => b.addEventListener('click', async () => {
     await fetch(`/api/mail/scheduled/${b.dataset.cancel}/cancel`, { method: 'POST' }).catch(console.error);
     _renderScheduled();

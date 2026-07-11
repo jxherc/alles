@@ -1,4 +1,3 @@
-import asyncio
 import hashlib
 import hmac
 import json
@@ -17,7 +16,6 @@ router = APIRouter(prefix="/api")
 log = logging.getLogger("aide.webhooks")
 
 _VALID_EVENTS = {"message", "research_done", "session_created", "session_renamed"}
-_RETRIES = 3  # total attempts per delivery
 
 
 def _fmt(w: Webhook) -> dict:
@@ -40,7 +38,7 @@ def _sign(secret: str, raw: bytes) -> str:
 
 
 async def _deliver(w: Webhook, body: dict) -> tuple[str, str]:
-    """post to one hook with signature + retries. returns (status, error)."""
+    """Post once and report whether delivery was confirmed, rejected, or uncertain."""
     from services.net_guard import is_safe_url
 
     if not is_safe_url(w.url):  # SSRF: a hook url can't target the app's own loopback / metadata
@@ -49,19 +47,27 @@ async def _deliver(w: Webhook, body: dict) -> tuple[str, str]:
     headers = {"content-type": "application/json"}
     if w.secret:
         headers["x-alles-signature"] = _sign(w.secret, raw)
-    err = ""
-    async with httpx.AsyncClient(timeout=5) as c:
-        for attempt in range(_RETRIES):
-            try:
-                r = await c.post(w.url, content=raw, headers=headers)
-                if r.status_code < 400:
-                    return "ok", ""
-                err = f"http {r.status_code}"
-            except Exception as e:
-                err = str(e)
-            if attempt < _RETRIES - 1:  # back off between tries, don't sleep after the last one
-                await asyncio.sleep(0.5 * (attempt + 1))
-    log.warning(f"webhook {w.name} failed after {_RETRIES}: {err}")
+    try:
+        async with httpx.AsyncClient(timeout=5) as c:
+            r = await c.post(w.url, content=raw, headers=headers)
+    except Exception as e:
+        # A timeout or transport failure may happen after the receiver accepted the request.
+        # Retrying here could deliver the same event twice. Keep only the exception
+        # type because request errors can include secret-bearing webhook URLs.
+        err = type(e).__name__
+        log.warning("webhook %s delivery uncertain: %s", w.name, err)
+        return "uncertain", err
+
+    if r.status_code < 400:
+        return "ok", ""
+
+    err = f"http {r.status_code}"
+    if r.status_code >= 500:
+        # The receiver may have applied the event before returning a server error.
+        log.warning("webhook %s delivery uncertain: %s", w.name, err)
+        return "uncertain", err
+
+    log.warning("webhook %s rejected: %s", w.name, err)
     return "error", err
 
 

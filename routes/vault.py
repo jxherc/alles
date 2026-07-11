@@ -1236,37 +1236,16 @@ def twofa_unlock(body: TwoFaUnlock, request: Request, db: DbSession = Depends(ge
     return {"token": _mint(body.password, vid), "vault_id": vid}
 
 
-# ── browser-extension autofill (9d) ───────────────────────────────────────────
-def _host_of(url: str) -> str:
-    from urllib.parse import urlparse
-
-    u = url if "//" in url else "//" + url
-    return (urlparse(u).hostname or "").lower().removeprefix("www.")
-
-
-def _host_match(stored: str, domain: str) -> bool:
-    s, d = stored.removeprefix("www."), domain.lower().removeprefix("www.")
-    if not s or not d:
-        return False
-    return s == d or s.endswith("." + d) or d.endswith("." + s)
-
-
+# ── retired browser-extension autofill compatibility route ────────────────────
 @router.get("/vault/match")
-def vault_match(domain: str = "", db: DbSession = Depends(get_db), ctx: tuple = Depends(_ctx)):
-    """logins in this vault whose stored url host matches `domain` — for the autofill extension."""
-    pw, vid = ctx
-    out = []
-    rows = db.query(VaultEntry).filter(VaultEntry.vault_id == vid, VaultEntry.type == "login").all()
-    for e in rows:
-        f = _entry_fields(e, pw)
-        host = _host_of(f.get("url") or "")
-        if host and _host_match(host, domain):
-            out.append(
-                {
-                    "id": e.id,
-                    "name": e.name,
-                    "username": f.get("username") or e.username or "",
-                    "password": f.get("password") or "",
-                }
-            )
-    return out
+def vault_match(x_vault_token: str | None = Header(None)):
+    """Reject the legacy extension and revoke the exact broad token it pasted."""
+    if x_vault_token:
+        _unlock_tokens.pop(x_vault_token, None)
+    raise HTTPException(
+        status_code=410,
+        detail=(
+            "the old browser autofill extension was retired and its pasted token was revoked; "
+            "remove or reload it and use Passwords in Alles to reveal and copy logins"
+        ),
+    )

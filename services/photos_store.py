@@ -16,7 +16,8 @@ from core.settings import data_dir, load_settings
 
 ROOT = Path(__file__).resolve().parent.parent
 _HEIF = {"heic", "heif"}
-_ALLOWED = {"jpg", "jpeg", "png", "webp", "gif", "bmp"} | _HEIF
+_RAW = {"dng", "cr2", "cr3", "nef", "arw", "raf", "rw2", "orf", "pef"}
+_ALLOWED = {"jpg", "jpeg", "png", "webp", "gif", "bmp", "tif", "tiff"} | _HEIF
 _VIDEO = {"mp4", "mov", "m4v", "webm"}  # 7c — no ffmpeg here, so stored + played, not thumbnailed
 _THUMB = 512
 
@@ -69,11 +70,11 @@ def _merge_move(src: Path, dst: Path):
 
 
 def _safe(name: str) -> Path:
-    base = photos_dir()
-    p = (base / (name or "").lstrip("/\\")).resolve()
-    if base != p and base not in p.parents:
+    base = photos_dir().resolve()
+    candidate = (base / (name or "").lstrip("/\\")).resolve()
+    if base != candidate and base not in candidate.parents:
         raise ValueError("path escapes photos root")
-    return p
+    return candidate
 
 
 # tags surfaced in the photo info panel (Apple Photos' ⌘I)
@@ -168,9 +169,18 @@ def _register_heif():
         pass
 
 
+def _write_managed_bytes(filename: str, data: bytes) -> None:
+    target = photos_dir() / filename
+    try:
+        target.write_bytes(data)
+    except Exception:
+        target.unlink(missing_ok=True)
+        raise
+
+
 def _store_original_only(data: bytes, original_name: str, ext: str, err: Exception) -> dict:
     fname = uuid.uuid4().hex + "." + ext
-    (photos_dir() / fname).write_bytes(data)
+    _write_managed_bytes(fname, data)
     return {
         "filename": fname,
         "thumb": "",
@@ -180,6 +190,9 @@ def _store_original_only(data: bytes, original_name: str, ext: str, err: Excepti
         "taken_at": datetime.utcnow(),
         "exif": json.dumps({"format": ext, "decode_error": type(err).__name__}),
         "is_video": False,
+        "aspect_ratio": None,
+        "preview": "",
+        "checksum": hashlib.sha256(data).hexdigest(),
     }
 
 
@@ -188,6 +201,22 @@ def import_media(data: bytes, original_name: str) -> dict:
     if _ext_of(original_name) in _VIDEO:
         return import_video(data, original_name)
     return import_image(data, original_name)
+
+
+def import_media_path(path: Path, original_name: str | None = None) -> dict:
+    """Import a local media file without buffering large videos in memory.
+
+    PhotoKit can materialize iCloud-backed video resources that are much larger
+    than normal browser uploads. Images still use Pillow's byte-based decoder;
+    videos are streamed into the managed library while hashing.
+    """
+    p = Path(path)
+    name = original_name or p.name
+    if _ext_of(name) in _VIDEO:
+        return import_video_path(p, name)
+    if _ext_of(name) in _RAW:
+        return import_raw_path(p, name)
+    return import_image(p.read_bytes(), name)
 
 
 def _preview_b64(img) -> str:
@@ -207,7 +236,7 @@ def import_video(data: bytes, original_name: str) -> dict:
     if ext not in _VIDEO:
         raise ValueError(f"unsupported video type: .{ext}")
     fname = uuid.uuid4().hex + "." + ext
-    (photos_dir() / fname).write_bytes(data)
+    _write_managed_bytes(fname, data)
     return {
         "filename": fname,
         "thumb": "",  # no ffmpeg → no poster frame; the UI shows a ▶ badge instead
@@ -220,6 +249,67 @@ def import_video(data: bytes, original_name: str) -> dict:
         "aspect_ratio": None,
         "preview": "",
         "checksum": hashlib.sha256(data).hexdigest(),
+    }
+
+
+def import_video_path(path: Path, original_name: str) -> dict:
+    ext = _ext_of(original_name)
+    if ext not in _VIDEO:
+        raise ValueError(f"unsupported video type: .{ext}")
+    fname = uuid.uuid4().hex + "." + ext
+    target = photos_dir() / fname
+    digest = hashlib.sha256()
+    try:
+        with Path(path).open("rb") as src, target.open("wb") as dst:
+            while chunk := src.read(1024 * 1024):
+                digest.update(chunk)
+                dst.write(chunk)
+    except Exception:
+        target.unlink(missing_ok=True)
+        raise
+    return {
+        "filename": fname,
+        "thumb": "",
+        "original_name": original_name,
+        "width": 0,
+        "height": 0,
+        "taken_at": datetime.utcnow(),
+        "exif": json.dumps({}),
+        "is_video": True,
+        "aspect_ratio": None,
+        "preview": "",
+        "checksum": digest.hexdigest(),
+    }
+
+
+def import_raw_path(path: Path, original_name: str) -> dict:
+    """Keep a PhotoKit RAW original even when Pillow cannot render the format."""
+    ext = _ext_of(original_name)
+    if ext not in _RAW:
+        raise ValueError(f"unsupported raw image type: .{ext}")
+    fname = uuid.uuid4().hex + "." + ext
+    target = photos_dir() / fname
+    digest = hashlib.sha256()
+    try:
+        with Path(path).open("rb") as src, target.open("wb") as dst:
+            while chunk := src.read(1024 * 1024):
+                digest.update(chunk)
+                dst.write(chunk)
+    except Exception:
+        target.unlink(missing_ok=True)
+        raise
+    return {
+        "filename": fname,
+        "thumb": "",
+        "original_name": original_name,
+        "width": 0,
+        "height": 0,
+        "taken_at": datetime.utcnow(),
+        "exif": json.dumps({"format": ext, "preview": "unavailable"}),
+        "is_video": False,
+        "aspect_ratio": None,
+        "preview": "",
+        "checksum": digest.hexdigest(),
     }
 
 
@@ -247,7 +337,7 @@ def import_image(data: bytes, original_name: str) -> dict:
         raise ValueError(f"not a valid image: {type(e).__name__}")
 
     fname = uuid.uuid4().hex + "." + ext
-    (photos_dir() / fname).write_bytes(data)
+    _write_managed_bytes(fname, data)
     if taken_at is None:
         taken_at = datetime.utcnow()
 

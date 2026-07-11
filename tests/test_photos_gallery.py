@@ -29,6 +29,16 @@ class GalleryRebuild(unittest.TestCase):
         # search is pushed to the right edge of the slim top bar
         self.assertRegex(CSS, r"\.photos-head \.photos-search\s*\{[^}]*margin-left:\s*auto")
 
+    def test_desktop_title_aligns_with_the_sidebar_content_edge(self):
+        self.assertIn(
+            "--photos-rail-content-x: calc(var(--photos-rail-pad) + var(--photos-nav-pad))",
+            CSS,
+        )
+        self.assertRegex(
+            CSS,
+            r"#photos-view \.photos-head\s*\{[^}]*padding-left:\s*var\(--photos-rail-content-x\)",
+        )
+
     def test_sidebar_layout_replaces_dropdowns(self):
         # phase 1: the album/model <select>s are gone, replaced by the immich-style left rail
         self.assertIn('class="photos-layout"', INDEX)
@@ -36,7 +46,10 @@ class GalleryRebuild(unittest.TestCase):
         self.assertNotIn("photos-album-sel", INDEX)
         self.assertNotIn("photos-model-sel", INDEX)
         self.assertRegex(CSS, r"\.photos-layout\s*\{[^}]*display:\s*flex")
-        self.assertRegex(CSS, r"\.photos-sidebar\s*\{[^}]*width:\s*184px")
+        self.assertRegex(
+            CSS,
+            r"\.photos-sidebar\s*\{[^}]*width:\s*var\(--photos-rail-w,\s*184px\)",
+        )
         # justified mosaic rows
         self.assertRegex(CSS, r"\.photos-row\s*\{[^}]*display:\s*flex")
 

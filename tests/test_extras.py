@@ -21,11 +21,22 @@ class ExtrasTests(unittest.TestCase):
             self.assertFalse(extras.available("photokit"))
 
     def test_available_true_on_right_platform_and_deps(self):
+        from services import photokit
+
         with (
             mock.patch.object(extras, "_platform", return_value="darwin"),
-            mock.patch.object(extras, "_has_module", return_value=True),
+            mock.patch.object(photokit, "status", return_value={"available": True}),
         ):
             self.assertTrue(extras.available("photokit"))
+
+    def test_photokit_does_not_require_a_stale_persisted_opt_in(self):
+        from services import photokit
+
+        with (
+            mock.patch.object(extras, "_platform", return_value="darwin"),
+            mock.patch.object(photokit, "status", return_value={"available": True}),
+        ):
+            self.assertTrue(extras.enabled("photokit", {}))
 
     def test_available_false_missing_dep(self):
         # clip_search is cross-platform but needs a module; pretend it's absent

@@ -4,7 +4,7 @@ from collections import OrderedDict
 from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
-from fastapi.responses import FileResponse, Response
+from fastapi.responses import FileResponse, JSONResponse, Response
 from pydantic import BaseModel
 from sqlalchemy import func
 from sqlalchemy.orm import Session as DbSession
@@ -543,8 +543,10 @@ def face_crop(fid: str, db: DbSession = Depends(get_db)):
         x1, y1, x2, y2 = (int(v) for v in (f.bbox or "0,0,0,0").split(","))
         bw, bh = max(1, x2 - x1), max(1, y2 - y1)
         pad = 0.4
-        cx1 = max(0, int(x1 - bw * pad)); cy1 = max(0, int(y1 - bh * pad))
-        cx2 = min(im.width, int(x2 + bw * pad)); cy2 = min(im.height, int(y2 + bh * pad))
+        cx1 = max(0, int(x1 - bw * pad))
+        cy1 = max(0, int(y1 - bh * pad))
+        cx2 = min(im.width, int(x2 + bw * pad))
+        cy2 = min(im.height, int(y2 + bh * pad))
         crop = im.crop((cx1, cy1, cx2, cy2))
         crop.thumbnail((256, 256), Image.LANCZOS)
         buf = io.BytesIO()
@@ -797,25 +799,34 @@ def sync(body: SyncBody, db: DbSession = Depends(get_db)):
         raise HTTPException(400, str(e))
 
 
-@router.post("/sync/macos")
-def sync_macos():
-    """pull from the macOS Photos library (Mac mini only) then import."""
-    import shutil
-    import tempfile
-
+@router.get("/sync/macos/status")
+def sync_macos_status():
     from services import photo_sync
 
-    dest = tempfile.mkdtemp(prefix="alles-photos-")
+    return photo_sync.photokit_status()
+
+
+@router.post("/sync/macos")
+def sync_macos(limit: int = Query(500, ge=0, le=50000)):
+    """Start a native PhotoKit import without blocking the browser request."""
+    from services import photo_sync, photokit
+
     try:
-        photo_sync.pull_from_macos_photos(dest)
-        return photo_sync.sync_folder(dest)
-    except NotImplementedError as e:
-        raise HTTPException(501, str(e))
-    except Exception as e:
-        raise HTTPException(500, str(e))
-    finally:
-        # the originals are already copied into the library by import; don't leak the GB-sized export
-        shutil.rmtree(dest, ignore_errors=True)
+        job = photo_sync.start_macos_sync(limit)
+        return JSONResponse(job, status_code=202)
+    except photokit.PhotoKitUnavailableError as e:
+        status = 501 if photokit.status()["platform"] != "darwin" else 503
+        raise HTTPException(status, str(e))
+
+
+@router.get("/sync/macos/jobs/{job_id}")
+def sync_macos_job(job_id: str):
+    from services import photo_sync
+
+    job = photo_sync.get_macos_sync_job(job_id)
+    if not job:
+        raise HTTPException(404, "PhotoKit import job not found")
+    return job
 
 
 @router.get("/thumb/{pid}")
@@ -845,16 +856,35 @@ def original(pid: str, download: bool = False, db: DbSession = Depends(get_db)):
     return FileResponse(str(op), filename=p.original_name if download else None)
 
 
+def _native_asset_rows(db, photo: Photo) -> list[Photo]:
+    if photo.source == "apple_photos" and photo.source_asset_id:
+        return (
+            db.query(Photo)
+            .filter(
+                Photo.source == "apple_photos",
+                Photo.source_asset_id == photo.source_asset_id,
+            )
+            .all()
+        )
+    return [photo]
+
+
 @router.delete("/{pid}")
 def delete_photo(pid: str, db: DbSession = Depends(get_db)):
     p = db.get(Photo, pid)
     if not p:
         raise HTTPException(404)
-    # soft-delete (1d): keep the files, hide it, record in the trash registry
-    p.deleted_at = datetime.utcnow()
+    # A Live Photo's still and motion are one source asset. Keep them together
+    # through trash/restore so a deleted cover cannot strand an invisible motion row.
+    rows = _native_asset_rows(db, p)
+    now = datetime.utcnow()
+    trashed = [row for row in rows if row.deleted_at is None]
+    for row in trashed:
+        row.deleted_at = now
     db.commit()
-    trash.record(db, "photo", pid, p.original_name or p.filename)
-    return {"ok": True, "trashed": True}
+    for row in trashed:
+        trash.record(db, "photo", row.id, row.original_name or row.filename)
+    return {"ok": True, "trashed": True, "count": len(trashed)}
 
 
 @router.get("/trash")
@@ -883,10 +913,15 @@ def restore_photo(pid: str, db: DbSession = Depends(get_db)):
     p = db.get(Photo, pid)
     if not p or p.deleted_at is None:
         raise HTTPException(404)
-    p.deleted_at = None
-    db.query(TrashItem).filter_by(kind="photo", ref=pid).delete()
+    rows = _native_asset_rows(db, p)
+    refs = [row.id for row in rows]
+    for row in rows:
+        row.deleted_at = None
+    db.query(TrashItem).filter(TrashItem.kind == "photo", TrashItem.ref.in_(refs)).delete(
+        synchronize_session=False
+    )
     db.commit()
-    return {"ok": True, "restored": pid}
+    return {"ok": True, "restored": pid, "count": len(rows)}
 
 
 class PatchPhoto(BaseModel):
@@ -912,7 +947,8 @@ def patch_photo(pid: str, body: PatchPhoto, db: DbSession = Depends(get_db)):
     if body.keywords is not None:
         p.keywords = _norm_kw(body.keywords)
     if body.hidden is not None:
-        p.hidden = body.hidden
+        for linked in _native_asset_rows(db, p):
+            linked.hidden = body.hidden
     if body.archived is not None:
         p.archived = body.archived
     db.commit()
@@ -941,6 +977,12 @@ def batch(body: BatchBody, db: DbSession = Depends(get_db)):
         raise HTTPException(400, "no photos given")
     rows = db.query(Photo).filter(Photo.id.in_(body.ids)).all()
     a = body.action
+    if a in {"hide", "unhide", "delete", "restore"}:
+        expanded = {}
+        for row in rows:
+            for linked in _native_asset_rows(db, row):
+                expanded[linked.id] = linked
+        rows = list(expanded.values())
     for p in rows:
         if a == "favorite":
             p.favorite = True

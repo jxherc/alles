@@ -81,12 +81,15 @@ def main():
         r["passkey_listed"] = "Passkey" in list_txt  # the type label shows on the row
         pg.screenshot(path=str(EVID / "passkey-list.png"))
 
-        # ---- 2FA toggle in manage modal + autofill affordance ----
+        # ---- 2FA toggle in manage modal + retired autofill notice ----
         pg.eval_on_selector("#vault-manage-btn", "el => el.click()")
         pg.wait_for_selector("#mv-2fa", timeout=6000)
         r["twofa_toggle_present"] = pg.is_visible("#mv-2fa")
         r["autofill_info_present"] = pg.is_visible("#vault-autofill-info")
-        r["extension_link_present"] = pg.is_visible("#vault-ext-link")
+        r["autofill_retired_notice"] = (
+            "browser autofill is off" in (pg.text_content("#vault-autofill-info") or "").lower()
+        )
+        r["extension_link_absent"] = not pg.is_visible("#vault-ext-link")
         pg.screenshot(path=str(EVID / "manage-2fa.png"))
 
         # toggle 2FA on → close → reopen → still on (persisted server-side)
