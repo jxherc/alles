@@ -13,8 +13,8 @@ export async function loadGallery(reset = true) {
     const r = await fetch(`/api/gallery?offset=${_next || 0}&limit=${_PAGE}`);
     if (!r.ok) throw new Error(`server returned ${r.status}`);
     const d = await r.json();
-    const items = Array.isArray(d) ? d : (d.items || []);
-    if (!Array.isArray(items)) throw new Error('bad gallery response');
+    const items = Array.isArray(d) ? d : d && Array.isArray(d.items) ? d.items : null;
+    if (!items) throw new Error('bad gallery response');
     _images = reset ? items : _images.concat(items);
     _next = Array.isArray(d) ? null : d.next;
     renderGallery();
