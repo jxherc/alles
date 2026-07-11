@@ -25,7 +25,7 @@ class GalleryApiTest(ApiTest):
         )
 
     def test_list_empty(self):
-        self.assertEqual(self.client.get("/api/gallery").json(), [])
+        self.assertEqual(self.client.get("/api/gallery").json()["items"], [])
 
     def test_upload_list_serve_delete(self):
         r = self._upload(tags="animals")
@@ -35,12 +35,12 @@ class GalleryApiTest(ApiTest):
         self.assertEqual(img["prompt"], "a cat")
         self.assertTrue(img["url"].startswith("/api/gallery/file/"))
 
-        self.assertEqual(len(self.client.get("/api/gallery").json()), 1)
+        self.assertEqual(len(self.client.get("/api/gallery").json()["items"]), 1)
         # serve the actual file
         self.assertEqual(self.client.get(img["url"]).status_code, 200)
         # delete
         self.assertEqual(self.client.delete(f"/api/gallery/{img['id']}").json(), {"ok": True})
-        self.assertEqual(self.client.get("/api/gallery").json(), [])
+        self.assertEqual(self.client.get("/api/gallery").json()["items"], [])
 
     def test_bad_extension_rejected(self):
         self.assertEqual(self._upload("notes.txt", b"hello").status_code, 400)
@@ -95,7 +95,7 @@ class GalleryApiTest(ApiTest):
     def test_multiple_uploads_list_order(self):
         self._upload("a.png")
         self._upload("b.png")
-        lst = self.client.get("/api/gallery").json()
+        lst = self.client.get("/api/gallery").json()["items"]
         self.assertEqual(len(lst), 2)
         # newest first
         self.assertIsNotNone(lst[0]["created_at"])
