@@ -5461,6 +5461,9 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 .persona-doc-row { display: flex; align-items: center; justify-content: space-between; font-size: 0.78rem; padding: 0.2rem 0; }
 .mcp-presets { display: flex; flex-wrap: wrap; gap: 0.35rem; }
 .mcp-preset { font-size: 0.7rem; }
+.mcp-advanced { margin: 0.55rem 0; color: var(--muted); font-size: 0.72rem; }
+.mcp-advanced > summary { cursor: pointer; margin-bottom: 0.55rem; }
+.mcp-advanced[open] > summary { color: var(--text); }
 /* 11a — macOS integration status */
 .macos-row { display: flex; align-items: center; gap: 0.45rem; font-size: 0.78rem; padding: 0.18rem 0; }
 .macos-avail { font-size: 0.75rem; color: var(--green); margin-bottom: 0.3rem; }

@@ -160,7 +160,7 @@ def quota():
     """bytes used by the files vault + the underlying disk's total/free (6a)."""
     import shutil
 
-    base = fs.files_dir()
+    base = fs.root_dir()
     used = 0
     for p in base.rglob("*"):
         try:
@@ -182,7 +182,7 @@ def duplicates():
     import hashlib
     from collections import defaultdict
 
-    base = fs.files_dir()
+    base = fs.root_dir()
     # bucket by size first: identical content => identical size, so a file with a unique size
     # can't have a dup and never needs to be read/hashed (was hashing every byte of every file).
     by_size = defaultdict(list)
@@ -271,7 +271,7 @@ def activity(days: int = 30, limit: int = 100):
     """recent file changes, newest first (6b)."""
     import time
 
-    base = fs.files_dir()
+    base = fs.root_dir()
     cutoff = time.time() - days * 86400
     out = []
     for p in base.rglob("*"):
@@ -478,7 +478,7 @@ def rename(body: RenameBody, db: DbSession = Depends(get_db)):
             if r.path == old:
                 r.path = new
             elif r.path and r.path.startswith(pre):
-                r.path = new.rstrip("/") + "/" + r.path[len(pre):]
+                r.path = new.rstrip("/") + "/" + r.path[len(pre) :]
     db.commit()
     return res
 

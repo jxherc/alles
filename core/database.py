@@ -55,19 +55,23 @@ class EncryptedText(TypeDecorator):
     impl = Text
     cache_ok = True
 
+    def __init__(self, purpose: str):
+        super().__init__()
+        self.purpose = purpose
+
     def process_bind_param(self, value, dialect):
         if not value:
             return value
         from services.secretstore import seal
 
-        return seal(value)
+        return seal(value, self.purpose)
 
     def process_result_value(self, value, dialect):
         if not value:
             return value
         from services.secretstore import unseal
 
-        return unseal(value)
+        return unseal(value, self.purpose)
 
 
 def _uid():
@@ -83,7 +87,7 @@ class ModelEndpoint(Base):
     id = Column(String, primary_key=True, default=_uid)
     name = Column(String, nullable=False)
     base_url = Column(String, nullable=False)
-    api_key = Column(EncryptedText, default="")  # AES-GCM at rest, see secretstore
+    api_key = Column(EncryptedText("model_endpoints.api_key"), default="")
     enabled = Column(Boolean, default=True)
     cached_models = Column(Text, default="[]")  # json list of model id strings (chat)
     vision_models = Column(Text, default="[]")  # json list of vision-capable model ids
@@ -158,8 +162,10 @@ class McpServer(Base):
     name = Column(String, nullable=False)
     transport = Column(String, default="stdio")  # stdio | sse
     command = Column(String, default="")
-    args = Column(Text, default="[]")  # json list
-    url = Column(String, default="")
+    args = Column(EncryptedText("mcp_servers.args"), default="[]")  # json list
+    url = Column(EncryptedText("mcp_servers.url"), default="")
+    env = Column(EncryptedText("mcp_servers.env"), default="{}")
+    headers = Column(EncryptedText("mcp_servers.headers"), default="{}")
     enabled = Column(Boolean, default=True)
     disabled_tools = Column(Text, default="[]")  # json list of disabled tool names
     created_at = Column(DateTime, default=_now)
@@ -169,6 +175,20 @@ class McpServer(Base):
             return json.loads(self.args or "[]")
         except Exception:
             return []
+
+    def env_dict(self):
+        try:
+            value = json.loads(self.env or "{}")
+            return value if isinstance(value, dict) else {}
+        except Exception:
+            return {}
+
+    def headers_dict(self):
+        try:
+            value = json.loads(self.headers or "{}")
+            return value if isinstance(value, dict) else {}
+        except Exception:
+            return {}
 
     def disabled_tools_list(self):
         try:
@@ -202,7 +222,9 @@ class Task(Base):
     parent_id = Column(String, nullable=True)  # subtasks point at their parent
     tags = Column(String, default="")  # comma-separated
     repeat = Column(String, default="")  # ''|daily|weekly|monthly|yearly
-    anchor_day = Column(Integer, nullable=True)  # original day-of-month so monthly/yearly repeats don't drift
+    anchor_day = Column(
+        Integer, nullable=True
+    )  # original day-of-month so monthly/yearly repeats don't drift
     notes = Column(Text, default="")
     project = Column(String, default="")
     sort_order = Column(Integer, default=0)  # manual drag-reorder
@@ -319,7 +341,9 @@ class Persona(Base):
     model = Column(String, default="")  # override model, or "" = use session default
     temperature = Column(Float, nullable=True)  # pinned sampling temp, or null = provider default
     default_mode = Column(String, default="")  # "" auto | "chat" pure-chat | "agent" always tools
-    blocked_scopes = Column(String, default="")  # 3b - csv permission scopes this persona may NOT use
+    blocked_scopes = Column(
+        String, default=""
+    )  # 3b - csv permission scopes this persona may NOT use
     blocked_tools = Column(String, default="")  # 3b - csv tool names this persona may NOT use
     accent = Column(
         String, default=""
@@ -379,7 +403,7 @@ class Webhook(Base):
     url = Column(String, nullable=False)
     events = Column(Text, default="[]")  # json list: message, research_done, session_created
     enabled = Column(Boolean, default=True)
-    secret = Column(String, default="")  # HMAC-SHA256 signing key for X-Alles-Signature
+    secret = Column(EncryptedText("webhooks.secret"), default="")
     last_status = Column(String, default="")  # "ok" | "NNN" http code | "error"
     last_error = Column(String, default="")
     last_triggered = Column(DateTime, nullable=True)
@@ -568,13 +592,13 @@ class MailAccount(Base):
     smtp_host = Column(String, default="")
     smtp_port = Column(Integer, default=587)
     username = Column(String, default="")
-    password = Column(EncryptedText, default="")  # AES-GCM at rest, see secretstore
+    password = Column(EncryptedText("mail_accounts.password"), default="")
     use_ssl = Column(Boolean, default=True)
     # oauth ("sign in with google") - tokens sealed at rest, no password stored
     auth_type = Column(String, default="password")  # password | oauth
     oauth_provider = Column(String, default="")  # google
-    oauth_access_token = Column(EncryptedText, default="")
-    oauth_refresh_token = Column(EncryptedText, default="")
+    oauth_access_token = Column(EncryptedText("mail_accounts.oauth_access_token"), default="")
+    oauth_refresh_token = Column(EncryptedText("mail_accounts.oauth_refresh_token"), default="")
     oauth_expires_at = Column(Float, default=0.0)  # unix ts the access token expires
     created_at = Column(DateTime, default=_now)
 
@@ -624,8 +648,12 @@ class Photo(Base):
     preview = Column(Text, default="")  # tiny base64 jpeg — upscaled = a blur-up placeholder
     checksum = Column(String, nullable=True)  # sha256 of the original bytes (dedupe, phase 6)
     stack_id = Column(String, nullable=True)  # cover photo's id, shared by stack members (phase 6)
-    clip = Column(LargeBinary, nullable=True)  # CLIP image embedding (512 float32) for semantic search
-    faces_at = Column(DateTime, nullable=True)  # when face detection last ran (null = not scanned yet)
+    clip = Column(
+        LargeBinary, nullable=True
+    )  # CLIP image embedding (512 float32) for semantic search
+    faces_at = Column(
+        DateTime, nullable=True
+    )  # when face detection last ran (null = not scanned yet)
     source = Column(String, nullable=True, index=True)  # e.g. apple_photos; null for local uploads
     source_id = Column(String, nullable=True, index=True)  # stable resource id for repeat sync
     source_asset_id = Column(String, nullable=True, index=True)  # groups PhotoKit live resources
@@ -646,8 +674,12 @@ class Face(Base):
     # one detected face in one photo, with its 512-d ArcFace embedding (phase 7a)
     __tablename__ = "faces"
     id = Column(String, primary_key=True, default=_uid)
-    photo_id = Column(String, ForeignKey("photos.id", ondelete="CASCADE"), nullable=False, index=True)
-    person_id = Column(String, ForeignKey("people.id", ondelete="SET NULL"), nullable=True, index=True)
+    photo_id = Column(
+        String, ForeignKey("photos.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    person_id = Column(
+        String, ForeignKey("people.id", ondelete="SET NULL"), nullable=True, index=True
+    )
     bbox = Column(String, default="")  # "x1,y1,x2,y2" in original-pixel coords
     det_score = Column(Float, default=0.0)
     embedding = Column(LargeBinary, nullable=True)  # 512 float32, L2-normalized
@@ -974,7 +1006,9 @@ class RecurringTxn(Base):
     cycle = Column(String, default="monthly")  # weekly|monthly|quarterly|yearly|custom
     cycle_days = Column(Integer, default=30)  # only used when cycle == custom
     next_date = Column(String, default="")  # ISO date of the next occurrence to post
-    anchor_day = Column(Integer, nullable=True)  # original day-of-month so monthly/yearly don't drift after short months
+    anchor_day = Column(
+        Integer, nullable=True
+    )  # original day-of-month so monthly/yearly don't drift after short months
     active = Column(Boolean, default=True)
     last_posted = Column(String, default="")  # ISO date we last auto-posted
     created_at = Column(DateTime, default=_now)
@@ -1138,7 +1172,7 @@ class PushSubscription(Base):
     id = Column(String, primary_key=True, default=_uid)
     endpoint = Column(Text, unique=True, nullable=False)  # browser push URL
     p256dh = Column(String, default="")  # client public key
-    auth = Column(String, default="")  # client auth secret
+    auth = Column(EncryptedText("push_subscriptions.auth"), default="")
     created_at = Column(DateTime, default=_now)
 
 
@@ -1162,7 +1196,9 @@ class CachedMessage(Base):
     muted = Column(Boolean, default=False)  # muted thread → hidden from lists (5a)
     snoozed_until = Column(String, default="")  # ISO time; hidden until then (5b)
     labels = Column(Text, default="")  # csv user labels (5e)
-    autoreplied = Column(Boolean, default=False)  # 2g - a rule autoreply already enqueued for this msg
+    autoreplied = Column(
+        Boolean, default=False
+    )  # 2g - a rule autoreply already enqueued for this msg
     message_id = Column(String, default="")  # 2i - RFC-5322 Message-ID header
     in_reply_to = Column(String, default="")  # 2i - In-Reply-To header
     references = Column(Text, default="")  # 2i - References header (space-sep id list)
@@ -1198,7 +1234,9 @@ class ScheduledMail(Base):
     in_reply_to = Column(String, default="")
     references = Column(String, default="")
     send_at = Column(String, default="")  # ISO datetime
-    status = Column(String, default="scheduled")  # scheduled | sending | sent | uncertain | canceled
+    status = Column(
+        String, default="scheduled"
+    )  # scheduled | sending | sent | uncertain | canceled
     created_at = Column(DateTime, default=_now)
 
 
@@ -1224,8 +1262,8 @@ class Connection(Base):
     __tablename__ = "connections"
     id = Column(String, primary_key=True, default=_uid)
     service = Column(String, nullable=False)  # github | gitlab | slack | ...
-    token = Column(Text, default="")  # access token / PAT
-    meta = Column(Text, default="{}")  # json: base_url, username, scopes...
+    token = Column(EncryptedText("connections.token"), default="")
+    meta = Column(EncryptedText("connections.meta"), default="{}")
     created_at = Column(DateTime, default=_now)
 
 
@@ -1347,25 +1385,63 @@ def init_db():
         conn.exec_driver_sql(f"PRAGMA application_id = {SQLITE_APPLICATION_ID}")
     # schema migrations (versioned runner; baseline self-heals every boot)
     from core.migrations import run_migrations
+
     run_migrations(engine)
     _encrypt_plaintext_secrets()
+    from core.settings import migrate_setting_secrets
+
+    migrate_setting_secrets()
+    from services.caldav_sync import migrate_cfg_secrets as migrate_caldav_secrets
+    from services.carddav_sync import migrate_cfg_secrets as migrate_carddav_secrets
+
+    migrate_caldav_secrets()
+    migrate_carddav_secrets()
 
 
-def _encrypt_plaintext_secrets():
-    """one-time (idempotent) — seal credentials that predate at-rest encryption"""
-    from services.secretstore import PREFIX, seal
+_SECRET_COLUMNS = (
+    ("model_endpoints", "api_key", "model_endpoints.api_key"),
+    ("mail_accounts", "password", "mail_accounts.password"),
+    ("mail_accounts", "oauth_access_token", "mail_accounts.oauth_access_token"),
+    ("mail_accounts", "oauth_refresh_token", "mail_accounts.oauth_refresh_token"),
+    ("webhooks", "secret", "webhooks.secret"),
+    ("push_subscriptions", "auth", "push_subscriptions.auth"),
+    ("connections", "token", "connections.token"),
+    ("connections", "meta", "connections.meta"),
+    ("mcp_servers", "args", "mcp_servers.args"),
+    ("mcp_servers", "url", "mcp_servers.url"),
+    ("mcp_servers", "env", "mcp_servers.env"),
+    ("mcp_servers", "headers", "mcp_servers.headers"),
+)
 
+
+def _encrypt_plaintext_secrets(force_reseal: bool = False) -> int:
+    """Seal legacy connector fields and move old ciphertext onto the active key."""
+    from services.secretstore import needs_reseal, reseal
+
+    changed = 0
     with engine.begin() as conn:
-        for table, col in (("model_endpoints", "api_key"), ("mail_accounts", "password")):
-            rows = conn.execute(
-                text(f"SELECT id, {col} FROM {table} WHERE {col} != '' AND {col} NOT LIKE :p"),
-                {"p": PREFIX + "%"},
+        tables = {
+            row[0]
+            for row in conn.execute(
+                text("SELECT name FROM sqlite_master WHERE type = 'table'")
             ).fetchall()
+        }
+        for table, col, purpose in _SECRET_COLUMNS:
+            if table not in tables:
+                continue
+            columns = {row[1] for row in conn.execute(text(f"PRAGMA table_info({table})"))}
+            if col not in columns:
+                continue
+            rows = conn.execute(text(f"SELECT id, {col} FROM {table} WHERE {col} != ''")).fetchall()
             for rid, val in rows:
+                if not force_reseal and not needs_reseal(val):
+                    continue
                 conn.execute(
                     text(f"UPDATE {table} SET {col} = :v WHERE id = :id"),
-                    {"v": seal(val), "id": rid},
+                    {"v": reseal(val, purpose), "id": rid},
                 )
+                changed += 1
+    return changed
 
 
 def get_db():

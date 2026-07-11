@@ -3,6 +3,7 @@ from fastapi.responses import Response
 from pydantic import BaseModel
 
 from core.settings import load_settings, save_settings
+from services.redaction import redact_url
 
 router = APIRouter(prefix="/api")
 
@@ -22,6 +23,7 @@ _SECRET_KEYS = {
     "serper_api_key",
     "notify_discord_webhook",
     "notify_telegram_token",
+    "notify_telegram_chat_id",
 }
 _CONFIG_FLAGS = {
     "mail_oauth_client_secret",
@@ -32,6 +34,7 @@ _CONFIG_FLAGS = {
     "serper_api_key",
     "notify_discord_webhook",
     "notify_telegram_token",
+    "notify_telegram_chat_id",
 }
 
 
@@ -41,6 +44,9 @@ def _public_settings(s: dict) -> dict:
         if k in _SECRET_KEYS:
             if k in _CONFIG_FLAGS:
                 out[f"{k}_configured"] = bool(v)
+            continue
+        if k in {"outbound_proxy", "searxng_url"} and isinstance(v, str):
+            out[k] = redact_url(v)
             continue
         out[k] = v
     return out

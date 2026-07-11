@@ -1020,6 +1020,10 @@ def _validate_database_dependencies(data_dir: Path, db_path: Path) -> None:
             for table, columns in {
                 "model_endpoints": ("api_key",),
                 "mail_accounts": ("password", "oauth_access_token", "oauth_refresh_token"),
+                "connections": ("token", "meta"),
+                "mcp_servers": ("args", "url", "env", "headers"),
+                "webhooks": ("secret",),
+                "push_subscriptions": ("auth",),
             }.items():
                 if table not in tables:
                     continue
@@ -1028,10 +1032,19 @@ def _validate_database_dependencies(data_dir: Path, db_path: Path) -> None:
                     if (
                         column in have
                         and conn.execute(
-                            f"SELECT 1 FROM {table} WHERE {column} LIKE 'enc1:%' LIMIT 1"
+                            f"SELECT 1 FROM {table} WHERE "
+                            f"{column} LIKE 'enc1:%' OR {column} LIKE 'enc2:%' LIMIT 1"
                         ).fetchone()
                     ):
                         encrypted = True
+            for config_name in ("settings.json", "caldav.json", "carddav.json"):
+                config_path = data_dir / config_name
+                try:
+                    raw = config_path.read_text("utf-8")
+                except OSError:
+                    continue
+                if '"enc1:' in raw or '"enc2:' in raw:
+                    encrypted = True
             if encrypted and not (data_dir / "secret.key").is_file():
                 raise RecoveryError("backup is missing secret.key for encrypted credentials")
 

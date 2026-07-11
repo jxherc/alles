@@ -49,7 +49,18 @@ Phase 1 is split into small gates. A later gate must not weaken an earlier one.
 
 ### Secrets and observability
 
-- [ ] Encrypt connector and MCP credentials at rest, with rotation and migration.
+- [x] Encrypt connector and MCP credentials at rest, with rotation and migration.
+  - Machine-local AES-GCM encryption now uses field-bound ciphertext and a versioned keyring.
+    Existing plaintext and `enc1` model, mail, webhook, push, connection, settings, CalDAV,
+    CardDAV, and MCP values migrate without losing data.
+  - MCP environment values and HTTP headers are configured per server, masked in API responses,
+    and encrypted on disk. Local MCP processes inherit only a small reviewed system environment;
+    provider keys are never copied from Alles's ambient environment.
+  - Owner-confirmed rotation keeps the previous key until every known credential is re-encrypted,
+    then retires unused keys. Backups reject encrypted credentials when `secret.key` is missing.
+  - Fresh evidence: all 3,683 non-matrix Python checks, all 90 JavaScript checks,
+    desktop/mobile browser checks, and the complete 27-history migration matrix pass through
+    migration 20.
 - [ ] Add structured redacted logs, health data, and audit records.
 - [ ] Add a reviewed service-manager abstraction for Alles-owned services only.
 
@@ -82,8 +93,9 @@ Phase 1 is split into small gates. A later gate must not weaken an earlier one.
 
 ## Current slice
 
-The first completed group covers startup access policy, CORS, HTTPS, trusted hosts, and forwarded proxy
-trust. It does not install or configure a reverse proxy for the owner.
+The current completed groups cover startup access policy, scoped owner/API access, stable security
+errors, rate limits, and encrypted connector credentials with safe rotation. They do not install or
+configure a reverse proxy for the owner.
 
 Fresh evidence: 12 focused startup-policy tests pass. Broader verification is recorded with the commit.
 The CORS slice adds 5 parser cases plus live unknown-origin request and preflight checks.

@@ -43,7 +43,7 @@ flowchart LR
 ## Route snapshot
 
 - 69 mounted route modules
-- 660 HTTP method/path pairs
+- 662 HTTP method/path pairs
 - 644 `/api/*`, 2 `/v1/*`, and 14 non-API shell/public pairs
 - SHA-256: `9ae15222ae3a29f95e61d7f99685d6cba48f597fdcada956515a9691464b28a5`
 - No WebSocket route; long responses use SSE/streaming HTTP

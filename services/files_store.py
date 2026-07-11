@@ -24,8 +24,13 @@ def files_dir() -> Path:
     return p
 
 
+def root_dir() -> Path:
+    """Normalize configured and test-provided roots before confinement checks."""
+    return files_dir().expanduser().resolve()
+
+
 def _safe(rel: str) -> Path:
-    base = files_dir()
+    base = root_dir()
     p = (base / (rel or "").lstrip("/\\")).resolve()
     if base != p and base not in p.parents:
         raise ValueError("path escapes files root")
@@ -53,7 +58,7 @@ _SORT_KEYS = ("name", "size", "mtime", "type")
 
 
 def listdir(rel: str = "", sort: str = "name", order: str = "") -> dict:
-    base = files_dir()
+    base = root_dir()
     d = _safe(rel)
     if not d.exists() or not d.is_dir():
         raise ValueError("not a directory")
@@ -110,7 +115,7 @@ def mkdir(rel: str) -> dict:
     if p.exists() and not p.is_dir():
         raise ValueError("a file with that name already exists")
     p.mkdir(parents=True, exist_ok=True)
-    return {"ok": True, "path": str(p.relative_to(files_dir())).replace("\\", "/")}
+    return {"ok": True, "path": str(p.relative_to(root_dir())).replace("\\", "/")}
 
 
 def delete(rel: str) -> dict:
@@ -134,7 +139,7 @@ def rename(rel: str, new_rel: str) -> dict:
         raise ValueError("a file or folder with that name already exists")
     dst.parent.mkdir(parents=True, exist_ok=True)
     src.rename(dst)
-    return {"ok": True, "path": str(dst.relative_to(files_dir())).replace("\\", "/")}
+    return {"ok": True, "path": str(dst.relative_to(root_dir())).replace("\\", "/")}
 
 
 def save_upload(rel_dir: str, filename: str, data: bytes) -> dict:
@@ -146,7 +151,7 @@ def save_upload(rel_dir: str, filename: str, data: bytes) -> dict:
     d.mkdir(parents=True, exist_ok=True)
     dst = _safe(str((Path(rel_dir) / name))) if rel_dir else _safe(name)
     dst.write_bytes(data)
-    return {"ok": True, "name": name, "path": str(dst.relative_to(files_dir())).replace("\\", "/")}
+    return {"ok": True, "name": name, "path": str(dst.relative_to(root_dir())).replace("\\", "/")}
 
 
 _TEXT_EXT = {
@@ -177,7 +182,7 @@ def search(query: str, limit: int = 100) -> dict:
     """find files by name, and by content for small text files. content hits
     carry a snippet around the match. stays inside the files root, skips
     dotfiles, caps text scanning at 512KB so it can't choke on huge blobs."""
-    base = files_dir()
+    base = root_dir()
     q = (query or "").strip().lower()
     if not q:
         return {"query": query, "results": []}
@@ -243,7 +248,7 @@ def smart(kind: str, days: int = 30, limit: int = 200) -> dict:
     images / documents = by extension; large = biggest first."""
     if kind not in SMART_KINDS:
         raise ValueError(f"unknown smart folder: {kind}")
-    base = files_dir()
+    base = root_dir()
     rows = []
     cutoff = datetime.now().timestamp() - days * 86400
     for p in _walk(base):

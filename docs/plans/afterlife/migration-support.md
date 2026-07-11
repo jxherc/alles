@@ -52,5 +52,5 @@ For every supported input:
 Frozen SQL fixtures carry their source commit and expected table/column counts. No real user database or
 private content is used.
 
-Fresh evidence: all 26 supported histories passed this flow in 539.720 seconds: two released no-history
-schemas, every canonical prefix 1–19, and every known Photos-fork prefix 9–13.
+Fresh evidence: all 27 supported histories passed this flow in 804.767 seconds: two released no-history
+schemas, every canonical prefix 1–20, and every known Photos-fork prefix 9–13.

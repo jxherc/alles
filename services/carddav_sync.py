@@ -6,9 +6,10 @@ takes an injectable client so it's fully unit-testable without a network; the re
 client uses httpx (already a dep) to talk raw CardDAV (REPORT + PUT).
 """
 
-import json
 import re
 import xml.etree.ElementTree as ET
+
+from services.config_secrets import load_secret_config, migrate_secret_config, save_secret_config
 
 
 def _cfg_path():
@@ -18,10 +19,7 @@ def _cfg_path():
 
 
 def load_cfg() -> dict:
-    try:
-        return json.loads(_cfg_path().read_text("utf-8"))
-    except Exception:
-        return {}
+    return load_secret_config(_cfg_path(), "carddav.password")
 
 
 _INTERVALS = {"off": 0, "hourly": 3600, "daily": 86400}
@@ -40,9 +38,11 @@ def save_cfg(cfg: dict):
     for k in ("interval", "last_sync"):
         if k not in cfg and k in cur:
             cfg[k] = cur[k]
-    p = _cfg_path()
-    p.parent.mkdir(parents=True, exist_ok=True)
-    p.write_text(json.dumps(cfg), "utf-8")
+    save_secret_config(_cfg_path(), cfg, "carddav.password")
+
+
+def migrate_cfg_secrets() -> int:
+    return migrate_secret_config(_cfg_path(), "carddav.password")
 
 
 def set_interval(v: str):
@@ -181,7 +181,17 @@ def sync(client=None, db=None) -> dict:
                 db.add(row)
             # birthday + notes are parsed (BDAY/NOTE) and pushed, so pull them too or a synced
             # contact silently loses them locally (and never reaches the birthdays panel)
-            for k in ("name", "email", "phone", "company", "title", "address", "website", "birthday", "notes"):
+            for k in (
+                "name",
+                "email",
+                "phone",
+                "company",
+                "title",
+                "address",
+                "website",
+                "birthday",
+                "notes",
+            ):
                 if c.get(k):
                     setattr(row, k, c[k])
             row.carddav_href = e.get("href", "")
@@ -200,9 +210,15 @@ def sync(client=None, db=None) -> dict:
             # title/address/birthday/website/notes on push (the server got a partial contact)
             text = build_vcard(
                 {
-                    "name": c.name, "email": c.email, "phone": c.phone, "company": c.company,
-                    "title": c.title, "address": c.address, "birthday": c.birthday,
-                    "website": c.website, "notes": c.notes,
+                    "name": c.name,
+                    "email": c.email,
+                    "phone": c.phone,
+                    "company": c.company,
+                    "title": c.title,
+                    "address": c.address,
+                    "birthday": c.birthday,
+                    "website": c.website,
+                    "notes": c.notes,
                 },
                 uid,
             )
