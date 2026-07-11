@@ -10,7 +10,7 @@ implementation.
 | Phase | Name | Status | Main result |
 |---|---|---|---|
 | 0 | Recovery gate and baseline | **Delivered** | Encrypted backup/restore, safe defaults, upgrade fixtures, and compatibility baselines |
-| 1 | Platform and security foundation | **Next** | Access profiles, secrets, service ownership, Server foundation, safe Docs/Files primitives, and backup targets |
+| 1 | Platform and security foundation | **In progress** | Access profiles, secrets, service ownership, Server foundation, safe Docs/Files primitives, and backup targets |
 | 2 | Folder Projects and durable Jarvis core | Planned | Working folders, General, task stages, durable runs, scheduler, permissions, and delivery outbox |
 | 3 | Product shell, Today, Aide Projects, and Settings | Planned | The three-space shell, useful Today, folder Projects in Aide, settings, and legacy redirects |
 | 4 | Aide and Andromeda | Planned | Aide Chat/Jarvis shell plus fast, grounded, local-capable AI search |

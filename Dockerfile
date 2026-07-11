@@ -16,7 +16,7 @@ COPY . .
 
 # A container must listen on its own interface. Publishing the port on the host is still an explicit
 # operator choice; the README keeps that host-side publish loopback-only by default.
-ENV PORT=8000 ALLES_HOST=0.0.0.0
+ENV PORT=8000 ALLES_HOST=0.0.0.0 ALLES_RUNTIME=container ALLES_ACCESS_PROFILE=device
 EXPOSE 8000
 
 # data/ (sqlite db, vault, uploads, keys) should be a mounted volume so it survives
