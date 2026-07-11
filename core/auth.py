@@ -114,15 +114,21 @@ def require_auth(request: Request):
 
 def require_recent_owner(request: Request):
     """Require a recent password confirmation for high-impact owner actions."""
-    from fastapi import HTTPException
-
+    from core.api_errors import ApiError
+    from core.rate_limit import enforce_rate_limit
     from core.settings import auth_enabled
 
     if not auth_enabled():
         return
+    enforce_rate_limit(
+        request,
+        f"owner:{request.method}:{request.url.path}",
+        limit=30,
+        window_seconds=60,
+    )
     token = request.cookies.get("aide_session", "")
     if not verify_recent_session(token):
-        raise HTTPException(403, "recent owner authentication required")
+        raise ApiError(403, "recent_auth_required", "recent owner authentication required")
 
 
 # cross-subdomain SSO: a one-time short-lived code that hands a session to another

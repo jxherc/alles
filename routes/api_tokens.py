@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session as DbSession
 
+from core.api_errors import ApiError
 from core.auth import require_recent_owner
 from core.database import ApiToken, get_db
 
@@ -59,10 +60,14 @@ def _token_scopes(token: ApiToken) -> tuple[str, ...]:
 
 def _normalize_scopes(values: list[str]) -> tuple[str, ...]:
     if not values:
-        raise HTTPException(400, "choose at least one token scope")
+        raise ApiError(400, "invalid_token_scopes", "choose at least one token scope")
     unknown = sorted({value for value in values if value not in KNOWN_SCOPES})
     if unknown:
-        raise HTTPException(400, f"unknown token scope: {', '.join(unknown)}")
+        raise ApiError(
+            400,
+            "invalid_token_scopes",
+            f"unknown token scope: {', '.join(unknown)}",
+        )
     return tuple(scope for scope in KNOWN_SCOPES if scope in values)
 
 

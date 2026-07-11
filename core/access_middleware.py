@@ -30,7 +30,9 @@ class PublicHttpsMiddleware:
             await send({"type": "websocket.close", "code": 1008, "reason": "HTTPS required"})
             return
 
-        body = json.dumps({"detail": "HTTPS required for public access"}).encode()
+        body = json.dumps(
+            {"detail": "HTTPS required for public access", "code": "https_required"}
+        ).encode()
         await send(
             {
                 "type": "http.response.start",
