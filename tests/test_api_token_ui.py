@@ -25,6 +25,10 @@ class ApiTokenUiTest(unittest.TestCase):
         self.assertIn("if (!r.ok)", self.js)
         self.assertIn("t.scopes || []", self.js)
 
+    def test_sensitive_token_actions_can_request_recent_owner_auth(self):
+        self.assertIn("/api/auth/reauth", self.js)
+        self.assertIn("options.secret ? 'password'", (ROOT / "static/js/dialog.js").read_text("utf-8"))
+
 
 if __name__ == "__main__":
     unittest.main()

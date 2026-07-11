@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session as DbSession
 
+from core.auth import require_recent_owner
 from core.database import ApiToken, get_db
 
 router = APIRouter(prefix="/api")
@@ -87,7 +88,7 @@ class TokenBody(BaseModel):
     scopes: list[str] = Field(default_factory=lambda: ["read"])
 
 
-@router.post("/tokens")
+@router.post("/tokens", dependencies=[Depends(require_recent_owner)])
 def create_token(body: TokenBody, db: DbSession = Depends(get_db)):
     scopes = _normalize_scopes(body.scopes)
     raw = "alles_" + secrets.token_urlsafe(32)
@@ -103,7 +104,7 @@ def create_token(body: TokenBody, db: DbSession = Depends(get_db)):
     return _fmt(token, raw)
 
 
-@router.delete("/tokens/{tid}")
+@router.delete("/tokens/{tid}", dependencies=[Depends(require_recent_owner)])
 def delete_token(tid: str, db: DbSession = Depends(get_db)):
     token = db.get(ApiToken, tid)
     if not token:

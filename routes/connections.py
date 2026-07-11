@@ -3,6 +3,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from sqlalchemy.orm import Session as DbSession
 
+from core.auth import require_recent_owner
 from core.database import get_db, Connection
 
 router = APIRouter(prefix="/api")
@@ -35,7 +36,7 @@ class ConnBody(BaseModel):
     meta: dict = {}
 
 
-@router.post("/connections")
+@router.post("/connections", dependencies=[Depends(require_recent_owner)])
 def add_conn(body: ConnBody, db: DbSession = Depends(get_db)):
     svc = body.service.strip().lower()
     if not svc:
@@ -51,7 +52,7 @@ def add_conn(body: ConnBody, db: DbSession = Depends(get_db)):
     return {"id": c.id, "service": c.service, "connected": bool(c.token)}
 
 
-@router.delete("/connections/{conn_id}")
+@router.delete("/connections/{conn_id}", dependencies=[Depends(require_recent_owner)])
 def del_conn(conn_id: str, db: DbSession = Depends(get_db)):
     c = db.get(Connection, conn_id)
     if c:

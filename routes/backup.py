@@ -9,10 +9,11 @@ from datetime import datetime
 from pathlib import Path
 from urllib.parse import urlsplit
 
-from fastapi import APIRouter, File, HTTPException, Request, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile, status
 from fastapi.responses import FileResponse
 from starlette.background import BackgroundTask
 
+from core.auth import require_recent_owner
 from core.settings import data_dir
 from services.backup_recovery import (
     CHUNK_SIZE,
@@ -115,7 +116,7 @@ async def _stream_upload_to_path(
     return total
 
 
-@router.get("/backup")
+@router.get("/backup", dependencies=[Depends(require_recent_owner)])
 def export_backup(request: Request, include_photos: bool = False):
     _require_same_origin(request)
     root = _data_dir().expanduser().resolve()
@@ -162,7 +163,7 @@ def export_backup(request: Request, include_photos: bool = False):
     )
 
 
-@router.get("/backup/recovery-key")
+@router.get("/backup/recovery-key", dependencies=[Depends(require_recent_owner)])
 def export_recovery_key(request: Request):
     _require_same_origin(request)
     root = _data_dir().expanduser().resolve()
@@ -178,7 +179,11 @@ def export_recovery_key(request: Request):
     )
 
 
-@router.post("/backup/restore", status_code=status.HTTP_202_ACCEPTED)
+@router.post(
+    "/backup/restore",
+    status_code=status.HTTP_202_ACCEPTED,
+    dependencies=[Depends(require_recent_owner)],
+)
 async def restore_backup(
     request: Request,
     file: UploadFile = File(...),
@@ -276,7 +281,9 @@ def restore_status(request: Request, restore_id: str):
     }
 
 
-@router.delete("/backup/restores/{restore_id}")
+@router.delete(
+    "/backup/restores/{restore_id}", dependencies=[Depends(require_recent_owner)]
+)
 def cancel_restore(request: Request, restore_id: str):
     _require_same_origin(request)
     try:

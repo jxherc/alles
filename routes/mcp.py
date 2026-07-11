@@ -11,6 +11,7 @@ from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel
 from sqlalchemy.orm import Session as DbSession
 
+from core.auth import require_recent_owner
 from core.database import McpServer, SessionLocal, get_db
 
 # the connected-session + tool registry lives in a leaf module so services/agent_tools.py can
@@ -128,7 +129,9 @@ class PresetParams(BaseModel):
     params: dict = {}
 
 
-@router.post("/mcp/presets/{preset_id}")
+@router.post(
+    "/mcp/presets/{preset_id}", dependencies=[Depends(require_recent_owner)]
+)
 async def add_preset(preset_id: str, body: PresetParams = None, db: DbSession = Depends(get_db)):
     p = next((x for x in MCP_PRESETS if x["id"] == preset_id), None)
     if not p:
@@ -148,7 +151,7 @@ async def add_preset(preset_id: str, body: PresetParams = None, db: DbSession = 
 
 
 # POST /api/mcp/servers
-@router.post("/mcp/servers")
+@router.post("/mcp/servers", dependencies=[Depends(require_recent_owner)])
 async def add_server(body: AddServer, db: DbSession = Depends(get_db)):
     s = McpServer(
         name=body.name,
@@ -166,7 +169,7 @@ async def add_server(body: AddServer, db: DbSession = Depends(get_db)):
 
 
 # DELETE /api/mcp/servers/{id}
-@router.delete("/mcp/servers/{sid}")
+@router.delete("/mcp/servers/{sid}", dependencies=[Depends(require_recent_owner)])
 async def delete_server(sid: str, db: DbSession = Depends(get_db)):
     s = db.get(McpServer, sid)
     if not s:
@@ -178,7 +181,9 @@ async def delete_server(sid: str, db: DbSession = Depends(get_db)):
 
 
 # POST /api/mcp/servers/{id}/connect
-@router.post("/mcp/servers/{sid}/connect")
+@router.post(
+    "/mcp/servers/{sid}/connect", dependencies=[Depends(require_recent_owner)]
+)
 async def connect_server(sid: str, db: DbSession = Depends(get_db)):
     s = db.get(McpServer, sid)
     if not s:
@@ -190,7 +195,9 @@ async def connect_server(sid: str, db: DbSession = Depends(get_db)):
 
 
 # POST /api/mcp/servers/{id}/disconnect
-@router.post("/mcp/servers/{sid}/disconnect")
+@router.post(
+    "/mcp/servers/{sid}/disconnect", dependencies=[Depends(require_recent_owner)]
+)
 async def disconnect_server(sid: str, db: DbSession = Depends(get_db)):
     await _disconnect(sid)
     return {"ok": True}

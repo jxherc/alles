@@ -17,6 +17,10 @@ class PasswordTests(unittest.TestCase):
 
 
 class SessionTokenTests(unittest.TestCase):
+    def setUp(self):
+        auth._tokens.clear()
+        auth._recent_auth.clear()
+
     def test_store_verify_revoke(self):
         t = auth.create_session_token()
         self.assertFalse(auth.verify_session(t))  # not stored yet
@@ -30,6 +34,24 @@ class SessionTokenTests(unittest.TestCase):
         auth.store_token(t, ttl_days=1)
         with mock.patch("core.auth.time.time", return_value=time.time() + 2 * 86400):
             self.assertFalse(auth.verify_session(t))
+
+    def test_new_session_is_recent_then_expires_for_sensitive_actions(self):
+        token = auth.create_session_token()
+        now = time.time()
+        with mock.patch("core.auth.time.time", return_value=now):
+            auth.store_token(token)
+            self.assertTrue(auth.verify_recent_session(token))
+        with mock.patch(
+            "core.auth.time.time", return_value=now + auth.RECENT_AUTH_SECONDS + 1
+        ):
+            self.assertTrue(auth.verify_session(token))
+            self.assertFalse(auth.verify_recent_session(token))
+
+    def test_revoke_clears_recent_auth(self):
+        token = auth.create_session_token()
+        auth.store_token(token)
+        auth.revoke_token(token)
+        self.assertNotIn(token, auth._recent_auth)
 
 
 class HandoffTests(unittest.TestCase):

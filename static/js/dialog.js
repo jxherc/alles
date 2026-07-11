@@ -27,12 +27,14 @@ export function confirm(msg) {
   });
 }
 
-export function prompt(msg, def = '') {
+export function prompt(msg, def = '', options = {}) {
   return new Promise(resolve => {
     const ov = _overlay();
     ov.innerHTML = `<div class="dialog-card">
       <div class="dialog-msg">${_esc(msg)}</div>
-      <input class="settings-input dialog-input" id="_di" value="${_esc(String(def || ''))}">
+      <input class="settings-input dialog-input" id="_di" value="${_esc(String(def || ''))}"
+        type="${options.secret ? 'password' : 'text'}"
+        autocomplete="${options.secret ? 'current-password' : 'off'}">
       <div class="dialog-btns">
         <button class="btn" id="_dn">cancel</button>
         <button class="btn primary" id="_dy">ok</button>
