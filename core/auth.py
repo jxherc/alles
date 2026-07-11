@@ -5,6 +5,8 @@ from fastapi import Request
 # in-memory token store — survives process lifetime, not restarts
 # that's fine: 30-day cookies re-login on restart
 _tokens: dict[str, float] = {}  # token → expiry unix timestamp
+_recent_auth: dict[str, float] = {}  # token → last password confirmation
+RECENT_AUTH_SECONDS = 10 * 60
 
 
 def hash_password(pw: str) -> str:
@@ -24,6 +26,7 @@ def create_session_token() -> str:
 
 def store_token(token: str, ttl_days: int = 30):
     _tokens[token] = time.time() + ttl_days * 86400
+    _recent_auth[token] = time.time()
 
 
 def verify_session(token: str) -> bool:
@@ -32,12 +35,29 @@ def verify_session(token: str) -> bool:
         return False
     if time.time() > exp:
         _tokens.pop(token, None)
+        _recent_auth.pop(token, None)
         return False
     return True
 
 
 def revoke_token(token: str):
     _tokens.pop(token, None)
+    _recent_auth.pop(token, None)
+
+
+def mark_session_recent(token: str) -> bool:
+    if not verify_session(token):
+        return False
+    _recent_auth[token] = time.time()
+    return True
+
+
+def verify_recent_session(token: str, max_age: int = RECENT_AUTH_SECONDS) -> bool:
+    if not verify_session(token):
+        return False
+    confirmed_at = _recent_auth.get(token)
+    age = time.time() - confirmed_at if confirmed_at is not None else -1
+    return confirmed_at is not None and 0 <= age <= max_age
 
 
 # ── login throttle — slow down password brute-force from a single IP. matters
@@ -90,6 +110,19 @@ def require_auth(request: Request):
 
     if auth_enabled() and not verify_session(request.cookies.get("aide_session", "")):
         raise HTTPException(401, "not authenticated")
+
+
+def require_recent_owner(request: Request):
+    """Require a recent password confirmation for high-impact owner actions."""
+    from fastapi import HTTPException
+
+    from core.settings import auth_enabled
+
+    if not auth_enabled():
+        return
+    token = request.cookies.get("aide_session", "")
+    if not verify_recent_session(token):
+        raise HTTPException(403, "recent owner authentication required")
 
 
 # cross-subdomain SSO: a one-time short-lived code that hands a session to another

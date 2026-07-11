@@ -34,7 +34,12 @@ Phase 1 is split into small gates. A later gate must not weaken an earlier one.
   - Desktop 1280×800 and mobile 390×844 browser checks pass with keyboard focus, reduced motion,
     no overflow, a real scoped-token creation, and zero console/server errors. All 87 JavaScript tests
     pass after malformed Gallery envelopes were restored to the existing error contract.
-- [ ] Add recent-owner-auth checks.
+- [x] Add recent-owner-auth checks.
+  - Password login opens a ten-minute confirmation window. A throttled `/api/auth/reauth` refreshes
+    it without creating another session, and admin bearer tokens cannot replace owner confirmation.
+  - Backup/key export, restore staging/cancellation, token changes, connector changes, and MCP service
+    changes require recent confirmation when authentication is enabled. Settings uses a real masked
+    password dialog and retries the intended action once after success.
 - [ ] Add stable API error codes and rate limits for sensitive operations.
 
 ### Secrets and observability

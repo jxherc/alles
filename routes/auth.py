@@ -3,6 +3,7 @@ from fastapi import APIRouter, HTTPException, Response, Cookie, Request
 from pydantic import BaseModel
 from core.settings import load_settings, save_settings, base_domain
 from core.auth import (
+    RECENT_AUTH_SECONDS,
     hash_password,
     verify_password,
     create_session_token,
@@ -14,6 +15,7 @@ from core.auth import (
     login_blocked,
     record_login_fail,
     clear_login_fails,
+    mark_session_recent,
 )
 
 router = APIRouter(prefix="/api/auth")
@@ -68,6 +70,30 @@ def login(body: LoginBody, response: Response, request: Request):
     store_token(token)
     _set_session_cookie(response, token)
     return {"ok": True}
+
+
+@router.post("/reauth")
+def reauth(
+    body: LoginBody,
+    request: Request,
+    aide_session: str | None = Cookie(None),
+):
+    if not aide_session or not verify_session(aide_session):
+        raise HTTPException(401, "not authenticated")
+    ip = request.client.host if request.client else "?"
+    if login_blocked(ip):
+        raise HTTPException(429, "too many attempts — wait a few minutes and try again")
+    settings = load_settings()
+    hashed = settings.get("auth_password_hash", "")
+    if not hashed:
+        env_password = os.getenv("AUTH_PASSWORD", "")
+        hashed = hash_password(env_password) if env_password else ""
+    if not hashed or not verify_password(body.password, hashed):
+        record_login_fail(ip)
+        raise HTTPException(401, "invalid password")
+    clear_login_fails(ip)
+    mark_session_recent(aide_session)
+    return {"ok": True, "expires_in": RECENT_AUTH_SECONDS}
 
 
 @router.post("/logout")

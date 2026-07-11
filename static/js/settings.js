@@ -1,5 +1,5 @@
 import { toast } from './util.js';
-import { confirm as _dlgConfirm } from './dialog.js';
+import { confirm as _dlgConfirm, prompt as _dlgPrompt } from './dialog.js';
 import { loadModels, addEndpoint, renderModelList } from './models.js';
 import { initCustomDropdowns, getDropdownValue, setDropdownValue, populateDropdown } from './dropdown.js';
 import { initMemoryPanel } from './memory.js';
@@ -238,11 +238,11 @@ function _initSettings() {
   document.getElementById('wh-add-btn')?.addEventListener('click', addWebhook);
 
   // ── backup ──
-  document.getElementById('backup-export-btn')?.addEventListener('click', () => {
-    window.location = '/api/backup';
+  document.getElementById('backup-export-btn')?.addEventListener('click', async () => {
+    if (await _confirmRecentOwner()) window.location = '/api/backup';
   });
-  document.getElementById('backup-key-export-btn')?.addEventListener('click', () => {
-    window.location = '/api/backup/recovery-key';
+  document.getElementById('backup-key-export-btn')?.addEventListener('click', async () => {
+    if (await _confirmRecentOwner()) window.location = '/api/backup/recovery-key';
   });
   document.getElementById('backup-recovery-key-input')?.addEventListener('change', e => {
     const name = document.getElementById('backup-recovery-key-name');
@@ -1324,7 +1324,7 @@ async function _loadMcpPresets() {
 async function _addMcpPreset(id) {
   toast('adding connector…');
   try {
-    const r = await fetch(`/api/mcp/presets/${encodeURIComponent(id)}`, {
+    const r = await _fetchWithRecentOwner(`/api/mcp/presets/${encodeURIComponent(id)}`, {
       method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ params: {} }),
     });
     if (!r.ok) throw new Error(r.status);
@@ -1334,7 +1334,7 @@ async function _addMcpPreset(id) {
 }
 
 window._rmMcp = async btn => {
-  await fetch(`/api/mcp/servers/${btn.dataset.id}`, { method: 'DELETE' });
+  await _fetchWithRecentOwner(`/api/mcp/servers/${btn.dataset.id}`, { method: 'DELETE' });
   loadMcpServers();
 };
 
@@ -1372,7 +1372,7 @@ async function addConnection() {
   const token = document.getElementById('conn-token').value.trim();
   if (!service) { toast('pick a service', 'error'); return; }
   if (!token) { toast('token required', 'error'); return; }
-  const r = await fetch('/api/connections', {
+  const r = await _fetchWithRecentOwner('/api/connections', {
     method: 'POST', headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ service, token }),
   });
@@ -1381,7 +1381,7 @@ async function addConnection() {
 }
 
 window._rmConn = async btn => {
-  await fetch(`/api/connections/${btn.dataset.id}`, { method: 'DELETE' });
+  await _fetchWithRecentOwner(`/api/connections/${btn.dataset.id}`, { method: 'DELETE' });
   loadConnections();
 };
 
@@ -1401,7 +1401,7 @@ async function addMcpServer() {
   if (!name || !command) { toast('name + command required', 'error'); return; }
   const parts = command.match(/(?:[^\s"]+|"[^"]*")+/g) || [];
   const cmd = parts[0], args = parts.slice(1).map(a => a.replace(/^"|"$/g,''));
-  await fetch('/api/mcp/servers', { method: 'POST', headers: {'content-type':'application/json'},
+  await _fetchWithRecentOwner('/api/mcp/servers', { method: 'POST', headers: {'content-type':'application/json'},
     body: JSON.stringify({ name, transport: 'stdio', command: cmd, args }) });
   document.getElementById('mcp-name').value = '';
   document.getElementById('mcp-command').value = '';
@@ -1426,9 +1426,29 @@ async function loadTokens() {
 }
 
 window._rmToken = async btn => {
-  await fetch(`/api/tokens/${btn.dataset.id}`, { method: 'DELETE' });
+  const r = await _fetchWithRecentOwner(`/api/tokens/${btn.dataset.id}`, { method: 'DELETE' });
+  if (!r.ok) { toast('token could not be revoked', 'error'); return; }
   loadTokens();
 };
+
+async function _confirmRecentOwner() {
+  const me = await fetch('/api/auth/me').then(r => r.json()).catch(() => null);
+  if (me && me.enabled === false) return true;
+  const password = await _dlgPrompt('enter your Alles password to continue', '', { secret: true });
+  if (password == null) return false;
+  const r = await fetch('/api/auth/reauth', {
+    method: 'POST', headers: {'content-type':'application/json'},
+    body: JSON.stringify({ password }),
+  });
+  if (!r.ok) { toast('password confirmation failed', 'error'); return false; }
+  return true;
+}
+
+async function _fetchWithRecentOwner(input, init) {
+  let r = await fetch(input, init);
+  if (r.status === 403 && await _confirmRecentOwner()) r = await fetch(input, init);
+  return r;
+}
 
 async function generateToken() {
   const name = document.getElementById('token-name').value.trim();
@@ -1436,8 +1456,11 @@ async function generateToken() {
   const scopes = [...document.querySelectorAll('[data-token-scope].active')]
     .map(btn => btn.dataset.tokenScope);
   if (!scopes.length) { toast('choose at least one permission', 'error'); return; }
-  const r = await fetch('/api/tokens', { method: 'POST', headers: {'content-type':'application/json'},
-    body: JSON.stringify({ name, scopes }) });
+  const create = () => _fetchWithRecentOwner('/api/tokens', {
+    method: 'POST', headers: {'content-type':'application/json'},
+    body: JSON.stringify({ name, scopes }),
+  });
+  const r = await create();
   const data = await r.json();
   if (!r.ok) { toast(data.detail || 'token could not be created', 'error'); return; }
   document.getElementById('token-name').value = '';
