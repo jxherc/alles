@@ -6,6 +6,8 @@ lose data. reversible: down() rebuilds the table from the vault files.
 
 from sqlalchemy import text
 
+from core.migrations.runner import MigrationBlockedError
+
 VERSION = 10
 NAME = "drop_note_table"
 
@@ -18,23 +20,29 @@ def up(conn):
     if row_ids:
         # only drop if every db note is present in the vault (matched by legacy_id)
         from services import notes_vault
+
         if not row_ids.issubset(notes_vault.existing_legacy_ids()):
-            return  # not fully migrated — leave the table as a safety net
+            raise MigrationBlockedError(
+                "legacy notes are not fully present in the Markdown vault; refusing to drop them"
+            )
     conn.execute(text("DROP TABLE IF EXISTS notes"))
 
 
 def down(conn):
     """rebuild the table + repopulate from the vault (best-effort undo)."""
-    conn.execute(text(
-        "CREATE TABLE IF NOT EXISTS notes ("
-        "id TEXT PRIMARY KEY, title TEXT DEFAULT '', content TEXT DEFAULT '', "
-        "pinned BOOLEAN DEFAULT 0, archived BOOLEAN DEFAULT 0, tags TEXT DEFAULT '', "
-        "items TEXT DEFAULT '[]', due TEXT DEFAULT '', created_at DATETIME, updated_at DATETIME)"
-    ))
+    conn.execute(
+        text(
+            "CREATE TABLE IF NOT EXISTS notes ("
+            "id TEXT PRIMARY KEY, title TEXT DEFAULT '', content TEXT DEFAULT '', "
+            "pinned BOOLEAN DEFAULT 0, archived BOOLEAN DEFAULT 0, tags TEXT DEFAULT '', "
+            "items TEXT DEFAULT '[]', due TEXT DEFAULT '', created_at DATETIME, updated_at DATETIME)"
+        )
+    )
     try:
         import json
 
         from services import notes_vault
+
         for n in notes_vault.all_notes():
             conn.execute(
                 text(
@@ -44,9 +52,15 @@ def down(conn):
                 ),
                 {
                     "id": notes_vault._legacy(n["id"]) or n["id"],
-                    "t": n["title"], "c": n["content"], "p": n["pinned"], "a": n["archived"],
-                    "tg": ",".join(n["tags"]), "it": json.dumps(n["items"]),
-                    "d": n["due"], "ca": n["created_at"], "ua": n["updated_at"],
+                    "t": n["title"],
+                    "c": n["content"],
+                    "p": n["pinned"],
+                    "a": n["archived"],
+                    "tg": ",".join(n["tags"]),
+                    "it": json.dumps(n["items"]),
+                    "d": n["due"],
+                    "ca": n["created_at"],
+                    "ua": n["updated_at"],
                 },
             )
     except Exception:

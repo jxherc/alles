@@ -9,6 +9,7 @@ from sqlalchemy import (
     DateTime,
     Float,
     ForeignKey,
+    Index,
     Integer,
     LargeBinary,
     String,
@@ -624,6 +625,10 @@ class Photo(Base):
     stack_id = Column(String, nullable=True)  # cover photo's id, shared by stack members (phase 6)
     clip = Column(LargeBinary, nullable=True)  # CLIP image embedding (512 float32) for semantic search
     faces_at = Column(DateTime, nullable=True)  # when face detection last ran (null = not scanned yet)
+    source = Column(String, nullable=True, index=True)  # e.g. apple_photos; null for local uploads
+    source_id = Column(String, nullable=True, index=True)  # stable resource id for repeat sync
+    source_asset_id = Column(String, nullable=True, index=True)  # groups PhotoKit live resources
+    source_modified_at = Column(DateTime, nullable=True)  # source revision at last sync
 
 
 class Person(Base):
@@ -656,7 +661,8 @@ class Reminder(Base):
     type = Column(String, default="reminder")  # reminder | message
     session_id = Column(String, nullable=True)  # for type=message
     fired = Column(Boolean, default=False)
-    notified = Column(Boolean, default=False)  # web push already sent
+    # Durable delivery claim: true means sent or uncertain, so background jobs do not retry blindly.
+    notified = Column(Boolean, default=False)
     created_at = Column(DateTime, default=_now)
 
 
@@ -675,6 +681,40 @@ class AutomationRule(Base):
     created_at = Column(DateTime, default=_now)
 
 
+class AutomationAttempt(Base):
+    """One durable claim for one legacy automation occurrence.
+
+    Phase 0 keeps this intentionally small. The fuller Jarvis run/delivery model
+    comes later, but this claim is enough to prevent a crash or uncertain
+    external response from causing the same action to run again blindly.
+    """
+
+    __tablename__ = "automation_attempts"
+    __table_args__ = (
+        Index(
+            "ux_automation_attempts_rule_occurrence",
+            "rule_id",
+            "occurrence_key",
+            unique=True,
+        ),
+    )
+
+    id = Column(String, primary_key=True, default=_uid)
+    rule_id = Column(
+        String,
+        ForeignKey("automation_rules.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    # SHA-256 of the trigger identity. Paths and mail/account identifiers are not copied here.
+    occurrence_key = Column(String(64), nullable=False)
+    status = Column(String, nullable=False, default="running")
+    action = Column(String, nullable=False, default="")
+    error = Column(Text, default="")
+    started_at = Column(DateTime, default=_now)
+    finished_at = Column(DateTime, nullable=True)
+
+
 class ProactiveItem(Base):
     __tablename__ = "proactive_items"
     id = Column(String, primary_key=True, default=_uid)
@@ -688,7 +728,8 @@ class ProactiveItem(Base):
     source_keys = Column(Text, default="[]")  # json list of signal keys summarized
     status = Column(String, default="new")  # new | seen | dismissed | acted
     dismissed = Column(Boolean, default=False)
-    pushed = Column(Boolean, default=False)  # web push already sent
+    # Durable push claim: true also quarantines a delivery with an uncertain outcome.
+    pushed = Column(Boolean, default=False)
     created_at = Column(DateTime, default=_now)
     updated_at = Column(DateTime, default=_now)
 
@@ -792,7 +833,8 @@ class DayEvent(Base):
     notes = Column(Text, default="")
     pinned = Column(Boolean, default=False)
     notify_days = Column(Integer, default=1)  # push window; -1 = off, 0 = day-of only
-    last_notified = Column(String, default="")  # occurrence date already pushed
+    # occurrence date, or pending:/uncertain: occurrence claim
+    last_notified = Column(String, default="")
     created_at = Column(DateTime, default=_now)
 
 
@@ -810,7 +852,8 @@ class Subscription(Base):
     notes = Column(Text, default="")
     active = Column(Boolean, default=True)
     remind_days = Column(Integer, default=1)  # push N days before renewal (0 = off)
-    last_notified_due = Column(String, default="")  # due date we already pushed for
+    # due date, or pending:/uncertain: delivery claim
+    last_notified_due = Column(String, default="")
     account_id = Column(String, default="")  # money account to auto-post the charge to (optional)
     last_posted_due = Column(String, default="")  # due date we already posted a txn for
     trial_end = Column(String, default="")  # ISO date a free trial ends / cancel-by
@@ -1154,7 +1197,7 @@ class ScheduledMail(Base):
     in_reply_to = Column(String, default="")
     references = Column(String, default="")
     send_at = Column(String, default="")  # ISO datetime
-    status = Column(String, default="scheduled")  # scheduled | sent | canceled
+    status = Column(String, default="scheduled")  # scheduled | sending | sent | uncertain | canceled
     created_at = Column(DateTime, default=_now)
 
 
@@ -1297,6 +1340,10 @@ class HealthEntry(Base):
 def init_db():
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
     Base.metadata.create_all(engine)
+    from core.build_info import SQLITE_APPLICATION_ID
+
+    with engine.begin() as conn:
+        conn.exec_driver_sql(f"PRAGMA application_id = {SQLITE_APPLICATION_ID}")
     # schema migrations (versioned runner; baseline self-heals every boot)
     from core.migrations import run_migrations
     run_migrations(engine)

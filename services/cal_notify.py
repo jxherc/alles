@@ -5,6 +5,8 @@ once even across the 30s job ticks; all-day events anchor their reminders to 09:
 """
 
 import json
+import logging
+import os
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -14,6 +16,7 @@ _FIRES: Path | None = None
 _fired = None
 _fired_path: Path | None = None
 _GRACE = 120  # seconds after the reminder time we still consider it "due"
+log = logging.getLogger("alles.calendar-reminders")
 
 
 def _fires_file() -> Path:
@@ -36,9 +39,12 @@ def _save():
     try:
         path = _fires_file()
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(sorted(_fired)), "utf-8")
+        temporary = path.with_name(path.name + ".tmp")
+        temporary.write_text(json.dumps(sorted(_fired)), "utf-8")
+        os.replace(temporary, path)
+        return True
     except Exception:
-        pass
+        return False
 
 
 def _ev_dict(e):
@@ -56,7 +62,7 @@ def _ev_dict(e):
 
 async def fire_due():
     from core.database import CalendarEvent, SessionLocal
-    from routes.push import broadcast
+    from routes.push import broadcast_result
     from services import recur
 
     fired = _load()
@@ -83,16 +89,21 @@ async def fire_due():
                     if not (ft <= now < ft + timedelta(seconds=_GRACE)):
                         continue
                     key = f"{e.id}|{occ.date().isoformat()}|{off}"
-                    if key in fired:
+                    pending_key = f"pending:{key}"
+                    uncertain_key = f"uncertain:{key}"
+                    if key in fired or pending_key in fired or uncertain_key in fired:
                         continue
-                    fired.add(key)
-                    changed = True
                     when = (
                         "now" if off <= 0 else (f"in {off} min" if off < 60 else f"in {off // 60}h")
                     )
                     at = "" if e.all_day else f" at {occ.strftime('%H:%M')}"
+                    fired.add(pending_key)
+                    if not _save():
+                        fired.discard(pending_key)
+                        log.warning("calendar reminder claim could not be saved; delivery skipped")
+                        continue
                     try:
-                        await broadcast(
+                        result = await broadcast_result(
                             {
                                 "title": "event reminder",
                                 "body": f"{e.title} — {when}{at}",
@@ -100,8 +111,19 @@ async def fire_due():
                                 "tag": key,
                             }
                         )
-                    except Exception:
-                        pass
+                        fired.discard(pending_key)
+                        if result["sent"]:
+                            fired.add(key)
+                        elif result["uncertain"]:
+                            fired.add(uncertain_key)
+                        changed = True
+                        _save()
+                    except Exception as exc:
+                        fired.discard(pending_key)
+                        fired.add(uncertain_key)
+                        changed = True
+                        _save()
+                        log.warning("calendar reminder outcome uncertain: %s", type(exc).__name__)
     finally:
         db.close()
     if changed:

@@ -69,22 +69,54 @@ def _default_send(acct, m):
     )
 
 
+def _mark_interrupted_uncertain(db):
+    """Quarantine sends interrupted after their durable claim.
+
+    A ``sending`` row may already have reached SMTP, so it is unsafe to put it
+    back in the automatic queue after a process restart.
+    """
+    count = (
+        db.query(ScheduledMail)
+        .filter(ScheduledMail.status == "sending")
+        .update({ScheduledMail.status: "uncertain"}, synchronize_session=False)
+    )
+    if count:
+        db.commit()
+    return count
+
+
 def process_due(db, now_iso=None, send_fn=None):
-    """send every scheduled mail whose send_at has passed (best-effort), mark sent."""
+    """Send due mail with a durable claim before the external side effect."""
     now_iso = now_iso or datetime.utcnow().isoformat()
     send_fn = send_fn or _default_send
+    _mark_interrupted_uncertain(db)
     n = 0
     for m in db.query(ScheduledMail).filter(ScheduledMail.status == "scheduled").all():
         if (m.send_at or "") and m.send_at <= now_iso:
             acct = db.get(MailAccount, m.account_id)
             if not acct:
                 continue  # account gone — leave it queued so it can send once restored
+            claimed = (
+                db.query(ScheduledMail)
+                .filter(
+                    ScheduledMail.id == m.id,
+                    ScheduledMail.status == "scheduled",
+                )
+                .update({ScheduledMail.status: "sending"}, synchronize_session=False)
+            )
+            db.commit()  # claim first: a crash after SMTP must not leave it queued
+            if not claimed:
+                continue
             try:
                 send_fn(acct, m)
             except Exception:
-                continue  # transient failure — stays scheduled, retried next tick (never marked sent)
-            m.status = "sent"  # only on a real successful send
-            db.commit()  # persist each send before the next: a crash mid-batch must not re-send it
+                # The exception may happen after SMTP accepted the message. Re-sending
+                # automatically would risk a duplicate, so leave it for user review.
+                m.status = "uncertain"
+                db.commit()
+                continue
+            m.status = "sent"
+            db.commit()
             n += 1
     return n
 

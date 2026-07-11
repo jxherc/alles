@@ -110,9 +110,8 @@ _defaults = {
     "holdings_autoprice": False,  # 2d - periodically refresh holding prices from an external source
     "tax_reminders": False,  # 2f - quarterly estimated-tax set-aside reminders (off by default)
     "tax_setaside_rate": 0.25,  # 2f - fraction of quarterly income to suggest setting aside
-    "extra_clip_search": False,  # 5e - opt-in optional/native extras (all off; gated on availability)
+    "extra_clip_search": False,  # 5e - settings-gated optional/native extras
     "extra_ocr": False,
-    "extra_photokit": False,
     "extra_eventkit": False,
     "extra_keychain": False,
     # mail oauth ("sign in with google") - the user's own google cloud oauth client

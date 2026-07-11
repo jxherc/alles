@@ -22,6 +22,9 @@ let _scrubDrag = false;  // date scrubber drag state
 let _loadedGroups = [];  // accumulated date groups for the paged list view (phase 4)
 let _nextOffset = null;  // next page offset, or null when fully loaded / on a non-paged view
 let _loadingMore = false;
+let _macSyncTimer = null;
+let _macPhotosStatus = null;
+const _MAC_IMPORT_BATCH = 500;
 const _PAGE = 120;
 
 const $ = id => document.getElementById(id);
@@ -608,6 +611,102 @@ async function _initClip() {
   } catch { /* feature just stays hidden */ }
 }
 
+function _setMacPhotosButton(status = _macPhotosStatus) {
+  const btn = $('photos-macos-btn');
+  if (!btn || !status) return;
+  const onMac = status.platform === 'darwin';
+  btn.hidden = !onMac;
+  if (!onMac) return;
+  const job = status.job;
+  if (job && (job.state === 'queued' || job.state === 'running')) {
+    const progress = job.total ? ` ${job.processed || 0}/${job.total}` : '';
+    btn.innerHTML = `${_si('image')} importing${progress}`;
+    btn.disabled = true;
+    return;
+  }
+  btn.innerHTML = `${_si('image')} ${status.available ? 'apple photos' : 'photos setup'}`;
+  btn.disabled = !status.available;
+  btn.title = status.reason || 'import from Apple Photos';
+}
+
+async function _loadMacPhotosStatus() {
+  try {
+    _macPhotosStatus = await fetch('/api/photos/sync/macos/status').then(async response => {
+      if (!response.ok) throw new Error(await response.text());
+      return response.json();
+    });
+    _setMacPhotosButton();
+    if (_macPhotosStatus.job) _pollMacPhotosJob(_macPhotosStatus.job.id);
+  } catch {
+    const btn = $('photos-macos-btn');
+    if (btn) btn.hidden = true;
+  }
+}
+
+async function _startMacPhotosSync() {
+  if (['denied', 'restricted'].includes(_macPhotosStatus?.authorization)) {
+    toast(_macPhotosStatus.reason || 'allow Apple Photos access in System Settings', 'error');
+    return;
+  }
+  const confirmed = await dlgConfirm(
+    `import up to ${_MAC_IMPORT_BATCH} visible Apple Photos items? `
+    + 'originals are copied into this gallery and may download from iCloud; hidden items stay excluded.',
+  );
+  if (!confirmed) return;
+  const btn = $('photos-macos-btn');
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = `${_si('image')} requesting access…`;
+  }
+  try {
+    const response = await fetch(`/api/photos/sync/macos?limit=${_MAC_IMPORT_BATCH}`, { method: 'POST' });
+    const data = await response.json().catch(() => ({}));
+    if (data.queued || data.offline) {
+      throw new Error('Apple Photos import needs a live connection');
+    }
+    if (!response.ok || !data.id) {
+      throw new Error(data.detail || 'could not start Apple Photos import');
+    }
+    _macPhotosStatus = { ...(_macPhotosStatus || {}), job: data };
+    _setMacPhotosButton();
+    _pollMacPhotosJob(data.id);
+  } catch (error) {
+    toast(error.message || 'Apple Photos import failed', 'error');
+    await _loadMacPhotosStatus();
+  }
+}
+
+async function _pollMacPhotosJob(jobId) {
+  clearTimeout(_macSyncTimer);
+  try {
+    const response = await fetch('/api/photos/sync/macos/jobs/' + encodeURIComponent(jobId));
+    const job = await response.json();
+    if (!response.ok) throw new Error(job.detail || 'import status unavailable');
+    _macPhotosStatus = { ...(_macPhotosStatus || {}), job };
+    _setMacPhotosButton();
+    if (job.state === 'queued' || job.state === 'running') {
+      _macSyncTimer = setTimeout(() => _pollMacPhotosJob(jobId), 900);
+      return;
+    }
+    if (job.state === 'complete') {
+      const more = job.remaining ? ` · ${job.remaining} remain` : '';
+      const adopted = job.adopted ? `, ${job.adopted} linked` : '';
+      const failures = job.failed ? ` · ${job.failed} failed` : '';
+      toast(
+        `Apple Photos: ${job.imported || 0} imported${adopted}, ${job.updated || 0} updated${failures}${more}`,
+        job.failed ? 'error' : 'success',
+      );
+      await loadPhotos();
+    } else {
+      toast(job.message || 'Apple Photos import failed', 'error');
+    }
+    await _loadMacPhotosStatus();
+  } catch (error) {
+    toast(error.message || 'Apple Photos import status unavailable', 'error');
+    _macSyncTimer = setTimeout(_loadMacPhotosStatus, 2000);
+  }
+}
+
 function openLightbox(id, src) {
   _lbPhotos = src || _photos;   // a stack opens its own members; the grid opens the timeline
   _curIdx = _lbPhotos.findIndex(x => x.id === id);
@@ -813,6 +912,8 @@ export function initPhotos() {
   });
   _initClip();
   _initFaces();
+  _loadMacPhotosStatus();
+  $('photos-macos-btn')?.addEventListener('click', _startMacPhotosSync);
   $('photos-upload-btn')?.addEventListener('click', () => $('photos-upload-input')?.click());
   $('photos-upload-input')?.addEventListener('change', e => { uploadPhotos(e.target.files); e.target.value = ''; });
   $('photos-rescan-btn')?.addEventListener('click', async () => {

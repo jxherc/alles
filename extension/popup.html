@@ -2,22 +2,22 @@
 <html>
 <head>
   <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Alles autofill retired</title>
   <style>
-    body { width: 260px; margin: 0; padding: 10px; background: #0a0a0a; color: #e8e6e3;
-           font: 12px/1.4 -apple-system, system-ui, sans-serif; }
-    input, button { width: 100%; box-sizing: border-box; margin: 3px 0; padding: 5px;
-           background: #111; color: #e8e6e3; border: 1px solid #333; border-radius: 2px; font: inherit; }
-    button { cursor: pointer; }
-    .row { display: flex; justify-content: space-between; gap: 4px; padding: 4px 0; border-bottom: 1px solid #222; }
-    .row button { width: auto; margin: 0; }
-    .muted { color: #6e6e6e; }
+    body { width: 280px; margin: 0; padding: 14px; background: #0a0a0a; color: #e8e6e3;
+           font: 13px/1.5 -apple-system, system-ui, sans-serif; }
+    h1 { margin: 0 0 8px; font-size: 15px; font-weight: 600; }
+    p { margin: 0 0 10px; color: #aaa; }
+    a { display: block; padding: 8px 10px; border: 1px solid #444; border-radius: 3px;
+        color: #e8e6e3; text-align: center; text-decoration: none; }
+    a:focus-visible { outline: 2px solid #e8e6e3; outline-offset: 2px; }
   </style>
 </head>
 <body>
-  <div class="muted">paste a vault unlock token (from the secrets app), then fill the current site.</div>
-  <input id="tok" type="password" placeholder="X-Vault-Token">
-  <button id="go">find logins for this site</button>
-  <div id="out"></div>
-  <script src="popup.js"></script>
+  <h1>browser autofill is off</h1>
+  <p>This prototype used a vault-wide unlock token, so it was retired. It no longer reads pages or stores a token.</p>
+  <p>Remove the old installed copy. Until a safely paired replacement is ready, reveal and copy logins inside Alles.</p>
+  <a href="http://secrets.localhost:8000" target="_blank" rel="noopener noreferrer">open Passwords in Alles</a>
 </body>
 </html>

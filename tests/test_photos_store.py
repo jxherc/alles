@@ -22,7 +22,7 @@ def _heic() -> bytes:
 class PhotosStoreTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
-        self._p = mock.patch.object(ps, "photos_dir", lambda: Path(self.tmp.name))
+        self._p = mock.patch.object(ps, "photos_dir", lambda: Path(self.tmp.name).resolve())
         self._p.start()
         (Path(self.tmp.name) / ".thumbs").mkdir(exist_ok=True)
 
@@ -100,6 +100,21 @@ class PhotosStoreTests(unittest.TestCase):
         self.assertTrue(info["is_video"])
         p = ps.original_path(info["filename"])
         self.assertTrue(p.is_file())
+
+    def test_partial_original_write_is_removed(self):
+        def fail_after_partial_write(path, data):
+            with path.open("wb") as stream:
+                stream.write(data[:8])
+            raise OSError("simulated full disk")
+
+        with (
+            mock.patch.object(Path, "write_bytes", fail_after_partial_write),
+            self.assertRaises(OSError),
+        ):
+            ps.import_image(_png(), "partial.png")
+
+        originals = [path for path in Path(self.tmp.name).iterdir() if path.is_file()]
+        self.assertEqual(originals, [])
 
 
 if __name__ == "__main__":

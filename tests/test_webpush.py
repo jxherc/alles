@@ -123,15 +123,15 @@ class WebPushTest(unittest.TestCase):
                 raise OSError("connection refused")
 
         with mock.patch.object(wp.httpx, "AsyncClient", lambda *a, **k: _ErrClient()):
-            self.assertEqual(asyncio.run(wp.send_push(self._sub(), {"title": "t"})), "failed")
+            self.assertEqual(asyncio.run(wp.send_push(self._sub(), {"title": "t"})), "uncertain")
 
     def test_send_push_prunes_on_404(self):
         with mock.patch.object(wp.httpx, "AsyncClient", _fake_client(404)):
             self.assertEqual(asyncio.run(wp.send_push(self._sub(), {"title": "t"})), "gone")
 
-    def test_send_push_failed_on_500(self):
+    def test_send_push_uncertain_on_500(self):
         with mock.patch.object(wp.httpx, "AsyncClient", _fake_client(500)):
-            self.assertEqual(asyncio.run(wp.send_push(self._sub(), {"title": "t"})), "failed")
+            self.assertEqual(asyncio.run(wp.send_push(self._sub(), {"title": "t"})), "uncertain")
 
 
 if __name__ == "__main__":

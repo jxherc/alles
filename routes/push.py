@@ -65,10 +65,18 @@ async def test_push():
     if res["total"] == 0:
         raise HTTPException(400, "no push subscriptions registered")
     if res["sent"] == 0:
+        if res["uncertain"]:
+            raise HTTPException(502, "push delivery outcome is uncertain")
         if res["failed"]:
             raise HTTPException(502, "push delivery failed")
         raise HTTPException(400, "no live push subscriptions registered")
-    return {"ok": True, "sent": res["sent"], "failed": res["failed"], "pruned": res["pruned"]}
+    return {
+        "ok": True,
+        "sent": res["sent"],
+        "failed": res["failed"],
+        "uncertain": res["uncertain"],
+        "pruned": res["pruned"],
+    }
 
 
 async def broadcast(payload: dict) -> int:
@@ -81,7 +89,7 @@ async def broadcast_result(payload: dict) -> dict:
     db = SessionLocal()
     try:
         subs = db.query(PushSubscription).all()
-        sent = failed = pruned = 0
+        sent = failed = uncertain = pruned = 0
         for s in subs:
             state = await webpush.send_push(
                 {"endpoint": s.endpoint, "p256dh": s.p256dh, "auth": s.auth}, payload
@@ -91,9 +99,17 @@ async def broadcast_result(payload: dict) -> dict:
             elif state == "gone":
                 pruned += 1
                 db.delete(s)
+            elif state == "uncertain":
+                uncertain += 1
             else:
                 failed += 1
         db.commit()
-        return {"sent": sent, "failed": failed, "pruned": pruned, "total": len(subs)}
+        return {
+            "sent": sent,
+            "failed": failed,
+            "uncertain": uncertain,
+            "pruned": pruned,
+            "total": len(subs),
+        }
     finally:
         db.close()

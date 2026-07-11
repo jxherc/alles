@@ -1,8 +1,10 @@
 from datetime import datetime
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session as DbSession
-from core.database import get_db, Reminder
+
+from core.database import Reminder, get_db
 
 router = APIRouter(prefix="/api")
 
@@ -57,7 +59,7 @@ def delete_reminder(rid: str, db: DbSession = Depends(get_db)):
 
 @router.get("/reminders/due")
 def due_reminders(db: DbSession = Depends(get_db)):
-    """return reminders that are due and not yet fired; marks them fired"""
+    """Return pending due reminders without consuming them."""
     now = datetime.utcnow()
     due = (
         db.query(Reminder)
@@ -68,7 +70,17 @@ def due_reminders(db: DbSession = Depends(get_db)):
         )
         .all()
     )
-    for r in due:
-        r.fired = True
-    db.commit()
     return [_fmt(r) for r in due]
+
+
+@router.post("/reminders/{rid}/ack")
+def acknowledge_reminder(rid: str, db: DbSession = Depends(get_db)):
+    """Mark a plain reminder fired after the browser displays it."""
+    r = db.get(Reminder, rid)
+    if not r:
+        raise HTTPException(404, "not found")
+    if r.type != "reminder" or r.trigger_at > datetime.utcnow():
+        raise HTTPException(409, "reminder is not due")
+    r.fired = True
+    db.commit()
+    return _fmt(r)

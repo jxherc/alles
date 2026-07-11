@@ -1,10 +1,11 @@
 import asyncio
 import unittest
+from pathlib import Path
 from unittest import mock
 
-from services.research.deep_research import DeepResearcher, current_date_context
 from services.research import research_utils as ru
 from services.research import search as rs
+from services.research.deep_research import DeepResearcher, current_date_context
 
 
 class UtilTests(unittest.TestCase):
@@ -133,6 +134,24 @@ class FullLoopTests(unittest.TestCase):
             r = DeepResearcher("http://x", "k", "m", min_rounds=3, max_rounds=3, max_empty_rounds=2)
             report = asyncio.run(r.research("anything"))
         self.assertIn("Search unavailable", report)
+
+    def test_empty_query_generation_never_returns_old_dead_end(self):
+        fixture = (
+            Path(__file__).parent / "fixtures" / "research" / "no-information.txt"
+        ).read_text("utf-8").strip()
+        r = DeepResearcher("http://x", "k", "m", max_rounds=1)
+        with (
+            mock.patch.object(r, "_create_plan", mock.AsyncMock(return_value="plan")),
+            mock.patch.object(r, "_classify_category", mock.AsyncMock(return_value="general")),
+            mock.patch.object(r, "_generate_queries", mock.AsyncMock(return_value=[])),
+        ):
+            report = asyncio.run(r.research("current software version"))
+
+        self.assertNotEqual(report, fixture)
+        self.assertNotIn(fixture, report)
+        for action in ("Retry", "Broaden search", "Edit query", "Return to normal results"):
+            self.assertIn(action, report)
+        self.assertIn("did not produce usable search queries", report)
 
 
 if __name__ == "__main__":

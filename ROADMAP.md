@@ -1,4 +1,7 @@
-# alles — UI/UX overhaul roadmap (active)
+# alles — UI/UX overhaul roadmap (historical: The Mirror)
+
+> This is a historical plan. The active direction is
+> [Afterlife](docs/plans/afterlife/README.md).
 
 ## Context
 
@@ -13,8 +16,9 @@ verified by clicking every button in every app, not just loading the page. This 
 **depth-first, one microversion at a time, in order** — each fully finished, tested, and made
 good-looking + unified before the next starts. **docs is the biggest job — most time + tokens there.**
 
-Full microstage detail + file/selector map lives in the approved plan:
-`C:/Users/jxh/.claude/plans/twinkling-riding-allen.md`. The prior delivered roadmap is archived at
+The surviving microstage files are indexed under
+[The Mirror](docs/plans/stages/03-the-mirror.md). Some original detail lived in an external plan that is
+not part of this repository. The prior delivered roadmap is archived at
 `docs/plans/roadmap-delivered-v1.md`.
 
 Two locked decisions: **(a)** one central custom **SF-style inline-SVG icon set** replaces all

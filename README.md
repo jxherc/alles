@@ -76,7 +76,7 @@ each one is a real, finished app — they live on their own subdomain so it feel
 | **secrets** | an encrypted vault with typed entries (logins, cards, api keys, notes…) |
 | **automations** | *when this happens, do that* — set a rule once and alles runs it |
 
-plus the smaller stuff: global search (cmd/ctrl+k), scheduled messages, prompt cookbook, webhooks, api tokens, an openai-compatible api, backup/restore to a zip, light/dark themes with a custom accent, and it installs like a pwa with real push notifications.
+plus the smaller stuff: global search (cmd/ctrl+k), scheduled messages, prompt cookbook, webhooks, api tokens, an openai-compatible api, encrypted backup with an offline staged restore and rollback, light/dark themes with a custom accent, and it installs like a pwa with real push notifications.
 
 **→ full details on every app, the internals, the api, and the architecture are in [specifications.md](./specifications.md).**
 
@@ -109,7 +109,7 @@ pip install -r requirements.txt
 
 **no api key is needed to boot.** mail, docs, files, calendar, tasks, subs, days, photos, contacts, secrets — all work out of the box. when you want aide to talk, add a model under **settings → models** (one click for openai / anthropic / deepseek / groq / gemini / ollama and ~10 more), or drop a key like `deepseek_api_key` into `.env`.
 
-**prefer docker?** `docker build -t alles . && docker run -p 8000:8000 -v alles-data:/app/data alles` — the `data/` volume keeps your db, vault, uploads, and keys across rebuilds.
+**prefer docker?** `docker build -t alles . && docker run -p 127.0.0.1:8000:8000 -v alles-data:/app/data alles` — the `data/` volume keeps your db, vault, uploads, and keys across rebuilds. the loopback-only port keeps the fresh container on this device; choose wider exposure only after enabling authentication.
 
 **want it fully offline and free?** install [ollama](https://ollama.com), `ollama pull` a model, add an endpoint pointing at `http://localhost:11434` — no key or internet needed for the ai.
 

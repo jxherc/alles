@@ -1,5 +1,14 @@
+import os
 from unittest import mock
 
+from core import auth
+from core.build_info import (
+    AFTERLIFE_FEATURE_DEFAULTS,
+    afterlife_feature_flags,
+    build_info,
+    migration_head,
+)
+from core.migrations.runner import migration_catalog
 from services import sysmon
 from tests._client import ApiTest
 
@@ -78,3 +87,86 @@ class SystemStatsTest(ApiTest):
         mounts = [d["mount"] for d in s["disks"]]
         self.assertEqual(len(mounts), len(set(mounts)))  # no dup mounts
         self.assertLessEqual(len(s["disks"]), 6)
+
+
+class BuildInfoTest(ApiTest):
+    def test_build_response_is_complete_and_secret_free(self):
+        env = {
+            "ALLES_VERSION": "1.2.3",
+            "ALLES_BUILD_ID": "release-abc123",
+            "ALLES_AFTERLIFE_FEATURES": "afterlife_today,afterlife_andromeda",
+            "SECRET_KEY": "must-not-leak",
+        }
+        with mock.patch.dict(os.environ, env, clear=False):
+            body = self.client.get("/api/system/build").json()
+
+        self.assertEqual(
+            set(body),
+            {
+                "name",
+                "version",
+                "build_id",
+                "recovery_compatibility",
+                "migration_head",
+                "feature_flags",
+            },
+        )
+        self.assertEqual(body["name"], "alles")
+        self.assertEqual(body["version"], "1.2.3")
+        self.assertEqual(body["build_id"], "release-abc123")
+        self.assertEqual(body["migration_head"], max(migration_catalog()))
+        self.assertEqual(set(body["feature_flags"]), set(AFTERLIFE_FEATURE_DEFAULTS))
+        self.assertTrue(body["feature_flags"]["afterlife_today"])
+        self.assertTrue(body["feature_flags"]["afterlife_andromeda"])
+        self.assertNotIn("must-not-leak", str(body))
+        self.assertEqual(self.client.patch("/api/system/build", json={}).status_code, 405)
+
+    def test_build_endpoint_requires_auth_when_login_is_enabled(self):
+        with mock.patch.dict(
+            os.environ,
+            {"AUTH_ENABLED": "true", "ALLES_AFTERLIFE_FEATURES": ""},
+            clear=False,
+        ):
+            self.assertEqual(self.client.get("/api/system/build").status_code, 401)
+
+            token = auth.create_session_token()
+            auth.store_token(token)
+            self.client.cookies.set("aide_session", token)
+            try:
+                response = self.client.get("/api/system/build")
+            finally:
+                self.client.cookies.delete("aide_session")
+                auth.revoke_token(token)
+        self.assertEqual(response.status_code, 200)
+
+    def test_all_afterlife_features_default_off(self):
+        with mock.patch.dict(os.environ, {}, clear=False):
+            os.environ.pop("ALLES_AFTERLIFE_FEATURES", None)
+            self.assertEqual(afterlife_feature_flags(), AFTERLIFE_FEATURE_DEFAULTS)
+            self.assertFalse(any(afterlife_feature_flags().values()))
+
+    def test_feature_override_is_strict(self):
+        flags = afterlife_feature_flags("afterlife_shell, afterlife_storage_locations")
+        self.assertTrue(flags["afterlife_shell"])
+        self.assertTrue(flags["afterlife_storage_locations"])
+        self.assertFalse(flags["afterlife_jarvis"])
+
+        for invalid in (
+            "future_surface",
+            "afterlife_shell,",
+            "afterlife_shell,afterlife_shell",
+        ):
+            with self.subTest(invalid=invalid), self.assertRaises(ValueError):
+                afterlife_feature_flags(invalid)
+
+    def test_shared_build_info_stays_recovery_compatible(self):
+        with mock.patch.dict(
+            os.environ,
+            {"ALLES_VERSION": "2.0.0", "ALLES_BUILD_ID": "build-2"},
+            clear=False,
+        ):
+            info = build_info()
+        self.assertEqual(info["version"], "2.0.0")
+        self.assertEqual(info["build_id"], "build-2")
+        self.assertIsInstance(info["recovery_compatibility"], int)
+        self.assertEqual(migration_head(), max(migration_catalog()))

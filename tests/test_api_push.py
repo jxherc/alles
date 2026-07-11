@@ -11,6 +11,10 @@ async def _failed(*a, **k):
     return "failed"
 
 
+async def _uncertain(*a, **k):
+    return "uncertain"
+
+
 async def _gone(*a, **k):
     return "gone"
 
@@ -106,6 +110,14 @@ class PushApiTest(ApiTest):
             r = self.client.post("/api/push/test")
         self.assertEqual(r.status_code, 502)
         self.assertEqual(r.json()["detail"], "push delivery failed")
+        self.assertEqual(self.client.get("/api/push/status").json()["subscriptions"], 1)
+
+    def test_test_push_uncertain_is_not_retried_or_reported_sent(self):
+        self._sub()
+        with mock.patch("routes.push.webpush.send_push", _uncertain):
+            r = self.client.post("/api/push/test")
+        self.assertEqual(r.status_code, 502)
+        self.assertEqual(r.json()["detail"], "push delivery outcome is uncertain")
         self.assertEqual(self.client.get("/api/push/status").json()["subscriptions"], 1)
 
     def test_test_push_prunes_dead_subscription(self):

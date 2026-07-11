@@ -33,8 +33,15 @@ def _run(coro):
 
 
 def _sig(key, cat="task", urg=70):
-    return {"category": cat, "key": key, "urgency": urg, "title": "t",
-            "detail": "d", "link": "tasks", "data": {}}
+    return {
+        "category": cat,
+        "key": key,
+        "urgency": urg,
+        "title": "t",
+        "detail": "d",
+        "link": "tasks",
+        "data": {},
+    }
 
 
 class ProactiveGateTests(_IsolatedSettings):
@@ -64,8 +71,15 @@ class ProactiveGateTests(_IsolatedSettings):
 
         async def _fake(db, sigs, s):
             k = sigs[0]["key"]
-            return [{"title": "pay rent", "body": "overdue", "link": "tasks",
-                     "score": 80, "source_keys": [k]}]
+            return [
+                {
+                    "title": "pay rent",
+                    "body": "overdue",
+                    "link": "tasks",
+                    "score": 80,
+                    "source_keys": [k],
+                }
+            ]
 
         self._patch_reason(_fake)
         out = _run(proactive.run(force=True))
@@ -82,8 +96,15 @@ class ProactiveGateTests(_IsolatedSettings):
         d.close()
 
         async def _fake(db, sigs, s):
-            return [{"title": "pay rent", "body": "overdue", "link": "tasks",
-                     "score": 80, "source_keys": [sigs[0]["key"]]}]
+            return [
+                {
+                    "title": "pay rent",
+                    "body": "overdue",
+                    "link": "tasks",
+                    "score": 80,
+                    "source_keys": [sigs[0]["key"]],
+                }
+            ]
 
         self._patch_reason(_fake)
         _run(proactive.run(force=True))
@@ -100,8 +121,13 @@ class ProactiveGateTests(_IsolatedSettings):
 
         # enable scheduled path; equal quiet bounds = never quiet, so the test is
         # not wall-clock dependent
-        cfg.save_settings({"pidx_proactive_enabled": True,
-                           "pidx_proactive_quiet_start": 0, "pidx_proactive_quiet_end": 0})
+        cfg.save_settings(
+            {
+                "pidx_proactive_enabled": True,
+                "pidx_proactive_quiet_start": 0,
+                "pidx_proactive_quiet_end": 0,
+            }
+        )
         d = self.db()
         d.add(Task(title="pay rent", done=False, due_date=_iso(-2)))
         d.commit()
@@ -111,11 +137,18 @@ class ProactiveGateTests(_IsolatedSettings):
 
         async def _fake(db, sigs, s):
             calls["n"] += 1
-            return [{"title": "pay rent", "body": "overdue", "link": "tasks",
-                     "score": 80, "source_keys": [sigs[0]["key"]]}]
+            return [
+                {
+                    "title": "pay rent",
+                    "body": "overdue",
+                    "link": "tasks",
+                    "score": 80,
+                    "source_keys": [sigs[0]["key"]],
+                }
+            ]
 
         self._patch_reason(_fake)
-        first = _run(proactive.run(force=False))   # master on, new signal -> runs
+        first = _run(proactive.run(force=False))  # master on, new signal -> runs
         self.assertTrue(first["ran"])
         second = _run(proactive.run(force=False))  # nothing new -> no model call
         self.assertFalse(second["ran"])
@@ -125,11 +158,13 @@ class ProactiveGateTests(_IsolatedSettings):
     def test_model_failure_does_not_mark_seen(self):
         import core.settings as cfg
 
-        cfg.save_settings({
-            "pidx_proactive_enabled": True,
-            "pidx_proactive_quiet_start": 0,
-            "pidx_proactive_quiet_end": 0,
-        })
+        cfg.save_settings(
+            {
+                "pidx_proactive_enabled": True,
+                "pidx_proactive_quiet_start": 0,
+                "pidx_proactive_quiet_end": 0,
+            }
+        )
         d = self.db()
         d.add(Task(title="pay rent", done=False, due_date=_iso(-2)))
         d.commit()
@@ -150,8 +185,15 @@ class ProactiveGateTests(_IsolatedSettings):
         d.close()
 
         async def _ok(db, sigs, s):
-            return [{"title": "pay rent", "body": "overdue", "link": "tasks",
-                     "score": 80, "source_keys": [sigs[0]["key"]]}]
+            return [
+                {
+                    "title": "pay rent",
+                    "body": "overdue",
+                    "link": "tasks",
+                    "score": 80,
+                    "source_keys": [sigs[0]["key"]],
+                }
+            ]
 
         proactive._reason = _ok
         second = _run(proactive.run(force=False))
@@ -167,8 +209,13 @@ class ProactiveGateTests(_IsolatedSettings):
 class ProactiveUpsertTests(ApiTest):
     def test_upsert_dedup(self):
         sigs = [_sig("task_overdue:1")]
-        card = {"title": "x", "body": "y", "link": "tasks", "score": 70,
-                "source_keys": ["task_overdue:1"]}
+        card = {
+            "title": "x",
+            "body": "y",
+            "link": "tasks",
+            "score": 70,
+            "source_keys": ["task_overdue:1"],
+        }
         d = self.db()
         self.assertEqual(proactive._upsert(d, [card], sigs), 1)
         self.assertEqual(proactive._upsert(d, [dict(card, score=90)], sigs), 0)  # refresh, no dup
@@ -178,12 +225,23 @@ class ProactiveUpsertTests(ApiTest):
 
     def test_dismissed_not_recreated(self):
         sigs = [_sig("task_overdue:1")]
-        card = {"title": "x", "body": "y", "link": "tasks", "score": 70,
-                "source_keys": ["task_overdue:1"]}
+        card = {
+            "title": "x",
+            "body": "y",
+            "link": "tasks",
+            "score": 70,
+            "source_keys": ["task_overdue:1"],
+        }
         d = self.db()
-        d.add(ProactiveItem(dedupe_key=proactive._dedupe_key(["task_overdue:1"]),
-                            title="x", source_keys=json.dumps(["task_overdue:1"]),
-                            dismissed=True, status="dismissed"))
+        d.add(
+            ProactiveItem(
+                dedupe_key=proactive._dedupe_key(["task_overdue:1"]),
+                title="x",
+                source_keys=json.dumps(["task_overdue:1"]),
+                dismissed=True,
+                status="dismissed",
+            )
+        )
         d.commit()
         self.assertEqual(proactive._upsert(d, [card], sigs), 0)  # stays suppressed
         live = d.query(ProactiveItem).filter(ProactiveItem.dismissed == False).count()  # noqa: E712
@@ -199,12 +257,26 @@ class ProactiveUpsertTests(ApiTest):
 class ProactiveParseTests(ApiTest):
     def test_validation(self):
         sigs = [_sig("k1")]
-        raw = json.dumps([
-            {"title": "good", "body": "b", "link": "tasks", "score": 90, "source_keys": ["k1"]},
-            {"title": "badlink", "body": "b", "link": "evil", "score": 50, "source_keys": ["k1"]},
-            {"title": "bogus", "body": "b", "link": "tasks", "score": 50, "source_keys": ["nope"]},
-            {"title": "", "body": "b", "link": "tasks", "score": 50, "source_keys": ["k1"]},
-        ])
+        raw = json.dumps(
+            [
+                {"title": "good", "body": "b", "link": "tasks", "score": 90, "source_keys": ["k1"]},
+                {
+                    "title": "badlink",
+                    "body": "b",
+                    "link": "evil",
+                    "score": 50,
+                    "source_keys": ["k1"],
+                },
+                {
+                    "title": "bogus",
+                    "body": "b",
+                    "link": "tasks",
+                    "score": 50,
+                    "source_keys": ["nope"],
+                },
+                {"title": "", "body": "b", "link": "tasks", "score": 50, "source_keys": ["k1"]},
+            ]
+        )
         out = proactive._parse_suggestions(raw, sigs)
         self.assertEqual([c["title"] for c in out], ["good", "badlink"])
         self.assertEqual([c["link"] for c in out], ["tasks", ""])
@@ -234,15 +306,20 @@ class ProactiveQuietHoursTests(ApiTest):
 class ProactivePushTests(ApiTest):
     def _patch_broadcast(self):
         import routes.push as push
+
         sent = []
 
         async def fake(payload):
             sent.append(payload)
             return 1
 
-        orig = push.broadcast
-        push.broadcast = fake
-        self.addCleanup(lambda: setattr(push, "broadcast", orig))
+        async def fake_result(payload):
+            await fake(payload)
+            return {"sent": 1, "failed": 0, "uncertain": 0, "pruned": 0, "total": 1}
+
+        orig = push.broadcast_result
+        push.broadcast_result = fake_result
+        self.addCleanup(lambda: setattr(push, "broadcast_result", orig))
         return sent
 
     def _card(self, **kw):
@@ -271,10 +348,54 @@ class ProactivePushTests(ApiTest):
         self.assertEqual(_run(proactive._maybe_push(d, s)), 0)
         d.close()
 
+    def test_failed_delivery_does_not_mark_card_pushed(self):
+        import routes.push as push
+
+        async def fake(payload):
+            return {"sent": 0, "failed": 0, "uncertain": 0, "pruned": 0, "total": 0}
+
+        orig = push.broadcast_result
+        push.broadcast_result = fake
+        self.addCleanup(lambda: setattr(push, "broadcast_result", orig))
+        d = self._card(title="still pending", urgency=90)
+        s = {"pidx_proactive_channel": "push", "pidx_proactive_push_min": 70}
+
+        self.assertEqual(_run(proactive._maybe_push(d, s)), 0)
+        card = d.query(ProactiveItem).one()
+        d.refresh(card)
+        self.assertFalse(card.pushed)
+        d.close()
+
+    def test_uncertain_delivery_is_not_retried(self):
+        import routes.push as push
+
+        calls = []
+
+        async def fake(payload):
+            calls.append(payload)
+            return {"sent": 0, "failed": 0, "uncertain": 1, "pruned": 0, "total": 1}
+
+        orig = push.broadcast_result
+        push.broadcast_result = fake
+        self.addCleanup(lambda: setattr(push, "broadcast_result", orig))
+        d = self._card(title="maybe delivered", urgency=90)
+        s = {"pidx_proactive_channel": "push", "pidx_proactive_push_min": 70}
+
+        self.assertEqual(_run(proactive._maybe_push(d, s)), 0)
+        self.assertEqual(_run(proactive._maybe_push(d, s)), 0)
+        self.assertEqual(len(calls), 1)
+        card = d.query(ProactiveItem).one()
+        d.refresh(card)
+        self.assertTrue(card.pushed)
+        d.close()
+
     def test_below_threshold_not_pushed(self):
         self._patch_broadcast()
         d = self._card(urgency=40)
-        n = _run(proactive._maybe_push(d, {"pidx_proactive_channel": "push",
-                                           "pidx_proactive_push_min": 70}))
+        n = _run(
+            proactive._maybe_push(
+                d, {"pidx_proactive_channel": "push", "pidx_proactive_push_min": 70}
+            )
+        )
         self.assertEqual(n, 0)
         d.close()

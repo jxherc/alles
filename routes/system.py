@@ -1,8 +1,16 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
+from core.auth import require_auth
+from core.build_info import runtime_info
 from services import sysmon
 
 router = APIRouter(prefix="/api/system")
+
+
+@router.get("/build", dependencies=[Depends(require_auth)])
+def build():
+    """Public release markers and read-only gates for unfinished UI."""
+    return runtime_info()
 
 
 @router.get("/stats")

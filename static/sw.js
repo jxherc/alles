@@ -1,11 +1,11 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v179';   // gallery merge + current shell refresh
+const VERSION = 'v181';   // native PhotoKit gallery import + current shell refresh
 const CACHE = `alles-${VERSION}`;
-const STAMP = '203';   // keep in sync with index.html ?v= / const _v
+const STAMP = '206';   // keep in sync with index.html ?v= / const _v
 
 // 1b: mutating writes that should be queued when offline
 const MUTATING = ['POST', 'PUT', 'PATCH', 'DELETE'];
-const NOQUEUE = ['/api/auth', '/api/chat', '/api/agent', '/api/share', '/api/vault', '/api/carddav'];   // auth / streaming / vault — never queue
+const NOQUEUE = ['/api/auth', '/api/chat', '/api/agent', '/api/share', '/api/vault', '/api/carddav', '/api/photos/sync', '/api/photos/rescan'];   // auth / streaming / native actions / vault — never queue
 
 // 11b: precache the app shell on install so a cold offline load still boots (network-first
 // only fills the cache after a visit; this guarantees the core shell survives an eviction).

@@ -191,7 +191,6 @@ class SettingsPatch(BaseModel):
     tax_setaside_rate: float | None = None
     extra_clip_search: bool | None = None
     extra_ocr: bool | None = None
-    extra_photokit: bool | None = None
     extra_eventkit: bool | None = None
     extra_keychain: bool | None = None
     mail_oauth_client_id: str | None = None

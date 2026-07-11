@@ -114,7 +114,7 @@ def _encrypt(plaintext: bytes, p256dh: str, auth: str) -> bytes:
 
 
 async def send_push(sub: dict, payload: dict, ttl: int = 86400) -> str:
-    """deliver one push: sent, gone, or failed."""
+    """Deliver one push: sent, gone, failed, or uncertain."""
     endpoint = sub["endpoint"]
     body = _encrypt(json.dumps(payload).encode(), sub["p256dh"], sub["auth"])
     headers = {
@@ -127,11 +127,16 @@ async def send_push(sub: dict, payload: dict, ttl: int = 86400) -> str:
         async with httpx.AsyncClient(timeout=10.0) as c:
             r = await c.post(endpoint, content=body, headers=headers)
     except Exception as e:
-        log.warning(f"push delivery failed: {e}")
-        return "failed"
+        # The provider may have accepted the request before the connection failed.
+        # Do not include endpoint-bearing exception text in logs.
+        log.warning("push delivery uncertain: %s", type(e).__name__)
+        return "uncertain"
     if r.status_code in (404, 410):
         return "gone"
+    if r.status_code >= 500 or r.status_code in (408, 429):
+        log.warning("push delivery uncertain: http %s", r.status_code)
+        return "uncertain"
     if r.status_code >= 300:
-        log.warning(f"push rejected {r.status_code}: {r.text[:200]}")
+        log.warning("push rejected: http %s", r.status_code)
         return "failed"
     return "sent"

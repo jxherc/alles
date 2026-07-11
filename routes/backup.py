@@ -1,133 +1,286 @@
-import io
+import asyncio
+import hmac
+import os
 import shutil
-import zipfile
+import tempfile
+import time
+import uuid
 from datetime import datetime
 from pathlib import Path
+from urllib.parse import urlsplit
 
-from fastapi import APIRouter, File, HTTPException, UploadFile
-from fastapi.responses import StreamingResponse
+from fastapi import APIRouter, File, HTTPException, Request, UploadFile, status
+from fastapi.responses import FileResponse
+from starlette.background import BackgroundTask
 
 from core.settings import data_dir
+from services.backup_recovery import (
+    CHUNK_SIZE,
+    DEFAULT_LIMITS,
+    ArchiveLimits,
+    RecoveryError,
+    create_recovery_archive,
+    discard_staged_recovery,
+    get_staged_recovery,
+    stage_recovery_archive,
+    staging_root,
+)
+from services.recovery_crypto import (
+    decrypt_recovery_container,
+    encrypt_recovery_archive,
+    is_encrypted_recovery,
+    load_or_create_recovery_key,
+    load_recovery_key,
+    parse_recovery_key,
+    recovery_key_path,
+)
 
 router = APIRouter(prefix="/api")
 
 DATA_DIR: Path | None = None
+BACKUP_LIMITS: ArchiveLimits = DEFAULT_LIMITS
+_TEMP_MAX_AGE_SECONDS = 24 * 60 * 60
+
+
+class _UploadTooLarge(RecoveryError):
+    pass
 
 
 def _data_dir() -> Path:
     return DATA_DIR or data_dir()
 
 
+def _require_same_origin(request: Request) -> None:
+    """Keep private backup bytes away from cross-site browser requests.
+
+    This matters even in local mode, where normal API authentication can be off.
+    """
+    fetch_site = request.headers.get("sec-fetch-site", "").lower()
+    if fetch_site == "cross-site":
+        raise HTTPException(403, "cross-site backup requests are not allowed")
+
+    origin = request.headers.get("origin")
+    if not origin:
+        return
+    parsed = urlsplit(origin)
+    host = request.headers.get("host", "")
+    if parsed.scheme not in {"http", "https"} or parsed.netloc.casefold() != host.casefold():
+        raise HTTPException(403, "cross-site backup requests are not allowed")
+
+
+def _sweep_old_temp(directory: Path) -> None:
+    """Remove abandoned export/upload temp items left by a crashed process."""
+    try:
+        children = list(directory.iterdir()) if directory.is_dir() else []
+    except OSError:
+        return
+    cutoff = time.time() - _TEMP_MAX_AGE_SECONDS
+    for child in children:
+        try:
+            if child.stat().st_mtime >= cutoff:
+                continue
+            if child.is_dir() and not child.is_symlink():
+                shutil.rmtree(child, ignore_errors=True)
+            else:
+                child.unlink(missing_ok=True)
+        except OSError:
+            continue
+
+
+async def _stream_upload_to_path(
+    upload: UploadFile,
+    destination: Path,
+    *,
+    limits: ArchiveLimits,
+) -> int:
+    destination.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    total = 0
+    try:
+        with destination.open("xb") as handle:
+            while chunk := await upload.read(CHUNK_SIZE):
+                total += len(chunk)
+                if total > limits.max_archive_bytes:
+                    raise _UploadTooLarge("backup upload exceeds the configured size limit")
+                handle.write(chunk)
+            handle.flush()
+            os.fsync(handle.fileno())
+        try:
+            destination.chmod(0o600)
+        except OSError:
+            pass
+    except RecoveryError:
+        raise
+    except OSError as exc:
+        raise RecoveryError("could not store the backup upload safely") from exc
+    return total
+
+
 @router.get("/backup")
-def export_backup():
-    ts = datetime.now().strftime("%Y%m%d-%H%M%S")
-    fname = f"aide-backup-{ts}.zip"
-    root = _data_dir()
+def export_backup(request: Request, include_photos: bool = False):
+    _require_same_origin(request)
+    root = _data_dir().expanduser().resolve()
+    export_parent = staging_root(root) / "exports"
+    export_parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    _sweep_old_temp(export_parent)
+    export_dir = Path(tempfile.mkdtemp(prefix="export-", dir=export_parent))
+    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    filename = f"alles-backup-{timestamp}.alles-backup"
+    plaintext = export_dir / "recovery.zip"
+    archive = export_dir / filename
+    try:
+        recovery_key = load_or_create_recovery_key(root)
+        create_recovery_archive(
+            root,
+            plaintext,
+            include_photos=include_photos,
+            limits=BACKUP_LIMITS,
+        )
+        try:
+            plaintext.chmod(0o600)
+        except OSError:
+            pass
+        encrypt_recovery_archive(
+            plaintext,
+            archive,
+            recovery_key,
+            limits=BACKUP_LIMITS,
+        )
+        plaintext.unlink(missing_ok=True)
+    except RecoveryError as exc:
+        shutil.rmtree(export_dir, ignore_errors=True)
+        raise HTTPException(500, str(exc)) from exc
+    except Exception as exc:
+        shutil.rmtree(export_dir, ignore_errors=True)
+        raise HTTPException(500, "backup creation failed") from exc
 
-    buf = io.BytesIO()
-    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
-        # DB — flush the WAL into the main file first. we're WAL mode, so recent writes live in
-        # aide.db-wal (which we don't ship); without a checkpoint the backed-up aide.db is missing
-        # everything still sitting in the wal.
-        db_path = root / "aide.db"
-        if db_path.exists():
-            try:
-                from core.database import engine
-                with engine.connect() as conn:
-                    conn.exec_driver_sql("PRAGMA wal_checkpoint(TRUNCATE)")
-            except Exception:
-                pass  # best-effort; still ship whatever's on disk
-            zf.write(db_path, "aide.db")
-        # settings
-        sj = root / "settings.json"
-        if sj.exists():
-            zf.write(sj, "settings.json")
-        # at-rest encryption key — without it a restored DB can't decrypt
-        # its API keys / mail passwords, so it travels with the backup
-        sk = root / "secret.key"
-        if sk.exists():
-            zf.write(sk, "secret.key")
-        # vapid key — push subscriptions in the DB are bound to it
-        vp = root / "vapid.pem"
-        if vp.exists():
-            zf.write(vp, "vapid.pem")
-        # uploads
-        upload_dir = root / "uploads"
-        if upload_dir.exists():
-            for f in upload_dir.iterdir():
-                if f.is_file():
-                    zf.write(f, f"uploads/{f.name}")
-        # gallery
-        gallery_dir = root / "gallery"
-        if gallery_dir.exists():
-            for f in gallery_dir.iterdir():
-                if f.is_file():
-                    zf.write(f, f"gallery/{f.name}")
-        # encrypted vault attachments — their .enc blobs live on disk, not in aide.db, so
-        # without this a restore loses every secret attachment
-        att_dir = root / "vault_attachments"
-        if att_dir.exists():
-            for f in att_dir.iterdir():
-                if f.is_file():
-                    zf.write(f, f"vault_attachments/{f.name}")
-        # the markdown vault — notes + docs live here as files now, so a backup without it
-        # loses every note. recurse (the vault has subfolders: Notes/, _assets/, etc.)
-        vault_d = root / "vault"
-        if vault_d.exists():
-            for f in vault_d.rglob("*"):
-                if f.is_file():
-                    zf.write(f, f"vault/{f.relative_to(vault_d).as_posix()}")
-
-    buf.seek(0)
-    return StreamingResponse(
-        iter([buf.read()]),
-        media_type="application/zip",
-        headers={"content-disposition": f'attachment; filename="{fname}"'},
+    return FileResponse(
+        archive,
+        media_type="application/vnd.alles.backup",
+        filename=filename,
+        headers={"Cache-Control": "no-store"},
+        background=BackgroundTask(shutil.rmtree, export_dir, ignore_errors=True),
     )
 
 
-@router.post("/backup/restore")
-async def restore_backup(file: UploadFile = File(...)):
-    content = await file.read()
-    if not content:
-        raise HTTPException(400, "empty file")
-    root = _data_dir()
-
-    # validate it's a zip with aide.db
+@router.get("/backup/recovery-key")
+def export_recovery_key(request: Request):
+    _require_same_origin(request)
+    root = _data_dir().expanduser().resolve()
     try:
-        with zipfile.ZipFile(io.BytesIO(content)) as zf:
-            names = zf.namelist()
-            if "aide.db" not in names:
-                raise HTTPException(400, "not a valid aide backup (no aide.db)")
+        load_or_create_recovery_key(root)
+    except RecoveryError as exc:
+        raise HTTPException(500, str(exc)) from exc
+    return FileResponse(
+        recovery_key_path(root),
+        media_type="text/plain; charset=utf-8",
+        filename="alles-recovery-key.txt",
+        headers={"Cache-Control": "no-store"},
+    )
 
-            # backup current data dir first
-            backup_cur = (
-                root.parent / f"aide-pre-restore-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+
+@router.post("/backup/restore", status_code=status.HTTP_202_ACCEPTED)
+async def restore_backup(
+    request: Request,
+    file: UploadFile = File(...),
+    recovery_key: UploadFile | None = File(None),
+):
+    _require_same_origin(request)
+    root = _data_dir().expanduser().resolve()
+    incoming_dir = staging_root(root) / "incoming"
+    incoming_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+    _sweep_old_temp(incoming_dir)
+    incoming = incoming_dir / f"{uuid.uuid4().hex}.partial"
+    decrypted = incoming_dir / f"{uuid.uuid4().hex}.zip"
+
+    try:
+        size = await _stream_upload_to_path(file, incoming, limits=BACKUP_LIMITS)
+        if size == 0:
+            raise RecoveryError("backup upload is empty")
+        archive_to_stage = incoming
+        encrypted_upload = is_encrypted_recovery(incoming)
+        key = None
+        if encrypted_upload:
+            if recovery_key is not None:
+                key_document = await recovery_key.read(4097)
+                if len(key_document) > 4096:
+                    raise RecoveryError("uploaded recovery key file is too large")
+                key = parse_recovery_key(key_document)
+            else:
+                key = load_recovery_key(recovery_key_path(root))
+            await asyncio.to_thread(
+                decrypt_recovery_container,
+                incoming,
+                decrypted,
+                key,
+                limits=BACKUP_LIMITS,
             )
-            if root.exists():
-                shutil.copytree(root, backup_cur)
+            archive_to_stage = decrypted
+        staged = await asyncio.to_thread(
+            stage_recovery_archive,
+            archive_to_stage,
+            root,
+            limits=BACKUP_LIMITS,
+        )
+        if encrypted_upload:
+            try:
+                restored_key = load_recovery_key(staged.data_dir / "recovery.key")
+                if not hmac.compare_digest(restored_key, key):
+                    raise RecoveryError(
+                        "backup recovery key does not match its encrypted container"
+                    )
+            except RecoveryError:
+                discard_staged_recovery(root, staged.restore_id)
+                raise
+    except _UploadTooLarge as exc:
+        raise HTTPException(413, str(exc)) from exc
+    except RecoveryError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(400, "backup validation failed") from exc
+    finally:
+        try:
+            incoming.unlink(missing_ok=True)
+            decrypted.unlink(missing_ok=True)
+        except OSError:
+            pass
 
-            # extract — refuse member paths that escape the data dir (zip-slip)
-            data_root = root.resolve()
-            for name in names:
-                if name.endswith("/"):
-                    continue
-                dest = (root / name).resolve()
-                if not dest.is_relative_to(data_root):
-                    raise HTTPException(400, f"invalid path in archive: {name}")
-                dest.parent.mkdir(parents=True, exist_ok=True)
-                dest.write_bytes(zf.read(name))
+    return {
+        "ok": True,
+        "status": "staged",
+        "restore_id": staged.restore_id,
+        "requires_offline_apply": True,
+        "apply_command": f"alles restore apply {staged.restore_id}",
+        "files": staged.manifest["totals"]["files"],
+        "bytes": staged.manifest["totals"]["bytes"],
+        "excluded_locations": [
+            item["role"] for item in staged.manifest["locations"] if not item["included"]
+        ],
+        "message": "backup verified and staged; live data was not changed",
+    }
 
-            # drop stale wal/shm sidecars from the pre-restore db — they don't belong to the
-            # db we just wrote, and SQLite would otherwise replay the old wal onto it on reload
-            if "aide.db" in names:
-                for side in ("aide.db-wal", "aide.db-shm"):
-                    if side not in names:
-                        (root / side).unlink(missing_ok=True)
 
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(400, f"restore failed: {e}")
+@router.get("/backup/restores/{restore_id}")
+def restore_status(request: Request, restore_id: str):
+    _require_same_origin(request)
+    try:
+        staged = get_staged_recovery(_data_dir(), restore_id)
+    except RecoveryError as exc:
+        raise HTTPException(404, str(exc)) from exc
+    return {
+        "ok": True,
+        "status": staged.state,
+        "restore_id": staged.restore_id,
+        "files": staged.manifest["totals"]["files"],
+        "bytes": staged.manifest["totals"]["bytes"],
+        "requires_offline_apply": True,
+    }
 
-    return {"ok": True, "message": "restore complete — please reload"}
+
+@router.delete("/backup/restores/{restore_id}")
+def cancel_restore(request: Request, restore_id: str):
+    _require_same_origin(request)
+    try:
+        discard_staged_recovery(_data_dir(), restore_id)
+    except RecoveryError as exc:
+        raise HTTPException(404, str(exc)) from exc
+    return {"ok": True, "status": "cancelled", "restore_id": restore_id}

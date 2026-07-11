@@ -1,22 +1,25 @@
-"""ui-8f — the autofill "how to load it" link is on its own line, not mid-paragraph."""
+"""The Passwords UI explains the retired extension and keeps the safe web fallback."""
 
 import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 JS = (ROOT / "static" / "js" / "vault.js").read_text(encoding="utf-8")
-CSS = (ROOT / "static" / "style.css").read_text(encoding="utf-8")
 
 
 class AutofillWrap(unittest.TestCase):
-    def test_text_and_link_are_separate(self):
+    def test_retired_notice_is_visible_in_manage_vault(self):
+        self.assertIn('id="vault-autofill-info"', JS)
+        self.assertIn('aria-label="browser autofill status"', JS)
         self.assertIn('class="mv-autofill-text"', JS)
-        self.assertIn('class="mv-autofill-link', JS)
+        self.assertIn("browser autofill is off", JS)
+        self.assertIn("remove or reload the old extension", JS)
+        self.assertIn("reveal and copy logins here in Passwords", JS)
 
-    def test_link_on_its_own_line(self):
-        # the paragraph text is block, the link sits beneath it with its own margin
-        self.assertRegex(CSS, r"\.mv-autofill-text\s*\{[^}]*display:\s*block")
-        self.assertRegex(CSS, r"\.mv-autofill-link\s*\{[^}]*margin-top")
+    def test_unsafe_install_instructions_are_gone(self):
+        self.assertNotIn('id="vault-ext-link"', JS)
+        self.assertNotIn("developer.chrome.com/docs/extensions", JS)
+        self.assertNotIn("paste an unlock token", JS)
 
 
 if __name__ == "__main__":
