@@ -15,7 +15,10 @@ Phase 1 is split into small gates. A later gate must not weaken an earlier one.
   - `lan` requires an enabled owner password before the server can bind beyond loopback.
   - `public` stays blocked until HTTPS, trusted-host, and proxy checks are implemented.
   - Containers use a separate internal runtime marker; safe host-side publishing remains explicit.
-- [ ] Limit CORS to configured Alles origins and narrow extension flows.
+- [x] Limit CORS to configured Alles web origins.
+  - Cross-origin access is off by default. Exact HTTP/HTTPS origins can be configured; wildcard,
+    credential-bearing, path, query, fragment, and blank entries fail closed.
+  - Browser-extension access remains off until a separately reviewed pairing flow exists.
 - [ ] Add trusted-host and forwarded-proxy validation for public mode.
 - [ ] Add scoped, revocable API tokens and recent-owner-auth checks.
 - [ ] Add stable API error codes and rate limits for sensitive operations.
@@ -59,3 +62,4 @@ The first slice is startup access policy only. It does not claim that public hos
 Public mode must fail closed until the CORS, HTTPS, trusted-host, and proxy slice is delivered.
 
 Fresh evidence: 12 focused startup-policy tests pass. Broader verification is recorded with the commit.
+The CORS slice adds 5 parser cases plus live unknown-origin request and preflight checks.

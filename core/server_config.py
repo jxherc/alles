@@ -1,5 +1,6 @@
 import ipaddress
 import os
+from urllib.parse import urlsplit
 
 from core.settings import auth_enabled, load_settings
 
@@ -35,6 +36,49 @@ def _owner_password_ready() -> bool:
     if os.environ.get("AUTH_PASSWORD", "").strip():
         return True
     return bool(load_settings().get("auth_password_hash"))
+
+
+def cors_origins() -> tuple[str, ...]:
+    """Return the exact browser origins allowed to read cross-origin responses."""
+    raw = os.environ.get("ALLES_CORS_ORIGINS", "").strip()
+    if not raw:
+        return ()
+
+    entries = raw.split(",")
+    if any(not entry.strip() for entry in entries):
+        raise AccessConfigError("ALLES_CORS_ORIGINS contains a blank origin")
+
+    origins: list[str] = []
+    for entry in entries:
+        value = entry.strip()
+        if value == "*" or "*" in value:
+            raise AccessConfigError("wildcard CORS origins are not allowed")
+        try:
+            parsed = urlsplit(value)
+            host = parsed.hostname
+            port = parsed.port
+        except ValueError as exc:
+            raise AccessConfigError(f"invalid CORS origin {value!r}") from exc
+        if (
+            parsed.scheme.lower() not in {"http", "https"}
+            or not host
+            or parsed.username is not None
+            or parsed.password is not None
+            or parsed.path
+            or parsed.query
+            or parsed.fragment
+        ):
+            raise AccessConfigError(f"invalid CORS origin {value!r}")
+
+        normalized_host = host.lower()
+        if ":" in normalized_host:
+            normalized_host = f"[{normalized_host}]"
+        normalized = f"{parsed.scheme.lower()}://{normalized_host}"
+        if port is not None:
+            normalized += f":{port}"
+        if normalized not in origins:
+            origins.append(normalized)
+    return tuple(origins)
 
 
 def bind_host() -> str:

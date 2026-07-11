@@ -62,7 +62,9 @@ class CorsTests(unittest.TestCase):
         from app import app
 
         c = TestClient(app)
-        # a credentialed cross-origin preflight must NOT come back allowing credentials with "*"
+        # An unknown cross-origin preflight must never receive an allowed origin.
+        # Starlette may still advertise credential support, but browsers cannot read
+        # the response without Access-Control-Allow-Origin.
         r = c.options(
             "/api/settings",
             headers={
@@ -70,8 +72,18 @@ class CorsTests(unittest.TestCase):
                 "Access-Control-Request-Method": "GET",
             },
         )
-        acac = r.headers.get("access-control-allow-credentials", "")
-        self.assertNotEqual(acac.lower(), "true")
+        self.assertNotIn("access-control-allow-origin", r.headers)
+        self.assertNotEqual(r.headers.get("access-control-allow-origin"), "*")
+
+    def test_unknown_origin_gets_no_cors_access(self):
+        from fastapi.testclient import TestClient
+
+        from app import app
+
+        r = TestClient(app).get(
+            "/api/settings", headers={"Origin": "https://evil.example"}
+        )
+        self.assertNotIn("access-control-allow-origin", r.headers)
 
 
 if __name__ == "__main__":
