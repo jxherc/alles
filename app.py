@@ -13,6 +13,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from core.access_middleware import HostGuardMiddleware, PublicHttpsMiddleware
+from core.api_errors import ApiError, api_error_handler
 from core.database import ModelEndpoint, SessionLocal, init_db
 from core.server_config import (
     access_profile,
@@ -861,6 +862,7 @@ async def lifespan(app: FastAPI):
 
 validate_access_config()
 app = FastAPI(title="alles", lifespan=lifespan)
+app.add_exception_handler(ApiError, api_error_handler)
 
 app.add_middleware(
     CORSMiddleware,
@@ -923,10 +925,15 @@ class TokenAuthMiddleware:
             finally:
                 db.close()
             if access == "invalid":
-                await self._deny(send, "invalid token")
+                await self._deny(send, "invalid token", code="invalid_token")
                 return
             if access == "forbidden":
-                await self._deny(send, "token scope does not allow this request", status=403)
+                await self._deny(
+                    send,
+                    "token scope does not allow this request",
+                    status=403,
+                    code="token_scope_denied",
+                )
                 return
             token_authenticated = True
 
@@ -940,13 +947,13 @@ class TokenAuthMiddleware:
 
             cookie = _cookie_val(headers.get(b"cookie", b"").decode("latin-1"), "aide_session")
             if not verify_session(cookie):
-                await self._deny(send, "not authenticated")
+                await self._deny(send, "not authenticated", code="not_authenticated")
                 return
 
         await self.app(scope, receive, send)
 
-    async def _deny(self, send, detail, status=401):
-        body = json.dumps({"detail": detail}).encode()
+    async def _deny(self, send, detail, status=401, code="not_authenticated"):
+        body = json.dumps({"detail": detail, "code": code}).encode()
         await send(
             {
                 "type": "http.response.start",

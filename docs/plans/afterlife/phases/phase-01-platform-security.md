@@ -40,7 +40,12 @@ Phase 1 is split into small gates. A later gate must not weaken an earlier one.
   - Backup/key export, restore staging/cancellation, token changes, connector changes, and MCP service
     changes require recent confirmation when authentication is enabled. Settings uses a real masked
     password dialog and retries the intended action once after success.
-- [ ] Add stable API error codes and rate limits for sensitive operations.
+- [x] Add stable API error codes and rate limits for sensitive operations.
+  - Security failures keep the existing human-readable `detail` and add stable codes such as
+    `invalid_token`, `token_scope_denied`, `recent_auth_required`, and `rate_limited`.
+  - A thread-safe, bounded sliding-window limiter protects each authenticated owner action per client
+    and route. Rate-limit responses include `Retry-After`; login and reauthentication keep their
+    stricter password-failure throttle.
 
 ### Secrets and observability
 

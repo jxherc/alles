@@ -25,18 +25,14 @@ class TokensApiTest(ApiTest):
         self.assertEqual(token["scopes"], ["read", "write"])
 
     def test_create_rejects_empty_or_unknown_scopes(self):
-        self.assertEqual(
-            self.client.post(
-                "/api/tokens", json={"name": "empty", "scopes": []}
-            ).status_code,
-            400,
+        empty = self.client.post("/api/tokens", json={"name": "empty", "scopes": []})
+        unknown = self.client.post(
+            "/api/tokens", json={"name": "bad", "scopes": ["root"]}
         )
-        self.assertEqual(
-            self.client.post(
-                "/api/tokens", json={"name": "bad", "scopes": ["root"]}
-            ).status_code,
-            400,
-        )
+        self.assertEqual(empty.status_code, 400)
+        self.assertEqual(unknown.status_code, 400)
+        self.assertEqual(empty.json()["code"], "invalid_token_scopes")
+        self.assertEqual(unknown.json()["code"], "invalid_token_scopes")
 
     def test_required_scope_routes_sensitive_surfaces(self):
         self.assertEqual(required_scope("GET", "/api/tasks"), "read")
@@ -61,7 +57,9 @@ class TokensApiTest(ApiTest):
                 self.client.post("/api/tasks", headers=headers, json={"title": "no"}).status_code,
                 403,
             )
-            self.assertEqual(self.client.get("/api/settings", headers=headers).status_code, 403)
+            denied = self.client.get("/api/settings", headers=headers)
+            self.assertEqual(denied.status_code, 403)
+            self.assertEqual(denied.json()["code"], "token_scope_denied")
         finally:
             os.environ["AUTH_ENABLED"] = "false"
 

@@ -10,6 +10,9 @@ from tests._client import ApiTest
 class AuthApiTest(ApiTest):
     def setUp(self):
         super().setUp()
+        from core import rate_limit
+
+        rate_limit._events.clear()
         self._tmp = tempfile.TemporaryDirectory()
         self._p = mock.patch.object(cs, "_SETTINGS_FILE", Path(self._tmp.name) / "settings.json")
         self._p.start()
@@ -193,3 +196,23 @@ class AuthApiTest(ApiTest):
             self.assertEqual(response.status_code, 403)
         finally:
             os.environ["AUTH_ENABLED"] = "false"
+
+    def test_sensitive_owner_actions_return_stable_rate_limit_code(self):
+        from core import auth as cauth
+
+        self.client.post("/api/auth/config", json={"enabled": True, "password": "secret1"})
+        self.client.post("/api/auth/login", json={"password": "secret1"})
+        os.environ["AUTH_ENABLED"] = "true"
+        try:
+            statuses = [
+                self.client.post("/api/tokens", json={"name": f"token {i}"}).status_code
+                for i in range(31)
+            ]
+            self.assertEqual(statuses[:30], [200] * 30)
+            self.assertEqual(statuses[30], 429)
+            limited = self.client.post("/api/tokens", json={"name": "still limited"})
+            self.assertEqual(limited.json()["code"], "rate_limited")
+            self.assertIn("Retry-After", limited.headers)
+        finally:
+            os.environ["AUTH_ENABLED"] = "false"
+            cauth._login_fails.clear()
