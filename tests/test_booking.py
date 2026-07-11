@@ -1,7 +1,10 @@
+from datetime import date, timedelta
+
 from core.database import CalendarEvent, EventAttendee
 from tests._client import ApiTest
 
-DAY = "2026-07-06"  # a future Monday
+today = date.today()
+DAY = (today + timedelta(days=(7 - today.weekday()) % 7 or 7)).isoformat()
 
 
 class BookingTests(ApiTest):
