@@ -831,6 +831,20 @@ class MutationEvent(Base):
     ts = Column(DateTime, default=_now, index=True)
 
 
+class AuditRecord(Base):
+    """Content-free owner audit trail for API and service control changes."""
+
+    __tablename__ = "audit_records"
+    id = Column(String, primary_key=True, default=_uid)
+    action = Column(String, nullable=False, index=True)
+    outcome = Column(String, nullable=False)
+    actor = Column(String, default="")
+    target = Column(String, default="")
+    request_id = Column(String, default="")
+    details = Column(Text, default="{}")
+    created_at = Column(DateTime, default=_now, index=True)
+
+
 class Blob(Base):
     # content-addressed binary store (0d). one row per unique content (sha256); files live at
     # <data>/.blobs/<sha[:2]>/<sha>. refcount tracks how many Attachments point here so a GC can

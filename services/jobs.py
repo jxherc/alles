@@ -25,6 +25,11 @@ class Job:
     runs: int = 0
     fails: int = 0
     interval_fn: object | None = None
+    running: bool = False
+    last_started: float | None = None
+    last_finished: float | None = None
+    last_success: float | None = None
+    last_error: str = ""
 
 
 _jobs: dict[str, Job] = {}
@@ -63,15 +68,23 @@ async def run_due(now=None):
         if not job.enabled or (now - job.last_run) < job.interval:
             continue
         job.last_run = now
+        job.last_started = time.time()
+        job.running = True
         try:
             await job.fn()
             job.runs += 1
+            job.last_success = time.time()
+            job.last_error = ""
             ran += 1
         except asyncio.CancelledError:
             raise
         except Exception as e:
             job.fails += 1
+            job.last_error = type(e).__name__
             log.warning(f"job '{job.name}' failed: {e}")
+        finally:
+            job.running = False
+            job.last_finished = time.time()
     return ran
 
 

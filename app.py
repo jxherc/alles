@@ -15,6 +15,7 @@ from fastapi.staticfiles import StaticFiles
 from core.access_middleware import HostGuardMiddleware, PublicHttpsMiddleware
 from core.api_errors import ApiError, api_error_handler
 from core.database import ModelEndpoint, SessionLocal, init_db
+from core.observability_middleware import ObservabilityMiddleware
 from core.server_config import (
     access_profile,
     bind_host,
@@ -24,7 +25,6 @@ from core.server_config import (
     validate_access_config,
 )
 from core.settings import anthropic_api_key, auth_enabled, deepseek_api_key, get_port
-from services import events as _events  # noqa: F401 - installs the 0c mutation spine
 from routes import (
     agent as agent_routes,
 )
@@ -219,8 +219,10 @@ from routes import (
 from routes import (
     webhooks as webhook_routes,
 )
+from services import events as _events  # noqa: F401 - installs the 0c mutation spine
+from services.observability import configure_logging
 
-logging.basicConfig(level=logging.INFO, format="%(levelname)s  %(name)s  %(message)s")
+configure_logging()
 log = logging.getLogger("alles")
 
 
@@ -968,6 +970,7 @@ class TokenAuthMiddleware:
 
 
 app.add_middleware(TokenAuthMiddleware)
+app.add_middleware(ObservabilityMiddleware)
 
 # routes
 app.include_router(auth_routes.router)

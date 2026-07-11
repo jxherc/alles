@@ -61,7 +61,19 @@ Phase 1 is split into small gates. A later gate must not weaken an earlier one.
   - Fresh evidence: all 3,683 non-matrix Python checks, all 90 JavaScript checks,
     desktop/mobile browser checks, and the complete 27-history migration matrix pass through
     migration 20.
-- [ ] Add structured redacted logs, health data, and audit records.
+- [x] Add structured redacted logs, health data, and audit records.
+  - Process logs are JSON lines with an allowlist of structured fields. Common bearer tokens,
+    provider keys, named secrets, URL credentials, query values, and SQL parameter blocks are
+    masked before output.
+  - Authenticated System endpoints expose structured logs, database/process/scheduler health,
+    job lag and failure state, and a durable audit trail. Old unstructured log lines are never
+    returned by the API.
+  - State-changing API requests create content-free audit records with a route template, actor
+    kind, result, and request ID. Request bodies, response bodies, prompts, vault data, and raw
+    unmatched paths are not stored.
+  - Fresh evidence: all 3,690 non-matrix Python checks pass in 868.574 seconds with four expected
+    skips. All 28 recovery histories pass through migration 21 in 823.928 seconds, and the final
+    38 focused observability, recovery, scheduler, event, migration, and route checks also pass.
 - [ ] Add a reviewed service-manager abstraction for Alles-owned services only.
 
 ### Models, memory, and language
