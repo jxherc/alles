@@ -13,7 +13,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from core.database import ModelEndpoint, SessionLocal, init_db
-from core.server_config import bind_host
+from core.server_config import bind_host, cors_origins
 from core.settings import anthropic_api_key, auth_enabled, deepseek_api_key, get_port
 from services import events as _events  # noqa: F401 - installs the 0c mutation spine
 from routes import (
@@ -855,12 +855,10 @@ app = FastAPI(title="alles", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    # NOT allow_credentials: "*" origins + credentials makes starlette reflect the Origin and return
-    # Access-Control-Allow-Credentials:true, letting any site read /api responses with the user's
-    # session cookie. the SPA is same-origin (CORS doesn't apply), so credentialed cross-origin
-    # access is purely an attack surface, not a feature.
-    allow_credentials=False,
+    allow_origins=list(cors_origins()),
+    # Same-origin app traffic does not need CORS. Explicit trusted origins may use
+    # the normal session cookie; unknown origins receive no read access.
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )

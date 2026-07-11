@@ -2,7 +2,7 @@ import os
 import unittest
 from unittest import mock
 
-from core.server_config import AccessConfigError, access_profile, bind_host
+from core.server_config import AccessConfigError, access_profile, bind_host, cors_origins
 
 
 class ServerBindConfigTest(unittest.TestCase):
@@ -135,6 +135,58 @@ class ServerBindConfigTest(unittest.TestCase):
     def test_blank_host_falls_back_to_loopback(self):
         with mock.patch.dict(os.environ, {"ALLES_HOST": "   "}, clear=True):
             self.assertEqual(bind_host(), "127.0.0.1")
+
+
+class CorsConfigTest(unittest.TestCase):
+    def test_cross_origin_access_is_off_by_default(self):
+        with mock.patch.dict(os.environ, {}, clear=True):
+            self.assertEqual(cors_origins(), ())
+
+    def test_configured_origins_are_normalized_and_deduplicated(self):
+        with mock.patch.dict(
+            os.environ,
+            {
+                "ALLES_CORS_ORIGINS": (
+                    "https://ALLES.example, http://localhost:8000,"
+                    "https://alles.example"
+                )
+            },
+            clear=True,
+        ):
+            self.assertEqual(
+                cors_origins(),
+                ("https://alles.example", "http://localhost:8000"),
+            )
+
+    def test_wildcard_origin_is_rejected(self):
+        with mock.patch.dict(
+            os.environ, {"ALLES_CORS_ORIGINS": "*"}, clear=True
+        ):
+            with self.assertRaisesRegex(AccessConfigError, "wildcard"):
+                cors_origins()
+
+    def test_origins_cannot_include_credentials_paths_or_queries(self):
+        invalid = (
+            "https://user:pass@alles.example",
+            "https://alles.example/api",
+            "https://alles.example?token=x",
+            "file:///tmp/alles",
+        )
+        for origin in invalid:
+            with self.subTest(origin=origin), mock.patch.dict(
+                os.environ, {"ALLES_CORS_ORIGINS": origin}, clear=True
+            ):
+                with self.assertRaisesRegex(AccessConfigError, "origin"):
+                    cors_origins()
+
+    def test_blank_origin_entry_is_rejected(self):
+        with mock.patch.dict(
+            os.environ,
+            {"ALLES_CORS_ORIGINS": "https://alles.example, ,http://localhost:8000"},
+            clear=True,
+        ):
+            with self.assertRaisesRegex(AccessConfigError, "blank"):
+                cors_origins()
 
 
 if __name__ == "__main__":
