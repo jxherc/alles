@@ -4,15 +4,21 @@ from pathlib import Path
 from unittest import mock
 
 from services import caldav_sync as cd
+from services import secretstore
 
 
 class CaldavSyncTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self._p = mock.patch.object(cd, "CFG_PATH", Path(self.tmp.name) / "caldav.json")
+        self._kp = mock.patch.object(secretstore, "_KEY_FILE", Path(self.tmp.name) / "secret.key")
         self._p.start()
+        self._kp.start()
+        secretstore._key = None
+        secretstore._key_path = None
 
     def tearDown(self):
+        self._kp.stop()
         self._p.stop()
         self.tmp.cleanup()
 
@@ -29,17 +35,19 @@ class CaldavSyncTests(unittest.TestCase):
         self.assertNotIn("VALUE=DATE", ics)
 
     def test_event_ics_timed_pads_missing_seconds(self):
-        ics = cd._event_ics(
-            "u2b", "Meeting", "2026-06-23T14:30", False, end_dt="2026-06-23T15:05"
-        )
+        ics = cd._event_ics("u2b", "Meeting", "2026-06-23T14:30", False, end_dt="2026-06-23T15:05")
         self.assertIn("DTSTART:20260623T143000", ics)
         self.assertIn("DTEND:20260623T150500", ics)
 
     def test_event_ics_timed_includes_end_and_description(self):
         # without DTEND a pushed event loses its end time on the next pull (round-trip data loss)
         ics = cd._event_ics(
-            "u3", "Meeting", "2026-06-23T14:30:00", False,
-            end_dt="2026-06-23T15:30:00", description="quarterly sync",
+            "u3",
+            "Meeting",
+            "2026-06-23T14:30:00",
+            False,
+            end_dt="2026-06-23T15:30:00",
+            description="quarterly sync",
         )
         self.assertIn("DTEND:20260623T153000", ics)
         self.assertIn("DESCRIPTION:quarterly sync", ics)
@@ -78,6 +86,9 @@ class CaldavSyncTests(unittest.TestCase):
         self.assertEqual(loaded["url"], "https://cal.example.com")
         self.assertEqual(loaded["username"], "bob")
         self.assertEqual(loaded["password"], "hunter2")
+        raw = (Path(self.tmp.name) / "caldav.json").read_text("utf-8")
+        self.assertIn("enc2:", raw)
+        self.assertNotIn("hunter2", raw)
 
     def test_load_cfg_missing_returns_empty(self):
         # no file written yet → empty dict

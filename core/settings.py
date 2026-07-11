@@ -16,6 +16,20 @@ _SETTINGS_FILE = data_dir() / "settings.json"
 _SETTINGS_CACHE: dict | None = None
 _SETTINGS_CACHE_SIG: tuple[str, int, int] | None = None
 
+_ENCRYPTED_SETTING_KEYS = {
+    "mail_oauth_client_secret",
+    "openai_api_key",
+    "tavily_api_key",
+    "brave_api_key",
+    "google_pse_api_key",
+    "serper_api_key",
+    "notify_discord_webhook",
+    "notify_telegram_token",
+    "notify_telegram_chat_id",
+    "outbound_proxy",
+    "searxng_url",
+}
+
 _defaults = {
     "default_model": "",
     "default_endpoint_id": "",
@@ -145,6 +159,33 @@ def _settings_sig() -> tuple[str, int, int]:
         return (str(_SETTINGS_FILE), -1, -1)
 
 
+def settings_secret_key_path() -> Path:
+    """Store the encryption key in the active Alles data directory."""
+    return data_dir() / "secret.key"
+
+
+def _decrypt_setting_secrets(values: dict) -> dict:
+    from services.secretstore import unseal
+
+    result = dict(values)
+    for key in _ENCRYPTED_SETTING_KEYS:
+        value = result.get(key)
+        if isinstance(value, str) and value:
+            result[key] = unseal(value, f"settings.{key}")
+    return result
+
+
+def _encrypt_setting_secrets(values: dict) -> dict:
+    from services.secretstore import seal
+
+    result = dict(values)
+    for key in _ENCRYPTED_SETTING_KEYS:
+        value = result.get(key)
+        if isinstance(value, str) and value:
+            result[key] = seal(value, f"settings.{key}")
+    return result
+
+
 def _clear_settings_cache():
     global _SETTINGS_CACHE, _SETTINGS_CACHE_SIG
     _SETTINGS_CACHE = None
@@ -159,9 +200,12 @@ def load_settings() -> dict:
     s = dict(_defaults)
     if sig[1] != -1:
         try:
-            s.update(json.loads(_SETTINGS_FILE.read_text("utf-8")))
-        except Exception:
+            stored = json.loads(_SETTINGS_FILE.read_text("utf-8"))
+        except (OSError, json.JSONDecodeError, TypeError):
             pass
+        else:
+            if isinstance(stored, dict):
+                s.update(_decrypt_setting_secrets(stored))
     _SETTINGS_CACHE = dict(s)
     _SETTINGS_CACHE_SIG = sig
     return s
@@ -195,10 +239,34 @@ def save_settings(patch: dict):
     s = _drop_non_finite(s)
     _SETTINGS_FILE.parent.mkdir(parents=True, exist_ok=True)
     # allow_nan=False is a backstop in case a non-finite slips past the sanitizer
-    _SETTINGS_FILE.write_text(json.dumps(s, indent=2, allow_nan=False), "utf-8")
+    stored = _encrypt_setting_secrets(s)
+    _SETTINGS_FILE.write_text(json.dumps(stored, indent=2, allow_nan=False), "utf-8")
     _SETTINGS_CACHE = dict(s)
     _SETTINGS_CACHE_SIG = _settings_sig()
     return s
+
+
+def migrate_setting_secrets() -> int:
+    """Rewrite plaintext or old-key setting credentials with the active key."""
+    if not _SETTINGS_FILE.is_file():
+        return 0
+    try:
+        stored = json.loads(_SETTINGS_FILE.read_text("utf-8"))
+    except (OSError, json.JSONDecodeError, TypeError):
+        return 0
+    if not isinstance(stored, dict):
+        return 0
+    from services.secretstore import needs_reseal
+
+    changed = sum(
+        1
+        for key in _ENCRYPTED_SETTING_KEYS
+        if isinstance(stored.get(key), str) and stored[key] and needs_reseal(stored[key])
+    )
+    if changed:
+        _clear_settings_cache()
+        save_settings({})
+    return changed
 
 
 # env helpers

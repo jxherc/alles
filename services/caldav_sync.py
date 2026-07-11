@@ -7,11 +7,11 @@ crashes the app, it returns {"error": ...} strings the UI can show. Config is
 stored in data/caldav.json (gitignored, like the rest of data/).
 """
 
-import json
 from datetime import datetime, timedelta
 from pathlib import Path
 
 from core.settings import data_dir
+from services.config_secrets import load_secret_config, migrate_secret_config, save_secret_config
 
 
 def _ics_esc(s) -> str:
@@ -43,10 +43,7 @@ def available() -> bool:
 
 
 def load_cfg() -> dict:
-    try:
-        return json.loads(_cfg_path().read_text("utf-8"))
-    except Exception:
-        return {}
+    return load_secret_config(_cfg_path(), "caldav.password")
 
 
 def save_cfg(cfg: dict):
@@ -54,9 +51,11 @@ def save_cfg(cfg: dict):
     # keep the existing password if a blank one is sent (UI doesn't echo it back)
     if not cfg.get("password") and cur.get("password"):
         cfg["password"] = cur["password"]
-    p = _cfg_path()
-    p.parent.mkdir(parents=True, exist_ok=True)
-    p.write_text(json.dumps(cfg), "utf-8")
+    save_secret_config(_cfg_path(), cfg, "caldav.password")
+
+
+def migrate_cfg_secrets() -> int:
+    return migrate_secret_config(_cfg_path(), "caldav.password")
 
 
 def status() -> dict:
@@ -102,8 +101,12 @@ def _event_ics(
     DTEND + DESCRIPTION are included so a pushed event keeps its end time and notes: without
     DTEND the next pull reads no end and nulls the local end_dt (the round-trip lost the end)."""
     lines = [
-        "BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//alles//EN", "BEGIN:VEVENT",
-        f"UID:{uid}", f"SUMMARY:{_ics_esc(title)}",
+        "BEGIN:VCALENDAR",
+        "VERSION:2.0",
+        "PRODID:-//alles//EN",
+        "BEGIN:VEVENT",
+        f"UID:{uid}",
+        f"SUMMARY:{_ics_esc(title)}",
     ]
     if all_day:
         lines.append(f"DTSTART;VALUE=DATE:{(start_dt or '')[:10].replace('-', '')}")
@@ -111,6 +114,7 @@ def _event_ics(
             # stored end is the inclusive last day; RFC all-day DTEND is exclusive → +1 day
             from datetime import date as _date
             from datetime import timedelta as _td
+
             try:
                 excl = _date.fromisoformat(end_dt[:10]) + _td(days=1)
                 lines.append(f"DTEND;VALUE=DATE:{excl.isoformat().replace('-', '')}")

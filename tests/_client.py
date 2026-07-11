@@ -1,19 +1,24 @@
 # in-process API harness: drives the REAL FastAPI app against a throwaway
 # in-memory sqlite, no server / no port / no touching data/aide.db. underscore
 # name keeps unittest from collecting it as a test module.
-import os
 import logging
+import os
+import tempfile
 import unittest
 
+_TEST_DATA = None
+if not os.environ.get("ALLES_DATA"):
+    _TEST_DATA = tempfile.TemporaryDirectory(prefix="alles-api-tests-")
+    os.environ["ALLES_DATA"] = _TEST_DATA.name
 os.environ["AUTH_ENABLED"] = "false"  # set before app import so dotenv can't flip it on us
 logging.getLogger("httpx").setLevel(logging.WARNING)  # quiet the per-request request log
 
-from sqlalchemy import create_engine
-from sqlalchemy.pool import StaticPool
-from starlette.testclient import TestClient
+from sqlalchemy import create_engine  # noqa: E402
+from sqlalchemy.pool import StaticPool  # noqa: E402
+from starlette.testclient import TestClient  # noqa: E402
 
-import core.database as db
-from app import app
+import core.database as db  # noqa: E402
+from app import app  # noqa: E402
 
 
 class ApiTest(unittest.TestCase):

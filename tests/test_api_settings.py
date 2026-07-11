@@ -1,8 +1,10 @@
+import json
 import tempfile
 from pathlib import Path
 from unittest import mock
 
 import core.settings as cs
+import services.secretstore as secretstore
 from tests._client import ApiTest
 
 
@@ -11,9 +13,14 @@ class SettingsApiTest(ApiTest):
         super().setUp()
         self._tmp = tempfile.TemporaryDirectory()
         self._p = mock.patch.object(cs, "_SETTINGS_FILE", Path(self._tmp.name) / "settings.json")
+        self._kp = mock.patch.object(secretstore, "_KEY_FILE", Path(self._tmp.name) / "secret.key")
         self._p.start()  # don't touch the real data/settings.json
+        self._kp.start()
+        secretstore._key = None
+        secretstore._key_path = None
 
     def tearDown(self):
+        self._kp.stop()
         self._p.stop()
         self._tmp.cleanup()
         super().tearDown()
@@ -24,22 +31,26 @@ class SettingsApiTest(ApiTest):
         self.assertGreater(len(s), 0)
 
     def test_get_strips_secrets(self):
-        cs.save_settings({
-            "auth_password_hash": "x",
-            "vault_verifier": "y",
-            "vault_pw_b64": "z",
-            "vault_biometric_key": "bio",
-            "vault_2fa_totp": {"main": "totp"},
-            "journal_passcode": "pass",
-            "mail_oauth_client_secret": "oauth",
-            "openai_api_key": "sk-openai",
-            "tavily_api_key": "tv",
-            "brave_api_key": "br",
-            "google_pse_api_key": "gp",
-            "serper_api_key": "sp",
-            "notify_discord_webhook": "https://discord.com/api/webhooks/123/abc",
-            "notify_telegram_token": "tg",
-        })
+        cs.save_settings(
+            {
+                "auth_password_hash": "x",
+                "vault_verifier": "y",
+                "vault_pw_b64": "z",
+                "vault_biometric_key": "bio",
+                "vault_2fa_totp": {"main": "totp"},
+                "journal_passcode": "pass",
+                "mail_oauth_client_secret": "oauth",
+                "openai_api_key": "sk-openai",
+                "tavily_api_key": "tv",
+                "brave_api_key": "br",
+                "google_pse_api_key": "gp",
+                "serper_api_key": "sp",
+                "notify_discord_webhook": "https://discord.com/api/webhooks/123/abc",
+                "notify_telegram_token": "tg",
+                "notify_telegram_chat_id": "private-chat",
+                "outbound_proxy": "https://user:pass@proxy.test:443?token=query-secret",
+            }
+        )
         s = self.client.get("/api/settings").json()
         for secret in (
             "auth_password_hash",
@@ -56,10 +67,14 @@ class SettingsApiTest(ApiTest):
             "serper_api_key",
             "notify_discord_webhook",
             "notify_telegram_token",
+            "notify_telegram_chat_id",
         ):
             self.assertNotIn(secret, s)
         self.assertTrue(s["openai_api_key_configured"])
         self.assertTrue(s["notify_discord_webhook_configured"])
+        self.assertTrue(s["notify_telegram_chat_id_configured"])
+        self.assertNotIn("pass", s["outbound_proxy"])
+        self.assertNotIn("query-secret", s["outbound_proxy"])
 
     def test_patch_response_strips_secret_but_persists_it(self):
         r = self.client.patch("/api/settings", json={"openai_api_key": "sk-live"})
@@ -68,6 +83,10 @@ class SettingsApiTest(ApiTest):
         self.assertNotIn("openai_api_key", body)
         self.assertTrue(body["openai_api_key_configured"])
         self.assertEqual(cs.load_settings()["openai_api_key"], "sk-live")
+        raw = json.loads(cs._SETTINGS_FILE.read_text("utf-8"))["openai_api_key"]
+        self.assertTrue(raw.startswith("enc2:"))
+        self.assertNotIn("sk-live", cs._SETTINGS_FILE.read_text("utf-8"))
+        self.assertTrue((Path(self._tmp.name) / "secret.key").is_file())
 
     def test_patch_persists_ai_defaults(self):
         r = self.client.patch(
@@ -83,6 +102,21 @@ class SettingsApiTest(ApiTest):
         self.assertEqual(s["default_model"], "deepseek-v4-pro")
         self.assertEqual(s["context_limit"], 42)
         self.assertEqual(s["stream_thinking"], False)
+
+    def test_plaintext_setting_secret_is_migrated(self):
+        cs._SETTINGS_FILE.write_text('{"openai_api_key":"old-plaintext"}', "utf-8")
+        cs._clear_settings_cache()
+        self.assertEqual(cs.migrate_setting_secrets(), 1)
+        raw = json.loads(cs._SETTINGS_FILE.read_text("utf-8"))["openai_api_key"]
+        self.assertTrue(raw.startswith("enc2:"))
+        self.assertNotIn("old-plaintext", raw)
+        self.assertEqual(cs.load_settings()["openai_api_key"], "old-plaintext")
+
+    def test_corrupt_encrypted_setting_fails_closed(self):
+        cs._SETTINGS_FILE.write_text('{"openai_api_key":"enc2:0000000000000000:broken"}', "utf-8")
+        cs._clear_settings_cache()
+        with self.assertRaises(secretstore.SecretStoreError):
+            cs.load_settings()
 
     def test_patch_appearance_theme_and_accent(self):
         self.client.patch("/api/settings", json={"theme": "light", "accent": "#ff0000"})

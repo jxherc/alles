@@ -1,0 +1,106 @@
+import json
+import tempfile
+from pathlib import Path
+from unittest import mock
+
+from sqlalchemy import text
+
+import core.settings as settings
+from core.database import Connection, McpServer
+from services import caldav_sync, carddav_sync, secretstore
+from tests._client import ApiTest
+
+
+class ConnectionsApiTest(ApiTest):
+    def test_tokens_and_sensitive_metadata_are_encrypted_and_masked(self):
+        response = self.client.post(
+            "/api/connections",
+            json={
+                "service": "github",
+                "token": "github-super-secret-token",
+                "meta": {
+                    "username": "octocat",
+                    "client_secret": "meta-secret",
+                    "base_url": "https://user:pass@example.test/api?token=query-secret",
+                },
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+
+        listed = self.client.get("/api/connections").json()[0]
+        self.assertNotIn("github-super-secret-token", str(listed))
+        self.assertEqual(listed["meta"]["client_secret"], "***")
+        self.assertNotIn("pass", listed["meta"]["base_url"])
+        self.assertNotIn("query-secret", listed["meta"]["base_url"])
+
+        with self.eng.connect() as connection:
+            token, meta = connection.execute(
+                text("SELECT token, meta FROM connections WHERE service = 'github'")
+            ).one()
+        self.assertTrue(token.startswith("enc2:"))
+        self.assertTrue(meta.startswith("enc2:"))
+        self.assertNotIn("github-super-secret-token", token)
+        self.assertNotIn("meta-secret", meta)
+
+    def test_rotation_reseals_every_store_and_retires_old_key(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            patches = (
+                mock.patch.object(secretstore, "_KEY_FILE", root / "secret.key"),
+                mock.patch.object(settings, "_SETTINGS_FILE", root / "settings.json"),
+                mock.patch.object(caldav_sync, "CFG_PATH", root / "caldav.json"),
+                mock.patch.object(carddav_sync, "_cfg_path", lambda: root / "carddav.json"),
+            )
+            for patch in patches:
+                patch.start()
+            self.addCleanup(lambda: [patch.stop() for patch in reversed(patches)])
+            secretstore._key = None
+            secretstore._key_path = None
+            secretstore._keys = {}
+            secretstore._active_id = ""
+
+            db = self.db()
+            db.add(
+                Connection(service="github", token="connection-private", meta='{"token":"meta"}')
+            )
+            db.add(
+                McpServer(
+                    name="remote",
+                    transport="sse",
+                    url="https://example.test/mcp?token=private",
+                    args='["--token","private"]',
+                    env='{"GITHUB_TOKEN":"private"}',
+                    headers='{"Authorization":"Bearer private"}',
+                )
+            )
+            db.commit()
+            db.close()
+            settings.save_settings({"openai_api_key": "settings-private"})
+            caldav_sync.save_cfg(
+                {"url": "https://dav", "username": "me", "password": "cal-private"}
+            )
+            carddav_sync.save_cfg(
+                {"url": "https://dav", "username": "me", "password": "card-private"}
+            )
+            old_id = secretstore.active_key_id()
+
+            response = self.client.post("/api/connections/rotate-key")
+            self.assertEqual(response.status_code, 200, response.text)
+            body = response.json()
+            self.assertNotEqual(body["active_key"], old_id)
+            keyring = json.loads((root / "secret.key").read_text("utf-8"))
+            self.assertEqual(set(keyring["keys"]), {body["active_key"]})
+            self.assertEqual(settings.load_settings()["openai_api_key"], "settings-private")
+            self.assertEqual(caldav_sync.load_cfg()["password"], "cal-private")
+            self.assertEqual(carddav_sync.load_cfg()["password"], "card-private")
+            with self.eng.connect() as connection:
+                stored = connection.execute(text("SELECT token,meta FROM connections")).one()
+                mcp = connection.execute(text("SELECT args,url,env,headers FROM mcp_servers")).one()
+            prefix = f"enc2:{body['active_key']}:"
+            self.assertTrue(all(value.startswith(prefix) for value in (*stored, *mcp)))
+
+
+if __name__ == "__main__":
+    import unittest
+
+    unittest.main()

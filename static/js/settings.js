@@ -9,6 +9,7 @@ import {
 } from './privacy.js';
 import { loadShortcuts, saveShortcuts, eventToShortcut, isReservedShortcut } from './shortcuts.js';
 import { setAccent as _themeSetAccent, resetToDefault as _resetToDefault, getAppearance as _getAppearance, renderThemeEditorInto, isBasePreset } from './theme.js';
+import { parsePrivateLines } from './mcp-config.js';
 
 // ── visibility prefs (appearance toggles) ────────────────────────────────────
 const VIS_KEY = 'aide-ui-vis';
@@ -226,6 +227,7 @@ function _initSettings() {
 
   // ── tools (mcp) ──
   document.getElementById('mcp-add-btn')?.addEventListener('click', addMcpServer);
+  document.getElementById('conn-rotate-key')?.addEventListener('click', rotateCredentialKey);
   document.getElementById('persona-doc-add')?.addEventListener('click', _addPersonaDoc);
   document.getElementById('persona-share-btn')?.addEventListener('click', _sharePersona);
   document.getElementById('agent-status-refresh-btn')?.addEventListener('click', loadAgentStatus);
@@ -1398,15 +1400,43 @@ window._testConn = async btn => {
 async function addMcpServer() {
   const name    = document.getElementById('mcp-name').value.trim();
   const command = document.getElementById('mcp-command').value.trim();
-  if (!name || !command) { toast('name + command required', 'error'); return; }
+  const transport = document.getElementById('mcp-transport')?.value || 'stdio';
+  const url = document.getElementById('mcp-url')?.value.trim() || '';
+  if (!name || (transport === 'stdio' ? !command : !url)) {
+    toast(transport === 'stdio' ? 'name + command required' : 'name + remote url required', 'error');
+    return;
+  }
   const parts = command.match(/(?:[^\s"]+|"[^"]*")+/g) || [];
-  const cmd = parts[0], args = parts.slice(1).map(a => a.replace(/^"|"$/g,''));
-  await _fetchWithRecentOwner('/api/mcp/servers', { method: 'POST', headers: {'content-type':'application/json'},
-    body: JSON.stringify({ name, transport: 'stdio', command: cmd, args }) });
+  const cmd = parts[0] || '', args = parts.slice(1).map(a => a.replace(/^"|"$/g,''));
+  let env, headers;
+  try {
+    env = parsePrivateLines(document.getElementById('mcp-env')?.value || '');
+    headers = parsePrivateLines(document.getElementById('mcp-headers')?.value || '');
+  } catch (error) { toast(error.message, 'error'); return; }
+  const response = await _fetchWithRecentOwner('/api/mcp/servers', {
+    method: 'POST', headers: {'content-type':'application/json'},
+    body: JSON.stringify({ name, transport, command: cmd, args, url, env, headers }),
+  });
+  if (!response.ok) { toast('could not add mcp server', 'error'); return; }
   document.getElementById('mcp-name').value = '';
   document.getElementById('mcp-command').value = '';
+  document.getElementById('mcp-url').value = '';
+  document.getElementById('mcp-env').value = '';
+  document.getElementById('mcp-headers').value = '';
   toast('mcp server added', 'success');
   loadMcpServers();
+}
+
+async function rotateCredentialKey() {
+  const button = document.getElementById('conn-rotate-key');
+  button.disabled = true;
+  button.textContent = 'rotating…';
+  try {
+    const response = await _fetchWithRecentOwner('/api/connections/rotate-key', { method: 'POST' });
+    if (!response.ok) throw new Error(response.status);
+    toast('credential key rotated', 'success');
+  } catch { toast('credential key rotation failed; the old key was kept', 'error'); }
+  finally { button.disabled = false; button.textContent = 'rotate credential key'; }
 }
 
 // ── api tokens ────────────────────────────────────────────────────────────────

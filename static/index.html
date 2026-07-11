@@ -1547,6 +1547,14 @@
               <div class="s-field"><label>one-click presets</label><div id="mcp-presets" class="mcp-presets"></div></div>
               <div class="s-field"><label>name</label><input type="text" class="settings-input" id="mcp-name" style="width:100%"></div>
               <div class="s-field"><label>command</label><input type="text" class="settings-input" id="mcp-command" placeholder="npx -y @modelcontextprotocol/server-filesystem /path" style="width:100%"></div>
+              <details class="mcp-advanced">
+                <summary>remote server and private values</summary>
+                <div class="s-field"><label>transport</label><select class="settings-input" id="mcp-transport" style="width:100%"><option value="stdio">local command</option><option value="sse">remote SSE</option></select></div>
+                <div class="s-field"><label>remote url</label><input type="url" class="settings-input" id="mcp-url" placeholder="https://server.example/mcp" style="width:100%"></div>
+                <div class="s-field"><label>environment</label><textarea class="settings-input" id="mcp-env" rows="3" placeholder="GITHUB_TOKEN=…&#10;one private value per line" style="width:100%"></textarea></div>
+                <div class="s-field"><label>http headers</label><textarea class="settings-input" id="mcp-headers" rows="3" placeholder="Authorization=Bearer …" style="width:100%"></textarea></div>
+                <div class="s-card-hint">private values are encrypted on disk and never shown again.</div>
+              </details>
               <button class="btn primary" id="mcp-add-btn" style="width:100%">add server</button>
             </div>
           </div>
@@ -1574,6 +1582,8 @@
               <div class="s-field"><label>token</label><input type="password" class="settings-input" id="conn-token" placeholder="personal access token" style="width:100%"></div>
               <button class="btn primary" id="conn-add-btn" style="width:100%">connect</button>
               <div class="s-card-hint">github: a fine-grained or classic PAT with repo scope. the agent gets github_* tools once connected.</div>
+              <button class="btn" id="conn-rotate-key" style="width:100%;margin-top:0.65rem">rotate credential key</button>
+              <div class="s-card-hint">re-encrypts saved credentials, then safely retires the old key.</div>
             </div>
           </div>
         </div>

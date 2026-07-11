@@ -1,10 +1,12 @@
 import json
-from fastapi import APIRouter, HTTPException, Depends
+
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session as DbSession
 
 from core.auth import require_recent_owner
-from core.database import get_db, Connection
+from core.database import Connection, get_db
+from services.redaction import redact_mapping
 
 router = APIRouter(prefix="/api")
 
@@ -24,7 +26,7 @@ def list_conns(db: DbSession = Depends(get_db)):
             "service": c.service,
             "token_masked": _mask(c.token),
             "connected": bool(c.token),
-            "meta": json.loads(c.meta or "{}"),
+            "meta": redact_mapping(json.loads(c.meta or "{}")),
         }
         for c in rows
     ]
@@ -59,6 +61,18 @@ def del_conn(conn_id: str, db: DbSession = Depends(get_db)):
         db.delete(c)
         db.commit()
     return {"ok": True}
+
+
+@router.post("/connections/rotate-key", dependencies=[Depends(require_recent_owner)])
+def rotate_connection_key():
+    from services.secret_rotation import rotate_all_credentials
+
+    try:
+        return rotate_all_credentials()
+    except Exception as exc:
+        raise HTTPException(
+            500, "credential key rotation failed; the previous key was retained"
+        ) from exc
 
 
 @router.get("/connections/{service}/test")

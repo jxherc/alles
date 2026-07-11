@@ -2,6 +2,8 @@ import asyncio
 import json
 from unittest import mock
 
+from sqlalchemy import text
+
 import routes.mcp as mcp
 from core.database import McpServer
 from tests._client import ApiTest
@@ -29,6 +31,7 @@ class McpApiTest(ApiTest):
         # services.agent_tools share state without a routes<->services import cycle. if someone
         # reintroduces a local `_sessions = {}` in routes/mcp this breaks (and the cycle returns).
         from services import mcp_registry
+
         self.assertIs(mcp._sessions, mcp_registry.sessions)
         self.assertIs(mcp._tools, mcp_registry.tools)
 
@@ -60,6 +63,55 @@ class McpApiTest(ApiTest):
         self.assertEqual(s["tools"], [])
         self.assertEqual(s["args"], [])
         self.assertEqual(s["url"], "")
+        self.assertEqual(s["env"], {})
+        self.assertEqual(s["headers"], {})
+
+    def test_credentials_are_encrypted_and_masked(self):
+        response = self.client.post(
+            "/api/mcp/servers",
+            json={
+                "name": "private",
+                "command": "runner",
+                "args": ["--token", "arg-secret", "--mode=safe"],
+                "url": "https://user:pass@example.test/mcp?token=url-secret&view=list",
+                "env": {"GITHUB_TOKEN": "env-secret", "MODE": "safe"},
+                "headers": {"Authorization": "Bearer header-secret", "Accept": "text/event-stream"},
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        self.assertEqual(body["args"], ["--token", "***", "--mode=safe"])
+        self.assertEqual(body["env"], {"GITHUB_TOKEN": "***", "MODE": "***"})
+        self.assertEqual(body["headers"]["Authorization"], "***")
+        self.assertEqual(body["headers"]["Accept"], "***")
+        self.assertNotIn("url-secret", body["url"])
+        db = self.db()
+        raw = db.execute(
+            text("SELECT args,url,env,headers FROM mcp_servers WHERE id=:id"),
+            {"id": body["id"]},
+        ).one()
+        db.close()
+        self.assertTrue(all(value.startswith("enc2:") for value in raw))
+        self.assertNotIn("secret", "".join(raw))
+
+    def test_rejects_unsafe_or_oversized_config(self):
+        bad_transport = self.client.post(
+            "/api/mcp/servers", json={"name": "x", "transport": "pipe"}
+        )
+        self.assertEqual(bad_transport.status_code, 400)
+        bad_env = self.client.post(
+            "/api/mcp/servers", json={"name": "x", "env": {"bad key": "value"}}
+        )
+        self.assertEqual(bad_env.status_code, 400)
+
+    def test_stdio_environment_does_not_inherit_provider_secrets(self):
+        with mock.patch.dict(
+            "os.environ",
+            {"PATH": "/bin", "OPENAI_API_KEY": "ambient", "OTHER": "hidden"},
+            clear=True,
+        ):
+            child = mcp._stdio_env({"GITHUB_TOKEN": "configured"})
+        self.assertEqual(child, {"PATH": "/bin", "GITHUB_TOKEN": "configured"})
 
     def test_sse_transport(self):
         s = self.client.post(
@@ -201,7 +253,14 @@ class McpRemoteSessionLifetimeTest(ApiTest):
         mcp_mod.ClientSession = FakeSession
         client_pkg = types.ModuleType("mcp.client")
         sse_mod = types.ModuleType("mcp.client.sse")
-        sse_mod.sse_client = lambda url: FakeSseClient()
+        seen = {}
+
+        def fake_sse(url, headers=None):
+            seen["url"] = url
+            seen["headers"] = headers
+            return FakeSseClient()
+
+        sse_mod.sse_client = fake_sse
 
         old = {name: sys.modules.get(name) for name in ("mcp", "mcp.client", "mcp.client.sse")}
         sys.modules["mcp"] = mcp_mod
@@ -210,7 +269,12 @@ class McpRemoteSessionLifetimeTest(ApiTest):
         self.addCleanup(lambda: _restore_modules(old))
 
         db = self.db()
-        srv = McpServer(name="remote", transport="sse", url="http://example.test/mcp")
+        srv = McpServer(
+            name="remote",
+            transport="sse",
+            url="http://example.test/mcp",
+            headers='{"Authorization":"Bearer private"}',
+        )
         db.add(srv)
         db.commit()
         sid = srv.id
@@ -221,6 +285,7 @@ class McpRemoteSessionLifetimeTest(ApiTest):
         self.assertIn(sid, mcp._stacks)
         self.assertEqual(mcp._tools[sid][0]["name"], "ping")
         self.assertFalse(flags["transport_closed"])
+        self.assertEqual(seen["headers"], {"Authorization": "Bearer private"})
 
         asyncio.run(mcp._disconnect(sid))
         self.assertTrue(flags["transport_closed"])

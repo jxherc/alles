@@ -131,6 +131,8 @@ class DataDirIsolationTest(unittest.TestCase):
         caldav_sync.save_cfg({"url": "https://cal.example", "username": "me", "password": "pw"})
         skills_store.upsert_skill("Temp Skill", "desc", "", "steps")
         self.assertTrue((self.root / "caldav.json").exists())
+        self.assertNotIn("pw", (self.root / "caldav.json").read_text("utf-8"))
+        self.assertEqual(caldav_sync.load_cfg()["password"], "pw")
         self.assertTrue((self.root / "skills" / "temp-skill" / "SKILL.md").exists())
 
 
