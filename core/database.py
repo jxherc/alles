@@ -398,6 +398,7 @@ class ApiToken(Base):
     name = Column(String, nullable=False)
     token_hash = Column(String, nullable=False)  # bcrypt or sha256
     prefix = Column(String, nullable=False)  # first 8 chars for display
+    scopes = Column(Text, default='["read"]', nullable=False)
     created_at = Column(DateTime, default=_now)
     last_used_at = Column(DateTime, nullable=True)
 

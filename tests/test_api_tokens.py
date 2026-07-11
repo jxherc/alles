@@ -1,3 +1,7 @@
+import os
+
+from core.database import ApiToken
+from routes.api_tokens import KNOWN_SCOPES, required_scope
 from tests._client import ApiTest
 
 
@@ -11,6 +15,106 @@ class TokensApiTest(ApiTest):
         self.assertEqual(len(listed), 1)
         self.assertNotIn("token", listed[0])  # never returned again
         self.assertEqual(listed[0]["prefix"], t["prefix"])
+        self.assertEqual(t["scopes"], ["read"])
+        self.assertEqual(listed[0]["scopes"], ["read"])
+
+    def test_create_accepts_known_scopes_in_stable_order(self):
+        token = self.client.post(
+            "/api/tokens", json={"name": "automation", "scopes": ["write", "read"]}
+        ).json()
+        self.assertEqual(token["scopes"], ["read", "write"])
+
+    def test_create_rejects_empty_or_unknown_scopes(self):
+        self.assertEqual(
+            self.client.post(
+                "/api/tokens", json={"name": "empty", "scopes": []}
+            ).status_code,
+            400,
+        )
+        self.assertEqual(
+            self.client.post(
+                "/api/tokens", json={"name": "bad", "scopes": ["root"]}
+            ).status_code,
+            400,
+        )
+
+    def test_required_scope_routes_sensitive_surfaces(self):
+        self.assertEqual(required_scope("GET", "/api/tasks"), "read")
+        self.assertEqual(required_scope("POST", "/api/tasks"), "write")
+        self.assertEqual(required_scope("POST", "/v1/chat/completions"), "models")
+        self.assertEqual(required_scope("POST", "/api/agent/run"), "agent")
+        self.assertEqual(required_scope("GET", "/api/vault"), "secrets")
+        self.assertEqual(required_scope("GET", "/api/connections"), "connections")
+        self.assertEqual(required_scope("GET", "/api/settings"), "admin")
+        self.assertEqual(
+            set(KNOWN_SCOPES),
+            {"read", "write", "models", "agent", "secrets", "connections", "admin"},
+        )
+
+    def test_read_token_works_with_auth_on_but_cannot_write_or_admin(self):
+        raw = self.client.post("/api/tokens", json={"name": "reader"}).json()["token"]
+        headers = {"Authorization": f"Bearer {raw}"}
+        os.environ["AUTH_ENABLED"] = "true"
+        try:
+            self.assertEqual(self.client.get("/api/tasks", headers=headers).status_code, 200)
+            self.assertEqual(
+                self.client.post("/api/tasks", headers=headers, json={"title": "no"}).status_code,
+                403,
+            )
+            self.assertEqual(self.client.get("/api/settings", headers=headers).status_code, 403)
+        finally:
+            os.environ["AUTH_ENABLED"] = "false"
+
+    def test_write_and_admin_tokens_enforce_their_scopes(self):
+        writer = self.client.post(
+            "/api/tokens", json={"name": "writer", "scopes": ["write"]}
+        ).json()["token"]
+        admin = self.client.post(
+            "/api/tokens", json={"name": "admin", "scopes": ["admin"]}
+        ).json()["token"]
+        os.environ["AUTH_ENABLED"] = "true"
+        try:
+            created = self.client.post(
+                "/api/tasks",
+                headers={"Authorization": f"Bearer {writer}"},
+                json={"title": "scoped task"},
+            )
+            self.assertEqual(created.status_code, 200)
+            self.assertEqual(
+                self.client.get(
+                    "/api/settings", headers={"Authorization": f"Bearer {admin}"}
+                ).status_code,
+                200,
+            )
+        finally:
+            os.environ["AUTH_ENABLED"] = "false"
+
+    def test_revoked_bearer_token_is_rejected(self):
+        token = self.client.post("/api/tokens", json={"name": "short lived"}).json()
+        self.client.delete(f"/api/tokens/{token['id']}")
+        os.environ["AUTH_ENABLED"] = "true"
+        try:
+            response = self.client.get(
+                "/api/tasks", headers={"Authorization": f"Bearer {token['token']}"}
+            )
+            self.assertEqual(response.status_code, 401)
+        finally:
+            os.environ["AUTH_ENABLED"] = "false"
+
+    def test_malformed_saved_scopes_fail_closed(self):
+        token = self.client.post("/api/tokens", json={"name": "broken"}).json()
+        with self.db() as database:
+            row = database.get(ApiToken, token["id"])
+            row.scopes = "not-json"
+            database.commit()
+        os.environ["AUTH_ENABLED"] = "true"
+        try:
+            response = self.client.get(
+                "/api/tasks", headers={"Authorization": f"Bearer {token['token']}"}
+            )
+            self.assertEqual(response.status_code, 403)
+        finally:
+            os.environ["AUTH_ENABLED"] = "false"
 
     def test_delete(self):
         tid = self.client.post("/api/tokens", json={"name": "tmp"}).json()["id"]

@@ -24,7 +24,17 @@ Phase 1 is split into small gates. A later gate must not weaken an earlier one.
     proxy IP addresses/CIDRs. Wildcard hosts, wildcard proxy trust, and everywhere CIDRs fail closed.
   - Cleartext public HTTP and WebSocket traffic is rejected. Only a loopback `/health` request may
     remain cleartext for local container and service checks.
-- [ ] Add scoped, revocable API tokens and recent-owner-auth checks.
+- [x] Add scoped, revocable API tokens.
+  - New and migrated tokens default to read-only. Explicit scopes cover writes, models, agent runs,
+    Passwords, connections, and administration; malformed scope records fail closed.
+  - The one-time token value, scope selector, visible scope list, last-use time, and revocation remain
+    available in Settings.
+  - Fresh evidence: 20 focused token/migration/UI checks and the complete 26-history recovery matrix
+    pass with migration 19.
+  - Desktop 1280×800 and mobile 390×844 browser checks pass with keyboard focus, reduced motion,
+    no overflow, a real scoped-token creation, and zero console/server errors. All 87 JavaScript tests
+    pass after malformed Gallery envelopes were restored to the existing error contract.
+- [ ] Add recent-owner-auth checks.
 - [ ] Add stable API error codes and rate limits for sensitive operations.
 
 ### Secrets and observability
