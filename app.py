@@ -907,26 +907,35 @@ class TokenAuthMiddleware:
         headers = dict(scope.get("headers") or [])
         auth = headers.get(b"authorization", b"").decode("latin-1")
         path = scope.get("path", "")
+        token_authenticated = False
 
         if auth.startswith("Bearer aide_") or auth.startswith("Bearer alles_"):
             token = auth.split(" ", 1)[1]
-            from routes.api_tokens import verify_token
+            from routes.api_tokens import required_scope, token_access
 
             db = SessionLocal()
             try:
-                valid = verify_token(token, db)
+                access = token_access(
+                    token,
+                    db,
+                    required_scope(scope.get("method", "GET"), path),
+                )
             finally:
                 db.close()
-            if not valid:
+            if access == "invalid":
                 await self._deny(send, "invalid token")
                 return
+            if access == "forbidden":
+                await self._deny(send, "token scope does not allow this request", status=403)
+                return
+            token_authenticated = True
 
         # gate /api/ AND /v1/ (the openai-compat router) - both drive the model + the user's data.
         # /api/auth/* stays open so login works; public /s/ /book/ /rsvp/ aren't under these prefixes.
         gated = path.startswith("/v1/") or (
             path.startswith("/api/") and not path.startswith("/api/auth")
         )
-        if auth_enabled() and gated:
+        if auth_enabled() and gated and not token_authenticated:
             from core.auth import verify_session
 
             cookie = _cookie_val(headers.get(b"cookie", b"").decode("latin-1"), "aide_session")
@@ -936,12 +945,12 @@ class TokenAuthMiddleware:
 
         await self.app(scope, receive, send)
 
-    async def _deny(self, send, detail):
+    async def _deny(self, send, detail, status=401):
         body = json.dumps({"detail": detail}).encode()
         await send(
             {
                 "type": "http.response.start",
-                "status": 401,
+                "status": status,
                 "headers": [
                     (b"content-type", b"application/json"),
                     (b"content-length", str(len(body)).encode()),
@@ -1101,7 +1110,7 @@ def _request_authed(request: Request) -> bool:
 
         db = SessionLocal()
         try:
-            if verify_token(auth.split(" ", 1)[1], db):
+            if verify_token(auth.split(" ", 1)[1], db, required_scope="read"):
                 return True
         finally:
             db.close()

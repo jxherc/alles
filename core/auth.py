@@ -81,7 +81,7 @@ def require_auth(request: Request):
 
         db = SessionLocal()
         try:
-            if verify_token(auth.split(" ", 1)[1], db):
+            if verify_token(auth.split(" ", 1)[1], db, required_scope="admin"):
                 return
         finally:
             db.close()

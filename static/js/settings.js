@@ -232,6 +232,9 @@ function _initSettings() {
 
   // ── developer ──
   document.getElementById('token-add-btn')?.addEventListener('click', generateToken);
+  document.querySelectorAll('[data-token-scope]').forEach(btn => {
+    btn.addEventListener('click', () => btn.classList.toggle('active'));
+  });
   document.getElementById('wh-add-btn')?.addEventListener('click', addWebhook);
 
   // ── backup ──
@@ -1416,6 +1419,7 @@ async function loadTokens() {
     <div class="settings-list-row">
       <span class="row-name" style="font-family:monospace;font-size:0.72rem">${t.prefix}…</span>
       <span class="row-meta">${_esc(t.name)}</span>
+      <span class="row-meta">${(t.scopes || []).map(_esc).join(', ') || 'no access'}</span>
       <span class="row-meta">${t.last_used_at ? 'used ' + new Date(t.last_used_at).toLocaleDateString() : 'never used'}</span>
       <button class="act-btn" data-id="${t.id}" onclick="window._rmToken(this)">revoke</button>
     </div>`).join('');
@@ -1429,9 +1433,13 @@ window._rmToken = async btn => {
 async function generateToken() {
   const name = document.getElementById('token-name').value.trim();
   if (!name) { toast('name required', 'error'); return; }
+  const scopes = [...document.querySelectorAll('[data-token-scope].active')]
+    .map(btn => btn.dataset.tokenScope);
+  if (!scopes.length) { toast('choose at least one permission', 'error'); return; }
   const r = await fetch('/api/tokens', { method: 'POST', headers: {'content-type':'application/json'},
-    body: JSON.stringify({ name }) });
+    body: JSON.stringify({ name, scopes }) });
   const data = await r.json();
+  if (!r.ok) { toast(data.detail || 'token could not be created', 'error'); return; }
   document.getElementById('token-name').value = '';
   const reveal = document.getElementById('token-reveal');
   reveal.style.display = 'block';

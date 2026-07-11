@@ -1591,6 +1591,17 @@
                 <input type="text" class="settings-input" id="token-name" placeholder="token name" style="flex:1">
                 <button class="btn primary" id="token-add-btn">generate</button>
               </div>
+              <div class="vault-schema-pick" id="token-scopes" style="margin-top:0.55rem" aria-label="token permissions">
+                <span class="vsp-label">access</span>
+                <button type="button" class="vsp-chip active" data-token-scope="read">read</button>
+                <button type="button" class="vsp-chip" data-token-scope="write">write</button>
+                <button type="button" class="vsp-chip" data-token-scope="models">models</button>
+                <button type="button" class="vsp-chip" data-token-scope="agent">agent</button>
+                <button type="button" class="vsp-chip" data-token-scope="secrets">secrets</button>
+                <button type="button" class="vsp-chip" data-token-scope="connections">connections</button>
+                <button type="button" class="vsp-chip" data-token-scope="admin">admin</button>
+              </div>
+              <div class="s-card-hint">choose only what this token needs. admin includes every permission.</div>
               <div id="token-reveal" style="display:none;margin-top:0.5rem;padding:0.5rem;border:1px solid var(--faint);border-radius:3px;font-family:monospace;font-size:0.72rem;word-break:break-all;color:var(--accent)"></div>
             </div>
           </div>
