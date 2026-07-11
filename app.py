@@ -1122,7 +1122,11 @@ if __name__ == "__main__":
     import uvicorn
 
     port = get_port()
-    host = bind_host()
+    try:
+        host = bind_host()
+    except ValueError as exc:
+        log.error("refusing unsafe network configuration: %s", exc)
+        raise SystemExit(2) from None
     do_reload = bool(
         os.environ.get("ALLES_RELOAD")
     )  # ALLES_RELOAD=1 -> hot-reload on .py edits (dev)
