@@ -12,8 +12,16 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
+from core.access_middleware import HostGuardMiddleware, PublicHttpsMiddleware
 from core.database import ModelEndpoint, SessionLocal, init_db
-from core.server_config import bind_host, cors_origins
+from core.server_config import (
+    access_profile,
+    bind_host,
+    cors_origins,
+    forwarded_allow_ips,
+    trusted_hosts,
+    validate_access_config,
+)
 from core.settings import anthropic_api_key, auth_enabled, deepseek_api_key, get_port
 from services import events as _events  # noqa: F401 - installs the 0c mutation spine
 from routes import (
@@ -851,6 +859,7 @@ async def lifespan(app: FastAPI):
         log.info("alles shutting down")
 
 
+validate_access_config()
 app = FastAPI(title="alles", lifespan=lifespan)
 
 app.add_middleware(
@@ -862,6 +871,12 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+_trusted_hosts = trusted_hosts()
+if _trusted_hosts:
+    app.add_middleware(HostGuardMiddleware, allowed_hosts=_trusted_hosts)
+if access_profile() == "public":
+    app.add_middleware(PublicHttpsMiddleware)
 
 
 def _cookie_val(header: str, key: str) -> str:
@@ -1130,4 +1145,12 @@ if __name__ == "__main__":
     )  # ALLES_RELOAD=1 -> hot-reload on .py edits (dev)
     display_host = "localhost" if host in {"127.0.0.1", "::1", "0.0.0.0", "::"} else host
     log.info(f"starting alles on http://{display_host}:{port}{' (reload)' if do_reload else ''}")
-    uvicorn.run("app:app", host=host, port=port, reload=do_reload)
+    proxy_ips = forwarded_allow_ips() if access_profile() == "public" else ()
+    uvicorn.run(
+        "app:app",
+        host=host,
+        port=port,
+        reload=do_reload,
+        proxy_headers=bool(proxy_ips),
+        forwarded_allow_ips=",".join(proxy_ips),
+    )

@@ -2,7 +2,15 @@ import os
 import unittest
 from unittest import mock
 
-from core.server_config import AccessConfigError, access_profile, bind_host, cors_origins
+from core.server_config import (
+    AccessConfigError,
+    access_profile,
+    bind_host,
+    cors_origins,
+    forwarded_allow_ips,
+    public_origin,
+    trusted_hosts,
+)
 
 
 class ServerBindConfigTest(unittest.TestCase):
@@ -87,18 +95,138 @@ class ServerBindConfigTest(unittest.TestCase):
             with self.assertRaisesRegex(AccessConfigError, "owner password"):
                 bind_host()
 
-    def test_public_profile_fails_closed_until_public_checks_exist(self):
+    def test_public_profile_requires_every_public_safety_setting(self):
+        complete = {
+            "ALLES_ACCESS_PROFILE": "public",
+            "AUTH_ENABLED": "true",
+            "AUTH_PASSWORD": "secret1",
+            "BASE_DOMAIN": "alles.example",
+            "ALLES_PUBLIC_URL": "https://alles.example",
+            "ALLES_TRUSTED_HOSTS": "alles.example,*.alles.example",
+            "ALLES_FORWARDED_ALLOW_IPS": "127.0.0.1,10.0.0.0/8",
+        }
+        for missing in (
+            "ALLES_PUBLIC_URL",
+            "ALLES_TRUSTED_HOSTS",
+            "ALLES_FORWARDED_ALLOW_IPS",
+        ):
+            env = {key: value for key, value in complete.items() if key != missing}
+            with self.subTest(missing=missing), mock.patch.dict(
+                os.environ, env, clear=True
+            ):
+                with self.assertRaisesRegex(AccessConfigError, missing):
+                    bind_host()
+
+    def test_public_profile_accepts_complete_safe_configuration(self):
         with mock.patch.dict(
             os.environ,
             {
                 "ALLES_ACCESS_PROFILE": "public",
                 "AUTH_ENABLED": "true",
                 "AUTH_PASSWORD": "secret1",
+                "BASE_DOMAIN": "alles.example",
+                "ALLES_PUBLIC_URL": "https://ALLES.example",
+                "ALLES_TRUSTED_HOSTS": "alles.example,*.alles.example",
+                "ALLES_FORWARDED_ALLOW_IPS": "127.0.0.1,10.0.0.0/8",
             },
             clear=True,
         ):
-            with self.assertRaisesRegex(AccessConfigError, "not ready"):
+            self.assertEqual(bind_host(), "0.0.0.0")
+            self.assertEqual(public_origin(), "https://alles.example")
+            self.assertEqual(trusted_hosts(), ("alles.example", "*.alles.example"))
+            self.assertEqual(forwarded_allow_ips(), ("127.0.0.1", "10.0.0.0/8"))
+
+    def test_public_profile_rejects_http_url(self):
+        with mock.patch.dict(
+            os.environ,
+            {
+                "ALLES_ACCESS_PROFILE": "public",
+                "AUTH_ENABLED": "true",
+                "AUTH_PASSWORD": "secret1",
+                "BASE_DOMAIN": "alles.example",
+                "ALLES_PUBLIC_URL": "http://alles.example",
+                "ALLES_TRUSTED_HOSTS": "alles.example",
+                "ALLES_FORWARDED_ALLOW_IPS": "127.0.0.1",
+            },
+            clear=True,
+        ):
+            with self.assertRaisesRegex(AccessConfigError, "HTTPS"):
                 bind_host()
+
+    def test_public_url_host_must_be_trusted(self):
+        with mock.patch.dict(
+            os.environ,
+            {
+                "ALLES_ACCESS_PROFILE": "public",
+                "AUTH_ENABLED": "true",
+                "AUTH_PASSWORD": "secret1",
+                "BASE_DOMAIN": "alles.example",
+                "ALLES_PUBLIC_URL": "https://alles.example",
+                "ALLES_TRUSTED_HOSTS": "other.example",
+                "ALLES_FORWARDED_ALLOW_IPS": "127.0.0.1",
+            },
+            clear=True,
+        ):
+            with self.assertRaisesRegex(AccessConfigError, "public URL host"):
+                bind_host()
+
+    def test_public_profile_requires_matching_base_domain_and_subdomains(self):
+        base = {
+            "ALLES_ACCESS_PROFILE": "public",
+            "AUTH_ENABLED": "true",
+            "AUTH_PASSWORD": "secret1",
+            "ALLES_PUBLIC_URL": "https://alles.example",
+            "ALLES_FORWARDED_ALLOW_IPS": "127.0.0.1",
+        }
+        cases = (
+            ({**base, "ALLES_TRUSTED_HOSTS": "alles.example"}, "BASE_DOMAIN"),
+            (
+                {
+                    **base,
+                    "BASE_DOMAIN": "other.example",
+                    "ALLES_TRUSTED_HOSTS": "alles.example,*.alles.example",
+                },
+                "must match",
+            ),
+            (
+                {
+                    **base,
+                    "BASE_DOMAIN": "alles.example",
+                    "ALLES_TRUSTED_HOSTS": "alles.example",
+                },
+                "subdomain",
+            ),
+        )
+        for env, message in cases:
+            with self.subTest(message=message), mock.patch.dict(
+                os.environ, env, clear=True
+            ):
+                with self.assertRaisesRegex(AccessConfigError, message):
+                    bind_host()
+
+    def test_trusted_hosts_rejects_broad_or_malformed_entries(self):
+        for value in ("*", "https://alles.example", "alles.example:443", "bad/host"):
+            with self.subTest(value=value), mock.patch.dict(
+                os.environ, {"ALLES_TRUSTED_HOSTS": value}, clear=True
+            ):
+                with self.assertRaisesRegex(AccessConfigError, "trusted host"):
+                    trusted_hosts()
+
+    def test_forwarded_proxy_addresses_reject_wildcards_and_everywhere_cidrs(self):
+        for value in ("*", "0.0.0.0/0", "::/0", "not-an-ip"):
+            with self.subTest(value=value), mock.patch.dict(
+                os.environ, {"ALLES_FORWARDED_ALLOW_IPS": value}, clear=True
+            ):
+                with self.assertRaisesRegex(AccessConfigError, "forwarded proxy"):
+                    forwarded_allow_ips()
+
+    def test_device_profile_has_narrow_default_trusted_hosts(self):
+        with mock.patch.dict(os.environ, {}, clear=True):
+            hosts = trusted_hosts()
+            self.assertIn("localhost", hosts)
+            self.assertIn("*.localhost", hosts)
+            self.assertIn("testserver", hosts)
+            self.assertNotIn("*", hosts)
 
     def test_unknown_profile_is_rejected(self):
         with mock.patch.dict(
@@ -129,7 +257,7 @@ class ServerBindConfigTest(unittest.TestCase):
             },
             clear=True,
         ):
-            with self.assertRaisesRegex(AccessConfigError, "host port publishing"):
+            with self.assertRaisesRegex(AccessConfigError, "owner password"):
                 bind_host()
 
     def test_blank_host_falls_back_to_loopback(self):

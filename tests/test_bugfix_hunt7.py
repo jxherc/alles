@@ -85,6 +85,14 @@ class CorsTests(unittest.TestCase):
         )
         self.assertNotIn("access-control-allow-origin", r.headers)
 
+    def test_unknown_host_is_rejected(self):
+        from fastapi.testclient import TestClient
+
+        from app import app
+
+        r = TestClient(app).get("/health", headers={"Host": "evil.example"})
+        self.assertEqual(r.status_code, 400)
+
 
 if __name__ == "__main__":
     unittest.main()

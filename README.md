@@ -109,7 +109,7 @@ pip install -r requirements.txt
 
 **no api key is needed to boot.** mail, docs, files, calendar, tasks, subs, days, photos, contacts, secrets — all work out of the box. when you want aide to talk, add a model under **settings → models** (one click for openai / anthropic / deepseek / groq / gemini / ollama and ~10 more), or drop a key like `deepseek_api_key` into `.env`.
 
-**prefer docker?** `docker build -t alles . && docker run -p 127.0.0.1:8000:8000 -v alles-data:/app/data alles` — the `data/` volume keeps your db, vault, uploads, and keys across rebuilds. the loopback-only port keeps the fresh container on this device. native LAN access requires `ALLES_ACCESS_PROFILE=lan`, enabled authentication, and a real owner password. public mode stays blocked until its HTTPS and proxy checks are ready.
+**prefer docker?** `docker build -t alles . && docker run -p 127.0.0.1:8000:8000 -v alles-data:/app/data alles` — the `data/` volume keeps your db, vault, uploads, and keys across rebuilds. the loopback-only port keeps the fresh container on this device. native LAN access requires `ALLES_ACCESS_PROFILE=lan`, enabled authentication, and a real owner password. public access also requires an HTTPS public URL, matching base domain, trusted hosts, and exact proxy IPs; see `.env.example` for the setting names.
 
 **want it fully offline and free?** install [ollama](https://ollama.com), `ollama pull` a model, add an endpoint pointing at `http://localhost:11434` — no key or internet needed for the ai.
 
