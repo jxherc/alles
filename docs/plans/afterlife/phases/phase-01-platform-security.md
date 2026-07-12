@@ -89,12 +89,20 @@ Phase 1 is split into small gates. A later gate must not weaken an earlier one.
 
 ### Models, memory, and language
 
-- [ ] Add model roles, a resolver, provider adapters, and catalog reconciliation.
+- [x] Add model roles, a resolver, provider adapters, and catalog reconciliation.
   - [x] Add OpenAI-compatible, Anthropic, Gemini, Ollama, and manual catalog adapters without a
     shipped guessed model list.
   - [x] Reconcile live, stale, unavailable, and manual catalogs independently per endpoint while
     preserving the last good catalog after a failed refresh.
-  - [ ] Add the three roles and shared resolver, then expose the effective choices in Settings.
+  - [x] Add the three roles and shared resolver, then expose the effective choices in Settings.
+  - Aide Chat, Andromeda, and Jarvis use one precedence path. Broken saved choices fail visibly;
+    Andromeda's unconfigured fallback is local-first, and configured fallback stays inside the same
+    privacy and cost class.
+  - Settings exposes exact role choices, effective local/remote state, endpoint adapters, refresh
+    state, manual model editing, and missing selections. Desktop and phone browser checks pass with
+    no horizontal overflow, keyboard focus, reduced-motion coverage, and no console errors.
+  - Fresh evidence: 122 focused resolver, catalog, chat/persona, research, Jarvis/proactive,
+    Settings, routing, and route-contract checks pass, together with all 91 JavaScript checks.
 - [ ] Add memory provenance, policy controls, and real incognito isolation.
 - [ ] Spike provider authentication before choosing supported flows.
 - [ ] Add the localization foundation without translating unfinished UI.

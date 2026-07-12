@@ -19,7 +19,7 @@ _NON_CHAT = (
 )
 
 
-def _is_chat_model(model_id: str) -> bool:
+def is_chat_model(model_id: str) -> bool:
     lowered = (model_id or "").lower()
     return (
         bool(lowered)
@@ -29,7 +29,7 @@ def _is_chat_model(model_id: str) -> bool:
 
 
 def _chat_models(values: list[str]) -> list[str]:
-    return [value for value in values if _is_chat_model(value)]
+    return [value for value in values if is_chat_model(value)]
 
 
 def set_manual_models(endpoint, models: list[str]) -> None:

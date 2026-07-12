@@ -103,6 +103,24 @@ class SettingsApiTest(ApiTest):
         self.assertEqual(s["context_limit"], 42)
         self.assertEqual(s["stream_thinking"], False)
 
+    def test_patch_validates_and_persists_model_roles(self):
+        roles = {
+            "aide_chat": {"endpoint_id": "ep-a", "model": "chat-a"},
+            "andromeda": {"endpoint_id": "ep-b", "model": "search-b"},
+            "jarvis": {"endpoint_id": "ep-c", "model": "background-c"},
+        }
+        response = self.client.patch("/api/settings", json={"model_roles": roles})
+        self.assertEqual(response.status_code, 200)
+        saved = response.json()["model_roles"]
+        self.assertEqual(saved["andromeda"]["model"], "search-b")
+        self.assertEqual(saved["jarvis"]["fallbacks"], [])
+
+        invalid = self.client.patch(
+            "/api/settings", json={"model_roles": {"unknown": {"model": "x"}}}
+        )
+        self.assertEqual(invalid.status_code, 400)
+        self.assertEqual(invalid.json()["code"], "invalid_model_roles")
+
     def test_plaintext_setting_secret_is_migrated(self):
         cs._SETTINGS_FILE.write_text('{"openai_api_key":"old-plaintext"}', "utf-8")
         cs._clear_settings_cache()

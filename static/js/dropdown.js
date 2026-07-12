@@ -53,6 +53,7 @@ export function initCustomDropdown(el) {
       _open.activeIndex = Math.max(0, Math.min(opts.length - 1, _open.activeIndex + step));
       _renderPanel(el);
     } else if (e.key === 'Escape') {
+      e.stopPropagation();
       _close();
     }
   });

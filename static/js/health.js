@@ -1,7 +1,7 @@
 // health — a simple health/fitness log. log weight/sleep/workout/meds/custom, see the
 // latest reading + a hand-drawn trend line per metric over a range. mirrors panel conventions.
 import { toast } from './util.js';
-import { initCustomDropdown } from './dropdown.js';
+import { initCustomDropdown } from './dropdown.js?v=210';
 import { confirm as dlgConfirm, prompt as dlgPrompt } from './dialog.js';
 const _si = n => (window.icon ? window.icon(n) : '');
 

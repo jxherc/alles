@@ -30,8 +30,8 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
     def test_full_method_path_surface_matches_phase_zero_snapshot(self):
         rows = _route_rows()
         digest = hashlib.sha256(("\n".join(rows) + "\n").encode()).hexdigest()
-        self.assertEqual(len(rows), 667)
-        self.assertEqual(digest, "4b31e6c8cd761d5e3f356192aa12eed378adbf3e82356fd00113642f36d7898c")
+        self.assertEqual(len(rows), 668)
+        self.assertEqual(digest, "f006e9527449a9ef281687dc41079340ebdf6615de5e7e3d7fdba0fffd6c5b3c")
         groups = Counter(
             "api"
             if row.split(" ", 1)[1].startswith("/api/")
@@ -40,7 +40,7 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
             else "public"
             for row in rows
         )
-        self.assertEqual(groups, {"api": 651, "v1": 2, "public": 14})
+        self.assertEqual(groups, {"api": 652, "v1": 2, "public": 14})
 
     def test_public_token_and_status_surface_is_explicit(self):
         public = {

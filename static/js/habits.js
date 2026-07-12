@@ -2,7 +2,7 @@
 // day to mark it done; each habit shows its streak, this-week progress, and a
 // GitHub-style contribution heatmap. mirrors the days/watch panel conventions.
 import { toast } from './util.js';
-import { initCustomDropdown } from './dropdown.js';
+import { initCustomDropdown } from './dropdown.js?v=210';
 import { confirm as dlgConfirm } from './dialog.js';
 const _si = n => (window.icon ? window.icon(n) : '');
 

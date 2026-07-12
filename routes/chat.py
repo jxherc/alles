@@ -13,6 +13,7 @@ from core.settings import _ARTIFACT_INSTRUCTIONS, load_settings
 from services.agent_runtime import merge_usage, run_agent
 from services.llm import simple_complete, stream_chat
 from services.memory_store import inject_memories
+from services.model_resolver import ModelResolutionError, resolve_model
 
 router = APIRouter(prefix="/api")
 
@@ -89,6 +90,30 @@ def _apply_persona_model(session: Session, ep: ModelEndpoint, model: str, db):
     return ep, model
 
 
+def _resolve_session_model(session: Session, db, settings: dict | None = None):
+    persona = _resolve_persona(session, db)
+    explicit = {
+        "endpoint_id": session.endpoint_id if session.model else "",
+        "model": session.model or "",
+    }
+    workflow = {"model": persona.model} if persona and persona.model else {}
+    feature = {"endpoint_id": session.endpoint_id or ""}
+    try:
+        selected = resolve_model(
+            db,
+            "aide_chat",
+            explicit=explicit,
+            workflow_override=workflow,
+            feature_default=feature,
+            settings=settings,
+        )
+    except ModelResolutionError as exc:
+        from core.api_errors import ApiError
+
+        raise ApiError(400, exc.code, str(exc)) from exc
+    return selected.endpoint, selected.model
+
+
 def _decide_mode(base_mode: str, pmode: str, message: str, simple: bool, auto_intents: bool):
     """resolve the effective turn mode. returns (mode, force_approve).
     a persona's default_mode: "agent" always runs tools, "chat" stays pure chat (no
@@ -148,7 +173,11 @@ def _is_video_upload(rec) -> bool:
 
 
 def _build_messages(
-    session: Session, user_text: str, settings: dict, db=None, file_ids: list[str] = None,
+    session: Session,
+    user_text: str,
+    settings: dict,
+    db=None,
+    file_ids: list[str] = None,
     mem_ctx: str = None,
 ) -> list[dict]:
     sys_prompt = settings.get("system_prompt", "You are aide, a helpful AI assistant.")
@@ -444,16 +473,8 @@ async def chat(body: ChatRequest, db: DbSession = Depends(get_db)):
     if not s:
         raise HTTPException(404, "session not found")
 
-    ep = _resolve_endpoint(s, db)
-    if not ep:
-        raise HTTPException(400, "no model endpoint configured — add one in settings")
-
-    model = s.model or (ep.models_list()[0] if ep.models_list() else "")
-    ep, model = _apply_persona_model(s, ep, model, db)
-    if not model:
-        raise HTTPException(400, "no model selected")
-
     settings = load_settings()
+    ep, model = _resolve_session_model(s, db, settings)
     settings["agent_cwd"] = _resolve_working_dir(s)
     _p = _resolve_persona(s, db)
     if _p and _p.temperature is not None:
@@ -531,15 +552,8 @@ async def chat_background(body: ChatRequest, db: DbSession = Depends(get_db)):
     s = db.get(Session, body.session_id)
     if not s:
         raise HTTPException(404, "session not found")
-    ep = _resolve_endpoint(s, db)
-    if not ep:
-        raise HTTPException(400, "no model endpoint configured")
-    model = s.model or (ep.models_list()[0] if ep.models_list() else "")
-    ep, model = _apply_persona_model(s, ep, model, db)
-    if not model:
-        raise HTTPException(400, "no model selected")
-
     settings = load_settings()
+    ep, model = _resolve_session_model(s, db, settings)
     settings["agent_cwd"] = _resolve_working_dir(s)
     settings["agent_permission_mode"] = "full_auto"  # nothing is watching to approve
     _p = _resolve_persona(s, db)
@@ -635,10 +649,7 @@ async def rewrite_last(body: RewriteBody, db: DbSession = Depends(get_db)):
     if not last or not last.content.strip():
         raise HTTPException(400, "no assistant reply to rewrite")
 
-    ep = _resolve_endpoint(s, db)
-    model = s.model or (ep.models_list()[0] if ep and ep.models_list() else "")
-    if not ep or not model:
-        raise HTTPException(400, "no model endpoint configured")
+    ep, model = _resolve_session_model(s, db, load_settings())
 
     prompt = [
         {"role": "system", "content": instr + " Output ONLY the rewritten reply, nothing else."},

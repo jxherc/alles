@@ -477,18 +477,25 @@ function maybeAutoRefresh() {
   refreshModels(false);
 }
 
-export async function addEndpoint(name, url, key) {
+export async function addEndpoint(name, url, key, adapter = 'auto', manualModels = []) {
   const r = await fetch('/api/models/endpoint', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ name, base_url: url, api_key: key }),
+    body: JSON.stringify({ name, base_url: url, api_key: key, provider_adapter: adapter }),
   });
   if (!r.ok) throw new Error(await r.text());
   const ep = await r.json();
-  await fetch(`/api/models/endpoint/${ep.id}/probe`, { method: 'POST' }).catch(e => {
-    console.error(`probe failed for ${ep.name}:`, e);
-    toast(`probe failed for ${ep.name}`, 'error');
-  });
+  if (adapter === 'manual') {
+    const updated = await fetch(`/api/models/endpoint/${ep.id}`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ models: manualModels }),
+    });
+    if (!updated.ok) throw new Error(await updated.text());
+  } else {
+    const probe = await fetch(`/api/models/endpoint/${ep.id}/probe`, { method: 'POST' });
+    if (!probe.ok) toast(`${ep.name} saved, but its catalog is not available`, 'error');
+  }
   await loadModels();
   return ep;
 }

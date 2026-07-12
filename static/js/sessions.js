@@ -4,7 +4,7 @@ import { renderProjectFolders, loadProjects, getProjects, createProject, assignS
 import { applyResponsePrivacy, stripEmojis, welcomeEnabled } from './privacy.js';
 import { renderAgentSteps } from './agentview.js';
 import { isIncognitoMode } from './modes.js';
-import { getCurrentEndpoint, getSelected } from './models.js';
+import { getCurrentEndpoint, getSelected } from './models.js?v=209';
 
 let _sessions = { today: [], yesterday: [], earlier: [] };
 let _activeId = null;

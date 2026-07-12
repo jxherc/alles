@@ -14,6 +14,7 @@ class RoutingTest(unittest.TestCase):
         self.assertTrue(is_local_endpoint(_EP("http://localhost:11434")))
         self.assertTrue(is_local_endpoint(_EP("http://127.0.0.1:1234/v1")))
         self.assertFalse(is_local_endpoint(_EP("https://api.deepseek.com")))
+        self.assertFalse(is_local_endpoint(_EP("https://localhost.example.test/v1")))
 
     def test_default_picks_first(self):
         eps = [_EP("https://api.deepseek.com"), _EP("http://localhost:11434")]

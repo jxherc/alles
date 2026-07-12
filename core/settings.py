@@ -33,6 +33,11 @@ _ENCRYPTED_SETTING_KEYS = {
 _defaults = {
     "default_model": "",
     "default_endpoint_id": "",
+    "model_roles": {
+        "aide_chat": {},
+        "andromeda": {},
+        "jarvis": {},
+    },
     "system_prompt": "You are Aide, the AI assistant inside Alles.",
     "context_limit": 40,
     "stream_thinking": True,

@@ -5,12 +5,25 @@ on-device — but only if a local endpoint actually exists, otherwise nothing
 changes. an explicitly chosen endpoint on a session always wins over this.
 """
 
-_LOCAL_HINTS = ("localhost", "127.0.0.1", "0.0.0.0", "11434", "ollama")
+import ipaddress
+from urllib.parse import urlsplit
+
+_LOCAL_NAMES = {"localhost", "ollama"}
 
 
 def is_local_endpoint(ep) -> bool:
-    url = (getattr(ep, "base_url", "") or "").lower()
-    return any(h in url for h in _LOCAL_HINTS)
+    url = (getattr(ep, "base_url", "") or "").strip()
+    try:
+        host = (urlsplit(url).hostname or "").lower().rstrip(".")
+    except ValueError:
+        return False
+    if host in _LOCAL_NAMES:
+        return True
+    try:
+        address = ipaddress.ip_address(host)
+    except ValueError:
+        return False
+    return address.is_loopback or address.is_unspecified
 
 
 def pick_endpoint(endpoints, prefer_local: bool = False):
