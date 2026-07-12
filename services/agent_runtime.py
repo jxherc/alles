@@ -9,14 +9,16 @@ import uuid
 from pathlib import Path
 from typing import AsyncGenerator
 
-from core.database import ModelEndpoint
+from core.database import DelegatedAction, ModelEndpoint, SessionLocal
 from services import policy
 from services.agent_state import finish_run, record_event, start_run, update_run
 from services.agent_tools import (
     MUTATING_TOOLS,
     UNTRUSTED_TOOLS,
+    authorize_delegated_paths,
     build_tool_defs,
     capture_checkpoint,
+    clear_delegated_paths,
     guard_untrusted,
     preview_change,
     set_agent_ctx,
@@ -61,18 +63,47 @@ def _retryable(msg: str) -> bool:
 _pending_perms: dict[str, dict] = {}
 
 
+def _register_permission(request_id: str, exact_hash: str) -> None:
+    _pending_perms[request_id] = {
+        "event": asyncio.Event(),
+        "allow": False,
+        "exact_hash": exact_hash,
+    }
+
+
 def resolve_permission(request_id: str, allow: bool) -> bool:
     p = _pending_perms.get(request_id)
     if not p:
         return False
+    if not p.get("exact_hash"):
+        p["allow"] = bool(allow)
+        p["event"].set()
+        return True
+    db = SessionLocal()
+    try:
+        from services.delegated_actions import decide_action
+
+        action = db.get(DelegatedAction, request_id)
+        if not action:
+            return False
+        decide_action(db, action, allow=allow, exact_hash=p["exact_hash"])
+        db.commit()
+    except ValueError:
+        db.commit()
+        return False
+    finally:
+        db.close()
     p["allow"] = bool(allow)
     p["event"].set()
     return True
 
 
-async def _await_permission(request_id: str, stop_event, timeout: float = 600) -> bool:
-    ev = asyncio.Event()
-    _pending_perms[request_id] = {"event": ev, "allow": False}
+async def _await_permission(
+    request_id: str, exact_hash: str, stop_event, timeout: float = 600
+) -> bool:
+    if request_id not in _pending_perms:
+        _register_permission(request_id, exact_hash)
+    ev = _pending_perms[request_id]["event"]
     t_ev = asyncio.create_task(ev.wait())
     t_stop = asyncio.create_task(stop_event.wait())
     try:
@@ -335,6 +366,8 @@ async def run_agent(
     # 3b - persona policy: a persona can block tool scopes/names for the session. detach into a plain
     # holder so we don't lazy-load on a closed session inside the permission gate.
     _persona = None
+    _delegated_scope_kind = "general"
+    _delegated_scope_id = ""
     if session_id:
         try:
             from core.database import Session as _Sess
@@ -343,6 +376,9 @@ async def run_agent(
             _pdb = _SL()
             try:
                 _s = _pdb.get(_Sess, session_id)
+                if _s and _s.project_id:
+                    _delegated_scope_kind = "project"
+                    _delegated_scope_id = _s.project_id
                 if _s and _s.persona_id and _s.persona:
                     _persona = type(
                         "P",
@@ -538,6 +574,9 @@ async def run_agent(
                 )
                 gate = None  # set to a result dict to skip execution
                 diff = None
+                delegated_action = None
+                delegated_action_id = None
+                delegated_request = None
                 if name in MUTATING_TOOLS:
                     diff = preview_change(name, args)
                     if diff:
@@ -555,8 +594,95 @@ async def run_agent(
                             "error": True,
                         }
                     )
+                elif name in MUTATING_TOOLS:
+                    from services.agent_tools import delegated_action_details
+                    from services.delegated_actions import (
+                        ActionRequest,
+                        begin_action,
+                        hash_arguments,
+                        request_action,
+                    )
+
+                    details = delegated_action_details(name, args, settings)
+                    delegated_request = ActionRequest(
+                        origin="aide",
+                        scope_kind=_delegated_scope_kind,
+                        scope_id=_delegated_scope_id,
+                        capability=policy.scope_for(name) or f"tool:{name}",
+                        action=name,
+                        target=details["target"],
+                        data_summary=details["data_summary"],
+                        privacy_effect=details["privacy_effect"],
+                        cost=details["cost"],
+                        arguments_hash=hash_arguments(args),
+                        mutating=True,
+                        target_is_path=details["target_is_path"],
+                        path_targets=details["path_targets"],
+                        session_id=session_id or None,
+                        agent_run_id=run_id,
+                    )
+                    _ddb = SessionLocal()
+                    try:
+                        delegated_action, already_allowed = request_action(
+                            _ddb,
+                            delegated_request,
+                            force_approval=decision == "ask",
+                        )
+                        _ddb.commit()
+                        _ddb.refresh(delegated_action)
+                        req_id = delegated_action.id
+                        delegated_action_id = req_id
+                        exact_hash = delegated_action.exact_hash
+                    finally:
+                        _ddb.close()
+                    if already_allowed:
+                        _ddb = SessionLocal()
+                        try:
+                            delegated_action = _ddb.get(DelegatedAction, req_id)
+                            begin_action(_ddb, delegated_action, delegated_request)
+                            _ddb.commit()
+                        finally:
+                            _ddb.close()
+                    else:
+                        _register_permission(req_id, exact_hash)
+                        record_event(
+                            run_id,
+                            "permission_request",
+                            {"call_id": call_id, "name": name, "action_id": req_id},
+                        )
+                        yield {
+                            "tool_permission": {
+                                "request_id": req_id,
+                                "call_id": call_id,
+                                "name": name,
+                                "args": args,
+                                "diff": diff,
+                                "exact_hash": exact_hash,
+                            }
+                        }
+                        allowed = await _await_permission(req_id, exact_hash, stop_event)
+                        yield {
+                            "tool_permission_resolved": {
+                                "call_id": call_id,
+                                "allow": bool(allowed),
+                            }
+                        }
+                        if allowed:
+                            _ddb = SessionLocal()
+                            try:
+                                delegated_action = _ddb.get(DelegatedAction, req_id)
+                                begin_action(_ddb, delegated_action, delegated_request)
+                                _ddb.commit()
+                            finally:
+                                _ddb.close()
+                        else:
+                            gate = {
+                                "output": "[denied by user] action not performed. Adjust your approach or ask the user.",
+                                "error": True,
+                            }
                 elif decision == "ask":
                     req_id = uuid.uuid4().hex
+                    _register_permission(req_id, "")
                     record_event(
                         run_id,
                         "permission_request",
@@ -571,7 +697,7 @@ async def run_agent(
                             "diff": diff,
                         }
                     }
-                    allowed = await _await_permission(req_id, stop_event)
+                    allowed = await _await_permission(req_id, "", stop_event)
                     yield {"tool_permission_resolved": {"call_id": call_id, "allow": bool(allowed)}}
                     if not allowed:
                         gate = {
@@ -584,6 +710,8 @@ async def run_agent(
                     step["output"] = gate["output"]
                     step["error"] = True
                 else:
+                    if delegated_action_id is not None and delegated_request.path_targets:
+                        authorize_delegated_paths(delegated_request.path_targets)
                     # snapshot files before edits so the run can be reverted
                     if name in ("write_file", "edit_file", "apply_patch"):
                         capture_checkpoint(run_id, name, args)
@@ -602,6 +730,22 @@ async def run_agent(
                     result = _keep_streamed_output(result, step.get("output", ""))
                     step["output"] = result.get("output", step.get("output", ""))
                     step["error"] = bool(result.get("error"))
+                    if delegated_action_id is not None:
+                        from services.delegated_actions import finish_action
+
+                        _ddb = SessionLocal()
+                        try:
+                            saved_action = _ddb.get(DelegatedAction, delegated_action_id)
+                            finish_action(
+                                _ddb,
+                                saved_action,
+                                success=not step["error"],
+                                outcome_known=True,
+                            )
+                            _ddb.commit()
+                        finally:
+                            _ddb.close()
+                    clear_delegated_paths()
 
                 # pull any screenshot image out — feed it back as vision, not as text
                 img = result.get("image")

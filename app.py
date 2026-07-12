@@ -84,6 +84,7 @@ from routes import (
 from routes import (
     days as days_routes,
 )
+from routes import delegation as delegation_routes
 from routes import (
     files as files_routes,
 )
@@ -789,6 +790,12 @@ async def lifespan(app: FastAPI):
                 interrupted_jarvis["uncertain"],
             )
 
+        from services.delegated_actions import reconcile_delegated_actions
+
+        uncertain_actions = reconcile_delegated_actions()
+        if uncertain_actions:
+            log.warning("marked %s interrupted delegated action(s) uncertain", uncertain_actions)
+
         try:
             from services import net
 
@@ -1056,6 +1063,7 @@ app.include_router(days_routes.router)
 app.include_router(today_routes.router)
 app.include_router(automation_routes.router)
 app.include_router(jarvis_routes.router)
+app.include_router(delegation_routes.router)
 app.include_router(money_routes.router)
 app.include_router(timeline_routes.router)
 app.include_router(system_routes.router)

@@ -143,6 +143,7 @@ def _prompt(row: JarvisRunPrompt) -> dict:
         "answer": row.answer or "",
         "responded_at": row.responded_at.isoformat() if row.responded_at else None,
         "used_at": row.used_at.isoformat() if row.used_at else None,
+        "delegated_action_id": row.delegated_action_id,
     }
 
 
