@@ -48,7 +48,7 @@ export function renderProjectFolders(sessions, onSelect, onChange) {
     const pSessions = sessions.filter(s => s.project_id === p.id);
     const dot = p.color ? `background:${p.color}` : '';
     html += `<div class="project-folder" data-id="${p.id}">
-  <div class="project-folder-head">
+  <div class="project-folder-head" role="button" tabindex="0" aria-label="open project ${_esc(p.name)}">
     <span class="project-dot" style="${dot}"></span>
     <span class="project-name">${_esc(p.name)}</span>
     <span class="project-count">${pSessions.length}</span>
@@ -69,6 +69,12 @@ export function renderProjectFolders(sessions, onSelect, onChange) {
   // clicking a project opens its workspace page (not just a toggle)
   list.querySelectorAll('.project-folder-head').forEach(head => {
     head.addEventListener('click', () => window._openProject?.(head.closest('.project-folder').dataset.id));
+    head.addEventListener('keydown', e => {
+      if (e.target !== head) return;
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      e.preventDefault();
+      window._openProject?.(head.closest('.project-folder').dataset.id);
+    });
   });
 
   // drag a chat onto a project to file it there

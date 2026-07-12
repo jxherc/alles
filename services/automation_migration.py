@@ -42,9 +42,7 @@ def sync_migrated_rule(
     if rule.migrated_workflow_id:
         workflow = db.get(JarvisWorkflow, rule.migrated_workflow_id)
     if not workflow:
-        workflow = (
-            db.query(JarvisWorkflow).filter_by(legacy_automation_id=rule.id).first()
-        )
+        workflow = db.query(JarvisWorkflow).filter_by(legacy_automation_id=rule.id).first()
     if not workflow:
         workflow = JarvisWorkflow(
             name=rule.name or f"{rule.trigger} → {rule.action}",

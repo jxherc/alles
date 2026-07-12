@@ -37,8 +37,7 @@ def up(conn):
         "ON jarvis_inbox_events(event_type)",
         "CREATE INDEX IF NOT EXISTS ix_jarvis_inbox_events_entity_kind "
         "ON jarvis_inbox_events(entity_kind)",
-        "CREATE INDEX IF NOT EXISTS ix_jarvis_inbox_events_state "
-        "ON jarvis_inbox_events(state)",
+        "CREATE INDEX IF NOT EXISTS ix_jarvis_inbox_events_state ON jarvis_inbox_events(state)",
         "CREATE INDEX IF NOT EXISTS ix_jarvis_inbox_events_created_at "
         "ON jarvis_inbox_events(created_at)",
     )
