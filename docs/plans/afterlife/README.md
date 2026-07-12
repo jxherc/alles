@@ -1,6 +1,6 @@
 # Stage 6 — Afterlife
 
-- **Status:** current; Phases 0–3 delivered
+- **Status:** current; Phase 4 delivered, Phase 5 next
 - **Started:** July 11, 2026
 - **Meaning:** preserve what works, repair what is unsafe, and give Alles one coherent new life
 
@@ -30,11 +30,13 @@ Jarvis lives inside Aide. It remains the name of the durable background runtime 
 
 ## Current state
 
-Phases 0–3 are delivered with fresh recovery, migration, compatibility, browser, and full-suite
-evidence. The Afterlife branch now ships folder Projects, General, the durable Jarvis core, the
-feature-gated three-space shell, deterministic Today, Aide Projects, consolidated Settings, and legacy
-bookmark redirects. Phase 4 — Aide and Andromeda — is the next planned gate. The broader product design
-remains open to changes as later gates are implemented.
+Phases 0–4 are delivered with fresh recovery, migration, compatibility, browser, and full-suite
+evidence. The Afterlife branch now ships one Aide Chat/Jarvis home, conclusion-first tool work, visible
+memory controls, and links-first Andromeda search with an optional grounded AI Overview. The candidate
+SearXNG definition is pinned and loopback-only, but installation stays disabled because no supported
+container runtime was available for the live spike; external HTTPS SearXNG and other providers remain
+usable. Phase 5 — Jarvis inside Aide and channels — is next. The broader product design remains open to
+changes as later gates are implemented.
 
 ## Stage rules
 
