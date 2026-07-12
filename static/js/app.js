@@ -1,5 +1,5 @@
 import { initSessions, newChat, createSession, renderSidebar, downloadSession, getActiveId, saveDraft, clearDraft } from './sessions.js';
-import { loadModels, renderModelList, renderSidebarModelList, getSelected, getCurrentEndpoint, initModelModal, prettyModel } from './models.js?v=209';
+import { loadModels, renderModelList, renderSidebarModelList, getSelected, getCurrentEndpoint, initModelModal, prettyModel, restoreSessionModel, selectAideDefault, selectPersonaModel } from './models.js?v=210';
 import { populateDropdown } from './dropdown.js?v=210';
 import { icon, iconEl, ICON_NAMES } from './icons.js';
 // expose globally so the inline-HTML modules can call icon() without each importing it
@@ -27,10 +27,10 @@ import { initAppCogs } from './appsettings.js';
 import { loadPhotos, initPhotos } from './photos.js';
 import { setBaseDomain, parseHost, appForSub, viewToSub, urlForApp, currentSub, singleHost, SUBDOMAIN_VIEWS, shouldPollModels } from './subdomain.js';
 import { loadBrainPanel } from './brain.js';
-import { openSettings, closeSettings, applyVis } from './settings.js?v=216';
+import { openSettings, closeSettings, applyVis } from './settings.js?v=217';
 import { setIncognitoMode, getPermMode, setPermMode, getEffort, setEffort } from './modes.js';
 import { initPrivacyHandlers } from './privacy.js';
-import { loadShortcuts, matchesShortcut } from './shortcuts.js';
+import { loadShortcuts, matchesShortcut, matchesSettingsShortcut } from './shortcuts.js';
 import { startReminderPoll, initReminderPanel } from './reminders.js';
 import { registerServiceWorker } from './push.js';
 import { initSync } from './sync.js';
@@ -518,6 +518,7 @@ const HOME_TILES = [
 ];
 
 let _appDrawerReturnFocus = null;
+let _profileReturnFocus = null;
 
 function initAfterlifeShell(flags) {
   const spaces = activeAfterlifeSpaces(flags);
@@ -541,7 +542,36 @@ function initAfterlifeShell(flags) {
   document.getElementById('app-drawer-btn')?.addEventListener('click', openAppDrawer);
   document.getElementById('app-drawer-close')?.addEventListener('click', closeAppDrawer);
   document.getElementById('app-drawer-scrim')?.addEventListener('click', closeAppDrawer);
-  document.getElementById('space-settings-btn')?.addEventListener('click', () => openSettings());
+  document.getElementById('space-profile-btn')?.addEventListener('click', event => {
+    event.stopPropagation();
+    toggleProfileMenu();
+  });
+  document.getElementById('space-profile-menu')?.addEventListener('click', event => event.stopPropagation());
+  document.getElementById('space-settings-btn')?.addEventListener('click', () => {
+    closeProfileMenu();
+    openSettings();
+  });
+  document.addEventListener('click', () => closeProfileMenu(false));
+}
+
+function toggleProfileMenu() {
+  const menu = document.getElementById('space-profile-menu');
+  const button = document.getElementById('space-profile-btn');
+  if (!menu || !button) return;
+  if (!menu.hidden) { closeProfileMenu(); return; }
+  _profileReturnFocus = document.activeElement;
+  menu.hidden = false;
+  button.setAttribute('aria-expanded', 'true');
+  menu.querySelector('[role="menuitem"]')?.focus();
+}
+
+function closeProfileMenu(restoreFocus = true) {
+  const menu = document.getElementById('space-profile-menu');
+  if (!menu || menu.hidden) return;
+  menu.hidden = true;
+  document.getElementById('space-profile-btn')?.setAttribute('aria-expanded', 'false');
+  if (restoreFocus && _profileReturnFocus?.isConnected) _profileReturnFocus.focus();
+  _profileReturnFocus = null;
 }
 
 function _setAfterlifeSpace(space) {
@@ -1360,14 +1390,14 @@ function bindEvents() {
       // if a reply is streaming, Esc stops it first; otherwise it closes overlays
       const stopBtn = document.getElementById('stop-btn');
       if (stopBtn?.classList.contains('visible')) { stopStream(); return; }
-      closeAllModals(); closeSettings(); closeSearch(); closeMoreTools(); closeShellPanel(); closeAppDrawer();
+      closeAllModals(); closeSettings(); closeSearch(); closeMoreTools(); closeShellPanel(); closeAppDrawer(); closeProfileMenu();
     }
     else if (matchesShortcut(e, shortcuts.focus_input)) {
       const ta = document.getElementById('composer-ta');
       if (ta && ta.offsetParent !== null) { e.preventDefault(); ta.focus(); }
     }
     else if (matchesShortcut(e, shortcuts.search)) { e.preventDefault(); openSearch(); }
-    else if (matchesShortcut(e, shortcuts.settings)) { e.preventDefault(); openSettings(); }
+    else if (matchesSettingsShortcut(e, shortcuts.settings)) { e.preventDefault(); openSettings(); }
     else if (matchesShortcut(e, shortcuts.sidebar) && document.body.classList.contains('is-aide')) { e.preventDefault(); document.body.classList.toggle('sidebar-hidden'); }
     else if (matchesShortcut(e, shortcuts.new_chat)) { e.preventDefault(); document.getElementById('new-chat-btn')?.click(); }
     else if (matchesShortcut(e, shortcuts.send)) { e.preventDefault(); doSend(); }
@@ -1677,16 +1707,23 @@ export async function refreshPersonaBtn() {
   const btn   = document.getElementById('persona-btn');
   const label = document.getElementById('persona-label');
   const session = window._currentSession;
-  if (!_personas.length) { btn.style.display = 'none'; applyPersonaAccent(null); return; }
+  if (!_personas.length) {
+    window._activePersonaModel = '';
+    btn.style.display = 'none'; applyPersonaAccent(null); return;
+  }
   // on a fresh chat (no session yet) reflect the pending pick so you can choose a persona
   // BEFORE the first message instead of the button just vanishing
   const pid = session ? session.persona_id : window._pendingPersona;
   // the backend (_resolve_persona) falls back to the default persona whenever a session
   // has no persona_id — including a fresh chat — so reflect that instead of lying "no persona"
   const active = _personas.find(p => p.id === pid) || _personas.find(p => p.is_default);
+  window._activePersonaModel = active?.model || '';
   btn.style.display = 'flex';
   label.textContent = active ? active.name : 'no persona';
   applyPersonaAccent(active?.accent || null);
+  if (session?.model) restoreSessionModel(session);
+  else if (active?.model) selectPersonaModel(active.model);
+  else selectAideDefault();
 }
 
 window._refreshPersonaBtn = refreshPersonaBtn;

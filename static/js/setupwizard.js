@@ -1,7 +1,7 @@
 // first-run setup wizard — a short, skippable guide: your name → connect a model →
 // optional password lock. nothing here is required; "skip setup" bails at any point.
 import { toast } from './util.js';
-import { addEndpoint } from './models.js?v=209';
+import { addEndpoint } from './models.js?v=210';
 
 const PRESETS = [
   { name: 'DeepSeek', url: 'https://api.deepseek.com', key: 'sk-…' },

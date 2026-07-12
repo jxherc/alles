@@ -5,6 +5,7 @@ let _memories = [];
 let _searchTimeout = null;
 let _activeCategory = 'all';
 let _memoryPolicy = 'ask';
+let _memoryAutoInject = true;
 
 const CATEGORIES = ['all', 'identity', 'preference', 'fact', 'task', 'general'];
 
@@ -19,6 +20,7 @@ export async function loadMemories() {
   ]);
   _memories = memories;
   _memoryPolicy = settings.memory_policy || 'ask';
+  _memoryAutoInject = settings.memory_auto_inject !== false;
   _renderPolicy();
   _renderCategoryFilter();
   renderMemories(filterMemoriesByCategory(_memories));
@@ -156,6 +158,19 @@ function _renderPolicy() {
     ask: 'suggest memories for you to review',
     auto: 'save only low-risk preferences you state directly',
   }[_memoryPolicy] || '';
+  const off = _memoryPolicy === 'off';
+  const inject = document.getElementById('s-memory-inject-toggle');
+  if (inject) {
+    inject.classList.toggle('on', !off && _memoryAutoInject);
+    inject.setAttribute('aria-checked', String(!off && _memoryAutoInject));
+    inject.setAttribute('aria-disabled', String(off));
+  }
+  ['mem-extract-btn', 'mem-add-input', 'mem-cat-cycle-btn', 'mem-add-btn'].forEach(id => {
+    const control = document.getElementById(id);
+    if (!control) return;
+    control.disabled = off;
+    control.setAttribute('aria-disabled', String(off));
+  });
 }
 
 async function _requestJson(url, options = {}) {
@@ -185,6 +200,19 @@ export function initMemoryPanel() {
         await loadMemories();
       } catch (error) { toast(error.message, 'error'); }
     });
+  });
+
+  document.getElementById('s-memory-inject-toggle')?.addEventListener('click', async event => {
+    if (_memoryPolicy === 'off') return;
+    const next = !event.currentTarget.classList.contains('on');
+    try {
+      await _requestJson('/api/settings', {
+        method: 'PATCH', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ memory_auto_inject: next }),
+      });
+      _memoryAutoInject = next;
+      _renderPolicy();
+    } catch (error) { toast(error.message, 'error'); }
   });
 
   // add memory form
@@ -259,7 +287,7 @@ export function initMemoryPanel() {
       toast('extraction failed', 'error');
     } finally {
       btn.textContent = 'extract from chat';
-      btn.disabled = false;
+      btn.disabled = _memoryPolicy === 'off';
     }
   });
 

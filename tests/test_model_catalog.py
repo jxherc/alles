@@ -106,6 +106,32 @@ class ModelCatalogApiTest(ApiTest):
         db.close()
         return endpoint_id
 
+    def test_endpoint_credentials_require_recent_owner_auth(self):
+        from core import auth
+
+        token = auth.create_session_token()
+        auth.store_token(token)
+        auth._recent_auth[token] = 0
+        self.client.cookies.set("aide_session", token)
+        try:
+            with (
+                mock.patch("app.auth_enabled", return_value=True),
+                mock.patch("core.settings.auth_enabled", return_value=True),
+            ):
+                response = self.client.post(
+                    "/api/models/endpoint",
+                    json={
+                        "name": "private provider",
+                        "base_url": "https://models.example.test",
+                        "api_key": "secret",
+                    },
+                )
+        finally:
+            self.client.cookies.clear()
+            auth.revoke_token(token)
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.json()["code"], "recent_auth_required")
+
     def test_manual_model_edit_marks_catalog_manual(self):
         endpoint_id = self._seed()
         response = self.client.patch(

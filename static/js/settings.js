@@ -1,6 +1,6 @@
 import { toast } from './util.js';
 import { confirm as _dlgConfirm, prompt as _dlgPrompt } from './dialog.js';
-import { loadModels, addEndpoint, renderModelList } from './models.js?v=209';
+import { loadModels, addEndpoint, renderModelList } from './models.js?v=210';
 import { initCustomDropdowns, getDropdownValue, setDropdownValue, populateDropdown } from './dropdown.js?v=210';
 import { initMemoryPanel } from './memory.js';
 import {
@@ -58,15 +58,17 @@ function _bindSwitch(el, getter, setter) {
 }
 
 // ── pane navigation ───────────────────────────────────────────────────────────
-let _activePane = 'models';
+let _activePane = 'general';
 
 function _switchPane(name) {
   // unknown pane key (e.g. a stale 'appearance') would leave every pane inactive →
-  // a blank modal. fall back to 'general', which exists in both scopes.
+  // a blank modal. fall back to the consolidated General pane.
   if (!document.getElementById(`s-pane-${name}`)) name = 'general';
   _activePane = name;
   document.querySelectorAll('.s-nav-item').forEach(n =>
     n.classList.toggle('active', n.dataset.pane === name));
+  document.querySelectorAll('.s-nav-item').forEach(n =>
+    n.setAttribute('aria-current', n.dataset.pane === name ? 'page' : 'false'));
   document.querySelectorAll('.s-pane').forEach(p =>
     p.classList.toggle('active', p.id === `s-pane-${name}`));
   _onPaneOpen(name);
@@ -75,9 +77,9 @@ function _switchPane(name) {
 function _onPaneOpen(name) {
   if (name === 'models')     { loadEpList(); loadLocalModels(); }
   if (name === 'ai')         loadAiPane();
-  if (name === 'memory')     initMemoryPanel();
+  if (name === 'memory')     { initMemoryPanel(); loadOwnerInstructions(); }
   if (name === 'search')     loadSearchPane();
-  if (name === 'general' || name === 'security' || name === 'themes') loadAppearancePane();
+  if (name === 'general' || name === 'security' || name === 'themes' || name === 'notifications') loadAppearancePane();
   if (name === 'themes')     loadThemesPane();
   if (name === 'voice')      loadVoicePane();
   if (name === 'personas')   { loadPersonas(); loadCookbook(); }
@@ -92,16 +94,21 @@ function _onPaneOpen(name) {
 
 // ── open / close ──────────────────────────────────────────────────────────────
 let _bound = false;
+let _settingsReturnFocus = null;
 
-export function openSettings(pane, allesOnly = false) {
+export function openSettings(pane, _allesOnly = false) {
   const modal = document.getElementById('settings-modal');
   if (!modal) return;
+  const wasClosed = modal.style.display === 'none';
+  if (wasClosed && document.activeElement instanceof HTMLElement) {
+    _settingsReturnFocus = document.activeElement;
+  }
   modal.style.display = 'flex';
-  // hub/home settings = alles-wide only (appearance + backup); aide keeps the full set
-  modal.classList.toggle('alles-scope', allesOnly);
+  // Phase 3 has one settings home. Keep the second argument only for old callers.
+  modal.classList.remove('alles-scope');
   const title = document.querySelector('#settings-modal .s-title');
-  if (title) title.textContent = allesOnly ? 'alles settings' : 'settings';
-  if (!pane) pane = allesOnly ? 'general' : 'models';
+  if (title) title.textContent = 'alles settings';
+  if (!pane) pane = 'general';
   if (!_bound) { _initSettings(); _bound = true; }
   // update compat url labels
   const port = location.port || '8000';
@@ -111,11 +118,20 @@ export function openSettings(pane, allesOnly = false) {
   document.getElementById('s-compat-url2')?.replaceChildren(document.createTextNode(base));
 
   _switchPane(pane);
+  requestAnimationFrame(() => {
+    const target = document.querySelector(`.s-nav-item[data-pane="${CSS.escape(_activePane)}"]`)
+      || document.getElementById('settings-modal-close');
+    target?.focus();
+  });
 }
 
 export function closeSettings() {
   const modal = document.getElementById('settings-modal');
-  if (modal) modal.style.display = 'none';
+  if (!modal || modal.style.display === 'none') return;
+  modal.style.display = 'none';
+  const target = _settingsReturnFocus;
+  _settingsReturnFocus = null;
+  if (target?.isConnected) target.focus();
 }
 
 // expose for playwright tests + external callers
@@ -140,6 +156,28 @@ function _initSettings() {
   // overlay close
   const modal = document.getElementById('settings-modal');
   modal.addEventListener('click', e => { if (e.target === modal) closeSettings(); });
+  modal.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      e.stopPropagation();
+      closeSettings();
+      return;
+    }
+    if (e.key !== 'Tab') return;
+    const focusable = [...modal.querySelectorAll(
+      'button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), details > summary, [tabindex]:not([tabindex="-1"])',
+    )].filter(el => !el.hidden && el.offsetParent !== null);
+    if (!focusable.length) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault();
+      first.focus();
+    }
+  });
   document.getElementById('settings-modal-close')?.addEventListener('click', closeSettings);
 
   // ── models pane ──
@@ -154,6 +192,7 @@ function _initSettings() {
   });
   document.getElementById('s-ep-adapter')?.addEventListener('change', _showManualEndpointFields);
   document.getElementById('s-role-save-btn')?.addEventListener('click', saveModelRoles);
+  document.getElementById('s-ep-refresh-all')?.addEventListener('click', refreshAllModelEndpoints);
   document.getElementById('s-ep-add-btn')?.addEventListener('click', async () => {
     const name = document.getElementById('s-ep-name').value.trim();
     const url  = document.getElementById('s-ep-url').value.trim();
@@ -172,7 +211,7 @@ function _initSettings() {
       const visionRaw = document.getElementById('s-ep-vision')?.value.trim() || '';
       if (visionRaw && ep?.id) {
         const visionList = visionRaw.split(',').map(s => s.trim()).filter(Boolean);
-        await fetch(`/api/models/endpoint/${ep.id}`, {
+        await _fetchWithRecentOwner(`/api/models/endpoint/${ep.id}`, {
           method: 'PATCH', headers: {'content-type':'application/json'},
           body: JSON.stringify({ vision_models: JSON.stringify(visionList) }),
         });
@@ -196,6 +235,13 @@ function _initSettings() {
   document.getElementById('s-local-start-btn')?.addEventListener('click', startLocalOllama);
 
   document.getElementById('settings-save-btn')?.addEventListener('click', saveAiDefaults);
+  document.querySelectorAll('[data-chat-behavior]').forEach(button => {
+    button.addEventListener('click', () => saveDefaultChatBehavior(button.dataset.chatBehavior));
+  });
+  document.getElementById('s-owner-instructions-save')?.addEventListener('click', saveOwnerInstructions);
+  document.getElementById('settings-owner-instructions')?.addEventListener('input', event => {
+    event.currentTarget.dataset.dirty = '1';
+  });
 
   // ── search pane ──
   document.getElementById('s-search-provider')?.addEventListener('change', () => {
@@ -1218,8 +1264,8 @@ async function _localJson(url, options = {}) {
 
 const _MODEL_ROLE_COPY = {
   aide_chat: ['Aide Chat', 'normal chats and agent work'],
-  andromeda: ['Andromeda', 'search answers and research'],
-  jarvis: ['Jarvis', 'background checks and scheduled work'],
+  andromeda: ['Andromeda overview', 'search answers and research'],
+  jarvis: ['Aide → Jarvis', 'background checks and scheduled work'],
 };
 const _ADAPTER_OPTIONS = 'auto|auto detect;openai-compatible|openai-compatible;anthropic|anthropic;gemini|gemini;ollama|ollama;manual|manual list';
 let _modelRoleSettings = {};
@@ -1302,7 +1348,9 @@ function _renderModelRoles(eps, settings, states) {
     const data = _roleOptionData(eps, _modelRoleSettings[role] || {});
     select._modelChoices = data.choices;
     populateDropdown(select, data.options, data.selected);
+    select.setAttribute('aria-invalid', String(data.selected.startsWith('unavailable-')));
     select.addEventListener('change', () => {
+      select.setAttribute('aria-invalid', String(getDropdownValue(select).startsWith('unavailable-')));
       const row = select.closest('.s-role-row');
       row?.classList.remove('broken');
       const status = row?.querySelector('.s-role-status');
@@ -1316,6 +1364,13 @@ function _renderModelRoles(eps, settings, states) {
 async function saveModelRoles() {
   const btn = document.getElementById('s-role-save-btn');
   if (!btn) return;
+  const unavailable = [...document.querySelectorAll('[data-role-select]')]
+    .find(select => getDropdownValue(select).startsWith('unavailable-'));
+  if (unavailable) {
+    unavailable.focus();
+    toast('replace the unavailable model before saving', 'error');
+    return;
+  }
   btn.disabled = true;
   btn.textContent = 'saving…';
   const modelRoles = {};
@@ -1337,6 +1392,7 @@ async function saveModelRoles() {
       body: JSON.stringify({ model_roles: modelRoles }),
     });
     if (!response.ok) throw new Error('defaults could not be saved');
+    await window._refreshAideModelDefault?.();
     toast('model defaults saved', 'success');
     await loadEpList();
   } catch (error) {
@@ -1344,6 +1400,34 @@ async function saveModelRoles() {
   } finally {
     btn.disabled = false;
     btn.textContent = 'save defaults';
+  }
+}
+
+async function refreshAllModelEndpoints() {
+  const btn = document.getElementById('s-ep-refresh-all');
+  if (!btn) return;
+  btn.disabled = true;
+  btn.textContent = 'refreshing…';
+  try {
+    const endpoints = await _endpointJson(await fetch('/api/models'));
+    if (!Array.isArray(endpoints) || !endpoints.length) {
+      toast('add an endpoint first', 'error');
+      return;
+    }
+    const results = await Promise.allSettled(endpoints.map(async endpoint =>
+      _endpointJson(await fetch(`/api/models/endpoint/${encodeURIComponent(endpoint.id)}/probe`, { method: 'POST' })),
+    ));
+    const failed = results.filter(result => result.status === 'rejected').length;
+    await loadEpList();
+    await loadModels();
+    renderModelList();
+    toast(failed ? `${endpoints.length - failed} refreshed · ${failed} unavailable` : `${endpoints.length} endpoints refreshed`, failed ? 'error' : 'success');
+  } catch (error) {
+    toast(error.message || 'endpoints could not be refreshed', 'error');
+    await loadEpList();
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'refresh all';
   }
 }
 
@@ -1389,7 +1473,7 @@ async function loadEpList() {
             <button class="btn" data-probe="${_escAttr(ep.id)}">refresh</button>
             <button class="btn" data-test-ep="${_escAttr(ep.id)}">test</button>
             <button class="btn" data-edit-list="${_escAttr(ep.id)}" aria-expanded="false">models</button>
-            <button class="btn danger" data-del="${_escAttr(ep.id)}" aria-label="remove ${_escAttr(ep.name)}">×</button>
+            <button class="btn danger" data-del="${_escAttr(ep.id)}" aria-label="disconnect ${_escAttr(ep.name)}">disconnect</button>
           </div>
         </div>
         <div class="s-ep-editor" data-editor="${_escAttr(ep.id)}" hidden>
@@ -1422,7 +1506,7 @@ async function loadEpList() {
         try {
           const patch = { provider_adapter: adapter };
           if (adapter === 'manual') patch.models = models;
-          await _endpointJson(await fetch(`/api/models/endpoint/${btn.dataset.saveList}`, {
+          await _endpointJson(await _fetchWithRecentOwner(`/api/models/endpoint/${btn.dataset.saveList}`, {
             method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify(patch),
           }));
           if (adapter !== 'manual') {
@@ -1440,9 +1524,11 @@ async function loadEpList() {
         try {
           const data = await _endpointJson(await fetch(`/api/models/endpoint/${btn.dataset.probe}/probe`, { method: 'POST' }));
           toast(`${data.models?.length || 0} models ready`, 'success');
-          loadEpList(); loadModels(); renderModelList();
         } catch (error) { toast(error.message || 'catalog refresh failed', 'error'); }
-        finally { btn.textContent = 'refresh'; btn.disabled = false; }
+        finally {
+          btn.textContent = 'refresh'; btn.disabled = false;
+          await loadEpList(); await loadModels(); renderModelList();
+        }
       });
     });
     el.querySelectorAll('[data-test-ep]').forEach(btn => {
@@ -1460,7 +1546,7 @@ async function loadEpList() {
       btn.addEventListener('click', async () => {
         if (!await _dlgConfirm('remove this endpoint?')) return;
         try {
-          await _endpointJson(await fetch(`/api/models/endpoint/${btn.dataset.del}`, { method: 'DELETE' }));
+          await _endpointJson(await _fetchWithRecentOwner(`/api/models/endpoint/${btn.dataset.del}`, { method: 'DELETE' }));
           toast('endpoint removed', 'success');
           loadEpList(); loadModels(); renderModelList();
         } catch (error) { toast(error.message || 'endpoint could not be removed', 'error'); }
@@ -1477,7 +1563,7 @@ async function loadEpList() {
 async function loadAiPane() {
   try {
     const s = await fetch('/api/settings').then(r => r.json());
-    document.getElementById('settings-system-prompt').value = s.system_prompt || '';
+    _renderChatBehavior(s.default_chat_behavior || 'automatic_tools');
     document.getElementById('settings-context-limit').value = s.context_limit ?? 40;
     _bindSwitch(document.getElementById('s-thinking-toggle'),
       () => s.stream_thinking !== false,
@@ -1493,11 +1579,69 @@ async function loadAiPane() {
 
 async function saveAiDefaults() {
   const patch = {
-    system_prompt: document.getElementById('settings-system-prompt').value,
     context_limit: parseInt(document.getElementById('settings-context-limit').value) || 40,
   };
   await _patchSettings(patch);
   toast('saved', 'success');
+}
+
+function _renderChatBehavior(value) {
+  const selected = value === 'answer_only' ? 'answer_only' : 'automatic_tools';
+  document.querySelectorAll('[data-chat-behavior]').forEach(button => {
+    const active = button.dataset.chatBehavior === selected;
+    button.classList.toggle('active', active);
+    button.setAttribute('aria-checked', String(active));
+  });
+}
+
+async function saveDefaultChatBehavior(value) {
+  const previous = document.querySelector('[data-chat-behavior][aria-checked="true"]')?.dataset.chatBehavior || 'automatic_tools';
+  _renderChatBehavior(value);
+  try {
+    const response = await fetch('/api/settings', {
+      method: 'PATCH', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ default_chat_behavior: value }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.detail || 'chat behavior could not be saved');
+    _renderChatBehavior(data.default_chat_behavior || value);
+    toast('default chat behavior saved', 'success');
+  } catch (error) {
+    _renderChatBehavior(previous);
+    toast(error.message || 'chat behavior could not be saved', 'error');
+  }
+}
+
+async function loadOwnerInstructions() {
+  const textarea = document.getElementById('settings-owner-instructions');
+  if (!textarea) return;
+  try {
+    const settings = await _endpointJson(await fetch('/api/settings'));
+    if (textarea.dataset.dirty !== '1') textarea.value = settings.owner_instructions || '';
+  } catch {
+    if (textarea.dataset.dirty !== '1') textarea.value = '';
+  }
+}
+
+async function saveOwnerInstructions() {
+  const button = document.getElementById('s-owner-instructions-save');
+  const textarea = document.getElementById('settings-owner-instructions');
+  if (!button || !textarea) return;
+  button.disabled = true;
+  button.textContent = 'saving…';
+  try {
+    await _endpointJson(await fetch('/api/settings', {
+      method: 'PATCH', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ owner_instructions: textarea.value }),
+    }));
+    textarea.dataset.dirty = '0';
+    toast('owner instructions saved', 'success');
+  } catch (error) {
+    toast(error.message || 'owner instructions could not be saved', 'error');
+  } finally {
+    button.disabled = false;
+    button.textContent = 'save instructions';
+  }
 }
 
 // ── search pane ───────────────────────────────────────────────────────────────
@@ -1607,10 +1751,6 @@ function loadAppearancePane() {
   _bindSwitchOnce(document.getElementById('s-welcome-toggle'), welcomeEnabled, setWelcomeEnabled);
   // server-backed general settings
   fetch('/api/settings').then(r => r.json()).then(s => {
-    _bindSwitchOnce(document.getElementById('s-memory-inject-toggle'),
-      () => s.memory_auto_inject !== false,
-      on => _patchSettings({ memory_auto_inject: on })
-    );
     _bindLocalizationFields(s);
   }).catch(() => {});
   _bindSwitchOnce(document.getElementById('s-ui-compact-toggle'),
@@ -2366,7 +2506,7 @@ export async function loadConnections() {
         <span class="row-name">${_esc(c.service)}</span>
         <span class="row-meta">${_esc(c.token_masked || '')}</span>
         <button class="act-btn" data-svc="${_esc(c.service)}" onclick="window._testConn(this)">test</button>
-        <button class="act-btn" data-id="${c.id}" onclick="window._rmConn(this)">remove</button>
+        <button class="act-btn" data-id="${c.id}" onclick="window._rmConn(this)">disconnect</button>
       </div>`).join('');
   } catch { el.innerHTML = '<div class="settings-row-empty">failed to load</div>'; }
 }
@@ -2483,6 +2623,7 @@ async function _fetchWithRecentOwner(input, init) {
   if (r.status === 403 && await _confirmRecentOwner()) r = await fetch(input, init);
   return r;
 }
+window._fetchWithRecentOwner = _fetchWithRecentOwner;
 
 async function generateToken() {
   const name = document.getElementById('token-name').value.trim();

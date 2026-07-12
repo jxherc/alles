@@ -4,7 +4,13 @@ import { renderProjectFolders, loadProjects, getProjects, createProject, assignS
 import { applyResponsePrivacy, stripEmojis, welcomeEnabled } from './privacy.js';
 import { renderAgentSteps } from './agentview.js';
 import { isIncognitoMode } from './modes.js';
-import { getCurrentEndpoint, getSelected } from './models.js?v=209';
+import {
+  getCurrentEndpoint,
+  getSelected,
+  modelOverrideForNewSession,
+  restoreSessionModel,
+  selectAideDefault,
+} from './models.js?v=210';
 
 let _sessions = { today: [], yesterday: [], earlier: [] };
 let _activeId = null;
@@ -78,6 +84,7 @@ export function newChat(options = {}) {
   window._currentSession = null;
   window._pendingPersona = null;       // fresh chat starts with no persona pre-picked
   window._refreshPersonaBtn?.();        // keep the persona button visible + pickable pre-send
+  selectAideDefault();                  // new chats follow the effective Aide Chat role
   if (location.hash) history.replaceState(null, '', location.pathname + location.search);
   document.getElementById('messages').innerHTML = '';
   document.querySelectorAll('.session-item').forEach(el => el.classList.remove('active'));
@@ -261,12 +268,7 @@ export async function selectSession(id) {
     renderMessages(data.messages);
     showMessages();
 
-    // update topbar model label if session has a model
-    if (data.session.model) {
-      import('./models.js').then(m => {
-        document.getElementById('model-label').textContent = m.prettyModel(data.session.model);
-      });
-    }
+    restoreSessionModel(data.session);
     updateSessionHeader(data.session);
     window._setMode?.(data.session.mode || 'chat');   // restore this convo's last mode
     // refresh persona button
@@ -673,10 +675,16 @@ export async function exportActiveSessionMarkdown() { downloadSession('md'); }
 
 
 export async function createSession(model = '', endpointId = '', options = {}) {
+  const override = modelOverrideForNewSession(model, endpointId);
   const r = await fetch('/api/sessions', {
     method: 'POST',
     headers: {'content-type':'application/json'},
-    body: JSON.stringify({ model, endpoint_id: endpointId, incognito: !!options.incognito, mode: options.mode || 'chat' }),
+    body: JSON.stringify({
+      model: override.model,
+      endpoint_id: override.endpointId,
+      incognito: !!options.incognito,
+      mode: options.mode || 'chat',
+    }),
   });
   if (!r.ok) return null;
   const s = await r.json();
