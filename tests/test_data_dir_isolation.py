@@ -1,3 +1,4 @@
+import json
 import os
 import sqlite3
 import tempfile
@@ -18,6 +19,7 @@ import services.local_models as local_models
 import services.photo_sync as photo_sync
 import services.secretstore as secretstore
 import services.skills_store as skills_store
+import services.webdav_backup as webdav_backup
 import services.webpush as webpush
 from core.database import Session, Upload
 from routes import personas
@@ -40,6 +42,7 @@ class DataDirIsolationTest(unittest.TestCase):
             "gallery": gallery.GALLERY_DIR,
             "compare": compare._COMPARE_DIR,
             "caldav_cfg": caldav_sync.CFG_PATH,
+            "webdav_cfg": webdav_backup.CONFIG_PATH,
             "persona_seed": personas._SEED_SENTINEL,
             "skills": skills_store.SKILLS_DIR,
             "secret_key": secretstore._KEY_FILE,
@@ -61,6 +64,7 @@ class DataDirIsolationTest(unittest.TestCase):
         gallery.GALLERY_DIR = None
         compare._COMPARE_DIR = None
         caldav_sync.CFG_PATH = None
+        webdav_backup.CONFIG_PATH = None
         personas._SEED_SENTINEL = None
         skills_store.SKILLS_DIR = None
         secretstore._KEY_FILE = None
@@ -83,6 +87,7 @@ class DataDirIsolationTest(unittest.TestCase):
         gallery.GALLERY_DIR = self.orig["gallery"]
         compare._COMPARE_DIR = self.orig["compare"]
         caldav_sync.CFG_PATH = self.orig["caldav_cfg"]
+        webdav_backup.CONFIG_PATH = self.orig["webdav_cfg"]
         personas._SEED_SENTINEL = self.orig["persona_seed"]
         skills_store.SKILLS_DIR = self.orig["skills"]
         secretstore._KEY_FILE = self.orig["secret_key"]
@@ -110,6 +115,7 @@ class DataDirIsolationTest(unittest.TestCase):
         self.assertEqual(gallery.gallery_dir(), self.root / "gallery")
         self.assertEqual(compare.compare_dir(), self.root / "compare")
         self.assertEqual(caldav_sync._cfg_path(), self.root / "caldav.json")
+        self.assertEqual(webdav_backup._config_path(), self.root / "webdav_backup.json")
         self.assertEqual(personas.seed_sentinel(), self.root / ".personas_seeded")
         self.assertEqual(skills_store.skills_dir(), self.root / "skills")
         self.assertEqual(secretstore._key_file(), self.root / "secret.key")
@@ -127,12 +133,22 @@ class DataDirIsolationTest(unittest.TestCase):
         self.assertTrue((self.root / "secret.key").exists())
         self.assertTrue((self.root / "vapid.pem").exists())
 
-    def test_caldav_and_skills_write_under_alles_data(self):
+    def test_dav_configs_and_skills_write_under_alles_data(self):
         caldav_sync.save_cfg({"url": "https://cal.example", "username": "me", "password": "pw"})
+        webdav_backup.save_config(
+            {"url": "https://dav.example/backups", "username": "me", "password": "backup-pw"}
+        )
         skills_store.upsert_skill("Temp Skill", "desc", "", "steps")
         self.assertTrue((self.root / "caldav.json").exists())
-        self.assertNotIn("pw", (self.root / "caldav.json").read_text("utf-8"))
+        caldav_password = json.loads((self.root / "caldav.json").read_text("utf-8"))["password"]
+        self.assertTrue(caldav_password.startswith("enc2:"))
         self.assertEqual(caldav_sync.load_cfg()["password"], "pw")
+        self.assertTrue((self.root / "webdav_backup.json").exists())
+        webdav_password = json.loads((self.root / "webdav_backup.json").read_text("utf-8"))[
+            "password"
+        ]
+        self.assertTrue(webdav_password.startswith("enc2:"))
+        self.assertEqual(webdav_backup.load_config()["password"], "backup-pw")
         self.assertTrue((self.root / "skills" / "temp-skill" / "SKILL.md").exists())
 
 

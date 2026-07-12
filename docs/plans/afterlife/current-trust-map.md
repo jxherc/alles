@@ -1,7 +1,7 @@
-# Afterlife Phase 0 — current trust and compatibility baseline
+# Afterlife — current trust and compatibility map
 
 - **Status:** code-audited and regression-locked
-- **Scope:** shipped Alles before the Afterlife redesign
+- **Scope:** behavior shipped on the current Afterlife branch
 - **Privacy rule:** built from source and synthetic tests only; no private database, vault, mail, or file
   content was opened.
 
@@ -20,11 +20,12 @@
 | External roots | Vault, Files, Photos, watch folders, Projects, agent workspaces, caches, and PhotoKit may point outside `ALLES_DATA`; recovery records but does not silently copy them. |
 | Models/search | Prompts or queries cross to the selected model and search providers. SearXNG is currently a configured URL, not an Alles-managed service. Fetched pages and results are untrusted input. |
 | Mail/calendar/contacts | IMAP/SMTP, CalDAV, CardDAV, and ICS feeds are separate remote systems. SQLite is local cache/state, not always the remote authority. |
+| WebDAV backup | An owner-configured HTTPS collection is a separate external store. Alles sends only encrypted `.alles-backup` artifacts; it never sends the recovery-key file separately or in plaintext. Remote names and metadata are untrusted until validated. |
 | MCP | Outbound stdio/SSE peers can return untrusted content; stdio inherits the server environment. Inbound `/api/mcp/rpc` currently reaches capability execution without the full chat-agent approval path. |
 | Deliveries | Discord/Telegram are outbound only. Webhooks are signed, one-attempt deliveries. Web Push crosses external browser push providers. There is no inbound Jarvis Discord bot yet. |
 | macOS | PhotoKit uses a separately signed helper with Photos permission. Calendar/Reminders import uses `icalBuddy`; Keychain is an unwired seam. |
 | Background work | One sequential, process-local scheduler checks about every 30 seconds. Timing resets on restart; durable outcome claims exist where Phase 0 added them. |
-| Recovery/update | Web routes export or stage only. The owner CLI holds locks, journals swaps, checks health, and owns rollback. Normal start fails closed while restore/update maintenance is unfinished. |
+| Recovery/update | Web routes may create, download, or upload encrypted artifacts and stage restores, but never live-swap data. The owner CLI holds locks, journals swaps, checks health, and owns rollback. Normal start fails closed while restore/update maintenance is unfinished. |
 
 ```mermaid
 flowchart LR
@@ -35,6 +36,7 @@ flowchart LR
     server --> stores["ALLES_DATA + Vault / Files / Photos roots"]
     server --> host["Agent tools / MCP stdio / native helpers"]
     server --> providers["Models / search / mail / calendars / contacts"]
+    server --> webdav["WebDAV encrypted backup store"]
     server --> delivery["Discord / Telegram / webhooks / Web Push"]
     cli["Owner CLI"] -->|"offline lock / stage / swap / rollback"| sqlite
     cli --> stores
@@ -43,9 +45,9 @@ flowchart LR
 ## Route snapshot
 
 - 69 mounted route modules
-- 674 HTTP method/path pairs
-- 657 `/api/*`, 2 `/v1/*`, and 15 non-API shell/public pairs
-- SHA-256: `a3f55ae45879540e0b3b996c28fcc0d41691261be7d258b63a4e5c6b84760979`
+- 680 HTTP method/path pairs
+- 663 `/api/*`, 2 `/v1/*`, and 15 non-API shell/public pairs
+- SHA-256: `dcd27050f28a45587c5154ddee4cea79a537b2f1c308ec49e2b851833ed664bc`
 - No WebSocket route; long responses use SSE/streaming HTTP
 
 Public routes are limited to the app shell/PWA, `/health`, optional `/status`, token shares and their
@@ -72,8 +74,7 @@ ownership and parser markers are regression-tested.
 
 ## Known gaps kept visible
 
-- Trusted-host/proxy policy, scoped bearer tokens, encrypted credentials for every connector, and public
-  access profiles are later security work.
+- S3 backup, scheduled backup runs, and general WebDAV/S3 Files browsing remain future work.
 - Shell commands remain a separate, higher-risk boundary; approved file roots govern agent file tools,
   not arbitrary paths typed inside shell commands.
 - Managed SearXNG, durable cron/heartbeats, and inbound Discord/Jarvis are future work.

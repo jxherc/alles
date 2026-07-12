@@ -199,7 +199,8 @@ Phase 1 is split into small gates. A later gate must not weaken an earlier one.
 
 - [x] Re-validate the encrypted local destination against the disaster-recovery gate.
   - One canonical inventory covers all 12 encrypted database fields, 11 encrypted Settings fields,
-    and both DAV password files. New backups reject plaintext credentials, corrupt or missing keys,
+    and the CalDAV, CardDAV, and WebDAV backup password fields. New backups reject plaintext
+    credentials, corrupt or missing keys,
     unavailable key IDs, wrong field binding, changed ciphertext, and linked dependency files.
   - SQLite is snapshotted before DB-backed files are collected. The keyring, Settings, DAV configs,
     push key, recovery key, and Passwords attachment blobs are copied into immutable temporary files;
@@ -216,7 +217,20 @@ Phase 1 is split into small gates. A later gate must not weaken an earlier one.
     using only the clean release, backup repository, and separately saved recovery key.
   - Fresh evidence: 152 focused backup, API, cryptography, credential migration/rotation, staged restore,
     source-destruction, update rollback, race, symlink, corruption, and dependency checks pass.
-- [ ] Add encrypted WebDAV credentials and pass the same recovery gate.
+- [x] Add encrypted WebDAV credentials and pass the same recovery gate.
+  - The password is sealed and masked. Startup migrates plaintext config before any backup can run;
+    key rotation and recovery snapshots include the WebDAV field with its exact purpose.
+  - Only HTTPS collections are accepted. Each request passes the network guard, redirects and ambient
+    proxies are disabled, responses are bounded, and remote error bodies are never returned.
+  - Manual upload uses a unique temporary `PUT`, a no-overwrite `MOVE`, and an exact streamed `GET`
+    read-back. Lost MOVE responses are reconciled by the same size and SHA-256 check.
+  - Generated backups can be listed, downloaded, verified, and staged through the existing offline
+    restore path. Disconnecting removes local credentials without deleting remote artifacts.
+  - The disaster-recovery gate deletes the source install, reconnects with separately held WebDAV
+    access, and restores every test credential using the separately saved recovery key.
+  - Fresh evidence: 152 expanded Python backup, API, migration, rotation, update, and recovery checks
+    pass, together with all 104 JavaScript checks. A live isolated browser pass covers the real status
+    API, desktop, 390×844 mobile, keyboard file selection, reduced motion, and zero console/page errors.
 - [ ] Add encrypted S3-compatible credentials and pass the same recovery gate.
 - [ ] Spike Kopia only after the existing portable restore path remains proven.
 
@@ -226,7 +240,7 @@ The current completed groups cover startup access policy, scoped owner/API acces
 errors, rate limits, encrypted connector credentials, private observability, owned-service controls,
 live model catalogs and roles, trusted memory, real incognito isolation, provider-auth decisions,
 safe Markdown writes, recoverable Vault trash, approved-root file confinement, public-share safety,
-and the revalidated encrypted local backup destination.
+the revalidated encrypted local backup destination, and the manual encrypted WebDAV backup target.
 They do not install or configure a reverse proxy or companion service for the owner, and they do not
 expose unsupported provider account login.
 

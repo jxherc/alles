@@ -394,12 +394,17 @@ def _excluded_location(role: str, policy: str) -> dict:
     }
 
 
-def _other_location_policies(settings: dict) -> list[dict]:
+def _other_location_policies(settings: dict, *, webdav_config: dict | None = None) -> list[dict]:
     photos_watch = settings.get("photos_watch_folder")
     watch_configured = isinstance(photos_watch, str) and bool(photos_watch.strip())
     agent_roots = settings.get("agent_allowed_roots")
     agent_roots_configured = isinstance(agent_roots, list) and any(
         isinstance(item, str) and item.strip() for item in agent_roots
+    )
+    webdav_config = webdav_config or {}
+    webdav_configured = all(
+        isinstance(webdav_config.get(key), str) and bool(webdav_config[key].strip())
+        for key in ("url", "username", "password")
     )
     return [
         _excluded_location(
@@ -413,7 +418,7 @@ def _other_location_policies(settings: dict) -> list[dict]:
         _excluded_location("project_workspaces", "database-metadata-only"),
         _excluded_location("photokit_library", "source-only-imported-copies-follow-photos"),
         _excluded_location("remote_services", "local-config-and-cache-only"),
-        _excluded_location("webdav", "not-implemented"),
+        _excluded_location("webdav", "configured" if webdav_configured else "not-configured"),
         _excluded_location("s3", "not-implemented"),
         _excluded_location("model_cache", "rebuildable-excluded"),
         _excluded_location("codex_home", "separate-tool-state-excluded"),
@@ -426,8 +431,14 @@ def _location_plan(
     *,
     include_photos: bool,
     settings: dict | None = None,
+    webdav_config: dict | None = None,
 ) -> tuple[list[dict], Path | None]:
     settings = _read_settings(root) if settings is None else settings
+    if webdav_config is None:
+        webdav_config = _credential_config(
+            root / "webdav_backup.json",
+            require_sealed=False,
+        )
     vault = _configured_path(root, settings, "vault_dir", "vault")
     files = _configured_path(root, settings, "files_dir", "files")
     photos = _configured_path(root, settings, "photos_dir", "photos")
@@ -473,7 +484,7 @@ def _location_plan(
             "policy": photo_policy,
         }
     )
-    locations.extend(_other_location_policies(settings))
+    locations.extend(_other_location_policies(settings, webdav_config=webdav_config))
     excluded_photos = photos if photo_relative is not None and not photo_included else None
     return locations, excluded_photos
 
@@ -609,8 +620,7 @@ def _hash_path(path: Path) -> tuple[int, str]:
 
 _FROZEN_ROOT_DEPENDENCIES = (
     "settings.json",
-    "caldav.json",
-    "carddav.json",
+    *(name for name, _key, _purpose in CONFIG_CREDENTIAL_FIELDS),
     "secret.key",
     "recovery.key",
     "vapid.pem",
@@ -752,6 +762,10 @@ def create_recovery_archive(
                     root,
                     include_photos=include_photos,
                     settings=_read_settings(frozen_root),
+                    webdav_config=_credential_config(
+                        frozen_root / "webdav_backup.json",
+                        require_sealed=True,
+                    ),
                 )
                 sources, directories, warnings = _collect_data_tree(
                     root, excluded_root=excluded_photos, limits=limits
@@ -1349,7 +1363,15 @@ def _legacy_locations(paths: set[str], data_dir: Path) -> list[dict]:
                 "policy": "legacy" if included else "not-present",
             }
         )
-    locations.extend(_other_location_policies(_read_settings(data_dir)))
+    locations.extend(
+        _other_location_policies(
+            _read_settings(data_dir),
+            webdav_config=_credential_config(
+                data_dir / "webdav_backup.json",
+                require_sealed=False,
+            ),
+        )
+    )
     return locations
 
 

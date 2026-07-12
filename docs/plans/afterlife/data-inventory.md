@@ -26,7 +26,7 @@ quietly omitting that database.
 | `project_workspaces` | `projects.working_dir` | Path metadata is in SQLite; workspace contents are excluded. |
 | `photokit_library` | macOS Photos | System library excluded. Imported copies follow the Photos rule. |
 | `remote_services` | Mail, CalDAV, CardDAV, MCP, models, search, notifications, webhooks | Local config/cache is included; the remote service's own copy is not. |
-| `webdav` | future Files/backup root | Not implemented, so it cannot be labelled backed up. |
+| `webdav` | external backup collection | Backup-only destination. Its remote contents are not copied into an archive; the manifest records `configured` or `not-configured`. |
 | `s3` | future Files/backup root | Not implemented, so it cannot be labelled backed up. |
 | `model_cache` | `ALLES_CLIP_DIR`, `ALLES_FACES_DIR`, repository model cache | Rebuildable and excluded. |
 | `codex_home` | `CODEX_HOME` | Separate tool state; excluded. |
@@ -37,7 +37,7 @@ quietly omitting that database.
 | Data class | Current location | Policy |
 | --- | --- | --- |
 | Primary records | `aide.db` | Required consistent SQLite snapshot; integrity, foreign keys, application ID, and migrations checked. |
-| Settings and connector config | `settings.json`, `caldav.json`, `carddav.json` and SQLite rows | Included when present. New backups require every known credential to be sealed and authenticated with its exact field purpose; historical plaintext archives remain migration-compatible. |
+| Settings and connector config | `settings.json`, `caldav.json`, `carddav.json`, `webdav_backup.json`, and SQLite rows | Included when present. New backups require every known credential to be sealed and authenticated with its exact field purpose. The WebDAV password uses `backup.webdav.password`; historical plaintext archives remain migration-compatible. |
 | Application keys | `secret.key`, `recovery.key`, `vapid.pem` | Frozen into the same temporary snapshot when present. Required keys are authenticated or cross-checked against the exact database and files placed in the archive. |
 | Passwords | `vaults`, `vault_entries`, WebAuthn rows, and `vault_attachments/*.enc` | Ciphertext included; every attachment row must have its blob. The master password is never stored. |
 | Markdown documents | configured Vault root | Uses the Vault root policy above. Assets, templates, journal, and note files follow the same root. |
@@ -61,7 +61,8 @@ quietly omitting that database.
 - external Vault, Files, Photos, watch, agent, and Project folders: never copied without a future explicit
   selection flow.
 - full remote mailboxes, calendars, contact books, object stores, model providers, MCP servers, Discord,
-  Telegram, and webhook targets: Alles backs up its local state, not the remote system's authoritative copy.
+  Telegram, webhook targets, and the WebDAV backup collection: Alles backs up its local state, not the
+  remote system's authoritative copy. The collection receives only an encrypted backup artifact.
 
 ## SQLite data classes
 
@@ -93,3 +94,7 @@ webauthn_credentials, webhooks
 - The manifest records every root role above and the complete data-class policy list.
 - A synthetic external `ALLES_DB` override is refused.
 - Older format-v1 manifests without the new policy inventory still stage successfully.
+- The WebDAV config is frozen with the other credential dependencies, so a mid-backup edit cannot mix
+  two credential states.
+- A synthetic WebDAV recovery test deletes the source install, reconnects with separately held WebDAV
+  access, downloads the remote encrypted artifact, and restores with the separately saved recovery key.

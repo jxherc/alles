@@ -31,7 +31,7 @@ Jarvis lives inside Aide. It remains the name of the durable background runtime 
 ## Current state
 
 Phase 0 — recovery and safety — is delivered with fresh recovery, migration, compatibility, browser,
-and full-suite evidence. Phase 1 — platform and security foundation — is next. The broader product
+and full-suite evidence. Phase 1 — platform and security foundation — is in progress. The broader product
 design remains open to changes as later gates are implemented.
 
 ## Stage rules

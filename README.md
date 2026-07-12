@@ -76,7 +76,7 @@ each one is a real, finished app — they live on their own subdomain so it feel
 | **secrets** | an encrypted vault with typed entries (logins, cards, api keys, notes…) |
 | **automations** | *when this happens, do that* — set a rule once and alles runs it |
 
-plus the smaller stuff: global search (cmd/ctrl+k), scheduled messages, prompt cookbook, webhooks, api tokens, an openai-compatible api, encrypted backup with an offline staged restore and rollback, light/dark themes with a custom accent, and it installs like a pwa with real push notifications.
+plus the smaller stuff: global search (cmd/ctrl+k), scheduled messages, prompt cookbook, webhooks, api tokens, an openai-compatible api, encrypted local and manual WebDAV backup with an offline staged restore and rollback, light/dark themes with a custom accent, and it installs like a pwa with real push notifications.
 
 **→ full details on every app, the internals, the api, and the architecture are in [specifications.md](./specifications.md).**
 
@@ -114,6 +114,18 @@ pip install -r requirements.txt
 **want it fully offline and free?** install [ollama](https://ollama.com), `ollama pull` a model, add an endpoint pointing at `http://localhost:11434` — no key or internet needed for the ai.
 
 > **before you put it on a network:** alles ships with auth off. set `auth_enabled=true`, a strong `auth_password`, and a real `secret_key` first. details in the [security section](./specifications.md#security--read-before-exposing-it).
+
+---
+
+## backups
+
+open **settings → backup** to download an encrypted `.alles-backup`, or send the same encrypted file to an existing https WebDAV folder. WebDAV backup is manual right now; it is not Files sync or a scheduled backup service.
+
+before the first remote backup, download the recovery key. keep that key and your WebDAV login somewhere outside Alles. the recovery-key file is never uploaded separately or in plaintext.
+
+a restore verifies and stages the data without changing the live install. stop Alles, then run the `alles restore apply ...` command shown in the UI. disconnecting WebDAV removes the saved login from Alles; it does not delete remote backups.
+
+the WebDAV folder must support `PROPFIND`, `PUT`, `MOVE`, `GET`, and `DELETE`.
 
 ---
 

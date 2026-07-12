@@ -1439,9 +1439,11 @@ def init_db():
     migrate_setting_secrets()
     from services.caldav_sync import migrate_cfg_secrets as migrate_caldav_secrets
     from services.carddav_sync import migrate_cfg_secrets as migrate_carddav_secrets
+    from services.webdav_backup import migrate_config as migrate_webdav_secrets
 
     migrate_caldav_secrets()
     migrate_carddav_secrets()
+    migrate_webdav_secrets()
 
 
 _SECRET_COLUMNS = DATABASE_CREDENTIAL_FIELDS

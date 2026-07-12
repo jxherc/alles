@@ -9,6 +9,7 @@ from sqlalchemy import text
 import core.settings as settings
 from core.database import Connection, McpServer
 from services import caldav_sync, carddav_sync, secretstore
+from services.config_secrets import load_secret_config, save_secret_config
 from tests._client import ApiTest
 
 
@@ -83,6 +84,16 @@ class ConnectionsApiTest(ApiTest):
             carddav_sync.save_cfg(
                 {"url": "https://dav", "username": "me", "password": "card-private"}
             )
+            webdav_path = root / "webdav_backup.json"
+            save_secret_config(
+                webdav_path,
+                {
+                    "url": "https://dav.example.test/backups",
+                    "username": "me",
+                    "password": "webdav-private",
+                },
+                "backup.webdav.password",
+            )
             old_id = secretstore.active_key_id()
 
             response = self.client.post("/api/connections/rotate-key")
@@ -94,11 +105,17 @@ class ConnectionsApiTest(ApiTest):
             self.assertEqual(settings.load_settings()["openai_api_key"], "settings-private")
             self.assertEqual(caldav_sync.load_cfg()["password"], "cal-private")
             self.assertEqual(carddav_sync.load_cfg()["password"], "card-private")
+            self.assertEqual(
+                load_secret_config(webdav_path, "backup.webdav.password")["password"],
+                "webdav-private",
+            )
             with self.eng.connect() as connection:
                 stored = connection.execute(text("SELECT token,meta FROM connections")).one()
                 mcp = connection.execute(text("SELECT args,url,env,headers FROM mcp_servers")).one()
             prefix = f"enc2:{body['active_key']}:"
             self.assertTrue(all(value.startswith(prefix) for value in (*stored, *mcp)))
+            webdav_raw = json.loads(webdav_path.read_text("utf-8"))["password"]
+            self.assertTrue(webdav_raw.startswith(prefix))
 
     def test_rotation_waits_for_an_inflight_credential_commit(self):
         from services.secret_rotation import rotate_all_credentials

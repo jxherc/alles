@@ -1792,6 +1792,54 @@
               <p id="backup-restore-status" hidden aria-live="polite" style="font-size:0.75rem;color:var(--muted);margin-top:0.75rem;overflow-wrap:anywhere"></p>
             </div>
           </div>
+          <div class="s-card" id="webdav-backup-card">
+            <div class="s-card-head">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 18H6a4 4 0 1 1 .7-7.9A5.5 5.5 0 0 1 17.4 8a4.5 4.5 0 0 1 .6 9H8"/><path d="M12 12v8m-3-3 3 3 3-3"/></svg>
+              webdav backup
+            </div>
+            <div class="s-card-body">
+              <p style="font-size:0.75rem;color:var(--muted);margin-bottom:0.75rem">send the same encrypted backup to your WebDAV server. Alles never shows the saved password. for disaster recovery, keep your WebDAV login and recovery key somewhere outside Alles.</p>
+              <div class="s-field">
+                <label for="webdav-backup-url">https url</label>
+                <input type="url" class="settings-input" id="webdav-backup-url" placeholder="https://cloud.example.com/remote.php/dav/files/you/alles" autocomplete="url" inputmode="url" spellcheck="false" style="width:100%">
+              </div>
+              <div class="s-field">
+                <label for="webdav-backup-username">username</label>
+                <input type="text" class="settings-input" id="webdav-backup-username" autocomplete="username" spellcheck="false" style="width:100%">
+              </div>
+              <div class="s-field">
+                <label for="webdav-backup-password">password</label>
+                <input type="password" class="settings-input" id="webdav-backup-password" placeholder="blank keeps the saved password" autocomplete="new-password" aria-describedby="webdav-backup-password-help" style="width:100%">
+                <span id="webdav-backup-password-help" style="font-size:0.68rem;color:var(--muted)">use an app password when your WebDAV service supports one.</span>
+              </div>
+              <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
+                <button class="btn primary" id="webdav-backup-save-btn" type="button" style="flex:1;min-width:150px">connect and save</button>
+                <button class="btn danger" id="webdav-backup-disconnect-btn" type="button" hidden>disconnect</button>
+              </div>
+              <p id="webdav-backup-status" role="status" aria-live="polite" style="font-size:0.75rem;color:var(--muted);margin-top:0.7rem">checking connection…</p>
+              <p style="font-size:0.7rem;color:var(--muted);margin-top:0.25rem">last successful backup: <span id="webdav-backup-last-success">never</span></p>
+              <p style="font-size:0.7rem;color:var(--muted);margin-top:0.15rem">last verified: <span id="webdav-backup-last-verified">never</span></p>
+
+              <div style="border-top:1px solid var(--faint);margin:0.85rem 0;padding-top:0.85rem">
+                <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
+                  <button class="btn primary" id="webdav-backup-run-btn" type="button" disabled style="flex:1;min-width:140px">back up now</button>
+                  <button class="btn" id="webdav-backup-refresh-btn" type="button" disabled style="flex:1;min-width:140px">refresh backups</button>
+                </div>
+                <div class="s-field" style="margin-top:0.75rem">
+                  <label for="webdav-backup-list">remote backup</label>
+                  <select class="settings-input" id="webdav-backup-list" disabled style="width:100%">
+                    <option value="">no remote backups found</option>
+                  </select>
+                </div>
+                <p id="webdav-backup-selection" style="font-size:0.7rem;color:var(--muted);margin-top:-0.3rem" aria-live="polite">choose a backup to stage a restore.</p>
+                <button class="btn" id="webdav-backup-recovery-key-btn" type="button" style="width:100%;margin-top:0.65rem">choose separate recovery key (optional)</button>
+                <input type="file" id="webdav-backup-recovery-key" accept=".txt,.key" style="display:none">
+                <p id="webdav-backup-recovery-key-name" style="font-size:0.7rem;color:var(--muted);margin-top:0.4rem">no separate key selected</p>
+                <button class="btn" id="webdav-backup-restore-btn" type="button" disabled style="width:100%;margin-top:0.55rem">verify and stage selected restore</button>
+                <p id="webdav-backup-restore-status" hidden role="status" aria-live="polite" style="font-size:0.75rem;color:var(--muted);margin-top:0.75rem;overflow-wrap:anywhere"></p>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div class="s-pane" id="s-pane-recall">
