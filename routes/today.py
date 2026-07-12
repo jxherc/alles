@@ -10,16 +10,62 @@ server's date for user-facing day math - the server may run in UTC.
 from datetime import date
 
 from fastapi import APIRouter, Depends, Query
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session as DbSession
 
 from core.build_info import afterlife_feature_flags
 from core.database import Subscription, Task, get_db
+from core.settings import load_settings, save_settings
 from services import signals
 from services.signals import (
     _event_occurs_on,  # noqa: F401  re-export for routes.today._event_occurs_on
 )
 
 router = APIRouter(prefix="/api")
+
+_SECTION_KEYS = ("needs_you", "today", "in_progress", "briefs", "shortcuts")
+_DEFAULT_SHORTCUTS = ("calendar", "tasks", "wiki", "files")
+
+
+class TodayPreferences(BaseModel):
+    order: list[str] = Field(default_factory=lambda: list(_SECTION_KEYS), max_length=5)
+    visible: list[str] = Field(default_factory=lambda: list(_SECTION_KEYS), max_length=5)
+    density: str = "comfortable"
+    shortcuts: list[str] = Field(default_factory=lambda: list(_DEFAULT_SHORTCUTS), max_length=20)
+
+
+def _preferences(value=None) -> dict:
+    raw = value if isinstance(value, dict) else {}
+    order = list(dict.fromkeys(key for key in raw.get("order", []) if key in _SECTION_KEYS))
+    order.extend(key for key in _SECTION_KEYS if key not in order)
+    visible = list(
+        dict.fromkeys(key for key in raw.get("visible", _SECTION_KEYS) if key in _SECTION_KEYS)
+    )
+    if "needs_you" not in visible:
+        visible.insert(0, "needs_you")
+    shortcuts = list(
+        dict.fromkeys(
+            str(view)[:64] for view in raw.get("shortcuts", _DEFAULT_SHORTCUTS) if str(view).strip()
+        )
+    )[:20]
+    return {
+        "order": order,
+        "visible": visible,
+        "density": "compact" if raw.get("density") == "compact" else "comfortable",
+        "shortcuts": shortcuts,
+    }
+
+
+@router.get("/today/preferences")
+def today_preferences():
+    return _preferences(load_settings().get("today_layout"))
+
+
+@router.put("/today/preferences")
+def update_today_preferences(body: TodayPreferences):
+    value = _preferences(body.model_dump())
+    save_settings({"today_layout": value})
+    return value
 
 
 def _safe_date(s: str) -> date:
@@ -41,7 +87,11 @@ def today_view(date_q: str = Query("", alias="date"), db: DbSession = Depends(ge
         db.commit()
 
     g = signals.by_category(
-        signals.gather(db, today, categories={"task", "event", "reminder", "sub", "day_event"})
+        signals.gather(
+            db,
+            today,
+            categories={"task", "event", "reminder", "sub", "day_event", "habit"},
+        )
     )
 
     # events - timed sorted by time, all-day last
@@ -82,10 +132,16 @@ def today_view(date_q: str = Query("", alias="date"), db: DbSession = Depends(ge
     ]
     day_events.sort(key=lambda x: x["in_days"])
 
+    habits = [
+        {"id": d["id"], "name": d["name"]}
+        for d in (signal["data"] for signal in g.get("habit", []))
+    ]
+
     open_count = db.query(Task).filter(Task.done == False).count()  # noqa: E712
 
     # docs - most recently modified (stays local, not a "signal")
     recent_docs = []
+    partial_sources = []
     try:
         from services.vault_md import _all_md, vault_dir
 
@@ -95,7 +151,7 @@ def today_view(date_q: str = Query("", alias="date"), db: DbSession = Depends(ge
             {"path": str(p.relative_to(root)).replace("\\", "/"), "name": p.stem} for p in files
         ]
     except Exception:
-        pass
+        partial_sources.append("recent_docs")
 
     response = {
         "date": today.isoformat(),
@@ -104,7 +160,9 @@ def today_view(date_q: str = Query("", alias="date"), db: DbSession = Depends(ge
         "reminders": reminders,
         "renewing": renewing,
         "day_events": day_events,
+        "habits": habits,
         "recent_docs": recent_docs,
+        "partial_sources": partial_sources,
     }
     if afterlife_feature_flags()["afterlife_today"]:
         from services.today_sections import build

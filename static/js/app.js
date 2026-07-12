@@ -43,6 +43,7 @@ window._mdToHtml = mdToHtml;
 // can't be shared across *.localhost, so an unauthed app silently bounces through
 // the apex (which holds the session) to mint its own — even on a direct visit.
 let _pendingSso = null;
+let _afterlifeFlags = {};
 
 async function init() {
   const params = new URLSearchParams(location.search);
@@ -118,6 +119,7 @@ function _validSsoTarget(target) {
 
 async function _boot() {
   const afterlifeFlags = await loadAfterlifeFeatures();
+  _afterlifeFlags = afterlifeFlags;
   applyVis();
   try { configureLocalization(await fetch('/api/settings').then(r => r.json())); }
   catch { configureLocalization(); }
@@ -213,7 +215,7 @@ function applySubdomainScope() {
   // applyVis (user prefs) be the only thing that hides any of them.
 
   // landing
-  if (!sub) { if (!location.hash) showHomeView(); }
+  if (!sub) { if (!location.hash) (_afterlifeFlags.afterlife_today ? showTodayView() : showHomeView()); }
   else if (!(app.primary === 'chat' && location.hash)) navigateTo(app.primary);
   // (aide with a #sessionId is already restored by initSessions)
   document.body.classList.remove('preboot', 'login-mode');
@@ -333,7 +335,7 @@ init();
 
 // ── views ─────────────────────────────────────────────────────────────────────
 const _VIEW_IDS = [
-  'home-view', 'chat', 'tasks-view', 'calendar-view', 'gallery-view',
+  'today-view', 'home-view', 'chat', 'tasks-view', 'calendar-view', 'gallery-view',
   'models-view', 'brain-view', 'wiki-view', 'compare-view', 'vault-view', 'contacts-view',
   'reminders-view', 'files-view', 'mail-view', 'photos-view', 'subs-view', 'money-view', 'days-view', 'journal-view', 'cookbook-view', 'usage-view', 'skills-view', 'activity-view', 'system-view', 'watch-view', 'habits-view', 'read-view', 'books-view', 'health-view',
   'project-view',
@@ -409,12 +411,13 @@ const showUsageView      = () => showView('usage-view',     'usage',     async (
 const showFilesView      = () => showView('files-view',     'files',     () => { initFiles(); loadFiles(); });
 const showMailView       = () => showView('mail-view',      'mail',      loadMail);
 const showPhotosView     = () => showView('photos-view',    'photos',    () => { initPhotos(); loadPhotos(); });
-const showHomeView       = () => showView('home-view',      'home',      renderHome);
+const showHomeView       = () => { _setAfterlifeSpace(''); showView('home-view', 'home', renderHome); };
+const showTodayView      = () => { _setAfterlifeSpace('today'); showView('today-view', 'today', async () => { (await import('./today.js?v=218')).initToday({ navigate: navigateTo, apps: HOME_TILES }); }); };
 const showProactiveView  = () => showView('proactive-view', 'proactive', loadProactiveFeed);
 
 // central nav dispatch — used by both the sidebar nav-items and the home tiles
 function navigateTo(v) {
-  _setAfterlifeSpace(v === 'chat' || v === 'project' ? 'aide' : v === 'home' ? 'today' : '');
+  _setAfterlifeSpace(v === 'chat' || v === 'project' ? 'aide' : v === 'today' ? 'today' : '');
   // memory now lives inside settings, not as its own view
   if (v === 'memory') { openSettings('memory'); return; }
   // a view that lives on another subdomain → full-page jump (with SSO handoff).
@@ -424,7 +427,8 @@ function navigateTo(v) {
     if (dest !== currentSub()) { crossNav(dest); return; }
   }
   if (singleHost() && v !== 'settings') _shChrome(v);
-  if      (v === 'home')      showHomeView();
+  if      (v === 'today')     showTodayView();
+  else if (v === 'home')      showHomeView();
   else if (v === 'chat')      showChatView();
   else if (v === 'models')    showModelsView();
   else if (v === 'brain')     showBrainView();
@@ -549,6 +553,11 @@ function _setAfterlifeSpace(space) {
 function _renderAppDrawer() {
   const grid = document.getElementById('app-drawer-grid');
   if (!grid || grid.childElementCount) return;
+  const launcher = document.createElement('button');
+  launcher.type = 'button'; launcher.className = 'app-drawer-item app-drawer-launcher'; launcher.dataset.view = 'home';
+  launcher.innerHTML = '<span class="app-drawer-icon" aria-hidden="true">⌂</span><span><b>all apps</b><small>legacy launcher</small></span>';
+  launcher.addEventListener('click', () => { closeAppDrawer(); navigateTo('home'); });
+  grid.appendChild(launcher);
   for (const tile of HOME_TILES) {
     const button = document.createElement('button');
     button.type = 'button';

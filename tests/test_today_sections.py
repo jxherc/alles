@@ -2,6 +2,7 @@ from datetime import UTC, datetime, timedelta
 from unittest import mock
 
 from core.database import (
+    Habit,
     JarvisDeliveryAttempt,
     JarvisRun,
     JarvisRunPrompt,
@@ -39,6 +40,32 @@ class TodaySectionsTest(ApiTest):
         self.assertEqual(sections["briefs"], [])
         self.assertEqual(sections["shortcuts"], [])
         self.assertIn("events", sections["today"])
+        self.assertIn("partial_sources", sections["today"])
+
+    def test_preferences_persist_and_needs_you_cannot_be_hidden(self):
+        saved = self.client.put(
+            "/api/today/preferences",
+            json={
+                "order": ["briefs", "today"],
+                "visible": ["today"],
+                "density": "compact",
+                "shortcuts": ["tasks", "wiki", "tasks"],
+            },
+        )
+        self.assertEqual(saved.status_code, 200)
+        value = saved.json()
+        self.assertEqual(value["order"][:2], ["briefs", "today"])
+        self.assertIn("needs_you", value["visible"])
+        self.assertEqual(value["density"], "compact")
+        self.assertEqual(value["shortcuts"], ["tasks", "wiki"])
+        self.assertEqual(self.client.get("/api/today/preferences").json(), value)
+
+    def test_today_includes_unfinished_habits_without_a_model(self):
+        db = self.db()
+        db.add(Habit(name="stretch", cadence="daily", target=1, archived=False))
+        db.commit()
+        db.close()
+        self.assertEqual(self.client.get("/api/today").json()["habits"][0]["name"], "stretch")
 
     def test_local_records_fill_attention_progress_and_briefs_without_a_model(self):
         db = self.db()
