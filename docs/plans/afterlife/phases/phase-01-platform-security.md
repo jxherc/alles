@@ -199,7 +199,7 @@ Phase 1 is split into small gates. A later gate must not weaken an earlier one.
 
 - [x] Re-validate the encrypted local destination against the disaster-recovery gate.
   - One canonical inventory covers all 12 encrypted database fields, 11 encrypted Settings fields,
-    and the CalDAV, CardDAV, and WebDAV backup password fields. New backups reject plaintext
+    and the CalDAV, CardDAV, WebDAV backup, and S3-compatible credential fields. New backups reject plaintext
     credentials, corrupt or missing keys,
     unavailable key IDs, wrong field binding, changed ciphertext, and linked dependency files.
   - SQLite is snapshotted before DB-backed files are collected. The keyring, Settings, DAV configs,
@@ -231,7 +231,22 @@ Phase 1 is split into small gates. A later gate must not weaken an earlier one.
   - Fresh evidence: 152 expanded Python backup, API, migration, rotation, update, and recovery checks
     pass, together with all 104 JavaScript checks. A live isolated browser pass covers the real status
     API, desktop, 390×844 mobile, keyboard file selection, reduced motion, and zero console/page errors.
-- [ ] Add encrypted S3-compatible credentials and pass the same recovery gate.
+- [x] Add encrypted S3-compatible credentials and pass the same recovery gate.
+  - The access-key ID and secret key are sealed together with an exact field purpose, masked from API
+    output, included in startup migration/key rotation, and frozen with the recovery snapshot.
+  - The dependency-free client uses HTTPS, SigV4, blocked-address checks, no redirects or ambient
+    proxies, bounded XML/responses, and path-style or virtual-hosted addressing against an existing bucket.
+  - Manual upload conditionally writes a unique temporary object, conditionally copies it to a unique
+    final name, reads the full encrypted object back to verify its size and SHA-256, and removes the
+    temporary object. This first version uses single-request copy and caps artifacts at 5 GB.
+  - Generated backups can be listed, downloaded atomically to private local staging, verified, and
+    passed to the same offline restore flow. Disconnecting removes local credentials only.
+  - The independent gate verifies real SigV4 requests, deletes the source install, reconnects using a
+    separately held access-key pair, and restores every test credential with the separately saved
+    recovery key.
+  - Fresh evidence: all 3,874 Python tests pass with 4 skips, all 111 JavaScript tests pass, and the
+    isolated live browser gate passes at desktop and 390×844 mobile widths with keyboard file choice,
+    reduced motion, masked real API output, and zero console/server errors.
 - [ ] Spike Kopia only after the existing portable restore path remains proven.
 
 ## Current slice
@@ -240,7 +255,8 @@ The current completed groups cover startup access policy, scoped owner/API acces
 errors, rate limits, encrypted connector credentials, private observability, owned-service controls,
 live model catalogs and roles, trusted memory, real incognito isolation, provider-auth decisions,
 safe Markdown writes, recoverable Vault trash, approved-root file confinement, public-share safety,
-the revalidated encrypted local backup destination, and the manual encrypted WebDAV backup target.
+the revalidated encrypted local backup destination, and the manual encrypted WebDAV and S3-compatible
+backup targets.
 They do not install or configure a reverse proxy or companion service for the owner, and they do not
 expose unsupported provider account login.
 

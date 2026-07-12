@@ -78,7 +78,12 @@ class SecretBackupDependencyTest(unittest.TestCase):
                 }
                 (root / "settings.json").write_text(json.dumps(settings), "utf-8")
                 for name, key, purpose in CONFIG_CREDENTIAL_FIELDS:
-                    sealed = secretstore.seal(f"{name}-password", purpose)
+                    plaintext = (
+                        '{"access_key_id":"access-private","secret_access_key":"secret-private"}'
+                        if name == "s3_backup.json"
+                        else f"{name}-password"
+                    )
+                    sealed = secretstore.seal(plaintext, purpose)
                     (root / name).write_text(json.dumps({key: sealed}), "utf-8")
                 (root / "vapid.pem").write_text("synthetic-test-key", "utf-8")
                 database = self._database(root, database_values)
@@ -177,6 +182,30 @@ class SecretBackupDependencyTest(unittest.TestCase):
                             "url": "https://dav.example.test/backups",
                             "username": "owner",
                             "password": sealed,
+                        }
+                    ),
+                    "utf-8",
+                )
+                database = self._database(root)
+
+            with self.assertRaisesRegex(RecoveryError, "could not be decrypted"):
+                _validate_database_dependencies(root, database, require_sealed=True)
+
+    def test_s3_credentials_are_bound_to_their_exact_purpose(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            with _isolated_secret_store(root):
+                sealed = secretstore.seal(
+                    '{"secret_access_key":"private"}',
+                    "backup.webdav.password",
+                )
+                (root / "s3_backup.json").write_text(
+                    json.dumps(
+                        {
+                            "endpoint": "https://objects.example.test",
+                            "region": "test-1",
+                            "bucket": "alles-backups",
+                            "credentials": sealed,
                         }
                     ),
                     "utf-8",

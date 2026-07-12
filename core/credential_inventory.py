@@ -33,4 +33,5 @@ CONFIG_CREDENTIAL_FIELDS = (
     ("caldav.json", "password", "caldav.password"),
     ("carddav.json", "password", "carddav.password"),
     ("webdav_backup.json", "password", "backup.webdav.password"),
+    ("s3_backup.json", "credentials", "backup.s3.credentials"),
 )

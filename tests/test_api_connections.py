@@ -8,12 +8,70 @@ from sqlalchemy import text
 
 import core.settings as settings
 from core.database import Connection, McpServer
-from services import caldav_sync, carddav_sync, secretstore
+from services import caldav_sync, carddav_sync, s3_backup, secretstore
 from services.config_secrets import load_secret_config, save_secret_config
 from tests._client import ApiTest
 
 
 class ConnectionsApiTest(ApiTest):
+    def test_startup_migrates_plaintext_s3_credentials(self):
+        from core import database
+
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            config_path = root / "s3_backup.json"
+            credentials = json.dumps(
+                {
+                    "access_key_id": "access-private",
+                    "secret_access_key": "secret-private",
+                },
+                separators=(",", ":"),
+                sort_keys=True,
+            )
+            config_path.write_text(
+                json.dumps(
+                    {
+                        "endpoint": "https://objects.example.test",
+                        "region": "test-1",
+                        "bucket": "alles-backups",
+                        "credentials": credentials,
+                    }
+                ),
+                "utf-8",
+            )
+            original_secret_state = (
+                secretstore._key,
+                secretstore._key_path,
+                dict(secretstore._keys),
+                secretstore._active_id,
+            )
+            try:
+                with (
+                    mock.patch.object(secretstore, "_KEY_FILE", root / "secret.key"),
+                    mock.patch.object(s3_backup, "CONFIG_PATH", config_path),
+                    mock.patch("core.settings.migrate_setting_secrets", return_value=0),
+                    mock.patch("services.caldav_sync.migrate_cfg_secrets", return_value=0),
+                    mock.patch("services.carddav_sync.migrate_cfg_secrets", return_value=0),
+                    mock.patch("services.webdav_backup.migrate_config", return_value=0),
+                ):
+                    secretstore._key = None
+                    secretstore._key_path = None
+                    secretstore._keys = {}
+                    secretstore._active_id = ""
+                    database.init_db()
+                    stored = json.loads(config_path.read_text("utf-8"))
+                    self.assertTrue(stored["credentials"].startswith("enc2:"))
+                    self.assertNotIn("access-private", config_path.read_text("utf-8"))
+                    self.assertNotIn("secret-private", config_path.read_text("utf-8"))
+                    self.assertEqual(s3_backup.load_config()["credentials"], credentials)
+            finally:
+                (
+                    secretstore._key,
+                    secretstore._key_path,
+                    secretstore._keys,
+                    secretstore._active_id,
+                ) = original_secret_state
+
     def test_tokens_and_sensitive_metadata_are_encrypted_and_masked(self):
         response = self.client.post(
             "/api/connections",
@@ -94,6 +152,26 @@ class ConnectionsApiTest(ApiTest):
                 },
                 "backup.webdav.password",
             )
+            s3_path = root / "s3_backup.json"
+            s3_credentials = json.dumps(
+                {
+                    "access_key_id": "access-private",
+                    "secret_access_key": "secret-private",
+                },
+                separators=(",", ":"),
+                sort_keys=True,
+            )
+            save_secret_config(
+                s3_path,
+                {
+                    "endpoint": "https://objects.example.test",
+                    "region": "test-1",
+                    "bucket": "alles-backups",
+                    "credentials": s3_credentials,
+                },
+                "backup.s3.credentials",
+                field="credentials",
+            )
             old_id = secretstore.active_key_id()
 
             response = self.client.post("/api/connections/rotate-key")
@@ -109,6 +187,14 @@ class ConnectionsApiTest(ApiTest):
                 load_secret_config(webdav_path, "backup.webdav.password")["password"],
                 "webdav-private",
             )
+            self.assertEqual(
+                load_secret_config(
+                    s3_path,
+                    "backup.s3.credentials",
+                    field="credentials",
+                )["credentials"],
+                s3_credentials,
+            )
             with self.eng.connect() as connection:
                 stored = connection.execute(text("SELECT token,meta FROM connections")).one()
                 mcp = connection.execute(text("SELECT args,url,env,headers FROM mcp_servers")).one()
@@ -116,6 +202,55 @@ class ConnectionsApiTest(ApiTest):
             self.assertTrue(all(value.startswith(prefix) for value in (*stored, *mcp)))
             webdav_raw = json.loads(webdav_path.read_text("utf-8"))["password"]
             self.assertTrue(webdav_raw.startswith(prefix))
+            s3_raw = json.loads(s3_path.read_text("utf-8"))
+            self.assertTrue(s3_raw["credentials"].startswith(prefix))
+            self.assertNotIn("access-private", s3_path.read_text("utf-8"))
+            self.assertNotIn("secret-private", s3_path.read_text("utf-8"))
+
+    def test_config_secret_helper_seals_only_the_declared_field(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            path = root / "s3_backup.json"
+            with mock.patch.object(secretstore, "_KEY_FILE", root / "secret.key"):
+                secretstore._key = None
+                secretstore._key_path = None
+                secretstore._keys = {}
+                secretstore._active_id = ""
+                with self.assertRaisesRegex(ValueError, "must be a string"):
+                    save_secret_config(
+                        path,
+                        {
+                            "endpoint": "https://objects.example.test",
+                            "credentials": {
+                                "access_key_id": "access-private",
+                                "secret_access_key": "secret-private",
+                            },
+                        },
+                        "backup.s3.credentials",
+                        field="credentials",
+                    )
+                self.assertFalse(path.exists())
+                save_secret_config(
+                    path,
+                    {
+                        "endpoint": "https://objects.example.test",
+                        "credentials": '{"secret_access_key":"private"}',
+                        "label": "visible",
+                    },
+                    "backup.s3.credentials",
+                    field="credentials",
+                )
+                stored = json.loads(path.read_text("utf-8"))
+                loaded = load_secret_config(
+                    path,
+                    "backup.s3.credentials",
+                    field="credentials",
+                )
+
+            self.assertTrue(stored["credentials"].startswith("enc2:"))
+            self.assertEqual(stored["label"], "visible")
+            self.assertEqual(loaded["credentials"], '{"secret_access_key":"private"}')
+            self.assertEqual(loaded["label"], stored["label"])
 
     def test_rotation_waits_for_an_inflight_credential_commit(self):
         from services.secret_rotation import rotate_all_credentials

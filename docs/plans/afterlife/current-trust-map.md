@@ -21,6 +21,7 @@
 | Models/search | Prompts or queries cross to the selected model and search providers. SearXNG is currently a configured URL, not an Alles-managed service. Fetched pages and results are untrusted input. |
 | Mail/calendar/contacts | IMAP/SMTP, CalDAV, CardDAV, and ICS feeds are separate remote systems. SQLite is local cache/state, not always the remote authority. |
 | WebDAV backup | An owner-configured HTTPS collection is a separate external store. Alles sends only encrypted `.alles-backup` artifacts; it never sends the recovery-key file separately or in plaintext. Remote names and metadata are untrusted until validated. |
+| S3-compatible backup | An owner-configured HTTPS bucket is a separate external store. Alles sends SigV4-signed requests and only encrypted `.alles-backup` artifacts; it never sends the recovery-key file separately or in plaintext. Object names, metadata, XML, and responses are untrusted until validated. |
 | MCP | Outbound stdio/SSE peers can return untrusted content; stdio inherits the server environment. Inbound `/api/mcp/rpc` currently reaches capability execution without the full chat-agent approval path. |
 | Deliveries | Discord/Telegram are outbound only. Webhooks are signed, one-attempt deliveries. Web Push crosses external browser push providers. There is no inbound Jarvis Discord bot yet. |
 | macOS | PhotoKit uses a separately signed helper with Photos permission. Calendar/Reminders import uses `icalBuddy`; Keychain is an unwired seam. |
@@ -37,6 +38,7 @@ flowchart LR
     server --> host["Agent tools / MCP stdio / native helpers"]
     server --> providers["Models / search / mail / calendars / contacts"]
     server --> webdav["WebDAV encrypted backup store"]
+    server --> s3["S3-compatible encrypted backup store"]
     server --> delivery["Discord / Telegram / webhooks / Web Push"]
     cli["Owner CLI"] -->|"offline lock / stage / swap / rollback"| sqlite
     cli --> stores
@@ -45,9 +47,9 @@ flowchart LR
 ## Route snapshot
 
 - 69 mounted route modules
-- 680 HTTP method/path pairs
-- 663 `/api/*`, 2 `/v1/*`, and 15 non-API shell/public pairs
-- SHA-256: `dcd27050f28a45587c5154ddee4cea79a537b2f1c308ec49e2b851833ed664bc`
+- 686 HTTP method/path pairs
+- 669 `/api/*`, 2 `/v1/*`, and 15 non-API shell/public pairs
+- SHA-256: `9e626889c94b027d44fda25336963fa93640d72d2e3fb8b30debf42c72e2bd7d`
 - No WebSocket route; long responses use SSE/streaming HTTP
 
 Public routes are limited to the app shell/PWA, `/health`, optional `/status`, token shares and their
@@ -74,7 +76,7 @@ ownership and parser markers are regression-tested.
 
 ## Known gaps kept visible
 
-- S3 backup, scheduled backup runs, and general WebDAV/S3 Files browsing remain future work.
+- Scheduled backup runs and general WebDAV/S3 Files browsing remain future work.
 - Shell commands remain a separate, higher-risk boundary; approved file roots govern agent file tools,
   not arbitrary paths typed inside shell commands.
 - Managed SearXNG, durable cron/heartbeats, and inbound Discord/Jarvis are future work.

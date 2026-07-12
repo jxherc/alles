@@ -18,7 +18,7 @@ from starlette.background import BackgroundTask
 from core.api_errors import ApiError
 from core.auth import require_recent_owner
 from core.settings import data_dir
-from services import webdav_backup
+from services import s3_backup, webdav_backup
 from services.backup_recovery import (
     CHUNK_SIZE,
     DEFAULT_LIMITS,
@@ -46,6 +46,7 @@ DATA_DIR: Path | None = None
 BACKUP_LIMITS: ArchiveLimits = DEFAULT_LIMITS
 _TEMP_MAX_AGE_SECONDS = 24 * 60 * 60
 _WEBDAV_RUN_LOCK = threading.Lock()
+_S3_RUN_LOCK = threading.Lock()
 
 
 class _UploadTooLarge(RecoveryError):
@@ -56,6 +57,16 @@ class WebDAVConfigBody(BaseModel):
     url: str
     username: str
     password: str = ""
+
+
+class S3ConfigBody(BaseModel):
+    endpoint: str
+    region: str
+    bucket: str
+    prefix: str = ""
+    addressing_style: str = "path"
+    access_key_id: str = ""
+    secret_access_key: str = ""
 
 
 def _data_dir() -> Path:
@@ -206,6 +217,12 @@ def _webdav_error(exc: Exception, *, status_code: int = 502) -> ApiError:
     if isinstance(exc, webdav_backup.WebDAVBusyError):
         return ApiError(409, "webdav_backup_busy", str(exc))
     return ApiError(status_code, "webdav_backup_failed", str(exc))
+
+
+def _s3_error(exc: Exception, *, status_code: int = 502) -> ApiError:
+    if isinstance(exc, s3_backup.S3BusyError):
+        return ApiError(409, "s3_backup_busy", str(exc))
+    return ApiError(status_code, "s3_backup_failed", str(exc))
 
 
 async def _stream_upload_to_path(
@@ -436,6 +453,168 @@ async def restore_webdav_backup(
         )
     except webdav_backup.WebDAVError as exc:
         raise _webdav_error(exc) from exc
+    except RecoveryError as exc:
+        raise ApiError(400, "backup_validation_failed", str(exc)) from exc
+    except Exception as exc:
+        raise ApiError(400, "backup_validation_failed", "backup validation failed") from exc
+    finally:
+        try:
+            incoming.unlink(missing_ok=True)
+        except OSError:
+            pass
+    return _staged_response(staged)
+
+
+@router.get("/backup/s3")
+def s3_status(request: Request):
+    _require_same_origin(request)
+    return s3_backup.status()
+
+
+@router.put("/backup/s3", dependencies=[Depends(require_recent_owner)])
+def configure_s3(request: Request, body: S3ConfigBody):
+    _require_same_origin(request)
+    current = None
+    try:
+        try:
+            current = s3_backup.load_config()
+        except s3_backup.S3Error:
+            pass
+        candidate = s3_backup.config_candidate(
+            {
+                "endpoint": body.endpoint,
+                "region": body.region,
+                "bucket": body.bucket,
+                "prefix": body.prefix,
+                "addressing_style": body.addressing_style,
+            },
+            access_key_id=body.access_key_id,
+            secret_access_key=body.secret_access_key,
+            current=current,
+        )
+        verified = s3_backup.test_connection(candidate)
+        saved = s3_backup.save_config(candidate, verified_at=verified["verified_at"])
+        return {"ok": True, **saved}
+    except s3_backup.S3Error as exc:
+        raise _s3_error(exc, status_code=400) from exc
+    except Exception as exc:
+        raise ApiError(500, "s3_config_save_failed", "s3 settings could not be saved") from exc
+
+
+@router.delete("/backup/s3", dependencies=[Depends(require_recent_owner)])
+def disconnect_s3(request: Request):
+    _require_same_origin(request)
+    try:
+        s3_backup.delete_config()
+    except s3_backup.S3Error as exc:
+        raise _s3_error(exc, status_code=400) from exc
+    except Exception as exc:
+        raise ApiError(
+            500,
+            "s3_config_delete_failed",
+            "s3 settings could not be removed",
+        ) from exc
+    return {"ok": True, **s3_backup.status()}
+
+
+@router.post("/backup/s3/run", dependencies=[Depends(require_recent_owner)])
+def run_s3_backup(request: Request, include_photos: bool = False):
+    _require_same_origin(request)
+    if not _S3_RUN_LOCK.acquire(blocking=False):
+        raise ApiError(409, "s3_backup_busy", "another s3 backup job is already running")
+    export_dir: Path | None = None
+    try:
+        root = _data_dir().expanduser().resolve()
+        export_parent = staging_root(root) / "exports"
+        export_parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+        _sweep_old_temp(export_parent)
+        export_dir = Path(tempfile.mkdtemp(prefix="s3-", dir=export_parent))
+        artifact = export_dir / "encrypted.alles-backup"
+        _create_encrypted_backup(root, artifact, include_photos=include_photos)
+        result = s3_backup.upload_artifact(artifact)
+        completed_at = result.get("completed_at") or _utc_now()
+        return {
+            "ok": True,
+            "filename": result["name"],
+            "bytes": result["size"],
+            "sha256": result["sha256"],
+            "completed_at": completed_at,
+            "last_backup_at": completed_at,
+            "status_warning": result.get("status_warning", ""),
+        }
+    except s3_backup.S3Error as exc:
+        raise _s3_error(exc) from exc
+    except RecoveryError as exc:
+        raise ApiError(500, "backup_creation_failed", str(exc)) from exc
+    except Exception as exc:
+        raise ApiError(500, "backup_creation_failed", "backup creation failed") from exc
+    finally:
+        if export_dir is not None:
+            shutil.rmtree(export_dir, ignore_errors=True)
+        _S3_RUN_LOCK.release()
+
+
+@router.get("/backup/s3/backups")
+def list_s3_backups(request: Request):
+    _require_same_origin(request)
+    try:
+        backups = s3_backup.list_artifacts()
+    except s3_backup.S3Error as exc:
+        raise _s3_error(exc) from exc
+    return {
+        "backups": [
+            {
+                "filename": item["name"],
+                "bytes": item.get("size"),
+                "modified_at": item.get("modified", ""),
+            }
+            for item in backups
+        ]
+    }
+
+
+@router.post(
+    "/backup/s3/restore",
+    status_code=status.HTTP_202_ACCEPTED,
+    dependencies=[Depends(require_recent_owner)],
+)
+async def restore_s3_backup(
+    request: Request,
+    filename: str = Form(...),
+    recovery_key: UploadFile | None = File(None),
+):
+    _require_same_origin(request)
+    root = _data_dir().expanduser().resolve()
+    incoming_dir = staging_root(root) / "incoming"
+    incoming_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+    _sweep_old_temp(incoming_dir)
+    incoming = incoming_dir / f"{uuid.uuid4().hex}.alles-backup"
+    try:
+        items = await asyncio.to_thread(s3_backup.list_artifacts)
+        selected = next((item for item in items if item.get("name") == filename), None)
+        if selected is None:
+            raise s3_backup.S3Error("s3 backup was not found")
+        expected_size = selected.get("size")
+        await asyncio.to_thread(
+            s3_backup.download_artifact,
+            filename,
+            incoming,
+            expected_size=expected_size if isinstance(expected_size, int) else None,
+        )
+        key = None
+        if recovery_key is not None:
+            key_document = await recovery_key.read(4097)
+            if len(key_document) > 4096:
+                raise RecoveryError("uploaded recovery key file is too large")
+            key = parse_recovery_key(key_document)
+        staged = await asyncio.to_thread(
+            _stage_stored_backup,
+            root,
+            incoming,
+            recovery_key=key,
+        )
+    except s3_backup.S3Error as exc:
+        raise _s3_error(exc) from exc
     except RecoveryError as exc:
         raise ApiError(400, "backup_validation_failed", str(exc)) from exc
     except Exception as exc:

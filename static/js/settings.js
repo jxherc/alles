@@ -87,7 +87,7 @@ function _onPaneOpen(name) {
   if (name === 'recall')     loadRecallPane();
   if (name === 'proactive')  loadProactivePane();
   if (name === 'intelligence') loadIntelligencePane();
-  if (name === 'backup')     loadWebdavBackup();
+  if (name === 'backup')     { loadWebdavBackup(); loadS3Backup(); }
 }
 
 // ── open / close ──────────────────────────────────────────────────────────────
@@ -308,6 +308,19 @@ function _initSettings() {
     if (label) label.textContent = event.target.files[0]?.name || 'no separate key selected';
   });
   document.getElementById('webdav-backup-restore-btn')?.addEventListener('click', restoreWebdavBackup);
+  document.getElementById('s3-backup-save-btn')?.addEventListener('click', saveS3Backup);
+  document.getElementById('s3-backup-disconnect-btn')?.addEventListener('click', disconnectS3Backup);
+  document.getElementById('s3-backup-run-btn')?.addEventListener('click', runS3Backup);
+  document.getElementById('s3-backup-refresh-btn')?.addEventListener('click', () => loadS3Backups(true));
+  document.getElementById('s3-backup-list')?.addEventListener('change', renderS3Selection);
+  document.getElementById('s3-backup-recovery-key-btn')?.addEventListener('click', () => {
+    document.getElementById('s3-backup-recovery-key')?.click();
+  });
+  document.getElementById('s3-backup-recovery-key')?.addEventListener('change', event => {
+    const label = document.getElementById('s3-backup-recovery-key-name');
+    if (label) label.textContent = event.target.files[0]?.name || 'no separate key selected';
+  });
+  document.getElementById('s3-backup-restore-btn')?.addEventListener('click', restoreS3Backup);
 
   document.querySelectorAll('.shortcut-input').forEach(inp => {
     inp.addEventListener('keydown', e => {
@@ -641,6 +654,379 @@ async function restoreWebdavBackup() {
     if (button) { button.disabled = !filename; button.textContent = 'verify and stage selected restore'; }
     if (keyInput) keyInput.value = '';
     const keyName = document.getElementById('webdav-backup-recovery-key-name');
+    if (keyName) keyName.textContent = 'no separate key selected';
+  }
+}
+
+// ── s3 backup ────────────────────────────────────────────────────────────────
+let _s3Configured = false;
+let _s3CredentialsSet = false;
+let _s3Backups = [];
+let _s3LoadGeneration = 0;
+
+export function normalizeS3BackupConfig(payload = {}) {
+  const value = payload && typeof payload.s3 === 'object' ? payload.s3 : payload;
+  return {
+    configured: value?.configured === true,
+    endpoint: String(value?.endpoint || ''),
+    region: String(value?.region || ''),
+    bucket: String(value?.bucket || ''),
+    prefix: String(value?.prefix || ''),
+    addressing_style: value?.addressing_style === 'virtual' ? 'virtual' : 'path',
+    credentials_set: value?.credentials_set === true,
+    last_backup_at: String(value?.last_backup_at || ''),
+    last_verified_at: String(value?.last_verified_at || ''),
+    last_filename: String(value?.last_filename || ''),
+    last_bytes: Number.isFinite(Number(value?.last_bytes)) ? Number(value.last_bytes) : null,
+    error: String(value?.error || ''),
+  };
+}
+
+export function s3BackupConfigPayload(
+  endpoint,
+  region,
+  bucket,
+  prefix,
+  addressingStyle,
+  accessKeyId,
+  secretAccessKey,
+  hasSavedCredentials = false,
+) {
+  const endpointValue = String(endpoint || '').trim();
+  const regionValue = String(region || '').trim();
+  const bucketValue = String(bucket || '').trim();
+  const prefixValue = String(prefix || '').trim();
+  const styleValue = String(addressingStyle || 'path');
+  const accessKeyValue = String(accessKeyId || '');
+  const secretValue = String(secretAccessKey || '');
+  if (!endpointValue) throw new Error('add the S3 https endpoint');
+  let parsed;
+  try { parsed = new URL(endpointValue); } catch { throw new Error('enter a valid S3 endpoint'); }
+  if (parsed.protocol !== 'https:') throw new Error('the S3 endpoint must use https');
+  if (parsed.username || parsed.password) throw new Error('keep S3 credentials out of the endpoint');
+  if (parsed.search || parsed.hash) throw new Error('the S3 endpoint cannot include a query or fragment');
+  if (!regionValue) throw new Error('add the S3 region');
+  if (!bucketValue) throw new Error('add the existing S3 bucket');
+  if (!['path', 'virtual'].includes(styleValue)) throw new Error('choose path or virtual addressing');
+  if (!!accessKeyValue !== !!secretValue) throw new Error('enter both S3 credentials together');
+  if (!accessKeyValue && !hasSavedCredentials) throw new Error('add the S3 credential pair');
+  const result = {
+    endpoint: parsed.toString(),
+    region: regionValue,
+    bucket: bucketValue,
+    prefix: prefixValue,
+    addressing_style: styleValue,
+  };
+  if (accessKeyValue && secretValue) {
+    result.access_key_id = accessKeyValue;
+    result.secret_access_key = secretValue;
+  }
+  return result;
+}
+
+export function s3BackupsFromResponse(payload = {}) {
+  const values = Array.isArray(payload) ? payload : payload?.backups;
+  if (!Array.isArray(values)) return [];
+  return values.map(value => {
+    if (typeof value === 'string') return { filename: value, bytes: null, modified_at: '' };
+    const bytes = Number(value?.bytes);
+    return {
+      filename: String(value?.filename || ''),
+      bytes: Number.isFinite(bytes) && bytes >= 0 ? bytes : null,
+      modified_at: String(value?.modified_at || value?.last_modified || ''),
+    };
+  }).filter(value => value.filename).sort((left, right) => {
+    const leftTime = Date.parse(left.modified_at);
+    const rightTime = Date.parse(right.modified_at);
+    if (!Number.isFinite(leftTime) || !Number.isFinite(rightTime)) return 0;
+    return rightTime - leftTime;
+  });
+}
+
+function _formatS3Time(value) {
+  if (!value) return 'never';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? 'unknown' : date.toLocaleString();
+}
+
+function _formatS3Bytes(value) {
+  if (!Number.isFinite(value) || value < 0) return '';
+  if (value < 1024) return `${value} B`;
+  if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KB`;
+  if (value < 1024 * 1024 * 1024) return `${(value / (1024 * 1024)).toFixed(1)} MB`;
+  return `${(value / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+}
+
+async function _s3ResponseJson(response) {
+  return response.json().catch(() => ({}));
+}
+
+function _s3Error(data, fallback, secrets = []) {
+  let message = typeof data?.detail === 'string' && data.detail.trim() ? data.detail.trim() : fallback;
+  for (const secret of secrets) {
+    if (secret) message = message.split(secret).join('[hidden]');
+  }
+  return message;
+}
+
+function _setS3Status(message, kind = '') {
+  const status = document.getElementById('s3-backup-status');
+  if (!status) return;
+  status.textContent = message;
+  status.style.color = kind === 'error' ? 'var(--error)' : (kind === 'success' ? 'var(--green)' : 'var(--muted)');
+}
+
+function _applyS3Config(config) {
+  _s3Configured = config.configured;
+  _s3CredentialsSet = config.credentials_set;
+  const endpoint = document.getElementById('s3-backup-endpoint');
+  const region = document.getElementById('s3-backup-region');
+  const bucket = document.getElementById('s3-backup-bucket');
+  const prefix = document.getElementById('s3-backup-prefix');
+  const addressingStyle = document.getElementById('s3-backup-addressing-style');
+  const accessKey = document.getElementById('s3-backup-access-key-id');
+  const secretKey = document.getElementById('s3-backup-secret-access-key');
+  if (endpoint) endpoint.value = config.endpoint;
+  if (region) region.value = config.region;
+  if (bucket) bucket.value = config.bucket;
+  if (prefix) prefix.value = config.prefix;
+  if (addressingStyle) addressingStyle.value = config.addressing_style;
+  if (accessKey) accessKey.value = '';
+  if (secretKey) secretKey.value = '';
+  const save = document.getElementById('s3-backup-save-btn');
+  if (save) save.textContent = config.configured ? 'save connection' : 'connect and save';
+  const disconnect = document.getElementById('s3-backup-disconnect-btn');
+  if (disconnect) {
+    disconnect.hidden = !config.configured && !config.error;
+    disconnect.textContent = config.error ? 'remove broken settings' : 'disconnect';
+  }
+  const run = document.getElementById('s3-backup-run-btn');
+  if (run) run.disabled = !config.configured;
+  const refresh = document.getElementById('s3-backup-refresh-btn');
+  if (refresh) refresh.disabled = !config.configured;
+  const lastSuccess = document.getElementById('s3-backup-last-success');
+  if (lastSuccess) lastSuccess.textContent = _formatS3Time(config.last_backup_at);
+  const lastVerified = document.getElementById('s3-backup-last-verified');
+  if (lastVerified) lastVerified.textContent = _formatS3Time(config.last_verified_at);
+  if (config.error) _setS3Status(config.error, 'error');
+  else _setS3Status(config.configured ? 'connected' : 'not connected', config.configured ? 'success' : '');
+  if (!config.configured) renderS3Backups([]);
+}
+
+async function loadS3Backup() {
+  if (!document.getElementById('s3-backup-card')) return;
+  const generation = ++_s3LoadGeneration;
+  _setS3Status('checking connection…');
+  try {
+    const response = await fetch('/api/backup/s3');
+    const data = await _s3ResponseJson(response);
+    if (!response.ok) throw new Error(_s3Error(data, 'could not check S3'));
+    if (generation !== _s3LoadGeneration) return;
+    const config = normalizeS3BackupConfig(data);
+    _applyS3Config(config);
+    if (config.configured) await loadS3Backups(false);
+  } catch (error) {
+    if (generation !== _s3LoadGeneration) return;
+    _s3Configured = false;
+    _s3CredentialsSet = false;
+    _setS3Status(error.message || 'could not check S3', 'error');
+    renderS3Backups([]);
+  }
+}
+
+async function saveS3Backup() {
+  const endpoint = document.getElementById('s3-backup-endpoint');
+  const region = document.getElementById('s3-backup-region');
+  const bucket = document.getElementById('s3-backup-bucket');
+  const prefix = document.getElementById('s3-backup-prefix');
+  const addressingStyle = document.getElementById('s3-backup-addressing-style');
+  const accessKey = document.getElementById('s3-backup-access-key-id');
+  const secretKey = document.getElementById('s3-backup-secret-access-key');
+  const button = document.getElementById('s3-backup-save-btn');
+  const accessKeyValue = accessKey?.value || '';
+  const secretValue = secretKey?.value || '';
+  if (accessKey) accessKey.value = '';
+  if (secretKey) secretKey.value = '';
+  let payload;
+  try {
+    payload = s3BackupConfigPayload(
+      endpoint?.value,
+      region?.value,
+      bucket?.value,
+      prefix?.value,
+      addressingStyle?.value,
+      accessKeyValue,
+      secretValue,
+      _s3CredentialsSet,
+    );
+  } catch (error) {
+    _setS3Status(error.message, 'error');
+    toast(error.message, 'error');
+    return;
+  }
+  if (button) { button.disabled = true; button.textContent = 'checking…'; }
+  _setS3Status('creating and removing a probe object…');
+  try {
+    const response = await _fetchWithRecentOwner('/api/backup/s3', {
+      method: 'PUT',
+      headers: {'content-type':'application/json'},
+      body: JSON.stringify(payload),
+    });
+    const data = await _s3ResponseJson(response);
+    if (!response.ok) throw new Error(_s3Error(data, 'S3 connection was not saved', [accessKeyValue, secretValue]));
+    const config = normalizeS3BackupConfig(data);
+    _applyS3Config(config);
+    _setS3Status('connected and saved', 'success');
+    toast('S3 connection saved', 'success');
+    await loadS3Backups(false);
+  } catch (error) {
+    _setS3Status(error.message || 'S3 connection was not saved', 'error');
+    toast(error.message || 'S3 connection was not saved', 'error');
+  } finally {
+    if (button) { button.disabled = false; button.textContent = _s3Configured ? 'save connection' : 'connect and save'; }
+  }
+}
+
+async function disconnectS3Backup() {
+  if (!await _dlgConfirm('disconnect S3 backup? remote backups will stay in the bucket.')) return;
+  const button = document.getElementById('s3-backup-disconnect-btn');
+  if (button) button.disabled = true;
+  _setS3Status('disconnecting…');
+  try {
+    const response = await _fetchWithRecentOwner('/api/backup/s3', { method: 'DELETE' });
+    const data = await _s3ResponseJson(response);
+    if (!response.ok) throw new Error(_s3Error(data, 'S3 could not be disconnected'));
+    _applyS3Config(normalizeS3BackupConfig({}));
+    toast('S3 disconnected', 'success');
+  } catch (error) {
+    _setS3Status(error.message || 'S3 could not be disconnected', 'error');
+    toast(error.message || 'S3 could not be disconnected', 'error');
+  } finally {
+    if (button) button.disabled = false;
+  }
+}
+
+async function runS3Backup() {
+  if (!_s3Configured) return;
+  const button = document.getElementById('s3-backup-run-btn');
+  if (button) { button.disabled = true; button.textContent = 'backing up…'; }
+  _setS3Status('creating and copying encrypted backup…');
+  try {
+    const response = await _fetchWithRecentOwner('/api/backup/s3/run', { method: 'POST' });
+    const data = await _s3ResponseJson(response);
+    if (!response.ok) throw new Error(_s3Error(data, 'S3 backup failed'));
+    const lastSuccess = document.getElementById('s3-backup-last-success');
+    if (lastSuccess) lastSuccess.textContent = _formatS3Time(data.last_backup_at);
+    const lastVerified = document.getElementById('s3-backup-last-verified');
+    if (lastVerified) {
+      lastVerified.textContent = _formatS3Time(data.last_verified_at || data.completed_at || data.last_backup_at);
+    }
+    const warning = String(data.status_warning || '');
+    _setS3Status(warning || 'backup copied and verified by read-back', warning ? '' : 'success');
+    toast(warning || 'S3 backup complete', warning ? '' : 'success', warning ? 6000 : 3000);
+    await loadS3Backups(false);
+  } catch (error) {
+    _setS3Status(error.message || 'S3 backup failed', 'error');
+    toast(error.message || 'S3 backup failed', 'error');
+  } finally {
+    if (button) { button.disabled = !_s3Configured; button.textContent = 'back up now'; }
+  }
+}
+
+async function loadS3Backups(announce = false) {
+  const refresh = document.getElementById('s3-backup-refresh-btn');
+  const selection = document.getElementById('s3-backup-selection');
+  if (!_s3Configured) {
+    renderS3Backups([]);
+    return;
+  }
+  if (refresh) { refresh.disabled = true; refresh.textContent = 'refreshing…'; }
+  if (selection) selection.textContent = 'loading remote backups…';
+  try {
+    const response = await fetch('/api/backup/s3/backups');
+    const data = await _s3ResponseJson(response);
+    if (!response.ok) throw new Error(_s3Error(data, 'could not load remote backups'));
+    renderS3Backups(s3BackupsFromResponse(data));
+    if (announce) toast('remote backups refreshed', 'success');
+  } catch (error) {
+    renderS3Backups([]);
+    if (selection) selection.textContent = error.message || 'could not load remote backups';
+    if (announce) toast(error.message || 'could not load remote backups', 'error');
+  } finally {
+    if (refresh) { refresh.disabled = !_s3Configured; refresh.textContent = 'refresh backups'; }
+  }
+}
+
+function renderS3Backups(backups) {
+  _s3Backups = backups;
+  const select = document.getElementById('s3-backup-list');
+  if (!select) return;
+  const previous = select.value;
+  select.replaceChildren();
+  if (!backups.length) {
+    const option = document.createElement('option');
+    option.value = '';
+    option.textContent = 'no remote backups found';
+    select.appendChild(option);
+    select.disabled = true;
+  } else {
+    for (const backup of backups) {
+      const option = document.createElement('option');
+      option.value = backup.filename;
+      option.textContent = backup.filename;
+      select.appendChild(option);
+    }
+    select.disabled = false;
+    select.value = backups.some(backup => backup.filename === previous) ? previous : backups[0].filename;
+  }
+  renderS3Selection();
+}
+
+function renderS3Selection() {
+  const select = document.getElementById('s3-backup-list');
+  const selected = _s3Backups.find(backup => backup.filename === select?.value);
+  const label = document.getElementById('s3-backup-selection');
+  const restore = document.getElementById('s3-backup-restore-btn');
+  if (restore) restore.disabled = !selected;
+  if (!label) return;
+  if (!selected) {
+    label.textContent = _s3Configured ? 'no remote backups yet.' : 'connect S3 to list backups.';
+    return;
+  }
+  const details = [selected.filename];
+  const size = _formatS3Bytes(selected.bytes);
+  if (size) details.push(size);
+  if (selected.modified_at) details.push(_formatS3Time(selected.modified_at));
+  label.textContent = details.join(' · ');
+}
+
+async function restoreS3Backup() {
+  const select = document.getElementById('s3-backup-list');
+  const filename = select?.value || '';
+  if (!filename) return;
+  const keyInput = document.getElementById('s3-backup-recovery-key');
+  const keyFile = keyInput?.files[0];
+  const status = document.getElementById('s3-backup-restore-status');
+  const button = document.getElementById('s3-backup-restore-btn');
+  const form = new FormData();
+  form.append('filename', filename);
+  if (keyFile) form.append('recovery_key', keyFile, keyFile.name);
+  if (status) { status.hidden = false; status.textContent = 'downloading, verifying, and staging…'; }
+  if (button) { button.disabled = true; button.textContent = 'staging…'; }
+  try {
+    const response = await _fetchWithRecentOwner('/api/backup/s3/restore', { method: 'POST', body: form });
+    const data = await _s3ResponseJson(response);
+    if (!response.ok) throw new Error(_s3Error(data, 'remote backup could not be staged'));
+    const command = data.apply_command || 'alles restore apply <restore-id>';
+    if (status) status.textContent = `verified and staged. live data is unchanged. stop Alles, then run: ${command}`;
+    toast('remote backup verified and staged', 'success');
+  } catch (error) {
+    if (status) status.textContent = error.message || 'remote backup could not be staged';
+    toast(error.message || 'remote backup could not be staged', 'error');
+  } finally {
+    if (button) { button.disabled = !filename; button.textContent = 'verify and stage selected restore'; }
+    if (keyInput) keyInput.value = '';
+    const keyName = document.getElementById('s3-backup-recovery-key-name');
     if (keyName) keyName.textContent = 'no separate key selected';
   }
 }
