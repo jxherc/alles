@@ -164,7 +164,24 @@ Phase 1 is split into small gates. A later gate must not weaken an earlier one.
   - Fresh evidence: 119 focused agent, Settings, Files, Vault, and trash checks pass, plus 196 broader
     agent/Project/session checks and all 99 JavaScript checks. Desktop keyboard/reduced-motion and
     390×844 mobile browser checks save a real approved root with no overflow or console errors.
-- [ ] Hash public-share passwords and rate-limit access attempts.
+- [x] Hash public-share passwords and rate-limit access attempts.
+  - New protected shares use bcrypt over domain-separated password material. Passwords and hashes
+    never appear in share API responses.
+  - Migration 24 wraps every existing SHA-256 share hash in bcrypt without needing its plaintext.
+    Old links remain usable and move to the current domain-separated format after the first correct
+    password. Empty passwords still create open links, and overlong passwords fail before truncation.
+  - Expiry values normalize to UTC before storage. Invalid or malformed dates fail closed instead of
+    bypassing expiry through text comparison.
+  - Passwords are submitted by POST instead of appearing in the URL. A successful unlock creates a
+    one-hour, in-memory, HttpOnly, SameSite=Strict grant bound to that share and password version.
+    Legacy upgrades use an atomic compare-and-swap, so concurrent password changes win. Revocation,
+    expiry, and server restarts fail closed. Protected responses are not browser-cached.
+  - Ten unlock attempts per client and share are allowed in five minutes. Further attempts return the
+    stable `rate_limited` code and `Retry-After` header.
+  - Fresh evidence: 118 focused share, folder, album, session, vault-share, route-contract, hashing,
+    legacy-upgrade, cookie, revocation, expiry, and rate-limit checks pass. Desktop/reduced-motion and
+    390×844 mobile browser checks open a real protected document with a clean URL, no overflow, and no
+    page or console errors.
 
 ## 1B — Server foundation
 
