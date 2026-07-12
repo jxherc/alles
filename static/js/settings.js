@@ -10,6 +10,7 @@ import {
 import { loadShortcuts, saveShortcuts, eventToShortcut, isReservedShortcut } from './shortcuts.js';
 import { setAccent as _themeSetAccent, resetToDefault as _resetToDefault, getAppearance as _getAppearance, renderThemeEditorInto, isBasePreset } from './theme.js';
 import { parsePrivateLines } from './mcp-config.js';
+import { configureLocalization } from './i18n.js';
 
 // ── visibility prefs (appearance toggles) ────────────────────────────────────
 const VIS_KEY = 'aide-ui-vis';
@@ -889,12 +890,13 @@ function loadAppearancePane() {
   _bindSwitchOnce(document.getElementById('s-sensitive-blur-toggle'), sensitiveBlurEnabled, setSensitiveBlur);
   _bindSwitchOnce(document.getElementById('s-text-emoji-toggle'), textOnlyEmojisEnabled, setTextOnlyEmojis);
   _bindSwitchOnce(document.getElementById('s-welcome-toggle'), welcomeEnabled, setWelcomeEnabled);
-  // memory inject loaded async — fetch setting first
+  // server-backed general settings
   fetch('/api/settings').then(r => r.json()).then(s => {
     _bindSwitchOnce(document.getElementById('s-memory-inject-toggle'),
       () => s.memory_auto_inject !== false,
       on => _patchSettings({ memory_auto_inject: on })
     );
+    _bindLocalizationFields(s);
   }).catch(() => {});
   _bindSwitchOnce(document.getElementById('s-ui-compact-toggle'),
     () => document.body.classList.contains('compact'),
@@ -917,6 +919,47 @@ function loadAppearancePane() {
     }
   }
   _loadThemeColorControls();
+}
+
+function _bindLocalizationFields(settings) {
+  const language = document.getElementById('s-language');
+  const region = document.getElementById('s-region');
+  const timezone = document.getElementById('s-timezone');
+  const detected = document.getElementById('s-timezone-detected');
+  if (language) setDropdownValue(language, settings.language || 'en');
+  if (region) region.value = settings.region || '';
+  if (timezone) timezone.value = settings.timezone || '';
+  if (detected) {
+    const browserZone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'unknown';
+    detected.textContent = `browser time zone: ${browserZone}`;
+  }
+  const save = document.getElementById('s-locale-save');
+  if (!save || save.dataset.bound) return;
+  save.dataset.bound = '1';
+  save.addEventListener('click', async () => {
+    save.disabled = true;
+    try {
+      const response = await fetch('/api/settings', {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          language: getDropdownValue(language) || 'en',
+          region: region?.value.trim() || '',
+          timezone: timezone?.value.trim() || '',
+        }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.detail || 'language settings could not be saved');
+      configureLocalization(data);
+      if (region) region.value = data.region || '';
+      if (timezone) timezone.value = data.timezone || '';
+      toast('language and region saved', 'success');
+    } catch (error) {
+      toast(error.message || 'language settings could not be saved', 'error');
+    } finally {
+      save.disabled = false;
+    }
+  });
 }
 
 // themes pane: the inline full editor + keeping the default-theme controls' lock state in

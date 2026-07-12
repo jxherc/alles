@@ -1,3 +1,6 @@
+import re
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
 from fastapi import APIRouter
 from fastapi.responses import Response
 from pydantic import BaseModel
@@ -134,6 +137,9 @@ class SettingsPatch(BaseModel):
     tts_speed: float | None = None
     tts_auto_play: bool | None = None
     stt_language: str | None = None
+    language: str | None = None
+    region: str | None = None
+    timezone: str | None = None
     theme: str | None = None  # '' (dark/default) | 'light' — synced across subdomains
     accent: str | None = None  # hex like '#818cf8', or '' for the default
     notify_discord_webhook: str | None = None
@@ -209,6 +215,29 @@ class SettingsPatch(BaseModel):
 @router.patch("/settings")
 def patch_settings(body: SettingsPatch):
     patch = {k: v for k, v in body.model_dump().items() if v is not None}
+    if "language" in patch:
+        patch["language"] = patch["language"].strip().lower()
+        if patch["language"] != "en":
+            from core.api_errors import ApiError
+
+            raise ApiError(400, "unsupported_language", "English is the only reviewed language")
+    if "region" in patch:
+        patch["region"] = patch["region"].strip().upper()
+        if patch["region"] and not re.fullmatch(r"(?:[A-Z]{2}|[0-9]{3})", patch["region"]):
+            from core.api_errors import ApiError
+
+            raise ApiError(400, "invalid_region", "region must be a two-letter or three-digit code")
+    if "timezone" in patch:
+        patch["timezone"] = patch["timezone"].strip()
+        if patch["timezone"]:
+            try:
+                ZoneInfo(patch["timezone"])
+            except (ZoneInfoNotFoundError, ValueError) as exc:
+                from core.api_errors import ApiError
+
+                raise ApiError(
+                    400, "invalid_timezone", "timezone must be a valid IANA name"
+                ) from exc
     if "memory_policy" in patch and patch["memory_policy"] not in {"off", "ask", "auto"}:
         from core.api_errors import ApiError
 

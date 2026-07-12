@@ -147,6 +147,29 @@ class SettingsApiTest(ApiTest):
         self.assertEqual(s["theme"], "")
         self.assertEqual(s["accent"], "")
 
+    def test_patch_localization_settings(self):
+        response = self.client.patch(
+            "/api/settings",
+            json={"language": "EN", "region": "tw", "timezone": "Asia/Taipei"},
+        )
+        self.assertEqual(response.status_code, 200)
+        saved = response.json()
+        self.assertEqual(saved["language"], "en")
+        self.assertEqual(saved["region"], "TW")
+        self.assertEqual(saved["timezone"], "Asia/Taipei")
+
+    def test_rejects_unreviewed_language_and_invalid_locale_values(self):
+        cases = (
+            ({"language": "fr"}, "unsupported_language"),
+            ({"region": "taiwan"}, "invalid_region"),
+            ({"timezone": "Taipei-ish"}, "invalid_timezone"),
+        )
+        for patch, code in cases:
+            with self.subTest(patch=patch):
+                response = self.client.patch("/api/settings", json=patch)
+                self.assertEqual(response.status_code, 400)
+                self.assertEqual(response.json()["code"], code)
+
     def test_unknown_keys_ignored(self):
         self.client.patch("/api/settings", json={"totally_made_up_key": "x"})
         self.assertNotIn("totally_made_up_key", self.client.get("/api/settings").json())

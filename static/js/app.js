@@ -26,13 +26,14 @@ import { initAppCogs } from './appsettings.js';
 import { loadPhotos, initPhotos } from './photos.js';
 import { setBaseDomain, parseHost, appForSub, viewToSub, urlForApp, currentSub, singleHost, SUBDOMAIN_VIEWS, shouldPollModels } from './subdomain.js';
 import { loadBrainPanel } from './brain.js';
-import { openSettings, closeSettings, applyVis } from './settings.js?v=211';
+import { openSettings, closeSettings, applyVis } from './settings.js?v=213';
 import { setIncognitoMode, getPermMode, setPermMode, getEffort, setEffort } from './modes.js';
 import { initPrivacyHandlers } from './privacy.js';
 import { loadShortcuts, matchesShortcut } from './shortcuts.js';
 import { startReminderPoll, initReminderPanel } from './reminders.js';
 import { registerServiceWorker } from './push.js';
 import { initSync } from './sync.js';
+import { configureLocalization, formatDate, formatDateTime, formatTime, t } from './i18n.js';
 
 window._mdToHtml = mdToHtml;
 
@@ -116,6 +117,8 @@ function _validSsoTarget(target) {
 
 async function _boot() {
   applyVis();
+  try { configureLocalization(await fetch('/api/settings').then(r => r.json())); }
+  catch { configureLocalization(); }
   _syncAppearance();   // pull theme/accent from the server so it matches across subdomains
   if (localStorage.getItem('aide-sidebar-hidden')) document.body.classList.add('sidebar-hidden');
   // 11b: on a phone the rail is a drawer — start it closed (don't persist, it's width-driven)
@@ -945,11 +948,15 @@ function _startHomeClock() {
     const el = document.getElementById('home-clock');
     if (!el) return;
     const now = new Date();
-    const date = now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }).toLowerCase();
-    const time = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }).toLowerCase();
+    const date = formatDate(now, { weekday: 'long', month: 'long', day: 'numeric' }).toLowerCase();
+    const time = formatTime(now, { hour: 'numeric', minute: '2-digit' }).toLowerCase();
     el.textContent = `${date} · ${time}`;
   };
   tick();
+  if (!_startHomeClock.localeBound) {
+    _startHomeClock.localeBound = true;
+    window.addEventListener('alles:localization-change', tick);
+  }
   if (!_homeClockTimer) _homeClockTimer = setInterval(tick, 20000);
 }
 
@@ -1408,7 +1415,8 @@ async function _openSchedulePop(text, ta) {
     });
     if (!r.ok) { toast('failed to schedule', 'error'); return; }
     ta.value = ''; ta.style.height = 'auto'; ta.dispatchEvent(new Event('input'));
-    toast(`scheduled — aide will answer it ${new Date(at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).toLowerCase()}`, 'success');
+    const whenText = formatDateTime(at, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).toLowerCase();
+    toast(t('schedule.confirmed', { when: whenText }), 'success');
     close();
   });
 }
