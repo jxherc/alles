@@ -3,11 +3,27 @@ memory storage + semantic search.
 tries fastembed for vector search, falls back to jaccard if unavailable.
 """
 
-import re, math, logging
+import json
+import logging
+import math
+import re
+from datetime import datetime
 from typing import Optional
-from core.database import SessionLocal, Memory
+
+from core.database import Memory, SessionLocal
+from core.settings import load_settings
 
 log = logging.getLogger("aide.memory")
+
+
+class MemoryPolicyError(RuntimeError):
+    pass
+
+
+def memory_policy() -> str:
+    value = str(load_settings().get("memory_policy") or "ask").lower()
+    return value if value in {"off", "ask", "auto"} else "ask"
+
 
 # ── vector backend (optional) ────────────────────────────────────────────────
 
@@ -102,7 +118,26 @@ def add_memory(
     source: str = "manual",
     session_id: str = "",
     pinned: bool = False,
+    scope: str = "global",
+    project_id: str = "",
+    status: str = "",
+    trust: str = "",
+    provenance: str = "",
 ) -> dict:
+    if memory_policy() == "off":
+        raise MemoryPolicyError("memory is off")
+    scope = (scope or "global").strip().lower()
+    if scope not in {"global", "project"}:
+        raise ValueError("memory scope must be global or project")
+    if scope == "project" and not project_id:
+        raise ValueError("project memory requires a project")
+    owner_source = source in {"manual", "auto_owner"}
+    if not status:
+        status = "active" if owner_source else "suggested"
+    if status not in {"active", "suggested"}:
+        raise ValueError("memory status must be active or suggested")
+    if not trust:
+        trust = "owner" if owner_source else "derived"
     db = SessionLocal()
     try:
         cat = category or _detect_category(text)
@@ -112,6 +147,12 @@ def add_memory(
             source=source,
             session_id=session_id or None,
             pinned=pinned,
+            scope=scope,
+            project_id=project_id or None,
+            status=status,
+            trust=trust,
+            provenance=provenance,
+            updated_at=datetime.utcnow(),
         )
         db.add(m)
         db.commit()
@@ -144,7 +185,12 @@ def delete_memory(mid: str) -> bool:
 
 
 def update_memory(
-    mid: str, text: str = "", pinned: Optional[bool] = None, category: str = ""
+    mid: str,
+    text: str = "",
+    pinned: Optional[bool] = None,
+    category: str = "",
+    scope: str = "",
+    project_id: str | None = None,
 ) -> dict | None:
     db = SessionLocal()
     try:
@@ -157,6 +203,14 @@ def update_memory(
             m.category = category
         if pinned is not None:
             m.pinned = pinned
+        if scope:
+            if scope not in {"global", "project"}:
+                raise ValueError("memory scope must be global or project")
+            if scope == "project" and not project_id:
+                raise ValueError("project memory requires a project")
+            m.scope = scope
+            m.project_id = project_id if scope == "project" else None
+        m.updated_at = datetime.utcnow()
         db.commit()
         db.refresh(m)
         return _fmt(m)
@@ -164,10 +218,23 @@ def update_memory(
         db.close()
 
 
-def search_memories(query: str, top_k: int = 6) -> list[dict]:
+def search_memories(query: str, top_k: int = 6, project_id: str = "") -> list[dict]:
+    if memory_policy() == "off":
+        return []
     db = SessionLocal()
     try:
-        all_mems = db.query(Memory).filter(Memory.vetoed == False).all()  # noqa: E712 - hide vetoed (1c)
+        query_set = db.query(Memory).filter(
+            Memory.vetoed == False,  # noqa: E712
+            Memory.status == "active",
+        )
+        if project_id:
+            query_set = query_set.filter(
+                (Memory.scope == "global")
+                | ((Memory.scope == "project") & (Memory.project_id == project_id))
+            )
+        else:
+            query_set = query_set.filter(Memory.scope == "global")
+        all_mems = query_set.all()
         if not all_mems:
             return []
 
@@ -205,9 +272,13 @@ def search_memories(query: str, top_k: int = 6) -> list[dict]:
 def debug_search(query: str, top_k: int = 10) -> dict:
     """same scoring as search_memories, but exposes the scores + method so you can
     see WHY a memory does/doesn't fire for a query (relevance debugging)."""
+    if memory_policy() == "off":
+        return {"method": "none", "category": _detect_category(query), "results": []}
     db = SessionLocal()
     try:
-        all_mems = db.query(Memory).all()
+        all_mems = (
+            db.query(Memory).filter(Memory.status == "active", Memory.scope == "global").all()
+        )
         if not all_mems:
             return {"method": "none", "category": _detect_category(query), "results": []}
 
@@ -221,9 +292,15 @@ def debug_search(query: str, top_k: int = 10) -> dict:
         for i, m in enumerate(all_mems):
             base = _cosine(vecs[0], vecs[i + 1]) if vecs else _jaccard(query, m.text)
             boost = boosts.get(m.category, 0.0)
-            rows.append({**_fmt(m), "score": round(base + boost, 4),
-                         "base": round(base, 4), "boost": round(boost, 4),
-                         "pinned": bool(m.pinned)})
+            rows.append(
+                {
+                    **_fmt(m),
+                    "score": round(base + boost, 4),
+                    "base": round(base, 4),
+                    "boost": round(boost, 4),
+                    "pinned": bool(m.pinned),
+                }
+            )
         # pinned first (they always inject), then the rest by score
         rows.sort(key=lambda r: (not r["pinned"], -r["score"]))
         return {"method": method, "category": q_cat, "results": rows[:top_k]}
@@ -231,11 +308,20 @@ def debug_search(query: str, top_k: int = 10) -> dict:
         db.close()
 
 
-def inject_memories(query: str, top_k: int = 6) -> str:
+def inject_memories(
+    query: str,
+    top_k: int = 6,
+    *,
+    project_id: str = "",
+    run_id: str = "",
+    return_details: bool = False,
+):
     """returns a system-prompt string to inject, or '' if nothing relevant"""
+    if memory_policy() == "off":
+        return ("", []) if return_details else ""
     parts = []
 
-    mems = search_memories(query, top_k=top_k)
+    mems = search_memories(query, top_k=top_k, project_id=project_id)
     if mems:
         lines = "\n".join(f"- {m['text']}" for m in mems)
         parts.append(f"Relevant things you know about the user:\n{lines}")
@@ -245,7 +331,59 @@ def inject_memories(query: str, top_k: int = 6) -> str:
     if contacts_ctx:
         parts.append(contacts_ctx)
 
-    return "\n\n".join(parts)
+    if run_id and mems:
+        _mark_used([memory["id"] for memory in mems], run_id)
+    text = "\n\n".join(parts)
+    if return_details:
+        return text, [memory["id"] for memory in mems]
+    return text
+
+
+def accept_memory(mid: str) -> dict | None:
+    if memory_policy() == "off":
+        raise MemoryPolicyError("memory is off")
+    db = SessionLocal()
+    try:
+        memory = db.get(Memory, mid)
+        if not memory:
+            return None
+        memory.status = "active"
+        memory.trust = "reviewed"
+        memory.updated_at = datetime.utcnow()
+        db.commit()
+        db.refresh(memory)
+        return _fmt(memory)
+    finally:
+        db.close()
+
+
+def clear_memories() -> int:
+    db = SessionLocal()
+    try:
+        count = db.query(Memory).delete(synchronize_session=False)
+        db.commit()
+        return count
+    finally:
+        db.close()
+
+
+def _mark_used(memory_ids: list[str], run_id: str) -> None:
+    db = SessionLocal()
+    try:
+        for memory in db.query(Memory).filter(Memory.id.in_(memory_ids)).all():
+            try:
+                runs = json.loads(memory.used_in_runs or "[]")
+            except (TypeError, ValueError):
+                runs = []
+            if not isinstance(runs, list):
+                runs = []
+            if run_id not in runs:
+                runs.append(run_id)
+            memory.used_in_runs = json.dumps(runs[-100:])
+            memory.updated_at = datetime.utcnow()
+        db.commit()
+    finally:
+        db.close()
 
 
 def _inject_contacts(query: str) -> str:
@@ -278,6 +416,10 @@ def _inject_contacts(query: str) -> str:
 
 
 def _fmt(m: Memory) -> dict:
+    try:
+        used_in_runs = json.loads(m.used_in_runs or "[]")
+    except (TypeError, ValueError):
+        used_in_runs = []
     return {
         "id": m.id,
         "text": m.text,
@@ -286,4 +428,12 @@ def _fmt(m: Memory) -> dict:
         "session_id": m.session_id,
         "pinned": m.pinned,
         "timestamp": m.timestamp.isoformat(),
+        "created_at": m.timestamp.isoformat(),
+        "updated_at": (m.updated_at or m.timestamp).isoformat(),
+        "scope": m.scope or "global",
+        "project_id": m.project_id,
+        "status": m.status or "active",
+        "trust": m.trust or "owner",
+        "provenance": m.provenance or "",
+        "used_in_runs": used_in_runs if isinstance(used_in_runs, list) else [],
     }

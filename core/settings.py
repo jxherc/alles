@@ -73,6 +73,7 @@ _defaults = {
     "serper_api_key": "",
     "search_fallback": "duckduckgo",
     "memory_auto_inject": True,
+    "memory_policy": "ask",  # off | ask | auto
     "tts_speed": 1.0,
     "tts_auto_play": False,
     "stt_language": "",

@@ -3764,6 +3764,7 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 .mem-item:hover { background: var(--panel); }
 .mem-item:last-child { border-bottom: none; }
 .mem-item.pinned { border-left: 2px solid var(--accent); padding-left: calc(1rem - 2px); }
+.mem-item.suggested { border-left: 2px solid var(--warning, #d6a84b); padding-left: calc(1rem - 2px); }
 
 .mem-text { font-size: 0.82rem; color: var(--text); line-height: 1.5; margin-bottom: 0.25rem; }
 .mem-meta {
@@ -3772,13 +3773,39 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 }
 .mem-cat { color: var(--accent); }
 .mem-pin { color: var(--accent); }
-.mem-source { margin-left: auto; }
+.mem-review { color: var(--warning, #d6a84b); }
+.mem-source:last-of-type { margin-left: auto; }
 
 .mem-actions {
   display: flex; gap: 0; margin-top: 0.25rem;
   opacity: 0; transition: opacity 0.15s;
 }
 .mem-item:hover .mem-actions { opacity: 1; }
+.mem-item:focus-within .mem-actions { opacity: 1; }
+.mem-policy {
+  display: flex; align-items: center; justify-content: space-between; gap: 0.75rem;
+  padding-bottom: 0.7rem; margin-bottom: 0.55rem; border-bottom: 1px solid var(--faint);
+}
+.mem-policy-options { display: flex; gap: 0.25rem; }
+.mem-policy-btn {
+  min-width: 3.1rem; background: none; border: 1px solid var(--faint); border-radius: 3px;
+  color: var(--muted); font: inherit; font-size: 0.68rem; padding: 0.28rem 0.5rem; cursor: pointer;
+}
+.mem-policy-btn:hover, .mem-policy-btn:focus-visible { color: var(--text); border-color: var(--muted); }
+.mem-policy-btn.active { color: var(--accent); border-color: var(--accent); background: color-mix(in srgb, var(--accent) 9%, transparent); }
+.mem-foot-actions { display: flex; justify-content: flex-end; gap: 0.35rem; margin-top: 0.65rem; }
+.mem-undo {
+  display: flex; align-items: center; justify-content: flex-end; gap: 0.35rem;
+  min-height: 1.6rem; color: var(--muted); font-size: 0.68rem;
+}
+.mem-undo[hidden] { display: none; }
+
+@media (max-width: 620px) {
+  .mem-policy { align-items: flex-start; flex-direction: column; }
+  .mem-policy-options { width: 100%; }
+  .mem-policy-btn { flex: 1; min-height: 36px; }
+  .mem-actions { opacity: 1; }
+}
 
 /* ── settings list rows (mcp, personas, webhooks, etc.) ── */
 .settings-list-row {

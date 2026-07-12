@@ -2,7 +2,7 @@ import uuid
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from sqlalchemy.orm import Session as DbSession
 
 from core.database import Upload, get_db
@@ -22,12 +22,19 @@ def upload_dir() -> Path:
 
 
 @router.post("/uploads")
-async def upload_file(file: UploadFile = File(...), db: DbSession = Depends(get_db)):
+async def upload_file(
+    file: UploadFile = File(...), incognito: bool = False, db: DbSession = Depends(get_db)
+):
     content = await file.read()
     if len(content) > MAX_SIZE:
         raise HTTPException(400, "file too large (max 20MB)")
 
     mime = file.content_type or "application/octet-stream"
+    if incognito:
+        from services import incognito as private_store
+
+        upload = private_store.put_upload(file.filename or "file", mime, content)
+        return {"id": upload.id, "name": upload.name, "type": mime, "size": len(content)}
     ext = Path(file.filename or "file").suffix.lower()
     fname = f"{uuid.uuid4()}{ext}"
     upload_dir().joinpath(fname).write_bytes(content)
@@ -43,6 +50,15 @@ async def upload_file(file: UploadFile = File(...), db: DbSession = Depends(get_
 
 @router.get("/uploads/{upload_id}")
 def serve_upload(upload_id: str, db: DbSession = Depends(get_db)):
+    from services import incognito as private_store
+
+    private = private_store.get_upload(upload_id)
+    if private:
+        return Response(
+            content=private.content,
+            media_type=_safe_mime(private.mime_type, Path(private.name).suffix),
+            headers={"X-Content-Type-Options": "nosniff", "Cache-Control": "no-store"},
+        )
     rec = db.get(Upload, upload_id)
     if not rec:
         raise HTTPException(404)
@@ -50,16 +66,7 @@ def serve_upload(upload_id: str, db: DbSession = Depends(get_db)):
     if not fpath.exists():
         raise HTTPException(404)
     # client-supplied mime_type: neutralize svg/html so a stored <script> can't run as a document
-    mime = rec.mime_type or "application/octet-stream"
-    if any(x in mime.lower() for x in ("svg", "html", "xml")) or fpath.suffix.lower() in (
-        ".svg",
-        ".svgz",
-        ".html",
-        ".htm",
-        ".xml",
-        ".xhtml",
-    ):
-        mime = "application/octet-stream"
+    mime = _safe_mime(rec.mime_type, fpath.suffix)
     return FileResponse(
         str(fpath),
         media_type=mime,
@@ -68,8 +75,26 @@ def serve_upload(upload_id: str, db: DbSession = Depends(get_db)):
     )
 
 
+def _safe_mime(mime_type: str, suffix: str) -> str:
+    mime = mime_type or "application/octet-stream"
+    if any(x in mime.lower() for x in ("svg", "html", "xml")) or suffix.lower() in (
+        ".svg",
+        ".svgz",
+        ".html",
+        ".htm",
+        ".xml",
+        ".xhtml",
+    ):
+        mime = "application/octet-stream"
+    return mime
+
+
 @router.delete("/uploads/{upload_id}")
 def delete_upload(upload_id: str, db: DbSession = Depends(get_db)):
+    from services import incognito as private_store
+
+    if private_store.delete_upload(upload_id):
+        return {"ok": True}
     rec = db.get(Upload, upload_id)
     if not rec:
         raise HTTPException(404)

@@ -130,6 +130,7 @@ class SettingsPatch(BaseModel):
     serper_api_key: str | None = None
     search_fallback: str | None = None
     memory_auto_inject: bool | None = None
+    memory_policy: str | None = None
     tts_speed: float | None = None
     tts_auto_play: bool | None = None
     stt_language: str | None = None
@@ -208,6 +209,10 @@ class SettingsPatch(BaseModel):
 @router.patch("/settings")
 def patch_settings(body: SettingsPatch):
     patch = {k: v for k, v in body.model_dump().items() if v is not None}
+    if "memory_policy" in patch and patch["memory_policy"] not in {"off", "ask", "auto"}:
+        from core.api_errors import ApiError
+
+        raise ApiError(400, "invalid_memory_policy", "memory policy must be off, ask, or auto")
     if "model_roles" in patch:
         from core.api_errors import ApiError
         from services.model_resolver import normalize_model_roles

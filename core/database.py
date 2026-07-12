@@ -465,6 +465,12 @@ class Memory(Base):
     confidence = Column(Float, default=1.0)
     vetoed = Column(Boolean, default=False)
     provenance = Column(String, default="")
+    scope = Column(String, default="global")  # global | project
+    project_id = Column(String, nullable=True)
+    status = Column(String, default="active")  # active | suggested
+    trust = Column(String, default="owner")  # owner | reviewed | derived | untrusted
+    updated_at = Column(DateTime, default=_now, onupdate=_now)
+    used_in_runs = Column(Text, default="[]")
 
 
 class Project(Base):

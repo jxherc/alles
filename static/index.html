@@ -30,7 +30,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/style.css?v=210">
+<link rel="stylesheet" href="/static/style.css?v=212">
 <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#0a0a0a">
@@ -1217,13 +1217,29 @@
               <button class="btn" id="mem-extract-btn" style="margin-left:auto;font-size:0.68rem;padding:0.15rem 0.5rem">extract from chat</button>
             </div>
             <div class="s-card-body">
+              <div class="mem-policy" aria-label="memory policy">
+                <div class="mem-policy-copy">
+                  <div class="s-toggle-label">memory policy</div>
+                  <div class="s-toggle-desc" id="mem-policy-desc">ask before saving suggested memories</div>
+                </div>
+                <div class="mem-policy-options" role="group" aria-label="memory policy choices">
+                  <button class="mem-policy-btn" data-memory-policy="off">off</button>
+                  <button class="mem-policy-btn" data-memory-policy="ask">ask</button>
+                  <button class="mem-policy-btn" data-memory-policy="auto">auto</button>
+                </div>
+              </div>
               <input type="text" id="mem-search" class="settings-input" placeholder="search memories..." style="width:100%;margin-bottom:0.55rem">
               <div id="mem-category-filter" class="mem-cat-filter"></div>
               <div class="mem-view-list" id="memory-list"></div>
               <div style="display:flex;gap:0.4rem;margin-top:0.6rem">
                 <input type="text" id="mem-add-input" class="settings-input" placeholder="add a memory..." style="flex:1">
                 <button class="btn mem-cat-cycle" id="mem-cat-cycle-btn" data-val="general">general</button>
-                <button class="btn primary" id="mem-add-btn">add</button>
+                <button class="btn primary" id="mem-add-btn">remember</button>
+              </div>
+              <div class="mem-undo" id="mem-undo" hidden>saved to memory <button class="act-btn">undo</button></div>
+              <div class="mem-foot-actions">
+                <a class="btn" href="/api/memories/export" download>export</a>
+                <button class="btn danger" id="mem-clear-btn">clear all</button>
               </div>
             </div>
           </div>
@@ -1844,7 +1860,7 @@
 </div>
 
 <script type="module">
-const _v = '211';
+const _v = '212';
 import(`/static/js/app.js?v=${_v}`);
 </script>
 </body>

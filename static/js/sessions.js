@@ -49,6 +49,7 @@ const _draftKey = id => 'aide-draft-' + (id || 'new');
 export function saveDraft() {
   const ta = document.getElementById('composer-ta');
   if (!ta) return;
+  if (isIncognitoMode()) return;
   const k = _draftKey(_activeId);
   if (ta.value.trim()) localStorage.setItem(k, ta.value);
   else localStorage.removeItem(k);
@@ -56,16 +57,23 @@ export function saveDraft() {
 export function restoreDraft(id) {
   const ta = document.getElementById('composer-ta');
   if (!ta) return;
+  if (isIncognitoMode()) {
+    ta.value = '';
+    ta.style.height = 'auto';
+    ta.dispatchEvent(new Event('input', { bubbles: true }));
+    return;
+  }
   ta.value = localStorage.getItem(_draftKey(id)) || '';
   ta.style.height = 'auto';
   ta.dispatchEvent(new Event('input', { bubbles: true }));   // autosize + send-btn state
 }
 export function clearDraft(id) {
+  if (isIncognitoMode()) return;
   localStorage.removeItem(_draftKey(id === undefined ? _activeId : id));
 }
 
-export function newChat() {
-  saveDraft();              // keep whatever was half-typed in the outgoing convo
+export function newChat(options = {}) {
+  if (!options.skipDraft) saveDraft(); // keep whatever was half-typed in the outgoing convo
   _activeId = null;
   window._currentSession = null;
   window._pendingPersona = null;       // fresh chat starts with no persona pre-picked
@@ -83,7 +91,7 @@ export function newChat() {
 // used after lazy-create so the in-flight stream isn't wiped.
 export function markActive(id) {
   _activeId = id;
-  if (id) location.hash = id;
+  if (id && !isIncognitoMode()) location.hash = id;
   document.querySelectorAll('.session-item').forEach(el => {
     el.classList.toggle('active', el.dataset.id === id);
   });
@@ -669,7 +677,7 @@ export async function createSession(model = '', endpointId = '', options = {}) {
   });
   if (!r.ok) return null;
   const s = await r.json();
-  await loadSessions();
+  if (!options.incognito) await loadSessions();
   return s;
 }
 

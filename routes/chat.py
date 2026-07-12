@@ -8,8 +8,10 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session as DbSession
 
+from core.api_errors import ApiError
 from core.database import Message, ModelEndpoint, Persona, Session, SessionLocal, get_db
 from core.settings import _ARTIFACT_INSTRUCTIONS, load_settings
+from services import incognito as incognito_service
 from services.agent_runtime import merge_usage, run_agent
 from services.llm import simple_complete, stream_chat
 from services.memory_store import inject_memories
@@ -206,7 +208,8 @@ def _build_messages(
             except Exception:
                 pass
 
-    if settings.get("memory_auto_inject", True):
+    memory_allowed = not settings.get("incognito") and settings.get("memory_policy", "ask") != "off"
+    if memory_allowed and settings.get("memory_auto_inject", True):
         # mem_ctx may be pre-computed off the event loop by an async caller (the embed is
         # CPU-bound and used to freeze the whole server per chat turn); only embed inline
         # here as a fallback for sync callers.
@@ -215,7 +218,7 @@ def _build_messages(
             sys_prompt = sys_prompt.rstrip() + "\n\n" + mc
 
     # surface-brain - let aide weave in the cross-domain insights it found
-    if db and settings.get("insights_auto_inject", True):
+    if db and not settings.get("incognito") and settings.get("insights_auto_inject", True):
         try:
             from services.insights import inject_active_insights
 
@@ -226,7 +229,7 @@ def _build_messages(
             pass
 
     # surface-brain - feed the distilled user-model (what we learned about you) into the prompt
-    if db and settings.get("distilled_auto_inject", True):
+    if db and memory_allowed and settings.get("distilled_auto_inject", True):
         try:
             from services.user_model import inject_distilled
 
@@ -237,7 +240,12 @@ def _build_messages(
             pass
 
     # 1d - a compact per-session context (mode/topic/project) so aide stays coherent across turns
-    if settings.get("session_context_inject", True) and db and session is not None:
+    if (
+        not settings.get("incognito")
+        and settings.get("session_context_inject", True)
+        and db
+        and session is not None
+    ):
         try:
             from services.session_context import summarize as _session_summary
 
@@ -255,7 +263,7 @@ def _build_messages(
     limit = max(
         1, int(limit) if isinstance(limit, (int, float)) else 40
     )  # 0/neg would dump all history
-    if db is not None:
+    if db is not None and not getattr(session, "incognito", False):
         # pull just the last `limit` rows in sql — loading the whole relationship dragged the
         # entire session history into memory on every turn
         history = (
@@ -281,21 +289,31 @@ def _build_messages(
         text_blocks = []
         image_parts = []
         for fid in file_ids:
-            rec = db.get(Upload, fid)
-            if not rec:
+            private = incognito_service.get_upload(fid)
+            rec = db.get(Upload, fid) if not private else None
+            if private:
+                raw = private.content
+                mime_type = private.mime_type
+                original_name = private.name
+                fpath = None
+            elif rec:
+                fpath = upload_dir() / rec.filename
+                if not fpath.exists():
+                    continue
+                raw = fpath.read_bytes()
+                mime_type = rec.mime_type
+                original_name = rec.original_name
+            else:
                 continue
-            fpath = upload_dir() / rec.filename
-            if not fpath.exists():
-                continue
-            if rec.mime_type.startswith("image/"):
-                b64 = base64.b64encode(fpath.read_bytes()).decode()
+            if mime_type.startswith("image/"):
+                b64 = base64.b64encode(raw).decode()
                 image_parts.append(
                     {
                         "type": "image_url",
-                        "image_url": {"url": f"data:{rec.mime_type};base64,{b64}"},
+                        "image_url": {"url": f"data:{mime_type};base64,{b64}"},
                     }
                 )
-            elif _is_video_upload(rec):
+            elif rec and _is_video_upload(rec):
                 # 10e — sample frames so a vision model can understand the clip
                 from services.video_frames import extract_frames
 
@@ -304,7 +322,7 @@ def _build_messages(
             else:
                 try:
                     text_blocks.append(
-                        f'<file name="{rec.original_name}">\n{fpath.read_text("utf-8", errors="replace")}\n</file>'
+                        f'<file name="{original_name}">\n{raw.decode("utf-8", errors="replace")}\n</file>'
                     )
                 except Exception:
                     pass
@@ -348,6 +366,7 @@ async def _stream_and_save(
     incognito: bool = False,
     mode: str = "chat",
     settings: dict | None = None,
+    memory_ids: list[str] | None = None,
 ):
     accumulated = []
     thinking_acc = []
@@ -395,7 +414,13 @@ async def _stream_and_save(
     full_text = "".join(accumulated)
 
     if incognito:
-        return  # don't persist incognito messages
+        meta = {"usage": usage, "model": model}
+        if thinking_acc:
+            meta["thinking"] = "".join(thinking_acc)
+        if tool_steps:
+            meta["tool_steps"] = tool_steps
+        incognito_service.append_turn(session_id, user_text, full_text, json.dumps(meta))
+        return  # RAM only; never write an incognito turn to SQLite
 
     db = db_factory()
     try:
@@ -421,6 +446,8 @@ async def _stream_and_save(
 
         if full_text:
             meta = {"usage": usage, "model": model}
+            if memory_ids:
+                meta["memory_ids"] = memory_ids
             if thinking_acc:
                 meta["thinking"] = "".join(thinking_acc)
             if tool_steps:
@@ -469,11 +496,34 @@ async def _fire_message_hook(session_id: str, user_text: str, reply: str):
 # POST /api/chat
 @router.post("/chat")
 async def chat(body: ChatRequest, db: DbSession = Depends(get_db)):
-    s = db.get(Session, body.session_id)
+    private_session = incognito_service.get_session(body.session_id)
+    s = private_session or db.get(Session, body.session_id)
     if not s:
         raise HTTPException(404, "session not found")
+    if body.incognito and not private_session and not getattr(s, "incognito", False):
+        raise ApiError(
+            400,
+            "incognito_session_required",
+            "start an incognito session before sending a private message",
+        )
 
     settings = load_settings()
+    incognito_run = bool(getattr(s, "incognito", False))
+    settings["incognito"] = incognito_run
+    for upload_id in body.file_ids:
+        private_upload = incognito_service.get_upload(upload_id)
+        if incognito_run and not private_upload:
+            raise ApiError(
+                400,
+                "incognito_upload_required",
+                "attach the file again inside incognito",
+            )
+        if not incognito_run and private_upload:
+            raise ApiError(
+                400,
+                "incognito_upload_forbidden",
+                "private attachments can only be used inside incognito",
+            )
     ep, model = _resolve_session_model(s, db, settings)
     settings["agent_cwd"] = _resolve_working_dir(s)
     _p = _resolve_persona(s, db)
@@ -487,12 +537,24 @@ async def chat(body: ChatRequest, db: DbSession = Depends(get_db)):
     aug_text = _resolve_mentions(body.message, settings["agent_cwd"])
     # embed memories OFF the event loop — fastembed is CPU-bound and would otherwise freeze
     # every other request (and SSE stream) for the duration of each chat turn
-    mem_ctx = (
-        await asyncio.to_thread(inject_memories, aug_text)
-        if settings.get("memory_auto_inject", True)
-        else ""
+    memory_result = (
+        await asyncio.to_thread(
+            inject_memories,
+            aug_text,
+            project_id=getattr(s, "project_id", "") or "",
+            run_id=s.id,
+            return_details=True,
+        )
+        if not incognito_run
+        and settings.get("memory_policy", "ask") != "off"
+        and settings.get("memory_auto_inject", True)
+        else ("", [])
     )
+    mem_ctx, memory_ids = memory_result
     messages = _build_messages(s, aug_text, settings, db, body.file_ids, mem_ctx=mem_ctx)
+    if incognito_run:
+        for upload_id in body.file_ids:
+            incognito_service.delete_upload(upload_id)
 
     # context compaction
     if settings.get("auto_compact", True):
@@ -508,7 +570,7 @@ async def chat(body: ChatRequest, db: DbSession = Depends(get_db)):
 
     from core.database import SessionLocal as _SF
 
-    incognito = bool(body.incognito or getattr(s, "incognito", False))
+    is_incognito = incognito_run
     base_mode = body.mode or getattr(s, "mode", "chat") or "chat"
     pmode = (_p.default_mode if _p else "") or ""
     mode, force_approve = _decide_mode(
@@ -524,9 +586,10 @@ async def chat(body: ChatRequest, db: DbSession = Depends(get_db)):
         model,
         stop_event,
         _SF,
-        incognito=incognito,
+        incognito=is_incognito,
         mode=mode,
         settings=settings,
+        memory_ids=memory_ids,
     )
 
     async def cleanup_gen():
@@ -539,7 +602,10 @@ async def chat(body: ChatRequest, db: DbSession = Depends(get_db)):
     return StreamingResponse(
         _sse(cleanup_gen()),
         media_type="text/event-stream",
-        headers={"cache-control": "no-cache", "x-accel-buffering": "no"},
+        headers={
+            "cache-control": "no-store" if incognito_run else "no-cache",
+            "x-accel-buffering": "no",
+        },
     )
 
 
@@ -549,9 +615,13 @@ _bg_tasks: dict[str, asyncio.Task] = {}
 
 @router.post("/agent/background")
 async def chat_background(body: ChatRequest, db: DbSession = Depends(get_db)):
-    s = db.get(Session, body.session_id)
+    s = incognito_service.get_session(body.session_id) or db.get(Session, body.session_id)
     if not s:
         raise HTTPException(404, "session not found")
+    if getattr(s, "incognito", False) or body.incognito:
+        from core.api_errors import ApiError
+
+        raise ApiError(400, "incognito_background_forbidden", "incognito work stays in this tab")
     settings = load_settings()
     ep, model = _resolve_session_model(s, db, settings)
     settings["agent_cwd"] = _resolve_working_dir(s)
@@ -560,11 +630,19 @@ async def chat_background(body: ChatRequest, db: DbSession = Depends(get_db)):
     if _p and _p.temperature is not None:
         settings["temperature"] = _p.temperature
     aug_text = _resolve_mentions(body.message, settings["agent_cwd"])
-    mem_ctx = (
-        await asyncio.to_thread(inject_memories, aug_text)
-        if settings.get("memory_auto_inject", True)
-        else ""
+    memory_result = (
+        await asyncio.to_thread(
+            inject_memories,
+            aug_text,
+            project_id=getattr(s, "project_id", "") or "",
+            run_id=s.id,
+            return_details=True,
+        )
+        if settings.get("memory_policy", "ask") != "off"
+        and settings.get("memory_auto_inject", True)
+        else ("", [])
     )
+    mem_ctx, memory_ids = memory_result
     messages = _build_messages(s, aug_text, settings, db, body.file_ids, mem_ctx=mem_ctx)
 
     stop_event = asyncio.Event()
@@ -584,6 +662,7 @@ async def chat_background(body: ChatRequest, db: DbSession = Depends(get_db)):
                 incognito=False,
                 mode="agent",
                 settings=settings,
+                memory_ids=memory_ids,
             ):
                 pass
             # ping Discord/Telegram when a long background run wraps up

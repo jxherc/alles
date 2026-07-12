@@ -9,7 +9,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session as DbSession
 
 from core.database import Message, ModelEndpoint, Session, get_db
-from services import lifecycle
+from services import incognito, lifecycle
 
 
 async def _fire(event: str, data: dict):
@@ -25,7 +25,7 @@ router = APIRouter(prefix="/api")
 
 
 def _session_or_404(session_id: str, db: DbSession):
-    s = db.get(Session, session_id)
+    s = incognito.get_session(session_id) or db.get(Session, session_id)
     if not s or s.archived:
         raise HTTPException(404, "session not found")
     return s
@@ -88,7 +88,24 @@ class CreateSession(BaseModel):
 
 # POST /api/sessions
 @router.post("/sessions")
-async def create_session(body: CreateSession, bg: BackgroundTasks, db: DbSession = Depends(get_db)):
+async def create_session(
+    body: CreateSession,
+    bg: BackgroundTasks,
+    response: Response,
+    db: DbSession = Depends(get_db),
+):
+    if body.incognito:
+        response.headers["Cache-Control"] = "no-store"
+        session = incognito.create_session(
+            name=body.name,
+            model=body.model,
+            endpoint_id=body.endpoint_id or None,
+            mode=body.mode,
+            working_dir=body.working_dir,
+            persona_id=body.persona_id or None,
+            project_id=body.project_id or None,
+        )
+        return _fmt_session(session)
     s = Session(
         name=body.name,
         model=body.model,
@@ -102,15 +119,16 @@ async def create_session(body: CreateSession, bg: BackgroundTasks, db: DbSession
     db.add(s)
     db.commit()
     db.refresh(s)
-    if not body.incognito:
-        bg.add_task(_fire, "session_created", {"session_id": s.id, "name": s.name})
+    bg.add_task(_fire, "session_created", {"session_id": s.id, "name": s.name})
     return _fmt_session(s)
 
 
 # GET /api/sessions/{id}/history
 @router.get("/sessions/{session_id}/history")
-def get_history(session_id: str, db: DbSession = Depends(get_db)):
+def get_history(session_id: str, response: Response, db: DbSession = Depends(get_db)):
     s = _session_or_404(session_id, db)
+    if getattr(s, "incognito", False):
+        response.headers["Cache-Control"] = "no-store"
     msgs = []
     for m in s.messages:
         msgs.append(
@@ -156,8 +174,10 @@ async def patch_session(
         s.persona_id = body.persona_id or None
     if body.working_dir is not None:
         s.working_dir = body.working_dir
-    db.commit()
-    if renamed:
+    ephemeral = incognito.get_session(session_id) is s
+    if not ephemeral:
+        db.commit()
+    if renamed and not ephemeral:
         bg.add_task(_fire, "session_renamed", {"session_id": s.id, "name": s.name})
     return _fmt_session(s)
 
@@ -165,6 +185,8 @@ async def patch_session(
 # POST /api/sessions/{id}/archive
 @router.post("/sessions/{session_id}/archive")
 def archive_session(session_id: str, db: DbSession = Depends(get_db)):
+    if incognito.delete_session(session_id):
+        return {"ok": True}
     s = db.get(Session, session_id)
     if not s:
         raise HTTPException(404)
@@ -176,6 +198,8 @@ def archive_session(session_id: str, db: DbSession = Depends(get_db)):
 # DELETE /api/sessions/{id}
 @router.delete("/sessions/{session_id}")
 def delete_session(session_id: str, db: DbSession = Depends(get_db)):
+    if incognito.delete_session(session_id):
+        return {"ok": True}
     s = db.get(Session, session_id)
     if not s:
         raise HTTPException(404)

@@ -14,7 +14,7 @@ import { loadTasks, addTask } from './tasks.js';
 import { loadCalendar, newEvent } from './calendar.js';
 import { loadGallery, initGalleryUpload } from './gallery.js';
 import { initSlash, tryExecuteSlashCommand } from './slash.js';
-import { attachFile, initDropZone } from './uploads.js';
+import { attachFile, discardAttachments, initDropZone } from './uploads.js';
 import { loadProjects } from './projects.js';
 import { openSearch, closeSearch, initSearch } from './search.js';
 import { initCompareView, loadCompareModels, loadCompareLeaderboard } from './compare.js';
@@ -1071,8 +1071,19 @@ function bindEvents() {
   });
   // incognito lives in the topbar (next to settings) → enter a fresh incognito chat;
   // the × in the incognito header is the way back out.
-  document.getElementById('incognito-btn')?.addEventListener('click', () => { setIncognitoMode(true); newChat(); });
-  document.getElementById('incognito-exit')?.addEventListener('click', () => { setIncognitoMode(false); newChat(); });
+  document.getElementById('incognito-btn')?.addEventListener('click', async () => {
+    saveDraft();
+    await discardAttachments();
+    setIncognitoMode(true);
+    newChat();
+  });
+  document.getElementById('incognito-exit')?.addEventListener('click', async () => {
+    const sessionId = getActiveId();
+    await discardAttachments();
+    if (sessionId) await fetch(`/api/sessions/${sessionId}`, { method: 'DELETE' }).catch(() => {});
+    setIncognitoMode(false);
+    newChat({ skipDraft: true });
+  });
 
   document.getElementById('shell-btn-tool')?.addEventListener('click', openShellPanel);
   document.getElementById('shell-panel-close')?.addEventListener('click', closeShellPanel);

@@ -45,13 +45,15 @@ every one of these is a real, finished app — not a placeholder. they each live
 - **app actions from plain chat** — just ask ("what's on my calendar", "any new emails", "remind me to call the dentist", "add lunch friday 1pm") and aide does it; reads happen freely, anything that changes/sends asks first. plus discord/telegram pings when a long run finishes.
 - **research mode** — searches the web, *reads the pages*, and writes you a cited report
 - **compare** — run one prompt against several models at once, side by side, and vote
-- **long-term memory** — it remembers facts/preferences across all your chats
+- **long-term memory** — it remembers reviewed facts and preferences across chats, with Off, Ask,
+  and Auto policies
 - **personas** — saved system prompts / characters you can switch between
 - **projects** — group chats together with shared context
 - **artifacts** — when the model writes html/svg/a webpage/code, you see it rendered live, not as a wall of text
 - **voice** — talk to it and have it talk back (speech-to-text in, text-to-speech out)
 - **vision** — drop in an image and capable models can see it
-- **incognito chats** — conversations that aren't saved
+- **incognito chats** — conversations and attachments kept only in short-lived RAM; they use no
+  long-term memory and disappear when you exit or restart Alles
 - **slash commands** (`/new`, `/clear`, `/rename`, …) and `@`-mentions to pull a file into context
 - **cookbook** — a browser over **900+ open models** ranked against *your* actual hardware (what fits, at what quant, how fast), so you can pick + pull a local model that'll actually run
 - **usage** — a token dashboard: totals, a tokens-by-month chart, and a per-model breakdown, so you can see what you're spending
@@ -268,7 +270,12 @@ this is the most feature-dense app, so here's the full list:
 aide looks like a normal chat box. the differences are under it:
 
 - **one box, every model.** you register "endpoints" (each is just a web address + an api key) and pick a model. switch providers mid-conversation; aide handles the protocol differences. ([how that works →](#how-the-model-switch-works))
-- **it remembers.** long-term memory backed by **local vector search** — *vector search* means it finds memories by *meaning*, not exact words. it uses `fastembed` (an embedding model that runs on your cpu via onnx — no embedding api, no cost, no data leaving), and falls back to keyword search if that's unavailable. you can browse, search, edit, pin, and delete memories, and it can auto-extract durable facts from a conversation.
+- **it remembers on your terms.** long-term memory uses **local vector search** — *vector search*
+  means it finds memories by meaning, not exact words. `fastembed` runs locally on your CPU and the
+  keyword fallback also stays local. Ask is the default: extracted and model-distilled facts wait
+  for review. Auto directly saves only low-risk preferences you explicitly state. Off stops model
+  memory reads and writes. You can search, review, edit, scope, pin, forget, export, pause, or clear
+  memory, and see its source and which chats used it.
 - **it can act.** *agent mode* is a real autonomous loop (full section below).
 - **it researches.** *research mode* runs multiple rounds: search → read the actual pages → pull findings → decide what to search next → write a cited markdown report. free with no key (duckduckgo + wikipedia); better with a free tavily/brave key.
 - **it sees.** drop an image and capable providers receive it as vision input.
@@ -479,7 +486,7 @@ copy `.env.example` to `.env`. **everything is optional** — alles runs fine wi
 | `base_domain` | — | your real domain, for the subdomain setup (see architecture) |
 | `tavily_api_key` | — | better research search (falls back to duckduckgo + wikipedia, no key needed) |
 
-**everything else is configured in the app, under settings** — no files to hand-edit. that includes: model endpoints, mail accounts, the search provider (tavily / brave / searxng / google pse / serper) and fallback chain, voice (stt/tts provider, model, language, voice, speed), the agent (permission mode, max turns/tokens, docker sandbox + image + no-net, sub-agents, computer-use, context files, allowed roots), the system prompt, memory auto-inject, artifacts on/off, context limit + auto-compact, themes/appearance, caldav accounts, webhooks, and api tokens. all of those persist as a settings row in the database.
+**everything else is configured in the app, under settings** — no files to hand-edit. that includes: model endpoints, mail accounts, the search provider (tavily / brave / searxng / google pse / serper) and fallback chain, voice (stt/tts provider, model, language, voice, speed), the agent (permission mode, max turns/tokens, docker sandbox + image + no-net, sub-agents, computer-use, context files, allowed roots), the system prompt, memory policy and auto-inject, artifacts on/off, context limit + auto-compact, themes/appearance, caldav accounts, webhooks, and api tokens. all of those persist as a settings row in the database.
 
 ---
 
@@ -554,7 +561,8 @@ alles is scriptable. two flavors:
 - **tasks/calendar/notes/contacts/subs/days:** standard `get/post/patch/delete` on `/api/tasks`, `/api/calendar`, `/api/notes`, `/api/contacts`, `/api/subscriptions`, `/api/days`
 - **files/photos:** `/api/files/{list,raw,upload,mkdir,rename,delete}`, `/api/photos/{gallery,gallery/upload,albums,thumb}`
 - **secrets:** `/api/vault` (+ `/unlock`, `/lock`, `/{id}/reveal`)
-- **memory/personas/projects/cookbook:** `/api/memories` (+ `/search`, `/extract`), `/api/personas`, `/api/projects`, `/api/cookbook`
+- **memory/personas/projects/cookbook:** `/api/memories` (+ `/search`, `/extract`, `/export`,
+  `/{id}/accept`), `/api/personas`, `/api/projects`, `/api/cookbook`
 - **platform:** `/api/settings`, `/api/today`, `/api/timeline` (the activity feed), `/api/system/stats` (live machine stats), `/api/system/build`, `/api/backup` (+ `/restore`), `/api/tokens`, `/api/webhooks`, `/api/push/*`, `/api/mcp/*`, `/api/connections`, `/api/automations`
 
 if it is exposed, enable login protection. current api tokens are unscoped, and with auth enabled a bearer token still needs the session cookie; they are not yet a replacement for login.

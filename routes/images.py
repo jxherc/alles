@@ -1,12 +1,13 @@
 import json
 from datetime import datetime
-from fastapi import APIRouter, HTTPException, Depends
+
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session as DbSession
 
-from core.database import get_db, ModelEndpoint, Photo, Session, Message
-from services import photos_store as ps
+from core.database import Message, ModelEndpoint, Photo, Session, get_db
 from routes.photos import _fmt
+from services import photos_store as ps
 
 router = APIRouter(prefix="/api/images")
 
@@ -87,7 +88,9 @@ class ChatImageBody(BaseModel):
 async def generate_in_chat(body: ChatImageBody, db: DbSession = Depends(get_db)):
     if not body.prompt.strip():
         raise HTTPException(400, "empty prompt")
-    s = db.get(Session, body.session_id)
+    from services import incognito
+
+    s = incognito.get_session(body.session_id) or db.get(Session, body.session_id)
     if not s:
         raise HTTPException(404, "session not found")
     ep = (
@@ -159,6 +162,7 @@ async def generate_in_chat(body: ChatImageBody, db: DbSession = Depends(get_db))
     )
     try:
         from services import personal_index
+
         personal_index.index_record(db, "note", note["id"])
     except Exception:
         pass

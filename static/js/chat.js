@@ -127,6 +127,7 @@ export async function sendMessage(text) {
 
   const sel = getSelected();
   if (!sel) { toast('select a model first', 'error'); return; }
+  const attachmentIds = getAttachments();
 
   // image model picked as the primary → generate (legacy single-pick path)
   if (isImageSelected()) { _sendImage(text, sessionId, freshSession, getSelected()); return; }
@@ -239,7 +240,7 @@ export async function sendMessage(text) {
         session_id: sessionId,
         message: text,
         mode: getMode(),
-        file_ids: getAttachments(),
+        file_ids: attachmentIds,
         incognito: isIncognitoMode(),
         permission_mode: getMode() === 'agent' ? getPermMode() : '',
         effort: getEffort(getSelected()?.model),   // per-model effort, applies to chat + agent
