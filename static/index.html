@@ -30,7 +30,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/style.css?v=212">
+<link rel="stylesheet" href="/static/style.css?v=217">
 <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#0a0a0a">
@@ -43,6 +43,31 @@
 <body class="preboot">
 
 <div class="app">
+
+  <nav class="space-rail" id="space-rail" aria-label="main spaces" hidden>
+    <div class="space-route" id="space-route">
+      <button class="space-link" type="button" data-space="today" data-view="home" aria-label="Today" title="Today" hidden>T</button>
+      <button class="space-link" type="button" data-space="aide" data-view="chat" aria-label="Aide" title="Aide" hidden>A</button>
+      <button class="space-link" type="button" data-space="andromeda" data-view="andromeda" aria-label="Andromeda" title="Andromeda" hidden>Ø</button>
+    </div>
+    <div class="space-rail-bottom">
+      <button class="space-rail-action" id="app-drawer-btn" type="button" aria-haspopup="dialog" aria-expanded="false">apps</button>
+      <button class="space-rail-action" id="space-settings-btn" type="button">settings</button>
+    </div>
+  </nav>
+
+  <div class="app-drawer-scrim" id="app-drawer-scrim" hidden></div>
+  <aside class="app-drawer" id="app-drawer" role="dialog" aria-modal="true" aria-labelledby="app-drawer-title" hidden>
+    <div class="app-drawer-head">
+      <div>
+        <div class="app-drawer-kicker">alles</div>
+        <h2 id="app-drawer-title">all apps</h2>
+      </div>
+      <button class="icon-btn" id="app-drawer-close" type="button" aria-label="close all apps">×</button>
+    </div>
+    <p class="app-drawer-note">every current app stays here while the new spaces are built.</p>
+    <div class="app-drawer-grid" id="app-drawer-grid"></div>
+  </aside>
 
   <!-- 11b: dim layer behind the off-canvas sidebar drawer on phones (tap to close) -->
   <div class="nav-backdrop" id="nav-backdrop"></div>
@@ -2001,7 +2026,7 @@
 </div>
 
 <script type="module">
-const _v = '216';
+const _v = '217';
 import(`/static/js/app.js?v=${_v}`);
 </script>
 </body>

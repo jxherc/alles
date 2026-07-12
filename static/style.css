@@ -52,6 +52,120 @@ body.login-mode .app {
   visibility: hidden;
 }
 
+/* Afterlife 3A: one quiet route line for the permanent spaces. Hidden unless the
+   strict server flag is enabled, so the current shell remains the default. */
+.space-rail {
+  width: 58px;
+  flex: 0 0 58px;
+  border-right: 1px solid var(--faint);
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: space-between;
+  padding: 0.7rem 0.45rem;
+  position: relative;
+  z-index: 45;
+}
+.space-rail[hidden] { display: none; }
+.space-route { display: flex; flex-direction: column; align-items: center; gap: 0.48rem; position: relative; }
+.space-route::before {
+  content: '';
+  position: absolute;
+  top: 20px;
+  bottom: 20px;
+  left: 50%;
+  width: 1px;
+  background: var(--faint);
+  transform: translateX(-50%);
+}
+.space-link {
+  width: 38px;
+  height: 38px;
+  border: 1px solid var(--faint);
+  border-radius: 3px;
+  background: var(--bg);
+  color: var(--muted);
+  font: 500 0.72rem/1 var(--font-family, 'Inter', sans-serif);
+  cursor: pointer;
+  position: relative;
+  z-index: 1;
+}
+.space-link:hover { color: var(--text); border-color: var(--muted); background: var(--panel); }
+.space-link.active { color: var(--text); border-color: var(--muted); }
+.space-link.active::after {
+  content: '';
+  position: absolute;
+  top: 8px;
+  right: -6px;
+  width: 2px;
+  height: 20px;
+  border-radius: 2px;
+  background: var(--accent);
+}
+.space-rail-bottom { display: flex; flex-direction: column; gap: 0.28rem; }
+.space-rail-action {
+  min-height: 34px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font: 500 0.58rem/1.1 var(--font-family, 'Inter', sans-serif);
+  cursor: pointer;
+  padding: 0.35rem 0.1rem;
+}
+.space-rail-action:hover { color: var(--text); background: var(--panel); }
+.app-drawer-scrim { position: fixed; inset: 0; z-index: 300; background: rgba(0, 0, 0, 0.5); }
+.app-drawer-scrim[hidden], .app-drawer[hidden] { display: none; }
+.app-drawer {
+  position: fixed;
+  z-index: 301;
+  left: 58px;
+  top: 0;
+  bottom: 0;
+  width: min(390px, calc(100vw - 58px));
+  background: var(--bg);
+  border-right: 1px solid var(--faint);
+  padding: 1.1rem;
+  overflow-y: auto;
+  box-shadow: 18px 0 50px rgba(0, 0, 0, 0.24);
+}
+.app-drawer-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
+.app-drawer-kicker { color: var(--accent); font-size: 0.6rem; letter-spacing: 0.12em; text-transform: uppercase; }
+.app-drawer-head h2 { font-size: 1.15rem; font-weight: 500; letter-spacing: -0.025em; }
+.app-drawer-head .icon-btn { font-size: 1rem; }
+.app-drawer-note { color: var(--muted); font-size: 0.7rem; margin: 0.35rem 0 1rem; max-width: 32ch; }
+.app-drawer-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.4rem; }
+.app-drawer-item {
+  min-width: 0;
+  min-height: 62px;
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  border: 1px solid var(--faint);
+  border-radius: 3px;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  font: inherit;
+  padding: 0.65rem;
+  cursor: pointer;
+}
+.app-drawer-item:hover { border-color: var(--muted); background: var(--panel); }
+.app-drawer-icon { color: var(--muted); display: inline-flex; flex: 0 0 auto; }
+.app-drawer-icon svg { width: 17px; height: 17px; }
+.app-drawer-item b, .app-drawer-item small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.app-drawer-item b { font-size: 0.76rem; font-weight: 500; }
+.app-drawer-item small { color: var(--muted); font-size: 0.62rem; margin-top: 0.08rem; }
+@media (max-width: 480px) {
+  .space-rail { width: 50px; flex-basis: 50px; padding-inline: 0.35rem; }
+  .space-link { width: 36px; height: 36px; }
+  .app-drawer { left: 50px; width: calc(100vw - 50px); padding: 0.9rem; }
+  .app-drawer-grid { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .space-link, .space-rail-action, .app-drawer-item { transition: none; }
+}
+
 /* ── sidebar ── */
 .sidebar {
   width: 248px; flex-shrink: 0;
