@@ -188,12 +188,12 @@ blocks the next action immediately, including after restart.
 
 ## 2E — outbox, events, and automation migration
 
-- [ ] Build one persistent delivery outbox without Discord-specific behavior.
+- [x] Build one persistent delivery outbox without Discord-specific behavior.
   - Store run/event, channel type, privacy level, attempt count, next attempt, safe error class,
     provider message ID, and final state.
   - Keep workflow success separate from delivery success.
-- [ ] Make delivery retries idempotent where a provider supports an idempotency key.
-- [ ] Mark an unprovable delivery result **uncertain** instead of sending it again.
+- [x] Make delivery retries idempotent where a provider supports an idempotency key.
+- [x] Mark an unprovable delivery result **uncertain** instead of sending it again.
 - [ ] Add small event hooks from existing apps.
   - Hooks enqueue reviewed events; they do not run model work inside the app request.
   - External content stays untrusted and cannot approve its own action or create trusted memory.
@@ -201,7 +201,13 @@ blocks the next action immediately, including after restart.
   - Preserve names, schedules, enabled intent, and action details where safe.
   - Require owner review of model, permissions, delivery, and schedule before enabling.
   - Do not silently activate a migrated automation.
-- [ ] Keep connector secrets in the encrypted Phase 1 credential path.
+- [x] Keep connector secrets in the encrypted Phase 1 credential path.
+
+Current outbox evidence: 13 focused tests cover unique enqueue, two-worker claiming, privacy levels,
+stable provider keys, restart-safe referenced summaries, bounded transient retry, permanent failure,
+uncertain provider outcomes, idempotent recovery, non-idempotent crash quarantine, safe API fields, and
+the rules that an uncertain delivery cannot be manually resent and a disabled connector secret never
+reaches a provider. The selected outbox, record, and scheduler regression set is 41 tests.
 
 ### 2E gate
 

@@ -20,6 +20,7 @@ from core.database import (
     Project,
     get_db,
 )
+from services.jarvis_outbox import enqueue_delivery
 from services.jarvis_scheduler import next_for_trigger, utc_now, validate_trigger_config
 from services.jarvis_store import (
     answer_choice,
@@ -152,6 +153,7 @@ def _delivery(row: JarvisDeliveryAttempt) -> dict:
         "id": row.id,
         "run_id": row.run_id,
         "event_id": row.event_id,
+        "connector_id": row.connector_id,
         "channel": row.channel,
         "privacy_level": row.privacy_level,
         "state": row.state,
@@ -159,6 +161,8 @@ def _delivery(row: JarvisDeliveryAttempt) -> dict:
         "next_attempt_at": row.next_attempt_at.isoformat() if row.next_attempt_at else None,
         "safe_error_class": row.safe_error_class or "",
         "provider_message_id": row.provider_message_id or "",
+        "idempotency_supported": bool(row.idempotency_supported),
+        "last_attempt_at": row.last_attempt_at.isoformat() if row.last_attempt_at else None,
     }
 
 
@@ -413,6 +417,57 @@ def list_runs(limit: int = 50, db: DbSession = Depends(get_db)):
         .all()
     )
     return [_run(db, row) for row in rows]
+
+
+class DeliveryBody(BaseModel):
+    channel: str
+    privacy_level: str = "title_status"
+    event_id: str | None = None
+    connector_id: str | None = None
+    idempotency_supported: bool = False
+
+
+@router.post("/runs/{run_id}/deliveries", dependencies=[Depends(require_recent_owner)])
+def queue_delivery(run_id: str, body: DeliveryBody, db: DbSession = Depends(get_db)):
+    run = db.get(JarvisRun, run_id)
+    if not run:
+        raise HTTPException(404)
+    try:
+        row, _created = enqueue_delivery(db, run, **body.model_dump())
+    except ValueError as exc:
+        code = str(exc)
+        _bad(code, code.replace("_", " "))
+    db.commit()
+    db.refresh(row)
+    return _delivery(row)
+
+
+@router.get("/deliveries")
+def list_deliveries(limit: int = 100, db: DbSession = Depends(get_db)):
+    rows = (
+        db.query(JarvisDeliveryAttempt)
+        .order_by(JarvisDeliveryAttempt.created_at.desc())
+        .limit(max(1, min(limit, 200)))
+        .all()
+    )
+    return [_delivery(row) for row in rows]
+
+
+@router.post("/deliveries/{delivery_id}/retry", dependencies=[Depends(require_recent_owner)])
+def retry_delivery(delivery_id: str, db: DbSession = Depends(get_db)):
+    row = db.get(JarvisDeliveryAttempt, delivery_id)
+    if not row:
+        raise HTTPException(404)
+    if row.state == "uncertain":
+        raise ApiError(409, "uncertain_delivery_not_retryable", "uncertain delivery is not resent")
+    if row.state != "failed":
+        raise ApiError(409, "delivery_not_retryable", "only a failed delivery can be retried")
+    row.state = "retry"
+    row.next_attempt_at = None
+    row.safe_error_class = ""
+    db.commit()
+    db.refresh(row)
+    return _delivery(row)
 
 
 @router.get("/runs/{run_id}")
