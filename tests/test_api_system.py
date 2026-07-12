@@ -88,6 +88,45 @@ class SystemStatsTest(ApiTest):
         self.assertEqual(len(mounts), len(set(mounts)))  # no dup mounts
         self.assertLessEqual(len(s["disks"]), 6)
 
+    def test_server_host_never_follows_the_browser_user_agent(self):
+        browsers = {
+            "windows": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+            "macos": "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_5)",
+            "linux": "Mozilla/5.0 (X11; Linux x86_64)",
+        }
+        hosts = {
+            "Darwin": ("darwin", "macOS"),
+            "Linux": ("linux", "Linux"),
+        }
+        info = {
+            "cpu_name": "test cpu",
+            "cpu_cores": 4,
+            "total_ram_gb": 8,
+            "available_ram_gb": 4,
+            "backend": "test",
+        }
+        for host_name, (expected_platform, expected_os) in hosts.items():
+            for browser_name, user_agent in browsers.items():
+                with (
+                    self.subTest(host=host_name, browser=browser_name),
+                    mock.patch.object(sysmon.platform, "system", return_value=host_name),
+                    mock.patch.object(sysmon.platform, "release", return_value="test-release"),
+                    mock.patch.object(sysmon.platform, "machine", return_value="arm64"),
+                    mock.patch.object(sysmon, "_psutil", return_value=None),
+                    mock.patch(
+                        "services.local_models.detect_system_info",
+                        return_value=info,
+                    ),
+                    mock.patch("platform.mac_ver", return_value=("14.5", ("", "", ""), "")),
+                ):
+                    body = self.client.get(
+                        "/api/system/stats",
+                        headers={"User-Agent": user_agent},
+                    ).json()
+                self.assertEqual(body["host"]["platform"], expected_platform)
+                self.assertTrue(body["host"]["os"].startswith(expected_os))
+                self.assertNotIn("browser", body["host"])
+
 
 class BuildInfoTest(ApiTest):
     def test_build_response_is_complete_and_secret_free(self):

@@ -1,6 +1,6 @@
 # Afterlife Phase 1 — platform and security foundation
 
-- **Status:** in progress
+- **Status:** delivered
 - **Parent design:** [`../design.md`](../design.md)
 - **Checkbox rule:** `[x]` means implemented and freshly tested, not merely discussed.
 
@@ -189,6 +189,22 @@ Phase 1 is split into small gates. A later gate must not weaken an earlier one.
 - [x] Add read-only Overview, System, Services, Storage, Network, and Logs data.
   - Existing host, disk, and network stats now sit beside process/scheduler health, private logs,
     audit history, and owned-service status under authenticated System routes.
+- [x] Keep server-host identity separate from browser identity.
+  - System labels the host as **Server OS** and the current client as **This browser**. The stats API
+    derives host identity only from the server runtime, never from request headers.
+  - Crossed fixtures cover Darwin and Linux hosts with Windows, macOS, and Linux browser identities.
+- [x] Complete the reverse-proxy decision report without changing the host or network.
+  - [`proxy-decision.md`](../proxy-decision.md) compares native Caddy with Nginx Proxy Manager across
+    HTTPS, streams, forwarded headers, certificates, ownership, ports, updates, backup, removal,
+    rollback, native installs, and Compose.
+  - Caddy is the proposed future managed default. Existing proxies stay external and read-only, and
+    Phase 1 installs nothing or claims no privileged port.
+- [x] Complete the AdGuard Home decision report without changing DNS.
+  - [`adguard-decision.md`](../adguard-decision.md) checks the original linked video against current
+    official guidance and records port 53, router/client DNS, authentication, ownership, updates,
+    backup, failure isolation, removal, and rollback.
+  - AdGuard remains optional and external. Phase 1 makes no DNS, DHCP, router, firewall, static-address,
+    or privileged-port change.
 - [x] Separate Alles-owned services from external services.
   - Only matching dual-marker records are owned. Invalid, changed, unavailable, and unregistered
     services receive no lifecycle actions.
@@ -247,7 +263,15 @@ Phase 1 is split into small gates. A later gate must not weaken an earlier one.
   - Fresh evidence: all 3,874 Python tests pass with 4 skips, all 111 JavaScript tests pass, and the
     isolated live browser gate passes at desktop and 390×844 mobile widths with keyboard file choice,
     reduced motion, masked real API output, and zero console/server errors.
-- [ ] Spike Kopia only after the existing portable restore path remains proven.
+- [x] Spike Kopia only after the existing portable restore path remains proven.
+  - Kopia 0.23.1 created an encrypted filesystem repository, rejected the wrong password, restored an
+    exact artifact after source/client deletion, and handed it back to the existing staged restore path.
+  - The second 12,605,916-byte encrypted backup added 12,607,022 repository bytes (`1.0001×`). Fresh
+    outer encryption prevents meaningful cross-backup deduplication at this layer.
+  - Alles therefore does not add a Kopia dependency or second recovery format. The portable encrypted
+    manifest/staging archive remains the engine for local, WebDAV, and S3-compatible destinations.
+  - [`kopia-spike.md`](../kopia-spike.md) records the command, checksum, evidence, limits, decision, and
+    proof required before reconsidering it.
 
 ## Current slice
 
@@ -256,11 +280,12 @@ errors, rate limits, encrypted connector credentials, private observability, own
 live model catalogs and roles, trusted memory, real incognito isolation, provider-auth decisions,
 safe Markdown writes, recoverable Vault trash, approved-root file confinement, public-share safety,
 the revalidated encrypted local backup destination, and the manual encrypted WebDAV and S3-compatible
-backup targets.
+backup targets. System now separates server and browser identity, and the proxy, AdGuard, and Kopia
+decisions are recorded with their safety and recovery limits.
 They do not install or configure a reverse proxy or companion service for the owner, and they do not
 expose unsupported provider account login.
 
-Fresh evidence: 12 focused startup-policy tests pass. Broader verification is recorded with the commit.
-The CORS slice adds 5 parser cases plus live unknown-origin request and preflight checks.
-The public-host slice adds complete public app boot coverage plus HTTP, host, subdomain, IPv6, proxy,
-domain, and configured-origin cases.
+Final evidence includes all 3,874 Python tests with 4 expected skips, all 112 JavaScript tests, the real
+Kopia spike, and an isolated System browser pass at 1280×800 and 390×844. The browser pass confirms the
+correct server OS, separate client identity, keyboard access, reduced motion, no horizontal overflow,
+and zero console/page errors. Earlier slice-level evidence remains beside each checklist item.

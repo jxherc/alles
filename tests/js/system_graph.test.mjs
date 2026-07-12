@@ -4,7 +4,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { graphCols, HIST, procCpuLabel } from '../../static/js/system.js';
+import { browserClientInfo, graphCols, HIST, procCpuLabel } from '../../static/js/system.js';
 
 test('HIST is the history cap', () => {
   assert.equal(HIST, 720);
@@ -59,4 +59,19 @@ test('process cpu label tolerates missing samples', () => {
   assert.equal(procCpuLabel(null), '  —');
   assert.equal(procCpuLabel(undefined), '  —');
   assert.equal(procCpuLabel(7.4), '  7');
+});
+
+test('browser identity stays explicitly client-side across major platforms', () => {
+  const fixtures = [
+    [{ platform: 'Win32', language: 'en-US', userAgent: 'Mozilla/5.0 Windows NT 10.0' }, 'Windows'],
+    [{ platform: 'MacIntel', language: 'en-TW', userAgent: 'Mozilla/5.0 Macintosh' }, 'macOS'],
+    [{ platform: 'Linux x86_64', language: 'fr-FR', userAgent: 'Mozilla/5.0 X11 Linux' }, 'Linux'],
+  ];
+  for (const [navigatorLike, expected] of fixtures) {
+    assert.deepEqual(browserClientInfo(navigatorLike, 'Asia/Taipei'), {
+      platform: expected,
+      language: navigatorLike.language,
+      timezone: 'Asia/Taipei',
+    });
+  }
 });
