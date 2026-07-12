@@ -53,12 +53,13 @@ class AgentCwdTest(unittest.TestCase):
         self.assertIn("blocked", err)
 
     def test_guard_path_allows_normal(self):
-        with mock.patch.object(at, "_settings", lambda: {}):
+        with mock.patch.object(at, "_settings", lambda: {"agent_cwd": "/home/user/code"}):
             err = at._guard_path("/home/user/code/app.py")
         self.assertIsNone(err)
 
     def test_agent_allow_secrets_bypasses_block(self):
-        with mock.patch.object(at, "_settings", lambda: {"agent_allow_secrets": True}):
+        settings = {"agent_allow_secrets": True, "agent_cwd": "/home/user"}
+        with mock.patch.object(at, "_settings", lambda: settings):
             err = at._guard_path("/home/user/.ssh/id_rsa")
         self.assertIsNone(err)
 

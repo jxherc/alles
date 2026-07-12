@@ -1,10 +1,13 @@
 import re
+from pathlib import Path
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from fastapi.responses import Response
 from pydantic import BaseModel
 
+from core.api_errors import ApiError
+from core.auth import require_recent_owner
 from core.settings import load_settings, save_settings
 from services.redaction import redact_url
 
@@ -213,19 +216,32 @@ class SettingsPatch(BaseModel):
 
 
 @router.patch("/settings")
-def patch_settings(body: SettingsPatch):
+def patch_settings(body: SettingsPatch, request: Request):
     patch = {k: v for k, v in body.model_dump().items() if v is not None}
+    if "agent_allowed_roots" in patch:
+        require_recent_owner(request)
+        roots = patch["agent_allowed_roots"]
+        if len(roots) > 16:
+            raise ApiError(400, "invalid_agent_root", "at most 16 extra roots are allowed")
+        normalized = []
+        for value in roots:
+            path = Path(str(value)).expanduser()
+            if not path.is_absolute() or not path.is_dir():
+                raise ApiError(400, "invalid_agent_root", "approved roots must be existing folders")
+            resolved = path.resolve()
+            if resolved == Path(resolved.anchor):
+                raise ApiError(400, "invalid_agent_root", "the filesystem root cannot be approved")
+            text = str(resolved)
+            if text not in normalized:
+                normalized.append(text)
+        patch["agent_allowed_roots"] = normalized
     if "language" in patch:
         patch["language"] = patch["language"].strip().lower()
         if patch["language"] != "en":
-            from core.api_errors import ApiError
-
             raise ApiError(400, "unsupported_language", "English is the only reviewed language")
     if "region" in patch:
         patch["region"] = patch["region"].strip().upper()
         if patch["region"] and not re.fullmatch(r"(?:[A-Z]{2}|[0-9]{3})", patch["region"]):
-            from core.api_errors import ApiError
-
             raise ApiError(400, "invalid_region", "region must be a two-letter or three-digit code")
     if "timezone" in patch:
         patch["timezone"] = patch["timezone"].strip()
@@ -233,17 +249,12 @@ def patch_settings(body: SettingsPatch):
             try:
                 ZoneInfo(patch["timezone"])
             except (ZoneInfoNotFoundError, ValueError) as exc:
-                from core.api_errors import ApiError
-
                 raise ApiError(
                     400, "invalid_timezone", "timezone must be a valid IANA name"
                 ) from exc
     if "memory_policy" in patch and patch["memory_policy"] not in {"off", "ask", "auto"}:
-        from core.api_errors import ApiError
-
         raise ApiError(400, "invalid_memory_policy", "memory policy must be off, ask, or auto")
     if "model_roles" in patch:
-        from core.api_errors import ApiError
         from services.model_resolver import normalize_model_roles
 
         try:

@@ -1,11 +1,12 @@
 import asyncio
+import tempfile
 import unittest
 from pathlib import Path
 from unittest import mock
 
-from services.agent_intents import message_needs_tools
 from services import agent_tools as at
-from services.agent_runtime import _trim_history, _hist_chars
+from services.agent_intents import message_needs_tools
+from services.agent_runtime import _hist_chars, _trim_history
 
 
 class IntentTests(unittest.TestCase):
@@ -66,7 +67,8 @@ class PathConfinementTests(unittest.TestCase):
             self.assertIsNotNone(at._guard_path(Path.home() / ".ssh" / "id_rsa"))
 
     def test_guard_allows_secret_with_override(self):
-        with mock.patch.object(at, "_settings", lambda: {"agent_allow_secrets": True}):
+        settings = {"agent_allow_secrets": True, "agent_allowed_roots": [str(Path.home())]}
+        with mock.patch.object(at, "_settings", lambda: settings):
             self.assertIsNone(at._guard_path(Path.home() / ".ssh" / "id_rsa"))
 
     def test_read_file_blocks_secret(self):
@@ -76,11 +78,18 @@ class PathConfinementTests(unittest.TestCase):
         self.assertIn("blocked", res["output"])
 
     def test_workspace_confine_blocks_outside_writes(self):
-        with mock.patch.object(at, "_settings", lambda: {"agent_confine_workspace": True}):
+        with mock.patch.object(at, "_settings", lambda: {}):
             outside = Path.home() / "definitely_outside_workspace_xyz.txt"
             inside = at.ROOT / "scratch_test_file.txt"
             self.assertIsNotNone(at._guard_path(outside, write=True))
             self.assertIsNone(at._guard_path(inside, write=True))
+
+    def test_explicit_root_is_read_only_outside_project(self):
+        with tempfile.TemporaryDirectory() as directory:
+            settings = {"agent_allowed_roots": [directory]}
+            with mock.patch.object(at, "_settings", lambda: settings):
+                self.assertIsNone(at._guard_path(Path(directory) / "safe.txt"))
+                self.assertIsNotNone(at._guard_path(Path(directory) / "safe.txt", write=True))
 
 
 class CompactionTests(unittest.TestCase):

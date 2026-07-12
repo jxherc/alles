@@ -74,6 +74,7 @@ ownership and parser markers are regression-tested.
 
 - Trusted-host/proxy policy, scoped bearer tokens, encrypted credentials for every connector, and public
   access profiles are later security work.
-- `agent_allowed_roots` is stored but is not the active path guard for all tools.
+- Shell commands remain a separate, higher-risk boundary; approved file roots govern agent file tools,
+  not arbitrary paths typed inside shell commands.
 - Managed SearXNG, durable cron/heartbeats, and inbound Discord/Jarvis are future work.
 - Current API tokens are not a substitute for the login cookie when auth is enabled.

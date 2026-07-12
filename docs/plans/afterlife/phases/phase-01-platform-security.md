@@ -151,7 +151,19 @@ Phase 1 is split into small gates. A later gate must not weaken an earlier one.
   - Fresh evidence: 63 focused vault, Docs, Notes, route-contract, conflict, atomic-write, delete,
     and restore checks pass, together with all 99 JavaScript checks. Desktop keyboard/reduced-motion
     and 390×844 mobile browser checks restore a real document with no overflow or console errors.
-- [ ] Confine file operations to approved roots.
+- [x] Confine file operations to approved roots.
+  - Agent file reads, listing, globbing, and search stay inside the selected Project plus explicitly
+    approved extra folders. Extra folders begin read-only; only the selected Project is writable.
+  - Diff previews, checkpoints, edits, patches, and reverts use the same guard, so a blocked write
+    cannot quietly copy an outside file into run history. Temporary folders are no longer trusted by
+    default.
+  - Settings accepts at most 16 existing absolute folders, resolves aliases, rejects the filesystem
+    root, and requires recent owner authentication when login is enabled.
+  - Files and Vault operations resolve every requested path against their configured root. Traversal
+    and symlinks that point outside fail closed.
+  - Fresh evidence: 119 focused agent, Settings, Files, Vault, and trash checks pass, plus 196 broader
+    agent/Project/session checks and all 99 JavaScript checks. Desktop keyboard/reduced-motion and
+    390×844 mobile browser checks save a real approved root with no overflow or console errors.
 - [ ] Hash public-share passwords and rate-limit access attempts.
 
 ## 1B — Server foundation
@@ -176,7 +188,8 @@ Phase 1 is split into small gates. A later gate must not weaken an earlier one.
 
 The current completed groups cover startup access policy, scoped owner/API access, stable security
 errors, rate limits, encrypted connector credentials, private observability, owned-service controls,
-live model catalogs and roles, trusted memory, real incognito isolation, and the provider-auth decision.
+live model catalogs and roles, trusted memory, real incognito isolation, provider-auth decisions,
+safe Markdown writes, recoverable Vault trash, and approved-root file confinement.
 They do not install or configure a reverse proxy or companion service for the owner, and they do not
 expose unsupported provider account login.
 

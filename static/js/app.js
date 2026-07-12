@@ -26,7 +26,7 @@ import { initAppCogs } from './appsettings.js';
 import { loadPhotos, initPhotos } from './photos.js';
 import { setBaseDomain, parseHost, appForSub, viewToSub, urlForApp, currentSub, singleHost, SUBDOMAIN_VIEWS, shouldPollModels } from './subdomain.js';
 import { loadBrainPanel } from './brain.js';
-import { openSettings, closeSettings, applyVis } from './settings.js?v=213';
+import { openSettings, closeSettings, applyVis } from './settings.js?v=216';
 import { setIncognitoMode, getPermMode, setPermMode, getEffort, setEffort } from './modes.js';
 import { initPrivacyHandlers } from './privacy.js';
 import { loadShortcuts, matchesShortcut } from './shortcuts.js';

@@ -1498,6 +1498,32 @@ async function loadAgentStatus() {
   const list = document.getElementById('agent-tool-list');
   const runsEl = document.getElementById('agent-run-list');
   if (!grid || !list) return;
+  const cfg = await fetch('/api/settings').then(r => r.json()).catch(() => ({}));
+  _bindSwitchOnce(document.getElementById('s-agent-ctx-toggle'),
+    () => cfg.agent_context_files !== false, v => _patchSetting('agent_context_files', v));
+  _bindSwitchOnce(document.getElementById('s-agent-sandbox-toggle'),
+    () => !!cfg.agent_sandbox, v => _patchSetting('agent_sandbox', v));
+  _bindSwitchOnce(document.getElementById('s-agent-computer-toggle'),
+    () => !!cfg.agent_computer_use, v => _patchSetting('agent_computer_use', v));
+  _bindSwitchOnce(document.getElementById('s-agent-subagents-toggle'),
+    () => cfg.agent_subagents !== false, v => _patchSetting('agent_subagents', v));
+  const roots = document.getElementById('s-agent-roots');
+  if (roots) roots.value = (cfg.agent_allowed_roots || []).join('\n');
+  const rootsSave = document.getElementById('s-agent-roots-save');
+  if (rootsSave && !rootsSave.dataset.bound) {
+    rootsSave.dataset.bound = '1';
+    rootsSave.addEventListener('click', async () => {
+      const values = (roots?.value || '').split('\n').map(value => value.trim()).filter(Boolean);
+      const response = await _fetchWithRecentOwner('/api/settings', {
+        method: 'PATCH', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ agent_allowed_roots: values }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) { toast(data.detail || 'approved roots could not be saved', 'error'); return; }
+      if (roots) roots.value = (data.agent_allowed_roots || []).join('\n');
+      toast('approved roots saved', 'success');
+    });
+  }
   try {
     const [s, runs] = await Promise.all([
       fetch('/api/agent/status').then(r => r.json()),
@@ -1516,17 +1542,6 @@ async function loadAgentStatus() {
       <div><span>connections</span><strong>${(s.connections || []).join(', ') || 'none'}</strong></div>
     `;
     list.innerHTML = (s.tools || []).map(t => `<span>${_esc(t)}</span>`).join('');
-
-    // capability toggles (backend settings)
-    const cfg = await fetch('/api/settings').then(r => r.json()).catch(() => ({}));
-    _bindSwitchOnce(document.getElementById('s-agent-ctx-toggle'),
-      () => cfg.agent_context_files !== false, v => _patchSetting('agent_context_files', v));
-    _bindSwitchOnce(document.getElementById('s-agent-sandbox-toggle'),
-      () => !!cfg.agent_sandbox, v => _patchSetting('agent_sandbox', v));
-    _bindSwitchOnce(document.getElementById('s-agent-computer-toggle'),
-      () => !!cfg.agent_computer_use, v => _patchSetting('agent_computer_use', v));
-    _bindSwitchOnce(document.getElementById('s-agent-subagents-toggle'),
-      () => cfg.agent_subagents !== false, v => _patchSetting('agent_subagents', v));
 
     if (runsEl) {
       runsEl.innerHTML = Array.isArray(runs) && runs.length

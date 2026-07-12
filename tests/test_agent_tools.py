@@ -3,6 +3,7 @@ import os
 import subprocess
 import tempfile
 import unittest
+from pathlib import Path
 from unittest import mock
 
 from services import agent_tools as at
@@ -60,6 +61,9 @@ class SubAgentTurnCapTests(unittest.TestCase):
 
 
 class PreviewChangeTests(unittest.TestCase):
+    def setUp(self):
+        at.set_agent_ctx({"agent_cwd": tempfile.gettempdir()})
+
     def test_write_file_diff(self):
         with tempfile.TemporaryDirectory() as d:
             p = os.path.join(d, "a.txt")
@@ -85,7 +89,7 @@ class PreviewChangeTests(unittest.TestCase):
 
 class FileToolTests(unittest.TestCase):
     def setUp(self):
-        at.set_agent_ctx({})  # fresh ctx (resets the _reads set)
+        at.set_agent_ctx({"agent_cwd": tempfile.gettempdir()})
 
     def test_read_file_is_line_numbered(self):
         with tempfile.TemporaryDirectory() as d:
@@ -95,6 +99,30 @@ class FileToolTests(unittest.TestCase):
             self.assertIn("1\timport os", out)
             self.assertIn("2\tx = 1", out)
             self.assertIn("3\tprint(x)", out)
+
+    def test_listing_search_and_glob_block_unapproved_roots(self):
+        at.set_agent_ctx({"agent_cwd": str(at.ROOT)})
+        with tempfile.TemporaryDirectory() as outside:
+            for result in (
+                asyncio.run(at._list_files(outside)),
+                asyncio.run(at._glob_files("*.txt", outside)),
+                asyncio.run(at._grep_files("secret", outside)),
+            ):
+                self.assertTrue(result["error"])
+                self.assertIn("approved roots", result["output"])
+
+    def test_diff_preview_and_checkpoint_do_not_read_unapproved_files(self):
+        with tempfile.TemporaryDirectory() as project, tempfile.TemporaryDirectory() as outside:
+            target = Path(outside) / "private.txt"
+            target.write_text("do not copy")
+            at.set_agent_ctx({"agent_cwd": project})
+            self.assertEqual(
+                at.preview_change("write_file", {"path": str(target), "content": "changed"}),
+                "",
+            )
+            with mock.patch("services.agent_state.add_checkpoint") as add_checkpoint:
+                at.capture_checkpoint("run-1", "write_file", {"path": str(target)})
+            add_checkpoint.assert_not_called()
 
     def test_read_range_numbers_from_start(self):
         with tempfile.TemporaryDirectory() as d:
