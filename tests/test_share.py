@@ -121,9 +121,36 @@ class ShareApiTests(ApiTest):
         self.assertEqual(j["url"], f"/s/{j['token']}")
         self.assertEqual(j["kind"], "doc")
 
+    def test_api_mints_password_share_without_returning_secret(self):
+        r = self.client.post(
+            "/api/share",
+            json={
+                "kind": "doc",
+                "ref": "protected.md",
+                "password": "hunter2",
+                "expires_at": "2099-01-01T00:00:00",
+            },
+        )
+        self.assertEqual(r.status_code, 200)
+        body = r.json()
+        self.assertTrue(body["password_protected"])
+        self.assertEqual(body["expires_at"], "2099-01-01T00:00:00Z")
+        self.assertNotIn("password", body)
+        self.assertNotIn("password_hash", body)
+        state = self.client.get("/api/share", params={"kind": "doc", "ref": "protected.md"}).json()
+        self.assertTrue(state["password_protected"])
+
     def test_api_post_bad_kind_400(self):
         r = self.client.post("/api/share", json={"kind": "weird", "ref": "x"})
         self.assertEqual(r.status_code, 400)
+
+    def test_api_rejects_invalid_expiry(self):
+        response = self.client.post(
+            "/api/share",
+            json={"kind": "doc", "ref": "bad-expiry.md", "expires_at": "not-a-date"},
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("valid ISO", response.json()["detail"])
 
     def test_api_get_state(self):
         before = self.client.get("/api/share", params={"kind": "doc", "ref": "g.md"}).json()

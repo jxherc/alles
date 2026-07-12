@@ -678,6 +678,7 @@ alles is built for **one person on their own machine.** read this before you put
 - **full backups are encrypted before download.** the encrypted container includes the database, required application keys, selected managed files, and a hashed manifest. the separate recovery key is never printed in logs; export it once and keep that copy away from the server. old plaintext ZIP backups can still be safely staged for compatibility.
 - **the password vault is different.** vault secrets are encrypted with your **master password**, which never touches disk. no master password, no plaintext — not even from a full copy of `data/`.
 - **the old browser-autofill prototype is retired.** it reused a vault-wide unlock token, so `/api/vault/match` now revokes the exact pasted token and returns `410 Gone` without resolving or extending it. the bundled extension is a permission-free notice only; use Passwords in Alles to reveal and copy logins until a safely paired replacement exists.
+- **protected public shares use slow password hashes.** share passwords use bcrypt and are submitted outside the url. expiry dates normalize to utc and invalid dates fail closed. ten unlock attempts per ip and share are allowed every five minutes. a correct password creates a one-hour, in-memory, httponly cookie bound to that link and password version; changing or revoking the share invalidates existing unlocks.
 - **no warranty.** this is a self-hosted hobby project, not an audited security product. it tries hard; you run it at your own risk.
 
 ---

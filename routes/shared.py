@@ -3,8 +3,8 @@ import re
 import uuid
 from urllib.parse import quote
 
-from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi import APIRouter, Depends, Form, HTTPException, Request
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session as DbSession
 
@@ -21,6 +21,7 @@ from core.database import (
     VaultShare,
     get_db,
 )
+from core.rate_limit import enforce_rate_limit
 from services import files_store, photos_store, share, vault_md
 
 router = APIRouter()
@@ -53,6 +54,8 @@ class ShareBody(BaseModel):
     kind: str
     ref: str
     level: str | None = "view"
+    expires_at: str | None = None
+    password: str | None = None
 
 
 class ShareRef(BaseModel):
@@ -63,7 +66,14 @@ class ShareRef(BaseModel):
 @router.post("/api/share")
 def create_share(body: ShareBody, db: DbSession = Depends(get_db)):
     try:
-        s = share.mint(db, body.kind, body.ref, body.level or "view")
+        s = share.mint(
+            db,
+            body.kind,
+            body.ref,
+            body.level or "view",
+            expires_at=body.expires_at,
+            password=body.password,
+        )
     except ValueError as e:
         raise HTTPException(400, str(e))
     return {
@@ -72,13 +82,21 @@ def create_share(body: ShareBody, db: DbSession = Depends(get_db)):
         "kind": s.kind,
         "ref": s.ref,
         "level": s.level,
+        "expires_at": s.expires_at or "",
+        "password_protected": bool(s.password_hash),
     }
 
 
 @router.get("/api/share")
 def get_share(kind: str, ref: str, db: DbSession = Depends(get_db)):
-    tok = share.token_for(db, kind, ref)
-    return {"token": tok, "url": f"/s/{tok}" if tok else None}
+    item = db.query(Share).filter_by(kind=kind.strip().lower(), ref=ref.strip()).first()
+    tok = item.token if item else None
+    return {
+        "token": tok,
+        "url": f"/s/{tok}" if tok else None,
+        "expires_at": (item.expires_at or "") if item else "",
+        "password_protected": bool(item and item.password_hash),
+    }
 
 
 @router.delete("/api/share")
@@ -105,7 +123,10 @@ def _file_resp(p, level):
     mt = mimetypes.guess_type(p.name)[0] or "application/octet-stream"
     disp = "attachment" if (p.suffix.lower() in _RISKY_EXT or level == "download") else "inline"
     return FileResponse(
-        p, media_type=mt, filename=p.name, content_disposition_type=disp,
+        p,
+        media_type=mt,
+        filename=p.name,
+        content_disposition_type=disp,
         headers={"X-Content-Type-Options": "nosniff"},
     )
 
@@ -127,30 +148,46 @@ def _locked_page(token: str, wrong: bool):
         _PAGE
         + "<h2>password required</h2>"
         + msg
-        + f"<form method='get' action='/s/{_h.escape(token)}'>"
-        "<input type='password' name='pw' autofocus "
+        + f"<form method='post' action='/s/{_h.escape(token)}/unlock'>"
+        "<input type='password' name='password' autocomplete='current-password' autofocus "
         "style='padding:.5rem;background:#1a1a1a;color:#e8e6e3;border:1px solid #333;border-radius:3px'>"
         "<button style='padding:.5rem 1rem;margin-left:.5rem'>open</button></form></body></html>",
         status_code=401,
+        headers={"Cache-Control": "private, no-store, max-age=0"},
     )
 
 
-def _share_gate(sh, token: str, pw: str):
+def _grant_cookie_name(token: str) -> str:
+    return f"alles_share_{token[:16]}"
+
+
+def _protected_response(response, sh):
+    if sh and sh.password_hash:
+        response.headers["Cache-Control"] = "private, no-store, max-age=0"
+        response.headers["Pragma"] = "no-cache"
+    return response
+
+
+def _share_gate(sh, token: str, request: Request):
     """4c - returns a page to show INSTEAD of the content when a share is expired or locked, or None
     to proceed. fixes the bypass where the viewer used share.lookup() and ignored expiry/password."""
     if not sh:
         return None  # let the caller's existing not-found handling run
     if share.is_expired(sh):
         return _expired_page()
-    if not share.check_password(sh, pw):
-        return _locked_page(token, wrong=bool(pw))
+    if sh.password_hash and not share.check_grant(
+        token,
+        sh.password_hash,
+        request.cookies.get(_grant_cookie_name(token), ""),
+    ):
+        return _locked_page(token, wrong=False)
     return None
 
 
 @router.get("/s/{token}", response_class=HTMLResponse)
-def view_shared(token: str, pw: str = "", db: DbSession = Depends(get_db)):
+def view_shared(token: str, request: Request, db: DbSession = Depends(get_db)):
     sh = share.lookup(db, token)
-    gate = _share_gate(sh, token, pw)
+    gate = _share_gate(sh, token, request)
     if gate is not None:
         return gate
     if sh:
@@ -165,7 +202,7 @@ def view_shared(token: str, pw: str = "", db: DbSession = Depends(get_db)):
             for s in db.query(Share).filter_by(kind="doc").all():
                 pubs[s.ref.rsplit("/", 1)[-1].removesuffix(".md").lower()] = s.token
             body = _link_published(body, pubs)
-            return HTMLResponse(_doc_html(name, body))
+            return _protected_response(HTMLResponse(_doc_html(name, body)), sh)
         if sh.kind == "file":
             try:
                 p = files_store.abspath(sh.ref)
@@ -173,7 +210,7 @@ def view_shared(token: str, pw: str = "", db: DbSession = Depends(get_db)):
                 return _not_found()
             if not p.exists() or not p.is_file():
                 return _not_found()
-            return _file_resp(p, sh.level)
+            return _protected_response(_file_resp(p, sh.level), sh)
         if sh.kind == "folder":
             try:
                 base = files_store.abspath(sh.ref)
@@ -190,7 +227,9 @@ def view_shared(token: str, pw: str = "", db: DbSession = Depends(get_db)):
                     continue
                 entries.append((str(rel).replace("\\", "/"), fp.stat().st_size))
             name = sh.ref.rstrip("/").rsplit("/", 1)[-1] or "files"
-            return HTMLResponse(_folder_html(name, token, entries, sh.level))
+            return _protected_response(
+                HTMLResponse(_folder_html(name, token, entries, sh.level)), sh
+            )
         if sh.kind == "photo":
             ph = db.get(Photo, sh.ref)
             if not ph:
@@ -198,7 +237,7 @@ def view_shared(token: str, pw: str = "", db: DbSession = Depends(get_db)):
             p = photos_store.photos_dir() / ph.filename
             if not p.exists():
                 return _not_found()
-            return _file_resp(p, "view")
+            return _protected_response(_file_resp(p, "view"), sh)
         if sh.kind == "album":
             alb = db.get(Album, sh.ref)
             if not alb:
@@ -213,13 +252,15 @@ def view_shared(token: str, pw: str = "", db: DbSession = Depends(get_db)):
                 .order_by(Photo.taken_at.desc())
                 .all()
             )
-            return HTMLResponse(_album_html(alb.name, token, photos))
+            return _protected_response(HTMLResponse(_album_html(alb.name, token, photos)), sh)
         if sh.kind == "persona":  # 10d — a shareable custom-assistant bundle
             p = db.get(Persona, sh.ref)
             if not p:
                 return _not_found()
             docs = db.query(PersonaDoc).filter(PersonaDoc.persona_id == p.id).all()
-            return HTMLResponse(_doc_html(p.name, _persona_bundle_html(p, docs)))
+            return _protected_response(
+                HTMLResponse(_doc_html(p.name, _persona_bundle_html(p, docs))), sh
+            )
         # contact/event share land here in their own stages (8/9)
         return _not_found()
 
@@ -230,13 +271,52 @@ def view_shared(token: str, pw: str = "", db: DbSession = Depends(get_db)):
     return HTMLResponse(_session_html(s))
 
 
+@router.post("/s/{token}/unlock")
+def unlock_shared(
+    token: str,
+    request: Request,
+    password: str = Form(""),
+    db: DbSession = Depends(get_db),
+):
+    sh = share.lookup(db, token)
+    if not sh:
+        return _not_found()
+    if share.is_expired(sh):
+        return _expired_page()
+    if not sh.password_hash:
+        return RedirectResponse(f"/s/{quote(token)}", status_code=303)
+    enforce_rate_limit(
+        request,
+        f"public-share-unlock:{token}",
+        limit=10,
+        window_seconds=5 * 60,
+    )
+    if not share.check_password(sh, password):
+        return _locked_page(token, wrong=True)
+    if not share.upgrade_password_hash(sh, password, db):
+        return _locked_page(token, wrong=True)
+    grant = share.new_grant(token, sh.password_hash)
+    response = RedirectResponse(f"/s/{quote(token)}", status_code=303)
+    response.headers["Cache-Control"] = "private, no-store, max-age=0"
+    response.set_cookie(
+        _grant_cookie_name(token),
+        grant,
+        max_age=share.GRANT_SECONDS,
+        httponly=True,
+        secure=request.url.scheme == "https",
+        samesite="strict",
+        path=f"/s/{token}",
+    )
+    return response
+
+
 @router.get("/s/{token}/{subpath:path}")
-def view_shared_child(token: str, subpath: str, pw: str = "", db: DbSession = Depends(get_db)):
+def view_shared_child(token: str, subpath: str, request: Request, db: DbSession = Depends(get_db)):
     """serve a single resource inside a shared folder/album, confined to it (no traversal)."""
     sh = share.lookup(db, token)
     if not sh:
         return _not_found()
-    gate = _share_gate(sh, token, pw)
+    gate = _share_gate(sh, token, request)
     if gate is not None:
         return gate
     if sh.kind == "album":
@@ -246,7 +326,7 @@ def view_shared_child(token: str, subpath: str, pw: str = "", db: DbSession = De
         p = photos_store.photos_dir() / ph.filename
         if not p.is_file():
             return _not_found()
-        return _file_resp(p, "view")
+        return _protected_response(_file_resp(p, "view"), sh)
     if sh.kind != "folder":
         return _not_found()
     try:
@@ -259,7 +339,7 @@ def view_shared_child(token: str, subpath: str, pw: str = "", db: DbSession = De
         return _not_found()
     if not target.is_file():
         return _not_found()
-    return _file_resp(target, sh.level)
+    return _protected_response(_file_resp(target, sh.level), sh)
 
 
 _RSVP_STATUSES = {"invited", "accepted", "declined", "tentative"}

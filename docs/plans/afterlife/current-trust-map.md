@@ -43,13 +43,13 @@ flowchart LR
 ## Route snapshot
 
 - 69 mounted route modules
-- 662 HTTP method/path pairs
-- 644 `/api/*`, 2 `/v1/*`, and 14 non-API shell/public pairs
-- SHA-256: `9ae15222ae3a29f95e61d7f99685d6cba48f597fdcada956515a9691464b28a5`
+- 674 HTTP method/path pairs
+- 657 `/api/*`, 2 `/v1/*`, and 15 non-API shell/public pairs
+- SHA-256: `a3f55ae45879540e0b3b996c28fcc0d41691261be7d258b63a4e5c6b84760979`
 - No WebSocket route; long responses use SSE/streaming HTTP
 
-Public routes are limited to the app shell/PWA, `/health`, optional `/status`, token shares under `/s`
-and `/sv`, plus public booking/RSVP reads and writes. The exact set is locked by
+Public routes are limited to the app shell/PWA, `/health`, optional `/status`, token shares and their
+rate-limited password unlock under `/s` and `/sv`, plus public booking/RSVP reads and writes. The exact set is locked by
 `tests/test_route_compatibility.py`.
 
 ## Hosts and deep links
