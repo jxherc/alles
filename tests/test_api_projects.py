@@ -11,7 +11,10 @@ class ProjectsApiTest(ApiTest):
         # no working dir → empty list, not a crash
         r = self.client.get(f"/api/projects/{pid}/files")
         self.assertEqual(r.status_code, 200)
-        self.assertEqual(r.json(), {"files": [], "working_dir": ""})
+        self.assertEqual(
+            r.json(),
+            {"files": [], "working_dir": "", "folder_state": "relink_required"},
+        )
         self.assertEqual(self.client.get("/api/projects/nope/files").status_code, 404)
 
     def test_create_patch_delete(self):

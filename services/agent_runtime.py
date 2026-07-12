@@ -14,7 +14,6 @@ from services import policy
 from services.agent_state import finish_run, record_event, start_run, update_run
 from services.agent_tools import (
     MUTATING_TOOLS,
-    ROOT,
     UNTRUSTED_TOOLS,
     build_tool_defs,
     capture_checkpoint,
@@ -183,7 +182,9 @@ def _trim_history(messages: list[dict], budget: int = 120000, keep_recent: int =
 
 
 def _load_project_context(cwd: str) -> str:
-    base = Path(cwd).expanduser() if cwd else ROOT
+    if not cwd:
+        return ""
+    base = Path(cwd).expanduser()
     try:
         base = base.resolve()
     except Exception:

@@ -10,12 +10,31 @@ from services.task_nl import advance, parse_task, reschedule_date
 
 router = APIRouter(prefix="/api")
 
+TASK_STAGES = {"backlog", "next", "doing", "waiting", "done"}
+
+
+def _stage(value: str, done: bool = False) -> str:
+    if done:
+        return "done"
+    normalized = str(value or "backlog").strip().lower()
+    if normalized not in TASK_STAGES or normalized == "done":
+        return "backlog"
+    return normalized
+
+
+def _validate_stage(value) -> str:
+    normalized = str(value or "").strip().lower()
+    if normalized not in TASK_STAGES:
+        raise HTTPException(400, "stage must be backlog|next|doing|waiting|done")
+    return normalized
+
 
 def _fmt(t: Task) -> dict:
     return {
         "id": t.id,
         "title": t.title,
         "done": t.done,
+        "stage": _stage(getattr(t, "stage", ""), bool(t.done)),
         "priority": t.priority,
         "due_date": t.due_date,
         "parent_id": t.parent_id,
@@ -119,11 +138,13 @@ class TaskBody(BaseModel):
     repeat: str = ""
     project: str = ""
     notes: str = ""
+    stage: str = "backlog"
     nl: bool = False  # parse the title as natural language
 
 
 @router.post("/tasks")
 def create_task(body: TaskBody, db: DbSession = Depends(get_db)):
+    stage = _validate_stage(body.stage)
     fields = dict(
         title=body.title,
         priority=body.priority,
@@ -133,6 +154,8 @@ def create_task(body: TaskBody, db: DbSession = Depends(get_db)):
         repeat=body.repeat,
         project=body.project,
         notes=body.notes,
+        stage=stage,
+        done=stage == "done",
     )
     if body.nl:
         p = parse_task(body.title)
@@ -141,8 +164,14 @@ def create_task(body: TaskBody, db: DbSession = Depends(get_db)):
         fields["due_date"] = body.due_date or p["due_date"]
         fields["repeat"] = body.repeat or p["repeat"]
         fields["tags"] = body.tags or p["tags"]
-    if fields.get("repeat") and (fields.get("due_date") or "")[:10] and len(fields["due_date"]) >= 10:
-        fields["anchor_day"] = int(fields["due_date"][8:10])  # pin the day so monthly/yearly don't drift
+    if (
+        fields.get("repeat")
+        and (fields.get("due_date") or "")[:10]
+        and len(fields["due_date"]) >= 10
+    ):
+        fields["anchor_day"] = int(
+            fields["due_date"][8:10]
+        )  # pin the day so monthly/yearly don't drift
     t = Task(**fields)
     db.add(t)
     db.commit()
@@ -170,6 +199,7 @@ def quick_add(body: QuickBody, db: DbSession = Depends(get_db)):
         anchor_day=(int(_due[8:10]) if p["repeat"] and len(_due) >= 10 else None),
         tags=p["tags"],
         project=body.project,
+        stage="backlog",
     )
     db.add(t)
     db.commit()
@@ -183,6 +213,18 @@ def update_task(tid: str, body: dict, db: DbSession = Depends(get_db)):
     if not t:
         raise HTTPException(404)
     spawned = None
+    if "stage" in body:
+        body["stage"] = _validate_stage(body["stage"])
+        body["done"] = body["stage"] == "done"
+    elif "done" in body:
+        body["done"] = bool(body["done"])
+        body["stage"] = (
+            "done"
+            if body["done"]
+            else "backlog"
+            if _stage(getattr(t, "stage", ""), bool(t.done)) == "done"
+            else _stage(getattr(t, "stage", ""), False)
+        )
     # stamp/clear the completion time as done flips (powers the activity feed)
     if "done" in body and bool(body["done"]) != bool(t.done):
         from datetime import datetime
@@ -203,6 +245,7 @@ def update_task(tid: str, body: dict, db: DbSession = Depends(get_db)):
                 project=t.project,
                 notes=t.notes,
                 parent_id=t.parent_id,
+                stage="backlog",
             )
             db.add(spawned)
     # priority/sort_order feed an int sort key in _ordered — a non-int gets stored then 500s
@@ -224,12 +267,15 @@ def update_task(tid: str, body: dict, db: DbSession = Depends(get_db)):
         "project",
         "sort_order",
         "parent_id",
+        "stage",
     ):
         if f in body:
             setattr(t, f, body[f])
     # keep the drift anchor in sync if the due date was edited on a repeating task
-    if ("due_date" in body or "repeat" in body):
-        t.anchor_day = int(t.due_date[8:10]) if (t.repeat and t.due_date and len(t.due_date) >= 10) else None
+    if "due_date" in body or "repeat" in body:
+        t.anchor_day = (
+            int(t.due_date[8:10]) if (t.repeat and t.due_date and len(t.due_date) >= 10) else None
+        )
     db.commit()
     db.refresh(t)
     out = _fmt(t)

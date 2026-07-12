@@ -8,8 +8,9 @@ from fastapi.responses import Response
 from pydantic import BaseModel
 from sqlalchemy.orm import Session as DbSession
 
-from core.database import Message, ModelEndpoint, Session, get_db
+from core.database import Message, ModelEndpoint, Project, Session, get_db
 from services import incognito, lifecycle
+from services.project_environment import session_environment
 
 
 async def _fire(event: str, data: dict):
@@ -32,6 +33,7 @@ def _session_or_404(session_id: str, db: DbSession):
 
 
 def _fmt_session(s: Session) -> dict:
+    environment = session_environment(s)
     return {
         "id": s.id,
         "name": s.name,
@@ -41,6 +43,7 @@ def _fmt_session(s: Session) -> dict:
         "persona_id": s.persona_id,
         "project_id": getattr(s, "project_id", None),
         "working_dir": getattr(s, "working_dir", "") or "",
+        "environment": environment,
         "starred": s.starred,
         "incognito": bool(getattr(s, "incognito", False)),
         "message_count": s.message_count,
@@ -94,6 +97,11 @@ async def create_session(
     response: Response,
     db: DbSession = Depends(get_db),
 ):
+    project = None
+    if body.project_id:
+        project = db.get(Project, body.project_id)
+        if not project:
+            raise HTTPException(404, "project not found")
     if body.incognito:
         response.headers["Cache-Control"] = "no-store"
         session = incognito.create_session(
@@ -104,6 +112,7 @@ async def create_session(
             working_dir=body.working_dir,
             persona_id=body.persona_id or None,
             project_id=body.project_id or None,
+            project=project,
         )
         return _fmt_session(session)
     s = Session(

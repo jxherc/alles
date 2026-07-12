@@ -134,21 +134,18 @@ def _decide_mode(base_mode: str, pmode: str, message: str, simple: bool, auto_in
 
 
 def _resolve_working_dir(session: Session) -> str:
-    if getattr(session, "working_dir", ""):
-        return session.working_dir
-    proj = getattr(session, "project", None)
-    if proj and getattr(proj, "working_dir", ""):
-        return proj.working_dir
-    return ""
+    from services.project_environment import session_environment
+
+    return session_environment(session)["cwd"]
 
 
 def _resolve_mentions(text: str, cwd: str) -> str:
     """inline @path file references → append file contents for the model"""
     from pathlib import Path
 
-    from services.agent_tools import ROOT
-
-    base = Path(cwd) if cwd else ROOT
+    if not cwd:
+        return text
+    base = Path(cwd)
     blocks, seen = [], set()
     for m in re.finditer(r"(?:^|\s)@([\w./\\-]+)", text):
         rel = m.group(1).rstrip(".,;:")
@@ -525,7 +522,12 @@ async def chat(body: ChatRequest, db: DbSession = Depends(get_db)):
                 "private attachments can only be used inside incognito",
             )
     ep, model = _resolve_session_model(s, db, settings)
-    settings["agent_cwd"] = _resolve_working_dir(s)
+    from services.project_environment import session_environment
+
+    environment = session_environment(s)
+    settings["agent_cwd"] = environment["cwd"]
+    settings["agent_environment"] = environment["kind"]
+    settings["agent_project_id"] = environment["project_id"] or ""
     _p = _resolve_persona(s, db)
     if _p and _p.temperature is not None:
         settings["temperature"] = _p.temperature
@@ -624,7 +626,12 @@ async def chat_background(body: ChatRequest, db: DbSession = Depends(get_db)):
         raise ApiError(400, "incognito_background_forbidden", "incognito work stays in this tab")
     settings = load_settings()
     ep, model = _resolve_session_model(s, db, settings)
-    settings["agent_cwd"] = _resolve_working_dir(s)
+    from services.project_environment import session_environment
+
+    environment = session_environment(s)
+    settings["agent_cwd"] = environment["cwd"]
+    settings["agent_environment"] = environment["kind"]
+    settings["agent_project_id"] = environment["project_id"] or ""
     settings["agent_permission_mode"] = "full_auto"  # nothing is watching to approve
     _p = _resolve_persona(s, db)
     if _p and _p.temperature is not None:

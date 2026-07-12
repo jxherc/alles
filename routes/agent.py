@@ -31,18 +31,21 @@ def agent_files(q: str = "", session_id: str = "", limit: int = 30):
     from services.agent_tools import workspace_files
 
     cwd = ""
+    environment = "general"
     if session_id:
         db = SessionLocal()
         try:
             s = db.get(Sess, session_id)
             if s:
-                cwd = getattr(s, "working_dir", "") or ""
-                if not cwd:
-                    proj = getattr(s, "project", None)
-                    if proj:
-                        cwd = getattr(proj, "working_dir", "") or ""
+                from services.project_environment import session_environment
+
+                resolved = session_environment(s)
+                cwd = resolved["cwd"]
+                environment = resolved["kind"]
         finally:
             db.close()
+    if environment == "general" or not cwd:
+        return {"files": []}
     return {"files": workspace_files(cwd, q, limit)}
 
 

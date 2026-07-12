@@ -48,7 +48,9 @@ every one of these is a real, finished app — not a placeholder. they each live
 - **long-term memory** — it remembers reviewed facts and preferences across chats, with Off, Ask,
   and Auto policies
 - **personas** — saved system prompts / characters you can switch between
-- **projects** — group chats together with shared context
+- **projects** — group chats, instructions, and a scratchpad around one selected server folder; relative
+  file work starts there, missing folders keep their chats until you explicitly relink them, and
+  **General** has no implicit folder
 - **artifacts** — when the model writes html/svg/a webpage/code, you see it rendered live, not as a wall of text
 - **safe Markdown saves** — vault writes replace files atomically, Notes refuses to overwrite a file changed after you opened it, and deleted Docs/Notes can be restored from 30-day trash
 - **voice** — talk to it and have it talk back (speech-to-text in, text-to-speech out)
@@ -150,6 +152,7 @@ this is the most feature-dense app, so here's the full list:
 - **natural-language quick-add** — "pay rent every 1st !" or "call mom tomorrow #home" parses the due date, repeat, `#tags` and `!` priority for you (deterministic, no deps, all local)
 - **recurring tasks** — finish one and it rolls forward to the next occurrence (daily / weekly / monthly / yearly, leap-day safe)
 - **today / upcoming / someday** views by due date, plus tags, subtasks, projects, and manual drag-reorder
+- compatible task stages include Backlog, Next, Doing, Waiting, and Done while the existing checked/unchecked behavior still works
 - **active / history tabs** — checking a task off doesn't make it vanish; the **history** tab shows everything you've completed, and you can un-check one to send it back
 - tasks created anywhere (quick-capture, "extract to-dos" from a doc, the ai's `task_add` tool) all land here
 
