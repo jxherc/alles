@@ -26,7 +26,7 @@ export async function loadAfterlifeFeatures(fetcher = fetch) {
   }
 }
 
-export function activeAfterlifeSpaces(flags, available = { aide: true }) {
+export function activeAfterlifeSpaces(flags, available = { aide: true, today: true }) {
   const safe = normalizeAfterlifeFeatures(flags);
   if (!safe.afterlife_shell) return [];
   return [

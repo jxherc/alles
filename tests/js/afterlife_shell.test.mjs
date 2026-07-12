@@ -38,7 +38,7 @@ test('a destination needs its flag and a finished route', () => {
     afterlife_today: true,
     afterlife_andromeda: true,
   };
-  assert.deepEqual(activeAfterlifeSpaces(flags), ['aide']);
+  assert.deepEqual(activeAfterlifeSpaces(flags), ['today', 'aide']);
   assert.deepEqual(
     activeAfterlifeSpaces(flags, { aide: true, today: true, andromeda: true }),
     ['today', 'aide', 'andromeda'],

@@ -43,16 +43,16 @@ asset is part of this phase.
 
 - [x] Load the strict server feature flags once during boot and keep safe all-off behavior when the
   runtime endpoint is unavailable.
-- [ ] Build the three-space shell behind `afterlife_shell`.
+- [x] Build the three-space shell behind `afterlife_shell`.
   - Today is visible when `afterlife_today` is enabled.
   - Aide keeps working but is promoted only after its shell route is ready.
   - Andromeda is shown only when `afterlife_andromeda` is enabled.
   - Jarvis never becomes a fourth permanent destination.
-- [ ] Add a keyboard-accessible app drawer for specialist destinations and the legacy launcher.
-- [ ] Keep every current app reachable in at most two actions.
-- [ ] Keep global search on `Cmd/Ctrl + K` and Settings on `Cmd/Ctrl + ,`.
-- [ ] Keep the current launcher reachable as **All apps** during the compatibility window.
-- [ ] Preserve single-host and subdomain navigation, authentication handoff, modified-click new tabs,
+- [x] Add a keyboard-accessible app drawer for specialist destinations and the legacy launcher.
+- [x] Keep every current app reachable in at most two actions.
+- [x] Keep global search on `Cmd/Ctrl + K` and Settings on `Cmd/Ctrl + ,`.
+- [x] Keep the current launcher reachable as **All apps** during the compatibility window.
+- [x] Preserve single-host and subdomain navigation, authentication handoff, modified-click new tabs,
   focus return, mobile drawer behavior, and reduced motion.
 
 ### 3A gate
@@ -68,19 +68,19 @@ motion, no horizontal overflow, and zero console, page, or server errors.
 
 ## 3B — deterministic Today
 
-- [ ] Make Today the apex default only when `afterlife_today` is enabled.
-- [ ] Compose five ordered sections:
+- [x] Make Today the apex default only when `afterlife_today` is enabled.
+- [x] Compose five ordered sections:
   - **Needs you** — approvals, choices, conflicts, uncertain outcomes, and failed work;
   - **Today** — events, due and overdue tasks, reminders, habits, renewals, and important dates;
   - **In progress** — active Jarvis runs and long Aide work;
   - **Briefs** — completed research, news, and scheduled reports;
   - **Shortcuts** — pinned apps, Project folders, approved folders, and saved searches.
-- [ ] Keep core cards deterministic and useful with no configured model.
-- [ ] Add clear loading, empty, partial, offline, and error states per section.
-- [ ] Keep Activity available as the compatibility History view.
-- [ ] Add **Customize Today** for visibility, order, density, and shortcuts.
-- [ ] Store customization safely and preserve older launcher tile preferences during the transition.
-- [ ] Keep quick capture only where it supports the daily flow; do not keep a second competing Aide
+- [x] Keep core cards deterministic and useful with no configured model.
+- [x] Add clear loading, empty, partial, offline, and error states per section.
+- [x] Keep Activity available as the compatibility History view.
+- [x] Add **Customize Today** for visibility, order, density, and shortcuts.
+- [x] Store customization safely and preserve older launcher tile preferences during the transition.
+- [x] Keep quick capture only where it supports the daily flow; do not keep a second competing Aide
   composer on Today.
 
 ### 3B gate
@@ -88,10 +88,12 @@ motion, no horizontal overflow, and zero console, page, or server errors.
 Today shows useful synthetic data without a model, survives one failed data source, explains empty and
 offline states, restores customization after restart, and never hides an approval or uncertain result.
 
-Current 3B backend evidence: the flag-gated Today response now has the five stable section keys. Four
-focused tests prove empty shape, flag-off compatibility, pending and expired prompts, failed delivery,
-uncertain and active runs, and completed briefs without a configured model. The 14 existing Today API
-and golden tests still pass unchanged.
+Current 3B evidence: the flag-gated Today response and interface have the five stable sections. Focused
+tests cover empty shape, flag-off compatibility, pending and expired prompts, failed delivery,
+uncertain and active runs, completed briefs, habits, and saved customization without a model. Isolated
+desktop and 390×844 browser passes cover default routing, the legacy launcher, order/visibility/density
+persistence, keyboard focus, reduced motion, error/retry state, no overflow, and zero unexpected
+console, page, or server errors.
 
 ## 3C — Aide Projects rail
 

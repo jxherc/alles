@@ -30,7 +30,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/style.css?v=217">
+<link rel="stylesheet" href="/static/style.css?v=218">
 <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#0a0a0a">
@@ -46,7 +46,7 @@
 
   <nav class="space-rail" id="space-rail" aria-label="main spaces" hidden>
     <div class="space-route" id="space-route">
-      <button class="space-link" type="button" data-space="today" data-view="home" aria-label="Today" title="Today" hidden>T</button>
+      <button class="space-link" type="button" data-space="today" data-view="today" aria-label="Today" title="Today" hidden>T</button>
       <button class="space-link" type="button" data-space="aide" data-view="chat" aria-label="Aide" title="Aide" hidden>A</button>
       <button class="space-link" type="button" data-space="andromeda" data-view="andromeda" aria-label="Andromeda" title="Andromeda" hidden>Ø</button>
     </div>
@@ -159,6 +159,21 @@
     <div class="conn-banner" id="conn-banner" style="display:none">
       <span class="conn-banner-msg" id="conn-banner-msg"></span>
       <button class="conn-banner-x" id="conn-banner-x" title="dismiss">×</button>
+    </div>
+
+    <!-- Afterlife Today. The legacy launcher remains #home-view / All apps. -->
+    <div class="page-view today-view" id="today-view" style="display:none">
+      <div class="today-inner">
+        <header class="today-head">
+          <div>
+            <div class="today-kicker" id="today-date"></div>
+            <h1>today</h1>
+          </div>
+          <button class="btn" id="today-customize-btn" type="button">customize today</button>
+        </header>
+        <div class="today-status" id="today-status" role="status" aria-live="polite">loading today…</div>
+        <div class="today-sections" id="today-sections"></div>
+      </div>
     </div>
 
     <!-- ── home / launcher (landing) ── -->
@@ -2026,7 +2041,7 @@
 </div>
 
 <script type="module">
-const _v = '217';
+const _v = '218';
 import(`/static/js/app.js?v=${_v}`);
 </script>
 </body>

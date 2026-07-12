@@ -2103,6 +2103,62 @@ mark.wiki-cmark { background: rgba(129, 140, 248, 0.28); color: inherit; border-
 .page-view-footer .date-input:hover,
 .page-view-footer .date-input.open { border-bottom-color: var(--muted); }
 
+/* ── Afterlife Today: a compact daily ledger, not another launcher ── */
+.today-view { overflow-y: auto; }
+.today-inner { width: min(860px, 100%); margin: 0 auto; padding: 3.2rem 2rem 5rem; }
+.today-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem; margin-bottom: 2rem; }
+.today-kicker { color: var(--muted); font-size: 0.68rem; letter-spacing: 0.04em; margin-bottom: 0.15rem; }
+.today-head h1 { font-size: 2rem; font-weight: 400; letter-spacing: -0.045em; line-height: 1; }
+.today-status { border: 1px solid var(--faint); color: var(--muted); font-size: 0.75rem; padding: 0.8rem; margin-bottom: 1rem; }
+.today-status[hidden] { display: none; }
+.today-sections { display: flex; flex-direction: column; gap: 1.5rem; }
+.today-section { border-top: 1px solid var(--faint); padding-top: 0.65rem; position: relative; }
+.today-section::before { content: ''; position: absolute; top: -1px; left: 0; width: 34px; height: 2px; background: var(--accent); opacity: 0.7; }
+.today-section > header { display: flex; align-items: center; justify-content: space-between; min-height: 28px; margin-bottom: 0.25rem; }
+.today-section h2 { color: var(--muted); font-size: 0.68rem; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; }
+.today-section > header span { color: var(--signal); font-size: 0.65rem; }
+.today-list { display: flex; flex-direction: column; }
+.today-row { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 1rem; border: 0; border-bottom: 1px solid color-mix(in srgb, var(--faint) 65%, transparent); background: transparent; color: var(--text); font: inherit; text-align: left; padding: 0.68rem 0.15rem; cursor: pointer; }
+.today-row:hover { background: color-mix(in srgb, var(--text) 3%, transparent); }
+.today-row > span { min-width: 0; }
+.today-row b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.82rem; font-weight: 450; }
+.today-row small { display: block; color: var(--muted); font-size: 0.67rem; margin-top: 0.12rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.today-row em { color: var(--muted); font-size: 0.65rem; font-style: normal; white-space: nowrap; }
+.today-row.urgent b, .today-row.urgent em { color: var(--signal); }
+.today-empty { color: var(--muted); font-size: 0.75rem; padding: 0.65rem 0.15rem; }
+.today-shortcuts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.4rem; }
+.today-shortcut { min-width: 0; border: 1px solid var(--faint); border-radius: 3px; background: transparent; color: var(--text); font: inherit; text-align: left; padding: 0.65rem; cursor: pointer; }
+.today-shortcut:hover { border-color: var(--muted); background: var(--panel); }
+.today-shortcut b, .today-shortcut small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.today-shortcut b { font-size: 0.76rem; font-weight: 500; }
+.today-shortcut small { color: var(--muted); font-size: 0.62rem; margin-top: 0.1rem; }
+.today-sections.compact { gap: 0.9rem; }
+.today-sections.compact .today-row { padding-block: 0.42rem; }
+.today-customize-panel { position: fixed; inset: 0; z-index: 2200; background: rgba(0,0,0,0.55); display: flex; align-items: center; justify-content: center; padding: 1rem; }
+.today-customize-card { width: min(520px, 100%); max-height: min(720px, 90vh); overflow-y: auto; background: var(--bg); border: 1px solid var(--faint); border-radius: 3px; padding: 1rem; }
+.today-customize-card > header { display: flex; align-items: center; justify-content: space-between; }
+.today-customize-card h2 { font-size: 1rem; font-weight: 500; }
+.today-customize-card h3 { color: var(--muted); font-size: 0.68rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.06em; margin: 1rem 0 0.4rem; }
+.today-customize-card > p { color: var(--muted); font-size: 0.7rem; margin: 0.25rem 0 0.8rem; }
+.today-customize-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.35rem 1rem; }
+.today-customize-options label, .today-density { color: var(--text); font-size: 0.75rem; }
+.today-order-row { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; min-height: 30px; }
+.today-order-row > span { display: flex; }
+.today-order-row .icon-btn { padding: 0.2rem 0.35rem; }
+.today-customize-options.shortcuts { max-height: 190px; overflow-y: auto; border: 1px solid var(--faint); padding: 0.6rem; margin-bottom: 0.8rem; }
+.today-density { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-top: 0.8rem; }
+@media (max-width: 700px) {
+  .today-inner { padding: 2rem 1.1rem 4rem; }
+  .today-head { align-items: center; }
+  .today-head h1 { font-size: 1.65rem; }
+  .today-shortcuts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .today-row { align-items: flex-start; }
+  .today-row em { max-width: 35%; overflow: hidden; text-overflow: ellipsis; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .today-row, .today-shortcut { transition: none; }
+}
+
 /* ── home / launcher ── */
 .brand { cursor: pointer; }
 .home-view { overflow-y: auto; }
