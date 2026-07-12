@@ -37,8 +37,8 @@ quietly omitting that database.
 | Data class | Current location | Policy |
 | --- | --- | --- |
 | Primary records | `aide.db` | Required consistent SQLite snapshot; integrity, foreign keys, application ID, and migrations checked. |
-| Settings and connector config | `settings.json`, `caldav.json`, `carddav.json` and SQLite rows | Included when present. The encrypted outer container protects the full backup. |
-| Application keys | `secret.key`, `recovery.key`, `vapid.pem` | Included when present. Required keys are cross-checked against dependent database rows. |
+| Settings and connector config | `settings.json`, `caldav.json`, `carddav.json` and SQLite rows | Included when present. New backups require every known credential to be sealed and authenticated with its exact field purpose; historical plaintext archives remain migration-compatible. |
+| Application keys | `secret.key`, `recovery.key`, `vapid.pem` | Frozen into the same temporary snapshot when present. Required keys are authenticated or cross-checked against the exact database and files placed in the archive. |
 | Passwords | `vaults`, `vault_entries`, WebAuthn rows, and `vault_attachments/*.enc` | Ciphertext included; every attachment row must have its blob. The master password is never stored. |
 | Markdown documents | configured Vault root | Uses the Vault root policy above. Assets, templates, journal, and note files follow the same root. |
 | Managed files | configured Files root | Uses the Files root policy above. |

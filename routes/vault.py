@@ -1,4 +1,5 @@
 import json
+import logging
 import re
 import secrets
 import time
@@ -19,8 +20,10 @@ from core.database import (
 )
 from core.settings import load_settings, save_settings
 from services.crypto import decrypt, encrypt, make_verifier, verify_master
+from services.recovery_consistency import recovery_consistency_lock
 
 router = APIRouter(prefix="/api")
+log = logging.getLogger("alles.vault")
 
 # token → (expiry, plaintext_password, vault_id) — never written to disk
 _unlock_tokens: dict[str, tuple[float, str, str]] = {}
@@ -74,6 +77,14 @@ def _scoped_attachment(db, aid: str, vid: str) -> "VaultAttachment":
     if not e or e.vault_id != vid:
         raise HTTPException(404)
     return a
+
+
+def _require_current_vault_password(db, pw: str, vid: str) -> "Vault":
+    """Reject an unlock token whose password was replaced while its request was waiting."""
+    vault = db.get(Vault, vid)
+    if not vault or not vault.verifier or not verify_master(pw, vault.verifier):
+        raise HTTPException(403, "vault locked")
+    return vault
 
 
 def _travel_on() -> bool:
@@ -305,61 +316,70 @@ def change_vault_password(body: ChangePw, db: DbSession = Depends(get_db), ctx: 
     new = body.new_password or ""
     if not new:
         raise HTTPException(400, "new password required")
-    v = db.get(Vault, vid)
-    if not v:
-        raise HTTPException(404)
+    with recovery_consistency_lock:
+        v = _require_current_vault_password(db, old_pw, vid)
 
-    # compute everything up front (decrypt-old → encrypt-new) so a failure aborts before any write
-    entries = db.query(VaultEntry).filter(VaultEntry.vault_id == vid).all()
-    eids = [e.id for e in entries]
-    new_entry_blobs = {}
-    old_att_blobs = {}
-    try:
-        for e in entries:
-            new_entry_blobs[e.id] = encrypt(new, decrypt(old_pw, e.value_encrypted))
-        atts = (
-            db.query(VaultAttachment).filter(VaultAttachment.entry_id.in_(eids)).all()
-            if eids
-            else []
-        )
-        new_att_blobs = {}
-        for a in atts:
-            p = _attach_dir() / f"{a.id}.enc"
-            if p.exists():
-                raw = p.read_bytes()
-                old_att_blobs[a.id] = raw
-                new_att_blobs[a.id] = encrypt_bytes(new, decrypt_bytes(old_pw, raw))
-    except Exception:
-        raise HTTPException(500, "re-key failed — nothing changed")
+        # Freeze the whole vault view while computing the replacement ciphertext. This keeps
+        # attachment rows, blobs, and the verifier on one password generation.
+        entries = db.query(VaultEntry).filter(VaultEntry.vault_id == vid).all()
+        eids = [e.id for e in entries]
+        new_entry_blobs = {}
+        old_att_blobs = {}
+        try:
+            for e in entries:
+                new_entry_blobs[e.id] = encrypt(new, decrypt(old_pw, e.value_encrypted))
+            atts = (
+                db.query(VaultAttachment).filter(VaultAttachment.entry_id.in_(eids)).all()
+                if eids
+                else []
+            )
+            new_att_blobs = {}
+            for a in atts:
+                p = _attach_dir() / f"{a.id}.enc"
+                if p.exists():
+                    raw = p.read_bytes()
+                    old_att_blobs[a.id] = raw
+                    new_att_blobs[a.id] = encrypt_bytes(new, decrypt_bytes(old_pw, raw))
+        except Exception:
+            raise HTTPException(500, "re-key failed — nothing changed")
 
-    # all crypto succeeded → commit the new ciphertext + verifier
-    wrote = []
-    try:
-        for e in entries:
-            e.value_encrypted = new_entry_blobs[e.id]
-        for aid, blob in new_att_blobs.items():
-            (_attach_dir() / f"{aid}.enc").write_bytes(blob)
-            wrote.append(aid)
-        v.verifier = make_verifier(new)
-        if v.biometric_blob:
-            # the blob wraps the master password under the server key — re-wrap it or a biometric
-            # unlock would keep releasing the OLD password and brick every decrypt
-            v.biometric_blob = encrypt(_server_key(), new)
-        db.commit()
-    except Exception:
-        db.rollback()
-        for aid in wrote:
-            old_blob = old_att_blobs.get(aid)
-            if old_blob is not None:
-                try:
-                    (_attach_dir() / f"{aid}.enc").write_bytes(old_blob)
-                except Exception:
-                    pass
-        raise HTTPException(500, "re-key failed — nothing changed")
-    if vid == DEFAULT_VAULT:
-        save_settings({"vault_verifier": v.verifier})  # keep the legacy master mirror in sync
+        # all crypto succeeded → commit the new ciphertext + verifier
+        wrote = []
+        try:
+            for e in entries:
+                e.value_encrypted = new_entry_blobs[e.id]
+            for aid, blob in new_att_blobs.items():
+                (_attach_dir() / f"{aid}.enc").write_bytes(blob)
+                wrote.append(aid)
+            v.verifier = make_verifier(new)
+            if v.biometric_blob:
+                # the blob wraps the master password under the server key — re-wrap it or a biometric
+                # unlock would keep releasing the OLD password and brick every decrypt
+                v.biometric_blob = encrypt(_server_key(), new)
+            db.commit()
+        except Exception:
+            db.rollback()
+            for aid in wrote:
+                old_blob = old_att_blobs.get(aid)
+                if old_blob is not None:
+                    try:
+                        (_attach_dir() / f"{aid}.enc").write_bytes(old_blob)
+                    except Exception:
+                        pass
+            raise HTTPException(500, "re-key failed — nothing changed")
+        if vid == DEFAULT_VAULT:
+            try:
+                save_settings({"vault_verifier": v.verifier})  # legacy master mirror
+            except Exception:
+                # The database is authoritative once the default vault exists. A stale legacy
+                # mirror must not roll back already-committed ciphertext or report a false failure.
+                log.warning("could not update the legacy default-vault verifier mirror")
+        for token, (_expires, _password, token_vid) in list(_unlock_tokens.items()):
+            if token_vid == vid:
+                _unlock_tokens.pop(token, None)
+        new_token = _mint(new, vid)
     # the caller's token still holds the old pw — hand back a fresh one bound to the new password
-    return {"ok": True, "token": _mint(new, vid), "vault_id": vid}
+    return {"ok": True, "token": new_token, "vault_id": vid}
 
 
 @router.delete("/vault/vaults/{vid}")
@@ -370,14 +390,15 @@ def delete_vault(vid: str, db: DbSession = Depends(get_db), _pw: str = Depends(_
     if not v:
         raise HTTPException(404)
     eids = [r.id for r in db.query(VaultEntry).filter(VaultEntry.vault_id == vid).all()]
-    _purge_entry_data(db, eids)  # shares + attachment blobs for every entry in the vault
-    db.query(WebAuthnCredential).filter(WebAuthnCredential.vault_id == vid).delete(
-        synchronize_session=False
-    )
-    db.query(VaultEntry).filter(VaultEntry.vault_id == vid).delete(synchronize_session=False)
-    db.delete(v)
-    db.commit()
-    _drop_vault_settings(vid)
+    with recovery_consistency_lock:
+        _purge_entry_data(db, eids)  # shares + attachment blobs for every entry in the vault
+        db.query(WebAuthnCredential).filter(WebAuthnCredential.vault_id == vid).delete(
+            synchronize_session=False
+        )
+        db.query(VaultEntry).filter(VaultEntry.vault_id == vid).delete(synchronize_session=False)
+        db.delete(v)
+        db.commit()
+        _drop_vault_settings(vid)
     return {"ok": True}
 
 
@@ -543,18 +564,20 @@ def _fields_of(body) -> dict:
 @router.post("/vault")
 def create_entry(body: CreateEntry, db: DbSession = Depends(get_db), ctx: tuple = Depends(_ctx)):
     pw, vid = ctx
-    enc = encrypt(pw, json.dumps(_fields_of(body)))
-    e = VaultEntry(
-        vault_id=vid,
-        name=body.name,
-        username=body.username,
-        value_encrypted=enc,
-        category=body.category,
-        type=body.type or "password",
-    )
-    db.add(e)
-    db.commit()
-    db.refresh(e)
+    with recovery_consistency_lock:
+        _require_current_vault_password(db, pw, vid)
+        enc = encrypt(pw, json.dumps(_fields_of(body)))
+        e = VaultEntry(
+            vault_id=vid,
+            name=body.name,
+            username=body.username,
+            value_encrypted=enc,
+            category=body.category,
+            type=body.type or "password",
+        )
+        db.add(e)
+        db.commit()
+        db.refresh(e)
     return {"id": e.id, "name": e.name, "category": e.category, "type": e.type}
 
 
@@ -572,22 +595,24 @@ def patch_entry(
     entry_id: str, body: PatchEntry, db: DbSession = Depends(get_db), ctx: tuple = Depends(_ctx)
 ):
     pw, vid = ctx
-    # scope to the unlocked vault, or patching re-encrypts another vault's entry under this
-    # vault's key and bricks it
-    e = _scoped_entry(db, entry_id, vid)
-    if body.name is not None:
-        e.name = body.name
-    if body.category is not None:
-        e.category = body.category
-    if body.username is not None:
-        e.username = body.username
-    if body.type is not None:
-        e.type = body.type
-    if body.fields is not None:
-        e.value_encrypted = encrypt(pw, json.dumps(body.fields))
-    elif body.value is not None:
-        e.value_encrypted = encrypt(pw, json.dumps({"password": body.value}))
-    db.commit()
+    with recovery_consistency_lock:
+        _require_current_vault_password(db, pw, vid)
+        # scope to the unlocked vault, or patching re-encrypts another vault's entry under this
+        # vault's key and bricks it
+        e = _scoped_entry(db, entry_id, vid)
+        if body.name is not None:
+            e.name = body.name
+        if body.category is not None:
+            e.category = body.category
+        if body.username is not None:
+            e.username = body.username
+        if body.type is not None:
+            e.type = body.type
+        if body.fields is not None:
+            e.value_encrypted = encrypt(pw, json.dumps(body.fields))
+        elif body.value is not None:
+            e.value_encrypted = encrypt(pw, json.dumps({"password": body.value}))
+        db.commit()
     return {"ok": True}
 
 
@@ -636,9 +661,10 @@ def _purge_entry_data(db, eids):
 def delete_entry(entry_id: str, db: DbSession = Depends(get_db), ctx: tuple = Depends(_ctx)):
     _, vid = ctx
     e = _scoped_entry(db, entry_id, vid)
-    _purge_entry_data(db, [entry_id])
-    db.delete(e)
-    db.commit()
+    with recovery_consistency_lock:
+        _purge_entry_data(db, [entry_id])
+        db.delete(e)
+        db.commit()
     return {"ok": True}
 
 
@@ -738,15 +764,28 @@ async def add_attachment(
     from services.crypto import encrypt_bytes
 
     pw, vid = ctx
-    _scoped_entry(db, entry_id, vid)
     data = await file.read()
     if len(data) > 25 * 1024 * 1024:
         raise HTTPException(400, "attachment too large (25MB max)")
     att = VaultAttachment(entry_id=entry_id, filename=file.filename or "file", size=len(data))
-    db.add(att)
-    db.commit()
-    db.refresh(att)
-    (_attach_dir() / f"{att.id}.enc").write_bytes(encrypt_bytes(pw, data))
+    with recovery_consistency_lock:
+        _require_current_vault_password(db, pw, vid)
+        _scoped_entry(db, entry_id, vid)
+        path = None
+        try:
+            db.add(att)
+            db.flush()
+            path = _attach_dir() / f"{att.id}.enc"
+            path.write_bytes(encrypt_bytes(pw, data))
+            db.commit()
+        except Exception:
+            db.rollback()
+            if path is not None:
+                try:
+                    path.unlink(missing_ok=True)
+                except OSError:
+                    pass
+            raise
     return {"id": att.id, "filename": att.filename, "size": att.size}
 
 
@@ -787,12 +826,13 @@ def download_attachment(aid: str, db: DbSession = Depends(get_db), ctx: tuple = 
 def delete_attachment(aid: str, db: DbSession = Depends(get_db), ctx: tuple = Depends(_ctx)):
     _, vid = ctx
     a = _scoped_attachment(db, aid, vid)
-    try:
-        (_attach_dir() / f"{aid}.enc").unlink(missing_ok=True)
-    except Exception:
-        pass
-    db.delete(a)
-    db.commit()
+    with recovery_consistency_lock:
+        try:
+            (_attach_dir() / f"{aid}.enc").unlink(missing_ok=True)
+        except Exception:
+            pass
+        db.delete(a)
+        db.commit()
     return {"ok": True}
 
 
@@ -860,19 +900,18 @@ def webauthn_register(
     body: WaRegister, db: DbSession = Depends(get_db), ctx: tuple = Depends(_ctx)
 ):
     pw, vid = ctx
-    v = db.get(Vault, vid)
-    if not v:
-        raise HTTPException(404)
-    cred = WebAuthnCredential(
-        vault_id=vid,
-        label=body.label or "device",
-        credential_id=body.credential_id,
-        public_key=body.public_key,
-    )
-    db.add(cred)
-    v.biometric_blob = encrypt(_server_key(), pw)  # wrap so an assertion can release it
-    db.commit()
-    db.refresh(cred)
+    with recovery_consistency_lock:
+        v = _require_current_vault_password(db, pw, vid)
+        cred = WebAuthnCredential(
+            vault_id=vid,
+            label=body.label or "device",
+            credential_id=body.credential_id,
+            public_key=body.public_key,
+        )
+        db.add(cred)
+        v.biometric_blob = encrypt(_server_key(), pw)  # wrap so an assertion can release it
+        db.commit()
+        db.refresh(cred)
     return {"id": cred.id, "label": cred.label}
 
 
@@ -999,17 +1038,19 @@ def passkey_new(body: PasskeyNew, db: DbSession = Depends(get_db), ctx: tuple = 
         "public_key": pk["public_key"],
         "private_key": pk["private_key_pem"],
     }
-    e = VaultEntry(
-        vault_id=vid,
-        name=f"{pk['username'] or 'passkey'} @ {rp}",
-        username=pk["username"],
-        value_encrypted=encrypt(pw, json.dumps(fields)),
-        category="passkey",
-        type="passkey",
-    )
-    db.add(e)
-    db.commit()
-    db.refresh(e)
+    with recovery_consistency_lock:
+        _require_current_vault_password(db, pw, vid)
+        e = VaultEntry(
+            vault_id=vid,
+            name=f"{pk['username'] or 'passkey'} @ {rp}",
+            username=pk["username"],
+            value_encrypted=encrypt(pw, json.dumps(fields)),
+            category="passkey",
+            type="passkey",
+        )
+        db.add(e)
+        db.commit()
+        db.refresh(e)
     # never hand back the private key
     return {
         "id": e.id,

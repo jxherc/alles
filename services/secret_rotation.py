@@ -59,19 +59,21 @@ def rotate_all_credentials() -> dict:
     from core.settings import migrate_setting_secrets
     from services.caldav_sync import migrate_cfg_secrets as migrate_caldav
     from services.carddav_sync import migrate_cfg_secrets as migrate_carddav
+    from services.recovery_consistency import recovery_consistency_lock
     from services.secretstore import key_ids, prune_keys, rotate_key
 
-    old_ids = key_ids()
-    active = rotate_key()
-    changed = _encrypt_plaintext_secrets(force_reseal=True)
-    changed += migrate_setting_secrets()
-    changed += migrate_caldav()
-    changed += migrate_carddav()
-    references, legacy = _cipher_references()
-    prune_keys(key_ids() if legacy else references)
-    return {
-        "ok": True,
-        "changed": changed,
-        "active_key": active,
-        "retired_keys": len(old_ids - key_ids()),
-    }
+    with recovery_consistency_lock:
+        old_ids = key_ids()
+        active = rotate_key()
+        changed = _encrypt_plaintext_secrets(force_reseal=True)
+        changed += migrate_setting_secrets()
+        changed += migrate_caldav()
+        changed += migrate_carddav()
+        references, legacy = _cipher_references()
+        prune_keys(key_ids() if legacy else references)
+        return {
+            "ok": True,
+            "changed": changed,
+            "active_key": active,
+            "retired_keys": len(old_ids - key_ids()),
+        }

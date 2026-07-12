@@ -758,7 +758,12 @@ def _stage_update_data(live: Path, code_root: Path, update_dir: Path):
         recovery_key = load_or_create_recovery_key(live)
         # The key must exist before the snapshot so the installed candidate and
         # retained encrypted backup keep the same recoverable key on first use.
-        create_recovery_archive(live, plaintext, include_photos=True)
+        create_recovery_archive(
+            live,
+            plaintext,
+            include_photos=True,
+            expected_recovery_key=recovery_key,
+        )
         encrypt_recovery_archive(plaintext, encrypted, recovery_key)
         try:
             encrypted.chmod(0o600)

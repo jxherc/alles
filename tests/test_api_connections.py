@@ -1,5 +1,6 @@
 import json
 import tempfile
+import threading
 from pathlib import Path
 from unittest import mock
 
@@ -98,6 +99,49 @@ class ConnectionsApiTest(ApiTest):
                 mcp = connection.execute(text("SELECT args,url,env,headers FROM mcp_servers")).one()
             prefix = f"enc2:{body['active_key']}:"
             self.assertTrue(all(value.startswith(prefix) for value in (*stored, *mcp)))
+
+    def test_rotation_waits_for_an_inflight_credential_commit(self):
+        from services.secret_rotation import rotate_all_credentials
+
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            with mock.patch.object(secretstore, "_KEY_FILE", root / "secret.key"):
+                secretstore._key = None
+                secretstore._key_path = None
+                secretstore._keys = {}
+                secretstore._active_id = ""
+                late = self.db()
+                late.add(Connection(service="late", token="late-commit-private", meta=""))
+                late.flush()
+
+                started = threading.Event()
+                finished = threading.Event()
+                result = {}
+
+                def rotate():
+                    started.set()
+                    result.update(rotate_all_credentials())
+                    finished.set()
+
+                worker = threading.Thread(target=rotate)
+                worker.start()
+                self.assertTrue(started.wait(1))
+                was_blocked = not finished.wait(0.1)
+                late.commit()
+                late.close()
+                worker.join(5)
+                readable = self.db()
+                try:
+                    readable_token = (
+                        readable.query(Connection).filter(Connection.service == "late").one().token
+                    )
+                finally:
+                    readable.close()
+
+            self.assertTrue(was_blocked)
+            self.assertFalse(worker.is_alive())
+            self.assertGreaterEqual(result["retired_keys"], 1)
+            self.assertEqual(readable_token, "late-commit-private")
 
 
 if __name__ == "__main__":

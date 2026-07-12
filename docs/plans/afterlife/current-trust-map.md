@@ -15,7 +15,7 @@
 | Authentication | With auth off, anyone who can reach the port can use the app. With auth on, the current middleware requires the session cookie. A valid bearer token alone does not currently replace that cookie. |
 | FastAPI process | One process owns HTTP/SSE routes, login state, scheduler, event bus, startup work, connectors, and most host integrations. |
 | Host execution | Agent shell/Python tools, MCP stdio, Git, optional Docker/OpenCode/Ollama, and native helpers cross into host processes. A Project folder is priority context, not a security sandbox. |
-| SQLite | `aide.db` in WAL mode owns structured state. Model and mail credentials use `EncryptedText` plus `secret.key`; some older connector credentials still live in plain local config. |
+| SQLite and configs | `aide.db` in WAL mode owns structured state. Model, mail, connector, MCP, DAV, and sensitive Settings credentials use field-bound encryption plus `secret.key`. |
 | Managed files | Markdown Vault owns docs/notes. Files and Photos roots own their bytes. Uploads, Gallery, blobs, revisions, trash, research state, skills, and helpers default under `ALLES_DATA`. |
 | External roots | Vault, Files, Photos, watch folders, Projects, agent workspaces, caches, and PhotoKit may point outside `ALLES_DATA`; recovery records but does not silently copy them. |
 | Models/search | Prompts or queries cross to the selected model and search providers. SearXNG is currently a configured URL, not an Alles-managed service. Fetched pages and results are untrusted input. |
