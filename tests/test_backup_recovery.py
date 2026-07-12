@@ -326,7 +326,7 @@ class BackupRecoveryTest(unittest.TestCase):
         self.assertEqual(locations["photos_watch"]["policy"], "source-only-excluded")
         self.assertEqual(locations["agent_allowed_roots"]["policy"], "workspace-content-excluded")
         self.assertEqual(locations["webdav"]["policy"], "not-configured")
-        self.assertEqual(locations["s3"]["policy"], "not-implemented")
+        self.assertEqual(locations["s3"]["policy"], "not-configured")
         archived_paths = {item["path"] for item in manifest["files"]}
         for name in ("vault", "files", "photos", "watch", "agent"):
             self.assertNotIn(f"{name}-only.txt", archived_paths)
@@ -510,6 +510,87 @@ class BackupRecoveryTest(unittest.TestCase):
             configured,
         )
 
+    def test_s3_policy_and_payload_use_only_the_frozen_config(self):
+        from services import backup_recovery
+
+        credentials = json.dumps(
+            {
+                "access_key_id": "access-private",
+                "secret_access_key": "secret-private",
+            },
+            separators=(",", ":"),
+            sort_keys=True,
+        )
+        sealed = self._seal_for_root(
+            self.live,
+            credentials,
+            "backup.s3.credentials",
+        )
+        configured = {
+            "endpoint": "https://objects.example.test",
+            "region": "test-1",
+            "bucket": "alles-backups",
+            "credentials": sealed,
+        }
+        config_path = self.live / "s3_backup.json"
+        config_path.write_text(json.dumps(configured), "utf-8")
+        original_freeze = backup_recovery._freeze_root_dependencies
+
+        def change_live_config_after_freeze(*args, **kwargs):
+            frozen = original_freeze(*args, **kwargs)
+            config_path.write_text("{}", "utf-8")
+            return frozen
+
+        archive = self.base / "frozen-s3.zip"
+        with patch.object(
+            backup_recovery,
+            "_freeze_root_dependencies",
+            side_effect=change_live_config_after_freeze,
+        ):
+            manifest = create_recovery_archive(self.live, archive)
+
+        s3 = next(item for item in manifest["locations"] if item["role"] == "s3")
+        self.assertFalse(s3["included"])
+        self.assertEqual(s3["policy"], "configured")
+        with zipfile.ZipFile(archive) as zf:
+            captured_raw = zf.read("payload/data/s3_backup.json")
+            captured = json.loads(captured_raw)
+            self.assertNotIn("access-private", captured_raw.decode())
+            self.assertNotIn("secret-private", captured_raw.decode())
+        self.assertEqual(captured, configured)
+        staged = stage_recovery_archive(archive, self.live)
+        self.assertEqual(
+            json.loads((staged.data_dir / "s3_backup.json").read_text("utf-8")),
+            configured,
+        )
+
+    def test_new_backup_rejects_plaintext_and_wrong_purpose_s3_credentials(self):
+        for failure in ("plaintext", "wrong-purpose"):
+            with self.subTest(failure=failure):
+                credentials = '{"secret_access_key":"private"}'
+                if failure == "wrong-purpose":
+                    credentials = self._seal_for_root(
+                        self.live,
+                        credentials,
+                        "backup.webdav.password",
+                    )
+                (self.live / "s3_backup.json").write_text(
+                    json.dumps(
+                        {
+                            "endpoint": "https://objects.example.test",
+                            "region": "test-1",
+                            "bucket": "alles-backups",
+                            "credentials": credentials,
+                        }
+                    ),
+                    "utf-8",
+                )
+                archive = self.base / f"s3-{failure}.zip"
+                expected = "not encrypted" if failure == "plaintext" else "could not be decrypted"
+                with self.assertRaisesRegex(RecoveryError, expected):
+                    create_recovery_archive(self.live, archive)
+                self.assertFalse(archive.exists())
+
     def test_expected_recovery_key_is_bound_to_the_frozen_copy(self):
         from services import backup_recovery
         from services.recovery_crypto import (
@@ -653,6 +734,28 @@ class BackupRecoveryTest(unittest.TestCase):
         )
         webdav = next(item for item in staged.manifest["locations"] if item["role"] == "webdav")
         self.assertEqual(webdav["policy"], "configured")
+
+    def test_legacy_plaintext_s3_config_can_still_be_staged(self):
+        config = {
+            "endpoint": "https://objects.example.test",
+            "region": "test-1",
+            "bucket": "alles-backups",
+            "credentials": '{"secret_access_key":"legacy-private"}',
+        }
+        config_path = self.live / "s3_backup.json"
+        config_path.write_text(json.dumps(config), "utf-8")
+        archive = self.base / "legacy-s3.zip"
+        with zipfile.ZipFile(archive, "w", zipfile.ZIP_DEFLATED) as zf:
+            zf.write(self.live / "aide.db", "aide.db")
+            zf.write(config_path, "s3_backup.json")
+
+        staged = stage_recovery_archive(archive, self.live)
+        self.assertEqual(
+            json.loads((staged.data_dir / "s3_backup.json").read_text("utf-8")),
+            config,
+        )
+        s3 = next(item for item in staged.manifest["locations"] if item["role"] == "s3")
+        self.assertEqual(s3["policy"], "configured")
 
     def test_database_backed_attachment_ids_cannot_escape_staging(self):
         with closing(sqlite3.connect(self.live / "aide.db")) as conn:

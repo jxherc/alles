@@ -89,8 +89,7 @@ def rotate_all_credentials() -> dict:
         changed = _encrypt_plaintext_secrets(force_reseal=True)
         changed += migrate_setting_secrets()
         for path, key, purpose in _config_credential_paths():
-            if key == "password":
-                changed += migrate_secret_config(path, purpose)
+            changed += migrate_secret_config(path, purpose, field=key)
         references, legacy = _cipher_references()
         prune_keys(key_ids() if legacy else references)
         return {

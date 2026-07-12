@@ -1840,6 +1840,74 @@
               </div>
             </div>
           </div>
+          <div class="s-card" id="s3-backup-card">
+            <div class="s-card-head">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7c0-1.7 3.6-3 8-3s8 1.3 8 3-3.6 3-8 3-8-1.3-8-3Z"/><path d="M4 7v5c0 1.7 3.6 3 8 3s8-1.3 8-3V7"/><path d="M4 12v5c0 1.7 3.6 3 8 3s8-1.3 8-3v-5"/></svg>
+              s3 backup
+            </div>
+            <div class="s-card-body">
+              <p style="font-size:0.75rem;color:var(--muted);margin-bottom:0.6rem">manually send the same encrypted backup to an existing S3 bucket. this is backup-only: Alles will not sync or manage other objects.</p>
+              <p style="font-size:0.7rem;color:var(--muted);margin-bottom:0.75rem">the connection check creates and removes tiny probe objects. each backup is one copy, and the copy is not atomic. the artifact must be 5 GB or smaller. for disaster recovery, keep your S3 credentials and recovery-key file somewhere outside Alles.</p>
+              <div class="s-field">
+                <label for="s3-backup-endpoint">https endpoint</label>
+                <input type="url" class="settings-input" id="s3-backup-endpoint" placeholder="https://s3.example.com" autocomplete="url" inputmode="url" spellcheck="false" style="width:100%">
+              </div>
+              <div class="s-field">
+                <label for="s3-backup-region">region</label>
+                <input type="text" class="settings-input" id="s3-backup-region" placeholder="us-east-1" autocomplete="off" spellcheck="false" style="width:100%">
+              </div>
+              <div class="s-field">
+                <label for="s3-backup-bucket">existing bucket</label>
+                <input type="text" class="settings-input" id="s3-backup-bucket" autocomplete="off" spellcheck="false" style="width:100%">
+              </div>
+              <div class="s-field">
+                <label for="s3-backup-prefix">prefix (optional)</label>
+                <input type="text" class="settings-input" id="s3-backup-prefix" placeholder="alles/backups" autocomplete="off" spellcheck="false" style="width:100%">
+              </div>
+              <div class="s-field">
+                <label for="s3-backup-addressing-style">addressing style</label>
+                <select class="settings-input" id="s3-backup-addressing-style" style="width:100%">
+                  <option value="path">path</option>
+                  <option value="virtual">virtual</option>
+                </select>
+              </div>
+              <div class="s-field">
+                <label for="s3-backup-access-key-id">access-key id</label>
+                <input type="password" class="settings-input" id="s3-backup-access-key-id" placeholder="blank keeps the saved credential pair" autocomplete="new-password" aria-describedby="s3-backup-credentials-help" style="width:100%">
+              </div>
+              <div class="s-field">
+                <label for="s3-backup-secret-access-key">secret-access key</label>
+                <input type="password" class="settings-input" id="s3-backup-secret-access-key" placeholder="blank keeps the saved credential pair" autocomplete="new-password" aria-describedby="s3-backup-credentials-help" style="width:100%">
+                <span id="s3-backup-credentials-help" style="font-size:0.68rem;color:var(--muted)">enter both credentials together. leaving both blank keeps the saved pair.</span>
+              </div>
+              <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
+                <button class="btn primary" id="s3-backup-save-btn" type="button" style="flex:1;min-width:150px">connect and save</button>
+                <button class="btn danger" id="s3-backup-disconnect-btn" type="button" hidden>disconnect</button>
+              </div>
+              <p id="s3-backup-status" role="status" aria-live="polite" style="font-size:0.75rem;color:var(--muted);margin-top:0.7rem">checking connection…</p>
+              <p style="font-size:0.7rem;color:var(--muted);margin-top:0.25rem">last successful backup: <span id="s3-backup-last-success">never</span></p>
+              <p style="font-size:0.7rem;color:var(--muted);margin-top:0.15rem">last verified upload read-back: <span id="s3-backup-last-verified">never</span></p>
+
+              <div style="border-top:1px solid var(--faint);margin:0.85rem 0;padding-top:0.85rem">
+                <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
+                  <button class="btn primary" id="s3-backup-run-btn" type="button" disabled style="flex:1;min-width:140px">back up now</button>
+                  <button class="btn" id="s3-backup-refresh-btn" type="button" disabled style="flex:1;min-width:140px">refresh backups</button>
+                </div>
+                <div class="s-field" style="margin-top:0.75rem">
+                  <label for="s3-backup-list">remote backup</label>
+                  <select class="settings-input" id="s3-backup-list" disabled style="width:100%">
+                    <option value="">no remote backups found</option>
+                  </select>
+                </div>
+                <p id="s3-backup-selection" style="font-size:0.7rem;color:var(--muted);margin-top:-0.3rem" aria-live="polite">choose a backup to stage a restore.</p>
+                <button class="btn" id="s3-backup-recovery-key-btn" type="button" style="width:100%;margin-top:0.65rem">choose separate recovery key (optional)</button>
+                <input type="file" id="s3-backup-recovery-key" accept=".txt,.key" style="display:none">
+                <p id="s3-backup-recovery-key-name" style="font-size:0.7rem;color:var(--muted);margin-top:0.4rem">no separate key selected</p>
+                <button class="btn" id="s3-backup-restore-btn" type="button" disabled style="width:100%;margin-top:0.55rem">verify and stage selected restore</button>
+                <p id="s3-backup-restore-status" hidden role="status" aria-live="polite" style="font-size:0.75rem;color:var(--muted);margin-top:0.75rem;overflow-wrap:anywhere"></p>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div class="s-pane" id="s-pane-recall">

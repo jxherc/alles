@@ -17,6 +17,7 @@ import services.cal_notify as cal_notify
 import services.caldav_sync as caldav_sync
 import services.local_models as local_models
 import services.photo_sync as photo_sync
+import services.s3_backup as s3_backup
 import services.secretstore as secretstore
 import services.skills_store as skills_store
 import services.webdav_backup as webdav_backup
@@ -42,6 +43,7 @@ class DataDirIsolationTest(unittest.TestCase):
             "gallery": gallery.GALLERY_DIR,
             "compare": compare._COMPARE_DIR,
             "caldav_cfg": caldav_sync.CFG_PATH,
+            "s3_cfg": s3_backup.CONFIG_PATH,
             "webdav_cfg": webdav_backup.CONFIG_PATH,
             "persona_seed": personas._SEED_SENTINEL,
             "skills": skills_store.SKILLS_DIR,
@@ -64,6 +66,7 @@ class DataDirIsolationTest(unittest.TestCase):
         gallery.GALLERY_DIR = None
         compare._COMPARE_DIR = None
         caldav_sync.CFG_PATH = None
+        s3_backup.CONFIG_PATH = None
         webdav_backup.CONFIG_PATH = None
         personas._SEED_SENTINEL = None
         skills_store.SKILLS_DIR = None
@@ -87,6 +90,7 @@ class DataDirIsolationTest(unittest.TestCase):
         gallery.GALLERY_DIR = self.orig["gallery"]
         compare._COMPARE_DIR = self.orig["compare"]
         caldav_sync.CFG_PATH = self.orig["caldav_cfg"]
+        s3_backup.CONFIG_PATH = self.orig["s3_cfg"]
         webdav_backup.CONFIG_PATH = self.orig["webdav_cfg"]
         personas._SEED_SENTINEL = self.orig["persona_seed"]
         skills_store.SKILLS_DIR = self.orig["skills"]
@@ -115,6 +119,7 @@ class DataDirIsolationTest(unittest.TestCase):
         self.assertEqual(gallery.gallery_dir(), self.root / "gallery")
         self.assertEqual(compare.compare_dir(), self.root / "compare")
         self.assertEqual(caldav_sync._cfg_path(), self.root / "caldav.json")
+        self.assertEqual(s3_backup._config_path(), self.root / "s3_backup.json")
         self.assertEqual(webdav_backup._config_path(), self.root / "webdav_backup.json")
         self.assertEqual(personas.seed_sentinel(), self.root / ".personas_seeded")
         self.assertEqual(skills_store.skills_dir(), self.root / "skills")
@@ -134,7 +139,23 @@ class DataDirIsolationTest(unittest.TestCase):
         self.assertTrue((self.root / "vapid.pem").exists())
 
     def test_dav_configs_and_skills_write_under_alles_data(self):
+        s3_credentials = json.dumps(
+            {
+                "access_key_id": "access-private",
+                "secret_access_key": "secret-private",
+            },
+            separators=(",", ":"),
+            sort_keys=True,
+        )
         caldav_sync.save_cfg({"url": "https://cal.example", "username": "me", "password": "pw"})
+        s3_backup.save_config(
+            {
+                "endpoint": "https://objects.example.test",
+                "region": "test-1",
+                "bucket": "alles-backups",
+                "credentials": s3_credentials,
+            }
+        )
         webdav_backup.save_config(
             {"url": "https://dav.example/backups", "username": "me", "password": "backup-pw"}
         )
@@ -143,6 +164,13 @@ class DataDirIsolationTest(unittest.TestCase):
         caldav_password = json.loads((self.root / "caldav.json").read_text("utf-8"))["password"]
         self.assertTrue(caldav_password.startswith("enc2:"))
         self.assertEqual(caldav_sync.load_cfg()["password"], "pw")
+        self.assertTrue((self.root / "s3_backup.json").exists())
+        s3_raw = json.loads((self.root / "s3_backup.json").read_text("utf-8"))
+        self.assertTrue(s3_raw["credentials"].startswith("enc2:"))
+        s3_stored = (self.root / "s3_backup.json").read_text("utf-8")
+        self.assertNotIn("access-private", s3_stored)
+        self.assertNotIn("secret-private", s3_stored)
+        self.assertEqual(s3_backup.load_config()["credentials"], s3_credentials)
         self.assertTrue((self.root / "webdav_backup.json").exists())
         webdav_password = json.loads((self.root / "webdav_backup.json").read_text("utf-8"))[
             "password"

@@ -175,9 +175,9 @@
 
 ## Phase 1 handoff — not part of the Phase 0 gate
 
-- [ ] Re-validate the encrypted local destination, then add WebDAV and S3 one at a time after encrypted
+- [x] Re-validate the encrypted local destination, then add WebDAV and S3 one at a time after encrypted
   connector storage exists and each target passes the same no-original-install recovery test.
   - This is Phase 1C in `design.md`. Phase 0 explicitly keeps the safe encrypted archive path instead
     of weakening recovery or storing remote credentials early.
-  - Phase 1C has completed the local and WebDAV gates. This compound handoff stays open until S3 also
-    passes its independent gate.
+  - Phase 1C completed independent local, WebDAV, and signed S3-compatible gates. Each remote gate
+    deletes the source install and reconnects with credentials kept outside the backup.
