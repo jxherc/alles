@@ -100,7 +100,7 @@ for an explicit relink.
   - Proven incomplete work may resume.
   - Proven complete work is not repeated.
   - An outcome that cannot be proved becomes **uncertain** and asks the owner.
-- [ ] Add compatibility reads while old automation APIs are still used.
+- [x] Add compatibility reads while old automation APIs are still used.
 
 Current evidence: 61 focused record, API, encrypted-credential, key-rotation, backup, and migration
 tests pass. All 26 canonical schema histories, both released no-history schemas, and all five Photos-fork
@@ -108,8 +108,8 @@ histories pass staged restore, repeat migration, and boot. Workflows and trigger
 events, prompts, deliveries, and connector records use separate tables; connector secrets are masked in
 APIs and encrypted in raw SQLite. Durable exact approvals are separate from choices, survive restart,
 are single-use under a two-worker race, and create before/after action checkpoints. Startup reconciliation
-marks an unconfirmed side effect uncertain and an ordinary stopped run interrupted. Compatibility reads
-for migrated automations remain part of 2E.
+marks an unconfirmed side effect uncertain and an ordinary stopped run interrupted. Old automation
+reads now show the paused migration state, saved enabled intent, linked Workflow, and latest attempt.
 
 ### 2B gate
 
@@ -194,10 +194,10 @@ blocks the next action immediately, including after restart.
   - Keep workflow success separate from delivery success.
 - [x] Make delivery retries idempotent where a provider supports an idempotency key.
 - [x] Mark an unprovable delivery result **uncertain** instead of sending it again.
-- [ ] Add small event hooks from existing apps.
+- [x] Add small event hooks from existing apps.
   - Hooks enqueue reviewed events; they do not run model work inside the app request.
   - External content stays untrusted and cannot approve its own action or create trusted memory.
-- [ ] Convert current automations into paused Workflows and Triggers.
+- [x] Convert current automations into paused Workflows and Triggers.
   - Preserve names, schedules, enabled intent, and action details where safe.
   - Require owner review of model, permissions, delivery, and schedule before enabling.
   - Do not silently activate a migrated automation.
@@ -207,7 +207,12 @@ Current outbox evidence: 13 focused tests cover unique enqueue, two-worker claim
 stable provider keys, restart-safe referenced summaries, bounded transient retry, permanent failure,
 uncertain provider outcomes, idempotent recovery, non-idempotent crash quarantine, safe API fields, and
 the rules that an uncertain delivery cannot be manually resent and a disabled connector secret never
-reaches a provider. The selected outbox, record, and scheduler regression set is 41 tests.
+reaches a provider. The selected outbox, record, and scheduler regression set is 41 tests. Another 11
+focused tests cover content-minimal mutation events, owner review, event deduplication and dispatch,
+untrusted outside content, safe legacy conversion, saved enabled intent, compatibility edits and delete,
+the four-part review gate, legacy-engine pause, and repeat migration. The event and old-automation
+regression set is 41 tests. All 30 canonical histories, all five Photos forks, and both released
+no-history databases pass staged restore, repeat migration, and boot.
 
 ### 2E gate
 

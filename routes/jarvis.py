@@ -12,6 +12,7 @@ from core.auth import require_recent_owner
 from core.database import (
     JarvisConnector,
     JarvisDeliveryAttempt,
+    JarvisInboxEvent,
     JarvisRun,
     JarvisRunEvent,
     JarvisRunPrompt,
@@ -94,6 +95,9 @@ def _workflow(row: JarvisWorkflow) -> dict:
         "context_mode": row.context_mode,
         "delivery_policy": json_value(row.delivery_policy, dict),
         "enabled": bool(row.enabled),
+        "review_state": row.review_state,
+        "legacy_automation_id": row.legacy_automation_id,
+        "legacy_enabled_intent": bool(row.legacy_enabled_intent),
         "created_at": row.created_at.isoformat(),
         "updated_at": row.updated_at.isoformat() if row.updated_at else None,
     }
@@ -311,6 +315,12 @@ def patch_workflow(
     if body.delivery_policy is not None:
         row.delivery_policy = _json_text(body.delivery_policy, expected=dict, limit=8000)
     if body.enabled is not None:
+        if body.enabled and row.review_state == "needs_review":
+            raise ApiError(
+                409,
+                "workflow_review_required",
+                "review migrated model, permissions, delivery, and schedule first",
+            )
         if body.enabled != bool(row.enabled):
             require_recent_owner(request)
         row.enabled = body.enabled
@@ -384,6 +394,9 @@ def patch_trigger(
     if body.timezone is not None:
         row.timezone = timezone_name or "UTC"
     if body.enabled is not None and body.enabled != bool(row.enabled):
+        workflow = db.get(JarvisWorkflow, row.workflow_id)
+        if body.enabled and workflow and workflow.review_state == "needs_review":
+            raise ApiError(409, "workflow_review_required", "review the migrated workflow first")
         require_recent_owner(request)
         row.enabled = body.enabled
     if row.enabled:
@@ -393,6 +406,85 @@ def patch_trigger(
     db.commit()
     db.refresh(row)
     return _trigger(row)
+
+
+class WorkflowReviewBody(BaseModel):
+    model: bool = False
+    permissions: bool = False
+    delivery: bool = False
+    schedule: bool = False
+
+
+@router.post("/workflows/{workflow_id}/review", dependencies=[Depends(require_recent_owner)])
+def review_workflow(
+    workflow_id: str,
+    body: WorkflowReviewBody,
+    db: DbSession = Depends(get_db),
+):
+    workflow = db.get(JarvisWorkflow, workflow_id)
+    if not workflow:
+        raise HTTPException(404)
+    if not all((body.model, body.permissions, body.delivery, body.schedule)):
+        raise ApiError(400, "workflow_review_incomplete", "confirm every workflow review area")
+    workflow.review_state = "ready"
+    workflow.enabled = False
+    for trigger in db.query(JarvisTrigger).filter_by(workflow_id=workflow.id):
+        trigger.enabled = False
+        trigger.next_run_at = None
+    db.commit()
+    db.refresh(workflow)
+    return _workflow(workflow)
+
+
+def _inbox_event(row: JarvisInboxEvent) -> dict:
+    return {
+        "id": row.id,
+        "source_kind": row.source_kind,
+        "source_id": row.source_id,
+        "event_type": row.event_type,
+        "entity_kind": row.entity_kind,
+        "entity_id": row.entity_id,
+        "safe_summary": row.safe_summary,
+        "external": bool(row.external),
+        "state": row.state,
+        "reviewed_at": row.reviewed_at.isoformat() if row.reviewed_at else None,
+        "dispatched_at": row.dispatched_at.isoformat() if row.dispatched_at else None,
+        "created_at": row.created_at.isoformat(),
+    }
+
+
+@router.get("/events")
+def list_inbox_events(state: str = "", limit: int = 100, db: DbSession = Depends(get_db)):
+    query = db.query(JarvisInboxEvent)
+    if state:
+        query = query.filter_by(state=state)
+    rows = query.order_by(JarvisInboxEvent.created_at.desc()).limit(max(1, min(limit, 200))).all()
+    return [_inbox_event(row) for row in rows]
+
+
+class EventReviewBody(BaseModel):
+    allow: bool
+
+
+@router.post("/events/{event_id}/review", dependencies=[Depends(require_recent_owner)])
+def review_inbox_event(
+    event_id: str,
+    body: EventReviewBody,
+    db: DbSession = Depends(get_db),
+):
+    from services.jarvis_events import review_event
+
+    row = db.get(JarvisInboxEvent, event_id)
+    if not row:
+        raise HTTPException(404)
+    try:
+        review_event(db, row, allow=body.allow)
+    except ValueError as exc:
+        code = str(exc)
+        raise ApiError(409, code, code.replace("_", " ")) from exc
+    db.commit()
+    db.refresh(row)
+    return _inbox_event(row)
 
 
 @router.post("/workflows/{workflow_id}/runs")

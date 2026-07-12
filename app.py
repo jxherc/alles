@@ -442,6 +442,11 @@ def _register_jobs():
 
         await process_outbox()
 
+    async def _jarvis_events():
+        from services.jarvis_events import dispatch_reviewed_events
+
+        dispatch_reviewed_events()
+
     async def _models():
         from routes.models import refresh_all_model_lists
 
@@ -617,6 +622,7 @@ def _register_jobs():
     jobs.register("automations", _autos, 30)
     jobs.register("jarvis_scheduler", _jarvis_scheduler, 5)
     jobs.register("jarvis_outbox", _jarvis_outbox, 5)
+    jobs.register("jarvis_events", _jarvis_events, 5)
     jobs.register("reminders", _fire_due_reminders, 30)
     jobs.register("calendar_reminders", _cal_reminders, 30)
     jobs.register("mail_outbox", _outbox, 30)  # flush scheduled sends (5b)
@@ -773,6 +779,14 @@ async def lifespan(app: FastAPI):
             log.info("alles recovery preflight ready")
             yield
             return
+
+        from services.automation_migration import migrate_legacy_automations
+        from services.jarvis_events import install as install_jarvis_events
+
+        migrated_automations = migrate_legacy_automations()
+        install_jarvis_events()
+        if migrated_automations:
+            log.info("converted %s legacy automation(s) into paused Jarvis workflows", migrated_automations)
 
         # A previous process may have stopped after an external action but before
         # saving its result. Resolve those claims before the job loop can run so

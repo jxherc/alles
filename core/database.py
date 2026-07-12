@@ -746,6 +746,8 @@ class AutomationRule(Base):
     action_arg = Column(Text, default="")  # template ({from} {subject} {name} {date} {path} {tag})
     enabled = Column(Boolean, default=True)
     state = Column(Text, default="{}")  # engine state: dedupe keys, last mail uids, last daily run
+    migrated_workflow_id = Column(String, nullable=True, index=True)
+    enabled_intent = Column(Boolean, nullable=True)
     created_at = Column(DateTime, default=_now)
 
 
@@ -798,6 +800,9 @@ class JarvisWorkflow(Base):
     delivery_policy = Column(Text, default="{}")
     enabled = Column(Boolean, default=False)
     active_run_id = Column(String, nullable=True, index=True)
+    legacy_automation_id = Column(String, nullable=True, unique=True)
+    review_state = Column(String, nullable=False, default="ready", index=True)
+    legacy_enabled_intent = Column(Boolean, default=False)
     created_at = Column(DateTime, default=_now)
     updated_at = Column(DateTime, default=_now, onupdate=_now)
 
@@ -998,6 +1003,23 @@ class CapabilityGrantEvent(Base):
     scope_kind = Column(String, default="")
     scope_id = Column(String, default="")
     capability = Column(String, default="")
+    created_at = Column(DateTime, default=_now, index=True)
+
+
+class JarvisInboxEvent(Base):
+    __tablename__ = "jarvis_inbox_events"
+    id = Column(String, primary_key=True, default=_uid)
+    source_kind = Column(String, nullable=False, index=True)
+    source_id = Column(String, default="")
+    event_type = Column(String, nullable=False, index=True)
+    entity_kind = Column(String, default="", index=True)
+    entity_id = Column(String, default="")
+    safe_summary = Column(Text, default="")
+    external = Column(Boolean, default=False)
+    state = Column(String, nullable=False, default="pending", index=True)
+    dedupe_key = Column(String(64), nullable=False, unique=True)
+    reviewed_at = Column(DateTime, nullable=True)
+    dispatched_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=_now, index=True)
 
 
