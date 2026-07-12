@@ -5,6 +5,7 @@ import { icon, iconEl, ICON_NAMES } from './icons.js';
 // expose globally so the inline-HTML modules can call icon() without each importing it
 window.icon = icon; window.iconEl = iconEl; window.ICON_NAMES = ICON_NAMES;
 import { chooseBootState } from './bootstate.js';
+import { activeAfterlifeSpaces, loadAfterlifeFeatures } from './afterlife.js';
 import { providerKey } from './brandlogo.js';
 import { sendMessage, stopStream, hideConnBanner } from './chat.js';
 import { toast, closeAllModals, mdToHtml, api } from './util.js';
@@ -116,6 +117,7 @@ function _validSsoTarget(target) {
 }
 
 async function _boot() {
+  const afterlifeFlags = await loadAfterlifeFeatures();
   applyVis();
   try { configureLocalization(await fetch('/api/settings').then(r => r.json())); }
   catch { configureLocalization(); }
@@ -138,6 +140,7 @@ async function _boot() {
   registerServiceWorker();
   initSync();
   bindEvents();
+  initAfterlifeShell(afterlifeFlags);
   // per-app settings gears (header cogs) + the reload hooks they call after saving
   initAppCogs();
   window._reloadFiles = () => loadFiles('');   // jump to the (possibly new) root
@@ -187,6 +190,7 @@ function applySubdomainScope() {
   document.body.classList.toggle('is-aide', onAide);
   document.body.classList.toggle('is-subapp', onSubApp);
   document.body.dataset.app = app.app;
+  _setAfterlifeSpace(onAide ? 'aide' : '');
   document.title = onHub ? 'alles' : `${app.app} / alles`;
   renderAppCrumb(app.app, sub);
 
@@ -410,6 +414,7 @@ const showProactiveView  = () => showView('proactive-view', 'proactive', loadPro
 
 // central nav dispatch — used by both the sidebar nav-items and the home tiles
 function navigateTo(v) {
+  _setAfterlifeSpace(v === 'chat' || v === 'project' ? 'aide' : v === 'home' ? 'today' : '');
   // memory now lives inside settings, not as its own view
   if (v === 'memory') { openSettings('memory'); return; }
   // a view that lives on another subdomain → full-page jump (with SSO handoff).
@@ -506,6 +511,100 @@ const HOME_TILES = [
   { view: 'books',    name: 'books',    desc: 'reading list',     icon: 'books' },
   { view: 'health',   name: 'health',   desc: 'weight, sleep…',   icon: 'health' },
 ];
+
+let _appDrawerReturnFocus = null;
+
+function initAfterlifeShell(flags) {
+  const spaces = activeAfterlifeSpaces(flags);
+  const rail = document.getElementById('space-rail');
+  document.body.classList.toggle('afterlife-shell', spaces.length > 0);
+  if (!rail || !spaces.length) {
+    if (rail) rail.hidden = true;
+    return;
+  }
+  rail.hidden = false;
+  rail.querySelectorAll('[data-space]').forEach(button => {
+    button.hidden = !spaces.includes(button.dataset.space);
+  });
+  _setAfterlifeSpace(document.body.classList.contains('is-aide') ? 'aide' : '');
+  _renderAppDrawer();
+
+  rail.querySelectorAll('[data-view]').forEach(button => {
+    button.addEventListener('click', () => navigateTo(button.dataset.view));
+  });
+  document.getElementById('app-drawer-btn')?.addEventListener('click', openAppDrawer);
+  document.getElementById('app-drawer-close')?.addEventListener('click', closeAppDrawer);
+  document.getElementById('app-drawer-scrim')?.addEventListener('click', closeAppDrawer);
+  document.getElementById('space-settings-btn')?.addEventListener('click', () => openSettings());
+}
+
+function _setAfterlifeSpace(space) {
+  document.querySelectorAll('.space-link').forEach(button => {
+    const active = !!space && button.dataset.space === space;
+    button.classList.toggle('active', active);
+    button.setAttribute('aria-current', active ? 'page' : 'false');
+  });
+}
+
+function _renderAppDrawer() {
+  const grid = document.getElementById('app-drawer-grid');
+  if (!grid || grid.childElementCount) return;
+  for (const tile of HOME_TILES) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'app-drawer-item';
+    button.dataset.view = tile.view;
+    button.innerHTML = `<span class="app-drawer-icon" aria-hidden="true">${_svg(tile.icon)}</span><span><b>${tile.name}</b><small>${tile.desc}</small></span>`;
+    button.addEventListener('click', () => {
+      closeAppDrawer();
+      navigateTo(tile.view);
+    });
+    grid.appendChild(button);
+  }
+}
+
+function openAppDrawer() {
+  const drawer = document.getElementById('app-drawer');
+  const scrim = document.getElementById('app-drawer-scrim');
+  if (!drawer || !scrim) return;
+  _appDrawerReturnFocus = document.activeElement;
+  drawer.hidden = false;
+  scrim.hidden = false;
+  document.body.classList.add('app-drawer-open');
+  document.getElementById('app-drawer-btn')?.setAttribute('aria-expanded', 'true');
+  document.getElementById('app-drawer-close')?.focus();
+}
+
+function closeAppDrawer() {
+  const drawer = document.getElementById('app-drawer');
+  const scrim = document.getElementById('app-drawer-scrim');
+  if (!drawer || drawer.hidden) return;
+  drawer.hidden = true;
+  if (scrim) scrim.hidden = true;
+  document.body.classList.remove('app-drawer-open');
+  document.getElementById('app-drawer-btn')?.setAttribute('aria-expanded', 'false');
+  if (_appDrawerReturnFocus?.isConnected) _appDrawerReturnFocus.focus();
+}
+
+function _trapAppDrawerFocus(event) {
+  const drawer = document.getElementById('app-drawer');
+  if (event.key !== 'Tab' || !drawer || drawer.hidden) return false;
+  const focusable = [...drawer.querySelectorAll('button:not([disabled]), a[href], input:not([disabled])')]
+    .filter(element => element.offsetParent !== null);
+  if (!focusable.length) return false;
+  const first = focusable[0], last = focusable[focusable.length - 1];
+  if (event.shiftKey && document.activeElement === first) {
+    event.preventDefault();
+    last.focus();
+    return true;
+  }
+  if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault();
+    first.focus();
+    return true;
+  }
+  return false;
+}
 
 // command-palette nav source (the ⌘K search renders a "go to" group from this)
 window._navCommands = HOME_TILES.map(t => ({ view: t.view, label: t.name, hint: t.desc }));
@@ -1244,12 +1343,13 @@ function bindEvents() {
   });
 
   document.addEventListener('keydown', e => {
+    if (_trapAppDrawerFocus(e)) return;
     const shortcuts = loadShortcuts();
     if (e.key === 'Escape') {
       // if a reply is streaming, Esc stops it first; otherwise it closes overlays
       const stopBtn = document.getElementById('stop-btn');
       if (stopBtn?.classList.contains('visible')) { stopStream(); return; }
-      closeAllModals(); closeSettings(); closeSearch(); closeMoreTools(); closeShellPanel();
+      closeAllModals(); closeSettings(); closeSearch(); closeMoreTools(); closeShellPanel(); closeAppDrawer();
     }
     else if (matchesShortcut(e, shortcuts.focus_input)) {
       const ta = document.getElementById('composer-ta');
