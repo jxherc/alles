@@ -424,6 +424,18 @@ def _register_jobs():
 
         await run_automations()
 
+    async def _jarvis_scheduler():
+        from core.database import SessionLocal
+        from services.jarvis_scheduler import reclaim_stale_leases, scan_due
+
+        await scan_due()
+        db = SessionLocal()
+        try:
+            reclaim_stale_leases(db)
+            db.commit()
+        finally:
+            db.close()
+
     async def _models():
         from routes.models import refresh_all_model_lists
 
@@ -597,6 +609,7 @@ def _register_jobs():
     jobs.register("subscriptions", _subs, 30)
     jobs.register("day_events", _days, 30)
     jobs.register("automations", _autos, 30)
+    jobs.register("jarvis_scheduler", _jarvis_scheduler, 5)
     jobs.register("reminders", _fire_due_reminders, 30)
     jobs.register("calendar_reminders", _cal_reminders, 30)
     jobs.register("mail_outbox", _outbox, 30)  # flush scheduled sends (5b)

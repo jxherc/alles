@@ -30,6 +30,7 @@ TERMINAL_STATES = {"succeeded", "failed", "cancelled", "uncertain"}
 _TRANSITIONS = {
     "queued": {"running", "paused", "cancelled"},
     "running": {
+        "queued",
         "waiting_input",
         "waiting_approval",
         "paused",
