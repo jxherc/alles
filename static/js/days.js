@@ -3,7 +3,7 @@
 // count/mode are recomputed here against the *viewer's* local midnight, so the
 // numbers are never off by the server's timezone.
 import { toast } from './util.js';
-import { initCustomDropdown } from './dropdown.js';
+import { initCustomDropdown } from './dropdown.js?v=210';
 const _si = n => (window.icon ? window.icon(n) : '');   // central icon set, load-order safe
 import { initDatePicker } from './datepick.js';
 import { confirm as dlgConfirm } from './dialog.js';

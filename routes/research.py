@@ -12,11 +12,9 @@ router = APIRouter(prefix="/api")
 
 
 def _is_chat_model(mid: str) -> bool:
-    # embedding/rerank/audio models can't do research — skip them
-    m = (mid or "").lower()
-    return bool(m) and not any(
-        b in m for b in ("embed", "rerank", "whisper", "tts", "moderation")
-    )
+    from services.model_catalog import is_chat_model
+
+    return is_chat_model(mid)
 
 
 def _first_chat_model(ep) -> str:
@@ -24,27 +22,32 @@ def _first_chat_model(ep) -> str:
 
 
 def _resolve_ep():
-    from core.database import ModelEndpoint, SessionLocal
-    from core.settings import load_settings
+    from core.database import SessionLocal
+    from services.model_resolver import ModelResolutionError, resolve_model
 
     db = SessionLocal()
     try:
-        st = load_settings()
-        # prefer the user's configured default endpoint+model
-        dep_id = st.get("default_endpoint_id") or ""
-        if dep_id:
-            ep = db.get(ModelEndpoint, dep_id)
-            if ep and ep.enabled:
-                dmodel = st.get("default_model") or ""
-                model = dmodel if _is_chat_model(dmodel) else _first_chat_model(ep)
-                if model:
-                    return ep.base_url, ep.api_key, model
-        # fallback: first enabled endpoint that actually has a chat model
-        for ep in db.query(ModelEndpoint).filter(ModelEndpoint.enabled == True).all():  # noqa: E712
-            model = _first_chat_model(ep)
-            if model:
-                return ep.base_url, ep.api_key, model
-        return None, None, None
+        try:
+            selected = resolve_model(db, "andromeda")
+        except ModelResolutionError:
+            return None, None, None
+        return selected.endpoint.base_url, selected.endpoint.api_key, selected.model
+    finally:
+        db.close()
+
+
+def _resolve_ep_or_error():
+    from core.api_errors import ApiError
+    from core.database import SessionLocal
+    from services.model_resolver import ModelResolutionError, resolve_model
+
+    db = SessionLocal()
+    try:
+        try:
+            selected = resolve_model(db, "andromeda")
+        except ModelResolutionError as exc:
+            raise ApiError(400, exc.code, str(exc)) from exc
+        return selected.endpoint.base_url, selected.endpoint.api_key, selected.model
     finally:
         db.close()
 
@@ -64,11 +67,7 @@ async def _sse(gen):
 # POST /api/research  — starts research, streams progress
 @router.post("/research")
 async def start_research(body: ResearchRequest):
-    base_url, api_key, model = _resolve_ep()
-    if not base_url:
-        raise HTTPException(400, "no endpoint configured")
-    if not model:
-        raise HTTPException(400, "no model available")
+    base_url, api_key, model = _resolve_ep_or_error()
 
     gen = run_research(
         session_id=body.session_id,

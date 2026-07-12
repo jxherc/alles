@@ -9,9 +9,11 @@ from sqlalchemy.orm import Session as DbSession
 
 from core.api_errors import ApiError
 from core.database import ModelEndpoint, SessionLocal, get_db
+from core.settings import load_settings
 from services import model_catalog
 from services.imagegen import is_image_model
 from services.llm import detect_provider, simple_complete
+from services.model_resolver import MODEL_ROLES, ModelResolutionError, resolve_model
 from services.redaction import redact_url
 
 router = APIRouter(prefix="/api")
@@ -75,6 +77,29 @@ def _fmt_endpoint(endpoint: ModelEndpoint) -> dict:
 def list_models(db: DbSession = Depends(get_db)):
     endpoints = db.query(ModelEndpoint).filter(ModelEndpoint.enabled == True).all()
     return [_fmt_endpoint(endpoint) for endpoint in endpoints]
+
+
+@router.get("/models/roles")
+def model_roles(db: DbSession = Depends(get_db)):
+    settings = load_settings()
+    configured = settings.get("model_roles") or {}
+    result = {}
+    for role in MODEL_ROLES:
+        try:
+            selected = resolve_model(db, role, settings=settings)
+        except ModelResolutionError as exc:
+            result[role] = {
+                "configured": configured.get(role) or {},
+                "status": "broken",
+                "error_code": exc.code,
+            }
+        else:
+            result[role] = {
+                "configured": configured.get(role) or {},
+                "status": "ready",
+                "effective": selected.public(),
+            }
+    return result
 
 
 @router.get("/setup/status")

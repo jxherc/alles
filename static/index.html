@@ -30,7 +30,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/style.css?v=206">
+<link rel="stylesheet" href="/static/style.css?v=210">
 <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#0a0a0a">
@@ -1057,6 +1057,22 @@
         <div class="s-pane active" id="s-pane-models">
           <div class="s-card">
             <div class="s-card-head">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h10M4 12h16M4 17h7"/><circle cx="17" cy="7" r="3"/><circle cx="14" cy="17" r="3"/></svg>
+              model defaults
+            </div>
+            <div class="s-card-body">
+              <p class="s-role-intro">choose one default for each kind of work. you can still change the model for a single chat or run.</p>
+              <div class="s-role-list" id="s-model-roles" aria-live="polite">
+                <div class="s-role-empty">loading model choices…</div>
+              </div>
+              <div class="s-role-actions">
+                <span id="s-role-save-state" class="s-role-save-state"></span>
+                <button class="btn primary" id="s-role-save-btn">save defaults</button>
+              </div>
+            </div>
+          </div>
+          <div class="s-card">
+            <div class="s-card-head">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/></svg>
               model endpoints
             </div>
@@ -1092,6 +1108,14 @@
                   <div class="s-field">
                     <label>api key</label>
                     <input type="password" class="settings-input" id="s-ep-key" placeholder="leave blank for local / Ollama">
+                  </div>
+                  <div class="s-field">
+                    <label>provider adapter</label>
+                    <div class="custom-select settings-input" id="s-ep-adapter" data-value="auto" data-options="auto|auto detect;openai-compatible|openai-compatible;anthropic|anthropic;gemini|gemini;ollama|ollama;manual|manual list" aria-label="provider adapter"></div>
+                  </div>
+                  <div class="s-field" id="s-ep-manual-row" hidden>
+                    <label>manual models <span class="s-field-note">comma-separated</span></label>
+                    <input type="text" class="settings-input" id="s-ep-manual" placeholder="model-a, model-b">
                   </div>
                   <button class="btn primary" id="s-ep-add-btn" style="width:100%;margin-top:0.2rem">add + probe models</button>
                   <div class="s-field" style="margin-top:0.5rem"><label>vision-capable models <span style="color:var(--muted);font-weight:400">(comma-separated, optional)</span></label><input type="text" class="settings-input" id="s-ep-vision" placeholder="e.g. gpt-4o, claude-3-5-sonnet-20241022" style="width:100%"></div>
@@ -1820,7 +1844,7 @@
 </div>
 
 <script type="module">
-const _v = '206';
+const _v = '211';
 import(`/static/js/app.js?v=${_v}`);
 </script>
 </body>

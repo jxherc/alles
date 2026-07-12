@@ -1,5 +1,5 @@
 import { toast } from './util.js';
-import { initCustomDropdown } from './dropdown.js';
+import { initCustomDropdown } from './dropdown.js?v=210';
 import { initDatePicker } from './datepick.js';
 
 let _reminders = [];

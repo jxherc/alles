@@ -1,7 +1,7 @@
 import { toast } from './util.js';
 import { confirm as _dlgConfirm, prompt as _dlgPrompt } from './dialog.js';
-import { loadModels, addEndpoint, renderModelList } from './models.js';
-import { initCustomDropdowns, getDropdownValue, setDropdownValue, populateDropdown } from './dropdown.js';
+import { loadModels, addEndpoint, renderModelList } from './models.js?v=209';
+import { initCustomDropdowns, getDropdownValue, setDropdownValue, populateDropdown } from './dropdown.js?v=210';
 import { initMemoryPanel } from './memory.js';
 import {
   sensitiveBlurEnabled, textOnlyEmojisEnabled, welcomeEnabled,
@@ -125,7 +125,14 @@ function _initSettings() {
 
   // nav clicks
   document.querySelectorAll('.s-nav-item').forEach(n => {
+    n.setAttribute('role', 'button');
+    n.tabIndex = 0;
     n.addEventListener('click', () => _switchPane(n.dataset.pane));
+    n.addEventListener('keydown', event => {
+      if (event.key !== 'Enter' && event.key !== ' ') return;
+      event.preventDefault();
+      _switchPane(n.dataset.pane);
+    });
   });
 
   // overlay close
@@ -138,18 +145,28 @@ function _initSettings() {
     btn.addEventListener('click', () => {
       document.getElementById('s-ep-url').value = btn.dataset.url;
       document.getElementById('s-ep-name').value = btn.dataset.name;
+      setDropdownValue(document.getElementById('s-ep-adapter'), _adapterForPreset(btn.dataset.name));
+      _showManualEndpointFields();
       document.getElementById('s-ep-key').focus();
     });
   });
+  document.getElementById('s-ep-adapter')?.addEventListener('change', _showManualEndpointFields);
+  document.getElementById('s-role-save-btn')?.addEventListener('click', saveModelRoles);
   document.getElementById('s-ep-add-btn')?.addEventListener('click', async () => {
     const name = document.getElementById('s-ep-name').value.trim();
     const url  = document.getElementById('s-ep-url').value.trim();
     const key  = document.getElementById('s-ep-key').value.trim();
+    const adapter = getDropdownValue(document.getElementById('s-ep-adapter')) || 'auto';
+    const manualModels = (document.getElementById('s-ep-manual')?.value || '')
+      .split(',').map(value => value.trim()).filter(Boolean);
     if (!name || !url) { toast('name and url required', 'error'); return; }
+    if (adapter === 'manual' && !manualModels.length) {
+      toast('add at least one manual model', 'error'); return;
+    }
     const btn = document.getElementById('s-ep-add-btn');
     btn.textContent = 'probing…'; btn.disabled = true;
     try {
-      const ep = await addEndpoint(name, url, key);
+      const ep = await addEndpoint(name, url, key, adapter, manualModels);
       const visionRaw = document.getElementById('s-ep-vision')?.value.trim() || '';
       if (visionRaw && ep?.id) {
         const visionList = visionRaw.split(',').map(s => s.trim()).filter(Boolean);
@@ -158,14 +175,17 @@ function _initSettings() {
           body: JSON.stringify({ vision_models: JSON.stringify(visionList) }),
         });
       }
-      ['s-ep-name','s-ep-url','s-ep-key','s-ep-vision'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+      ['s-ep-name','s-ep-url','s-ep-key','s-ep-vision','s-ep-manual'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+      setDropdownValue(document.getElementById('s-ep-adapter'), 'auto');
+      _showManualEndpointFields();
       document.getElementById('s-ep-add-details').open = false;
       toast('endpoint added', 'success');
       loadEpList();
       loadModels();
       renderModelList();
     } catch (e) { toast(`failed: ${e.message}`, 'error'); }
-    btn.textContent = 'add + probe models'; btn.disabled = false;
+    btn.disabled = false;
+    _showManualEndpointFields();
   });
 
   // ── ai pane ──
@@ -480,50 +500,261 @@ async function _localJson(url, options = {}) {
   return data;
 }
 
+const _MODEL_ROLE_COPY = {
+  aide_chat: ['Aide Chat', 'normal chats and agent work'],
+  andromeda: ['Andromeda', 'search answers and research'],
+  jarvis: ['Jarvis', 'background checks and scheduled work'],
+};
+const _ADAPTER_OPTIONS = 'auto|auto detect;openai-compatible|openai-compatible;anthropic|anthropic;gemini|gemini;ollama|ollama;manual|manual list';
+let _modelRoleSettings = {};
+
+function _adapterForPreset(name = '') {
+  if (name === 'Anthropic') return 'anthropic';
+  if (name === 'Ollama') return 'ollama';
+  return 'openai-compatible';
+}
+
+function _showManualEndpointFields() {
+  const row = document.getElementById('s-ep-manual-row');
+  if (row) row.hidden = getDropdownValue(document.getElementById('s-ep-adapter')) !== 'manual';
+  const btn = document.getElementById('s-ep-add-btn');
+  if (btn) btn.textContent = row?.hidden ? 'add + probe models' : 'add manual endpoint';
+}
+
+function _safeDropdownLabel(value = '') {
+  return String(value).replace(/[;|]/g, ' ');
+}
+
+function _roleOptionData(eps, configured) {
+  const options = [{ value: '', label: 'automatic' }];
+  const choices = { '': null };
+  let index = 0;
+  for (const ep of eps) {
+    for (const model of (ep.models || [])) {
+      const token = `choice-${index++}`;
+      options.push({ value: token, label: `${_safeDropdownLabel(ep.name)} · ${_safeDropdownLabel(model)}` });
+      choices[token] = { endpoint_id: ep.id, model };
+    }
+  }
+  let selected = '';
+  if (configured?.endpoint_id && configured?.model) {
+    selected = Object.keys(choices).find(token => {
+      const choice = choices[token];
+      return choice?.endpoint_id === configured.endpoint_id && choice?.model === configured.model;
+    }) || '';
+    if (!selected) {
+      selected = `unavailable-${index}`;
+      options.push({ value: selected, label: `${_safeDropdownLabel(configured.model)} · unavailable` });
+      choices[selected] = { endpoint_id: configured.endpoint_id, model: configured.model };
+    }
+  }
+  return { options, choices, selected };
+}
+
+function _renderModelRoles(eps, settings, states) {
+  const root = document.getElementById('s-model-roles');
+  if (!root) return;
+  const saveState = document.getElementById('s-role-save-state');
+  if (saveState) saveState.textContent = '';
+  _modelRoleSettings = settings.model_roles || {};
+  root.innerHTML = Object.entries(_MODEL_ROLE_COPY).map(([role, copy]) => {
+    const state = states?.[role];
+    const effective = state?.effective;
+    const configured = _modelRoleSettings[role] || {};
+    const hasConfigured = !!(configured.endpoint_id || configured.model);
+    const broken = state?.status === 'broken' && hasConfigured;
+    const automatic = !configured.endpoint_id && !configured.model;
+    const status = broken
+      ? 'needs a replacement'
+      : effective
+        ? `${automatic ? 'automatic · ' : ''}${effective.privacy_class} · ${_safeDropdownLabel(effective.model)}`
+        : 'add an endpoint first';
+    return `<div class="s-role-row${broken ? ' broken' : ''}" data-role="${role}">
+      <div class="s-role-copy">
+        <div class="s-role-name">${copy[0]}</div>
+        <div class="s-role-desc">${copy[1]}</div>
+      </div>
+      <div class="s-role-control">
+        <div class="custom-select settings-input s-role-select" data-role-select="${role}" aria-label="${copy[0]} default model"></div>
+        <div class="s-role-status">${_esc(status)}</div>
+      </div>
+    </div>`;
+  }).join('');
+  initCustomDropdowns(root);
+  root.querySelectorAll('[data-role-select]').forEach(select => {
+    const role = select.dataset.roleSelect;
+    const data = _roleOptionData(eps, _modelRoleSettings[role] || {});
+    select._modelChoices = data.choices;
+    populateDropdown(select, data.options, data.selected);
+    select.addEventListener('change', () => {
+      const row = select.closest('.s-role-row');
+      row?.classList.remove('broken');
+      const status = row?.querySelector('.s-role-status');
+      if (status) status.textContent = 'not saved';
+      const saveState = document.getElementById('s-role-save-state');
+      if (saveState) saveState.textContent = 'changes not saved';
+    });
+  });
+}
+
+async function saveModelRoles() {
+  const btn = document.getElementById('s-role-save-btn');
+  if (!btn) return;
+  btn.disabled = true;
+  btn.textContent = 'saving…';
+  const modelRoles = {};
+  document.querySelectorAll('[data-role-select]').forEach(select => {
+    const role = select.dataset.roleSelect;
+    const choice = select._modelChoices?.[getDropdownValue(select)];
+    if (!choice) { modelRoles[role] = {}; return; }
+    const old = _modelRoleSettings[role] || {};
+    modelRoles[role] = {
+      endpoint_id: choice.endpoint_id,
+      model: choice.model,
+      cost_class: old.cost_class || '',
+      fallbacks: old.fallbacks || [],
+    };
+  });
+  try {
+    const response = await fetch('/api/settings', {
+      method: 'PATCH', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ model_roles: modelRoles }),
+    });
+    if (!response.ok) throw new Error('defaults could not be saved');
+    toast('model defaults saved', 'success');
+    await loadEpList();
+  } catch (error) {
+    toast(error.message || 'defaults could not be saved', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'save defaults';
+  }
+}
+
+function _catalogLabel(ep) {
+  const status = ep.catalog_status || 'unverified';
+  if (status === 'stale' && ep.catalog_error) return `stale · ${ep.catalog_error.replaceAll('_', ' ')}`;
+  return status;
+}
+
+async function _endpointJson(response) {
+  let data = {};
+  try { data = await response.json(); } catch {}
+  if (!response.ok) throw new Error(data.detail || 'request failed');
+  return data;
+}
+
 async function loadEpList() {
   const el = document.getElementById('s-ep-list');
   if (!el) return;
   try {
-    const eps = await fetch('/api/models').then(r => r.json());
+    const [epsResponse, settingsResponse, rolesResponse] = await Promise.all([
+      fetch('/api/models'), fetch('/api/settings'), fetch('/api/models/roles'),
+    ]);
+    const eps = await _endpointJson(epsResponse);
+    const settings = await _endpointJson(settingsResponse);
+    const roles = await _endpointJson(rolesResponse);
+    _renderModelRoles(eps, settings, roles);
     if (!eps.length) {
-      el.innerHTML = '<div style="font-size:0.75rem;color:var(--muted);padding:0.3rem 0">no endpoints — add one below</div>';
+      el.innerHTML = '<div class="s-role-empty">no endpoints yet. add one below, then choose your defaults.</div>';
       return;
     }
-    el.innerHTML = eps.map(ep => `
-      <div class="s-ep-card" data-id="${ep.id}">
-        <div class="s-ep-dot ${ep.models?.length ? 'ok' : ''}"></div>
-        <div class="s-ep-info">
-          <div class="s-ep-name">${_esc(ep.name)}</div>
-          <div class="s-ep-meta">${_esc(ep.base_url)} · ${ep.models?.length || 0} models</div>
+    el.innerHTML = eps.map(ep => {
+      const status = ep.catalog_status || 'unverified';
+      const unavailable = ep.unavailable_models?.length || 0;
+      return `<div class="s-ep-card" data-id="${_escAttr(ep.id)}">
+        <div class="s-ep-main">
+          <div class="s-ep-dot ${ep.health_status === 'healthy' ? 'ok' : status === 'stale' || ep.health_status === 'unavailable' ? 'stale' : ''}"></div>
+          <div class="s-ep-info">
+            <div class="s-ep-title-line"><span class="s-ep-name">${_esc(ep.name)}</span><span class="s-state-tag ${_escAttr(status)}">${_esc(_catalogLabel(ep))}</span></div>
+            <div class="s-ep-meta">${_esc(ep.base_url)} · ${ep.models?.length || 0} ready · ${_esc(ep.health_status || 'unverified')}${unavailable ? ` · ${unavailable} unavailable` : ''}</div>
+          </div>
+          <div class="s-ep-actions">
+            <button class="btn" data-probe="${_escAttr(ep.id)}">refresh</button>
+            <button class="btn" data-test-ep="${_escAttr(ep.id)}">test</button>
+            <button class="btn" data-edit-list="${_escAttr(ep.id)}" aria-expanded="false">models</button>
+            <button class="btn danger" data-del="${_escAttr(ep.id)}" aria-label="remove ${_escAttr(ep.name)}">×</button>
+          </div>
         </div>
-        <div class="s-ep-actions">
-          <button class="btn" data-probe="${ep.id}">probe</button>
-          <button class="btn danger" data-del="${ep.id}">×</button>
+        <div class="s-ep-editor" data-editor="${_escAttr(ep.id)}" hidden>
+          <div class="s-ep-editor-note">use discovery when the provider supports it. saving a manual list turns discovery off for this endpoint.</div>
+          <div class="s-ep-editor-grid">
+            <div class="s-field"><label>adapter</label><div class="custom-select settings-input" data-edit-adapter data-value="${_escAttr(ep.provider_adapter || 'auto')}" data-options="${_ADAPTER_OPTIONS}" aria-label="provider adapter"></div></div>
+            <div class="s-field"><label>models <span class="s-field-note">comma-separated</span></label><input class="settings-input" data-edit-models value="${_escAttr((ep.models || []).join(', '))}"></div>
+          </div>
+          <div class="s-ep-editor-actions"><button class="btn primary" data-save-list="${_escAttr(ep.id)}">save endpoint</button></div>
         </div>
-      </div>`).join('');
+      </div>`;
+    }).join('');
+    initCustomDropdowns(el);
 
-    el.querySelectorAll('[data-probe]').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        btn.textContent = '…'; btn.disabled = true;
-        try {
-          const r = await fetch(`/api/models/endpoint/${btn.dataset.probe}/probe`, { method: 'POST' });
-          const d = await r.json();
-          toast(`${d.models?.length || 0} models found`, 'success');
-          loadEpList(); loadModels(); renderModelList();
-        } catch { toast('probe failed', 'error'); }
-        btn.textContent = 'probe'; btn.disabled = false;
+    el.querySelectorAll('[data-edit-list]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const editor = el.querySelector(`[data-editor="${CSS.escape(btn.dataset.editList)}"]`);
+        if (!editor) return;
+        editor.hidden = !editor.hidden;
+        btn.setAttribute('aria-expanded', String(!editor.hidden));
       });
     });
-
+    el.querySelectorAll('[data-save-list]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const editor = el.querySelector(`[data-editor="${CSS.escape(btn.dataset.saveList)}"]`);
+        const adapter = getDropdownValue(editor?.querySelector('[data-edit-adapter]')) || 'auto';
+        const models = (editor?.querySelector('[data-edit-models]')?.value || '').split(',').map(value => value.trim()).filter(Boolean);
+        if (adapter === 'manual' && !models.length) { toast('add at least one manual model', 'error'); return; }
+        btn.disabled = true; btn.textContent = 'saving…';
+        try {
+          const patch = { provider_adapter: adapter };
+          if (adapter === 'manual') patch.models = models;
+          await _endpointJson(await fetch(`/api/models/endpoint/${btn.dataset.saveList}`, {
+            method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify(patch),
+          }));
+          if (adapter !== 'manual') {
+            await _endpointJson(await fetch(`/api/models/endpoint/${btn.dataset.saveList}/probe`, { method: 'POST' }));
+          }
+          toast('endpoint saved', 'success');
+          loadEpList(); loadModels(); renderModelList();
+        } catch (error) { toast(error.message || 'endpoint could not be saved', 'error'); }
+        finally { btn.disabled = false; btn.textContent = 'save endpoint'; }
+      });
+    });
+    el.querySelectorAll('[data-probe]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        btn.textContent = 'refreshing…'; btn.disabled = true;
+        try {
+          const data = await _endpointJson(await fetch(`/api/models/endpoint/${btn.dataset.probe}/probe`, { method: 'POST' }));
+          toast(`${data.models?.length || 0} models ready`, 'success');
+          loadEpList(); loadModels(); renderModelList();
+        } catch (error) { toast(error.message || 'catalog refresh failed', 'error'); }
+        finally { btn.textContent = 'refresh'; btn.disabled = false; }
+      });
+    });
+    el.querySelectorAll('[data-test-ep]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        btn.textContent = 'testing…'; btn.disabled = true;
+        try {
+          await _endpointJson(await fetch(`/api/models/endpoint/${btn.dataset.testEp}/test`, { method: 'POST' }));
+          toast('model endpoint is working', 'success');
+          loadEpList();
+        } catch (error) { toast(error.message || 'model endpoint test failed', 'error'); }
+        finally { btn.textContent = 'test'; btn.disabled = false; }
+      });
+    });
     el.querySelectorAll('[data-del]').forEach(btn => {
       btn.addEventListener('click', async () => {
         if (!await _dlgConfirm('remove this endpoint?')) return;
-        await fetch(`/api/models/endpoint/${btn.dataset.del}`, { method: 'DELETE' });
-        toast('endpoint removed', 'success');
-        loadEpList(); loadModels(); renderModelList();
+        try {
+          await _endpointJson(await fetch(`/api/models/endpoint/${btn.dataset.del}`, { method: 'DELETE' }));
+          toast('endpoint removed', 'success');
+          loadEpList(); loadModels(); renderModelList();
+        } catch (error) { toast(error.message || 'endpoint could not be removed', 'error'); }
       });
     });
-  } catch { el.innerHTML = '<div style="font-size:0.75rem;color:var(--error)">failed to load</div>'; }
+  } catch {
+    el.innerHTML = '<div class="s-role-empty error">model settings could not be loaded.</div>';
+    const roles = document.getElementById('s-model-roles');
+    if (roles) roles.innerHTML = '<div class="s-role-empty error">model defaults could not be loaded.</div>';
+  }
 }
 
 // ── ai pane ───────────────────────────────────────────────────────────────────

@@ -1,6 +1,6 @@
 import { initSessions, newChat, createSession, renderSidebar, downloadSession, getActiveId, saveDraft, clearDraft } from './sessions.js';
-import { loadModels, renderModelList, renderSidebarModelList, getSelected, getCurrentEndpoint, initModelModal, prettyModel } from './models.js';
-import { populateDropdown } from './dropdown.js';
+import { loadModels, renderModelList, renderSidebarModelList, getSelected, getCurrentEndpoint, initModelModal, prettyModel } from './models.js?v=209';
+import { populateDropdown } from './dropdown.js?v=210';
 import { icon, iconEl, ICON_NAMES } from './icons.js';
 // expose globally so the inline-HTML modules can call icon() without each importing it
 window.icon = icon; window.iconEl = iconEl; window.ICON_NAMES = ICON_NAMES;
@@ -26,7 +26,7 @@ import { initAppCogs } from './appsettings.js';
 import { loadPhotos, initPhotos } from './photos.js';
 import { setBaseDomain, parseHost, appForSub, viewToSub, urlForApp, currentSub, singleHost, SUBDOMAIN_VIEWS, shouldPollModels } from './subdomain.js';
 import { loadBrainPanel } from './brain.js';
-import { openSettings, closeSettings, applyVis } from './settings.js';
+import { openSettings, closeSettings, applyVis } from './settings.js?v=211';
 import { setIncognitoMode, getPermMode, setPermMode, getEffort, setEffort } from './modes.js';
 import { initPrivacyHandlers } from './privacy.js';
 import { loadShortcuts, matchesShortcut } from './shortcuts.js';

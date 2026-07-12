@@ -2,7 +2,7 @@
 // the charts (no chart lib), api() helper for the fetches.
 import { api, toast } from './util.js';
 import { confirm as dlgConfirm, fields as dlgFields } from './dialog.js';
-import { initCustomDropdown, getDropdownValue } from './dropdown.js';
+import { initCustomDropdown, getDropdownValue } from './dropdown.js?v=210';
 import { initDatePicker } from './datepick.js';
 
 const $ = id => document.getElementById(id);

@@ -1,5 +1,5 @@
 import { toast } from './util.js';
-import { initCustomDropdown } from './dropdown.js';
+import { initCustomDropdown } from './dropdown.js?v=210';
 import { initDatePickers } from './datepick.js';
 import { prompt as dlgPrompt } from './dialog.js';
 const _si = n => (window.icon ? window.icon(n) : '');   // central icon set, load-order safe

@@ -1,6 +1,6 @@
 import { toast } from './util.js';
 import { confirm as dlgConfirm, prompt as dlgPrompt } from './dialog.js';
-import { populateDropdown, getDropdownValue } from './dropdown.js';
+import { populateDropdown, getDropdownValue } from './dropdown.js?v=210';
 import { initDatePicker as _dpInit } from './datepick.js';
 
 // monochrome ui icons (same global as files/etc) — keeps the row controls matching the app

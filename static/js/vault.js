@@ -1,6 +1,6 @@
 import { toast } from './util.js';
 import { confirm } from './dialog.js';
-import { populateDropdown } from './dropdown.js';
+import { populateDropdown } from './dropdown.js?v=210';
 
 const _si = n => (window.icon ? window.icon(n) : '');   // central icon set, load-order safe
 

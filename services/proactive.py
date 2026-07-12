@@ -10,7 +10,6 @@ import logging
 from datetime import datetime
 
 from core.database import (
-    ModelEndpoint,
     ProactiveItem,
     ProactiveOutcome,
     ProactiveState,
@@ -87,17 +86,19 @@ def _interval_seconds():
 
 
 def _resolve_endpoint_model(db, s):
-    from services.routing import pick_endpoint
+    from services.model_resolver import ModelResolutionError, resolve_model
 
-    eps = db.query(ModelEndpoint).filter(ModelEndpoint.enabled == True).all()  # noqa: E712
-    ep = pick_endpoint(eps)
-    if not ep:
+    feature_default = {"model": (s.get("proactive_model") or "").strip()}
+    try:
+        selected = resolve_model(
+            db,
+            "jarvis",
+            feature_default=feature_default,
+            settings=s,
+        )
+    except ModelResolutionError:
         return None, None
-    model = (s.get("proactive_model") or "").strip()
-    if not model:
-        ml = ep.models_list()
-        model = ml[0] if ml else ""
-    return (ep, model) if model else (None, None)
+    return selected.endpoint, selected.model
 
 
 async def _run_model(messages, ep, model, s):

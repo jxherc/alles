@@ -99,6 +99,7 @@ def download_obsidian_plugin():
 class SettingsPatch(BaseModel):
     default_model: str | None = None
     default_endpoint_id: str | None = None
+    model_roles: dict | None = None
     system_prompt: str | None = None
     context_limit: int | None = None
     stream_thinking: bool | None = None
@@ -207,6 +208,14 @@ class SettingsPatch(BaseModel):
 @router.patch("/settings")
 def patch_settings(body: SettingsPatch):
     patch = {k: v for k, v in body.model_dump().items() if v is not None}
+    if "model_roles" in patch:
+        from core.api_errors import ApiError
+        from services.model_resolver import normalize_model_roles
+
+        try:
+            patch["model_roles"] = normalize_model_roles(patch["model_roles"])
+        except ValueError as exc:
+            raise ApiError(400, "invalid_model_roles", str(exc)) from exc
     old_photos = load_settings().get("photos_dir") if "photos_dir" in patch else None
     out = save_settings(patch)
     if "photos_dir" in patch:

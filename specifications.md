@@ -289,6 +289,12 @@ aide looks like a normal chat box. the differences are under it:
 
 this is the single most-asked question, so here's the precise answer.
 
+Settings has three exact model defaults: **Aide Chat**, **Andromeda**, and **Jarvis** background work.
+One resolver is used by interactive chat, research, and background jobs. A one-run choice wins first,
+then a workflow override, a feature default, the role default, and finally an allowed fallback in the
+same privacy and cost class. A saved model that disappears is shown as broken instead of silently
+switching providers. With no Andromeda choice, local endpoints are tried first.
+
 aide does **not** hardcode a provider. you register **endpoints** under settings → models; each endpoint is just a `base_url` (web address) + an `api_key`. when you send a message, aide looks at that url and routes the request to the right protocol. all of that lives in one function, [`detect_provider()` in `services/llm.py`](services/llm.py):
 
 ```python
