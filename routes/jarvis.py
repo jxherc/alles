@@ -20,6 +20,7 @@ from core.database import (
     Project,
     get_db,
 )
+from services.jarvis_scheduler import next_for_trigger, utc_now, validate_trigger_config
 from services.jarvis_store import (
     answer_choice,
     create_run,
@@ -68,6 +69,14 @@ def _validate_public_connector_config(value, *, key: str = ""):
         parsed = urlsplit(value)
         if parsed.username is not None or parsed.password is not None:
             _bad("connector_secret_in_config", "connector URLs cannot contain credentials")
+
+
+def _validate_trigger(kind: str, config: dict, timezone_name: str) -> None:
+    try:
+        validate_trigger_config(kind, config, timezone_name)
+    except ValueError as exc:
+        code = str(exc)
+        _bad(code, code.replace("_", " "))
 
 
 def _workflow(row: JarvisWorkflow) -> dict:
@@ -161,6 +170,7 @@ def _run(db: DbSession, row: JarvisRun, *, detail: bool = False) -> dict:
         "session_id": row.session_id,
         "state": row.state,
         "scheduled_for": row.scheduled_for.isoformat() if row.scheduled_for else None,
+        "next_attempt_at": row.next_attempt_at.isoformat() if row.next_attempt_at else None,
         "attempt_count": row.attempt_count,
         "failure_class": row.failure_class or "",
         "safe_error": row.safe_error or "",
@@ -329,6 +339,7 @@ def add_trigger(workflow_id: str, body: TriggerBody, db: DbSession = Depends(get
         raise HTTPException(404)
     if body.kind not in TRIGGER_KINDS:
         _bad("invalid_trigger_kind", "unknown Jarvis trigger kind")
+    _validate_trigger(body.kind, body.config, body.timezone or "UTC")
     row = JarvisTrigger(
         workflow_id=workflow_id,
         kind=body.kind,
@@ -337,6 +348,43 @@ def add_trigger(workflow_id: str, body: TriggerBody, db: DbSession = Depends(get
         enabled=False,
     )
     db.add(row)
+    db.flush()
+    row.next_run_at = next_for_trigger(row, utc_now())
+    db.commit()
+    db.refresh(row)
+    return _trigger(row)
+
+
+class TriggerPatch(BaseModel):
+    config: dict | None = None
+    timezone: str | None = None
+    enabled: bool | None = None
+
+
+@router.patch("/triggers/{trigger_id}")
+def patch_trigger(
+    trigger_id: str,
+    body: TriggerPatch,
+    request: Request,
+    db: DbSession = Depends(get_db),
+):
+    row = db.get(JarvisTrigger, trigger_id)
+    if not row:
+        raise HTTPException(404)
+    config = body.config if body.config is not None else json_value(row.config, dict)
+    timezone_name = body.timezone if body.timezone is not None else row.timezone
+    _validate_trigger(row.kind, config, timezone_name or "UTC")
+    if body.config is not None:
+        row.config = _json_text(config, expected=dict)
+    if body.timezone is not None:
+        row.timezone = timezone_name or "UTC"
+    if body.enabled is not None and body.enabled != bool(row.enabled):
+        require_recent_owner(request)
+        row.enabled = body.enabled
+    if row.enabled:
+        row.next_run_at = next_for_trigger(row, utc_now())
+    elif body.enabled is False:
+        row.next_run_at = None
     db.commit()
     db.refresh(row)
     return _trigger(row)

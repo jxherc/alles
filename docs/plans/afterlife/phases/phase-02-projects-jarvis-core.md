@@ -1,6 +1,6 @@
 # Afterlife Phase 2 — folder Projects and durable Jarvis core
 
-- **Status:** planned
+- **Status:** in progress
 - **Parent design:** [`../design.md`](../design.md)
 - **Depends on:** Phase 1 delivered
 - **Checkbox rule:** `[x]` means implemented and freshly tested, not merely discussed.
@@ -115,28 +115,35 @@ or after an outside action never causes a blind duplicate action.
 
 ## 2C — scheduler and heartbeat
 
-- [ ] Store schedule times as UTC plus the owner's selected timezone.
-- [ ] Give every occurrence a stable `scheduled_for` identity.
+- [x] Store schedule times as UTC plus the owner's selected timezone.
+- [x] Give every occurrence a stable `scheduled_for` identity.
   - Enforce one occurrence per workflow, trigger, and scheduled time.
-- [ ] Claim queued work with leases.
+- [x] Claim queued work with leases.
   - A worker renews its lease while running.
   - A stale lease can be reclaimed after a crash.
-- [ ] Default workflow concurrency to one.
+- [x] Default workflow concurrency to one.
   - Add explicit skip, queue, or parallel behavior only where the workflow allows it.
-- [ ] Add bounded retry rules.
+- [x] Add bounded retry rules.
   - Transient failures retry with backoff and a limit.
   - Permanent failures stop.
   - Uncertain external effects never retry automatically.
-- [ ] Handle missed schedules.
+- [x] Handle missed schedules.
   - Repeating schedules coalesce missed occurrences into one current run.
   - A one-time schedule runs once inside its grace window, otherwise it is marked missed.
-- [ ] Add heartbeat fingerprints.
+- [x] Add heartbeat fingerprints.
   - Run cheap local checks first.
   - No changed signal means no model call and no notification.
   - Store enough fingerprint state to survive restart.
-- [ ] Cover quiet hours, skip-when-busy, cost limits, and only-notify-when-useful policy in the data
+- [x] Cover quiet hours, skip-when-busy, cost limits, and only-notify-when-useful policy in the data
   model, even if the complete UI comes later.
-- [ ] Test daylight-saving changes even when the test server is in a timezone without DST.
+- [x] Test daylight-saving changes even when the test server is in a timezone without DST.
+
+Fresh evidence: 14 focused scheduler tests pass. They cover spring-forward and fall-back DST,
+configuration and policy validation, occurrence idempotency, default/skip/queue/parallel behavior,
+stale leases, separate transient/permanent/uncertain failures, missed schedules, heartbeat fingerprints,
+and a real two-worker SQLite claim race. The complete schema recovery matrix passes all 27 canonical
+histories, all five Photos-fork histories, and both released databases without migration history; each
+is migrated twice and booted.
 
 ### 2C gate
 

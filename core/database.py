@@ -797,6 +797,7 @@ class JarvisWorkflow(Base):
     context_mode = Column(String, default="fresh")
     delivery_policy = Column(Text, default="{}")
     enabled = Column(Boolean, default=False)
+    active_run_id = Column(String, nullable=True, index=True)
     created_at = Column(DateTime, default=_now)
     updated_at = Column(DateTime, default=_now, onupdate=_now)
 
@@ -820,6 +821,14 @@ class JarvisTrigger(Base):
 
 class JarvisRun(Base):
     __tablename__ = "jarvis_runs"
+    __table_args__ = (
+        Index(
+            "ux_jarvis_runs_trigger_occurrence",
+            "trigger_id",
+            "occurrence_key",
+            unique=True,
+        ),
+    )
     id = Column(String, primary_key=True, default=_uid)
     workflow_id = Column(
         String, ForeignKey("jarvis_workflows.id", ondelete="SET NULL"), nullable=True, index=True
@@ -834,6 +843,7 @@ class JarvisRun(Base):
     occurrence_key = Column(String(64), nullable=True)
     lease_owner = Column(String, default="")
     lease_expires_at = Column(DateTime, nullable=True, index=True)
+    next_attempt_at = Column(DateTime, nullable=True, index=True)
     attempt_count = Column(Integer, default=0)
     failure_class = Column(String, default="")
     safe_error = Column(Text, default="")
