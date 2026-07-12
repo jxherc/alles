@@ -243,6 +243,7 @@ class Task(Base):
     id = Column(String, primary_key=True, default=_uid)
     title = Column(String, nullable=False)
     done = Column(Boolean, default=False)
+    stage = Column(String, default="backlog")  # backlog | next | doing | waiting | done
     priority = Column(Integer, default=0)  # 0 normal, 1 high
     due_date = Column(String, nullable=True)
     parent_id = Column(String, nullable=True)  # subtasks point at their parent
@@ -482,8 +483,10 @@ class Project(Base):
     description = Column(Text, default="")
     system_prompt = Column(Text, default="")
     working_dir = Column(Text, default="")
+    scratchpad = Column(Text, default="")
     color = Column(String, default="")
     created_at = Column(DateTime, default=_now)
+    last_opened_at = Column(DateTime, nullable=True)
 
     sessions = relationship("Session", back_populates="project", foreign_keys="Session.project_id")
 

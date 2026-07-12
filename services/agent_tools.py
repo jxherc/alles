@@ -111,11 +111,15 @@ def _resolve(path: str = ".") -> Path:
         # a working_dir this stays ROOT, the long-standing default.
         base = ROOT
         try:
-            cwd = _settings().get("agent_cwd")
+            settings = _settings()
+            cwd = settings.get("agent_cwd")
             if cwd:
                 base = Path(cwd).expanduser()
+            elif settings.get("agent_environment") == "general":
+                raise ValueError("select a Project folder before using relative file paths")
         except Exception:
-            pass
+            if _settings().get("agent_environment") == "general":
+                raise
         p = base / p
     return p.resolve()
 
@@ -273,7 +277,7 @@ def _project_root(settings: dict | None = None) -> Path:
 
 def _allowed_roots(settings: dict | None = None) -> list[Path]:
     s = settings if settings is not None else _settings()
-    roots = [_project_root(s)]
+    roots = [] if s.get("agent_environment") == "general" else [_project_root(s)]
     for r in s.get("agent_allowed_roots") or []:
         try:
             root = Path(str(r)).expanduser().resolve()
@@ -297,6 +301,8 @@ def _guard_path(p, write: bool = False, settings: dict | None = None) -> str | N
     s = settings if settings is not None else _settings()
     if _is_secret_path(p) and not s.get("agent_allow_secrets"):
         return f"blocked: {p} looks like a credential/secret store (set agent_allow_secrets to override)"
+    if write and s.get("agent_environment") == "general":
+        return "blocked: General has no writable folder; choose a Project or approve a scoped action"
     if not any(_within(p, r) for r in _allowed_roots(s)):
         return f"blocked: file access is confined to approved roots; {p} is outside them"
     if write and not _within(p, _project_root(s)):
@@ -2616,6 +2622,8 @@ _SKIP_DIRS = {
 
 def workspace_files(cwd: str = "", q: str = "", limit: int = 30) -> list[str]:
     """list files under cwd for @-mention autocomplete, ranked by relevance"""
+    if not cwd and _settings().get("agent_environment") == "general":
+        return []
     base = _resolve(cwd or ".")
     if base.is_file():
         base = base.parent
