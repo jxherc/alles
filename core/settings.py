@@ -77,6 +77,9 @@ _defaults = {
     "tts_speed": 1.0,
     "tts_auto_play": False,
     "stt_language": "",
+    "language": "en",  # translated UI catalogs; English only until a catalog is reviewed
+    "region": "",  # ISO 3166-1 alpha-2 or UN M49; blank follows the browser
+    "timezone": "",  # IANA name; blank follows the browser
     "base_domain": "localhost",  # apex domain; each app lives on {app}.{base_domain}
     # on by default: when a plain chat message clearly asks aide to DO an app thing
     # (check mail, add to calendar, remind me, what's on my schedule…) it acts on it

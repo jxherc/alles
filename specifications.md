@@ -486,7 +486,7 @@ copy `.env.example` to `.env`. **everything is optional** — alles runs fine wi
 | `base_domain` | — | your real domain, for the subdomain setup (see architecture) |
 | `tavily_api_key` | — | better research search (falls back to duckduckgo + wikipedia, no key needed) |
 
-**everything else is configured in the app, under settings** — no files to hand-edit. that includes: model endpoints, mail accounts, the search provider (tavily / brave / searxng / google pse / serper) and fallback chain, voice (stt/tts provider, model, language, voice, speed), the agent (permission mode, max turns/tokens, docker sandbox + image + no-net, sub-agents, computer-use, context files, allowed roots), the system prompt, memory policy and auto-inject, artifacts on/off, context limit + auto-compact, themes/appearance, caldav accounts, webhooks, and api tokens. all of those persist as a settings row in the database.
+**everything else is configured in the app, under settings** — no files to hand-edit. that includes: model endpoints, mail accounts, the search provider (tavily / brave / searxng / google pse / serper) and fallback chain, voice (stt/tts provider, model, language, voice, speed), the agent (permission mode, max turns/tokens, docker sandbox + image + no-net, sub-agents, computer-use, context files, allowed roots), the system prompt, memory policy and auto-inject, interface language/region/time zone, artifacts on/off, context limit + auto-compact, themes/appearance, caldav accounts, webhooks, and api tokens. English is currently the only reviewed interface language; region and IANA time zone already control shared localized formatting. all of those persist as a settings row in the database.
 
 ---
 
