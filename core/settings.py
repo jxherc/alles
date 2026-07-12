@@ -4,6 +4,8 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
+from core.credential_inventory import SETTING_CREDENTIAL_KEYS
+
 load_dotenv(encoding="utf-8-sig")  # utf-8-sig handles windows BOM
 
 
@@ -16,19 +18,7 @@ _SETTINGS_FILE = data_dir() / "settings.json"
 _SETTINGS_CACHE: dict | None = None
 _SETTINGS_CACHE_SIG: tuple[str, int, int] | None = None
 
-_ENCRYPTED_SETTING_KEYS = {
-    "mail_oauth_client_secret",
-    "openai_api_key",
-    "tavily_api_key",
-    "brave_api_key",
-    "google_pse_api_key",
-    "serper_api_key",
-    "notify_discord_webhook",
-    "notify_telegram_token",
-    "notify_telegram_chat_id",
-    "outbound_proxy",
-    "searxng_url",
-}
+_ENCRYPTED_SETTING_KEYS = set(SETTING_CREDENTIAL_KEYS)
 
 _defaults = {
     "default_model": "",
@@ -240,6 +230,13 @@ def _drop_non_finite(obj):
 
 
 def save_settings(patch: dict):
+    from services.recovery_consistency import recovery_consistency_lock
+
+    with recovery_consistency_lock:
+        return _save_settings_locked(patch)
+
+
+def _save_settings_locked(patch: dict):
     global _SETTINGS_CACHE, _SETTINGS_CACHE_SIG
     s = load_settings()
     s.update(patch)

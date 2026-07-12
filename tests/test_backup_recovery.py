@@ -60,6 +60,19 @@ class BackupRecoveryTest(unittest.TestCase):
                 )
             conn.commit()
 
+    @staticmethod
+    def _seal_for_root(root: Path, plaintext: str, purpose: str) -> str:
+        from services import secretstore
+
+        with (
+            patch.object(secretstore, "_KEY_FILE", root / "secret.key"),
+            patch.object(secretstore, "_key", None),
+            patch.object(secretstore, "_key_path", None),
+            patch.object(secretstore, "_keys", {}),
+            patch.object(secretstore, "_active_id", ""),
+        ):
+            return secretstore.seal(plaintext, purpose)
+
     def _archive(self) -> Path:
         archive = self.base / "backup.zip"
         create_recovery_archive(self.live, archive)
@@ -347,15 +360,280 @@ class BackupRecoveryTest(unittest.TestCase):
             create_recovery_archive(self.live, self.base / "unsafe.zip")
         self.assertFalse((self.base / "unsafe.zip").exists())
 
+    def test_new_backup_rejects_plaintext_credentials_without_leaving_output(self):
+        with closing(sqlite3.connect(self.live / "aide.db")) as conn:
+            conn.execute("CREATE TABLE connections (id TEXT, token TEXT)")
+            conn.execute("INSERT INTO connections VALUES ('one', 'plaintext-token')")
+            conn.commit()
+        archive = self.base / "plaintext-credential.zip"
+        with self.assertRaisesRegex(RecoveryError, "not encrypted"):
+            create_recovery_archive(self.live, archive)
+        self.assertFalse(archive.exists())
+        self.assertEqual(list(self.base.glob(".plaintext-credential.zip.*.partial")), [])
+
+    def test_new_backup_rejects_unused_corrupt_keyring(self):
+        (self.live / "secret.key").write_bytes(b"\xff\xfe\xfd")
+        archive = self.base / "corrupt-keyring.zip"
+        with self.assertRaisesRegex(RecoveryError, "secret key"):
+            create_recovery_archive(self.live, archive)
+        self.assertFalse(archive.exists())
+
+    def test_live_key_rotation_after_validation_cannot_change_archive(self):
+        from services import backup_recovery
+
+        sealed = self._seal_for_root(
+            self.live,
+            "rotation-safe-token",
+            "connections.token",
+        )
+        with closing(sqlite3.connect(self.live / "aide.db")) as conn:
+            conn.execute("CREATE TABLE connections (id TEXT, token TEXT)")
+            conn.execute("INSERT INTO connections VALUES ('one', ?)", (sealed,))
+            conn.commit()
+
+        replacement_root = self.base / "replacement-key"
+        replacement_root.mkdir()
+        self._seal_for_root(replacement_root, "replacement", "connections.token")
+        original_validate = backup_recovery._validate_database_dependencies
+
+        def rotate_after_validation(data_dir, db_path, **kwargs):
+            result = original_validate(data_dir, db_path, **kwargs)
+            if kwargs.get("require_sealed"):
+                os.replace(replacement_root / "secret.key", self.live / "secret.key")
+            return result
+
+        archive = self.base / "rotation-race.zip"
+        with patch.object(
+            backup_recovery,
+            "_validate_database_dependencies",
+            side_effect=rotate_after_validation,
+        ):
+            create_recovery_archive(self.live, archive)
+
+        staged = stage_recovery_archive(archive, self.live)
+        self.assertTrue((staged.data_dir / "secret.key").is_file())
+
+    def test_database_snapshot_happens_before_live_dependency_collection(self):
+        from services import backup_recovery
+
+        original_collect = backup_recovery._collect_data_tree
+
+        def add_late_attachment(*args, **kwargs):
+            collected = original_collect(*args, **kwargs)
+            attachment_dir = self.live / "vault_attachments"
+            attachment_dir.mkdir()
+            (attachment_dir / "late.enc").write_bytes(b"late encrypted blob")
+            with closing(sqlite3.connect(self.live / "aide.db")) as conn:
+                conn.execute("CREATE TABLE vault_attachments (id TEXT)")
+                conn.execute("INSERT INTO vault_attachments VALUES ('late')")
+                conn.commit()
+            return collected
+
+        archive = self.base / "late-attachment.zip"
+        with patch.object(
+            backup_recovery,
+            "_collect_data_tree",
+            side_effect=add_late_attachment,
+        ):
+            create_recovery_archive(self.live, archive)
+        staged = stage_recovery_archive(archive, self.live)
+        self.assertFalse((staged.data_dir / "vault_attachments" / "late.enc").exists())
+
+    def test_location_plan_uses_the_frozen_settings_copy(self):
+        from services import backup_recovery
+
+        external = self.base / "external-vault"
+        external.mkdir()
+        original_snapshot = backup_recovery.snapshot_sqlite
+
+        def change_settings_after_snapshot(source, destination):
+            original_snapshot(source, destination)
+            (self.live / "settings.json").write_text(
+                json.dumps({"vault_dir": str(external)}),
+                "utf-8",
+            )
+
+        archive = self.base / "settings-race.zip"
+        with patch.object(
+            backup_recovery,
+            "snapshot_sqlite",
+            side_effect=change_settings_after_snapshot,
+        ):
+            manifest = create_recovery_archive(self.live, archive)
+
+        vault_location = next(item for item in manifest["locations"] if item["role"] == "vault")
+        self.assertFalse(vault_location["included"])
+        with zipfile.ZipFile(archive) as zf:
+            captured = json.loads(zf.read("payload/data/settings.json"))
+        self.assertEqual(captured["vault_dir"], str(external))
+        stage_recovery_archive(archive, self.live)
+
+    def test_expected_recovery_key_is_bound_to_the_frozen_copy(self):
+        from services import backup_recovery
+        from services.recovery_crypto import (
+            load_or_create_recovery_key,
+            recovery_key_document,
+        )
+
+        expected = load_or_create_recovery_key(self.live)
+        original_snapshot = backup_recovery.snapshot_sqlite
+
+        def replace_key_after_snapshot(source, destination):
+            original_snapshot(source, destination)
+            (self.live / "recovery.key").write_bytes(recovery_key_document(os.urandom(32)))
+
+        archive = self.base / "recovery-key-race.zip"
+        with (
+            patch.object(
+                backup_recovery,
+                "snapshot_sqlite",
+                side_effect=replace_key_after_snapshot,
+            ),
+            self.assertRaisesRegex(RecoveryError, "recovery key changed"),
+        ):
+            create_recovery_archive(
+                self.live,
+                archive,
+                expected_recovery_key=expected,
+            )
+        self.assertFalse(archive.exists())
+
+    def test_vault_rekey_waits_until_attachment_snapshot_is_coherent(self):
+        import threading
+
+        from services import backup_recovery
+        from services.crypto import decrypt_bytes, encrypt_bytes, make_verifier
+        from services.recovery_consistency import recovery_consistency_lock
+
+        payload = b"passwords attachment recovery"
+        old_verifier = make_verifier("old-master")
+        new_verifier = make_verifier("new-master")
+        attachment_dir = self.live / "vault_attachments"
+        attachment_dir.mkdir()
+        attachment = attachment_dir / "one.enc"
+        attachment.write_bytes(encrypt_bytes("old-master", payload))
+        with closing(sqlite3.connect(self.live / "aide.db")) as conn:
+            conn.execute("CREATE TABLE vaults (id TEXT, verifier TEXT)")
+            conn.execute("INSERT INTO vaults VALUES ('default', ?)", (old_verifier,))
+            conn.execute("CREATE TABLE vault_attachments (id TEXT)")
+            conn.execute("INSERT INTO vault_attachments VALUES ('one')")
+            conn.commit()
+
+        begin_rekey = threading.Event()
+        rekey_started = threading.Event()
+        rekey_finished = threading.Event()
+
+        def rekey():
+            begin_rekey.wait(2)
+            rekey_started.set()
+            with recovery_consistency_lock:
+                attachment.write_bytes(encrypt_bytes("new-master", payload))
+                with closing(sqlite3.connect(self.live / "aide.db")) as conn:
+                    conn.execute(
+                        "UPDATE vaults SET verifier = ? WHERE id = 'default'",
+                        (new_verifier,),
+                    )
+                    conn.commit()
+            rekey_finished.set()
+
+        worker = threading.Thread(target=rekey)
+        worker.start()
+        original_freeze = backup_recovery._freeze_backup_source
+        blocked = []
+
+        def freeze_and_release_rekey(source, destination, **kwargs):
+            if source.name == "one.enc" and source.parent.name == "vault_attachments":
+                begin_rekey.set()
+                self.assertTrue(rekey_started.wait(1))
+                blocked.append(not rekey_finished.wait(0.1))
+            return original_freeze(source, destination, **kwargs)
+
+        archive = self.base / "vault-rekey-race.zip"
+        with patch.object(
+            backup_recovery,
+            "_freeze_backup_source",
+            side_effect=freeze_and_release_rekey,
+        ):
+            create_recovery_archive(self.live, archive)
+        worker.join(5)
+        self.assertEqual(blocked, [True])
+        self.assertFalse(worker.is_alive())
+
+        staged = stage_recovery_archive(archive, self.live)
+        with closing(sqlite3.connect(staged.data_dir / "aide.db")) as conn:
+            self.assertEqual(
+                conn.execute("SELECT verifier FROM vaults WHERE id = 'default'").fetchone()[0],
+                old_verifier,
+            )
+        self.assertEqual(
+            decrypt_bytes(
+                "old-master",
+                (staged.data_dir / "vault_attachments" / "one.enc").read_bytes(),
+            ),
+            payload,
+        )
+        self.assertEqual(decrypt_bytes("new-master", attachment.read_bytes()), payload)
+
+    def test_legacy_plaintext_credential_archive_can_still_be_staged(self):
+        with closing(sqlite3.connect(self.live / "aide.db")) as conn:
+            conn.execute("CREATE TABLE connections (id TEXT, token TEXT)")
+            conn.execute("INSERT INTO connections VALUES ('one', 'legacy-token')")
+            conn.commit()
+        archive = self.base / "legacy-plaintext.zip"
+        with zipfile.ZipFile(archive, "w", zipfile.ZIP_DEFLATED) as zf:
+            zf.write(self.live / "aide.db", "aide.db")
+            zf.write(self.live / "settings.json", "settings.json")
+
+        staged = stage_recovery_archive(archive, self.live)
+        with closing(sqlite3.connect(staged.data_dir / "aide.db")) as conn:
+            self.assertEqual(
+                conn.execute("SELECT token FROM connections WHERE id = 'one'").fetchone()[0],
+                "legacy-token",
+            )
+
     def test_database_backed_attachment_ids_cannot_escape_staging(self):
         with closing(sqlite3.connect(self.live / "aide.db")) as conn:
             conn.execute("CREATE TABLE vault_attachments (id TEXT)")
             conn.execute("INSERT INTO vault_attachments VALUES ('../escape')")
             conn.commit()
-        archive = self._archive()
+        archive = self.base / "invalid-attachment.zip"
+        with self.assertRaisesRegex(RecoveryError, "invalid vault attachment id"):
+            create_recovery_archive(self.live, archive)
+        self.assertFalse(archive.exists())
+
+        with zipfile.ZipFile(archive, "w", zipfile.ZIP_DEFLATED) as zf:
+            zf.write(self.live / "aide.db", "aide.db")
         with self.assertRaisesRegex(RecoveryError, "invalid vault attachment id"):
             stage_recovery_archive(archive, self.live)
         self.assertFalse((self.base / "escape.enc").exists())
+
+    def test_symlinked_push_key_is_rejected_before_backup_publish(self):
+        with closing(sqlite3.connect(self.live / "aide.db")) as conn:
+            conn.execute("CREATE TABLE push_subscriptions (id TEXT)")
+            conn.execute("INSERT INTO push_subscriptions VALUES ('one')")
+            conn.commit()
+        outside = self.base / "outside-vapid.pem"
+        outside.write_text("synthetic", "utf-8")
+        (self.live / "vapid.pem").symlink_to(outside)
+        archive = self.base / "symlinked-vapid.zip"
+        with self.assertRaisesRegex(RecoveryError, "vapid.pem|link"):
+            create_recovery_archive(self.live, archive)
+        self.assertFalse(archive.exists())
+
+    def test_symlinked_vault_attachment_is_rejected_before_backup_publish(self):
+        with closing(sqlite3.connect(self.live / "aide.db")) as conn:
+            conn.execute("CREATE TABLE vault_attachments (id TEXT)")
+            conn.execute("INSERT INTO vault_attachments VALUES ('one')")
+            conn.commit()
+        attachment_dir = self.live / "vault_attachments"
+        attachment_dir.mkdir()
+        outside = self.base / "outside.enc"
+        outside.write_bytes(b"synthetic")
+        (attachment_dir / "one.enc").symlink_to(outside)
+        archive = self.base / "symlinked-attachment.zip"
+        with self.assertRaisesRegex(RecoveryError, "vault attachment|link"):
+            create_recovery_archive(self.live, archive)
+        self.assertFalse(archive.exists())
 
     def test_database_symlink_is_never_followed_during_backup(self):
         outside = self.base / "outside.db"

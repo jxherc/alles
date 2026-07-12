@@ -7,6 +7,7 @@ sibling staging directory. The CLI performs the later offline swap.
 from __future__ import annotations
 
 import hashlib
+import hmac
 import json
 import os
 import re
@@ -23,6 +24,11 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from core.build_info import RECOVERY_COMPATIBILITY, SQLITE_APPLICATION_ID, build_info
+from core.credential_inventory import (
+    CONFIG_CREDENTIAL_FIELDS,
+    DATABASE_CREDENTIAL_FIELDS,
+    SETTING_CREDENTIAL_KEYS,
+)
 
 ARCHIVE_FORMAT = "alles-recovery"
 ARCHIVE_VERSION = 1
@@ -415,8 +421,13 @@ def _other_location_policies(settings: dict) -> list[dict]:
     ]
 
 
-def _location_plan(root: Path, *, include_photos: bool) -> tuple[list[dict], Path | None]:
-    settings = _read_settings(root)
+def _location_plan(
+    root: Path,
+    *,
+    include_photos: bool,
+    settings: dict | None = None,
+) -> tuple[list[dict], Path | None]:
+    settings = _read_settings(root) if settings is None else settings
     vault = _configured_path(root, settings, "vault_dir", "vault")
     files = _configured_path(root, settings, "files_dir", "files")
     photos = _configured_path(root, settings, "photos_dir", "photos")
@@ -596,11 +607,105 @@ def _hash_path(path: Path) -> tuple[int, str]:
     return total, digest.hexdigest()
 
 
+_FROZEN_ROOT_DEPENDENCIES = (
+    "settings.json",
+    "caldav.json",
+    "carddav.json",
+    "secret.key",
+    "recovery.key",
+    "vapid.pem",
+)
+
+
+def _freeze_backup_source(
+    source: Path,
+    destination: Path,
+    *,
+    limits: ArchiveLimits,
+) -> Path:
+    if _is_link_like(source):
+        raise RecoveryError(f"backup dependency cannot be a link: {source.name}")
+    destination.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
+    source_fd = None
+    try:
+        source_fd = os.open(source, flags)
+        if not stat.S_ISREG(os.fstat(source_fd).st_mode):
+            raise RecoveryError(f"backup dependency is not a file: {source.name}")
+        total = 0
+        with os.fdopen(source_fd, "rb") as src, destination.open("xb") as dest:
+            source_fd = None
+            while chunk := src.read(CHUNK_SIZE):
+                total += len(chunk)
+                if total > limits.max_file_bytes:
+                    raise RecoveryError(f"backup file is too large: {source.name}")
+                dest.write(chunk)
+            dest.flush()
+            os.fsync(dest.fileno())
+        try:
+            destination.chmod(0o600)
+        except OSError:
+            pass
+        return destination
+    except RecoveryError:
+        destination.unlink(missing_ok=True)
+        raise
+    except OSError as exc:
+        destination.unlink(missing_ok=True)
+        raise RecoveryError(f"could not freeze backup dependency: {source.name}") from exc
+    finally:
+        if source_fd is not None:
+            os.close(source_fd)
+
+
+def _freeze_root_dependencies(
+    root: Path,
+    frozen_root: Path,
+    *,
+    limits: ArchiveLimits,
+) -> dict[str, Path]:
+    frozen = {}
+    for relative in _FROZEN_ROOT_DEPENDENCIES:
+        source = root / relative
+        if _is_link_like(source):
+            raise RecoveryError(f"backup dependency cannot be a link: {relative}")
+        if source.exists():
+            frozen[relative] = _freeze_backup_source(
+                source,
+                frozen_root / relative,
+                limits=limits,
+            )
+    return frozen
+
+
+def _freeze_dependency_sources(
+    sources: list[tuple[str, Path]],
+    frozen_root: Path,
+    frozen_root_sources: dict[str, Path],
+    *,
+    limits: ArchiveLimits,
+) -> list[tuple[str, Path]]:
+    source_map = dict(sources)
+    for relative in _FROZEN_ROOT_DEPENDENCIES:
+        source_map.pop(relative, None)
+    source_map.update(frozen_root_sources)
+
+    for relative, source in list(source_map.items()):
+        if relative.startswith("vault_attachments/") and relative.endswith(".enc"):
+            source_map[relative] = _freeze_backup_source(
+                source,
+                frozen_root / relative,
+                limits=limits,
+            )
+    return sorted(source_map.items())
+
+
 def create_recovery_archive(
     data_root: Path,
     output_path: Path,
     *,
     include_photos: bool = False,
+    expected_recovery_key: bytes | None = None,
     limits: ArchiveLimits = DEFAULT_LIMITS,
 ) -> dict:
     """Create one atomic v1 archive without copying a live SQLite file directly."""
@@ -616,18 +721,48 @@ def create_recovery_archive(
         raise RecoveryError("backup output must be outside the live data directory")
     output.parent.mkdir(parents=True, exist_ok=True)
 
-    locations, excluded_photos = _location_plan(root, include_photos=include_photos)
-    sources, directories, warnings = _collect_data_tree(
-        root, excluded_root=excluded_photos, limits=limits
-    )
     temp_output = output.parent / f".{output.name}.{uuid.uuid4().hex}.partial"
 
     try:
         with tempfile.TemporaryDirectory(prefix="alles-snapshot-", dir=output.parent) as tmp:
-            snapshot = Path(tmp) / "aide.db"
-            snapshot_sqlite(root / "aide.db", snapshot)
-            db_info = _database_info(snapshot, require_application_id=True)
-            _validate_migrations(db_info["applied_migrations"])
+            from services.recovery_consistency import recovery_consistency_lock
+
+            with recovery_consistency_lock:
+                snapshot = Path(tmp) / "aide.db"
+                snapshot_sqlite(root / "aide.db", snapshot)
+                db_info = _database_info(snapshot, require_application_id=True)
+                _validate_migrations(db_info["applied_migrations"])
+                _validate_database_dependencies(root, snapshot, require_sealed=False)
+                frozen_root = Path(tmp) / "dependencies"
+                frozen_root.mkdir(mode=0o700)
+                frozen_root_sources = _freeze_root_dependencies(
+                    root,
+                    frozen_root,
+                    limits=limits,
+                )
+                if expected_recovery_key is not None:
+                    from services.recovery_crypto import load_recovery_key
+
+                    captured_key = load_recovery_key(frozen_root / "recovery.key")
+                    if not hmac.compare_digest(captured_key, expected_recovery_key):
+                        raise RecoveryError(
+                            "recovery key changed while the backup was being created"
+                        )
+                locations, excluded_photos = _location_plan(
+                    root,
+                    include_photos=include_photos,
+                    settings=_read_settings(frozen_root),
+                )
+                sources, directories, warnings = _collect_data_tree(
+                    root, excluded_root=excluded_photos, limits=limits
+                )
+                sources = _freeze_dependency_sources(
+                    sources,
+                    frozen_root,
+                    frozen_root_sources,
+                    limits=limits,
+                )
+                _validate_database_dependencies(frozen_root, snapshot, require_sealed=True)
             sources.append(("aide.db", snapshot))
             sources.sort(key=lambda item: item[0])
             directories = sorted(set(directories))
@@ -1006,7 +1141,34 @@ def _extract_member(
     return total, checksum
 
 
-def _validate_database_dependencies(data_dir: Path, db_path: Path) -> None:
+def _credential_config(path: Path, *, require_sealed: bool) -> dict:
+    if _is_link_like(path):
+        raise RecoveryError(f"backup credential config cannot be a link: {path.name}")
+    if not path.exists():
+        return {}
+    if not path.is_file():
+        raise RecoveryError(f"backup credential config is invalid: {path.name}")
+    try:
+        value = json.loads(path.read_text("utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        if require_sealed:
+            raise RecoveryError(f"backup credential config is invalid: {path.name}") from exc
+        return {}
+    if not isinstance(value, dict):
+        if require_sealed:
+            raise RecoveryError(f"backup credential config is invalid: {path.name}")
+        return {}
+    return value
+
+
+def _validate_database_dependencies(
+    data_dir: Path,
+    db_path: Path,
+    *,
+    require_sealed: bool = False,
+) -> None:
+    from services import secretstore
+
     uri = f"{db_path.resolve().as_uri()}?mode=ro"
     try:
         with closing(sqlite3.connect(uri, uri=True)) as conn:
@@ -1016,41 +1178,59 @@ def _validate_database_dependencies(data_dir: Path, db_path: Path) -> None:
                     "SELECT name FROM sqlite_master WHERE type='table'"
                 ).fetchall()
             }
-            encrypted = False
-            for table, columns in {
-                "model_endpoints": ("api_key",),
-                "mail_accounts": ("password", "oauth_access_token", "oauth_refresh_token"),
-                "connections": ("token", "meta"),
-                "mcp_servers": ("args", "url", "env", "headers"),
-                "webhooks": ("secret",),
-                "push_subscriptions": ("auth",),
-            }.items():
+            credentials: list[tuple[str, str]] = []
+            table_columns: dict[str, set[str]] = {}
+            for table, column, purpose in DATABASE_CREDENTIAL_FIELDS:
                 if table not in tables:
                     continue
-                have = {row[1] for row in conn.execute(f"PRAGMA table_info({table})")}
-                for column in columns:
-                    if (
-                        column in have
-                        and conn.execute(
-                            f"SELECT 1 FROM {table} WHERE "
-                            f"{column} LIKE 'enc1:%' OR {column} LIKE 'enc2:%' LIMIT 1"
-                        ).fetchone()
-                    ):
-                        encrypted = True
-            for config_name in ("settings.json", "caldav.json", "carddav.json"):
-                config_path = data_dir / config_name
-                try:
-                    raw = config_path.read_text("utf-8")
-                except OSError:
+                have = table_columns.get(table)
+                if have is None:
+                    have = {row[1] for row in conn.execute(f"PRAGMA table_info({table})")}
+                    table_columns[table] = have
+                if column not in have:
                     continue
-                if '"enc1:' in raw or '"enc2:' in raw:
-                    encrypted = True
-            if encrypted and not (data_dir / "secret.key").is_file():
-                raise RecoveryError("backup is missing secret.key for encrypted credentials")
+                rows = conn.execute(
+                    f"SELECT {column} FROM {table} WHERE {column} IS NOT NULL AND {column} != ''"
+                ).fetchall()
+                credentials.extend((row[0], purpose) for row in rows)
+
+            settings = _credential_config(data_dir / "settings.json", require_sealed=require_sealed)
+            for key in SETTING_CREDENTIAL_KEYS:
+                value = settings.get(key)
+                if value not in (None, ""):
+                    credentials.append((value, f"settings.{key}"))
+            for config_name, key, purpose in CONFIG_CREDENTIAL_FIELDS:
+                config = _credential_config(data_dir / config_name, require_sealed=require_sealed)
+                value = config.get(key)
+                if value not in (None, ""):
+                    credentials.append((value, purpose))
+
+            sealed = []
+            for value, purpose in credentials:
+                if isinstance(value, str) and secretstore.is_sealed(value):
+                    sealed.append((value, purpose))
+                elif require_sealed:
+                    raise RecoveryError("backup credential is not encrypted")
+            try:
+                secretstore.validate_sealed_values(
+                    data_dir / "secret.key",
+                    sealed,
+                    validate_existing=require_sealed,
+                )
+            except secretstore.SecretStoreError as exc:
+                message = str(exc)
+                if message == "secret key file is missing":
+                    raise RecoveryError(
+                        "backup is missing secret.key for encrypted credentials"
+                    ) from exc
+                if message == "secret key file cannot be a link":
+                    raise RecoveryError("backup secret.key cannot be a link") from exc
+                raise RecoveryError(f"backup credential validation failed: {message}") from exc
 
             if "push_subscriptions" in tables:
                 subscribed = conn.execute("SELECT 1 FROM push_subscriptions LIMIT 1").fetchone()
-                if subscribed and not (data_dir / "vapid.pem").is_file():
+                vapid_key = data_dir / "vapid.pem"
+                if subscribed and (_is_link_like(vapid_key) or not vapid_key.is_file()):
                     raise RecoveryError("backup is missing vapid.pem for push subscriptions")
 
             if "vault_attachments" in tables:
@@ -1059,7 +1239,8 @@ def _validate_database_dependencies(data_dir: Path, db_path: Path) -> None:
                         attachment_id
                     ):
                         raise RecoveryError("backup has an invalid vault attachment id")
-                    if not (data_dir / "vault_attachments" / f"{attachment_id}.enc").is_file():
+                    attachment = data_dir / "vault_attachments" / f"{attachment_id}.enc"
+                    if _is_link_like(attachment) or not attachment.is_file():
                         raise RecoveryError("backup is missing an encrypted vault attachment")
     except RecoveryError:
         raise

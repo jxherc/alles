@@ -134,6 +134,7 @@ def export_backup(request: Request, include_photos: bool = False):
             root,
             plaintext,
             include_photos=include_photos,
+            expected_recovery_key=recovery_key,
             limits=BACKUP_LIMITS,
         )
         try:
@@ -281,9 +282,7 @@ def restore_status(request: Request, restore_id: str):
     }
 
 
-@router.delete(
-    "/backup/restores/{restore_id}", dependencies=[Depends(require_recent_owner)]
-)
+@router.delete("/backup/restores/{restore_id}", dependencies=[Depends(require_recent_owner)])
 def cancel_restore(request: Request, restore_id: str):
     _require_same_origin(request)
     try:

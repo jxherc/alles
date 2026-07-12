@@ -57,7 +57,8 @@ Phase 1 is split into small gates. A later gate must not weaken an earlier one.
     and encrypted on disk. Local MCP processes inherit only a small reviewed system environment;
     provider keys are never copied from Alles's ambient environment.
   - Owner-confirmed rotation keeps the previous key until every known credential is re-encrypted,
-    then retires unused keys. Backups reject encrypted credentials when `secret.key` is missing.
+    waits for active credential writes, then retires unused keys. Backups authenticate encrypted
+    credentials against the exact keyring they include.
   - Fresh evidence: all 3,683 non-matrix Python checks, all 90 JavaScript checks,
     desktop/mobile browser checks, and the complete 27-history migration matrix pass through
     migration 20.
@@ -196,7 +197,25 @@ Phase 1 is split into small gates. A later gate must not weaken an earlier one.
 
 ## 1C — backup destinations
 
-- [ ] Re-validate the encrypted local destination against the disaster-recovery gate.
+- [x] Re-validate the encrypted local destination against the disaster-recovery gate.
+  - One canonical inventory covers all 12 encrypted database fields, 11 encrypted Settings fields,
+    and both DAV password files. New backups reject plaintext credentials, corrupt or missing keys,
+    unavailable key IDs, wrong field binding, changed ciphertext, and linked dependency files.
+  - SQLite is snapshotted before DB-backed files are collected. The keyring, Settings, DAV configs,
+    push key, recovery key, and Passwords attachment blobs are copied into immutable temporary files;
+    backup validation, location policy, and the final archive use those exact copies. The encrypted
+    container key must also match the frozen recovery key. Forced key-rotation and late-row races now
+    produce a restorable archive instead of mixing two points in time.
+  - Historical plaintext archives can still stage and migrate. Credential writes and rotation share a
+    short consistency lock, so an in-flight write finishes before the old key is retired. Passwords
+    attachment changes and full re-keying use that same lock, keeping the verifier, entry ciphertext,
+    and attachment blobs on one password generation.
+  - The independent gate creates a real encrypted database connector and a separate encrypted Settings
+    key, keeps both out of raw SQLite/settings files, API output, logs, the plaintext ZIP, encrypted
+    artifact, and exported recovery key, deletes the source install, then restores and decrypts both
+    using only the clean release, backup repository, and separately saved recovery key.
+  - Fresh evidence: 152 focused backup, API, cryptography, credential migration/rotation, staged restore,
+    source-destruction, update rollback, race, symlink, corruption, and dependency checks pass.
 - [ ] Add encrypted WebDAV credentials and pass the same recovery gate.
 - [ ] Add encrypted S3-compatible credentials and pass the same recovery gate.
 - [ ] Spike Kopia only after the existing portable restore path remains proven.
@@ -206,7 +225,8 @@ Phase 1 is split into small gates. A later gate must not weaken an earlier one.
 The current completed groups cover startup access policy, scoped owner/API access, stable security
 errors, rate limits, encrypted connector credentials, private observability, owned-service controls,
 live model catalogs and roles, trusted memory, real incognito isolation, provider-auth decisions,
-safe Markdown writes, recoverable Vault trash, and approved-root file confinement.
+safe Markdown writes, recoverable Vault trash, approved-root file confinement, public-share safety,
+and the revalidated encrypted local backup destination.
 They do not install or configure a reverse proxy or companion service for the owner, and they do not
 expose unsupported provider account login.
 

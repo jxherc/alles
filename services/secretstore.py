@@ -5,6 +5,7 @@ import hashlib
 import json
 import os
 import tempfile
+from collections.abc import Iterable
 from pathlib import Path
 
 from cryptography.exceptions import InvalidTag
@@ -169,12 +170,7 @@ def _decode_blob(value: str) -> bytes:
     return blob
 
 
-def unseal(value: str, purpose: str = "") -> str:
-    if not value:
-        return ""
-    if not is_sealed(value):
-        return value
-    keys, _active = _load_keyring()
+def _unseal_with_keys(value: str, purpose: str, keys: dict[str, bytes]) -> str:
     try:
         if value.startswith(PREFIX):
             parts = value.split(":", 2)
@@ -186,15 +182,59 @@ def unseal(value: str, purpose: str = "") -> str:
             )
             return plaintext.decode()
 
-        blob = _decode_blob(value[len(LEGACY_PREFIX) :])
-        for key in keys.values():
-            try:
-                return AESGCM(key).decrypt(blob[:_NONCE_LEN], blob[_NONCE_LEN:], None).decode()
-            except InvalidTag:
-                continue
-        raise SecretStoreError("encrypted secret could not be decrypted")
+        if value.startswith(LEGACY_PREFIX):
+            blob = _decode_blob(value[len(LEGACY_PREFIX) :])
+            for key in keys.values():
+                try:
+                    return AESGCM(key).decrypt(blob[:_NONCE_LEN], blob[_NONCE_LEN:], None).decode()
+                except InvalidTag:
+                    continue
+            raise SecretStoreError("encrypted secret could not be decrypted")
     except (InvalidTag, UnicodeDecodeError) as exc:
         raise SecretStoreError("encrypted secret could not be decrypted") from exc
+    raise SecretStoreError("credential is not encrypted")
+
+
+def unseal(value: str, purpose: str = "") -> str:
+    if not value:
+        return ""
+    if not is_sealed(value):
+        return value
+    keys, _active = _load_keyring()
+    return _unseal_with_keys(value, purpose, keys)
+
+
+def validate_sealed_values(
+    key_path: Path,
+    values: Iterable[tuple[str, str]],
+    *,
+    validate_existing: bool = False,
+) -> None:
+    """Authenticate ciphertext with an explicit keyring without changing global state."""
+    records = list(values)
+    if not records and not validate_existing:
+        return
+    path = Path(key_path)
+    try:
+        is_junction = getattr(path, "is_junction", None)
+        if path.is_symlink() or bool(is_junction and is_junction()):
+            raise SecretStoreError("secret key file cannot be a link")
+        if not path.is_file():
+            if not records:
+                return
+            raise SecretStoreError("secret key file is missing")
+        if path.stat().st_size > 1024 * 1024:
+            raise SecretStoreError("secret key file is invalid")
+        raw = path.read_text("utf-8")
+    except SecretStoreError:
+        raise
+    except (OSError, UnicodeError) as exc:
+        raise SecretStoreError("secret key file could not be read") from exc
+    keys, _active, _legacy = _parse_keyring(raw)
+    for value, purpose in records:
+        if not isinstance(value, str) or not value or not is_sealed(value):
+            raise SecretStoreError("credential is not encrypted")
+        _unseal_with_keys(value, purpose, keys)
 
 
 def needs_reseal(value: str) -> bool:
