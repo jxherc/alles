@@ -19,12 +19,15 @@ from core.database import (
     JarvisTrigger,
     JarvisWorkflow,
     Project,
+    Session,
     get_db,
 )
+from services import jarvis_handoff
 from services.jarvis_outbox import enqueue_delivery
 from services.jarvis_scheduler import next_for_trigger, utc_now, validate_trigger_config
 from services.jarvis_store import (
     answer_choice,
+    append_event,
     create_run,
     json_value,
 )
@@ -226,6 +229,92 @@ class WorkflowBody(BaseModel):
     concurrency_mode: str = "one"
     context_mode: str = "fresh"
     delivery_policy: dict = Field(default_factory=dict)
+
+
+class HandoffBody(BaseModel):
+    session_id: str
+    request: str = Field(min_length=1, max_length=50_000)
+    endpoint_override: str = Field(default="", max_length=100)
+    model_override: str = Field(default="", max_length=300)
+    file_ids: list[str] = Field(default_factory=list, max_length=20)
+    confirmed_endpoint_id: str = ""
+    confirmed_model: str = ""
+
+
+@router.get("/handoffs/preview")
+def preview_handoff(
+    session_id: str,
+    endpoint_override: str = "",
+    model_override: str = "",
+    db: DbSession = Depends(get_db),
+):
+    session = db.get(Session, session_id)
+    if not session:
+        raise HTTPException(404, "session not found")
+    if session.incognito:
+        raise ApiError(409, "incognito_handoff_forbidden", "incognito work stays in this tab")
+    if endpoint_override and not model_override:
+        raise ApiError(400, "invalid_model_override", "an endpoint override needs a model")
+    try:
+        return jarvis_handoff.model_preview(
+            db,
+            endpoint_override=endpoint_override,
+            model_override=model_override,
+        )
+    except Exception as exc:
+        from services.model_resolver import ModelResolutionError
+
+        if isinstance(exc, ModelResolutionError):
+            raise ApiError(409, exc.code, str(exc)) from exc
+        raise
+
+
+@router.post("/handoffs")
+async def add_handoff(body: HandoffBody, db: DbSession = Depends(get_db)):
+    session = db.get(Session, body.session_id)
+    if not session:
+        raise HTTPException(404, "session not found")
+    if session.incognito:
+        raise ApiError(409, "incognito_handoff_forbidden", "incognito work stays in this tab")
+    if body.endpoint_override and not body.model_override:
+        raise ApiError(400, "invalid_model_override", "an endpoint override needs a model")
+    try:
+        preview = jarvis_handoff.model_preview(
+            db,
+            endpoint_override=body.endpoint_override,
+            model_override=body.model_override,
+        )
+    except Exception as exc:
+        from services.model_resolver import ModelResolutionError
+
+        if isinstance(exc, ModelResolutionError):
+            raise ApiError(409, exc.code, str(exc)) from exc
+        raise
+    if preview["privacy_class"] == "remote" and (
+        body.confirmed_endpoint_id != preview["endpoint_id"]
+        or body.confirmed_model != preview["model"]
+    ):
+        raise ApiError(
+            409,
+            "remote_model_confirmation_required",
+            "confirm the shown Jarvis model before Project context leaves Alles",
+        )
+    try:
+        run = jarvis_handoff.create_handoff(
+            db,
+            session,
+            body.request,
+            endpoint_override=body.endpoint_override,
+            model_override=body.model_override,
+            file_ids=body.file_ids,
+        )
+    except ValueError as exc:
+        code = str(exc)
+        raise ApiError(409, code, code.replace("_", " ")) from exc
+    db.commit()
+    db.refresh(run)
+    jarvis_handoff.launch(run.id)
+    return _run(db, run, detail=True)
 
 
 def _validate_workflow(body: WorkflowBody, db: DbSession):
@@ -567,6 +656,43 @@ def get_run(run_id: str, db: DbSession = Depends(get_db)):
     row = db.get(JarvisRun, run_id)
     if not row:
         raise HTTPException(404)
+    return _run(db, row, detail=True)
+
+
+@router.post("/runs/{run_id}/cancel")
+def cancel_run(run_id: str, db: DbSession = Depends(get_db)):
+    row = db.get(JarvisRun, run_id)
+    if not row:
+        raise HTTPException(404)
+    if row.state == "queued":
+        from services.jarvis_store import transition_run
+
+        transition_run(db, row, "cancelled")
+        db.commit()
+    elif row.state == "running":
+        if not jarvis_handoff.request_cancel(row.id):
+            raise ApiError(409, "run_not_attached", "this run can be retried after restart")
+        append_event(db, row, "cancel_requested", source="aide", summary="cancel requested")
+        db.commit()
+    else:
+        raise ApiError(409, "run_not_cancellable", "this run cannot be cancelled")
+    db.refresh(row)
+    return _run(db, row, detail=True)
+
+
+@router.post("/runs/{run_id}/retry")
+async def retry_run(run_id: str, db: DbSession = Depends(get_db)):
+    previous = db.get(JarvisRun, run_id)
+    if not previous:
+        raise HTTPException(404)
+    try:
+        row = jarvis_handoff.retry_handoff(db, previous)
+    except ValueError as exc:
+        code = str(exc)
+        raise ApiError(409, code, code.replace("_", " ")) from exc
+    db.commit()
+    db.refresh(row)
+    jarvis_handoff.launch(row.id)
     return _run(db, row, detail=True)
 
 

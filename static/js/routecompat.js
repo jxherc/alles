@@ -19,6 +19,7 @@ const _route = (host, view, hashOwner, extra = {}) => Object.freeze({
 
 const HOME_TODAY = _route('', 'today', 'today');
 const HOME_LEGACY = _route('', 'home', 'home');
+const ANDROMEDA = _route('', 'andromeda', 'andromeda');
 const ACTIVITY = _route('', 'activity', 'activity');
 const SYSTEM = _route('server', 'system', 'system');
 const VAULT = _route('passwords', 'vault', 'vault');
@@ -77,6 +78,7 @@ const _fixedIdentifierRoutes = Object.freeze({
   jarvis: JARVIS,
   chat: CHAT,
   aide: CHAT,
+  andromeda: ANDROMEDA,
   mail: _route('mail', 'mail', 'mail'),
   calendar: _route('calendar', 'calendar', 'calendar'),
   tasks: _route('tasks', 'tasks', 'tasks'),

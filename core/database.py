@@ -141,7 +141,8 @@ class Session(Base):
     endpoint_id = Column(
         String, ForeignKey("model_endpoints.id", ondelete="SET NULL"), nullable=True
     )
-    mode = Column(String, default="chat")  # chat | agent
+    mode = Column(String, default="chat")  # chat | jarvis; legacy agent reads as jarvis
+    chat_behavior = Column(String, default="")  # '' follows Settings | automatic_tools | answer_only
     persona_id = Column(String, ForeignKey("personas.id", ondelete="SET NULL"), nullable=True)
     project_id = Column(String, ForeignKey("projects.id", ondelete="SET NULL"), nullable=True)
     working_dir = Column(Text, default="")
@@ -180,6 +181,21 @@ class Message(Base):
             return json.loads(self.meta or "{}")
         except Exception:
             return {}
+
+
+class AndromedaSavedSearch(Base):
+    """A complete, reopenable search snapshot; no model or provider secrets."""
+
+    __tablename__ = "andromeda_saved_searches"
+    id = Column(String, primary_key=True, default=_uid)
+    query = Column(Text, nullable=False)
+    request_json = Column(Text, default="{}")
+    results_json = Column(Text, default="[]")
+    overview_json = Column(Text, default="{}")
+    evidence_json = Column(Text, default="[]")
+    model_json = Column(Text, default="{}")
+    checked_at = Column(DateTime, default=_now)
+    created_at = Column(DateTime, default=_now)
 
 
 class McpServer(Base):

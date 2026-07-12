@@ -20,6 +20,18 @@ class MemoryPolicyError(RuntimeError):
     pass
 
 
+MEMORY_AGENT_TOOLS = {"memory_search", "memory_add"}
+
+
+def apply_memory_tool_policy(settings: dict, *, incognito: bool = False) -> dict:
+    """Hide long-term-memory tools whenever the conversation cannot use memory."""
+    disabled = set(settings.get("disabled_tools") or [])
+    if incognito or str(settings.get("memory_policy") or "ask").lower() == "off":
+        disabled.update(MEMORY_AGENT_TOOLS)
+    settings["disabled_tools"] = sorted(disabled)
+    return settings
+
+
 def memory_policy() -> str:
     value = str(load_settings().get("memory_policy") or "ask").lower()
     return value if value in {"off", "ask", "auto"} else "ask"

@@ -9,12 +9,17 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session as DbSession
 
 from core.api_errors import ApiError
-from core.database import Message, ModelEndpoint, Persona, Session, SessionLocal, get_db
-from core.settings import _ARTIFACT_INSTRUCTIONS, build_aide_system_prompt, load_settings
+from core.database import Memory, Message, ModelEndpoint, Persona, Session, SessionLocal, get_db
+from core.settings import (
+    _ARTIFACT_INSTRUCTIONS,
+    build_aide_system_prompt,
+    load_settings,
+    owner_instructions,
+)
 from services import incognito as incognito_service
 from services.agent_runtime import merge_usage, run_agent
 from services.llm import simple_complete, stream_chat
-from services.memory_store import inject_memories
+from services.memory_store import apply_memory_tool_policy, inject_memories
 from services.model_resolver import ModelResolutionError, resolve_model
 
 router = APIRouter(prefix="/api")
@@ -71,10 +76,10 @@ def _resolve_endpoint(session: Session, db: DbSession) -> ModelEndpoint | None:
 
 
 def _resolve_persona(session: Session, db) -> Persona | None:
-    # session-level persona first, then default persona
+    # None is the real base assistant: only an explicit session persona adds a prompt.
     if session.persona_id:
         return db.get(Persona, session.persona_id)
-    return db.query(Persona).filter(Persona.is_default == True).first()
+    return None
 
 
 def _apply_persona_model(session: Session, ep: ModelEndpoint, model: str, db):
@@ -124,11 +129,20 @@ def _decide_mode(
     default_chat_behavior: str,
 ):
     """resolve the effective turn mode. returns (mode, force_approve).
-    a persona's default_mode: "agent" always runs tools, "chat" stays pure chat (no
-    auto-promote), "" falls back to intent-based auto-promotion. mutations that get
-    auto-promoted are gated behind approval so a chat turn can't silently act."""
-    if base_mode != "chat" or simple:
-        return base_mode, False
+    explicit Agent/Jarvis always runs tools. In chat, Answer only blocks all automatic
+    promotion; otherwise a persona can prefer Agent or pure chat, and an unset persona
+    falls back to intent detection. promoted mutations are gated behind approval."""
+    if simple:
+        return "chat", False
+    if base_mode in {"agent", "jarvis"}:
+        return "agent", False
+    if base_mode != "chat":
+        return "chat", False
+    # Answer only is a conversation-level safety boundary. Persona defaults and
+    # intent detection may suggest tools, but only an explicit Agent/Jarvis mode
+    # may cross that boundary.
+    if default_chat_behavior == "answer_only":
+        return "chat", False
     if pmode == "agent":
         return "agent", True
     if pmode != "chat" and default_chat_behavior == "automatic_tools":
@@ -143,6 +157,47 @@ def _resolve_working_dir(session: Session) -> str:
     from services.project_environment import session_environment
 
     return session_environment(session)["cwd"]
+
+
+def _context_provenance(
+    session: Session,
+    settings: dict,
+    persona: Persona | None,
+    memory_ids: list[str],
+    db,
+    endpoint: ModelEndpoint,
+    model: str,
+) -> dict:
+    rows = (
+        db.query(Memory).filter(Memory.id.in_(memory_ids)).all()
+        if memory_ids
+        else []
+    )
+    by_id = {row.id: row for row in rows}
+    memories = []
+    for memory_id in memory_ids:
+        row = by_id.get(memory_id)
+        if not row:
+            continue
+        memories.append(
+            {
+                "id": row.id,
+                "text": row.text[:160],
+                "scope": row.scope or "global",
+                "project_id": row.project_id or "",
+            }
+        )
+    project = getattr(session, "project", None)
+    return {
+        "owner_instructions": bool(owner_instructions(settings)),
+        "project_instructions": bool(project and project.system_prompt),
+        "project_id": getattr(session, "project_id", "") or "",
+        "persona": {"id": persona.id, "name": persona.name} if persona else None,
+        "memories": memories,
+        "model": model,
+        "endpoint_id": endpoint.id,
+        "endpoint": endpoint.name,
+    }
 
 
 def _resolve_mentions(text: str, cwd: str) -> str:
@@ -227,7 +282,7 @@ def _build_messages(
             sys_prompt = sys_prompt.rstrip() + "\n\n" + mc
 
     # surface-brain - let aide weave in the cross-domain insights it found
-    if db and not settings.get("incognito") and settings.get("insights_auto_inject", True):
+    if db and memory_allowed and settings.get("insights_auto_inject", True):
         try:
             from services.insights import inject_active_insights
 
@@ -381,6 +436,7 @@ async def _stream_and_save(
     thinking_acc = []
     tool_steps = []
     usage = {}
+    agent_run_id = ""
 
     if mode == "agent":
         async for chunk in run_agent(
@@ -394,6 +450,9 @@ async def _stream_and_save(
             tool_steps,
             session_id=session_id,
         ):
+            run = chunk.get("agent_run")
+            if isinstance(run, dict) and run.get("id"):
+                agent_run_id = str(run["id"])
             if "usage" in chunk:
                 usage = merge_usage(usage, chunk.get("usage", {}))
             yield chunk
@@ -423,11 +482,17 @@ async def _stream_and_save(
     full_text = "".join(accumulated)
 
     if incognito:
-        meta = {"usage": usage, "model": model}
+        meta = {
+            "usage": usage,
+            "model": model,
+            "context_provenance": (settings or {}).get("context_provenance", {}),
+        }
         if thinking_acc:
             meta["thinking"] = "".join(thinking_acc)
         if tool_steps:
             meta["tool_steps"] = tool_steps
+        if agent_run_id:
+            meta["agent_run_id"] = agent_run_id
         incognito_service.append_turn(session_id, user_text, full_text, json.dumps(meta))
         return  # RAM only; never write an incognito turn to SQLite
 
@@ -454,13 +519,19 @@ async def _stream_and_save(
             added += 1
 
         if full_text:
-            meta = {"usage": usage, "model": model}
+            meta = {
+                "usage": usage,
+                "model": model,
+                "context_provenance": (settings or {}).get("context_provenance", {}),
+            }
             if memory_ids:
                 meta["memory_ids"] = memory_ids
             if thinking_acc:
                 meta["thinking"] = "".join(thinking_acc)
             if tool_steps:
                 meta["tool_steps"] = tool_steps
+            if agent_run_id:
+                meta["agent_run_id"] = agent_run_id
             artifacts = _extract_artifacts(full_text)
             if artifacts:
                 meta["artifacts"] = artifacts
@@ -519,6 +590,7 @@ async def chat(body: ChatRequest, db: DbSession = Depends(get_db)):
     settings = load_settings()
     incognito_run = bool(getattr(s, "incognito", False))
     settings["incognito"] = incognito_run
+    apply_memory_tool_policy(settings, incognito=incognito_run)
     for upload_id in body.file_ids:
         private_upload = incognito_service.get_upload(upload_id)
         if incognito_run and not private_upload:
@@ -565,6 +637,15 @@ async def chat(body: ChatRequest, db: DbSession = Depends(get_db)):
         else ("", [])
     )
     mem_ctx, memory_ids = memory_result
+    settings["context_provenance"] = _context_provenance(
+        s,
+        settings,
+        _p,
+        memory_ids,
+        db,
+        ep,
+        model,
+    )
     messages = _build_messages(s, aug_text, settings, db, body.file_ids, mem_ctx=mem_ctx)
     if incognito_run:
         for upload_id in body.file_ids:
@@ -592,7 +673,8 @@ async def chat(body: ChatRequest, db: DbSession = Depends(get_db)):
         pmode,
         body.message,
         body.simple,
-        settings.get("default_chat_behavior", "automatic_tools"),
+        getattr(s, "chat_behavior", "")
+        or settings.get("default_chat_behavior", "automatic_tools"),
     )
     if force_approve and not body.permission_mode:
         settings["agent_permission_mode"] = "approve"
@@ -612,6 +694,7 @@ async def chat(body: ChatRequest, db: DbSession = Depends(get_db)):
 
     async def cleanup_gen():
         try:
+            yield {"context_provenance": settings["context_provenance"]}
             async for chunk in gen:
                 yield chunk
         finally:

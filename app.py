@@ -1,4 +1,4 @@
-import asyncio
+import asyncio  # noqa: I001 - legacy route imports are intentionally grouped one module per block
 import json
 import logging
 import os
@@ -85,6 +85,7 @@ from routes import (
     days as days_routes,
 )
 from routes import delegation as delegation_routes
+from routes import andromeda as andromeda_routes
 from routes import (
     files as files_routes,
 )
@@ -539,11 +540,15 @@ def _register_jobs():
 
     async def _insights():
         from core.database import SessionLocal
+        from core.settings import load_settings
         from services import insights
 
+        settings = load_settings()
+        if not insights.generation_allowed(settings):
+            return
         db = SessionLocal()
         try:
-            await insights.generate_async(db)  # internally gated on insights_enabled
+            await insights.generate_async(db, settings=settings)
         finally:
             db.close()
 
@@ -810,6 +815,12 @@ async def lifespan(app: FastAPI):
                 interrupted_jarvis["uncertain"],
             )
 
+        from services.jarvis_handoff import resume_queued as resume_jarvis_handoffs
+
+        resumed_handoffs = resume_jarvis_handoffs()
+        if resumed_handoffs:
+            log.info("resumed %s queued Aide to Jarvis handoff(s)", resumed_handoffs)
+
         from services.delegated_actions import reconcile_delegated_actions
 
         uncertain_actions = reconcile_delegated_actions()
@@ -1039,9 +1050,9 @@ app.include_router(rag_routes.router)
 app.include_router(textindex_routes.router)
 app.include_router(images_routes.router)
 app.include_router(skills_routes.router)
-from routes import notify as notify_routes
-from routes import system as system_routes
-from routes import timeline as timeline_routes
+from routes import notify as notify_routes  # noqa: E402
+from routes import system as system_routes  # noqa: E402
+from routes import timeline as timeline_routes  # noqa: E402
 
 app.include_router(notify_routes.router)
 app.include_router(shell_routes.router)
@@ -1084,6 +1095,7 @@ app.include_router(today_routes.router)
 app.include_router(automation_routes.router)
 app.include_router(jarvis_routes.router)
 app.include_router(delegation_routes.router)
+app.include_router(andromeda_routes.router)
 app.include_router(money_routes.router)
 app.include_router(timeline_routes.router)
 app.include_router(system_routes.router)

@@ -328,6 +328,16 @@ def control(service_id: str, action: Action, *, runner=_run) -> dict:
     return {"ok": True, "service_id": service.service_id, "action": action}
 
 
+def unregister_owned_service(service_id: str) -> dict:
+    """Remove matching ownership markers only; service data and definitions stay untouched."""
+    service = _load(service_id)
+    local = Path(service.root) / _OWNER_FILE
+    registry = _registry_dir() / f"{service_id}.json"
+    local.unlink()
+    registry.unlink()
+    return {"ok": True, "service_id": service_id, "kept_root": service.root}
+
+
 def list_services(*, runner=_run) -> list[dict]:
     rows = []
     try:

@@ -308,6 +308,51 @@ class BackupApiTest(ApiTest):
         self.assertEqual(response.status_code, 202)
         self.assertEqual(response.json()["status"], "staged")
 
+    def test_andromeda_saved_search_survives_encrypted_export_and_staging(self):
+        with closing(sqlite3.connect(self.data / "aide.db")) as conn:
+            conn.execute(
+                "CREATE TABLE andromeda_saved_searches ("
+                "id TEXT PRIMARY KEY, query TEXT, results_json TEXT, overview_json TEXT, "
+                "evidence_json TEXT, model_json TEXT)"
+            )
+            conn.execute(
+                "INSERT INTO andromeda_saved_searches VALUES (?, ?, ?, ?, ?, ?)",
+                (
+                    "saved-1",
+                    "current package version",
+                    '[{"url":"https://example.com"}]',
+                    '{"status":"ready"}',
+                    '[{"id":"s1","passages":["exact passage"]}]',
+                    '{"model":"local"}',
+                ),
+            )
+            conn.commit()
+
+        encrypted = self.client.get("/api/backup").content
+        response = self.client.post(
+            "/api/backup/restore",
+            files={
+                "file": (
+                    "andromeda.alles-backup",
+                    encrypted,
+                    "application/vnd.alles.backup",
+                )
+            },
+        )
+
+        self.assertEqual(response.status_code, 202)
+        staged_db = (
+            staging_root(self.data) / "staged" / response.json()["restore_id"] / "data" / "aide.db"
+        )
+        with closing(sqlite3.connect(staged_db)) as conn:
+            row = conn.execute(
+                "SELECT query, evidence_json, model_json FROM andromeda_saved_searches WHERE id = ?",
+                ("saved-1",),
+            ).fetchone()
+        self.assertEqual(row[0], "current package version")
+        self.assertIn("exact passage", row[1])
+        self.assertIn("local", row[2])
+
     def test_phase_three_settings_survive_encrypted_export_and_staging(self):
         settings = {
             "today_layout": {

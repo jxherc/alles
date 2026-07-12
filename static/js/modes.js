@@ -1,4 +1,5 @@
 let _incognitoMode = false;
+let _incognitoSidebarWasHidden = false;
 
 // ── agent permission mode ─────────────────────────────────────────────
 const PERM_KEY = 'aide-perm-mode';
@@ -50,11 +51,17 @@ export function isIncognitoMode() {
 }
 
 export function setIncognitoMode(on) {
-  _incognitoMode = !!on;
+  const next = !!on;
+  if (next && !_incognitoMode) {
+    _incognitoSidebarWasHidden = document.body.classList.contains('sidebar-hidden');
+  }
+  _incognitoMode = next;
   document.body.classList.toggle('is-incognito', _incognitoMode);   // screen-edge glow
-  // incognito = you're not using history, so tuck the sidebar away (like Claude)
-  if (document.body.classList.contains('is-aide'))
-    document.body.classList.toggle('sidebar-hidden', _incognitoMode);
+  // Incognito hides history while active, then restores the user's prior layout.
+  if (document.body.classList.contains('is-aide')) {
+    if (_incognitoMode) document.body.classList.add('sidebar-hidden');
+    else document.body.classList.toggle('sidebar-hidden', _incognitoSidebarWasHidden);
+  }
   const btn = document.getElementById('incognito-btn');
   if (btn) {
     btn.classList.toggle('active', _incognitoMode);

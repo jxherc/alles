@@ -94,13 +94,13 @@ function _renderResults(d, q) {
   html += _group('photos',   photos,   p => _row(`data-type="nav" data-view="photos"`, p.name, ''));
   html += _group('memories', memories, m => _row(`data-type="nav" data-view="memory"`, m.text, ''));
 
-  // action rails — search is also the place you act: ask aide, or research the web
+  // action rails — search is also the place you act: ask Aide or search with Andromeda.
   const rail = q ? `<div class="search-actions">
       <button class="search-act" data-act="ask"><b>ask aide</b> about “${_esc(q.slice(0, 40))}”</button>
-      <button class="search-act" data-act="web">research the web ↗</button>
+      <button class="search-act" data-act="web">search with andromeda ↗</button>
     </div>` : '';
 
-  container.innerHTML = rail + (html || '<div class="search-empty">no matches — ask aide or search the web above</div>');
+  container.innerHTML = rail + (html || '<div class="search-empty">no matches — ask aide or search with andromeda above</div>');
   container.querySelector('[data-act="ask"]')?.addEventListener('click', () => { closeSearch(); window._askInChat?.(_lastQ, false); });
   container.querySelector('[data-act="web"]')?.addEventListener('click', () => { closeSearch(); window._askInChat?.(_lastQ, true); });
   container.querySelectorAll('.search-result').forEach(el => el.addEventListener('click', () => _go(el)));

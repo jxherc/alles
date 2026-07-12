@@ -132,6 +132,11 @@ DATA_CLASS_POLICIES = (
         "policy": "alles-data-tree",
     },
     {
+        "id": "andromeda_saved_searches",
+        "coverage": "included",
+        "policy": "consistent-aide-db-snapshot",
+    },
+    {
         "id": "sync_state",
         "coverage": "included-when-present",
         "policy": "alles-data-tree",

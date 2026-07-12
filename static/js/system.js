@@ -2,6 +2,8 @@
 // btop-dense live dashboard: a block-char cpu history graph, a per-core grid,
 // memory/swap breakdown, up/down network graphs, a disk panel, and a top-process
 // table. all monospace + hand-rendered, polled live. no chart library.
+import { confirm as confirmDialog } from './dialog.js';
+
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 
@@ -288,6 +290,10 @@ function buildShell(s) {
   const note = s.live ? '' :
     `<div class="sys-note">live cpu% + processes + net need <code>psutil</code> (<code>pip install psutil</code>); ram + disk shown from the static readout.</div>`;
   $('system-body').innerHTML = `${note}
+    <section class="server-service-card" id="server-searxng" aria-labelledby="server-searxng-title">
+      <div class="server-service-copy"><strong id="server-searxng-title">optional searxng</strong><span id="server-searxng-status">checking…</span></div>
+      <div class="server-service-actions" id="server-searxng-actions"></div>
+    </section>
     <div id="sys-shell">
       <div class="neofetch">
         <pre class="nf-logo">${esc(logoFor(s.host.platform))}</pre>
@@ -309,6 +315,49 @@ function buildShell(s) {
         </div>
       </div>
     </div>`;
+}
+
+async function loadManagedSearxng() {
+  const statusEl = $('server-searxng-status');
+  const actions = $('server-searxng-actions');
+  if (!statusEl || !actions) return;
+  try {
+    const response = await fetch('/api/system/searxng');
+    if (!response.ok) throw new Error('health unavailable');
+    const service = await response.json();
+    const runtime = service.available ? `docker ${service.docker_version || 'ready'}` : 'docker unavailable';
+    const state = !service.support_verified && !service.installed ? 'managed install unavailable' : !service.installed ? 'not installed' : !service.owned ? 'ownership check failed' : service.healthy ? 'healthy' : service.running ? 'unhealthy' : 'stopped';
+    statusEl.textContent = `${state} · ${runtime} · ${service.bind} · ${service.version} · ${service.license}`;
+    const buttons = [];
+    if (!service.installed && service.support_verified) buttons.push(['install', 'install']);
+    if (service.installed && service.owned) {
+      buttons.push([service.running ? 'stop' : 'start', service.running ? 'stop' : 'start']);
+      buttons.push(['restart', 'restart'], ['test', 'test json search'], ['update', 'safe update'], ['rollback', 'rollback'], ['uninstall', 'uninstall · keep data']);
+    }
+    actions.innerHTML = buttons.map(([action, label]) => `<button class="btn" type="button" data-searxng-action="${action}"${!service.available && action !== 'uninstall' ? ' disabled' : ''}>${label}</button>`).join('');
+  } catch (error) {
+    statusEl.textContent = `${error.message}. external search providers remain available.`;
+    actions.replaceChildren();
+  }
+}
+
+async function manageSearxng(action, button) {
+  if (action === 'uninstall' && !await confirmDialog('uninstall the Alles-owned SearXNG service? its settings and data will be kept.')) return;
+  button.disabled = true;
+  const statusEl = $('server-searxng-status');
+  if (statusEl) statusEl.textContent = `${action} in progress…`;
+  const path = ['start', 'stop', 'restart'].includes(action)
+    ? `/api/system/services/searxng/${action}`
+    : `/api/system/searxng/${action}`;
+  try {
+    const response = await fetch(path, { method: 'POST' });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(body.detail || `${action} failed`);
+    if (statusEl && action === 'test') statusEl.textContent = `json search passed · ${body.results} results`;
+    else await loadManagedSearxng();
+  } catch (error) {
+    if (statusEl) statusEl.textContent = error.message;
+  } finally { button.disabled = false; }
 }
 
 function buildInfo(s, freq, disk0) {
@@ -346,6 +395,7 @@ function buildInfo(s, freq, disk0) {
 
 function render(s) {
   if (!$('sys-shell')) buildShell(s);
+  if ($('server-searxng-status')?.textContent === 'checking…') loadManagedSearxng();
   if (s.cpu.percent != null) push(cpuHist, s.cpu.percent);
   push(ramHist, s.memory.percent);
   push(netDownHist, (s.net?.down_bps || 0));
@@ -453,5 +503,9 @@ export async function initSystem() {
   if (!_wired) {
     _wired = true;
     document.addEventListener('visibilitychange', () => { if (!document.hidden) tick(); });
+    $('system-body')?.addEventListener('click', event => {
+      const button = event.target.closest('[data-searxng-action]');
+      if (button) manageSearxng(button.dataset.searxngAction, button);
+    });
   }
 }

@@ -16,6 +16,7 @@ class IncognitoSession:
     model: str = ""
     endpoint_id: str | None = None
     mode: str = "chat"
+    chat_behavior: str = ""
     persona_id: str | None = None
     project_id: str | None = None
     working_dir: str = ""

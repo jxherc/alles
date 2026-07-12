@@ -190,7 +190,7 @@ _STARTERS = [
         "🌀",
         "You are aide — a sharp, friendly general assistant. Be concise, "
         "get to the point, and just do the thing instead of narrating that you'll do it.",
-        True,
+        False,
     ),
     (
         "coder",

@@ -2,8 +2,10 @@ import { toast } from './util.js';
 import { confirm as _dlgConfirm, prompt as _dlgPrompt } from './dialog.js';
 import { renderProjectFolders, loadProjects, getProjects, createProject, assignSession } from './projects.js';
 import { applyResponsePrivacy, stripEmojis, welcomeEnabled } from './privacy.js';
-import { renderAgentSteps } from './agentview.js';
+import { renderAgentSteps, wireAgentRunControls } from './agentview.js';
 import { isIncognitoMode } from './modes.js';
+import { scrollToLatest } from './scrollfollow.js';
+import { contextProvenanceElement } from './memoryactions.js';
 import {
   getCurrentEndpoint,
   getSelected,
@@ -83,7 +85,9 @@ export function newChat(options = {}) {
   _activeId = null;
   window._currentSession = null;
   window._pendingPersona = null;       // fresh chat starts with no persona pre-picked
+  window._pendingChatBehavior = '';
   window._refreshPersonaBtn?.();        // keep the persona button visible + pickable pre-send
+  window._refreshChatBehaviorBtn?.();
   selectAideDefault();                  // new chats follow the effective Aide Chat role
   if (!options.preserveHash && location.hash) {
     history.replaceState(null, '', location.pathname + location.search);
@@ -273,6 +277,7 @@ export async function selectSession(id) {
     restoreSessionModel(data.session);
     updateSessionHeader(data.session);
     window._setMode?.(data.session.mode || 'chat');   // restore this convo's last mode
+    window._refreshChatBehaviorBtn?.(data.session);
     // refresh persona button
     try {
       window._refreshPersonaBtn?.();
@@ -302,7 +307,13 @@ function renderMessages(msgs) {
       div.innerHTML = '<span>context compacted</span>';
       container.appendChild(div);
     } else if (m.role === 'assistant') {
-      const { row, wrap } = appendAiMsg(m.content, m.meta?.thinking, m.meta?.tool_steps);
+      const { row, wrap } = appendAiMsg(
+        m.content,
+        m.meta?.thinking,
+        m.meta?.tool_steps,
+        m.meta?.context_provenance,
+        m.meta?.agent_run_id,
+      );
       row.dataset.msgId = m.id;
       const actions = wrap.querySelector('.msg-actions');
       // re-open artifact button from history
@@ -330,7 +341,7 @@ function renderMessages(msgs) {
   // wire edit + branch buttons after all messages are rendered
   _wireEditButtons(container);
   _wireBranchButtons(container);
-  container.scrollTop = container.scrollHeight;
+  scrollDown({ force: true });
 }
 
 
@@ -338,21 +349,32 @@ export function appendUserMsg(text) {
   const { row } = _makeRow('user');
   row.innerHTML = `<div class="user-wrap">
     <div class="user-bubble">${escHtml(text)}</div>
+    <button class="msg-memory-btn" type="button" onclick="rememberUserMessage(this)">remember this</button>
     <button class="msg-edit-btn" title="edit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 3a2.8 2.8 0 0 1 4 4L7 21l-4 1 1-4Z"></path><path d="m15 5 4 4"></path></svg></button>
   </div>`;
   document.getElementById('messages').appendChild(row);
-  scrollDown();
+  scrollDown({ force: true });
   return row;
 }
 
 
-export function appendAiMsg(text, thinking, toolSteps) {
+export function appendAiMsg(text, thinking, toolSteps, contextProvenance, agentRunId = '') {
   const { row, wrap, body } = _makeAiRow();
-  // re-show the agent run (tool calls + diffs) inline, collapsed, above the reply
+  // strip artifact tags from display
+  const displayText = text ? text.replace(/<aide-artifact[^>]*>[\s\S]*?<\/aide-artifact>/g, '').trim() : '';
+  const content = document.createElement('div');
+  content.className = 'ai-content';
+  content.innerHTML = displayText ? _md(stripEmojis(displayText)) : '';
+  applyResponsePrivacy(content);
+  body.appendChild(content);
+  const context = contextProvenanceElement(contextProvenance);
+  if (context) body.appendChild(context);
+  // conclusion first; completed work stays available beneath it.
   if (toolSteps?.length) {
     const holder = document.createElement('div');
-    holder.innerHTML = renderAgentSteps(toolSteps, false);
+    holder.innerHTML = renderAgentSteps(toolSteps, false, agentRunId);
     if (holder.firstElementChild) body.appendChild(holder.firstElementChild);
+    wireAgentRunControls(body);
   }
   if (thinking) {
     const tb = document.createElement('details');
@@ -361,13 +383,6 @@ export function appendAiMsg(text, thinking, toolSteps) {
     tb.querySelector('.thinking-content').textContent = thinking;
     body.appendChild(tb);
   }
-  // strip artifact tags from display
-  const displayText = text ? text.replace(/<aide-artifact[^>]*>[\s\S]*?<\/aide-artifact>/g, '').trim() : '';
-  const content = document.createElement('div');
-  content.className = 'ai-content';
-  content.innerHTML = displayText ? _md(stripEmojis(displayText)) : '';
-  applyResponsePrivacy(content);
-  body.appendChild(content);
   body.classList.add('done');
 
   const actions = document.createElement('div');
@@ -375,7 +390,8 @@ export function appendAiMsg(text, thinking, toolSteps) {
   actions.innerHTML = `<button class="act-btn" onclick="copyMsg(this)">copy</button>
     <button class="msg-regen-btn act-btn" title="regenerate">regen</button>
     <button class="msg-rewrite-btn act-btn" data-style="shorter" title="rewrite shorter">shorter</button>
-    <button class="msg-rewrite-btn act-btn" data-style="simpler" title="rewrite simpler">simpler</button>`;
+    <button class="msg-rewrite-btn act-btn" data-style="simpler" title="rewrite simpler">simpler</button>
+    <button class="act-btn" onclick="runMessageWithJarvis(this)">run with jarvis</button>`;
   wrap.appendChild(actions);
   wireRewriteButtons(actions);
 
@@ -570,9 +586,8 @@ function _md(text) {
 }
 
 
-export function scrollDown() {
-  const chat = document.getElementById('chat');
-  chat.scrollTop = chat.scrollHeight;
+export function scrollDown(options = {}) {
+  return scrollToLatest(options);
 }
 
 
@@ -686,6 +701,7 @@ export async function createSession(model = '', endpointId = '', options = {}) {
       endpoint_id: override.endpointId,
       incognito: !!options.incognito,
       mode: options.mode || 'chat',
+      chat_behavior: options.chatBehavior ?? window._pendingChatBehavior ?? '',
     }),
   });
   if (!r.ok) return null;

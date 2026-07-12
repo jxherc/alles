@@ -70,6 +70,11 @@ _defaults = {
     "google_pse_cx": "",
     "serper_api_key": "",
     "search_fallback": "duckduckgo",
+    "andromeda_normal_results": True,
+    "andromeda_overview": True,
+    "andromeda_model_band": "standard",
+    "andromeda_model_bands": {},
+    "andromeda_qualified_models": [],
     "memory_auto_inject": True,
     "memory_policy": "ask",  # off | ask | auto
     "tts_speed": 1.0,

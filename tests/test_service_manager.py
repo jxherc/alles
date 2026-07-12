@@ -228,6 +228,23 @@ class ServiceManagerTest(unittest.TestCase):
         self.assertEqual(rows[0]["actions"], [])
         runner.assert_not_called()
 
+    def test_unregister_removes_only_matching_markers_and_keeps_data(self):
+        service = self._compose()
+        data = Path(service.root) / "private-data"
+        data.write_text("keep")
+        result = sm.unregister_owned_service("search")
+        self.assertTrue(result["ok"])
+        self.assertFalse((Path(service.root) / sm._OWNER_FILE).exists())
+        self.assertFalse((sm._registry_dir() / "search.json").exists())
+        self.assertEqual(data.read_text(), "keep")
+
+    def test_unregister_refuses_tampered_service(self):
+        service = self._compose()
+        Path(service.definition).write_text("tampered")
+        with self.assertRaises(sm.ServiceOwnershipError):
+            sm.unregister_owned_service("search")
+        self.assertTrue((Path(service.root) / sm._OWNER_FILE).exists())
+
 
 if __name__ == "__main__":
     unittest.main()
