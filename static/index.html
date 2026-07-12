@@ -52,9 +52,17 @@
     </div>
     <div class="space-rail-bottom">
       <button class="space-rail-action" id="app-drawer-btn" type="button" aria-haspopup="dialog" aria-expanded="false">apps</button>
-      <button class="space-rail-action" id="space-settings-btn" type="button">settings</button>
+      <button class="space-rail-action" id="space-profile-btn" type="button" aria-haspopup="menu" aria-expanded="false">profile</button>
     </div>
   </nav>
+
+  <div class="space-profile-menu" id="space-profile-menu" role="menu" aria-label="alles profile" hidden>
+    <div class="space-profile-copy">
+      <strong>alles</strong>
+      <span>your private workspace</span>
+    </div>
+    <button class="space-profile-item" id="space-settings-btn" type="button" role="menuitem">settings <kbd>⌘/ctrl ,</kbd></button>
+  </div>
 
   <div class="app-drawer-scrim" id="app-drawer-scrim" hidden></div>
   <aside class="app-drawer" id="app-drawer" role="dialog" aria-modal="true" aria-labelledby="app-drawer-title" hidden>
@@ -1015,80 +1023,48 @@
 </div>
 
 <!-- settings modal (multi-pane) -->
-<div class="modal-overlay" id="settings-modal" style="display:none">
-  <div class="s-modal">
+<div class="modal-overlay" id="settings-modal" role="dialog" aria-modal="true" aria-labelledby="settings-modal-title" style="display:none">
+  <div class="s-modal" tabindex="-1">
     <div class="s-header">
-      <span class="s-title">settings</span>
-      <button class="modal-close" id="settings-modal-close">×</button>
+      <span class="s-title" id="settings-modal-title">settings</span>
+      <button class="modal-close" id="settings-modal-close" type="button" aria-label="close settings">×</button>
     </div>
     <div class="s-layout">
 
       <!-- left nav -->
-      <nav class="s-nav">
-        <div class="s-nav-item active" data-pane="models">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
-          models
-        </div>
-        <div class="s-nav-item" data-pane="ai">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
-          ai defaults
-        </div>
-        <div class="s-nav-item" data-pane="memory">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/></svg>
-          memory
-        </div>
-        <div class="s-nav-item" data-pane="search">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-          search
-        </div>
-        <div class="s-nav-item" data-pane="general">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="7" r="4"/><path d="M5.5 21a6.5 6.5 0 0 1 13 0"/></svg>
-          general
-        </div>
-        <div class="s-nav-item" data-pane="security">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-          security
-        </div>
-        <div class="s-nav-item" data-pane="themes">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
-          themes
-        </div>
-        <div class="s-nav-item" data-pane="voice">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/></svg>
-          voice
-        </div>
-        <div class="s-nav-item" data-pane="personas">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-          personas
-        </div>
-        <div class="s-nav-item" data-pane="tools">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
-          tools
-        </div>
-        <div class="s-nav-item" data-pane="developer">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
-          developer
-        </div>
-        <div class="s-nav-item" data-pane="rules">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-          rules
-        </div>
-        <div class="s-nav-item" data-pane="backup">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-          backup
-        </div>
-        <div class="s-nav-item" data-pane="recall">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          recall
-        </div>
-        <div class="s-nav-item" data-pane="proactive">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.6 4.6L18 9l-4.4 1.4L12 15l-1.6-4.6L6 9l4.4-1.4z"/></svg>
-          proactive
-        </div>
-        <div class="s-nav-item" data-pane="intelligence">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/></svg>
-          intelligence
-        </div>
+      <nav class="s-nav" aria-label="settings sections">
+        <div class="s-nav-group">general &amp; appearance</div>
+        <button class="s-nav-item active" type="button" data-pane="general">general</button>
+        <button class="s-nav-item" type="button" data-pane="themes">appearance</button>
+
+        <div class="s-nav-group">aide &amp; chat behavior</div>
+        <button class="s-nav-item" type="button" data-pane="ai">chat defaults</button>
+        <button class="s-nav-item" type="button" data-pane="search">search</button>
+        <button class="s-nav-item" type="button" data-pane="voice">voice</button>
+        <button class="s-nav-item" type="button" data-pane="personas">personas</button>
+        <button class="s-nav-item" type="button" data-pane="proactive">proactive</button>
+        <button class="s-nav-item" type="button" data-pane="intelligence">intelligence</button>
+
+        <div class="s-nav-group">models &amp; providers</div>
+        <button class="s-nav-item" type="button" data-pane="models">models</button>
+
+        <div class="s-nav-group">memory &amp; instructions</div>
+        <button class="s-nav-item" type="button" data-pane="memory">memory</button>
+        <button class="s-nav-item" type="button" data-pane="recall">recall</button>
+
+        <div class="s-nav-group">connections &amp; mcp</div>
+        <button class="s-nav-item" type="button" data-pane="tools">connections &amp; tools</button>
+        <button class="s-nav-item" type="button" data-pane="developer">api &amp; shortcuts</button>
+
+        <div class="s-nav-group">privacy &amp; security</div>
+        <button class="s-nav-item" type="button" data-pane="security">privacy &amp; password</button>
+
+        <div class="s-nav-group">notifications &amp; language</div>
+        <button class="s-nav-item" type="button" data-pane="notifications">language &amp; region</button>
+        <button class="s-nav-item" type="button" data-pane="rules">rules &amp; delivery</button>
+
+        <div class="s-nav-group">server, backups &amp; data</div>
+        <button class="s-nav-item" type="button" data-pane="backup">backup &amp; restore</button>
       </nav>
 
       <!-- content area -->
@@ -1116,8 +1092,10 @@
             <div class="s-card-head">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/></svg>
               model endpoints
+              <button class="btn" id="s-ep-refresh-all" type="button" style="margin-left:auto;font-size:0.68rem;padding:0.15rem 0.5rem">refresh all</button>
             </div>
             <div class="s-card-body">
+              <p class="s-card-hint s-provider-warning">provider account sign-in is not offered. api-key endpoints may use paid quota or credits, so check billing with the provider. disconnect an endpoint here when you no longer want alles to use it.</p>
               <div id="s-ep-list" style="margin-bottom:0.75rem"></div>
               <details id="s-ep-add-details">
                 <summary class="s-add-summary">+ add endpoint</summary>
@@ -1206,8 +1184,17 @@
             </div>
             <div class="s-card-body">
               <div class="s-field">
-                <label>system prompt</label>
-                <textarea class="settings-textarea" id="settings-system-prompt" rows="4" placeholder="You are Aide, the AI assistant inside Alles."></textarea>
+                <label>default chat behavior</label>
+                <div class="s-behavior-options" id="s-default-chat-behavior" role="radiogroup" aria-label="default chat behavior">
+                  <button type="button" data-chat-behavior="automatic_tools" role="radio" aria-checked="false">
+                    <strong>automatic tools</strong>
+                    <small>aide can use the right tool when your request needs one</small>
+                  </button>
+                  <button type="button" data-chat-behavior="answer_only" role="radio" aria-checked="false">
+                    <strong>answer only</strong>
+                    <small>reply without automatically switching into tool use</small>
+                  </button>
+                </div>
               </div>
               <div class="s-field">
                 <label>context window (messages)</label>
@@ -1252,12 +1239,21 @@
         <!-- ── memory pane (aide's long-term memory) ── -->
         <div class="s-pane" id="s-pane-memory">
           <div class="s-card">
+            <div class="s-card-head">owner instructions</div>
+            <div class="s-card-body">
+              <p class="s-card-hint">tell aide how to work with you. these instructions are separate from memory and cannot replace alles safety rules.</p>
+              <textarea class="settings-textarea" id="settings-owner-instructions" rows="5" placeholder="for example: use short answers and explain unfamiliar terms."></textarea>
+              <div style="text-align:right;margin-top:0.55rem"><button class="btn primary" id="s-owner-instructions-save" type="button">save instructions</button></div>
+            </div>
+          </div>
+          <div class="s-card">
             <div class="s-card-head">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/></svg>
               memory
               <button class="btn" id="mem-extract-btn" style="margin-left:auto;font-size:0.68rem;padding:0.15rem 0.5rem">extract from chat</button>
             </div>
             <div class="s-card-body">
+              <p class="s-card-hint">incognito chats never read or save memory. owner instructions stay separate from the memories below.</p>
               <div class="mem-policy" aria-label="memory policy">
                 <div class="mem-policy-copy">
                   <div class="s-toggle-label">memory policy</div>
@@ -1268,6 +1264,10 @@
                   <button class="mem-policy-btn" data-memory-policy="ask">ask</button>
                   <button class="mem-policy-btn" data-memory-policy="auto">auto</button>
                 </div>
+              </div>
+              <div class="s-toggle-row">
+                <div><div class="s-toggle-label">use relevant memory in chats</div><div class="s-toggle-desc">available only while memory is set to ask or auto</div></div>
+                <div class="s-switch" id="s-memory-inject-toggle" role="switch" aria-checked="false"></div>
               </div>
               <input type="text" id="mem-search" class="settings-input" placeholder="search memories..." style="width:100%;margin-bottom:0.55rem">
               <div id="mem-category-filter" class="mem-cat-filter"></div>
@@ -1354,37 +1354,12 @@
           </div>
           <div class="s-card">
             <div class="s-card-head">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20"/></svg>
-              language &amp; region
-            </div>
-            <div class="s-card-body">
-              <div class="s-field">
-                <label>interface language <span class="s-field-note">more after review</span></label>
-                <div class="settings-input custom-select" id="s-language" data-value="en" data-options="en|English" style="width:100%"></div>
-              </div>
-              <div class="s-field">
-                <label>region <span class="s-field-note">blank = browser</span></label>
-                <input class="settings-input" id="s-region" maxlength="3" placeholder="e.g. TW, US, 001" style="width:100%">
-              </div>
-              <div class="s-field">
-                <label>time zone <span class="s-field-note">blank = browser</span></label>
-                <input class="settings-input" id="s-timezone" placeholder="e.g. Asia/Taipei" style="width:100%">
-                <div class="s-toggle-desc" id="s-timezone-detected"></div>
-              </div>
-              <button class="btn primary" id="s-locale-save">save language &amp; region</button>
-            </div>
-          </div>
-          <div class="s-card">
-            <div class="s-card-head">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
               chat bar
               <button class="btn" id="s-vis-reset-btn" style="margin-left:auto;font-size:0.68rem;padding:0.15rem 0.5rem">reset all</button>
             </div>
             <div class="s-card-body" style="padding-top:0.2rem;padding-bottom:0.2rem">
-              <div class="s-toggle-row"><div><div class="s-toggle-label">sensitive blur</div><div class="s-toggle-desc">blur emails, keys and secrets in AI replies</div></div><div class="s-switch" id="s-sensitive-blur-toggle"></div></div>
-              <div class="s-toggle-row"><div><div class="s-toggle-label">text-only emojis</div><div class="s-toggle-desc">strip emoji glyphs from AI replies</div></div><div class="s-switch" id="s-text-emoji-toggle"></div></div>
               <div class="s-toggle-row"><div><div class="s-toggle-label">welcome message</div><div class="s-toggle-desc">show the empty chat welcome screen</div></div><div class="s-switch" id="s-welcome-toggle"></div></div>
-              <div class="s-toggle-row"><div><div class="s-toggle-label">auto-inject memories</div><div class="s-toggle-desc">include relevant memories in every chat</div></div><div class="s-switch" id="s-memory-inject-toggle"></div></div>
               <div class="s-toggle-row"><div><div class="s-toggle-label">compact mode</div><div class="s-toggle-desc">tighter spacing throughout the UI</div></div><div class="s-switch" id="s-ui-compact-toggle"></div></div>
               <div class="s-field" style="margin-top:0.35rem">
                 <label>font size</label>
@@ -1416,6 +1391,14 @@
 
         <!-- ── security pane (alles-scope) ── -->
         <div class="s-pane" id="s-pane-security">
+          <div class="s-card">
+            <div class="s-card-head">privacy</div>
+            <div class="s-card-body" style="padding-top:0.2rem;padding-bottom:0.2rem">
+              <div class="s-toggle-row"><div><div class="s-toggle-label">sensitive blur</div><div class="s-toggle-desc">blur emails, keys and secrets in aide replies</div></div><div class="s-switch" id="s-sensitive-blur-toggle"></div></div>
+              <div class="s-toggle-row"><div><div class="s-toggle-label">text-only emojis</div><div class="s-toggle-desc">strip emoji glyphs from aide replies</div></div><div class="s-switch" id="s-text-emoji-toggle"></div></div>
+              <p class="s-card-hint">incognito is chosen per chat. incognito chats stay only in temporary memory and are deleted when you leave them.</p>
+            </div>
+          </div>
           <div class="s-card">
             <div class="s-card-head">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
@@ -1687,6 +1670,7 @@
               <div class="s-field"><label>token</label><input type="password" class="settings-input" id="conn-token" placeholder="personal access token" style="width:100%"></div>
               <button class="btn primary" id="conn-add-btn" style="width:100%">connect</button>
               <div class="s-card-hint">github: a fine-grained or classic PAT with repo scope. the agent gets github_* tools once connected.</div>
+              <div class="s-card-hint">alles cannot show quota or credits for token connections. check limits with the service, and disconnect here when access is no longer needed.</div>
               <button class="btn" id="conn-rotate-key" style="width:100%;margin-top:0.65rem">rotate credential key</button>
               <div class="s-card-hint">re-encrypts saved credentials, then safely retires the old key.</div>
             </div>
@@ -1756,6 +1740,32 @@
               <div style="margin-bottom:0.3rem">expose Aide's models via the OpenAI API spec.</div>
               <div style="margin-bottom:0.3rem">base url: <code id="s-compat-url2" style="color:var(--accent)">http://localhost:8001/v1</code></div>
               <div>model id format: <code style="color:var(--accent)">EndpointName/model-id</code></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── language and notification preferences ── -->
+        <div class="s-pane" id="s-pane-notifications">
+          <div class="s-card">
+            <div class="s-card-head">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20"/></svg>
+              language &amp; region
+            </div>
+            <div class="s-card-body">
+              <div class="s-field">
+                <label>interface language <span class="s-field-note">more after review</span></label>
+                <div class="settings-input custom-select" id="s-language" data-value="en" data-options="en|English" style="width:100%"></div>
+              </div>
+              <div class="s-field">
+                <label>region <span class="s-field-note">blank = browser</span></label>
+                <input class="settings-input" id="s-region" maxlength="3" placeholder="e.g. TW, US, 001" style="width:100%">
+              </div>
+              <div class="s-field">
+                <label>time zone <span class="s-field-note">blank = browser</span></label>
+                <input class="settings-input" id="s-timezone" placeholder="e.g. Asia/Taipei" style="width:100%">
+                <div class="s-toggle-desc" id="s-timezone-detected"></div>
+              </div>
+              <button class="btn primary" id="s-locale-save">save language &amp; region</button>
             </div>
           </div>
         </div>
@@ -2041,7 +2051,7 @@
 </div>
 
 <script type="module">
-const _v = '218';
+const _v = '219';
 import(`/static/js/app.js?v=${_v}`);
 </script>
 </body>

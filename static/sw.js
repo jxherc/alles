@@ -1,7 +1,7 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v181';   // native PhotoKit gallery import + current shell refresh
+const VERSION = 'v182';   // Afterlife settings + compatibility refresh
 const CACHE = `alles-${VERSION}`;
-const STAMP = '206';   // keep in sync with index.html ?v= / const _v
+const STAMP = '219';   // keep in sync with index.html ?v= / const _v
 
 // 1b: mutating writes that should be queued when offline
 const MUTATING = ['POST', 'PUT', 'PATCH', 'DELETE'];

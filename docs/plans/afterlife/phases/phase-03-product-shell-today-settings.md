@@ -119,8 +119,8 @@ errors.
 
 ## 3D — consolidated Settings
 
-- [ ] Move Settings into the Alles/profile menu while keeping `Cmd/Ctrl + ,`.
-- [ ] Group existing controls into clear sections:
+- [x] Move Settings into the Alles/profile menu while keeping `Cmd/Ctrl + ,`.
+- [x] Group existing controls into clear sections:
   - General and appearance;
   - Aide and default chat behavior;
   - Models and providers;
@@ -129,19 +129,29 @@ errors.
   - Privacy and security;
   - Notifications and language;
   - Server, backups, and data.
-- [ ] Add separate defaults for Aide Chat, Andromeda overview, and Aide → Jarvis.
-- [ ] Reuse the Phase 1 model resolver, endpoint catalogs, refresh status, and unavailable-model flow.
-- [ ] Keep global, per-endpoint, and manual model refresh behavior consistent.
-- [ ] Show accepted provider account connections with quota/credits warning and Disconnect; do not add
+- [x] Add separate defaults for Aide Chat, Andromeda overview, and Aide → Jarvis.
+- [x] Reuse the Phase 1 model resolver, endpoint catalogs, refresh status, and unavailable-model flow.
+- [x] Keep global, per-endpoint, and manual model refresh behavior consistent.
+- [x] Show accepted provider account connections with quota/credits warning and Disconnect; do not add
   an OAuth flow rejected by the Phase 1 spike.
-- [ ] Add **Automatic tools** and **Answer only** as the default chat behavior choice.
-- [ ] Keep Memory Off/Ask/Auto, incognito exclusion, memory review, and owner instructions separate and
+- [x] Add **Automatic tools** and **Answer only** as the default chat behavior choice.
+- [x] Keep Memory Off/Ask/Auto, incognito exclusion, memory review, and owner instructions separate and
   understandable.
 
 ### 3D gate
 
 The effective model and behavior choices match everywhere, survive restart, and degrade per endpoint.
 One unavailable provider does not break another or leave a misleading enabled control.
+
+Current 3D evidence: focused backend tests cover behavior validation and restart-equivalent persistence,
+owner-instruction migration and prompt order, model-role resolution, provider-catalog failure isolation,
+and recent-owner checks for model credentials. The full JavaScript suite covers model/default state,
+removed models, persona and session precedence, both comma shortcuts, consolidated sections, and Memory
+Off controls. An isolated desktop and 390×844 browser pass uses three saved roles, a deliberately broken
+Jarvis choice, one failed provider beside a working provider, global refresh, owner instructions,
+Answer only, reload persistence, keyboard focus return, reduced motion, and reports no console or page
+errors. Phase 1 accepted no provider-account OAuth flow, so Settings states that limit, warns that
+API-key quota and credits remain provider-owned, and exposes Disconnect for saved endpoints/connections.
 
 ## 3E — compatibility redirects and gate
 

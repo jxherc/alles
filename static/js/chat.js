@@ -3,7 +3,7 @@ import {
   appendUserMsg, createStreamingAiRow, scrollDown,
   showMessages, updateSessionName, createSession, getActiveId, markActive,
 } from './sessions.js';
-import { getSelected, getCurrentEndpoint, isImageSelected, getImageSlot } from './models.js?v=209';
+import { getSelected, getCurrentEndpoint, isImageSelected, getImageSlot } from './models.js?v=210';
 import { openArtifact, extractArtifacts, stripArtifacts } from './artifacts.js';
 import { getAttachments, clearAttachments } from './uploads.js';
 import { isIncognitoMode, getPermMode, getEffort } from './modes.js';

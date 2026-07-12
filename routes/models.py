@@ -8,6 +8,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session as DbSession
 
 from core.api_errors import ApiError
+from core.auth import require_recent_owner
 from core.database import ModelEndpoint, SessionLocal, get_db
 from core.settings import load_settings
 from services import model_catalog
@@ -120,7 +121,7 @@ class AddEndpoint(BaseModel):
     provider_adapter: str = "auto"
 
 
-@router.post("/models/endpoint")
+@router.post("/models/endpoint", dependencies=[Depends(require_recent_owner)])
 def add_endpoint(body: AddEndpoint, db: DbSession = Depends(get_db)):
     try:
         adapter = model_catalog.validate_adapter(body.provider_adapter)
@@ -162,7 +163,7 @@ def _json_list(value: str, field: str) -> str:
     return json.dumps(parsed)
 
 
-@router.patch("/models/endpoint/{ep_id}")
+@router.patch("/models/endpoint/{ep_id}", dependencies=[Depends(require_recent_owner)])
 def patch_endpoint(ep_id: str, body: PatchEndpoint, db: DbSession = Depends(get_db)):
     endpoint = db.get(ModelEndpoint, ep_id)
     if not endpoint:
@@ -204,7 +205,7 @@ def patch_endpoint(ep_id: str, body: PatchEndpoint, db: DbSession = Depends(get_
     return _fmt_endpoint(endpoint)
 
 
-@router.delete("/models/endpoint/{ep_id}")
+@router.delete("/models/endpoint/{ep_id}", dependencies=[Depends(require_recent_owner)])
 def delete_endpoint(ep_id: str, db: DbSession = Depends(get_db)):
     endpoint = db.get(ModelEndpoint, ep_id)
     if not endpoint:

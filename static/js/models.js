@@ -5,9 +5,15 @@ import { sortModels, filterNewest } from './modelfilter.js';
 
 let _endpoints = [];
 let _selected = null;   // { endpointId, model }
+let _selectionSource = 'none'; // role | persona | explicit | session | broken
+let _aideDefault = null;
 
 // safe ls read — corrupt json here used to throw at module load and kill app boot
 function _ls(key) { try { return JSON.parse(localStorage.getItem(key) || 'null'); } catch { return null; } }
+
+function _ownerFetch(input, init) {
+  return window._fetchWithRecentOwner?.(input, init) || fetch(input, init);
+}
 
 const PRESETS = [
   { name: 'OpenAI',      url: 'https://api.openai.com',                              key: 'sk-...' },
@@ -28,18 +34,37 @@ const PRESETS = [
 
 export async function loadModels() {
   try {
-    const r = await fetch('/api/models');
-    _endpoints = await r.json();
+    const [modelsResponse, rolesResponse] = await Promise.all([
+      fetch('/api/models'),
+      fetch('/api/models/roles'),
+    ]);
+    if (!modelsResponse.ok || !rolesResponse.ok) throw new Error('model state unavailable');
+    _endpoints = await modelsResponse.json();
+    const roles = await rolesResponse.json();
     window._endpoints = _endpoints;
-    const saved = JSON.parse(localStorage.getItem('aide-model') || 'null');
-    if (saved && _endpoints.find(ep => ep.id === saved.endpointId)) {
-      _selected = saved;
-    } else if (_endpoints.length > 0 && _endpoints[0].models.length > 0) {
-      _selected = { endpointId: _endpoints[0].id, model: _endpoints[0].models[0] };
+    const savedRaw = localStorage.getItem('aide-model');
+    const saved = _ls('aide-model');
+    if (savedRaw && (!saved || !_catalogSelection(saved))) localStorage.removeItem('aide-model');
+
+    const roleState = roles?.aide_chat;
+    _aideDefault = roleState?.status === 'ready'
+      ? _catalogSelection(roleState.effective, false)
+      : null;
+
+    // An explicit conversation choice survives catalog refreshes while it is still
+    // available. Defaults are re-read from the server instead of trusting the old
+    // browser-wide picker value.
+    if (window._currentSession) {
+      if (window._currentSession.model) restoreSessionModel(window._currentSession);
+      else if (window._activePersonaModel) selectPersonaModel(window._activePersonaModel);
+      else selectAideDefault();
+    } else if (_selectionSource === 'explicit' || _selectionSource === 'session') {
+      const current = _catalogSelection(_selected);
+      if (current) _setSelection(current, _selectionSource);
+      else _setSelection(null, 'broken');
+    } else {
+      selectAideDefault();
     }
-    updateTopbar();
-    renderModelList();
-    renderSidebarModelList();
   } catch (e) {
     console.error('loadModels', e);
   }
@@ -47,9 +72,83 @@ export async function loadModels() {
 
 export function getSelected() { return _selected; }
 
+export function getSelectionSource() { return _selectionSource; }
+
 export function getCurrentEndpoint() {
   if (!_selected) return null;
   return _endpoints.find(ep => ep.id === _selected.endpointId) || null;
+}
+
+function _catalogSelection(value, allowImages = true) {
+  if (!value || typeof value !== 'object') return null;
+  const endpointId = value.endpointId || value.endpoint_id || '';
+  let model = typeof value.model === 'string' ? value.model : '';
+  let endpoint = endpointId ? _endpoints.find(ep => ep.id === endpointId) : null;
+  if (endpointId && !endpoint) return null;
+  if (!endpoint && model) {
+    endpoint = _endpoints.find(ep => (ep.models || []).includes(model) ||
+      (allowImages && (ep.image_models || []).includes(model)));
+  }
+  if (!endpoint) return null;
+  if (!model) model = (endpoint.models || [])[0] || '';
+  const offered = (endpoint.models || []).includes(model) ||
+    (allowImages && (endpoint.image_models || []).includes(model));
+  const unavailable = (endpoint.unavailable_models || []).includes(model);
+  if (!model || !offered || unavailable) return null;
+  return { endpointId: endpoint.id, model };
+}
+
+function _renderSelection() {
+  updateTopbar();
+  window._refreshEffortLabel?.();
+  renderModelList(document.getElementById('model-search-input')?.value || '');
+  renderSidebarModelList(document.getElementById('sidebar-model-search')?.value || '');
+}
+
+function _setSelection(selection, source, persist = false) {
+  _selected = selection;
+  _selectionSource = source;
+  if (persist && selection) localStorage.setItem('aide-model', JSON.stringify(selection));
+  _renderSelection();
+  return _selected;
+}
+
+// The server resolver is the source of truth for a fresh Aide chat. A broken
+// configured default stays visibly broken instead of quietly picking another provider.
+export function selectAideDefault() {
+  return _setSelection(_aideDefault, _aideDefault ? 'role' : 'broken');
+}
+
+// Restore the model that the saved conversation will actually use. Session choices
+// win over the role default; an unavailable saved choice is not hidden by a fallback.
+export function restoreSessionModel(session = {}) {
+  const hasOverride = !!(session.model || session.endpoint_id);
+  if (!hasOverride) return selectAideDefault();
+  const selection = _catalogSelection({
+    endpointId: session.endpoint_id || '',
+    model: session.model || '',
+  }, false);
+  return _setSelection(selection, selection ? 'session' : 'broken');
+}
+
+export function selectPersonaModel(model = '') {
+  const selection = _catalogSelection({ model }, false);
+  return _setSelection(selection, selection ? 'persona' : 'broken');
+}
+
+// Role defaults should remain defaults, not become session overrides. This keeps a
+// persona model free to win on the server. A model picked in the chat stays explicit.
+export function modelOverrideForNewSession(model = '', endpointId = '') {
+  const requested = _catalogSelection({ endpointId, model }, false);
+  const inherited = (_selectionSource === 'role' || _selectionSource === 'persona') && requested &&
+    _selected && requested.endpointId === _selected.endpointId && requested.model === _selected.model;
+  return inherited ? { model: '', endpointId: '' } : { model, endpointId };
+}
+
+export async function refreshAideModelDefault() {
+  await loadModels();
+  await window._refreshPersonaBtn?.();
+  return _selected;
 }
 
 // clean display label instead of the raw id — drop the vendor prefix + dash soup.
@@ -91,7 +190,11 @@ let _imageSlot = _ls('aide-image-model');
 export function getImageSlot() {
   if (!_imageSlot) return null;
   // drop it if a refresh pruned the model (no longer offered by the endpoint)
-  if (!_isImageModel(_imageSlot.endpointId, _imageSlot.model)) return null;
+  if (!_isImageModel(_imageSlot.endpointId, _imageSlot.model)) {
+    _imageSlot = null;
+    localStorage.removeItem('aide-image-model');
+    return null;
+  }
   return _imageSlot;
 }
 export function setImageSlot(endpointId, model) {
@@ -120,18 +223,19 @@ function updateTopbar() {
   const label = document.getElementById('model-label');
   const dot = document.getElementById('live-dot');
   if (_selected) {
-    label.textContent = prettyModel(_selected.model);
+    if (label) label.textContent = prettyModel(_selected.model);
     const ep = getCurrentEndpoint();
     // the "glowing thing" becomes the provider's glowing brand logo
-    dot.classList.remove('offline');
-    dot.classList.add('has-logo');
-    dot.innerHTML = providerLogo(providerKey([ep && ep.provider, ep && ep.name, ep && ep.base_url, _selected.model].filter(Boolean).join(' ')), { size: 13 });
+    dot?.classList.remove('offline');
+    dot?.classList.add('has-logo');
+    if (dot) dot.innerHTML = providerLogo(providerKey([ep && ep.provider, ep && ep.name, ep && ep.base_url, _selected.model].filter(Boolean).join(' ')), { size: 13 });
     if (ep) window._currentEndpoint = ep;
   } else {
-    label.textContent = 'no model';
-    dot.classList.remove('has-logo');
-    dot.innerHTML = '';
-    dot.classList.add('offline');
+    if (label) label.textContent = 'no model';
+    dot?.classList.remove('has-logo');
+    if (dot) dot.innerHTML = '';
+    dot?.classList.add('offline');
+    window._currentEndpoint = null;
   }
   // companion image-slot chip
   const slotBtn = document.getElementById('image-slot-btn');
@@ -239,21 +343,19 @@ export function selectModel(endpointId, model) {
   if (_isImageModel(endpointId, model)) {
     setImageSlot(endpointId, model);
     if (!_selected) {
-      _selected = { endpointId, model };
-      localStorage.setItem('aide-model', JSON.stringify(_selected));
-      updateTopbar();
+      _setSelection({ endpointId, model }, 'explicit', true);
     }
-    document.getElementById('model-modal').style.display = 'none';
+    const modal = document.getElementById('model-modal');
+    if (modal) modal.style.display = 'none';
     return;
   }
-  _selected = { endpointId, model };
-  localStorage.setItem('aide-model', JSON.stringify(_selected));
-  updateTopbar();
-  window._refreshEffortLabel?.();   // effort is per-model → show this model's setting
-  renderModelList();
-  renderSidebarModelList(document.getElementById('sidebar-model-search')?.value || '');
+  const selection = _catalogSelection({ endpointId, model }, false);
+  if (!selection) return;
+  _setSelection(selection, 'explicit', true);
   const session = window._currentSession;
   if (session) {
+    session.model = model;
+    session.endpoint_id = endpointId;
     fetch(`/api/sessions/${session.id}`, {
       method: 'PATCH',
       headers: { 'content-type': 'application/json' },
@@ -261,7 +363,8 @@ export function selectModel(endpointId, model) {
     }).catch(() => {});
   }
   // close modal + go back to models tab
-  document.getElementById('model-modal').style.display = 'none';
+  const modal = document.getElementById('model-modal');
+  if (modal) modal.style.display = 'none';
 }
 
 // ── endpoints tab ─────────────────────────────────────────────────────────────
@@ -318,10 +421,11 @@ export function renderEndpointList() {
       };
       const keyVal = card.querySelector('.mm-edit-key').value.trim();
       if (keyVal) patch.api_key = keyVal;
-      await fetch(`/api/models/endpoint/${btn.dataset.id}`, {
+      const response = await _ownerFetch(`/api/models/endpoint/${btn.dataset.id}`, {
         method: 'PATCH', headers: {'content-type':'application/json'},
         body: JSON.stringify(patch),
       });
+      if (!response.ok) { toast('endpoint could not be saved', 'error'); return; }
       toast('saved', 'success');
       await loadModels();
       renderEndpointList();
@@ -364,7 +468,8 @@ export function renderEndpointList() {
   el.querySelectorAll('.mm-del-btn').forEach(btn => {
     btn.addEventListener('click', async () => {
       if (!await _dlgConfirm('remove this endpoint?')) return;
-      await fetch(`/api/models/endpoint/${btn.dataset.id}`, { method: 'DELETE' });
+      const response = await _ownerFetch(`/api/models/endpoint/${btn.dataset.id}`, { method: 'DELETE' });
+      if (!response.ok) { toast('endpoint could not be disconnected', 'error'); return; }
       toast('removed', 'success');
       await loadModels();
       renderEndpointList();
@@ -478,7 +583,7 @@ function maybeAutoRefresh() {
 }
 
 export async function addEndpoint(name, url, key, adapter = 'auto', manualModels = []) {
-  const r = await fetch('/api/models/endpoint', {
+  const r = await _ownerFetch('/api/models/endpoint', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ name, base_url: url, api_key: key, provider_adapter: adapter }),
@@ -486,7 +591,7 @@ export async function addEndpoint(name, url, key, adapter = 'auto', manualModels
   if (!r.ok) throw new Error(await r.text());
   const ep = await r.json();
   if (adapter === 'manual') {
-    const updated = await fetch(`/api/models/endpoint/${ep.id}`, {
+    const updated = await _ownerFetch(`/api/models/endpoint/${ep.id}`, {
       method: 'PATCH',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ models: manualModels }),
@@ -506,3 +611,6 @@ function escHtml(s = '') {
 function escAttr(s = '') {
   return escHtml(s).replace(/"/g,'&quot;');
 }
+
+// Settings can call this after saving role defaults without importing app internals.
+window._refreshAideModelDefault = refreshAideModelDefault;
