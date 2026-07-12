@@ -906,11 +906,18 @@ class JarvisDeliveryAttempt(Base):
     event_id = Column(
         String, ForeignKey("jarvis_run_events.id", ondelete="SET NULL"), nullable=True
     )
+    connector_id = Column(
+        String, ForeignKey("jarvis_connectors.id", ondelete="SET NULL"), nullable=True, index=True
+    )
     channel = Column(String, nullable=False)
     privacy_level = Column(String, default="title_status")
     state = Column(String, nullable=False, default="pending", index=True)
     attempt_count = Column(Integer, default=0)
     next_attempt_at = Column(DateTime, nullable=True, index=True)
+    lease_owner = Column(String, default="")
+    lease_expires_at = Column(DateTime, nullable=True, index=True)
+    idempotency_supported = Column(Boolean, default=False)
+    last_attempt_at = Column(DateTime, nullable=True)
     safe_error_class = Column(String, default="")
     provider_message_id = Column(String, default="")
     idempotency_key = Column(String(64), nullable=False, unique=True)

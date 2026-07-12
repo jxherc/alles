@@ -437,6 +437,11 @@ def _register_jobs():
         finally:
             db.close()
 
+    async def _jarvis_outbox():
+        from services.jarvis_outbox import process_outbox
+
+        await process_outbox()
+
     async def _models():
         from routes.models import refresh_all_model_lists
 
@@ -611,6 +616,7 @@ def _register_jobs():
     jobs.register("day_events", _days, 30)
     jobs.register("automations", _autos, 30)
     jobs.register("jarvis_scheduler", _jarvis_scheduler, 5)
+    jobs.register("jarvis_outbox", _jarvis_outbox, 5)
     jobs.register("reminders", _fire_due_reminders, 30)
     jobs.register("calendar_reminders", _cal_reminders, 30)
     jobs.register("mail_outbox", _outbox, 30)  # flush scheduled sends (5b)
