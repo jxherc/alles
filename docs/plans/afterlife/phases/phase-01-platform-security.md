@@ -214,8 +214,9 @@ Phase 1 is split into small gates. A later gate must not weaken an earlier one.
 ## 1C — backup destinations
 
 - [x] Re-validate the encrypted local destination against the disaster-recovery gate.
-  - One canonical inventory covers all 12 encrypted database fields, 11 encrypted Settings fields,
-    and the CalDAV, CardDAV, WebDAV backup, and S3-compatible credential fields. New backups reject plaintext
+  - One canonical inventory now covers all 13 encrypted database fields, including the Phase 2 Jarvis
+    connector secret, plus 11 encrypted Settings fields and the CalDAV, CardDAV, WebDAV backup, and
+    S3-compatible credential fields. New backups reject plaintext
     credentials, corrupt or missing keys,
     unavailable key IDs, wrong field binding, changed ciphertext, and linked dependency files.
   - SQLite is snapshotted before DB-backed files are collected. The keyring, Settings, DAV configs,

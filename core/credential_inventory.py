@@ -13,6 +13,7 @@ DATABASE_CREDENTIAL_FIELDS = (
     ("mcp_servers", "url", "mcp_servers.url"),
     ("mcp_servers", "env", "mcp_servers.env"),
     ("mcp_servers", "headers", "mcp_servers.headers"),
+    ("jarvis_connectors", "secret", "jarvis_connectors.secret"),
 )
 
 SETTING_CREDENTIAL_KEYS = (
