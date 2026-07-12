@@ -1,13 +1,21 @@
-import json, httpx
-from fastapi import APIRouter, Depends, HTTPException
+import json
+import logging
+import time
+from datetime import datetime
+
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from sqlalchemy.orm import Session as DbSession
 
-from core.database import get_db, ModelEndpoint
-from services.llm import detect_provider
-from services.imagegen import is_image_model, image_models as _image_models
+from core.api_errors import ApiError
+from core.database import ModelEndpoint, SessionLocal, get_db
+from services import model_catalog
+from services.imagegen import is_image_model
+from services.llm import detect_provider, simple_complete
+from services.redaction import redact_url
 
 router = APIRouter(prefix="/api")
+log = logging.getLogger("aide.models")
 
 _NON_CHAT = (
     "embedding",
@@ -22,48 +30,60 @@ _NON_CHAT = (
 )
 
 
-def _is_chat_model(mid: str) -> bool:
-    ml = mid.lower()
-    # keep image-gen models out of the chat list too — they have their own picker
-    return not any(x in ml for x in _NON_CHAT) and not is_image_model(mid)
+def _is_chat_model(model_id: str) -> bool:
+    lowered = (model_id or "").lower()
+    return (
+        bool(lowered)
+        and not any(item in lowered for item in _NON_CHAT)
+        and not is_image_model(model_id)
+    )
 
 
-def _fmt_endpoint(ep: ModelEndpoint) -> dict:
-    import json as _json
-
+def _fmt_endpoint(endpoint: ModelEndpoint) -> dict:
     try:
-        vision = _json.loads(ep.vision_models or "[]")
-    except Exception:
+        vision = json.loads(endpoint.vision_models or "[]")
+        if not isinstance(vision, list):
+            vision = []
+    except (TypeError, ValueError):
         vision = []
     return {
-        "id": ep.id,
-        "name": ep.name,
-        "base_url": ep.base_url,
-        "enabled": ep.enabled,
-        "provider": detect_provider(ep.base_url),
-        "models": ep.models_list(),
+        "id": endpoint.id,
+        "name": endpoint.name,
+        "base_url": redact_url(endpoint.base_url),
+        "enabled": endpoint.enabled,
+        "provider": detect_provider(endpoint.base_url),
+        "provider_adapter": endpoint.provider_adapter or "auto",
+        "models": endpoint.models_list(),
         "vision_models": vision,
-        "image_models": ep.image_models_list(),
-        "created_at": ep.created_at.isoformat(),
+        "image_models": endpoint.image_models_list(),
+        "unavailable_models": endpoint.unavailable_models_list(),
+        "model_metadata": endpoint.model_metadata_dict(),
+        "catalog_status": endpoint.catalog_status or "unverified",
+        "catalog_source": endpoint.catalog_source or "",
+        "catalog_error": endpoint.catalog_error or "",
+        "catalog_refreshed_at": (
+            endpoint.catalog_refreshed_at.isoformat() if endpoint.catalog_refreshed_at else None
+        ),
+        "health_status": endpoint.health_status or "unverified",
+        "last_tested_at": endpoint.last_tested_at.isoformat() if endpoint.last_tested_at else None,
+        "last_error_code": endpoint.last_error_code or "",
+        "created_at": endpoint.created_at.isoformat(),
     }
 
 
-# GET /api/models  — all enabled endpoints with cached model lists
 @router.get("/models")
 def list_models(db: DbSession = Depends(get_db)):
-    eps = db.query(ModelEndpoint).filter(ModelEndpoint.enabled == True).all()
-    return [_fmt_endpoint(ep) for ep in eps]
+    endpoints = db.query(ModelEndpoint).filter(ModelEndpoint.enabled == True).all()
+    return [_fmt_endpoint(endpoint) for endpoint in endpoints]
 
 
 @router.get("/setup/status")
 def setup_status(db: DbSession = Depends(get_db)):
-    """first-run check — is there at least one usable AI provider wired up?
-    drives the welcome/get-started card so a fresh install isn't a dead end."""
-    eps = db.query(ModelEndpoint).filter(ModelEndpoint.enabled == True).all()
-    with_models = [ep for ep in eps if ep.models_list()]
+    endpoints = db.query(ModelEndpoint).filter(ModelEndpoint.enabled == True).all()
+    with_models = [endpoint for endpoint in endpoints if endpoint.models_list()]
     return {
         "configured": bool(with_models),
-        "endpoints": len(eps),
+        "endpoints": len(endpoints),
         "endpoints_with_models": len(with_models),
     }
 
@@ -72,16 +92,28 @@ class AddEndpoint(BaseModel):
     name: str
     base_url: str
     api_key: str = ""
+    provider_adapter: str = "auto"
 
 
-# POST /api/models/endpoint
 @router.post("/models/endpoint")
 def add_endpoint(body: AddEndpoint, db: DbSession = Depends(get_db)):
-    ep = ModelEndpoint(name=body.name, base_url=body.base_url.rstrip("/"), api_key=body.api_key)
-    db.add(ep)
+    try:
+        adapter = model_catalog.validate_adapter(body.provider_adapter)
+    except ValueError as exc:
+        raise ApiError(400, "invalid_provider_adapter", str(exc)) from exc
+    endpoint = ModelEndpoint(
+        name=(body.name or "").strip() or "endpoint",
+        base_url=body.base_url.rstrip("/"),
+        api_key=body.api_key,
+        provider_adapter=adapter,
+        catalog_status="manual" if adapter == "manual" else "unverified",
+        catalog_source="manual" if adapter == "manual" else "",
+        health_status="unverified",
+    )
+    db.add(endpoint)
     db.commit()
-    db.refresh(ep)
-    return _fmt_endpoint(ep)
+    db.refresh(endpoint)
+    return _fmt_endpoint(endpoint)
 
 
 class PatchEndpoint(BaseModel):
@@ -89,264 +121,149 @@ class PatchEndpoint(BaseModel):
     base_url: str | None = None
     api_key: str | None = None
     enabled: bool | None = None
-    models: list[str] | None = None  # manually set the chat model list (no live probe needed)
-    vision_models: str | None = None  # json list string
-    image_models: str | None = None  # json list string
+    provider_adapter: str | None = None
+    models: list[str] | None = None
+    vision_models: str | None = None
+    image_models: str | None = None
 
 
-# PATCH /api/models/endpoint/{id}
+def _json_list(value: str, field: str) -> str:
+    try:
+        parsed = json.loads(value)
+    except (TypeError, ValueError) as exc:
+        raise ApiError(400, "invalid_model_list", f"{field} must be a JSON list") from exc
+    if not isinstance(parsed, list) or any(not isinstance(item, str) for item in parsed):
+        raise ApiError(400, "invalid_model_list", f"{field} must be a JSON list of model IDs")
+    return json.dumps(parsed)
+
+
 @router.patch("/models/endpoint/{ep_id}")
 def patch_endpoint(ep_id: str, body: PatchEndpoint, db: DbSession = Depends(get_db)):
-    ep = db.get(ModelEndpoint, ep_id)
-    if not ep:
-        raise HTTPException(404)
+    endpoint = db.get(ModelEndpoint, ep_id)
+    if not endpoint:
+        raise ApiError(404, "model_endpoint_not_found", "model endpoint not found")
     if body.name is not None:
-        ep.name = body.name
-    if body.base_url is not None:
-        ep.base_url = body.base_url
+        endpoint.name = body.name
+    if body.base_url is not None and body.base_url.rstrip("/") != endpoint.base_url:
+        endpoint.base_url = body.base_url.rstrip("/")
+        if (endpoint.provider_adapter or "auto") != "manual":
+            unavailable = set(endpoint.unavailable_models_list()) | set(endpoint.models_list())
+            endpoint.unavailable_models = json.dumps(sorted(unavailable))
+            endpoint.cached_models = "[]"
+            endpoint.image_models = "[]"
+            endpoint.model_metadata = "{}"
+            endpoint.catalog_status = "unverified"
+            endpoint.catalog_source = ""
+        endpoint.health_status = "unverified"
+        endpoint.last_error_code = ""
     if body.api_key is not None:
-        ep.api_key = body.api_key
+        endpoint.api_key = body.api_key
+        endpoint.health_status = "unverified"
+        if endpoint.catalog_status == "live":
+            endpoint.catalog_status = "stale"
     if body.enabled is not None:
-        ep.enabled = body.enabled
+        endpoint.enabled = body.enabled
+    if body.provider_adapter is not None:
+        try:
+            model_catalog.set_adapter(endpoint, body.provider_adapter)
+        except ValueError as exc:
+            raise ApiError(400, "invalid_provider_adapter", str(exc)) from exc
     if body.models is not None:
-        import json as _json
-
-        ep.cached_models = _json.dumps(body.models)
+        endpoint.provider_adapter = "manual"
+        model_catalog.set_manual_models(endpoint, body.models)
     if body.vision_models is not None:
-        ep.vision_models = body.vision_models
+        endpoint.vision_models = _json_list(body.vision_models, "vision_models")
     if body.image_models is not None:
-        ep.image_models = body.image_models
+        endpoint.image_models = _json_list(body.image_models, "image_models")
     db.commit()
-    return _fmt_endpoint(ep)
+    return _fmt_endpoint(endpoint)
 
 
-# DELETE /api/models/endpoint/{id}
 @router.delete("/models/endpoint/{ep_id}")
 def delete_endpoint(ep_id: str, db: DbSession = Depends(get_db)):
-    ep = db.get(ModelEndpoint, ep_id)
-    if not ep:
-        raise HTTPException(404)
-    db.delete(ep)
+    endpoint = db.get(ModelEndpoint, ep_id)
+    if not endpoint:
+        raise ApiError(404, "model_endpoint_not_found", "model endpoint not found")
+    db.delete(endpoint)
     db.commit()
     return {"ok": True}
 
 
-# the static Anthropic list is only a FALLBACK for keys that can't hit the
-# models API — the live probe below is what keeps lists current
-_ANTHROPIC_FALLBACK = [
-    "claude-opus-4-8",
-    "claude-sonnet-4-6",
-    "claude-haiku-4-5-20251001",
-]
-
-# per-provider FALLBACK line-ups (current flagships + a couple of superseded ones so "newest
-# only" has something to collapse). only used when the live /v1/models probe can't run — no
-# api key, or it errors — so the picker + newest-only still work with no keys at all. a real
-# key always wins: refresh replaces these with whatever the provider actually returns.
-_PROVIDER_FALLBACK = {
-    "openai": [
-        "gpt-5.5", "gpt-5.5-pro", "gpt-5", "gpt-4o", "gpt-4o-mini", "o3", "o4-mini",
-        "gpt-4.1", "gpt-image-2", "dall-e-3", "sora-2",
-    ],
-    "anthropic": _ANTHROPIC_FALLBACK,
-    "deepseek": ["deepseek-chat", "deepseek-reasoner"],
-    "moonshot": [
-        "kimi-k2.7", "kimi-k2-turbo-preview", "kimi-latest",
-        "moonshot-v1-128k", "moonshot-v1-32k", "moonshot-v1-8k",
-    ],
-    "groq": [
-        "llama-3.3-70b-versatile", "llama-3.1-8b-instant",
-        "deepseek-r1-distill-llama-70b", "qwen-2.5-32b", "gemma2-9b-it",
-        "moonshotai/kimi-k2-instruct",
-    ],
-    "xai": [
-        "grok-4", "grok-4-fast-reasoning", "grok-3", "grok-3-mini", "grok-2-image-1212",
-    ],
-    "gemini": [
-        "gemini-2.5-pro", "gemini-2.5-flash", "gemini-2.5-flash-lite",
-        "gemini-2.0-flash", "imagen-4.0-generate-001",
-    ],
-    "mistral": [
-        "mistral-large-latest", "mistral-medium-latest", "mistral-small-latest",
-        "codestral-latest", "pixtral-large-latest", "magistral-medium-latest",
-    ],
-    "perplexity": [
-        "sonar", "sonar-pro", "sonar-reasoning", "sonar-reasoning-pro", "sonar-deep-research",
-    ],
-    "together": [
-        "meta-llama/Llama-3.3-70B-Instruct-Turbo", "deepseek-ai/DeepSeek-R1",
-        "Qwen/Qwen2.5-72B-Instruct-Turbo", "black-forest-labs/FLUX.1-schnell",
-    ],
-    "fireworks": [
-        "accounts/fireworks/models/llama-v3p3-70b-instruct",
-        "accounts/fireworks/models/deepseek-r1",
-        "accounts/fireworks/models/qwen2p5-72b-instruct",
-    ],
-    "cohere": ["command-a-03-2025", "command-r-plus", "command-r", "command-r7b"],
-    "openrouter": [
-        "anthropic/claude-opus-4-8", "anthropic/claude-sonnet-4-6",
-        "openai/gpt-5.5", "openai/gpt-4o", "google/gemini-2.5-pro",
-        "x-ai/grok-4", "deepseek/deepseek-r1", "meta-llama/llama-3.3-70b-instruct",
-    ],
-}
-
-
-async def _fetch_raw_model_ids(ep: ModelEndpoint) -> list[str]:
-    """the full, unfiltered model-id list from the provider (chat + image + the
-    rest). raises on failure. callers split it into chat/image as needed."""
-    provider = detect_provider(ep.base_url)
-    base = ep.base_url.rstrip("/")
-
-    if provider == "anthropic":
-        # Anthropic has a real models API — use it so new releases show up on
-        # their own; the static list is only for keys that can't reach it
-        try:
-            async with httpx.AsyncClient(timeout=10) as c:
-                r = await c.get(
-                    base + "/v1/models?limit=100",
-                    headers={
-                        "x-api-key": ep.api_key or "",
-                        "anthropic-version": "2023-06-01",
-                    },
-                )
-                r.raise_for_status()
-                models = [m["id"] for m in r.json().get("data", [])]
-                if models:
-                    return models
-        except Exception:
-            pass
-        return list(_ANTHROPIC_FALLBACK)
-
-    if provider == "ollama":
-        async with httpx.AsyncClient(timeout=10) as c:
-            r = await c.get(base + "/api/tags")
-            r.raise_for_status()
-            return [m["name"] for m in r.json().get("models", [])]
-
-    headers = {"content-type": "application/json"}
-    if ep.api_key:
-        headers["authorization"] = f"Bearer {ep.api_key}"
-    # a real key + a reachable models API wins. on no key / error / empty, fall back to the
-    # known current line-up so the picker + newest-only still work offline (no keys).
-    try:
-        async with httpx.AsyncClient(timeout=10) as c:
-            r = await c.get(base + "/v1/models", headers=headers)
-            r.raise_for_status()
-            data = r.json()
-        ids = [x["id"] for x in data.get("data", [])]
-        if ids:
-            return ids
-    except Exception:
-        pass
-    fallback = _PROVIDER_FALLBACK.get(provider)
-    if fallback:
-        return list(fallback)
-    raise RuntimeError(f"no models for {ep.name}: probe failed and no fallback for '{provider}'")
-
-
-async def fetch_models_split(ep: ModelEndpoint) -> tuple[list[str], list[str]]:
-    """(chat_models, image_models) for an endpoint, from one probe."""
-    raw = await _fetch_raw_model_ids(ep)
-    return [m for m in raw if _is_chat_model(m)], _image_models(raw)
-
-
 async def refresh_all_model_lists() -> list[dict]:
-    """re-probe every enabled endpoint so new provider models appear without anyone
-    clicking refresh. failures keep the old cache. returns the per-endpoint
-    additions so callers (the UI) can announce what's new."""
-    import logging
-
-    log = logging.getLogger("aide.models")
-    from core.database import SessionLocal
-
     db = SessionLocal()
-    diffs = []
+    results = []
     try:
-        for ep in db.query(ModelEndpoint).filter(ModelEndpoint.enabled == True).all():
-            try:
-                models, imgs = await fetch_models_split(ep)
-            except Exception as e:
-                log.info(f"model refresh skipped for {ep.name}: {e}")
-                continue
-            changed = False
-            if models and set(models) != set(ep.models_list()):
-                added = [m for m in models if m not in ep.models_list()]
-                ep.cached_models = json.dumps(models)
-                changed = True
-                if added:
-                    log.info(f"{ep.name}: new models available — {', '.join(added[:5])}")
-                    diffs.append({"endpoint": ep.name, "added": added})
-            # set even when empty so a stale/cross-contaminated image list gets cleared
-            # (the probe succeeded if we got here; [] means this endpoint has no image models)
-            if imgs != ep.image_models_list():
-                ep.image_models = json.dumps(imgs)
-                changed = True
-            if changed:
-                db.commit()
+        endpoints = db.query(ModelEndpoint).filter(ModelEndpoint.enabled == True).all()
+        for endpoint in endpoints:
+            result = await model_catalog.refresh_endpoint(endpoint)
+            results.append(result)
+            db.commit()
+            if result["error_code"]:
+                log.info(
+                    "model catalog refresh failed",
+                    extra={"event": "model.catalog", "status": result["error_code"]},
+                )
     finally:
         db.close()
-    return diffs
+    return results
 
 
 _last_refresh = 0.0
 
 
-# POST /api/models/refresh — re-probe all enabled endpoints (model-picker open +
-# the manual "refresh all" button). cooldown so repeated opens don't hammer providers.
 @router.post("/models/refresh")
 async def refresh_models(force: bool = False):
     global _last_refresh
-    import time as _t
-
-    now = _t.time()
+    now = time.time()
     if not force and now - _last_refresh < 60:
-        return {"added": [], "endpoints": 0, "skipped": "cooldown"}
+        return {"added": [], "removed": [], "endpoints": 0, "skipped": "cooldown"}
     _last_refresh = now
-    diffs = await refresh_all_model_lists()
-    added = []
-    for d in diffs:
-        added.extend(d["added"])
-    return {"added": added, "endpoints": len(diffs)}
+    results = await refresh_all_model_lists()
+    return {
+        "added": [model for result in results for model in result["added"]],
+        "removed": [model for result in results for model in result["removed"]],
+        "endpoints": len(results),
+        "results": results,
+    }
 
 
-# POST /api/models/endpoint/{id}/probe — fetch model list from provider
 @router.post("/models/endpoint/{ep_id}/probe")
 async def probe_endpoint(ep_id: str, db: DbSession = Depends(get_db)):
-    ep = db.get(ModelEndpoint, ep_id)
-    if not ep:
-        raise HTTPException(404)
-    try:
-        models, imgs = await fetch_models_split(ep)
-    except Exception as e:
-        raise HTTPException(502, f"probe failed: {e}")
-    ep.cached_models = json.dumps(models)
-    ep.image_models = json.dumps(imgs)
+    endpoint = db.get(ModelEndpoint, ep_id)
+    if not endpoint:
+        raise ApiError(404, "model_endpoint_not_found", "model endpoint not found")
+    result = await model_catalog.refresh_endpoint(endpoint)
     db.commit()
-    return {"models": models, "image_models": imgs}
+    if result["error_code"]:
+        raise ApiError(502, "model_catalog_refresh_failed", "model catalog refresh failed")
+    return result
 
-# POST /api/models/endpoint/{id}/test — actually try generating text using a known model
+
 @router.post("/models/endpoint/{ep_id}/test")
 async def test_endpoint(ep_id: str, db: DbSession = Depends(get_db)):
-    from services.llm import simple_complete
-    ep = db.get(ModelEndpoint, ep_id)
-    if not ep:
-        raise HTTPException(404)
-    
-    models = ep.models_list()
+    endpoint = db.get(ModelEndpoint, ep_id)
+    if not endpoint:
+        raise ApiError(404, "model_endpoint_not_found", "model endpoint not found")
+    models = endpoint.models_list()
     if not models:
-        raise HTTPException(400, "no models available to test. probe first.")
-        
-    # use the first available chat model
+        raise ApiError(400, "model_catalog_empty", "no models available; refresh or add one")
     test_model = models[0]
-    
     try:
-        res = await simple_complete(
+        response = await simple_complete(
             [{"role": "user", "content": "respond with the word 'pong' and nothing else."}],
-            base_url=ep.base_url,
-            api_key=ep.api_key,
+            base_url=endpoint.base_url,
+            api_key=endpoint.api_key,
             model=test_model,
-            max_tokens=10
+            max_tokens=10,
         )
-        return {"ok": True, "model": test_model, "response": res}
-    except Exception as e:
-        raise HTTPException(502, f"test failed with model {test_model}: {str(e)}")
+    except Exception as exc:
+        endpoint.health_status = "unavailable"
+        endpoint.last_error_code = "model_test_failed"
+        endpoint.last_tested_at = datetime.utcnow()
+        db.commit()
+        raise ApiError(502, "model_test_failed", "model endpoint test failed") from exc
+    endpoint.health_status = "healthy"
+    endpoint.last_error_code = ""
+    endpoint.last_tested_at = datetime.utcnow()
+    db.commit()
+    return {"ok": True, "model": test_model, "response": response}

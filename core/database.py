@@ -92,6 +92,16 @@ class ModelEndpoint(Base):
     cached_models = Column(Text, default="[]")  # json list of model id strings (chat)
     vision_models = Column(Text, default="[]")  # json list of vision-capable model ids
     image_models = Column(Text, default="[]")  # json list of image-generation model ids
+    provider_adapter = Column(String, default="auto")
+    catalog_status = Column(String, default="unverified")
+    catalog_source = Column(String, default="")
+    catalog_error = Column(String, default="")
+    catalog_refreshed_at = Column(DateTime, nullable=True)
+    unavailable_models = Column(Text, default="[]")
+    model_metadata = Column(Text, default="{}")
+    health_status = Column(String, default="unverified")
+    last_tested_at = Column(DateTime, nullable=True)
+    last_error_code = Column(String, default="")
     created_at = Column(DateTime, default=_now)
 
     def models_list(self):
@@ -105,6 +115,20 @@ class ModelEndpoint(Base):
             return json.loads(self.image_models or "[]")
         except Exception:
             return []
+
+    def unavailable_models_list(self):
+        try:
+            value = json.loads(self.unavailable_models or "[]")
+            return value if isinstance(value, list) else []
+        except Exception:
+            return []
+
+    def model_metadata_dict(self):
+        try:
+            value = json.loads(self.model_metadata or "{}")
+            return value if isinstance(value, dict) else {}
+        except Exception:
+            return {}
 
 
 class Session(Base):
