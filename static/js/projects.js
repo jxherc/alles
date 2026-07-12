@@ -2,11 +2,18 @@ import { toast } from './util.js';
 import { confirm as dlgConfirm } from './dialog.js';
 
 let _projects = [];
+let _jarvisRuns = [];
 
 export async function loadProjects() {
   try {
-    const r = await fetch('/api/projects');
-    _projects = await r.json();
+    const [projects, runs] = await Promise.all([
+      fetch('/api/projects').then(r => r.ok ? r.json() : []),
+      document.body.classList.contains('afterlife-aide-projects')
+        ? fetch('/api/jarvis/runs?limit=8').then(r => r.ok ? r.json() : []).catch(() => [])
+        : Promise.resolve([]),
+    ]);
+    _projects = Array.isArray(projects) ? projects : [];
+    _jarvisRuns = Array.isArray(runs) ? runs : [];
   } catch (e) { _projects = []; }
   return _projects;
 }
@@ -39,22 +46,24 @@ export function renderProjectFolders(sessions, onSelect, onChange) {
   const list = document.getElementById('session-list');
   if (!list) return;
 
-  // only inject if there are projects
-  const projectSessions = sessions.filter(s => s.project_id);
-  if (!_projects.length) return;
+  const afterlife = document.body.classList.contains('afterlife-aide-projects');
+  if (!_projects.length && !afterlife) return;
 
   let html = '';
-  for (const p of _projects) {
-    const pSessions = sessions.filter(s => s.project_id === p.id);
+  const groups = afterlife ? [{ id: 'general', name: 'General', color: '', folder_state: 'none' }, ..._projects] : _projects;
+  for (const p of groups) {
+    const general = p.id === 'general';
+    const pSessions = sessions.filter(s => general ? !s.project_id : s.project_id === p.id);
     const dot = p.color ? `background:${p.color}` : '';
+    const state = general ? 'no folder' : ({ available: 'available', missing: 'folder missing', relink_required: 'relink required' }[p.folder_state] || 'relink required');
     html += `<div class="project-folder" data-id="${p.id}">
   <div class="project-folder-head" role="button" tabindex="0" aria-label="open project ${_esc(p.name)}">
     <span class="project-dot" style="${dot}"></span>
-    <span class="project-name">${_esc(p.name)}</span>
+    <span class="project-name">${_esc(p.name)}<small class="project-state ${_esc(p.folder_state || '')}">${state}</small></span>
     <span class="project-count">${pSessions.length}</span>
-    <button class="project-del" data-id="${p.id}" title="delete project (chats are kept)">×</button>
+    ${general ? '' : `<button class="project-del" data-id="${p.id}" title="delete project (chats are kept)">×</button>`}
   </div>
-  <div class="project-sessions" id="proj-sessions-${p.id}" style="display:none">
+  <div class="project-sessions" id="proj-sessions-${p.id}" style="display:${afterlife ? 'flex' : 'none'}">
     ${pSessions.map(s => `<div class="session-item" data-id="${s.id}" data-project="${p.id}">
       <div class="session-dot"></div>
       <span class="session-name">${_esc(s.name)}</span>
@@ -62,18 +71,26 @@ export function renderProjectFolders(sessions, onSelect, onChange) {
   </div>
 </div>`;
   }
+  if (afterlife && _jarvisRuns.length) {
+    html += `<div class="aide-runs"><span class="section-label">jarvis</span>${_jarvisRuns.map(run => `<div class="aide-run" data-state="${_esc(run.state)}"><span class="session-dot"></span><span>${_esc(run.result_summary || 'jarvis task')}</span><small>${_esc(run.state.replaceAll('_', ' '))}</small></div>`).join('')}</div>`;
+  }
 
   // prepend project folders
   list.insertAdjacentHTML('afterbegin', html);
 
-  // clicking a project opens its workspace page (not just a toggle)
+  // General starts a no-folder chat; folder Projects keep their existing workspace page.
   list.querySelectorAll('.project-folder-head').forEach(head => {
-    head.addEventListener('click', () => window._openProject?.(head.closest('.project-folder').dataset.id));
+    const open = () => {
+      const id = head.closest('.project-folder').dataset.id;
+      if (id === 'general') window._newGeneralChat?.();
+      else window._openProject?.(id);
+    };
+    head.addEventListener('click', open);
     head.addEventListener('keydown', e => {
       if (e.target !== head) return;
       if (e.key !== 'Enter' && e.key !== ' ') return;
       e.preventDefault();
-      window._openProject?.(head.closest('.project-folder').dataset.id);
+      open();
     });
   });
 
@@ -85,17 +102,16 @@ export function renderProjectFolders(sessions, onSelect, onChange) {
       e.preventDefault(); folder.classList.remove('drag-over');
       const sid = e.dataTransfer.getData('text/session');
       if (!sid) return;
-      await assignSession(folder.dataset.id, sid);
+      if (folder.dataset.id === 'general') {
+        const source = sessions.find(session => session.id === sid)?.project_id;
+        if (source) await fetch(`/api/projects/${source}/sessions/${sid}`, { method: 'DELETE' });
+      } else {
+        await assignSession(folder.dataset.id, sid);
+      }
       toast('moved to project', 'success');
       onChange?.();
     });
   });
-
-  if (onSelect) {
-    list.querySelectorAll('.session-item[data-project]').forEach(el => {
-      el.addEventListener('click', () => onSelect(el.dataset.id));
-    });
-  }
 
   list.querySelectorAll('.project-del').forEach(btn => {
     btn.addEventListener('click', async e => {

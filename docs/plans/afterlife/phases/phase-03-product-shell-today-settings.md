@@ -97,18 +97,25 @@ console, page, or server errors.
 
 ## 3C — Aide Projects rail
 
-- [ ] Show **General** and folder-backed Projects in the Aide sidebar.
-- [ ] Group each Project's threads beneath it without creating a Projects app.
-- [ ] Show Available, Folder missing, and Relink required clearly.
-- [ ] Keep active and recent Jarvis tasks visible in the same Aide shell without making Jarvis global
+- [x] Show **General** and folder-backed Projects in the Aide sidebar.
+- [x] Group each Project's threads beneath it without creating a Projects app.
+- [x] Show Available, Folder missing, and Relink required clearly.
+- [x] Keep active and recent Jarvis tasks visible in the same Aide shell without making Jarvis global
   navigation.
-- [ ] Preserve Project selection across Chat/Jarvis mode changes and page reloads.
-- [ ] Keep current Project workspace actions and thread history reachable during the migration.
+- [x] Preserve Project selection across Chat/Jarvis mode changes and page reloads.
+- [x] Keep current Project workspace actions and thread history reachable during the migration.
 
 ### 3C gate
 
 General and every Project can open by keyboard, a missing folder can be relinked without losing threads,
 and no Project is silently pointed at another folder or widened into a cross-app membership container.
+
+Current 3C evidence: focused JavaScript tests cover General, folder states, expanded threads, Jarvis
+status, keyboard opening, and moving a thread back to General. Isolated desktop and 390×844 browser
+passes use real Available, Folder missing, and Relink required Projects; preserve the selected Project
+thread and hash across mode changes and reload; keep the existing Project workspace reachable; show a
+mocked active Jarvis run; respect reduced motion; fit without overflow; and report no console or page
+errors.
 
 ## 3D — consolidated Settings
 

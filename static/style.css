@@ -4781,6 +4781,8 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 .project-folder.open .project-folder-head { color: var(--text); }
 .project-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
 .project-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.project-name small { display: block; color: var(--faint); font-size: 0.58rem; font-weight: 400; line-height: 1.2; }
+.project-name small.missing, .project-name small.relink_required { color: var(--signal); }
 .project-count { font-size: 0.65rem; color: var(--faint); }
 .project-del {
   background: none; border: none; color: var(--muted); cursor: pointer;
@@ -4791,6 +4793,14 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 .project-folder:focus-within .project-del { opacity: 0.6; }
 .project-del:hover { opacity: 1; color: var(--error); }
 .project-sessions { flex-direction: column; padding-left: 1rem; }
+.afterlife-aide-projects .project-folder { padding-block: 0.15rem; }
+.afterlife-aide-projects .project-folder-head { align-items: center; }
+.afterlife-aide-projects .project-sessions .session-item { padding-block: 0.28rem; font-size: 0.74rem; }
+.aide-runs { border-top: 1px solid var(--faint); padding-bottom: 0.45rem; }
+.aide-run { display: flex; align-items: center; gap: 0.5rem; color: var(--muted); font-size: 0.7rem; padding: 0.3rem 1.1rem; min-width: 0; }
+.aide-run > span:nth-child(2) { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.aide-run small { color: var(--faint); font-size: 0.58rem; }
+.aide-run[data-state="running"] .session-dot { background: var(--accent); animation: live-pulse 2s ease-in-out infinite; }
 .project-folder.drag-over { background: color-mix(in srgb, var(--accent) 16%, transparent); outline: 1px dashed var(--accent); outline-offset: -1px; border-radius: 3px; }
 /* project workspace page */
 .project-workspace { display: flex; gap: 1rem; align-items: flex-start; flex-wrap: wrap; max-width: 1000px; }
