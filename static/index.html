@@ -106,7 +106,6 @@
         <div class="nav-item" data-view="skills">skills</div>
         <div class="nav-item" data-view="reminders">reminders</div>
         <div class="nav-item" data-view="proactive">proactive</div>
-        <div class="nav-item" data-view="compare">compare</div>
       </div>
       <div class="nav-sep"></div>
       <div class="nav-item" data-view="settings">settings</div>
@@ -125,6 +124,7 @@
           <button class="model-btn" id="model-btn">
             <span class="live-dot" id="live-dot"></span>
             <span id="model-label">no model</span>
+            <span id="model-provider" class="model-provider"></span>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
           </button>
           <button class="model-btn img-slot-btn" id="image-slot-btn" title="image model — click to remove" style="display:none">
@@ -183,6 +183,87 @@
         <div class="today-sections" id="today-sections"></div>
       </div>
     </div>
+
+    <!-- Afterlife Andromeda: links are useful before the optional overview finishes. -->
+    <section class="page-view andromeda-view" id="andromeda-view" style="display:none" aria-labelledby="andromeda-title">
+      <div class="andromeda-shell">
+        <header class="andromeda-head">
+          <div class="andromeda-mark" aria-hidden="true">Ø</div>
+          <div>
+            <h1 id="andromeda-title">andromeda</h1>
+            <p>search first. a cited overview when it helps.</p>
+          </div>
+        </header>
+        <form class="andromeda-search" id="andromeda-form" role="search">
+          <label class="sr-only" for="andromeda-query">search the web</label>
+          <input id="andromeda-query" type="search" maxlength="2000" autocomplete="off" placeholder="search the web… add !ai when you only want links">
+          <button class="btn primary" type="submit" id="andromeda-submit">search</button>
+        </form>
+        <div class="andromeda-controls" aria-label="search options">
+          <button class="andromeda-option active" id="andromeda-results-toggle" type="button" aria-pressed="true">normal results</button>
+          <button class="andromeda-option active" id="andromeda-overview-toggle" type="button" aria-pressed="true">ai overview</button>
+          <label for="andromeda-band">overview model</label>
+          <select id="andromeda-band" class="andromeda-band" aria-label="overview model band">
+            <option value="light">light</option>
+            <option value="standard" selected>standard</option>
+            <option value="strong">strong</option>
+            <option value="auto">auto</option>
+          </select>
+          <label class="sr-only" for="andromeda-exact-model">exact overview model for this search</label>
+          <select id="andromeda-exact-model" class="andromeda-band" aria-label="exact overview model for this search">
+            <option value="">band default</option>
+          </select>
+          <span id="andromeda-model" class="andromeda-model"></span>
+        </div>
+        <div class="andromeda-layout">
+          <main class="andromeda-main">
+            <div id="andromeda-status" class="andromeda-status" role="status" aria-live="polite">ready</div>
+            <section class="andromeda-overview" id="andromeda-overview" aria-labelledby="andromeda-overview-title" hidden>
+              <div class="andromeda-section-head">
+                <div>
+                  <span class="andromeda-kicker">grounded answer</span>
+                  <h2 id="andromeda-overview-title">ai overview</h2>
+                </div>
+                <button class="btn" id="andromeda-cancel-overview" type="button" hidden>stop</button>
+              </div>
+              <div id="andromeda-overview-state" class="andromeda-overview-state" role="status" aria-live="polite"></div>
+              <div id="andromeda-claims" class="andromeda-claims"></div>
+              <details id="andromeda-evidence-details" class="andromeda-evidence" hidden>
+                <summary>inspect citation evidence</summary>
+                <div id="andromeda-evidence"></div>
+              </details>
+              <div id="andromeda-recovery" class="andromeda-recovery" hidden>
+                <button class="btn" type="button" data-andromeda-recovery="retry">retry</button>
+                <button class="btn" type="button" data-andromeda-recovery="broaden">broaden search</button>
+                <button class="btn" type="button" data-andromeda-recovery="edit">edit query</button>
+                <button class="btn" type="button" data-andromeda-recovery="results">return to normal results</button>
+              </div>
+            </section>
+            <section class="andromeda-results-section" aria-labelledby="andromeda-results-title">
+              <div class="andromeda-section-head">
+                <div>
+                  <span class="andromeda-kicker">the web</span>
+                  <h2 id="andromeda-results-title">normal results</h2>
+                </div>
+                <span id="andromeda-result-meta" class="andromeda-result-meta"></span>
+              </div>
+              <div id="andromeda-results" class="andromeda-results"></div>
+            </section>
+            <div class="andromeda-actions" id="andromeda-actions" hidden>
+              <button class="btn" id="andromeda-explain" type="button">explain selected links in aide</button>
+              <button class="btn" id="andromeda-deep" type="button">run deep research with jarvis</button>
+              <button class="btn" id="andromeda-save" type="button">save search</button>
+            </div>
+          </main>
+          <aside class="andromeda-saved" aria-labelledby="andromeda-saved-title">
+            <div class="andromeda-section-head compact">
+              <h2 id="andromeda-saved-title">saved searches</h2>
+            </div>
+            <div id="andromeda-saved-list" class="andromeda-saved-list"></div>
+          </aside>
+        </div>
+      </div>
+    </section>
 
     <!-- ── home / launcher (landing) ── -->
     <div class="page-view home-view" id="home-view" style="display:none">
@@ -245,6 +326,7 @@
       </div>
       <div class="messages" id="messages" style="display:none"></div>
     </div>
+    <button class="jump-latest" id="jump-latest" type="button" hidden>jump to latest ↓</button>
 
     <!-- project workspace (NotebookLM-style: chats + files + instructions + notes) -->
     <div class="page-view" id="project-view" style="display:none"></div>
@@ -799,7 +881,7 @@
             <button class="btn primary" id="shell-send-btn">send shell</button>
           </div>
         </div>
-        <textarea class="composer-ta" id="composer-ta" placeholder="message..." rows="1"
+        <textarea class="composer-ta" id="composer-ta" placeholder="message..." rows="1" aria-label="message Aide"
           oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,220)+'px'"></textarea>
         <canvas id="mic-wave" class="mic-wave" aria-hidden="true"></canvas>
         <div class="composer-bar">
@@ -807,20 +889,19 @@
             <button class="c-tool" id="attach-btn" title="attach files" aria-label="attach files">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
             </button>
-            <button class="c-tool" id="research-toggle-btn" title="research mode" aria-label="research mode">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-            </button>
-            <button class="c-tool" id="docs-toggle-btn" title="chat with your docs" aria-label="chat with your docs">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
-            </button>
-            <button class="c-tool" id="more-tools-btn" title="more tools" aria-expanded="false">
+            <button class="c-tool" id="more-tools-btn" title="more tools" aria-label="more tools" aria-expanded="false">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg>
             </button>
           </div>
           <div class="c-right">
-            <div class="mode-toggle" role="tablist" aria-label="response mode">
-              <button class="mode-btn" id="mode-agent" role="tab">agent</button>
-              <button class="mode-btn active" id="mode-chat" role="tab">chat</button>
+            <select class="aide-behavior-select" id="chat-behavior-select" aria-label="conversation tool behavior">
+              <option value="">follow settings</option>
+              <option value="automatic_tools">automatic tools</option>
+              <option value="answer_only">answer only</option>
+            </select>
+            <div class="mode-toggle" role="tablist" aria-label="Aide mode">
+              <button class="mode-btn active" id="mode-chat" role="tab" aria-selected="true" title="keep this work in the conversation">chat</button>
+              <button class="mode-btn" id="mode-jarvis" role="tab" aria-selected="false" title="run longer work in the background">jarvis</button>
             </div>
             <span class="c-divider" aria-hidden="true"></span>
             <button class="c-tool mic-corner" id="mic-btn" title="voice input" aria-label="voice input">
@@ -1279,6 +1360,7 @@
               </div>
               <div class="mem-undo" id="mem-undo" hidden>saved to memory <button class="act-btn">undo</button></div>
               <div class="mem-foot-actions">
+                <button class="btn" id="mem-pause-btn" type="button">pause</button>
                 <a class="btn" href="/api/memories/export" download>export</a>
                 <button class="btn danger" id="mem-clear-btn">clear all</button>
               </div>
@@ -1311,7 +1393,7 @@
               </div>
               <div class="s-field" id="s-searxng-row" style="display:none">
                 <label>searxng base url</label>
-                <input type="text" class="settings-input" id="s-searxng-url" placeholder="http://localhost:8080" style="width:100%">
+                <input type="text" class="settings-input" id="s-searxng-url" placeholder="https://search.example.com" style="width:100%">
               </div>
               <div id="s-google-pse-rows" style="display:none">
                 <div class="s-field"><label>google pse api key</label><input type="password" class="settings-input" id="s-gpse-key" placeholder="AIza..." style="width:100%"></div>
@@ -1330,6 +1412,36 @@
                 <div class="settings-input custom-select" id="s-search-count" style="width:100px" data-value="5" data-options="3|3;5|5;10|10;20|20"></div>
               </div>
               <div id="s-search-status" style="font-size:0.72rem;color:var(--muted);margin-top:0.3rem"></div>
+            </div>
+          </div>
+          <div class="s-card">
+            <div class="s-card-head">andromeda</div>
+            <div class="s-card-body">
+              <p class="s-card-hint">normal links and the cited overview are independent. a remote overview model is confirmed for each search before anything is sent.</p>
+              <div class="s-toggle-row">
+                <div><div class="s-toggle-label">normal results</div><div class="s-toggle-desc">show ranked links below the overview</div></div>
+                <div class="s-switch" id="s-andromeda-results" role="switch" aria-checked="true"></div>
+              </div>
+              <div class="s-toggle-row">
+                <div><div class="s-toggle-label">ai overview</div><div class="s-toggle-desc">build a claim-by-claim answer from fetched evidence</div></div>
+                <div class="s-switch" id="s-andromeda-overview" role="switch" aria-checked="true"></div>
+              </div>
+              <div class="s-field">
+                <label for="s-andromeda-band">default model band</label>
+                <select class="settings-input" id="s-andromeda-band">
+                  <option value="light">light</option><option value="standard">standard</option><option value="strong">strong</option><option value="auto">auto</option>
+                </select>
+              </div>
+              <div class="andromeda-band-settings">
+                <label>light <select class="settings-input s-andromeda-model" id="s-andromeda-model-light" data-band="light"><option value="">not configured</option></select></label>
+                <label>standard <select class="settings-input s-andromeda-model" id="s-andromeda-model-standard" data-band="standard"><option value="">use andromeda role</option></select></label>
+                <label>strong <select class="settings-input s-andromeda-model" id="s-andromeda-model-strong" data-band="strong"><option value="">not configured</option></select></label>
+                <label>auto <select class="settings-input s-andromeda-model" id="s-andromeda-model-auto" data-band="auto"><option value="">not configured</option></select></label>
+              </div>
+              <div style="display:flex;align-items:center;gap:0.5rem;margin-top:0.65rem">
+                <button class="btn" id="s-andromeda-qualify" type="button">test auto model</button>
+                <span id="s-andromeda-model-status" class="s-card-hint" role="status" aria-live="polite"></span>
+              </div>
             </div>
           </div>
         </div>
@@ -1365,9 +1477,8 @@
                 <label>font size</label>
                 <div class="settings-input custom-select" id="s-ui-font-size" style="width:120px" data-value="md" data-options="sm|small;md|medium;lg|large"></div>
               </div>
-              <div class="s-toggle-row"><div><div class="s-toggle-label">research mode</div><div class="s-toggle-desc">deep research button in composer</div></div><div class="s-switch s-vis-toggle" data-vis="#research-toggle-btn" data-vis-key="bar-research"></div></div>
               <div class="s-toggle-row"><div><div class="s-toggle-label">microphone</div><div class="s-toggle-desc">voice input button</div></div><div class="s-switch s-vis-toggle" data-vis="#mic-btn" data-vis-key="bar-mic"></div></div>
-              <div class="s-toggle-row"><div><div class="s-toggle-label">agent / chat mode</div><div class="s-toggle-desc">mode switcher in composer</div></div><div class="s-switch s-vis-toggle" data-vis=".mode-toggle" data-vis-key="bar-mode"></div></div>
+              <div class="s-toggle-row"><div><div class="s-toggle-label">Chat / Jarvis</div><div class="s-toggle-desc">keep the mode switcher in the composer</div></div><div class="s-switch s-vis-toggle" data-vis=".mode-toggle" data-vis-key="bar-mode"></div></div>
             </div>
           </div>
           <div class="s-card">
@@ -1381,7 +1492,6 @@
               <div class="s-toggle-row"><div><div class="s-toggle-label">calendar</div></div><div class="s-switch s-vis-toggle" data-vis=".nav-item[data-view='calendar']" data-vis-key="nav-calendar"></div></div>
               <div class="s-toggle-row"><div><div class="s-toggle-label">ai gallery</div></div><div class="s-switch s-vis-toggle" data-vis=".nav-item[data-view='gallery']" data-vis-key="nav-gallery"></div></div>
               <div class="s-toggle-row"><div><div class="s-toggle-label">memory</div></div><div class="s-switch s-vis-toggle" data-vis=".nav-item[data-view='memory']" data-vis-key="nav-memory"></div></div>
-              <div class="s-toggle-row"><div><div class="s-toggle-label">compare</div></div><div class="s-switch s-vis-toggle" data-vis=".nav-item[data-view='compare']" data-vis-key="nav-compare"></div></div>
               <div class="s-toggle-row"><div><div class="s-toggle-label">secrets</div></div><div class="s-switch s-vis-toggle" data-vis=".nav-item[data-view='vault']" data-vis-key="nav-vault"></div></div>
               <div class="s-toggle-row"><div><div class="s-toggle-label">contacts</div></div><div class="s-switch s-vis-toggle" data-vis=".nav-item[data-view='contacts']" data-vis-key="nav-contacts"></div></div>
               <div class="s-toggle-row"><div><div class="s-toggle-label">gallery</div></div><div class="s-switch s-vis-toggle" data-vis=".nav-item[data-view='photos']" data-vis-key="nav-photos"></div></div>

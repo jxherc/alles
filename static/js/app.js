@@ -9,8 +9,6 @@ import { activeAfterlifeSpaces, loadAfterlifeFeatures } from './afterlife.js';
 import { providerKey } from './brandlogo.js';
 import { sendMessage, stopStream, hideConnBanner } from './chat.js';
 import { toast, closeAllModals, mdToHtml, api } from './util.js';
-import { runResearch, setResearchMode, isResearchMode } from './research.js';
-import { runDocsQuery, setDocsMode, isDocsMode } from './ragquery.js';
 import { loadTasks, addTask } from './tasks.js';
 import { loadCalendar, newEvent } from './calendar.js';
 import { loadGallery, initGalleryUpload } from './gallery.js';
@@ -32,6 +30,10 @@ import { loadBrainPanel } from './brain.js';
 import { openSettings, closeSettings, applyVis } from './settings.js?v=217';
 import { setIncognitoMode, getPermMode, setPermMode, getEffort, setEffort } from './modes.js';
 import { initPrivacyHandlers } from './privacy.js';
+import { initAideBehavior } from './aidebehavior.js';
+import { initScrollFollow } from './scrollfollow.js';
+import { runWithJarvis } from './jarvishandoff.js';
+import { withProjectContext } from './andromeda.js';
 import { loadShortcuts, matchesShortcut, matchesSettingsShortcut } from './shortcuts.js';
 import { startReminderPoll, initReminderPanel } from './reminders.js';
 import { registerServiceWorker } from './push.js';
@@ -173,8 +175,13 @@ async function _boot({ reachable = true } = {}) {
 
   applyVis();
   initAfterlifeShell(afterlifeFlags);
-  try { configureLocalization(await fetch('/api/settings').then(r => r.json())); }
-  catch { configureLocalization(); }
+  let bootSettings = {};
+  try {
+    bootSettings = await fetch('/api/settings').then(r => r.json());
+    configureLocalization(bootSettings);
+  } catch { configureLocalization(); }
+  await initAideBehavior(bootSettings);
+  initScrollFollow();
   _syncAppearance();   // pull theme/accent from the server so it matches across subdomains
   if (localStorage.getItem('aide-sidebar-hidden')) document.body.classList.add('sidebar-hidden');
   // 11b: on a phone the rail is a drawer — start it closed (don't persist, it's width-driven)
@@ -361,9 +368,13 @@ function _shChrome(v) {
 }
 
 // cross-app jump → full-page nav to that app's subdomain, carrying an SSO handoff code
-async function crossNav(sub) {
+async function crossNav(sub, view = '') {
   if (singleHost()) { navigateTo(appForSub(sub).primary); return; }  // one origin → in-page
-  await _navigateWithHandoff(urlForApp(sub));
+  const base = view === 'andromeda' ? `${urlForApp(sub)}?app=andromeda` : urlForApp(sub);
+  const target = view === 'andromeda'
+    ? withProjectContext(base, window._currentSession?.project_id)
+    : base;
+  await _navigateWithHandoff(target);
 }
 
 function _showNotRunning() {
@@ -408,7 +419,7 @@ init();
 
 // ── views ─────────────────────────────────────────────────────────────────────
 const _VIEW_IDS = [
-  'today-view', 'home-view', 'chat', 'tasks-view', 'calendar-view', 'gallery-view',
+  'today-view', 'andromeda-view', 'home-view', 'chat', 'tasks-view', 'calendar-view', 'gallery-view',
   'models-view', 'brain-view', 'wiki-view', 'compare-view', 'vault-view', 'contacts-view',
   'reminders-view', 'files-view', 'mail-view', 'photos-view', 'subs-view', 'money-view', 'days-view', 'journal-view', 'cookbook-view', 'usage-view', 'skills-view', 'activity-view', 'system-view', 'watch-view', 'habits-view', 'read-view', 'books-view', 'health-view',
   'project-view',
@@ -444,18 +455,23 @@ window._newGeneralChat = () => { showChatView(); newChat(); };
 window._openProject = (pid) => showView('project-view', 'project', () => import('./projectview.js').then(m => m.renderProject(pid)));
 
 // the command palette (search.js) reaches across subdomains, so expose the router
-// + an "ask aide / research" handoff it can call from any app.
+// + an "ask aide / Andromeda search" handoff it can call from any app.
 window._navigateTo = (v) => navigateTo(v);
 window._askInChat = (q, web = false) => {
   q = (q || '').trim();
   if (!q) return;
+  if (web) {
+    const target = `${urlForApp('')}?app=andromeda&q=${encodeURIComponent(q)}`;
+    location.href = withProjectContext(target, window._currentSession?.project_id);
+    return;
+  }
   const ta = document.getElementById('composer-ta');
   if (ta) {   // on aide — run it inline
     showChatView();
     ta.value = q; ta.dispatchEvent(new Event('input', { bubbles: true }));
-    if (web) runResearch(q); else sendMessage(q);
+    sendMessage(q);
   } else {    // from another subapp — hop to aide carrying the query (SSO handles auth)
-    location.href = urlForApp('aide') + '?ask=' + encodeURIComponent(q) + (web ? '&web=1' : '');
+    location.href = urlForApp('aide') + '?ask=' + encodeURIComponent(q);
   }
 };
 const showModelsView  = () => showView('models-view',   'models',   () => renderSidebarModelList(document.getElementById('sidebar-model-search')?.value || ''));
@@ -487,6 +503,7 @@ const showMailView       = () => showView('mail-view',      'mail',      loadMai
 const showPhotosView     = () => showView('photos-view',    'photos',    () => { initPhotos(); loadPhotos(); });
 const showHomeView       = () => { _setAfterlifeSpace(''); showView('home-view', 'home', renderHome); };
 const showTodayView      = () => { _setAfterlifeSpace('today'); showView('today-view', 'today', async () => { (await import('./today.js?v=218')).initToday({ navigate: navigateTo, apps: HOME_TILES }); }); };
+const showAndromedaView  = () => { _setAfterlifeSpace('andromeda'); showView('andromeda-view', 'andromeda', async () => { (await import('./andromeda.js')).initAndromeda(); }); };
 const showProactiveView  = () => showView('proactive-view', 'proactive', loadProactiveFeed);
 
 // central nav dispatch — used by both the sidebar nav-items and the home tiles
@@ -497,7 +514,7 @@ function navigateTo(v) {
   // on a single host there are no subdomains, so we just render it here instead.
   if (v !== 'settings' && !singleHost()) {
     const dest = viewToSub(v);
-    if (dest !== currentSub()) { crossNav(dest); return; }
+    if (dest !== currentSub()) { crossNav(dest, v); return; }
   }
   renderLocalView(v);
 }
@@ -509,9 +526,10 @@ function renderLocalRoute(route) {
 }
 
 function renderLocalView(v, route = {}) {
-  _setAfterlifeSpace(v === 'chat' || v === 'project' ? 'aide' : v === 'today' ? 'today' : '');
+  _setAfterlifeSpace(v === 'chat' || v === 'project' ? 'aide' : v === 'today' ? 'today' : v === 'andromeda' ? 'andromeda' : '');
   if (singleHost() && v !== 'settings') _shChrome(v);
   if      (v === 'today')     showTodayView();
+  else if (v === 'andromeda') showAndromedaView();
   else if (v === 'home')      showHomeView();
   else if (v === 'chat')      showChatView();
   else if (v === 'models')    showModelsView();
@@ -1185,7 +1203,7 @@ function _startHomeClock() {
 }
 
 // aide's tools live in the collapsible "tools" group
-const _moreViews = new Set(['compare','gallery','brain','models','reminders','subs','days']);
+const _moreViews = new Set(['gallery','brain','models','reminders','subs','days']);
 
 function setNav(view) {
   document.querySelectorAll('.nav-item').forEach(n => {
@@ -1268,33 +1286,10 @@ function bindEvents() {
   document.getElementById('brain-refresh-btn')?.addEventListener('click', loadBrainPanel);
   document.getElementById('brain-open-memory-btn')?.addEventListener('click', () => openSettings('memory'));
 
-  const toggleResearch = () => {
-    const on = !isResearchMode();
-    setResearchMode(on);
-    if (on) setDocsMode(false);   // research + docs are mutually exclusive
-    document.getElementById('research-toggle-btn').classList.toggle('active', on);
-    ta.placeholder = on ? 'research a topic...' : 'message aide...';
-  };
-
-  const toggleDocs = () => {
-    const on = !isDocsMode();
-    setDocsMode(on);
-    if (on) setResearchMode(false);
-    ta.placeholder = on ? 'ask your docs...' : 'message aide...';
-  };
-
   document.querySelector('.c-tools')?.addEventListener('click', e => {
     const btn = e.target.closest('button');
     if (!btn) return;
-    if (btn.id === 'research-toggle-btn') {
-      e.preventDefault();
-      e.stopPropagation();
-      toggleResearch();
-    } else if (btn.id === 'docs-toggle-btn') {
-      e.preventDefault();
-      e.stopPropagation();
-      toggleDocs();
-    } else if (btn.id === 'more-tools-btn') {
+    if (btn.id === 'more-tools-btn') {
       e.preventDefault();
       e.stopPropagation();
       toggleMoreTools();
@@ -1328,8 +1323,8 @@ function bindEvents() {
       submitShellPanel();
     }
   });
-  document.getElementById('mode-agent').addEventListener('click', () => { setMode('agent'); _persistSessionMode('agent'); });
-  document.getElementById('mode-chat').addEventListener('click',  () => { setMode('chat');  _persistSessionMode('chat'); });
+  document.getElementById('mode-jarvis').addEventListener('click', () => { setMode('jarvis'); _persistSessionMode('jarvis'); });
+  document.getElementById('mode-chat').addEventListener('click',  () => { setMode('chat'); _persistSessionMode('chat'); });
   // permission mode button + label
   const permBtn = document.getElementById('perm-mode-btn');
   if (permBtn) {
@@ -1561,16 +1556,16 @@ function toggleMoreTools() {
   menu.style.left = Math.max(12, rect.right - 170) + 'px';
   menu.style.top = Math.max(12, rect.top - 136) + 'px';
   menu.innerHTML = `
-    <div class="ctx-item" data-tool="research">research mode</div>
     <div class="ctx-item" data-tool="attach">attach file</div>
     <div class="ctx-item" data-tool="shell">shell command</div>
+    <div class="ctx-item" data-tool="compare">compare models</div>
   `;
   menu.addEventListener('click', e => {
     e.stopPropagation();
     const tool = e.target.closest('.ctx-item')?.dataset.tool;
-    if (tool === 'research') document.getElementById('research-toggle-btn')?.click();
     if (tool === 'attach') document.getElementById('attach-btn')?.click();
     if (tool === 'shell') openShellPanel();
+    if (tool === 'compare') navigateTo('compare');
     closeMoreTools();
   });
   document.body.appendChild(menu);
@@ -1596,8 +1591,7 @@ async function doSend() {
   text = ta.value.trim();
   if (!text) return;
   ta.value = ''; ta.style.height = 'auto'; clearDraft();
-  if (isResearchMode()) runResearch(text);
-  else if (isDocsMode()) runDocsQuery(text);
+  if (document.body.dataset.aideMode === 'jarvis') runWithJarvis(text);
   else sendMessage(text);
 }
 
@@ -1648,19 +1642,20 @@ async function _openSchedulePop(text, ta) {
 
 // ── mode / theme ──────────────────────────────────────────────────────────────
 function setMode(m) {
-  const jarvis = m === 'jarvis';
-  const agentMode = m === 'agent' || jarvis;
-  const agentButton = document.getElementById('mode-agent');
-  agentButton.classList.toggle('active', agentMode);
-  agentButton.textContent = jarvis ? 'jarvis' : 'agent';
-  document.getElementById('mode-chat').classList.toggle('active', !agentMode);
-  document.body.dataset.aideMode = jarvis ? 'jarvis' : agentMode ? 'agent' : 'chat';
+  const jarvis = m === 'jarvis' || m === 'agent';
+  const jarvisButton = document.getElementById('mode-jarvis');
+  const chatButton = document.getElementById('mode-chat');
+  jarvisButton.classList.toggle('active', jarvis);
+  jarvisButton.setAttribute('aria-selected', String(jarvis));
+  chatButton.classList.toggle('active', !jarvis);
+  chatButton.setAttribute('aria-selected', String(!jarvis));
+  document.body.dataset.aideMode = jarvis ? 'jarvis' : 'chat';
   // .agent-mode grows the box + reveals the agent control row (CSS-driven)
-  document.querySelector('.composer-box')?.classList.toggle('agent-mode', agentMode);
+  document.querySelector('.composer-box')?.classList.toggle('agent-mode', jarvis);
 }
 window._setMode = setMode;   // so sessions.js can restore a convo's last mode on load
 
-// remember the mode per-conversation — refreshing an agent chat shouldn't drop to chat
+// remember the mode per-conversation — refreshing Jarvis work should not drop to Chat
 function _persistSessionMode(m) {
   const id = getActiveId();
   if (id) fetch(`/api/sessions/${id}`, {
@@ -1802,12 +1797,10 @@ export async function refreshPersonaBtn() {
   // on a fresh chat (no session yet) reflect the pending pick so you can choose a persona
   // BEFORE the first message instead of the button just vanishing
   const pid = session ? session.persona_id : window._pendingPersona;
-  // the backend (_resolve_persona) falls back to the default persona whenever a session
-  // has no persona_id — including a fresh chat — so reflect that instead of lying "no persona"
-  const active = _personas.find(p => p.id === pid) || _personas.find(p => p.is_default);
+  const active = _personas.find(p => p.id === pid);
   window._activePersonaModel = active?.model || '';
   btn.style.display = 'flex';
-  label.textContent = active ? active.name : 'no persona';
+  label.textContent = active ? active.name : 'none';
   applyPersonaAccent(active?.accent || null);
   if (session?.model) restoreSessionModel(session);
   else if (active?.model) selectPersonaModel(active.model);
@@ -1886,6 +1879,5 @@ function submitShellPanel() {
   input.value = '';
   closeShellPanel();
   const message = `\`\`\`sh\n${command}\n\`\`\``;
-  if (isResearchMode()) runResearch(message);
-  else sendMessage(message);
+  sendMessage(message);
 }

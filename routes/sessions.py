@@ -24,6 +24,25 @@ async def _fire(event: str, data: dict):
 
 router = APIRouter(prefix="/api")
 
+_AIDE_MODES = {"chat", "jarvis"}
+_CHAT_BEHAVIORS = {"", "automatic_tools", "answer_only"}
+
+
+def _aide_mode(value: str) -> str:
+    value = str(value or "chat").strip().lower()
+    if value == "agent":
+        return "jarvis"
+    if value not in _AIDE_MODES:
+        raise ValueError("mode must be chat or jarvis")
+    return value
+
+
+def _chat_behavior(value: str) -> str:
+    value = str(value or "").strip().lower()
+    if value not in _CHAT_BEHAVIORS:
+        raise ValueError("chat behavior must follow settings, use automatic tools, or answer only")
+    return value
+
 
 def _session_or_404(session_id: str, db: DbSession):
     s = incognito.get_session(session_id) or db.get(Session, session_id)
@@ -39,7 +58,8 @@ def _fmt_session(s: Session) -> dict:
         "name": s.name,
         "model": s.model,
         "endpoint_id": s.endpoint_id,
-        "mode": s.mode,
+        "mode": _aide_mode(s.mode),
+        "chat_behavior": _chat_behavior(getattr(s, "chat_behavior", "")),
         "persona_id": s.persona_id,
         "project_id": getattr(s, "project_id", None),
         "working_dir": getattr(s, "working_dir", "") or "",
@@ -83,6 +103,7 @@ class CreateSession(BaseModel):
     endpoint_id: str = ""
     name: str = "new chat"
     mode: str = "chat"
+    chat_behavior: str = ""
     incognito: bool = False
     working_dir: str = ""
     persona_id: str = ""
@@ -97,6 +118,11 @@ async def create_session(
     response: Response,
     db: DbSession = Depends(get_db),
 ):
+    try:
+        mode = _aide_mode(body.mode)
+        chat_behavior = _chat_behavior(body.chat_behavior)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
     project = None
     if body.project_id:
         project = db.get(Project, body.project_id)
@@ -108,7 +134,8 @@ async def create_session(
             name=body.name,
             model=body.model,
             endpoint_id=body.endpoint_id or None,
-            mode=body.mode,
+            mode=mode,
+            chat_behavior=chat_behavior,
             working_dir=body.working_dir,
             persona_id=body.persona_id or None,
             project_id=body.project_id or None,
@@ -119,7 +146,8 @@ async def create_session(
         name=body.name,
         model=body.model,
         endpoint_id=body.endpoint_id or None,
-        mode=body.mode,
+        mode=mode,
+        chat_behavior=chat_behavior,
         incognito=body.incognito,
         working_dir=body.working_dir,
         persona_id=body.persona_id or None,
@@ -157,6 +185,7 @@ class PatchSession(BaseModel):
     model: str | None = None
     endpoint_id: str | None = None
     mode: str | None = None
+    chat_behavior: str | None = None
     starred: bool | None = None
     persona_id: str | None = None
     working_dir: str | None = None
@@ -176,7 +205,15 @@ async def patch_session(
     if body.endpoint_id is not None:
         s.endpoint_id = body.endpoint_id or None
     if body.mode is not None:
-        s.mode = body.mode
+        try:
+            s.mode = _aide_mode(body.mode)
+        except ValueError as exc:
+            raise HTTPException(400, str(exc)) from exc
+    if body.chat_behavior is not None:
+        try:
+            s.chat_behavior = _chat_behavior(body.chat_behavior)
+        except ValueError as exc:
+            raise HTTPException(400, str(exc)) from exc
     if body.starred is not None:
         s.starred = body.starred
     if body.persona_id is not None:

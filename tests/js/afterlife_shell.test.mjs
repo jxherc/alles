@@ -31,17 +31,21 @@ test('runtime failure keeps the legacy shell', async () => {
   assert.deepEqual(badResponse, AFTERLIFE_FEATURE_DEFAULTS);
 });
 
-test('a destination needs its flag and a finished route', () => {
+test('a finished destination still needs its exact feature flag', () => {
   const flags = {
     ...AFTERLIFE_FEATURE_DEFAULTS,
     afterlife_shell: true,
     afterlife_today: true,
     afterlife_andromeda: true,
   };
-  assert.deepEqual(activeAfterlifeSpaces(flags), ['today', 'aide']);
+  assert.deepEqual(activeAfterlifeSpaces(flags), ['today', 'aide', 'andromeda']);
   assert.deepEqual(
     activeAfterlifeSpaces(flags, { aide: true, today: true, andromeda: true }),
     ['today', 'aide', 'andromeda'],
+  );
+  assert.deepEqual(
+    activeAfterlifeSpaces(flags, { aide: true, today: true, andromeda: false }),
+    ['today', 'aide'],
   );
   assert.deepEqual(activeAfterlifeSpaces({ ...flags, afterlife_shell: false }), []);
 });

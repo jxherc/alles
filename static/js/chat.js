@@ -8,6 +8,7 @@ import { openArtifact, extractArtifacts, stripArtifacts } from './artifacts.js';
 import { getAttachments, clearAttachments } from './uploads.js';
 import { isIncognitoMode, getPermMode, getEffort } from './modes.js';
 import { applyResponsePrivacy, stripEmojis } from './privacy.js';
+import { contextProvenanceElement } from './memoryactions.js';
 
 // tools that change state / reach out — flagged in the agent panel + permission cards
 const DESTRUCTIVE_TOOLS = new Set(['shell', 'bash', 'write_file', 'edit_file', 'apply_patch',
@@ -106,7 +107,11 @@ export async function sendMessage(text) {
     const ep = getCurrentEndpoint();
     if (!ep) { toast('no endpoint configured — add one via the model picker', 'error'); return; }
     const model = getSelected()?.model || ep.models[0] || '';
-    const s = await createSession(model, ep.id, { incognito: isIncognitoMode(), mode: getMode() });
+    const s = await createSession(model, ep.id, {
+      incognito: isIncognitoMode(),
+      mode: getMode(),
+      chatBehavior: window._pendingChatBehavior || '',
+    });
     if (!s) { toast('failed to create session', 'error'); return; }
     // carry over a persona picked before the session existed (fresh-chat picker)
     if (window._pendingPersona) {
@@ -162,6 +167,7 @@ export async function sendMessage(text) {
   let thinkDone = false;
   let genStart = 0;     // first answer token time, for tok/s
   let statsEl = null;
+  let contextProvenance = null;
   let outTok = 0;       // real output tokens from usage (if provided)
 
   const updateStats = (final = false) => {
@@ -216,7 +222,7 @@ export async function sendMessage(text) {
       contentEl = document.createElement('div');
       contentEl.className = 'ai-content';
       cursor?.remove();
-      body.appendChild(contentEl);
+      body.insertBefore(contentEl, body.firstChild);
     }
     contentEl.innerHTML = mdToHtml(stripEmojis(displayText));
     applyResponsePrivacy(contentEl);
@@ -242,7 +248,7 @@ export async function sendMessage(text) {
         mode: getMode(),
         file_ids: attachmentIds,
         incognito: isIncognitoMode(),
-        permission_mode: getMode() === 'agent' ? getPermMode() : '',
+        permission_mode: getMode() === 'jarvis' ? getPermMode() : '',
         effort: getEffort(getSelected()?.model),   // per-model effort, applies to chat + agent
       }),
       signal: ctrl.signal,
@@ -459,6 +465,10 @@ export async function sendMessage(text) {
           scrollDown();
         }
 
+        if (chunk.context_provenance) {
+          contextProvenance = chunk.context_provenance;
+        }
+
         if (chunk.thinking) {
           accThink += chunk.thinking;
           if (!thinkingEl) {
@@ -514,6 +524,18 @@ export async function sendMessage(text) {
     updateStats(true);  // final token count + tok/s (real if usage was sent)
     cursor?.remove();
     body.classList.add('done');
+
+    if (agentEl) {
+      const hasAttention = Boolean(
+        agentEl.querySelector('.agent-step.error, .agent-step.running, .agent-perm:not(.approved):not(.denied)')
+      );
+      agentEl.classList.toggle('open', hasAttention);
+      const summary = agentEl.querySelector('.custom-summary');
+      if (summary) {
+        summary.textContent = hasAttention ? 'steps need attention' : 'show steps';
+        summary.setAttribute('aria-expanded', String(hasAttention));
+      }
+    }
 
     // provenance — let the reader see what the run actually touched
     if (agentEl && runId) {
@@ -571,10 +593,16 @@ export async function sendMessage(text) {
       if (!contentEl) {
         contentEl = document.createElement('div');
         contentEl.className = 'ai-content';
-        body.appendChild(contentEl);
+        body.insertBefore(contentEl, body.firstChild);
       }
       contentEl.innerHTML = mdToHtml(stripEmojis(cleanText));
       applyResponsePrivacy(contentEl);
+    }
+
+    const context = contextProvenanceElement(contextProvenance);
+    if (context) {
+      const firstStep = body.querySelector('.agent-steps, .thinking-block');
+      body.insertBefore(context, firstStep || null);
     }
 
     // action buttons
@@ -589,6 +617,7 @@ export async function sendMessage(text) {
         html += `<button class="act-btn" onclick="saveMsgAs(this,'task')" title="first line becomes a task">+task</button>`;
         html += `<button class="msg-rewrite-btn act-btn" data-style="shorter" title="rewrite shorter">shorter</button>`;
         html += `<button class="msg-rewrite-btn act-btn" data-style="simpler" title="rewrite simpler">simpler</button>`;
+        html += `<button class="act-btn" onclick="runMessageWithJarvis(this)">run with jarvis</button>`;
       }
       if (artifacts.length) {
         wrap.dataset.artifacts = JSON.stringify(artifacts);
@@ -622,9 +651,21 @@ export async function sendMessage(text) {
     agentEl = document.createElement('div');
     agentEl.className = 'agent-steps custom-disclosure open';
     agentEl.innerHTML = `
-      <div class="custom-summary" onclick="this.parentElement.classList.toggle('open')">agent steps</div>
+      <div class="custom-summary" role="button" tabindex="0" aria-expanded="true">steps in progress</div>
       <div class="agent-step-list custom-details"></div>`;
-    body.insertBefore(agentEl, body.firstChild);
+    body.appendChild(agentEl);
+    const disclosure = agentEl.querySelector('.custom-summary');
+    disclosure.addEventListener('click', event => {
+      const open = agentEl.classList.toggle('open');
+      event.currentTarget.setAttribute('aria-expanded', String(open));
+      event.currentTarget.textContent = open ? 'hide steps' : 'show steps';
+    });
+    disclosure.addEventListener('keydown', event => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        disclosure.click();
+      }
+    });
     return agentEl.querySelector('.agent-step-list');
   }
 }
@@ -753,7 +794,7 @@ async function _sendImage(prompt, sessionId, fresh, target) {
 
 
 function getMode() {
-  return document.getElementById('mode-agent').classList.contains('active') ? 'agent' : 'chat';
+  return document.getElementById('mode-jarvis').classList.contains('active') ? 'jarvis' : 'chat';
 }
 
 // 1f - predicted next-step suggestion chips above the composer. fetches on focus + after a

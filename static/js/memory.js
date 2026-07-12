@@ -5,6 +5,7 @@ let _memories = [];
 let _searchTimeout = null;
 let _activeCategory = 'all';
 let _memoryPolicy = 'ask';
+let _memoryLastActivePolicy = 'ask';
 let _memoryAutoInject = true;
 
 const CATEGORIES = ['all', 'identity', 'preference', 'fact', 'task', 'general'];
@@ -20,6 +21,7 @@ export async function loadMemories() {
   ]);
   _memories = memories;
   _memoryPolicy = settings.memory_policy || 'ask';
+  if (_memoryPolicy !== 'off') _memoryLastActivePolicy = _memoryPolicy;
   _memoryAutoInject = settings.memory_auto_inject !== false;
   _renderPolicy();
   _renderCategoryFilter();
@@ -171,6 +173,11 @@ function _renderPolicy() {
     control.disabled = off;
     control.setAttribute('aria-disabled', String(off));
   });
+  const pause = document.getElementById('mem-pause-btn');
+  if (pause) {
+    pause.textContent = off ? 'resume' : 'pause';
+    pause.setAttribute('aria-pressed', String(off));
+  }
 }
 
 async function _requestJson(url, options = {}) {
@@ -212,6 +219,20 @@ export function initMemoryPanel() {
       });
       _memoryAutoInject = next;
       _renderPolicy();
+    } catch (error) { toast(error.message, 'error'); }
+  });
+
+  document.getElementById('mem-pause-btn')?.addEventListener('click', async () => {
+    const next = _memoryPolicy === 'off' ? _memoryLastActivePolicy : 'off';
+    try {
+      await _requestJson('/api/settings', {
+        method: 'PATCH', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ memory_policy: next }),
+      });
+      if (_memoryPolicy !== 'off') _memoryLastActivePolicy = _memoryPolicy;
+      _memoryPolicy = next;
+      _renderPolicy();
+      await loadMemories();
     } catch (error) { toast(error.message, 'error'); }
   });
 

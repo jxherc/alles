@@ -6,11 +6,14 @@ solid and already wired to alles settings). added: trafilatura-based page
 reader and a chain helper that tells you which provider actually answered.
 """
 
+import asyncio
 import html as _htmlmod
+import json
 import logging
 import os
 import re
 import urllib.parse
+from dataclasses import dataclass
 
 import httpx
 
@@ -20,6 +23,55 @@ _UA = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
     "(KHTML, like Gecko) Chrome/122.0 Safari/537.36"
 )
+_KNOWN_PROVIDERS = frozenset(
+    {"brave", "duckduckgo", "google_pse", "searxng", "serper", "tavily", "wikipedia"}
+)
+
+
+class SearchProviderFailure(RuntimeError):
+    """A provider failure with a stable code that is safe to show to the user."""
+
+    def __init__(self, failure_type: str):
+        super().__init__(failure_type)
+        self.failure_type = failure_type
+
+
+@dataclass(frozen=True)
+class SearchReport:
+    results: list
+    provider: str | None
+    error: str | None
+    failure_type: str
+    attempted_sources: tuple[str, ...]
+
+
+class SearchChainResult(tuple):
+    """Three-item legacy tuple carrying optional safe diagnostics."""
+
+    def __new__(cls, report: SearchReport):
+        value = super().__new__(cls, (report.results, report.provider, report.error))
+        value.failure_type = report.failure_type
+        value.attempted_sources = report.attempted_sources
+        return value
+
+
+def _safe_provider_name(value: str) -> str:
+    name = str(value or "").strip()
+    return name if name in _KNOWN_PROVIDERS else "unknown"
+
+
+def _safe_failure_type(error: Exception) -> str:
+    if isinstance(error, SearchProviderFailure):
+        return error.failure_type
+    if isinstance(error, (TimeoutError, asyncio.TimeoutError, httpx.TimeoutException)):
+        return "timeout"
+    if isinstance(error, httpx.HTTPStatusError):
+        return "http_error"
+    if isinstance(error, httpx.RequestError):
+        return "network_error"
+    if isinstance(error, (json.JSONDecodeError, UnicodeDecodeError)):
+        return "invalid_response"
+    return "provider_error"
 
 
 def _strip_tags(s: str) -> str:
@@ -130,11 +182,21 @@ async def _search_brave(query, api_key, max_results=5):
 
 
 async def _search_searxng(query, base_url, max_results=5):
-    url = base_url.rstrip("/") + "/search"
-    async with httpx.AsyncClient(timeout=15, follow_redirects=True) as c:
-        r = await c.get(url, params={"q": query, "format": "json"})
-        r.raise_for_status()
-        data = r.json()
+    base = base_url.rstrip("/")
+    url = base + "/search?" + urllib.parse.urlencode({"q": query, "format": "json"})
+    if base == "http://127.0.0.1:8888":
+        async with httpx.AsyncClient(timeout=15, follow_redirects=False) as client:
+            r = await client.get(url)
+    else:
+        if not base.startswith("https://"):
+            raise SearchProviderFailure("configuration")
+        from services.net_guard import safe_get_async
+
+        r = await safe_get_async(url, timeout=15)
+    r.raise_for_status()
+    data = r.json()
+    if not isinstance(data, dict) or not isinstance(data.get("results", []), list):
+        raise SearchProviderFailure("invalid_response")
     return [
         {"url": x.get("url", ""), "title": x.get("title", ""), "snippet": x.get("content", "")}
         for x in data.get("results", [])[:max_results]
@@ -311,30 +373,69 @@ async def _search_provider(name, query, settings, max_results):
     if name == "tavily":
         key = settings.get("tavily_api_key") or os.getenv("TAVILY_API_KEY", "")
         if not key:
-            raise RuntimeError("missing tavily api key")
+            raise SearchProviderFailure("configuration")
         return await _search_tavily(query, key, max_results)
     if name == "brave":
         key = settings.get("brave_api_key") or os.getenv("BRAVE_API_KEY", "")
         if not key:
-            raise RuntimeError("missing brave api key")
+            raise SearchProviderFailure("configuration")
         return await _search_brave(query, key, max_results)
     if name == "searxng":
         url = settings.get("searxng_url") or os.getenv("SEARXNG_URL", "")
         if not url:
-            raise RuntimeError("missing searxng url")
+            raise SearchProviderFailure("configuration")
         return await _search_searxng(query, url, max_results)
     if name == "google_pse":
         key = settings.get("google_pse_api_key") or os.getenv("GOOGLE_PSE_API_KEY", "")
         cx = settings.get("google_pse_cx") or os.getenv("GOOGLE_PSE_CX", "")
         if not key or not cx:
-            raise RuntimeError("missing google pse credentials")
+            raise SearchProviderFailure("configuration")
         return await _search_google_pse(query, key, cx, max_results)
     if name == "serper":
         key = settings.get("serper_api_key") or os.getenv("SERPER_API_KEY", "")
         if not key:
-            raise RuntimeError("missing serper api key")
+            raise SearchProviderFailure("configuration")
         return await _search_serper(query, key, max_results)
-    raise RuntimeError(f"unknown search provider: {name}")
+    raise SearchProviderFailure("configuration")
+
+
+async def search_chain_report(query, override=None, max_results=10) -> SearchReport:
+    """Run every needed provider and return safe, structured diagnostics."""
+    from core.settings import load_settings
+
+    settings = load_settings()
+    primary = (
+        (override or "").strip()
+        or settings.get("research_search_provider")
+        or settings.get("search_provider")
+        or "duckduckgo"
+    )
+    if primary == "disabled":
+        return SearchReport([], None, None, "disabled", ())
+    chain = _provider_chain(primary, settings.get("search_fallback_chain"))
+    attempted = []
+    failure_type = ""
+    for name in chain:
+        safe_name = _safe_provider_name(name)
+        if safe_name not in attempted:
+            attempted.append(safe_name)
+        try:
+            results = await _search_provider(name, query, settings, max_results)
+            if results:
+                if name != primary:
+                    log.info("research search fallback: %s", safe_name)
+                return SearchReport(results, safe_name, None, "", tuple(attempted))
+            log.warning("research search: %s returned nothing", safe_name)
+        except Exception as error:
+            current_type = _safe_failure_type(error)
+            failure_type = failure_type or current_type
+            log.warning("research search: %s failed (%s)", safe_name, current_type)
+    if failure_type:
+        safe_error = f"search providers failed ({failure_type})"
+    else:
+        failure_type = "no_results"
+        safe_error = "search providers returned no results"
+    return SearchReport([], None, safe_error, failure_type, tuple(attempted))
 
 
 async def search_chain(query, override=None, max_results=10):
@@ -342,36 +443,12 @@ async def search_chain(query, override=None, max_results=10):
 
     provider_used is the one that actually answered (for the report stats);
     last_error is set when every provider in the chain came back empty/failed
-    so the engine can tell the user *why* instead of a bare 'no results'."""
-    from core.settings import load_settings
+    so the engine can tell the user *why* instead of a bare 'no results'.
 
-    s = load_settings()
-    primary = (
-        (override or "").strip()
-        or s.get("research_search_provider")
-        or s.get("search_provider")
-        or "duckduckgo"
-    )
-    if primary == "disabled":
-        return [], None, None
-    chain = _provider_chain(primary, s.get("search_fallback_chain"))
-    last_err = None
-    raised = False
-    for name in chain:
-        try:
-            res = await _search_provider(name, query, s, max_results)
-            if res:
-                if name != primary:
-                    log.info("research search fallback: %s", name)
-                return res, name, None
-            log.warning("research search: %s returned nothing", name)
-        except Exception as e:
-            raised = True
-            last_err = f"{name}: {e}"
-            log.warning("research search: %s failed: %s", name, e)
-    if not raised and last_err is None:
-        last_err = f"no results from search provider(s): {', '.join(chain) if chain else primary}"
-    return [], None, last_err
+    The value still unpacks exactly like the historical three-item tuple. Safe
+    diagnostics are available as ``failure_type`` and ``attempted_sources``.
+    """
+    return SearchChainResult(await search_chain_report(query, override, max_results))
 
 
 async def web_search(query, max_results=5, provider=None):

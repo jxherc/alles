@@ -7,7 +7,7 @@ export function setBaseDomain(b) { if (b) _base = b; }
 // Canonical owners are kept separate from old host aliases so viewToSub() can never
 // accidentally route new links back through a legacy hostname.
 export const CANONICAL_SUBDOMAIN_VIEWS = {
-  '':         { app: 'alles',     primary: 'home',     views: ['home', 'today', 'activity'] },
+  '':         { app: 'alles',     primary: 'home',     views: ['home', 'today', 'andromeda', 'activity'] },
   aide:       { app: 'aide',      primary: 'chat',     views: ['chat', 'memory', 'compare', 'brain', 'models', 'reminders', 'gallery', 'cookbook', 'usage', 'skills', 'proactive', 'project'] },
   docs:       { app: 'docs',      primary: 'wiki',     views: ['wiki', 'notes', 'journal'] },
   files:      { app: 'files',     primary: 'files',    views: ['files', 'photos'] },

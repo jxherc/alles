@@ -221,10 +221,17 @@ const _filterNewest = m => filterNewest(m, _newestOnly);
 
 function updateTopbar() {
   const label = document.getElementById('model-label');
+  const provider = document.getElementById('model-provider');
+  const button = document.getElementById('model-btn');
   const dot = document.getElementById('live-dot');
   if (_selected) {
     if (label) label.textContent = prettyModel(_selected.model);
     const ep = getCurrentEndpoint();
+    if (provider) provider.textContent = ep?.name || '';
+    if (button) {
+      button.title = `${_selected.model} · ${ep?.name || 'unknown provider'}`;
+      button.setAttribute('aria-label', `model ${_selected.model}, provider ${ep?.name || 'unknown'}`);
+    }
     // the "glowing thing" becomes the provider's glowing brand logo
     dot?.classList.remove('offline');
     dot?.classList.add('has-logo');
@@ -232,6 +239,8 @@ function updateTopbar() {
     if (ep) window._currentEndpoint = ep;
   } else {
     if (label) label.textContent = 'no model';
+    if (provider) provider.textContent = '';
+    if (button) button.setAttribute('aria-label', 'select model and provider');
     dot?.classList.remove('has-logo');
     if (dot) dot.innerHTML = '';
     dot?.classList.add('offline');

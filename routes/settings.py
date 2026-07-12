@@ -1,5 +1,6 @@
 import re
 from pathlib import Path
+from urllib.parse import urlsplit
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from fastapi import APIRouter, Request
@@ -142,6 +143,11 @@ class SettingsPatch(BaseModel):
     google_pse_cx: str | None = None
     serper_api_key: str | None = None
     search_fallback: str | None = None
+    andromeda_normal_results: bool | None = None
+    andromeda_overview: bool | None = None
+    andromeda_model_band: str | None = None
+    andromeda_model_bands: dict | None = None
+    andromeda_qualified_models: list[str] | None = None
     memory_auto_inject: bool | None = None
     memory_policy: str | None = None
     tts_speed: float | None = None
@@ -280,6 +286,63 @@ def patch_settings(body: SettingsPatch, request: Request):
                 ) from exc
     if "memory_policy" in patch and patch["memory_policy"] not in {"off", "ask", "auto"}:
         raise ApiError(400, "invalid_memory_policy", "memory policy must be off, ask, or auto")
+    if "andromeda_model_band" in patch:
+        from services.andromeda import normalize_band
+
+        try:
+            patch["andromeda_model_band"] = normalize_band(patch["andromeda_model_band"])
+        except ValueError as exc:
+            raise ApiError(
+                400, str(exc), "model band must be light, standard, strong, or auto"
+            ) from exc
+    if "andromeda_model_bands" in patch:
+        from services.andromeda import MODEL_BANDS
+
+        value = patch["andromeda_model_bands"]
+        if set(value) - set(MODEL_BANDS):
+            raise ApiError(400, "invalid_model_band", "unknown Andromeda model band")
+        clean = {}
+        for band, choice in value.items():
+            if not isinstance(choice, dict) or set(choice) - {"endpoint_id", "model"}:
+                raise ApiError(
+                    400, "invalid_model_choice", "model choices need endpoint_id and model"
+                )
+            endpoint_id = str(choice.get("endpoint_id") or "").strip()[:100]
+            model = str(choice.get("model") or "").strip()[:300]
+            if bool(endpoint_id) != bool(model):
+                raise ApiError(400, "invalid_model_choice", "choose both an endpoint and model")
+            clean[band] = {"endpoint_id": endpoint_id, "model": model}
+        patch["andromeda_model_bands"] = clean
+    if "andromeda_qualified_models" in patch:
+        values = patch["andromeda_qualified_models"]
+        if len(values) > 30 or any(
+            not isinstance(value, str) or len(value) > 420 for value in values
+        ):
+            raise ApiError(400, "invalid_qualified_models", "qualified models are invalid")
+        patch["andromeda_qualified_models"] = list(
+            dict.fromkeys(value.strip() for value in values if value.strip())
+        )
+    if "searxng_url" in patch:
+        from services.managed_searxng import managed_url
+
+        value = patch["searxng_url"].strip().rstrip("/")
+        if value and value != managed_url():
+            try:
+                parsed = urlsplit(value)
+            except ValueError as exc:
+                raise ApiError(
+                    400, "invalid_searxng_url", "external SearXNG needs a valid HTTPS URL"
+                ) from exc
+            if (
+                parsed.scheme != "https"
+                or not parsed.hostname
+                or parsed.username is not None
+                or parsed.password is not None
+            ):
+                raise ApiError(
+                    400, "invalid_searxng_url", "external SearXNG needs a valid HTTPS URL"
+                )
+        patch["searxng_url"] = value
     if "model_roles" in patch:
         from services.model_resolver import normalize_model_roles
 

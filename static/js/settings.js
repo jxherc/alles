@@ -43,7 +43,9 @@ function _applyFontSize(sz) {
 
 // ── switch helpers ────────────────────────────────────────────────────────────
 function _setSwitch(el, on) {
+  if (!el) return;
   el.classList.toggle('on', !!on);
+  if (el.hasAttribute('role')) el.setAttribute('aria-checked', String(!!on));
 }
 
 function _bindSwitch(el, getter, setter) {
@@ -253,6 +255,23 @@ function _initSettings() {
     document.getElementById(id)?.addEventListener('blur', saveSearchSettings));
   document.getElementById('s-search-count')?.addEventListener('change', saveSearchSettings);
   document.getElementById('s-search-test-btn')?.addEventListener('click', testSearch);
+  document.getElementById('s-andromeda-results')?.addEventListener('click', event => {
+    const next = !event.currentTarget.classList.contains('on');
+    _setSwitch(event.currentTarget, next);
+    _patchSetting('andromeda_normal_results', next);
+  });
+  document.getElementById('s-andromeda-overview')?.addEventListener('click', event => {
+    const next = !event.currentTarget.classList.contains('on');
+    _setSwitch(event.currentTarget, next);
+    _patchSetting('andromeda_overview', next);
+  });
+  document.getElementById('s-andromeda-band')?.addEventListener('change', event => {
+    _patchSetting('andromeda_model_band', event.currentTarget.value);
+  });
+  document.querySelectorAll('.s-andromeda-model').forEach(select => {
+    select.addEventListener('change', saveAndromedaModelBands);
+  });
+  document.getElementById('s-andromeda-qualify')?.addEventListener('click', qualifyAndromedaAutoModel);
 
   // ── voice pane ──
   document.getElementById('s-voice-save-btn')?.addEventListener('click', saveVoiceSettings);
@@ -1605,6 +1624,7 @@ async function saveDefaultChatBehavior(value) {
     const data = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(data.detail || 'chat behavior could not be saved');
     _renderChatBehavior(data.default_chat_behavior || value);
+    window._setDefaultChatBehavior?.(data.default_chat_behavior || value);
     toast('default chat behavior saved', 'success');
   } catch (error) {
     _renderChatBehavior(previous);
@@ -1669,7 +1689,72 @@ async function loadSearchPane() {
     if (sel) setDropdownValue(sel, String(s.search_result_count || 5));
     _updateSearchKeyRow();
     _updateSearchStatus(s);
+    await loadAndromedaSearchSettings(s);
   } catch {}
+}
+
+let _andromedaModelChoices = new Map();
+let _andromedaModelBands = {};
+
+async function loadAndromedaSearchSettings(settings) {
+  _setSwitch(document.getElementById('s-andromeda-results'), settings.andromeda_normal_results !== false);
+  _setSwitch(document.getElementById('s-andromeda-overview'), settings.andromeda_overview !== false);
+  const band = document.getElementById('s-andromeda-band');
+  if (band) band.value = settings.andromeda_model_band || 'standard';
+  _andromedaModelBands = settings.andromeda_model_bands || {};
+  let endpoints = [];
+  try { endpoints = await _endpointJson(await fetch('/api/models')); } catch {}
+  _andromedaModelChoices = new Map();
+  let index = 0;
+  document.querySelectorAll('.s-andromeda-model').forEach(select => {
+    const first = select.options[0]?.cloneNode(true);
+    select.replaceChildren(first || new Option('not configured', ''));
+    for (const endpoint of endpoints) {
+      for (const model of endpoint.models || []) {
+        const key = String(++index);
+        _andromedaModelChoices.set(`${select.dataset.band}:${key}`, { endpoint_id: endpoint.id, model });
+        const option = document.createElement('option');
+        option.value = key;
+        option.textContent = `${model} · ${endpoint.name}`;
+        select.appendChild(option);
+        const current = _andromedaModelBands[select.dataset.band] || {};
+        if (current.endpoint_id === endpoint.id && current.model === model) select.value = key;
+      }
+    }
+  });
+}
+
+async function saveAndromedaModelBands() {
+  const choices = {};
+  document.querySelectorAll('.s-andromeda-model').forEach(select => {
+    const choice = _andromedaModelChoices.get(`${select.dataset.band}:${select.value}`);
+    if (choice) choices[select.dataset.band] = choice;
+  });
+  _andromedaModelBands = choices;
+  try {
+    await _patchSettings({ andromeda_model_bands: choices });
+    const status = document.getElementById('s-andromeda-model-status');
+    if (status) status.textContent = 'exact choices saved';
+  } catch (error) { toast(error.message || 'model choices could not be saved', 'error'); }
+}
+
+async function qualifyAndromedaAutoModel() {
+  const select = document.getElementById('s-andromeda-model-auto');
+  const choice = _andromedaModelChoices.get(`auto:${select?.value || ''}`);
+  const status = document.getElementById('s-andromeda-model-status');
+  if (!choice) { if (status) status.textContent = 'choose an exact local Auto model first'; return; }
+  const button = document.getElementById('s-andromeda-qualify');
+  if (button) button.disabled = true;
+  if (status) status.textContent = 'running the citation fixture locally…';
+  try {
+    const result = await _endpointJson(await fetch('/api/andromeda/models/qualify', {
+      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(choice),
+    }));
+    if (status) status.textContent = result.passed
+      ? `passed · ${result.supported_claims}/${result.required_claims} supported claims`
+      : `not qualified · ${result.supported_claims}/${result.required_claims} supported claims`;
+  } catch (error) { if (status) status.textContent = error.message || 'fixture failed'; }
+  if (button) button.disabled = false;
 }
 
 function _updateSearchKeyRow() {
