@@ -71,9 +71,10 @@ def _changed(target):
 
 def record_mutation(connection, kind, eid, op, fields):
     """write one MutationEvent row on `connection` (Core insert, same txn as the caller)."""
+    event_id = _uid()
     connection.execute(
         MutationEvent.__table__.insert().values(
-            id=_uid(),
+            id=event_id,
             entity_kind=kind,
             entity_id=str(eid or ""),
             op=op,
@@ -82,17 +83,24 @@ def record_mutation(connection, kind, eid, op, fields):
             ts=datetime.utcnow(),
         )
     )
+    return event_id
 
 
 def _emit(connection, target, op, fields):
     try:
         kind = target.__tablename__
         eid = getattr(target, "id", "")
-        record_mutation(connection, kind, eid, op, fields)
+        event_id = record_mutation(connection, kind, eid, op, fields)
         sess = object_session(target)
         if sess is not None:
             sess.info.setdefault("_mutations", []).append(
-                {"entity_kind": kind, "entity_id": str(eid or ""), "op": op, "fields": fields}
+                {
+                    "event_id": event_id,
+                    "entity_kind": kind,
+                    "entity_id": str(eid or ""),
+                    "op": op,
+                    "fields": fields,
+                }
             )
     except Exception as e:  # never break the host write
         log.warning(

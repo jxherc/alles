@@ -105,7 +105,9 @@ class RuleEditTests(ApiTest):
         d = self.client.patch(f"/api/automations/{rid}", json={"enabled": False}).json()
         self.assertFalse(d["enabled"])
         d = self.client.patch(f"/api/automations/{rid}", json={"enabled": True}).json()
-        self.assertTrue(d["enabled"])
+        self.assertFalse(d["enabled"])
+        self.assertTrue(d["enabled_intent"])
+        self.assertEqual(d["migration_state"], "needs_review")
 
     def test_delete_missing_404(self):
         self.assertEqual(self.client.delete("/api/automations/nope").status_code, 404)
@@ -315,15 +317,12 @@ class AutomationSafetyTests(ApiTest):
             json={"trigger": "daily_at", "trigger_arg": "00:00", "action": "push"},
         ).json()["id"]
         response = self.client.post(f"/api/automations/{rule_id}/test")
-        self.assertEqual(response.status_code, 502)
-        self.assertEqual(response.json()["detail"]["attempt"]["status"], "failed")
+        self.assertEqual(response.status_code, 409)
 
         attempts = self.client.get(f"/api/automations/{rule_id}/attempts").json()
-        self.assertEqual(len(attempts), 1)
-        self.assertEqual(attempts[0]["status"], "failed")
-        self.assertNotIn("occurrence_key", attempts[0])
+        self.assertEqual(attempts, [])
         listed = self.client.get("/api/automations").json()
-        self.assertEqual(listed[0]["last_attempt"]["status"], "failed")
+        self.assertIsNone(listed[0]["last_attempt"])
 
     def test_deleting_rule_removes_attempt_history(self):
         db, rule = self._rule()
