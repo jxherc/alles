@@ -4,31 +4,51 @@
 let _base = 'localhost';   // overwritten from /api/auth/me on boot
 export function setBaseDomain(b) { if (b) _base = b; }
 
-// apex ('') = the hub. every app gets its own subdomain; the AI stuff is grouped under aide.
+// Canonical owners are kept separate from old host aliases so viewToSub() can never
+// accidentally route new links back through a legacy hostname.
+export const CANONICAL_SUBDOMAIN_VIEWS = {
+  '':         { app: 'alles',     primary: 'home',     views: ['home', 'today', 'activity'] },
+  aide:       { app: 'aide',      primary: 'chat',     views: ['chat', 'memory', 'compare', 'brain', 'models', 'reminders', 'gallery', 'cookbook', 'usage', 'skills', 'proactive', 'project'] },
+  docs:       { app: 'docs',      primary: 'wiki',     views: ['wiki', 'notes', 'journal'] },
+  files:      { app: 'files',     primary: 'files',    views: ['files', 'photos'] },
+  finance:    { app: 'finance',   primary: 'money',    views: ['money', 'subs'] },
+  passwords:  { app: 'passwords', primary: 'vault',    views: ['vault'] },
+  server:     { app: 'server',    primary: 'system',   views: ['system'] },
+  mail:       { app: 'mail',      primary: 'mail',     views: ['mail'] },
+  calendar:   { app: 'calendar',  primary: 'calendar', views: ['calendar'] },
+  tasks:      { app: 'tasks',     primary: 'tasks',    views: ['tasks'] },
+  days:       { app: 'days',      primary: 'days',     views: ['days'] },
+  habits:     { app: 'habits',    primary: 'habits',   views: ['habits'] },
+  read:       { app: 'read',      primary: 'read',     views: ['read'] },
+  books:      { app: 'books',     primary: 'books',    views: ['books'] },
+  health:     { app: 'health',    primary: 'health',   views: ['health'] },
+  contacts:   { app: 'contacts',  primary: 'contacts', views: ['contacts'] },
+  watch:      { app: 'watch',     primary: 'watch',    views: ['watch'] },
+};
+
+export const LEGACY_SUBDOMAIN_VIEWS = {
+  home:          { app: 'alles',     primary: 'home',     views: ['home', 'today'] },
+  today:         { app: 'alles',     primary: 'today',    views: ['today'] },
+  system:        { app: 'server',    primary: 'system',   views: ['system'] },
+  secrets:       { app: 'passwords', primary: 'vault',    views: ['vault'] },
+  vault:         { app: 'passwords', primary: 'vault',    views: ['vault'] },
+  money:         { app: 'finance',   primary: 'money',    views: ['money'] },
+  subs:          { app: 'finance',   primary: 'subs',     views: ['subs'] },
+  subscriptions: { app: 'finance',   primary: 'subs',     views: ['subs'] },
+  notes:         { app: 'docs',      primary: 'wiki',     views: ['wiki', 'notes'] },
+  wiki:          { app: 'docs',      primary: 'wiki',     views: ['wiki'] },
+  journal:       { app: 'docs',      primary: 'journal',  views: ['journal'] },
+  gallery:       { app: 'files',     primary: 'photos',   views: ['photos'] },
+  photos:        { app: 'files',     primary: 'photos',   views: ['photos'] },
+  activity:      { app: 'alles',     primary: 'activity', views: ['activity'] },
+  cowork:        { app: 'aide',      primary: 'chat',     views: ['chat'] },
+  jarvis:        { app: 'aide',      primary: 'chat',     views: ['chat'] },
+  chat:          { app: 'aide',      primary: 'chat',     views: ['chat'] },
+};
+
 export const SUBDOMAIN_VIEWS = {
-  '':         { app: 'alles',    primary: 'home',     views: ['home'] },
-  aide:       { app: 'aide',     primary: 'chat',     views: ['chat', 'memory', 'compare', 'brain', 'models', 'reminders', 'gallery', 'cookbook', 'usage', 'skills'] },
-  mail:       { app: 'mail',     primary: 'mail',     views: ['mail'] },
-  docs:       { app: 'docs',     primary: 'wiki',     views: ['wiki'] },
-  gallery:    { app: 'gallery',  primary: 'photos',   views: ['photos'] },
-  calendar:   { app: 'calendar', primary: 'calendar', views: ['calendar'] },
-  tasks:      { app: 'tasks',    primary: 'tasks',    views: ['tasks'] },
-  subs:       { app: 'subs',     primary: 'subs',     views: ['subs'] },
-  money:      { app: 'money',    primary: 'money',    views: ['money'] },
-  days:       { app: 'days',     primary: 'days',     views: ['days'] },
-  journal:    { app: 'journal',  primary: 'journal',  views: ['journal'] },
-  activity:   { app: 'activity', primary: 'activity', views: ['activity'] },
-  system:     { app: 'system',   primary: 'system',   views: ['system'] },
-  watch:      { app: 'watch',    primary: 'watch',    views: ['watch'] },
-  habits:     { app: 'habits',   primary: 'habits',   views: ['habits'] },
-  read:       { app: 'read',     primary: 'read',     views: ['read'] },
-  books:      { app: 'books',    primary: 'books',    views: ['books'] },
-  health:     { app: 'health',   primary: 'health',   views: ['health'] },
-  files:      { app: 'files',    primary: 'files',    views: ['files'] },
-  contacts:   { app: 'contacts', primary: 'contacts', views: ['contacts'] },
-  secrets:    { app: 'secrets',  primary: 'vault',    views: ['vault'] },
-  notes:      { app: 'docs',     primary: 'wiki',     views: ['wiki'] },
-  photos:     { app: 'gallery',  primary: 'photos',   views: ['photos'] },
+  ...CANONICAL_SUBDOMAIN_VIEWS,
+  ...LEGACY_SUBDOMAIN_VIEWS,
 };
 
 export function parseHost() {
@@ -70,7 +90,7 @@ export function shouldPollModels(sub = parseHost().sub, oneHost = singleHost()) 
 
 // which subdomain owns a view (settings has none — it's a global modal)
 export function viewToSub(viewId) {
-  for (const [sub, cfg] of Object.entries(SUBDOMAIN_VIEWS)) {
+  for (const [sub, cfg] of Object.entries(CANONICAL_SUBDOMAIN_VIEWS)) {
     if (cfg.views.includes(viewId)) return sub;
   }
   return '';

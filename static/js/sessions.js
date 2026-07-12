@@ -36,13 +36,13 @@ export async function loadSessions() {
 
 // called once on boot. only restore a session from a deep-link hash —
 // a bare localhost:8000 always opens a fresh chat (like claude.ai/new).
-export async function initSessions() {
+export async function initSessions({ hashOwner = 'session' } = {}) {
   await loadSessions();
   const hash = location.hash.slice(1);
-  if (hash && _allSessions.find(s => s.id === hash)) {
+  if (hashOwner === 'session' && hash && _allSessions.find(s => s.id === hash)) {
     await selectSession(hash);
   } else {
-    newChat();
+    newChat({ preserveHash: hashOwner !== 'session' });
   }
 }
 
@@ -85,7 +85,9 @@ export function newChat(options = {}) {
   window._pendingPersona = null;       // fresh chat starts with no persona pre-picked
   window._refreshPersonaBtn?.();        // keep the persona button visible + pickable pre-send
   selectAideDefault();                  // new chats follow the effective Aide Chat role
-  if (location.hash) history.replaceState(null, '', location.pathname + location.search);
+  if (!options.preserveHash && location.hash) {
+    history.replaceState(null, '', location.pathname + location.search);
+  }
   document.getElementById('messages').innerHTML = '';
   document.querySelectorAll('.session-item').forEach(el => el.classList.remove('active'));
   showWelcome();

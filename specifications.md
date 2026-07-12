@@ -33,7 +33,9 @@ model. the [readme](./readme.md) is the plain-english overview; this is the deta
 
 ## the apps — what you actually get
 
-every one of these is a real, finished app — not a placeholder. they each live on their own subdomain (more on that later) so it feels like a proper suite, but it's all one program.
+every one of these is a real, finished app — not a placeholder. the daily shell keeps Today and Aide
+close, while related specialist views share Docs, Files, Finance, Passwords, or Server. it is still one
+program, and compatibility links keep the older app names and subdomains working.
 
 ### aide (the ai)
 **plain version:** a chat window that talks to whatever ai model you want, remembers you between chats, and — when you let it — can do real work on your machine instead of just talking.
@@ -48,9 +50,9 @@ every one of these is a real, finished app — not a placeholder. they each live
 - **long-term memory** — it remembers reviewed facts and preferences across chats, with Off, Ask,
   and Auto policies
 - **personas** — saved system prompts / characters you can switch between
-- **projects** — group chats, instructions, and a scratchpad around one selected server folder; relative
-  file work starts there, missing folders keep their chats until you explicitly relink them, and
-  **General** has no implicit folder
+- **projects** — General and folder-backed Projects live in the Aide sidebar with their own threads and
+  recent Jarvis work. relative file work starts in the selected server folder; missing folders keep
+  their chats until you explicitly relink them, and **General** has no implicit folder
 - **artifacts** — when the model writes html/svg/a webpage/code, you see it rendered live, not as a wall of text
 - **safe Markdown saves** — vault writes replace files atomically, Notes refuses to overwrite a file changed after you opened it, and deleted Docs/Notes can be restored from 30-day trash
 - **voice** — talk to it and have it talk back (speech-to-text in, text-to-speech out)
@@ -69,7 +71,7 @@ every one of these is a real, finished app — not a placeholder. they each live
 <p align="center"><img src="docs/screenshots/models.png" width="760" alt="the model picker — every provider in its brand colour, image models flagged with 🎨, a newest-only toggle"></p>
 
 ### home
-**plain version:** the front page. a launcher you can arrange however you like, with a box to jot something down fast.
+**plain version:** the older launcher, kept as **All apps** while bookmarks and habits move to Today.
 
 <p align="center"><img src="docs/screenshots/home.png" width="760" alt="home — the launcher and quick-capture box"></p>
 
@@ -81,8 +83,12 @@ every one of these is a real, finished app — not a placeholder. they each live
 ### today
 **plain version:** your whole day on one screen the moment you open alles.
 
-- today's calendar events, tasks that are overdue or due today, reminders, subscriptions about to renew, day-countdowns, unread mail, and recently-edited docs — all in one list
-- one button: **"ask aide about my day"** — hands all of that to the ai for a friendly rundown of what to do first and what you're about to miss
+- **Needs you** keeps approvals, choices, conflicts, uncertain results, and failed work visible
+- **Today** combines events, due work, reminders, habits, renewals, and important dates
+- **In progress** shows active Jarvis and long Aide work; **Briefs** holds completed reports
+- **Shortcuts** opens pinned apps, Projects, approved folders, and saved searches
+- every core section is deterministic and useful without a model. Customize Today controls order,
+  visibility, density, and shortcuts, with separate loading, empty, partial, offline, and error states
 
 ### activity
 **plain version:** one scrollable feed of *everything you did*, across every app, newest first. if today is what's coming up, activity is what already happened.
@@ -493,7 +499,18 @@ copy `.env.example` to `.env`. **everything is optional** — alles runs fine wi
 | `base_domain` | — | your real domain, for the subdomain setup (see architecture) |
 | `tavily_api_key` | — | better research search (falls back to duckduckgo + wikipedia, no key needed) |
 
-**everything else is configured in the app, under settings** — no files to hand-edit. that includes: model endpoints, mail accounts, the search provider (tavily / brave / searxng / google pse / serper) and fallback chain, voice (stt/tts provider, model, language, voice, speed), the agent (default chat behavior, owner instructions, permission mode, max turns/tokens, docker sandbox + image + no-net, sub-agents, computer-use, context files, allowed roots), memory policy and auto-inject, interface language/region/time zone, artifacts on/off, context limit + auto-compact, themes/appearance, caldav accounts, webhooks, and api tokens. Owner instructions are an editable layer after optional Project/persona instructions; the code-owned Aide base and enforced permission rules are not stored in that editable field. English is currently the only reviewed interface language; region and IANA time zone already control shared localized formatting. all of those persist in the settings file included by normal Alles backups.
+**everything else is configured in one Settings home** — open it from the profile menu or with
+ctrl/cmd+comma. its eight groups cover general appearance, Aide, models/providers, memory/owner
+instructions, connections/MCP, privacy/security, notifications/language, and server/backups/data.
+there are no files to hand-edit. controls include model endpoints, mail accounts, the search provider
+(tavily / brave / searxng / google pse / serper) and fallback chain, voice (stt/tts provider, model,
+language, voice, speed), the agent (Automatic tools or Answer only, permission mode, max turns/tokens,
+docker sandbox + image + no-net, sub-agents, computer-use, context files, allowed roots), memory policy,
+interface language/region/time zone, artifacts, context limits, themes, caldav accounts, webhooks, and
+api tokens. Owner instructions are an editable layer after optional Project/persona instructions; the
+code-owned Aide base and enforced permission rules are not stored in that editable field. English is
+currently the only reviewed interface language; region and IANA time zone control shared formatting.
+all of those persist in the settings file included by normal Alles backups.
 
 ---
 
@@ -515,35 +532,44 @@ graph td
 ```
 
 
-alles is **one server** serving **one single-page app**, but each app gets its own subdomain so it feels like a real suite:
+alles is **one server** serving **one single-page app**. the main product homes use these canonical
+addresses; unchanged specialist apps keep their existing addresses:
 
 ```
-localhost                the hub (launcher / home; use the bare configured base host)
-aide.localhost           chat, agent, memory, compare, brain, models, reminders, ai gallery, cookbook, usage, skills
+localhost                Today by default; All apps keeps the older launcher
+aide.localhost           chat, Jarvis mode, Projects, models, memory, compare, creations, and ai tools
+docs.localhost           docs, scratch notes, and journal
+files.localhost          files and personal photos
+finance.localhost        money and subscriptions
+passwords.localhost      the encrypted vault
+server.localhost         server and machine controls
 mail.localhost           mail
-docs.localhost           docs (notes — `notes.localhost` is an alias)
 calendar.localhost       calendar
 tasks.localhost          tasks
-subs.localhost           subscription tracker
-money.localhost          accounts, budgets, transactions
 days.localhost           countdowns
-journal.localhost        journal
 habits.localhost         habit tracker
 health.localhost         health / fitness log
 read.localhost           read-later archive
 books.localhost          reading list
-files.localhost          files
-gallery.localhost        photos (`photos.localhost` is an alias)
 contacts.localhost       contacts
-secrets.localhost        the vault
-activity.localhost       the cross-app activity timeline
-system.localhost         the live system monitor (this machine)
 watch.localhost          uptime monitoring for external sites/endpoints
 ```
 
-`static/js/subdomain.js` maps each host to the views it shows; `app.js` scopes the sidebar to that app and `navigateto()` cross-jumps between them. this works **today with zero dns setup** — browsers route `*.localhost` to your own machine automatically.
+`home`, `today`, `system`, `secrets`, `vault`, `money`, `subs`, `subscriptions`, `notes`, `wiki`, `journal`,
+`gallery`, `photos`, `activity`, `cowork`, `jarvis`, and `chat` remain compatibility subdomains.
+old `app=` and `view=` names follow the same map. personal-media Gallery goes to Files → Photos;
+AI-image Gallery goes to Aide → Creations. these aliases remain for at least one stable release after
+their replacement is delivered and are not removed in Afterlife Phase 3.
 
-**one login across all of them.** because a cookie set for `localhost` isn't sent to `*.localhost` subdomains, alles logs you in per-host and quietly relays the session on first cross-navigation via a one-time handoff code — so you authenticate once and every app just works, even on a direct visit or a bookmark.
+`static/js/subdomain.js` maps each host to the views it shows; `app.js` scopes the shell and cross-jumps
+between them. this works **today with zero dns setup** — browsers route `*.localhost` to your own
+machine automatically.
+
+**one login across all of them.** because a cookie set for `localhost` isn't sent to `*.localhost`
+subdomains, alles logs you in per-host and quietly relays the session with a one-time handoff code. the
+relay accepts only known direct child hosts with the same protocol and port, and preserves the full
+path, query, and hash. an expired or invalid code retries through the safe broker instead of dropping
+the bookmark.
 
 **on a real domain:** set `base_domain=yourdomain`, put a wildcard reverse proxy in front (e.g. caddy: `*.yourdomain, yourdomain { reverse_proxy 127.0.0.1:8000 }`), and cookies become `domain=yourdomain; secure` so single-sign-on spans every subdomain over https.
 

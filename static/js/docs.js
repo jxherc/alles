@@ -19,12 +19,12 @@ const stem = p => (p || '').split('/').pop().replace(/\.(md|markdown)$/i, '');
 
 async function _get(path) { try { return await (await fetch(path)).json(); } catch { return null; } }
 
-export function initDocs() {
+export function initDocs(initialSection = 'docs') {
   _wire();
   window._reloadDocs = () => { loadTree(); if (_cur) openNote(_cur); };
   loadTree();
   loadTags();
-  showSection('docs');
+  showSection(initialSection === 'notes' ? 'notes' : 'docs');
   _watch();
   // the obsidian plugin links here as /?app=wiki#<note name> — open it (once)
   if (!_deepLinked && location.hash.length > 1) {
@@ -93,7 +93,7 @@ function _wire() {
 }
 
 // ── sections ────────────────────────────────────────────────────────────────
-function showSection(sec) {
+export function showSection(sec) {
   _section = sec;
   document.querySelectorAll('#docs-sections .docs-sec-btn').forEach(b =>
     b.classList.toggle('active', b.dataset.section === sec));

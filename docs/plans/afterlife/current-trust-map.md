@@ -47,7 +47,7 @@ flowchart LR
 ## Route snapshot
 
 - 71 mounted route modules
-- 715 HTTP method/path pairs
+- 717 HTTP method/path pairs
 - 698 `/api/*`, 2 `/v1/*`, and 15 non-API shell/public pairs
 - SHA-256: `5e38485675c05c8711fdea9a9a75f0b9ff9092051b5cd64695444f73c2f1a658`
 - No WebSocket route; long responses use SSE/streaming HTTP
@@ -58,10 +58,11 @@ rate-limited password unlock under `/s` and `/sv`, plus public booking/RSVP read
 
 ## Hosts and deep links
 
-The hub is the bare base host, such as `localhost:8000`. There are 20 canonical app subdomains:
-`aide`, `mail`, `docs`, `gallery`, `calendar`, `tasks`, `subs`, `money`, `days`, `journal`, `activity`,
-`system`, `watch`, `habits`, `read`, `books`, `health`, `files`, `contacts`, and `secrets`.
-Compatibility aliases remain `notes → docs` and `photos → gallery`.
+The hub is the bare base host, such as `localhost:8000`. There are 16 canonical app subdomains:
+`aide`, `docs`, `files`, `finance`, `passwords`, `server`, `mail`, `calendar`, `tasks`, `days`, `habits`,
+`read`, `books`, `health`, `contacts`, and `watch`. Compatibility aliases remain `home`, `today`,
+`system`, `secrets`, `vault`, `money`, `subs`, `subscriptions`, `notes`, `wiki`, `journal`, `gallery`,
+`photos`, `activity`, `cowork`, `jarvis`, and `chat`.
 
 The baseline covers `?app=`, `?view=`, Aide `?ask=&web=1`, Docs/session hashes, Files `?p=&sort=&order=`,
 Money `?m=`, Journal `?d=`, Activity filters, Obsidian links, and public share/booking routes. Exact host

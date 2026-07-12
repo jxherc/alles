@@ -26,6 +26,8 @@ import { loadMail, startMailPoll } from './mail.js';
 import { initAppCogs } from './appsettings.js';
 import { loadPhotos, initPhotos } from './photos.js';
 import { setBaseDomain, parseHost, appForSub, viewToSub, urlForApp, currentSub, singleHost, SUBDOMAIN_VIEWS, shouldPollModels } from './subdomain.js';
+import { buildCompatibilityUrl, resolveCompatibilityRoute } from './routecompat.js';
+import { addSsoAuthCode, buildApexBrokerUrl, normalizeSsoTarget, stripTransientParams } from './sso-state.js';
 import { loadBrainPanel } from './brain.js';
 import { openSettings, closeSettings, applyVis } from './settings.js?v=217';
 import { setIncognitoMode, getPermMode, setPermMode, getEffort, setEffort } from './modes.js';
@@ -44,14 +46,18 @@ window._mdToHtml = mdToHtml;
 // the apex (which holds the session) to mint its own — even on a direct visit.
 let _pendingSso = null;
 let _afterlifeFlags = {};
+let _authEnabled = false;
 
 async function init() {
   const params = new URLSearchParams(location.search);
   // 1. redeem a handoff code if an app/the apex sent us one
   const code = params.get('_auth');
-  const hadAuthCode = !!code;
+  let redeemedAuthCode = false;
   if (code) {
-    await fetch('/api/auth/redeem?code=' + encodeURIComponent(code)).catch(() => {});
+    try {
+      const response = await fetch('/api/auth/redeem?code=' + encodeURIComponent(code));
+      redeemedAuthCode = response.ok;
+    } catch {}
     _stripParam('_auth');
   }
 
@@ -67,6 +73,7 @@ async function init() {
     try { me = JSON.parse(localStorage.getItem('alles_auth_cache') || '{}'); } catch {}
     if (me.base_domain) setBaseDomain(me.base_domain);
   }
+  _authEnabled = me.enabled === true;
 
   // server unreachable + nothing cached → say "not running", don't bounce to a dead login wall
   if (chooseBootState(reachable, me.authenticated) === 'notrunning') { _showNotRunning(); return; }
@@ -74,21 +81,28 @@ async function init() {
   // 2. apex acting as the SSO broker: an app bounced here (?_sso=app.host) for a session
   const ssoTarget = params.get('_sso');
   if (ssoTarget) {
-    if (me.authenticated && _validSsoTarget(ssoTarget)) { _ssoRedirect(ssoTarget); return; }
-    if (!me.authenticated) { _pendingSso = _validSsoTarget(ssoTarget) ? ssoTarget : null; _showLoginScreen(); return; }
+    const target = _validSsoTarget(ssoTarget);
+    if (me.authenticated && target) { _ssoRedirect(target); return; }
+    if (!me.authenticated) {
+      _pendingSso = target;
+      if (!target) _stripParam('_sso');
+      _showLoginScreen();
+      return;
+    }
     _stripParam('_sso');   // authed but a junk target → ignore, continue to the hub
   }
 
   // 3. not authed here → bounce to the apex ONCE to pick up an existing session
   if (!me.authenticated) {
-    if (parseHost().sub && !hadAuthCode) {
-      location.assign(urlForApp('') + '?_sso=' + encodeURIComponent(location.host));
+    if (parseHost().sub && !redeemedAuthCode) {
+      try { location.replace(buildApexBrokerUrl(location.href, parseHost().base)); }
+      catch { _showLoginScreen(); }
       return;
     }
     _showLoginScreen();
     return;
   }
-  await _boot();
+  await _boot({ reachable });
 }
 
 function _stripParam(name) {
@@ -101,25 +115,62 @@ function _stripParam(name) {
 // apex → mint a one-time code and send it back to the requesting app subdomain
 async function _ssoRedirect(target) {
   try {
-    const { code } = await fetch('/api/auth/handoff').then(r => r.json());
-    location.assign(location.protocol + '//' + target + '/?_auth=' + encodeURIComponent(code));
+    const response = await fetch('/api/auth/handoff');
+    if (!response.ok) throw new Error('handoff failed');
+    const { code } = await response.json();
+    location.replace(addSsoAuthCode(target, code));
   } catch { _stripParam('_sso'); _showLoginScreen(); }
 }
 
 // only relay a session to OUR own app subdomains (no open-redirect / token leak)
 function _validSsoTarget(target) {
-  try {
-    const u = new URL(location.protocol + '//' + target);
-    if (u.port !== location.port || u.hostname === parseHost().base) return false;
-    const base = parseHost().base;
-    if (!u.hostname.endsWith('.' + base)) return false;
-    return !!SUBDOMAIN_VIEWS[u.hostname.slice(0, -('.' + base).length)];
-  } catch { return false; }
+  const { base, port } = parseHost();
+  return normalizeSsoTarget(target, {
+    protocol: location.protocol,
+    port,
+    baseDomain: base,
+    allowedSubdomains: Object.keys(SUBDOMAIN_VIEWS).filter(Boolean),
+  });
 }
 
-async function _boot() {
+async function _boot({ reachable = true } = {}) {
   const afterlifeFlags = await loadAfterlifeFeatures();
   _afterlifeFlags = afterlifeFlags;
+  const bootParams = new URLSearchParams(location.search);
+  const hasPriorityAction = !!(bootParams.get('ask') || bootParams.get('mailoauth'));
+  const initialRoute = resolveCompatibilityRoute({
+    sub: parseHost().sub,
+    app: hasPriorityAction ? undefined : bootParams.get('app'),
+    view: hasPriorityAction ? undefined : bootParams.get('view'),
+    flags: afterlifeFlags,
+  });
+
+  if (initialRoute && reachable && !singleHost() && initialRoute.host !== currentSub()) {
+    const target = buildCompatibilityUrl({
+      currentUrl: location.href,
+      route: initialRoute,
+      baseDomain: parseHost().base,
+    });
+    if (target) { await _navigateWithHandoff(target, { replace: true }); return; }
+  }
+
+  if (initialRoute) {
+    if (singleHost()) {
+      _consumeParams(['app', 'view', '_auth', '_sso']);
+    } else if (initialRoute.host === currentSub()) {
+      const cleaned = buildCompatibilityUrl({
+        currentUrl: location.href,
+        route: initialRoute,
+        baseDomain: parseHost().base,
+      });
+      if (cleaned) _replaceHistoryUrl(cleaned);
+    } else {
+      // Offline aliases still open their feature in place. Only routing keys are
+      // consumed; Files filters, Docs hashes, and other app state stay intact.
+      _consumeParams(['app', 'view', '_auth', '_sso']);
+    }
+  }
+
   applyVis();
   initAfterlifeShell(afterlifeFlags);
   try { configureLocalization(await fetch('/api/settings').then(r => r.json())); }
@@ -131,7 +182,8 @@ async function _boot() {
   // these hit the server; offline they'll fail — don't let that abort the shell render (11b)
   try { await loadModels(); } catch {}
   try { await loadProjects(); } catch {}
-  try { await initSessions(); } catch {}
+  const defaultHashOwner = appForSub(parseHost().sub).primary === 'chat' ? 'session' : 'app';
+  try { await initSessions({ hashOwner: initialRoute?.hashOwner || defaultHashOwner }); } catch {}
   const ta = document.getElementById('composer-ta');
   initSlash(ta);
   try { const { initMentions } = await import('./mentions.js'); initMentions(ta); } catch {}
@@ -150,20 +202,20 @@ async function _boot() {
   window._reloadCalendar = () => loadCalendar();
   window._reloadMail = startMailPoll;
   window._reloadSystem = () => import('./system.js').then(m => m.initSystem());
-  applySubdomainScope();
+  applySubdomainScope(initialRoute);
 
   // arrived from another subapp's palette "ask aide / research" → run it once
   const _p = new URLSearchParams(location.search);
   const _ask = _p.get('ask');
   if (_ask) {
-    history.replaceState(null, '', location.pathname + location.hash);
+    _consumeParams(['ask', 'web']);
     setTimeout(() => window._askInChat(_ask, _p.get('web') === '1'), 350);
   }
 
   // bounced back from the google sign-in flow → report + open mail
   const _mo = _p.get('mailoauth');
   if (_mo) {
-    history.replaceState(null, '', location.pathname + location.hash);
+    _consumeParams(['mailoauth']);
     const msg = {
       ok: 'gmail connected ✓', denied: 'google sign-in cancelled',
       badstate: 'sign-in expired, try again', failed: "couldn't reach google, try again",
@@ -174,14 +226,39 @@ async function _boot() {
 
   const _v = _p.get('app') || _p.get('view');
   if (_v && !_ask && !_mo && /^[a-z0-9_-]+$/i.test(_v)) {
-    history.replaceState(null, '', location.pathname + location.hash);
+    _consumeParams(['app', 'view']);
     setTimeout(() => navigateTo(_v), 0);
   }
 }
 
+function _replaceHistoryUrl(target) {
+  const url = new URL(target, location.href);
+  history.replaceState(null, '', url.pathname + url.search + url.hash);
+}
+
+function _consumeParams(names) {
+  try { _replaceHistoryUrl(stripTransientParams(location.href, names)); }
+  catch {}
+}
+
+async function _navigateWithHandoff(target, { replace = false } = {}) {
+  let destination = target;
+  if (_authEnabled) {
+    try {
+      const response = await fetch('/api/auth/handoff');
+      if (response.ok) {
+        const { code } = await response.json();
+        if (code) destination = addSsoAuthCode(target, code);
+      }
+    } catch {}
+  }
+  if (replace) location.replace(destination);
+  else location.assign(destination);
+}
+
 // configure the SPA for whichever subdomain we're on: apex = the hub; an app
 // subdomain boots straight into that app with a sidebar scoped to its views.
-function applySubdomainScope() {
+function applySubdomainScope(initialRoute = null) {
   const { sub } = parseHost();
   const app = appForSub(sub);
   const onAide = app.app === 'aide';
@@ -215,8 +292,9 @@ function applySubdomainScope() {
   // applyVis (user prefs) be the only thing that hides any of them.
 
   // landing
-  if (!sub) { if (!location.hash) (_afterlifeFlags.afterlife_today ? showTodayView() : showHomeView()); }
-  else if (!(app.primary === 'chat' && location.hash)) navigateTo(app.primary);
+  if (initialRoute) renderLocalRoute(initialRoute);
+  else if (!sub) { if (!location.hash) (_afterlifeFlags.afterlife_today ? showTodayView() : showHomeView()); }
+  else if (!(app.primary === 'chat' && location.hash)) renderLocalView(app.primary);
   // (aide with a #sessionId is already restored by initSessions)
   document.body.classList.remove('preboot', 'login-mode');
 }
@@ -285,12 +363,7 @@ function _shChrome(v) {
 // cross-app jump → full-page nav to that app's subdomain, carrying an SSO handoff code
 async function crossNav(sub) {
   if (singleHost()) { navigateTo(appForSub(sub).primary); return; }  // one origin → in-page
-  let url = urlForApp(sub);
-  try {
-    const { code } = await fetch('/api/auth/handoff').then(r => r.json());
-    if (code) url += (url.includes('?') ? '&' : '?') + '_auth=' + encodeURIComponent(code);
-  } catch {}
-  location.assign(url);
+  await _navigateWithHandoff(urlForApp(sub));
 }
 
 function _showNotRunning() {
@@ -391,7 +464,7 @@ const showTasksView    = () => showView('tasks-view',    'tasks',    loadTasks);
 const showCalendarView = () => showView('calendar-view', 'calendar', loadCalendar);
 const showGalleryView  = () => showView('gallery-view',  'gallery',  () => { loadGallery(); initGalleryUpload(); });
 const showCompareView  = () => showView('compare-view',  'compare',  () => { initCompareView(); loadCompareModels(); loadCompareLeaderboard(); });
-const showWikiView     = () => showView('wiki-view',     'wiki',     async () => { (await import('./docs.js?v=214')).initDocs(); });
+const showWikiView     = (section = 'docs') => showView('wiki-view', 'wiki', async () => { (await import('./docs.js?v=215')).initDocs(section); });
 const showVaultView      = () => showView('vault-view',      'vault',     loadVaultView);
 const showContactsView   = () => showView('contacts-view',  'contacts',  () => loadContacts());
 const showRemindersView  = () => showView('reminders-view', 'reminders', initReminderPanel);
@@ -418,7 +491,6 @@ const showProactiveView  = () => showView('proactive-view', 'proactive', loadPro
 
 // central nav dispatch — used by both the sidebar nav-items and the home tiles
 function navigateTo(v) {
-  _setAfterlifeSpace(v === 'chat' || v === 'project' ? 'aide' : v === 'today' ? 'today' : '');
   // memory now lives inside settings, not as its own view
   if (v === 'memory') { openSettings('memory'); return; }
   // a view that lives on another subdomain → full-page jump (with SSO handoff).
@@ -427,6 +499,17 @@ function navigateTo(v) {
     const dest = viewToSub(v);
     if (dest !== currentSub()) { crossNav(dest); return; }
   }
+  renderLocalView(v);
+}
+
+function renderLocalRoute(route) {
+  if (!route) return;
+  renderLocalView(route.view, route);
+  if (route.mode === 'jarvis') setMode('jarvis');
+}
+
+function renderLocalView(v, route = {}) {
+  _setAfterlifeSpace(v === 'chat' || v === 'project' ? 'aide' : v === 'today' ? 'today' : '');
   if (singleHost() && v !== 'settings') _shChrome(v);
   if      (v === 'today')     showTodayView();
   else if (v === 'home')      showHomeView();
@@ -436,7 +519,7 @@ function navigateTo(v) {
   else if (v === 'tasks')     showTasksView();
   else if (v === 'calendar')  showCalendarView();
   else if (v === 'gallery')   showGalleryView();
-  else if (v === 'wiki')      showWikiView();
+  else if (v === 'wiki')      showWikiView(route.section || 'docs');
   else if (v === 'compare')   showCompareView();
   else if (v === 'vault')     showVaultView();
   else if (v === 'contacts')  showContactsView();
@@ -1565,10 +1648,15 @@ async function _openSchedulePop(text, ta) {
 
 // ── mode / theme ──────────────────────────────────────────────────────────────
 function setMode(m) {
-  document.getElementById('mode-agent').classList.toggle('active', m === 'agent');
-  document.getElementById('mode-chat').classList.toggle('active', m === 'chat');
+  const jarvis = m === 'jarvis';
+  const agentMode = m === 'agent' || jarvis;
+  const agentButton = document.getElementById('mode-agent');
+  agentButton.classList.toggle('active', agentMode);
+  agentButton.textContent = jarvis ? 'jarvis' : 'agent';
+  document.getElementById('mode-chat').classList.toggle('active', !agentMode);
+  document.body.dataset.aideMode = jarvis ? 'jarvis' : agentMode ? 'agent' : 'chat';
   // .agent-mode grows the box + reveals the agent control row (CSS-driven)
-  document.querySelector('.composer-box')?.classList.toggle('agent-mode', m === 'agent');
+  document.querySelector('.composer-box')?.classList.toggle('agent-mode', agentMode);
 }
 window._setMode = setMode;   // so sessions.js can restore a convo's last mode on load
 
