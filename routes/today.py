@@ -12,6 +12,7 @@ from datetime import date
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session as DbSession
 
+from core.build_info import afterlife_feature_flags
 from core.database import Subscription, Task, get_db
 from services import signals
 from services.signals import (
@@ -62,8 +63,13 @@ def today_view(date_q: str = Query("", alias="date"), db: DbSession = Depends(ge
     ]
 
     renewing = [
-        {"id": d["id"], "name": d["name"], "in_days": d["in_days"], "price": d["price"],
-         "currency": d["currency"]}
+        {
+            "id": d["id"],
+            "name": d["name"],
+            "in_days": d["in_days"],
+            "price": d["price"],
+            "currency": d["currency"],
+        }
         for d in (s["data"] for s in g.get("sub", []))
         if 0 <= d["in_days"] <= 7
     ]
@@ -91,7 +97,7 @@ def today_view(date_q: str = Query("", alias="date"), db: DbSession = Depends(ge
     except Exception:
         pass
 
-    return {
+    response = {
         "date": today.isoformat(),
         "events": events,
         "tasks": {"overdue": overdue, "due_today": due_today, "open_count": open_count},
@@ -100,3 +106,8 @@ def today_view(date_q: str = Query("", alias="date"), db: DbSession = Depends(ge
         "day_events": day_events,
         "recent_docs": recent_docs,
     }
+    if afterlife_feature_flags()["afterlife_today"]:
+        from services.today_sections import build
+
+        response["sections"] = build(db, response.copy())
+    return response
