@@ -1,8 +1,10 @@
 import { toast } from './util.js';
+import { confirm as confirmDialog, prompt as promptDialog } from './dialog.js';
 
 let _memories = [];
 let _searchTimeout = null;
 let _activeCategory = 'all';
+let _memoryPolicy = 'ask';
 
 const CATEGORIES = ['all', 'identity', 'preference', 'fact', 'task', 'general'];
 
@@ -11,8 +13,13 @@ export function filterMemoriesByCategory(mems, cat = _activeCategory) {
 }
 
 export async function loadMemories() {
-  const r = await fetch('/api/memories');
-  _memories = await r.json();
+  const [memories, settings] = await Promise.all([
+    _requestJson('/api/memories'),
+    _requestJson('/api/settings'),
+  ]);
+  _memories = memories;
+  _memoryPolicy = settings.memory_policy || 'ask';
+  _renderPolicy();
   _renderCategoryFilter();
   renderMemories(filterMemoriesByCategory(_memories));
 }
@@ -42,16 +49,22 @@ function renderMemories(mems) {
   }
 
   list.innerHTML = mems.map(m => `
-    <div class="mem-item${m.pinned ? ' pinned' : ''}" data-id="${m.id}">
+    <div class="mem-item${m.pinned ? ' pinned' : ''}${m.status === 'suggested' ? ' suggested' : ''}" data-id="${m.id}">
       <div class="mem-text">${escHtml(m.text)}</div>
       <div class="mem-meta">
         <span class="mem-cat">${m.category}</span>
         ${m.pinned ? '<span class="mem-pin">pinned</span>' : ''}
-        <span class="mem-source">${m.source}</span>
+        ${m.status === 'suggested' ? '<span class="mem-review">review</span>' : ''}
+        <span class="mem-source">${escHtml(_provenanceLabel(m))} · ${escHtml(m.trust || 'owner')}</span>
+        <span class="mem-source">${m.scope === 'project' ? 'project' : 'global'}</span>
+        ${m.used_in_runs?.length ? `<span class="mem-source">used in ${m.used_in_runs.length} chat${m.used_in_runs.length === 1 ? '' : 's'}</span>` : ''}
       </div>
       <div class="mem-actions">
+        ${m.status === 'suggested' ? `<button class="act-btn mem-accept-btn" data-id="${m.id}">accept</button>` : ''}
+        <button class="act-btn mem-edit-btn" data-id="${m.id}">edit</button>
+        ${window._currentSession?.project_id || m.scope === 'project' ? `<button class="act-btn mem-scope-btn" data-id="${m.id}" data-scope="${m.scope || 'global'}">${m.scope === 'project' ? 'make global' : 'use project'}</button>` : ''}
         <button class="act-btn mem-pin-btn" data-id="${m.id}" data-pinned="${m.pinned}">${m.pinned ? 'unpin' : 'pin'}</button>
-        <button class="act-btn mem-del-btn" data-id="${m.id}">delete</button>
+        <button class="act-btn mem-del-btn" data-id="${m.id}">forget</button>
       </div>
     </div>
   `).join('');
@@ -74,10 +87,83 @@ function renderMemories(mems) {
       await loadMemories();
     });
   });
+  list.querySelectorAll('.mem-edit-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const memory = _memories.find(item => item.id === btn.dataset.id);
+      if (!memory) return;
+      const text = await promptDialog('edit memory', memory.text);
+      if (text === null || !text.trim() || text.trim() === memory.text) return;
+      try {
+        await _requestJson(`/api/memories/${memory.id}`, {
+          method: 'PATCH', headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ text: text.trim() }),
+        });
+        toast('memory updated', 'success');
+        await loadMemories();
+      } catch (error) { toast(error.message, 'error'); }
+    });
+  });
+  list.querySelectorAll('.mem-scope-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const useProject = btn.dataset.scope !== 'project';
+      const projectId = window._currentSession?.project_id || '';
+      if (useProject && !projectId) { toast('open a project chat first', 'error'); return; }
+      try {
+        await _requestJson(`/api/memories/${btn.dataset.id}`, {
+          method: 'PATCH', headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            scope: useProject ? 'project' : 'global',
+            project_id: useProject ? projectId : null,
+          }),
+        });
+        await loadMemories();
+      } catch (error) { toast(error.message, 'error'); }
+    });
+  });
+  list.querySelectorAll('.mem-accept-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      try {
+        await _requestJson(`/api/memories/${btn.dataset.id}/accept`, { method: 'POST' });
+        toast('memory accepted', 'success');
+        await loadMemories();
+      } catch (error) { toast(error.message, 'error'); }
+    });
+  });
+}
+
+function _provenanceLabel(memory) {
+  let kind = '';
+  try { kind = JSON.parse(memory.provenance || '{}').kind || ''; } catch {}
+  return {
+    owner_request: 'you asked aide to remember',
+    direct_owner_statement: 'your direct preference',
+    model_suggestion: 'suggested from your chat',
+  }[kind] || memory.source || 'manual';
 }
 
 function escHtml(s) {
-  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function _renderPolicy() {
+  document.querySelectorAll('[data-memory-policy]').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.memoryPolicy === _memoryPolicy);
+    btn.setAttribute('aria-pressed', String(btn.dataset.memoryPolicy === _memoryPolicy));
+  });
+  const desc = document.getElementById('mem-policy-desc');
+  if (desc) desc.textContent = {
+    off: 'do not read or write long-term memory',
+    ask: 'suggest memories for you to review',
+    auto: 'save only low-risk preferences you state directly',
+  }[_memoryPolicy] || '';
+}
+
+async function _requestJson(url, options = {}) {
+  const response = await fetch(url, options);
+  let data = {};
+  try { data = await response.json(); } catch {}
+  if (!response.ok) throw new Error(data.detail || 'memory request failed');
+  return data;
 }
 
 let _panelBound = false;
@@ -86,6 +172,20 @@ export function initMemoryPanel() {
   // only bind events once — the list re-renders on loadMemories
   if (_panelBound) { loadMemories(); return; }
   _panelBound = true;
+
+  document.querySelectorAll('[data-memory-policy]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      try {
+        await _requestJson('/api/settings', {
+          method: 'PATCH', headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ memory_policy: btn.dataset.memoryPolicy }),
+        });
+        _memoryPolicy = btn.dataset.memoryPolicy;
+        _renderPolicy();
+        await loadMemories();
+      } catch (error) { toast(error.message, 'error'); }
+    });
+  });
 
   // add memory form
   // category cycle button
@@ -103,14 +203,22 @@ export function initMemoryPanel() {
     const cat = document.getElementById('mem-cat-cycle-btn')?.dataset.val || 'general';
     const text = inp?.value.trim();
     if (!text) return;
-    await fetch('/api/memories', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ text, category: cat }),
-    });
-    inp.value = '';
-    toast('memory saved', 'success');
-    await loadMemories();
+    try {
+      const memory = await _requestJson('/api/memories', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          text,
+          category: cat,
+          scope: window._currentSession?.project_id ? 'project' : 'global',
+          project_id: window._currentSession?.project_id || '',
+        }),
+      });
+      inp.value = '';
+      _showUndo(memory.id);
+      toast('remembered', 'success');
+      await loadMemories();
+    } catch (error) { toast(error.message, 'error'); }
   });
 
   document.getElementById('mem-add-input')?.addEventListener('keydown', e => {
@@ -140,13 +248,12 @@ export function initMemoryPanel() {
     btn.textContent = 'extracting...';
     btn.disabled = true;
     try {
-      const r = await fetch('/api/memories/extract', {
+      const data = await _requestJson('/api/memories/extract', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ session_id: sid }),
       });
-      const data = await r.json();
-      toast(`extracted ${data.extracted} memories`, 'success');
+      toast(`${data.extracted} memories ready to review`, 'success');
       await loadMemories();
     } catch (e) {
       toast('extraction failed', 'error');
@@ -156,5 +263,29 @@ export function initMemoryPanel() {
     }
   });
 
+  document.getElementById('mem-clear-btn')?.addEventListener('click', async () => {
+    if (!await confirmDialog('forget every saved and suggested memory?')) return;
+    try {
+      const result = await _requestJson('/api/memories', { method: 'DELETE' });
+      toast(`${result.deleted || 0} memories cleared`, 'success');
+      await loadMemories();
+    } catch (error) { toast(error.message, 'error'); }
+  });
+
   loadMemories();
+}
+
+function _showUndo(memoryId) {
+  const el = document.getElementById('mem-undo');
+  if (!el) return;
+  el.hidden = false;
+  const button = el.querySelector('button');
+  button.onclick = async () => {
+    await fetch(`/api/memories/${memoryId}`, { method: 'DELETE' });
+    el.hidden = true;
+    toast('memory removed', 'success');
+    await loadMemories();
+  };
+  clearTimeout(_showUndo.timer);
+  _showUndo.timer = setTimeout(() => { el.hidden = true; }, 10000);
 }

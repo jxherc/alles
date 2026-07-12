@@ -103,7 +103,20 @@ Phase 1 is split into small gates. A later gate must not weaken an earlier one.
     no horizontal overflow, keyboard focus, reduced-motion coverage, and no console errors.
   - Fresh evidence: 122 focused resolver, catalog, chat/persona, research, Jarvis/proactive,
     Settings, routing, and route-contract checks pass, together with all 91 JavaScript checks.
-- [ ] Add memory provenance, policy controls, and real incognito isolation.
+- [x] Add memory provenance, policy controls, and real incognito isolation.
+  - Ask is the default. Model-derived facts wait for owner review, Auto activates only direct
+    low-risk preferences, and Off blocks model memory reads and writes.
+  - Memory records show their source, trust, global or project scope, timestamps, and which chats
+    used them. The owner can remember with undo, review, search, edit, move, pin, forget, export,
+    pause, or clear them.
+  - Incognito sessions and attachments live only in short-lived RAM. They never enter SQLite,
+    files, the sidebar, browser URL history, or saved drafts; they read no long-term memory, reject
+    background work, preserve temporary multi-turn context, and are deleted when the owner exits.
+  - Desktop and 390×844 browser checks cover policy switching, remember/undo/edit, provenance,
+    responsive layout, and console errors with no horizontal overflow.
+  - Fresh evidence: 93 focused memory, incognito, chat, session, image, user-model, migration,
+    routing, and compatibility checks pass, together with all 95 JavaScript checks. All 30
+    supported database histories also pass the staged restore and repeat-migration gate.
 - [ ] Spike provider authentication before choosing supported flows.
 - [ ] Add the localization foundation without translating unfinished UI.
 

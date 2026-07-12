@@ -54,6 +54,12 @@ class InsightInjectionTests(_DBCase):
 
 
 class DistilledInjectionTests(_DBCase):
+    def _accept_distilled(self):
+        for memory in self.s.query(db.Memory).filter(db.Memory.source == "distilled").all():
+            if not memory.vetoed:
+                memory.status = "active"
+        self.s.commit()
+
     def test_excludes_vetoed_and_below_threshold(self):
         user_model.apply_distilled(
             self.s, [{"text": "likes dark mode", "category": "preference", "confidence": 0.9}]
@@ -65,6 +71,7 @@ class DistilledInjectionTests(_DBCase):
             db.Memory(text="vetoed fact zzz", source="distilled", confidence=0.9, vetoed=True)
         )
         self.s.commit()
+        self._accept_distilled()
         out = user_model.inject_distilled(self.s, threshold=0.5)
         self.assertIn("dark mode", out)
         self.assertNotIn("weak signal", out)
@@ -80,7 +87,7 @@ class DistilledInjectionTests(_DBCase):
         user_model.apply_distilled(
             self.s, [{"text": "high conf fact", "category": "fact", "confidence": 0.95}]
         )
-        self.s.commit()
+        self._accept_distilled()
         out = user_model.inject_distilled(self.s, threshold=0.5)
         self.assertLess(out.index("high conf fact"), out.index("low conf fact"))
 

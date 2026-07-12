@@ -1,4 +1,5 @@
 import { toast } from './util.js';
+import { isIncognitoMode } from './modes.js';
 
 let _attachments = [];   // [{id, name, type, size}]
 
@@ -9,11 +10,18 @@ export function clearAttachments() {
   _render();
 }
 
+export async function discardAttachments() {
+  const ids = getAttachments();
+  clearAttachments();
+  await Promise.all(ids.map(id => fetch(`/api/uploads/${id}`, { method: 'DELETE' }).catch(() => {})));
+}
+
 export async function attachFile(file) {
   const fd = new FormData();
   fd.append('file', file);
   try {
-    const r = await fetch('/api/uploads', { method: 'POST', body: fd });
+    const url = `/api/uploads${isIncognitoMode() ? '?incognito=true' : ''}`;
+    const r = await fetch(url, { method: 'POST', body: fd });
     if (!r.ok) { toast('upload failed', 'error'); return null; }
     const data = await r.json();
     _attachments.push(data);

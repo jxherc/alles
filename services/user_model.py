@@ -60,6 +60,8 @@ def apply_distilled(db, facts, provenance=""):
                 source="distilled",
                 confidence=float(f.get("confidence", 0.6)),
                 provenance=provenance,
+                status="suggested",
+                trust="derived",
             )
         )
         n += 1
@@ -93,10 +95,15 @@ def veto(db, mid):
 def inject_distilled(db, *, threshold=0.5, limit=8):
     """a short system-prompt block of what's been learned about the user, or '' if none.
     excludes vetoed + low-confidence facts; highest confidence first."""
+    from services.memory_store import memory_policy
+
+    if memory_policy() == "off":
+        return ""
     rows = (
         db.query(Memory)
         .filter(
             Memory.source == "distilled",
+            Memory.status == "active",
             Memory.vetoed == False,  # noqa: E712
             Memory.confidence >= threshold,
         )
@@ -171,6 +178,10 @@ async def _run_default(db, evidence):
 async def distill_async(db, model_fn=None):
     """gather evidence -> model -> parse -> apply + decay. model_fn is the test seam (an async
     callable returning the raw model output); default uses the configured model."""
+    from services.memory_store import memory_policy
+
+    if memory_policy() == "off":
+        return 0
     ev = gather_evidence(db)
     raw = await (model_fn(ev) if model_fn else _run_default(db, ev))
     n = apply_distilled(db, _parse_facts(raw), provenance=f"sessions:{len(ev['topics'])}")
