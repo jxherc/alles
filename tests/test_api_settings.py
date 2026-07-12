@@ -103,6 +103,63 @@ class SettingsApiTest(ApiTest):
         self.assertEqual(s["context_limit"], 42)
         self.assertEqual(s["stream_thinking"], False)
 
+    def test_default_chat_behavior_persists_across_cache_reload(self):
+        defaults = self.client.get("/api/settings").json()
+        self.assertEqual(defaults["default_chat_behavior"], "automatic_tools")
+
+        response = self.client.patch("/api/settings", json={"default_chat_behavior": "answer_only"})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["default_chat_behavior"], "answer_only")
+
+        raw = json.loads(cs._SETTINGS_FILE.read_text("utf-8"))
+        self.assertEqual(raw["default_chat_behavior"], "answer_only")
+        self.assertFalse(raw["agent_auto_intents"])
+        cs._clear_settings_cache()  # restart-equivalent: the next read must come from disk
+        self.assertEqual(cs.load_settings()["default_chat_behavior"], "answer_only")
+
+    def test_rejects_invalid_default_chat_behavior(self):
+        for value in ("automatic", "agent", "chat", "", "ANSWER_ONLY"):
+            with self.subTest(value=value):
+                response = self.client.patch("/api/settings", json={"default_chat_behavior": value})
+                self.assertEqual(response.status_code, 400)
+                self.assertEqual(response.json()["code"], "invalid_default_chat_behavior")
+
+    def test_owner_instructions_persist_separately_and_reload(self):
+        response = self.client.patch(
+            "/api/settings", json={"owner_instructions": "  keep answers compact  "}
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["owner_instructions"], "keep answers compact")
+
+        raw = json.loads(cs._SETTINGS_FILE.read_text("utf-8"))
+        self.assertEqual(raw["owner_instructions"], "keep answers compact")
+        # Compatibility mirror: an older client can still read and edit this value.
+        self.assertEqual(raw["system_prompt"], "keep answers compact")
+        cs._clear_settings_cache()
+        reloaded = self.client.get("/api/settings").json()
+        self.assertEqual(reloaded["owner_instructions"], "keep answers compact")
+
+    def test_owner_instructions_length_is_bounded(self):
+        response = self.client.patch("/api/settings", json={"owner_instructions": "x" * 20_001})
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["code"], "owner_instructions_too_long")
+
+    def test_legacy_prompt_and_auto_intent_settings_migrate_in_memory(self):
+        cs._SETTINGS_FILE.write_text(
+            json.dumps({"system_prompt": "legacy owner text", "agent_auto_intents": False}),
+            "utf-8",
+        )
+        cs._clear_settings_cache()
+        migrated = cs.load_settings()
+        self.assertEqual(migrated["owner_instructions"], "legacy owner text")
+        self.assertEqual(migrated["default_chat_behavior"], "answer_only")
+
+        # Any later settings save writes the new fields, so a real restart no longer needs the shim.
+        cs.save_settings({})
+        stored = json.loads(cs._SETTINGS_FILE.read_text("utf-8"))
+        self.assertEqual(stored["owner_instructions"], "legacy owner text")
+        self.assertEqual(stored["default_chat_behavior"], "answer_only")
+
     def test_patch_validates_and_persists_model_roles(self):
         roles = {
             "aide_chat": {"endpoint_id": "ep-a", "model": "chat-a"},

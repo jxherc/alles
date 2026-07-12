@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session as DbSession
 
 from core.api_errors import ApiError
 from core.database import Message, ModelEndpoint, Persona, Session, SessionLocal, get_db
-from core.settings import _ARTIFACT_INSTRUCTIONS, load_settings
+from core.settings import _ARTIFACT_INSTRUCTIONS, build_aide_system_prompt, load_settings
 from services import incognito as incognito_service
 from services.agent_runtime import merge_usage, run_agent
 from services.llm import simple_complete, stream_chat
@@ -116,7 +116,13 @@ def _resolve_session_model(session: Session, db, settings: dict | None = None):
     return selected.endpoint, selected.model
 
 
-def _decide_mode(base_mode: str, pmode: str, message: str, simple: bool, auto_intents: bool):
+def _decide_mode(
+    base_mode: str,
+    pmode: str,
+    message: str,
+    simple: bool,
+    default_chat_behavior: str,
+):
     """resolve the effective turn mode. returns (mode, force_approve).
     a persona's default_mode: "agent" always runs tools, "chat" stays pure chat (no
     auto-promote), "" falls back to intent-based auto-promotion. mutations that get
@@ -125,7 +131,7 @@ def _decide_mode(base_mode: str, pmode: str, message: str, simple: bool, auto_in
         return base_mode, False
     if pmode == "agent":
         return "agent", True
-    if pmode != "chat" and auto_intents:
+    if pmode != "chat" and default_chat_behavior == "automatic_tools":
         from services.agent_intents import message_needs_tools
 
         if message_needs_tools(message):
@@ -179,19 +185,19 @@ def _build_messages(
     file_ids: list[str] = None,
     mem_ctx: str = None,
 ) -> list[dict]:
-    sys_prompt = settings.get("system_prompt", "You are aide, a helpful AI assistant.")
+    contextual_instructions = ""
 
-    # project system prompt takes priority
+    # A Project supplies the contextual prompt unless a persona overrides it below.
     if db:
         proj = getattr(session, "project", None)
         if proj and proj.system_prompt:
-            sys_prompt = proj.system_prompt + "\n\n" + sys_prompt
+            contextual_instructions = proj.system_prompt
 
     # override with persona system prompt if one is set
     if db:
         persona = _resolve_persona(session, db)
         if persona and persona.system_prompt:
-            sys_prompt = persona.system_prompt
+            contextual_instructions = persona.system_prompt
         # 10d — let a persona answer from its attached knowledge files
         if persona:
             try:
@@ -199,11 +205,17 @@ def _build_messages(
 
                 kb = knowledge_block(db, persona.id, user_text)
                 if kb:
-                    sys_prompt = (
-                        sys_prompt.rstrip() + "\n\n### Knowledge (from attached files)\n" + kb
+                    contextual_instructions = (
+                        contextual_instructions.rstrip()
+                        + "\n\n### Knowledge (from attached files)\n"
+                        + kb
                     )
             except Exception:
                 pass
+
+    # The code-owned base can never be replaced. A persona still replaces a Project prompt, as it
+    # did before, while owner instructions remain a separate final editable layer.
+    sys_prompt = build_aide_system_prompt(settings, contextual_instructions)
 
     memory_allowed = not settings.get("incognito") and settings.get("memory_policy", "ask") != "off"
     if memory_allowed and settings.get("memory_auto_inject", True):
@@ -576,7 +588,11 @@ async def chat(body: ChatRequest, db: DbSession = Depends(get_db)):
     base_mode = body.mode or getattr(s, "mode", "chat") or "chat"
     pmode = (_p.default_mode if _p else "") or ""
     mode, force_approve = _decide_mode(
-        base_mode, pmode, body.message, body.simple, settings.get("agent_auto_intents", True)
+        base_mode,
+        pmode,
+        body.message,
+        body.simple,
+        settings.get("default_chat_behavior", "automatic_tools"),
     )
     if force_approve and not body.permission_mode:
         settings["agent_permission_mode"] = "approve"

@@ -164,6 +164,61 @@ class BuildMessagesTests(_DBCase):
         self.assertNotIn("hidden pref", self._sys({"distilled_auto_inject": False}))
         self.assertNotIn("qqq", self._sys({"distilled_auto_inject": True}))
 
+    def test_owner_instructions_follow_code_base_and_persona(self):
+        from core.settings import BASE_AIDE_SYSTEM_PROMPT
+        from routes.chat import _build_messages
+
+        project = db.Project(name="project", system_prompt="project instructions")
+        persona = db.Persona(name="persona", system_prompt="persona instructions")
+        session = db.Session(name="test", project=project, persona=persona)
+        self.s.add_all([project, persona, session])
+        self.s.commit()
+
+        messages = _build_messages(
+            session,
+            "hello",
+            {
+                "owner_instructions": "owner instructions",
+                "memory_policy": "off",
+                "insights_auto_inject": False,
+                "distilled_auto_inject": False,
+                "session_context_inject": False,
+                "artifacts_enabled": False,
+            },
+            db=self.s,
+        )
+        prompt = messages[0]["content"]
+        self.assertIn(BASE_AIDE_SYSTEM_PROMPT, prompt)
+        self.assertIn("persona instructions", prompt)
+        self.assertNotIn("project instructions", prompt)  # persona keeps its existing override
+        self.assertIn("### Owner instructions\nowner instructions", prompt)
+        self.assertLess(prompt.index(BASE_AIDE_SYSTEM_PROMPT), prompt.index("persona instructions"))
+        self.assertLess(prompt.index("persona instructions"), prompt.index("owner instructions"))
+
+    def test_project_instructions_remain_when_no_persona_is_selected(self):
+        from routes.chat import _build_messages
+
+        project = db.Project(name="project", system_prompt="project instructions")
+        session = db.Session(name="test", project=project)
+        self.s.add_all([project, session])
+        self.s.commit()
+
+        prompt = _build_messages(
+            session,
+            "hello",
+            {
+                "owner_instructions": "owner instructions",
+                "memory_policy": "off",
+                "insights_auto_inject": False,
+                "distilled_auto_inject": False,
+                "session_context_inject": False,
+                "artifacts_enabled": False,
+            },
+            db=self.s,
+        )[0]["content"]
+        self.assertIn("project instructions", prompt)
+        self.assertLess(prompt.index("project instructions"), prompt.index("owner instructions"))
+
 
 class RouteAndSettingsTests(unittest.TestCase):
     def setUp(self):

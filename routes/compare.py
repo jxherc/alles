@@ -19,6 +19,7 @@ def compare_dir() -> Path:
     d.mkdir(parents=True, exist_ok=True)
     return d
 
+
 # active compare tasks: compare_id → list of (endpoint, model, messages, stop_event)
 _active: dict[str, list] = {}
 
@@ -37,16 +38,14 @@ class CompareRequest(BaseModel):
 @router.post("/compare")
 async def start_compare(body: CompareRequest):
     from core.database import ModelEndpoint, SessionLocal
-    from core.settings import load_settings
+    from core.settings import build_aide_system_prompt, load_settings
 
     if not body.models:
         raise HTTPException(400, "provide at least one model")
 
     compare_id = str(uuid.uuid4())
     settings = load_settings()
-    sys_prompt = body.system_prompt or settings.get(
-        "system_prompt", "You are aide, a helpful AI assistant."
-    )
+    sys_prompt = build_aide_system_prompt(settings, body.system_prompt)
 
     db = SessionLocal()
     try:
@@ -71,7 +70,9 @@ async def start_compare(body: CompareRequest):
 @router.get("/compare/{compare_id}/stream/{idx}")
 async def compare_stream(compare_id: str, idx: int):
     streams = _active.get(compare_id)
-    if not streams or idx < 0 or idx >= len(streams):  # idx<0 would index from the end (wrong stream)
+    if (
+        not streams or idx < 0 or idx >= len(streams)
+    ):  # idx<0 would index from the end (wrong stream)
         raise HTTPException(404)
 
     entry = streams[idx]

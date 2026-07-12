@@ -20,6 +20,10 @@ _SETTINGS_CACHE_SIG: tuple[str, int, int] | None = None
 
 _ENCRYPTED_SETTING_KEYS = set(SETTING_CREDENTIAL_KEYS)
 
+BASE_AIDE_SYSTEM_PROMPT = "You are Aide, the AI assistant inside Alles."
+DEFAULT_CHAT_BEHAVIORS = frozenset({"automatic_tools", "answer_only"})
+OWNER_INSTRUCTIONS_MAX_CHARS = 20_000
+
 _defaults = {
     "default_model": "",
     "default_endpoint_id": "",
@@ -28,7 +32,11 @@ _defaults = {
         "andromeda": {},
         "jarvis": {},
     },
-    "system_prompt": "You are Aide, the AI assistant inside Alles.",
+    # `system_prompt` remains as a compatibility mirror for older clients. New code keeps the
+    # code-owned base prompt separate from the owner's editable instructions.
+    "system_prompt": BASE_AIDE_SYSTEM_PROMPT,
+    "owner_instructions": "",
+    "default_chat_behavior": "automatic_tools",
     "context_limit": 40,
     "stream_thinking": True,
     "artifacts_enabled": True,
@@ -205,6 +213,21 @@ def load_settings() -> dict:
         else:
             if isinstance(stored, dict):
                 s.update(_decrypt_setting_secrets(stored))
+                # Older installs used one editable `system_prompt` as both the base prompt and the
+                # owner's instructions. Preserve a custom value, but do not duplicate the old
+                # stock identity sentence as an owner instruction.
+                if "owner_instructions" not in stored:
+                    legacy_prompt = stored.get("system_prompt")
+                    if isinstance(legacy_prompt, str):
+                        legacy_prompt = legacy_prompt.strip()
+                        if legacy_prompt and legacy_prompt != BASE_AIDE_SYSTEM_PROMPT:
+                            s["owner_instructions"] = legacy_prompt
+                # Keep the old boolean meaningful during upgrade. The new enum becomes the single
+                # source of truth after the next settings save.
+                if "default_chat_behavior" not in stored and "agent_auto_intents" in stored:
+                    s["default_chat_behavior"] = (
+                        "automatic_tools" if stored.get("agent_auto_intents") else "answer_only"
+                    )
     _SETTINGS_CACHE = dict(s)
     _SETTINGS_CACHE_SIG = sig
     return s
@@ -238,6 +261,23 @@ def save_settings(patch: dict):
 
 def _save_settings_locked(patch: dict):
     global _SETTINGS_CACHE, _SETTINGS_CACHE_SIG
+    patch = dict(patch)
+    # Keep old clients and direct callers working while the new fields remain authoritative.
+    if "owner_instructions" in patch:
+        patch["system_prompt"] = patch["owner_instructions"]
+    elif "system_prompt" in patch:
+        legacy_prompt = patch["system_prompt"]
+        patch["owner_instructions"] = (
+            ""
+            if legacy_prompt == BASE_AIDE_SYSTEM_PROMPT
+            else (legacy_prompt if isinstance(legacy_prompt, str) else "")
+        )
+    if "default_chat_behavior" in patch:
+        patch["agent_auto_intents"] = patch["default_chat_behavior"] == "automatic_tools"
+    elif "agent_auto_intents" in patch:
+        patch["default_chat_behavior"] = (
+            "automatic_tools" if patch["agent_auto_intents"] else "answer_only"
+        )
     s = load_settings()
     s.update(patch)
     # never persist the vault password — strip it if it snuck in
@@ -250,6 +290,34 @@ def _save_settings_locked(patch: dict):
     _SETTINGS_CACHE = dict(s)
     _SETTINGS_CACHE_SIG = _settings_sig()
     return s
+
+
+def owner_instructions(settings: dict | None = None) -> str:
+    """Return the editable owner text, including compatibility with pre-Afterlife settings."""
+    values = settings if settings is not None else load_settings()
+    if "owner_instructions" in values:
+        value = values.get("owner_instructions")
+        return value.strip() if isinstance(value, str) else ""
+    legacy = values.get("system_prompt")
+    if not isinstance(legacy, str):
+        return ""
+    legacy = legacy.strip()
+    return "" if legacy == BASE_AIDE_SYSTEM_PROMPT else legacy
+
+
+def build_aide_system_prompt(
+    settings: dict | None = None, contextual_instructions: str = ""
+) -> str:
+    """Compose a model prompt without allowing editable text to replace the code-owned base."""
+    values = settings if settings is not None else load_settings()
+    parts = [BASE_AIDE_SYSTEM_PROMPT]
+    contextual = contextual_instructions.strip() if contextual_instructions else ""
+    if contextual and contextual != BASE_AIDE_SYSTEM_PROMPT:
+        parts.append(contextual)
+    editable = owner_instructions(values)
+    if editable:
+        parts.append("### Owner instructions\n" + editable)
+    return "\n\n".join(parts)
 
 
 def migrate_setting_secrets() -> int:

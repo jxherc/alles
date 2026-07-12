@@ -104,6 +104,33 @@ def _fake_fetch(url, timeout=10):
 
 
 class FullLoopTests(unittest.TestCase):
+    def test_report_writing_receives_owner_instructions(self):
+        captured = []
+        researcher = DeepResearcher(
+            "http://x",
+            "k",
+            "m",
+            report_system_prompt=(
+                "You are Aide, the AI assistant inside Alles.\n\n"
+                "### Owner instructions\nuse short paragraphs"
+            ),
+        )
+
+        async def fake_llm(messages, **_kwargs):
+            captured.append(messages)
+            return "report"
+
+        with mock.patch.object(researcher, "_llm", side_effect=fake_llm):
+            result = asyncio.run(
+                researcher._synthesize(
+                    "question", [{"summary": "fact", "url": "https://example.test"}], ""
+                )
+            )
+
+        self.assertEqual(result, "report")
+        self.assertEqual(captured[0][0]["role"], "system")
+        self.assertIn("### Owner instructions\nuse short paragraphs", captured[0][0]["content"])
+
     def test_research_produces_report(self):
         with (
             mock.patch("services.llm.stream_chat", _fake_stream_chat),
@@ -137,8 +164,10 @@ class FullLoopTests(unittest.TestCase):
 
     def test_empty_query_generation_never_returns_old_dead_end(self):
         fixture = (
-            Path(__file__).parent / "fixtures" / "research" / "no-information.txt"
-        ).read_text("utf-8").strip()
+            (Path(__file__).parent / "fixtures" / "research" / "no-information.txt")
+            .read_text("utf-8")
+            .strip()
+        )
         r = DeepResearcher("http://x", "k", "m", max_rounds=1)
         with (
             mock.patch.object(r, "_create_plan", mock.AsyncMock(return_value="plan")),

@@ -8,7 +8,12 @@ from pydantic import BaseModel
 
 from core.api_errors import ApiError
 from core.auth import require_recent_owner
-from core.settings import load_settings, save_settings
+from core.settings import (
+    DEFAULT_CHAT_BEHAVIORS,
+    OWNER_INSTRUCTIONS_MAX_CHARS,
+    load_settings,
+    save_settings,
+)
 from services.redaction import redact_url
 
 router = APIRouter(prefix="/api")
@@ -107,6 +112,8 @@ class SettingsPatch(BaseModel):
     default_endpoint_id: str | None = None
     model_roles: dict | None = None
     system_prompt: str | None = None
+    owner_instructions: str | None = None
+    default_chat_behavior: str | None = None
     context_limit: int | None = None
     stream_thinking: bool | None = None
     artifacts_enabled: bool | None = None
@@ -218,6 +225,25 @@ class SettingsPatch(BaseModel):
 @router.patch("/settings")
 def patch_settings(body: SettingsPatch, request: Request):
     patch = {k: v for k, v in body.model_dump().items() if v is not None}
+    if (
+        "default_chat_behavior" in patch
+        and patch["default_chat_behavior"] not in DEFAULT_CHAT_BEHAVIORS
+    ):
+        raise ApiError(
+            400,
+            "invalid_default_chat_behavior",
+            "default chat behavior must be automatic_tools or answer_only",
+        )
+    for key in ("owner_instructions", "system_prompt"):
+        if key not in patch:
+            continue
+        patch[key] = patch[key].strip()
+        if len(patch[key]) > OWNER_INSTRUCTIONS_MAX_CHARS:
+            raise ApiError(
+                400,
+                "owner_instructions_too_long",
+                f"owner instructions must be at most {OWNER_INSTRUCTIONS_MAX_CHARS} characters",
+            )
     if "agent_allowed_roots" in patch:
         require_recent_owner(request)
         roots = patch["agent_allowed_roots"]
