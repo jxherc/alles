@@ -88,6 +88,11 @@ motion, no horizontal overflow, and zero console, page, or server errors.
 Today shows useful synthetic data without a model, survives one failed data source, explains empty and
 offline states, restores customization after restart, and never hides an approval or uncertain result.
 
+Current 3B backend evidence: the flag-gated Today response now has the five stable section keys. Four
+focused tests prove empty shape, flag-off compatibility, pending and expired prompts, failed delivery,
+uncertain and active runs, and completed briefs without a configured model. The 14 existing Today API
+and golden tests still pass unchanged.
+
 ## 3C — Aide Projects rail
 
 - [ ] Show **General** and folder-backed Projects in the Aide sidebar.
