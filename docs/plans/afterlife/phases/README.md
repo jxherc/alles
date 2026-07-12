@@ -1,8 +1,8 @@
 # Afterlife implementation phases
 
 - **Stage:** Afterlife
-- **Current focus:** Phase 4 planning
-- **Implementation status:** Phases 0–3 delivered; Phase 4 planned
+- **Current focus:** Phase 5 planning
+- **Implementation status:** Phases 0–4 delivered
 
 These are dependency gates, not release dates. Each phase must be split into small, testable plans before
 implementation.
@@ -13,7 +13,7 @@ implementation.
 | 1 | Platform and security foundation | **Delivered** | Access profiles, secrets, service ownership, Server foundation, safe Docs/Files primitives, and backup targets |
 | 2 | [Folder Projects and durable Jarvis core](phase-02-projects-jarvis-core.md) | **Delivered** | Working folders, General, task stages, durable runs, scheduler, permissions, and delivery outbox |
 | 3 | [Product shell, Today, Aide Projects, and Settings](phase-03-product-shell-today-settings.md) | **Delivered** | The three-space shell, useful Today, folder Projects in Aide, settings, and legacy redirects |
-| 4 | Aide and Andromeda | Planned | Aide Chat/Jarvis shell plus fast, grounded, local-capable AI search |
+| 4 | [Aide and Andromeda](phase-04-aide-andromeda.md) | **Delivered** | Aide Chat/Jarvis shell plus fast, grounded, local-capable AI search; managed SearXNG install remains unavailable |
 | 5 | Jarvis inside Aide and channels | Planned | Workflows, runs, schedules, Discord, News, and Today delivery |
 | 6 | Docs and knowledge migration | Planned | Safe Visual/Source Markdown editing with Obsidian-compatible conflicts and privacy |
 | 7 | Files and storage locations | Planned | Stable local/online file identity, general WebDAV/S3 Files browsing, offline cache, and Photos; the separate backup-only WebDAV target ships in Phase 1C |

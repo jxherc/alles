@@ -6,15 +6,12 @@
 ─────────────────────────────────────────────
 ```
 
-**alles** is a self-hosted everything-app. one single python program that runs on your machine and gives you ai chat, email, linked docs, a journal, files, a calendar, tasks, money & budgets, photos, contacts, a secrets vault, subscription tracking, and countdowns. all behind one login. all storing data in a single folder you control. nothing phones home.
+**alles** is a self-hosted everything-app. one single python program that runs on your machine and gives you ai chat, search, email, linked docs, a journal, files, a calendar, tasks, money & budgets, photos, contacts, a secrets vault, subscription tracking, and countdowns. all behind one login, with local data in a folder you control. there is no telemetry; model, search, mail, and sync providers receive only the requests you choose to send through them.
 
 think of **alles** as the whole house, and **aide** as the assistant who lives in it — like what gemini is to google, except it's yours and it can actually open the other rooms: read your mail, edit your docs, add to your calendar, file your tasks.
 
 it's *one python process*. no build step, no bundler, no `node_modules`, no account, no analytics. you clone it, run `python app.py`, and open a browser. that's the entire setup.
 
-<p align="center">
-  <img src="docs/screenshots/aide.png" width="760" alt="aide — the ai chat and full app sidebar">
-</p>
 <p align="center"><em>one interface to run your whole digital life.</em></p>
 
 ---
@@ -31,8 +28,8 @@ it's *one python process*. no build step, no bundler, no `node_modules`, no acco
 
 - **everything in one place, one login.** stop bouncing between fifteen tabs and ten companies.
 - **it's yours.** all your data is plain files + one database in a folder called `data/`. copy that folder = you've copied your whole life. delete the app = you still have your files.
-- **the ai isn't a gimmick.** it talks to *any* model (claude, gpt, deepseek, gemini, a local model — switchable mid-chat), it remembers things across conversations, and in "agent" mode it can actually *do* things: edit files, run commands, search the web, touch your other apps.
-- **private by default.** no telemetry, no cloud, runs offline if you want (with a local model).
+- **the ai isn't a gimmick.** it talks to *any* model (claude, gpt, deepseek, gemini, a local model — switchable mid-chat), remembers things on your terms, and can use approved tools in Chat or hand longer work to Jarvis.
+- **local by default.** there is no telemetry, your main data stays on your machine, and Aide can run offline with a local model. connected providers see the requests you send to them.
 - **single user, on purpose.** this is *your* workspace, not a service you host for a hundred people. it's your personal un-siloed digital brain.
 
 ## is this for me?
@@ -54,6 +51,7 @@ app links and subdomains keep working during the transition.
 | app | what it is |
 |---|---|
 | **aide** | ai chat plus Jarvis work mode. General and folder-backed Projects keep their chats together without turning Projects into a separate app. |
+| **andromeda** | links-first web search with an optional grounded AI Overview. add standalone `!ai` to one query when you only want normal results. |
 | **home** | the compatibility launcher, still available as **All apps** |
 | **today** | the default daily home: Needs you, Today, In progress, Briefs, and Shortcuts. it works without an ai model and can be reordered or simplified. |
 | **activity** | a timeline of everything you actually did, across every app |
@@ -97,6 +95,13 @@ python app.py
 
 open **http://localhost:8000** and you're in.
 
+on `dev-afterlife`, the new shell and Andromeda are still behind explicit release flags. preview the
+delivered Phase 4 surfaces with:
+
+```bash
+ALLES_AFTERLIFE_FEATURES=afterlife_shell,afterlife_today,afterlife_aide_projects,afterlife_andromeda,afterlife_jarvis,afterlife_storage_locations python app.py
+```
+
 **want the `alles` command everywhere (mac/linux)?** run `./alles install` once — it
 drops a small launcher on your PATH pointing at the python you're using (venv and
 all), so from then on `alles start` / `alles stop` / `alles logs` work from any
@@ -114,6 +119,10 @@ pip install -r requirements.txt
 **prefer docker?** `docker build -t alles . && docker run -p 127.0.0.1:8000:8000 -v alles-data:/app/data alles` — the `data/` volume keeps your db, vault, uploads, and keys across rebuilds. the loopback-only port keeps the fresh container on this device. native LAN access requires `ALLES_ACCESS_PROFILE=lan`, enabled authentication, and a real owner password. public access also requires an HTTPS public URL, matching base domain, trusted hosts, and exact proxy IPs; see `.env.example` for the setting names.
 
 **want it fully offline and free?** install [ollama](https://ollama.com), `ollama pull` a model, add an endpoint pointing at `http://localhost:11434` — no key or internet needed for the ai.
+
+Andromeda can use DuckDuckGo or another configured provider, including an external HTTPS SearXNG
+instance. the bundled SearXNG service definition is pinned and loopback-only, but installation stays
+disabled in this build because its container runtime spike could not be run on the reference Mac.
 
 > **before you put it on a network:** alles ships with auth off. set `auth_enabled=true`, a strong `auth_password`, and a real `secret_key` first. details in the [security section](./specifications.md#security--read-before-exposing-it).
 
