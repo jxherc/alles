@@ -74,7 +74,18 @@ Phase 1 is split into small gates. A later gate must not weaken an earlier one.
   - Fresh evidence: all 3,690 non-matrix Python checks pass in 868.574 seconds with four expected
     skips. All 28 recovery histories pass through migration 21 in 823.928 seconds, and the final
     38 focused observability, recovery, scheduler, event, migration, and route checks also pass.
-- [ ] Add a reviewed service-manager abstraction for Alles-owned services only.
+- [x] Add a reviewed service-manager abstraction for Alles-owned services only.
+  - launchd, systemd-user, and Compose use fixed argument lists with no shell strings. Manager
+    subprocesses receive only a small reviewed environment and never inherit provider keys.
+  - Private registry and service-root markers must match. The root, manager-specific identifier,
+    service definition path, and definition hash are rechecked immediately before every status or
+    control operation. Changed, missing, mismatched, or symlinked markers fail closed.
+  - Read-only service status separates valid ownership from manager availability. Start, stop, and
+    restart are the only controls; unmanaged processes, containers, and host controls are absent.
+  - Controls require recent owner authentication, a typed action, a stable error code, and a
+    dedicated audit record.
+  - Fresh evidence: all 51 focused service-manager, System API, route, reauthentication, and scoped
+    token checks pass in 18.937 seconds.
 
 ### Models, memory, and language
 
@@ -91,10 +102,14 @@ Phase 1 is split into small gates. A later gate must not weaken an earlier one.
 
 ## 1B — Server foundation
 
-- [ ] Add read-only Overview, System, Services, Storage, Network, and Logs data.
-- [ ] Separate Alles-owned services from external services.
-- [ ] Require recent owner authentication and typed actions for destructive controls.
-- [ ] Keep arbitrary shell, host shutdown, firewall, and unmanaged process controls out of Server.
+- [x] Add read-only Overview, System, Services, Storage, Network, and Logs data.
+  - Existing host, disk, and network stats now sit beside process/scheduler health, private logs,
+    audit history, and owned-service status under authenticated System routes.
+- [x] Separate Alles-owned services from external services.
+  - Only matching dual-marker records are owned. Invalid, changed, unavailable, and unregistered
+    services receive no lifecycle actions.
+- [x] Require recent owner authentication and typed actions for destructive controls.
+- [x] Keep arbitrary shell, host shutdown, firewall, and unmanaged process controls out of Server.
 
 ## 1C — backup destinations
 
@@ -106,8 +121,8 @@ Phase 1 is split into small gates. A later gate must not weaken an earlier one.
 ## Current slice
 
 The current completed groups cover startup access policy, scoped owner/API access, stable security
-errors, rate limits, and encrypted connector credentials with safe rotation. They do not install or
-configure a reverse proxy for the owner.
+errors, rate limits, encrypted connector credentials, private observability, and owned-service
+controls. They do not install or configure a reverse proxy or companion service for the owner.
 
 Fresh evidence: 12 focused startup-policy tests pass. Broader verification is recorded with the commit.
 The CORS slice adds 5 parser cases plus live unknown-origin request and preflight checks.

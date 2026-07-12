@@ -21,8 +21,10 @@ class TimelineSummaryTests(ApiTest):
         for i in range(3):
             d.add(Transaction(account_id=acct.id, date=today, amount=-(i + 1), payee=f"p{i}"))
         d.add(Transaction(account_id=acct.id, date=yest, amount=-9, payee="y"))
-        # 1 task added today
-        d.add(Task(title="a task", done=False))
+        # 1 task added on the same explicit UTC date. The full suite can cross UTC midnight
+        # after this module is imported, so relying on Task's live utcnow default is flaky.
+        task_time = datetime.combine(TODAY, datetime.min.time()) + timedelta(hours=12)
+        d.add(Task(title="a task", done=False, created_at=task_time))
         d.commit()
         d.close()
 
