@@ -301,7 +301,7 @@ async def _fire_due_reminders():
     """plain reminders → web push once; scheduled 'message' reminders → run the
     model and drop the reply into the session. (a registered 30s job)"""
     from core.database import Reminder, Session, SessionLocal
-    from core.settings import load_settings
+    from core.settings import build_aide_system_prompt, load_settings
     from routes.push import broadcast_result as push_broadcast_result
     from services.llm import stream_chat
 
@@ -371,7 +371,7 @@ async def _fire_due_reminders():
             r.notified = True
             db.commit()
             settings = load_settings()
-            msgs = [{"role": "system", "content": settings.get("system_prompt", "You are aide.")}]
+            msgs = [{"role": "system", "content": build_aide_system_prompt(settings)}]
             for m in list(s.messages)[-20:]:
                 msgs.append({"role": m.role, "content": m.content})
             msgs.append({"role": "user", "content": r.text})

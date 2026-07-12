@@ -96,15 +96,25 @@ class PersonasApiTest(ApiTest):
         plain = "tell me a joke"
         doish = "what's on my calendar today"
         # agent persona always runs tools (and gates on approval)
-        self.assertEqual(_decide_mode("chat", "agent", plain, False, True), ("agent", True))
+        self.assertEqual(
+            _decide_mode("chat", "agent", plain, False, "answer_only"), ("agent", True)
+        )
         # chat-only persona never auto-promotes, even on a do-something message
-        self.assertEqual(_decide_mode("chat", "chat", doish, False, True), ("chat", False))
+        self.assertEqual(
+            _decide_mode("chat", "chat", doish, False, "automatic_tools"), ("chat", False)
+        )
         # no persona default → intent-based: plain stays chat, do-ish promotes
-        self.assertEqual(_decide_mode("chat", "", plain, False, True), ("chat", False))
-        self.assertEqual(_decide_mode("chat", "", doish, False, True)[0], "agent")
+        self.assertEqual(_decide_mode("chat", "", plain, False, "automatic_tools"), ("chat", False))
+        self.assertEqual(_decide_mode("chat", "", doish, False, "automatic_tools")[0], "agent")
+        # Answer only disables only automatic promotion; explicit Agent/persona choices still win.
+        self.assertEqual(_decide_mode("chat", "", doish, False, "answer_only"), ("chat", False))
         # explicit agent turn or simple-chat short-circuit
-        self.assertEqual(_decide_mode("agent", "chat", plain, False, True), ("agent", False))
-        self.assertEqual(_decide_mode("chat", "agent", plain, True, True), ("chat", False))
+        self.assertEqual(
+            _decide_mode("agent", "chat", plain, False, "answer_only"), ("agent", False)
+        )
+        self.assertEqual(
+            _decide_mode("chat", "agent", plain, True, "automatic_tools"), ("chat", False)
+        )
 
     def test_accent_roundtrip(self):
         pid = self.client.post("/api/personas", json={"name": "amber", "accent": "#fbbf24"}).json()[

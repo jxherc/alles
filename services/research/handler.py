@@ -14,7 +14,7 @@ import time
 from pathlib import Path
 from typing import AsyncGenerator
 
-from core.settings import data_dir
+from core.settings import build_aide_system_prompt, data_dir, load_settings
 
 from .deep_research import DeepResearcher
 
@@ -135,7 +135,12 @@ async def run_research(
             pass
 
     researcher = DeepResearcher(
-        base_url, api_key, model, max_rounds=max_rounds, progress_callback=cb
+        base_url,
+        api_key,
+        model,
+        max_rounds=max_rounds,
+        progress_callback=cb,
+        report_system_prompt=build_aide_system_prompt(load_settings()),
     )
     state["_researcher"] = researcher
 

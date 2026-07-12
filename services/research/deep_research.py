@@ -189,12 +189,14 @@ class DeepResearcher:
         progress_callback: Optional[Callable] = None,
         search_provider: Optional[str] = None,
         category: Optional[str] = None,
+        report_system_prompt: str = "",
     ):
         self.base_url = base_url
         self.api_key = api_key
         self.model = model
         self.search_provider_override = search_provider
         self.category = category
+        self.report_system_prompt = report_system_prompt.strip()
         self.max_rounds = max_rounds
         self.max_time = max_time
         self.max_urls_per_round = max_urls_per_round
@@ -317,7 +319,9 @@ class DeepResearcher:
 
         if self._cancelled:
             logger.info("Research cancelled before final report")
-            return report or (self._fallback_report(question, findings) if findings else "Research cancelled.")
+            return report or (
+                self._fallback_report(question, findings) if findings else "Research cancelled."
+            )
 
         self._emit(
             phase="writing", total_sources=len(self.urls_fetched), total_findings=len(findings)
@@ -384,6 +388,12 @@ class DeepResearcher:
             return await asyncio.wait_for(_accumulate(), timeout=timeout)
         except asyncio.TimeoutError:
             raise RuntimeError(f"llm call exceeded {timeout}s")
+
+    def _report_messages(self, messages: List[Dict]) -> List[Dict]:
+        """Apply owner instructions to report writing without corrupting JSON worker steps."""
+        if not self.report_system_prompt:
+            return messages
+        return [{"role": "system", "content": self.report_system_prompt}, *messages]
 
     # ── plan ────────────────────────────────────────────────────────────────
     async def _create_plan(self, question: str) -> str:
@@ -605,7 +615,7 @@ class DeepResearcher:
         )
         try:
             return await self._llm(
-                [{"role": "user", "content": prompt}],
+                self._report_messages([{"role": "user", "content": prompt}]),
                 temperature=0.3,
                 max_tokens=self.max_report_tokens,
                 timeout=180,
@@ -639,7 +649,7 @@ class DeepResearcher:
             prompt += "\n\n" + cat_extra
         try:
             result = await self._llm(
-                [{"role": "user", "content": prompt}],
+                self._report_messages([{"role": "user", "content": prompt}]),
                 temperature=0.3,
                 max_tokens=self.max_report_tokens,
                 timeout=180,
@@ -648,20 +658,22 @@ class DeepResearcher:
                 logger.info(f"Final report too short ({len(result.split())} words), expanding")
                 self._emit(phase="writing", message="Expanding report...")
                 expanded = await self._llm(
-                    [
-                        {"role": "user", "content": prompt},
-                        {"role": "assistant", "content": result},
-                        {
-                            "role": "user",
-                            "content": "This report is too brief. Please expand it significantly:\n"
-                            "- Add detailed paragraphs for each section (not just bullet points)\n"
-                            "- Include specific data, numbers, and comparisons from the evidence\n"
-                            "- Explain context and significance — don't just list facts\n"
-                            "- Use ## headings and ### subheadings\n"
-                            "- Target at least 1000 words\n"
-                            "Write the full expanded report now.",
-                        },
-                    ],
+                    self._report_messages(
+                        [
+                            {"role": "user", "content": prompt},
+                            {"role": "assistant", "content": result},
+                            {
+                                "role": "user",
+                                "content": "This report is too brief. Please expand it significantly:\n"
+                                "- Add detailed paragraphs for each section (not just bullet points)\n"
+                                "- Include specific data, numbers, and comparisons from the evidence\n"
+                                "- Explain context and significance — don't just list facts\n"
+                                "- Use ## headings and ### subheadings\n"
+                                "- Target at least 1000 words\n"
+                                "Write the full expanded report now.",
+                            },
+                        ]
+                    ),
                     temperature=0.4,
                     max_tokens=self.max_report_tokens,
                     timeout=180,

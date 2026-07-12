@@ -394,7 +394,10 @@ graph TD
 - **prompt-injection guard** — when the agent reads something it didn't write (a web page, an email, a file, repo contents, an mcp result), that text is wrapped as *data, not instructions* before it goes back to the model, and scanned for the classic attacks ("ignore previous instructions," "reveal your system prompt," "email the api key to…"). anything that trips gets flagged. so a booby-trapped webpage can't quietly hijack a run. *(it's a seatbelt, not a force field — see security.)*
 - **approved file roots** — agent file reads stay inside the selected project folder plus any extra folders you approve in settings. extra folders start read-only; writes, diff previews, checkpoints, patches, and reverts stay inside the selected project. credential stores (`~/.ssh`, `~/.aws`, `.env`, `*.pem`, `id_rsa`, `.netrc`, `.docker/config.json`…) remain blocked by default. shell commands are a separate boundary and can still reach the host unless you enable the docker sandbox.
 - **sandbox** — the shell can run inside a docker container with the workspace mounted at `/work` and (optionally) no network, so commands can't touch your real filesystem
-- **action intents** (opt-in) — a plain chat turn that's clearly asking aide to *do* something ("add lunch to my calendar", "run npm install", "research x") can auto-promote into agent mode (`agent_auto_intents`); off by default so a normal chat never gets hijacked
+- **default chat behavior** — **Automatic tools** (the default) lets a plain chat turn that clearly asks
+  Aide to do something auto-promote into the tool loop; **Answer only** disables that automatic
+  promotion. An explicit Agent turn and a persona's explicit chat/agent choice still win, and an
+  auto-promoted mutation still requires approval.
 - a project-level **`agents.md`** (or `aide.md`) in the working folder is auto-loaded as standing instructions — the same cross-tool convention claude code and others use
 
 ---
@@ -490,7 +493,7 @@ copy `.env.example` to `.env`. **everything is optional** — alles runs fine wi
 | `base_domain` | — | your real domain, for the subdomain setup (see architecture) |
 | `tavily_api_key` | — | better research search (falls back to duckduckgo + wikipedia, no key needed) |
 
-**everything else is configured in the app, under settings** — no files to hand-edit. that includes: model endpoints, mail accounts, the search provider (tavily / brave / searxng / google pse / serper) and fallback chain, voice (stt/tts provider, model, language, voice, speed), the agent (permission mode, max turns/tokens, docker sandbox + image + no-net, sub-agents, computer-use, context files, allowed roots), the system prompt, memory policy and auto-inject, interface language/region/time zone, artifacts on/off, context limit + auto-compact, themes/appearance, caldav accounts, webhooks, and api tokens. English is currently the only reviewed interface language; region and IANA time zone already control shared localized formatting. all of those persist as a settings row in the database.
+**everything else is configured in the app, under settings** — no files to hand-edit. that includes: model endpoints, mail accounts, the search provider (tavily / brave / searxng / google pse / serper) and fallback chain, voice (stt/tts provider, model, language, voice, speed), the agent (default chat behavior, owner instructions, permission mode, max turns/tokens, docker sandbox + image + no-net, sub-agents, computer-use, context files, allowed roots), memory policy and auto-inject, interface language/region/time zone, artifacts on/off, context limit + auto-compact, themes/appearance, caldav accounts, webhooks, and api tokens. Owner instructions are an editable layer after optional Project/persona instructions; the code-owned Aide base and enforced permission rules are not stored in that editable field. English is currently the only reviewed interface language; region and IANA time zone already control shared localized formatting. all of those persist in the settings file included by normal Alles backups.
 
 ---
 
