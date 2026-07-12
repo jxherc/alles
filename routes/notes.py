@@ -103,6 +103,6 @@ def archive_note(nid: str, body: ArchiveBody, db: DbSession = Depends(get_db)):
 def delete_note(nid: str, db: DbSession = Depends(get_db)):
     if notes_vault.get(nid) is None:
         raise HTTPException(404)
-    notes_vault.delete(nid)
+    result = notes_vault.delete(nid, db=db)
     _unindex(db, nid)
-    return {"ok": True}
+    return result

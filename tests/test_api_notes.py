@@ -34,6 +34,17 @@ class NotesApiTest(VaultApiTest):
         self.assertEqual(response.json()["code"], "document_conflict")
         self.assertEqual(vault_md.read("Notes/shared.md")["content"], "external change")
 
+    def test_deleted_note_can_be_restored_from_vault_trash(self):
+        note = self._mk(title="recover me", content="important")
+        deleted = self.client.delete(f"/api/notes/{note['id']}")
+        self.assertEqual(deleted.status_code, 200)
+        self.assertTrue(deleted.json()["trashed"])
+        self.assertEqual(self.client.get("/api/notes").json(), [])
+        item = self.client.get("/api/vault-md/trash").json()[0]
+        restored = self.client.post("/api/vault-md/trash/restore", json={"id": item["id"]})
+        self.assertEqual(restored.status_code, 200)
+        self.assertEqual(self.client.get("/api/notes").json()[0]["content"], "important")
+
     def test_create_with_tags_normalized(self):
         n = self._mk(title="t", content="c", tags=["Work", "work", " Urgent "])
         self.assertEqual(n["tags"], ["work", "urgent"])  # deduped + lowercased + trimmed

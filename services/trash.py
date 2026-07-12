@@ -73,20 +73,32 @@ def delete_row(db, item):
 
 
 # ── file kind ─────────────────────────────────────────────────────────────────
-def soft_delete_file(db, ref, abspath: Path, ttl_days=DEFAULT_TTL_DAYS) -> TrashItem:
+def soft_delete_path(
+    db, kind: str, ref: str, abspath: Path, ttl_days=DEFAULT_TTL_DAYS
+) -> TrashItem:
     is_dir = abspath.is_dir()
     trash_name = stash_file(abspath)
     return record(
-        db, "file", ref, abspath.name, {"trash_name": trash_name, "is_dir": is_dir}, ttl_days
+        db, kind, ref, abspath.name, {"trash_name": trash_name, "is_dir": is_dir}, ttl_days
     )
 
 
-def restore_file(db, item, dest: Path):
+def soft_delete_file(db, ref, abspath: Path, ttl_days=DEFAULT_TTL_DAYS) -> TrashItem:
+    return soft_delete_path(db, "file", ref, abspath, ttl_days)
+
+
+def restore_path(db, item, dest: Path):
+    if dest.exists():
+        raise FileExistsError(str(dest))
     data = json.loads(item.payload or "{}")
     tn = data.get("trash_name")
     if tn and stash_path(tn).exists():
         unstash_file(tn, dest)
     delete_row(db, item)
+
+
+def restore_file(db, item, dest: Path):
+    restore_path(db, item, dest)
 
 
 # ── purge ─────────────────────────────────────────────────────────────────────
@@ -99,7 +111,7 @@ def purge_expired(db, now=None) -> int:
     )
     n = 0
     for it in expired:
-        if it.kind == "file":
+        if it.kind in {"file", "vault"}:
             data = json.loads(it.payload or "{}")
             tn = data.get("trash_name")
             if tn:

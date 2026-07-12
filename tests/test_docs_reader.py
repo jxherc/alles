@@ -18,9 +18,13 @@ class DocsReaderTest(VaultApiTest):
     def test_rename_rewrites_backlinks(self):
         self._new("alpha", "a")
         self._new("beta", "see [[alpha]]")
-        bl = self.client.get("/api/vault-md/backlinks", params={"name": "alpha"}).json()["backlinks"]
+        bl = self.client.get("/api/vault-md/backlinks", params={"name": "alpha"}).json()[
+            "backlinks"
+        ]
         self.assertTrue(any(b["name"] == "beta" for b in bl))
-        r = self.client.post("/api/vault-md/rename", json={"path": "alpha.md", "new_path": "gamma.md"})
+        r = self.client.post(
+            "/api/vault-md/rename", json={"path": "alpha.md", "new_path": "gamma.md"}
+        )
         self.assertEqual(r.status_code, 200)
         self.assertGreaterEqual(r.json().get("links_rewritten", 0), 1)
         beta = self.client.get("/api/vault-md/file", params={"path": "beta.md"}).json()
@@ -28,8 +32,28 @@ class DocsReaderTest(VaultApiTest):
 
     def test_delete(self):
         self._new("trash", "x")
-        self.client.delete("/api/vault-md/file", params={"path": "trash.md"})
-        self.assertFalse(self.client.get("/api/vault-md/file", params={"path": "trash.md"}).json()["exists"])
+        deleted = self.client.delete("/api/vault-md/file", params={"path": "trash.md"}).json()
+        self.assertTrue(deleted["trashed"])
+        self.assertFalse(
+            self.client.get("/api/vault-md/file", params={"path": "trash.md"}).json()["exists"]
+        )
+        items = self.client.get("/api/vault-md/trash").json()
+        self.assertEqual([item["path"] for item in items], ["trash.md"])
+        restored = self.client.post("/api/vault-md/trash/restore", json={"id": items[0]["id"]})
+        self.assertEqual(restored.status_code, 200)
+        self.assertTrue(
+            self.client.get("/api/vault-md/file", params={"path": "trash.md"}).json()["exists"]
+        )
+
+    def test_restore_never_replaces_a_newer_file(self):
+        self._new("same", "old")
+        deleted = self.client.delete("/api/vault-md/file", params={"path": "same.md"}).json()
+        self._new("same", "new")
+        response = self.client.post("/api/vault-md/trash/restore", json={"id": deleted["trash_id"]})
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(response.json()["code"], "restore_conflict")
+        current = self.client.get("/api/vault-md/file", params={"path": "same.md"}).json()
+        self.assertEqual(current["content"], "new")
 
     def test_search_and_tags(self):
         self._new("searchme", "uniquetoken here #proj")
@@ -39,7 +63,9 @@ class DocsReaderTest(VaultApiTest):
         self.assertTrue(any(t["tag"] == "proj" for t in tags))
 
     def test_folder_and_ask(self):
-        self.assertEqual(self.client.post("/api/vault-md/folder", json={"path": "myfolder"}).status_code, 200)
+        self.assertEqual(
+            self.client.post("/api/vault-md/folder", json={"path": "myfolder"}).status_code, 200
+        )
         r = self.client.get("/api/vault-md/ask", params={"q": "anything"})
         self.assertEqual(r.status_code, 200)
         self.assertIsInstance(r.json()["sources"], list)
@@ -60,7 +86,17 @@ class DocsReaderTest(VaultApiTest):
         self.assertIn("watched.md", removed2)
 
     def test_removed_editor_routes_are_gone(self):
-        self.assertIn(self.client.put("/api/vault-md/file", json={"path": "x", "content": "y"}).status_code, (404, 405))
+        self.assertIn(
+            self.client.put("/api/vault-md/file", json={"path": "x", "content": "y"}).status_code,
+            (404, 405),
+        )
         self.assertIn(self.client.get("/api/vault-md/graph").status_code, (404, 405))
-        self.assertIn(self.client.post("/api/vault-md/ai-edit", json={"path": "x", "instruction": "y"}).status_code, (404, 405))
-        self.assertIn(self.client.get("/api/vault-md/revisions", params={"path": "x"}).status_code, (404, 405))
+        self.assertIn(
+            self.client.post(
+                "/api/vault-md/ai-edit", json={"path": "x", "instruction": "y"}
+            ).status_code,
+            (404, 405),
+        )
+        self.assertIn(
+            self.client.get("/api/vault-md/revisions", params={"path": "x"}).status_code, (404, 405)
+        )

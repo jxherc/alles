@@ -261,10 +261,17 @@ def set_archived(nid: str, val: bool) -> dict | None:
     return update(nid, {"archived": bool(val)})
 
 
-def delete(nid: str) -> dict:
+def delete(nid: str, db=None) -> dict:
     if nid and "/" not in nid and "\\" not in nid:
         try:
-            vault_md.delete(_rel(nid))
+            if db is None:
+                vault_md.delete(_rel(nid))
+            else:
+                from services import trash
+
+                path = vault_md._safe(_rel(nid))
+                item = trash.soft_delete_path(db, "vault", _rel(nid), path)
+                return {"ok": True, "trashed": True, "trash_id": item.id}
         except Exception:
             pass
     return {"ok": True}

@@ -50,7 +50,7 @@ every one of these is a real, finished app — not a placeholder. they each live
 - **personas** — saved system prompts / characters you can switch between
 - **projects** — group chats together with shared context
 - **artifacts** — when the model writes html/svg/a webpage/code, you see it rendered live, not as a wall of text
-- **safe Markdown saves** — vault writes replace files atomically, and Notes refuses to overwrite a file changed after you opened it
+- **safe Markdown saves** — vault writes replace files atomically, Notes refuses to overwrite a file changed after you opened it, and deleted Docs/Notes can be restored from 30-day trash
 - **voice** — talk to it and have it talk back (speech-to-text in, text-to-speech out)
 - **vision** — drop in an image and capable models can see it
 - **incognito chats** — conversations and attachments kept only in short-lived RAM; they use no

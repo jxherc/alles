@@ -70,6 +70,7 @@ function _wire() {
   $('wiki-new-btn')?.addEventListener('click', newDoc);
   $('wiki-empty-new')?.addEventListener('click', newDoc);
   $('wiki-folder-btn')?.addEventListener('click', newFolder);
+  $('wiki-trash-btn')?.addEventListener('click', openTrash);
   $('wiki-rename-btn')?.addEventListener('click', renameCurrent);
   $('wiki-delete-btn')?.addEventListener('click', deleteCurrent);
   $('wiki-obsidian-btn')?.addEventListener('click', openInObsidian);
@@ -292,7 +293,7 @@ async function renameCurrent() {
 }
 
 async function deleteCurrent() {
-  if (!_cur || !confirm(`delete "${stem(_cur)}"? (edit/restore in Obsidian)`)) return;
+  if (!_cur || !confirm(`move "${stem(_cur)}" to trash?`)) return;
   await fetch('/api/vault-md/file?path=' + encodeURIComponent(_cur), { method: 'DELETE' });
   _cur = null;
   $('wiki-preview').innerHTML = '';
@@ -300,7 +301,30 @@ async function deleteCurrent() {
   if ($('wiki-current')) $('wiki-current').textContent = 'no doc open';
   show($('wiki-preview'), false);
   show($('wiki-empty-state'), true);
+  toast('moved to trash', 'success');
   loadTree();
+}
+
+async function openTrash() {
+  const items = await _get('/api/vault-md/trash') || [];
+  const box = $('wiki-tree');
+  if (!box) return;
+  if (!items.length) { box.innerHTML = '<div class="wiki-file-ctx">trash is empty</div>'; return; }
+  box.innerHTML = items.map(item => `<div class="wiki-file" data-trash-id="${esc(item.id)}">
+    <span>${esc(item.path)}</span> <button class="act-btn" data-restore>restore</button>
+  </div>`).join('');
+  box.querySelectorAll('[data-restore]').forEach(button => button.addEventListener('click', async () => {
+    const row = button.closest('[data-trash-id]');
+    const response = await fetch('/api/vault-md/trash/restore', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ id: row.dataset.trashId }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) { toast(data.detail || 'restore failed', 'error'); return; }
+    toast('document restored', 'success');
+    await loadTree();
+    if (data.restored) openNote(data.restored);
+  }));
 }
 
 async function openInObsidian() {
