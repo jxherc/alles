@@ -308,6 +308,46 @@ class BackupApiTest(ApiTest):
         self.assertEqual(response.status_code, 202)
         self.assertEqual(response.json()["status"], "staged")
 
+    def test_phase_three_settings_survive_encrypted_export_and_staging(self):
+        settings = {
+            "today_layout": {
+                "order": ["needs_you", "briefs", "today", "in_progress", "shortcuts"],
+                "visible": ["needs_you", "today", "shortcuts"],
+                "density": "compact",
+                "shortcuts": ["tasks", "wiki"],
+            },
+            "default_chat_behavior": "answer_only",
+            "owner_instructions": "keep answers compact",
+            "model_roles": {
+                "aide_chat": {"endpoint_id": "local", "model": "chat"},
+                "andromeda": {"endpoint_id": "local", "model": "search"},
+                "jarvis": {"endpoint_id": "local", "model": "work"},
+            },
+        }
+        (self.data / "settings.json").write_text(json.dumps(settings), "utf-8")
+
+        encrypted = self.client.get("/api/backup").content
+        response = self.client.post(
+            "/api/backup/restore",
+            files={
+                "file": (
+                    "phase-three.alles-backup",
+                    encrypted,
+                    "application/vnd.alles.backup",
+                )
+            },
+        )
+
+        self.assertEqual(response.status_code, 202)
+        staged = (
+            staging_root(self.data)
+            / "staged"
+            / response.json()["restore_id"]
+            / "data"
+            / "settings.json"
+        )
+        self.assertEqual(json.loads(staged.read_text("utf-8")), settings)
+
     def test_encrypted_backup_accepts_a_separately_uploaded_recovery_key(self):
         external = self.base / "external-data"
         external.mkdir()

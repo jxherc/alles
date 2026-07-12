@@ -1,6 +1,6 @@
 # Afterlife Phase 3 — product shell, Today, Aide Projects, and Settings
 
-- **Status:** in progress
+- **Status:** delivered
 - **Parent design:** [`../design.md`](../design.md)
 - **Depends on:** Phase 2 delivered
 - **Checkbox rule:** `[x]` means implemented and freshly tested, not merely discussed.
@@ -155,7 +155,7 @@ API-key quota and credits remain provider-owned, and exposes Disconnect for save
 
 ## 3E — compatibility redirects and gate
 
-- [ ] Add explicit aliases for old names, views, and subdomains:
+- [x] Add explicit aliases for old names, views, and subdomains:
   - Home → Today;
   - System → Server;
   - Secrets → Passwords;
@@ -164,15 +164,35 @@ API-key quota and credits remain provider-owned, and exposes Disconnect for save
   - personal-media Gallery and Photos → Files → Photos;
   - AI-image Gallery → Aide → Creations;
   - old Cowork or standalone Jarvis identifiers → Aide with Jarvis selected.
-- [ ] Preserve current deep links and query/hash state through redirects.
-- [ ] Record the compatibility window; do not remove an alias in this phase.
-- [ ] Add focused source, unit, API, JavaScript, and browser tests for flags, routes, focus, keyboard,
+- [x] Preserve current deep links and query/hash state through redirects.
+- [x] Record the compatibility window; do not remove an alias in this phase.
+- [x] Add focused source, unit, API, JavaScript, and browser tests for flags, routes, focus, keyboard,
   mobile layout, reduced motion, empty/error/partial states, and all old bookmarks.
-- [ ] Run the full Python and JavaScript suites with throwaway `ALLES_DATA`.
-- [ ] Run isolated browser checks at representative desktop and mobile widths with console and server
+- [x] Run the full Python and JavaScript suites with throwaway `ALLES_DATA`.
+- [x] Run isolated browser checks at representative desktop and mobile widths with console and server
   error inspection.
-- [ ] Re-run backup/restore checks for any new persisted customization or setting.
-- [ ] Run Ruff checks without rewriting unrelated legacy files.
+- [x] Re-run backup/restore checks for any new persisted customization or setting.
+- [x] Run Ruff checks without rewriting unrelated legacy files.
+
+### Compatibility window
+
+Every Phase 3 alias remains supported through at least one stable release after its replacement ships
+and passes its own compatibility gate. No Home, System, Secrets, Money, Subs, Notes, Journal, Gallery,
+Photos, Cowork, or Jarvis alias can be removed during Phase 3. A later removal needs its own migration
+notice, fresh bookmark tests, and proof that saved links no longer depend on it.
+
+### 3E gate
+
+Current 3E evidence: 14 focused route-compatibility JavaScript tests, eight SSO-state tests, and three
+backend host tests cover canonical and legacy hosts, view precedence, feature-flag fallbacks, exact
+Notes/Jarvis handoffs, preserved duplicate and Unicode query values, fragments, unsafe targets, public
+shares, and API paths. The full JavaScript suite passes 158 tests. The full Python suite passes 3,988
+tests with four expected skips using throwaway data. Isolated authenticated desktop/mobile and
+reduced-motion browser checks pass 94/94; the all-flags-off compatibility pass succeeds 6/6. Both runs
+report no unexpected console, page, or server errors. Encrypted export and restore staging preserve
+Phase 3 settings. Ruff passes for every changed Python file; the repository-wide baseline still reports
+143 existing lint findings and 202 legacy files needing format changes, which this phase does not
+rewrite.
 
 ## Phase 3 exit gate
 

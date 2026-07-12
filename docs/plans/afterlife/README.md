@@ -1,6 +1,6 @@
 # Stage 6 — Afterlife
 
-- **Status:** current; implementation in progress
+- **Status:** current; Phases 0–3 delivered
 - **Started:** July 11, 2026
 - **Meaning:** preserve what works, repair what is unsafe, and give Alles one coherent new life
 
@@ -30,10 +30,11 @@ Jarvis lives inside Aide. It remains the name of the durable background runtime 
 
 ## Current state
 
-Phases 0–2 are delivered with fresh recovery, migration, compatibility, browser, and full-suite
-evidence. Folder Projects, General, task stages, and the durable Jarvis core now ship on the Afterlife
-branch. Phase 3 — the product shell, Today, Aide Projects, and Settings — is the next planned gate. The
-broader product design remains open to changes as later gates are implemented.
+Phases 0–3 are delivered with fresh recovery, migration, compatibility, browser, and full-suite
+evidence. The Afterlife branch now ships folder Projects, General, the durable Jarvis core, the
+feature-gated three-space shell, deterministic Today, Aide Projects, consolidated Settings, and legacy
+bookmark redirects. Phase 4 — Aide and Andromeda — is the next planned gate. The broader product design
+remains open to changes as later gates are implemented.
 
 ## Stage rules
 

@@ -4,9 +4,10 @@ import { test } from 'node:test';
 
 const src = readFileSync(new URL('../../static/js/app.js', import.meta.url), 'utf8');
 
-test('sso boot does not write the old unused retry flag', () => {
+test('sso boot retries failed codes and preserves the full target URL', () => {
   assert.doesNotMatch(src, /alles_sso_tried/);
-  assert.match(src, /const hadAuthCode = !!code/);
-  assert.match(src, /location\.assign\(urlForApp\(''\) \+ '\?_sso='/);
+  assert.match(src, /redeemedAuthCode = response\.ok/);
+  assert.match(src, /buildApexBrokerUrl\(location\.href, parseHost\(\)\.base\)/);
+  assert.match(src, /location\.replace\(addSsoAuthCode\(target, code\)\)/);
   assert.match(src, /if \(_pendingSso\) \{ _ssoRedirect\(_pendingSso\); return; \}/);
 });

@@ -27,11 +27,11 @@ def _route_rows():
 
 
 class RouteCompatibilityBaselineTest(unittest.TestCase):
-    def test_full_method_path_surface_matches_phase_two_snapshot(self):
+    def test_full_method_path_surface_matches_phase_three_snapshot(self):
         rows = _route_rows()
         digest = hashlib.sha256(("\n".join(rows) + "\n").encode()).hexdigest()
-        self.assertEqual(len(rows), 715)
-        self.assertEqual(digest, "5e38485675c05c8711fdea9a9a75f0b9ff9092051b5cd64695444f73c2f1a658")
+        self.assertEqual(len(rows), 717)
+        self.assertEqual(digest, "5a9f72eddc2d926d21e9cac735b8b7cd927cd3edaaf1e7091860f979b15934fe")
         groups = Counter(
             "api"
             if row.split(" ", 1)[1].startswith("/api/")
@@ -40,7 +40,7 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
             else "public"
             for row in rows
         )
-        self.assertEqual(groups, {"api": 698, "v1": 2, "public": 15})
+        self.assertEqual(groups, {"api": 700, "v1": 2, "public": 15})
 
     def test_public_token_and_status_surface_is_explicit(self):
         public = {

@@ -47,13 +47,15 @@ you do **not** need to be technical to *use* it. you need to be a little technic
 
 ## the apps
 
-each one is a real, finished app — they live on their own subdomain so it feels like a suite, but it's all one program.
+alles opens into a small daily shell: **Today**, **Aide**, and the app drawer. specialist views are
+grouped under Docs, Files, Finance, Passwords, and Server, but they are still one local program. old
+app links and subdomains keep working during the transition.
 
 | app | what it is |
 |---|---|
-| **aide** | ai chat that talks to any model, remembers you across chats, and (in agent mode) does real work — files, shell, web, your other apps. also research, compare, personas, projects, voice, vision, skills. |
-| **home** | a customizable launcher with a quick-capture box for fast notes/tasks |
-| **today** | your whole day on one screen — events, due tasks, renewals, unread mail — with one "ask aide about my day" button |
+| **aide** | ai chat plus Jarvis work mode. General and folder-backed Projects keep their chats together without turning Projects into a separate app. |
+| **home** | the compatibility launcher, still available as **All apps** |
+| **today** | the default daily home: Needs you, Today, In progress, Briefs, and Shortcuts. it works without an ai model and can be reordered or simplified. |
 | **activity** | a timeline of everything you actually did, across every app |
 | **docs** | obsidian-style linked markdown notes (`[[wikilinks]]`, backlinks, graph, live editor) — your notes are plain files you own |
 | **mail** | a real imap/smtp email client with threads, attachments, and ai help |

@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+  CANONICAL_SUBDOMAIN_VIEWS,
+  LEGACY_SUBDOMAIN_VIEWS,
   SUBDOMAIN_VIEWS,
   appForSub,
   shouldPollModels,
@@ -19,15 +21,26 @@ test('single-host mode still polls models', () => {
   assert.equal(shouldPollModels('calendar', true), true);
 });
 
-test('phase-zero subdomain and compatibility-alias map stays stable', () => {
-  assert.deepEqual(Object.keys(SUBDOMAIN_VIEWS), [
-    '', 'aide', 'mail', 'docs', 'gallery', 'calendar', 'tasks', 'subs', 'money',
-    'days', 'journal', 'activity', 'system', 'watch', 'habits', 'read', 'books',
-    'health', 'files', 'contacts', 'secrets', 'notes', 'photos',
+test('phase-three canonical hosts and compatibility aliases stay separate', () => {
+  assert.deepEqual(Object.keys(CANONICAL_SUBDOMAIN_VIEWS), [
+    '', 'aide', 'docs', 'files', 'finance', 'passwords', 'server', 'mail',
+    'calendar', 'tasks', 'days', 'habits', 'read', 'books', 'health', 'contacts',
+    'watch',
   ]);
+  assert.deepEqual(Object.keys(LEGACY_SUBDOMAIN_VIEWS), [
+    'home', 'today', 'system', 'secrets', 'vault', 'money', 'subs', 'subscriptions',
+    'notes', 'wiki', 'journal', 'gallery', 'photos', 'activity', 'cowork', 'jarvis',
+    'chat',
+  ]);
+  assert.equal(Object.keys(SUBDOMAIN_VIEWS).length, 34);
   assert.equal(appForSub('').app, 'alles');
   assert.equal(appForSub('notes').app, 'docs');
-  assert.equal(appForSub('photos').app, 'gallery');
+  assert.equal(appForSub('photos').app, 'files');
+  assert.equal(appForSub('cowork').app, 'aide');
   assert.equal(viewToSub('wiki'), 'docs');
-  assert.equal(viewToSub('photos'), 'gallery');
+  assert.equal(viewToSub('photos'), 'files');
+  assert.equal(viewToSub('gallery'), 'aide');
+  assert.equal(viewToSub('money'), 'finance');
+  assert.equal(viewToSub('vault'), 'passwords');
+  assert.equal(viewToSub('system'), 'server');
 });
