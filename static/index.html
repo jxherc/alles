@@ -1579,6 +1579,8 @@
                 <div class="s-toggle-row"><div><div class="s-toggle-label">shell sandbox</div><div class="s-toggle-desc">run shell inside docker (needs docker installed)</div></div><div class="s-switch" id="s-agent-sandbox-toggle"></div></div>
                 <div class="s-toggle-row"><div><div class="s-toggle-label">computer use</div><div class="s-toggle-desc">screenshot + click/type tools (needs pyautogui)</div></div><div class="s-switch" id="s-agent-computer-toggle"></div></div>
                 <div class="s-toggle-row"><div><div class="s-toggle-label">sub-agents</div><div class="s-toggle-desc">allow spawn_agent + parallel delegation</div></div><div class="s-switch" id="s-agent-subagents-toggle"></div></div>
+                <div class="s-field"><label>extra approved file roots <span class="s-field-note">read-only; one existing folder per line</span></label><textarea class="settings-textarea" id="s-agent-roots" rows="3" placeholder="/path/to/another/folder"></textarea></div>
+                <button class="btn" id="s-agent-roots-save">save approved roots</button>
               </div>
               <div id="agent-tool-list" class="agent-tool-list"></div>
               <div id="agent-run-list" class="agent-run-list"></div>
@@ -1883,7 +1885,7 @@
 </div>
 
 <script type="module">
-const _v = '214';
+const _v = '216';
 import(`/static/js/app.js?v=${_v}`);
 </script>
 </body>

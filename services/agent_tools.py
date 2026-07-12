@@ -20,7 +20,7 @@ from urllib.parse import urlparse
 
 import httpx
 
-from core.settings import data_dir
+from core.settings import data_dir, load_settings
 
 ROOT = Path(__file__).parent.parent
 CODEX_HOME = Path(os.getenv("CODEX_HOME") or Path.home() / ".codex")
@@ -260,22 +260,25 @@ def _skip_binary_file(p: Path) -> bool:
         return True
 
 
-def _allowed_roots() -> list:
-    s = _settings()
-    roots = [ROOT.resolve()]
+def _project_root(settings: dict | None = None) -> Path:
+    s = settings if settings is not None else _settings()
     cwd = s.get("agent_cwd")
     if cwd:
         try:
-            roots.append(Path(cwd).expanduser().resolve())
+            return Path(cwd).expanduser().resolve()
         except Exception:
             pass
-    try:
-        roots.append(Path(tempfile.gettempdir()).resolve())
-    except Exception:
-        pass
-    for r in s.get("agent_path_extra_roots") or []:
+    return ROOT.resolve()
+
+
+def _allowed_roots(settings: dict | None = None) -> list[Path]:
+    s = settings if settings is not None else _settings()
+    roots = [_project_root(s)]
+    for r in s.get("agent_allowed_roots") or []:
         try:
-            roots.append(Path(str(r)).expanduser().resolve())
+            root = Path(str(r)).expanduser().resolve()
+            if root.is_dir() and root != Path(root.anchor):
+                roots.append(root)
         except Exception:
             pass
     return roots
@@ -289,14 +292,15 @@ def _within(p, root) -> bool:
         return False
 
 
-def _guard_path(p, write: bool = False) -> str | None:
+def _guard_path(p, write: bool = False, settings: dict | None = None) -> str | None:
     """error string if the path is off-limits, else None."""
-    s = _settings()
+    s = settings if settings is not None else _settings()
     if _is_secret_path(p) and not s.get("agent_allow_secrets"):
         return f"blocked: {p} looks like a credential/secret store (set agent_allow_secrets to override)"
-    if write and s.get("agent_confine_workspace"):
-        if not any(_within(p, r) for r in _allowed_roots()):
-            return f"blocked: writes are confined to the workspace; {p} is outside it"
+    if not any(_within(p, r) for r in _allowed_roots(s)):
+        return f"blocked: file access is confined to approved roots; {p} is outside them"
+    if write and not _within(p, _project_root(s)):
+        return f"blocked: extra approved roots are read-only; {p} is outside the project root"
     return None
 
 
@@ -543,6 +547,8 @@ async def _git_commit(cwd: str = ".", message: str = "", paths: list[str] | None
 async def _list_files(path: str = ".", depth: int = 1) -> dict:
     try:
         root = _resolve(path)
+        if blocked := _guard_path(root):
+            return {"output": blocked, "error": True}
         if not root.exists():
             return {"output": f"not found: {path}", "error": True}
         if root.is_file():
@@ -562,6 +568,8 @@ async def _list_files(path: str = ".", depth: int = 1) -> dict:
 async def _glob_files(pattern: str, path: str = ".", head_limit: int = 0) -> dict:
     try:
         root = _resolve(path)
+        if blocked := _guard_path(root):
+            return {"output": blocked, "error": True}
         matches = []
         if root.is_file() and _skip_scan_path(root):
             items = []
@@ -599,6 +607,8 @@ async def _grep_files(
     files_with_matches (file paths) | count (matches per file)."""
     try:
         root = _resolve(path)
+        if blocked := _guard_path(root):
+            return {"output": blocked, "error": True}
         rx = re.compile(pattern, re.IGNORECASE if ignore_case else 0)
         cap = head_limit or (300 if output_mode == "content" else 1000)
         file_pat = file_glob or "*"
@@ -1938,11 +1948,13 @@ def _vault_reindex(rel, content=None):
                 from pathlib import PurePosixPath
 
                 from services import personal_index
+
                 personal_index.index_record(db, "note", PurePosixPath(rel).stem)
             elif journal_vault.is_daily(rel):
                 pass  # journal daily notes index via the journal pipeline, not as docs
             else:
                 from services import textindex
+
                 if content is None:
                     content = vault_md.read(rel).get("content", "")
                 textindex.index(db, "doc", rel, content)
@@ -3155,6 +3167,8 @@ def capture_checkpoint(run_id: str, name: str, args: dict):
 
     for p in snapshot_targets(name, args):
         try:
+            if _guard_path(p, write=True):
+                continue
             existed = p.exists() and p.is_file()
             before = p.read_text("utf-8", errors="replace") if existed else ""
             add_checkpoint(run_id, {"path": str(p), "existed": existed, "before": before})
@@ -3169,11 +3183,14 @@ def revert_run(run_id: str) -> dict:
     state = get_run(run_id)
     if not state:
         return {"ok": False, "error": "run not found", "restored": 0}
+    settings = {**load_settings(), "agent_cwd": state.get("cwd") or ""}
     restored = 0
     # reverse so the earliest snapshot (true original) wins
     for cp in reversed(state.get("checkpoints", [])):
         p = Path(cp["path"])
         try:
+            if _guard_path(p, write=True, settings=settings):
+                continue
             if cp.get("existed"):
                 p.parent.mkdir(parents=True, exist_ok=True)
                 p.write_text(cp.get("before", ""), "utf-8")
@@ -3195,6 +3212,8 @@ async def _revert_file(path: str) -> dict:
 
     state = get_run(run_id) or {}
     target = str(_resolve(path))
+    if blocked := _guard_path(target, write=True):
+        return {"output": blocked, "error": True}
     cps = [c for c in state.get("checkpoints", []) if c["path"] == target]
     if not cps:
         return {"output": f"no checkpoint for {path} in this run", "error": True}
@@ -3224,6 +3243,8 @@ def preview_change(name: str, args: dict) -> str:
             return (args.get("patch") or "").strip()
         if name == "write_file":
             p = _resolve(args.get("path", ""))
+            if _guard_path(p, write=True):
+                return ""
             old = (
                 p.read_text("utf-8", errors="replace").splitlines(keepends=True)
                 if p.exists()
@@ -3232,6 +3253,8 @@ def preview_change(name: str, args: dict) -> str:
             new = (args.get("content") or "").splitlines(keepends=True)
         elif name == "edit_file":
             p = _resolve(args.get("path", ""))
+            if _guard_path(p, write=True):
+                return ""
             if not p.exists():
                 return ""
             text = p.read_text("utf-8", errors="replace")

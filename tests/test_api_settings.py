@@ -170,6 +170,49 @@ class SettingsApiTest(ApiTest):
                 self.assertEqual(response.status_code, 400)
                 self.assertEqual(response.json()["code"], code)
 
+    def test_agent_allowed_roots_are_existing_normalized_folders(self):
+        root = Path(self._tmp.name) / "allowed"
+        root.mkdir()
+        response = self.client.patch("/api/settings", json={"agent_allowed_roots": [str(root)]})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["agent_allowed_roots"], [str(root.resolve())])
+        rejected = self.client.patch("/api/settings", json={"agent_allowed_roots": ["relative"]})
+        self.assertEqual(rejected.status_code, 400)
+        self.assertEqual(rejected.json()["code"], "invalid_agent_root")
+        filesystem_root = self.client.patch(
+            "/api/settings", json={"agent_allowed_roots": [str(Path(root.anchor))]}
+        )
+        self.assertEqual(filesystem_root.status_code, 400)
+        self.assertEqual(filesystem_root.json()["code"], "invalid_agent_root")
+        too_many = self.client.patch(
+            "/api/settings", json={"agent_allowed_roots": [str(root)] * 17}
+        )
+        self.assertEqual(too_many.status_code, 400)
+        self.assertEqual(too_many.json()["code"], "invalid_agent_root")
+
+    def test_agent_allowed_roots_require_recent_owner_auth(self):
+        from core import auth
+
+        root = Path(self._tmp.name) / "allowed"
+        root.mkdir()
+        token = auth.create_session_token()
+        auth.store_token(token)
+        auth._recent_auth[token] = 0
+        self.client.cookies.set("aide_session", token)
+        try:
+            with (
+                mock.patch("app.auth_enabled", return_value=True),
+                mock.patch("core.settings.auth_enabled", return_value=True),
+            ):
+                response = self.client.patch(
+                    "/api/settings", json={"agent_allowed_roots": [str(root)]}
+                )
+        finally:
+            self.client.cookies.clear()
+            auth.revoke_token(token)
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.json()["code"], "recent_auth_required")
+
     def test_unknown_keys_ignored(self):
         self.client.patch("/api/settings", json={"totally_made_up_key": "x"})
         self.assertNotIn("totally_made_up_key", self.client.get("/api/settings").json())

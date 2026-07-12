@@ -203,8 +203,8 @@ uses `approve`, but the saved default is currently `full_auto`, and detached bac
   pass through the interactive Aide approval flow.
 - Current actions are uneven: for example, Finance is read-only, Contacts has add but no edit/delete,
   and several apps have no Aide tool yet.
-- `agent_allowed_roots` is saved, but the general capability gate does not enforce it as a complete
-  Project boundary. File tools use separate secret-path/workspace guards instead.
+- Agent file tools now enforce the selected Project as their writable root. Owner-approved extra roots
+  are read-only. Shell commands remain a separate boundary and are not confined by this file guard.
 
 Sources: `services/agent_tools.py`, `services/capabilities.py`, `services/policy.py`,
 `services/agent_runtime.py`, `services/automations.py`, `routes/agent.py`, `tests/test_agent_tools.py`,

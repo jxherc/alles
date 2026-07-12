@@ -85,6 +85,19 @@ class VaultTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             vault_md.read("../../etc/passwd")
 
+    def test_symlink_inside_vault_cannot_escape(self):
+        with tempfile.TemporaryDirectory() as outside:
+            secret = Path(outside) / "secret.md"
+            secret.write_text("private")
+            link = Path(self.tmp.name) / "outside"
+            link.symlink_to(outside, target_is_directory=True)
+            with self.assertRaises(ValueError):
+                vault_md.read("outside/secret.md")
+            with self.assertRaises(ValueError):
+                vault_md.write("outside/new.md", "no")
+            with self.assertRaises(ValueError):
+                vault_md.delete("outside/secret.md")
+
     def test_search_ranks_prefix(self):
         vault_md.create("alpha.md")
         vault_md.create("beta-alpha.md")
