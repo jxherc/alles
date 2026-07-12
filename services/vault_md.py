@@ -3,9 +3,12 @@ Obsidian-style markdown vault: real .md files on disk + wikilinks + backlinks.
 Everything is stored as plain files so the vault is portable and git-able.
 """
 
+import hashlib
 import json
+import os
 import re
 import shutil
+import tempfile
 from pathlib import Path
 
 from core.settings import data_dir, load_settings
@@ -44,6 +47,30 @@ _WIKILINK = re.compile(r"\[\[([^\[\]|#]+)(?:[#|][^\[\]]*)?\]\]")
 _SYS_DIRS = {"_assets", "_templates"}
 
 
+class DocumentConflictError(RuntimeError):
+    pass
+
+
+def _hash_bytes(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
+
+
+def _atomic_write(path: Path, data: bytes) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, temp_name = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=path.parent)
+    temp = Path(temp_name)
+    try:
+        with os.fdopen(fd, "wb") as handle:
+            handle.write(data)
+            handle.flush()
+            os.fsync(handle.fileno())
+        if path.exists():
+            os.chmod(temp, path.stat().st_mode)
+        os.replace(temp, path)
+    finally:
+        temp.unlink(missing_ok=True)
+
+
 def _is_md(p: Path) -> bool:
     return p.suffix.lower() in (".md", ".markdown")
 
@@ -80,17 +107,30 @@ def tree() -> dict:
 def read(rel: str) -> dict:
     p = _safe(rel)
     if not p.exists() or not p.is_file():
-        return {"path": rel, "content": "", "exists": False}
-    return {"path": rel, "content": p.read_text("utf-8", errors="replace"), "exists": True}
+        return {"path": rel, "content": "", "exists": False, "hash": ""}
+    raw = p.read_bytes()
+    return {
+        "path": rel,
+        "content": raw.decode("utf-8", errors="replace"),
+        "exists": True,
+        "hash": _hash_bytes(raw),
+    }
 
 
-def write(rel: str, content: str) -> dict:
+def write(rel: str, content: str, expected_hash: str | None = None) -> dict:
     p = _safe(rel)
     if p.suffix == "":
         p = p.with_suffix(".md")
-    p.parent.mkdir(parents=True, exist_ok=True)
-    p.write_text(content or "", "utf-8")
-    return {"path": str(p.relative_to(root_dir())).replace("\\", "/"), "ok": True}
+    current = _hash_bytes(p.read_bytes()) if p.is_file() else ""
+    if expected_hash is not None and expected_hash != current:
+        raise DocumentConflictError("document changed since it was opened")
+    raw = (content or "").encode("utf-8")
+    _atomic_write(p, raw)
+    return {
+        "path": str(p.relative_to(root_dir())).replace("\\", "/"),
+        "ok": True,
+        "hash": _hash_bytes(raw),
+    }
 
 
 def parse_frontmatter(content: str):
@@ -284,7 +324,7 @@ def board_add_card(rel: str, column: str, text: str) -> dict:
     _insert_into_column(lines, column, f"- [ ] {text.strip()}")
     new = "\n".join(lines)
     p.parent.mkdir(parents=True, exist_ok=True)
-    p.write_text(new, "utf-8")
+    _atomic_write(p, new.encode("utf-8"))
     return {"ok": True, "columns": parse_board(new)}
 
 
@@ -301,7 +341,7 @@ def board_move_card(rel: str, line: int, to_col: str) -> dict:
     del lines[line]
     _insert_into_column(lines, to_col, card_line)
     new = "\n".join(lines)
-    p.write_text(new, "utf-8")
+    _atomic_write(p, new.encode("utf-8"))
     return {"ok": True, "columns": parse_board(new)}
 
 
@@ -541,7 +581,7 @@ def theme_css_read():
 
 def theme_css_write(css):
     p = _safe(_THEME_FILE)
-    p.write_text(css or "", "utf-8")
+    _atomic_write(p, (css or "").encode("utf-8"))
     return {"ok": True}
 
 
@@ -569,7 +609,9 @@ def canvas_write(rel, nodes, edges):
         rel += ".canvas"
     p = _safe(rel)
     p.parent.mkdir(parents=True, exist_ok=True)
-    p.write_text(json.dumps({"nodes": nodes or [], "edges": edges or []}, indent=2), "utf-8")
+    _atomic_write(
+        p, json.dumps({"nodes": nodes or [], "edges": edges or []}, indent=2).encode("utf-8")
+    )
     return {"path": str(p.relative_to(root_dir())).replace("\\", "/"), "ok": True}
 
 
@@ -689,7 +731,7 @@ def open_or_create_periodic(kind: str, d=None) -> dict:
     else:
         body = f"# {rel[:-3]}\n\n"
     p.parent.mkdir(parents=True, exist_ok=True)
-    p.write_text(body, "utf-8")
+    _atomic_write(p, body.encode("utf-8"))
     return {"path": rel, "created": True, "ok": True}
 
 
@@ -704,7 +746,7 @@ def create(rel: str, content: str = "") -> dict:
             "existed": True,
         }
     p.parent.mkdir(parents=True, exist_ok=True)
-    p.write_text(content or f"# {p.stem}\n\n", "utf-8")
+    _atomic_write(p, (content or f"# {p.stem}\n\n").encode("utf-8"))
     return {"path": str(p.relative_to(root_dir())).replace("\\", "/"), "ok": True}
 
 
@@ -754,7 +796,7 @@ def rewrite_links(old_name: str, new_name: str) -> list[str]:
         new_text = pat.sub(_sub, text)
         if new_text != text:
             try:
-                p.write_text(new_text, "utf-8")
+                _atomic_write(p, new_text.encode("utf-8"))
                 changed.append(str(p.relative_to(base)).replace("\\", "/"))
             except Exception:
                 continue
@@ -952,7 +994,7 @@ def set_task(rel: str, line: int, done: bool) -> dict:
         raise ValueError("not a task line")
     mark = "x" if done else " "
     lines[line] = re.sub(r"\[[ xX]\]", f"[{mark}]", lines[line], count=1)
-    p.write_text("\n".join(lines), "utf-8")
+    _atomic_write(p, "\n".join(lines).encode("utf-8"))
     return {"ok": True, "done": done}
 
 
@@ -970,7 +1012,7 @@ def list_templates() -> list[dict]:
     if not tdir.exists():
         tdir.mkdir(parents=True, exist_ok=True)
         for name, body in _DEFAULT_TEMPLATES.items():
-            (tdir / f"{name}.md").write_text(body, "utf-8")
+            _atomic_write(tdir / f"{name}.md", body.encode("utf-8"))
     out = []
     for p in sorted(tdir.glob("*.md")):
         try:
@@ -994,7 +1036,7 @@ def save_asset(filename: str, data: bytes) -> dict:
     while p.exists():
         p = adir / f"{stem}-{i}.{ext}"
         i += 1
-    p.write_bytes(data)
+    _atomic_write(p, data)
     rel = str(p.relative_to(base)).replace("\\", "/")
     return {"path": rel, "name": p.name}
 

@@ -21,6 +21,19 @@ class NotesApiTest(VaultApiTest):
         cleared = self.client.patch(f"/api/notes/{nid}", json={"content": ""}).json()
         self.assertEqual(cleared["content"], "")
 
+    def test_stale_editor_cannot_overwrite_external_change(self):
+        note = self._mk(title="shared", content="first")
+        from services import vault_md
+
+        vault_md.write("Notes/shared.md", "external change")
+        response = self.client.patch(
+            "/api/notes/shared",
+            json={"content": "stale edit", "expected_hash": note["hash"]},
+        )
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(response.json()["code"], "document_conflict")
+        self.assertEqual(vault_md.read("Notes/shared.md")["content"], "external change")
+
     def test_create_with_tags_normalized(self):
         n = self._mk(title="t", content="c", tags=["Work", "work", " Urgent "])
         self.assertEqual(n["tags"], ["work", "urgent"])  # deduped + lowercased + trimmed
@@ -32,10 +45,13 @@ class NotesApiTest(VaultApiTest):
     def test_search_matches_title_content_tags(self):
         self._mk(title="grocery list", content="milk eggs", tags=["home"])
         self._mk(title="work plan", content="ship the thing", tags=["office"])
-        titles = lambda q: sorted(n["title"] for n in self.client.get(f"/api/notes?q={q}").json())
-        self.assertEqual(titles("milk"), ["grocery list"])       # content hit
-        self.assertEqual(titles("office"), ["work plan"])        # tag hit
-        self.assertEqual(titles("plan"), ["work plan"])          # title hit
+
+        def titles(q):
+            return sorted(n["title"] for n in self.client.get(f"/api/notes?q={q}").json())
+
+        self.assertEqual(titles("milk"), ["grocery list"])  # content hit
+        self.assertEqual(titles("office"), ["work plan"])  # tag hit
+        self.assertEqual(titles("plan"), ["work plan"])  # title hit
 
     def test_filter_by_tag(self):
         self._mk(title="a", tags=["x"])
@@ -71,20 +87,28 @@ class NotesApiTest(VaultApiTest):
         )
 
     def test_checklist_items_roundtrip_and_clean(self):
-        n = self._mk(title="todo", items=[
-            {"text": "buy milk", "done": False},
-            {"text": "  ", "done": True},          # blank → dropped
-            {"text": "call mom", "done": True},
-            {"bogus": 1},                           # malformed → dropped
-        ])
-        self.assertEqual(n["items"], [
-            {"text": "buy milk", "done": False},
-            {"text": "call mom", "done": True},
-        ])
+        n = self._mk(
+            title="todo",
+            items=[
+                {"text": "buy milk", "done": False},
+                {"text": "  ", "done": True},  # blank → dropped
+                {"text": "call mom", "done": True},
+                {"bogus": 1},  # malformed → dropped
+            ],
+        )
+        self.assertEqual(
+            n["items"],
+            [
+                {"text": "buy milk", "done": False},
+                {"text": "call mom", "done": True},
+            ],
+        )
 
     def test_toggle_item_via_patch(self):
         nid = self._mk(title="t", items=[{"text": "a", "done": False}])["id"]
-        n = self.client.patch(f"/api/notes/{nid}", json={"items": [{"text": "a", "done": True}]}).json()
+        n = self.client.patch(
+            f"/api/notes/{nid}", json={"items": [{"text": "a", "done": True}]}
+        ).json()
         self.assertTrue(n["items"][0]["done"])
 
     def test_due_date_stored(self):

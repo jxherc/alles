@@ -24,6 +24,15 @@ class VaultTests(unittest.TestCase):
         vault_md.write("notes/hello.md", "updated [[world]]")
         self.assertEqual(vault_md.read("notes/hello.md")["content"], "updated [[world]]")
 
+    def test_expected_hash_blocks_stale_write_and_atomic_temp_is_cleaned(self):
+        first = vault_md.write("conflict.md", "first")
+        self.assertEqual(vault_md.read("conflict.md")["hash"], first["hash"])
+        vault_md.write("conflict.md", "external")
+        with self.assertRaises(vault_md.DocumentConflictError):
+            vault_md.write("conflict.md", "stale", expected_hash=first["hash"])
+        self.assertEqual(vault_md.read("conflict.md")["content"], "external")
+        self.assertEqual(list(Path(self.tmp.name).glob(".conflict.md.*.tmp")), [])
+
     def test_tree_nests_and_lists_md_only(self):
         vault_md.create("a.md")
         vault_md.create("sub/b.md")
@@ -151,7 +160,6 @@ class VaultTests(unittest.TestCase):
         self.assertIn(("about", "home"), pairs)
         home = next(n for n in g["nodes"] if n["id"] == "home")
         self.assertEqual(home["degree"], 3)  # 2 out + 1 in
-
 
     def test_set_cell_keeps_a_list_prop_a_list(self):
         # editing a list-valued frontmatter cell must not flatten it to a comma string

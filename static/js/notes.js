@@ -154,8 +154,8 @@ function openEditor(note) {
   });
 
   document.getElementById('note-back-btn').addEventListener('click', async () => {
-    await saveCurrentNote();
-    await loadNotes();
+    const saved = await saveCurrentNote();
+    if (saved) await loadNotes();
   });
 
   document.getElementById('note-save-btn').addEventListener('click', async () => {
@@ -209,10 +209,19 @@ export async function saveCurrentNote() {
     const r = await fetch(`/api/notes/${encodeURIComponent(_editing.id)}`, {
       method: 'PATCH',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ title, content, tags, items, due }),
+      body: JSON.stringify({ title, content, tags, items, due, expected_hash: _editing.hash || '' }),
     });
+    if (!r.ok) {
+      const data = await r.json().catch(() => ({}));
+      if (data.code === 'document_conflict') {
+        toast('this note changed outside Alles — reload it before saving', 'error');
+        return null;
+      }
+      throw new Error(data.detail || 'note could not be saved');
+    }
     updated = await r.json();
-  } catch {}
+  } catch (error) { toast(error.message || 'note could not be saved', 'error'); }
+  if (!updated) return null;
   _editing = null;
   return updated;
 }
