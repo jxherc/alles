@@ -90,6 +90,11 @@ Phase 1 is split into small gates. A later gate must not weaken an earlier one.
 ### Models, memory, and language
 
 - [ ] Add model roles, a resolver, provider adapters, and catalog reconciliation.
+  - [x] Add OpenAI-compatible, Anthropic, Gemini, Ollama, and manual catalog adapters without a
+    shipped guessed model list.
+  - [x] Reconcile live, stale, unavailable, and manual catalogs independently per endpoint while
+    preserving the last good catalog after a failed refresh.
+  - [ ] Add the three roles and shared resolver, then expose the effective choices in Settings.
 - [ ] Add memory provenance, policy controls, and real incognito isolation.
 - [ ] Spike provider authentication before choosing supported flows.
 - [ ] Add the localization foundation without translating unfinished UI.
@@ -121,8 +126,9 @@ Phase 1 is split into small gates. A later gate must not weaken an earlier one.
 ## Current slice
 
 The current completed groups cover startup access policy, scoped owner/API access, stable security
-errors, rate limits, encrypted connector credentials, private observability, and owned-service
-controls. They do not install or configure a reverse proxy or companion service for the owner.
+errors, rate limits, encrypted connector credentials, private observability, owned-service controls,
+and the live model-catalog backend. They do not install or configure a reverse proxy or companion
+service for the owner.
 
 Fresh evidence: 12 focused startup-policy tests pass. Broader verification is recorded with the commit.
 The CORS slice adds 5 parser cases plus live unknown-origin request and preflight checks.

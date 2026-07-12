@@ -59,7 +59,7 @@ every one of these is a real, finished app — not a placeholder. they each live
 
 <p align="center"><img src="docs/screenshots/aide.png" width="760" alt="aide — model switcher, agent/chat toggle, chat history + tools sidebar"></p>
 
-**the model picker** — every endpoint you add shows up here, each provider in its own brand colour with its real logo (openai green, anthropic gold, moonshot purple — never mistaken for one another). image-generation models are flagged with a 🎨, so you can run a **chat model and an image model together** (talk to sonnet, draw with gpt-image). a **newest-only** toggle collapses each family to its latest release, and the list refreshes from every provider — with a built-in fallback line-up so it's already populated before you've even added a key.
+**the model picker** — every endpoint you add shows up here, each provider in its own brand colour with its real logo (openai green, anthropic gold, moonshot purple — never mistaken for one another). image-generation models are flagged with a 🎨, so you can run a **chat model and an image model together** (talk to sonnet, draw with gpt-image). a **newest-only** toggle collapses each family to its latest release. model IDs come from each endpoint's live catalog or its editable manual list; alles does not ship a guessed model lineup. a failed refresh keeps the last good list and marks it stale, while models removed by a provider leave new pickers and remain marked unavailable for old runs.
 
 <p align="center"><img src="docs/screenshots/models.png" width="760" alt="the model picker — every provider in its brand colour, image models flagged with 🎨, a newest-only toggle"></p>
 
