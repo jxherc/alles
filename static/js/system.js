@@ -239,6 +239,26 @@ export function procCpuLabel(cpu) {
   const n = Number(cpu);
   return Number.isFinite(n) ? String(n.toFixed(0)).padStart(3) : '  —';
 }
+
+export function browserClientInfo(source = globalThis.navigator || {}, timeZone = '') {
+  const platformValue = String(source.userAgentData?.platform || source.platform || 'unknown');
+  const userAgent = String(source.userAgent || '');
+  const identity = `${platformValue} ${userAgent}`.toLowerCase();
+  let platform = platformValue || 'unknown';
+  if (identity.includes('android')) platform = 'Android';
+  else if (identity.includes('iphone')) platform = 'iOS';
+  else if (identity.includes('ipad')) platform = 'iPadOS';
+  else if (identity.includes('win')) platform = 'Windows';
+  else if (identity.includes('mac')) platform = 'macOS';
+  else if (identity.includes('linux')) platform = 'Linux';
+  const language = String(source.language || 'unknown');
+  let zone = String(timeZone || '');
+  if (!zone) {
+    try { zone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'unknown'; }
+    catch { zone = 'unknown'; }
+  }
+  return { platform, language, timezone: zone };
+}
 function uptime(sec) {
   if (!sec) return '—';
   const d = Math.floor(sec / 86400), h = Math.floor(sec % 86400 / 3600), m = Math.floor(sec % 3600 / 60);
@@ -293,11 +313,12 @@ function buildShell(s) {
 
 function buildInfo(s, freq, disk0) {
   const cpu = s.cpu, mem = s.memory, h = s.host, sw = s.swap;
+  const client = browserClientInfo();
   const title = `${h.user || 'user'}@${h.hostname || 'host'}`;
   return [
     `<div class="nf-title">${esc(title)}</div>`,
     `<div class="nf-rule">${'─'.repeat(Math.max(10, title.length))}</div>`,
-    group('OS', h.os, [
+    group('SERVER OS', h.os, [
       ['arch', h.arch || '—'],
       ['uptime', uptime(s.uptime_sec)],
       ['procs', String(s.proc_count || '—')],
@@ -313,6 +334,11 @@ function buildInfo(s, freq, disk0) {
       sw && sw.total_gb ? ['swap', `${sw.used_gb} / ${sw.total_gb} GB (${Math.round(sw.percent)}%)`] : null,
       ['backend', h.backend || '—'],
       ['shell', `python ${h.python || ''}`],
+    ]),
+    group('THIS BROWSER', 'client device', [
+      ['platform', client.platform],
+      ['language', client.language],
+      ['time zone', client.timezone],
     ]),
     palette(),
   ].join('');
