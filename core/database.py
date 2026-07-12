@@ -783,6 +783,144 @@ class AutomationAttempt(Base):
     finished_at = Column(DateTime, nullable=True)
 
 
+class JarvisWorkflow(Base):
+    __tablename__ = "jarvis_workflows"
+    id = Column(String, primary_key=True, default=_uid)
+    name = Column(String, nullable=False)
+    purpose = Column(Text, default="")
+    project_id = Column(String, ForeignKey("projects.id", ondelete="SET NULL"), nullable=True)
+    prompt = Column(Text, default="")
+    deterministic_action = Column(String, default="")
+    model_override = Column(String, default="")
+    capability_ceiling = Column(Text, default="[]")
+    concurrency_mode = Column(String, default="one")
+    context_mode = Column(String, default="fresh")
+    delivery_policy = Column(Text, default="{}")
+    enabled = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=_now)
+    updated_at = Column(DateTime, default=_now, onupdate=_now)
+
+
+class JarvisTrigger(Base):
+    __tablename__ = "jarvis_triggers"
+    id = Column(String, primary_key=True, default=_uid)
+    workflow_id = Column(
+        String, ForeignKey("jarvis_workflows.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    kind = Column(String, nullable=False)
+    config = Column(Text, default="{}")
+    timezone = Column(String, default="UTC")
+    enabled = Column(Boolean, default=False)
+    next_run_at = Column(DateTime, nullable=True, index=True)
+    last_run_at = Column(DateTime, nullable=True)
+    fingerprint = Column(String, default="")
+    created_at = Column(DateTime, default=_now)
+    updated_at = Column(DateTime, default=_now, onupdate=_now)
+
+
+class JarvisRun(Base):
+    __tablename__ = "jarvis_runs"
+    id = Column(String, primary_key=True, default=_uid)
+    workflow_id = Column(
+        String, ForeignKey("jarvis_workflows.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    trigger_id = Column(
+        String, ForeignKey("jarvis_triggers.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    project_id = Column(String, ForeignKey("projects.id", ondelete="SET NULL"), nullable=True)
+    session_id = Column(String, ForeignKey("sessions.id", ondelete="SET NULL"), nullable=True)
+    state = Column(String, nullable=False, default="queued", index=True)
+    scheduled_for = Column(DateTime, nullable=True)
+    occurrence_key = Column(String(64), nullable=True)
+    lease_owner = Column(String, default="")
+    lease_expires_at = Column(DateTime, nullable=True, index=True)
+    attempt_count = Column(Integer, default=0)
+    failure_class = Column(String, default="")
+    safe_error = Column(Text, default="")
+    result_summary = Column(Text, default="")
+    left_project_root = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=_now)
+    started_at = Column(DateTime, nullable=True)
+    finished_at = Column(DateTime, nullable=True)
+    updated_at = Column(DateTime, default=_now, onupdate=_now)
+
+
+class JarvisRunEvent(Base):
+    __tablename__ = "jarvis_run_events"
+    __table_args__ = (
+        Index("ux_jarvis_run_events_run_sequence", "run_id", "sequence", unique=True),
+    )
+    id = Column(String, primary_key=True, default=_uid)
+    run_id = Column(
+        String, ForeignKey("jarvis_runs.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    sequence = Column(Integer, nullable=False)
+    kind = Column(String, nullable=False)
+    source = Column(String, default="")
+    tool_name = Column(String, default="")
+    summary = Column(Text, default="")
+    data = Column(Text, default="{}")
+    created_at = Column(DateTime, default=_now)
+
+
+class JarvisRunPrompt(Base):
+    __tablename__ = "jarvis_run_prompts"
+    id = Column(String, primary_key=True, default=_uid)
+    run_id = Column(
+        String, ForeignKey("jarvis_runs.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    kind = Column(String, nullable=False)
+    state = Column(String, nullable=False, default="pending", index=True)
+    question = Column(Text, nullable=False)
+    options = Column(Text, default="[]")
+    action = Column(String, default="")
+    target = Column(Text, default="")
+    data_summary = Column(Text, default="")
+    privacy_effect = Column(Text, default="")
+    cost = Column(String, default="")
+    capability = Column(String, default="")
+    expires_at = Column(DateTime, nullable=True)
+    answer = Column(Text, default="")
+    responded_at = Column(DateTime, nullable=True)
+    used_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=_now)
+
+
+class JarvisDeliveryAttempt(Base):
+    __tablename__ = "jarvis_delivery_attempts"
+    id = Column(String, primary_key=True, default=_uid)
+    run_id = Column(
+        String, ForeignKey("jarvis_runs.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    event_id = Column(
+        String, ForeignKey("jarvis_run_events.id", ondelete="SET NULL"), nullable=True
+    )
+    channel = Column(String, nullable=False)
+    privacy_level = Column(String, default="title_status")
+    state = Column(String, nullable=False, default="pending", index=True)
+    attempt_count = Column(Integer, default=0)
+    next_attempt_at = Column(DateTime, nullable=True, index=True)
+    safe_error_class = Column(String, default="")
+    provider_message_id = Column(String, default="")
+    idempotency_key = Column(String(64), nullable=False, unique=True)
+    created_at = Column(DateTime, default=_now)
+    updated_at = Column(DateTime, default=_now, onupdate=_now)
+
+
+class JarvisConnector(Base):
+    __tablename__ = "jarvis_connectors"
+    id = Column(String, primary_key=True, default=_uid)
+    name = Column(String, nullable=False)
+    kind = Column(String, nullable=False)
+    config = Column(Text, default="{}")
+    secret = Column(EncryptedText("jarvis_connectors.secret"), default="")
+    allowlist = Column(Text, default="[]")
+    enabled = Column(Boolean, default=False)
+    external = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=_now)
+    updated_at = Column(DateTime, default=_now, onupdate=_now)
+
+
 class ProactiveItem(Base):
     __tablename__ = "proactive_items"
     id = Column(String, primary_key=True, default=_uid)

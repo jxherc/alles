@@ -106,6 +106,9 @@ from routes import (
     journal as journal_routes,
 )
 from routes import (
+    jarvis as jarvis_routes,
+)
+from routes import (
     local_models as local_model_routes,
 )
 from routes import (
@@ -763,6 +766,16 @@ async def lifespan(app: FastAPI):
                 interrupted_automations,
             )
 
+        from services.jarvis_store import reconcile_interrupted_runs
+
+        interrupted_jarvis = reconcile_interrupted_runs()
+        if interrupted_jarvis["interrupted"] or interrupted_jarvis["uncertain"]:
+            log.warning(
+                "reconciled Jarvis runs after restart: %s interrupted, %s uncertain",
+                interrupted_jarvis["interrupted"],
+                interrupted_jarvis["uncertain"],
+            )
+
         try:
             from services import net
 
@@ -1029,6 +1042,7 @@ app.include_router(subscription_routes.router)
 app.include_router(days_routes.router)
 app.include_router(today_routes.router)
 app.include_router(automation_routes.router)
+app.include_router(jarvis_routes.router)
 app.include_router(money_routes.router)
 app.include_router(timeline_routes.router)
 app.include_router(system_routes.router)

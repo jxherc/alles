@@ -75,7 +75,7 @@ for an explicit relink.
 
 ## 2B — durable Jarvis records
 
-- [ ] Add separate durable records for these responsibilities:
+- [x] Add separate durable records for these responsibilities:
   - **Workflow** — reusable task definition and maximum permissions.
   - **Trigger** — manual, schedule, interval, heartbeat, event, or webhook start condition.
   - **JarvisRun** — one execution and its current state.
@@ -83,7 +83,7 @@ for an explicit relink.
   - **RunPrompt** — a durable question, choice, or approval request.
   - **DeliveryAttempt** — one persistent outbox item and its retry state.
   - **Connector** — encrypted channel configuration and allowlists.
-- [ ] Use clear run states.
+- [x] Use clear run states.
   - Queued, running, waiting for input, waiting for approval, paused, succeeded, failed, cancelled,
     interrupted, and uncertain.
 - [ ] Keep choices and approvals separate.
@@ -99,6 +99,14 @@ for an explicit relink.
   - Proven complete work is not repeated.
   - An outcome that cannot be proved becomes **uncertain** and asks the owner.
 - [ ] Add compatibility reads while old automation APIs are still used.
+
+Current evidence: 61 focused record, API, encrypted-credential, key-rotation, backup, and migration
+tests pass. All 26 canonical schema histories, both released no-history schemas, and all five Photos-fork
+histories pass staged restore, repeat migration, and boot. Workflows and triggers start paused; runs,
+events, prompts, deliveries, and connector records use separate tables; connector secrets are masked in
+APIs and encrypted in raw SQLite. Startup reconciliation marks an unconfirmed side effect uncertain and
+an ordinary stopped run interrupted. The remaining 2B boxes stay open until the exact approval gate and
+runtime checkpoints are connected.
 
 ### 2B gate
 
