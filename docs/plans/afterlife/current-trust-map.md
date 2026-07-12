@@ -22,10 +22,10 @@
 | Mail/calendar/contacts | IMAP/SMTP, CalDAV, CardDAV, and ICS feeds are separate remote systems. SQLite is local cache/state, not always the remote authority. |
 | WebDAV backup | An owner-configured HTTPS collection is a separate external store. Alles sends only encrypted `.alles-backup` artifacts; it never sends the recovery-key file separately or in plaintext. Remote names and metadata are untrusted until validated. |
 | S3-compatible backup | An owner-configured HTTPS bucket is a separate external store. Alles sends SigV4-signed requests and only encrypted `.alles-backup` artifacts; it never sends the recovery-key file separately or in plaintext. Object names, metadata, XML, and responses are untrusted until validated. |
-| MCP | Outbound stdio/SSE peers can return untrusted content; stdio inherits the server environment. Inbound `/api/mcp/rpc` currently reaches capability execution without the full chat-agent approval path. |
+| MCP | Outbound stdio/SSE peers can return untrusted content; stdio inherits the server environment. Inbound `/api/mcp/rpc` is default-deny until the owner gives an exact scoped grant, and returned content cannot widen that grant. |
 | Deliveries | Discord/Telegram are outbound only. Webhooks are signed, one-attempt deliveries. Web Push crosses external browser push providers. There is no inbound Jarvis Discord bot yet. |
 | macOS | PhotoKit uses a separately signed helper with Photos permission. Calendar/Reminders import uses `icalBuddy`; Keychain is an unwired seam. |
-| Background work | One sequential, process-local scheduler checks about every 30 seconds. Timing resets on restart; durable outcome claims exist where Phase 0 added them. |
+| Background work | The process-local job loop drives legacy jobs plus durable Jarvis schedules, heartbeats, reviewed events, and delivery outbox work. Lease and occurrence records survive restart and prevent two workers from blindly repeating one action. |
 | Recovery/update | Web routes may create, download, or upload encrypted artifacts and stage restores, but never live-swap data. The owner CLI holds locks, journals swaps, checks health, and owns rollback. Normal start fails closed while restore/update maintenance is unfinished. |
 
 ```mermaid
@@ -46,10 +46,10 @@ flowchart LR
 
 ## Route snapshot
 
-- 69 mounted route modules
-- 686 HTTP method/path pairs
-- 669 `/api/*`, 2 `/v1/*`, and 15 non-API shell/public pairs
-- SHA-256: `9e626889c94b027d44fda25336963fa93640d72d2e3fb8b30debf42c72e2bd7d`
+- 71 mounted route modules
+- 715 HTTP method/path pairs
+- 698 `/api/*`, 2 `/v1/*`, and 15 non-API shell/public pairs
+- SHA-256: `5e38485675c05c8711fdea9a9a75f0b9ff9092051b5cd64695444f73c2f1a658`
 - No WebSocket route; long responses use SSE/streaming HTTP
 
 Public routes are limited to the app shell/PWA, `/health`, optional `/status`, token shares and their
@@ -70,7 +70,8 @@ ownership and parser markers are regression-tested.
 ## Current registered jobs
 
 `read_feeds`, `holdings_price`, `blob_gc`, `clip_index`, `faces_index`, `user_model`, `insights`,
-`subscriptions`, `day_events`, `automations`, `reminders`, `calendar_reminders`, `mail_outbox`,
+`subscriptions`, `day_events`, `automations`, `jarvis_scheduler`, `jarvis_outbox`, `jarvis_events`,
+`reminders`, `calendar_reminders`, `mail_outbox`,
 `model_refresh`, `photo_watch`, `ics_subscriptions`, `carddav_auto`, `watch`, `personal_reconcile`, and
 `proactive`.
 
@@ -79,5 +80,5 @@ ownership and parser markers are regression-tested.
 - Scheduled backup runs and general WebDAV/S3 Files browsing remain future work.
 - Shell commands remain a separate, higher-risk boundary; approved file roots govern agent file tools,
   not arbitrary paths typed inside shell commands.
-- Managed SearXNG, durable cron/heartbeats, and inbound Discord/Jarvis are future work.
+- Managed SearXNG and inbound Discord/Jarvis are future work.
 - Current API tokens are not a substitute for the login cookie when auth is enabled.

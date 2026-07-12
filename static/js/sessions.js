@@ -109,6 +109,7 @@ export function renderSidebar(filter = '') {
 
   if (!src.length) {
     list.innerHTML = '<div class="empty-sessions">no chats yet</div>';
+    if (!fl) renderProjectFolders(_allSessions, id => selectSession(id), () => loadSessions());
     return;
   }
 

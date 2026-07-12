@@ -1,6 +1,6 @@
 # Afterlife Phase 2 — folder Projects and durable Jarvis core
 
-- **Status:** in progress
+- **Status:** delivered
 - **Parent design:** [`../design.md`](../design.md)
 - **Depends on:** Phase 1 delivered
 - **Checkbox rule:** `[x]` means implemented and freshly tested, not merely discussed.
@@ -221,20 +221,29 @@ from run failure. Every migrated automation starts paused and reviewable.
 
 ## Phase 2 verification
 
-- [ ] Add focused unit tests for Project paths, General, missing folders, relinking, run states, leases,
+- [x] Add focused unit tests for Project paths, General, missing folders, relinking, run states, leases,
   occurrence uniqueness, retries, heartbeats, approvals, grants, and outbox behavior.
-- [ ] Add migration fixtures from every supported older database shape and run each migration twice.
-- [ ] Add crash tests immediately before and after each test side effect.
-- [ ] Test transient, permanent, and uncertain failures separately.
-- [ ] Test two scheduler workers racing for the same occurrence.
-- [ ] Test server restart while queued, running, waiting, paused, delivering, and uncertain.
-- [ ] Test malicious MCP/tool output attempting to widen permissions or approve itself.
-- [ ] Test Project traversal, symlink escape, missing mount, relink, and approved outside-root behavior.
-- [ ] Run the full Python and JavaScript suites with throwaway `ALLES_DATA`.
-- [ ] Run isolated desktop and 390×844 browser checks with keyboard access, visible focus, reduced motion,
+- [x] Add migration fixtures from every supported older database shape and run each migration twice.
+- [x] Add crash tests immediately before and after each test side effect.
+- [x] Test transient, permanent, and uncertain failures separately.
+- [x] Test two scheduler workers racing for the same occurrence.
+- [x] Test server restart while queued, running, waiting, paused, delivering, and uncertain.
+- [x] Test malicious MCP/tool output attempting to widen permissions or approve itself.
+- [x] Test Project traversal, symlink escape, missing mount, relink, and approved outside-root behavior.
+- [x] Run the full Python and JavaScript suites with throwaway `ALLES_DATA`.
+- [x] Run isolated desktop and 390×844 browser checks with keyboard access, visible focus, reduced motion,
   no overflow, and zero console/page errors.
-- [ ] Re-run encrypted backup/restore because this phase changes durable data.
-- [ ] Run Ruff checks without rewriting unrelated legacy files.
+- [x] Re-run encrypted backup/restore because this phase changes durable data.
+- [x] Run Ruff checks without rewriting unrelated legacy files.
+
+Final evidence: all 3,968 Python tests pass with four optional skips, and all 117 JavaScript tests pass.
+All 30 canonical migration histories, all five Photos forks, and both released no-history databases
+restore, migrate twice, and boot. A separate 125-test encrypted backup, remote-target, recovery-key, and
+clean-source recovery set passes. The isolated Project browser gate passes at 1280×800 and 390×844 with
+keyboard opening and relinking, visible focus, missing-folder recovery, preserved chat and scratchpad,
+reduced motion, no horizontal overflow, and zero console or page errors. Repository-wide Ruff was run
+without rewrites and reports 143 older lint findings plus 210 older files outside the format baseline;
+the new Phase 2 migration, services, routes, and tests pass focused Ruff checks.
 
 ## Phase 2 exit gate
 

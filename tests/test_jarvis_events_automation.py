@@ -135,9 +135,7 @@ class JarvisEventTest(ApiTest):
         db.commit()
         event_id = row.id
         db.close()
-        response = self.client.post(
-            f"/api/jarvis/events/{event_id}/review", json={"allow": True}
-        )
+        response = self.client.post(f"/api/jarvis/events/{event_id}/review", json={"allow": True})
         self.assertEqual(response.status_code, 200, response.text)
         self.assertEqual(response.json()["state"], "reviewed")
         db = self.db()
@@ -259,9 +257,7 @@ class AutomationMigrationTest(ApiTest):
             },
         ).json()
         workflow_id = created["migrated_workflow_id"]
-        blocked = self.client.patch(
-            f"/api/jarvis/workflows/{workflow_id}", json={"enabled": True}
-        )
+        blocked = self.client.patch(f"/api/jarvis/workflows/{workflow_id}", json={"enabled": True})
         self.assertEqual(blocked.status_code, 409)
         incomplete = self.client.post(
             f"/api/jarvis/workflows/{workflow_id}/review",
@@ -275,9 +271,7 @@ class AutomationMigrationTest(ApiTest):
         self.assertEqual(reviewed.status_code, 200)
         self.assertEqual(reviewed.json()["review_state"], "ready")
         self.assertFalse(reviewed.json()["enabled"])
-        enabled = self.client.patch(
-            f"/api/jarvis/workflows/{workflow_id}", json={"enabled": True}
-        )
+        enabled = self.client.patch(f"/api/jarvis/workflows/{workflow_id}", json={"enabled": True})
         self.assertEqual(enabled.status_code, 200)
         self.assertTrue(enabled.json()["enabled"])
 

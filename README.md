@@ -74,7 +74,7 @@ each one is a real, finished app — they live on their own subdomain so it feel
 | **system** | a built-in live system monitor (cpu/ram/disk/gpu) |
 | **watch** | uptime monitoring for *external* things — sites, `/health` endpoints, tls certs — with an optional public status page |
 | **secrets** | an encrypted vault with typed entries (logins, cards, api keys, notes…) |
-| **automations** | *when this happens, do that* — set a rule once and alles runs it |
+| **automations** | legacy rule editor; saved rules become paused Jarvis workflows and need owner review before they can run |
 
 plus the smaller stuff: global search (cmd/ctrl+k), scheduled messages, prompt cookbook, webhooks, api tokens, an openai-compatible api, encrypted local, WebDAV, and S3-compatible backup with an offline staged restore and rollback, light/dark themes with a custom accent, and it installs like a pwa with real push notifications.
 

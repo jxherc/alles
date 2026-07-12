@@ -30,10 +30,10 @@ Jarvis lives inside Aide. It remains the name of the durable background runtime 
 
 ## Current state
 
-Phase 0 — recovery and safety — and Phase 1 — platform and security foundation — are delivered with
-fresh recovery, migration, compatibility, browser, and full-suite evidence. Phase 2 — folder Projects
-and the durable Jarvis core — is the next planned gate. The broader product design remains open to
-changes as later gates are implemented.
+Phases 0–2 are delivered with fresh recovery, migration, compatibility, browser, and full-suite
+evidence. Folder Projects, General, task stages, and the durable Jarvis core now ship on the Afterlife
+branch. Phase 3 — the product shell, Today, Aide Projects, and Settings — is the next planned gate. The
+broader product design remains open to changes as later gates are implemented.
 
 ## Stage rules
 

@@ -1,8 +1,8 @@
 # Afterlife implementation phases
 
 - **Stage:** Afterlife
-- **Current focus:** Phase 2
-- **Implementation status:** Phase 1 delivered; Phase 2 planned
+- **Current focus:** Phase 3
+- **Implementation status:** Phases 0–2 delivered; Phase 3 planned
 
 These are dependency gates, not release dates. Each phase must be split into small, testable plans before
 implementation.
@@ -11,7 +11,7 @@ implementation.
 |---|---|---|---|
 | 0 | Recovery gate and baseline | **Delivered** | Encrypted backup/restore, safe defaults, upgrade fixtures, and compatibility baselines |
 | 1 | Platform and security foundation | **Delivered** | Access profiles, secrets, service ownership, Server foundation, safe Docs/Files primitives, and backup targets |
-| 2 | [Folder Projects and durable Jarvis core](phase-02-projects-jarvis-core.md) | Planned | Working folders, General, task stages, durable runs, scheduler, permissions, and delivery outbox |
+| 2 | [Folder Projects and durable Jarvis core](phase-02-projects-jarvis-core.md) | **Delivered** | Working folders, General, task stages, durable runs, scheduler, permissions, and delivery outbox |
 | 3 | Product shell, Today, Aide Projects, and Settings | Planned | The three-space shell, useful Today, folder Projects in Aide, settings, and legacy redirects |
 | 4 | Aide and Andromeda | Planned | Aide Chat/Jarvis shell plus fast, grounded, local-capable AI search |
 | 5 | Jarvis inside Aide and channels | Planned | Workflows, runs, schedules, Discord, News, and Today delivery |

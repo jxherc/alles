@@ -4607,6 +4607,7 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
   transition: color 0.2s, background 0.2s;
 }
 .project-folder-head:hover { color: var(--text); background: var(--panel); }
+.project-folder-head:focus-visible { outline: 1px solid var(--muted); outline-offset: -2px; }
 .project-folder.open .project-folder-head { color: var(--text); }
 .project-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
 .project-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -4617,6 +4618,7 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
   transition: opacity 0.15s, color 0.15s;
 }
 .project-folder-head:hover .project-del { opacity: 0.6; }
+.project-folder:focus-within .project-del { opacity: 0.6; }
 .project-del:hover { opacity: 1; color: var(--error); }
 .project-sessions { flex-direction: column; padding-left: 1rem; }
 .project-folder.drag-over { background: color-mix(in srgb, var(--accent) 16%, transparent); outline: 1px dashed var(--accent); outline-offset: -1px; border-radius: 3px; }
