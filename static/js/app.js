@@ -121,6 +121,7 @@ async function _boot() {
   const afterlifeFlags = await loadAfterlifeFeatures();
   _afterlifeFlags = afterlifeFlags;
   applyVis();
+  initAfterlifeShell(afterlifeFlags);
   try { configureLocalization(await fetch('/api/settings').then(r => r.json())); }
   catch { configureLocalization(); }
   _syncAppearance();   // pull theme/accent from the server so it matches across subdomains
@@ -142,7 +143,6 @@ async function _boot() {
   registerServiceWorker();
   initSync();
   bindEvents();
-  initAfterlifeShell(afterlifeFlags);
   // per-app settings gears (header cogs) + the reload hooks they call after saving
   initAppCogs();
   window._reloadFiles = () => loadFiles('');   // jump to the (possibly new) root
@@ -365,6 +365,7 @@ const showChatView = () => {
 // so selectSession (sessions.js) can jump back to chat when a convo is clicked
 // from a tools page — otherwise messages render behind the still-open tool view
 window._enterChatView = showChatView;
+window._newGeneralChat = () => { showChatView(); newChat(); };
 
 // open a project's workspace page (called from the sidebar project folders)
 window._openProject = (pid) => showView('project-view', 'project', () => import('./projectview.js').then(m => m.renderProject(pid)));
@@ -522,6 +523,7 @@ function initAfterlifeShell(flags) {
   const spaces = activeAfterlifeSpaces(flags);
   const rail = document.getElementById('space-rail');
   document.body.classList.toggle('afterlife-shell', spaces.length > 0);
+  document.body.classList.toggle('afterlife-aide-projects', flags.afterlife_aide_projects === true);
   if (!rail || !spaces.length) {
     if (rail) rail.hidden = true;
     return;

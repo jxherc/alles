@@ -28,3 +28,13 @@ test('projects still render before the first chat exists', () => {
     /if \(!src\.length\) \{[\s\S]*?renderProjectFolders\(_allSessions,[\s\S]*?return;/,
   );
 });
+
+test('afterlife sidebar includes general, folder state, expanded threads, and jarvis runs', () => {
+  const source = readFileSync(new URL('../../static/js/projects.js', import.meta.url), 'utf8');
+  assert.match(source, /id: 'general', name: 'General'/);
+  assert.match(source, /folder missing/);
+  assert.match(source, /relink required/);
+  assert.match(source, /display:\$\{afterlife \? 'flex'/);
+  assert.match(source, /class="aide-runs"/);
+  assert.match(source, /folder\.dataset\.id === 'general'/);
+});

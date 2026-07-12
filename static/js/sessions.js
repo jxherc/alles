@@ -115,7 +115,9 @@ export function renderSidebar(filter = '') {
 
   let html = '';
 
-  if (!fl) {
+  if (!fl && document.body.classList.contains('afterlife-aide-projects')) {
+    html = '';
+  } else if (!fl) {
     if (_sessions.today.length)     html += renderGroup('today', _sessions.today);
     if (_sessions.yesterday.length) html += renderGroup('yesterday', _sessions.yesterday);
     if (_sessions.earlier.length)   html += renderGroup('earlier', _sessions.earlier);
