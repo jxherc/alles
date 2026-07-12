@@ -139,7 +139,8 @@ def _read(stem: str) -> dict | None:
         return None
     if not p.is_file():
         return None
-    props, body = vault_md.parse_frontmatter(p.read_text("utf-8", errors="replace"))
+    document = vault_md.read(_rel(stem))
+    props, body = vault_md.parse_frontmatter(document["content"])
     content, items = _split_items(body)
     tags = props.get("tags")
     if isinstance(tags, str):
@@ -163,6 +164,7 @@ def _read(stem: str) -> dict | None:
         "due": props.get("due", "") or "",
         "created_at": props.get("created") or _iso(mtime),
         "updated_at": _iso(mtime),
+        "hash": document["hash"],
     }
 
 
@@ -198,18 +200,32 @@ def get(nid: str) -> dict | None:
     return _read(nid)
 
 
-def create(title="", content="", pinned=False, tags=None, items=None, due="",
-           legacy_id=None, created_iso=None) -> dict:
+def create(
+    title="",
+    content="",
+    pinned=False,
+    tags=None,
+    items=None,
+    due="",
+    legacy_id=None,
+    created_iso=None,
+) -> dict:
     stem = _unique(_fname(title))
     md = _compose(
-        content, _norm_items(items), _norm_tags(tags), bool(pinned), False,
-        (due or "").strip(), created_iso or _now_iso(), legacy_id,
+        content,
+        _norm_items(items),
+        _norm_tags(tags),
+        bool(pinned),
+        False,
+        (due or "").strip(),
+        created_iso or _now_iso(),
+        legacy_id,
     )
     vault_md.write(_rel(stem), md)
     return _read(stem)
 
 
-def update(nid: str, partial: dict) -> dict | None:
+def update(nid: str, partial: dict, expected_hash: str | None = None) -> dict | None:
     cur = get(nid)
     if cur is None:
         return None
@@ -221,20 +237,23 @@ def update(nid: str, partial: dict) -> dict | None:
     due = partial["due"].strip() if partial.get("due") is not None else cur["due"]
 
     final = nid
+    new_stem = nid
     if partial.get("title") is not None:
         new_stem = _fname(partial["title"])
         if new_stem != nid:
             new_stem = _unique(new_stem, ignore=nid)
-            vault_md.rename(_rel(nid), _rel(new_stem))
-            try:
-                vault_md.rewrite_links(nid, new_stem)  # fix [[old]] backlinks
-            except Exception:
-                pass
             final = new_stem
 
-    md = _compose(content, items, tags, bool(pinned), bool(archived), due,
-                  cur["created_at"], _legacy(final))
-    vault_md.write(_rel(final), md)
+    md = _compose(
+        content, items, tags, bool(pinned), bool(archived), due, cur["created_at"], _legacy(nid)
+    )
+    vault_md.write(_rel(nid), md, expected_hash=expected_hash)
+    if final != nid:
+        vault_md.rename(_rel(nid), _rel(final))
+        try:
+            vault_md.rewrite_links(nid, final)  # fix [[old]] backlinks
+        except Exception:
+            pass
     return _read(final)
 
 
@@ -259,13 +278,14 @@ def list_notes(q="", tag="", archived=False, limit=0, offset=0) -> list[dict]:
     if q:
         ql = q.lower()
         rows = [
-            r for r in rows
+            r
+            for r in rows
             if ql in r["title"].lower() or ql in r["content"].lower() or ql in " ".join(r["tags"])
         ]
     rows.sort(key=lambda r: r["updated_at"], reverse=True)
     rows.sort(key=lambda r: not r["pinned"])  # stable: pinned float to top, newest-first within
     if offset:
-        rows = rows[max(0, offset):]
+        rows = rows[max(0, offset) :]
     if limit:
         rows = rows[: max(1, int(limit))]
     return rows
@@ -300,18 +320,29 @@ def existing_legacy_ids() -> set:
     return out
 
 
-def migrate_note(*, title, content, pinned, archived, tags, items, due, created_iso, legacy_id) -> str:
+def migrate_note(
+    *, title, content, pinned, archived, tags, items, due, created_iso, legacy_id
+) -> str:
     """write one legacy DB note as a vault file, carrying its archived flag + legacy_id.
     items may be a json string (the old Text column) or a list."""
     import json
+
     if isinstance(items, str):
         try:
             items = json.loads(items or "[]")
         except Exception:
             items = []
     stem = _unique(_fname(title))
-    md = _compose(content or "", _norm_items(items), _norm_tags(tags), bool(pinned),
-                  bool(archived), (due or "").strip(), created_iso or _now_iso(), legacy_id)
+    md = _compose(
+        content or "",
+        _norm_items(items),
+        _norm_tags(tags),
+        bool(pinned),
+        bool(archived),
+        (due or "").strip(),
+        created_iso or _now_iso(),
+        legacy_id,
+    )
     vault_md.write(_rel(stem), md)
     return stem
 
@@ -319,13 +350,16 @@ def migrate_note(*, title, content, pinned, archived, tags, items, due, created_
 def migration_plan(db) -> list[dict]:
     """dry-run: what the notes->vault migration WOULD do, without writing anything."""
     from sqlalchemy import text
+
     done = existing_legacy_ids()
     out = []
     for row in db.execute(text("SELECT id, title FROM notes")).fetchall():
         nid, title = row[0], row[1]
-        out.append({
-            "id": nid,
-            "target": f"{NOTES_DIR}/{_fname(title)}.md",
-            "action": "skip" if nid in done else "create",
-        })
+        out.append(
+            {
+                "id": nid,
+                "target": f"{NOTES_DIR}/{_fname(title)}.md",
+                "action": "skip" if nid in done else "create",
+            }
+        )
     return out

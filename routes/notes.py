@@ -4,8 +4,10 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session as DbSession
 
+from core.api_errors import ApiError
 from core.database import get_db
 from services import notes_vault
+from services.vault_md import DocumentConflictError
 
 router = APIRouter(prefix="/api")
 
@@ -14,6 +16,7 @@ def _index(db, nid):
     # best-effort: a note write must never fail on an index hiccup
     try:
         from services import personal_index
+
         personal_index.index_record(db, "note", nid)
     except Exception:
         pass
@@ -22,14 +25,14 @@ def _index(db, nid):
 def _unindex(db, nid):
     try:
         from services import personal_index
+
         personal_index.remove_record(db, "note", nid)
     except Exception:
         pass
 
 
 @router.get("/notes")
-def list_notes(q: str = "", tag: str = "", archived: bool = False,
-               limit: int = 0, offset: int = 0):
+def list_notes(q: str = "", tag: str = "", archived: bool = False, limit: int = 0, offset: int = 0):
     return notes_vault.list_notes(q=q, tag=tag, archived=archived, limit=limit, offset=offset)
 
 
@@ -48,6 +51,7 @@ class NoteBody(BaseModel):
     tags: Optional[list[str] | str] = None
     items: Optional[list[dict]] = None
     due: Optional[str] = None
+    expected_hash: Optional[str] = None
 
 
 @router.post("/notes")
@@ -71,7 +75,10 @@ def update_note(nid: str, body: NoteBody, db: DbSession = Depends(get_db)):
         v = getattr(body, k)
         if v is not None:
             partial[k] = v
-    n = notes_vault.update(nid, partial)
+    try:
+        n = notes_vault.update(nid, partial, expected_hash=body.expected_hash)
+    except DocumentConflictError as exc:
+        raise ApiError(409, "document_conflict", str(exc)) from exc
     if n is None:
         raise HTTPException(404)
     if n["id"] != nid:  # a retitle renamed the file → re-key the index
