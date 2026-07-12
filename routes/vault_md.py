@@ -14,7 +14,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session as DbSession
 
 from core.database import get_db
-from services import vault_md
+from services import trash, vault_md
 
 router = APIRouter(prefix="/api/vault-md")
 
@@ -36,11 +36,13 @@ def _journal_day(path):
     # journal daily notes (Journal/YYYY-MM-DD.md) are synced to the DB + indexed as the
     # "journal" kind by services/journal_vault, not as docs. returns the day or None.
     from services import journal_vault
+
     return journal_vault.is_daily(path)
 
 
 def _note_stem(path):
     from pathlib import PurePosixPath
+
     return PurePosixPath((path or "").replace("\\", "/")).stem
 
 
@@ -54,6 +56,7 @@ def _reindex_doc(path, content):
         try:
             if _is_note(path):
                 from services import personal_index
+
                 personal_index.index_record(db, "note", _note_stem(path))
             elif _journal_day(path):
                 pass  # journal daily notes are synced + indexed via the watcher, not as docs
@@ -90,6 +93,7 @@ def _unindex_doc(path):
         try:
             if _is_note(path):
                 from services import personal_index
+
                 personal_index.remove_record(db, "note", _note_stem(path))
             else:
                 textindex.remove(db, "doc", path)
@@ -162,8 +166,12 @@ def preview_note(name: str):
         _, body = vault_md.parse_frontmatter(body)
     except Exception:
         pass
-    return {"found": True, "path": hit["path"], "title": hit.get("name", name),
-            "excerpt": body.strip()[:240]}
+    return {
+        "found": True,
+        "path": hit["path"],
+        "title": hit.get("name", name),
+        "excerpt": body.strip()[:240],
+    }
 
 
 @router.get("/backlinks")
@@ -211,13 +219,54 @@ def create_file(body: PathBody):
 
 
 @router.delete("/file")
-def delete_file(path: str):
+def delete_file(path: str, db: DbSession = Depends(get_db)):
     try:
-        out = vault_md.delete(path)
+        resolved = vault_md._safe(path)
     except ValueError as e:
         raise HTTPException(400, str(e))
-    _unindex_doc(_norm_path(path))
-    return out
+    if resolved == vault_md.root_dir():
+        raise HTTPException(400, "won't delete the vault root")
+    if not resolved.exists():
+        raise HTTPException(404, "not found")
+    ref = str(resolved.relative_to(vault_md.root_dir())).replace("\\", "/")
+    item = trash.soft_delete_path(db, "vault", ref, resolved)
+    if ref.lower().endswith((".md", ".markdown")):
+        _unindex_doc(ref)
+    return {"ok": True, "trashed": True, "trash_id": item.id}
+
+
+@router.get("/trash")
+def list_trash(db: DbSession = Depends(get_db)):
+    return [
+        {
+            "id": item.id,
+            "path": item.ref,
+            "name": item.name,
+            "trashed_at": item.trashed_at.isoformat() if item.trashed_at else None,
+        }
+        for item in trash.list_items(db, kind="vault")
+    ]
+
+
+class TrashAction(BaseModel):
+    id: str
+
+
+@router.post("/trash/restore")
+def restore_trash(body: TrashAction, db: DbSession = Depends(get_db)):
+    item = trash.get(db, body.id)
+    if not item or item.kind != "vault":
+        raise HTTPException(404, "trash item not found")
+    try:
+        destination = vault_md._safe(item.ref)
+        trash.restore_path(db, item, destination)
+    except FileExistsError as exc:
+        from core.api_errors import ApiError
+
+        raise ApiError(409, "restore_conflict", "a document already exists at that path") from exc
+    if destination.is_file() and destination.suffix.lower() in {".md", ".markdown"}:
+        _reindex_doc(item.ref, vault_md.read(item.ref).get("content", ""))
+    return {"ok": True, "restored": item.ref}
 
 
 class RenameBody(BaseModel):
@@ -251,7 +300,7 @@ def rename_file(body: RenameBody):
         new_pre = new_path.strip("/") + "/"
         for p in (base / new_path).rglob("*.md"):
             rel_new = str(p.relative_to(base)).replace("\\", "/")
-            rel_old = old_pre + rel_new[len(new_pre):]
+            rel_old = old_pre + rel_new[len(new_pre) :]
             _unindex_doc(rel_old)
             _reindex_doc(rel_new, p.read_text("utf-8", errors="replace"))
     return out

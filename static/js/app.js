@@ -383,7 +383,7 @@ const showTasksView    = () => showView('tasks-view',    'tasks',    loadTasks);
 const showCalendarView = () => showView('calendar-view', 'calendar', loadCalendar);
 const showGalleryView  = () => showView('gallery-view',  'gallery',  () => { loadGallery(); initGalleryUpload(); });
 const showCompareView  = () => showView('compare-view',  'compare',  () => { initCompareView(); loadCompareModels(); loadCompareLeaderboard(); });
-const showWikiView     = () => showView('wiki-view',     'wiki',     async () => { (await import('./docs.js')).initDocs(); });
+const showWikiView     = () => showView('wiki-view',     'wiki',     async () => { (await import('./docs.js?v=214')).initDocs(); });
 const showVaultView      = () => showView('vault-view',      'vault',     loadVaultView);
 const showContactsView   = () => showView('contacts-view',  'contacts',  () => loadContacts());
 const showRemindersView  = () => showView('reminders-view', 'reminders', initReminderPanel);

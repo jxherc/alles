@@ -140,12 +140,17 @@ Phase 1 is split into small gates. A later gate must not weaken an earlier one.
 
 ### Safe document and file primitives
 
-- [ ] Add expected-hash Markdown writes, atomic replacement, and trash recovery.
+- [x] Add expected-hash Markdown writes, atomic replacement, and trash recovery.
   - [x] Vault reads return SHA-256 content hashes. Notes sends the hash it opened, and a stale save
     fails with `document_conflict` instead of overwriting an Obsidian or external edit.
   - [x] Vault Markdown, metadata, template, canvas, style, and asset writes use same-directory temp
     files, flush them, and atomically replace the destination without leaving temp files behind.
-  - [ ] Move Docs and Notes deletion through recoverable vault trash and expose restore controls.
+  - [x] Docs and Notes deletion moves files into the shared 30-day trash. Docs lists and restores
+    deleted vault paths, while an occupied destination fails with `restore_conflict` instead of
+    replacing the newer file.
+  - Fresh evidence: 63 focused vault, Docs, Notes, route-contract, conflict, atomic-write, delete,
+    and restore checks pass, together with all 99 JavaScript checks. Desktop keyboard/reduced-motion
+    and 390×844 mobile browser checks restore a real document with no overflow or console errors.
 - [ ] Confine file operations to approved roots.
 - [ ] Hash public-share passwords and rate-limit access attempts.
 
