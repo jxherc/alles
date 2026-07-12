@@ -117,7 +117,14 @@ Phase 1 is split into small gates. A later gate must not weaken an earlier one.
   - Fresh evidence: 93 focused memory, incognito, chat, session, image, user-model, migration,
     routing, and compatibility checks pass, together with all 95 JavaScript checks. All 30
     supported database histories also pass the staged restore and repeat-migration gate.
-- [ ] Spike provider authentication before choosing supported flows.
+- [x] Spike provider authentication before choosing supported flows.
+  - Current OpenAI and Claude model APIs support API keys or workload identity, not a documented
+    third-party consumer account flow. Their consumer subscriptions must not be presented as API quota.
+  - Gemini documents OAuth through the owner's Google Cloud project, consent screen, client, and
+    scopes. It is a possible later **Connect Google Cloud for Gemini** flow, not consumer-plan login.
+  - Phase 1 therefore ships no provider OAuth button or token schema. API keys and local/custom
+    endpoints remain available. [`provider-auth-spike.md`](../provider-auth-spike.md) records the
+    sources, decision, warning, and proof required before any future provider login ships.
 - [ ] Add the localization foundation without translating unfinished UI.
 
 ### Safe document and file primitives
@@ -148,8 +155,9 @@ Phase 1 is split into small gates. A later gate must not weaken an earlier one.
 
 The current completed groups cover startup access policy, scoped owner/API access, stable security
 errors, rate limits, encrypted connector credentials, private observability, owned-service controls,
-and the live model-catalog backend. They do not install or configure a reverse proxy or companion
-service for the owner.
+live model catalogs and roles, trusted memory, real incognito isolation, and the provider-auth decision.
+They do not install or configure a reverse proxy or companion service for the owner, and they do not
+expose unsupported provider account login.
 
 Fresh evidence: 12 focused startup-policy tests pass. Broader verification is recorded with the commit.
 The CORS slice adds 5 parser cases plus live unknown-origin request and preflight checks.
