@@ -179,3 +179,5 @@
   connector storage exists and each target passes the same no-original-install recovery test.
   - This is Phase 1C in `design.md`. Phase 0 explicitly keeps the safe encrypted archive path instead
     of weakening recovery or storing remote credentials early.
+  - Phase 1C has completed the local and WebDAV gates. This compound handoff stays open until S3 also
+    passes its independent gate.

@@ -6,7 +6,11 @@ import unittest
 from contextlib import closing, contextmanager
 from pathlib import Path
 
-from core.credential_inventory import DATABASE_CREDENTIAL_FIELDS, SETTING_CREDENTIAL_KEYS
+from core.credential_inventory import (
+    CONFIG_CREDENTIAL_FIELDS,
+    DATABASE_CREDENTIAL_FIELDS,
+    SETTING_CREDENTIAL_KEYS,
+)
 from services import secretstore
 from services.backup_recovery import (
     RecoveryError,
@@ -73,12 +77,9 @@ class SecretBackupDependencyTest(unittest.TestCase):
                     for key in SETTING_CREDENTIAL_KEYS
                 }
                 (root / "settings.json").write_text(json.dumps(settings), "utf-8")
-                for name, purpose in (
-                    ("caldav.json", "caldav.password"),
-                    ("carddav.json", "carddav.password"),
-                ):
+                for name, key, purpose in CONFIG_CREDENTIAL_FIELDS:
                     sealed = secretstore.seal(f"{name}-password", purpose)
-                    (root / name).write_text(json.dumps({"password": sealed}), "utf-8")
+                    (root / name).write_text(json.dumps({key: sealed}), "utf-8")
                 (root / "vapid.pem").write_text("synthetic-test-key", "utf-8")
                 database = self._database(root, database_values)
 
@@ -164,6 +165,26 @@ class SecretBackupDependencyTest(unittest.TestCase):
 
                 with self.assertRaisesRegex(RecoveryError, "could not be decrypted|invalid"):
                     _validate_database_dependencies(root, database)
+
+    def test_webdav_password_is_bound_to_its_exact_purpose(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            with _isolated_secret_store(root):
+                sealed = secretstore.seal("webdav-private", "caldav.password")
+                (root / "webdav_backup.json").write_text(
+                    json.dumps(
+                        {
+                            "url": "https://dav.example.test/backups",
+                            "username": "owner",
+                            "password": sealed,
+                        }
+                    ),
+                    "utf-8",
+                )
+                database = self._database(root)
+
+            with self.assertRaisesRegex(RecoveryError, "could not be decrypted"):
+                _validate_database_dependencies(root, database, require_sealed=True)
 
 
 if __name__ == "__main__":

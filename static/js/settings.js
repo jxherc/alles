@@ -87,6 +87,7 @@ function _onPaneOpen(name) {
   if (name === 'recall')     loadRecallPane();
   if (name === 'proactive')  loadProactivePane();
   if (name === 'intelligence') loadIntelligencePane();
+  if (name === 'backup')     loadWebdavBackup();
 }
 
 // ── open / close ──────────────────────────────────────────────────────────────
@@ -294,6 +295,19 @@ function _initSettings() {
     const keyName = document.getElementById('backup-recovery-key-name');
     if (keyName) keyName.textContent = 'no separate key selected';
   });
+  document.getElementById('webdav-backup-save-btn')?.addEventListener('click', saveWebdavBackup);
+  document.getElementById('webdav-backup-disconnect-btn')?.addEventListener('click', disconnectWebdavBackup);
+  document.getElementById('webdav-backup-run-btn')?.addEventListener('click', runWebdavBackup);
+  document.getElementById('webdav-backup-refresh-btn')?.addEventListener('click', () => loadWebdavBackups(true));
+  document.getElementById('webdav-backup-list')?.addEventListener('change', renderWebdavSelection);
+  document.getElementById('webdav-backup-recovery-key-btn')?.addEventListener('click', () => {
+    document.getElementById('webdav-backup-recovery-key')?.click();
+  });
+  document.getElementById('webdav-backup-recovery-key')?.addEventListener('change', event => {
+    const label = document.getElementById('webdav-backup-recovery-key-name');
+    if (label) label.textContent = event.target.files[0]?.name || 'no separate key selected';
+  });
+  document.getElementById('webdav-backup-restore-btn')?.addEventListener('click', restoreWebdavBackup);
 
   document.querySelectorAll('.shortcut-input').forEach(inp => {
     inp.addEventListener('keydown', e => {
@@ -314,6 +328,321 @@ function _initSettings() {
       toast('shortcut saved', 'success');
     });
   });
+}
+
+// ── webdav backup ────────────────────────────────────────────────────────────
+let _webdavConfigured = false;
+let _webdavBackups = [];
+let _webdavLoadGeneration = 0;
+
+export function normalizeWebdavBackupConfig(payload = {}) {
+  const value = payload && typeof payload.webdav === 'object' ? payload.webdav : payload;
+  return {
+    configured: value?.configured === true,
+    url: String(value?.url || ''),
+    username: String(value?.username || ''),
+    last_backup_at: String(value?.last_backup_at || ''),
+    last_verified_at: String(value?.last_verified_at || ''),
+    last_filename: String(value?.last_filename || ''),
+    last_bytes: Number.isFinite(Number(value?.last_bytes)) ? Number(value.last_bytes) : null,
+    error: String(value?.error || ''),
+  };
+}
+
+export function webdavBackupConfigPayload(url, username, password, hasSavedPassword = false) {
+  const urlValue = String(url || '').trim();
+  const usernameValue = String(username || '').trim();
+  const passwordValue = String(password || '');
+  if (!urlValue) throw new Error('add the WebDAV https url');
+  let parsed;
+  try { parsed = new URL(urlValue); } catch { throw new Error('enter a valid WebDAV url'); }
+  if (parsed.protocol !== 'https:') throw new Error('the WebDAV url must use https');
+  if (parsed.username || parsed.password) throw new Error('keep the username and password out of the url');
+  if (!usernameValue) throw new Error('add the WebDAV username');
+  if (!passwordValue && !hasSavedPassword) throw new Error('add the WebDAV password');
+  const result = { url: parsed.toString(), username: usernameValue };
+  if (passwordValue) result.password = passwordValue;
+  return result;
+}
+
+export function webdavBackupsFromResponse(payload = {}) {
+  const values = Array.isArray(payload) ? payload : payload?.backups;
+  if (!Array.isArray(values)) return [];
+  return values.map(value => {
+    if (typeof value === 'string') return { filename: value, bytes: null, modified_at: '' };
+    const bytes = Number(value?.bytes);
+    return {
+      filename: String(value?.filename || ''),
+      bytes: Number.isFinite(bytes) && bytes >= 0 ? bytes : null,
+      modified_at: String(value?.modified_at || ''),
+    };
+  }).filter(value => value.filename).sort((left, right) => {
+    const leftTime = Date.parse(left.modified_at);
+    const rightTime = Date.parse(right.modified_at);
+    if (!Number.isFinite(leftTime) || !Number.isFinite(rightTime)) return 0;
+    return rightTime - leftTime;
+  });
+}
+
+function _formatWebdavTime(value) {
+  if (!value) return 'never';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? 'unknown' : date.toLocaleString();
+}
+
+function _formatWebdavBytes(value) {
+  if (!Number.isFinite(value) || value < 0) return '';
+  if (value < 1024) return `${value} B`;
+  if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KB`;
+  if (value < 1024 * 1024 * 1024) return `${(value / (1024 * 1024)).toFixed(1)} MB`;
+  return `${(value / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+}
+
+async function _webdavResponseJson(response) {
+  return response.json().catch(() => ({}));
+}
+
+function _webdavError(data, fallback, secrets = []) {
+  let message = typeof data?.detail === 'string' && data.detail.trim() ? data.detail.trim() : fallback;
+  for (const secret of secrets) {
+    if (secret) message = message.split(secret).join('[hidden]');
+  }
+  return message;
+}
+
+function _setWebdavStatus(message, kind = '') {
+  const status = document.getElementById('webdav-backup-status');
+  if (!status) return;
+  status.textContent = message;
+  status.style.color = kind === 'error' ? 'var(--error)' : (kind === 'success' ? 'var(--green)' : 'var(--muted)');
+}
+
+function _applyWebdavConfig(config) {
+  _webdavConfigured = config.configured;
+  const url = document.getElementById('webdav-backup-url');
+  const username = document.getElementById('webdav-backup-username');
+  const password = document.getElementById('webdav-backup-password');
+  if (url) url.value = config.url;
+  if (username) username.value = config.username;
+  if (password) password.value = '';
+  const save = document.getElementById('webdav-backup-save-btn');
+  if (save) save.textContent = config.configured ? 'save connection' : 'connect and save';
+  const disconnect = document.getElementById('webdav-backup-disconnect-btn');
+  if (disconnect) {
+    disconnect.hidden = !config.configured && !config.error;
+    disconnect.textContent = config.error ? 'remove broken settings' : 'disconnect';
+  }
+  const run = document.getElementById('webdav-backup-run-btn');
+  if (run) run.disabled = !config.configured;
+  const refresh = document.getElementById('webdav-backup-refresh-btn');
+  if (refresh) refresh.disabled = !config.configured;
+  const lastSuccess = document.getElementById('webdav-backup-last-success');
+  if (lastSuccess) lastSuccess.textContent = _formatWebdavTime(config.last_backup_at);
+  const lastVerified = document.getElementById('webdav-backup-last-verified');
+  if (lastVerified) lastVerified.textContent = _formatWebdavTime(config.last_verified_at);
+  if (config.error) _setWebdavStatus(config.error, 'error');
+  else _setWebdavStatus(config.configured ? 'connected' : 'not connected', config.configured ? 'success' : '');
+  if (!config.configured) renderWebdavBackups([]);
+}
+
+async function loadWebdavBackup() {
+  if (!document.getElementById('webdav-backup-card')) return;
+  const generation = ++_webdavLoadGeneration;
+  _setWebdavStatus('checking connection…');
+  try {
+    const response = await fetch('/api/backup/webdav');
+    const data = await _webdavResponseJson(response);
+    if (!response.ok) throw new Error(_webdavError(data, 'could not check WebDAV'));
+    if (generation !== _webdavLoadGeneration) return;
+    const config = normalizeWebdavBackupConfig(data);
+    _applyWebdavConfig(config);
+    if (config.configured) await loadWebdavBackups(false);
+  } catch (error) {
+    if (generation !== _webdavLoadGeneration) return;
+    _webdavConfigured = false;
+    _setWebdavStatus(error.message || 'could not check WebDAV', 'error');
+    renderWebdavBackups([]);
+  }
+}
+
+async function saveWebdavBackup() {
+  const url = document.getElementById('webdav-backup-url');
+  const username = document.getElementById('webdav-backup-username');
+  const password = document.getElementById('webdav-backup-password');
+  const button = document.getElementById('webdav-backup-save-btn');
+  const passwordValue = password?.value || '';
+  if (password) password.value = '';
+  let payload;
+  try {
+    payload = webdavBackupConfigPayload(url?.value, username?.value, passwordValue, _webdavConfigured);
+  } catch (error) {
+    _setWebdavStatus(error.message, 'error');
+    toast(error.message, 'error');
+    return;
+  }
+  if (button) { button.disabled = true; button.textContent = 'saving…'; }
+  _setWebdavStatus('checking and saving…');
+  try {
+    const response = await _fetchWithRecentOwner('/api/backup/webdav', {
+      method: 'PUT',
+      headers: {'content-type':'application/json'},
+      body: JSON.stringify(payload),
+    });
+    const data = await _webdavResponseJson(response);
+    if (!response.ok) throw new Error(_webdavError(data, 'WebDAV connection was not saved', [passwordValue]));
+    const config = normalizeWebdavBackupConfig(data);
+    _applyWebdavConfig(config);
+    _setWebdavStatus('connected and saved', 'success');
+    toast('WebDAV connection saved', 'success');
+    await loadWebdavBackups(false);
+  } catch (error) {
+    _setWebdavStatus(error.message || 'WebDAV connection was not saved', 'error');
+    toast(error.message || 'WebDAV connection was not saved', 'error');
+  } finally {
+    if (button) { button.disabled = false; button.textContent = _webdavConfigured ? 'save connection' : 'connect and save'; }
+  }
+}
+
+async function disconnectWebdavBackup() {
+  if (!await _dlgConfirm('disconnect WebDAV backup? remote backups will stay on the server.')) return;
+  const button = document.getElementById('webdav-backup-disconnect-btn');
+  if (button) button.disabled = true;
+  _setWebdavStatus('disconnecting…');
+  try {
+    const response = await _fetchWithRecentOwner('/api/backup/webdav', { method: 'DELETE' });
+    const data = await _webdavResponseJson(response);
+    if (!response.ok) throw new Error(_webdavError(data, 'WebDAV could not be disconnected'));
+    _applyWebdavConfig(normalizeWebdavBackupConfig({}));
+    toast('WebDAV disconnected', 'success');
+  } catch (error) {
+    _setWebdavStatus(error.message || 'WebDAV could not be disconnected', 'error');
+    toast(error.message || 'WebDAV could not be disconnected', 'error');
+  } finally {
+    if (button) button.disabled = false;
+  }
+}
+
+async function runWebdavBackup() {
+  if (!_webdavConfigured) return;
+  const button = document.getElementById('webdav-backup-run-btn');
+  if (button) { button.disabled = true; button.textContent = 'backing up…'; }
+  _setWebdavStatus('creating and uploading encrypted backup…');
+  try {
+    const response = await _fetchWithRecentOwner('/api/backup/webdav/run', { method: 'POST' });
+    const data = await _webdavResponseJson(response);
+    if (!response.ok) throw new Error(_webdavError(data, 'WebDAV backup failed'));
+    const lastSuccess = document.getElementById('webdav-backup-last-success');
+    if (lastSuccess) lastSuccess.textContent = _formatWebdavTime(data.last_backup_at);
+    const lastVerified = document.getElementById('webdav-backup-last-verified');
+    if (lastVerified) lastVerified.textContent = _formatWebdavTime(data.last_verified_at);
+    const warning = String(data.status_warning || '');
+    _setWebdavStatus(warning || 'backup uploaded and verified', warning ? '' : 'success');
+    toast(warning || 'WebDAV backup complete', warning ? '' : 'success', warning ? 6000 : 3000);
+    await loadWebdavBackups(false);
+  } catch (error) {
+    _setWebdavStatus(error.message || 'WebDAV backup failed', 'error');
+    toast(error.message || 'WebDAV backup failed', 'error');
+  } finally {
+    if (button) { button.disabled = !_webdavConfigured; button.textContent = 'back up now'; }
+  }
+}
+
+async function loadWebdavBackups(announce = false) {
+  const refresh = document.getElementById('webdav-backup-refresh-btn');
+  const selection = document.getElementById('webdav-backup-selection');
+  if (!_webdavConfigured) {
+    renderWebdavBackups([]);
+    return;
+  }
+  if (refresh) { refresh.disabled = true; refresh.textContent = 'refreshing…'; }
+  if (selection) selection.textContent = 'loading remote backups…';
+  try {
+    const response = await fetch('/api/backup/webdav/backups');
+    const data = await _webdavResponseJson(response);
+    if (!response.ok) throw new Error(_webdavError(data, 'could not load remote backups'));
+    renderWebdavBackups(webdavBackupsFromResponse(data));
+    if (announce) toast('remote backups refreshed', 'success');
+  } catch (error) {
+    renderWebdavBackups([]);
+    if (selection) selection.textContent = error.message || 'could not load remote backups';
+    if (announce) toast(error.message || 'could not load remote backups', 'error');
+  } finally {
+    if (refresh) { refresh.disabled = !_webdavConfigured; refresh.textContent = 'refresh backups'; }
+  }
+}
+
+function renderWebdavBackups(backups) {
+  _webdavBackups = backups;
+  const select = document.getElementById('webdav-backup-list');
+  if (!select) return;
+  const previous = select.value;
+  select.replaceChildren();
+  if (!backups.length) {
+    const option = document.createElement('option');
+    option.value = '';
+    option.textContent = 'no remote backups found';
+    select.appendChild(option);
+    select.disabled = true;
+  } else {
+    for (const backup of backups) {
+      const option = document.createElement('option');
+      option.value = backup.filename;
+      option.textContent = backup.filename;
+      select.appendChild(option);
+    }
+    select.disabled = false;
+    select.value = backups.some(backup => backup.filename === previous) ? previous : backups[0].filename;
+  }
+  renderWebdavSelection();
+}
+
+function renderWebdavSelection() {
+  const select = document.getElementById('webdav-backup-list');
+  const selected = _webdavBackups.find(backup => backup.filename === select?.value);
+  const label = document.getElementById('webdav-backup-selection');
+  const restore = document.getElementById('webdav-backup-restore-btn');
+  if (restore) restore.disabled = !selected;
+  if (!label) return;
+  if (!selected) {
+    label.textContent = _webdavConfigured ? 'no remote backups yet.' : 'connect WebDAV to list backups.';
+    return;
+  }
+  const details = [selected.filename];
+  const size = _formatWebdavBytes(selected.bytes);
+  if (size) details.push(size);
+  if (selected.modified_at) details.push(_formatWebdavTime(selected.modified_at));
+  label.textContent = details.join(' · ');
+}
+
+async function restoreWebdavBackup() {
+  const select = document.getElementById('webdav-backup-list');
+  const filename = select?.value || '';
+  if (!filename) return;
+  const keyInput = document.getElementById('webdav-backup-recovery-key');
+  const keyFile = keyInput?.files[0];
+  const status = document.getElementById('webdav-backup-restore-status');
+  const button = document.getElementById('webdav-backup-restore-btn');
+  const form = new FormData();
+  form.append('filename', filename);
+  if (keyFile) form.append('recovery_key', keyFile, keyFile.name);
+  if (status) { status.hidden = false; status.textContent = 'downloading, verifying, and staging…'; }
+  if (button) { button.disabled = true; button.textContent = 'staging…'; }
+  try {
+    const response = await _fetchWithRecentOwner('/api/backup/webdav/restore', { method: 'POST', body: form });
+    const data = await _webdavResponseJson(response);
+    if (!response.ok) throw new Error(_webdavError(data, 'remote backup could not be staged'));
+    const command = data.apply_command || 'alles restore apply <restore-id>';
+    if (status) status.textContent = `verified and staged. live data is unchanged. stop Alles, then run: ${command}`;
+    toast('remote backup verified and staged', 'success');
+  } catch (error) {
+    if (status) status.textContent = error.message || 'remote backup could not be staged';
+    toast(error.message || 'remote backup could not be staged', 'error');
+  } finally {
+    if (button) { button.disabled = !filename; button.textContent = 'verify and stage selected restore'; }
+    if (keyInput) keyInput.value = '';
+    const keyName = document.getElementById('webdav-backup-recovery-key-name');
+    if (keyName) keyName.textContent = 'no separate key selected';
+  }
 }
 
 // ── models pane ───────────────────────────────────────────────────────────────

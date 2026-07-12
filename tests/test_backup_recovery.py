@@ -325,7 +325,7 @@ class BackupRecoveryTest(unittest.TestCase):
             self.assertEqual(locations[role]["policy"], "external-not-selected")
         self.assertEqual(locations["photos_watch"]["policy"], "source-only-excluded")
         self.assertEqual(locations["agent_allowed_roots"]["policy"], "workspace-content-excluded")
-        self.assertEqual(locations["webdav"]["policy"], "not-implemented")
+        self.assertEqual(locations["webdav"]["policy"], "not-configured")
         self.assertEqual(locations["s3"]["policy"], "not-implemented")
         archived_paths = {item["path"] for item in manifest["files"]}
         for name in ("vault", "files", "photos", "watch", "agent"):
@@ -468,6 +468,48 @@ class BackupRecoveryTest(unittest.TestCase):
         self.assertEqual(captured["vault_dir"], str(external))
         stage_recovery_archive(archive, self.live)
 
+    def test_webdav_policy_and_payload_use_only_the_frozen_config(self):
+        from services import backup_recovery
+
+        sealed = self._seal_for_root(
+            self.live,
+            "webdav-private",
+            "backup.webdav.password",
+        )
+        configured = {
+            "url": "https://dav.example.test/backups",
+            "username": "owner",
+            "password": sealed,
+        }
+        config_path = self.live / "webdav_backup.json"
+        config_path.write_text(json.dumps(configured), "utf-8")
+        original_freeze = backup_recovery._freeze_root_dependencies
+
+        def change_live_config_after_freeze(*args, **kwargs):
+            frozen = original_freeze(*args, **kwargs)
+            config_path.write_text("{}", "utf-8")
+            return frozen
+
+        archive = self.base / "frozen-webdav.zip"
+        with patch.object(
+            backup_recovery,
+            "_freeze_root_dependencies",
+            side_effect=change_live_config_after_freeze,
+        ):
+            manifest = create_recovery_archive(self.live, archive)
+
+        webdav = next(item for item in manifest["locations"] if item["role"] == "webdav")
+        self.assertFalse(webdav["included"])
+        self.assertEqual(webdav["policy"], "configured")
+        with zipfile.ZipFile(archive) as zf:
+            captured = json.loads(zf.read("payload/data/webdav_backup.json"))
+        self.assertEqual(captured, configured)
+        staged = stage_recovery_archive(archive, self.live)
+        self.assertEqual(
+            json.loads((staged.data_dir / "webdav_backup.json").read_text("utf-8")),
+            configured,
+        )
+
     def test_expected_recovery_key_is_bound_to_the_frozen_copy(self):
         from services import backup_recovery
         from services.recovery_crypto import (
@@ -590,6 +632,27 @@ class BackupRecoveryTest(unittest.TestCase):
                 conn.execute("SELECT token FROM connections WHERE id = 'one'").fetchone()[0],
                 "legacy-token",
             )
+
+    def test_legacy_plaintext_webdav_config_can_still_be_staged(self):
+        config = {
+            "url": "https://dav.example.test/backups",
+            "username": "owner",
+            "password": "legacy-webdav-password",
+        }
+        config_path = self.live / "webdav_backup.json"
+        config_path.write_text(json.dumps(config), "utf-8")
+        archive = self.base / "legacy-webdav.zip"
+        with zipfile.ZipFile(archive, "w", zipfile.ZIP_DEFLATED) as zf:
+            zf.write(self.live / "aide.db", "aide.db")
+            zf.write(config_path, "webdav_backup.json")
+
+        staged = stage_recovery_archive(archive, self.live)
+        self.assertEqual(
+            json.loads((staged.data_dir / "webdav_backup.json").read_text("utf-8")),
+            config,
+        )
+        webdav = next(item for item in staged.manifest["locations"] if item["role"] == "webdav")
+        self.assertEqual(webdav["policy"], "configured")
 
     def test_database_backed_attachment_ids_cannot_escape_staging(self):
         with closing(sqlite3.connect(self.live / "aide.db")) as conn:

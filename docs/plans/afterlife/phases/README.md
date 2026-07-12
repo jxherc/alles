@@ -16,7 +16,7 @@ implementation.
 | 4 | Aide and Andromeda | Planned | Aide Chat/Jarvis shell plus fast, grounded, local-capable AI search |
 | 5 | Jarvis inside Aide and channels | Planned | Workflows, runs, schedules, Discord, News, and Today delivery |
 | 6 | Docs and knowledge migration | Planned | Safe Visual/Source Markdown editing with Obsidian-compatible conflicts and privacy |
-| 7 | Files and storage locations | Planned | Stable local/online file identity, Files UI, WebDAV, S3, offline cache, and Photos |
+| 7 | Files and storage locations | Planned | Stable local/online file identity, general WebDAV/S3 Files browsing, offline cache, and Photos; the separate backup-only WebDAV target ships in Phase 1C |
 | 8 | Specialist app consolidation | Planned | Plan, Inbox, Library, Health, Finance, imports, and optional Actual interoperability |
 | 9 | Distribution and browser access | Planned | Native installer, safe updates, uninstall, and the Passwords browser extension |
 | 10 | Localization and release hardening | Planned | Eight languages, credits/licenses, accessibility, performance, security, and final recovery proof |

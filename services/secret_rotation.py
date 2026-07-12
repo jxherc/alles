@@ -6,11 +6,26 @@ from pathlib import Path
 from sqlalchemy import text
 
 
+def _config_credential_paths() -> tuple[tuple[Path, str, str], ...]:
+    from core.credential_inventory import CONFIG_CREDENTIAL_FIELDS
+    from services import secretstore
+    from services.caldav_sync import _cfg_path as caldav_path
+    from services.carddav_sync import _cfg_path as carddav_path
+
+    existing_paths = {
+        "caldav.json": Path(caldav_path()),
+        "carddav.json": Path(carddav_path()),
+    }
+    key_root = secretstore._key_file().parent
+    return tuple(
+        (existing_paths.get(name, key_root / name), key, purpose)
+        for name, key, purpose in CONFIG_CREDENTIAL_FIELDS
+    )
+
+
 def _cipher_references() -> tuple[set[str], bool]:
     from core.database import _SECRET_COLUMNS, engine
     from core.settings import _SETTINGS_FILE
-    from services.caldav_sync import _cfg_path as caldav_path
-    from services.carddav_sync import _cfg_path as carddav_path
     from services.secretstore import LEGACY_PREFIX, cipher_key_id
 
     values: list[str] = []
@@ -42,11 +57,18 @@ def _cipher_references() -> tuple[set[str], bool]:
         elif isinstance(value, str):
             values.append(value)
 
-    for path in (_SETTINGS_FILE, caldav_path(), carddav_path()):
+    try:
+        walk(json.loads(Path(_SETTINGS_FILE).read_text("utf-8")))
+    except (OSError, json.JSONDecodeError, TypeError):
+        pass
+
+    for path, key, _purpose in _config_credential_paths():
         try:
-            walk(json.loads(Path(path).read_text("utf-8")))
+            config = json.loads(path.read_text("utf-8"))
         except (OSError, json.JSONDecodeError, TypeError):
             continue
+        if isinstance(config, dict) and isinstance(config.get(key), str):
+            values.append(config[key])
 
     ids = {key_id for value in values if (key_id := cipher_key_id(value))}
     legacy = any(value.startswith(LEGACY_PREFIX) for value in values)
@@ -57,8 +79,7 @@ def rotate_all_credentials() -> dict:
     """Retain the old key until every known credential has been rewritten."""
     from core.database import _encrypt_plaintext_secrets
     from core.settings import migrate_setting_secrets
-    from services.caldav_sync import migrate_cfg_secrets as migrate_caldav
-    from services.carddav_sync import migrate_cfg_secrets as migrate_carddav
+    from services.config_secrets import migrate_secret_config
     from services.recovery_consistency import recovery_consistency_lock
     from services.secretstore import key_ids, prune_keys, rotate_key
 
@@ -67,8 +88,9 @@ def rotate_all_credentials() -> dict:
         active = rotate_key()
         changed = _encrypt_plaintext_secrets(force_reseal=True)
         changed += migrate_setting_secrets()
-        changed += migrate_caldav()
-        changed += migrate_carddav()
+        for path, key, purpose in _config_credential_paths():
+            if key == "password":
+                changed += migrate_secret_config(path, purpose)
         references, legacy = _cipher_references()
         prune_keys(key_ids() if legacy else references)
         return {
