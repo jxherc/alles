@@ -893,6 +893,7 @@ class JarvisRunPrompt(Base):
     answer = Column(Text, default="")
     responded_at = Column(DateTime, nullable=True)
     used_at = Column(DateTime, nullable=True)
+    delegated_action_id = Column(String, nullable=True, unique=True)
     created_at = Column(DateTime, default=_now)
 
 
@@ -929,6 +930,68 @@ class JarvisConnector(Base):
     external = Column(Boolean, default=True)
     created_at = Column(DateTime, default=_now)
     updated_at = Column(DateTime, default=_now, onupdate=_now)
+
+
+class CapabilityGrant(Base):
+    __tablename__ = "capability_grants"
+    id = Column(String, primary_key=True, default=_uid)
+    scope_kind = Column(String, nullable=False, index=True)
+    scope_id = Column(String, default="", index=True)
+    capability = Column(String, nullable=False, index=True)
+    target_root = Column(Text, default="")
+    access_mode = Column(String, nullable=False, default="read")
+    state = Column(String, nullable=False, default="active", index=True)
+    expires_at = Column(DateTime, nullable=True, index=True)
+    last_used_at = Column(DateTime, nullable=True)
+    revoked_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=_now)
+    updated_at = Column(DateTime, default=_now, onupdate=_now)
+
+
+class DelegatedAction(Base):
+    __tablename__ = "delegated_actions"
+    id = Column(String, primary_key=True, default=_uid)
+    origin = Column(String, nullable=False, index=True)
+    run_id = Column(String, ForeignKey("jarvis_runs.id", ondelete="SET NULL"), nullable=True)
+    agent_run_id = Column(String, nullable=True, index=True)
+    session_id = Column(String, ForeignKey("sessions.id", ondelete="SET NULL"), nullable=True)
+    grant_id = Column(
+        String, ForeignKey("capability_grants.id", ondelete="SET NULL"), nullable=True
+    )
+    scope_kind = Column(String, nullable=False, index=True)
+    scope_id = Column(String, default="", index=True)
+    capability = Column(String, nullable=False, index=True)
+    action = Column(String, nullable=False)
+    target = Column(Text, default="")
+    data_summary = Column(Text, default="")
+    privacy_effect = Column(Text, default="")
+    cost = Column(String, default="")
+    exact_hash = Column(String(64), nullable=False, index=True)
+    pending_key = Column(String(64), nullable=True, unique=True)
+    state = Column(String, nullable=False, default="pending", index=True)
+    expires_at = Column(DateTime, nullable=False, index=True)
+    approved_at = Column(DateTime, nullable=True)
+    used_at = Column(DateTime, nullable=True)
+    finished_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=_now)
+    updated_at = Column(DateTime, default=_now, onupdate=_now)
+
+
+class CapabilityGrantEvent(Base):
+    __tablename__ = "capability_grant_events"
+    id = Column(String, primary_key=True, default=_uid)
+    grant_id = Column(
+        String, ForeignKey("capability_grants.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    action_id = Column(
+        String, ForeignKey("delegated_actions.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    kind = Column(String, nullable=False, index=True)
+    actor = Column(String, default="")
+    scope_kind = Column(String, default="")
+    scope_id = Column(String, default="")
+    capability = Column(String, default="")
+    created_at = Column(DateTime, default=_now, index=True)
 
 
 class ProactiveItem(Base):

@@ -1,6 +1,7 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
+from core.auth import require_recent_owner
 from services.agent_runtime import resolve_permission
 from services.agent_state import find_active_run, get_run, list_runs
 from services.agent_tools import agent_status, revert_run
@@ -12,7 +13,7 @@ class PermDecision(BaseModel):
     allow: bool
 
 
-@router.post("/agent/permission/{request_id}")
+@router.post("/agent/permission/{request_id}", dependencies=[Depends(require_recent_owner)])
 def agent_permission(request_id: str, body: PermDecision):
     ok = resolve_permission(request_id, body.allow)
     return {"ok": ok}

@@ -34,7 +34,7 @@ come in later phases.
   - Search and context look there first.
   - New files and generated output default there.
   - Only files needed for the request are selected; the whole folder is not uploaded to a model.
-- [ ] Keep outside-folder work possible but visible.
+- [x] Keep outside-folder work possible but visible.
   - Approved extra roots keep their existing read/write rules.
   - Every run records when work leaves the Project folder.
   - A delegated action outside the folder must pass the permission gate in 2D.
@@ -65,7 +65,9 @@ Fresh evidence: 92 focused Project, session, General-boundary, Task, recurring-t
 pass. All 25 canonical schema histories pass staged restore, repeat migration, and boot. An isolated
 live browser pass at 1280×800 and 390×844 verifies keyboard relinking, missing-folder recovery with the
 thread preserved, scratchpad saving, reduced motion, no horizontal overflow, and zero console/page
-errors. The outside-folder checkbox stays open until the shared delegated-action gate in 2D exists.
+errors. The delegated-action gate adds exact, visible outside-folder actions, keeps extra roots
+read-only by default, permits only the approved write targets, records the Aide or Jarvis run, and
+blocks symlink escapes.
 
 ### 2A gate
 
@@ -86,15 +88,15 @@ for an explicit relink.
 - [x] Use clear run states.
   - Queued, running, waiting for input, waiting for approval, paused, succeeded, failed, cancelled,
     interrupted, and uncertain.
-- [ ] Keep choices and approvals separate.
+- [x] Keep choices and approvals separate.
   - A choice selects a non-mutating path.
   - An approval authorizes one exact mutation, target, data set, privacy effect, cost, expiry, and
     capability.
   - Approvals are single-use, expire, survive restart, and re-check the action before execution.
-- [ ] Add safe checkpoints before and after tool actions.
+- [x] Add safe checkpoints before and after tool actions.
   - Record enough state to explain what happened after a crash.
   - Do not store secrets, full private content, or unsafe tool output in progress events.
-- [ ] Reconcile interrupted legacy background work honestly.
+- [x] Reconcile interrupted legacy background work honestly.
   - Proven incomplete work may resume.
   - Proven complete work is not repeated.
   - An outcome that cannot be proved becomes **uncertain** and asks the owner.
@@ -104,9 +106,10 @@ Current evidence: 61 focused record, API, encrypted-credential, key-rotation, ba
 tests pass. All 26 canonical schema histories, both released no-history schemas, and all five Photos-fork
 histories pass staged restore, repeat migration, and boot. Workflows and triggers start paused; runs,
 events, prompts, deliveries, and connector records use separate tables; connector secrets are masked in
-APIs and encrypted in raw SQLite. Startup reconciliation marks an unconfirmed side effect uncertain and
-an ordinary stopped run interrupted. The remaining 2B boxes stay open until the exact approval gate and
-runtime checkpoints are connected.
+APIs and encrypted in raw SQLite. Durable exact approvals are separate from choices, survive restart,
+are single-use under a two-worker race, and create before/after action checkpoints. Startup reconciliation
+marks an unconfirmed side effect uncertain and an ordinary stopped run interrupted. Compatibility reads
+for migrated automations remain part of 2E.
 
 ### 2B gate
 
@@ -152,22 +155,31 @@ run. Heartbeats with unchanged input spend no model call and send no delivery.
 
 ## 2D — delegated actions and capability grants
 
-- [ ] Route Aide-, Jarvis-, and tool-origin mutations through one delegated-action gate.
-- [ ] Scope grants to exactly one place:
+- [x] Route Aide-, Jarvis-, and tool-origin mutations through one delegated-action gate.
+- [x] Scope grants to exactly one place:
   - General Aide;
   - one Project; or
   - one Workflow.
-- [ ] Apply the same grants to existing MCP tools.
+- [x] Apply the same grants to existing MCP tools.
   - Tool schemas, prompts, resources, and outputs remain untrusted input.
   - A tool cannot grant itself access or widen its Project/Workflow scope.
-- [ ] Begin new external roots read-only.
-- [ ] Pause when a requested action exceeds the current grant.
+- [x] Begin new external roots read-only.
+- [x] Pause when a requested action exceeds the current grant.
   - Show the exact action, target, data, privacy effect, and cost when known.
-- [ ] Keep normal direct owner actions normal.
+- [x] Keep normal direct owner actions normal.
   - Existing authentication, CSRF, scope, recent-auth, and confirmation rules still apply.
   - Do not create fake Jarvis approvals for ordinary owner editing.
-- [ ] Record grant creation, use, denial, expiry, revocation, and approval use without logging private
+- [x] Record grant creation, use, denial, expiry, revocation, and approval use without logging private
   content or secrets.
+
+Fresh evidence: 21 focused delegation tests pass. They cover General/Project/Workflow scoping,
+workflow ceilings, durable Aide and Jarvis approvals, restart recovery, exact-action rechecks, expiry,
+immediate revocation, decision and single-use races, read-only external roots, exact approved writes,
+symlink escape, content-free events, normal owner edits, MCP default-deny behavior, and malicious MCP
+output that tries to widen its own grant. The related 92 Jarvis, scheduler, Aide runtime, background,
+worktree, hook, and MCP regression tests also pass with isolated data. The selected delegation and
+related regression set is 113 tests total. All 28 canonical schema histories,
+all five Photos-fork histories, and both released no-history databases pass repeated migration and boot.
 
 ### 2D gate
 

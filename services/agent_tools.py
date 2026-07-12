@@ -40,6 +40,16 @@ def get_agent_ctx() -> dict:
     return _ctx.get()
 
 
+def authorize_delegated_paths(paths) -> None:
+    get_agent_ctx()["_delegated_write_targets"] = {
+        str(Path(path).expanduser().resolve()) for path in paths or ()
+    }
+
+
+def clear_delegated_paths() -> None:
+    get_agent_ctx().pop("_delegated_write_targets", None)
+
+
 def _settings() -> dict:
     return (_ctx.get() or {}).get("settings", {}) or {}
 
@@ -301,11 +311,19 @@ def _guard_path(p, write: bool = False, settings: dict | None = None) -> str | N
     s = settings if settings is not None else _settings()
     if _is_secret_path(p) and not s.get("agent_allow_secrets"):
         return f"blocked: {p} looks like a credential/secret store (set agent_allow_secrets to override)"
-    if write and s.get("agent_environment") == "general":
-        return "blocked: General has no writable folder; choose a Project or approve a scoped action"
-    if not any(_within(p, r) for r in _allowed_roots(s)):
+    try:
+        exact_delegated_write = write and str(
+            Path(p).expanduser().resolve()
+        ) in get_agent_ctx().get("_delegated_write_targets", set())
+    except (OSError, RuntimeError):
+        exact_delegated_write = False
+    if write and s.get("agent_environment") == "general" and not exact_delegated_write:
+        return (
+            "blocked: General has no writable folder; choose a Project or approve a scoped action"
+        )
+    if not exact_delegated_write and not any(_within(p, r) for r in _allowed_roots(s)):
         return f"blocked: file access is confined to approved roots; {p} is outside them"
-    if write and not _within(p, _project_root(s)):
+    if write and not exact_delegated_write and not _within(p, _project_root(s)):
         return f"blocked: extra approved roots are read-only; {p} is outside the project root"
     return None
 
@@ -3058,6 +3076,60 @@ def _perm_target(name, args):
     if name == "mcp_call_tool":
         return str(a.get("tool") or a.get("name") or "")
     return ""
+
+
+def delegated_action_details(name: str, args: dict, settings: dict | None = None) -> dict:
+    """Return a safe, owner-readable summary without persisting argument values."""
+    args = args or {}
+    path_tools = {"write_file", "edit_file", "apply_patch", "revert_file"}
+    target_is_path = name in path_tools
+    raw_target = _perm_target(name, args) if target_is_path or name == "mcp_call_tool" else name
+    if name == "mail_send":
+        raw_target = str(args.get("to") or "mail recipient")
+    elif name in {"github_create_issue", "github_create_pr"}:
+        raw_target = (
+            "/".join(
+                part for part in (str(args.get("owner") or ""), str(args.get("repo") or "")) if part
+            )
+            or "GitHub repository"
+        )
+    elif name.startswith("calendar_"):
+        raw_target = str(args.get("id") or args.get("calendar_id") or "calendar")
+    elif name == "contact_add":
+        raw_target = str(args.get("email") or args.get("name") or "contact")
+    elif name.startswith("computer_"):
+        raw_target = "local screen"
+    elif name in {"shell", "bash"}:
+        raw_target = "Project shell"
+    path_targets = []
+    if name == "apply_patch":
+        path_targets = [str(_resolve(path)) for path in _patch_targets(args.get("patch", ""))]
+    elif target_is_path and raw_target:
+        path_targets = [str(_resolve(raw_target))]
+    target = ", ".join(path_targets) if path_targets else raw_target
+    root = _project_root(settings)
+    outside = target_is_path and any(not _within(path, root) for path in path_targets)
+    keys = sorted(str(key)[:64] for key in args)[:30]
+    sizes = []
+    for key in keys:
+        value = args.get(key)
+        if isinstance(value, str):
+            sizes.append(f"{key}: {len(value)} characters")
+        elif isinstance(value, (list, dict)):
+            sizes.append(f"{key}: {len(value)} items")
+        else:
+            sizes.append(key)
+    privacy = "works outside the Project folder" if outside else "changes Alles or Project data"
+    if name in {"mail_send", "mcp_call_tool", "github_create_issue", "github_create_pr"}:
+        privacy = "may send selected data to an outside service"
+    return {
+        "target": str(target or name)[:2000],
+        "target_is_path": target_is_path,
+        "path_targets": tuple(path_targets),
+        "data_summary": ", ".join(sizes)[:2000],
+        "privacy_effect": privacy,
+        "cost": "unknown",
+    }
 
 
 def decide_permission(name, args, mode, rules):
