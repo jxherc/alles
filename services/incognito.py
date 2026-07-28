@@ -3,7 +3,7 @@
 import threading
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 _TTL = timedelta(hours=4)
 _LOCK = threading.RLock()
@@ -24,11 +24,13 @@ class IncognitoSession:
     archived: bool = False
     incognito: bool = True
     message_count: int = 0
-    created_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC).replace(tzinfo=None))
     last_message_at: datetime | None = None
     messages: list = field(default_factory=list)
     project: object | None = None
-    expires_at: datetime = field(default_factory=lambda: datetime.utcnow() + _TTL)
+    expires_at: datetime = field(
+        default_factory=lambda: datetime.now(UTC).replace(tzinfo=None) + _TTL
+    )
 
 
 @dataclass
@@ -37,7 +39,9 @@ class IncognitoUpload:
     name: str
     mime_type: str
     content: bytes
-    expires_at: datetime = field(default_factory=lambda: datetime.utcnow() + _TTL)
+    expires_at: datetime = field(
+        default_factory=lambda: datetime.now(UTC).replace(tzinfo=None) + _TTL
+    )
 
 
 @dataclass
@@ -46,7 +50,7 @@ class IncognitoMessage:
     content: str
     meta: str = "{}"
     id: str = field(default_factory=lambda: uuid.uuid4().hex)
-    timestamp: datetime = field(default_factory=datetime.utcnow)
+    timestamp: datetime = field(default_factory=lambda: datetime.now(UTC).replace(tzinfo=None))
 
     def meta_dict(self) -> dict:
         import json
@@ -63,7 +67,7 @@ _UPLOADS: dict[str, IncognitoUpload] = {}
 
 
 def _purge() -> None:
-    now = datetime.utcnow()
+    now = datetime.now(UTC).replace(tzinfo=None)
     for key, value in list(_SESSIONS.items()):
         if value.expires_at <= now:
             _SESSIONS.pop(key, None)
@@ -85,7 +89,7 @@ def get_session(session_id: str) -> IncognitoSession | None:
         _purge()
         session = _SESSIONS.get(session_id)
         if session:
-            session.expires_at = datetime.utcnow() + _TTL
+            session.expires_at = datetime.now(UTC).replace(tzinfo=None) + _TTL
         return session
 
 
@@ -105,14 +109,22 @@ def append_turn(session_id: str, user_text: str, assistant_text: str, meta: str 
                 IncognitoMessage(role="assistant", content=assistant_text, meta=meta)
             )
         session.message_count = len(session.messages)
-        session.last_message_at = datetime.utcnow()
+        session.last_message_at = datetime.now(UTC).replace(tzinfo=None)
         return True
 
 
-def put_upload(name: str, mime_type: str, content: bytes) -> IncognitoUpload:
+def put_upload(
+    name: str,
+    mime_type: str,
+    content: bytes,
+    *,
+    upload_id: str | None = None,
+) -> IncognitoUpload:
     with _LOCK:
         _purge()
-        upload = IncognitoUpload(uuid.uuid4().hex, name, mime_type, bytes(content))
+        upload = IncognitoUpload(upload_id or uuid.uuid4().hex, name, mime_type, bytes(content))
+        if upload.id in _UPLOADS:
+            raise ValueError("upload id already exists")
         _UPLOADS[upload.id] = upload
         return upload
 
@@ -122,7 +134,7 @@ def get_upload(upload_id: str) -> IncognitoUpload | None:
         _purge()
         upload = _UPLOADS.get(upload_id)
         if upload:
-            upload.expires_at = datetime.utcnow() + _TTL
+            upload.expires_at = datetime.now(UTC).replace(tzinfo=None) + _TTL
         return upload
 
 

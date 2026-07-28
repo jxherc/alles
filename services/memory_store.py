@@ -7,7 +7,7 @@ import json
 import logging
 import math
 import re
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Optional
 
 from core.database import Memory, SessionLocal
@@ -164,7 +164,7 @@ def add_memory(
             status=status,
             trust=trust,
             provenance=provenance,
-            updated_at=datetime.utcnow(),
+            updated_at=datetime.now(UTC).replace(tzinfo=None),
         )
         db.add(m)
         db.commit()
@@ -222,7 +222,7 @@ def update_memory(
                 raise ValueError("project memory requires a project")
             m.scope = scope
             m.project_id = project_id if scope == "project" else None
-        m.updated_at = datetime.utcnow()
+        m.updated_at = datetime.now(UTC).replace(tzinfo=None)
         db.commit()
         db.refresh(m)
         return _fmt(m)
@@ -361,7 +361,7 @@ def accept_memory(mid: str) -> dict | None:
             return None
         memory.status = "active"
         memory.trust = "reviewed"
-        memory.updated_at = datetime.utcnow()
+        memory.updated_at = datetime.now(UTC).replace(tzinfo=None)
         db.commit()
         db.refresh(memory)
         return _fmt(memory)
@@ -392,7 +392,7 @@ def _mark_used(memory_ids: list[str], run_id: str) -> None:
             if run_id not in runs:
                 runs.append(run_id)
             memory.used_in_runs = json.dumps(runs[-100:])
-            memory.updated_at = datetime.utcnow()
+            memory.updated_at = datetime.now(UTC).replace(tzinfo=None)
         db.commit()
     finally:
         db.close()

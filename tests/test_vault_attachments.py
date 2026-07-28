@@ -17,7 +17,9 @@ class VaultAttachmentTests(ApiTest):
         self._sf.close()
         self.sp = mock.patch.object(core.settings, "_SETTINGS_FILE", Path(self._sf.name))
         self.sp.start()
-        self.tok = self.client.post("/api/vault/unlock", json={"password": "m1"}).json()["token"]
+        self.tok = self.client.post(
+            "/api/vault/unlock", json={"password": "master-password-1"}
+        ).json()["token"]
         self.h = {"X-Vault-Token": self.tok}
         self.eid = self.client.post(
             "/api/vault", json={"name": "GH", "fields": {"password": "x"}}, headers=self.h

@@ -1,5 +1,6 @@
 """ui-3t verify — docs settings popup: AI status + model picker (sets docs_ai_model);
 the markdown 'guide' button is gone (everything is visual now)."""
+
 import json
 import sys
 
@@ -18,18 +19,46 @@ def run():
         pg = ctx.new_page()
         pg.on("console", lambda m: errs.append(m.text) if m.type == "error" else None)
         # make /api/models report a connected endpoint with two models
-        pg.route("**/api/models", lambda route: route.fulfill(
-            status=200, content_type="application/json",
-            body=json.dumps([{"id": "e1", "name": "TestEP", "base_url": "http://x", "provider": "openai", "models": ["m1", "m2"]}])))
+        pg.route(
+            "**/api/models",
+            lambda route: route.fulfill(
+                status=200,
+                content_type="application/json",
+                body=json.dumps(
+                    [
+                        {
+                            "id": "e1",
+                            "name": "TestEP",
+                            "base_url": "http://x",
+                            "provider": "openai",
+                            "models": ["m1", "m2"],
+                        }
+                    ]
+                ),
+            ),
+        )
         patched = {}
-        pg.route("**/api/settings", lambda route: (
-            patched.update(json.loads(route.request.post_data or "{}")) or route.fulfill(status=200, content_type="application/json", body="{}"))
-            if route.request.method == "PATCH"
-            else route.fulfill(status=200, content_type="application/json", body=json.dumps({"docs_ai_model": ""})))
+        pg.route(
+            "**/api/settings",
+            lambda route: (
+                (
+                    patched.update(json.loads(route.request.post_data or "{}"))
+                    or route.fulfill(status=200, content_type="application/json", body="{}")
+                )
+                if route.request.method == "PATCH"
+                else route.fulfill(
+                    status=200,
+                    content_type="application/json",
+                    body=json.dumps({"docs_ai_model": ""}),
+                )
+            ),
+        )
         pg.goto(BASE + "/", wait_until="domcontentloaded")
         pg.wait_for_selector("#wiki-view", timeout=15000)
         pg.wait_for_timeout(1400)
-        pg.evaluate("""() => { const el = document.querySelector('.wiki-file[data-path=\"livetest.md\"] .wiki-row-label'); if (el) el.click(); }""")
+        pg.evaluate(
+            """() => { const el = document.querySelector('.wiki-file[data-path=\"livetest.md\"] .wiki-row-label'); if (el) el.click(); }"""
+        )
         pg.wait_for_timeout(1000)
 
         def ok(name, cond):
@@ -56,9 +85,13 @@ def run():
             ok("lists both models", d["models"] == 2)
             ok("a model is marked current", d["on"] != "")
             # pick the second model
-            pg.eval_on_selector("#wiki-docs-settings-pop .wds-model[data-m='m2']", "el => el.click()")
+            pg.eval_on_selector(
+                "#wiki-docs-settings-pop .wds-model[data-m='m2']", "el => el.click()"
+            )
             pg.wait_for_timeout(400)
-            on2 = pg.evaluate("() => document.querySelector('#wiki-docs-settings-pop .wds-model.on')?.dataset.m")
+            on2 = pg.evaluate(
+                "() => document.querySelector('#wiki-docs-settings-pop .wds-model.on')?.dataset.m"
+            )
             ok("selecting a model marks it on", on2 == "m2")
         ok("PATCH wrote docs_ai_model", patched.get("docs_ai_model") == "m2")
 

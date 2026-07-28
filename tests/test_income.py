@@ -101,7 +101,10 @@ class DbTests(unittest.TestCase):
     def _txn(self, date_str, amount, payee="", transfer_id=None):
         self.s.add(
             db.Transaction(
-                account_id=self.acc.id, date=date_str, amount=amount, payee=payee,
+                account_id=self.acc.id,
+                date=date_str,
+                amount=amount,
+                payee=payee,
                 transfer_id=transfer_id,
             )
         )

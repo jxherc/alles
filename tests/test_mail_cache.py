@@ -75,10 +75,7 @@ class MailCacheTest(ApiTest):
             ["2"],
         )
         self.assertEqual(
-            [
-                m["uid"]
-                for m in mail_cache.advanced_search(d, "acct", {"has_attachment": True})
-            ],
+            [m["uid"] for m in mail_cache.advanced_search(d, "acct", {"has_attachment": True})],
             ["2"],
         )
         d.close()

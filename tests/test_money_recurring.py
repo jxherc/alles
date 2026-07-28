@@ -44,12 +44,31 @@ class MoneyRecurringTests(ApiTest):
         got = [x for x in self.client.get("/api/money/recurring").json() if x["id"] == rid][0]
         self.assertEqual(got["amount"], -99)
 
+    def test_patch_recurring_rejects_unknown_account_without_changing_rule(self):
+        future = (date.today() + timedelta(days=30)).isoformat()
+        rid = self._mk(next_date=future).json()["id"]
+        response = self.client.patch(
+            f"/api/money/recurring/{rid}", json={"account_id": "missing-account"}
+        )
+        self.assertEqual(response.status_code, 400)
+        got = [x for x in self.client.get("/api/money/recurring").json() if x["id"] == rid][0]
+        self.assertEqual(got["account_id"], self.acct)
+
+    def test_patch_recurring_rejects_amount_outside_supported_range(self):
+        future = (date.today() + timedelta(days=30)).isoformat()
+        rid = self._mk(next_date=future).json()["id"]
+        response = self.client.patch(f"/api/money/recurring/{rid}", json={"amount": 1e19})
+        self.assertEqual(response.status_code, 400)
+        got = [x for x in self.client.get("/api/money/recurring").json() if x["id"] == rid][0]
+        self.assertEqual(got["amount"], -50)
+
     def test_patch_next_date_rejects_bad_value(self):
-        rid = self._mk(next_date="2026-07-15").json()["id"]
+        original = (date.today() + timedelta(days=30)).isoformat()
+        rid = self._mk(next_date=original).json()["id"]
         r = self.client.patch(f"/api/money/recurring/{rid}", json={"next_date": "not-a-date"})
         self.assertEqual(r.status_code, 400)
         got = [x for x in self.client.get("/api/money/recurring").json() if x["id"] == rid][0]
-        self.assertEqual(got["next_date"], "2026-07-15")
+        self.assertEqual(got["next_date"], original)
 
     def test_delete_recurring(self):
         rid = self._mk().json()["id"]

@@ -13,13 +13,13 @@ import stat
 import threading
 import unicodedata
 import uuid
-import xml.etree.ElementTree as ET
 from contextlib import closing, contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
 from urllib.parse import parse_qsl, quote, quote_from_bytes, unquote_to_bytes, urlencode, urlsplit
 
 import httpx
+from defusedxml import ElementTree as ET
 
 from core.settings import data_dir
 from services.backup_recovery import CHUNK_SIZE, DEFAULT_LIMITS
@@ -813,7 +813,7 @@ def _safe_etag(value) -> str:
         or any(not 0x21 <= ord(char) <= 0x7E for char in value)
     ):
         raise S3Error("s3 object identifier is invalid")
-    if any(char in value for char in "\r\n,"):
+    if value == "*" or any(char in value for char in "\r\n,"):
         raise S3Error("s3 object identifier is invalid")
     return value
 

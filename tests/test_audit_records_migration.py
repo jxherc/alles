@@ -8,6 +8,7 @@ from core.migrations import m0021_audit_records as migration
 class AuditRecordsMigrationTest(unittest.TestCase):
     def test_creates_audit_table_and_indexes(self):
         engine = create_engine("sqlite://")
+        self.addCleanup(engine.dispose)
         with engine.begin() as conn:
             migration.up(conn)
             migration.up(conn)

@@ -10,6 +10,7 @@ from core.database import (
     JarvisRun,
     JarvisRunPrompt,
     JarvisWorkflow,
+    NewsBrief,
     Project,
 )
 
@@ -46,8 +47,8 @@ def _run_card(row: JarvisRun, workflows: dict[str, str], projects: dict[str, str
         "kind": "run",
         "id": row.id,
         "run_id": row.id,
-        "title": workflows.get(row.workflow_id, "jarvis task"),
-        "project": projects.get(row.project_id, "general"),
+        "title": workflows.get(row.workflow_id, "aide work"),
+        "project": projects.get(row.project_id, "tasks"),
         "state": row.state,
         "summary": row.safe_error or row.result_summary or "",
         "created_at": _iso(row.created_at),
@@ -76,8 +77,8 @@ def _prompt_cards(db: DbSession) -> tuple[list[dict], set[str]]:
             "id": prompt.id,
             "run_id": run.id,
             "title": prompt.question,
-            "workflow": workflows.get(run.workflow_id, "jarvis task"),
-            "project": projects.get(run.project_id, "general"),
+            "workflow": workflows.get(run.workflow_id, "aide work"),
+            "project": projects.get(run.project_id, "tasks"),
             "state": prompt.state,
             "created_at": _iso(prompt.created_at),
             "expires_at": _iso(prompt.expires_at),
@@ -144,7 +145,7 @@ def _briefs(db: DbSession) -> list[dict]:
         .all()
     )
     workflows, projects = _context(db, rows)
-    return [
+    aide = [
         {
             **_run_card(row, workflows, projects),
             "kind": "brief",
@@ -152,6 +153,30 @@ def _briefs(db: DbSession) -> list[dict]:
         }
         for row in rows
     ]
+    news_rows = (
+        db.query(NewsBrief)
+        .filter(NewsBrief.delivered_home == True)  # noqa: E712
+        .order_by(NewsBrief.published_at.desc(), NewsBrief.created_at.desc())
+        .limit(_LIMIT)
+        .all()
+    )
+    news = [
+        {
+            "kind": "news",
+            "id": row.id,
+            "title": row.title,
+            "state": row.status,
+            "summary": row.summary,
+            "created_at": _iso(row.created_at),
+            "finished_at": _iso(row.published_at),
+        }
+        for row in news_rows
+    ]
+    return sorted(
+        [*aide, *news],
+        key=lambda item: item.get("finished_at") or item.get("created_at") or "",
+        reverse=True,
+    )[:_LIMIT]
 
 
 def build(db: DbSession, daily: dict) -> dict:

@@ -1,5 +1,6 @@
 import re
 from pathlib import Path
+from typing import Literal
 from urllib.parse import urlsplit
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -69,6 +70,30 @@ def get_settings():
     return _public_settings(load_settings())
 
 
+@router.get("/settings/localization/options")
+def get_localization_options():
+    from services.localization import localization_options
+
+    return localization_options()
+
+
+@router.get("/credits")
+def get_credits():
+    from services.credits import load_credits_manifest
+
+    return load_credits_manifest()
+
+
+@router.get("/credits/{entry_id}")
+def get_credit_detail(entry_id: str):
+    from services.credits import load_credit_detail
+
+    try:
+        return load_credit_detail(entry_id)
+    except KeyError as exc:
+        raise ApiError(404, "credit_not_found", "credit entry not found") from exc
+
+
 @router.get("/vault-location")
 def vault_location(path: str = ""):
     """resolved vault folder + an obsidian deep-link. with ?path=<rel>, the link opens that
@@ -85,6 +110,184 @@ def vault_location(path: str = ""):
         except ValueError:
             target = base
     return {"path": base, "obsidian": "obsidian://open?path=" + quote(target)}
+
+
+class VaultTransferPath(BaseModel):
+    destination: str
+
+
+class VaultTransferDelete(BaseModel):
+    confirmation: str
+
+
+class VaultImportBody(BaseModel):
+    source: str
+    name: str
+    workflow: Literal["keep", "copy", "move"] = "keep"
+
+
+def _run_vault_transfer(operation):
+    from services import vault_transfer
+
+    try:
+        return operation()
+    except ValueError as exc:
+        raise ApiError(400, "invalid_vault_transfer", str(exc)) from exc
+    except FileNotFoundError as exc:
+        raise ApiError(
+            404, "vault_location_missing", "the selected vault folder is missing"
+        ) from exc
+    except FileExistsError as exc:
+        raise ApiError(
+            409, "vault_destination_exists", "choose a new empty destination path"
+        ) from exc
+    except vault_transfer.InsufficientSpace as exc:
+        raise ApiError(507, "vault_transfer_no_space", str(exc)) from exc
+    except PermissionError as exc:
+        raise ApiError(
+            403, "vault_transfer_permission_denied", "vault transfer permission was denied"
+        ) from exc
+    except vault_transfer.TransferConflict as exc:
+        raise ApiError(409, "vault_transfer_conflict", str(exc)) from exc
+    except OSError as exc:
+        raise ApiError(
+            500,
+            "vault_transfer_failed",
+            "vault transfer stopped safely before deleting the old location",
+        ) from exc
+
+
+def _reindex_after_vault_switch() -> None:
+    try:
+        from core.database import SessionLocal
+        from routes.textindex import _collect_docs
+        from services import personal_index, textindex
+
+        db = SessionLocal()
+        try:
+            personal_index.reindex_source(db, "note")
+            textindex.reindex_kind(db, "doc", _collect_docs())
+        finally:
+            db.close()
+    except Exception as exc:
+        raise ApiError(
+            500,
+            "vault_reindex_failed",
+            "the vault location changed, but search indexing failed; retry this recovery action",
+        ) from exc
+
+
+@router.get("/vault-transfer/pending")
+def pending_vault_transfers():
+    from services import vault_transfer
+
+    return {
+        "transfers": [
+            vault_transfer.public_status(item) for item in vault_transfer.pending_transfers()
+        ]
+    }
+
+
+@router.get("/vault-transfer/{operation_id}")
+def vault_transfer_status(operation_id: str):
+    from services import vault_transfer
+
+    manifest = _run_vault_transfer(lambda: vault_transfer.transfer_status(operation_id))
+    return vault_transfer.public_status(manifest)
+
+
+@router.post("/vault-transfer/move")
+def prepare_vault_move(body: VaultTransferPath, request: Request):
+    from services import vault_transfer
+
+    require_recent_owner(request)
+    manifest = _run_vault_transfer(lambda: vault_transfer.prepare_vault_move(body.destination))
+    return vault_transfer.public_status(manifest)
+
+
+@router.post("/vault-transfer/relink")
+def prepare_vault_relink(body: VaultTransferPath, request: Request):
+    from services import vault_transfer
+
+    require_recent_owner(request)
+    manifest = _run_vault_transfer(lambda: vault_transfer.prepare_vault_relink(body.destination))
+    return vault_transfer.public_status(manifest)
+
+
+@router.post("/vault-transfer/import/preview")
+def preview_vault_import(body: VaultImportBody, request: Request):
+    from services import vault_transfer
+
+    require_recent_owner(request)
+    if body.workflow == "keep":
+        source = Path(body.source).expanduser().resolve(strict=False)
+        if not source.is_dir():
+            raise ApiError(404, "vault_location_missing", "the selected vault folder is missing")
+        inventory = _run_vault_transfer(lambda: vault_transfer._inventory(source))
+        return {
+            "source": str(source),
+            "destination": str(source),
+            "source_files": len(inventory["files"]),
+            "source_bytes": inventory["total_size"],
+            "required_bytes": 0,
+            "available_bytes": 0,
+            "conflicts": [],
+            "can_import": True,
+            "links_preserved": True,
+        }
+    return _run_vault_transfer(
+        lambda: vault_transfer.preview_external_vault(body.source, body.name)
+    )
+
+
+@router.post("/vault-transfer/import")
+def apply_vault_import(body: VaultImportBody, request: Request):
+    from services import vault_transfer
+
+    require_recent_owner(request)
+    if body.workflow == "keep":
+        manifest = _run_vault_transfer(lambda: vault_transfer.relink_vault(body.source))
+    else:
+        manifest = _run_vault_transfer(
+            lambda: vault_transfer.import_external_vault(
+                body.source,
+                body.name,
+                move=body.workflow == "move",
+            )
+        )
+    _reindex_after_vault_switch()
+    return vault_transfer.public_status(manifest)
+
+
+@router.post("/vault-transfer/{operation_id}/resume")
+def resume_vault_transfer(operation_id: str, request: Request):
+    from services import vault_transfer
+
+    require_recent_owner(request)
+    manifest = _run_vault_transfer(lambda: vault_transfer.resume_vault_transfer(operation_id))
+    _reindex_after_vault_switch()
+    return vault_transfer.public_status(manifest)
+
+
+@router.post("/vault-transfer/{operation_id}/rollback")
+def rollback_vault_transfer(operation_id: str, request: Request):
+    from services import vault_transfer
+
+    require_recent_owner(request)
+    manifest = _run_vault_transfer(lambda: vault_transfer.rollback_vault_transfer(operation_id))
+    _reindex_after_vault_switch()
+    return vault_transfer.public_status(manifest)
+
+
+@router.post("/vault-transfer/{operation_id}/delete-old")
+def delete_old_vault(operation_id: str, body: VaultTransferDelete, request: Request):
+    from services import vault_transfer
+
+    require_recent_owner(request)
+    manifest = _run_vault_transfer(
+        lambda: vault_transfer.delete_old_vault(operation_id, body.confirmation)
+    )
+    return vault_transfer.public_status(manifest)
 
 
 @router.get("/download/obsidian-plugin")
@@ -148,6 +351,12 @@ class SettingsPatch(BaseModel):
     andromeda_model_band: str | None = None
     andromeda_model_bands: dict | None = None
     andromeda_qualified_models: list[str] | None = None
+    andromeda_answer_max_tokens: int | None = None
+    andromeda_answer_timeout_seconds: int | None = None
+    andromeda_verification_enabled: bool | None = None
+    andromeda_verifier_mode: str | None = None
+    andromeda_verifier_max_tokens: int | None = None
+    andromeda_verifier_timeout_seconds: int | None = None
     memory_auto_inject: bool | None = None
     memory_policy: str | None = None
     tts_speed: float | None = None
@@ -156,6 +365,9 @@ class SettingsPatch(BaseModel):
     language: str | None = None
     region: str | None = None
     timezone: str | None = None
+    clock_format: str | None = None
+    week_start: str | None = None
+    currency: str | None = None
     theme: str | None = None  # '' (dark/default) | 'light' — synced across subdomains
     accent: str | None = None  # hex like '#818cf8', or '' for the default
     notify_discord_webhook: str | None = None
@@ -230,7 +442,10 @@ class SettingsPatch(BaseModel):
 
 @router.patch("/settings")
 def patch_settings(body: SettingsPatch, request: Request):
-    patch = {k: v for k, v in body.model_dump().items() if v is not None}
+    values = body.model_dump()
+    if "currency" in body.model_fields_set and values["currency"] is None:
+        raise ApiError(400, "invalid_currency", "currency must be a supported ISO 4217 code")
+    patch = {k: v for k, v in values.items() if v is not None}
     if (
         "default_chat_behavior" in patch
         and patch["default_chat_behavior"] not in DEFAULT_CHAT_BEHAVIORS
@@ -268,9 +483,34 @@ def patch_settings(body: SettingsPatch, request: Request):
                 normalized.append(text)
         patch["agent_allowed_roots"] = normalized
     if "language" in patch:
-        patch["language"] = patch["language"].strip().lower()
-        if patch["language"] != "en":
-            raise ApiError(400, "unsupported_language", "English is the only reviewed language")
+        from services.localization import normalize_language
+
+        try:
+            patch["language"] = normalize_language(patch["language"])
+        except ValueError as exc:
+            raise ApiError(
+                400,
+                "unsupported_language",
+                "the selected language has not passed every release gate",
+            ) from exc
+    if "clock_format" in patch and patch["clock_format"] not in {"auto", "12", "24"}:
+        raise ApiError(
+            400, "invalid_clock_format", "clock format must be automatic, 12 hour, or 24 hour"
+        )
+    if "week_start" in patch and patch["week_start"] not in {"auto", "mon", "sun"}:
+        raise ApiError(400, "invalid_week_start", "week start must be automatic, monday, or sunday")
+    if "currency" in patch:
+        if not isinstance(patch["currency"], str):
+            raise ApiError(400, "invalid_currency", "currency must be a supported ISO 4217 code")
+        patch["currency"] = patch["currency"].strip().upper()
+        if patch["currency"]:
+            from services.localization import CURRENCY_OPTIONS
+
+            supported = {item["value"] for item in CURRENCY_OPTIONS if item["value"]}
+            if patch["currency"] not in supported:
+                raise ApiError(
+                    400, "invalid_currency", "currency must be a supported ISO 4217 code"
+                )
     if "region" in patch:
         patch["region"] = patch["region"].strip().upper()
         if patch["region"] and not re.fullmatch(r"(?:[A-Z]{2}|[0-9]{3})", patch["region"]):
@@ -322,6 +562,29 @@ def patch_settings(body: SettingsPatch, request: Request):
         patch["andromeda_qualified_models"] = list(
             dict.fromkeys(value.strip() for value in values if value.strip())
         )
+    if "andromeda_verifier_mode" in patch and patch["andromeda_verifier_mode"] not in {
+        "freshness-sensitive",
+        "always",
+        "manual",
+        "off",
+    }:
+        raise ApiError(
+            400,
+            "invalid_verifier_mode",
+            "verifier mode must be freshness-sensitive, always, manual, or off",
+        )
+    for field, minimum, maximum in (
+        ("andromeda_answer_max_tokens", 100, 2_000),
+        ("andromeda_answer_timeout_seconds", 5, 120),
+        ("andromeda_verifier_max_tokens", 100, 2_000),
+        ("andromeda_verifier_timeout_seconds", 5, 120),
+    ):
+        if field in patch and not minimum <= patch[field] <= maximum:
+            raise ApiError(
+                400,
+                "invalid_andromeda_limit",
+                f"{field} must be between {minimum} and {maximum}",
+            )
     if "searxng_url" in patch:
         from services.managed_searxng import managed_url
 

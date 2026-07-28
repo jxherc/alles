@@ -1,6 +1,8 @@
 import mimetypes
 import re
 import uuid
+from collections import deque
+from pathlib import Path
 from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
@@ -18,13 +20,36 @@ from core.database import (
     Photo,
     Session,
     Share,
+    StorageLocation,
     VaultShare,
     get_db,
 )
 from core.rate_limit import enforce_rate_limit
-from services import files_store, photos_store, share, vault_md
+from services import (
+    file_operations,
+    photos_store,
+    share,
+    storage_backends,
+    storage_locations,
+    vault_md,
+)
 
 router = APIRouter()
+MAX_SHARED_FOLDER_ITEMS = 10_000
+
+
+class TemporaryFileResponse(FileResponse):
+    """Serve a materialized remote share and clean it up on every send outcome."""
+
+    def __init__(self, *args, cleanup_path: Path, **kwargs):
+        self.cleanup_path = Path(cleanup_path)
+        super().__init__(*args, **kwargs)
+
+    async def __call__(self, scope, receive, send):
+        try:
+            await super().__call__(scope, receive, send)
+        finally:
+            storage_backends.remove_temporary(self.cleanup_path)
 
 
 # ── legacy session share (unchanged, back-compat) ─────────────────────────────
@@ -56,11 +81,13 @@ class ShareBody(BaseModel):
     level: str | None = "view"
     expires_at: str | None = None
     password: str | None = None
+    location_id: str | None = None
 
 
 class ShareRef(BaseModel):
     kind: str
     ref: str
+    location_id: str | None = None
 
 
 @router.post("/api/share")
@@ -71,10 +98,13 @@ def create_share(body: ShareBody, db: DbSession = Depends(get_db)):
             body.kind,
             body.ref,
             body.level or "view",
+            location_id=body.location_id,
             expires_at=body.expires_at,
             password=body.password,
         )
-    except ValueError as e:
+    except file_operations.FileOperationError as e:
+        raise HTTPException(409, str(e)) from e
+    except (LookupError, RuntimeError, ValueError) as e:
         raise HTTPException(400, str(e))
     return {
         "token": s.token,
@@ -84,24 +114,43 @@ def create_share(body: ShareBody, db: DbSession = Depends(get_db)):
         "level": s.level,
         "expires_at": s.expires_at or "",
         "password_protected": bool(s.password_hash),
+        "location_id": s.location_id,
     }
 
 
 @router.get("/api/share")
-def get_share(kind: str, ref: str, db: DbSession = Depends(get_db)):
-    item = db.query(Share).filter_by(kind=kind.strip().lower(), ref=ref.strip()).first()
+def get_share(
+    kind: str,
+    ref: str,
+    location_id: str | None = None,
+    db: DbSession = Depends(get_db),
+):
+    item = share.find_ref(db, kind, ref, location_id=location_id)
     tok = item.token if item else None
     return {
         "token": tok,
         "url": f"/s/{tok}" if tok else None,
         "expires_at": (item.expires_at or "") if item else "",
         "password_protected": bool(item and item.password_hash),
+        "location_id": item.location_id if item else None,
     }
 
 
 @router.delete("/api/share")
 def delete_share(body: ShareRef, db: DbSession = Depends(get_db)):
-    return {"ok": share.revoke_ref(db, body.kind, body.ref)}
+    try:
+        return {
+            "ok": share.revoke_ref(
+                db,
+                body.kind,
+                body.ref,
+                location_id=body.location_id,
+            )
+        }
+    except file_operations.FileOperationError as exc:
+        raise HTTPException(409, str(exc)) from exc
+    except (LookupError, RuntimeError, ValueError) as exc:
+        raise HTTPException(400, str(exc)) from exc
 
 
 # ── public read-only viewer ───────────────────────────────────────────────────
@@ -119,16 +168,138 @@ def _not_found():
 _RISKY_EXT = (".svg", ".svgz", ".html", ".htm", ".xml", ".xhtml")
 
 
-def _file_resp(p, level):
-    mt = mimetypes.guess_type(p.name)[0] or "application/octet-stream"
-    disp = "attachment" if (p.suffix.lower() in _RISKY_EXT or level == "download") else "inline"
-    return FileResponse(
-        p,
+def _file_resp(p, level, *, filename: str | None = None, cleanup_path: Path | None = None):
+    path = Path(p)
+    display_name = filename or path.name
+    mt = mimetypes.guess_type(display_name)[0] or "application/octet-stream"
+    suffix = Path(display_name).suffix.lower()
+    disp = "attachment" if (suffix in _RISKY_EXT or level == "download") else "inline"
+    response_type = TemporaryFileResponse if cleanup_path is not None else FileResponse
+    kwargs = {"cleanup_path": cleanup_path} if cleanup_path is not None else {}
+    return response_type(
+        path,
         media_type=mt,
-        filename=p.name,
+        filename=display_name,
         content_disposition_type=disp,
         headers={"X-Content-Type-Options": "nosniff"},
+        **kwargs,
     )
+
+
+def _shared_storage_location(db: DbSession, sh: Share) -> StorageLocation:
+    try:
+        return storage_locations.require_browsable(db, sh.location_id)
+    except (LookupError, RuntimeError) as exc:
+        raise storage_backends.StorageBackendError(str(exc)) from exc
+
+
+def _shared_local_path(location: StorageLocation, base: str, path: str) -> Path:
+    shared_root = storage_backends.local_path(location, base)
+    target = storage_backends.local_path(location, path)
+    if target != shared_root and shared_root not in target.parents:
+        raise storage_backends.StorageBackendError("shared file is outside the shared folder")
+    return target
+
+
+def _shared_file_response(
+    location: StorageLocation,
+    path: str,
+    level: str,
+    *,
+    shared_base: str | None = None,
+):
+    info = storage_backends.item(location, path)
+    if info.get("type") != "file":
+        raise storage_backends.StorageNotFoundError("shared file is unavailable")
+    if location.kind == "local":
+        local_path = (
+            _shared_local_path(location, shared_base, path)
+            if shared_base is not None
+            else storage_backends.local_path(location, path)
+        )
+        return _file_resp(local_path, level)
+    target = storage_backends.temporary_path(location, path)
+    try:
+        storage_backends.download(
+            location,
+            path,
+            target,
+            expected_etag=info.get("etag", ""),
+            expected_size=info.get("size"),
+            resume=False,
+        )
+    except Exception:
+        storage_backends.remove_temporary(target)
+        raise
+    return _file_resp(
+        target,
+        level,
+        filename=storage_locations.normalize_path(path).rsplit("/", 1)[-1],
+        cleanup_path=target,
+    )
+
+
+def _shared_item_size(item: dict) -> int | None:
+    value = item.get("size")
+    if value is None:
+        return None
+    if not isinstance(value, int) or isinstance(value, bool) or value < 0:
+        raise storage_backends.StorageBackendError("shared file size is invalid")
+    return value
+
+
+def _shared_path_is_hidden(path: str) -> bool:
+    return any(part.startswith(".") for part in Path(path).parts)
+
+
+def _shared_folder_entries(
+    location: StorageLocation,
+    base: str,
+) -> list[tuple[str, int | None]]:
+    root = storage_locations.normalize_path(base)
+    info = storage_backends.item(location, root)
+    if info.get("type") != "dir":
+        raise storage_backends.StorageNotFoundError("shared folder is unavailable")
+    queue = deque([root])
+    visited = {root}
+    seen_items = 0
+    entries: list[tuple[str, int | None]] = []
+    while queue:
+        current = queue.popleft()
+        for item in storage_backends.listdir(location, current).get("items", []):
+            seen_items += 1
+            if seen_items > MAX_SHARED_FOLDER_ITEMS:
+                raise storage_backends.StorageBackendError("shared folder has too many items")
+            raw_path = item.get("path")
+            if not isinstance(raw_path, str) or not raw_path.strip():
+                raise storage_backends.StorageBackendError("shared folder entry path is invalid")
+            path = storage_locations.normalize_path(raw_path)
+            if not path:
+                raise storage_backends.StorageBackendError("shared folder entry path is invalid")
+            if location.kind == "local":
+                _shared_local_path(location, root, path)
+            if root:
+                prefix = f"{root}/"
+                if not path.startswith(prefix):
+                    raise storage_backends.StorageBackendError(
+                        "shared folder entry is outside the shared folder"
+                    )
+                relative = path[len(prefix) :]
+            else:
+                relative = path
+            if not relative or _shared_path_is_hidden(relative):
+                continue
+            if item.get("type") == "dir":
+                if path not in visited:
+                    visited.add(path)
+                    queue.append(path)
+                continue
+            if item.get("type") != "file":
+                raise storage_backends.StorageBackendError(
+                    "shared folder contains an unsupported item"
+                )
+            entries.append((relative, _shared_item_size(item)))
+    return sorted(entries)
 
 
 _PAGE = (
@@ -205,27 +376,17 @@ def view_shared(token: str, request: Request, db: DbSession = Depends(get_db)):
             return _protected_response(HTMLResponse(_doc_html(name, body)), sh)
         if sh.kind == "file":
             try:
-                p = files_store.abspath(sh.ref)
-            except ValueError:
+                location = _shared_storage_location(db, sh)
+                response = _shared_file_response(location, sh.normalized_path or sh.ref, sh.level)
+            except (storage_backends.StorageBackendError, ValueError):
                 return _not_found()
-            if not p.exists() or not p.is_file():
-                return _not_found()
-            return _protected_response(_file_resp(p, sh.level), sh)
+            return _protected_response(response, sh)
         if sh.kind == "folder":
             try:
-                base = files_store.abspath(sh.ref)
-            except ValueError:
+                location = _shared_storage_location(db, sh)
+                entries = _shared_folder_entries(location, sh.normalized_path or sh.ref)
+            except (storage_backends.StorageBackendError, ValueError):
                 return _not_found()
-            if not base.exists() or not base.is_dir():
-                return _not_found()
-            entries = []
-            for fp in sorted(base.rglob("*")):
-                if not fp.is_file():
-                    continue
-                rel = fp.relative_to(base)
-                if any(part.startswith(".") for part in rel.parts):
-                    continue
-                entries.append((str(rel).replace("\\", "/"), fp.stat().st_size))
             name = sh.ref.rstrip("/").rsplit("/", 1)[-1] or "files"
             return _protected_response(
                 HTMLResponse(_folder_html(name, token, entries, sh.level)), sh
@@ -330,16 +491,18 @@ def view_shared_child(token: str, subpath: str, request: Request, db: DbSession 
     if sh.kind != "folder":
         return _not_found()
     try:
-        base = files_store.abspath(sh.ref)
-        target = (base / subpath).resolve()
-    except (ValueError, OSError):
+        location = _shared_storage_location(db, sh)
+        base = storage_locations.normalize_path(sh.normalized_path or sh.ref)
+        relative = storage_locations.normalize_path(subpath)
+        if not relative or _shared_path_is_hidden(relative):
+            return _not_found()
+        target = storage_locations.normalize_path(f"{base}/{relative}" if base else relative)
+        if base and (target == base or not target.startswith(f"{base}/")):
+            return _not_found()
+        response = _shared_file_response(location, target, sh.level, shared_base=base)
+    except (storage_backends.StorageBackendError, ValueError, OSError):
         return _not_found()
-    # must stay inside the shared folder
-    if base != target and base not in target.parents:
-        return _not_found()
-    if not target.is_file():
-        return _not_found()
-    return _protected_response(_file_resp(target, sh.level), sh)
+    return _protected_response(response, sh)
 
 
 _RSVP_STATUSES = {"invited", "accepted", "declined", "tentative"}
@@ -459,10 +622,10 @@ def book(token: str, body: BookBody, db: DbSession = Depends(get_db)):
         calendar_id=page.calendar_id,
     )
     db.add(ev)
-    db.commit()
-    db.refresh(ev)
+    db.flush()
     db.add(EventAttendee(event_id=ev.id, name=body.name, email=body.email, status="accepted"))
     db.commit()
+    db.refresh(ev)
     return {"ok": True, "event_id": ev.id, "start": start, "end": end}
 
 
@@ -592,6 +755,8 @@ go();
 
 
 def _fmt_sz(n):
+    if n is None:
+        return "size unknown"
     if n < 1024:
         return f"{n} B"
     if n < 1024 * 1024:

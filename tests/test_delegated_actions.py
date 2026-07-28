@@ -2,7 +2,7 @@ import asyncio
 import tempfile
 import threading
 import unittest
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from types import SimpleNamespace
 from unittest import mock
@@ -91,6 +91,22 @@ class DelegatedActionTest(ApiTest):
         db.rollback()
         db.close()
 
+    def test_forced_approval_overrides_owner_mode_auto_authorization(self):
+        db = self.db()
+
+        action, allowed = request_action(
+            db,
+            self._request(),
+            force_approval=True,
+            auto_authorize=True,
+        )
+
+        self.assertFalse(allowed)
+        self.assertEqual(action.state, "pending")
+        self.assertEqual(action.pending_key, action.exact_hash)
+        db.rollback()
+        db.close()
+
     def test_restart_marks_started_action_uncertain_and_blocks_duplicate(self):
         db = self.db()
         request = self._request()
@@ -126,7 +142,7 @@ class DelegatedActionTest(ApiTest):
     def test_expired_approval_fails_closed_and_records_event(self):
         db = self.db()
         action, _ = request_action(db, self._request())
-        action.expires_at = datetime.utcnow() - timedelta(seconds=1)
+        action.expires_at = datetime.now(UTC).replace(tzinfo=None) - timedelta(seconds=1)
         db.commit()
         with self.assertRaisesRegex(ValueError, "approval_expired"):
             decide_action(db, action, allow=True, exact_hash=action.exact_hash)
@@ -501,7 +517,7 @@ class DelegationApiAndMcpTest(ApiTest):
         self.assertTrue(result["result"]["isError"])
         self.assertIn("mcp_scope_not_bound", result["result"]["content"][0]["text"])
 
-    def test_aide_mutation_uses_durable_exact_approval(self):
+    def test_aide_safe_full_auto_mutation_uses_durable_authorization(self):
         db = self.db()
         session = Session(name="general")
         db.add(session)
@@ -541,9 +557,6 @@ class DelegationApiAndMcpTest(ApiTest):
                 session_id=session_id,
             ):
                 chunks.append(chunk)
-                if "tool_permission" in chunk:
-                    request_id = chunk["tool_permission"]["request_id"]
-                    self.assertTrue(agent_runtime.resolve_permission(request_id, True))
             return chunks
 
         with tempfile.TemporaryDirectory(prefix="alles-agent-state-") as temp:
@@ -554,7 +567,7 @@ class DelegationApiAndMcpTest(ApiTest):
             ):
                 chunks = asyncio.run(drive())
         self.assertEqual(calls["tool"], 1)
-        self.assertEqual(sum("tool_permission" in chunk for chunk in chunks), 1)
+        self.assertEqual(sum("tool_permission" in chunk for chunk in chunks), 0)
         agent_run_id = next(chunk["agent_run"]["id"] for chunk in chunks if "agent_run" in chunk)
         db = self.db()
         action = db.query(DelegatedAction).filter_by(session_id=session_id).one()
@@ -569,9 +582,113 @@ class DelegationApiAndMcpTest(ApiTest):
                 .filter_by(action_id=action.id)
                 .order_by(CapabilityGrantEvent.created_at)
             ],
-            ["approval_requested", "approval_granted", "approval_used", "action_completed"],
+            ["approval_granted", "approval_used", "action_completed"],
         )
         db.close()
+
+    def test_aide_runtime_enforces_every_permission_mode_across_action_boundaries(self):
+        """Exercise the real agent loop, not only the policy helper.
+
+        External communication, computer control, and delegation are represented by their
+        registered tools but never allowed to reach a real external target in this test.
+        """
+        action_args = {
+            "read_file": {"path": "README.md"},
+            "write_file": {"path": "phase6-runtime.txt", "content": "test"},
+            "shell": {"command": "pwd"},
+            "delete_file": {"path": "phase6-runtime.txt"},
+            "mail_send": {"to": "owner@example.test", "subject": "test", "body": "test"},
+            "computer_click": {"x": 1, "y": 1},
+            "spawn_agent": {"task": "bounded test helper"},
+            "spawn_agents": {"tasks": ["bounded test helper"]},
+            "opencode_run": {"task": "bounded test workflow"},
+        }
+        expected_execution = {
+            "full_access": set(action_args),
+            "full_auto": {"read_file", "write_file"},
+            "approve": {"read_file"},
+            "plan": {"read_file"},
+        }
+        expected_prompt = {
+            "full_access": set(),
+            "full_auto": set(action_args) - {"read_file", "write_file"},
+            "approve": set(action_args) - {"read_file"},
+            "plan": set(),
+        }
+
+        async def run_case(mode, tool, session_id, executed):
+            model_turn = 0
+
+            async def fake_chat(*_args, **_kwargs):
+                nonlocal model_turn
+                model_turn += 1
+                if model_turn == 1:
+                    yield {
+                        "tool_call": {
+                            "call_id": f"{mode}-{tool}",
+                            "name": tool,
+                            "args": action_args[tool],
+                        }
+                    }
+                yield {"done": True, "usage": {}}
+
+            async def fake_stream_execute(name, _args):
+                executed.append(name)
+                yield {"type": "result", "result": {"output": "executed", "error": False}}
+
+            async def reject_permission(*_args, **_kwargs):
+                return False
+
+            chunks = []
+            with (
+                mock.patch.object(agent_runtime, "stream_chat", fake_chat),
+                mock.patch.object(agent_runtime, "stream_execute", fake_stream_execute),
+                mock.patch.object(agent_runtime, "_await_permission", reject_permission),
+            ):
+                async for chunk in agent_runtime.run_agent(
+                    [{"role": "user", "content": f"test {tool}"}],
+                    SimpleNamespace(base_url="http://local/", api_key=""),
+                    "test",
+                    asyncio.Event(),
+                    {
+                        "agent_context_files": False,
+                        "agent_permission_mode": mode,
+                        "agent_cwd": str(Path.cwd()),
+                    },
+                    [],
+                    [],
+                    [],
+                    session_id=session_id,
+                ):
+                    chunks.append(chunk)
+            return chunks
+
+        with tempfile.TemporaryDirectory(prefix="alles-agent-state-") as temp:
+            with mock.patch.object(agent_state, "DATA_DIR", Path(temp)):
+                for mode in ("full_access", "full_auto", "approve", "plan"):
+                    for tool in action_args:
+                        with self.subTest(mode=mode, tool=tool):
+                            db = self.db()
+                            session = Session(name=f"{mode}-{tool}")
+                            db.add(session)
+                            db.commit()
+                            session_id = session.id
+                            db.close()
+
+                            executed = []
+                            chunks = asyncio.run(run_case(mode, tool, session_id, executed))
+                            should_execute = tool in expected_execution[mode]
+                            self.assertEqual(executed, [tool] if should_execute else [])
+                            prompted = any("tool_permission" in chunk for chunk in chunks)
+                            self.assertEqual(prompted, tool in expected_prompt[mode])
+
+                            if mode == "plan" and tool != "read_file":
+                                denied = [
+                                    chunk["tool_result"]["output"]
+                                    for chunk in chunks
+                                    if "tool_result" in chunk
+                                ]
+                                self.assertTrue(any("plan mode" in output for output in denied))
 
 
 class DelegatedActionMigrationTest(unittest.TestCase):

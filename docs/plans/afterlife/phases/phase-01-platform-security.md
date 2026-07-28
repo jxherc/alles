@@ -133,8 +133,9 @@ Phase 1 is split into small gates. A later gate must not weaken an earlier one.
   - A shared browser helper provides message lookup, safe English fallback, interpolation, locale and
     text-direction resolution, and date/time formatting. The home clock and scheduled-message notice
     are the first consumers.
-  - English remains the only claimed interface language. Later catalogs require their own review;
-    unfinished screens are not machine-translated or presented as complete.
+  - At the Phase 1 delivery point, English was the only claimed interface language. Phase 10 later
+    released the eight reviewed core-flow catalogs; unfinished or out-of-scope screens are still not
+    machine-translated or presented as complete.
   - Fresh evidence: all 17 Settings API checks and all 99 JavaScript checks pass. Desktop keyboard and
     reduced-motion checks plus a 390×844 mobile check confirm save behavior, `en-TW`, `Asia/Taipei`,
     no horizontal overflow, and no console errors using isolated data.

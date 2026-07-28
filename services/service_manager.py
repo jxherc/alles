@@ -320,9 +320,13 @@ def status(service_id: str, *, runner=_run) -> dict:
     }
 
 
-def control(service_id: str, action: Action, *, runner=_run) -> dict:
+def control(service_id: str, action: Action, *, runner=None) -> dict:
     service = _load(service_id)
-    result = runner(_command(service, action))
+    result = (
+        _run(_command(service, action), timeout=60)
+        if runner is None
+        else runner(_command(service, action))
+    )
     if result.returncode != 0:
         raise ServiceControlError(f"{action} failed for the owned service")
     return {"ok": True, "service_id": service.service_id, "action": action}

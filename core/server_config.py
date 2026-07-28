@@ -17,7 +17,11 @@ _HOST_LABEL = re.compile(r"^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$")
 
 def access_profile() -> str:
     """Return the selected user-facing access profile."""
-    profile = os.environ.get("ALLES_ACCESS_PROFILE", "").strip().lower() or "device"
+    profile = (
+        os.environ.get("ALLES_ACCESS_PROFILE", "").strip().lower()
+        or str(load_settings().get("access_profile", "")).strip().lower()
+        or "device"
+    )
     if profile not in _ACCESS_PROFILES:
         choices = ", ".join(sorted(_ACCESS_PROFILES))
         raise AccessConfigError(f"unknown access profile {profile!r}; choose one of: {choices}")
@@ -43,7 +47,10 @@ def _owner_password_ready() -> bool:
 
 def cors_origins() -> tuple[str, ...]:
     """Return the exact browser origins allowed to read cross-origin responses."""
-    raw = os.environ.get("ALLES_CORS_ORIGINS", "").strip()
+    raw = (
+        os.environ.get("ALLES_CORS_ORIGINS", "").strip()
+        or str(load_settings().get("cors_origins", "")).strip()
+    )
     if not raw:
         return ()
 
@@ -129,7 +136,10 @@ def _normalize_trusted_host(value: str) -> str:
 
 def trusted_hosts() -> tuple[str, ...]:
     """Return allowed Host header names for the selected access profile."""
-    raw = os.environ.get("ALLES_TRUSTED_HOSTS", "").strip()
+    raw = (
+        os.environ.get("ALLES_TRUSTED_HOSTS", "").strip()
+        or str(load_settings().get("trusted_hosts", "")).strip()
+    )
     if not raw:
         if access_profile() == "device":
             return _DEVICE_TRUSTED_HOSTS
@@ -150,7 +160,10 @@ def trusted_hosts() -> tuple[str, ...]:
 
 def forwarded_allow_ips() -> tuple[str, ...]:
     """Return exact proxy IP addresses or CIDRs trusted to set forwarded headers."""
-    raw = os.environ.get("ALLES_FORWARDED_ALLOW_IPS", "").strip()
+    raw = (
+        os.environ.get("ALLES_FORWARDED_ALLOW_IPS", "").strip()
+        or str(load_settings().get("forwarded_allow_ips", "")).strip()
+    )
     if not raw:
         if access_profile() == "public":
             raise AccessConfigError("public access requires ALLES_FORWARDED_ALLOW_IPS")
@@ -160,6 +173,7 @@ def forwarded_allow_ips() -> tuple[str, ...]:
     if any(not entry.strip() for entry in entries):
         raise AccessConfigError("ALLES_FORWARDED_ALLOW_IPS contains a blank forwarded proxy")
     networks: list[str] = []
+    parsed_networks = []
     for entry in entries:
         value = entry.strip()
         if value == "*":
@@ -170,17 +184,29 @@ def forwarded_allow_ips() -> tuple[str, ...]:
             raise AccessConfigError(f"invalid forwarded proxy address {value!r}") from exc
         if network.prefixlen == 0:
             raise AccessConfigError("a forwarded proxy cannot use an everywhere CIDR")
+        parsed_networks.append(network)
         normalized = str(network.network_address)
         if "/" in value:
             normalized = network.with_prefixlen
         if normalized not in networks:
             networks.append(normalized)
+    for version in (4, 6):
+        family = [network for network in parsed_networks if network.version == version]
+        if family and any(
+            network.prefixlen == 0 for network in ipaddress.collapse_addresses(family)
+        ):
+            raise AccessConfigError(
+                "forwarded proxy ranges cannot collectively cover every address"
+            )
     return tuple(networks)
 
 
 def public_origin() -> str:
     """Validate and return the external HTTPS origin for public access."""
-    raw = os.environ.get("ALLES_PUBLIC_URL", "").strip()
+    raw = (
+        os.environ.get("ALLES_PUBLIC_URL", "").strip()
+        or str(load_settings().get("public_url", "")).strip()
+    )
     if not raw:
         raise AccessConfigError("public access requires ALLES_PUBLIC_URL")
     try:
@@ -238,16 +264,13 @@ def bind_host() -> str:
         if not _is_loopback(host):
             if not os.environ.get("ALLES_ACCESS_PROFILE", "").strip():
                 raise AccessConfigError(
-                    "a non-loopback ALLES_HOST also needs an explicit "
-                    "ALLES_ACCESS_PROFILE"
+                    "a non-loopback ALLES_HOST also needs an explicit ALLES_ACCESS_PROFILE"
                 )
             raise AccessConfigError("the device access profile accepts loopback hosts only")
         return host
 
     if not _owner_password_ready():
-        raise AccessConfigError(
-            f"the {profile} access profile requires an enabled owner password"
-        )
+        raise AccessConfigError(f"the {profile} access profile requires an enabled owner password")
 
     if profile == "public":
         public_origin()

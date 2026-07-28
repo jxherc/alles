@@ -1,5 +1,6 @@
 """ui-3q verify — open-tabs strip: open tab gets a squircle outline, inactive tabs are
 plain (no box), and deleting a doc drops it from the tab strip."""
+
 import sys
 
 from playwright.sync_api import sync_playwright
@@ -29,9 +30,13 @@ def run():
         pg.evaluate("() => location.reload()")
         pg.wait_for_selector("#wiki-view", timeout=15000)
         pg.wait_for_timeout(1500)
-        pg.evaluate("""() => { const el = document.querySelector('.wiki-file[data-path=\"livetest.md\"] .wiki-row-label'); if (el) el.click(); }""")
+        pg.evaluate(
+            """() => { const el = document.querySelector('.wiki-file[data-path=\"livetest.md\"] .wiki-row-label'); if (el) el.click(); }"""
+        )
         pg.wait_for_timeout(800)
-        pg.evaluate("""() => { const el = document.querySelector('.wiki-file[data-path=\"tabtwo.md\"] .wiki-row-label'); if (el) el.click(); }""")
+        pg.evaluate(
+            """() => { const el = document.querySelector('.wiki-file[data-path=\"tabtwo.md\"] .wiki-row-label'); if (el) el.click(); }"""
+        )
         pg.wait_for_timeout(900)
 
         def ok(name, cond):
@@ -56,14 +61,19 @@ def run():
         ok("open tab has an outline (accent)", d["activeBorder"] not in TRANSPARENT)
         ok("open tab is a squircle (rounded)", d["activeRadius"] not in ("0px", ""))
         ok("inactive tab has no outline box", d["inactBorder"] in TRANSPARENT)
-        ok("no dead left gutter (small padding)", d["padLeft"] not in ("", "0px") and float(d["padLeft"].replace("px", "")) < 40)
+        ok(
+            "no dead left gutter (small padding)",
+            d["padLeft"] not in ("", "0px") and float(d["padLeft"].replace("px", "")) < 40,
+        )
 
         # delete the active doc → it leaves the tab strip
         pg.click("#wiki-delete-btn")
         pg.wait_for_timeout(300)
-        pg.click("#_dy")   # confirm
+        pg.click("#_dy")  # confirm
         pg.wait_for_timeout(800)
-        left = pg.evaluate("() => [...document.querySelectorAll('.wiki-tab')].map(t => t.dataset.path)")
+        left = pg.evaluate(
+            "() => [...document.querySelectorAll('.wiki-tab')].map(t => t.dataset.path)"
+        )
         ok("deleted doc dropped from tabs", "tabtwo.md" not in left)
         ok("the other tab survives", "livetest.md" in left)
 

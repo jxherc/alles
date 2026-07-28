@@ -1,5 +1,5 @@
 import tempfile
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from unittest import mock
 
@@ -42,7 +42,9 @@ class PhotosTrashTests(ApiTest):
         if not is_video:
             (self.root / "photos" / ".thumbs" / name).write_bytes(_PNG)
         d = self.db()
-        ph = Photo(filename=name, thumb="" if is_video else name, original_name=name, is_video=is_video)
+        ph = Photo(
+            filename=name, thumb="" if is_video else name, original_name=name, is_video=is_video
+        )
         d.add(ph)
         d.commit()
         pid = ph.id
@@ -117,7 +119,7 @@ class PhotosTrashTests(ApiTest):
         self.client.delete(f"/api/photos/{pid}")
         d = self.db()
         it = d.query(TrashItem).filter_by(ref=pid).first()
-        it.expires_at = datetime.utcnow() - timedelta(days=1)
+        it.expires_at = datetime.now(UTC).replace(tzinfo=None) - timedelta(days=1)
         d.commit()
         trash.purge_expired(d)
         self.assertIsNone(d.get(Photo, pid))

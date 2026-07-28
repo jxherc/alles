@@ -50,7 +50,9 @@ def main():
         # quick-add parses priority/tags/due and shows them in the list
         pg.fill("#task-add-input", "call mom tomorrow !! #home")
         pg.press("#task-add-input", "Enter")
-        pg.wait_for_function("document.querySelector('#tasks-list')?.textContent.includes('call mom')")
+        pg.wait_for_function(
+            "document.querySelector('#tasks-list')?.textContent.includes('call mom')"
+        )
         txt = pg.text_content("#tasks-list") or ""
         mom = pg.evaluate(
             "() => fetch('/api/tasks').then(r=>r.json()).then(rows => rows.find(t => t.title === 'call mom'))"
@@ -67,16 +69,17 @@ def main():
 
         # adding while a search is active clears the search so the new task stays visible
         pg.fill("#tasks-search", "nothing-matches-this")
-        pg.wait_for_function("document.querySelector('#tasks-list')?.textContent.includes('nothing here')")
+        pg.wait_for_function(
+            "document.querySelector('#tasks-list')?.textContent.includes('nothing here')"
+        )
         pg.fill("#task-add-input", "visible after search clear !")
         pg.press("#task-add-input", "Enter")
         pg.wait_for_function(
             "document.querySelector('#tasks-list')?.textContent.includes('visible after search clear')"
         )
-        r["add_clears_search_filter"] = (
-            pg.input_value("#tasks-search") == ""
-            and "visible after search clear" in (pg.text_content("#tasks-list") or "")
-        )
+        r["add_clears_search_filter"] = pg.input_value(
+            "#tasks-search"
+        ) == "" and "visible after search clear" in (pg.text_content("#tasks-list") or "")
 
         # reschedule chips stage the date; cancel should not persist it
         tid = pg.evaluate(
@@ -104,12 +107,9 @@ def main():
             f"() => fetch('/api/tasks').then(r=>r.json()).then(rows => "
             f"rows.find(t => t.id === '{tid}')?.due_date === '{_iso(1)}')"
         )
-        r["reschedule_save_persists"] = (
-            pg.evaluate(
-                f"() => fetch('/api/tasks').then(r=>r.json()).then(rows => rows.find(t => t.id === '{tid}')?.due_date || '')"
-            )
-            == _iso(1)
-        )
+        r["reschedule_save_persists"] = pg.evaluate(
+            f"() => fetch('/api/tasks').then(r=>r.json()).then(rows => rows.find(t => t.id === '{tid}')?.due_date || '')"
+        ) == _iso(1)
 
         # tree shows subtasks and progress
         pg.evaluate(
@@ -126,7 +126,9 @@ def main():
         )
         pg.reload(wait_until="domcontentloaded")
         pg.wait_for_selector("#task-add-input", timeout=15000)
-        pg.wait_for_function("document.querySelector('#tasks-list')?.textContent.includes('project parent')")
+        pg.wait_for_function(
+            "document.querySelector('#tasks-list')?.textContent.includes('project parent')"
+        )
         tree_txt = pg.text_content("#tasks-list") or ""
         r["subtasks_progress_render"] = (
             "project parent" in tree_txt and "first child" in tree_txt and "1/2" in tree_txt

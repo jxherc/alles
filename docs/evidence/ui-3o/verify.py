@@ -1,5 +1,6 @@
 """ui-3o verify — split view: opening split prompts a doc picker (open/all scope),
 picking loads it ~50/50, and the divider is draggable to re-proportion."""
+
 import sys
 
 from playwright.sync_api import sync_playwright
@@ -28,7 +29,9 @@ def run():
         pg.evaluate("() => { if (window.location) location.reload(); }")
         pg.wait_for_selector("#wiki-view", timeout=15000)
         pg.wait_for_timeout(1500)
-        pg.evaluate("""() => { const el = document.querySelector('.wiki-file[data-path=\"livetest.md\"] .wiki-row-label'); if (el) el.click(); }""")
+        pg.evaluate(
+            """() => { const el = document.querySelector('.wiki-file[data-path=\"livetest.md\"] .wiki-row-label'); if (el) el.click(); }"""
+        )
         pg.wait_for_timeout(1100)
 
         def ok(name, cond):
@@ -39,7 +42,11 @@ def run():
         picker = pg.query_selector("#split-picker")
         ok("opening split prompts a doc picker", picker is not None)
         if picker:
-            ok("picker has open/all scope tabs", picker.query_selector(".sp-tab[data-s='open']") is not None and picker.query_selector(".sp-tab[data-s='all']") is not None)
+            ok(
+                "picker has open/all scope tabs",
+                picker.query_selector(".sp-tab[data-s='open']") is not None
+                and picker.query_selector(".sp-tab[data-s='all']") is not None,
+            )
             items = picker.query_selector_all(".sp-item")
             ok("picker lists docs to choose", len(items) >= 1)
             items[0].click()
@@ -70,7 +77,9 @@ def run():
         pg.mouse.move(box["x"] - 200, box["y"] + box["height"] / 2, steps=6)
         pg.mouse.up()
         pg.wait_for_timeout(300)
-        w2 = pg.evaluate("() => parseInt(getComputedStyle(document.querySelector('#wiki-split-pane')).width)")
+        w2 = pg.evaluate(
+            "() => parseInt(getComputedStyle(document.querySelector('#wiki-split-pane')).width)"
+        )
         ok("dragging the divider re-proportions the panes", w2 > d["paneW"] + 80)
 
         real = [e for e in errs if not any(s in e for s in IGNORE)]

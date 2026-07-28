@@ -1,7 +1,7 @@
 """scheduled-send outbox (5b). a 30s job calls process_due to flush mails whose send_at
 has passed; SMTP is best-effort. undo-send is just a near-future schedule you can cancel."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 
 from core.database import MailAccount, ScheduledMail
 
@@ -87,7 +87,7 @@ def _mark_interrupted_uncertain(db):
 
 def process_due(db, now_iso=None, send_fn=None):
     """Send due mail with a durable claim before the external side effect."""
-    now_iso = now_iso or datetime.utcnow().isoformat()
+    now_iso = now_iso or datetime.now(UTC).replace(tzinfo=None).isoformat()
     send_fn = send_fn or _default_send
     _mark_interrupted_uncertain(db)
     n = 0

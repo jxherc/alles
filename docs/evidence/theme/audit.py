@@ -63,12 +63,18 @@ def run():
         pg.screenshot(path=f"{OUT}/05-harmony.png", full_page=True)
 
         # font serif + density compact
-        pg.evaluate("document.querySelector('.te-seg[data-seg=\"font\"] [data-val=\"serif\"]')?.click()")
-        pg.evaluate("document.querySelector('.te-seg[data-seg=\"density\"] [data-val=\"compact\"]')?.click()")
+        pg.evaluate(
+            'document.querySelector(\'.te-seg[data-seg="font"] [data-val="serif"]\')?.click()'
+        )
+        pg.evaluate(
+            'document.querySelector(\'.te-seg[data-seg="density"] [data-val="compact"]\')?.click()'
+        )
         pg.wait_for_timeout(600)
 
         # background pattern sparkles + frosted glass
-        pg.evaluate("document.querySelector('.te-seg[data-seg=\"bgPattern\"] [data-val=\"sparkles\"]')?.click()")
+        pg.evaluate(
+            'document.querySelector(\'.te-seg[data-seg="bgPattern"] [data-val="sparkles"]\')?.click()'
+        )
         pg.wait_for_timeout(900)
         pg.click("#te-frosted")
         pg.wait_for_timeout(700)
@@ -102,7 +108,9 @@ def run():
 
     real = clean(errs)
     with open(f"{OUT}/console.log", "w", encoding="utf-8") as f:
-        f.write("ALL:\n" + ("\n".join(errs) or "(none)") + "\n\nREAL:\n" + ("\n".join(real) or "(none)"))
+        f.write(
+            "ALL:\n" + ("\n".join(errs) or "(none)") + "\n\nREAL:\n" + ("\n".join(real) or "(none)")
+        )
     if real:
         print("FAIL — real console errors:", real[:5])
         sys.exit(1)

@@ -5,6 +5,7 @@ and / through the TestClient and reads the static files for the icon-existence c
 """
 
 import json
+import re
 from pathlib import Path
 
 from tests._client import ApiTest
@@ -68,7 +69,9 @@ class ManifestTests(ApiTest):
         for sc in self._manifest()["shortcuts"]:
             url = sc["url"]
             self.assertTrue(url.startswith("/"), f"shortcut should be relative: {url}")
-            self.assertFalse(url.startswith("//"), f"shortcut should not be protocol-relative: {url}")
+            self.assertFalse(
+                url.startswith("//"), f"shortcut should not be protocol-relative: {url}"
+            )
             self.assertNotIn("localhost", url)
 
     def test_shortcuts_target_app_query(self):
@@ -105,3 +108,51 @@ class ManifestTests(ApiTest):
     def test_manifest_is_valid_json_file(self):
         # the static file itself must parse (the route just streams it)
         json.loads((STATIC / "manifest.json").read_text(encoding="utf-8"))
+
+    def test_shell_cache_stamp_is_consistent(self):
+        html = (STATIC / "index.html").read_text(encoding="utf-8")
+        worker = (STATIC / "sw.js").read_text(encoding="utf-8")
+        app_stamp = re.search(r"const _v = '(\d+)'", html)
+        style_stamp = re.search(r"style\.css\?v=(\d+)", html)
+        worker_stamp = re.search(r"const STAMP = '(\d+)'", worker)
+        self.assertIsNotNone(app_stamp)
+        self.assertIsNotNone(style_stamp)
+        self.assertIsNotNone(worker_stamp)
+        self.assertEqual(
+            {app_stamp.group(1), style_stamp.group(1), worker_stamp.group(1)},
+            {"300"},
+        )
+
+    def test_precache_uses_the_shell_stamp_and_every_linked_stylesheet(self):
+        urls = self.client.get("/api/pwa/precache").json()["urls"]
+        self.assertIn("/static/style.css?v=300", urls)
+        self.assertNotIn("/static/style.css?v=6", urls)
+        self.assertIn("/static/vendor/xterm/xterm.css?v=6.0.0", urls)
+        self.assertIn("/static/vendor/xterm/xterm.mjs?v=6.0.0", urls)
+        self.assertIn("/static/vendor/xterm/addon-fit.mjs?v=0.11.0", urls)
+        self.assertIn("/static/kokuen.css?v=19", urls)
+        for language in ("en", "fr", "es", "zh-Hans", "zh-Hant", "ja", "ko", "ar"):
+            self.assertIn(f"/static/locales/{language}.json", urls)
+        self.assertIn("/static/locales/manifest.json", urls)
+
+    def test_styles_use_network_first_cache_updates(self):
+        worker = (STATIC / "sw.js").read_text(encoding="utf-8")
+        self.assertIn("const NETWORK_FIRST_STATIC = ['.js', '.mjs', '.css'];", worker)
+        self.assertIn(
+            "NETWORK_FIRST_STATIC.some(ext => url.pathname.endsWith(ext))",
+            worker,
+        )
+        self.assertIn("e.respondWith(networkFirstStatic(e.request))", worker)
+        network_first = worker[
+            worker.index("async function networkFirstStatic") : worker.index(
+                "self.addEventListener('fetch'"
+            )
+        ]
+        self.assertIn("if (resp.ok)", network_first)
+        self.assertNotIn("if (!resp.ok)", network_first)
+        self.assertLess(network_first.index("if (resp.ok)"), network_first.index("c.put"))
+        self.assertRegex(
+            network_first,
+            r"catch \(err\)\s*\{\s*const hit = await c\.match\(request\);"
+            r"\s*if \(hit\) return hit;",
+        )

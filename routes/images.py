@@ -1,5 +1,5 @@
 import json
-from datetime import datetime
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -181,7 +181,7 @@ async def generate_in_chat(body: ChatImageBody, db: DbSession = Depends(get_db))
     if not s.name or s.name == "new chat":
         s.name = title
     s.message_count = (s.message_count or 0) + 2  # we added BOTH a user + an assistant message
-    s.last_message_at = datetime.utcnow()
+    s.last_message_at = datetime.now(UTC).replace(tzinfo=None)
     db.commit()
 
     return {

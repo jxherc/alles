@@ -7,13 +7,15 @@ from pathlib import Path
 import numpy as np
 
 _DIR = Path(__file__).resolve().parent
-_CITIES = _DIR / "places_cities.csv"      # name, cc, lat, lon
+_CITIES = _DIR / "places_cities.csv"  # name, cc, lat, lon
 _COUNTRIES = _DIR / "places_countries.csv"  # cc, name
 
 _cache = None  # (names, ccs, pops ndarray, lat_rad ndarray, lon_rad ndarray)
 _country_names = None
 _R_KM = 6371.0
-_RADIUS_KM = 30.0  # within this, prefer the most-populous city so a metro reads "Tokyo" not "Eifuku"
+_RADIUS_KM = (
+    30.0  # within this, prefer the most-populous city so a metro reads "Tokyo" not "Eifuku"
+)
 
 
 def _countries():

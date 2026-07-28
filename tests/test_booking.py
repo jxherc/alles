@@ -1,4 +1,5 @@
 from datetime import date, timedelta
+from unittest import mock
 
 from core.database import CalendarEvent, EventAttendee
 from tests._client import ApiTest
@@ -76,6 +77,24 @@ class BookingTests(ApiTest):
         db.close()
         self.assertIsNotNone(att)
         self.assertEqual(att.status, "accepted")
+
+    def test_attendee_failure_rolls_back_the_event(self):
+        tok = self._page()["token"]
+        with (
+            mock.patch("routes.shared.EventAttendee", side_effect=RuntimeError("fixture")),
+            self.assertRaises(RuntimeError),
+        ):
+            self.client.post(
+                f"/book/{tok}",
+                json={"date": DAY, "time": "10:00", "name": "Sam", "email": "s@x.com"},
+            )
+        db = self.db()
+        try:
+            self.assertIsNone(
+                db.query(CalendarEvent).filter(CalendarEvent.start_dt == f"{DAY}T10:00:00").first()
+            )
+        finally:
+            db.close()
 
     def test_book_unknown_token_404(self):
         r = self.client.post(

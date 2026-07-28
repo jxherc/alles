@@ -6,6 +6,7 @@ on light themes). writes docs/evidence/theme/contrast.json + screenshots.
 
 run: python tests/_theme_audit.py   (server must be up on PORT below, AUTH off)
 """
+
 import json
 import os
 from pathlib import Path
@@ -15,24 +16,34 @@ from playwright.sync_api import sync_playwright
 PORT = int(os.environ.get("AUDIT_PORT", "8823"))
 OUT = Path("docs/evidence/theme")
 OUT.mkdir(parents=True, exist_ok=True)
-THRESH = 3.0   # below this, UI text is effectively unreadable
+THRESH = 3.0  # below this, UI text is effectively unreadable
 
 # subset of presets (the light-bg risky ones + 2 dark baselines to catch false positives)
 THEMES = {
-    "dark":       dict(bg="#0a0a0a", text="#e8e6e3", panel="#0e0e0e", faint="#2e2e2e", accent="#818cf8"),
-    "midnight":   dict(bg="#0d1117", text="#c9d1d9", panel="#161b22", faint="#30363d", accent="#58a6ff"),
-    "light":      dict(bg="#f5f4f1", text="#111111", panel="#efede9", faint="#d4d2ce", accent="#818cf8"),
-    "blossom":    dict(bg="#faf4f6", text="#4a2c34", panel="#ffffff", faint="#e8ccd4", accent="#d6537a"),
-    "sakura":     dict(bg="#fff0f3", text="#5c3a44", panel="#ffe5ea", faint="#f0c8d2", accent="#ff85a1"),
-    "paper":      dict(bg="#faf8f5", text="#3b3836", panel="#ffffff", faint="#d5d0c8", accent="#b07d3a"),
-    "lavender":   dict(bg="#f3eef8", text="#3d3551", panel="#faf7ff", faint="#cec3de", accent="#9b6dcc"),
-    "solarlight": dict(bg="#fdf6e3", text="#586e75", panel="#eee8d5", faint="#cfc7ac", accent="#268bd2"),
-    "sand":       dict(bg="#f3ecdf", text="#4a4136", panel="#fbf6ec", faint="#d8cdb8", accent="#b8893a"),
-    "steel":      dict(bg="#eef1f4", text="#2a3038", panel="#ffffff", faint="#cdd4dc", accent="#4a6f9c"),
-    "coral":      dict(bg="#fff5f0", text="#5a3a32", panel="#ffffff", faint="#f0d0c4", accent="#ff6b4a"),
-    "ice":        dict(bg="#eef6fb", text="#24414f", panel="#ffffff", faint="#c8dce8", accent="#2a9fd0"),
-    "peach":      dict(bg="#fff3e8", text="#5a3e2a", panel="#ffffff", faint="#f0d6bc", accent="#f08a3a"),
-    "cute":       dict(bg="#fff0f5", text="#d4608a", panel="#fff8fa", faint="#f0c0d0", accent="#ff6b9d"),
+    "dark": dict(bg="#0a0a0a", text="#e8e6e3", panel="#0e0e0e", faint="#2e2e2e", accent="#818cf8"),
+    "midnight": dict(
+        bg="#0d1117", text="#c9d1d9", panel="#161b22", faint="#30363d", accent="#58a6ff"
+    ),
+    "light": dict(bg="#f5f4f1", text="#111111", panel="#efede9", faint="#d4d2ce", accent="#818cf8"),
+    "blossom": dict(
+        bg="#faf4f6", text="#4a2c34", panel="#ffffff", faint="#e8ccd4", accent="#d6537a"
+    ),
+    "sakura": dict(
+        bg="#fff0f3", text="#5c3a44", panel="#ffe5ea", faint="#f0c8d2", accent="#ff85a1"
+    ),
+    "paper": dict(bg="#faf8f5", text="#3b3836", panel="#ffffff", faint="#d5d0c8", accent="#b07d3a"),
+    "lavender": dict(
+        bg="#f3eef8", text="#3d3551", panel="#faf7ff", faint="#cec3de", accent="#9b6dcc"
+    ),
+    "solarlight": dict(
+        bg="#fdf6e3", text="#586e75", panel="#eee8d5", faint="#cfc7ac", accent="#268bd2"
+    ),
+    "sand": dict(bg="#f3ecdf", text="#4a4136", panel="#fbf6ec", faint="#d8cdb8", accent="#b8893a"),
+    "steel": dict(bg="#eef1f4", text="#2a3038", panel="#ffffff", faint="#cdd4dc", accent="#4a6f9c"),
+    "coral": dict(bg="#fff5f0", text="#5a3a32", panel="#ffffff", faint="#f0d0c4", accent="#ff6b4a"),
+    "ice": dict(bg="#eef6fb", text="#24414f", panel="#ffffff", faint="#c8dce8", accent="#2a9fd0"),
+    "peach": dict(bg="#fff3e8", text="#5a3e2a", panel="#ffffff", faint="#f0d6bc", accent="#f08a3a"),
+    "cute": dict(bg="#fff0f5", text="#d4608a", panel="#fff8fa", faint="#f0c0d0", accent="#ff6b9d"),
 }
 
 # view id -> how to get there. login is special-cased (force-show the overlay).
@@ -72,11 +83,22 @@ EVAL = r"""
 }
 """
 
+
 def set_theme(pg, name, cols):
-    app = {"preset": name, "colors": cols, "font": "sans", "density": "comfortable",
-           "bgPattern": "none", "frosted": False, "effect": {"color": "", "intensity": 1, "size": 1},
-           "customThemes": {}}
-    pg.evaluate("(a) => { localStorage.setItem('alles-appearance', JSON.stringify(a)); localStorage.removeItem('aide-accent'); localStorage.removeItem('aide-theme'); }", app)
+    app = {
+        "preset": name,
+        "colors": cols,
+        "font": "sans",
+        "density": "comfortable",
+        "bgPattern": "none",
+        "frosted": False,
+        "effect": {"color": "", "intensity": 1, "size": 1},
+        "customThemes": {},
+    }
+    pg.evaluate(
+        "(a) => { localStorage.setItem('alles-appearance', JSON.stringify(a)); localStorage.removeItem('aide-accent'); localStorage.removeItem('aide-theme'); }",
+        app,
+    )
 
 
 def main():
@@ -95,16 +117,28 @@ def main():
             for view in VIEWS:
                 try:
                     if view == "login":
-                        pg.evaluate("() => { const l=document.getElementById('login-screen'); if(l){ l.style.display='flex'; } }")
+                        pg.evaluate(
+                            "() => { const l=document.getElementById('login-screen'); if(l){ l.style.display='flex'; } }"
+                        )
                         pg.wait_for_timeout(150)
                         fails = pg.evaluate(EVAL, "#login-screen")
-                        pg.evaluate("() => { const l=document.getElementById('login-screen'); if(l) l.style.display='none'; }")
+                        pg.evaluate(
+                            "() => { const l=document.getElementById('login-screen'); if(l) l.style.display='none'; }"
+                        )
                     else:
                         pg.evaluate("(v) => window._navigateTo && window._navigateTo(v)", view)
                         pg.wait_for_timeout(450)
-                        sel = "#" + (view + "-view" if view in ("journal",) else
-                                    {"home": "home-view", "money": "money-view", "wiki": "wiki-view",
-                                     "calendar": "calendar-view", "aide": "aide-view"}.get(view, view + "-view"))
+                        sel = "#" + (
+                            view + "-view"
+                            if view in ("journal",)
+                            else {
+                                "home": "home-view",
+                                "money": "money-view",
+                                "wiki": "wiki-view",
+                                "calendar": "calendar-view",
+                                "aide": "aide-view",
+                            }.get(view, view + "-view")
+                        )
                         fails = pg.evaluate(EVAL, sel)
                     results[tname][view] = fails
                 except Exception as e:
@@ -125,11 +159,14 @@ def main():
     for t, views in results.items():
         n = sum(len([f for f in fl if "ratio" in f]) for fl in views.values())
         total += n
-        worst = sorted(((v, len([f for f in fl if "ratio" in f])) for v, fl in views.items()), key=lambda x: -x[1])
+        worst = sorted(
+            ((v, len([f for f in fl if "ratio" in f])) for v, fl in views.items()),
+            key=lambda x: -x[1],
+        )
         wstr = ", ".join(f"{v}:{c}" for v, c in worst if c)
         print(f"{t:<12} {n:<18} {wstr}")
     print(f"\nTOTAL failing text/bg pairs: {total}")
-    print(f"wrote {OUT/'contrast.json'} + journal screenshots")
+    print(f"wrote {OUT / 'contrast.json'} + journal screenshots")
 
 
 if __name__ == "__main__":

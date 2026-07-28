@@ -6,8 +6,16 @@ from playwright.sync_api import sync_playwright
 
 PORT = sys.argv[1] if len(sys.argv) > 1 else "8916"
 OUT = "docs/evidence/books"
-IGNORE = ("ERR_", "favicon", "401", "403", "Failed to load resource", "net::", "Load failed",
-          "covers.openlibrary")  # external cover host can be slow/blocked — not our bug
+IGNORE = (
+    "ERR_",
+    "favicon",
+    "401",
+    "403",
+    "Failed to load resource",
+    "net::",
+    "Load failed",
+    "covers.openlibrary",
+)  # external cover host can be slow/blocked — not our bug
 URL = f"http://books.localhost:{PORT}/"
 
 
@@ -61,7 +69,7 @@ def run():
         if note:
             note.click()
             pg.wait_for_timeout(300)
-            ta = pg.query_selector('.book-notes-edit textarea')
+            ta = pg.query_selector(".book-notes-edit textarea")
             if ta:
                 ta.fill("loved the ending")
                 pg.click('.book-card [data-act="save-notes"]')
@@ -80,7 +88,9 @@ def run():
 
     real = clean(errs)
     with open(f"{OUT}/console.log", "w", encoding="utf-8") as f:
-        f.write("ALL:\n" + ("\n".join(errs) or "(none)") + "\n\nREAL:\n" + ("\n".join(real) or "(none)"))
+        f.write(
+            "ALL:\n" + ("\n".join(errs) or "(none)") + "\n\nREAL:\n" + ("\n".join(real) or "(none)")
+        )
     if real:
         print("FAIL — real console errors:", real[:5])
         sys.exit(1)

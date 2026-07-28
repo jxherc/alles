@@ -1,16 +1,17 @@
-export async function loadBrainPanel() {
+import { formatNumber } from './i18n.js';
+
+export async function loadBrainPanel(fetcher = fetch) {
   const statsEl = document.getElementById('brain-stats');
   const contextEl = document.getElementById('brain-context');
   const memoriesEl = document.getElementById('brain-memories');
   if (!statsEl || !contextEl || !memoriesEl) return;
 
-  const [memories, history, insights, distilled, proxStats, settings] = await Promise.all([
-    fetch('/api/memories').then(r => r.json()).catch(() => []),
-    _loadCurrentHistory(),
-    fetch('/api/insights').then(r => r.json()).catch(() => []),
-    fetch('/api/memory/distilled').then(r => r.json()).catch(() => []),
-    fetch('/api/proactive/stats').then(r => r.json()).catch(() => ({})),
-    fetch('/api/settings').then(r => r.json()).catch(() => ({})),
+  const [memories, history, insights, distilled, settings] = await Promise.all([
+    fetcher('/api/memories').then(r => r.ok ? r.json() : Promise.reject(new Error('memories unavailable'))).catch(() => []),
+    _loadCurrentHistory(fetcher),
+    fetcher('/api/insights').then(r => r.ok ? r.json() : Promise.reject(new Error('insights unavailable'))).catch(() => []),
+    fetcher('/api/memory/distilled').then(r => r.ok ? r.json() : Promise.reject(new Error('memory model unavailable'))).catch(() => []),
+    fetcher('/api/settings').then(r => r.ok ? r.json() : Promise.reject(new Error('settings unavailable'))).catch(() => ({})),
   ]);
 
   const messages = history?.messages || [];
@@ -25,14 +26,14 @@ export async function loadBrainPanel() {
     _stat('memories', memories.length),
     _stat('pinned', pinned),
     _stat('messages', messages.length),
-    _stat('tokens', approxTokens.toLocaleString()),
+    _stat('tokens', formatNumber(approxTokens)),
   ].join('');
 
   contextEl.innerHTML = `
     <div><span>session</span><strong>${_esc(session?.name || 'none')}</strong></div>
     <div><span>model</span><strong>${_esc(session?.model || document.getElementById('model-label')?.textContent || 'no model')}</strong></div>
     <div><span>turns</span><strong>${userCount} user / ${aiCount} ai</strong></div>
-    <div><span>context estimate</span><strong>${approxTokens.toLocaleString()} tokens</strong></div>
+    <div><span>context estimate</span><strong>${formatNumber(approxTokens)} tokens</strong></div>
   `;
 
   const recent = memories.slice(0, 6);
@@ -45,7 +46,6 @@ export async function loadBrainPanel() {
 
   _renderInsights(insights, settings);
   _renderUserModel(distilled, settings);
-  _renderProxStats(proxStats, settings);
   _bindButtons();
 }
 
@@ -122,26 +122,6 @@ function _renderUserModel(facts, settings) {
   }));
 }
 
-function _renderProxStats(stats, settings) {
-  const el = document.getElementById('brain-proxstats');
-  if (!el) return;
-  const cats = Object.entries(stats || {});
-  if (!cats.length) {
-    el.innerHTML = settings.pidx_proactive_enabled
-      ? '<div class="brain-empty">no clicks yet - aide learns which cards you act on over time.</div>'
-      : _disabledHint('the proactive agent is off', 'proactive');
-    return;
-  }
-  // most-acted first
-  cats.sort((a, b) => (b[1].act_rate || 0) - (a[1].act_rate || 0));
-  el.innerHTML = cats.map(([cat, c]) => `
-    <div class="prox-stat-row">
-      <span class="prox-stat-cat">${_esc(cat)}</span>
-      <span class="prox-stat-nums">${c.acted || 0} acted / ${c.dismissed || 0} dismissed / ${c.ignored || 0} ignored</span>
-      <span class="prox-stat-weight" title="learned weight on this category">x${(c.weight == null ? 1 : c.weight).toFixed(2)}</span>
-    </div>`).join('');
-}
-
 function _disabledHint(label, pane) {
   return `<div class="brain-empty">${_esc(label)}.
     <button class="act-btn brain-enable" data-open-pane="${pane}">turn it on</button></div>`;
@@ -173,10 +153,10 @@ function _bindButtons() {
   });
 }
 
-async function _loadCurrentHistory() {
+async function _loadCurrentHistory(fetcher = fetch) {
   const sid = window._currentSession?.id;
   if (!sid) return null;
-  const r = await fetch(`/api/sessions/${sid}/history`);
+  const r = await fetcher(`/api/sessions/${sid}/history`);
   if (!r.ok) return null;
   return r.json();
 }

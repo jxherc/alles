@@ -1,10 +1,20 @@
 {
   "manifest_version": 3,
-  "name": "alles vault autofill (retired)",
-  "version": "0.2.0",
-  "description": "Notice-only shell for the retired Alles autofill prototype.",
+  "name": "alles passwords",
+  "version": "1.0.0",
+  "description": "Fill one approved Alles credential on the current exact site.",
+  "permissions": ["activeTab", "scripting", "storage", "idle"],
+  "optional_host_permissions": [
+    "http://localhost/*",
+    "http://127.0.0.1/*",
+    "http://[::1]/*",
+    "https://*/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
   "action": {
     "default_popup": "popup.html",
-    "default_title": "alles autofill retired"
+    "default_title": "alles passwords"
   }
 }

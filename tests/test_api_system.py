@@ -1,3 +1,4 @@
+import json
 import os
 from unittest import mock
 
@@ -64,6 +65,24 @@ class OsArchTest(ApiTest):
 
 
 class SystemStatsTest(ApiTest):
+    def test_process_names_are_safe_for_utf8_json(self):
+        process = mock.MagicMock()
+        process.info = {"pid": 42, "name": "TT语音娱乐\udce7\udc89"}
+        process.cpu_percent.return_value = 1.0
+        process.memory_percent.return_value = 2.0
+        process.memory_info.return_value.rss = 3
+        process.num_threads.return_value = 4
+        process.username.return_value = "owner"
+
+        psutil = mock.MagicMock()
+        psutil.process_iter.return_value = [process]
+
+        processes, total = sysmon._processes(psutil)
+
+        self.assertEqual(total, 1)
+        self.assertEqual(processes[0]["name"], "TT语音娱乐��")
+        json.dumps(processes, ensure_ascii=False).encode("utf-8")
+
     def test_stats_shape(self):
         r = self.client.get("/api/system/stats")
         self.assertEqual(r.status_code, 200)
@@ -178,16 +197,25 @@ class BuildInfoTest(ApiTest):
                 auth.revoke_token(token)
         self.assertEqual(response.status_code, 200)
 
-    def test_all_afterlife_features_default_off(self):
+    def test_delivered_afterlife_features_default_on(self):
         with mock.patch.dict(os.environ, {}, clear=False):
             os.environ.pop("ALLES_AFTERLIFE_FEATURES", None)
-            self.assertEqual(afterlife_feature_flags(), AFTERLIFE_FEATURE_DEFAULTS)
-            self.assertFalse(any(afterlife_feature_flags().values()))
+            flags = afterlife_feature_flags()
+            self.assertEqual(flags, AFTERLIFE_FEATURE_DEFAULTS)
+            self.assertTrue(flags["afterlife_shell"])
+            self.assertTrue(flags["afterlife_today"])
+            self.assertTrue(flags["afterlife_aide_projects"])
+            self.assertTrue(flags["afterlife_andromeda"])
+            self.assertFalse(flags["afterlife_jarvis"])
+            self.assertFalse(flags["afterlife_storage_locations"])
 
     def test_feature_override_is_strict(self):
         flags = afterlife_feature_flags("afterlife_shell, afterlife_storage_locations")
         self.assertTrue(flags["afterlife_shell"])
         self.assertTrue(flags["afterlife_storage_locations"])
+        self.assertFalse(flags["afterlife_today"])
+        self.assertFalse(flags["afterlife_aide_projects"])
+        self.assertFalse(flags["afterlife_andromeda"])
         self.assertFalse(flags["afterlife_jarvis"])
 
         for invalid in (

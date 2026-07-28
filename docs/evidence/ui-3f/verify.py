@@ -1,5 +1,6 @@
 """ui-3f verify — pipe tables render as real, styled HTML tables in live mode
 (bordered cells, emphasised header) and the toolbar table button inserts one that renders."""
+
 import sys
 
 from playwright.sync_api import sync_playwright
@@ -24,7 +25,9 @@ def run():
           if (el) el.click();
         }""")
         pg.wait_for_timeout(1200)
-        pg.evaluate("() => { const v = window._cmEditor?.view; if (v) v.dispatch({selection:{anchor:0}}); }")
+        pg.evaluate(
+            "() => { const v = window._cmEditor?.view; if (v) v.dispatch({selection:{anchor:0}}); }"
+        )
         pg.wait_for_timeout(500)
 
         def ok(name, cond):
@@ -33,7 +36,8 @@ def run():
         t = pg.query_selector(".cm-content table.cm-table")
         ok("table renders as cm-table", t is not None)
         if t:
-            d = pg.evaluate("""(tbl) => {
+            d = pg.evaluate(
+                """(tbl) => {
               const th = tbl.querySelector('th'), td = tbl.querySelector('td');
               const cs = getComputedStyle(th);
               return {
@@ -44,7 +48,9 @@ def run():
                 thBg: cs.backgroundColor,
                 headText: th.textContent,
               };
-            }""", t)
+            }""",
+                t,
+            )
             ok("two header cells", d["heads"] == 2)
             ok("two body rows", d["rows"] == 2)
             ok("cells are bordered", d["thBorder"] not in ("0px", ""))

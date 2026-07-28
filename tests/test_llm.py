@@ -31,6 +31,7 @@ class DetectProviderTests(unittest.TestCase):
             "https://api.cohere.com/v1": "cohere",
             "https://generativelanguage.googleapis.com/v1beta": "gemini",
             "https://api.moonshot.cn/v1": "moonshot",
+            "https://api.moonshot.ai/v1": "moonshot",
         }
         for url, expected in cases.items():
             self.assertEqual(llm.detect_provider(url), expected, url)
@@ -157,6 +158,22 @@ class OpenAIUsagePayloadTests(unittest.TestCase):
             p = llm._build_openai_payload(msgs, "m", stream=True, provider=prov)
             self.assertEqual(p.get("stream_options"), {"include_usage": True}, prov)
 
+    def test_openai_compatible_base_paths_do_not_duplicate_v1(self):
+        self.assertEqual(
+            llm._openai_chat_url("https://api.example.test/v1"),
+            "https://api.example.test/v1/chat/completions",
+        )
+        self.assertEqual(
+            llm._openai_chat_url(
+                "https://generativelanguage.googleapis.com/v1beta/openai"
+            ),
+            "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+        )
+        self.assertEqual(
+            llm._openai_chat_url("https://api.deepseek.com"),
+            "https://api.deepseek.com/v1/chat/completions",
+        )
+
     def test_no_usage_flag_when_unsupported_or_not_streaming(self):
         msgs = [{"role": "user", "content": "hi"}]
         self.assertNotIn(
@@ -166,6 +183,45 @@ class OpenAIUsagePayloadTests(unittest.TestCase):
         self.assertNotIn(
             "stream_options", llm._build_openai_payload(msgs, "m", stream=True, provider="gemini")
         )
+
+    def test_deepseek_thinking_can_be_disabled_for_fast_summaries(self):
+        msgs = [{"role": "user", "content": "summarize"}]
+        payload = llm._build_openai_payload(
+            msgs, "deepseek-v4-flash", provider="deepseek", thinking=False
+        )
+        self.assertEqual(payload["thinking"], {"type": "disabled"})
+
+    def test_anthropic_reasoning_off_overrides_high_effort(self):
+        msgs = [{"role": "user", "content": "summarize"}]
+        payload = llm._build_anthropic_payload(
+            msgs, "claude-sonnet-4", effort="high", thinking=False
+        )
+        self.assertNotIn("thinking", payload)
+
+    def test_anthropic_reasoning_on_works_at_normal_effort(self):
+        msgs = [{"role": "user", "content": "analyze"}]
+        payload = llm._build_anthropic_payload(
+            msgs, "claude-sonnet-4", effort="medium", thinking=True
+        )
+        self.assertEqual(payload["thinking"]["type"], "enabled")
+
+    def test_ollama_reasoning_toggle_uses_think_field(self):
+        msgs = [{"role": "user", "content": "analyze"}]
+        payload = llm._build_ollama_payload(msgs, "qwen3", thinking=False)
+        self.assertIs(payload["think"], False)
+
+    def test_reasoning_control_support_is_honest(self):
+        self.assertTrue(llm.reasoning_control_supported("https://api.deepseek.com", "deepseek-v4"))
+        self.assertTrue(
+            llm.reasoning_control_supported("https://api.anthropic.com", "claude-sonnet-4")
+        )
+        self.assertFalse(
+            llm.reasoning_control_supported("https://api.anthropic.com", "claude-3-haiku")
+        )
+        self.assertFalse(llm.reasoning_control_supported("https://api.openai.com", "gpt-4o-mini"))
+        self.assertFalse(llm.reasoning_control_supported("https://api.openai.com", "gpt-5"))
+        self.assertFalse(llm.reasoning_control_supported("http://localhost:11434", "llama3"))
+        self.assertFalse(llm.reasoning_control_supported("http://localhost:11434", "qwen3"))
 
     def test_oai_reasoning_effort_set_for_o_models(self):
         msgs = [{"role": "user", "content": "hi"}]

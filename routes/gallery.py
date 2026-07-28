@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Upload
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session as DbSession
 
-from core.database import GalleryImage, get_db, _uid
+from core.database import GalleryImage, _uid, get_db
 from core.settings import data_dir
 
 router = APIRouter(prefix="/api")

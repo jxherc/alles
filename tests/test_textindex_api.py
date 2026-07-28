@@ -101,11 +101,17 @@ class TextIndexApiTests(ApiTest):
 
     def test_create_existing_note_indexes_disk_content(self):
         self.client.post("/api/vault-md/file", json={"path": "clip", "content": "alpha original"})
-        r = self.client.post("/api/vault-md/file", json={"path": "clip", "content": "bravo rejected"})
+        r = self.client.post(
+            "/api/vault-md/file", json={"path": "clip", "content": "bravo rejected"}
+        )
 
         self.assertTrue(r.json()["existed"])
         self.assertIn("alpha original", vault_md.read("clip.md")["content"])
-        old = self.client.get("/api/index/search", params={"q": "alpha", "kind": "doc"}).json()["hits"]
-        stale = self.client.get("/api/index/search", params={"q": "bravo", "kind": "doc"}).json()["hits"]
+        old = self.client.get("/api/index/search", params={"q": "alpha", "kind": "doc"}).json()[
+            "hits"
+        ]
+        stale = self.client.get("/api/index/search", params={"q": "bravo", "kind": "doc"}).json()[
+            "hits"
+        ]
         self.assertTrue(any(h["ref"] == "clip.md" for h in old))
         self.assertFalse(any(h["ref"] == "clip.md" for h in stale))

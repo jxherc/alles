@@ -11,6 +11,12 @@ from tests._client import ApiTest
 class SettingsApiTest(ApiTest):
     def setUp(self):
         super().setUp()
+        self._secret_state = (
+            secretstore._key,
+            secretstore._key_path,
+            dict(secretstore._keys),
+            secretstore._active_id,
+        )
         self._tmp = tempfile.TemporaryDirectory()
         self._p = mock.patch.object(cs, "_SETTINGS_FILE", Path(self._tmp.name) / "settings.json")
         self._kp = mock.patch.object(secretstore, "_KEY_FILE", Path(self._tmp.name) / "secret.key")
@@ -23,6 +29,12 @@ class SettingsApiTest(ApiTest):
         self._kp.stop()
         self._p.stop()
         self._tmp.cleanup()
+        (
+            secretstore._key,
+            secretstore._key_path,
+            secretstore._keys,
+            secretstore._active_id,
+        ) = self._secret_state
         super().tearDown()
 
     def test_get_returns_a_dict_of_defaults(self):
@@ -87,6 +99,17 @@ class SettingsApiTest(ApiTest):
         self.assertTrue(raw.startswith("enc2:"))
         self.assertNotIn("sk-live", cs._SETTINGS_FILE.read_text("utf-8"))
         self.assertTrue((Path(self._tmp.name) / "secret.key").is_file())
+
+    def test_settings_replace_is_atomic_and_failure_preserves_previous_bytes(self):
+        cs.save_settings({"theme": "dark"})
+        before = cs._SETTINGS_FILE.read_bytes()
+
+        with mock.patch.object(cs.os, "replace", side_effect=OSError("replace failed")):
+            with self.assertRaises(OSError):
+                cs.save_settings({"theme": "light"})
+
+        self.assertEqual(cs._SETTINGS_FILE.read_bytes(), before)
+        self.assertEqual(list(cs._SETTINGS_FILE.parent.glob(".settings.json.*.tmp")), [])
 
     def test_patch_persists_ai_defaults(self):
         r = self.client.patch(
@@ -163,13 +186,15 @@ class SettingsApiTest(ApiTest):
     def test_patch_validates_and_persists_model_roles(self):
         roles = {
             "aide_chat": {"endpoint_id": "ep-a", "model": "chat-a"},
-            "andromeda": {"endpoint_id": "ep-b", "model": "search-b"},
+            "andromeda_answer": {"endpoint_id": "ep-b", "model": "search-b"},
+            "andromeda_verifier": {"endpoint_id": "ep-v", "model": "verify-v"},
             "jarvis": {"endpoint_id": "ep-c", "model": "background-c"},
         }
         response = self.client.patch("/api/settings", json={"model_roles": roles})
         self.assertEqual(response.status_code, 200)
         saved = response.json()["model_roles"]
-        self.assertEqual(saved["andromeda"]["model"], "search-b")
+        self.assertEqual(saved["andromeda_answer"]["model"], "search-b")
+        self.assertEqual(saved["andromeda_verifier"]["model"], "verify-v")
         self.assertEqual(saved["jarvis"]["fallbacks"], [])
 
         invalid = self.client.patch(
@@ -177,6 +202,30 @@ class SettingsApiTest(ApiTest):
         )
         self.assertEqual(invalid.status_code, 400)
         self.assertEqual(invalid.json()["code"], "invalid_model_roles")
+
+    def test_andromeda_verifier_policy_and_cost_limits_are_bounded(self):
+        response = self.client.patch(
+            "/api/settings",
+            json={
+                "andromeda_verification_enabled": False,
+                "andromeda_verifier_mode": "manual",
+                "andromeda_answer_max_tokens": 320,
+                "andromeda_answer_timeout_seconds": 20,
+                "andromeda_verifier_max_tokens": 240,
+                "andromeda_verifier_timeout_seconds": 15,
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["andromeda_verifier_mode"], "manual")
+        self.assertEqual(response.json()["andromeda_verifier_max_tokens"], 240)
+        invalid_mode = self.client.patch(
+            "/api/settings", json={"andromeda_verifier_mode": "sometimes"}
+        )
+        self.assertEqual(invalid_mode.status_code, 400)
+        invalid_limit = self.client.patch(
+            "/api/settings", json={"andromeda_verifier_timeout_seconds": 2}
+        )
+        self.assertEqual(invalid_limit.status_code, 400)
 
     def test_plaintext_setting_secret_is_migrated(self):
         cs._SETTINGS_FILE.write_text('{"openai_api_key":"old-plaintext"}', "utf-8")
@@ -207,19 +256,49 @@ class SettingsApiTest(ApiTest):
     def test_patch_localization_settings(self):
         response = self.client.patch(
             "/api/settings",
-            json={"language": "EN", "region": "tw", "timezone": "Asia/Taipei"},
+            json={
+                "language": "EN",
+                "region": "tw",
+                "timezone": "Asia/Taipei",
+                "clock_format": "24",
+                "week_start": "mon",
+                "currency": "twd",
+            },
         )
         self.assertEqual(response.status_code, 200)
         saved = response.json()
         self.assertEqual(saved["language"], "en")
         self.assertEqual(saved["region"], "TW")
         self.assertEqual(saved["timezone"], "Asia/Taipei")
+        self.assertEqual(saved["clock_format"], "24")
+        self.assertEqual(saved["week_start"], "mon")
+        self.assertEqual(saved["currency"], "TWD")
 
-    def test_rejects_unreviewed_language_and_invalid_locale_values(self):
+    def test_localization_options_expose_all_released_languages(self):
+        response = self.client.get("/api/settings/localization/options")
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(
+            [item["id"] for item in data["languages"]],
+            ["en", "fr", "es", "zh-Hans", "zh-Hant", "ja", "ko", "ar"],
+        )
+        self.assertEqual(
+            [item["id"] for item in data["languages"] if item["available"]],
+            ["en", "fr", "es", "zh-Hans", "zh-Hant", "ja", "ko", "ar"],
+        )
+        self.assertEqual(data["regions"][0], {"value": "", "label": "automatic"})
+        self.assertEqual(data["timezones"][0], {"value": "", "label": "automatic"})
+        self.assertEqual(data["currencies"][0], {"value": "", "label": "automatic"})
+
+    def test_rejects_unknown_language_and_invalid_locale_values(self):
         cases = (
-            ({"language": "fr"}, "unsupported_language"),
+            ({"language": "de"}, "unsupported_language"),
             ({"region": "taiwan"}, "invalid_region"),
             ({"timezone": "Taipei-ish"}, "invalid_timezone"),
+            ({"clock_format": "military"}, "invalid_clock_format"),
+            ({"week_start": "tuesday"}, "invalid_week_start"),
+            ({"currency": "bitcoin"}, "invalid_currency"),
+            ({"currency": None}, "invalid_currency"),
         )
         for patch, code in cases:
             with self.subTest(patch=patch):

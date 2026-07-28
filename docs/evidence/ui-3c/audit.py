@@ -1,5 +1,6 @@
 """ui-3c audit — open livetest.md in docs, switch to live mode, capture how each
 markdown element currently renders (RED state for the live-preview engine work)."""
+
 import sys
 
 from playwright.sync_api import sync_playwright
@@ -58,7 +59,25 @@ def run():
         with open(OUT + "/live-dom.html", "w", encoding="utf-8") as f:
             f.write(info.get("html", ""))
         pg.screenshot(path=OUT + "/live-current.png", full_page=True)
-        print("console errors:", [e for e in errs if not any(s in e for s in ("ERR_", "favicon", "401", "403", "Failed to load resource", "net::", "Load failed"))])
+        print(
+            "console errors:",
+            [
+                e
+                for e in errs
+                if not any(
+                    s in e
+                    for s in (
+                        "ERR_",
+                        "favicon",
+                        "401",
+                        "403",
+                        "Failed to load resource",
+                        "net::",
+                        "Load failed",
+                    )
+                )
+            ],
+        )
         b.close()
 
 

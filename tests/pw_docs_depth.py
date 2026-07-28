@@ -1,12 +1,13 @@
 """docs + notes UI depth smoke. :8895."""
 
+import os
 import sys
 from pathlib import Path
 
 from playwright.sync_api import sync_playwright
 
 DOCS = "http://docs.localhost:8895"
-EVID = Path(__file__).resolve().parent.parent / "docs" / "evidence" / "docs"
+EVID = Path(os.environ.get("ALLES_BROWSER_EVIDENCE", "/tmp/alles-docs-evidence"))
 IGNORE = ("Failed to load resource", "net::", "ERR_", "favicon", "401", "Load failed")
 
 
@@ -90,44 +91,53 @@ def main():
 
         pg.click('#wiki-preview a[href="#wiki=project"]')
         pg.wait_for_function("document.getElementById('wiki-current')?.textContent === 'project'")
-        pg.wait_for_selector('#wiki-backlinks .wiki-bl[data-file="index.md"]', state="attached", timeout=8000)
+        pg.wait_for_selector(
+            '#wiki-backlinks [data-file="index.md"]', state="attached", timeout=8000
+        )
         r["wikilink_opens_doc_and_backlinks_render"] = (
             "orbit banana" in (pg.text_content("#wiki-preview") or "")
             and "index" in (pg.text_content("#wiki-backlinks") or "").lower()
         )
 
         pg.fill("#wiki-search", "orbit banana")
-        pg.wait_for_function("document.querySelector('#wiki-tree')?.textContent.includes('orbit banana')")
-        r["docs_search_filters_with_context"] = (
-            "project" in (pg.text_content("#wiki-tree") or "").lower()
-            and "orbit banana" in (pg.text_content("#wiki-tree") or "")
+        pg.wait_for_function(
+            "document.querySelector('#wiki-tree')?.textContent.includes('orbit banana')"
         )
+        r["docs_search_filters_with_context"] = "project" in (
+            pg.text_content("#wiki-tree") or ""
+        ).lower() and "orbit banana" in (pg.text_content("#wiki-tree") or "")
         pg.fill("#wiki-search", "")
         pg.wait_for_timeout(300)
         pg.wait_for_selector('#wiki-tree .wiki-file[data-file="index.md"]', timeout=8000)
 
         pg.wait_for_selector('#wiki-tags .wiki-tag[data-tag="alpha"]', timeout=8000)
         pg.click('#wiki-tags .wiki-tag[data-tag="alpha"]')
-        pg.wait_for_selector("#wiki-tag-clear", state="attached", timeout=8000)
+        pg.wait_for_selector(".docs-tag-clear", state="attached", timeout=8000)
         r["docs_tag_filter_and_clear"] = (
             "index" in (pg.text_content("#wiki-tree") or "").lower()
-            and pg.query_selector("#wiki-tag-clear") is not None
+            and pg.query_selector(".docs-tag-clear") is not None
         )
-        pg.click("#wiki-tag-clear")
+        pg.click(".docs-tag-clear")
         pg.wait_for_selector('#wiki-tree .wiki-file[data-file="project.md"]', timeout=8000)
 
+        pg.evaluate(
+            "window._askInChat = (q, web, scope) => { window.__docsAsk = {q, web, scope}; }"
+        )
         pg.click("#wiki-ask-btn")
         pg.fill("#wiki-ask-input", "orbit banana")
         pg.click("#wiki-ask-go")
-        pg.wait_for_function(
-            "document.querySelector('#wiki-ask-results')?.textContent.toLowerCase().includes('project')"
+        pg.wait_for_function("window.__docsAsk?.scope?.path === 'project.md'")
+        ask = pg.evaluate("window.__docsAsk")
+        r["docs_ask_uses_visible_exact_document_scope"] = (
+            ask["q"] == "orbit banana"
+            and ask["scope"]["kind"] == "vault_document"
+            and bool(ask["scope"]["expected_hash"])
         )
-        r["docs_ask_returns_source"] = "project" in (
-            pg.text_content("#wiki-ask-results") or ""
-        ).lower()
 
-        pg.once("dialog", lambda d: d.accept("browser created"))
         pg.click("#wiki-new-btn")
+        pg.wait_for_selector("#docs-dialog:not([hidden])")
+        pg.fill("#docs-dialog-input", "browser created")
+        pg.click('[data-dialog-action="confirm"]')
         pg.wait_for_function(
             "document.getElementById('wiki-current')?.textContent === 'browser created'"
         )
@@ -137,34 +147,37 @@ def main():
 
         pg.click("#wiki-tree-toggle")
         r["docs_tree_toggle_hides_panel"] = pg.eval_on_selector(
-            ".wiki-tree-panel", "el => el.classList.contains('hidden')"
+            "#wiki-view", "el => el.classList.contains('docs-nav-hidden')"
         )
         pg.click("#wiki-tree-toggle")
 
         pg.click('.docs-sec-btn[data-section="notes"]')
+        pg.wait_for_function("document.getElementById('wiki-notes')?.offsetParent !== null")
         pg.wait_for_function(
-            "document.getElementById('wiki-notes')?.offsetParent !== null"
+            "document.querySelector('#notes-list')?.textContent.includes('browser note')"
         )
-        pg.wait_for_function("document.querySelector('#notes-list')?.textContent.includes('browser note')")
-        r["notes_tab_lists_seeded_note"] = (
-            _visible(pg, "#wiki-notes")
-            and "blue comet" in (pg.text_content("#notes-list") or "")
+        r["notes_tab_lists_seeded_note"] = _visible(pg, "#wiki-notes") and "blue comet" in (
+            pg.text_content("#notes-list") or ""
         )
 
         pg.wait_for_selector('.note-tag-chip[data-tag="audit"]', timeout=8000)
         pg.click('.note-tag-chip[data-tag="audit"]')
-        pg.wait_for_function("document.querySelector('#notes-list')?.textContent.includes('browser note')")
+        pg.wait_for_function(
+            "document.querySelector('#notes-list')?.textContent.includes('browser note')"
+        )
         pg.fill("#note-search", "blue comet")
         pg.wait_for_timeout(350)
-        pg.wait_for_function("document.querySelector('#notes-list')?.textContent.includes('browser note')")
-        r["notes_search_and_tag_filter"] = "browser note" in (
-            pg.text_content("#notes-list") or ""
+        pg.wait_for_function(
+            "document.querySelector('#notes-list')?.textContent.includes('browser note')"
         )
+        r["notes_search_and_tag_filter"] = "browser note" in (pg.text_content("#notes-list") or "")
         pg.fill("#note-search", "")
         pg.wait_for_timeout(350)
         pg.click('.note-tag-chip[data-tag=""]')
         pg.wait_for_timeout(350)
-        pg.wait_for_function("document.querySelector('#notes-list')?.textContent.includes('browser note')")
+        pg.wait_for_function(
+            "document.querySelector('#notes-list')?.textContent.includes('browser note')"
+        )
 
         pg.click("#note-new-btn")
         pg.wait_for_selector("#note-edit-title", timeout=8000)
@@ -177,7 +190,9 @@ def main():
         pg.click("#note-save-btn")
         pg.wait_for_timeout(400)
         pg.click("#note-back-btn")
-        pg.wait_for_function("document.querySelector('#notes-list')?.textContent.includes('browser scratch')")
+        pg.wait_for_function(
+            "document.querySelector('#notes-list')?.textContent.includes('browser scratch')"
+        )
         notes_txt = pg.text_content("#notes-list") or ""
         r["notes_new_edit_checklist_roundtrip"] = (
             "browser scratch" in notes_txt

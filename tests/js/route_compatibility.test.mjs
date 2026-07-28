@@ -19,15 +19,26 @@ const pick = route => route && {
   hashOwner: route.hashOwner,
 };
 
-test('canonical hosts include consolidated products and unchanged specialist apps', () => {
+test('canonical hosts include the Stage 8 specialist groups and unchanged apps', () => {
   assert.deepEqual(Object.keys(CANONICAL_HOSTS).sort(), [
-    '', 'aide', 'books', 'calendar', 'contacts', 'days', 'docs', 'files',
-    'finance', 'habits', 'health', 'mail', 'passwords', 'read', 'server',
-    'tasks', 'watch',
+    '', 'aide', 'andromeda', 'docs', 'files', 'finance', 'health', 'inbox',
+    'library', 'passwords', 'plan', 'server',
   ]);
   assert.equal(CANONICAL_HOSTS.docs.primary, 'wiki');
-  assert.deepEqual(CANONICAL_HOSTS.finance.views, ['money', 'subs']);
-  assert.deepEqual(CANONICAL_HOSTS.files.views, ['files', 'photos']);
+  assert.deepEqual(CANONICAL_HOSTS.plan.views, [
+    'plan', 'plan-week', 'plan-board', 'calendar', 'tasks', 'reminders', 'days',
+  ]);
+  assert.ok(CANONICAL_HOSTS.aide.views.includes('aide-reminders'));
+  assert.deepEqual(CANONICAL_HOSTS.inbox.views, ['inbox', 'mail', 'contacts']);
+  assert.deepEqual(CANONICAL_HOSTS.library.views, ['library', 'books', 'read']);
+  assert.deepEqual(CANONICAL_HOSTS.health.views, ['health', 'health-log', 'habits']);
+  assert.deepEqual(CANONICAL_HOSTS.finance.views, ['finance', 'money', 'subs', 'imports']);
+  assert.deepEqual(CANONICAL_HOSTS.files.views, ['files', 'files-list', 'files-gallery', 'photos']);
+  assert.ok(CANONICAL_HOSTS.server.views.includes('activity'));
+  assert.ok(CANONICAL_HOSTS.server.views.includes('watch'));
+  for (const oldHost of ['calendar', 'tasks', 'mail', 'contacts', 'read', 'books', 'habits']) {
+    assert.ok(!Object.hasOwn(CANONICAL_HOSTS, oldHost), oldHost);
+  }
   assert.ok(!Object.hasOwn(CANONICAL_HOSTS, 'gallery'));
   assert.ok(!Object.hasOwn(CANONICAL_HOSTS, 'system'));
 });
@@ -36,13 +47,23 @@ test('legacy hosts are separate aliases with complete route descriptors', () => 
   const expected = {
     home: ['', 'today'],
     today: ['', 'today'],
-    activity: ['', 'activity'],
+    activity: ['server', 'server'],
     system: ['server', 'system'],
     secrets: ['passwords', 'vault'],
     vault: ['passwords', 'vault'],
-    money: ['finance', 'money'],
-    subs: ['finance', 'subs'],
-    subscriptions: ['finance', 'subs'],
+    watch: ['server', 'server'],
+    money: ['finance', 'finance'],
+    subs: ['finance', 'finance'],
+    subscriptions: ['finance', 'finance'],
+    calendar: ['plan', 'plan'],
+    tasks: ['plan', 'plan'],
+    reminders: ['plan', 'plan'],
+    days: ['plan', 'plan'],
+    mail: ['inbox', 'inbox'],
+    contacts: ['inbox', 'inbox'],
+    read: ['library', 'library'],
+    books: ['library', 'library'],
+    habits: ['health', 'health'],
     notes: ['docs', 'wiki'],
     wiki: ['docs', 'wiki'],
     journal: ['docs', 'journal'],
@@ -60,7 +81,7 @@ test('legacy hosts are separate aliases with complete route descriptors', () => 
   }
 });
 
-test('old app and view identifiers resolve to the Phase 3 route matrix', () => {
+test('old app and view identifiers retain their destination through the Stage 8 matrix', () => {
   const matrix = [
     ['home', { host: '', view: 'today', hashOwner: 'today' }],
     ['today', { host: '', view: 'today', hashOwner: 'today' }],
@@ -69,10 +90,10 @@ test('old app and view identifiers resolve to the Phase 3 route matrix', () => {
     ['secrets', { host: 'passwords', view: 'vault', hashOwner: 'vault' }],
     ['vault', { host: 'passwords', view: 'vault', hashOwner: 'vault' }],
     ['passwords', { host: 'passwords', view: 'vault', hashOwner: 'vault' }],
-    ['money', { host: 'finance', view: 'money', hashOwner: 'money' }],
-    ['finance', { host: 'finance', view: 'money', hashOwner: 'money' }],
-    ['subs', { host: 'finance', view: 'subs', hashOwner: 'subs' }],
-    ['subscriptions', { host: 'finance', view: 'subs', hashOwner: 'subs' }],
+    ['money', { host: 'finance', view: 'finance', section: 'money', hashOwner: 'money' }],
+    ['finance', { host: 'finance', view: 'finance', section: 'money', hashOwner: 'money' }],
+    ['subs', { host: 'finance', view: 'finance', section: 'subs', hashOwner: 'subs' }],
+    ['subscriptions', { host: 'finance', view: 'finance', section: 'subs', hashOwner: 'subs' }],
     ['notes', { host: 'docs', view: 'wiki', section: 'notes', hashOwner: 'notes' }],
     ['wiki', { host: 'docs', view: 'wiki', hashOwner: 'wiki' }],
     ['docs', { host: 'docs', view: 'wiki', hashOwner: 'wiki' }],
@@ -84,7 +105,10 @@ test('old app and view identifiers resolve to the Phase 3 route matrix', () => {
     ['jarvis', { host: 'aide', view: 'chat', mode: 'jarvis', hashOwner: 'session' }],
     ['chat', { host: 'aide', view: 'chat', hashOwner: 'session' }],
     ['aide', { host: 'aide', view: 'chat', hashOwner: 'session' }],
-    ['activity', { host: '', view: 'activity', hashOwner: 'activity' }],
+    ['aide-reminders', { host: 'aide', view: 'aide-reminders', hashOwner: 'aide-reminders' }],
+    ['andromeda', { host: 'andromeda', view: 'andromeda', hashOwner: 'andromeda' }],
+    ['activity', { host: 'server', view: 'server', section: 'activity', hashOwner: 'activity' }],
+    ['health', { host: 'health', view: 'health', section: 'health', hashOwner: 'health-log' }],
   ];
 
   for (const [identifier, expected] of matrix) {
@@ -93,15 +117,37 @@ test('old app and view identifiers resolve to the Phase 3 route matrix', () => {
   }
 });
 
-test('unchanged specialist and Aide views keep their canonical owners', () => {
-  const specialist = ['mail', 'calendar', 'tasks', 'days', 'watch', 'habits', 'read', 'books', 'health', 'contacts'];
-  for (const id of specialist) {
+test('specialist identifiers resolve to their Stage 8 group and preserve their section', () => {
+  const matrix = {
+    plan: ['plan', 'plan', null],
+    calendar: ['plan', 'plan', 'calendar'],
+    tasks: ['plan', 'plan', 'tasks'],
+    reminders: ['plan', 'plan', 'reminders'],
+    inbox: ['inbox', 'inbox', null],
+    mail: ['inbox', 'inbox', 'mail'],
+    contacts: ['inbox', 'inbox', 'contacts'],
+    library: ['library', 'library', null],
+    books: ['library', 'library', 'books'],
+    read: ['library', 'library', 'read'],
+    health: ['health', 'health', 'health', 'health-log'],
+    'health-overview': ['health', 'health', null, 'health-overview'],
+    'health-log': ['health', 'health', 'health', 'health-log'],
+    habits: ['health', 'health', 'habits'],
+    finance: ['finance', 'finance', 'money', 'money'],
+    'finance-overview': ['finance', 'finance', null, 'finance-overview'],
+    money: ['finance', 'finance', 'money'],
+    subs: ['finance', 'finance', 'subs'],
+    imports: ['finance', 'finance', 'imports'],
+    days: ['plan', 'plan', 'days'],
+    watch: ['server', 'server', 'watch'],
+  };
+  for (const [id, [host, view, section, hashOwner = id]] of Object.entries(matrix)) {
     assert.deepEqual(pick(resolveCompatibilityRoute({ app: id, flags: on })), {
-      host: id, view: id, hashOwner: id,
-    });
+      host, view, ...(section ? { section } : {}), hashOwner,
+    }, id);
   }
 
-  const aideViews = ['memory', 'compare', 'brain', 'models', 'reminders', 'cookbook', 'usage', 'skills'];
+  const aideViews = ['memory', 'compare', 'brain', 'models', 'cookbook', 'usage', 'skills'];
   for (const id of aideViews) {
     assert.deepEqual(pick(resolveCompatibilityRoute({ view: id, flags: on })), {
       host: 'aide', view: id, hashOwner: id,
@@ -145,16 +191,18 @@ test('unknown explicit identifiers and unknown hosts are no-ops', () => {
   assert.equal(resolveCompatibilityRoute(), null);
 });
 
-test('Today and Activity have safe flag-off fallbacks', () => {
+test('Today keeps its flag-off fallback while Activity always consolidates into Server', () => {
   assert.deepEqual(pick(resolveCompatibilityRoute({ sub: 'home', flags: off })), {
     host: '', view: 'home', hashOwner: 'home',
   });
   assert.deepEqual(pick(resolveCompatibilityRoute({ app: 'today', flags: off })), {
     host: '', view: 'home', hashOwner: 'home',
   });
-  assert.equal(resolveCompatibilityRoute({ sub: 'activity', flags: off }), null);
+  assert.deepEqual(pick(resolveCompatibilityRoute({ sub: 'activity', flags: off })), {
+    host: 'server', view: 'server', section: 'activity', hashOwner: 'activity',
+  });
   assert.deepEqual(pick(resolveCompatibilityRoute({ app: 'activity', flags: off })), {
-    host: 'activity', view: 'activity', hashOwner: 'activity',
+    host: 'server', view: 'server', section: 'activity', hashOwner: 'activity',
   });
 });
 
@@ -220,6 +268,49 @@ test('cross-host handoffs carry exact Notes and Jarvis destinations', () => {
     currentUrl: 'http://cowork.localhost:8000/?keep=1#session-id',
     route: jarvis,
   }), 'http://aide.localhost:8000/?keep=1&view=jarvis#session-id');
+
+  const aideReminders = resolveCompatibilityRoute({
+    app: 'aide-reminders', flags: on,
+  });
+  assert.equal(buildCompatibilityUrl({
+    currentUrl: 'http://localhost:8000/?app=aide-reminders&keep=1',
+    route: aideReminders,
+  }), 'http://aide.localhost:8000/?keep=1&view=aide-reminders');
+});
+
+test('cross-host specialist handoffs carry the legacy section identifier', () => {
+  for (const [legacyHost, groupHost] of [
+    ['calendar', 'plan'], ['tasks', 'plan'], ['reminders', 'plan'], ['days', 'plan'],
+    ['mail', 'inbox'], ['contacts', 'inbox'],
+    ['read', 'library'], ['books', 'library'], ['habits', 'health'],
+    ['money', 'finance'], ['subs', 'finance'],
+  ]) {
+    const route = resolveCompatibilityRoute({ sub: legacyHost, flags: on });
+    assert.equal(buildCompatibilityUrl({
+      currentUrl: `http://${legacyHost}.localhost:8000/?keep=1#detail`,
+      route,
+    }), `http://${groupHost}.localhost:8000/?keep=1&view=${legacyHost}#detail`, legacyHost);
+  }
+});
+
+test('cross-host group overview handoffs keep their non-colliding identifier', () => {
+  for (const identifier of ['health-overview', 'finance-overview']) {
+    const route = resolveCompatibilityRoute({ app: identifier, flags: on });
+    assert.equal(buildCompatibilityUrl({
+      currentUrl: `http://localhost:8000/?app=${identifier}&keep=1`,
+      route,
+    }), `http://${route.host}.localhost:8000/?keep=1&view=${identifier}`, identifier);
+  }
+});
+
+test('cross-host Plan handoffs preserve week and board destinations', () => {
+  for (const identifier of ['plan-week', 'plan-board']) {
+    const route = resolveCompatibilityRoute({ app: identifier, flags: on });
+    assert.equal(buildCompatibilityUrl({
+      currentUrl: `http://localhost:8000/?app=${identifier}&keep=1`,
+      route,
+    }), `http://plan.localhost:8000/?keep=1&view=${identifier}`, identifier);
+  }
 });
 
 test('URL builder returns null for invalid routes and unchanged canonical targets', () => {

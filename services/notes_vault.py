@@ -12,6 +12,7 @@ We build the frontmatter block by hand (not via vault_md.set_frontmatter) so a b
 that starts with `---` (a horizontal rule) doesn't get eaten as frontmatter.
 """
 
+import json
 import re
 from datetime import datetime
 
@@ -23,6 +24,13 @@ NOTES_DIR = "Notes"
 _ILLEGAL = re.compile(r'[<>:"/\\|?*\x00-\x1f]')
 # any checkbox line; text may be empty (we drop empty-text ones)
 _CB = re.compile(r"^\s*[-*]\s+\[([ xX])\]\s*(.*)$")
+_FM_KEY = re.compile(
+    r"^(?:"
+    r"\"((?:[^\"\\]|\\.)+)\""
+    r"|'((?:[^']|'')+)'"
+    r"|((?![-?:](?:[ \t]|$))[^ \t\r\n#{}\[\],&*!|>'\"%@`][^:\r\n]*?)"
+    r"):[ \t]*(.*?)(?:\r?\n)?$"
+)
 
 
 def _rel(stem: str) -> str:
@@ -89,7 +97,8 @@ def _fm_block(props: dict) -> str:
     out = ["---"]
     for k, v in props.items():
         if isinstance(v, list):
-            out.append(f"{k}: [{', '.join(str(x) for x in v)}]")
+            encoded = ", ".join(json.dumps(str(x), ensure_ascii=False) for x in v)
+            out.append(f"{k}: [{encoded}]")
         else:
             out.append(f"{k}: {v}")
     out.append("---")
@@ -114,6 +123,195 @@ def _compose(content, items, tags, pinned, archived, due, created_iso, legacy_id
         lines = [f"- [{'x' if it['done'] else ' '}] {it['text']}" for it in items]
         body = (body + "\n\n" if body else "") + "\n".join(lines)
     return _fm_block(props) + body
+
+
+def _line_ending(text: str) -> str:
+    if "\r\n" in text:
+        return "\r\n"
+    return "\n"
+
+
+def _frontmatter_parts(text: str) -> tuple[str, list[str], str] | None:
+    """Return the exact opening line, interior lines, and body.
+
+    This parser deliberately preserves every byte-representable character and line ending. It is
+    narrower than ``vault_md.parse_frontmatter`` because mutation must never normalize unrelated
+    frontmatter or Markdown.
+    """
+    bom = "\ufeff" if text.startswith("\ufeff") else ""
+    rest = text[len(bom) :]
+    lines = rest.splitlines(keepends=True)
+    if not lines or lines[0].rstrip("\r\n") != "---":
+        return None
+    close = None
+    for index, line in enumerate(lines[1:], 1):
+        if line.rstrip("\r\n") == "---":
+            close = index
+            break
+    if close is None:
+        return None
+    interior = lines[1:close]
+    if not any(_FM_KEY.match(line) for line in interior):
+        if any(line.strip() and not line.lstrip().startswith("#") for line in interior):
+            return None
+    opening = bom + lines[0]
+    body = "".join(lines[close + 1 :])
+    return opening, interior, lines[close] + body
+
+
+def _managed_value(key: str, value) -> str | None:
+    if key == "tags":
+        tags = _norm_tags(value)
+        encoded = ", ".join(json.dumps(tag, ensure_ascii=False) for tag in tags)
+        return f"tags: [{encoded}]" if tags else None
+    if key in {"pinned", "archived"}:
+        return f"{key}: true" if bool(value) else None
+    if key == "due":
+        due = str(value or "").strip()
+        return f"due: {due}" if due else None
+    raise ValueError(f"unsupported managed note field: {key}")
+
+
+def _patch_frontmatter(text: str, changes: dict) -> str:
+    """Patch only explicitly changed Notes metadata, preserving everything else exactly."""
+    if not changes:
+        return text
+    eol = _line_ending(text)
+    parsed = _frontmatter_parts(text)
+    if parsed is None:
+        rendered = [line for key, value in changes.items() if (line := _managed_value(key, value))]
+        if not rendered:
+            return text
+        bom = "\ufeff" if text.startswith("\ufeff") else ""
+        body = text[len(bom) :]
+        return bom + f"---{eol}{eol.join(rendered)}{eol}---{eol}" + body
+
+    opening, interior, closing_and_body = parsed
+    spans: dict[str, tuple[int, int]] = {}
+    index = 0
+    while index < len(interior):
+        match = _FM_KEY.match(interior[index])
+        if not match:
+            index += 1
+            continue
+        key = next(value for value in match.groups()[:3] if value is not None).strip()
+        end = index + 1
+        while end < len(interior) and not _FM_KEY.match(interior[end]):
+            end += 1
+        value_end = end
+        while value_end > index + 1 and (
+            not interior[value_end - 1].strip() or interior[value_end - 1].lstrip().startswith("#")
+        ):
+            value_end -= 1
+        if key in changes:
+            if key in spans:
+                raise vault_md.DocumentConflictError(
+                    f"note has duplicate {key!r} frontmatter; edit it in Source mode"
+                )
+            continuation = interior[index + 1 : value_end]
+            simple_list = match.group(4).strip() == "" and all(
+                not line.strip() or (re.match(r"^\s+-\s+", line) is not None and "#" not in line)
+                for line in continuation
+            )
+            if continuation and not simple_list:
+                raise vault_md.DocumentConflictError(
+                    f"note has complex {key!r} frontmatter; edit it in Source mode"
+                )
+            spans[key] = (index, value_end)
+        index = end
+
+    replacements: list[tuple[int, int, list[str]]] = []
+    append: list[str] = []
+    for key, value in changes.items():
+        rendered = _managed_value(key, value)
+        replacement = [rendered + eol] if rendered else []
+        if key in spans:
+            start, end = spans[key]
+            replacements.append((start, end, replacement))
+        elif rendered:
+            append.append(rendered + eol)
+
+    for start, end, replacement in sorted(replacements, reverse=True):
+        interior[start:end] = replacement
+    interior.extend(append)
+    if not any(line.strip() for line in interior):
+        bom = "\ufeff" if opening.startswith("\ufeff") else ""
+        closing_line = closing_and_body.splitlines(keepends=True)[0]
+        return bom + closing_and_body[len(closing_line) :]
+    return opening + "".join(interior) + closing_and_body
+
+
+def _body_start(text: str) -> int:
+    parsed = _frontmatter_parts(text)
+    if parsed is None:
+        return 0
+    opening, interior, closing_and_body = parsed
+    closing_line = closing_and_body.splitlines(keepends=True)[0]
+    return len(opening) + sum(len(line) for line in interior) + len(closing_line)
+
+
+def _trailing_items_start(body: str) -> int | None:
+    lines = body.splitlines(keepends=True)
+    index = len(lines)
+    saw_item = False
+    while index > 0:
+        line = lines[index - 1].rstrip("\r\n")
+        if _CB.match(line):
+            saw_item = True
+            index -= 1
+            continue
+        if line.strip() == "":
+            index -= 1
+            continue
+        break
+    if not saw_item:
+        return None
+    return sum(len(line) for line in lines[:index])
+
+
+def _render_items(items: list[dict], eol: str) -> str:
+    return eol.join(f"- [{'x' if item['done'] else ' '}] {item['text']}" for item in items)
+
+
+def _patch_body(text: str, partial: dict) -> str:
+    if "content" not in partial and "items" not in partial:
+        return text
+    start = _body_start(text)
+    head, body = text[:start], text[start:]
+    item_start = _trailing_items_start(body)
+    content = body if item_start is None else body[:item_start]
+    old_items = "" if item_start is None else body[item_start:]
+    old_separator = old_items[: len(old_items) - len(old_items.lstrip("\r\n"))]
+    eol = _line_ending(text)
+
+    if "content" in partial:
+        content = str(partial.get("content") or "")
+    if "items" in partial:
+        items = _norm_items(partial.get("items"))
+        old_items = _render_items(items, eol)
+
+    if old_items:
+        if "content" not in partial and item_start is not None:
+            body = content + old_separator + old_items.lstrip("\r\n")
+        else:
+            content = content.rstrip("\r\n")
+            separator = eol * 2 if content else ""
+            body = content + separator + old_items.lstrip("\r\n")
+    else:
+        body = content
+    return head + body
+
+
+def _patch_note_document(raw: str, partial: dict) -> str:
+    metadata = {
+        key: partial[key]
+        for key in ("tags", "pinned", "archived", "due")
+        if partial.get(key) is not None
+    }
+    body_changes = {
+        key: partial[key] for key in ("content", "items") if partial.get(key) is not None
+    }
+    return _patch_body(_patch_frontmatter(raw, metadata), body_changes)
 
 
 def _split_items(body: str):
@@ -229,12 +427,14 @@ def update(nid: str, partial: dict, expected_hash: str | None = None) -> dict | 
     cur = get(nid)
     if cur is None:
         return None
-    content = partial["content"] if partial.get("content") is not None else cur["content"]
-    pinned = partial["pinned"] if partial.get("pinned") is not None else cur["pinned"]
-    archived = partial["archived"] if partial.get("archived") is not None else cur["archived"]
-    tags = _norm_tags(partial["tags"]) if partial.get("tags") is not None else cur["tags"]
-    items = _norm_items(partial["items"]) if partial.get("items") is not None else cur["items"]
-    due = partial["due"].strip() if partial.get("due") is not None else cur["due"]
+    document = vault_md.read(_rel(nid))
+    if not document.get("editable", True):
+        raise vault_md.DocumentEncodingError(
+            "document is not valid UTF-8; the original file was left unchanged"
+        )
+    raw = document["content"]
+    if expected_hash is not None and expected_hash != document["hash"]:
+        raise vault_md.DocumentConflictError("document changed since it was opened")
 
     final = nid
     new_stem = nid
@@ -244,12 +444,12 @@ def update(nid: str, partial: dict, expected_hash: str | None = None) -> dict | 
             new_stem = _unique(new_stem, ignore=nid)
             final = new_stem
 
-    md = _compose(
-        content, items, tags, bool(pinned), bool(archived), due, cur["created_at"], _legacy(nid)
-    )
-    vault_md.write(_rel(nid), md, expected_hash=expected_hash)
+    md = _patch_note_document(raw, partial)
+    current_hash = document["hash"]
+    if md != raw:
+        current_hash = vault_md.write(_rel(nid), md, expected_hash=document["hash"])["hash"]
     if final != nid:
-        vault_md.rename(_rel(nid), _rel(final))
+        vault_md.rename(_rel(nid), _rel(final), expected_hash=current_hash)
         try:
             vault_md.rewrite_links(nid, final)  # fix [[old]] backlinks
         except Exception:

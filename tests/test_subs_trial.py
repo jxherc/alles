@@ -5,6 +5,31 @@ from tests._client import ApiTest
 
 
 class SubTrialTests(ApiTest):
+    def test_create_without_currency_uses_the_ledger_base_currency(self):
+        response = self.client.post(
+            "/api/subscriptions",
+            json={"name": "base default", "price": 9, "next_due": "2026-08-01"},
+        )
+
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json()["currency"], "CAD")
+        self.assertEqual(response.json()["original_currency_code"], "CAD")
+        self.assertEqual(response.json()["base_currency_code"], "CAD")
+
+    def test_create_rejects_an_ambiguous_currency_symbol(self):
+        response = self.client.post(
+            "/api/subscriptions",
+            json={
+                "name": "ambiguous",
+                "price": 9,
+                "currency": "$",
+                "next_due": "2026-08-01",
+            },
+        )
+
+        self.assertEqual(response.status_code, 400, response.text)
+        self.assertIn("unambiguous ISO currency code", response.text)
+
     def test_create_with_trial_end(self):
         end = (date.today() + timedelta(days=5)).isoformat()
         r = self.client.post(

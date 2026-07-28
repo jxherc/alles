@@ -1,15 +1,28 @@
 import { toast } from './util.js';
-import { initCustomDropdown } from './dropdown.js?v=210';
+import { initCustomDropdown } from './dropdown.js?v=212';
 import { initDatePicker } from './datepick.js';
+import { formatDate, formatTime } from './i18n.js';
 
 let _reminders = [];
 let _pollTimer = null;
+let _revision = 0;
 
-export async function loadReminders() {
+export async function loadReminders(fetcher = fetch) {
+  const revision = _revision;
+  let rows;
   try {
-    const r = await fetch('/api/reminders');
-    _reminders = await r.json();
-  } catch { _reminders = []; }
+    const r = await fetcher('/api/reminders');
+    if (!r.ok) throw new Error('failed to load reminders');
+    rows = await r.json();
+  } catch (error) {
+    if (revision === _revision) {
+      _reminders = [];
+      _render();
+    }
+    throw error;
+  }
+  if (revision !== _revision) return;
+  _reminders = rows;
   _render();
 }
 
@@ -42,7 +55,7 @@ function _fmtTime(iso) {
   if (diff < 60000) return 'in <1m';
   if (diff < 3600000) return `in ${Math.round(diff/60000)}m`;
   if (diff < 86400000) return `in ${Math.round(diff/3600000)}h`;
-  return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+  return `${formatDate(d)} ${formatTime(d, { hour: '2-digit', minute: '2-digit' })}`;
 }
 
 export async function createReminder(text, triggerAt, type = 'reminder', sessionId = null) {
@@ -53,15 +66,24 @@ export async function createReminder(text, triggerAt, type = 'reminder', session
   });
   if (!r.ok) { toast('failed to set reminder', 'error'); return null; }
   const data = await r.json();
+  _revision++;
   _reminders.unshift(data);
   _render();
   return data;
 }
 
 window._delReminder = async id => {
-  await fetch(`/api/reminders/${id}`, { method: 'DELETE' });
-  _reminders = _reminders.filter(r => r.id !== id);
-  _render();
+  try {
+    const response = await fetch(`/api/reminders/${id}`, { method: 'DELETE' });
+    if (!response.ok) throw new Error('reminder cancellation failed');
+    _revision++;
+    _reminders = _reminders.filter(r => r.id !== id);
+    _render();
+    return true;
+  } catch {
+    toast('failed to cancel reminder', 'error');
+    return false;
+  }
 };
 
 // start polling for due reminders every 30s
@@ -79,14 +101,17 @@ async function _checkDue() {
     for (const rem of due) {
       toast(`reminder: ${rem.text}`, 'success');
       const ack = await fetch(`/api/reminders/${rem.id}/ack`, { method: 'POST' });
-      if (ack.ok) _reminders = _reminders.filter(x => x.id !== rem.id);
+      if (ack.ok) {
+        _revision++;
+        _reminders = _reminders.filter(x => x.id !== rem.id);
+      }
     }
     if (due.length) _render();
   } catch {}
 }
 
-export function initReminderPanel() {
-  loadReminders();
+export function initReminderPanel(fetcher = fetch) {
+  const loading = loadReminders(fetcher);
   import('./push.js').then(m => m.initPushButton()).catch(() => {});
 
   const addBtn = document.getElementById('reminder-add-btn');
@@ -96,7 +121,9 @@ export function initReminderPanel() {
   initCustomDropdown(typeEl);
   initDatePicker(timeEl);
 
-  addBtn?.addEventListener('click', async () => {
+  if (!addBtn || addBtn.dataset.wired === '1') return loading;
+  addBtn.dataset.wired = '1';
+  addBtn.addEventListener('click', async () => {
     const text = textEl?.value.trim();
     const timeVal = timeEl?.value;
     if (!text || !timeVal) { toast('enter text and time', 'error'); return; }
@@ -113,6 +140,7 @@ export function initReminderPanel() {
       toast(type === 'message' ? 'message scheduled' : 'reminder set', 'success');
     }
   });
+  return loading;
 }
 
 // parse time from slash command: "in 2h", "in 30m", "at 15:30", "at 3pm", "tomorrow at 9am"

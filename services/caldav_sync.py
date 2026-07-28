@@ -7,7 +7,7 @@ crashes the app, it returns {"error": ...} strings the UI can show. Config is
 stored in data/caldav.json (gitignored, like the rest of data/).
 """
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from core.settings import data_dir
@@ -156,8 +156,8 @@ def sync() -> dict:
 
     from core.database import CalendarEvent, SessionLocal
 
-    start = datetime.utcnow() - timedelta(days=180)
-    end = datetime.utcnow() + timedelta(days=180)
+    start = datetime.now(UTC).replace(tzinfo=None) - timedelta(days=180)
+    end = datetime.now(UTC).replace(tzinfo=None) + timedelta(days=180)
     pulled = pushed = 0
     db = SessionLocal()
     try:

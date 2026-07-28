@@ -1,5 +1,6 @@
 """ui-4c verify — account picker on the left, search centered with a cap, and an
 'all inboxes' option for multiple accounts."""
+
 import sys
 
 from playwright.sync_api import sync_playwright
@@ -43,7 +44,10 @@ def run():
         ok("account sits at the left of the head", d["accountFirstish"])
         ok("search is before the right-hand actions", d["searchBeforeActions"])
         ok("search has a sensible max-width cap", d["maxW"] == "560px")
-        ok("search is centered (auto side margins)", d["marginL"] == "auto" and d["marginR"] == "auto")
+        ok(
+            "search is centered (auto side margins)",
+            d["marginL"] == "auto" and d["marginR"] == "auto",
+        )
         ok("search grows to fill the middle", float(d["grows"]) >= 1)
 
         # with no real accounts we can only confirm the control exists here; the 'all inboxes'

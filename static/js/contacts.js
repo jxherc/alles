@@ -1,6 +1,7 @@
 import { toast } from './util.js';
 import { confirm as _dlgConfirm, prompt as _dlgPrompt, fields as _dlgFields } from './dialog.js';
-import { initCustomDropdown, getDropdownValue, populateDropdown } from './dropdown.js?v=210';
+import { initCustomDropdown, getDropdownValue, populateDropdown } from './dropdown.js?v=212';
+import { formatDate, formatTime } from './i18n.js';
 
 // 4a - typed relationship kinds (mirrors services/contacts_graph _INVERSE)
 const REL_KINDS = ['friend', 'colleague', 'spouse', 'partner', 'sibling', 'parent', 'child', 'manager', 'report', 'mentor', 'mentee'];
@@ -94,7 +95,7 @@ function _avatarHtml(c, big) {
   return `<span class="${sz} contact-av-ph">${_esc(init)}</span>`;
 }
 
-export async function loadContacts(q = '') {
+export async function loadContacts(q = '', fetcher = fetch) {
   _wire();
   const list = document.getElementById('contacts-list');
   if (!list) return;
@@ -102,7 +103,7 @@ export async function loadContacts(q = '') {
     const params = new URLSearchParams();
     if (q) params.set('q', q);
     if (_favOnly) params.set('favorites', 'true');
-    const contacts = await fetch('/api/contacts' + (params.toString() ? '?' + params : '')).then(r => r.json());
+    const contacts = await fetcher('/api/contacts' + (params.toString() ? '?' + params : '')).then(r => r.json());
     if (!contacts.length) { list.innerHTML = `<div class="page-empty">${_favOnly ? 'no favorites' : 'no contacts'}</div>`; return; }
     list.innerHTML = contacts.map(c => `
       <div class="contact-item" data-id="${c.id}">
@@ -265,8 +266,8 @@ function renderContactEvents(events) {
     const d = new Date(e.start_dt);
     const isPast = !isNaN(d) && d < today;
     const dl = isNaN(d) ? _esc(e.start_dt || '')
-      : _esc(d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-        + (e.all_day ? '' : ' ' + d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })));
+      : _esc(formatDate(d, { month: 'short', day: 'numeric', year: 'numeric' })
+        + (e.all_day ? '' : ' ' + formatTime(d, { hour: 'numeric', minute: '2-digit' })));
     const rsvp = e.status ? `<span class="cd-ev-rsvp s-${_esc(e.status)}">${_RSVP_LBL[e.status] || _esc(e.status)}</span>` : '';
     return `<div class="cd-ev-row${isPast ? ' past' : ''}"><span class="cd-ev-date">${dl}</span><span class="cd-ev-title">${_esc(e.title || '(untitled)')}</span>${rsvp}</div>`;
   };

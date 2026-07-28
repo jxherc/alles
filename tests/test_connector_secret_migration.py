@@ -12,6 +12,24 @@ from tests._client import ApiTest
 
 
 class ConnectorSecretMigrationTest(ApiTest):
+    def setUp(self):
+        super().setUp()
+        self._secret_state = (
+            secretstore._key,
+            secretstore._key_path,
+            dict(secretstore._keys),
+            secretstore._active_id,
+        )
+
+    def tearDown(self):
+        (
+            secretstore._key,
+            secretstore._key_path,
+            secretstore._keys,
+            secretstore._active_id,
+        ) = self._secret_state
+        super().tearDown()
+
     def test_plaintext_database_credentials_are_migrated(self):
         with (
             tempfile.TemporaryDirectory() as temp,

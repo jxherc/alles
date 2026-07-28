@@ -11,6 +11,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session as DbSession
 
 from core.database import (
+    BrowserConnection,
     Vault,
     VaultAttachment,
     VaultEntry,
@@ -29,33 +30,57 @@ log = logging.getLogger("alles.vault")
 _unlock_tokens: dict[str, tuple[float, str, str]] = {}
 _TTL = 600  # 10 min
 DEFAULT_VAULT = "default"
+MIN_VAULT_PASSWORD_LENGTH = 12
 
 
-def _mint(pw: str, vault_id: str) -> str:
-    tok = secrets.token_urlsafe(16)
-    _unlock_tokens[tok] = (time.time() + _TTL, pw, vault_id)
-    return tok
+def _require_new_vault_password(password: str) -> None:
+    if len(password) < MIN_VAULT_PASSWORD_LENGTH:
+        raise HTTPException(
+            400,
+            f"vault password must be at least {MIN_VAULT_PASSWORD_LENGTH} characters",
+        )
 
 
-def _ctx(x_vault_token: str | None = Header(None)) -> tuple[str, str]:
+def _mint(pw: str, vault_id: str, *, travel_safe: bool) -> str:
+    with recovery_consistency_lock:
+        if _travel_on() and not travel_safe:
+            raise HTTPException(403, "vault unavailable in travel mode")
+        tok = secrets.token_urlsafe(16)
+        _unlock_tokens[tok] = (time.time() + _TTL, pw, vault_id)
+        return tok
+
+
+def _ctx(
+    x_vault_token: str | None = Header(None),
+    db: DbSession = Depends(get_db),
+) -> tuple[str, str]:
     """resolve the caller's own unlock token to (master_password, vault_id).
 
     binds each vault request to the token returned by /vault/unlock, so an
     unlock by one session no longer hands the vault to every other request
     that happens to land in the 10-min window.
     """
-    now = time.time()
-    for tok in [t for t, (exp, _, _) in list(_unlock_tokens.items()) if now > exp]:
-        del _unlock_tokens[tok]
-    v = _unlock_tokens.get(x_vault_token or "")
-    if not v:
-        raise HTTPException(403, "vault locked")
-    _unlock_tokens[x_vault_token] = (now + _TTL, v[1], v[2])  # slide the window
-    return v[1], v[2]
+    with recovery_consistency_lock:
+        now = time.time()
+        for tok in [t for t, (exp, _, _) in list(_unlock_tokens.items()) if now > exp]:
+            del _unlock_tokens[tok]
+        token = x_vault_token or ""
+        context = _unlock_tokens.get(token)
+        if not context:
+            raise HTTPException(403, "vault locked")
+        vault = db.get(Vault, context[2])
+        if not vault or (_travel_on() and not vault.travel_safe):
+            _unlock_tokens.pop(token, None)
+            raise HTTPException(403, "vault locked")
+        _unlock_tokens[token] = (now + _TTL, context[1], context[2])
+        return context[1], context[2]
 
 
-def _master_pw(x_vault_token: str | None = Header(None)) -> str:
-    return _ctx(x_vault_token)[0]
+def _master_pw(
+    x_vault_token: str | None = Header(None),
+    db: DbSession = Depends(get_db),
+) -> str:
+    return _ctx(x_vault_token, db)[0]
 
 
 # every per-entry / per-attachment endpoint has to scope to the unlocked vault. without it,
@@ -110,6 +135,30 @@ def _totp_map() -> dict:
 
 def _has_totp_2fa(vid: str) -> bool:
     return bool(_totp_map().get(vid))
+
+
+def _can_initialize_vault(db: DbSession, vault: Vault) -> bool:
+    """Allow password creation only for a genuinely empty default vault.
+
+    Secondary vaults are always created with a verifier. An empty verifier on
+    one of them, or on a default vault that already owns data or an enrolled
+    authenticator, is recovery state rather than first-run setup.
+    """
+    if vault.id != DEFAULT_VAULT or vault.biometric_blob:
+        return False
+    if db.query(VaultEntry.id).filter(VaultEntry.vault_id == vault.id).first() is not None:
+        return False
+    if (
+        db.query(BrowserConnection.id).filter(BrowserConnection.vault_id == vault.id).first()
+        is not None
+    ):
+        return False
+    if (
+        db.query(WebAuthnCredential.id).filter(WebAuthnCredential.vault_id == vault.id).first()
+        is not None
+    ):
+        return False
+    return not _require_2fa(vault.id) and not _has_totp_2fa(vault.id)
 
 
 def _drop_vault_settings(vid: str):
@@ -181,12 +230,20 @@ def vault_unlock(body: UnlockBody, db: DbSession = Depends(get_db)):
     if _travel_on() and not v.travel_safe:
         raise HTTPException(403, "vault unavailable in travel mode")
     if not v.verifier:
+        if not _can_initialize_vault(db, v):
+            raise HTTPException(
+                409, "vault verifier is missing; restore the vault before unlocking"
+            )
         # first unlock for this vault — store only the verifier (no plaintext on disk)
+        _require_new_vault_password(body.password)
         v.verifier = make_verifier(body.password)
         if vid == DEFAULT_VAULT:
             save_settings({"vault_verifier": v.verifier})  # keep legacy mirror in sync
         db.commit()
-        return {"token": _mint(body.password, vid), "vault_id": vid}
+        return {
+            "token": _mint(body.password, vid, travel_safe=bool(v.travel_safe)),
+            "vault_id": vid,
+        }
     if not verify_master(body.password, v.verifier):
         raise HTTPException(401, "wrong master password")
     # 9d / 8c — if this vault demands a second factor, withhold the token and hand back the available
@@ -211,13 +268,22 @@ def vault_unlock(body: UnlockBody, db: DbSession = Depends(get_db)):
         if has_totp:
             resp["methods"].append("totp")
         return resp
-    return {"token": _mint(body.password, vid), "vault_id": vid}
+    return {
+        "token": _mint(body.password, vid, travel_safe=bool(v.travel_safe)),
+        "vault_id": vid,
+    }
 
 
 @router.post("/vault/lock")
 def vault_lock(x_vault_token: str | None = Header(None)):
+    context = None
     if x_vault_token:
-        _unlock_tokens.pop(x_vault_token, None)
+        with recovery_consistency_lock:
+            context = _unlock_tokens.pop(x_vault_token, None)
+        if context:
+            from services.browser_passwords import lock_vault
+
+            lock_vault(context[2])
     return {"ok": True}
 
 
@@ -232,9 +298,33 @@ class TravelBody(BaseModel):
 
 
 @router.put("/vault/travel-mode")
-def set_travel_mode(body: TravelBody, _pw: str = Depends(_master_pw)):
-    save_settings({"vault_travel_mode": bool(body.on)})
-    return {"on": bool(body.on)}
+def set_travel_mode(
+    body: TravelBody,
+    db: DbSession = Depends(get_db),
+    _pw: str = Depends(_master_pw),
+):
+    enabled = bool(body.on)
+    unsafe_vault_ids: set[str] = set()
+    with recovery_consistency_lock:
+        _ensure_default(db)
+        if enabled and not db.query(Vault).filter(Vault.travel_safe.is_(True)).first():
+            raise HTTPException(
+                409, "mark at least one vault travel-safe before enabling Travel Mode"
+            )
+        save_settings({"vault_travel_mode": enabled})
+        if enabled:
+            unsafe_vault_ids = {
+                row.id for row in db.query(Vault).filter(Vault.travel_safe.is_(False)).all()
+            }
+            for token, (_expires, _password, vault_id) in list(_unlock_tokens.items()):
+                if vault_id in unsafe_vault_ids:
+                    _unlock_tokens.pop(token, None)
+    if enabled:
+        from services.browser_passwords import lock_vault
+
+        for vault_id in unsafe_vault_ids:
+            lock_vault(vault_id)
+    return {"on": enabled}
 
 
 @router.get("/vault/vaults")
@@ -255,7 +345,8 @@ def list_vaults(db: DbSession = Depends(get_db), _pw: str = Depends(_master_pw))
                 "travel_safe": bool(v.travel_safe),
                 "entries": counts.get(v.id, 0),
                 "biometric": bool(v.biometric_blob),
-                "main": v.id == DEFAULT_VAULT,  # 8b — the main vault opens with your master password
+                "main": v.id
+                == DEFAULT_VAULT,  # 8b — the main vault opens with your master password
             }
         )
     return out
@@ -271,8 +362,7 @@ def create_vault(body: VaultBody, db: DbSession = Depends(get_db), _pw: str = De
     name = (body.name or "").strip()
     if not name:
         raise HTTPException(400, "vault name required")
-    if not body.password:
-        raise HTTPException(400, "password required")
+    _require_new_vault_password(body.password)
     v = Vault(name=name, verifier=make_verifier(body.password), travel_safe=False)
     db.add(v)
     db.commit()
@@ -287,14 +377,20 @@ class VaultPatch(BaseModel):
 
 @router.patch("/vault/vaults/{vid}")
 def patch_vault(
-    vid: str, body: VaultPatch, db: DbSession = Depends(get_db), _pw: str = Depends(_master_pw)
+    vid: str, body: VaultPatch, db: DbSession = Depends(get_db), ctx: tuple = Depends(_ctx)
 ):
+    pw, unlocked_vid = ctx
+    if unlocked_vid != vid:
+        raise HTTPException(404)
     v = db.get(Vault, vid)
     if not v:
         raise HTTPException(404)
+    _require_current_vault_password(db, pw, vid)
     if body.name is not None and body.name.strip():
         v.name = body.name.strip()
     if body.travel_safe is not None:
+        if vid == DEFAULT_VAULT and not body.travel_safe:
+            raise HTTPException(400, "the default vault must remain travel-safe")
         v.travel_safe = bool(body.travel_safe)
     db.commit()
     return {"ok": True}
@@ -305,7 +401,9 @@ class ChangePw(BaseModel):
 
 
 @router.post("/vault/vaults/password")
-def change_vault_password(body: ChangePw, db: DbSession = Depends(get_db), ctx: tuple = Depends(_ctx)):
+def change_vault_password(
+    body: ChangePw, db: DbSession = Depends(get_db), ctx: tuple = Depends(_ctx)
+):
     """8b — re-key the currently-unlocked vault to a new password. The main (default) vault's password
     IS the master password, so this doubles as 'change master password'. Re-encrypts every entry +
     attachment under the new key; computes all ciphertext first, then writes, so a mid-way failure
@@ -314,8 +412,7 @@ def change_vault_password(body: ChangePw, db: DbSession = Depends(get_db), ctx: 
 
     old_pw, vid = ctx
     new = body.new_password or ""
-    if not new:
-        raise HTTPException(400, "new password required")
+    _require_new_vault_password(new)
     with recovery_consistency_lock:
         v = _require_current_vault_password(db, old_pw, vid)
 
@@ -377,27 +474,40 @@ def change_vault_password(body: ChangePw, db: DbSession = Depends(get_db), ctx: 
         for token, (_expires, _password, token_vid) in list(_unlock_tokens.items()):
             if token_vid == vid:
                 _unlock_tokens.pop(token, None)
-        new_token = _mint(new, vid)
+        from services.browser_passwords import lock_vault
+
+        lock_vault(vid)
+        new_token = _mint(new, vid, travel_safe=bool(v.travel_safe))
     # the caller's token still holds the old pw — hand back a fresh one bound to the new password
     return {"ok": True, "token": new_token, "vault_id": vid}
 
 
 @router.delete("/vault/vaults/{vid}")
-def delete_vault(vid: str, db: DbSession = Depends(get_db), _pw: str = Depends(_master_pw)):
+def delete_vault(vid: str, db: DbSession = Depends(get_db), ctx: tuple = Depends(_ctx)):
     if vid == DEFAULT_VAULT:
         raise HTTPException(400, "cannot delete the default vault")
+    pw, unlocked_vid = ctx
+    if unlocked_vid != vid:
+        raise HTTPException(404)
     v = db.get(Vault, vid)
     if not v:
         raise HTTPException(404)
     eids = [r.id for r in db.query(VaultEntry).filter(VaultEntry.vault_id == vid).all()]
     with recovery_consistency_lock:
+        _require_current_vault_password(db, pw, vid)
         _purge_entry_data(db, eids)  # shares + attachment blobs for every entry in the vault
         db.query(WebAuthnCredential).filter(WebAuthnCredential.vault_id == vid).delete(
+            synchronize_session=False
+        )
+        db.query(BrowserConnection).filter(BrowserConnection.vault_id == vid).delete(
             synchronize_session=False
         )
         db.query(VaultEntry).filter(VaultEntry.vault_id == vid).delete(synchronize_session=False)
         db.delete(v)
         db.commit()
+        from services.browser_passwords import lock_vault
+
+        lock_vault(vid)
         _drop_vault_settings(vid)
     return {"ok": True}
 
@@ -790,9 +900,7 @@ async def add_attachment(
 
 
 @router.get("/vault/{entry_id}/attachments")
-def list_attachments(
-    entry_id: str, db: DbSession = Depends(get_db), ctx: tuple = Depends(_ctx)
-):
+def list_attachments(entry_id: str, db: DbSession = Depends(get_db), ctx: tuple = Depends(_ctx)):
     _, vid = ctx
     _scoped_entry(db, entry_id, vid)
     rows = db.query(VaultAttachment).filter(VaultAttachment.entry_id == entry_id).all()
@@ -859,9 +967,7 @@ def share_entry(entry_id: str, db: DbSession = Depends(get_db), ctx: tuple = Dep
 
 
 @router.delete("/vault/{entry_id}/share")
-def revoke_entry_share(
-    entry_id: str, db: DbSession = Depends(get_db), ctx: tuple = Depends(_ctx)
-):
+def revoke_entry_share(entry_id: str, db: DbSession = Depends(get_db), ctx: tuple = Depends(_ctx)):
     _, vid = ctx
     _scoped_entry(db, entry_id, vid)
     db.query(VaultShare).filter(VaultShare.entry_id == entry_id).delete()
@@ -927,9 +1033,9 @@ def webauthn_credentials(db: DbSession = Depends(get_db), ctx: tuple = Depends(_
 
 
 @router.delete("/vault/webauthn/credentials/{cid}")
-def webauthn_delete(cid: str, db: DbSession = Depends(get_db), _pw: str = Depends(_master_pw)):
+def webauthn_delete(cid: str, db: DbSession = Depends(get_db), ctx: tuple = Depends(_ctx)):
     c = db.get(WebAuthnCredential, cid)
-    if not c:
+    if not c or c.vault_id != ctx[1]:
         raise HTTPException(404)
     vid = c.vault_id
     if c.role == "2fa":
@@ -956,7 +1062,11 @@ def webauthn_challenge(vault_id: str = DEFAULT_VAULT, db: DbSession = Depends(ge
     _ensure_default(db)
     ch = new_challenge()
     _wa_challenges[vault_id] = (time.time() + _WA_TTL, ch)
-    creds = db.query(WebAuthnCredential).filter(WebAuthnCredential.vault_id == vault_id).all()
+    creds = (
+        db.query(WebAuthnCredential)
+        .filter(WebAuthnCredential.vault_id == vault_id, WebAuthnCredential.role != "2fa")
+        .all()
+    )
     return {"challenge": ch, "credentials": [c.credential_id for c in creds]}
 
 
@@ -987,6 +1097,7 @@ def webauthn_unlock(body: WaUnlock, request: Request, db: DbSession = Depends(ge
         .filter(
             WebAuthnCredential.vault_id == vid,
             WebAuthnCredential.credential_id == body.credential_id,
+            WebAuthnCredential.role != "2fa",
         )
         .first()
     )
@@ -1011,7 +1122,7 @@ def webauthn_unlock(body: WaUnlock, request: Request, db: DbSession = Depends(ge
         raise HTTPException(500, "biometric unwrap failed")
     cred.sign_count = max(cred.sign_count or 0, sign_count(body.authenticator_data))
     db.commit()
-    return {"token": _mint(pw, vid), "vault_id": vid}
+    return {"token": _mint(pw, vid, travel_safe=bool(v.travel_safe)), "vault_id": vid}
 
 
 # ── passkey storage + use (9d) ────────────────────────────────────────────────
@@ -1214,7 +1325,10 @@ def totp_unlock(body: TotpUnlockBody, db: DbSession = Depends(get_db)):
     secret = _totp_map().get(vid)
     if not secret or not totp_verify(secret, body.code):
         raise HTTPException(401, "wrong authenticator code")
-    return {"token": _mint(body.password, vid), "vault_id": vid}
+    return {
+        "token": _mint(body.password, vid, travel_safe=bool(v.travel_safe)),
+        "vault_id": vid,
+    }
 
 
 @router.put("/vault/2fa")
@@ -1274,7 +1388,10 @@ def twofa_unlock(body: TwoFaUnlock, request: Request, db: DbSession = Depends(ge
         raise HTTPException(401, "assertion failed")
     cred.sign_count = max(cred.sign_count or 0, sign_count(body.authenticator_data))
     db.commit()
-    return {"token": _mint(body.password, vid), "vault_id": vid}
+    return {
+        "token": _mint(body.password, vid, travel_safe=bool(v.travel_safe)),
+        "vault_id": vid,
+    }
 
 
 # ── retired browser-extension autofill compatibility route ────────────────────
@@ -1282,7 +1399,8 @@ def twofa_unlock(body: TwoFaUnlock, request: Request, db: DbSession = Depends(ge
 def vault_match(x_vault_token: str | None = Header(None)):
     """Reject the legacy extension and revoke the exact broad token it pasted."""
     if x_vault_token:
-        _unlock_tokens.pop(x_vault_token, None)
+        with recovery_consistency_lock:
+            _unlock_tokens.pop(x_vault_token, None)
     raise HTTPException(
         status_code=410,
         detail=(

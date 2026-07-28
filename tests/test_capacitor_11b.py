@@ -46,6 +46,19 @@ class CapacitorTests(unittest.TestCase):
         self.assertTrue(any("@capacitor/core" == k for k in deps), "missing @capacitor/core")
         self.assertTrue(any(k.startswith("@capacitor/cli") for k in deps), "missing @capacitor/cli")
 
+    def test_mobile_tar_override_and_lock_clear_the_security_floor(self):
+        pkg = json.loads((MOBILE / "package.json").read_text(encoding="utf-8"))
+        lock = json.loads((MOBILE / "package-lock.json").read_text(encoding="utf-8"))
+        floor = (7, 5, 20)
+
+        def version_tuple(value):
+            return tuple(int(part) for part in value.split(".")[:3])
+
+        self.assertGreaterEqual(version_tuple(pkg.get("overrides", {}).get("tar", "0.0.0")), floor)
+        self.assertGreaterEqual(
+            version_tuple(lock["packages"]["node_modules/tar"]["version"]), floor
+        )
+
     def test_package_has_platform_scripts(self):
         pkg = json.loads((MOBILE / "package.json").read_text(encoding="utf-8"))
         scripts = pkg.get("scripts", {})

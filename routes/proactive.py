@@ -20,8 +20,16 @@ def list_items():
             .all()
         )
         return [
-            {"id": r.id, "category": r.category, "title": r.title, "body": r.body,
-             "link": r.link, "score": r.score, "urgency": r.urgency, "status": r.status}
+            {
+                "id": r.id,
+                "category": r.category,
+                "title": r.title,
+                "body": r.body,
+                "link": r.link,
+                "score": r.score,
+                "urgency": r.urgency,
+                "status": r.status,
+            }
             for r in rows
         ]
     finally:

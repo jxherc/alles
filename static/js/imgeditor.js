@@ -116,15 +116,19 @@ function renderPanel() {
       ${slider('brightness', 'b', a.b)}
       ${slider('contrast', 'c', a.c)}
       ${slider('saturation', 's', a.s)}
-      <label class="ie-chk"><input type="checkbox" id="ie-gray" ${a.gray ? 'checked' : ''}> grayscale</label>
-      <label class="ie-chk"><input type="checkbox" id="ie-sepia" ${a.sepia ? 'checked' : ''}> sepia</label>`;
+      <button type="button" class="ie-chk" id="ie-gray" role="switch" aria-checked="${a.gray}"><span class="chk" aria-hidden="true"></span> grayscale</button>
+      <button type="button" class="ie-chk" id="ie-sepia" role="switch" aria-checked="${a.sepia}"><span class="chk" aria-hidden="true"></span> sepia</button>`;
     p.querySelectorAll('input[type=range]').forEach(r => r.addEventListener('input', () => {
       S.adjust[r.dataset.k] = +r.value;
       r.nextElementSibling.textContent = r.value;
       applyFilter();
     }));
-    p.querySelector('#ie-gray').onchange = e => { S.adjust.gray = e.target.checked; applyFilter(); };
-    p.querySelector('#ie-sepia').onchange = e => { S.adjust.sepia = e.target.checked; applyFilter(); };
+    p.querySelectorAll('.ie-chk').forEach(button => button.addEventListener('click', () => {
+      const next = button.getAttribute('aria-checked') !== 'true';
+      button.setAttribute('aria-checked', String(next));
+      S.adjust[button.id === 'ie-gray' ? 'gray' : 'sepia'] = next;
+      applyFilter();
+    }));
   } else if (S.tool === 'brush') {
     p.innerHTML = `
       ${slider('brush size', 'size', S.brush.size, 1, 80)}

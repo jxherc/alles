@@ -12,15 +12,15 @@ let _lookup = [];
 
 const SHELVES = [['reading', 'reading'], ['want', 'want to read'], ['done', 'read']];
 
-export function initBooks() { loadBooks(); }
+export function initBooks(fetcher = fetch) { return loadBooks(fetcher); }
 
 const _EMPTY = () => ({ shelves: { want: [], reading: [], done: [] }, this_year: 0, total: 0 });
 
-export async function loadBooks() {
+export async function loadBooks(fetcher = fetch) {
   // check r.ok — a non-2xx (e.g. a 401 on a subdomain) still returns JSON, and a
   // {detail:…} body with no `shelves` would crash _render and blank the page.
   try {
-    const r = await fetch('/api/books/overview');
+    const r = await fetcher('/api/books/overview');
     _data = r.ok ? await r.json() : _EMPTY();
   } catch { _data = _EMPTY(); }
   if (!_data || !_data.shelves) _data = _EMPTY();

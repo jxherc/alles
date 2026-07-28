@@ -7,6 +7,7 @@ inside each event's reminder window.
 
 import calendar
 import logging
+import time
 from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -19,6 +20,7 @@ router = APIRouter(prefix="/api")
 log = logging.getLogger("aide.days")
 
 REPEATS = ("none", "yearly", "monthly")
+DELIVERY_LEASE_SECONDS = 5 * 60
 
 
 def _parse(s: str) -> date:
@@ -247,16 +249,31 @@ async def check_day_events():
             target_key = target.isoformat()
             terminal_markers = {
                 target_key,
-                f"pending:{target_key}",
                 f"uncertain:{target_key}",
             }
             days = (target - today).days
             if days > ev.notify_days or ev.last_notified in terminal_markers:
                 continue
+            pending_parts = str(ev.last_notified or "").split(":")
+            if (
+                len(pending_parts) == 3
+                and pending_parts[:2] == ["pending", target_key]
+                and pending_parts[2].isdigit()
+                and int(pending_parts[2]) > int(time.time()) - DELIVERY_LEASE_SECONDS
+            ):
+                continue
             nth_part = f" ({nth}{_ordinal(nth)} time)" if nth > 1 else ""
             when = "is today" if days == 0 else ("is tomorrow" if days == 1 else f"in {days} days")
-            ev.last_notified = f"pending:{target_key}"
+            previous_marker = ev.last_notified or ""
+            pending_marker = f"pending:{target_key}:{int(time.time())}"
+            claimed = (
+                db.query(DayEvent)
+                .filter(DayEvent.id == ev.id, DayEvent.last_notified == previous_marker)
+                .update({DayEvent.last_notified: pending_marker}, synchronize_session=False)
+            )
             db.commit()
+            if claimed != 1:
+                continue
             try:
                 result = await broadcast_result(
                     {
@@ -266,15 +283,26 @@ async def check_day_events():
                         "tag": f"day-{ev.id}-{target.isoformat()}",
                     }
                 )
-                if result["sent"]:
-                    ev.last_notified = target_key
-                elif result["uncertain"]:
-                    ev.last_notified = f"uncertain:{target_key}"
-                else:
-                    ev.last_notified = ""
+                final_marker = (
+                    target_key
+                    if result["sent"]
+                    else f"uncertain:{target_key}"
+                    if result["uncertain"]
+                    else ""
+                )
+                db.query(DayEvent).filter(
+                    DayEvent.id == ev.id,
+                    DayEvent.last_notified == pending_marker,
+                ).update({DayEvent.last_notified: final_marker}, synchronize_session=False)
                 db.commit()
             except Exception as e:
-                ev.last_notified = f"uncertain:{target_key}"
+                db.query(DayEvent).filter(
+                    DayEvent.id == ev.id,
+                    DayEvent.last_notified == pending_marker,
+                ).update(
+                    {DayEvent.last_notified: f"uncertain:{target_key}"},
+                    synchronize_session=False,
+                )
                 db.commit()
                 log.warning("day event push outcome uncertain: %s", type(e).__name__)
     finally:

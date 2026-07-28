@@ -27,10 +27,9 @@
     var _a = localStorage.getItem('aide-accent'); if (_a) st.setProperty('--accent', _a);
   })();
 </script>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/style.css?v=218">
+<link rel="stylesheet" href="/static/vendor/xterm/xterm.css?v=6.0.0">
+<link rel="stylesheet" href="/static/style.css?v=300">
+  <link rel="stylesheet" href="/static/kokuen.css?v=19">
 <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#0a0a0a">
@@ -44,37 +43,39 @@
 
 <div class="app">
 
-  <nav class="space-rail" id="space-rail" aria-label="main spaces" hidden>
+  <nav class="space-rail" id="space-rail" aria-label="main spaces" data-i18n-aria-label="shell.main_spaces" hidden>
     <div class="space-route" id="space-route">
-      <button class="space-link" type="button" data-space="today" data-view="today" aria-label="Today" title="Today" hidden>T</button>
-      <button class="space-link" type="button" data-space="aide" data-view="chat" aria-label="Aide" title="Aide" hidden>A</button>
-      <button class="space-link" type="button" data-space="andromeda" data-view="andromeda" aria-label="Andromeda" title="Andromeda" hidden>Ø</button>
+      <button class="space-link" type="button" data-space="today" data-view="today" aria-label="Home" title="Home" data-i18n-aria-label="common.home" data-i18n-title="common.home" hidden>H</button>
+      <button class="space-link" type="button" data-space="aide" data-view="chat" aria-label="Aide" title="Aide" data-i18n-aria-label="common.aide" data-i18n-title="common.aide" hidden>A</button>
+      <button class="space-link" type="button" data-space="andromeda" data-view="andromeda" aria-label="Andromeda" title="Andromeda" data-i18n-aria-label="common.andromeda" data-i18n-title="common.andromeda" hidden>Ø</button>
     </div>
     <div class="space-rail-bottom">
-      <button class="space-rail-action" id="app-drawer-btn" type="button" aria-haspopup="dialog" aria-expanded="false">apps</button>
-      <button class="space-rail-action" id="space-profile-btn" type="button" aria-haspopup="menu" aria-expanded="false">profile</button>
+      <button class="space-rail-action" id="app-drawer-btn" type="button" aria-haspopup="dialog" aria-expanded="false" data-i18n="common.apps">apps</button>
+      <button class="space-rail-action" id="space-profile-btn" type="button" aria-haspopup="menu" aria-expanded="false" data-i18n="shell.profile">profile</button>
     </div>
   </nav>
 
   <div class="space-profile-menu" id="space-profile-menu" role="menu" aria-label="alles profile" hidden>
     <div class="space-profile-copy">
       <strong>alles</strong>
-      <span>your private workspace</span>
+      <span data-i18n="shell.private_workspace">your private workspace</span>
     </div>
-    <button class="space-profile-item" id="space-settings-btn" type="button" role="menuitem">settings <kbd>⌘/ctrl ,</kbd></button>
+    <button class="space-profile-item" id="space-settings-btn" type="button" role="menuitem"><span data-i18n="common.settings">settings</span> <kbd>⌘/ctrl ,</kbd></button>
   </div>
 
   <div class="app-drawer-scrim" id="app-drawer-scrim" hidden></div>
-  <aside class="app-drawer" id="app-drawer" role="dialog" aria-modal="true" aria-labelledby="app-drawer-title" hidden>
+  <aside class="app-drawer" id="app-drawer" data-kokuen-surface="apps" role="dialog" aria-modal="true" aria-labelledby="app-drawer-title" hidden>
     <div class="app-drawer-head">
-      <div>
-        <div class="app-drawer-kicker">alles</div>
-        <h2 id="app-drawer-title">all apps</h2>
-      </div>
-      <button class="icon-btn" id="app-drawer-close" type="button" aria-label="close all apps">×</button>
+      <div class="app-drawer-kicker">alles</div>
+      <button class="app-drawer-home" id="app-drawer-close" type="button" aria-label="close apps and return home" data-i18n="common.home" data-i18n-aria-label="shell.close_apps">home</button>
     </div>
-    <p class="app-drawer-note">every current app stays here while the new spaces are built.</p>
-    <div class="app-drawer-grid" id="app-drawer-grid"></div>
+    <div class="app-drawer-content">
+      <h2 id="app-drawer-title" data-i18n="common.apps">apps</h2>
+      <div class="app-drawer-grid" id="app-drawer-grid"></div>
+    </div>
+    <footer class="app-drawer-footer">
+      <button id="app-drawer-settings" type="button" data-i18n="common.settings">settings</button>
+    </footer>
   </aside>
 
   <!-- 11b: dim layer behind the off-canvas sidebar drawer on phones (tap to close) -->
@@ -83,47 +84,54 @@
   <!-- sidebar -->
   <aside class="sidebar">
     <div class="sidebar-head">
-      <span class="brand sidebar-brand" id="brand-home" title="back to alles">aide<span class="brand-sep"> / alles</span></span>
-      <button class="new-btn" id="new-chat-btn">+ new chat</button>
+      <span class="brand sidebar-brand" id="brand-home">aide</span>
+      <button class="aide-home-button" id="aide-home-button" type="button" data-i18n="common.home">home</button>
     </div>
 
     <div class="search-wrap">
-      <input class="search-input" id="session-search" type="text" placeholder="search...">
-    </div>
-
-    <div class="session-list" id="session-list">
-      <div class="empty-sessions">no chats yet</div>
+      <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg>
+      <input class="search-input" id="session-search" type="text" placeholder="search tasks…" aria-label="search tasks" data-i18n-placeholder="aide.search_tasks" data-i18n-aria-label="aide.search_tasks">
     </div>
 
     <nav class="sidebar-nav">
-      <!-- aide is gemini-style: chat + its tools. switch apps from the alles logo. -->
-      <div class="nav-more-toggle" id="nav-more-toggle">tools <span id="nav-more-arrow">▾</span></div>
-      <div class="nav-more-items" id="nav-more-items">
-        <div class="nav-item" data-view="brain">brain</div>
-        <div class="nav-item" data-view="models">models</div>
-        <div class="nav-item" data-view="cookbook">cookbook</div>
-        <div class="nav-item" data-view="usage">usage</div>
-        <div class="nav-item" data-view="skills">skills</div>
-        <div class="nav-item" data-view="reminders">reminders</div>
-        <div class="nav-item" data-view="proactive">proactive</div>
-      </div>
-      <div class="nav-sep"></div>
-      <div class="nav-item" data-view="settings">settings</div>
+      <button class="new-btn aide-tool-link" id="new-chat-btn" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 19h5l9-9a3 3 0 0 0-5-5l-9 9v5Z"/><path d="m13 6 5 5"/></svg><span data-i18n="aide.new_task">new task</span></button>
+      <button class="aide-tool-link" id="aide-scheduled-link" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7v5l3 2"/></svg><span data-i18n="aide.scheduled">scheduled</span></button>
+      <button class="nav-item aide-tool-link" data-view="brain" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M9 5.5A3.5 3.5 0 0 0 5.5 9c0 .7.2 1.4.6 2A3.5 3.5 0 0 0 8 17.5V19h3V5.5H9Z"/><path d="M15 5.5A3.5 3.5 0 0 1 18.5 9c0 .7-.2 1.4-.6 2a3.5 3.5 0 0 1-1.9 6.5V19h-3V5.5h2Z"/></svg><span data-i18n="aide.brain">brain</span></button>
+      <button class="nav-item aide-tool-link" data-view="skills" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="m14 4 6 6-9 9H5v-6Z"/><path d="m12 6 6 6M4 20h16"/></svg><span data-i18n="aide.skills">skills</span></button>
+      <button class="nav-item aide-tool-link" data-view="aide-reminders" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg><span data-i18n="aide.reminders">reminders</span></button>
     </nav>
+
+    <div class="session-list" id="session-list">
+      <div class="empty-sessions" data-i18n="aide.no_tasks">no tasks yet</div>
+    </div>
+
+    <footer class="aide-sidebar-foot">
+      <button class="aide-tools-link" id="aide-tools-link" type="button" aria-haspopup="menu" aria-controls="aide-sidebar-menu" aria-expanded="false">
+        <span data-i18n="aide.tools">tools</span><span aria-hidden="true">⌃</span>
+      </button>
+      <div class="aide-sidebar-menu" id="aide-sidebar-menu" role="menu" aria-label="Aide tools" hidden>
+        <button class="aide-settings-link" id="aide-settings-link" type="button" role="menuitem" data-i18n="common.settings">settings</button>
+      </div>
+    </footer>
   </aside>
 
   <!-- main -->
   <main class="main">
     <div class="topbar">
       <div class="topbar-left">
-        <button class="icon-btn" id="sidebar-toggle-btn" title="toggle sidebar (Ctrl+B)">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        <button class="icon-btn" id="sidebar-toggle-btn" title="toggle sidebar (Ctrl+B)" data-i18n-title="aide.toggle_sidebar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="4" width="17" height="16" rx="2"/><path d="M9 4v16"/></svg>
         </button>
         <div class="app-crumb" id="app-crumb">alles</div>
+        <div class="aide-current-context" id="aide-current-context" hidden>
+          <svg class="aide-context-folder" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M3.5 8V6.5h6l2-2h5l2 3H21"/><path d="M3 9h18l-2 10H5Z"/></svg>
+          <span id="aide-conversation-name" data-i18n="aide.new_task">new task</span>
+          <small id="aide-project-name"></small>
+        </div>
         <div class="ai-top-controls" id="ai-top-controls">
           <button class="model-btn" id="model-btn">
             <span class="live-dot" id="live-dot"></span>
-            <span id="model-label">no model</span>
+            <span id="model-label" data-i18n="aide.no_model">no model</span>
             <span id="model-provider" class="model-provider"></span>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
           </button>
@@ -138,17 +146,27 @@
           </button>
         </div>
       </div>
-      <div class="topbar-right">
-        <span id="session-token-count" style="display:none;font-size:0.65rem;color:var(--muted)"></span>
-        <button class="icon-btn" id="session-actions-btn" title="export / share" style="display:none">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      <div class="topbar-utilities">
+        <span class="session-token-count" id="session-token-count" role="status" aria-live="polite" hidden>
+          <svg class="session-token-mark" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" aria-hidden="true">
+            <path d="M2 3.25h4.25M8.25 3.25H14M2 8h7.25M11.25 8H14M2 12.75h2.75M6.75 12.75H14"/>
+          </svg>
+          <span id="session-token-count-value"></span>
+        </span>
+        <button class="icon-btn aide-work-panel-toggle" id="aide-work-panel-toggle" type="button" aria-label="open task tools" data-i18n-aria-label="aide.open_task_tools" aria-controls="aide-work-panel" aria-expanded="false">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="4" width="17" height="16" rx="2"/><path d="M15 4v16"/></svg>
         </button>
-        <button class="icon-btn incognito-btn" id="incognito-btn" title="incognito mode" aria-pressed="false" aria-label="incognito mode">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
-        </button>
-        <button class="icon-btn" id="topbar-settings-btn" title="settings">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2a2 2 0 1 1-4 0V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1A2 2 0 1 1 4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H3a2 2 0 1 1 0-4h.2a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1A2 2 0 1 1 7.2 4.2l.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.6V3a2 2 0 1 1 4 0v.2a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1A2 2 0 1 1 20 7.2l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2a2 2 0 1 1 0 4h-.2a1.7 1.7 0 0 0-1.8 1z"/></svg>
-        </button>
+        <div class="topbar-right">
+          <button class="icon-btn" id="session-actions-btn" title="export / share" style="display:none">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          </button>
+          <button class="icon-btn incognito-btn" id="incognito-btn" title="incognito mode" aria-pressed="false" aria-label="incognito mode" data-i18n-title="aide.incognito" data-i18n-aria-label="aide.incognito">
+            <svg class="incognito-ghost" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21v-9a7 7 0 0 1 14 0v9l-2.4-1.5L14.2 21l-2.2-1.5L9.8 21l-2.4-1.5L5 21z"/><circle cx="9.5" cy="11" r="0.5" fill="currentColor"/><circle cx="14.5" cy="11" r="0.5" fill="currentColor"/></svg>
+          </button>
+          <button class="icon-btn" id="topbar-settings-btn" title="settings" data-i18n-title="common.settings">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2a2 2 0 1 1-4 0V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1A2 2 0 1 1 4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H3a2 2 0 1 1 0-4h.2a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1A2 2 0 1 1 7.2 4.2l.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.6V3a2 2 0 1 1 4 0v.2a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1A2 2 0 1 1 20 7.2l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2a2 2 0 1 1 0 4h-.2a1.7 1.7 0 0 0-1.8 1z"/></svg>
+          </button>
+        </div>
       </div>
     </div>
 
@@ -156,9 +174,9 @@
     <div class="incognito-bar" id="incognito-bar">
       <span class="incognito-bar-title">
         <svg class="incognito-ghost" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21v-9a7 7 0 0 1 14 0v9l-2.4-1.5L14.2 21l-2.2-1.5L9.8 21l-2.4-1.5L5 21z"/><circle cx="9.5" cy="11" r="0.5" fill="currentColor"/><circle cx="14.5" cy="11" r="0.5" fill="currentColor"/></svg>
-        incognito chat
+        <span data-i18n="aide.incognito_chat">incognito chat</span>
       </span>
-      <button class="icon-btn" id="incognito-exit" title="leave incognito">
+      <button class="icon-btn" id="incognito-exit" title="leave incognito" data-i18n-title="aide.leave_incognito">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
     </div>
@@ -169,100 +187,212 @@
       <button class="conn-banner-x" id="conn-banner-x" title="dismiss">×</button>
     </div>
 
-    <!-- Afterlife Today. The legacy launcher remains #home-view / All apps. -->
-    <div class="page-view today-view" id="today-view" style="display:none">
+    <!-- Afterlife Home. Internal API and compatibility keys still use "today". -->
+    <div class="page-view today-view" id="today-view" data-kokuen-surface="home" style="display:none">
       <div class="today-inner">
-        <header class="today-head">
-          <div>
-            <div class="today-kicker" id="today-date"></div>
-            <h1>today</h1>
+        <header class="today-topbar">
+          <span class="today-wordmark">alles</span>
+          <div class="today-topbar-actions">
+            <time class="today-clock" id="today-clock"></time>
+            <button class="today-settings" id="today-settings" type="button" data-i18n="common.settings">settings</button>
           </div>
-          <button class="btn" id="today-customize-btn" type="button">customize today</button>
         </header>
-        <div class="today-status" id="today-status" role="status" aria-live="polite">loading today…</div>
+        <header class="today-head">
+          <time class="today-kicker" id="today-date"></time>
+          <h1 id="today-greeting">good afternoon</h1>
+          <p class="today-summary" id="today-summary"></p>
+          <button class="today-ask" id="today-ask-aide" type="button" data-i18n="home.ask_aide">ask aide about today →</button>
+        </header>
+        <div class="today-status" id="today-status" role="status" aria-live="polite" data-i18n="home.loading">loading today…</div>
         <div class="today-sections" id="today-sections"></div>
+        <form class="today-capture" id="today-capture">
+          <button class="today-capture-mode" id="today-capture-mode" type="button" aria-pressed="true" data-i18n="home.task">task</button>
+          <input id="today-capture-input" type="text" aria-label="capture a task" placeholder="capture something…" data-i18n-aria-label="home.capture_task" data-i18n-placeholder="home.capture_placeholder" autocomplete="off">
+          <button class="today-capture-send" type="submit" aria-label="save capture" data-i18n-aria-label="home.save_capture">↑</button>
+        </form>
+        <nav class="today-destinations" aria-label="main destinations" data-i18n-aria-label="home.destinations">
+          <button type="button" data-today-destination="chat" data-i18n="common.aide">aide</button>
+          <button type="button" data-today-destination="andromeda" data-i18n="common.andromeda">andromeda</button>
+          <button type="button" data-today-destination="apps" data-i18n="common.apps">apps</button>
+        </nav>
       </div>
     </div>
 
-    <!-- Afterlife Andromeda: links are useful before the optional overview finishes. -->
-    <section class="page-view andromeda-view" id="andromeda-view" style="display:none" aria-labelledby="andromeda-title">
-      <div class="andromeda-shell">
-        <header class="andromeda-head">
-          <div class="andromeda-mark" aria-hidden="true">Ø</div>
-          <div>
-            <h1 id="andromeda-title">andromeda</h1>
-            <p>search first. a cited overview when it helps.</p>
+    <!-- Afterlife Andromeda: answer first, original links always remain visible. -->
+    <section class="page-view andromeda-view" id="andromeda-view" data-kokuen-surface="andromeda" data-state="idle" data-category="all" style="display:none" aria-labelledby="andromeda-title">
+      <div class="andromeda-page">
+        <header class="andromeda-app-head">
+          <form class="andromeda-search" id="andromeda-form" role="search">
+            <svg class="andromeda-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 4 4"></path></svg>
+            <label class="sr-only" for="andromeda-query" data-i18n="andromeda.search_web">search the web</label>
+            <input id="andromeda-query" type="search" maxlength="2000" autocomplete="off" placeholder="search the web" data-i18n-placeholder="andromeda.search_web" aria-describedby="andromeda-search-hint">
+            <button class="andromeda-icon-button andromeda-submit" type="submit" id="andromeda-submit" aria-label="search" data-i18n-aria-label="common.search">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"></path><path d="m14 7 5 5-5 5"></path></svg>
+            </button>
+          </form>
+          <div class="andromeda-head-actions">
+            <button class="andromeda-icon-button" id="andromeda-settings-button" type="button" aria-label="andromeda settings" data-i18n-aria-label="andromeda.settings" aria-expanded="false" aria-controls="andromeda-settings-panel">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M19 12a7 7 0 0 0-.08-1l2-1.55-2-3.46-2.45 1A7 7 0 0 0 14.75 6L14.4 3h-4.8l-.35 3a7 7 0 0 0-1.72.99l-2.45-1-2 3.46L5.08 11A7 7 0 0 0 5 12c0 .34.03.67.08 1l-2 1.55 2 3.46 2.45-1a7 7 0 0 0 1.72.99l.35 3h4.8l.35-3a7 7 0 0 0 1.72-.99l2.45 1 2 3.46-2-1.55c.05-.33.08-.66.08-1Z"></path></svg>
+            </button>
+            <button class="andromeda-icon-button andromeda-home-button" id="andromeda-go-home" type="button" data-i18n="common.home">home</button>
           </div>
         </header>
-        <form class="andromeda-search" id="andromeda-form" role="search">
-          <label class="sr-only" for="andromeda-query">search the web</label>
-          <input id="andromeda-query" type="search" maxlength="2000" autocomplete="off" placeholder="search the web… add !ai when you only want links">
-          <button class="btn primary" type="submit" id="andromeda-submit">search</button>
-        </form>
-        <div class="andromeda-controls" aria-label="search options">
-          <button class="andromeda-option active" id="andromeda-results-toggle" type="button" aria-pressed="true">normal results</button>
-          <button class="andromeda-option active" id="andromeda-overview-toggle" type="button" aria-pressed="true">ai overview</button>
-          <label for="andromeda-band">overview model</label>
-          <select id="andromeda-band" class="andromeda-band" aria-label="overview model band">
-            <option value="light">light</option>
-            <option value="standard" selected>standard</option>
-            <option value="strong">strong</option>
-            <option value="auto">auto</option>
-          </select>
-          <label class="sr-only" for="andromeda-exact-model">exact overview model for this search</label>
-          <select id="andromeda-exact-model" class="andromeda-band" aria-label="exact overview model for this search">
-            <option value="">band default</option>
-          </select>
-          <span id="andromeda-model" class="andromeda-model"></span>
-        </div>
-        <div class="andromeda-layout">
-          <main class="andromeda-main">
-            <div id="andromeda-status" class="andromeda-status" role="status" aria-live="polite">ready</div>
-            <section class="andromeda-overview" id="andromeda-overview" aria-labelledby="andromeda-overview-title" hidden>
-              <div class="andromeda-section-head">
-                <div>
-                  <span class="andromeda-kicker">grounded answer</span>
-                  <h2 id="andromeda-overview-title">ai overview</h2>
-                </div>
-                <button class="btn" id="andromeda-cancel-overview" type="button" hidden>stop</button>
-              </div>
+
+        <main class="andromeda-result-column">
+          <h1 class="sr-only" id="andromeda-title" data-i18n="andromeda.title">andromeda search</h1>
+          <p class="sr-only" id="andromeda-search-hint" data-i18n="andromeda.no_ai_hint">add !ai anywhere to skip the overview for one search</p>
+          <div class="andromeda-result-tools" id="andromeda-result-tools" hidden>
+            <nav class="andromeda-tabs" aria-label="search types" data-i18n-aria-label="andromeda.search_types">
+              <button class="andromeda-tab active" type="button" data-andromeda-category="all" aria-current="page" data-i18n="common.all">all</button>
+              <button class="andromeda-tab" type="button" data-andromeda-category="images" data-i18n="andromeda.images">images</button>
+              <button class="andromeda-tab" type="button" data-andromeda-category="news" data-i18n="andromeda.news">news</button>
+              <button class="andromeda-tab" type="button" data-andromeda-category="videos" data-i18n="andromeda.videos">videos</button>
+            </nav>
+            <span id="andromeda-result-meta" class="andromeda-result-meta"></span>
+          </div>
+          <div id="andromeda-status" class="andromeda-status" role="status" aria-live="polite"></div>
+
+          <section class="andromeda-overview" id="andromeda-overview" aria-labelledby="andromeda-overview-title" hidden>
+            <div class="andromeda-section-head">
+              <h2 id="andromeda-overview-title" data-i18n="andromeda.ai_overview">ai overview</h2>
               <div id="andromeda-overview-state" class="andromeda-overview-state" role="status" aria-live="polite"></div>
-              <div id="andromeda-claims" class="andromeda-claims"></div>
-              <details id="andromeda-evidence-details" class="andromeda-evidence" hidden>
-                <summary>inspect citation evidence</summary>
-                <div id="andromeda-evidence"></div>
-              </details>
-              <div id="andromeda-recovery" class="andromeda-recovery" hidden>
-                <button class="btn" type="button" data-andromeda-recovery="retry">retry</button>
-                <button class="btn" type="button" data-andromeda-recovery="broaden">broaden search</button>
-                <button class="btn" type="button" data-andromeda-recovery="edit">edit query</button>
-                <button class="btn" type="button" data-andromeda-recovery="results">return to normal results</button>
-              </div>
-            </section>
-            <section class="andromeda-results-section" aria-labelledby="andromeda-results-title">
-              <div class="andromeda-section-head">
-                <div>
-                  <span class="andromeda-kicker">the web</span>
-                  <h2 id="andromeda-results-title">normal results</h2>
-                </div>
-                <span id="andromeda-result-meta" class="andromeda-result-meta"></span>
-              </div>
-              <div id="andromeda-results" class="andromeda-results"></div>
-            </section>
-            <div class="andromeda-actions" id="andromeda-actions" hidden>
-              <button class="btn" id="andromeda-explain" type="button">explain selected links in aide</button>
-              <button class="btn" id="andromeda-deep" type="button">run deep research with jarvis</button>
-              <button class="btn" id="andromeda-save" type="button">save search</button>
+              <button class="andromeda-text-action" id="andromeda-cancel-overview" type="button" data-i18n="common.stop" hidden>stop</button>
             </div>
-          </main>
-          <aside class="andromeda-saved" aria-labelledby="andromeda-saved-title">
-            <div class="andromeda-section-head compact">
-              <h2 id="andromeda-saved-title">saved searches</h2>
+            <div class="andromeda-key-answer" id="andromeda-key-answer" hidden>
+              <span data-i18n="andromeda.key_answer">key answer</span>
+              <strong id="andromeda-key-answer-text"></strong>
             </div>
-            <div id="andromeda-saved-list" class="andromeda-saved-list"></div>
-          </aside>
-        </div>
+            <div id="andromeda-claims" class="andromeda-claims"></div>
+            <div class="andromeda-verification" id="andromeda-verification" hidden>
+              <div class="andromeda-verification-line">
+                <span id="andromeda-verification-state" role="status" aria-live="polite">not independently checked</span>
+                <button class="andromeda-text-action" id="andromeda-verification-retry" type="button" hidden>check again</button>
+                <button class="andromeda-text-action" id="andromeda-verification-details-toggle" type="button" aria-expanded="false" aria-controls="andromeda-verification-details" hidden>what changed</button>
+              </div>
+              <div id="andromeda-verification-details" class="andromeda-verification-details" hidden></div>
+            </div>
+            <button class="andromeda-text-action andromeda-evidence-toggle" id="andromeda-evidence-toggle" type="button" aria-expanded="false" aria-controls="andromeda-evidence" data-i18n="andromeda.show_sources" hidden>show sources</button>
+            <div id="andromeda-evidence" class="andromeda-evidence" hidden></div>
+            <div id="andromeda-recovery" class="andromeda-recovery" hidden>
+              <button type="button" data-andromeda-recovery="retry" data-i18n="common.retry">retry</button>
+              <button type="button" data-andromeda-recovery="broaden" data-i18n="andromeda.broaden">broaden search</button>
+              <button type="button" data-andromeda-recovery="edit" data-i18n="andromeda.edit_query">edit query</button>
+              <button type="button" data-andromeda-recovery="results" data-i18n="andromeda.normal_results">normal results</button>
+            </div>
+          </section>
+
+          <section class="andromeda-result-view" id="andromeda-all-results" data-andromeda-view="all" aria-labelledby="andromeda-results-title" hidden>
+            <div class="andromeda-view-head"><h2 id="andromeda-results-title" data-i18n="andromeda.web_results">web results</h2><span data-i18n="andromeda.normal_results">normal results</span></div>
+            <div id="andromeda-results" class="andromeda-results"></div>
+          </section>
+          <section class="andromeda-result-view" id="andromeda-images-results" data-andromeda-view="images" aria-labelledby="andromeda-images-title" hidden>
+            <div class="andromeda-view-head"><h2 id="andromeda-images-title" data-i18n="andromeda.image_results">image results</h2><span data-i18n="andromeda.open_source_hint">open a result to visit its source</span></div>
+            <div id="andromeda-images" class="andromeda-image-grid"></div>
+          </section>
+          <section class="andromeda-result-view" id="andromeda-news-results" data-andromeda-view="news" aria-labelledby="andromeda-news-title" hidden>
+            <div class="andromeda-view-head"><h2 id="andromeda-news-title" data-i18n="andromeda.news_results">news results</h2><span data-i18n="andromeda.recent_first">recent sources first</span></div>
+            <div id="andromeda-news" class="andromeda-news-list"></div>
+          </section>
+          <section class="andromeda-result-view" id="andromeda-videos-results" data-andromeda-view="videos" aria-labelledby="andromeda-videos-title" hidden>
+            <div class="andromeda-view-head"><h2 id="andromeda-videos-title" data-i18n="andromeda.video_results">video results</h2><span data-i18n="andromeda.video_hint">demos and explainers</span></div>
+            <div id="andromeda-videos" class="andromeda-video-grid"></div>
+          </section>
+
+          <div class="andromeda-results-tail" id="andromeda-results-tail" hidden>
+            <button id="andromeda-more-results" type="button" data-i18n="andromeda.more_results">more results</button>
+          </div>
+
+          <div class="andromeda-actions" id="andromeda-actions" hidden>
+            <button id="andromeda-explain" type="button" data-i18n="andromeda.ask_aide">ask aide about these results</button>
+            <button id="andromeda-save" type="button" data-i18n="andromeda.save_search">save search</button>
+          </div>
+        </main>
       </div>
+
+      <div class="andromeda-idle-footer"><button id="andromeda-idle-home" type="button" data-i18n="common.home">home</button><span>andromeda</span><button id="andromeda-idle-settings" type="button" data-i18n="common.settings">settings</button></div>
+      <aside class="andromeda-settings-panel" id="andromeda-settings-panel" aria-label="andromeda settings" hidden>
+        <div class="andromeda-settings-head"><h2>settings</h2><button class="andromeda-icon-button" id="andromeda-settings-close" type="button" aria-label="close settings">×</button></div>
+        <section class="andromeda-settings-section" aria-labelledby="andromeda-search-settings-title">
+          <h3 id="andromeda-search-settings-title">search sources</h3>
+          <div class="andromeda-setting-row">
+            <span><strong>this search</strong><small>temporarily override the saved primary provider</small></span>
+            <div id="andromeda-provider" class="custom-select" data-value="" data-options="|automatic;brave|brave;serper|serper · google;tavily|tavily;searxng|searxng;duckduckgo|duckduckgo" aria-label="search engine for this search"></div>
+          </div>
+          <div class="andromeda-setting-row">
+            <span><strong>primary provider</strong><small>used first for normal searches</small></span>
+            <div id="andromeda-primary-provider" class="custom-select" data-value="duckduckgo" data-options="duckduckgo|duckduckgo;tavily|tavily;brave|brave;searxng|searxng;google_pse|google pse;serper|serper;disabled|disabled" aria-label="primary search provider"></div>
+          </div>
+          <div class="andromeda-setting-row">
+            <span><strong>fallback provider</strong><small>used quietly when the primary provider fails</small></span>
+            <div id="andromeda-fallback-provider" class="custom-select" data-value="duckduckgo" data-options="none|none;duckduckgo|duckduckgo;tavily|tavily;brave|brave;searxng|searxng;google_pse|google pse;serper|serper" aria-label="fallback search provider"></div>
+          </div>
+          <div class="andromeda-setting-row andromeda-setting-summary">
+            <span><strong>provider order</strong><small id="andromeda-provider-order">duckduckgo</small></span>
+          </div>
+          <div class="andromeda-setting-row">
+            <span><strong>result count</strong><small>normal links returned for each query</small></span>
+            <div id="andromeda-result-count" class="custom-select" data-value="8" data-options="3|3 results;5|5 results;8|8 results;10|10 results;20|20 results" aria-label="normal results per query"></div>
+          </div>
+          <div class="andromeda-provider-fields" id="andromeda-provider-fields">
+            <div class="andromeda-setting-field" data-andromeda-provider-field="tavily"><label for="andromeda-tavily-key">tavily api key</label><div class="andromeda-setting-input"><input id="andromeda-tavily-key" type="password" autocomplete="new-password" placeholder="not configured"><button class="andromeda-setting-clear" type="button" data-andromeda-clear-setting="andromeda-tavily-key" aria-label="clear tavily api key">clear</button></div></div>
+            <div class="andromeda-setting-field" data-andromeda-provider-field="brave"><label for="andromeda-brave-key">brave api key</label><div class="andromeda-setting-input"><input id="andromeda-brave-key" type="password" autocomplete="new-password" placeholder="not configured"><button class="andromeda-setting-clear" type="button" data-andromeda-clear-setting="andromeda-brave-key" aria-label="clear brave api key">clear</button></div></div>
+            <div class="andromeda-setting-field" data-andromeda-provider-field="searxng"><label for="andromeda-searxng-url">external searxng url</label><div class="andromeda-setting-input"><input id="andromeda-searxng-url" type="url" inputmode="url" autocomplete="off" placeholder="https://search.example.com"><button class="andromeda-setting-clear" type="button" data-andromeda-clear-setting="andromeda-searxng-url" aria-label="clear external searxng url">clear</button></div></div>
+            <div class="andromeda-setting-field" data-andromeda-provider-field="google_pse"><label for="andromeda-google-key">google pse api key</label><div class="andromeda-setting-input"><input id="andromeda-google-key" type="password" autocomplete="new-password" placeholder="not configured"><button class="andromeda-setting-clear" type="button" data-andromeda-clear-setting="andromeda-google-key" aria-label="clear google pse api key">clear</button></div></div>
+            <div class="andromeda-setting-field" data-andromeda-provider-field="google_pse"><label for="andromeda-google-cx">google pse cx</label><div class="andromeda-setting-input"><input id="andromeda-google-cx" type="text" autocomplete="off" placeholder="search engine id"><button class="andromeda-setting-clear" type="button" data-andromeda-clear-setting="andromeda-google-cx" aria-label="clear google pse cx">clear</button></div></div>
+            <div class="andromeda-setting-field" data-andromeda-provider-field="serper"><label for="andromeda-serper-key">serper api key</label><div class="andromeda-setting-input"><input id="andromeda-serper-key" type="password" autocomplete="new-password" placeholder="not configured"><button class="andromeda-setting-clear" type="button" data-andromeda-clear-setting="andromeda-serper-key" aria-label="clear serper api key">clear</button></div></div>
+          </div>
+          <div class="andromeda-settings-status" id="andromeda-search-settings-status" role="status" aria-live="polite"></div>
+        </section>
+
+        <section class="andromeda-settings-section andromeda-searxng-settings" aria-labelledby="andromeda-searxng-title">
+          <div class="andromeda-settings-section-head">
+            <div><h3 id="andromeda-searxng-title">local searxng</h3><p>Alles-managed, self-hosted search bound to this computer only.</p></div>
+            <button class="andromeda-text-action" id="andromeda-searxng-refresh" type="button">refresh</button>
+          </div>
+          <div class="andromeda-searxng-status" id="andromeda-searxng-status" role="status" aria-live="polite">checking local search…</div>
+          <div class="andromeda-searxng-meta" id="andromeda-searxng-meta"></div>
+          <div class="andromeda-searxng-actions" id="andromeda-searxng-actions" role="group" aria-label="managed searxng actions"></div>
+        </section>
+
+        <section class="andromeda-settings-section" aria-labelledby="andromeda-overview-settings-title">
+          <h3 id="andromeda-overview-settings-title">answer</h3>
+        <div class="andromeda-setting-row">
+          <span><strong>normal results</strong><small>links and media below the answer</small></span>
+          <button class="andromeda-switch" id="andromeda-results-toggle" type="button" role="switch" aria-checked="true" aria-pressed="true"><span></span></button>
+        </div>
+        <div class="andromeda-setting-row">
+          <span><strong>ai overview</strong><small>only appears in all</small></span>
+          <button class="andromeda-switch" id="andromeda-overview-toggle" type="button" role="switch" aria-checked="true" aria-pressed="true"><span></span></button>
+        </div>
+        <div class="andromeda-setting-row">
+          <span><strong>independent fact-check</strong><small>runs separately after freshness-sensitive answers</small></span>
+          <button class="andromeda-switch" id="andromeda-verification-toggle" type="button" role="switch" aria-checked="true" aria-pressed="true"><span></span></button>
+        </div>
+        <div class="andromeda-setting-row">
+          <span><strong>when to check</strong><small>current dates and versions are checked by default</small></span>
+          <div id="andromeda-verifier-mode" class="custom-select" data-value="freshness-sensitive" data-options="freshness-sensitive|current facts;always|every answer;manual|only when asked;off|off" aria-label="independent fact-check policy"></div>
+        </div>
+        <div class="andromeda-setting-row">
+          <span><strong>overview strength</strong><small>speed and checking change together</small></span>
+          <div id="andromeda-band" class="custom-select" data-value="standard" data-options="light|light;standard|standard;strong|strong;auto|automatic" aria-label="overview model strength"></div>
+        </div>
+        <div class="andromeda-strength-guide" aria-label="overview strength guide">
+          <p>light — fastest, shortest answer, least checking</p>
+          <p>standard — balanced speed and checking</p>
+          <p>strong — slower, longer answer, more checking</p>
+          <p>automatic — chooses from the query and available model</p>
+        </div>
+        <div class="andromeda-setting-row">
+          <span><strong>exact model</strong><small>optional for this search</small></span>
+          <div id="andromeda-exact-model" class="custom-select" data-value="" data-options="|band default" aria-label="exact overview model"></div>
+        </div>
+        <div class="andromeda-model" id="andromeda-model"></div>
+        </section>
+        <div class="andromeda-saved">
+          <h3 id="andromeda-saved-title">saved searches</h3>
+          <div id="andromeda-saved-list" class="andromeda-saved-list"></div>
+        </div>
+      </aside>
     </section>
 
     <!-- ── home / launcher (landing) ── -->
@@ -320,13 +450,16 @@
     </div>
 
     <!-- ── chat view (default) ── -->
-    <div class="chat" id="chat">
+    <nav class="aide-message-rail" id="aide-message-rail" aria-label="messages from you" hidden>
+      <div id="aide-message-rail-track"></div>
+    </nav>
+    <div class="chat" id="chat" data-kokuen-surface="aide">
       <div class="welcome" id="welcome" style="display:none">
         <div class="welcome-greeting" id="welcome-greeting"></div>
       </div>
       <div class="messages" id="messages" style="display:none"></div>
     </div>
-    <button class="jump-latest" id="jump-latest" type="button" hidden>jump to latest ↓</button>
+    <button class="jump-latest" id="jump-latest" type="button" data-i18n="aide.jump_latest" hidden>jump to latest ↓</button>
 
     <!-- project workspace (NotebookLM-style: chats + files + instructions + notes) -->
     <div class="page-view" id="project-view" style="display:none"></div>
@@ -346,12 +479,12 @@
       </div>
     </div>
 
-    <div class="page-view" id="brain-view" style="display:none">
-      <div class="page-view-head">
+    <div class="page-view aide-tool-view" id="brain-view" data-kokuen-surface="aide-tool" style="display:none">
+      <div class="page-view-head aide-tool-head">
         <span class="page-view-title">brain</span>
         <button class="btn" id="brain-refresh-btn">refresh</button>
       </div>
-      <div class="page-view-body">
+      <div class="page-view-body aide-tool-content">
         <div class="brain-grid" id="brain-stats"></div>
         <div class="brain-section">
           <div class="brain-section-title">current context</div>
@@ -370,57 +503,109 @@
           <div class="brain-section-title brain-sec-head">what aide learned about you<button class="btn brain-sec-btn" id="brain-usermodel-run">refresh</button></div>
           <div id="brain-usermodel"></div>
         </div>
-        <div class="brain-section">
-          <div class="brain-section-title">proactive learning</div>
-          <div id="brain-proxstats"></div>
-        </div>
       </div>
     </div>
 
+    <!-- ── Stage 8 specialist groups; proven legacy screens are mounted into their slots ── -->
+    <section class="page-view specialist-group" id="plan-view" data-specialist-app="plan" data-kokuen-surface="specialist" style="display:none" aria-labelledby="plan-title">
+      <header class="specialist-app-head"><div class="specialist-app-brand"><button class="specialist-sidebar-toggle" type="button" data-specialist-sidebar-toggle aria-expanded="true" aria-controls="plan-tabs" aria-label="hide plan navigation"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3.5 4.5h13v11h-13zM7 4.5v11"/></svg></button><h1 class="specialist-app-name" id="plan-title" data-i18n="plan.title">plan</h1><button class="specialist-home-action" type="button" data-specialist-home data-i18n="common.home">home</button></div><div class="specialist-group-tabs" id="plan-tabs" role="tablist" aria-label="plan sections" data-i18n-aria-label="plan.sections">
+        <button type="button" role="tab" data-group-section="overview" data-i18n="plan.agenda">agenda</button><button type="button" role="tab" data-group-section="week" data-i18n="plan.week">week</button><button type="button" role="tab" data-group-section="board" data-i18n="plan.board">task board</button><button type="button" role="tab" data-group-section="calendar" data-i18n="calendar.title">calendar</button><button type="button" role="tab" data-group-section="tasks" data-i18n="tasks.title">tasks</button><button type="button" role="tab" data-group-section="reminders" data-i18n="aide.reminders">reminders</button><button type="button" role="tab" data-group-section="days">countdowns</button>
+      </div></header>
+      <div class="specialist-group-overview" data-group-overview></div><div class="specialist-group-slot" data-group-slot hidden></div>
+    </section>
+    <section class="page-view specialist-group" id="inbox-view" data-specialist-app="inbox" data-kokuen-surface="specialist" style="display:none" aria-labelledby="inbox-title">
+      <header class="specialist-app-head"><div class="specialist-app-brand"><button class="specialist-sidebar-toggle" type="button" data-specialist-sidebar-toggle aria-expanded="true" aria-controls="inbox-tabs" aria-label="hide inbox navigation"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3.5 4.5h13v11h-13zM7 4.5v11"/></svg></button><h1 class="specialist-app-name" id="inbox-title">inbox</h1><button class="specialist-home-action" type="button" data-specialist-home>home</button></div><div class="specialist-group-tabs" id="inbox-tabs" role="tablist" aria-label="inbox sections">
+        <button type="button" role="tab" data-group-section="overview">overview</button><button type="button" role="tab" data-group-section="mail">mail</button><button type="button" role="tab" data-group-section="contacts">contacts</button>
+      </div></header>
+      <div class="specialist-group-overview" data-group-overview></div><div class="specialist-group-slot" data-group-slot hidden></div>
+    </section>
+    <section class="page-view specialist-group" id="library-view" data-specialist-app="library" data-kokuen-surface="specialist" style="display:none" aria-labelledby="library-title">
+      <header class="specialist-app-head"><div class="specialist-app-brand"><button class="specialist-sidebar-toggle" type="button" data-specialist-sidebar-toggle aria-expanded="true" aria-controls="library-tabs" aria-label="hide library navigation"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3.5 4.5h13v11h-13zM7 4.5v11"/></svg></button><h1 class="specialist-app-name" id="library-title">library</h1><button class="specialist-home-action" type="button" data-specialist-home>home</button></div><div class="specialist-group-tabs" id="library-tabs" role="tablist" aria-label="library sections">
+        <button type="button" role="tab" data-group-section="overview">overview</button><button type="button" role="tab" data-group-section="books">books</button><button type="button" role="tab" data-group-section="read">saved</button>
+      </div></header>
+      <div class="specialist-group-overview" data-group-overview></div><div class="specialist-group-slot" data-group-slot hidden></div>
+    </section>
+    <section class="page-view specialist-group" id="health-group-view" data-specialist-app="health" data-kokuen-surface="specialist" style="display:none" aria-labelledby="health-group-title">
+      <header class="specialist-app-head"><div class="specialist-app-brand"><button class="specialist-sidebar-toggle" type="button" data-specialist-sidebar-toggle aria-expanded="true" aria-controls="health-tabs" aria-label="hide health navigation"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3.5 4.5h13v11h-13zM7 4.5v11"/></svg></button><h1 class="specialist-app-name" id="health-group-title">health</h1><button class="specialist-home-action" type="button" data-specialist-home>home</button></div><div class="specialist-group-tabs" id="health-tabs" role="tablist" aria-label="health sections">
+        <button type="button" role="tab" data-group-section="overview">overview</button><button type="button" role="tab" data-group-section="health">logs</button><button type="button" role="tab" data-group-section="habits">habits</button>
+      </div></header>
+      <div class="specialist-group-overview" data-group-overview></div><div class="specialist-group-slot" data-group-slot hidden></div>
+    </section>
+    <section class="page-view specialist-group" id="finance-view" data-specialist-app="finance" data-kokuen-surface="specialist" style="display:none" aria-labelledby="finance-title">
+      <header class="specialist-app-head"><div class="specialist-app-brand"><button class="specialist-sidebar-toggle" type="button" data-specialist-sidebar-toggle aria-expanded="true" aria-controls="finance-tabs" aria-label="hide finance navigation"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3.5 4.5h13v11h-13zM7 4.5v11"/></svg></button><h1 class="specialist-app-name" id="finance-title">finance</h1><button class="specialist-home-action" type="button" data-specialist-home>home</button></div><div class="specialist-group-tabs" id="finance-tabs" role="tablist" aria-label="finance sections">
+        <button type="button" role="tab" data-group-section="overview">overview</button><button type="button" role="tab" data-group-section="money">money</button><button type="button" role="tab" data-group-section="subs">subscriptions</button><button type="button" role="tab" data-group-section="imports">imports</button>
+      </div></header>
+      <div class="specialist-group-overview" data-group-overview></div><div class="specialist-group-slot" data-group-slot hidden></div>
+    </section>
+    <section class="page-view specialist-group" id="docs-workbench-view" data-specialist-app="docs" data-kokuen-surface="specialist" style="display:none" aria-labelledby="docs-workbench-title">
+      <header class="specialist-app-head"><div class="specialist-app-brand"><button class="specialist-sidebar-toggle" type="button" data-specialist-sidebar-toggle aria-expanded="true" aria-controls="docs-tabs" aria-label="hide docs navigation"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3.5 4.5h13v11h-13zM7 4.5v11"/></svg></button><h1 class="specialist-app-name" id="docs-workbench-title">docs</h1><button class="specialist-home-action" type="button" data-specialist-home>home</button></div><div class="specialist-group-tabs" id="docs-tabs" role="tablist" aria-label="docs sections">
+        <button type="button" role="tab" data-group-section="notes">notes</button><button type="button" role="tab" data-group-section="journal">journal</button>
+      </div></header>
+      <div class="specialist-group-overview" data-group-overview></div><div class="specialist-group-slot" data-group-slot hidden></div>
+    </section>
+    <section class="page-view specialist-group" id="files-workbench-view" data-specialist-app="files" data-kokuen-surface="specialist" style="display:none" aria-labelledby="files-workbench-title">
+      <header class="specialist-app-head"><div class="specialist-app-brand"><button class="specialist-sidebar-toggle" type="button" data-specialist-sidebar-toggle aria-expanded="true" aria-controls="files-tabs" aria-label="hide files navigation"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3.5 4.5h13v11h-13zM7 4.5v11"/></svg></button><h1 class="specialist-app-name" id="files-workbench-title">files</h1><button class="specialist-mobile-back" type="button" data-files-back hidden>← files</button><button class="specialist-home-action" type="button" data-specialist-home>home</button></div><div class="specialist-group-tabs" id="files-tabs" role="tablist" aria-label="files sections">
+        <button type="button" role="tab" data-group-section="files">files</button><button type="button" role="tab" data-group-section="gallery">gallery</button>
+      </div></header>
+      <div class="specialist-group-overview" data-group-overview></div><div class="specialist-group-slot" data-group-slot hidden></div>
+    </section>
+    <section class="page-view specialist-group" id="vault-workbench-view" data-specialist-app="vault" data-kokuen-surface="specialist" style="display:none" aria-labelledby="vault-workbench-title">
+      <header class="specialist-app-head"><div class="specialist-app-brand"><button class="specialist-sidebar-toggle" type="button" data-specialist-sidebar-toggle aria-expanded="true" aria-controls="vault-tabs" aria-label="hide vault navigation"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3.5 4.5h13v11h-13zM7 4.5v11"/></svg></button><h1 class="specialist-app-name" id="vault-workbench-title">vault</h1><button class="specialist-home-action" type="button" data-specialist-home>home</button></div><div class="specialist-group-tabs" id="vault-tabs" role="tablist" aria-label="vault sections">
+        <button type="button" role="tab" data-group-section="items">items, passkeys, and watchtower</button>
+      </div></header>
+      <div class="specialist-group-overview" data-group-overview></div><div class="specialist-group-slot" data-group-slot hidden></div>
+    </section>
+    <section class="page-view specialist-group" id="server-workbench-view" data-specialist-app="server" data-kokuen-surface="specialist" style="display:none" aria-labelledby="server-workbench-title">
+      <header class="specialist-app-head"><div class="specialist-app-brand"><button class="specialist-sidebar-toggle" type="button" data-specialist-sidebar-toggle aria-expanded="true" aria-controls="server-tabs" aria-label="hide server navigation"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3.5 4.5h13v11h-13zM7 4.5v11"/></svg></button><h1 class="specialist-app-name" id="server-workbench-title">server</h1><button class="specialist-home-action" type="button" data-specialist-home>home</button></div><div class="specialist-group-tabs" id="server-tabs" role="tablist" aria-label="server sections">
+        <button type="button" role="tab" data-group-section="overview">overview</button><button type="button" role="tab" data-group-section="services">services</button><button type="button" role="tab" data-group-section="search">search and models</button><button type="button" role="tab" data-group-section="backups">backups and storage</button><button type="button" role="tab" data-group-section="updates">updates</button><button type="button" role="tab" data-group-section="logs">logs</button><button type="button" role="tab" data-group-section="activity">activity</button><button type="button" role="tab" data-group-section="watch">watch</button><button type="button" role="tab" data-group-section="policy">access policy</button>
+      </div></header>
+      <div class="specialist-group-overview" data-group-overview></div><div class="specialist-group-slot" data-group-slot hidden></div>
+    </section>
+
     <!-- ── tasks view ── -->
-    <div class="page-view" id="tasks-view" style="display:none">
+    <div class="page-view" id="tasks-view" data-specialist-app="tasks" style="display:none">
       <div class="page-view-head">
-        <span class="page-view-title">tasks</span>
+        <span class="page-view-title" data-i18n="tasks.title">tasks</span>
         <div class="tasks-tabs">
-          <button class="tasks-tab active" data-tab="active">all</button>
-          <button class="tasks-tab" data-tab="today">today</button>
-          <button class="tasks-tab" data-tab="upcoming">upcoming</button>
-          <button class="tasks-tab" data-tab="someday">someday</button>
-          <button class="tasks-tab" data-tab="done">history</button>
+          <button class="tasks-tab active" data-tab="active" data-i18n="common.all">all</button>
+          <button class="tasks-tab" data-tab="today" data-i18n="common.today">today</button>
+          <button class="tasks-tab" data-tab="upcoming" data-i18n="tasks.upcoming">upcoming</button>
+          <button class="tasks-tab" data-tab="someday" data-i18n="tasks.someday">someday</button>
+          <button class="tasks-tab" data-tab="done" data-i18n="tasks.history">history</button>
         </div>
-        <input type="text" id="tasks-search" class="cal-quick tasks-search" placeholder="search tasks…">
+        <input type="text" id="tasks-search" class="cal-quick tasks-search" placeholder="search tasks…" data-i18n-placeholder="tasks.search">
       </div>
       <div class="page-view-body" id="tasks-list"></div>
       <div class="page-view-footer">
-        <input type="text" id="task-add-input" placeholder="add a task… try 'pay rent every 1st !' or 'call mom tomorrow #home'">
-        <button class="btn primary" id="task-add-btn">add</button>
+        <input type="text" id="task-add-input" placeholder="add a task… try 'pay rent every 1st !' or 'call mom tomorrow #home'" data-i18n-placeholder="tasks.quick_add_placeholder">
+        <button class="btn primary" id="task-add-btn" data-i18n="common.add">add</button>
       </div>
     </div>
 
     <!-- ── calendar view ── -->
-    <div class="page-view" id="calendar-view" style="display:none">
+    <div class="page-view" id="calendar-view" data-specialist-app="calendar" style="display:none">
       <div class="page-view-head" style="gap:0.5rem">
         <div class="cal-nav">
-          <button class="btn" id="cal-prev" title="previous">‹</button>
-          <button class="btn" id="cal-today">today</button>
-          <button class="btn" id="cal-next" title="next">›</button>
+          <button class="btn" id="cal-prev" title="previous" data-i18n-title="common.previous">‹</button>
+          <button class="btn" id="cal-today" data-i18n="common.today">today</button>
+          <button class="btn" id="cal-next" title="next" data-i18n-title="common.next">›</button>
         </div>
         <span id="cal-month-label" class="cal-month-title"></span>
         <div class="seg seg-cal" id="cal-view" style="margin-left:auto">
-          <button type="button" class="seg-opt" data-view="month">month</button>
-          <button type="button" class="seg-opt" data-view="week">week</button>
-          <button type="button" class="seg-opt" data-view="day">day</button>
-          <button type="button" class="seg-opt" data-view="agenda">agenda</button>
-          <button type="button" class="seg-opt" data-view="year">year</button>
+          <button type="button" class="seg-opt" data-view="month" data-i18n="calendar.month">month</button>
+          <button type="button" class="seg-opt" data-view="week" data-i18n="calendar.week">week</button>
+          <button type="button" class="seg-opt" data-view="day" data-i18n="calendar.day">day</button>
+          <button type="button" class="seg-opt" data-view="agenda" data-i18n="calendar.agenda">agenda</button>
+          <button type="button" class="seg-opt" data-view="year" data-i18n="calendar.year">year</button>
         </div>
-        <a class="btn" id="cal-export" href="/api/calendar/export.ics" download title="export to .ics (Apple/Google/Outlook)">export</a>
+        <a class="btn" id="cal-export" href="/api/calendar/export.ics" download title="export to .ics (Apple/Google/Outlook)" data-i18n="calendar.export" data-i18n-title="calendar.export_help">export</a>
         <input type="file" id="cal-import-file" accept=".ics,text/calendar" hidden>
-        <button class="btn" id="cal-import" title="import a .ics file">import</button>
-        <input type="text" id="cal-quick" class="cal-quick" placeholder="quick add… 'lunch fri 1pm'">
-        <button class="btn" id="cal-find" title="find a free time slot">find time</button>
-        <button class="btn" id="cal-sync-btn" title="CalDAV sync">sync</button>
-        <button class="btn primary" id="cal-new-btn">+ event</button>
-        <button class="icon-btn app-cog" data-app="calendar" title="calendar settings"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2a2 2 0 1 1-4 0V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1A2 2 0 1 1 4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H3a2 2 0 1 1 0-4h.2a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1A2 2 0 1 1 7.2 4.2l.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.6V3a2 2 0 1 1 4 0v.2a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1A2 2 0 1 1 20 7.2l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2a2 2 0 1 1 0 4h-.2a1.7 1.7 0 0 0-1.8 1z"/></svg></button>
+        <button class="btn" id="cal-import" title="import a .ics file" data-i18n="calendar.import" data-i18n-title="calendar.import_help">import</button>
+        <input type="text" id="cal-quick" class="cal-quick" placeholder="quick add… 'lunch fri 1pm'" data-i18n-placeholder="calendar.quick_add_placeholder">
+        <button class="btn" id="cal-find" title="find a free time slot" data-i18n="calendar.find_time" data-i18n-title="calendar.find_time_help">find time</button>
+        <button class="btn" id="cal-sync-btn" title="CalDAV sync" data-i18n="calendar.sync" data-i18n-title="calendar.sync_help">sync</button>
+        <button class="btn primary" id="cal-new-btn" data-i18n="calendar.new_event">+ event</button>
+        <button class="icon-btn app-cog" data-app="calendar" title="calendar settings" data-i18n-title="calendar.settings"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2a2 2 0 1 1-4 0V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1A2 2 0 1 1 4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H3a2 2 0 1 1 0-4h.2a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1A2 2 0 1 1 7.2 4.2l.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.6V3a2 2 0 1 1 4 0v.2a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1A2 2 0 1 1 20 7.2l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2a2 2 0 1 1 0 4h-.2a1.7 1.7 0 0 0-1.8 1z"/></svg></button>
       </div>
       <div class="cal-layout">
         <div class="cal-sidebar" id="cal-sidebar"></div>
@@ -444,12 +629,12 @@
 
 
     <!-- ── reminders view ── -->
-    <div class="page-view" id="reminders-view" style="display:none">
-      <div class="page-view-head">
+    <div class="page-view aide-tool-view" id="reminders-view" data-kokuen-surface="aide-tool" style="display:none">
+      <div class="page-view-head aide-tool-head">
         <span class="page-view-title">reminders</span>
         <button class="btn primary" id="push-enable-btn" style="margin-left:auto;font-size:0.72rem">enable notifications</button>
       </div>
-      <div class="page-view-body">
+      <div class="page-view-body aide-tool-content">
         <div id="reminder-list" style="margin-bottom:0.75rem"></div>
         <div class="reminder-add-form">
           <input type="text" id="reminder-text" class="settings-input" placeholder="what to remind / message to send..." style="flex:1">
@@ -463,27 +648,68 @@
       </div>
     </div>
 
-    <!-- ── proactive feed ── -->
-    <div class="page-view" id="proactive-view" style="display:none">
-      <div class="page-view-head">
-        <span class="page-view-title">proactive</span>
-        <button class="btn" id="prox-feed-run" style="margin-left:auto;font-size:0.72rem">run now</button>
-      </div>
-      <div class="page-view-body">
-        <div id="prox-feed" class="prox-feed"></div>
-      </div>
-    </div>
+    <!-- ── Aide scheduled work ── -->
+    <section class="page-view aide-tool-view aide-scheduled-view" id="aide-scheduled-view" data-kokuen-surface="aide-tool" style="display:none" aria-labelledby="aide-scheduled-title">
+      <header class="aide-tool-head aide-scheduled-head">
+        <div>
+          <h1 id="aide-scheduled-title">scheduled</h1>
+          <p>work Aide can start later or check quietly in the background</p>
+        </div>
+        <button class="aide-scheduled-new" id="aide-scheduled-new" type="button">new schedule</button>
+      </header>
 
-
-    <!-- ── journal view ── -->
-    <div class="page-view" id="journal-view" style="display:none">
-      <div class="page-view-head">
-        <span class="page-view-title">journal</span>
-        <span id="journal-stats" style="font-size:0.7rem;color:var(--muted);margin-left:auto"></span>
-        <button class="icon-btn app-cog" data-app="journal" title="journal settings" style="margin-left:8px"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2a2 2 0 1 1-4 0V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1A2 2 0 1 1 4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H3a2 2 0 1 1 0-4h.2a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1A2 2 0 1 1 7.2 4.2l.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.6V3a2 2 0 1 1 4 0v.2a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1A2 2 0 1 1 20 7.2l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2a2 2 0 1 1 0 4h-.2a1.7 1.7 0 0 0-1.8 1z"/></svg></button>
+      <div class="aide-scheduled-tabs" role="tablist" aria-label="scheduled work sections">
+        <button type="button" role="tab" aria-selected="true" aria-controls="aide-schedule-list" data-scheduled-tab="schedules">schedules</button>
+        <button type="button" role="tab" aria-selected="false" aria-controls="aide-news-workbench" data-scheduled-tab="news" tabindex="-1">news</button>
+        <button type="button" role="tab" aria-selected="false" aria-controls="aide-run-list" data-scheduled-tab="runs">recent runs</button>
       </div>
-      <div class="page-view-body" id="journal-body"></div>
-    </div>
+
+      <form class="aide-schedule-form" id="aide-schedule-form" hidden>
+        <div class="aide-schedule-form-head">
+          <strong id="aide-schedule-form-title">new schedule</strong>
+          <button type="button" id="aide-schedule-cancel">cancel</button>
+        </div>
+        <label>
+          <span>name</span>
+          <input id="aide-schedule-name" type="text" maxlength="120" autocomplete="off" placeholder="morning plan">
+        </label>
+        <label>
+          <span>what should Aide do?</span>
+          <textarea id="aide-schedule-prompt" rows="3" maxlength="50000" placeholder="check my calendar and tasks, then prepare my morning plan"></textarea>
+        </label>
+
+        <div class="aide-schedule-field">
+          <span>when</span>
+          <div class="aide-schedule-choices" role="radiogroup" aria-label="schedule type">
+            <button type="button" role="radio" aria-checked="true" data-schedule-kind="schedule">daily</button>
+            <button type="button" role="radio" aria-checked="false" data-schedule-kind="once">once</button>
+            <button type="button" role="radio" aria-checked="false" data-schedule-kind="interval">interval</button>
+            <button type="button" role="radio" aria-checked="false" data-schedule-kind="heartbeat">heartbeat</button>
+          </div>
+        </div>
+
+        <div class="aide-schedule-timing" id="aide-schedule-timing"></div>
+
+        <div class="aide-schedule-field">
+          <span>Project</span>
+          <div class="aide-schedule-project-wrap">
+            <button type="button" id="aide-schedule-project" aria-haspopup="menu" aria-expanded="false">tasks</button>
+            <div class="aide-schedule-project-menu" id="aide-schedule-project-menu" role="menu" hidden></div>
+          </div>
+        </div>
+
+        <div class="aide-schedule-form-actions">
+          <span id="aide-schedule-form-status" role="status" aria-live="polite"></span>
+          <button id="aide-schedule-submit" type="submit">save schedule</button>
+        </div>
+      </form>
+
+      <div class="aide-tool-content aide-scheduled-content">
+        <div id="aide-schedule-list" role="tabpanel" aria-label="schedules"></div>
+        <div id="aide-news-workbench" class="aide-news-workbench" role="tabpanel" aria-label="news" hidden></div>
+        <div id="aide-run-list" role="tabpanel" aria-label="recent runs" hidden></div>
+      </div>
+    </section>
 
     <!-- ── cookbook (local model picker) view ── -->
     <div class="page-view" id="cookbook-view" style="display:none">
@@ -495,12 +721,12 @@
     </div>
 
     <!-- ── skills (reusable agent procedures) view ── -->
-    <div class="page-view" id="skills-view" style="display:none">
-      <div class="page-view-head">
+    <div class="page-view aide-tool-view" id="skills-view" data-kokuen-surface="aide-tool" style="display:none">
+      <div class="page-view-head aide-tool-head">
         <span class="page-view-title">skills</span>
         <span style="font-size:0.7rem;color:var(--muted);margin-left:auto">reusable procedures the agent can load</span>
       </div>
-      <div class="page-view-body" id="skills-body"></div>
+      <div class="page-view-body aide-tool-content" id="skills-body"></div>
     </div>
 
     <!-- ── usage (token / cost) view ── -->
@@ -513,7 +739,7 @@
     </div>
 
     <!-- ── activity timeline view ── -->
-    <div class="page-view" id="activity-view" style="display:none">
+    <div class="page-view" id="activity-view" data-specialist-app="activity" style="display:none">
       <div class="page-view-head">
         <span class="page-view-title">activity</span>
         <div class="activity-filters" id="activity-filters"></div>
@@ -523,7 +749,7 @@
     </div>
 
     <!-- ── system monitor view ── -->
-    <div class="page-view" id="system-view" style="display:none">
+    <div class="page-view" id="system-view" data-specialist-app="system" data-kokuen-surface="system" style="display:none">
       <div class="page-view-head">
         <span class="page-view-title">system</span>
         <span id="system-host" style="font-size:0.7rem;color:var(--muted);margin-left:auto"></span>
@@ -533,7 +759,7 @@
     </div>
 
     <!-- ── watch (uptime/status) view ── -->
-    <div class="page-view" id="watch-view" style="display:none">
+    <div class="page-view" id="watch-view" data-specialist-app="watch" style="display:none">
       <div class="page-view-head">
         <span class="page-view-title">watch</span>
       </div>
@@ -541,7 +767,7 @@
     </div>
 
     <!-- ── habits view ── -->
-    <div class="page-view" id="habits-view" style="display:none">
+    <div class="page-view" id="habits-view" data-specialist-app="habits" style="display:none">
       <div class="page-view-head">
         <span class="page-view-title">habits</span>
       </div>
@@ -549,7 +775,7 @@
     </div>
 
     <!-- ── read-later view ── -->
-    <div class="page-view" id="read-view" style="display:none">
+    <div class="page-view" id="read-view" data-specialist-app="watchlist" style="display:none">
       <div class="page-view-head">
         <span class="page-view-title">watchlist</span>
       </div>
@@ -557,7 +783,7 @@
     </div>
 
     <!-- ── books (reading list) view ── -->
-    <div class="page-view" id="books-view" style="display:none">
+    <div class="page-view" id="books-view" data-specialist-app="books" style="display:none">
       <div class="page-view-head">
         <span class="page-view-title">books</span>
       </div>
@@ -565,7 +791,7 @@
     </div>
 
     <!-- ── health log view ── -->
-    <div class="page-view" id="health-view" style="display:none">
+    <div class="page-view" id="health-view" data-specialist-app="health" style="display:none">
       <div class="page-view-head">
         <span class="page-view-title">health</span>
       </div>
@@ -573,7 +799,7 @@
     </div>
 
     <!-- ── subscriptions view ── -->
-    <div class="page-view" id="subs-view" style="display:none">
+    <div class="page-view" id="subs-view" data-specialist-app="subs" style="display:none">
       <div class="page-view-head">
         <span class="page-view-title">subscriptions</span>
         <span id="subs-summary" style="font-size:0.7rem;color:var(--muted);margin-left:auto"></span>
@@ -592,7 +818,7 @@
 
 
     <!-- ── money: accounts, transactions, budgets ── -->
-    <div class="page-view" id="money-view" style="display:none">
+    <div class="page-view" id="money-view" data-specialist-app="money" style="display:none">
       <div class="page-view-head">
         <span class="page-view-title">money</span>
         <div class="money-monthnav">
@@ -603,12 +829,13 @@
         <a class="btn" id="money-export" href="/api/money/transactions/export.csv" download title="export CSV" style="margin-left:auto">export</a>
         <input type="file" id="money-import-file" accept=".csv,text/csv" hidden>
         <button class="btn" id="money-import" title="import a bank CSV">import</button>
+        <button class="btn" id="money-connect" title="manage read-only bank connections">banks</button>
       </div>
       <div class="page-view-body" id="money-body"></div>
     </div>
 
     <!-- ── days: countdowns & days-since ── -->
-    <div class="page-view" id="days-view" style="display:none">
+    <div class="page-view" id="days-view" data-specialist-app="days" style="display:none">
       <div class="page-view-head">
         <span class="page-view-title">days</span>
         <span id="days-summary" style="font-size:0.7rem;color:var(--muted);margin-left:auto"></span>
@@ -626,73 +853,171 @@
     </div>
 
 
-    <!-- docs: a thin markdown reader — editing happens in Obsidian -->
-    <div class="page-view" id="wiki-view" style="display:none">
-      <div class="wiki-tree-panel">
-        <div class="page-view-head docs-rail-head">
-          <span class="page-view-title">docs</span>
-          <div class="docs-rail-actions">
-            <button class="btn" id="wiki-folder-btn" title="new folder">+dir</button>
-            <button class="btn" id="wiki-trash-btn" title="recently deleted">trash</button>
-            <button class="btn primary docs-rail-new" id="wiki-new-btn">+doc</button>
-          </div>
+    <!-- Docs: Obsidian-first reader with an explicit local Markdown editor. -->
+    <div class="page-view docs-product-view no-note" id="wiki-view" data-specialist-app="docs" data-kokuen-surface="docs" style="display:none">
+      <aside class="docs-nav-panel wiki-tree-panel" id="docs-nav-panel" aria-label="Docs library">
+        <div class="docs-nav-head">
+          <span class="docs-wordmark">docs</span>
+          <button class="docs-home-link" type="button" data-docs-route="home">home</button>
         </div>
-        <div class="docs-sections" id="docs-sections">
-          <button class="docs-sec-btn active" data-section="docs">docs</button>
-          <button class="docs-sec-btn" data-section="notes">notes</button>
+        <div class="docs-nav-create">
+          <button type="button" id="wiki-new-btn">new document</button>
+          <button type="button" id="wiki-folder-btn">new folder</button>
         </div>
-        <input type="text" id="wiki-search" class="settings-input docs-search" placeholder="search docs...">
-        <div id="wiki-tags" class="wiki-tags"></div>
-        <div id="wiki-tree" class="wiki-tree"></div>
-      </div>
-      <div class="wiki-main">
-        <div class="page-view-head docs-editor-head">
-          <button class="icon-btn docs-tree-toggle" id="wiki-tree-toggle" title="show / hide files" aria-label="show or hide files">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
+        <input type="text" id="wiki-search" class="docs-nav-search" placeholder="search documents…" aria-label="search documents">
+        <section class="docs-nav-section docs-library-section" aria-labelledby="docs-library-label">
+          <button class="docs-nav-label docs-nav-section-toggle" id="docs-library-label" type="button" data-docs-collapse="library" aria-expanded="true" aria-controls="docs-sections">
+            <span>library</span><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m5 6 3 3 3-3"/></svg>
           </button>
-          <span id="wiki-current" class="wiki-current">no doc open</span>
-          <span id="wiki-stats" class="wiki-stats"></span>
-          <button class="btn" id="wiki-ask-btn" title="ask anything across your notes">ask</button>
-          <button class="btn" id="wiki-obsidian-btn" title="open this doc in Obsidian">open in Obsidian</button>
-          <button class="btn" id="wiki-rename-btn" title="rename this doc">rename</button>
-          <button class="btn danger" id="wiki-delete-btn">delete</button>
-        </div>
-        <div id="wiki-ask" class="wiki-outline wiki-ask" style="display:none">
-          <div class="wiki-ask-bar">
-            <input type="text" id="wiki-ask-input" class="settings-input" placeholder="ask your notes…" spellcheck="false">
-            <button class="btn primary" id="wiki-ask-go">ask</button>
+          <nav class="docs-library docs-nav-group-content" id="docs-sections" aria-label="library">
+            <button class="docs-library-item docs-sec-btn active" type="button" aria-current="page" data-section="docs">
+              <svg class="docs-nav-icon" viewBox="0 0 20 20" aria-hidden="true"><path d="M5.5 3.5h8v11h-8z"/><path d="M3.5 5.5v11h8"/></svg>
+              <span>all documents</span>
+            </button>
+            <button class="docs-library-item docs-sec-btn" type="button" data-section="notes">
+              <svg class="docs-nav-icon" viewBox="0 0 20 20" aria-hidden="true"><path d="M4.5 2.75h8l3 3v11.5h-11z"/><path d="M12.5 2.75v3h3M7 9h6M7 12h6"/></svg>
+              <span>notes</span>
+            </button>
+            <button class="docs-library-item" type="button" data-docs-route="journal">
+              <svg class="docs-nav-icon" viewBox="0 0 20 20" aria-hidden="true"><path d="M4 5.5h12v11H4zM6.5 3v4M13.5 3v4M4 8.5h12"/><path d="M7 11h2M11 11h2M7 14h2"/></svg>
+              <span>journal</span>
+            </button>
+          </nav>
+        </section>
+        <section class="docs-nav-section" aria-labelledby="docs-recent-label">
+          <button class="docs-nav-label docs-nav-section-toggle" id="docs-recent-label" type="button" data-docs-collapse="recent" aria-expanded="true" aria-controls="docs-recent">
+            <span>recent</span><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m5 6 3 3 3-3"/></svg>
+          </button>
+          <div class="docs-recent docs-nav-group-content" id="docs-recent"></div>
+        </section>
+        <section class="docs-nav-section docs-folders" aria-labelledby="docs-folders-label">
+          <button class="docs-nav-label docs-nav-section-toggle" id="docs-folders-label" type="button" data-docs-collapse="vault" aria-expanded="true" aria-controls="docs-vault-content">
+            <span>vault</span><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m5 6 3 3 3-3"/></svg>
+          </button>
+          <div class="docs-vault-content docs-nav-group-content" id="docs-vault-content">
+            <div id="wiki-tags" class="wiki-tags"></div>
+            <div id="wiki-tree" class="wiki-tree"></div>
           </div>
-          <div id="wiki-ask-results" class="wiki-ask-results"></div>
-        </div>
-        <div class="wiki-empty-state" id="wiki-empty-state">
-          <div class="docs-home">
-            <div class="docs-home-head">
-              <span class="docs-home-title">docs</span>
-              <div class="docs-home-actions">
-                <button class="btn primary" id="wiki-empty-new">+ new doc</button>
-                <button class="btn" id="docs-home-notes">notes</button>
+        </section>
+        <button class="docs-nav-text-action" id="wiki-trash-btn" type="button">recently deleted</button>
+        <button class="docs-nav-text-action" id="journal-migrate" type="button" hidden>copy journal to Markdown</button>
+      </aside>
+
+      <div class="docs-workspace">
+        <main class="wiki-main" id="docs-reader-main">
+          <header class="docs-reader-head docs-editor-head">
+            <button class="docs-sidebar-button" id="wiki-tree-toggle" type="button" title="show or hide the library" aria-label="show or hide the library" aria-expanded="true">
+              <svg viewBox="0 0 20 20" aria-hidden="true"><rect x="2.75" y="3.25" width="14.5" height="13.5" rx="1.5"/><path d="M7.25 3.5v13"/></svg>
+            </button>
+            <div class="docs-title-block">
+              <span id="wiki-current" class="wiki-current">your Obsidian vault</span>
+              <span id="wiki-path" class="docs-current-path">local Markdown</span>
+            </div>
+            <span id="wiki-stats" class="wiki-stats"></span>
+            <span id="wiki-save-state" class="docs-save-state" role="status" aria-live="polite"></span>
+            <div class="docs-reader-actions">
+              <button type="button" id="wiki-edit-btn">edit</button>
+              <button type="button" id="wiki-ask-btn">ask Aide</button>
+              <button class="docs-obsidian-action" type="button" id="wiki-obsidian-btn">open in Obsidian</button>
+              <button class="docs-more-button" type="button" id="wiki-more-btn" aria-haspopup="menu" aria-expanded="false" aria-label="more document actions">···</button>
+              <div class="docs-action-menu" id="wiki-more-menu" role="menu" hidden>
+                <button type="button" role="menuitem" id="wiki-rename-btn">rename</button>
+                <button type="button" role="menuitem" id="wiki-history-btn">revisions</button>
+                <button type="button" role="menuitem" id="wiki-delete-btn">move to trash</button>
               </div>
             </div>
-            <input type="text" id="docs-home-search" class="settings-input docs-home-search" placeholder="search your docs…">
-            <div class="docs-home-grid" id="wiki-empty-recent"></div>
+          </header>
+
+          <div class="docs-inline-state" id="wiki-inline-state" hidden>
+            <span id="wiki-inline-message"></span>
+            <div class="docs-inline-actions" id="wiki-inline-actions"></div>
           </div>
-        </div>
-        <div class="wiki-notes" id="wiki-notes">
-          <div class="docs-home">
-            <div class="docs-home-head">
-              <span class="docs-home-title">notes</span>
-              <div class="docs-home-actions">
-                <input id="note-search" class="settings-input" placeholder="search notes…" style="max-width:240px">
-                <button class="btn primary" id="note-new-btn">+ new note</button>
-                <button class="icon-btn app-cog" data-app="notes" title="notes &amp; docs settings"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2a2 2 0 1 1-4 0V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1A2 2 0 1 1 4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H3a2 2 0 1 1 0-4h.2a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1A2 2 0 1 1 7.2 4.2l.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.6V3a2 2 0 1 1 4 0v.2a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1A2 2 0 1 1 20 7.2l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2a2 2 0 1 1 0 4h-.2a1.7 1.7 0 0 0-1.8 1z"/></svg></button>
+
+          <div id="wiki-ask" class="docs-ask-panel" hidden>
+            <input type="text" id="wiki-ask-input" placeholder="what should Aide explain about this note?" spellcheck="false">
+            <button type="button" id="wiki-ask-go">ask with this note</button>
+            <button type="button" id="wiki-ask-close" aria-label="close">close</button>
+            <div id="wiki-ask-results" class="wiki-ask-results"></div>
+          </div>
+
+          <section class="wiki-empty-state" id="wiki-empty-state" aria-label="Docs home">
+            <div class="docs-empty-copy">
+              <span class="docs-empty-eyebrow">your Obsidian vault</span>
+              <h1>read here. edit when you need to.</h1>
+              <p>Alles keeps your Markdown files as Markdown. Open a document from the left, or make a new one.</p>
+              <div class="docs-empty-actions">
+                <button class="docs-obsidian-action" type="button" id="wiki-empty-obsidian">open vault in Obsidian</button>
+                <button type="button" id="wiki-empty-new">new document</button>
+              </div>
+            </div>
+            <div class="docs-home-recent">
+              <span class="docs-nav-label">recent documents</span>
+              <div class="docs-home-grid" id="wiki-empty-recent"></div>
+            </div>
+          </section>
+
+          <section class="wiki-notes" id="wiki-notes" hidden>
+            <div class="docs-notes-head">
+              <div><span class="docs-empty-eyebrow">quick notes</span><h1>notes</h1></div>
+              <div class="docs-notes-actions">
+                <input id="note-search" placeholder="search notes…" aria-label="search notes">
+                <button type="button" id="note-new-btn">new note</button>
+                <button class="icon-btn app-cog" data-app="notes" title="notes and Docs settings" aria-label="notes and Docs settings"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2a2 2 0 1 1-4 0V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1A2 2 0 1 1 4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H3a2 2 0 1 1 0-4h.2a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1A2 2 0 1 1 7.2 4.2l.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.6V3a2 2 0 1 1 4 0v.2a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1A2 2 0 1 1 20 7.2l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2a2 2 0 1 1 0 4h-.2a1.7 1.7 0 0 0-1.8 1z"/></svg></button>
               </div>
             </div>
             <div id="note-tagbar" class="note-tagbar"></div>
             <div id="notes-list"></div>
+          </section>
+
+          <section class="docs-document" id="wiki-document" hidden>
+            <article class="wiki-preview docs-rendered-page" id="wiki-preview"></article>
+            <div class="docs-editor" id="wiki-editor" hidden>
+              <div class="docs-editor-bar">
+                <div class="docs-mode-switch" role="group" aria-label="editor view">
+                  <button type="button" id="wiki-visual-btn" aria-pressed="true">visual</button>
+                  <button type="button" id="wiki-source-btn" aria-pressed="false">source</button>
+                </div>
+                <span class="docs-editor-hint">local draft · the file changes only when you save</span>
+                <div class="docs-editor-actions">
+                  <button type="button" id="wiki-discard-btn">discard draft</button>
+                  <button type="button" id="wiki-done-btn">done</button>
+                  <button class="docs-save-button" type="button" id="wiki-save-btn">save</button>
+                </div>
+              </div>
+              <div class="wiki-live" id="wiki-live"></div>
+              <textarea class="wiki-source" id="wiki-source" spellcheck="true" aria-label="Markdown source"></textarea>
+            </div>
+          </section>
+        </main>
+
+        <section class="docs-journal-main" id="docs-journal-section" data-specialist-app="journal" hidden>
+          <div class="page-view-head docs-journal-head">
+            <span class="page-view-title">journal</span>
+            <span id="journal-stats" class="docs-journal-stats"></span>
+            <button class="icon-btn app-cog" data-app="journal" title="journal settings" aria-label="journal settings"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2a2 2 0 1 1-4 0V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1A2 2 0 1 1 4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H3a2 2 0 1 1 0-4h.2a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1A2 2 0 1 1 7.2 4.2l.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.6V3a2 2 0 1 1 4 0v.2a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1A2 2 0 1 1 20 7.2l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2a2 2 0 1 1 0 4h-.2a1.7 1.7 0 0 0-1.8 1z"/></svg></button>
           </div>
+          <div class="page-view-body" id="journal-body"></div>
+        </section>
+
+        <aside class="docs-context-panel" id="docs-context-panel" aria-label="document details" hidden>
+          <section>
+            <span class="docs-nav-label">file</span>
+            <div id="docs-file-detail" class="docs-file-detail"></div>
+          </section>
+          <section>
+            <span class="docs-nav-label">linked from</span>
+            <div class="wiki-backlinks" id="wiki-backlinks"></div>
+          </section>
+        </aside>
+      </div>
+
+      <div class="docs-dialog-layer" id="docs-dialog" role="dialog" aria-modal="true" aria-labelledby="docs-dialog-title" hidden>
+        <div class="docs-dialog-card">
+          <h2 id="docs-dialog-title"></h2>
+          <div id="docs-dialog-body" class="docs-dialog-body"></div>
+          <div id="docs-dialog-error" class="docs-dialog-error" role="alert"></div>
+          <div class="docs-dialog-actions" id="docs-dialog-actions"></div>
         </div>
-        <div class="wiki-preview" id="wiki-preview" style="display:none"></div>
-        <div class="wiki-backlinks" id="wiki-backlinks"></div>
       </div>
     </div><!-- /#wiki-view -->
 
@@ -718,7 +1043,7 @@
     </div>
 
     <!-- ── vault view ── -->
-    <div class="page-view" id="vault-view" style="display:none">
+    <div class="page-view" id="vault-view" data-specialist-app="secrets" style="display:none">
       <div class="page-view-head">
         <span class="page-view-title">secrets</span>
         <span style="margin-left:auto;display:flex;gap:0.4rem;align-items:center">
@@ -738,7 +1063,7 @@
           <path d="M8 10V7a4 4 0 0 1 8 0v3"></path>
         </svg>
         <span>enter master password to unlock</span>
-        <input type="password" id="vault-pw-input" class="settings-input" placeholder="master password" style="width:220px;text-align:center">
+        <input type="password" id="vault-pw-input" class="settings-input" placeholder="master password" autocomplete="current-password" style="width:220px;text-align:center">
         <button class="btn primary" id="vault-unlock-btn">unlock</button>
         <button class="btn ic-btn-lbl" id="vault-bio-unlock-btn" style="display:none">unlock with biometric</button>
       </div>
@@ -749,7 +1074,7 @@
     </div>
 
     <!-- ── contacts view ── -->
-    <div class="page-view" id="contacts-view" style="display:none">
+    <div class="page-view" id="contacts-view" data-specialist-app="contacts" style="display:none">
       <div class="page-view-head contacts-head">
         <span class="page-view-title">contacts</span>
         <input type="text" id="contacts-search" class="settings-input contacts-search" placeholder="search...">
@@ -772,30 +1097,146 @@
     </div>
 
     <!-- ── files view ── -->
-    <div class="page-view" id="files-view" style="display:none">
-      <div class="page-view-head">
-        <span class="page-view-title">files</span>
-        <div class="files-actions">
-          <button class="btn" id="files-up-btn" title="up one folder">↑ up</button>
-          <button class="btn" id="files-mkdir-btn">+ folder</button>
-          <button class="btn" id="files-view-toggle" title="grid / list view">▦ grid</button>
-          <button class="btn" id="files-upload-btn">upload</button>
-          <input type="file" id="files-upload-input" multiple hidden>
-          <input type="text" id="files-search" class="cal-quick" placeholder="search files…">
-          <button class="icon-btn app-cog" data-app="files" title="files settings"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2a2 2 0 1 1-4 0V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1A2 2 0 1 1 4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H3a2 2 0 1 1 0-4h.2a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1A2 2 0 1 1 7.2 4.2l.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.6V3a2 2 0 1 1 4 0v.2a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1A2 2 0 1 1 20 7.2l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2a2 2 0 1 1 0 4h-.2a1.7 1.7 0 0 0-1.8 1z"/></svg></button>
+    <div class="page-view" id="files-view" data-specialist-app="files" data-kokuen-surface="files" style="display:none">
+      <header class="files-phase7-app-head" id="files-app-header">
+        <div class="files-phase7-app-brand">
+          <span class="files-phase7-wordmark">files</span>
+          <button class="files-text-button" id="files-home-btn" type="button">home</button>
         </div>
+        <div class="files-phase7-app-context">
+          <button class="files-bare-icon" id="files-up-btn" type="button" title="up one folder" aria-label="up one folder">←</button>
+          <div class="files-breadcrumb" id="files-breadcrumb"></div>
+          <span class="files-phase7-app-status" id="files-app-status" role="status" aria-live="polite"></span>
+        </div>
+        <div class="files-phase7-app-actions">
+          <button class="files-text-button" id="files-settings-btn" type="button">settings</button>
+        </div>
+      </header>
+      <div class="files-phase7-workbench">
+        <aside class="files-phase7-location-panel" aria-label="storage locations">
+          <div class="files-phase7-panel-head">
+            <span>locations</span>
+            <button class="files-text-button" id="files-add-location" type="button">add</button>
+          </div>
+          <div class="files-phase7-location-list" id="files-location-list"></div>
+          <nav class="files-phase7-views" aria-label="file views">
+            <button class="files-view-button is-active" data-files-view="all" type="button">all files</button>
+            <button class="files-view-button" data-files-view="starred" type="button">starred</button>
+            <button class="files-view-button" data-files-view="offline" type="button">available offline</button>
+            <button class="files-view-button" data-files-view="trash" type="button">recently deleted</button>
+          </nav>
+          <div class="files-phase7-location-foot" id="files-location-status" aria-live="polite"></div>
+        </aside>
+
+        <section class="files-phase7-browser" id="files-browser" aria-label="files browser">
+          <header class="files-phase7-browser-head">
+            <div class="files-phase7-actions">
+              <input type="search" id="files-search" autocomplete="off" placeholder="search files" aria-label="search files">
+              <button class="files-text-button" id="files-mkdir-btn" type="button">new folder</button>
+              <button class="files-text-button" id="files-upload-btn" type="button">upload</button>
+              <input type="file" id="files-upload-input" multiple hidden>
+            </div>
+          </header>
+
+          <div class="files-phase7-selection" id="files-selection-bar" hidden>
+            <span id="files-selection-count">0 selected</span>
+            <div class="files-phase7-selection-actions">
+              <button class="files-text-button" data-files-bulk="copy" type="button">copy</button>
+              <button class="files-text-button" data-files-bulk="move" type="button">move</button>
+              <button class="files-text-button" data-files-bulk="offline" type="button">keep offline</button>
+              <button class="files-text-button files-danger" data-files-bulk="delete" type="button">delete</button>
+              <button class="files-text-button" data-files-bulk="clear" type="button">clear</button>
+            </div>
+          </div>
+
+          <div class="files-phase7-notice" id="files-partial-note" hidden></div>
+          <div class="files-phase7-table-head">
+            <button class="files-check" id="files-select-all" type="button" role="checkbox" aria-checked="false" aria-label="select all files"></button>
+            <span>name</span><span>size</span><span>changed</span>
+          </div>
+          <div class="files-list" id="files-list" aria-live="polite"></div>
+        </section>
+
+        <aside class="files-phase7-detail-panel" id="files-detail-panel" aria-label="file details" hidden>
+          <div class="files-phase7-detail-head">
+            <span>details</span>
+            <button class="files-bare-icon" id="files-detail-close" type="button" aria-label="close details">×</button>
+          </div>
+          <div id="files-detail-content"></div>
+        </aside>
       </div>
-      <div class="files-subhead">
-        <div class="files-breadcrumb" id="files-breadcrumb"></div>
-        <div class="files-sortbar" id="files-sortbar"></div>
+
+      <section class="files-phase7-operation-dock" id="files-operation-dock" aria-label="file operations" hidden>
+        <div class="files-phase7-operation-head">
+          <span>transfers</span>
+          <button class="files-text-button" id="files-operations-clear" type="button">hide completed</button>
+        </div>
+        <div id="files-operation-list" aria-live="polite"></div>
+      </section>
+
+      <div class="files-phase7-dialog-layer" id="files-location-dialog" role="dialog" aria-modal="true" aria-labelledby="files-location-dialog-title" hidden>
+        <form class="files-phase7-dialog" id="files-location-form">
+          <div class="files-phase7-dialog-head">
+            <h2 id="files-location-dialog-title">add location</h2>
+            <button class="files-bare-icon" data-files-dialog-close="location" type="button" aria-label="close">×</button>
+          </div>
+          <label>name<input id="files-location-name" autocomplete="off" required></label>
+          <fieldset class="files-choice-field">
+            <legend>kind</legend>
+            <div class="files-choice-row" id="files-location-kind" role="radiogroup" aria-label="location kind">
+              <button type="button" role="radio" aria-checked="true" tabindex="0" data-value="local">local folder</button>
+              <button type="button" role="radio" aria-checked="false" tabindex="-1" data-value="obsidian">Obsidian vault</button>
+              <button type="button" role="radio" aria-checked="false" tabindex="-1" data-value="webdav">WebDAV</button>
+              <button type="button" role="radio" aria-checked="false" tabindex="-1" data-value="s3">S3</button>
+            </div>
+          </fieldset>
+          <fieldset class="files-choice-field" id="files-location-access-field">
+            <legend>access</legend>
+            <div class="files-choice-row" id="files-location-access" role="radiogroup" aria-label="location access">
+              <button type="button" role="radio" aria-checked="true" tabindex="0" data-value="read_only">read only</button>
+              <button type="button" role="radio" aria-checked="false" tabindex="-1" data-value="managed">managed</button>
+            </div>
+          </fieldset>
+          <fieldset class="files-choice-field" id="files-vault-workflow-field" hidden>
+            <legend>vault workflow</legend>
+            <div class="files-choice-row files-vault-workflow" id="files-vault-workflow" role="radiogroup" aria-label="external vault workflow">
+              <button type="button" role="radio" aria-checked="true" tabindex="0" data-value="keep">keep external</button>
+              <button type="button" role="radio" aria-checked="false" tabindex="-1" data-value="copy">copy into Alles</button>
+              <button type="button" role="radio" aria-checked="false" tabindex="-1" data-value="move">move into Alles</button>
+            </div>
+          </fieldset>
+          <div id="files-location-fields"></div>
+          <div class="files-vault-review" id="files-vault-review" role="status" aria-live="polite" hidden></div>
+          <div class="files-phase7-form-error" id="files-location-error" role="alert"></div>
+          <div class="files-phase7-dialog-actions">
+            <button class="files-text-button" data-files-dialog-close="location" type="button">cancel</button>
+            <button class="files-text-button files-primary-action" id="files-location-submit" type="submit">add location</button>
+          </div>
+        </form>
       </div>
-      <div class="page-view-body">
-        <div class="files-list" id="files-list"></div>
+
+      <div class="files-phase7-dialog-layer" id="files-transfer-dialog" role="dialog" aria-modal="true" aria-labelledby="files-transfer-dialog-title" hidden>
+        <form class="files-phase7-dialog" id="files-transfer-form">
+          <div class="files-phase7-dialog-head">
+            <h2 id="files-transfer-dialog-title">copy selected</h2>
+            <button class="files-bare-icon" data-files-dialog-close="transfer" type="button" aria-label="close">×</button>
+          </div>
+          <fieldset class="files-choice-field">
+            <legend>destination</legend>
+            <div class="files-transfer-locations" id="files-transfer-locations" role="radiogroup" aria-label="destination location"></div>
+          </fieldset>
+          <label>folder<input id="files-transfer-path" autocomplete="off" placeholder="leave blank for root"></label>
+          <div class="files-phase7-form-error" id="files-transfer-error" role="alert"></div>
+          <div class="files-phase7-dialog-actions">
+            <button class="files-text-button" data-files-dialog-close="transfer" type="button">cancel</button>
+            <button class="files-text-button files-primary-action" type="submit">queue</button>
+          </div>
+        </form>
       </div>
     </div>
 
     <!-- ── mail view ── -->
-    <div class="page-view" id="mail-view" style="display:none">
+    <div class="page-view" id="mail-view" data-specialist-app="mail" style="display:none">
       <div class="page-view-head mail-head">
         <button class="icon-btn mail-sidebar-toggle" id="mail-sidebar-toggle" title="toggle folders">☰</button>
         <div id="mail-account" class="settings-input custom-select mail-account-select"></div>
@@ -816,7 +1257,7 @@
     </div>
 
     <!-- gallery view -->
-    <div class="page-view" id="photos-view" style="display:none">
+    <div class="page-view" id="photos-view" data-specialist-app="gallery" style="display:none">
       <div class="page-view-head photos-head">
         <span class="page-view-title" id="photos-head-title">photos</span>
         <input type="text" id="photos-search" class="cal-quick photos-search" placeholder="search photos…">
@@ -846,7 +1287,7 @@
           <button data-type="image">photos</button>
           <button data-type="video">videos</button>
         </div>
-        <select class="settings-input photos-filt-cam" id="photos-filt-camera"><option value="">any camera</option></select>
+        <div class="settings-input photos-filt-cam custom-select" id="photos-filt-camera" data-value="" data-options="|any camera" aria-label="camera"></div>
         <label class="photos-filt-date">from <input type="date" id="photos-filt-from" class="settings-input"></label>
         <label class="photos-filt-date">to <input type="date" id="photos-filt-to" class="settings-input"></label>
         <button class="btn photos-filt-clear" id="photos-filt-clear">clear</button>
@@ -864,71 +1305,67 @@
 
     <!-- ── composer (hidden in memory view) ── -->
     <div class="composer-outer" id="composer-outer">
-      <div id="aide-suggest-chips" class="aide-suggest" style="display:none"></div>
-      <div id="attachment-chips" style="display:none;flex-wrap:wrap;gap:0.3rem;padding:0.3rem 0.75rem 0"></div>
-      <div id="attachment-preview" class="attach-preview"></div>
+      <div class="aide-document-scope" id="aide-document-scope" hidden>
+        <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4.5 2.75h8l3 3v11.5h-11z"/><path d="M12.5 2.75v3h3"/></svg>
+        <span data-i18n="aide.using_note">using note</span>
+        <strong id="aide-document-scope-name"></strong>
+        <button type="button" id="aide-document-scope-remove" data-i18n="common.remove">remove</button>
+      </div>
+      <div class="aide-new-context" id="aide-new-context" role="group" aria-label="new task context" data-i18n-aria-label="aide.new_task_context" hidden>
+        <button class="aide-new-context-item aide-project-context" id="aide-project-context" type="button" aria-haspopup="menu" aria-expanded="false">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 6.5h6l2-2h9v14h-17z"/></svg>
+          <span id="aide-project-context-label" data-i18n="tasks.title">tasks</span>
+        </button>
+        <button class="aide-new-context-item aide-branch-context" id="aide-branch-context" type="button" aria-haspopup="menu" aria-expanded="false" hidden>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="7" cy="5" r="2"/><circle cx="7" cy="19" r="2"/><circle cx="17" cy="12" r="2"/><path d="M7 7v10M9 7c5 0 3 5 6 5"/></svg>
+          <span id="aide-branch-context-label" data-i18n="aide.branch">branch</span>
+        </button>
+        <div class="aide-project-context-menu" id="aide-project-context-menu" role="menu" aria-label="choose project" data-i18n-aria-label="aide.choose_project" hidden></div>
+        <div class="aide-project-context-menu aide-branch-context-menu" id="aide-branch-context-menu" role="menu" aria-label="choose Git branch" data-i18n-aria-label="aide.choose_branch" hidden></div>
+      </div>
       <div class="composer-box">
         <div class="shell-panel" id="shell-panel" hidden>
           <div class="shell-panel-head">
-            <span>shell command</span>
-            <button class="icon-btn" id="shell-panel-close" title="close shell input">
+            <span data-i18n="aide.shell_command">shell command</span>
+            <button class="icon-btn" id="shell-panel-close" title="close shell input" data-i18n-title="aide.close_shell">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
           </div>
-          <textarea class="shell-input" id="shell-input" rows="3" spellcheck="false" placeholder="enter shell command..."></textarea>
+          <textarea class="shell-input" id="shell-input" rows="3" spellcheck="false" placeholder="enter shell command..." data-i18n-placeholder="aide.shell_placeholder"></textarea>
           <div class="shell-panel-foot">
-            <span>Ctrl+Enter sends</span>
-            <button class="btn primary" id="shell-send-btn">send shell</button>
+            <span data-i18n="aide.shell_shortcut">Ctrl+Enter sends</span>
+            <button class="btn primary" id="shell-send-btn" data-i18n="aide.send_shell">send shell</button>
           </div>
         </div>
-        <textarea class="composer-ta" id="composer-ta" placeholder="message..." rows="1" aria-label="message Aide"
-          oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,220)+'px'"></textarea>
+        <div id="attachment-chips" class="attachment-chips" style="display:none"></div>
+        <textarea class="composer-ta" id="composer-ta" placeholder="message..." rows="1" aria-label="message Aide" data-i18n-placeholder="aide.message_placeholder" data-i18n-aria-label="aide.message_label"
+          oninput="this.style.height='0px';this.style.height=Math.min(this.scrollHeight,160)+'px'"></textarea>
         <canvas id="mic-wave" class="mic-wave" aria-hidden="true"></canvas>
         <div class="composer-bar">
           <div class="c-tools">
-            <button class="c-tool" id="attach-btn" title="attach files" aria-label="attach files">
+            <button class="c-tool aide-direct-attach" id="attach-btn" title="attach files" aria-label="attach files" data-i18n-title="aide.attach_files" data-i18n-aria-label="aide.attach_files">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
             </button>
-            <button class="c-tool" id="more-tools-btn" title="more tools" aria-label="more tools" aria-expanded="false">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg>
+            <button class="c-tool" id="more-tools-btn" title="add a file or app context" aria-label="add a file or app context" data-i18n-title="aide.add_context" data-i18n-aria-label="aide.add_context" aria-expanded="false">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
             </button>
+            <button class="perm-btn" id="perm-mode-btn" type="button" title="what aide can do without asking" data-i18n-title="aide.permission_help" aria-haspopup="menu" aria-expanded="false"><span class="perm-label">auto mode</span></button>
           </div>
           <div class="c-right">
-            <select class="aide-behavior-select" id="chat-behavior-select" aria-label="conversation tool behavior">
-              <option value="">follow settings</option>
-              <option value="automatic_tools">automatic tools</option>
-              <option value="answer_only">answer only</option>
-            </select>
-            <div class="mode-toggle" role="tablist" aria-label="Aide mode">
-              <button class="mode-btn active" id="mode-chat" role="tab" aria-selected="true" title="keep this work in the conversation">chat</button>
-              <button class="mode-btn" id="mode-jarvis" role="tab" aria-selected="false" title="run longer work in the background">jarvis</button>
-            </div>
-            <span class="c-divider" aria-hidden="true"></span>
-            <button class="c-tool mic-corner" id="mic-btn" title="voice input" aria-label="voice input">
+            <button class="perm-btn aide-model-choice" id="aide-model-choice" type="button" title="choose model" data-i18n-title="aide.choose_model"><span class="aide-model-choice-logo" id="aide-model-choice-logo" aria-hidden="true"></span><span id="aide-model-choice-label" data-i18n="aide.no_model">no model</span></button>
+            <button class="perm-btn" id="effort-btn" title="how hard aide works" data-i18n-title="aide.effort_help"><span class="effort-label" data-i18n="aide.effort_medium">medium</span></button>
+            <button class="c-tool mic-corner" id="mic-btn" title="voice input" aria-label="voice input" data-i18n-title="aide.voice_input" data-i18n-aria-label="aide.voice_input">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
             </button>
             <!-- 10f — full-duplex live voice, shown only when a realtime provider is configured -->
-            <button class="c-tool" id="live-voice-btn" title="live voice (full-duplex)" aria-label="live voice" style="display:none">
+            <button class="c-tool" id="live-voice-btn" title="live voice (full-duplex)" aria-label="live voice" data-i18n-title="aide.live_voice_help" data-i18n-aria-label="aide.live_voice" style="display:none">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M2 12h3l2-7 4 14 3-9 2 4h6"/></svg>
             </button>
-            <button class="stop-btn" id="stop-btn" aria-label="stop">■</button>
-            <button class="send-btn" id="send-btn" aria-label="send">
+            <button class="stop-btn" id="stop-btn" aria-label="stop" data-i18n-aria-label="common.stop">■</button>
+            <button class="send-btn" id="send-btn" aria-label="send" data-i18n-aria-label="common.send">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>
             </button>
           </div>
-        </div>
-        <div class="agent-bar" id="agent-bar">
-          <span class="agent-bar-label">mode</span>
-          <button class="perm-btn" id="perm-mode-btn" title="what the agent can do without asking">
-            <span class="perm-label">approve</span>
-            <svg class="perm-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-          </button>
-          <span class="agent-bar-sep" aria-hidden="true"></span>
-          <span class="agent-bar-label">effort</span>
-          <button class="perm-btn" id="effort-btn" title="how hard the agent works — more effort = more turns + deeper checks">
-            <span class="effort-label">medium</span>
-            <svg class="perm-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-          </button>
         </div>
       </div>
     </div>
@@ -936,6 +1373,28 @@
     <input type="file" id="file-input-hidden" multiple style="display:none">
 
   </main>
+
+  <aside class="aide-work-panel" id="aide-work-panel" aria-label="task tools" data-i18n-aria-label="aide.task_tools" aria-hidden="true" inert hidden>
+    <header class="aide-work-panel-head">
+      <button class="icon-btn" id="aide-work-panel-back" type="button" aria-label="back to task tools" data-i18n-aria-label="aide.back_task_tools" hidden>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m14.5 6-6 6 6 6"/></svg>
+      </button>
+      <span id="aide-work-panel-title" data-i18n="aide.task_tools">task tools</span>
+      <button class="icon-btn" id="aide-work-panel-close" type="button" aria-label="close task tools" data-i18n-aria-label="aide.close_task_tools">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="m7 7 10 10M17 7 7 17"/></svg>
+      </button>
+    </header>
+    <nav class="aide-task-tools" id="aide-task-tools" aria-label="tools for this task">
+      <button type="button" data-aide-tool="review"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 12h8M12 8v8"/></svg><span>review</span></button>
+      <button type="button" data-aide-tool="terminal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="4" width="17" height="16" rx="2"/><path d="m7 9 3 3-3 3M13 15h4"/></svg><span>terminal</span></button>
+      <button type="button" data-aide-tool="browser"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.4 2.5 3.5 5.3 3.5 8.5S14.4 18 12 20.5M12 3.5C9.6 6 8.5 8.8 8.5 12s1.1 6 3.5 8.5"/></svg><span>browser</span></button>
+      <button type="button" data-aide-tool="files"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 6.5h6l2-2h9v14h-17z"/></svg><span>files</span></button>
+      <button type="button" data-aide-tool="side-task"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 8v8M8 12h8"/></svg><span>side task</span></button>
+    </nav>
+    <section class="aide-terminal" id="aide-terminal" aria-label="terminal" hidden>
+      <div class="aide-terminal-mount" id="aide-terminal-mount"></div>
+    </section>
+  </aside>
 
   <!-- artifact panel -->
   <div class="artifact-panel" id="artifact-panel">
@@ -985,7 +1444,7 @@
 </div>
 
 <!-- files preview -->
-<div class="modal-overlay" id="files-preview-modal" style="display:none">
+<div class="modal-overlay" id="files-preview-modal" role="dialog" aria-modal="true" aria-labelledby="files-preview-name" style="display:none">
   <div class="modal-card files-preview-card">
     <div class="files-preview-head">
       <span class="files-preview-name" id="files-preview-name"></span>
@@ -1047,17 +1506,17 @@
 
 <!-- toast container -->
 <div class="toast-container" id="toast-container"></div>
-<div id="sync-indicator" class="sync-indicator" style="display:none"></div>
+<div id="sync-indicator" class="sync-indicator" role="region" aria-label="offline changes" aria-live="polite" style="display:none"></div>
 
 <!-- context menu -->
 <div class="ctx-menu" id="ctx-menu" style="display:none"></div>
 
-<!-- first-run setup wizard (skippable) -->
-<div class="modal-overlay" id="setup-wizard" style="display:none">
-  <div class="modal-card setup-card">
+<!-- first-run setup wizard (server-owned and skippable) -->
+<div class="modal-overlay" id="setup-wizard" style="display:none" role="dialog" aria-modal="true" aria-labelledby="setup-title">
+  <div class="modal-card setup-card" tabindex="-1">
     <div class="setup-head">
       <div class="setup-dots" id="setup-dots"></div>
-      <button class="setup-skip" id="setup-skip">skip setup</button>
+      <button class="setup-skip" id="setup-skip" type="button">exit setup</button>
     </div>
     <div class="setup-body" id="setup-wizard-body"></div>
   </div>
@@ -1104,7 +1563,7 @@
 </div>
 
 <!-- settings modal (multi-pane) -->
-<div class="modal-overlay" id="settings-modal" role="dialog" aria-modal="true" aria-labelledby="settings-modal-title" style="display:none">
+<div class="modal-overlay" id="settings-modal" data-kokuen-surface="settings" role="dialog" aria-modal="true" aria-labelledby="settings-modal-title" style="display:none">
   <div class="s-modal" tabindex="-1">
     <div class="s-header">
       <span class="s-title" id="settings-modal-title">settings</span>
@@ -1116,6 +1575,7 @@
       <nav class="s-nav" aria-label="settings sections">
         <div class="s-nav-group">general &amp; appearance</div>
         <button class="s-nav-item active" type="button" data-pane="general">general</button>
+        <button class="s-nav-item" type="button" data-pane="home">home</button>
         <button class="s-nav-item" type="button" data-pane="themes">appearance</button>
 
         <div class="s-nav-group">aide &amp; chat behavior</div>
@@ -1123,7 +1583,7 @@
         <button class="s-nav-item" type="button" data-pane="search">search</button>
         <button class="s-nav-item" type="button" data-pane="voice">voice</button>
         <button class="s-nav-item" type="button" data-pane="personas">personas</button>
-        <button class="s-nav-item" type="button" data-pane="proactive">proactive</button>
+        <button class="s-nav-item" type="button" data-pane="proactive">background checks</button>
         <button class="s-nav-item" type="button" data-pane="intelligence">intelligence</button>
 
         <div class="s-nav-group">models &amp; providers</div>
@@ -1145,11 +1605,101 @@
         <button class="s-nav-item" type="button" data-pane="rules">rules &amp; delivery</button>
 
         <div class="s-nav-group">server, backups &amp; data</div>
+        <button class="s-nav-item" type="button" data-pane="credits">about &amp; credits</button>
         <button class="s-nav-item" type="button" data-pane="backup">backup &amp; restore</button>
       </nav>
 
       <!-- content area -->
       <div class="s-content">
+
+        <div class="s-pane home-settings-pane" id="s-pane-home">
+          <header class="home-settings-intro">
+            <div>
+              <h2>home</h2>
+              <p>Choose what appears after the greeting. Needs you always stays visible so approvals and recovery prompts cannot disappear.</p>
+            </div>
+            <span id="home-settings-load-state" role="status" aria-live="polite">loading preferences…</span>
+          </header>
+
+          <div class="home-settings-workbench" id="home-settings-workbench" aria-busy="true">
+            <div class="home-settings-controls">
+              <section class="home-settings-section" aria-labelledby="home-settings-structure-title">
+                <h3 id="home-settings-structure-title">structure</h3>
+                <p>Move sections into the order you scan them. Hide anything that is not useful every day.</p>
+                <div class="home-settings-list" id="home-settings-sections">
+                  <div class="home-settings-row" data-home-section="needs_you" data-enabled="true">
+                    <div class="home-settings-copy"><strong>needs you</strong><small>approvals, failed work, and delivery prompts · always visible</small></div>
+                    <button class="home-settings-switch" type="button" role="switch" aria-label="show needs you on Home" aria-checked="true" disabled></button>
+                    <div class="home-settings-move"><button type="button" data-home-move="up" aria-label="move needs you up">↑</button><button type="button" data-home-move="down" aria-label="move needs you down">↓</button></div>
+                  </div>
+                  <div class="home-settings-row" data-home-section="today" data-enabled="true">
+                    <div class="home-settings-copy"><strong>schedule</strong><small>events, tasks, reminders, renewals, and habits</small></div>
+                    <button class="home-settings-switch" type="button" role="switch" aria-label="show schedule on Home" aria-checked="true" data-home-section-switch></button>
+                    <div class="home-settings-move"><button type="button" data-home-move="up" aria-label="move schedule up">↑</button><button type="button" data-home-move="down" aria-label="move schedule down">↓</button></div>
+                  </div>
+                  <div class="home-settings-row" data-home-section="in_progress" data-enabled="true">
+                    <div class="home-settings-copy"><strong>in progress</strong><small>active background Aide work</small></div>
+                    <button class="home-settings-switch" type="button" role="switch" aria-label="show in progress on Home" aria-checked="true" data-home-section-switch></button>
+                    <div class="home-settings-move"><button type="button" data-home-move="up" aria-label="move in progress up">↑</button><button type="button" data-home-move="down" aria-label="move in progress down">↓</button></div>
+                  </div>
+                  <div class="home-settings-row" data-home-section="briefs" data-enabled="true">
+                    <div class="home-settings-copy"><strong>briefs</strong><small>recent finished Aide summaries</small></div>
+                    <button class="home-settings-switch" type="button" role="switch" aria-label="show briefs on Home" aria-checked="true" data-home-section-switch></button>
+                    <div class="home-settings-move"><button type="button" data-home-move="up" aria-label="move briefs up">↑</button><button type="button" data-home-move="down" aria-label="move briefs down">↓</button></div>
+                  </div>
+                  <div class="home-settings-row" data-home-section="shortcuts" data-enabled="true">
+                    <div class="home-settings-copy"><strong>pinned apps</strong><small>the app destinations selected below</small></div>
+                    <button class="home-settings-switch" type="button" role="switch" aria-label="show pinned apps on Home" aria-checked="true" data-home-section-switch></button>
+                    <div class="home-settings-move"><button type="button" data-home-move="up" aria-label="move pinned apps up">↑</button><button type="button" data-home-move="down" aria-label="move pinned apps down">↓</button></div>
+                  </div>
+                </div>
+              </section>
+
+              <section class="home-settings-section" aria-labelledby="home-settings-density-title">
+                <h3 id="home-settings-density-title">density</h3>
+                <p>This changes vertical spacing only. It never removes details.</p>
+                <div class="home-settings-density" role="radiogroup" aria-labelledby="home-settings-density-title">
+                  <button type="button" role="radio" aria-checked="true" tabindex="0" data-home-density="comfortable"><span>comfortable</span><small>more room between sections</small></button>
+                  <button type="button" role="radio" aria-checked="false" tabindex="-1" data-home-density="compact"><span>compact</span><small>more of the day at once</small></button>
+                </div>
+              </section>
+
+              <section class="home-settings-section" aria-labelledby="home-settings-shortcuts-title">
+                <h3 id="home-settings-shortcuts-title">pinned apps</h3>
+                <p>Choose and order the app destinations shown on Home.</p>
+                <div class="home-settings-list" id="home-settings-shortcuts">
+                  <div class="home-settings-row" data-home-shortcut="plan" data-enabled="true"><div class="home-settings-copy"><strong>plan</strong><small>agenda, board, calendar, tasks, and reminders</small></div><button class="home-settings-switch" type="button" role="switch" aria-label="show Plan pinned app" aria-checked="true" data-home-shortcut-switch></button><div class="home-settings-move"><button type="button" data-home-move="up" aria-label="move Plan pinned app up">↑</button><button type="button" data-home-move="down" aria-label="move Plan pinned app down">↓</button></div></div>
+                  <div class="home-settings-row" data-home-shortcut="inbox" data-enabled="false"><div class="home-settings-copy"><strong>inbox</strong><small>mail and contacts</small></div><button class="home-settings-switch" type="button" role="switch" aria-label="show Inbox pinned app" aria-checked="false" data-home-shortcut-switch></button><div class="home-settings-move"><button type="button" data-home-move="up" aria-label="move Inbox pinned app up">↑</button><button type="button" data-home-move="down" aria-label="move Inbox pinned app down">↓</button></div></div>
+                  <div class="home-settings-row" data-home-shortcut="wiki" data-enabled="true"><div class="home-settings-copy"><strong>docs</strong><small>documents, notes, and journal</small></div><button class="home-settings-switch" type="button" role="switch" aria-label="show Docs pinned app" aria-checked="true" data-home-shortcut-switch></button><div class="home-settings-move"><button type="button" data-home-move="up" aria-label="move Docs pinned app up">↑</button><button type="button" data-home-move="down" aria-label="move Docs pinned app down">↓</button></div></div>
+                  <div class="home-settings-row" data-home-shortcut="files" data-enabled="true"><div class="home-settings-copy"><strong>files</strong><small>local and remote storage plus gallery</small></div><button class="home-settings-switch" type="button" role="switch" aria-label="show Files pinned app" aria-checked="true" data-home-shortcut-switch></button><div class="home-settings-move"><button type="button" data-home-move="up" aria-label="move Files pinned app up">↑</button><button type="button" data-home-move="down" aria-label="move Files pinned app down">↓</button></div></div>
+                  <div class="home-settings-row" data-home-shortcut="library" data-enabled="false"><div class="home-settings-copy"><strong>library</strong><small>books, saved reading, and news</small></div><button class="home-settings-switch" type="button" role="switch" aria-label="show Library pinned app" aria-checked="false" data-home-shortcut-switch></button><div class="home-settings-move"><button type="button" data-home-move="up" aria-label="move Library pinned app up">↑</button><button type="button" data-home-move="down" aria-label="move Library pinned app down">↓</button></div></div>
+                  <div class="home-settings-row" data-home-shortcut="health" data-enabled="false"><div class="home-settings-copy"><strong>health</strong><small>measurements and habits</small></div><button class="home-settings-switch" type="button" role="switch" aria-label="show Health pinned app" aria-checked="false" data-home-shortcut-switch></button><div class="home-settings-move"><button type="button" data-home-move="up" aria-label="move Health pinned app up">↑</button><button type="button" data-home-move="down" aria-label="move Health pinned app down">↓</button></div></div>
+                  <div class="home-settings-row" data-home-shortcut="finance" data-enabled="false"><div class="home-settings-copy"><strong>finance</strong><small>money and subscriptions</small></div><button class="home-settings-switch" type="button" role="switch" aria-label="show Finance pinned app" aria-checked="false" data-home-shortcut-switch></button><div class="home-settings-move"><button type="button" data-home-move="up" aria-label="move Finance pinned app up">↑</button><button type="button" data-home-move="down" aria-label="move Finance pinned app down">↓</button></div></div>
+                  <div class="home-settings-row" data-home-shortcut="vault" data-enabled="false"><div class="home-settings-copy"><strong>vault</strong><small>passwords and protected secrets</small></div><button class="home-settings-switch" type="button" role="switch" aria-label="show Vault pinned app" aria-checked="false" data-home-shortcut-switch></button><div class="home-settings-move"><button type="button" data-home-move="up" aria-label="move Vault pinned app up">↑</button><button type="button" data-home-move="down" aria-label="move Vault pinned app down">↓</button></div></div>
+                  <div class="home-settings-row" data-home-shortcut="system" data-enabled="false"><div class="home-settings-copy"><strong>server</strong><small>services, search, backups, and activity</small></div><button class="home-settings-switch" type="button" role="switch" aria-label="show Server pinned app" aria-checked="false" data-home-shortcut-switch></button><div class="home-settings-move"><button type="button" data-home-move="up" aria-label="move Server pinned app up">↑</button><button type="button" data-home-move="down" aria-label="move Server pinned app down">↓</button></div></div>
+                </div>
+              </section>
+            </div>
+
+            <aside class="home-settings-preview" aria-labelledby="home-settings-preview-title">
+              <header><h3 id="home-settings-preview-title">home outline</h3><span id="home-settings-preview-count">5 sections</span></header>
+              <p>The greeting and capture bar stay fixed. This is the order below them.</p>
+              <div id="home-settings-preview-list">
+                <div data-home-preview="needs_you"><strong>needs you</strong><small>approvals and recovery prompts</small></div>
+                <div data-home-preview="today"><strong>schedule</strong><small>events and priorities</small></div>
+                <div data-home-preview="in_progress"><strong>in progress</strong><small>active Aide work</small></div>
+                <div data-home-preview="briefs"><strong>briefs</strong><small>recent summaries</small></div>
+                <div data-home-preview="shortcuts"><strong>pinned apps</strong><small id="home-settings-preview-shortcuts">plan · docs · files</small></div>
+              </div>
+            </aside>
+          </div>
+
+          <footer class="home-settings-save">
+            <div><span id="home-settings-save-state" role="status" aria-live="polite">no unsaved changes</span><small>Saving updates Home for every browser using this Alles server.</small></div>
+            <div><button class="btn" id="home-settings-reset" type="button">reset defaults</button><button class="btn primary" id="home-settings-save" type="button">save home</button></div>
+          </footer>
+        </div>
+        <!-- end Home settings -->
 
         <!-- ── models pane ── -->
         <div class="s-pane active" id="s-pane-models">
@@ -1176,26 +1726,26 @@
               <button class="btn" id="s-ep-refresh-all" type="button" style="margin-left:auto;font-size:0.68rem;padding:0.15rem 0.5rem">refresh all</button>
             </div>
             <div class="s-card-body">
-              <p class="s-card-hint s-provider-warning">provider account sign-in is not offered. api-key endpoints may use paid quota or credits, so check billing with the provider. disconnect an endpoint here when you no longer want alles to use it.</p>
+              <p class="s-card-hint s-provider-warning">Alles uses provider API keys, owner-managed compatible proxies, or the documented Gemini OAuth flow. It never imports consumer chat sessions. Requests may use provider quota or credits.</p>
               <div id="s-ep-list" style="margin-bottom:0.75rem"></div>
               <details id="s-ep-add-details">
                 <summary class="s-add-summary">+ add endpoint</summary>
                 <div class="s-ep-form">
                   <div class="s-ep-presets">
-                    <button class="s-preset-btn" data-url="https://api.openai.com" data-name="OpenAI">OpenAI</button>
-                    <button class="s-preset-btn" data-url="https://api.anthropic.com" data-name="Anthropic">Anthropic</button>
-                    <button class="s-preset-btn" data-url="https://api.deepseek.com" data-name="DeepSeek">DeepSeek</button>
-                    <button class="s-preset-btn" data-url="https://api.moonshot.cn" data-name="Moonshot">Moonshot</button>
-                    <button class="s-preset-btn" data-url="https://api.groq.com/openai" data-name="Groq">Groq</button>
-                    <button class="s-preset-btn" data-url="https://generativelanguage.googleapis.com/v1beta/openai" data-name="Gemini">Gemini</button>
-                    <button class="s-preset-btn" data-url="https://api.x.ai" data-name="xAI (Grok)">xAI (Grok)</button>
-                    <button class="s-preset-btn" data-url="https://api.mistral.ai" data-name="Mistral">Mistral</button>
-                    <button class="s-preset-btn" data-url="https://api.perplexity.ai" data-name="Perplexity">Perplexity</button>
-                    <button class="s-preset-btn" data-url="https://openrouter.ai/api" data-name="OpenRouter">OpenRouter</button>
-                    <button class="s-preset-btn" data-url="https://api.together.xyz" data-name="Together">Together</button>
-                    <button class="s-preset-btn" data-url="https://api.fireworks.ai/inference" data-name="Fireworks">Fireworks</button>
-                    <button class="s-preset-btn" data-url="https://api.cohere.ai" data-name="Cohere">Cohere</button>
-                    <button class="s-preset-btn" data-url="http://localhost:11434" data-name="Ollama">Ollama</button>
+                    <button class="s-preset-btn" data-url="https://api.openai.com" data-name="OpenAI" data-provider="openai">OpenAI</button>
+                    <button class="s-preset-btn" data-url="https://api.anthropic.com" data-name="Anthropic" data-provider="anthropic">Anthropic</button>
+                    <button class="s-preset-btn" data-url="https://api.deepseek.com" data-name="DeepSeek" data-provider="deepseek">DeepSeek</button>
+                    <button class="s-preset-btn" data-url="https://api.moonshot.ai/v1" data-name="Kimi" data-provider="kimi">Kimi</button>
+                    <button class="s-preset-btn" data-url="https://api.groq.com/openai" data-name="Groq" data-provider="custom">Groq</button>
+                    <button class="s-preset-btn" data-url="https://generativelanguage.googleapis.com/v1beta/openai" data-name="Gemini" data-provider="gemini">Gemini</button>
+                    <button class="s-preset-btn" data-url="https://api.x.ai" data-name="xAI (Grok)" data-provider="custom">xAI (Grok)</button>
+                    <button class="s-preset-btn" data-url="https://api.mistral.ai" data-name="Mistral" data-provider="custom">Mistral</button>
+                    <button class="s-preset-btn" data-url="https://api.perplexity.ai" data-name="Perplexity" data-provider="custom">Perplexity</button>
+                    <button class="s-preset-btn" data-url="https://openrouter.ai/api" data-name="OpenRouter" data-provider="custom">OpenRouter</button>
+                    <button class="s-preset-btn" data-url="https://api.together.xyz" data-name="Together" data-provider="custom">Together</button>
+                    <button class="s-preset-btn" data-url="https://api.fireworks.ai/inference" data-name="Fireworks" data-provider="custom">Fireworks</button>
+                    <button class="s-preset-btn" data-url="https://api.cohere.ai" data-name="Cohere" data-provider="custom">Cohere</button>
+                    <button class="s-preset-btn" data-url="http://localhost:11434" data-name="Ollama" data-provider="ollama">Ollama</button>
                   </div>
                   <div class="s-field">
                     <label>name</label>
@@ -1205,7 +1755,17 @@
                     <label>base url</label>
                     <input type="text" class="settings-input" id="s-ep-url" placeholder="https://api.example.com">
                   </div>
-                  <div class="s-field">
+                  <div class="s-ep-auth-grid">
+                    <div class="s-field">
+                      <label>provider</label>
+                      <div class="custom-select settings-input" id="s-ep-provider" data-value="custom" data-options="custom|custom provider;openai|OpenAI;anthropic|Claude;gemini|Gemini;kimi|Kimi;deepseek|DeepSeek;external_proxy|owner-managed proxy;ollama|Ollama" aria-label="model provider"></div>
+                    </div>
+                    <div class="s-field">
+                      <label>authentication</label>
+                      <div class="custom-select settings-input" id="s-ep-auth" data-value="api_key" data-options="api_key|API key;external_proxy|owner-managed proxy;none|no credential (loopback only)" aria-label="endpoint authentication"></div>
+                    </div>
+                  </div>
+                  <div class="s-field" id="s-ep-key-row">
                     <label>api key</label>
                     <input type="password" class="settings-input" id="s-ep-key" placeholder="leave blank for local / Ollama">
                   </div>
@@ -1221,6 +1781,18 @@
                   <div class="s-field" style="margin-top:0.5rem"><label>vision-capable models <span style="color:var(--muted);font-weight:400">(comma-separated, optional)</span></label><input type="text" class="settings-input" id="s-ep-vision" placeholder="e.g. gpt-4o, claude-3-5-sonnet-20241022" style="width:100%"></div>
                 </div>
               </details>
+              <div class="s-oauth-connect">
+                <button class="btn" id="s-gemini-oauth-toggle" type="button" aria-expanded="false">connect Gemini with Google OAuth</button>
+                <div class="s-oauth-panel" id="s-gemini-oauth-panel" hidden>
+                  <p>Use a desktop OAuth client from your own Google Cloud project. Alles stores its refresh token encrypted and requests only the Cloud Platform scope required by Google's Gemini flow.</p>
+                  <div class="s-ep-auth-grid">
+                    <div class="s-field"><label>client ID</label><input class="settings-input" id="s-gemini-client-id" autocomplete="off"></div>
+                    <div class="s-field"><label>client secret</label><input type="password" class="settings-input" id="s-gemini-client-secret" autocomplete="off"></div>
+                  </div>
+                  <div class="s-field"><label>Google Cloud project ID</label><input class="settings-input" id="s-gemini-project-id" autocomplete="off"></div>
+                  <button class="btn primary" id="s-gemini-oauth-start" type="button">open Google authorization</button>
+                </div>
+              </div>
             </div>
           </div>
           <div class="s-card">
@@ -1264,19 +1836,7 @@
               chat defaults
             </div>
             <div class="s-card-body">
-              <div class="s-field">
-                <label>default chat behavior</label>
-                <div class="s-behavior-options" id="s-default-chat-behavior" role="radiogroup" aria-label="default chat behavior">
-                  <button type="button" data-chat-behavior="automatic_tools" role="radio" aria-checked="false">
-                    <strong>automatic tools</strong>
-                    <small>aide can use the right tool when your request needs one</small>
-                  </button>
-                  <button type="button" data-chat-behavior="answer_only" role="radio" aria-checked="false">
-                    <strong>answer only</strong>
-                    <small>reply without automatically switching into tool use</small>
-                  </button>
-                </div>
-              </div>
+              <p class="s-card-hint">aide uses the right tools automatically and can still answer normal questions.</p>
               <div class="s-field">
                 <label>context window (messages)</label>
                 <input type="text" inputmode="numeric" class="settings-input" id="settings-context-limit" style="width:80px">
@@ -1409,7 +1969,7 @@
               </div>
               <div class="s-field">
                 <label>results per query</label>
-                <div class="settings-input custom-select" id="s-search-count" style="width:100px" data-value="5" data-options="3|3;5|5;10|10;20|20"></div>
+                <div class="settings-input custom-select" id="s-search-count" style="width:100px" data-value="8" data-options="3|3;5|5;8|8;10|10;20|20"></div>
               </div>
               <div id="s-search-status" style="font-size:0.72rem;color:var(--muted);margin-top:0.3rem"></div>
             </div>
@@ -1419,24 +1979,30 @@
             <div class="s-card-body">
               <p class="s-card-hint">normal links and the cited overview are independent. a remote overview model is confirmed for each search before anything is sent.</p>
               <div class="s-toggle-row">
-                <div><div class="s-toggle-label">normal results</div><div class="s-toggle-desc">show ranked links below the overview</div></div>
+                <div><div class="s-toggle-label">normal results</div><div class="s-toggle-desc">show web results below the overview</div></div>
                 <div class="s-switch" id="s-andromeda-results" role="switch" aria-checked="true"></div>
               </div>
               <div class="s-toggle-row">
                 <div><div class="s-toggle-label">ai overview</div><div class="s-toggle-desc">build a claim-by-claim answer from fetched evidence</div></div>
                 <div class="s-switch" id="s-andromeda-overview" role="switch" aria-checked="true"></div>
               </div>
+              <div class="s-toggle-row">
+                <div><div class="s-toggle-label">independent fact-check</div><div class="s-toggle-desc">use the separate verifier after freshness-sensitive answers</div></div>
+                <button class="s-switch" id="s-andromeda-verification" type="button" role="switch" aria-checked="true"></button>
+              </div>
               <div class="s-field">
-                <label for="s-andromeda-band">default model band</label>
-                <select class="settings-input" id="s-andromeda-band">
-                  <option value="light">light</option><option value="standard">standard</option><option value="strong">strong</option><option value="auto">auto</option>
-                </select>
+                <label>fact-check policy</label>
+                <div class="settings-input custom-select" id="s-andromeda-verifier-mode" data-value="freshness-sensitive" data-options="freshness-sensitive|current facts;always|every answer;manual|only when asked;off|off" aria-label="andromeda fact-check policy"></div>
+              </div>
+              <div class="s-field">
+                <label>default model band</label>
+                <div class="settings-input custom-select" id="s-andromeda-band" data-value="standard" data-options="light|light;standard|standard;strong|strong;auto|automatic" aria-label="default andromeda model band"></div>
               </div>
               <div class="andromeda-band-settings">
-                <label>light <select class="settings-input s-andromeda-model" id="s-andromeda-model-light" data-band="light"><option value="">not configured</option></select></label>
-                <label>standard <select class="settings-input s-andromeda-model" id="s-andromeda-model-standard" data-band="standard"><option value="">use andromeda role</option></select></label>
-                <label>strong <select class="settings-input s-andromeda-model" id="s-andromeda-model-strong" data-band="strong"><option value="">not configured</option></select></label>
-                <label>auto <select class="settings-input s-andromeda-model" id="s-andromeda-model-auto" data-band="auto"><option value="">not configured</option></select></label>
+                <label>light <div class="settings-input custom-select s-andromeda-model" id="s-andromeda-model-light" data-band="light" data-value="" data-options="|not configured"></div></label>
+                <label>standard <div class="settings-input custom-select s-andromeda-model" id="s-andromeda-model-standard" data-band="standard" data-value="" data-options="|use answer role"></div></label>
+                <label>strong <div class="settings-input custom-select s-andromeda-model" id="s-andromeda-model-strong" data-band="strong" data-value="" data-options="|not configured"></div></label>
+                <label>auto <div class="settings-input custom-select s-andromeda-model" id="s-andromeda-model-auto" data-band="auto" data-value="" data-options="|not configured"></div></label>
               </div>
               <div style="display:flex;align-items:center;gap:0.5rem;margin-top:0.65rem">
                 <button class="btn" id="s-andromeda-qualify" type="button">test auto model</button>
@@ -1478,7 +2044,6 @@
                 <div class="settings-input custom-select" id="s-ui-font-size" style="width:120px" data-value="md" data-options="sm|small;md|medium;lg|large"></div>
               </div>
               <div class="s-toggle-row"><div><div class="s-toggle-label">microphone</div><div class="s-toggle-desc">voice input button</div></div><div class="s-switch s-vis-toggle" data-vis="#mic-btn" data-vis-key="bar-mic"></div></div>
-              <div class="s-toggle-row"><div><div class="s-toggle-label">Chat / Jarvis</div><div class="s-toggle-desc">keep the mode switcher in the composer</div></div><div class="s-switch s-vis-toggle" data-vis=".mode-toggle" data-vis-key="bar-mode"></div></div>
             </div>
           </div>
           <div class="s-card">
@@ -1517,7 +2082,7 @@
             <div class="s-card-body">
               <div class="s-toggle-row"><div><div class="s-toggle-label">require password</div><div class="s-toggle-desc">lock alles behind your password</div></div><div class="s-switch" id="s-auth-enable"></div></div>
               <div class="s-field"><label>current password</label><input type="password" class="settings-input" id="s-pw-old" placeholder="leave blank if none set" style="width:100%"></div>
-              <div class="s-field"><label>new password</label><input type="password" class="settings-input" id="s-pw-new" placeholder="at least 4 characters" style="width:100%"></div>
+              <div class="s-field"><label>new password</label><input type="password" class="settings-input" id="s-pw-new" minlength="12" placeholder="at least 12 characters" style="width:100%"></div>
               <div class="s-field"><label>verify password <span style="color:var(--muted);font-weight:400">— enter it again</span></label><input type="password" class="settings-input" id="s-pw-new2" placeholder="re-enter new password" style="width:100%"></div>
               <button class="btn primary" id="s-pw-save" style="width:100%;margin-top:0.3rem">change password</button>
             </div>
@@ -1699,6 +2264,50 @@
 
         <!-- ── tools pane ── -->
         <div class="s-pane" id="s-pane-tools">
+          <div class="s-card" id="jarvis-discord-card">
+            <div class="s-card-head">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 9h8M7 15h.01M17 15h.01"/><path d="M5 5h14a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-3l-2 2h-4l-2-2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z"/></svg>
+              Jarvis on Discord
+              <span class="jarvis-discord-head-state" id="jarvis-discord-head-state">not connected</span>
+            </div>
+            <div class="s-card-body">
+              <div id="jarvis-discord-view" aria-live="polite">
+                <div class="settings-row-empty">loading connection…</div>
+              </div>
+              <div id="jarvis-discord-setup" hidden>
+                <div class="s-field"><label>Discord bot token <span class="s-field-note">encrypted and never shown again</span></label><input type="password" class="settings-input" id="jarvis-discord-token" autocomplete="off" placeholder="paste the bot token" style="width:100%"></div>
+                <button class="btn primary" type="button" id="jarvis-discord-connect" style="width:100%">connect Jarvis</button>
+                <div class="s-card-hint">create a private Discord bot, enable message content, then paste its token here. Jarvis is only the Discord connection; Aide does the work.</div>
+              </div>
+              <div id="jarvis-discord-manage" hidden>
+                <div class="jarvis-discord-status">
+                  <div><div class="s-toggle-label" id="jarvis-discord-name">Jarvis</div><div class="s-toggle-desc" id="jarvis-discord-detail">not paired</div></div>
+                  <button class="s-switch" type="button" id="jarvis-discord-enabled" role="switch" aria-checked="false" aria-label="enable Jarvis Discord connection"></button>
+                </div>
+                <div class="jarvis-pairing" id="jarvis-pairing">
+                  <div class="jarvis-pairing-copy"><strong>pair one owner</strong><span>send <code>pair CODE</code> in a DM to Jarvis. the code expires after 10 minutes.</span></div>
+                  <div class="jarvis-pairing-code" id="jarvis-pairing-code" hidden></div>
+                  <button class="btn" type="button" id="jarvis-discord-pair">new pairing code</button>
+                </div>
+                <div class="s-field"><label>approved private channel ids <span class="s-field-note">one numeric id per line; owner messages only</span></label><textarea class="settings-textarea" id="jarvis-discord-channels" rows="3" placeholder="123456789012345678"></textarea></div>
+                <div class="jarvis-discord-save-row">
+                  <button class="btn" type="button" id="jarvis-discord-save-channels">save channels</button>
+                  <button class="btn" type="button" id="jarvis-discord-revoke">revoke owner</button>
+                </div>
+                <div class="jarvis-quiet-row">
+                  <div><div class="s-toggle-label">quiet hours</div><div class="s-toggle-desc">hold finished notices; questions still come through</div></div>
+                  <button class="s-switch" type="button" id="jarvis-discord-quiet" role="switch" aria-checked="false" aria-label="use Discord quiet hours"></button>
+                </div>
+                <div class="jarvis-quiet-fields" id="jarvis-discord-quiet-fields" hidden>
+                  <label>from<input class="settings-input" id="jarvis-discord-quiet-start" inputmode="numeric" placeholder="23:00" maxlength="5"></label>
+                  <label>to<input class="settings-input" id="jarvis-discord-quiet-end" inputmode="numeric" placeholder="07:00" maxlength="5"></label>
+                  <label>time zone<input class="settings-input" id="jarvis-discord-timezone" placeholder="Asia/Taipei"></label>
+                  <button class="btn" type="button" id="jarvis-discord-save-quiet">save</button>
+                </div>
+                <button class="btn danger" type="button" id="jarvis-discord-disconnect">disconnect Jarvis</button>
+              </div>
+            </div>
+          </div>
           <div class="s-card">
             <div class="s-card-head">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4"/><path d="M12 18v4"/><path d="M4.93 4.93l2.83 2.83"/><path d="M16.24 16.24l2.83 2.83"/><path d="M2 12h4"/><path d="M18 12h4"/><path d="M4.93 19.07l2.83-2.83"/><path d="M16.24 7.76l2.83-2.83"/></svg>
@@ -1747,7 +2356,7 @@
               <div class="s-field"><label>command</label><input type="text" class="settings-input" id="mcp-command" placeholder="npx -y @modelcontextprotocol/server-filesystem /path" style="width:100%"></div>
               <details class="mcp-advanced">
                 <summary>remote server and private values</summary>
-                <div class="s-field"><label>transport</label><select class="settings-input" id="mcp-transport" style="width:100%"><option value="stdio">local command</option><option value="sse">remote SSE</option></select></div>
+                <div class="s-field"><label>transport</label><div class="settings-input custom-select" id="mcp-transport" data-value="stdio" data-options="stdio|local command;sse|remote SSE" style="width:100%"></div></div>
                 <div class="s-field"><label>remote url</label><input type="url" class="settings-input" id="mcp-url" placeholder="https://server.example/mcp" style="width:100%"></div>
                 <div class="s-field"><label>environment</label><textarea class="settings-input" id="mcp-env" rows="3" placeholder="GITHUB_TOKEN=…&#10;one private value per line" style="width:100%"></textarea></div>
                 <div class="s-field"><label>http headers</label><textarea class="settings-input" id="mcp-headers" rows="3" placeholder="Authorization=Bearer …" style="width:100%"></textarea></div>
@@ -1854,29 +2463,134 @@
           </div>
         </div>
 
-        <!-- ── language and notification preferences ── -->
-        <div class="s-pane" id="s-pane-notifications">
-          <div class="s-card">
-            <div class="s-card-head">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20"/></svg>
-              language &amp; region
+        <!-- ── approved Phase 10 language and region workbench ── -->
+        <div class="s-pane locale-settings-pane" id="s-pane-notifications">
+          <header class="settings-pane-intro">
+            <div>
+              <h2 data-i18n="locale.title">language &amp; region</h2>
+              <p data-i18n="locale.description">Choose the words Alles uses. Region, timezone, clock, week start, and currency stay independent.</p>
             </div>
-            <div class="s-card-body">
-              <div class="s-field">
-                <label>interface language <span class="s-field-note">more after review</span></label>
-                <div class="settings-input custom-select" id="s-language" data-value="en" data-options="en|English" style="width:100%"></div>
+            <span id="locale-settings-load-state" role="status" aria-live="polite" data-i18n="locale.loading">loading settings…</span>
+          </header>
+
+          <div class="locale-settings-workbench" id="locale-settings-workbench" aria-busy="true">
+            <div class="locale-settings-controls">
+              <section class="locale-settings-section" aria-labelledby="locale-language-title">
+                <h3 id="locale-language-title" data-i18n="locale.interface_language">interface language</h3>
+                <p data-i18n="locale.catalog_rule">Only reviewed catalogs can be selected. The remaining rows stay visible so their release state is honest.</p>
+                <div class="locale-language-list" id="locale-language-list" role="radiogroup" aria-labelledby="locale-language-title">
+                  <button class="locale-language-choice" type="button" role="radio" aria-checked="true" aria-disabled="false" tabindex="0" data-locale-language="en"><span><strong>English</strong><small>English</small></span><em data-i18n="common.reviewed">reviewed</em></button>
+                  <button class="locale-language-choice" type="button" role="radio" aria-checked="false" aria-disabled="true" tabindex="-1" data-locale-language="fr"><span><strong>Français</strong><small>French</small></span><em data-i18n="common.unavailable">unavailable</em></button>
+                  <button class="locale-language-choice" type="button" role="radio" aria-checked="false" aria-disabled="true" tabindex="-1" data-locale-language="es"><span><strong>Español</strong><small>Spanish</small></span><em data-i18n="common.unavailable">unavailable</em></button>
+                  <button class="locale-language-choice" type="button" role="radio" aria-checked="false" aria-disabled="true" tabindex="-1" data-locale-language="zh-Hans"><span><strong>简体中文</strong><small>Simplified Chinese</small></span><em data-i18n="common.unavailable">unavailable</em></button>
+                  <button class="locale-language-choice" type="button" role="radio" aria-checked="false" aria-disabled="true" tabindex="-1" data-locale-language="zh-Hant"><span><strong>繁體中文</strong><small>Traditional Chinese</small></span><em data-i18n="common.unavailable">unavailable</em></button>
+                  <button class="locale-language-choice" type="button" role="radio" aria-checked="false" aria-disabled="true" tabindex="-1" data-locale-language="ja"><span><strong>日本語</strong><small>Japanese</small></span><em data-i18n="common.unavailable">unavailable</em></button>
+                  <button class="locale-language-choice" type="button" role="radio" aria-checked="false" aria-disabled="true" tabindex="-1" data-locale-language="ko"><span><strong>한국어</strong><small>Korean</small></span><em data-i18n="common.unavailable">unavailable</em></button>
+                  <button class="locale-language-choice" type="button" role="radio" aria-checked="false" aria-disabled="true" tabindex="-1" data-locale-language="ar"><span><strong>العربية</strong><small>Arabic</small></span><em data-i18n="common.unavailable">unavailable</em></button>
+                </div>
+              </section>
+
+              <section class="locale-settings-section" aria-labelledby="locale-formats-title">
+                <h3 id="locale-formats-title" data-i18n="locale.format_title">regional formats</h3>
+                <p data-i18n="locale.format_help">Automatic values follow this browser. An override changes formatting, not the interface language.</p>
+                <div class="locale-format-list">
+                  <div class="locale-format-row">
+                    <div><strong data-i18n="locale.region">region</strong><small id="s-region-detected" data-i18n="locale.detecting_browser">detecting this browser…</small></div>
+                    <div class="locale-choice-wrap">
+                      <button class="locale-choice-trigger" id="s-region-trigger" type="button" aria-haspopup="listbox" aria-expanded="false" data-locale-choice="region" data-value="" data-i18n="common.automatic">automatic</button>
+                      <div class="locale-choice-menu" id="s-region-menu" role="listbox" aria-label="region" data-i18n-aria-label="locale.region" data-locale-menu="region" hidden></div>
+                    </div>
+                  </div>
+                  <div class="locale-format-row">
+                    <div><strong data-i18n="locale.timezone">timezone</strong><small id="s-timezone-detected" data-i18n="locale.detecting_browser">detecting this browser…</small></div>
+                    <div class="locale-choice-wrap">
+                      <button class="locale-choice-trigger" id="s-timezone-trigger" type="button" aria-haspopup="listbox" aria-expanded="false" data-locale-choice="timezone" data-value="" data-i18n="common.automatic">automatic</button>
+                      <div class="locale-choice-menu" id="s-timezone-menu" role="listbox" aria-label="timezone" data-i18n-aria-label="locale.timezone" data-locale-menu="timezone" hidden></div>
+                    </div>
+                  </div>
+                  <div class="locale-format-row">
+                    <div><strong data-i18n="locale.clock">clock</strong><small data-i18n="locale.stored_event_help">Does not change stored event times.</small></div>
+                    <div class="locale-segmented" role="radiogroup" aria-label="clock format" data-i18n-aria-label="locale.clock">
+                      <button type="button" role="radio" aria-checked="true" tabindex="0" data-locale-format="clock_format" data-value="auto" data-i18n="common.automatic">automatic</button>
+                      <button type="button" role="radio" aria-checked="false" tabindex="-1" data-locale-format="clock_format" data-value="24" data-i18n="common.hour_24">24 hour</button>
+                      <button type="button" role="radio" aria-checked="false" tabindex="-1" data-locale-format="clock_format" data-value="12" data-i18n="common.hour_12">12 hour</button>
+                    </div>
+                  </div>
+                  <div class="locale-format-row">
+                    <div><strong data-i18n="locale.first_day">first day of week</strong><small data-i18n="locale.calendar_layout_help">Calendar layout only.</small></div>
+                    <div class="locale-segmented" role="radiogroup" aria-label="first day of week" data-i18n-aria-label="locale.first_day">
+                      <button type="button" role="radio" aria-checked="true" tabindex="0" data-locale-format="week_start" data-value="auto" data-i18n="common.automatic">automatic</button>
+                      <button type="button" role="radio" aria-checked="false" tabindex="-1" data-locale-format="week_start" data-value="mon" data-i18n="common.monday">monday</button>
+                      <button type="button" role="radio" aria-checked="false" tabindex="-1" data-locale-format="week_start" data-value="sun" data-i18n="common.sunday">sunday</button>
+                    </div>
+                  </div>
+                  <div class="locale-format-row">
+                    <div><strong data-i18n="locale.currency">currency</strong><small data-i18n="locale.currency_help">Used for locale-sensitive money display.</small></div>
+                    <div class="locale-choice-wrap">
+                      <button class="locale-choice-trigger" id="s-currency-trigger" type="button" aria-haspopup="listbox" aria-expanded="false" data-locale-choice="currency" data-value="" data-i18n="common.automatic">automatic</button>
+                      <div class="locale-choice-menu" id="s-currency-menu" role="listbox" aria-label="currency" data-i18n-aria-label="locale.currency" data-locale-menu="currency" hidden></div>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              <div class="locale-settings-save">
+                <span id="locale-settings-save-state" role="status" aria-live="polite" data-i18n="locale.no_unsaved">no unsaved changes</span>
+                <button class="btn primary" id="s-locale-save" type="button" data-i18n="locale.save">save language &amp; region</button>
               </div>
-              <div class="s-field">
-                <label>region <span class="s-field-note">blank = browser</span></label>
-                <input class="settings-input" id="s-region" maxlength="3" placeholder="e.g. TW, US, 001" style="width:100%">
-              </div>
-              <div class="s-field">
-                <label>time zone <span class="s-field-note">blank = browser</span></label>
-                <input class="settings-input" id="s-timezone" placeholder="e.g. Asia/Taipei" style="width:100%">
-                <div class="s-toggle-desc" id="s-timezone-detected"></div>
-              </div>
-              <button class="btn primary" id="s-locale-save">save language &amp; region</button>
             </div>
+
+            <aside class="locale-settings-preview" aria-labelledby="locale-preview-title">
+              <header><h3 id="locale-preview-title" data-i18n="locale.live_preview">live preview</h3><span id="locale-preview-tag">en</span></header>
+              <div class="locale-preview-surface">
+                <span>alles</span>
+                <strong id="locale-preview-home" data-i18n="locale.preview.home">home</strong>
+                <time id="locale-preview-date"></time>
+                <div data-i18n="locale.preview.needs_attention">needs your attention</div>
+                <small data-i18n="locale.preview.settings_saved">settings saved</small>
+                <code id="locale-preview-path" dir="ltr">alles/data · 14:30</code>
+              </div>
+              <dl>
+                <div><dt data-i18n="locale.direction">direction</dt><dd id="locale-preview-direction" data-i18n="locale.direction_ltr">left to right</dd></div>
+                <div><dt data-i18n="locale.region">region</dt><dd id="locale-preview-region" data-i18n="common.automatic">automatic</dd></div>
+                <div><dt data-i18n="locale.timezone">timezone</dt><dd id="locale-preview-timezone" data-i18n="common.automatic">automatic</dd></div>
+                <div><dt data-i18n="locale.currency">currency</dt><dd id="locale-preview-currency" data-i18n="common.automatic">automatic</dd></div>
+              </dl>
+            </aside>
+          </div>
+        </div>
+
+        <!-- ── approved Phase 10 manifest-driven Credits workbench ── -->
+        <div class="s-pane credits-settings-pane" id="s-pane-credits">
+          <header class="settings-pane-intro">
+            <div>
+              <h2 data-i18n="credits.title">about &amp; credits</h2>
+              <p data-i18n="credits.description">See what Alles includes, connects to, and learned from.</p>
+            </div>
+            <span id="credits-settings-load-state" role="status" aria-live="polite" data-i18n="credits.loading">loading credits…</span>
+          </header>
+
+          <div class="credits-settings-workbench" id="credits-settings-workbench" aria-busy="true">
+            <div class="credits-settings-controls">
+              <section class="credits-settings-tools" aria-labelledby="credits-list-title">
+                <h3 id="credits-list-title" data-i18n="credits.release_title">release credits</h3>
+                <label class="sr-only" for="credits-search" data-i18n="credits.search">search credits</label>
+                <input class="settings-input credits-search" id="credits-search" type="search" placeholder="search names or licenses" data-i18n-placeholder="credits.search_placeholder">
+                <div class="credits-tabs" role="tablist" aria-label="credit categories" data-i18n-aria-label="credits.categories">
+                  <button type="button" role="tab" aria-selected="true" tabindex="0" data-credit-category="all" data-i18n="common.all">all</button>
+                  <button type="button" role="tab" aria-selected="false" tabindex="-1" data-credit-category="code" data-i18n="credits.category.code">code</button>
+                  <button type="button" role="tab" aria-selected="false" tabindex="-1" data-credit-category="data" data-i18n="credits.category.data">data</button>
+                  <button type="button" role="tab" aria-selected="false" tabindex="-1" data-credit-category="companion" data-i18n="credits.category.companion">companions</button>
+                  <button type="button" role="tab" aria-selected="false" tabindex="-1" data-credit-category="inspiration" data-i18n="credits.category.inspiration">inspiration</button>
+                </div>
+                <div class="credits-summary" id="credits-summary" data-i18n="credits.loading_manifest">loading manifest…</div>
+              </section>
+              <div class="credits-list" id="credits-list" aria-label="credit entries" data-i18n-aria-label="credits.entries"></div>
+              <div class="credits-coverage" id="credits-coverage" role="status"></div>
+            </div>
+            <aside class="credits-detail" id="credits-detail" tabindex="-1" aria-live="polite">
+              <p data-i18n="credits.select_prompt">Select a credit to inspect its source and local notice state.</p>
+            </aside>
           </div>
         </div>
 
@@ -1921,6 +2635,13 @@
         </div>
 
         <div class="s-pane" id="s-pane-backup">
+          <div class="s-card">
+            <div class="s-card-head">setup</div>
+            <div class="s-card-body">
+              <p id="setup-resume-status" role="status" aria-live="polite" style="font-size:0.75rem;color:var(--muted);margin-bottom:0.65rem">checking setup…</p>
+              <button class="btn" id="setup-resume-btn" type="button" style="width:100%">resume setup</button>
+            </div>
+          </div>
           <div class="s-card">
             <div class="s-card-head">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
@@ -1987,9 +2708,7 @@
                 </div>
                 <div class="s-field" style="margin-top:0.75rem">
                   <label for="webdav-backup-list">remote backup</label>
-                  <select class="settings-input" id="webdav-backup-list" disabled style="width:100%">
-                    <option value="">no remote backups found</option>
-                  </select>
+                  <div class="settings-input custom-select" id="webdav-backup-list" data-value="" data-options="|no remote backups found" aria-disabled="true" style="width:100%"></div>
                 </div>
                 <p id="webdav-backup-selection" style="font-size:0.7rem;color:var(--muted);margin-top:-0.3rem" aria-live="polite">choose a backup to stage a restore.</p>
                 <button class="btn" id="webdav-backup-recovery-key-btn" type="button" style="width:100%;margin-top:0.65rem">choose separate recovery key (optional)</button>
@@ -2026,10 +2745,7 @@
               </div>
               <div class="s-field">
                 <label for="s3-backup-addressing-style">addressing style</label>
-                <select class="settings-input" id="s3-backup-addressing-style" style="width:100%">
-                  <option value="path">path</option>
-                  <option value="virtual">virtual</option>
-                </select>
+                <div class="settings-input custom-select" id="s3-backup-addressing-style" data-value="path" data-options="path|path;virtual|virtual" style="width:100%"></div>
               </div>
               <div class="s-field">
                 <label for="s3-backup-access-key-id">access-key id</label>
@@ -2055,9 +2771,7 @@
                 </div>
                 <div class="s-field" style="margin-top:0.75rem">
                   <label for="s3-backup-list">remote backup</label>
-                  <select class="settings-input" id="s3-backup-list" disabled style="width:100%">
-                    <option value="">no remote backups found</option>
-                  </select>
+                  <div class="settings-input custom-select" id="s3-backup-list" data-value="" data-options="|no remote backups found" aria-disabled="true" style="width:100%"></div>
                 </div>
                 <p id="s3-backup-selection" style="font-size:0.7rem;color:var(--muted);margin-top:-0.3rem" aria-live="polite">choose a backup to stage a restore.</p>
                 <button class="btn" id="s3-backup-recovery-key-btn" type="button" style="width:100%;margin-top:0.65rem">choose separate recovery key (optional)</button>
@@ -2094,14 +2808,14 @@
         </div>
         <div class="s-pane" id="s-pane-proactive">
           <div class="s-card">
-            <div class="s-card-head">proactive</div>
+            <div class="s-card-head">background checks</div>
             <div class="s-card-body">
               <p style="font-size:0.75rem;color:var(--muted);margin-bottom:0.6rem">
                 aide checks your day on a schedule and drops short advisory cards into the home today strip -
                 overdue tasks, renewals, habits and the like. it never acts on its own; you click through.
                 off by default since it runs the model on a timer (it spends tokens). hit "run now" to try it.
               </p>
-              <div class="s-toggle-row"><div><div class="s-toggle-label">enable proactive agent</div></div><div class="s-switch" id="s-prox-enabled"></div></div>
+              <div class="s-toggle-row"><div><div class="s-toggle-label">enable background checks</div></div><div class="s-switch" id="s-prox-enabled"></div></div>
               <div class="s-toggle-row"><div><div class="s-toggle-label">tasks &amp; reminders</div></div><div class="s-switch" id="s-prox-cat-task"></div></div>
               <div class="s-toggle-row"><div><div class="s-toggle-label">subscriptions</div></div><div class="s-switch" id="s-prox-cat-sub"></div></div>
               <div class="s-toggle-row"><div><div class="s-toggle-label">calendar &amp; day-events</div></div><div class="s-switch" id="s-prox-cat-event"></div></div>
@@ -2161,7 +2875,7 @@
 </div>
 
 <script type="module">
-const _v = '220';
+const _v = '300';
 import(`/static/js/app.js?v=${_v}`);
 </script>
 </body>

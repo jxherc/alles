@@ -12,7 +12,7 @@ attribute history is still intact), after_delete (the id is still on the object)
 
 import json
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 
 from sqlalchemy import event
 from sqlalchemy import inspect as sa_inspect
@@ -80,7 +80,7 @@ def record_mutation(connection, kind, eid, op, fields):
             op=op,
             fields=json.dumps(fields, default=str),
             actor="",
-            ts=datetime.utcnow(),
+            ts=datetime.now(UTC).replace(tzinfo=None),
         )
     )
     return event_id

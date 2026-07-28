@@ -1,5 +1,7 @@
 import { toast } from './util.js';
 import { prompt as dlgPrompt, confirm as dlgConfirm } from './dialog.js';
+import { initCustomDropdown, populateDropdown, setDropdownValue } from './dropdown.js?v=212';
+import { formatDateTime } from './i18n.js';
 
 let _view = '';      // current view: '' | __fav__ | __archive__ | __hidden__ | __map__ | __memories__ | __trash__ | <albumId>
 let _photos = [];    // flat list (for the lightbox)
@@ -233,13 +235,16 @@ function _updateHeadTitle() {
   el.textContent = t;
 }
 
-async function _loadAlbums() {
-  _albums = await fetch('/api/photos/albums').then(r => r.json()).catch(() => []);
+async function _loadAlbums(fetcher = fetch) {
+  _albums = await fetcher('/api/photos/albums')
+    .then(response => response.ok ? response.json() : Promise.reject(new Error('albums unavailable')))
+    .then(albums => Array.isArray(albums) ? albums : [])
+    .catch(() => []);
   _renderSidebar();
 }
 
-export async function loadPhotos() {
-  await _loadAlbums();
+export async function loadPhotos(fetcher = fetch) {
+  await _loadAlbums(fetcher);
   _updateHeadTitle();
   // filters only apply to the /list-backed views (photos, favorites, albums)
   const fbtn = $('photos-filter-btn');
@@ -258,7 +263,7 @@ export async function loadPhotos() {
   _loadedGroups = [];
   _nextOffset = 0;
   _loadingMore = false;
-  await _loadListPage();
+  await _loadListPage(fetcher);
 }
 
 function _listUrl() {
@@ -284,11 +289,11 @@ function _mergeGroups(into, incoming) {
   }
 }
 
-async function _loadListPage() {
+async function _loadListPage(fetcher = fetch) {
   if (_loadingMore || _nextOffset == null) return;
   _loadingMore = true;
   const sep = _listUrl().includes('?') ? '&' : '?';
-  const d = await fetch(`${_listUrl()}${sep}offset=${_nextOffset}&limit=${_PAGE}`)
+  const d = await fetcher(`${_listUrl()}${sep}offset=${_nextOffset}&limit=${_PAGE}`)
     .then(r => r.json()).catch(() => ({ moments: [], next: null }));
   _mergeGroups(_loadedGroups, d.moments || []);
   _nextOffset = (d.next == null) ? null : d.next;
@@ -757,7 +762,7 @@ function _showCurrent() {
   const lat = ex.lat, lon = ex.lon;
   delete ex.lat; delete ex.lon;   // shown as a map link, not raw rows
   const dims = (p.width && p.height) ? `${p.width} × ${p.height}` : '';
-  const rows = [['taken', p.taken_at ? new Date(p.taken_at).toLocaleString() : ''], ['size', dims], ...Object.entries(ex)];
+  const rows = [['taken', p.taken_at ? formatDateTime(p.taken_at) : ''], ['size', dims], ...Object.entries(ex)];
   let html = rows.filter(r => r[1]).map(([k, v]) =>
     `<div class="photos-exif-row"><span>${esc(k)}</span><span>${esc(v)}</span></div>`).join('');
   if (lat != null && lon != null) {
@@ -815,11 +820,10 @@ async function _loadFacets() {
   try {
     const d = await fetch('/api/photos/facets').then(r => r.json());
     const sel = $('photos-filt-camera');
-    for (const c of (d.cameras || [])) {
-      const o = document.createElement('option');
-      o.value = c; o.textContent = c;
-      sel?.appendChild(o);
-    }
+    populateDropdown(sel, [
+      { value: '', label: 'any camera' },
+      ...(d.cameras || []).map(camera => ({ value: camera, label: camera })),
+    ], _filters.camera);
   } catch { _facetsLoaded = false; }
 }
 
@@ -894,6 +898,7 @@ let _inited = false;
 export function initPhotos() {
   if (_inited) return;
   _inited = true;
+  initCustomDropdown($('photos-filt-camera'));
   const psearch = $('photos-search');
   let _pt;
   psearch?.addEventListener('input', () => {
@@ -1059,7 +1064,7 @@ export function initPhotos() {
   $('photos-filt-clear')?.addEventListener('click', () => {
     _filters.type = _filters.camera = _filters.from = _filters.to = '';
     $('photos-filt-type')?.querySelectorAll('button').forEach((x, i) => x.classList.toggle('active', i === 0));
-    if ($('photos-filt-camera')) $('photos-filt-camera').value = '';
+    setDropdownValue($('photos-filt-camera'), '');
     if ($('photos-filt-from')) $('photos-filt-from').value = '';
     if ($('photos-filt-to')) $('photos-filt-to').value = '';
     _applyFilters();

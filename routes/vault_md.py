@@ -1,22 +1,22 @@
-"""
-Thin docs API over the markdown vault. Real editing happens in Obsidian — the app only
-READS/BROWSES docs (tree, read, search, tags, backlinks, semantic ask) and does basic file
-management (create / rename / delete / folder). The heavy in-browser editor (live/source CM,
-AI-edit, graph, canvas, kanban, dataview, base, properties, comments, revisions, periodic,
-templates, import/export, publish, etc.) was removed — Obsidian does all that better.
+"""Docs API over the owner's Markdown vault.
 
-The `services/vault_md.py` SERVICE layer is untouched (agents, search, notes all use it).
+Docs is viewer-first and Obsidian remains the primary editor. Alles also offers an explicit,
+local CodeMirror editor backed by private drafts, expected-hash saves, conflict copies, and
+revisions. The service layer remains shared by Docs, Aide retrieval, search, and Notes.
 """
 
-from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import Response, StreamingResponse
-from pydantic import BaseModel
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi.responses import JSONResponse, Response, StreamingResponse
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session as DbSession
 
+from core.api_errors import ApiError
 from core.database import get_db
-from services import trash, vault_md
+from services import document_safety, trash, vault_md
 
 router = APIRouter(prefix="/api/vault-md")
+VAULT_WATCH_INTERVAL = 0.5
+VAULT_KEEPALIVE_SECONDS = 20
 
 
 def _norm_path(rel: str) -> str:
@@ -101,6 +101,30 @@ def _unindex_doc(path):
             db.close()
     except Exception:
         pass
+
+
+def _sync_rename_indexes(manifest: dict) -> None:
+    state = manifest.get("state")
+    if state == "complete":
+        old_path = manifest.get("old_path", "")
+        current_paths = {manifest.get("new_path", "")}
+        current_paths.update(change.get("path_after", "") for change in manifest.get("changes", []))
+        _unindex_doc(old_path)
+    elif state == "rolled_back":
+        current_paths = {manifest.get("old_path", "")}
+        current_paths.update(
+            change.get("path_before", "") for change in manifest.get("changes", [])
+        )
+        _unindex_doc(manifest.get("new_path", ""))
+    else:
+        return
+
+    for path in sorted(current_paths):
+        if not path:
+            continue
+        document = vault_md.read(path)
+        if document.get("exists"):
+            _reindex_doc(path, document.get("content", ""))
 
 
 # ── read / browse ────────────────────────────────────────────────────────────
@@ -205,16 +229,144 @@ def ask_vault(q: str = "", db: DbSession = Depends(get_db)):
 class PathBody(BaseModel):
     path: str
     content: str = ""
+    unique: bool = False
+
+
+class SafeDocumentBody(BaseModel):
+    path: str
+    content: str
+    expected_hash: str
+
+
+class DraftBody(BaseModel):
+    path: str
+    content: str
+    base_hash: str
+    write_session: str = Field(default="", max_length=80)
+    write_revision: int = Field(default=0, ge=0)
+    write_generation: int = Field(default=0, ge=0)
+
+
+class RevisionRestoreBody(BaseModel):
+    path: str
+    revision_id: str
+    expected_hash: str
+
+
+@router.get("/safety/draft")
+def read_document_draft(path: str):
+    try:
+        return {"draft": document_safety.load_draft(path)}
+    except (ValueError, document_safety.RecoveryConflict) as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
+@router.put("/safety/draft")
+def write_document_draft(body: DraftBody):
+    try:
+        return document_safety.save_draft(
+            body.path,
+            body.content,
+            body.base_hash,
+            body.write_session,
+            body.write_revision,
+            body.write_generation,
+        )
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
+@router.delete("/safety/draft")
+def remove_document_draft(path: str, expected_hash: str = ""):
+    try:
+        deleted = (
+            document_safety.delete_draft_if_hash(path, expected_hash)
+            if expected_hash
+            else document_safety.delete_draft(path)
+        )
+        if expected_hash and not deleted and document_safety.load_draft(path) is not None:
+            raise HTTPException(409, "draft changed before it could be deleted")
+        return {"ok": True, "deleted": deleted}
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
+@router.post("/safety/compare")
+def compare_document(body: SafeDocumentBody):
+    try:
+        return document_safety.compare_document(body.path, body.content, body.expected_hash)
+    except vault_md.DocumentEncodingError as exc:
+        raise ApiError(409, "document_encoding_unsupported", str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
+@router.post("/safety/save")
+def save_document(body: SafeDocumentBody):
+    try:
+        result = document_safety.save_document(body.path, body.content, body.expected_hash)
+    except document_safety.DocumentSaveConflict as exc:
+        return JSONResponse(
+            status_code=409,
+            content={
+                "code": "document_conflict",
+                "detail": "document changed outside Alles; both copies were preserved",
+                "conflict": exc.conflict,
+            },
+        )
+    except vault_md.DocumentEncodingError as exc:
+        raise ApiError(409, "document_encoding_unsupported", str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    _reindex_doc(result["path"], body.content)
+    return result
+
+
+@router.get("/safety/conflicts/{conflict_id}")
+def read_document_conflict(conflict_id: str):
+    try:
+        return document_safety.load_conflict(conflict_id)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    except (OSError, document_safety.RecoveryConflict) as exc:
+        raise HTTPException(404, "conflict copy not found") from exc
+
+
+@router.get("/safety/revisions")
+def document_revisions(path: str):
+    try:
+        return {"revisions": document_safety.list_revisions(path)}
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
+@router.post("/safety/revisions/restore")
+def restore_document_revision(body: RevisionRestoreBody):
+    try:
+        result = document_safety.restore_revision(body.path, body.revision_id, body.expected_hash)
+    except vault_md.DocumentConflictError as exc:
+        raise ApiError(409, "document_conflict", str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    except (OSError, document_safety.RecoveryConflict) as exc:
+        raise HTTPException(404, "revision not found") from exc
+    document = vault_md.read(result["path"])
+    _reindex_doc(result["path"], document.get("content", ""))
+    return result
 
 
 @router.post("/file")
-def create_file(body: PathBody):
+def create_file(body: PathBody, background_tasks: BackgroundTasks):
     try:
-        out = vault_md.create(body.path, body.content)
+        out = (
+            vault_md.create_unique(body.path, body.content)
+            if body.unique
+            else vault_md.create(body.path, body.content)
+        )
     except ValueError as e:
         raise HTTPException(400, str(e))
     path = out.get("path", _norm_path(body.path))
-    _reindex_doc(path, vault_md.read(path).get("content", ""))
+    background_tasks.add_task(_reindex_doc, path, vault_md.read(path).get("content", ""))
     return out
 
 
@@ -261,8 +413,6 @@ def restore_trash(body: TrashAction, db: DbSession = Depends(get_db)):
         destination = vault_md._safe(item.ref)
         trash.restore_path(db, item, destination)
     except FileExistsError as exc:
-        from core.api_errors import ApiError
-
         raise ApiError(409, "restore_conflict", "a document already exists at that path") from exc
     if destination.is_file() and destination.suffix.lower() in {".md", ".markdown"}:
         _reindex_doc(item.ref, vault_md.read(item.ref).get("content", ""))
@@ -277,33 +427,87 @@ class RenameBody(BaseModel):
 @router.post("/rename")
 def rename_file(body: RenameBody):
     try:
-        out = vault_md.rename(body.path, body.new_path)
+        source = vault_md._safe(body.path)
     except ValueError as e:
         raise HTTPException(400, str(e))
-    new_path = out.get("path", _norm_path(body.new_path))
-    is_file = new_path.lower().endswith((".md", ".markdown"))
-    out["links_rewritten"] = 0
-    if is_file:
-        from pathlib import PurePosixPath
 
-        old_norm = _norm_path(body.path)
-        old_stem = PurePosixPath(old_norm).stem
-        new_stem = PurePosixPath(new_path).stem
-        if old_stem and new_stem and old_stem.lower() != new_stem.lower():
-            out["links_rewritten"] = len(vault_md.rewrite_links(old_stem, new_stem))
-        _unindex_doc(old_norm)
-        _reindex_doc(new_path, vault_md.read(new_path).get("content", ""))
-    else:
-        # folder rename: reindex each child at its new path (old entries get cleaned by reconcile)
-        base = vault_md.vault_dir()
-        old_pre = body.path.strip("/") + "/"
-        new_pre = new_path.strip("/") + "/"
-        for p in (base / new_path).rglob("*.md"):
-            rel_new = str(p.relative_to(base)).replace("\\", "/")
-            rel_old = old_pre + rel_new[len(new_pre) :]
-            _unindex_doc(rel_old)
-            _reindex_doc(rel_new, p.read_text("utf-8", errors="replace"))
+    if source.is_file():
+        try:
+            manifest = document_safety.rename_document(body.path, body.new_path)
+        except FileNotFoundError as exc:
+            raise HTTPException(404, "document not found") from exc
+        except FileExistsError as exc:
+            raise ApiError(
+                409, "rename_destination_exists", "a document already exists at that path"
+            ) from exc
+        except ValueError as exc:
+            raise HTTPException(400, str(exc)) from exc
+        except document_safety.RenameRecoveryRequired as exc:
+            raise ApiError(
+                409,
+                "rename_recovery_required",
+                "rename paused safely; use the pending recovery transaction",
+                headers={"x-alles-recovery-id": exc.transaction_id},
+            ) from exc
+        _sync_rename_indexes(manifest)
+        return {
+            "ok": True,
+            "path": manifest["new_path"],
+            "links_rewritten": len(manifest.get("changes", [])),
+            "transaction_id": manifest["id"],
+        }
+
+    try:
+        out = vault_md.rename(body.path, body.new_path)
+    except FileNotFoundError as exc:
+        raise HTTPException(404, "folder not found") from exc
+    except FileExistsError as exc:
+        raise ApiError(409, "rename_destination_exists", "a folder already exists there") from exc
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    new_path = out.get("path", _norm_path(body.new_path))
+    out["links_rewritten"] = 0
+    # folder rename: reindex each child at its new path (old entries get cleaned by reconcile)
+    base = vault_md.vault_dir()
+    old_pre = body.path.strip("/") + "/"
+    new_pre = new_path.strip("/") + "/"
+    for p in (base / new_path).rglob("*.md"):
+        rel_new = str(p.relative_to(base)).replace("\\", "/")
+        rel_old = old_pre + rel_new[len(new_pre) :]
+        _unindex_doc(rel_old)
+        try:
+            content = vault_md._read_text_for_edit(p)
+        except vault_md.DocumentEncodingError:
+            content = ""
+        _reindex_doc(rel_new, content)
     return out
+
+
+class RenameRecoveryBody(BaseModel):
+    id: str
+    action: str
+
+
+@router.get("/rename/pending")
+def pending_renames():
+    return {"transactions": document_safety.pending_renames()}
+
+
+@router.post("/rename/recover")
+def recover_rename(body: RenameRecoveryBody):
+    try:
+        if body.action == "resume":
+            manifest = document_safety.resume_rename(body.id)
+        elif body.action == "rollback":
+            manifest = document_safety.rollback_rename(body.id)
+        else:
+            raise HTTPException(400, "action must be resume or rollback")
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    except document_safety.RecoveryConflict as exc:
+        raise ApiError(409, "rename_recovery_conflict", str(exc)) from exc
+    _sync_rename_indexes(manifest)
+    return {"ok": True, "transaction": manifest}
 
 
 class FolderBody(BaseModel):
@@ -320,7 +524,7 @@ def make_folder(body: FolderBody):
 
 # ── live two-way: notice files changed on disk (e.g. edited in Obsidian) ───────
 def _vault_sig() -> dict:
-    """mtime:size signature of every .md in the vault — cheap change detection."""
+    """Nanosecond mtime and size signature for cheap external-change detection."""
     base = vault_md.vault_dir()
     out = {}
     for p in base.rglob("*.md"):
@@ -329,7 +533,7 @@ def _vault_sig() -> dict:
             continue
         try:
             st = p.stat()
-            out[rel] = f"{int(st.st_mtime)}:{st.st_size}"
+            out[rel] = f"{st.st_mtime_ns}:{st.st_size}"
         except OSError:
             pass
     return out
@@ -340,6 +544,25 @@ def _sig_diff(prev: dict, cur: dict):
     changed = [p for p in cur if prev.get(p) != cur[p]]
     removed = [p for p in prev if p not in cur]
     return changed, removed
+
+
+def _observed_event(path: str, *, removed: bool = False) -> dict:
+    current_hash = ""
+    if not removed:
+        try:
+            current_hash = vault_md.read(path).get("hash", "")
+        except (OSError, ValueError):
+            pass
+    try:
+        origin = document_safety.classify_observed_change(path, current_hash)
+    except Exception:
+        origin = "external"
+    return {
+        "path": path,
+        "kind": "removed" if removed else "changed",
+        "origin": origin,
+        "hash": current_hash,
+    }
 
 
 @router.get("/stream")
@@ -354,17 +577,19 @@ async def stream():
         yield 'data: {"hello":1}\n\n'
         idle = 0
         while True:
-            await asyncio.sleep(2)
+            await asyncio.sleep(VAULT_WATCH_INTERVAL)
             cur = await asyncio.to_thread(_vault_sig)
             changed, removed = _sig_diff(prev, cur)
             if not (changed or removed):
                 idle += 1
-                if idle >= 10:  # ~20s keepalive
+                if idle * VAULT_WATCH_INTERVAL >= VAULT_KEEPALIVE_SECONDS:
                     idle = 0
                     yield ": ping\n\n"
                 continue
             idle = 0
             prev = cur
+            events = [*(_observed_event(path) for path in changed)]
+            events.extend(_observed_event(path, removed=True) for path in removed)
             for p in changed:  # keep the index fresh (idempotent); journal notes sync to the DB
                 try:
                     await asyncio.to_thread(lambda q=p: _sync_changed(q))
@@ -372,7 +597,7 @@ async def stream():
                     pass
             for p in removed:
                 _unindex_doc(p)
-            yield f"data: {_json.dumps({'changed': changed, 'removed': removed})}\n\n"
+            yield f"data: {_json.dumps({'changed': changed, 'removed': removed, 'events': events})}\n\n"
 
     return StreamingResponse(
         gen(),

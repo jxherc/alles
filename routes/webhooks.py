@@ -3,7 +3,7 @@ import hmac
 import json
 import logging
 import secrets
-from datetime import datetime
+from datetime import UTC, datetime
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException
@@ -136,7 +136,11 @@ async def test_webhook(wid: str):
         if not w:
             raise HTTPException(404)
         status, err = await _deliver(w, {"event": "test", "data": {"ok": True}})
-        w.last_status, w.last_error, w.last_triggered = status, err, datetime.utcnow()
+        w.last_status, w.last_error, w.last_triggered = (
+            status,
+            err,
+            datetime.now(UTC).replace(tzinfo=None),
+        )
         db.commit()
         return {"status": status, "error": err}
     finally:
@@ -154,7 +158,11 @@ async def fire(event: str, payload: dict):
         body = {"event": event, "data": payload}
         for h in targets:
             status, err = await _deliver(h, body)
-            h.last_status, h.last_error, h.last_triggered = status, err, datetime.utcnow()
+            h.last_status, h.last_error, h.last_triggered = (
+                status,
+                err,
+                datetime.now(UTC).replace(tzinfo=None),
+            )
         db.commit()
     finally:
         db.close()

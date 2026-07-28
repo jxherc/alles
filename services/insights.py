@@ -8,7 +8,7 @@ a run-now forces it. dedupe + dismissal are by the cited evidence set. model_fn 
 import hashlib
 import json
 import logging
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from core.database import Insight, SignalSnapshot
 
@@ -16,13 +16,15 @@ log = logging.getLogger("alles.insights")
 
 
 def _dedupe_key(evidence):
-    return hashlib.sha1("|".join(sorted(str(e) for e in evidence)).encode()).hexdigest()[:16]
+    return hashlib.sha1(
+        "|".join(sorted(str(e) for e in evidence)).encode(), usedforsecurity=False
+    ).hexdigest()[:16]
 
 
 def gather_corpus(db, *, days=30):
     from services import proactive
 
-    cutoff = datetime.utcnow() - timedelta(days=days)
+    cutoff = datetime.now(UTC).replace(tzinfo=None) - timedelta(days=days)
     rows = db.query(SignalSnapshot).filter(SignalSnapshot.ts >= cutoff).all()
     hist = {}
     for r in rows:

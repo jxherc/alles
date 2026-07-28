@@ -14,11 +14,15 @@ let _tag = '';
 let _open = null;   // full item being read
 let _feeds = [];
 let _showFeeds = false;
+let _fetcher = fetch;
 
-export function initRead() { loadRead(); }
+export function initRead(fetcher = fetch) {
+  _fetcher = fetcher;
+  return loadRead(fetcher);
+}
 
 async function loadFeeds() {
-  try { _feeds = (await fetch('/api/read/feeds').then(r => r.json())).feeds || []; }
+  try { _feeds = (await _fetcher('/api/read/feeds').then(r => r.json())).feeds || []; }
   catch { _feeds = []; }
 }
 
@@ -35,7 +39,8 @@ function _feedsPanel() {
   </div>`;
 }
 
-export async function loadRead() {
+export async function loadRead(fetcher = _fetcher) {
+  _fetcher = fetcher;
   const params = new URLSearchParams();
   if (_filter && _filter !== 'all') params.set('filter', _filter);
   if (_q) params.set('q', _q);
@@ -46,8 +51,8 @@ export async function loadRead() {
   const caret = wasSearching ? document.activeElement.selectionStart : null;
   try {
     const [items, stats] = await Promise.all([
-      fetch('/api/read?' + params).then(r => r.json()),
-      fetch('/api/read/stats').then(r => r.json()).catch(() => null),
+      fetcher('/api/read?' + params).then(r => r.json()),
+      fetcher('/api/read/stats').then(r => r.json()).catch(() => null),
     ]);
     _items = items.items || [];
     _stats = stats;
@@ -149,7 +154,7 @@ function _wire(body) {
     const addFeed = async () => {
       const url = $('feed-url')?.value.trim();
       if (!url) return;
-      const r = await fetch('/api/read/feeds', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ url }) });
+      const r = await _fetcher('/api/read/feeds', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ url }) });
       if (!r.ok) { toast((await r.json()).detail || 'failed', 'error'); return; }
       await loadFeeds(); _render();
     };
@@ -157,12 +162,12 @@ function _wire(body) {
     $('feed-url')?.addEventListener('keydown', e => { if (e.key === 'Enter') addFeed(); });
     $('feed-refresh')?.addEventListener('click', async () => {
       const btn = $('feed-refresh'); if (btn) btn.textContent = '…';
-      await fetch('/api/read/feeds/refresh', { method: 'POST' });
+      await _fetcher('/api/read/feeds/refresh', { method: 'POST' });
       toast('feeds refreshed', 'success');
       await loadFeeds(); await loadRead();   // loadRead re-renders with any new items
     });
     body.querySelectorAll('[data-feed-del]').forEach(b => b.addEventListener('click', async () => {
-      await fetch(`/api/read/feeds/${b.dataset.feedDel}`, { method: 'DELETE' });
+      await _fetcher(`/api/read/feeds/${b.dataset.feedDel}`, { method: 'DELETE' });
       await loadFeeds(); _render();
     }));
   }
@@ -182,11 +187,11 @@ function _wire(body) {
   $('read-tag-clear')?.addEventListener('click', () => { _tag = ''; loadRead(); });
 
   body.querySelectorAll('[data-open]').forEach(el => el.addEventListener('click', async () => {
-    try { _open = await fetch(`/api/read/${el.dataset.open}`).then(r => r.json()); _render(); }
+    try { _open = await _fetcher(`/api/read/${el.dataset.open}`).then(r => r.json()); _render(); }
     catch { toast('could not open', 'error'); }
     // mark read on open if it wasn't
     const it = _items.find(x => x.id === el.dataset.open);
-    if (it && !it.read) fetch(`/api/read/${el.dataset.open}/read`, { method: 'POST' });
+    if (it && !it.read) _fetcher(`/api/read/${el.dataset.open}/read`, { method: 'POST' });
   }));
 
   body.querySelectorAll('.read-card[data-id]').forEach(card => {
@@ -197,11 +202,11 @@ function _wire(body) {
       const it = _items.find(x => x.id === id);
       if (act === 'del') {
         if (!await dlgConfirm('delete this saved item?')) return;
-        await fetch(`/api/read/${id}`, { method: 'DELETE' }); toast('deleted', 'success'); loadRead(); return;
+        await _fetcher(`/api/read/${id}`, { method: 'DELETE' }); toast('deleted', 'success'); loadRead(); return;
       }
-      if (act === 'fav') { await fetch(`/api/read/${id}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ fav: !it.fav }) }); loadRead(); return; }
-      if (act === 'archive') { await fetch(`/api/read/${id}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ archived: !it.archived }) }); toast(it.archived ? 'unarchived' : 'archived', 'success'); loadRead(); return; }
-      if (act === 'read') { await fetch(`/api/read/${id}/read`, { method: 'POST' }); loadRead(); return; }
+      if (act === 'fav') { await _fetcher(`/api/read/${id}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ fav: !it.fav }) }); loadRead(); return; }
+      if (act === 'archive') { await _fetcher(`/api/read/${id}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ archived: !it.archived }) }); toast(it.archived ? 'unarchived' : 'archived', 'success'); loadRead(); return; }
+      if (act === 'read') { await _fetcher(`/api/read/${id}/read`, { method: 'POST' }); loadRead(); return; }
     }));
   });
 }
@@ -212,7 +217,7 @@ async function _save() {
   if (!url) { toast('paste a url first', 'error'); return; }
   const btn = $('read-save');
   if (btn) { btn.disabled = true; btn.textContent = 'saving…'; }
-  const r = await fetch('/api/read', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ url }) });
+  const r = await _fetcher('/api/read', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ url }) });
   if (!r.ok) { toast((await r.json()).detail || 'failed to save', 'error'); if (btn) { btn.disabled = false; } loadRead(); return; }
   const it = await r.json();
   toast(`saved · ${it.read_minutes} min read`, 'success');

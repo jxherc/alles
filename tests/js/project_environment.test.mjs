@@ -29,12 +29,18 @@ test('projects still render before the first chat exists', () => {
   );
 });
 
-test('afterlife sidebar includes general, folder state, expanded threads, and jarvis runs', () => {
+test('afterlife sidebar keeps unfiled tasks separate from expandable Project folders', () => {
   const source = readFileSync(new URL('../../static/js/projects.js', import.meta.url), 'utf8');
-  assert.match(source, /id: 'general', name: 'General'/);
-  assert.match(source, /folder missing/);
-  assert.match(source, /relink required/);
+  assert.match(source, /aide-session-section/);
+  assert.doesNotMatch(source, /id: 'general', name: 'General'/);
   assert.match(source, /display:\$\{afterlife \? 'flex'/);
-  assert.match(source, /class="aide-runs"/);
-  assert.match(source, /folder\.dataset\.id === 'general'/);
+  assert.doesNotMatch(source, /class="aide-runs"/);
+  assert.doesNotMatch(source, /folder\.dataset\.id === 'general'/);
+  assert.match(source, /project-folder-open/);
+  assert.match(source, /class="project-folder\$\{afterlife \? ' open' : ''\}"/);
+  assert.match(source, /aria-expanded="\$\{String\(afterlife\)\}"/);
+  assert.match(source, /data-session-drop="unassigned"/);
+  assert.match(source, /await unassignSession\(session\.project_id, sessionId\)/);
+  assert.match(source, /if \(!response\.ok\) throw new Error\('project unassignment failed'\)/);
+  assert.match(source, /toast\('could not move to tasks', 'error'\)/);
 });

@@ -1,0 +1,80 @@
+{
+  "$schema": "https://www.designtokens.org/schemas/2025.10/format.json",
+  "theme": {
+    "dark": {
+      "color": {
+        "surface": {
+          "page": { "$type": "color", "$value": "{color.dark.page}" },
+          "local": { "$type": "color", "$value": "{color.dark.panel}" },
+          "raised": { "$type": "color", "$value": "{color.dark.raised}" },
+          "hover": { "$type": "color", "$value": "{color.dark.hover}" }
+        },
+        "text": {
+          "primary": { "$type": "color", "$value": "{color.dark.text}" },
+          "secondary": { "$type": "color", "$value": "{color.dark.soft}" },
+          "muted": { "$type": "color", "$value": "{color.dark.muted}" },
+          "quiet": { "$type": "color", "$value": "{color.dark.quiet}" },
+          "danger": { "$type": "color", "$value": "{color.shared.dangerDark}" },
+          "success": { "$type": "color", "$value": "{color.shared.successDark}" },
+          "permission": { "$type": "color", "$value": "{color.shared.permissionDark}" }
+        },
+        "border": {
+          "structural": { "$type": "color", "$value": "{color.dark.line}" },
+          "strong": { "$type": "color", "$value": "{color.dark.lineStrong}" },
+          "focus": { "$type": "color", "$value": "{color.dark.lineStrong}" }
+        },
+        "action": {
+          "active": { "$type": "color", "$value": "{color.shared.accentDark}" },
+          "permission": { "$type": "color", "$value": "{color.shared.permissionDark}" },
+          "danger": { "$type": "color", "$value": "{color.shared.dangerDark}" },
+          "success": { "$type": "color", "$value": "{color.shared.successDark}" }
+        }
+      }
+    },
+    "light": {
+      "color": {
+        "surface": {
+          "page": { "$type": "color", "$value": "{color.light.page}" },
+          "local": { "$type": "color", "$value": "{color.light.panel}" },
+          "raised": { "$type": "color", "$value": "{color.light.raised}" },
+          "hover": { "$type": "color", "$value": "{color.light.hover}" }
+        },
+        "text": {
+          "primary": { "$type": "color", "$value": "{color.light.text}" },
+          "secondary": { "$type": "color", "$value": "{color.light.soft}" },
+          "muted": { "$type": "color", "$value": "{color.light.muted}" },
+          "quiet": { "$type": "color", "$value": "{color.light.quiet}" },
+          "danger": { "$type": "color", "$value": "{color.shared.dangerLight}" },
+          "success": { "$type": "color", "$value": "{color.shared.successLight}" },
+          "permission": { "$type": "color", "$value": "{color.shared.permissionLight}" }
+        },
+        "border": {
+          "structural": { "$type": "color", "$value": "{color.light.line}" },
+          "strong": { "$type": "color", "$value": "{color.light.lineStrong}" },
+          "focus": { "$type": "color", "$value": "{color.light.lineStrong}" }
+        },
+        "action": {
+          "active": { "$type": "color", "$value": "{color.shared.accentLight}" },
+          "permission": { "$type": "color", "$value": "{color.shared.permissionLight}" },
+          "danger": { "$type": "color", "$value": "{color.shared.dangerLight}" },
+          "success": { "$type": "color", "$value": "{color.shared.successLight}" }
+        }
+      }
+    }
+  },
+  "space": {
+    "related": { "$type": "dimension", "$value": "{space.050}" },
+    "control": { "$type": "dimension", "$value": "{space.100}" },
+    "row": { "$type": "dimension", "$value": "{space.150}" },
+    "gutter": { "$type": "dimension", "$value": "{space.200}" },
+    "section": { "$type": "dimension", "$value": "{space.300}" },
+    "region": { "$type": "dimension", "$value": "{space.400}" }
+  },
+  "type": {
+    "helper": { "$type": "dimension", "$value": "{font.size.helper}" },
+    "action": { "$type": "dimension", "$value": "{font.size.action}" },
+    "row": { "$type": "dimension", "$value": "{font.size.row}" },
+    "body": { "$type": "dimension", "$value": "{font.size.body}" },
+    "conversation": { "$type": "dimension", "$value": "{font.size.conversation}" }
+  }
+}

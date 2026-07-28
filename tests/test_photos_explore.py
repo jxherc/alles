@@ -44,7 +44,9 @@ class PhotosExploreTests(ApiTest):
     def test_place_returns_only_matching(self):
         p = self._photo(48.8566, 2.3522)
         self._photo(35.6762, 139.6503)
-        ids = [i["id"] for i in _items(self.client.get("/api/photos/place?cc=FR&city=Paris").json())]
+        ids = [
+            i["id"] for i in _items(self.client.get("/api/photos/place?cc=FR&city=Paris").json())
+        ]
         self.assertEqual(ids, [p])
 
     def test_places_excludes_ungeotagged(self):

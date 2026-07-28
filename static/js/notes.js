@@ -6,13 +6,15 @@ let _q = '';
 let _tag = '';      // active tag filter, '' = all
 let _searchWired = false;
 let _deepLinked = false;
+let _fetcher = fetch;
 
-export async function loadNotes() {
+export async function loadNotes(fetcher = _fetcher) {
+  _fetcher = fetcher;
   _wireSearch();
   const qs = new URLSearchParams();
   if (_q) qs.set('q', _q);
   if (_tag) qs.set('tag', _tag);
-  const r = await fetch('/api/notes' + (qs.toString() ? `?${qs}` : ''));
+  const r = await _fetcher('/api/notes' + (qs.toString() ? `?${qs}` : ''));
   _notes = await r.json();
   renderNotes();
   _renderTagbar();
@@ -43,7 +45,7 @@ async function _renderTagbar() {
   const bar = document.getElementById('note-tagbar');
   if (!bar) return;
   let tags = [];
-  try { tags = await fetch('/api/notes/tags').then(r => r.json()); } catch {}
+  try { tags = await _fetcher('/api/notes/tags').then(r => r.json()); } catch {}
   if (!tags.length) { bar.innerHTML = ''; return; }
   bar.innerHTML =
     `<button class="note-tag-chip${_tag ? '' : ' on'}" data-tag="">all</button>` +
@@ -91,7 +93,7 @@ function renderNotes() {
   list.querySelectorAll('.note-del-btn').forEach(btn => {
     btn.addEventListener('click', async e => {
       e.stopPropagation();
-      await fetch(`/api/notes/${encodeURIComponent(btn.dataset.id)}`, { method: 'DELETE' });
+      await _fetcher(`/api/notes/${encodeURIComponent(btn.dataset.id)}`, { method: 'DELETE' });
       await loadNotes();
     });
   });
@@ -99,7 +101,7 @@ function renderNotes() {
   list.querySelectorAll('.note-archive-btn').forEach(btn => {
     btn.addEventListener('click', async e => {
       e.stopPropagation();
-      await fetch(`/api/notes/${encodeURIComponent(btn.dataset.id)}/archive`, {
+      await _fetcher(`/api/notes/${encodeURIComponent(btn.dataset.id)}/archive`, {
         method: 'POST', headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ archived: true }),
       });
@@ -111,7 +113,7 @@ function renderNotes() {
   list.querySelectorAll('.note-pin-btn').forEach(btn => {
     btn.addEventListener('click', async e => {
       e.stopPropagation();
-      await fetch(`/api/notes/${encodeURIComponent(btn.dataset.id)}`, {
+      await _fetcher(`/api/notes/${encodeURIComponent(btn.dataset.id)}`, {
         method: 'PATCH',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ pinned: btn.dataset.pinned === 'false' }),
@@ -149,7 +151,7 @@ function openEditor(note) {
   document.getElementById('note-obsidian-btn')?.addEventListener('click', async () => {
     if (!_editing) return;
     const rel = 'Notes/' + _editing.id + '.md';
-    const r = await fetch('/api/vault-location?path=' + encodeURIComponent(rel)).then(r => r.json()).catch(() => null);
+    const r = await _fetcher('/api/vault-location?path=' + encodeURIComponent(rel)).then(r => r.json()).catch(() => null);
     if (r?.obsidian) location.href = r.obsidian;
   });
 
@@ -175,9 +177,13 @@ function _addChecklistRow(text = '', done = false, focus = false) {
   const row = document.createElement('div');
   row.className = 'note-cl-row';
   row.innerHTML = `
-    <input type="checkbox" class="note-cl-done" ${done ? 'checked' : ''}>
+    <button type="button" class="note-cl-done chk" role="checkbox" aria-checked="${done ? 'true' : 'false'}" aria-label="mark item done"></button>
     <input type="text" class="note-cl-text" value="${esc(text)}" placeholder="item…">
     <button class="act-btn note-cl-del" title="remove">✕</button>`;
+  row.querySelector('.note-cl-done').addEventListener('click', event => {
+    const button = event.currentTarget;
+    button.setAttribute('aria-checked', button.getAttribute('aria-checked') === 'true' ? 'false' : 'true');
+  });
   row.querySelector('.note-cl-del').addEventListener('click', () => row.remove());
   box.appendChild(row);
   if (focus) row.querySelector('.note-cl-text').focus();
@@ -185,7 +191,10 @@ function _addChecklistRow(text = '', done = false, focus = false) {
 
 function _gatherItems() {
   return [...document.querySelectorAll('#note-checklist .note-cl-row')]
-    .map(r => ({ text: r.querySelector('.note-cl-text').value.trim(), done: r.querySelector('.note-cl-done').checked }))
+    .map(r => ({
+      text: r.querySelector('.note-cl-text').value.trim(),
+      done: r.querySelector('.note-cl-done').getAttribute('aria-checked') === 'true',
+    }))
     .filter(i => i.text);
 }
 
@@ -206,7 +215,7 @@ export async function saveCurrentNote() {
   // the id is the filename stem — retitling renames the file, so the response can carry a NEW id
   let updated = null;
   try {
-    const r = await fetch(`/api/notes/${encodeURIComponent(_editing.id)}`, {
+    const r = await _fetcher(`/api/notes/${encodeURIComponent(_editing.id)}`, {
       method: 'PATCH',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ title, content, tags, items, due, expected_hash: _editing.hash || '' }),
@@ -228,7 +237,7 @@ export async function saveCurrentNote() {
 
 
 export async function newNote() {
-  const r = await fetch('/api/notes', {
+  const r = await _fetcher('/api/notes', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ title: '', content: '' }),

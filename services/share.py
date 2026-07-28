@@ -15,11 +15,11 @@ import time
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import update
+from sqlalchemy import and_, or_, update
 from sqlalchemy.orm import object_session
 
 from core.auth import hash_password, verify_password
-from core.database import Share
+from core.database import DEFAULT_LOCAL_STORAGE_LOCATION_ID, Share, normalize_file_identity_path
 
 VALID_KINDS = {"doc", "file", "folder", "photo", "album", "contact", "event", "session", "persona"}
 
@@ -90,16 +90,95 @@ def normalize_expiry(value) -> str:
     return parsed.isoformat(timespec="seconds").replace("+00:00", "Z")
 
 
-def mint(db, kind, ref, level="view", *, expires_at=None, password=None):
+def _file_identity(kind: str, ref: str, location_id: str | None) -> tuple[str | None, str | None]:
+    if kind not in {"file", "folder"}:
+        return None, None
+    return (
+        (location_id or DEFAULT_LOCAL_STORAGE_LOCATION_ID).strip(),
+        normalize_file_identity_path(ref),
+    )
+
+
+def _ref_query(db, kind: str, ref: str, location_id: str | None = None):
+    query = db.query(Share).filter(Share.kind == kind)
+    identity_location, identity_path = _file_identity(kind, ref, location_id)
+    if identity_location is not None:
+        exact_identity = and_(
+            Share.location_id == identity_location,
+            Share.normalized_path == identity_path,
+        )
+        if identity_location != DEFAULT_LOCAL_STORAGE_LOCATION_ID:
+            return query.filter(exact_identity)
+        legacy_default_local = and_(
+            Share.ref == ref,
+            or_(Share.location_id.is_(None), Share.location_id == ""),
+            or_(Share.normalized_path.is_(None), Share.normalized_path == ""),
+        )
+        return query.filter(or_(exact_identity, legacy_default_local))
+    return query.filter(Share.ref == ref)
+
+
+def mint(
+    db,
+    kind,
+    ref,
+    level="view",
+    *,
+    location_id=None,
+    expires_at=None,
+    password=None,
+):
     kind, ref = _norm(kind, ref)
     if kind not in VALID_KINDS:
         raise ValueError(f"bad kind: {kind!r}")
     if not ref:
         raise ValueError("empty ref")
+    if kind in {"file", "folder"}:
+        from services import file_operations, storage_locations
+
+        location = storage_locations.require_browsable(db, location_id)
+        normalized = storage_locations.normalize_path(ref)
+        with file_operations.direct_mutation_claim(db, location, normalized):
+            return _mint_claimed(
+                db,
+                kind,
+                normalized,
+                level,
+                location_id=location.id,
+                expires_at=expires_at,
+                password=password,
+            )
+    return _mint_claimed(
+        db,
+        kind,
+        ref,
+        level,
+        location_id=location_id,
+        expires_at=expires_at,
+        password=password,
+    )
+
+
+def _mint_claimed(
+    db,
+    kind,
+    ref,
+    level="view",
+    *,
+    location_id=None,
+    expires_at=None,
+    password=None,
+):
     level = "download" if level == "download" else "view"
-    s = db.query(Share).filter_by(kind=kind, ref=ref).first()
+    identity_location, identity_path = _file_identity(kind, ref, location_id)
+    if identity_location is not None and not identity_location:
+        raise ValueError("storage location required")
+    s = _ref_query(db, kind, ref, identity_location).first()
     if s:
         s.level = level  # idempotent, but refresh level/expiry/password
+        if kind in {"file", "folder"}:
+            s.location_id = identity_location
+            s.normalized_path = identity_path
         if expires_at is not None:
             s.expires_at = normalize_expiry(expires_at)
         if password is not None:
@@ -115,6 +194,9 @@ def mint(db, kind, ref, level="view", *, expires_at=None, password=None):
         expires_at=normalize_expiry(expires_at),
         password_hash=_pw_hash(password),
     )
+    if kind in {"file", "folder"}:
+        s.location_id = identity_location
+        s.normalized_path = identity_path
     db.add(s)
     db.commit()
     db.refresh(s)
@@ -229,13 +311,32 @@ def lookup(db, token):
     return db.query(Share).filter_by(token=token).first()
 
 
-def token_for(db, kind, ref):
+def find_ref(db, kind, ref, *, location_id=None):
     kind, ref = _norm(kind, ref)
-    s = db.query(Share).filter_by(kind=kind, ref=ref).first()
+    return _ref_query(db, kind, ref, location_id).first()
+
+
+def token_for(db, kind, ref, *, location_id=None):
+    s = find_ref(db, kind, ref, location_id=location_id)
     return s.token if s else None
 
 
 def revoke(db, token):
+    s = db.query(Share).filter_by(token=token).first()
+    if not s:
+        return False
+    if s.kind in {"file", "folder"}:
+        from services import file_operations, storage_locations
+
+        location = storage_locations.get_location(db, s.location_id)
+        if location is not None:
+            normalized = storage_locations.normalize_path(s.normalized_path or s.ref)
+            with file_operations.direct_mutation_claim(db, location, normalized):
+                return _revoke_token_claimed(db, token)
+    return _revoke_token_claimed(db, token)
+
+
+def _revoke_token_claimed(db, token):
     s = db.query(Share).filter_by(token=token).first()
     if not s:
         return False
@@ -245,9 +346,28 @@ def revoke(db, token):
     return True
 
 
-def revoke_ref(db, kind, ref):
+def revoke_ref(db, kind, ref, *, location_id=None):
     kind, ref = _norm(kind, ref)
-    s = db.query(Share).filter_by(kind=kind, ref=ref).first()
+    if kind in {"file", "folder"}:
+        from services import file_operations, storage_locations
+
+        resolved_location_id = location_id or DEFAULT_LOCAL_STORAGE_LOCATION_ID
+        location = storage_locations.get_location(db, resolved_location_id)
+        if location is None:
+            raise LookupError("storage location not found")
+        normalized = storage_locations.normalize_path(ref)
+        with file_operations.direct_mutation_claim(db, location, normalized):
+            return _revoke_ref_claimed(
+                db,
+                kind,
+                normalized,
+                location_id=location.id,
+            )
+    return _revoke_ref_claimed(db, kind, ref, location_id=location_id)
+
+
+def _revoke_ref_claimed(db, kind, ref, *, location_id=None):
+    s = _ref_query(db, kind, ref, location_id).first()
     if not s:
         return False
     revoke_grants(s.token)

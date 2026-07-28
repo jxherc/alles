@@ -1,8 +1,11 @@
 import tempfile
+from contextlib import contextmanager
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from unittest import mock
 
-from core.database import FileVersion
+from core.database import FileVersion, TrashItem
+from services import file_operations
 from services import files_store as fs
 from services import fileversions as fv
 from tests._client import ApiTest
@@ -110,7 +113,7 @@ class FileVersionTests(ApiTest):
         vs = self.client.get("/api/files/versions", params={"path": "v.txt"}).json()
         self.assertEqual(len(vs), 2)
 
-    def test_api_delete_removes_versions_and_blob(self):
+    def test_api_delete_preserves_versions_until_trash_is_purged(self):
         self._upload("gone.txt", "a")
         self._upload("gone.txt", "b")
         d = self.db()
@@ -123,7 +126,64 @@ class FileVersionTests(ApiTest):
         self.assertEqual(r.status_code, 200)
         d.expire_all()
         self.assertEqual(d.query(FileVersion).filter_by(path="gone.txt").count(), 0)
+        self.assertTrue(blob.exists())
+
+        trash_id = self.client.get("/api/files/trash").json()[0]["id"]
+        restored = self.client.post("/api/files/trash/restore", json={"id": trash_id})
+        self.assertEqual(restored.status_code, 200, restored.text)
+        d.expire_all()
+        self.assertEqual(d.query(FileVersion).filter_by(path="gone.txt").count(), 1)
+        self.assertTrue(blob.exists())
+
+        deleted_again = self.client.request(
+            "DELETE", "/api/files/delete", params={"path": "gone.txt"}
+        )
+        self.assertEqual(deleted_again.status_code, 200, deleted_again.text)
+        d.expire_all()
+        item = d.query(TrashItem).filter_by(normalized_path="gone.txt").one()
+        item.expires_at = datetime.now(UTC).replace(tzinfo=None) - timedelta(days=1)
+        d.commit()
+        purged = self.client.post("/api/files/trash/purge")
+        self.assertEqual(purged.status_code, 200, purged.text)
+        self.assertEqual(purged.json()["purged"], 1)
         self.assertFalse(blob.exists())
+
+    def test_api_delete_does_not_purge_a_post_operation_replacement_version(self):
+        self._upload("raced.txt", "old bytes")
+        from routes import files as files_routes
+
+        original_run = files_routes._run_file_operation
+        replacement = {}
+
+        def replace_after_durable_delete(db, **kwargs):
+            result = original_run(db, **kwargs)
+            path = self._mk("raced.txt", "replacement bytes")
+            version = fv.snapshot(db, "raced.txt", path)
+            replacement.update(
+                {
+                    "id": version.id,
+                    "blob": fv.versions_dir() / version.stored,
+                }
+            )
+            return result
+
+        with mock.patch.object(
+            files_routes,
+            "_run_file_operation",
+            side_effect=replace_after_durable_delete,
+        ):
+            response = self.client.request(
+                "DELETE",
+                "/api/files/delete",
+                params={"path": "raced.txt"},
+            )
+
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual((fs.files_dir() / "raced.txt").read_text(), "replacement bytes")
+        db = self.db()
+        self.assertIsNotNone(db.get(FileVersion, replacement["id"]))
+        db.close()
+        self.assertTrue(replacement["blob"].exists())
 
     def test_upload_pathological_filename_rejected(self):
         # names that strip to nothing ("." "/" "...") used to write onto the dir itself -> 500.
@@ -150,3 +210,47 @@ class FileVersionTests(ApiTest):
     def test_api_restore_unknown_404(self):
         r = self.client.post("/api/files/versions/restore", json={"path": "x.txt", "id": "nope"})
         self.assertEqual(r.status_code, 404)
+
+    def test_api_restore_rechecks_version_identity_after_path_claim(self):
+        self._upload("raced-restore.txt", "first")
+        self._upload("raced-restore.txt", "second")
+        version_id = self.client.get(
+            "/api/files/versions",
+            params={"path": "raced-restore.txt"},
+        ).json()[-1]["id"]
+        original_claim = file_operations.direct_mutation_claim
+        moved = False
+
+        @contextmanager
+        def move_before_claim(db, location, path):
+            nonlocal moved
+            if not moved:
+                moved = True
+                operation = file_operations.enqueue(
+                    db,
+                    action="move",
+                    source_location_id=location.id,
+                    source_path=path,
+                    destination_location_id=location.id,
+                    destination_path="moved-restore.txt",
+                )
+                file_operations.run(db, operation)
+            with original_claim(db, location, path) as claim:
+                yield claim
+
+        with mock.patch(
+            "routes.files.file_operations.direct_mutation_claim",
+            side_effect=move_before_claim,
+        ):
+            response = self.client.post(
+                "/api/files/versions/restore",
+                json={"path": "raced-restore.txt", "id": version_id},
+            )
+
+        self.assertEqual(response.status_code, 404, response.text)
+        self.assertFalse((fs.files_dir() / "raced-restore.txt").exists())
+        self.assertEqual((fs.files_dir() / "moved-restore.txt").read_text(), "second")
+        db = self.db()
+        version = db.get(FileVersion, version_id)
+        self.assertEqual(version.normalized_path, "moved-restore.txt")
+        db.close()

@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from unittest import mock
 
 from core.database import (
@@ -38,7 +38,7 @@ class TimelineApiTest(ApiTest):
 
     def test_aggregates_and_sorts_desc(self):
         d = self.db()
-        now = datetime.utcnow()
+        now = datetime.now(UTC).replace(tzinfo=None)
         # a completed task (recent) + an older one
         t1 = Task(title="ship feature", done=True, completed_at=now - timedelta(hours=1))
         t2 = Task(title="old todo", done=False, created_at=now - timedelta(days=2))
@@ -75,8 +75,20 @@ class TimelineApiTest(ApiTest):
 
     def test_type_filter(self):
         d = self.db()
-        d.add(Task(title="only task", done=True, completed_at=datetime.utcnow()))
-        d.add(JournalEntry(date="2026-06-15", content="hi", updated_at=datetime.utcnow()))
+        d.add(
+            Task(
+                title="only task",
+                done=True,
+                completed_at=datetime.now(UTC).replace(tzinfo=None),
+            )
+        )
+        d.add(
+            JournalEntry(
+                date="2026-06-15",
+                content="hi",
+                updated_at=datetime.now(UTC).replace(tzinfo=None),
+            )
+        )
         d.commit()
         d.close()
         r = self.client.get("/api/timeline", params={"types": "task"}).json()
@@ -86,7 +98,11 @@ class TimelineApiTest(ApiTest):
     def test_window_excludes_old(self):
         d = self.db()
         d.add(
-            Task(title="ancient", done=True, completed_at=datetime.utcnow() - timedelta(days=400))
+            Task(
+                title="ancient",
+                done=True,
+                completed_at=datetime.now(UTC).replace(tzinfo=None) - timedelta(days=400),
+            )
         )
         d.commit()
         d.close()
@@ -100,7 +116,7 @@ class TimelineApiTest(ApiTest):
 
     def test_limit_param_caps_results(self):
         d = self.db()
-        now = datetime.utcnow()
+        now = datetime.now(UTC).replace(tzinfo=None)
         for i in range(10):
             d.add(Task(title=f"task {i}", done=True, completed_at=now - timedelta(minutes=i)))
         d.commit()
@@ -110,7 +126,7 @@ class TimelineApiTest(ApiTest):
 
     def test_text_filter_q_param(self):
         d = self.db()
-        now = datetime.utcnow()
+        now = datetime.now(UTC).replace(tzinfo=None)
         d.add(Task(title="buy groceries", done=True, completed_at=now))
         d.add(Task(title="unrelated thing", done=True, completed_at=now))
         d.commit()
@@ -122,7 +138,7 @@ class TimelineApiTest(ApiTest):
 
     def test_summary_endpoint_totals(self):
         d = self.db()
-        now = datetime.utcnow()
+        now = datetime.now(UTC).replace(tzinfo=None)
         d.add(Task(title="t1", done=True, completed_at=now))
         d.add(Task(title="t2", done=True, completed_at=now - timedelta(hours=1)))
         d.add(JournalEntry(date="2026-06-18", content="hi", updated_at=now))
@@ -138,7 +154,7 @@ class TimelineApiTest(ApiTest):
 
     def test_pending_task_shows_as_added(self):
         d = self.db()
-        now = datetime.utcnow()
+        now = datetime.now(UTC).replace(tzinfo=None)
         d.add(Task(title="pending item", done=False, created_at=now))
         d.commit()
         d.close()
@@ -149,7 +165,7 @@ class TimelineApiTest(ApiTest):
 
     def test_calendar_event_in_window(self):
         d = self.db()
-        now = datetime.utcnow()
+        now = datetime.now(UTC).replace(tzinfo=None)
         d.add(
             CalendarEvent(
                 title="today standup",

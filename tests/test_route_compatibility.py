@@ -27,11 +27,11 @@ def _route_rows():
 
 
 class RouteCompatibilityBaselineTest(unittest.TestCase):
-    def test_full_method_path_surface_matches_phase_four_snapshot(self):
+    def test_full_method_path_surface_matches_current_snapshot(self):
         rows = _route_rows()
         digest = hashlib.sha256(("\n".join(rows) + "\n").encode()).hexdigest()
-        self.assertEqual(len(rows), 733)
-        self.assertEqual(digest, "c1333f3c71fe306ff3265eee04815c7118fae65616370fd2caaa299fdb566ad0")
+        self.assertEqual(len(rows), 888)
+        self.assertEqual(digest, "a6c51b746852141e2f0144c1585b0322ece56828dc622fcc5d6f7b5de2a2b1f9")
         groups = Counter(
             "api"
             if row.split(" ", 1)[1].startswith("/api/")
@@ -40,7 +40,35 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
             else "public"
             for row in rows
         )
-        self.assertEqual(groups, {"api": 716, "v1": 2, "public": 15})
+        self.assertEqual(groups, {"api": 871, "v1": 2, "public": 15})
+
+    def test_phase_six_recovery_and_migration_routes_remain_wired(self):
+        rows = set(_route_rows())
+        expected = {
+            "DELETE /api/vault-md/safety/draft",
+            "GET /api/journal-migration/plan",
+            "GET /api/journal-migration/{operation_id}",
+            "GET /api/vault-transfer/pending",
+            "GET /api/vault-transfer/{operation_id}",
+            "GET /api/vault-md/rename/pending",
+            "GET /api/vault-md/safety/conflicts/{conflict_id}",
+            "GET /api/vault-md/safety/draft",
+            "GET /api/vault-md/safety/revisions",
+            "POST /api/journal-migration/prepare",
+            "POST /api/journal-migration/{operation_id}/apply",
+            "POST /api/journal-migration/{operation_id}/rollback",
+            "POST /api/vault-transfer/move",
+            "POST /api/vault-transfer/relink",
+            "POST /api/vault-transfer/{operation_id}/delete-old",
+            "POST /api/vault-transfer/{operation_id}/resume",
+            "POST /api/vault-transfer/{operation_id}/rollback",
+            "POST /api/vault-md/rename/recover",
+            "POST /api/vault-md/safety/compare",
+            "POST /api/vault-md/safety/revisions/restore",
+            "POST /api/vault-md/safety/save",
+            "PUT /api/vault-md/safety/draft",
+        }
+        self.assertTrue(expected <= rows, sorted(expected - rows))
 
     def test_public_token_and_status_surface_is_explicit(self):
         public = {
@@ -70,7 +98,12 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
     def test_current_deep_link_parsers_remain_wired(self):
         root = Path(__file__).parents[1] / "static" / "js"
         expected = {
-            "app.js": ("_p.get('app')", "_p.get('view')", "_p.get('ask')", "_p.get('web')"),
+            "app.js": (
+                "_p.get('app')",
+                "_p.get('view')",
+                "bootParams.get('ask')",
+                "bootParams.get('web')",
+            ),
             "docs.js": ("location.hash.slice(1)",),
             "files.js": ("get('p')", "sp.get('sort')", "sp.get('order')"),
             "money.js": ("get('m')",),

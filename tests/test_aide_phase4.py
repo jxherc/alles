@@ -1,5 +1,6 @@
 import asyncio
 import json
+from pathlib import Path
 from types import SimpleNamespace
 from unittest import mock
 
@@ -7,6 +8,46 @@ from tests._client import ApiTest
 
 
 class AideConversationPhase4Test(ApiTest):
+    def test_full_access_turn_override_requires_recent_owner(self):
+        from routes.chat import _require_turn_authority
+
+        request = mock.Mock()
+        with mock.patch("routes.chat.require_recent_owner") as require:
+            _require_turn_authority(
+                request,
+                {"agent_permission_mode": "full_access"},
+            )
+            require.assert_called_once_with(request)
+
+            _require_turn_authority(
+                request,
+                {"agent_permission_mode": "full_auto"},
+            )
+            require.assert_called_once_with(request)
+
+    def test_detached_chat_forces_a_noninteractive_permission_mode(self):
+        source = (Path(__file__).resolve().parents[1] / "routes/chat.py").read_text("utf-8")
+        foreground = source[
+            source.index("async def chat(") : source.index("async def chat_background")
+        ]
+        background = source[
+            source.index("async def chat_background") : source.index("def stop_chat")
+        ]
+        assignment = 'settings["agent_permission_mode"] = "full_auto"'
+        self.assertNotIn(assignment, foreground)
+        self.assertIn(assignment, background)
+        self.assertIn('settings["agent_detached"] = True', background)
+        self.assertIn("_require_turn_authority(request, settings)", foreground)
+        self.assertIn("_require_turn_authority(request, settings)", background)
+        self.assertLess(
+            foreground.index("_apply_run_controls(settings"),
+            foreground.index("_require_turn_authority(request, settings)"),
+        )
+        self.assertLess(
+            background.index(assignment),
+            background.index("_require_turn_authority(request, settings)"),
+        )
+
     def test_chat_behavior_and_jarvis_mode_roundtrip(self):
         created = self.client.post(
             "/api/sessions",
@@ -41,6 +82,22 @@ class AideConversationPhase4Test(ApiTest):
     def test_empty_behavior_follows_settings(self):
         session = self.client.post("/api/sessions", json={}).json()
         self.assertEqual(session["chat_behavior"], "")
+
+    def test_invalid_turn_permission_and_effort_are_rejected(self):
+        invalid_permission = self.client.post(
+            "/api/chat",
+            json={
+                "session_id": "missing",
+                "message": "test",
+                "permission_mode": "unrestricted",
+            },
+        )
+        invalid_effort = self.client.post(
+            "/api/chat",
+            json={"session_id": "missing", "message": "test", "effort": "turbo"},
+        )
+        self.assertEqual(invalid_permission.status_code, 422)
+        self.assertEqual(invalid_effort.status_code, 422)
 
 
 class AideContextProvenancePhase4Test(ApiTest):

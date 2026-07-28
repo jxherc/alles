@@ -115,7 +115,9 @@ def _extract_recurrence(t: str):
     return "", t
 
 
-def parse_event(text: str, today: date | None = None) -> dict:
+def parse_event(text: str, today: date | None = None, language: str = "en") -> dict:
+    from services.localized_input import normalize_quick_add
+
     today = today or date.today()
     out = {
         "title": "",
@@ -125,7 +127,7 @@ def parse_event(text: str, today: date | None = None) -> dict:
         "recurrence": "",
         "recur_until": None,
     }
-    t = f" {text.strip()} "
+    t = f" {normalize_quick_add(text, language)} "
 
     recur_until, t = _extract_until(t, today)
     recurrence, t = _extract_recurrence(t)

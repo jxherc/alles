@@ -7,6 +7,7 @@ asserts: across the light-bg presets, no visible text node in journal/home/money
 the login overlay sits below 3.0 WCAG contrast against its real (composited) background,
 except the deliberately-faint decorative #home-clock.
 """
+
 import os
 import sys
 
@@ -15,22 +16,36 @@ from playwright.sync_api import sync_playwright
 PORT = int(os.environ.get("AUDIT_PORT", "8823"))
 THRESH = 3.0
 ALLOW = {
-    "span#home-clock",            # giant decorative clock — faint by design on every theme
-    "button.hc-mode.active",      # app-wide active-chip pattern (accent text on 18% accent tint);
-                                  # legible (~2.4 on the palest accent) + marked by border+tint. a
-                                  # global accent-legibility pass is tracked separately, not #39.
+    "span#home-clock",  # giant decorative clock — faint by design on every theme
+    "button.hc-mode.active",  # app-wide active-chip pattern (accent text on 18% accent tint);
+    # legible (~2.4 on the palest accent) + marked by border+tint. a
+    # global accent-legibility pass is tracked separately, not #39.
 }
 
 THEMES = {
-    "light":      dict(bg="#f5f4f1", text="#111111", panel="#efede9", faint="#d4d2ce", accent="#818cf8"),
-    "blossom":    dict(bg="#faf4f6", text="#4a2c34", panel="#ffffff", faint="#e8ccd4", accent="#d6537a"),
-    "sakura":     dict(bg="#fff0f3", text="#5c3a44", panel="#ffe5ea", faint="#f0c8d2", accent="#ff85a1"),
-    "lavender":   dict(bg="#f3eef8", text="#3d3551", panel="#faf7ff", faint="#cec3de", accent="#9b6dcc"),
-    "solarlight": dict(bg="#fdf6e3", text="#586e75", panel="#eee8d5", faint="#cfc7ac", accent="#268bd2"),
-    "steel":      dict(bg="#eef1f4", text="#2a3038", panel="#ffffff", faint="#cdd4dc", accent="#4a6f9c"),
-    "ice":        dict(bg="#eef6fb", text="#24414f", panel="#ffffff", faint="#c8dce8", accent="#2a9fd0"),
+    "light": dict(bg="#f5f4f1", text="#111111", panel="#efede9", faint="#d4d2ce", accent="#818cf8"),
+    "blossom": dict(
+        bg="#faf4f6", text="#4a2c34", panel="#ffffff", faint="#e8ccd4", accent="#d6537a"
+    ),
+    "sakura": dict(
+        bg="#fff0f3", text="#5c3a44", panel="#ffe5ea", faint="#f0c8d2", accent="#ff85a1"
+    ),
+    "lavender": dict(
+        bg="#f3eef8", text="#3d3551", panel="#faf7ff", faint="#cec3de", accent="#9b6dcc"
+    ),
+    "solarlight": dict(
+        bg="#fdf6e3", text="#586e75", panel="#eee8d5", faint="#cfc7ac", accent="#268bd2"
+    ),
+    "steel": dict(bg="#eef1f4", text="#2a3038", panel="#ffffff", faint="#cdd4dc", accent="#4a6f9c"),
+    "ice": dict(bg="#eef6fb", text="#24414f", panel="#ffffff", faint="#c8dce8", accent="#2a9fd0"),
 }
-VIEWS = {"home": "#home-view", "journal": "#journal-view", "money": "#money-view", "aide": "#aide-view"}
+VIEWS = {
+    "home": ("today", "#today-view"),
+    "journal": ("journal", "#docs-journal-section"),
+    "money": ("money", "#money-view"),
+    "chat": ("chat", "#chat"),
+    "andromeda": ("andromeda", "#andromeda-view"),
+}
 
 EVAL = r"""
 (sel) => {
@@ -56,32 +71,50 @@ EVAL = r"""
 }
 """
 
+
 def main():
     bad = []
     with sync_playwright() as p:
         b = p.chromium.launch()
-        pg = b.new_context(service_workers="block", viewport={"width": 1280, "height": 860}).new_page()
+        pg = b.new_context(
+            service_workers="block", viewport={"width": 1280, "height": 860}
+        ).new_page()
         pg.goto(f"http://localhost:{PORT}/", wait_until="domcontentloaded")
         pg.wait_for_timeout(700)
         for tname, cols in THEMES.items():
-            app = {"preset": tname, "colors": cols, "font": "sans", "density": "comfortable",
-                   "bgPattern": "none", "frosted": False, "effect": {"color": "", "intensity": 1, "size": 1}, "customThemes": {}}
-            pg.evaluate("a=>{localStorage.setItem('alles-appearance',JSON.stringify(a));localStorage.removeItem('aide-accent');localStorage.removeItem('aide-theme');}", app)
+            app = {
+                "preset": tname,
+                "colors": cols,
+                "font": "sans",
+                "density": "comfortable",
+                "bgPattern": "none",
+                "frosted": False,
+                "effect": {"color": "", "intensity": 1, "size": 1},
+                "customThemes": {},
+            }
+            pg.evaluate(
+                "a=>{localStorage.setItem('alles-appearance',JSON.stringify(a));localStorage.removeItem('aide-accent');localStorage.removeItem('aide-theme');}",
+                app,
+            )
             pg.reload(wait_until="domcontentloaded")
             pg.wait_for_timeout(650)
-            for v, sel in VIEWS.items():
-                pg.evaluate("v=>window._navigateTo&&window._navigateTo(v)", v)
+            for v, (route, sel) in VIEWS.items():
+                pg.evaluate("v=>window._navigateTo&&window._navigateTo(v)", route)
                 pg.wait_for_timeout(400)
                 for f in pg.evaluate(EVAL, sel):
                     if f["sel"] not in ALLOW:
                         bad.append((tname, v, f["sel"], f["ratio"], f["text"]))
             # login overlay
-            pg.evaluate("()=>{const l=document.getElementById('login-screen');if(l)l.style.display='flex';}")
+            pg.evaluate(
+                "()=>{const l=document.getElementById('login-screen');if(l)l.style.display='flex';}"
+            )
             pg.wait_for_timeout(200)
             for f in pg.evaluate(EVAL, "#login-screen"):
                 if f["sel"] not in ALLOW:
                     bad.append((tname, "login", f["sel"], f["ratio"], f["text"]))
-            pg.evaluate("()=>{const l=document.getElementById('login-screen');if(l)l.style.display='none';}")
+            pg.evaluate(
+                "()=>{const l=document.getElementById('login-screen');if(l)l.style.display='none';}"
+            )
         b.close()
 
     if bad:
@@ -94,7 +127,9 @@ def main():
         for s, (t, v, r, txt) in sorted(bysel.items(), key=lambda x: x[1][2]):
             print(f"  {r:>4}  {s:<42} ({t}/{v})  '{txt}'")
         sys.exit(1)
-    print(f"PASS - every text node readable (>={THRESH}) across {len(THEMES)} light themes x {len(VIEWS)} views + login")
+    print(
+        f"PASS - every text node readable (>={THRESH}) across {len(THEMES)} light themes x {len(VIEWS)} views + login"
+    )
 
 
 if __name__ == "__main__":

@@ -9,12 +9,12 @@ timestamped folder so you can diff over time.
 run:  python scripts/stress_test.py
 """
 
+import json
 import os
 import sys
-import json
 import traceback
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
 
 os.environ["AUTH_ENABLED"] = "false"
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -342,7 +342,7 @@ def main():
     passed = sum(1 for *_, ok, _ in [(a, n, ok, d) for a, n, ok, d in _results] if ok)
     failed = total - passed
     summary = [
-        f"# alles stress / evidence run",
+        "# alles stress / evidence run",
         f"_{datetime.now().isoformat()}_",
         "",
         f"**{passed}/{total} checks passed** ({failed} failed)",

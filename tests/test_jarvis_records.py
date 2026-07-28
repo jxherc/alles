@@ -14,6 +14,8 @@ from core.database import (
     Project,
 )
 from core.migrations import m0026_jarvis_records
+from services import agent_runtime
+from services.aide_questions import normalize_request
 from services.jarvis_store import (
     append_event,
     create_prompt,
@@ -64,6 +66,16 @@ class JarvisRecordApiTest(ApiTest):
         workflow = self._workflow(context_mode="project", project_id=project_id)
         self.assertEqual(workflow["project_id"], project_id)
 
+        cleared = self.client.patch(
+            f"/api/jarvis/workflows/{workflow['id']}",
+            json={"project_id": ""},
+        )
+        self.assertEqual(cleared.status_code, 400, cleared.text)
+        self.assertEqual(cleared.json()["code"], "project_context_required")
+        unchanged = self.client.get("/api/jarvis/workflows").json()[0]
+        self.assertEqual(unchanged["project_id"], project_id)
+        self.assertEqual(unchanged["context_mode"], "project")
+
     def test_trigger_is_separate_and_starts_disabled(self):
         workflow = self._workflow()
         trigger = self.client.post(
@@ -79,6 +91,90 @@ class JarvisRecordApiTest(ApiTest):
             [trigger],
         )
 
+    def test_aide_schedule_creation_is_atomic_and_owner_scoped(self):
+        response = self.client.post(
+            "/api/jarvis/aide-schedules",
+            json={
+                "name": "morning plan",
+                "prompt": "prepare my day",
+                "kind": "schedule",
+                "config": {"time": "09:00", "weekdays": [0, 1, 2, 3, 4, 5, 6]},
+                "timezone": "UTC",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200, response.text)
+        body = response.json()
+        self.assertEqual(body["workflow"]["deterministic_action"], "aide_handoff")
+        self.assertTrue(body["workflow"]["enabled"])
+        self.assertEqual(body["trigger"]["kind"], "schedule")
+        self.assertTrue(body["trigger"]["enabled"])
+
+    def test_invalid_aide_schedule_does_not_leave_a_partial_workflow(self):
+        response = self.client.post(
+            "/api/jarvis/aide-schedules",
+            json={
+                "name": "broken",
+                "prompt": "should not persist",
+                "kind": "schedule",
+                "config": {"time": "99:99"},
+                "timezone": "UTC",
+            },
+        )
+
+        self.assertEqual(response.status_code, 400, response.text)
+        self.assertEqual(self.client.get("/api/jarvis/workflows").json(), [])
+
+    def test_aide_schedule_edit_rejects_other_workflows_and_rolls_back_invalid_timing(self):
+        unrelated = self._workflow(deterministic_action="aide_handoff", prompt="keep me")
+        trigger = self.client.post(
+            f"/api/jarvis/workflows/{unrelated['id']}/triggers",
+            json={"kind": "interval", "config": {"every_seconds": 300}},
+        )
+        self.assertEqual(trigger.status_code, 200, trigger.text)
+        refused = self.client.patch(
+            f"/api/jarvis/aide-schedules/{unrelated['id']}",
+            json={
+                "name": "hijacked",
+                "prompt": "replace it",
+                "kind": "schedule",
+                "config": {"time": "09:00", "weekdays": [0, 1, 2, 3, 4, 5, 6]},
+                "timezone": "UTC",
+            },
+        )
+        self.assertEqual(refused.status_code, 409, refused.text)
+
+        created = self.client.post(
+            "/api/jarvis/aide-schedules",
+            json={
+                "name": "safe",
+                "prompt": "original prompt",
+                "kind": "interval",
+                "config": {"every_seconds": 300},
+                "timezone": "UTC",
+            },
+        ).json()
+        workflow_id = created["workflow"]["id"]
+        invalid = self.client.patch(
+            f"/api/jarvis/aide-schedules/{workflow_id}",
+            json={
+                "name": "changed too early",
+                "prompt": "changed too early",
+                "kind": "interval",
+                "config": {"every_seconds": 0},
+                "timezone": "UTC",
+            },
+        )
+
+        self.assertEqual(invalid.status_code, 400, invalid.text)
+        saved = next(
+            item
+            for item in self.client.get("/api/jarvis/workflows").json()
+            if item["id"] == workflow_id
+        )
+        self.assertEqual(saved["name"], "safe")
+        self.assertEqual(saved["prompt"], "original prompt")
+
     def test_paused_workflow_cannot_queue_then_enabled_workflow_gets_run_event(self):
         workflow = self._workflow()
         blocked = self.client.post(f"/api/jarvis/workflows/{workflow['id']}/runs")
@@ -92,6 +188,25 @@ class JarvisRecordApiTest(ApiTest):
         self.assertEqual(run["state"], "queued")
         self.assertEqual([item["kind"] for item in run["events"]], ["run_queued"])
         self.assertEqual(self.client.get(f"/api/jarvis/runs/{run['id']}").json(), run)
+
+    def test_runs_can_be_filtered_by_workflow_before_the_limit(self):
+        target = self._workflow(name="target")
+        other = self._workflow(name="other")
+        for workflow in (target, other):
+            response = self.client.patch(
+                f"/api/jarvis/workflows/{workflow['id']}", json={"enabled": True}
+            )
+            self.assertEqual(response.status_code, 200, response.text)
+        target_run = self.client.post(f"/api/jarvis/workflows/{target['id']}/runs").json()
+        self.client.post(f"/api/jarvis/workflows/{other['id']}/runs")
+
+        response = self.client.get(
+            "/api/jarvis/runs",
+            params={"workflow_id": target["id"], "limit": 1},
+        )
+
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual([row["id"] for row in response.json()], [target_run["id"]])
 
     def test_connector_secret_is_masked_in_api_and_encrypted_in_raw_database(self):
         secret = "synthetic-jarvis-connector-secret"
@@ -260,6 +375,71 @@ class JarvisRunStateTest(ApiTest):
         self.assertEqual(db.get(JarvisRunPrompt, prompt_id).state, "expired")
         db.close()
 
+    def test_structured_questions_survive_reload_and_validate_every_answer(self):
+        db, run = self._run()
+        transition_run(db, run, "running")
+        prompt = create_prompt(
+            db,
+            run,
+            kind="choice",
+            title="Choose the verification",
+            questions=[
+                {
+                    "id": "surface",
+                    "prompt": "Which surface?",
+                    "choices": [
+                        {"id": "files", "label": "Files"},
+                        {"id": "aide", "label": "Aide"},
+                    ],
+                    "allow_free_text": True,
+                },
+                {
+                    "id": "proof",
+                    "prompt": "Which proof?",
+                    "selection": "multiple",
+                    "choices": [
+                        {"id": "browser", "label": "browser"},
+                        {"id": "tests", "label": "tests"},
+                    ],
+                },
+            ],
+        )
+        db.commit()
+        prompt_id = prompt.id
+        run_id = run.id
+        db.close()
+
+        loaded = self.client.get(f"/api/jarvis/runs/{run_id}").json()
+        saved = next(item for item in loaded["prompts"] if item["id"] == prompt_id)
+        self.assertEqual(saved["question_schema"]["questions"][0]["id"], "surface")
+
+        invalid = self.client.post(
+            f"/api/jarvis/prompts/{prompt_id}/answer",
+            json={
+                "answers": {
+                    "surface": {"selected": ["unknown"]},
+                    "proof": {"selected": ["browser"]},
+                }
+            },
+        )
+        self.assertEqual(invalid.status_code, 400)
+        self.assertEqual(invalid.json()["code"], "question_choice_invalid")
+
+        answered = self.client.post(
+            f"/api/jarvis/prompts/{prompt_id}/answer",
+            json={
+                "answers": {
+                    "surface": {"selected": ["files"], "free_text": "phone too"},
+                    "proof": {"selected": ["browser", "tests"]},
+                }
+            },
+        )
+        self.assertEqual(answered.status_code, 200)
+        self.assertEqual(
+            answered.json()["answer_data"]["answers"]["proof"]["selected"],
+            ["browser", "tests"],
+        )
+
     def test_only_one_pending_prompt_is_allowed_per_run(self):
         db, run = self._run()
         transition_run(db, run, "running")
@@ -268,6 +448,50 @@ class JarvisRunStateTest(ApiTest):
             create_prompt(db, run, kind="choice", question="second?")
         db.rollback()
         db.close()
+
+    def test_live_agent_question_uses_jarvis_record_and_resumes_same_run(self):
+        db, run = self._run()
+        transition_run(db, run, "running")
+        db.commit()
+        run_id = run.id
+        db.close()
+        request = normalize_request(
+            {
+                "questions": [
+                    {
+                        "id": "surface",
+                        "prompt": "Which surface?",
+                        "choices": [
+                            {"id": "files", "label": "Files"},
+                            {"id": "aide", "label": "Aide"},
+                        ],
+                    }
+                ]
+            }
+        )
+        prompt_id = agent_runtime._create_jarvis_question(
+            {"_jarvis_run_id": run_id}, request
+        )
+        agent_runtime._register_user_question(
+            "request-1", "agent-run-1", request, jarvis_prompt_id=prompt_id
+        )
+        try:
+            self.assertTrue(
+                agent_runtime.resolve_user_question(
+                    "request-1",
+                    {"answers": {"surface": {"selected": ["files"]}}},
+                )
+            )
+            db = self.db()
+            self.assertEqual(db.get(JarvisRunPrompt, prompt_id).state, "answered")
+            self.assertEqual(db.get(JarvisRun, run_id).state, "queued")
+            db.close()
+            agent_runtime._resume_jarvis_after_question({"_jarvis_run_id": run_id})
+            db = self.db()
+            self.assertEqual(db.get(JarvisRun, run_id).state, "running")
+            db.close()
+        finally:
+            agent_runtime._pending_questions.pop("request-1", None)
 
     def test_restart_marks_unconfirmed_side_effect_uncertain_and_other_run_interrupted(self):
         db, uncertain_run = self._run()

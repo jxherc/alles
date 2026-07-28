@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 420" role="img" aria-labelledby="title desc">
+  <title id="title">search pipeline</title>
+  <desc id="desc">a query flows through sources and verification into one answer</desc>
+  <rect width="640" height="420" fill="#101010"/>
+  <g fill="#171717" stroke="#4a4a4a">
+    <rect x="54" y="164" width="132" height="92" rx="6"/>
+    <rect x="254" y="62" width="132" height="76" rx="6"/>
+    <rect x="254" y="172" width="132" height="76" rx="6"/>
+    <rect x="254" y="282" width="132" height="76" rx="6"/>
+    <rect x="454" y="164" width="132" height="92" rx="6"/>
+  </g>
+  <g stroke="#777777" stroke-width="2" fill="none">
+    <path d="M186 210h36c18 0 18-110 32-110"/>
+    <path d="M186 210h68"/>
+    <path d="M186 210h36c18 0 18 110 32 110"/>
+    <path d="M386 100c24 0 30 110 68 110"/>
+    <path d="M386 210h68"/>
+    <path d="M386 320c24 0 30-110 68-110"/>
+  </g>
+  <g fill="#8d8a86">
+    <rect x="78" y="190" width="84" height="8" rx="4"/>
+    <rect x="78" y="210" width="62" height="8" rx="4"/>
+    <rect x="278" y="91" width="84" height="8" rx="4"/>
+    <rect x="278" y="201" width="84" height="8" rx="4"/>
+    <rect x="278" y="311" width="84" height="8" rx="4"/>
+  </g>
+  <rect x="478" y="190" width="84" height="12" rx="4" fill="#e7e4df"/>
+  <path d="M476 216h88" stroke="#818cf8" stroke-width="11" opacity=".42"/>
+</svg>

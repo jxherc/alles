@@ -1,7 +1,7 @@
 import re
 from unittest import mock
 
-from core.database import IndexChunk
+from core.database import DEFAULT_LOCAL_STORAGE_LOCATION_ID, IndexChunk
 from services import textindex
 from tests._client import ApiTest
 
@@ -81,8 +81,11 @@ class TextIndexTests(ApiTest):
         d = self.db()
         with mock.patch.object(textindex, "_embed", fake_embed):
             textindex.index(d, "doc", "embedded.md", "cat cat cat")  # gets a real vec
-        d.add(IndexChunk(kind="doc", ref="old.md", chunk_no=0,
-                         text="annual tax invoice details", vec=""))
+        d.add(
+            IndexChunk(
+                kind="doc", ref="old.md", chunk_no=0, text="annual tax invoice details", vec=""
+            )
+        )
         d.commit()
         with mock.patch.object(textindex, "_embed", fake_embed):
             hits = textindex.search(d, "tax invoice", k=5)
@@ -130,6 +133,37 @@ class TextIndexTests(ApiTest):
         self.assertGreaterEqual(n, 1)
         refs = {r.ref for r in d.query(IndexChunk).filter_by(kind="doc").all()}
         self.assertEqual(refs, {"new.md"})
+
+    def test_legacy_file_reindex_preserves_other_storage_locations(self):
+        d = self.db()
+        with mock.patch.object(textindex, "_embed", lambda texts: None):
+            textindex.index(
+                d,
+                "file",
+                "shared.txt",
+                "old default content",
+                location_id=DEFAULT_LOCAL_STORAGE_LOCATION_ID,
+            )
+            textindex.index(
+                d,
+                "file",
+                "shared.txt",
+                "remote content",
+                location_id="dav-files",
+            )
+
+            textindex.reindex_kind(d, "file", [("replacement.txt", "new default content")])
+
+        default_rows = (
+            d.query(IndexChunk)
+            .filter_by(kind="file", location_id=DEFAULT_LOCAL_STORAGE_LOCATION_ID)
+            .all()
+        )
+        remote_rows = d.query(IndexChunk).filter_by(kind="file", location_id="dav-files").all()
+        self.assertEqual({row.ref for row in default_rows}, {"replacement.txt"})
+        self.assertEqual(
+            [(row.ref, row.text) for row in remote_rows], [("shared.txt", "remote content")]
+        )
 
     def test_reindex_kind_commits_once(self):
         d = self.db()

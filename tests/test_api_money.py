@@ -21,16 +21,20 @@ class MoneyApiTest(ApiTest):
         # regression: FIFO used to match an expense to income dated AFTER it, giving a
         # negative "age of money" (you can't spend money you haven't earned yet).
         a = self.client.post("/api/money/accounts", json={"name": "chk"}).json()["id"]
-        mk = lambda d, amt: self.client.post(
-            "/api/money/transactions", json={"account_id": a, "date": d, "amount": amt}
-        )
-        mk("2026-01-05", -50.0)   # spend BEFORE any income (unfunded → excluded)
-        mk("2026-01-10", 200.0)   # income arrives later
-        mk("2026-01-20", -80.0)   # funded by the 01-10 income → age = 10 days
+
+        def mk(day, amount):
+            return self.client.post(
+                "/api/money/transactions",
+                json={"account_id": a, "date": day, "amount": amount},
+            )
+
+        mk("2026-01-05", -50.0)  # spend BEFORE any income (unfunded → excluded)
+        mk("2026-01-10", 200.0)  # income arrives later
+        mk("2026-01-20", -80.0)  # funded by the 01-10 income → age = 10 days
         r = self.client.get("/api/money/age-of-money").json()
         self.assertIsNotNone(r["age"])
-        self.assertGreaterEqual(r["age"], 0)   # never negative
-        self.assertEqual(r["age"], 10)         # only the funded 01-20 spend counts
+        self.assertGreaterEqual(r["age"], 0)  # never negative
+        self.assertEqual(r["age"], 10)  # only the funded 01-20 spend counts
 
     def test_account_balance_reflects_transactions(self):
         a = self.client.post(
@@ -76,9 +80,7 @@ class MoneyApiTest(ApiTest):
             "/api/money/transactions",
             json={"account_id": a["id"], "date": "2026-06-01", "amount": -5.0},
         ).json()
-        r = self.client.patch(
-            f"/api/money/transactions/{t['id']}", json={"account_id": "ghost"}
-        )
+        r = self.client.patch(f"/api/money/transactions/{t['id']}", json={"account_id": "ghost"})
         self.assertEqual(r.status_code, 400)
 
     def test_summary_and_delete(self):

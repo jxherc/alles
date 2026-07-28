@@ -58,7 +58,7 @@ class DoMoveTests(unittest.TestCase):
         M = FakeIMAP(has_move=False, has_uidplus=True)
         mailsvc._do_move(M, "42", "Archive", "INBOX")
         self.assertIn(("uid", "expunge", "42"), M.calls)  # scoped UID EXPUNGE
-        self.assertNotIn(("expunge",), M.calls)            # not the folder-wide expunge
+        self.assertNotIn(("expunge",), M.calls)  # not the folder-wide expunge
 
     def test_selects_source_first(self):
         M = FakeIMAP()

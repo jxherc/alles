@@ -2,7 +2,7 @@
 // drop this folder into your vault's .obsidian/plugins/ and enable it.
 const { Plugin, PluginSettingTab, Setting, Notice } = require("obsidian");
 
-const DEFAULTS = { base: "http://localhost:8000" };
+const DEFAULTS = { base: "http://localhost:6769" };
 
 module.exports = class AllesPlugin extends Plugin {
   async onload() {
@@ -35,9 +35,9 @@ class AllesSettingTab extends PluginSettingTab {
     containerEl.empty();
     new Setting(containerEl)
       .setName("alles URL")
-      .setDesc("Base URL of your alles app — e.g. http://localhost:8000 or your home server.")
+      .setDesc("Base URL of your alles app — e.g. http://localhost:6769 or your home server.")
       .addText(t => t
-        .setPlaceholder("http://localhost:8000")
+        .setPlaceholder("http://localhost:6769")
         .setValue(this.plugin.settings.base)
         .onChange(async v => { this.plugin.settings.base = v.trim(); await this.plugin.saveSettings(); }));
   }

@@ -76,7 +76,15 @@ class GalleryIcons(unittest.TestCase):
         # the left rail builds each nav item's glyph through the central icon set (_si(ic))
         self.assertIn("photos-nav-item", PHOTOS)
         self.assertIn("_si(ic)", PHOTOS)
-        for name in ("'image'", "'map-pin'", "'sparkles'", "'folder'", "'heart'", "'lock'", "'trash'"):
+        for name in (
+            "'image'",
+            "'map-pin'",
+            "'sparkles'",
+            "'folder'",
+            "'heart'",
+            "'lock'",
+            "'trash'",
+        ):
             self.assertIn(name, PHOTOS, f"sidebar icon {name} missing")
 
     def test_video_badge_uses_play_icon(self):
@@ -84,7 +92,11 @@ class GalleryIcons(unittest.TestCase):
         self.assertRegex(CSS, r"\.photos-vbadge\s+\.ic")
 
     def test_trash_uses_shared_video_cell_markup(self):
-        block = PHOTOS[PHOTOS.index("async function openPhotoTrash") : PHOTOS.index("async function uploadPhotos")]
+        block = PHOTOS[
+            PHOTOS.index("async function openPhotoTrash") : PHOTOS.index(
+                "async function uploadPhotos"
+            )
+        ]
         self.assertIn("_cellHtml(p, restore)", block)
         self.assertNotIn('<img loading="lazy" src="${p.thumb}" alt="">', block)
         self.assertIn("extra = ''", _photos_fn("_cellHtml"))

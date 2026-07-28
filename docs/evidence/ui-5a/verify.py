@@ -1,4 +1,5 @@
 """ui-5a verify — the files app shows free disk space prominently in the quota bar."""
+
 import sys
 
 from playwright.sync_api import sync_playwright
@@ -37,8 +38,14 @@ def run():
         }""")
         ok("quota bar is present", d["present"])
         ok("free space is shown prominently", d["freeShown"] and "free" in d["freeText"].lower())
-        ok("free space carries a real size", any(u in d["freeText"] for u in ("B", "KB", "MB", "GB", "TB")))
-        ok("free space is colour-highlighted (green)", d["freeColor"] not in ("", "rgb(110, 110, 110)"))
+        ok(
+            "free space carries a real size",
+            any(u in d["freeText"] for u in ("B", "KB", "MB", "GB", "TB")),
+        )
+        ok(
+            "free space is colour-highlighted (green)",
+            d["freeColor"] not in ("", "rgb(110, 110, 110)"),
+        )
         ok("still shows used + total", "used" in d["text"] and "of" in d["text"])
         ok("the usage bar renders", d["barFill"])
 

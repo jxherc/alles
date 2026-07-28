@@ -1,5 +1,7 @@
 from unittest import mock
 
+from sqlalchemy import event
+
 from routes.read import make_excerpt, read_minutes, site_of
 from tests._client import ApiTest
 
@@ -110,24 +112,96 @@ class ReadApiTests(ApiTest):
         self.assertEqual(self.client.delete(f"/api/read/{rid}").status_code, 200)
         self.assertEqual(self.client.get(f"/api/read/{rid}").status_code, 404)
 
+    def test_explicit_news_save_is_idempotent_and_does_not_fetch_the_page(self):
+        payload = {
+            "url": "HTTPS://Example.com:443/news/story#tracking",
+            "title": "A reviewed story",
+            "excerpt": "A result summary supplied by Andromeda.",
+        }
+        with mock.patch("routes.read.fetch_webpage_content") as fetch:
+            first = self.client.post("/api/read/save-news", json=payload)
+            second = self.client.post("/api/read/save-news", json=payload)
+        self.assertEqual(first.status_code, 200)
+        self.assertFalse(first.json()["duplicate"])
+        self.assertTrue(second.json()["duplicate"])
+        self.assertEqual(first.json()["item"]["id"], second.json()["item"]["id"])
+        self.assertEqual(first.json()["item"]["url"], "https://example.com/news/story")
+        self.assertEqual(first.json()["item"]["source_kind"], "saved_news")
+        self.assertIn("source:news", first.json()["item"]["tags"])
+        fetch.assert_not_called()
+
+    def test_news_duplicate_check_takes_a_sqlite_write_lock_before_reading(self):
+        statements = []
+
+        def capture_statement(_connection, _cursor, statement, _parameters, _context, _many):
+            statements.append(statement.strip().upper())
+
+        event.listen(self.eng, "before_cursor_execute", capture_statement)
+        try:
+            response = self.client.post(
+                "/api/read/save-news",
+                json={"url": "https://example.com/atomic", "title": "atomic"},
+            )
+        finally:
+            event.remove(self.eng, "before_cursor_execute", capture_statement)
+
+        self.assertEqual(response.status_code, 200, response.text)
+        begin = statements.index("BEGIN IMMEDIATE")
+        lookup = next(
+            index
+            for index, statement in enumerate(statements)
+            if "FROM READ_ITEMS" in statement and "READ_ITEMS.URL" in statement
+        )
+        self.assertLess(begin, lookup)
+
+    def test_promoting_an_existing_item_to_news_reindexes_its_tags(self):
+        existing = self._save(url="https://example.com/promoted").json()
+        indexed_ids = []
+        with mock.patch(
+            "services.personal_index.index_record",
+            side_effect=lambda _db, _kind, item: indexed_ids.append(item.id),
+        ) as index:
+            response = self.client.post(
+                "/api/read/save-news",
+                json={"url": "https://example.com/promoted", "title": "Promoted"},
+            )
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()["duplicate"])
+        self.assertIn("source:news", response.json()["item"]["tags"])
+        index.assert_called_once()
+        self.assertEqual(indexed_ids, [existing["id"]])
+
+    def test_explicit_news_save_rejects_non_web_urls(self):
+        response = self.client.post(
+            "/api/read/save-news",
+            json={"url": "javascript:alert(1)", "title": "unsafe"},
+        )
+        self.assertEqual(response.status_code, 400)
+
 
 class ReadStatsTests(ApiTest):
     def _mk(self, minutes, read=False, archived=False, read_at=None):
         from core.database import ReadItem
 
         s = self.db()
-        s.add(ReadItem(
-            url="u", title="t", text="x", read_minutes=minutes, archived=archived,
-            read_at=(read_at or ("2020-01-01T00:00:00" if read else "")),
-        ))
+        s.add(
+            ReadItem(
+                url="u",
+                title="t",
+                text="x",
+                read_minutes=minutes,
+                archived=archived,
+                read_at=(read_at or ("2020-01-01T00:00:00" if read else "")),
+            )
+        )
         s.commit()
         s.close()
 
     def test_stats_sums_unread_only(self):
         self._mk(10)
         self._mk(20)
-        self._mk(30, read=True)       # read -> not in queue
-        self._mk(40, archived=True)   # archived -> not in queue
+        self._mk(30, read=True)  # read -> not in queue
+        self._mk(40, archived=True)  # archived -> not in queue
         s = self.client.get("/api/read/stats").json()
         self.assertEqual(s["unread"], 2)
         self.assertEqual(s["minutes"], 30)
@@ -141,9 +215,9 @@ class ReadStatsTests(ApiTest):
         self.assertEqual(s["days_to_clear"], 3)  # 60 / 20
 
     def test_stats_uses_measured_pace(self):
-        from datetime import datetime
+        from datetime import UTC, datetime
 
-        recent = datetime.utcnow().isoformat()
+        recent = datetime.now(UTC).replace(tzinfo=None).isoformat()
         self._mk(100)  # unread queue
         for _ in range(10):
             self._mk(150, read_at=recent)  # 1500 min read in the last 30 days -> 50/day

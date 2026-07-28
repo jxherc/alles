@@ -17,7 +17,7 @@ At the end of this phase:
 - Jarvis runs, schedules, questions, approvals, retries, and deliveries survive restarts;
 - uncertain outside actions are never repeated automatically.
 
-This phase builds the foundation. The final Aide/Jarvis screens, Discord bot, News, and Today delivery
+This phase builds the foundation. The final Aide/Jarvis screens, Discord bot, News, and Home delivery
 come in later phases.
 
 ## 2A — folder Projects
@@ -262,7 +262,7 @@ Phase 2 is delivered only when all of these are true:
 
 - the final Aide/Jarvis interface;
 - Discord pairing or Discord message handling;
-- News feeds and Today Brief delivery;
+- News feeds and Home Brief delivery;
 - the final product navigation shell;
 - a browser-to-server folder bridge;
 - broad shell access or unmanaged service control.

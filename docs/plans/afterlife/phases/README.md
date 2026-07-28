@@ -1,8 +1,9 @@
 # Afterlife implementation phases
 
 - **Stage:** Afterlife
-- **Current focus:** Phase 5 planning
-- **Implementation status:** Phases 0–4 delivered
+- **Current focus:** Phase 12 product consolidation, search verification, and Server redesign
+- **Implementation status:** Phases 0 through 11 are delivered; Phase 12 direction is approved and its
+  exact HTML starters remain before real-interface work
 
 These are dependency gates, not release dates. Each phase must be split into small, testable plans before
 implementation.
@@ -11,15 +12,17 @@ implementation.
 |---|---|---|---|
 | 0 | Recovery gate and baseline | **Delivered** | Encrypted backup/restore, safe defaults, upgrade fixtures, and compatibility baselines |
 | 1 | Platform and security foundation | **Delivered** | Access profiles, secrets, service ownership, Server foundation, safe Docs/Files primitives, and backup targets |
-| 2 | [Folder Projects and durable Jarvis core](phase-02-projects-jarvis-core.md) | **Delivered** | Working folders, General, task stages, durable runs, scheduler, permissions, and delivery outbox |
-| 3 | [Product shell, Today, Aide Projects, and Settings](phase-03-product-shell-today-settings.md) | **Delivered** | The three-space shell, useful Today, folder Projects in Aide, settings, and legacy redirects |
-| 4 | [Aide and Andromeda](phase-04-aide-andromeda.md) | **Delivered** | Aide Chat/Jarvis shell plus fast, grounded, local-capable AI search; managed SearXNG install remains unavailable |
-| 5 | Jarvis inside Aide and channels | Planned | Workflows, runs, schedules, Discord, News, and Today delivery |
-| 6 | Docs and knowledge migration | Planned | Safe Visual/Source Markdown editing with Obsidian-compatible conflicts and privacy |
-| 7 | Files and storage locations | Planned | Stable local/online file identity, general WebDAV/S3 Files browsing, offline cache, and Photos; the separate backup-only WebDAV target ships in Phase 1C |
-| 8 | Specialist app consolidation | Planned | Plan, Inbox, Library, Health, Finance, imports, and optional Actual interoperability |
-| 9 | Distribution and browser access | Planned | Native installer, safe updates, uninstall, and the Passwords browser extension |
-| 10 | Localization and release hardening | Planned | Eight languages, credits/licenses, accessibility, performance, security, and final recovery proof |
+| 2 | [Folder Projects and durable background core](phase-02-projects-jarvis-core.md) | **Delivered** | Working folders, General, task stages, durable runs, scheduler, permissions, and delivery outbox; old internal names remain for compatibility |
+| 3 | [Product shell, Home, Aide Projects, and Settings](phase-03-product-shell-today-settings.md) | **Delivered; reverified 2026-07-18** | The three-space shell, useful customizable Home, folder Projects in Aide, settings, and legacy redirects |
+| 4 | [Aide and Andromeda](phase-04-aide-andromeda.md) | **Delivered; interaction revised** | One-mode Aide, grounded search, and a live-verified optional managed SearXNG lifecycle |
+| 5 | [Background Aide and channels](phase-05-background-aide-channels.md) | **Delivered** | Finished scheduled/background Aide and added the owner-scoped Jarvis Discord connection |
+| 6 | [Docs and knowledge migration](phase-06-docs-knowledge.md) | **Delivered** | Safe Docs migration, unified Notes/Journal, corrected Aide and Andromeda, and fresh full-suite, live-provider, and real-app proof |
+| 7 | [Files and storage locations](phase-07-files-storage.md) | **Delivered; reverified 2026-07-17** | Safe local and online locations, durable transfers, offline copies, Photos handoff, and the real KOKUEN Files workbench |
+| 8 | [Specialist app consolidation](phase-08-specialist-app-consolidation.md) | **Delivered; verified 2026-07-20** | Plan, Inbox, Library, Health, Finance, safe imports, and Actual as the gated canonical ledger |
+| 9 | [Distribution and browser access](phase-09-distribution-browser-access.md) | **Delivered; verified 2026-07-20** | Native installer, safe updates, uninstall, and paired exact-site Passwords browser access |
+| 10 | [Localization and release hardening](phase-10-localization-release-hardening.md) | **Delivered; verified 2026-07-21** | Eight reviewed core-flow languages, locale input/formatting, complete credits/licenses, and separated release-hardening proof |
+| 11 | [Post-development review and handoff](phase-11-post-development-review-handoff.md) | **Delivered; verified 2026-07-21** | 41-row reconciliation, detailed review, lifecycle/browser proof, and honest final handoff |
+| 12 | [Product consolidation and interface rebuild](phase-12-product-consolidation-ui-rebuild.md) | **In progress; starter gate open** | Eight workbenches, universal shell/focus, fast plus verified Andromeda, and secure Server management |
 
 ## Gate rule
 

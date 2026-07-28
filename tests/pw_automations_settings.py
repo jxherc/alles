@@ -53,10 +53,9 @@ def main():
             "document.getElementById('rule-trigger')?.dataset.value === 'sub_renewing' && "
             "document.getElementById('rule-action')?.dataset.value === 'push'"
         )
-        r["preset_prefills"] = (
-            pg.input_value("#rule-trigger-arg") == "3"
-            and "renews in 3 days" in pg.input_value("#rule-action-arg")
-        )
+        r["preset_prefills"] = pg.input_value(
+            "#rule-trigger-arg"
+        ) == "3" and "renews in 3 days" in pg.input_value("#rule-action-arg")
 
         pg.fill("#rule-name", "audit renewal reminder")
         pg.click("#rule-add-btn")
@@ -85,7 +84,9 @@ def main():
         r["resume_marks_on"] = pg.query_selector("#rules-list .rule-row.off") is None
 
         pg.click("#rules-list .rule-row-main")
-        pg.wait_for_function("document.getElementById('rule-add-btn')?.textContent.includes('save')")
+        pg.wait_for_function(
+            "document.getElementById('rule-add-btn')?.textContent.includes('save')"
+        )
         pg.fill("#rule-name", "audit renewal edited")
         pg.click("#rule-add-btn")
         pg.wait_for_function(

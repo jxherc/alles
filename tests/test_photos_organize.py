@@ -39,7 +39,7 @@ class PhotosOrganizeTests(ApiTest):
     def _patch(self, pid, **body):
         return self.client.patch(f"/api/photos/{pid}", json=body)
 
-    def _unlock(self, pw="test123"):
+    def _unlock(self, pw="test-password-1"):
         return self.client.post("/api/vault/unlock", json={"password": pw}).json()["token"]
 
     # ---- caption / keywords ----

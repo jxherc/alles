@@ -13,7 +13,7 @@ const localContext = {
   port: '8000',
   baseDomain: 'localhost',
   allowedSubdomains: new Set([
-    'aide', 'docs', 'files', 'gallery', 'notes', 'photos',
+    'aide', 'andromeda', 'docs', 'files', 'gallery', 'notes', 'photos',
   ]),
 };
 
@@ -48,6 +48,18 @@ test('normalizer preserves ask and web state', () => {
   assert.equal(url.searchParams.get('web'), '1');
   assert.equal(url.searchParams.get('source'), 'palette');
   assert.equal(url.hash, '#new');
+});
+
+test('Andromeda query survives both direct auth and apex broker handoffs', () => {
+  const target = 'http://andromeda.localhost:8000/?app=andromeda&q=exact+search&project=p-1';
+  const authed = new URL(addSsoAuthCode(target, 'once-123'));
+  const broker = new URL(buildApexBrokerUrl(target, 'localhost'));
+  const normalized = new URL(normalizeSsoTarget(broker.searchParams.get('_sso'), localContext));
+
+  assert.equal(authed.searchParams.get('q'), 'exact search');
+  assert.equal(authed.searchParams.get('project'), 'p-1');
+  assert.equal(normalized.searchParams.get('q'), 'exact search');
+  assert.equal(normalized.searchParams.get('project'), 'p-1');
 });
 
 test('auth code keeps unicode, duplicate query values, path, and hash', () => {

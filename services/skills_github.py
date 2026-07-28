@@ -6,6 +6,7 @@ outbound_proxy via httpx's trust_env (services/net exports HTTP(S)_PROXY).
 """
 
 import re
+
 import httpx
 
 from . import skills_store

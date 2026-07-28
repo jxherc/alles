@@ -12,10 +12,13 @@ from routes import photos as P
 from services.photos_store import _exif_fields, _gps_to_decimal
 
 
-def _mkdb():
+def _mkdb(test_case):
     eng = create_engine("sqlite:///:memory:")
+    test_case.addCleanup(eng.dispose)
     Photo.__table__.create(eng)
-    return sessionmaker(bind=eng)()
+    db = sessionmaker(bind=eng)()
+    test_case.addCleanup(db.close)
+    return db
 
 
 def _add(db, **kw):
@@ -35,38 +38,38 @@ def _add(db, **kw):
 
 class PhotoSearchTests(unittest.TestCase):
     def test_by_filename(self):
-        db = _mkdb()
+        db = _mkdb(self)
         _add(db, original_name="vacation_beach.jpg")
         _add(db, original_name="receipt.png")
         self.assertEqual(P.search_photos("beach", db)["count"], 1)
 
     def test_by_camera_exif(self):
-        db = _mkdb()
+        db = _mkdb(self)
         _add(db, exif=json.dumps({"Make": "Canon", "Model": "EOS R5"}))
         _add(db, exif=json.dumps({"Make": "Apple", "Model": "iPhone 16"}))
         self.assertEqual(P.search_photos("canon", db)["count"], 1)
         self.assertEqual(P.search_photos("iphone", db)["count"], 1)
 
     def test_by_date(self):
-        db = _mkdb()
+        db = _mkdb(self)
         _add(db, taken_at=datetime(2026, 6, 14))
         _add(db, taken_at=datetime(2025, 1, 1))
         self.assertEqual(P.search_photos("june 2026", db)["count"], 1)
         self.assertEqual(P.search_photos("2025", db)["count"], 1)
 
     def test_empty(self):
-        self.assertEqual(P.search_photos("", _mkdb())["count"], 0)
+        self.assertEqual(P.search_photos("", _mkdb(self))["count"], 0)
 
     def test_by_caption(self):
         # caption is part of haystack — should be findable
-        db = _mkdb()
+        db = _mkdb(self)
         _add(db, caption="sunset over the mountains")
         _add(db, caption="birthday party")
         self.assertEqual(P.search_photos("mountains", db)["count"], 1)
         self.assertEqual(P.search_photos("birthday", db)["count"], 1)
 
     def test_by_keywords(self):
-        db = _mkdb()
+        db = _mkdb(self)
         _add(db, keywords="travel,nature")
         _add(db, keywords="food,urban")
         self.assertEqual(P.search_photos("nature", db)["count"], 1)
@@ -75,7 +78,7 @@ class PhotoSearchTests(unittest.TestCase):
 
     def test_deleted_excluded(self):
         # soft-deleted photos must not appear in search results
-        db = _mkdb()
+        db = _mkdb(self)
         _add(db, original_name="gone.jpg", deleted_at=datetime(2026, 1, 1))
         _add(db, original_name="gone_beach.jpg")
         # 'gone' matches both names but deleted one should be excluded
@@ -83,7 +86,7 @@ class PhotoSearchTests(unittest.TestCase):
 
     def test_hidden_excluded(self):
         # hidden photos are excluded from normal search
-        db = _mkdb()
+        db = _mkdb(self)
         _add(db, original_name="secret_doc.jpg", hidden=True)
         _add(db, original_name="normal_doc.jpg", hidden=False)
         self.assertEqual(P.search_photos("doc", db)["count"], 1)
@@ -141,7 +144,7 @@ class EditSaveTests(unittest.TestCase):
     }
 
     def test_decodes_dataurl_and_saves(self):
-        db = _mkdb()
+        db = _mkdb(self)
         png = base64.b64encode(b"PNGDATA").decode()
         with mock.patch.object(P.ps, "import_image", lambda raw, name: self._FAKE):
             res = P.edit_save(
@@ -154,7 +157,7 @@ class EditSaveTests(unittest.TestCase):
         from fastapi import HTTPException
 
         with self.assertRaises(HTTPException):  # non-base64 chars → empty/garbage → 400
-            P.edit_save(P.EditSaveBody(data_url="data:image/png;base64,!!!!"), _mkdb())
+            P.edit_save(P.EditSaveBody(data_url="data:image/png;base64,!!!!"), _mkdb(self))
 
 
 if __name__ == "__main__":

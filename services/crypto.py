@@ -3,11 +3,13 @@ AES-256-GCM encryption for vault entries.
 Key derived from master password via PBKDF2HMAC (SHA-256, 260k iterations).
 """
 
-import os, base64, hmac
+import base64
+import hmac
+import os
+
+from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-from cryptography.hazmat.primitives import hashes
-
 
 _SALT_LEN = 16
 _NONCE_LEN = 12

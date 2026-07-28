@@ -7,23 +7,18 @@ export function setBaseDomain(b) { if (b) _base = b; }
 // Canonical owners are kept separate from old host aliases so viewToSub() can never
 // accidentally route new links back through a legacy hostname.
 export const CANONICAL_SUBDOMAIN_VIEWS = {
-  '':         { app: 'alles',     primary: 'home',     views: ['home', 'today', 'andromeda', 'activity'] },
-  aide:       { app: 'aide',      primary: 'chat',     views: ['chat', 'memory', 'compare', 'brain', 'models', 'reminders', 'gallery', 'cookbook', 'usage', 'skills', 'proactive', 'project'] },
-  docs:       { app: 'docs',      primary: 'wiki',     views: ['wiki', 'notes', 'journal'] },
-  files:      { app: 'files',     primary: 'files',    views: ['files', 'photos'] },
-  finance:    { app: 'finance',   primary: 'money',    views: ['money', 'subs'] },
-  passwords:  { app: 'passwords', primary: 'vault',    views: ['vault'] },
-  server:     { app: 'server',    primary: 'system',   views: ['system'] },
-  mail:       { app: 'mail',      primary: 'mail',     views: ['mail'] },
-  calendar:   { app: 'calendar',  primary: 'calendar', views: ['calendar'] },
-  tasks:      { app: 'tasks',     primary: 'tasks',    views: ['tasks'] },
-  days:       { app: 'days',      primary: 'days',     views: ['days'] },
-  habits:     { app: 'habits',    primary: 'habits',   views: ['habits'] },
-  read:       { app: 'read',      primary: 'read',     views: ['read'] },
-  books:      { app: 'books',     primary: 'books',    views: ['books'] },
-  health:     { app: 'health',    primary: 'health',   views: ['health'] },
-  contacts:   { app: 'contacts',  primary: 'contacts', views: ['contacts'] },
-  watch:      { app: 'watch',     primary: 'watch',    views: ['watch'] },
+  '':         { app: 'alles',     primary: 'home',     views: ['home', 'today'] },
+  aide:       { app: 'aide',      primary: 'chat',     views: ['chat', 'memory', 'compare', 'brain', 'models', 'gallery', 'cookbook', 'usage', 'skills', 'scheduled', 'project', 'proactive', 'aide-reminders'] },
+  andromeda:  { app: 'andromeda', primary: 'andromeda', views: ['andromeda'] },
+  docs:       { app: 'docs',      primary: 'wiki',     views: ['docs', 'docs-notes', 'wiki', 'notes', 'journal'] },
+  files:      { app: 'files',     primary: 'files',    views: ['files', 'files-list', 'files-gallery', 'photos'] },
+  plan:       { app: 'plan',      primary: 'plan',     views: ['plan', 'plan-week', 'plan-board', 'calendar', 'tasks', 'reminders', 'days'] },
+  inbox:      { app: 'inbox',     primary: 'inbox',    views: ['inbox', 'mail', 'contacts'] },
+  library:    { app: 'library',   primary: 'library',  views: ['library', 'books', 'read'] },
+  health:     { app: 'health',    primary: 'health',   views: ['health', 'health-log', 'habits'] },
+  finance:    { app: 'finance',   primary: 'finance',  views: ['finance', 'money', 'subs', 'imports'] },
+  passwords:  { app: 'passwords', primary: 'vault',    views: ['vault', 'vault-items'] },
+  server:     { app: 'server',    primary: 'system',   views: ['server', 'system', 'server-services', 'server-search', 'server-backups', 'server-updates', 'server-logs', 'activity', 'watch', 'server-policy'] },
 };
 
 export const LEGACY_SUBDOMAIN_VIEWS = {
@@ -40,10 +35,20 @@ export const LEGACY_SUBDOMAIN_VIEWS = {
   journal:       { app: 'docs',      primary: 'journal',  views: ['journal'] },
   gallery:       { app: 'files',     primary: 'photos',   views: ['photos'] },
   photos:        { app: 'files',     primary: 'photos',   views: ['photos'] },
-  activity:      { app: 'alles',     primary: 'activity', views: ['activity'] },
+  activity:      { app: 'server',    primary: 'activity', views: ['activity'] },
+  watch:         { app: 'server',    primary: 'watch',    views: ['watch'] },
+  days:          { app: 'plan',      primary: 'plan',     views: ['days'] },
   cowork:        { app: 'aide',      primary: 'chat',     views: ['chat'] },
   jarvis:        { app: 'aide',      primary: 'chat',     views: ['chat'] },
   chat:          { app: 'aide',      primary: 'chat',     views: ['chat'] },
+  calendar:      { app: 'plan',      primary: 'plan',     views: ['calendar'] },
+  tasks:         { app: 'plan',      primary: 'plan',     views: ['tasks'] },
+  reminders:     { app: 'plan',      primary: 'plan',     views: ['reminders'] },
+  mail:          { app: 'inbox',     primary: 'inbox',    views: ['mail'] },
+  contacts:      { app: 'inbox',     primary: 'inbox',    views: ['contacts'] },
+  read:          { app: 'library',   primary: 'library',  views: ['read'] },
+  books:         { app: 'library',   primary: 'library',  views: ['books'] },
+  habits:        { app: 'health',    primary: 'health',   views: ['habits'] },
 };
 
 export const SUBDOMAIN_VIEWS = {

@@ -150,11 +150,12 @@ class MigrationFixtureRecoveryTest(unittest.TestCase):
 
     def _recover_and_check(self, source: Path, base: Path) -> None:
         before_db = self._snapshot_database(source / "aide.db")
-        before_rows = {
-            table: item["rows"]
+        preserved_db = {
+            table: item
             for table, item in before_db.items()
-            if table not in {"notes", "schema_migrations"}
+            if table not in {"notes", "schema_migrations"} and item["rows"]
         }
+        before_rows = {table: item["rows"] for table, item in preserved_db.items()}
         note_ids = {
             row[0]
             for row in before_db.get("notes", {}).get("rows", [])
@@ -175,7 +176,7 @@ class MigrationFixtureRecoveryTest(unittest.TestCase):
 
         self._assert_current_schema_and_history(prepared.data_dir)
         self.assertEqual(
-            self._rows_using_old_columns(prepared.data_dir / "aide.db", before_db),
+            self._rows_using_old_columns(prepared.data_dir / "aide.db", preserved_db),
             before_rows,
         )
         after_files = self._hash_managed_files(prepared.data_dir)

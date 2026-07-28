@@ -120,7 +120,9 @@ class SkillsApiTest(ApiTest):
         self.assertEqual(lst[0]["slug"], "star")
         self.assertTrue(lst[0]["pinned"])
         self.assertIn("uses", lst[0])
-        self.assertEqual(self.client.post("/api/skills/nope/pin", json={"pinned": True}).status_code, 404)
+        self.assertEqual(
+            self.client.post("/api/skills/nope/pin", json={"pinned": True}).status_code, 404
+        )
 
     def test_special_chars_in_name_slugified(self):
         r = self._create(name="C++ Helper!")

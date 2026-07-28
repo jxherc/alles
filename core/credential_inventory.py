@@ -14,6 +14,10 @@ DATABASE_CREDENTIAL_FIELDS = (
     ("mcp_servers", "env", "mcp_servers.env"),
     ("mcp_servers", "headers", "mcp_servers.headers"),
     ("jarvis_connectors", "secret", "jarvis_connectors.secret"),
+    ("storage_locations", "secret", "storage_locations.secret"),
+    ("finance_connections", "client_id", "finance_connections.client_id"),
+    ("finance_connections", "client_secret", "finance_connections.client_secret"),
+    ("finance_connections", "access_token", "finance_connections.access_token"),
 )
 
 SETTING_CREDENTIAL_KEYS = (
@@ -33,6 +37,8 @@ SETTING_CREDENTIAL_KEYS = (
 CONFIG_CREDENTIAL_FIELDS = (
     ("caldav.json", "password", "caldav.password"),
     ("carddav.json", "password", "carddav.password"),
+    ("adguard-home.credentials.json", "password", "companions.adguard.password"),
+    ("nginx-proxy-manager.credentials.json", "token", "companions.npm.token"),
     ("webdav_backup.json", "password", "backup.webdav.password"),
     ("s3_backup.json", "credentials", "backup.s3.credentials"),
 )

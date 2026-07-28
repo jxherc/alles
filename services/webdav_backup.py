@@ -11,13 +11,13 @@ import stat
 import threading
 import unicodedata
 import uuid
-import xml.etree.ElementTree as ET
 from contextlib import closing, contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
 from urllib.parse import quote, unquote_to_bytes, urljoin, urlsplit, urlunsplit
 
 import httpx
+from defusedxml import ElementTree as ET
 
 from core.settings import data_dir
 from services.backup_recovery import CHUNK_SIZE, DEFAULT_LIMITS

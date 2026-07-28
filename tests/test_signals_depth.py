@@ -70,8 +70,9 @@ class LowBalanceTests(ApiTest):
 class MailSignalTests(ApiTest):
     def _msg(self, **kw):
         d = self.db()
-        defaults = dict(account_id="a1", folder="INBOX", seen=False, flagged=False,
-                        muted=False, date_ts=1000)
+        defaults = dict(
+            account_id="a1", folder="INBOX", seen=False, flagged=False, muted=False, date_ts=1000
+        )
         defaults.update(kw)
         d.add(CachedMessage(**defaults))
         d.commit()

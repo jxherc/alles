@@ -288,6 +288,87 @@ class JarvisSchedulerTest(ApiTest):
         self.assertTrue(enabled.json()["enabled"])
         self.assertIsNotNone(enabled.json()["next_run_at"])
 
+    def test_schedule_api_can_edit_workflow_project_and_timing_kind(self):
+        project = self.client.post(
+            "/api/projects", json={"name": "notes", "root_path": "/tmp/notes"}
+        ).json()
+        workflow = self.client.post(
+            "/api/jarvis/workflows", json={"name": "daily", "prompt": "plan today"}
+        ).json()
+        trigger = self.client.post(
+            f"/api/jarvis/workflows/{workflow['id']}/triggers",
+            json={"kind": "schedule", "config": {"time": "09:00"}},
+        ).json()
+
+        updated_workflow = self.client.patch(
+            f"/api/jarvis/workflows/{workflow['id']}",
+            json={
+                "name": "weekly notes",
+                "prompt": "review notes",
+                "project_id": project["id"],
+                "context_mode": "project",
+            },
+        )
+        self.assertEqual(updated_workflow.status_code, 200, updated_workflow.text)
+        self.assertEqual(updated_workflow.json()["project_id"], project["id"])
+        self.assertEqual(updated_workflow.json()["context_mode"], "project")
+
+        updated_trigger = self.client.patch(
+            f"/api/jarvis/triggers/{trigger['id']}",
+            json={"kind": "interval", "config": {"every_seconds": 7200}},
+        )
+        self.assertEqual(updated_trigger.status_code, 200, updated_trigger.text)
+        self.assertEqual(updated_trigger.json()["kind"], "interval")
+        self.assertEqual(updated_trigger.json()["config"], {"every_seconds": 7200})
+
+        cleared = self.client.patch(
+            f"/api/jarvis/workflows/{workflow['id']}",
+            json={"project_id": "", "context_mode": "fresh"},
+        )
+        self.assertEqual(cleared.status_code, 200, cleared.text)
+        self.assertIsNone(cleared.json()["project_id"])
+
+    def test_generic_workflow_routes_cannot_mutate_or_spoof_aide_owned_schedules(self):
+        created = self.client.post(
+            "/api/jarvis/aide-schedules",
+            json={
+                "name": "daily brief",
+                "prompt": "prepare the brief",
+                "kind": "schedule",
+                "config": {"time": "09:00"},
+                "timezone": "Asia/Taipei",
+            },
+        )
+        self.assertEqual(created.status_code, 200, created.text)
+        workflow = created.json()["workflow"]
+        trigger = created.json()["trigger"]
+
+        for response in (
+            self.client.patch(f"/api/jarvis/workflows/{workflow['id']}", json={"prompt": "bypass"}),
+            self.client.post(
+                f"/api/jarvis/workflows/{workflow['id']}/triggers",
+                json={"kind": "interval", "config": {"every_seconds": 3600}},
+            ),
+            self.client.patch(
+                f"/api/jarvis/triggers/{trigger['id']}",
+                json={"config": {"time": "10:00"}},
+            ),
+        ):
+            with self.subTest(path=response.request.url.path):
+                self.assertEqual(response.status_code, 409, response.text)
+                self.assertEqual(response.json()["code"], "aide_schedule_route_required")
+
+        spoofed = self.client.post(
+            "/api/jarvis/workflows",
+            json={
+                "name": "spoofed",
+                "deterministic_action": "aide_handoff",
+                "delivery_policy": {"aide_schedule_owner": "aide_scheduled_v1"},
+            },
+        )
+        self.assertEqual(spoofed.status_code, 409, spoofed.text)
+        self.assertEqual(spoofed.json()["code"], "aide_schedule_owner_reserved")
+
 
 class JarvisSchedulerRaceTest(unittest.TestCase):
     def test_two_workers_cannot_claim_the_same_run(self):

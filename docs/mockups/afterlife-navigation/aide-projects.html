@@ -1,0 +1,1919 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="KOKUEN starter for the Alles Aide task workspace.">
+  <title>Aide - KOKUEN starter</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #090909;
+      --sidebar: #111111;
+      --panel: #101010;
+      --raised: #181818;
+      --raised-strong: #202020;
+      --text: #efede9;
+      --soft: #c3bfba;
+      --muted: #8d8984;
+      --quiet: #74706c;
+      --line: #2a2a2a;
+      --line-strong: #3b3b3b;
+      --accent: #9298ff;
+      --accent-wash: rgba(146, 152, 255, 0.12);
+      --shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+      --sidebar-width: 258px;
+      --work-panel-width: 318px;
+      --radius-row: 3px;
+      --radius-control: 3px;
+      --radius-surface: 4px;
+      --radius-panel: 5px;
+      --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html,
+    body {
+      width: 100%;
+      min-height: 100%;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-family, "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif);
+      font-feature-settings: "cv11", "ss01", "ss03";
+      -webkit-font-smoothing: antialiased;
+    }
+
+    button,
+    textarea { font: inherit; }
+
+    button {
+      -webkit-appearance: none;
+      appearance: none;
+      color: inherit;
+      outline: 0;
+    }
+
+    [hidden] { display: none !important; }
+
+    .app {
+      width: 100%;
+      height: 100dvh;
+      display: grid;
+      grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+      overflow: hidden;
+      background: var(--bg);
+      transition: grid-template-columns 180ms var(--ease);
+    }
+
+    .app.sidebar-closed { grid-template-columns: 0 minmax(0, 1fr); }
+
+    .sidebar {
+      position: relative;
+      z-index: 20;
+      width: var(--sidebar-width);
+      min-width: 0;
+      height: 100dvh;
+      display: grid;
+      grid-template-rows: auto auto minmax(0, 1fr) auto;
+      overflow: hidden;
+      border-right: 1px solid var(--line-strong);
+      background: var(--sidebar);
+      transform: translateX(0);
+      transition: transform 180ms var(--ease), visibility 180ms;
+    }
+
+    .sidebar-closed .sidebar {
+      visibility: hidden;
+      transform: translateX(-100%);
+      pointer-events: none;
+    }
+
+    .sidebar-head {
+      position: relative;
+      min-height: 52px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+      padding: 4px 8px 4px 12px;
+    }
+
+    .brand {
+      font-size: 1.04rem;
+      font-weight: 650;
+      letter-spacing: -0.025em;
+      transition: opacity 140ms var(--ease), transform 180ms var(--ease);
+    }
+
+    .sidebar-head.search-open .brand {
+      opacity: 0;
+      transform: translateX(-8px);
+    }
+
+    .icon-button {
+      width: 40px;
+      height: 40px;
+      display: grid;
+      flex: 0 0 auto;
+      place-items: center;
+      border: 1px solid transparent;
+      border-radius: var(--radius-control);
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      transition: color 140ms var(--ease), background 140ms var(--ease), border-color 140ms var(--ease);
+    }
+
+    .icon-button:hover {
+      border-color: var(--line);
+      background: var(--raised);
+      color: var(--text);
+    }
+
+    .icon-button svg { width: 18px; height: 18px; }
+
+    .sidebar-search {
+      position: absolute;
+      z-index: 2;
+      top: 4px;
+      left: 8px;
+      right: 8px;
+      height: 44px;
+      display: flex;
+      align-items: center;
+      overflow: visible;
+      isolation: isolate;
+      pointer-events: none;
+    }
+
+    .sidebar-search::before {
+      position: absolute;
+      z-index: -1;
+      inset: 0;
+      border: 1px solid transparent;
+      border-radius: var(--radius-control);
+      background: var(--sidebar);
+      content: "";
+      transform: scaleX(0.18);
+      transform-origin: right center;
+      transition: transform 180ms var(--ease), border-color 180ms var(--ease), background 180ms var(--ease);
+    }
+
+    .sidebar-head.search-open .sidebar-search { pointer-events: auto; }
+
+    .sidebar-head.search-open .sidebar-search::before {
+      border-color: var(--line-strong);
+      background: var(--raised);
+      transform: scaleX(1);
+    }
+
+    .sidebar-search input {
+      min-width: 0;
+      height: 100%;
+      flex: 1 1 auto;
+      padding: 0 0 0 12px;
+      border: 0;
+      outline: 0;
+      background: transparent;
+      color: var(--text);
+      font: inherit;
+      font-size: 0.86rem;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 100ms var(--ease) 20ms;
+    }
+
+    .sidebar-search input::placeholder { color: var(--quiet); }
+
+    .sidebar-head.search-open .sidebar-search input {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    #search-button {
+      width: 44px;
+      height: 44px;
+      border: 0;
+      pointer-events: auto;
+    }
+
+    #search-button:hover {
+      border-color: transparent;
+      background: transparent;
+      color: var(--text);
+    }
+
+    #search-button svg {
+      transform-origin: center;
+      transition: color 140ms var(--ease), transform 140ms var(--ease);
+    }
+
+    #search-button:hover svg { transform: scale(1.08); }
+    #search-button:active svg { transform: scale(0.96); }
+
+    #sidebar-toggle:hover,
+    #sidebar-toggle[aria-expanded="true"],
+    #work-panel-toggle:hover,
+    #work-panel-toggle[aria-expanded="true"] {
+      border-color: transparent;
+      background: transparent;
+      color: var(--muted);
+      box-shadow: none;
+      transform: none;
+    }
+
+    .primary-nav {
+      display: grid;
+      gap: 2px;
+      padding: 2px 8px 10px;
+    }
+
+    .nav-button {
+      width: 100%;
+      min-height: 36px;
+      display: grid;
+      grid-template-columns: 18px minmax(0, 1fr);
+      align-items: center;
+      gap: 8px;
+      padding: 4px;
+      border: 0;
+      border-radius: var(--radius-row);
+      background: transparent;
+      color: var(--soft);
+      text-align: left;
+      font-size: 0.88rem;
+      cursor: pointer;
+    }
+
+    .nav-button:hover,
+    .nav-button.active { background: var(--raised); color: var(--text); }
+    .nav-button svg { width: 18px; height: 18px; color: var(--muted); }
+    .nav-button.active svg { color: var(--accent); }
+
+    .sidebar-scroll {
+      min-height: 0;
+      overflow-y: auto;
+      padding: 4px 8px 12px;
+      scrollbar-width: thin;
+      scrollbar-color: var(--line-strong) transparent;
+    }
+
+    .tool-button {
+      grid-template-columns: 18px minmax(0, 1fr);
+      gap: 8px;
+      padding-left: 4px;
+      font-size: 0.86rem;
+    }
+
+    .section-label {
+      display: block;
+      margin: 14px 4px 7px;
+      color: var(--quiet);
+      font-size: 0.92rem;
+      font-weight: 650;
+      line-height: 1.2;
+    }
+
+    .project-list,
+    .task-list,
+    .thread-list { list-style: none; }
+
+    .project-list { display: grid; gap: 5px; }
+    .task-list {
+      display: grid;
+      gap: 2px;
+      margin-bottom: 12px;
+    }
+
+    .task-list .thread-button {
+      padding: 0 4px;
+      font-size: 0.82rem;
+    }
+
+    .project-button,
+    .thread-button {
+      width: 100%;
+      border: 0;
+      background: transparent;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .project-button {
+      min-height: 36px;
+      display: grid;
+      grid-template-columns: 18px minmax(0, 1fr);
+      align-items: center;
+      gap: 8px;
+      padding: 0 4px;
+      border-radius: var(--radius-row);
+      color: var(--soft);
+      font-size: 0.89rem;
+      font-weight: 560;
+    }
+
+    .project-button:hover { background: var(--raised); color: var(--text); }
+
+    .folder-icon { width: 18px; height: 18px; color: var(--muted); }
+    .project-button[aria-expanded="true"] .folder-closed,
+    .project-button[aria-expanded="false"] .folder-open { display: none; }
+
+    .thread-list {
+      display: grid;
+      gap: 2px;
+      margin: 2px 0 8px;
+    }
+
+    .thread-button {
+      position: relative;
+      min-height: 34px;
+      overflow: hidden;
+      padding: 0 4px 0 30px;
+      border-radius: var(--radius-row);
+      color: var(--muted);
+      font-size: 0.82rem;
+      line-height: 1.25;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .thread-button:hover { background: var(--raised); color: var(--text); }
+    .thread-button.selected { background: var(--raised-strong); color: var(--text); }
+
+    .running-mark {
+      position: absolute;
+      top: 50%;
+      right: 0.65rem;
+      width: 10px;
+      height: 10px;
+      border: 1px solid var(--quiet);
+      border-top-color: var(--soft);
+      border-radius: 50%;
+      transform: translateY(-50%);
+    }
+
+    .sidebar-foot {
+      min-height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 2px 8px 4px 12px;
+    }
+
+    .settings-button {
+      min-height: 36px;
+      padding: 0 4px;
+      border: 0;
+      background: transparent;
+      color: var(--muted);
+      font-size: 0.84rem;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .settings-button:hover { color: var(--text); }
+
+    .home-button {
+      width: 40px;
+      height: 40px;
+      display: grid;
+      place-items: center;
+      border: 1px solid transparent;
+      border-radius: var(--radius-control);
+      color: var(--muted);
+      text-decoration: none;
+      transition: color 140ms var(--ease);
+    }
+
+    .home-button:hover { color: var(--text); }
+    .home-button svg { width: 18px; height: 18px; }
+
+    .scrim {
+      position: fixed;
+      inset: 0;
+      z-index: 15;
+      display: none;
+      border: 0;
+      background: rgba(0, 0, 0, 0.58);
+      opacity: 1;
+      pointer-events: none;
+      transition: opacity 180ms var(--ease);
+    }
+
+    .sidebar-closed .scrim { opacity: 0; }
+
+    .workspace {
+      position: relative;
+      width: 100%;
+      height: 100dvh;
+      min-width: 0;
+      min-height: 0;
+      overflow: hidden;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 0;
+      transition: grid-template-columns 180ms var(--ease);
+    }
+
+    .panel-open .workspace {
+      grid-template-columns: minmax(0, 1fr) min(var(--work-panel-width), 34vw);
+    }
+
+    .aide-main {
+      position: relative;
+      height: 100%;
+      min-width: 0;
+      min-height: 0;
+      display: grid;
+      grid-template-rows: 54px minmax(0, 1fr) auto;
+      overflow: hidden;
+      background: var(--bg);
+    }
+
+    .taskbar {
+      min-width: 0;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 40px;
+      align-items: center;
+      gap: 1rem;
+      padding: 0 0.78rem;
+    }
+
+    .taskbar-left,
+    .taskbar-right { display: flex; align-items: center; min-width: 0; }
+    .taskbar-right { justify-content: flex-end; }
+
+    .current-context {
+      min-width: 0;
+      min-height: 40px;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.52rem;
+      padding: 0 0.48rem;
+      border: 1px solid transparent;
+      border-radius: var(--radius-row);
+      background: transparent;
+      color: var(--text);
+      font-size: 0.92rem;
+      font-weight: 590;
+    }
+
+    .current-context svg { width: 18px; height: 18px; flex: 0 0 auto; color: var(--soft); }
+
+    .current-conversation {
+      min-width: 0;
+      overflow: hidden;
+      color: var(--text);
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .current-project {
+      flex: 0 0 auto;
+      color: var(--quiet);
+      font-size: 0.82rem;
+      font-weight: 480;
+    }
+
+    .current-context[data-context-kind="task"] .context-folder-icon,
+    .current-context[data-context-kind="task"] .current-project { display: none; }
+
+    .conversation {
+      min-height: 0;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      scrollbar-gutter: stable;
+    }
+
+    .message-rail {
+      position: absolute;
+      z-index: 4;
+      top: 50%;
+      bottom: auto;
+      left: 0.42rem;
+      width: 28px;
+      height: auto;
+      overflow: visible;
+      pointer-events: auto;
+      transform: translateY(-50%);
+    }
+
+    .message-rail-track {
+      width: 100%;
+      height: auto;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: stretch;
+      overflow: visible;
+    }
+
+    .message-tick {
+      --tick-scale: 1;
+      width: 100%;
+      height: 9px;
+      flex: 0 0 9px;
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      padding-left: 2px;
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+      cursor: pointer;
+      pointer-events: auto;
+    }
+
+    .message-tick::before {
+      width: 8px;
+      height: 2px;
+      flex: 0 0 auto;
+      background: var(--line-strong);
+      content: "";
+      transform: scaleX(var(--tick-scale));
+      transform-origin: left center;
+      transition: background 100ms var(--ease), transform 100ms var(--ease);
+    }
+
+    .message-tick:focus-visible { --tick-scale: 6; }
+    .message-tick:focus-visible::before { background: var(--soft); }
+    .message-tick.current { --tick-scale: 2.5; }
+    .message-tick.current::before { background: var(--text); }
+
+    .conversation-inner {
+      width: min(760px, 100%);
+      min-height: 100%;
+      margin: 0 auto;
+      padding: clamp(1.8rem, 5vh, 3rem) clamp(1rem, 4vw, 1.45rem) 2rem;
+    }
+
+    .thread-head { margin-bottom: 1.8rem; }
+
+    .conversation h1 {
+      font-size: clamp(1.15rem, 1.8vw, 1.34rem);
+      font-weight: 610;
+      letter-spacing: -0.035em;
+      line-height: 1.2;
+    }
+
+    .message { max-width: 660px; }
+    .message + .message { margin-top: 1.8rem; }
+
+    .user-message {
+      width: fit-content;
+      max-width: min(620px, 88%);
+      margin-left: auto;
+      padding: 0.78rem 0.9rem;
+      border-radius: var(--radius-surface);
+      background: var(--raised);
+    }
+
+    .aide-message { margin-right: auto; }
+
+    .conversation p {
+      color: var(--text);
+      font-size: 1rem;
+      line-height: 1.64;
+      text-wrap: pretty;
+    }
+
+    .answer-list {
+      margin: 0.9rem 0 0 1.2rem;
+      color: var(--soft);
+      font-size: 0.98rem;
+      line-height: 1.62;
+    }
+
+    .answer-list li + li { margin-top: 0.38rem; }
+
+    .thinking-block { margin-bottom: 1rem; }
+
+    .work-summary {
+      display: flex;
+      align-items: center;
+      gap: 0.58rem;
+      color: var(--muted);
+      font-size: 0.86rem;
+    }
+
+    .work-summary svg { width: 17px; height: 17px; color: var(--muted); }
+
+    .steps-toggle {
+      min-height: 38px;
+      margin-top: 0.45rem;
+      padding: 0 0.15rem;
+      border: 0;
+      background: transparent;
+      color: var(--muted);
+      font-size: 0.86rem;
+      cursor: pointer;
+    }
+
+    .steps-toggle:hover { color: var(--text); }
+
+    .steps-panel {
+      margin-top: 0.55rem;
+      padding: 0.2rem 0 0.2rem 1rem;
+      border-left: 1px solid var(--line-strong);
+      color: var(--muted);
+      font-size: 0.86rem;
+      line-height: 1.58;
+    }
+
+    .step + .step { margin-top: 0.34rem; }
+
+    .empty-view {
+      min-height: 42vh;
+      display: grid;
+      align-content: center;
+      justify-items: start;
+    }
+
+    .empty-view h1 { font-size: clamp(1.7rem, 3vw, 2.25rem); }
+    .empty-view p { margin-top: 0.65rem; color: var(--muted); font-size: 0.97rem; }
+
+    .utility-view { width: min(700px, 100%); }
+    .utility-view h1 { margin-bottom: 0.5rem; }
+    .utility-intro { color: var(--muted) !important; font-size: 0.95rem !important; }
+    .utility-list { margin-top: 2rem; }
+
+    .utility-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 1rem;
+      padding: 1rem 0;
+    }
+
+    .utility-row + .utility-row { border-top: 1px solid var(--line); }
+    .utility-row strong { display: block; font-size: 0.98rem; font-weight: 590; }
+    .utility-row span { display: block; margin-top: 0.28rem; color: var(--muted); font-size: 0.86rem; }
+    .utility-row time { color: var(--soft); font-size: 0.86rem; }
+
+    .composer-wrap {
+      width: min(820px, 100%);
+      margin: 0 auto;
+      padding: 0.55rem clamp(0.7rem, 2.4vw, 1.25rem) 0.8rem;
+      background: linear-gradient(to bottom, rgba(9, 9, 9, 0), var(--bg) 22%);
+    }
+
+    .composer {
+      min-height: 106px;
+      padding: 0.72rem 0.78rem 0.62rem;
+      border: 1px solid var(--line-strong);
+      border-radius: var(--radius-panel);
+      background: var(--panel);
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 46px;
+      max-height: 150px;
+      display: block;
+      resize: none;
+      border: 0;
+      outline: 0;
+      box-shadow: none;
+      background: transparent;
+      color: var(--text);
+      caret-color: var(--text);
+      font-size: 1rem;
+      line-height: 1.52;
+    }
+
+    textarea::placeholder { color: var(--muted); }
+    textarea:focus-visible { outline: 0; }
+
+    .composer-actions {
+      min-height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.7rem;
+      margin-top: 0.45rem;
+    }
+
+    .composer-left,
+    .composer-right { display: flex; align-items: center; gap: 0.36rem; min-width: 0; }
+
+    .menu-anchor { position: relative; }
+
+    .composer-button {
+      min-height: 36px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.46rem;
+      border: 1px solid transparent;
+      border-radius: var(--radius-control);
+      background: transparent;
+      color: var(--muted);
+      font-size: 0.86rem;
+      cursor: pointer;
+    }
+
+    .composer-button:hover,
+    .composer-button[aria-expanded="true"] {
+      border-color: var(--line-strong);
+      background: var(--panel);
+      color: var(--text);
+    }
+
+    .plus-button,
+    .mic-button { width: 36px; padding: 0; }
+    .composer-button svg { width: 17px; height: 17px; }
+    .mic-button svg { width: 18px; height: 18px; }
+
+    .permission-button {
+      padding: 0 0.52rem;
+      color: var(--soft);
+    }
+
+    .permission-button[data-permission="auto mode"],
+    .permission-button[data-permission="auto mode"]:hover,
+    .permission-button[data-permission="auto mode"][aria-expanded="true"] { color: var(--accent); }
+
+    .list-option[data-permission="auto mode"] .option-copy strong { color: var(--accent); }
+    .permission-short { display: none; }
+
+    .runtime-button { padding: 0 0.52rem; color: var(--soft); }
+    .runtime-effort { color: var(--muted); }
+
+    .send-button {
+      width: 36px;
+      height: 36px;
+      display: grid;
+      place-items: center;
+      border: 0;
+      border-radius: var(--radius-surface);
+      background: var(--raised-strong);
+      color: var(--text);
+      cursor: pointer;
+      transition: background 140ms var(--ease), opacity 140ms var(--ease);
+    }
+
+    .send-button:hover { background: #262626; }
+    .send-button svg { width: 18px; height: 18px; }
+
+    .popover {
+      position: absolute;
+      bottom: calc(100% + 8px);
+      z-index: 40;
+      padding: 0.42rem;
+      border: 1px solid var(--line-strong);
+      border-radius: var(--radius-panel);
+      background: #151515;
+      box-shadow: var(--shadow);
+    }
+
+    .attach-menu { left: 0; width: 238px; }
+    .permission-menu { left: 0; width: 270px; }
+    .runtime-menu { right: 0; width: 286px; padding: 0.55rem; }
+
+    .menu-item,
+    .list-option {
+      width: 100%;
+      min-height: 44px;
+      display: grid;
+      grid-template-columns: 22px minmax(0, 1fr);
+      align-items: center;
+      gap: 0.68rem;
+      padding: 0.55rem 0.62rem;
+      border: 0;
+      border-radius: var(--radius-row);
+      background: transparent;
+      color: var(--soft);
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .menu-item:hover,
+    .menu-item:focus-visible,
+    .list-option:hover,
+    .list-option:focus-visible { background: var(--raised-strong); color: var(--text); }
+
+    .menu-item svg,
+    .list-option > svg { width: 19px; height: 19px; color: var(--muted); }
+
+    .menu-copy strong,
+    .option-copy strong { display: block; font-size: 0.9rem; font-weight: 590; }
+    .menu-copy small,
+    .option-copy small { display: block; margin-top: 0.18rem; color: var(--muted); font-size: 0.76rem; line-height: 1.35; }
+
+    .list-option { grid-template-columns: minmax(0, 1fr) 18px; }
+    .list-option[aria-selected="true"] { background: var(--accent-wash); color: var(--text); }
+
+    .selection-mark {
+      width: 8px;
+      height: 8px;
+      justify-self: center;
+      border-radius: 50%;
+      background: transparent;
+    }
+
+    .list-option[aria-selected="true"] .selection-mark { background: var(--accent); }
+
+    .permission-menu .list-option[aria-selected="true"] {
+      background: var(--raised-strong);
+      color: var(--text);
+    }
+
+    .permission-menu .list-option[aria-selected="true"] .selection-mark { background: var(--soft); }
+    .permission-menu .list-option[data-permission="auto mode"][aria-selected="true"] { background: var(--accent-wash); }
+    .permission-menu .list-option[data-permission="auto mode"][aria-selected="true"] .selection-mark { background: var(--accent); }
+
+    .menu-section-label {
+      display: block;
+      margin: 0.25rem 0.55rem 0.4rem;
+      color: var(--quiet);
+      font-size: 0.76rem;
+      font-weight: 620;
+    }
+
+    .effort-group {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.3rem;
+      margin: 0.4rem 0 0.2rem;
+    }
+
+    .effort-option {
+      min-height: 38px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-row);
+      background: transparent;
+      color: var(--muted);
+      font-size: 0.83rem;
+      cursor: pointer;
+    }
+
+    .effort-option:hover { color: var(--text); border-color: var(--line-strong); }
+    .effort-option[aria-pressed="true"] { border-color: rgba(146, 152, 255, 0.55); background: var(--accent-wash); color: var(--text); }
+
+    .runtime-note {
+      margin: 0.65rem 0.35rem 0.2rem;
+      color: var(--muted);
+      font-size: 0.75rem;
+      line-height: 1.4;
+    }
+
+    .work-panel {
+      position: relative;
+      z-index: 10;
+      grid-column: 2;
+      width: 100%;
+      height: 100dvh;
+      min-width: 0;
+      min-height: 0;
+      display: grid;
+      grid-template-rows: 54px minmax(0, 1fr);
+      overflow: hidden;
+      border-left: 1px solid var(--line-strong);
+      border-radius: 0;
+      background: var(--sidebar);
+      box-shadow: none;
+    }
+
+    .panel-head {
+      min-height: 54px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+      padding: 0 7px 0 14px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .panel-heading { display: flex; align-items: center; gap: 4px; }
+    .panel-title { font-size: 0.9rem; font-weight: 610; }
+
+    .panel-back {
+      width: 32px;
+      height: 32px;
+      display: grid;
+      place-items: center;
+      border: 0;
+      border-radius: var(--radius-control);
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+    }
+
+    .panel-back:hover { color: var(--text); }
+    .panel-back svg { width: 17px; height: 17px; }
+
+    .panel-body {
+      grid-row: 2;
+      min-height: 0;
+      overflow: auto;
+      padding: 18px 14px;
+    }
+
+    .work-panel.terminal-view .panel-body {
+      overflow: hidden;
+      padding: 0;
+    }
+
+    .task-tool-list { display: grid; gap: 5px; }
+
+    .task-tool-button {
+      width: 100%;
+      min-height: 44px;
+      display: grid;
+      grid-template-columns: 19px minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 10px;
+      padding: 0 10px;
+      border: 0;
+      border-radius: var(--radius-row);
+      background: var(--raised);
+      color: var(--soft);
+      font-size: 0.88rem;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .task-tool-button:hover,
+    .task-tool-button[aria-pressed="true"] { background: var(--raised-strong); color: var(--text); }
+    .task-tool-button svg { width: 17px; height: 17px; color: var(--muted); }
+    .task-tool-button kbd { color: var(--quiet); font: 0.7rem ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+    .tool-output {
+      margin-top: 18px;
+      padding-top: 16px;
+      border-top: 1px solid var(--line);
+    }
+
+    .tool-output h2 { font-size: 0.88rem; font-weight: 610; }
+    .tool-output p { margin-top: 7px; color: var(--muted); font-size: 0.8rem; line-height: 1.5; }
+
+    .tool-output-list {
+      display: grid;
+      gap: 2px;
+      margin-top: 12px;
+    }
+
+    .tool-output-row {
+      min-height: 38px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      color: var(--soft);
+      font-size: 0.8rem;
+    }
+
+    .tool-output-row span:last-child { color: var(--quiet); }
+
+    .terminal-screen { height: 100%; }
+
+    .terminal {
+      height: 100%;
+      min-height: 0;
+      margin: 0;
+      padding: 14px 16px;
+      border-radius: 0;
+      background: #080808;
+      color: var(--soft);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 0.81rem;
+      line-height: 1.5;
+    }
+
+    .terminal-prompt { color: var(--accent); }
+
+    .status-note {
+      position: fixed;
+      top: 0.75rem;
+      left: 50%;
+      z-index: 60;
+      max-width: min(420px, calc(100vw - 2rem));
+      padding: 0.55rem 0.72rem;
+      border: 1px solid var(--line-strong);
+      border-radius: var(--radius-surface);
+      background: #171717;
+      color: var(--soft);
+      font-size: 0.82rem;
+      text-align: center;
+      opacity: 0;
+      transform: translate(-50%, -5px);
+      pointer-events: none;
+      box-shadow: var(--shadow);
+      transition: opacity 140ms var(--ease), transform 140ms var(--ease);
+    }
+
+    .status-note.show { opacity: 1; transform: translate(-50%, 0); }
+
+    :focus-visible { outline: 1px solid var(--accent); outline-offset: 2px; }
+
+    @media (min-width: 761px) {
+      .taskbar .icon-button {
+        width: 32px;
+        height: 32px;
+        border-radius: var(--radius-control);
+      }
+
+      .taskbar .icon-button svg { width: 16px; height: 16px; }
+    }
+
+    @media (max-width: 760px) {
+      :root { --sidebar-width: min(280px, 86vw); }
+      .app,
+      .app.sidebar-closed { display: block; }
+      .workspace,
+      .panel-open .workspace { display: block; }
+      .sidebar {
+        position: fixed;
+        inset: 0 auto 0 0;
+        box-shadow: var(--shadow);
+      }
+      .sidebar-closed .sidebar { visibility: hidden; }
+      .scrim { display: block; }
+      .app:not(.sidebar-closed) .scrim { opacity: 1; pointer-events: auto; }
+      .work-panel {
+        position: fixed;
+        inset: 0 0 0 auto;
+        width: min(330px, 88vw);
+        height: 100dvh;
+        box-shadow: var(--shadow);
+      }
+      .aide-main { height: 100%; min-height: 0; grid-template-rows: 54px minmax(0, 1fr) auto; }
+      .taskbar { padding: 0 0.62rem; }
+      .message-rail { left: 0.12rem; width: 26px; }
+      .message-tick::before { width: 7px; }
+      .message-tick:focus-visible::before { width: 20px; }
+      .conversation-inner { padding-top: 1.55rem; }
+      .message-rail:not([hidden]) + .conversation .conversation-inner { padding-left: 2.2rem; }
+      .thread-head { margin-bottom: 1.45rem; }
+      .message + .message { margin-top: 1.5rem; }
+      .composer-wrap { padding: 0.45rem 0.5rem 0.55rem; }
+      .composer { min-height: 108px; padding: 0.7rem; border-radius: var(--radius-panel); }
+      .composer-actions { gap: 0.28rem; }
+      .composer-left,
+      .composer-right { gap: 0.16rem; }
+      .composer-button { min-height: 44px; }
+      .plus-button,
+      .mic-button { width: 44px; }
+      .send-button { width: 44px; height: 44px; }
+      .permission-button,
+      .runtime-button { padding-inline: 0.46rem; }
+      .permission-long { display: none; }
+      .permission-short { display: inline; }
+      .runtime-effort { display: none; }
+      .attach-menu { width: min(238px, calc(100vw - 1rem)); }
+      .permission-menu { width: min(270px, calc(100vw - 1rem)); }
+      .runtime-menu { width: min(286px, calc(100vw - 1rem)); right: -3rem; }
+      .icon-button { width: 44px; height: 44px; }
+      .nav-button,
+      .project-button,
+      .thread-button,
+      .task-tool-button { min-height: 46px; }
+    }
+
+    @media (max-width: 390px) {
+      .conversation-inner { padding-inline: 0.9rem; }
+      .permission-button { font-size: 0.82rem; }
+      .runtime-button { font-size: 0.82rem; }
+      .composer { padding-inline: 0.66rem; }
+      .runtime-menu { right: -4.7rem; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        scroll-behavior: auto !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app" id="app">
+    <aside class="sidebar" id="sidebar" aria-label="Aide navigation" aria-hidden="false">
+      <header class="sidebar-head">
+        <span class="brand">aide</span>
+        <form class="sidebar-search" id="sidebar-search" role="search">
+          <input id="sidebar-search-input" type="text" aria-label="search tasks" placeholder="search tasks" disabled>
+          <button class="icon-button" id="search-button" type="submit" aria-label="open task search" aria-expanded="false">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 4 4"></path></svg>
+          </button>
+        </form>
+      </header>
+
+      <nav class="primary-nav" aria-label="Aide tools">
+        <button class="nav-button" id="new-task" type="button" data-view="new">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 19h5l9-9a3 3 0 0 0-5-5l-9 9v5Z"></path><path d="m13 6 5 5"></path></svg>
+          <span>new task</span>
+        </button>
+        <button class="nav-button" type="button" data-view="scheduled">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"></circle><path d="M12 7v5l3 2"></path></svg>
+          <span>scheduled</span>
+        </button>
+        <button class="nav-button tool-button" type="button" data-view="brain"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5.5A3.5 3.5 0 0 0 5.5 9c0 .7.2 1.4.6 2A3.5 3.5 0 0 0 8 17.5V19h3V5.5H9Z"></path><path d="M15 5.5A3.5 3.5 0 0 1 18.5 9c0 .7-.2 1.4-.6 2a3.5 3.5 0 0 1-1.9 6.5V19h-3V5.5h2Z"></path></svg><span>brain</span></button>
+        <button class="nav-button tool-button" type="button" data-view="skills"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m14 4 6 6-9 9H5v-6Z"></path><path d="m12 6 6 6M4 20h16"></path></svg><span>skills</span></button>
+        <button class="nav-button tool-button" type="button" data-view="aide-reminders"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9a6 6 0 0 1 12 0c0 6 2 6 2 7H4c0-1 2-1 2-7Z"></path><path d="M10 19h4"></path></svg><span>reminders</span></button>
+        <button class="nav-button tool-button" type="button" data-view="proactive"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v3M12 18v3M3 12h3M18 12h3"></path><circle cx="12" cy="12" r="4.5"></circle><path d="m10.5 12 1 1 2-2"></path></svg><span>proactive</span></button>
+      </nav>
+
+      <div class="sidebar-scroll">
+        <span class="section-label">tasks</span>
+        <ul class="task-list">
+          <li><button class="thread-button" type="button" data-context-kind="task">morning plan</button></li>
+          <li><button class="thread-button" type="button" data-context-kind="task">quick questions</button></li>
+        </ul>
+
+        <span class="section-label">projects</span>
+        <ul class="project-list">
+          <li>
+            <button class="project-button" type="button" aria-expanded="true" aria-controls="threads-alles">
+              <svg class="folder-icon folder-closed" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 6.5h6l2-2h9v14h-17z"></path></svg>
+              <svg class="folder-icon folder-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 8V6.5h6l2-2h5l2 3H21"></path><path d="M3 9h18l-2 10H5Z"></path></svg>
+              <span>alles</span>
+            </button>
+            <ul class="thread-list" id="threads-alles">
+              <li><button class="thread-button selected" type="button" data-project="alles" data-context-kind="project">today priorities</button></li>
+              <li><button class="thread-button" type="button" data-project="alles" data-context-kind="project">afterlife interface</button></li>
+              <li><button class="thread-button" type="button" data-project="alles" data-context-kind="project">make andromeda faster<span class="running-mark" aria-label="running"></span></button></li>
+            </ul>
+          </li>
+
+          <li>
+            <button class="project-button" type="button" aria-expanded="false" aria-controls="threads-kokuen">
+              <svg class="folder-icon folder-closed" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 6.5h6l2-2h9v14h-17z"></path></svg>
+              <svg class="folder-icon folder-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 8V6.5h6l2-2h5l2 3H21"></path><path d="M3 9h18l-2 10H5Z"></path></svg>
+              <span>kokuen</span>
+            </button>
+            <ul class="thread-list" id="threads-kokuen" hidden>
+              <li><button class="thread-button" type="button" data-project="kokuen" data-context-kind="project">clean up browser shell</button></li>
+            </ul>
+          </li>
+        </ul>
+      </div>
+
+      <footer class="sidebar-foot">
+        <button class="settings-button" id="settings-button" type="button">settings</button>
+        <a class="home-button" href="home.html" aria-label="go to Alles home">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 10 8-6 8 6v9H5v-9"></path><path d="M9 19v-6h6v6"></path></svg>
+        </a>
+      </footer>
+    </aside>
+
+    <button class="scrim" id="scrim" type="button" aria-label="close navigation" tabindex="-1"></button>
+
+    <div class="workspace">
+      <main class="aide-main">
+        <header class="taskbar">
+          <div class="taskbar-left">
+            <button class="icon-button" id="sidebar-toggle" type="button" aria-label="hide tasks and projects" aria-controls="sidebar" aria-expanded="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="4" width="17" height="16" rx="2.5"></rect><path d="M9 4v16"></path></svg>
+            </button>
+            <div class="current-context" id="current-context" data-context-kind="project">
+              <svg class="context-folder-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 8V6.5h6l2-2h5l2 3H21"></path><path d="M3 9h18l-2 10H5Z"></path></svg>
+              <span class="current-conversation" id="current-conversation-label">today priorities</span>
+              <span class="current-project" id="current-project-label">alles</span>
+            </div>
+          </div>
+          <div class="taskbar-right">
+            <button class="icon-button" id="work-panel-toggle" type="button" aria-label="open task tools" aria-controls="work-panel" aria-expanded="false">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="4" width="17" height="16" rx="2"></rect><path d="M15 4v16"></path></svg>
+            </button>
+          </div>
+        </header>
+
+        <nav class="message-rail" id="message-rail" aria-label="messages from you" hidden>
+          <div class="message-rail-track" id="message-rail-track"></div>
+        </nav>
+
+        <section class="conversation" id="conversation" aria-labelledby="current-conversation-label">
+          <div class="conversation-inner" id="conversation-inner">
+            <article class="message user-message" id="user-message-1">
+              <p>What should I handle first today, and what can you take care of?</p>
+            </article>
+
+            <article class="message aide-message">
+              <div class="thinking-block">
+                <div class="work-summary">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m14 7 3-3 3 3-3 3"></path><path d="M17 4v8a5 5 0 0 1-5 5H4"></path></svg>
+                  <span>checked calendar, tasks, and finance</span>
+                </div>
+                <button class="steps-toggle" type="button" aria-expanded="false" aria-controls="steps-panel">show steps</button>
+                <div class="steps-panel" id="steps-panel" hidden>
+                  <div class="step">read today's events and selected tasks</div>
+                  <div class="step">checked overdue items and upcoming renewals</div>
+                  <div class="step">kept changes as drafts until you approve them</div>
+                </div>
+              </div>
+              <p>Handle the tax documents first. They are overdue and need your files. I can prepare the rest around that.</p>
+              <ul class="answer-list">
+                <li>Draft a dentist reschedule message for your approval.</li>
+                <li>Review the two renewals before they charge.</li>
+                <li>Keep the 09:30 standup visible while you work.</li>
+              </ul>
+            </article>
+
+            <article class="message user-message" id="user-message-2">
+              <p>Draft the dentist message, but do not send it.</p>
+            </article>
+
+            <article class="message aide-message">
+              <p>The draft is ready and waiting for your approval. Nothing was sent.</p>
+            </article>
+
+            <article class="message user-message" id="user-message-3">
+              <p>Check the renewals and tell me which one is urgent.</p>
+            </article>
+
+            <article class="message aide-message">
+              <p>Netflix is the urgent one because it renews tomorrow. Spotify renews in two days.</p>
+            </article>
+
+            <article class="message user-message" id="user-message-4">
+              <p>Keep the standup visible while I work on the taxes.</p>
+            </article>
+
+            <article class="message aide-message">
+              <p>The 09:30 standup is pinned for today. I will warn you ten minutes before it starts.</p>
+            </article>
+
+            <article class="message user-message" id="user-message-5">
+              <p>Good. Leave the tax files at the top and wait for me.</p>
+            </article>
+
+            <article class="message aide-message">
+              <p>Done. The tax task stays first, and I will not change anything until you add the files.</p>
+            </article>
+          </div>
+        </section>
+
+        <div class="composer-wrap">
+          <form class="composer" id="composer">
+            <textarea rows="2" aria-label="message aide" placeholder="message aide..."></textarea>
+            <div class="composer-actions">
+              <div class="composer-left">
+                <div class="menu-anchor">
+                  <button class="composer-button plus-button" id="plus-button" type="button" aria-label="add files, apps, or connections" aria-haspopup="menu" aria-expanded="false" aria-controls="attach-menu">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>
+                  </button>
+                  <div class="popover attach-menu" id="attach-menu" role="menu" aria-label="add context" hidden>
+                    <button class="menu-item" type="button" role="menuitem" data-add="files">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 6.5h6l2-2h9v14h-17z"></path></svg>
+                      <span class="menu-copy"><strong>files</strong><small>add local or online files</small></span>
+                    </button>
+                    <button class="menu-item" type="button" role="menuitem" data-add="photos">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="15" rx="2"></rect><circle cx="9" cy="10" r="2"></circle><path d="m5 17 4-4 3 3 2-2 5 5"></path></svg>
+                      <span class="menu-copy"><strong>photos</strong><small>choose from approved libraries</small></span>
+                    </button>
+                    <button class="menu-item" type="button" role="menuitem" data-add="apps">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="4" y="4" width="6" height="6" rx="1"></rect><rect x="14" y="4" width="6" height="6" rx="1"></rect><rect x="4" y="14" width="6" height="6" rx="1"></rect><rect x="14" y="14" width="6" height="6" rx="1"></rect></svg>
+                      <span class="menu-copy"><strong>apps</strong><small>bring in Plan, Docs, Finance, or more</small></span>
+                    </button>
+                    <button class="menu-item" type="button" role="menuitem" data-add="connections">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M8 8a4 4 0 0 1 6-3.5l1 .7"></path><path d="M16 16a4 4 0 0 1-6 3.5l-1-.7"></path><path d="m8.5 15.5 7-7"></path></svg>
+                      <span class="menu-copy"><strong>connections</strong><small>use an approved external service</small></span>
+                    </button>
+                  </div>
+                </div>
+
+                <div class="menu-anchor">
+                  <button class="composer-button permission-button" id="permission-button" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="permission-menu" aria-label="permission: ask for approval" data-permission="ask for approval">
+                    <span class="permission-long" id="permission-label">ask for approval</span>
+                    <span class="permission-short" id="permission-short">ask</span>
+                  </button>
+                  <div class="popover permission-menu" id="permission-menu" role="listbox" aria-label="task permission" hidden>
+                    <button class="list-option" type="button" role="option" aria-selected="false" data-permission="auto mode" data-short="auto">
+                      <span class="option-copy"><strong>auto mode</strong><small>full permission for this task</small></span>
+                      <span class="selection-mark" aria-hidden="true"></span>
+                    </button>
+                    <button class="list-option" type="button" role="option" aria-selected="true" data-permission="ask for approval" data-short="ask">
+                      <span class="option-copy"><strong>ask for approval</strong><small>ask before meaningful changes</small></span>
+                      <span class="selection-mark" aria-hidden="true"></span>
+                    </button>
+                    <button class="list-option" type="button" role="option" aria-selected="false" data-permission="plan" data-short="plan">
+                      <span class="option-copy"><strong>plan</strong><small>read and plan without making changes</small></span>
+                      <span class="selection-mark" aria-hidden="true"></span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="composer-right">
+                <div class="menu-anchor">
+                  <button class="composer-button runtime-button" id="runtime-button" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="runtime-menu">
+                    <span id="runtime-model">automatic</span>
+                    <span class="runtime-effort" id="runtime-effort">medium</span>
+                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="m4 6 4 4 4-4"></path></svg>
+                  </button>
+                  <div class="popover runtime-menu" id="runtime-menu" role="dialog" aria-label="model and effort" hidden>
+                    <span class="menu-section-label">model for this task</span>
+                    <div id="model-list" role="listbox" aria-label="model">
+                      <button class="list-option" type="button" role="option" aria-selected="true" data-model="automatic">
+                        <span class="option-copy"><strong>automatic</strong><small>choose the best configured model</small></span>
+                        <span class="selection-mark" aria-hidden="true"></span>
+                      </button>
+                      <button class="list-option" type="button" role="option" aria-selected="false" data-model="local fast">
+                        <span class="option-copy"><strong>local fast</strong><small>quick, private everyday work</small></span>
+                        <span class="selection-mark" aria-hidden="true"></span>
+                      </button>
+                      <button class="list-option" type="button" role="option" aria-selected="false" data-model="local quality">
+                        <span class="option-copy"><strong>local quality</strong><small>slower, stronger local work</small></span>
+                        <span class="selection-mark" aria-hidden="true"></span>
+                      </button>
+                    </div>
+                    <span class="menu-section-label">effort</span>
+                    <div class="effort-group" role="group" aria-label="effort">
+                      <button class="effort-option" type="button" aria-pressed="false" data-effort="low">low</button>
+                      <button class="effort-option" type="button" aria-pressed="true" data-effort="medium">medium</button>
+                      <button class="effort-option" type="button" aria-pressed="false" data-effort="high">high</button>
+                    </div>
+                    <p class="runtime-note">provider setup, defaults, and Cookbook live in Settings → AI and models.</p>
+                  </div>
+                </div>
+
+                <button class="composer-button mic-button" id="mic-button" type="button" aria-label="start speech input">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><rect x="9" y="3" width="6" height="12" rx="3"></rect><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v3"></path></svg>
+                </button>
+                <button class="send-button" type="submit" aria-label="send message">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M6.5 10.5 12 5l5.5 5.5"></path></svg>
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </main>
+
+      <aside class="work-panel" id="work-panel" aria-label="Task tools" aria-hidden="true" inert hidden>
+        <header class="panel-head">
+          <div class="panel-heading">
+            <button class="panel-back" id="panel-back" type="button" aria-label="back to task tools" hidden>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m14.5 6-6 6 6 6"></path></svg>
+            </button>
+            <span class="panel-title" id="panel-title">task tools</span>
+          </div>
+          <button class="icon-button" id="panel-close" type="button" aria-label="close task tools">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="m7 7 10 10M17 7 7 17"></path></svg>
+          </button>
+        </header>
+        <div class="panel-body">
+          <nav class="task-tool-list" aria-label="Tools for this task">
+            <button class="task-tool-button" type="button" data-tool="review" aria-pressed="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"></rect><path d="M8 12h8M12 8v8"></path></svg><span>review</span><kbd>⌃⇧G</kbd></button>
+            <button class="task-tool-button" type="button" data-tool="terminal" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="4" width="17" height="16" rx="2"></rect><path d="m7 9 3 3-3 3M13 15h4"></path></svg><span>terminal</span></button>
+            <button class="task-tool-button" type="button" data-tool="browser" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="12" cy="12" r="8.5"></circle><path d="M3.5 12h17M12 3.5c2.4 2.5 3.5 5.3 3.5 8.5S14.4 18 12 20.5M12 3.5C9.6 6 8.5 8.8 8.5 12s1.1 6 3.5 8.5"></path></svg><span>browser</span><kbd>⌘T</kbd></button>
+            <button class="task-tool-button" type="button" data-tool="files" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 6.5h6l2-2h9v14h-17z"></path></svg><span>files</span><kbd>⌘P</kbd></button>
+            <button class="task-tool-button" type="button" data-tool="side task" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="12" cy="12" r="8.5"></circle><path d="M12 8v8M8 12h8"></path></svg><span>side task</span><kbd>⌥⌘S</kbd></button>
+          </nav>
+          <section class="tool-output" id="tool-output" aria-live="polite">
+            <h2 id="tool-output-title">review</h2>
+            <p id="tool-output-copy">See what Aide used and what it is waiting for in this task.</p>
+            <div class="tool-output-list" id="tool-output-list">
+              <div class="tool-output-row"><span>5 messages</span><span>current task</span></div>
+              <div class="tool-output-row"><span>2 source notes</span><span>local</span></div>
+              <div class="tool-output-row"><span>no changes pending</span><span>safe</span></div>
+            </div>
+          </section>
+          <section class="terminal-screen" id="terminal-screen" aria-label="Terminal" hidden>
+            <div class="terminal"><span class="terminal-prompt">alles $</span> server status<br>ready on localhost<br><br><span class="terminal-prompt">alles $</span> <span aria-hidden="true">▌</span></div>
+          </section>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <div class="status-note" id="status-note" role="status" aria-live="polite"></div>
+
+  <script>
+    const app = document.querySelector("#app");
+    const sidebar = document.querySelector("#sidebar");
+    const sidebarToggle = document.querySelector("#sidebar-toggle");
+    const workspace = document.querySelector(".workspace");
+    const aideMain = document.querySelector(".aide-main");
+    const sidebarHead = document.querySelector(".sidebar-head");
+    const searchForm = document.querySelector("#sidebar-search");
+    const searchButton = document.querySelector("#search-button");
+    const searchInput = document.querySelector("#sidebar-search-input");
+    const scrim = document.querySelector("#scrim");
+    const conversation = document.querySelector("#conversation");
+    const conversationInner = document.querySelector("#conversation-inner");
+    const initialConversation = conversationInner.innerHTML;
+    const currentContext = document.querySelector("#current-context");
+    const currentConversationLabel = document.querySelector("#current-conversation-label");
+    const currentProjectLabel = document.querySelector("#current-project-label");
+    const messageRail = document.querySelector("#message-rail");
+    const messageRailTrack = document.querySelector("#message-rail-track");
+    const workPanel = document.querySelector("#work-panel");
+    const workPanelToggle = document.querySelector("#work-panel-toggle");
+    const statusNote = document.querySelector("#status-note");
+    const textarea = document.querySelector("#composer textarea");
+    const mobileQuery = window.matchMedia("(max-width: 760px)");
+    let statusTimer;
+    let railFrame;
+
+    const viewData = {
+      scheduled: {
+        title: "scheduled",
+        intro: "Tasks and recurring automations Aide should handle later.",
+        rows: [
+          ["morning brief", "calendar, tasks, and finance", "daily · 08:00"],
+          ["service heartbeat", "only report problems that need you", "every 30 min"],
+          ["subscription check", "review renewals before they charge", "friday · 18:00"]
+        ]
+      },
+      brain: {
+        title: "brain",
+        intro: "The memory and knowledge Aide can use while helping you.",
+        rows: [
+          ["working memory", "the current task and recent context", "this task"],
+          ["saved memory", "preferences and facts you approved", "local"],
+          ["knowledge", "vault notes and connected sources", "on demand"]
+        ]
+      },
+      skills: {
+        title: "skills",
+        intro: "Focused abilities Aide can use when a task needs them.",
+        rows: [
+          ["browser", "open and check pages with your approval", "ready"],
+          ["documents", "read and work with common file types", "ready"],
+          ["connections", "use services you have enabled", "managed"]
+        ]
+      },
+      "aide-reminders": {
+        title: "reminders",
+        intro: "Things Aide should bring back at the right time.",
+        rows: [
+          ["tax files", "keep this at the top until files are added", "today"],
+          ["standup", "warn ten minutes before it starts", "09:20"],
+          ["renewals", "review the next subscriptions before charge", "tomorrow"]
+        ]
+      },
+      proactive: {
+        title: "proactive",
+        intro: "Background checks that stay quiet unless something needs you.",
+        rows: [
+          ["heartbeat", "check that Alles services are healthy", "every 30 min"],
+          ["urgent tasks", "surface overdue work without changing it", "enabled"],
+          ["daily brief", "prepare a short start-of-day summary", "08:00"]
+        ]
+      }
+    };
+
+    function showStatus(message) {
+      statusNote.textContent = message;
+      statusNote.classList.add("show");
+      clearTimeout(statusTimer);
+      statusTimer = setTimeout(() => statusNote.classList.remove("show"), 1700);
+    }
+
+    function closeAllPopovers(except) {
+      document.querySelectorAll(".popover").forEach((popover) => {
+        if (popover === except) return;
+        popover.hidden = true;
+        const button = document.querySelector('[aria-controls="' + popover.id + '"]');
+        if (button) button.setAttribute("aria-expanded", "false");
+      });
+    }
+
+    function setPopover(button, popover, open, focusTarget) {
+      closeAllPopovers(open ? popover : null);
+      button.setAttribute("aria-expanded", String(open));
+      popover.hidden = !open;
+      if (open && focusTarget) {
+        const target = popover.querySelector(focusTarget);
+        if (target) target.focus();
+      }
+    }
+
+    function closePopoverAndFocus(popover) {
+      const button = document.querySelector('[aria-controls="' + popover.id + '"]');
+      if (!button) return;
+      setPopover(button, popover, false);
+      button.focus();
+    }
+
+    function setSearchOpen(open, focusInput = false) {
+      sidebarHead.classList.toggle("search-open", open);
+      searchButton.setAttribute("aria-expanded", String(open));
+      searchButton.setAttribute("aria-label", open ? "search tasks" : "open task search");
+      searchInput.disabled = !open;
+      if (open && focusInput) requestAnimationFrame(() => searchInput.focus());
+      if (!open) searchInput.value = "";
+    }
+
+    function setSidebarOpen(open, returnFocus, focusInside) {
+      if (open && mobileQuery.matches && !workPanel.hidden) setPanelOpen(false);
+      if (open) setSearchOpen(false);
+      app.classList.toggle("sidebar-closed", !open);
+      sidebarToggle.setAttribute("aria-expanded", String(open));
+      sidebarToggle.setAttribute("aria-label", open ? "hide tasks and projects" : "show tasks and projects");
+      sidebar.setAttribute("aria-hidden", String(!open));
+      sidebar.inert = !open;
+      workspace.inert = mobileQuery.matches && open;
+      if (open && focusInside) {
+        const focusDelay = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 190;
+        window.setTimeout(() => searchButton.focus(), focusDelay);
+      }
+      else if (!open && returnFocus) sidebarToggle.focus();
+    }
+
+    function setPanelOpen(open, returnFocus, focusInside) {
+      if (open && mobileQuery.matches && !app.classList.contains("sidebar-closed")) setSidebarOpen(false);
+      app.classList.toggle("panel-open", open);
+      workPanel.hidden = !open;
+      workPanel.inert = !open;
+      aideMain.inert = mobileQuery.matches && open;
+      workPanel.setAttribute("aria-hidden", String(!open));
+      workPanelToggle.setAttribute("aria-expanded", String(open));
+      workPanelToggle.setAttribute("aria-label", open ? "close task tools" : "open task tools");
+      if (open && focusInside) {
+        const focusTarget = workPanel.classList.contains("terminal-view")
+          ? workPanel.querySelector("#panel-back")
+          : workPanel.querySelector(".task-tool-button");
+        if (focusTarget) requestAnimationFrame(() => focusTarget.focus());
+      } else if (!open && returnFocus) {
+        workPanelToggle.focus();
+      }
+    }
+
+    function getGreeting() {
+      const hour = new Date().getHours();
+      if (hour < 12) return "good morning, jxh";
+      if (hour < 18) return "good afternoon, jxh";
+      return "good evening, jxh";
+    }
+
+    function setActiveNav(button) {
+      document.querySelectorAll(".nav-button").forEach((item) => item.classList.toggle("active", item === button));
+      document.querySelectorAll(".thread-button").forEach((item) => item.classList.remove("selected"));
+    }
+
+    function setCurrentContext(title, project, kind) {
+      currentConversationLabel.textContent = title;
+      currentContext.dataset.contextKind = kind;
+      currentProjectLabel.textContent = project || "";
+      currentProjectLabel.hidden = kind !== "project" || !project;
+    }
+
+    function setActiveMessageTick(index) {
+      messageRailTrack.querySelectorAll(".message-tick").forEach((tick, tickIndex) => {
+        tick.classList.toggle("current", tickIndex === index);
+        tick.setAttribute("aria-current", tickIndex === index ? "true" : "false");
+      });
+    }
+
+    function syncRailToScroll() {
+      railFrame = undefined;
+      if (messageRail.hidden) return;
+      const messages = [...conversationInner.querySelectorAll(".user-message")];
+      if (!messages.length) return;
+      const maxScroll = Math.max(0, conversation.scrollHeight - conversation.clientHeight);
+      if (conversation.scrollTop <= 2) {
+        setActiveMessageTick(0);
+        return;
+      }
+      if (conversation.scrollTop >= maxScroll - 2) {
+        setActiveMessageTick(messages.length - 1);
+        return;
+      }
+      const conversationBox = conversation.getBoundingClientRect();
+      const focusLine = conversationBox.top + conversationBox.height * 0.48;
+      let closestIndex = 0;
+      let closestDistance = Infinity;
+      messages.forEach((message, index) => {
+        const box = message.getBoundingClientRect();
+        const distance = Math.abs(box.top + box.height / 2 - focusLine);
+        if (distance < closestDistance) {
+          closestDistance = distance;
+          closestIndex = index;
+        }
+      });
+      setActiveMessageTick(closestIndex);
+    }
+
+    function queueRailSync() {
+      if (railFrame !== undefined) return;
+      railFrame = requestAnimationFrame(syncRailToScroll);
+    }
+
+    function updateMessageRail() {
+      const messages = [...conversationInner.querySelectorAll(".user-message")];
+      messageRailTrack.replaceChildren();
+      messageRail.hidden = messages.length < 3;
+      messageRail.setAttribute("aria-label", messages.length + (messages.length === 1 ? " message" : " messages") + " from you");
+      if (messages.length < 3) return;
+
+      messages.forEach((message, index) => {
+        if (!message.id) message.id = "user-message-" + (index + 1);
+        const tick = document.createElement("button");
+        tick.type = "button";
+        tick.className = "message-tick";
+        tick.setAttribute("aria-label", "jump to message " + (index + 1));
+        tick.addEventListener("click", () => {
+          setActiveMessageTick(index);
+          message.scrollIntoView({ block: "center", behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+        });
+        messageRailTrack.append(tick);
+      });
+
+      queueRailSync();
+    }
+
+    function clearRailProximity() {
+      messageRailTrack.querySelectorAll(".message-tick").forEach((tick) => tick.style.removeProperty("--tick-scale"));
+    }
+
+    messageRail.addEventListener("pointermove", (event) => {
+      const ticks = [...messageRailTrack.querySelectorAll(".message-tick")];
+      ticks.forEach((tick) => {
+        const box = tick.getBoundingClientRect();
+        const distance = Math.abs(event.clientY - (box.top + box.height / 2));
+        const influence = Math.max(0, 1 - distance / 42);
+        const scale = 1 + influence * 5;
+        tick.style.setProperty("--tick-scale", scale.toFixed(2));
+      });
+    });
+    messageRail.addEventListener("pointerleave", clearRailProximity);
+
+    function renderNewTask() {
+      conversationInner.innerHTML = '<div class="empty-view"><h1 id="thread-title">' + getGreeting() + '</h1><p>What do you need?</p></div>';
+      setCurrentContext("new task", "", "task");
+      updateMessageRail();
+      conversation.scrollTop = 0;
+      textarea.focus();
+    }
+
+    function renderUtilityView(view) {
+      const data = viewData[view];
+      const rows = data.rows.map((row) => '<div class="utility-row"><div><strong>' + row[0] + '</strong><span>' + row[1] + '</span></div><time>' + row[2] + '</time></div>').join("");
+      conversationInner.innerHTML = '<section class="utility-view"><header class="thread-head"><h1 id="thread-title">' + data.title + '</h1><p class="utility-intro">' + data.intro + '</p></header><div class="utility-list">' + rows + '</div></section>';
+      setCurrentContext(data.title, "", "task");
+      updateMessageRail();
+      conversation.scrollTop = 0;
+    }
+
+    function restoreConversation(title, project, kind) {
+      conversationInner.innerHTML = initialConversation;
+      setCurrentContext(title, project, kind);
+      updateMessageRail();
+      document.querySelectorAll(".nav-button").forEach((item) => item.classList.remove("active"));
+      conversation.scrollTop = 0;
+    }
+
+    sidebarToggle.addEventListener("click", () => setSidebarOpen(app.classList.contains("sidebar-closed"), false, true));
+    scrim.addEventListener("click", () => setSidebarOpen(false, true));
+
+    document.querySelectorAll(".project-button").forEach((button) => {
+      button.addEventListener("click", () => {
+        const open = button.getAttribute("aria-expanded") !== "true";
+        button.setAttribute("aria-expanded", String(open));
+        document.getElementById(button.getAttribute("aria-controls")).hidden = !open;
+      });
+    });
+
+    document.querySelectorAll(".thread-button").forEach((button) => {
+      button.addEventListener("click", () => {
+        document.querySelectorAll(".thread-button").forEach((item) => item.classList.toggle("selected", item === button));
+        restoreConversation(button.textContent.trim(), button.dataset.project || "", button.dataset.contextKind || "project");
+        if (mobileQuery.matches) setSidebarOpen(false, true);
+      });
+    });
+
+    document.querySelectorAll(".nav-button").forEach((button) => {
+      button.addEventListener("click", () => {
+        setActiveNav(button);
+        if (button.dataset.view === "new") renderNewTask();
+        else renderUtilityView(button.dataset.view);
+        if (mobileQuery.matches) setSidebarOpen(false, true);
+      });
+    });
+
+    conversation.addEventListener("click", (event) => {
+      const button = event.target.closest(".steps-toggle");
+      if (!button) return;
+      const open = button.getAttribute("aria-expanded") !== "true";
+      button.setAttribute("aria-expanded", String(open));
+      button.textContent = open ? "hide steps" : "show steps";
+      const panel = document.getElementById(button.getAttribute("aria-controls"));
+      if (panel) panel.hidden = !open;
+    });
+
+    workPanelToggle.addEventListener("click", () => setPanelOpen(!app.classList.contains("panel-open"), false, true));
+    document.querySelector("#panel-close").addEventListener("click", () => setPanelOpen(false, true));
+
+    const toolOutputs = {
+      review: {
+        copy: "See what Aide used and what it is waiting for in this task.",
+        rows: [["5 messages", "current task"], ["2 source notes", "local"], ["no changes pending", "safe"]]
+      },
+      browser: {
+        copy: "Open a page beside this task without leaving Aide.",
+        rows: [["localhost:8020", "open"], ["console", "no errors"], ["network", "idle"]]
+      },
+      files: {
+        copy: "Files already connected to this task.",
+        rows: [["reminders-and-notes.md", "product notes"], ["specifications.md", "current behavior"], ["aide-projects.html", "starter"]]
+      },
+      "side task": {
+        copy: "Start a small task without losing this conversation.",
+        rows: [["new side task", "ready"], ["inherits project", "alles"], ["returns here", "when done"]]
+      }
+    };
+
+    const panelTitle = document.querySelector("#panel-title");
+    const panelBack = document.querySelector("#panel-back");
+    const toolList = document.querySelector(".task-tool-list");
+    const toolOutput = document.querySelector("#tool-output");
+    const terminalScreen = document.querySelector("#terminal-screen");
+
+    function setTerminalView(open) {
+      workPanel.classList.toggle("terminal-view", open);
+      panelTitle.textContent = open ? "terminal" : "task tools";
+      panelBack.hidden = !open;
+      toolList.hidden = open;
+      toolOutput.hidden = open;
+      terminalScreen.hidden = !open;
+      if (open) requestAnimationFrame(() => panelBack.focus());
+    }
+
+    function renderToolOutput(name) {
+      if (name === "terminal") {
+        setTerminalView(true);
+        return;
+      }
+      setTerminalView(false);
+      const data = toolOutputs[name];
+      document.querySelector("#tool-output-title").textContent = name;
+      document.querySelector("#tool-output-copy").textContent = data.copy;
+      const list = document.querySelector("#tool-output-list");
+      list.innerHTML = data.rows.map((row) => '<div class="tool-output-row"><span>' + row[0] + '</span><span>' + row[1] + '</span></div>').join("");
+    }
+
+    panelBack.addEventListener("click", () => {
+      setTerminalView(false);
+      const selected = document.querySelector('.task-tool-button[data-tool="review"]');
+      document.querySelectorAll(".task-tool-button").forEach((item) => item.setAttribute("aria-pressed", String(item === selected)));
+      renderToolOutput("review");
+      selected.focus();
+    });
+
+    document.querySelectorAll(".task-tool-button").forEach((button) => {
+      button.addEventListener("click", () => {
+        document.querySelectorAll(".task-tool-button").forEach((item) => item.setAttribute("aria-pressed", String(item === button)));
+        renderToolOutput(button.dataset.tool);
+      });
+    });
+
+    const plusButton = document.querySelector("#plus-button");
+    const attachMenu = document.querySelector("#attach-menu");
+    plusButton.addEventListener("click", () => setPopover(plusButton, attachMenu, attachMenu.hidden, '[role="menuitem"]'));
+    attachMenu.querySelectorAll('[role="menuitem"]').forEach((item) => {
+      item.addEventListener("click", () => {
+        setPopover(plusButton, attachMenu, false);
+        showStatus(item.dataset.add + " would open here");
+        plusButton.focus();
+      });
+    });
+
+    const permissionButton = document.querySelector("#permission-button");
+    const permissionMenu = document.querySelector("#permission-menu");
+    permissionButton.addEventListener("click", () => setPopover(permissionButton, permissionMenu, permissionMenu.hidden, '[aria-selected="true"]'));
+    permissionMenu.querySelectorAll('[role="option"]').forEach((option) => {
+      option.addEventListener("click", () => {
+        permissionMenu.querySelectorAll('[role="option"]').forEach((item) => item.setAttribute("aria-selected", String(item === option)));
+        document.querySelector("#permission-label").textContent = option.dataset.permission;
+        document.querySelector("#permission-short").textContent = option.dataset.short;
+        permissionButton.dataset.permission = option.dataset.permission;
+        permissionButton.setAttribute("aria-label", "permission: " + option.dataset.permission);
+        setPopover(permissionButton, permissionMenu, false);
+        permissionButton.focus();
+      });
+    });
+
+    const runtimeButton = document.querySelector("#runtime-button");
+    const runtimeMenu = document.querySelector("#runtime-menu");
+    runtimeButton.addEventListener("click", () => setPopover(runtimeButton, runtimeMenu, runtimeMenu.hidden, '[data-model][aria-selected="true"]'));
+    runtimeMenu.querySelectorAll("[data-model]").forEach((option) => {
+      option.addEventListener("click", () => {
+        runtimeMenu.querySelectorAll("[data-model]").forEach((item) => item.setAttribute("aria-selected", String(item === option)));
+        document.querySelector("#runtime-model").textContent = option.dataset.model;
+      });
+    });
+    runtimeMenu.querySelectorAll("[data-effort]").forEach((option) => {
+      option.addEventListener("click", () => {
+        runtimeMenu.querySelectorAll("[data-effort]").forEach((item) => item.setAttribute("aria-pressed", String(item === option)));
+        document.querySelector("#runtime-effort").textContent = option.dataset.effort;
+      });
+    });
+
+    function bindListboxKeyboard(listbox, returnButton) {
+      listbox.addEventListener("keydown", (event) => {
+        const options = [...listbox.querySelectorAll('[role="option"]')];
+        const current = event.target.closest('[role="option"]');
+        if (!current) return;
+        const index = options.indexOf(current);
+        if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+          event.preventDefault();
+          options[(index + (event.key === "ArrowDown" ? 1 : -1) + options.length) % options.length].focus();
+        } else if (event.key === "Home" || event.key === "End") {
+          event.preventDefault();
+          options[event.key === "Home" ? 0 : options.length - 1].focus();
+        } else if (event.key === "Escape") {
+          event.preventDefault();
+          event.stopPropagation();
+          closeAllPopovers();
+          returnButton.focus();
+        }
+      });
+    }
+
+    bindListboxKeyboard(permissionMenu, permissionButton);
+    bindListboxKeyboard(document.querySelector("#model-list"), runtimeButton);
+
+    attachMenu.addEventListener("keydown", (event) => {
+      const items = [...attachMenu.querySelectorAll('[role="menuitem"]')];
+      const current = event.target.closest('[role="menuitem"]');
+      if (!current) return;
+      const index = items.indexOf(current);
+      if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+        event.preventDefault();
+        items[(index + (event.key === "ArrowDown" ? 1 : -1) + items.length) % items.length].focus();
+      } else if (event.key === "Home" || event.key === "End") {
+        event.preventDefault();
+        items[event.key === "Home" ? 0 : items.length - 1].focus();
+      } else if (event.key === "Escape") {
+        event.preventDefault();
+        event.stopPropagation();
+        setPopover(plusButton, attachMenu, false);
+        plusButton.focus();
+      }
+    });
+
+    document.addEventListener("pointerdown", (event) => {
+      if (!event.target.closest(".menu-anchor")) closeAllPopovers();
+    });
+
+    document.addEventListener("keydown", (event) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "b") {
+        event.preventDefault();
+        if (app.classList.contains("sidebar-closed")) setSidebarOpen(true);
+        else setSidebarOpen(false, true);
+      }
+      if (event.key === "Escape") {
+        if (sidebarHead.classList.contains("search-open")) {
+          setSearchOpen(false);
+          searchButton.focus();
+        } else if ([...document.querySelectorAll(".popover")].some((item) => !item.hidden)) {
+          const openPopover = [...document.querySelectorAll(".popover")].find((item) => !item.hidden);
+          if (openPopover) closePopoverAndFocus(openPopover);
+        } else if (workPanel.classList.contains("terminal-view")) {
+          panelBack.click();
+        } else if (app.classList.contains("panel-open")) {
+          setPanelOpen(false, true);
+        } else if (!app.classList.contains("sidebar-closed")) {
+          setSidebarOpen(false, true);
+        }
+      }
+    });
+
+    document.querySelector("#composer").addEventListener("submit", (event) => {
+      event.preventDefault();
+      const text = textarea.value.trim();
+      if (!text) return;
+      if (conversationInner.querySelector(".empty-view") || conversationInner.querySelector(".utility-view")) {
+        conversationInner.replaceChildren();
+        setCurrentContext("new task", "", "task");
+      }
+      const message = document.createElement("article");
+      message.className = "message user-message";
+      const paragraph = document.createElement("p");
+      paragraph.textContent = text;
+      message.append(paragraph);
+      conversationInner.append(message);
+      updateMessageRail();
+      textarea.value = "";
+      message.scrollIntoView({ block: "end", behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+      showStatus("message added to this preview");
+    });
+
+    document.querySelector("#mic-button").addEventListener("click", () => showStatus("speech input would start here"));
+    searchForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      if (!sidebarHead.classList.contains("search-open")) {
+        setSearchOpen(true, true);
+        return;
+      }
+      const query = searchInput.value.trim();
+      if (query) showStatus('searching tasks for "' + query + '"');
+    });
+    document.querySelector("#settings-button").addEventListener("click", () => showStatus("Settings → AI and models includes providers and Cookbook"));
+    conversation.addEventListener("scroll", queueRailSync, { passive: true });
+
+    function applyResponsiveState(event) {
+      setSidebarOpen(!event.matches);
+      aideMain.inert = event.matches && app.classList.contains("panel-open");
+    }
+
+    applyResponsiveState(mobileQuery);
+    mobileQuery.addEventListener("change", applyResponsiveState);
+    updateMessageRail();
+  </script>
+</body>
+</html>

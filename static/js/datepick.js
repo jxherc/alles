@@ -1,6 +1,14 @@
 // custom date / datetime picker — replaces native <input type=datetime-local|date>.
 // a .date-input div carries data-type="date|datetime" and data-value; .value
 // reads/writes the same strings the backend expects (YYYY-MM-DD / YYYY-MM-DDTHH:MM).
+import {
+  formatCalendarDate,
+  formatDate,
+  formatDateForLocale,
+  formatTime,
+  localizationState,
+} from './i18n.js';
+
 let _open = null;
 
 export function initDatePickers(root = document) {
@@ -28,10 +36,53 @@ export const getDateValue = el => el?.dataset?.value || '';
 
 const _isDate = el => el.dataset.type === 'date';
 const _z = n => String(n).padStart(2, '0');
+const SUNDAY_FIRST_REGIONS = new Set(['AG', 'AS', 'BD', 'BR', 'BS', 'BT', 'BW', 'BZ', 'CA', 'CN', 'CO', 'DM', 'DO', 'ET', 'GT', 'GU', 'HK', 'HN', 'ID', 'IL', 'IN', 'JM', 'JP', 'KE', 'KH', 'KR', 'LA', 'MH', 'MM', 'MO', 'MT', 'MX', 'MZ', 'NI', 'NP', 'PA', 'PE', 'PH', 'PK', 'PR', 'PT', 'PY', 'SA', 'SG', 'SV', 'TH', 'TT', 'TW', 'UM', 'US', 'VE', 'VI', 'WS', 'YE', 'ZA', 'ZW']);
+
+export function resolveDatePickerWeekStart(state = localizationState()) {
+  if (state.weekStart === 'mon') return 1;
+  if (state.weekStart === 'sun') return 0;
+  const region = String(state.effectiveRegion || state.region || '').toUpperCase();
+  try {
+    const language = String(state.language || 'en').split('-')[0];
+    const locale = new Intl.Locale(region ? `${language}-${region}` : state.locale || 'en');
+    const info = typeof locale.getWeekInfo === 'function' ? locale.getWeekInfo() : locale.weekInfo;
+    if (Number.isInteger(info?.firstDay) && info.firstDay >= 1 && info.firstDay <= 7) {
+      return info.firstDay % 7;
+    }
+  } catch {}
+  return SUNDAY_FIRST_REGIONS.has(region) ? 0 : 1;
+}
+
+export function datePickerWeekdayLabels(state = localizationState()) {
+  return Array.from({ length: 7 }, (_value, index) =>
+    formatDateForLocale(
+      new Date(Date.UTC(2024, 0, 7 + index, 12)),
+      state.locale || state.language || 'en',
+      { weekday: 'short', timeZone: 'UTC' },
+    ),
+  );
+}
+
+export function calendarDateParts(value) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(value || ''));
+  if (!match) return null;
+  const y = Number(match[1]);
+  const mo = Number(match[2]) - 1;
+  const d = Number(match[3]);
+  const date = new Date(Date.UTC(y, mo, d));
+  if (date.getUTCFullYear() !== y || date.getUTCMonth() !== mo || date.getUTCDate() !== d) {
+    return null;
+  }
+  return { y, mo, d, h: 0, mi: 0 };
+}
 
 function _parse(el) {
   const v = el.dataset.value;
-  let dt = v ? new Date(v.length <= 10 ? v + 'T00:00' : v) : new Date();
+  const dateOnly = _isDate(el) && calendarDateParts(v);
+  if (dateOnly) {
+    return dateOnly;
+  }
+  let dt = v ? new Date(v) : new Date();
   if (isNaN(dt)) dt = new Date();
   return { y: dt.getFullYear(), mo: dt.getMonth(), d: dt.getDate(), h: dt.getHours(), mi: dt.getMinutes() };
 }
@@ -40,10 +91,14 @@ function _fmt(p, isDate) {
   return isDate ? date : `${date}T${_z(p.h)}:${_z(p.mi)}`;
 }
 function _display(v, isDate) {
-  const dt = new Date(v.length <= 10 ? v + 'T00:00' : v);
+  if (isDate) {
+    if (!calendarDateParts(v)) return v;
+    return formatCalendarDate(v, { month: 'short', day: 'numeric', year: 'numeric' });
+  }
+  const dt = new Date(v);
   if (isNaN(dt)) return v;
-  const d = dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-  return isDate ? d : `${d}, ${dt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
+  const d = formatDate(dt, { month: 'short', day: 'numeric', year: 'numeric' });
+  return `${d}, ${formatTime(dt, { hour: 'numeric', minute: '2-digit' })}`;
 }
 function _trigger(el) {
   const v = el.dataset.value;
@@ -67,10 +122,16 @@ function _openPanel(el) {
 function _render(el) {
   const { panel, view, sel } = _open;
   const isDate = _isDate(el);
-  const monthName = new Date(view.y, view.mo, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-  const first = new Date(view.y, view.mo, 1).getDay();
+  const monthName = formatCalendarDate(
+    `${view.y}-${_z(view.mo + 1)}-01`,
+    { month: 'long', year: 'numeric' },
+  );
+  const weekStart = resolveDatePickerWeekStart();
+  const first = (new Date(view.y, view.mo, 1).getDay() - weekStart + 7) % 7;
   const days = new Date(view.y, view.mo + 1, 0).getDate();
-  let grid = ['su', 'mo', 'tu', 'we', 'th', 'fr', 'sa'].map(d => `<span class="dp-dow">${d}</span>`).join('');
+  const weekdays = datePickerWeekdayLabels();
+  const orderedWeekdays = [...weekdays.slice(weekStart), ...weekdays.slice(0, weekStart)];
+  let grid = orderedWeekdays.map(d => `<span class="dp-dow">${d}</span>`).join('');
   for (let i = 0; i < first; i++) grid += '<span></span>';
   for (let d = 1; d <= days; d++) {
     const on = sel.y === view.y && sel.mo === view.mo && sel.d === d;
