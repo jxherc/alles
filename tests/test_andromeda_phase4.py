@@ -419,9 +419,12 @@ class AndromedaEvidenceTest(ApiTest):
             "title": "official docs",
             "content": ("Version 4.2.0 documents the current API behavior. " * 400),
         }
-        with mock.patch(
-            "services.research.search.fetch_webpage_content", return_value=page
-        ) as fetch:
+        with (
+            mock.patch.object(andromeda, "is_safe_url", return_value=True),
+            mock.patch(
+                "services.research.search.fetch_webpage_content", return_value=page
+            ) as fetch,
+        ):
             evidence = asyncio.run(andromeda.build_evidence("current API version", rows))
         self.assertLessEqual(len(evidence), andromeda.MAX_EVIDENCE_SOURCES)
         self.assertLessEqual(
