@@ -136,7 +136,10 @@ class ServerPolicyServiceTest(ApiTest):
     def test_host_action_uses_only_the_exact_allowlisted_command(self):
         server_policy.save(self._allow_text())
         completed = mock.Mock(returncode=0, stdout="", stderr="")
-        with mock.patch("services.server_policy.subprocess.run", return_value=completed) as run:
+        with (
+            mock.patch("services.server_policy.platform.system", return_value="Darwin"),
+            mock.patch("services.server_policy.subprocess.run", return_value=completed) as run,
+        ):
             result = server_policy.control_host_service(
                 "launchd", "com.example.indexer", "restart"
             )

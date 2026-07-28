@@ -54,16 +54,28 @@ class ManagedActualTests(unittest.TestCase):
     def test_listener_ownership_requires_the_managed_pid_on_the_loopback_port(self):
         owned = mock.Mock(returncode=0, stdout="p123\nn127.0.0.1:5007\n")
         spoofed = mock.Mock(returncode=0, stdout="p999\nn127.0.0.1:5007\n")
-        self.assertTrue(managed_actual._listener_owned_by(123, runner=lambda *_a, **_k: owned))
-        self.assertFalse(managed_actual._listener_owned_by(123, runner=lambda *_a, **_k: spoofed))
+        with mock.patch.object(managed_actual.sys, "platform", "darwin"):
+            self.assertTrue(
+                managed_actual._listener_owned_by(123, runner=lambda *_a, **_k: owned)
+            )
+            self.assertFalse(
+                managed_actual._listener_owned_by(123, runner=lambda *_a, **_k: spoofed)
+            )
 
     def test_cold_absence_requires_clear_listener_and_server_process_scans(self):
         no_listener = mock.Mock(returncode=1, stdout="", stderr="")
         listener = mock.Mock(returncode=0, stdout="p321\n", stderr="")
         scan_failed = mock.Mock(returncode=2, stdout="", stderr="permission denied")
-        self.assertEqual(managed_actual._listener_pids(runner=lambda *_a, **_k: no_listener), set())
-        self.assertEqual(managed_actual._listener_pids(runner=lambda *_a, **_k: listener), {321})
-        self.assertIsNone(managed_actual._listener_pids(runner=lambda *_a, **_k: scan_failed))
+        with mock.patch.object(managed_actual.sys, "platform", "darwin"):
+            self.assertEqual(
+                managed_actual._listener_pids(runner=lambda *_a, **_k: no_listener), set()
+            )
+            self.assertEqual(
+                managed_actual._listener_pids(runner=lambda *_a, **_k: listener), {321}
+            )
+            self.assertIsNone(
+                managed_actual._listener_pids(runner=lambda *_a, **_k: scan_failed)
+            )
 
         script = (
             managed_actual.app_dir()

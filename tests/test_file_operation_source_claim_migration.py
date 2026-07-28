@@ -28,8 +28,13 @@ class FileOperationSourceClaimMigrationTests(unittest.TestCase):
                 )
             )
 
-            m0044_local_source_claim_casefold.up(conn)
-            m0044_local_source_claim_casefold.up(conn)
+            with mock.patch.object(
+                m0044_local_source_claim_casefold,
+                "local_claim_case_insensitive",
+                return_value=True,
+            ):
+                m0044_local_source_claim_casefold.up(conn)
+                m0044_local_source_claim_casefold.up(conn)
 
             self.assertEqual(
                 conn.execute(
@@ -59,7 +64,14 @@ class FileOperationSourceClaimMigrationTests(unittest.TestCase):
                 )
             )
 
-            with self.assertRaisesRegex(RuntimeError, "overlap after Unicode casefolding"):
+            with (
+                mock.patch.object(
+                    m0044_local_source_claim_casefold,
+                    "local_claim_case_insensitive",
+                    return_value=True,
+                ),
+                self.assertRaisesRegex(RuntimeError, "overlap after Unicode casefolding"),
+            ):
                 m0044_local_source_claim_casefold.up(conn)
 
             self.assertEqual(

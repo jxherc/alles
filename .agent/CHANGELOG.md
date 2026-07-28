@@ -2,6 +2,17 @@
 
 ## 2026-07-28
 
+Change: made the Ubuntu CI contracts deterministic by declaring the intended launchd, lsof, Unicode
+casefolding, and safe-network conditions inside their tests instead of inheriting the runner platform or
+DNS state.
+
+Files affected: Server policy, Andromeda evidence, local source-claim migration, and managed Actual test
+modules.
+
+Reason: the complete macOS suite passed, but GitHub's Python 3.11 Ubuntu runner correctly selected Linux
+branches and rejected unresolved example hosts in six tests that meant to exercise other bounded paths.
+The four affected modules now pass all 130 tests on both local Python 3.14 and isolated Python 3.11.
+
 Change: captured the completed Afterlife delivery in one owner-authorized local commit while keeping the
 remote untouched.
 
