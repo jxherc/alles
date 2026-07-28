@@ -16,17 +16,75 @@ from services.life_stats import spearman  # tie-corrected rank correlation (shar
 # scale: 5 great .. 1 awful. unknown -> None (that day is skipped, not guessed).
 _MOOD = {
     # picker emoji
-    "😄": 5, "😍": 5, "🥳": 5, "🙂": 4, "🤔": 3, "😐": 3, "😴": 2, "😕": 2, "😢": 1, "😠": 1,
+    "😄": 5,
+    "😍": 5,
+    "🥳": 5,
+    "🙂": 4,
+    "🤔": 3,
+    "😐": 3,
+    "😴": 2,
+    "😕": 2,
+    "😢": 1,
+    "😠": 1,
     # extra emoji that show up via sync / paste
-    "😁": 5, "🥰": 5, "🤩": 5, "😆": 5, "😊": 4, "😌": 4, "👍": 4, "😶": 3, "😔": 2, "😟": 2,
-    "😞": 2, "😣": 2, "😭": 1, "😡": 1, "😫": 1, "😩": 1,
+    "😁": 5,
+    "🥰": 5,
+    "🤩": 5,
+    "😆": 5,
+    "😊": 4,
+    "😌": 4,
+    "👍": 4,
+    "😶": 3,
+    "😔": 2,
+    "😟": 2,
+    "😞": 2,
+    "😣": 2,
+    "😭": 1,
+    "😡": 1,
+    "😫": 1,
+    "😩": 1,
     # words
-    "great": 5, "amazing": 5, "happy": 5, "excellent": 5, "joy": 5, "joyful": 5, "wonderful": 5,
-    "ecstatic": 5, "good": 4, "calm": 4, "content": 4, "relaxed": 4, "grateful": 4, "fine": 4,
-    "chill": 4, "productive": 4, "hopeful": 4, "ok": 3, "okay": 3, "meh": 3, "neutral": 3,
-    "average": 3, "alright": 3, "blah": 3, "tired": 2, "stressed": 2, "anxious": 2, "down": 2,
-    "sad": 2, "bored": 2, "worried": 2, "frustrated": 2, "low": 2, "sick": 2, "awful": 1,
-    "terrible": 1, "depressed": 1, "angry": 1, "miserable": 1, "exhausted": 1, "horrible": 1,
+    "great": 5,
+    "amazing": 5,
+    "happy": 5,
+    "excellent": 5,
+    "joy": 5,
+    "joyful": 5,
+    "wonderful": 5,
+    "ecstatic": 5,
+    "good": 4,
+    "calm": 4,
+    "content": 4,
+    "relaxed": 4,
+    "grateful": 4,
+    "fine": 4,
+    "chill": 4,
+    "productive": 4,
+    "hopeful": 4,
+    "ok": 3,
+    "okay": 3,
+    "meh": 3,
+    "neutral": 3,
+    "average": 3,
+    "alright": 3,
+    "blah": 3,
+    "tired": 2,
+    "stressed": 2,
+    "anxious": 2,
+    "down": 2,
+    "sad": 2,
+    "bored": 2,
+    "worried": 2,
+    "frustrated": 2,
+    "low": 2,
+    "sick": 2,
+    "awful": 1,
+    "terrible": 1,
+    "depressed": 1,
+    "angry": 1,
+    "miserable": 1,
+    "exhausted": 1,
+    "horrible": 1,
     "bad": 1,
 }
 
@@ -105,7 +163,9 @@ def correlations(db, *, days=180, min_overlap=6):
     # health: per kind (or custom label), the day's value (mean if several that day)
     hv = {}
     for h in db.query(HealthEntry).filter(HealthEntry.date >= since).all():
-        key = (h.label or "").strip() if (h.kind == "custom" and (h.label or "").strip()) else h.kind
+        key = (
+            (h.label or "").strip() if (h.kind == "custom" and (h.label or "").strip()) else h.kind
+        )
         if not key:
             continue
         hv.setdefault(key, {}).setdefault(h.date, []).append(h.value or 0.0)
@@ -129,6 +189,13 @@ def correlations(db, *, days=180, min_overlap=6):
         rho = spearman([mood[d] for d in common], [s[d] for d in common])
         if rho is None:
             continue
-        out.append({"label": label, "rho": round(rho, 3), "n": len(common), "explain": _explain(label, rho)})
+        out.append(
+            {
+                "label": label,
+                "rho": round(rho, 3),
+                "n": len(common),
+                "explain": _explain(label, rho),
+            }
+        )
     out.sort(key=lambda x: -abs(x["rho"]))
     return {"ok": True, "days": days, "mood_days": len(mood), "correlations": out}

@@ -90,8 +90,9 @@ class RecurTests(unittest.TestCase):
     def test_yearly(self):
         e = ev(start_dt="2026-03-15T09:00", recurrence="yearly")
         occ = recur.expand(e, D("2026-01-01T00:00"), D("2029-01-01T00:00"))
-        self.assertEqual([(d.year, d.month, d.day) for d in occ],
-                         [(2026, 3, 15), (2027, 3, 15), (2028, 3, 15)])
+        self.assertEqual(
+            [(d.year, d.month, d.day) for d in occ], [(2026, 3, 15), (2027, 3, 15), (2028, 3, 15)]
+        )
 
     def test_yearly_interval(self):
         e = ev(start_dt="2026-03-15T09:00", recurrence="yearly", recur_interval=2)
@@ -103,8 +104,10 @@ class RecurTests(unittest.TestCase):
         # year (each step recomputes from the original start, so the day doesn't drift)
         e = ev(start_dt="2024-02-29T09:00", recurrence="yearly")
         occ = recur.expand(e, D("2024-01-01T00:00"), D("2029-01-01T00:00"))
-        self.assertEqual([(d.year, d.month, d.day) for d in occ],
-                         [(2024, 2, 29), (2025, 2, 28), (2026, 2, 28), (2027, 2, 28), (2028, 2, 29)])
+        self.assertEqual(
+            [(d.year, d.month, d.day) for d in occ],
+            [(2024, 2, 29), (2025, 2, 28), (2026, 2, 28), (2027, 2, 28), (2028, 2, 29)],
+        )
 
 
 if __name__ == "__main__":

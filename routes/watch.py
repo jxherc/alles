@@ -9,7 +9,7 @@ just reuses /api/usage/summary on the client — no new tracking here.
 import asyncio
 import logging
 import time as _time
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from urllib.parse import urlparse
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -43,7 +43,7 @@ def check_passes(
 
 
 def cert_days_left(not_after, now=None):
-    return (not_after - (now or datetime.utcnow())).days
+    return (not_after - (now or datetime.now(UTC).replace(tzinfo=None))).days
 
 
 def uptime_pct(checks):

@@ -133,9 +133,7 @@ def _api_router(state):
             return ok(
                 {
                     "votes": 2,
-                    "models": [
-                        {"model": "audit-chat", "wins": 2, "losses": 0, "win_rate": 1.0}
-                    ],
+                    "models": [{"model": "audit-chat", "wins": 2, "losses": 0, "win_rate": 1.0}],
                 }
             )
         if path == "/api/compare" and method == "POST":
@@ -358,7 +356,9 @@ def main():
         pg.goto(f"{AIDE}/", wait_until="domcontentloaded")
         pg.wait_for_selector("#composer-ta", timeout=15000)
         pg.wait_for_function("() => (window._endpoints || []).length === 1", timeout=10000)
-        r["aide_shell_renders"] = _visible(pg, "#composer-outer") and _visible(pg, "#sidebar-toggle-btn")
+        r["aide_shell_renders"] = _visible(pg, "#composer-outer") and _visible(
+            pg, "#sidebar-toggle-btn"
+        )
 
         pg.fill("#composer-ta", "hello aide audit")
         pg.focus("#composer-ta")
@@ -368,10 +368,9 @@ def main():
             timeout=10000,
         )
         r["ctrl_enter_sends_once"] = state["chat_posts"] == 1
-        r["chat_stream_renders_usage"] = (
-            "hello from fake model" in (pg.text_content("#messages") or "")
-            and "12 tok" in (pg.text_content("#session-token-count") or "")
-        )
+        r["chat_stream_renders_usage"] = "hello from fake model" in (
+            pg.text_content("#messages") or ""
+        ) and "12 tok" in (pg.text_content("#session-token-count") or "")
 
         pg.click("#docs-toggle-btn")
         pg.fill("#composer-ta", "where is the project")
@@ -431,7 +430,7 @@ def main():
             ]
         )
 
-        _nav(pg, "reminders", "reminders-view")
+        _nav(pg, "aide-reminders", "reminders-view")
         pg.wait_for_function(
             "document.querySelector('#reminder-list')?.textContent.includes('audit reminder')",
             timeout=10000,
@@ -460,10 +459,9 @@ def main():
             "document.querySelector('#cb-table')?.textContent.includes('Tiny-audit')",
             timeout=10000,
         )
-        r["cookbook_catalog_renders"] = (
-            "audit cpu" in (pg.text_content("#cookbook-hw") or "")
-            and "perfect" in (pg.text_content("#cb-table") or "")
-        )
+        r["cookbook_catalog_renders"] = "audit cpu" in (
+            pg.text_content("#cookbook-hw") or ""
+        ) and "perfect" in (pg.text_content("#cb-table") or "")
 
         _nav(pg, "skills", "skills-view")
         pg.wait_for_selector('.skl-card[data-slug="audit-skill"]', timeout=10000)
@@ -472,20 +470,18 @@ def main():
         pg.click('.skl-card[data-slug="audit-skill"]')
         pg.wait_for_selector("#skl-drawer.open", timeout=10000)
         pg.wait_for_function("document.getElementById('skl-d-name')?.value === 'Audit Skill'")
-        r["skills_search_and_drawer"] = (
-            "Audit Skill" in (pg.text_content("#skl-grid") or "")
-            and "step one" in pg.input_value("#skl-d-body")
-        )
+        r["skills_search_and_drawer"] = "Audit Skill" in (
+            pg.text_content("#skl-grid") or ""
+        ) and "step one" in pg.input_value("#skl-d-body")
 
         _nav(pg, "usage", "usage-view")
         pg.wait_for_function(
             "document.querySelector('#usage-body')?.textContent.includes('audit-chat')",
             timeout=10000,
         )
-        r["usage_dashboard_renders"] = (
-            "12.0k tokens" in (pg.text_content("#usage-total") or "")
-            and "audit-chat" in (pg.text_content("#usage-body") or "")
-        )
+        r["usage_dashboard_renders"] = "12.0k tokens" in (
+            pg.text_content("#usage-total") or ""
+        ) and "audit-chat" in (pg.text_content("#usage-body") or "")
 
         pg.click("#topbar-settings-btn")
         pg.wait_for_selector("#settings-modal .s-modal", timeout=10000)

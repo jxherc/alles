@@ -51,8 +51,25 @@ class DocumentConflictError(RuntimeError):
     pass
 
 
+class DocumentEncodingError(DocumentConflictError):
+    """The file is not safe to round-trip through the UTF-8 editor."""
+
+
 def _hash_bytes(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
+
+
+def _decode_for_edit(data: bytes) -> str:
+    try:
+        return data.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise DocumentEncodingError(
+            "document is not valid UTF-8; the original file was left unchanged"
+        ) from exc
+
+
+def _read_text_for_edit(path: Path) -> str:
+    return _decode_for_edit(path.read_bytes())
 
 
 def _atomic_write(path: Path, data: bytes) -> None:
@@ -109,11 +126,26 @@ def read(rel: str) -> dict:
     if not p.exists() or not p.is_file():
         return {"path": rel, "content": "", "exists": False, "hash": ""}
     raw = p.read_bytes()
+    digest = _hash_bytes(raw)
+    try:
+        content = _decode_for_edit(raw)
+    except DocumentEncodingError:
+        return {
+            "path": rel,
+            "content": "",
+            "exists": True,
+            "hash": digest,
+            "editable": False,
+            "encoding": "unsupported",
+            "error": "document is not valid UTF-8; open it externally or restore a UTF-8 copy",
+        }
     return {
         "path": rel,
-        "content": raw.decode("utf-8", errors="replace"),
+        "content": content,
         "exists": True,
-        "hash": _hash_bytes(raw),
+        "hash": digest,
+        "editable": True,
+        "encoding": "utf-8",
     }
 
 
@@ -121,7 +153,10 @@ def write(rel: str, content: str, expected_hash: str | None = None) -> dict:
     p = _safe(rel)
     if p.suffix == "":
         p = p.with_suffix(".md")
-    current = _hash_bytes(p.read_bytes()) if p.is_file() else ""
+    current_raw = p.read_bytes() if p.is_file() else b""
+    if current_raw:
+        _decode_for_edit(current_raw)
+    current = _hash_bytes(current_raw) if p.is_file() else ""
     if expected_hash is not None and expected_hash != current:
         raise DocumentConflictError("document changed since it was opened")
     raw = (content or "").encode("utf-8")
@@ -169,9 +204,21 @@ def parse_frontmatter(content: str):
                 i = j
                 continue
             props[key] = ""
+        elif val.startswith('"') and val.endswith('"'):
+            try:
+                props[key] = json.loads(val)
+            except (TypeError, ValueError):
+                props[key] = val
         elif val.startswith("[") and val.endswith("]"):
-            inner = val[1:-1].strip()
-            props[key] = [s.strip() for s in inner.split(",") if s.strip()] if inner else []
+            try:
+                decoded = json.loads(val)
+            except (TypeError, ValueError):
+                decoded = None
+            if isinstance(decoded, list):
+                props[key] = decoded
+            else:
+                inner = val[1:-1].strip()
+                props[key] = [s.strip() for s in inner.split(",") if s.strip()] if inner else []
         else:
             props[key] = val
         i += 1
@@ -319,7 +366,7 @@ def _insert_into_column(lines: list[str], column: str, card_line: str):
 
 def board_add_card(rel: str, column: str, text: str) -> dict:
     p = _safe(rel)
-    raw = p.read_text("utf-8", errors="replace") if p.is_file() else ""
+    raw = _read_text_for_edit(p) if p.is_file() else ""
     lines = raw.replace("\r\n", "\n").split("\n")
     _insert_into_column(lines, column, f"- [ ] {text.strip()}")
     new = "\n".join(lines)
@@ -332,7 +379,7 @@ def board_move_card(rel: str, line: int, to_col: str) -> dict:
     p = _safe(rel)
     if not p.is_file():
         raise ValueError("not a file")
-    lines = p.read_text("utf-8", errors="replace").replace("\r\n", "\n").split("\n")
+    lines = _read_text_for_edit(p).replace("\r\n", "\n").split("\n")
     if line < 0 or line >= len(lines):
         raise ValueError("line out of range")
     if not _CARD.match(lines[line]) or not _CARD.match(lines[line]).group(2).strip():
@@ -750,6 +797,39 @@ def create(rel: str, content: str = "") -> dict:
     return {"path": str(p.relative_to(root_dir())).replace("\\", "/"), "ok": True}
 
 
+def create_unique(rel: str, content: str = "") -> dict:
+    """Create a note under an atomically allocated filename without replacing owner data."""
+    requested = _safe(rel)
+    if requested.suffix == "":
+        requested = requested.with_suffix(".md")
+    requested.parent.mkdir(parents=True, exist_ok=True)
+    payload = (content or f"# {requested.stem}\n\n").encode("utf-8")
+    for index in range(1, 10_001):
+        candidate = (
+            requested
+            if index == 1
+            else requested.with_name(f"{requested.stem} {index}{requested.suffix}")
+        )
+        try:
+            descriptor = os.open(candidate, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        except FileExistsError:
+            continue
+        try:
+            with os.fdopen(descriptor, "wb") as handle:
+                handle.write(payload)
+                handle.flush()
+                os.fsync(handle.fileno())
+        except Exception:
+            candidate.unlink(missing_ok=True)
+            raise
+        return {
+            "path": str(candidate.relative_to(root_dir())).replace("\\", "/"),
+            "ok": True,
+            "created": True,
+        }
+    raise FileExistsError("could not allocate a unique note filename")
+
+
 def delete(rel: str) -> dict:
     p = _safe(rel)
     if p.is_dir():
@@ -759,9 +839,16 @@ def delete(rel: str) -> dict:
     return {"ok": True}
 
 
-def rename(rel: str, new_rel: str) -> dict:
+def rename(rel: str, new_rel: str, expected_hash: str | None = None) -> dict:
     src = _safe(rel)
     dst = _safe(new_rel)
+    if expected_hash is not None:
+        current_raw = src.read_bytes() if src.is_file() else b""
+        if current_raw:
+            _decode_for_edit(current_raw)
+        current = _hash_bytes(current_raw) if src.is_file() else ""
+        if current != expected_hash:
+            raise DocumentConflictError("document changed since it was opened")
     # only auto-append .md when renaming a FILE (folders keep their plain name)
     if src.is_file() and dst.suffix == "":
         dst = dst.with_suffix(".md")
@@ -790,8 +877,8 @@ def rewrite_links(old_name: str, new_name: str) -> list[str]:
     changed = []
     for p in _all_md():
         try:
-            text = p.read_text("utf-8", errors="replace")
-        except Exception:
+            text = _read_text_for_edit(p)
+        except (OSError, DocumentEncodingError):
             continue
         new_text = pat.sub(_sub, text)
         if new_text != text:
@@ -987,7 +1074,7 @@ def set_task(rel: str, line: int, done: bool) -> dict:
     p = _safe(rel)
     if not p.is_file():
         raise ValueError("not a file")
-    lines = p.read_text("utf-8", errors="replace").split("\n")
+    lines = _read_text_for_edit(p).split("\n")
     if line < 0 or line >= len(lines):
         raise ValueError("line out of range")
     if not _TASK.match(lines[line]):

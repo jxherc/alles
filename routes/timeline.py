@@ -8,7 +8,7 @@ renders into a scrollable "your life, lately" feed. /today is the forward-lookin
 slice; this is the backward-looking log.
 """
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session as DbSession
@@ -60,7 +60,7 @@ def _ev(ts, type_, app, title, subtitle="", view="", eid=""):
 def _aggregate(db, want: set, days: int) -> list:
     """build the raw (unsorted) event list across every wanted source. shared by
     the feed (/timeline) and the rollup (/timeline/summary) so they never drift."""
-    cutoff = datetime.utcnow() - timedelta(days=days)
+    cutoff = datetime.now(UTC).replace(tzinfo=None) - timedelta(days=days)
     cutoff_d = cutoff.date()
     out = []
 
@@ -103,14 +103,14 @@ def _aggregate(db, want: set, days: int) -> list:
             rec = (e.recurrence or "").strip()
             occs = []
             if not rec:
-                if cutoff <= sd <= datetime.utcnow():
+                if cutoff <= sd <= datetime.now(UTC).replace(tzinfo=None):
                     occs.append(sd)
             else:
                 step = {"daily": 1, "weekly": 7, "monthly": 30}.get(rec, 0)
                 if step:
                     d = sd
                     guard = 0
-                    while d <= datetime.utcnow() and guard < 800:
+                    while d <= datetime.now(UTC).replace(tzinfo=None) and guard < 800:
                         if d >= cutoff:
                             occs.append(d)
                         d = d + timedelta(days=step)
@@ -174,7 +174,7 @@ def _aggregate(db, want: set, days: int) -> list:
 
             root = vault_dir()
             for p in _all_md():
-                mt = datetime.utcfromtimestamp(p.stat().st_mtime)
+                mt = datetime.fromtimestamp(p.stat().st_mtime, UTC).replace(tzinfo=None)
                 if mt >= cutoff:
                     rel = str(p.relative_to(root)).replace("\\", "/")
                     out.append(_ev(mt, "doc", "docs", p.stem, "edited", "wiki", rel))

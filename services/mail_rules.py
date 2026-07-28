@@ -2,7 +2,7 @@
 applying to the cache (markread/mute/label) + enqueuing autoreplies/vacation sends into the outbox
 are locally testable against the db."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 from email.utils import parseaddr
 
 from core.database import CachedMessage, MailAccount, ScheduledMail
@@ -29,7 +29,7 @@ def _enqueue(db, account_id, to, subject, body):
         to=to,
         subject=subject,
         body=body or "",
-        send_at=datetime.utcnow().isoformat(),
+        send_at=datetime.now(UTC).replace(tzinfo=None).isoformat(),
         status="scheduled",
     )
     db.add(m)

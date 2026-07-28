@@ -30,9 +30,7 @@ class ApiTokenScopeMigrationTest(unittest.TestCase):
         with self.engine.begin() as connection:
             migration.up(connection)
             migration.up(connection)
-            row = connection.execute(
-                text("SELECT scopes FROM api_tokens WHERE id = 'old'")
-            ).one()
+            row = connection.execute(text("SELECT scopes FROM api_tokens WHERE id = 'old'")).one()
         self.assertEqual(row[0], '["read"]')
 
 

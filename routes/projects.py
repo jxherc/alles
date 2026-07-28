@@ -9,6 +9,7 @@ from core.api_errors import ApiError
 from core.auth import require_recent_owner
 from core.database import Project, Session, get_db
 from services.project_environment import canonical_folder, folder_state
+from services.project_git import ProjectGitError, branch_state, switch_branch
 
 router = APIRouter(prefix="/api")
 
@@ -100,12 +101,82 @@ def general_environment():
     }
 
 
+@router.get("/project-folders")
+def browse_project_folders(request: Request, path: str = ""):
+    """List server folders for the custom Project picker.
+
+    The picker starts at the owner's home folder, accepts an absolute path for quick
+    jumps, and never returns files. Recent owner confirmation protects filesystem
+    discovery when authentication is enabled.
+    """
+    require_recent_owner(request)
+    candidate = Path(path).expanduser() if path.strip() else Path.home()
+    if not candidate.is_absolute():
+        raise ApiError(400, "project_folder_must_be_absolute", "enter an absolute folder path")
+    try:
+        current = candidate.resolve(strict=True)
+    except (OSError, RuntimeError) as exc:
+        raise ApiError(400, "project_folder_unavailable", "that folder is unavailable") from exc
+    if not current.is_dir():
+        raise ApiError(400, "project_folder_unavailable", "that path is not a folder")
+    try:
+        children = sorted(
+            (
+                child
+                for child in current.iterdir()
+                if not child.name.startswith(".") and child.is_dir()
+            ),
+            key=lambda child: child.name.casefold(),
+        )[:200]
+    except OSError as exc:
+        raise ApiError(400, "project_folder_unavailable", "that folder cannot be opened") from exc
+    parent = current.parent if current.parent != current else None
+    return {
+        "path": str(current),
+        "parent": str(parent) if parent else "",
+        "folders": [{"name": child.name, "path": str(child)} for child in children],
+    }
+
+
 @router.get("/projects/{pid}")
 def get_project(pid: str, db: DbSession = Depends(get_db)):
     p = db.get(Project, pid)
     if not p:
         raise HTTPException(404)
     return _fmt(p)
+
+
+class SwitchProjectBranch(BaseModel):
+    branch: str
+
+
+@router.get("/projects/{pid}/git/branches")
+def project_git_branches(pid: str, db: DbSession = Depends(get_db)):
+    p = db.get(Project, pid)
+    if not p:
+        raise HTTPException(404)
+    if folder_state(p.working_dir) != "available":
+        return {"repository": False, "current": "", "branches": [], "dirty": False}
+    return branch_state(p.working_dir)
+
+
+@router.post("/projects/{pid}/git/branches")
+def switch_project_branch(
+    pid: str,
+    body: SwitchProjectBranch,
+    request: Request,
+    db: DbSession = Depends(get_db),
+):
+    require_recent_owner(request)
+    p = db.get(Project, pid)
+    if not p:
+        raise HTTPException(404)
+    if folder_state(p.working_dir) != "available":
+        raise ApiError(409, "project_folder_unavailable", "relink this Project folder first")
+    try:
+        return switch_branch(p.working_dir, body.branch.strip())
+    except ProjectGitError as exc:
+        raise ApiError(409, exc.code, str(exc)) from exc
 
 
 @router.patch("/projects/{pid}")

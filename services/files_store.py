@@ -3,12 +3,16 @@ Files app — a browser over a configurable root dir (default data/files).
 single-user, path-traversal safe. mirrors the vault_md safe-path approach.
 """
 
+import hashlib
 import mimetypes
+import os
 import shutil
+import uuid
 from datetime import datetime
 from pathlib import Path
 
 from core.settings import data_dir, load_settings
+from services import internal_paths
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -24,13 +28,13 @@ def files_dir() -> Path:
     return p
 
 
-def root_dir() -> Path:
+def root_dir(root: Path | None = None) -> Path:
     """Normalize configured and test-provided roots before confinement checks."""
-    return files_dir().expanduser().resolve()
+    return (root if root is not None else files_dir()).expanduser().resolve()
 
 
-def _safe(rel: str) -> Path:
-    base = root_dir()
+def _safe(rel: str, root: Path | None = None) -> Path:
+    base = root_dir(root)
     p = (base / (rel or "").lstrip("/\\")).resolve()
     if base != p and base not in p.parents:
         raise ValueError("path escapes files root")
@@ -57,9 +61,11 @@ def _entry(p: Path, base: Path) -> dict:
 _SORT_KEYS = ("name", "size", "mtime", "type")
 
 
-def listdir(rel: str = "", sort: str = "name", order: str = "") -> dict:
-    base = root_dir()
-    d = _safe(rel)
+def listdir(
+    rel: str = "", sort: str = "name", order: str = "", *, root: Path | None = None
+) -> dict:
+    base = root_dir(root)
+    d = _safe(rel, root)
     if not d.exists() or not d.is_dir():
         raise ValueError("not a directory")
     items = []
@@ -87,8 +93,8 @@ def listdir(rel: str = "", sort: str = "name", order: str = "") -> dict:
     return {"path": (rel or "").strip("/"), "items": items}
 
 
-def read_text(rel: str, limit: int = 200_000) -> dict:
-    p = _safe(rel)
+def read_text(rel: str, limit: int = 200_000, *, root: Path | None = None) -> dict:
+    p = _safe(rel, root)
     if not p.is_file():
         raise ValueError("not a file")
     mime = mimetypes.guess_type(p.name)[0] or "application/octet-stream"
@@ -110,16 +116,16 @@ def read_text(rel: str, limit: int = 200_000) -> dict:
     }
 
 
-def mkdir(rel: str) -> dict:
-    p = _safe(rel)
+def mkdir(rel: str, *, root: Path | None = None) -> dict:
+    p = _safe(rel, root)
     if p.exists() and not p.is_dir():
         raise ValueError("a file with that name already exists")
     p.mkdir(parents=True, exist_ok=True)
-    return {"ok": True, "path": str(p.relative_to(root_dir())).replace("\\", "/")}
+    return {"ok": True, "path": str(p.relative_to(root_dir(root))).replace("\\", "/")}
 
 
-def delete(rel: str) -> dict:
-    p = _safe(rel)
+def delete(rel: str, *, root: Path | None = None) -> dict:
+    p = _safe(rel, root)
     if not rel.strip():
         raise ValueError("won't delete the root")
     if p.is_dir():
@@ -129,9 +135,9 @@ def delete(rel: str) -> dict:
     return {"ok": True}
 
 
-def rename(rel: str, new_rel: str) -> dict:
-    src = _safe(rel)
-    dst = _safe(new_rel)
+def rename(rel: str, new_rel: str, *, root: Path | None = None) -> dict:
+    src = _safe(rel, root)
+    dst = _safe(new_rel, root)
     if not src.exists():
         raise FileNotFoundError(rel)
     if dst.exists() and dst != src:
@@ -139,19 +145,78 @@ def rename(rel: str, new_rel: str) -> dict:
         raise ValueError("a file or folder with that name already exists")
     dst.parent.mkdir(parents=True, exist_ok=True)
     src.rename(dst)
-    return {"ok": True, "path": str(dst.relative_to(root_dir())).replace("\\", "/")}
+    return {"ok": True, "path": str(dst.relative_to(root_dir(root))).replace("\\", "/")}
 
 
-def save_upload(rel_dir: str, filename: str, data: bytes) -> dict:
+def save_upload(rel_dir: str, filename: str, data: bytes, *, root: Path | None = None) -> dict:
     name = Path(filename or "").name  # strip any path from the upload name
     if not name or set(name) <= {"."}:
         # "", ".", "..", "..." all resolve to the dir itself -> write_bytes would 500
         raise ValueError("invalid filename")
-    d = _safe(rel_dir)
+    d = _safe(rel_dir, root)
     d.mkdir(parents=True, exist_ok=True)
-    dst = _safe(str((Path(rel_dir) / name))) if rel_dir else _safe(name)
-    dst.write_bytes(data)
-    return {"ok": True, "name": name, "path": str(dst.relative_to(root_dir())).replace("\\", "/")}
+    dst = _safe(str((Path(rel_dir) / name)), root) if rel_dir else _safe(name, root)
+    upload_id = uuid.uuid4().hex
+    partial = internal_paths.artifact_sibling(
+        dst,
+        "upload",
+        identity=upload_id,
+        suffix=".partial",
+    )
+    backup = internal_paths.artifact_sibling(
+        dst,
+        "upload",
+        identity=upload_id,
+        suffix=".backup",
+    )
+    replaced = False
+    keep_backup = False
+    try:
+        with partial.open("xb") as handle:
+            handle.write(data)
+            handle.flush()
+            os.fsync(handle.fileno())
+        written = hashlib.sha256()
+        with partial.open("rb") as handle:
+            for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                written.update(chunk)
+        if partial.stat().st_size != len(data) or written.digest() != hashlib.sha256(data).digest():
+            raise OSError("upload verification failed")
+        if dst.is_file():
+            try:
+                os.link(dst, backup)
+            except OSError:
+                shutil.copy2(dst, backup)
+                with backup.open("rb") as handle:
+                    os.fsync(handle.fileno())
+        os.replace(partial, dst)
+        replaced = True
+        try:
+            directory = os.open(dst.parent, os.O_RDONLY)
+            try:
+                os.fsync(directory)
+            finally:
+                os.close(directory)
+        except OSError:
+            pass
+        backup.unlink(missing_ok=True)
+    except Exception as exc:
+        if replaced and backup.exists():
+            try:
+                os.replace(backup, dst)
+            except OSError:
+                keep_backup = True
+                raise OSError("upload failed; the original remains in a recovery backup") from exc
+        raise
+    finally:
+        partial.unlink(missing_ok=True)
+        if not keep_backup:
+            backup.unlink(missing_ok=True)
+    return {
+        "ok": True,
+        "name": name,
+        "path": str(dst.relative_to(root_dir(root))).replace("\\", "/"),
+    }
 
 
 _TEXT_EXT = {
@@ -178,11 +243,11 @@ _TEXT_EXT = {
 }
 
 
-def search(query: str, limit: int = 100) -> dict:
+def search(query: str, limit: int = 100, *, root: Path | None = None) -> dict:
     """find files by name, and by content for small text files. content hits
     carry a snippet around the match. stays inside the files root, skips
     dotfiles, caps text scanning at 512KB so it can't choke on huge blobs."""
-    base = root_dir()
+    base = root_dir(root)
     q = (query or "").strip().lower()
     if not q:
         return {"query": query, "results": []}
@@ -243,12 +308,12 @@ _DOC_EXT = _TEXT_EXT | {
 SMART_KINDS = ("recent", "images", "large", "documents")
 
 
-def smart(kind: str, days: int = 30, limit: int = 200) -> dict:
+def smart(kind: str, days: int = 30, limit: int = 200, *, root: Path | None = None) -> dict:
     """a virtual, cross-tree view. recent = mtime within `days` (newest first);
     images / documents = by extension; large = biggest first."""
     if kind not in SMART_KINDS:
         raise ValueError(f"unknown smart folder: {kind}")
-    base = root_dir()
+    base = root_dir(root)
     rows = []
     cutoff = datetime.now().timestamp() - days * 86400
     for p in _walk(base):
@@ -273,5 +338,5 @@ def smart(kind: str, days: int = 30, limit: int = 200) -> dict:
     return {"kind": kind, "items": rows[:limit]}
 
 
-def abspath(rel: str) -> Path:
-    return _safe(rel)
+def abspath(rel: str, *, root: Path | None = None) -> Path:
+    return _safe(rel, root)

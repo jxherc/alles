@@ -29,7 +29,7 @@ class AskBody(BaseModel):
 async def ask(body: AskBody):
     if not body.query.strip():
         raise HTTPException(400, "empty query")
-    from core.database import SessionLocal, ModelEndpoint
+    from core.database import ModelEndpoint, SessionLocal
 
     db = SessionLocal()
     try:

@@ -23,8 +23,9 @@ class ProactiveSettingsTests(ApiTest):
         self.assertEqual(s["pidx_proactive_every_hours"], 6)
 
     def test_patch_roundtrip(self):
-        self.client.patch("/api/settings", json={"pidx_proactive_enabled": True,
-                                                 "pidx_proactive_every_hours": 12})
+        self.client.patch(
+            "/api/settings", json={"pidx_proactive_enabled": True, "pidx_proactive_every_hours": 12}
+        )
         s = self.client.get("/api/settings").json()
         self.assertTrue(s["pidx_proactive_enabled"])
         self.assertEqual(s["pidx_proactive_every_hours"], 12)

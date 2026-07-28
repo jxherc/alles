@@ -1,9 +1,13 @@
 import calendar as _cal
+import functools
+import hashlib
+import inspect
 import math
 from collections import defaultdict
 from datetime import date, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.routing import APIRoute
 from pydantic import BaseModel
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session as DbSession
@@ -13,6 +17,7 @@ from core.database import (
     Budget,
     BudgetAssignment,
     CategoryRule,
+    FinanceLedgerState,
     FundingTarget,
     Goal,
     Holding,
@@ -23,9 +28,103 @@ from core.database import (
     Watch,
     get_db,
 )
-from services import fx
+from services import actual_finance, finance_currency, fx
 
-router = APIRouter(prefix="/api/money")
+
+def _actual_error(exc: actual_finance.ActualFinanceError):
+    status_code = 503 if isinstance(exc, actual_finance.ActualFinanceUnavailable) else 409
+    raise HTTPException(status_code, str(exc)) from exc
+
+
+def _legacy_ledger_mutation(method: str, path: str) -> bool:
+    if method not in {"POST", "PUT", "PATCH", "DELETE"}:
+        return False
+    normalized = path.strip("/")
+    if normalized == "api/money":
+        normalized = ""
+    elif normalized.startswith("api/money/"):
+        normalized = normalized.removeprefix("api/money/")
+    parts = normalized.split("/") if normalized else []
+    return (
+        parts[:1] == ["recurring"]
+        or parts[:1] == ["envelope"]
+        or parts in (["rules", "apply"], ["tag-rules", "apply"])
+        or (
+            parts[:1] == ["transactions"]
+            and not (
+                (method == "POST" and parts == ["transactions"])
+                or (method in {"PATCH", "DELETE"} and len(parts) == 2)
+            )
+        )
+    )
+
+
+def _money_authority(path: str, methods: set[str], endpoint):
+    """Run the authority snapshot and endpoint inside one worker-thread lock lifetime."""
+    signature = inspect.signature(endpoint)
+
+    @functools.wraps(endpoint)
+    def guarded(*args, **kwargs):
+        bound = signature.bind_partial(*args, **kwargs)
+        db = bound.arguments.get("db")
+        if db is None:
+            raise RuntimeError("Finance route authority requires its request database session")
+        with actual_finance.AUTHORITY_LOCK:
+            canonical = actual_finance.is_canonical(db)
+            if canonical and any(_legacy_ledger_mutation(method, path) for method in methods):
+                raise HTTPException(
+                    409,
+                    "this legacy Finance action is read-only after Actual cutover",
+                )
+            return endpoint(*args, **kwargs)
+
+    guarded._alles_authority_same_thread = True
+    return guarded
+
+
+def _money_preflight(request: Request, db: DbSession = Depends(get_db)) -> None:
+    """Reject legacy writes before body validation without holding a lock across a yield."""
+    with actual_finance.AUTHORITY_LOCK:
+        if actual_finance.is_canonical(db) and _legacy_ledger_mutation(
+            request.method.upper(), request.url.path
+        ):
+            raise HTTPException(
+                409,
+                "this legacy Finance action is read-only after Actual cutover",
+            )
+
+
+class _MoneyAuthorityRoute(APIRoute):
+    def __init__(self, path, endpoint, *, methods=None, **kwargs):
+        normalized_methods = {str(method).upper() for method in (methods or {"GET"})}
+        super().__init__(
+            path,
+            _money_authority(path, normalized_methods, endpoint),
+            methods=methods,
+            **kwargs,
+        )
+
+
+def _require_actual_backed_analytics(db: DbSession, feature: str) -> None:
+    """Do not present frozen legacy calculations after Actual becomes canonical."""
+    if actual_finance.is_canonical(db):
+        raise HTTPException(
+            409,
+            f"{feature} is unavailable after Actual cutover until it is calculated from the canonical ledger",
+        )
+
+
+def _require_legacy_ledger_write(db: DbSession) -> None:
+    """Keep retained migration tables immutable once Actual owns the ledger."""
+    if actual_finance.is_canonical(db):
+        raise HTTPException(409, "this legacy Finance action is read-only after Actual cutover")
+
+
+router = APIRouter(
+    prefix="/api/money",
+    dependencies=[Depends(_money_preflight)],
+    route_class=_MoneyAuthorityRoute,
+)
 
 RECUR_CYCLES = ("weekly", "monthly", "quarterly", "yearly", "custom")
 
@@ -47,6 +146,13 @@ def _need_floats(body, *fields):
             if not math.isfinite(v):
                 raise HTTPException(400, f"{f} must be a finite number")
             body[f] = v
+
+
+def _prepare_money(action, *, detail="amount is outside the supported range"):
+    try:
+        return action()
+    except ValueError as exc:
+        raise HTTPException(400, detail) from exc
 
 
 def _add_months(d: date, n: int, anchor: int | None = None) -> date:
@@ -78,8 +184,13 @@ def _fin(x):
 
 def _balances(db):
     from sqlalchemy import func
+
     bal = defaultdict(float)
-    rows = db.query(Transaction.account_id, func.sum(Transaction.amount)).group_by(Transaction.account_id).all()
+    rows = (
+        db.query(Transaction.account_id, func.sum(Transaction.amount))
+        .group_by(Transaction.account_id)
+        .all()
+    )
     for acct_id, total in rows:
         bal[acct_id] = _fin(total or 0.0)
     return bal
@@ -96,11 +207,24 @@ def _acct(a, balance):
         "archived": bool(a.archived),
         "low_balance": a.low_balance or 0.0,
         "balance": round(balance, 2),
+        "currency_code": a.currency_code or finance_currency.currency_code(a.currency),
+        "base_currency_code": a.base_currency_code or "",
+        "original_opening_text": a.original_opening_text
+        or finance_currency.decimal_text(a.opening),
+        "base_opening_text": a.base_opening_text or "",
+        "opening_fx_rate_text": a.opening_fx_rate_text or "",
+        "opening_fx_rate_date": a.opening_fx_rate_date or "",
+        "opening_fx_source": a.opening_fx_source or "",
     }
 
 
 @router.get("/accounts")
 def list_accounts(db: DbSession = Depends(get_db)):
+    if actual_finance.is_canonical(db):
+        try:
+            return actual_finance.accounts(db)
+        except actual_finance.ActualFinanceError as exc:
+            _actual_error(exc)
     bal = _balances(db)
     rows = db.query(Account).order_by(Account.created_at.asc()).all()
     return [_acct(a, (a.opening or 0.0) + bal.get(a.id, 0.0)) for a in rows]
@@ -113,10 +237,20 @@ class AccountBody(BaseModel):
     opening: float = 0.0
     color: str = "accent"
     low_balance: float = 0.0
+    request_id: str = ""
 
 
 @router.post("/accounts")
 def create_account(body: AccountBody, db: DbSession = Depends(get_db)):
+    if actual_finance.is_canonical(db):
+        try:
+            values = body.model_dump()
+            if "currency" not in body.model_fields_set:
+                values.pop("currency", None)
+            request_id = values.pop("request_id", "")
+            return actual_finance.create_account(db, values, request_id=request_id)
+        except actual_finance.ActualFinanceError as exc:
+            _actual_error(exc)
     a = Account(
         name=(body.name or "account").strip() or "account",
         kind=body.kind,
@@ -125,6 +259,7 @@ def create_account(body: AccountBody, db: DbSession = Depends(get_db)):
         color=body.color or "accent",
         low_balance=body.low_balance or 0.0,
     )
+    _prepare_money(lambda: finance_currency.prepare_account(a), detail="opening balance is invalid")
     db.add(a)
     db.commit()
     db.refresh(a)
@@ -133,6 +268,11 @@ def create_account(body: AccountBody, db: DbSession = Depends(get_db)):
 
 @router.patch("/accounts/{aid}")
 def update_account(aid: str, body: dict, db: DbSession = Depends(get_db)):
+    if actual_finance.is_canonical(db):
+        try:
+            return actual_finance.update_account(db, aid, body)
+        except actual_finance.ActualFinanceError as exc:
+            _actual_error(exc)
     a = db.get(Account, aid)
     if not a:
         raise HTTPException(404)
@@ -140,6 +280,15 @@ def update_account(aid: str, body: dict, db: DbSession = Depends(get_db)):
     for k in ("name", "kind", "currency", "opening", "color", "archived", "low_balance"):
         if k in body:
             setattr(a, k, body[k])
+    if "currency" in body:
+        _prepare_money(
+            lambda: finance_currency.prepare_account(a), detail="opening balance is invalid"
+        )
+    elif "opening" in body:
+        _prepare_money(
+            lambda: finance_currency.refresh_account_opening(a),
+            detail="opening balance is invalid",
+        )
     db.commit()
     bal = _balances(db)
     return _acct(a, (a.opening or 0.0) + bal.get(a.id, 0.0))
@@ -147,6 +296,11 @@ def update_account(aid: str, body: dict, db: DbSession = Depends(get_db)):
 
 @router.delete("/accounts/{aid}")
 def delete_account(aid: str, db: DbSession = Depends(get_db)):
+    if actual_finance.is_canonical(db):
+        try:
+            return actual_finance.close_account(db, aid)
+        except actual_finance.ActualFinanceError as exc:
+            _actual_error(exc)
     a = db.get(Account, aid)
     if not a:
         raise HTTPException(404)
@@ -171,6 +325,30 @@ def delete_account(aid: str, db: DbSession = Depends(get_db)):
 @router.get("/accounts/{aid}/reconcile")
 def reconcile(aid: str, statement: float = 0.0, db: DbSession = Depends(get_db)):
     """compare the cleared balance (opening + cleared txns) against a statement balance (4a)."""
+    if actual_finance.is_canonical(db):
+        try:
+            actual = actual_finance.inspect(db)
+            rows = actual_finance.transactions(db, actual=actual)
+            account = next(
+                (row for row in actual_finance.accounts(db, actual=actual) if row["id"] == aid),
+                None,
+            )
+        except actual_finance.ActualFinanceError as exc:
+            _actual_error(exc)
+        if not account:
+            raise HTTPException(404, "unknown account")
+        uncleared = sum(
+            row["amount"] for row in rows if row["account_id"] == aid and not row["cleared"]
+        )
+        cleared_balance = round(account["balance"] - uncleared, 2)
+        diff = round(statement - cleared_balance, 2)
+        return {
+            "account_id": aid,
+            "cleared_balance": cleared_balance,
+            "statement": round(statement, 2),
+            "difference": diff,
+            "reconciled": abs(diff) < 0.005,
+        }
     a = db.get(Account, aid)
     if not a:
         raise HTTPException(404, "unknown account")
@@ -272,6 +450,14 @@ def _txn(t):
         "tags": t.tags or "",
         "receipt_id": t.receipt_id or "",
         "cleared": bool(t.cleared),
+        "original_amount_text": t.original_amount_text
+        or finance_currency.decimal_text(_fin(t.amount)),
+        "original_currency_code": t.original_currency_code or "",
+        "base_amount_text": t.base_amount_text or "",
+        "base_currency_code": t.base_currency_code or "",
+        "import_identity": t.import_identity or "",
+        "import_batch_id": t.import_batch_id or "",
+        "import_source": t.import_source or "",
     }
 
 
@@ -284,6 +470,27 @@ def list_txns(
     limit: int = 500,
     db: DbSession = Depends(get_db),
 ):
+    if actual_finance.is_canonical(db):
+        try:
+            rows = actual_finance.transactions(db)
+        except actual_finance.ActualFinanceError as exc:
+            _actual_error(exc)
+        if account:
+            rows = [row for row in rows if row["account_id"] == account]
+        if category:
+            rows = [row for row in rows if row["category"] == category]
+        if tag:
+            wanted = tag.strip().lower()
+            rows = [
+                row
+                for row in rows
+                if wanted
+                in {item.strip().lower() for item in row["tags"].split(",") if item.strip()}
+            ]
+        if month:
+            rows = [row for row in rows if row["date"].startswith(month)]
+        limit = max(1, min(int(limit), 10000))
+        return sorted(rows, key=lambda row: (row["date"], row["id"]), reverse=True)[:limit]
     _post_due_recurring(db)
     limit = max(1, min(int(limit), 10000))  # clamp: a huge value overflows sqlite's INTEGER -> 500
     q = db.query(Transaction)
@@ -300,7 +507,8 @@ def list_txns(
     ids = [t.id for t in rows]
     split_ids = (
         {r[0] for r in db.query(TxnSplit.txn_id).filter(TxnSplit.txn_id.in_(ids)).distinct().all()}
-        if ids else set()
+        if ids
+        else set()
     )
     out = []
     for t in rows:
@@ -322,6 +530,29 @@ def search_txns(
 ):
     """text search across payee/category/notes + filter by |amount| range, account,
     month. date-desc. answers 'what did I spend at X' / 'charges over $100'."""
+    if actual_finance.is_canonical(db):
+        try:
+            rows = actual_finance.transactions(db)
+        except actual_finance.ActualFinanceError as exc:
+            _actual_error(exc)
+        if account:
+            rows = [row for row in rows if row["account_id"] == account]
+        if month:
+            rows = [row for row in rows if row["date"].startswith(month)]
+        needle = (q or "").strip().casefold()
+        if needle:
+            rows = [
+                row
+                for row in rows
+                if needle in " ".join((row["payee"], row["category"], row["notes"])).casefold()
+            ]
+        if min_amt is not None:
+            rows = [row for row in rows if abs(row["amount"]) >= min_amt]
+        if max_amt is not None:
+            rows = [row for row in rows if abs(row["amount"]) <= max_amt]
+        return sorted(rows, key=lambda row: (row["date"], row["id"]), reverse=True)[
+            : max(1, min(int(limit), 10000))
+        ]
     query = db.query(Transaction)
     if account:
         query = query.filter(Transaction.account_id == account)
@@ -359,32 +590,47 @@ class TxnBody(BaseModel):
     tags: str = ""
     receipt_id: str = ""
     cleared: bool = False
+    request_id: str = ""
 
 
 @router.post("/transactions")
 def create_txn(body: TxnBody, db: DbSession = Depends(get_db)):
-    if not db.get(Account, body.account_id):
-        raise HTTPException(400, "unknown account")
     if not math.isfinite(body.amount):
         raise HTTPException(400, "amount must be a finite number")
-    cat = (body.category or "").strip()
-    if not cat:  # no explicit category → let a rule fill it in from the payee
-        cat = _categorize(body.payee, _rules(db))
+    values = {
+        **body.model_dump(),
+        "category": (body.category or "").strip(),
+        "payee": (body.payee or "").strip(),
+        "notes": (body.notes or "").strip(),
+        "tags": _norm_tags(body.tags),
+        "receipt_id": (body.receipt_id or "").strip(),
+    }
+    if actual_finance.is_canonical(db):
+        try:
+            request_id = values.pop("request_id", "")
+            return actual_finance.create_transaction(db, values, request_id=request_id)
+        except actual_finance.ActualFinanceError as exc:
+            _actual_error(exc)
+    if not values["category"]:  # legacy-only rules freeze at Actual cutover
+        values["category"] = _categorize(body.payee, _rules(db))
     from services import tag_rules
 
-    tags = tag_rules.apply_rules(body.payee, _tag_rules(db), existing=_norm_tags(body.tags))
+    values["tags"] = tag_rules.apply_rules(body.payee, _tag_rules(db), existing=values["tags"])
+    if not db.get(Account, body.account_id):
+        raise HTTPException(400, "unknown account")
     t = Transaction(
-        account_id=body.account_id,
-        date=body.date,
-        amount=body.amount,
-        category=cat,
-        payee=(body.payee or "").strip(),
-        notes=(body.notes or "").strip(),
-        tags=tags,
-        receipt_id=(body.receipt_id or "").strip(),
-        cleared=bool(body.cleared),
+        account_id=values["account_id"],
+        date=values["date"],
+        amount=values["amount"],
+        category=values["category"],
+        payee=values["payee"],
+        notes=values["notes"],
+        tags=values["tags"],
+        receipt_id=values["receipt_id"],
+        cleared=bool(values["cleared"]),
     )
     db.add(t)
+    _prepare_money(lambda: finance_currency.prepare_transaction(db, t, source="manual_identity"))
     db.commit()
     db.refresh(t)
     return _txn(t)
@@ -392,6 +638,11 @@ def create_txn(body: TxnBody, db: DbSession = Depends(get_db)):
 
 @router.patch("/transactions/{tid}")
 def update_txn(tid: str, body: dict, db: DbSession = Depends(get_db)):
+    if actual_finance.is_canonical(db):
+        try:
+            return actual_finance.update_transaction(db, tid, body)
+        except actual_finance.ActualFinanceError as exc:
+            _actual_error(exc)
     t = db.get(Transaction, tid)
     if not t:
         raise HTTPException(404)
@@ -412,12 +663,21 @@ def update_txn(tid: str, body: dict, db: DbSession = Depends(get_db)):
         t.tags = _norm_tags(body["tags"])
     if "cleared" in body:
         t.cleared = bool(body["cleared"])
+    if "amount" in body or "account_id" in body:
+        _prepare_money(
+            lambda: finance_currency.prepare_transaction(db, t, source="manual_update_identity")
+        )
     db.commit()
     return _txn(t)
 
 
 @router.delete("/transactions/{tid}")
 def delete_txn(tid: str, db: DbSession = Depends(get_db)):
+    if actual_finance.is_canonical(db):
+        try:
+            return actual_finance.delete_transaction(db, tid)
+        except actual_finance.ActualFinanceError as exc:
+            _actual_error(exc)
     t = db.get(Transaction, tid)
     if not t:
         raise HTTPException(404)
@@ -441,6 +701,8 @@ class SplitsBody(BaseModel):
 
 @router.get("/transactions/{tid}/splits")
 def get_splits(tid: str, db: DbSession = Depends(get_db)):
+    if actual_finance.is_canonical(db):
+        raise HTTPException(409, "transaction splits are managed in Actual after cutover")
     if not db.get(Transaction, tid):
         raise HTTPException(404)
     rows = (
@@ -451,6 +713,7 @@ def get_splits(tid: str, db: DbSession = Depends(get_db)):
 
 @router.put("/transactions/{tid}/splits")
 def put_splits(tid: str, body: SplitsBody, db: DbSession = Depends(get_db)):
+    _require_legacy_ledger_write(db)
     t = db.get(Transaction, tid)
     if not t:
         raise HTTPException(404)
@@ -491,16 +754,24 @@ def export_txns_csv(db: DbSession = Depends(get_db)):
     # include tags — import already reads a tags column, so without it an export→re-import
     # round-trip silently drops every transaction's tags
     w.writerow(["date", "amount", "category", "payee", "notes", "tags", "account_id"])
-    for t in db.query(Transaction).order_by(Transaction.date).all():
+    if actual_finance.is_canonical(db):
+        try:
+            source_rows = sorted(actual_finance.transactions(db), key=lambda row: row["date"])
+        except actual_finance.ActualFinanceError as exc:
+            _actual_error(exc)
+    else:
+        source_rows = db.query(Transaction).order_by(Transaction.date).all()
+    for t in source_rows:
+        value = t if isinstance(t, dict) else _txn(t)
         w.writerow(
             [
-                t.date,
-                t.amount,
-                _safe(t.category or ""),
-                _safe(t.payee or ""),
-                _safe(t.notes or ""),
-                _safe(t.tags or ""),
-                t.account_id,
+                value["date"],
+                value["amount"],
+                _safe(value["category"] or ""),
+                _safe(value["payee"] or ""),
+                _safe(value["notes"] or ""),
+                _safe(value["tags"] or ""),
+                value["account_id"],
             ]
         )
     return Response(
@@ -520,6 +791,7 @@ def import_txns_csv(body: CsvImport, db: DbSession = Depends(get_db)):
     """import transactions from a CSV (e.g. a bank export). needs date + amount
     columns. skips rows that duplicate an existing txn (same date+amount+payee in
     this account) so re-importing an overlapping statement doesn't double-count."""
+    _require_legacy_ledger_write(db)
     import csv
     import io
 
@@ -530,12 +802,22 @@ def import_txns_csv(body: CsvImport, db: DbSession = Depends(get_db)):
         (t.date, round(t.amount or 0.0, 2), (t.payee or "").strip().lower())
         for t in db.query(Transaction).filter(Transaction.account_id == body.account_id).all()
     }
+    seen_identities = {
+        str(value)
+        for (value,) in db.query(Transaction.import_identity)
+        .filter(
+            Transaction.account_id == body.account_id,
+            Transaction.import_identity != "",
+        )
+        .all()
+    }
     rules = _rules(db)  # auto-categorize rows that arrive without a category
     from services import tag_rules
 
     trules = _tag_rules(db)
+    source_identity = hashlib.sha256(body.csv.encode()).hexdigest()
     n = skipped = 0
-    for row in csv.DictReader(io.StringIO(body.csv)):
+    for row_number, row in enumerate(csv.DictReader(io.StringIO(body.csv)), start=2):
         row = {(k or "").strip().lower(): v for k, v in row.items()}
         date = (row.get("date") or "").strip()
         try:
@@ -545,6 +827,14 @@ def import_txns_csv(body: CsvImport, db: DbSession = Depends(get_db)):
         if not date or not math.isfinite(amt):  # 'inf'/'nan' parse fine but poison the section
             skipped += 1
             continue
+        import_identity = finance_currency.stable_import_identity(
+            "legacy-csv",
+            body.account_id,
+            occurrence_identity=f"{source_identity}:{row_number}",
+        )
+        if import_identity in seen_identities:
+            skipped += 1
+            continue
         payee = (row.get("payee") or row.get("description") or "").strip()
         key = (date[:10], round(amt, 2), payee.lower())
         if key in seen:
@@ -552,19 +842,25 @@ def import_txns_csv(body: CsvImport, db: DbSession = Depends(get_db)):
             continue
         seen.add(key)
         cat = (row.get("category") or "").strip() or _categorize(payee, rules)
-        db.add(
-            Transaction(
-                account_id=body.account_id,
-                date=date[:10],
-                amount=amt,
-                category=cat,
-                payee=payee,
-                notes=(row.get("notes") or "").strip(),
-                tags=tag_rules.apply_rules(
-                    payee, trules, existing=_norm_tags(row.get("tags") or "")
-                ),
-            )
+        transaction = Transaction(
+            account_id=body.account_id,
+            date=date[:10],
+            amount=amt,
+            category=cat,
+            payee=payee,
+            notes=(row.get("notes") or "").strip(),
+            tags=tag_rules.apply_rules(payee, trules, existing=_norm_tags(row.get("tags") or "")),
         )
+        transaction.import_identity = import_identity
+        transaction.import_source = "legacy-csv"
+        db.add(transaction)
+        try:
+            finance_currency.prepare_transaction(db, transaction, source="legacy-csv")
+        except ValueError:
+            db.expunge(transaction)
+            skipped += 1
+            continue
+        seen_identities.add(import_identity)
         n += 1
     db.commit()
     return {"imported": n, "skipped": skipped}
@@ -578,6 +874,7 @@ class OfxImport(BaseModel):
 @router.post("/transactions/import-ofx")
 def import_txns_ofx(body: OfxImport, db: DbSession = Depends(get_db)):
     """import an OFX/QFX bank export (1f). same date+amount+payee dedup as CSV."""
+    _require_legacy_ledger_write(db)
     from services import txn_ingest
 
     if not db.get(Account, body.account_id):
@@ -586,14 +883,33 @@ def import_txns_ofx(body: OfxImport, db: DbSession = Depends(get_db)):
         (t.date, round(t.amount or 0.0, 2), (t.payee or "").strip().lower())
         for t in db.query(Transaction).filter(Transaction.account_id == body.account_id).all()
     }
+    seen_identities = {
+        str(value)
+        for (value,) in db.query(Transaction.import_identity)
+        .filter(
+            Transaction.account_id == body.account_id,
+            Transaction.import_identity != "",
+        )
+        .all()
+    }
     rules = _rules(db)
     from services import tag_rules
 
     trules = _tag_rules(db)
+    source_identity = hashlib.sha256(body.ofx.encode()).hexdigest()
     n = skipped = 0
-    for row in txn_ingest.parse_ofx(body.ofx):
+    for row_number, row in enumerate(txn_ingest.parse_ofx(body.ofx), start=1):
         payee = (row.get("payee") or "").strip()
         if not math.isfinite(row.get("amount") or 0.0):
+            skipped += 1
+            continue
+        import_identity = finance_currency.stable_import_identity(
+            "legacy-ofx",
+            body.account_id,
+            external_id=str(row.get("fitid") or ""),
+            occurrence_identity=f"{source_identity}:{row_number}",
+        )
+        if import_identity in seen_identities:
             skipped += 1
             continue
         key = (row["date"][:10], round(row["amount"], 2), payee.lower())
@@ -601,17 +917,25 @@ def import_txns_ofx(body: OfxImport, db: DbSession = Depends(get_db)):
             skipped += 1
             continue
         seen.add(key)
-        db.add(
-            Transaction(
-                account_id=body.account_id,
-                date=row["date"][:10],
-                amount=row["amount"],
-                category=_categorize(payee, rules),
-                payee=payee,
-                notes=(row.get("memo") or "").strip(),
-                tags=tag_rules.apply_rules(payee, trules),
-            )
+        transaction = Transaction(
+            account_id=body.account_id,
+            date=row["date"][:10],
+            amount=row["amount"],
+            category=_categorize(payee, rules),
+            payee=payee,
+            notes=(row.get("memo") or "").strip(),
+            tags=tag_rules.apply_rules(payee, trules),
         )
+        transaction.import_identity = import_identity
+        transaction.import_source = "legacy-ofx"
+        db.add(transaction)
+        try:
+            finance_currency.prepare_transaction(db, transaction, source="legacy-ofx")
+        except ValueError:
+            db.expunge(transaction)
+            skipped += 1
+            continue
+        seen_identities.add(import_identity)
         n += 1
     db.commit()
     return {"imported": n, "skipped": skipped}
@@ -622,6 +946,23 @@ def recurring_detect(account_id: str = "", db: DbSession = Depends(get_db)):
     """surface likely recurring charges (1f) — the engine money bills + subs auto-detect reuse."""
     from services import txn_ingest
 
+    if actual_finance.is_canonical(db):
+        from services import txn_ingest
+
+        try:
+            rows = actual_finance.transactions(db)
+        except actual_finance.ActualFinanceError as exc:
+            _actual_error(exc)
+        if account_id:
+            rows = [row for row in rows if row["account_id"] == account_id]
+        return {
+            "candidates": txn_ingest.detect_recurring(
+                [
+                    {"date": row["date"], "amount": row["amount"], "payee": row["payee"]}
+                    for row in rows
+                ]
+            )
+        }
     q = db.query(Transaction)
     if account_id:
         q = q.filter(Transaction.account_id == account_id)
@@ -636,6 +977,7 @@ class TransferBody(BaseModel):
     amount: float
     date: str
     notes: str = ""
+    request_id: str = ""
 
 
 @router.post("/transfer")
@@ -647,6 +989,14 @@ def create_transfer(body: TransferBody, db: DbSession = Depends(get_db)):
         raise HTTPException(400, "pick two different accounts")
     if not math.isfinite(body.amount) or (body.amount or 0) <= 0:
         raise HTTPException(400, "amount must be positive")
+    _prepare_money(lambda: finance_currency.decimal_text(body.amount))
+    if actual_finance.is_canonical(db):
+        try:
+            values = body.model_dump()
+            request_id = values.pop("request_id", "")
+            return actual_finance.create_transfer(db, values, request_id=request_id)
+        except actual_finance.ActualFinanceError as exc:
+            _actual_error(exc)
     src = db.get(Account, body.from_account)
     dst = db.get(Account, body.to_account)
     if not src or not dst:
@@ -673,8 +1023,9 @@ def create_transfer(body: TransferBody, db: DbSession = Depends(get_db)):
         notes=(body.notes or "").strip(),
         transfer_id=tid,
     )
-    db.add(out)
-    db.add(inc)
+    db.add_all([out, inc])
+    finance_currency.prepare_transaction(db, out, source="transfer_identity")
+    finance_currency.prepare_transaction(db, inc, source="transfer_identity")
     db.commit()
     db.refresh(out)
     db.refresh(inc)
@@ -683,6 +1034,11 @@ def create_transfer(body: TransferBody, db: DbSession = Depends(get_db)):
 
 @router.delete("/transfer/{tid}")
 def delete_transfer(tid: str, db: DbSession = Depends(get_db)):
+    if actual_finance.is_canonical(db):
+        try:
+            return actual_finance.delete_transfer(db, tid)
+        except actual_finance.ActualFinanceError as exc:
+            _actual_error(exc)
     legs = db.query(Transaction).filter(Transaction.transfer_id == tid).all()
     if not legs:
         raise HTTPException(404)
@@ -700,6 +1056,8 @@ def _post_due_recurring(db, today: date = None) -> bool:
     """post a real txn for every occurrence of every active rule that's due up to
     today, advancing next_date past today. idempotent: re-running posts nothing new
     because next_date has already moved forward."""
+    if actual_finance.is_canonical(db):
+        return False
     today = today or date.today()
     changed = False
     for r in db.query(RecurringTxn).filter(RecurringTxn.active == True).all():
@@ -709,19 +1067,21 @@ def _post_due_recurring(db, today: date = None) -> bool:
             nd = date.fromisoformat(r.next_date[:10])
         except ValueError:
             continue
-        anchor = r.anchor_day or nd.day  # clamp every occurrence from here, not the last clamped date
+        anchor = (
+            r.anchor_day or nd.day
+        )  # clamp every occurrence from here, not the last clamped date
         guard = 0
         while nd <= today and guard < _RECUR_CAP:
-            db.add(
-                Transaction(
-                    account_id=r.account_id,
-                    date=nd.isoformat(),
-                    amount=r.amount or 0.0,
-                    category=r.category or "",
-                    payee=r.payee or "",
-                    notes=r.notes or "",
-                )
+            transaction = Transaction(
+                account_id=r.account_id,
+                date=nd.isoformat(),
+                amount=r.amount or 0.0,
+                category=r.category or "",
+                payee=r.payee or "",
+                notes=r.notes or "",
             )
+            db.add(transaction)
+            finance_currency.prepare_transaction(db, transaction, source="recurring_identity")
             r.last_posted = nd.isoformat()
             nd = _advance(nd, r.cycle, r.cycle_days, anchor)
             guard += 1
@@ -750,6 +1110,7 @@ def _rec(r):
 
 @router.get("/recurring")
 def list_recurring(db: DbSession = Depends(get_db)):
+    _require_actual_backed_analytics(db, "recurring schedules")
     _post_due_recurring(db)
     rows = db.query(RecurringTxn).order_by(RecurringTxn.next_date.asc()).all()
     return [_rec(r) for r in rows]
@@ -769,6 +1130,7 @@ class RecurringBody(BaseModel):
 
 @router.post("/recurring")
 def create_recurring(body: RecurringBody, db: DbSession = Depends(get_db)):
+    _require_legacy_ledger_write(db)
     if not db.get(Account, body.account_id):
         raise HTTPException(400, "unknown account")
     if body.cycle not in RECUR_CYCLES:
@@ -777,6 +1139,7 @@ def create_recurring(body: RecurringBody, db: DbSession = Depends(get_db)):
         date.fromisoformat(body.next_date[:10])
     except ValueError:
         raise HTTPException(400, "next_date must be an ISO date (YYYY-MM-DD)")
+    _prepare_money(lambda: finance_currency.decimal_text(body.amount))
     r = RecurringTxn(
         account_id=body.account_id,
         amount=body.amount or 0.0,
@@ -797,12 +1160,17 @@ def create_recurring(body: RecurringBody, db: DbSession = Depends(get_db)):
 
 @router.patch("/recurring/{rid}")
 def update_recurring(rid: str, body: dict, db: DbSession = Depends(get_db)):
+    _require_legacy_ledger_write(db)
     r = db.get(RecurringTxn, rid)
     if not r:
         raise HTTPException(404)
     if "cycle" in body and body["cycle"] not in RECUR_CYCLES:
         raise HTTPException(400, f"cycle must be one of {', '.join(RECUR_CYCLES)}")
+    if "account_id" in body and not db.get(Account, body["account_id"]):
+        raise HTTPException(400, "unknown account")
     _need_floats(body, "amount")
+    if body.get("amount") is not None:
+        _prepare_money(lambda: finance_currency.decimal_text(body["amount"]))
     if body.get("cycle_days") is not None:
         try:
             body["cycle_days"] = int(body["cycle_days"])
@@ -835,6 +1203,7 @@ def update_recurring(rid: str, body: dict, db: DbSession = Depends(get_db)):
 
 @router.delete("/recurring/{rid}")
 def delete_recurring(rid: str, db: DbSession = Depends(get_db)):
+    _require_legacy_ledger_write(db)
     r = db.get(RecurringTxn, rid)
     if not r:
         raise HTTPException(404)
@@ -879,6 +1248,7 @@ def delete_rule(rid: str, db: DbSession = Depends(get_db)):
 @router.post("/rules/apply")
 def apply_rules(db: DbSession = Depends(get_db)):
     """back-fill categories on existing uncategorized txns using the current rules."""
+    _require_legacy_ledger_write(db)
     rules = _rules(db)
     n = 0
     for t in db.query(Transaction).all():
@@ -928,6 +1298,7 @@ def delete_tag_rule(rid: str, db: DbSession = Depends(get_db)):
 @router.post("/tag-rules/apply")
 def apply_tag_rules(db: DbSession = Depends(get_db)):
     """back-fill tags on existing txns from the current tag rules (merges, never drops)."""
+    _require_legacy_ledger_write(db)
     from services import tag_rules
 
     rules = _tag_rules(db)
@@ -946,6 +1317,11 @@ def apply_tag_rules(db: DbSession = Depends(get_db)):
 # ── budgets (monthly spending caps per category) ──────────────────────────────
 @router.get("/budgets")
 def list_budgets(db: DbSession = Depends(get_db)):
+    if actual_finance.is_canonical(db):
+        try:
+            return actual_finance.budgets(db, date.today().strftime("%Y-%m"))
+        except actual_finance.ActualFinanceError as exc:
+            _actual_error(exc)
     return [
         {"id": b.id, "category": b.category, "tag": b.tag or "", "limit_amt": b.limit_amt}
         for b in db.query(Budget).order_by(Budget.category.asc()).all()
@@ -964,6 +1340,18 @@ def upsert_budget(body: BudgetBody, db: DbSession = Depends(get_db)):
     tag = (body.tag or "").strip().lower()
     if not cat and not tag:
         raise HTTPException(400, "category or tag required")
+    if actual_finance.is_canonical(db):
+        try:
+            if tag:
+                return actual_finance.set_tag_budget(db, tag, body.limit_amt)
+            return actual_finance.set_budget(
+                db,
+                date.today().strftime("%Y-%m"),
+                cat,
+                body.limit_amt,
+            )
+        except actual_finance.ActualFinanceError as exc:
+            _actual_error(exc)
     if tag:
         b = db.query(Budget).filter(Budget.tag == tag).first()
         if not b:
@@ -986,6 +1374,11 @@ def upsert_budget(body: BudgetBody, db: DbSession = Depends(get_db)):
 
 @router.delete("/budgets/{bid}")
 def delete_budget(bid: str, db: DbSession = Depends(get_db)):
+    if actual_finance.is_canonical(db):
+        try:
+            return actual_finance.clear_budget(db, bid)
+        except actual_finance.ActualFinanceError as exc:
+            _actual_error(exc)
     b = db.get(Budget, bid)
     if not b:
         raise HTTPException(404)
@@ -1003,6 +1396,7 @@ class AssignBody(BaseModel):
 
 @router.put("/envelope/assign")
 def assign_envelope(body: AssignBody, db: DbSession = Depends(get_db)):
+    _require_legacy_ledger_write(db)
     cat = (body.category or "").strip()
     if not cat:
         raise HTTPException(400, "category required")
@@ -1024,6 +1418,7 @@ class TargetBody(BaseModel):
 
 @router.put("/envelope/target")
 def set_target(body: TargetBody, db: DbSession = Depends(get_db)):
+    _require_legacy_ledger_write(db)
     cat = (body.category or "").strip()
     if not cat:
         raise HTTPException(400, "category required")
@@ -1043,6 +1438,7 @@ def set_target(body: TargetBody, db: DbSession = Depends(get_db)):
 
 @router.get("/envelope")
 def envelope(month: str = "", db: DbSession = Depends(get_db)):
+    _require_actual_backed_analytics(db, "envelope budgeting")
     if not month:
         month = date.today().strftime("%Y-%m")
     # fetch txns + splits once and reuse — both _spending_by_cat calls and the income sum below
@@ -1101,6 +1497,7 @@ def envelope(month: str = "", db: DbSession = Depends(get_db)):
 @router.get("/age-of-money")
 def age_of_money(db: DbSession = Depends(get_db)):
     """FIFO-match income to spending; amount-weighted average age (days) of recent spending."""
+    _require_actual_backed_analytics(db, "age of money")
 
     def _d(s):
         try:
@@ -1185,6 +1582,7 @@ def forecast(
 ):
     """project the end-of-month balance from today's balance + remaining recurring txns. 2b adds
     a per-category projection (`categories`) + what-if (`skip` comma payees, `income_delta`)."""
+    _require_actual_backed_analytics(db, "forecast")
     if not month:
         month = date.today().strftime("%Y-%m")
     try:
@@ -1243,6 +1641,7 @@ def forecast(
 
 @router.get("/networth-history")
 def networth_history(months: int = 6, as_of: str = "", db: DbSession = Depends(get_db)):
+    _require_actual_backed_analytics(db, "net worth history")
     end_month = as_of[:7] if as_of else date.today().strftime("%Y-%m")
     accounts = db.query(Account).all()
     aset = {a.id for a in accounts if not a.archived}
@@ -1367,6 +1766,7 @@ def holding_history(sym: str, db: DbSession = Depends(get_db)):
 @router.get("/income/summary")
 def income_summary(month: str = "", db: DbSession = Depends(get_db)):
     """2f - income by type for a month + rolling average + the current tax-quarter set-aside."""
+    _require_actual_backed_analytics(db, "income summary")
     from services import income
 
     today = date.today()
@@ -1424,6 +1824,7 @@ def delete_watch(wid: str, db: DbSession = Depends(get_db)):
 
 @router.get("/alerts")
 def alerts(month: str = "", big: float = 200.0, as_of: str = "", db: DbSession = Depends(get_db)):
+    _require_actual_backed_analytics(db, "Finance alerts")
     if not month:
         month = date.today().strftime("%Y-%m")
     try:
@@ -1570,6 +1971,30 @@ def delete_goal(gid: str, db: DbSession = Depends(get_db)):
 
 
 def _report_data(db, start, end):
+    if actual_finance.is_canonical(db):
+        rows = []
+        income = expense = 0.0
+        by = defaultdict(float)
+        try:
+            canonical_rows = actual_finance.transactions(db)
+        except actual_finance.ActualFinanceError as exc:
+            _actual_error(exc)
+        for row in canonical_rows:
+            if row["transfer_id"]:
+                continue
+            if (start and row["date"] < start) or (end and row["date"] > end):
+                continue
+            rows.append(row)
+            if row["amount"] >= 0:
+                income += row["amount"]
+            else:
+                expense += -row["amount"]
+                by[row["category"] or "uncategorized"] += -row["amount"]
+        cats = sorted(
+            ([category, round(value, 2)] for category, value in by.items()),
+            key=lambda item: -item[1],
+        )
+        return income, expense, cats, rows
     splits_by_txn = defaultdict(list)
     for s in db.query(TxnSplit).all():
         splits_by_txn[s.txn_id].append(s)
@@ -1622,7 +2047,16 @@ def report_csv(start: str = "", end: str = "", db: DbSession = Depends(get_db)):
     w = csv.writer(buf)
     w.writerow(["date", "amount", "category", "payee", "notes"])
     for t in rows:
-        w.writerow([_safe(t.date), t.amount, _safe(t.category), _safe(t.payee), _safe(t.notes)])
+        value = t if isinstance(t, dict) else _txn(t)
+        w.writerow(
+            [
+                _safe(value["date"]),
+                value["amount"],
+                _safe(value["category"]),
+                _safe(value["payee"]),
+                _safe(value["notes"]),
+            ]
+        )
     fname = f"report_{start or 'all'}_{end or 'all'}.csv"
     return Response(
         content=buf.getvalue(),
@@ -1632,8 +2066,41 @@ def report_csv(start: str = "", end: str = "", db: DbSession = Depends(get_db)):
 
 
 @router.get("/networth-base")
-def networth_base(base: str = "USD", db: DbSession = Depends(get_db)):
+def networth_base(base: str | None = None, db: DbSession = Depends(get_db)):
     """net worth with every account converted to a single base currency (4d)."""
+    if actual_finance.is_canonical(db):
+        state = db.get(FinanceLedgerState, "primary")
+        if state is None:
+            raise HTTPException(409, "canonical ledger state is unavailable")
+        reviewed_base = fx.code(state.base_currency_code)
+        if reviewed_base == "XXX":
+            raise HTTPException(409, "canonical ledger base currency is invalid")
+        requested_base = reviewed_base if not base else fx.code(base)
+        if requested_base != reviewed_base:
+            raise HTTPException(
+                409, "Actual totals are available only in the reviewed base currency"
+            )
+        try:
+            canonical_accounts = actual_finance.accounts(db)
+        except actual_finance.ActualFinanceError as exc:
+            _actual_error(exc)
+        rows = [
+            {
+                "id": row["id"],
+                "name": row["name"],
+                "currency": state.base_currency_code,
+                "native": row["balance"],
+                "converted": row["balance"],
+            }
+            for row in canonical_accounts
+            if not row["archived"]
+        ]
+        return {
+            "base": state.base_currency_code,
+            "net_worth": round(sum(row["converted"] for row in rows), 2),
+            "accounts": rows,
+        }
+    base = base or "USD"
     rates = fx.get_rates()
     bal = _balances(db)
     rows = []
@@ -1673,6 +2140,86 @@ def _recent_months(month: str, n: int = 6):
 def summary(month: str = "", db: DbSession = Depends(get_db)):
     if not month:
         month = date.today().strftime("%Y-%m")
+    if actual_finance.is_canonical(db):
+        state = db.get(FinanceLedgerState, "primary")
+        if state is None:
+            raise HTTPException(409, "canonical ledger state is unavailable")
+        base = fx.code(state.base_currency_code)
+        if base == "XXX":
+            raise HTTPException(409, "canonical ledger base currency is invalid")
+        try:
+            actual = actual_finance.inspect(db)
+            accounts = actual_finance.accounts(db, actual=actual)
+            all_txns = actual_finance.transactions(db, actual=actual)
+            budget_rows = actual_finance.budgets(db, month, actual=actual)
+        except actual_finance.ActualFinanceError as exc:
+            _actual_error(exc)
+        net_worth = sum(row["balance"] for row in accounts if not row["archived"])
+        income = expense = 0.0
+        by_cat = defaultdict(float)
+        for row in all_txns:
+            if row["transfer_id"] or not row["date"].startswith(month):
+                continue
+            if row["amount"] >= 0:
+                income += row["amount"]
+            else:
+                expense += -row["amount"]
+                by_cat[row["category"] or "uncategorized"] += -row["amount"]
+        cats = sorted(
+            ([category, round(value, 2)] for category, value in by_cat.items()),
+            key=lambda item: -item[1],
+        )
+        tag_spend: dict[str, float] = {}
+        tag_budget_rows = [row for row in budget_rows if str(row.get("tag") or "").strip()]
+        if tag_budget_rows:
+            for row in all_txns:
+                if row["transfer_id"] or row["amount"] >= 0 or not row["date"].startswith(month):
+                    continue
+                transaction_tags = set(_norm_tags(row.get("tags") or "").split(","))
+                for budget_row in tag_budget_rows:
+                    budget_tag = str(budget_row.get("tag") or "").strip().lower()
+                    if budget_tag in transaction_tags:
+                        tag_spend[budget_tag] = tag_spend.get(budget_tag, 0.0) - row["amount"]
+        budgets = [
+            {
+                "category": row["tag"] if row.get("tag") else row["category"],
+                "tag": row.get("tag") or "",
+                "limit": row["limit_amt"],
+                "spent": round(
+                    tag_spend.get(row.get("tag") or "", 0.0)
+                    if row.get("tag")
+                    else by_cat.get(row["category"], 0.0),
+                    2,
+                ),
+            }
+            for row in budget_rows
+        ]
+        months = _recent_months(month, 6)
+        totals = {value: [0.0, 0.0] for value in months}
+        for row in all_txns:
+            value = row["date"][:7]
+            if row["transfer_id"] or value not in totals:
+                continue
+            totals[value][0 if row["amount"] >= 0 else 1] += abs(row["amount"])
+        trend = [
+            {
+                "month": value,
+                "income": round(totals[value][0], 2),
+                "expense": round(totals[value][1], 2),
+            }
+            for value in months
+        ]
+        return {
+            "month": month,
+            "net_worth": round(net_worth, 2),
+            "income": round(income, 2),
+            "expense": round(expense, 2),
+            "net": round(income - expense, 2),
+            "by_category": cats,
+            "budgets": budgets,
+            "trend": trend,
+            "currency": base,
+        }
     accounts = db.query(Account).all()
     bal = _balances(db)
     net_worth = sum((a.opening or 0.0) + bal.get(a.id, 0.0) for a in accounts if not a.archived)
@@ -1718,7 +2265,9 @@ def summary(month: str = "", db: DbSession = Depends(get_db)):
                 "category": b.tag if is_tag else b.category,  # show the tag name, not a blank
                 "tag": b.tag or "",
                 "limit": b.limit_amt,
-                "spent": round(tag_spend.get(b.id, 0.0) if is_tag else by_cat.get(b.category, 0.0), 2),
+                "spent": round(
+                    tag_spend.get(b.id, 0.0) if is_tag else by_cat.get(b.category, 0.0), 2
+                ),
             }
         )
 

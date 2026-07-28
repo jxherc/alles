@@ -100,9 +100,9 @@ class SearchTests(_Base):
         # contract: a malformed search leaves the session fully usable — later reads AND writes
         # still work (the except path rolls back defensively to guarantee this).
         fts.index(self.s, "note", "n1", "the quick brown fox")
-        fts.search(self.s, '"unbalanced')          # poisons + should self-heal
+        fts.search(self.s, '"unbalanced')  # poisons + should self-heal
         self.assertEqual(self._refs(fts.search(self.s, "fox")), ["n1"])  # valid search still works
-        fts.index(self.s, "note", "n2", "another fox")                   # writes still work too
+        fts.index(self.s, "note", "n2", "another fox")  # writes still work too
         self.assertEqual(set(self._refs(fts.search(self.s, "fox"))), {"n1", "n2"})
 
 

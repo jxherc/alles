@@ -2,7 +2,10 @@
 DOCS audit part 3 — fully resilient. force-clicks all toolbar buttons,
 wraps everything in try/except, never hangs.
 """
-import os, json
+
+import json
+import os
+
 from playwright.sync_api import sync_playwright
 
 AUDIT_DIR = r"C:\Users\jxh\alles\docs\evidence\ui-3\audit"
@@ -53,7 +56,8 @@ def hello():
 """
 
 console_log = []
-F = {}   # findings dict
+F = {}  # findings dict
+
 
 def ss(page, name, note=""):
     path = os.path.join(AUDIT_DIR, f"{name}.png")
@@ -62,6 +66,7 @@ def ss(page, name, note=""):
         print(f"  [ss] {name}.png  {note}")
     except Exception as e:
         print(f"  [ss-ERR] {name}: {e}")
+
 
 def force_click(page, selector, wait_ms=400):
     """Click with force=True to bypass overlay interception."""
@@ -74,7 +79,9 @@ def force_click(page, selector, wait_ms=400):
         # dismiss dialog if one appeared
         di = page.query_selector("#_di")
         if di:
-            vis = page.evaluate("!!(document.querySelector('#_di') && document.querySelector('.dialog-overlay') && window.getComputedStyle(document.querySelector('.dialog-overlay')).display !== 'none')")
+            vis = page.evaluate(
+                "!!(document.querySelector('#_di') && document.querySelector('.dialog-overlay') && window.getComputedStyle(document.querySelector('.dialog-overlay')).display !== 'none')"
+            )
             if vis:
                 page.keyboard.press("Escape")
                 page.wait_for_timeout(200)
@@ -82,24 +89,36 @@ def force_click(page, selector, wait_ms=400):
     except Exception as e:
         return f"err:{type(e).__name__}"
 
+
 def ev(page, js, default=None):
     try:
         return page.evaluate(js)
-    except:
+    except Exception:
         return default
+
 
 def close_all_panels(page):
     """Close every open panel by force-clicking active buttons."""
-    panel_btns = ["wiki-ai-toggle","wiki-ask-btn","wiki-outline-btn","wiki-props-btn",
-                  "wiki-query-btn","wiki-history-btn","wiki-split-btn","wiki-comments-btn",
-                  "wiki-board-btn","wiki-canvas-btn","wiki-theme-btn"]
+    panel_btns = [
+        "wiki-ai-toggle",
+        "wiki-ask-btn",
+        "wiki-outline-btn",
+        "wiki-props-btn",
+        "wiki-query-btn",
+        "wiki-history-btn",
+        "wiki-split-btn",
+        "wiki-comments-btn",
+        "wiki-board-btn",
+        "wiki-canvas-btn",
+        "wiki-theme-btn",
+    ]
     for bid in panel_btns:
         try:
             b = page.query_selector(f"#{bid}")
             if b and "active" in (b.get_attribute("class") or ""):
                 b.click(force=True)
                 page.wait_for_timeout(200)
-        except:
+        except Exception:
             pass
     # close board overlay if visible
     try:
@@ -109,15 +128,22 @@ def close_all_panels(page):
             if close_x:
                 close_x.click(force=True)
                 page.wait_for_timeout(200)
-    except:
+    except Exception:
         pass
+
 
 with sync_playwright() as p:
     browser = p.chromium.launch(headless=True, args=["--no-sandbox"])
     ctx = browser.new_context(service_workers="block", viewport={"width": 1400, "height": 900})
     page = ctx.new_page()
-    page.on("console", lambda m: console_log.append({"t": m.type, "m": m.text})
-            if m.type in ("error", "warning") else None)
+    page.on(
+        "console",
+        lambda m: (
+            console_log.append({"t": m.type, "m": m.text})
+            if m.type in ("error", "warning")
+            else None
+        ),
+    )
     page.on("pageerror", lambda e: console_log.append({"t": "pageerror", "m": str(e)}))
 
     # ── SETUP: load page and create doc ─────────────────────────────────────
@@ -151,17 +177,17 @@ with sync_playwright() as p:
     # ── REMAINING TOOLBAR BUTTONS (with force-click + close after) ──────────
     print("\n=== Remaining toolbar buttons ===")
     remaining = [
-        ("wiki-board-btn",   "kanban board (opens overlay)"),
-        ("wiki-todos-btn",   "AI extract todos"),
-        ("wiki-taskroll-btn","all tasks"),
+        ("wiki-board-btn", "kanban board (opens overlay)"),
+        ("wiki-todos-btn", "AI extract todos"),
+        ("wiki-taskroll-btn", "all tasks"),
         ("wiki-history-btn", "version history"),
-        ("wiki-bookmark-btn","bookmark star"),
-        ("wiki-comments-btn","inline comments"),
+        ("wiki-bookmark-btn", "bookmark star"),
+        ("wiki-comments-btn", "inline comments"),
         ("wiki-publish-btn", "publish link"),
-        ("wiki-split-btn",   "split view"),
-        ("wiki-theme-btn",   "css theme"),
-        ("wiki-export-btn",  "export dropdown"),
-        ("wiki-delete-btn",  "delete doc"),
+        ("wiki-split-btn", "split view"),
+        ("wiki-theme-btn", "css theme"),
+        ("wiki-export-btn", "export dropdown"),
+        ("wiki-delete-btn", "delete doc"),
     ]
     tb_res = {}
     for bid, desc in remaining:
@@ -183,13 +209,18 @@ with sync_playwright() as p:
         shot = f"a3-tb-{bid}"
         ss(page, shot, desc)
         tb_res[bid] = {
-            "vis": vis, "st": st,
+            "vis": vis,
+            "st": st,
             "active_before": "active" in cls_before,
             "active_after": "active" in cls_after,
             "label": lbl,
         }
         # special: if delete dialog opened, dismiss it
-        di_vis = ev(page, "!!document.querySelector('#_di') && document.querySelector('.dialog-overlay') && window.getComputedStyle(document.querySelector('.dialog-overlay')).display!=='none'", False)
+        di_vis = ev(
+            page,
+            "!!document.querySelector('#_di') && document.querySelector('.dialog-overlay') && window.getComputedStyle(document.querySelector('.dialog-overlay')).display!=='none'",
+            False,
+        )
         if di_vis:
             page.keyboard.press("Escape")
             page.wait_for_timeout(200)
@@ -219,12 +250,12 @@ with sync_playwright() as p:
 
     panels = [
         ("wiki-outline-btn", "a3-panel-outline", "outline"),
-        ("wiki-props-btn",   "a3-panel-props",   "properties"),
-        ("wiki-query-btn",   "a3-panel-query",   "query"),
+        ("wiki-props-btn", "a3-panel-props", "properties"),
+        ("wiki-query-btn", "a3-panel-query", "query"),
         ("wiki-history-btn", "a3-panel-history", "history"),
-        ("wiki-comments-btn","a3-panel-comments","comments"),
-        ("wiki-theme-btn",   "a3-panel-css",     "css theme"),
-        ("wiki-ask-btn",     "a3-panel-ask",     "ask AI"),
+        ("wiki-comments-btn", "a3-panel-comments", "comments"),
+        ("wiki-theme-btn", "a3-panel-css", "css theme"),
+        ("wiki-ask-btn", "a3-panel-ask", "ask AI"),
     ]
     panel_content = {}
     for bid, shot, name in panels:
@@ -233,10 +264,14 @@ with sync_playwright() as p:
         force_click(page, f"#{bid}", wait_ms=700)
         ss(page, shot, f"{name} panel open")
         # grab text content of the panel
-        txt = ev(page, f"""(() => {{
+        txt = ev(
+            page,
+            f"""(() => {{
             const p = document.querySelector('.wiki-{name}, #wiki-{name}-panel, [class*="{name}"]');
             return p ? p.innerText.trim().substring(0,300) : 'not found';
-        }})()""", "n/a")
+        }})()""",
+            "n/a",
+        )
         panel_content[name] = txt
         print(f"  {name}: {str(txt)[:100]}")
 
@@ -246,9 +281,29 @@ with sync_playwright() as p:
 
     # ── FORMAT TOOLBAR ───────────────────────────────────────────────────────
     print("\n=== Format toolbar ===")
-    fmts = ["h1","h2","h3","bold","italic","strike","highlight","code",
-            "bullet","olist","check","quote",
-            "link","image","wiki","table","codeblock","callout","toggle","columns","hr"]
+    fmts = [
+        "h1",
+        "h2",
+        "h3",
+        "bold",
+        "italic",
+        "strike",
+        "highlight",
+        "code",
+        "bullet",
+        "olist",
+        "check",
+        "quote",
+        "link",
+        "image",
+        "wiki",
+        "table",
+        "codeblock",
+        "callout",
+        "toggle",
+        "columns",
+        "hr",
+    ]
     fmt_res = {}
     for fmt in fmts:
         fb = page.query_selector(f"[data-fmt='{fmt}']")
@@ -266,14 +321,17 @@ with sync_playwright() as p:
                 page.keyboard.press("Home")
                 page.keyboard.press("Shift+End")
                 page.wait_for_timeout(50)
-            except:
+            except Exception:
                 pass
         try:
             fb.click(force=True)
             page.wait_for_timeout(300)
             di = page.query_selector("#_di")
-            has_dialog = di is not None and ev(page,
-                "!!(document.querySelector('.dialog-overlay') && window.getComputedStyle(document.querySelector('.dialog-overlay')).display!=='none')", False)
+            has_dialog = di is not None and ev(
+                page,
+                "!!(document.querySelector('.dialog-overlay') && window.getComputedStyle(document.querySelector('.dialog-overlay')).display!=='none')",
+                False,
+            )
             if has_dialog:
                 page.keyboard.press("Escape")
                 page.wait_for_timeout(200)
@@ -296,7 +354,9 @@ with sync_playwright() as p:
             page.keyboard.press("Shift+Down")
         page.wait_for_timeout(250)
         ss(page, "a3-multiline-sel", "5-line selection")
-        geo = ev(page, """(() => {
+        geo = ev(
+            page,
+            """(() => {
             const sel = window.getSelection();
             if (!sel || !sel.rangeCount) return null;
             const r = sel.getRangeAt(0).getBoundingClientRect();
@@ -304,7 +364,8 @@ with sync_playwright() as p:
             const edR = ed ? ed.getBoundingClientRect() : null;
             return { sel:{x:Math.round(r.x),y:Math.round(r.y),w:Math.round(r.width),h:Math.round(r.height)},
                      ed: edR ? {x:Math.round(edR.x),w:Math.round(edR.width)} : null };
-        })()""")
+        })()""",
+        )
         F["multiline_geo"] = geo
         print(f"  Geo: {geo}")
 
@@ -317,7 +378,9 @@ with sync_playwright() as p:
         cm2.click(button="right")
         page.wait_for_timeout(600)
         ss(page, "a3-right-click", "right-click in editor")
-        custom = page.query_selector(".context-menu,.ctx-menu,[class*='ctxmenu'],[class*='context-menu']")
+        custom = page.query_selector(
+            ".context-menu,.ctx-menu,[class*='ctxmenu'],[class*='context-menu']"
+        )
         F["right_click"] = {"custom": custom is not None}
         page.keyboard.press("Escape")
         page.wait_for_timeout(200)
@@ -328,12 +391,18 @@ with sync_playwright() as p:
     close_all_panels(page)
     force_click(page, "#wiki-export-btn", wait_ms=600)
     ss(page, "a3-export-menu", "export dropdown")
-    dd = page.query_selector(".dropdown-menu,.docs-export-menu,[class*='export-menu'],[class*='export-dd']")
+    dd = page.query_selector(
+        ".dropdown-menu,.docs-export-menu,[class*='export-menu'],[class*='export-dd']"
+    )
     export_items = []
     if dd:
-        export_items = [el.text_content().strip() for el in dd.query_selector_all("button,a,[class*='item']")]
+        export_items = [
+            el.text_content().strip() for el in dd.query_selector_all("button,a,[class*='item']")
+        ]
     # also look for any newly visible items near the export button
-    all_btns_near = ev(page, """(() => {
+    all_btns_near = ev(
+        page,
+        """(() => {
         const exp = document.querySelector('#wiki-export-btn');
         if (!exp) return [];
         const r = exp.getBoundingClientRect();
@@ -342,8 +411,14 @@ with sync_playwright() as p:
             return er.y > r.y && er.y < r.y + 200 && er.x > r.x - 100 && er.x < r.x + 200
                    && er.width > 0 && window.getComputedStyle(el).display !== 'none';
         }).map(el => el.innerText.trim());
-    })()""", [])
-    F["export"] = {"dropdown_el": dd is not None, "items_from_dd": export_items, "nearby_els": all_btns_near}
+    })()""",
+        [],
+    )
+    F["export"] = {
+        "dropdown_el": dd is not None,
+        "items_from_dd": export_items,
+        "nearby_els": all_btns_near,
+    }
     print(f"  Export: {F['export']}")
     page.keyboard.press("Escape")
     page.wait_for_timeout(200)
@@ -355,12 +430,15 @@ with sync_playwright() as p:
     if sp and "active" not in (sp.get_attribute("class") or ""):
         force_click(page, "#wiki-split-btn", wait_ms=800)
     ss(page, "a3-split-view", "split view")
-    split_info = ev(page, """(() => {
+    split_info = ev(
+        page,
+        """(() => {
         const panes = document.querySelectorAll('.wiki-pane,.wiki-col,.wiki-split-col,[class*="pane"]');
         const editors = document.querySelectorAll('[id*="wiki-live"],[class*="cm-editor"]');
         return {pane_count: panes.length, editor_count: editors.length,
                 pane_classes: Array.from(panes).map(p=>p.className).slice(0,4)};
-    })()""")
+    })()""",
+    )
     F["split"] = split_info
     print(f"  Split: {split_info}")
     # close split
@@ -383,17 +461,19 @@ with sync_playwright() as p:
             page.wait_for_timeout(500)
         di = page.query_selector("#_di")
         if di and di.is_visible():
-            di.fill(f"tab{i+1}")
+            di.fill(f"tab{i + 1}")
             page.keyboard.press("Enter")
             page.wait_for_timeout(1000)
         cm3 = page.query_selector("#wiki-live .cm-content")
         if cm3 and cm3.is_visible():
             cm3.click()
-            page.keyboard.type(f"# Tab {i+1}\nContent.")
+            page.keyboard.type(f"# Tab {i + 1}\nContent.")
             page.wait_for_timeout(250)
 
     ss(page, "a3-tabs-bar", "tabs bar — 4 docs open")
-    tabs_info = ev(page, """(() => {
+    tabs_info = ev(
+        page,
+        """(() => {
         const bar = document.querySelector('#wiki-tabs');
         if (!bar) return {found:false};
         const tabs = bar.querySelectorAll('.wiki-tab,[class*="wiki-tab"]');
@@ -401,9 +481,12 @@ with sync_playwright() as p:
         return {found:true, tab_cls_count: tabs.length, children: all.length,
                 bar_cls: bar.className,
                 sample_html: bar.innerHTML.substring(0,500)};
-    })()""")
+    })()""",
+    )
     F["tabs"] = tabs_info
-    print(f"  Tabs: found={tabs_info.get('found')}, tab_count={tabs_info.get('tab_cls_count')}, children={tabs_info.get('children')}")
+    print(
+        f"  Tabs: found={tabs_info.get('found')}, tab_count={tabs_info.get('tab_cls_count')}, children={tabs_info.get('children')}"
+    )
 
     # ── BACKLINKS ────────────────────────────────────────────────────────────
     print("\n=== Backlinks ===")
@@ -412,7 +495,11 @@ with sync_playwright() as p:
         ev(page, "document.querySelector('#wiki-backlinks').scrollIntoView()")
         page.wait_for_timeout(300)
         ss(page, "a3-backlinks", "backlinks section")
-        bl_text = ev(page, "document.querySelector('#wiki-backlinks')?.innerText?.trim()?.substring(0,200)", "")
+        bl_text = ev(
+            page,
+            "document.querySelector('#wiki-backlinks')?.innerText?.trim()?.substring(0,200)",
+            "",
+        )
         F["backlinks"] = {"found": True, "text": bl_text}
     else:
         F["backlinks"] = {"found": False}
@@ -425,10 +512,14 @@ with sync_playwright() as p:
         del_btn.click(force=True)
         page.wait_for_timeout(600)
         ss(page, "a3-delete-confirm", "delete confirmation dialog")
-        dialog_vis = ev(page, """(() => {
+        dialog_vis = ev(
+            page,
+            """(() => {
             const ov = document.querySelector('.dialog-overlay');
             return ov ? window.getComputedStyle(ov).display : 'none';
-        })()""", "err")
+        })()""",
+            "err",
+        )
         F["delete"] = {"dialog_display": dialog_vis}
         print(f"  Delete dialog: {dialog_vis}")
         page.keyboard.press("Escape")
@@ -445,7 +536,9 @@ with sync_playwright() as p:
             mode_btn.click(force=True)
             page.wait_for_timeout(400)
 
-    live_render = ev(page, """(() => {
+    live_render = ev(
+        page,
+        """(() => {
         const live = document.querySelector('#wiki-live');
         if (!live) return {found:false};
         return {
@@ -461,7 +554,8 @@ with sync_playwright() as p:
             quote: !!live.querySelector('.cm-quote'),
             lines: live.querySelectorAll('.cm-line').length,
         };
-    })()""")
+    })()""",
+    )
     F["live_render"] = live_render
     print(f"  Live render: {live_render}")
 
@@ -484,7 +578,9 @@ with sync_playwright() as p:
 
     ss(page, "a3-preview-full", "preview — full render")
 
-    prev_render = ev(page, """(() => {
+    prev_render = ev(
+        page,
+        """(() => {
         const prev = document.querySelector('#wiki-preview');
         if (!prev) return {found:false};
         const callout = prev.querySelector('.callout,[class*="callout"],[data-callout]');
@@ -506,36 +602,46 @@ with sync_playwright() as p:
             wikilink: !!wl, wikilink_cls: wl?.className || null,
             li_count: prev.querySelectorAll('li').length,
         };
-    })()""")
+    })()""",
+    )
     F["preview_render"] = prev_render
     print(f"  Preview render: {prev_render}")
 
     # ── CSS INSPECTION ────────────────────────────────────────────────────────
     print("\n=== CSS checks ===")
     # check toolbar styling
-    toolbar_style = ev(page, """(() => {
+    toolbar_style = ev(
+        page,
+        """(() => {
         const tb = document.querySelector('#docs-toolbar');
         if (!tb) return null;
         const s = window.getComputedStyle(tb);
         return {display:s.display, flexWrap:s.flexWrap, overflow:s.overflow,
                 height:s.height, bg:s.backgroundColor};
-    })()""")
+    })()""",
+    )
     F["toolbar_css"] = toolbar_style
 
-    wiki_btn_styles = ev(page, """(() => {
+    wiki_btn_styles = ev(
+        page,
+        """(() => {
         const btn = document.querySelector('#wiki-mode-toggle');
         if (!btn) return null;
         const s = window.getComputedStyle(btn);
         return {fontSize:s.fontSize, padding:s.padding, borderRadius:s.borderRadius};
-    })()""")
+    })()""",
+    )
     F["wiki_btn_style"] = wiki_btn_styles
 
     # check if any toolbar buttons are wrapping / overflowing
-    top_bar_overflow = ev(page, """(() => {
+    top_bar_overflow = ev(
+        page,
+        """(() => {
         const bar = document.querySelector('.wiki-toolbar, .docs-top-bar, [class*="wiki-top"]');
         return bar ? {scrollWidth:bar.scrollWidth, clientWidth:bar.clientWidth,
                       overflow: bar.scrollWidth > bar.clientWidth} : null;
-    })()""")
+    })()""",
+    )
     F["topbar_overflow"] = top_bar_overflow
 
     # ── FINAL STATE ──────────────────────────────────────────────────────────

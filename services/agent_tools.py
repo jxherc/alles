@@ -28,11 +28,19 @@ CODEX_HOME = Path(os.getenv("CODEX_HOME") or Path.home() / ".codex")
 # per-run context (settings, endpoint, model) — async-task safe via contextvars
 # so concurrent sub-agents don't clobber each other.
 _ctx = contextvars.ContextVar("agent_ctx", default={})
+_SENSITIVE_HEALTH_TOOLS = {"health_log", "health_summary"}
 
 
-def set_agent_ctx(settings=None, ep=None, model="", run_id=""):
+def set_agent_ctx(settings=None, ep=None, model="", run_id="", session_id=""):
     _ctx.set(
-        {"settings": settings or {}, "ep": ep, "model": model, "run_id": run_id, "_reads": set()}
+        {
+            "settings": settings or {},
+            "ep": ep,
+            "model": model,
+            "run_id": run_id,
+            "session_id": session_id,
+            "_reads": set(),
+        }
     )
 
 
@@ -54,7 +62,17 @@ def _settings() -> dict:
     return (_ctx.get() or {}).get("settings", {}) or {}
 
 
+def _health_access_enabled(settings: dict | None = None) -> bool:
+    """Health never enters Project context and needs an explicit owner grant."""
+    values = settings or {}
+    return (
+        bool(values.get("agent_health_access_granted"))
+        and values.get("agent_environment", "general") == "general"
+    )
+
+
 TOOL_PERMISSION = {
+    "ask_user": "state",
     "recall": "read",
     "money_query": "read",
     "shell": "shell",
@@ -103,6 +121,60 @@ TOOL_PERMISSION = {
     "github_search_repos": "connection_read",
     "github_create_issue": "connection_write",
     "github_create_pr": "connection_write",
+    # Typed app-owned scopes. Exact names still drive the permission preview, while
+    # these scopes let personas and policy deny a whole product boundary reliably.
+    "calendar_list": "calendar_read",
+    "calendar_create": "calendar_write",
+    "calendar_delete": "calendar_write",
+    "task_list": "tasks_read",
+    "task_add": "tasks_write",
+    "task_done": "tasks_write",
+    "search_code": "code_read",
+    "browse_open": "browser_write",
+    "browse_read": "browser_read",
+    "browse_click": "browser_write",
+    "browse_type": "browser_write",
+    "browse_screenshot": "browser_read",
+    "note_list": "docs_read",
+    "docs_read": "docs_read",
+    "docs_write": "docs_write",
+    "docs_search": "docs_read",
+    "note_read": "docs_read",
+    "note_write": "docs_write",
+    "note_append": "docs_write",
+    "note_search": "docs_read",
+    "note_backlinks": "docs_read",
+    "contact_list": "contacts_read",
+    "contact_add": "contacts_write",
+    "mail_list": "mail_read",
+    "mail_read": "mail_read",
+    "mail_send": "mail_write",
+    "book_add": "library_write",
+    "books_list": "library_read",
+    "health_log": "health_write",
+    "health_summary": "health_read",
+    "habit_add": "habits_write",
+    "habit_log": "habits_write",
+    "habits_list": "habits_read",
+    "read_save": "library_write",
+    "read_list": "library_read",
+    "watch_add": "watch_write",
+    "watch_status": "watch_read",
+    "files_locations_list": "files_read",
+    "files_operations_list": "files_read",
+    "files_operation_create": "files_write",
+    "files_operation_undo": "files_write",
+    "finance_accounts_list": "finance_read",
+    "finance_transactions_list": "finance_read",
+    "finance_import_profiles": "finance_read",
+    "server_services_list": "server_read",
+    "server_service_control": "server_write",
+    "server_companions_list": "server_read",
+    "adguard_dashboard": "server_read",
+    "adguard_filtering_set": "server_write",
+    "adguard_rewrite_change": "server_write",
+    "npm_dashboard": "server_read",
+    "npm_proxy_host_create": "server_write",
 }
 
 
@@ -1300,6 +1372,16 @@ async def _gh_get_file(owner: str, repo: str, path: str, ref: str = "") -> dict:
 
 async def execute(name: str, args: dict) -> dict:
     args = args or {}
+    if name == "ask_user":
+        return {
+            "output": "ask_user is available only inside an active Aide agent run",
+            "error": True,
+        }
+    if name in _SENSITIVE_HEALTH_TOOLS and not _health_access_enabled(_settings()):
+        return {
+            "output": "health access needs an explicit sensitive-data grant in general Aide",
+            "error": True,
+        }
     if name == "revert_file":
         return await _revert_file(args.get("path", ""))
     if name == "github_me":
@@ -1498,6 +1580,12 @@ async def execute(name: str, args: dict) -> dict:
         return await _watch_status(args)
     if name == "note_list":
         return await _note_list()
+    if name == "docs_read":
+        return await _note_read(args.get("path", ""))
+    if name == "docs_write":
+        return await _note_write(args.get("path", ""), args.get("content", ""))
+    if name == "docs_search":
+        return await _note_search(args.get("query", ""))
     if name == "note_read":
         return await _note_read(args.get("name", ""))
     if name == "note_write":
@@ -1524,6 +1612,36 @@ async def execute(name: str, args: dict) -> dict:
         return await _recall(args.get("query", ""), int(args.get("top_k") or 8))
     if name == "money_query":
         return await _money_query(args.get("query", ""))
+    if name == "files_locations_list":
+        return await _files_locations_list()
+    if name == "files_operations_list":
+        return await _files_operations_list(args)
+    if name == "files_operation_create":
+        return await _files_operation_create(args)
+    if name == "files_operation_undo":
+        return await _files_operation_undo(args.get("operation_id", ""))
+    if name == "finance_accounts_list":
+        return await _finance_accounts_list()
+    if name == "finance_transactions_list":
+        return await _finance_transactions_list(args)
+    if name == "finance_import_profiles":
+        return await _finance_import_profiles()
+    if name == "server_services_list":
+        return await _server_services_list()
+    if name == "server_service_control":
+        return await _server_service_control(args)
+    if name == "server_companions_list":
+        return await _server_companions_list()
+    if name == "adguard_dashboard":
+        return await _adguard_dashboard()
+    if name == "adguard_filtering_set":
+        return await _adguard_filtering_set(args)
+    if name == "adguard_rewrite_change":
+        return await _adguard_rewrite_change(args)
+    if name == "npm_dashboard":
+        return await _npm_dashboard()
+    if name == "npm_proxy_host_create":
+        return await _npm_proxy_host_create(args)
     return {"output": f"unknown tool: {name}", "error": True}
 
 
@@ -2222,6 +2340,218 @@ async def _money_query(query):
         db.close()
 
 
+async def _files_locations_list():
+    """List owner-approved Files locations without ever returning stored credentials."""
+    from core.database import SessionLocal, StorageLocation
+    from services import storage_locations
+
+    db = SessionLocal()
+    try:
+        storage_locations.ensure_default_local(db)
+        rows = db.query(StorageLocation).order_by(StorageLocation.is_default.desc(), StorageLocation.name).all()
+        public = [storage_locations.public_dict(row) for row in rows]
+        return {"output": json.dumps({"locations": public}, ensure_ascii=False), "locations": public}
+    finally:
+        db.close()
+
+
+async def _files_operations_list(args):
+    from core.database import FileOperation, SessionLocal
+    from services import file_operations
+
+    state = str(args.get("state") or "").strip()
+    limit = max(1, min(int(args.get("limit") or 50), 100))
+    db = SessionLocal()
+    try:
+        query = db.query(FileOperation).filter(FileOperation.action != file_operations.DIRECT_MUTATION_ACTION)
+        if state:
+            query = query.filter(FileOperation.state == state)
+        rows = query.order_by(FileOperation.created_at.desc()).limit(limit).all()
+        public = [file_operations.public_dict(row) for row in rows]
+        return {"output": json.dumps({"operations": public}, ensure_ascii=False), "operations": public}
+    finally:
+        db.close()
+
+
+async def _files_operation_create(args):
+    from core.database import DEFAULT_LOCAL_STORAGE_LOCATION_ID, SessionLocal
+    from services import file_operations
+
+    db = SessionLocal()
+    try:
+        row = file_operations.enqueue(
+            db,
+            action=str(args.get("action") or ""),
+            source_location_id=str(args.get("source_location_id") or DEFAULT_LOCAL_STORAGE_LOCATION_ID),
+            source_path=str(args.get("source_path") or ""),
+            destination_location_id=(str(args.get("destination_location_id") or "") or None),
+            destination_path=str(args.get("destination_path") or ""),
+        )
+        if bool(args.get("run_now", True)):
+            row = file_operations.run(db, row)
+        public = file_operations.public_dict(row)
+        return {"output": json.dumps(public, ensure_ascii=False), "operation": public}
+    except (LookupError, RuntimeError, ValueError, file_operations.FileOperationError) as exc:
+        return {"output": str(exc), "error": True}
+    finally:
+        db.close()
+
+
+async def _files_operation_undo(operation_id):
+    from core.database import FileOperation, SessionLocal
+    from services import file_operations
+
+    db = SessionLocal()
+    try:
+        row = db.get(FileOperation, str(operation_id or ""))
+        if not row or row.action == file_operations.DIRECT_MUTATION_ACTION:
+            return {"output": "Files operation not found", "error": True}
+        public = file_operations.public_dict(file_operations.undo(db, row))
+        return {"output": json.dumps(public, ensure_ascii=False), "operation": public}
+    except (LookupError, RuntimeError, ValueError, file_operations.FileOperationError) as exc:
+        return {"output": str(exc), "error": True}
+    finally:
+        db.close()
+
+
+async def _finance_accounts_list():
+    from core.database import Account, SessionLocal, Transaction
+
+    db = SessionLocal()
+    try:
+        accounts = db.query(Account).filter(Account.archived == False).order_by(Account.name).all()  # noqa: E712
+        rows = []
+        for account in accounts:
+            balance = float(account.opening or 0) + sum(
+                float(value or 0)
+                for (value,) in db.query(Transaction.amount).filter(Transaction.account_id == account.id).all()
+            )
+            rows.append({"id": account.id, "name": account.name, "kind": account.kind, "currency": account.currency, "balance": round(balance, 2)})
+        return {"output": json.dumps({"accounts": rows}, ensure_ascii=False), "accounts": rows}
+    finally:
+        db.close()
+
+
+async def _finance_transactions_list(args):
+    from core.database import SessionLocal, Transaction
+
+    account_id = str(args.get("account_id") or "").strip()
+    query_text = str(args.get("query") or "").strip()
+    limit = max(1, min(int(args.get("limit") or 50), 100))
+    db = SessionLocal()
+    try:
+        query = db.query(Transaction)
+        if account_id:
+            query = query.filter(Transaction.account_id == account_id)
+        if query_text:
+            like = f"%{query_text}%"
+            query = query.filter((Transaction.payee.ilike(like)) | (Transaction.category.ilike(like)) | (Transaction.note.ilike(like)))
+        txns = query.order_by(Transaction.date.desc(), Transaction.id.desc()).limit(limit).all()
+        rows = [{"id": txn.id, "account_id": txn.account_id, "date": txn.date, "payee": txn.payee, "category": txn.category, "amount": txn.amount, "currency_code": txn.original_currency_code or txn.base_currency_code, "note": txn.notes} for txn in txns]
+        return {"output": json.dumps({"transactions": rows}, ensure_ascii=False), "transactions": rows}
+    finally:
+        db.close()
+
+
+async def _finance_import_profiles():
+    from services import finance_imports
+
+    rows = list(finance_imports.PROFILE_DETAILS)
+    return {"output": json.dumps({"profiles": rows}, ensure_ascii=False), "profiles": rows}
+
+
+async def _server_services_list():
+    from services import service_manager
+
+    rows = service_manager.list_services()
+    return {"output": json.dumps({"services": rows}, ensure_ascii=False), "services": rows}
+
+
+async def _server_service_control(args):
+    from services import service_manager
+
+    service_id = str(args.get("service_id") or "").strip()
+    action = str(args.get("action") or "").strip()
+    if action not in {"start", "stop", "restart"}:
+        return {"output": "action must be start, stop, or restart", "error": True}
+    try:
+        result = service_manager.control(service_id, action)
+        return {"output": json.dumps(result, ensure_ascii=False), **result}
+    except (service_manager.ServiceOwnershipError, service_manager.ServiceControlError) as exc:
+        return {"output": str(exc), "error": True}
+
+
+async def _server_companions_list():
+    from services import managed_companions
+
+    rows = managed_companions.statuses()
+    return {"output": json.dumps({"companions": rows}, ensure_ascii=False), "companions": rows}
+
+
+async def _adguard_dashboard():
+    from services import managed_companion_clients
+
+    try:
+        result = managed_companion_clients.adguard_dashboard()
+        return {"output": json.dumps(result, ensure_ascii=False), **result}
+    except managed_companion_clients.CompanionClientError as exc:
+        return {"output": str(exc), "error": True}
+
+
+async def _adguard_filtering_set(args):
+    from services import managed_companion_clients
+
+    try:
+        result = managed_companion_clients.set_adguard_filtering(
+            bool(args.get("enabled")), int(args.get("interval", 24))
+        )
+        return {"output": json.dumps(result, ensure_ascii=False), **result}
+    except managed_companion_clients.CompanionClientError as exc:
+        return {"output": str(exc), "error": True}
+
+
+async def _adguard_rewrite_change(args):
+    from services import managed_companion_clients
+
+    try:
+        result = managed_companion_clients.change_adguard_rewrite(
+            str(args.get("action") or ""),
+            str(args.get("domain") or ""),
+            str(args.get("answer") or ""),
+            enabled=bool(args.get("enabled", True)),
+        )
+        return {"output": json.dumps(result, ensure_ascii=False), **result}
+    except managed_companion_clients.CompanionClientError as exc:
+        return {"output": str(exc), "error": True}
+
+
+async def _npm_dashboard():
+    from services import managed_companion_clients
+
+    try:
+        result = managed_companion_clients.npm_dashboard()
+        return {"output": json.dumps(result, ensure_ascii=False), **result}
+    except managed_companion_clients.CompanionClientError as exc:
+        return {"output": str(exc), "error": True}
+
+
+async def _npm_proxy_host_create(args):
+    from services import managed_companion_clients
+
+    try:
+        result = managed_companion_clients.create_npm_proxy_host(
+            domain_names=list(args.get("domain_names") or []),
+            forward_scheme=str(args.get("forward_scheme") or "http"),
+            forward_host=str(args.get("forward_host") or ""),
+            forward_port=int(args.get("forward_port") or 0),
+            certificate_id=int(args.get("certificate_id") or 0),
+            ssl_forced=bool(args.get("ssl_forced")),
+        )
+        return {"output": json.dumps(result, ensure_ascii=False), **result}
+    except managed_companion_clients.CompanionClientError as exc:
+        return {"output": str(exc), "error": True}
+
+
 async def stream_execute(name: str, args: dict):
     args = args or {}
     if name in ("shell", "bash"):
@@ -2256,6 +2586,48 @@ def _tool(name: str, description: str, properties: dict, required: list[str] | N
 
 
 TOOL_DEFS = [
+    _tool(
+        "ask_user",
+        "Pause and ask the owner one to four concise selectable questions when their input is genuinely required. Each question needs two to five choices. Supports single or multiple selection and optional free text.",
+        {
+            "title": {"type": "string", "default": "Aide needs your input"},
+            "questions": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 4,
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "id": {"type": "string"},
+                        "prompt": {"type": "string"},
+                        "selection": {
+                            "type": "string",
+                            "enum": ["single", "multiple"],
+                            "default": "single",
+                        },
+                        "choices": {
+                            "type": "array",
+                            "minItems": 2,
+                            "maxItems": 5,
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "id": {"type": "string"},
+                                    "label": {"type": "string"},
+                                    "description": {"type": "string"},
+                                },
+                                "required": ["id", "label"],
+                            },
+                        },
+                        "allow_free_text": {"type": "boolean", "default": False},
+                        "free_text_label": {"type": "string", "default": "another answer"},
+                    },
+                    "required": ["id", "prompt", "choices"],
+                },
+            },
+        },
+        ["questions"],
+    ),
     _tool(
         "shell",
         "Run a local shell command. On Windows this uses PowerShell; on Unix it uses bash. Use for tests, builds, git, installs, and system inspection.",
@@ -2664,10 +3036,13 @@ def workspace_files(cwd: str = "", q: str = "", limit: int = 30) -> list[str]:
 
 def build_tool_defs(settings: dict) -> list:
     """base tools + cross-app tools + optional computer-use / sub-agent / connection tools per settings"""
+    settings = settings or {}
     defs = list(TOOL_DEFS) + APP_TOOL_DEFS
-    if (settings or {}).get("agent_computer_use"):
+    if not _health_access_enabled(settings):
+        defs = [d for d in defs if d["function"]["name"] not in _SENSITIVE_HEALTH_TOOLS]
+    if settings.get("agent_computer_use"):
         defs += COMPUTER_TOOL_DEFS
-    if (settings or {}).get("agent_subagents", True):
+    if settings.get("agent_subagents", True):
         defs += SUBAGENT_TOOL_DEFS
     # connection tools only show when that service is actually connected
     try:
@@ -2858,6 +3233,30 @@ APP_TOOL_DEFS = [
     ),
     _tool("note_list", "List all vault note names.", {}),
     _tool(
+        "docs_read",
+        "Read a Markdown document from Docs by vault-relative path. Docs uses the configured "
+        "Markdown vault and does not require a Project or working directory.",
+        {"path": {"type": "string"}},
+        ["path"],
+    ),
+    _tool(
+        "docs_write",
+        "Create or overwrite a Markdown document in Docs. Use this when the user asks to save "
+        "research, notes, or other Markdown to Docs. The path is relative to the configured "
+        "Markdown vault and does not require a Project or working directory.",
+        {
+            "path": {"type": "string"},
+            "content": {"type": "string"},
+        },
+        ["path", "content"],
+    ),
+    _tool(
+        "docs_search",
+        "Search Markdown documents in Docs. Returns matching vault-relative paths and snippets.",
+        {"query": {"type": "string"}},
+        ["query"],
+    ),
+    _tool(
         "note_read",
         "Read a vault note or doc by name or path (e.g. 'Ideas' or 'Projects/Ideas.md').",
         {"name": {"type": "string"}},
@@ -3021,6 +3420,95 @@ APP_TOOL_DEFS = [
         },
         [],
     ),
+    _tool(
+        "files_locations_list",
+        "List only owner-approved Files locations and access modes. Stored credentials are never returned.",
+        {},
+    ),
+    _tool(
+        "files_operations_list",
+        "List durable Files copy, move, rename, delete, and restore operations with recovery state.",
+        {
+            "state": {"type": "string", "default": ""},
+            "limit": {"type": "integer", "default": 50, "minimum": 1, "maximum": 100},
+        },
+    ),
+    _tool(
+        "files_operation_create",
+        "Create a typed Files operation between approved locations. It never crawls outside registered locations and preserves the durable undo receipt.",
+        {
+            "action": {"type": "string", "enum": ["copy", "move", "rename", "delete", "restore"]},
+            "source_location_id": {"type": "string", "default": "alles-local"},
+            "source_path": {"type": "string"},
+            "destination_location_id": {"type": "string", "default": ""},
+            "destination_path": {"type": "string", "default": ""},
+            "run_now": {"type": "boolean", "default": True},
+        },
+        ["action", "source_path"],
+    ),
+    _tool(
+        "files_operation_undo",
+        "Undo a completed durable Files operation when its verified recovery receipt permits it.",
+        {"operation_id": {"type": "string"}},
+        ["operation_id"],
+    ),
+    _tool("finance_accounts_list", "List Finance accounts and computed balances read-only.", {}),
+    _tool(
+        "finance_transactions_list",
+        "List recent Finance transactions read-only, optionally filtered by account or text.",
+        {
+            "account_id": {"type": "string", "default": ""},
+            "query": {"type": "string", "default": ""},
+            "limit": {"type": "integer", "default": 50, "minimum": 1, "maximum": 100},
+        },
+    ),
+    _tool("finance_import_profiles", "List reviewed bank statement and notification import profiles.", {}),
+    _tool("server_services_list", "List only services whose Alles ownership markers verify.", {}),
+    _tool(
+        "server_service_control",
+        "Start, stop, or restart an Alles-owned service. Arbitrary host services are not reachable.",
+        {
+            "service_id": {"type": "string"},
+            "action": {"type": "string", "enum": ["start", "stop", "restart"]},
+        },
+        ["service_id", "action"],
+    ),
+    _tool("server_companions_list", "List pinned managed companions and their verified lifecycle state.", {}),
+    _tool("adguard_dashboard", "Read the connected AdGuard DNS status, daily statistics, filtering state, rewrites, and bounded recent activity.", {}),
+    _tool(
+        "adguard_filtering_set",
+        "Enable or disable AdGuard filtering with a bounded refresh interval.",
+        {
+            "enabled": {"type": "boolean"},
+            "interval": {"type": "integer", "minimum": 0, "maximum": 168, "default": 24},
+        },
+        ["enabled"],
+    ),
+    _tool(
+        "adguard_rewrite_change",
+        "Add or delete one explicit AdGuard DNS rewrite.",
+        {
+            "action": {"type": "string", "enum": ["add", "delete"]},
+            "domain": {"type": "string"},
+            "answer": {"type": "string"},
+            "enabled": {"type": "boolean", "default": True},
+        },
+        ["action", "domain", "answer"],
+    ),
+    _tool("npm_dashboard", "Read connected Nginx Proxy Manager proxy-host and certificate state.", {}),
+    _tool(
+        "npm_proxy_host_create",
+        "Create one typed Nginx Proxy Manager host. Credentials stay in the local broker and never enter model context.",
+        {
+            "domain_names": {"type": "array", "items": {"type": "string"}, "minItems": 1, "maxItems": 20},
+            "forward_scheme": {"type": "string", "enum": ["http", "https"], "default": "http"},
+            "forward_host": {"type": "string"},
+            "forward_port": {"type": "integer", "minimum": 1, "maximum": 65535},
+            "certificate_id": {"type": "integer", "minimum": 0, "default": 0},
+            "ssl_forced": {"type": "boolean", "default": False},
+        },
+        ["domain_names", "forward_host", "forward_port"],
+    ),
 ]
 
 
@@ -3037,6 +3525,7 @@ MUTATING_TOOLS = {
     "revert_file",
     "delete_file",
     "memory_add",
+    "todo_update",
     "computer_click",
     "computer_move",
     "computer_type",
@@ -3055,6 +3544,7 @@ MUTATING_TOOLS = {
     "calendar_delete",
     "task_add",
     "task_done",
+    "docs_write",
     "note_write",
     "note_append",
     "contact_add",
@@ -3065,6 +3555,12 @@ MUTATING_TOOLS = {
     "habit_log",
     "read_save",
     "watch_add",
+    "files_operation_create",
+    "files_operation_undo",
+    "server_service_control",
+    "adguard_filtering_set",
+    "adguard_rewrite_change",
+    "npm_proxy_host_create",
 }
 # subset that produces a file diff we can preview
 _DIFF_TOOLS = {"write_file", "edit_file", "apply_patch"}
@@ -3137,15 +3633,46 @@ def delegated_action_details(name: str, args: dict, settings: dict | None = None
 
 
 def decide_permission(name, args, mode, rules):
-    """allow | ask | deny. base comes from the mode (full_auto=allow, approve=ask,
-    plan=deny — for mutating tools), then user rules override, LAST match wins (opencode-
-    style). a rule = {tool: glob, path: glob, action}. a plain path (no glob chars) is a
-    'contains' match. lets you e.g. auto-run `git_status` but always ask on `git_commit`."""
+    """Return allow, ask, or deny for one tool call.
+
+    Full access runs in-scope work without approval. Auto runs ordinary reversible local
+    changes, but asks at boundaries that can execute arbitrary code, delete data, contact
+    outside services, control the computer, delegate work, or alter Git history.
+    """
     base = "allow"
     if name in MUTATING_TOOLS:
-        base = {"plan": "deny", "approve": "ask", "full_auto": "allow"}.get(
-            mode or "full_auto", "ask"
-        )
+        risky_auto = {
+            "shell",
+            "bash",
+            "git_branch",
+            "git_commit",
+            "git_push",
+    "revert_file",
+            "delete_file",
+            "calendar_delete",
+            "mail_send",
+            "mcp_call_tool",
+            "github_create_issue",
+            "github_create_pr",
+            "computer_click",
+            "computer_move",
+            "computer_type",
+            "computer_key",
+            "computer_scroll",
+            "spawn_agent",
+            "spawn_agents",
+            "opencode_run",
+        }
+        if mode == "plan":
+            base = "deny"
+        elif mode == "approve":
+            base = "ask"
+        elif mode == "full_access":
+            base = "allow"
+        elif mode == "full_auto":
+            base = "ask" if name in risky_auto else "allow"
+        else:
+            base = "ask"
     decision = base
     target = _perm_target(name, args)
     for r in rules or []:
@@ -3179,6 +3706,8 @@ UNTRUSTED_TOOLS = {
     "note_read",
     "note_search",
     "note_backlinks",
+    "docs_read",
+    "docs_search",
 }
 
 # phrases that look like an injected instruction smuggled inside fetched content

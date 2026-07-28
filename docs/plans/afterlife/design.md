@@ -1,12 +1,16 @@
 # Afterlife — product and architecture design review
 
 - **Stage:** 6 — Afterlife
-- **Status:** active product direction; Phase 0 delivered
-- **Last updated:** 2026-07-11
+- **Status:** Phases 0 through 11 delivered; final handoff records 1 original-request gap
+- **Last updated:** 2026-07-21
 - **Scope:** the Afterlife rebuild
 
 > This document describes planned behavior, not the current application.
 > `specifications.md` remains the reference for behavior that is already shipped.
+>
+> **Accepted correction:** [`decision-aide-one-mode.md`](decision-aide-one-mode.md) overrides every
+> older mention of Chat/Agent modes, Chat/Jarvis modes, Answer only, or Jarvis as an in-app/background
+> runtime. Jarvis now means only the Discord bot.
 
 ## Purpose
 
@@ -25,19 +29,19 @@ Technical choices marked **spike first** still need a small proof before they be
 
 ## Short version
 
-- **Today** is the home screen.
-- **Aide** is the AI home. Normal Chat uses tools automatically when needed; Jarvis handles durable,
-  scheduled, or background work inside the same Aide home.
+- **Home** is the default dashboard.
+- **Aide** is one assistant. It chats, uses tools when useful, and keeps durable, scheduled, or
+  background work in the same conversation.
 - **Andromeda** is AI search, with SearXNG as its normal Web results tool.
-- **Jarvis**, inside Aide, owns scheduled and background work. The Discord bot is also Jarvis.
-- A Project is one selected folder that becomes Aide and Jarvis's prioritized working environment.
+- **Jarvis** is only the Discord bot's name. It connects Discord messages to Aide.
+- A Project is one selected folder that becomes Aide's prioritized working environment.
 - Specialist apps are grouped into Plan, Docs, Files, Finance, Inbox, Library, Health, Passwords, and
   Server.
 - Files supports approved local and online locations. Sync, offline copies, and backup stay separate.
 - Actual Budget is the intended Finance ledger/budgeting core after its migration gate; Alles remains
   the UI and keeps only Alles-specific sidecar records.
-- Aide Chat, Andromeda, and Aide → Jarvis each have a default model, with per-feature and per-run
-  overrides.
+- Aide and Andromeda each have a default model, with per-feature and per-run overrides. Background Aide
+  uses the same Aide choice unless the owner explicitly overrides that run.
 - Model lists refresh from each endpoint instead of relying on a shipped memorized catalog.
 - Andromeda's normal AI Overview is designed to run with a small local model; stronger models remain
   optional for difficult searches.
@@ -62,28 +66,27 @@ Technical choices marked **spike first** still need a small proof before they be
 
 | Name | Job | Normal use |
 |---|---|---|
-| **Today** | Coordinate the day | See what matters, approve work, open shortcuts |
-| **Aide** | Chat and background AI work | Ask interactively or hand longer work to Jarvis inside Aide |
+| **Home** | Coordinate the day | See what matters, approve work, open pinned apps |
+| **Aide** | Conversation, tools, and background work | Ask once; Aide decides whether the request needs text, tools, or durable background work |
 | **Andromeda** | AI-first search | Get a cited answer, then browse normal web results |
 
-**Jarvis is not a fourth product space.** It is Aide's durable task mode and background runtime for
-workflows, schedules, heartbeats, news, and delivery.
+**There is no second Aide mode.** Chat, tool use, longer work, schedules, heartbeats, news, and delivery
+all use Aide. **Jarvis** names only the optional Discord bot.
 
-**Cowork is retired as a product name.** The equivalent feature inside Aide is named **Jarvis**. The
-Discord bot is also named **Jarvis**.
+**Cowork is retired as a product name.** Its useful background-work ideas become normal Aide behavior.
 
 ## Navigation
 
 ### Always visible
 
-- Today
+- Home
 - Aide
 - Andromeda
 
-Jarvis opens through the **Chat / Jarvis** mode selector inside Aide. Active runs, approvals, and finished
-briefs also surface in Today. Jarvis does not have its own global-navigation or app-drawer destination.
+There is no mode selector. Active Aide runs, approvals, and finished briefs also surface in Home.
+Jarvis appears only inside Discord connection settings.
 
-### Available from shortcuts, search, or the app drawer
+### Available from pinned apps, search, or the app drawer
 
 - Plan
 - Docs
@@ -98,15 +101,15 @@ briefs also surface in Today. Jarvis does not have its own global-navigation or 
 Settings lives in the Alles/profile menu and opens with `Cmd/Ctrl + ,`.
 Global search opens with `Cmd/Ctrl + K`.
 
-Calendar, Tasks, Gallery, Journal, and other focused views can still be pinned as shortcuts.
+Calendar, Tasks, Docs, Files, Mail, and Finance can be selected as pinned apps on Home.
 They do not need equal top-level weight.
 
 ### App consolidation
 
 | New destination or section | Existing features it contains |
 |---|---|
-| **Today** | Home, Today, Activity, proactive cards, reminders, important dates |
-| **Aide → Jarvis** | Skills, automations, schedules, background runs, deliveries |
+| **Home** | The legacy launcher, Activity, proactive items, reminders, and important dates |
+| **Aide** | Chat, tools, skills, automations, schedules, background runs, deliveries |
 | **Plan** | Calendar, Tasks, Reminders |
 | **Docs** | Docs, Notes, Journal views over the Markdown vault |
 | **Files** | Managed files, approved local locations, online locations, Photos/Gallery |
@@ -122,11 +125,25 @@ Projects live in the Aide sidebar rather than becoming another app or data silo.
 The first consolidation release changes navigation only. Existing tables, URLs, and APIs stay behind
 compatibility aliases until their replacements are proven.
 
+The existing Apps directory remains the approved baseline. A later consistency pass should be small:
+align spacing, type, and shared navigation with the finished Home, Aide, and Andromeda shell without
+removing information or rebuilding the specialist apps. It requires a fresh standalone HTML starter
+and explicit owner approval before the real interface changes.
+
 ## Shared interaction rules
 
 - Use plain language and short labels.
 - Show a compact model chip only where a model matters.
 - Keep keyboard access and visible focus states.
+- Never expose browser-default selects, checkboxes, or radios. Use accessible KOKUEN controls instead.
+- Before a new app interface or material app rework, make a standalone KOKUEN HTML starter with fake
+  data and minor local-only interactions, then wait for explicit owner approval before changing the
+  real app.
+- Targeted fixes that preserve an already approved direction do not need another starter, but they do
+  need focused regression coverage and rendered browser verification. Do not turn a bug fix into an
+  unapproved redesign.
+- Keep normal interface text and controls at least 14 pixels, conversation text at least 16 pixels, and
+  helper text at least 12 pixels.
 - Respect reduced motion.
 - Design desktop and mobile together.
 - Show loading, empty, offline, partial, error, disabled, and conflict states.
@@ -134,6 +151,9 @@ compatibility aliases until their replacements are proven.
 - Do not use endless feeds.
 - Do not move important work into temporary toasts only.
 - A background task must remain visible after the page closes.
+- Preserve information, but use spacing, type, and surface tone before adding borders. Separators mark
+  real structural boundaries only. Avoid nested boxes, card-everything layouts, duplicated controls,
+  decorative rules, and secondary controls that remain visible when they are not relevant.
 
 ## Visual direction
 
@@ -157,43 +177,46 @@ before a replacement glyph is chosen.
 
 ## Primary experiences
 
-### Today
+### Home
 
-Today replaces the launcher as the default home.
+Home replaces the launcher as the default page.
 
 Its order is:
 
 1. **Needs you** — approvals, choices, conflicts, and failed work.
-2. **Today** — events, due tasks, reminders, habits, renewals, and important dates.
-3. **In progress** — active Jarvis work and long Aide runs.
+2. **Schedule** — events, due tasks, reminders, habits, renewals, and important dates.
+3. **In progress** — active and background Aide work.
 4. **Briefs** — finished news, research, and scheduled reports.
-5. **Shortcuts** — pinned apps, Project folders, other folders, and saved searches.
+5. **Pinned apps** — the app destinations selected in Settings → Home.
 
 Core cards are deterministic and work without AI. AI can summarize or prioritize them when requested.
 Activity becomes a History view instead of a separate app.
 
-**Customize Today** is the visible top-right action. It controls card visibility, order, density, and
-shortcuts. Settings moves into the Alles/profile menu.
+Home's greeting, heading, and summary are dynamic from the current time and live Alles data; they are
+not hardcoded demo copy. The five information groups may share one continuous layout with whitespace
+and type hierarchy instead of becoming five boxed dashboards. Home remains useful when no model is
+configured.
+
+The KOKUEN starter takes the continuous-layout option: a roomy greeting, unboxed schedule rows, plain
+Focus and Needs you lists, one inline Aide brief, an underlined capture row, and compact Aide/Andromeda/
+Apps links. It avoids event cards, briefing cards, full-width destination grids, and a boxed Quick
+capture control. Greeting tracking remains loose enough that **good afternoon, jxh** never looks crushed.
+
+Home has no Settings control. Saved Home preferences remain compatible, but any visible customization
+belongs in the main Settings surface. The inline Aide brief is plain text, short enough to scan in two
+lines, and never dumps raw Markdown or a full conversation response into Home.
 
 ### Aide
 
-Aide becomes one AI home with two clear modes:
+Aide is one assistant with no visible or default mode selector. Every conversation can answer directly,
+reason, read approved user data, search through Andromeda, use tools, or keep working in the background.
+Simple questions stay simple; tasks use approved tools automatically when useful.
 
-- **Chat** — interactive questions, reasoning, context, and one-off actions;
-- **Jarvis** — longer, scheduled, repeatable, or background tasks.
-
-Chat and Jarvis share the same composer, Project folder, attachments, model controls, and history shell.
-Switching mode does not open another app or discard the active Project.
-The selector sits with the composer inside Aide, not in global navigation or the app drawer.
-
-The old agent/chat switch, Ask Docs mode, and Research toggle are removed. They are not the same as the
-new task-based **Chat / Jarvis** selector.
-
-Aide has one normal interactive conversation. It internally chooses whether it needs to answer directly,
-read approved user data, search through Andromeda, run deep research, or use a tool. These are not five
-visible modes. **Automatic tools** is the default; **Answer only** disables automatic tool use. Settings
-chooses the default, and a small per-conversation control can temporarily override it. Automatic routing
-never bypasses approval for a mutation.
+The old Agent/Chat switch, temporary Chat/Jarvis switch, Answer only control, Ask Docs mode, Research
+toggle, and Compare action are removed. Research is contextual: when Aide detects that deeper research
+would help, it asks the owner and continues inside the same task after approval. Settings controls
+permissions, allowed tools, folders, models, memory, effort, and background limits. Cookbook moves to
+**Settings → AI and models**. Aide never asks the owner to choose Chat versus Agent.
 
 Personas remain an optional advanced feature. **None** is the default and means the normal base assistant
 with no extra persona prompt. Phase 4 fixes None selection, revises the built-in persona defaults, and
@@ -202,18 +225,58 @@ preserves custom personas.
 Default mutation behavior is **ask before changes**. Aide may read allowed context freely, but sending,
 deleting, editing outside the current draft, purchasing, or changing the system requires approval.
 
-When work will take a while, Aide offers:
+When work will take a while, Aide can keep running in the background with the same Project, request,
+attachments, model context, and conversation.
 
-- Keep here
-- Run with Jarvis
+Aide keeps the compact KOKUEN conversation canvas. Codex is a task-organization and control-placement
+reference only. The sidebar is open by default on desktop and collapses through a split-sidebar icon;
+on mobile it is a closed-by-default overlay. **Tasks** lists loose conversations directly, while
+**Projects** lists folder-backed Projects and their tasks. General is not shown as a category, label, or
+Project. **New task**, **scheduled**, **Brain**, **Skills**, and **Reminders** share one compact primary
+navigation group. The capability rows use one restrained, matching icon each but do
+not sit under a separate Tools heading. Models and Cookbook remain in Settings. Tasks and Projects use stronger headings, smaller conversation rows, and
+real group spacing instead of separator lines. Search and Settings remain easy to reach, and Connections
+stay in the composer's `+` menu. The top bar's primary label is the conversation name. Project
+conversations also show a folder icon and muted Project name; loose tasks show neither. Project folder
+glyphs change between closed and open with their expanded state. Aide uses normal 1-pixel borders and
+tight 3–5-pixel corner radii. Desktop top-bar icon controls use compact 32-pixel boxes while mobile keeps
+44-pixel touch targets. Search also keeps a 44-pixel hit area. Activating it grows a transform-only field
+leftward across the Aide wordmark; Escape restores the normal heading without a layout repaint. The
+sidebar footer keeps text-only **Settings** at the left and a quiet **Home** control at the right. The composer has one 1-pixel outer border; textarea focus never draws a
+second inset outline. Structural panel toggles stay visually neutral in both open and closed states
+because the panel itself already shows the state.
 
-**Run with Jarvis** keeps the same Project and request, then opens the Jarvis task inside Aide.
+The composer has no suggested prompts. Its permission button is text-only, has no icon, and offers
+exactly **auto mode** (full permission), **ask for approval** (the default), and **plan** (read and plan
+without making changes). Only Auto mode is purple; the other permission states remain neutral. A compact
+control selects the current task's model and effort; full catalogs and defaults stay in Settings. The
+`+` button is a custom menu for files, photos, apps, and connections, and speech is directly reachable.
+On desktop the microphone and send controls share the same 36-pixel square and 18-pixel glyph size; on
+mobile they share the same 44-pixel touch target. Hover never moves the send control out of alignment. A
+hidden-by-default right task-tools sidebar is attached to the viewport edge and gives Review, Terminal,
+Browser, Files, and Side task one compact launcher. It is a real layout column on desktop, not a floating
+window. There is no automatic pinned summary. Opening Terminal replaces the panel body with only the
+terminal surface; no environment summary, description, review rows, or app links remain visible.
 
-The sidebar contains **General**, folder-backed Projects, their threads, and active/recent Jarvis tasks.
-While work is running, its progress remains visible. After success, Aide shows the conclusion or output
-first and hides tool/agent steps behind one keyboard-accessible **Show steps / Hide steps** toggle.
-Failures, pending questions, and approval needs remain visible even when steps are closed. Reloading the
-conversation preserves the conclusion and access to its steps.
+The real browser terminal should start with a pinned, self-hosted [xterm.js](https://xtermjs.org/) build
+and a Project-scoped PTY over an authenticated, origin-checked WebSocket. xterm.js is specifically a web
+terminal frontend and documents the PTY bridge. [Ghostty](https://github.com/ghostty-org/ghostty) remains
+worth re-evaluating later because `libghostty-vt` supports WebAssembly, but its API is still unversioned
+and in flux. Terminal output is untrusted, the terminal page loads no runtime CDN code, and the shell
+never runs as root. Follow the [xterm.js security guide](https://xtermjs.org/docs/guides/security/) for
+transport, origin, DOM, and privilege boundaries.
+
+Messages rely on layout instead of **you** or **Aide** author labels. The top bar owns the conversation
+title and Project context, so the message stream never repeats them as a thread heading. Thinking,
+progress, failures,
+questions, approvals, and tool steps appear in order before the answer. Completed details may collapse
+behind one keyboard-accessible toggle, but that disclosure remains before the answer and survives
+reload. The message rail stays absent below three user messages. At three or more, it appears vertically
+centered with one keyboard-accessible tick per user message. Its one bright tick follows the user message
+closest to the reading position while scrolling; the top and bottom positions map exactly to the first and
+last messages. Pointer proximity controls each tick independently: the nearest grows most, nearby ticks
+grow less, and distant ticks stay short. Transform-only scaling keeps the hit area stable and avoids
+page repaint bugs. A keyboard-focused tick gets full reach, and selecting one jumps to that message.
 Streaming must not force-scroll while the user is reading or typing. A visible jump-to-latest control
 replaces automatic scroll capture.
 
@@ -239,11 +302,11 @@ which owner instructions and memories were used for a response.
 
 Aide uses the same service layer as the normal UI. It never controls an app by silently editing the DOM
 or bypassing the database and permission layer. Every product phase maintains a capability row with:
-readable context, safe actions, approval-required actions, Jarvis support, exclusions, and tests.
+readable context, safe actions, approval-required actions, background Aide support, exclusions, and tests.
 
 | Product area | Minimum Aide coverage | Hard boundary |
 |---|---|---|
-| Today | Read cards and propose layout/shortcut changes | Customization changes need approval |
+| Home | Read cards and propose layout/shortcut changes | Customization changes need approval |
 | Plan | Read, create, update, move, and complete items | Deletes and external calendar effects need approval |
 | Docs | Search, read, create, edit, link, and summarize Markdown | Protected/private content needs an explicit grant |
 | Files and Photos | Browse, search, preview, copy, move, upload, and import | Destructive or outside-root work needs approval |
@@ -280,7 +343,8 @@ Query behavior:
 - `!ai` does not change the search provider, ranking, layout, or saved settings;
 - normal SearXNG bangs still work;
 - a result action can ask Aide to explain selected links;
-- a long investigation can become a Jarvis research run.
+- when a long investigation would benefit from deeper research, Aide asks first and then continues it as
+  a background run in the same task.
 
 The AI Overview reads a small number of strong results and answers with citations.
 Deep research remains a separate background path with visible progress and a durable result.
@@ -339,10 +403,10 @@ use a small local model as long as it passes the grounding and citation tests be
 SearXNG is an Alles-managed companion service when installed by Alles. It binds to loopback and is not
 published directly. Andromeda still supports a user-managed SearXNG URL.
 
-### Aide → Jarvis
+### Background Aide
 
-Jarvis is the durable task mode inside Aide. It is not a separate app or global destination.
-It owns work that should continue without an open page.
+Aide owns durable work that should continue without an open page. Background is a run state, not a
+second assistant or mode.
 
 Its views inside Aide are:
 
@@ -403,7 +467,7 @@ Run states are:
 A workflow may receive a narrow capability grant once. Anything outside that grant pauses.
 Questions and approvals survive restarts.
 
-For a missed recurring schedule, Jarvis coalesces missed occurrences into one current run.
+For a missed recurring schedule, background Aide coalesces missed occurrences into one current run.
 A one-time reminder runs once within its grace window.
 
 #### Jarvis on Discord
@@ -419,6 +483,8 @@ Version one supports:
 - starting allowed workflows;
 - reading run status;
 - answering non-mutating choices;
+- Discord typing followed by one answer message that updates while Aide writes;
+- one persistent Aide conversation per paired DM or approved channel;
 - completion, failure, and input-needed delivery.
 
 Discord-origin work starts read-only. Any mutation opens an approval inside Alles.
@@ -429,7 +495,7 @@ Alles does not depend on or connect to OpenClaw.
 
 #### News
 
-News is a Jarvis workflow plus a Today Brief.
+News is a background Aide workflow plus a Home Brief.
 
 The deterministic pipeline:
 
@@ -438,9 +504,9 @@ The deterministic pipeline:
 3. Remove exact duplicates and cluster similar coverage.
 4. Rank by recency, interests, and source diversity.
 5. Summarize selected clusters with citations.
-6. Publish to Today and optional Discord/push delivery.
+6. Publish to Home and optional Discord/push delivery.
 
-If extraction or the model fails, Jarvis still delivers a normal link digest. The AI summary can arrive
+If extraction or the model fails, Aide still produces a normal link digest. The AI summary can arrive
 later. Feed entries do not automatically become Library items; saving is explicit.
 
 News ships with a small reviewed starter-source catalog grouped by topic and language, but it fetches
@@ -453,7 +519,7 @@ rest of a digest. OPML import/export is useful but optional for the first releas
 
 ### Projects
 
-A Project is a selected folder plus the Aide and Jarvis threads that work from it.
+A Project is a selected folder plus the Aide conversations and background runs that work from it.
 It is a prioritized environment, not a database of linked Alles records and not a hard prison.
 
 When a Project is active:
@@ -463,12 +529,12 @@ When a Project is active:
 - file search and retrieval look there first;
 - new files and generated outputs default there;
 - Project instructions apply;
-- Aide and Jarvis threads remain grouped under it.
+- Aide conversations and background runs remain grouped under it.
 
 Creating a Project means choosing one folder. Its name defaults to the folder name and remains editable.
 The folder may be empty; Alles can use it as the place for new output.
 
-The folder is the default, not the only place Alles can work. Aide or Jarvis may read or act outside it
+The folder is the default, not the only place Alles can work. Aide may read or act outside it
 when the owner explicitly selects another path, invokes an allowed connector, or approves the broader
 action. The UI clearly shows when work leaves the Project folder.
 
@@ -480,14 +546,15 @@ A Project stores only small environment metadata:
 - name and folder path;
 - optional instructions and scratchpad text;
 - display color;
-- associated Chat and Jarvis thread IDs;
+- associated Aide conversation and background-run IDs;
 - last-opened state.
 
 Tasks, notes, files, saved searches, and other app records stay in their own apps. They can be opened or
 attached explicitly; they do not become Project members.
 
-**General** is the no-folder environment for standalone conversations. If a Project folder moves or is
-missing, Alles keeps its threads and settings, marks the folder missing, and asks the owner to relink it.
+Loose conversations use an unscoped, no-folder context. The Aide interface never labels that context
+**General** or presents it as a Project. If a Project folder moves or is missing, Alles keeps its threads
+and settings, marks the folder missing, and asks the owner to relink it.
 
 On a self-hosted server, the Project folder exists on the server or an approved mount. A browser cannot
 pretend that a folder on the client device is a server folder; client-local access needs an approved
@@ -506,8 +573,8 @@ Default board columns are:
 - Waiting
 - Done
 
-Starting a task with Jarvis moves it to Doing. A paused run can move it to Waiting.
-After success, Jarvis asks before marking it Done.
+Starting a task with background Aide moves it to Doing. A paused run can move it to Waiting.
+After success, Aide asks before marking it Done.
 
 ### Docs
 
@@ -729,13 +796,13 @@ Views:
 Managed services may include:
 
 - Alles core;
-- Jarvis scheduler/workers;
+- background Aide scheduler/workers;
 - managed Andromeda/SearXNG;
 - an Alles-installed proxy;
 - future Alles-owned helpers.
 
-External Caddy, Nginx Proxy Manager, AdGuard, Ollama, or other services are read-only status checks and
-admin links unless Alles installed and owns that exact service.
+External Caddy, Ollama, AdGuard, Nginx Proxy Manager, or other services remain read-only unless Alles
+prepared that exact pinned companion and its dual ownership markers still verify.
 
 Normal Server controls exclude arbitrary shell, process killing, package management, firewall changes,
 host shutdown, and unmanaged container control.
@@ -757,23 +824,20 @@ strings, capability detection, impact text, and an audit record.
 
 Reverse proxy and DNS filtering are different jobs and are never presented as one switch.
 
-For reverse proxying, Phase 1 compares a narrow native proxy such as Caddy with
-[Nginx Proxy Manager](https://nginxproxymanager.com/guide/) across macOS/Linux native installs and
-Compose. Nginx Proxy Manager is the preferred visual/Compose candidate because it provides a proxy-host
-UI and certificate management; the native candidate avoids making Docker mandatory. The comparison
-must record HTTPS, WebSockets, forwarded headers, wildcard hosts, resource cost, updates, rollback,
-backup, ownership, and admin exposure. It ends with one owner-approved default plus a documented path
-for an existing external proxy.
+[Nginx Proxy Manager](https://nginxproxymanager.com/guide/) is the optional visual Compose companion.
+Alles pins its image, prepares without starting, keeps the admin listener on loopback, and activates
+public listeners only after exact port/interface preflight and rollback capture. The native Server
+surface shows proxy-host and certificate state and creates typed proxy hosts through an encrypted local
+API token. Caddy remains an owner-managed alternative.
 
-[AdGuard Home](https://adguard-dns.io/kb/adguard-home/getting-started/) is an optional network DNS
-service, not an Alles dependency. Its decision report reviews the video linked in the original
-brainstorm plus current official documentation and records port 53, router/client DNS changes, static
-address needs, admin authentication, updates, backup, failure isolation, and rollback. Alles never
-changes router DNS, firewall rules, ports 80/443, or port 53 without an exact explanation and approval.
+[AdGuard Home](https://github.com/AdguardTeam/AdGuardHome) is the optional DNS companion. Alles pins and
+prepares it without starting, checks TCP and UDP DNS listeners, seals its admin credential, and exposes
+status, query statistics, filtering, and rewrites through the published API. Alles never changes router
+DNS, DHCP, firewall, or operating-system resolver settings.
 
-For either service, a user-managed instance gets health, setup help, and an admin link only. An
-Alles-installed instance receives an ownership marker, narrow lifecycle controls, backup coverage, and a
-removal path that leaves Alles working.
+For either service, an external instance gets health/setup context only. An Alles-prepared instance has
+fixed definitions, private data, narrow lifecycle controls, backup coverage, explicit activation, and a
+keep-data removal path.
 
 ## Backup and recovery
 
@@ -787,7 +851,7 @@ Default backup coverage includes critical state:
 - Passwords ciphertext and attachments;
 - Markdown vault;
 - managed files;
-- tasks, calendars, mail cache, contacts, Finance, Project metadata, Jarvis definitions and history;
+- tasks, calendars, mail cache, contacts, Finance, Project metadata, background Aide definitions and history;
 - indexes only when rebuilding would be expensive.
 
 Photos are opt-in because they can dominate storage.
@@ -827,11 +891,12 @@ The live SQLite database is never placed inside iCloud, Dropbox, or another live
 
 ## Models and AI routing
 
-Settings defines three default model roles:
+Settings defines two default model roles:
 
 - Aide Chat;
-- Andromeda;
-- Jarvis background tasks inside Aide.
+- Andromeda.
+
+Durable background Aide tasks inherit the Aide default unless one run explicitly overrides it.
 
 ### Andromeda local-first profile
 
@@ -895,11 +960,11 @@ local endpoint.
 Failure behavior:
 
 - interactive work asks what to do each time;
-- Jarvis pauses and notifies;
+- background Aide pauses and notifies;
 - News still produces a link digest and retries the AI summary later;
 - Alles never silently switches to an expensive or remote model outside the configured fallback policy.
 
-Model selection, endpoint health, and fallback decisions are recorded on each Jarvis run.
+Model selection, endpoint health, and fallback decisions are recorded on each background Aide run.
 
 ## Settings
 
@@ -909,30 +974,31 @@ Settings uses ten sections:
 - Appearance
 - AI and Models
 - Andromeda
-- Aide and Jarvis
+- Aide
 - Connections
 - Apps
 - Storage and Backups
 - Security and Access
 - Advanced
 
-AI and Models begins with the Aide Chat, Andromeda, and Aide → Jarvis defaults, followed by endpoints,
-local models, discovered/manual catalogs, global and per-endpoint refresh, provider sign-in, overrides,
-health, and usage.
+AI and Models begins with the Aide and Andromeda defaults, followed by endpoints,
+local models, discovered/manual catalogs, Cookbook, global and per-endpoint refresh, provider sign-in,
+overrides, health, and usage.
 
-Aide and Jarvis contains **Default chat behavior** with **Automatic tools** as the default and
-**Answer only** as the simpler option. It also contains owner instructions and Memory controls.
+Aide contains permissions, allowed tools, folders, effort, background limits, owner instructions, and
+Memory controls. It has no assistant-mode setting. The task composer owns the current task's permission
+profile, model, and effort override; Settings owns defaults and full catalogs.
 
 Operational views remain in their app. Settings stores configuration.
 For example, Server shows backup runs while Storage and Backups configures targets.
 
-Connections stores credentials and connection health. Jarvis Connections controls how an already
-connected channel is used for workflows and delivery.
+Connections stores credentials and connection health. The Jarvis entry controls only the optional
+Discord bot connection and delivery scope.
 
 Existing MCP support is preserved and hardened. Connections lets the owner add, edit, test, refresh,
 disable, and remove MCP servers. It shows transport/origin, health, last refresh, discovered tools,
 resources and prompts, plus the capabilities each server requests. Tools default disabled until the
-owner grants them to General Aide, one Project, or one Workflow. Local-command MCP requires review of the
+owner grants them to unscoped Aide, one Project, or one Workflow. Local-command MCP requires review of the
 exact executable, arguments, working directory, and environment names. A non-loopback remote MCP
 connection requires HTTPS. Removing a tool or revoking a grant takes effect before the next call.
 
@@ -1118,7 +1184,7 @@ A mirror is never treated as a second authority without an explicit sync identit
 ### Folder-backed Project environments
 
 The Project record stays small. It stores an ID, display name, canonical folder path, optional
-instructions/scratchpad, display color, and last-opened state. Chats and Jarvis runs may store its ID.
+instructions/scratchpad, display color, and last-opened state. Aide conversations and runs may store its ID.
 
 The folder is the default working directory and context priority. It is not automatically the only
 allowed directory. Access outside it uses the normal path and delegated-action permission checks, and
@@ -1141,11 +1207,12 @@ One resolver calculates the effective model from:
 5. an allowed fallback in the same privacy/cost class.
 
 The resolver returns endpoint, model, privacy class, price metadata when known, and the reason for the
-selection. Interactive and Jarvis calls use the same resolver.
+selection. Foreground and background Aide calls use the same resolver.
 
-### Jarvis records
+### Background Aide records
 
-The durable Jarvis core uses records equivalent to:
+The durable background core uses records equivalent to the following. Existing class, table, and API
+names containing `Jarvis` are legacy compatibility names until a separate safe migration:
 
 - **Workflow** — reusable definition and permission ceiling;
 - **Trigger** — schedule, heartbeat, event, webhook, or inbound connector;
@@ -1193,9 +1260,9 @@ An **approval** authorizes one exact mutation and includes:
 Approvals are single-use, durable, expire, and re-check the pending action immediately before execution.
 An answer from Discord can never indirectly widen the approved action.
 
-This delegated-action gate applies to Aide, Jarvis, and tool-origin mutations. A direct owner action in
+This delegated-action gate applies to foreground/background Aide and tool-origin mutations. A direct owner action in
 the normal UI uses authentication, CSRF protection, scope checks, and a clear confirmation where needed;
-it does not create a pretend Jarvis approval for ordinary editing.
+it does not create a pretend background-run approval for ordinary editing.
 
 ### Deliveries
 
@@ -1232,6 +1299,8 @@ Possible capabilities:
 
 WebDAV writes use ETags and conditional requests where supported.
 An S3 move is copy, verify, then delete; it is never labelled atomic.
+If an S3 object reports a version ID, logical delete fails closed because delete-marker creation
+cannot be atomically conditioned on that exact version.
 
 Every operation re-checks root confinement. Symlink changes between validation and use must not escape an
 approved local root.
@@ -1254,7 +1323,7 @@ Server exposes redacted structured information for:
 
 - process and companion health;
 - scheduler lag;
-- queued/running/failed Jarvis runs;
+- queued/running/failed background Aide runs;
 - delivery backlog;
 - storage/index jobs;
 - backup and restore state;
@@ -1329,7 +1398,7 @@ Backup validation includes:
 - schema compatibility;
 - selected-location coverage.
 
-Jarvis and database writers stop for the final restore swap.
+Background Aide workers and database writers stop for the final restore swap.
 An interrupted restore must leave the original installation bootable.
 
 ### Passwords and shares
@@ -1362,14 +1431,14 @@ Destructive SQLite rollback relies on the verified pre-migration backup, not a f
 
 ### Navigation and names
 
-- Home routes to Today.
+- Old Today routes to Home.
 - System routes to Server.
 - Secrets routes to Passwords.
 - Money and Subs route into Finance.
 - Notes and Journal route into Docs.
 - The personal-media Gallery routes into Files → Photos.
 - The AI-image Gallery routes into Aide → Creations.
-- Old Cowork or standalone Jarvis view identifiers open Aide with Jarvis selected.
+- Old Cowork or standalone Jarvis view identifiers open the single Aide interface without selecting a mode.
 
 Old subdomains and view IDs remain redirects through at least one stable compatibility window.
 Bookmarks keep working.
@@ -1392,7 +1461,7 @@ memory automatically; they remain reviewable until the owner accepts or deletes 
 
 ### Current automations
 
-Convert existing rules into paused Jarvis Workflows and Triggers.
+Convert existing rules into paused background Aide Workflows and Triggers.
 The owner reviews their model, permissions, delivery, and schedule before enabling them.
 Compatibility APIs can read the new records during the transition.
 
@@ -1557,25 +1626,25 @@ reply, stale last-good data, and one failed endpoint during Refresh all. Provide
 state mismatch, expiry/refresh, revoke, account switch, denied scope, and unsupported-provider fallback.
 Memory policy covers restart, incognito no-trace, untrusted-memory attempts, and clear-all.
 
-### Phase 2 — Folder Projects and durable Jarvis core
+### Phase 2 — Folder Projects and durable background core
 
 - Reuse and simplify the current folder-backed Project and session relationship.
-- Add the General no-folder environment, Project/thread grouping, missing-folder state, and explicit
-  relinking.
+- Add an unscoped no-folder task context, Project/thread grouping, missing-folder state, and explicit
+  relinking. Do not expose the legacy General label as a category or Project.
 - Make the Project folder the default command, search, context, and output location while keeping
   approved outside-folder work possible and visible.
 - Migrate existing Project folders, chats, instructions, and scratchpads without creating cross-app
   resource memberships.
-- Add Task stage compatibility for the current `done` state, so Today and Jarvis can use Doing and
+- Add Task stage compatibility for the current `done` state, so Home and background Aide can use Doing and
   Waiting before the full Plan board ships.
 - Add Workflow, Trigger, JarvisRun, RunEvent, RunPrompt, DeliveryAttempt, and Connector storage.
 - Build scheduler leases, occurrence idempotency, concurrency, retries, missed-run policy, and
   heartbeat fingerprints.
-- Route Aide-, Jarvis-, and tool-origin mutations through one delegated-action permission gate.
+- Route foreground/background Aide and tool-origin mutations through one delegated-action permission gate.
 - Build the persistent delivery outbox without Discord-specific behavior.
 - Add event hooks from existing apps.
 - Migrate current automations as paused workflows that need review.
-- Add capability grants that can scope existing MCP tools to General Aide, one Project, or one Workflow.
+- Add capability grants that can scope existing MCP tools to unscoped Aide, one Project, or one Workflow.
 - Reconcile interrupted legacy background work honestly.
 
 **Gate:** Project commands and relative outputs start in the selected folder; outside-folder work is
@@ -1584,49 +1653,75 @@ immediately before and after each test side effect use provider idempotency wher
 external outcome cannot be proved, the run becomes **uncertain**, is never retried automatically, and
 asks the owner. Choices, approvals, runs, retries, and delivery state survive restart.
 
-### Phase 3 — Product shell, Today, Aide Projects, and Settings
+### Phase 3 — Product shell, Home, Aide Projects, and Settings
 
-- Make Today the default home and keep the legacy launcher reachable through the app drawer during the
+- Make Home the default page and keep the legacy launcher reachable through the app drawer during the
   transition.
 - Build the final navigation shell behind per-destination feature flags. Promote Aide and Andromeda to
   permanent destinations only after their own gates pass.
-- Add Needs you, Today, In progress, Briefs, and Shortcuts.
+- Add Needs you, Schedule, In progress, Briefs, and Pinned apps.
 - Add the consolidated Settings sections.
-- Add Aide, Andromeda, and Aide → Jarvis model defaults.
+- Add Aide and Andromeda model defaults. Background Aide inherits the Aide choice unless one run has an
+  explicit override.
 - Add global and per-endpoint model refresh, catalog status, manual model editing, and unavailable-model
   replacement flows.
 - Add provider account connections only for flows accepted by the Phase 1 spike, including the quota or
   credits warning and Disconnect.
-- Add **Default chat behavior** and Memory/owner-instruction controls.
-- Show General and folder-backed Projects in the Aide sidebar; do not add a Projects app.
+- Add permission, allowed-tool, background-limit, Memory, and owner-instruction controls without adding
+  assistant mode controls.
+- List loose conversations directly under **Tasks** and folder-backed conversations under a separate
+  **Projects** category. Do not show General or add a Projects app.
 - Add old-name, old-view, and old-subdomain redirects.
 - Keep all specialist app behavior available during the shell migration.
 
 **Gate:** every old bookmark still lands on its feature; no destination is promoted before it works; all
-current apps remain reachable in at most two actions; Today works with no configured model. Model and
+current apps remain reachable in at most two actions; Home works with no configured model. Model and
 provider settings expose the same effective choices everywhere, one endpoint failure does not break the
-others, and the selected Aide default behavior survives restart.
+others, and the selected Aide model and permission settings survive restart.
 
 ### Phase 4 — Aide and Andromeda
 
 #### 4A — Aide
 
-- Make Automatic tools the default inside one normal conversation; routing choices stay internal, with
-  Answer only as the Settings/per-conversation override.
-- Replace the old chat/agent switch with one shared Aide home and a clear Chat / Jarvis mode selector.
+- Make every Aide conversation tool-capable. Simple questions may get simple answers; work uses approved
+  tools automatically when useful.
+- Remove the old Chat/Agent switch, the temporary Chat/Jarvis selector, Answer only, and every default
+  mode setting.
 - Remove the separate Ask Docs and Research toggles.
+- Remove Compare instead of moving it to another action.
+- Detect research-worthy requests, ask the owner, and continue approved research in the same task.
+- Add the desktop-open sidebar with its split-sidebar control, mobile-closed overlay, separate
+  Tasks/Projects categories, exact conversation/Project top-bar treatment, custom multipurpose `+`
+  menu, speech, and optional right task-tools edge sidebar.
+- Add the text-first Brain, Skills, and Reminders tools in the same primary group as New task and
+  Scheduled, without a separate Tools heading. Keep background checks in Settings. Give each row a
+  restrained matching icon. Give Tasks
+  and Projects stronger type and group spacing without adding separator clutter.
+- Use 1-pixel borders and tight 3–5-pixel corner radii, including one composer border. Keep one text-only,
+  icon-free composer permission control with
+  exactly auto mode, ask for approval, and plan; only Auto mode is purple. Keep desktop top-bar icon
+  controls compact, preserve mobile touch targets, and never add a second textarea-focus bezel inside
+  the composer. Add compact per-task model and effort controls. Let Search extend left across the Aide
+  wordmark with transform-only motion. Keep Settings as footer text, add Home, and align microphone/send
+  controls at 36 pixels on desktop and 44 pixels on mobile.
 - Fix **None** as the no-extra-prompt default, revise built-in personas, and preserve custom personas.
-- Add the Keep here / Run with Jarvis handoff without leaving Aide or losing Project context.
+- Let longer work keep running as Aide in the same conversation without losing Project context.
 - Fix streaming scroll ownership.
-- Show conclusions first and hide successful tool steps behind one accessible Show steps toggle while
-  keeping failures, questions, and approvals visible.
+- Remove repeated author labels. Show thinking, progress, and steps before the answer, with completed
+  detail collapsible from a disclosure that remains before the answer. Keep conversation and Project
+  naming in the top bar instead of repeating it inside the thread.
+- Add the vertically centered message rail only at three or more user messages, with one
+  keyboard-accessible tick per message, one scroll-aware bright current tick, stable hit geometry,
+  pointer-proximity scaling, focused-tick reach, and click-to-jump behavior. Keep pinned summaries out.
+  Make Terminal replace the task-tools body with only the terminal surface.
+- Let Git carry safe uncommitted Project changes when switching local branches. Show conflicts clearly
+  only when Git proves the switch would overwrite work, and keep the branch menu attached to its button.
 - Add Remember this, Forget this, memory suggestions/review, scope display, incognito no-memory, and
   visible owner-instruction/memory provenance.
-- Complete and test the Aide capability rows for Today, Aide, Plan, Docs, and Andromeda; later phases own
+- Complete and test the Aide capability rows for Home, Aide, Plan, Docs, and Andromeda; later phases own
   their specialist rows.
 - Fix and screenshot-test the original incognito states on desktop/mobile; keep the token glyph pending
   owner visual approval instead of inventing one.
-- Make Compare an action.
 - Show the effective model and provider before private context leaves Alles.
 
 #### 4B — Andromeda
@@ -1645,7 +1740,7 @@ others, and the selected Aide default behavior survives restart.
 - Replace the reported deep-research no-information dead end with failure details, attempted sources,
   normal links, and Retry/Broaden/Edit/Return recovery actions.
 - Add citations, source quality display, and saved results.
-- Connect long searches to Jarvis deep research.
+- Connect long searches to background Aide research.
 - Add Server health for managed SearXNG.
 
 **Gate:** normal overview-plus-results, `!ai` results-only, globally disabled overview, disabled normal
@@ -1656,35 +1751,35 @@ model must pass the representative grounding corpus on supported baseline hardwa
 default; failure leaves normal results usable and never triggers a silent remote request.
 The old no-information fixture plus empty provider, blocked page, and extraction failure all retain
 useful recovery. Regular links and overview first text meet the locked Phase 4 speed budget.
-Aide success, failure, cancellation, restart, keyboard, and screen-reader fixtures prove conclusion-first
-steps, the Show steps toggle, scroll ownership, Automatic tools/Answer only, persona None, memory
-controls, and incognito behavior.
+Aide success, failure, cancellation, restart, keyboard, and screen-reader fixtures prove steps-before-answer
+ordering, the steps toggle, message-rail navigation, scroll ownership, one-mode automatic tool use,
+persona None, memory controls, and incognito behavior.
 
-### Phase 5 — Jarvis inside Aide and channels
+### Phase 5 — Background Aide and channels
 
-#### 5A — Aide → Jarvis
+#### 5A — One Aide, foreground and background
 
-- Build Workflows, Runs, Schedule, and Connections inside the Aide shell.
+- Remove all Chat/Agent/Jarvis mode controls and route every conversation through one tool-capable Aide
+  runtime.
+- Build Workflows, Runs, Schedule, and Connections inside the Aide shell using Aide product language.
 - Add capability review, run timelines, durable choices, approvals, cancel, retry, and resume.
 - Add exact schedules, intervals, heartbeats, events, and webhooks.
+- Keep long work in the same conversation when it moves to a durable background run.
+- Keep old `jarvis_*` storage and API names internal until a separate compatibility-safe migration.
 - Preserve and harden existing MCP support in Connections: add/edit/test/refresh/disable/remove servers,
-  inspect discovered tools/resources/prompts, and enforce General/Project/Workflow grants.
-- Surface Needs you and In progress in Today.
+  inspect discovered tools/resources/prompts, and enforce unscoped-Aide/Project/Workflow grants.
+- Surface Needs you and In progress in Home.
 
-#### 5B — Discord and News
+#### 5B — Jarvis Discord connection
 
 - Add paired owner DMs and exact private-channel allowlists.
 - Add non-mutating choices and in-app mutation approvals.
 - Add privacy-aware delivery and revoke.
-- Build the deterministic News store, clustering, ranking, fallback digest, and Today Brief.
-- Add the reviewed starter-source catalog and custom RSS/Atom add/test/edit/disable/delete controls,
-  source health, custom timing, and Today/Discord delivery.
 
 **Gate:** wrong users, wrong channels, forged choice IDs, duplicate events, reconnects, revoked pairing,
-quiet hours, model failure, and server restart are covered. Chat/Jarvis switching stays inside Aide and
-preserves the active Project, task state, and history. MCP malicious schemas/output, secret redaction,
-offline servers, removed tools, revoked grants, and restart pass. News covers defaults, one custom feed,
-duplicate URLs, bad feeds, redirects, timeouts, disable/delete, timezone changes, and restart.
+quiet hours, model failure, and server restart are covered. Foreground/background transitions stay
+inside one Aide conversation and preserve the active Project, task state, and history. MCP malicious schemas/output, secret redaction,
+offline servers, removed tools, revoked grants, and restart pass.
 
 ### Phase 6 — Docs and knowledge migration
 
@@ -1693,6 +1788,8 @@ complete standalone and recovery path.
 
 #### 6A — Editor spike
 
+- Create a standalone KOKUEN Docs HTML starter with fake data and minor local interactions, then wait
+  for explicit owner approval before changing the real Docs interface.
 - Build a representative Markdown corpus, including unsupported and malformed syntax.
 - Test Visual → Source → Save byte-for-byte where no edit occurred.
 - Test focused edits without rewriting unrelated syntax.
@@ -1706,6 +1803,8 @@ complete standalone and recovery path.
 - Keep Obsidian filesystem watching.
 - Build the safe vault move/relink transaction: backup, stage, hash, switch, rollback, and separate
   confirmation before deleting an old location.
+- Capture a configured external vault in encrypted recovery archives and remap it under the restored
+  Alles data root instead of writing into an old external path.
 
 #### 6C — Unified Docs
 
@@ -1713,6 +1812,13 @@ complete standalone and recovery path.
 - Merge Notes and non-private Journal views.
 - Add Ask Aide about this note.
 - Preserve the private locked-Journal path and provide explicit migration.
+
+#### Small Apps consistency follow-up
+
+- Revise or replace the standalone Apps HTML starter and get explicit approval first.
+- Make only the small spacing, type, navigation, compact-state, and shared empty/error-state adjustments
+  needed to match the delivered Home, Aide, and Andromeda shell.
+- Keep specialist app flows and the larger Phase 8 consolidation out of this pass.
 
 **Gate:** simultaneous Obsidian edits, invalid bytes, crash during rename, delete/restore, large files,
 and every supported Markdown construct pass. Same- and cross-filesystem vault moves, no-space,
@@ -1723,7 +1829,7 @@ or verified replacement usable.
 
 #### 7A — Location identity migration
 
-- Add Storage Locations behind a feature flag.
+- Add Storage Location records and management APIs without exposing credentials.
 - Backfill path-only Files metadata to `location_id + normalized_path`.
 - Keep compatibility reads and verify counts, paths, hashes, tags, stars, versions, trash, shares, and
   other file metadata before switching lookups.
@@ -1736,6 +1842,8 @@ changes nothing.
 
 #### 7B — Local Files experience
 
+- First build and test a standalone KOKUEN Files starter, then wait for explicit owner approval before
+  materially changing the real Files interface.
 - Add the three-pane Files interface, multi-select, operation queue, undo, and background index.
 - Add explicit read-only and managed permissions for local roots.
 
@@ -1760,6 +1868,9 @@ Indexing a large location does not block interactive browsing.
 
 #### 8A — Low-risk composition
 
+- Before each specialist app or coherent app group changes visually, make a standalone KOKUEN HTML
+  starter and get explicit owner approval. Begin with small consistency changes; do not redesign every
+  app at once.
 - Compose Plan from Calendar, Tasks, and Reminders.
 - Compose Inbox from Mail and Contacts.
 - Compose Library from Books, Read, and saved News.
@@ -1858,7 +1969,7 @@ check, missing end-to-end evidence, or a high-severity unresolved review finding
 Do not combine these in one change:
 
 - backup/restore replacement and the first destructive data migration;
-- Jarvis scheduler core and Discord transport;
+- background Aide scheduler core and Jarvis Discord transport;
 - the Docs editor dependency decision and vault-wide migration;
 - Files location-ID migration and first remote write support;
 - Finance navigation merge and the Actual canonical-ledger cutover;
@@ -1881,13 +1992,13 @@ Do not combine these in one change:
 | CIBC and China Merchants Bank | official/provider coverage, eligibility, cost, privacy, refresh, notification/file fallback | reviewed statement or notification import only |
 | Provider account sign-in | current official permitted OpenAI/Claude/Google flows, PKCE/state, refresh/revoke, quota warning | API keys and local/custom endpoints |
 | MCP transport and grants | preserve current stdio/SSE, command/origin confinement, discovery refresh, per-scope grants, hostile output | keep the connection disabled or use built-in tools only |
-| Native proxy vs Nginx Proxy Manager | HTTPS, WebSockets, headers, certificates, ownership, update/rollback, backup, native and Compose cost | external proxy instructions and read-only health/admin link |
-| AdGuard Home | linked-video/current-doc review, port 53, router/client DNS, auth, update, backup, failure isolation, rollback | optional external status/setup link only |
+| Nginx Proxy Manager | pinned preparation, loopback admin, encrypted token, proxy/certificate API, exact listeners, rollback | keep inactive or use an external proxy |
+| AdGuard Home | pinned preparation, TCP/UDP port 53 preflight, sealed auth, published API, config backup, failure rollback | keep inactive or use external DNS |
 | WebDAV/S3 | conditional writes, interruption recovery, capability truth | Read-only connection or backup-only target |
 | Packaged runtime | reproducible macOS/Linux build and update rollback | installer-created private virtual environment |
 | Discord bot | owner pairing, private-channel allowlist, reconnect/dedup | outbound webhook delivery only |
 | Browser extension | revocable device flow with narrow permissions | open Passwords in Alles for copy/fill |
-| Jarvis continuation | safe checkpoint before/after tools and uncertain-side-effect handling | mark interrupted and ask before retry |
+| Background Aide continuation | safe checkpoint before/after tools and uncertain-side-effect handling | mark interrupted and ask before retry |
 | Localization | offline font coverage and reviewed RTL/CJK layouts | ship a language as beta, not complete |
 
 ## Verification for every phase
@@ -1926,12 +2037,13 @@ side-effect, or restore-blocking issue.
 
 The redesign is ready when:
 
-- Today is useful without AI.
-- Aide keeps Chat and Jarvis in one shared home and preserves Project context when switching modes.
-- Normal Aide automatically uses approved tools when needed, Answer only is available, and neither path
-  bypasses mutation approval.
-- Successful Aide work shows the conclusion first with steps hidden but reopenable; streaming never
-  captures scroll while the owner reads or types.
+- Home is useful without AI.
+- Aide has one interface and one tool-capable behavior with no Chat/Agent/Jarvis or Answer only mode.
+- Aide automatically uses approved tools when useful, keeps simple answers simple, and never bypasses
+  mutation approval.
+- Aide shows thinking and steps before the answer, keeps completed detail reopenable, and never captures
+  scroll while the owner reads or types. Its message rail jumps to each user message without replacing
+  normal scrolling.
 - Remember this, Forget this, review/edit/export/clear, Project scope, and incognito no-memory work, and
   untrusted content cannot write memory or owner instructions.
 - Every daily product area has implemented or explicitly excluded Aide read/action/customization coverage.
@@ -1942,9 +2054,8 @@ The redesign is ready when:
 - Deep research never ends at the old no-information dead end and always offers useful recovery.
 - On supported hardware, normal Andromeda overviews can run entirely locally; a local failure keeps the
   regular results and never causes a silent remote request.
-- Jarvis lives inside Aide as its task mode and never appears as a separate global app.
-- Jarvis survives restarts and never performs an unapproved mutation.
-- Discord Jarvis is owner-scoped and revocable.
+- Background Aide survives restarts and never performs an unapproved mutation.
+- Jarvis exists only as the owner-scoped, revocable Discord bot.
 - User-managed MCP connections are testable, refreshable, disableable, revocable, and scoped to the
   exact Aide/Project/Workflow grant.
 - A Project selects one folder as the default working environment, keeps its threads together, and can
@@ -1972,7 +2083,7 @@ The redesign is ready when:
 ## Explicit non-goals
 
 - multi-user teams, roles, billing, or organization administration;
-- making Jarvis a separate top-level app or navigation destination;
+- using Jarvis as any in-app mode, runtime, model role, app, or name outside the Discord bot;
 - replacing FastAPI/SQLite or adopting a frontend framework;
 - using OpenClaw or File Browser as a runtime dependency;
 - requiring a desktop GUI process for a headless server to boot or recover;
@@ -1987,5 +2098,8 @@ The redesign is ready when:
 
 ## Immediate next step
 
-Review this document once, then break **Phase 0** into small implementation issues.
-Do not begin the visual redesign before backup/restore and upgrade fixtures are accepted.
+Use [`final-review.md`](final-review.md) for the owner validation and release decision. Phase 11 is
+complete: 40 of 41 original brainstorm requests are satisfied and all 27 final-acceptance rows pass.
+The first-class scheduled-News-to-Home/Jarvis flow was completed in the approved 2026-07-22
+remaining-gap work. Only the token-glyph visual approval remains explicit future work; it is not
+hidden inside the delivered status.

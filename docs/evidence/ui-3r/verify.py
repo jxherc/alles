@@ -1,5 +1,6 @@
 """ui-3r verify — outline populates from headings (with level emphasis + jump) and
 explains itself clearly when there are none."""
+
 import sys
 
 from playwright.sync_api import sync_playwright
@@ -33,15 +34,21 @@ def run():
             (print(f"PASS {name}") if cond else fails.append(name))
 
         # open the no-heading doc, open outline → explainer
-        pg.evaluate("""() => { const el = document.querySelector('.wiki-file[data-path=\"nohead.md\"] .wiki-row-label'); if (el) el.click(); }""")
+        pg.evaluate(
+            """() => { const el = document.querySelector('.wiki-file[data-path=\"nohead.md\"] .wiki-row-label'); if (el) el.click(); }"""
+        )
         pg.wait_for_timeout(800)
         pg.click("#wiki-outline-btn")
         pg.wait_for_timeout(400)
-        empty = pg.evaluate("() => (document.querySelector('#wiki-outline .wiki-outline-empty')?.textContent || '')")
+        empty = pg.evaluate(
+            "() => (document.querySelector('#wiki-outline .wiki-outline-empty')?.textContent || '')"
+        )
         ok("empty outline explains itself", "no headings yet" in empty and "#" in empty)
 
         # open the heading-rich doc → populated outline
-        pg.evaluate("""() => { const el = document.querySelector('.wiki-file[data-path=\"livetest.md\"] .wiki-row-label'); if (el) el.click(); }""")
+        pg.evaluate(
+            """() => { const el = document.querySelector('.wiki-file[data-path=\"livetest.md\"] .wiki-row-label'); if (el) el.click(); }"""
+        )
         pg.wait_for_timeout(800)
         # force a fresh outline render on the new doc: close if open, then open
         if pg.evaluate("() => document.querySelector('#wiki-outline')?.style.display === 'block'"):
@@ -65,8 +72,17 @@ def run():
         }""")
         ok("outline lists the headings", d["count"] >= 2)
         ok("outline header shows the count", "heading" in d["head"])
-        ok("it has Heading One + Heading Two", any("Heading One" in t for t in d["texts"]) and any("Heading Two" in t for t in d["texts"]))
-        ok("deeper headings are indented more", d["l2pad"] and d["l1pad"] and float(d["l2pad"].replace("px", "")) > float(d["l1pad"].replace("px", "")))
+        ok(
+            "it has Heading One + Heading Two",
+            any("Heading One" in t for t in d["texts"])
+            and any("Heading Two" in t for t in d["texts"]),
+        )
+        ok(
+            "deeper headings are indented more",
+            d["l2pad"]
+            and d["l1pad"]
+            and float(d["l2pad"].replace("px", "")) > float(d["l1pad"].replace("px", "")),
+        )
         ok("top-level headings are emphasised", int(d["l1weight"] or 0) >= 500)
 
         # jump: click a heading → editor scrolls/selects

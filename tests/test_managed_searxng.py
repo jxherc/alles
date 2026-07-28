@@ -46,6 +46,7 @@ class ManagedSearxngTest(unittest.TestCase):
         self.assertIn(ms.IMAGE, compose)
         self.assertIn('"127.0.0.1:8888:8080"', compose)
         self.assertIn('user: "977:977"', compose)
+        self.assertIn("./config:/etc/searxng:ro", compose)
         self.assertIn("cap_drop:\n      - ALL", compose)
         self.assertIn("no-new-privileges:true", compose)
         self.assertIn("read_only: true", compose)
@@ -58,8 +59,27 @@ class ManagedSearxngTest(unittest.TestCase):
         env_file = ms.root_dir() / ".env"
         self.assertEqual(stat.S_IMODE(env_file.stat().st_mode), 0o600)
         self.assertIn("SEARXNG_SECRET=", env_file.read_text())
+        self.assertEqual(stat.S_IMODE((ms.root_dir() / "config").stat().st_mode), 0o755)
         self.assertEqual(settings.load_settings()["search_provider"], "searxng")
         self.assertIn("duckduckgo", settings.load_settings()["search_fallback_chain"])
+
+    def test_managed_port_can_be_isolated_without_touching_an_existing_service(self):
+        with mock.patch.dict(os.environ, {"ALLES_SEARXNG_PORT": "8890"}):
+            status = ms.install(runner=self.runner, probe=lambda: True, allow_unverified=True)
+
+        compose = (ms.root_dir() / "compose.yaml").read_text()
+        self.assertEqual(status["url"], "http://127.0.0.1:8890")
+        self.assertEqual(status["bind"], "127.0.0.1:8890")
+        self.assertIn('"127.0.0.1:8890:8080"', compose)
+        self.assertIn(
+            "SEARXNG_BASE_URL=http://127.0.0.1:8890/", (ms.root_dir() / ".env").read_text()
+        )
+
+        with mock.patch.dict(os.environ, {"ALLES_SEARXNG_PORT": "8891"}):
+            self.assertEqual(ms.managed_url(), "http://127.0.0.1:8890")
+            self.assertEqual(
+                ms.status(runner=self.runner, probe=lambda: True)["bind"], "127.0.0.1:8890"
+            )
 
     def test_docker_unavailable_is_honest_and_writes_nothing(self):
         def unavailable(command, _timeout=120):
@@ -69,14 +89,13 @@ class ManagedSearxngTest(unittest.TestCase):
             ms.install(runner=unavailable, probe=lambda: False, allow_unverified=True)
         self.assertFalse(ms.root_dir().exists())
 
-    def test_unverified_build_refuses_to_claim_managed_install_support(self):
-        with self.assertRaisesRegex(ms.ManagedSearxngError, "not live-verified"):
-            ms.install(runner=self.runner, probe=lambda: True)
+    def test_live_verified_build_reports_managed_install_support(self):
+        ms.install(runner=self.runner, probe=lambda: True)
         status = ms.status(runner=self.runner, probe=lambda: False)
-        self.assertFalse(status["support_verified"])
-        self.assertIn("no Docker daemon", status["spike_note"])
+        self.assertTrue(status["support_verified"])
+        self.assertIn("Live-verified", status["spike_note"])
 
-    def test_failed_pull_keeps_an_owned_stopped_definition_for_recovery(self):
+    def test_failed_pull_keeps_definition_unregistered_for_safe_retry(self):
         def pull_fails(command, _timeout=120):
             if command[:2] == ["docker", "version"]:
                 return self.result(stdout="29.6.0\n")
@@ -89,9 +108,10 @@ class ManagedSearxngTest(unittest.TestCase):
         with self.assertRaisesRegex(ms.ManagedSearxngError, "pull failed"):
             ms.install(runner=pull_fails, probe=lambda: False, allow_unverified=True)
         status = ms.status(runner=pull_fails, probe=lambda: False)
-        self.assertTrue(status["installed"])
-        self.assertTrue(status["owned"])
+        self.assertFalse(status["installed"])
+        self.assertFalse(status["owned"])
         self.assertFalse(status["running"])
+        self.assertTrue(ms.root_dir().is_dir())
 
     def test_failed_health_stops_the_container(self):
         commands = []
@@ -102,6 +122,65 @@ class ManagedSearxngTest(unittest.TestCase):
 
         with self.assertRaisesRegex(ms.ManagedSearxngError, "health check"):
             ms.install(runner=runner, probe=lambda: False, allow_unverified=True)
+        self.assertTrue(any("stop" in command for command in commands))
+
+    def test_unshared_config_path_fails_before_compose_start_and_allows_install_retry(self):
+        commands = []
+
+        def runner(command, _timeout=120):
+            commands.append(command)
+            if command[:2] == ["docker", "version"]:
+                return self.result(stdout="29.6.0\n")
+            if command[:2] == ["docker", "run"]:
+                return self.result(125)
+            return self.result()
+
+        with self.assertRaisesRegex(ms.ManagedSearxngError, "folder shared with Docker"):
+            ms.install(runner=runner, probe=lambda: False, allow_unverified=True)
+
+        self.assertTrue(any(command[:2] == ["docker", "run"] for command in commands))
+        probe = next(command for command in commands if command[:2] == ["docker", "run"])
+        self.assertIn("p.open('rb').read(1)", probe[-1])
+        self.assertFalse(any("up" in command for command in commands))
+        failed_status = ms.status(runner=runner, probe=lambda: False)
+        self.assertFalse(failed_status["installed"])
+        self.assertFalse(failed_status["owned"])
+        self.assertTrue(ms.root_dir().is_dir())
+
+        retried = ms.install(runner=self.runner, probe=lambda: True, allow_unverified=True)
+        self.assertTrue(retried["installed"])
+        self.assertTrue(retried["healthy"])
+
+    def test_restart_waits_for_loopback_health_before_reporting_success(self):
+        ms.install(runner=self.runner, probe=lambda: True, allow_unverified=True)
+        probes = iter([False, False, True])
+
+        result = ms.control(
+            "restart",
+            runner=self.runner,
+            probe=lambda: next(probes),
+            sleep=lambda _seconds: None,
+        )
+
+        self.assertTrue(result["running"])
+        self.assertTrue(result["healthy"])
+
+    def test_restart_health_failure_stops_the_unhealthy_container(self):
+        commands = []
+
+        def runner(command, _timeout=120):
+            commands.append(command)
+            return self.runner(command, _timeout)
+
+        ms.install(runner=runner, probe=lambda: True, allow_unverified=True)
+        with self.assertRaisesRegex(ms.ManagedSearxngError, "failed its loopback health check"):
+            ms.control(
+                "restart",
+                runner=runner,
+                probe=lambda: False,
+                sleep=lambda _seconds: None,
+            )
+
         self.assertTrue(any("stop" in command for command in commands))
 
     def test_failed_update_restores_previous_owned_definition(self):

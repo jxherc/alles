@@ -1,6 +1,5 @@
 """phase 7a — people & faces: clustering math, endpoints, and (with models present) detection."""
 
-from pathlib import Path
 from unittest import mock, skipUnless
 
 import numpy as np
@@ -28,8 +27,13 @@ class FacesTests(ApiTest):
 
     def _face(self, photo_id, vec, person_id=None, score=0.9):
         db = self.db()
-        f = Face(photo_id=photo_id, person_id=person_id, bbox="0,0,10,10",
-                 det_score=score, embedding=faces.to_blob(vec))
+        f = Face(
+            photo_id=photo_id,
+            person_id=person_id,
+            bbox="0,0,10,10",
+            det_score=score,
+            embedding=faces.to_blob(vec),
+        )
         db.add(f)
         db.commit()
         fid = f.id
@@ -65,8 +69,13 @@ class FacesTests(ApiTest):
         per = Person(name="Ann")
         db.add(per)
         db.flush()
-        f0 = Face(photo_id=pid, person_id=per.id, bbox="0,0,10,10", det_score=0.9,
-                  embedding=faces.to_blob(_vec(1)))
+        f0 = Face(
+            photo_id=pid,
+            person_id=per.id,
+            bbox="0,0,10,10",
+            det_score=0.9,
+            embedding=faces.to_blob(_vec(1)),
+        )
         db.add(f0)
         per.cover_face_id = f0.id
         db.commit()
@@ -88,8 +97,15 @@ class FacesTests(ApiTest):
         db.add(per)
         db.flush()
         per_id = per.id
-        db.add(Face(photo_id=named, person_id=per_id, bbox="0,0,9,9", det_score=0.8,
-                    embedding=faces.to_blob(_vec(2))))
+        db.add(
+            Face(
+                photo_id=named,
+                person_id=per_id,
+                bbox="0,0,9,9",
+                det_score=0.8,
+                embedding=faces.to_blob(_vec(2)),
+            )
+        )
         # an unnamed cluster across two photos
         un = Person()
         db.add(un)
@@ -99,27 +115,41 @@ class FacesTests(ApiTest):
             ph = Photo(filename="x", original_name="x")
             db.add(ph)
             db.flush()
-            db.add(Face(photo_id=ph.id, person_id=un_id, bbox="0,0,9,9", det_score=0.8,
-                        embedding=faces.to_blob(_vec(3))))
+            db.add(
+                Face(
+                    photo_id=ph.id,
+                    person_id=un_id,
+                    bbox="0,0,9,9",
+                    det_score=0.8,
+                    embedding=faces.to_blob(_vec(3)),
+                )
+            )
         db.commit()
         db.close()
         d = self.client.get("/api/photos/people").json()
         self.assertEqual(d["count"], 2)
-        self.assertEqual(d["people"][0]["name"], "Zoe")       # named first
+        self.assertEqual(d["people"][0]["name"], "Zoe")  # named first
         self.assertEqual(d["people"][0]["count"], 1)
-        self.assertEqual(d["people"][1]["name"], "")          # unnamed second
+        self.assertEqual(d["people"][1]["name"], "")  # unnamed second
         self.assertEqual(d["people"][1]["count"], 2)
 
     def test_person_photos_returns_their_timeline(self):
-        p1, p2, other = self._photo(), self._photo(), self._photo()
+        p1, p2, _ = self._photo(), self._photo(), self._photo()
         db = self.db()
         per = Person(name="Bo")
         db.add(per)
         db.flush()
         per_id = per.id
         for ph in (p1, p2):
-            db.add(Face(photo_id=ph, person_id=per_id, bbox="0,0,9,9", det_score=0.8,
-                        embedding=faces.to_blob(_vec(4))))
+            db.add(
+                Face(
+                    photo_id=ph,
+                    person_id=per_id,
+                    bbox="0,0,9,9",
+                    det_score=0.8,
+                    embedding=faces.to_blob(_vec(4)),
+                )
+            )
         db.commit()
         db.close()
         d = self.client.get(f"/api/photos/person/{per_id}").json()
@@ -133,8 +163,15 @@ class FacesTests(ApiTest):
         db.add(per)
         db.flush()
         per_id = per.id
-        db.add(Face(photo_id=pid, person_id=per_id, bbox="0,0,9,9", det_score=0.8,
-                    embedding=faces.to_blob(_vec(5))))
+        db.add(
+            Face(
+                photo_id=pid,
+                person_id=per_id,
+                bbox="0,0,9,9",
+                det_score=0.8,
+                embedding=faces.to_blob(_vec(5)),
+            )
+        )
         db.commit()
         db.close()
         self.client.post(f"/api/photos/person/{per_id}/name", json={"name": "  Cleo "})
@@ -150,10 +187,24 @@ class FacesTests(ApiTest):
         db.add_all([a, b])
         db.flush()
         a_id, b_id = a.id, b.id
-        db.add(Face(photo_id=pa, person_id=a_id, bbox="0,0,9,9", det_score=0.8,
-                    embedding=faces.to_blob(_vec(6))))
-        db.add(Face(photo_id=pb, person_id=b_id, bbox="0,0,9,9", det_score=0.8,
-                    embedding=faces.to_blob(_vec(6))))
+        db.add(
+            Face(
+                photo_id=pa,
+                person_id=a_id,
+                bbox="0,0,9,9",
+                det_score=0.8,
+                embedding=faces.to_blob(_vec(6)),
+            )
+        )
+        db.add(
+            Face(
+                photo_id=pb,
+                person_id=b_id,
+                bbox="0,0,9,9",
+                det_score=0.8,
+                embedding=faces.to_blob(_vec(6)),
+            )
+        )
         db.commit()
         db.close()
         r = self.client.post("/api/photos/people/merge", json={"ids": [a_id, b_id]}).json()
@@ -171,10 +222,24 @@ class FacesTests(ApiTest):
         db.add(per)
         db.flush()
         per_id = per.id
-        db.add(Face(photo_id=pid, person_id=per_id, bbox="0,0,9,9", det_score=0.9,
-                    embedding=faces.to_blob(_vec(0))))
-        db.add(Face(photo_id=pid, person_id=None, bbox="1,1,9,9", det_score=0.7,
-                    embedding=faces.to_blob(_vec(1))))  # unclustered
+        db.add(
+            Face(
+                photo_id=pid,
+                person_id=per_id,
+                bbox="0,0,9,9",
+                det_score=0.9,
+                embedding=faces.to_blob(_vec(0)),
+            )
+        )
+        db.add(
+            Face(
+                photo_id=pid,
+                person_id=None,
+                bbox="1,1,9,9",
+                det_score=0.7,
+                embedding=faces.to_blob(_vec(1)),
+            )
+        )  # unclustered
         db.commit()
         db.close()
         d = self.client.get(f"/api/photos/photo/{pid}/faces").json()
@@ -186,9 +251,11 @@ class FacesTests(ApiTest):
     def test_index_pending_marks_scanned(self):
         pid = self._photo()
         fake = [{"bbox": (0, 0, 10, 10), "score": 0.9, "emb": _vec(3)}]
-        with mock.patch.object(faces, "available", return_value=True), \
-             mock.patch.object(faces, "detect_embed", return_value=fake), \
-             mock.patch("services.photos_store.original_path") as op:
+        with (
+            mock.patch.object(faces, "available", return_value=True),
+            mock.patch.object(faces, "detect_embed", return_value=fake),
+            mock.patch("services.photos_store.original_path") as op,
+        ):
             op.return_value.read_bytes.return_value = b"x"
             db = self.db()
             n = faces.index_pending(db, limit=5)
@@ -206,8 +273,8 @@ class FacesTests(ApiTest):
     def test_detect_real_face(self):
         import io as _io
 
-        from PIL import Image
         from insightface.data import get_image as ins
+        from PIL import Image
 
         arr = ins("t1")[:, :, ::-1]  # bundled sample, BGR -> RGB
         buf = _io.BytesIO()

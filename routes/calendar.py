@@ -1,4 +1,5 @@
 import json
+from datetime import UTC
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -13,6 +14,7 @@ from core.database import (
     EventAttendee,
     get_db,
 )
+from core.settings import load_settings
 
 router = APIRouter(prefix="/api")
 
@@ -165,7 +167,11 @@ def calendar_birthdays(db: DbSession = Depends(get_db)):
     for c in db.query(Contact).filter(Contact.birthday != None, Contact.birthday != "").all():  # noqa: E711
         parts = (c.birthday or "").strip().split("-")
         try:
-            mo, da = (int(parts[1]), int(parts[2])) if len(parts) == 3 else (int(parts[0]), int(parts[1]))
+            mo, da = (
+                (int(parts[1]), int(parts[2]))
+                if len(parts) == 3
+                else (int(parts[0]), int(parts[1]))
+            )
         except (ValueError, IndexError):
             continue  # unparseable birthday, skip it rather than 500
         if 1 <= mo <= 12 and 1 <= da <= 31:
@@ -253,11 +259,15 @@ def agenda(days: int = 30, db: DbSession = Depends(get_db)):
         if e.recurrence:
             try:
                 start0 = datetime.fromisoformat(e.start_dt)
-                dur = (datetime.fromisoformat(e.end_dt) - start0) if e.end_dt else timedelta(hours=1)
+                dur = (
+                    (datetime.fromisoformat(e.end_dt) - start0) if e.end_dt else timedelta(hours=1)
+                )
             except (ValueError, TypeError):
                 continue
             for occ in expand(base, rs, re_):
-                ev = dict(base, start_dt=occ.isoformat(), end_dt=(occ + dur).isoformat(), recurring=True)
+                ev = dict(
+                    base, start_dt=occ.isoformat(), end_dt=(occ + dur).isoformat(), recurring=True
+                )
                 groups.setdefault(occ.date().isoformat(), []).append(ev)
         else:
             d = (e.start_dt or "")[:10]
@@ -279,7 +289,7 @@ def quick_event(body: QuickEvent, db: DbSession = Depends(get_db)):
 
     if not body.text.strip():
         raise HTTPException(400, "empty")
-    p = parse_event(body.text)
+    p = parse_event(body.text, language=load_settings().get("language", "en"))
     end = p["end_dt"]
     if not p["all_day"] and not end and p["start_dt"]:
         end = _plus_minutes(p["start_dt"], _default_duration()) or end
@@ -479,7 +489,7 @@ def refresh_subscription(db, sub: CalendarSubscription, ics_text: str) -> int:
             )
         )
         n += 1
-    sub.last_synced = datetime.utcnow().isoformat()
+    sub.last_synced = datetime.now(UTC).replace(tzinfo=None).isoformat()
     sub.last_status = "ok"
     db.commit()
     return n
@@ -556,7 +566,7 @@ def refresh_subscription_endpoint(sid: str, db: DbSession = Depends(get_db)):
     except Exception as e:
         from datetime import datetime
 
-        sub.last_synced = datetime.utcnow().isoformat()
+        sub.last_synced = datetime.now(UTC).replace(tzinfo=None).isoformat()
         sub.last_status = f"error: {e}"
         db.commit()
     return _sub_out(db, sub)
@@ -600,7 +610,7 @@ async def refresh_all_subscriptions():
             except Exception as e:
                 from datetime import datetime
 
-                sub.last_synced = datetime.utcnow().isoformat()
+                sub.last_synced = datetime.now(UTC).replace(tzinfo=None).isoformat()
                 sub.last_status = f"error: {e}"
                 db.commit()
     finally:
@@ -681,7 +691,9 @@ def invite_suggestions(eid: str, db: DbSession = Depends(get_db)):
     from services import contacts_graph
 
     atts = db.query(EventAttendee).filter(EventAttendee.event_id == eid).all()
-    sugg = contacts_graph.suggest_for_attendees(db, [{"name": a.name, "email": a.email} for a in atts])
+    sugg = contacts_graph.suggest_for_attendees(
+        db, [{"name": a.name, "email": a.email} for a in atts]
+    )
     return {"suggestions": sugg}
 
 

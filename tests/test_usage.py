@@ -9,16 +9,22 @@ from core.database import Base, Message
 from routes import usage as U
 
 
-def _mkdb():
+def _mkdb(test_case):
     eng = create_engine("sqlite:///:memory:")
+    test_case.addCleanup(eng.dispose)
     Message.__table__.create(eng)
-    return sessionmaker(bind=eng)()
+    db = sessionmaker(bind=eng)()
+    test_case.addCleanup(db.close)
+    return db
 
 
-def _mkdb_full():
+def _mkdb_full(test_case):
     eng = create_engine("sqlite:///:memory:")
+    test_case.addCleanup(eng.dispose)
     Base.metadata.create_all(eng)  # by-session does db.get(Session, ...), needs that table too
-    return sessionmaker(bind=eng)()
+    db = sessionmaker(bind=eng)()
+    test_case.addCleanup(db.close)
+    return db
 
 
 def _msg(db, role, meta, ts):
@@ -51,7 +57,7 @@ class ToksTests(unittest.TestCase):
 
 class UsageTests(unittest.TestCase):
     def test_aggregation(self):
-        db = _mkdb()
+        db = _mkdb(self)
         _msg(
             db,
             "assistant",
@@ -89,24 +95,54 @@ class UsageTests(unittest.TestCase):
         self.assertEqual(months["2026-05"], 15)
 
     def test_empty(self):
-        s = U.usage_summary(_mkdb())
+        s = U.usage_summary(_mkdb(self))
         self.assertEqual(s["total_tokens"], 0)
         self.assertEqual(s["total_messages"], 0)
 
     def test_by_month_sorted_ascending(self):
-        db = _mkdb()
-        _msg(db, "assistant", {"usage": {"prompt_tokens": 10, "completion_tokens": 5}, "model": "m"}, datetime(2026, 8, 1))
-        _msg(db, "assistant", {"usage": {"prompt_tokens": 20, "completion_tokens": 3}, "model": "m"}, datetime(2026, 3, 1))
-        _msg(db, "assistant", {"usage": {"prompt_tokens": 15, "completion_tokens": 2}, "model": "m"}, datetime(2026, 6, 15))
+        db = _mkdb(self)
+        _msg(
+            db,
+            "assistant",
+            {"usage": {"prompt_tokens": 10, "completion_tokens": 5}, "model": "m"},
+            datetime(2026, 8, 1),
+        )
+        _msg(
+            db,
+            "assistant",
+            {"usage": {"prompt_tokens": 20, "completion_tokens": 3}, "model": "m"},
+            datetime(2026, 3, 1),
+        )
+        _msg(
+            db,
+            "assistant",
+            {"usage": {"prompt_tokens": 15, "completion_tokens": 2}, "model": "m"},
+            datetime(2026, 6, 15),
+        )
         s = U.usage_summary(db)
         names = [r["name"] for r in s["by_month"]]
         self.assertEqual(names, sorted(names))
 
     def test_by_model_sorted_descending_by_total(self):
-        db = _mkdb()
-        _msg(db, "assistant", {"usage": {"prompt_tokens": 5, "completion_tokens": 5}, "model": "small"}, datetime(2026, 6, 1))
-        _msg(db, "assistant", {"usage": {"prompt_tokens": 500, "completion_tokens": 500}, "model": "big"}, datetime(2026, 6, 1))
-        _msg(db, "assistant", {"usage": {"prompt_tokens": 50, "completion_tokens": 50}, "model": "mid"}, datetime(2026, 6, 1))
+        db = _mkdb(self)
+        _msg(
+            db,
+            "assistant",
+            {"usage": {"prompt_tokens": 5, "completion_tokens": 5}, "model": "small"},
+            datetime(2026, 6, 1),
+        )
+        _msg(
+            db,
+            "assistant",
+            {"usage": {"prompt_tokens": 500, "completion_tokens": 500}, "model": "big"},
+            datetime(2026, 6, 1),
+        )
+        _msg(
+            db,
+            "assistant",
+            {"usage": {"prompt_tokens": 50, "completion_tokens": 50}, "model": "mid"},
+            datetime(2026, 6, 1),
+        )
         s = U.usage_summary(db)
         totals = [r["total"] for r in s["by_model"]]
         self.assertEqual(totals, sorted(totals, reverse=True))
@@ -114,26 +150,52 @@ class UsageTests(unittest.TestCase):
 
     def test_zero_usage_message_not_counted(self):
         # a message with usage dict that has all zeros → skipped (p==0 and c==0)
-        db = _mkdb()
-        _msg(db, "assistant", {"usage": {"prompt_tokens": 0, "completion_tokens": 0}, "model": "m"}, datetime(2026, 6, 1))
+        db = _mkdb(self)
+        _msg(
+            db,
+            "assistant",
+            {"usage": {"prompt_tokens": 0, "completion_tokens": 0}, "model": "m"},
+            datetime(2026, 6, 1),
+        )
         s = U.usage_summary(db)
         self.assertEqual(s["total_messages"], 0)
 
     def test_by_model_messages_count(self):
-        db = _mkdb()
-        _msg(db, "assistant", {"usage": {"prompt_tokens": 10, "completion_tokens": 5}, "model": "gpt-x"}, datetime(2026, 6, 1))
-        _msg(db, "assistant", {"usage": {"prompt_tokens": 20, "completion_tokens": 8}, "model": "gpt-x"}, datetime(2026, 6, 2))
-        _msg(db, "assistant", {"usage": {"prompt_tokens": 30, "completion_tokens": 9}, "model": "gpt-x"}, datetime(2026, 6, 3))
+        db = _mkdb(self)
+        _msg(
+            db,
+            "assistant",
+            {"usage": {"prompt_tokens": 10, "completion_tokens": 5}, "model": "gpt-x"},
+            datetime(2026, 6, 1),
+        )
+        _msg(
+            db,
+            "assistant",
+            {"usage": {"prompt_tokens": 20, "completion_tokens": 8}, "model": "gpt-x"},
+            datetime(2026, 6, 2),
+        )
+        _msg(
+            db,
+            "assistant",
+            {"usage": {"prompt_tokens": 30, "completion_tokens": 9}, "model": "gpt-x"},
+            datetime(2026, 6, 3),
+        )
         s = U.usage_summary(db)
         m = next(r for r in s["by_model"] if r["name"] == "gpt-x")
         self.assertEqual(m["messages"], 3)
 
     def test_invalid_json_meta_skipped(self):
-        db = _mkdb()
+        db = _mkdb(self)
         # raw insert with broken JSON
         db.execute(
             Message.__table__.insert(),
-            {"session_id": "s1", "role": "assistant", "content": "x", "meta": "{not valid json", "timestamp": datetime(2026, 6, 1)}
+            {
+                "session_id": "s1",
+                "role": "assistant",
+                "content": "x",
+                "meta": "{not valid json",
+                "timestamp": datetime(2026, 6, 1),
+            },
         )
         db.commit()
         # should not raise, just skip the bad row
@@ -141,14 +203,31 @@ class UsageTests(unittest.TestCase):
         self.assertEqual(s["total_messages"], 0)
 
     def test_response_has_all_keys(self):
-        s = U.usage_summary(_mkdb())
-        for key in ("total_prompt", "total_completion", "total_tokens", "total_messages", "by_month", "by_model"):
+        s = U.usage_summary(_mkdb(self))
+        for key in (
+            "total_prompt",
+            "total_completion",
+            "total_tokens",
+            "total_messages",
+            "by_month",
+            "by_model",
+        ):
             self.assertIn(key, s)
 
     def test_multiple_models_separate_buckets(self):
-        db = _mkdb()
-        _msg(db, "assistant", {"usage": {"prompt_tokens": 10, "completion_tokens": 5}, "model": "a"}, datetime(2026, 6, 1))
-        _msg(db, "assistant", {"usage": {"prompt_tokens": 20, "completion_tokens": 8}, "model": "b"}, datetime(2026, 6, 1))
+        db = _mkdb(self)
+        _msg(
+            db,
+            "assistant",
+            {"usage": {"prompt_tokens": 10, "completion_tokens": 5}, "model": "a"},
+            datetime(2026, 6, 1),
+        )
+        _msg(
+            db,
+            "assistant",
+            {"usage": {"prompt_tokens": 20, "completion_tokens": 8}, "model": "b"},
+            datetime(2026, 6, 1),
+        )
         s = U.usage_summary(db)
         names = {r["name"] for r in s["by_model"]}
         self.assertIn("a", names)
@@ -158,12 +237,18 @@ class UsageTests(unittest.TestCase):
 
 class BySessionLimitTests(unittest.TestCase):
     def _seed(self, db, sid, p, c):
-        db.add(Message(session_id=sid, role="assistant", content="x",
-                       meta=json.dumps({"usage": {"prompt_tokens": p, "completion_tokens": c}})))
+        db.add(
+            Message(
+                session_id=sid,
+                role="assistant",
+                content="x",
+                meta=json.dumps({"usage": {"prompt_tokens": p, "completion_tokens": c}}),
+            )
+        )
         db.commit()
 
     def test_negative_limit_returns_empty_not_all_but_one(self):
-        db = _mkdb_full()
+        db = _mkdb_full(self)
         self._seed(db, "a", 100, 50)
         self._seed(db, "b", 10, 5)
         self._seed(db, "c", 1, 1)
@@ -171,7 +256,7 @@ class BySessionLimitTests(unittest.TestCase):
         self.assertEqual(U.usage_by_session(limit=-1, db=db)["sessions"], [])
 
     def test_positive_limit_caps_to_top(self):
-        db = _mkdb_full()
+        db = _mkdb_full(self)
         self._seed(db, "a", 100, 50)
         self._seed(db, "b", 10, 5)
         out = U.usage_by_session(limit=1, db=db)["sessions"]

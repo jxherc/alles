@@ -5,13 +5,13 @@ import os
 RECOVERY_COMPATIBILITY = 1
 SQLITE_APPLICATION_ID = 0x414C4C53  # ASCII: ALLS
 
-# New Afterlife UI stays hidden until each surface reaches its own release gate.  Keep this
-# list explicit: an environment typo must never invent and enable a new feature.
+# Shipped Afterlife surfaces are the clean-install default. Keep unfinished surfaces explicit
+# and off: an environment typo must never invent and enable a new feature.
 AFTERLIFE_FEATURE_DEFAULTS = {
-    "afterlife_shell": False,
-    "afterlife_today": False,
-    "afterlife_aide_projects": False,
-    "afterlife_andromeda": False,
+    "afterlife_shell": True,
+    "afterlife_today": True,
+    "afterlife_aide_projects": True,
+    "afterlife_andromeda": True,
     "afterlife_jarvis": False,
     "afterlife_storage_locations": False,
 }
@@ -37,8 +37,9 @@ def migration_head() -> int:
 def afterlife_feature_flags(raw: str | None = None) -> dict[str, bool]:
     """Return the fixed Afterlife flag set, with an optional strict env allow-list.
 
-    ``ALLES_AFTERLIFE_FEATURES`` is a comma-separated list of exact flag names.  Blank means
-    every unfinished surface remains off.  Unknown, blank, or duplicate entries are rejected
+    With no override, shipped surfaces use their clean-install defaults. A non-empty
+    ``ALLES_AFTERLIFE_FEATURES`` value is a strict comma-separated allow-list, which lets tests
+    and development runs isolate one surface. Unknown, blank, or duplicate entries are rejected
     instead of being guessed.
     """
     flags = dict(AFTERLIFE_FEATURE_DEFAULTS)
@@ -55,6 +56,7 @@ def afterlife_feature_flags(raw: str | None = None) -> dict[str, bool]:
     unknown = sorted(set(requested) - flags.keys())
     if unknown:
         raise ValueError(f"unknown {AFTERLIFE_FEATURES_ENV} value(s): {', '.join(unknown)}")
+    flags = {name: False for name in flags}
     for name in requested:
         flags[name] = True
     return flags

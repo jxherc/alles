@@ -1,4 +1,5 @@
 import io
+import inspect
 import json
 import sys
 import tempfile
@@ -23,6 +24,66 @@ class CliSafetyTest(unittest.TestCase):
         self.log_patch.stop()
         self.pid_patch.stop()
         self.tmp.cleanup()
+
+    def test_default_port_is_6769_and_environment_can_override_it(self):
+        with mock.patch.dict(cli.os.environ, {}, clear=True):
+            self.assertEqual(cli._port(), 6769)
+            self.assertEqual(cli._url(), "http://localhost:6769")
+        with mock.patch.dict(cli.os.environ, {"PORT": "7777"}, clear=True):
+            self.assertEqual(cli._port(), 7777)
+
+    def test_invalid_port_falls_back_to_6769(self):
+        with mock.patch.dict(cli.os.environ, {"PORT": "not-a-port"}, clear=True):
+            self.assertEqual(cli._port(), 6769)
+
+    def test_recovery_probe_keeps_a_bounded_slow_host_allowance(self):
+        timeout = inspect.signature(cli._recovery_probe_once).parameters["timeout"].default
+        self.assertEqual(timeout, cli.RECOVERY_PROBE_TIMEOUT_SECONDS)
+        self.assertEqual(timeout, 120.0)
+
+    def test_native_layout_fails_closed_when_install_verification_fails(self):
+        layout = object()
+        with (
+            mock.patch("services.native_install.current_layout", return_value=layout),
+            mock.patch(
+                "services.native_install.verify_install",
+                side_effect=RuntimeError("tampered native install"),
+            ),
+        ):
+            with self.assertRaisesRegex(RuntimeError, "tampered native install"):
+                cli._native_layout()
+
+    def test_native_layout_propagates_import_failure_when_native_module_exists(self):
+        native_module = self.root / "services" / "native_install.py"
+        native_module.parent.mkdir()
+        native_module.write_text("# native dispatcher\n", "utf-8")
+        real_import = __import__
+
+        def broken_native_import(name, *args, **kwargs):
+            if name == "services.native_install":
+                raise ImportError("native dependency is damaged")
+            return real_import(name, *args, **kwargs)
+
+        with (
+            mock.patch.object(cli, "ROOT", self.root),
+            mock.patch("builtins.__import__", side_effect=broken_native_import),
+        ):
+            with self.assertRaisesRegex(ImportError, "native dependency is damaged"):
+                cli._native_layout()
+
+    def test_native_layout_allows_legacy_checkout_without_native_module(self):
+        real_import = __import__
+
+        def missing_native_import(name, *args, **kwargs):
+            if name == "services.native_install":
+                raise ImportError("legacy checkout")
+            return real_import(name, *args, **kwargs)
+
+        with (
+            mock.patch.object(cli, "ROOT", self.root),
+            mock.patch("builtins.__import__", side_effect=missing_native_import),
+        ):
+            self.assertIsNone(cli._native_layout())
 
     def test_start_refuses_busy_untracked_port(self):
         with (
@@ -70,6 +131,36 @@ class CliSafetyTest(unittest.TestCase):
 
         self.assertFalse(result)
         popen.assert_not_called()
+
+    def test_native_start_and_restart_refuse_unfinished_maintenance(self):
+        maintenance = self.root / "maintenance.json"
+        maintenance.write_text("{}", "utf-8")
+        layout = SimpleNamespace(data_root=self.root, manager="launchd")
+        with (
+            mock.patch.object(cli, "_native_layout", return_value=layout),
+            mock.patch("services.restore_apply.maintenance_lock_path", return_value=maintenance),
+            mock.patch("services.service_manager.control") as control,
+            mock.patch("sys.stdout", new_callable=io.StringIO),
+        ):
+            self.assertFalse(cli.cmd_start())
+            self.assertFalse(cli.cmd_restart())
+
+        control.assert_not_called()
+
+    def test_native_status_fails_when_the_owned_service_is_stopped(self):
+        layout = SimpleNamespace(data_root=self.root, manager="launchd")
+        with (
+            mock.patch.object(cli, "_native_layout", return_value=layout),
+            mock.patch(
+                "services.service_manager.status",
+                return_value={"available": True, "running": False},
+            ),
+            mock.patch("sys.stdout", new_callable=io.StringIO) as output,
+        ):
+            result = cli.cmd_status()
+
+        self.assertFalse(result)
+        self.assertIn("stopped", output.getvalue())
 
     def test_runtime_dir_uses_alles_data(self):
         isolated = self.root / "isolated-data"
@@ -186,7 +277,13 @@ class CliSafetyTest(unittest.TestCase):
 
         owner.acquire.side_effect = locked
 
-        def staged(*args):
+        def staged(*args, artifact_callback=None):
+            self.assertTrue(callable(artifact_callback))
+            artifact_callback(
+                backup=str(self.root / "pre-update.alles-backup"),
+                restore_id=rollback.restore_id,
+                candidate_id=candidate.restore_id,
+            )
             calls.append(("backup",))
             return rollback, candidate, self.root / "pre-update.alles-backup"
 

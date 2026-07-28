@@ -2,7 +2,7 @@ import unittest
 from unittest import mock
 
 from services.hwfit import fit
-from services.hwfit.models import get_models, params_b, estimate_memory_gb
+from services.hwfit.models import estimate_memory_gb, get_models, params_b
 
 # synthetic systems so these tests don't depend on the host's actual hardware
 BIG_GPU = {

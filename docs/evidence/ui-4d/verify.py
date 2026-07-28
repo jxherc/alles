@@ -1,5 +1,6 @@
 """ui-4d verify — compose: chip To/Cc/Bcc with autocomplete, Cc/Bcc toggles, a real
 date+time schedule picker, and dirty-close confirm."""
+
 import sys
 
 from playwright.sync_api import sync_playwright
@@ -10,12 +11,15 @@ IGNORE = ("ERR_", "favicon", "401", "403", "Failed to load resource", "net::", "
 
 
 def chip(pg, sel, text, key="Enter"):
-    pg.evaluate("""([sel, text, key]) => {
+    pg.evaluate(
+        """([sel, text, key]) => {
       const inp = document.querySelector(sel);
       inp.value = text;
       inp.dispatchEvent(new Event('input', {bubbles:true}));
       inp.dispatchEvent(new KeyboardEvent('keydown', {key, bubbles:true, cancelable:true}));
-    }""", [sel, text, key])
+    }""",
+        [sel, text, key],
+    )
 
 
 def run():
@@ -25,9 +29,18 @@ def run():
         ctx = b.new_context(service_workers="block", viewport={"width": 1300, "height": 950})
         pg = ctx.new_page()
         pg.on("console", lambda m: errs.append(m.text) if m.type == "error" else None)
-        pg.route("**/api/mail/recipients**", lambda r: r.fulfill(status=200, content_type="application/json",
-                 body='{"recipients":[{"email":"ada@math.org","name":"Ada Lovelace"},{"email":"adam@x.com","name":""}]}'))
-        pg.route("**/api/contacts**", lambda r: r.fulfill(status=200, content_type="application/json", body="[]"))
+        pg.route(
+            "**/api/mail/recipients**",
+            lambda r: r.fulfill(
+                status=200,
+                content_type="application/json",
+                body='{"recipients":[{"email":"ada@math.org","name":"Ada Lovelace"},{"email":"adam@x.com","name":""}]}',
+            ),
+        )
+        pg.route(
+            "**/api/contacts**",
+            lambda r: r.fulfill(status=200, content_type="application/json", body="[]"),
+        )
         pg.goto(BASE + "/", wait_until="domcontentloaded")
         pg.wait_for_selector("#mail-compose-btn", state="attached", timeout=15000)
         pg.wait_for_timeout(2200)
@@ -38,8 +51,15 @@ def run():
         # open compose
         pg.evaluate("() => document.querySelector('#mail-compose-btn').click()")
         pg.wait_for_timeout(600)
-        ok("compose opens with chip fields", pg.query_selector(".mc-chipfield[data-role='to']") is not None)
-        ok("cc/bcc hidden by default", pg.evaluate("() => getComputedStyle(document.querySelector('#mc-cc-row')).display") == "none")
+        ok(
+            "compose opens with chip fields",
+            pg.query_selector(".mc-chipfield[data-role='to']") is not None,
+        )
+        ok(
+            "cc/bcc hidden by default",
+            pg.evaluate("() => getComputedStyle(document.querySelector('#mc-cc-row')).display")
+            == "none",
+        )
 
         toInput = ".mc-chipfield[data-role='to'] .mc-chip-input"
         chip(pg, toInput, "a@b.com")
@@ -51,22 +71,41 @@ def run():
           hidden: document.querySelector('#mc-to').value,
         })""")
         ok("typing + Enter/comma makes chips", d["chips"] == 2)
-        ok("chips mirror to the hidden field", "a@b.com" in d["hidden"] and "c@d.com" in d["hidden"])
+        ok(
+            "chips mirror to the hidden field",
+            "a@b.com" in d["hidden"] and "c@d.com" in d["hidden"],
+        )
 
         # backspace on empty removes the last chip
-        pg.evaluate("""() => { const i = document.querySelector(".mc-chipfield[data-role=to] .mc-chip-input"); i.value=''; i.dispatchEvent(new KeyboardEvent('keydown',{key:'Backspace',bubbles:true,cancelable:true})); }""")
+        pg.evaluate(
+            """() => { const i = document.querySelector(".mc-chipfield[data-role=to] .mc-chip-input"); i.value=''; i.dispatchEvent(new KeyboardEvent('keydown',{key:'Backspace',bubbles:true,cancelable:true})); }"""
+        )
         pg.wait_for_timeout(200)
-        ok("backspace on empty pulls back the last chip", pg.evaluate("() => document.querySelectorAll('.mc-chipfield[data-role=to] .mc-chip').length") == 1)
+        ok(
+            "backspace on empty pulls back the last chip",
+            pg.evaluate(
+                "() => document.querySelectorAll('.mc-chipfield[data-role=to] .mc-chip').length"
+            )
+            == 1,
+        )
 
         # Cc toggle reveals the cc row
         pg.evaluate("() => document.querySelector('#mc-add-cc').click()")
         pg.wait_for_timeout(200)
-        ok("Cc toggle reveals the cc field", pg.evaluate("() => getComputedStyle(document.querySelector('#mc-cc-row')).display") != "none")
+        ok(
+            "Cc toggle reveals the cc field",
+            pg.evaluate("() => getComputedStyle(document.querySelector('#mc-cc-row')).display")
+            != "none",
+        )
 
         # autocomplete: type 'ada' → dropdown with the mocked recipient
-        pg.evaluate("""() => { const i=document.querySelector(".mc-chipfield[data-role=to] .mc-chip-input"); i.value='ada'; i.dispatchEvent(new Event('input',{bubbles:true})); }""")
+        pg.evaluate(
+            """() => { const i=document.querySelector(".mc-chipfield[data-role=to] .mc-chip-input"); i.value='ada'; i.dispatchEvent(new Event('input',{bubbles:true})); }"""
+        )
         pg.wait_for_timeout(400)
-        ac = pg.evaluate("() => { const e=document.querySelector('.mc-ac'); return e ? e.innerText.toLowerCase() : ''; }")
+        ac = pg.evaluate(
+            "() => { const e=document.querySelector('.mc-ac'); return e ? e.innerText.toLowerCase() : ''; }"
+        )
         ok("autocomplete dropdown appears", "ada@math.org" in ac and "lovelace" in ac)
 
         # schedule: first click reveals date + time pickers

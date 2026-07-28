@@ -4,7 +4,7 @@ back instantly from sqlite (and survive a slow/dead network or a restart). local
 search runs over the cache so it's instant and works offline.
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 
 from core.database import CachedMessage
 
@@ -94,7 +94,7 @@ def by_category(db, account_id, cat, limit=200):
 
 def _visible(q):
     """drop rows still snoozed into the future (ISO strings sort chronologically)."""
-    now = datetime.utcnow().isoformat()
+    now = datetime.now(UTC).replace(tzinfo=None).isoformat()
     return q.filter((CachedMessage.snoozed_until == "") | (CachedMessage.snoozed_until <= now))
 
 
@@ -266,7 +266,7 @@ def snooze(db, account_id, folder, uid, until) -> int:
 
 def snoozed(db, account_id) -> list[dict]:
     """messages currently snoozed into the future, for the snoozed view."""
-    now = datetime.utcnow().isoformat()
+    now = datetime.now(UTC).replace(tzinfo=None).isoformat()
     rows = (
         db.query(CachedMessage)
         .filter_by(account_id=account_id)

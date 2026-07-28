@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 420" role="img" aria-labelledby="title desc">
+  <title id="title">search response speed comparison</title>
+  <desc id="desc">four horizontal response-time bars with one highlighted</desc>
+  <rect width="640" height="420" fill="#101010"/>
+  <text x="56" y="68" fill="#dedbd7" font-family="system-ui, sans-serif" font-size="21">response time</text>
+  <g fill="#6d6a67" font-family="system-ui, sans-serif" font-size="15">
+    <text x="56" y="129">local proxy</text>
+    <text x="56" y="194">metasearch</text>
+    <text x="56" y="259">search api</text>
+    <text x="56" y="324">deep search</text>
+  </g>
+  <g fill="#272727">
+    <rect x="176" y="109" width="396" height="25" rx="4"/>
+    <rect x="176" y="174" width="396" height="25" rx="4"/>
+    <rect x="176" y="239" width="396" height="25" rx="4"/>
+    <rect x="176" y="304" width="396" height="25" rx="4"/>
+  </g>
+  <rect x="176" y="109" width="92" height="25" rx="4" fill="#8990ff"/>
+  <rect x="176" y="174" width="178" height="25" rx="4" fill="#777777"/>
+  <rect x="176" y="239" width="233" height="25" rx="4" fill="#696969"/>
+  <rect x="176" y="304" width="354" height="25" rx="4" fill="#555555"/>
+  <path d="M176 361h396" stroke="#3b3b3b"/>
+  <text x="176" y="388" fill="#666" font-family="system-ui, sans-serif" font-size="13">faster</text>
+  <text x="528" y="388" fill="#666" font-family="system-ui, sans-serif" font-size="13">slower</text>
+</svg>

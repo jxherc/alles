@@ -1,6 +1,7 @@
 import { toast } from './util.js';
 import { confirm } from './dialog.js';
-import { populateDropdown } from './dropdown.js?v=210';
+import { getDropdownValue, populateDropdown } from './dropdown.js?v=212';
+import { formatDateTime, formatNumber } from './i18n.js';
 
 const _si = n => (window.icon ? window.icon(n) : '');   // central icon set, load-order safe
 
@@ -8,6 +9,7 @@ let _unlocked = false;
 let _token = null;     // the unlock token; sent back on every vault request
 let _entries = [];     // last loaded list, so a row click can open the editor
 let _modalEl = null;   // the open add/edit overlay, if any
+let _modalReturnFocus = null;
 let _totpTimer = null;  // live TOTP countdown interval
 let _vaultId = 'default';  // 9c — which vault is currently unlocked
 let _vaults = [];          // 9c — known vaults for the switcher
@@ -90,10 +92,11 @@ function _typeForEntry(entry) {
   const t = entry.type;
   if (TYPE_BY_KEY[t]) return t;
   if (_customTypes[t]) return t;   // 8e — a user-defined type
+  if (t === 'api_key') return 'apikey';
   if (t === 'password') return 'login';
   if (t === 'card') return 'card';
   if (t === 'note') return 'note';
-  const f = Object.keys(entry.fields || {});
+  const f = Object.keys(_entryFields(entry));
   if (f.includes('number') || f.includes('cardholder')) return 'card';
   if (f.includes('apikey')) return 'apikey';
   if (f.includes('private_key')) return 'ssh';
@@ -102,15 +105,50 @@ function _typeForEntry(entry) {
 }
 function _typeLabel(entry) { return _typeDef(_typeForEntry(entry))?.label || 'item'; }
 
-// fetch wrapper that attaches this session's unlock token so the server can
-// bind the request to our unlock (not just "someone unlocked recently")
-function _vfetch(url, opts = {}) {
-  const headers = { ...(opts.headers || {}) };
-  if (_token) headers['X-Vault-Token'] = _token;
-  return fetch(url, { ...opts, headers });
+function _entryFields(entry) {
+  const fields = { ...(entry?.fields || {}) };
+  if (fields.apikey == null && fields.api_key != null) fields.apikey = fields.api_key;
+  delete fields.api_key;
+  return fields;
 }
 
-export async function loadVaultView() {
+// fetch wrapper that attaches this session's unlock token so the server can
+// bind the request to our unlock (not just "someone unlocked recently")
+function _vfetch(url, opts = {}, fetcher = fetch) {
+  const headers = { ...(opts.headers || {}) };
+  if (_token) headers['X-Vault-Token'] = _token;
+  return fetcher(url, { ...opts, headers });
+}
+
+async function _confirmRecentOwner() {
+  const me = await fetch('/api/auth/me').then(r => r.json()).catch(() => null);
+  if (me?.enabled === false) return true;
+  const password = await _promptPw('confirm Alles password', {
+    placeholder: 'Alles password',
+    action: 'confirm',
+  });
+  if (password == null) return false;
+  const response = await fetch('/api/auth/reauth', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ password }),
+  });
+  if (!response.ok) toast('password confirmation failed', 'error');
+  return response.ok;
+}
+
+async function _vfetchRecentOwner(url, opts = {}) {
+  if (Object.prototype.hasOwnProperty.call(opts, 'body')) {
+    throw new TypeError('recent-owner retry only supports bodyless requests');
+  }
+  let response = await _vfetch(url, opts);
+  if (response.status !== 403) return response;
+  const payload = await response.clone().json().catch(() => ({}));
+  if (payload.code !== 'recent_auth_required' || !await _confirmRecentOwner()) return response;
+  return _vfetch(url, opts);
+}
+
+export async function loadVaultView(fetcher = fetch) {
   const locked   = $('vault-locked');
   const unlocked = $('vault-unlocked');
   if (!locked || !unlocked) return;
@@ -124,12 +162,12 @@ export async function loadVaultView() {
   }
   if ($('vault-bio-add-btn')) $('vault-bio-add-btn').style.display =
     (_unlocked && window.PublicKeyCredential) ? '' : 'none';
-  if (_unlocked) { await _loadCustomTypes(); await _loadEntries(); await _loadVaults(); }
-  else _refreshBioUnlock();
+  if (_unlocked) { await _loadCustomTypes(fetcher); await _loadEntries(fetcher); await _loadVaults(fetcher); }
+  else await _refreshBioUnlock(fetcher);
 }
 
-async function _loadCustomTypes() {
-  try { _customTypes = (await _vfetch('/api/vault/custom-types').then(r => r.json())).types || {}; }
+async function _loadCustomTypes(fetcher = fetch) {
+  try { _customTypes = (await _vfetch('/api/vault/custom-types', {}, fetcher).then(r => r.json())).types || {}; }
   catch { _customTypes = {}; }
 }
 
@@ -174,10 +212,10 @@ export function initVault() {
 }
 
 // 9c — multiple vaults, Travel Mode, biometric ──────────────────────────────
-async function _loadVaults() {
+async function _loadVaults(fetcher = fetch) {
   try {
-    _vaults = await _vfetch('/api/vault/vaults').then(r => r.json());
-    const tm = await fetch('/api/vault/travel-mode').then(r => r.json()).catch(() => ({}));
+    _vaults = await _vfetch('/api/vault/vaults', {}, fetcher).then(r => r.json());
+    const tm = await fetcher('/api/vault/travel-mode').then(r => r.json()).catch(() => ({}));
     _travel = !!tm.on;
   } catch { _vaults = []; }
   _renderSwitcher();
@@ -225,7 +263,7 @@ function _createVaultForm() {
         <div class="vform-field"><label>name</label>
           <input id="nv-name" class="settings-input vform-input" placeholder="e.g. Work"></div>
         <div class="vform-field"><label>master password</label>
-          <input id="nv-pw" type="password" class="settings-input vform-input" placeholder="a password for this vault"></div>
+          <input id="nv-pw" type="password" class="settings-input vform-input" minlength="12" placeholder="12 or more characters"></div>
       </div>
       <div class="vault-form-actions">
         <button class="btn" id="nv-cancel">cancel</button>
@@ -240,7 +278,7 @@ function _createVaultForm() {
   ov.querySelector('#nv-create').onclick = async () => {
     const name = ov.querySelector('#nv-name').value.trim();
     const pw = ov.querySelector('#nv-pw').value;
-    if (!name || !pw) { toast('name + password required', 'error'); return; }
+    if (!name || pw.length < 12) { toast('name + a 12-character password required', 'error'); return; }
     const r = await _vfetch('/api/vault/vaults', {
       method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ name, password: pw }),
@@ -273,7 +311,9 @@ async function _toggleTravel() {
 }
 
 async function _manageVaults() {
+  const returnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
   _closeModal();
+  _modalReturnFocus = returnFocus;
   const ov = document.createElement('div');
   ov.className = 'modal-overlay vault-modal';
   ov.innerHTML = `
@@ -294,10 +334,31 @@ async function _manageVaults() {
   ov.querySelector('#mv-x').onclick = _closeModal;
   ov.querySelector('#mv-close').onclick = _closeModal;
   ov.addEventListener('mousedown', e => { if (e.target === ov) _closeModal(); });
+  ov.addEventListener('keydown', event => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      event.stopPropagation();
+      _closeModal();
+      return;
+    }
+    if (event.key !== 'Tab') return;
+    const items = [...ov.querySelectorAll(
+      'button:not([disabled]), input:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+    )].filter(element => !element.hidden && element.offsetParent !== null);
+    if (!items.length) return;
+    const first = items[0];
+    const last = items.at(-1);
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault(); last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault(); first.focus();
+    }
+  });
   _renderManage();
   await _renderManageExtra();
   await _loadCustomTypes();
   _renderTypeEditor();
+  ov.querySelector('#mv-x').focus();
 }
 
 // 8e — visual editor for user-defined entry types
@@ -413,12 +474,113 @@ async function _saveType() {
   toast('type saved', 'success');
 }
 
-// the "this vault" extras: hardware-key 2FA + the autofill extension pointer
+function _browserSeen(value) {
+  if (!value) return 'not used yet';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? 'used before' : `last used ${formatDateTime(date)}`;
+}
+
+function _browserCreated(value) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? 'paired before' : `paired ${formatDateTime(date)}`;
+}
+
+function _browserExpiry(seconds) {
+  const minutes = Math.max(1, Math.ceil(Number(seconds || 0) / 60));
+  return `expires in ${minutes} min`;
+}
+
+function _browserAccessMarkup(state, failed) {
+  if (failed) return '<p class="mv-browser-empty" role="alert">browser access could not be loaded. refresh to try again.</p>';
+  const pairings = state.pairings || [];
+  const unlocks = state.unlock_requests || [];
+  const connections = state.connections || [];
+  const requests = [
+    ...pairings.map(item => `
+      <div class="mv-browser-row request" role="listitem">
+        <div class="mv-browser-copy"><strong>${_esc(item.name)}</strong><small>pairing code <span class="mv-browser-code">${_esc(item.code)}</span> · ${_esc(_browserExpiry(item.expires_in))}</small></div>
+        <button class="act-btn" type="button" data-browser-pair="${_esc(item.id)}" aria-label="approve pairing for ${_esc(item.name)}">approve</button>
+        <button class="act-btn danger" type="button" data-browser-pair-deny="${_esc(item.id)}" aria-label="deny pairing for ${_esc(item.name)}">deny</button>
+      </div>`),
+    ...unlocks.map(item => `
+      <div class="mv-browser-row request" role="listitem">
+        <div class="mv-browser-copy"><strong>${_esc(item.name)}</strong><small>access code <span class="mv-browser-code">${_esc(item.code)}</span> · ${_esc(_browserExpiry(item.expires_in))}</small></div>
+        <button class="act-btn" type="button" data-browser-unlock="${_esc(item.id)}" aria-label="approve access for ${_esc(item.name)}">approve</button>
+        <button class="act-btn danger" type="button" data-browser-unlock-deny="${_esc(item.id)}" aria-label="deny access for ${_esc(item.name)}">deny</button>
+      </div>`),
+  ];
+  return `
+    ${requests.length ? `<div class="mv-browser-group"><div class="mv-browser-label">waiting for you</div><div role="list">${requests.join('')}</div></div>` : ''}
+    <div class="mv-browser-group">
+      <div class="mv-browser-label">connected to this vault</div>
+      <div role="list">
+        ${connections.length ? connections.map(item => `
+          <div class="mv-browser-row" role="listitem">
+            <div class="mv-browser-copy"><strong>${_esc(item.name)}</strong><small>${_esc(_browserCreated(item.created_at))} · ${_esc(_browserSeen(item.last_seen_at))}</small></div>
+            <span class="mv-browser-state${item.locked ? '' : ' active'}">${item.locked ? 'locked' : 'access active'}</span>
+            <button class="act-btn" type="button" data-browser-lock="${_esc(item.id)}" ${item.locked ? 'disabled' : ''}>lock</button>
+            <button class="act-btn danger" type="button" data-browser-revoke="${_esc(item.id)}" data-browser-name="${_esc(item.name)}">revoke</button>
+          </div>`).join('') : '<p class="mv-browser-empty">no browsers connected to this vault.</p>'}
+      </div>
+    </div>`;
+}
+
+async function _browserOwnerMutation(url, opts, success) {
+  try {
+    const response = await _vfetchRecentOwner(url, opts);
+    if (!response.ok) {
+      const payload = await response.json().catch(() => ({}));
+      toast(payload.message || payload.detail || 'browser access could not be changed', 'error');
+      return false;
+    }
+    toast(success, 'success');
+    await _renderManageExtra();
+    return true;
+  } catch {
+    toast('browser access could not be changed', 'error');
+    return false;
+  }
+}
+
+async function _downloadBrowserExtension(button) {
+  button.disabled = true;
+  try {
+    const response = await _vfetchRecentOwner('/api/vault/browsers/extension');
+    if (!response.ok) {
+      const payload = await response.json().catch(() => ({}));
+      throw new Error(payload.message || payload.detail || 'extension download failed');
+    }
+    const url = URL.createObjectURL(await response.blob());
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'alles-passwords-extension.zip';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+    toast('extension downloaded', 'success');
+  } catch (error) {
+    toast(error.message || 'extension download failed', 'error');
+  } finally {
+    button.disabled = false;
+  }
+}
+
+// the "this vault" extras: hardware-key 2FA + exact-site browser access
 async function _renderManageExtra() {
   const box = _modalEl?.querySelector('#mv-extra');
   if (!box) return;
   let st = { on: false, totp: false, credentials: [] };
-  try { st = await _vfetch('/api/vault/2fa').then(r => r.json()); } catch {}
+  let browsers = { connections: [], pairings: [], unlock_requests: [] };
+  let browserLoadFailed = false;
+  const [factorResult, browserResult] = await Promise.allSettled([
+    _vfetch('/api/vault/2fa').then(response => response.ok ? response.json() : Promise.reject()),
+    _vfetch('/api/vault/browsers').then(response => response.ok ? response.json() : Promise.reject()),
+  ]);
+  if (factorResult.status === 'fulfilled') st = factorResult.value;
+  if (browserResult.status === 'fulfilled') browsers = browserResult.value;
+  else browserLoadFailed = true;
+  if (!box.isConnected) return;
   const cur = _vaults.find(v => v.id === _vaultId);
   const keyCount = (st.credentials || []).length;
   box.innerHTML = `
@@ -439,16 +601,23 @@ async function _renderManageExtra() {
     <div class="mv-row">
       <span class="mv-name">require a second factor to unlock</span>
       <span class="vault-entry-grow"></span>
-      <button class="chip-toggle ${st.on ? 'on' : ''}" id="mv-2fa" role="switch" aria-checked="${st.on}">${st.on ? 'on' : 'off'}</button>
+      <button class="home-settings-switch" type="button" id="mv-2fa" role="switch" aria-label="require a second factor to unlock" aria-checked="${st.on}"></button>
     </div>
     <p class="mv-2fa-note"><b>biometric unlock</b> (Touch ID / Windows Hello) is different: it stores your
-    master password on this device so you can unlock <i>without typing it</i> — it replaces the password,
+    master password on this device so you can unlock <i>without typing it</i>. it replaces the password;
     it isn't a second factor. A <b>passkey 2FA</b> is an extra check on top of the password and may ask
     for the same device's biometrics to release the key.</p>
-    <div class="mv-autofill" id="vault-autofill-info" role="note" aria-label="browser autofill status">
-      <span class="mv-autofill-text"><b>browser autofill is off.</b> the old extension used a vault-wide unlock token, so it was retired.</span>
-      <span class="mv-autofill-text">remove or reload the old extension. until a safely paired replacement is ready, reveal and copy logins here in Passwords.</span>
-    </div>`;
+    <section class="mv-browser" id="vault-browser-access" aria-labelledby="mv-browser-title">
+      <div class="mv-browser-head">
+        <div><h3 id="mv-browser-title">connected browsers</h3><p>approve each browser here. access lasts five minutes and only releases the login you choose for the page's exact origin.</p></div>
+        <button class="act-btn" type="button" id="mv-browser-refresh">refresh</button>
+      </div>
+      <div id="mv-browser-content" aria-live="polite">${_browserAccessMarkup(browsers, browserLoadFailed)}</div>
+      <div class="mv-browser-install">
+        <p>download and unzip the extension, open <code>chrome://extensions</code>, enable developer mode, then choose <b>load unpacked</b>. the extension asks for only the Alles host you enter.</p>
+        <button class="act-btn" type="button" id="mv-browser-download">download extension</button>
+      </div>
+    </section>`;
   box.querySelector('#mv-2fa').onclick = async () => {
     try {
       const r = await _vfetch('/api/vault/2fa', {
@@ -466,6 +635,25 @@ async function _renderManageExtra() {
     await _vfetch('/api/vault/2fa/totp', { method: 'DELETE' });
     await _renderManageExtra();
     toast('authenticator app removed', 'success');
+  });
+  box.querySelector('#mv-browser-refresh').onclick = async event => {
+    event.currentTarget.disabled = true;
+    await _renderManageExtra();
+  };
+  box.querySelector('#mv-browser-download').onclick = event => _downloadBrowserExtension(event.currentTarget);
+  box.querySelectorAll('[data-browser-pair]').forEach(button => button.onclick = () =>
+    _browserOwnerMutation(`/api/vault/browsers/pairings/${button.dataset.browserPair}/approve`, { method: 'POST' }, 'browser paired'));
+  box.querySelectorAll('[data-browser-pair-deny]').forEach(button => button.onclick = () =>
+    _browserOwnerMutation(`/api/vault/browsers/pairings/${button.dataset.browserPairDeny}`, { method: 'DELETE' }, 'pairing denied'));
+  box.querySelectorAll('[data-browser-unlock]').forEach(button => button.onclick = () =>
+    _browserOwnerMutation(`/api/vault/browsers/unlock-requests/${button.dataset.browserUnlock}/approve`, { method: 'POST' }, 'short browser access approved'));
+  box.querySelectorAll('[data-browser-unlock-deny]').forEach(button => button.onclick = () =>
+    _browserOwnerMutation(`/api/vault/browsers/unlock-requests/${button.dataset.browserUnlockDeny}`, { method: 'DELETE' }, 'browser access denied'));
+  box.querySelectorAll('[data-browser-lock]').forEach(button => button.onclick = () =>
+    _browserOwnerMutation(`/api/vault/browsers/${button.dataset.browserLock}/lock`, { method: 'POST' }, 'browser locked'));
+  box.querySelectorAll('[data-browser-revoke]').forEach(button => button.onclick = async () => {
+    if (!await confirm(`revoke ${button.dataset.browserName || 'this browser'}? it will need to pair again.`)) return;
+    await _browserOwnerMutation(`/api/vault/browsers/${button.dataset.browserRevoke}`, { method: 'DELETE' }, 'browser revoked');
   });
 }
 
@@ -607,7 +795,7 @@ async function _changeVaultPw() {
 }
 
 // a tiny password prompt that resolves to the entered string (or null on cancel)
-function _promptPw(title) {
+function _promptPw(title, { placeholder = 'master password', action = 'unlock' } = {}) {
   return new Promise(resolve => {
     const ov = document.createElement('div');
     ov.className = 'modal-overlay vault-modal';
@@ -615,10 +803,10 @@ function _promptPw(title) {
       <div class="modal-card vault-modal-card" role="dialog" aria-modal="true" style="max-width:340px">
         <div class="modal-head"><span class="modal-title">${_esc(title)}</span></div>
         <div class="vault-form"><div class="vform-field">
-          <input id="pp-pw" type="password" class="settings-input vform-input" placeholder="master password"></div></div>
+          <input id="pp-pw" type="password" class="settings-input vform-input" placeholder="${_esc(placeholder)}"></div></div>
         <div class="vault-form-actions">
           <button class="btn" id="pp-cancel">cancel</button>
-          <button class="btn primary" id="pp-ok">unlock</button></div>
+          <button class="btn primary" id="pp-ok">${_esc(action)}</button></div>
       </div>`;
     document.body.appendChild(ov);
     const done = val => { ov.remove(); resolve(val); };
@@ -639,8 +827,8 @@ function _promptNewPw() {
       <div class="modal-card vault-modal-card" role="dialog" aria-modal="true" style="max-width:340px">
         <div class="modal-head"><span class="modal-title">change password</span></div>
         <div class="vault-form">
-          <div class="vform-field"><input id="np-1" type="password" class="settings-input vform-input" placeholder="new password"></div>
-          <div class="vform-field"><input id="np-2" type="password" class="settings-input vform-input" placeholder="confirm new password"></div>
+          <div class="vform-field"><input id="np-1" type="password" class="settings-input vform-input" minlength="12" placeholder="new password, 12 or more characters"></div>
+          <div class="vform-field"><input id="np-2" type="password" class="settings-input vform-input" minlength="12" placeholder="confirm new password"></div>
           <div class="np-err" id="np-err"></div>
         </div>
         <div class="vault-form-actions">
@@ -651,7 +839,7 @@ function _promptNewPw() {
     const done = val => { ov.remove(); resolve(val); };
     const go = () => {
       const a = ov.querySelector('#np-1').value, b = ov.querySelector('#np-2').value;
-      if (a.length < 4) { ov.querySelector('#np-err').textContent = 'use at least 4 characters'; return; }
+      if (a.length < 12) { ov.querySelector('#np-err').textContent = 'use at least 12 characters'; return; }
       if (a !== b) { ov.querySelector('#np-err').textContent = "passwords don't match"; return; }
       done(a);
     };
@@ -688,12 +876,12 @@ async function _enableBiometric() {
 }
 
 // show the lock-screen biometric button only if the default vault has a credential
-async function _refreshBioUnlock() {
+async function _refreshBioUnlock(fetcher = fetch) {
   const btn = $('vault-bio-unlock-btn');
   if (!btn) return;
   if (!window.PublicKeyCredential) { btn.style.display = 'none'; return; }
   try {
-    const d = await fetch('/api/vault/webauthn/challenge?vault_id=default').then(r => r.json());
+    const d = await fetcher('/api/vault/webauthn/challenge?vault_id=default').then(r => r.json());
     btn.style.display = (d.credentials && d.credentials.length) ? '' : 'none';
   } catch { btn.style.display = 'none'; }
 }
@@ -755,7 +943,7 @@ async function showWatchtower() {
         <button class="btn ic-btn-lbl" id="wt-back">${_si('chevron-left')} back to vault</button>
         <span class="wt-intro">Watchtower scans your saved passwords for problems — known data-breach exposure, the same password reused across logins, and weak/short passwords.</span>
       </div>
-      ${sec('breached', 'passwords found in known data breaches — change these first.', (d.breached || []).map(x => `${_esc(x.name)} <span class="wt-meta">seen ${x.count.toLocaleString()}×</span>`), 'bad')}
+      ${sec('breached', 'passwords found in known data breaches - change these first.', (d.breached || []).map(x => `${_esc(x.name)} <span class="wt-meta">seen ${formatNumber(x.count)}×</span>`), 'bad')}
       ${sec('reused', 'the same password used on more than one login.', (d.reused || []).map(g => _esc(g.names.join(', '))), 'warn')}
       ${sec('weak', 'short or low-entropy passwords that are easy to guess.', (d.weak || []).map(x => _esc(x.name)), 'warn')}
     </div>`;
@@ -867,6 +1055,9 @@ function _closeModal() {
   if (_totpTimer) { clearInterval(_totpTimer); _totpTimer = null; }
   if (_modalEl) { _modalEl.remove(); _modalEl = null; }
   document.removeEventListener('keydown', _escClose);
+  const target = _modalReturnFocus;
+  _modalReturnFocus = null;
+  if (target?.isConnected) target.focus();
 }
 
 // 9a — live TOTP code + countdown for an entry that stores a totp secret
@@ -903,18 +1094,18 @@ function _startTotp() {
 function _editVals() {
   const e = _modalEl?._entry;
   if (!e) return {};
-  return { ...(e.fields || {}), username: e.username || '' };
+  return { ..._entryFields(e), username: e.username || '' };
 }
 
 // fields for the currently-selected type, plus any extra keys an edited entry
 // already carries (so nothing it stored gets hidden)
 function _currentFields() {
-  const tk = _modalEl.querySelector('#vf-type').value;
+  const tk = getDropdownValue(_modalEl.querySelector('#vf-type'));
   const t = _typeDef(tk);
   let keys = t?.custom ? (t.fields || []).map(f => f.key) : (t?.fields || ['notes']).slice();
   const e = _modalEl._entry;
   // keep any extra fields already stored on the entry (built-in or custom)
-  if (e?.fields) for (const k of Object.keys(e.fields)) if (!keys.includes(k)) keys.push(k);
+  if (e?.fields) for (const k of Object.keys(_entryFields(e))) if (!keys.includes(k)) keys.push(k);
   return keys.map(k => _defOf(k, tk));
 }
 
@@ -1015,7 +1206,7 @@ function _showStrength(s) {
 async function _saveForm(editing) {
   const ov = _modalEl;
   const name = ov.querySelector('#vf-name').value.trim();
-  const typeKey = ov.querySelector('#vf-type').value;
+  const typeKey = getDropdownValue(ov.querySelector('#vf-type'));
 
   // passkeys are minted server-side (keypair never leaves the box)
   if (typeKey === 'passkey' && !editing) {
@@ -1083,7 +1274,11 @@ async function _doUnlock() {
       method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ password: pw }),
     });
-    if (!r.ok) { toast('wrong password', 'error'); return; }
+    if (!r.ok) {
+      const detail = (await r.json().catch(() => ({}))).detail;
+      toast(detail || 'wrong password', 'error');
+      return;
+    }
     const j = await r.json();
     if (j.requires_2fa) { await _do2fa(pw, j); return; }   // 8c — second factor needed
     _token = j.token; _vaultId = j.vault_id || 'default';
@@ -1187,11 +1382,11 @@ async function _doLock() {
 
 // ── list ──────────────────────────────────────────────────────────────────────
 
-async function _loadEntries() {
+async function _loadEntries(fetcher = fetch) {
   const list = $('vault-entry-list');
   if (!list) return;
   try {
-    _entries = await _vfetch('/api/vault').then(r => r.json());
+    _entries = await _vfetch('/api/vault', {}, fetcher).then(r => r.json());
     if (!_entries.length) { list.innerHTML = '<div class="page-empty">no entries — hit “+ new”</div>'; return; }
     list.innerHTML = _entries.map(e => `
       <div class="vault-entry" data-id="${e.id}" onclick="window._vaultOpen('${e.id}')" title="open">
@@ -1210,15 +1405,18 @@ async function _loadEntries() {
 
 // which field to copy when you hit "copy" on a row
 function _primarySecret(d) {
-  const f = d.fields || {};
+  const f = _entryFields(d);
   let tk = TYPE_BY_KEY[d.type] ? d.type
     : d.type === 'password' ? 'login'
+    : d.type === 'api_key' ? 'apikey'
     : d.type === 'card' ? 'card'
     : d.type === 'note' ? 'note'
     : f.number ? 'card' : f.apikey ? 'apikey' : 'login';
   const k = PRIMARY[tk];
   return (k && f[k]) || f.password || d.value || Object.values(f).find(Boolean) || '';
 }
+
+export const _vaultInternals = { _entryFields, _typeForEntry, _primarySecret };
 
 window._vaultOpen = async id => {
   const row = _entries.find(e => e.id === id);

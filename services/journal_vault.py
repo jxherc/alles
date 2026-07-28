@@ -10,6 +10,7 @@ lock on actually re-privatises. Removing the passcode re-mirrors if the toggle i
 The DB stays the source of truth for the lock + mood analytics; the files are just a window.
 """
 
+import json
 import re
 
 from core.settings import load_settings
@@ -54,6 +55,25 @@ def _compose(content, mood, tags) -> str:
     if body.startswith("---"):
         return "---\n---\n\n" + body + "\n"
     return body + "\n"
+
+
+def compose_migration_document(content, mood="", tags="") -> str:
+    """Serialize a database entry without trimming or normalizing its content.
+
+    The existing mirror intentionally presents a tidy daily note. Migration has a stricter job: the
+    database string must remain recoverable character-for-character when Markdown becomes canonical.
+    """
+    fields = []
+    if mood:
+        fields.append(f"mood: {json.dumps(str(mood), ensure_ascii=False)}")
+    if tags:
+        fields.append(f"tags: {json.dumps(str(tags), ensure_ascii=False)}")
+    body = str(content or "")
+    if fields:
+        return "---\n" + "\n".join(fields) + "\n---\n" + body
+    if body.startswith("---"):
+        return "---\n---\n" + body
+    return body
 
 
 def write_entry(day, content, mood="", tags=""):
@@ -107,19 +127,25 @@ def sync_from_vault(db, day):
     e = db.query(JournalEntry).filter(JournalEntry.date == day).first()
     # compare stripped — the mirror file holds the stripped body, so a raw DB value that only
     # differs by surrounding whitespace is still "in sync" (don't rewrite/strip it on echo)
-    if e and (e.content or "").strip() == parsed["content"] and (e.mood or "") == parsed["mood"] \
-            and (e.tags or "") == parsed["tags"]:
+    if (
+        e
+        and (e.content or "").strip() == parsed["content"]
+        and (e.mood or "") == parsed["mood"]
+        and (e.tags or "") == parsed["tags"]
+    ):
         return
     if e:
         e.content, e.mood, e.tags = parsed["content"], parsed["mood"][:40], parsed["tags"]
         e.updated_at = _now()
     else:
-        e = JournalEntry(date=day, content=parsed["content"], mood=parsed["mood"][:40],
-                         tags=parsed["tags"])
+        e = JournalEntry(
+            date=day, content=parsed["content"], mood=parsed["mood"][:40], tags=parsed["tags"]
+        )
         db.add(e)
     db.commit()
     try:
         from services import personal_index
+
         personal_index.index_record(db, "journal", e)
     except Exception:
         pass

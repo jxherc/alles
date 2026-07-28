@@ -13,6 +13,7 @@ from core.database import (
     JarvisWorkflow,
     SessionLocal,
 )
+from services.aide_questions import normalize_answer, normalize_request
 
 RUN_STATES = {
     "queued",
@@ -166,8 +167,10 @@ def create_prompt(
     run: JarvisRun,
     *,
     kind: str,
-    question: str,
+    question: str = "",
     options: list | None = None,
+    questions: list | None = None,
+    title: str = "",
     action: str = "",
     target: str = "",
     data_summary: str = "",
@@ -178,6 +181,12 @@ def create_prompt(
 ) -> JarvisRunPrompt:
     if kind not in {"choice", "approval"}:
         raise ValueError("invalid_prompt_kind")
+    question_schema = {}
+    if questions is not None:
+        if kind != "choice":
+            raise ValueError("structured_approval_forbidden")
+        question_schema = normalize_request({"title": title or question, "questions": questions})
+        question = question or question_schema["title"]
     if not str(question or "").strip():
         raise ValueError("prompt_question_required")
     if db.query(JarvisRunPrompt).filter_by(run_id=run.id, state="pending").first() is not None:
@@ -189,6 +198,7 @@ def create_prompt(
         kind=kind,
         question=str(question)[:4000],
         options=json_text(options, expected=list, limit=8000),
+        question_schema=json_text(question_schema, expected=dict, limit=24_000),
         action=str(action or "")[:128],
         target=str(target or "")[:2000],
         data_summary=str(data_summary or "")[:2000],
@@ -201,6 +211,22 @@ def create_prompt(
     transition_run(db, run, "waiting_input" if kind == "choice" else "waiting_approval")
     append_event(db, run, "prompt_created", summary=f"{kind} requested")
     db.flush()
+    return prompt
+
+
+def _mark_choice_answered(
+    db: DbSession, prompt: JarvisRunPrompt, *, answer: str, answer_data: dict
+) -> JarvisRunPrompt:
+    now = datetime.now()
+    prompt.answer = str(answer or "")[:2000]
+    prompt.answer_data = json_text(answer_data, expected=dict, limit=24_000)
+    prompt.state = "answered"
+    prompt.responded_at = now
+    run = db.get(JarvisRun, prompt.run_id)
+    if run:
+        append_event(db, run, "choice_answered", summary="choice answered")
+        if run.state == "waiting_input":
+            transition_run(db, run, "queued")
     return prompt
 
 
@@ -217,15 +243,26 @@ def answer_choice(db: DbSession, prompt: JarvisRunPrompt, answer: str) -> Jarvis
     value = str(answer or "")
     if choices and value not in choices:
         raise ValueError("invalid_prompt_answer")
-    prompt.answer = value[:2000]
-    prompt.state = "answered"
-    prompt.responded_at = now
-    run = db.get(JarvisRun, prompt.run_id)
-    if run:
-        append_event(db, run, "choice_answered", summary="choice answered")
-        if run.state == "waiting_input":
-            transition_run(db, run, "queued")
-    return prompt
+    return _mark_choice_answered(db, prompt, answer=value, answer_data={})
+
+
+def answer_questions(db: DbSession, prompt: JarvisRunPrompt, answer: dict) -> JarvisRunPrompt:
+    if prompt.kind != "choice":
+        raise ValueError("approval_requires_exact_gate")
+    if prompt.state != "pending":
+        raise ValueError("prompt_not_pending")
+    now = datetime.now()
+    if prompt.expires_at and prompt.expires_at <= now:
+        prompt.state = "expired"
+        raise ValueError("prompt_expired")
+    schema = json_value(prompt.question_schema, dict)
+    if not schema:
+        raise ValueError("structured_question_unavailable")
+    normalized = normalize_answer(schema, answer)
+    summary = "cancelled" if normalized["cancelled"] else json.dumps(
+        normalized["answers"], ensure_ascii=False, separators=(",", ":")
+    )
+    return _mark_choice_answered(db, prompt, answer=summary, answer_data=normalized)
 
 
 def reconcile_interrupted_runs() -> dict:

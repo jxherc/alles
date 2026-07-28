@@ -11,6 +11,7 @@ globalThis.HTMLInputElement = class {
 };
 
 const {
+  _mergeHomeShortcutOrder,
   normalizeS3BackupConfig,
   s3BackupConfigPayload,
   s3BackupsFromResponse,
@@ -20,6 +21,23 @@ const html = readFileSync(new URL('../../static/index.html', import.meta.url), '
 const source = readFileSync(new URL('../../static/js/settings.js', import.meta.url), 'utf8');
 const s3Start = source.indexOf('// ── s3 backup');
 const s3Source = source.slice(s3Start, source.indexOf('// ── models pane', s3Start));
+
+test('Home shortcut visibility preserves custom keys and surviving positions', () => {
+  const original = ['custom-a', 'inbox', 'custom-b', 'files'];
+
+  assert.deepEqual(_mergeHomeShortcutOrder(['files'], original), [
+    'custom-a',
+    'custom-b',
+    'files',
+  ]);
+  assert.deepEqual(_mergeHomeShortcutOrder([], original), ['custom-a', 'custom-b']);
+  assert.deepEqual(_mergeHomeShortcutOrder(['files', 'inbox'], original), [
+    'custom-a',
+    'files',
+    'custom-b',
+    'inbox',
+  ]);
+});
 
 test('s3 connection payload requires https and a complete credential pair', () => {
   assert.throws(
@@ -132,5 +150,8 @@ test('every s3 mutation uses recent-owner confirmation and restore sends multipa
 });
 
 test('opening the backup pane loads webdav and s3 independently', () => {
-  assert.match(source, /if \(name === 'backup'\)\s+\{ loadWebdavBackup\(\); loadS3Backup\(\); \}/);
+  assert.match(
+    source,
+    /if \(name === 'backup'\)\s+\{ loadSetupStatus\(\); loadWebdavBackup\(\); loadS3Backup\(\); \}/,
+  );
 });

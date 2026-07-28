@@ -1,0 +1,236 @@
+{
+  "schema_version": 1,
+  "checked_on": "2026-07-27",
+  "available_models": [
+    "gpt-5.6-sol",
+    "gpt-5.6-terra"
+  ],
+  "benchmark_basis": {
+    "summary": "OpenAI documents Sol as the quality-first tier and Terra as the everyday balance of capability and cost. It recommends the lowest reasoning effort that passes representative evaluations and reserves xhigh or max for measured gains on difficult work. No comparable public numeric benchmark table for Sol, Terra, and Luna was found in the official documentation, so this plan does not invent one.",
+    "sources": [
+      "https://learn.chatgpt.com/docs/models#choosing-sol-terra-and-luna",
+      "https://learn.chatgpt.com/docs/models#pick-a-reasoning-effort",
+      "https://developers.openai.com/api/docs/guides/latest-model#update-api-and-model-parameters",
+      "https://developers.openai.com/api/docs/guides/deployment-checklist#choose-a-gpt-56-model"
+    ],
+    "local_calibration_metrics": [
+      "task success",
+      "regressions introduced",
+      "verification completeness",
+      "wall time",
+      "input tokens",
+      "output tokens",
+      "reasoning tokens",
+      "cost per successful task"
+    ]
+  },
+  "escalation": {
+    "model": "gpt-5.6-sol",
+    "effort": "max",
+    "triggers": [
+      "the primary route fails twice with the same unresolved cause",
+      "a security or recovery invariant remains ambiguous after targeted proof",
+      "a destructive network or lifecycle scenario produces conflicting evidence"
+    ]
+  },
+  "routes": [
+    {
+      "feature_id": "setup-security.owner-setup",
+      "delivery": {"model": "gpt-5.6-sol", "effort": "high"},
+      "verification": {"model": "gpt-5.6-terra", "effort": "high"},
+      "overrides": {
+        "recent-owner reauthentication": {"model": "gpt-5.6-sol", "effort": "high"},
+        "resume interrupted setup": {"model": "gpt-5.6-sol", "effort": "high"}
+      }
+    },
+    {
+      "feature_id": "home.capture-and-navigation",
+      "delivery": {"model": "gpt-5.6-terra", "effort": "medium"},
+      "verification": {"model": "gpt-5.6-terra", "effort": "medium"},
+      "overrides": {
+        "use Home at phone width": {"model": "gpt-5.6-sol", "effort": "high"}
+      }
+    },
+    {
+      "feature_id": "aide.conversation-and-execution",
+      "delivery": {"model": "gpt-5.6-sol", "effort": "xhigh"},
+      "verification": {"model": "gpt-5.6-terra", "effort": "high"},
+      "overrides": {
+        "arm Full Access": {"model": "gpt-5.6-sol", "effort": "xhigh"},
+        "inspect a redacted audit": {"model": "gpt-5.6-sol", "effort": "high"}
+      }
+    },
+    {
+      "feature_id": "aide.selectable-questions",
+      "delivery": {"model": "gpt-5.6-terra", "effort": "medium"},
+      "verification": {"model": "gpt-5.6-terra", "effort": "high"},
+      "overrides": {
+        "answer through Discord": {"model": "gpt-5.6-sol", "effort": "high"}
+      }
+    },
+    {
+      "feature_id": "andromeda.cited-search",
+      "delivery": {"model": "gpt-5.6-sol", "effort": "high"},
+      "verification": {"model": "gpt-5.6-terra", "effort": "high"},
+      "overrides": {
+        "render failed checks honestly": {"model": "gpt-5.6-sol", "effort": "high"}
+      }
+    },
+    {
+      "feature_id": "plan.tasks-calendar",
+      "delivery": {"model": "gpt-5.6-sol", "effort": "high"},
+      "verification": {"model": "gpt-5.6-terra", "effort": "high"}
+    },
+    {
+      "feature_id": "inbox.mail-and-contacts",
+      "delivery": {"model": "gpt-5.6-sol", "effort": "high"},
+      "verification": {"model": "gpt-5.6-terra", "effort": "high"}
+    },
+    {
+      "feature_id": "docs.documents-and-journal",
+      "delivery": {"model": "gpt-5.6-sol", "effort": "high"},
+      "verification": {"model": "gpt-5.6-terra", "effort": "high"},
+      "overrides": {
+        "migrate and roll back a journal entry": {"model": "gpt-5.6-sol", "effort": "high"}
+      }
+    },
+    {
+      "feature_id": "files-photos.locations-and-media",
+      "delivery": {"model": "gpt-5.6-sol", "effort": "xhigh"},
+      "verification": {"model": "gpt-5.6-terra", "effort": "high"},
+      "overrides": {
+        "copy move and roll back": {"model": "gpt-5.6-sol", "effort": "xhigh"},
+        "resolve a vault conflict": {"model": "gpt-5.6-sol", "effort": "xhigh"}
+      }
+    },
+    {
+      "feature_id": "library.reading-and-news",
+      "delivery": {"model": "gpt-5.6-terra", "effort": "high"},
+      "verification": {"model": "gpt-5.6-terra", "effort": "medium"},
+      "overrides": {
+        "deliver a cited news brief": {"model": "gpt-5.6-sol", "effort": "high"}
+      }
+    },
+    {
+      "feature_id": "health.logs-and-habits",
+      "delivery": {"model": "gpt-5.6-terra", "effort": "high"},
+      "verification": {"model": "gpt-5.6-terra", "effort": "high"}
+    },
+    {
+      "feature_id": "finance.actual-ledger",
+      "delivery": {"model": "gpt-5.6-sol", "effort": "xhigh"},
+      "verification": {"model": "gpt-5.6-terra", "effort": "high"},
+      "overrides": {
+        "reconcile a disposable ledger": {"model": "gpt-5.6-sol", "effort": "high"},
+        "undo an import": {"model": "gpt-5.6-sol", "effort": "high"}
+      }
+    },
+    {
+      "feature_id": "finance.bank-connectors",
+      "delivery": {"model": "gpt-5.6-sol", "effort": "xhigh"},
+      "verification": {"model": "gpt-5.6-terra", "effort": "high"},
+      "overrides": {
+        "expire and reconnect consent": {"model": "gpt-5.6-sol", "effort": "high"}
+      }
+    },
+    {
+      "feature_id": "passwords.vault-and-browser",
+      "delivery": {"model": "gpt-5.6-sol", "effort": "xhigh"},
+      "verification": {"model": "gpt-5.6-terra", "effort": "high"},
+      "overrides": {
+        "reject a mismatched origin": {"model": "gpt-5.6-sol", "effort": "xhigh"}
+      }
+    },
+    {
+      "feature_id": "server.management",
+      "delivery": {"model": "gpt-5.6-sol", "effort": "xhigh"},
+      "verification": {"model": "gpt-5.6-terra", "effort": "high"},
+      "overrides": {
+        "reject an unsafe policy edit": {"model": "gpt-5.6-sol", "effort": "xhigh"},
+        "perform update rollback": {"model": "gpt-5.6-sol", "effort": "xhigh"}
+      }
+    },
+    {
+      "feature_id": "server.adguard-home",
+      "delivery": {"model": "gpt-5.6-sol", "effort": "xhigh"},
+      "verification": {"model": "gpt-5.6-terra", "effort": "high"},
+      "overrides": {
+        "activate in isolation": {"model": "gpt-5.6-sol", "effort": "xhigh"},
+        "roll back DNS": {"model": "gpt-5.6-sol", "effort": "xhigh"}
+      }
+    },
+    {
+      "feature_id": "server.nginx-proxy-manager",
+      "delivery": {"model": "gpt-5.6-sol", "effort": "xhigh"},
+      "verification": {"model": "gpt-5.6-terra", "effort": "high"},
+      "overrides": {
+        "activate in isolation": {"model": "gpt-5.6-sol", "effort": "xhigh"},
+        "roll back service": {"model": "gpt-5.6-sol", "effort": "xhigh"}
+      }
+    },
+    {
+      "feature_id": "integrations.owner-connectors",
+      "delivery": {"model": "gpt-5.6-sol", "effort": "xhigh"},
+      "verification": {"model": "gpt-5.6-terra", "effort": "high"},
+      "overrides": {
+        "test a signed webhook": {"model": "gpt-5.6-sol", "effort": "xhigh"}
+      }
+    },
+    {
+      "feature_id": "integrations.model-authentication",
+      "delivery": {"model": "gpt-5.6-sol", "effort": "xhigh"},
+      "verification": {"model": "gpt-5.6-terra", "effort": "high"},
+      "overrides": {
+        "show unsupported OAuth honestly": {"model": "gpt-5.6-sol", "effort": "high"}
+      }
+    },
+    {
+      "feature_id": "automation.schedules-and-actions",
+      "delivery": {"model": "gpt-5.6-sol", "effort": "high"},
+      "verification": {"model": "gpt-5.6-terra", "effort": "high"}
+    },
+    {
+      "feature_id": "localization.regional-settings",
+      "delivery": {"model": "gpt-5.6-terra", "effort": "medium"},
+      "verification": {"model": "gpt-5.6-terra", "effort": "medium"}
+    },
+    {
+      "feature_id": "localization.credits",
+      "delivery": {"model": "gpt-5.6-terra", "effort": "medium"},
+      "verification": {"model": "gpt-5.6-terra", "effort": "low"}
+    },
+    {
+      "feature_id": "accessibility.interface-contract",
+      "delivery": {"model": "gpt-5.6-sol", "effort": "high"},
+      "verification": {"model": "gpt-5.6-terra", "effort": "high"},
+      "overrides": {
+        "test responsive and zoom states": {"model": "gpt-5.6-sol", "effort": "high"}
+      }
+    },
+    {
+      "feature_id": "extension-mobile.pwa-and-extension",
+      "delivery": {"model": "gpt-5.6-sol", "effort": "high"},
+      "verification": {"model": "gpt-5.6-terra", "effort": "high"},
+      "overrides": {
+        "exercise offline and reconnect": {"model": "gpt-5.6-sol", "effort": "high"}
+      }
+    },
+    {
+      "feature_id": "backup-recovery.lifecycle",
+      "delivery": {"model": "gpt-5.6-sol", "effort": "xhigh"},
+      "verification": {"model": "gpt-5.6-terra", "effort": "high"},
+      "overrides": {
+        "recover interrupted update": {"model": "gpt-5.6-sol", "effort": "xhigh"},
+        "restore and roll back": {"model": "gpt-5.6-sol", "effort": "xhigh"}
+      }
+    },
+    {
+      "feature_id": "developer-interfaces.api-cli",
+      "delivery": {"model": "gpt-5.6-sol", "effort": "xhigh"},
+      "verification": {"model": "gpt-5.6-sol", "effort": "high"},
+      "overrides": {
+        "reject scope escalation": {"model": "gpt-5.6-sol", "effort": "xhigh"}
+      }
+    }
+  ]
+}

@@ -8,7 +8,8 @@ from sqlalchemy.pool import StaticPool
 
 os.environ["AUTH_ENABLED"] = "false"
 import core.database as db
-from services import cal_conflict, contacts_graph as cg
+from services import cal_conflict
+from services import contacts_graph as cg
 
 
 class GraphTests(unittest.TestCase):

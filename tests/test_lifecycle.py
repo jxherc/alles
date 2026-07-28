@@ -47,7 +47,7 @@ class LifecycleTests(unittest.TestCase):
         self.s.add(p)
         self.s.commit()
         self.assertTrue(lifecycle.is_active(p))
-        p.deleted_at = datetime.datetime.utcnow()
+        p.deleted_at = datetime.datetime.now(datetime.UTC).replace(tzinfo=None)
         self.assertFalse(lifecycle.is_active(p))
 
     def test_active_query_excludes_archived_notes(self):
@@ -63,7 +63,9 @@ class LifecycleTests(unittest.TestCase):
             [
                 db.Photo(filename="a.jpg", original_name="a"),
                 db.Photo(
-                    filename="b.jpg", original_name="b", deleted_at=datetime.datetime.utcnow()
+                    filename="b.jpg",
+                    original_name="b",
+                    deleted_at=datetime.datetime.now(datetime.UTC).replace(tzinfo=None),
                 ),
             ]
         )
@@ -84,7 +86,9 @@ class LifecycleTests(unittest.TestCase):
             [
                 db.Photo(filename="a.jpg", original_name="a"),
                 db.Photo(
-                    filename="b.jpg", original_name="b", deleted_at=datetime.datetime.utcnow()
+                    filename="b.jpg",
+                    original_name="b",
+                    deleted_at=datetime.datetime.now(datetime.UTC).replace(tzinfo=None),
                 ),
             ]
         )
@@ -117,7 +121,11 @@ class LifecycleTests(unittest.TestCase):
         self.assertTrue(lifecycle.is_active(n))
 
     def test_restore_photo_clears_timestamp(self):
-        p = db.Photo(filename="x.jpg", original_name="x", deleted_at=datetime.datetime.utcnow())
+        p = db.Photo(
+            filename="x.jpg",
+            original_name="x",
+            deleted_at=datetime.datetime.now(datetime.UTC).replace(tzinfo=None),
+        )
         self.s.add(p)
         self.s.commit()
         lifecycle.restore(self.s, p)
@@ -145,9 +153,9 @@ class AdoptionIntegrationTests(VaultApiTest):
         keep = self.client.post(
             "/api/notes", json={"title": "k", "content": "", "tags": "alpha"}
         ).json()["id"]
-        drop = self.client.post("/api/notes", json={"title": "d", "content": "", "tags": "beta"}).json()[
-            "id"
-        ]
+        drop = self.client.post(
+            "/api/notes", json={"title": "d", "content": "", "tags": "beta"}
+        ).json()["id"]
         self.client.post(f"/api/notes/{drop}/archive", json={"archived": True})
         tags = {t["tag"] for t in self.client.get("/api/notes/tags").json()}
         self.assertIn("alpha", tags)

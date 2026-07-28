@@ -83,10 +83,10 @@ def main():
         pg.eval_on_selector("#cal-feed-add", "el => el.click()")
         pg.wait_for_selector("#_di", timeout=5000)
         pg.fill("#_di", "https://example.com/holidays.ics")
-        pg.eval_on_selector("#_dy", "el => el.click()")
+        pg.eval_on_selector("[data-dialog-confirm]", "el => el.click()")
         pg.wait_for_selector("#_di", timeout=5000)  # second prompt (name)
         pg.fill("#_di", "Holidays")
-        pg.eval_on_selector("#_dy", "el => el.click()")
+        pg.eval_on_selector("[data-dialog-confirm]", "el => el.click()")
         added = False
         for _ in range(20):
             pg.wait_for_timeout(400)

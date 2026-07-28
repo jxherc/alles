@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -60,7 +60,7 @@ def delete_reminder(rid: str, db: DbSession = Depends(get_db)):
 @router.get("/reminders/due")
 def due_reminders(db: DbSession = Depends(get_db)):
     """Return pending due reminders without consuming them."""
-    now = datetime.utcnow()
+    now = datetime.now(UTC).replace(tzinfo=None)
     due = (
         db.query(Reminder)
         .filter(
@@ -79,7 +79,7 @@ def acknowledge_reminder(rid: str, db: DbSession = Depends(get_db)):
     r = db.get(Reminder, rid)
     if not r:
         raise HTTPException(404, "not found")
-    if r.type != "reminder" or r.trigger_at > datetime.utcnow():
+    if r.type != "reminder" or r.trigger_at > datetime.now(UTC).replace(tzinfo=None):
         raise HTTPException(409, "reminder is not due")
     r.fired = True
     db.commit()

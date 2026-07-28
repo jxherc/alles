@@ -13,7 +13,9 @@ class VaultTypedTests(ApiTest):
         self.tmp = tempfile.TemporaryDirectory()
         self.sp = mock.patch.object(cs, "_SETTINGS_FILE", Path(self.tmp.name) / "settings.json")
         self.sp.start()
-        tok = self.client.post("/api/vault/unlock", json={"password": "masterpw"}).json()["token"]
+        tok = self.client.post("/api/vault/unlock", json={"password": "master-password-1"}).json()[
+            "token"
+        ]
         self.h = {"X-Vault-Token": tok}
 
     def tearDown(self):
@@ -92,7 +94,9 @@ class VaultTypedTests(ApiTest):
 
         d = self.db()
         e = VaultEntry(
-            name="Ancient", value_encrypted=encrypt("masterpw", "barevalue"), type="password"
+            name="Ancient",
+            value_encrypted=encrypt("master-password-1", "barevalue"),
+            type="password",
         )
         d.add(e)
         d.commit()

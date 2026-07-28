@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "source_revision": "phase10-canonical-2026-07-21",
+  "languages": [
+    {"id": "en", "label": "English", "english_name": "English", "direction": "ltr", "plural_categories": ["one", "other"], "release_state": "available"},
+    {"id": "fr", "label": "Français", "english_name": "French", "direction": "ltr", "plural_categories": ["one", "many", "other"], "release_state": "available"},
+    {"id": "es", "label": "Español", "english_name": "Spanish", "direction": "ltr", "plural_categories": ["one", "many", "other"], "release_state": "available"},
+    {"id": "zh-Hans", "label": "简体中文", "english_name": "Simplified Chinese", "direction": "ltr", "plural_categories": ["other"], "release_state": "available"},
+    {"id": "zh-Hant", "label": "繁體中文", "english_name": "Traditional Chinese", "direction": "ltr", "plural_categories": ["other"], "release_state": "available"},
+    {"id": "ja", "label": "日本語", "english_name": "Japanese", "direction": "ltr", "plural_categories": ["other"], "release_state": "available"},
+    {"id": "ko", "label": "한국어", "english_name": "Korean", "direction": "ltr", "plural_categories": ["other"], "release_state": "available"},
+    {"id": "ar", "label": "العربية", "english_name": "Arabic", "direction": "rtl", "plural_categories": ["zero", "one", "two", "few", "many", "other"], "release_state": "available"}
+  ],
+  "coverage_contract": {
+    "localized_core_flows": [
+      {"id": "shell", "sources": ["static/index.html"], "key_prefixes": ["common.", "shell.", "plan."]},
+      {"id": "home", "sources": ["static/index.html", "static/js/today.js"], "key_prefixes": ["home."]},
+      {"id": "aide-primary", "sources": ["static/index.html"], "key_prefixes": ["aide."]},
+      {"id": "andromeda-search", "sources": ["static/index.html", "static/js/andromeda.js"], "key_prefixes": ["andromeda."]},
+      {"id": "plan-tasks", "sources": ["static/index.html", "static/js/tasks.js"], "key_prefixes": ["tasks."]},
+      {"id": "plan-calendar-primary", "sources": ["static/index.html", "static/js/calendar.js"], "key_prefixes": ["calendar."]},
+      {"id": "settings-localization-credits", "sources": ["static/index.html", "static/js/settings.js"], "key_prefixes": ["locale.", "credits."]}
+    ],
+    "source_language_boundaries": [
+      "owner-authored content, documents, filenames, mail, and saved task or event text",
+      "third-party search results, provider errors, logs, terminal output, code, paths, and URLs",
+      "legacy specialist apps and advanced Calendar or Andromeda administration outside the named primary flows"
+    ]
+  }
+}

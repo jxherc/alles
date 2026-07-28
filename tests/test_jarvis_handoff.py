@@ -1,8 +1,18 @@
 import asyncio
+import tempfile
+from pathlib import Path
 from unittest import mock
 
-from core.database import JarvisRun, JarvisWorkflow, ModelEndpoint, Project, Session
+from core.database import (
+    JarvisRun,
+    JarvisRunEvent,
+    JarvisWorkflow,
+    ModelEndpoint,
+    Project,
+    Session,
+)
 from services import jarvis_handoff
+from services.jarvis_store import create_run
 from tests._client import ApiTest
 
 
@@ -49,6 +59,8 @@ class JarvisHandoffTest(ApiTest):
                     "endpoint_override": endpoint_id,
                     "model_override": "phase4-model",
                     "file_ids": ["upload-1"],
+                    "permission_mode": "full_auto",
+                    "effort": "high",
                 },
             )
         self.assertEqual(response.status_code, 200)
@@ -58,6 +70,8 @@ class JarvisHandoffTest(ApiTest):
         self.assertEqual(run["state"], "queued")
         self.assertEqual(run["events"][-1]["data"]["file_ids"], ["upload-1"])
         self.assertEqual(run["events"][-1]["data"]["endpoint_override"], endpoint_id)
+        self.assertEqual(run["events"][-1]["data"]["permission_mode"], "full_auto")
+        self.assertEqual(run["events"][-1]["data"]["effort"], "high")
         launch.assert_called_once_with(run["id"])
         db = self.db()
         workflow = db.get(JarvisWorkflow, run["workflow_id"])
@@ -108,6 +122,111 @@ class JarvisHandoffTest(ApiTest):
         self.assertEqual(resumed, 1)
         launch.assert_called_once_with(run_id)
 
+    def test_scheduled_aide_work_creates_its_own_conversation_and_runs(self):
+        self._endpoint(local=True)
+        db = self.db()
+        project = Project(name="scheduled project", working_dir="/tmp/scheduled-project")
+        db.add(project)
+        db.flush()
+        workflow = JarvisWorkflow(
+            name="morning check",
+            prompt="prepare the morning check",
+            project_id=project.id,
+            context_mode="project",
+            deterministic_action=jarvis_handoff.HANDOFF_ACTION,
+            enabled=True,
+        )
+        db.add(workflow)
+        db.flush()
+        run = create_run(db, workflow)
+        db.commit()
+        run_id = run.id
+        project_id = project.id
+        db.close()
+
+        async def stream(*_args, **_kwargs):
+            yield {"delta": "scheduled work finished"}
+
+        with (
+            mock.patch("routes.chat._build_messages", return_value=[]),
+            mock.patch("routes.chat._stream_and_save", side_effect=stream),
+        ):
+            asyncio.run(jarvis_handoff._execute(run_id))
+
+        db = self.db()
+        saved = db.get(JarvisRun, run_id)
+        session = db.get(Session, saved.session_id)
+        self.assertEqual(saved.state, "succeeded")
+        self.assertEqual(saved.result_summary, "scheduled work finished")
+        self.assertIsNotNone(session)
+        self.assertEqual(session.project_id, project_id)
+        self.assertEqual(session.name, "morning check")
+        db.close()
+
+    def test_deleted_legacy_session_restores_its_exact_working_folder(self):
+        self._endpoint(local=True)
+        with tempfile.TemporaryDirectory() as folder:
+            expected = str(Path(folder).resolve())
+            db = self.db()
+            session = Session(name="folder handoff", working_dir=expected)
+            db.add(session)
+            db.flush()
+            run = jarvis_handoff.create_handoff(
+                db,
+                session,
+                "continue in this folder",
+                permission_mode="full_auto",
+            )
+            db.commit()
+            run_id = run.id
+            db.delete(session)
+            db.commit()
+            db.close()
+            captured = {}
+
+            async def stream(*_args, **kwargs):
+                captured.update(kwargs["settings"])
+                yield {"delta": "folder work finished"}
+
+            with (
+                mock.patch("routes.chat._build_messages", return_value=[]),
+                mock.patch("routes.chat._stream_and_save", side_effect=stream),
+            ):
+                asyncio.run(jarvis_handoff._execute(run_id))
+
+            db = self.db()
+            saved = db.get(JarvisRun, run_id)
+            replacement = db.get(Session, saved.session_id)
+            self.assertEqual(saved.state, "succeeded")
+            self.assertEqual(replacement.working_dir, expected)
+            self.assertEqual(captured["agent_cwd"], expected)
+            db.close()
+
+    def test_deleted_session_without_durable_context_fails_closed(self):
+        self._endpoint(local=True)
+        session_id, _ = self._session()
+        db = self.db()
+        session = db.get(Session, session_id)
+        run = jarvis_handoff.create_handoff(db, session, "old ambiguous handoff")
+        db.flush()
+        event = db.query(JarvisRunEvent).filter_by(run_id=run.id, kind="handoff_requested").one()
+        event.data = "{}"
+        db.commit()
+        run_id = run.id
+        db.delete(session)
+        db.commit()
+        db.close()
+
+        with mock.patch("routes.chat._stream_and_save") as stream:
+            asyncio.run(jarvis_handoff._execute(run_id))
+
+        stream.assert_not_called()
+        db = self.db()
+        saved = db.get(JarvisRun, run_id)
+        self.assertEqual(saved.state, "failed")
+        self.assertEqual(saved.failure_class, "missing_context")
+        db.close()
+
     def test_remote_model_must_be_shown_and_confirmed_exactly(self):
         endpoint_id = self._endpoint(local=False)
         session_id, _ = self._session()
@@ -142,6 +261,21 @@ class JarvisHandoffTest(ApiTest):
         self.assertEqual(response.status_code, 409)
         self.assertEqual(response.json()["code"], "incognito_handoff_forbidden")
 
+    def test_invalid_custom_turn_limit_is_a_client_error(self):
+        self._endpoint(local=True)
+        session_id, _ = self._session()
+        response = self.client.post(
+            "/api/jarvis/handoffs",
+            json={
+                "session_id": session_id,
+                "request": "validate this",
+                "effort": "custom",
+                "custom_effort": {"max_turns": []},
+            },
+        )
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(response.json()["code"], "custom_max_turns_invalid")
+
     def test_retry_creates_a_new_run_and_uncertain_never_retries(self):
         endpoint_id = self._endpoint(local=True)
         session_id, _ = self._session()
@@ -169,6 +303,47 @@ class JarvisHandoffTest(ApiTest):
         self.assertEqual(refused.status_code, 409)
         self.assertEqual(refused.json()["code"], "handoff_not_retryable")
 
+    def test_retry_preserves_discord_origin_metadata(self):
+        self._endpoint(local=True)
+        session_id, _ = self._session()
+        db = self.db()
+        failed = jarvis_handoff.create_handoff(
+            db,
+            db.get(Session, session_id),
+            "retry discord work",
+            origin={
+                "kind": "discord",
+                "connector_id": "connector-1",
+                "channel_id": "channel-1",
+                "message_id": "message-1",
+            },
+        )
+        failed.state = "failed"
+        db.commit()
+        retry = jarvis_handoff.retry_handoff(db, failed)
+        db.commit()
+        self.assertTrue(jarvis_handoff._has_discord_origin(db, retry))
+        from core.database import JarvisRunEvent
+
+        event = db.query(JarvisRunEvent).filter_by(run_id=retry.id, kind="handoff_requested").one()
+        self.assertIn('"origin_channel_id":"channel-1"', event.data)
+        db.close()
+
+    def test_running_handoff_is_not_executed_again(self):
+        self._endpoint(local=True)
+        session_id, _ = self._session()
+        db = self.db()
+        run = jarvis_handoff.create_handoff(db, db.get(Session, session_id), "already running")
+        run.state = "running"
+        db.commit()
+        run_id = run.id
+        db.close()
+
+        with mock.patch("routes.chat._stream_and_save") as stream:
+            asyncio.run(jarvis_handoff._execute(run_id))
+
+        stream.assert_not_called()
+
     def test_queued_handoff_can_cancel_without_execution(self):
         self._endpoint(local=True)
         session_id, _ = self._session()
@@ -188,7 +363,13 @@ class JarvisHandoffTest(ApiTest):
         self._endpoint(local=True)
         session_id, _ = self._session()
         db = self.db()
-        run = jarvis_handoff.create_handoff(db, db.get(Session, session_id), "work privately")
+        run = jarvis_handoff.create_handoff(
+            db,
+            db.get(Session, session_id),
+            "work privately",
+            permission_mode="full_auto",
+            effort="high",
+        )
         db.commit()
         run_id = run.id
         db.close()
@@ -209,6 +390,8 @@ class JarvisHandoffTest(ApiTest):
             asyncio.run(jarvis_handoff._execute(run_id))
         inject.assert_not_called()
         self.assertEqual(captured["disabled_tools"], ["memory_add", "memory_search", "shell"])
+        self.assertEqual(captured["agent_permission_mode"], "full_auto")
+        self.assertEqual(captured["agent_effort"], "high")
         db = self.db()
         self.assertEqual(db.get(JarvisRun, run_id).state, "succeeded")
         db.close()

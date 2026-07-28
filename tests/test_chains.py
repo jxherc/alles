@@ -107,16 +107,19 @@ class RunTests(unittest.TestCase):
                 captured["args"] = args
             return {"value": "hello", "id": "abc"}
 
-        _run([
-            {"name": "a"},
-            {
-                "name": "b",
-                "args": {
-                    "payload": {"query": "{{0.value}}", "meta": ["id", "{{0.id}}"]},
-                    "plain": 7,
+        _run(
+            [
+                {"name": "a"},
+                {
+                    "name": "b",
+                    "args": {
+                        "payload": {"query": "{{0.value}}", "meta": ["id", "{{0.id}}"]},
+                        "plain": 7,
+                    },
                 },
-            },
-        ], inv)
+            ],
+            inv,
+        )
         self.assertEqual(captured["args"]["payload"], {"query": "hello", "meta": ["id", "abc"]})
         self.assertEqual(captured["args"]["plain"], 7)
 

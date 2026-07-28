@@ -3,6 +3,7 @@ Run against an isolated server seeded with livetest.md:
   ALLES_DATA=<abs>/.tmp_3c PORT=8871 AUTH_ENABLED=false python app.py
   python docs/evidence/ui-3c/verify.py 8871
 Exits non-zero (and prints FAIL lines) until the live-preview engine renders each element."""
+
 import sys
 
 from playwright.sync_api import sync_playwright
@@ -28,7 +29,9 @@ def run():
         }""")
         pg.wait_for_timeout(1400)
         # park the cursor on the title line (line 1) so nothing below it is "active"/revealed
-        pg.evaluate("""() => { const v = window._cmEditor?.view; if (v) v.dispatch({selection:{anchor:0}}); }""")
+        pg.evaluate(
+            """() => { const v = window._cmEditor?.view; if (v) v.dispatch({selection:{anchor:0}}); }"""
+        )
         pg.wait_for_timeout(700)
         d = pg.evaluate("""() => {
           const c = document.querySelector('.cm-content');
@@ -52,7 +55,10 @@ def run():
             (print(f"PASS {name}") if cond else fails.append(name))
 
         ok("two images render (md + wiki-embed)", len([s for s in d["imgs"] if s]) >= 2)
-        ok("wiki-embed image uses raw route", any("/api/vault-md/raw?path=" in s for s in d["imgs"]))
+        ok(
+            "wiki-embed image uses raw route",
+            any("/api/vault-md/raw?path=" in s for s in d["imgs"]),
+        )
         ok("table renders", d["tables"] >= 1)
         ok("two checkboxes render", d["checkboxes"] >= 2)
         ok("one checkbox is checked", d["checked"] >= 1)
@@ -62,8 +68,14 @@ def run():
         ok("highlight renders", d["marks"] >= 1)
         link = next((l for l in d["links"] if l["h"] and "example.com" in l["h"]), None)
         ok("link is an anchor with href", link is not None)
-        ok("link text shown, url hidden", link is not None and "example.com" not in (link["t"] or "")
-            and "url" not in d["text"].lower().split("example")[0][-40:] if link else False)
+        ok(
+            "link text shown, url hidden",
+            link is not None
+            and "example.com" not in (link["t"] or "")
+            and "url" not in d["text"].lower().split("example")[0][-40:]
+            if link
+            else False,
+        )
         ok("raw pipes gone from live text", "| Name | Role |" not in d["text"])
         ok("raw ![[ ]] gone from live text", "![[" not in d["text"])
 

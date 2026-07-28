@@ -104,8 +104,14 @@ class ExportDispatchTests(unittest.TestCase):
     def test_export_contacts_vcard(self):
         # this path used to crash: it passed ORM Contact rows to to_vcard (which does
         # c.get(...)), and dropped company/title/address/birthday/website/notes
-        self.s.add(db.Contact(name="Ada Lovelace", email="ada@x.com", company="Analytical",
-                              notes="enchantress of numbers"))
+        self.s.add(
+            db.Contact(
+                name="Ada Lovelace",
+                email="ada@x.com",
+                company="Analytical",
+                notes="enchantress of numbers",
+            )
+        )
         self.s.commit()
         content, _, _ = ex.export(self.s, "contacts", "vcard")
         self.assertIn("BEGIN:VCARD", content)

@@ -141,15 +141,15 @@ class TimelineLockTests(unittest.TestCase):
         db.engine = self.eng
         db.SessionLocal.configure(bind=self.eng)
         s = db.SessionLocal()
-        from datetime import datetime
+        from datetime import UTC, datetime
 
         s.add(
             db.JournalEntry(
                 date="2026-06-23",
                 content="SECRETMARKER private stuff",
                 mood="calm",
-                created_at=datetime.utcnow(),
-                updated_at=datetime.utcnow(),
+                created_at=datetime.now(UTC).replace(tzinfo=None),
+                updated_at=datetime.now(UTC).replace(tzinfo=None),
             )
         )
         s.commit()

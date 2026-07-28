@@ -1,4 +1,6 @@
+import json
 import os
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -6,7 +8,7 @@ from unittest import mock
 
 from sqlalchemy import create_engine, text
 
-from core.database import Project, Session
+from core.database import ModelEndpoint, Project, Session
 from core.migrations import m0025_project_environments
 from routes.chat import _resolve_mentions, _resolve_working_dir
 from services import agent_tools
@@ -145,6 +147,276 @@ class ProjectEnvironmentApiTest(ApiTest):
         )
         self.assertEqual(response.status_code, 404)
         self.assertEqual(response.json()["detail"], "project not found")
+
+    def test_aide_terminal_uses_the_selected_project_folder(self):
+        folder = self.root / "terminal project"
+        folder.mkdir()
+        project = self.client.post(
+            "/api/projects", json={"name": "terminal", "working_dir": str(folder)}
+        ).json()
+        session = self.client.post(
+            "/api/sessions", json={"name": "terminal", "project_id": project["id"]}
+        ).json()
+
+        for context in ({"session_id": session["id"]}, {"project_id": project["id"]}):
+            with self.subTest(context=context):
+                response = self.client.post("/api/shell/exec", json={"command": "pwd", **context})
+                self.assertEqual(response.status_code, 200)
+                actual = Path(response.json()["stdout"].strip()).resolve()
+                self.assertEqual(actual, folder.resolve())
+
+    def test_aide_agent_uses_the_selected_project_folder(self):
+        folder = self.root / "agent project"
+        folder.mkdir()
+        project = self.client.post(
+            "/api/projects", json={"name": "agent", "working_dir": str(folder)}
+        ).json()
+        db = self.db()
+        endpoint = ModelEndpoint(
+            name="local",
+            base_url="http://127.0.0.1:11434",
+            cached_models=json.dumps(["test-model"]),
+        )
+        db.add(endpoint)
+        db.commit()
+        db.refresh(endpoint)
+        endpoint_id = endpoint.id
+        db.close()
+        session = self.client.post(
+            "/api/sessions",
+            json={
+                "name": "agent",
+                "project_id": project["id"],
+                "endpoint_id": endpoint_id,
+                "model": "test-model",
+            },
+        ).json()
+        captured = {}
+
+        async def run_agent(
+            messages,
+            endpoint,
+            model,
+            stop_event,
+            settings,
+            accumulated,
+            thinking,
+            steps,
+            session_id="",
+        ):
+            captured.update(settings)
+            accumulated.append("done")
+            yield {"delta": "done"}
+            yield {"done": True, "usage": {}}
+
+        with (
+            mock.patch("routes.chat.load_settings", return_value={}),
+            mock.patch("routes.chat.inject_memories", return_value=("", [])),
+            mock.patch("routes.chat.run_agent", run_agent),
+        ):
+            response = self.client.post(
+                "/api/chat",
+                json={
+                    "session_id": session["id"],
+                    "message": "check this project",
+                    "mode": "agent",
+                },
+            )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(captured["agent_cwd"], str(folder.resolve()))
+        self.assertEqual(captured["agent_environment"], "project")
+        self.assertEqual(captured["agent_project_id"], project["id"])
+
+    def test_project_git_branches_can_be_listed_and_switched_safely(self):
+        repo = self.root / "branch project"
+        repo.mkdir()
+
+        def git(*args):
+            return subprocess.run(
+                ["git", "-C", str(repo), *args],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+
+        git("init", "-q", "-b", "main")
+        git("config", "user.name", "alles test")
+        git("config", "user.email", "alles@example.invalid")
+        (repo / "README.md").write_text("main\n")
+        git("add", "README.md")
+        git("commit", "-qm", "initial")
+        git("branch", "dev-afterlife")
+
+        project = self.client.post(
+            "/api/projects", json={"name": "branches", "working_dir": str(repo)}
+        ).json()
+        endpoint = f"/api/projects/{project['id']}/git/branches"
+
+        listed = self.client.get(endpoint)
+        self.assertEqual(listed.status_code, 200)
+        self.assertEqual(listed.json()["current"], "main")
+        self.assertEqual(listed.json()["branches"], ["main", "dev-afterlife"])
+
+        switched = self.client.post(endpoint, json={"branch": "dev-afterlife"})
+        self.assertEqual(switched.status_code, 200)
+        self.assertEqual(switched.json()["current"], "dev-afterlife")
+        self.assertEqual(git("branch", "--show-current").stdout.strip(), "dev-afterlife")
+
+        (repo / "dirty.txt").write_text("keep me\n")
+        carried = self.client.post(endpoint, json={"branch": "main"})
+        self.assertEqual(carried.status_code, 200)
+        self.assertEqual(carried.json()["current"], "main")
+        self.assertTrue(carried.json()["dirty"])
+        self.assertEqual((repo / "dirty.txt").read_text(), "keep me\n")
+
+        git("switch", "dev-afterlife")
+        (repo / "README.md").write_text("dev\n")
+        git("add", "README.md")
+        git("commit", "-qm", "change on dev")
+        git("switch", "main")
+        (repo / "README.md").write_text("local work\n")
+        refused = self.client.post(endpoint, json={"branch": "dev-afterlife"})
+        self.assertEqual(refused.status_code, 409)
+        self.assertEqual(refused.json()["code"], "project_git_switch_failed")
+        self.assertEqual(git("branch", "--show-current").stdout.strip(), "main")
+        self.assertEqual((repo / "README.md").read_text(), "local work\n")
+
+    def test_non_git_project_has_no_branch_context(self):
+        project = self.client.post(
+            "/api/projects", json={"name": "plain", "working_dir": str(self.root)}
+        ).json()
+        response = self.client.get(f"/api/projects/{project['id']}/git/branches")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            {"repository": False, "current": "", "branches": [], "dirty": False},
+        )
+
+    def test_git_timeout_returns_a_controlled_non_repository_state(self):
+        timeout = subprocess.TimeoutExpired(["git"], 15)
+        with mock.patch("services.project_git.subprocess.run", side_effect=timeout):
+            project = self.client.post(
+                "/api/projects", json={"name": "slow", "working_dir": str(self.root)}
+            ).json()
+            response = self.client.get(f"/api/projects/{project['id']}/git/branches")
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertFalse(response.json()["repository"])
+
+    def test_git_helper_decodes_unusual_ref_bytes_and_terminates_switch_options(self):
+        from services import project_git
+
+        completed = subprocess.CompletedProcess(["git"], 0, stdout="main\ufffd\n", stderr="")
+        with mock.patch("services.project_git.subprocess.run", return_value=completed) as run:
+            result = project_git._git(str(self.root), "branch", "--show-current")
+        self.assertEqual(result.stdout, "main\ufffd\n")
+        self.assertEqual(run.call_args.kwargs["encoding"], "utf-8")
+        self.assertEqual(run.call_args.kwargs["errors"], "replace")
+
+        state = {
+            "repository": True,
+            "current": "main",
+            "branches": ["main", "--option-shaped"],
+            "dirty": False,
+        }
+        switched = {**state, "current": "--option-shaped"}
+        with (
+            mock.patch("services.project_git.branch_state", side_effect=[state, switched]),
+            mock.patch(
+                "services.project_git._git",
+                return_value=subprocess.CompletedProcess(["git"], 0, stdout="", stderr=""),
+            ) as git,
+        ):
+            self.assertEqual(
+                project_git.switch_branch(str(self.root), "--option-shaped")["current"],
+                "--option-shaped",
+            )
+        git.assert_called_once_with(
+            str(self.root),
+            "switch",
+            "--no-guess",
+            "--",
+            "--option-shaped",
+            timeout=120,
+        )
+
+    def test_branch_switch_timeout_reconciles_a_completed_checkout(self):
+        from services import project_git
+
+        state = {
+            "repository": True,
+            "current": "main",
+            "branches": ["main", "next"],
+            "dirty": False,
+        }
+        switched = {**state, "current": "next"}
+        timed_out = subprocess.CompletedProcess(["git"], 124, stdout="", stderr="timed out")
+        with (
+            mock.patch("services.project_git.branch_state", side_effect=[state, switched]),
+            mock.patch("services.project_git._git", return_value=timed_out) as git,
+        ):
+            self.assertEqual(project_git.switch_branch(str(self.root), "next"), switched)
+        git.assert_called_once_with(
+            str(self.root), "switch", "--no-guess", "--", "next", timeout=120
+        )
+
+    def test_task_session_remembers_a_temporary_folder_without_a_project(self):
+        folder = self.root / "temporary work"
+        folder.mkdir()
+        created = self.client.post(
+            "/api/sessions",
+            json={"name": "task folder", "working_dir": str(folder)},
+        )
+        self.assertEqual(created.status_code, 200)
+        session = created.json()
+        self.assertIsNone(session["project_id"])
+        self.assertEqual(session["environment"]["kind"], "legacy_folder")
+        self.assertEqual(session["environment"]["cwd"], str(folder.resolve()))
+
+        history = self.client.get(f"/api/sessions/{session['id']}/history").json()
+        self.assertEqual(history["session"]["environment"]["cwd"], str(folder.resolve()))
+
+    def test_task_session_git_branch_can_be_selected_safely(self):
+        repo = self.root / "task repo"
+        repo.mkdir()
+
+        def git(*args, check=True):
+            return subprocess.run(
+                ["git", "-C", str(repo), *args],
+                check=check,
+                capture_output=True,
+                text=True,
+            )
+
+        git("init", "-q", "-b", "main")
+        git("config", "user.name", "alles test")
+        git("config", "user.email", "alles@example.invalid")
+        (repo / "README.md").write_text("main\n")
+        git("add", "README.md")
+        git("commit", "-qm", "initial")
+        git("branch", "dev-afterlife")
+        session = self.client.post(
+            "/api/sessions", json={"name": "task repo", "working_dir": str(repo)}
+        ).json()
+        endpoint = f"/api/sessions/{session['id']}/git/branches"
+
+        listed = self.client.get(endpoint)
+        self.assertEqual(listed.status_code, 200)
+        self.assertEqual(listed.json()["current"], "main")
+        switched = self.client.post(endpoint, json={"branch": "dev-afterlife"})
+        self.assertEqual(switched.status_code, 200)
+        self.assertEqual(git("branch", "--show-current").stdout.strip(), "dev-afterlife")
+
+        git("switch", "main")
+        git("switch", "dev-afterlife")
+        (repo / "README.md").write_text("dev\n")
+        git("add", "README.md")
+        git("commit", "-qm", "change on dev")
+        git("switch", "main")
+        (repo / "README.md").write_text("dirty\n")
+        refused = self.client.post(endpoint, json={"branch": "dev-afterlife"})
+        self.assertEqual(refused.status_code, 409)
+        self.assertEqual(refused.json()["code"], "session_git_switch_failed")
+        self.assertEqual((repo / "README.md").read_text(), "dirty\n")
 
     def test_relink_requires_a_recent_owner_session_when_login_is_enabled(self):
         from core import auth

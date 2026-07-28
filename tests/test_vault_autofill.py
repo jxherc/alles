@@ -21,7 +21,9 @@ class AutofillMatchTests(ApiTest):
         self._sf.close()
         self.sp = mock.patch.object(core.settings, "_SETTINGS_FILE", Path(self._sf.name))
         self.sp.start()
-        self.tok = self.client.post("/api/vault/unlock", json={"password": "m1"}).json()["token"]
+        self.tok = self.client.post(
+            "/api/vault/unlock", json={"password": "master-password-1"}
+        ).json()["token"]
         self.h = {"X-Vault-Token": self.tok}
 
     def tearDown(self):
@@ -90,18 +92,24 @@ class ExtensionFilesTests(ApiTest):
         self.assertEqual(man["manifest_version"], 3)
         self.assertTrue(man.get("name"))
 
-    def test_extension_is_a_permission_free_notice_shell(self):
+    def test_extension_requests_only_current_tab_storage_idle_and_optional_hosts(self):
         man = json.loads((EXT / "manifest.json").read_text(encoding="utf-8"))
-        for key in ("permissions", "host_permissions", "background", "content_scripts"):
-            self.assertNotIn(key, man)
-        self.assertFalse((EXT / "background.js").exists())
+        self.assertEqual(set(man["permissions"]), {"activeTab", "scripting", "storage", "idle"})
+        self.assertNotIn("host_permissions", man)
+        self.assertNotIn("content_scripts", man)
+        self.assertNotIn("<all_urls>", man["optional_host_permissions"])
+        self.assertEqual(man["background"], {"service_worker": "background.js"})
+        self.assertTrue((EXT / "background.js").exists())
         self.assertFalse((EXT / "content.js").exists())
-        self.assertFalse((EXT / "popup.js").exists())
+        self.assertTrue((EXT / "popup.js").exists())
 
-    def test_extension_contains_no_vault_token_flow(self):
+    def test_extension_uses_paired_storage_and_top_frame_only(self):
         source = "\n".join(path.read_text("utf-8") for path in EXT.iterdir() if path.is_file())
         self.assertNotIn("X-Vault-Token", source)
-        self.assertNotIn("chrome.storage", source)
+        self.assertIn("chrome.storage.local", source)
+        self.assertIn("chrome.storage.session", source)
         self.assertNotIn("<all_urls>", source)
-        self.assertIn("browser autofill is off", source)
-        self.assertIn("open Passwords in Alles", source)
+        self.assertIn("frameIds: [0]", source)
+        self.assertNotIn("allFrames", source)
+        self.assertIn("new-password", source)
+        self.assertNotIn(".submit(", source)

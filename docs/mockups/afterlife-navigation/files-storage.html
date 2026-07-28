@@ -1,0 +1,725 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Standalone KOKUEN Files and storage-locations starter for Alles.">
+  <title>Alles Files — Phase 7 KOKUEN starter</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #090909;
+      --panel: #0d0d0d;
+      --raised: #141414;
+      --hover: #181818;
+      --selected: #1d1d1d;
+      --text: #eceae6;
+      --soft: #b9b5b0;
+      --muted: #85817c;
+      --quiet: #5f5c58;
+      --line: #292929;
+      --line-strong: #3b3b3b;
+      --accent: #9298ff;
+      --accent-wash: rgba(146, 152, 255, 0.12);
+      --warning: #d2a064;
+      --danger: #df7474;
+      --success: #7ea98b;
+      --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+    }
+
+    [data-theme="light"] {
+      color-scheme: light;
+      --bg: #f4f3f0;
+      --panel: #efeeeb;
+      --raised: #e7e5e1;
+      --hover: #e9e7e3;
+      --selected: #e1dfda;
+      --text: #242321;
+      --soft: #56534f;
+      --muted: #77726c;
+      --quiet: #99938c;
+      --line: #d5d1ca;
+      --line-strong: #bbb5ad;
+      --accent: #6269d8;
+      --accent-wash: rgba(98, 105, 216, 0.11);
+      --warning: #946726;
+      --danger: #b54d4d;
+      --success: #477c56;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html,
+    body {
+      min-height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-family, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif);
+      font-feature-settings: "cv11", "ss01", "ss03";
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body { min-height: 100dvh; overflow: hidden; }
+    button, input { font: inherit; }
+    button, input { appearance: none; color: inherit; }
+    button { border: 0; background: transparent; cursor: pointer; }
+    svg { display: block; }
+
+    :focus-visible { outline: 1px solid var(--accent); outline-offset: 3px; }
+
+    .skip-link {
+      position: fixed;
+      top: 10px;
+      left: 10px;
+      z-index: 40;
+      padding: 7px 9px;
+      border: 1px solid var(--line);
+      border-radius: 3px;
+      background: var(--raised);
+      color: var(--text);
+      font-size: 0.78rem;
+      transform: translateY(-160%);
+    }
+
+    .skip-link:focus { transform: translateY(0); }
+
+    .symbols { position: absolute; width: 0; height: 0; overflow: hidden; }
+    .icon { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
+    .icon.small { width: 14px; height: 14px; }
+
+    .shell {
+      min-height: 100dvh;
+      display: grid;
+      grid-template-columns: 224px minmax(360px, 1fr) minmax(248px, 318px);
+      grid-template-rows: 52px minmax(0, 1fr) auto;
+      background: var(--bg);
+    }
+
+    .topbar {
+      grid-column: 1 / -1;
+      display: grid;
+      grid-template-columns: 224px minmax(0, 1fr) minmax(248px, 318px);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .top-brand,
+    .top-path,
+    .top-actions { min-width: 0; display: flex; align-items: center; height: 100%; }
+
+    .top-brand { padding: 0 15px; border-right: 1px solid var(--line); }
+    .wordmark { font-size: 0.88rem; font-weight: 590; letter-spacing: -0.02em; }
+    .home-action { margin-left: auto; color: var(--muted); font-size: 0.74rem; }
+    .home-action:hover { color: var(--text); }
+
+    .top-path { gap: 7px; padding: 0 15px; }
+    .crumb { min-width: 0; overflow: hidden; color: var(--muted); font-size: 0.78rem; text-overflow: ellipsis; white-space: nowrap; }
+    .crumb strong { color: var(--soft); font-weight: 540; }
+    .sync-state { margin-left: auto; color: var(--quiet); font-size: 0.7rem; white-space: nowrap; }
+
+    .top-actions { justify-content: flex-end; gap: 15px; padding: 0 15px; border-left: 1px solid var(--line); }
+    .text-action { min-height: 32px; color: var(--muted); font-size: 0.74rem; }
+    .text-action:hover { color: var(--text); }
+
+    .location-panel {
+      grid-column: 1;
+      grid-row: 2;
+      min-width: 0;
+      padding: 14px 10px;
+      border-right: 1px solid var(--line);
+      background: var(--panel);
+      overflow: auto;
+    }
+
+    .panel-label {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 7px 7px;
+      color: var(--quiet);
+      font-size: 0.68rem;
+      font-weight: 590;
+      letter-spacing: 0.025em;
+      text-transform: lowercase;
+    }
+
+    .panel-add { color: var(--muted); font-size: 1rem; line-height: 1; }
+    .panel-add:hover { color: var(--text); }
+    .location-list, .nav-list { display: grid; gap: 2px; list-style: none; }
+
+    .location-button,
+    .nav-button {
+      width: 100%;
+      min-height: 38px;
+      display: grid;
+      grid-template-columns: 16px minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 9px;
+      padding: 5px 7px;
+      border-radius: 3px;
+      color: var(--muted);
+      text-align: left;
+    }
+
+    .location-button:hover,
+    .location-button:focus-visible,
+    .nav-button:hover,
+    .nav-button:focus-visible { background: var(--hover); color: var(--soft); }
+
+    .location-button[aria-current="true"],
+    .nav-button[aria-current="page"] { background: var(--raised); color: var(--text); }
+    .location-copy { min-width: 0; }
+    .location-name { display: block; overflow: hidden; font-size: 0.82rem; font-weight: 540; text-overflow: ellipsis; white-space: nowrap; }
+    .location-meta { display: block; margin-top: 2px; color: var(--quiet); font-size: 0.69rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    .status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--success); }
+    .status-dot.syncing { background: var(--accent); }
+    .status-dot.offline { background: var(--warning); }
+    .location-section + .location-section { margin-top: 21px; }
+    .nav-button { min-height: 34px; padding-block: 4px; font-size: 0.79rem; }
+    .nav-count { color: var(--quiet); font-size: 0.66rem; font-variant-numeric: tabular-nums; }
+
+    .file-panel {
+      grid-column: 2;
+      grid-row: 2;
+      min-width: 0;
+      display: grid;
+      grid-template-rows: auto auto minmax(0, 1fr);
+      overflow: hidden;
+    }
+
+    .file-tools {
+      min-height: 48px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 8px 16px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .search {
+      position: relative;
+      width: min(320px, 54%);
+    }
+
+    .search .icon { position: absolute; top: 50%; left: 8px; color: var(--quiet); transform: translateY(-50%); pointer-events: none; }
+    .search-input {
+      width: 100%;
+      height: 32px;
+      padding: 0 8px 0 30px;
+      border: 1px solid transparent;
+      border-bottom-color: var(--line);
+      border-radius: 0;
+      outline: 0;
+      background: transparent;
+      color: var(--text);
+      font-size: 0.76rem;
+    }
+    .search-input::placeholder { color: var(--quiet); }
+    .search-input:focus { border-bottom-color: var(--accent); }
+    .tool-spacer { flex: 1; }
+    .icon-action { min-width: 28px; min-height: 28px; display: grid; place-items: center; color: var(--muted); border-radius: 3px; }
+    .icon-action:hover { color: var(--text); background: var(--hover); }
+
+    .selection-bar {
+      min-height: 38px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 0 17px;
+      border-bottom: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 0.72rem;
+    }
+    .selection-bar[hidden] { display: none; }
+    .selection-count { color: var(--text); }
+    .selection-action { color: var(--muted); font-size: 0.72rem; }
+    .selection-action:hover { color: var(--text); }
+    .selection-action.danger:hover { color: var(--danger); }
+
+    .file-scroll { min-height: 0; overflow: auto; padding-bottom: 44px; }
+    .file-head,
+    .file-row {
+      display: grid;
+      grid-template-columns: 28px minmax(170px, 1.5fr) minmax(84px, 0.65fr) 76px 80px;
+      align-items: center;
+      column-gap: 10px;
+      padding: 0 16px;
+    }
+
+    .file-head { height: 35px; position: sticky; top: 0; z-index: 3; border-bottom: 1px solid var(--line); background: var(--bg); color: var(--quiet); font-size: 0.65rem; }
+    .file-row { min-height: 47px; border-bottom: 1px solid color-mix(in srgb, var(--line) 72%, transparent); color: var(--muted); font-size: 0.76rem; }
+    .file-row:hover { background: var(--hover); }
+    .file-row[aria-selected="true"] { background: var(--selected); }
+    .file-row.focused .file-name { color: var(--text); }
+
+    .check {
+      width: 16px;
+      height: 16px;
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--line-strong);
+      border-radius: 2px;
+      color: transparent;
+    }
+    .check[aria-checked="true"] { border-color: var(--accent); background: var(--accent-wash); color: var(--accent); }
+    .check .icon { width: 11px; height: 11px; stroke-width: 1.8; }
+
+    .file-name-wrap { min-width: 0; display: flex; align-items: center; gap: 10px; }
+    .file-kind { flex: 0 0 auto; color: var(--muted); }
+    .file-name { overflow: hidden; color: var(--soft); font-size: 0.86rem; text-overflow: ellipsis; white-space: nowrap; }
+    .file-badge { flex: 0 0 auto; color: var(--quiet); font-size: 0.62rem; }
+    .file-cell { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    .state-stage { min-height: 270px; display: grid; place-items: center; padding: 34px; color: var(--muted); }
+    .state-stage[hidden] { display: none; }
+    .state-copy { max-width: 320px; text-align: center; }
+    .state-title { color: var(--soft); font-size: 0.84rem; font-weight: 560; }
+    .state-detail { margin-top: 8px; color: var(--quiet); font-size: 0.73rem; line-height: 1.5; }
+    .state-retry { margin-top: 15px; color: var(--muted); font-size: 0.73rem; }
+    .state-retry:hover { color: var(--text); }
+
+    .skeleton-list { width: 100%; align-self: start; }
+    .skeleton-row { height: 47px; display: grid; grid-template-columns: 18px 42% 18% 12%; align-items: center; gap: 18px; padding: 0 17px; border-bottom: 1px solid var(--line); }
+    .skeleton { height: 8px; border-radius: 2px; background: var(--raised); }
+    .skeleton:nth-child(2) { width: 82%; }
+    .skeleton:nth-child(3) { width: 68%; }
+
+    .partial-note { margin: 11px 16px 3px; padding: 9px 11px; border-left: 2px solid var(--warning); background: var(--raised); color: var(--muted); font-size: 0.7rem; line-height: 1.45; }
+    .partial-note[hidden] { display: none; }
+
+    .preview-panel {
+      grid-column: 3;
+      grid-row: 2;
+      min-width: 0;
+      border-left: 1px solid var(--line);
+      background: var(--panel);
+      overflow: auto;
+    }
+
+    .preview-head { min-height: 48px; display: flex; align-items: center; justify-content: space-between; padding: 0 15px; border-bottom: 1px solid var(--line); }
+    .preview-label { color: var(--muted); font-size: 0.7rem; }
+    .preview-close { display: none; color: var(--muted); }
+    .preview-body { padding: 18px 17px 28px; }
+
+    .preview-mark { width: 54px; height: 68px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 3px; background: var(--raised); color: var(--muted); }
+    .preview-mark .icon { width: 23px; height: 23px; }
+    .preview-name { margin-top: 15px; color: var(--text); font-size: 0.98rem; font-weight: 550; line-height: 1.35; word-break: break-word; }
+    .preview-path { margin-top: 5px; color: var(--quiet); font-size: 0.68rem; line-height: 1.4; word-break: break-word; }
+
+    .preview-actions { display: flex; flex-wrap: wrap; gap: 13px; margin-top: 20px; }
+    .preview-action { color: var(--muted); font-size: 0.72rem; }
+    .preview-action:hover { color: var(--text); }
+    .preview-action[aria-pressed="true"] { color: var(--accent); }
+
+    .detail-list { display: grid; gap: 11px; margin-top: 25px; padding-top: 18px; border-top: 1px solid var(--line); }
+    .detail-row { display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 9px; color: var(--quiet); font-size: 0.73rem; line-height: 1.4; }
+    .detail-value { color: var(--muted); overflow-wrap: anywhere; }
+    .conflict-box { margin-top: 22px; padding: 11px; border: 1px solid color-mix(in srgb, var(--warning) 54%, var(--line)); border-radius: 3px; background: color-mix(in srgb, var(--warning) 7%, var(--panel)); }
+    .conflict-title { color: var(--warning); font-size: 0.73rem; font-weight: 560; }
+    .conflict-copy { margin-top: 6px; color: var(--muted); font-size: 0.68rem; line-height: 1.48; }
+    .conflict-actions { display: flex; gap: 14px; margin-top: 10px; }
+
+    .operation-dock {
+      grid-column: 1 / -1;
+      grid-row: 3;
+      z-index: 10;
+      border-top: 1px solid var(--line);
+      background: var(--panel);
+    }
+    .operation-dock[hidden] { display: none; }
+    .operation-summary { min-height: 42px; display: grid; grid-template-columns: auto minmax(120px, 1fr) auto auto auto; align-items: center; gap: 12px; padding: 0 15px; }
+    .operation-icon { color: var(--accent); }
+    .operation-copy { min-width: 0; }
+    .operation-title { display: block; color: var(--soft); font-size: 0.72rem; }
+    .operation-meta { display: block; margin-top: 2px; color: var(--quiet); font-size: 0.63rem; }
+    .progress { width: min(180px, 20vw); height: 2px; background: var(--line); overflow: hidden; }
+    .progress-fill { width: 64%; height: 100%; background: var(--accent); }
+    .operation-button { color: var(--muted); font-size: 0.7rem; }
+    .operation-button:hover { color: var(--text); }
+
+    .demo-control { position: relative; }
+    .demo-menu {
+      position: absolute;
+      top: calc(100% + 7px);
+      right: 0;
+      z-index: 30;
+      width: 176px;
+      padding: 5px;
+      border: 1px solid var(--line-strong);
+      border-radius: 4px;
+      background: var(--raised);
+      box-shadow: 0 18px 48px rgba(0, 0, 0, 0.28);
+    }
+    .demo-menu[hidden] { display: none; }
+    .demo-option { width: 100%; min-height: 34px; padding: 0 9px; border-radius: 2px; color: var(--muted); font-size: 0.74rem; text-align: left; }
+    .demo-option:hover,
+    .demo-option:focus-visible,
+    .demo-option[aria-selected="true"] { background: var(--hover); color: var(--text); }
+
+    .toast { position: fixed; left: 50%; bottom: 15px; z-index: 50; padding: 8px 10px; border: 1px solid var(--line); border-radius: 3px; background: var(--raised); color: var(--soft); font-size: 0.72rem; opacity: 0; transform: translate(-50%, 4px); pointer-events: none; transition: opacity 140ms var(--ease), transform 140ms var(--ease); }
+    .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+    @media (max-width: 920px) {
+      .shell { grid-template-columns: 194px minmax(0, 1fr); }
+      .topbar { grid-template-columns: 194px minmax(0, 1fr); }
+      .top-actions { position: absolute; top: 0; right: 0; height: 52px; border-left: 0; }
+      .top-path { padding-right: 210px; }
+      .preview-panel { position: fixed; top: 52px; right: 0; bottom: 0; z-index: 20; width: min(340px, 86vw); box-shadow: -18px 0 45px rgba(0, 0, 0, 0.32); transform: translateX(0); transition: transform 160ms var(--ease); }
+      .preview-panel.closed { transform: translateX(105%); }
+      .preview-close { display: block; }
+    }
+
+    @media (max-width: 660px) {
+      body { overflow: auto; }
+      .shell { min-height: 100dvh; grid-template-columns: 1fr; grid-template-rows: 49px auto minmax(420px, 1fr) auto; }
+      .topbar { grid-column: 1; grid-row: 1; grid-template-columns: 1fr auto; }
+      .top-brand { border-right: 0; }
+      .top-path { display: none; }
+      .top-actions { position: static; height: 49px; padding-right: 12px; }
+      .top-actions .demo-control { display: none; }
+      .location-panel { grid-column: 1; grid-row: 2; display: flex; gap: 6px; padding: 9px 11px; border-right: 0; border-bottom: 1px solid var(--line); overflow-x: auto; }
+      .location-section { margin: 0 !important; }
+      .location-section .panel-label, .location-section.nav-only { display: none; }
+      .location-list { display: flex; gap: 5px; }
+      .location-button { min-width: 146px; }
+      .file-panel { grid-column: 1; grid-row: 3; }
+      .file-tools { padding-inline: 11px; }
+      .search { width: min(240px, 70%); }
+      .file-head, .file-row { grid-template-columns: 27px minmax(175px, 1fr) 68px; padding-inline: 11px; }
+      .file-head > :nth-child(3), .file-row > :nth-child(3), .file-head > :nth-child(5), .file-row > :nth-child(5) { display: none; }
+      .preview-panel { top: 49px; }
+      .operation-dock { grid-column: 1; grid-row: 4; position: sticky; bottom: 0; }
+      .operation-summary { grid-template-columns: auto minmax(90px, 1fr) auto; }
+      .progress { display: none; }
+      .operation-button:first-of-type { display: none; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0.001ms !important; animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#file-list">skip to files</a>
+
+  <svg class="symbols" aria-hidden="true">
+    <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3.5 7.5h6l1.6 2h9.4v9.2a1.8 1.8 0 0 1-1.8 1.8H5.3a1.8 1.8 0 0 1-1.8-1.8z"/><path d="M3.5 8V5.8A1.3 1.3 0 0 1 4.8 4.5h4.1l1.6 2h8.2A1.8 1.8 0 0 1 20.5 8v1.5"/></symbol>
+    <symbol id="i-file" viewBox="0 0 24 24"><path d="M6.5 3.5h7l4 4v13h-11z"/><path d="M13.5 3.5v4h4"/></symbol>
+    <symbol id="i-drive" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="13.5" rx="2"/><path d="M7 15.5h.01M10 15.5h.01M3.5 12h17"/></symbol>
+    <symbol id="i-cloud" viewBox="0 0 24 24"><path d="M7 18.5h10a4 4 0 0 0 .4-8A6 6 0 0 0 6 9a4.8 4.8 0 0 0 1 9.5z"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.2 4.2L19 7"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></symbol>
+    <symbol id="i-star" viewBox="0 0 24 24"><path d="m12 3 2.7 5.5 6 .9-4.3 4.2 1 6-5.4-2.9-5.4 2.9 1-6-4.3-4.2 6-.9z"/></symbol>
+    <symbol id="i-offline" viewBox="0 0 24 24"><path d="M7 18.5h10a4 4 0 0 0 .4-8A6 6 0 0 0 6 9a4.8 4.8 0 0 0 1 9.5z"/><path d="m9 14 3 3 3-3M12 9v8"/></symbol>
+    <symbol id="i-transfer" viewBox="0 0 24 24"><path d="M4 8h14M15 5l3 3-3 3M20 16H6M9 13l-3 3 3 3"/></symbol>
+    <symbol id="i-more" viewBox="0 0 24 24"><circle cx="5" cy="12" r=".7" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r=".7" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r=".7" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></symbol>
+  </svg>
+
+  <div class="shell">
+    <header class="topbar">
+      <div class="top-brand">
+        <span class="wordmark">files</span>
+        <button class="home-action" type="button" data-toast="home is outside this starter">home</button>
+      </div>
+      <div class="top-path">
+        <p class="crumb"><strong id="crumb-location">on this server</strong> / projects / afterlife</p>
+        <span class="sync-state" id="sync-state">up to date</span>
+      </div>
+      <div class="top-actions">
+        <button class="text-action" type="button" id="theme-button">light</button>
+        <button class="text-action" type="button" id="transfers-button">transfers · 1</button>
+        <div class="demo-control">
+          <button class="text-action" type="button" id="demo-button" aria-haspopup="listbox" aria-expanded="false">demo state</button>
+          <div class="demo-menu" id="demo-menu" role="listbox" aria-label="Demo state" hidden>
+            <button class="demo-option" type="button" role="option" aria-selected="true" data-state="ready">ready</button>
+            <button class="demo-option" type="button" role="option" aria-selected="false" data-state="loading">loading</button>
+            <button class="demo-option" type="button" role="option" aria-selected="false" data-state="partial">partial connection</button>
+            <button class="demo-option" type="button" role="option" aria-selected="false" data-state="empty">empty folder</button>
+            <button class="demo-option" type="button" role="option" aria-selected="false" data-state="error">location error</button>
+          </div>
+        </div>
+        <button class="text-action" type="button" data-toast="settings are outside this starter">settings</button>
+      </div>
+    </header>
+
+    <aside class="location-panel" aria-label="Files navigation">
+      <section class="location-section">
+        <div class="panel-label"><span>locations</span><button class="panel-add" type="button" aria-label="Add storage location" data-toast="location setup preview only">+</button></div>
+        <ul class="location-list">
+          <li><button class="location-button" type="button" aria-current="true" data-location="on this server" data-status="up to date"><svg class="icon"><use href="#i-drive"/></svg><span class="location-copy"><span class="location-name">on this server</span><span class="location-meta">local · managed</span></span><span class="status-dot"></span></button></li>
+          <li><button class="location-button" type="button" aria-current="false" data-location="notes WebDAV" data-status="syncing 3 files"><svg class="icon"><use href="#i-cloud"/></svg><span class="location-copy"><span class="location-name">notes WebDAV</span><span class="location-meta">online · managed</span></span><span class="status-dot syncing"></span></button></li>
+          <li><button class="location-button" type="button" aria-current="false" data-location="archive S3" data-status="offline copy available"><svg class="icon"><use href="#i-cloud"/></svg><span class="location-copy"><span class="location-name">archive S3</span><span class="location-meta">online · read only</span></span><span class="status-dot offline"></span></button></li>
+        </ul>
+      </section>
+
+      <section class="location-section nav-only">
+        <div class="panel-label"><span>views</span></div>
+        <ul class="nav-list">
+          <li><button class="nav-button" type="button" aria-current="page"><svg class="icon"><use href="#i-folder"/></svg><span>all files</span><span class="nav-count">124</span></button></li>
+          <li><button class="nav-button" type="button"><svg class="icon"><use href="#i-clock"/></svg><span>recent</span><span class="nav-count">18</span></button></li>
+          <li><button class="nav-button" type="button"><svg class="icon"><use href="#i-star"/></svg><span>starred</span><span class="nav-count">7</span></button></li>
+          <li><button class="nav-button" type="button"><svg class="icon"><use href="#i-offline"/></svg><span>available offline</span><span class="nav-count">31</span></button></li>
+        </ul>
+      </section>
+    </aside>
+
+    <main class="file-panel" id="main">
+      <div class="file-tools">
+        <label class="search">
+          <span class="skip-link">search files</span>
+          <svg class="icon"><use href="#i-search"/></svg>
+          <input class="search-input" id="file-search" type="search" placeholder="search this location" autocomplete="off">
+        </label>
+        <span class="tool-spacer"></span>
+        <button class="text-action" type="button" data-toast="new folder created in the mock data">new folder</button>
+        <button class="text-action" type="button" data-toast="upload queue opened">upload</button>
+        <button class="icon-action" type="button" aria-label="More file actions" data-toast="more actions"><svg class="icon"><use href="#i-more"/></svg></button>
+      </div>
+
+      <div class="selection-bar" id="selection-bar" hidden>
+        <span class="selection-count" id="selection-count">0 selected</span>
+        <button class="selection-action" type="button" data-queue="copy">copy</button>
+        <button class="selection-action" type="button" data-queue="move">move</button>
+        <button class="selection-action" type="button" data-toast="selected items are available offline">offline</button>
+        <button class="selection-action danger" type="button" data-toast="delete would move items to trash">delete</button>
+        <span class="tool-spacer"></span>
+        <button class="selection-action" id="clear-selection" type="button">clear</button>
+      </div>
+
+      <div class="file-scroll" id="file-list" tabindex="-1">
+        <div class="file-head" id="file-head">
+          <button class="check" id="check-all" type="button" role="checkbox" aria-checked="false" aria-label="Select all files"><svg class="icon"><use href="#i-check"/></svg></button>
+          <span>name</span><span>location</span><span>size</span><span>changed</span>
+        </div>
+
+        <div id="ready-state">
+          <div class="partial-note" id="partial-note" hidden>showing the last verified listing. Three remote changes are waiting for the connection.</div>
+          <article class="file-row focused" tabindex="0" aria-selected="false" data-name="afterlife brief.md" data-kind="file">
+            <button class="check" type="button" role="checkbox" aria-checked="false" aria-label="Select afterlife brief.md"><svg class="icon"><use href="#i-check"/></svg></button>
+            <span class="file-name-wrap"><svg class="icon file-kind"><use href="#i-file"/></svg><span class="file-name">afterlife brief.md</span><span class="file-badge">offline</span></span><span class="file-cell">on this server</span><span class="file-cell">18 KB</span><span class="file-cell">now</span>
+          </article>
+          <article class="file-row" tabindex="0" aria-selected="false" data-name="field recordings" data-kind="folder">
+            <button class="check" type="button" role="checkbox" aria-checked="false" aria-label="Select field recordings"><svg class="icon"><use href="#i-check"/></svg></button>
+            <span class="file-name-wrap"><svg class="icon file-kind"><use href="#i-folder"/></svg><span class="file-name">field recordings</span></span><span class="file-cell">notes WebDAV</span><span class="file-cell">—</span><span class="file-cell">12m</span>
+          </article>
+          <article class="file-row" tabindex="0" aria-selected="false" data-name="photos handoff.zip" data-kind="file">
+            <button class="check" type="button" role="checkbox" aria-checked="false" aria-label="Select photos handoff.zip"><svg class="icon"><use href="#i-check"/></svg></button>
+            <span class="file-name-wrap"><svg class="icon file-kind"><use href="#i-file"/></svg><span class="file-name">photos handoff.zip</span><span class="file-badge">syncing</span></span><span class="file-cell">notes WebDAV</span><span class="file-cell">2.4 GB</span><span class="file-cell">1h</span>
+          </article>
+          <article class="file-row" tabindex="0" aria-selected="false" data-name="system map.canvas" data-kind="file">
+            <button class="check" type="button" role="checkbox" aria-checked="false" aria-label="Select system map.canvas"><svg class="icon"><use href="#i-check"/></svg></button>
+            <span class="file-name-wrap"><svg class="icon file-kind"><use href="#i-file"/></svg><span class="file-name">system map.canvas</span></span><span class="file-cell">on this server</span><span class="file-cell">64 KB</span><span class="file-cell">Tue</span>
+          </article>
+          <article class="file-row" tabindex="0" aria-selected="false" data-name="travel scans" data-kind="folder">
+            <button class="check" type="button" role="checkbox" aria-checked="false" aria-label="Select travel scans"><svg class="icon"><use href="#i-check"/></svg></button>
+            <span class="file-name-wrap"><svg class="icon file-kind"><use href="#i-folder"/></svg><span class="file-name">travel scans</span><span class="file-badge">read only</span></span><span class="file-cell">archive S3</span><span class="file-cell">—</span><span class="file-cell">Jul 9</span>
+          </article>
+          <article class="file-row" tabindex="0" aria-selected="false" data-name="budget export.csv" data-kind="file">
+            <button class="check" type="button" role="checkbox" aria-checked="false" aria-label="Select budget export.csv"><svg class="icon"><use href="#i-check"/></svg></button>
+            <span class="file-name-wrap"><svg class="icon file-kind"><use href="#i-file"/></svg><span class="file-name">budget export.csv</span></span><span class="file-cell">on this server</span><span class="file-cell">92 KB</span><span class="file-cell">Jul 6</span>
+          </article>
+        </div>
+
+        <div class="state-stage" id="loading-state" hidden>
+          <div class="skeleton-list" aria-label="Loading files">
+            <div class="skeleton-row"><i class="skeleton"></i><i class="skeleton"></i><i class="skeleton"></i><i class="skeleton"></i></div>
+            <div class="skeleton-row"><i class="skeleton"></i><i class="skeleton"></i><i class="skeleton"></i><i class="skeleton"></i></div>
+            <div class="skeleton-row"><i class="skeleton"></i><i class="skeleton"></i><i class="skeleton"></i><i class="skeleton"></i></div>
+            <div class="skeleton-row"><i class="skeleton"></i><i class="skeleton"></i><i class="skeleton"></i><i class="skeleton"></i></div>
+          </div>
+        </div>
+        <div class="state-stage" id="empty-state" hidden><div class="state-copy"><p class="state-title">nothing here yet</p><p class="state-detail">drop files here, upload them, or choose another location.</p></div></div>
+        <div class="state-stage" id="error-state" hidden><div class="state-copy"><p class="state-title">archive S3 is unavailable</p><p class="state-detail">your verified offline files are still safe. Alles will not retry a write until the connection is checked.</p><button class="state-retry" type="button" data-state-target="ready">try again</button></div></div>
+      </div>
+    </main>
+
+    <aside class="preview-panel closed" id="preview-panel" aria-label="File details">
+      <div class="preview-head"><span class="preview-label">details</span><button class="preview-close" id="preview-close" type="button" aria-label="Close file details"><svg class="icon"><use href="#i-close"/></svg></button></div>
+      <div class="preview-body">
+        <div class="preview-mark"><svg class="icon" id="preview-icon"><use href="#i-file"/></svg></div>
+        <h2 class="preview-name" id="preview-name">afterlife brief.md</h2>
+        <p class="preview-path" id="preview-path">on this server / projects / afterlife</p>
+        <div class="preview-actions">
+          <button class="preview-action" type="button" data-toast="preview opened">open</button>
+          <button class="preview-action" id="offline-button" type="button" aria-pressed="true">available offline</button>
+          <button class="preview-action" type="button" data-toast="version history opened">versions</button>
+        </div>
+        <dl class="detail-list">
+          <div class="detail-row"><dt>kind</dt><dd class="detail-value">markdown</dd></div>
+          <div class="detail-row"><dt>location</dt><dd class="detail-value" id="detail-location">on this server</dd></div>
+          <div class="detail-row"><dt>access</dt><dd class="detail-value">managed</dd></div>
+          <div class="detail-row"><dt>offline</dt><dd class="detail-value" id="offline-state">verified · 18 KB</dd></div>
+          <div class="detail-row"><dt>version</dt><dd class="detail-value">etag 7f2c…9a10</dd></div>
+        </dl>
+        <section class="conflict-box">
+          <h3 class="conflict-title">two versions kept</h3>
+          <p class="conflict-copy">The WebDAV copy changed while this device was offline. Nothing was replaced.</p>
+          <div class="conflict-actions"><button class="preview-action" type="button" data-toast="comparison opened">compare</button><button class="preview-action" type="button" data-toast="both versions kept">keep both</button></div>
+        </section>
+      </div>
+    </aside>
+
+    <section class="operation-dock" id="operation-dock" aria-label="File operations">
+      <div class="operation-summary">
+        <svg class="icon operation-icon"><use href="#i-transfer"/></svg>
+        <span class="operation-copy"><span class="operation-title" id="operation-title">copying 3 files to notes WebDAV</span><span class="operation-meta">1.5 GB of 2.4 GB · safe to leave this page</span></span>
+        <span class="progress" role="progressbar" aria-label="Copy progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="64"><span class="progress-fill"></span></span>
+        <button class="operation-button" type="button" data-toast="operation paused">pause</button>
+        <button class="operation-button" id="dock-close" type="button">hide</button>
+      </div>
+    </section>
+  </div>
+
+  <p class="toast" id="toast" role="status" aria-live="polite"></p>
+
+  <script>
+    const $ = (selector, root = document) => root.querySelector(selector);
+    const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
+    const toast = $('#toast');
+    let toastTimer;
+
+    function say(message) {
+      toast.textContent = message;
+      toast.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => toast.classList.remove('show'), 1800);
+    }
+
+    $$('[data-toast]').forEach((button) => button.addEventListener('click', () => say(button.dataset.toast)));
+
+    const demoButton = $('#demo-button');
+    const demoMenu = $('#demo-menu');
+    const demoOptions = $$('.demo-option');
+
+    function closeDemo(focus = false) {
+      demoMenu.hidden = true;
+      demoButton.setAttribute('aria-expanded', 'false');
+      if (focus) demoButton.focus();
+    }
+
+    demoButton.addEventListener('click', () => {
+      const opening = demoMenu.hidden;
+      demoMenu.hidden = !opening;
+      demoButton.setAttribute('aria-expanded', String(opening));
+      if (opening) demoOptions.find((option) => option.getAttribute('aria-selected') === 'true').focus();
+    });
+
+    demoMenu.addEventListener('keydown', (event) => {
+      const index = demoOptions.indexOf(document.activeElement);
+      if (event.key === 'Escape') { event.preventDefault(); closeDemo(true); }
+      if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+        event.preventDefault();
+        const direction = event.key === 'ArrowDown' ? 1 : -1;
+        demoOptions[(index + direction + demoOptions.length) % demoOptions.length].focus();
+      }
+      if (event.key === 'Home') { event.preventDefault(); demoOptions[0].focus(); }
+      if (event.key === 'End') { event.preventDefault(); demoOptions.at(-1).focus(); }
+    });
+
+    function showState(state) {
+      $('#ready-state').hidden = !['ready', 'partial'].includes(state);
+      $('#file-head').hidden = !['ready', 'partial'].includes(state);
+      $('#loading-state').hidden = state !== 'loading';
+      $('#empty-state').hidden = state !== 'empty';
+      $('#error-state').hidden = state !== 'error';
+      $('#partial-note').hidden = state !== 'partial';
+      $('#sync-state').textContent = state === 'partial' ? 'partial · cached listing' : state === 'error' ? 'connection needed' : state === 'loading' ? 'checking…' : 'up to date';
+      demoOptions.forEach((option) => option.setAttribute('aria-selected', String(option.dataset.state === state)));
+      demoButton.textContent = state === 'ready' ? 'demo state' : state.replace('-', ' ');
+    }
+
+    demoOptions.forEach((option) => option.addEventListener('click', () => { showState(option.dataset.state); closeDemo(true); }));
+    $$('[data-state-target]').forEach((button) => button.addEventListener('click', () => showState(button.dataset.stateTarget)));
+    document.addEventListener('click', (event) => { if (!event.target.closest('.demo-control')) closeDemo(); });
+
+    const fileRows = $$('.file-row');
+    const checks = $$('.file-row .check');
+    const checkAll = $('#check-all');
+
+    function refreshSelection() {
+      const selected = checks.filter((check) => check.getAttribute('aria-checked') === 'true');
+      $('#selection-bar').hidden = selected.length === 0;
+      $('#selection-count').textContent = `${selected.length} selected`;
+      checkAll.setAttribute('aria-checked', String(selected.length === checks.length));
+      fileRows.forEach((row) => row.setAttribute('aria-selected', String($('.check', row).getAttribute('aria-checked') === 'true')));
+    }
+
+    function toggleCheck(check, force) {
+      const next = typeof force === 'boolean' ? force : check.getAttribute('aria-checked') !== 'true';
+      check.setAttribute('aria-checked', String(next));
+      refreshSelection();
+    }
+
+    checks.forEach((check) => check.addEventListener('click', (event) => { event.stopPropagation(); toggleCheck(check); }));
+    checkAll.addEventListener('click', () => {
+      const next = checkAll.getAttribute('aria-checked') !== 'true';
+      checks.forEach((check) => check.setAttribute('aria-checked', String(next)));
+      refreshSelection();
+    });
+    $('#clear-selection').addEventListener('click', () => { checks.forEach((check) => check.setAttribute('aria-checked', 'false')); refreshSelection(); });
+
+    fileRows.forEach((row) => {
+      row.addEventListener('click', (event) => {
+        if (event.target.closest('.check')) return;
+        fileRows.forEach((item) => item.classList.remove('focused'));
+        row.classList.add('focused');
+        const name = row.dataset.name;
+        const kind = row.dataset.kind;
+        $('#preview-name').textContent = name;
+        $('#preview-icon use').setAttribute('href', kind === 'folder' ? '#i-folder' : '#i-file');
+        $('#preview-panel').classList.remove('closed');
+      });
+      row.addEventListener('keydown', (event) => {
+        if (event.key === ' ') { event.preventDefault(); toggleCheck($('.check', row)); }
+        if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+          event.preventDefault();
+          const index = fileRows.indexOf(row);
+          const direction = event.key === 'ArrowDown' ? 1 : -1;
+          fileRows[(index + direction + fileRows.length) % fileRows.length].focus();
+        }
+      });
+    });
+
+    $('#file-search').addEventListener('input', (event) => {
+      const query = event.target.value.trim().toLowerCase();
+      fileRows.forEach((row) => { row.hidden = Boolean(query) && !row.dataset.name.toLowerCase().includes(query); });
+    });
+
+    $$('.location-button').forEach((button) => button.addEventListener('click', () => {
+      $$('.location-button').forEach((item) => item.setAttribute('aria-current', 'false'));
+      button.setAttribute('aria-current', 'true');
+      $('#crumb-location').textContent = button.dataset.location;
+      $('#detail-location').textContent = button.dataset.location;
+      $('#sync-state').textContent = button.dataset.status;
+      showState(button.dataset.location === 'archive S3' ? 'partial' : 'ready');
+    }));
+
+    $('#offline-button').addEventListener('click', (event) => {
+      const enabled = event.currentTarget.getAttribute('aria-pressed') !== 'true';
+      event.currentTarget.setAttribute('aria-pressed', String(enabled));
+      event.currentTarget.textContent = enabled ? 'available offline' : 'make available offline';
+      $('#offline-state').textContent = enabled ? 'verified · 18 KB' : 'online only';
+      say(enabled ? 'offline copy verified' : 'offline copy removed; source kept');
+    });
+
+    const operationDock = $('#operation-dock');
+    $('#transfers-button').addEventListener('click', () => { operationDock.hidden = false; });
+    $('#dock-close').addEventListener('click', () => { operationDock.hidden = true; });
+    $$('[data-queue]').forEach((button) => button.addEventListener('click', () => {
+      $('#operation-title').textContent = `${button.dataset.queue} queued for ${$('#selection-count').textContent}`;
+      operationDock.hidden = false;
+      say('operation queued safely');
+    }));
+
+    $('#preview-close').addEventListener('click', () => $('#preview-panel').classList.add('closed'));
+
+    $('#theme-button').addEventListener('click', (event) => {
+      const next = document.documentElement.dataset.theme === 'light' ? 'dark' : 'light';
+      document.documentElement.dataset.theme = next;
+      event.currentTarget.textContent = next === 'light' ? 'dark' : 'light';
+    });
+  </script>
+</body>
+</html>

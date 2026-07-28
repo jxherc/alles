@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Standalone fake-data KOKUEN scheduled News starter.">
+  <title>Alles scheduled News - KOKUEN starter</title>
+  <link rel="stylesheet" href="starter.css">
+  <link rel="stylesheet" href="remaining.css">
+</head>
+<body data-demo-state="ready" data-starter="news">
+  <a class="skip-link" href="#main">skip to scheduled News</a>
+  <div class="app-shell remaining-shell">
+    <header class="app-owned-header">
+      <div class="app-identity"><strong class="app-name">aide</strong><button class="home-action" type="button" data-toast="starter only: returned to Home">home</button></div>
+      <div class="app-context"><strong>scheduled</strong><span class="app-context-separator">/</span><span>news</span></div>
+      <div class="app-actions">
+        <button class="header-action" type="button" data-state-trigger aria-expanded="false" aria-controls="state-menu">preview state</button>
+        <button class="switch-control" type="button" role="switch" aria-checked="false" aria-label="use light preview theme" data-switch="theme"><span class="switch-track" aria-hidden="true"><span class="switch-knob"></span></span></button>
+        <div class="state-menu" id="state-menu" role="listbox" aria-label="preview state" hidden>
+          <button class="state-option" type="button" role="option" aria-selected="true" data-state="ready">ready</button>
+          <button class="state-option" type="button" role="option" aria-selected="false" data-state="loading">loading</button>
+          <button class="state-option" type="button" role="option" aria-selected="false" data-state="empty">empty</button>
+          <button class="state-option" type="button" role="option" aria-selected="false" data-state="partial">one source failed</button>
+          <button class="state-option" type="button" role="option" aria-selected="false" data-state="error">digest error</button>
+          <button class="state-option" type="button" role="option" aria-selected="false" data-state="offline">offline</button>
+          <button class="state-option" type="button" role="option" aria-selected="false" data-state="disabled">news disabled</button>
+          <button class="state-option" type="button" role="option" aria-selected="false" data-state="permission">Jarvis unpaired</button>
+          <button class="state-option" type="button" role="option" aria-selected="false" data-state="interrupted">draft interrupted</button>
+        </div>
+      </div>
+    </header>
+
+    <nav class="view-strip" aria-label="Aide primary navigation">
+      <button class="view-tab" type="button" data-toast="starter only: opened Tasks">tasks</button>
+      <button class="view-tab" type="button" aria-current="page">scheduled</button>
+      <button class="view-tab" type="button" data-toast="starter only: opened Brain">brain</button>
+      <button class="view-tab" type="button" data-toast="starter only: opened Skills">skills</button>
+      <button class="view-tab" type="button" data-toast="starter only: opened Reminders">reminders</button>
+    </nav>
+
+    <main class="remaining-main" id="main">
+      <div class="news-workbench">
+        <aside class="news-local-nav" aria-label="Scheduled work sections">
+          <h2>scheduled work</h2>
+          <ul class="news-nav-list">
+            <li><button class="news-nav-action" type="button" data-toast="starter only: opened schedule overview"><span>01</span><span>overview</span></button></li>
+            <li><button class="news-nav-action" type="button" data-toast="starter only: opened schedules"><span>02</span><span>schedules</span></button></li>
+            <li><button class="news-nav-action" type="button" aria-current="page"><span>03</span><span>news</span></button></li>
+            <li><button class="news-nav-action" type="button" data-toast="starter only: opened run history"><span>04</span><span>runs</span></button></li>
+          </ul>
+        </aside>
+
+        <section class="news-main" aria-labelledby="news-title">
+          <header class="news-head">
+            <div class="news-head-copy"><h1 id="news-title">news brief</h1><p>reviewed RSS and Atom sources, summarized by Aide, delivered to Home</p></div>
+            <div class="news-head-actions"><span class="workflow-state" id="news-workflow-state" data-enabled="false">news is off</span><button class="primary-action" id="news-enable" type="button">enable news</button></div>
+          </header>
+          <div class="demo-state" id="demo-state" role="status" aria-live="polite" hidden></div>
+
+          <section class="news-section" aria-labelledby="sources-title">
+            <div class="news-section-head"><h2 id="sources-title">sources</h2><p>3 saved · nothing fetched until enabled</p><button type="button" data-open-modal>add source</button></div>
+            <ul class="source-list">
+              <li class="source-row">
+                <div class="source-name"><strong>Rest of World</strong><span>technology · English · normal priority</span></div>
+                <div class="source-health" data-health="healthy"><strong>healthy</strong><span>tested 8 minutes ago</span></div>
+                <div class="source-actions"><button class="source-edit" type="button" data-open-modal aria-label="edit Rest of World">edit</button><button class="switch-control" type="button" role="switch" aria-checked="true" aria-label="enable Rest of World"><span class="switch-track" aria-hidden="true"><span class="switch-knob"></span></span></button></div>
+              </li>
+              <li class="source-row">
+                <div class="source-name"><strong>報導者 The Reporter</strong><span>Taiwan · Traditional Chinese · high priority</span></div>
+                <div class="source-health" data-health="healthy"><strong>healthy</strong><span>tested 11 minutes ago</span></div>
+                <div class="source-actions"><button class="source-edit" type="button" data-open-modal aria-label="edit The Reporter">edit</button><button class="switch-control" type="button" role="switch" aria-checked="true" aria-label="enable The Reporter"><span class="switch-track" aria-hidden="true"><span class="switch-knob"></span></span></button></div>
+              </li>
+              <li class="source-row">
+                <div class="source-name"><strong>Mozilla Hacks</strong><span>web platform · English · normal priority</span></div>
+                <div class="source-health" data-health="retry"><strong>retry scheduled</strong><span>timeout · next retry in 24 min</span></div>
+                <div class="source-actions"><button class="source-edit" type="button" data-open-modal aria-label="edit Mozilla Hacks">edit</button><button class="switch-control" type="button" role="switch" aria-checked="true" aria-label="enable Mozilla Hacks"><span class="switch-track" aria-hidden="true"><span class="switch-knob"></span></span></button></div>
+              </li>
+            </ul>
+          </section>
+
+          <section class="news-section" aria-labelledby="delivery-title">
+            <div class="news-section-head"><h2 id="delivery-title">cadence and delivery</h2><p>Home stays useful without Jarvis</p><button type="button" id="news-preview-action">refresh preview</button></div>
+            <div class="settings-grid">
+              <div class="settings-group">
+                <h3>digest schedule</h3>
+                <div class="choice-group" role="radiogroup" aria-label="digest schedule">
+                  <button class="choice-radio" type="button" role="radio" aria-checked="true" data-choice-group="schedule" data-choice="morning">every morning · 07:30</button>
+                  <button class="choice-radio" type="button" role="radio" aria-checked="false" tabindex="-1" data-choice-group="schedule" data-choice="evening">every evening · 18:30</button>
+                  <button class="choice-radio" type="button" role="radio" aria-checked="false" tabindex="-1" data-choice-group="schedule" data-choice="weekdays">weekdays · 07:30</button>
+                </div>
+              </div>
+              <div class="settings-group">
+                <h3>delivery</h3>
+                <div class="delivery-row"><div><strong>home brief</strong><span>default destination</span></div><button class="switch-control" type="button" role="switch" aria-checked="true" aria-label="deliver News to Home"><span class="switch-track" aria-hidden="true"><span class="switch-knob"></span></span></button></div>
+                <div class="delivery-row"><div><strong>Jarvis direct message</strong><span>pair Discord before enabling</span></div><button class="switch-control" type="button" role="switch" aria-checked="false" aria-disabled="true" aria-label="Jarvis delivery unavailable until Discord is paired"><span class="switch-track" aria-hidden="true"><span class="switch-knob"></span></span></button></div>
+              </div>
+            </div>
+          </section>
+        </section>
+
+        <aside class="news-preview" aria-labelledby="preview-title">
+          <header class="preview-head"><h2 id="preview-title">preview digest</h2><span>3 clusters · 5 sources</span></header>
+          <p class="preview-note">Fake preview. The real brief cites every source and saves nothing to Library automatically.</p>
+          <article class="digest-cluster">
+            <h3>Taiwan moves public-service forms toward passkeys</h3>
+            <p>Two reports agree on a staged rollout. Agency guidance emphasizes account recovery before broader enrollment.</p>
+            <div class="digest-links"><a href="#source-reporter">The Reporter</a><a href="#source-gov">gov.tw release</a></div>
+            <button class="save-library" type="button" aria-pressed="false" data-save-article="Taiwan passkeys coverage">save to Library</button>
+          </article>
+          <article class="digest-cluster">
+            <h3>Browser storage partitioning reaches another stable release</h3>
+            <p>The change narrows cross-site state while keeping explicit embedded sign-in paths available.</p>
+            <div class="digest-links"><a href="#source-mozilla">Mozilla Hacks</a><a href="#source-webkit">WebKit blog</a></div>
+            <button class="save-library" type="button" aria-pressed="false" data-save-article="browser storage coverage">save to Library</button>
+          </article>
+          <div class="digest-warning"><strong>link digest remains available.</strong> Mozilla Hacks timed out during this preview. Its last verified title is excluded and the source will retry independently.</div>
+        </aside>
+      </div>
+    </main>
+
+    <footer class="status-footer"><span>fake data only · no feeds, models, Discord, or Alles API calls</span><span class="footer-right" id="news-live-status" role="status" aria-live="polite">preview ready · News remains off</span></footer>
+  </div>
+
+  <div class="modal-backdrop" id="starter-modal" role="presentation" hidden>
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="source-editor-title">
+      <header class="modal-header"><h2 id="source-editor-title">add an RSS or Atom source</h2></header>
+      <div class="modal-body">
+        <div class="source-editor-grid">
+          <div class="text-field wide"><label for="source-url">feed URL</label><input id="source-url" type="url" value="https://example.org/feed.xml" autocomplete="off"></div>
+          <div class="text-field"><label for="source-name">name</label><input id="source-name" type="text" value="Example newsroom" autocomplete="off"></div>
+          <div class="text-field"><label for="source-schedule">polling schedule</label><input id="source-schedule" type="text" value="with morning digest" readonly></div>
+          <div>
+            <p class="source-choice-label">category</p>
+            <div class="choice-group" role="radiogroup" aria-label="source category">
+              <button class="choice-radio" type="button" role="radio" aria-checked="true" data-choice-group="category" data-choice="technology">technology</button>
+              <button class="choice-radio" type="button" role="radio" aria-checked="false" tabindex="-1" data-choice-group="category" data-choice="taiwan">Taiwan</button>
+              <button class="choice-radio" type="button" role="radio" aria-checked="false" tabindex="-1" data-choice-group="category" data-choice="world">world</button>
+            </div>
+          </div>
+          <div>
+            <p class="source-choice-label">language</p>
+            <div class="choice-group" role="radiogroup" aria-label="source language">
+              <button class="choice-radio" type="button" role="radio" aria-checked="true" data-choice-group="language" data-choice="en">English</button>
+              <button class="choice-radio" type="button" role="radio" aria-checked="false" tabindex="-1" data-choice-group="language" data-choice="zh-tw">Traditional Chinese</button>
+            </div>
+          </div>
+          <div class="wide">
+            <p class="source-choice-label">priority</p>
+            <div class="choice-group" role="radiogroup" aria-label="source priority">
+              <button class="choice-radio" type="button" role="radio" aria-checked="true" data-choice-group="priority" data-choice="normal">normal</button>
+              <button class="choice-radio" type="button" role="radio" aria-checked="false" tabindex="-1" data-choice-group="priority" data-choice="high">high</button>
+            </div>
+          </div>
+        </div>
+        <div class="source-test-result" id="source-test-result" role="status" hidden><strong>feed responds safely.</strong> Atom 1.0 · 18 recent entries · newest 42 minutes ago. Nothing has been saved.</div>
+      </div>
+      <footer class="modal-actions"><button class="quiet-action" type="button" data-close-modal>cancel</button><button class="quiet-action" id="source-test" type="button">test source</button><button class="primary-action" id="source-save" type="button" disabled>save source</button></footer>
+    </section>
+  </div>
+  <div class="toast" id="starter-toast" role="status" aria-live="polite" hidden></div>
+  <script src="starter.js"></script>
+  <script src="remaining.js"></script>
+</body>
+</html>

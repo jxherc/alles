@@ -1,5 +1,7 @@
 """verify a multi-day all-day event renders on every day it spans in the calendar month view."""
+
 from datetime import date
+
 from playwright.sync_api import sync_playwright
 
 BASE = "http://calendar.localhost:8077"
@@ -35,7 +37,9 @@ def main():
         }""")
         print("days showing the event:", cells)
         assert len(cells) >= 3, f"multi-day event only on {len(cells)} day(s): {cells}"
-        assert cells == sorted(cells) and cells[0].endswith('-10') and cells[-1].endswith('-12'), cells
+        assert cells == sorted(cells) and cells[0].endswith("-10") and cells[-1].endswith("-12"), (
+            cells
+        )
         print("PASS: spans all 3 days")
         # cleanup
         pg.evaluate("""async () => {

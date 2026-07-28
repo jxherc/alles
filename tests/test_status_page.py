@@ -42,7 +42,9 @@ class StatusPageTests(ApiTest):
 
     def test_config_roundtrip(self):
         self.assertEqual(
-            self.client.put("/api/status/config", json={"enabled": True, "title": "Ops"}).status_code,
+            self.client.put(
+                "/api/status/config", json={"enabled": True, "title": "Ops"}
+            ).status_code,
             200,
         )
         cfg = self.client.get("/api/status/config").json()

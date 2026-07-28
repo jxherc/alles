@@ -10,8 +10,19 @@ from tests._client import ApiTest
 
 
 class AgentAppToolsTests(ApiTest):
+    def setUp(self):
+        super().setUp()
+        at.set_agent_ctx({"agent_environment": "general"})
+
+    def tearDown(self):
+        at.set_agent_ctx({})
+        super().tearDown()
+
     def ex(self, name, args=None):
         return asyncio.run(at.execute(name, args or {}))
+
+    def grant_health(self):
+        at.set_agent_ctx({"agent_environment": "general", "agent_health_access_granted": True})
 
     # ── books ──────────────────────────────────────────────────────────────
     def test_book_add_persists(self):
@@ -31,7 +42,26 @@ class AgentAppToolsTests(ApiTest):
         self.assertIn("Dune", r["output"])
 
     # ── health ─────────────────────────────────────────────────────────────
+    def test_health_tools_need_an_explicit_general_aide_grant(self):
+        names = {d["function"]["name"] for d in at.build_tool_defs({})}
+        self.assertFalse({"health_log", "health_summary"} & names)
+        denied = self.ex("health_summary", {})
+        self.assertTrue(denied["error"])
+        self.assertIn("explicit sensitive-data grant", denied["output"])
+
+        granted = {
+            "agent_environment": "general",
+            "agent_health_access_granted": True,
+        }
+        names = {d["function"]["name"] for d in at.build_tool_defs(granted)}
+        self.assertTrue({"health_log", "health_summary"}.issubset(names))
+
+        project = {**granted, "agent_environment": "project"}
+        names = {d["function"]["name"] for d in at.build_tool_defs(project)}
+        self.assertFalse({"health_log", "health_summary"} & names)
+
     def test_health_log_persists(self):
+        self.grant_health()
         r = self.ex("health_log", {"kind": "weight", "value": 72.5, "unit": "kg"})
         self.assertFalse(r.get("error"), r)
         entries = self.client.get("/api/health").json()["entries"]
@@ -39,10 +69,12 @@ class AgentAppToolsTests(ApiTest):
         self.assertEqual(entries[0]["value"], 72.5)
 
     def test_health_log_rejects_nonnumeric(self):
+        self.grant_health()
         r = self.ex("health_log", {"kind": "weight", "value": "heavy"})
         self.assertTrue(r.get("error"))
 
     def test_health_summary_lists_metric(self):
+        self.grant_health()
         self.ex("health_log", {"kind": "weight", "value": 72.5, "unit": "kg"})
         r = self.ex("health_summary", {})
         self.assertIn("weight", r["output"])
@@ -79,9 +111,18 @@ class AgentAppToolsTests(ApiTest):
     # ── registration / wiring ──────────────────────────────────────────────
     def test_new_tools_are_registered_and_mutating_flagged(self):
         names = {d["function"]["name"] for d in at.APP_TOOL_DEFS}
-        for t in ("book_add", "books_list", "health_log", "health_summary",
-                  "habit_add", "habit_log", "habits_list", "read_save",
-                  "watch_add", "watch_status"):
+        for t in (
+            "book_add",
+            "books_list",
+            "health_log",
+            "health_summary",
+            "habit_add",
+            "habit_log",
+            "habits_list",
+            "read_save",
+            "watch_add",
+            "watch_status",
+        ):
             self.assertIn(t, names, f"{t} missing from APP_TOOL_DEFS")
         for t in ("book_add", "health_log", "habit_add", "habit_log", "read_save", "watch_add"):
             self.assertIn(t, at.MUTATING_TOOLS, f"{t} should be in MUTATING_TOOLS")

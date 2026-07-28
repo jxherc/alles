@@ -1,15 +1,18 @@
 """drive the aide agent through a real app build with a chosen model. diagnostic."""
 
-import os, sys, json
+import json
+import os
+import sys
 
 os.environ["NO_PROXY"] = "localhost,127.0.0.1," + os.environ.get("NO_PROXY", "")
 try:
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 except Exception:
     pass
-import httpx
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
+
+import httpx
 
 BASE = "http://localhost:8099"
 WANT_ENDPOINT = os.environ.get("AGENT_ENDPOINT", "DeepSeek")
@@ -58,7 +61,6 @@ def main():
             "model": model,
             "endpoint_id": ep["id"],
         }
-        err_seen = None
         try:
             with httpx.stream("POST", f"{BASE}/api/chat", json=body, timeout=900) as r:
                 for line in r.iter_lines():
@@ -84,7 +86,6 @@ def main():
                             f"  ↻ retry #{ch['llm_retry']['attempt']} (transient error)", flush=True
                         )
                     if "error" in ch:
-                        err_seen = ch["error"]
                         print(f"  ✗ error chunk: {str(ch['error'])[:160]}", flush=True)
         except Exception as e:
             print(f"  ✗ stream exception: {e}", flush=True)

@@ -1,5 +1,6 @@
 """ui-3j verify — native spellcheck (typo underline) is enabled on both docs editor
 surfaces (the CM wysiwyg content + the raw source textarea)."""
+
 import sys
 
 from playwright.sync_api import sync_playwright

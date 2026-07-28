@@ -7,7 +7,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from playwright.sync_api import Page, Route, sync_playwright
+from playwright.sync_api import Page, Route
 
 from core.database import ModelEndpoint, SessionLocal
 from core.settings import save_settings
@@ -44,7 +44,8 @@ def seed_model() -> None:
         {
             "model_roles": {
                 "aide_chat": {"endpoint_id": endpoint_id, "model": "phase4-local"},
-                "andromeda": {"endpoint_id": endpoint_id, "model": "phase4-local"},
+                "andromeda_answer": {"endpoint_id": endpoint_id, "model": "phase4-local"},
+                "andromeda_verifier": {"endpoint_id": endpoint_id, "model": "phase4-local"},
                 "jarvis": {"endpoint_id": endpoint_id, "model": "phase4-local"},
             },
             "andromeda_normal_results": True,
@@ -777,44 +778,27 @@ def check_server_searxng(browser, results: dict) -> None:
 
 
 def main() -> int:
-    global AUTH_STORAGE_STATE
     if not os.environ.get("ALLES_DATA"):
         print("ALLES_DATA must be a throwaway directory", file=sys.stderr)
         return 2
-    seed_model()
-    results = {}
-    if AUTH_PASSWORD:
-        with sync_playwright() as playwright:
-            browser = playwright.chromium.launch(headless=True)
-            context = browser.new_context(service_workers="block")
-            page = context.new_page()
-            if not authenticate_if_needed(page):
-                print("authenticated browser setup failed", file=sys.stderr)
-                context.close()
-                browser.close()
-                return 1
-            AUTH_STORAGE_STATE = context.storage_state()
-            context.close()
-            browser.close()
-    checks = (
-        lambda browser: check_server_searxng(browser, results),
-        lambda browser: check_aide(browser, {"width": 1280, "height": 800}, False, results),
-        lambda browser: check_aide(browser, {"width": 390, "height": 844}, True, results),
-        lambda browser: check_andromeda(browser, {"width": 1280, "height": 800}, False, results),
-        lambda browser: check_andromeda(browser, {"width": 390, "height": 844}, True, results),
-    )
-    for check in checks:
-        with sync_playwright() as playwright:
-            browser = playwright.chromium.launch(headless=True)
-            try:
-                check(browser)
-            finally:
-                browser.close()
-    failed = [name for name, passed in results.items() if not passed]
-    print(f"{len(results) - len(failed)}/{len(results)} Phase 4 browser assertions passed")
-    if failed:
-        print("failed:", ", ".join(failed))
-    return 1 if failed else 0
+    # The original checks below preserve the historical Chat/Jarvis Phase 4
+    # evidence. The shipped product has since moved to one-mode Aide and a
+    # managed-SearXNG settings surface, so the live gate must exercise those
+    # current contracts instead of looking for controls that were removed on
+    # purpose.
+    from tests.pw_afterlife_aide_shell import run as run_aide
+    from tests.pw_afterlife_andromeda import main as run_andromeda
+    from tests.pw_phase6_andromeda_settings import run as run_andromeda_settings
+
+    try:
+        run_aide()
+        run_andromeda()
+        run_andromeda_settings()
+    except Exception as exc:
+        print(f"current Phase 4 browser gate failed: {exc}", file=sys.stderr)
+        return 1
+    print("current Phase 4 Aide and Andromeda browser gate passed")
+    return 0
 
 
 if __name__ == "__main__":

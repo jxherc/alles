@@ -44,8 +44,12 @@ def _load():
     d = model_dir()
     so = ort.SessionOptions()
     so.intra_op_num_threads = max(1, (os.cpu_count() or 4) // 2)
-    vis = ort.InferenceSession(str(d / "visual" / "model.onnx"), so, providers=["CPUExecutionProvider"])
-    txt = ort.InferenceSession(str(d / "textual" / "model.onnx"), so, providers=["CPUExecutionProvider"])
+    vis = ort.InferenceSession(
+        str(d / "visual" / "model.onnx"), so, providers=["CPUExecutionProvider"]
+    )
+    txt = ort.InferenceSession(
+        str(d / "textual" / "model.onnx"), so, providers=["CPUExecutionProvider"]
+    )
     tok = Tokenizer.from_file(str(d / "textual" / "tokenizer.json"))
     tok.enable_truncation(max_length=77)
     tok.enable_padding(length=77, pad_id=0)

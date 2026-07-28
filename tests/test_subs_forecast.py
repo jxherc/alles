@@ -10,10 +10,15 @@ class SubForecastTests(ApiTest):
         s = Subscription(
             name=kw.get("name", "S"),
             price=kw.get("price", 10.0),
+            currency=kw.get("currency", "CAD"),
             cycle=kw.get("cycle", "monthly"),
             cycle_days=kw.get("cycle_days", 30),
             next_due=kw.get("next_due", date.today().isoformat()),
             active=kw.get("active", True),
+            base_price_text=kw.get("base_price_text", str(kw.get("price", 10.0))),
+            base_currency_code=kw.get("base_currency_code", kw.get("currency", "CAD")),
+            fx_rate_text=kw.get("fx_rate_text", "1"),
+            fx_source=kw.get("fx_source", "test_identity"),
         )
         d.add(s)
         d.commit()
@@ -62,6 +67,17 @@ class SubForecastTests(ApiTest):
         fc = self._fc(6)
         self.assertEqual(round(sum(m["total"] for m in fc["forecast"]), 2), fc["total"])
 
+    def test_forecast_uses_reviewed_base_amounts(self):
+        self._sub(
+            price=100,
+            currency="CNY",
+            base_price_text="20.00",
+            base_currency_code="CAD",
+        )
+        forecast = self._fc(1)
+        self.assertEqual(forecast["currency"], "CAD")
+        self.assertEqual(forecast["total"], 20)
+
     def test_overdue_not_double_counted(self):
         old = (date.today() - timedelta(days=70)).isoformat()
         self._sub(price=10.0, cycle="monthly", next_due=old)
@@ -73,7 +89,7 @@ class SubForecastTests(ApiTest):
     def test_empty_no_subs(self):
         fc = self._fc(6)
         self.assertEqual(fc["total"], 0.0)
-        self.assertEqual(fc["currency"], "$")
+        self.assertEqual(fc["currency"], "CAD")
         self.assertEqual(len(fc["forecast"]), 6)
 
     def test_malformed_next_due_is_skipped(self):

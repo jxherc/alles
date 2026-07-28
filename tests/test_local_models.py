@@ -98,8 +98,12 @@ class LocalModelTests(unittest.IsolatedAsyncioTestCase):
         self.assertIsNone(local_models.get_job("no-such-job-id"))
 
     def test_list_jobs_returns_sorted(self):
-        local_models._set_job("j-b", id="j-b", type="download_model", model="a", status="done", created_at=2)
-        local_models._set_job("j-a", id="j-a", type="download_model", model="b", status="done", created_at=1)
+        local_models._set_job(
+            "j-b", id="j-b", type="download_model", model="a", status="done", created_at=2
+        )
+        local_models._set_job(
+            "j-a", id="j-a", type="download_model", model="b", status="done", created_at=1
+        )
         lst = local_models.list_jobs()
         # newest first
         self.assertEqual(lst[0]["id"], "j-b")

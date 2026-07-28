@@ -23,9 +23,9 @@ class CalendarAdvisorTests(ApiTest):
         # must still mark 10:00-11:00 busy on the queried day. before the fix, free-slots only
         # looked at master events, so it offered an already-busy recurring slot as free.
         self._rec_ev("Standup", "2026-07-01T10:00:00", "2026-07-01T11:00:00", recurrence="daily")
-        slots = self.client.get(
-            "/api/calendar/free-slots?day=2026-07-08&duration_min=30"
-        ).json()["slots"]
+        slots = self.client.get("/api/calendar/free-slots?day=2026-07-08&duration_min=30").json()[
+            "slots"
+        ]
         self.assertFalse(
             any(s["start"] <= "10:00" and s["end"] > "10:00" for s in slots),
             f"recurring standup not treated as busy: {slots}",
@@ -47,18 +47,18 @@ class CalendarAdvisorTests(ApiTest):
     def test_free_slots_finds_gap(self):
         self._ev("A", "2026-07-01T09:00:00", "2026-07-01T10:00:00")
         self._ev("B", "2026-07-01T11:00:00", "2026-07-01T12:00:00")
-        slots = self.client.get(
-            "/api/calendar/free-slots?day=2026-07-01&duration_min=30"
-        ).json()["slots"]
+        slots = self.client.get("/api/calendar/free-slots?day=2026-07-01&duration_min=30").json()[
+            "slots"
+        ]
         self.assertTrue(any(s["start"] == "10:00" and s["end"] == "11:00" for s in slots))
 
     def test_free_slots_respects_duration(self):
         # a 30-min gap can't hold a 60-min meeting
         self._ev("A", "2026-07-02T09:00:00", "2026-07-02T10:00:00")
         self._ev("B", "2026-07-02T10:30:00", "2026-07-02T17:00:00")
-        slots = self.client.get(
-            "/api/calendar/free-slots?day=2026-07-02&duration_min=60"
-        ).json()["slots"]
+        slots = self.client.get("/api/calendar/free-slots?day=2026-07-02&duration_min=60").json()[
+            "slots"
+        ]
         self.assertFalse(any(s["start"] == "10:00" for s in slots))
 
     def test_free_slots_bad_day_no_500(self):
@@ -70,16 +70,16 @@ class CalendarAdvisorTests(ApiTest):
         # an 18:00-19:00 event is outside the 09:00-17:00 window; the free slot must end at 17:00,
         # not spill out to 18:00 (the event start)
         self._ev("Dinner", "2026-07-03T18:00:00", "2026-07-03T19:00:00")
-        slots = self.client.get(
-            "/api/calendar/free-slots?day=2026-07-03&duration_min=30"
-        ).json()["slots"]
+        slots = self.client.get("/api/calendar/free-slots?day=2026-07-03&duration_min=30").json()[
+            "slots"
+        ]
         self.assertEqual(slots, [{"start": "09:00", "end": "17:00"}])
 
     def test_free_slots_event_spanning_close_clips_to_window(self):
         # event runs 16:30-20:00; the busy time inside hours ends at 17:00, so no slot after it
         self._ev("Long", "2026-07-04T16:30:00", "2026-07-04T20:00:00")
-        slots = self.client.get(
-            "/api/calendar/free-slots?day=2026-07-04&duration_min=30"
-        ).json()["slots"]
+        slots = self.client.get("/api/calendar/free-slots?day=2026-07-04&duration_min=30").json()[
+            "slots"
+        ]
         self.assertTrue(all(s["end"] <= "17:00" for s in slots))
         self.assertFalse(any(s["start"] >= "17:00" for s in slots))

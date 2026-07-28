@@ -85,8 +85,7 @@ class HostGuardMiddleware:
         headers = dict(scope.get("headers") or [])
         host = _host_without_port(headers.get(b"host", b"").decode("latin-1"))
         allowed = bool(host) and any(
-            host == pattern
-            or (pattern.startswith("*.") and host.endswith(pattern[1:]))
+            host == pattern or (pattern.startswith("*.") and host.endswith(pattern[1:]))
             for pattern in self.allowed_hosts
         )
         if allowed:

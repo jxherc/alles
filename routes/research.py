@@ -28,7 +28,7 @@ def _resolve_ep():
     db = SessionLocal()
     try:
         try:
-            selected = resolve_model(db, "andromeda")
+            selected = resolve_model(db, "andromeda_answer")
         except ModelResolutionError:
             return None, None, None
         return selected.endpoint.base_url, selected.endpoint.api_key, selected.model
@@ -44,7 +44,7 @@ def _resolve_ep_or_error():
     db = SessionLocal()
     try:
         try:
-            selected = resolve_model(db, "andromeda")
+            selected = resolve_model(db, "andromeda_answer")
         except ModelResolutionError as exc:
             raise ApiError(400, exc.code, str(exc)) from exc
         return selected.endpoint.base_url, selected.endpoint.api_key, selected.model

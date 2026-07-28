@@ -1,5 +1,37 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
+
+const moneySource = readFileSync(new URL('../../static/js/money.js', import.meta.url), 'utf8');
+
+test('manual Finance creates reuse an identity only for the exact same payload', () => {
+  for (const [kind, payload] of [
+    ['account', 'accountPayload'],
+    ['transaction', 'transactionPayload'],
+    ['transfer', 'transferPayload'],
+  ]) {
+    assert.match(moneySource, new RegExp(`requestId = await _createRequestId\\('${kind}', ${payload}\\)`));
+    assert.match(moneySource, new RegExp(`${payload}\\.request_id = requestId`));
+    assert.match(moneySource, new RegExp(`_completeCreateRequest\\('${kind}', requestId\\)`));
+    assert.match(moneySource, new RegExp(`_releaseCreateRequest\\('${kind}', requestId\\)`));
+  }
+  assert.match(moneySource, /async function _createRequestId\(kind, payload\)/);
+  assert.match(moneySource, /pending\?\.fingerprint === fingerprint/);
+  assert.match(moneySource, /if \(pending\?\.active\) throw new Error/);
+  assert.match(moneySource, /pending\?\.requestId !== requestId/);
+  assert.match(moneySource, /stored\?\.fingerprint === fingerprint/);
+  assert.match(moneySource, /crypto\.subtle\.digest/);
+  assert.match(moneySource, /persistable:\s*false/);
+  assert.doesNotMatch(moneySource, /return `exact:\$\{canonical\}`/);
+  assert.match(moneySource, /if \(persistable\) \{[\s\S]*?sessionStorage\.setItem/);
+  assert.match(moneySource, /sessionStorage\.getItem\(_createRequestKey\(kind\)\)/);
+  assert.match(moneySource, /globalThis\.crypto\?\.randomUUID/);
+});
+
+test('finance month headings format calendar months without local Date conversion', () => {
+  assert.match(moneySource, /formatCalendarDate\(`\$\{m\}-01`/);
+  assert.doesNotMatch(moneySource, /formatDate\(new Date\(y, mo - 1, 1\)/);
+});
 
 function fakeEl(value = '') {
   return {

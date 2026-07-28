@@ -17,5 +17,3 @@ def idle_available(acct) -> bool:
     finally:
         if M:
             _release_imap(acct, M, ok=True)
-
-

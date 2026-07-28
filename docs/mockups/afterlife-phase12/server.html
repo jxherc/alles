@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Phase 12 KOKUEN approval starter for secure Alles Server management.">
+  <link rel="icon" href="data:,">
+  <title>Alles Phase 12 - Server</title>
+  <link rel="stylesheet" href="starter.css">
+</head>
+<body data-state="ready">
+  <a class="skip-link" href="#server-content">skip to server content</a>
+  <p class="visually-hidden" data-live aria-live="polite"></p>
+
+  <section class="server-shell">
+    <header class="identity-row">
+      <div class="identity-block"><h1 class="app-name">server</h1><a class="home-action" href="../afterlife-navigation/home.html">home</a></div>
+      <div class="identity-context"><span class="identity-title" data-server-context>overview</span><span class="inline-status">owned only</span></div>
+      <div class="identity-actions"><button class="text-action" type="button">run checks</button></div>
+    </header>
+
+    <div class="server-body" data-mobile-pane="main">
+      <nav class="local-panel" aria-label="Server sections" tabindex="-1">
+        <div class="panel-section">
+          <p class="panel-heading">manage</p>
+          <div class="nav-list">
+            <button class="nav-item" type="button" data-open-server-page="overview" aria-current="page"><span>overview</span></button>
+            <button class="nav-item" type="button" data-open-server-page="services"><span>services</span><span class="nav-count">3</span></button>
+            <button class="nav-item" type="button" data-open-server-page="search-models"><span>search and models</span></button>
+            <button class="nav-item" type="button" data-open-server-page="backups"><span>backups and storage</span></button>
+            <button class="nav-item" type="button" data-open-server-page="updates"><span>updates</span></button>
+            <button class="nav-item" type="button" data-open-server-page="logs"><span>logs and activity</span></button>
+            <button class="nav-item" type="button" data-open-server-page="access-policy"><span>access policy</span></button>
+          </div>
+        </div>
+      </nav>
+
+      <main class="server-content" id="server-content">
+        <section class="server-page" data-server-page="overview" tabindex="-1">
+          <button class="mobile-back" type="button" data-server-nav>‹ sections</button>
+          <h2 class="section-title">Healthy</h2>
+          <p class="section-copy">Alles and its registered services are responding on owned local endpoints.</p>
+          <section class="server-terminal-monitor" aria-label="Live machine monitor" data-runtime-renderer="static/js/system.js">
+            <div class="server-neofetch">
+              <pre class="server-neofetch-mark" role="img" aria-label="macOS Apple neofetch mark">                    c.'
+                 ,xNMM.
+               .OMMMMo
+               lMM&quot;
+     .;loddo:.  .olloddol;.
+   cKMMMMMMMMMMNWMMMMMMMMMM0:
+ .KMMMMMMMMMMMMMMMMMMMMMMMMWd.
+ XMMMMMMMMMMMMMMMMMMMMMMMX.
+;MMMMMMMMMMMMMMMMMMMMMMMM:
+:MMMMMMMMMMMMMMMMMMMMMMMM:
+.MMMMMMMMMMMMMMMMMMMMMMMMX.
+ kMMMMMMMMMMMMMMMMMMMMMMMMWd.
+ 'XMMMMMMMMMMMMMMMMMMMMMMMMMMk
+  'XMMMMMMMMMMMMMMMMMMMMMMMMK.
+    kMMMMMMMMMMMMMMMMMMMMMMd
+     ;KMMMMMMMWXXWMMMMMMMk.
+       &quot;cooc*&quot;    &quot;*coo'</pre>
+              <dl class="server-neofetch-info">
+                <div><dt>host</dt><dd>alles@mac-mini</dd></div>
+                <div><dt>os</dt><dd>macOS 15.5 arm64</dd></div>
+                <div><dt>kernel</dt><dd>Darwin 24.5.0</dd></div>
+                <div><dt>uptime</dt><dd>4 days, 11 hours</dd></div>
+                <div><dt>shell</dt><dd>zsh 5.9</dd></div>
+              </dl>
+            </div>
+            <div class="server-btop" aria-label="btop-style resource summary">
+              <section class="server-monitor-box server-monitor-cpu" aria-labelledby="monitor-cpu-title"><h3 id="monitor-cpu-title">cpu <span>18%</span></h3><pre aria-label="CPU history">▁▂▂▃▂▅▄▃▂▃▆▄▃▂▂▅▃▂▁▃▂▂▃▂</pre><p>efficiency 12% · performance 24% · 42°C</p></section>
+              <section class="server-monitor-box" aria-labelledby="monitor-memory-title"><h3 id="monitor-memory-title">memory <span>61%</span></h3><p class="monitor-meter" aria-label="Memory used 61 percent">████████████░░░░░░░░</p><p>14.6 GB / 24 GB</p></section>
+              <section class="server-monitor-box" aria-labelledby="monitor-network-title"><h3 id="monitor-network-title">network</h3><p>down 2.4 MB/s · up 184 KB/s</p><p>en0 · 192.168.1.42</p></section>
+              <section class="server-monitor-box server-monitor-processes" aria-labelledby="monitor-process-title"><h3 id="monitor-process-title">processes <span>214</span></h3><div class="monitor-process-row monitor-process-head"><span>pid</span><span>program</span><span>thr</span><span>user</span><span>mem</span><span>cpu%</span></div><div class="monitor-process-row"><span>4312</span><span>alles</span><span>18</span><span>jxh</span><span>428 MB</span><span>6.1%</span></div><div class="monitor-process-row"><span>8721</span><span>searxng</span><span>12</span><span>jxh</span><span>316 MB</span><span>2.8%</span></div><div class="monitor-process-row"><span>5510</span><span>actual-server</span><span>9</span><span>jxh</span><span>188 MB</span><span>1.4%</span></div><div class="monitor-process-row"><span>4908</span><span>backup-worker</span><span>4</span><span>jxh</span><span>96 MB</span><span>0.8%</span></div><div class="monitor-process-row"><span>312</span><span>tailscaled</span><span>11</span><span>root</span><span>72 MB</span><span>0.4%</span></div><div class="monitor-process-row"><span>1</span><span>launchd</span><span>5</span><span>root</span><span>28 MB</span><span>0.2%</span></div></section>
+            </div>
+          </section>
+          <div class="server-summary">
+            <div class="metric"><div class="metric-label">Alles uptime</div><div class="metric-value">4d 11h</div><div class="metric-note">build 2026.07.24</div></div>
+            <div class="metric"><div class="metric-label">storage</div><div class="metric-value">61%</div><div class="metric-note">82 GB free</div></div>
+            <div class="metric"><div class="metric-label">last backup</div><div class="metric-value">08:04</div><div class="metric-note">verified today</div></div>
+            <div class="metric"><div class="metric-label">warnings</div><div class="metric-value">1</div><div class="metric-note">update available</div></div>
+          </div>
+          <div class="service-table" aria-label="Owned service status">
+            <div class="service-row"><span class="service-name">Alles</span><span class="service-state running">running</span><span class="service-owner">owned · native</span><span class="service-actions"><button class="text-action" type="button">logs</button><button class="text-action" type="button">restart</button></span></div>
+            <div class="service-row"><span class="service-name">SearXNG</span><span class="service-state running">running</span><span class="service-owner">owned · Docker</span><span class="service-actions"><button class="text-action" type="button">test</button><button class="text-action" type="button">restart</button></span></div>
+            <div class="service-row"><span class="service-name">Actual</span><span class="service-state running">running</span><span class="service-owner">owned · managed</span><span class="service-actions"><button class="text-action" type="button">open</button><button class="text-action" type="button">restart</button></span></div>
+          </div>
+        </section>
+
+        <section class="server-page" data-server-page="services" tabindex="-1" hidden>
+          <button class="mobile-back" type="button" data-server-nav>‹ sections</button>
+          <h2 class="section-title">Services</h2>
+          <p class="section-copy">Only actions supported by each verified owner and supervisor are available.</p>
+          <div class="service-table">
+            <div class="service-row"><span class="service-name">Alles</span><span class="service-state running">running</span><span class="service-owner">owned · launchd</span><span class="service-actions"><button class="text-action" type="button">logs</button><button class="text-action" type="button">restart</button></span></div>
+            <div class="service-row"><span class="service-name">SearXNG</span><span class="service-state running">running</span><span class="service-owner">owned · Docker</span><span class="service-actions"><button class="text-action" type="button">stop</button><button class="text-action" type="button">restart</button></span></div>
+            <div class="service-row"><span class="service-name">Actual</span><span class="service-state running">running</span><span class="service-owner">owned · managed</span><span class="service-actions"><button class="text-action" type="button">stop</button><button class="text-action" type="button">restart</button></span></div>
+          </div>
+          <div class="state-message"><strong>Host services are not exposed</strong><p>The current policy is <code>owned_only</code>. Edit Access policy locally to allow exact launchd or systemd identifiers.</p><button class="text-action" type="button" data-open-server-page="access-policy">open access policy</button></div>
+        </section>
+
+        <section class="server-page" data-server-page="search-models" tabindex="-1" hidden>
+          <button class="mobile-back" type="button" data-server-nav>‹ sections</button>
+          <h2 class="section-title">Search and models</h2>
+          <p class="section-copy">Andromeda answers quickly, then checks freshness-sensitive claims in a separate background pass.</p>
+          <div class="settings-form">
+            <div class="setting-row"><div class="setting-copy"><strong>Search provider</strong><span>Normal results never wait for either model.</span></div><div class="setting-control"><label class="field-label" for="provider-endpoint">primary endpoint</label><input class="field" id="provider-endpoint" type="url" value="http://127.0.0.1:8080" spellcheck="false"></div></div>
+            <div class="setting-row"><div class="setting-copy"><strong>Compact answer</strong><span>The fast model receives a bounded evidence bundle and must cite it.</span></div><div class="setting-control"><label class="field-label" for="answer-model">answer model</label><input class="field" id="answer-model" type="text" value="local / fast-search" spellcheck="false"></div></div>
+            <div class="setting-row"><div class="setting-copy"><strong>Background fact-check</strong><span>Independent from the answer model. Turning it off keeps its configuration.</span></div><div class="setting-control"><div class="switch-row"><span>enabled</span><button class="switch" type="button" role="switch" aria-checked="true" aria-label="Background fact-check" data-label="background fact-check" data-controls-disabled="verifier-settings"></button></div><div id="verifier-settings"><label class="field-label field-label-spaced" for="verifier-model">verifier model</label><input class="field" id="verifier-model" type="text" value="remote / current-facts" spellcheck="false"></div></div></div>
+            <div class="setting-row"><div class="setting-copy"><strong>When to verify</strong><span>Default checks current, latest, date, release, and version claims.</span></div><div class="setting-control"><div class="choice-group" role="radiogroup" aria-label="Verification mode"><button class="choice" type="button" role="radio" aria-checked="true" data-value="freshness-sensitive"><span class="choice-mark" aria-hidden="true"></span><span>freshness-sensitive</span></button><button class="choice" type="button" role="radio" aria-checked="false" tabindex="-1" data-value="always"><span class="choice-mark" aria-hidden="true"></span><span>always</span></button><button class="choice" type="button" role="radio" aria-checked="false" tabindex="-1" data-value="manual"><span class="choice-mark" aria-hidden="true"></span><span>manual</span></button><button class="choice" type="button" role="radio" aria-checked="false" tabindex="-1" data-value="off"><span class="choice-mark" aria-hidden="true"></span><span>off</span></button></div></div></div>
+            <div class="setting-row"><div class="setting-copy"><strong>Remote-model privacy</strong><span>The query and bounded evidence leave Alles only after the existing confirmation boundary.</span></div><div class="setting-control"><button class="text-action" type="button">review disclosure</button></div></div>
+          </div>
+        </section>
+
+        <section class="server-page" data-server-page="backups" tabindex="-1" hidden>
+          <button class="mobile-back" type="button" data-server-nav>‹ sections</button>
+          <h2 class="section-title">Backups and storage</h2><p class="section-copy">Run, verify, and inspect encrypted targets without turning an offline copy into a backup claim.</p>
+          <div class="service-table"><div class="service-row"><span class="service-name">local encrypted backup</span><span class="service-state running">verified</span><span class="service-owner">today · 08:04</span><span class="service-actions"><button class="text-action" type="button">verify</button><button class="text-action" type="button">run now</button></span></div><div class="service-row"><span class="service-name">WebDAV off-site</span><span class="service-state running">verified</span><span class="service-owner">yesterday · 23:10</span><span class="service-actions"><button class="text-action" type="button">test</button></span></div><div class="service-row"><span class="service-name">S3 archive</span><span class="service-state">paused</span><span class="service-owner">owner paused</span><span class="service-actions"><button class="text-action" type="button">resume</button></span></div></div>
+        </section>
+
+        <section class="server-page" data-server-page="updates" tabindex="-1" hidden>
+          <button class="mobile-back" type="button" data-server-nav>‹ sections</button>
+          <h2 class="section-title">Updates</h2><p class="section-copy">The installed build stays active until the candidate passes preflight and the verified supervisor accepts handoff.</p>
+          <div class="server-summary"><div class="metric"><div class="metric-label">installed</div><div class="metric-value">2026.07.24</div><div class="metric-note">verified running</div></div><div class="metric"><div class="metric-label">candidate</div><div class="metric-value">2026.07.25</div><div class="metric-note">preflight not run</div></div><div class="metric"><div class="metric-label">rollback</div><div class="metric-value">ready</div><div class="metric-note">previous release sealed</div></div><div class="metric"><div class="metric-label">restart</div><div class="metric-value">manual</div><div class="metric-note">owner controlled</div></div></div><button class="primary-action spaced-action" type="button">run preflight</button>
+        </section>
+
+        <section class="server-page" data-server-page="logs" tabindex="-1" hidden>
+          <button class="mobile-back" type="button" data-server-nav>‹ sections</button>
+          <h2 class="section-title">Logs and activity</h2><p class="section-copy">Bounded runtime events, service checks, jobs, and audited management actions.</p>
+          <div class="service-table"><div class="service-row"><span class="service-name">09:44:18 · backup verify</span><span class="service-state running">passed</span><span class="service-owner">automatic</span><span class="service-actions"><button class="text-action" type="button">details</button></span></div><div class="service-row"><span class="service-name">09:42:03 · Andromeda check</span><span class="service-state running">passed</span><span class="service-owner">owner search</span><span class="service-actions"><button class="text-action" type="button">details</button></span></div><div class="service-row"><span class="service-name">08:05:12 · SearXNG restart</span><span class="service-state running">accepted</span><span class="service-owner">owner · loopback</span><span class="service-actions"><button class="text-action" type="button">audit</button></span></div></div>
+          <div class="state-message" data-state-only="long" hidden><strong>Long identifiers stay readable</strong><p class="break-anywhere">com.jxherc.alles.background.search-verification.current-release-evidence-refresh</p></div>
+        </section>
+
+        <section class="server-page" data-server-page="access-policy" tabindex="-1" hidden>
+          <button class="mobile-back" type="button" data-server-nav>‹ sections</button>
+          <h2 class="section-title">Access policy</h2>
+          <p class="section-copy">This file is the only way to widen Server beyond Alles-owned services. Remote sessions can inspect it but cannot save a wider policy.</p>
+          <div class="state-message" data-state-only="permission" hidden><strong>Local owner confirmation required</strong><p>This remote session may inspect the effective policy, but only a loopback device-profile session with recent owner reauthentication can widen it.</p></div>
+          <p class="policy-path">${ALLES_DATA}/server-policy.json</p>
+          <div class="settings-form">
+            <div class="setting-row"><div class="setting-copy"><strong>Control mode</strong><span>Missing or invalid policy always behaves as owned only.</span></div><div class="setting-control"><div class="choice-group" role="radiogroup" aria-label="Server control mode" data-policy-mode><button class="choice" type="button" role="radio" aria-checked="true" data-value="owned_only"><span class="choice-mark" aria-hidden="true"></span><span>Alles-owned only</span></button><button class="choice" type="button" role="radio" aria-checked="false" tabindex="-1" data-value="allowlisted_host"><span class="choice-mark" aria-hidden="true"></span><span>allow exact host services</span></button></div></div></div>
+          </div>
+          <label class="field-label" for="policy-json">canonical policy file</label>
+          <textarea class="policy-editor" id="policy-json" data-policy-editor spellcheck="false">{
+  "control_mode": "owned_only",
+  "host_services": []
+}</textarea>
+          <p class="warning-copy">Commands, arguments, paths, globs, scripts, wildcard services, and arbitrary files are rejected. Widening access requires loopback, the device profile, recent owner reauthentication, and typed confirmation.</p>
+          <div class="policy-actions"><button class="text-action" type="button" data-validate-policy>validate</button><button class="primary-action" type="button" data-save-policy>save policy</button><span class="inline-status" data-policy-status>unchanged</span></div>
+        </section>
+      </main>
+    </div>
+  </section>
+
+  <div class="dialog-backdrop" data-policy-dialog hidden>
+    <section class="dialog" role="dialog" aria-modal="true" aria-labelledby="policy-dialog-title">
+      <h2 id="policy-dialog-title">Allow exact host services?</h2>
+      <p>This widens Server beyond Alles-owned processes. Only the exact identifiers in the policy become available.</p>
+      <label class="field-label" for="confirm-policy">type “allow host services”</label>
+      <input class="field" id="confirm-policy" data-confirm-field type="text" aria-describedby="confirm-policy-error" autocomplete="off">
+      <p class="validation-error" id="confirm-policy-error" data-confirm-error hidden>The phrase does not match.</p>
+      <div class="dialog-actions"><button class="text-action" type="button" data-close-dialog>keep owned only</button><button class="primary-action" type="button" data-confirm-policy>save wider policy</button></div>
+    </section>
+  </div>
+
+  <div class="preview-tools" aria-label="Starter controls"><span class="preview-label">starter</span><span class="preview-feedback" data-demo-feedback>ready</span><a class="text-action" href="workbenches.html#apps">apps</a><button type="button" data-theme-toggle aria-pressed="false">theme</button><button type="button" data-demo-state="ready" aria-pressed="true">ready</button><button type="button" data-demo-state="permission" aria-pressed="false">permission</button><button type="button" data-demo-state="long" aria-pressed="false">long</button></div>
+  <script src="starter.js"></script>
+</body>
+</html>

@@ -1,0 +1,74 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+
+const manifest = JSON.parse(fs.readFileSync(new URL('../../extension/manifest.json', import.meta.url), 'utf8'));
+const popup = fs.readFileSync(new URL('../../extension/popup.js', import.meta.url), 'utf8');
+const background = fs.readFileSync(new URL('../../extension/background.js', import.meta.url), 'utf8');
+const popupCss = fs.readFileSync(new URL('../../extension/popup.css', import.meta.url), 'utf8');
+const vault = fs.readFileSync(new URL('../../static/js/vault.js', import.meta.url), 'utf8');
+
+assert.equal(manifest.manifest_version, 3);
+assert.deepEqual(new Set(manifest.permissions), new Set(['activeTab', 'scripting', 'storage', 'idle']));
+assert.equal(manifest.host_permissions, undefined);
+assert.equal(manifest.content_scripts, undefined);
+assert.ok(manifest.optional_host_permissions.every(pattern => pattern !== '<all_urls>'));
+assert.match(popup, /chrome\.permissions\.request/);
+assert.match(popup, /return `\$\{url\.protocol\}\/\/\$\{url\.hostname\}\/\*`/);
+assert.match(popup, /chrome\.storage\.local/);
+assert.match(popup, /chrome\.storage\.session/);
+assert.match(popup, /started\.expires_in/);
+assert.match(popup, /expiresAt: Date\.now\(\) \+ \(expiresIn \* 1000\)/);
+assert.match(popup, /while \(Date\.now\(\) < expiresAt\)/);
+assert.match(popup, /error\.status = response\.status/);
+assert.match(popup, /error\.code = payload\.code \|\| ''/);
+assert.match(popup, /function isTerminalPairingError\(error\)/);
+assert.match(popup, /function samePairing\(left, right\)/);
+assert.match(popup, /function sameUnlockRequest\(left, right\)/);
+assert.match(popup, /error\?\.code === 'pairing_not_found'/);
+assert.match(popup, /\/api\/auth\/browser\/pair\/ack/);
+const pairPoll = popup.match(/async function pollPairing\(pairing\)[\s\S]*?\n}\n\nfunction renderLocked/)?.[0] || '';
+assert.ok(pairPoll.indexOf("chrome.storage.session.get('pairing')") < pairPoll.indexOf('chrome.storage.local.set'));
+assert.ok(pairPoll.indexOf('chrome.storage.local.set') < pairPoll.lastIndexOf("chrome.storage.session.get('pairing')"));
+assert.ok(pairPoll.indexOf("chrome.storage.local.set") < pairPoll.indexOf("/api/auth/browser/pair/ack"));
+assert.ok(pairPoll.indexOf("/api/auth/browser/pair/ack") < pairPoll.lastIndexOf("chrome.storage.session.remove('pairing')"));
+assert.match(pairPoll, /let credentialsDelivered = false/);
+assert.match(pairPoll, /credentialsDelivered && error\?\.code === 'pairing_not_found'/);
+assert.match(
+  pairPoll,
+  /await chrome\.storage\.session\.remove\('pairing'\);\s*if \(credentialsDelivered\) \{\s*renderLocked\(\);\s*return;\s*\}\s*renderSetup\('Pairing expired/,
+);
+assert.match(popup, /error\.status !== 429/);
+assert.match(pairPoll, /if \(isTerminalPairingError\(error\)\)/);
+assert.match(popup, /chrome\.storage\.session\.remove\('pairing'\)/);
+assert.match(popup, /renderSetup\('Pairing expired\. Start a new pairing request\.'\)/);
+assert.match(popup, /\/api\/auth\/browser\/disconnect/);
+assert.match(popup, /await request\(state\.allesOrigin, '\/api\/auth\/browser\/disconnect'/);
+assert.ok(popup.indexOf('/api/auth/browser/disconnect') < popup.indexOf("chrome.storage.local.remove(['allesOrigin', 'connectionId', 'deviceSecret'])"));
+assert.match(popup, /catch \(error\) \{[^]*?Disconnected here\.[^]*?chrome\.storage\.local\.remove/);
+assert.match(popup, /chrome\.storage\.session\.remove\(\['sessionToken', 'pairing', 'unlockRequest'\]\)/);
+const unlockPoll = popup.match(/async function pollUnlock\(unlockRequest\)[\s\S]*?\n}\n\nasync function activeTab/)?.[0] || '';
+assert.ok(unlockPoll.indexOf("chrome.storage.session.get('unlockRequest')") < unlockPoll.indexOf('chrome.storage.session.set({ sessionToken'));
+assert.ok(unlockPoll.indexOf('chrome.storage.session.set({ sessionToken') < unlockPoll.lastIndexOf("chrome.storage.session.get('unlockRequest')"));
+assert.match(unlockPoll, /if \(isTerminalUnlockError\(error\)\) await clearUnlockRequest\(unlockRequest\)/);
+assert.match(unlockPoll, /await clearUnlockRequest\(unlockRequest\);\s*renderLocked\('Access request expired\.'/);
+assert.match(popup, /function clearUnlockRequest\(unlockRequest\)[\s\S]*?sameUnlockRequest\(pending, unlockRequest\)[\s\S]*?remove\('unlockRequest'\)/);
+assert.match(popup, /frameIds: \[0\]/);
+assert.match(popup, /location\.origin !== expectedOrigin/);
+assert.doesNotMatch(popup, /allFrames/);
+assert.match(popup, /passwordInputs\.length !== 1/);
+assert.match(popup, /new-password/);
+assert.doesNotMatch(popup, /\.submit\(/);
+assert.doesNotMatch(popup + background, /X-Vault-Token/);
+assert.match(background, /chrome\.idle\.onStateChanged/);
+assert.match(background, /state === 'idle' \|\| state === 'locked'/);
+assert.match(popupCss, /input \{[^}]*min-height:44px/);
+assert.match(popupCss, /button \{[^}]*min-height:44px/);
+assert.match(vault, /\/api\/vault\/browsers\/extension/);
+assert.match(vault, /data-browser-pair/);
+assert.match(vault, /data-browser-unlock/);
+assert.match(vault, /data-browser-pair-deny/);
+assert.match(vault, /data-browser-unlock-deny/);
+assert.match(vault, /data-browser-lock/);
+assert.match(vault, /data-browser-revoke/);
+
+console.log('phase 9 browser extension source contracts: ok');

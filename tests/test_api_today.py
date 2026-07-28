@@ -1,4 +1,4 @@
-from datetime import date, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 
 from core.database import CalendarEvent, Reminder, Task
 from tests._client import ApiTest
@@ -12,7 +12,14 @@ class TodayApiTest(ApiTest):
         d.add(Task(title="due today", due_date=today, done=False))
         d.add(Task(title="way overdue", due_date="2000-01-01", done=False))
         d.add(Task(title="done already", due_date=today, done=True))
-        d.add(Reminder(text="ping me", trigger_at=datetime.utcnow(), fired=False, type="reminder"))
+        d.add(
+            Reminder(
+                text="ping me",
+                trigger_at=datetime.now(UTC).replace(tzinfo=None),
+                fired=False,
+                type="reminder",
+            )
+        )
         d.commit()
         d.close()
 
@@ -57,7 +64,14 @@ class TodayApiTest(ApiTest):
 
     def test_fired_reminder_not_returned(self):
         d = self.db()
-        d.add(Reminder(text="old fired", trigger_at=datetime.utcnow(), fired=True, type="reminder"))
+        d.add(
+            Reminder(
+                text="old fired",
+                trigger_at=datetime.now(UTC).replace(tzinfo=None),
+                fired=True,
+                type="reminder",
+            )
+        )
         d.commit()
         d.close()
 
@@ -65,7 +79,7 @@ class TodayApiTest(ApiTest):
         self.assertNotIn("old fired", [x["text"] for x in r["reminders"]])
 
     def test_future_reminder_not_returned(self):
-        tomorrow = datetime.utcnow() + timedelta(days=2)
+        tomorrow = datetime.now(UTC).replace(tzinfo=None) + timedelta(days=2)
         d = self.db()
         d.add(Reminder(text="future ping", trigger_at=tomorrow, fired=False, type="reminder"))
         d.commit()
@@ -98,12 +112,14 @@ class TodayApiTest(ApiTest):
         # create a weekly event that started on a past monday
         past_monday = next_monday - timedelta(weeks=2)
         d = self.db()
-        d.add(CalendarEvent(
-            title="weekly monday",
-            start_dt=past_monday.isoformat() + "T08:00:00",
-            recurrence="weekly",
-            all_day=False,
-        ))
+        d.add(
+            CalendarEvent(
+                title="weekly monday",
+                start_dt=past_monday.isoformat() + "T08:00:00",
+                recurrence="weekly",
+                all_day=False,
+            )
+        )
         d.commit()
         d.close()
 
@@ -113,12 +129,14 @@ class TodayApiTest(ApiTest):
 
     def test_monthly_31st_recurring_event_appears_on_short_month_clamp(self):
         d = self.db()
-        d.add(CalendarEvent(
-            title="monthly close",
-            start_dt="2026-01-31T08:00:00",
-            recurrence="monthly",
-            all_day=False,
-        ))
+        d.add(
+            CalendarEvent(
+                title="monthly close",
+                start_dt="2026-01-31T08:00:00",
+                recurrence="monthly",
+                all_day=False,
+            )
+        )
         d.commit()
         d.close()
 
@@ -159,12 +177,14 @@ class TodayApiTest(ApiTest):
 
         past_monday = next_monday - timedelta(weeks=2)
         d = self.db()
-        d.add(CalendarEvent(
-            title="monday only",
-            start_dt=past_monday.isoformat() + "T08:00:00",
-            recurrence="weekly",
-            all_day=False,
-        ))
+        d.add(
+            CalendarEvent(
+                title="monday only",
+                start_dt=past_monday.isoformat() + "T08:00:00",
+                recurrence="weekly",
+                all_day=False,
+            )
+        )
         d.commit()
         d.close()
 

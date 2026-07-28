@@ -53,8 +53,16 @@ def main():
             ("Read 'The Pragmatic Programmer'", 0, 30, "reading", ""),
         ]
         for i, (title, pri, due_off, tags, notes) in enumerate(tasks):
-            d.add(Task(title=title, priority=pri, due_date=iso(TODAY + timedelta(days=due_off)),
-                       tags=tags, notes=notes, sort_order=i))
+            d.add(
+                Task(
+                    title=title,
+                    priority=pri,
+                    due_date=iso(TODAY + timedelta(days=due_off)),
+                    tags=tags,
+                    notes=notes,
+                    sort_order=i,
+                )
+            )
         # a couple already done
         for title in ("Submit expense report", "Water the plants"):
             t = Task(title=title, done=True, completed_at=NOW - timedelta(days=1))
@@ -62,8 +70,12 @@ def main():
 
     # ── money: accounts + budgets + a month of transactions ──────────────────
     if cnt(Account) < 3:
-        checking = Account(name="Checking", kind="checking", opening=3200.0, currency="USD", color="#818cf8")
-        savings = Account(name="Savings", kind="savings", opening=12500.0, currency="USD", color="#4ade80")
+        checking = Account(
+            name="Checking", kind="checking", opening=3200.0, currency="USD", color="#818cf8"
+        )
+        savings = Account(
+            name="Savings", kind="savings", opening=12500.0, currency="USD", color="#4ade80"
+        )
         card = Account(name="Visa", kind="credit", opening=-640.0, currency="USD", color="#f87171")
         d.add_all([checking, savings, card])
         d.flush()
@@ -77,22 +89,49 @@ def main():
         ]
         # deterministic spread (no RNG — keeps runs reproducible)
         import itertools
+
         seq = itertools.count(7)
         for wk in range(4):
             for cat, payees, (lo, hi) in cat_payees:
                 n = next(seq)
                 amt = lo + ((n * 37) % (hi - lo if hi != lo else 1))
                 payee = payees[n % len(payees)]
-                d.add(Transaction(account_id=checking.id, amount=float(round(amt, 2)),
-                                  category=cat, payee=payee, tags=cat,
-                                  date=iso(TODAY - timedelta(days=wk * 7 + (n % 6)))))
+                d.add(
+                    Transaction(
+                        account_id=checking.id,
+                        amount=float(round(amt, 2)),
+                        category=cat,
+                        payee=payee,
+                        tags=cat,
+                        date=iso(TODAY - timedelta(days=wk * 7 + (n % 6))),
+                    )
+                )
         # income + a transfer-ish deposit
-        d.add(Transaction(account_id=checking.id, amount=4200.0, category="income",
-                          payee="Acme Corp — payroll", date=iso(TODAY - timedelta(days=2))))
-        d.add(Transaction(account_id=savings.id, amount=500.0, category="savings",
-                          payee="Monthly transfer", date=iso(TODAY - timedelta(days=2))))
+        d.add(
+            Transaction(
+                account_id=checking.id,
+                amount=4200.0,
+                category="income",
+                payee="Acme Corp — payroll",
+                date=iso(TODAY - timedelta(days=2)),
+            )
+        )
+        d.add(
+            Transaction(
+                account_id=savings.id,
+                amount=500.0,
+                category="savings",
+                payee="Monthly transfer",
+                date=iso(TODAY - timedelta(days=2)),
+            )
+        )
     if cnt(Budget) < 3:
-        for cat, lim in [("food", 600), ("shopping", 300), ("entertainment", 120), ("transport", 200)]:
+        for cat, lim in [
+            ("food", 600),
+            ("shopping", 300),
+            ("entertainment", 120),
+            ("transport", 200),
+        ]:
             d.add(Budget(category=cat, limit_amt=float(lim)))
 
     # ── subscriptions ────────────────────────────────────────────────────────
@@ -108,8 +147,15 @@ def main():
             ("Adobe CC", 54.99, "software", 27),
         ]
         for name, price, cat, due_off in subs:
-            d.add(Subscription(name=name, price=price, cycle="monthly", category=cat,
-                               next_due=iso(TODAY + timedelta(days=due_off))))
+            d.add(
+                Subscription(
+                    name=name,
+                    price=price,
+                    cycle="monthly",
+                    category=cat,
+                    next_due=iso(TODAY + timedelta(days=due_off)),
+                )
+            )
 
     # ── calendar: a month of events ──────────────────────────────────────────
     if not d.query(Calendar).count():
@@ -134,11 +180,18 @@ def main():
             (work, "Quarterly offsite", 8, 0, 0, True),
         ]
         for cal, title, day_off, hr, dur, allday in evs:
-            start = (NOW + timedelta(days=day_off)).replace(hour=hr, minute=0, second=0, microsecond=0)
-            d.add(CalendarEvent(calendar_id=cal.id, title=title,
-                               start_dt=start.isoformat(),
-                               end_dt=(start + timedelta(hours=dur or 1)).isoformat(),
-                               all_day=allday))
+            start = (NOW + timedelta(days=day_off)).replace(
+                hour=hr, minute=0, second=0, microsecond=0
+            )
+            d.add(
+                CalendarEvent(
+                    calendar_id=cal.id,
+                    title=title,
+                    start_dt=start.isoformat(),
+                    end_dt=(start + timedelta(hours=dur or 1)).isoformat(),
+                    all_day=allday,
+                )
+            )
 
     # ── days: countdowns + anniversaries ─────────────────────────────────────
     if cnt(DayEvent) < 4:
@@ -166,11 +219,17 @@ def main():
             "Tired but productive. Closed six tickets.",
         ]
         for i in range(46):
-            day = TODAY - timedelta(days=i * 3)   # every 3 days → unique, ~4 months of heatmap
+            day = TODAY - timedelta(days=i * 3)  # every 3 days → unique, ~4 months of heatmap
             if d.query(JournalEntry).filter(JournalEntry.date == iso(day)).count():
                 continue
-            d.add(JournalEntry(date=iso(day), content=notes[i % len(notes)],
-                              mood=moods[i % len(moods)], tags="daily"))
+            d.add(
+                JournalEntry(
+                    date=iso(day),
+                    content=notes[i % len(notes)],
+                    mood=moods[i % len(moods)],
+                    tags="daily",
+                )
+            )
 
     # ── contacts ─────────────────────────────────────────────────────────────
     if cnt(Contact) < 4:
@@ -186,8 +245,19 @@ def main():
             d.add(Contact(name=name, email=email, company=company, title=title, favorite=fav))
 
     d.commit()
-    out = {m.__name__: cnt(m) for m in [Task, Transaction, Subscription, CalendarEvent,
-                                        DayEvent, JournalEntry, Contact, Budget]}
+    out = {
+        m.__name__: cnt(m)
+        for m in [
+            Task,
+            Transaction,
+            Subscription,
+            CalendarEvent,
+            DayEvent,
+            JournalEntry,
+            Contact,
+            Budget,
+        ]
+    }
     print("rich-seeded:", out)
 
     # ── demo docs (.md files in the vault) ───────────────────────────────────

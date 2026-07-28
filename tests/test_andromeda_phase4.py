@@ -41,6 +41,86 @@ class AndromedaParserPropertyTest(ApiTest):
 
 
 class AndromedaEvidenceTest(ApiTest):
+    def test_key_answer_rejects_a_long_claim_instead_of_truncating_it(self):
+        answer = andromeda.short_key_answer(
+            "FastAPI uses Python type hints to validate requests and produce detailed error messages automatically.",
+            "how does FastAPI validate requests",
+        )
+        self.assertEqual(answer, "")
+
+        qualified = andromeda.short_key_answer(
+            "This treatment is generally safe for adults but should not be used during pregnancy.",
+            "is this treatment safe",
+        )
+        self.assertEqual(qualified, "")
+
+        multi_sentence = andromeda.short_key_answer(
+            "This treatment is safe for adults. Do not use it during pregnancy.",
+            "is this treatment safe",
+        )
+        self.assertEqual(
+            multi_sentence,
+            "This treatment is safe for adults. Do not use it during pregnancy.",
+        )
+
+    def test_key_answer_is_a_short_full_sentence(self):
+        answer = andromeda.short_key_answer(
+            "Fluorine is the 9th element on the periodic table.",
+            "what is the 9th element",
+        )
+        self.assertEqual(answer, "Fluorine is the 9th element on the periodic table.")
+
+        definition = andromeda.short_key_answer(
+            "Python is a programming language.",
+            "what is Python",
+        )
+        self.assertEqual(definition, "Python is a programming language.")
+
+    def test_answer_focus_must_be_short_exact_and_repeated_by_evidence(self):
+        text = "SQLite 3.50.4 is the latest stable release."
+        quotes = ["SQLite 3.50.4 is the latest stable release with planner fixes."]
+        self.assertEqual(andromeda.verified_answer_focus(text, "3.50.4", quotes), "3.50.4")
+        self.assertEqual(
+            andromeda.verified_answer_focus(text, "sqlite 3.50.4", quotes),
+            "SQLite 3.50.4",
+        )
+        self.assertEqual(andromeda.verified_answer_focus(text, "latest", quotes), "latest")
+        self.assertEqual(andromeda.verified_answer_focus(text, "4.0", quotes), "")
+        self.assertEqual(andromeda.verified_answer_focus(text, "3.50.4", ["SQLite"]), "")
+
+    def test_verified_long_claim_stays_complete_without_a_key_answer(self):
+        claim = (
+            "This treatment is generally safe for adults but should not be used during "
+            "pregnancy without medical guidance."
+        )
+        evidence = [
+            {
+                "id": "s1",
+                "title": "medical guidance",
+                "url": "https://docs.example.com/docs/treatment",
+                "publisher": "docs.example.com",
+                "source_kind": "official docs",
+                "source_quality": 1,
+                "dates": [],
+                "versions": [],
+                "passages": [claim],
+            }
+        ]
+        raw = json.dumps(
+            {
+                "claims": [
+                    {
+                        "text": claim,
+                        "citations": [{"source_id": "s1", "quote": claim}],
+                    }
+                ]
+            }
+        )
+        checked = andromeda.verify_overview(raw, "treatment safety", evidence)
+        self.assertEqual(checked["status"], "ready")
+        self.assertEqual(checked["key_answer"], {})
+        self.assertEqual(checked["claims"][0]["text"], claim)
+
     def test_result_normalization_drops_unsafe_shapes_and_duplicates(self):
         rows = [
             {"url": "javascript:alert(1)", "title": "bad"},
@@ -52,6 +132,28 @@ class AndromedaEvidenceTest(ApiTest):
         self.assertEqual(len(result), 1)
         self.assertEqual(result[0]["source_kind"], "official docs")
         self.assertEqual(result[0]["snippet"], "hi")
+
+    def test_result_normalization_keeps_provider_media_metadata(self):
+        result = andromeda.normalize_results(
+            [
+                {
+                    "url": "https://news.example/article",
+                    "title": "story",
+                    "publisher": "Example News",
+                    "favicon_url": "https://news.example/favicon.png",
+                    "thumbnail_url": "https://cdn.example/thumb.webp",
+                    "image_url": "https://cdn.example/full.webp",
+                    "published": "2026-07-14T10:00:00Z",
+                    "width": 1600,
+                    "height": 900,
+                }
+            ],
+            "fixture",
+            12,
+        )
+        self.assertEqual(result[0]["publisher"], "Example News")
+        self.assertEqual(result[0]["favicon_url"], "https://news.example/favicon.png")
+        self.assertEqual((result[0]["width"], result[0]["height"]), (1600, 900))
 
     def test_claim_needs_an_exact_quote_from_its_named_source(self):
         evidence = [
@@ -89,6 +191,8 @@ class AndromedaEvidenceTest(ApiTest):
         checked = andromeda.verify_overview(raw, "software version", evidence)
         self.assertEqual(checked["status"], "ready")
         self.assertEqual(len(checked["claims"]), 1)
+        self.assertEqual(checked["key_answer"]["source_claim_index"], 0)
+        self.assertEqual(checked["key_answer"]["focus"], "2.4.0")
         self.assertEqual(checked["rejected_claims"], 1)
         self.assertEqual(checked["freshness"]["newest_version_seen"], "2.4.0")
 
@@ -447,6 +551,159 @@ class AndromedaApiTest(ApiTest):
         self.assertFalse(no_ai.json()["overview_requested"])
         self.assertEqual(no_ai.json()["query"], "python docs")
 
+    def test_image_search_accepts_thirty_results_and_reports_another_page(self):
+        rows = [
+            {"url": f"https://images.example/{index}", "title": f"image {index}"}
+            for index in range(31)
+        ]
+        chain = mock.AsyncMock(return_value=(rows, "fixture", None))
+        with mock.patch("services.research.search.search_chain", new=chain):
+            response = self.client.post(
+                "/api/andromeda/search",
+                json={"query": "nebula", "category": "images", "max_results": 30},
+            )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.json()["results"]), 30)
+        self.assertTrue(response.json()["has_more"])
+        self.assertEqual(chain.await_args.kwargs["max_results"], 45)
+
+    def test_normal_search_honors_the_twenty_result_setting(self):
+        rows = [
+            {"url": f"https://example.test/{index}", "title": f"result {index}"}
+            for index in range(21)
+        ]
+        chain = mock.AsyncMock(return_value=(rows, "fixture", None))
+        with mock.patch("services.research.search.search_chain", new=chain):
+            response = self.client.post(
+                "/api/andromeda/search",
+                json={"query": "configured count", "max_results": 20},
+            )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.json()["results"]), 20)
+        self.assertTrue(response.json()["has_more"])
+        self.assertEqual(chain.await_args.kwargs["max_results"], 30)
+
+    def test_filtered_first_page_keeps_later_provider_rows_reachable(self):
+        all_rows = [
+            {"url": "javascript:unsafe", "title": "unsafe"},
+            {"url": "https://example.test/0", "title": "result 0"},
+            {"url": "https://example.test/0", "title": "duplicate 0"},
+            {"url": "https://example.test/1", "title": "result 1"},
+            {"url": "https://example.test/1", "title": "duplicate 1"},
+            {"url": "https://example.test/2", "title": "result 2"},
+            {"url": "https://example.test/2", "title": "duplicate 2"},
+            {"url": "https://example.test/3", "title": "result 3"},
+            {"url": "https://example.test/3", "title": "duplicate 3"},
+            {"url": "https://example.test/4", "title": "result 4"},
+            {"url": "https://example.test/5", "title": "later result"},
+        ]
+
+        async def provider(_query, **kwargs):
+            return all_rows[: kwargs["max_results"]], "fixture", None
+
+        chain = mock.AsyncMock(side_effect=provider)
+        with mock.patch("services.research.search.search_chain", new=chain):
+            response = self.client.post(
+                "/api/andromeda/search",
+                json={"query": "filtered", "max_results": 5},
+            )
+            continuation = self.client.post(
+                "/api/andromeda/search",
+                json={"query": "filtered", "max_results": 10},
+            )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.json()["results"]), 5)
+        self.assertTrue(response.json()["has_more"])
+        self.assertEqual(chain.await_args_list[0].kwargs["max_results"], 10)
+        self.assertEqual(continuation.status_code, 200)
+        self.assertIn(
+            "https://example.test/5",
+            [row["url"] for row in continuation.json()["results"]],
+        )
+        self.assertFalse(continuation.json()["has_more"])
+        self.assertEqual(
+            [call.kwargs["max_results"] for call in chain.await_args_list],
+            [10, 20, 15],
+        )
+
+    def test_duplicate_full_batches_do_not_claim_an_unreachable_next_page(self):
+        async def provider(_query, **kwargs):
+            rows = [
+                {"url": "https://example.test/only", "title": f"duplicate {index}"}
+                for index in range(kwargs["max_results"])
+            ]
+            return rows, "fixture", None
+
+        chain = mock.AsyncMock(side_effect=provider)
+        with (
+            mock.patch("services.research.search.search_chain", new=chain),
+            mock.patch.object(andromeda, "MAX_NORMAL_FETCH_RESULTS", 12),
+        ):
+            response = self.client.post(
+                "/api/andromeda/search",
+                json={"query": "duplicates", "max_results": 5},
+            )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.json()["results"]), 1)
+        self.assertFalse(response.json()["has_more"])
+        self.assertEqual(
+            [call.kwargs["max_results"] for call in chain.await_args_list],
+            [10, 12],
+        )
+
+    def test_ordinary_search_never_expands_to_the_category_result_ceiling(self):
+        async def provider(_query, **kwargs):
+            rows = [
+                {"url": "https://example.test/only", "title": f"duplicate {index}"}
+                for index in range(kwargs["max_results"])
+            ]
+            return rows, "fixture", None
+
+        chain = mock.AsyncMock(side_effect=provider)
+        with mock.patch("services.research.search.search_chain", new=chain):
+            response = self.client.post(
+                "/api/andromeda/search",
+                json={"query": "bounded duplicates", "max_results": 20},
+            )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.json()["results"]), 1)
+        self.assertFalse(response.json()["has_more"])
+        self.assertEqual(
+            [call.kwargs["max_results"] for call in chain.await_args_list],
+            [30, andromeda.MAX_NORMAL_FETCH_RESULTS],
+        )
+
+    def test_dead_search_media_returns_a_quiet_local_placeholder(self):
+        with mock.patch(
+            "services.net_guard.safe_get_public_async",
+            new=mock.AsyncMock(side_effect=RuntimeError("upstream unavailable")),
+        ):
+            response = self.client.get(
+                "/api/andromeda/media",
+                params={"url": "https://images.example.test/dead.jpg"},
+            )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.headers["x-andromeda-media-state"], "unavailable")
+        self.assertEqual(response.headers["content-type"], "image/svg+xml")
+        self.assertIn(b"media unavailable", response.content)
+
+    def test_provider_exhaustion_hides_the_next_page(self):
+        rows = [
+            {"url": f"https://news.example/{index}", "title": f"story {index}"}
+            for index in range(20)
+        ]
+        with mock.patch(
+            "services.research.search.search_chain",
+            new=mock.AsyncMock(return_value=(rows, "fixture", None)),
+        ):
+            response = self.client.post(
+                "/api/andromeda/search",
+                json={"query": "release", "category": "news", "max_results": 20},
+            )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.json()["results"]), 20)
+        self.assertFalse(response.json()["has_more"])
+
     def test_andromeda_api_is_hidden_without_its_exact_flag(self):
         with mock.patch.dict(os.environ, {"ALLES_AFTERLIFE_FEATURES": "afterlife_shell"}):
             response = self.client.post("/api/andromeda/search", json={"query": "hidden"})
@@ -484,6 +741,25 @@ class AndromedaApiTest(ApiTest):
         self.assertFalse(response.json()["overview_requested"])
         self.assertEqual(response.json()["results"], [])
         provider.assert_not_awaited()
+
+    def test_provider_menu_only_marks_configured_engines_available(self):
+        save_settings(
+            {
+                "search_provider": "searxng",
+                "searxng_url": "http://127.0.0.1:8888",
+                "brave_api_key": "secret",
+            }
+        )
+        response = self.client.get("/api/andromeda/providers")
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["selected"], "searxng")
+        providers = {row["value"]: row["available"] for row in payload["providers"]}
+        self.assertTrue(providers["searxng"])
+        self.assertTrue(providers["brave"])
+        self.assertTrue(providers["duckduckgo"])
+        self.assertFalse(providers["serper"])
+        self.assertFalse(providers["tavily"])
 
     def test_global_overview_setting_is_independent_from_normal_results(self):
         save_settings({"andromeda_overview": False, "andromeda_normal_results": True})
@@ -596,6 +872,29 @@ class AndromedaApiTest(ApiTest):
         self.assertEqual(result["failure_type"], "")
         self.assertEqual(result["attempted_sources"], ["brave", "wikipedia"])
 
+    def test_explicit_provider_does_not_silently_switch_to_duckduckgo(self):
+        from services.research import search as search_service
+
+        async def provider(name, *_args):
+            if name == "searxng":
+                raise search_service.SearchProviderFailure("configuration")
+            return [{"url": "https://duckduckgo.com", "title": "wrong provider"}]
+
+        with (
+            mock.patch(
+                "core.settings.load_settings",
+                return_value={"search_fallback_chain": ["duckduckgo"]},
+            ),
+            mock.patch.object(search_service, "_search_provider", side_effect=provider),
+        ):
+            report = asyncio.run(
+                search_service.search_chain_report("answer", override="searxng", max_results=5)
+            )
+
+        self.assertEqual(report.results, [])
+        self.assertEqual(report.attempted_sources, ("searxng",))
+        self.assertEqual(report.failure_type, "configuration")
+
     def test_unknown_provider_name_is_redacted_from_safe_diagnostics(self):
         from services.research import search as search_service
 
@@ -646,6 +945,28 @@ class AndromedaApiTest(ApiTest):
         self.assertEqual(rows[0]["title"], "one")
         self.assertIn("q=python+%21gh", safe.await_args.args[0])
 
+    def test_isolated_managed_searxng_port_uses_the_local_client(self):
+        from services.research import search as search_service
+
+        response = mock.Mock()
+        response.raise_for_status.return_value = None
+        response.json.return_value = {
+            "results": [{"url": "https://example.com", "title": "one", "content": "hit"}]
+        }
+        local_client = mock.Mock()
+        local_client.get = mock.AsyncMock(return_value=response)
+        local_client.aclose = mock.AsyncMock()
+        with (
+            mock.patch(
+                "services.managed_searxng.managed_url", return_value="http://127.0.0.1:8890"
+            ),
+            mock.patch("httpx.AsyncClient", return_value=local_client),
+        ):
+            rows = asyncio.run(search_service._search_searxng("python", "http://127.0.0.1:8890", 5))
+        self.assertEqual(rows[0]["title"], "one")
+        self.assertGreaterEqual(local_client.get.await_count, 1)
+        local_client.aclose.assert_awaited_once()
+
     def test_overview_never_uses_remote_model_without_exact_confirmation(self):
         endpoint_id = self._endpoint(local=False)
         denied = self.client.post(
@@ -667,14 +988,12 @@ class AndromedaApiTest(ApiTest):
 
     def test_overview_stream_emits_verified_claims_and_model_provenance(self):
         self._endpoint(local=True)
+        complete = mock.AsyncMock(return_value=self._overview_raw())
         with (
             mock.patch.object(
                 andromeda, "build_evidence", new=mock.AsyncMock(return_value=self._evidence())
             ),
-            mock.patch(
-                "services.llm.simple_complete",
-                new=mock.AsyncMock(return_value=self._overview_raw()),
-            ),
+            mock.patch("services.llm.simple_complete", new=complete),
         ):
             response = self.client.post(
                 "/api/andromeda/overview",
@@ -690,6 +1009,8 @@ class AndromedaApiTest(ApiTest):
         self.assertIn('"type": "claim"', events)
         self.assertIn('"status": "ready"', events)
         self.assertIn("data: [DONE]", events)
+        self.assertFalse(complete.await_args.kwargs["thinking"])
+        self.assertLessEqual(complete.await_args.kwargs["max_tokens"], 450)
 
     def test_bad_output_failure_and_timeout_preserve_recovery_events(self):
         self._endpoint(local=True)
@@ -780,11 +1101,17 @@ class AndromedaApiTest(ApiTest):
     def test_saved_search_roundtrip_and_delete(self):
         payload = {
             "query": "saved query",
-            "request": {"overview": True, "band": "standard"},
+            "request": {"overview": True, "band": "standard", "has_more": False},
             "results": [{"url": "https://example.com", "title": "example"}],
             "overview": {"status": "ready", "claims": []},
             "evidence": [{"id": "s1", "passages": ["exact evidence"]}],
             "model": {"model": "local"},
+            "verification": {
+                "status": "checked",
+                "checked_on": "2026-07-24",
+                "verdicts": [{"claim_index": 0, "verdict": "verified"}],
+            },
+            "verifier_model": {"model": "local-verifier"},
         }
         saved = self.client.post("/api/andromeda/saved", json=payload)
         self.assertEqual(saved.status_code, 200)
@@ -793,6 +1120,8 @@ class AndromedaApiTest(ApiTest):
         self.assertEqual(reopened["request"], payload["request"])
         self.assertEqual(reopened["results"], payload["results"])
         self.assertEqual(reopened["evidence"], payload["evidence"])
+        self.assertEqual(reopened["verification"], payload["verification"])
+        self.assertEqual(reopened["verifier_model"], payload["verifier_model"])
         self.assertEqual(len(self.client.get("/api/andromeda/saved").json()["searches"]), 1)
         self.assertEqual(self.client.delete(f"/api/andromeda/saved/{search_id}").status_code, 200)
         db = self.db()

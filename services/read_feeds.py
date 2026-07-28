@@ -4,14 +4,16 @@ background job and does the network + db work."""
 
 import logging
 import re
-import xml.etree.ElementTree as ET
-from datetime import datetime
+from datetime import UTC, datetime
+
+from defusedxml import ElementTree as ET
 
 log = logging.getLogger("alles.readfeeds")
 
 # strip any DOCTYPE (incl. its internal subset) so a malicious feed can't define entities -
 # ElementTree expands internal entities, which makes billion-laughs entity-expansion bombs possible.
 _DOCTYPE = re.compile(rb"<!DOCTYPE\b[^>\[]*(\[[\s\S]*?\])?\s*>", re.IGNORECASE)
+MAX_FEED_BYTES = 2 * 1024 * 1024
 
 
 def _tag(el):
@@ -26,7 +28,10 @@ def _strip_doctype(xml):
 def parse_feed(xml) -> dict:
     """parse rss or atom → {title, items:[{title, link}]}. never raises."""
     try:
-        root = ET.fromstring(_strip_doctype(xml.strip() if isinstance(xml, str) else xml))
+        raw = xml.strip().encode("utf-8", "replace") if isinstance(xml, str) else bytes(xml)
+        if len(raw) > MAX_FEED_BYTES:
+            return {"title": "", "items": []}
+        root = ET.fromstring(_strip_doctype(raw))
     except Exception:
         return {"title": "", "items": []}
 
@@ -34,11 +39,17 @@ def parse_feed(xml) -> dict:
     for el in root.iter():
         if _tag(el) not in ("item", "entry"):
             continue
-        title, links = "", []
+        title, guid, published, summary, links = "", "", "", "", []
         for c in el:
             ct = _tag(c)
             if ct == "title" and not title:
                 title = (c.text or "").strip()
+            elif ct in ("guid", "id") and not guid:
+                guid = (c.text or "").strip()
+            elif ct in ("pubdate", "published", "updated") and not published:
+                published = (c.text or "").strip()
+            elif ct in ("description", "summary", "content") and not summary:
+                summary = " ".join(part.strip() for part in c.itertext() if part.strip())
             elif ct == "link":
                 href = c.get("href") or (c.text or "").strip()
                 if href:
@@ -51,7 +62,15 @@ def parse_feed(xml) -> dict:
         if not link and links:
             link = links[0][1]
         if link:
-            items.append({"title": title or link, "link": link})
+            items.append(
+                {
+                    "title": title or link,
+                    "link": link,
+                    "guid": guid or link,
+                    "published": published,
+                    "summary": re.sub(r"<[^>]+>", " ", summary).strip(),
+                }
+            )
 
     title = ""
     for el in root.iter():
@@ -111,7 +130,7 @@ async def refresh_feeds():
                     )
                 )
                 seen.add(it["link"])
-            feed.last_checked = datetime.utcnow()
+            feed.last_checked = datetime.now(UTC).replace(tzinfo=None)
         db.commit()
     finally:
         db.close()

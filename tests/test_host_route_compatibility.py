@@ -9,6 +9,7 @@ directory, so none of these requests can touch the installed Alles data.
 import logging
 from pathlib import Path
 
+from services import secretstore
 from tests._client import ApiTest
 
 ROOT = Path(__file__).parents[1]
@@ -38,7 +39,11 @@ APP_HOSTS = (
     "subs.localhost",
     "subscriptions.localhost",
     "calendar.localhost",
+    "plan.localhost",
     "tasks.localhost",
+    "reminders.localhost",
+    "inbox.localhost",
+    "library.localhost",
     "days.localhost",
     "activity.localhost",
     "server.localhost",
@@ -58,13 +63,32 @@ APP_HOSTS = (
 class HostRouteCompatibilityTest(ApiTest):
     def setUp(self):
         super().setUp()
+        self._secretstore_state = (
+            secretstore._key,
+            secretstore._key_path,
+            dict(secretstore._keys),
+            secretstore._active_id,
+        )
+        secretstore._key = None
+        secretstore._key_path = None
+        secretstore._keys = {}
+        secretstore._active_id = ""
+        secretstore._load_keyring()
         self._http_logger = logging.getLogger("alles.http")
         self._http_log_level = self._http_logger.level
         self._http_logger.setLevel(logging.WARNING)
 
     def tearDown(self):
-        self._http_logger.setLevel(self._http_log_level)
-        super().tearDown()
+        try:
+            self._http_logger.setLevel(self._http_log_level)
+            super().tearDown()
+        finally:
+            (
+                secretstore._key,
+                secretstore._key_path,
+                secretstore._keys,
+                secretstore._active_id,
+            ) = self._secretstore_state
 
     def _get(self, path: str, host: str):
         return self.client.get(

@@ -73,6 +73,13 @@ class HomeTilesTests(unittest.TestCase):
     def test_no_aide_goto_button_in_quick_message(self):
         self.assertNotIn('id="ha-goto"', INDEX)
 
+    def test_reduced_motion_keeps_home_tiles_visible_and_stationary(self):
+        self.assertRegex(
+            CSS,
+            r"@media\s*\(prefers-reduced-motion:\s*reduce\)\s*\{[^}]*"
+            r"\.home-tile[^}]*animation:\s*none;[^}]*opacity:\s*1;[^}]*transform:\s*none;",
+        )
+
 
 class QuickMessageTests(unittest.TestCase):
     def test_input_is_quick_message(self):
@@ -83,7 +90,9 @@ class QuickMessageTests(unittest.TestCase):
         # the redundant quick-message "about my day" button is removed; the day summary lives on the
         # dedicated day-section button (#ht-ask → _askAideAboutToday) instead
         self.assertNotIn('id="ha-day"', INDEX)
-        self.assertIn('id="ht-ask"', APP)   # the day-section "ask aide about my day" button (rendered by app.js)
+        self.assertIn(
+            'id="ht-ask"', APP
+        )  # the day-section "ask aide about my day" button (rendered by app.js)
 
     def test_send_is_plain_day_is_contextual(self):
         self.assertIn("ask(false)", APP)  # plain send

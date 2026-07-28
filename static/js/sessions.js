@@ -3,16 +3,17 @@ import { confirm as _dlgConfirm, prompt as _dlgPrompt } from './dialog.js';
 import { renderProjectFolders, loadProjects, getProjects, createProject, assignSession } from './projects.js';
 import { applyResponsePrivacy, stripEmojis, welcomeEnabled } from './privacy.js';
 import { renderAgentSteps, wireAgentRunControls } from './agentview.js';
-import { isIncognitoMode } from './modes.js';
+import { isIncognitoMode } from './modes.js?v=256';
 import { scrollToLatest } from './scrollfollow.js';
-import { contextProvenanceElement } from './memoryactions.js';
 import {
   getCurrentEndpoint,
   getSelected,
   modelOverrideForNewSession,
   restoreSessionModel,
   selectAideDefault,
-} from './models.js?v=210';
+} from './models.js?v=212';
+import { t } from './i18n.js';
+import { contextProvenanceElement } from './memoryactions.js';
 
 let _sessions = { today: [], yesterday: [], earlier: [] };
 let _activeId = null;
@@ -32,12 +33,13 @@ export async function loadSessions() {
     // active session got deleted/archived elsewhere → drop the stale highlight
     if (_activeId && !_allSessions.find(s => s.id === _activeId)) _activeId = null;
   } catch (e) {
-    console.error('loadSessions', e);
+    if (globalThis.navigator?.onLine !== false) console.error('loadSessions', e);
   }
 }
+window._reloadAideSessions = loadSessions;
 
 // called once on boot. only restore a session from a deep-link hash —
-// a bare localhost:8000 always opens a fresh chat (like claude.ai/new).
+// a bare localhost:6769 always opens a fresh chat (like claude.ai/new).
 export async function initSessions({ hashOwner = 'session' } = {}) {
   await loadSessions();
   const hash = location.hash.slice(1);
@@ -84,6 +86,9 @@ export function newChat(options = {}) {
   if (!options.skipDraft) saveDraft(); // keep whatever was half-typed in the outgoing convo
   _activeId = null;
   window._currentSession = null;
+  const requestedProject = options.projectId ?? new URLSearchParams(location.search).get('project_id') ?? '';
+  window._pendingProjectId = getProjects().some(project => project.id === requestedProject) ? requestedProject : '';
+  window._pendingWorkingDir = '';
   window._pendingPersona = null;       // fresh chat starts with no persona pre-picked
   window._pendingChatBehavior = '';
   window._refreshPersonaBtn?.();        // keep the persona button visible + pickable pre-send
@@ -98,6 +103,7 @@ export function newChat(options = {}) {
   const ta = document.getElementById('composer-ta');
   if (ta) { ta.style.height = 'auto'; ta.focus(); }
   restoreDraft(null);       // bring back the 'new chat' draft if any
+  window._syncAideNewTaskContext?.(null);
 }
 
 // mark a session active without re-fetching/re-rendering its messages.
@@ -108,6 +114,7 @@ export function markActive(id) {
   document.querySelectorAll('.session-item').forEach(el => {
     el.classList.toggle('active', el.dataset.id === id);
   });
+  window._syncAideNewTaskContext?.(window._currentSession || (id ? { id } : null));
 }
 
 
@@ -282,8 +289,8 @@ export async function selectSession(id) {
     try {
       window._refreshPersonaBtn?.();
     } catch (e) {}
-    // 10b — if a background agent run is still going for this session, reattach to it
-    import('./bgrun.js').then(m => m.reattach(id)).catch(() => {});
+    // Reattach durable Aide work to this same task after a reload or tab switch.
+    import('./aidebackground.js?v=245').then(m => m.reattachBackgroundWork(id)).catch(() => {});
   } catch (e) {
     console.error('selectSession', e);
   }
@@ -345,9 +352,10 @@ function renderMessages(msgs) {
 }
 
 
-export function appendUserMsg(text) {
+export function appendUserMsg(text, documentScope = null) {
   const { row } = _makeRow('user');
   row.innerHTML = `<div class="user-wrap">
+    ${documentScope?.path ? `<div class="user-context-scope">using note · ${escHtml(documentScope.path)}</div>` : ''}
     <div class="user-bubble">${escHtml(text)}</div>
     <button class="msg-memory-btn" type="button" onclick="rememberUserMessage(this)">remember this</button>
     <button class="msg-edit-btn" title="edit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 3a2.8 2.8 0 0 1 4 4L7 21l-4 1 1-4Z"></path><path d="m15 5 4 4"></path></svg></button>
@@ -367,15 +375,6 @@ export function appendAiMsg(text, thinking, toolSteps, contextProvenance, agentR
   content.innerHTML = displayText ? _md(stripEmojis(displayText)) : '';
   applyResponsePrivacy(content);
   body.appendChild(content);
-  const context = contextProvenanceElement(contextProvenance);
-  if (context) body.appendChild(context);
-  // conclusion first; completed work stays available beneath it.
-  if (toolSteps?.length) {
-    const holder = document.createElement('div');
-    holder.innerHTML = renderAgentSteps(toolSteps, false, agentRunId);
-    if (holder.firstElementChild) body.appendChild(holder.firstElementChild);
-    wireAgentRunControls(body);
-  }
   if (thinking) {
     const tb = document.createElement('details');
     tb.className = 'thinking-block';
@@ -383,6 +382,14 @@ export function appendAiMsg(text, thinking, toolSteps, contextProvenance, agentR
     tb.querySelector('.thinking-content').textContent = thinking;
     body.appendChild(tb);
   }
+  if (toolSteps?.length) {
+    const holder = document.createElement('div');
+    holder.innerHTML = renderAgentSteps(toolSteps, false, agentRunId);
+    if (holder.firstElementChild) body.appendChild(holder.firstElementChild);
+    wireAgentRunControls(body);
+  }
+  const provenance = contextProvenanceElement(contextProvenance);
+  if (provenance) body.appendChild(provenance);
   body.classList.add('done');
 
   const actions = document.createElement('div');
@@ -390,8 +397,7 @@ export function appendAiMsg(text, thinking, toolSteps, contextProvenance, agentR
   actions.innerHTML = `<button class="act-btn" onclick="copyMsg(this)">copy</button>
     <button class="msg-regen-btn act-btn" title="regenerate">regen</button>
     <button class="msg-rewrite-btn act-btn" data-style="shorter" title="rewrite shorter">shorter</button>
-    <button class="msg-rewrite-btn act-btn" data-style="simpler" title="rewrite simpler">simpler</button>
-    <button class="act-btn" onclick="runMessageWithJarvis(this)">run with jarvis</button>`;
+    <button class="msg-rewrite-btn act-btn" data-style="simpler" title="rewrite simpler">simpler</button>`;
   wrap.appendChild(actions);
   wireRewriteButtons(actions);
 
@@ -596,16 +602,8 @@ function _escName(s) { return String(s ?? '').replace(/&/g, '&amp;').replace(/</
 function greetingHtml() {
   const h = new Date().getHours();
   const name = (localStorage.getItem('alles-name') || '').trim();
-  let pool;
-  if (h < 5)        pool = ['still up?', 'burning the midnight oil?', 'the world\'s asleep, perfect',
-                            'night owl mode?', 'quiet hours, big ideas', 'one more thing?', 'can\'t sleep?',
-                            'late-night session?'];
-  else if (h < 12)  pool = ['good morning', 'morning', 'rise and shine', 'top of the morning',
-                            'fresh start', 'let\'s make today count', 'the day is yours', 'coffee first?'];
-  else if (h < 18)  pool = ['good afternoon', 'afternoon', 'good to see you', 'back at it?',
-                            'midday momentum', 'what are we shipping today?', 'let\'s keep rolling', 'ready when you are?'];
-  else              pool = ['good evening', 'evening', 'welcome back', 'the night is young',
-                            'what are we building tonight?', 'prime hours', 'let\'s get into it', 'golden hour for ideas'];
+  const period = h < 5 ? 'night' : h < 12 ? 'morning' : h < 18 ? 'afternoon' : 'evening';
+  const pool = [1, 2, 3].map(index => t(`home.greeting.${period}.${index}`));
   const pick = pool[Math.floor(Math.random() * pool.length)];
   return _withName(pick, name);
 }
@@ -640,7 +638,7 @@ export function showWelcome() {
     // dedicated incognito hero — always shown off the record (à la Claude)
     if (g) g.innerHTML = `
       <div class="incognito-hero">
-        <svg class="incognito-hero-mark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M12 2v20M2 12h20M4.93 4.93l14.14 14.14M19.07 4.93L4.93 19.07"/></svg>
+        <svg class="incognito-hero-mark incognito-ghost" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21v-9a7 7 0 0 1 14 0v9l-2.4-1.5L14.2 21l-2.2-1.5L9.8 21l-2.4-1.5L5 21z"/><circle cx="9.5" cy="11" r="0.5" fill="currentColor"/><circle cx="14.5" cy="11" r="0.5" fill="currentColor"/></svg>
         <div class="incognito-hero-title">${incognitoTitle()}</div>
         <div class="incognito-hero-note">incognito chats aren't saved, added to memory, or used to train models.</div>
       </div>`;
@@ -666,9 +664,20 @@ export function showMessages() {
 export function updateSessionHeader(session) {
   const actBtn   = document.getElementById('session-actions-btn');
   const tokCount = document.getElementById('session-token-count');
+  const tokValue = document.getElementById('session-token-count-value');
+  const conversation = document.getElementById('aide-conversation-name');
+  const projectName = document.getElementById('aide-project-name');
+  const project = session?.project_id ? getProjects().find(item => item.id === session.project_id) : null;
+  if (conversation) conversation.textContent = session?.name || t('aide.new_task');
+  if (projectName) projectName.textContent = project?.name || '';
+  window._syncAideNewTaskContext?.(session || null);
   if (!session) {
     if (actBtn)   actBtn.style.display   = 'none';
-    if (tokCount) { tokCount.style.display = 'none'; tokCount.textContent = ''; }
+    if (tokCount) {
+      tokCount.hidden = true;
+      tokCount.removeAttribute('aria-label');
+    }
+    if (tokValue) tokValue.textContent = '';
     return;
   }
   if (actBtn)   actBtn.style.display   = '';
@@ -690,6 +699,12 @@ export function downloadSession(fmt = 'md') {
 // kept for the /export slash command + older callers
 export async function exportActiveSessionMarkdown() { downloadSession('md'); }
 
+window.addEventListener('alles:localization-change', () => {
+  const welcome = document.getElementById('welcome');
+  if (welcome && welcome.style.display !== 'none') showWelcome();
+  updateSessionHeader(window._currentSession || null);
+});
+
 
 export async function createSession(model = '', endpointId = '', options = {}) {
   const override = modelOverrideForNewSession(model, endpointId);
@@ -702,6 +717,8 @@ export async function createSession(model = '', endpointId = '', options = {}) {
       incognito: !!options.incognito,
       mode: options.mode || 'chat',
       chat_behavior: options.chatBehavior ?? window._pendingChatBehavior ?? '',
+      project_id: options.projectId ?? window._pendingProjectId ?? '',
+      working_dir: options.workingDir ?? window._pendingWorkingDir ?? '',
     }),
   });
   if (!r.ok) return null;

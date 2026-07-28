@@ -12,7 +12,6 @@ def up(conn):
     add_column(conn, "api_tokens", "scopes", "TEXT NOT NULL DEFAULT '[\"read\"]'")
     conn.execute(
         text(
-            "UPDATE api_tokens SET scopes = '[\"read\"]' "
-            "WHERE scopes IS NULL OR TRIM(scopes) = ''"
+            "UPDATE api_tokens SET scopes = '[\"read\"]' WHERE scopes IS NULL OR TRIM(scopes) = ''"
         )
     )

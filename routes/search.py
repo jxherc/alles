@@ -59,7 +59,9 @@ def _search_vault(q: str, limit: int) -> list[dict]:
 
 # GET /api/search — one search across every alles app
 @router.get("/search/fts")
-def fts_search(q: str = Query(""), kind: str = "", limit: int = 20, db: DbSession = Depends(get_db)):
+def fts_search(
+    q: str = Query(""), kind: str = "", limit: int = 20, db: DbSession = Depends(get_db)
+):
     """3i - first-class FTS5 search: phrase ("a b"), negation (a NOT b), prefix (foo*), field-ranked."""
     from services import fts
 
@@ -103,7 +105,9 @@ def search(q: str = Query(""), db: DbSession = Depends(get_db)):
     )
     seen = {s.id for s in by_name}
     chats = [{"session_id": s.id, "session_name": s.name, "snippet": s.name} for s in by_name]
-    for m in db.query(Message).filter(Message.content.ilike(pat, escape="\\")).limit(_LIMIT * 3).all():
+    for m in (
+        db.query(Message).filter(Message.content.ilike(pat, escape="\\")).limit(_LIMIT * 3).all()
+    ):
         if m.session_id in seen:
             continue
         seen.add(m.session_id)
@@ -127,7 +131,12 @@ def search(q: str = Query(""), db: DbSession = Depends(get_db)):
     # calendar
     evs = (
         db.query(CalendarEvent)
-        .filter(or_(CalendarEvent.title.ilike(pat, escape="\\"), CalendarEvent.description.ilike(pat, escape="\\")))
+        .filter(
+            or_(
+                CalendarEvent.title.ilike(pat, escape="\\"),
+                CalendarEvent.description.ilike(pat, escape="\\"),
+            )
+        )
         .limit(_LIMIT)
         .all()
     )
@@ -186,7 +195,12 @@ def search(q: str = Query(""), db: DbSession = Depends(get_db)):
     # subscriptions — by name/category
     subs = (
         db.query(Subscription)
-        .filter(or_(Subscription.name.ilike(pat, escape="\\"), Subscription.category.ilike(pat, escape="\\")))
+        .filter(
+            or_(
+                Subscription.name.ilike(pat, escape="\\"),
+                Subscription.category.ilike(pat, escape="\\"),
+            )
+        )
         .limit(_LIMIT)
         .all()
     )
@@ -235,7 +249,11 @@ def search(q: str = Query(""), db: DbSession = Depends(get_db)):
     items = (
         db.query(ReadItem)
         .filter(
-            or_(ReadItem.title.ilike(pat, escape="\\"), ReadItem.site.ilike(pat, escape="\\"), ReadItem.text.ilike(pat, escape="\\"))
+            or_(
+                ReadItem.title.ilike(pat, escape="\\"),
+                ReadItem.site.ilike(pat, escape="\\"),
+                ReadItem.text.ilike(pat, escape="\\"),
+            )
         )
         .order_by(ReadItem.added_at.desc())
         .limit(_LIMIT)

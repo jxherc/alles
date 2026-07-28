@@ -20,9 +20,9 @@ def _recent_months(as_of, n):
 def category_averages(db, *, months=3, as_of=None):
     """avg monthly SPEND per category over the last `months` complete months (income excluded,
     non-archived accounts only)."""
-    from core.database import Account, Transaction
-
     from sqlalchemy import or_
+
+    from core.database import Account, Transaction
 
     as_of = as_of or date.today()
     periods = set(_recent_months(as_of, months))

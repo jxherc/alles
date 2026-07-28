@@ -125,7 +125,7 @@ def main():
         pg.eval_on_selector(f'.mail-row[data-uid="{tid}"] [data-label]', "el => el.click()")
         pg.wait_for_selector("#_di", timeout=4000)
         pg.fill("#_di", "work")
-        pg.click("#_dy")
+        pg.click("[data-dialog-confirm]")
         pg.wait_for_selector(".mail-label-chip", timeout=6000)
         r["label_add"] = pg.query_selector(".mail-label-chip") is not None
         r["label_chip_shows"] = "work" in (pg.text_content(".mail-label-chip") or "")

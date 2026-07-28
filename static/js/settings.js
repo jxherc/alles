@@ -1,7 +1,7 @@
 import { toast } from './util.js';
 import { confirm as _dlgConfirm, prompt as _dlgPrompt } from './dialog.js';
-import { loadModels, addEndpoint, renderModelList } from './models.js?v=210';
-import { initCustomDropdowns, getDropdownValue, setDropdownValue, populateDropdown } from './dropdown.js?v=210';
+import { loadModels, addEndpoint, renderModelList } from './models.js?v=212';
+import { initCustomDropdowns, getDropdownValue, setDropdownValue, populateDropdown } from './dropdown.js?v=212';
 import { initMemoryPanel } from './memory.js';
 import {
   sensitiveBlurEnabled, textOnlyEmojisEnabled, welcomeEnabled,
@@ -10,7 +10,16 @@ import {
 import { loadShortcuts, saveShortcuts, eventToShortcut, isReservedShortcut } from './shortcuts.js';
 import { setAccent as _themeSetAccent, resetToDefault as _resetToDefault, getAppearance as _getAppearance, renderThemeEditorInto, isBasePreset } from './theme.js';
 import { parsePrivateLines } from './mcp-config.js';
-import { configureLocalization } from './i18n.js';
+import {
+  formatDate,
+  formatDateForLocale,
+  formatDateTime,
+  formatTimeForLocale,
+  prepareLocalization,
+  resolvedTimeZone,
+  t,
+  tp,
+} from './i18n.js';
 
 // ── visibility prefs (appearance toggles) ────────────────────────────────────
 const VIS_KEY = 'aide-ui-vis';
@@ -59,10 +68,940 @@ function _bindSwitch(el, getter, setter) {
   };
 }
 
+// ── Home customization ───────────────────────────────────────────────────────
+const HOME_SECTION_KEYS = ['needs_you', 'today', 'in_progress', 'briefs', 'shortcuts'];
+const HOME_SHORTCUT_KEYS = ['plan', 'inbox', 'wiki', 'files', 'library', 'health', 'finance', 'vault', 'system'];
+const HOME_DEFAULT_SHORTCUTS = ['plan', 'wiki', 'files'];
+const HOME_SHORTCUT_LABELS = { plan: 'plan', inbox: 'inbox', wiki: 'docs', files: 'files', library: 'library', health: 'health', finance: 'finance', vault: 'vault', system: 'server' };
+const HOME_SHORTCUT_ALIASES = { calendar: 'plan', tasks: 'plan', days: 'plan', reminders: 'plan', mail: 'inbox', contacts: 'inbox', notes: 'wiki', journal: 'wiki', photos: 'files', gallery: 'files', books: 'library', read: 'library', habits: 'health', money: 'finance', subs: 'finance', secrets: 'vault', server: 'system', watch: 'system', activity: 'system' };
+let _homeSettingsState = null;
+let _homeSettingsChanges = 0;
+let _homeSettingsLoadGeneration = 0;
+let _homeSettingsBusy = false;
+
+function _homeRows(id) {
+  const list = document.getElementById(id);
+  return list ? [...list.querySelectorAll(':scope > .home-settings-row')] : [];
+}
+
+export function _mergeHomeShortcutOrder(
+  enabledShortcuts,
+  original = _homeSettingsState?.shortcutOrder || [],
+) {
+  const enabled = [...new Set(enabledShortcuts.filter(key => HOME_SHORTCUT_KEYS.includes(key)))];
+  const enabledSet = new Set(enabled);
+  const retained = original.filter(
+    key => !HOME_SHORTCUT_KEYS.includes(key) || enabledSet.has(key),
+  );
+  let knownIndex = 0;
+  const merged = retained.map(
+    key => HOME_SHORTCUT_KEYS.includes(key) ? enabled[knownIndex++] : key,
+  );
+  return [...merged, ...enabled.slice(knownIndex)];
+}
+
+function _normalizeHomeSettingsPreferences(value = {}) {
+  const raw = value && typeof value === 'object' ? value : {};
+  const order = [...new Set(Array.isArray(raw.order) ? raw.order.filter(key => HOME_SECTION_KEYS.includes(key)) : [])];
+  for (const key of HOME_SECTION_KEYS) if (!order.includes(key)) order.push(key);
+  const visible = [...new Set(Array.isArray(raw.visible) ? raw.visible.filter(key => HOME_SECTION_KEYS.includes(key)) : HOME_SECTION_KEYS)];
+  if (!visible.includes('needs_you')) visible.unshift('needs_you');
+  const sourceShortcuts = Array.isArray(raw.shortcuts) ? raw.shortcuts : HOME_DEFAULT_SHORTCUTS;
+  const shortcuts = [...new Set(sourceShortcuts
+    .map(value => String(value || '').trim().toLowerCase())
+    .map(value => HOME_SHORTCUT_ALIASES[value] || value)
+    .filter(value => HOME_SHORTCUT_KEYS.includes(value)))].slice(0, 20);
+  return {
+    order,
+    visible,
+    density: raw.density === 'compact' ? 'compact' : 'comfortable',
+    shortcuts,
+  };
+}
+
+function _setHomeSettingsSwitch(button, on) {
+  if (!button) return;
+  button.setAttribute('aria-checked', String(!!on));
+  const row = button.closest('.home-settings-row');
+  if (row) row.dataset.enabled = String(!!on);
+}
+
+function _setHomeSettingsStatus(message) {
+  const status = document.getElementById('home-settings-save-state');
+  if (status) status.textContent = message;
+}
+
+function _setHomeSettingsBusy(busy) {
+  _homeSettingsBusy = busy;
+  const workbench = document.getElementById('home-settings-workbench');
+  const reset = document.getElementById('home-settings-reset');
+  const save = document.getElementById('home-settings-save');
+  if (workbench) {
+    workbench.inert = busy;
+    workbench.setAttribute('aria-busy', String(busy));
+  }
+  if (reset) reset.disabled = busy;
+  if (save) save.disabled = busy;
+}
+
+function _markHomeSettingsChanged(message) {
+  _homeSettingsChanges += 1;
+  _setHomeSettingsStatus(`${_homeSettingsChanges} unsaved ${_homeSettingsChanges === 1 ? 'change' : 'changes'} · ${message}`);
+}
+
+function _updateHomeMoveButtons(list) {
+  const rows = [...list.querySelectorAll(':scope > .home-settings-row')];
+  rows.forEach((row, index) => {
+    row.querySelector('[data-home-move="up"]').disabled = index === 0;
+    row.querySelector('[data-home-move="down"]').disabled = index === rows.length - 1;
+  });
+}
+
+function _updateHomeSettingsPreview() {
+  const sectionRows = _homeRows('home-settings-sections');
+  const preview = document.getElementById('home-settings-preview-list');
+  let visibleCount = 0;
+  for (const row of sectionRows) {
+    const item = preview?.querySelector(`[data-home-preview="${CSS.escape(row.dataset.homeSection)}"]`);
+    if (!item) continue;
+    preview.appendChild(item);
+    item.hidden = row.dataset.enabled !== 'true';
+    if (!item.hidden) visibleCount += 1;
+  }
+  const count = document.getElementById('home-settings-preview-count');
+  if (count) count.textContent = `${visibleCount} ${visibleCount === 1 ? 'section' : 'sections'}`;
+
+  const enabledShortcuts = _homeRows('home-settings-shortcuts')
+    .filter(row => row.dataset.enabled === 'true')
+    .map(row => row.dataset.homeShortcut);
+  const labels = _mergeHomeShortcutOrder(enabledShortcuts)
+    .map(key => HOME_SHORTCUT_LABELS[key] || key);
+  const shortcutPreview = document.getElementById('home-settings-preview-shortcuts');
+  if (shortcutPreview) shortcutPreview.textContent = labels.length ? labels.join(' · ') : 'no pinned apps selected';
+
+  const sections = document.getElementById('home-settings-sections');
+  const shortcuts = document.getElementById('home-settings-shortcuts');
+  if (sections) _updateHomeMoveButtons(sections);
+  if (shortcuts) _updateHomeMoveButtons(shortcuts);
+}
+
+function _chooseHomeDensity(button, announce = true) {
+  document.querySelectorAll('[data-home-density]').forEach(choice => {
+    const active = choice === button;
+    choice.setAttribute('aria-checked', String(active));
+    choice.tabIndex = active ? 0 : -1;
+  });
+  if (_homeSettingsState) _homeSettingsState.density = button.dataset.homeDensity;
+  if (announce) _markHomeSettingsChanged(`${button.dataset.homeDensity} density`);
+}
+
+function _renderHomeSettingsPreferences(value) {
+  const normalized = _normalizeHomeSettingsPreferences(value);
+  const sectionList = document.getElementById('home-settings-sections');
+  const shortcutList = document.getElementById('home-settings-shortcuts');
+  if (!sectionList || !shortcutList) return;
+
+  normalized.order.forEach(key => {
+    const row = sectionList.querySelector(`[data-home-section="${CSS.escape(key)}"]`);
+    if (row) sectionList.appendChild(row);
+  });
+  const visible = new Set(normalized.visible);
+  _homeRows('home-settings-sections').forEach(row => {
+    _setHomeSettingsSwitch(row.querySelector('[role="switch"]'), visible.has(row.dataset.homeSection));
+  });
+
+  const knownOrder = normalized.shortcuts.filter(key => HOME_SHORTCUT_KEYS.includes(key));
+  for (const key of HOME_SHORTCUT_KEYS) if (!knownOrder.includes(key)) knownOrder.push(key);
+  knownOrder.forEach(key => {
+    const row = shortcutList.querySelector(`[data-home-shortcut="${CSS.escape(key)}"]`);
+    if (row) shortcutList.appendChild(row);
+  });
+  const enabledShortcuts = new Set(normalized.shortcuts);
+  _homeRows('home-settings-shortcuts').forEach(row => {
+    _setHomeSettingsSwitch(row.querySelector('[role="switch"]'), enabledShortcuts.has(row.dataset.homeShortcut));
+  });
+
+  _homeSettingsState = {
+    ...normalized,
+    shortcutOrder: [...normalized.shortcuts],
+  };
+  _chooseHomeDensity(document.querySelector(`[data-home-density="${normalized.density}"]`), false);
+  _homeSettingsChanges = 0;
+  _setHomeSettingsStatus('no unsaved changes');
+  _updateHomeSettingsPreview();
+}
+
+function _homeSettingsPayload() {
+  const visible = _homeRows('home-settings-sections')
+    .filter(row => row.dataset.enabled === 'true')
+    .map(row => row.dataset.homeSection);
+  if (!visible.includes('needs_you')) visible.unshift('needs_you');
+  return {
+    order: _homeRows('home-settings-sections').map(row => row.dataset.homeSection),
+    visible,
+    density: document.querySelector('[data-home-density][aria-checked="true"]')?.dataset.homeDensity || 'comfortable',
+    shortcuts: _mergeHomeShortcutOrder(
+      _homeRows('home-settings-shortcuts')
+        .filter(row => row.dataset.enabled === 'true')
+        .map(row => row.dataset.homeShortcut),
+    ),
+  };
+}
+
+async function loadHomeSettingsPane() {
+  const workbench = document.getElementById('home-settings-workbench');
+  const loadState = document.getElementById('home-settings-load-state');
+  const save = document.getElementById('home-settings-save');
+  if (!workbench || !loadState || !save) return;
+  if (_homeSettingsBusy) return;
+  if (_homeSettingsChanges > 0) {
+    loadState.textContent = 'unsaved changes kept here';
+    return;
+  }
+  const generation = ++_homeSettingsLoadGeneration;
+  _setHomeSettingsBusy(true);
+  loadState.textContent = 'loading preferences…';
+  try {
+    const response = await fetch('/api/today/preferences');
+    if (!response.ok) throw new Error('preferences unavailable');
+    const value = await response.json();
+    if (generation !== _homeSettingsLoadGeneration) return;
+    _renderHomeSettingsPreferences(value);
+    loadState.textContent = 'saved on this Alles server';
+  } catch {
+    if (generation !== _homeSettingsLoadGeneration) return;
+    loadState.textContent = 'preferences could not load';
+    _setHomeSettingsStatus('Home settings are unavailable. Close Settings and try again.');
+  } finally {
+    if (generation === _homeSettingsLoadGeneration) _setHomeSettingsBusy(false);
+  }
+}
+
+async function _saveHomeSettings() {
+  const button = document.getElementById('home-settings-save');
+  const loadState = document.getElementById('home-settings-load-state');
+  if (!button || _homeSettingsBusy) return;
+  _setHomeSettingsBusy(true);
+  _setHomeSettingsStatus('saving Home…');
+  try {
+    const response = await fetch('/api/today/preferences', {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(_homeSettingsPayload()),
+    });
+    const value = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(value.detail || 'Home settings could not save');
+    _renderHomeSettingsPreferences(value);
+    _setHomeSettingsStatus('saved just now');
+    if (loadState) loadState.textContent = 'saved on this Alles server';
+    window.dispatchEvent(new CustomEvent('alles:home-preferences-changed', { detail: value }));
+    toast('Home updated', 'success');
+  } catch (error) {
+    _setHomeSettingsStatus(error.message || 'Home settings could not save');
+    toast(error.message || 'Home settings could not save', 'error');
+  } finally {
+    _setHomeSettingsBusy(false);
+  }
+}
+
+function _resetHomeSettings() {
+  if (_homeSettingsBusy) return;
+  _renderHomeSettingsPreferences({
+    order: HOME_SECTION_KEYS,
+    visible: HOME_SECTION_KEYS,
+    density: 'comfortable',
+    shortcuts: HOME_DEFAULT_SHORTCUTS,
+  });
+  _homeSettingsChanges = 1;
+  _setHomeSettingsStatus('1 unsaved change · defaults restored');
+}
+
+function _wireHomeSettingsPane() {
+  const pane = document.getElementById('s-pane-home');
+  if (!pane) return;
+  pane.addEventListener('click', event => {
+    if (_homeSettingsBusy) return;
+    const toggle = event.target.closest('[data-home-section-switch], [data-home-shortcut-switch]');
+    if (toggle) {
+      const next = toggle.getAttribute('aria-checked') !== 'true';
+      _setHomeSettingsSwitch(toggle, next);
+      _markHomeSettingsChanged(next ? 'item shown' : 'item hidden');
+      _updateHomeSettingsPreview();
+      return;
+    }
+
+    const move = event.target.closest('[data-home-move]');
+    if (move && !move.disabled) {
+      const row = move.closest('.home-settings-row');
+      const target = move.dataset.homeMove === 'up' ? row.previousElementSibling : row.nextElementSibling;
+      if (move.dataset.homeMove === 'up') row.parentElement.insertBefore(row, target);
+      else row.parentElement.insertBefore(target, row);
+      _markHomeSettingsChanged('order updated');
+      _updateHomeSettingsPreview();
+      const focusTarget = move.disabled
+        ? row.querySelector('[data-home-move]:not(:disabled)') || row.querySelector('[role="switch"]')
+        : move;
+      focusTarget?.focus();
+      return;
+    }
+
+    const density = event.target.closest('[data-home-density]');
+    if (density) _chooseHomeDensity(density);
+  });
+  pane.querySelectorAll('[data-home-density]').forEach(button => {
+    button.addEventListener('keydown', event => {
+      if (_homeSettingsBusy) return;
+      const keys = ['ArrowLeft', 'ArrowUp', 'ArrowRight', 'ArrowDown', 'Home', 'End'];
+      if (!keys.includes(event.key)) return;
+      event.preventDefault();
+      const choices = [...pane.querySelectorAll('[data-home-density]')];
+      const index = choices.indexOf(button);
+      let next = index;
+      if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') next = (index - 1 + choices.length) % choices.length;
+      if (event.key === 'ArrowRight' || event.key === 'ArrowDown') next = (index + 1) % choices.length;
+      if (event.key === 'Home') next = 0;
+      if (event.key === 'End') next = choices.length - 1;
+      _chooseHomeDensity(choices[next]);
+      choices[next].focus();
+    });
+  });
+  document.getElementById('home-settings-reset')?.addEventListener('click', _resetHomeSettings);
+  document.getElementById('home-settings-save')?.addEventListener('click', _saveHomeSettings);
+}
+
+// ── Phase 10 locale Settings ─────────────────────────────────────────────────
+const LOCALE_FALLBACK_OPTIONS = {
+  regions: [
+    { value: '', label: 'automatic' },
+    { value: 'TW', label: 'Taiwan' },
+    { value: 'US', label: 'United States' },
+    { value: 'FR', label: 'France' },
+    { value: 'ES', label: 'Spain' },
+    { value: 'CN', label: 'China' },
+    { value: 'JP', label: 'Japan' },
+    { value: 'KR', label: 'South Korea' },
+  ],
+  timezones: [
+    { value: '', label: 'automatic' },
+    { value: 'Asia/Taipei', label: 'Asia/Taipei' },
+    { value: 'Europe/Paris', label: 'Europe/Paris' },
+    { value: 'America/New_York', label: 'America/New_York' },
+    { value: 'UTC', label: 'UTC' },
+  ],
+  currencies: [
+    { value: '', label: 'automatic' },
+    { value: 'TWD', label: 'TWD' },
+    { value: 'USD', label: 'USD' },
+    { value: 'EUR', label: 'EUR' },
+    { value: 'CNY', label: 'CNY' },
+    { value: 'JPY', label: 'JPY' },
+    { value: 'KRW', label: 'KRW' },
+  ],
+};
+
+let _localeOptions = LOCALE_FALLBACK_OPTIONS;
+let _localeSettings = null;
+let _localeSettingsBusy = false;
+let _localeSettingsDirty = false;
+let _localeOpenMenu = '';
+
+function _browserRegion() {
+  const locale = globalThis.navigator?.language || 'en';
+  try {
+    return new Intl.Locale(locale).maximize().region || '';
+  } catch {
+    const match = String(locale).match(/[-_]([A-Za-z]{2}|[0-9]{3})(?:$|-)/);
+    return match?.[1]?.toUpperCase() || '';
+  }
+}
+
+function _browserTimezone() {
+  return resolvedTimeZone();
+}
+
+function _localeChoiceOptions(name) {
+  const optionKey = name === 'currency' ? 'currencies' : `${name}s`;
+  return _localeOptions[optionKey] || [];
+}
+
+function _localeChoiceLabel(name, value) {
+  if (!value) return t('common.automatic');
+  return _localeChoiceOptions(name).find(item => item.value === value)?.label || value;
+}
+
+function _renderLocaleChoiceMenu(name) {
+  const menu = document.querySelector(`[data-locale-menu="${name}"]`);
+  if (!menu) return;
+  const trigger = document.querySelector(`[data-locale-choice="${name}"]`);
+  const value = trigger?.dataset.value || '';
+  menu.replaceChildren(..._localeChoiceOptions(name).map(item => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'locale-choice-option';
+    button.setAttribute('role', 'option');
+    button.setAttribute('aria-selected', String(item.value === value));
+    button.tabIndex = item.value === value ? 0 : -1;
+    button.dataset.value = item.value;
+    button.textContent = item.value ? item.label : t('common.automatic');
+    return button;
+  }));
+}
+
+function _setLocaleChoiceValue(name, value, dirty = false) {
+  const trigger = document.querySelector(`[data-locale-choice="${name}"]`);
+  const valid = _localeChoiceOptions(name).some(item => item.value === value) ? value : '';
+  if (trigger) {
+    trigger.dataset.value = valid;
+    trigger.textContent = _localeChoiceLabel(name, valid);
+  }
+  _renderLocaleChoiceMenu(name);
+  if (dirty) _markLocaleSettingsChanged();
+  _updateLocalePreview();
+}
+
+function _closeLocaleChoice(returnFocus = false) {
+  if (!_localeOpenMenu) return;
+  const name = _localeOpenMenu;
+  const menu = document.querySelector(`[data-locale-menu="${name}"]`);
+  const trigger = document.querySelector(`[data-locale-choice="${name}"]`);
+  if (menu) menu.hidden = true;
+  if (trigger) trigger.setAttribute('aria-expanded', 'false');
+  _localeOpenMenu = '';
+  if (returnFocus) trigger?.focus();
+}
+
+function _openLocaleChoice(name, edge = '') {
+  _closeLocaleChoice(false);
+  const menu = document.querySelector(`[data-locale-menu="${name}"]`);
+  const trigger = document.querySelector(`[data-locale-choice="${name}"]`);
+  if (!menu || !trigger) return;
+  _renderLocaleChoiceMenu(name);
+  menu.hidden = false;
+  trigger.setAttribute('aria-expanded', 'true');
+  _localeOpenMenu = name;
+  const options = [...menu.querySelectorAll('[role="option"]')];
+  const target = edge === 'last'
+    ? options.at(-1)
+    : edge === 'first'
+      ? options[0]
+      : menu.querySelector('[aria-selected="true"]') || options[0];
+  requestAnimationFrame(() => target?.focus());
+}
+
+function _chooseLocaleOption(name, option) {
+  if (!option) return;
+  _setLocaleChoiceValue(name, option.dataset.value || '', true);
+  _closeLocaleChoice(true);
+}
+
+function _setLocaleRadioValue(name, value, dirty = false) {
+  const choices = [...document.querySelectorAll(`[data-locale-format="${name}"]`)];
+  const selected = choices.find(choice => choice.dataset.value === value) || choices[0];
+  choices.forEach(choice => {
+    const active = choice === selected;
+    choice.setAttribute('aria-checked', String(active));
+    choice.tabIndex = active ? 0 : -1;
+  });
+  if (dirty) _markLocaleSettingsChanged();
+  _updateLocalePreview();
+}
+
+function _localeRadioValue(name) {
+  return document.querySelector(`[data-locale-format="${name}"][aria-checked="true"]`)?.dataset.value || 'auto';
+}
+
+function _selectedLocaleLanguage() {
+  return document.querySelector('[data-locale-language][aria-checked="true"]')?.dataset.localeLanguage || 'en';
+}
+
+function _setLocaleLanguage(value) {
+  const choices = [...document.querySelectorAll('[data-locale-language]')];
+  const selected = choices.find(choice => choice.dataset.localeLanguage === value
+    && choice.getAttribute('aria-disabled') !== 'true') || choices[0];
+  choices.forEach(choice => {
+    const active = choice === selected;
+    choice.setAttribute('aria-checked', String(active));
+    choice.tabIndex = active ? 0 : -1;
+  });
+  _updateLocalePreview();
+}
+
+function _applyLocaleOptions(options) {
+  if (Array.isArray(options?.regions) && options.regions.length) _localeOptions.regions = options.regions;
+  if (Array.isArray(options?.timezones) && options.timezones.length) _localeOptions.timezones = options.timezones;
+  if (Array.isArray(options?.currencies) && options.currencies.length) _localeOptions.currencies = options.currencies;
+  if (Array.isArray(options?.languages)) {
+    for (const language of options.languages) {
+      const row = document.querySelector(`[data-locale-language="${CSS.escape(language.id)}"]`);
+      if (!row) continue;
+      row.querySelector('strong').textContent = language.label;
+      row.querySelector('small').textContent = language.english_name;
+      row.querySelector('em').textContent = language.available
+        ? t('common.reviewed')
+        : t('locale.catalog_reviewed_pending');
+      row.setAttribute('aria-disabled', String(!language.available));
+      row.dataset.direction = language.direction;
+    }
+  }
+  _renderLocaleChoiceMenu('region');
+  _renderLocaleChoiceMenu('timezone');
+  _renderLocaleChoiceMenu('currency');
+}
+
+function _localePreviewTag(language, region) {
+  const candidate = region ? `${language}-${region}` : language;
+  try { return Intl.getCanonicalLocales(candidate)[0]; }
+  catch { return 'en'; }
+}
+
+function _updateLocalePreview() {
+  const language = _selectedLocaleLanguage();
+  const region = document.getElementById('s-region-trigger')?.dataset.value || '';
+  const timezone = document.getElementById('s-timezone-trigger')?.dataset.value || '';
+  const currency = document.getElementById('s-currency-trigger')?.dataset.value || '';
+  const tag = _localePreviewTag(language, region || _browserRegion());
+  const direction = document.querySelector(`[data-locale-language="${CSS.escape(language)}"]`)?.dataset.direction || 'ltr';
+  const tagEl = document.getElementById('locale-preview-tag');
+  const dateEl = document.getElementById('locale-preview-date');
+  const pathEl = document.getElementById('locale-preview-path');
+  if (tagEl) tagEl.textContent = tag;
+  if (dateEl) {
+    try {
+      dateEl.textContent = formatDateForLocale(new Date(), tag, {
+        weekday: 'long', month: 'long', day: 'numeric',
+        ...(timezone ? { timeZone: timezone } : {}),
+      });
+    } catch { dateEl.textContent = ''; }
+  }
+  if (pathEl) {
+    try {
+      const clock = _localeRadioValue('clock_format');
+      const time = formatTimeForLocale(new Date(), tag, {
+        hour: '2-digit', minute: '2-digit',
+        ...(clock === '12' ? { hour12: true } : clock === '24' ? { hour12: false } : {}),
+        ...(timezone ? { timeZone: timezone } : {}),
+      });
+      pathEl.textContent = `alles/data · ${time}`;
+    } catch { pathEl.textContent = 'alles/data'; }
+  }
+  const directionEl = document.getElementById('locale-preview-direction');
+  const regionEl = document.getElementById('locale-preview-region');
+  const timezoneEl = document.getElementById('locale-preview-timezone');
+  const currencyEl = document.getElementById('locale-preview-currency');
+  if (directionEl) directionEl.textContent = t(direction === 'rtl' ? 'locale.direction_rtl' : 'locale.direction_ltr');
+  if (regionEl) regionEl.textContent = region
+    ? _localeChoiceLabel('region', region)
+    : `${t('common.automatic')} · ${_browserRegion() || t('common.unknown')}`;
+  if (timezoneEl) timezoneEl.textContent = timezone || `${t('common.automatic')} · ${_browserTimezone()}`;
+  if (currencyEl) currencyEl.textContent = currency || t('common.automatic');
+}
+
+function _setLocaleSettingsBusy(busy) {
+  _localeSettingsBusy = busy;
+  const workbench = document.getElementById('locale-settings-workbench');
+  const save = document.getElementById('s-locale-save');
+  if (workbench) {
+    workbench.inert = busy;
+    workbench.setAttribute('aria-busy', String(busy));
+  }
+  if (save) save.disabled = busy;
+}
+
+function _setLocaleSettingsStatus(message) {
+  const status = document.getElementById('locale-settings-save-state');
+  if (status) status.textContent = message;
+}
+
+function _markLocaleSettingsChanged() {
+  _localeSettingsDirty = true;
+  _setLocaleSettingsStatus(t('locale.unsaved'));
+}
+
+function _applyLocaleSettings(settings) {
+  _localeSettings = settings;
+  _setLocaleLanguage(settings.language || 'en');
+  _setLocaleChoiceValue('region', settings.region || '');
+  _setLocaleChoiceValue('timezone', settings.timezone || '');
+  _setLocaleChoiceValue('currency', settings.currency || '');
+  _setLocaleRadioValue('clock_format', settings.clock_format || 'auto');
+  _setLocaleRadioValue('week_start', settings.week_start || 'auto');
+  const detectedRegion = document.getElementById('s-region-detected');
+  const detectedTimezone = document.getElementById('s-timezone-detected');
+  if (detectedRegion) detectedRegion.textContent = t('locale.detected_region', {
+    region: _browserRegion() || t('common.unknown'),
+  });
+  if (detectedTimezone) detectedTimezone.textContent = t('locale.detected_timezone', {
+    timezone: _browserTimezone(),
+  });
+  _localeSettingsDirty = false;
+  _setLocaleSettingsStatus(t('locale.no_unsaved'));
+  _updateLocalePreview();
+}
+
+async function loadLocaleSettingsPane() {
+  const loadState = document.getElementById('locale-settings-load-state');
+  if (!loadState || _localeSettingsBusy) return;
+  if (_localeSettingsDirty) {
+    loadState.textContent = t('locale.unsaved_kept');
+    return;
+  }
+  _setLocaleSettingsBusy(true);
+  loadState.textContent = t('locale.loading');
+  try {
+    const [settingsResponse, optionsResponse] = await Promise.all([
+      fetch('/api/settings'),
+      fetch('/api/settings/localization/options'),
+    ]);
+    if (!settingsResponse.ok || !optionsResponse.ok) throw new Error(t('locale.load_error'));
+    const [settings, options] = await Promise.all([settingsResponse.json(), optionsResponse.json()]);
+    _applyLocaleOptions(options);
+    _applyLocaleSettings(settings);
+    loadState.textContent = t('locale.saved_server');
+  } catch (error) {
+    loadState.textContent = t('locale.load_failed');
+    _setLocaleSettingsStatus(error.message || t('locale.load_error'));
+  } finally {
+    _setLocaleSettingsBusy(false);
+  }
+}
+
+async function _saveLocaleSettings() {
+  if (_localeSettingsBusy) return;
+  const focusTarget = document.activeElement instanceof HTMLElement
+    ? document.activeElement
+    : null;
+  const loadState = document.getElementById('locale-settings-load-state');
+  _setLocaleSettingsBusy(true);
+  _setLocaleSettingsStatus(t('locale.saving'));
+  try {
+    const response = await fetch('/api/settings', {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        language: _selectedLocaleLanguage(),
+        region: document.getElementById('s-region-trigger')?.dataset.value || '',
+        timezone: document.getElementById('s-timezone-trigger')?.dataset.value || '',
+        currency: document.getElementById('s-currency-trigger')?.dataset.value || '',
+        clock_format: _localeRadioValue('clock_format'),
+        week_start: _localeRadioValue('week_start'),
+      }),
+    });
+    const settings = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(settings.detail || t('locale.save_error'));
+    await prepareLocalization(settings);
+    _applyLocaleSettings(settings);
+    _setLocaleSettingsStatus(t('locale.saved_now'));
+    if (loadState) loadState.textContent = t('locale.saved_server');
+    toast(t('locale.saved'), 'success');
+  } catch (error) {
+    _setLocaleSettingsStatus(error.message || t('locale.save_error'));
+    toast(error.message || t('locale.save_error'), 'error');
+  } finally {
+    _setLocaleSettingsBusy(false);
+    if (focusTarget?.isConnected && document.getElementById('settings-modal')?.style.display !== 'none') {
+      focusTarget.focus({ preventScroll: true });
+    }
+  }
+}
+
+function _wireLocaleSettingsPane() {
+  const pane = document.getElementById('s-pane-notifications');
+  if (!pane || pane.dataset.localeBound) return;
+  pane.dataset.localeBound = '1';
+  pane.addEventListener('click', event => {
+    const language = event.target.closest('[data-locale-language]');
+    if (language) {
+      if (language.getAttribute('aria-disabled') === 'true') {
+        _setLocaleSettingsStatus(t('locale.language_unavailable', {
+          language: language.querySelector('small')?.textContent || language.dataset.localeLanguage,
+        }));
+        return;
+      }
+      _setLocaleLanguage(language.dataset.localeLanguage);
+      _markLocaleSettingsChanged();
+      return;
+    }
+    const trigger = event.target.closest('[data-locale-choice]');
+    if (trigger) {
+      const name = trigger.dataset.localeChoice;
+      if (_localeOpenMenu === name) _closeLocaleChoice(true);
+      else _openLocaleChoice(name);
+      return;
+    }
+    const option = event.target.closest('[data-locale-menu] [role="option"]');
+    if (option) _chooseLocaleOption(option.closest('[data-locale-menu]').dataset.localeMenu, option);
+    const format = event.target.closest('[data-locale-format]');
+    if (format) _setLocaleRadioValue(format.dataset.localeFormat, format.dataset.value, true);
+  });
+  pane.addEventListener('keydown', event => {
+    const trigger = event.target.closest('[data-locale-choice]');
+    if (trigger && ['Enter', ' ', 'ArrowDown', 'ArrowUp'].includes(event.key)) {
+      event.preventDefault();
+      event.stopPropagation();
+      _openLocaleChoice(trigger.dataset.localeChoice, event.key === 'ArrowUp' ? 'last' : 'first');
+      return;
+    }
+    const option = event.target.closest('[data-locale-menu] [role="option"]');
+    if (option) {
+      const menu = option.closest('[data-locale-menu]');
+      const options = [...menu.querySelectorAll('[role="option"]')];
+      const index = options.indexOf(option);
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        event.stopPropagation();
+        _closeLocaleChoice(true);
+        return;
+      }
+      if (event.key === 'Tab') {
+        _closeLocaleChoice(false);
+        return;
+      }
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        _chooseLocaleOption(menu.dataset.localeMenu, option);
+        return;
+      }
+      if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
+        event.preventDefault();
+        let next = index;
+        if (event.key === 'ArrowDown') next = (index + 1) % options.length;
+        if (event.key === 'ArrowUp') next = (index - 1 + options.length) % options.length;
+        if (event.key === 'Home') next = 0;
+        if (event.key === 'End') next = options.length - 1;
+        option.tabIndex = -1;
+        options[next].tabIndex = 0;
+        options[next].focus();
+        return;
+      }
+    }
+    const format = event.target.closest('[data-locale-format]');
+    if (format && ['ArrowLeft', 'ArrowUp', 'ArrowRight', 'ArrowDown', 'Home', 'End'].includes(event.key)) {
+      event.preventDefault();
+      const choices = [...pane.querySelectorAll(`[data-locale-format="${format.dataset.localeFormat}"]`)];
+      const index = choices.indexOf(format);
+      let next = index;
+      if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') next = (index - 1 + choices.length) % choices.length;
+      if (event.key === 'ArrowRight' || event.key === 'ArrowDown') next = (index + 1) % choices.length;
+      if (event.key === 'Home') next = 0;
+      if (event.key === 'End') next = choices.length - 1;
+      _setLocaleRadioValue(format.dataset.localeFormat, choices[next].dataset.value, true);
+      choices[next].focus();
+    }
+  });
+  document.addEventListener('pointerdown', event => {
+    if (!_localeOpenMenu) return;
+    const wrap = document.querySelector(`[data-locale-choice="${_localeOpenMenu}"]`)?.closest('.locale-choice-wrap');
+    if (wrap && !wrap.contains(event.target)) _closeLocaleChoice(false);
+  }, true);
+  document.getElementById('s-locale-save')?.addEventListener('click', _saveLocaleSettings);
+}
+
+// ── Phase 10 manifest-driven Credits ─────────────────────────────────────────
+let _creditsManifest = null;
+let _creditsCategory = 'all';
+let _creditsQuery = '';
+let _creditsSelectedId = '';
+let _creditsBusy = false;
+const _creditDetails = new Map();
+const _creditDetailLoads = new Map();
+let _creditDetailGeneration = 0;
+
+function _visibleCredits() {
+  const query = _creditsQuery.trim().toLowerCase();
+  return (_creditsManifest?.entries || []).filter(entry => {
+    const categoryMatches = _creditsCategory === 'all' || entry.category === _creditsCategory;
+    const queryMatches = !query || [entry.name, entry.summary, entry.version, entry.license]
+      .some(value => String(value || '').toLowerCase().includes(query));
+    return categoryMatches && queryMatches;
+  });
+}
+
+function _renderCreditDetail(entry) {
+  const detail = document.getElementById('credits-detail');
+  if (!detail) return;
+  if (!entry) {
+    detail.innerHTML = `<p>${_esc(t('credits.no_match'))}</p>`;
+    return;
+  }
+  const licenseTexts = entry.license_texts || [];
+  const noticeTexts = entry.notice_texts || [];
+  const localText = [...licenseTexts, ...noticeTexts];
+  detail.innerHTML = `
+    <h3>${_esc(entry.name)}</h3>
+    <p>${_esc(entry.summary)}</p>
+    <dl>
+      <div><dt>${_esc(t('credits.field.category'))}</dt><dd>${_esc(t(`credits.category.${entry.category}`))}</dd></div>
+      <div><dt>${_esc(t('credits.field.version'))}</dt><dd dir="ltr">${_esc(entry.version)}</dd></div>
+      <div><dt>${_esc(t('credits.field.license'))}</dt><dd>${_esc(entry.license)}</dd></div>
+      <div><dt>${_esc(t('credits.field.local_text'))}</dt><dd>${localText.length ? _esc(tp('credits.local_file_count', localText.length)) : _esc(t('credits.not_recorded'))}</dd></div>
+    </dl>
+    <a class="credits-source" href="${_esc(entry.source_url)}" target="_blank" rel="noreferrer">${_esc(t('credits.open_source'))}</a>
+    ${localText.map(item => `
+      <details class="credits-license">
+        <summary>${_esc(item.name)}</summary>
+        <pre dir="ltr">${_esc(item.text)}</pre>
+      </details>
+    `).join('')}
+  `;
+}
+
+async function _loadCreditDetail(entry) {
+  const detail = document.getElementById('credits-detail');
+  const generation = ++_creditDetailGeneration;
+  if (!detail || !entry) {
+    _renderCreditDetail(null);
+    return;
+  }
+  const cached = _creditDetails.get(entry.id);
+  if (cached) {
+    _renderCreditDetail(cached);
+    return;
+  }
+  detail.innerHTML = `<p>${_esc(t('credits.detail_loading'))}</p>`;
+  let pending = _creditDetailLoads.get(entry.id);
+  if (!pending) {
+    pending = fetch(`/api/credits/${encodeURIComponent(entry.id)}`).then(async response => {
+      if (!response.ok) throw new Error(t('credits.detail_error'));
+      const value = await response.json();
+      _creditDetails.set(entry.id, value);
+      return value;
+    }).finally(() => {
+      _creditDetailLoads.delete(entry.id);
+    });
+    _creditDetailLoads.set(entry.id, pending);
+  }
+  try {
+    const value = await pending;
+    if (generation !== _creditDetailGeneration || _creditsSelectedId !== entry.id) return;
+    _renderCreditDetail(value);
+  } catch (error) {
+    if (generation !== _creditDetailGeneration || _creditsSelectedId !== entry.id) return;
+    detail.innerHTML = `
+      <p>${_esc(error.message || t('credits.detail_error'))}</p>
+      <button type="button" data-credit-detail-retry="${_esc(entry.id)}">${_esc(t('common.retry'))}</button>
+    `;
+  }
+}
+
+function _renderCredits() {
+  const list = document.getElementById('credits-list');
+  const summary = document.getElementById('credits-summary');
+  const coverage = document.getElementById('credits-coverage');
+  if (!list || !summary || !coverage || !_creditsManifest) return;
+  const entries = _visibleCredits();
+  if (!entries.some(entry => entry.id === _creditsSelectedId)) _creditsSelectedId = entries[0]?.id || '';
+  list.innerHTML = entries.length ? entries.map(entry => `
+    <button class="credits-row" type="button" data-credit-id="${_esc(entry.id)}" aria-current="${entry.id === _creditsSelectedId ? 'true' : 'false'}">
+      <span><strong>${_esc(entry.name)}</strong><small>${_esc(entry.summary)}</small></span>
+      <em>${_esc(entry.license)}</em>
+    </button>
+  `).join('') : `<div class="credits-empty">${_esc(t('credits.no_match'))}</div>`;
+  const inventoryState = _creditsManifest.coverage?.complete
+    ? t('credits.inventory.complete')
+    : t('credits.inventory.in_progress');
+  summary.textContent = `${tp('credits.entry_shown', entries.length)} · ${inventoryState}`;
+  const gapCount = Number(_creditsManifest.coverage?.gap_count || 0);
+  coverage.textContent = _creditsManifest.coverage?.complete
+    ? t('credits.coverage_complete')
+    : `${t('credits.inventory.in_progress')} · ${tp('credits.gap_remaining', gapCount)}`;
+  void _loadCreditDetail(entries.find(entry => entry.id === _creditsSelectedId));
+}
+
+function _setCreditsBusy(busy) {
+  _creditsBusy = busy;
+  const workbench = document.getElementById('credits-settings-workbench');
+  if (workbench) {
+    workbench.inert = busy;
+    workbench.setAttribute('aria-busy', String(busy));
+  }
+}
+
+async function loadCreditsPane() {
+  const loadState = document.getElementById('credits-settings-load-state');
+  const coverage = document.getElementById('credits-coverage');
+  if (!loadState || _creditsBusy) return;
+  _setCreditsBusy(true);
+  loadState.textContent = t('credits.loading');
+  try {
+    const response = await fetch('/api/credits');
+    if (!response.ok) throw new Error(t('credits.load_error'));
+    _creditsManifest = await response.json();
+    _creditDetails.clear();
+    _creditDetailLoads.clear();
+    _renderCredits();
+    loadState.textContent = _creditsManifest.coverage?.complete
+      ? t('credits.inventory.complete')
+      : t('credits.inventory.in_progress');
+  } catch (error) {
+    loadState.textContent = t('credits.unavailable');
+    if (coverage) coverage.innerHTML = `${_esc(error.message || t('credits.load_error'))} <button type="button" data-credits-retry>${_esc(t('common.retry'))}</button>`;
+  } finally {
+    _setCreditsBusy(false);
+  }
+}
+
+function _selectCreditsCategory(button) {
+  const tabs = [...document.querySelectorAll('[data-credit-category]')];
+  tabs.forEach(tab => {
+    const selected = tab === button;
+    tab.setAttribute('aria-selected', String(selected));
+    tab.tabIndex = selected ? 0 : -1;
+  });
+  _creditsCategory = button.dataset.creditCategory;
+  _renderCredits();
+}
+
+function _wireCreditsPane() {
+  const pane = document.getElementById('s-pane-credits');
+  if (!pane || pane.dataset.creditsBound) return;
+  pane.dataset.creditsBound = '1';
+  pane.addEventListener('click', event => {
+    const tab = event.target.closest('[data-credit-category]');
+    if (tab) {
+      _selectCreditsCategory(tab);
+      return;
+    }
+    const row = event.target.closest('[data-credit-id]');
+    if (row) {
+      _creditsSelectedId = row.dataset.creditId;
+      _renderCredits();
+      requestAnimationFrame(() => {
+        document.querySelector(`[data-credit-id="${CSS.escape(_creditsSelectedId)}"]`)?.focus({ preventScroll: true });
+      });
+      return;
+    }
+    if (event.target.closest('[data-credits-retry]')) loadCreditsPane();
+    const detailRetry = event.target.closest('[data-credit-detail-retry]');
+    if (detailRetry) {
+      const entry = (_creditsManifest?.entries || []).find(item => item.id === detailRetry.dataset.creditDetailRetry);
+      if (entry) void _loadCreditDetail(entry);
+    }
+  });
+  pane.addEventListener('keydown', event => {
+    const tab = event.target.closest('[data-credit-category]');
+    if (!tab || !['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+    event.preventDefault();
+    const tabs = [...pane.querySelectorAll('[data-credit-category]')];
+    const index = tabs.indexOf(tab);
+    let next = index;
+    if (event.key === 'ArrowLeft') next = (index - 1 + tabs.length) % tabs.length;
+    if (event.key === 'ArrowRight') next = (index + 1) % tabs.length;
+    if (event.key === 'Home') next = 0;
+    if (event.key === 'End') next = tabs.length - 1;
+    _selectCreditsCategory(tabs[next]);
+    tabs[next].focus();
+  });
+  document.getElementById('credits-search')?.addEventListener('input', event => {
+    _creditsQuery = event.target.value;
+    _renderCredits();
+  });
+}
+
 // ── pane navigation ───────────────────────────────────────────────────────────
 let _activePane = 'general';
 
 function _switchPane(name) {
+  _closeLocaleChoice(false);
   // unknown pane key (e.g. a stale 'appearance') would leave every pane inactive →
   // a blank modal. fall back to the consolidated General pane.
   if (!document.getElementById(`s-pane-${name}`)) name = 'general';
@@ -77,26 +1016,51 @@ function _switchPane(name) {
 }
 
 function _onPaneOpen(name) {
+  if (name === 'home')       loadHomeSettingsPane();
   if (name === 'models')     { loadEpList(); loadLocalModels(); }
   if (name === 'ai')         loadAiPane();
   if (name === 'memory')     { initMemoryPanel(); loadOwnerInstructions(); }
   if (name === 'search')     loadSearchPane();
-  if (name === 'general' || name === 'security' || name === 'themes' || name === 'notifications') loadAppearancePane();
+  if (name === 'general' || name === 'security' || name === 'themes') loadAppearancePane();
+  if (name === 'notifications') loadLocaleSettingsPane();
+  if (name === 'credits') loadCreditsPane();
   if (name === 'themes')     loadThemesPane();
   if (name === 'voice')      loadVoicePane();
   if (name === 'personas')   { loadPersonas(); loadCookbook(); }
-  if (name === 'tools')      { loadAgentStatus(); loadMcpServers(); loadConnections(); loadPermRules(); loadMacosStatus(); }
+  if (name === 'tools')      { loadAgentStatus(); loadMcpServers(); loadConnections(); loadDiscordConnection(); loadPermRules(); loadMacosStatus(); }
   if (name === 'developer')  { loadTokens(); loadWebhooks(); loadShortcutSettings(); }
   if (name === 'rules')      loadRulesPane();
   if (name === 'recall')     loadRecallPane();
   if (name === 'proactive')  loadProactivePane();
   if (name === 'intelligence') loadIntelligencePane();
-  if (name === 'backup')     { loadWebdavBackup(); loadS3Backup(); }
+  if (name === 'backup')     { loadSetupStatus(); loadWebdavBackup(); loadS3Backup(); }
+}
+
+async function loadSetupStatus() {
+  const status = document.getElementById('setup-resume-status');
+  const button = document.getElementById('setup-resume-btn');
+  if (!status || !button) return;
+  try {
+    const data = await fetch('/api/setup/status').then(response => {
+      if (!response.ok) throw new Error();
+      return response.json();
+    });
+    const setup = data.setup || {};
+    status.textContent = setup.completed
+      ? 'setup is complete. open it to review the saved summary.'
+      : setup.dismissed
+        ? 'setup is paused. your saved steps are still here.'
+        : `setup is in progress at ${String(setup.next_step || 'basics').replace('_', ' + ')}.`;
+    button.textContent = setup.completed ? 'review setup' : 'resume setup';
+  } catch {
+    status.textContent = 'setup status could not be loaded.';
+  }
 }
 
 // ── open / close ──────────────────────────────────────────────────────────────
 let _bound = false;
 let _settingsReturnFocus = null;
+let _settingsReturnFocusId = '';
 
 export function openSettings(pane, _allesOnly = false) {
   const modal = document.getElementById('settings-modal');
@@ -104,6 +1068,7 @@ export function openSettings(pane, _allesOnly = false) {
   const wasClosed = modal.style.display === 'none';
   if (wasClosed && document.activeElement instanceof HTMLElement) {
     _settingsReturnFocus = document.activeElement;
+    _settingsReturnFocusId = document.activeElement.id;
   }
   modal.style.display = 'flex';
   // Phase 3 has one settings home. Keep the second argument only for old callers.
@@ -113,7 +1078,7 @@ export function openSettings(pane, _allesOnly = false) {
   if (!pane) pane = 'general';
   if (!_bound) { _initSettings(); _bound = true; }
   // update compat url labels
-  const port = location.port || '8000';
+  const port = location.port || '6769';
   const base = `${location.protocol}//${location.hostname}:${port}/v1`;
   document.getElementById('s-compat-url')?.setAttribute('data-val', base);
   document.getElementById('s-compat-url')?.replaceChildren(document.createTextNode(base));
@@ -130,10 +1095,14 @@ export function openSettings(pane, _allesOnly = false) {
 export function closeSettings() {
   const modal = document.getElementById('settings-modal');
   if (!modal || modal.style.display === 'none') return;
+  _closeLocaleChoice(false);
   modal.style.display = 'none';
-  const target = _settingsReturnFocus;
+  const target = _settingsReturnFocus?.isConnected
+    ? _settingsReturnFocus
+    : (_settingsReturnFocusId ? document.getElementById(_settingsReturnFocusId) : null);
   _settingsReturnFocus = null;
-  if (target?.isConnected) target.focus();
+  _settingsReturnFocusId = '';
+  target?.focus();
 }
 
 // expose for playwright tests + external callers
@@ -142,6 +1111,9 @@ window._openSettings = openSettings;
 // ── init (runs once) ──────────────────────────────────────────────────────────
 function _initSettings() {
   initCustomDropdowns(document.getElementById('settings-modal') || document);
+  _wireHomeSettingsPane();
+  _wireLocaleSettingsPane();
+  _wireCreditsPane();
 
   // nav clicks
   document.querySelectorAll('.s-nav-item').forEach(n => {
@@ -187,12 +1159,24 @@ function _initSettings() {
     btn.addEventListener('click', () => {
       document.getElementById('s-ep-url').value = btn.dataset.url;
       document.getElementById('s-ep-name').value = btn.dataset.name;
+      setDropdownValue(document.getElementById('s-ep-provider'), btn.dataset.provider || 'custom');
+      setDropdownValue(document.getElementById('s-ep-auth'), btn.dataset.provider === 'ollama' ? 'none' : 'api_key');
       setDropdownValue(document.getElementById('s-ep-adapter'), _adapterForPreset(btn.dataset.name));
       _showManualEndpointFields();
+      _showEndpointAuthFields();
       document.getElementById('s-ep-key').focus();
     });
   });
   document.getElementById('s-ep-adapter')?.addEventListener('change', _showManualEndpointFields);
+  document.getElementById('s-ep-auth')?.addEventListener('change', _showEndpointAuthFields);
+  document.getElementById('s-gemini-oauth-toggle')?.addEventListener('click', event => {
+    const panel = document.getElementById('s-gemini-oauth-panel');
+    if (!panel) return;
+    panel.hidden = !panel.hidden;
+    event.currentTarget.setAttribute('aria-expanded', String(!panel.hidden));
+    if (!panel.hidden) document.getElementById('s-gemini-client-id')?.focus();
+  });
+  document.getElementById('s-gemini-oauth-start')?.addEventListener('click', startGeminiOAuth);
   document.getElementById('s-role-save-btn')?.addEventListener('click', saveModelRoles);
   document.getElementById('s-ep-refresh-all')?.addEventListener('click', refreshAllModelEndpoints);
   document.getElementById('s-ep-add-btn')?.addEventListener('click', async () => {
@@ -200,6 +1184,9 @@ function _initSettings() {
     const url  = document.getElementById('s-ep-url').value.trim();
     const key  = document.getElementById('s-ep-key').value.trim();
     const adapter = getDropdownValue(document.getElementById('s-ep-adapter')) || 'auto';
+    let providerId = getDropdownValue(document.getElementById('s-ep-provider')) || 'custom';
+    const authType = getDropdownValue(document.getElementById('s-ep-auth')) || 'api_key';
+    if (authType === 'external_proxy') providerId = 'external_proxy';
     const manualModels = (document.getElementById('s-ep-manual')?.value || '')
       .split(',').map(value => value.trim()).filter(Boolean);
     if (!name || !url) { toast('name and url required', 'error'); return; }
@@ -209,7 +1196,7 @@ function _initSettings() {
     const btn = document.getElementById('s-ep-add-btn');
     btn.textContent = 'probing…'; btn.disabled = true;
     try {
-      const ep = await addEndpoint(name, url, key, adapter, manualModels);
+      const ep = await addEndpoint(name, url, key, adapter, manualModels, { providerId, authType });
       const visionRaw = document.getElementById('s-ep-vision')?.value.trim() || '';
       if (visionRaw && ep?.id) {
         const visionList = visionRaw.split(',').map(s => s.trim()).filter(Boolean);
@@ -220,7 +1207,10 @@ function _initSettings() {
       }
       ['s-ep-name','s-ep-url','s-ep-key','s-ep-vision','s-ep-manual'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
       setDropdownValue(document.getElementById('s-ep-adapter'), 'auto');
+      setDropdownValue(document.getElementById('s-ep-provider'), 'custom');
+      setDropdownValue(document.getElementById('s-ep-auth'), 'api_key');
       _showManualEndpointFields();
+      _showEndpointAuthFields();
       document.getElementById('s-ep-add-details').open = false;
       toast('endpoint added', 'success');
       loadEpList();
@@ -264,6 +1254,14 @@ function _initSettings() {
     const next = !event.currentTarget.classList.contains('on');
     _setSwitch(event.currentTarget, next);
     _patchSetting('andromeda_overview', next);
+  });
+  document.getElementById('s-andromeda-verification')?.addEventListener('click', event => {
+    const next = !event.currentTarget.classList.contains('on');
+    _setSwitch(event.currentTarget, next);
+    _patchSetting('andromeda_verification_enabled', next);
+  });
+  document.getElementById('s-andromeda-verifier-mode')?.addEventListener('change', event => {
+    _patchSetting('andromeda_verifier_mode', getDropdownValue(event.currentTarget));
   });
   document.getElementById('s-andromeda-band')?.addEventListener('change', event => {
     _patchSetting('andromeda_model_band', event.currentTarget.value);
@@ -327,6 +1325,10 @@ function _initSettings() {
   document.getElementById('wh-add-btn')?.addEventListener('click', addWebhook);
 
   // ── backup ──
+  document.getElementById('setup-resume-btn')?.addEventListener('click', () => {
+    closeSettings();
+    window._openSetupWizard?.({ resume: true });
+  });
   document.getElementById('backup-export-btn')?.addEventListener('click', async () => {
     if (await _confirmRecentOwner()) window.location = '/api/backup';
   });
@@ -465,7 +1467,7 @@ export function webdavBackupsFromResponse(payload = {}) {
 function _formatWebdavTime(value) {
   if (!value) return 'never';
   const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? 'unknown' : date.toLocaleString();
+  return Number.isNaN(date.getTime()) ? 'unknown' : formatDateTime(date);
 }
 
 function _formatWebdavBytes(value) {
@@ -654,22 +1656,13 @@ function renderWebdavBackups(backups) {
   const select = document.getElementById('webdav-backup-list');
   if (!select) return;
   const previous = select.value;
-  select.replaceChildren();
   if (!backups.length) {
-    const option = document.createElement('option');
-    option.value = '';
-    option.textContent = 'no remote backups found';
-    select.appendChild(option);
+    populateDropdown(select, [{ value: '', label: 'no remote backups found' }], '');
     select.disabled = true;
   } else {
-    for (const backup of backups) {
-      const option = document.createElement('option');
-      option.value = backup.filename;
-      option.textContent = backup.filename;
-      select.appendChild(option);
-    }
+    populateDropdown(select, backups.map(backup => ({ value: backup.filename, label: backup.filename })),
+      backups.some(backup => backup.filename === previous) ? previous : backups[0].filename);
     select.disabled = false;
-    select.value = backups.some(backup => backup.filename === previous) ? previous : backups[0].filename;
   }
   renderWebdavSelection();
 }
@@ -811,7 +1804,7 @@ export function s3BackupsFromResponse(payload = {}) {
 function _formatS3Time(value) {
   if (!value) return 'never';
   const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? 'unknown' : date.toLocaleString();
+  return Number.isNaN(date.getTime()) ? 'unknown' : formatDateTime(date);
 }
 
 function _formatS3Bytes(value) {
@@ -1027,22 +2020,13 @@ function renderS3Backups(backups) {
   const select = document.getElementById('s3-backup-list');
   if (!select) return;
   const previous = select.value;
-  select.replaceChildren();
   if (!backups.length) {
-    const option = document.createElement('option');
-    option.value = '';
-    option.textContent = 'no remote backups found';
-    select.appendChild(option);
+    populateDropdown(select, [{ value: '', label: 'no remote backups found' }], '');
     select.disabled = true;
   } else {
-    for (const backup of backups) {
-      const option = document.createElement('option');
-      option.value = backup.filename;
-      option.textContent = backup.filename;
-      select.appendChild(option);
-    }
+    populateDropdown(select, backups.map(backup => ({ value: backup.filename, label: backup.filename })),
+      backups.some(backup => backup.filename === previous) ? previous : backups[0].filename);
     select.disabled = false;
-    select.value = backups.some(backup => backup.filename === previous) ? previous : backups[0].filename;
   }
   renderS3Selection();
 }
@@ -1283,8 +2267,9 @@ async function _localJson(url, options = {}) {
 
 const _MODEL_ROLE_COPY = {
   aide_chat: ['Aide Chat', 'normal chats and agent work'],
-  andromeda: ['Andromeda overview', 'search answers and research'],
-  jarvis: ['Aide → Jarvis', 'background checks and scheduled work'],
+  andromeda_answer: ['Andromeda answer', 'fast compact cited answers'],
+  andromeda_verifier: ['Andromeda verifier', 'independent current-fact checks'],
+  jarvis: ['Jarvis', 'deep research and delegated work'],
 };
 const _ADAPTER_OPTIONS = 'auto|auto detect;openai-compatible|openai-compatible;anthropic|anthropic;gemini|gemini;ollama|ollama;manual|manual list';
 let _modelRoleSettings = {};
@@ -1300,6 +2285,50 @@ function _showManualEndpointFields() {
   if (row) row.hidden = getDropdownValue(document.getElementById('s-ep-adapter')) !== 'manual';
   const btn = document.getElementById('s-ep-add-btn');
   if (btn) btn.textContent = row?.hidden ? 'add + probe models' : 'add manual endpoint';
+}
+
+function _showEndpointAuthFields() {
+  const authType = getDropdownValue(document.getElementById('s-ep-auth')) || 'api_key';
+  const keyRow = document.getElementById('s-ep-key-row');
+  if (keyRow) keyRow.hidden = authType === 'none';
+  const key = document.getElementById('s-ep-key');
+  if (key) key.placeholder = authType === 'external_proxy'
+    ? 'proxy bearer token, if required'
+    : 'provider API key';
+}
+
+async function startGeminiOAuth() {
+  const btn = document.getElementById('s-gemini-oauth-start');
+  const clientId = document.getElementById('s-gemini-client-id')?.value.trim() || '';
+  const clientSecret = document.getElementById('s-gemini-client-secret')?.value.trim() || '';
+  const projectId = document.getElementById('s-gemini-project-id')?.value.trim() || '';
+  if (!clientId || !clientSecret || !projectId) {
+    toast('client ID, client secret, and project ID are required', 'error');
+    return;
+  }
+  btn.disabled = true;
+  btn.textContent = 'preparing…';
+  try {
+    const result = await _endpointJson(await _fetchWithRecentOwner('/api/models/oauth/gemini/start', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ client_id: clientId, client_secret: clientSecret, project_id: projectId }),
+    }));
+    const popup = window.open(result.authorization_url, 'alles-gemini-oauth', 'popup,width=620,height=760');
+    if (!popup) throw new Error('allow the authorization popup and try again');
+    toast('finish authorization in the Google window', 'success');
+    let checks = 0;
+    const poll = window.setInterval(async () => {
+      checks += 1;
+      await loadEpList();
+      if (popup.closed || checks >= 60) window.clearInterval(poll);
+    }, 2000);
+  } catch (error) {
+    toast(error.message || 'Gemini OAuth could not start', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'open Google authorization';
+  }
 }
 
 function _safeDropdownLabel(value = '') {
@@ -1486,16 +2515,19 @@ async function loadEpList() {
           <div class="s-ep-dot ${ep.health_status === 'healthy' ? 'ok' : status === 'stale' || ep.health_status === 'unavailable' ? 'stale' : ''}"></div>
           <div class="s-ep-info">
             <div class="s-ep-title-line"><span class="s-ep-name">${_esc(ep.name)}</span><span class="s-state-tag ${_escAttr(status)}">${_esc(_catalogLabel(ep))}</span></div>
+            <div class="s-ep-meta">${_esc(ep.provider_label || ep.provider || 'custom')} · ${_esc((ep.auth_type || 'api_key').replaceAll('_', ' '))} · ${_esc(ep.auth_status || 'incomplete')}</div>
             <div class="s-ep-meta">${_esc(ep.base_url)} · ${ep.models?.length || 0} ready · ${_esc(ep.health_status || 'unverified')}${unavailable ? ` · ${unavailable} unavailable` : ''}</div>
           </div>
           <div class="s-ep-actions">
             <button class="btn" data-probe="${_escAttr(ep.id)}">refresh</button>
             <button class="btn" data-test-ep="${_escAttr(ep.id)}">test</button>
+            ${ep.auth_type === 'oauth' ? `<button class="btn" data-auth-refresh="${_escAttr(ep.id)}">refresh grant</button><button class="btn danger" data-auth-revoke="${_escAttr(ep.id)}">revoke</button>` : ''}
             <button class="btn" data-edit-list="${_escAttr(ep.id)}" aria-expanded="false">models</button>
             <button class="btn danger" data-del="${_escAttr(ep.id)}" aria-label="disconnect ${_escAttr(ep.name)}">disconnect</button>
           </div>
         </div>
         <div class="s-ep-editor" data-editor="${_escAttr(ep.id)}" hidden>
+          <div class="s-ep-editor-note">${_esc(ep.quota_warning || '')}${ep.account_identity ? ` Connected project/account: ${_esc(ep.account_identity)}.` : ''} ${_esc(ep.revocation || '')}${ep.billing_url ? ` <a href="${_escAttr(ep.billing_url)}" target="_blank" rel="noopener noreferrer">provider usage</a>` : ''}</div>
           <div class="s-ep-editor-note">use discovery when the provider supports it. saving a manual list turns discovery off for this endpoint.</div>
           <div class="s-ep-editor-grid">
             <div class="s-field"><label>adapter</label><div class="custom-select settings-input" data-edit-adapter data-value="${_escAttr(ep.provider_adapter || 'auto')}" data-options="${_ADAPTER_OPTIONS}" aria-label="provider adapter"></div></div>
@@ -1559,6 +2591,27 @@ async function loadEpList() {
           loadEpList();
         } catch (error) { toast(error.message || 'model endpoint test failed', 'error'); }
         finally { btn.textContent = 'test'; btn.disabled = false; }
+      });
+    });
+    el.querySelectorAll('[data-auth-refresh]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        btn.disabled = true; btn.textContent = 'refreshing…';
+        try {
+          await _endpointJson(await _fetchWithRecentOwner(`/api/models/endpoint/${btn.dataset.authRefresh}/auth/refresh`, { method: 'POST' }));
+          toast('Gemini grant refreshed', 'success');
+        } catch (error) { toast(error.message || 'grant refresh failed', 'error'); }
+        finally { await loadEpList(); }
+      });
+    });
+    el.querySelectorAll('[data-auth-revoke]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        if (!await _dlgConfirm('revoke this Gemini grant at Google and disable the endpoint?')) return;
+        btn.disabled = true; btn.textContent = 'revoking…';
+        try {
+          await _endpointJson(await _fetchWithRecentOwner(`/api/models/endpoint/${btn.dataset.authRevoke}/auth/revoke`, { method: 'POST' }));
+          toast('Gemini grant revoked', 'success');
+        } catch (error) { toast(error.message || 'Google did not confirm revocation', 'error'); }
+        finally { await loadEpList(); await loadModels(); renderModelList(); }
       });
     });
     el.querySelectorAll('[data-del]').forEach(btn => {
@@ -1686,7 +2739,7 @@ async function loadSearchPane() {
     if (s.google_pse_cx)   document.getElementById('s-gpse-cx').value     = s.google_pse_cx;
     if (s.serper_api_key)  document.getElementById('s-serper-key').value  = s.serper_api_key;
     const sel = document.getElementById('s-search-count');
-    if (sel) setDropdownValue(sel, String(s.search_result_count || 5));
+    if (sel) setDropdownValue(sel, String(s.search_result_count || 8));
     _updateSearchKeyRow();
     _updateSearchStatus(s);
     await loadAndromedaSearchSettings(s);
@@ -1699,35 +2752,36 @@ let _andromedaModelBands = {};
 async function loadAndromedaSearchSettings(settings) {
   _setSwitch(document.getElementById('s-andromeda-results'), settings.andromeda_normal_results !== false);
   _setSwitch(document.getElementById('s-andromeda-overview'), settings.andromeda_overview !== false);
+  _setSwitch(document.getElementById('s-andromeda-verification'), settings.andromeda_verification_enabled !== false);
+  const verifierMode = document.getElementById('s-andromeda-verifier-mode');
+  if (verifierMode) setDropdownValue(verifierMode, settings.andromeda_verifier_mode || 'freshness-sensitive');
   const band = document.getElementById('s-andromeda-band');
-  if (band) band.value = settings.andromeda_model_band || 'standard';
+  if (band) setDropdownValue(band, settings.andromeda_model_band || 'standard');
   _andromedaModelBands = settings.andromeda_model_bands || {};
   let endpoints = [];
   try { endpoints = await _endpointJson(await fetch('/api/models')); } catch {}
   _andromedaModelChoices = new Map();
   let index = 0;
   document.querySelectorAll('.s-andromeda-model').forEach(select => {
-    const first = select.options[0]?.cloneNode(true);
-    select.replaceChildren(first || new Option('not configured', ''));
+    const options = [{ value: '', label: select.dataset.band === 'standard' ? 'use answer role' : 'not configured' }];
+    let selected = '';
     for (const endpoint of endpoints) {
       for (const model of endpoint.models || []) {
         const key = String(++index);
         _andromedaModelChoices.set(`${select.dataset.band}:${key}`, { endpoint_id: endpoint.id, model });
-        const option = document.createElement('option');
-        option.value = key;
-        option.textContent = `${model} · ${endpoint.name}`;
-        select.appendChild(option);
+        options.push({ value: key, label: `${model} · ${endpoint.name}` });
         const current = _andromedaModelBands[select.dataset.band] || {};
-        if (current.endpoint_id === endpoint.id && current.model === model) select.value = key;
+        if (current.endpoint_id === endpoint.id && current.model === model) selected = key;
       }
     }
+    populateDropdown(select, options, selected);
   });
 }
 
 async function saveAndromedaModelBands() {
   const choices = {};
   document.querySelectorAll('.s-andromeda-model').forEach(select => {
-    const choice = _andromedaModelChoices.get(`${select.dataset.band}:${select.value}`);
+    const choice = _andromedaModelChoices.get(`${select.dataset.band}:${getDropdownValue(select)}`);
     if (choice) choices[select.dataset.band] = choice;
   });
   _andromedaModelBands = choices;
@@ -1740,7 +2794,7 @@ async function saveAndromedaModelBands() {
 
 async function qualifyAndromedaAutoModel() {
   const select = document.getElementById('s-andromeda-model-auto');
-  const choice = _andromedaModelChoices.get(`auto:${select?.value || ''}`);
+  const choice = _andromedaModelChoices.get(`auto:${getDropdownValue(select)}`);
   const status = document.getElementById('s-andromeda-model-status');
   if (!choice) { if (status) status.textContent = 'choose an exact local Auto model first'; return; }
   const button = document.getElementById('s-andromeda-qualify');
@@ -1776,7 +2830,7 @@ function _updateSearchStatus(s) {
   const el = document.getElementById('s-search-status');
   if (!el) return;
   const prov  = s.search_provider || 'duckduckgo';
-  const count = s.search_result_count || 5;
+  const count = s.search_result_count || 8;
   const labels = { duckduckgo:'DuckDuckGo', tavily:'Tavily', brave:'Brave', searxng:'SearXNG', google_pse:'Google PSE', serper:'Serper', disabled:'disabled' };
   const needsKey = { tavily:'tavily_api_key', brave:'brave_api_key', google_pse:'google_pse_api_key', serper:'serper_api_key' };
   const needsUrl = { searxng:'searxng_url' };
@@ -1789,9 +2843,14 @@ function _updateSearchStatus(s) {
 
 async function saveSearchSettings() {
   const prov  = getDropdownValue(document.getElementById('s-search-provider'));
-  const count = parseInt(getDropdownValue(document.getElementById('s-search-count'))) || 5;
+  const count = parseInt(getDropdownValue(document.getElementById('s-search-count'))) || 8;
   const fall  = getDropdownValue(document.getElementById('s-search-fallback')) || 'duckduckgo';
-  const patch = { search_provider: prov, search_result_count: count, search_fallback: fall };
+  const patch = {
+    search_provider: prov,
+    search_result_count: count,
+    search_fallback: fall,
+    search_fallback_chain: fall === 'none' ? [] : [fall],
+  };
   const fields = {
     s_tavily_key: 'tavily_api_key', s_brave_key: 'brave_api_key',
     s_searxng_url: 'searxng_url', s_gpse_key: 'google_pse_api_key',
@@ -1834,10 +2893,6 @@ function loadAppearancePane() {
   _bindSwitchOnce(document.getElementById('s-sensitive-blur-toggle'), sensitiveBlurEnabled, setSensitiveBlur);
   _bindSwitchOnce(document.getElementById('s-text-emoji-toggle'), textOnlyEmojisEnabled, setTextOnlyEmojis);
   _bindSwitchOnce(document.getElementById('s-welcome-toggle'), welcomeEnabled, setWelcomeEnabled);
-  // server-backed general settings
-  fetch('/api/settings').then(r => r.json()).then(s => {
-    _bindLocalizationFields(s);
-  }).catch(() => {});
   _bindSwitchOnce(document.getElementById('s-ui-compact-toggle'),
     () => document.body.classList.contains('compact'),
     on => {
@@ -1859,47 +2914,6 @@ function loadAppearancePane() {
     }
   }
   _loadThemeColorControls();
-}
-
-function _bindLocalizationFields(settings) {
-  const language = document.getElementById('s-language');
-  const region = document.getElementById('s-region');
-  const timezone = document.getElementById('s-timezone');
-  const detected = document.getElementById('s-timezone-detected');
-  if (language) setDropdownValue(language, settings.language || 'en');
-  if (region) region.value = settings.region || '';
-  if (timezone) timezone.value = settings.timezone || '';
-  if (detected) {
-    const browserZone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'unknown';
-    detected.textContent = `browser time zone: ${browserZone}`;
-  }
-  const save = document.getElementById('s-locale-save');
-  if (!save || save.dataset.bound) return;
-  save.dataset.bound = '1';
-  save.addEventListener('click', async () => {
-    save.disabled = true;
-    try {
-      const response = await fetch('/api/settings', {
-        method: 'PATCH',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          language: getDropdownValue(language) || 'en',
-          region: region?.value.trim() || '',
-          timezone: timezone?.value.trim() || '',
-        }),
-      });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(data.detail || 'language settings could not be saved');
-      configureLocalization(data);
-      if (region) region.value = data.region || '';
-      if (timezone) timezone.value = data.timezone || '';
-      toast('language and region saved', 'success');
-    } catch (error) {
-      toast(error.message || 'language settings could not be saved', 'error');
-    } finally {
-      save.disabled = false;
-    }
-  });
 }
 
 // themes pane: the inline full editor + keeping the default-theme controls' lock state in
@@ -2015,7 +3029,7 @@ function _loadThemeColorControls() {
       const oldp = document.getElementById('s-pw-old').value;
       const newp = document.getElementById('s-pw-new').value;
       const conf = document.getElementById('s-pw-new2')?.value ?? '';
-      if (newp.length < 4) { toast('new password must be at least 4 characters', 'error'); return; }
+      if (newp.length < 12) { toast('new password must be at least 12 characters', 'error'); return; }
       if (newp !== conf) { toast("passwords don't match", 'error'); return; }
       try {
         const r = await fetch('/api/auth/change-password', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ old_password: oldp, new_password: newp }) });
@@ -2626,6 +3640,239 @@ window._testConn = async btn => {
   btn.textContent = 'test';
 };
 
+// Jarvis is only the optional owner-scoped Discord connection. It uses Aide's
+// normal model and background runtime; there is no separate in-app mode.
+let _discordPairingCode = '';
+let _discordBound = false;
+let _discordGeneration = 0;
+let _discordBusy = false;
+let _discordMutationQueue = Promise.resolve();
+const _discordDrafts = { channels: false, quiet: false };
+const _discordDraftRevisions = { channels: 0, quiet: 0 };
+
+function _discordLines(value = '') {
+  return String(value).split(/\r?\n/).map(item => item.trim()).filter(Boolean);
+}
+
+function _discordJson(url, options = {}) {
+  const mutate = async () => {
+    _discordBusy = true;
+    const generation = ++_discordGeneration;
+    try {
+      const response = await _fetchWithRecentOwner(url, options);
+      let body = {};
+      try { body = await response.json(); } catch {}
+      if (!response.ok) throw new Error(body.detail || body.message || 'Discord connection failed');
+      if (generation !== _discordGeneration) return null;
+      return body;
+    } finally {
+      _discordBusy = false;
+    }
+  };
+  const pending = _discordMutationQueue.then(mutate, mutate);
+  _discordMutationQueue = pending.catch(() => {});
+  return pending;
+}
+
+function _renderDiscordConnection(data) {
+  if (!data) return;
+  const view = document.getElementById('jarvis-discord-view');
+  const setup = document.getElementById('jarvis-discord-setup');
+  const manage = document.getElementById('jarvis-discord-manage');
+  const head = document.getElementById('jarvis-discord-head-state');
+  if (!view || !setup || !manage || !head) return;
+  view.hidden = true;
+  setup.hidden = !!data.configured;
+  manage.hidden = !data.configured;
+  head.textContent = data.configured ? (data.connection_state || 'disconnected') : 'not connected';
+  if (!data.configured) return;
+
+  document.getElementById('jarvis-discord-name').textContent = data.bot_name || 'Jarvis';
+  const detail = data.paired
+    ? `paired with ${data.owner_name || 'owner'}`
+    : 'waiting for one owner to pair';
+  document.getElementById('jarvis-discord-detail').textContent = detail;
+  _setSwitch(document.getElementById('jarvis-discord-enabled'), !!data.enabled);
+  const channels = document.getElementById('jarvis-discord-channels');
+  if (!_discordDrafts.channels) channels.value = (data.allowed_channel_ids || []).join('\n');
+
+  const pairCode = document.getElementById('jarvis-pairing-code');
+  pairCode.hidden = !_discordPairingCode;
+  pairCode.textContent = _discordPairingCode || '';
+  document.getElementById('jarvis-discord-pair').textContent = data.paired
+    ? 'replace pairing'
+    : (data.pairing_available ? 'replace hidden code' : 'new pairing code');
+  document.getElementById('jarvis-discord-revoke').hidden = !data.paired;
+
+  const quiet = data.quiet_hours || {};
+  const quietOn = !!quiet.enabled;
+  const values = [
+    ['jarvis-discord-quiet-start', quiet.start || '23:00'],
+    ['jarvis-discord-quiet-end', quiet.end || '07:00'],
+    ['jarvis-discord-timezone', quiet.timezone || resolvedTimeZone()],
+  ];
+  if (!_discordDrafts.quiet) {
+    _setSwitch(document.getElementById('jarvis-discord-quiet'), quietOn);
+    document.getElementById('jarvis-discord-quiet-fields').hidden = !quietOn;
+    values.forEach(([id, value]) => {
+      document.getElementById(id).value = value;
+    });
+  }
+}
+
+function _bindDiscordConnection() {
+  if (_discordBound) return;
+  _discordBound = true;
+  document.getElementById('jarvis-discord-channels')?.addEventListener('input', () => {
+    _discordDrafts.channels = true;
+    _discordDraftRevisions.channels += 1;
+  });
+  for (const id of ['jarvis-discord-quiet-start', 'jarvis-discord-quiet-end', 'jarvis-discord-timezone']) {
+    document.getElementById(id)?.addEventListener('input', () => {
+      _discordDrafts.quiet = true;
+      _discordDraftRevisions.quiet += 1;
+    });
+  }
+  document.getElementById('jarvis-discord-connect')?.addEventListener('click', async () => {
+    const token = document.getElementById('jarvis-discord-token').value.trim();
+    if (!token) { toast('bot token required', 'error'); return; }
+    try {
+      const data = await _discordJson('/api/jarvis/discord', {
+        method: 'POST', headers: {'content-type':'application/json'},
+        body: JSON.stringify({ bot_token: token }),
+      });
+      _discordPairingCode = data.pairing_code || '';
+      _discordDrafts.channels = false;
+      _discordDrafts.quiet = false;
+      document.getElementById('jarvis-discord-token').value = '';
+      _renderDiscordConnection(data);
+      toast('Jarvis connected', 'success');
+    } catch (error) { toast(error.message, 'error'); }
+  });
+  document.getElementById('jarvis-discord-enabled')?.addEventListener('click', async event => {
+    const next = !event.currentTarget.classList.contains('on');
+    try {
+      const data = await _discordJson('/api/jarvis/discord', {
+        method: 'PATCH', headers: {'content-type':'application/json'},
+        body: JSON.stringify({ enabled: next }),
+      });
+      _renderDiscordConnection(data);
+    } catch (error) { toast(error.message, 'error'); }
+  });
+  document.getElementById('jarvis-discord-pair')?.addEventListener('click', async () => {
+    try {
+      const data = await _discordJson('/api/jarvis/discord/pairing-code', {
+        method: 'POST', headers: {'content-type':'application/json'},
+        body: JSON.stringify({ revoke_owner: false }),
+      });
+      _discordPairingCode = data.pairing_code || '';
+      _renderDiscordConnection(data);
+    } catch (error) { toast(error.message, 'error'); }
+  });
+  document.getElementById('jarvis-discord-save-channels')?.addEventListener('click', async () => {
+    const ids = _discordLines(document.getElementById('jarvis-discord-channels').value);
+    if (ids.some(value => !/^\d+$/.test(value))) {
+      toast('channel ids must contain numbers only', 'error'); return;
+    }
+    const draftRevision = _discordDraftRevisions.channels;
+    try {
+      const data = await _discordJson('/api/jarvis/discord', {
+        method: 'PATCH', headers: {'content-type':'application/json'},
+        body: JSON.stringify({ allowed_channel_ids: ids }),
+      });
+      if (draftRevision === _discordDraftRevisions.channels) _discordDrafts.channels = false;
+      _renderDiscordConnection(data);
+      toast('approved channels saved', 'success');
+    } catch (error) { toast(error.message, 'error'); }
+  });
+  document.getElementById('jarvis-discord-revoke')?.addEventListener('click', async () => {
+    if (!await _dlgConfirm('Revoke the paired Discord owner?')) return;
+    try {
+      const data = await _discordJson('/api/jarvis/discord/pairing-code', {
+        method: 'POST', headers: {'content-type':'application/json'},
+        body: JSON.stringify({ revoke_owner: true }),
+      });
+      _discordPairingCode = data.pairing_code || '';
+      _renderDiscordConnection(data);
+      toast('owner revoked; a new code is ready', 'success');
+    } catch (error) { toast(error.message, 'error'); }
+  });
+  document.getElementById('jarvis-discord-quiet')?.addEventListener('click', async event => {
+    if (_discordBusy) return;
+    const switchControl = event.currentTarget;
+    const next = !switchControl.classList.contains('on');
+    _discordDrafts.quiet = true;
+    const draftRevision = ++_discordDraftRevisions.quiet;
+    _setSwitch(switchControl, next);
+    document.getElementById('jarvis-discord-quiet-fields').hidden = !next;
+    if (!next) {
+      try {
+        const data = await _discordJson('/api/jarvis/discord', {
+          method: 'PATCH', headers: {'content-type':'application/json'},
+          body: JSON.stringify({ quiet_hours: { enabled: false } }),
+        });
+        if (draftRevision === _discordDraftRevisions.quiet) _discordDrafts.quiet = false;
+        _renderDiscordConnection(data);
+      } catch (error) {
+        _setSwitch(switchControl, true);
+        document.getElementById('jarvis-discord-quiet-fields').hidden = false;
+        toast(error.message, 'error');
+      }
+    }
+  });
+  document.getElementById('jarvis-discord-save-quiet')?.addEventListener('click', async () => {
+    const quiet_hours = {
+      enabled: true,
+      start: document.getElementById('jarvis-discord-quiet-start').value.trim(),
+      end: document.getElementById('jarvis-discord-quiet-end').value.trim(),
+      timezone: document.getElementById('jarvis-discord-timezone').value.trim(),
+    };
+    const draftRevision = _discordDraftRevisions.quiet;
+    try {
+      const data = await _discordJson('/api/jarvis/discord', {
+        method: 'PATCH', headers: {'content-type':'application/json'},
+        body: JSON.stringify({ quiet_hours }),
+      });
+      if (draftRevision === _discordDraftRevisions.quiet) _discordDrafts.quiet = false;
+      _renderDiscordConnection(data);
+      toast('quiet hours saved', 'success');
+    } catch (error) { toast(error.message, 'error'); }
+  });
+  document.getElementById('jarvis-discord-disconnect')?.addEventListener('click', async () => {
+    if (!await _dlgConfirm('Disconnect Jarvis from Discord?')) return;
+    try {
+      await _discordJson('/api/jarvis/discord', { method: 'DELETE' });
+      _discordPairingCode = '';
+      _discordDrafts.channels = false;
+      _discordDrafts.quiet = false;
+      _renderDiscordConnection({ configured: false });
+      toast('Jarvis disconnected', 'success');
+    } catch (error) { toast(error.message, 'error'); }
+  });
+}
+
+export async function loadDiscordConnection() {
+  const view = document.getElementById('jarvis-discord-view');
+  if (!view) return;
+  _bindDiscordConnection();
+  if (_discordBusy) return;
+  const generation = ++_discordGeneration;
+  try {
+    const data = await fetch('/api/jarvis/discord').then(response => {
+      if (!response.ok) throw new Error();
+      return response.json();
+    });
+    if (generation !== _discordGeneration) return;
+    _renderDiscordConnection(data);
+  } catch {
+    if (generation !== _discordGeneration) return;
+    view.hidden = false;
+    view.innerHTML = '<div class="settings-row-empty">Discord status unavailable</div>';
+    document.getElementById('jarvis-discord-setup').hidden = true;
+    document.getElementById('jarvis-discord-manage').hidden = true;
+  }
+}
+
 async function addMcpServer() {
   const name    = document.getElementById('mcp-name').value.trim();
   const command = document.getElementById('mcp-command').value.trim();
@@ -2679,7 +3926,7 @@ async function loadTokens() {
       <span class="row-name" style="font-family:monospace;font-size:0.72rem">${t.prefix}…</span>
       <span class="row-meta">${_esc(t.name)}</span>
       <span class="row-meta">${(t.scopes || []).map(_esc).join(', ') || 'no access'}</span>
-      <span class="row-meta">${t.last_used_at ? 'used ' + new Date(t.last_used_at).toLocaleDateString() : 'never used'}</span>
+      <span class="row-meta">${t.last_used_at ? 'used ' + formatDate(t.last_used_at) : 'never used'}</span>
       <button class="act-btn" data-id="${t.id}" onclick="window._rmToken(this)">revoke</button>
     </div>`).join('');
 }

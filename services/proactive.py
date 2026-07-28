@@ -7,7 +7,7 @@ bypasses the toggle/interval so it can be tested before being switched on."""
 import hashlib
 import json
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 
 from core.database import (
     ProactiveItem,
@@ -72,7 +72,9 @@ def _in_quiet_hours(s, now=None):
 
 
 def _dedupe_key(source_keys):
-    return hashlib.sha1("|".join(sorted(source_keys)).encode()).hexdigest()[:16]
+    return hashlib.sha1("|".join(sorted(source_keys)).encode(), usedforsecurity=False).hexdigest()[
+        :16
+    ]
 
 
 def _interval_seconds():
@@ -250,7 +252,7 @@ def _save_seen(db, keys):
     blob = json.dumps(sorted(keys))
     if st:
         st.seen_keys = blob
-        st.updated_at = datetime.utcnow()
+        st.updated_at = datetime.now(UTC).replace(tzinfo=None)
     else:
         db.add(ProactiveState(id="singleton", seen_keys=blob))
     db.commit()
@@ -260,7 +262,8 @@ def _save_seen(db, keys):
 def record_outcome(db, item, outcome):
     """log one card fate (acted|dismissed|ignored). latency = card age when it landed."""
     try:
-        latency = (datetime.utcnow() - (item.created_at or datetime.utcnow())).total_seconds()
+        now = datetime.now(UTC).replace(tzinfo=None)
+        latency = (now - (item.created_at or now)).total_seconds()
     except Exception:
         latency = 0.0
     db.add(
@@ -347,7 +350,7 @@ def _upsert(db, cards, sigs):
         if live:
             live.score, live.urgency = score, urg
             live.title, live.body, live.link = c["title"], c["body"], c["link"]
-            live.updated_at = datetime.utcnow()
+            live.updated_at = datetime.now(UTC).replace(tzinfo=None)
             continue
         # a dismissed card with this exact key stays suppressed
         if db.query(ProactiveItem).filter(ProactiveItem.dedupe_key == dk).first():

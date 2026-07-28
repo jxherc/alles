@@ -9,7 +9,7 @@ import io
 import json
 import shutil
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 
 from core.settings import data_dir, load_settings
@@ -20,6 +20,11 @@ _RAW = {"dng", "cr2", "cr3", "nef", "arw", "raf", "rw2", "orf", "pef"}
 _ALLOWED = {"jpg", "jpeg", "png", "webp", "gif", "bmp", "tif", "tiff"} | _HEIF
 _VIDEO = {"mp4", "mov", "m4v", "webm"}  # 7c — no ffmpeg here, so stored + played, not thumbnailed
 _THUMB = 512
+
+
+def supports_media(name: str) -> bool:
+    """Return whether Photos has a safe importer for this filename."""
+    return _ext_of(str(name or "")) in (_ALLOWED | _RAW | _VIDEO)
 
 
 def photos_dir() -> Path:
@@ -187,7 +192,7 @@ def _store_original_only(data: bytes, original_name: str, ext: str, err: Excepti
         "original_name": original_name,
         "width": 0,
         "height": 0,
-        "taken_at": datetime.utcnow(),
+        "taken_at": datetime.now(UTC).replace(tzinfo=None),
         "exif": json.dumps({"format": ext, "decode_error": type(err).__name__}),
         "is_video": False,
         "aspect_ratio": None,
@@ -243,7 +248,7 @@ def import_video(data: bytes, original_name: str) -> dict:
         "original_name": original_name,
         "width": 0,
         "height": 0,
-        "taken_at": datetime.utcnow(),
+        "taken_at": datetime.now(UTC).replace(tzinfo=None),
         "exif": json.dumps({}),
         "is_video": True,
         "aspect_ratio": None,
@@ -273,7 +278,7 @@ def import_video_path(path: Path, original_name: str) -> dict:
         "original_name": original_name,
         "width": 0,
         "height": 0,
-        "taken_at": datetime.utcnow(),
+        "taken_at": datetime.now(UTC).replace(tzinfo=None),
         "exif": json.dumps({}),
         "is_video": True,
         "aspect_ratio": None,
@@ -304,7 +309,7 @@ def import_raw_path(path: Path, original_name: str) -> dict:
         "original_name": original_name,
         "width": 0,
         "height": 0,
-        "taken_at": datetime.utcnow(),
+        "taken_at": datetime.now(UTC).replace(tzinfo=None),
         "exif": json.dumps({"format": ext, "preview": "unavailable"}),
         "is_video": False,
         "aspect_ratio": None,
@@ -339,7 +344,7 @@ def import_image(data: bytes, original_name: str) -> dict:
     fname = uuid.uuid4().hex + "." + ext
     _write_managed_bytes(fname, data)
     if taken_at is None:
-        taken_at = datetime.utcnow()
+        taken_at = datetime.now(UTC).replace(tzinfo=None)
 
     thumb_name = fname.rsplit(".", 1)[0] + ".jpg"
     try:
@@ -383,7 +388,7 @@ def register_existing(path: Path) -> dict:
             "original_name": p.name,
             "width": 0,
             "height": 0,
-            "taken_at": datetime.utcfromtimestamp(p.stat().st_mtime),
+            "taken_at": datetime.fromtimestamp(p.stat().st_mtime, UTC).replace(tzinfo=None),
             "exif": json.dumps({}),
             "is_video": True,
             "aspect_ratio": None,
@@ -406,7 +411,7 @@ def register_existing(path: Path) -> dict:
                 "original_name": p.name,
                 "width": 0,
                 "height": 0,
-                "taken_at": datetime.utcfromtimestamp(p.stat().st_mtime),
+                "taken_at": datetime.fromtimestamp(p.stat().st_mtime, UTC).replace(tzinfo=None),
                 "exif": json.dumps({"format": ext, "decode_error": type(e).__name__}),
                 "is_video": False,
                 "aspect_ratio": None,
@@ -429,7 +434,7 @@ def register_existing(path: Path) -> dict:
         "original_name": p.name,
         "width": w,
         "height": h,
-        "taken_at": taken_at or datetime.utcfromtimestamp(p.stat().st_mtime),
+        "taken_at": taken_at or datetime.fromtimestamp(p.stat().st_mtime, UTC).replace(tzinfo=None),
         "exif": json.dumps(exif_out),
         "is_video": False,
         "aspect_ratio": (w / h) if (w and h) else None,

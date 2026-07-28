@@ -1,8 +1,75 @@
 import { toast } from './util.js';
-import { initCustomDropdown } from './dropdown.js?v=210';
+import { initCustomDropdown } from './dropdown.js?v=212';
 import { initDatePickers } from './datepick.js';
 import { prompt as dlgPrompt } from './dialog.js';
+import { formatDate, formatDateParts, formatTime, localizationState, resolvedTimeZone, t as tr, tp as trp } from './i18n.js';
 const _si = n => (window.icon ? window.icon(n) : '');   // central icon set, load-order safe
+
+const _browserTimeZone = () => {
+  try { return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'; }
+  catch { return 'UTC'; }
+};
+
+function _instantAsCalendarWallDate(value) {
+  const instant = new Date(value);
+  if (Number.isNaN(instant.getTime())) return instant;
+  const parts = formatDateParts(instant, {
+    calendar: 'gregory',
+    numberingSystem: 'latn',
+    timeZone: resolvedTimeZone(),
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+    hourCycle: 'h23',
+  });
+  const fields = Object.fromEntries(parts.map(part => [part.type, Number(part.value)]));
+  return new CalendarWallDate(Date.UTC(
+    fields.year,
+    fields.month - 1,
+    fields.day,
+    fields.hour,
+    fields.minute,
+    fields.second,
+  ));
+}
+
+class CalendarWallDate extends Date {
+  getFullYear() { return super.getUTCFullYear(); }
+  getMonth() { return super.getUTCMonth(); }
+  getDate() { return super.getUTCDate(); }
+  getDay() { return super.getUTCDay(); }
+  getHours() { return super.getUTCHours(); }
+  getMinutes() { return super.getUTCMinutes(); }
+  getSeconds() { return super.getUTCSeconds(); }
+  getMilliseconds() { return super.getUTCMilliseconds(); }
+  setFullYear(...args) { return super.setUTCFullYear(...args); }
+  setMonth(...args) { return super.setUTCMonth(...args); }
+  setDate(...args) { return super.setUTCDate(...args); }
+  setHours(...args) { return super.setUTCHours(...args); }
+  setMinutes(...args) { return super.setUTCMinutes(...args); }
+  setSeconds(...args) { return super.setUTCSeconds(...args); }
+  setMilliseconds(...args) { return super.setUTCMilliseconds(...args); }
+}
+
+const _calendarWallDate = (year, month, day, hour = 0, minute = 0, second = 0, millis = 0) =>
+  new CalendarWallDate(Date.UTC(year, month, day, hour, minute, second, millis));
+const _cloneCalendarDate = value => value instanceof CalendarWallDate
+  ? new CalendarWallDate(value.getTime())
+  : new Date(value);
+
+export function calendarPlacementDate(value) {
+  const text = typeof value === 'string' ? value.trim() : '';
+  const naive = /^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{1,3}))?)?)?$/.exec(text);
+  if (naive) {
+    const [, year, month, day, hour = '0', minute = '0', second = '0', millis = '0'] = naive;
+    return _calendarWallDate(
+      Number(year), Number(month) - 1, Number(day),
+      Number(hour), Number(minute), Number(second), Number(millis.padEnd(3, '0')),
+    );
+  }
+  return _instantAsCalendarWallDate(value);
+}
+
+const _calendarNow = () => _instantAsCalendarWallDate(new Date());
 
 let _events = [];
 let _tasks = [];  // tasks with due dates, overlaid on the month/agenda
@@ -10,22 +77,33 @@ let _birthdays = [];  // contact birthdays, overlaid as annual all-day items
 let _calendars = [];
 let _editing = null;
 let _editOcc = null;             // occurrence date when editing a recurring instance
-let _cursor = new Date();
+let _cursor = _calendarNow();
 let _view = localStorage.getItem('cal-view') || 'month';
 let _viewBooted = false;          // has loadCalendar seeded the view once this session
 let _lastDefaultView = null;      // last cal_default_view we applied (detects a cog change)
 let _search = '';
 let _searchTimer = null;
-let _miniCursor = new Date();    // month shown in the mini-navigator
+let _miniCursor = _calendarNow();    // month shown in the mini-navigator
 let _navBound = false;
 let _prefill = null;             // {start,end} for a drag-created event
 
-const WD = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 let _weekStart = 0;   // 0 = sunday, 1 = monday (per-app setting)
 let _workStart = 9, _workEnd = 18;   // 8a working-hours shading (week/day grid)
 let _secondaryTz = '';               // 8a secondary timezone (IANA name) for a world clock
 let _subs = [];                      // 8a ICS-URL subscriptions
-const _wdLabels = () => _weekStart ? [...WD.slice(1), WD[0]] : WD;
+const formatCalendarDate = (date, options = {}) => {
+  const neutral = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate(), 12));
+  return formatDate(neutral, { ...options, timeZone: 'UTC' });
+};
+const _weekdayLabels = (width = 'short') => {
+  const sunday = new Date(2026, 6, 19, 12);
+  const labels = Array.from({ length: 7 }, (_, index) => {
+    const day = new Date(sunday);
+    day.setDate(sunday.getDate() + index);
+    return formatCalendarDate(day, { weekday: width });
+  });
+  return [...labels.slice(_weekStart), ...labels.slice(0, _weekStart)];
+};
 // leading blanks before the 1st, honoring week-start
 const _lead = (y, m) => (new Date(y, m, 1).getDay() - _weekStart + 7) % 7;
 const HOUR_H = 44;
@@ -35,8 +113,34 @@ const ymd = d => `${d.getFullYear()}-${_pad(d.getMonth() + 1)}-${_pad(d.getDate(
 const localISO = d => `${ymd(d)}T${_pad(d.getHours())}:${_pad(d.getMinutes())}`;
 const apiPatch = (id, body) => fetch(`/api/calendar/${id}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
 const apiPost = body => fetch('/api/calendar', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
-const timeShort = dt => new Date(dt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+const timeShort = dt => formatTime(dt, {
+  hour: 'numeric', minute: '2-digit',
+  timeZone: dt instanceof CalendarWallDate ? 'UTC' : _browserTimeZone(),
+});
 const sameDay = (a, b) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+
+const SUNDAY_FIRST_REGIONS = new Set(['AG', 'AS', 'BD', 'BR', 'BS', 'BT', 'BW', 'BZ', 'CA', 'CN', 'CO', 'DM', 'DO', 'ET', 'GT', 'GU', 'HK', 'HN', 'ID', 'IL', 'IN', 'JM', 'JP', 'KE', 'KH', 'KR', 'LA', 'MH', 'MM', 'MO', 'MT', 'MX', 'MZ', 'NI', 'NP', 'PA', 'PE', 'PH', 'PK', 'PR', 'PT', 'PY', 'SA', 'SG', 'SV', 'TH', 'TT', 'TW', 'UM', 'US', 'VE', 'VI', 'WS', 'YE', 'ZA', 'ZW']);
+
+export function resolveCalendarWeekStart(settings = {}) {
+  const hasUniversal = Object.prototype.hasOwnProperty.call(settings, 'week_start')
+    || Object.prototype.hasOwnProperty.call(settings, 'weekStart');
+  const universal = hasUniversal ? (settings.week_start || settings.weekStart || 'auto') : '';
+  if (universal === 'mon') return 1;
+  if (universal === 'sun') return 0;
+  if (!hasUniversal && settings.cal_week_start === 'mon') return 1;
+  if (!hasUniversal && settings.cal_week_start === 'sun') return 0;
+  const state = localizationState();
+  const region = String(settings.region || settings.effectiveRegion || state.effectiveRegion || '').toUpperCase();
+  try {
+    const language = String(state.language || 'en').split('-')[0];
+    const locale = new Intl.Locale(region ? `${language}-${region}` : state.locale || 'en');
+    const info = typeof locale.getWeekInfo === 'function' ? locale.getWeekInfo() : locale.weekInfo;
+    if (Number.isInteger(info?.firstDay) && info.firstDay >= 1 && info.firstDay <= 7) {
+      return info.firstDay % 7;
+    }
+  } catch {}
+  return SUNDAY_FIRST_REGIONS.has(region) ? 0 : 1;
+}
 
 // google-ish categorical palette (event colours are categorisation here, not status)
 const PALETTE = {
@@ -58,25 +162,25 @@ function _tickWorldClock() {
   _clockTimer = setInterval(() => {
     const el = document.querySelector('#cal-worldclock .cal-wc-time');
     if (!el || !_secondaryTz) return;
-    try { el.textContent = new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: _secondaryTz }); } catch {}
+    try { el.textContent = formatTime(new Date(), { hour: 'numeric', minute: '2-digit', timeZone: _secondaryTz }); } catch {}
   }, 60000);
 }
 
-export async function loadCalendar() {
+export async function loadCalendar(fetcher = fetch) {
   _bindNav();
   _tickWorldClock();
   const [cals, evs, s, tasks, subs, bdays] = await Promise.all([
-    fetch('/api/calendars').then(r => r.json()).catch(() => []),
-    fetch('/api/calendar').then(r => r.json()).catch(() => []),
-    fetch('/api/settings').then(r => r.json()).catch(() => ({})),
-    fetch('/api/calendar/tasks').then(r => r.json()).catch(() => []),
-    fetch('/api/calendar/subscriptions').then(r => r.json()).catch(() => []),
-    fetch('/api/calendar/birthdays').then(r => r.json()).catch(() => []),
+    fetcher('/api/calendars').then(r => r.json()).catch(() => []),
+    fetcher('/api/calendar').then(r => r.json()).catch(() => []),
+    fetcher('/api/settings').then(r => r.json()).catch(() => ({})),
+    fetcher('/api/calendar/tasks').then(r => r.json()).catch(() => []),
+    fetcher('/api/calendar/subscriptions').then(r => r.json()).catch(() => []),
+    fetcher('/api/calendar/birthdays').then(r => r.json()).catch(() => []),
   ]);
   _tasks = Array.isArray(tasks) ? tasks : [];
   _subs = Array.isArray(subs) ? subs : [];
   _birthdays = Array.isArray(bdays) ? bdays : [];
-  _weekStart = s.cal_week_start === 'mon' ? 1 : 0;
+  _weekStart = resolveCalendarWeekStart(s);
   _workStart = Number.isFinite(+s.cal_work_start) && s.cal_work_start !== '' ? +s.cal_work_start : 9;
   _workEnd = Number.isFinite(+s.cal_work_end) && s.cal_work_end !== '' ? +s.cal_work_end : 18;
   _secondaryTz = (s.cal_secondary_tz || '').trim();
@@ -103,12 +207,17 @@ function _bindNav() {
   _navBound = true;
   document.getElementById('cal-prev')?.addEventListener('click', () => shift(-1));
   document.getElementById('cal-next')?.addEventListener('click', () => shift(1));
-  document.getElementById('cal-today')?.addEventListener('click', () => { _cursor = new Date(); _miniCursor = new Date(); render(); renderMini(); });
+  document.getElementById('cal-today')?.addEventListener('click', () => { _cursor = _calendarNow(); _miniCursor = _calendarNow(); render(); renderMini(); });
   document.querySelectorAll('#cal-view .seg-opt').forEach(b =>
     b.addEventListener('click', () => { _view = b.dataset.view; localStorage.setItem('cal-view', _view); _syncViewBtns(); render(); }));
   _syncViewBtns();
   document.getElementById('cal-sync-btn')?.addEventListener('click', openCaldavPanel);
   document.getElementById('cal-find')?.addEventListener('click', findTime);
+  window.addEventListener('alles:localization-change', event => {
+    _weekStart = resolveCalendarWeekStart(event.detail || {});
+    renderSidebar();
+    render();
+  });
 
   // quick-add: natural language → event (was a dead input before)
   const quick = document.getElementById('cal-quick');
@@ -121,10 +230,10 @@ function _bindNav() {
       if (!r.ok) throw new Error();
       const ev = await r.json();
       quick.value = '';
-      toast(`added “${ev.title}”`, 'success');
-      if (ev.start_dt) { _cursor = new Date(ev.start_dt.slice(0, 10) + 'T00:00'); }
+      toast(tr('calendar.added', { title: ev.title }), 'success');
+      if (ev.start_dt) { _cursor = calendarPlacementDate(ev.start_dt); _cursor.setHours(0, 0, 0, 0); }
       await loadCalendar();
-    } catch { toast('could not parse that — try “lunch fri 1pm”', 'error'); }
+    } catch { toast(tr('calendar.parse_error'), 'error'); }
   });
 
   const imp = document.getElementById('cal-import');
@@ -137,9 +246,9 @@ function _bindNav() {
       try {
         const r = await fetch('/api/calendar/import', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ics: await f.text() }) });
         const d = await r.json();
-        toast(`imported ${d.imported} event${d.imported === 1 ? '' : 's'}`, 'success');
+        toast(trp('calendar.imported_count', d.imported), 'success');
         loadCalendar();
-      } catch { toast('import failed', 'error'); }
+      } catch { toast(tr('calendar.import_failed'), 'error'); }
       fileInp.value = '';
     });
   }
@@ -165,19 +274,19 @@ function renderSidebar() {
   const el = document.getElementById('cal-sidebar');
   if (!el) return;
   el.innerHTML = `
-    <input type="text" id="cal-search" class="cal-side-search" placeholder="search events…" value="${esc(_search)}">
+    <input type="text" id="cal-search" class="cal-side-search" placeholder="${esc(tr('calendar.search_events'))}" value="${esc(_search)}">
     <div class="cal-mini" id="cal-mini"></div>
     ${_clockHtml()}
     <div class="cal-cals">
-      <div class="cal-cals-head"><span>my calendars</span><button class="cal-cal-add" id="cal-cal-add" title="new calendar">+</button></div>
+      <div class="cal-cals-head"><span>${esc(tr('calendar.my_calendars'))}</span><button class="cal-cal-add" id="cal-cal-add" title="${esc(tr('calendar.new_calendar'))}">+</button></div>
       <div id="cal-cals-list"></div>
     </div>
     <div class="cal-cals cal-feeds">
-      <div class="cal-cals-head"><span>subscriptions</span><button class="cal-cal-add" id="cal-feed-add" title="subscribe to an ICS URL">+</button></div>
+      <div class="cal-cals-head"><span>${esc(tr('calendar.subscriptions'))}</span><button class="cal-cal-add" id="cal-feed-add" title="${esc(tr('calendar.subscribe_ics'))}">+</button></div>
       <div id="cal-feeds-list"></div>
     </div>
     <div class="cal-cals cal-bookings">
-      <div class="cal-cals-head"><span>booking pages</span><button class="cal-cal-add" id="cal-book-add" title="new booking page">+</button></div>
+      <div class="cal-cals-head"><span>${esc(tr('calendar.booking_pages'))}</span><button class="cal-cal-add" id="cal-book-add" title="${esc(tr('calendar.new_booking_page'))}">+</button></div>
       <div id="cal-book-list"></div>
     </div>`;
   renderMini();
@@ -245,7 +354,7 @@ function _clockHtml() {
   if (!_secondaryTz) return '';
   let t = '';
   try {
-    t = new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: _secondaryTz });
+    t = formatTime(new Date(), { hour: 'numeric', minute: '2-digit', timeZone: _secondaryTz });
   } catch { return ''; }
   const label = _secondaryTz.split('/').pop().replace(/_/g, ' ');
   return `<div class="cal-worldclock" id="cal-worldclock" title="${esc(_secondaryTz)}"><span class="cal-wc-zone">${esc(label)}</span><span class="cal-wc-time">${esc(t)}</span></div>`;
@@ -288,12 +397,12 @@ function renderMini() {
   const el = document.getElementById('cal-mini');
   if (!el) return;
   const y = _miniCursor.getFullYear(), m = _miniCursor.getMonth();
-  const today = new Date();
+  const today = _calendarNow();
   const startDay = _lead(y, m);
   const dim = new Date(y, m + 1, 0).getDate();
-  const miniWd = _weekStart ? ['M', 'T', 'W', 'T', 'F', 'S', 'S'] : ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+  const miniWd = _weekdayLabels('narrow');
   let html = `<div class="cal-mini-head"><button class="cal-mini-nav" data-d="-1">‹</button>
-    <span>${_miniCursor.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</span>
+    <span>${formatCalendarDate(_miniCursor, { month: 'long', year: 'numeric' })}</span>
     <button class="cal-mini-nav" data-d="1">›</button></div><div class="cal-mini-grid">`;
   for (const w of miniWd) html += `<div class="cal-mini-wd">${w}</div>`;
   for (let i = 0; i < startDay; i++) html += '<div></div>';
@@ -310,7 +419,7 @@ function renderMini() {
     _miniCursor = addMonths(_miniCursor, +b.dataset.d); renderMini();  // clamp, else 29-31 skips a month
   }));
   el.querySelectorAll('.cal-mini-day').forEach(c => c.addEventListener('click', () => {
-    _cursor = new Date(c.dataset.date + 'T00:00:00'); render(); renderMini();
+    _cursor = calendarPlacementDate(c.dataset.date); render(); renderMini();
   }));
 }
 
@@ -373,11 +482,11 @@ function calForm(cal) {
 function _spanKeys(o) {
   const startK = ymd(o._date);
   if (!o.all_day || !o.end_dt || o._recur) return [startK];
-  const start = new Date(o._date); start.setHours(0, 0, 0, 0);
-  const end = new Date(String(o.end_dt).slice(0, 10) + 'T00:00:00');
+  const start = _cloneCalendarDate(o._date); start.setHours(0, 0, 0, 0);
+  const end = calendarPlacementDate(String(o.end_dt).slice(0, 10));
   if (isNaN(end) || end <= start) return [startK];
   const out = [];
-  for (const cur = new Date(start); cur <= end && out.length < 366; cur.setDate(cur.getDate() + 1)) out.push(ymd(cur));
+  for (const cur = _cloneCalendarDate(start); cur <= end && out.length < 366; cur.setDate(cur.getDate() + 1)) out.push(ymd(cur));
   return out;
 }
 
@@ -408,27 +517,30 @@ function _layoutCols(evs) {
 const PYWD = { MO: 0, TU: 1, WE: 2, TH: 3, FR: 4, SA: 5, SU: 6 };
 const parseByday = s => new Set((s || '').split(',').map(t => PYWD[t.trim().toUpperCase()]).filter(v => v != null));
 export function addMonths(d, n) {
-  const x = new Date(d); const day = d.getDate();
+  const x = _cloneCalendarDate(d); const day = d.getDate();
   x.setDate(1); x.setMonth(x.getMonth() + n);
-  x.setDate(Math.min(day, new Date(x.getFullYear(), x.getMonth() + 1, 0).getDate()));
+  const monthEnd = x instanceof CalendarWallDate
+    ? _calendarWallDate(x.getFullYear(), x.getMonth() + 1, 0)
+    : new Date(x.getFullYear(), x.getMonth() + 1, 0);
+  x.setDate(Math.min(day, monthEnd.getDate()));
   return x;
 }
 function* candidates(start, rec, interval, byday) {
   if (rec === 'weekly') {
     const days = (byday && byday.size) ? byday : new Set([(start.getDay() + 6) % 7]);
-    const monday = new Date(start); monday.setDate(start.getDate() - ((start.getDay() + 6) % 7));
-    const floor = new Date(start); floor.setSeconds(0, 0);
+    const monday = _cloneCalendarDate(start); monday.setDate(start.getDate() - ((start.getDay() + 6) % 7));
+    const floor = _cloneCalendarDate(start); floor.setSeconds(0, 0);
     let wk = 0;
     while (true) {
       for (const wd of [...days].sort((a, b) => a - b)) {
-        const c = new Date(monday); c.setDate(monday.getDate() + wk * 7 * interval + wd);
+        const c = _cloneCalendarDate(monday); c.setDate(monday.getDate() + wk * 7 * interval + wd);
         if (c >= floor) yield c;
       }
       wk++;
     }
   } else if (rec === 'daily') {
-    let cur = new Date(start);
-    while (true) { yield new Date(cur); cur.setDate(cur.getDate() + interval); }
+    let cur = _cloneCalendarDate(start);
+    while (true) { yield _cloneCalendarDate(cur); cur.setDate(cur.getDate() + interval); }
   } else {
     const months = rec === 'monthly' ? interval : 12 * interval; let i = 0;
     while (true) { yield addMonths(start, i * months); i++; }
@@ -447,11 +559,11 @@ function visibleEvents() {
 function expand(rs, re) {
   const out = [];
   for (const e of visibleEvents()) {
-    const start = new Date(e.start_dt);
+    const start = calendarPlacementDate(e.start_dt);
     if (isNaN(start)) continue;
     if (!e.recurrence) { if (start >= rs && start < re) out.push({ ...e, _date: start }); continue; }
     const interval = Math.max(1, e.recur_interval || 1);
-    const until = e.recur_until ? new Date(e.recur_until + 'T23:59:59') : null;
+    const until = e.recur_until ? calendarPlacementDate(e.recur_until + 'T23:59:59') : null;
     const count = e.recur_count || null;
     const excepts = new Set((e.recur_except || []).map(d => String(d).slice(0, 10)));
     const byday = e.recurrence === 'weekly' ? parseByday(e.recur_byday) : null;
@@ -465,7 +577,7 @@ function expand(rs, re) {
       emitted++;
       if (excepts.has(ymd(cand))) continue;
       if (cand >= re) break;
-      if (cand >= rs) out.push({ ...e, _date: new Date(cand), _recur: true });
+      if (cand >= rs) out.push({ ...e, _date: _cloneCalendarDate(cand), _recur: true });
       if (out.length > 3000) break;
     }
   }
@@ -475,7 +587,7 @@ function expand(rs, re) {
 // ── rendering ────────────────────────────────────────────────────────────────
 function render() {
   const lbl = document.getElementById('cal-month-label');
-  if (_view === 'month') { if (lbl) lbl.textContent = _cursor.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }); renderMonth(); }
+  if (_view === 'month') { if (lbl) lbl.textContent = formatCalendarDate(_cursor, { month: 'long', year: 'numeric' }); renderMonth(); }
   else if (_view === 'week') renderWeek(lbl);
   else if (_view === 'agenda') renderAgenda(lbl);
   else if (_view === 'year') renderYear(lbl);
@@ -484,17 +596,17 @@ function render() {
 
 // agenda (8a) — flat upcoming list grouped by day, from /calendar/agenda
 async function renderAgenda(lbl) {
-  if (lbl) lbl.textContent = 'agenda';
+  if (lbl) lbl.textContent = tr('calendar.agenda');
   const el = document.getElementById('calendar-list');
   if (!el) return;
   const d = await fetch('/api/calendar/agenda?days=60').then(r => r.json()).catch(() => ({ days: [] }));
-  if (!d.days?.length) { el.innerHTML = '<div class="cal-agenda-empty">nothing coming up</div>'; return; }
+  if (!d.days?.length) { el.innerHTML = `<div class="cal-agenda-empty">${esc(tr('calendar.nothing_upcoming'))}</div>`; return; }
   let html = '<div class="cal-agenda">';
   for (const g of d.days) {
     const dd = new Date(g.date + 'T00:00:00');
-    html += `<div class="cal-agenda-day"><div class="cal-agenda-date">${dd.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</div><div class="cal-agenda-evs">`;
+    html += `<div class="cal-agenda-day"><div class="cal-agenda-date">${formatCalendarDate(dd, { weekday: 'short', month: 'short', day: 'numeric' })}</div><div class="cal-agenda-evs">`;
     for (const o of g.events) {
-      const t = o.all_day ? 'all day' : timeShort(o.start_dt);
+      const t = o.all_day ? 'all day' : timeShort(calendarPlacementDate(o.start_dt));
       html += `<div class="cal-agenda-ev" data-id="${o.id}" data-occ="${o.recurring ? o.start_dt.slice(0, 10) : ''}"><span class="cal-agenda-dot" style="background:${evHex(o)}"></span><span class="cal-agenda-time">${esc(t)}</span><span class="cal-agenda-title">${esc(o.title)}${o.recurring ? ' <span class="cal-agenda-recur">(repeats)</span>' : ''}</span></div>`;
     }
     html += '</div></div>';
@@ -510,18 +622,19 @@ function renderYear(lbl) {
   if (lbl) lbl.textContent = String(year);
   const el = document.getElementById('calendar-list');
   if (!el) return;
-  const today = new Date();
+  const today = _calendarNow();
   // expand recurrences across the whole year so a repeating event dots every occurrence,
   // not just its first date — and respect calendar-visibility filters like the other views.
   const dotDays = new Set(
-    expand(new Date(year, 0, 1), new Date(year + 1, 0, 1)).map(o => ymd(o._date))
+    expand(_calendarWallDate(year, 0, 1), _calendarWallDate(year + 1, 0, 1))
+      .map(o => ymd(o._date))
   );
   let html = '<div class="cal-year">';
   for (let m = 0; m < 12; m++) {
     const startDay = _lead(year, m);
     const dim = new Date(year, m + 1, 0).getDate();
-    html += `<div class="cal-year-month"><div class="cal-year-mname">${new Date(year, m, 1).toLocaleDateString('en-US', { month: 'long' })}</div><div class="cal-year-grid">`;
-    for (const w of (_weekStart ? ['M', 'T', 'W', 'T', 'F', 'S', 'S'] : ['S', 'M', 'T', 'W', 'T', 'F', 'S'])) html += `<div class="cal-year-wd">${w}</div>`;
+    html += `<div class="cal-year-month"><div class="cal-year-mname">${formatCalendarDate(new Date(year, m, 1), { month: 'long' })}</div><div class="cal-year-grid">`;
+    for (const w of _weekdayLabels('narrow')) html += `<div class="cal-year-wd">${w}</div>`;
     for (let i = 0; i < startDay; i++) html += '<div></div>';
     for (let dnum = 1; dnum <= dim; dnum++) {
       const date = new Date(year, m, dnum);
@@ -536,7 +649,7 @@ function renderYear(lbl) {
   html += '</div>';
   el.innerHTML = html;
   el.querySelectorAll('.cal-year-day').forEach(c => c.addEventListener('click', () => {
-    _cursor = new Date(c.dataset.date + 'T00:00:00'); _view = 'day'; localStorage.setItem('cal-view', _view); _syncViewBtns(); render();
+    _cursor = calendarPlacementDate(c.dataset.date); _view = 'day'; localStorage.setItem('cal-view', _view); _syncViewBtns(); render();
   }));
 }
 
@@ -562,9 +675,9 @@ function renderMonth() {
   const year = _cursor.getFullYear(), month = _cursor.getMonth();
   const startDay = _lead(year, month);
   const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const today = new Date();
-  const rangeStart = new Date(year, month, 1 - startDay);
-  const rangeEnd = new Date(year, month, daysInMonth + 7);
+  const today = _calendarNow();
+  const rangeStart = _calendarWallDate(year, month, 1 - startDay);
+  const rangeEnd = _calendarWallDate(year, month, daysInMonth + 7);
   const occ = expand(rangeStart, rangeEnd);
   const byDay = {};
   for (const o of occ) for (const k of _spanKeys(o)) (byDay[k] = byDay[k] || []).push(o);
@@ -578,7 +691,7 @@ function renderMonth() {
   while (cells.length % 7) cells.push(null);
 
   let html = '<div class="cal-grid">';
-  for (const w of _wdLabels()) html += `<div class="cal-weekday">${w}</div>`;
+  for (const w of _weekdayLabels()) html += `<div class="cal-weekday">${esc(w)}</div>`;
   for (const cell of cells) {
     if (!cell) { html += '<div class="cal-cell empty"></div>'; continue; }
     const key = ymd(cell);
@@ -587,7 +700,7 @@ function renderMonth() {
       `<div class="cal-chip${o._recur ? ' recurring' : ''}" data-id="${o.id}" data-occ="${ymd(o._date)}" style="${chipStyle(o)}" title="${chipTitle(o)}">${o._recur ? `<span class="cal-chip-recur">${_si('refresh')}</span>` : ''}${esc((o.all_day ? '' : timeShort(o._date) + ' ') + o.title)}</div>`).join('');
     const more = evts.length > 4 ? `<div class="cal-more">+${evts.length - 4} more</div>` : '';
     const tchips = (tasksByDay[key] || []).slice(0, 3).map(t =>
-      `<div class="cal-task${t.done ? ' done' : ''}" data-task="${esc(t.id)}" title="task: ${esc(t.title)}"><span class="cal-task-chk${t.done ? ' on' : ''}">${t.done ? _si('check') : ''}</span>${esc(t.title)}</div>`).join('');
+      `<div class="cal-task${t.done ? ' done' : ''}" data-task="${esc(t.id)}" title="${esc(tr('calendar.task_title', { title: t.title }))}"><span class="cal-task-chk${t.done ? ' on' : ''}">${t.done ? _si('check') : ''}</span>${esc(t.title)}</div>`).join('');
     html += `<div class="cal-cell${sameDay(cell, today) ? ' today' : ''}" data-date="${key}">
       <div class="cal-cell-num">${cell.getDate()}</div>
       <div class="cal-cell-events">${chips}${more}${tchips}${_bdayChips(bmap, cell)}</div></div>`;
@@ -612,29 +725,29 @@ function renderMonth() {
   }));
 }
 
-function weekStart(d) { const s = new Date(d); s.setDate(s.getDate() - ((s.getDay() - _weekStart + 7) % 7)); s.setHours(0, 0, 0, 0); return s; }
+function weekStart(d) { const s = _cloneCalendarDate(d); s.setDate(s.getDate() - ((s.getDay() - _weekStart + 7) % 7)); s.setHours(0, 0, 0, 0); return s; }
 
 function renderWeek(lbl) {
   const days = [];
   const ws = weekStart(_cursor);
-  for (let i = 0; i < 7; i++) { const d = new Date(ws); d.setDate(d.getDate() + i); days.push(d); }
-  if (lbl) lbl.textContent = `${days[0].toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${days[6].toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
-  const re = new Date(days[6]); re.setDate(re.getDate() + 1);
+  for (let i = 0; i < 7; i++) { const d = _cloneCalendarDate(ws); d.setDate(d.getDate() + i); days.push(d); }
+  if (lbl) lbl.textContent = `${formatCalendarDate(days[0], { month: 'short', day: 'numeric' })} - ${formatCalendarDate(days[6], { month: 'short', day: 'numeric', year: 'numeric' })}`;
+  const re = _cloneCalendarDate(days[6]); re.setDate(re.getDate() + 1);
   renderTimeGrid(document.getElementById('calendar-list'), days, expand(ws, re));
 }
 
 function renderDay(lbl) {
-  const day = new Date(_cursor); day.setHours(0, 0, 0, 0);
-  if (lbl) lbl.textContent = day.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
-  const re = new Date(day); re.setDate(re.getDate() + 1);
+  const day = _cloneCalendarDate(_cursor); day.setHours(0, 0, 0, 0);
+  if (lbl) lbl.textContent = formatCalendarDate(day, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+  const re = _cloneCalendarDate(day); re.setDate(re.getDate() + 1);
   renderTimeGrid(document.getElementById('calendar-list'), [day], expand(day, re));
 }
 
 function renderTimeGrid(el, days, occ) {
   if (!el) return;
-  const today = new Date();
+  const today = _calendarNow();
   let head = '<div class="cal-tg-gutter-head"></div>';
-  for (const d of days) head += `<div class="cal-tg-dayhead${sameDay(d, today) ? ' today' : ''}" data-date="${ymd(d)}"><span class="cal-tg-wd">${WD[d.getDay()]}</span> <span class="cal-tg-dn">${d.getDate()}</span></div>`;
+  for (const d of days) head += `<div class="cal-tg-dayhead${sameDay(d, today) ? ' today' : ''}" data-date="${ymd(d)}"><span class="cal-tg-wd">${esc(formatCalendarDate(d, { weekday: 'short' }))}</span> <span class="cal-tg-dn">${d.getDate()}</span></div>`;
   let allday = '<div class="cal-tg-gutter">all-day</div>';
   const bmap = _bdayMap();
   for (const d of days) {
@@ -691,9 +804,9 @@ function openEvent(id, occ) {
 function _proposedSpan() {
   const sVal = document.getElementById('cal-start')?.value;
   if (!sVal) return null;
-  const a = new Date(sVal);
+  const a = calendarPlacementDate(sVal);
   const eVal = document.getElementById('cal-end')?.value;
-  const b = eVal ? new Date(eVal) : new Date(a.getTime() + 30 * 60000);
+  const b = eVal ? calendarPlacementDate(eVal) : new CalendarWallDate(a.getTime() + 30 * 60000);
   if (isNaN(a) || isNaN(b) || b <= a) return null;
   return [a, b];
 }
@@ -706,8 +819,8 @@ function checkConflict() {
   const span = _proposedSpan();
   if (allDay || !span) { warn.textContent = ''; return; }
   const [a, b] = span;
-  const ds = new Date(a); ds.setHours(0, 0, 0, 0);
-  const de = new Date(ds); de.setDate(de.getDate() + 1);
+  const ds = _cloneCalendarDate(a); ds.setHours(0, 0, 0, 0);
+  const de = _cloneCalendarDate(ds); de.setDate(de.getDate() + 1);
   const hits = [];
   for (const o of expand(ds, de)) {
     if (o.all_day) continue;
@@ -755,7 +868,7 @@ function attachDrag(el, days) {
   const SNAP = HOUR_H / 4;                         // 15-minute grid
   const snap = px => Math.max(0, Math.round(px / SNAP) * SNAP);
   const colAt = x => cols.findIndex(c => { const r = c.getBoundingClientRect(); return x >= r.left && x < r.right; });
-  const atTime = (date, px) => { const d = new Date(date); d.setHours(0, Math.round((px / HOUR_H) * 60 / 15) * 15, 0, 0); return localISO(d); };
+  const atTime = (date, px) => { const d = _cloneCalendarDate(date); d.setHours(0, Math.round((px / HOUR_H) * 60 / 15) * 15, 0, 0); return localISO(d); };
   let st = null;
 
   function down(e) {
@@ -916,7 +1029,7 @@ function openEditor(event, defaultDate, hour, allDay, occ) {
   _editOcc = occ || null;
   const pf = _prefill; _prefill = null;   // start/end from a drag-create
   const isNew = !event;
-  const now = new Date(); now.setMinutes(0, 0, 0);
+  const now = _calendarNow(); now.setMinutes(0, 0, 0);
   const hh = hour != null ? String(hour).padStart(2, '0') : '09';
   // editing a specific occurrence of a recurring event: keep the master's time-of-day but use
   // the clicked occurrence's date (occ), not the master's original start
@@ -924,12 +1037,12 @@ function openEditor(event, defaultDate, hour, allDay, occ) {
   const mEnd = event?.end_dt?.slice(0, 16) || '';
   const occStart = (occ && mStart) ? occ + mStart.slice(10) : '';
   const occEnd = (occ && mEnd) ? occ + mEnd.slice(10) : '';
-  const start = pf?.start || occStart || mStart || (defaultDate ? `${defaultDate}T${hh}:00` : now.toISOString().slice(0, 16));
+  const start = pf?.start || occStart || mStart || (defaultDate ? `${defaultDate}T${hh}:00` : localISO(now));
   const endVal = pf?.end || occEnd || mEnd || '';
   const defaultCal = event?.calendar_id || (_calendars.find(c => c.is_default)?.id || _calendars[0]?.id || '');
   const rec = event?.recurrence || '';
   const reminders = new Set(event?.reminders || (isNew ? [10] : []));
-  const startDow = new Date(start).getDay();
+  const startDow = calendarPlacementDate(start).getDay();
   let byday = new Set(parseBydayJs(event?.recur_byday) || (rec === 'weekly' ? [startDow] : []));
   if (rec === 'weekly' && byday.size === 0) byday.add(startDow);
   let color = event?.color || '';   // '' = use the calendar's colour
@@ -957,11 +1070,11 @@ function openEditor(event, defaultDate, hour, allDay, occ) {
     <div id="cal-recur-adv" style="display:${rec ? 'block' : 'none'}">
       <div class="cal-recur-line">every <input class="settings-input cal-int" id="cal-interval" type="text" inputmode="numeric" value="${event?.recur_interval || 1}"> <span id="cal-unit">${UNIT[rec] || 'weeks'}</span></div>
       <div class="cal-dow" id="cal-dow" style="display:${rec === 'weekly' ? 'flex' : 'none'}">${DOW.map((d, i) => `<span class="cal-dow-b ${byday.has(i) ? 'on' : ''}" data-i="${i}">${d}</span>`).join('')}</div>
-      <div class="cal-ends">
+      <div class="cal-ends" role="radiogroup" aria-label="recurrence ends">
         <span class="cal-flabel">ends</span>
-        <label class="cal-radio"><input type="radio" name="cal-ends" value="never" ${endsMode === 'never' ? 'checked' : ''}> never</label>
-        <label class="cal-radio"><input type="radio" name="cal-ends" value="on" ${endsMode === 'on' ? 'checked' : ''}> on <div class="date-input cal-ends-date" id="cal-until" data-type="date" data-value="${event?.recur_until || ''}" data-ph="date" style="width:130px"></div></label>
-        <label class="cal-radio"><input type="radio" name="cal-ends" value="after" ${endsMode === 'after' ? 'checked' : ''}> after <input class="settings-input cal-int" id="cal-count" type="text" inputmode="numeric" value="${event?.recur_count || 10}"> times</label>
+        <div class="cal-radio"><button type="button" class="cal-radio-choice" role="radio" data-value="never" aria-checked="${endsMode === 'never'}" tabindex="${endsMode === 'never' ? '0' : '-1'}"><span class="radio-mark" aria-hidden="true"></span>never</button></div>
+        <div class="cal-radio"><button type="button" class="cal-radio-choice" role="radio" data-value="on" aria-checked="${endsMode === 'on'}" tabindex="${endsMode === 'on' ? '0' : '-1'}"><span class="radio-mark" aria-hidden="true"></span>on</button><div class="date-input cal-ends-date" id="cal-until" data-type="date" data-value="${event?.recur_until || ''}" data-ph="date" style="width:130px"></div></div>
+        <div class="cal-radio"><button type="button" class="cal-radio-choice" role="radio" data-value="after" aria-checked="${endsMode === 'after'}" tabindex="${endsMode === 'after' ? '0' : '-1'}"><span class="radio-mark" aria-hidden="true"></span>after</button><input class="settings-input cal-int" id="cal-count" type="text" inputmode="numeric" value="${event?.recur_count || 10}"> times</div>
       </div>
     </div>
 
@@ -1020,6 +1133,36 @@ function openEditor(event, defaultDate, hour, allDay, occ) {
     c.setAttribute('aria-checked', c.getAttribute('aria-checked') === 'true' ? 'false' : 'true');
     checkConflict();   // all-day events never conflict; clear/refresh the hint
   });
+  function selectEndsMode(value) {
+    el.querySelectorAll('.cal-radio-choice').forEach(choice => {
+      const selected = choice.dataset.value === value;
+      choice.setAttribute('aria-checked', String(selected));
+      choice.tabIndex = selected ? 0 : -1;
+    });
+  }
+  el.querySelectorAll('.cal-radio-choice').forEach(button => button.addEventListener('click', () => {
+    selectEndsMode(button.dataset.value);
+  }));
+  el.querySelector('.cal-ends')?.addEventListener('keydown', event => {
+    const choices = [...el.querySelectorAll('.cal-radio-choice')];
+    const current = choices.indexOf(event.target.closest('.cal-radio-choice'));
+    if (current < 0) return;
+    let next = null;
+    if (event.key === 'ArrowRight' || event.key === 'ArrowDown') next = (current + 1) % choices.length;
+    if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') next = (current - 1 + choices.length) % choices.length;
+    if (event.key === 'Home') next = 0;
+    if (event.key === 'End') next = choices.length - 1;
+    if (next === null) return;
+    event.preventDefault();
+    selectEndsMode(choices[next].dataset.value);
+    choices[next].focus();
+  });
+  const untilInput = document.getElementById('cal-until');
+  untilInput?.addEventListener('change', () => selectEndsMode('on'));
+  untilInput?.addEventListener('focusin', () => selectEndsMode('on'));
+  const countInput = document.getElementById('cal-count');
+  countInput?.addEventListener('input', () => selectEndsMode('after'));
+  countInput?.addEventListener('focus', () => selectEndsMode('after'));
   const recSel = document.getElementById('cal-recur');
   recSel.addEventListener('change', () => {
     const v = recSel.value;
@@ -1134,7 +1277,7 @@ function parseBydayJs(s) {
 function collectBody(byday) {
   const el = document.getElementById('calendar-list');
   const rec = document.getElementById('cal-recur').value;
-  const ends = el.querySelector('input[name="cal-ends"]:checked')?.value || 'never';
+  const ends = el.querySelector('.cal-radio-choice[aria-checked="true"]')?.dataset.value || 'never';
   const reminders = [...el.querySelectorAll('.cal-rem.on')].map(r => +r.dataset.m).sort((a, b) => a - b);
   const body = {
     title: document.getElementById('cal-title').value.trim(),

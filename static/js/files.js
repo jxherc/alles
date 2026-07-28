@@ -1,6 +1,7 @@
 import { toast, shareResource } from './util.js';
 import { prompt as dlgPrompt, confirm as dlgConfirm } from './dialog.js';
-import { urlForApp } from './subdomain.js';
+import { urlForApp } from './subdomain.js?v=237';
+import { formatDate, formatDateTime } from './i18n.js';
 
 let _cwd = '';   // current relative dir
 let _sort = 'name', _order = '';
@@ -34,7 +35,7 @@ function fmtAgo(ts) {
   if (d < 3600) return Math.round(d / 60) + 'm ago';
   if (d < 86400) return Math.round(d / 3600) + 'h ago';
   if (d < 86400 * 30) return Math.round(d / 86400) + 'd ago';
-  return new Date(ts * 1000).toLocaleDateString();
+  return formatDate(new Date(ts * 1000));
 }
 
 // grid only makes sense for a flat folder/image listing; group views force list
@@ -455,7 +456,7 @@ async function openVersions(path, row) {
   pop.className = 'file-tagpop file-verpop';
   const body = vs.length
     ? vs.map(v => `<div class="file-ver-row" style="display:flex;justify-content:space-between;gap:0.5rem;align-items:center;padding:0.2rem 0">
-        <span style="font-size:0.66rem;color:var(--muted)">${esc(new Date(v.created_at).toLocaleString())} · ${fmtSize(v.size)}</span>
+        <span style="font-size:0.66rem;color:var(--muted)">${esc(formatDateTime(v.created_at))} · ${fmtSize(v.size)}</span>
         <button class="btn" data-restore="${esc(v.id)}" style="font-size:0.62rem">restore</button></div>`).join('')
     : '<div style="font-size:0.72rem;color:var(--muted)">no earlier versions</div>';
   pop.innerHTML = body + '<div class="file-tagpop-actions"><button class="btn" data-cancel>close</button></div>';

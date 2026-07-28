@@ -9,6 +9,12 @@ from services import secretstore
 
 class CaldavSyncTests(unittest.TestCase):
     def setUp(self):
+        self._secret_state = (
+            secretstore._key,
+            secretstore._key_path,
+            dict(secretstore._keys),
+            secretstore._active_id,
+        )
         self.tmp = tempfile.TemporaryDirectory()
         self._p = mock.patch.object(cd, "CFG_PATH", Path(self.tmp.name) / "caldav.json")
         self._kp = mock.patch.object(secretstore, "_KEY_FILE", Path(self.tmp.name) / "secret.key")
@@ -21,6 +27,12 @@ class CaldavSyncTests(unittest.TestCase):
         self._kp.stop()
         self._p.stop()
         self.tmp.cleanup()
+        (
+            secretstore._key,
+            secretstore._key_path,
+            secretstore._keys,
+            secretstore._active_id,
+        ) = self._secret_state
 
     def test_event_ics_all_day_uses_value_date(self):
         # an all-day event must be DTSTART;VALUE=DATE:YYYYMMDD, NOT a timed midnight event

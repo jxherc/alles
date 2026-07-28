@@ -181,27 +181,79 @@ async def _search_brave(query, api_key, max_results=5):
     ]
 
 
-async def _search_searxng(query, base_url, max_results=5):
-    base = base_url.rstrip("/")
-    url = base + "/search?" + urllib.parse.urlencode({"q": query, "format": "json"})
-    if base == "http://127.0.0.1:8888":
-        async with httpx.AsyncClient(timeout=15, follow_redirects=False) as client:
-            r = await client.get(url)
-    else:
-        if not base.startswith("https://"):
-            raise SearchProviderFailure("configuration")
-        from services.net_guard import safe_get_async
+async def _search_searxng(query, base_url, max_results=5, category="all"):
+    from services.managed_searxng import managed_url
 
-        r = await safe_get_async(url, timeout=15)
-    r.raise_for_status()
-    data = r.json()
-    if not isinstance(data, dict) or not isinstance(data.get("results", []), list):
-        raise SearchProviderFailure("invalid_response")
-    return [
-        {"url": x.get("url", ""), "title": x.get("title", ""), "snippet": x.get("content", "")}
-        for x in data.get("results", [])[:max_results]
-        if x.get("url")
-    ]
+    base = base_url.rstrip("/")
+    local_base = managed_url().rstrip("/")
+    try:
+        parsed = urllib.parse.urlsplit(base)
+    except ValueError as exc:
+        raise SearchProviderFailure("configuration") from exc
+    loopback = (parsed.hostname or "").lower() in {"localhost", "127.0.0.1", "::1"}
+    if base != local_base and not base.startswith("https://") and not loopback:
+        raise SearchProviderFailure("configuration")
+
+    output: list[dict] = []
+    seen: set[str] = set()
+    local_client = (
+        httpx.AsyncClient(timeout=15, follow_redirects=False)
+        if base == local_base or loopback
+        else None
+    )
+    try:
+        for page in range(1, min(64, max(1, max_results)) + 1):
+            params = {"q": query, "format": "json", "pageno": page}
+            if category in {"images", "news", "videos"}:
+                params["categories"] = category
+            url = base + "/search?" + urllib.parse.urlencode(params)
+            if local_client is not None:
+                response = await local_client.get(url)
+            else:
+                from services.net_guard import safe_get_async
+
+                response = await safe_get_async(url, timeout=15)
+            response.raise_for_status()
+            data = response.json()
+            rows = data.get("results", []) if isinstance(data, dict) else None
+            if not isinstance(rows, list):
+                raise SearchProviderFailure("invalid_response")
+            added = 0
+            for row in rows:
+                result_url = row.get("url", "")
+                if not result_url or result_url in seen:
+                    continue
+                seen.add(result_url)
+                engines = row.get("engines") if isinstance(row.get("engines"), list) else []
+                output.append(
+                    {
+                        "url": result_url,
+                        "title": row.get("title", ""),
+                        "snippet": row.get("content", ""),
+                        "publisher": row.get("publisher")
+                        or row.get("source")
+                        or (engines[0] if engines else ""),
+                        "favicon_url": row.get("favicon") or "",
+                        "thumbnail_url": row.get("thumbnail_src")
+                        or row.get("thumbnail")
+                        or row.get("img_src")
+                        or "",
+                        "image_url": row.get("img_src") or row.get("thumbnail_src") or "",
+                        "published": row.get("publishedDate") or row.get("published_date") or "",
+                        "duration": row.get("length") or row.get("duration") or "",
+                        "width": row.get("width") or row.get("img_width"),
+                        "height": row.get("height") or row.get("img_height"),
+                    }
+                )
+                added += 1
+                if len(output) >= max_results:
+                    return output
+            if not rows or not added:
+                break
+    finally:
+        if local_client is not None:
+            await local_client.aclose()
+    return output
 
 
 async def _search_google_pse(query, api_key, cx, max_results=5):
@@ -270,7 +322,7 @@ def _parse_ddg_html(html: str) -> list:
     return out
 
 
-async def _search_duckduckgo(query, max_results=6):
+async def _search_duckduckgo(query, max_results=6, category="all"):
     # prefer the maintained ddg lib if present; else scrape the html endpoints.
     # the lib got renamed duckduckgo_search -> ddgs, so try the new name first.
     try:
@@ -283,6 +335,56 @@ async def _search_duckduckgo(query, max_results=6):
 
         def _go():
             with DDGS() as d:
+                if category == "images":
+                    rows = d.images(query, max_results=max_results)
+                    return [
+                        {
+                            "url": r.get("url") or r.get("image") or "",
+                            "title": r.get("title") or r.get("source") or "image result",
+                            "snippet": r.get("source") or "",
+                            "publisher": r.get("source") or "",
+                            "thumbnail_url": r.get("thumbnail") or r.get("image") or "",
+                            "image_url": r.get("image") or r.get("thumbnail") or "",
+                            "width": r.get("width"),
+                            "height": r.get("height"),
+                        }
+                        for r in rows
+                        if r.get("url") or r.get("image")
+                    ]
+                if category == "news":
+                    rows = d.news(query, max_results=max_results)
+                    return [
+                        {
+                            "url": r.get("url") or "",
+                            "title": r.get("title") or "",
+                            "snippet": r.get("body") or "",
+                            "publisher": r.get("source") or "",
+                            "thumbnail_url": r.get("image") or "",
+                            "published": r.get("date") or "",
+                        }
+                        for r in rows
+                        if r.get("url")
+                    ]
+                if category == "videos":
+                    rows = d.videos(query, max_results=max_results)
+                    output = []
+                    for r in rows:
+                        images = r.get("images") if isinstance(r.get("images"), dict) else {}
+                        output.append(
+                            {
+                                "url": r.get("content") or r.get("url") or "",
+                                "title": r.get("title") or "",
+                                "snippet": r.get("description") or r.get("publisher") or "",
+                                "publisher": r.get("publisher") or "",
+                                "thumbnail_url": images.get("large")
+                                or images.get("medium")
+                                or images.get("small")
+                                or "",
+                                "duration": r.get("duration") or "",
+                                "published": r.get("published") or r.get("date") or "",
+                            }
+                        )
+                    return [row for row in output if row["url"]]
                 return [
                     {
                         "url": r.get("href", ""),
@@ -298,6 +400,8 @@ async def _search_duckduckgo(query, max_results=6):
             return hits[:max_results]
     except Exception as e:
         log.debug("ddg lib failed, scraping: %s", e)
+    if category != "all":
+        return []
     headers = {"user-agent": _UA, "accept-language": "en-US,en;q=0.9"}
     async with httpx.AsyncClient(timeout=12, follow_redirects=True, headers=headers) as c:
         for attempt in ("html", "lite"):
@@ -365,41 +469,54 @@ def _provider_chain(primary: str, fallbacks) -> list:
     return out
 
 
-async def _search_provider(name, query, settings, max_results):
+def _category_query(query: str, category: str) -> str:
+    if category == "news":
+        return f"{query} latest news"
+    if category == "videos":
+        return f"{query} video"
+    if category == "images":
+        return f"{query} images"
+    return query
+
+
+async def _search_provider(name, query, settings, max_results, category="all"):
     if name == "duckduckgo":
-        return await _search_duckduckgo(query, max_results)
+        return await _search_duckduckgo(query, max_results, category)
     if name == "wikipedia":
+        if category != "all":
+            return []
         return await _search_wikipedia(query, max_results)
+    provider_query = _category_query(query, category)
     if name == "tavily":
         key = settings.get("tavily_api_key") or os.getenv("TAVILY_API_KEY", "")
         if not key:
             raise SearchProviderFailure("configuration")
-        return await _search_tavily(query, key, max_results)
+        return await _search_tavily(provider_query, key, max_results)
     if name == "brave":
         key = settings.get("brave_api_key") or os.getenv("BRAVE_API_KEY", "")
         if not key:
             raise SearchProviderFailure("configuration")
-        return await _search_brave(query, key, max_results)
+        return await _search_brave(provider_query, key, max_results)
     if name == "searxng":
         url = settings.get("searxng_url") or os.getenv("SEARXNG_URL", "")
         if not url:
             raise SearchProviderFailure("configuration")
-        return await _search_searxng(query, url, max_results)
+        return await _search_searxng(query, url, max_results, category)
     if name == "google_pse":
         key = settings.get("google_pse_api_key") or os.getenv("GOOGLE_PSE_API_KEY", "")
         cx = settings.get("google_pse_cx") or os.getenv("GOOGLE_PSE_CX", "")
         if not key or not cx:
             raise SearchProviderFailure("configuration")
-        return await _search_google_pse(query, key, cx, max_results)
+        return await _search_google_pse(provider_query, key, cx, max_results)
     if name == "serper":
         key = settings.get("serper_api_key") or os.getenv("SERPER_API_KEY", "")
         if not key:
             raise SearchProviderFailure("configuration")
-        return await _search_serper(query, key, max_results)
+        return await _search_serper(provider_query, key, max_results)
     raise SearchProviderFailure("configuration")
 
 
-async def search_chain_report(query, override=None, max_results=10) -> SearchReport:
+async def search_chain_report(query, override=None, max_results=10, category="all") -> SearchReport:
     """Run every needed provider and return safe, structured diagnostics."""
     from core.settings import load_settings
 
@@ -412,7 +529,13 @@ async def search_chain_report(query, override=None, max_results=10) -> SearchRep
     )
     if primary == "disabled":
         return SearchReport([], None, None, "disabled", ())
-    chain = _provider_chain(primary, settings.get("search_fallback_chain"))
+    # A person choosing one exact engine expects that engine, not a silent switch.
+    # Automatic searches keep the configured fallback chain.
+    chain = (
+        [primary]
+        if (override or "").strip()
+        else _provider_chain(primary, settings.get("search_fallback_chain"))
+    )
     attempted = []
     failure_type = ""
     for name in chain:
@@ -420,7 +543,7 @@ async def search_chain_report(query, override=None, max_results=10) -> SearchRep
         if safe_name not in attempted:
             attempted.append(safe_name)
         try:
-            results = await _search_provider(name, query, settings, max_results)
+            results = await _search_provider(name, query, settings, max_results, category)
             if results:
                 if name != primary:
                     log.info("research search fallback: %s", safe_name)
@@ -438,7 +561,7 @@ async def search_chain_report(query, override=None, max_results=10) -> SearchRep
     return SearchReport([], None, safe_error, failure_type, tuple(attempted))
 
 
-async def search_chain(query, override=None, max_results=10):
+async def search_chain(query, override=None, max_results=10, category="all"):
     """run the provider chain, return (results, provider_used, last_error).
 
     provider_used is the one that actually answered (for the report stats);
@@ -448,7 +571,7 @@ async def search_chain(query, override=None, max_results=10):
     The value still unpacks exactly like the historical three-item tuple. Safe
     diagnostics are available as ``failure_type`` and ``attempted_sources``.
     """
-    return SearchChainResult(await search_chain_report(query, override, max_results))
+    return SearchChainResult(await search_chain_report(query, override, max_results, category))
 
 
 async def web_search(query, max_results=5, provider=None):

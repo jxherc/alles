@@ -34,6 +34,11 @@ class JournalLockUi(unittest.TestCase):
         self.assertNotIn("🔒", JS)
         self.assertNotIn("🔓", JS)
 
+    def test_new_passcode_ui_matches_server_minimum(self):
+        self.assertIn('minlength="12"', JS)
+        self.assertIn("nw.length < 12", JS)
+        self.assertIn("use at least 12 characters", JS)
+
     def test_menu_css_is_fixed_dropdown(self):
         self.assertRegex(CSS, r"\.jrnl-lockmenu\s*\{[^}]*position:\s*fixed")
         self.assertRegex(CSS, r"\.jrnl-lock-btn\s+\.ic")

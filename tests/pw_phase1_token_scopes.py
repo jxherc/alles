@@ -5,7 +5,6 @@ import sys
 
 from playwright.sync_api import sync_playwright
 
-
 PORT = os.environ.get("PHASE1_PORT", os.environ.get("PORT", "8912"))
 URL = f"http://aide.localhost:{PORT}/"
 
@@ -35,9 +34,7 @@ def main() -> int:
             page = context.new_page()
             page.on(
                 "console",
-                lambda message: (
-                    errors.append(message.text) if message.type == "error" else None
-                ),
+                lambda message: errors.append(message.text) if message.type == "error" else None,
             )
             page.on("pageerror", lambda error: errors.append(str(error)))
             page.on(

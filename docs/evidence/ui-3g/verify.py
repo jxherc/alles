@@ -1,6 +1,7 @@
 """ui-3g verify — the remaining element live-views. Fenced code becomes a shaded
 block (not raw lines), inline code reads Discord-style (pill background), and the
 3c-built live views (bullet/check/quote/callout/hr) are all present together."""
+
 import sys
 
 from playwright.sync_api import sync_playwright
@@ -26,7 +27,9 @@ def run():
           if (el) el.click();
         }""")
         pg.wait_for_timeout(1200)
-        pg.evaluate("() => { const v = window._cmEditor?.view; if (v) v.dispatch({selection:{anchor:0}}); }")
+        pg.evaluate(
+            "() => { const v = window._cmEditor?.view; if (v) v.dispatch({selection:{anchor:0}}); }"
+        )
         pg.wait_for_timeout(500)
 
         def ok(name, cond):

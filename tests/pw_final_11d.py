@@ -121,9 +121,9 @@ def main():
                 pg = b.new_page()
                 _wire(pg, errs)
                 pg.goto(f"http://journal.{BASE}/", wait_until="domcontentloaded")
-                pg.wait_for_selector("#journal-view", timeout=15000)
+                pg.wait_for_selector("#docs-journal-section", timeout=15000)
                 pg.wait_for_timeout(700)
-                r["journal_renders"] = pg.is_visible("#journal-view")
+                r["journal_renders"] = pg.is_visible("#docs-journal-section")
                 pg.close()
 
             # ── cross-nav: from the hub, a tile jumps to its app subdomain ───────────

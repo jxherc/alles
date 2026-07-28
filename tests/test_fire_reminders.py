@@ -1,7 +1,7 @@
 """delivery bookkeeping for the background reminder job."""
 
 import asyncio
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from unittest import mock
 
 import app
@@ -13,7 +13,9 @@ class FireDueReminderTests(ApiTest):
     def _due(self):
         d = self.db()
         r = Reminder(
-            text="ping", trigger_at=datetime.utcnow() - timedelta(minutes=1), type="reminder"
+            text="ping",
+            trigger_at=datetime.now(UTC).replace(tzinfo=None) - timedelta(minutes=1),
+            type="reminder",
         )
         d.add(r)
         d.commit()
@@ -75,7 +77,7 @@ class FireDueReminderTests(ApiTest):
         d = self.db()
         r = Reminder(
             text="ping aide",
-            trigger_at=datetime.utcnow() - timedelta(minutes=1),
+            trigger_at=datetime.now(UTC).replace(tzinfo=None) - timedelta(minutes=1),
             type="message",
             session_id="missing-session",
         )
@@ -100,7 +102,7 @@ class FireDueReminderTests(ApiTest):
         d.flush()
         reminder = Reminder(
             text="give me an update",
-            trigger_at=datetime.utcnow() - timedelta(minutes=1),
+            trigger_at=datetime.now(UTC).replace(tzinfo=None) - timedelta(minutes=1),
             type="message",
             session_id=session.id,
         )
