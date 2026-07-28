@@ -1,5 +1,6 @@
 """ui-3p verify — exported HTML keeps tables, links and code (and the export stylesheet
 styles them), so the export matches what live/preview shows."""
+
 import sys
 
 from playwright.sync_api import sync_playwright
@@ -17,7 +18,9 @@ def run():
         pg.goto(BASE + "/", wait_until="domcontentloaded")
         pg.wait_for_selector("#wiki-view", timeout=15000)
         pg.wait_for_timeout(1400)
-        pg.evaluate("""() => { const el = document.querySelector('.wiki-file[data-path=\"livetest.md\"] .wiki-row-label'); if (el) el.click(); }""")
+        pg.evaluate(
+            """() => { const el = document.querySelector('.wiki-file[data-path=\"livetest.md\"] .wiki-row-label'); if (el) el.click(); }"""
+        )
         pg.wait_for_timeout(1000)
         pg.click("#wiki-export-btn")
         pg.wait_for_timeout(300)
@@ -30,7 +33,10 @@ def run():
             (print(f"PASS {name}") if cond else fails.append(name))
 
         ok("export contains a real table", "<table" in html and "<th" in html and "Ada" in html)
-        ok("export keeps the link with its href", 'href="https://example.com/some/long/url"' in html)
+        ok(
+            "export keeps the link with its href",
+            'href="https://example.com/some/long/url"' in html,
+        )
         ok("export keeps the link text", "visible link text" in html)
         ok("export keeps fenced code", "<pre" in html and "const x = 1" in html)
         ok("export keeps inline code", "<code" in html)

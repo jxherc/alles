@@ -26,7 +26,9 @@ class ProactiveApiTests(ApiTest):
         self._seed_card(dedupe_key="b", title="high", score=90)
         self._seed_card(dedupe_key="c", title="gone", score=99, dismissed=True)
         rows = self.client.get("/api/proactive").json()
-        self.assertEqual([r["title"] for r in rows], ["high", "low"])  # dismissed excluded, score desc
+        self.assertEqual(
+            [r["title"] for r in rows], ["high", "low"]
+        )  # dismissed excluded, score desc
 
     def test_dismiss_hides(self):
         rid = self._seed_card(dedupe_key="a", title="x")
@@ -73,8 +75,15 @@ class ProactiveApiTests(ApiTest):
         d.close()
 
         async def _fake(db, sigs, s):
-            return [{"title": "pay rent now", "body": "overdue", "link": "tasks",
-                     "score": 80, "source_keys": [sigs[0]["key"]]}]
+            return [
+                {
+                    "title": "pay rent now",
+                    "body": "overdue",
+                    "link": "tasks",
+                    "score": 80,
+                    "source_keys": [sigs[0]["key"]],
+                }
+            ]
 
         orig = proactive._reason
         proactive._reason = _fake

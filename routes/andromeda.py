@@ -5,19 +5,41 @@ from __future__ import annotations
 import asyncio
 import json
 from datetime import UTC, datetime
+from typing import Literal
 
-from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import StreamingResponse
+from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session as DbSession
 
 from core.api_errors import ApiError
 from core.build_info import afterlife_feature_flags
-from core.database import AndromedaSavedSearch, Project, Session, get_db
+from core.database import (
+    AndromedaSavedSearch,
+    AndromedaVerificationJob,
+    Project,
+    Session,
+    get_db,
+)
 from core.settings import load_settings
 from services import andromeda
 
 router = APIRouter(prefix="/api/andromeda")
+
+_MEDIA_PLACEHOLDER = b"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="media unavailable"><rect width="64" height="64" fill="#171717"/><path d="M18 44 29 31l7 8 5-6 7 11H18Zm4-24h20a4 4 0 0 1 4 4v22H18V24a4 4 0 0 1 4-4Zm3 8a4 4 0 1 0 8 0 4 4 0 0 0-8 0Z" fill="none" stroke="#777" stroke-width="2" stroke-linejoin="round"/></svg>"""
+
+
+def _media_placeholder() -> Response:
+    return Response(
+        _MEDIA_PLACEHOLDER,
+        media_type="image/svg+xml",
+        headers={
+            "cache-control": "private, max-age=300",
+            "x-andromeda-media-state": "unavailable",
+            "x-content-type-options": "nosniff",
+            "content-security-policy": "default-src 'none'",
+        },
+    )
 
 
 def _require_flag() -> None:
@@ -33,7 +55,41 @@ class SearchBody(BaseModel):
     query: str = Field(min_length=1, max_length=2_000)
     normal_results: bool | None = None
     overview: bool | None = None
-    max_results: int | None = Field(default=None, ge=1, le=12)
+    max_results: int | None = Field(default=None, ge=1, le=600)
+    category: Literal["all", "images", "news", "videos"] = "all"
+    provider: Literal[
+        "", "duckduckgo", "tavily", "brave", "searxng", "google_pse", "serper", "disabled"
+    ] = ""
+
+
+@router.get("/providers")
+def providers():
+    """Return usable engines without exposing credentials."""
+    _require_flag()
+    settings = load_settings()
+    configured = {
+        "brave": bool(settings.get("brave_api_key")),
+        "serper": bool(settings.get("serper_api_key")),
+        "tavily": bool(settings.get("tavily_api_key")),
+        "searxng": bool(settings.get("searxng_url")),
+        "google_pse": bool(settings.get("google_pse_api_key") and settings.get("google_pse_cx")),
+        "duckduckgo": True,
+    }
+    labels = {
+        "brave": "brave",
+        "serper": "serper · google",
+        "tavily": "tavily",
+        "searxng": "searxng",
+        "google_pse": "google",
+        "duckduckgo": "duckduckgo",
+    }
+    order = ("searxng", "brave", "serper", "google_pse", "tavily", "duckduckgo")
+    return {
+        "selected": settings.get("search_provider") or "duckduckgo",
+        "providers": [
+            {"value": name, "label": labels[name], "available": configured[name]} for name in order
+        ],
+    }
 
 
 @router.post("/search")
@@ -45,28 +101,79 @@ async def search(body: SearchBody):
         if body.normal_results is None
         else body.normal_results
     )
-    overview_default = (
+    overview_default = body.category == "all" and (
         settings.get("andromeda_overview", True) if body.overview is None else body.overview
     )
     parsed = andromeda.parse_query(body.query, overview_default=overview_default)
     if not parsed.query:
         raise ApiError(400, "search_query_required", "write a search query before !ai")
-    count = body.max_results or int(settings.get("search_result_count") or 10)
+    default_counts = {
+        "all": int(settings.get("search_result_count") or 10),
+        "images": 30,
+        "news": 20,
+        "videos": 20,
+    }
+    count = body.max_results or default_counts[body.category]
     search_needed = bool(normal_enabled or parsed.overview)
     result = await andromeda.normal_search(
-        parsed.query, enabled=search_needed, max_results=max(1, min(12, count))
+        parsed.query,
+        enabled=search_needed,
+        max_results=count,
+        category=body.category,
+        provider=body.provider,
     )
-    overview_seed = result.get("results", []) if parsed.overview else []
+    overview_seed = result.get("results", [])[:12] if parsed.overview else []
     if not normal_enabled:
         result = {**result, "status": "disabled", "results": []}
     return {
         "query": parsed.query,
         "used_no_ai": parsed.used_no_ai,
+        "category": body.category,
         "normal_results_enabled": bool(normal_enabled),
         "overview_requested": parsed.overview,
         "overview_seed": overview_seed,
         **result,
     }
+
+
+@router.get("/media")
+async def media(url: str = Query(min_length=8, max_length=4_000)):
+    """Privacy-preserving image proxy for public search-result media."""
+    _require_flag()
+    from services.net_guard import safe_get_public_async
+
+    try:
+        upstream = await safe_get_public_async(
+            url,
+            timeout=8,
+            headers={"accept": "image/avif,image/webp,image/png,image/jpeg,image/gif,image/x-icon"},
+            max_redirects=4,
+            max_bytes=2_000_000,
+        )
+        upstream.raise_for_status()
+    except Exception:
+        return _media_placeholder()
+    media_type = upstream.headers.get("content-type", "").split(";", 1)[0].strip().lower()
+    allowed = {
+        "image/avif",
+        "image/gif",
+        "image/jpeg",
+        "image/png",
+        "image/webp",
+        "image/x-icon",
+        "image/vnd.microsoft.icon",
+    }
+    if media_type not in allowed:
+        return _media_placeholder()
+    return Response(
+        upstream.content,
+        media_type=media_type,
+        headers={
+            "cache-control": "private, max-age=3600",
+            "x-content-type-options": "nosniff",
+            "content-security-policy": "default-src 'none'",
+        },
+    )
 
 
 class OverviewBody(BaseModel):
@@ -151,6 +258,8 @@ async def overview(body: OverviewBody, db: DbSession = Depends(get_db)):
         from services.llm import simple_complete
 
         try:
+            max_tokens = int(settings.get("andromeda_answer_max_tokens") or 450)
+            timeout_seconds = int(settings.get("andromeda_answer_timeout_seconds") or 50)
             raw = await asyncio.wait_for(
                 simple_complete(
                     andromeda.overview_prompt(
@@ -159,9 +268,10 @@ async def overview(body: OverviewBody, db: DbSession = Depends(get_db)):
                     endpoint_url,
                     endpoint_key,
                     model,
-                    max_tokens=1_200,
+                    max_tokens=max_tokens,
+                    thinking=False,
                 ),
-                timeout=50,
+                timeout=timeout_seconds,
             )
             checked = andromeda.verify_overview(raw, parsed.query, evidence)
         except asyncio.CancelledError:
@@ -311,6 +421,125 @@ async def qualify_local_model(body: QualifyModelBody, db: DbSession = Depends(ge
     }
 
 
+class VerificationBody(BaseModel):
+    query: str = Field(min_length=1, max_length=2_000)
+    answer: dict = Field(default_factory=dict)
+    results: list[dict] = Field(default_factory=list, max_length=12)
+    manual: bool = False
+    confirmed_endpoint_id: str = Field(default="", max_length=100)
+    confirmed_model: str = Field(default="", max_length=300)
+
+
+class VerificationPreviewBody(BaseModel):
+    query: str = Field(min_length=1, max_length=2_000)
+    manual: bool = False
+
+
+@router.post("/verification/preview")
+def verification_preview(
+    body: VerificationPreviewBody,
+    db: DbSession = Depends(get_db),
+):
+    """Show the independent verifier and privacy boundary before any job starts."""
+    _require_flag()
+    settings = load_settings()
+    from services import andromeda_verifier
+
+    if not andromeda_verifier.should_verify(settings, body.query, manual=body.manual):
+        return {"status": "skipped", "reason": "verification policy did not match this query"}
+    from services.model_resolver import ModelResolutionError, resolve_model
+
+    try:
+        selected = resolve_model(db, "andromeda_verifier", settings=settings)
+    except ModelResolutionError as exc:
+        raise ApiError(409, exc.code, str(exc)) from exc
+    return {"status": "ready", "model": selected.public()}
+
+
+def _verification_job(row: AndromedaVerificationJob) -> dict:
+    def decoded(raw: str, expected: type):
+        try:
+            value = json.loads(raw or ("[]" if expected is list else "{}"))
+        except (TypeError, ValueError):
+            value = [] if expected is list else {}
+        return value if isinstance(value, expected) else ([] if expected is list else {})
+
+    return {
+        "id": row.id,
+        "status": row.status,
+        "error_code": row.error_code or "",
+        "checked_at": row.checked_at.isoformat() if row.checked_at else "",
+        "created_at": row.created_at.isoformat() if row.created_at else "",
+        "updated_at": row.updated_at.isoformat() if row.updated_at else "",
+        "model": decoded(row.model_json, dict),
+        "result": decoded(row.result_json, dict),
+        "evidence": decoded(row.evidence_json, list),
+    }
+
+
+@router.post("/verification")
+def start_verification(body: VerificationBody, db: DbSession = Depends(get_db)):
+    _require_flag()
+    settings = load_settings()
+    from services import andromeda_verifier
+
+    if not andromeda_verifier.should_verify(settings, body.query, manual=body.manual):
+        return {"status": "skipped", "reason": "verification policy did not match this query"}
+    claims = body.answer.get("claims") if isinstance(body.answer, dict) else None
+    if not isinstance(claims, list) or not claims:
+        raise ApiError(400, "verification_answer_required", "a supported fast answer is required")
+    from services.model_resolver import ModelResolutionError, resolve_model
+
+    try:
+        selected = resolve_model(db, "andromeda_verifier", settings=settings)
+    except ModelResolutionError as exc:
+        raise ApiError(409, exc.code, str(exc)) from exc
+    if selected.privacy_class == "remote" and (
+        body.confirmed_endpoint_id != selected.endpoint.id or body.confirmed_model != selected.model
+    ):
+        raise ApiError(
+            409,
+            "remote_verifier_confirmation_required",
+            "confirm the shown verifier before the query, answer, and evidence leave Alles",
+        )
+    row = AndromedaVerificationJob(
+        query=body.query.strip(),
+        answer_json=_bounded_json(body.answer, dict, 100_000),
+        results_json=_bounded_json(body.results, list, 100_000),
+        model_json=_bounded_json(selected.public(), dict, 10_000),
+        status="pending",
+    )
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    andromeda_verifier.launch(row.id)
+    return _verification_job(row)
+
+
+@router.get("/verification/{job_id}")
+def get_verification(job_id: str, db: DbSession = Depends(get_db)):
+    _require_flag()
+    row = db.get(AndromedaVerificationJob, job_id)
+    if not row:
+        raise HTTPException(404, "verification job not found")
+    return _verification_job(row)
+
+
+@router.post("/verification/{job_id}/cancel")
+def cancel_verification(job_id: str, db: DbSession = Depends(get_db)):
+    _require_flag()
+    row = db.get(AndromedaVerificationJob, job_id)
+    if not row:
+        raise HTTPException(404, "verification job not found")
+    if row.status in {"pending", "running"}:
+        row.status = "cancelled"
+        row.error_code = "cancelled_by_owner"
+        row.updated_at = datetime.now(UTC).replace(tzinfo=None)
+        db.commit()
+        db.refresh(row)
+    return _verification_job(row)
+
+
 def _bounded_json(value, expected: type, limit: int) -> str:
     if not isinstance(value, expected):
         raise ApiError(400, "invalid_saved_search", "saved search data has the wrong shape")
@@ -334,6 +563,8 @@ def _saved(row: AndromedaSavedSearch, *, detail: bool = False) -> dict:
             ("overview", row.overview_json, dict),
             ("evidence", row.evidence_json, list),
             ("model", row.model_json, dict),
+            ("verification", row.verification_json, dict),
+            ("verifier_model", row.verifier_model_json, dict),
         ):
             try:
                 value = json.loads(source or ("[]" if expected is list else "{}"))
@@ -352,6 +583,8 @@ class SaveBody(BaseModel):
     overview: dict = Field(default_factory=dict)
     evidence: list[dict] = Field(default_factory=list, max_length=6)
     model: dict = Field(default_factory=dict)
+    verification: dict = Field(default_factory=dict)
+    verifier_model: dict = Field(default_factory=dict)
 
 
 @router.get("/saved")
@@ -371,6 +604,8 @@ def save_search(body: SaveBody, db: DbSession = Depends(get_db)):
         overview_json=_bounded_json(body.overview, dict, 100_000),
         evidence_json=_bounded_json(body.evidence, list, 150_000),
         model_json=_bounded_json(body.model, dict, 10_000),
+        verification_json=_bounded_json(body.verification, dict, 150_000),
+        verifier_model_json=_bounded_json(body.verifier_model, dict, 10_000),
         checked_at=datetime.now(UTC).replace(tzinfo=None),
     )
     db.add(row)

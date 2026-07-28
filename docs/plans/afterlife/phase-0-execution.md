@@ -61,11 +61,12 @@
 - [x] Add an offline CLI/supervisor swap with safety snapshot, stopped writers, health check, and automatic rollback.
 - [x] Add authenticated backup encryption and a separately exportable/recoverable key.
 - [x] Inventory every data class and configured local/remote root; record explicit inclusion and exclusion policy.
-  - [`data-inventory.md`](data-inventory.md) lists all 89 current model tables plus migration history,
-    managed disk stores, transient exclusions, external sources, workspaces, and remote-service limits.
-  - New manifests record the same content-free policy list. Synthetic tests prove configured external
-    roots are not copied, older v1 manifests still stage, and external `ALLES_DB` is refused rather than
-    silently omitted.
+  - [`data-inventory.md`](data-inventory.md) now locks all 113 current mapped tables plus migration
+    history, the exact 14 manifest root roles, Phase 7 local/WebDAV/S3 Storage Locations, managed
+    service state, durable operations, offline copies, transient exclusions, and remote-service limits.
+  - The inventory records the current external-Vault freeze/remap exception while external Files,
+    Photos, Project, agent, and additional local Storage Location bytes remain excluded.
+  - Fresh isolated evidence: the Phase 0 document/route lock plus backup/root regressions passed 42/42.
 - [x] Add synthetic database fixtures for every supported schema and test restore → migrate twice → boot.
   - [`migration-support.md`](migration-support.md) defines the supported histories and exact fork map.
   - Frozen, secret-free SQL fixtures cover Beta 0.1.0, late legacy, and the Photos v13 fork.
@@ -124,7 +125,7 @@
     compatibility, and migration head. The running endpoint is read-only and follows the normal auth
     gate; it exposes no path, key, token, or private setting.
 - [x] Define feature flags for incomplete Afterlife surfaces.
-  - Six explicit flags cover the future shell, Today, Aide Projects, Andromeda, Jarvis, and Storage
+  - Six explicit flags cover the future shell, Home, Aide Projects, Andromeda, Jarvis, and Storage
     Locations. Every flag defaults off. `ALLES_AFTERLIFE_FEATURES` accepts only exact known names and
     rejects blanks, duplicates, and unknown values.
   - Fresh isolated evidence: 15 System/build/flag tests and 42 recovery integration tests passed.
@@ -134,11 +135,16 @@
 - [x] Generate the current whole-system structure/trust map from code and tests.
   - `current-trust-map.md` records the browser, server, host-process, storage, model/search,
     connector, MCP, delivery, macOS, background-work, recovery, and update boundaries.
-  - It was built from source and synthetic tests only. It also records the current 660-route hash,
-    20 canonical app subdomains, compatibility aliases, registered jobs, and known trust gaps.
+  - The refreshed 2026-07-19 map records 78 included routers, the locked 814-route digest and
+    797/2/15 grouping, 16 canonical app subdomains plus aliases, all 23 registered jobs, scoped bearer
+    auth, local/WebDAV/S3 Files roots, managed SearXNG, the Phase 8 Finance boundary, and current known
+    limits.
+  - A live-document regression derives the table, root, router, route, digest, and job facts from the
+    implementation so future growth cannot silently leave the map stale.
 - [x] Record route, subdomain, deep-link, desktop/mobile, Photos, PhotoKit, and research-failure baselines using throwaway `ALLES_DATA`.
-  - Route/deep-link evidence: 3 Python checks lock 660 method/path pairs, the exact public surface,
-    and parser markers. Three Node checks lock the subdomain map and `notes`/`photos` aliases.
+  - Route/deep-link evidence: current Python checks lock 814 method/path pairs, the exact public
+    surface, Phase 6 route preservation, and parser markers. Node checks lock the subdomain map and
+    `notes`/`photos` aliases.
   - Browser evidence: `tests/pw_afterlife_phase0.py` passed 135/135 assertions against a blank
     throwaway server. All 21 current hosts rendered at 1280×800 and 390×844 without horizontal
     overflow, console errors, or server errors. Reduced motion, keyboard focus, failed-automation

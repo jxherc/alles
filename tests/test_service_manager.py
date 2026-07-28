@@ -67,6 +67,12 @@ class ServiceManagerTest(unittest.TestCase):
             ],
         )
 
+    def test_compose_control_allows_the_owned_stop_grace_period(self):
+        self._compose()
+        with mock.patch.object(sm, "_run", return_value=self._result()) as runner:
+            sm.control("search", "stop")
+        self.assertEqual(runner.call_args.kwargs["timeout"], 60)
+
     def test_registration_writes_private_matching_markers(self):
         service = self._compose()
         local = Path(service.root) / sm._OWNER_FILE

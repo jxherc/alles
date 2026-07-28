@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session as DbSession
 
-from core.database import get_db, SessionLocal, Calendar, CalendarEvent
+from core.database import Calendar, CalendarEvent, SessionLocal, get_db
 
 router = APIRouter(prefix="/api")
 

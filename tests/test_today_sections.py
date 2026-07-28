@@ -26,7 +26,9 @@ class TodaySectionsTest(ApiTest):
             return self.client.get("/api/today").json()
 
     def test_sections_are_absent_while_today_flag_is_off(self):
-        with mock.patch.dict("os.environ", {"ALLES_AFTERLIFE_FEATURES": ""}, clear=False):
+        with mock.patch.dict(
+            "os.environ", {"ALLES_AFTERLIFE_FEATURES": "afterlife_shell"}, clear=False
+        ):
             self.assertNotIn("sections", self.client.get("/api/today").json())
 
     def test_empty_sections_keep_the_five_part_shape(self):
@@ -49,7 +51,7 @@ class TodaySectionsTest(ApiTest):
                 "order": ["briefs", "today"],
                 "visible": ["today"],
                 "density": "compact",
-                "shortcuts": ["tasks", "wiki", "tasks"],
+                "shortcuts": ["tasks", "wiki", "tasks", "mail", "photos", "watch"],
             },
         )
         self.assertEqual(saved.status_code, 200)
@@ -57,8 +59,22 @@ class TodaySectionsTest(ApiTest):
         self.assertEqual(value["order"][:2], ["briefs", "today"])
         self.assertIn("needs_you", value["visible"])
         self.assertEqual(value["density"], "compact")
-        self.assertEqual(value["shortcuts"], ["tasks", "wiki"])
+        self.assertEqual(value["shortcuts"], ["plan", "wiki", "inbox", "files", "system"])
         self.assertEqual(self.client.get("/api/today/preferences").json(), value)
+
+    def test_preferences_preserve_an_intentionally_empty_shortcut_list(self):
+        saved = self.client.put(
+            "/api/today/preferences",
+            json={
+                "order": ["needs_you", "today", "in_progress", "briefs", "shortcuts"],
+                "visible": ["needs_you", "shortcuts"],
+                "density": "comfortable",
+                "shortcuts": [],
+            },
+        )
+        self.assertEqual(saved.status_code, 200)
+        self.assertEqual(saved.json()["shortcuts"], [])
+        self.assertEqual(self.client.get("/api/today/preferences").json()["shortcuts"], [])
 
     def test_today_includes_unfinished_habits_without_a_model(self):
         db = self.db()
@@ -124,8 +140,18 @@ class TodaySectionsTest(ApiTest):
 
         self.assertEqual([item["state"] for item in sections["in_progress"]], ["running"])
         self.assertEqual(sections["in_progress"][0]["title"], "morning report")
-        self.assertEqual(sections["in_progress"][0]["project"], "general")
+        self.assertEqual(sections["in_progress"][0]["project"], "tasks")
         self.assertEqual(sections["briefs"][0]["summary"], "three changes need review")
+
+    def test_orphaned_background_records_use_aide_language(self):
+        db = self.db()
+        db.add(JarvisRun(workflow_id="missing", state="running"))
+        db.commit()
+        db.close()
+
+        card = self.get_today()["sections"]["in_progress"][0]
+        self.assertEqual(card["title"], "aide work")
+        self.assertEqual(card["project"], "tasks")
 
     def test_expired_prompt_is_not_actionable(self):
         db = self.db()

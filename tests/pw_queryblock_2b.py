@@ -74,7 +74,7 @@ def main():
         pg.click("#wiki-q-save")
         pg.wait_for_selector("#_di", timeout=4000)
         pg.fill("#_di", "my project view")
-        pg.click("#_dy")
+        pg.click("[data-dialog-confirm]")
         pg.wait_for_selector("#wiki-q-views .wiki-q-view", timeout=5000)
         r["save_view_works"] = "my project view" in pg.inner_text("#wiki-q-views")
         pg.screenshot(path=str(EVID / "savedviews.png"))

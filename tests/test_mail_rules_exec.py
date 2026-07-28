@@ -72,9 +72,7 @@ class LabelTests(_Base):
 
     def test_rules_ignore_non_inbox_cached_messages(self):
         m = self._msg(folder="Sent", seen=False)
-        rules = [
-            {"match_field": "from", "match_value": "acme", "action": "markread"}
-        ]
+        rules = [{"match_field": "from", "match_value": "acme", "action": "markread"}]
         n = mail_rules.run_on_cache(self.s, "A1", rules)
         self.s.refresh(m)
         self.assertEqual(n, 0)

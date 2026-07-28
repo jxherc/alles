@@ -10,13 +10,23 @@ class RecipientsTests(ApiTest):
         db = self.db()
         rows = [
             ("Ada Lovelace <ada@math.org>", 30),
-            ("ada@math.org", 25),                       # dup address, no name
+            ("ada@math.org", 25),  # dup address, no name
             ("Bob <bob@work.com>", 20),
             ("no-reply@spam.io", 10),
         ]
         for i, (sender, ts) in enumerate(rows):
-            db.add(CachedMessage(account_id="a1", folder="INBOX", uid=str(i),
-                                 sender=sender, subject="s", date="2026-06-10", date_ts=ts, seen=True))
+            db.add(
+                CachedMessage(
+                    account_id="a1",
+                    folder="INBOX",
+                    uid=str(i),
+                    sender=sender,
+                    subject="s",
+                    date="2026-06-10",
+                    date_ts=ts,
+                    seen=True,
+                )
+            )
         db.commit()
         db.close()
 

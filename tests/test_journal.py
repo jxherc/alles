@@ -9,10 +9,13 @@ from routes import journal as J
 from routes.journal import EntryBody
 
 
-def _mkdb():
+def _mkdb(test_case):
     eng = create_engine("sqlite:///:memory:")
+    test_case.addCleanup(eng.dispose)
     JournalEntry.__table__.create(eng)
-    return sessionmaker(bind=eng)()
+    db = sessionmaker(bind=eng)()
+    test_case.addCleanup(db.close)
+    return db
 
 
 class StreakTests(unittest.TestCase):
@@ -37,7 +40,7 @@ class StreakTests(unittest.TestCase):
 
 class CrudTests(unittest.TestCase):
     def test_upsert_is_one_per_day(self):
-        db = _mkdb()
+        db = _mkdb(self)
         out = J.upsert_entry(
             "2026-06-14", EntryBody(content="hello world", mood="🙂", tags="x"), db
         )
@@ -50,7 +53,7 @@ class CrudTests(unittest.TestCase):
         self.assertEqual(J.list_entries("", 60, db)["stats"]["total"], 1)  # not duplicated
 
     def test_list_limit_caps_entries_not_stats(self):
-        db = _mkdb()
+        db = _mkdb(self)
         for i in range(5):
             J.upsert_entry(f"2026-06-1{i}", EntryBody(content=f"entry {i}"), db)
         out = J.list_entries("", 2, db)
@@ -62,19 +65,19 @@ class CrudTests(unittest.TestCase):
     def test_this_month_stat_ignores_month_filter(self):
         # browsing a past month must NOT zero out the "this month" stat — it's the
         # current month's count regardless of which month the list is scoped to
-        db = _mkdb()
+        db = _mkdb(self)
         J.upsert_entry(date.today().isoformat(), EntryBody(content="current month entry"), db)
         J.upsert_entry("2020-01-15", EntryBody(content="ancient entry"), db)
         stats = J.list_entries("2020-01", 60, db)["stats"]
-        self.assertEqual(stats["this_month"], 1)   # the current-month entry, not 0
+        self.assertEqual(stats["this_month"], 1)  # the current-month entry, not 0
 
     def test_get_missing_returns_shell(self):
-        got = J.get_entry("2026-01-01", _mkdb())
+        got = J.get_entry("2026-01-01", _mkdb(self))
         self.assertFalse(got["exists"])
         self.assertEqual(got["content"], "")
 
     def test_delete(self):
-        db = _mkdb()
+        db = _mkdb(self)
         J.upsert_entry("2026-06-14", EntryBody(content="x"), db)
         J.delete_entry("2026-06-14", db)
         self.assertFalse(J.get_entry("2026-06-14", db)["exists"])
@@ -83,9 +86,9 @@ class CrudTests(unittest.TestCase):
         from fastapi import HTTPException
 
         with self.assertRaises(HTTPException):
-            J.get_entry("not-a-date", _mkdb())
+            J.get_entry("not-a-date", _mkdb(self))
         with self.assertRaises(HTTPException) as err:
-            J.delete_entry("not-a-date", _mkdb())
+            J.delete_entry("not-a-date", _mkdb(self))
         self.assertEqual(err.exception.status_code, 400)
 
     def test_prompt_is_question(self):
@@ -94,7 +97,7 @@ class CrudTests(unittest.TestCase):
 
 class DepthTests(unittest.TestCase):
     def test_search_export_calendar(self):
-        db = _mkdb()
+        db = _mkdb(self)
         J.upsert_entry("2026-06-14", EntryBody(content="found the needle today", mood="🙂"), db)
         J.upsert_entry("2026-06-13", EntryBody(content="ordinary day"), db)
         r = J.search_entries("needle", db)

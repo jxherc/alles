@@ -1,7 +1,7 @@
 import hashlib
 import json
 import secrets
-from datetime import datetime
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
@@ -140,7 +140,7 @@ def token_access(raw: str, db: DbSession, scope: str) -> str:
     scopes = _token_scopes(token)
     if scope not in scopes and "admin" not in scopes:
         return "forbidden"
-    token.last_used_at = datetime.utcnow()
+    token.last_used_at = datetime.now(UTC).replace(tzinfo=None)
     db.commit()
     return "ok"
 

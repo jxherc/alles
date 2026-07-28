@@ -11,8 +11,8 @@ let _matchSeq = 0;          // bumps per match call so stale responses don't clo
 const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 const $ = id => document.getElementById(id);
 
-async function _api(url, opts) {
-  const r = await fetch(url, opts);
+async function _api(url, opts, fetcher = fetch) {
+  const r = await fetcher(url, opts);
   if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || r.status);
   return r.json();
 }
@@ -41,7 +41,7 @@ let _state = { mode: 'installed', cat: 'all', q: '', source: null, libCat: 'all'
 let _data = [];
 let _sources = [];
 
-export function initSkills() {
+export function initSkills(fetcher = fetch) {
   const body = $('skills-body');
   if (!body) return;
   if (!_built) {
@@ -78,15 +78,18 @@ export function initSkills() {
     _built = true;
   }
   _state = { mode: 'installed', cat: 'all', q: '', source: null, libCat: 'all' };
-  _refresh();
+  return _refresh(fetcher);
 }
 
-async function _refresh() {
+async function _refresh(fetcher = fetch) {
   if (_state.mode === 'library') return _browseSource(_state.source || 'builtin');
   const grid = $('skl-grid');
   if (grid) grid.innerHTML = '<div class="skl-empty">loading…</div>';
-  try { _data = await _api('/api/skills' + (_state.q ? `?q=${encodeURIComponent(_state.q)}` : '')); }
-  catch { if (grid) grid.innerHTML = '<div class="skl-empty" style="color:var(--error)">failed to load</div>'; return; }
+  try { _data = await _api('/api/skills' + (_state.q ? `?q=${encodeURIComponent(_state.q)}` : ''), undefined, fetcher); }
+  catch (error) {
+    if (grid) grid.innerHTML = '<div class="skl-empty" style="color:var(--error)">failed to load</div>';
+    throw error;
+  }
   _render();
 }
 

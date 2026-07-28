@@ -19,7 +19,9 @@ def _client_assertion(challenge):
     import hashlib
 
     origin = "https://example.com"
-    client_data = json.dumps({"type": "webauthn.get", "challenge": challenge, "origin": origin}).encode()
+    client_data = json.dumps(
+        {"type": "webauthn.get", "challenge": challenge, "origin": origin}
+    ).encode()
     host = (urlsplit(origin).hostname or "").lower()
     auth_data = hashlib.sha256(host.encode()).digest() + b"\x01" + (1).to_bytes(4, "big")
     return auth_data, client_data
@@ -65,7 +67,9 @@ class PasskeyApiTests(ApiTest):
         self._sf.close()
         self.sp = mock.patch.object(core.settings, "_SETTINGS_FILE", Path(self._sf.name))
         self.sp.start()
-        self.tok = self.client.post("/api/vault/unlock", json={"password": "m1"}).json()["token"]
+        self.tok = self.client.post(
+            "/api/vault/unlock", json={"password": "master-password-1"}
+        ).json()["token"]
         self.h = {"X-Vault-Token": self.tok}
 
     def tearDown(self):

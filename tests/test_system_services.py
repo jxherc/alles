@@ -66,3 +66,45 @@ class SystemServicesApiTest(ApiTest):
         self.assertEqual(response.status_code, 403)
         self.assertEqual(response.json()["code"], "recent_auth_required")
         control.assert_not_called()
+
+
+class ManagedSearxngApiTest(ApiTest):
+    @mock.patch("routes.system.audit.record")
+    @mock.patch("routes.system.managed_searxng.control")
+    def test_restart_uses_health_aware_managed_control(self, control, audit_record):
+        control.return_value = {"installed": True, "running": True, "healthy": True}
+
+        response = self.client.post("/api/system/searxng/restart")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()["healthy"])
+        control.assert_called_once_with("restart")
+        self.assertIn(
+            "service.searxng.restart",
+            [call.kwargs["action"] for call in audit_record.call_args_list],
+        )
+
+    @mock.patch("routes.system.audit.record")
+    @mock.patch("routes.system.managed_searxng.control")
+    def test_managed_control_failure_keeps_stable_api_error(self, control, audit_record):
+        control.side_effect = RuntimeError("unexpected")
+        with mock.patch(
+            "routes.system.managed_searxng.ManagedSearxngError",
+            RuntimeError,
+        ):
+            response = self.client.post("/api/system/searxng/start")
+
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(response.json()["code"], "searxng_manage_failed")
+        self.assertEqual(response.json()["detail"], "unexpected")
+        self.assertNotIn(
+            "service.searxng.start",
+            [call.kwargs["action"] for call in audit_record.call_args_list],
+        )
+
+    @mock.patch("routes.system.managed_searxng.control")
+    def test_unknown_managed_action_is_rejected_before_control(self, control):
+        response = self.client.post("/api/system/searxng/remove")
+
+        self.assertEqual(response.status_code, 422)
+        control.assert_not_called()

@@ -1,12 +1,18 @@
-import secrets, time
+import secrets
+import time
+from copy import deepcopy
+from threading import RLock
+
 import bcrypt
 from fastapi import Request
+from starlette.requests import HTTPConnection
 
 # in-memory token store — survives process lifetime, not restarts
 # that's fine: 30-day cookies re-login on restart
 _tokens: dict[str, float] = {}  # token → expiry unix timestamp
 _recent_auth: dict[str, float] = {}  # token → last password confirmation
 RECENT_AUTH_SECONDS = 10 * 60
+MIN_OWNER_PASSWORD_LENGTH = 12
 
 
 def hash_password(pw: str) -> str:
@@ -86,7 +92,7 @@ def clear_login_fails(ip: str):
     _login_fails.pop(ip, None)
 
 
-def require_auth(request: Request):
+def require_auth(request: HTTPConnection):
     """FastAPI dependency for dangerous routes (shell exec etc.) — re-checks
     what TokenAuthMiddleware already enforces, so those endpoints stay locked
     even if the middleware is reordered or removed. Mirrors its semantics:
@@ -96,8 +102,8 @@ def require_auth(request: Request):
 
     auth = request.headers.get("authorization", "")
     if auth.startswith("Bearer aide_") or auth.startswith("Bearer alles_"):
-        from routes.api_tokens import verify_token
         from core.database import SessionLocal
+        from routes.api_tokens import verify_token
 
         db = SessionLocal()
         try:
@@ -120,6 +126,9 @@ def require_recent_owner(request: Request):
 
     if not auth_enabled():
         return
+    authorization = request.headers.get("authorization", "")
+    if authorization.lower().startswith("bearer "):
+        raise ApiError(403, "recent_auth_required", "recent owner authentication required")
     enforce_rate_limit(
         request,
         f"owner:{request.method}:{request.url.path}",
@@ -134,6 +143,24 @@ def require_recent_owner(request: Request):
 # cross-subdomain SSO: a one-time short-lived code that hands a session to another
 # subdomain (the Domain=localhost cookie won't share to *.localhost, so we relay).
 _handoff: dict[str, tuple[float, str]] = {}  # code → (expiry, token)
+_context_handoff: dict[str, tuple[float, str, dict]] = {}
+_context_handoff_lock = RLock()
+_CONTEXT_HANDOFF_MAX = 256
+
+
+def _prune_context_handoffs(now: float | None = None, *, reserve: int = 0) -> None:
+    with _context_handoff_lock:
+        now = time.time() if now is None else now
+        for code, value in list(_context_handoff.items()):
+            if value[0] <= now:
+                _context_handoff.pop(code, None)
+        capacity = max(0, _CONTEXT_HANDOFF_MAX - max(0, reserve))
+        overflow = len(_context_handoff) - capacity
+        if overflow <= 0:
+            return
+        oldest = sorted(_context_handoff, key=lambda code: _context_handoff[code][0])
+        for code in oldest[:overflow]:
+            _context_handoff.pop(code, None)
 
 
 def make_handoff(token: str, ttl: int = 30) -> str:
@@ -150,3 +177,33 @@ def redeem_handoff(code: str) -> str | None:
     if time.time() > exp or not verify_session(token):
         return None
     return token
+
+
+def make_context_handoff(token: str, payload: dict, ttl: int = 30) -> str:
+    """Store private cross-subdomain context behind an opaque, short-lived code."""
+    with _context_handoff_lock:
+        now = time.time()
+        _prune_context_handoffs(now, reserve=1)
+        code = secrets.token_urlsafe(24)
+        _context_handoff[code] = (now + ttl, token, deepcopy(payload))
+        return code
+
+
+def redeem_context_handoff(code: str, token: str) -> dict | None:
+    with _context_handoff_lock:
+        now = time.time()
+        _prune_context_handoffs(now)
+        value = _context_handoff.get(code)
+        if not value:
+            return None
+        expiry, owner_token, payload = value
+        if now > expiry:
+            _context_handoff.pop(code, None)
+            return None
+        if not secrets.compare_digest(owner_token, token):
+            return None
+        if owner_token and not verify_session(owner_token):
+            _context_handoff.pop(code, None)
+            return None
+        _context_handoff.pop(code, None)
+        return deepcopy(payload)

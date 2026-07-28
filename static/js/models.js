@@ -7,6 +7,8 @@ let _endpoints = [];
 let _selected = null;   // { endpointId, model }
 let _selectionSource = 'none'; // role | persona | explicit | session | broken
 let _aideDefault = null;
+const _modelSelectionQueues = new Map();
+const _modelSelectionGenerations = new Map();
 
 // safe ls read — corrupt json here used to throw at module load and kill app boot
 function _ls(key) { try { return JSON.parse(localStorage.getItem(key) || 'null'); } catch { return null; } }
@@ -19,7 +21,7 @@ const PRESETS = [
   { name: 'OpenAI',      url: 'https://api.openai.com',                              key: 'sk-...' },
   { name: 'Anthropic',   url: 'https://api.anthropic.com',                           key: 'sk-ant-...' },
   { name: 'DeepSeek',    url: 'https://api.deepseek.com',                            key: 'sk-...' },
-  { name: 'Moonshot',    url: 'https://api.moonshot.cn',                             key: 'sk-...' },
+  { name: 'Kimi',        url: 'https://api.moonshot.ai/v1',                          key: 'sk-...' },
   { name: 'Groq',        url: 'https://api.groq.com/openai',                         key: 'gsk_...' },
   { name: 'Gemini',      url: 'https://generativelanguage.googleapis.com/v1beta/openai', key: 'AIza...' },
   { name: 'xAI (Grok)', url: 'https://api.x.ai',                                    key: 'xai-...' },
@@ -66,7 +68,7 @@ export async function loadModels() {
       selectAideDefault();
     }
   } catch (e) {
-    console.error('loadModels', e);
+    if (globalThis.navigator?.onLine !== false) console.error('loadModels', e);
   }
 }
 
@@ -221,16 +223,32 @@ const _filterNewest = m => filterNewest(m, _newestOnly);
 
 function updateTopbar() {
   const label = document.getElementById('model-label');
+  const aideLabel = document.getElementById('aide-model-choice-label');
+  const aideLogo = document.getElementById('aide-model-choice-logo');
   const provider = document.getElementById('model-provider');
   const button = document.getElementById('model-btn');
+  const aideButton = document.getElementById('aide-model-choice');
   const dot = document.getElementById('live-dot');
   if (_selected) {
-    if (label) label.textContent = prettyModel(_selected.model);
+    const displayModel = prettyModel(_selected.model);
+    if (label) label.textContent = displayModel;
+    if (aideLabel) aideLabel.textContent = displayModel;
     const ep = getCurrentEndpoint();
+    const selectedProvider = providerKey([
+      ep && ep.provider,
+      ep && ep.name,
+      ep && ep.base_url,
+      _selected.model,
+    ].filter(Boolean).join(' '));
+    if (aideLogo) aideLogo.innerHTML = providerLogo(selectedProvider, { size: 14 });
     if (provider) provider.textContent = ep?.name || '';
     if (button) {
       button.title = `${_selected.model} · ${ep?.name || 'unknown provider'}`;
       button.setAttribute('aria-label', `model ${_selected.model}, provider ${ep?.name || 'unknown'}`);
+    }
+    if (aideButton) {
+      aideButton.title = `${_selected.model} · ${ep?.name || 'unknown provider'}`;
+      aideButton.setAttribute('aria-label', `model ${_selected.model}, provider ${ep?.name || 'unknown'}`);
     }
     // the "glowing thing" becomes the provider's glowing brand logo
     dot?.classList.remove('offline');
@@ -239,8 +257,14 @@ function updateTopbar() {
     if (ep) window._currentEndpoint = ep;
   } else {
     if (label) label.textContent = 'no model';
+    if (aideLabel) aideLabel.textContent = 'no model';
+    if (aideLogo) aideLogo.innerHTML = '';
     if (provider) provider.textContent = '';
     if (button) button.setAttribute('aria-label', 'select model and provider');
+    if (aideButton) {
+      aideButton.title = 'choose model';
+      aideButton.setAttribute('aria-label', 'select model and provider');
+    }
     dot?.classList.remove('has-logo');
     if (dot) dot.innerHTML = '';
     dot?.classList.add('offline');
@@ -346,7 +370,7 @@ export function renderSidebarModelList(filter = '') {
   });
 }
 
-export function selectModel(endpointId, model) {
+export async function selectModel(endpointId, model) {
   // an image model fills the companion image slot and leaves the chat model alone. only when
   // there's no chat model yet do we also seed the primary, so image-only use still works.
   if (_isImageModel(endpointId, model)) {
@@ -360,17 +384,44 @@ export function selectModel(endpointId, model) {
   }
   const selection = _catalogSelection({ endpointId, model }, false);
   if (!selection) return;
-  _setSelection(selection, 'explicit', true);
   const session = window._currentSession;
+  const selectionKey = session ? String(session.id) : '__global__';
+  const selectionGeneration = (_modelSelectionGenerations.get(selectionKey) || 0) + 1;
+  _modelSelectionGenerations.set(selectionKey, selectionGeneration);
   if (session) {
-    session.model = model;
-    session.endpoint_id = endpointId;
-    fetch(`/api/sessions/${session.id}`, {
-      method: 'PATCH',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ model, endpoint_id: endpointId }),
-    }).catch(() => {});
+    const save = async () => {
+      const response = await fetch(`/api/sessions/${session.id}`, {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ model, endpoint_id: endpointId }),
+      });
+      if (!response.ok) throw new Error('model save failed');
+      session.model = model;
+      session.endpoint_id = endpointId;
+      if (window._currentSession?.id !== session.id) return;
+    };
+    try {
+      const sessionId = String(session.id);
+      const pending = (_modelSelectionQueues.get(sessionId) || Promise.resolve())
+        .catch(() => {})
+        .then(save);
+      _modelSelectionQueues.set(sessionId, pending);
+      try {
+        await pending;
+      } finally {
+        if (_modelSelectionQueues.get(sessionId) === pending) _modelSelectionQueues.delete(sessionId);
+      }
+    } catch {
+      if (selectionGeneration !== _modelSelectionGenerations.get(selectionKey)) return;
+      if (window._currentSession?.id !== session?.id) return;
+      toast('model change could not be saved', 'error');
+      restoreSessionModel(session);
+      return;
+    }
   }
+  if (selectionGeneration !== _modelSelectionGenerations.get(selectionKey)) return;
+  if (session && window._currentSession?.id !== session.id) return;
+  _setSelection(selection, 'explicit', true);
   // close modal + go back to models tab
   const modal = document.getElementById('model-modal');
   if (modal) modal.style.display = 'none';
@@ -591,11 +642,18 @@ function maybeAutoRefresh() {
   refreshModels(false);
 }
 
-export async function addEndpoint(name, url, key, adapter = 'auto', manualModels = []) {
+export async function addEndpoint(name, url, key, adapter = 'auto', manualModels = [], auth = {}) {
   const r = await _ownerFetch('/api/models/endpoint', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ name, base_url: url, api_key: key, provider_adapter: adapter }),
+    body: JSON.stringify({
+      name,
+      base_url: url,
+      api_key: key,
+      provider_adapter: adapter,
+      provider_id: auth.providerId || '',
+      auth_type: auth.authType || 'api_key',
+    }),
   });
   if (!r.ok) throw new Error(await r.text());
   const ep = await r.json();

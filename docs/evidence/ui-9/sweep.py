@@ -10,8 +10,27 @@ IGNORE = ("ERR_", "favicon", "401", "403", "Failed to load resource", "net::", "
 
 # every host the SPA serves (apex + aide + the apps)
 HOSTS = [
-    "", "aide", "docs", "mail", "files", "calendar", "tasks", "gallery", "contacts",
-    "journal", "days", "money", "subs", "reminders", "secrets", "system", "watch", "habits", "read", "books", "health",
+    "",
+    "aide",
+    "docs",
+    "mail",
+    "files",
+    "calendar",
+    "tasks",
+    "gallery",
+    "contacts",
+    "journal",
+    "days",
+    "money",
+    "subs",
+    "reminders",
+    "secrets",
+    "system",
+    "watch",
+    "habits",
+    "read",
+    "books",
+    "health",
 ]
 
 
@@ -74,65 +93,108 @@ def run():
             ctx.close()
 
         # files: seed an upload, toggle a smart folder
-        deep("files", "files smart folders", lambda pg: pg.evaluate("""async () => {
+        deep(
+            "files",
+            "files smart folders",
+            lambda pg: pg.evaluate("""async () => {
           const cv=document.createElement('canvas');cv.width=4;cv.height=4;cv.getContext('2d').fillRect(0,0,4,4);
           const bl=await new Promise(r=>cv.toBlob(r,'image/png'));const fd=new FormData();fd.append('file',bl,'f.png');
           await fetch('/api/files/upload',{method:'POST',body:fd});
           document.querySelector('.files-smart[data-kind="images"]')?.click();
-        }"""))
+        }"""),
+        )
 
         # calendar: switch through every view via the segmented control
-        deep("calendar", "calendar view switch", lambda pg: pg.evaluate("""async () => {
+        deep(
+            "calendar",
+            "calendar view switch",
+            lambda pg: pg.evaluate("""async () => {
           for (const v of ['week','day','agenda','year','month']) {
             document.querySelector(`#cal-view .seg-opt[data-view="${v}"]`)?.click();
             await new Promise(r=>setTimeout(r,120));
           }
-        }"""))
+        }"""),
+        )
 
         # tasks: add a task
-        deep("tasks", "tasks add", lambda pg: pg.evaluate("""async () => {
+        deep(
+            "tasks",
+            "tasks add",
+            lambda pg: pg.evaluate("""async () => {
           await fetch('/api/tasks',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({title:'final regression task'})});
-        }"""))
+        }"""),
+        )
 
         # contacts: add + open a contact
-        deep("contacts", "contacts add/open", lambda pg: pg.evaluate("""async () => {
+        deep(
+            "contacts",
+            "contacts add/open",
+            lambda pg: pg.evaluate("""async () => {
           await fetch('/api/contacts',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({name:'Reg Test',email:'r@x.com'})});
-        }"""))
+        }"""),
+        )
 
         # gallery: seed a photo, open + favorite in the lightbox
-        deep("gallery", "gallery lightbox", lambda pg: pg.evaluate("""async () => {
+        deep(
+            "gallery",
+            "gallery lightbox",
+            lambda pg: pg.evaluate("""async () => {
           const cv=document.createElement('canvas');cv.width=6;cv.height=6;cv.getContext('2d').fillRect(0,0,6,6);
           const bl=await new Promise(r=>cv.toBlob(r,'image/png'));const fd=new FormData();fd.append('file',bl,'p.png');
           await fetch('/api/photos/upload',{method:'POST',body:fd});
-        }"""))
+        }"""),
+        )
 
         # watch: add a monitor through the UI, then check it
-        deep("watch", "watch add monitor", lambda pg: pg.evaluate("""async () => {
+        deep(
+            "watch",
+            "watch add monitor",
+            lambda pg: pg.evaluate("""async () => {
           await fetch('/api/watch',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({name:'sweep mon',url:'http://127.0.0.1:1',kind:'http'})});
-        }"""))
+        }"""),
+        )
 
         # habits: add a habit, then toggle today on its week strip
-        deep("habits", "habits add+toggle", lambda pg: pg.evaluate("""async () => {
+        deep(
+            "habits",
+            "habits add+toggle",
+            lambda pg: pg.evaluate("""async () => {
           await fetch('/api/habits',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({name:'sweep habit',cadence:'daily'})});
-        }"""))
+        }"""),
+        )
 
         # read: save a link (uses the research extractor; 127.0.0.1 is fine, extraction just empties)
-        deep("read", "read save link", lambda pg: pg.evaluate("""async () => {
+        deep(
+            "read",
+            "read save link",
+            lambda pg: pg.evaluate("""async () => {
           await fetch('/api/read',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({url:'http://example.com'})});
-        }"""))
+        }"""),
+        )
 
         # books: add a book to the reading list
-        deep("books", "books add", lambda pg: pg.evaluate("""async () => {
+        deep(
+            "books",
+            "books add",
+            lambda pg: pg.evaluate("""async () => {
           await fetch('/api/books',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({title:'Sweep Test Book',status:'want'})});
-        }"""))
+        }"""),
+        )
 
         # health: log a measurement
-        deep("health", "health log entry", lambda pg: pg.evaluate("""async () => {
+        deep(
+            "health",
+            "health log entry",
+            lambda pg: pg.evaluate("""async () => {
           await fetch('/api/health',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({kind:'weight',value:80,unit:'kg'})});
-        }"""))
+        }"""),
+        )
 
         # secrets: unlock, open settings (exercises the Stage-8 panels), lock
-        deep("secrets", "vault unlock + settings", lambda pg: pg.evaluate("""async () => {
+        deep(
+            "secrets",
+            "vault unlock + settings",
+            lambda pg: pg.evaluate("""async () => {
           document.getElementById('vault-pw-input').value='finalpw';
           document.getElementById('vault-unlock-btn').click();
           await new Promise(r=>setTimeout(r,1500));
@@ -140,7 +202,8 @@ def run():
           await new Promise(r=>setTimeout(r,800));
           document.getElementById('mv-close')?.click();
           document.getElementById('vault-lock-btn')?.click();
-        }"""))
+        }"""),
+        )
 
         b.close()
     if fails:

@@ -213,9 +213,7 @@ def delete_rule(rid: str, db: DbSession = Depends(get_db)):
     if not r:
         raise HTTPException(404)
     migrated_workflow = (
-        db.get(JarvisWorkflow, r.migrated_workflow_id)
-        if r.migrated_workflow_id
-        else None
+        db.get(JarvisWorkflow, r.migrated_workflow_id) if r.migrated_workflow_id else None
     )
     # Production SQLite cascades this foreign key. Delete explicitly too so
     # alternate/test engines cannot leave orphaned attempt history.

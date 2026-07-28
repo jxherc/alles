@@ -26,32 +26,97 @@ def main():
         b = p.chromium.launch()
         ctx = b.new_context(service_workers="block")
         pg = ctx.new_page()
-        pg.on("console", lambda m: errs.append(m.text) if m.type == "error" and not any(x in m.text for x in IGN) else None)
+        pg.on(
+            "console",
+            lambda m: (
+                errs.append(m.text)
+                if m.type == "error" and not any(x in m.text for x in IGN)
+                else None
+            ),
+        )
 
         def rec(route):
             req = route.request
             if req.method in ("POST", "PATCH"):
                 posted.append(req.url.replace(BASE, ""))
-            route.fulfill(status=200, content_type="application/json", body=json.dumps({"ok": True, "ran": True, "count": 1}))
+            route.fulfill(
+                status=200,
+                content_type="application/json",
+                body=json.dumps({"ok": True, "ran": True, "count": 1}),
+            )
 
         def fulfil(data):
-            return lambda route: route.fulfill(status=200, content_type="application/json", body=json.dumps(data))
+            return lambda route: route.fulfill(
+                status=200, content_type="application/json", body=json.dumps(data)
+            )
 
         # catch-all first so later (more specific) routes win
         pg.route("**/api/**", fulfil({}))
         pg.route("**/api/auth/me", fulfil({"authenticated": True, "username": "test"}))
         pg.route("**/api/models", fulfil([]))
         pg.route("**/api/sessions", fulfil({"today": [], "yesterday": [], "earlier": []}))
-        pg.route("**/api/settings", fulfil({"insights_enabled": True, "user_model_distill": True, "pidx_proactive_enabled": True}))
+        pg.route(
+            "**/api/settings",
+            fulfil(
+                {
+                    "insights_enabled": True,
+                    "user_model_distill": True,
+                    "pidx_proactive_enabled": True,
+                }
+            ),
+        )
         pg.route("**/api/memories", fulfil([]))
-        pg.route("**/api/insights", fulfil([
-            {"id": "i1", "title": "spends more after travel", "body": "card spend rises the week after trips", "evidence": ["sub:air", "txn:hotel"], "pinned": False},
-        ]))
-        pg.route("**/api/memory/distilled", fulfil([
-            {"id": "m1", "text": "prefers concise answers", "category": "preference", "confidence": 0.82, "provenance": "sessions:12", "vetoed": False, "pinned": False},
-            {"id": "m2", "text": "vetoed hidden", "confidence": 0.9, "vetoed": True, "pinned": False},
-        ]))
-        pg.route("**/api/proactive/stats", fulfil({"task": {"acted": 5, "dismissed": 1, "ignored": 2, "act_rate": 0.625, "weight": 1.18}}))
+        pg.route(
+            "**/api/insights",
+            fulfil(
+                [
+                    {
+                        "id": "i1",
+                        "title": "spends more after travel",
+                        "body": "card spend rises the week after trips",
+                        "evidence": ["sub:air", "txn:hotel"],
+                        "pinned": False,
+                    },
+                ]
+            ),
+        )
+        pg.route(
+            "**/api/memory/distilled",
+            fulfil(
+                [
+                    {
+                        "id": "m1",
+                        "text": "prefers concise answers",
+                        "category": "preference",
+                        "confidence": 0.82,
+                        "provenance": "sessions:12",
+                        "vetoed": False,
+                        "pinned": False,
+                    },
+                    {
+                        "id": "m2",
+                        "text": "vetoed hidden",
+                        "confidence": 0.9,
+                        "vetoed": True,
+                        "pinned": False,
+                    },
+                ]
+            ),
+        )
+        pg.route(
+            "**/api/proactive/stats",
+            fulfil(
+                {
+                    "task": {
+                        "acted": 5,
+                        "dismissed": 1,
+                        "ignored": 2,
+                        "act_rate": 0.625,
+                        "weight": 1.18,
+                    }
+                }
+            ),
+        )
         pg.route("**/api/insights/run", rec)
         pg.route("**/api/insights/*/pin", rec)
         pg.route("**/api/insights/*/dismiss", rec)
@@ -90,7 +155,16 @@ def main():
         pg.screenshot(path=str(EVID / "brain_dashboard.png"), full_page=True)
 
         # disabled state: everything off + empty, expect a "turn it on" shortcut
-        pg.route("**/api/settings", fulfil({"insights_enabled": False, "user_model_distill": False, "pidx_proactive_enabled": False}))
+        pg.route(
+            "**/api/settings",
+            fulfil(
+                {
+                    "insights_enabled": False,
+                    "user_model_distill": False,
+                    "pidx_proactive_enabled": False,
+                }
+            ),
+        )
         pg.route("**/api/insights", fulfil([]))
         pg.route("**/api/memory/distilled", fulfil([]))
         pg.route("**/api/proactive/stats", fulfil({}))

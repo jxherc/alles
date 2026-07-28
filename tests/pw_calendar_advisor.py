@@ -5,6 +5,7 @@ needs a fresh instance with the current routes:
   ALLES_DATA=.tmp_adv AUTH_ENABLED=false PORT=8077 python app.py
   PYTHONIOENCODING=utf-8 python tests/pw_calendar_advisor.py
 """
+
 from datetime import date
 
 from playwright.sync_api import sync_playwright
@@ -26,7 +27,8 @@ def main():
                 const a = await mk('ADV_A', '10:00', '11:00');
                 const bb = await mk('ADV_B', '10:30', '11:30');  // overlaps A
                 return [a, bb];
-            }""", today,
+            }""",
+            today,
         )
         bid = ids[1]
         pg.reload(wait_until="domcontentloaded")
@@ -38,14 +40,23 @@ def main():
 
         pg.click("#cal-freeslot")
         pg.wait_for_timeout(700)
-        chips = pg.evaluate("() => [...document.querySelectorAll('.cal-slot-chip')].map(c=>c.textContent.trim())")
+        chips = pg.evaluate(
+            "() => [...document.querySelectorAll('.cal-slot-chip')].map(c=>c.textContent.trim())"
+        )
         assert chips, "expected at least one free-slot chip"
-        pg.evaluate("() => [...document.querySelectorAll('.cal-slot-chip')].find(c=>c.textContent.includes('11:30'))?.click()")
+        pg.evaluate(
+            "() => [...document.querySelectorAll('.cal-slot-chip')].find(c=>c.textContent.includes('11:30'))?.click()"
+        )
         pg.wait_for_timeout(600)
         assert "11:30" in (pg.evaluate("() => document.getElementById('cal-start')?.value") or "")
-        assert (pg.evaluate("() => document.getElementById('cal-conflict')?.textContent") or "") == ""
+        assert (
+            pg.evaluate("() => document.getElementById('cal-conflict')?.textContent") or ""
+        ) == ""
 
-        pg.evaluate("async (ids) => { for (const id of ids) await fetch('/api/calendar/'+id, {method:'DELETE'}); }", ids)
+        pg.evaluate(
+            "async (ids) => { for (const id of ids) await fetch('/api/calendar/'+id, {method:'DELETE'}); }",
+            ids,
+        )
         b.close()
     print("PASS: conflict warning + free-slot finder both work")
 

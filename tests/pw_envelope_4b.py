@@ -80,7 +80,7 @@ def main():
         pg.wait_for_selector("#_df_amount", timeout=4000)
         pg.fill("#_df_amount", "1000")
         pg.fill("#_df_date", "2026-12-01")
-        pg.click("#_dy")
+        pg.click("[data-dialog-confirm]")
         pg.wait_for_timeout(1000)
         r["target_progress_shows"] = (
             pg.query_selector('.env-row[data-cat="food"] .env-target-bar') is not None

@@ -11,7 +11,7 @@ across runs (dedupe), and a new period (next renewal cycle) yields a new key.
 """
 
 import json
-from datetime import date, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 
 from core.database import (
     Account,
@@ -466,7 +466,7 @@ def _mail(db, today):
     from services.mail import is_vip
 
     vips = load_settings().get("mail_vips", [])
-    now_iso = datetime.utcnow().isoformat()
+    now_iso = datetime.now(UTC).replace(tzinfo=None).isoformat()
     out = []
     rows = (
         db.query(CachedMessage)
@@ -575,7 +575,7 @@ def by_category(sigs) -> dict:
 # gather() (which stays pure + runs on every page load). synthesize() is a pure read.
 def record_snapshot(db, sigs, *, keep_days=30, now=None):
     """persist the current signal set as one snapshot, then trim history older than keep_days."""
-    now = now or datetime.utcnow()
+    now = now or datetime.now(UTC).replace(tzinfo=None)
     n = 0
     for sg in sigs:
         db.add(
@@ -596,7 +596,7 @@ def record_snapshot(db, sigs, *, keep_days=30, now=None):
 def synthesize(db, now=None, *, window_days=14, trend_min_delta=1.0, corr_min_frac=0.5):
     """read recent snapshot history and emit DERIVED signals (trend:<cat>, corr:<a>:<b>) with an
     `explain`. pure read. needs >=2 distinct snapshot times to say anything."""
-    now = now or datetime.utcnow()
+    now = now or datetime.now(UTC).replace(tzinfo=None)
     rows = (
         db.query(SignalSnapshot)
         .filter(SignalSnapshot.ts >= now - timedelta(days=window_days))

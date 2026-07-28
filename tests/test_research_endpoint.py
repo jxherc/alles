@@ -1,7 +1,7 @@
 import json
 
 from core.database import ModelEndpoint
-from routes.research import _is_chat_model, _first_chat_model, _resolve_ep
+from routes.research import _first_chat_model, _is_chat_model, _resolve_ep
 from tests._client import ApiTest
 
 

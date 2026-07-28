@@ -1,5 +1,6 @@
 // journal — one entry per day. mood + tags + prompt + streak + on-this-day + AI reflect.
 import { toast, mdToHtml } from './util.js';
+import { formatCalendarDate, formatTime } from './i18n.js';
 
 const _si = n => (window.icon ? window.icon(n) : '');   // central icon set, load-order safe
 const MOODS = ['😄', '🙂', '😐', '😕', '😢', '😠', '😴', '🤔', '🥳', '😍'];
@@ -7,18 +8,34 @@ function _dayFromUrl() { const d = new URLSearchParams(location.search).get('d')
 let _day = _dayFromUrl() || todayISO();
 let _heatYear = null;
 let _saveTimer = null;
+let _saveInFlight = null;
+let _dirty = false;
 let _built = false;
 let _token = sessionStorage.getItem('journal_token') || '';
+let _productNavWired = false;
+let _lastHydratedAt = 0;
+let _loadGeneration = 0;
+let _lockedDraft = null;
 
-function todayISO() { return new Date().toISOString().slice(0, 10); }
+export function localISODate(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+function todayISO() { return localISODate(); }
 function _setDayUrl() { try { const u = new URL(location.href); u.searchParams.set('d', _day); history.replaceState(null, '', u); } catch {} }
 function esc(s = '') { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
 function _setToken(t) { _token = t || ''; if (_token) sessionStorage.setItem('journal_token', _token); else sessionStorage.removeItem('journal_token'); }
 function _authHeaders(extra = {}) { return _token ? { ...extra, 'X-Journal-Token': _token } : extra; }
-function shift(iso, n) { const d = new Date(iso + 'T00:00:00'); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); }
-function pretty(iso) {
-  const d = new Date(iso + 'T00:00:00');
-  return d.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+export function shiftLocalISO(iso, n) {
+  const [year, month, day] = iso.split('-').map(Number);
+  const date = new Date(year, month - 1, day + n);
+  return localISODate(date);
+}
+function shift(iso, n) { return shiftLocalISO(iso, n); }
+export function formatJournalDay(iso) {
+  return formatCalendarDate(iso, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
 }
 
 async function jget(url) {
@@ -37,14 +54,138 @@ async function jput(url, body) {
 export async function initJournal() {
   const body = document.getElementById('journal-body');
   if (!body) return;
-  // gate: if a passcode is set and we don't hold a valid token, show the lock screen
-  let status = { enabled: false };
-  try { status = await jget('/api/journal/lock/status'); } catch {}
-  if (status.enabled && !_token) { showLock('unlock'); return; }
-  buildJournal();
+  wireProductNavigation();
+  // Check the server-side lock before trusting hydrated content. Another tab can
+  // clear every unlock token while this view is still mounted.
+  let status;
+  try { status = await jget('/api/journal/lock/status'); }
+  catch { _setToken(''); showLock('unavailable'); return; }
+  if (status.enabled && !status.unlocked) { _setToken(''); showLock('unlock'); return; }
+  if (_built && Date.now() - _lastHydratedAt < 30_000) return;
+  return buildJournal();
 }
 
-function buildJournal() {
+function wireProductNavigation() {
+  if (_productNavWired) return;
+  _productNavWired = true;
+  document.getElementById('journal-migrate')?.addEventListener('click', openMarkdownCopy);
+}
+
+async function migrationRequest(url, options = {}) {
+  const headers = _authHeaders(options.headers || {});
+  const response = await fetch(url, { ...options, headers });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const error = new Error(data.detail || 'Journal copy could not continue');
+    error.status = response.status;
+    error.code = data.code || '';
+    throw error;
+  }
+  return data;
+}
+
+async function openMarkdownCopy() {
+  while (_dirty || _saveTimer !== null || _saveInFlight !== null) {
+    clearTimeout(_saveTimer);
+    _saveTimer = null;
+    if (!await save(false)) {
+      toast('Save the current Journal entry before copying it to Markdown', 'error');
+      return;
+    }
+  }
+  let plan;
+  try { plan = await migrationRequest('/api/journal-migration/plan'); }
+  catch (error) {
+    toast(error.status === 403 ? 'Unlock Journal and confirm your owner session first' : error.message, 'error');
+    return;
+  }
+  const layer = document.createElement('div');
+  layer.className = 'jrnl-migration-layer';
+  layer.setAttribute('role', 'dialog');
+  layer.setAttribute('aria-modal', 'true');
+  layer.setAttribute('aria-labelledby', 'jrnl-migration-title');
+  const conflictCopy = plan.conflicts?.length
+    ? `<div class="jrnl-migration-error">${plan.conflicts.length} existing Markdown file${plan.conflicts.length === 1 ? '' : 's'} would conflict. Nothing can be copied until those files are moved or renamed.</div>`
+    : '';
+  layer.innerHTML = `
+    <div class="jrnl-migration-card">
+      <div class="jrnl-migration-head">
+        <h2 id="jrnl-migration-title">copy Journal to Markdown</h2>
+        <button type="button" data-close aria-label="close">close</button>
+      </div>
+      <p>This makes ${plan.count} daily Markdown file${plan.count === 1 ? '' : 's'} in <b>Journal/</b> so Obsidian and Docs can read them.</p>
+      <p class="jrnl-migration-note">Journal stays the source of truth. The database is not deleted, and you can roll back files that Alles created unchanged.</p>
+      ${conflictCopy}
+      <label class="jrnl-migration-confirm">
+        type this exact line to prepare the copy
+        <code>${esc(plan.confirmation)}</code>
+        <input type="text" autocomplete="off" spellcheck="false" ${plan.conflicts?.length ? 'disabled' : ''}>
+      </label>
+      <div class="jrnl-migration-status" role="status" aria-live="polite"></div>
+      <div class="jrnl-migration-actions">
+        <button type="button" data-close>cancel</button>
+        <button type="button" data-prepare ${plan.conflicts?.length ? 'disabled' : ''}>prepare private copy</button>
+      </div>
+    </div>`;
+  document.body.appendChild(layer);
+  const close = () => layer.remove();
+  layer.querySelectorAll('[data-close]').forEach(button => button.addEventListener('click', close));
+  layer.addEventListener('pointerdown', event => { if (event.target === layer) close(); });
+  layer.addEventListener('keydown', event => { if (event.key === 'Escape') close(); });
+  const input = layer.querySelector('input');
+  const status = layer.querySelector('.jrnl-migration-status');
+  const actions = layer.querySelector('.jrnl-migration-actions');
+  layer.querySelector('[data-prepare]')?.addEventListener('click', async buttonEvent => {
+    const button = buttonEvent.currentTarget;
+    if (input.value !== plan.confirmation) {
+      status.textContent = 'The confirmation line does not match.';
+      status.classList.add('error');
+      input.focus();
+      return;
+    }
+    button.disabled = true;
+    status.classList.remove('error');
+    status.textContent = 'checking every entry and target…';
+    try {
+      const prepared = await migrationRequest('/api/journal-migration/prepare', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ confirmation: plan.confirmation }),
+      });
+      status.textContent = `${prepared.count} file${prepared.count === 1 ? '' : 's'} prepared privately. No Markdown file has changed yet.`;
+      actions.innerHTML = '<button type="button" data-close>cancel</button><button type="button" data-apply>copy into vault</button>';
+      actions.querySelector('[data-close]').addEventListener('click', close);
+      actions.querySelector('[data-apply]').addEventListener('click', async applyEvent => {
+        applyEvent.currentTarget.disabled = true;
+        status.textContent = 'copying verified Markdown…';
+        try {
+          const applied = await migrationRequest(`/api/journal-migration/${encodeURIComponent(prepared.operation_id)}/apply`, { method: 'POST' });
+          status.textContent = `${applied.installed} Markdown file${applied.installed === 1 ? '' : 's'} copied. Journal is still intact.`;
+          actions.innerHTML = '<button type="button" data-close>done</button><button type="button" data-rollback>roll back copied files</button>';
+          actions.querySelector('[data-close]').addEventListener('click', close);
+          actions.querySelector('[data-rollback]').addEventListener('click', async rollbackEvent => {
+            rollbackEvent.currentTarget.disabled = true;
+            try {
+              const rolledBack = await migrationRequest(`/api/journal-migration/${encodeURIComponent(prepared.operation_id)}/rollback`, { method: 'POST' });
+              status.textContent = rolledBack.rollback_conflicts?.length
+                ? 'Some copied files changed later, so Alles left them in place.'
+                : 'Copied Markdown files rolled back. Journal was never removed.';
+              actions.innerHTML = '<button type="button" data-close>done</button>';
+              actions.querySelector('[data-close]').addEventListener('click', close);
+            } catch (error) { status.textContent = error.message; status.classList.add('error'); }
+          });
+        } catch (error) { status.textContent = error.message; status.classList.add('error'); applyEvent.currentTarget.disabled = false; }
+      });
+    } catch (error) {
+      status.textContent = error.status === 403 ? 'Unlock Journal and confirm your owner session first.' : error.message;
+      status.classList.add('error');
+      button.disabled = false;
+    }
+  });
+  requestAnimationFrame(() => input?.focus());
+}
+
+async function buildJournal() {
   const body = document.getElementById('journal-body');
   if (!body) return;
   if (!_built || body.querySelector('.jrnl-lock')) {
@@ -111,21 +252,25 @@ function buildJournal() {
         </div>
       </div>`;
 
-    document.getElementById('jrnl-prev').onclick = () => { _day = shift(_day, -1); load(); };
-    document.getElementById('jrnl-next').onclick = () => { _day = shift(_day, 1); load(); };
-    document.getElementById('jrnl-today').onclick = () => { _day = todayISO(); load(); };
+    document.getElementById('jrnl-prev').onclick = () => navigateDay(shift(_day, -1));
+    document.getElementById('jrnl-next').onclick = () => navigateDay(shift(_day, 1));
+    document.getElementById('jrnl-today').onclick = () => navigateDay(todayISO());
     document.getElementById('jrnl-save').onclick = () => save(true);
     document.getElementById('jrnl-reflect').onclick = reflect;
-    document.getElementById('jrnl-text').addEventListener('input', () => {
+    const scheduleAutosave = () => {
+      _dirty = true;
       updateWords();
       clearTimeout(_saveTimer);
-      _saveTimer = setTimeout(() => save(false), 1200);   // gentle autosave
-    });
+      _saveTimer = setTimeout(() => { _saveTimer = null; save(false); }, 1200);   // gentle autosave
+    };
+    document.getElementById('jrnl-text').addEventListener('input', scheduleAutosave);
+    document.getElementById('jrnl-tags').addEventListener('input', scheduleAutosave);
     document.getElementById('jrnl-moods').addEventListener('click', e => {
       const b = e.target.closest('.jrnl-mood'); if (!b) return;
       const on = b.classList.contains('active');
       document.querySelectorAll('.jrnl-mood').forEach(x => x.classList.remove('active'));
       if (!on) b.classList.add('active');
+      _dirty = true;
       save(false);
     });
     let _js;
@@ -139,7 +284,7 @@ function buildJournal() {
         box.innerHTML = d.results.map(r =>
           `<div class="jrnl-otd-row" data-d="${r.date}"><b>${r.date}</b> ${r.mood || ''} ${esc(r.snippet)}</div>`).join('')
           || '<div class="jrnl-empty">no matches</div>';
-        box.querySelectorAll('.jrnl-otd-row').forEach(x => x.onclick = () => { _day = x.dataset.d; load(); });
+        box.querySelectorAll('.jrnl-otd-row').forEach(x => x.onclick = () => navigateDay(x.dataset.d));
       }, 250);
     });
     document.getElementById('jrnl-export').addEventListener('click', async () => {
@@ -154,13 +299,18 @@ function buildJournal() {
     document.getElementById('jrnl-heat-next').onclick = () => { if (_heatYear && _heatYear < new Date().getFullYear()) { _heatYear++; loadHeatmap(); } };
     _built = true;
   }
-  load();
-  loadPrompt();
-  loadOnThisDay();
-  loadMoodTrend();
-  loadMoodCorr();
-  loadTopics();
-  refreshLockBtn();
+  try {
+    const result = await Promise.all([
+      load(), loadPrompt(), loadOnThisDay(), loadMoodTrend(), loadMoodCorr(), loadTopics(), refreshLockBtn(),
+    ]);
+    _lastHydratedAt = Date.now();
+    return result;
+  } catch (error) {
+    _lastHydratedAt = 0;
+    const status = document.getElementById('jrnl-saved');
+    if (status) status.textContent = 'Journal could not refresh. Try again.';
+    return [];
+  }
 }
 
 async function loadHeatmap() {
@@ -207,7 +357,7 @@ async function loadHeatmap() {
       `<div class="jrnl-heatmonths" style="grid-template-columns:repeat(${weeks},1fr)">${months}</div>` +
       `<div class="jrnl-heatgrid">${cells}</div>`;
     el.querySelectorAll('.jrnl-hc[data-d]:not([data-d=""])').forEach(c => {
-      if (c.dataset.d) c.onclick = () => { _day = c.dataset.d; load(); };
+      if (c.dataset.d) c.onclick = () => navigateDay(c.dataset.d);
     });
   } catch { el.innerHTML = ''; }
 }
@@ -315,7 +465,25 @@ function pickLockAction() {
 function showLock(mode) {
   const body = document.getElementById('journal-body');
   if (!body) return;
+  const draft = snapshotEditor();
+  if ((_dirty || _saveTimer !== null || _saveInFlight !== null) && draft) {
+    _lockedDraft = draft;
+  }
+  clearTimeout(_saveTimer);
+  _saveTimer = null;
+  _loadGeneration += 1;
   _built = false;
+  if (mode === 'unavailable') {
+    body.innerHTML = `
+      <div class="jrnl-lock">
+        <div class="jrnl-lock-card" role="status">
+          <div class="jrnl-lock-icon">${_si('lock')}</div>
+          <div class="jrnl-lock-title">journal unavailable</div>
+          <p class="jrnl-lock-err">Alles could not verify the journal lock. Reload when the server is reachable.</p>
+        </div>
+      </div>`;
+    return;
+  }
   const titles = { unlock: 'journal is locked', set: 'set a passcode', change: 'change passcode', disable: 'disable lock' };
   const needsOld = mode === 'change' || mode === 'disable' || mode === 'unlock';
   const needsNew = mode === 'set' || mode === 'change';
@@ -325,8 +493,8 @@ function showLock(mode) {
         <div class="jrnl-lock-icon">${_si('lock')}</div>
         <div class="jrnl-lock-title">${titles[mode] || 'journal'}</div>
         ${needsOld ? `<input type="password" id="jl-old" class="jrnl-tags" placeholder="${mode === 'unlock' ? 'passcode' : 'current passcode'}" autocomplete="off">` : ''}
-        ${needsNew ? `<input type="password" id="jl-new" class="jrnl-tags" placeholder="new passcode" autocomplete="off">` : ''}
-        ${needsNew ? `<input type="password" id="jl-new2" class="jrnl-tags" placeholder="confirm passcode" autocomplete="off">` : ''}
+        ${needsNew ? `<input type="password" id="jl-new" class="jrnl-tags" placeholder="new passcode (12+ characters)" minlength="12" autocomplete="new-password">` : ''}
+        ${needsNew ? `<input type="password" id="jl-new2" class="jrnl-tags" placeholder="confirm passcode" minlength="12" autocomplete="new-password">` : ''}
         <div class="jrnl-lock-actions">
           <button class="btn primary" id="jl-go">${mode === 'unlock' ? 'unlock' : mode === 'disable' ? 'disable' : 'save'}</button>
           ${mode !== 'unlock' ? '<button class="btn" id="jl-cancel">cancel</button>' : ''}
@@ -350,7 +518,7 @@ function showLock(mode) {
         const r = await fetch('/api/journal/lock/disable', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ passcode: old }) });
         if (!r.ok) return err('wrong passcode'); _setToken(''); _built = false; buildJournal();
       } else { // set | change
-        if (nw.length < 4) return err('use at least 4 characters');
+        if (nw.length < 12) return err('use at least 12 characters');
         if (nw !== nw2) return err('passcodes don\'t match');
         const r = await fetch('/api/journal/lock/set', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ passcode: nw, old }) });
         if (!r.ok) return err((await r.json().catch(() => ({}))).detail || 'failed');
@@ -366,20 +534,51 @@ function showLock(mode) {
 
 function curMood() { return document.querySelector('.jrnl-mood.active')?.dataset.m || ''; }
 
+function snapshotEditor() {
+  const text = document.getElementById('jrnl-text');
+  const tags = document.getElementById('jrnl-tags');
+  if (!text || !tags) return null;
+  return { day: _day, content: text.value, tags: tags.value, mood: curMood() };
+}
+
+async function navigateDay(nextDay) {
+  if (nextDay === _day) return;
+  while (_dirty || _saveTimer !== null || _saveInFlight !== null) {
+    clearTimeout(_saveTimer);
+    _saveTimer = null;
+    if (!await save(false)) {
+      toast('save failed; staying on this day', 'error');
+      return;
+    }
+  }
+  _day = nextDay;
+  await load();
+}
+
 async function load() {
-  clearTimeout(_saveTimer);  // cancel a pending autosave or it fires after the day swaps and writes the wrong day
+  const generation = ++_loadGeneration;
+  const requestedDay = _day;
+  clearTimeout(_saveTimer);
+  _saveTimer = null;
   _setDayUrl();
-  document.getElementById('jrnl-date').textContent = pretty(_day);
-  document.getElementById('jrnl-next').disabled = _day >= todayISO();
+  document.getElementById('jrnl-date').textContent = formatJournalDay(requestedDay);
+  document.getElementById('jrnl-next').disabled = requestedDay >= todayISO();
   try {
-    const e = await jget('/api/journal/' + _day);
-    document.getElementById('jrnl-text').value = e.content || '';
-    document.getElementById('jrnl-tags').value = e.tags || '';
-    document.querySelectorAll('.jrnl-mood').forEach(x => x.classList.toggle('active', x.dataset.m === e.mood));
+    const e = await jget('/api/journal/' + requestedDay);
+    if (generation !== _loadGeneration || requestedDay !== _day) return;
+    const draft = _lockedDraft?.day === requestedDay ? _lockedDraft : null;
+    document.getElementById('jrnl-text').value = draft?.content ?? e.content ?? '';
+    document.getElementById('jrnl-tags').value = draft?.tags ?? e.tags ?? '';
+    document.querySelectorAll('.jrnl-mood').forEach(x => x.classList.toggle('active', x.dataset.m === (draft?.mood ?? e.mood)));
     document.getElementById('jrnl-reflection').style.display = 'none';
-    document.getElementById('jrnl-saved').textContent = '';
+    document.getElementById('jrnl-saved').textContent = draft ? 'unsaved draft restored' : '';
+    _dirty = Boolean(draft);
     updateWords();
-  } catch { /* fresh shell is fine */ }
+  } catch {
+    if (generation !== _loadGeneration || requestedDay !== _day) return;
+    /* fresh shell is fine */
+  }
+  if (generation !== _loadGeneration || requestedDay !== _day) return;
   loadStats();
   loadRecent();
   loadHeatmap();
@@ -391,15 +590,42 @@ function updateWords() {
 }
 
 async function save(explicit) {
-  const content = document.getElementById('jrnl-text').value;
-  const tags = document.getElementById('jrnl-tags').value;
+  if (_saveInFlight !== null) {
+    const previousSaved = await _saveInFlight;
+    if (!_dirty) return previousSaved;
+  }
+  const savedDay = _day;
+  const draft = snapshotEditor();
+  if (!draft) return false;
+  const { content, tags, mood } = draft;
+  const request = (async () => {
+    try {
+      await jput('/api/journal/' + savedDay, { content, mood, tags });
+      if (savedDay !== _day) return true;
+      const current = snapshotEditor();
+      const locked = _lockedDraft?.day === savedDay ? _lockedDraft : null;
+      const unchanged = current
+        ? current.day === savedDay && current.content === content && current.tags === tags && current.mood === mood
+        : locked?.content === content && locked?.tags === tags && locked?.mood === mood;
+      if (unchanged) {
+        _dirty = false;
+        if (locked) _lockedDraft = null;
+      }
+      const saved = document.getElementById('jrnl-saved');
+      if (saved) saved.textContent = 'saved ' + formatTime(new Date());
+      if (explicit) toast('entry saved', 'success');
+      loadStats(); loadRecent(); loadMoodTrend(); loadMoodCorr(); loadTopics();
+      return true;
+    } catch (e) {
+      if (explicit) toast(e.message || 'save failed', 'error');
+      return false;
+    }
+  })();
+  _saveInFlight = request;
   try {
-    await jput('/api/journal/' + _day, { content, mood: curMood(), tags });
-    document.getElementById('jrnl-saved').textContent = 'saved ' + new Date().toLocaleTimeString();
-    if (explicit) toast('entry saved', 'success');
-    loadStats(); loadRecent(); loadMoodTrend(); loadMoodCorr(); loadTopics();
-  } catch (e) {
-    if (explicit) toast(e.message || 'save failed', 'error');
+    return await request;
+  } finally {
+    if (_saveInFlight === request) _saveInFlight = null;
   }
 }
 
@@ -430,7 +656,7 @@ async function loadOnThisDay() {
       const c = e.content || '';
       return `<div class="jrnl-otd-row" data-d="${e.date}"><b>${e.date.slice(0, 4)}</b> ${e.mood || ''} ${esc(c.slice(0, 90))}${c.length > 90 ? '…' : ''}</div>`;
     }).join('');
-    el.querySelectorAll('.jrnl-otd-row').forEach(r => r.onclick = () => { _day = r.dataset.d; load(); });
+    el.querySelectorAll('.jrnl-otd-row').forEach(r => r.onclick = () => navigateDay(r.dataset.d));
   } catch {}
 }
 
@@ -446,7 +672,7 @@ async function loadRecent() {
         <span class="jrnl-recent-snip">${esc((e.content || '').slice(0, 60))}</span>
       </div>`
     ).join('') || '<div class="jrnl-empty">no entries yet — write one</div>';
-    el.querySelectorAll('.jrnl-recent-row').forEach(r => r.onclick = () => { _day = r.dataset.d; load(); });
+    el.querySelectorAll('.jrnl-recent-row').forEach(r => r.onclick = () => navigateDay(r.dataset.d));
   } catch {}
 }
 

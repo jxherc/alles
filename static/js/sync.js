@@ -14,13 +14,31 @@ function ping() {
   _sw()?.controller?.postMessage({ type: 'alles-pending' });
 }
 
-function updateBadge(n) {
+function updateBadge(n, blocked = 0) {
   const el = document.getElementById('sync-indicator');
   if (!el) return;
+  el.replaceChildren();
   if (n > 0) {
-    el.textContent = `⟳ ${n} pending`;
+    const status = document.createElement('span');
+    status.textContent = blocked > 0
+      ? `${blocked} blocked offline change${blocked === 1 ? '' : 's'}`
+      : `⟳ ${n} pending`;
+    el.appendChild(status);
+    if (blocked > 0) {
+      const discard = document.createElement('button');
+      discard.type = 'button';
+      discard.textContent = 'discard blocked';
+      discard.title = 're-enter these changes if needed, then remove the blocked copies';
+      discard.addEventListener('click', () => {
+        discard.disabled = true;
+        _sw()?.controller?.postMessage({ type: 'alles-discard-blocked' });
+      });
+      el.appendChild(discard);
+    }
     el.style.display = '';
-    el.title = `${n} change(s) queued offline — will sync when you reconnect`;
+    el.title = blocked > 0
+      ? 'an older version queued changes that are no longer safe to replay automatically'
+      : `${n} change(s) queued offline - will sync when you reconnect`;
   } else {
     el.style.display = 'none';
   }
@@ -34,7 +52,7 @@ export function initSync() {
   navigator.serviceWorker.addEventListener('message', e => {
     if (e.data && e.data.type === 'alles-sync') {
       const at = e.data.at || 0;
-      if (at >= lastAt) { lastAt = at; updateBadge(e.data.pending); }   // ignore stale counts
+      if (at >= lastAt) { lastAt = at; updateBadge(e.data.pending, e.data.blocked); }   // ignore stale counts
     }
   });
 

@@ -140,6 +140,7 @@ def create_book(body: BookBody, db: DbSession = Depends(get_db)):
     db.refresh(b)
     try:
         from services import personal_index
+
         personal_index.index_record(db, "book", b)
     except Exception:
         pass
@@ -186,6 +187,7 @@ def update_book(bid: str, body: BookPatch, db: DbSession = Depends(get_db)):
     db.commit()
     try:
         from services import personal_index
+
         personal_index.index_record(db, "book", b)
     except Exception:
         pass
@@ -207,7 +209,11 @@ def import_books(body: ImportBody, db: DbSession = Depends(get_db)):
     # have one, else title+author (lowercased). seed from what's already saved.
     def _key(isbn, title, author):
         i = (isbn or "").strip().lower()
-        return ("isbn", i) if i else ("ta", (title or "").strip().lower(), (author or "").strip().lower())
+        return (
+            ("isbn", i)
+            if i
+            else ("ta", (title or "").strip().lower(), (author or "").strip().lower())
+        )
 
     seen = {_key(b.isbn, b.title, b.author) for b in db.query(Book).all()}
     n = 0
@@ -242,6 +248,7 @@ def delete_book(bid: str, db: DbSession = Depends(get_db)):
     db.commit()
     try:
         from services import personal_index
+
         personal_index.remove_record(db, "book", bid)
     except Exception:
         pass

@@ -7,7 +7,8 @@ from core.settings import load_settings
 from services.model_catalog import is_chat_model
 from services.routing import is_local_endpoint
 
-MODEL_ROLES = ("aide_chat", "andromeda", "jarvis")
+MODEL_ROLES = ("aide_chat", "andromeda_answer", "andromeda_verifier", "jarvis")
+LEGACY_MODEL_ROLE_ALIASES = {"andromeda": "andromeda_answer"}
 
 
 class ModelResolutionError(RuntimeError):
@@ -40,12 +41,17 @@ def normalize_model_roles(value) -> dict:
         return {role: {} for role in MODEL_ROLES}
     if not isinstance(value, dict):
         raise ValueError("model_roles must be an object")
-    unknown = set(value) - set(MODEL_ROLES)
+    migrated = dict(value)
+    for legacy, canonical in LEGACY_MODEL_ROLE_ALIASES.items():
+        if legacy in migrated and canonical not in migrated:
+            migrated[canonical] = migrated[legacy]
+        migrated.pop(legacy, None)
+    unknown = set(migrated) - set(MODEL_ROLES)
     if unknown:
         raise ValueError("unknown model role")
     result = {}
     for role in MODEL_ROLES:
-        choice = value.get(role) or {}
+        choice = migrated.get(role) or {}
         if not isinstance(choice, dict):
             raise ValueError(f"{role} must be an object")
         allowed = {"endpoint_id", "model", "cost_class", "fallbacks"}
@@ -188,6 +194,7 @@ def resolve_model(
     feature_default: dict | None = None,
     settings: dict | None = None,
 ) -> ResolvedModel:
+    role = LEGACY_MODEL_ROLE_ALIASES.get(role, role)
     if role not in MODEL_ROLES:
         raise ModelResolutionError("invalid_model_role", "unknown model role")
     settings = settings or load_settings()
@@ -232,7 +239,9 @@ def resolve_model(
         return selection
 
     endpoints = _enabled_endpoints(db)
-    if role == "andromeda" or settings.get("prefer_local_models"):
+    if role in {"andromeda_answer", "andromeda_verifier"} or settings.get(
+        "prefer_local_models"
+    ):
         endpoints.sort(key=lambda item: not is_local_endpoint(item))
     for endpoint in endpoints:
         available = _available_models(endpoint)

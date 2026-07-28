@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 420" role="img" aria-labelledby="title desc">
+  <title id="title">structured result layout</title>
+  <desc id="desc">a wireframe showing a prominent answer and supporting links</desc>
+  <rect width="640" height="420" fill="#111111"/>
+  <rect x="46" y="38" width="548" height="344" rx="7" fill="#0b0b0b" stroke="#444444"/>
+  <rect x="72" y="66" width="352" height="19" rx="4" fill="#6b6b6b"/>
+  <rect x="72" y="110" width="496" height="116" rx="5" fill="#181818" stroke="#4b4b4b"/>
+  <rect x="94" y="132" width="94" height="8" rx="4" fill="#8b91ff"/>
+  <rect x="94" y="154" width="183" height="22" rx="4" fill="#e4e1dc"/>
+  <path d="M91 182h194" stroke="#818cf8" stroke-width="10" opacity=".4"/>
+  <rect x="94" y="198" width="408" height="7" rx="3" fill="#5c5956"/>
+  <g fill="#d6d2ce">
+    <rect x="72" y="260" width="270" height="12" rx="4"/>
+    <rect x="72" y="319" width="230" height="12" rx="4"/>
+  </g>
+  <g fill="#5b5855">
+    <rect x="72" y="282" width="460" height="7" rx="3"/>
+    <rect x="72" y="341" width="402" height="7" rx="3"/>
+  </g>
+</svg>

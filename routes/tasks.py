@@ -1,11 +1,12 @@
-from datetime import date
+from datetime import UTC, date
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session as DbSession
 
 from core.database import Task, get_db
+from core.settings import load_settings
 from services.task_nl import advance, parse_task, reschedule_date
 
 router = APIRouter(prefix="/api")
@@ -158,7 +159,7 @@ def create_task(body: TaskBody, db: DbSession = Depends(get_db)):
         done=stage == "done",
     )
     if body.nl:
-        p = parse_task(body.title)
+        p = parse_task(body.title, language=load_settings().get("language", "en"))
         fields["title"] = p["title"]
         fields["priority"] = max(body.priority, p["priority"])
         fields["due_date"] = body.due_date or p["due_date"]
@@ -189,7 +190,7 @@ def quick_add(body: QuickBody, db: DbSession = Depends(get_db)):
     """natural-language quick add: 'pay rent every 1st !', 'call mom tomorrow #home'."""
     if not body.text.strip():
         raise HTTPException(400, "empty")
-    p = parse_task(body.text)
+    p = parse_task(body.text, language=load_settings().get("language", "en"))
     _due = p["due_date"] or ""
     t = Task(
         title=p["title"],
@@ -205,6 +206,83 @@ def quick_add(body: QuickBody, db: DbSession = Depends(get_db)):
     db.commit()
     db.refresh(t)
     return _fmt(t)
+
+
+class TaskOrderItem(BaseModel):
+    id: str
+    stage: str
+    sort_order: int = Field(ge=0, le=1999)
+
+
+class TaskOrderBody(BaseModel):
+    items: list[TaskOrderItem] = Field(default_factory=list)
+    ids: list[str] = Field(default_factory=list)
+
+
+@router.post("/tasks/reorder")
+def reorder_tasks(body: TaskOrderBody, db: DbSession = Depends(get_db)):
+    """Atomically persist the visible active-task board order and stages."""
+    if body.items and body.ids:
+        raise HTTPException(400, "send items or ids, not both")
+    items = body.items
+    if body.ids:
+        if len(body.ids) > 2000:
+            raise HTTPException(400, "too many tasks")
+        if len(body.ids) != len(set(body.ids)):
+            raise HTTPException(400, "task ids must be unique")
+        legacy_rows = db.query(Task).filter(Task.id.in_(body.ids)).all()
+        legacy_by_id = {row.id: row for row in legacy_rows}
+        missing = [tid for tid in body.ids if tid not in legacy_by_id]
+        if missing:
+            raise HTTPException(404, "task not found")
+        items = [
+            TaskOrderItem(
+                id=tid,
+                stage=_stage(getattr(legacy_by_id[tid], "stage", ""), False),
+                sort_order=index,
+            )
+            for index, tid in enumerate(body.ids)
+        ]
+    if len(items) > 2000:
+        raise HTTPException(400, "too many tasks")
+    ids = [item.id for item in items]
+    if len(ids) != len(set(ids)):
+        raise HTTPException(400, "task ids must be unique")
+    rows = db.query(Task).filter(Task.id.in_(ids)).all() if ids else []
+    by_id = {row.id: row for row in rows}
+    missing = [tid for tid in ids if tid not in by_id]
+    if missing:
+        raise HTTPException(404, "task not found")
+    normalized_stages = {}
+    for item in items:
+        stage = _validate_stage(item.stage)
+        if stage == "done":
+            raise HTTPException(400, "complete tasks with the task update endpoint")
+        row = by_id[item.id]
+        if row.done:
+            raise HTTPException(409, "completed task cannot be reordered")
+        normalized_stages[item.id] = stage
+    active_rows = db.query(Task).filter(Task.done == False).all()
+    active_ids = {row.id for row in active_rows}
+    if set(ids) != active_ids:
+        raise HTTPException(400, "reorder requires the complete active-task board")
+    requested = {item.id: item for item in items}
+    positions = set()
+    for row in active_rows:
+        item = requested.get(row.id)
+        position = (
+            normalized_stages[row.id] if item else _stage(row.stage, False),
+            item.sort_order if item else (row.sort_order or 0),
+        )
+        if position in positions:
+            raise HTTPException(400, "task sort orders must be unique within each stage")
+        positions.add(position)
+    for item in items:
+        row = by_id[item.id]
+        row.stage = normalized_stages[item.id]
+        row.sort_order = item.sort_order
+    db.commit()
+    return {"items": [_fmt(by_id[item.id]) for item in items]}
 
 
 @router.patch("/tasks/{tid}")
@@ -229,7 +307,7 @@ def update_task(tid: str, body: dict, db: DbSession = Depends(get_db)):
     if "done" in body and bool(body["done"]) != bool(t.done):
         from datetime import datetime
 
-        t.completed_at = datetime.utcnow() if body["done"] else None
+        t.completed_at = datetime.now(UTC).replace(tzinfo=None) if body["done"] else None
     if body.get("done") and not t.done and t.repeat and t.due_date:
         # completing a recurring task rolls it forward to the next occurrence
         anchor = t.anchor_day or (int(t.due_date[8:10]) if len(t.due_date) >= 10 else None)
@@ -302,20 +380,6 @@ def reschedule_task(tid: str, body: RescheduleBody, db: DbSession = Depends(get_
     db.commit()
     db.refresh(t)
     return _fmt(t)
-
-
-class Reorder(BaseModel):
-    ids: list[str]
-
-
-@router.post("/tasks/reorder")
-def reorder(body: Reorder, db: DbSession = Depends(get_db)):
-    for i, tid in enumerate(body.ids):
-        t = db.get(Task, tid)
-        if t:
-            t.sort_order = i
-    db.commit()
-    return {"ok": True}
 
 
 @router.delete("/tasks/{tid}")

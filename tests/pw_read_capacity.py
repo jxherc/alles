@@ -4,6 +4,7 @@ seeds directly into the running server's DB, so set the SAME data dir for both:
   ALLES_DATA=.tmp_rc AUTH_ENABLED=false PORT=8077 python app.py
   ALLES_DATA=.tmp_rc PYTHONPATH=. PYTHONIOENCODING=utf-8 python tests/pw_read_capacity.py
 """
+
 import os
 
 from playwright.sync_api import sync_playwright

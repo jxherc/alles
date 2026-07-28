@@ -135,7 +135,7 @@ class ShareAlbumTests(ApiTest):
         self.client.patch(f"/api/photos/{hid}", json={"hidden": True})
         self.client.delete(f"/api/photos/{gone}")
         counts = {r["name"]: r["count"] for r in self.client.get("/api/photos/albums").json()}
-        self.assertEqual(counts["Counted"], 1)   # only the live photo counts
+        self.assertEqual(counts["Counted"], 1)  # only the live photo counts
         self.assertEqual(counts["EmptyOne"], 0)  # an album with no photos reports 0
 
     def test_album_empty_ok(self):

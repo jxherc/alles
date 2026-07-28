@@ -2,12 +2,13 @@ import asyncio  # noqa: I001 - legacy route imports are intentionally grouped on
 import json
 import logging
 import os
+import tempfile
 import time
 from contextlib import asynccontextmanager
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -89,6 +90,9 @@ from routes import andromeda as andromeda_routes
 from routes import (
     files as files_routes,
 )
+from routes import storage_locations as storage_location_routes
+from routes import file_operations as file_operation_routes
+from routes import offline_files as offline_file_routes
 from routes import (
     gallery as gallery_routes,
 )
@@ -106,6 +110,9 @@ from routes import (
 )
 from routes import (
     journal as journal_routes,
+)
+from routes import (
+    journal_migration as journal_migration_routes,
 )
 from routes import (
     jarvis as jarvis_routes,
@@ -128,6 +135,9 @@ from routes import (
 from routes import (
     money as money_routes,
 )
+from routes import finance_imports as finance_import_routes
+from routes import finance_actual as finance_actual_routes
+from routes import finance_connections as finance_connection_routes
 from routes import (
     notes as notes_routes,
 )
@@ -155,6 +165,7 @@ from routes import (
 from routes import (
     read as read_routes,
 )
+from routes import news as news_routes
 from routes import (
     capabilities as capabilities_routes,
 )
@@ -179,6 +190,8 @@ from routes import (
 from routes import (
     settings as settings_routes,
 )
+from routes import setup as setup_routes
+from routes import browser_passwords as browser_password_routes
 from routes import (
     shared as shared_routes,
 )
@@ -306,7 +319,7 @@ async def _fire_due_reminders():
     from routes.push import broadcast_result as push_broadcast_result
     from services.llm import stream_chat
 
-    now = datetime.utcnow()
+    now = datetime.now(UTC).replace(tzinfo=None)
     db = SessionLocal()
     try:
         # plain reminders: web push once, but leave them unfired so an
@@ -392,7 +405,7 @@ async def _fire_due_reminders():
             db.add(am)
             r.fired = True
             s.message_count = (s.message_count or 0) + 2
-            s.last_message_at = dt.utcnow()
+            s.last_message_at = dt.now(UTC).replace(tzinfo=None)
             db.commit()
             log.info(f"fired scheduled message for session {s.id}")
             try:
@@ -428,6 +441,7 @@ def _register_jobs():
 
     async def _jarvis_scheduler():
         from core.database import SessionLocal
+        from services.jarvis_handoff import resume_queued
         from services.jarvis_scheduler import reclaim_stale_leases, scan_due
 
         await scan_due()
@@ -437,6 +451,7 @@ def _register_jobs():
             db.commit()
         finally:
             db.close()
+        resume_queued()
 
     async def _jarvis_outbox():
         from services.jarvis_outbox import process_outbox
@@ -452,6 +467,11 @@ def _register_jobs():
         from routes.models import refresh_all_model_lists
 
         await refresh_all_model_lists()
+
+    async def _model_oauth():
+        from services.model_auth import refresh_all_oauth_endpoints
+
+        await refresh_all_oauth_endpoints()
 
     async def _cal_reminders():
         from services.cal_notify import fire_due
@@ -491,6 +511,11 @@ def _register_jobs():
         from services.read_feeds import refresh_feeds
 
         await refresh_feeds()
+
+    async def _scheduled_news():
+        from services.news import run_due_news
+
+        await run_due_news()
 
     async def _reconcile():
         # synchronous IMAP body fetches + fastembed encodes — the worst loop-blocker of the
@@ -613,7 +638,13 @@ def _register_jobs():
 
         await asyncio.to_thread(_job)
 
+    async def _automatic_backup():
+        from services import automatic_backup
+
+        await asyncio.to_thread(automatic_backup.run_if_due)
+
     jobs.register("read_feeds", _read_feeds, 1800, run_at_start=False)  # rss auto-save (30 min)
+    jobs.register("scheduled_news", _scheduled_news, 60, run_at_start=False)
     jobs.register("holdings_price", _holdings_price, 6 * 3600, run_at_start=False)  # 2d (gated)
     jobs.register("blob_gc", _blob_gc, 6 * 3600, run_at_start=False)  # 0d - purge orphaned blobs
     jobs.register("clip_index", _clip_index, 60, run_at_start=False)  # 7b semantic-search indexing
@@ -632,11 +663,15 @@ def _register_jobs():
     jobs.register("calendar_reminders", _cal_reminders, 30)
     jobs.register("mail_outbox", _outbox, 30)  # flush scheduled sends (5b)
     jobs.register("model_refresh", _models, 6 * 3600)  # runs at boot, then every 6h
+    jobs.register("model_oauth_refresh", _model_oauth, 300)  # refresh expiring Gemini grants
     jobs.register("photo_watch", _photo_watch, 300, run_at_start=False)  # 7c phone backup
     jobs.register("ics_subscriptions", _ics_subs, 3600, run_at_start=False)  # 8a calendar feeds
     jobs.register("carddav_auto", _carddav_auto, 600, run_at_start=False)  # 7b contacts auto-sync
     jobs.register("watch", _watch, 60, run_at_start=False)  # uptime/cert/health probes
     jobs.register("personal_reconcile", _reconcile, 120, run_at_start=False)
+    jobs.register(
+        "automatic_backup", _automatic_backup, 3600, run_at_start=False
+    )  # setup protection: daily encrypted local backup, checked hourly
     from services.proactive import _interval_seconds
 
     jobs.register(
@@ -778,6 +813,7 @@ async def lifespan(app: FastAPI):
     reminder_task = None
     photo_backfill_task = None
     connectivity_task = None
+    discord_task = None
     try:
         init_db()
         if preflight:
@@ -785,13 +821,46 @@ async def lifespan(app: FastAPI):
             yield
             return
 
+        from services import document_safety, file_operations, offline_files, trash
+
+        db = SessionLocal()
+        try:
+            interrupted_document_writes = document_safety.recover_interrupted_writes()
+            interrupted_file_operations = file_operations.recover_interrupted(db)
+            interrupted_offline_copies = offline_files.recover_interrupted(db)
+            interrupted_file_trash = trash.recover_interrupted_files(db)
+        finally:
+            db.close()
+        if interrupted_file_operations:
+            log.warning(
+                "recovered %s interrupted Files operation(s)",
+                interrupted_file_operations,
+            )
+        if interrupted_document_writes:
+            log.warning(
+                "recovered %s interrupted document write(s)",
+                interrupted_document_writes,
+            )
+        if interrupted_offline_copies:
+            log.warning(
+                "recovered %s interrupted offline copy or copies",
+                interrupted_offline_copies,
+            )
+        if interrupted_file_trash:
+            log.warning(
+                "recovered %s interrupted file trash operation(s)",
+                interrupted_file_trash,
+            )
+
         from services.automation_migration import migrate_legacy_automations
         from services.jarvis_events import install as install_jarvis_events
 
         migrated_automations = migrate_legacy_automations()
         install_jarvis_events()
         if migrated_automations:
-            log.info("converted %s legacy automation(s) into paused Jarvis workflows", migrated_automations)
+            log.info(
+                "converted %s legacy automation(s) into paused Aide workflows", migrated_automations
+            )
 
         # A previous process may have stopped after an external action but before
         # saving its result. Resolve those claims before the job loop can run so
@@ -810,16 +879,25 @@ async def lifespan(app: FastAPI):
         interrupted_jarvis = reconcile_interrupted_runs()
         if interrupted_jarvis["interrupted"] or interrupted_jarvis["uncertain"]:
             log.warning(
-                "reconciled Jarvis runs after restart: %s interrupted, %s uncertain",
+                "reconciled Aide runs after restart: %s interrupted, %s uncertain",
                 interrupted_jarvis["interrupted"],
                 interrupted_jarvis["uncertain"],
+            )
+
+        from services.andromeda_verifier import recover_interrupted as recover_andromeda_checks
+
+        interrupted_andromeda_checks = recover_andromeda_checks()
+        if interrupted_andromeda_checks:
+            log.warning(
+                "marked %s interrupted Andromeda verification job(s)",
+                interrupted_andromeda_checks,
             )
 
         from services.jarvis_handoff import resume_queued as resume_jarvis_handoffs
 
         resumed_handoffs = resume_jarvis_handoffs()
         if resumed_handoffs:
-            log.info("resumed %s queued Aide to Jarvis handoff(s)", resumed_handoffs)
+            log.info("resumed %s queued Aide background run(s)", resumed_handoffs)
 
         from services.delegated_actions import reconcile_delegated_actions
 
@@ -891,12 +969,23 @@ async def lifespan(app: FastAPI):
         except Exception:
             pass
         reminder_task = asyncio.create_task(_reminder_loop())
+        from services.jarvis_discord import run_forever as run_jarvis_discord
+
+        discord_task = asyncio.create_task(run_jarvis_discord(), name="jarvis-discord")
         connectivity_task = asyncio.create_task(
             _connectivity_selftest()
         )  # fire-and-forget, logs a warning if outbound is dead
         log.info("alles ready")
         yield
     finally:
+        if discord_task is not None:
+            discord_task.cancel()
+            try:
+                await discord_task
+            except asyncio.CancelledError:
+                pass
+            except Exception as exc:
+                log.warning("Jarvis Discord connection stopped with %s", type(exc).__name__)
         if reminder_task is not None:
             reminder_task.cancel()
             try:
@@ -1041,10 +1130,12 @@ app.include_router(auth_routes.router)
 app.include_router(chat.router)
 app.include_router(sessions.router)
 app.include_router(models.router)
+app.include_router(setup_routes.router)
 app.include_router(settings_routes.router)
 app.include_router(memory_routes.router)
 app.include_router(research_routes.router)
 app.include_router(journal_routes.router)
+app.include_router(journal_migration_routes.router)
 app.include_router(usage_routes.router)
 app.include_router(rag_routes.router)
 app.include_router(textindex_routes.router)
@@ -1071,6 +1162,8 @@ app.include_router(project_routes.router)
 app.include_router(voice_routes.router)
 app.include_router(search_routes.router)
 app.include_router(compare_routes.router)
+app.include_router(browser_password_routes.extension_router)
+app.include_router(browser_password_routes.owner_router)
 app.include_router(vault_routes.router)
 app.include_router(oai_routes.router)
 app.include_router(contact_routes.router)
@@ -1082,6 +1175,9 @@ app.include_router(vault_md_routes.router)
 app.include_router(reminder_routes.router)
 app.include_router(shared_routes.router)
 app.include_router(files_routes.router)
+app.include_router(file_operation_routes.router)
+app.include_router(offline_file_routes.router)
+app.include_router(storage_location_routes.router)
 app.include_router(caldav_routes.router)
 app.include_router(carddav_routes.router)
 app.include_router(mail_routes.router)
@@ -1097,6 +1193,9 @@ app.include_router(jarvis_routes.router)
 app.include_router(delegation_routes.router)
 app.include_router(andromeda_routes.router)
 app.include_router(money_routes.router)
+app.include_router(finance_import_routes.router)
+app.include_router(finance_actual_routes.router)
+app.include_router(finance_connection_routes.router)
 app.include_router(timeline_routes.router)
 app.include_router(system_routes.router)
 app.include_router(insights_routes.router)
@@ -1106,6 +1205,7 @@ app.include_router(watch_routes.router)
 app.include_router(appearance_routes.router)
 app.include_router(habits_routes.router)
 app.include_router(read_routes.router)
+app.include_router(news_routes.router)
 app.include_router(books_routes.router)
 app.include_router(health_routes.router)
 app.include_router(capabilities_routes.router)
@@ -1162,9 +1262,15 @@ async def pwa_precache():
     import re
 
     html = (static_dir / "index.html").read_text(encoding="utf-8")
-    m = re.search(r"\?v=(\d+)", html)
+    m = re.search(r"/static/style\.css\?v=(\d+)", html)
     stamp = m.group(1) if m else "1"
-    urls = ["/", "/manifest.json", f"/static/style.css?v={stamp}"]
+    urls = ["/", "/manifest.json"]
+    for tag in re.findall(r"<link\b[^>]*>", html, flags=re.IGNORECASE):
+        if not re.search(r'\brel=["\']stylesheet["\']', tag, flags=re.IGNORECASE):
+            continue
+        href = re.search(r'\bhref=["\']([^"\']+)["\']', tag, flags=re.IGNORECASE)
+        if href and href.group(1).startswith("/static/") and href.group(1) not in urls:
+            urls.append(href.group(1))
     for ic in ("icon-192.png", "icon-512.png", "icon-maskable-512.png"):
         if (static_dir / "icons" / ic).exists():
             urls.append(f"/static/icons/{ic}")
@@ -1172,9 +1278,15 @@ async def pwa_precache():
         urls.append(
             f"/static/js/app.js?v={stamp}" if p.name == "app.js" else f"/static/js/{p.name}"
         )
-    for v in ("vendor/cm6.bundle.js",):
-        if (static_dir / v).exists():
-            urls.append(f"/static/{v}")
+    for p in sorted((static_dir / "locales").glob("*.json")):
+        urls.append(f"/static/locales/{p.name}")
+    for path, version in (
+        ("vendor/cm6.bundle.js", ""),
+        ("vendor/xterm/xterm.mjs", "?v=6.0.0"),
+        ("vendor/xterm/addon-fit.mjs", "?v=0.11.0"),
+    ):
+        if (static_dir / path).exists():
+            urls.append(f"/static/{path}{version}")
     return {"urls": urls}
 
 
@@ -1196,11 +1308,34 @@ def _request_authed(request: Request) -> bool:
     return verify_session(request.cookies.get("aide_session", ""))
 
 
+def _owned_browser_test_run_id() -> str:
+    """Expose a browser-test proof only for an owned system-temporary data root."""
+    if os.environ.get("ALLES_TEST_DATA", "").strip().lower() not in {"1", "true", "yes"}:
+        return ""
+    run_id = os.environ.get("ALLES_TEST_RUN_ID", "").strip()
+    if len(run_id) < 16:
+        return ""
+    from core.settings import data_dir
+
+    root = data_dir().expanduser().resolve()
+    temp_root = Path(tempfile.gettempdir()).resolve()
+    if root == temp_root or temp_root not in root.parents:
+        return ""
+    try:
+        owner = (root / ".alles-test-owner").read_text("utf-8").strip()
+    except OSError:
+        return ""
+    return run_id if owner == run_id else ""
+
+
 @app.get("/health")
-def health(request: Request, deep: bool = False):
+def health(request: Request, response: Response, deep: bool = False):
     # default stays a cheap liveness ping. ?deep=1 runs the full readiness check, but its details
     # (data-dir PATH, installed deps, provider/key state) are internal — only expose them in local
     # mode (no auth) or to an authenticated caller, never to an anonymous client when auth is on.
+    test_run_id = _owned_browser_test_run_id()
+    if test_run_id:
+        response.headers["X-Alles-Test-Run-ID"] = test_run_id
     if deep and (not auth_enabled() or _request_authed(request)):
         from services import doctor
 

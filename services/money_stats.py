@@ -32,9 +32,9 @@ def category_anomalies(db, *, as_of, months=3, ratio=1.5, min_amount=50.0, cur=N
 
 def new_merchants(db, *, as_of, months=3, min_amount=20.0):
     """normalized merchants seen THIS month but not in the prior `months`."""
-    from core.database import Account, Transaction
-
     from sqlalchemy import or_
+
+    from core.database import Account, Transaction
 
     cur_month = as_of.strftime("%Y-%m")
     prior = set(_recent_months(as_of, months))

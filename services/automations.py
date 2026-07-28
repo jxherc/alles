@@ -26,7 +26,7 @@ import hashlib
 import json
 import logging
 import uuid
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 
 from sqlalchemy.exc import IntegrityError
 
@@ -125,7 +125,7 @@ def _claim_attempt(db, rule, ctx: dict) -> tuple[AutomationAttempt, bool]:
 def _finish_attempt(db, attempt, status: str, error: str = "") -> str:
     attempt.status = status
     attempt.error = error[:300]
-    attempt.finished_at = datetime.utcnow()
+    attempt.finished_at = datetime.now(UTC).replace(tzinfo=None)
     try:
         db.commit()
         return status
@@ -292,7 +292,7 @@ def reconcile_interrupted_attempts() -> int:
         rows = db.query(AutomationAttempt).filter_by(status=ATTEMPT_RUNNING).all()
         if not rows:
             return 0
-        now = datetime.utcnow()
+        now = datetime.now(UTC).replace(tzinfo=None)
         for attempt in rows:
             attempt.status = ATTEMPT_UNCERTAIN
             attempt.error = "server stopped before the action outcome was confirmed"

@@ -1,22 +1,28 @@
 import os
-from fastapi import APIRouter, HTTPException, Response, Cookie, Request
-from pydantic import BaseModel
-from core.settings import load_settings, save_settings, base_domain
+from typing import Literal
+
+from fastapi import APIRouter, Cookie, HTTPException, Request, Response
+from pydantic import BaseModel, Field
+
 from core.auth import (
+    MIN_OWNER_PASSWORD_LENGTH,
     RECENT_AUTH_SECONDS,
-    hash_password,
-    verify_password,
-    create_session_token,
-    store_token,
-    verify_session,
-    revoke_token,
-    make_handoff,
-    redeem_handoff,
-    login_blocked,
-    record_login_fail,
     clear_login_fails,
+    create_session_token,
+    hash_password,
+    login_blocked,
+    make_context_handoff,
+    make_handoff,
     mark_session_recent,
+    record_login_fail,
+    redeem_context_handoff,
+    redeem_handoff,
+    revoke_token,
+    store_token,
+    verify_password,
+    verify_session,
 )
+from core.settings import auth_enabled, base_domain, load_settings, save_settings
 
 router = APIRouter(prefix="/api/auth")
 
@@ -44,6 +50,26 @@ def _set_session_cookie(response: Response, token: str):
 
 class LoginBody(BaseModel):
     password: str
+
+
+class ContextDocumentScope(BaseModel):
+    kind: Literal["vault_document"] = "vault_document"
+    path: str = Field(min_length=1, max_length=2048)
+    expected_hash: str = Field(min_length=1, max_length=256)
+
+
+class ContextHandoffBody(BaseModel):
+    ask: str = Field(min_length=1, max_length=20_000)
+    web: bool = False
+    document_scope: ContextDocumentScope | None = None
+
+
+def _context_session(aide_session: str | None) -> str:
+    if auth_enabled():
+        if not aide_session or not verify_session(aide_session):
+            raise HTTPException(401, "not authenticated")
+        return aide_session
+    return aide_session if aide_session and verify_session(aide_session) else ""
 
 
 @router.post("/login")
@@ -123,20 +149,25 @@ class ChangePwBody(BaseModel):
 
 @router.post("/change-password")
 def change_password(body: ChangePwBody, request: Request):
-    if len(body.new_password) < 4:
-        raise HTTPException(400, "new password must be at least 4 characters")
+    if len(body.new_password) < MIN_OWNER_PASSWORD_LENGTH:
+        raise HTTPException(
+            400,
+            f"new password must be at least {MIN_OWNER_PASSWORD_LENGTH} characters",
+        )
     s = load_settings()
     hashed = s.get("auth_password_hash", "")
+    env_pw = ""
     if not hashed:
         env_pw = os.getenv("AUTH_PASSWORD", "")
-        hashed = hash_password(env_pw) if env_pw else ""
     # if a password already exists, the current one must match. throttle this
     # the same way as /login — otherwise it's an unmetered brute-force oracle
     # for the master password (this endpoint sits under the auth-exempt prefix).
-    if hashed:
+    if hashed or env_pw:
         ip = request.client.host if request.client else "?"
         if login_blocked(ip):
             raise HTTPException(429, "too many attempts — wait a few minutes and try again")
+        if not hashed:
+            hashed = hash_password(env_pw)
         if not verify_password(body.old_password, hashed):
             record_login_fail(ip)
             raise HTTPException(401, "current password is wrong")
@@ -151,26 +182,43 @@ class AuthConfigBody(BaseModel):
 
 
 @router.post("/config")
-def set_auth_config(body: AuthConfigBody, request: Request):
+def set_auth_config(body: AuthConfigBody, request: Request, response: Response):
     """turn the password lock on/off from the UI (no file editing). enabling needs a
     password to exist (or one supplied here); disabling needs the current password so a
     random visitor can't just switch it off."""
     s = load_settings()
     hashed = s.get("auth_password_hash", "")
+    env_password = ""
+    if not hashed:
+        env_password = os.getenv("AUTH_PASSWORD", "")
+    ip = request.client.host if request.client else "?"
+    if (hashed or env_password) and login_blocked(ip):
+        raise HTTPException(429, "too many attempts — wait a few minutes and try again")
+    if not hashed and env_password:
+        hashed = hash_password(env_password)
     if body.enabled:
-        if body.password:
-            if len(body.password) < 4:
-                raise HTTPException(400, "password must be at least 4 characters")
+        if hashed:
+            if not verify_password(body.password, hashed):
+                record_login_fail(ip)
+                raise HTTPException(401, "current password required to enable the lock")
+            clear_login_fails(ip)
+        elif body.password:
+            if len(body.password) < MIN_OWNER_PASSWORD_LENGTH:
+                raise HTTPException(
+                    400,
+                    f"password must be at least {MIN_OWNER_PASSWORD_LENGTH} characters",
+                )
             hashed = hash_password(body.password)
         if not hashed:
             raise HTTPException(400, "set a password first, then enable the lock")
         save_settings({"auth_password_hash": hashed, "auth_enabled": True})
+        if body.password:
+            token = create_session_token()
+            store_token(token)
+            _set_session_cookie(response, token)
         return {"ok": True, "enabled": True}
     # disabling
     if hashed:
-        ip = request.client.host if request.client else "?"
-        if login_blocked(ip):
-            raise HTTPException(429, "too many attempts — wait a few minutes and try again")
         if not verify_password(body.password, hashed):
             record_login_fail(ip)
             raise HTTPException(401, "current password required to disable the lock")
@@ -195,3 +243,21 @@ def redeem(code: str, response: Response):
         raise HTTPException(401, "bad or expired code")
     _set_session_cookie(response, token)
     return {"ok": True}
+
+
+@router.post("/context-handoff")
+def create_context_handoff(
+    body: ContextHandoffBody,
+    aide_session: str | None = Cookie(None),
+):
+    token = _context_session(aide_session)
+    return {"code": make_context_handoff(token, body.model_dump())}
+
+
+@router.post("/context-handoff/{code}")
+def consume_context_handoff(code: str, aide_session: str | None = Cookie(None)):
+    token = _context_session(aide_session)
+    payload = redeem_context_handoff(code, token)
+    if payload is None:
+        raise HTTPException(404, "bad or expired context handoff")
+    return payload

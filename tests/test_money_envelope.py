@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import UTC, datetime
 
 from core.database import Account, Transaction
 from tests._client import ApiTest
@@ -120,7 +120,7 @@ class MoneyEnvelopeTests(ApiTest):
         self.assertEqual(c["spent"], 60.0)
 
     def test_assign_unknown_month_defaults_current(self):
-        month = datetime.utcnow().strftime("%Y-%m")
+        month = datetime.now(UTC).strftime("%Y-%m")
         self._assign("misc", 42, month=None)
         c = self._cat(self._env(month), "misc")
         self.assertIsNotNone(c)

@@ -1,7 +1,7 @@
 """Endpoint catalog reconciliation and fail-closed health state."""
 
 import json
-from datetime import datetime
+from datetime import UTC, datetime
 
 from services.imagegen import image_models, is_image_model
 from services.model_providers import CatalogFetchError, fetch_catalog, validate_adapter
@@ -45,7 +45,7 @@ def set_manual_models(endpoint, models: list[str]) -> None:
     endpoint.catalog_status = "manual"
     endpoint.catalog_source = "manual"
     endpoint.catalog_error = ""
-    endpoint.catalog_refreshed_at = datetime.utcnow()
+    endpoint.catalog_refreshed_at = datetime.now(UTC).replace(tzinfo=None)
 
 
 def set_adapter(endpoint, adapter: str) -> None:
@@ -60,7 +60,7 @@ def set_adapter(endpoint, adapter: str) -> None:
 
 
 async def refresh_endpoint(endpoint, *, client=None) -> dict:
-    now = datetime.utcnow()
+    now = datetime.now(UTC).replace(tzinfo=None)
     old_models = endpoint.models_list()
     old_images = endpoint.image_models_list()
     if (endpoint.provider_adapter or "auto") == "manual":

@@ -1,4 +1,4 @@
-"""The Passwords UI explains the retired extension and keeps the safe web fallback."""
+"""The Passwords UI owns paired browser access without exposing vault tokens."""
 
 import unittest
 from pathlib import Path
@@ -8,18 +8,18 @@ JS = (ROOT / "static" / "js" / "vault.js").read_text(encoding="utf-8")
 
 
 class AutofillWrap(unittest.TestCase):
-    def test_retired_notice_is_visible_in_manage_vault(self):
-        self.assertIn('id="vault-autofill-info"', JS)
-        self.assertIn('aria-label="browser autofill status"', JS)
-        self.assertIn('class="mv-autofill-text"', JS)
-        self.assertIn("browser autofill is off", JS)
-        self.assertIn("remove or reload the old extension", JS)
-        self.assertIn("reveal and copy logins here in Passwords", JS)
+    def test_connected_browser_controls_are_visible_in_manage_vault(self):
+        self.assertIn('id="vault-browser-access"', JS)
+        self.assertIn('id="mv-browser-download"', JS)
+        self.assertIn("data-browser-pair", JS)
+        self.assertIn("data-browser-unlock", JS)
+        self.assertIn("data-browser-lock", JS)
+        self.assertIn("data-browser-revoke", JS)
+        self.assertIn("exact origin", JS)
 
-    def test_unsafe_install_instructions_are_gone(self):
-        self.assertNotIn('id="vault-ext-link"', JS)
-        self.assertNotIn("developer.chrome.com/docs/extensions", JS)
+    def test_unsafe_vault_token_flow_stays_gone(self):
         self.assertNotIn("paste an unlock token", JS)
+        self.assertNotIn("browser autofill is off", JS)
 
 
 if __name__ == "__main__":

@@ -1,11 +1,11 @@
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from core.database import Account, Task, Transaction
 from tests._client import ApiTest
 
 # tasks are dated by created_at (utcnow), money by its date column — seed both on the
 # same UTC basis so "busiest day" is deterministic across the local-vs-UTC midnight split
-TODAY = datetime.utcnow().date()
+TODAY = datetime.now(UTC).date()
 
 
 class TimelineSummaryTests(ApiTest):

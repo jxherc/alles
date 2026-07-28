@@ -1,6 +1,6 @@
 // subscriptions — recurring costs with billing cycles and renewal reminders
 import { toast } from './util.js';
-import { initCustomDropdown } from './dropdown.js?v=210';
+import { initCustomDropdown } from './dropdown.js?v=212';
 import { initDatePicker } from './datepick.js';
 import { confirm as dlgConfirm } from './dialog.js';
 
@@ -16,8 +16,8 @@ let _editing = null;   // id of the row currently in edit mode
 let _unusedIds = new Set();   // subs with no recent matching charge (4e)
 let _detected = [];    // recurring-charge candidates not yet tracked (4e)
 
-export async function loadSubs() {
-  const get = path => fetch(path).then(r => r.json()).catch(() => null);
+export async function loadSubs(fetcher = fetch) {
+  const get = path => fetcher(path).then(r => r.json()).catch(() => null);
   const [d, analytics, upcoming, forecast, dd, accounts, unused, detected] = await Promise.all([
     get('/api/subscriptions'),
     get('/api/subscriptions/analytics'),
@@ -88,18 +88,19 @@ function _chartHtml(a) {
   </div>`;
 }
 
-export function initSubsPanel() {
-  loadSubs();
+export function initSubsPanel(fetcher = fetch) {
+  const loading = loadSubs(fetcher);
   const cycleEl = $('sub-cycle');
   initCustomDropdown(cycleEl);
   initDatePicker($('sub-due'));
   cycleEl?.addEventListener('change', () => {
     $('sub-cycle-days').style.display = cycleEl.dataset.value === 'custom' ? '' : 'none';
   });
-  if (!$('sub-add-btn') || $('sub-add-btn').dataset.wired) return;
+  if (!$('sub-add-btn') || $('sub-add-btn').dataset.wired) return loading;
   $('sub-add-btn').dataset.wired = '1';
   $('sub-add-btn').addEventListener('click', _add);
   $('sub-name')?.addEventListener('keydown', e => { if (e.key === 'Enter') _add(); });
+  return loading;
 }
 
 async function _add() {
@@ -142,7 +143,9 @@ function _render() {
   const sum = $('subs-summary');
   if (sum) {
     sum.textContent = _summary.active
-      ? `${_summary.active} active · ${_summary.currency}${_summary.monthly_total}/mo · ${_summary.currency}${_summary.yearly_total}/yr`
+      ? (_summary.totals_available === false
+          ? `${_summary.active} active · totals need currency review`
+          : `${_summary.active} active · ${_summary.currency}${_summary.monthly_total}/mo · ${_summary.currency}${_summary.yearly_total}/yr`)
       : '';
   }
   const list = $('subs-list');
@@ -198,7 +201,8 @@ function _row(s) {
       <span class="sub-price">${esc(s.currency)}${s.price ? s.price.toFixed(2) : '—'}<span class="sub-cycle">${_cycleLabel(s)}</span></span>
       <span class="sub-due${soon ? ' soon' : ''}" title="${esc(s.next_due)}">${s.active ? esc(s.next_due.slice(5)) + ' · ' : ''}${_dueLabel(s)}</span>
       <span class="sub-actions">
-        ${s.payable ? `<button class="btn" data-act="paid" title="mark this renewal paid">paid</button>`
+        ${s.renewal_review_required ? '<span class="sub-review-required" title="review this subscription currency before posting the renewal">currency review needed</span>'
+          : s.payable ? `<button class="btn" data-act="paid" title="mark this renewal paid">paid</button>`
           : (s.active ? `<span class="sub-notdue" title="next charge ${esc(s.next_due)}">not due</span>` : '')}
         ${s.paid_count ? `<button class="btn" data-act="history" title="payment history + undo">⤺ ${s.paid_count}</button>` : ''}
         <button class="btn" data-act="toggle">${s.active ? 'pause' : 'resume'}</button>

@@ -42,10 +42,12 @@ def reschedule_date(when: str, today: date | None = None) -> str:
     raise ValueError("unknown reschedule target")
 
 
-def parse_task(text: str, today: date | None = None) -> dict:
+def parse_task(text: str, today: date | None = None, language: str = "en") -> dict:
+    from services.localized_input import normalize_quick_add
+
     today = today or date.today()
     out = {"title": "", "due_date": None, "repeat": "", "priority": 0, "tags": ""}
-    t = f" {text.strip()} "
+    t = f" {normalize_quick_add(text, language)} "
 
     # priority — a standalone ! (high-ish) or !! (high), on the app's 0=none..3=high scale
     m = re.search(r"\s(!{1,2})(?=\s)", t)
@@ -59,23 +61,24 @@ def parse_task(text: str, today: date | None = None) -> dict:
         out["tags"] = ",".join(dict.fromkeys(tags))
         t = re.sub(r"#[\w-]+", " ", t)
 
-    # recurrence — "every X". consumes the phrase so it doesn't pollute the title.
+    # recurrence — "every X" or a canonical localized token. consumes the phrase so it
+    # doesn't pollute the title.
     m = re.search(
-        r"\bevery\s+(day|week|month|year|"
+        r"\b(?:(?:every\s+(day|week|month|year|"
         r"mon(?:day)?|tue(?:sday)?|wed(?:nesday)?|thu(?:rsday)?|fri(?:day)?|sat(?:urday)?|sun(?:day)?|"
-        r"(\d{1,2})(?:st|nd|rd|th))\b",
+        r"(\d{1,2})(?:st|nd|rd|th|er)))|(daily|weekly|monthly|yearly))\b",
         t,
         re.I,
     )
     if m:
-        word = m.group(1).lower()
-        if word.startswith("day"):
+        word = (m.group(1) or m.group(3)).lower()
+        if word == "daily" or word.startswith("day"):
             out["repeat"] = "daily"
-        elif word.startswith("week"):
+        elif word == "weekly" or word.startswith("week"):
             out["repeat"] = "weekly"
-        elif word.startswith("month"):
+        elif word == "monthly" or word.startswith("month"):
             out["repeat"] = "monthly"
-        elif word.startswith("year"):
+        elif word == "yearly" or word.startswith("year"):
             out["repeat"] = "yearly"
         elif m.group(2):  # "every 1st" → monthly on that day
             import calendar
@@ -100,10 +103,24 @@ def parse_task(text: str, today: date | None = None) -> dict:
     return out
 
 
-_MONTHS = {"jan": 1, "feb": 2, "mar": 3, "apr": 4, "may": 5, "jun": 6,
-           "jul": 7, "aug": 8, "sep": 9, "oct": 10, "nov": 11, "dec": 12}
-_MONTH_RE = (r"jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|"
-             r"aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?")
+_MONTHS = {
+    "jan": 1,
+    "feb": 2,
+    "mar": 3,
+    "apr": 4,
+    "may": 5,
+    "jun": 6,
+    "jul": 7,
+    "aug": 8,
+    "sep": 9,
+    "oct": 10,
+    "nov": 11,
+    "dec": 12,
+}
+_MONTH_RE = (
+    r"jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|"
+    r"aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?"
+)
 
 
 def _month_name_date(t: str, today: date):
@@ -217,6 +234,9 @@ def advance(due: str, repeat: str, anchor: int | None = None) -> str | None:
         return _add_month(d, anchor).isoformat()
     if repeat == "yearly":
         import calendar
+
         y = d.year + 1
-        return date(y, d.month, min(anchor or d.day, calendar.monthrange(y, d.month)[1])).isoformat()
+        return date(
+            y, d.month, min(anchor or d.day, calendar.monthrange(y, d.month)[1])
+        ).isoformat()
     return None

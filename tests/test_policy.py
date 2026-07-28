@@ -45,9 +45,83 @@ class PersonaBlockTests(unittest.TestCase):
 
 
 class GateTests(unittest.TestCase):
+    def test_all_modes_cover_read_write_shell_delete_external_computer_and_delegation(self):
+        cases = {
+            "read_file": {
+                "full_access": "allow",
+                "full_auto": "allow",
+                "approve": "allow",
+                "plan": "allow",
+            },
+            "write_file": {
+                "full_access": "allow",
+                "full_auto": "allow",
+                "approve": "ask",
+                "plan": "deny",
+            },
+            "shell": {
+                "full_access": "allow",
+                "full_auto": "ask",
+                "approve": "ask",
+                "plan": "deny",
+            },
+            "delete_file": {
+                "full_access": "allow",
+                "full_auto": "ask",
+                "approve": "ask",
+                "plan": "deny",
+            },
+            "mail_send": {
+                "full_access": "allow",
+                "full_auto": "ask",
+                "approve": "ask",
+                "plan": "deny",
+            },
+            "computer_click": {
+                "full_access": "allow",
+                "full_auto": "ask",
+                "approve": "ask",
+                "plan": "deny",
+            },
+            "spawn_agent": {
+                "full_access": "allow",
+                "full_auto": "ask",
+                "approve": "ask",
+                "plan": "deny",
+            },
+            "spawn_agents": {
+                "full_access": "allow",
+                "full_auto": "ask",
+                "approve": "ask",
+                "plan": "deny",
+            },
+            "opencode_run": {
+                "full_access": "allow",
+                "full_auto": "ask",
+                "approve": "ask",
+                "plan": "deny",
+            },
+        }
+        for tool, modes in cases.items():
+            for mode, expected in modes.items():
+                with self.subTest(tool=tool, mode=mode):
+                    self.assertEqual(policy.gate(tool, {}, mode=mode, rules=[]), expected)
+
+    def test_full_auto_git_push_still_asks(self):
+        self.assertEqual(policy.gate("git_push", {}, mode="full_auto", rules=[]), "ask")
+
     def test_disabled_tool_denied(self):
         self.assertEqual(
             policy.gate("shell", {}, mode="full_auto", rules=[], disabled=("shell",)), "deny"
+        )
+
+    def test_full_access_does_not_override_hard_blocks(self):
+        persona = _Persona(blocked_scopes="shell")
+        self.assertEqual(
+            policy.gate("shell", {}, mode="full_access", rules=[], disabled=("shell",)), "deny"
+        )
+        self.assertEqual(
+            policy.gate("shell", {}, mode="full_access", rules=[], persona=persona), "deny"
         )
 
     def test_persona_block_denied(self):

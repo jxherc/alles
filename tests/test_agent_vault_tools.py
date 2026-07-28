@@ -18,6 +18,22 @@ class AgentVaultToolsTests(VaultApiTest):
         r = self.ex("note_read", {"name": "Ideas"})
         self.assertIn("ship the vault tools", r["output"])
 
+    def test_tasks_conversation_can_write_and_read_research_in_docs(self):
+        written = self.ex(
+            "docs_write",
+            {
+                "path": "Research/local-search.md",
+                "content": "# local search\n\nSearXNG is the selected source.",
+            },
+        )
+        self.assertFalse(written.get("error"), written)
+        self.assertIn("Research/local-search.md", written["output"])
+
+        read = self.ex("docs_read", {"path": "Research/local-search.md"})
+        self.assertFalse(read.get("error"), read)
+        self.assertIn("SearXNG is the selected source", read["output"])
+        self.assertTrue((vault_md.vault_dir() / "Research/local-search.md").is_file())
+
     def test_read_by_path_in_subfolder(self):
         self.ex("note_write", {"path": "Projects/Roadmap", "content": "q3 plan"})
         r = self.ex("note_read", {"name": "Projects/Roadmap.md"})
@@ -84,13 +100,19 @@ class AgentVaultToolsTests(VaultApiTest):
     # ── registration / wiring ───────────────────────────────────────────────────
     def test_new_tools_registered(self):
         names = {d["function"]["name"] for d in at.APP_TOOL_DEFS}
+        self.assertIn("docs_write", names)
+        self.assertIn("docs_read", names)
+        self.assertIn("docs_search", names)
         self.assertIn("note_append", names)
         self.assertIn("note_backlinks", names)
+        self.assertIn("docs_write", at.MUTATING_TOOLS)
         self.assertIn("note_append", at.MUTATING_TOOLS)
         self.assertNotIn("note_backlinks", at.MUTATING_TOOLS)  # read-only
 
     def test_plan_mode_hides_append_keeps_backlinks(self):
-        plan = {t["function"]["name"] for t in at.build_tool_defs({"agent_permission_mode": "plan"})}
+        plan = {
+            t["function"]["name"] for t in at.build_tool_defs({"agent_permission_mode": "plan"})
+        }
         self.assertNotIn("note_append", plan)  # mutating → hidden
         self.assertIn("note_backlinks", plan)  # read → stays
 

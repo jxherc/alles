@@ -4,6 +4,6 @@ Alibaba Tongyi DeepResearch). LLM-driven think→search→extract→synthesize l
 """
 
 from .deep_research import DeepResearcher, current_date_context
-from .handler import run_research, get_task, cancel_task
+from .handler import cancel_task, get_task, run_research
 
 __all__ = ["DeepResearcher", "current_date_context", "run_research", "get_task", "cancel_task"]

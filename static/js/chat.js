@@ -3,12 +3,15 @@ import {
   appendUserMsg, createStreamingAiRow, scrollDown,
   showMessages, updateSessionName, createSession, getActiveId, markActive,
 } from './sessions.js';
-import { getSelected, getCurrentEndpoint, isImageSelected, getImageSlot } from './models.js?v=210';
+import { getSelected, getCurrentEndpoint, getSelectionSource, isImageSelected, getImageSlot } from './models.js?v=212';
 import { openArtifact, extractArtifacts, stripArtifacts } from './artifacts.js';
-import { getAttachments, clearAttachments } from './uploads.js';
-import { isIncognitoMode, getPermMode, getEffort } from './modes.js';
+import { getAttachments, hasPendingAttachments, clearAttachments } from './uploads.js';
+import { isIncognitoMode, getPermMode, getEffort, getReasoningMode, getCustomEffort } from './modes.js?v=256';
 import { applyResponsePrivacy, stripEmojis } from './privacy.js';
+import { shouldRunInBackground } from './aidebackgroundpolicy.js';
+import { formatNumber } from './i18n.js';
 import { contextProvenanceElement } from './memoryactions.js';
+import { markAideQuestionResolved, renderAideQuestion } from './aidequestions.js?v=1';
 
 // tools that change state / reach out — flagged in the agent panel + permission cards
 const DESTRUCTIVE_TOOLS = new Set(['shell', 'bash', 'write_file', 'edit_file', 'apply_patch',
@@ -92,12 +95,61 @@ window.openArtifactFromMsg = function(btn) {
 };
 
 let _streaming = false;
+let _backgroundLaunching = false;
 let _chatAbort = null;
 let _streamToken = 0;
 
+export function canSendMessage() {
+  return !_streaming && !_backgroundLaunching;
+}
+
+function normalizeDocumentScope(value) {
+  if (!value || value.kind !== 'vault_document') return null;
+  const path = String(value.path || '').trim();
+  const expectedHash = String(value.expected_hash || '').trim();
+  return path && expectedHash ? { kind: 'vault_document', path, expected_hash: expectedHash } : null;
+}
+
+function renderDocumentScope(scope) {
+  const chip = document.getElementById('aide-document-scope');
+  if (!chip) return;
+  chip.hidden = !scope;
+  const name = document.getElementById('aide-document-scope-name');
+  if (name) name.textContent = scope ? scope.path.split('/').pop().replace(/\.(md|markdown)$/i, '') : '';
+}
+
+window._setAideDocumentScope = scope => {
+  window._pendingDocumentScope = normalizeDocumentScope(scope);
+  renderDocumentScope(window._pendingDocumentScope);
+};
+document.getElementById('aide-document-scope-remove')?.addEventListener('click', () => {
+  window._pendingDocumentScope = null;
+  renderDocumentScope(null);
+});
+
+function restoreComposerInput(text) {
+  const composer = document.getElementById('composer-ta');
+  if (!composer) return;
+  const current = composer.value.trim();
+  composer.value = current ? `${text}\n\n${composer.value}` : text;
+  composer.style.height = 'auto';
+  composer.dispatchEvent(new Event('input', { bubbles: true }));
+  composer.focus();
+}
+
+function restoreDocumentScope(scope) {
+  if (!scope) return;
+  window._pendingDocumentScope = scope;
+  renderDocumentScope(scope);
+}
+
 
 export async function sendMessage(text) {
-  if (!text?.trim() || _streaming) return;
+  if (!text?.trim() || _streaming || _backgroundLaunching) return;
+  if (hasPendingAttachments()) {
+    toast('wait for attachments to finish uploading', 'error');
+    return;
+  }
 
   let sessionId = getActiveId();
   let freshSession = false;
@@ -109,7 +161,7 @@ export async function sendMessage(text) {
     const model = getSelected()?.model || ep.models[0] || '';
     const s = await createSession(model, ep.id, {
       incognito: isIncognitoMode(),
-      mode: getMode(),
+      mode: 'agent',
       chatBehavior: window._pendingChatBehavior || '',
     });
     if (!s) { toast('failed to create session', 'error'); return; }
@@ -133,15 +185,52 @@ export async function sendMessage(text) {
   const sel = getSelected();
   if (!sel) { toast('select a model first', 'error'); return; }
   const attachmentIds = getAttachments();
+  const documentScope = normalizeDocumentScope(window._pendingDocumentScope);
 
   // image model picked as the primary → generate (legacy single-pick path)
-  if (isImageSelected()) { _sendImage(text, sessionId, freshSession, getSelected()); return; }
+  if (!documentScope && isImageSelected()) { _sendImage(text, sessionId, freshSession, getSelected()); return; }
   // companion image slot set + the message reads like an image request → route to it
   const imgSlot = getImageSlot();
-  if (imgSlot && _looksLikeImageRequest(text)) { _sendImage(text, sessionId, freshSession, imgSlot); return; }
+  if (!documentScope && imgSlot && _looksLikeImageRequest(text)) { _sendImage(text, sessionId, freshSession, imgSlot); return; }
+
+  if (!documentScope && shouldRunInBackground(text) && !isIncognitoMode()) {
+    _backgroundLaunching = true;
+    showMessages();
+    const userRow = appendUserMsg(text);
+    scrollDown();
+    let run = null;
+    try {
+      const { startBackgroundWork } = await import('./aidebackground.js?v=245');
+      run = await startBackgroundWork({
+        sessionId,
+        request: text,
+        fileIds: attachmentIds,
+        selection: sel,
+        selectionSource: getSelectionSource(),
+        permissionMode: getPermMode(),
+        effort: getEffort(sel?.model),
+        reasoningMode: getReasoningMode(sel?.model),
+        customEffort: getCustomEffort(sel?.model),
+      });
+    } catch (error) {
+      toast(error?.message || 'could not start background work', 'error');
+    } finally {
+      _backgroundLaunching = false;
+    }
+    if (!run) {
+      userRow.remove();
+      restoreComposerInput(text);
+      return;
+    }
+    clearAttachments();
+    if (freshSession) updateSessionName(sessionId, text.slice(0, 54));
+    return;
+  }
 
   showMessages();
-  appendUserMsg(text);
+  appendUserMsg(text, documentScope);
+  window._pendingDocumentScope = null;
+  renderDocumentScope(null);
   clearAttachments();
   scrollDown();
 
@@ -153,7 +242,10 @@ export async function sendMessage(text) {
   const { row, body } = createStreamingAiRow();
 
   let thinkingEl = null;
-  let contentEl = null;
+  const contentEl = document.createElement('div');
+  contentEl.className = 'ai-content';
+  body.appendChild(contentEl);
+  let provenanceEl = null;
   let agentEl = null;
   let todoEl = null;
   const toolEls = new Map();
@@ -167,8 +259,17 @@ export async function sendMessage(text) {
   let thinkDone = false;
   let genStart = 0;     // first answer token time, for tok/s
   let statsEl = null;
-  let contextProvenance = null;
   let outTok = 0;       // real output tokens from usage (if provided)
+  const progressEl = document.createElement('div');
+  progressEl.className = 'aide-run-progress';
+  progressEl.setAttribute('role', 'status');
+  progressEl.setAttribute('aria-live', 'polite');
+  progressEl.textContent = 'typing';
+  body.appendChild(progressEl);
+  const setProgress = text => {
+    if (progressEl.isConnected) progressEl.textContent = text;
+  };
+  const clearProgress = () => progressEl.remove();
 
   const updateStats = (final = false) => {
     if (!genStart) return;
@@ -181,7 +282,7 @@ export async function sendMessage(text) {
     const toks = outTok || Math.max(1, Math.round(accText.length / 4));  // real if known, else ~chars/4
     const approx = outTok ? '' : '~';
     const rate = secs > 0.3 ? ` · ${Math.round(toks / secs)} tok/s` : '';
-    statsEl.textContent = `${approx}${toks.toLocaleString()} tok${rate}`;
+    statsEl.textContent = `${approx}${formatNumber(toks)} tok${rate}`;
   };
 
   // freeze the thinking block: stop the live timer, show "thought for Xs", collapse
@@ -218,12 +319,7 @@ export async function sendMessage(text) {
     // only auto-scroll if the user is already following along at the bottom
     const chat = document.getElementById('chat');
     const stick = !chat || (chat.scrollHeight - chat.scrollTop - chat.clientHeight < 120);
-    if (!contentEl) {
-      contentEl = document.createElement('div');
-      contentEl.className = 'ai-content';
-      cursor?.remove();
-      body.insertBefore(contentEl, body.firstChild);
-    }
+    cursor?.remove();
     contentEl.innerHTML = mdToHtml(stripEmojis(displayText));
     applyResponsePrivacy(contentEl);
     cursor?.remove();
@@ -248,8 +344,11 @@ export async function sendMessage(text) {
         mode: getMode(),
         file_ids: attachmentIds,
         incognito: isIncognitoMode(),
-        permission_mode: getMode() === 'jarvis' ? getPermMode() : '',
+        permission_mode: getPermMode(),
         effort: getEffort(getSelected()?.model),   // per-model effort, applies to chat + agent
+        reasoning_mode: getReasoningMode(getSelected()?.model),
+        custom_effort: getCustomEffort(getSelected()?.model),
+        context_scope: documentScope || undefined,
       }),
       signal: ctrl.signal,
     });
@@ -258,6 +357,7 @@ export async function sendMessage(text) {
       const err = await r.text();
       body.innerHTML = `<div class="error-msg">${escHtml(err)}</div>`;
       body.classList.add('done');
+      restoreDocumentScope(documentScope);
       setStreaming(false);
       return;
     }
@@ -309,7 +409,13 @@ export async function sendMessage(text) {
           const total = inp + out;
           if (total) {
             const el = document.getElementById('session-token-count');
-            if (el) { el.textContent = `${total.toLocaleString()} tok`; el.style.display = ''; }
+            const value = document.getElementById('session-token-count-value');
+            if (el && value) {
+              const formatted = formatNumber(total);
+              value.textContent = `${formatted} tok`;
+              el.setAttribute('aria-label', `${formatted} tokens used in the latest response`);
+              el.hidden = false;
+            }
           }
         }
 
@@ -317,17 +423,14 @@ export async function sendMessage(text) {
           runId = chunk.agent_run.id || runId;
         }
 
-        if (chunk.agent_turn) {
-          const t = chunk.agent_turn;
-          const panel = ensureAgentPanel();
-          let status = agentEl.querySelector('.agent-turn-status');
-          if (!status) {
-            status = document.createElement('div');
-            status.className = 'agent-turn-status';
-            panel.parentElement.insertBefore(status, panel);
-          }
-          status.textContent = `turn ${t.index} / ${t.max}`;
+        if (chunk.context_provenance) {
+          provenanceEl?.remove();
+          provenanceEl = contextProvenanceElement(chunk.context_provenance);
+          if (provenanceEl) body.appendChild(provenanceEl);
         }
+
+        // agent_turn is internal bookkeeping. Keep the user-facing state as
+        // "typing" until real thinking or a named tool begins.
 
         if (chunk.todo_update) {
           const panel = ensureAgentPanel();
@@ -348,6 +451,7 @@ export async function sendMessage(text) {
 
         if (chunk.tool_start) {
           const t = chunk.tool_start;
+          setProgress(`${String(t.name || 'tool').replaceAll('_', ' ')}…`);
           const panel = ensureAgentPanel();
           const step = document.createElement('div');
           step.className = 'agent-step running' + (DESTRUCTIVE_TOOLS.has(t.name) ? ' destructive' : '');
@@ -451,6 +555,19 @@ export async function sendMessage(text) {
           }
         }
 
+        if (chunk.user_question) {
+          const question = chunk.user_question;
+          const step = toolEls.get(question.call_id);
+          renderAideQuestion(step || ensureAgentPanel(), question);
+          scrollDown();
+        }
+
+        if (chunk.user_question_resolved) {
+          const resolved = chunk.user_question_resolved;
+          const step = toolEls.get(resolved.call_id);
+          markAideQuestionResolved(step || agentEl, resolved.id, resolved.answer?.cancelled === true);
+        }
+
         if (chunk.tool_result) {
           const t = chunk.tool_result;
           const step = toolEls.get(t.call_id);
@@ -465,11 +582,8 @@ export async function sendMessage(text) {
           scrollDown();
         }
 
-        if (chunk.context_provenance) {
-          contextProvenance = chunk.context_provenance;
-        }
-
         if (chunk.thinking) {
+          setProgress('thinking…');
           accThink += chunk.thinking;
           if (!thinkingEl) {
             thinkStart = Date.now();
@@ -480,7 +594,7 @@ export async function sendMessage(text) {
                 <span class="think-label">thinking</span><span class="think-timer"></span>
               </div>
               <div class="thinking-content custom-details"></div>`;
-            body.insertBefore(thinkingEl, body.firstChild);
+            body.insertBefore(thinkingEl, contentEl);
             // live elapsed timer while reasoning
             thinkTimer = setInterval(() => {
               if (thinkDone) return;
@@ -494,6 +608,7 @@ export async function sendMessage(text) {
 
         if (chunk.delta) {
           finishThinking();   // first real content → reasoning is done
+          clearProgress();
           if (!genStart) { genStart = Date.now(); hideConnBanner(); }  // a real token = we're connected, clear any stale warning
           accText += chunk.delta;
           scheduleRender();
@@ -513,28 +628,34 @@ export async function sendMessage(text) {
     }
 
   } catch (e) {
+    restoreDocumentScope(documentScope);
     if (e.name !== 'AbortError') {
       appendError(body, `stream error: ${e.message}`);
       if (isConnError(e.message)) showConnBanner(e.message);
     }
   } finally {
     if (_chatAbort === ctrl) _chatAbort = null;
+    if (_streamToken === streamToken) setStreaming(false);
     if (renderTimer) { clearTimeout(renderTimer); renderTimer = 0; }
     finishThinking();   // freeze timer even if the reply was thinking-only
+    clearProgress();
     updateStats(true);  // final token count + tok/s (real if usage was sent)
     cursor?.remove();
     body.classList.add('done');
 
-    if (agentEl) {
+    if (agentEl && (toolEls.size || todoEl)) {
       const hasAttention = Boolean(
-        agentEl.querySelector('.agent-step.error, .agent-step.running, .agent-perm:not(.approved):not(.denied)')
+        agentEl.querySelector('.agent-step.error, .agent-step.running, .agent-perm:not(.approved):not(.denied), .aide-question-card:not(.answered):not(.cancelled)')
       );
       agentEl.classList.toggle('open', hasAttention);
       const summary = agentEl.querySelector('.custom-summary');
       if (summary) {
-        summary.textContent = hasAttention ? 'steps need attention' : 'show steps';
+        summary.textContent = hasAttention ? 'run details need attention' : 'run details';
         summary.setAttribute('aria-expanded', String(hasAttention));
       }
+    } else if (agentEl) {
+      agentEl.remove();
+      agentEl = null;
     }
 
     // provenance — let the reader see what the run actually touched
@@ -593,16 +714,10 @@ export async function sendMessage(text) {
       if (!contentEl) {
         contentEl = document.createElement('div');
         contentEl.className = 'ai-content';
-        body.insertBefore(contentEl, body.firstChild);
+        body.appendChild(contentEl);
       }
       contentEl.innerHTML = mdToHtml(stripEmojis(cleanText));
       applyResponsePrivacy(contentEl);
-    }
-
-    const context = contextProvenanceElement(contextProvenance);
-    if (context) {
-      const firstStep = body.querySelector('.agent-steps, .thinking-block');
-      body.insertBefore(context, firstStep || null);
     }
 
     // action buttons
@@ -617,7 +732,6 @@ export async function sendMessage(text) {
         html += `<button class="act-btn" onclick="saveMsgAs(this,'task')" title="first line becomes a task">+task</button>`;
         html += `<button class="msg-rewrite-btn act-btn" data-style="shorter" title="rewrite shorter">shorter</button>`;
         html += `<button class="msg-rewrite-btn act-btn" data-style="simpler" title="rewrite simpler">simpler</button>`;
-        html += `<button class="act-btn" onclick="runMessageWithJarvis(this)">run with jarvis</button>`;
       }
       if (artifacts.length) {
         wrap.dataset.artifacts = JSON.stringify(artifacts);
@@ -634,7 +748,6 @@ export async function sendMessage(text) {
       openArtifact(a.content, a.type, a.title, a.lang);
     }
 
-    if (_streamToken === streamToken) setStreaming(false);
     scrollDown();
 
     // name the chat from its first message (async; updates the sidebar when ready)
@@ -651,14 +764,14 @@ export async function sendMessage(text) {
     agentEl = document.createElement('div');
     agentEl.className = 'agent-steps custom-disclosure open';
     agentEl.innerHTML = `
-      <div class="custom-summary" role="button" tabindex="0" aria-expanded="true">steps in progress</div>
+      <div class="custom-summary" role="button" tabindex="0" aria-expanded="true">run details</div>
       <div class="agent-step-list custom-details"></div>`;
     body.appendChild(agentEl);
     const disclosure = agentEl.querySelector('.custom-summary');
     disclosure.addEventListener('click', event => {
       const open = agentEl.classList.toggle('open');
       event.currentTarget.setAttribute('aria-expanded', String(open));
-      event.currentTarget.textContent = open ? 'hide steps' : 'show steps';
+      event.currentTarget.textContent = 'run details';
     });
     disclosure.addEventListener('keydown', event => {
       if (event.key === 'Enter' || event.key === ' ') {
@@ -794,40 +907,5 @@ async function _sendImage(prompt, sessionId, fresh, target) {
 
 
 function getMode() {
-  return document.getElementById('mode-jarvis').classList.contains('active') ? 'jarvis' : 'chat';
+  return 'agent';
 }
-
-// 1f - predicted next-step suggestion chips above the composer. fetches on focus + after a
-// pause in typing; clicking a chip drops its prompt into the composer.
-async function _loadAideSuggestions() {
-  const box = document.getElementById('aide-suggest-chips');
-  const ta = document.getElementById('composer-ta');
-  if (!box || !ta) return;
-  let sugg = [];
-  try {
-    const sid = window._currentSession?.id || '';
-    const q = encodeURIComponent((ta.value || '').slice(0, 200));
-    sugg = await fetch(`/api/aide/suggestions?q=${q}&session_id=${sid}`).then(r => r.json());
-  } catch { /* offline */ }
-  if (!sugg || !sugg.length) { box.style.display = 'none'; box.replaceChildren(); return; }
-  box.replaceChildren(...sugg.map(s => {
-    const b = document.createElement('button');
-    b.className = 'aide-chip';
-    b.textContent = s.label;
-    b.addEventListener('click', () => {
-      ta.value = s.label; ta.focus(); ta.dispatchEvent(new Event('input'));
-      box.style.display = 'none';
-      clearTimeout(_suggT);  // the input we just fired re-arms the debounce; cancel it so the box stays dismissed
-    });
-    return b;
-  }));
-  box.style.display = 'flex';
-}
-
-let _suggT;
-(function _wireAideSuggestions() {
-  const ta = document.getElementById('composer-ta');
-  if (!ta) return;
-  ta.addEventListener('focus', _loadAideSuggestions);
-  ta.addEventListener('input', () => { clearTimeout(_suggT); _suggT = setTimeout(_loadAideSuggestions, 700); });
-})();

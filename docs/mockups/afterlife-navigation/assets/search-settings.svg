@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 420" role="img" aria-labelledby="title desc">
+  <title id="title">search settings</title>
+  <desc id="desc">a settings panel with custom choices and switches</desc>
+  <rect width="640" height="420" fill="#101010"/>
+  <rect x="151" y="42" width="338" height="336" rx="7" fill="#0b0b0b" stroke="#494949"/>
+  <text x="178" y="80" fill="#e5e2dd" font-family="system-ui, sans-serif" font-size="18">andromeda settings</text>
+  <path d="M151 101h338M151 168h338M151 235h338M151 302h338" stroke="#303030"/>
+  <g fill="#bdb9b5" font-family="system-ui, sans-serif" font-size="15">
+    <text x="178" y="140">search engine</text>
+    <text x="178" y="207">ai overview</text>
+    <text x="178" y="274">search depth</text>
+    <text x="178" y="341">citations</text>
+  </g>
+  <g fill="#171717" stroke="#4d4d4d">
+    <rect x="345" y="118" width="116" height="31" rx="4"/>
+    <rect x="345" y="252" width="116" height="31" rx="4"/>
+  </g>
+  <g fill="#dedbd7" font-family="system-ui, sans-serif" font-size="13">
+    <text x="361" y="139">automatic</text>
+    <text x="361" y="273">fast</text>
+  </g>
+  <g>
+    <rect x="412" y="190" width="49" height="25" rx="13" fill="#22233d" stroke="#818cf8"/>
+    <circle cx="448" cy="202.5" r="8" fill="#8d93ff"/>
+    <rect x="412" y="324" width="49" height="25" rx="13" fill="#22233d" stroke="#818cf8"/>
+    <circle cx="448" cy="336.5" r="8" fill="#8d93ff"/>
+  </g>
+</svg>

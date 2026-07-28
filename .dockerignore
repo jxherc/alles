@@ -1,6 +1,13 @@
 data/
+.env
+.env.*
+!.env.example
 .git/
 .github/
+.agent/
+.Codex/
+.codex/
+AGENTS.md
 .venv/
 venv/
 __pycache__/

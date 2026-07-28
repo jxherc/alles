@@ -21,6 +21,7 @@ router = APIRouter(prefix="/api")
 # reflectable). verifier lives in settings; unlock tokens are in-memory only.
 _unlock_tokens: dict[str, float] = {}  # token → expiry
 _TTL = 1800  # 30 min
+MIN_JOURNAL_PASSCODE_LENGTH = 12
 
 
 def _passcode_set() -> bool:
@@ -32,12 +33,16 @@ def _require_unlock(x_journal_token: str | None = Header(None)):
     once a passcode exists, a valid unlock token is required."""
     if not _passcode_set():
         return
+    if not _unlock_token_valid(x_journal_token):
+        raise HTTPException(403, "journal locked")
+    _unlock_tokens[x_journal_token] = time.time() + _TTL  # slide the window
+
+
+def _unlock_token_valid(value: str | None) -> bool:
     now = time.time()
     for t in [t for t, exp in list(_unlock_tokens.items()) if now > exp]:
         del _unlock_tokens[t]
-    if (x_journal_token or "") not in _unlock_tokens:
-        raise HTTPException(403, "journal locked")
-    _unlock_tokens[x_journal_token] = now + _TTL  # slide the window
+    return bool(value and value in _unlock_tokens)
 
 
 class PasscodeBody(BaseModel):
@@ -46,21 +51,27 @@ class PasscodeBody(BaseModel):
 
 
 @router.get("/journal/lock/status")
-def lock_status():
-    return {"enabled": _passcode_set()}
+def lock_status(x_journal_token: str | None = Header(None)):
+    enabled = _passcode_set()
+    return {"enabled": enabled, "unlocked": not enabled or _unlock_token_valid(x_journal_token)}
 
 
 @router.post("/journal/lock/set")
 def lock_set(body: PasscodeBody):
-    if not (body.passcode or "").strip():
-        raise HTTPException(400, "passcode required")
+    passcode = body.passcode or ""
+    if len(passcode.strip()) < MIN_JOURNAL_PASSCODE_LENGTH:
+        raise HTTPException(
+            400,
+            f"passcode must be at least {MIN_JOURNAL_PASSCODE_LENGTH} characters",
+        )
     cur = load_settings().get("journal_passcode", "")
     if cur and not verify_master(body.old, cur):  # changing → must prove the old one
         raise HTTPException(401, "wrong current passcode")
-    save_settings({"journal_passcode": make_verifier(body.passcode)})
+    save_settings({"journal_passcode": make_verifier(passcode)})
     _unlock_tokens.clear()  # force a fresh unlock with the new passcode
     try:
         from services import journal_vault
+
         journal_vault.purge()  # locking re-privatises: drop the plaintext mirror files
     except Exception:
         pass
@@ -94,6 +105,7 @@ def lock_disable(body: PasscodeBody):
     _unlock_tokens.clear()
     try:
         from services import journal_vault
+
         if journal_vault.enabled():  # mirror still on → rebuild the daily notes
             journal_vault.backfill()
     except Exception:
@@ -359,11 +371,13 @@ def upsert_entry(
     db.refresh(e)
     try:
         from services import personal_index
+
         personal_index.index_record(db, "journal", e)
     except Exception:
         pass
     try:
         from services import journal_vault
+
         if journal_vault.enabled():
             journal_vault.write_entry(e.date, e.content or "", e.mood or "", e.tags or "")
     except Exception:
@@ -384,11 +398,13 @@ def delete_entry(day: str, db: DbSession = Depends(get_db), _: None = Depends(_r
     db.commit()
     try:
         from services import personal_index
+
         personal_index.remove_record(db, "journal", day)
     except Exception:
         pass
     try:
         from services import journal_vault
+
         journal_vault.delete_entry(day)  # remove the mirror file too
     except Exception:
         pass

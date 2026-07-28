@@ -93,9 +93,9 @@ class FileToolTests(unittest.TestCase):
 
     def test_read_file_is_line_numbered(self):
         with tempfile.TemporaryDirectory() as d:
-            p = os.path.join(d, "a.py")
-            open(p, "w").write("import os\nx = 1\nprint(x)\n")
-            out = asyncio.run(at._read_file(p))["output"]
+            p = Path(d) / "a.py"
+            p.write_text("import os\nx = 1\nprint(x)\n")
+            out = asyncio.run(at._read_file(str(p)))["output"]
             self.assertIn("1\timport os", out)
             self.assertIn("2\tx = 1", out)
             self.assertIn("3\tprint(x)", out)
@@ -126,32 +126,32 @@ class FileToolTests(unittest.TestCase):
 
     def test_read_range_numbers_from_start(self):
         with tempfile.TemporaryDirectory() as d:
-            p = os.path.join(d, "a.txt")
-            open(p, "w").write("\n".join(f"line{i}" for i in range(1, 11)))
-            out = asyncio.run(at._read_file(p, 3, 5))["output"]
+            p = Path(d) / "a.txt"
+            p.write_text("\n".join(f"line{i}" for i in range(1, 11)))
+            out = asyncio.run(at._read_file(str(p), 3, 5))["output"]
             self.assertIn("3\tline3", out)
             self.assertIn("5\tline5", out)
             self.assertNotIn("6\tline6", out)
 
     def test_read_records_path_for_edit_guard(self):
         with tempfile.TemporaryDirectory() as d:
-            p = os.path.join(d, "a.txt")
-            open(p, "w").write("hello world\n")
-            asyncio.run(at._read_file(p))
-            self.assertIn(str(at._resolve(p)), at.get_agent_ctx()["_reads"])
+            p = Path(d) / "a.txt"
+            p.write_text("hello world\n")
+            asyncio.run(at._read_file(str(p)))
+            self.assertIn(str(at._resolve(str(p))), at.get_agent_ctx()["_reads"])
 
     def test_edit_unread_file_hints_to_read(self):
         with tempfile.TemporaryDirectory() as d:
-            p = os.path.join(d, "a.txt")
-            open(p, "w").write("hello\n")
-            r = asyncio.run(at._edit_file(p, "not-there", "x"))  # never read this run
+            p = Path(d) / "a.txt"
+            p.write_text("hello\n")
+            r = asyncio.run(at._edit_file(str(p), "not-there", "x"))  # never read this run
             self.assertTrue(r["error"])
             self.assertIn("read the file first", r["output"])
 
     def test_grep_output_modes(self):
         with tempfile.TemporaryDirectory() as d:
-            open(os.path.join(d, "a.txt"), "w").write("foo\nbar\nfoo\n")
-            open(os.path.join(d, "b.txt"), "w").write("baz\n")
+            (Path(d) / "a.txt").write_text("foo\nbar\nfoo\n")
+            (Path(d) / "b.txt").write_text("baz\n")
             content = asyncio.run(at._grep_files("foo", d, "*", "content"))["output"]
             self.assertEqual(content.count("foo"), 2)
             files = asyncio.run(at._grep_files("foo", d, "*", "files_with_matches"))["output"]
@@ -162,7 +162,7 @@ class FileToolTests(unittest.TestCase):
 
     def test_grep_context_lines(self):
         with tempfile.TemporaryDirectory() as d:
-            open(os.path.join(d, "a.txt"), "w").write("a\nMATCH\nc\n")
+            (Path(d) / "a.txt").write_text("a\nMATCH\nc\n")
             out = asyncio.run(at._grep_files("MATCH", d, "*", "content", 1))["output"]
             self.assertIn("a.txt:1- a", out)
             self.assertIn("a.txt:2: MATCH", out)
@@ -170,7 +170,7 @@ class FileToolTests(unittest.TestCase):
 
     def test_grep_ignore_case(self):
         with tempfile.TemporaryDirectory() as d:
-            open(os.path.join(d, "a.txt"), "w").write("Hello\n")
+            (Path(d) / "a.txt").write_text("Hello\n")
             self.assertIn(
                 "Hello", asyncio.run(at._grep_files("hello", d, "*", "content", 0, True))["output"]
             )
@@ -181,7 +181,7 @@ class FileToolTests(unittest.TestCase):
     def test_glob_head_limit(self):
         with tempfile.TemporaryDirectory() as d:
             for i in range(5):
-                open(os.path.join(d, f"f{i}.txt"), "w").write("x")
+                (Path(d) / f"f{i}.txt").write_text("x")
             out = asyncio.run(at._glob_files("*.txt", d, 2))["output"]
             self.assertEqual(len([l for l in out.splitlines() if l.endswith(".txt")]), 2)
             self.assertIn("more", out)

@@ -1,5 +1,5 @@
+from core.database import Message, Session
 from tests._client import ApiTest
-from core.database import Session, Message
 
 
 class SharedApiTest(ApiTest):
@@ -65,9 +65,7 @@ class SharedApiTest(ApiTest):
     def test_generic_share_revoke(self):
         sid = self._seed_session("rev")
         self.client.post("/api/share", json={"kind": "session", "ref": sid})
-        r = self.client.request(
-            "DELETE", "/api/share", json={"kind": "session", "ref": sid}
-        )
+        r = self.client.request("DELETE", "/api/share", json={"kind": "session", "ref": sid})
         self.assertEqual(r.status_code, 200)
         self.assertTrue(r.json()["ok"])
         # token should now be gone

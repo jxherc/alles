@@ -60,13 +60,32 @@ class CrossAppToolTests(unittest.TestCase):
         plan = self._names({"agent_permission_mode": "plan"})
         self.assertGreater(len(full), len(plan))
 
+    def test_subagent_tools_are_hidden_when_profile_disables_delegation(self):
+        names = self._names({"agent_subagents": False})
+        self.assertNotIn("spawn_agent", names)
+        self.assertNotIn("spawn_agents", names)
+
     def test_shell_in_mutating_set(self):
         self.assertIn("shell", at.MUTATING_TOOLS)
         self.assertIn("write_file", at.MUTATING_TOOLS)
 
-    def test_decide_permission_full_auto_allows_mutations(self):
-        p = at.decide_permission("write_file", {"path": "/tmp/x.txt"}, "full_auto", [])
-        self.assertEqual(p, "allow")
+    def test_decide_permission_full_access_allows_mutations(self):
+        for name, args in (
+            ("write_file", {"path": "/tmp/x.txt"}),
+            ("shell", {"command": "true"}),
+            ("mail_send", {"to": "owner@example.com"}),
+            ("computer_click", {"x": 1, "y": 1}),
+            ("spawn_agent", {"task": "check"}),
+        ):
+            self.assertEqual(at.decide_permission(name, args, "full_access", []), "allow")
+
+    def test_decide_permission_auto_is_risk_aware(self):
+        self.assertEqual(
+            at.decide_permission("write_file", {"path": "/tmp/x.txt"}, "full_auto", []),
+            "allow",
+        )
+        for name in ("shell", "calendar_delete", "mail_send", "computer_click", "spawn_agent"):
+            self.assertEqual(at.decide_permission(name, {}, "full_auto", []), "ask")
 
     def test_decide_permission_plan_denies_mutations(self):
         p = at.decide_permission("write_file", {"path": "/tmp/x.txt"}, "plan", [])
@@ -81,6 +100,37 @@ class CrossAppToolTests(unittest.TestCase):
         rules = [{"tool": "shell", "action": "allow"}]
         p = at.decide_permission("shell", {"command": "ls"}, "approve", rules)
         self.assertEqual(p, "allow")
+
+    def test_every_permission_level_covers_each_risk_class(self):
+        cases = {
+            "read": ("read_file", {"path": "notes.md"}),
+            "write": ("write_file", {"path": "notes.md"}),
+            "shell": ("shell", {"command": "pwd"}),
+            "deletion": ("calendar_delete", {"id": "event"}),
+            "external communication": ("mail_send", {"to": "owner@example.com"}),
+            "computer use": ("computer_click", {"x": 1, "y": 1}),
+            "delegation": ("spawn_agent", {"task": "inspect"}),
+        }
+        expected = {
+            "full_access": {name: "allow" for name in cases},
+            "full_auto": {
+                "read": "allow",
+                "write": "allow",
+                "shell": "ask",
+                "deletion": "ask",
+                "external communication": "ask",
+                "computer use": "ask",
+                "delegation": "ask",
+            },
+            "approve": {name: ("allow" if name == "read" else "ask") for name in cases},
+            "plan": {name: ("allow" if name == "read" else "deny") for name in cases},
+        }
+        for mode, decisions in expected.items():
+            for risk, (tool, arguments) in cases.items():
+                with self.subTest(mode=mode, risk=risk):
+                    self.assertEqual(
+                        at.decide_permission(tool, arguments, mode, []), decisions[risk]
+                    )
 
 
 class SearchHelperTests(unittest.TestCase):

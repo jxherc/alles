@@ -102,7 +102,11 @@ class CalendarSubscriptionTests(ApiTest):
         ev = self._events_for(sid)[0]
         # find the event id
         evs = self.client.get("/api/calendar").json()
-        eid = next(e["id"] for e in (evs if isinstance(evs, list) else evs.get("events", [])) if e["title"] == ev[0])
+        eid = next(
+            e["id"]
+            for e in (evs if isinstance(evs, list) else evs.get("events", []))
+            if e["title"] == ev[0]
+        )
         dup = self.client.post(f"/api/calendar/{eid}/duplicate").json()
         from core.database import CalendarEvent
 
@@ -128,7 +132,9 @@ class CalendarSubscriptionTests(ApiTest):
         self._refresh(a, ICS_2)  # 2 events
         self._refresh(b, ICS_1)  # 1 event
         # c stays empty
-        lst = {s["id"]: s["event_count"] for s in self.client.get("/api/calendar/subscriptions").json()}
+        lst = {
+            s["id"]: s["event_count"] for s in self.client.get("/api/calendar/subscriptions").json()
+        }
         self.assertEqual(lst[a], 2)
         self.assertEqual(lst[b], 1)
         self.assertEqual(lst[c], 0)

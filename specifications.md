@@ -34,7 +34,7 @@ model. the [readme](./readme.md) is the plain-english overview; this is the deta
 
 ## the apps — what you actually get
 
-every one of these is a real, finished app — not a placeholder. the daily shell keeps Today and Aide
+every one of these is a real app — not a placeholder. the daily shell keeps Home and Aide
 close, while related specialist views share Docs, Files, Finance, Passwords, or Server. it is still one
 program, and compatibility links keep the older app names and subdomains working.
 
@@ -44,19 +44,18 @@ program, and compatibility links keep the older app names and subdomains working
 **what's in it:**
 - streaming chat (the reply types itself out live, word by word)
 - works with any provider: claude, openai/gpt, deepseek, gemini, groq, mistral, a local model, and ~15 others — switch any time, even mid-conversation
-- **Chat / Jarvis** — Chat answers here and can use approved tools; Jarvis takes longer work into a durable background run without leaving Aide
-- **Automatic tools or Answer only** — Automatic tools is the normal Chat behavior. Answer only blocks automatic tool promotion for that conversation; an explicit Jarvis turn still runs as Jarvis
+- **one automatic Aide mode** — Aide chats, uses approved tools when useful, and can keep longer work running in the same conversation without a mode switch
 - **app actions from plain chat** — just ask ("what's on my calendar", "any new emails", "remind me to call the dentist", "add lunch friday 1pm"). reads can run directly; anything that changes or sends still asks first
 - **conclusion-first work** — successful answers lead with the result. exact steps, sources, diffs, and revert controls stay available under one accessible control after reload
 - **compare** — an action that runs one prompt against several models side by side, rather than a permanent Aide destination
 - **long-term memory** — it remembers reviewed facts and preferences across chats, with Off, Ask,
   and Auto policies
 - **personas** — saved system prompts / characters you can switch between; None adds no persona prompt and custom personas are preserved
-- **projects** — General and folder-backed Projects live in the Aide sidebar with their own threads and
-  recent Jarvis work. relative file work starts in the selected server folder; missing folders keep
-  their chats until you explicitly relink them, and **General** has no implicit folder
+- **projects** — loose conversations live under Tasks; folder-backed Projects keep their own threads and
+  background Aide work. relative file work starts in the selected server folder, and missing folders
+  keep their chats until you explicitly relink them
 - **artifacts** — when the model writes html/svg/a webpage/code, you see it rendered live, not as a wall of text
-- **safe Markdown saves** — vault writes replace files atomically, Notes refuses to overwrite a file changed after you opened it, and deleted Docs/Notes can be restored from 30-day trash
+- **safe Markdown saves** — vault writes replace files atomically, Notes refuses to overwrite a file changed after you opened it and preserves unrelated frontmatter/body bytes during partial edits, and deleted Docs/Notes can be restored from 30-day trash
 - **voice** — talk to it and have it talk back (speech-to-text in, text-to-speech out)
 - **vision** — drop in an image and capable models can see it
 - **incognito chats** — conversations and attachments kept only in short-lived RAM; they use no
@@ -70,25 +69,53 @@ program, and compatibility links keep the older app names and subdomains working
 
 <p align="center"><img src="docs/screenshots/models.png" width="760" alt="the model picker — every provider in its brand colour, image models flagged with 🎨, a newest-only toggle"></p>
 
-### home
-**plain version:** the older launcher, kept as **All apps** while bookmarks and habits move to Today.
+### apps
+**plain version:** one full-screen launcher for the nine specialist workbenches.
 
 <p align="center"><img src="docs/screenshots/home.png" width="760" alt="home — the launcher and quick-capture box"></p>
 
-- a grid of tiles, one per app — **drag them to reorder**, and when you drag, a glowing line shows exactly where the tile will drop
-- hit **customize** to rearrange or **hide** apps you never use (×/+ on each tile); your layout is remembered
-- a **quick-capture** box up top: type a thought and save it as a **note** (it names the note after what you wrote) or a **task**, without leaving the page
-- a "today" strip and a live clock + greeting
+- exactly nine destinations appear in three groups: **Plan, Inbox, Docs, Files, Library, Health,
+  Finance, Vault, and Server**
+- the launcher keeps one quiet Apps identity, a Home action, and the established grouped full-screen
+  format; retired standalone names do not reappear as extra tiles
+- Home remains the live clock, day summary, capture, and pinned-app surface. Saved legacy pins are
+  normalized to their new workbench without deleting the owner's preference
 
-### today
+### specialist workbenches
+**plain version:** related apps now open together without merging their records.
+
+- **Plan** combines a time-ordered Calendar, Tasks, and Reminders agenda, with quick task capture and
+  direct access to each full specialist screen. Its Task board is another view of the same task
+  records: four active stages, manual order, filters, quick add, detail editing, and completed history
+- **Inbox** puts cached mail, the selected message, and matching contact context in one workflow while
+  keeping mail and contact records separate
+- **Docs** keeps notes and journal as local sections of one Markdown workbench
+- **Files** keeps storage and Gallery under one identity, with explicit Gallery-to-Files and browser
+  Back paths on desktop and phone
+- **Library** combines Books and saved reading; Andromeda News enters only when you explicitly save it
+- **Health** places today's habit rhythm beside the latest measurements without changing the local,
+  sensitive health-context boundary
+- **Finance** combines Money, Subscriptions, reviewed imports, and visible managed-Actual state
+- **Vault** keeps passwords, passkeys, pairing, watchtower, reauthentication, and recovery within the
+  existing encrypted boundary
+- **Server** combines the original neofetch/btop monitor with Alles-owned services, search/model
+  configuration, backups/storage, updates, logs, Activity, Watch, and the bounded access-policy editor
+- **Aide Scheduled → News** manages tested RSS/Atom sources, source health, a daily brief schedule,
+  Home delivery, and optional Jarvis delivery. Saving an article to Library is always explicit
+- old app names, hosts, and deep links still open the matching subsection instead of dropping the
+  requested context
+
+### home
 **plain version:** your whole day on one screen the moment you open alles.
 
 - **Needs you** keeps approvals, choices, conflicts, uncertain results, and failed work visible
 - **Today** combines events, due work, reminders, habits, renewals, and important dates
-- **In progress** shows active Jarvis and long Aide work; **Briefs** holds completed reports
-- **Shortcuts** opens pinned apps, Projects, approved folders, and saved searches
-- every core section is deterministic and useful without a model. Customize Today controls order,
-  visibility, density, and shortcuts, with separate loading, empty, partial, offline, and error states
+- **In progress** shows active background Aide work; **Briefs** holds completed reports
+- **Pinned apps** opens the app destinations selected in **Settings → Home**
+- every core section is deterministic and useful without a model. **Settings → Home** controls order,
+  visibility, density, and pinned apps; the Home Settings action and the section's **edit** action open
+  that pane directly. Needs you
+  cannot be hidden, and loading, empty, partial, offline, and error states remain visible
 
 ### activity
 **plain version:** one scrollable feed of *everything you did*, across every app, newest first. if today is what's coming up, activity is what already happened.
@@ -121,7 +148,8 @@ this is the most feature-dense app, so here's the full list:
 - **word count + reading time**, live in the header
 - **version history** — every save snapshots a revision you can preview and restore
 - **daily notes** — one-click "today" journal entry
-- **math** (via katex) and **diagrams** (via mermaid) render right in the doc
+- **math and diagram source stays readable offline**; TeX and Mermaid source is preserved as text
+  until reviewed local renderers are bundled, with no runtime CDN dependency
 - **ai edits** — tell the ai "summarize this" / "fix the grammar" and it rewrites the note in place, streaming
 - **extract to-dos** — ai pulls action items out of a doc into real tasks
 - **import** `.md` / `.txt` / `.docx` (word) / `.html` / `.pdf`, or paste a **youtube link** → it grabs the transcript and ai-summarizes it into a note
@@ -195,7 +223,8 @@ this is the most feature-dense app, so here's the full list:
 <p align="center"><img src="docs/screenshots/subs.png" width="760" alt="subs — renewals, a 6-month forecast, and spend by category"></p>
 
 ### money
-**plain version:** a finance tracker — accounts, what you spend, and budgets, with charts.
+**plain version:** the Finance ledger for accounts, spending, budgets, subscriptions, and reviewed
+imports, with an optional gated move to an Alles-managed Actual Budget core.
 
 - **accounts** (checking / savings / cash / credit / investment) with live balances + a net-worth roll-up
 - **transactions** — log income/expenses with a category + payee, browse by month, quick-add, **click a row to edit it inline**, delete
@@ -203,6 +232,21 @@ this is the most feature-dense app, so here's the full list:
 - **budgets** — set a monthly cap per category; a progress bar turns red when you go over
 - **charts** — spending-by-category bars and a 6-month income-vs-spent trend (plain svg, no chart library)
 - this-month cards: net worth · income · spent · net
+- an additive currency foundation preserves exact original and base values, conversion evidence, and
+  stable import identities without changing existing amounts or renewal history
+- reviewed CIBC CSV and China Merchants Bank CSV/notification profiles always preview first; repeat
+  rows are stable duplicates, changed source rows are conflicts, and undo removes only receipt-owned
+  transactions. no direct bank provider is enabled
+- managed Actual 26.7.0 stays on loopback with private Alles-owned authentication, cold backups, fresh
+  restore read-back, and paired app/manifest rollback
+- Actual becomes canonical only after staged count, balance, aggregate, transfer, budget, schedule,
+  currency-evidence, and subscription-link parity. new ledger writes then go only to Actual and old
+  Alles ledger rows remain unchanged and read-only for at least one stable release
+- if Python-side staging validation fails after Actual created the candidate budget, Alles records its
+  exact budget/sync identity, deletes it through the official client, and verifies absence. an
+  unconfirmed cleanup blocks the next stage until the same identity is safely retried
+- legacy analytics that are not yet calculated from Actual fail closed after cutover instead of
+  showing frozen pre-cutover numbers
 
 <p align="center"><img src="docs/screenshots/money.png" width="760" alt="money — accounts, spending by category, budgets, and a 6-month trend"></p>
 
@@ -286,12 +330,15 @@ aide looks like a normal chat box. the differences are under it:
   for review. Auto directly saves only low-risk preferences you explicitly state. Off stops model
   memory reads and writes. You can search, review, edit, scope, pin, forget, export, pause, or clear
   memory, and see its source and which chats used it.
-- **one Chat/Jarvis switch.** Chat stays in the conversation and uses approved tools automatically when the request needs them. Answer only disables that automatic promotion for the conversation. Jarvis is an explicit durable handoff for longer work.
+- **one automatic mode.** Aide answers simply when a simple answer is enough, uses approved tools when the request needs them, and keeps longer work running in the same task.
 - **it keeps work inspectable.** successful replies lead with the conclusion. tool steps start collapsed, but exact sources, diffs, checkpoints, and revert controls survive reload. scrolling follows only while you stay near the bottom; **Jump to latest** gives control back.
-- **it hands research to the right place.** normal web search and its grounded overview live in Andromeda. **Run deep research with Jarvis** starts the existing multi-round research engine with the same query and selected Project.
+- **it hands research to the right place.** normal web search and its grounded overview live in Andromeda. When deeper research would help, Aide asks first and continues it in the same task with the same query and selected Project.
+- **it schedules a private News brief.** Scheduled → News tests owner-chosen RSS/Atom feeds before
+  saving them, polls healthy sources independently, keeps useful links when a source or summary fails,
+  and delivers the resulting brief to Home plus an optional paired Jarvis destination.
 - **it sees.** drop an image and capable providers receive it as vision input.
 - **it compares.** a conversation action runs the same prompt across several models at once and lets you vote on the winner.
-- **personas & projects.** personas are saved system prompts; None adds no persona instructions. General and folder-backed Projects group related chats and give Jarvis the same prioritized working environment.
+- **personas & projects.** personas are saved system prompts; None adds no persona instructions. Loose Tasks and folder-backed Projects organize chats and give background Aide the same prioritized working environment.
 - **artifacts.** ask for a webpage/chart/snippet and it renders live in a sandboxed frame next to the chat.
 
 <p align="center">
@@ -305,7 +352,7 @@ aide looks like a normal chat box. the differences are under it:
 
 ## andromeda in depth
 
-Andromeda is the Afterlife search page at `http://localhost:8000/?app=andromeda`. On the development
+Andromeda is the Afterlife search page at `http://localhost:6769/?app=andromeda`. On the development
 branch it is exposed only when the `afterlife_andromeda` feature flag is enabled.
 
 - **links first.** normal results render without waiting for a model. title, URL, snippet, provider,
@@ -320,20 +367,33 @@ branch it is exposed only when the `afterlife_andromeda` feature flag is enabled
   checks reject unrelated quotes, mismatched numbers, versions, dates, and entities. claims about the
   latest software prefer the freshest primary source and fail closed on weak or conflicting evidence.
 - **owner-chosen models.** Light, Standard, Strong, and Auto bands each resolve to an exact configured
-  endpoint and model. Auto only uses a qualified local model. A remote choice is shown and requires an
-  exact confirmation before the query or evidence is sent.
+  endpoint and model. Auto prefers a qualified local model. A configured remote fallback is shown in
+  preview and requires an exact per-search owner confirmation before any query or evidence leaves the
+  device; declining keeps the links and skips the overview.
+- **independent background verification.** the fast answer uses the `andromeda_answer` role. A separate
+  `andromeda_verifier` role checks freshness-sensitive answers by default after the answer and links are
+  already usable. It records the checked date and claim verdicts, requires exact supporting quotes, and
+  cannot silently turn unsupported output into a verified claim. A new search cancels obsolete verifier
+  work; verifier failure leaves the answer and links visible as not independently checked.
+- **compact answer, separate links.** search, the cited answer, and results share one readable axis. The
+  shortest decisive evidence-backed substring is highlighted inside the key answer. Ordinary web results
+  begin in their own labeled region and use spacing instead of divider lines between rows.
 - **recovery stays useful.** timeout, offline, missing provider, missing model, bad extraction, bad model
   output, and cancellation keep links when available and show the safe failure type, attempted
   providers, and retry/broaden/edit/return actions.
 - **save or continue.** saved searches keep the request settings, result metadata, overview, citations,
   evidence, model provenance, and checked time. selected links can open in Aide, while deep research can
-  be handed to Jarvis with the selected Project ID.
+  continue in Aide with the selected Project ID.
 
 Search can use DuckDuckGo, Tavily, Brave, Google PSE, Serper, or an external HTTPS SearXNG instance.
-This build contains a reviewed candidate SearXNG service definition pinned to
-`2026.7.12-c19d86faa` / `sha256:f433294b46a93564993c4371005341e013d94aa8ea4662d8ee521cd2cccb08e8`
-and bound to `127.0.0.1:8888`. Installation is intentionally disabled because the reference Mac had a
-Docker CLI but no daemon or supported container runtime, so the live runtime spike could not pass.
+Alles can also own an optional SearXNG lifecycle when a supported Docker runtime is available. Its
+reviewed definition is pinned to `2026.7.12-c19d86faa` /
+`sha256:f433294b46a93564993c4371005341e013d94aa8ea4662d8ee521cd2cccb08e8`, bound to
+`127.0.0.1:8888`, resource-limited, health-checked, and ownership-verified before control actions.
+Install, JSON search, supervised restart, update, rollback, and uninstall while retaining private
+configuration passed on Docker 29.5.2 with Compose and Colima. When Docker is missing, stopped, or
+cannot read the selected data root, Server reports the unsupported boundary without claiming an
+install; external HTTPS SearXNG and the other providers remain usable.
 
 ---
 
@@ -341,11 +401,13 @@ Docker CLI but no daemon or supported container runtime, so the live runtime spi
 
 this is the single most-asked question, so here's the precise answer.
 
-Settings has three exact model defaults: **Aide Chat**, **Andromeda**, and **Jarvis** background work.
-One resolver is used by interactive chat, Andromeda overview, and background jobs. A one-run choice wins first,
+Alles has three relevant exact role defaults: **Aide**, **Andromeda answer**, and **Andromeda verifier**.
+Background Aide work inherits the Aide choice unless a workflow has an explicit override. Server → Search
+and models owns the two independent Andromeda roles and their token/time limits. One resolver is used by
+interactive chat, Andromeda answering and verification, and background jobs. A one-run choice wins first,
 then a workflow override, a feature default, the role default, and finally an allowed fallback in the
 same privacy and cost class. A saved model that disappears is shown as broken instead of silently
-switching providers. With no Andromeda choice, local endpoints are tried first.
+switching providers. With no role choice, local endpoints are tried first.
 
 aide does **not** hardcode a provider. you register **endpoints** under settings → models; each endpoint is just a `base_url` (web address) + an `api_key`. when you send a message, aide looks at that url and routes the request to the right protocol. all of that lives in one function, [`detect_provider()` in `services/llm.py`](services/llm.py):
 
@@ -397,8 +459,8 @@ aide also **exposes its own** openai-compatible api (`get /v1/models`, `post /v1
 ## the agent in depth
 
 **plain version:** Aide's tool loop is what turns a request into work: it plans, uses approved tools,
-checks the result, and reports back for many steps. Chat can enter this loop automatically; Jarvis is
-the explicit durable background path. there is no separate Agent mode in the Aide selector.
+checks the result, and reports back for many steps. Aide enters this loop automatically when useful and
+can continue durably in the background. there is no separate Agent mode or mode selector.
 
 *under the hood:* it's a multi-turn loop ([`services/agent_runtime.py`](services/agent_runtime.py)). each turn the model can call tools; results feed back in; it keeps going until done or it hits a turn limit (6 / 18 / 36 turns for low / medium / high "effort"). long runs auto-trim old tool output to stay within the context window, and screenshots are fed back as real vision input.
 
@@ -437,10 +499,9 @@ graph TD
 - **prompt-injection guard** — when the agent reads something it didn't write (a web page, an email, a file, repo contents, an mcp result), that text is wrapped as *data, not instructions* before it goes back to the model, and scanned for the classic attacks ("ignore previous instructions," "reveal your system prompt," "email the api key to…"). anything that trips gets flagged. so a booby-trapped webpage can't quietly hijack a run. *(it's a seatbelt, not a force field — see security.)*
 - **approved file roots** — agent file reads stay inside the selected project folder plus any extra folders you approve in settings. extra folders start read-only; writes, diff previews, checkpoints, patches, and reverts stay inside the selected project. credential stores (`~/.ssh`, `~/.aws`, `.env`, `*.pem`, `id_rsa`, `.netrc`, `.docker/config.json`…) remain blocked by default. shell commands are a separate boundary and can still reach the host unless you enable the docker sandbox.
 - **sandbox** — the shell can run inside a docker container with the workspace mounted at `/work` and (optionally) no network, so commands can't touch your real filesystem
-- **default chat behavior** — **Automatic tools** (the default) lets a plain chat turn that clearly asks
-  Aide to do something auto-promote into the tool loop; **Answer only** disables that automatic
-  promotion, including promotion requested by a persona. an explicit Jarvis turn still runs as Jarvis,
-  and every mutation still follows its approval rule.
+- **automatic behavior** — a plain Aide turn that clearly asks for work can enter the tool loop or keep
+  running in the background. simple questions stay simple, and every mutation still follows its
+  approval rule.
 - a project-level **`agents.md`** (or `aide.md`) in the working folder is auto-loaded as standing instructions — the same cross-tool convention claude code and others use
 
 ---
@@ -449,10 +510,10 @@ graph TD
 
 the whole point of self-hosting is that nothing is magic. here's what each app *actually does*:
 
-- **docs** — your notes are **real `.md` files** in `data/vault/` (path configurable). the editor is **codemirror 6** doing obsidian-style live preview; it edits the plain text directly, so *what's saved equals what you typed*. `[[wikilinks]]`, backlinks, unlinked mentions, `#tags`, `![[embeds]]`, frontmatter, the graph, the outline, the task rollup, and word count are all computed over those files on demand. images you paste/drop go to `data/vault/_assets/`; templates live in `data/vault/_templates/` (both hidden from the tree). math renders with katex, diagrams with mermaid (lazy-loaded from a cdn; raw text shown if you're offline). every save writes a revision row you can restore.
+- **docs** — your notes are **real `.md` files** in `data/vault/` (path configurable). the editor is **codemirror 6** doing obsidian-style live preview; it edits the plain text directly, so *what's saved equals what you typed*. `[[wikilinks]]`, backlinks, unlinked mentions, `#tags`, `![[embeds]]`, frontmatter, the graph, the outline, the task rollup, and word count are all computed over those files on demand. images you paste/drop go to `data/vault/_assets/`; templates live in `data/vault/_templates/` (both hidden from the tree). TeX and Mermaid source stays readable as text offline; no runtime CDN renderer is loaded. every save writes a revision row you can restore.
 - **mail** — a thin client over python's stdlib `imaplib`/`smtplib` (no mail dependency). it pools live imap connections, caches reads, loads the inbox by sequence range (no slow `search all`), and opens a message by fetching only its text/html body parts (not attachments) for speed on bad links. a background poll only re-fetches when the mailbox actually changed. credentials are stored locally, encrypted, and never sent back to the browser.
 - **Andromeda and deep research** — normal Andromeda search is a links-first provider chain plus an
-  optional bounded, claim-checked overview. **Run deep research with Jarvis** starts the separate
+  optional bounded, claim-checked overview. Approved deeper research continues through the separate
   *iterresearch*-style loop below (the model drives each research decision):
 
 ```mermaid
@@ -470,6 +531,12 @@ reads the top pages with [trafilatura](https://github.com/adbar/trafilatura), ex
 them into an evolving cited report. this deeper loop is not the normal Andromeda request and does not
 run from a hidden Aide Research toggle.
 - **calendar** — events in sqlite with recurrence expanded on the fly; optional two-way caldav sync if you install `caldav` and add credentials.
+- **scheduled News** — enabled RSS/Atom sources are fetched through the guarded network client with
+  ETag/Last-Modified conditional requests. failures back off per source instead of blocking the whole
+  run. canonical links, feed GUIDs, and same-source content hashes prevent repeats; recent entries are
+  clustered and ranked before an optional bounded model summary. a model failure leaves a link digest
+  in `summary_pending`, Home delivery is durable, Jarvis retries are bounded, and Library receives only
+  items the owner explicitly saves.
 - **gallery / photos** — you import photos; pillow makes thumbnails and reads exif; they're grouped into date "moments." stored as plain files under `data/`.
 - **secrets** — entries sealed with aes-256-gcm under a pbkdf2-hmac-sha-256 (260k iterations) key derived from your master password, which lives in memory only.
 - **automations & jobs** — a small background **job registry + event bus** ([`services/jobs.py`](services/jobs.py)) ticks the recurring work every 30 seconds: subscription renewals, day-event checks, scheduled reminders/messages, automation rules, and a periodic model-list refresh. rules live in the db and fire on events (mail arrived, doc saved, renewal soon, every morning). durable occurrence claims prevent duplicate work after a crash; ambiguous external results stop as `uncertain` instead of retrying blindly. new features can register their own jobs or react to events without wiring into the main loop.
@@ -490,7 +557,7 @@ run from a hidden Aide Research toggle.
 | **ctrl/cmd + enter** | send |
 | **ctrl/cmd + b / i / e / k** | (in docs) bold / italic / inline-code / link |
 
-shortcuts are remappable in settings. global search is one command palette across the whole suite — chats, docs, **mail** (over the local header cache, instant), tasks, calendar, contacts, memories, **money**, **subscriptions**, and **photos** — grouped by app, and clicking a result jumps to it in its app (even on another subdomain). it also carries two **action rails**: **ask aide** drops your query into Chat, while **search with Andromeda** opens the normal links-first search page. deep research starts only when you explicitly hand that search to Jarvis.
+shortcuts are remappable in settings. global search is one command palette across the whole suite — chats, docs, **mail** (over the local header cache, instant), tasks, calendar, contacts, memories, **money**, **subscriptions**, and **photos** — grouped by app, and clicking a result jumps to it in its app (even on another subdomain). it also carries two **action rails**: **ask aide** opens the query in Aide, while **search with Andromeda** opens the normal links-first search page. deeper research continues in Aide after approval.
 
 ---
 
@@ -509,6 +576,8 @@ alles update        stage + verify a fast-forward release, then health-check it
 alles update rollback
                     restore the previous verified code and data
 alles update accept accept a healthy update, keep its encrypted backup, and remove temp copies
+alles install       build a private versioned runtime and user service (macos/linux)
+alles uninstall     remove verified program files and keep personal data
 alles open          open the browser
 alles doctor        check the install is ready (deps, data dir, provider)
 ```
@@ -516,6 +585,12 @@ alles doctor        check the install is ready (deps, data dir, provider)
 `alles doctor` is the first thing to run on a fresh checkout — it reports your python version, which required/optional deps are present, whether the data dir is writable, and whether an ai provider is configured yet, then tells you if you're good to `start`.
 
 updates do not pull into a running install. alles fetches a pinned fast-forward commit into a detached worktree, compiles both the server and cli, runs a rollback-control probe, stops verified writers, creates an encrypted exact-data backup, and boots the migrated candidate twice before switching. the live checkout and health endpoint are rechecked before data moves. rollback is crash-resumable and refuses unknown processes, unrelated restores, dirty code, or a late edit; accepting an update keeps the encrypted backup and removes its temporary full copies.
+
+on macos and linux, `alles install` publishes immutable release directories with one private venv per
+release, an owned dispatcher/launcher, and a launchd or systemd-user definition. runtime, data,
+visible Vault/Files folders, logs, and update state have separate paths. every removal target is
+verified against the install and service ownership records before `alles uninstall` removes it;
+personal data is kept by default. `--launcher-only` retains the older checkout-launcher path.
 
 - **windows (powershell):** `.\alles.cmd start` (powershell needs the `.\`), or just `alles start` if the folder is on your `path`
 - **windows (cmd):** `alles.cmd start`
@@ -534,7 +609,7 @@ copy `.env.example` to `.env`. **everything is optional** — alles runs fine wi
 |---|---|---|
 | `deepseek_api_key` | — | auto-creates a deepseek endpoint on first boot |
 | `anthropic_api_key` | — | auto-creates an anthropic (claude) endpoint on first boot |
-| `port` | `8000` | port to serve on |
+| `port` | `6769` | port to serve on |
 | `secret_key` | `dev-secret-change-me` | signs your login cookie — **change this before exposing alles to a network** |
 | `auth_enabled` | `false` | set `true` to require a password to log in |
 | `auth_password` | — | that password |
@@ -542,21 +617,35 @@ copy `.env.example` to `.env`. **everything is optional** — alles runs fine wi
 | `tavily_api_key` | — | better research search (falls back to duckduckgo + wikipedia, no key needed) |
 | `ALLES_AFTERLIFE_FEATURES` | — | exact comma-separated development flags; add `afterlife_andromeda` to expose the Phase 4 search page |
 
-**everything else is configured in one Settings home** — open it from the profile menu or with
-ctrl/cmd+comma. its eight groups cover general appearance, Aide, models/providers, memory/owner
-instructions, connections/MCP, privacy/security, notifications/language, and server/backups/data.
+**normal product preferences are configured in the interface.** Open Settings from Home or with
+ctrl/cmd+comma; grouped panes cover Home layout, general appearance, Aide, models/providers,
+memory/owner instructions, connections/MCP, privacy/security, notifications/language, and
+server/backups/data.
 there are no files to hand-edit. controls include model endpoints, mail accounts, the search provider
 (DuckDuckGo / Tavily / Brave / SearXNG / Google PSE / Serper) and fallback chain, independent normal
-result and AI Overview switches, Andromeda's Light/Standard/Strong/Auto model bands, voice (stt/tts
-provider, model, language, voice, speed), Aide behavior (Automatic tools or Answer only), permission
+result and AI Overview switches, voice (stt/tts
+provider, model, language, voice, speed), Aide permissions and background limits, permission
 mode, max turns/tokens, docker sandbox + image + no-net, sub-agents, computer-use, context files,
-allowed roots, memory policy, interface language/region/time zone, artifacts, context limits, themes,
+allowed roots, memory policy, interface language/region/time zone/clock/week start/currency, artifacts, context limits, themes,
 caldav accounts, webhooks, and api tokens. an external SearXNG URL must be HTTPS and contain no embedded
-credentials. the optional Alles-owned install is unavailable in this build because its live container
-spike did not run. Owner instructions are an editable layer after optional Project/persona instructions; the
-code-owned Aide base and enforced permission rules are not stored in that editable field. English is
-currently the only reviewed interface language; region and IANA time zone control shared formatting.
-all of those persist in the settings file included by normal Alles backups.
+credentials. the optional Alles-owned install is available only when its Docker and data-root checks
+pass; otherwise Settings keeps external providers available and shows the exact recovery boundary.
+Owner instructions are an editable layer after optional Project/persona instructions; the code-owned
+Aide base and enforced permission rules are not stored in that editable field. The reviewed interface
+languages are English, French, Spanish, Simplified Chinese, Traditional Chinese, Japanese, Korean, and
+Arabic. They cover the manifest's named core flows; owner content, third-party text, legacy specialist
+screens, and advanced administration retain their source language. Region and IANA time zone default
+to this browser's values and can be overridden with custom keyboard-operated controls; clock format,
+first day of week, and currency are independent, and Calendar consumes the shared choices. The About
+& Credits pane reads the complete machine manifest, shows source and lazy local license/notice text,
+and reports verified inventory coverage. all of those preferences persist in the settings file
+included by normal Alles backups.
+
+Server → Search and models owns Andromeda provider order, the default result count (8), the independent
+answer/verifier model roles, their token/time limits, and the freshness-sensitive verifier policy. Server
+→ Access policy is a schema-bound editor for `${ALLES_DATA}/server-policy.json`; it cannot browse or edit
+another file. A missing, malformed, symlinked, wrong-owner, or unsafe-permission policy fails closed to
+Alles-owned services only.
 
 ---
 
@@ -579,33 +668,29 @@ graph td
 
 
 alles is **one server** serving **one single-page app**. the main product homes use these canonical
-addresses; unchanged specialist apps keep their existing addresses:
+addresses. Phase 8 groups the related specialist views without merging their records or APIs:
 
 ```
-localhost                Today by default; ?app=andromeda opens the feature-gated search page; All apps keeps the older launcher
-aide.localhost           chat, Jarvis mode, Projects, models, memory, compare, creations, and ai tools
+localhost                Home by default; ?app=andromeda opens search; Apps opens the specialist launcher
+aide.localhost           Aide chat, scheduled/background work, Projects, memory, skills, and Aide reminders
 docs.localhost           docs, scratch notes, and journal
 files.localhost          files and personal photos
-finance.localhost        money and subscriptions
+plan.localhost           calendar, tasks, and personal reminders
+inbox.localhost          mail and contacts
+library.localhost        books and read-later items
+health.localhost         health / fitness log and habits
+finance.localhost        money, subscriptions, and reviewed statement imports
 passwords.localhost      the encrypted vault
-server.localhost         server and machine controls
-mail.localhost           mail
-calendar.localhost       calendar
-tasks.localhost          tasks
-days.localhost           countdowns
-habits.localhost         habit tracker
-health.localhost         health / fitness log
-read.localhost           read-later archive
-books.localhost          reading list
-contacts.localhost       contacts
-watch.localhost          uptime monitoring for external sites/endpoints
+server.localhost         monitoring, services, search/models, backups, updates, logs, Activity, and Watch
 ```
 
 `home`, `today`, `system`, `secrets`, `vault`, `money`, `subs`, `subscriptions`, `notes`, `wiki`, `journal`,
-`gallery`, `photos`, `activity`, `cowork`, `jarvis`, and `chat` remain compatibility subdomains.
-old `app=` and `view=` names follow the same map. personal-media Gallery goes to Files → Photos;
-AI-image Gallery goes to Aide → Creations. these aliases remain for at least one stable release after
-their replacement is delivered and are not removed in Afterlife Phase 3.
+`gallery`, `photos`, `activity`, `watch`, `days`, `cowork`, `jarvis`, `chat`, `calendar`, `tasks`, `reminders`, `mail`,
+`contacts`, `read`, `books`, and `habits` remain compatibility subdomains. old `app=` and `view=` names
+follow the same map. personal-media Gallery goes to Files → Photos; AI-image Gallery goes to Aide →
+Creations. Aide's reminder tool uses the non-colliding `aide-reminders` route, while the legacy
+`reminders` name belongs to Plan. these aliases remain for at least one stable release after their
+replacement is delivered and are not removed in Afterlife Phase 3.
 
 `static/js/subdomain.js` maps each host to the views it shows; `app.js` scopes the shell and cross-jumps
 between them. this works **today with zero dns setup** — browsers route `*.localhost` to your own
@@ -617,7 +702,7 @@ relay accepts only known direct child hosts with the same protocol and port, and
 path, query, and hash. an expired or invalid code retries through the safe broker instead of dropping
 the bookmark.
 
-**on a real domain:** set `base_domain=yourdomain`, put a wildcard reverse proxy in front (e.g. caddy: `*.yourdomain, yourdomain { reverse_proxy 127.0.0.1:8000 }`), and cookies become `domain=yourdomain; secure` so single-sign-on spans every subdomain over https.
+**on a real domain:** set `base_domain=yourdomain`, put a wildcard reverse proxy in front (e.g. caddy: `*.yourdomain, yourdomain { reverse_proxy 127.0.0.1:6769 }`), and cookies become `domain=yourdomain; secure` so single-sign-on spans every subdomain over https.
 
 ---
 
@@ -634,22 +719,46 @@ alles is scriptable. two flavors:
 
 **2. the native rest api** (everything the ui uses; all under `/api`). a representative slice:
 
-- **Aide and Jarvis handoff:** `post /api/chat`, `post /api/chat/stop/{id}`, `get /api/sessions`, `post /api/agent/background`, `get /api/agent/runs`, `get /api/agent/runs/{id}/sources`, `post /api/agent/runs/{id}/revert`, `get /api/jarvis/handoffs/preview`, `post /api/jarvis/handoffs`, and the cancel/retry/status run routes
-- **Andromeda:** `post /api/andromeda/search`, `post /api/andromeda/overview`, `get /api/andromeda/overview/preview`, `post /api/andromeda/models/qualify`, `/api/andromeda/saved` CRUD, and `/api/andromeda/deep-research` with its preview route
+- **Aide and background work:** `post /api/chat`, `post /api/chat/stop/{id}`, `get /api/sessions`, `post /api/agent/background`, `get /api/agent/runs`, `get /api/agent/runs/{id}/sources`, `post /api/agent/runs/{id}/revert`, the compatibility handoff routes, and cancel/retry/status run routes
+- **Andromeda:** `post /api/andromeda/search`, `post /api/andromeda/overview`, `get /api/andromeda/overview/preview`, `post /api/andromeda/models/qualify`, `/api/andromeda/saved` CRUD, `post /api/andromeda/verification/preview`, verification start/status/cancel routes, and `/api/andromeda/deep-research` with its preview route
+- **Server management:** existing system stats, service, SearXNG, backup, update, log, audit, Activity,
+  and Watch routes plus `get /api/system/policy`, `post /api/system/policy/validate`, `post
+  /api/system/policy/diff`, `put /api/system/policy`, and exact allowlisted host-service status/action
+  routes. The policy API accepts no command, path, argument, environment, script, or wildcard payload.
 - **docs:** `get /api/vault-md/tree`, `get/put/post/delete /api/vault-md/file`, `/search`, `/grep`, `/graph`, `/tags`, `/backlinks`, `/unlinked`, `/tasks`, `/templates`, `/youtube`, `/import`, `/export-docx`, `/revisions`
 - **mail:** `get /api/mail/accounts`, `get /api/mail/inbox/{id}`, `get /api/mail/threads/{id}`, `get /api/mail/message/{id}`, `get /api/mail/attachments/{id}`, `get /api/mail/attachment/{id}`, `post /api/mail/send/{id}`, `post /api/mail/summarize`, `post /api/mail/make-task`, `post /api/mail/extract-event`
 - **tasks/calendar/notes/contacts/subs/days:** standard `get/post/patch/delete` on `/api/tasks`, `/api/calendar`, `/api/notes`, `/api/contacts`, `/api/subscriptions`, `/api/days`
-- **files/photos:** `/api/files/{list,raw,upload,mkdir,rename,delete}`, `/api/photos/{gallery,gallery/upload,albums,thumb}`
-- **secrets:** `/api/vault` (+ `/unlock`, `/lock`, `/{id}/reveal`)
+- **files/photos:** `/api/storage-locations` lists and manages encrypted local/WebDAV/S3 location
+  records; `/api/files/{list,raw,upload,mkdir,rename,delete}` accepts an optional `location_id` and
+  keeps old calls on `default-local`; `/api/files/operations` exposes restart-safe copy, move, cancel,
+  retry, and undo; `/api/files/offline` manages explicit offline cache state; verified WebDAV and
+  S3-compatible browsing use conditional writes and preserve the source until a destination copy is
+  verified. S3 objects that report a version ID are preserved rather than logically deleted because
+  the provider cannot atomically bind delete-marker creation to that exact version. Photos remains
+  under `/api/photos/{gallery,gallery/upload,albums,thumb}`, with a guarded
+  Files-to-Photos handoff that keeps stable source identity.
+- **secrets:** `/api/vault` (+ `/unlock`, `/lock`, `/{id}/reveal`), owner-only
+  `/api/vault/browsers` pairing/session management and extension download, plus the extension-only
+  `/api/auth/browser/*` pair/unlock/match/release/lock boundary
 - **memory/personas/projects/cookbook:** `/api/memories` (+ `/search`, `/extract`, `/export`,
   `/{id}/accept`), `/api/personas`, `/api/projects`, `/api/cookbook`
-- **durable Jarvis foundation:** `/api/jarvis/workflows`, manual/scheduled/interval/heartbeat/event
+- **durable Aide foundation:** compatibility `/api/jarvis/workflows`, manual/scheduled/interval/heartbeat/event
   triggers, durable runs and prompts, exact scoped grants, reviewed event inbox, persistent delivery
   outbox, and encrypted connector records. Old automations convert into paused linked workflows and keep
   their enabled intent until the owner reviews model, permissions, delivery, and schedule.
-- **platform:** `/api/settings`, `/api/today`, `/api/timeline` (the activity feed), `/api/system/stats` (live machine stats), `/api/system/build`, `/api/system/searxng`, `/api/backup` (+ `/recovery-key` and `/restore`), `/api/backup/webdav` and `/api/backup/s3` (`get`/`put`/`delete`) plus each target's `/run`, `/backups`, and `/restore`, `/api/tokens`, `/api/webhooks`, `/api/push/*`, `/api/mcp/*`, `/api/connections`, `/api/automations`
+- **Jarvis Discord connection:** `get/post/patch/delete /api/jarvis/discord` plus
+  `post /api/jarvis/discord/pairing-code`; Jarvis is only the optional Discord bot name. Normal
+  answers show typing first and then update one Discord message as Aide streams the response. Each
+  paired DM or approved channel reuses one persistent Aide conversation for follow-up context.
+- **scheduled News:** `get /api/news`, `patch /api/news/configuration`, source test and CRUD under
+  `/api/news/sources`, `post /api/news/run`, brief history/latest, and explicit Jarvis retry. Library
+  save continues through `post /api/read/save-news` and never runs automatically.
+- **platform:** `/api/settings`, `/api/setup/*` (server-resumable five-step first run), `/api/today`, `/api/timeline` (the activity feed), `/api/system/stats` (live machine stats), `/api/system/build`, `/api/system/searxng`, `/api/backup` (+ `/recovery-key` and `/restore`), `/api/backup/webdav` and `/api/backup/s3` (`get`/`put`/`delete`) plus each target's `/run`, `/backups`, and `/restore`, `/api/tokens`, `/api/webhooks`, `/api/push/*`, `/api/mcp/*`, `/api/connections`, `/api/automations`
 
-if it is exposed, enable login protection. current api tokens are unscoped, and with auth enabled a bearer token still needs the session cookie; they are not yet a replacement for login.
+if it is exposed, enable login protection. api tokens work independently of the session cookie and
+are limited to explicitly selected scopes: read, write, models, agent, secrets, connections, or
+admin. requests outside a token's scope fail closed; revoked, unknown, or malformed tokens do not
+fall back to cookie authentication.
 
 
 *under the hood:* the api uses `fastapi` standard pydantic models for validation, but keeps things loose where it makes sense (like dynamic agent arguments). streaming routes use `streamingresponse` pumping async generator yields directly from `httpx`. the open-api compatible layer specifically intercepts the `messages` array, unrolls them into the internal `chatrole` format, routes them to `detect_provider`, and then restructures the sse stream to look exactly like openai's `v1/chat/completions` chunks.
@@ -671,12 +780,20 @@ erDiagram
     MONEY_ACCOUNTS ||--o{ MONEY_TRANSACTIONS : holds
     VAULTS ||--o{ VAULT_ENTRIES : secures
 ```
-it's a wide schema — **100+ tables** covering: chat (`sessions`, `messages`, `model_endpoints`, `mcp_servers`), saved search snapshots (`andromeda_saved_searches`), notes/journal/tasks (`journal_entries`, `tasks`), calendar (`calendars`, `calendar_events`, `event_attendees`, `booking_pages`, `calendar_subscriptions`), money (`money_accounts`, `money_transactions`, `money_budgets`, `money_goals`, `money_holdings`, `money_recurring`, …), subscriptions (`subscriptions`, `sub_payments`, `sub_price_changes`), contacts (`contacts`, `contact_fields`, `contact_groups`), mail (`mail_accounts`, `mail_drafts`, `cached_messages`, `mail_rules`, `mail_scheduled`), photos (`albums`, `photos`), the vault (`vaults`, `vault_entries`, `vault_attachments`, `webauthn_credentials`), durable Jarvis state (`jarvis_workflows`, `jarvis_triggers`, `jarvis_runs`, `jarvis_run_events`, `jarvis_run_prompts`, `jarvis_delivery_attempts`, `jarvis_connectors`, `jarvis_inbox_events`, capability grants and delegated actions), plus `personas`, `projects`, `memories`, `reminders`, `automation_rules`, `automation_attempts`, `day_events`, `habits`, `health_entries`, `books`, `read_items`, `monitors`, `webhooks`, `api_tokens`, `connections`, and more.
+it's a wide schema — **100+ tables** covering: chat (`sessions`, `messages`, `model_endpoints`, `mcp_servers`), saved search snapshots and durable verification jobs (`andromeda_saved_searches`, `andromeda_verification_jobs`), notes/journal/tasks (`journal_entries`, `tasks`), calendar (`calendars`, `calendar_events`, `event_attendees`, `booking_pages`, `calendar_subscriptions`), money (`money_accounts`, `money_transactions`, `money_budgets`, `money_goals`, `money_holdings`, `money_recurring`, …), subscriptions (`subscriptions`, `sub_payments`, `sub_price_changes`), contacts (`contacts`, `contact_fields`, `contact_groups`), mail (`mail_accounts`, `mail_drafts`, `cached_messages`, `mail_rules`, `mail_scheduled`), scheduled News (`news_configuration`, `news_sources`, `news_entries`, `news_briefs`), photos (`albums`, `photos`), the vault (`vaults`, `vault_entries`, `vault_attachments`, `webauthn_credentials`, `browser_connections`), durable Jarvis state (`jarvis_workflows`, `jarvis_triggers`, `jarvis_runs`, `jarvis_run_events`, `jarvis_run_prompts`, `jarvis_delivery_attempts`, `jarvis_connectors`, `jarvis_inbox_events`, capability grants and delegated actions), plus `personas`, `projects`, `memories`, `reminders`, `automation_rules`, `automation_attempts`, `day_events`, `habits`, `health_entries`, `books`, `read_items`, `monitors`, `webhooks`, `api_tokens`, `connections`, and more.
 - **`data/vault/`** — your docs as plain `.md` files (with `_assets/` for embedded images and `_templates/` for templates).
 - **`data/skills/`** — agent skills as `skill.md` files (frontmatter + steps).
-- **`data/`** (other) — uploads, photos, gallery, and file-app content as plain files; `webdav_backup.json` stores the visible collection URL and username plus a sealed password; `s3_backup.json` stores the visible endpoint, region, bucket, prefix, and addressing style plus a sealed access-key pair; **`data/secret.key`** is the encryption key for stored credentials.
+- **`data/`** (other) — uploads, photos, gallery, and file-app content as plain files; `server-policy.json`
+  is the owner-only, exact-schema Server control policy; `webdav_backup.json` stores the visible collection
+  URL and username plus a sealed password; `s3_backup.json` stores the visible endpoint, region, bucket,
+  prefix, and addressing style plus a sealed access-key pair; **`data/secret.key`** is the encryption key
+  for stored credentials.
 
-*under the hood:* the schema is sqlalchemy models in [`core/database.py`](core/database.py) with versioned migrations. server-side secrets (model api keys, mail passwords) are sealed at rest with aes-256-gcm under `data/secret.key`. settings → backup first snapshots sqlite, freezes keys and dependent config/files, and authenticates every known encrypted credential before creating an encrypted `.alles-backup` with a hashed manifest. save its recovery key separately. manual WebDAV backup uploads through a unique temporary name, moves without overwrite, then streams the saved file back to verify its exact size and SHA-256. manual S3-compatible backup signs each request with SigV4, conditionally uploads and copies a unique object without overwrite, and performs the same full read-back; the first version is limited to 5 GB per artifact. remote restore lists generated Alles backups, downloads one into private staging, and uses the same verification path as local restore. restore boots and migrates staged data twice, swaps only while writers are stopped, health-checks the installed copy, and automatically puts the original data back if validation fails.
+*under the hood:* the schema is sqlalchemy models in [`core/database.py`](core/database.py) with versioned migrations. server-side secrets (model api keys, mail passwords) are sealed at rest with aes-256-gcm under `data/secret.key`. settings → backup first snapshots sqlite, freezes keys and dependent config/files, and authenticates every known encrypted credential before creating an encrypted `.alles-backup` with a hashed manifest. a configured external Markdown vault is copied into a verified snapshot; if it changes during that copy, backup stops, and recovery remaps the captured vault under the new Alles data root instead of writing to the old external path. save the recovery key separately. manual WebDAV backup uploads through a unique temporary name, moves without overwrite, then streams the saved file back to verify its exact size and SHA-256. manual S3-compatible backup signs each request with SigV4, conditionally uploads and copies a unique object without overwrite, and performs the same full read-back; the first version is limited to 5 GB per artifact. remote restore lists generated Alles backups, downloads one into private staging, and uses the same verification path as local restore. restore boots and migrates staged data twice, swaps only while writers are stopped, health-checks the installed copy, and automatically puts the original data back if validation fails.
+
+first-run Protection can opt into an automatic encrypted local backup folder outside `ALLES_DATA`.
+The registered job checks hourly, creates at most one artifact every 24 hours, publishes no plaintext
+or partial archive, retains seven Alles-owned automatic artifacts, and never prunes unrelated files.
 
 ### current trust map
 
@@ -700,7 +817,7 @@ fastembed (onnx) for local embeddings — no embedding api needed
 web push implemented straight from the rfcs — zero extra dependencies
 ```
 
-the dependency list is deliberately small — `fastapi`, `uvicorn`, `httpx`, `sqlalchemy`, `pydantic`, `cryptography`, `bcrypt`, `fastembed`, `python-docx`, `pillow`, `psutil` (the live system monitor), plus `beautifulsoup4` + `trafilatura` + `ddgs` for research (reading and searching the web). optional extras are opt-in and clearly marked: `pyautogui` (agent computer-use), `faster-whisper` (offline voice), `caldav` (calendar sync), `pypdf` (pdf import).
+the exact direct runtime list is pinned in `requirements.txt`: `fastapi`, `uvicorn`, `python-multipart`, `python-dotenv`, `httpx`, `defusedxml`, `pydantic`, `sqlalchemy`, `cryptography`, `bcrypt`, `fastembed`, `python-docx`, `pillow`, macOS `pillow-heif`, `numpy`, `beautifulsoup4`, `trafilatura`, `ddgs`, and `psutil`. optional extras remain commented and opt-in there. `credits/manifest.json` and the generated notice bundle record the exact shipped inventory and license text.
 
 the frontend is genuinely just files: `static/index.html` is the whole app shell, `static/js/` is **one es module per feature** (~70 of them — `app.js`, `chat.js`, `vaultmd.js`, `mail.js`, `agent`-related, etc.) imported by `app.js`, and `static/style.css` holds the design tokens (sharp, monochrome, 2–3px radii, no shadows). "view source" actually shows you the app. the only pre-built drop-ins are two vendored files — codemirror 6 for the docs editor (`static/vendor/cm6.bundle.js`) and leaflet for the gallery places map (`static/vendor/leaflet/`) — so there's still no build step you have to run.
 
@@ -725,6 +842,10 @@ alles/
 │   ├── andromeda.py       bounded evidence, freshness, and claim verification
 │   ├── jarvis_handoff.py  durable Aide and deep-research handoffs
 │   ├── managed_searxng.py pinned optional service definition and safe lifecycle
+│   ├── native_install.py  owned versioned macos/linux runtime and service lifecycle
+│   ├── setup_state.py     durable five-step first-run validation and progress
+│   ├── automatic_backup.py daily encrypted local backup and seven-copy retention
+│   ├── browser_passwords.py paired, exact-site, short-session Passwords boundary
 │   ├── jobs.py            background job registry + event bus
 │   ├── research/          iterresearch deep-research engine (plan → search → read → synthesize)
 │   ├── hwfit/             hardware-aware local-model fit engine (900+ model catalog)
@@ -742,6 +863,7 @@ alles/
 │   ├── sysmon.py          live cpu/ram/disk/gpu snapshot (the system monitor)
 │   └── …                  files, photos, caldav, automations, docx export, stt
 ├── routes/                one apirouter per feature, all under /api (+ /v1 openai-compat)
+├── extension/             unpacked Chromium Passwords extension (manifest v3)
 ├── tests/                 unit + api-harness + playwright tests
 └── static/
     ├── index.html         the app shell
@@ -759,12 +881,12 @@ alles is built for **one person on their own machine.** read this before you put
 
 - **it ships open.** auth is off by default. if alles is reachable beyond localhost, set `auth_enabled=true`, a strong `auth_password`, and a real `secret_key` **first**. without auth, anyone who can reach the port can read your mail and files and run shell commands as you.
 - **login is rate-limited.** once auth is on, a single ip that fails the password 8 times in 5 minutes is blocked (http 429) — basic brute-force insurance for the day alles sits behind a domain.
-- **aide has hands.** Automatic tools, explicit Jarvis work, and shell tools can run real commands on the machine Alles is on. that's the point — but do not hand access to people or models you do not trust. changes still follow the configured approval boundary. the prompt-injection guard reduces the risk of malicious content steering the tool loop, but treat it as a seatbelt, not a force field.
+- **aide has hands.** Automatic and background Aide work plus shell tools can run real commands on the machine Alles is on. that's the point — but do not hand access to people or models you do not trust. changes still follow the configured approval boundary. the prompt-injection guard reduces the risk of malicious content steering the tool loop, but treat it as a seatbelt, not a force field.
 - **credentials are encrypted at rest with a local key.** model, mail, connector, mcp, dav, and sensitive settings credentials are sealed with aes-256-gcm under `data/secret.key`. this protects one database or config file if it leaks *on its own* — it does **not** protect against someone who has the whole `data/` folder, because the server must be able to decrypt unattended.
 - **new full backups fail closed on credential damage.** backup creation rejects plaintext known credentials, missing/corrupt keys, changed ciphertext, wrong field binding, and linked dependency files. historical plaintext archives can still stage so the current app can migrate them safely.
 - **full backups are encrypted before download, WebDAV upload, or S3-compatible upload.** the encrypted container includes the database, required application keys, selected managed files, and a hashed manifest. the recovery-key file is never printed in logs or uploaded separately or in plaintext; export it once and keep that copy away from the server. old plaintext ZIP backups can still be safely staged for compatibility.
 - **the password vault is different.** vault secrets are encrypted with your **master password**, which never touches disk. no master password, no plaintext — not even from a full copy of `data/`.
-- **the old browser-autofill prototype is retired.** it reused a vault-wide unlock token, so `/api/vault/match` now revokes the exact pasted token and returns `410 Gone` without resolving or extending it. the bundled extension is a permission-free notice only; use Passwords in Alles to reveal and copy logins until a safely paired replacement exists.
+- **the old browser-autofill token stays retired.** `/api/vault/match` revokes the exact pasted vault token and returns `410 Gone` without credential data. its replacement pairs a named browser with a hashed narrow device secret, then requires a separate unlocked-vault owner approval for each five-minute in-memory/session-storage fill session. it requests the chosen Alles host plus `activeTab`, ships no permanent all-site content script, matches exact normalized scheme/host/effective port, returns metadata before one selected release, injects only frame 0, and never submits. lock, browser/server restart, computer lock, or revoke removes fill authority.
 - **protected public shares use slow password hashes.** share passwords use bcrypt and are submitted outside the url. expiry dates normalize to utc and invalid dates fail closed. ten unlock attempts per ip and share are allowed every five minutes. a correct password creates a one-hour, in-memory, httponly cookie bound to that link and password version; changing or revoking the share invalidates existing unlocks.
 - **no warranty.** this is a self-hosted hobby project, not an audited security product. it tries hard; you run it at your own risk.
 

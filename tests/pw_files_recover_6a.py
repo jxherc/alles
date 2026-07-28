@@ -100,8 +100,8 @@ def main():
         pg.eval_on_selector(
             '.file-row[data-path="budget.txt"] [data-act="delete"]', "el => el.click()"
         )
-        pg.wait_for_selector("#_dy", timeout=4000)
-        pg.click("#_dy")
+        pg.wait_for_selector("[data-dialog-confirm]", timeout=4000)
+        pg.click("[data-dialog-confirm]")
         pg.wait_for_timeout(900)
         pg.click('.files-smart[data-kind="__trash"]')
         pg.wait_for_timeout(800)

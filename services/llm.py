@@ -3,8 +3,11 @@ provider-agnostic streaming LLM client.
 yields dicts: {"delta": str} | {"thinking": str} | {"done": True, "usage": {...}}
 """
 
-import json, time
+import json
+import time
 from typing import AsyncGenerator
+from urllib.parse import urlsplit, urlunsplit
+
 import httpx
 
 _client: httpx.AsyncClient | None = None
@@ -66,6 +69,13 @@ def clear_cooldown(url: str):
     _mark_ok(url)
 
 
+def _openai_chat_url(base_url: str) -> str:
+    parsed = urlsplit((base_url or "").rstrip("/"))
+    path = parsed.path.rstrip("/")
+    suffix = "/chat/completions" if path.endswith(("/v1", "/v1beta/openai")) else "/v1/chat/completions"
+    return urlunsplit((parsed.scheme, parsed.netloc, path + suffix, "", ""))
+
+
 def detect_provider(base_url: str) -> str:
     url = base_url.lower()
     if "anthropic.com" in url:
@@ -76,7 +86,7 @@ def detect_provider(base_url: str) -> str:
         return "openrouter"
     if "groq.com" in url:
         return "groq"
-    if "moonshot.cn" in url:
+    if "moonshot.cn" in url or "moonshot.ai" in url or "kimi.ai" in url:
         return "moonshot"
     if "api.x.ai" in url:
         return "xai"
@@ -154,6 +164,29 @@ def _anthropic_thinks(model: str) -> bool:
     )
 
 
+def reasoning_control_supported(base_url: str, model: str) -> bool:
+    """Whether Alles can honestly force reasoning on or off for this endpoint.
+
+    Automatic mode remains available for every provider. Explicit controls are
+    only offered when this client sends a documented provider field.
+    """
+    provider = detect_provider(base_url)
+    if provider == "deepseek":
+        return True
+    if provider == "ollama":
+        # The tags catalog does not prove the selected model exposes Ollama's
+        # thinking capability. Keep explicit on/off unavailable until a live
+        # capability probe is part of the endpoint metadata.
+        return False
+    if provider == "anthropic":
+        return _anthropic_thinks(model)
+    if provider == "openai":
+        # Chat Completions exposes effort for reasoning models, but not a portable
+        # explicit on/off field. Keep the separate effort control honest.
+        return False
+    return False
+
+
 def _build_openai_payload(messages, model, stream=True, provider="openai", **kw) -> dict:
     p = {"model": model, "messages": _normalize_openai_messages(messages), "stream": stream}
     if stream and provider in _USAGE_OK:
@@ -162,6 +195,8 @@ def _build_openai_payload(messages, model, stream=True, provider="openai", **kw)
         p["max_tokens"] = kw["max_tokens"]
     if "temperature" in kw:
         p["temperature"] = kw["temperature"]
+    if provider == "deepseek" and isinstance(kw.get("thinking"), bool):
+        p["thinking"] = {"type": "enabled" if kw["thinking"] else "disabled"}
     eff = kw.get("effort")
     if eff and provider == "openai" and _is_oai_reasoning(model):
         p["reasoning_effort"] = _OAI_EFFORT.get(eff, "medium")
@@ -172,12 +207,15 @@ def _build_openai_payload(messages, model, stream=True, provider="openai", **kw)
 
 
 def _build_ollama_payload(messages, model, stream=True, **kw) -> dict:
-    return {
+    payload = {
         "model": model,
         "messages": messages,
         "stream": stream,
         "options": {k: v for k, v in kw.items() if k in ("temperature", "num_predict", "num_ctx")},
     }
+    if isinstance(kw.get("thinking"), bool):
+        payload["think"] = kw["thinking"]
+    return payload
 
 
 def _anthropic_blocks(content):
@@ -256,10 +294,13 @@ def _build_anthropic_payload(messages, model, stream=True, **kw) -> dict:
         p["system"] = "\n\n".join(m["content"] for m in sys_msgs)
     if "temperature" in kw:
         p["temperature"] = kw["temperature"]
-    # high+ effort → extended thinking on models that support it
+    # Explicit reasoning wins over the effort default. Automatic keeps the
+    # older high-effort behavior.
     eff = kw.get("effort")
-    if eff in _THINK_BUDGET and _anthropic_thinks(model):
-        budget = _THINK_BUDGET[eff]
+    thinking = kw.get("thinking")
+    should_think = thinking is True or (thinking is None and eff in _THINK_BUDGET)
+    if should_think and _anthropic_thinks(model):
+        budget = _THINK_BUDGET.get(eff, 8000)
         p["max_tokens"] = max(p.get("max_tokens", 8192), budget + 2048)
         p["thinking"] = {"type": "enabled", "budget_tokens": budget}
         p.pop("temperature", None)  # anthropic requires temp unset when thinking is on
@@ -305,10 +346,13 @@ async def stream_chat(
             headers["authorization"] = f"Bearer {api_key}"
         payload = _build_ollama_payload(messages, model, **kw)
     else:
-        url = base_url.rstrip("/") + "/v1/chat/completions"
+        url = _openai_chat_url(base_url)
         headers = {"content-type": "application/json"}
         if api_key:
             headers["authorization"] = f"Bearer {api_key}"
+            from services.model_auth import runtime_headers
+
+            headers.update(runtime_headers(api_key))
         payload = _build_openai_payload(messages, model, provider=provider, **kw)
 
     try:
@@ -544,10 +588,14 @@ async def simple_complete(
     api_key: str,
     model: str,
     max_tokens: int = 256,
+    thinking: bool | None = None,
 ) -> str:
     """non-streaming, returns full text. for things like auto-naming sessions."""
     out = []
-    async for chunk in stream_chat(messages, base_url, api_key, model, max_tokens=max_tokens):
+    options = {"max_tokens": max_tokens}
+    if thinking is not None:
+        options["thinking"] = thinking
+    async for chunk in stream_chat(messages, base_url, api_key, model, **options):
         if "delta" in chunk:
             out.append(chunk["delta"])
         elif "error" in chunk:

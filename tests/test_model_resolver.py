@@ -32,7 +32,8 @@ class ModelResolverTest(ApiTest):
         return {
             "model_roles": {
                 "aide_chat": role_choice or {},
-                "andromeda": role_choice or {},
+                "andromeda_answer": role_choice or {},
+                "andromeda_verifier": {},
                 "jarvis": role_choice or {},
             },
             "default_endpoint_id": "",
@@ -121,7 +122,7 @@ class ModelResolverTest(ApiTest):
         self._endpoint("remote", "https://remote.test/v1", ["remote-model"])
         self._endpoint("local", "http://localhost:11434", ["local-model"])
         db = self.db()
-        selected = resolve_model(db, "andromeda", settings=self._settings())
+        selected = resolve_model(db, "andromeda_answer", settings=self._settings())
         self.assertEqual(selected.model, "local-model")
         self.assertEqual(selected.privacy_class, "local")
         db.close()
@@ -145,7 +146,8 @@ class ModelResolverTest(ApiTest):
         settings = {
             "model_roles": {
                 "aide_chat": {"endpoint_id": endpoint_id, "model": "chat-model"},
-                "andromeda": {"endpoint_id": endpoint_id, "model": "removed"},
+                "andromeda_answer": {"endpoint_id": endpoint_id, "model": "removed"},
+                "andromeda_verifier": {},
                 "jarvis": {},
             },
             "default_endpoint_id": "",
@@ -157,8 +159,8 @@ class ModelResolverTest(ApiTest):
         body = response.json()
         self.assertEqual(body["aide_chat"]["effective"]["model"], "chat-model")
         self.assertEqual(body["aide_chat"]["effective"]["reason"], "role_default")
-        self.assertEqual(body["andromeda"]["status"], "broken")
-        self.assertEqual(body["andromeda"]["error_code"], "model_unavailable")
+        self.assertEqual(body["andromeda_answer"]["status"], "broken")
+        self.assertEqual(body["andromeda_answer"]["error_code"], "model_unavailable")
 
     def test_chat_uses_role_then_persona_then_session_choice(self):
         from routes.chat import _resolve_session_model
@@ -190,11 +192,17 @@ class ModelResolverTest(ApiTest):
 
 
 class ModelRoleValidationTest(unittest.TestCase):
-    def test_normalizes_all_three_roles(self):
+    def test_normalizes_all_four_roles(self):
         roles = normalize_model_roles({"aide_chat": {"model": " chat "}})
         self.assertEqual(roles["aide_chat"]["model"], "chat")
-        self.assertEqual(roles["andromeda"]["model"], "")
+        self.assertEqual(roles["andromeda_answer"]["model"], "")
+        self.assertEqual(roles["andromeda_verifier"]["model"], "")
         self.assertEqual(roles["jarvis"]["fallbacks"], [])
+
+    def test_migrates_legacy_andromeda_choice_to_answer_role(self):
+        roles = normalize_model_roles({"andromeda": {"endpoint_id": "ep", "model": "fast"}})
+        self.assertEqual(roles["andromeda_answer"]["model"], "fast")
+        self.assertEqual(roles["andromeda_verifier"]["model"], "")
 
     def test_rejects_unknown_roles_and_fields(self):
         with self.assertRaises(ValueError):

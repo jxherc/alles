@@ -61,7 +61,11 @@ def inactive(query):
 
 def soft_delete(db, obj):
     col, kind = _policy(type(obj))
-    setattr(obj, col, True if kind == "flag" else datetime.datetime.utcnow())
+    setattr(
+        obj,
+        col,
+        True if kind == "flag" else datetime.datetime.now(datetime.UTC).replace(tzinfo=None),
+    )
     db.commit()
 
 

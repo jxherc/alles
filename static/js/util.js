@@ -172,51 +172,11 @@ export function mdToHtml(text) {
   return out;
 }
 
-// lazy-render mermaid diagrams + katex math inside a freshly-rendered container.
-// libs load from CDN on first use; if that fails the raw text just stays.
-let _mermaidP, _katexP;
-function _loadMermaid() {
-  if (!_mermaidP) _mermaidP = import('https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs')
-    .then(m => { m.default.initialize({ startOnLoad: false, theme: 'dark', securityLevel: 'loose', fontFamily: 'Inter, sans-serif' }); return m.default; });
-  return _mermaidP;
-}
-function _loadKatex() {
-  if (!_katexP) {
-    if (!document.getElementById('katex-css')) {
-      const l = document.createElement('link');
-      l.id = 'katex-css'; l.rel = 'stylesheet';
-      l.href = 'https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css';
-      document.head.appendChild(l);
-    }
-    _katexP = import('https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.mjs').then(m => m.default);
-  }
-  return _katexP;
-}
+// Markdown stays complete and readable without a network connection. Mermaid and
+// TeX source are intentionally preserved as text until reviewed local renderers
+// are bundled; runtime CDN imports are forbidden in core UI paths.
 export async function enhanceMarkdown(root) {
-  if (!root) return;
-  const mer = [...root.querySelectorAll('.md-mermaid:not([data-done])')];
-  if (mer.length) {
-    try {
-      const mermaid = await _loadMermaid();
-      for (const el of mer) {
-        el.dataset.done = '1';
-        try {
-          const { svg } = await mermaid.render('mmd' + Math.random().toString(36).slice(2), el.dataset.src);
-          el.innerHTML = svg;
-        } catch { el.classList.add('md-mermaid-err'); }
-      }
-    } catch {}
-  }
-  const math = [...root.querySelectorAll('.md-math:not([data-done]),.md-math-inline:not([data-done])')];
-  if (math.length) {
-    try {
-      const katex = await _loadKatex();
-      for (const el of math) {
-        el.dataset.done = '1';
-        try { katex.render(el.dataset.tex, el, { displayMode: el.classList.contains('md-math'), throwOnError: false }); } catch {}
-      }
-    } catch {}
-  }
+  return root;
 }
 _g.enhanceMarkdown = enhanceMarkdown;
 
@@ -224,14 +184,14 @@ _g.enhanceMarkdown = enhanceMarkdown;
 // thin fetch wrapper — json in/out by default, throws on !ok with the server's
 // detail message. plain objects get JSON-encoded; FormData/strings pass through.
 // adopt incrementally; raw fetch is still fine where this doesn't fit.
-export async function api(path, opts = {}) {
+export async function api(path, opts = {}, fetcher = fetch) {
   const o = { ...opts };
   const body = o.body;
   if (body != null && !(body instanceof FormData) && typeof body !== 'string') {
     o.headers = { 'content-type': 'application/json', ...(o.headers || {}) };
     o.body = JSON.stringify(body);
   }
-  const r = await fetch(path, o);
+  const r = await fetcher(path, o);
   const ct = r.headers.get('content-type') || '';
   const data = ct.includes('application/json') ? await r.json().catch(() => null) : await r.text();
   if (!r.ok) {

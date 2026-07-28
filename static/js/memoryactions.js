@@ -10,6 +10,7 @@ export function provenanceLabels(provenance = {}) {
   if (provenance.persona?.name) labels.push(`persona: ${provenance.persona.name}`);
   const count = Array.isArray(provenance.memories) ? provenance.memories.length : 0;
   if (count) labels.push(`${count} memor${count === 1 ? 'y' : 'ies'}`);
+  if (provenance.document?.path) labels.push(`note: ${provenance.document.path}`);
   if (provenance.model) labels.push(`${provenance.endpoint || 'model'} / ${provenance.model}`);
   return labels;
 }
@@ -32,6 +33,7 @@ export function contextProvenanceElement(provenance = {}) {
       ${provenance.owner_instructions ? '<div>owner instructions used</div>' : ''}
       ${provenance.project_instructions ? '<div>Project instructions used</div>' : ''}
       ${provenance.persona?.name ? `<div>persona: ${safe(provenance.persona.name)}</div>` : ''}
+      ${provenance.document?.path ? `<div>note used: ${safe(provenance.document.path)}</div>` : ''}
       ${memories.map(memory => `<div class="context-memory" data-memory-id="${safe(memory.id)}">
         <span><b>${safe(memoryProvenanceLabel(memory))}</b> · ${safe(memory.text || '')}</span>
         <button class="act-btn" type="button" data-forget-memory="${safe(memory.id)}">forget this</button>

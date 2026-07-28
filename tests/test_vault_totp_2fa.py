@@ -42,7 +42,9 @@ class TotpUnlock2fa(ApiTest):
         self._sf.close()
         self.sp = mock.patch.object(core.settings, "_SETTINGS_FILE", Path(self._sf.name))
         self.sp.start()
-        self.tok = self.client.post("/api/vault/unlock", json={"password": "m1"}).json()["token"]
+        self.tok = self.client.post(
+            "/api/vault/unlock", json={"password": "master-password-1"}
+        ).json()["token"]
         self.h = {"X-Vault-Token": self.tok}
 
     def tearDown(self):
@@ -82,7 +84,7 @@ class TotpUnlock2fa(ApiTest):
 
     def test_unlock_now_demands_2fa_with_totp_method(self):
         self._enable_totp()
-        r = self.client.post("/api/vault/unlock", json={"password": "m1"}).json()
+        r = self.client.post("/api/vault/unlock", json={"password": "master-password-1"}).json()
         self.assertTrue(r.get("requires_2fa"))
         self.assertIn("totp", r.get("methods", []))
         self.assertNotIn("token", r)
@@ -90,7 +92,8 @@ class TotpUnlock2fa(ApiTest):
     def test_unlock_2fa_totp_with_code_returns_token(self):
         s, _ = self._enable_totp()
         r = self.client.post(
-            "/api/vault/unlock/2fa/totp", json={"password": "m1", "code": totp_now(s)}
+            "/api/vault/unlock/2fa/totp",
+            json={"password": "master-password-1", "code": totp_now(s)},
         )
         self.assertEqual(r.status_code, 200)
         self.assertTrue(r.json()["token"])
@@ -98,7 +101,7 @@ class TotpUnlock2fa(ApiTest):
     def test_unlock_2fa_totp_wrong_code_rejected(self):
         self._enable_totp()
         r = self.client.post(
-            "/api/vault/unlock/2fa/totp", json={"password": "m1", "code": "000000"}
+            "/api/vault/unlock/2fa/totp", json={"password": "master-password-1", "code": "000000"}
         )
         self.assertEqual(r.status_code, 401)
 

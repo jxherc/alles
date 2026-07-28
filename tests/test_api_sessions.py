@@ -1,5 +1,5 @@
 import json
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from unittest import mock
 
 from sqlalchemy import event
@@ -217,7 +217,7 @@ class SessionsApiTest(ApiTest):
     def test_edit_message_truncates_later(self):
         sid = self.client.post("/api/sessions", json={"name": "edit"}).json()["id"]
         d = self.db()
-        base = datetime.utcnow()
+        base = datetime.now(UTC).replace(tzinfo=None)
         m1 = Message(session_id=sid, role="user", content="first", timestamp=base)
         m2 = Message(
             session_id=sid, role="assistant", content="reply", timestamp=base + timedelta(seconds=1)

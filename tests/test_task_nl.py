@@ -1,6 +1,7 @@
 import unittest
 from datetime import date
-from services.task_nl import parse_task, advance
+
+from services.task_nl import advance, parse_task
 
 T = date(2026, 6, 14)  # fixed "today" for determinism
 

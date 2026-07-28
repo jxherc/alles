@@ -1,6 +1,7 @@
 """ui-6a — gallery header/grid/lightbox rebuild: consistent control sizing, no ad-hoc inline styles,
 tidy lightbox layout. Behavioral/computed-style check in docs/evidence/ui-6a/verify.py."""
 
+import re
 import unittest
 from pathlib import Path
 
@@ -53,6 +54,16 @@ class GalleryRebuild(unittest.TestCase):
         # justified mosaic rows
         self.assertRegex(CSS, r"\.photos-row\s*\{[^}]*display:\s*flex")
 
+    def test_active_gallery_controls_use_neutral_kokuen_states(self):
+        nav_rule = re.search(r"\.photos-nav-item\.active\s*\{([^}]*)\}", CSS)
+        filter_rule = re.search(r"\.photos-filt-seg button\.active\s*\{([^}]*)\}", CSS)
+        self.assertIsNotNone(nav_rule)
+        self.assertIsNotNone(filter_rule)
+        for rule in (nav_rule.group(1), filter_rule.group(1)):
+            self.assertIn("var(--text)", rule)
+            self.assertIn("var(--panel)", rule)
+            self.assertNotIn("var(--accent)", rule)
+
     def test_selection_bar_present(self):
         # phase 2: multi-select action bar + per-cell check-circles
         self.assertIn('id="photos-selbar"', INDEX)
@@ -67,7 +78,9 @@ class GalleryRebuild(unittest.TestCase):
         self.assertIn('id="photos-lb-drawer"', INDEX)
         self.assertIn('id="photos-info-btn"', INDEX)
         self.assertRegex(CSS, r"\.photos-lb-drawer\s*\{[^}]*transform:\s*translateX\(100%\)")
-        self.assertRegex(CSS, r"#photos-lightbox\.drawer-open \.photos-lb-drawer\s*\{[^}]*transform:\s*none")
+        self.assertRegex(
+            CSS, r"#photos-lightbox\.drawer-open \.photos-lb-drawer\s*\{[^}]*transform:\s*none"
+        )
 
     def test_lightbox_has_prevnext_and_help(self):
         for el in ("photos-prev-btn", "photos-next-btn", "photos-lb-help", "photos-archive-btn"):
@@ -76,7 +89,13 @@ class GalleryRebuild(unittest.TestCase):
 
     def test_scrubber_and_filterbar_present(self):
         # phase 5: date scrubber + filter bar
-        for el in ("photos-scrubber", "photos-scrub-thumb", "photos-filterbar", "photos-filter-btn", "photos-filt-camera"):
+        for el in (
+            "photos-scrubber",
+            "photos-scrub-thumb",
+            "photos-filterbar",
+            "photos-filter-btn",
+            "photos-filt-camera",
+        ):
             self.assertIn(f'id="{el}"', INDEX)
         self.assertRegex(CSS, r"\.photos-scrubber\s*\{")
         self.assertRegex(CSS, r"\.photos-filterbar\s*\{")

@@ -3,6 +3,7 @@
 // memory/swap breakdown, up/down network graphs, a disk panel, and a top-process
 // table. all monospace + hand-rendered, polled live. no chart library.
 import { confirm as confirmDialog } from './dialog.js';
+import { resolvedTimeZone } from './i18n.js';
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
@@ -81,23 +82,23 @@ const LOGOS = {
   ].join('\n'),
   // the real neofetch apple logo
   darwin: [
-    "                    'c.",
+    "                    c.'",
     "                 ,xNMM.",
     "               .OMMMMo",
-    "               OMMM0,",
-    "     .;loddo:' loolloddol;.",
+    '               lMM"',
+    "     .;loddo:.  .olloddol;.",
     "   cKMMMMMMMMMMNWMMMMMMMMMM0:",
-    " .KMMMMMMMMMMMMMMMMMMMMMMMWd.",
+    " .KMMMMMMMMMMMMMMMMMMMMMMMMWd.",
     " XMMMMMMMMMMMMMMMMMMMMMMMX.",
     ";MMMMMMMMMMMMMMMMMMMMMMMM:",
     ":MMMMMMMMMMMMMMMMMMMMMMMM:",
     ".MMMMMMMMMMMMMMMMMMMMMMMMX.",
     " kMMMMMMMMMMMMMMMMMMMMMMMMWd.",
-    " .XMMMMMMMMMMMMMMMMMMMMMMMMMMk",
-    "  .XMMMMMMMMMMMMMMMMMMMMMMMMK.",
+    " 'XMMMMMMMMMMMMMMMMMMMMMMMMMMk",
+    "  'XMMMMMMMMMMMMMMMMMMMMMMMMK.",
     "    kMMMMMMMMMMMMMMMMMMMMMMd",
     "     ;KMMMMMMMWXXWMMMMMMMk.",
-    "       .cooc,.    .,coo:.",
+    '       "cooc*"    "*coo\'',
   ].join('\n'),
   // tux
   linux: [
@@ -132,12 +133,25 @@ const LOGOS = {
     "      ##     ##",
   ].join('\n'),
 };
-function logoFor(plat) {
+export function logoPlatform(plat) {
   const p = (plat || '').toLowerCase();
-  if (p.includes('win')) return LOGOS.windows;
-  if (p.includes('darwin') || p.includes('mac')) return LOGOS.darwin;
-  if (p.includes('linux')) return LOGOS.linux;
-  return LOGOS.generic;
+  if (p.includes('darwin') || p.includes('mac')) return 'darwin';
+  if (p.includes('win')) return 'windows';
+  if (p.includes('linux')) return 'linux';
+  return 'generic';
+}
+export function logoFor(plat) {
+  return LOGOS[logoPlatform(plat)];
+}
+
+// Neofetch measures ASCII in terminal columns and rows before printing it.
+// Keep the browser's monospace character grid square instead of only making
+// the invisible wrapper square.
+export function logoGrid(plat) {
+  const lines = logoFor(plat).split('\n');
+  const columns = Math.max(...lines.map(line => line.length));
+  const rows = lines.length;
+  return { columns, rows, rowHeightCh: columns / rows };
 }
 
 // discrete heat ramp by VALUE — used for the numeric labels (cpu%, per-core, proc)
@@ -256,8 +270,7 @@ export function browserClientInfo(source = globalThis.navigator || {}, timeZone 
   const language = String(source.language || 'unknown');
   let zone = String(timeZone || '');
   if (!zone) {
-    try { zone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'unknown'; }
-    catch { zone = 'unknown'; }
+    zone = resolvedTimeZone();
   }
   return { platform, language, timezone: zone };
 }
@@ -289,14 +302,15 @@ function group(header, headerVal, rows) {
 function buildShell(s) {
   const note = s.live ? '' :
     `<div class="sys-note">live cpu% + processes + net need <code>psutil</code> (<code>pip install psutil</code>); ram + disk shown from the static readout.</div>`;
+  const logoKey = logoPlatform(s.host.platform);
+  const logoLabel = { darwin: 'macOS', windows: 'Windows', linux: 'Linux', generic: 'operating system' }[logoKey];
+  const logoGridSize = logoGrid(s.host.platform);
   $('system-body').innerHTML = `${note}
-    <section class="server-service-card" id="server-searxng" aria-labelledby="server-searxng-title">
-      <div class="server-service-copy"><strong id="server-searxng-title">optional searxng</strong><span id="server-searxng-status">checking…</span></div>
-      <div class="server-service-actions" id="server-searxng-actions"></div>
-    </section>
     <div id="sys-shell">
       <div class="neofetch">
-        <pre class="nf-logo">${esc(logoFor(s.host.platform))}</pre>
+        <div class="nf-logo" data-os="${logoKey}" role="img" aria-label="${logoLabel} logo">
+          <div class="nf-logo-art" aria-hidden="true"><pre class="nf-logo-glyphs" data-columns="${logoGridSize.columns}" data-rows="${logoGridSize.rows}" style="--nf-row-height:${logoGridSize.rowHeightCh.toFixed(6)}ch">${esc(logoFor(s.host.platform))}</pre></div>
+        </div>
         <div class="nf-info" id="nf-info"></div>
       </div>
       <div class="btop-grid">
@@ -317,12 +331,12 @@ function buildShell(s) {
     </div>`;
 }
 
-async function loadManagedSearxng() {
+async function loadManagedSearxng(fetcher = fetch) {
   const statusEl = $('server-searxng-status');
   const actions = $('server-searxng-actions');
   if (!statusEl || !actions) return;
   try {
-    const response = await fetch('/api/system/searxng');
+    const response = await fetcher('/api/system/searxng');
     if (!response.ok) throw new Error('health unavailable');
     const service = await response.json();
     const runtime = service.available ? `docker ${service.docker_version || 'ready'}` : 'docker unavailable';
@@ -346,9 +360,7 @@ async function manageSearxng(action, button) {
   button.disabled = true;
   const statusEl = $('server-searxng-status');
   if (statusEl) statusEl.textContent = `${action} in progress…`;
-  const path = ['start', 'stop', 'restart'].includes(action)
-    ? `/api/system/services/searxng/${action}`
-    : `/api/system/searxng/${action}`;
+  const path = `/api/system/searxng/${action}`;
   try {
     const response = await fetch(path, { method: 'POST' });
     const body = await response.json().catch(() => ({}));
@@ -393,9 +405,9 @@ function buildInfo(s, freq, disk0) {
   ].join('');
 }
 
-function render(s) {
+function render(s, fetcher = fetch) {
   if (!$('sys-shell')) buildShell(s);
-  if ($('server-searxng-status')?.textContent === 'checking…') loadManagedSearxng();
+  if ($('server-searxng-status')?.textContent === 'checking…') loadManagedSearxng(fetcher);
   if (s.cpu.percent != null) push(cpuHist, s.cpu.percent);
   push(ramHist, s.memory.percent);
   push(netDownHist, (s.net?.down_bps || 0));
@@ -469,15 +481,16 @@ function render(s) {
 function push(arr, v) { arr.push(v); if (arr.length > HIST) arr.shift(); }
 
 let _timer = null, _wired = false, _ok = false;
-async function tick() {
+let _systemFetcher = fetch;
+async function tick(fetcher = _systemFetcher) {
   const v = $('system-view');
   if (!v || v.style.display === 'none' || document.hidden) return;
   try {
-    const r = await fetch('/api/system/stats');
+    const r = await fetcher('/api/system/stats');
     if (!r.ok) throw new Error(r.status === 404 ? 'the /api/system/stats route is missing' : `server returned ${r.status}`);
     const s = await r.json();
     if (!s || !s.cpu || !s.memory) throw new Error('unexpected response');
-    render(s);
+    render(s, fetcher);
     _ok = true;
   } catch (e) {
     const b = $('system-body');
@@ -491,21 +504,26 @@ async function tick() {
 }
 
 let _sysGen = 0;
-export async function initSystem() {
-  const gen = ++_sysGen;   // a later call wins the await race so we never leak a 2nd timer
-  $('system-body').innerHTML = '<div class="g-dim" style="padding:1rem;font-family:\'JetBrains Mono\',monospace">reading the machine…</div>';
+export async function initSystem(fetcher = fetch) {
+  const gen = ++_sysGen;
+  _systemFetcher = fetcher;
+  $('system-body').innerHTML = '<div class="g-dim" style="padding:1rem">reading the machine…</div>';
   if (_timer) { clearInterval(_timer); _timer = null; }
-  tick();
-  let ms = 1500;
-  try { ms = Math.max(250, Number((await fetch('/api/settings').then(r => r.json())).system_refresh) || 1500); } catch {}
-  if (gen !== _sysGen) return;   // superseded while awaiting — bail, the newer call owns the timer
-  _timer = setInterval(tick, ms);
+  void tick(fetcher);
+  _timer = setInterval(() => tick(_systemFetcher), 1500);
   if (!_wired) {
     _wired = true;
-    document.addEventListener('visibilitychange', () => { if (!document.hidden) tick(); });
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) tick(_systemFetcher); });
     $('system-body')?.addEventListener('click', event => {
       const button = event.target.closest('[data-searxng-action]');
       if (button) manageSearxng(button.dataset.searxngAction, button);
     });
   }
+  void (async () => {
+    let ms = 1500;
+    try { ms = Math.max(250, Number((await fetcher('/api/settings').then(r => r.json())).system_refresh) || 1500); } catch {}
+    if (gen !== _sysGen || ms === 1500) return;
+    if (_timer) clearInterval(_timer);
+    _timer = setInterval(() => tick(_systemFetcher), ms);
+  })();
 }

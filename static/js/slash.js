@@ -1,5 +1,6 @@
 import { toast, escapeHtml } from './util.js';
 import { exportActiveSessionMarkdown } from './sessions.js';
+import { formatTime } from './i18n.js';
 
 // ── built-in command registry ────────────────────────────────────────
 const BUILTINS = [
@@ -13,8 +14,6 @@ const BUILTINS = [
   // model & persona
   { name: 'model',     cat: 'model',    help: 'open model picker' },
   { name: 'persona',   cat: 'model',    help: 'switch persona',          args: '[name]' },
-  // mode
-  { name: 'jarvis',    cat: 'mode',     help: 'run longer work with Jarvis', args: '[task]' },
   { name: 'andromeda', cat: 'search',   help: 'search the web', args: '[query]' },
   // memory
   { name: 'remember',  cat: 'memory',   help: 'save a memory',           args: '<text>' },
@@ -190,7 +189,7 @@ function _apply(entry, ta, lineStart, cursor) {
     const after  = ta.value.slice(cursor);
     ta.value = before + entry.prompt + after;
     ta.style.height = 'auto';
-    ta.style.height = Math.min(ta.scrollHeight, 220) + 'px';
+    ta.style.height = Math.min(ta.scrollHeight, 160) + 'px';
     ta.focus();
     const pos = lineStart + entry.prompt.length;
     ta.setSelectionRange(pos, pos);
@@ -235,7 +234,7 @@ export async function tryExecuteSlashCommand(text) {
     if (ta) {
       ta.value = expanded;
       ta.style.height = 'auto';
-      ta.style.height = Math.min(ta.scrollHeight, 220) + 'px';
+      ta.style.height = Math.min(ta.scrollHeight, 160) + 'px';
     }
     return false;  // let normal send handle it with substituted text
   }
@@ -307,25 +306,6 @@ export async function tryExecuteSlashCommand(text) {
       return true;
     }
 
-    case 'agent':
-    case 'jarvis': {
-      if (args) {
-        const { runWithJarvis } = await import('./jarvishandoff.js');
-        await runWithJarvis(args);
-      } else {
-        document.getElementById('mode-jarvis')?.click();
-      }
-      return true;
-    }
-
-    case 'bg':
-    case 'background': {
-      if (!args) { toast('usage: /bg <task>', 'error'); return true; }
-      const { runWithJarvis } = await import('./jarvishandoff.js');
-      await runWithJarvis(args);
-      return true;
-    }
-
     case 'remember': {
       if (!args) { toast('/remember requires text', 'error'); return true; }
       const r = await fetch('/api/memories', {
@@ -338,7 +318,7 @@ export async function tryExecuteSlashCommand(text) {
     }
 
     case 'memories': {
-      (await import('./settings.js')).openSettings('memory');
+      (await import('./settings.js?v=289')).openSettings('memory');
       return true;
     }
 
@@ -499,13 +479,13 @@ export async function tryExecuteSlashCommand(text) {
       const type = cmd === 'send' ? 'message' : 'reminder';
       const sessionId = type === 'message' ? (window._currentSession?.id || null) : null;
       await createReminder(textPart, triggerAt, type, sessionId);
-      const when = triggerAt.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+      const when = formatTime(triggerAt, { hour: '2-digit', minute: '2-digit' });
       toast(type === 'message' ? `scheduled for ${when}` : `reminder set for ${when}`, 'success');
       return true;
     }
 
     case 'reminders':
-      document.querySelector('.nav-item[data-view="reminders"]')?.click();
+      document.querySelector('.nav-item[data-view="aide-reminders"]')?.click();
       return true;
 
     case 'help': {

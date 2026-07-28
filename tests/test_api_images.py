@@ -1,8 +1,9 @@
 import json
-from tests._client import VaultApiTest
+
 from core.database import ModelEndpoint
-from services.imagegen import is_image_model, image_models
 from routes.models import _is_chat_model
+from services.imagegen import image_models, is_image_model
+from tests._client import VaultApiTest
 
 
 class ImagesApiTest(VaultApiTest):
@@ -85,9 +86,11 @@ class ImagesApiTest(VaultApiTest):
         import tempfile
         from io import BytesIO
         from pathlib import Path
+
         import services.imagegen as ig
         import services.photos_store as pstore
-        from core.database import Session as Sess, ModelEndpoint, Message
+        from core.database import Message, ModelEndpoint
+        from core.database import Session as Sess
         from services import notes_vault
 
         buf = BytesIO()
@@ -135,7 +138,9 @@ class ImagesApiTest(VaultApiTest):
         j = r.json()
         self.assertIn("saved to notes", j["content"])
         self.assertTrue(j["doc_id"])
-        self.assertEqual(len(notes_vault.all_notes()), 1)  # filed as a vault note (the live docs app)
+        self.assertEqual(
+            len(notes_vault.all_notes()), 1
+        )  # filed as a vault note (the live docs app)
         d = self.db()
         self.assertEqual(d.query(Message).filter_by(session_id=sid).count(), 2)
         # the stored count must match the 2 rows actually written (was +1, drifting the sidebar)
@@ -149,8 +154,10 @@ class ImagesApiTest(VaultApiTest):
         except Exception:
             self.skipTest("PIL not available")
         from io import BytesIO
+
         import services.imagegen as ig
-        from core.database import Session as Sess, ModelEndpoint, Message
+        from core.database import Message, ModelEndpoint
+        from core.database import Session as Sess
         from services import notes_vault
 
         buf = BytesIO()

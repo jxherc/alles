@@ -4,6 +4,7 @@ seeds into the running server DB+disk - set the SAME data dir:
   ALLES_DATA=.tmp_ft AUTH_ENABLED=false PORT=8077 python app.py
   ALLES_DATA=.tmp_ft PYTHONPATH=. PYTHONIOENCODING=utf-8 python tests/pw_files_tagfilter.py
 """
+
 import os
 
 os.environ["ALLES_DATA"] = ".tmp_relverify_data"
@@ -31,7 +32,9 @@ def seed():
 
 
 def names(pg):
-    return pg.evaluate("() => [...document.querySelectorAll('.file-row .file-name')].map(n => n.textContent.replace(/work|urgent|home/g,'').trim())")
+    return pg.evaluate(
+        "() => [...document.querySelectorAll('.file-row .file-name')].map(n => n.textContent.replace(/work|urgent|home/g,'').trim())"
+    )
 
 
 def main():
@@ -42,12 +45,16 @@ def main():
         pg.goto(BASE, wait_until="domcontentloaded")
         pg.wait_for_timeout(1000)
         # click the #work tag on report.txt
-        pg.evaluate("""() => [...document.querySelectorAll('.file-tag[data-tag="work"]')][0].click()""")
+        pg.evaluate(
+            """() => [...document.querySelectorAll('.file-tag[data-tag="work"]')][0].click()"""
+        )
         pg.wait_for_timeout(800)
         ns = names(pg)
         print("tagged-work view:", ns)
         assert "report.txt" in ns and "notes.txt" in ns and "budget.txt" not in ns, ns
-        crumb = pg.evaluate("() => document.querySelector('.files-crumb, .files-breadcrumb, .file-crumb')?.textContent || document.body.innerText.includes('tagged #work')")
+        crumb = pg.evaluate(
+            "() => document.querySelector('.files-crumb, .files-breadcrumb, .file-crumb')?.textContent || document.body.innerText.includes('tagged #work')"
+        )
         print("crumb shows tag:", crumb)
         b.close()
     print("PASS: file tag click lists every file with that tag")

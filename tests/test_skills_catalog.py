@@ -44,9 +44,7 @@ class CatalogLoadTests(unittest.TestCase):
         self.assertIn("Keep", names)  # the good file still loaded despite the broken one
 
     def test_items_dedupes_by_slug(self):
-        with self._with_lib(
-            {"a.json": [{"name": "Dup Skill"}], "b.json": [{"name": "Dup Skill"}]}
-        ):
+        with self._with_lib({"a.json": [{"name": "Dup Skill"}], "b.json": [{"name": "Dup Skill"}]}):
             rows = [r for r in sc.items() if r["name"] == "Dup Skill"]
         self.assertEqual(len(rows), 1)  # same name → same slug → kept once
 

@@ -104,6 +104,12 @@ async def _request_json(client, url: str, headers: dict) -> dict:
 
 
 async def fetch_catalog(endpoint, *, client=None) -> CatalogResult:
+    from services.model_auth import refresh_gemini_endpoint
+
+    try:
+        await refresh_gemini_endpoint(endpoint, client=client)
+    except RuntimeError as exc:
+        raise CatalogFetchError("oauth_refresh_failed") from exc
     adapter = adapter_name(endpoint)
     if adapter == "manual":
         raise CatalogFetchError("discovery_unsupported")
@@ -146,10 +152,18 @@ async def fetch_catalog(endpoint, *, client=None) -> CatalogResult:
                 if isinstance(item, dict) and item.get("name") in ids
             }
         elif adapter == "gemini":
+            auth_type = (getattr(endpoint, "auth_type", "") or "api_key").strip().lower()
+            if auth_type == "oauth":
+                headers = {"authorization": f"Bearer {endpoint.api_key or ''}"}
+                project_id = getattr(endpoint, "oauth_project_id", "") or ""
+                if project_id:
+                    headers["x-goog-user-project"] = project_id
+            else:
+                headers = {"x-goog-api-key": endpoint.api_key or ""}
             payload = await _request_json(
                 client,
                 _url(endpoint.base_url, "/v1beta/models"),
-                {"x-goog-api-key": endpoint.api_key or ""},
+                headers,
             )
             items = payload.get("models")
             if not isinstance(items, list):
@@ -174,6 +188,10 @@ async def fetch_catalog(endpoint, *, client=None) -> CatalogResult:
             headers = {"content-type": "application/json"}
             if endpoint.api_key:
                 headers["authorization"] = f"Bearer {endpoint.api_key}"
+            if (getattr(endpoint, "auth_type", "") or "") == "oauth":
+                project_id = getattr(endpoint, "oauth_project_id", "") or ""
+                if project_id:
+                    headers["x-goog-user-project"] = project_id
             payload = await _request_json(
                 client,
                 _url(endpoint.base_url, "/v1/models", openai_compatible=True),

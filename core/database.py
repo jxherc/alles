@@ -1,7 +1,9 @@
 import json
 import os
+import unicodedata
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
+from pathlib import Path
 
 from sqlalchemy import (
     Boolean,
@@ -14,6 +16,7 @@ from sqlalchemy import (
     LargeBinary,
     String,
     Text,
+    UniqueConstraint,
     create_engine,
     event,
     text,
@@ -81,7 +84,30 @@ def _uid():
 
 
 def _now():
-    return datetime.utcnow()
+    return datetime.now(UTC).replace(tzinfo=None)
+
+
+DEFAULT_LOCAL_STORAGE_LOCATION_ID = "default-local"
+
+
+def normalize_file_identity_path(value: str) -> str:
+    """Return one safe, slash-separated Files identity without touching the filesystem."""
+    raw = str(value or "")
+    if os.name == "nt":
+        raw = raw.replace("\\", "/")
+    raw = raw.strip("/")
+    parts = []
+    for part in raw.split("/"):
+        if part in {"", "."}:
+            continue
+        if part == "..":
+            raise ValueError("path escapes storage location")
+        parts.append(part)
+    return "/".join(parts)
+
+
+def _normalized_path_default(context):
+    return normalize_file_identity_path(context.get_current_parameters().get("path", ""))
 
 
 class ModelEndpoint(Base):
@@ -90,6 +116,21 @@ class ModelEndpoint(Base):
     name = Column(String, nullable=False)
     base_url = Column(String, nullable=False)
     api_key = Column(EncryptedText("model_endpoints.api_key"), default="")
+    provider_id = Column(String, default="")
+    auth_type = Column(String, default="api_key")
+    auth_status = Column(String, default="incomplete")
+    auth_error = Column(String, default="")
+    account_identity = Column(String, default="")
+    oauth_client_id = Column(EncryptedText("model_endpoints.oauth_client_id"), default="")
+    oauth_client_secret = Column(
+        EncryptedText("model_endpoints.oauth_client_secret"), default=""
+    )
+    oauth_project_id = Column(String, default="")
+    oauth_refresh_token = Column(
+        EncryptedText("model_endpoints.oauth_refresh_token"), default=""
+    )
+    oauth_expires_at = Column(Float, default=0.0)
+    oauth_scopes = Column(Text, default="[]")
     enabled = Column(Boolean, default=True)
     cached_models = Column(Text, default="[]")  # json list of model id strings (chat)
     vision_models = Column(Text, default="[]")  # json list of vision-capable model ids
@@ -142,7 +183,9 @@ class Session(Base):
         String, ForeignKey("model_endpoints.id", ondelete="SET NULL"), nullable=True
     )
     mode = Column(String, default="chat")  # chat | jarvis; legacy agent reads as jarvis
-    chat_behavior = Column(String, default="")  # '' follows Settings | automatic_tools | answer_only
+    chat_behavior = Column(
+        String, default=""
+    )  # '' follows Settings | automatic_tools | answer_only
     persona_id = Column(String, ForeignKey("personas.id", ondelete="SET NULL"), nullable=True)
     project_id = Column(String, ForeignKey("projects.id", ondelete="SET NULL"), nullable=True)
     working_dir = Column(Text, default="")
@@ -194,8 +237,28 @@ class AndromedaSavedSearch(Base):
     overview_json = Column(Text, default="{}")
     evidence_json = Column(Text, default="[]")
     model_json = Column(Text, default="{}")
+    verification_json = Column(Text, default="{}")
+    verifier_model_json = Column(Text, default="{}")
     checked_at = Column(DateTime, default=_now)
     created_at = Column(DateTime, default=_now)
+
+
+class AndromedaVerificationJob(Base):
+    """Durable background fact-check state for one fast Andromeda answer."""
+
+    __tablename__ = "andromeda_verification_jobs"
+    id = Column(String, primary_key=True, default=_uid)
+    query = Column(Text, nullable=False)
+    answer_json = Column(Text, nullable=False, default="{}")
+    results_json = Column(Text, nullable=False, default="[]")
+    evidence_json = Column(Text, nullable=False, default="[]")
+    model_json = Column(Text, nullable=False, default="{}")
+    result_json = Column(Text, nullable=False, default="{}")
+    status = Column(String, nullable=False, default="pending", index=True)
+    error_code = Column(String, nullable=False, default="")
+    checked_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=_now)
+    updated_at = Column(DateTime, default=_now, onupdate=_now)
 
 
 class McpServer(Base):
@@ -565,6 +628,20 @@ class VaultShare(Base):
     created_at = Column(DateTime, default=_now)
 
 
+class BrowserConnection(Base):
+    """Paired browser identity. Only a hash of the persistent device secret is stored."""
+
+    __tablename__ = "browser_connections"
+    id = Column(String, primary_key=True, default=_uid)
+    vault_id = Column(String, nullable=False, default="default")
+    name = Column(String, nullable=False, default="Browser")
+    secret_hash = Column(String, nullable=False)
+    extension_origin = Column(String, nullable=False)
+    created_at = Column(DateTime, default=_now)
+    last_seen_at = Column(DateTime, nullable=True)
+    revoked_at = Column(DateTime, nullable=True)
+
+
 class WebAuthnCredential(Base):
     """9c — a registered platform authenticator that can release a vault's unlock token."""
 
@@ -904,6 +981,7 @@ class JarvisRunPrompt(Base):
     state = Column(String, nullable=False, default="pending", index=True)
     question = Column(Text, nullable=False)
     options = Column(Text, default="[]")
+    question_schema = Column(Text, default="{}")
     action = Column(String, default="")
     target = Column(Text, default="")
     data_summary = Column(Text, default="")
@@ -912,6 +990,7 @@ class JarvisRunPrompt(Base):
     capability = Column(String, default="")
     expires_at = Column(DateTime, nullable=True)
     answer = Column(Text, default="")
+    answer_data = Column(Text, default="{}")
     responded_at = Column(DateTime, nullable=True)
     used_at = Column(DateTime, nullable=True)
     delegated_action_id = Column(String, nullable=True, unique=True)
@@ -1197,6 +1276,15 @@ class Subscription(Base):
     trial_end = Column(String, default="")  # ISO date a free trial ends / cancel-by
     cancel_url = Column(String, default="")  # explicit "how to cancel" link / steps (4e)
     created_at = Column(DateTime, default=_now)
+    # Phase 8 additive currency provenance. The legacy price/currency columns
+    # remain the source until the Actual cutover gate passes.
+    original_price_text = Column(String, default="")
+    original_currency_code = Column(String, default="")
+    base_price_text = Column(String, default="")
+    base_currency_code = Column(String, default="")
+    fx_rate_text = Column(String, default="")
+    fx_rate_date = Column(String, default="")
+    fx_source = Column(String, default="")
 
 
 class SubPayment(Base):
@@ -1208,6 +1296,13 @@ class SubPayment(Base):
     amount = Column(Float, default=0.0)
     txn_id = Column(String, default="")  # linked money transaction, if posted (for undo)
     created_at = Column(DateTime, default=_now)
+    original_amount_text = Column(String, default="")
+    original_currency_code = Column(String, default="")
+    base_amount_text = Column(String, default="")
+    base_currency_code = Column(String, default="")
+    fx_rate_text = Column(String, default="")
+    fx_rate_date = Column(String, default="")
+    fx_source = Column(String, default="")
 
 
 class SubPriceChange(Base):
@@ -1232,10 +1327,25 @@ class Account(Base):
     archived = Column(Boolean, default=False)
     low_balance = Column(Float, default=0.0)  # alert threshold; 0 = off (4e)
     created_at = Column(DateTime, default=_now)
+    currency_code = Column(String, default="")
+    base_currency_code = Column(String, default="")
+    original_opening_text = Column(String, default="")
+    base_opening_text = Column(String, default="")
+    opening_fx_rate_text = Column(String, default="")
+    opening_fx_rate_date = Column(String, default="")
+    opening_fx_source = Column(String, default="")
 
 
 class Transaction(Base):
     __tablename__ = "money_transactions"
+    __table_args__ = (
+        Index(
+            "uq_money_transactions_import_identity",
+            "import_identity",
+            unique=True,
+            sqlite_where=text("import_identity <> ''"),
+        ),
+    )
     id = Column(String, primary_key=True, default=_uid)
     account_id = Column(String, ForeignKey("money_accounts.id", ondelete="CASCADE"))
     date = Column(String, nullable=False)  # ISO date YYYY-MM-DD
@@ -1247,6 +1357,150 @@ class Transaction(Base):
     tags = Column(Text, default="")  # csv structured tags (4a)
     receipt_id = Column(String, default="")  # Upload.id of an attached receipt (4a)
     cleared = Column(Boolean, default=False)  # reconciled-against-statement flag (4a)
+    created_at = Column(DateTime, default=_now)
+    original_amount_text = Column(String, default="")
+    original_currency_code = Column(String, default="")
+    base_amount_text = Column(String, default="")
+    base_currency_code = Column(String, default="")
+    fx_rate_text = Column(String, default="")
+    fx_rate_date = Column(String, default="")
+    fx_source = Column(String, default="")
+    import_identity = Column(String, default="")
+    import_batch_id = Column(String, default="")
+    import_source = Column(String, default="")
+    import_row_number = Column(Integer, default=0)
+    import_receipt_json = Column(Text, default="{}")
+
+
+class MoneyFxEvidence(Base):
+    __tablename__ = "money_fx_evidence"
+    id = Column(String, primary_key=True, default=_uid)
+    transaction_id = Column(
+        String,
+        ForeignKey("money_transactions.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+        index=True,
+    )
+    original_amount_text = Column(String, nullable=False)
+    original_currency_code = Column(String, nullable=False)
+    base_amount_text = Column(String, nullable=False)
+    base_currency_code = Column(String, nullable=False)
+    rate_text = Column(String, nullable=False)
+    rate_date = Column(String, default="")
+    source = Column(String, nullable=False)
+    source_hash = Column(String, nullable=False)
+    created_at = Column(DateTime, default=_now)
+
+
+class FinanceImportBatch(Base):
+    __tablename__ = "finance_import_batches"
+    id = Column(String, primary_key=True, default=_uid)
+    # A receipt may belong to an Actual-native account, which has no legacy
+    # money_accounts row. Keep the durable canonical owner ID without an FK.
+    account_id = Column(String, nullable=False)
+    profile = Column(String, nullable=False)
+    source_name = Column(String, nullable=False)
+    source_sha256 = Column(String, nullable=False, index=True)
+    original_currency_code = Column(String, default="")
+    status = Column(String, default="preview")
+    row_count = Column(Integer, default=0)
+    applied_count = Column(Integer, default=0)
+    duplicate_count = Column(Integer, default=0)
+    conflict_count = Column(Integer, default=0)
+    receipt_json = Column(Text, default="{}")
+    created_at = Column(DateTime, default=_now)
+    applied_at = Column(DateTime, nullable=True)
+    undone_at = Column(DateTime, nullable=True)
+
+
+class FinanceImportRow(Base):
+    __tablename__ = "finance_import_rows"
+    __table_args__ = (
+        UniqueConstraint("batch_id", "row_number", name="uq_finance_import_batch_row"),
+    )
+    id = Column(String, primary_key=True, default=_uid)
+    batch_id = Column(
+        String,
+        ForeignKey("finance_import_batches.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    row_number = Column(Integer, nullable=False)
+    stable_identity = Column(String, nullable=False, index=True)
+    raw_json = Column(Text, nullable=False)
+    parsed_json = Column(Text, nullable=False)
+    conversion_json = Column(Text, default="{}")
+    status = Column(String, default="pending")
+    existing_transaction_id = Column(String, default="")
+    created_transaction_id = Column(String, default="")
+    conflict_reason = Column(String, default="")
+    created_at = Column(DateTime, default=_now)
+
+
+class FinanceLedgerState(Base):
+    __tablename__ = "finance_ledger_state"
+    id = Column(String, primary_key=True, default="primary")
+    mode = Column(String, nullable=False, default="alles")  # alles | actual
+    base_currency_code = Column(String, nullable=False, default="CAD")
+    active_run_id = Column(String, default="")
+    actual_budget_id = Column(String, default="")
+    actual_sync_id = Column(String, default="")
+    legacy_read_only = Column(Boolean, nullable=False, default=False)
+    cutover_at = Column(DateTime, nullable=True)
+    rollback_at = Column(DateTime, nullable=True)
+    updated_at = Column(DateTime, default=_now, onupdate=_now)
+
+
+class FinanceConnection(Base):
+    """Read-only aggregator connection. Tokens are always machine-key encrypted."""
+
+    __tablename__ = "finance_connections"
+    id = Column(String, primary_key=True, default=_uid)
+    provider = Column(String, nullable=False, index=True)  # simplefin | plaid
+    label = Column(String, nullable=False, default="bank connection")
+    environment = Column(String, nullable=False, default="production")
+    status = Column(String, nullable=False, default="connected")
+    client_id = Column(EncryptedText("finance_connections.client_id"), default="")
+    client_secret = Column(EncryptedText("finance_connections.client_secret"), default="")
+    access_token = Column(EncryptedText("finance_connections.access_token"), default="")
+    item_id = Column(String, default="")
+    cursor = Column(Text, default="")
+    account_map_json = Column(Text, default="{}")
+    consent_expires_at = Column(DateTime, nullable=True)
+    last_synced_at = Column(DateTime, nullable=True)
+    last_error = Column(Text, default="")
+    created_at = Column(DateTime, default=_now)
+    updated_at = Column(DateTime, default=_now, onupdate=_now)
+
+
+class ActualMigrationRun(Base):
+    __tablename__ = "actual_migration_runs"
+    id = Column(String, primary_key=True, default=_uid)
+    status = Column(String, nullable=False, default="staging")
+    base_currency_code = Column(String, nullable=False)
+    snapshot_sha256 = Column(String, nullable=False)
+    snapshot_path = Column(Text, nullable=False)
+    actual_budget_id = Column(String, default="")
+    actual_sync_id = Column(String, default="")
+    report_json = Column(Text, default="{}")
+    error = Column(Text, default="")
+    created_at = Column(DateTime, default=_now)
+    verified_at = Column(DateTime, nullable=True)
+    cutover_at = Column(DateTime, nullable=True)
+    rolled_back_at = Column(DateTime, nullable=True)
+
+
+class ActualEntityLink(Base):
+    __tablename__ = "actual_entity_links"
+    __table_args__ = (
+        UniqueConstraint("run_id", "entity_kind", "source_id", name="uq_actual_link_source"),
+    )
+    id = Column(String, primary_key=True, default=_uid)
+    run_id = Column(String, nullable=False, index=True)
+    entity_kind = Column(String, nullable=False, index=True)
+    source_id = Column(String, nullable=False)
+    actual_id = Column(String, nullable=False)
+    metadata_json = Column(Text, default="{}")
     created_at = Column(DateTime, default=_now)
 
 
@@ -1371,12 +1625,43 @@ class CategoryRule(Base):
     created_at = Column(DateTime, default=_now)
 
 
+class StorageLocation(Base):
+    """One browsable Files root. Backup destinations remain separate configuration."""
+
+    __tablename__ = "storage_locations"
+    id = Column(String, primary_key=True, default=_uid)
+    name = Column(String, nullable=False)
+    kind = Column(String, nullable=False, index=True)  # local | webdav | s3
+    access = Column(String, nullable=False, default="read_only")  # read_only | managed
+    root_path = Column(Text, default="")
+    endpoint = Column(Text, default="")
+    bucket = Column(String, default="")
+    prefix = Column(Text, default="")
+    config = Column(Text, default="{}")  # non-secret capability/config metadata
+    secret = Column(EncryptedText("storage_locations.secret"), default="")
+    enabled = Column(Boolean, default=True)
+    is_default = Column(Boolean, default=False, index=True)
+    created_at = Column(DateTime, default=_now)
+    updated_at = Column(DateTime, default=_now, onupdate=_now)
+
+
 class FileTag(Base):
     # macOS-Finder-style labels for a file/folder in the files app, keyed by its
     # root-relative path. tags = comma-separated, color = one swatch name.
     __tablename__ = "file_tags"
+    __table_args__ = (
+        UniqueConstraint("location_id", "normalized_path", name="uq_file_tags_location_path"),
+    )
     id = Column(String, primary_key=True, default=_uid)
-    path = Column(String, unique=True, index=True)  # files-root-relative
+    path = Column(String, index=True)  # legacy files-root-relative path; kept for compatibility
+    location_id = Column(
+        String,
+        ForeignKey("storage_locations.id", ondelete="RESTRICT"),
+        nullable=False,
+        default=DEFAULT_LOCAL_STORAGE_LOCATION_ID,
+        index=True,
+    )
+    normalized_path = Column(String, nullable=False, default=_normalized_path_default, index=True)
     tags = Column(String, default="")  # csv of normalized (lowercased) tags
     color = Column(String, default="")  # swatch name: red/orange/green/blue/purple/gray
     starred = Column(Boolean, default=False)  # favorite flag (6a)
@@ -1398,6 +1683,8 @@ class IndexChunk(Base):
     id = Column(String, primary_key=True, default=_uid)
     kind = Column(String, nullable=False, index=True)  # doc | code | ...
     ref = Column(String, nullable=False, index=True)  # vault path, symbol id, ...
+    location_id = Column(String, nullable=True, index=True)
+    normalized_path = Column(String, nullable=True, index=True)
     chunk_no = Column(Integer, default=0)
     text = Column(Text, default="")
     vec = Column(Text, default="")  # json.dumps(list[float]) or ""
@@ -1409,6 +1696,14 @@ class FileVersion(Base):
     __tablename__ = "file_versions"
     id = Column(String, primary_key=True, default=_uid)
     path = Column(String, nullable=False, index=True)  # files-relative path
+    location_id = Column(
+        String,
+        ForeignKey("storage_locations.id", ondelete="RESTRICT"),
+        nullable=False,
+        default=DEFAULT_LOCAL_STORAGE_LOCATION_ID,
+        index=True,
+    )
+    normalized_path = Column(String, nullable=False, default=_normalized_path_default, index=True)
     sha = Column(String, default="")
     size = Column(Integer, default=0)
     stored = Column(String, default="")  # blob filename in the versions dir
@@ -1422,6 +1717,8 @@ class TrashItem(Base):
     id = Column(String, primary_key=True, default=_uid)
     kind = Column(String, nullable=False, index=True)  # file | photo
     ref = Column(String, nullable=False)  # files-relative path | photo id
+    location_id = Column(String, nullable=True, index=True)
+    normalized_path = Column(String, nullable=True, index=True)
     name = Column(String, default="")
     payload = Column(Text, default="{}")  # json: {trash_name, is_dir, ...}
     trashed_at = Column(DateTime, default=_now)
@@ -1438,6 +1735,8 @@ class Share(Base):
     )
     kind = Column(String, nullable=False)  # doc|file|photo|album|contact|event|session
     ref = Column(String, nullable=False)  # resource id, or vault/files-relative path
+    location_id = Column(String, nullable=True, index=True)
+    normalized_path = Column(String, nullable=True, index=True)
     level = Column(String, default="view")  # view | download
     expires_at = Column(String, default="")  # 4c - ISO datetime; "" = never expires
     password_hash = Column(String, default="")  # 4c - sha256 of the access password; "" = open
@@ -1465,11 +1764,247 @@ class FileComment(Base):
     __tablename__ = "file_comments"
     id = Column(String, primary_key=True, default=_uid)
     path = Column(String, nullable=False, index=True)  # files-root-relative
+    location_id = Column(
+        String,
+        ForeignKey("storage_locations.id", ondelete="RESTRICT"),
+        nullable=False,
+        default=DEFAULT_LOCAL_STORAGE_LOCATION_ID,
+        index=True,
+    )
+    normalized_path = Column(String, nullable=False, default=_normalized_path_default, index=True)
     body = Column(Text, default="")
     author = Column(String, default="me")
     parent_id = Column(String, nullable=True, index=True)  # None = thread root
     resolved = Column(Boolean, default=False)
     created_at = Column(DateTime, default=_now)
+
+
+class FileOperation(Base):
+    """Durable identity and state for queued Files work and later undo/recovery."""
+
+    __tablename__ = "file_operations"
+    id = Column(String, primary_key=True, default=_uid)
+    action = Column(String, nullable=False, index=True)
+    source_location_id = Column(String, nullable=False, index=True)
+    source_path = Column(String, nullable=False, default="")
+    destination_location_id = Column(String, nullable=True, index=True)
+    destination_path = Column(String, default="")
+    state = Column(String, nullable=False, default="queued", index=True)
+    bytes_total = Column(Integer, default=0)
+    bytes_done = Column(Integer, default=0)
+    error_code = Column(String, default="")
+    undo_json = Column(Text, default="{}")
+    created_at = Column(DateTime, default=_now, index=True)
+    updated_at = Column(DateTime, default=_now, onupdate=_now)
+
+
+class FileOperationPathClaim(Base):
+    """One canonical Files path lock; an operation may hold several at once."""
+
+    __tablename__ = "file_operation_path_claims"
+    __table_args__ = (
+        UniqueConstraint(
+            "operation_id",
+            "claim_scope",
+            "normalized_path",
+            name="uq_file_operation_path_claim_operation_scope_path",
+        ),
+    )
+
+    id = Column(String, primary_key=True, default=_uid)
+    operation_id = Column(
+        String,
+        ForeignKey("file_operations.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    location_id = Column(
+        String,
+        ForeignKey("storage_locations.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    claim_scope = Column(String, nullable=False, index=True)
+    normalized_path = Column(String, nullable=False, index=True)
+    created_at = Column(DateTime, default=_now)
+
+
+def canonical_local_physical_claim_path(value: str, *, case_sensitive: bool = False) -> str:
+    """Return the Unicode- and case-stable key used for local filesystem claims."""
+    normalized = unicodedata.normalize("NFC", str(value or ""))
+    return normalized if case_sensitive else unicodedata.normalize("NFC", normalized.casefold())
+
+
+def local_claim_case_insensitive(path: Path) -> bool:
+    """Detect case behavior inside the target filesystem without writing probe files."""
+    if os.name == "nt":
+        return True
+    candidate = Path(path)
+    while not candidate.exists() and candidate.parent != candidate:
+        candidate = candidate.parent
+    if not candidate.exists():
+        return True
+
+    def probe_alias(item: Path) -> bool | None:
+        name = item.name
+        for index, character in enumerate(name):
+            swapped = character.swapcase()
+            if not character.isalpha() or swapped == character:
+                continue
+            alias = item.with_name(f"{name[:index]}{swapped}{name[index + 1 :]}")
+            try:
+                return alias.exists() and os.path.samefile(item, alias)
+            except OSError:
+                return None
+        return None
+
+    if candidate.is_dir():
+        try:
+            for child in candidate.iterdir():
+                result = probe_alias(child)
+                if result is not None:
+                    return result
+        except OSError:
+            return True
+
+    try:
+        parent = candidate.parent
+        if parent != candidate and parent.stat().st_dev == candidate.stat().st_dev:
+            result = probe_alias(candidate)
+            if result is not None:
+                return result
+    except OSError:
+        pass
+    return True
+
+
+def _canonicalize_file_operation_claim(_mapper, _connection, target) -> None:
+    if target.claim_scope in {"local-physical", "local-physical-ci", "local-physical-cs"}:
+        target.normalized_path = canonical_local_physical_claim_path(
+            target.normalized_path,
+            case_sensitive=target.claim_scope == "local-physical-cs",
+        )
+
+
+event.listen(FileOperationPathClaim, "before_insert", _canonicalize_file_operation_claim)
+event.listen(FileOperationPathClaim, "before_update", _canonicalize_file_operation_claim)
+
+
+def _create_file_operation_path_claim_triggers(_target, connection, **_kwargs) -> None:
+    existing_path = "rtrim(existing.normalized_path, '/')"
+    new_path = "rtrim(NEW.normalized_path, '/')"
+    same_path = f"({existing_path} = {new_path})"
+    new_descendant = f"(substr({new_path},1,length({existing_path})+1) = {existing_path} || '/')"
+    existing_descendant = f"(substr({existing_path},1,length({new_path})+1) = {new_path} || '/')"
+    for action in ("INSERT", "UPDATE"):
+        exclude_current = "existing.id != OLD.id AND " if action == "UPDATE" else ""
+        overlap = (
+            f"{exclude_current}existing.claim_scope = NEW.claim_scope "
+            "AND existing.operation_id != NEW.operation_id "
+            f"AND ({same_path} "
+            f"OR {existing_path} = '' OR {new_path} = '' "
+            f"OR {new_descendant} OR {existing_descendant})"
+        )
+        connection.exec_driver_sql(
+            "CREATE TRIGGER IF NOT EXISTS "
+            f"trg_file_operation_path_claim_overlap_{action.lower()} "
+            f"BEFORE {action} ON file_operation_path_claims FOR EACH ROW "
+            f"WHEN EXISTS (SELECT 1 FROM file_operation_path_claims existing WHERE {overlap}) "
+            "BEGIN SELECT RAISE(ABORT, 'file operation path already in use'); END"
+        )
+
+
+event.listen(
+    FileOperationPathClaim.__table__,
+    "after_create",
+    _create_file_operation_path_claim_triggers,
+)
+
+
+class FileOperationSourceClaim(Base):
+    """One durable exclusive claim on a mutable Files source and its path subtree."""
+
+    __tablename__ = "file_operation_source_claims"
+    __table_args__ = (
+        UniqueConstraint(
+            "claim_scope",
+            "normalized_path",
+            name="uq_file_operation_source_claim_scope_path",
+        ),
+    )
+
+    operation_id = Column(
+        String,
+        ForeignKey("file_operations.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    location_id = Column(
+        String,
+        ForeignKey("storage_locations.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    claim_scope = Column(String, nullable=False, index=True)
+    normalized_path = Column(String, nullable=False, index=True)
+    created_at = Column(DateTime, default=_now)
+
+
+event.listen(FileOperationSourceClaim, "before_insert", _canonicalize_file_operation_claim)
+event.listen(FileOperationSourceClaim, "before_update", _canonicalize_file_operation_claim)
+
+
+def _create_file_operation_source_claim_triggers(_target, connection, **_kwargs) -> None:
+    existing_path = "rtrim(existing.normalized_path, '/')"
+    new_path = "rtrim(NEW.normalized_path, '/')"
+    same_path = f"({existing_path} = {new_path})"
+    new_descendant = f"(substr({new_path},1,length({existing_path})+1) = {existing_path} || '/')"
+    existing_descendant = f"(substr({existing_path},1,length({new_path})+1) = {new_path} || '/')"
+    overlap = (
+        "existing.claim_scope = NEW.claim_scope AND existing.operation_id != NEW.operation_id "
+        f"AND ({same_path} OR {existing_path} = '' OR {new_path} = '' "
+        f"OR {new_descendant} OR {existing_descendant})"
+    )
+    for action in ("INSERT", "UPDATE"):
+        connection.exec_driver_sql(
+            "CREATE TRIGGER IF NOT EXISTS "
+            f"trg_file_operation_source_claim_overlap_{action.lower()} "
+            f"BEFORE {action} ON file_operation_source_claims FOR EACH ROW "
+            f"WHEN EXISTS (SELECT 1 FROM file_operation_source_claims existing WHERE {overlap}) "
+            "BEGIN SELECT RAISE(ABORT, 'file operation source already in use'); END"
+        )
+
+
+event.listen(
+    FileOperationSourceClaim.__table__,
+    "after_create",
+    _create_file_operation_source_claim_triggers,
+)
+
+
+class OfflineFile(Base):
+    """One explicitly cached Files item. Cache state is never treated as backup."""
+
+    __tablename__ = "offline_files"
+    __table_args__ = (
+        UniqueConstraint("location_id", "normalized_path", name="uq_offline_files_location_path"),
+    )
+    id = Column(String, primary_key=True, default=_uid)
+    location_id = Column(
+        String,
+        ForeignKey("storage_locations.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    normalized_path = Column(String, nullable=False, index=True)
+    state = Column(String, nullable=False, default="queued", index=True)
+    cache_name = Column(String, default="")
+    size = Column(Integer, default=0)
+    checksum = Column(String, default="")
+    etag = Column(String, default="")
+    version_id = Column(String, default="")
+    error_code = Column(String, default="")
+    created_at = Column(DateTime, default=_now)
+    updated_at = Column(DateTime, default=_now, onupdate=_now)
 
 
 class PushSubscription(Base):
@@ -1648,6 +2183,85 @@ class ReadFeed(Base):
     url = Column(String, nullable=False, unique=True)
     title = Column(String, default="")
     last_checked = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=_now)
+
+
+class NewsConfiguration(Base):
+    """Singleton state for the first-class scheduled News workflow."""
+
+    __tablename__ = "news_configuration"
+    id = Column(String, primary_key=True, default="singleton")
+    enabled = Column(Boolean, default=False)
+    cadence = Column(String, default="morning")  # morning | evening | custom
+    time_of_day = Column(String, default="08:00")
+    timezone = Column(String, default="UTC")
+    deliver_home = Column(Boolean, default=True)
+    deliver_jarvis = Column(Boolean, default=False)
+    next_run_at = Column(DateTime, nullable=True, index=True)
+    run_token = Column(String, default="")
+    run_lease_until = Column(DateTime, nullable=True, index=True)
+    last_run_at = Column(DateTime, nullable=True)
+    last_success_at = Column(DateTime, nullable=True)
+    last_safe_error = Column(String, default="")
+    created_at = Column(DateTime, default=_now)
+    updated_at = Column(DateTime, default=_now, onupdate=_now)
+
+
+class NewsSource(Base):
+    __tablename__ = "news_sources"
+    id = Column(String, primary_key=True, default=_uid)
+    url = Column(String, nullable=False, unique=True)
+    name = Column(String, default="")
+    category = Column(String, default="general")
+    language = Column(String, default="en")
+    priority = Column(Integer, default=1)
+    schedule = Column(String, default="inherit")
+    enabled = Column(Boolean, default=True)
+    etag = Column(String, default="")
+    last_modified = Column(String, default="")
+    last_checked_at = Column(DateTime, nullable=True)
+    last_success_at = Column(DateTime, nullable=True)
+    last_safe_error = Column(String, default="")
+    next_retry_at = Column(DateTime, nullable=True, index=True)
+    failure_count = Column(Integer, default=0)
+    created_at = Column(DateTime, default=_now)
+    updated_at = Column(DateTime, default=_now, onupdate=_now)
+
+
+class NewsEntry(Base):
+    __tablename__ = "news_entries"
+    __table_args__ = (
+        UniqueConstraint("source_id", "guid", name="ux_news_entries_source_guid"),
+        UniqueConstraint("canonical_url", name="ux_news_entries_canonical_url"),
+    )
+    id = Column(String, primary_key=True, default=_uid)
+    source_id = Column(
+        String, ForeignKey("news_sources.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    guid = Column(String, nullable=False)
+    canonical_url = Column(Text, nullable=False)
+    title = Column(String, default="")
+    excerpt = Column(Text, default="")
+    published_at = Column(DateTime, nullable=True, index=True)
+    content_hash = Column(String(64), nullable=False, index=True)
+    cluster_key = Column(String(64), default="", index=True)
+    fetched_at = Column(DateTime, default=_now)
+
+
+class NewsBrief(Base):
+    __tablename__ = "news_briefs"
+    id = Column(String, primary_key=True, default=_uid)
+    status = Column(String, nullable=False, default="summary_pending", index=True)
+    title = Column(String, default="news brief")
+    summary = Column(Text, default="")
+    clusters = Column(Text, default="[]")
+    source_failures = Column(Text, default="[]")
+    scheduled_for = Column(DateTime, nullable=True)
+    published_at = Column(DateTime, nullable=True, index=True)
+    delivered_home = Column(Boolean, default=False)
+    jarvis_delivery_state = Column(String, default="off", index=True)
+    jarvis_attempt_count = Column(Integer, default=0)
+    jarvis_next_attempt_at = Column(DateTime, nullable=True, index=True)
     created_at = Column(DateTime, default=_now)
 
 

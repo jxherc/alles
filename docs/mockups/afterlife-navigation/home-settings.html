@@ -1,0 +1,604 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Standalone KOKUEN Home customization starter for Alles Settings.">
+  <title>Alles Home settings - KOKUEN starter</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --page: #090909;
+      --panel: #111111;
+      --raised: #181818;
+      --hover: #202020;
+      --text: #eceae6;
+      --soft: #c2beba;
+      --muted: #8f8a85;
+      --quiet: #686460;
+      --line: #2c2b2a;
+      --accent: #aaa8c3;
+      --danger: #d1847b;
+      --focus: #d7d4ea;
+      --radius: 4px;
+    }
+
+    html[data-theme="light"] {
+      color-scheme: light;
+      --page: #f4f3f0;
+      --panel: #eeece8;
+      --raised: #e4e1dc;
+      --hover: #e9e7e2;
+      --text: #242321;
+      --soft: #514d48;
+      --muted: #68635e;
+      --quiet: #827b74;
+      --line: #d5d0c9;
+      --accent: #5d5a78;
+      --danger: #974e47;
+      --focus: #4f4b70;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { min-height: 100%; margin: 0; background: var(--page); color: var(--text); }
+    body {
+      min-height: 100dvh;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 14px;
+      -webkit-font-smoothing: antialiased;
+    }
+    button, a { font: inherit; }
+    button { appearance: none; color: inherit; }
+    [hidden] { display: none !important; }
+
+    .skip-link {
+      position: absolute;
+      top: -100px;
+      left: 8px;
+      z-index: 20;
+      padding: 8px 10px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--raised);
+      color: var(--text);
+    }
+    .skip-link:focus { top: 8px; }
+
+    .settings {
+      width: 100%;
+      min-height: 100dvh;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      grid-template-rows: 56px minmax(0, 1fr);
+    }
+    .settings-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 20px;
+      border-bottom: 1px solid var(--line);
+      background: var(--page);
+    }
+    .settings-title { font-size: 15px; font-weight: 560; }
+    .settings-context { margin-left: 12px; color: var(--quiet); font-size: 12px; }
+    .close {
+      width: 44px;
+      height: 44px;
+      display: grid;
+      place-items: center;
+      border: 0;
+      border-radius: var(--radius);
+      background: transparent;
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 22px;
+    }
+    .close:hover { background: var(--hover); color: var(--text); }
+
+    .settings-layout {
+      min-width: 0;
+      min-height: 0;
+      display: grid;
+      grid-template-columns: 204px minmax(0, 1fr);
+    }
+    .settings-nav {
+      min-height: 0;
+      overflow-y: auto;
+      padding: 8px;
+      border-right: 1px solid var(--line);
+      background: var(--panel);
+    }
+    .nav-group {
+      padding: 18px 12px 6px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 520;
+    }
+    .nav-group:first-child { padding-top: 8px; }
+    .nav-item {
+      width: 100%;
+      min-height: 44px;
+      display: flex;
+      align-items: center;
+      padding: 0 12px;
+      border: 0;
+      border-radius: var(--radius);
+      background: transparent;
+      color: var(--muted);
+      text-align: left;
+    }
+    .nav-item[aria-current="page"] { background: var(--hover); color: var(--text); }
+    .nav-item:disabled { color: var(--quiet); cursor: default; opacity: 0.72; }
+
+    .settings-scroll { min-width: 0; overflow-y: auto; }
+    .settings-content {
+      width: min(980px, 100%);
+      margin: 0 auto;
+      padding: 34px clamp(20px, 4vw, 44px) 64px;
+    }
+    .content-head {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 24px;
+      margin-bottom: 28px;
+    }
+    .content-head h1 { margin: 0; font-size: 26px; font-weight: 540; letter-spacing: -0.025em; }
+    .content-head p { max-width: 590px; margin: 8px 0 0; color: var(--muted); line-height: 1.55; }
+    .preview-note { color: var(--quiet); font-size: 12px; white-space: nowrap; }
+
+    .home-workbench {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 250px;
+      align-items: start;
+      gap: 28px;
+    }
+    .control-column { min-width: 0; display: grid; gap: 24px; }
+    .setting-section { min-width: 0; }
+    .section-title { margin: 0 0 5px; font-size: 14px; font-weight: 560; }
+    .section-help { margin: 0 0 12px; color: var(--muted); font-size: 12px; line-height: 1.5; }
+
+    .outline-list {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--panel);
+      overflow: hidden;
+    }
+    .outline-row {
+      min-height: 66px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto auto;
+      align-items: center;
+      gap: 14px;
+      padding: 10px 12px 10px 16px;
+      border-bottom: 1px solid var(--line);
+    }
+    .outline-row:last-child { border-bottom: 0; }
+    .outline-row[data-enabled="false"] .row-copy { opacity: 0.52; }
+    .row-copy { min-width: 0; }
+    .row-copy strong { display: block; font-weight: 540; }
+    .row-copy small { display: block; margin-top: 4px; color: var(--muted); font-size: 12px; line-height: 1.35; }
+    .locked { color: var(--quiet); font-size: 11px; }
+
+    .switch {
+      width: 44px;
+      height: 44px;
+      position: relative;
+      flex: 0 0 auto;
+      border: 0;
+      background: transparent;
+      cursor: pointer;
+    }
+    .switch::before {
+      content: "";
+      position: absolute;
+      top: 10px;
+      left: 1px;
+      width: 42px;
+      height: 24px;
+      border: 1px solid var(--line);
+      border-radius: 99px;
+      background: var(--raised);
+    }
+    .switch::after {
+      content: "";
+      position: absolute;
+      top: 14px;
+      left: 5px;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--muted);
+    }
+    .switch[aria-checked="true"]::before { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, var(--raised)); }
+    .switch[aria-checked="true"]::after { left: 23px; background: var(--accent); }
+    .switch:disabled { cursor: default; opacity: 0.52; }
+
+    .reorder-actions { display: flex; gap: 2px; }
+    .move {
+      width: 44px;
+      height: 44px;
+      display: grid;
+      place-items: center;
+      border: 0;
+      border-radius: var(--radius);
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 16px;
+    }
+    .move:hover:not(:disabled) { background: var(--hover); color: var(--text); }
+    .move:disabled { color: #45423f; cursor: default; }
+
+    .density-group {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .density-choice {
+      min-height: 58px;
+      display: grid;
+      align-content: center;
+      gap: 4px;
+      padding: 8px 14px;
+      border: 0;
+      border-right: 1px solid var(--line);
+      background: var(--panel);
+      color: var(--muted);
+      text-align: left;
+      cursor: pointer;
+    }
+    .density-choice:last-child { border-right: 0; }
+    .density-choice[aria-checked="true"] { background: var(--hover); color: var(--text); }
+    .density-choice span { font-weight: 540; }
+    .density-choice small { color: var(--muted); font-size: 11px; }
+
+    .shortcut-list .outline-row { min-height: 58px; }
+    .shortcut-list .row-copy small { margin-top: 2px; }
+
+    .home-preview {
+      position: sticky;
+      top: 24px;
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #0d0d0d;
+    }
+    .preview-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+    .preview-head h2 { margin: 0; font-size: 13px; font-weight: 560; }
+    .preview-head span { color: var(--quiet); font-size: 11px; }
+    .preview-intro { margin: 8px 0 18px; color: var(--muted); font-size: 11px; line-height: 1.45; }
+    .preview-list { display: grid; gap: 16px; }
+    .home-preview[data-density="compact"] .preview-list { gap: 9px; }
+    .preview-section { min-width: 0; }
+    .preview-section strong { display: block; color: var(--soft); font-size: 12px; font-weight: 540; }
+    .preview-section small { display: block; margin-top: 4px; color: var(--quiet); font-size: 10px; line-height: 1.4; }
+    .preview-shortcuts { margin: 5px 0 0; color: var(--muted); font-size: 10px; line-height: 1.5; }
+    .preview-empty { color: var(--danger); }
+
+    .save-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-top: 28px;
+      padding-top: 18px;
+      border-top: 1px solid var(--line);
+    }
+    .save-copy { min-width: 0; }
+    .save-state { display: block; color: var(--muted); font-size: 12px; }
+    .save-detail { display: block; margin-top: 3px; color: var(--quiet); font-size: 11px; }
+    .save-actions { display: flex; align-items: center; gap: 8px; }
+    .text-action, .save-button {
+      min-height: 44px;
+      padding: 0 14px;
+      border-radius: var(--radius);
+      cursor: pointer;
+    }
+    .text-action { border: 0; background: transparent; color: var(--muted); }
+    .text-action:hover { background: var(--hover); color: var(--text); }
+    .save-button { border: 1px solid #b9b6c8; background: #b9b6c8; color: #151419; font-weight: 570; }
+    .save-button:hover { background: #cbc8d6; border-color: #cbc8d6; }
+
+    :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+    @media (max-width: 860px) {
+      .home-workbench { grid-template-columns: minmax(0, 1fr); }
+      .home-preview { position: static; order: -1; }
+      .preview-list { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px 18px; }
+      .home-preview[data-density="compact"] .preview-list { gap: 8px 18px; }
+    }
+
+    @media (max-width: 760px) {
+      body { overflow: auto; }
+      .settings { min-height: 100dvh; grid-template-rows: 52px auto; }
+      .settings-head { padding-inline: 14px; }
+      .settings-context { display: none; }
+      .settings-layout { display: block; }
+      .settings-nav {
+        display: flex;
+        overflow-x: auto;
+        overflow-y: hidden;
+        padding: 8px;
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+        scrollbar-width: none;
+      }
+      .settings-nav::-webkit-scrollbar { display: none; }
+      .nav-group { display: none; }
+      .nav-item { width: auto; min-width: max-content; flex: 0 0 auto; padding-inline: 14px; }
+      .settings-scroll { overflow: visible; }
+      .settings-content { padding: 26px 16px 48px; }
+      .content-head { align-items: flex-start; margin-bottom: 22px; }
+      .preview-note { display: none; }
+      .preview-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+
+    @media (max-width: 520px) {
+      .content-head h1 { font-size: 23px; }
+      .outline-row { grid-template-columns: minmax(0, 1fr) auto; gap: 10px; padding-left: 12px; }
+      .reorder-actions { grid-column: 1 / -1; justify-content: flex-end; margin-top: -4px; }
+      .shortcut-list .outline-row { min-height: 82px; }
+      .density-group { grid-template-columns: 1fr; }
+      .density-choice { border-right: 0; border-bottom: 1px solid var(--line); }
+      .density-choice:last-child { border-bottom: 0; }
+      .preview-list { grid-template-columns: 1fr; }
+      .save-bar { align-items: flex-start; flex-direction: column; }
+      .save-actions { width: 100%; }
+      .text-action, .save-button { flex: 1; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; animation: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#home-settings">skip to Home settings</a>
+
+  <div class="settings" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+    <header class="settings-head">
+      <div><span class="settings-title" id="settings-title">settings</span><span class="settings-context">standalone starter · fake data only</span></div>
+      <a class="close" href="home.html" aria-label="close settings and return to Home">×</a>
+    </header>
+
+    <div class="settings-layout">
+      <nav class="settings-nav" aria-label="settings sections">
+        <div class="nav-group">general &amp; appearance</div>
+        <button class="nav-item" type="button" disabled>general</button>
+        <button class="nav-item" type="button" aria-current="page">home</button>
+        <button class="nav-item" type="button" disabled>appearance</button>
+        <div class="nav-group">aide &amp; chat behavior</div>
+        <button class="nav-item" type="button" disabled>chat defaults</button>
+        <button class="nav-item" type="button" disabled>search</button>
+        <button class="nav-item" type="button" disabled>voice</button>
+        <button class="nav-item" type="button" disabled>personas</button>
+        <button class="nav-item" type="button" disabled>background checks</button>
+        <div class="nav-group">models &amp; providers</div>
+        <button class="nav-item" type="button" disabled>models</button>
+        <div class="nav-group">memory &amp; instructions</div>
+        <button class="nav-item" type="button" disabled>memory</button>
+        <button class="nav-item" type="button" disabled>recall</button>
+        <div class="nav-group">connections &amp; security</div>
+        <button class="nav-item" type="button" disabled>connections &amp; tools</button>
+        <button class="nav-item" type="button" disabled>privacy &amp; password</button>
+        <div class="nav-group">server, backups &amp; data</div>
+        <button class="nav-item" type="button" disabled>backup &amp; restore</button>
+      </nav>
+
+      <div class="settings-scroll">
+        <main class="settings-content" id="home-settings">
+          <header class="content-head">
+            <div>
+              <h1>home</h1>
+              <p>Choose what appears after the greeting. Needs you always stays visible so approvals and recovery prompts cannot disappear.</p>
+            </div>
+            <span class="preview-note">changes stay in this preview</span>
+          </header>
+
+          <div class="home-workbench">
+            <div class="control-column">
+              <section class="setting-section" aria-labelledby="structure-title">
+                <h2 class="section-title" id="structure-title">structure</h2>
+                <p class="section-help">Move sections into the order you scan them. Hide anything that is not useful every day.</p>
+                <div class="outline-list" id="section-list" data-reorder-list="sections">
+                  <div class="outline-row" data-section="needs_you" data-enabled="true">
+                    <div class="row-copy"><strong>needs you</strong><small>approvals, failed work, and delivery prompts · <span class="locked">always visible</span></small></div>
+                    <button class="switch" type="button" role="switch" aria-label="show needs you on Home" aria-checked="true" disabled></button>
+                    <div class="reorder-actions"><button class="move" type="button" data-move="up" aria-label="move needs you up">↑</button><button class="move" type="button" data-move="down" aria-label="move needs you down">↓</button></div>
+                  </div>
+                  <div class="outline-row" data-section="today" data-enabled="true">
+                    <div class="row-copy"><strong>schedule</strong><small>today's events, tasks, reminders, renewals, and habits</small></div>
+                    <button class="switch" type="button" role="switch" aria-label="show schedule on Home" aria-checked="true" data-section-switch></button>
+                    <div class="reorder-actions"><button class="move" type="button" data-move="up" aria-label="move schedule up">↑</button><button class="move" type="button" data-move="down" aria-label="move schedule down">↓</button></div>
+                  </div>
+                  <div class="outline-row" data-section="in_progress" data-enabled="true">
+                    <div class="row-copy"><strong>in progress</strong><small>active background Aide work</small></div>
+                    <button class="switch" type="button" role="switch" aria-label="show in progress on Home" aria-checked="true" data-section-switch></button>
+                    <div class="reorder-actions"><button class="move" type="button" data-move="up" aria-label="move in progress up">↑</button><button class="move" type="button" data-move="down" aria-label="move in progress down">↓</button></div>
+                  </div>
+                  <div class="outline-row" data-section="briefs" data-enabled="true">
+                    <div class="row-copy"><strong>briefs</strong><small>recent finished Aide summaries</small></div>
+                    <button class="switch" type="button" role="switch" aria-label="show briefs on Home" aria-checked="true" data-section-switch></button>
+                    <div class="reorder-actions"><button class="move" type="button" data-move="up" aria-label="move briefs up">↑</button><button class="move" type="button" data-move="down" aria-label="move briefs down">↓</button></div>
+                  </div>
+                  <div class="outline-row" data-section="shortcuts" data-enabled="true">
+                    <div class="row-copy"><strong>shortcuts</strong><small>the app destinations selected below</small></div>
+                    <button class="switch" type="button" role="switch" aria-label="show shortcuts on Home" aria-checked="true" data-section-switch></button>
+                    <div class="reorder-actions"><button class="move" type="button" data-move="up" aria-label="move shortcuts up">↑</button><button class="move" type="button" data-move="down" aria-label="move shortcuts down">↓</button></div>
+                  </div>
+                </div>
+              </section>
+
+              <section class="setting-section" aria-labelledby="density-title">
+                <h2 class="section-title" id="density-title">density</h2>
+                <p class="section-help">This changes vertical spacing only. It never removes details.</p>
+                <div class="density-group" role="radiogroup" aria-labelledby="density-title">
+                  <button class="density-choice" type="button" role="radio" aria-checked="true" tabindex="0" data-density="comfortable"><span>comfortable</span><small>more room between sections</small></button>
+                  <button class="density-choice" type="button" role="radio" aria-checked="false" tabindex="-1" data-density="compact"><span>compact</span><small>more of the day at once</small></button>
+                </div>
+              </section>
+
+              <section class="setting-section" aria-labelledby="shortcuts-title">
+                <h2 class="section-title" id="shortcuts-title">shortcuts</h2>
+                <p class="section-help">Choose and order the app links at the end of Home.</p>
+                <div class="outline-list shortcut-list" id="shortcut-list" data-reorder-list="shortcuts">
+                  <div class="outline-row" data-shortcut="calendar" data-enabled="true"><div class="row-copy"><strong>calendar</strong><small>events and planning</small></div><button class="switch" type="button" role="switch" aria-label="show Calendar shortcut" aria-checked="true" data-shortcut-switch></button><div class="reorder-actions"><button class="move" type="button" data-move="up" aria-label="move Calendar shortcut up">↑</button><button class="move" type="button" data-move="down" aria-label="move Calendar shortcut down">↓</button></div></div>
+                  <div class="outline-row" data-shortcut="tasks" data-enabled="true"><div class="row-copy"><strong>tasks</strong><small>priorities and next actions</small></div><button class="switch" type="button" role="switch" aria-label="show Tasks shortcut" aria-checked="true" data-shortcut-switch></button><div class="reorder-actions"><button class="move" type="button" data-move="up" aria-label="move Tasks shortcut up">↑</button><button class="move" type="button" data-move="down" aria-label="move Tasks shortcut down">↓</button></div></div>
+                  <div class="outline-row" data-shortcut="wiki" data-enabled="true"><div class="row-copy"><strong>docs</strong><small>documents, notes, and journal</small></div><button class="switch" type="button" role="switch" aria-label="show Docs shortcut" aria-checked="true" data-shortcut-switch></button><div class="reorder-actions"><button class="move" type="button" data-move="up" aria-label="move Docs shortcut up">↑</button><button class="move" type="button" data-move="down" aria-label="move Docs shortcut down">↓</button></div></div>
+                  <div class="outline-row" data-shortcut="files" data-enabled="true"><div class="row-copy"><strong>files</strong><small>local and remote storage</small></div><button class="switch" type="button" role="switch" aria-label="show Files shortcut" aria-checked="true" data-shortcut-switch></button><div class="reorder-actions"><button class="move" type="button" data-move="up" aria-label="move Files shortcut up">↑</button><button class="move" type="button" data-move="down" aria-label="move Files shortcut down">↓</button></div></div>
+                  <div class="outline-row" data-shortcut="mail" data-enabled="false"><div class="row-copy"><strong>mail</strong><small>inbox and drafts</small></div><button class="switch" type="button" role="switch" aria-label="show Mail shortcut" aria-checked="false" data-shortcut-switch></button><div class="reorder-actions"><button class="move" type="button" data-move="up" aria-label="move Mail shortcut up">↑</button><button class="move" type="button" data-move="down" aria-label="move Mail shortcut down">↓</button></div></div>
+                  <div class="outline-row" data-shortcut="money" data-enabled="false"><div class="row-copy"><strong>finance</strong><small>money and subscriptions</small></div><button class="switch" type="button" role="switch" aria-label="show Finance shortcut" aria-checked="false" data-shortcut-switch></button><div class="reorder-actions"><button class="move" type="button" data-move="up" aria-label="move Finance shortcut up">↑</button><button class="move" type="button" data-move="down" aria-label="move Finance shortcut down">↓</button></div></div>
+                </div>
+              </section>
+            </div>
+
+            <aside class="home-preview" id="home-preview" data-density="comfortable" aria-labelledby="preview-title">
+              <div class="preview-head"><h2 id="preview-title">home outline</h2><span id="preview-count">5 sections</span></div>
+              <p class="preview-intro">The greeting and capture bar stay fixed. This is the order below them.</p>
+              <div class="preview-list" id="preview-list">
+                <div class="preview-section" data-preview-section="needs_you"><strong>needs you</strong><small>2 items waiting</small></div>
+                <div class="preview-section" data-preview-section="today"><strong>schedule</strong><small>3 events · 4 tasks</small></div>
+                <div class="preview-section" data-preview-section="in_progress"><strong>in progress</strong><small>1 Aide run</small></div>
+                <div class="preview-section" data-preview-section="briefs"><strong>briefs</strong><small>2 recent summaries</small></div>
+                <div class="preview-section" data-preview-section="shortcuts"><strong>shortcuts</strong><div class="preview-shortcuts" id="preview-shortcuts">calendar · tasks · docs · files</div></div>
+              </div>
+            </aside>
+          </div>
+
+          <footer class="save-bar">
+            <div class="save-copy"><span class="save-state" id="save-state" role="status" aria-live="polite">no unsaved changes</span><span class="save-detail">Saving will update Home on this device.</span></div>
+            <div class="save-actions"><button class="text-action" id="reset-home" type="button">reset defaults</button><button class="save-button" id="save-home" type="button">save home</button></div>
+          </footer>
+        </main>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const sectionList = document.querySelector("#section-list");
+    const shortcutList = document.querySelector("#shortcut-list");
+    const previewList = document.querySelector("#preview-list");
+    const preview = document.querySelector("#home-preview");
+    const saveState = document.querySelector("#save-state");
+    let changeCount = 0;
+
+    function rows(list) { return [...list.querySelectorAll(":scope > .outline-row")]; }
+    function enabled(row) { return row.querySelector('[role="switch"]').getAttribute("aria-checked") === "true"; }
+    function labelForShortcut(key) { return key === "wiki" ? "docs" : key === "money" ? "finance" : key; }
+
+    function markChanged(message) {
+      changeCount += 1;
+      saveState.textContent = `${changeCount} unsaved ${changeCount === 1 ? "change" : "changes"} · ${message}`;
+    }
+
+    function updateMoveButtons(list) {
+      const currentRows = rows(list);
+      currentRows.forEach((row, index) => {
+        row.querySelector('[data-move="up"]').disabled = index === 0;
+        row.querySelector('[data-move="down"]').disabled = index === currentRows.length - 1;
+      });
+    }
+
+    function updatePreview() {
+      const sectionRows = rows(sectionList);
+      let visibleCount = 0;
+      sectionRows.forEach((row) => {
+        const item = previewList.querySelector(`[data-preview-section="${row.dataset.section}"]`);
+        previewList.append(item);
+        item.hidden = !enabled(row);
+        if (!item.hidden) visibleCount += 1;
+      });
+      document.querySelector("#preview-count").textContent = `${visibleCount} ${visibleCount === 1 ? "section" : "sections"}`;
+      const selected = rows(shortcutList).filter(enabled).map((row) => labelForShortcut(row.dataset.shortcut));
+      const shortcutText = document.querySelector("#preview-shortcuts");
+      shortcutText.textContent = selected.length ? selected.join(" · ") : "no shortcuts selected";
+      shortcutText.classList.toggle("preview-empty", selected.length === 0);
+      updateMoveButtons(sectionList);
+      updateMoveButtons(shortcutList);
+    }
+
+    document.addEventListener("click", (event) => {
+      const toggle = event.target.closest("[data-section-switch], [data-shortcut-switch]");
+      if (toggle) {
+        const next = toggle.getAttribute("aria-checked") !== "true";
+        toggle.setAttribute("aria-checked", String(next));
+        toggle.closest(".outline-row").dataset.enabled = String(next);
+        markChanged(next ? "item shown" : "item hidden");
+        updatePreview();
+        return;
+      }
+
+      const move = event.target.closest("[data-move]");
+      if (move && !move.disabled) {
+        const row = move.closest(".outline-row");
+        const list = row.parentElement;
+        const target = move.dataset.move === "up" ? row.previousElementSibling : row.nextElementSibling;
+        if (move.dataset.move === "up") list.insertBefore(row, target);
+        else list.insertBefore(target, row);
+        markChanged("order updated");
+        updatePreview();
+        const sameDirection = row.querySelector(`[data-move="${move.dataset.move}"]`);
+        const otherDirection = row.querySelector(`[data-move="${move.dataset.move === "up" ? "down" : "up"}"]`);
+        (sameDirection.disabled ? otherDirection : sameDirection).focus();
+      }
+    });
+
+    function chooseDensity(button, announce = true) {
+      document.querySelectorAll('[role="radio"][data-density]').forEach((choice) => {
+        const active = choice === button;
+        choice.setAttribute("aria-checked", String(active));
+        choice.tabIndex = active ? 0 : -1;
+      });
+      preview.dataset.density = button.dataset.density;
+      if (announce) markChanged(`${button.dataset.density} density`);
+    }
+
+    document.querySelectorAll('[role="radio"][data-density]').forEach((button, index, choices) => {
+      button.addEventListener("click", () => chooseDensity(button));
+      button.addEventListener("keydown", (event) => {
+        const keys = ["ArrowLeft", "ArrowUp", "ArrowRight", "ArrowDown", "Home", "End"];
+        if (!keys.includes(event.key)) return;
+        event.preventDefault();
+        let next = index;
+        if (event.key === "ArrowLeft" || event.key === "ArrowUp") next = (index - 1 + choices.length) % choices.length;
+        if (event.key === "ArrowRight" || event.key === "ArrowDown") next = (index + 1) % choices.length;
+        if (event.key === "Home") next = 0;
+        if (event.key === "End") next = choices.length - 1;
+        chooseDensity(choices[next]);
+        choices[next].focus();
+      });
+    });
+
+    document.querySelector("#save-home").addEventListener("click", () => {
+      changeCount = 0;
+      saveState.textContent = "saved just now · preview only";
+    });
+
+    document.querySelector("#reset-home").addEventListener("click", () => {
+      const sectionOrder = ["needs_you", "today", "in_progress", "briefs", "shortcuts"];
+      const shortcutOrder = ["calendar", "tasks", "wiki", "files", "mail", "money"];
+      sectionOrder.forEach((key) => sectionList.append(sectionList.querySelector(`[data-section="${key}"]`)));
+      shortcutOrder.forEach((key) => shortcutList.append(shortcutList.querySelector(`[data-shortcut="${key}"]`)));
+      rows(sectionList).forEach((row) => {
+        const toggle = row.querySelector('[role="switch"]');
+        toggle.setAttribute("aria-checked", "true");
+        row.dataset.enabled = "true";
+      });
+      rows(shortcutList).forEach((row) => {
+        const active = ["calendar", "tasks", "wiki", "files"].includes(row.dataset.shortcut);
+        row.querySelector('[role="switch"]').setAttribute("aria-checked", String(active));
+        row.dataset.enabled = String(active);
+      });
+      chooseDensity(document.querySelector('[role="radio"][data-density="comfortable"]'), false);
+      markChanged("defaults restored");
+      updatePreview();
+    });
+
+    updatePreview();
+  </script>
+</body>
+</html>

@@ -5,9 +5,16 @@ from tests._client import ApiTest
 class ProactiveModelTests(ApiTest):
     def test_roundtrip_and_dismiss(self):
         d = self.db()
-        it = ProactiveItem(dedupe_key="k1", category="task", title="pay rent",
-                           body="rent is overdue", link="tasks", score=70, urgency=70,
-                           source_keys='["task_overdue:1"]')
+        it = ProactiveItem(
+            dedupe_key="k1",
+            category="task",
+            title="pay rent",
+            body="rent is overdue",
+            link="tasks",
+            score=70,
+            urgency=70,
+            source_keys='["task_overdue:1"]',
+        )
         d.add(it)
         d.commit()
         rid = it.id

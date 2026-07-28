@@ -26,10 +26,10 @@ class ToolbarCleanup4a(unittest.TestCase):
 
     def test_compose_is_rightmost(self):
         # compose is the last text button in the action group (before the cog), after refresh
-        head = INDEX[INDEX.index("mail-head-actions"):]
+        head = INDEX[INDEX.index("mail-head-actions") :]
         self.assertLess(head.index("mail-refresh-btn"), head.index("mail-compose-btn"))
         # nothing but the settings cog comes after compose
-        after = head[head.index("mail-compose-btn"):]
+        after = head[head.index("mail-compose-btn") :]
         self.assertNotIn('class="btn"', after.split("app-cog")[0].replace("btn primary", ""))
 
     def test_grouping_moved_to_settings(self):
@@ -56,7 +56,17 @@ class Sidebar4b(unittest.TestCase):
         self.assertIn("_MAIL_NAV", MAIL)
         self.assertIn("window.icon", MAIL)
         # all 9 categories present
-        for f in ("inbox", "cat:primary", "cat:social", "cat:promotions", "unread", "flagged", "vip", "sent", "drafts"):
+        for f in (
+            "inbox",
+            "cat:primary",
+            "cat:social",
+            "cat:promotions",
+            "unread",
+            "flagged",
+            "vip",
+            "sent",
+            "drafts",
+        ):
             self.assertIn(f"'{f}'", MAIL)
 
     def test_toggle_persists(self):
@@ -87,7 +97,9 @@ class SearchAndAccounts4c(unittest.TestCase):
         self.assertIn("_reloadCurrent({ silent: true })", MAIL)
         self.assertIn("_reloadCurrent({ force: true })", MAIL)
         self.assertIn("if (_labelFilter) return loadByLabel(_labelFilter);", MAIL)
-        self.assertIn("if (_filter.startsWith('cat:')) return loadCategory(_filter.slice(4));", MAIL)
+        self.assertIn(
+            "if (_filter.startsWith('cat:')) return loadCategory(_filter.slice(4));", MAIL
+        )
         self.assertIn("_searchView || _labelFilter", MAIL)
 
 

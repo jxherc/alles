@@ -4,7 +4,9 @@ Target: http://docs.localhost:8870/
 Output: docs/evidence/ui-3/audit/*.png + raw_findings.json
 """
 
-import os, json
+import json
+import os
+
 from playwright.sync_api import sync_playwright
 
 AUDIT_DIR = r"C:\Users\jxh\alles\docs\evidence\ui-3\audit"
@@ -108,7 +110,9 @@ def elem_visible(page, sel):
     el = page.query_selector(sel)
     if not el:
         return False
-    return page.evaluate(f"!!document.querySelector('{sel}') && document.querySelector('{sel}').offsetParent !== null")
+    return page.evaluate(
+        f"!!document.querySelector('{sel}') && document.querySelector('{sel}').offsetParent !== null"
+    )
 
 
 with sync_playwright() as p:
@@ -116,8 +120,14 @@ with sync_playwright() as p:
     ctx = browser.new_context(service_workers="block", viewport={"width": 1400, "height": 900})
     page = ctx.new_page()
 
-    page.on("console", lambda msg: console_log.append({"t": msg.type, "m": msg.text})
-            if msg.type in ("error", "warning") else None)
+    page.on(
+        "console",
+        lambda msg: (
+            console_log.append({"t": msg.type, "m": msg.text})
+            if msg.type in ("error", "warning")
+            else None
+        ),
+    )
     page.on("pageerror", lambda err: console_log.append({"t": "pageerror", "m": str(err)}))
 
     # ── 1. INITIAL LOAD ──────────────────────────────────────────────────────
@@ -145,7 +155,9 @@ with sync_playwright() as p:
     if di and di.is_visible():
         di.fill("audit-main")
         page.wait_for_timeout(200)
-        ok_btn = page.query_selector(".dialog-ok, button:text('ok'), [class*=dialog] button.btn.primary")
+        ok_btn = page.query_selector(
+            ".dialog-ok, button:text('ok'), [class*=dialog] button.btn.primary"
+        )
         if ok_btn and ok_btn.is_visible():
             ok_btn.click()
         else:
@@ -198,24 +210,47 @@ with sync_playwright() as p:
             if prev_v:
                 render["table"] = page.evaluate("!!document.querySelector('#wiki-preview table')")
                 render["img"] = page.evaluate("!!document.querySelector('#wiki-preview img')")
-                render["checkbox"] = page.evaluate("!!document.querySelector('#wiki-preview input[type=checkbox]')")
+                render["checkbox"] = page.evaluate(
+                    "!!document.querySelector('#wiki-preview input[type=checkbox]')"
+                )
                 render["strong"] = page.evaluate("!!document.querySelector('#wiki-preview strong')")
                 render["em"] = page.evaluate("!!document.querySelector('#wiki-preview em')")
-                render["pre_code"] = page.evaluate("!!document.querySelector('#wiki-preview pre code')")
-                render["blockquote"] = page.evaluate("!!document.querySelector('#wiki-preview blockquote')")
+                render["pre_code"] = page.evaluate(
+                    "!!document.querySelector('#wiki-preview pre code')"
+                )
+                render["blockquote"] = page.evaluate(
+                    "!!document.querySelector('#wiki-preview blockquote')"
+                )
                 render["h1"] = page.evaluate("!!document.querySelector('#wiki-preview h1')")
             if live_v:
-                render["cm_strong"] = page.evaluate("!!document.querySelector('#wiki-live .cm-strong, #wiki-live strong')")
-                render["cm_em"] = page.evaluate("!!document.querySelector('#wiki-live .cm-em, #wiki-live em')")
-                render["cm_header"] = page.evaluate("!!document.querySelector('#wiki-live .cm-header, #wiki-live .cm-line.cm-header-1')")
-                render["cm_table"] = page.evaluate("!!document.querySelector('#wiki-live .cm-table, #wiki-live .cm-hmd-table-sep')")
+                render["cm_strong"] = page.evaluate(
+                    "!!document.querySelector('#wiki-live .cm-strong, #wiki-live strong')"
+                )
+                render["cm_em"] = page.evaluate(
+                    "!!document.querySelector('#wiki-live .cm-em, #wiki-live em')"
+                )
+                render["cm_header"] = page.evaluate(
+                    "!!document.querySelector('#wiki-live .cm-header, #wiki-live .cm-line.cm-header-1')"
+                )
+                render["cm_table"] = page.evaluate(
+                    "!!document.querySelector('#wiki-live .cm-table, #wiki-live .cm-hmd-table-sep')"
+                )
 
             mode_findings[f"step{step}"] = {
-                "label": label, "live": live_v, "source": src_v, "preview": prev_v,
+                "label": label,
+                "live": live_v,
+                "source": src_v,
+                "preview": prev_v,
                 "render": render,
             }
-            print(f"  step{step} [{label}]: live={live_v} src={src_v} prev={prev_v} render={render}")
-            ss(page, f"04-mode-step{step}-{label.replace(' ','_').replace('/','_')}", f"mode: {label}")
+            print(
+                f"  step{step} [{label}]: live={live_v} src={src_v} prev={prev_v} render={render}"
+            )
+            ss(
+                page,
+                f"04-mode-step{step}-{label.replace(' ', '_').replace('/', '_')}",
+                f"mode: {label}",
+            )
 
             if step < 3:
                 mode_btn.click()
@@ -237,29 +272,29 @@ with sync_playwright() as p:
     # ── 5. TOOLBAR BUTTONS (one by one) ─────────────────────────────────────
     print("\n=== 5. Toolbar buttons ===")
     toolbar_items = [
-        ("wiki-ai-toggle",   "ai edit mode toggle"),
-        ("wiki-ask-btn",     "ask AI across notes"),
-        ("wiki-help-btn",    "markdown guide"),
+        ("wiki-ai-toggle", "ai edit mode toggle"),
+        ("wiki-ask-btn", "ask AI across notes"),
+        ("wiki-help-btn", "markdown guide"),
         ("wiki-outline-btn", "outline panel"),
-        ("wiki-props-btn",   "properties/frontmatter"),
-        ("wiki-query-btn",   "query/dataview"),
-        ("wiki-base-btn",    "database/base view"),
-        ("wiki-canvas-btn",  "canvas whiteboard"),
-        ("wiki-board-btn",   "kanban board"),
-        ("wiki-todos-btn",   "AI extract todos"),
-        ("wiki-taskroll-btn","all tasks roll-up"),
+        ("wiki-props-btn", "properties/frontmatter"),
+        ("wiki-query-btn", "query/dataview"),
+        ("wiki-base-btn", "database/base view"),
+        ("wiki-canvas-btn", "canvas whiteboard"),
+        ("wiki-board-btn", "kanban board"),
+        ("wiki-todos-btn", "AI extract todos"),
+        ("wiki-taskroll-btn", "all tasks roll-up"),
         ("wiki-history-btn", "version history"),
-        ("wiki-bookmark-btn","bookmark"),
-        ("wiki-comments-btn","comments"),
+        ("wiki-bookmark-btn", "bookmark"),
+        ("wiki-comments-btn", "comments"),
         ("wiki-publish-btn", "publish"),
-        ("wiki-split-btn",   "split view"),
-        ("wiki-theme-btn",   "custom CSS theme"),
-        ("wiki-export-btn",  "export dropdown"),
+        ("wiki-split-btn", "split view"),
+        ("wiki-theme-btn", "custom CSS theme"),
+        ("wiki-export-btn", "export dropdown"),
     ]
     tb_findings = {}
 
     for idx, (btn_id, desc) in enumerate(toolbar_items):
-        print(f"  [{idx+1}] #{btn_id}")
+        print(f"  [{idx + 1}] #{btn_id}")
         btn = page.query_selector(f"#{btn_id}")
         if not btn:
             tb_findings[btn_id] = {"status": "NOT FOUND"}
@@ -282,7 +317,7 @@ with sync_playwright() as p:
         active_after = "active" in cls_after
         label_after = btn.text_content().strip()
 
-        shot = f"05-tb{idx+1:02d}-{btn_id}"
+        shot = f"05-tb{idx + 1:02d}-{btn_id}"
         ss(page, shot, f"#{btn_id}: {desc}")
 
         tb_findings[btn_id] = {
@@ -297,8 +332,14 @@ with sync_playwright() as p:
 
     # close any open panels/modes
     # click active toolbar buttons to toggle off
-    for bid in ["wiki-ai-toggle","wiki-outline-btn","wiki-props-btn","wiki-query-btn",
-                "wiki-history-btn","wiki-split-btn"]:
+    for bid in [
+        "wiki-ai-toggle",
+        "wiki-outline-btn",
+        "wiki-props-btn",
+        "wiki-query-btn",
+        "wiki-history-btn",
+        "wiki-split-btn",
+    ]:
         b2 = page.query_selector(f"#{bid}")
         if b2 and b2.is_visible() and "active" in (b2.get_attribute("class") or ""):
             b2.click()
@@ -331,9 +372,29 @@ with sync_playwright() as p:
 
     # ── 6. FORMAT TOOLBAR ────────────────────────────────────────────────────
     print("\n=== 6. Format toolbar ===")
-    fmt_list = ["h1","h2","h3","bold","italic","strike","highlight","code",
-                "bullet","olist","check","quote",
-                "link","image","wiki","table","codeblock","callout","toggle","columns","hr"]
+    fmt_list = [
+        "h1",
+        "h2",
+        "h3",
+        "bold",
+        "italic",
+        "strike",
+        "highlight",
+        "code",
+        "bullet",
+        "olist",
+        "check",
+        "quote",
+        "link",
+        "image",
+        "wiki",
+        "table",
+        "codeblock",
+        "callout",
+        "toggle",
+        "columns",
+        "hr",
+    ]
     fmt_findings = {}
 
     for fmt in fmt_list:
@@ -362,7 +423,9 @@ with sync_playwright() as p:
         try:
             fmt_btn.click()
             page.wait_for_timeout(500)
-            dialog_up = page.evaluate("!!document.querySelector('.dialog-overlay, [class*=\"dialog\"][style*=\"display: flex\"], [class*=\"dialog\"][style*=\"display:flex\"]')")
+            dialog_up = page.evaluate(
+                '!!document.querySelector(\'.dialog-overlay, [class*="dialog"][style*="display: flex"], [class*="dialog"][style*="display:flex"]\')'
+            )
             fmt_findings[fmt] = {"clicked": True, "dialog": dialog_up}
             if dialog_up:
                 page.keyboard.press("Escape")
@@ -410,7 +473,9 @@ with sync_playwright() as p:
         cm.click(button="right")
         page.wait_for_timeout(700)
         ss(page, "08-right-click", "right-click — custom or native menu?")
-        custom = page.query_selector(".context-menu, .ctx-menu, [class*='ctxmenu'], [class*='context-menu']")
+        custom = page.query_selector(
+            ".context-menu, .ctx-menu, [class*='ctxmenu'], [class*='context-menu']"
+        )
         findings["right_click"] = {"custom": custom is not None}
         if custom:
             findings["right_click"]["class"] = custom.get_attribute("class")
@@ -422,7 +487,7 @@ with sync_playwright() as p:
     hist = page.query_selector("#wiki-history-btn")
     if hist and hist.is_visible():
         # close any active panels first
-        for bid in ["wiki-outline-btn","wiki-props-btn","wiki-query-btn"]:
+        for bid in ["wiki-outline-btn", "wiki-props-btn", "wiki-query-btn"]:
             b2 = page.query_selector(f"#{bid}")
             if b2 and b2.is_visible() and "active" in (b2.get_attribute("class") or ""):
                 b2.click()
@@ -466,7 +531,9 @@ with sync_playwright() as p:
             split.click()
             page.wait_for_timeout(900)
         ss(page, "11-split-view", "split view open")
-        pane2 = page.query_selector(".wiki-split-pane, .wiki-pane-b, [class*='split-pane'], [class*='pane-b']")
+        pane2 = page.query_selector(
+            ".wiki-split-pane, .wiki-pane-b, [class*='split-pane'], [class*='pane-b']"
+        )
         findings["split"] = {
             "active": "active" in (split.get_attribute("class") or ""),
             "pane2_found": pane2 is not None,
@@ -493,19 +560,21 @@ with sync_playwright() as p:
             page.wait_for_timeout(600)
             di = page.query_selector("#_di")
             if di and di.is_visible():
-                di.fill(f"audit-tab-{i+1}")
+                di.fill(f"audit-tab-{i + 1}")
                 page.keyboard.press("Enter")
                 page.wait_for_timeout(1200)
                 cm2 = page.query_selector("#wiki-live .cm-content")
                 if cm2 and cm2.is_visible():
                     cm2.click()
-                    page.keyboard.type(f"# Tab Doc {i+1}\n\nContent of tab doc {i+1}.")
+                    page.keyboard.type(f"# Tab Doc {i + 1}\n\nContent of tab doc {i + 1}.")
                     page.wait_for_timeout(300)
 
     ss(page, "12b-tabs-bar-multiple", "tabs bar after 4 docs open")
     tabs_el = page.query_selector("#wiki-tabs")
     if tabs_el:
-        tab_count = page.evaluate("document.querySelectorAll('#wiki-tabs .wiki-tab, #wiki-tabs [class*=\"wiki-tab\"]').length")
+        tab_count = page.evaluate(
+            "document.querySelectorAll('#wiki-tabs .wiki-tab, #wiki-tabs [class*=\"wiki-tab\"]').length"
+        )
         findings["tabs"] = {"found": True, "count": tab_count}
         print(f"  Tabs found: {tab_count}")
     else:
@@ -529,7 +598,9 @@ with sync_playwright() as p:
         del_btn.click()
         page.wait_for_timeout(700)
         ss(page, "14-delete-confirm", "delete confirmation dialog")
-        confirm = page.evaluate("!!document.querySelector('.dialog-overlay, [class*=\"dialog\"][style*=\"flex\"]')")
+        confirm = page.evaluate(
+            '!!document.querySelector(\'.dialog-overlay, [class*="dialog"][style*="flex"]\')'
+        )
         findings["delete"] = {"confirm_dialog": confirm}
         page.keyboard.press("Escape")
         page.wait_for_timeout(300)

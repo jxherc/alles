@@ -5,6 +5,7 @@ needs a fresh instance with the current routes:
   ALLES_DATA=.tmp_si AUTH_ENABLED=false PORT=8077 python app.py
   PYTHONIOENCODING=utf-8 python tests/pw_smart_invite.py
 """
+
 from datetime import date
 
 from playwright.sync_api import sync_playwright
@@ -32,7 +33,8 @@ def main():
                 await fetch('/api/calendar/'+ev.id+'/invite', {method:'POST', headers:{'content-type':'application/json'},
                   body: JSON.stringify({name:'Ann Stark', email:'ann@x.com'})});
                 return ev.id;
-            }""", today,
+            }""",
+            today,
         )
         pg.reload(wait_until="domcontentloaded")
         pg.wait_for_timeout(1000)
@@ -43,9 +45,13 @@ def main():
 
         pg.evaluate("() => document.querySelector('.cal-inv-chip')?.click()")
         pg.wait_for_timeout(900)
-        who = pg.evaluate("() => [...document.querySelectorAll('.cal-inv-who')].map(x=>x.textContent)")
+        who = pg.evaluate(
+            "() => [...document.querySelectorAll('.cal-inv-who')].map(x=>x.textContent)"
+        )
         assert any("Bob" in w for w in who), who
-        assert "Bob Stark" not in (pg.evaluate("() => document.getElementById('cal-inv-suggest')?.textContent") or "")
+        assert "Bob Stark" not in (
+            pg.evaluate("() => document.getElementById('cal-inv-suggest')?.textContent") or ""
+        )
         b.close()
     print("PASS: smart-invite suggests, one-click invites, and drops the invited contact")
 

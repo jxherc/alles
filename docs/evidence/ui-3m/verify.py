@@ -1,5 +1,6 @@
 """ui-3m verify — the select-text -> comment flow works in the default LIVE editor
 (not just preview): selecting shows the comment chip, and a thread is created + rendered."""
+
 import sys
 
 from playwright.sync_api import sync_playwright
@@ -19,7 +20,9 @@ def run():
         pg.goto(BASE + "/", wait_until="domcontentloaded")
         pg.wait_for_selector("#wiki-view", timeout=15000)
         pg.wait_for_timeout(1400)
-        pg.evaluate("""() => { const el = document.querySelector('.wiki-file[data-path=\"livetest.md\"] .wiki-row-label'); if (el) el.click(); }""")
+        pg.evaluate(
+            """() => { const el = document.querySelector('.wiki-file[data-path=\"livetest.md\"] .wiki-row-label'); if (el) el.click(); }"""
+        )
         pg.wait_for_timeout(1100)
 
         def ok(name, cond):
@@ -39,11 +42,16 @@ def run():
         }""")
         ok("could select text in the live editor", sel_ok)
         pg.wait_for_timeout(300)
-        fab_shown = pg.evaluate("() => { const f = document.querySelector('#wiki-comment-fab'); return f && f.style.display === 'block'; }")
+        fab_shown = pg.evaluate(
+            "() => { const f = document.querySelector('#wiki-comment-fab'); return f && f.style.display === 'block'; }"
+        )
         ok("comment chip appears on live selection", fab_shown)
 
         # click the chip → prompt dialog → fill + ok
-        pg.eval_on_selector("#wiki-comment-fab", "el => el.dispatchEvent(new MouseEvent('mousedown',{bubbles:true}))")
+        pg.eval_on_selector(
+            "#wiki-comment-fab",
+            "el => el.dispatchEvent(new MouseEvent('mousedown',{bubbles:true}))",
+        )
         pg.wait_for_timeout(400)
         di = pg.query_selector("#_di")
         ok("comment prompt opens", di is not None)

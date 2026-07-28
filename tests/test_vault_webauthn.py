@@ -2,6 +2,7 @@ import base64
 import hashlib
 import json
 import os
+import shutil
 import tempfile
 from pathlib import Path
 from unittest import mock
@@ -31,7 +32,9 @@ def _auth_data(origin="http://localhost:8000", *, flags=0x05, counter=1):
     return hashlib.sha256(host.encode()).digest() + bytes([flags]) + counter.to_bytes(4, "big")
 
 
-def _assertion(priv, challenge, *, typ="webauthn.get", origin="http://localhost:8000", flags=0x05, counter=1):
+def _assertion(
+    priv, challenge, *, typ="webauthn.get", origin="http://localhost:8000", flags=0x05, counter=1
+):
     """build a WebAuthn-shaped assertion the way a browser authenticator would."""
     client_data = json.dumps({"type": typ, "challenge": challenge, "origin": origin}).encode()
     auth_data = _auth_data(origin, flags=flags, counter=counter)
@@ -164,7 +167,9 @@ class WebAuthnApiTests(ApiTest):
         self._sf.close()
         self.sp = mock.patch.object(core.settings, "_SETTINGS_FILE", Path(self._sf.name))
         self.sp.start()
-        self.tok = self.client.post("/api/vault/unlock", json={"password": "m1"}).json()["token"]
+        self.tok = self.client.post(
+            "/api/vault/unlock", json={"password": "master-password-1"}
+        ).json()["token"]
         self.h = {"X-Vault-Token": self.tok}
         self.priv, self.der = _make_keypair()
         self.cred_id = _b64(os.urandom(16))
@@ -177,7 +182,10 @@ class WebAuthnApiTests(ApiTest):
             os.environ.pop("ALLES_DATA", None)
         else:
             os.environ["ALLES_DATA"] = self._prev
-        super().tearDown()
+        try:
+            super().tearDown()
+        finally:
+            shutil.rmtree(self._tmp, ignore_errors=True)
 
     def _register(self):
         return self.client.post(
@@ -208,9 +216,48 @@ class WebAuthnApiTests(ApiTest):
     def test_delete_credential(self):
         self._register()
         cid = self.client.get("/api/vault/webauthn/credentials", headers=self.h).json()[0]["id"]
-        self.client.delete(f"/api/vault/webauthn/credentials/{cid}", headers=self.h)
+        deleted = self.client.delete(f"/api/vault/webauthn/credentials/{cid}", headers=self.h)
+        self.assertEqual(deleted.status_code, 200)
         self.assertEqual(
             self.client.get("/api/vault/webauthn/credentials", headers=self.h).json(), []
+        )
+
+    def test_two_factor_credentials_cannot_unlock_or_be_deleted_as_biometrics(self):
+        from core.database import WebAuthnCredential
+
+        db = self.db()
+        credential = WebAuthnCredential(
+            vault_id="default",
+            role="2fa",
+            label="second factor",
+            credential_id=self.cred_id,
+            public_key=_b64(self.der),
+        )
+        db.add(credential)
+        db.commit()
+        credential_pk = credential.id
+        db.close()
+
+        challenge_payload = self.client.get("/api/vault/webauthn/challenge").json()
+        self.assertNotIn(self.cred_id, challenge_payload["credentials"])
+        ad, cd, sig = _assertion(self.priv, challenge_payload["challenge"])
+        unlock = self.client.post(
+            "/api/vault/webauthn/unlock",
+            json={
+                "vault_id": "default",
+                "credential_id": self.cred_id,
+                "authenticator_data": _b64(ad),
+                "client_data_json": _b64(cd),
+                "signature": _b64(sig),
+            },
+            headers=self.origin,
+        )
+        self.assertEqual(unlock.status_code, 404)
+        self.assertEqual(
+            self.client.delete(
+                f"/api/vault/webauthn/credentials/{credential_pk}", headers=self.h
+            ).status_code,
+            404,
         )
 
     def test_delete_last_credential_clears_biometric_blob(self):
@@ -322,14 +369,16 @@ class WebAuthnApiTests(ApiTest):
         blob = d.get(Vault, "default").biometric_blob
         d.close()
         self.assertTrue(blob)
-        self.assertNotIn(b"m1", base64.b64decode(blob))  # the master pw is never stored in the clear
+        self.assertNotIn(
+            b"master-password-1", base64.b64decode(blob)
+        )  # the master pw is never stored in the clear
 
     def test_biometric_blob_rewrapped_on_password_change(self):
         # changing the master password must re-wrap the biometric blob, else a later
         # biometric unlock releases the OLD password and every decrypt fails (vault bricked)
         self._register()
         r = self.client.post(
-            "/api/vault/vaults/password", json={"new_password": "m2"}, headers=self.h
+            "/api/vault/vaults/password", json={"new_password": "master-password-2"}, headers=self.h
         )
         self.assertEqual(r.status_code, 200)
         from core.database import Vault
@@ -339,4 +388,6 @@ class WebAuthnApiTests(ApiTest):
         d = self.db()
         blob = d.get(Vault, "default").biometric_blob
         d.close()
-        self.assertEqual(decrypt(_server_key(), blob), "m2")  # now releases the NEW password
+        self.assertEqual(
+            decrypt(_server_key(), blob), "master-password-2"
+        )  # now releases the NEW password

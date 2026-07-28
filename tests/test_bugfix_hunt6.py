@@ -40,8 +40,9 @@ class ImportImageTests(unittest.TestCase):
             self.ps.import_image(b"\x89PNG\r\n\x1a\n" + b"\x00" * 20, "trunc.png")
 
     def test_valid_image_still_imports(self):
-        from PIL import Image
         import io
+
+        from PIL import Image
 
         buf = io.BytesIO()
         Image.new("RGB", (8, 8), (255, 0, 0)).save(buf, "PNG")

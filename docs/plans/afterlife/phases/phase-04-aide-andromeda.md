@@ -1,10 +1,15 @@
 # Afterlife Phase 4 — Aide and Andromeda
 
-- **Status:** delivered (managed SearXNG install remains unavailable)
+- **Status:** delivered, including the live-verified optional managed SearXNG lifecycle
 - **Parent design:** [`../design.md`](../design.md)
 - **Depends on:** Phase 3 delivered
 - **Verification:** [`../evidence/phase-04-verification.md`](../evidence/phase-04-verification.md)
+- **Product correction:** [`../decision-aide-one-mode.md`](../decision-aide-one-mode.md)
 - **Checkbox rule:** `[x]` means implemented and freshly tested, not merely discussed.
+
+> This file records the Phase 4 build that was actually delivered. Its Chat/Jarvis selector and Answer
+> only behavior are superseded product decisions, not the target for new work. Phase 5 removes those
+> controls and presents one automatic, tool-capable Aide. Jarvis remains only as the Discord bot name.
 
 ## Goal
 
@@ -13,17 +18,18 @@ engine that keeps normal links useful even when its model or search companion fa
 
 At the end of this phase:
 
-- Aide has one Chat/Jarvis selector instead of separate chat, agent, Docs, and Research modes;
-- Automatic tools is the normal behavior, Answer only is a clear override, and mutations still ask;
-- successful work leads with its conclusion while steps remain available;
+- Aide has one automatic, tool-capable experience with no Chat, Agent, Jarvis, Docs, or Research mode;
+- simple questions stay simple, useful tools route automatically, and mutations still follow the
+  selected permission profile;
+- thinking and tool steps appear before the answer and remain inspectable;
 - memory use is visible, scoped, reviewable, and absent from incognito;
 - Andromeda shows normal results immediately with an optional cited AI Overview above them;
 - `!ai` skips only that search's overview;
 - a small local model can produce the normal overview from a bounded evidence bundle;
 - weak, stale, conflicting, or missing evidence produces an honest recovery state instead of a guess;
-- the candidate SearXNG definition is pinned, loopback-only, and resource-limited, but managed install
-  stays disabled because no supported container runtime was available; external HTTPS SearXNG and
-  other providers remain supported.
+- the managed SearXNG definition is pinned, loopback-only, resource-limited, and live-verified on a
+  supported Docker/Compose runtime; external HTTPS SearXNG and other providers remain supported when
+  that runtime is unavailable.
 
 ## Design direction
 
@@ -63,6 +69,10 @@ provenance, no Andromeda result surface, no bounded overview evidence/verificati
 SearXNG installation or health contract.
 
 ## 4A — Aide
+
+The checklist below records the originally delivered Phase 4 implementation. The accepted one-mode
+decision and delivered Phase 5 correction supersede its Chat/Jarvis and Answer-only controls. New work
+must follow the current bullets above and [`../decision-aide-one-mode.md`](../decision-aide-one-mode.md).
 
 ### 4A.1 — one conversation behavior
 
@@ -110,7 +120,7 @@ SearXNG installation or health contract.
 - [x] Prove Off and incognito perform no memory reads or writes, including agent tools, extraction,
   distillation, personal insights, and background handoff.
 - [x] Keep review, search, edit, delete, export, pause, and clear controls in Settings.
-- [x] Complete typed capability rows and approval tests for Today, Aide, Plan, Docs, and Andromeda;
+- [x] Complete typed capability rows and approval tests for Home, Aide, Plan, Docs, and Andromeda;
   record explicit exclusions rather than silently claiming later specialist coverage.
 
 ### 4A gate
@@ -131,18 +141,17 @@ unexpected console, page, or server errors.
 - [x] Register the exact definition with the owned-service manager so tampering revokes control.
 - [x] Add typed install, start, stop, restart, health, and safe-update/rollback behavior guarded by
   recent-owner confirmation.
-- [ ] Deferred: prove low-resource startup, JSON search, health, supervised restart, server restart, failed pull,
+- [x] Prove low-resource startup, JSON search, health, supervised restart, server restart, failed pull,
   failed health, rollback, and uninstall-keep-data behavior on supported Docker.
 - [x] Keep an external HTTPS SearXNG URL and other existing providers usable when Docker or managed
   SearXNG is unavailable. Never claim managed support when the runtime spike cannot pass.
-- [x] Show the optional SearXNG state and safe recovery actions in Server without claiming managed
-  support in this build.
+- [x] Show the optional managed SearXNG state and safe recovery actions in Server.
 
-The supported-Docker item is intentionally unchecked. Docker CLI 29.6.0 was present on the reference
-Mac, but there was no daemon or other supported container runtime. `LIVE_SPIKE_VERIFIED` remains false,
-installation refuses without writing service data, and the shipped path is the external/provider
-fallback. Unit tests cover the candidate definition and simulated lifecycle; they are not live-runtime
-proof.
+The supported-Docker item passed live on 2026-07-17 with Docker 29.5.2, Compose, and Colima on macOS.
+The isolated run proved loopback-only JSON search, the 512 MiB / 1 CPU / 128 PID limits, read-only
+root filesystem, supervised and server restart recovery, a failed digest pull without downtime,
+failed-health rollback, successful update and explicit rollback, and uninstall while retaining the
+private config and secret. The service container and throwaway data were removed after verification.
 
 ### 4B.2 — immediate normal results
 
@@ -192,9 +201,9 @@ Normal overview-plus-results, `!ai`, globally disabled overview, disabled normal
 no model, no SearXNG, provider timeout, partial source, conflicting evidence, unsafe URL, bad extraction,
 offline, cancellation, and local-model failure all produce useful results or clear recovery. Software
 fixtures prove stale versions are never presented as current and every claim marked supported has an
-exact cited passage. The candidate SearXNG definition is never called managed unless its live runtime
-spike passes. In this build the spike could not run, install remains disabled, and external/provider
-fallback is the shipped path.
+exact cited passage. The SearXNG definition is called managed only after its live runtime spike passes.
+This build passed that spike on a supported Docker/Compose runtime while keeping external/provider
+fallbacks available.
 
 ## Phase 4 exit gate
 
@@ -207,13 +216,14 @@ Phase 4 is delivered only when all of these are true:
 5. Successful work leads with its conclusion; steps remain accessible; scroll ownership stays with the
    owner.
 6. Memory scope, provenance, Remember/Forget, review, Off, and incognito behavior are proven.
-7. Today, Aide, Plan, Docs, and Andromeda capability rows have working tests or explicit exclusions.
+7. Home, Aide, Plan, Docs, and Andromeda capability rows have working tests or explicit exclusions.
 8. Andromeda displays usable normal links independently from its cited overview.
 9. `!ai` changes only one request and does not become a competing search mode.
 10. Freshness, version, source-quality, and claim-to-citation checks fail closed.
 11. Local overview failure keeps links and never causes an unapproved remote request.
-12. The candidate SearXNG definition is loopback-only, ownership-checked, pinned, resource-limited,
-    recoverable in simulated lifecycle tests, and honestly unavailable when its live spike cannot pass.
+12. The managed SearXNG definition is loopback-only, ownership-checked, pinned, resource-limited,
+    recoverable in simulated and supported-runtime lifecycle tests, and honestly unavailable when its
+    live runtime requirements are missing.
 13. Desktop, mobile, keyboard, screen-reader labels, reduced motion, offline, partial, empty, failure,
     restart, recovery, full Python, full JavaScript, browser, changed-file Ruff, and backup/restore
     gates pass with throwaway data and no new console or server errors; the repository-wide Ruff
@@ -225,9 +235,8 @@ Phase 4 is delivered only when all of these are true:
 - full Python and JavaScript counts with throwaway `ALLES_DATA`;
 - deterministic search and local-overview latency distribution and reference hardware;
 - separate live-network observations without a false guarantee;
-- candidate SearXNG version, digest, bind address, simulated lifecycle coverage, Docker-unavailable
-  evidence, and live health/resource/restart/update/rollback evidence only when a supported runtime is
-  actually available;
+- managed SearXNG version, digest, bind address, simulated lifecycle coverage, Docker-unavailable
+  behavior, and live health/resource/restart/update/rollback evidence on a supported runtime;
 - authenticated and auth-disabled browser passes at representative desktop/mobile widths;
 - keyboard, focus return, screen-reader labels, reduced motion, overflow, console, page-error, and
   server-error evidence;

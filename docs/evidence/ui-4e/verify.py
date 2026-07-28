@@ -1,5 +1,6 @@
 """ui-4e verify — rules + accounts left the toolbar for mail settings; the settings
 action buttons open the existing panels."""
+
 import sys
 
 from playwright.sync_api import sync_playwright
@@ -36,15 +37,21 @@ def run():
           return {pop:true, acts};
         }""")
         ok("mail settings popup opens", d["pop"])
-        ok("settings has an accounts action", any(a["act"] == "_mailAccounts" for a in d.get("acts", [])))
+        ok(
+            "settings has an accounts action",
+            any(a["act"] == "_mailAccounts" for a in d.get("acts", [])),
+        )
         ok("settings has a rules action", any(a["act"] == "_mailRules" for a in d.get("acts", [])))
 
         # clicking the accounts action opens the accounts panel (and closes the popover)
         pg.evaluate("""() => { window._mailAccounts = () => { window.__acctOpened = true; };
           document.querySelector(\".aps-action[data-act='_mailAccounts']\").click(); }""")
         pg.wait_for_timeout(300)
-        ok("accounts action runs the hook + closes the popover",
-           pg.evaluate("() => window.__acctOpened === true") and pg.query_selector(".app-settings-pop") is None)
+        ok(
+            "accounts action runs the hook + closes the popover",
+            pg.evaluate("() => window.__acctOpened === true")
+            and pg.query_selector(".app-settings-pop") is None,
+        )
 
         real = [e for e in errs if not any(s in e for s in IGNORE)]
         ok("no console errors", not real)

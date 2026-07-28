@@ -8,6 +8,7 @@ from core.migrations import m0022_model_catalogs as migration
 class ModelCatalogMigrationTest(unittest.TestCase):
     def test_adds_catalog_and_health_columns(self):
         engine = create_engine("sqlite://")
+        self.addCleanup(engine.dispose)
         with engine.begin() as conn:
             conn.execute(text("CREATE TABLE model_endpoints (id TEXT PRIMARY KEY)"))
             migration.up(conn)

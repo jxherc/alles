@@ -2,9 +2,21 @@
 // columns than HIST history slots, or the extra left columns stay permanently blank ("a
 // third didn't finish") on wide screens.
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 
-import { browserClientInfo, graphCols, HIST, procCpuLabel } from '../../static/js/system.js';
+import {
+  browserClientInfo,
+  graphCols,
+  HIST,
+  logoFor,
+  logoGrid,
+  logoPlatform,
+  procCpuLabel,
+} from '../../static/js/system.js';
+
+const SYSTEM_CSS = readFileSync(new URL('../../static/style.css', import.meta.url), 'utf8');
+const SYSTEM_SOURCE = readFileSync(new URL('../../static/js/system.js', import.meta.url), 'utf8');
 
 test('HIST is the history cap', () => {
   assert.equal(HIST, 720);
@@ -74,4 +86,53 @@ test('browser identity stays explicitly client-side across major platforms', () 
       timezone: 'Asia/Taipei',
     });
   }
+});
+
+test('darwin uses the macOS logo instead of matching the win suffix', () => {
+  assert.match(logoFor('Darwin'), /KMMMMMMMMMMNWMMMMMMMMMM0/);
+  assert.doesNotMatch(logoFor('Darwin'), /cllllllllllllllllll/);
+});
+
+test('linux gets the tux logo and an exact linux platform key', () => {
+  assert.equal(logoPlatform('Linux'), 'linux');
+  assert.match(logoFor('Linux'), /_nnnn_/);
+  assert.doesNotMatch(logoFor('Linux'), /#####/);
+});
+
+test('logo grids measure the printed neofetch columns and rows', () => {
+  assert.deepEqual(logoGrid('Darwin'), {
+    columns: 30,
+    rows: 17,
+    rowHeightCh: 30 / 17,
+  });
+  assert.equal(logoFor('Darwin').split('\n')[0], "                    c.'");
+  assert.equal(logoFor('Darwin').split('\n').at(-1), '       "cooc*"    "*coo\'');
+});
+
+test('system logos render in a square stage and square art canvas with reduced-motion support', () => {
+  assert.match(SYSTEM_CSS, /\.nf-logo\s*\{[^}]*aspect-ratio:\s*1\s*;/s);
+  assert.match(SYSTEM_CSS, /\.nf-logo-art\s*\{[^}]*aspect-ratio:\s*1\s*;/s);
+  assert.match(SYSTEM_CSS, /\.nf-logo-glyphs\s*\{[^}]*logo-cycle/s);
+  assert.match(SYSTEM_CSS, /prefers-reduced-motion:[^)]+\)[^{]*\{[^}]*\.nf-logo-glyphs/s);
+  assert.doesNotMatch(SYSTEM_CSS, /\.nf-logo::before/);
+});
+
+test('the restored shimmer and pulse share one seamless animation timeline', () => {
+  assert.match(SYSTEM_CSS, /repeating-linear-gradient\(90deg,[\s\S]*?480px\)/);
+  assert.match(SYSTEM_CSS, /@keyframes logo-cycle\s*\{[\s\S]*?0%\s*\{[^}]*background-position:\s*0 0;[^}]*filter:/s);
+  assert.match(SYSTEM_CSS, /50%\s*\{[^}]*background-position:\s*-240px 0;[^}]*filter:/s);
+  assert.match(SYSTEM_CSS, /100%\s*\{[^}]*background-position:\s*-480px 0;[^}]*filter:/s);
+  assert.doesNotMatch(SYSTEM_CSS, /logo-pulse|logo-shimmer/);
+});
+
+test('system refreshes keep using the scoped specialist fetcher', () => {
+  assert.match(SYSTEM_SOURCE, /let _systemFetcher = fetch/);
+  assert.match(SYSTEM_SOURCE, /_systemFetcher = fetcher/);
+  assert.match(SYSTEM_SOURCE, /setInterval\(\(\) => tick\(_systemFetcher\), ms\)/);
+  assert.match(SYSTEM_SOURCE, /visibilitychange[^]*tick\(_systemFetcher\)/);
+});
+
+test('managed SearXNG lifecycle actions use the health-aware endpoint', () => {
+  assert.match(SYSTEM_SOURCE, /`\/api\/system\/searxng\/\$\{action\}`/);
+  assert.doesNotMatch(SYSTEM_SOURCE, /`\/api\/system\/services\/searxng\/\$\{action\}`/);
 });

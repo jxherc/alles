@@ -1,32 +1,54 @@
 import unittest
 
+from fastapi import HTTPException
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from core.database import Subscription
+from core.database import FinanceLedgerState, Subscription
 from routes import subscriptions as S
 
 
-def _mkdb():
+def _mkdb(test_case):
     eng = create_engine("sqlite:///:memory:")
+    test_case.addCleanup(eng.dispose)
     Subscription.__table__.create(eng)
-    return sessionmaker(bind=eng)()
+    FinanceLedgerState.__table__.create(eng)
+    db = sessionmaker(bind=eng)()
+    db.add(FinanceLedgerState(id="primary", base_currency_code="CAD"))
+    db.commit()
+    test_case.addCleanup(db.close)
+    return db
 
 
-def _mkdb_full():
-    from core.database import Account, SubPayment, Transaction
+def _mkdb_full(test_case):
+    from core.database import Account, FinanceLedgerState, SubPayment, Transaction
 
     eng = create_engine("sqlite:///:memory:")
-    for m in (Account, Transaction, Subscription, SubPayment):
+    test_case.addCleanup(eng.dispose)
+    for m in (Account, Transaction, Subscription, SubPayment, FinanceLedgerState):
         m.__table__.create(eng)
-    return sessionmaker(bind=eng)()
+    db = sessionmaker(bind=eng)()
+    db.add(FinanceLedgerState(id="primary", base_currency_code="CAD"))
+    db.commit()
+    test_case.addCleanup(db.close)
+    return db
 
 
 def _sub(**kw):
     base = dict(
-        name="x", price=0, cycle="monthly", cycle_days=30, next_due="2026-06-14", active=True
+        name="x",
+        price=0,
+        currency="CAD",
+        cycle="monthly",
+        cycle_days=30,
+        next_due="2026-06-14",
+        active=True,
     )
     base.update(kw)
+    base.setdefault("base_price_text", str(base["price"]))
+    base.setdefault("base_currency_code", base["currency"])
+    base.setdefault("fx_rate_text", "1")
+    base.setdefault("fx_source", "test_identity")
     return Subscription(**base)
 
 
@@ -56,7 +78,7 @@ class MonthlyCostTests(unittest.TestCase):
 
 class AnalyticsTests(unittest.TestCase):
     def test_breakdown_excludes_inactive_and_sorts(self):
-        db = _mkdb()
+        db = _mkdb(self)
         db.add_all(
             [
                 _sub(name="Netflix", price=15, category="streaming"),
@@ -75,14 +97,14 @@ class AnalyticsTests(unittest.TestCase):
         self.assertAlmostEqual(a["monthly_total"], 26.0, places=1)
 
     def test_analytics_empty(self):
-        db = _mkdb()
+        db = _mkdb(self)
         a = S.analytics(db)
         self.assertEqual(a["count"], 0)
         self.assertEqual(a["monthly_total"], 0)
         self.assertEqual(a["by_category"], [])
 
     def test_analytics_by_cycle_grouping(self):
-        db = _mkdb()
+        db = _mkdb(self)
         db.add_all(
             [
                 _sub(name="A", price=10, cycle="monthly"),
@@ -99,12 +121,64 @@ class AnalyticsTests(unittest.TestCase):
 
     def test_analytics_uncategorized_bucket(self):
         # sub with no category goes into 'uncategorized'
-        db = _mkdb()
+        db = _mkdb(self)
         db.add(_sub(name="mystery", price=5, category=""))
         db.commit()
         a = S.analytics(db)
         cats = {c["name"] for c in a["by_category"]}
         self.assertIn("uncategorized", cats)
+
+    def test_analytics_uses_one_reviewed_base_currency(self):
+        db = _mkdb(self)
+        db.add_all(
+            [
+                _sub(
+                    name="foreign",
+                    price=100,
+                    currency="CNY",
+                    base_price_text="20.00",
+                    base_currency_code="CAD",
+                ),
+                _sub(
+                    name="local",
+                    price=10,
+                    currency="CAD",
+                    base_price_text="10.00",
+                    base_currency_code="CAD",
+                ),
+            ]
+        )
+        db.commit()
+        result = S.analytics(db)
+        self.assertEqual(result["currency"], "CAD")
+        self.assertEqual(result["monthly_total"], 30)
+
+    def test_analytics_rejects_mixed_unreviewed_aggregate_currencies(self):
+        db = _mkdb(self)
+        db.add_all(
+            [
+                _sub(name="cad", price=10, currency="CAD"),
+                _sub(name="cny", price=10, currency="CNY"),
+            ]
+        )
+        db.commit()
+        with self.assertRaisesRegex(HTTPException, "reviewed conversion evidence"):
+            S.analytics(db)
+
+    def test_analytics_rejects_one_currency_that_is_not_the_ledger_base(self):
+        db = _mkdb(self)
+        db.add(
+            _sub(
+                name="wrong base",
+                price=10,
+                currency="USD",
+                base_price_text="10",
+                base_currency_code="USD",
+            )
+        )
+        db.commit()
+        with self.assertRaisesRegex(HTTPException, "configured ledger base currency"):
+            S.analytics(db)
 
 
 class AutoPostTests(unittest.TestCase):
@@ -113,8 +187,14 @@ class AutoPostTests(unittest.TestCase):
 
         from core.database import Account
 
-        db = _mkdb_full()
-        acct = Account(name="checking", opening=0.0)
+        db = _mkdb_full(self)
+        acct = Account(
+            name="checking",
+            opening=0.0,
+            currency="CAD",
+            currency_code="CAD",
+            base_currency_code="CAD",
+        )
         db.add(acct)
         db.commit()
         due = (date.today() - timedelta(days=days_ago)).isoformat()

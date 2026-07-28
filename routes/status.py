@@ -110,7 +110,10 @@ class StatusConfig(BaseModel):
 @router.get("/api/status/config")
 def get_config():
     s = load_settings()
-    return {"enabled": bool(s.get("status_page_enabled")), "title": s.get("status_page_title") or "status"}
+    return {
+        "enabled": bool(s.get("status_page_enabled")),
+        "title": s.get("status_page_title") or "status",
+    }
 
 
 @router.put("/api/status/config")
@@ -123,4 +126,7 @@ def set_config(body: StatusConfig):
     if patch:
         save_settings(patch)
     s = load_settings()
-    return {"enabled": bool(s.get("status_page_enabled")), "title": s.get("status_page_title") or "status"}
+    return {
+        "enabled": bool(s.get("status_page_enabled")),
+        "title": s.get("status_page_title") or "status",
+    }

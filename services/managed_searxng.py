@@ -7,6 +7,7 @@ import json
 import os
 import secrets
 import subprocess
+import time
 import uuid
 from pathlib import Path
 
@@ -23,9 +24,12 @@ LICENSE = "AGPL-3.0"
 LICENSE_URL = "https://github.com/searxng/searxng/blob/master/LICENSE"
 UPSTREAM_URL = "https://docs.searxng.org/admin/installation-docker"
 REVIEWED_ON = "2026-07-12"
-PORT = 8888
-LIVE_SPIKE_VERIFIED = False
-LIVE_SPIKE_NOTE = "Docker 29.6.0 CLI was present, but no Docker daemon or supported container runtime was available."
+DEFAULT_PORT = 8888
+LIVE_SPIKE_VERIFIED = True
+LIVE_SPIKE_NOTE = (
+    "Live-verified on macOS with Colima, Docker 29.5.2, Compose 5.3.1, "
+    "the pinned image, loopback health, and JSON search."
+)
 
 
 class ManagedSearxngError(RuntimeError):
@@ -40,22 +44,52 @@ def root_dir() -> Path:
     return data_dir() / "services" / SERVICE_ID
 
 
+def _validated_port(raw: object, *, setting: str) -> int:
+    value = str(raw).strip()
+    try:
+        port = int(value)
+    except ValueError as exc:
+        raise ManagedSearxngError(f"{setting} must be a valid port") from exc
+    if not 1024 <= port <= 65535:
+        raise ManagedSearxngError(f"{setting} must be between 1024 and 65535")
+    return port
+
+
+def _configured_port() -> int:
+    return _validated_port(
+        os.environ.get("ALLES_SEARXNG_PORT", str(DEFAULT_PORT)), setting="ALLES_SEARXNG_PORT"
+    )
+
+
+def managed_port() -> int:
+    manifest = _read_manifest()
+    if manifest:
+        persisted = manifest.get("port")
+        if persisted is None:
+            bind = str(manifest.get("bind") or "")
+            persisted = bind.rsplit(":", 1)[-1] if ":" in bind else None
+        if persisted is not None:
+            return _validated_port(persisted, setting="installed SearXNG port")
+    return _configured_port()
+
+
 def managed_url() -> str:
-    return f"http://127.0.0.1:{PORT}"
+    return f"http://127.0.0.1:{managed_port()}"
 
 
 def _compose(image: str = IMAGE, version: str = VERSION) -> str:
+    port = managed_port()
     return f"""services:
   searxng:
     image: {image}
     user: "977:977"
     restart: unless-stopped
     ports:
-      - "127.0.0.1:{PORT}:8080"
+      - "127.0.0.1:{port}:8080"
     env_file:
       - ./.env
     volumes:
-      - ./config/settings.yml:/etc/searxng/settings.yml:ro
+      - ./config:/etc/searxng:ro
     read_only: true
     tmpfs:
       - /tmp:rw,noexec,nosuid,size=64m,uid=977,gid=977,mode=0700
@@ -131,7 +165,8 @@ def _manifest(*, image: str = IMAGE, version: str = VERSION) -> dict:
         "license_url": LICENSE_URL,
         "upstream_url": UPSTREAM_URL,
         "reviewed_on": REVIEWED_ON,
-        "bind": f"127.0.0.1:{PORT}",
+        "port": managed_port(),
+        "bind": f"127.0.0.1:{managed_port()}",
         "compose_sha256": _sha(_compose(image, version)),
     }
 
@@ -214,7 +249,7 @@ def status(*, runner=_runner, probe=_probe) -> dict:
         "running": False,
         "healthy": False,
         "url": managed_url(),
-        "bind": f"127.0.0.1:{PORT}",
+        "bind": f"127.0.0.1:{managed_port()}",
         "version": manifest.get("version") or VERSION,
         "image": manifest.get("image") or IMAGE,
         "digest": manifest.get("digest") or INDEX_DIGEST,
@@ -244,9 +279,17 @@ def status(*, runner=_runner, probe=_probe) -> dict:
 
 def _write_definition(*, image: str = IMAGE, version: str = VERSION) -> None:
     root = root_dir()
+    if root.is_symlink() or (root.exists() and not root.is_dir()):
+        raise ManagedSearxngError("existing SearXNG service root is unsafe")
     root.mkdir(parents=True, exist_ok=True, mode=0o700)
     config = root / "config"
-    config.mkdir(exist_ok=True, mode=0o700)
+    if config.is_symlink() or (config.exists() and not config.is_dir()):
+        raise ManagedSearxngError("existing SearXNG config path is unsafe")
+    config.mkdir(exist_ok=True, mode=0o755)
+    # The container intentionally runs as UID 977. The mounted directory holds
+    # only the public settings file, so it must be traversable by that user;
+    # the secret remains one level above in the owner-only .env file.
+    config.chmod(0o755)
     compose = _compose(image, version)
     existing_manifest = _read_manifest()
     if (root / "compose.yaml").exists() and not _registered():
@@ -276,6 +319,48 @@ def _register() -> None:
     )
 
 
+def _verify_config_mount(*, runner=_runner) -> None:
+    config = (root_dir() / "config").resolve()
+    command = [
+        "docker",
+        "run",
+        "--rm",
+        "--network",
+        "none",
+        "--read-only",
+        "--user",
+        "977:977",
+        "--cap-drop",
+        "ALL",
+        "--security-opt",
+        "no-new-privileges:true",
+        "--pids-limit",
+        "32",
+        "--memory",
+        "64m",
+        "--cpus",
+        "0.25",
+        "--mount",
+        f"type=bind,source={config},target=/alles-config,readonly",
+        "--entrypoint",
+        "/usr/local/searxng/.venv/bin/python",
+        IMAGE,
+        "-c",
+        (
+            "from pathlib import Path; "
+            "p=Path('/alles-config/settings.yml'); "
+            "raise SystemExit(0 if p.is_file() and p.open('rb').read(1) else 1)"
+        ),
+    ]
+    result = runner(command, 30)
+    if result.returncode == 0:
+        return
+    raise ManagedSearxngError(
+        "Docker cannot read the SearXNG configuration under ALLES_DATA; "
+        "move ALLES_DATA to a folder shared with Docker, then install again"
+    )
+
+
 def install(*, runner=_runner, probe=_probe, allow_unverified: bool = False) -> dict:
     if not LIVE_SPIKE_VERIFIED and not allow_unverified:
         raise ManagedSearxngError(
@@ -284,8 +369,9 @@ def install(*, runner=_runner, probe=_probe, allow_unverified: bool = False) -> 
     if not docker_status(runner=runner)["available"]:
         raise ManagedSearxngError("Docker is unavailable; use an external search provider")
     _write_definition()
-    _register()
     _ok(runner(_compose_command("pull", COMPOSE_SERVICE), 300), "SearXNG image pull failed")
+    _verify_config_mount(runner=runner)
+    _register()
     _ok(
         runner(
             _compose_command("up", "-d", "--wait", "--wait-timeout", "60", COMPOSE_SERVICE),
@@ -309,6 +395,43 @@ def install(*, runner=_runner, probe=_probe, allow_unverified: bool = False) -> 
         }
     )
     return status(runner=runner, probe=probe)
+
+
+def control(
+    action: str,
+    *,
+    runner=_runner,
+    probe=_probe,
+    sleep=time.sleep,
+) -> dict:
+    if action not in {"start", "stop", "restart"}:
+        raise ManagedSearxngError("unsupported managed SearXNG action")
+    current = status(runner=runner, probe=probe)
+    if not current["installed"] or not current["owned"]:
+        raise ManagedSearxngError("managed SearXNG is not installed")
+    try:
+        service_manager.control(
+            SERVICE_ID,
+            action,
+            runner=lambda command: runner(command, 60),
+        )
+    except (service_manager.ServiceControlError, service_manager.ServiceOwnershipError) as exc:
+        raise ManagedSearxngError(str(exc)) from exc
+    if action == "stop":
+        return status(runner=runner, probe=lambda: False)
+    for _attempt in range(120):
+        if probe():
+            return status(runner=runner, probe=lambda: True)
+        sleep(0.5)
+    try:
+        service_manager.control(
+            SERVICE_ID,
+            "stop",
+            runner=lambda command: runner(command, 60),
+        )
+    except (service_manager.ServiceControlError, service_manager.ServiceOwnershipError):
+        pass
+    raise ManagedSearxngError(f"SearXNG {action}ed but failed its loopback health check")
 
 
 def _restore_definition(compose: str, manifest: dict) -> None:

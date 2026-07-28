@@ -50,7 +50,7 @@ def main():
         pg.fill("#_df_url", "http://127.0.0.1:9/dav/addressbook")
         pg.fill("#_df_username", "alice")
         pg.fill("#_df_password", "secret")
-        pg.eval_on_selector("#_dy", "el => el.click()")
+        pg.eval_on_selector("[data-dialog-confirm]", "el => el.click()")
         pg.wait_for_selector("#cdav-status", timeout=8000)
         # panel re-renders; wait for connected status
         for _ in range(20):

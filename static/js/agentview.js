@@ -81,7 +81,7 @@ export function renderAgentSteps(steps, open = false, agentRunId = '') {
     <button type="button" class="agent-sources-btn" data-agent-sources="${esc(runId)}" title="files, urls, searches and commands this run touched">sources</button>
     ${edits ? `<button type="button" class="agent-revert-btn" data-agent-revert="${esc(runId)}" title="restore every file this run changed">revert edits</button>` : ''}
   </span>` : '';
-  return `<details class="agent-steps"${open ? ' open' : ''}><summary><span class="steps-closed-label">show steps</span><span class="steps-open-label">hide steps</span> · ${detail}${controls}</summary><div class="agent-step-list">${rows}</div></details>`;
+  return `<details class="agent-steps"${open ? ' open' : ''}><summary>run details · ${detail}${controls}</summary><div class="agent-step-list">${rows}</div></details>`;
 }
 
 export function wireAgentRunControls(root) {

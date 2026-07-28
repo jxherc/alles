@@ -36,11 +36,26 @@ export function initCustomDropdown(el) {
       if (_open?.el === el) _renderPanel(el);
     },
   });
+  Object.defineProperty(el, 'disabled', {
+    configurable: true,
+    get() { return el.getAttribute('aria-disabled') === 'true'; },
+    set(next) {
+      const disabled = Boolean(next);
+      el.setAttribute('aria-disabled', String(disabled));
+      el.tabIndex = disabled ? -1 : 0;
+      if (disabled && _open?.el === el) _close();
+    },
+  });
+  el.disabled = el.getAttribute('aria-disabled') === 'true';
 
   _renderTrigger(el);
 
-  el.addEventListener('click', e => { e.stopPropagation(); _toggle(el); });
+  el.addEventListener('click', e => {
+    e.stopPropagation();
+    if (!el.disabled) _toggle(el);
+  });
   el.addEventListener('keydown', e => {
+    if (el.disabled) return;
     const opts = _readOptions(el);
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
@@ -52,7 +67,7 @@ export function initCustomDropdown(el) {
       const step = e.key === 'ArrowDown' ? 1 : -1;
       _open.activeIndex = Math.max(0, Math.min(opts.length - 1, _open.activeIndex + step));
       _renderPanel(el);
-    } else if (e.key === 'Escape') {
+    } else if (e.key === 'Escape' && _open?.el === el) {
       e.stopPropagation();
       _close();
     }
@@ -116,6 +131,8 @@ function _openDropdown(el) {
   _close();
   const panel = document.createElement('div');
   panel.className = 'custom-dropdown-panel';
+  const surface = el.closest('[data-kokuen-surface]')?.dataset.kokuenSurface;
+  if (surface) panel.dataset.kokuenSurface = surface;
   panel.setAttribute('role', 'listbox');
   document.body.appendChild(panel);
   _open = { el, panel, activeIndex: _activeIndex(el) };

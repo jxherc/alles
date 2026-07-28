@@ -1,6 +1,7 @@
 import tempfile
 import time
 from pathlib import Path
+from unittest import mock
 
 import core.settings as cfg
 from services import mail_oauth
@@ -28,22 +29,33 @@ class MailOAuthTests(ApiTest):
         self.assertFalse(mail_oauth.configured())
 
     def test_redirect_default(self):
-        self.assertEqual(mail_oauth.redirect_uri(),
-                         "http://localhost:8000/api/mail/oauth/google/callback")
+        with mock.patch.dict("os.environ", {}, clear=True):
+            self.assertEqual(
+                mail_oauth.redirect_uri(), "http://localhost:6769/api/mail/oauth/google/callback"
+            )
+
+    def test_redirect_default_follows_custom_runtime_port(self):
+        with mock.patch.dict("os.environ", {"PORT": "7777"}):
+            self.assertEqual(
+                mail_oauth.redirect_uri(), "http://localhost:7777/api/mail/oauth/google/callback"
+            )
 
     def test_redirect_custom_base(self):
         cfg.save_settings({"mail_oauth_redirect_base": "https://mail.example.com/"})
-        self.assertEqual(mail_oauth.redirect_uri(),
-                         "https://mail.example.com/api/mail/oauth/google/callback")
+        self.assertEqual(
+            mail_oauth.redirect_uri(), "https://mail.example.com/api/mail/oauth/google/callback"
+        )
 
     def test_xoauth2_format(self):
-        self.assertEqual(mail_oauth.xoauth2("me@gmail.com", "TOKEN"),
-                         "user=me@gmail.com\x01auth=Bearer TOKEN\x01\x01")
+        self.assertEqual(
+            mail_oauth.xoauth2("me@gmail.com", "TOKEN"),
+            "user=me@gmail.com\x01auth=Bearer TOKEN\x01\x01",
+        )
 
     def test_state_is_one_time(self):
         st = mail_oauth.make_state()
         self.assertTrue(mail_oauth.check_state(st))
-        self.assertFalse(mail_oauth.check_state(st))   # consumed
+        self.assertFalse(mail_oauth.check_state(st))  # consumed
         self.assertFalse(mail_oauth.check_state("bogus"))
 
     def test_auth_url(self):
@@ -55,8 +67,11 @@ class MailOAuthTests(ApiTest):
 
     def test_ensure_token_valid_skips_refresh(self):
         mail_oauth.refresh_access = lambda rt: (_ for _ in ()).throw(AssertionError("no refresh"))
-        acct = {"oauth_access_token": "good", "oauth_expires_at": time.time() + 3600,
-                "oauth_refresh_token": "r"}
+        acct = {
+            "oauth_access_token": "good",
+            "oauth_expires_at": time.time() + 3600,
+            "oauth_refresh_token": "r",
+        }
         self.assertEqual(mail_oauth.ensure_access_token(acct), "good")
 
     def test_ensure_token_refreshes_when_expired(self):

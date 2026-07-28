@@ -15,7 +15,7 @@ import sys
 import tempfile
 import threading
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 
 from sqlalchemy.exc import SQLAlchemyError
@@ -41,7 +41,7 @@ def parse_takeout_sidecar(data: dict) -> dict:
     ts = (data.get("photoTakenTime") or {}).get("timestamp")
     if ts:
         try:
-            out["taken_at"] = datetime.utcfromtimestamp(int(ts))
+            out["taken_at"] = datetime.fromtimestamp(int(ts), UTC).replace(tzinfo=None)
         except (ValueError, TypeError):
             pass
     geo = data.get("geoData") or data.get("geoDataExif") or {}

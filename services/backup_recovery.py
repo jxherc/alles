@@ -35,6 +35,7 @@ ARCHIVE_VERSION = 1
 MANIFEST_NAME = "manifest.json"
 PAYLOAD_PREFIX = "payload/data/"
 CHUNK_SIZE = 1024 * 1024
+EXTERNAL_VAULT_SUBPATH = "external-vault"
 
 _RESTORE_ID = re.compile(r"^[0-9a-f]{32}$")
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
@@ -65,7 +66,7 @@ LOCATION_ROLES = (
 # This policy inventory is deliberately content-free. The file/hash inventory below proves what
 # bytes are present; these rows explain which current data classes those bytes represent and which
 # classes are intentionally outside a full backup.
-DATA_CLASS_POLICIES = (
+LEGACY_DATA_CLASS_POLICIES = (
     {
         "id": "database_rows",
         "coverage": "included",
@@ -176,6 +177,16 @@ DATA_CLASS_POLICIES = (
         "coverage": "excluded",
         "policy": "rebuildable-state-outside-alles-data",
     },
+)
+
+DATA_CLASS_POLICIES = tuple(
+    {
+        **item,
+        "policy": "configured-vault-captured-and-restored-under-alles-data",
+    }
+    if item["id"] == "markdown_vault"
+    else item
+    for item in LEGACY_DATA_CLASS_POLICIES
 )
 
 
@@ -448,7 +459,7 @@ def _location_plan(
     settings: dict | None = None,
     webdav_config: dict | None = None,
     s3_config: dict | None = None,
-) -> tuple[list[dict], Path | None]:
+) -> tuple[list[dict], Path | None, Path | None]:
     settings = _read_settings(root) if settings is None else settings
     if webdav_config is None:
         webdav_config = _credential_config(
@@ -473,15 +484,30 @@ def _location_plan(
             "policy": "required",
         }
     ]
+    external_vault = None
     for role, path in (("vault", vault), ("files", files)):
         relative = _relative_to(path, root)
+        if role == "vault" and relative is None:
+            external_vault = path
         locations.append(
             {
                 "role": role,
-                "included": relative is not None,
-                "storage": "data" if relative is not None else None,
-                "subpath": relative,
-                "policy": "default" if relative is not None else "external-not-selected",
+                "included": relative is not None or role == "vault",
+                "storage": "data" if relative is not None or role == "vault" else None,
+                "subpath": (
+                    relative
+                    if relative is not None
+                    else EXTERNAL_VAULT_SUBPATH
+                    if role == "vault"
+                    else None
+                ),
+                "policy": (
+                    "default"
+                    if relative is not None
+                    else "external-captured"
+                    if role == "vault"
+                    else "external-not-selected"
+                ),
             }
         )
 
@@ -513,7 +539,7 @@ def _location_plan(
         )
     )
     excluded_photos = photos if photo_relative is not None and not photo_included else None
-    return locations, excluded_photos
+    return locations, excluded_photos, external_vault
 
 
 def _is_excluded(path: Path, excluded_root: Path | None) -> bool:
@@ -643,6 +669,78 @@ def _hash_path(path: Path) -> tuple[int, str]:
     except OSError as exc:
         raise RecoveryError(f"could not hash staged file: {path.name}") from exc
     return total, digest.hexdigest()
+
+
+def _strict_tree_inventory(root: Path, *, limits: ArchiveLimits) -> dict:
+    if _is_link_like(root) or not root.is_dir():
+        raise RecoveryError("configured external vault is missing or unsafe")
+    sources, directories, warnings = _collect_data_tree(root, excluded_root=None, limits=limits)
+    if warnings:
+        raise RecoveryError("configured external vault contains a link or special file")
+    if len(sources) + len(directories) > limits.max_files:
+        raise RecoveryError("configured external vault contains too many paths")
+
+    files = []
+    total = 0
+    for relative, source in sources:
+        try:
+            before = source.stat()
+            size, checksum = _hash_path(source)
+            after = source.stat()
+        except OSError as exc:
+            raise RecoveryError(f"could not inspect external vault file: {relative}") from exc
+        if (
+            before.st_size != after.st_size
+            or before.st_mtime_ns != after.st_mtime_ns
+            or size != after.st_size
+        ):
+            raise RecoveryError(f"external vault changed during backup: {relative}")
+        total += size
+        if total > limits.max_total_bytes:
+            raise RecoveryError("configured external vault is too large")
+        files.append({"path": relative, "size": size, "sha256": checksum})
+    return {
+        "directories": directories,
+        "files": files,
+        "total": total,
+    }
+
+
+def _freeze_external_vault(
+    source: Path,
+    destination: Path,
+    *,
+    limits: ArchiveLimits,
+) -> tuple[list[tuple[str, Path]], list[str]]:
+    """Copy one stable, fully verified external vault into the backup snapshot."""
+    before = _strict_tree_inventory(source, limits=limits)
+    destination.mkdir(mode=0o700)
+    try:
+        for relative in before["directories"]:
+            (destination / relative).mkdir(parents=True, exist_ok=True, mode=0o700)
+        for item in before["files"]:
+            _freeze_backup_source(
+                source / item["path"],
+                destination / item["path"],
+                limits=limits,
+            )
+        after = _strict_tree_inventory(source, limits=limits)
+        frozen = _strict_tree_inventory(destination, limits=limits)
+        if before != after or before != frozen:
+            raise RecoveryError("external vault changed while its backup snapshot was created")
+    except Exception:
+        shutil.rmtree(destination, ignore_errors=True)
+        raise
+
+    sources = [
+        (f"{EXTERNAL_VAULT_SUBPATH}/{item['path']}", destination / item["path"])
+        for item in frozen["files"]
+    ]
+    directories = [
+        EXTERNAL_VAULT_SUBPATH,
+        *(f"{EXTERNAL_VAULT_SUBPATH}/{path}" for path in frozen["directories"]),
+    ]
+    return sources, directories
 
 
 _FROZEN_ROOT_DEPENDENCIES = (
@@ -785,7 +883,7 @@ def create_recovery_archive(
                         raise RecoveryError(
                             "recovery key changed while the backup was being created"
                         )
-                locations, excluded_photos = _location_plan(
+                locations, excluded_photos, external_vault = _location_plan(
                     root,
                     include_photos=include_photos,
                     settings=_read_settings(frozen_root),
@@ -801,6 +899,26 @@ def create_recovery_archive(
                 sources, directories, warnings = _collect_data_tree(
                     root, excluded_root=excluded_photos, limits=limits
                 )
+                if external_vault is not None:
+                    if (
+                        _relative_to(output, external_vault) is not None
+                        or _relative_to(root, external_vault) is not None
+                    ):
+                        raise RecoveryError(
+                            "the configured external vault cannot contain Alles data or the backup output"
+                        )
+                    reserved = root / EXTERNAL_VAULT_SUBPATH
+                    if reserved.exists() or reserved.is_symlink():
+                        raise RecoveryError(
+                            f"Alles data already uses the reserved path: {EXTERNAL_VAULT_SUBPATH}"
+                        )
+                    external_sources, external_directories = _freeze_external_vault(
+                        external_vault,
+                        Path(tmp) / "external-vault-snapshot",
+                        limits=limits,
+                    )
+                    sources.extend(external_sources)
+                    directories.extend(external_directories)
                 sources = _freeze_dependency_sources(
                     sources,
                     frozen_root,
@@ -920,7 +1038,11 @@ def _validate_manifest(manifest: dict, *, limits: ArchiveLimits) -> dict:
         raise RecoveryError("invalid source backup format")
     if "data_classes" in manifest:
         data_classes = manifest["data_classes"]
-        if data_classes != [dict(item) for item in DATA_CLASS_POLICIES]:
+        valid_policies = (
+            [dict(item) for item in DATA_CLASS_POLICIES],
+            [dict(item) for item in LEGACY_DATA_CLASS_POLICIES],
+        )
+        if data_classes not in valid_policies:
             raise RecoveryError("backup data-class policy inventory is invalid")
     try:
         created = datetime.fromisoformat(manifest["created_at"].replace("Z", "+00:00"))
@@ -1508,6 +1630,7 @@ def stage_recovery_archive(
     data_root: Path,
     *,
     limits: ArchiveLimits = DEFAULT_LIMITS,
+    restore_id: str | None = None,
 ) -> StagedRecovery:
     """Validate and extract an archive beside live data, never into it."""
     raw_archive = archive_path.expanduser()
@@ -1529,10 +1652,16 @@ def stage_recovery_archive(
     base = staging_root(live)
     staged_root = base / "staged"
     staged_root.mkdir(parents=True, exist_ok=True, mode=0o700)
-    restore_id = uuid.uuid4().hex
+    restore_id = _valid_restore_id(restore_id) if restore_id is not None else uuid.uuid4().hex
     partial = staged_root / f".{restore_id}.partial"
     final = staged_root / restore_id
-    partial.mkdir(mode=0o700)
+    try:
+        partial.mkdir(mode=0o700)
+    except FileExistsError as exc:
+        raise RecoveryError("restore id already exists") from exc
+    if final.exists() or final.is_symlink():
+        partial.rmdir()
+        raise RecoveryError("restore id already exists")
 
     try:
         with zipfile.ZipFile(archive) as zf:

@@ -4,6 +4,7 @@ from unittest import mock
 
 import core.settings as cs
 import routes.vault as vroute
+from core.database import Vault, VaultEntry, WebAuthnCredential
 from tests._client import ApiTest
 
 
@@ -21,7 +22,7 @@ class VaultApiTest(ApiTest):
         self._tmp.cleanup()
         super().tearDown()
 
-    def _unlock(self, pw="hunter2"):
+    def _unlock(self, pw="vault-password-1"):
         tok = self.client.post("/api/vault/unlock", json={"password": pw}).json()["token"]
         return {"X-Vault-Token": tok}
 
@@ -40,7 +41,7 @@ class VaultApiTest(ApiTest):
 
     def test_full_flow_unlock_create_reveal_lock(self):
         # first unlock sets the master verifier and hands back this session's token
-        tok = self.client.post("/api/vault/unlock", json={"password": "hunter2"}).json()
+        tok = self.client.post("/api/vault/unlock", json={"password": "vault-password-1"}).json()
         self.assertIn("token", tok)
         h = {"X-Vault-Token": tok["token"]}
 
@@ -69,7 +70,9 @@ class VaultApiTest(ApiTest):
     def test_unlock_token_is_required_not_just_any_unlock(self):
         # a live unlock must NOT authorize a request that doesn't present the
         # matching token — otherwise one unlock opens the vault to every caller
-        tok = self.client.post("/api/vault/unlock", json={"password": "hunter2"}).json()["token"]
+        tok = self.client.post("/api/vault/unlock", json={"password": "vault-password-1"}).json()[
+            "token"
+        ]
         self.assertEqual(self.client.get("/api/vault").status_code, 403)  # no token header
         self.assertEqual(
             self.client.get("/api/vault", headers={"X-Vault-Token": "bogus"}).status_code, 403
@@ -79,11 +82,49 @@ class VaultApiTest(ApiTest):
         )
 
     def test_wrong_master_rejected(self):
-        self.client.post("/api/vault/unlock", json={"password": "right"})
+        self.client.post("/api/vault/unlock", json={"password": "right-password"})
         self.client.post("/api/vault/lock")
         self.assertEqual(
             self.client.post("/api/vault/unlock", json={"password": "wrong"}).status_code, 401
         )
+
+    def test_new_vault_password_rejects_fewer_than_twelve_characters(self):
+        response = self.client.post("/api/vault/unlock", json={"password": "elevenchars"})
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("at least 12 characters", response.json()["detail"])
+
+    def test_missing_verifier_cannot_claim_a_vault_with_existing_data(self):
+        db = self.db()
+        db.add(Vault(id="default", name="Personal", verifier="", travel_safe=True))
+        db.add(VaultEntry(vault_id="default", name="existing", value_encrypted="ciphertext"))
+        db.commit()
+        db.close()
+
+        response = self.client.post("/api/vault/unlock", json={"password": "attacker-password"})
+
+        self.assertEqual(response.status_code, 409, response.text)
+        db = self.db()
+        self.assertEqual(db.get(Vault, "default").verifier, "")
+        db.close()
+
+    def test_missing_verifier_cannot_bypass_enrolled_second_factor(self):
+        db = self.db()
+        db.add(Vault(id="default", name="Personal", verifier="", travel_safe=True))
+        db.add(
+            WebAuthnCredential(
+                vault_id="default",
+                label="existing key",
+                credential_id="credential-id",
+                public_key="public-key",
+                role="2fa",
+            )
+        )
+        db.commit()
+        db.close()
+
+        response = self.client.post("/api/vault/unlock", json={"password": "attacker-password"})
+
+        self.assertEqual(response.status_code, 409, response.text)
 
     def test_patch_entry_name_and_username(self):
         h = self._unlock()
@@ -127,13 +168,16 @@ class VaultApiTest(ApiTest):
         # regression (F15, security): unlocking vault A must not let you reveal/delete/
         # attach-to/share an entry that lives in vault B. before the fix these per-entry
         # endpoints only checked the password, not e.vault_id, so they crossed vaults.
-        ha = self._unlock("masterA")  # default vault, token A
+        ha = self._unlock("master-password-a")  # default vault, token A
         vid_b = self.client.post(
-            "/api/vault/vaults", json={"name": "work", "password": "masterB"}, headers=ha
+            "/api/vault/vaults",
+            json={"name": "work", "password": "master-password-b"},
+            headers=ha,
         ).json()["id"]
         hb = {
             "X-Vault-Token": self.client.post(
-                "/api/vault/unlock", json={"password": "masterB", "vault_id": vid_b}
+                "/api/vault/unlock",
+                json={"password": "master-password-b", "vault_id": vid_b},
             ).json()["token"]
         }
         # secret created inside vault B
@@ -147,9 +191,7 @@ class VaultApiTest(ApiTest):
         self.assertEqual(
             self.client.get(f"/api/vault/{eid}/attachments", headers=ha).status_code, 404
         )
-        self.assertEqual(
-            self.client.post(f"/api/vault/{eid}/share", headers=ha).status_code, 404
-        )
+        self.assertEqual(self.client.post(f"/api/vault/{eid}/share", headers=ha).status_code, 404)
         # the entry is untouched: vault B can still read it
         self.assertEqual(
             self.client.get(f"/api/vault/{eid}/reveal", headers=hb).json()["value"], "topsecret"
@@ -167,7 +209,5 @@ class VaultApiTest(ApiTest):
         self.assertIn("warning", s)
 
     def test_strength_strong_password(self):
-        s = self.client.post(
-            "/api/vault/strength", json={"password": "X7$kQpR!mLzN2@vW9#"}
-        ).json()
+        s = self.client.post("/api/vault/strength", json={"password": "X7$kQpR!mLzN2@vW9#"}).json()
         self.assertGreaterEqual(s["score"], 3)

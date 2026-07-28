@@ -1,5 +1,6 @@
 """ui-3l verify — the version-history panel reads cleanly: padded, aligned rows with
 when/size and diff/restore, and a readable diff block."""
+
 import sys
 
 from playwright.sync_api import sync_playwright
@@ -19,7 +20,9 @@ def run():
         pg.goto(BASE + "/", wait_until="domcontentloaded")
         pg.wait_for_selector("#wiki-view", timeout=15000)
         pg.wait_for_timeout(1400)
-        pg.evaluate("""() => { const el = document.querySelector('.wiki-file[data-path=\"livetest.md\"] .wiki-row-label'); if (el) el.click(); }""")
+        pg.evaluate(
+            """() => { const el = document.querySelector('.wiki-file[data-path=\"livetest.md\"] .wiki-row-label'); if (el) el.click(); }"""
+        )
         pg.wait_for_timeout(1000)
         # create a revision: save an edited body (snapshots the pre-change state)
         pg.evaluate("""async () => {
@@ -57,7 +60,10 @@ def run():
         # open the diff
         pg.eval_on_selector("#wiki-history [data-rev-diff]", "el => el.click()")
         pg.wait_for_timeout(700)
-        ok("diff renders in a readable block", pg.query_selector("#wiki-history .wiki-rev-diff-pre") is not None)
+        ok(
+            "diff renders in a readable block",
+            pg.query_selector("#wiki-history .wiki-rev-diff-pre") is not None,
+        )
 
         real = [e for e in errs if not any(s in e for s in IGNORE)]
         ok("no console errors", not real)

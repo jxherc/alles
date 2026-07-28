@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Standalone fake-data KOKUEN Finance starter for Afterlife Phase 8.">
+  <title>Alles Finance - Phase 8 KOKUEN starter</title>
+  <link rel="stylesheet" href="starter.css">
+</head>
+<body data-density="comfortable" data-demo-state="ready">
+  <a class="skip-link" href="#main">skip to finance</a>
+  <div class="app-shell">
+    <header class="product-bar">
+      <div class="brand-block"><span class="kokuen-mark" aria-hidden="true"></span><span class="wordmark">alles</span></div>
+      <div class="product-title"><span>specialists</span><span class="path-separator">/</span><strong>finance</strong><span class="path-separator">/</span><span>overview</span></div>
+      <div class="bar-actions">
+        <button class="small-action" type="button" data-open-modal>import</button>
+        <button class="state-trigger" type="button" data-state-trigger aria-expanded="false" aria-controls="state-menu">preview state</button>
+        <button class="switch-control" type="button" role="switch" aria-checked="false" aria-label="use light theme" data-switch="theme"><span class="switch-track" aria-hidden="true"><span class="switch-knob"></span></span></button>
+        <div class="state-menu" id="state-menu" role="listbox" aria-label="preview state" hidden><button class="state-option" type="button" role="option" aria-selected="true" data-state="ready">ready</button><button class="state-option" type="button" role="option" aria-selected="false" data-state="loading">loading</button><button class="state-option" type="button" role="option" aria-selected="false" data-state="empty">empty</button><button class="state-option" type="button" role="option" aria-selected="false" data-state="partial">partial data</button><button class="state-option" type="button" role="option" aria-selected="false" data-state="error">refresh error</button></div>
+      </div>
+    </header>
+    <nav class="group-strip" aria-label="Phase 8 specialist starters"><a class="group-link" href="plan.html"><span class="group-index">01</span>plan</a><a class="group-link" href="inbox.html"><span class="group-index">02</span>inbox</a><a class="group-link" href="library.html"><span class="group-index">03</span>library</a><a class="group-link" href="health.html"><span class="group-index">04</span>health</a><a class="group-link" href="finance.html" aria-current="page"><span class="group-index">05</span>finance</a></nav>
+
+    <main class="workbench" id="main">
+      <aside class="side-rail" aria-label="Finance sections">
+        <section class="rail-section"><h2 class="rail-heading">finance</h2><ul class="rail-list"><li><button class="rail-action" type="button" aria-current="page"><span class="rail-mark">OV</span><span class="rail-name">overview</span><span class="rail-count"></span></button></li><li><button class="rail-action" type="button"><span class="rail-mark">AC</span><span class="rail-name">accounts</span><span class="rail-count">4</span></button></li><li><button class="rail-action" type="button"><span class="rail-mark">TX</span><span class="rail-name">transactions</span><span class="rail-count">412</span></button></li><li><button class="rail-action" type="button"><span class="rail-mark">BD</span><span class="rail-name">budgets</span><span class="rail-count">18</span></button></li><li><button class="rail-action" type="button"><span class="rail-mark">SU</span><span class="rail-name">subscriptions</span><span class="rail-count">9</span></button></li><li><button class="rail-action" type="button" data-open-modal><span class="rail-mark">IM</span><span class="rail-name">import</span><span class="rail-count"></span></button></li></ul></section>
+        <section class="rail-section"><h2 class="rail-heading">ledger</h2><ul class="rail-list"><li><button class="rail-action" type="button" data-toast="Actual staging details shown at right"><span class="rail-mark">A</span><span class="rail-name">Actual staging</span><span class="rail-count">ok</span></button></li><li><button class="rail-action" type="button"><span class="rail-mark">AR</span><span class="rail-name">import receipts</span><span class="rail-count">14</span></button></li></ul></section>
+      </aside>
+
+      <section class="main-pane" aria-labelledby="finance-heading">
+        <header class="pane-header"><div class="pane-heading"><h1 id="finance-heading">overview</h1><p>base CAD · originals preserved in CAD, USD, and CNY</p></div><div class="pane-spacer"></div><button class="quiet-action" type="button" data-toast="starter only: reconciliation opened">reconcile</button><button class="primary-action" type="button" data-open-modal>import statement</button></header>
+        <div class="tabs" role="tablist" aria-label="Finance overview"><button class="tab" id="finance-overview-tab" type="button" role="tab" aria-selected="true" aria-controls="finance-overview">overview</button><button class="tab" id="finance-transactions-tab" type="button" role="tab" aria-selected="false" aria-controls="finance-transactions" tabindex="-1">transactions</button><button class="tab" id="finance-subscriptions-tab" type="button" role="tab" aria-selected="false" aria-controls="finance-subscriptions" tabindex="-1">subscriptions</button><button class="tab" id="finance-import-tab" type="button" role="tab" aria-selected="false" aria-controls="finance-import" tabindex="-1">imports</button></div>
+        <div class="demo-state" id="demo-state" role="status" hidden></div>
+        <div class="empty-state"><div><h2>no Finance records here</h2><p>The ledger is empty in this fake state. Import remains a preview-first action and cannot post without review.</p><button class="primary-action" type="button" data-open-modal>preview an import</button></div></div>
+
+        <div class="data-content">
+          <div id="finance-overview" role="tabpanel" aria-labelledby="finance-overview-tab">
+            <div class="amount-summary"><div class="amount-cell"><span>available cash</span><strong>CA$ 12,842.19</strong></div><div class="amount-cell"><span>July spent</span><strong>CA$ 2,184.72</strong></div><div class="amount-cell"><span>renewals next 30 days</span><strong>CA$ 81.48</strong></div></div>
+            <section class="section-block"><div class="section-title"><h2>accounts</h2><p>4 open · Actual staging mirror verified</p></div><ul class="record-list"><li class="record-row"><span class="type-mark">CA</span><div class="record-copy"><div class="record-title">CIBC chequing</div><div class="record-meta">CAD · reconciled july 16</div></div><span class="record-value">CA$ 6,402.71</span></li><li class="record-row"><span class="type-mark">CA</span><div class="record-copy"><div class="record-title">CIBC savings</div><div class="record-meta">CAD · manual statement import</div></div><span class="record-value">CA$ 8,950.00</span></li><li class="record-row"><span class="type-mark">CN</span><div class="record-copy"><div class="record-title">CMB debit</div><div class="record-meta">CNY original · CA$ conversion shown</div></div><span class="record-value">CA$ 1,733.62</span></li><li class="record-row"><span class="type-mark">CC</span><div class="record-copy"><div class="record-title">CIBC Visa</div><div class="record-meta">CAD · 3 pending</div></div><span class="record-value negative">-CA$ 4,244.14</span></li></ul></section>
+            <section class="section-block"><div class="section-title"><h2>recent activity</h2><p>original currency remains inspectable</p></div><ul class="record-list"><li class="record-row"><span class="record-time">jul 18</span><div class="record-copy"><div class="record-title">Mori Books</div><div class="record-meta">books · CIBC Visa · imported `cibc:20260718:8841`</div></div><span class="record-value negative">-CA$ 24.90</span></li><li class="record-row"><span class="record-time">jul 18</span><div class="record-copy"><div class="record-title">Shanghai Metro</div><div class="record-meta">transport · original ¥4.00 · rate evidence july 18</div></div><span class="record-value negative">-CA$ 0.76</span></li><li class="record-row"><span class="record-time">jul 17</span><div class="record-copy"><div class="record-title">Consulting invoice</div><div class="record-meta">income · CIBC chequing</div></div><span class="record-value positive">+CA$ 2,400.00</span></li></ul></section>
+          </div>
+
+          <div id="finance-transactions" role="tabpanel" aria-labelledby="finance-transactions-tab" hidden><section class="section-block"><div class="section-title"><h2>transactions</h2><p>stable IDs and original currency</p></div><ul class="record-list"><li class="record-row"><span class="record-time">jul 18</span><div class="record-copy"><div class="record-title">Mori Books</div><div class="record-meta">books · cleared · source CIBC QFX</div></div><span class="record-value negative">-24.90 CAD</span></li><li class="record-row"><span class="record-time">jul 18</span><div class="record-copy"><div class="record-title">Shanghai Metro</div><div class="record-meta">transport · original CNY</div></div><span class="record-value negative">-4.00 CNY</span></li></ul></section></div>
+
+          <div id="finance-subscriptions" role="tabpanel" aria-labelledby="finance-subscriptions-tab" hidden><section class="section-block"><div class="section-title"><h2>subscriptions</h2><p>existing renewal records linked to Actual schedules</p></div><ul class="record-list"><li class="record-row"><span class="record-time">jul 22</span><div class="record-copy"><div class="record-title">Proton Mail</div><div class="record-meta">yearly · linked to CIBC Visa · 4 days</div></div><span class="record-value">CA$ 67.00</span></li><li class="record-row"><span class="record-time">aug 02</span><div class="record-copy"><div class="record-title">SimpleFIN Bridge</div><div class="record-meta">yearly · provider disclosure required</div></div><span class="record-value">US$ 15.00</span></li></ul></section></div>
+
+          <div id="finance-import" role="tabpanel" aria-labelledby="finance-import-tab" hidden><section class="section-block"><div class="section-title"><h2>import receipts</h2><p>preview, duplicate decisions, and owned undo</p></div><div class="receipt"><strong>CIBC QFX · july 17</strong><span>41 source rows · 37 added · 4 duplicates skipped · source hash retained</span><button class="quiet-action" type="button" data-toast="starter only: receipt details opened">view receipt</button></div><div class="receipt" style="margin-top:9px"><strong>CMB notification batch · july 16</strong><span>3 reviewed · 2 added · 1 ambiguous row kept pending</span><button class="quiet-action" type="button" data-toast="starter only: receipt details opened">view receipt</button></div></section></div>
+        </div>
+      </section>
+
+      <aside class="detail-pane" aria-label="Actual and import status">
+        <h2 class="detail-heading">canonical ledger</h2><div class="receipt"><strong>Actual staging is healthy.</strong><span>Version 26.7.0 · loopback sync server · last parity check 10:27 · writes still owned by the unchanged Alles ledger in this pre-cutover starter.</span></div>
+        <section class="rail-section"><h2 class="detail-heading">cutover gate</h2><div class="metric-line"><span>accounts</span><strong>4 / 4</strong></div><div class="metric-line"><span>transactions</span><strong>412 / 412</strong></div><div class="metric-line"><span>balance delta</span><strong>CA$ 0.00</strong></div><div class="metric-line"><span>write authority</span><strong>Alles</strong></div></section>
+        <section class="rail-section"><h2 class="detail-heading">bank connections</h2><dl class="meta-stack" style="padding:0 8px"><div class="meta-pair"><dt>CIBC</dt><dd>statement import ready; SimpleFIN eligibility must be checked by the owner</dd></div><div class="meta-pair"><dt>CMB</dt><dd>statement or reviewed notification only; no proven Actual provider</dd></div></dl></section>
+        <section class="rail-section"><h2 class="detail-heading">behavior</h2><div class="metric-line"><span>compact rows</span><button class="switch-control" type="button" role="switch" aria-checked="false" aria-label="compact rows" data-switch="density" data-status="compact rows"><span class="switch-track" aria-hidden="true"><span class="switch-knob"></span></span></button></div><div class="metric-line"><span>managed Actual start</span><button class="switch-control" type="button" role="switch" aria-checked="true" aria-label="managed Actual start" data-switch="actual" data-status="managed Actual start"><span class="switch-track" aria-hidden="true"><span class="switch-knob"></span></span></button></div></section>
+        <div class="receipt" id="import-receipt" style="margin-top:18px" hidden><strong>starter import staged</strong><span>3 new rows · 1 duplicate skipped · no real ledger changed</span><button class="danger-action" id="starter-undo-import" type="button">undo this receipt</button></div>
+      </aside>
+    </main>
+    <footer class="status-footer"><span>fake data only · no ledger or bank contacted</span><span class="footer-right">no dual write · original currency stays exact</span></footer>
+  </div>
+
+  <div class="modal-backdrop" id="starter-modal" role="presentation" hidden>
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="import-title">
+      <header class="modal-header"><h2 id="import-title">preview finance import</h2></header>
+      <div class="modal-body">
+        <div class="tabs" role="tablist" aria-label="Import profile"><button class="tab" id="import-cibc-tab" type="button" role="tab" aria-selected="true" aria-controls="import-cibc">CIBC statement</button><button class="tab" id="import-cmb-tab" type="button" role="tab" aria-selected="false" aria-controls="import-cmb" tabindex="-1">CMB notification</button></div>
+        <div id="import-cibc" role="tabpanel" aria-labelledby="import-cibc-tab" style="padding-top:12px"><div class="receipt"><strong>cibc-july-18.qfx</strong><span>4 parsed · 3 new · 1 exact `FITID` duplicate · account CIBC chequing</span></div><ul class="record-list" style="margin-top:10px"><li class="record-row"><span class="record-time">jul 18</span><div class="record-copy"><div class="record-title">Mori Books</div><div class="record-meta">new · books · `8841`</div></div><span class="record-value negative">-24.90 CAD</span></li><li class="record-row"><span class="record-time">jul 17</span><div class="record-copy"><div class="record-title">Consulting invoice</div><div class="record-meta">duplicate · unchanged · `8839`</div></div><span class="record-value positive">+2,400 CAD</span></li></ul></div>
+        <div id="import-cmb" role="tabpanel" aria-labelledby="import-cmb-tab" hidden style="padding-top:12px"><div class="receipt"><strong>reviewed device notifications</strong><span>2 complete rows · 1 ambiguous account suffix remains pending</span></div></div>
+        <p style="margin-top:12px;color:var(--muted);font-size:.75rem;line-height:1.5">Starter only. The approval action demonstrates the receipt and undo flow without reading a file or changing a database.</p>
+      </div>
+      <footer class="modal-actions"><button class="quiet-action" type="button" data-close-modal>cancel</button><button class="primary-action" id="starter-approve-import" type="button">approve 3 new rows</button></footer>
+    </section>
+  </div>
+  <div class="toast" id="starter-toast" role="status" aria-live="polite" hidden></div>
+  <script src="starter.js"></script>
+</body>
+</html>

@@ -5,8 +5,9 @@ the SAME data dir for both the server and this script:
   ALLES_DATA=.tmp_hs AUTH_ENABLED=false PORT=8077 python app.py
   ALLES_DATA=.tmp_hs PYTHONPATH=. PYTHONIOENCODING=utf-8 python tests/pw_habit_slipping.py
 """
+
 import os
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from playwright.sync_api import sync_playwright
 
@@ -17,12 +18,12 @@ BASE = "http://habits.localhost:8077"
 
 def seed():
     s = SessionLocal()
-    old = datetime.utcnow() - timedelta(days=30)
-    slip = Habit(name="Meditate", created_at=old)   # old, never logged -> slipping
-    active = Habit(name="Read", created_at=old)      # old, logged daily -> not slipping
+    old = datetime.now(UTC).replace(tzinfo=None) - timedelta(days=30)
+    slip = Habit(name="Meditate", created_at=old)  # old, never logged -> slipping
+    active = Habit(name="Read", created_at=old)  # old, logged daily -> not slipping
     s.add_all([slip, active])
     s.commit()
-    today = datetime.utcnow().date()
+    today = datetime.now(UTC).date()
     for i in range(12):
         s.add(HabitLog(habit_id=active.id, date=(today - timedelta(days=i)).isoformat()))
     s.commit()

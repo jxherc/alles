@@ -57,6 +57,7 @@ class PhotoSyncStoreTest(unittest.TestCase):
         eng = create_engine(
             "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
         )
+        self.addCleanup(eng.dispose)
         db.Base.metadata.create_all(eng)
         Sess = sessionmaker(bind=eng)
 
@@ -91,6 +92,7 @@ class PhotoSyncStoreTest(unittest.TestCase):
         eng = create_engine(
             "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
         )
+        self.addCleanup(eng.dispose)
         db.Base.metadata.create_all(eng)
         sess = sessionmaker(bind=eng)()
         r = photo_sync.sync_folder(self.src.name, sess)
@@ -187,6 +189,7 @@ class RunWatchTest(unittest.TestCase):
         eng = create_engine(
             "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
         )
+        self.addCleanup(eng.dispose)
         db.Base.metadata.create_all(eng)
         sess = sessionmaker(bind=eng)()
         with mock.patch(

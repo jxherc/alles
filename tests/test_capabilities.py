@@ -63,6 +63,23 @@ class BootstrapTests(unittest.TestCase):
         missing = [t for t in agent_tools.TOOL_PERMISSION if t not in names]
         self.assertEqual(missing, [])
 
+    def test_every_declared_tool_has_a_typed_scope(self):
+        unscoped = sorted(item.name for item in cap.all(kind="tool") if not item.scope)
+        self.assertEqual(unscoped, [])
+
+    def test_product_tools_use_app_owned_scopes(self):
+        expected = {
+            "calendar_create": "calendar_write",
+            "docs_write": "docs_write",
+            "files_operation_create": "files_write",
+            "finance_accounts_list": "finance_read",
+            "server_service_control": "server_write",
+            "adguard_filtering_set": "server_write",
+            "npm_proxy_host_create": "server_write",
+        }
+        for name, scope in expected.items():
+            self.assertEqual(cap.get(name, "tool").scope, scope)
+
     def test_actions_registered(self):
         from services import automations
 

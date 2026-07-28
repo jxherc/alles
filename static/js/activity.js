@@ -1,6 +1,8 @@
 // activity timeline — one reverse-chron feed of everything that happened across
 // alles, grouped by day. reads /api/timeline (a read-time aggregator over the
 // apps' own tables), filterable by source. clicking a row jumps to its app.
+import { formatDate, formatTime } from './i18n.js';
+
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
@@ -39,14 +41,14 @@ function _writeUrl() {
 }
 
 let _inited = false;
-export function initActivity() {
+export function initActivity(fetcher = fetch) {
   if (!_inited) {
     _inited = true;
     try { _off = new Set(JSON.parse(localStorage.getItem(_hk) || '[]')); } catch {}
     _readUrl();   // URL wins over localStorage so a shared link restores exactly
     renderFilters();
   }
-  load();
+  return load(fetcher);
 }
 
 const RANGES = [[7, '7d'], [30, '30d'], [90, '90d'], [365, '1y']];
@@ -81,7 +83,7 @@ function renderFilters() {
   });
 }
 
-async function load() {
+async function load(fetcher = fetch) {
   const body = $('activity-body');
   if (!body) return;
   body.innerHTML = '<div class="activity-empty">loading…</div>';
@@ -90,15 +92,15 @@ async function load() {
   let d;
   try {
     const qp = _q ? `&q=${encodeURIComponent(_q)}` : '';
-    d = await fetch(`/api/timeline?days=${_days}&limit=200&types=${want.join(',')}${qp}`).then(r => r.json());
+    d = await fetcher(`/api/timeline?days=${_days}&limit=200&types=${want.join(',')}${qp}`).then(r => r.json());
   } catch { body.innerHTML = '<div class="activity-empty">couldn’t load activity</div>'; return; }
   render(d.events || []);
-  loadSummary(want);
+  await loadSummary(want, fetcher);
 }
 
-async function loadSummary(want) {
+async function loadSummary(want, fetcher = fetch) {
   try {
-    const s = await fetch(`/api/timeline/summary?days=${_days}&types=${want.join(',')}`).then(r => r.json());
+    const s = await fetcher(`/api/timeline/summary?days=${_days}&types=${want.join(',')}`).then(r => r.json());
     const strip = $('activity-summary');
     if (!strip) return;
     if (!s.total) { strip.innerHTML = ''; return; }
@@ -116,10 +118,10 @@ function dayLabel(iso) {
   const diff = Math.round((today - that) / 86400000);
   if (diff === 0) return 'today';
   if (diff === 1) return 'yesterday';
-  if (diff < 7) return d.toLocaleDateString('en-US', { weekday: 'long' });
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: d.getFullYear() === today.getFullYear() ? undefined : 'numeric' });
+  if (diff < 7) return formatDate(d, { weekday: 'long' });
+  return formatDate(d, { month: 'short', day: 'numeric', year: d.getFullYear() === today.getFullYear() ? undefined : 'numeric' });
 }
-const timeOf = iso => { const d = new Date(iso); return iso.includes('T') && !iso.endsWith('T00:00:00') ? d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : ''; };
+const timeOf = iso => { const d = new Date(iso); return iso.includes('T') && !iso.endsWith('T00:00:00') ? formatTime(d, { hour: 'numeric', minute: '2-digit' }) : ''; };
 
 function render(events) {
   const body = $('activity-body');

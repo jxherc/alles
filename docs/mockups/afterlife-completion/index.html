@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Alles completion starter</title>
+  <link rel="stylesheet" href="starter.css">
+</head>
+<body>
+  <header class="app-head">
+    <div class="identity">
+      <button class="bare square" id="nav-toggle" type="button" aria-label="hide completion navigation" aria-expanded="true" aria-controls="surface-nav">
+        <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3.5 4.5h13v11h-13zM7 4.5v11"/></svg>
+      </button>
+      <span class="wordmark">alles completion</span>
+    </div>
+    <div class="head-actions">
+      <span class="status-line" id="global-status" role="status">standalone starter · fake data</span>
+      <button class="bare" id="theme-toggle" type="button">appearance: graphite</button>
+      <button class="bare" type="button" data-action="home">home</button>
+    </div>
+  </header>
+
+  <div class="shell">
+    <nav class="surface-nav" id="surface-nav" role="tablist" aria-label="completion surfaces">
+      <button type="button" role="tab" aria-selected="true" data-surface="files">files</button>
+      <button type="button" role="tab" aria-selected="false" data-surface="aide">aide questions</button>
+      <button type="button" role="tab" aria-selected="false" data-surface="providers">model connections</button>
+      <button type="button" role="tab" aria-selected="false" data-surface="finance">bank sync</button>
+      <button type="button" role="tab" aria-selected="false" data-surface="server">companions</button>
+      <div class="nav-note">approval covers these exact flows and their responsive structure.</div>
+    </nav>
+
+    <main class="content">
+      <section class="surface" id="surface-files" role="tabpanel" aria-labelledby="tab-files">
+        <div class="surface-head">
+          <div><h1>files</h1><p>approved places only. no automatic full-disk crawl.</p></div>
+          <button class="quiet-action" type="button" data-open-dialog="location-dialog">connect location</button>
+        </div>
+        <div class="state-strip" role="group" aria-label="Files preview state">
+          <span>preview state</span>
+          <button type="button" aria-pressed="true" data-preview-state="ready">ready</button>
+          <button type="button" aria-pressed="false" data-preview-state="loading">loading</button>
+          <button type="button" aria-pressed="false" data-preview-state="offline">offline</button>
+          <button type="button" aria-pressed="false" data-preview-state="error">error</button>
+        </div>
+        <div class="files-layout">
+          <aside class="location-rail" aria-label="location scopes">
+            <button type="button" class="location-scope active" data-scope="alles"><strong>Alles</strong><span>managed home, Vault, Files, exports</span></button>
+            <button type="button" class="location-scope" data-scope="connected"><strong>Connected</strong><span>approved folders and remote stores</span></button>
+            <button type="button" class="location-scope" data-scope="all"><strong>All locations</strong><span>metadata search across approved places</span></button>
+          </aside>
+          <section class="browser-pane" aria-live="polite">
+            <div class="browser-tools">
+              <div><strong id="scope-title">Alles</strong><span id="scope-meta">4 approved locations · managed</span></div>
+              <label class="search-field"><span>search this scope</span><input id="files-search-demo" type="search" placeholder="name, type, or indexed text"></label>
+            </div>
+            <div class="browser-message" id="files-state-message" hidden></div>
+            <div class="file-list" id="file-list">
+              <button type="button" class="file-row"><span class="file-mark">D</span><span><strong>Documents</strong><small>Alles · 18 items</small></span><span>today</span></button>
+              <button type="button" class="file-row"><span class="file-mark">V</span><span><strong>Vault</strong><small>Alles · external links preserved</small></span><span>09:42</span></button>
+              <button type="button" class="file-row"><span class="file-mark">E</span><span><strong>exports</strong><small>Alles · 7 files</small></span><span>jul 24</span></button>
+              <button type="button" class="file-row"><span class="file-mark">O</span><span><strong>obsidian work</strong><small>Connected · external</small></span><span>ready</span></button>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <section class="surface" id="surface-aide" role="tabpanel" hidden>
+        <div class="surface-head">
+          <div><h1>aide questions</h1><p>durable choices inside the conversation, including background and Discord runs.</p></div>
+          <span class="mode-label">auto · safe default</span>
+        </div>
+        <div class="conversation">
+          <article class="message assistant-message"><p>I found two decisions that change the result. Choose what you want and I’ll continue.</p></article>
+          <form class="question-card" id="question-form">
+            <fieldset data-choice-group="single">
+              <legend><span>1 of 2</span>Where should the external vault remain?</legend>
+              <div class="choice-list" role="radiogroup" aria-label="vault location">
+                <button type="button" role="radio" aria-checked="true" data-value="keep"><strong>Keep external</strong><small>Index it in place and preserve its current path.</small></button>
+                <button type="button" role="radio" aria-checked="false" data-value="copy"><strong>Copy into Alles</strong><small>Verify hashes and keep the original untouched.</small></button>
+                <button type="button" role="radio" aria-checked="false" data-value="move"><strong>Move into Alles</strong><small>Snapshot, verify, update links, then remove the source.</small></button>
+              </div>
+            </fieldset>
+            <fieldset data-choice-group="multiple">
+              <legend><span>2 of 2</span>What should the first sync include?</legend>
+              <div class="choice-list compact" aria-label="first sync content">
+                <button type="button" role="checkbox" aria-checked="true" data-value="notes">notes</button>
+                <button type="button" role="checkbox" aria-checked="true" data-value="attachments">attachments</button>
+                <button type="button" role="checkbox" aria-checked="false" data-value="history">revision history</button>
+              </div>
+            </fieldset>
+            <label class="free-text"><span>Anything else? <small>optional</small></span><textarea rows="2" placeholder="Add a constraint for Aide"></textarea></label>
+            <div class="question-actions"><button class="text-action" type="button" data-action="cancel-question">cancel run</button><button class="solid-action" type="submit">continue with answers</button></div>
+            <p class="form-status" id="question-status" role="status"></p>
+          </form>
+        </div>
+      </section>
+
+      <section class="surface" id="surface-providers" role="tabpanel" hidden>
+        <div class="surface-head"><div><h1>model connections</h1><p>the authentication type is explicit. consumer web sessions are never imported.</p></div><button class="quiet-action" type="button" data-action="refresh-providers">refresh health</button></div>
+        <div class="provider-table">
+          <div class="table-head"><span>provider</span><span>authentication</span><span>health</span><span></span></div>
+          <article class="provider-row"><div><strong>Gemini</strong><small>official API</small></div><span>OAuth · desktop client</span><span class="healthy">connected · 8 models</span><button type="button" class="bare" data-action="disconnect">disconnect</button></article>
+          <article class="provider-row"><div><strong>OpenAI</strong><small>official API</small></div><span>API key</span><span>not connected</span><button type="button" class="bare" data-open-dialog="provider-dialog" data-provider="OpenAI">connect</button></article>
+          <article class="provider-row"><div><strong>Claude</strong><small>official API</small></div><span>API key only</span><span>not connected</span><button type="button" class="bare" data-open-dialog="provider-dialog" data-provider="Claude">connect</button></article>
+          <article class="provider-row"><div><strong>Kimi</strong><small>official API or owner proxy</small></div><span>API key</span><span>not connected</span><button type="button" class="bare" data-open-dialog="provider-dialog" data-provider="Kimi">connect</button></article>
+          <article class="provider-row"><div><strong>DeepSeek</strong><small>official API</small></div><span>API key · no chat OAuth</span><span>not connected</span><button type="button" class="bare" data-open-dialog="provider-dialog" data-provider="DeepSeek">connect</button></article>
+          <article class="provider-row"><div><strong>CLIProxyAPI</strong><small>owner-managed external endpoint</small></div><span>OpenAI-compatible proxy</span><span class="warning">health unchecked</span><button type="button" class="bare" data-open-dialog="proxy-dialog">configure</button></article>
+        </div>
+      </section>
+
+      <section class="surface" id="surface-finance" role="tabpanel" hidden>
+        <div class="surface-head"><div><h1>bank sync</h1><p>read-only account and transaction synchronization. Actual remains the ledger.</p></div><button class="quiet-action" type="button" data-open-dialog="bank-dialog">connect bank</button></div>
+        <div class="boundary-note"><strong>bank passwords never enter Alles.</strong><span>Aggregator tokens are encrypted but server-readable. Disconnect and revocation remain available.</span></div>
+        <div class="finance-grid">
+          <section><h2>connections</h2><article class="connection-row"><div><strong>Plaid sandbox</strong><small>3 accounts · last sync 4 minutes ago</small></div><span class="healthy">healthy</span><button type="button" class="bare" data-action="sync-bank">sync now</button></article><article class="connection-row"><div><strong>statement imports</strong><small>OFX · QFX · CAMT · CSV</small></div><span>available</span><button type="button" class="bare" data-action="review-import">review</button></article></section>
+          <section><h2>reviewed profiles</h2><div class="bank-list"><span>CIBC</span><span>RBC</span><span>TD</span><span>BMO</span><span>Scotiabank</span><span>CMB</span><span>ICBC</span><span>CCB</span><span>ABC</span><span>Bank of China</span><span>Bank of Communications</span></div><p class="section-note">Canadian profiles prefer Plaid. Chinese profiles provide statement, export, and owner-authorized notification guidance only.</p></section>
+        </div>
+      </section>
+
+      <section class="surface" id="surface-server" role="tabpanel" hidden>
+        <div class="surface-head"><div><h1>managed companions</h1><p>prepared when supported, inactive until guided network preflight passes.</p></div><button class="quiet-action" type="button" data-action="run-preflight">run all preflights</button></div>
+        <div class="companion-list">
+          <article class="companion-row"><div><strong>AdGuard Home</strong><small>pinned separate service · GPL-3.0</small></div><dl><div><dt>package</dt><dd>prepared</dd></div><div><dt>network</dt><dd>not activated</dd></div><div><dt>rollback</dt><dd>not tested</dd></div></dl><button type="button" class="solid-action" data-open-dialog="adguard-dialog">guided activation</button></article>
+          <article class="companion-row"><div><strong>Nginx Proxy Manager</strong><small>pinned Docker companion · MIT</small></div><dl><div><dt>package</dt><dd>Docker unavailable</dd></div><div><dt>network</dt><dd>not activated</dd></div><div><dt>rollback</dt><dd>not tested</dd></div></dl><button type="button" class="solid-action" data-open-dialog="npm-dialog">review prerequisites</button></article>
+        </div>
+        <div class="server-rule"><strong>activation never rides along with installation.</strong><span>Exact interfaces and ports, previous configuration capture, private credentials, backup, health probes, and rollback proof are required first.</span></div>
+      </section>
+    </main>
+  </div>
+
+  <div class="dialog-layer" id="location-dialog" role="dialog" aria-modal="true" aria-labelledby="location-title" hidden>
+    <form class="dialog-card"><header><h2 id="location-title">connect an external vault</h2><button class="bare square" type="button" data-close-dialog aria-label="close">×</button></header><p>Choose the ownership boundary before any bytes move.</p><div class="choice-list" role="radiogroup" aria-label="external vault workflow"><button type="button" role="radio" aria-checked="true"><strong>Keep external</strong><small>Approve the folder and index it in place.</small></button><button type="button" role="radio" aria-checked="false"><strong>Copy into Alles</strong><small>Requires 4.2 GB. Original remains untouched.</small></button><button type="button" role="radio" aria-checked="false"><strong>Move into Alles</strong><small>Snapshot, hash verification, link rewrite, and rollback.</small></button></div><div class="dialog-facts"><span>2 naming conflicts need review</span><span>4.2 GB required · 83 GB free</span></div><footer><button class="text-action" type="button" data-close-dialog>cancel</button><button class="solid-action" type="submit">review conflicts</button></footer></form>
+  </div>
+  <div class="dialog-layer" id="provider-dialog" role="dialog" aria-modal="true" aria-labelledby="provider-title" hidden><form class="dialog-card"><header><h2 id="provider-title">connect provider</h2><button class="bare square" type="button" data-close-dialog aria-label="close">×</button></header><label class="field"><span>API key</span><input type="password" autocomplete="off" placeholder="stored encrypted"></label><p class="dialog-note">The key is used only with the official API and never returned in model output.</p><footer><button class="text-action" type="button" data-close-dialog>cancel</button><button class="solid-action" type="submit">connect and discover models</button></footer></form></div>
+  <div class="dialog-layer" id="proxy-dialog" role="dialog" aria-modal="true" aria-labelledby="proxy-title" hidden><form class="dialog-card"><header><h2 id="proxy-title">external compatible endpoint</h2><button class="bare square" type="button" data-close-dialog aria-label="close">×</button></header><label class="field"><span>base URL</span><input type="url" value="http://127.0.0.1:8317/v1"></label><label class="field"><span>owner-managed bearer token</span><input type="password" autocomplete="off"></label><div class="boundary-note"><strong>external trust boundary</strong><span>Alles will not inspect or import tokens stored by CLIProxyAPI.</span></div><footer><button class="text-action" type="button" data-close-dialog>cancel</button><button class="solid-action" type="submit">test and discover models</button></footer></form></div>
+  <div class="dialog-layer" id="bank-dialog" role="dialog" aria-modal="true" aria-labelledby="bank-title" hidden><form class="dialog-card"><header><h2 id="bank-title">connect read-only bank sync</h2><button class="bare square" type="button" data-close-dialog aria-label="close">×</button></header><div class="choice-list" role="radiogroup" aria-label="bank aggregator"><button type="button" role="radio" aria-checked="true"><strong>Plaid</strong><small>Canadian production coverage and sandbox testing.</small></button><button type="button" role="radio" aria-checked="false"><strong>SimpleFIN</strong><small>Actual-supported North American bridge.</small></button></div><label class="consent-check"><button type="button" role="checkbox" aria-checked="false" data-consent-check></button><span>I understand tokens are encrypted but must be readable by this server for synchronization.</span></label><footer><button class="text-action" type="button" data-close-dialog>cancel</button><button class="solid-action" type="submit" disabled data-consent-submit>continue to provider</button></footer></form></div>
+  <div class="dialog-layer" id="adguard-dialog" role="dialog" aria-modal="true" aria-labelledby="adguard-title" hidden><form class="dialog-card"><header><h2 id="adguard-title">AdGuard activation preflight</h2><button class="bare square" type="button" data-close-dialog aria-label="close">×</button></header><ol class="preflight-list"><li data-state="pass">package signature and revision</li><li data-state="pass">private admin credentials prepared</li><li data-state="wait">DNS interfaces and ports</li><li data-state="wait">previous DNS configuration backup</li><li data-state="wait">health and rollback probes</li></ol><p class="dialog-note warning">Activation stays unavailable until every check passes in an isolated network.</p><footer><button class="text-action" type="button" data-close-dialog>close</button><button class="solid-action" type="button" disabled>activate DNS</button></footer></form></div>
+  <div class="dialog-layer" id="npm-dialog" role="dialog" aria-modal="true" aria-labelledby="npm-title" hidden><form class="dialog-card"><header><h2 id="npm-title">Nginx Proxy Manager prerequisites</h2><button class="bare square" type="button" data-close-dialog aria-label="close">×</button></header><ol class="preflight-list"><li data-state="fail">Docker daemon reachable</li><li data-state="wait">ports 80, 81, and 443 available</li><li data-state="wait">private admin credentials</li><li data-state="wait">backup and rollback target</li></ol><p class="dialog-note">Core Alles remains usable. Nothing is downloaded or started until Docker passes.</p><footer><button class="text-action" type="button" data-close-dialog>close</button><button class="solid-action" type="button" data-action="retry-docker">retry Docker</button></footer></form></div>
+  <script type="module" src="starter.js"></script>
+</body>
+</html>

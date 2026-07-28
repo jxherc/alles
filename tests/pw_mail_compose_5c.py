@@ -120,10 +120,10 @@ def main():
         pg.click("#mc-sig-add")
         pg.wait_for_selector("#_di", timeout=4000)
         pg.fill("#_di", "Personal")
-        pg.click("#_dy")
+        pg.click("[data-dialog-confirm]")
         pg.wait_for_selector("#_di", timeout=4000)
         pg.fill("#_di", "cheers")
-        pg.click("#_dy")
+        pg.click("[data-dialog-confirm]")
         pg.wait_for_function(
             "() => document.querySelectorAll('#mc-sig-list .mc-sig-chip').length >= 2", timeout=6000
         )

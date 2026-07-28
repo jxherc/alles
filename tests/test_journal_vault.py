@@ -69,7 +69,9 @@ class JournalVaultTests(VaultApiTest):
         self._mirror_on()
         self.client.put("/api/journal/2026-06-29", json={"content": "orig", "mood": "🙂"})
         # simulate an external edit in Obsidian
-        self._file("2026-06-29").write_text("---\nmood: 😴\ntags: tired\n---\n\nedited in obsidian\n", "utf-8")
+        self._file("2026-06-29").write_text(
+            "---\nmood: 😴\ntags: tired\n---\n\nedited in obsidian\n", "utf-8"
+        )
         db = self.db()
         try:
             journal_vault.sync_from_vault(db, "2026-06-29")
@@ -98,7 +100,7 @@ class JournalVaultTests(VaultApiTest):
         self._mirror_on()
         self.client.put("/api/journal/2026-06-29", json={"content": "secret"})
         self.assertTrue(self._file("2026-06-29").exists())
-        self.client.post("/api/journal/lock/set", json={"passcode": "1234"})
+        self.client.post("/api/journal/lock/set", json={"passcode": "journal-passcode-one"})
         self.assertFalse(journal_vault.enabled())  # paused while locked
         self.assertFalse(self._file("2026-06-29").exists())  # plaintext mirror removed
 
@@ -149,7 +151,9 @@ class JournalVaultTests(VaultApiTest):
         finally:
             db.close()
         self.client.put("/api/journal/2026-06-29", json={"content": "x"})
-        self.client.post("/api/journal/lock/set", json={"passcode": "1234"})  # purges
+        self.client.post(
+            "/api/journal/lock/set", json={"passcode": "journal-passcode-one"}
+        )  # purges
         db = self.db()
         try:
             hits = textindex.search(db, "LEAKEDSECRET", kind="doc", k=5)
@@ -163,6 +167,15 @@ class JournalVaultTests(VaultApiTest):
         self.client.put("/api/journal/2026-06-29", json={"content": body})
         got = journal_vault.read_entry("2026-06-29")
         self.assertEqual(got["content"], body)  # leading --- block survives, not eaten as FM
+
+    def test_migration_frontmatter_roundtrips_arbitrary_metadata(self):
+        raw = journal_vault.compose_migration_document(
+            "body", mood="calm\n---\ninjected: true", tags="work\nowner: changed"
+        )
+        props, body = vault_md.parse_frontmatter(raw)
+        self.assertEqual(props["mood"], "calm\n---\ninjected: true")
+        self.assertEqual(props["tags"], "work\nowner: changed")
+        self.assertEqual(body, "body")
 
     def test_whitespace_content_does_not_churn(self):
         from core.database import JournalEntry
@@ -180,7 +193,7 @@ class JournalVaultTests(VaultApiTest):
     def test_lock_disable_rebuilds_mirror(self):
         self._mirror_on()
         self.client.put("/api/journal/2026-06-29", json={"content": "x"})
-        self.client.post("/api/journal/lock/set", json={"passcode": "1234"})
+        self.client.post("/api/journal/lock/set", json={"passcode": "journal-passcode-one"})
         self.assertFalse(self._file("2026-06-29").exists())
-        self.client.post("/api/journal/lock/disable", json={"passcode": "1234"})
+        self.client.post("/api/journal/lock/disable", json={"passcode": "journal-passcode-one"})
         self.assertTrue(self._file("2026-06-29").exists())

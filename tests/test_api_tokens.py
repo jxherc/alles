@@ -26,9 +26,7 @@ class TokensApiTest(ApiTest):
 
     def test_create_rejects_empty_or_unknown_scopes(self):
         empty = self.client.post("/api/tokens", json={"name": "empty", "scopes": []})
-        unknown = self.client.post(
-            "/api/tokens", json={"name": "bad", "scopes": ["root"]}
-        )
+        unknown = self.client.post("/api/tokens", json={"name": "bad", "scopes": ["root"]})
         self.assertEqual(empty.status_code, 400)
         self.assertEqual(unknown.status_code, 400)
         self.assertEqual(empty.json()["code"], "invalid_token_scopes")
@@ -57,6 +55,13 @@ class TokensApiTest(ApiTest):
                 self.client.post("/api/tasks", headers=headers, json={"title": "no"}).status_code,
                 403,
             )
+            files_write = self.client.post(
+                "/api/files/operations",
+                headers=headers,
+                json={"action": "delete", "source_path": "must-not-run.txt"},
+            )
+            self.assertEqual(files_write.status_code, 403)
+            self.assertEqual(files_write.json()["code"], "token_scope_denied")
             denied = self.client.get("/api/settings", headers=headers)
             self.assertEqual(denied.status_code, 403)
             self.assertEqual(denied.json()["code"], "token_scope_denied")
@@ -67,9 +72,9 @@ class TokensApiTest(ApiTest):
         writer = self.client.post(
             "/api/tokens", json={"name": "writer", "scopes": ["write"]}
         ).json()["token"]
-        admin = self.client.post(
-            "/api/tokens", json={"name": "admin", "scopes": ["admin"]}
-        ).json()["token"]
+        admin = self.client.post("/api/tokens", json={"name": "admin", "scopes": ["admin"]}).json()[
+            "token"
+        ]
         os.environ["AUTH_ENABLED"] = "true"
         try:
             created = self.client.post(
@@ -84,6 +89,27 @@ class TokensApiTest(ApiTest):
                 ).status_code,
                 200,
             )
+        finally:
+            os.environ["AUTH_ENABLED"] = "false"
+
+    def test_actual_finance_status_uses_the_global_read_scope(self):
+        models = self.client.post(
+            "/api/tokens", json={"name": "models only", "scopes": ["models"]}
+        ).json()["token"]
+        reader = self.client.post(
+            "/api/tokens", json={"name": "finance reader", "scopes": ["read"]}
+        ).json()["token"]
+        os.environ["AUTH_ENABLED"] = "true"
+        try:
+            denied = self.client.get(
+                "/api/finance/actual", headers={"Authorization": f"Bearer {models}"}
+            )
+            self.assertEqual(denied.status_code, 403, denied.text)
+            self.assertEqual(denied.json()["code"], "token_scope_denied")
+            allowed = self.client.get(
+                "/api/finance/actual", headers={"Authorization": f"Bearer {reader}"}
+            )
+            self.assertEqual(allowed.status_code, 200, allowed.text)
         finally:
             os.environ["AUTH_ENABLED"] = "false"
 

@@ -1,5 +1,6 @@
 """ui-3h verify — text selection stays inside the centered content column (no bleed
 into the empty side margins). Select-all in live mode, measure the selection layer."""
+
 import sys
 
 from playwright.sync_api import sync_playwright
@@ -39,7 +40,10 @@ def run():
             (print(f"PASS {name}") if cond else fails.append(name))
 
         ok("editor column is capped (<=860px)", d["edWidth"] <= 860)
-        ok("editor is centered (side gutters exist)", d["edLeft"] > 40 and (d["vw"] - d["edRight"]) > 40)
+        ok(
+            "editor is centered (side gutters exist)",
+            d["edLeft"] > 40 and (d["vw"] - d["edRight"]) > 40,
+        )
         ok("selection exists", d["n"] > 0)
         ok("selection right edge stays within the column", d["selMaxR"] <= d["edRight"] + 2)
         ok("selection left edge stays within the column", d["selMinL"] >= d["edLeft"] - 2)

@@ -1,5 +1,6 @@
 import os
 import unittest
+from pathlib import Path
 from unittest import mock
 
 from core.server_config import (
@@ -11,9 +12,33 @@ from core.server_config import (
     public_origin,
     trusted_hosts,
 )
+from core.settings import get_port
+
+ROOT = Path(__file__).resolve().parent.parent
 
 
 class ServerBindConfigTest(unittest.TestCase):
+    def test_default_port_is_6769_and_environment_can_override_it(self):
+        with mock.patch.dict(os.environ, {}, clear=True):
+            self.assertEqual(get_port(), 6769)
+        with mock.patch.dict(os.environ, {"PORT": "7777"}, clear=True):
+            self.assertEqual(get_port(), 7777)
+
+    def test_shipped_local_defaults_use_port_6769(self):
+        expected = {
+            ".env.example": "PORT=6769",
+            "Dockerfile": "EXPOSE 6769",
+            "README.md": "http://localhost:6769",
+            "extension/popup.js": "http://localhost:6769",
+            "mobile/capacitor.config.json": "http://192.168.1.10:6769",
+            "static/js/mail.js": "http://localhost:6769",
+            "static/js/settings.js": "location.port || '6769'",
+            "static/plugins/obsidian-alles/main.js": "http://localhost:6769",
+        }
+        for relative, fragment in expected.items():
+            with self.subTest(relative=relative):
+                self.assertIn(fragment, (ROOT / relative).read_text("utf-8"))
+
     def test_fresh_install_binds_loopback(self):
         with mock.patch.dict(os.environ, {}, clear=True):
             self.assertEqual(bind_host(), "127.0.0.1")
@@ -21,10 +46,13 @@ class ServerBindConfigTest(unittest.TestCase):
 
     def test_device_profile_accepts_only_loopback(self):
         for host in ("127.0.0.1", "127.0.0.2", "::1", "localhost"):
-            with self.subTest(host=host), mock.patch.dict(
-                os.environ,
-                {"ALLES_ACCESS_PROFILE": "device", "ALLES_HOST": host},
-                clear=True,
+            with (
+                self.subTest(host=host),
+                mock.patch.dict(
+                    os.environ,
+                    {"ALLES_ACCESS_PROFILE": "device", "ALLES_HOST": host},
+                    clear=True,
+                ),
             ):
                 self.assertEqual(bind_host(), host)
 
@@ -69,15 +97,29 @@ class ServerBindConfigTest(unittest.TestCase):
 
     def test_lan_profile_accepts_an_enabled_saved_password(self):
         with (
-            mock.patch.dict(
-                os.environ, {"ALLES_ACCESS_PROFILE": "lan"}, clear=True
-            ),
+            mock.patch.dict(os.environ, {"ALLES_ACCESS_PROFILE": "lan"}, clear=True),
             mock.patch(
                 "core.server_config.load_settings",
                 return_value={"auth_enabled": True, "auth_password_hash": "saved-hash"},
             ),
             mock.patch("core.server_config.auth_enabled", return_value=True),
         ):
+            self.assertEqual(bind_host(), "0.0.0.0")
+
+    def test_server_owned_access_profile_applies_after_restart(self):
+        with (
+            mock.patch.dict(os.environ, {}, clear=True),
+            mock.patch(
+                "core.server_config.load_settings",
+                return_value={
+                    "access_profile": "lan",
+                    "auth_enabled": True,
+                    "auth_password_hash": "saved-hash",
+                },
+            ),
+            mock.patch("core.server_config.auth_enabled", return_value=True),
+        ):
+            self.assertEqual(access_profile(), "lan")
             self.assertEqual(bind_host(), "0.0.0.0")
 
     def test_disabled_auth_env_overrides_a_saved_password(self):
@@ -111,9 +153,7 @@ class ServerBindConfigTest(unittest.TestCase):
             "ALLES_FORWARDED_ALLOW_IPS",
         ):
             env = {key: value for key, value in complete.items() if key != missing}
-            with self.subTest(missing=missing), mock.patch.dict(
-                os.environ, env, clear=True
-            ):
+            with self.subTest(missing=missing), mock.patch.dict(os.environ, env, clear=True):
                 with self.assertRaisesRegex(AccessConfigError, missing):
                     bind_host()
 
@@ -198,24 +238,31 @@ class ServerBindConfigTest(unittest.TestCase):
             ),
         )
         for env, message in cases:
-            with self.subTest(message=message), mock.patch.dict(
-                os.environ, env, clear=True
-            ):
+            with self.subTest(message=message), mock.patch.dict(os.environ, env, clear=True):
                 with self.assertRaisesRegex(AccessConfigError, message):
                     bind_host()
 
     def test_trusted_hosts_rejects_broad_or_malformed_entries(self):
         for value in ("*", "https://alles.example", "alles.example:443", "bad/host"):
-            with self.subTest(value=value), mock.patch.dict(
-                os.environ, {"ALLES_TRUSTED_HOSTS": value}, clear=True
+            with (
+                self.subTest(value=value),
+                mock.patch.dict(os.environ, {"ALLES_TRUSTED_HOSTS": value}, clear=True),
             ):
                 with self.assertRaisesRegex(AccessConfigError, "trusted host"):
                     trusted_hosts()
 
     def test_forwarded_proxy_addresses_reject_wildcards_and_everywhere_cidrs(self):
-        for value in ("*", "0.0.0.0/0", "::/0", "not-an-ip"):
-            with self.subTest(value=value), mock.patch.dict(
-                os.environ, {"ALLES_FORWARDED_ALLOW_IPS": value}, clear=True
+        for value in (
+            "*",
+            "0.0.0.0/0",
+            "::/0",
+            "0.0.0.0/1,128.0.0.0/1",
+            "::/1,8000::/1",
+            "not-an-ip",
+        ):
+            with (
+                self.subTest(value=value),
+                mock.patch.dict(os.environ, {"ALLES_FORWARDED_ALLOW_IPS": value}, clear=True),
             ):
                 with self.assertRaisesRegex(AccessConfigError, "forwarded proxy"):
                     forwarded_allow_ips()
@@ -229,9 +276,7 @@ class ServerBindConfigTest(unittest.TestCase):
             self.assertNotIn("*", hosts)
 
     def test_unknown_profile_is_rejected(self):
-        with mock.patch.dict(
-            os.environ, {"ALLES_ACCESS_PROFILE": "internet"}, clear=True
-        ):
+        with mock.patch.dict(os.environ, {"ALLES_ACCESS_PROFILE": "internet"}, clear=True):
             with self.assertRaisesRegex(AccessConfigError, "unknown access profile"):
                 bind_host()
 
@@ -275,8 +320,7 @@ class CorsConfigTest(unittest.TestCase):
             os.environ,
             {
                 "ALLES_CORS_ORIGINS": (
-                    "https://ALLES.example, http://localhost:8000,"
-                    "https://alles.example"
+                    "https://ALLES.example, http://localhost:8000,https://alles.example"
                 )
             },
             clear=True,
@@ -287,9 +331,7 @@ class CorsConfigTest(unittest.TestCase):
             )
 
     def test_wildcard_origin_is_rejected(self):
-        with mock.patch.dict(
-            os.environ, {"ALLES_CORS_ORIGINS": "*"}, clear=True
-        ):
+        with mock.patch.dict(os.environ, {"ALLES_CORS_ORIGINS": "*"}, clear=True):
             with self.assertRaisesRegex(AccessConfigError, "wildcard"):
                 cors_origins()
 
@@ -301,8 +343,9 @@ class CorsConfigTest(unittest.TestCase):
             "file:///tmp/alles",
         )
         for origin in invalid:
-            with self.subTest(origin=origin), mock.patch.dict(
-                os.environ, {"ALLES_CORS_ORIGINS": origin}, clear=True
+            with (
+                self.subTest(origin=origin),
+                mock.patch.dict(os.environ, {"ALLES_CORS_ORIGINS": origin}, clear=True),
             ):
                 with self.assertRaisesRegex(AccessConfigError, "origin"):
                     cors_origins()

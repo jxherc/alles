@@ -24,7 +24,37 @@ from services.signals import (
 router = APIRouter(prefix="/api")
 
 _SECTION_KEYS = ("needs_you", "today", "in_progress", "briefs", "shortcuts")
-_DEFAULT_SHORTCUTS = ("calendar", "tasks", "wiki", "files")
+_DEFAULT_SHORTCUTS = ("plan", "wiki", "files")
+_SHORTCUT_ALIASES = {
+    "plan": "plan",
+    "calendar": "plan",
+    "tasks": "plan",
+    "days": "plan",
+    "reminders": "plan",
+    "inbox": "inbox",
+    "mail": "inbox",
+    "contacts": "inbox",
+    "wiki": "wiki",
+    "notes": "wiki",
+    "journal": "wiki",
+    "files": "files",
+    "photos": "files",
+    "gallery": "files",
+    "library": "library",
+    "books": "library",
+    "read": "library",
+    "health": "health",
+    "habits": "health",
+    "finance": "finance",
+    "money": "finance",
+    "subs": "finance",
+    "vault": "vault",
+    "secrets": "vault",
+    "system": "system",
+    "server": "system",
+    "watch": "system",
+    "activity": "system",
+}
 
 
 class TodayPreferences(BaseModel):
@@ -45,7 +75,9 @@ def _preferences(value=None) -> dict:
         visible.insert(0, "needs_you")
     shortcuts = list(
         dict.fromkeys(
-            str(view)[:64] for view in raw.get("shortcuts", _DEFAULT_SHORTCUTS) if str(view).strip()
+            canonical
+            for view in raw.get("shortcuts", _DEFAULT_SHORTCUTS)
+            if (canonical := _SHORTCUT_ALIASES.get(str(view).strip().lower())) is not None
         )
     )[:20]
     return {

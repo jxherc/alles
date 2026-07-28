@@ -6,6 +6,7 @@ run against a fresh instance with the current routes:
   PYTHONIOENCODING=utf-8 python tests/pw_contacts_rels.py
 (the contacts detail view needs GET /api/contacts/{id}, added after the early test servers booted)
 """
+
 from playwright.sync_api import sync_playwright
 
 BASE = "http://contacts.localhost:8077"
@@ -52,7 +53,9 @@ def main():
 
         pg.evaluate("() => document.querySelector('.cd-rel-row [data-unlink]').click()")
         pg.wait_for_timeout(700)
-        assert "no relationships yet" in pg.evaluate("() => document.getElementById('cd-rels').textContent")
+        assert "no relationships yet" in pg.evaluate(
+            "() => document.getElementById('cd-rels').textContent"
+        )
 
         pg.evaluate(
             "async ([a, bob]) => { for (const id of [a, bob]) await fetch('/api/contacts/'+id, {method:'DELETE'}); }",

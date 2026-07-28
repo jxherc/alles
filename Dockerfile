@@ -9,22 +9,23 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # deps first so the layer caches across code changes
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+COPY requirements.txt requirements.lock ./
+RUN pip install --no-cache-dir -r requirements.lock
 
 COPY . .
+RUN python scripts/generate_credits.py
 
 # A container must listen on its own interface. Publishing the port on the host is still an explicit
 # operator choice; the README keeps that host-side publish loopback-only by default.
-ENV PORT=8000 ALLES_HOST=0.0.0.0 ALLES_RUNTIME=container ALLES_ACCESS_PROFILE=device
-EXPOSE 8000
+ENV PORT=6769 ALLES_HOST=0.0.0.0 ALLES_RUNTIME=container ALLES_ACCESS_PROFILE=device
+EXPOSE 6769
 
 # data/ (sqlite db, vault, uploads, keys) should be a mounted volume so it survives
-# rebuilds:  docker run -p 8000:8000 -v alles-data:/app/data alles
+# rebuilds:  docker run -p 6769:6769 -v alles-data:/app/data alles
 VOLUME ["/app/data"]
 
 # fail the container build/health early if the install is broken
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s \
-    CMD python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/health').read() else 1)" || exit 1
+    CMD python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:6769/health').read() else 1)" || exit 1
 
 CMD ["python", "app.py"]

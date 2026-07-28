@@ -14,6 +14,33 @@ from tests._client import ApiTest
 
 
 class ConnectionsApiTest(ApiTest):
+    @staticmethod
+    def _reload_configured_secretstore():
+        secretstore._key = None
+        secretstore._key_path = None
+        secretstore._keys = {}
+        secretstore._active_id = ""
+        secretstore._load_keyring()
+
+    def setUp(self):
+        super().setUp()
+        self._secret_state = (
+            secretstore._key,
+            secretstore._key_path,
+            dict(secretstore._keys),
+            secretstore._active_id,
+        )
+        self._reload_configured_secretstore()
+        self.addCleanup(self._restore_secretstore)
+
+    def _restore_secretstore(self):
+        (
+            secretstore._key,
+            secretstore._key_path,
+            secretstore._keys,
+            secretstore._active_id,
+        ) = self._secret_state
+
     def test_startup_migrates_plaintext_s3_credentials(self):
         from core import database
 
@@ -257,7 +284,10 @@ class ConnectionsApiTest(ApiTest):
 
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
-            with mock.patch.object(secretstore, "_KEY_FILE", root / "secret.key"):
+            with (
+                mock.patch.object(secretstore, "_KEY_FILE", root / "secret.key"),
+                mock.patch.object(settings, "_SETTINGS_FILE", root / "settings.json"),
+            ):
                 secretstore._key = None
                 secretstore._key_path = None
                 secretstore._keys = {}

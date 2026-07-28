@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Standalone fake-data KOKUEN Plan starter for Afterlife Phase 8.">
+  <title>Alles Plan - Phase 8 KOKUEN starter</title>
+  <link rel="stylesheet" href="starter.css">
+</head>
+<body data-density="comfortable" data-demo-state="ready">
+  <a class="skip-link" href="#main">skip to plan</a>
+  <div class="app-shell">
+    <header class="product-bar">
+      <div class="brand-block"><span class="kokuen-mark" aria-hidden="true"></span><span class="wordmark">alles</span></div>
+      <div class="product-title"><span>specialists</span><span class="path-separator">/</span><strong>plan</strong><span class="path-separator">/</span><span>today</span></div>
+      <div class="bar-actions">
+        <button class="small-action" type="button" data-toast="starter only: returned to home">home</button>
+        <button class="state-trigger" type="button" data-state-trigger aria-expanded="false" aria-controls="state-menu">preview state</button>
+        <button class="switch-control" type="button" role="switch" aria-checked="false" aria-label="use light theme" data-switch="theme">
+          <span class="switch-track" aria-hidden="true"><span class="switch-knob"></span></span>
+        </button>
+        <div class="state-menu" id="state-menu" role="listbox" aria-label="preview state" hidden>
+          <button class="state-option" type="button" role="option" aria-selected="true" data-state="ready">ready</button>
+          <button class="state-option" type="button" role="option" aria-selected="false" data-state="loading">loading</button>
+          <button class="state-option" type="button" role="option" aria-selected="false" data-state="empty">empty</button>
+          <button class="state-option" type="button" role="option" aria-selected="false" data-state="partial">partial data</button>
+          <button class="state-option" type="button" role="option" aria-selected="false" data-state="error">refresh error</button>
+        </div>
+      </div>
+    </header>
+
+    <nav class="group-strip" aria-label="Phase 8 specialist starters">
+      <a class="group-link" href="plan.html" aria-current="page"><span class="group-index">01</span>plan</a>
+      <a class="group-link" href="inbox.html"><span class="group-index">02</span>inbox</a>
+      <a class="group-link" href="library.html"><span class="group-index">03</span>library</a>
+      <a class="group-link" href="health.html"><span class="group-index">04</span>health</a>
+      <a class="group-link" href="finance.html"><span class="group-index">05</span>finance</a>
+    </nav>
+
+    <main class="workbench" id="main">
+      <aside class="side-rail" aria-label="Plan sections">
+        <section class="rail-section">
+          <h2 class="rail-heading">time</h2>
+          <ul class="rail-list">
+            <li><button class="rail-action" type="button" aria-current="page"><span class="rail-mark">18</span><span class="rail-name">today</span><span class="rail-count">7</span></button></li>
+            <li><button class="rail-action" type="button" data-toast="showing the next seven days in the starter"><span class="rail-mark">7D</span><span class="rail-name">next 7 days</span><span class="rail-count">19</span></button></li>
+            <li><button class="rail-action" type="button" data-toast="showing unscheduled work in the starter"><span class="rail-mark">--</span><span class="rail-name">unscheduled</span><span class="rail-count">6</span></button></li>
+          </ul>
+        </section>
+        <section class="rail-section">
+          <h2 class="rail-heading">commitments</h2>
+          <ul class="rail-list">
+            <li><button class="rail-action" type="button"><span class="rail-mark">EV</span><span class="rail-name">calendar</span><span class="rail-count">4</span></button></li>
+            <li><button class="rail-action" type="button"><span class="rail-mark">TS</span><span class="rail-name">tasks</span><span class="rail-count">12</span></button></li>
+            <li><button class="rail-action" type="button"><span class="rail-mark">RM</span><span class="rail-name">reminders</span><span class="rail-count">3</span></button></li>
+          </ul>
+        </section>
+      </aside>
+
+      <section class="main-pane" aria-labelledby="plan-heading">
+        <header class="pane-header">
+          <div class="pane-heading"><h1 id="plan-heading">friday, july 18</h1><p>events, tasks, and reminders in one ordered day</p></div>
+          <div class="pane-spacer"></div>
+          <button class="quiet-action" type="button" data-toast="starter only: jumped to now">now</button>
+          <button class="primary-action" type="button" data-open-modal>capture</button>
+        </header>
+        <div class="tabs" role="tablist" aria-label="Plan view">
+          <button class="tab" id="plan-agenda-tab" type="button" role="tab" aria-selected="true" aria-controls="plan-agenda">agenda</button>
+          <button class="tab" id="plan-week-tab" type="button" role="tab" aria-selected="false" aria-controls="plan-week" tabindex="-1">week</button>
+          <button class="tab" id="plan-board-tab" type="button" role="tab" aria-selected="false" aria-controls="plan-board" tabindex="-1">task board</button>
+        </div>
+        <div class="demo-state" id="demo-state" role="status" hidden></div>
+        <div class="empty-state"><div><h2>nothing planned here</h2><p>This fake date has no events, tasks, or reminders. Calendar, backlog, and capture remain available.</p><button class="primary-action" type="button" data-open-modal>capture something</button></div></div>
+
+        <div class="data-content">
+          <div id="plan-agenda" role="tabpanel" aria-labelledby="plan-agenda-tab">
+            <section class="section-block">
+              <div class="section-title"><h2>morning</h2><p>three commitments</p></div>
+              <ul class="record-list">
+                <li class="record-row"><span class="record-time">08:30</span><div class="record-copy"><div class="record-title">review Stage 8 starter states</div><div class="record-meta">task · afterlife project · due today</div></div><button class="choice" type="button" role="checkbox" aria-checked="false" aria-label="mark review Stage 8 starter states complete">✓</button></li>
+                <li class="record-row"><span class="record-time">09:45</span><div class="record-copy"><div class="record-title">dentist, Zhongshan</div><div class="record-meta">calendar · personal · 45 minutes</div></div><span class="type-mark">EV</span></li>
+                <li class="record-row"><span class="record-time">11:10</span><div class="record-copy"><div class="record-title">send CIBC statement</div><div class="record-meta">reminder · one time · notification ready</div></div><span class="type-mark">RM</span></li>
+              </ul>
+            </section>
+            <section class="section-block">
+              <div class="section-title"><h2>afternoon</h2><p>two commitments</p></div>
+              <ul class="record-list">
+                <li class="record-row"><span class="record-time">13:30</span><div class="record-copy"><div class="record-title">focus block: Finance parity fixtures</div><div class="record-meta">calendar · work · 90 minutes</div></div><span class="type-mark">EV</span></li>
+                <li class="record-row"><span class="record-time">16:00</span><div class="record-copy"><div class="record-title">reply to Min about Sunday</div><div class="record-meta">task · personal · contact linked</div></div><button class="choice" type="button" role="checkbox" aria-checked="false" aria-label="mark reply to Min complete">✓</button></li>
+              </ul>
+            </section>
+            <section class="section-block">
+              <div class="section-title"><h2>evening</h2><p>two quiet items</p></div>
+              <ul class="record-list">
+                <li class="record-row"><span class="record-time">19:00</span><div class="record-copy"><div class="record-title">walk 30 minutes</div><div class="record-meta">task · health project reference only</div></div><button class="choice" type="button" role="checkbox" aria-checked="true" aria-label="walk 30 minutes complete">✓</button></li>
+                <li class="record-row"><span class="record-time">21:15</span><div class="record-copy"><div class="record-title">put passport by the door</div><div class="record-meta">reminder · local notification</div></div><span class="type-mark">RM</span></li>
+              </ul>
+            </section>
+          </div>
+          <div id="plan-week" role="tabpanel" aria-labelledby="plan-week-tab" hidden>
+            <section class="section-block"><div class="section-title"><h2>the next seven days</h2><p>19 commitments</p></div><div class="habit-grid"><button class="habit-day" type="button"><strong>4</strong><span>fri 18</span></button><button class="habit-day" type="button"><strong>2</strong><span>sat 19</span></button><button class="habit-day" type="button"><strong>1</strong><span>sun 20</span></button><button class="habit-day" type="button"><strong>5</strong><span>mon 21</span></button><button class="habit-day" type="button"><strong>3</strong><span>tue 22</span></button><button class="habit-day" type="button"><strong>2</strong><span>wed 23</span></button><button class="habit-day" type="button"><strong>2</strong><span>thu 24</span></button></div></section>
+          </div>
+          <div id="plan-board" role="tabpanel" aria-labelledby="plan-board-tab" hidden>
+            <section class="section-block"><div class="section-title"><h2>task stages</h2><p>existing task records, no copied board</p></div><div class="metric-line"><span>inbox</span><strong>6</strong></div><div class="metric-line"><span>planned</span><strong>9</strong></div><div class="metric-line"><span>in progress</span><strong>2</strong></div><div class="metric-line"><span>blocked</span><strong>1</strong></div></section>
+          </div>
+        </div>
+      </section>
+
+      <aside class="detail-pane" aria-label="Plan capture and unscheduled tasks">
+        <h2 class="detail-heading">quick capture</h2>
+        <div class="text-field"><label for="plan-capture">what needs attention?</label><input id="plan-capture" type="text" value="book train to Taichung"></div>
+        <div style="display:flex;gap:8px;margin-top:9px"><button class="primary-action" type="button" data-toast="starter only: task captured for inbox">add to task inbox</button></div>
+        <section class="rail-section">
+          <h2 class="detail-heading">unscheduled</h2>
+          <ul class="record-list">
+            <li class="record-row"><span class="type-mark">TS</span><div class="record-copy"><div class="record-title">renew library card</div><div class="record-meta">personal · no date</div></div><button class="choice" type="button" role="checkbox" aria-checked="false" aria-label="mark renew library card complete">✓</button></li>
+            <li class="record-row"><span class="type-mark">TS</span><div class="record-copy"><div class="record-title">label Actual backup</div><div class="record-meta">afterlife · no date</div></div><button class="choice" type="button" role="checkbox" aria-checked="false" aria-label="mark label Actual backup complete">✓</button></li>
+          </ul>
+        </section>
+        <section class="rail-section">
+          <h2 class="detail-heading">behavior</h2>
+          <div class="metric-line"><span>compact rows</span><button class="switch-control" type="button" role="switch" aria-checked="false" aria-label="compact rows" data-switch="density" data-status="compact rows"><span class="switch-track" aria-hidden="true"><span class="switch-knob"></span></span></button></div>
+          <div class="metric-line"><span>morning reminders</span><button class="switch-control" type="button" role="switch" aria-checked="true" aria-label="morning reminders" data-switch="morning" data-status="morning reminders"><span class="switch-track" aria-hidden="true"><span class="switch-knob"></span></span></button></div>
+        </section>
+      </aside>
+    </main>
+
+    <footer class="status-footer"><span>fake data only · no Alles API calls</span><span class="footer-right">calendar + tasks + reminders remain separate records</span></footer>
+  </div>
+
+  <div class="modal-backdrop" id="starter-modal" role="presentation" hidden>
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="capture-title">
+      <header class="modal-header"><h2 id="capture-title">capture to Plan</h2></header>
+      <div class="modal-body"><div class="text-field"><label for="capture-title-field">title</label><input id="capture-title-field" value="confirm Sunday dinner"></div><div class="text-field" style="margin-top:12px"><label for="capture-notes">notes</label><textarea id="capture-notes">ask Min whether 18:30 works</textarea></div><p style="margin-top:12px;color:var(--muted);font-size:.75rem;line-height:1.5">The real version will use custom type and date choices. This local starter does not write anything.</p></div>
+      <footer class="modal-actions"><button class="quiet-action" type="button" data-close-modal>cancel</button><button class="primary-action" type="button" data-close-modal data-toast="starter only: captured as a task">capture task</button></footer>
+    </section>
+  </div>
+  <div class="toast" id="starter-toast" role="status" aria-live="polite" hidden></div>
+  <script src="starter.js"></script>
+</body>
+</html>

@@ -1,0 +1,66 @@
+# design QA checklist
+
+Do not mark a design or implementation complete until every applicable item passes with fresh evidence.
+
+## product and flow
+
+- [ ] the user, goal, entry point, and successful ending are clear
+- [ ] the primary task can be completed
+- [ ] alternate, recovery, cancel, and interrupted paths work
+- [ ] the design preserves shipped behavior or names an approved behavior change
+- [ ] one primary action is clear without hiding necessary secondary actions
+
+## system consistency
+
+- [ ] the screen uses the correct list, timeline, workspace, or dashboard shape
+- [ ] existing components were checked before a new component was added
+- [ ] colors, type, spacing, radii, rows, and motion use documented tokens
+- [ ] header, route, local context, and settings placement match KOKUEN
+- [ ] a finished app owns its header or rail identity and does not show the legacy `<app> / alles` crumb
+- [ ] the app name appears once and is not repeated as an oversized landing or workbench title
+- [ ] there is no old global sidebar, accidental bold, decorative line, nested box clutter, or dead space
+- [ ] no visible native select, dropdown, checkbox, radio, or context menu exists
+
+## content and states
+
+- [ ] labels name the action or destination plainly
+- [ ] errors state the cause and next action
+- [ ] loading matches the final layout
+- [ ] empty, partial, error, offline, permission, disabled, and long-content states work where relevant
+- [ ] realistic data fits without clipping or misleading truncation
+
+## accessibility
+
+- [ ] semantic roles, accessible names, reading order, and announcements are correct
+- [ ] the full task works by keyboard with visible focus and sensible focus return
+- [ ] meaning does not depend on color alone
+- [ ] text and controls meet WCAG 2.2 AA contrast requirements
+- [ ] 200% zoom and text resizing do not hide content or actions
+- [ ] mobile targets are at least 44px when space allows and no smaller than the documented exception
+- [ ] reduced motion keeps every control and piece of content usable
+
+## responsive and visual quality
+
+- [ ] desktop and mobile use deliberate reflow, not simple scaling
+- [ ] no horizontal page overflow, clipped text, overlap, or cut-off control exists
+- [ ] parallel rows and columns align across variable content
+- [ ] the hierarchy reads at a glance and secondary information stays readable
+- [ ] hover, focus, pressed, selected, disabled, and loading states do not shift layout
+- [ ] light and dark themes preserve hierarchy and contrast
+
+## technical proof
+
+- [ ] every visible control was clicked or used with a real pointer
+- [ ] keyboard, mobile, zoom, theme, and reduced-motion checks were run
+- [ ] browser console has no new errors
+- [ ] focused regression tests pass
+- [ ] broader checks were run in proportion to risk
+- [ ] browser and integration tests used throwaway data, never the owner's normal data
+- [ ] the exact HTML starter was approved before any material real-app rework
+
+## final anti-slop pass
+
+- [ ] every visual choice serves this product and could not be pasted unchanged into an unrelated app
+- [ ] one unnecessary flourish was removed
+- [ ] content is visible by default without waiting for animation
+- [ ] no trend, generic template, or reference product was copied as a complete design

@@ -1,4 +1,5 @@
 import time
+from datetime import UTC
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import RedirectResponse
@@ -183,9 +184,9 @@ def add_account(body: AcctBody, db: DbSession = Depends(get_db)):
 @router.patch("/accounts/{aid}")
 def patch_account(aid: str, body: AcctBody, db: DbSession = Depends(get_db)):
     a = _get(db, aid)
-    data = body.model_dump()
+    data = body.model_dump(exclude_unset=True)
     if not data.get("password"):
-        data.pop("password")  # keep the existing password if the form left it blank
+        data.pop("password", None)  # keep the existing password if the form left it blank
     for k, v in data.items():
         setattr(a, k, v)
     db.commit()
@@ -571,7 +572,9 @@ def send_undoable(aid: str, body: UndoableBody, db: DbSession = Depends(get_db))
     from core.database import ScheduledMail
 
     _get(db, aid)
-    send_at = (datetime.utcnow() + timedelta(seconds=max(1, body.delay))).isoformat()
+    send_at = (
+        datetime.now(UTC).replace(tzinfo=None) + timedelta(seconds=max(1, body.delay))
+    ).isoformat()
     data = body.model_dump()
     data.pop("delay", None)
     s = ScheduledMail(account_id=aid, status="scheduled", send_at=send_at, **data)
@@ -794,7 +797,8 @@ async def smart_reply(body: SmartReplyBody, db: DbSession = Depends(get_db)):
             "Suggest exactly 3 short, distinct email replies to the message below. "
             "One per line, no numbering, no preamble.\n\n" + (body.text or "")[:4000]
         )
-        model = (ep.models or "").split(",")[0].strip() if getattr(ep, "models", "") else ""
+        models = ep.models_list()
+        model = models[0] if models else ""
         out = ""
         async for chunk in stream_chat(
             [{"role": "user", "content": prompt}], ep.base_url, ep.api_key, model

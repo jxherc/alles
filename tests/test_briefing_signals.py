@@ -27,8 +27,17 @@ class BriefingSignalsTests(ApiTest):
         d.add(Task(title="standup", done=False, due_date=_iso(0)))
         d.add(Habit(name="floss", archived=False, cadence="daily"))
         d.add(Book(title="dune", status="reading"))
-        d.add(Subscription(name="netflix", price=9.0, currency="$", cycle="monthly",
-                           active=True, next_due=_iso(0), remind_days=1))
+        d.add(
+            Subscription(
+                name="netflix",
+                price=9.0,
+                currency="$",
+                cycle="monthly",
+                active=True,
+                next_due=_iso(0),
+                remind_days=1,
+            )
+        )
         d.add(HealthEntry(kind="weight", value=70.0, unit="kg", date=_iso(0)))
         d.commit()
         d.close()
@@ -40,14 +49,17 @@ class BriefingSignalsTests(ApiTest):
             b = compose_briefing(d, date.today())
         finally:
             d.close()
-        self.assertEqual(b["lines"], [
-            "1 event today — lunch",
-            "2 due tasks — rent, standup",
-            "habits left — floss",
-            "reading — dune",
-            "renewing soon — netflix ($9)",
-            f"weight — 70 kg (last logged {_iso(0)})",
-        ])
+        self.assertEqual(
+            b["lines"],
+            [
+                "1 event today — lunch",
+                "2 due tasks — rent, standup",
+                "habits left — floss",
+                "reading — dune",
+                "renewing soon — netflix ($9)",
+                f"weight — 70 kg (last logged {_iso(0)})",
+            ],
+        )
         self.assertTrue(b["has_content"])
         self.assertEqual(b["title"], f"your {date.today():%A} briefing")
 

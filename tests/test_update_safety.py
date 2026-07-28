@@ -24,6 +24,7 @@ from services.restore_apply import (
     swap_in_staged,
 )
 from services.update_safety import (
+    UpdateCommandLock,
     UpdateSafetyError,
     begin_update,
     finish_update,
@@ -41,6 +42,28 @@ class UpdateMaintenanceTest(unittest.TestCase):
 
     def tearDown(self):
         self.tmp.cleanup()
+
+    def test_update_command_lock_excludes_acceptance_and_rollback(self):
+        first = UpdateCommandLock(self.data).acquire()
+        second = UpdateCommandLock(self.data)
+        try:
+            with self.assertRaisesRegex(UpdateSafetyError, "another update command"):
+                second.acquire()
+        finally:
+            first.release()
+        self.assertIs(second.acquire(), second)
+        second.release()
+
+    def test_update_command_lock_refuses_a_symlink_without_touching_its_target(self):
+        target = self.root / "owner-file"
+        target.write_bytes(b"owner content")
+        lock = UpdateCommandLock(self.data)
+        lock.path.symlink_to(target)
+
+        with self.assertRaisesRegex(UpdateSafetyError, "another update command"):
+            lock.acquire()
+
+        self.assertEqual(target.read_bytes(), b"owner content")
 
     def test_marker_blocks_every_token_except_its_exact_update(self):
         update_id = "a" * 32
@@ -149,7 +172,26 @@ class UpdateMaintenanceTest(unittest.TestCase):
 
         update_dir = self.root / "first-key-updates"
         update_dir.mkdir()
-        rollback, candidate, encrypted = cli._stage_update_data(live, cli.ROOT, update_dir)
+        published = []
+
+        def artifact_callback(**artifact):
+            published.append(artifact)
+            self.assertFalse(Path(artifact["backup"]).exists())
+            recovery = staging_root(live) / "staged"
+            self.assertFalse((recovery / artifact["restore_id"]).exists())
+            self.assertFalse((recovery / artifact["candidate_id"]).exists())
+
+        rollback, candidate, encrypted = cli._stage_update_data(
+            live,
+            cli.ROOT,
+            update_dir,
+            artifact_callback=artifact_callback,
+        )
+
+        self.assertEqual(len(published), 1)
+        self.assertEqual(published[0]["restore_id"], rollback.restore_id)
+        self.assertEqual(published[0]["candidate_id"], candidate.restore_id)
+        self.assertEqual(published[0]["backup"], str(encrypted))
 
         live_key = load_recovery_key(recovery_key_path(live))
         self.assertEqual(load_recovery_key(recovery_key_path(rollback.data_dir)), live_key)

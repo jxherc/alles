@@ -2,8 +2,9 @@
 // the charts (no chart lib), api() helper for the fetches.
 import { api, toast } from './util.js';
 import { confirm as dlgConfirm, fields as dlgFields } from './dialog.js';
-import { initCustomDropdown, getDropdownValue } from './dropdown.js?v=210';
+import { initCustomDropdown, getDropdownValue } from './dropdown.js?v=212';
 import { initDatePicker } from './datepick.js';
+import { formatCalendarDate, formatDate, formatNumber } from './i18n.js';
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -25,6 +26,93 @@ let _editTxn = null;   // id of the txn row currently being edited inline
 let _splitTxn = null;  // id of the txn whose split editor is open (4a)
 let _splitRows = [];   // working split rows in the open editor
 let _tagFilter = '';   // active tag filter (4a)
+const _pendingCreateRequests = new Map();
+const _createRequestKey = kind => `alles:finance-create:${kind}`;
+
+function _newCreateRequestId() {
+  if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+  const bytes = new Uint8Array(16);
+  globalThis.crypto.getRandomValues(bytes);
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = [...bytes].map(value => value.toString(16).padStart(2, '0')).join('');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
+function _canonicalCreatePayload(value) {
+  if (Array.isArray(value)) return value.map(_canonicalCreatePayload);
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.keys(value).sort().map(key => [key, _canonicalCreatePayload(value[key])]),
+    );
+  }
+  return value;
+}
+
+async function _createPayloadFingerprint(payload) {
+  const canonical = JSON.stringify(_canonicalCreatePayload(payload));
+  try {
+    const digest = await globalThis.crypto.subtle.digest(
+      'SHA-256',
+      new TextEncoder().encode(canonical),
+    );
+    return {
+      fingerprint: [...new Uint8Array(digest)]
+        .map(value => value.toString(16).padStart(2, '0'))
+        .join(''),
+      persistable: true,
+    };
+  } catch {
+    // Preserve exact retry matching only in memory. Persisting this fallback would copy private
+    // Finance fields verbatim into browser storage when Web Crypto is unavailable.
+    return { fingerprint: canonical, persistable: false };
+  }
+}
+
+async function _createRequestId(kind, payload) {
+  const { fingerprint, persistable } = await _createPayloadFingerprint(payload);
+  const pending = _pendingCreateRequests.get(kind);
+  if (pending?.active) throw new Error(`${kind} creation is already in progress`);
+  if (pending?.fingerprint === fingerprint) {
+    pending.active = true;
+    return pending.requestId;
+  }
+  let stored = null;
+  if (persistable) {
+    try { stored = JSON.parse(sessionStorage.getItem(_createRequestKey(kind)) || 'null'); } catch {}
+  }
+  let requestId = (
+    stored?.fingerprint === fingerprint
+    && /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(stored.request_id || '')
+  ) ? stored.request_id : '';
+  if (!requestId) requestId = _newCreateRequestId();
+  _pendingCreateRequests.set(kind, { requestId, fingerprint, active: true });
+  if (persistable) {
+    try {
+      sessionStorage.setItem(
+        _createRequestKey(kind),
+        JSON.stringify({ request_id: requestId, fingerprint }),
+      );
+    } catch {}
+  }
+  return requestId;
+}
+
+function _releaseCreateRequest(kind, requestId) {
+  const pending = _pendingCreateRequests.get(kind);
+  if (pending?.requestId === requestId) pending.active = false;
+}
+
+function _completeCreateRequest(kind, requestId) {
+  const pending = _pendingCreateRequests.get(kind);
+  if (pending?.requestId !== requestId) return;
+  _pendingCreateRequests.delete(kind);
+  try {
+    const stored = JSON.parse(sessionStorage.getItem(_createRequestKey(kind)) || 'null');
+    if (stored?.request_id === requestId) sessionStorage.removeItem(_createRequestKey(kind));
+  } catch {}
+}
+
 function _today() { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; }
 function _shiftMonth(m, delta) {
   let [y, mo] = m.split('-').map(Number); mo += delta;
@@ -32,18 +120,18 @@ function _shiftMonth(m, delta) {
   return `${y}-${String(mo).padStart(2, '0')}`;
 }
 function _monthLabel(m) {
-  const [y, mo] = m.split('-').map(Number);
-  return new Date(y, mo - 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }).toLowerCase();
+  return formatCalendarDate(`${m}-01`, { month: 'long', year: 'numeric' }).toLowerCase();
 }
-const fmt = n => `${_cur}${(Math.round((n || 0) * 100) / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const fmt = n => `${_cur}${formatNumber(Math.round((n || 0) * 100) / 100, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const signed = n => (n >= 0 ? '+' : '−') + fmt(Math.abs(n));
 
-export function initMoneyPanel() {
+export function initMoneyPanel(fetcher = fetch) {
   if (!_inited) {
     _inited = true;
     $('money-prev')?.addEventListener('click', () => { _month = _shiftMonth(_month, -1); load(); });
     $('money-next')?.addEventListener('click', () => { _month = _shiftMonth(_month, 1); load(); });
     const imp = $('money-import'), fileInp = $('money-import-file');
+    $('money-connect')?.addEventListener('click', openBankConnections);
     imp?.addEventListener('click', () => {
       if (!_accounts.length) { toast('add an account first', 'error'); return; }
       fileInp?.click();
@@ -60,31 +148,124 @@ export function initMoneyPanel() {
       fileInp.value = '';
     });
   }
-  load();
+  return load(fetcher);
 }
 
-async function load() {
+async function _ownerFetch(path, options = {}) {
+  const init = { ...options };
+  if (init.body && typeof init.body !== 'string') {
+    init.headers = { 'content-type': 'application/json', ...(init.headers || {}) };
+    init.body = JSON.stringify(init.body);
+  }
+  let response = await (window._fetchWithRecentOwner?.(path, init) || fetch(path, init));
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(payload.detail?.message || payload.detail || `request failed (${response.status})`);
+  return payload;
+}
+
+function _bankDialog() {
+  const overlay = document.createElement('div');
+  overlay.className = 'dialog-overlay finance-bank-overlay';
+  overlay.innerHTML = `<section class="dialog-card finance-bank-dialog" role="dialog" aria-modal="true" aria-labelledby="finance-bank-title">
+    <header class="finance-bank-head"><div><h2 id="finance-bank-title">bank connections</h2><p>read-only sync. Alles never asks for a bank password.</p></div><button class="btn" type="button" data-bank-close>close</button></header>
+    <div class="finance-bank-status" role="status" aria-live="polite"></div>
+    <div class="finance-bank-connections"></div>
+    <div class="finance-bank-setup">
+      <section><h3>SimpleFIN</h3><p>Paste a one-time setup token. It is exchanged once and never shown again.</p><label for="finance-simplefin-token">setup token</label><textarea id="finance-simplefin-token" rows="3" autocomplete="off" spellcheck="false"></textarea><button class="btn" type="button" data-bank-simplefin>connect SimpleFIN</button></section>
+      <section><h3>Plaid</h3><p>Use your Plaid application credentials, then finish in official Plaid Link.</p><label for="finance-plaid-client">client id</label><input id="finance-plaid-client" autocomplete="off"><label for="finance-plaid-secret">secret</label><input id="finance-plaid-secret" type="password" autocomplete="new-password"><div class="finance-bank-environments" role="group" aria-label="Plaid environment"><button class="btn active" type="button" aria-pressed="true" data-plaid-env="sandbox">sandbox</button><button class="btn" type="button" aria-pressed="false" data-plaid-env="production">production</button></div><button class="btn" type="button" data-bank-plaid>connect Plaid</button></section>
+    </div>
+  </section>`;
+  return overlay;
+}
+
+async function _plaidSdk() {
+  if (window.Plaid?.create) return window.Plaid;
+  const existing = document.querySelector('script[data-alles-plaid-link]');
+  if (existing) await new Promise((resolve, reject) => { existing.addEventListener('load', resolve, { once: true }); existing.addEventListener('error', reject, { once: true }); });
+  else await new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = 'https://cdn.plaid.com/link/v2/stable/link-initialize.js';
+    script.async = true; script.dataset.allesPlaidLink = '1';
+    script.onload = resolve; script.onerror = reject; document.head.append(script);
+  });
+  if (!window.Plaid?.create) throw new Error('Plaid Link did not load');
+  return window.Plaid;
+}
+
+async function _finishPlaid(connection, setStatus) {
+  const token = await _ownerFetch(`/api/finance/connections/${encodeURIComponent(connection.id)}/plaid/link-token`, { method: 'POST' });
+  const Plaid = await _plaidSdk();
+  await new Promise((resolve, reject) => {
+    const handler = Plaid.create({
+      token: token.link_token,
+      onSuccess: async publicToken => {
+        try {
+          await _ownerFetch(`/api/finance/connections/${encodeURIComponent(connection.id)}/plaid/exchange`, { method: 'POST', body: { public_token: publicToken } });
+          resolve();
+        } catch (error) { reject(error); }
+      },
+      onExit: error => error ? reject(new Error(error.display_message || error.error_message || 'Plaid Link closed with an error')) : reject(new Error('Plaid Link was closed')),
+    });
+    handler.open();
+  });
+  setStatus('Plaid connected. Run sync when you are ready.');
+}
+
+async function openBankConnections() {
+  const overlay = _bankDialog();
+  const prior = document.activeElement;
+  document.body.append(overlay);
+  const status = overlay.querySelector('.finance-bank-status');
+  const setStatus = (message, error = false) => { status.textContent = message; status.dataset.error = error ? 'true' : 'false'; };
+  const close = () => { overlay.remove(); prior?.focus?.(); };
+  overlay.querySelector('[data-bank-close]').addEventListener('click', close);
+  overlay.addEventListener('keydown', event => { if (event.key === 'Escape') { event.preventDefault(); close(); } });
+  overlay.addEventListener('click', event => { if (event.target === overlay) close(); });
+  overlay.querySelector('[data-bank-close]').focus();
+  let environment = 'sandbox';
+  overlay.querySelectorAll('[data-plaid-env]').forEach(button => button.addEventListener('click', () => {
+    environment = button.dataset.plaidEnv;
+    overlay.querySelectorAll('[data-plaid-env]').forEach(item => { const active = item === button; item.classList.toggle('active', active); item.setAttribute('aria-pressed', String(active)); });
+  }));
+  const refresh = async () => {
+    const payload = await _ownerFetch('/api/finance/connections');
+    const host = overlay.querySelector('.finance-bank-connections');
+    host.innerHTML = payload.connections.length ? payload.connections.map(connection => `<article class="finance-bank-row" data-bank-id="${esc(connection.id)}"><div><strong>${esc(connection.label)}</strong><span>${esc(connection.status)}${connection.last_synced_at ? ` · synced ${esc(formatDate(connection.last_synced_at))}` : ''}</span>${connection.last_error ? `<small>${esc(connection.last_error)}</small>` : ''}</div><div><button class="btn" type="button" data-bank-sync>sync</button>${connection.provider === 'plaid' && connection.status === 'link_required' ? '<button class="btn" type="button" data-bank-link>open Link</button>' : ''}<button class="btn" type="button" data-bank-disconnect>disconnect</button></div></article>`).join('') : '<p class="finance-bank-empty">no bank connections</p>';
+    host.querySelectorAll('[data-bank-id]').forEach(row => {
+      const connection = payload.connections.find(item => item.id === row.dataset.bankId);
+      row.querySelector('[data-bank-sync]')?.addEventListener('click', async () => { try { setStatus('syncing…'); const result = await _ownerFetch(`/api/finance/connections/${encodeURIComponent(connection.id)}/sync`, { method: 'POST' }); setStatus(`sync complete · ${result.created || 0} new · ${result.updated || 0} updated`); await refresh(); await load(); } catch (error) { setStatus(error.message, true); } });
+      row.querySelector('[data-bank-link]')?.addEventListener('click', async () => { try { setStatus('opening Plaid Link…'); await _finishPlaid(connection, setStatus); await refresh(); } catch (error) { setStatus(error.message, true); } });
+      row.querySelector('[data-bank-disconnect]')?.addEventListener('click', async () => { if (!await dlgConfirm(`disconnect ${connection.label}? imported transactions stay in Finance.`)) return; try { await _ownerFetch(`/api/finance/connections/${encodeURIComponent(connection.id)}`, { method: 'DELETE' }); setStatus('connection revoked'); await refresh(); } catch (error) { setStatus(error.message, true); } });
+    });
+  };
+  overlay.querySelector('[data-bank-simplefin]').addEventListener('click', async () => { const token = overlay.querySelector('#finance-simplefin-token'); try { setStatus('exchanging one-time token…'); await _ownerFetch('/api/finance/connections/simplefin', { method: 'POST', body: { setup_token: token.value.trim() } }); token.value = ''; setStatus('SimpleFIN connected'); await refresh(); } catch (error) { setStatus(error.message, true); } });
+  overlay.querySelector('[data-bank-plaid]').addEventListener('click', async () => { const clientId = overlay.querySelector('#finance-plaid-client'), secret = overlay.querySelector('#finance-plaid-secret'); try { setStatus('saving encrypted Plaid credentials…'); const connection = await _ownerFetch('/api/finance/connections/plaid', { method: 'POST', body: { client_id: clientId.value.trim(), secret: secret.value, environment } }); secret.value = ''; await _finishPlaid(connection, setStatus); await refresh(); } catch (error) { setStatus(error.message, true); } });
+  try { await refresh(); } catch (error) { setStatus(error.message, true); }
+}
+
+async function load(fetcher = fetch) {
+  const request = (path, options = {}) => api(path, options, fetcher);
   const lbl = $('money-month-label'); if (lbl) lbl.textContent = _monthLabel(_month);
   _setMonthUrl();
   _searchResults = null;   // month change / reload clears any active search
   try {
     // post any due recurring txns FIRST (and advance them) so the balances,
     // transactions and summary we read next all reflect them — no stale first load
-    _recurring = await api('/api/money/recurring').catch(() => []);
+    _recurring = await request('/api/money/recurring').catch(() => []);
     [_accounts, _txns, _budgets, _sum, _rules, _envelope, _aom, _forecast, _nwhist, _holdings, _alerts] = await Promise.all([
-      api('/api/money/accounts'),
-      api(`/api/money/transactions?month=${_month}`),
-      api('/api/money/budgets'),
-      api(`/api/money/summary?month=${_month}`),
-      api('/api/money/rules').catch(() => []),
-      api(`/api/money/envelope?month=${_month}`).catch(() => null),
-      api('/api/money/age-of-money').catch(() => null),
-      api(`/api/money/forecast?month=${_month}`).catch(() => null),
-      api('/api/money/networth-history?months=6').catch(() => []),
-      api('/api/money/holdings').catch(() => null),
-      api(`/api/money/alerts?month=${_month}`).catch(() => null),
+      request('/api/money/accounts'),
+      request(`/api/money/transactions?month=${_month}`),
+      request('/api/money/budgets'),
+      request(`/api/money/summary?month=${_month}`),
+      request('/api/money/rules').catch(() => []),
+      request(`/api/money/envelope?month=${_month}`).catch(() => null),
+      request('/api/money/age-of-money').catch(() => null),
+      request(`/api/money/forecast?month=${_month}`).catch(() => null),
+      request('/api/money/networth-history?months=6').catch(() => []),
+      request('/api/money/holdings').catch(() => null),
+      request(`/api/money/alerts?month=${_month}`).catch(() => null),
     ]);
-    _goals = (await api('/api/money/goals').catch(() => null))?.goals || [];
+    _goals = (await request('/api/money/goals').catch(() => null))?.goals || [];
     _cur = _sum?.currency || (_accounts[0]?.currency) || '$';
   } catch { $('money-body').innerHTML = '<div class="money-empty">failed to load</div>'; return; }
   render();
@@ -597,10 +778,18 @@ async function addAccount() {
   if (!name) { toast('name the account', 'error'); return; }
   const opening = parseFloat($('af-open')?.value) || 0;
   const low_balance = parseFloat($('af-low')?.value) || 0;
+  let requestId = '';
   try {
-    await api('/api/money/accounts', { method: 'POST', body: { name, kind: getDropdownValue($('af-kind')), opening, low_balance } });
+    const accountPayload = { name, kind: getDropdownValue($('af-kind')), opening, low_balance };
+    requestId = await _createRequestId('account', accountPayload);
+    accountPayload.request_id = requestId;
+    await api('/api/money/accounts', { method: 'POST', body: accountPayload });
+    _completeCreateRequest('account', requestId);
     await load();
-  } catch { toast('couldn\'t add account', 'error'); }
+  } catch {
+    if (requestId) _releaseCreateRequest('account', requestId);
+    toast('couldn\'t add account', 'error');
+  }
 }
 async function delAccount(id) {
   if (!await dlgConfirm('delete this account and all its transactions?')) return;
@@ -611,14 +800,22 @@ async function addTxn() {
   const amtRaw = parseFloat($('tx-amt')?.value);
   if (!amtRaw || amtRaw <= 0) { toast('enter an amount', 'error'); return; }
   const sign = getDropdownValue($('tx-sign')) === '+' ? 1 : -1;
+  let requestId = '';
   try {
-    await api('/api/money/transactions', { method: 'POST', body: {
+    const transactionPayload = {
       account_id: getDropdownValue($('tx-acct')), date: $('tx-date')?.dataset.value || _today(),
       amount: sign * amtRaw, category: $('tx-cat').value.trim(), payee: $('tx-payee').value.trim(),
       tags: $('tx-tags')?.value.trim() || '',
-    } });
+    };
+    requestId = await _createRequestId('transaction', transactionPayload);
+    transactionPayload.request_id = requestId;
+    await api('/api/money/transactions', { method: 'POST', body: transactionPayload });
+    _completeCreateRequest('transaction', requestId);
     await load();
-  } catch { toast('couldn\'t add transaction', 'error'); }
+  } catch {
+    if (requestId) _releaseCreateRequest('transaction', requestId);
+    toast('couldn\'t add transaction', 'error');
+  }
 }
 async function delTxn(id) {
   try { await api(`/api/money/transactions/${id}`, { method: 'DELETE' }); await load(); }
@@ -710,13 +907,21 @@ async function doTransfer() {
   const amt = parseFloat($('tr-amt')?.value);
   if (!amt || amt <= 0) { toast('enter an amount', 'error'); return; }
   if (from === to) { toast('pick two different accounts', 'error'); return; }
+  let requestId = '';
   try {
-    await api('/api/money/transfer', { method: 'POST', body: {
+    const transferPayload = {
       from_account: from, to_account: to, amount: amt, date: $('tr-date')?.dataset.value || _today(),
-    } });
+    };
+    requestId = await _createRequestId('transfer', transferPayload);
+    transferPayload.request_id = requestId;
+    await api('/api/money/transfer', { method: 'POST', body: transferPayload });
+    _completeCreateRequest('transfer', requestId);
     toast('transferred', 'success');
     await load();
-  } catch { toast('transfer failed', 'error'); }
+  } catch {
+    if (requestId) _releaseCreateRequest('transfer', requestId);
+    toast('transfer failed', 'error');
+  }
 }
 async function delTransfer(tid) {
   if (!await dlgConfirm('delete this transfer (removes both legs)?')) return;
@@ -772,7 +977,7 @@ async function runBaseNw() {
   const out = $('nw-base-out'); if (!out) return;
   try {
     const d = await api(`/api/money/networth-base?base=${encodeURIComponent(base)}`);
-    out.textContent = `${d.net_worth.toLocaleString('en-US', { minimumFractionDigits: 2 })} ${d.base}`;
+    out.textContent = `${formatNumber(d.net_worth, { minimumFractionDigits: 2 })} ${d.base}`;
   } catch { out.textContent = 'fx failed'; }
 }
 async function addHolding() {

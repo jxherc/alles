@@ -1,7 +1,6 @@
 import unittest
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -27,7 +26,9 @@ class ApiTokenUiTest(unittest.TestCase):
 
     def test_sensitive_token_actions_can_request_recent_owner_auth(self):
         self.assertIn("/api/auth/reauth", self.js)
-        self.assertIn("options.secret ? 'password'", (ROOT / "static/js/dialog.js").read_text("utf-8"))
+        self.assertIn(
+            "options.secret ? 'password'", (ROOT / "static/js/dialog.js").read_text("utf-8")
+        )
 
 
 if __name__ == "__main__":

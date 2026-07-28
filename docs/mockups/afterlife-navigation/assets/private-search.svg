@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 420" role="img" aria-labelledby="title desc">
+  <title id="title">private self-hosted search</title>
+  <desc id="desc">a simple server and shield on a dark background</desc>
+  <rect width="640" height="420" fill="#111111"/>
+  <rect x="86" y="92" width="258" height="236" rx="8" fill="#171717" stroke="#4b4b4b"/>
+  <g fill="#0b0b0b" stroke="#555555">
+    <rect x="112" y="122" width="206" height="45" rx="4"/>
+    <rect x="112" y="187" width="206" height="45" rx="4"/>
+    <rect x="112" y="252" width="206" height="45" rx="4"/>
+  </g>
+  <g fill="#818cf8">
+    <circle cx="138" cy="144" r="5"/>
+    <circle cx="138" cy="209" r="5"/>
+    <circle cx="138" cy="274" r="5"/>
+  </g>
+  <g fill="#676767">
+    <rect x="158" y="139" width="112" height="9" rx="4"/>
+    <rect x="158" y="204" width="90" height="9" rx="4"/>
+    <rect x="158" y="269" width="126" height="9" rx="4"/>
+  </g>
+  <path d="M464 105c29 24 57 27 81 29v77c0 54-35 89-81 109-46-20-81-55-81-109v-77c24-2 52-5 81-29Z" fill="#171717" stroke="#747474" stroke-width="3"/>
+  <path d="m428 210 25 25 50-57" fill="none" stroke="#9298ff" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

@@ -1,7 +1,7 @@
 // health — a simple health/fitness log. log weight/sleep/workout/meds/custom, see the
 // latest reading + a hand-drawn trend line per metric over a range. mirrors panel conventions.
 import { toast } from './util.js';
-import { initCustomDropdown } from './dropdown.js?v=210';
+import { initCustomDropdown } from './dropdown.js?v=212';
 import { confirm as dlgConfirm, prompt as dlgPrompt } from './dialog.js';
 const _si = n => (window.icon ? window.icon(n) : '');
 
@@ -15,15 +15,15 @@ const KIND_UNIT = { weight: 'kg', sleep: 'h', workout: 'min', med: '', custom: '
 const KIND_LABEL = { weight: 'weight', sleep: 'sleep', workout: 'workout', med: 'meds', custom: 'custom' };
 const RANGES = [[7, '7d'], [30, '30d'], [90, '90d'], [365, '1y']];
 
-export function initHealth() { loadHealth(); }
+export function initHealth(fetcher = fetch) { return loadHealth(fetcher); }
 
-export async function loadHealth() {
+export async function loadHealth(fetcher = fetch) {
   // check r.ok — a non-2xx (e.g. a 401 on a subdomain) still returns JSON, and a
   // {detail:…} body with no `kinds` would crash _render and blank the page.
   try {
-    const ro = await fetch('/api/health/overview?days=' + _days);
+    const ro = await fetcher('/api/health/overview?days=' + _days);
     _data = ro.ok ? await ro.json() : { kinds: [], days: _days };
-    const re = await fetch('/api/health');
+    const re = await fetcher('/api/health');
     _entries = re.ok ? ((await re.json()).entries || []) : [];
   } catch { _data = { kinds: [], days: _days }; _entries = []; }
   if (!_data || !Array.isArray(_data.kinds)) _data = { kinds: [], days: _days };

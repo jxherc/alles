@@ -1,5 +1,6 @@
 """ui-3i verify — right-click in the docs editor opens a custom (non-native) context
 menu with cut/copy/paste, format, headings and AI actions; format applies to the selection."""
+
 import sys
 
 from playwright.sync_api import sync_playwright
@@ -40,9 +41,23 @@ def run():
         ok("custom menu opens", menu is not None)
         if menu:
             txt = menu.inner_text().lower()
-            for label in ("cut", "copy", "paste", "bold", "italic", "link", "heading 1", "rewrite", "summarize", "fix grammar"):
+            for label in (
+                "cut",
+                "copy",
+                "paste",
+                "bold",
+                "italic",
+                "link",
+                "heading 1",
+                "rewrite",
+                "summarize",
+                "fix grammar",
+            ):
                 ok(f"menu has '{label}'", label in txt)
-            pg.eval_on_selector("#docs-ctx [data-act='bold']", "el => el.dispatchEvent(new MouseEvent('mousedown',{bubbles:true}))")
+            pg.eval_on_selector(
+                "#docs-ctx [data-act='bold']",
+                "el => el.dispatchEvent(new MouseEvent('mousedown',{bubbles:true}))",
+            )
             pg.wait_for_timeout(400)
             src = pg.evaluate("() => document.querySelector('#wiki-source').value")
             ok("bold wrapped the selection", "**Some**" in src)

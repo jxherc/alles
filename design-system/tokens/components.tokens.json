@@ -1,0 +1,48 @@
+{
+  "$schema": "https://www.designtokens.org/schemas/2025.10/format.json",
+  "appHeader": {
+    "height": { "$type": "dimension", "$value": "{size.appHeader}" },
+    "paddingInline": { "$type": "dimension", "$value": "{space.gutter}" },
+    "gap": { "$type": "dimension", "$value": "{space.control}" },
+    "borderWidth": { "$type": "dimension", "$value": "{border.width}" }
+  },
+  "toolbar": {
+    "height": { "$type": "dimension", "$value": { "value": 48, "unit": "px" } },
+    "paddingInline": { "$type": "dimension", "$value": "{space.gutter}" },
+    "gap": { "$type": "dimension", "$value": "{space.control}" }
+  },
+  "row": {
+    "denseHeight": { "$type": "dimension", "$value": "{size.controlDense}" },
+    "normalHeight": { "$type": "dimension", "$value": "{size.controlNormal}" },
+    "contentGap": { "$type": "dimension", "$value": "{space.row}" }
+  },
+  "iconAction": {
+    "desktopTarget": { "$type": "dimension", "$value": { "value": 32, "unit": "px" } },
+    "touchTarget": { "$type": "dimension", "$value": "{size.controlNormal}" },
+    "iconSize": { "$type": "dimension", "$value": { "value": 16, "unit": "px" } },
+    "radius": { "$type": "dimension", "$value": "{radius.control}" }
+  },
+  "menu": {
+    "radius": { "$type": "dimension", "$value": "{radius.surface}" },
+    "itemRadius": { "$type": "dimension", "$value": "{radius.small}" },
+    "itemMinHeight": { "$type": "dimension", "$value": { "value": 38, "unit": "px" } },
+    "padding": { "$type": "dimension", "$value": "{space.related}" }
+  },
+  "field": {
+    "minHeight": { "$type": "dimension", "$value": "{size.controlDense}" },
+    "radius": { "$type": "dimension", "$value": "{radius.control}" },
+    "borderWidth": { "$type": "dimension", "$value": "{border.width}" },
+    "paddingInline": { "$type": "dimension", "$value": "{space.control}" }
+  },
+  "layout": {
+    "localPanelWidth": { "$type": "dimension", "$value": "{size.localPanel}" },
+    "detailPanelWidth": { "$type": "dimension", "$value": "{size.detailPanel}" },
+    "listMaxWidth": { "$type": "dimension", "$value": "{size.listMax}" },
+    "dashboardMaxWidth": { "$type": "dimension", "$value": "{size.dashboardMax}" }
+  },
+  "motion": {
+    "feedback": { "$type": "duration", "$value": "{motion.fast}" },
+    "panel": { "$type": "duration", "$value": "{motion.normal}" },
+    "easing": { "$type": "cubicBezier", "$value": "{motion.standard}" }
+  }
+}

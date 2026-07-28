@@ -11,16 +11,14 @@ prereq: a server running with auth off, e.g.  AUTH_ENABLED=false PORT=8099 pytho
 run:  python scripts/live_usage.py [base_url]
 """
 
-import io
-import os
-import sys
 import json
-import uuid
-import time
-import tempfile
+import os
 import subprocess
-from pathlib import Path
+import sys
+import tempfile
+import uuid
 from datetime import datetime
+from pathlib import Path
 
 # httpx picks up the windows system (clash) proxy from the registry and would
 # route localhost through it → empty replies. force a direct localhost connection.

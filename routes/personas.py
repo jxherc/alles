@@ -184,6 +184,7 @@ _SEED_SENTINEL: Path | None = None
 def seed_sentinel() -> Path:
     return _SEED_SENTINEL or data_dir() / ".personas_seeded"
 
+
 _STARTERS = [
     (
         "aide",

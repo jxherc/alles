@@ -129,11 +129,15 @@ class WatchApiTests(ApiTest):
     def test_patch_rejects_blank_name_and_url(self):
         mid = self._create().json()["id"]
         self.assertEqual(self.client.patch(f"/api/watch/{mid}", json={"name": ""}).status_code, 400)
-        self.assertEqual(self.client.patch(f"/api/watch/{mid}", json={"url": "  "}).status_code, 400)
+        self.assertEqual(
+            self.client.patch(f"/api/watch/{mid}", json={"url": "  "}).status_code, 400
+        )
 
     def test_patch_rejects_bad_kind(self):
         mid = self._create().json()["id"]
-        self.assertEqual(self.client.patch(f"/api/watch/{mid}", json={"kind": "banana"}).status_code, 400)
+        self.assertEqual(
+            self.client.patch(f"/api/watch/{mid}", json={"kind": "banana"}).status_code, 400
+        )
 
     def test_patch_clamps_and_trims_like_create(self):
         mid = self._create().json()["id"]

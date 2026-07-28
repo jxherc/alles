@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Phase 12 KOKUEN approval starter for fast cited Andromeda search with independent verification.">
+  <link rel="icon" href="data:,">
+  <title>Alles Phase 12 - Andromeda</title>
+  <link rel="stylesheet" href="starter.css">
+</head>
+<body data-state="ready">
+  <a class="skip-link" href="#andromeda-main">skip to results</a>
+  <p class="visually-hidden" data-live aria-live="polite"></p>
+
+  <section class="search-shell" data-search-view="idle">
+    <header class="identity-row">
+      <div class="identity-context">
+        <form class="andromeda-form" data-andromeda-form role="search">
+          <label class="visually-hidden" for="top-query">search the web</label>
+          <input class="andromeda-input" id="top-query" data-query-input type="search" value="latest SQLite stable release" autocomplete="off">
+          <button class="andromeda-submit" type="submit" aria-label="search">
+            <svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.5"></circle><path d="m10.5 10.5 3 3"></path></svg>
+          </button>
+        </form>
+      </div>
+      <div class="identity-actions"><a class="home-action" href="../afterlife-navigation/home.html">home</a></div>
+    </header>
+
+    <main class="andromeda-idle" id="andromeda-main" data-andromeda-idle tabindex="-1">
+      <form class="andromeda-form idle-form" data-andromeda-form role="search">
+        <label class="visually-hidden" for="idle-query">search the web</label>
+        <input class="andromeda-input" id="idle-query" data-query-input type="search" placeholder="search the web" autocomplete="off" autofocus>
+        <button class="andromeda-submit" type="submit" aria-label="search">
+          <svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.5"></circle><path d="m10.5 10.5 3 3"></path></svg>
+        </button>
+      </form>
+      <p class="idle-help">normal results, then one compact answer when evidence supports it</p>
+    </main>
+
+    <main class="search-main" data-andromeda-results tabindex="-1" hidden>
+      <div class="search-tabs">
+        <div class="tab-list" role="tablist" aria-label="Search categories">
+          <button class="tab" type="button" role="tab" aria-selected="true">web</button>
+          <button class="tab" type="button" role="tab" aria-selected="false" tabindex="-1">images</button>
+          <button class="tab" type="button" role="tab" aria-selected="false" tabindex="-1">news</button>
+          <button class="tab" type="button" role="tab" aria-selected="false" tabindex="-1">video</button>
+        </div>
+        <span class="inline-status">0.46s · prototype data</span>
+      </div>
+
+      <div class="state-message" data-state-only="partial" hidden><strong>Partial results</strong><p>SearXNG responded. One secondary provider timed out, so its results can be retried separately.</p><button class="text-action" type="button">retry provider</button></div>
+      <div class="state-message" data-state-only="loading" hidden><strong>Searching remaining sources</strong><p>The first results are usable. Provider and answer work continue without hiding them.</p></div>
+      <div class="state-message" data-state-only="offline" hidden><strong>Search is offline</strong><p>Saved searches remain available. A new web search needs a provider connection.</p></div>
+      <div class="state-message" data-state-only="error" hidden><strong>The answer model stopped</strong><p>Normal results are still available below. Retry only the compact answer.</p><button class="text-action" type="button">retry answer</button></div>
+      <div class="state-message" data-state-only="long" hidden><strong>Long-query reflow</strong><p>how do current SQLite release notes differ from the prior stable release when comparing planner behavior, command-line fixes, compatibility, publication dates, and the official downloadable artifacts?</p></div>
+
+      <article class="answer-block" aria-labelledby="answer-title">
+        <div class="answer-head">
+          <h2 class="answer-title" id="answer-title">answer</h2>
+          <span class="verification-state" data-verification-state data-verdict="checking">checking current claims</span>
+        </div>
+        <p class="answer-copy" data-answer-copy><span data-answer-text>SQLite <mark class="answer-highlight">3.50.4</mark> is the latest stable release in this prototype evidence. It was published on July 18, 2026, with fixes to query planning and the command-line shell.</span><a class="citation" href="#source-1" aria-label="source 1">1</a><a class="citation" href="#source-2" aria-label="source 2">2</a></p>
+        <ol class="source-list" aria-label="Answer sources">
+          <li id="source-1"><a class="source-link" href="#source-1"><span>1</span><span>SQLite changes · official release history · Jul 18</span></a></li>
+          <li id="source-2"><a class="source-link" href="#source-2"><span>2</span><span>SQLite download page · official current build</span></a></li>
+        </ol>
+        <div class="answer-actions">
+          <button class="text-action" type="button">save</button>
+          <button class="text-action" type="button">ask Aide</button>
+          <button class="text-action" type="button">copy</button>
+        </div>
+
+        <div class="verification-details" data-verification-only="checking">
+          <span class="detail-kicker">fast answer is ready</span>
+          <p class="section-copy">A separate model is checking dates, versions, and quoted evidence in the background.</p>
+        </div>
+        <div class="verification-details" data-verification-only="verified" hidden>
+          <details open>
+            <summary>3 claims checked on July 24, 2026</summary>
+            <ul class="claim-list"><li class="claim"><span class="claim-verdict verified">verified</span><span>3.50.4 is the newest stable version shown by the official release history.</span></li><li class="claim"><span class="claim-verdict verified">verified</span><span>The official date is July 18, 2026.</span></li><li class="claim"><span class="claim-verdict verified">verified</span><span>The cited notes name query-planner and CLI fixes.</span></li></ul>
+          </details>
+        </div>
+        <div class="verification-details" data-verification-only="corrected" hidden>
+          <details open>
+            <summary>what changed</summary>
+            <ul class="claim-list"><li class="claim"><span class="claim-verdict corrected">corrected</span><span>The first answer said July 17. Official release evidence says July 18.</span></li><li class="claim"><span class="claim-verdict verified">verified</span><span>The version and change summary are supported by both cited sources.</span></li></ul>
+          </details>
+        </div>
+        <div class="verification-details" data-verification-only="failed" hidden>
+          <p class="section-copy">The verifier timed out. The cited fast answer stays visible but is not independently checked.</p>
+          <button class="text-action" type="button">retry verification</button>
+        </div>
+      </article>
+
+      <section class="web-results-region" aria-labelledby="web-results-title">
+        <div class="web-results-head"><h2 id="web-results-title">web results</h2><span>normal search results</span></div>
+        <div class="results">
+          <article class="result"><div class="result-source">sqlite.org · official</div><a class="result-title" href="#source-1">Release history</a><p class="result-copy">A chronological record of SQLite releases, dates, and notable changes from the project.</p></article>
+          <article class="result"><div class="result-source">sqlite.org · official</div><a class="result-title" href="#source-2">Download SQLite</a><p class="result-copy">Current source archives, precompiled tools, and release identifiers for supported platforms.</p></article>
+          <article class="result"><div class="result-source">sqlite.org</div><a class="result-title" href="#result-3">Changes in SQLite</a><p class="result-copy">Detailed notes for fixes and behavior changes across recent versions.</p></article>
+          <article class="result"><div class="result-source">github.com/sqlite/sqlite</div><a class="result-title" href="#result-4">SQLite source mirror</a><p class="result-copy">A read-only source mirror useful for inspecting the referenced release tag.</p></article>
+        </div>
+      </section>
+    </main>
+  </section>
+
+  <div class="preview-tools" aria-label="Starter controls">
+    <span class="preview-label">starter</span><span class="preview-feedback" data-demo-feedback>ready</span>
+    <button type="button" data-theme-toggle aria-pressed="false">theme</button>
+    <button type="button" data-demo-state="ready" aria-pressed="true">ready</button>
+    <button type="button" data-demo-state="loading" aria-pressed="false">loading</button>
+    <button type="button" data-demo-state="partial" aria-pressed="false">partial</button>
+    <button type="button" data-demo-state="offline" aria-pressed="false">offline</button>
+    <button type="button" data-demo-state="error" aria-pressed="false">error</button>
+    <button type="button" data-demo-state="long" aria-pressed="false">long</button>
+    <button type="button" data-verification="checking">checking</button>
+    <button type="button" data-verification="verified">verified</button>
+    <button type="button" data-verification="corrected">corrected</button>
+    <button type="button" data-verification="failed">failed</button>
+  </div>
+
+  <script src="starter.js"></script>
+</body>
+</html>

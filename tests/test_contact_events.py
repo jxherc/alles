@@ -15,7 +15,9 @@ class ContactEventsTests(ApiTest):
         db.commit()
         eid = ev.id
         if attendee_email or attendee_name:
-            db.add(EventAttendee(event_id=eid, name=attendee_name, email=attendee_email, status=status))
+            db.add(
+                EventAttendee(event_id=eid, name=attendee_name, email=attendee_email, status=status)
+            )
             db.commit()
         db.close()
         return eid
@@ -43,7 +45,12 @@ class ContactEventsTests(ApiTest):
     def test_name_match_only_when_invite_has_no_email(self):
         cid = self._contact("Bob Stark", "bob@x.com")
         # an invite with a DIFFERENT email but the same name = a different person, not a match
-        self._event("Other", "2026-07-03T10:00:00", attendee_email="someoneelse@x.com", attendee_name="Bob Stark")
+        self._event(
+            "Other",
+            "2026-07-03T10:00:00",
+            attendee_email="someoneelse@x.com",
+            attendee_name="Bob Stark",
+        )
         self.assertEqual(self._events(cid), [])
         # an invite with no email but the same name = a match
         self._event("Theirs", "2026-07-04T10:00:00", attendee_name="Bob Stark")

@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from core.database import CachedMessage, MailAccount, ScheduledMail
 from services import mail_cache, mail_outbox
@@ -214,38 +214,45 @@ class MailOutboxTests(ApiTest):
         ).json()
         self.assertTrue(d["id"])
         # send_at should be in the (near) future so the undo window is open
-        self.assertGreater(d["send_at"], datetime.utcnow().isoformat())
+        self.assertGreater(d["send_at"], datetime.now(UTC).replace(tzinfo=None).isoformat())
         listed = self.client.get("/api/mail/scheduled").json()["scheduled"]
         self.assertTrue(any(x["id"] == d["id"] for x in listed))
 
     # ---- snooze ----
     def test_snooze_hides_until_future(self):
         self._msg(1)
-        future = _iso(datetime.utcnow() + timedelta(days=1))
+        future = _iso(datetime.now(UTC).replace(tzinfo=None) + timedelta(days=1))
         self.client.post(f"/api/mail/snooze/{self.aid}", json={"uid": "1", "until": future})
         self.assertEqual(mail_cache.get(self.db(), self.aid), [])
 
     def test_snooze_past_visible(self):
-        self._msg(1, snoozed_until=_iso(datetime.utcnow() - timedelta(days=1)))
+        self._msg(
+            1,
+            snoozed_until=_iso(datetime.now(UTC).replace(tzinfo=None) - timedelta(days=1)),
+        )
         self.assertEqual(len(mail_cache.get(self.db(), self.aid)), 1)
 
     def test_snoozed_reappears_after_time(self):
         # snoozed to a time already in the past → back in the inbox
-        past = _iso(datetime.utcnow() - timedelta(minutes=5))
+        past = _iso(datetime.now(UTC).replace(tzinfo=None) - timedelta(minutes=5))
         self._msg(1, snoozed_until=past)
         uids = [m["uid"] for m in mail_cache.get(self.db(), self.aid)]
         self.assertIn("1", uids)
 
     def test_snoozed_list(self):
         self._msg(1)
-        future = _iso(datetime.utcnow() + timedelta(days=1))
+        future = _iso(datetime.now(UTC).replace(tzinfo=None) + timedelta(days=1))
         self.client.post(f"/api/mail/snooze/{self.aid}", json={"uid": "1", "until": future})
         d = self.client.get(f"/api/mail/snoozed/{self.aid}").json()
         self.assertTrue(any(m["uid"] == "1" for m in d["snoozed"]))
 
     def test_unified_excludes_snoozed(self):
         self._msg(1, subject="now")
-        self._msg(2, subject="later", snoozed_until=_iso(datetime.utcnow() + timedelta(days=1)))
+        self._msg(
+            2,
+            subject="later",
+            snoozed_until=_iso(datetime.now(UTC).replace(tzinfo=None) + timedelta(days=1)),
+        )
         subs = [m["subject"] for m in mail_cache.get_unified(self.db())]
         self.assertIn("now", subs)
         self.assertNotIn("later", subs)

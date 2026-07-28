@@ -19,14 +19,19 @@ class FakeElement {
     this.innerHTML = '';
   }
   querySelectorAll() { return []; }
+  appendChild() {}
+  remove() {}
 }
 
 const elements = new Map([
   ['model-label', new FakeElement()],
+  ['aide-model-choice-label', new FakeElement()],
+  ['aide-model-choice-logo', new FakeElement()],
   ['live-dot', new FakeElement()],
   ['model-list', new FakeElement()],
   ['sidebar-model-list', new FakeElement()],
   ['model-modal', new FakeElement()],
+  ['toast-container', new FakeElement()],
 ]);
 globalThis.document = {
   getElementById: id => elements.get(id) || null,
@@ -50,10 +55,16 @@ let aideRole = {
   status: 'ready',
   effective: { endpoint_id: 'local', model: 'role-model', reason: 'role_default' },
 };
+let modelPatchOk = true;
+let modelPatchHandler = null;
 const response = value => ({ ok: true, json: async () => structuredClone(value) });
-globalThis.fetch = async url => {
+globalThis.fetch = async (url, options = {}) => {
   if (url === '/api/models') return response(endpoints);
   if (url === '/api/models/roles') return response({ aide_chat: aideRole });
+  if (url.startsWith('/api/sessions/') && options.method === 'PATCH') {
+    if (modelPatchHandler) return modelPatchHandler(url, options);
+    return { ok: modelPatchOk, json: async () => ({}) };
+  }
   throw new Error(`unexpected request: ${url}`);
 };
 
@@ -64,6 +75,7 @@ test('fresh chat uses the effective aide role and drops a removed browser model'
   assert.deepEqual(models.getSelected(), { endpointId: 'local', model: 'role-model' });
   assert.equal(models.getSelectionSource(), 'role');
   assert.equal(elements.get('model-label').textContent, 'role model');
+  assert.equal(elements.get('aide-model-choice-label').textContent, 'role model');
   assert.equal(store.has('aide-model'), false);
   assert.deepEqual(
     models.modelOverrideForNewSession('role-model', 'local'),
@@ -77,6 +89,8 @@ test('saved sessions restore the internal model, not only the visible label', ()
   assert.equal(models.getCurrentEndpoint().id, 'remote');
   assert.equal(models.getSelectionSource(), 'session');
   assert.equal(elements.get('model-label').textContent, 'session model');
+  assert.equal(elements.get('aide-model-choice-label').textContent, 'session model');
+  assert.match(elements.get('aide-model-choice-logo').innerHTML, /class="brandlogo/);
 });
 
 test('an unavailable session model stays broken instead of switching providers', () => {
@@ -85,6 +99,7 @@ test('an unavailable session model stays broken instead of switching providers',
   assert.equal(models.getCurrentEndpoint(), null);
   assert.equal(models.getSelectionSource(), 'broken');
   assert.equal(elements.get('model-label').textContent, 'no model');
+  assert.equal(elements.get('aide-model-choice-label').textContent, 'no model');
 });
 
 test('a missing endpoint never falls through to another provider with the same model', () => {
@@ -101,6 +116,106 @@ test('explicit chat picks remain session overrides', () => {
     models.modelOverrideForNewSession('manual-model', 'remote'),
     { model: 'manual-model', endpointId: 'remote' },
   );
+});
+
+test('a failed saved-session model change restores the real model', async () => {
+  window._currentSession = { id: 'saved', endpoint_id: 'remote', model: 'session-model' };
+  models.restoreSessionModel(window._currentSession);
+  modelPatchOk = false;
+  await models.selectModel('local', 'role-model');
+  assert.deepEqual(models.getSelected(), { endpointId: 'remote', model: 'session-model' });
+  assert.equal(window._currentSession.endpoint_id, 'remote');
+  assert.equal(window._currentSession.model, 'session-model');
+  modelPatchOk = true;
+  window._currentSession = null;
+});
+
+test('saved-session model changes are serialized and latest intent wins', async () => {
+  window._currentSession = { id: 'saved', endpoint_id: 'remote', model: 'session-model' };
+  models.restoreSessionModel(window._currentSession);
+  const pending = [];
+  const bodies = [];
+  modelPatchHandler = (_url, options) => {
+    bodies.push(JSON.parse(options.body));
+    return new Promise(resolve => pending.push(resolve));
+  };
+
+  const first = models.selectModel('remote', 'manual-model');
+  const second = models.selectModel('local', 'role-model');
+  await new Promise(resolve => setTimeout(resolve, 0));
+  assert.equal(pending.length, 1);
+  pending.shift()({ ok: true, json: async () => ({}) });
+  await new Promise(resolve => setTimeout(resolve, 0));
+  assert.equal(pending.length, 1);
+  pending.shift()({ ok: true, json: async () => ({}) });
+  await Promise.all([first, second]);
+
+  assert.deepEqual(bodies, [
+    { model: 'manual-model', endpoint_id: 'remote' },
+    { model: 'role-model', endpoint_id: 'local' },
+  ]);
+  assert.deepEqual(models.getSelected(), { endpointId: 'local', model: 'role-model' });
+  assert.equal(window._currentSession.endpoint_id, 'local');
+  assert.equal(window._currentSession.model, 'role-model');
+  modelPatchHandler = null;
+  window._currentSession = null;
+});
+
+test('a delayed model save cannot replace the newly opened session selection', async () => {
+  const oldSession = { id: 'old-session', endpoint_id: 'remote', model: 'session-model' };
+  const newSession = { id: 'new-session', endpoint_id: 'local', model: 'role-model' };
+  window._currentSession = oldSession;
+  models.restoreSessionModel(oldSession);
+  let resolvePatch;
+  modelPatchHandler = () => new Promise(resolve => { resolvePatch = resolve; });
+
+  const pending = models.selectModel('remote', 'manual-model');
+  await new Promise(resolve => setTimeout(resolve, 0));
+  window._currentSession = newSession;
+  models.restoreSessionModel(newSession);
+  resolvePatch({ ok: true, json: async () => ({}) });
+  await pending;
+
+  assert.deepEqual(models.getSelected(), { endpointId: 'local', model: 'role-model' });
+  assert.deepEqual(newSession, { id: 'new-session', endpoint_id: 'local', model: 'role-model' });
+  assert.deepEqual(oldSession, { id: 'old-session', endpoint_id: 'remote', model: 'manual-model' });
+  modelPatchHandler = null;
+  window._currentSession = null;
+});
+
+test('a pending model save cannot block a different session', async () => {
+  const oldSession = { id: 'blocked-session', endpoint_id: 'remote', model: 'session-model' };
+  const newSession = { id: 'current-session', endpoint_id: 'local', model: 'role-model' };
+  const pending = new Map();
+  modelPatchHandler = (url, options) => new Promise(resolve => {
+    pending.set(url, { resolve, body: JSON.parse(options.body) });
+  });
+
+  window._currentSession = oldSession;
+  models.restoreSessionModel(oldSession);
+  const oldSave = models.selectModel('remote', 'manual-model');
+  await new Promise(resolve => setTimeout(resolve, 0));
+
+  window._currentSession = newSession;
+  models.restoreSessionModel(newSession);
+  const newSave = models.selectModel('remote', 'session-model');
+  await new Promise(resolve => setTimeout(resolve, 0));
+
+  assert.equal(pending.size, 2);
+  pending.get('/api/sessions/current-session').resolve({ ok: true, json: async () => ({}) });
+  await newSave;
+  assert.deepEqual(models.getSelected(), { endpointId: 'remote', model: 'session-model' });
+  pending.get('/api/sessions/blocked-session').resolve({ ok: true, json: async () => ({}) });
+  await oldSave;
+
+  assert.deepEqual(newSession, {
+    id: 'current-session', endpoint_id: 'remote', model: 'session-model',
+  });
+  assert.deepEqual(oldSession, {
+    id: 'blocked-session', endpoint_id: 'remote', model: 'manual-model',
+  });
+  modelPatchHandler = null;
+  window._currentSession = null;
 });
 
 test('persona models display without becoming explicit session overrides', () => {

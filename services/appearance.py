@@ -28,9 +28,24 @@ LIGHT_BASE = {
 FONTS = ("sans", "mono", "serif")
 DENSITIES = ("comfortable", "compact", "spacious")
 PATTERNS = (
-    "none", "dots", "grid", "crosshatch", "scanlines",
-    "synapse", "rain", "snow", "embers", "fireflies", "bubbles", "starfield",
-    "constellations", "sparkles", "petals", "matrix", "aurora", "waves",
+    "none",
+    "dots",
+    "grid",
+    "crosshatch",
+    "scanlines",
+    "synapse",
+    "rain",
+    "snow",
+    "embers",
+    "fireflies",
+    "bubbles",
+    "starfield",
+    "constellations",
+    "sparkles",
+    "petals",
+    "matrix",
+    "aurora",
+    "waves",
 )
 COLOR_KEYS = ("bg", "text", "panel", "faint", "accent")
 

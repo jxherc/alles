@@ -98,10 +98,10 @@ def main():
         pg.eval_on_selector("#cg-add", "el => el.click()")
         pg.wait_for_selector("#_di", timeout=5000)
         pg.fill("#_di", "VIPs")
-        pg.eval_on_selector("#_dy", "el => el.click()")
+        pg.eval_on_selector("[data-dialog-confirm]", "el => el.click()")
         pg.wait_for_selector("#_di", timeout=5000)
         pg.fill("#_di", "vip")
-        pg.eval_on_selector("#_dy", "el => el.click()")
+        pg.eval_on_selector("[data-dialog-confirm]", "el => el.click()")
         pg.wait_for_selector("#cg-list .settings-list-row", timeout=8000)
         gtext = pg.text_content("#cg-list") or ""
         r["group_create"] = "VIPs" in gtext

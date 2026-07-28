@@ -3,6 +3,8 @@ import { toast } from './util.js';
 let _recorder = null;
 let _chunks = [];
 let _recording = false;
+let _starting = false;
+let _settling = false;
 let _micIdleHtml = '';
 let _sendIdleHtml = '';
 let _audioCtx = null;
@@ -14,6 +16,8 @@ let _srText = '';        // accumulated transcript
 let _srFatal = false;    // stop restarting after a real error
 let _stream = null;      // active mic stream
 let _mode = 'browser';
+let _take = 0;           // invalidates late callbacks after cancel or a newer recording
+let _transcriptionAbort = null;
 
 // 10f — reveal the full-duplex live-voice button only when a realtime provider is configured
 export async function initLiveVoice() {
@@ -35,45 +39,84 @@ export async function initLiveVoice() {
   };
 }
 
-export function isRecording() { return _recording; }
+export function isRecording() { return _recording || _starting || _settling; }
 
 export async function startRecording() {
-  if (_recording) return;
-  const s = await fetch('/api/settings').then(r => r.json()).catch(() => ({}));
-  const provider = s.stt_provider || 'browser';
-
-  const micId = localStorage.getItem('alles-mic-id') || '';
-  const audio = { echoCancellation: true, noiseSuppression: true, autoGainControl: true };
-  if (micId) audio.deviceId = { exact: micId };
-  let stream;
+  if (_recording || _starting || _settling) return;
+  _starting = true;
+  const take = ++_take;
+  _chunks = [];
+  _recorder = null;
+  _sr = null;
   try {
-    stream = await navigator.mediaDevices.getUserMedia({ audio });
-  } catch {
-    // the saved device may be gone — fall back to the default mic before giving up
-    try { stream = await navigator.mediaDevices.getUserMedia({ audio: true }); }
-    catch { toast('mic access denied', 'error'); return; }
-  }
-  _stream = stream;
-  _recording = true;
-  _setMicRecording(true);
-  _startLiveWave(stream);
+    const s = await fetch('/api/settings').then(r => r.json()).catch(() => ({}));
+    if (take !== _take) return;
+    const provider = s.stt_provider || 'browser';
+    const micId = localStorage.getItem('alles-mic-id') || '';
+    const audio = { echoCancellation: true, noiseSuppression: true, autoGainControl: true };
+    if (micId) audio.deviceId = { exact: micId };
+    let stream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio });
+    } catch (error) {
+      // Retry only when a saved device is unavailable. Permission denial must
+      // not trigger a second browser prompt for the default microphone.
+      if (take !== _take) return;
+      const retryDefault = Boolean(micId && [
+        'AbortError', 'NotFoundError', 'NotReadableError', 'OverconstrainedError',
+      ].includes(error?.name));
+      if (!retryDefault) {
+        const denied = ['NotAllowedError', 'SecurityError'].includes(error?.name);
+        toast(denied ? 'mic access denied' : 'voice recording could not start', 'error');
+        return;
+      }
+      try { stream = await navigator.mediaDevices.getUserMedia({ audio: true }); }
+      catch (fallbackError) {
+        const denied = ['NotAllowedError', 'SecurityError'].includes(fallbackError?.name);
+        toast(denied ? 'mic access denied' : 'voice recording could not start', 'error');
+        return;
+      }
+    }
+    if (take !== _take) {
+      stream.getTracks().forEach(track => track.stop());
+      return;
+    }
+    _stream = stream;
+    _recording = true;
+    _setMicRecording(true);
+    _startLiveWave(stream);
 
-  if (provider === 'browser') {
-    _mode = 'browser';
-    _startBrowserSR(s);
-  } else {
-    // whisper_api OR local — record audio + upload to /api/stt (server picks engine)
-    _mode = 'whisper';
-    _chunks = [];
-    _recorder = new MediaRecorder(stream);
-    _recorder.ondataavailable = e => _chunks.push(e.data);
-    _recorder.onstop = _whisperDone;
-    _recorder.start();
+    if (provider === 'browser') {
+      _mode = 'browser';
+      _startBrowserSR(s, take);
+    } else {
+      // whisper_api OR local — record audio + upload to /api/stt (server picks engine)
+      _mode = 'whisper';
+      const chunks = [];
+      _chunks = chunks;
+      _recorder = new MediaRecorder(stream);
+      _recorder.ondataavailable = e => { if (take === _take) chunks.push(e.data); };
+      _recorder.onstop = () => _whisperDone(take, chunks);
+      _recorder.start();
+    }
+  } catch (error) {
+    if (take === _take) {
+      _recording = false;
+      _settling = false;
+      _recorder = null;
+      _sr = null;
+      _setMicRecording(false);
+      _stream?.getTracks().forEach(track => track.stop());
+      _stream = null;
+      toast(`voice recording could not start: ${error?.message || 'unavailable'}`, 'error');
+    }
+  } finally {
+    if (take === _take) _starting = false;
   }
 }
 
 // live speech recognition — the only browser API that actually transcribes
-function _startBrowserSR(s) {
+function _startBrowserSR(s, take) {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SR) {
     toast('speech recognition needs Chrome/Edge — or switch STT to Whisper in settings', 'error');
@@ -89,6 +132,7 @@ function _startBrowserSR(s) {
   if (s.stt_language) _sr.lang = s.stt_language;
 
   _sr.onresult = e => {
+    if (take !== _take) return;
     let fin = '';
     for (let i = e.resultIndex; i < e.results.length; i++) {
       if (e.results[i].isFinal) fin += e.results[i][0].transcript;
@@ -96,6 +140,7 @@ function _startBrowserSR(s) {
     if (fin.trim()) _srText += (_srText ? ' ' : '') + fin.trim();
   };
   _sr.onerror = e => {
+    if (take !== _take) return;
     if (e.error === 'no-speech' || e.error === 'aborted') return;   // benign
     _srFatal = true;   // real error — do NOT restart (avoids toast storm)
     if (e.error === 'network') toast('speech recognition needs internet', 'error');
@@ -104,27 +149,64 @@ function _startBrowserSR(s) {
     stopRecording();
   };
   _sr.onend = () => {
+    if (take !== _take) return;
     // only auto-restart on a benign silence timeout while still recording
     if (_recording && !_srFatal) { try { _sr.start(); return; } catch {} }
     const text = _srText.trim();
     _sr = null;
+    _settling = false;
     if (text) _inject(text);
     else if (!_srFatal) toast('no speech detected', 'error');   // stay quiet after a real error
   };
-  try { _sr.start(); } catch {}
+  try { _sr.start(); } catch {
+    _sr = null;
+    _recording = false;
+    _settling = false;
+    _setMicRecording(false);
+    _stream?.getTracks().forEach(track => track.stop());
+    _stream = null;
+    toast('speech recognition could not start', 'error');
+  }
 }
 
 export function stopRecording() {
-  if (!_recording) return;
+  if (!_recording) {
+    if (_starting || _settling) cancelRecording();
+    return;
+  }
   _recording = false;
   _setMicRecording(false);   // also stops the wave
   if (_mode === 'whisper') {
-    try { _recorder?.stop(); } catch {}
+    _settling = Boolean(_recorder);
+    try { _recorder?.stop(); } catch { _settling = false; }
   } else {
-    try { _sr?.stop(); } catch {}   // → onend → inject
+    _settling = Boolean(_sr);
+    try { _sr?.stop(); } catch { _settling = false; }   // → onend → inject
   }
   _stream?.getTracks().forEach(t => t.stop());
   _stream = null;
+}
+
+export function cancelRecording() {
+  if (!_recording && !_starting && !_settling) return;
+  _take += 1;
+  _starting = false;
+  _recording = false;
+  _settling = false;
+  _transcriptionAbort?.abort();
+  _transcriptionAbort = null;
+  _setMicRecording(false);
+  if (_mode === 'whisper') {
+    try { _recorder?.stop(); } catch {}
+  } else {
+    try { _sr?.abort(); } catch {}
+  }
+  _stream?.getTracks().forEach(track => track.stop());
+  _stream = null;
+  _chunks = [];
+  _recorder = null;
+  _sr = null;
+  toast('recording cancelled');
 }
 
 function _setMicRecording(on) {
@@ -136,7 +218,7 @@ function _setMicRecording(on) {
   if (!_micIdleHtml) _micIdleHtml = btn.innerHTML;
   btn.classList.toggle('recording', on);
   btn.setAttribute('aria-pressed', String(on));
-  btn.title = on ? 'stop recording' : 'voice input';
+  btn.title = on ? 'stop recording · esc cancels' : 'voice input';
   btn.innerHTML = on
     ? '<svg viewBox="0 0 24 24" fill="none"><rect x="7" y="7" width="10" height="10" rx="1.5" fill="currentColor"/></svg>'
     : _micIdleHtml;
@@ -240,23 +322,42 @@ function _stopLiveWave() {
   _audioCtx = null;
 }
 
-async function _whisperDone() {
-  const blob = new Blob(_chunks, { type: 'audio/webm' });
+async function _whisperDone(take, chunks) {
+  if (take !== _take) return;
+  const blob = new Blob(chunks, { type: 'audio/webm' });
   const fd = new FormData();
   fd.append('file', blob, 'audio.webm');
+  const controller = new AbortController();
+  let timedOut = false;
+  const timeout = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, 60_000);
+  _transcriptionAbort = controller;
   try {
-    const r = await fetch('/api/stt', { method: 'POST', body: fd });
+    const r = await fetch('/api/stt', { method: 'POST', body: fd, signal: controller.signal });
     if (!r.ok) {
       const msg = await r.text().catch(() => '');
+      if (take !== _take) return;
       try { toast(JSON.parse(msg).detail || 'transcription failed', 'error'); }
       catch { toast('transcription failed', 'error'); }
       return;
     }
     const { text } = await r.json();
+    if (take !== _take) return;
     if (text && text.trim()) _inject(text.trim());
     else toast('no speech detected', 'error');
   } catch (e) {
-    toast('transcription failed', 'error');
+    if (timedOut && take === _take) toast('transcription timed out', 'error');
+    else if (e?.name !== 'AbortError' && take === _take) toast('transcription failed', 'error');
+  } finally {
+    clearTimeout(timeout);
+    if (_transcriptionAbort === controller) _transcriptionAbort = null;
+    if (take === _take) {
+      _settling = false;
+      _chunks = [];
+      _recorder = null;
+    }
   }
 }
 

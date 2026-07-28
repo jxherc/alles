@@ -7,16 +7,19 @@ from core.database import Account, Budget, Transaction, TxnSplit
 from routes import money
 
 
-def _mkdb():
+def _mkdb(test_case):
     eng = create_engine("sqlite:///:memory:")
+    test_case.addCleanup(eng.dispose)
     for M in (Account, Budget, Transaction, TxnSplit):
         M.__table__.create(eng)
-    return sessionmaker(bind=eng)()
+    db = sessionmaker(bind=eng)()
+    test_case.addCleanup(db.close)
+    return db
 
 
 class MoneySummaryTests(unittest.TestCase):
     def _seed(self):
-        db = _mkdb()
+        db = _mkdb(self)
         a = Account(name="Checking", kind="checking", currency="$", opening=100.0)
         db.add(a)
         db.commit()
@@ -50,14 +53,14 @@ class MoneySummaryTests(unittest.TestCase):
         self.assertEqual(s["net_worth"], 1920.0)
 
     def test_empty_db_zeroes(self):
-        db = _mkdb()
+        db = _mkdb(self)
         s = money.summary("2026-06", db)
         self.assertEqual(s["income"], 0.0)
         self.assertEqual(s["expense"], 0.0)
         self.assertEqual(s["net_worth"], 0.0)
 
     def test_transfers_excluded_from_income_expense(self):
-        db = _mkdb()
+        db = _mkdb(self)
         a = Account(name="A", kind="checking", currency="$", opening=0.0)
         b = Account(name="B", kind="savings", currency="$", opening=0.0)
         db.add_all([a, b])
@@ -76,7 +79,7 @@ class MoneySummaryTests(unittest.TestCase):
         self.assertEqual(s["expense"], 0.0)
 
     def test_budget_shows_spent_vs_limit(self):
-        db = _mkdb()
+        db = _mkdb(self)
         a = Account(name="C", kind="checking", currency="$", opening=0.0)
         db.add(a)
         db.commit()
@@ -90,7 +93,7 @@ class MoneySummaryTests(unittest.TestCase):
         self.assertEqual(budgets["food"]["spent"], 75.0)
 
     def test_trend_includes_6_months(self):
-        db = _mkdb()
+        db = _mkdb(self)
         s = money.summary("2026-06", db)
         self.assertEqual(len(s["trend"]), 6)
         months = [r["month"] for r in s["trend"]]

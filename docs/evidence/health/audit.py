@@ -57,7 +57,9 @@ def run():
 
     real = clean(errs)
     with open(f"{OUT}/console.log", "w", encoding="utf-8") as f:
-        f.write("ALL:\n" + ("\n".join(errs) or "(none)") + "\n\nREAL:\n" + ("\n".join(real) or "(none)"))
+        f.write(
+            "ALL:\n" + ("\n".join(errs) or "(none)") + "\n\nREAL:\n" + ("\n".join(real) or "(none)")
+        )
     if real:
         print("FAIL — real console errors:", real[:5])
         sys.exit(1)

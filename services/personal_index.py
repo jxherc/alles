@@ -3,8 +3,6 @@ read-later, books) into the shared textindex so the agent can recall them. chunk
 embedding live in services/textindex.py. privacy: the vault is never indexed, the journal
 honours its passcode lock, and each source is toggle-able in settings."""
 
-import json
-
 from core.settings import load_settings
 from services import textindex
 
@@ -16,8 +14,10 @@ WRITE_KINDS = ("note", "journal", "mail", "contact", "read", "book")  # the kind
 def _indexing_enabled():
     return load_settings().get("pidx_enabled", True)
 
+
 def _source_enabled(kind):
     return _indexing_enabled() and load_settings().get(f"pidx_{kind}", True)
+
 
 def _journal_locked():
     return bool(load_settings().get("journal_passcode"))
@@ -27,6 +27,7 @@ def _journal_locked():
 def _note_text(db, o):
     # o is a stem (from index_record) or a note dict (from iter) — both resolve to the file
     from services import notes_vault
+
     n = notes_vault.get(o) if isinstance(o, str) else o
     if not n:
         return ""
@@ -34,73 +35,108 @@ def _note_text(db, o):
     tags = " ".join(n.get("tags") or [])
     return " ".join(x for x in (n.get("title"), n.get("content"), items, tags) if x)
 
+
 def _get_note(db, ref):
     from services import notes_vault
+
     return notes_vault.get(ref)
+
 
 def _journal_text(db, e):
     return " ".join(x for x in (e.content, e.mood, e.tags) if x)
 
+
 def _get_journal(db, ref):
     from core.database import JournalEntry
+
     return db.query(JournalEntry).filter_by(date=ref).first()
+
 
 def _contact_text(db, c):
     from core.database import ContactField
-    fv = " ".join(f.value for f in db.query(ContactField).filter_by(contact_id=c.id).all() if f.value)
-    return " ".join(x for x in (c.name, c.company, c.title, c.notes, c.email, c.phone, c.address, fv) if x)
+
+    fv = " ".join(
+        f.value for f in db.query(ContactField).filter_by(contact_id=c.id).all() if f.value
+    )
+    return " ".join(
+        x for x in (c.name, c.company, c.title, c.notes, c.email, c.phone, c.address, fv) if x
+    )
+
 
 def _get_contact(db, ref):
     from core.database import Contact
+
     return db.query(Contact).filter_by(id=ref).first()
+
 
 def _read_text(db, r):
     return " ".join(x for x in (r.title, r.excerpt, r.text, r.tags) if x)
 
+
 def _get_read(db, ref):
     from core.database import ReadItem
+
     return db.query(ReadItem).filter_by(id=ref).first()
+
 
 def _book_text(db, b):
     return " ".join(x for x in (b.title, b.author, b.notes) if x)
 
+
 def _get_book(db, ref):
     from core.database import Book
+
     return db.query(Book).filter_by(id=ref).first()
+
 
 def _iter_notes(db):
     from services import notes_vault
+
     return notes_vault.all_notes()
+
 
 def _iter_journal(db):
     from core.database import JournalEntry
+
     return db.query(JournalEntry).all()
+
 
 def _iter_contacts(db):
     from core.database import Contact
+
     return db.query(Contact).all()
+
 
 def _iter_read(db):
     from core.database import ReadItem
+
     return db.query(ReadItem).all()
+
 
 def _iter_books(db):
     from core.database import Book
+
     return db.query(Book).all()
+
 
 def _cm():
     from core.database import CachedMessage
+
     return CachedMessage
+
 
 def _mail_text(db, m):
     return " ".join(x for x in (m.subject, m.sender) if x)
+
 
 def _get_mail(db, ref):
     acct, _, uid = (ref or "").partition(":")
     return db.query(_cm()).filter_by(account_id=acct, uid=uid).first()
 
+
 def _iter_mail(db):
     return db.query(_cm()).all()
+
 
 _ADAPTERS = {
     "note": {
@@ -112,29 +148,44 @@ _ADAPTERS = {
         "iter": _iter_notes,
     },
     "journal": {
-        "text": _journal_text, "ref": lambda o: o.date, "get": _get_journal,
-        "label": lambda o: f"journal {o.date}", "link": lambda ref: f"/?app=journal#{ref}",
+        "text": _journal_text,
+        "ref": lambda o: o.date,
+        "get": _get_journal,
+        "label": lambda o: f"journal {o.date}",
+        "link": lambda ref: f"/?app=journal#{ref}",
         "iter": _iter_journal,
     },
     "contact": {
-        "text": _contact_text, "ref": lambda o: o.id, "get": _get_contact,
-        "label": lambda o: o.name or "(no name)", "link": lambda ref: f"/?app=contacts#{ref}",
+        "text": _contact_text,
+        "ref": lambda o: o.id,
+        "get": _get_contact,
+        "label": lambda o: o.name or "(no name)",
+        "link": lambda ref: f"/?app=contacts#{ref}",
         "iter": _iter_contacts,
     },
     "read": {
-        "text": _read_text, "ref": lambda o: o.id, "get": _get_read,
-        "label": lambda o: o.title or o.url or "(saved item)", "link": lambda ref: f"/?app=read#{ref}",
+        "text": _read_text,
+        "ref": lambda o: o.id,
+        "get": _get_read,
+        "label": lambda o: o.title or o.url or "(saved item)",
+        "link": lambda ref: f"/?app=read#{ref}",
         "iter": _iter_read,
     },
     "book": {
-        "text": _book_text, "ref": lambda o: o.id, "get": _get_book,
-        "label": lambda o: o.title or "(book)", "link": lambda ref: f"/?app=books#{ref}",
+        "text": _book_text,
+        "ref": lambda o: o.id,
+        "get": _get_book,
+        "label": lambda o: o.title or "(book)",
+        "link": lambda ref: f"/?app=books#{ref}",
         "iter": _iter_books,
     },
     "mail": {
-        "text": _mail_text, "ref": lambda o: f"{o.account_id}:{o.uid}", "get": _get_mail,
+        "text": _mail_text,
+        "ref": lambda o: f"{o.account_id}:{o.uid}",
+        "get": _get_mail,
         "iter": _iter_mail,
-        "label": lambda o: o.subject or "(no subject)", "link": lambda ref: "/?app=mail",
+        "label": lambda o: o.subject or "(no subject)",
+        "link": lambda ref: "/?app=mail",
     },
 }
 
@@ -152,8 +203,10 @@ def index_record(db, kind, obj) -> int:
         return textindex.remove(db, kind, ref)
     return textindex.index(db, kind, ref, text)
 
+
 def remove_record(db, kind, ref) -> int:
     return textindex.remove(db, kind, ref)
+
 
 def _label(db, kind, ref):
     ad = _ADAPTERS.get(kind)
@@ -162,9 +215,11 @@ def _label(db, kind, ref):
     obj = ad["get"](db, ref)
     return ad["label"](obj) if obj else ref
 
+
 def _link(kind, ref):
     ad = _ADAPTERS.get(kind)
     return ad["link"](ref) if ad else ""
+
 
 def search(db, query, kinds=None, k=8) -> list[dict]:
     wanted = set(kinds or [x for x in PERSONAL_KINDS if x == "doc" or _source_enabled(x)])
@@ -173,7 +228,9 @@ def search(db, query, kinds=None, k=8) -> list[dict]:
     for h in raw:
         if h["kind"] not in wanted:
             continue
-        out.append({**h, "label": _label(db, h["kind"], h["ref"]), "link": _link(h["kind"], h["ref"])})
+        out.append(
+            {**h, "label": _label(db, h["kind"], h["ref"]), "link": _link(h["kind"], h["ref"])}
+        )
         if len(out) >= k:
             break
     return out
@@ -181,10 +238,12 @@ def search(db, query, kinds=None, k=8) -> list[dict]:
 
 _last_reconcile = ""  # iso, for stats
 
+
 def reindex_source(db, kind) -> int:
     ad = _ADAPTERS.get(kind)
     if not ad or not _source_enabled(kind) or (kind == "journal" and _journal_locked()):
         from services import textindex as _ti
+
         _ti.reindex_kind(db, kind, [])  # wipe it
         return 0
     items = []
@@ -194,12 +253,17 @@ def reindex_source(db, kind) -> int:
             items.append((ad["ref"](o), text))
     return textindex.reindex_kind(db, kind, items)
 
+
 def reindex_all(db) -> dict:
-    return {k: reindex_source(db, k) for k in WRITE_KINDS if k != "mail"}  # mail bodies fill in via reconcile
+    return {
+        k: reindex_source(db, k) for k in WRITE_KINDS if k != "mail"
+    }  # mail bodies fill in via reconcile
+
 
 def reconcile(db) -> dict:
     global _last_reconcile
     from core.database import IndexChunk
+
     orphans = 0
     for kind in WRITE_KINDS:
         ad = _ADAPTERS.get(kind)
@@ -210,27 +274,33 @@ def reconcile(db) -> dict:
             if ad["get"](db, ref) is None:
                 orphans += textindex.remove(db, kind, ref)
     mailed = _index_mail_batch(db)  # pulls bodies for unindexed mail + folds them into recall
-    from datetime import datetime
-    _last_reconcile = datetime.utcnow().isoformat(timespec="seconds")
+    from datetime import UTC, datetime
+
+    _last_reconcile = datetime.now(UTC).replace(tzinfo=None).isoformat(timespec="seconds")
     return {"orphans": orphans, "mail_indexed": mailed}
+
 
 def stats(db) -> dict:
     by = {k: v for k, v in textindex.stats(db).items() if k in PERSONAL_KINDS}
     pending = 0
     try:
         from core.database import CachedMessage
+
         pending = db.query(CachedMessage).filter_by(body_indexed=False).count()
     except Exception:
         pending = 0
     return {"by_kind": by, "mail_pending": pending, "last_reconcile": _last_reconcile}
 
+
 def clear(db) -> int:
     n = 0
     for kind in PERSONAL_KINDS:
         from core.database import IndexChunk
+
         n += db.query(IndexChunk).filter_by(kind=kind).delete()
     db.commit()
     return n
+
 
 def _fetch_mail_body(db, msg) -> str:
     """best-effort body fetch; isolated so tests can monkeypatch it.
@@ -238,6 +308,7 @@ def _fetch_mail_body(db, msg) -> str:
     try:
         from core.database import MailAccount
         from services.secretstore import unseal
+
         acct_row = db.query(MailAccount).filter_by(id=msg.account_id).first()
         if not acct_row:
             return ""
@@ -251,13 +322,16 @@ def _fetch_mail_body(db, msg) -> str:
             "use_ssl": acct_row.use_ssl,
         }
         from services import mail as mailsvc
+
         full = mailsvc.fetch_message(acct, msg.uid)
         return (full or {}).get("text") or (full or {}).get("html") or ""
     except Exception:
         return ""
 
+
 def _index_mail_batch(db, limit=20) -> int:
     from core.database import CachedMessage
+
     if not _source_enabled("mail"):
         return 0
     rows = db.query(CachedMessage).filter_by(body_indexed=False).limit(limit).all()

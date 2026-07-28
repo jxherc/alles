@@ -16,15 +16,19 @@ NAME = "recurring_anchor_day"
 
 def up(conn):
     add_column(conn, "money_recurring", "anchor_day", "INTEGER")
-    conn.execute(text(
-        "UPDATE money_recurring SET anchor_day = CAST(substr(next_date, 9, 2) AS INTEGER) "
-        "WHERE anchor_day IS NULL AND length(next_date) >= 10"
-    ))
+    conn.execute(
+        text(
+            "UPDATE money_recurring SET anchor_day = CAST(substr(next_date, 9, 2) AS INTEGER) "
+            "WHERE anchor_day IS NULL AND length(next_date) >= 10"
+        )
+    )
     add_column(conn, "tasks", "anchor_day", "INTEGER")
-    conn.execute(text(
-        "UPDATE tasks SET anchor_day = CAST(substr(due_date, 9, 2) AS INTEGER) "
-        "WHERE anchor_day IS NULL AND repeat != '' AND length(due_date) >= 10"
-    ))
+    conn.execute(
+        text(
+            "UPDATE tasks SET anchor_day = CAST(substr(due_date, 9, 2) AS INTEGER) "
+            "WHERE anchor_day IS NULL AND repeat != '' AND length(due_date) >= 10"
+        )
+    )
 
 
 def down(conn):

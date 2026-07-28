@@ -320,7 +320,10 @@ class BackupRecoveryTest(unittest.TestCase):
         self.assertEqual(manifest["data_classes"], [dict(item) for item in DATA_CLASS_POLICIES])
         self.assertEqual([item["role"] for item in manifest["locations"]], list(LOCATION_ROLES))
         locations = {item["role"]: item for item in manifest["locations"]}
-        for role in ("vault", "files", "photos"):
+        self.assertTrue(locations["vault"]["included"])
+        self.assertEqual(locations["vault"]["policy"], "external-captured")
+        self.assertEqual(locations["vault"]["subpath"], "external-vault")
+        for role in ("files", "photos"):
             self.assertFalse(locations[role]["included"])
             self.assertEqual(locations[role]["policy"], "external-not-selected")
         self.assertEqual(locations["photos_watch"]["policy"], "source-only-excluded")
@@ -328,8 +331,79 @@ class BackupRecoveryTest(unittest.TestCase):
         self.assertEqual(locations["webdav"]["policy"], "not-configured")
         self.assertEqual(locations["s3"]["policy"], "not-configured")
         archived_paths = {item["path"] for item in manifest["files"]}
-        for name in ("vault", "files", "photos", "watch", "agent"):
+        self.assertIn("external-vault/vault-only.txt", archived_paths)
+        for name in ("files", "photos", "watch", "agent"):
             self.assertNotIn(f"{name}-only.txt", archived_paths)
+
+        staged = stage_recovery_archive(archive, self.live)
+        self.assertEqual(
+            (staged.data_dir / "external-vault" / "vault-only.txt").read_text("utf-8"),
+            "external private content",
+        )
+
+    def test_external_vault_change_during_snapshot_is_rejected(self):
+        from services import backup_recovery
+
+        external = self.base / "changing-vault"
+        external.mkdir()
+        note = external / "note.md"
+        note.write_text("before", "utf-8")
+        (self.live / "settings.json").write_text(
+            json.dumps({"vault_dir": str(external)}),
+            "utf-8",
+        )
+        original_inventory = backup_recovery._strict_tree_inventory
+        calls = 0
+
+        def edit_after_first_inventory(*args, **kwargs):
+            nonlocal calls
+            inventory = original_inventory(*args, **kwargs)
+            calls += 1
+            if calls == 1:
+                note.write_text("changed while backing up", "utf-8")
+            return inventory
+
+        archive = self.base / "changing-vault.zip"
+        with patch.object(
+            backup_recovery,
+            "_strict_tree_inventory",
+            side_effect=edit_after_first_inventory,
+        ):
+            with self.assertRaisesRegex(RecoveryError, "changed"):
+                create_recovery_archive(self.live, archive)
+        self.assertFalse(archive.exists())
+
+    def test_backup_output_inside_external_vault_is_rejected(self):
+        external = self.base / "external-output-vault"
+        external.mkdir()
+        (external / "note.md").write_text("owner note", "utf-8")
+        (self.live / "settings.json").write_text(
+            json.dumps({"vault_dir": str(external)}),
+            "utf-8",
+        )
+        with self.assertRaisesRegex(RecoveryError, "cannot contain"):
+            create_recovery_archive(self.live, external / "unsafe.zip")
+        self.assertEqual((external / "note.md").read_text("utf-8"), "owner note")
+
+    def test_legacy_data_class_policy_manifest_still_stages(self):
+        from services.backup_recovery import LEGACY_DATA_CLASS_POLICIES
+
+        archive = self._archive()
+        legacy = self.base / "legacy-data-policy.zip"
+
+        def mutate(entries):
+            changed = []
+            for name, content in entries:
+                if name == "manifest.json":
+                    manifest = json.loads(content)
+                    manifest["data_classes"] = [dict(item) for item in LEGACY_DATA_CLASS_POLICIES]
+                    content = json.dumps(manifest).encode("utf-8")
+                changed.append((name, content))
+            return changed
+
+        self._rewrite_archive(archive, legacy, mutate)
+        staged = stage_recovery_archive(legacy, self.live)
+        self.assertTrue((staged.data_dir / "vault" / "Notes" / "hello.md").is_file())
 
     def test_old_v1_manifest_without_policy_inventory_still_stages(self):
         archive = self._archive()
@@ -462,7 +536,8 @@ class BackupRecoveryTest(unittest.TestCase):
             manifest = create_recovery_archive(self.live, archive)
 
         vault_location = next(item for item in manifest["locations"] if item["role"] == "vault")
-        self.assertFalse(vault_location["included"])
+        self.assertTrue(vault_location["included"])
+        self.assertEqual(vault_location["policy"], "external-captured")
         with zipfile.ZipFile(archive) as zf:
             captured = json.loads(zf.read("payload/data/settings.json"))
         self.assertEqual(captured["vault_dir"], str(external))

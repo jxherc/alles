@@ -258,6 +258,7 @@ def request_action(
     request: ActionRequest,
     *,
     force_approval: bool = False,
+    auto_authorize: bool = False,
     approval_seconds: int = 600,
 ) -> tuple[DelegatedAction, bool]:
     _validate_request(db, request)
@@ -286,6 +287,38 @@ def request_action(
     )
     if approved:
         return approved, True
+    if auto_authorize and not force_approval:
+        existing = db.query(DelegatedAction).filter_by(pending_key=exact, state="pending").first()
+        if existing:
+            existing.state = "approved"
+            existing.pending_key = None
+            existing.approved_at = now
+            existing.expires_at = now + timedelta(seconds=max(30, min(approval_seconds, 3600)))
+            _event(db, "approval_granted", action=existing, actor="owner_mode")
+            db.flush()
+            return existing, True
+        row = DelegatedAction(
+            origin=request.origin,
+            run_id=request.run_id,
+            agent_run_id=request.agent_run_id,
+            session_id=request.session_id,
+            scope_kind=request.scope_kind,
+            scope_id=request.scope_id,
+            capability=request.capability,
+            action=request.action,
+            target=_bounded(request.target, 2000),
+            data_summary=_bounded(request.data_summary, 2000),
+            privacy_effect=_bounded(request.privacy_effect, 2000),
+            cost=_bounded(request.cost, 128),
+            exact_hash=exact,
+            state="approved",
+            approved_at=now,
+            expires_at=now + timedelta(seconds=max(30, min(approval_seconds, 3600))),
+        )
+        db.add(row)
+        db.flush()
+        _event(db, "approval_granted", action=row, actor="owner_mode")
+        return row, True
     grant = None if force_approval else _active_grant(db, request, now)
     if grant:
         row = DelegatedAction(

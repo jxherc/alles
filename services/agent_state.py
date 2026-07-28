@@ -7,7 +7,7 @@ outside the live SSE stream.
 
 import json
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 
 from core.settings import data_dir
@@ -20,7 +20,7 @@ _disk_active_dir: Path | None = None
 
 
 def _now() -> str:
-    return datetime.utcnow().isoformat()
+    return datetime.now(UTC).replace(tzinfo=None).isoformat()
 
 
 def run_dir() -> Path:

@@ -19,7 +19,9 @@ def main():
     pending = [t for t in tasks if t.get("status") != "done"]
     if pending:
         t = pending[0]
-        print(f"PENDING [{t.get('id')}] {t.get('app')} (phase {t.get('phase')}): {t.get('plan', '')}")
+        print(
+            f"PENDING [{t.get('id')}] {t.get('app')} (phase {t.get('phase')}): {t.get('plan', '')}"
+        )
         print(f"{len(pending)} of {len(tasks)} task(s) pending")
         return 1
     print(f"ALL DONE — {len(tasks)} task(s) complete")

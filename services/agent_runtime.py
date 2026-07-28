@@ -12,6 +12,7 @@ from typing import AsyncGenerator
 from core.database import DelegatedAction, ModelEndpoint, SessionLocal
 from services import policy
 from services.agent_state import finish_run, record_event, start_run, update_run
+from services.aide_questions import normalize_answer, normalize_request
 from services.agent_tools import (
     MUTATING_TOOLS,
     UNTRUSTED_TOOLS,
@@ -30,7 +31,14 @@ from services.llm import clear_cooldown, stream_chat
 # transient errors a couple times before giving up; tests patch the base to 0.
 LLM_RETRIES = 2
 LLM_RETRY_BASE = 1.5  # seconds; backoff = base * 2**(attempt-1), capped
-EFFORT_TURNS = {"low": 6, "medium": 18, "high": 36, "xhigh": 60, "max": 100}
+EFFORT_TURNS = {
+    "low": 6,
+    "medium": 18,
+    "high": 36,
+    "xhigh": 60,
+    "max": 100,
+    "deep_work": 48,
+}
 
 
 def _turn_int(v, default: int) -> int:
@@ -43,11 +51,33 @@ def _turn_int(v, default: int) -> int:
 def _agent_max_turns(settings: dict) -> int:
     settings = settings or {}
     eff = (settings.get("agent_effort") or "medium").lower()
-    turns = EFFORT_TURNS.get(eff) or _turn_int(settings.get("agent_max_turns"), 24)
+    if eff == "custom":
+        profile = settings.get("agent_custom_effort") or {}
+        raw_turns = profile.get("max_turns", 24)
+        try:
+            turns = min(64, max(1, int(raw_turns)))
+        except (TypeError, ValueError):
+            turns = 24
+    else:
+        turns = EFFORT_TURNS.get(eff) or _turn_int(settings.get("agent_max_turns"), 24)
     cap = settings.get("_agent_turn_cap")
     if cap is not None:
         turns = min(turns, _turn_int(cap, turns))
     return max(1, turns)
+
+
+def provider_effort(settings: dict | None) -> str:
+    """Map local orchestration profiles onto provider-supported effort values."""
+    settings = settings or {}
+    effort = str(settings.get("agent_effort") or "medium").lower()
+    if effort == "deep_work":
+        return "high"
+    if effort == "custom":
+        verification = str(
+            (settings.get("agent_custom_effort") or {}).get("verification") or "standard"
+        ).lower()
+        return {"quick": "low", "thorough": "high"}.get(verification, "medium")
+    return effort if effort in {"low", "medium", "high", "xhigh", "max"} else "medium"
 
 
 def _retryable(msg: str) -> bool:
@@ -61,6 +91,7 @@ def _retryable(msg: str) -> bool:
 
 # pending tool approvals — request_id → {event, allow}. resolved by the API.
 _pending_perms: dict[str, dict] = {}
+_pending_questions: dict[str, dict] = {}
 
 
 def _register_permission(request_id: str, exact_hash: str) -> None:
@@ -116,6 +147,114 @@ async def _await_permission(
             if not t.done():
                 t.cancel()
         _pending_perms.pop(request_id, None)
+
+
+def _register_user_question(
+    request_id: str, run_id: str, request: dict, *, jarvis_prompt_id: str = ""
+) -> None:
+    _pending_questions[request_id] = {
+        "event": asyncio.Event(),
+        "run_id": run_id,
+        "request": request,
+        "answer": None,
+        "jarvis_prompt_id": jarvis_prompt_id,
+    }
+
+
+def resolve_user_question(request_id: str, answer: dict) -> bool:
+    pending = _pending_questions.get(request_id)
+    if not pending:
+        return False
+    normalized = normalize_answer(pending["request"], answer)
+    prompt_id = pending.get("jarvis_prompt_id")
+    if prompt_id:
+        from services.jarvis_store import answer_questions
+
+        db = SessionLocal()
+        try:
+            from core.database import JarvisRunPrompt
+
+            prompt = db.get(JarvisRunPrompt, prompt_id)
+            if not prompt or prompt.state != "pending":
+                return False
+            answer_questions(db, prompt, normalized)
+            db.commit()
+        finally:
+            db.close()
+    pending["answer"] = normalized
+    pending["event"].set()
+    return True
+
+
+def resolve_user_question_from_jarvis(prompt_id: str, answer: dict) -> bool:
+    for pending in _pending_questions.values():
+        if pending.get("jarvis_prompt_id") == prompt_id:
+            pending["answer"] = normalize_answer(pending["request"], answer)
+            pending["event"].set()
+            return True
+    return False
+
+
+def _create_jarvis_question(settings: dict, request: dict) -> str:
+    run_id = str(settings.get("_jarvis_run_id") or "")
+    if not run_id:
+        return ""
+    from core.database import JarvisRun
+    from services.jarvis_store import create_prompt
+
+    db = SessionLocal()
+    try:
+        run = db.get(JarvisRun, run_id)
+        if not run or run.state != "running":
+            raise ValueError("jarvis_run_not_accepting_question")
+        prompt = create_prompt(
+            db,
+            run,
+            kind="choice",
+            title=request["title"],
+            questions=request["questions"],
+        )
+        db.commit()
+        return prompt.id
+    finally:
+        db.close()
+
+
+def _resume_jarvis_after_question(settings: dict) -> None:
+    run_id = str(settings.get("_jarvis_run_id") or "")
+    if not run_id:
+        return
+    from core.database import JarvisRun
+    from services.jarvis_store import transition_run
+
+    db = SessionLocal()
+    try:
+        run = db.get(JarvisRun, run_id)
+        if run and run.state == "queued":
+            transition_run(db, run, "running")
+            db.commit()
+    finally:
+        db.close()
+
+
+async def _await_user_question(request_id: str, stop_event, timeout: float = 86_400):
+    pending = _pending_questions.get(request_id)
+    if not pending:
+        return None
+    answer_task = asyncio.create_task(pending["event"].wait())
+    stop_task = asyncio.create_task(stop_event.wait())
+    try:
+        await asyncio.wait(
+            {answer_task, stop_task}, timeout=timeout, return_when=asyncio.FIRST_COMPLETED
+        )
+        if stop_event.is_set():
+            return None
+        return pending.get("answer") if pending["event"].is_set() else None
+    finally:
+        for task in (answer_task, stop_task):
+            if not task.done():
+                task.cancel()
+        _pending_questions.pop(request_id, None)
 
 
 # context files an agent auto-reads from the working dir (+ parents), nearest first.
@@ -302,6 +441,20 @@ def agent_system_note(settings: dict) -> str:
         extra.append(
             "- EFFORT: high — be thorough. Map the structure with glob/grep/code_symbols before editing, explore broadly, run the project's full tests/lint after changes, cover edge cases, and don't stop early."
         )
+    elif eff == "deep_work":
+        extra.append(
+            "- EFFORT: deep work — investigate broadly, verify thoroughly, reuse a matching workflow when useful, and delegate only independent non-trivial work within the run limit."
+        )
+    elif eff == "custom":
+        profile = settings.get("agent_custom_effort") or {}
+        verification = profile.get("verification") or "standard"
+        extra.append(f"- VERIFICATION: {verification}.")
+        if profile.get("delegation") != "auto" or not settings.get("agent_subagents"):
+            extra.append("- Delegation is disabled for this run.")
+        else:
+            extra.append("- Delegation is allowed only for independent, non-trivial work.")
+        if profile.get("workflows") == "auto":
+            extra.append("- Reuse a matching saved workflow when it clearly fits the task.")
     pmode = settings.get("agent_permission_mode") or "full_auto"
     if pmode == "plan":
         extra.append(
@@ -310,6 +463,18 @@ def agent_system_note(settings: dict) -> str:
     elif pmode == "approve":
         extra.append(
             "- APPROVE MODE: every state-changing action (shell, file writes, git, computer use, delegation) is shown to the user for approval first. Say what you're about to do in one line before such actions."
+        )
+    elif pmode == "full_access":
+        extra.append(
+            "- FULL ACCESS: ordinary in-scope work runs without approval. Disabled tools and file-tool secret/root guards still apply, but an unsandboxed shell has the same host access as Alles. Use shell only inside the selected Project and never read credential stores unless the owner explicitly asked."
+        )
+    elif pmode == "full_auto" and settings.get("agent_detached"):
+        extra.append(
+            "- DETACHED AUTO MODE: do safe and reversible local work automatically. Actions that require owner approval are unavailable while this run is detached; continue safely without them or report that the owner must resume the task in the tab."
+        )
+    else:
+        extra.append(
+            "- AUTO MODE: do safe and reversible local work automatically. Risky execution, deletion, external communication, computer control, delegation, and Git history changes require approval."
         )
 
     return (
@@ -329,6 +494,7 @@ def agent_system_note(settings: dict) -> str:
         "- Use git_status/git_diff before summarizing code changes. Use git_branch/git_commit only when the user asks to create branches or commits.\n"
         "- Use web_search/web_fetch for current information, documentation, or anything likely to have changed.\n"
         "- Use memory_search when preferences or prior context may matter, and memory_add only for durable user facts/preferences.\n"
+        "- When the user asks to save research or Markdown to Docs, use docs_write. Docs points to the configured Markdown vault and never needs a Project or working directory.\n"
         "- For a multi-step task, call skill_match(query) first to find a reusable procedure the user already wrote, then skill_load the best one; fall back to skill_list/cookbook workflows.\n"
         "- Use mcp_list_tools/mcp_call_tool for external tool surfaces.\n"
         "- Use opencode_run for coding subtasks when OpenCode is installed and a delegated coding pass is useful.\n"
@@ -354,8 +520,8 @@ async def run_agent(
     tool_steps: list[dict],
     session_id: str = "",
 ) -> AsyncGenerator[dict, None]:
-    # effort drives how many turns the agent gets (falls back to configured max)
-    eff = (settings.get("agent_effort") or "medium").lower()
+    # The local profile drives turn policy; only its provider-safe mapping leaves this runtime.
+    model_effort = provider_effort(settings)
     max_turns = _agent_max_turns(settings)
     run = start_run(
         session_id=session_id, model=model, max_turns=max_turns, cwd=settings.get("agent_cwd", "")
@@ -400,9 +566,17 @@ async def run_agent(
         for m in reversed(messages or []):
             if m.get("role") == "user":
                 c = m.get("content")
-                _intent = c if isinstance(c, str) else next(
-                    (p.get("text", "") for p in c if isinstance(p, dict) and p.get("type") == "text"),
-                    "",
+                _intent = (
+                    c
+                    if isinstance(c, str)
+                    else next(
+                        (
+                            p.get("text", "")
+                            for p in c
+                            if isinstance(p, dict) and p.get("type") == "text"
+                        ),
+                        "",
+                    )
                 )
                 break
         if _intent:
@@ -423,7 +597,7 @@ async def run_agent(
             update_run(run_id, worktree=_worktree, cwd=_worktree)
 
     # tools read sandbox/cwd/computer-use config + ep/model (for sub-agents) from here
-    set_agent_ctx(settings=settings, ep=ep, model=model, run_id=run_id)
+    set_agent_ctx(settings=settings, ep=ep, model=model, run_id=run_id, session_id=session_id)
 
     note = agent_system_note(settings)
     if settings.get("agent_context_files", True):
@@ -450,7 +624,10 @@ async def run_agent(
 
             turn_text = []
             tool_calls = []
-            llm_kwargs = {"tools": build_tool_defs(settings), "effort": eff}
+            llm_kwargs = {"tools": build_tool_defs(settings), "effort": model_effort}
+            reasoning = settings.get("agent_reasoning_mode")
+            if reasoning in {"on", "off"}:
+                llm_kwargs["thinking"] = reasoning == "on"
             if settings.get("agent_max_tokens"):
                 llm_kwargs["max_tokens"] = settings["agent_max_tokens"]
             if settings.get("temperature") is not None:
@@ -469,7 +646,9 @@ async def run_agent(
                 # throwaway reasoning and must NOT block a retry — reasoning models stream it
                 # before any answer, so a transient blip mid-thought would otherwise kill the run.
                 committed = False
-                think_mark = len(thinking_acc)  # so a retry can drop this attempt's partial thinking
+                think_mark = len(
+                    thinking_acc
+                )  # so a retry can drop this attempt's partial thinking
                 err_chunk = None
                 async for chunk in stream_chat(
                     agent_messages, ep.base_url, ep.api_key, model, **llm_kwargs
@@ -543,7 +722,9 @@ async def run_agent(
             )
 
             turn_images = []  # screenshots to feed back as vision input this turn
-            answered = set()  # call_ids that got a tool result (so a stop mid-batch can stub the rest)
+            answered = (
+                set()
+            )  # call_ids that got a tool result (so a stop mid-batch can stub the rest)
 
             for ci, call in enumerate(tool_calls):
                 if stop_event.is_set():
@@ -594,6 +775,11 @@ async def run_agent(
                             "error": True,
                         }
                     )
+                elif decision == "ask" and settings.get("agent_detached"):
+                    gate = {
+                        "output": "[approval unavailable in detached run] action not performed. Continue safely without it or report that the owner must resume this task in the tab.",
+                        "error": True,
+                    }
                 elif name in MUTATING_TOOLS:
                     from services.agent_tools import delegated_action_details
                     from services.delegated_actions import (
@@ -627,6 +813,7 @@ async def run_agent(
                             _ddb,
                             delegated_request,
                             force_approval=decision == "ask",
+                            auto_authorize=decision == "allow",
                         )
                         _ddb.commit()
                         _ddb.refresh(delegated_action)
@@ -709,6 +896,54 @@ async def run_agent(
                     result = gate
                     step["output"] = gate["output"]
                     step["error"] = True
+                elif name == "ask_user":
+                    try:
+                        question = normalize_request(args)
+                        question_id = uuid.uuid4().hex
+                        jarvis_prompt_id = _create_jarvis_question(settings, question)
+                        question = {**question, "id": question_id, "call_id": call_id}
+                        if jarvis_prompt_id:
+                            question["jarvis_prompt_id"] = jarvis_prompt_id
+                        _register_user_question(
+                            question_id,
+                            run_id,
+                            question,
+                            jarvis_prompt_id=jarvis_prompt_id,
+                        )
+                        update_run(run_id, pending_question=question)
+                        record_event(run_id, "user_question", question)
+                        yield {"user_question": question}
+                        answer = await _await_user_question(question_id, stop_event)
+                        update_run(run_id, pending_question=None)
+                        _resume_jarvis_after_question(settings)
+                        if answer is None:
+                            result = {
+                                "output": "the question was cancelled or timed out",
+                                "error": True,
+                            }
+                        else:
+                            record_event(
+                                run_id,
+                                "user_question_resolved",
+                                {"id": question_id, "answer": answer},
+                            )
+                            yield {
+                                "user_question_resolved": {
+                                    "id": question_id,
+                                    "call_id": call_id,
+                                    "answer": answer,
+                                }
+                            }
+                            result = {
+                                "output": json.dumps(answer, ensure_ascii=False),
+                                "error": bool(answer.get("cancelled")),
+                            }
+                        step["output"] = result["output"]
+                        step["error"] = bool(result["error"])
+                    except ValueError as exc:
+                        result = {"output": str(exc), "error": True}
+                        step["output"] = result["output"]
+                        step["error"] = True
                 else:
                     if delegated_action_id is not None and delegated_request.path_targets:
                         authorize_delegated_paths(delegated_request.path_targets)

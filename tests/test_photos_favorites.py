@@ -6,11 +6,13 @@ class PhotoFavoritesTests(ApiTest):
     def setUp(self):
         super().setUp()
         d = self.db()
-        d.add_all([
-            Photo(filename="a.jpg", favorite=True, original_name="a"),
-            Photo(filename="b.jpg", favorite=False, original_name="b"),
-            Photo(filename="c.jpg", favorite=True, original_name="c"),
-        ])
+        d.add_all(
+            [
+                Photo(filename="a.jpg", favorite=True, original_name="a"),
+                Photo(filename="b.jpg", favorite=False, original_name="b"),
+                Photo(filename="c.jpg", favorite=True, original_name="c"),
+            ]
+        )
         d.commit()
         d.close()
 

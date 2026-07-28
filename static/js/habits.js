@@ -2,7 +2,7 @@
 // day to mark it done; each habit shows its streak, this-week progress, and a
 // GitHub-style contribution heatmap. mirrors the days/watch panel conventions.
 import { toast } from './util.js';
-import { initCustomDropdown } from './dropdown.js?v=210';
+import { initCustomDropdown } from './dropdown.js?v=212';
 import { confirm as dlgConfirm } from './dialog.js';
 const _si = n => (window.icon ? window.icon(n) : '');
 
@@ -11,13 +11,14 @@ let _habits = [];
 let _editing = null;
 let _adding = false;
 
-export function initHabits() {
-  loadHabits();
+export function initHabits(fetcher = fetch) {
+  const loading = loadHabits(fetcher);
   document.addEventListener('visibilitychange', () => { if (!document.hidden) loadHabits(); });
+  return loading;
 }
 
-export async function loadHabits() {
-  try { _habits = (await fetch('/api/habits/overview').then(r => r.json())).habits || []; }
+export async function loadHabits(fetcher = fetch) {
+  try { _habits = (await fetcher('/api/habits/overview').then(r => r.json())).habits || []; }
   catch { _habits = []; }
   _render();
 }

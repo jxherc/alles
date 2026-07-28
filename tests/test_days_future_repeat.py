@@ -86,6 +86,7 @@ class FutureRepeatApiTests(ApiTest):
 
     def test_fmt_survives_null_created_at(self):
         from core.database import DayEvent
+
         d = self.db()
         d.add(DayEvent(name="legacy", date=date.today().isoformat(), created_at=None))
         d.commit()

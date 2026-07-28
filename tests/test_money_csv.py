@@ -47,8 +47,12 @@ class MoneyCsvTest(ApiTest):
         self.client.post(
             "/api/money/transactions",
             json={
-                "account_id": aid, "date": "2026-06-03", "amount": -8.0,
-                "category": "food", "payee": "Blue Bottle", "tags": "coffee, work",
+                "account_id": aid,
+                "date": "2026-06-03",
+                "amount": -8.0,
+                "category": "food",
+                "payee": "Blue Bottle",
+                "tags": "coffee, work",
             },
         )
         text = self.client.get("/api/money/transactions/export.csv").text
@@ -59,7 +63,7 @@ class MoneyCsvTest(ApiTest):
         )
         d = self.db()
         t = d.query(Transaction).filter(Transaction.account_id == aid2).first()
-        tags = (t.tags or "")
+        tags = t.tags or ""
         d.close()
         self.assertIn("coffee", tags)
         self.assertIn("work", tags)  # both manual tags preserved through the round-trip
@@ -118,6 +122,33 @@ class MoneyCsvTest(ApiTest):
         ).json()
         self.assertEqual(third["imported"], 1)
         self.assertEqual(third["skipped"], 1)
+
+    def test_reimport_skips_an_owner_edited_row_by_durable_identity(self):
+        from core.database import Transaction
+
+        aid = self._account()
+        csv_text = "date,amount,payee\n2026-06-01,-10,cafe\n"
+        first = self.client.post(
+            "/api/money/transactions/import.csv", json={"csv": csv_text, "account_id": aid}
+        )
+        self.assertEqual(first.json()["imported"], 1)
+
+        db = self.db()
+        transaction = db.query(Transaction).filter(Transaction.account_id == aid).one()
+        transaction.date = "2026-06-15"
+        transaction.amount = -25
+        transaction.payee = "owner correction"
+        db.commit()
+        db.close()
+
+        repeated = self.client.post(
+            "/api/money/transactions/import.csv", json={"csv": csv_text, "account_id": aid}
+        )
+        self.assertEqual(repeated.status_code, 200)
+        self.assertEqual(repeated.json(), {"imported": 0, "skipped": 1})
+        db = self.db()
+        self.assertEqual(db.query(Transaction).filter(Transaction.account_id == aid).count(), 1)
+        db.close()
 
     def test_export_csv_has_header_row(self):
         aid = self._account()

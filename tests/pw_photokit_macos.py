@@ -105,7 +105,7 @@ def main():
         result["button_tag"] = button.evaluate("el => el.tagName")
         button.focus()
         page.keyboard.press("Enter")
-        page.locator("#_dy").wait_for(state="visible")
+        page.locator("[data-dialog-confirm]").wait_for(state="visible")
         page.screenshot(path="/tmp/alles-photokit-confirm.png", full_page=True)
         page.keyboard.press("Tab")
         page.keyboard.press("Enter")

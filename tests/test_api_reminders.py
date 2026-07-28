@@ -1,11 +1,11 @@
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from tests._client import ApiTest
 
 
 class RemindersApiTest(ApiTest):
     def test_create_list_delete(self):
-        future = (datetime.utcnow() + timedelta(days=1)).isoformat()
+        future = (datetime.now(UTC).replace(tzinfo=None) + timedelta(days=1)).isoformat()
         r = self.client.post(
             "/api/reminders", json={"text": "call mom", "trigger_at": future}
         ).json()
@@ -24,7 +24,7 @@ class RemindersApiTest(ApiTest):
         )
 
     def test_due_is_read_only_until_client_acknowledges_delivery(self):
-        past = (datetime.utcnow() - timedelta(minutes=5)).isoformat()
+        past = (datetime.now(UTC).replace(tzinfo=None) - timedelta(minutes=5)).isoformat()
         created = self.client.post(
             "/api/reminders", json={"text": "overdue", "trigger_at": past}
         ).json()
@@ -50,12 +50,12 @@ class RemindersApiTest(ApiTest):
         self.assertEqual(self.client.delete("/api/reminders/nope").status_code, 404)
 
     def test_future_not_in_due(self):
-        future = (datetime.utcnow() + timedelta(hours=2)).isoformat()
+        future = (datetime.now(UTC).replace(tzinfo=None) + timedelta(hours=2)).isoformat()
         self.client.post("/api/reminders", json={"text": "not yet", "trigger_at": future})
         self.assertEqual(self.client.get("/api/reminders/due").json(), [])
 
     def test_message_type_not_in_due(self):
-        past = (datetime.utcnow() - timedelta(minutes=1)).isoformat()
+        past = (datetime.now(UTC).replace(tzinfo=None) - timedelta(minutes=1)).isoformat()
         self.client.post(
             "/api/reminders", json={"text": "msg", "trigger_at": past, "type": "message"}
         )
@@ -66,9 +66,10 @@ class RemindersApiTest(ApiTest):
         self.assertEqual(lst[0]["type"], "message")
 
     def test_multiple_ordered_by_trigger_at(self):
-        t1 = (datetime.utcnow() + timedelta(hours=3)).isoformat()
-        t2 = (datetime.utcnow() + timedelta(hours=1)).isoformat()
-        t3 = (datetime.utcnow() + timedelta(hours=2)).isoformat()
+        now = datetime.now(UTC).replace(tzinfo=None)
+        t1 = (now + timedelta(hours=3)).isoformat()
+        t2 = (now + timedelta(hours=1)).isoformat()
+        t3 = (now + timedelta(hours=2)).isoformat()
         self.client.post("/api/reminders", json={"text": "third", "trigger_at": t1})
         self.client.post("/api/reminders", json={"text": "first", "trigger_at": t2})
         self.client.post("/api/reminders", json={"text": "second", "trigger_at": t3})
@@ -76,7 +77,7 @@ class RemindersApiTest(ApiTest):
         self.assertEqual(texts, ["first", "second", "third"])
 
     def test_response_has_all_fields(self):
-        future = (datetime.utcnow() + timedelta(days=1)).isoformat()
+        future = (datetime.now(UTC).replace(tzinfo=None) + timedelta(days=1)).isoformat()
         r = self.client.post(
             "/api/reminders",
             json={"text": "check fields", "trigger_at": future, "session_id": "abc"},
@@ -88,21 +89,21 @@ class RemindersApiTest(ApiTest):
         self.assertFalse(r["fired"])
 
     def test_create_custom_type(self):
-        future = (datetime.utcnow() + timedelta(days=1)).isoformat()
+        future = (datetime.now(UTC).replace(tzinfo=None) + timedelta(days=1)).isoformat()
         r = self.client.post(
             "/api/reminders", json={"text": "hey", "trigger_at": future, "type": "message"}
         ).json()
         self.assertEqual(r["type"], "message")
 
     def test_create_with_session_id(self):
-        future = (datetime.utcnow() + timedelta(days=1)).isoformat()
+        future = (datetime.now(UTC).replace(tzinfo=None) + timedelta(days=1)).isoformat()
         r = self.client.post(
             "/api/reminders", json={"text": "hi", "trigger_at": future, "session_id": "sess-xyz"}
         ).json()
         self.assertEqual(r["session_id"], "sess-xyz")
 
     def test_delete_one_of_two(self):
-        future = (datetime.utcnow() + timedelta(days=1)).isoformat()
+        future = (datetime.now(UTC).replace(tzinfo=None) + timedelta(days=1)).isoformat()
         a = self.client.post("/api/reminders", json={"text": "keep", "trigger_at": future}).json()
         b = self.client.post("/api/reminders", json={"text": "drop", "trigger_at": future}).json()
         self.client.delete(f"/api/reminders/{b['id']}")

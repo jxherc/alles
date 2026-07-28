@@ -1,5 +1,6 @@
 """ui-3k verify — canvas/board/tasks moved to the docs home; bookmark works from a
 doc card; the in-doc toolbar no longer carries canvas/board/tasks/bookmark."""
+
 import sys
 
 from playwright.sync_api import sync_playwright
@@ -40,12 +41,16 @@ def run():
         # bookmark via a card star → bookmarks strip appears
         pg.eval_on_selector(".docs-card-star", "el => el.click()")
         pg.wait_for_timeout(600)
-        bm = pg.evaluate("() => ({strip: !!document.querySelector('#docs-bookmarks'), starOn: !!document.querySelector('.docs-card-star.on')})")
+        bm = pg.evaluate(
+            "() => ({strip: !!document.querySelector('#docs-bookmarks'), starOn: !!document.querySelector('.docs-card-star.on')})"
+        )
         ok("bookmarking from a card shows the bookmarks strip", bm["strip"])
         ok("the card star turns on", bm["starOn"])
 
         # open a doc → in-doc toolbar no longer has the 4 moved buttons
-        pg.evaluate("""() => { const el = document.querySelector('.wiki-file[data-path=\"livetest.md\"] .wiki-row-label'); if (el) el.click(); }""")
+        pg.evaluate(
+            """() => { const el = document.querySelector('.wiki-file[data-path=\"livetest.md\"] .wiki-row-label'); if (el) el.click(); }"""
+        )
         pg.wait_for_timeout(900)
         gone = pg.evaluate("""() => ({
           canvas: !!document.querySelector('#wiki-canvas-btn'),

@@ -115,7 +115,10 @@ def _net_iface(ps) -> dict:
         addrs = ps.net_if_addrs()
     except Exception:
         return {}
-    spd_of = lambda n: getattr(stats.get(n), "speed", 0) or 0
+
+    def spd_of(name):
+        return getattr(stats.get(name), "speed", 0) or 0
+
     # 1. match the default-route ip to whichever interface owns it (the real one)
     primary = _primary_ip()
     if primary:
@@ -157,6 +160,12 @@ def _disk_io_rates(ps) -> dict:
 _user_cache = {}  # pid -> username (stable per process; lookups are slow on windows)
 
 
+def _json_safe_text(value) -> str:
+    """Replace filesystem-surrogate bytes before returning OS text as JSON."""
+    text = value if isinstance(value, str) else str(value)
+    return "".join("\ufffd" if 0xD800 <= ord(char) <= 0xDFFF else char for char in text)
+
+
 def _processes(ps, limit=24) -> tuple[list, int]:
     """top processes by cpu, btop-style columns (threads/user/mem/cpu). process_iter
     caches Process objects, so cpu_percent() measures the delta since the previous
@@ -190,14 +199,14 @@ def _processes(ps, limit=24) -> tuple[list, int]:
         user = _user_cache.get(pid)
         if user is None:
             try:
-                user = (p.username() or "").split("\\")[-1][:12]
+                user = _json_safe_text((p.username() or "").split("\\")[-1])[:12]
             except Exception:
                 user = ""
             _user_cache[pid] = user
         procs.append(
             {
                 "pid": pid,
-                "name": name[:28],
+                "name": _json_safe_text(name)[:28],
                 "cpu": round(cpu, 1),
                 "mem": round(mem, 1),
                 "rss": rss,

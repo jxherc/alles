@@ -80,9 +80,7 @@ class CorsTests(unittest.TestCase):
 
         from app import app
 
-        r = TestClient(app).get(
-            "/api/settings", headers={"Origin": "https://evil.example"}
-        )
+        r = TestClient(app).get("/api/settings", headers={"Origin": "https://evil.example"})
         self.assertNotIn("access-control-allow-origin", r.headers)
 
     def test_unknown_host_is_rejected(self):

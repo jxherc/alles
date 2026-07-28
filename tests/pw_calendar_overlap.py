@@ -1,5 +1,7 @@
 """verify two overlapping timed events render side-by-side (not stacked/hidden)."""
+
 from datetime import date
+
 from playwright.sync_api import sync_playwright
 
 BASE = "http://calendar.localhost:8077"
@@ -19,12 +21,15 @@ def main():
                   body: JSON.stringify({ title:t, start_dt:`${d}T${sh}:00`, end_dt:`${d}T${eh}:00`, all_day:false }) });
                 await mk('OVLP_A', '10:00', '11:30');
                 await mk('OVLP_B', '10:30', '12:00');   // overlaps A
-            }""", d,
+            }""",
+            d,
         )
         pg.evaluate("() => window._navigateTo && window._navigateTo('calendar')")
         pg.wait_for_timeout(800)
         # switch to day view (button/segment with 'day')
-        pg.evaluate("""() => { const b=[...document.querySelectorAll('button,.cal-view-opt,[data-view]')].find(x=>/^day$/i.test((x.textContent||'').trim())); b && b.click(); }""")
+        pg.evaluate(
+            """() => { const b=[...document.querySelectorAll('button,.cal-view-opt,[data-view]')].find(x=>/^day$/i.test((x.textContent||'').trim())); b && b.click(); }"""
+        )
         pg.wait_for_timeout(900)
         boxes = pg.evaluate("""() => [...document.querySelectorAll('.cal-tev')]
             .filter(e => /OVLP_/.test(e.textContent||''))

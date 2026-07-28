@@ -88,9 +88,7 @@ class GalleryApiTest(ApiTest):
 
     def test_path_traversal_blocked(self):
         # filenames with separators are blocked by the route's traversal check
-        self.assertEqual(
-            self.client.get("/api/gallery/file/%2F..%2Fetc%2Fpasswd").status_code, 404
-        )
+        self.assertEqual(self.client.get("/api/gallery/file/%2F..%2Fetc%2Fpasswd").status_code, 404)
 
     def test_multiple_uploads_list_order(self):
         self._upload("a.png")

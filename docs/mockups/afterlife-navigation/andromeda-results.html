@@ -1,0 +1,1329 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="KOKUEN Andromeda search results starter for Alles.">
+  <title>Andromeda results - KOKUEN starter</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #090909;
+      --panel: #0f0f0f;
+      --raised: #141414;
+      --text: #eceae6;
+      --soft: #b8b4af;
+      --muted: #77736f;
+      --line: #303030;
+      --line-strong: #484848;
+      --accent: #858cff;
+      --accent-wash: rgba(133, 140, 255, 0.12);
+      --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html,
+    body {
+      min-height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-family, "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif);
+      font-feature-settings: "cv11", "ss01", "ss03";
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body { min-height: 100dvh; }
+    button, input, a { font: inherit; }
+    button { -webkit-appearance: none; appearance: none; }
+    [hidden] { display: none !important; }
+
+    .page {
+      width: min(1240px, 100%);
+      min-height: 100dvh;
+      margin: 0 auto;
+      padding: 0 clamp(1rem, 3vw, 1.8rem) 5rem;
+    }
+
+    .app-head {
+      display: grid;
+      grid-template-columns: 100px minmax(0, 920px) 36px;
+      align-items: center;
+      gap: 1.1rem;
+      min-height: 80px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .brand {
+      color: var(--text);
+      font-size: 0.88rem;
+      font-weight: 560;
+      letter-spacing: 0.015em;
+      text-decoration: none;
+    }
+
+    .search-form {
+      width: 100%;
+      min-height: 50px;
+      display: grid;
+      grid-template-columns: 40px minmax(0, 1fr) 40px;
+      align-items: center;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      background: var(--panel);
+      transition: border-color 140ms var(--ease), background 140ms var(--ease);
+    }
+
+    .search-form:hover,
+    .search-form:focus-within {
+      border-color: var(--line-strong);
+      background: #111111;
+    }
+
+    .search-icon {
+      width: 15px;
+      height: 15px;
+      justify-self: center;
+      color: var(--muted);
+      pointer-events: none;
+    }
+
+    .search-input {
+      width: 100%;
+      min-width: 0;
+      height: 48px;
+      padding: 0;
+      -webkit-appearance: none;
+      appearance: none;
+      border: 0;
+      border-radius: 0;
+      outline: 0;
+      box-shadow: none;
+      background: transparent;
+      color: var(--text);
+      caret-color: var(--text);
+      font-size: 1rem;
+    }
+
+    .search-input:focus,
+    .search-input:focus-visible { border: 0; outline: 0; box-shadow: none; }
+
+    .search-input::-webkit-search-decoration,
+    .search-input::-webkit-search-cancel-button,
+    .search-input::-webkit-search-results-button,
+    .search-input::-webkit-search-results-decoration {
+      display: none;
+      -webkit-appearance: none;
+    }
+
+    .icon-button {
+      width: 34px;
+      height: 34px;
+      display: grid;
+      place-items: center;
+      border: 1px solid transparent;
+      border-radius: 4px;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+    }
+
+    .icon-button:hover,
+    .icon-button[aria-expanded="true"] {
+      border-color: var(--line);
+      background: var(--panel);
+      color: var(--text);
+    }
+
+    .icon-button svg { width: 14px; height: 14px; }
+
+    .result-column {
+      width: min(920px, calc(100% - 136px));
+      margin-left: 118px;
+    }
+
+    .result-tools {
+      min-height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .result-tabs {
+      align-self: stretch;
+      display: flex;
+      align-items: stretch;
+      gap: 1.35rem;
+    }
+
+    .result-tab {
+      position: relative;
+      display: flex;
+      align-items: center;
+      border: 0;
+      background: transparent;
+      color: var(--muted);
+      font-size: 0.86rem;
+      cursor: pointer;
+    }
+
+    .result-tab:hover,
+    .result-tab.active { color: var(--text); }
+
+    .result-tab.active::after {
+      content: "";
+      position: absolute;
+      right: 0;
+      bottom: -1px;
+      left: 0;
+      height: 1px;
+      background: var(--text);
+    }
+
+    .result-time {
+      color: var(--muted);
+      font-size: 0.76rem;
+      white-space: nowrap;
+    }
+
+    .overview {
+      margin-top: 1.35rem;
+      padding: 1.55rem 1.65rem 1.45rem;
+      border: 1px solid var(--line-strong);
+      border-radius: 4px;
+      background: var(--panel);
+    }
+
+    .section-head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 1rem;
+      margin-bottom: 0.85rem;
+    }
+
+    .overview h1 {
+      font-size: 0.94rem;
+      font-weight: 570;
+      letter-spacing: -0.01em;
+    }
+
+    .overview-state {
+      color: var(--muted);
+      font-size: 0.75rem;
+    }
+
+    .key-answer {
+      margin-bottom: 1rem;
+      padding: 0.85rem 0;
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .key-label {
+      display: block;
+      margin-bottom: 0.28rem;
+      color: var(--muted);
+      font-size: 0.73rem;
+      letter-spacing: 0.065em;
+      text-transform: uppercase;
+    }
+
+    .key-value {
+      display: block;
+      font-size: 2rem;
+      font-weight: 590;
+      letter-spacing: -0.03em;
+      line-height: 1.12;
+    }
+
+    .key-note {
+      display: block;
+      margin-top: 0.35rem;
+      color: var(--muted);
+      font-size: 0.88rem;
+      line-height: 1.45;
+    }
+
+    .overview-answer {
+      max-width: 850px;
+      color: var(--text);
+      font-size: 1rem;
+      font-weight: 430;
+      line-height: 1.68;
+    }
+
+    .marker {
+      margin: 0 -0.06em;
+      padding: 0 0.06em;
+      color: inherit;
+      background: linear-gradient(177deg, transparent 35%, rgba(133, 140, 255, 0.46) 35%, rgba(133, 140, 255, 0.46) 88%, transparent 88%);
+      -webkit-box-decoration-break: clone;
+      box-decoration-break: clone;
+    }
+
+    .citation {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 14px;
+      height: 14px;
+      margin-left: 0.1rem;
+      border: 1px solid var(--line);
+      border-radius: 2px;
+      color: var(--muted);
+      font-size: 0.52rem;
+      text-decoration: none;
+      vertical-align: 0.12em;
+    }
+
+    .citation:hover { border-color: var(--line-strong); color: var(--text); }
+
+    .source-strip {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.38rem;
+      margin-top: 0.9rem;
+    }
+
+    .source-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      min-height: 24px;
+      padding: 0 0.48rem;
+      border: 1px solid var(--line);
+      border-radius: 3px;
+      color: var(--muted);
+      font-size: 0.68rem;
+      text-decoration: none;
+    }
+
+    .source-chip:hover { border-color: var(--line-strong); color: var(--text); }
+    .source-number { color: var(--text); font-variant-numeric: tabular-nums; }
+
+    .overview-actions {
+      display: flex;
+      gap: 1rem;
+      margin-top: 0.9rem;
+    }
+
+    .text-action {
+      border: 0;
+      background: transparent;
+      color: var(--muted);
+      font-size: 0.78rem;
+      cursor: pointer;
+    }
+
+    .text-action:hover { color: var(--text); }
+
+    .result-view { padding-top: 2rem; }
+    .all-results { max-width: 820px; }
+
+    .view-head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 1rem;
+      margin-bottom: 1.2rem;
+    }
+
+    .view-head h2 {
+      color: var(--soft);
+      font-size: 0.9rem;
+      font-weight: 520;
+    }
+
+    .view-head span {
+      color: var(--muted);
+      font-size: 0.74rem;
+    }
+
+    .result-list { list-style: none; }
+    .result-item + .result-item { margin-top: 2.2rem; }
+
+    .result-source {
+      display: flex;
+      align-items: center;
+      gap: 0.52rem;
+      min-width: 0;
+      margin-bottom: 0.36rem;
+    }
+
+    .source-mark {
+      position: relative;
+      width: 28px;
+      height: 28px;
+      display: grid;
+      place-items: center;
+      flex: 0 0 auto;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      color: var(--muted);
+      font-size: 0.62rem;
+      text-transform: uppercase;
+    }
+
+    .source-favicon,
+    .favicon-fallback {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    .source-favicon {
+      display: block;
+      padding: 3px;
+      object-fit: contain;
+      opacity: 0;
+    }
+
+    .favicon-fallback { display: grid; place-items: center; }
+    [data-image-frame].image-loaded > img { opacity: 1; }
+    [data-image-frame].image-loaded > .image-fallback { display: none; }
+    [data-image-frame].image-failed > img { display: none; }
+
+    .source-copy { min-width: 0; }
+    .source-name { display: block; color: var(--soft); font-size: 0.78rem; }
+    .source-url {
+      display: block;
+      overflow: hidden;
+      color: var(--muted);
+      font-size: 0.7rem;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .result-title {
+      display: inline-block;
+      max-width: 100%;
+      color: var(--text);
+      font-size: 1.18rem;
+      font-weight: 540;
+      line-height: 1.36;
+      text-decoration: none;
+    }
+
+    .result-title:hover,
+    .result-title:focus-visible {
+      text-decoration: underline;
+      text-underline-offset: 3px;
+    }
+
+    .result-snippet {
+      max-width: 790px;
+      margin-top: 0.42rem;
+      color: #aaa6a1;
+      font-size: 0.92rem;
+      line-height: 1.6;
+    }
+
+    .result-date { color: #8f8b87; }
+
+    .more-results {
+      width: 100%;
+      min-height: 44px;
+      margin-top: 2rem;
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      background: transparent;
+      color: var(--soft);
+      font-size: 0.84rem;
+      cursor: pointer;
+    }
+
+    .more-results:hover { border-color: var(--line-strong); color: var(--text); }
+
+    .image-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      align-items: start;
+      gap: 1rem;
+    }
+
+    .image-layout[data-preview-open="true"] {
+      grid-template-columns: minmax(0, 1fr) minmax(320px, 360px);
+    }
+
+    .image-grid {
+      display: grid;
+      grid-template-columns: repeat(12, minmax(0, 1fr));
+      align-items: start;
+      gap: 0.9rem 0.65rem;
+    }
+
+    .image-card,
+    .video-card {
+      min-width: 0;
+      display: block;
+      color: var(--text);
+      text-decoration: none;
+    }
+
+    .image-card {
+      width: 100%;
+      grid-column: span 4;
+      border: 0;
+      background: transparent;
+      color: var(--text);
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .image-card:nth-child(1) { grid-column: span 5; }
+    .image-card:nth-child(2) { grid-column: span 3; }
+    .image-card:nth-child(3) { grid-column: span 4; }
+    .image-card:nth-child(4) { grid-column: span 4; }
+    .image-card:nth-child(5) { grid-column: span 5; }
+    .image-card:nth-child(6) { grid-column: span 3; }
+    .image-layout[data-preview-open="true"] .image-card { grid-column: span 6; }
+
+    .media-frame {
+      position: relative;
+      width: 100%;
+      display: block;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      background: var(--raised);
+    }
+
+    .image-card .media-frame { height: 184px; }
+    .image-layout[data-preview-open="true"] .image-card .media-frame { height: 142px; }
+    .media-frame > img {
+      width: 100%;
+      height: 100%;
+      display: block;
+      object-fit: cover;
+      opacity: 0;
+      transition: opacity 140ms var(--ease), transform 180ms var(--ease);
+    }
+
+    .image-fallback {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: 1rem;
+      color: var(--muted);
+      font-size: 0.75rem;
+      text-align: center;
+    }
+
+    .image-card:hover .media-frame > img,
+    .video-card:hover .media-frame > img { transform: scale(1.015); }
+
+    .image-card:hover .media-frame,
+    .image-card[aria-pressed="true"] .media-frame { border-color: var(--line-strong); }
+
+    .media-title {
+      display: block;
+      margin-top: 0.58rem;
+      overflow: hidden;
+      font-size: 0.94rem;
+      font-weight: 520;
+      line-height: 1.35;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .media-source {
+      display: block;
+      margin-top: 0.22rem;
+      color: var(--muted);
+      font-size: 0.75rem;
+    }
+
+    .image-preview {
+      position: sticky;
+      top: 1rem;
+      overflow: hidden;
+      border: 1px solid var(--line-strong);
+      border-radius: 4px;
+      background: var(--panel);
+    }
+
+    .preview-head {
+      min-height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 0 0.55rem 0 0.85rem;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .preview-source {
+      overflow: hidden;
+      color: var(--soft);
+      font-size: 0.78rem;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .preview-close {
+      width: 32px;
+      height: 32px;
+      display: grid;
+      place-items: center;
+      flex: 0 0 auto;
+      border: 0;
+      border-radius: 3px;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+    }
+
+    .preview-close:hover { background: var(--raised); color: var(--text); }
+    .preview-close svg { width: 14px; height: 14px; }
+
+    .preview-frame {
+      aspect-ratio: 4 / 3;
+      border: 0;
+      border-bottom: 1px solid var(--line);
+      border-radius: 0;
+    }
+
+    .preview-frame > img { object-fit: contain; }
+
+    .preview-copy { padding: 1rem; }
+    .preview-title {
+      color: var(--text);
+      font-size: 1.08rem;
+      font-weight: 560;
+      line-height: 1.4;
+    }
+
+    .preview-description {
+      margin-top: 0.5rem;
+      color: #aaa6a1;
+      font-size: 0.86rem;
+      line-height: 1.55;
+    }
+
+    .preview-visit {
+      min-height: 38px;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      margin-top: 0.9rem;
+      padding: 0 0.72rem;
+      border: 1px solid var(--line-strong);
+      border-radius: 3px;
+      color: var(--text);
+      font-size: 0.82rem;
+      text-decoration: none;
+    }
+
+    .preview-visit:hover { background: var(--raised); }
+    .preview-visit svg { width: 12px; height: 12px; }
+
+    .news-list { list-style: none; max-width: 860px; }
+    .news-card + .news-card { border-top: 1px solid var(--line); }
+
+    .news-card {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 176px;
+      gap: 1.2rem;
+      padding: 1.35rem 0;
+    }
+
+    .news-card:first-child { padding-top: 0; }
+    .news-card:not(.has-image) { grid-template-columns: 1fr; }
+    .news-source { display: block; color: var(--muted); font-size: 0.76rem; }
+    .news-title {
+      display: inline-block;
+      margin-top: 0.38rem;
+      color: var(--text);
+      font-size: 1.15rem;
+      font-weight: 550;
+      line-height: 1.38;
+      text-decoration: none;
+    }
+
+    .news-title:hover { text-decoration: underline; text-underline-offset: 3px; }
+    .news-snippet { margin-top: 0.44rem; color: #aaa6a1; font-size: 0.9rem; line-height: 1.55; }
+    .news-time { display: block; margin-top: 0.55rem; color: var(--muted); font-size: 0.74rem; }
+    .news-card .media-frame { align-self: start; aspect-ratio: 16 / 10; }
+
+    .video-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 1.8rem 1.15rem;
+    }
+
+    .video-card .media-frame { aspect-ratio: 16 / 9; }
+    .play-mark {
+      position: absolute;
+      left: 0.5rem;
+      bottom: 0.45rem;
+      width: 32px;
+      height: 28px;
+      display: grid;
+      place-items: center;
+      border: 0;
+      border-radius: 3px;
+      background: rgba(9, 9, 9, 0.86);
+      color: var(--text);
+      box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.13);
+    }
+
+    .play-mark svg { width: 11px; height: 11px; margin-left: 1px; }
+    .duration {
+      position: absolute;
+      right: 0.45rem;
+      bottom: 0.42rem;
+      padding: 0.18rem 0.3rem;
+      border-radius: 2px;
+      background: rgba(9, 9, 9, 0.86);
+      color: var(--text);
+      font-size: 0.68rem;
+    }
+
+    .video-title {
+      display: block;
+      margin-top: 0.66rem;
+      color: var(--text);
+      font-size: 1rem;
+      font-weight: 540;
+      line-height: 1.38;
+    }
+
+    .video-meta { display: block; margin-top: 0.28rem; color: var(--muted); font-size: 0.76rem; }
+
+    .settings-panel {
+      position: fixed;
+      top: 4.8rem;
+      right: max(1rem, calc((100vw - 1240px) / 2 + 1.8rem));
+      z-index: 10;
+      width: min(370px, calc(100vw - 2rem));
+      border: 1px solid var(--line-strong);
+      border-radius: 5px;
+      background: var(--bg);
+      box-shadow: 0 20px 70px rgba(0, 0, 0, 0.54);
+    }
+
+    .settings-title {
+      min-height: 48px;
+      display: flex;
+      align-items: center;
+      padding: 0 1rem;
+      border-bottom: 1px solid var(--line);
+      font-size: 0.9rem;
+      font-weight: 560;
+    }
+
+    .setting-row {
+      position: relative;
+      min-height: 62px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 1rem;
+      padding: 0.65rem 1rem;
+      border-bottom: 1px solid var(--line);
+      font-size: 0.88rem;
+    }
+
+    .setting-row:last-child { border-bottom: 0; }
+    .setting-row:hover { background: var(--panel); }
+    .setting-copy { min-width: 0; }
+    .setting-name { display: block; }
+    .setting-help { display: block; margin-top: 0.18rem; color: var(--muted); font-size: 0.74rem; line-height: 1.35; }
+
+    .choice { position: relative; z-index: 1; }
+    .choice:focus-within { z-index: 4; }
+
+    .choice-button {
+      min-width: 126px;
+      min-height: 34px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.7rem;
+      padding: 0 0.65rem;
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      background: var(--panel);
+      color: var(--text);
+      font-size: 0.8rem;
+      cursor: pointer;
+    }
+
+    .choice-button:hover,
+    .choice-button[aria-expanded="true"] { border-color: var(--line-strong); background: var(--raised); }
+    .choice-button svg { width: 11px; height: 11px; color: var(--muted); }
+
+    .choice-menu {
+      position: absolute;
+      top: calc(100% + 5px);
+      right: 0;
+      z-index: 12;
+      width: max(170px, 100%);
+      max-height: 290px;
+      overflow-y: auto;
+      padding: 0.3rem;
+      border: 1px solid var(--line-strong);
+      border-radius: 5px;
+      background: #111111;
+      box-shadow: 0 16px 44px rgba(0, 0, 0, 0.5);
+    }
+
+    .choice-option {
+      width: 100%;
+      min-height: 38px;
+      display: flex;
+      align-items: center;
+      padding: 0 0.65rem;
+      border: 0;
+      border-radius: 3px;
+      background: transparent;
+      color: var(--soft);
+      font-size: 0.82rem;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .choice-option:hover,
+    .choice-option:focus-visible { background: var(--raised); color: var(--text); }
+    .choice-option[aria-selected="true"] { background: var(--accent-wash); color: var(--text); }
+
+    .switch {
+      position: relative;
+      width: 42px;
+      height: 24px;
+      flex: 0 0 auto;
+      border: 1px solid var(--line-strong);
+      border-radius: 99px;
+      background: var(--panel);
+      cursor: pointer;
+      transition: border-color 140ms var(--ease), background 140ms var(--ease);
+    }
+
+    .switch-knob {
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--muted);
+      transition: transform 140ms var(--ease), background 140ms var(--ease);
+    }
+
+    .switch[aria-checked="true"] { border-color: var(--accent); background: var(--accent-wash); }
+    .switch[aria-checked="true"] .switch-knob { background: var(--accent); transform: translateX(18px); }
+
+    :focus-visible { outline: 1px solid var(--accent); outline-offset: 3px; }
+
+    @media (max-width: 760px) {
+      .app-head {
+        grid-template-columns: minmax(0, 1fr) 36px;
+        gap: 0.7rem;
+        padding: 0.75rem 0;
+      }
+
+      .brand { grid-column: 1; grid-row: 1; }
+      .settings-button { grid-column: 2; grid-row: 1; justify-self: end; }
+      .search-form { grid-column: 1 / -1; grid-row: 2; }
+      .result-column { width: 100%; margin-left: 0; }
+      .settings-panel { top: 3.7rem; right: 1rem; }
+      .image-layout[data-preview-open="true"] { grid-template-columns: minmax(0, 1fr); }
+      body.image-preview-open { overflow: hidden; }
+      .image-preview {
+        position: fixed;
+        inset: 0;
+        z-index: 30;
+        overflow-y: auto;
+        border: 0;
+        border-radius: 0;
+        background: var(--bg);
+      }
+      .image-preview .preview-head { position: sticky; top: 0; z-index: 1; background: var(--bg); }
+      .image-preview .preview-frame { max-height: 58dvh; }
+    }
+
+    @media (max-width: 520px) {
+      .page { padding-inline: 0.85rem; }
+      .result-tools { align-items: flex-end; }
+      .result-tabs { gap: 1rem; overflow-x: auto; }
+      .result-time { display: none; }
+      .overview { padding: 1.1rem; }
+      .section-head { align-items: flex-start; flex-direction: column; gap: 0.25rem; }
+      .key-value { font-size: 1.75rem; }
+      .overview-answer { font-size: 0.96rem; line-height: 1.62; }
+      .source-strip { gap: 0.3rem; }
+      .result-view { padding-top: 1.5rem; }
+      .result-item + .result-item { margin-top: 1.9rem; }
+      .image-grid { gap: 1.15rem 0.65rem; }
+      .image-grid .image-card { grid-column: span 6; }
+      .image-grid .image-card .media-frame { height: 132px; }
+      .media-title { font-size: 0.86rem; }
+      .news-card { grid-template-columns: minmax(0, 1fr) 108px; gap: 0.8rem; }
+      .news-title { font-size: 1.04rem; }
+      .news-snippet { display: none; }
+      .video-grid { grid-template-columns: 1fr; }
+      .settings-panel { right: 0.7rem; width: min(370px, calc(100vw - 1.4rem)); }
+      .setting-row { min-height: 66px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header class="app-head">
+      <a class="brand" href="andromeda.html">andromeda</a>
+
+      <form class="search-form" id="search-form" role="search" action="andromeda-results.html" method="get">
+        <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true">
+          <circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 4 4"></path>
+        </svg>
+        <input class="search-input" id="search" name="q" type="search" autocomplete="off" value="fast self-hosted search engine" aria-label="search the web">
+        <button class="icon-button search-submit" type="submit" aria-label="search">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"></path><path d="m14 7 5 5-5 5"></path></svg>
+        </button>
+      </form>
+
+      <button class="icon-button settings-button" id="settings-button" type="button" aria-label="Andromeda settings" aria-expanded="false" aria-controls="settings-panel">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="3"></circle><path d="M19 12a7 7 0 0 0-.08-1l2-1.55-2-3.46-2.45 1A7 7 0 0 0 14.75 6L14.4 3h-4.8l-.35 3a7 7 0 0 0-1.72.99l-2.45-1-2 3.46L5.08 11A7 7 0 0 0 5 12c0 .34.03.67.08 1l-2 1.55 2 3.46 2.45-1a7 7 0 0 0 1.72.99l.35 3h4.8l.35-3a7 7 0 0 0 1.72-.99l2.45 1 2-3.46-2-1.55c.05-.33.08-.66.08-1Z"></path>
+        </svg>
+      </button>
+    </header>
+
+    <main class="result-column">
+      <div class="result-tools">
+        <nav class="result-tabs" aria-label="search types">
+          <button class="result-tab active" type="button" data-result-type="all" aria-current="page">all</button>
+          <button class="result-tab" type="button" data-result-type="images">images</button>
+          <button class="result-tab" type="button" data-result-type="news">news</button>
+          <button class="result-tab" type="button" data-result-type="videos">videos</button>
+        </nav>
+        <span class="result-time" id="result-time">5 results · 0.84 s</span>
+      </div>
+
+      <section class="overview" id="overview" aria-labelledby="overview-title">
+        <header class="section-head">
+          <h1 id="overview-title">ai overview</h1>
+          <span class="overview-state">checked against 3 sources</span>
+        </header>
+        <div class="key-answer">
+          <span class="key-label">best speed candidate</span>
+          <strong class="key-value"><mark class="marker">4get</mark></strong>
+          <span class="key-note">lightweight and uses the one upstream scraper you choose</span>
+        </div>
+        <p class="overview-answer">
+          4get is the strongest first speed test for Alles because it is lightweight and sends the query to the scraper you select.
+          <a class="citation" href="#source-1" aria-label="Source 1">1</a>
+          SearXNG remains the safer configurable fallback, with explicit timeouts, connection pooling, and HTTP/2.
+          <a class="citation" href="#source-2" aria-label="Source 2">2</a>
+          Whoogle should not be selected because its maintainer published a final-release notice after Google blocking made it unreliable.
+          <a class="citation" href="#source-3" aria-label="Source 3">3</a>
+        </p>
+        <div class="source-strip" aria-label="overview sources">
+          <a class="source-chip" id="source-1" href="https://git.lolcat.ca/lolcat/4get"><span class="source-number">1</span> 4get project</a>
+          <a class="source-chip" id="source-2" href="https://docs.searxng.org/admin/settings/settings_outgoing.html"><span class="source-number">2</span> SearXNG docs</a>
+          <a class="source-chip" id="source-3" href="https://github.com/benbusby/whoogle-search"><span class="source-number">3</span> Whoogle notice</a>
+        </div>
+        <div class="overview-actions">
+          <button class="text-action" type="button" id="ask-aide">ask aide</button>
+          <button class="text-action" type="button" id="hide-overview">hide overview</button>
+        </div>
+      </section>
+
+      <section class="result-view all-results" id="all-results" data-result-view="all" aria-labelledby="all-title">
+        <header class="view-head"><h2 id="all-title">web results</h2><span>ranked links</span></header>
+        <ol class="result-list">
+          <li class="result-item">
+            <div class="result-source">
+              <span class="source-mark" data-image-frame aria-hidden="true"><span class="favicon-fallback image-fallback">4g</span></span>
+              <span class="source-copy"><span class="source-name">4get project</span><span class="source-url">git.lolcat.ca/lolcat/4get</span></span>
+            </div>
+            <a class="result-title" href="https://git.lolcat.ca/lolcat/4get">4get proxy search</a>
+            <p class="result-snippet">A lightweight self-hosted proxy with web, image, video, and news scrapers plus favicon caching and an image proxy.</p>
+          </li>
+          <li class="result-item">
+            <div class="result-source">
+              <span class="source-mark" data-image-frame aria-hidden="true"><span class="favicon-fallback image-fallback">br</span></span>
+              <span class="source-copy"><span class="source-name">Brave Search API</span><span class="source-url">api.search.brave.com</span></span>
+            </div>
+            <a class="result-title" href="https://api-dashboard.search.brave.com/app/documentation/web-search/get-started">Brave Web Search API</a>
+            <p class="result-snippet">Search a large independent web index with freshness filters, regional targeting, safe search, and normal ranked results.</p>
+          </li>
+          <li class="result-item">
+            <div class="result-source">
+              <span class="source-mark" data-image-frame aria-hidden="true"><span class="favicon-fallback image-fallback">se</span></span>
+              <span class="source-copy"><span class="source-name">Serper</span><span class="source-url">serper.dev</span></span>
+            </div>
+            <a class="result-title" href="https://serper.dev/">Google Search API for fast normal results</a>
+            <p class="result-snippet"><span class="result-date">Service claim:</span> most requests return in one to two seconds, with search, news, images, places, and other Google result types.</p>
+          </li>
+          <li class="result-item">
+            <div class="result-source">
+              <span class="source-mark" data-image-frame aria-hidden="true"><span class="favicon-fallback image-fallback">tv</span></span>
+              <span class="source-copy"><span class="source-name">Tavily Documentation</span><span class="source-url">docs.tavily.com</span></span>
+            </div>
+            <a class="result-title" href="https://docs.tavily.com/documentation/best-practices/best-practices-search">Choose between ultra-fast, fast, and deeper search</a>
+            <p class="result-snippet">Search modes trade some relevance for lower latency and can return content already shaped for an AI overview.</p>
+          </li>
+          <li class="result-item">
+            <div class="result-source">
+              <span class="source-mark" data-image-frame aria-hidden="true"><span class="favicon-fallback image-fallback">ex</span></span>
+              <span class="source-copy"><span class="source-name">Exa Documentation</span><span class="source-url">exa.ai/docs</span></span>
+            </div>
+            <a class="result-title" href="https://exa.ai/docs/reference/search">Instant and fast search modes for interactive products</a>
+            <p class="result-snippet">The instant mode minimizes response time, while fast mode keeps more search quality for user-facing workflows.</p>
+          </li>
+        </ol>
+        <button class="more-results" type="button">more web results</button>
+      </section>
+
+      <section class="result-view" id="images-results" data-result-view="images" aria-labelledby="images-title" hidden>
+        <header class="view-head"><h2 id="images-title">image results</h2><span>visual matches</span></header>
+        <div class="image-layout" id="image-layout" data-preview-open="false">
+          <div class="image-grid">
+            <button class="image-card" type="button" aria-pressed="false" data-preview-src="assets/search-interface.svg" data-preview-title="minimal self-hosted search interface" data-preview-source="4get project" data-preview-description="A lightweight search page that keeps the answer and normal results in one clear reading path." data-preview-href="https://git.lolcat.ca/lolcat/4get">
+              <span class="media-frame" data-image-frame><img data-safe-image src="assets/search-interface.svg" alt="Minimal self-hosted search interface" loading="eager"><span class="image-fallback">image unavailable</span></span>
+              <span class="media-title">minimal self-hosted search interface</span><span class="media-source">4get project</span>
+            </button>
+            <button class="image-card" type="button" aria-pressed="false" data-preview-src="assets/search-pipeline.svg" data-preview-title="retrieval and verification pipeline" data-preview-source="SearXNG documentation" data-preview-description="Several retrieval sources feed one checked answer while the original links stay available." data-preview-href="https://docs.searxng.org/dev/search_api.html">
+              <span class="media-frame" data-image-frame><img data-safe-image src="assets/search-pipeline.svg" alt="Search retrieval and answer pipeline" loading="eager"><span class="image-fallback">image unavailable</span></span>
+              <span class="media-title">retrieval and verification pipeline</span><span class="media-source">SearXNG documentation</span>
+            </button>
+            <button class="image-card" type="button" aria-pressed="false" data-preview-src="assets/private-search.svg" data-preview-title="private search on your server" data-preview-source="Brave Search" data-preview-description="A private search host keeps local settings and history under the owner's control." data-preview-href="https://brave.com/search/">
+              <span class="media-frame" data-image-frame><img data-safe-image src="assets/private-search.svg" alt="Private search server and shield" loading="eager"><span class="image-fallback">image unavailable</span></span>
+              <span class="media-title">private search on your server</span><span class="media-source">Brave Search</span>
+            </button>
+            <button class="image-card" type="button" aria-pressed="false" data-preview-src="assets/search-speed.svg" data-preview-title="search response time comparison" data-preview-source="Tavily documentation" data-preview-description="Fast, balanced, and deep modes make the speed-versus-depth tradeoff visible." data-preview-href="https://docs.tavily.com/documentation/best-practices/best-practices-search">
+              <span class="media-frame" data-image-frame><img data-safe-image src="assets/search-speed.svg" alt="Search response speed comparison" loading="eager"><span class="image-fallback">image unavailable</span></span>
+              <span class="media-title">search response time comparison</span><span class="media-source">Tavily documentation</span>
+            </button>
+            <button class="image-card" type="button" aria-pressed="false" data-preview-src="assets/result-layout.svg" data-preview-title="answer-first result layout" data-preview-source="Google Search appearance" data-preview-description="The answer gets priority while source links and normal results remain easy to inspect." data-preview-href="https://developers.google.com/search/docs/appearance">
+              <span class="media-frame" data-image-frame><img data-safe-image src="assets/result-layout.svg" alt="Answer and web result layout" loading="eager"><span class="image-fallback">image unavailable</span></span>
+              <span class="media-title">answer-first result layout</span><span class="media-source">Google Search appearance</span>
+            </button>
+            <button class="image-card" type="button" aria-pressed="false" data-preview-src="assets/search-settings.svg" data-preview-title="search engine settings" data-preview-source="Andromeda" data-preview-description="Custom KOKUEN controls keep provider, overview, and depth choices consistent across devices." data-preview-href="andromeda.html">
+              <span class="media-frame" data-image-frame><img data-safe-image src="assets/search-settings.svg" alt="Custom Andromeda settings controls" loading="lazy"><span class="image-fallback">image unavailable</span></span>
+              <span class="media-title">search engine settings</span><span class="media-source">Andromeda</span>
+            </button>
+          </div>
+
+          <aside class="image-preview" id="image-preview" role="dialog" aria-labelledby="image-preview-title" hidden>
+            <header class="preview-head">
+              <span class="preview-source" id="image-preview-source">4get project</span>
+              <button class="preview-close" id="image-preview-close" type="button" aria-label="close image preview">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"></path></svg>
+              </button>
+            </header>
+            <span class="media-frame preview-frame" data-image-frame><img id="image-preview-image" data-safe-image src="assets/search-interface.svg" alt="Minimal self-hosted search interface"><span class="image-fallback">image unavailable</span></span>
+            <div class="preview-copy">
+              <h3 class="preview-title" id="image-preview-title">minimal self-hosted search interface</h3>
+              <p class="preview-description" id="image-preview-description">A lightweight search page that keeps the answer and normal results in one clear reading path.</p>
+              <a class="preview-visit" id="image-preview-visit" href="https://git.lolcat.ca/lolcat/4get">visit source<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M8 7h9v9"></path></svg></a>
+            </div>
+          </aside>
+        </div>
+        <button class="more-results" type="button">more images</button>
+      </section>
+
+      <section class="result-view" id="news-results" data-result-view="news" aria-labelledby="news-title" hidden>
+        <header class="view-head"><h2 id="news-title">news results</h2><span>recent project updates</span></header>
+        <ol class="news-list">
+          <li class="news-card has-image">
+            <div><span class="news-source">Brave · search infrastructure</span><a class="news-title" href="https://brave.com/search/">Independent search indexes keep expanding beyond traditional providers</a><p class="news-snippet">Brave describes a search stack built around its own index, APIs, privacy controls, and user-facing search products.</p><span class="news-time">official project page</span></div>
+            <span class="media-frame" data-image-frame><img data-safe-image src="assets/private-search.svg" alt="Private search infrastructure" loading="eager"><span class="image-fallback">image unavailable</span></span>
+          </li>
+          <li class="news-card">
+            <div><span class="news-source">SearXNG · release notes</span><a class="news-title" href="https://docs.searxng.org/admin/update-searxng.html">Self-hosted metasearch keeps a rolling update path</a><p class="news-snippet">The official maintenance guide documents how administrators update a running SearXNG instance and its dependencies.</p><span class="news-time">documentation</span></div>
+          </li>
+          <li class="news-card">
+            <div><span class="news-source">4get · project update</span><a class="news-title" href="https://git.lolcat.ca/lolcat/4get">Lightweight proxy search adds broad vertical coverage</a><p class="news-snippet">The project lists normal web, image, video, news, music, and local map scrapers in one small self-hosted service.</p><span class="news-time">project repository</span></div>
+          </li>
+          <li class="news-card">
+            <div><span class="news-source">Whoogle · maintainer notice</span><a class="news-title" href="https://github.com/benbusby/whoogle-search">Google blocking changes the reliability calculation for proxy search</a><p class="news-snippet">The repository notice explains why the maintainer stopped treating Whoogle as a dependable long-term option.</p><span class="news-time">repository notice</span></div>
+          </li>
+        </ol>
+        <button class="more-results" type="button">more news</button>
+      </section>
+
+      <section class="result-view" id="videos-results" data-result-view="videos" aria-labelledby="videos-title" hidden>
+        <header class="view-head"><h2 id="videos-title">video results</h2><span>demos and explainers</span></header>
+        <div class="video-grid">
+          <a class="video-card" href="https://www.youtube.com/results?search_query=self-hosted+search+engine">
+            <span class="media-frame" data-image-frame><img data-safe-image src="assets/search-interface.svg" alt="Video preview of a self-hosted search interface" loading="eager"><span class="image-fallback">preview unavailable</span><span class="play-mark"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="m8 5 11 7-11 7Z"></path></svg></span><span class="duration">8:14</span></span>
+            <span class="video-title">building a fast self-hosted search front end</span><span class="video-meta">video search · interface walkthrough</span>
+          </a>
+          <a class="video-card" href="https://www.youtube.com/results?search_query=searxng+setup">
+            <span class="media-frame" data-image-frame><img data-safe-image src="assets/search-pipeline.svg" alt="Video preview of a metasearch pipeline" loading="eager"><span class="image-fallback">preview unavailable</span><span class="play-mark"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="m8 5 11 7-11 7Z"></path></svg></span><span class="duration">12:42</span></span>
+            <span class="video-title">how metasearch combines several result sources</span><span class="video-meta">video search · system explainer</span>
+          </a>
+          <a class="video-card" href="https://www.youtube.com/results?search_query=private+search+server">
+            <span class="media-frame" data-image-frame><img data-safe-image src="assets/private-search.svg" alt="Video preview of private search hosting" loading="eager"><span class="image-fallback">preview unavailable</span><span class="play-mark"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="m8 5 11 7-11 7Z"></path></svg></span><span class="duration">6:08</span></span>
+            <span class="video-title">what self-hosting changes about search privacy</span><span class="video-meta">video search · privacy guide</span>
+          </a>
+          <a class="video-card" href="https://www.youtube.com/results?search_query=search+engine+latency+benchmark">
+            <span class="media-frame" data-image-frame><img data-safe-image src="assets/search-speed.svg" alt="Video preview of a search speed benchmark" loading="eager"><span class="image-fallback">preview unavailable</span><span class="play-mark"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="m8 5 11 7-11 7Z"></path></svg></span><span class="duration">9:31</span></span>
+            <span class="video-title">testing latency across local and remote search providers</span><span class="video-meta">video search · benchmark</span>
+          </a>
+        </div>
+        <button class="more-results" type="button">more videos</button>
+      </section>
+    </main>
+  </div>
+
+  <aside class="settings-panel" id="settings-panel" aria-label="Andromeda settings" hidden>
+    <h2 class="settings-title">andromeda settings</h2>
+    <div class="setting-row">
+      <span class="setting-copy"><span class="setting-name">search engine</span><span class="setting-help">source for normal results</span></span>
+      <div class="choice" data-choice="engine">
+        <button class="choice-button" id="engine-choice" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="engine-options"><span data-choice-value>automatic</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m7 10 5 5 5-5"></path></svg></button>
+        <div class="choice-menu" id="engine-options" role="listbox" aria-label="Search engine" hidden>
+          <button class="choice-option" type="button" role="option" aria-selected="true" data-value="automatic">automatic</button>
+          <button class="choice-option" type="button" role="option" aria-selected="false" data-value="brave">brave</button>
+          <button class="choice-option" type="button" role="option" aria-selected="false" data-value="serper · google">serper · google</button>
+          <button class="choice-option" type="button" role="option" aria-selected="false" data-value="tavily">tavily</button>
+          <button class="choice-option" type="button" role="option" aria-selected="false" data-value="exa">exa</button>
+          <button class="choice-option" type="button" role="option" aria-selected="false" data-value="searxng">searxng</button>
+          <button class="choice-option" type="button" role="option" aria-selected="false" data-value="duckduckgo">duckduckgo</button>
+        </div>
+      </div>
+    </div>
+    <div class="setting-row"><span class="setting-copy"><span class="setting-name">ai overview</span><span class="setting-help">only shown in all results</span></span><button class="switch" id="overview-setting" type="button" role="switch" aria-checked="true" aria-label="AI overview"><span class="switch-knob" aria-hidden="true"></span></button></div>
+    <div class="setting-row"><span class="setting-copy"><span class="setting-name">normal results</span><span class="setting-help">links, images, news, and videos</span></span><button class="switch" id="results-setting" type="button" role="switch" aria-checked="true" aria-label="Normal results"><span class="switch-knob" aria-hidden="true"></span></button></div>
+    <div class="setting-row">
+      <span class="setting-copy"><span class="setting-name">search depth</span><span class="setting-help">fast gives results sooner</span></span>
+      <div class="choice" data-choice="depth">
+        <button class="choice-button" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="depth-options"><span data-choice-value>fast</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m7 10 5 5 5-5"></path></svg></button>
+        <div class="choice-menu" id="depth-options" role="listbox" aria-label="Search depth" hidden>
+          <button class="choice-option" type="button" role="option" aria-selected="true" data-value="fast">fast</button>
+          <button class="choice-option" type="button" role="option" aria-selected="false" data-value="balanced">balanced</button>
+          <button class="choice-option" type="button" role="option" aria-selected="false" data-value="deep">deep</button>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const input = document.querySelector("#search");
+    const settingsButton = document.querySelector("#settings-button");
+    const settingsPanel = document.querySelector("#settings-panel");
+    const overview = document.querySelector("#overview");
+    const overviewSetting = document.querySelector("#overview-setting");
+    const resultsSetting = document.querySelector("#results-setting");
+    const resultTime = document.querySelector("#result-time");
+    const imageLayout = document.querySelector("#image-layout");
+    const imagePreview = document.querySelector("#image-preview");
+    const imagePreviewClose = document.querySelector("#image-preview-close");
+    const imagePreviewImage = document.querySelector("#image-preview-image");
+    const imagePreviewSource = document.querySelector("#image-preview-source");
+    const imagePreviewTitle = document.querySelector("#image-preview-title");
+    const imagePreviewDescription = document.querySelector("#image-preview-description");
+    const imagePreviewVisit = document.querySelector("#image-preview-visit");
+    const validTypes = ["all", "images", "news", "videos"];
+    const resultCounts = { all: "5 results · 0.84 s", images: "6 images · 0.62 s", news: "4 stories · 0.71 s", videos: "4 videos · 0.66 s" };
+    let activeResultType = validTypes.includes(params.get("type")) ? params.get("type") : "all";
+    let lastImageCard = null;
+
+    if (params.get("q")?.trim()) input.value = params.get("q").trim();
+
+    function switchIsOn(control) { return control.getAttribute("aria-checked") === "true"; }
+    function setSwitch(control, on) { control.setAttribute("aria-checked", String(on)); }
+
+    function setSettingsOpen(open) {
+      settingsButton.setAttribute("aria-expanded", String(open));
+      settingsPanel.hidden = !open;
+      if (!open) closeChoices();
+    }
+
+    function syncResultViews() {
+      document.querySelectorAll("[data-result-view]").forEach((view) => {
+        view.hidden = view.dataset.resultView !== activeResultType || !switchIsOn(resultsSetting);
+      });
+      overview.hidden = activeResultType !== "all" || !switchIsOn(overviewSetting);
+      resultTime.textContent = resultCounts[activeResultType];
+    }
+
+    function setResultType(type, updateUrl = true) {
+      activeResultType = validTypes.includes(type) ? type : "all";
+      if (activeResultType !== "images") closeImagePreview(false);
+      document.querySelectorAll(".result-tab").forEach((tab) => {
+        const active = tab.dataset.resultType === activeResultType;
+        tab.classList.toggle("active", active);
+        if (active) tab.setAttribute("aria-current", "page");
+        else tab.removeAttribute("aria-current");
+      });
+      syncResultViews();
+      if (updateUrl) {
+        const next = new URL(window.location.href);
+        if (activeResultType === "all") next.searchParams.delete("type");
+        else next.searchParams.set("type", activeResultType);
+        window.history.replaceState({}, "", next);
+      }
+    }
+
+    function openImagePreview(card) {
+      document.querySelectorAll(".image-card").forEach((item) => item.setAttribute("aria-pressed", String(item === card)));
+      lastImageCard = card;
+      imagePreviewSource.textContent = card.dataset.previewSource;
+      imagePreviewTitle.textContent = card.dataset.previewTitle;
+      imagePreviewDescription.textContent = card.dataset.previewDescription;
+      imagePreviewVisit.href = card.dataset.previewHref;
+      imagePreviewImage.alt = card.querySelector("img").alt;
+      if (!imagePreviewImage.src.endsWith(card.dataset.previewSrc)) {
+        const frame = imagePreviewImage.closest("[data-image-frame]");
+        frame.classList.remove("image-loaded", "image-failed");
+        imagePreviewImage.dataset.safeSource = card.dataset.previewSrc;
+        imagePreviewImage.src = card.dataset.previewSrc;
+      }
+      imagePreview.hidden = false;
+      imageLayout.dataset.previewOpen = "true";
+      document.body.classList.add("image-preview-open");
+      imagePreviewClose.focus({ preventScroll: true });
+    }
+
+    function closeImagePreview(returnFocus = true) {
+      if (imagePreview.hidden) return;
+      imagePreview.hidden = true;
+      imageLayout.dataset.previewOpen = "false";
+      document.body.classList.remove("image-preview-open");
+      document.querySelectorAll(".image-card").forEach((item) => item.setAttribute("aria-pressed", "false"));
+      if (returnFocus && lastImageCard) lastImageCard.focus({ preventScroll: true });
+    }
+
+    document.querySelectorAll("[data-safe-image]").forEach((image) => {
+      const frame = image.closest("[data-image-frame]");
+      const originalSource = image.getAttribute("src");
+      image.dataset.safeSource = originalSource;
+      let retryCount = 0;
+      const settle = (loaded) => {
+        frame.classList.toggle("image-loaded", loaded);
+        frame.classList.toggle("image-failed", !loaded);
+      };
+      const handleError = () => {
+        const source = new URL(image.dataset.safeSource || originalSource, window.location.href);
+        if (source.origin === window.location.origin && retryCount < 2) {
+          retryCount += 1;
+          frame.classList.remove("image-loaded", "image-failed");
+          source.searchParams.set("retry", String(retryCount));
+          window.setTimeout(() => { image.src = source.href; }, retryCount * 60);
+          return;
+        }
+        settle(false);
+      };
+      image.addEventListener("load", () => { retryCount = 0; settle(true); });
+      image.addEventListener("error", handleError);
+      if (image.complete) {
+        if (image.naturalWidth > 0) settle(true);
+        else handleError();
+      }
+    });
+
+    function closeChoice(choice, returnFocus = false) {
+      const button = choice.querySelector(".choice-button");
+      button.setAttribute("aria-expanded", "false");
+      choice.querySelector(".choice-menu").hidden = true;
+      if (returnFocus) button.focus();
+    }
+
+    function closeChoices(except = null) {
+      document.querySelectorAll("[data-choice]").forEach((choice) => {
+        if (choice !== except) closeChoice(choice);
+      });
+    }
+
+    function openChoice(choice, focusEdge = null) {
+      closeChoices(choice);
+      const button = choice.querySelector(".choice-button");
+      const menu = choice.querySelector(".choice-menu");
+      button.setAttribute("aria-expanded", "true");
+      menu.hidden = false;
+      if (focusEdge) {
+        const options = [...menu.querySelectorAll('[role="option"]')];
+        const selected = options.find((option) => option.getAttribute("aria-selected") === "true");
+        (focusEdge === "last" ? options.at(-1) : selected || options[0]).focus();
+      }
+    }
+
+    function chooseOption(choice, option) {
+      choice.querySelectorAll('[role="option"]').forEach((item) => item.setAttribute("aria-selected", String(item === option)));
+      choice.querySelector("[data-choice-value]").textContent = option.dataset.value;
+      closeChoice(choice, true);
+    }
+
+    document.querySelectorAll("[data-choice]").forEach((choice) => {
+      const button = choice.querySelector(".choice-button");
+      const menu = choice.querySelector(".choice-menu");
+      button.addEventListener("click", () => {
+        if (button.getAttribute("aria-expanded") === "true") closeChoice(choice);
+        else openChoice(choice);
+      });
+      button.addEventListener("keydown", (event) => {
+        if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+          event.preventDefault();
+          openChoice(choice, event.key === "ArrowUp" ? "last" : "selected");
+        }
+      });
+      menu.querySelectorAll('[role="option"]').forEach((option) => {
+        option.addEventListener("click", () => chooseOption(choice, option));
+        option.addEventListener("keydown", (event) => {
+          const options = [...menu.querySelectorAll('[role="option"]')];
+          const index = options.indexOf(option);
+          if (["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) {
+            event.preventDefault();
+            const next = event.key === "Home" ? 0 : event.key === "End" ? options.length - 1 : (index + (event.key === "ArrowDown" ? 1 : -1) + options.length) % options.length;
+            options[next].focus();
+          } else if (event.key === "Escape") {
+            event.preventDefault(); event.stopPropagation(); closeChoice(choice, true);
+          } else if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault(); chooseOption(choice, option);
+          }
+        });
+      });
+    });
+
+    settingsButton.addEventListener("click", () => setSettingsOpen(settingsButton.getAttribute("aria-expanded") !== "true"));
+    overviewSetting.addEventListener("click", () => { setSwitch(overviewSetting, !switchIsOn(overviewSetting)); syncResultViews(); });
+    resultsSetting.addEventListener("click", () => {
+      setSwitch(resultsSetting, !switchIsOn(resultsSetting));
+      if (!switchIsOn(resultsSetting)) closeImagePreview(false);
+      syncResultViews();
+    });
+    document.querySelector("#hide-overview").addEventListener("click", () => { setSwitch(overviewSetting, false); syncResultViews(); });
+    document.querySelector("#ask-aide").addEventListener("click", () => { window.location.href = "aide-projects.html"; });
+    document.querySelectorAll(".result-tab").forEach((tab) => tab.addEventListener("click", () => setResultType(tab.dataset.resultType)));
+    document.querySelectorAll(".image-card").forEach((card) => card.addEventListener("click", () => openImagePreview(card)));
+    imagePreviewClose.addEventListener("click", () => closeImagePreview());
+
+    document.addEventListener("pointerdown", (event) => {
+      if (!event.target.closest("[data-choice]")) closeChoices();
+      if (!settingsPanel.hidden && !settingsPanel.contains(event.target) && !settingsButton.contains(event.target)) setSettingsOpen(false);
+    });
+
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && !imagePreview.hidden) {
+        event.preventDefault();
+        closeImagePreview();
+        return;
+      }
+      if (event.key === "Escape" && !settingsPanel.hidden && !event.target.closest("[data-choice]")) {
+        setSettingsOpen(false);
+        settingsButton.focus();
+      }
+    });
+
+    setResultType(activeResultType, false);
+  </script>
+</body>
+</html>

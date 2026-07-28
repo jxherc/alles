@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Standalone fake-data KOKUEN Inbox starter for Afterlife Phase 8.">
+  <title>Alles Inbox - Phase 8 KOKUEN starter</title>
+  <link rel="stylesheet" href="starter.css">
+</head>
+<body data-density="comfortable" data-demo-state="ready">
+  <a class="skip-link" href="#main">skip to inbox</a>
+  <div class="app-shell">
+    <header class="product-bar">
+      <div class="brand-block"><span class="kokuen-mark" aria-hidden="true"></span><span class="wordmark">alles</span></div>
+      <div class="product-title"><span>specialists</span><span class="path-separator">/</span><strong>inbox</strong><span class="path-separator">/</span><span>primary</span></div>
+      <div class="bar-actions">
+        <button class="small-action" type="button" data-toast="starter only: compose opened">compose</button>
+        <button class="state-trigger" type="button" data-state-trigger aria-expanded="false" aria-controls="state-menu">preview state</button>
+        <button class="switch-control" type="button" role="switch" aria-checked="false" aria-label="use light theme" data-switch="theme"><span class="switch-track" aria-hidden="true"><span class="switch-knob"></span></span></button>
+        <div class="state-menu" id="state-menu" role="listbox" aria-label="preview state" hidden>
+          <button class="state-option" type="button" role="option" aria-selected="true" data-state="ready">ready</button><button class="state-option" type="button" role="option" aria-selected="false" data-state="loading">loading</button><button class="state-option" type="button" role="option" aria-selected="false" data-state="empty">empty</button><button class="state-option" type="button" role="option" aria-selected="false" data-state="partial">partial data</button><button class="state-option" type="button" role="option" aria-selected="false" data-state="error">refresh error</button>
+        </div>
+      </div>
+    </header>
+    <nav class="group-strip" aria-label="Phase 8 specialist starters">
+      <a class="group-link" href="plan.html"><span class="group-index">01</span>plan</a><a class="group-link" href="inbox.html" aria-current="page"><span class="group-index">02</span>inbox</a><a class="group-link" href="library.html"><span class="group-index">03</span>library</a><a class="group-link" href="health.html"><span class="group-index">04</span>health</a><a class="group-link" href="finance.html"><span class="group-index">05</span>finance</a>
+    </nav>
+
+    <main class="workbench" id="main">
+      <aside class="side-rail" aria-label="Mailboxes and people">
+        <section class="rail-section"><h2 class="rail-heading">mailboxes</h2><ul class="rail-list">
+          <li><button class="rail-action" type="button" aria-current="page"><span class="rail-mark">IN</span><span class="rail-name">primary</span><span class="rail-count">7</span></button></li>
+          <li><button class="rail-action" type="button"><span class="rail-mark">UP</span><span class="rail-name">updates</span><span class="rail-count">12</span></button></li>
+          <li><button class="rail-action" type="button"><span class="rail-mark">SN</span><span class="rail-name">snoozed</span><span class="rail-count">3</span></button></li>
+          <li><button class="rail-action" type="button"><span class="rail-mark">SD</span><span class="rail-name">sent</span><span class="rail-count"></span></button></li>
+        </ul></section>
+        <section class="rail-section"><h2 class="rail-heading">people</h2><ul class="rail-list">
+          <li><button class="rail-action" type="button" data-toast="showing all contacts beside the inbox"><span class="rail-mark">PE</span><span class="rail-name">all contacts</span><span class="rail-count">84</span></button></li>
+          <li><button class="rail-action" type="button"><span class="rail-mark">FR</span><span class="rail-name">friends</span><span class="rail-count">18</span></button></li>
+          <li><button class="rail-action" type="button"><span class="rail-mark">WK</span><span class="rail-name">work</span><span class="rail-count">27</span></button></li>
+        </ul></section>
+      </aside>
+
+      <section class="main-pane" aria-labelledby="inbox-heading">
+        <header class="pane-header"><div class="pane-heading"><h1 id="inbox-heading">primary</h1><p>7 unread across 2 connected accounts</p></div><div class="pane-spacer"></div><div class="search-field"><label class="sr-only" for="mail-search">search mail and contacts</label><input id="mail-search" type="search" placeholder="search mail and people"></div><button class="primary-action" type="button" data-open-modal>compose</button></header>
+        <div class="tabs" role="tablist" aria-label="Inbox view"><button class="tab" id="inbox-mail-tab" type="button" role="tab" aria-selected="true" aria-controls="inbox-mail">messages</button><button class="tab" id="inbox-people-tab" type="button" role="tab" aria-selected="false" aria-controls="inbox-people" tabindex="-1">people</button><button class="tab" id="inbox-scheduled-tab" type="button" role="tab" aria-selected="false" aria-controls="inbox-scheduled" tabindex="-1">scheduled</button></div>
+        <div class="demo-state" id="demo-state" role="status" hidden></div>
+        <div class="empty-state"><div><h2>inbox clear</h2><p>No messages match this fake view. Contacts, compose, sent mail, and scheduled mail remain available.</p><button class="primary-action" type="button" data-open-modal>compose</button></div></div>
+        <div class="data-content">
+          <div id="inbox-mail" role="tabpanel" aria-labelledby="inbox-mail-tab">
+            <ul class="record-list">
+              <li class="record-row" aria-selected="true"><span class="record-time">09:42</span><div class="record-copy"><div class="record-title">Min Chen · Sunday dinner</div><div class="record-meta">Does 18:30 near Songjiang Nanjing work?</div></div><span class="type-mark">NEW</span></li>
+              <li class="record-row"><span class="record-time">08:15</span><div class="record-copy"><div class="record-title">CIBC · Your eStatement is ready</div><div class="record-meta">Statement notice · no transaction data imported</div></div><span class="type-mark">UP</span></li>
+              <li class="record-row"><span class="record-time">thu</span><div class="record-copy"><div class="record-title">Actual Budget · Release 26.7.0</div><div class="record-meta">Release notes and migration guidance</div></div><span class="type-mark">UP</span></li>
+              <li class="record-row"><span class="record-time">wed</span><div class="record-copy"><div class="record-title">Mori Books · Order collected</div><div class="record-meta">The Left Hand of Darkness is ready</div></div><span class="type-mark">RCPT</span></li>
+              <li class="record-row"><span class="record-time">tue</span><div class="record-copy"><div class="record-title">Wei Lin · photo archive</div><div class="record-meta">I found the original files from 2019.</div></div><span class="type-mark">NEW</span></li>
+            </ul>
+          </div>
+          <div id="inbox-people" role="tabpanel" aria-labelledby="inbox-people-tab" hidden><section class="section-block"><div class="section-title"><h2>people in recent mail</h2><p>existing contact records</p></div><ul class="record-list"><li class="record-row"><span class="type-mark">MC</span><div class="record-copy"><div class="record-title">Min Chen</div><div class="record-meta">friend · 14 related messages</div></div><span class="record-value">today</span></li><li class="record-row"><span class="type-mark">WL</span><div class="record-copy"><div class="record-title">Wei Lin</div><div class="record-meta">family · 9 related messages</div></div><span class="record-value">tue</span></li></ul></section></div>
+          <div id="inbox-scheduled" role="tabpanel" aria-labelledby="inbox-scheduled-tab" hidden><section class="section-block"><div class="section-title"><h2>scheduled mail</h2><p>one pending</p></div><ul class="record-list"><li class="record-row"><span class="record-time">mon 08:00</span><div class="record-copy"><div class="record-title">trip details to Min</div><div class="record-meta">from personal@example.test · undoable until send</div></div><button class="quiet-action" type="button" data-toast="starter only: scheduled message cancelled">cancel</button></li></ul></section></div>
+        </div>
+      </section>
+
+      <aside class="detail-pane" aria-label="Selected message and contact context">
+        <h2 class="detail-heading">selected message</h2>
+        <div style="padding:0 8px 14px"><p style="font-size:.9rem;font-weight:620">Sunday dinner</p><p style="margin-top:5px;color:var(--muted);font-size:.75rem">Min Chen · min@example.test · 09:42</p><p style="margin-top:18px;color:var(--soft);font-size:.875rem;line-height:1.6">Does 18:30 near Songjiang Nanjing work? I can book the small table by the window.</p><div style="display:flex;gap:8px;margin-top:16px"><button class="primary-action" type="button" data-open-modal>reply</button><button class="quiet-action" type="button" data-toast="starter only: message snoozed until tomorrow">snooze</button></div></div>
+        <section class="rail-section"><h2 class="detail-heading">person context</h2><dl class="meta-stack" style="padding:0 8px"><div class="meta-pair"><dt>contact</dt><dd>Min Chen</dd></div><div class="meta-pair"><dt>group</dt><dd>friends</dd></div><div class="meta-pair"><dt>birthday</dt><dd>november 8</dd></div><div class="meta-pair"><dt>related</dt><dd>14 messages, 2 calendar events</dd></div></dl></section>
+        <section class="rail-section"><h2 class="detail-heading">behavior</h2><div class="metric-line"><span>compact rows</span><button class="switch-control" type="button" role="switch" aria-checked="false" aria-label="compact rows" data-switch="density" data-status="compact rows"><span class="switch-track" aria-hidden="true"><span class="switch-knob"></span></span></button></div><div class="metric-line"><span>people context</span><button class="switch-control" type="button" role="switch" aria-checked="true" aria-label="people context" data-switch="people" data-status="people context"><span class="switch-track" aria-hidden="true"><span class="switch-knob"></span></span></button></div></section>
+      </aside>
+    </main>
+    <footer class="status-footer"><span>fake data only · no mail provider contacted</span><span class="footer-right">mail and contacts stay separate records</span></footer>
+  </div>
+
+  <div class="modal-backdrop" id="starter-modal" role="presentation" hidden><section class="modal" role="dialog" aria-modal="true" aria-labelledby="compose-title"><header class="modal-header"><h2 id="compose-title">reply to Min Chen</h2></header><div class="modal-body"><div class="text-field"><label for="compose-to">to</label><input id="compose-to" value="Min Chen <min@example.test>"></div><div class="text-field" style="margin-top:12px"><label for="compose-message">message</label><textarea id="compose-message">18:30 works. Please book the window table.</textarea></div><p style="margin-top:12px;color:var(--muted);font-size:.75rem">Starter only. Send never contacts a provider.</p></div><footer class="modal-actions"><button class="quiet-action" type="button" data-close-modal>cancel</button><button class="primary-action" type="button" data-close-modal data-toast="starter only: reply staged">send</button></footer></section></div>
+  <div class="toast" id="starter-toast" role="status" aria-live="polite" hidden></div>
+  <script src="starter.js"></script>
+</body>
+</html>

@@ -8,6 +8,7 @@ from core.migrations import m0020_mcp_credentials as migration
 class McpCredentialsMigrationTest(unittest.TestCase):
     def setUp(self):
         self.engine = create_engine("sqlite:///:memory:")
+        self.addCleanup(self.engine.dispose)
         with self.engine.begin() as connection:
             connection.execute(
                 text(

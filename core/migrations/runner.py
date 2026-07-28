@@ -16,7 +16,7 @@ version is not recorded.
 
 import importlib
 import pkgutil
-from datetime import datetime
+from datetime import UTC, datetime
 
 from sqlalchemy import text
 
@@ -267,7 +267,11 @@ def run_migrations(engine, *, modules=None) -> list:
                     text(
                         "INSERT INTO schema_migrations(version,name,applied_at) VALUES (:v,:n,:t)"
                     ),
-                    {"v": m.VERSION, "n": m.NAME, "t": datetime.utcnow().isoformat()},
+                    {
+                        "v": m.VERSION,
+                        "n": m.NAME,
+                        "t": datetime.now(UTC).replace(tzinfo=None).isoformat(),
+                    },
                 )
                 newly.append(m.VERSION)
     return newly

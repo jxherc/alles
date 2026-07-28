@@ -107,4 +107,6 @@ class FilesTagTests(ApiTest):
 
     def test_by_tag_empty(self):
         self._put("a.txt", tags=["work"])
-        self.assertEqual(self.client.get("/api/files/by-tag", params={"tag": "nope"}).json()["items"], [])
+        self.assertEqual(
+            self.client.get("/api/files/by-tag", params={"tag": "nope"}).json()["items"], []
+        )

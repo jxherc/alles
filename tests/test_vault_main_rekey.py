@@ -26,7 +26,9 @@ class VaultMainRekey(ApiTest):
         self._sf.close()
         self.sp = mock.patch.object(core.settings, "_SETTINGS_FILE", Path(self._sf.name))
         self.sp.start()
-        self.tok = self.client.post("/api/vault/unlock", json={"password": "m1"}).json()["token"]
+        self.tok = self.client.post(
+            "/api/vault/unlock", json={"password": "master-password-1"}
+        ).json()["token"]
         self.h = {"X-Vault-Token": self.tok}
 
     def tearDown(self):
@@ -61,15 +63,15 @@ class VaultMainRekey(ApiTest):
         self.assertTrue(d["main"])
 
     def test_created_vault_is_not_main(self):
-        self._mk("Work", "wpw")
+        self._mk("Work", "work-password-1")
         w = next(v for v in self._vaults() if v["name"] == "Work")
         self.assertFalse(w["main"])
 
     def test_created_vault_uses_own_password_not_master(self):
-        self._mk("Work", "wpw")
+        self._mk("Work", "work-password-1")
         wid = self._id_of("Work")
-        self.assertEqual(self._unlock("wpw", wid).status_code, 200)
-        self.assertEqual(self._unlock("m1", wid).status_code, 401)
+        self.assertEqual(self._unlock("work-password-1", wid).status_code, 200)
+        self.assertEqual(self._unlock("master-password-1", wid).status_code, 401)
 
     # ── change-password re-key ──
     def _entry(self, headers, name="gmail", pw="hunter2"):
@@ -80,17 +82,17 @@ class VaultMainRekey(ApiTest):
         ).json()["id"]
 
     def test_change_password_rekeys_entries(self):
-        self._mk("Work", "wpw")
+        self._mk("Work", "work-password-1")
         wid = self._id_of("Work")
-        wh = {"X-Vault-Token": self._unlock("wpw", wid).json()["token"]}
+        wh = {"X-Vault-Token": self._unlock("work-password-1", wid).json()["token"]}
         eid = self._entry(wh)
         r = self.client.post(
-            "/api/vault/vaults/password", json={"new_password": "wpw2"}, headers=wh
+            "/api/vault/vaults/password", json={"new_password": "work-password-2"}, headers=wh
         )
         self.assertEqual(r.status_code, 200)
         # old password no longer unlocks; new one does
-        self.assertEqual(self._unlock("wpw", wid).status_code, 401)
-        ntok = self._unlock("wpw2", wid).json()["token"]
+        self.assertEqual(self._unlock("work-password-1", wid).status_code, 401)
+        ntok = self._unlock("work-password-2", wid).json()["token"]
         rev = self.client.get(f"/api/vault/{eid}/reveal", headers={"X-Vault-Token": ntok}).json()
         self.assertEqual(rev["fields"]["password"], "hunter2")
 
@@ -105,10 +107,10 @@ class VaultMainRekey(ApiTest):
         self.assertEqual(up.status_code, 200)
         aid = up.json()["id"]
         r = self.client.post(
-            "/api/vault/vaults/password", json={"new_password": "m2"}, headers=self.h
+            "/api/vault/vaults/password", json={"new_password": "master-password-2"}, headers=self.h
         )
         self.assertEqual(r.status_code, 200)
-        ntok = self._unlock("m2").json()["token"]
+        ntok = self._unlock("master-password-2").json()["token"]
         dl = self.client.get(f"/api/vault/attachments/{aid}", headers={"X-Vault-Token": ntok})
         self.assertEqual(dl.status_code, 200)
         self.assertEqual(dl.content, blob)
@@ -131,13 +133,13 @@ class VaultMainRekey(ApiTest):
         ):
             changed = self.client.post(
                 "/api/vault/vaults/password",
-                json={"new_password": "m2"},
+                json={"new_password": "master-password-2"},
                 headers=self.h,
             )
 
         self.assertEqual(changed.status_code, 200)
-        self.assertEqual(self._unlock("m1").status_code, 401)
-        new_headers = {"X-Vault-Token": self._unlock("m2").json()["token"]}
+        self.assertEqual(self._unlock("master-password-1").status_code, 401)
+        new_headers = {"X-Vault-Token": self._unlock("master-password-2").json()["token"]}
         revealed = self.client.get(f"/api/vault/{eid}/reveal", headers=new_headers)
         self.assertEqual(revealed.status_code, 200)
         downloaded = self.client.get(f"/api/vault/attachments/{aid}", headers=new_headers)
@@ -145,10 +147,10 @@ class VaultMainRekey(ApiTest):
         self.assertEqual(downloaded.content, blob)
 
     def test_rekey_revokes_every_old_token_for_the_vault(self):
-        second = self._unlock("m1").json()["token"]
+        second = self._unlock("master-password-1").json()["token"]
         changed = self.client.post(
             "/api/vault/vaults/password",
-            json={"new_password": "m2"},
+            json={"new_password": "master-password-2"},
             headers=self.h,
         )
         self.assertEqual(changed.status_code, 200)
@@ -170,14 +172,14 @@ class VaultMainRekey(ApiTest):
         eid = self._entry(self.h)
         changed = self.client.post(
             "/api/vault/vaults/password",
-            json={"new_password": "m2"},
+            json={"new_password": "master-password-2"},
             headers=self.h,
         )
         self.assertEqual(changed.status_code, 200)
 
         db = self.db()
         try:
-            stale = ("m1", "default")
+            stale = ("master-password-1", "default")
             blocked_calls = (
                 lambda: vault_routes.create_entry(
                     vault_routes.CreateEntry(name="late entry", value="old-key-data"),
@@ -243,9 +245,9 @@ class VaultMainRekey(ApiTest):
         self.assertEqual(len(self.client.get("/api/vault", headers=new_headers).json()), 1)
 
     def test_change_password_restores_attachment_if_commit_fails(self):
-        self._mk("Work", "wpw")
+        self._mk("Work", "work-password-1")
         wid = self._id_of("Work")
-        wh = {"X-Vault-Token": self._unlock("wpw", wid).json()["token"]}
+        wh = {"X-Vault-Token": self._unlock("work-password-1", wid).json()["token"]}
         eid = self._entry(wh)
         blob = b"keep me readable"
         up = self.client.post(
@@ -262,23 +264,27 @@ class VaultMainRekey(ApiTest):
             with mock.patch.object(db, "commit", side_effect=RuntimeError("commit died")):
                 with self.assertRaises(HTTPException) as err:
                     vault_routes.change_vault_password(
-                        vault_routes.ChangePw(new_password="wpw2"), db=db, ctx=("wpw", wid)
+                        vault_routes.ChangePw(new_password="work-password-2"),
+                        db=db,
+                        ctx=("work-password-1", wid),
                     )
             self.assertEqual(err.exception.status_code, 500)
         finally:
             db.close()
 
         self.assertEqual(path.read_bytes(), old_cipher)
-        self.assertEqual(self._unlock("wpw", wid).status_code, 200)
-        self.assertEqual(self._unlock("wpw2", wid).status_code, 401)
+        self.assertEqual(self._unlock("work-password-1", wid).status_code, 200)
+        self.assertEqual(self._unlock("work-password-2", wid).status_code, 401)
         dl = self.client.get(f"/api/vault/attachments/{aid}", headers=wh)
         self.assertEqual(dl.status_code, 200)
         self.assertEqual(dl.content, blob)
 
     def test_change_default_password_changes_master(self):
-        self.client.post("/api/vault/vaults/password", json={"new_password": "m2"}, headers=self.h)
-        self.assertEqual(self._unlock("m1").status_code, 401)
-        self.assertEqual(self._unlock("m2").status_code, 200)
+        self.client.post(
+            "/api/vault/vaults/password", json={"new_password": "master-password-2"}, headers=self.h
+        )
+        self.assertEqual(self._unlock("master-password-1").status_code, 401)
+        self.assertEqual(self._unlock("master-password-2").status_code, 200)
 
     def test_change_password_empty_rejected(self):
         r = self.client.post(
@@ -293,7 +299,13 @@ class VaultMainRekey(ApiTest):
 
     # ── inline rename ──
     def test_rename_via_patch(self):
-        self._mk("Work", "wpw")
+        self._mk("Work", "work-password-1")
         wid = self._id_of("Work")
-        self.client.patch(f"/api/vault/vaults/{wid}", json={"name": "Job"}, headers=self.h)
+        work_token = self._unlock("work-password-1", wid).json()["token"]
+        response = self.client.patch(
+            f"/api/vault/vaults/{wid}",
+            json={"name": "Job"},
+            headers={"X-Vault-Token": work_token},
+        )
+        self.assertEqual(response.status_code, 200, response.text)
         self.assertIn("Job", [v["name"] for v in self._vaults()])

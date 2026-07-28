@@ -7,7 +7,8 @@ client uses httpx (already a dep) to talk raw CardDAV (REPORT + PUT).
 """
 
 import re
-import xml.etree.ElementTree as ET
+
+from defusedxml import ElementTree as ET
 
 from services.config_secrets import load_secret_config, migrate_secret_config, save_secret_config
 
@@ -79,6 +80,9 @@ def status() -> dict:
     }
 
 
+MAX_REPORT_BYTES = 8 * 1024 * 1024
+
+
 def vcard_uid(text: str) -> str:
     m = re.search(r"^UID:(.+)$", text or "", re.MULTILINE)
     return m.group(1).strip() if m else ""
@@ -88,7 +92,18 @@ def parse_report(xml: str) -> list[dict]:
     """parse a CardDAV addressbook-query/multiget multistatus → [{href,etag,vcard}]."""
     out = []
     try:
-        root = ET.fromstring(xml)
+        if isinstance(xml, str):
+            size = len(xml.encode("utf-8", "replace"))
+            document = xml
+        else:
+            document = bytes(xml)
+            size = len(document)
+    except Exception:
+        return out
+    if size > MAX_REPORT_BYTES:
+        raise ValueError("CardDAV report is too large")
+    try:
+        root = ET.fromstring(document)
     except Exception:
         return out
     for resp in root.iter():

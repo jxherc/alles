@@ -1,7 +1,7 @@
 import io
 import json
 from collections import OrderedDict
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, Response
@@ -48,7 +48,8 @@ def _fmt(p: Photo) -> dict:
         "hidden": bool(p.hidden),
         "archived": bool(p.archived),
         "is_video": bool(p.is_video),
-        "aspect_ratio": p.aspect_ratio or ((p.width / p.height) if (p.width and p.height) else None),
+        "aspect_ratio": p.aspect_ratio
+        or ((p.width / p.height) if (p.width and p.height) else None),
         "preview": ("data:image/jpeg;base64," + p.preview) if p.preview else "",
         "stack_id": p.stack_id,
         "exif": json.loads(p.exif or "{}"),
@@ -57,7 +58,9 @@ def _fmt(p: Photo) -> dict:
 
 def _attach_stacks(out, db):
     """tag cover items with stack_count so the grid can show a stack badge. one grouped query."""
-    cover_ids = [it["id"] for m in out["moments"] for it in m["items"] if it.get("stack_id") == it["id"]]
+    cover_ids = [
+        it["id"] for m in out["moments"] for it in m["items"] if it.get("stack_id") == it["id"]
+    ]
     if not cover_ids:
         return out
     counts = dict(
@@ -77,7 +80,7 @@ def _moments(rows):
     rows.sort(key=lambda p: p.taken_at or p.created_at or datetime.min, reverse=True)
     moments = OrderedDict()
     for p in rows:
-        d = p.taken_at or p.created_at or datetime.utcnow()
+        d = p.taken_at or p.created_at or datetime.now(UTC).replace(tzinfo=None)
         moments.setdefault(d.strftime("%Y-%m-%d"), (d, []))[1].append(_fmt(p))
     out = [{"date": k, "label": _label(v[0]), "items": v[1]} for k, v in moments.items()]
     return {"moments": out, "count": len(rows)}
@@ -139,7 +142,9 @@ def _apply_filters(q, type_, camera, from_, to):
             pass
     if to:
         try:
-            q = q.filter(taken < datetime.fromisoformat(to) + timedelta(days=1))  # inclusive end-of-day
+            q = q.filter(
+                taken < datetime.fromisoformat(to) + timedelta(days=1)
+            )  # inclusive end-of-day
         except ValueError:
             pass
     return q
@@ -182,10 +187,14 @@ def list_photos(
 @router.get("/facets")
 def facets(db: DbSession = Depends(get_db)):
     """distinct cameras present in the live library — powers the filter dropdown."""
-    rows = db.query(Photo.exif).filter(
-        Photo.deleted_at == None,  # noqa: E711
-        (Photo.hidden == False) | (Photo.hidden == None),  # noqa: E711,E712
-    ).all()
+    rows = (
+        db.query(Photo.exif)
+        .filter(
+            Photo.deleted_at == None,  # noqa: E711
+            (Photo.hidden == False) | (Photo.hidden == None),  # noqa: E711,E712
+        )
+        .all()
+    )
     cams = set()
     for (ex,) in rows:
         d = json.loads(ex or "{}")
@@ -223,13 +232,18 @@ class StackBody(BaseModel):
 def stack(body: StackBody, db: DbSession = Depends(get_db)):
     """group photos under one cover (largest by area). pulls in members of any stack touched."""
     ids = set(body.ids)
-    rows = db.query(Photo).filter(Photo.id.in_(ids), Photo.deleted_at == None).all()  # noqa: E711
+    rows = db.query(Photo).filter(Photo.id.in_(ids), Photo.deleted_at.is_(None)).all()
     if len(rows) < 2:
         raise HTTPException(400, "select at least 2 photos to stack")
     existing = {r.stack_id for r in rows if r.stack_id}
     if existing:  # merge: absorb every member of any stack among the selection
-        ids |= {m.id for m in db.query(Photo).filter(Photo.stack_id.in_(existing), Photo.deleted_at == None).all()}  # noqa: E711
-        rows = db.query(Photo).filter(Photo.id.in_(ids), Photo.deleted_at == None).all()  # noqa: E711
+        ids |= {
+            m.id
+            for m in db.query(Photo)
+            .filter(Photo.stack_id.in_(existing), Photo.deleted_at.is_(None))
+            .all()
+        }
+        rows = db.query(Photo).filter(Photo.id.in_(ids), Photo.deleted_at.is_(None)).all()
     cover = max(rows, key=lambda p: (p.width or 0) * (p.height or 0))
     for p in rows:
         p.stack_id = cover.id
@@ -315,7 +329,7 @@ def search_photos(q: str = Query(...), db: DbSession = Depends(get_db)):
     hits.sort(key=lambda p: p.taken_at or p.created_at or datetime.min, reverse=True)
     moments = OrderedDict()
     for p in hits:
-        d = p.taken_at or p.created_at or datetime.utcnow()
+        d = p.taken_at or p.created_at or datetime.now(UTC).replace(tzinfo=None)
         moments.setdefault(d.strftime("%Y-%m-%d"), (d, []))[1].append(_fmt(p))
     out = [{"date": k, "label": _label(v[0]), "items": v[1]} for k, v in moments.items()]
     return {"moments": out, "count": len(hits)}
@@ -328,10 +342,14 @@ def clip_status(db: DbSession = Depends(get_db)):
 
     av = clip.available()
     indexed = db.query(Photo).filter(Photo.clip != None).count() if av else 0  # noqa: E711
-    total = db.query(Photo).filter(
-        Photo.deleted_at == None,  # noqa: E711
-        (Photo.is_video == False) | (Photo.is_video == None),  # noqa: E711,E712
-    ).count()
+    total = (
+        db.query(Photo)
+        .filter(
+            Photo.deleted_at == None,  # noqa: E711
+            (Photo.is_video == False) | (Photo.is_video == None),  # noqa: E711,E712
+        )
+        .count()
+    )
     return {"available": av, "indexed": indexed, "total": total}
 
 
@@ -348,12 +366,19 @@ def semantic(q: str = Query(...), db: DbSession = Depends(get_db)):
     if not hits:
         return {"moments": [], "count": 0}
     rank = {pid: i for i, (pid, _) in enumerate(hits)}
-    rows = db.query(Photo).filter(
-        Photo.id.in_(list(rank)),
-        (Photo.hidden == False) | (Photo.hidden == None),  # noqa: E711,E712
-    ).all()
+    rows = (
+        db.query(Photo)
+        .filter(
+            Photo.id.in_(list(rank)),
+            (Photo.hidden == False) | (Photo.hidden == None),  # noqa: E711,E712
+        )
+        .all()
+    )
     rows.sort(key=lambda p: rank.get(p.id, 1 << 30))
-    return {"moments": [{"date": "", "label": "best matches", "items": [_fmt(p) for p in rows]}], "count": len(rows)}
+    return {
+        "moments": [{"date": "", "label": "best matches", "items": [_fmt(p) for p in rows]}],
+        "count": len(rows),
+    }
 
 
 # ── people & faces (phase 7a) ──
@@ -376,12 +401,7 @@ def _person_counts(db, person_ids=None):
 def _cover_face(db, per) -> str | None:
     if per.cover_face_id:
         return per.cover_face_id
-    f = (
-        db.query(Face.id)
-        .filter(Face.person_id == per.id)
-        .order_by(Face.det_score.desc())
-        .first()
-    )
+    f = db.query(Face.id).filter(Face.person_id == per.id).order_by(Face.det_score.desc()).first()
     return f[0] if f else None
 
 
@@ -392,10 +412,14 @@ def faces_status(db: DbSession = Depends(get_db)):
 
     av = faces.available()
     scanned = db.query(Photo).filter(Photo.faces_at != None).count() if av else 0  # noqa: E711
-    total = db.query(Photo).filter(
-        Photo.deleted_at == None,  # noqa: E711
-        (Photo.is_video == False) | (Photo.is_video == None),  # noqa: E711,E712
-    ).count()
+    total = (
+        db.query(Photo)
+        .filter(
+            Photo.deleted_at == None,  # noqa: E711
+            (Photo.is_video == False) | (Photo.is_video == None),  # noqa: E711,E712
+        )
+        .count()
+    )
     return {
         "available": av,
         "scanned": scanned,
@@ -416,12 +440,14 @@ def people(db: DbSession = Depends(get_db)):
         if not c:
             continue  # every face landed on a hidden/trashed photo — nothing to show
         cover = _cover_face(db, p)
-        out.append({
-            "id": p.id,
-            "name": p.name or "",
-            "count": c,
-            "cover": f"/api/photos/face/{cover}" if cover else "",
-        })
+        out.append(
+            {
+                "id": p.id,
+                "name": p.name or "",
+                "count": c,
+                "cover": f"/api/photos/face/{cover}" if cover else "",
+            }
+        )
     # named people first (alpha), then the unnamed clusters by how many photos they're in
     out.sort(key=lambda d: (d["name"] == "", d["name"].lower() if d["name"] else -d["count"]))
     return {"people": out, "count": len(out)}
@@ -496,7 +522,9 @@ def merge_people(body: MergeBody, db: DbSession = Depends(get_db)):
                 break
     drop = [i for i in ids if i != keep.id and i in people]
     if drop:
-        db.query(Face).filter(Face.person_id.in_(drop)).update({Face.person_id: keep.id}, synchronize_session=False)
+        db.query(Face).filter(Face.person_id.in_(drop)).update(
+            {Face.person_id: keep.id}, synchronize_session=False
+        )
         for i in drop:
             db.delete(people[i])
     keep.cover_face_id = _cover_face(db, keep)
@@ -515,12 +543,14 @@ def photo_faces(pid: str, db: DbSession = Depends(get_db)):
     out = []
     for f in rows:
         per = pmap.get(f.person_id)
-        out.append({
-            "id": f.id,
-            "person_id": f.person_id,
-            "name": (per.name if per else "") or "",
-            "thumb": f"/api/photos/face/{f.id}",
-        })
+        out.append(
+            {
+                "id": f.id,
+                "person_id": f.person_id,
+                "name": (per.name if per else "") or "",
+                "thumb": f"/api/photos/face/{f.id}",
+            }
+        )
     return {"faces": out, "count": len(out)}
 
 
@@ -553,8 +583,11 @@ def face_crop(fid: str, db: DbSession = Depends(get_db)):
         crop.save(buf, "JPEG", quality=85)
     except Exception:
         raise HTTPException(404)
-    return Response(content=buf.getvalue(), media_type="image/jpeg",
-                    headers={"Cache-Control": "public, max-age=86400"})
+    return Response(
+        content=buf.getvalue(),
+        media_type="image/jpeg",
+        headers={"Cache-Control": "public, max-age=86400"},
+    )
 
 
 @router.get("/map")
@@ -609,14 +642,20 @@ def places(db: DbSession = Depends(get_db)):
         loc = geo.nearest(lat, lon)
         if not loc:
             continue
-        key = f'{loc["cc"]}/{loc["city"]}'
+        key = f"{loc['cc']}/{loc['city']}"
         g = groups.get(key)
         if not g:  # rows are newest-first, so the first photo seen for a place is its cover
-            g = groups[key] = {"city": loc["city"], "country": loc["country"], "cc": loc["cc"], "count": 0, "cover": p.id}
+            g = groups[key] = {
+                "city": loc["city"],
+                "country": loc["country"],
+                "cc": loc["cc"],
+                "count": 0,
+                "cover": p.id,
+            }
         g["count"] += 1
     out = sorted(groups.values(), key=lambda g: -g["count"])
     for g in out:
-        g["cover"] = f'/api/photos/thumb/{g["cover"]}'
+        g["cover"] = f"/api/photos/thumb/{g['cover']}"
     return {"places": out, "count": len(out)}
 
 
@@ -625,11 +664,15 @@ def place_photos(cc: str = Query(...), city: str = Query(...), db: DbSession = D
     """all photos whose nearest city matches (cc, city) — the moments behind one Places tile."""
     from services import places as geo
 
-    rows = db.query(Photo).filter(
-        Photo.deleted_at == None,  # noqa: E711
-        (Photo.hidden == False) | (Photo.hidden == None),  # noqa: E711,E712
-        (Photo.archived == False) | (Photo.archived == None),  # noqa: E711,E712
-    ).all()
+    rows = (
+        db.query(Photo)
+        .filter(
+            Photo.deleted_at == None,  # noqa: E711
+            (Photo.hidden == False) | (Photo.hidden == None),  # noqa: E711,E712
+            (Photo.archived == False) | (Photo.archived == None),  # noqa: E711,E712
+        )
+        .all()
+    )
     hits = []
     for p in rows:
         ex = json.loads(p.exif or "{}")
@@ -647,7 +690,7 @@ def memories(date: str = Query(""), db: DbSession = Depends(get_db)):
     """'on this day' — photos taken the same month/day in strictly earlier years,
     grouped by how many years ago. default date is today."""
     try:
-        ref = datetime.fromisoformat(date) if date else datetime.utcnow()
+        ref = datetime.fromisoformat(date) if date else datetime.now(UTC).replace(tzinfo=None)
     except ValueError:
         raise HTTPException(400, "date must be ISO (YYYY-MM-DD)")
     rows = db.query(Photo).filter(
@@ -877,7 +920,7 @@ def delete_photo(pid: str, db: DbSession = Depends(get_db)):
     # A Live Photo's still and motion are one source asset. Keep them together
     # through trash/restore so a deleted cover cannot strand an invisible motion row.
     rows = _native_asset_rows(db, p)
-    now = datetime.utcnow()
+    now = datetime.now(UTC).replace(tzinfo=None)
     trashed = [row for row in rows if row.deleted_at is None]
     for row in trashed:
         row.deleted_at = now
@@ -956,8 +999,15 @@ def patch_photo(pid: str, body: PatchPhoto, db: DbSession = Depends(get_db)):
 
 
 _BATCH_ACTIONS = {
-    "favorite", "unfavorite", "archive", "unarchive",
-    "hide", "unhide", "album", "delete", "restore",
+    "favorite",
+    "unfavorite",
+    "archive",
+    "unarchive",
+    "hide",
+    "unhide",
+    "album",
+    "delete",
+    "restore",
 }
 
 
@@ -1000,7 +1050,7 @@ def batch(body: BatchBody, db: DbSession = Depends(get_db)):
             p.album_id = body.album_id or None
         elif a == "delete":
             if p.deleted_at is None:
-                p.deleted_at = datetime.utcnow()
+                p.deleted_at = datetime.now(UTC).replace(tzinfo=None)
                 trash.record(db, "photo", p.id, p.original_name or p.filename)
         elif a == "restore":
             p.deleted_at = None

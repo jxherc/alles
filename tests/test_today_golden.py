@@ -2,7 +2,7 @@
 being refactored onto services.signals. ids are random uuids so we compare the
 stable fields (titles, times, order, counts, in_days)."""
 
-from datetime import date, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 
 from core.database import (
     Account,
@@ -13,6 +13,7 @@ from core.database import (
     Task,
     Transaction,
 )
+from services import finance_currency
 from tests._client import ApiTest
 
 
@@ -24,8 +25,14 @@ class TodayGoldenTests(ApiTest):
     def _seed(self):
         d = self.db()
         # events: a recurring weekly (occurs today), a timed one, an all-day one
-        d.add(CalendarEvent(title="weekly sync", start_dt=_iso(-7) + "T09:00",
-                            all_day=False, recurrence="weekly"))
+        d.add(
+            CalendarEvent(
+                title="weekly sync",
+                start_dt=_iso(-7) + "T09:00",
+                all_day=False,
+                recurrence="weekly",
+            )
+        )
         d.add(CalendarEvent(title="lunch", start_dt=_iso(0) + "T12:00", all_day=False))
         d.add(CalendarEvent(title="holiday", start_dt=_iso(0), all_day=True))
         # tasks: overdue, due-today, future, no-due (last two only bump open_count)
@@ -34,12 +41,23 @@ class TodayGoldenTests(ApiTest):
         d.add(Task(title="later", done=False, due_date=_iso(5)))
         d.add(Task(title="someday", done=False))
         # reminder unfired for now
-        d.add(Reminder(text="call", trigger_at=datetime.utcnow(), fired=False))
+        d.add(Reminder(text="call", trigger_at=datetime.now(UTC).replace(tzinfo=None), fired=False))
         # subs: one within 7d, one far out (excluded)
-        d.add(Subscription(name="netflix", price=9.0, currency="$", cycle="monthly",
-                           active=True, next_due=_iso(3)))
-        d.add(Subscription(name="far", price=1.0, currency="$", cycle="yearly",
-                           active=True, next_due=_iso(20)))
+        d.add(
+            Subscription(
+                name="netflix",
+                price=9.0,
+                currency="$",
+                cycle="monthly",
+                active=True,
+                next_due=_iso(3),
+            )
+        )
+        d.add(
+            Subscription(
+                name="far", price=1.0, currency="$", cycle="yearly", active=True, next_due=_iso(20)
+            )
+        )
         # day-events: one within 3d, one far out (excluded)
         d.add(DayEvent(name="trip", date=_iso(2), repeat="none"))
         d.add(DayEvent(name="far day", date=_iso(10), repeat="none"))
@@ -54,11 +72,14 @@ class TodayGoldenTests(ApiTest):
 
         # events: timed sorted by time, all-day last
         evs = [(e["title"], e["time"], e["all_day"]) for e in r["events"]]
-        self.assertEqual(evs, [
-            ("weekly sync", "09:00", False),
-            ("lunch", "12:00", False),
-            ("holiday", "", True),
-        ])
+        self.assertEqual(
+            evs,
+            [
+                ("weekly sync", "09:00", False),
+                ("lunch", "12:00", False),
+                ("holiday", "", True),
+            ],
+        )
 
         # tasks
         self.assertEqual([t["title"] for t in r["tasks"]["overdue"]], ["rent"])
@@ -82,19 +103,21 @@ class TodayGoldenTests(ApiTest):
 
     def test_today_posts_overdue_linked_subscription_once(self):
         d = self.db()
-        acct = Account(name="Checking", opening=100)
+        acct = Account(name="Checking", opening=100, currency="CAD")
+        finance_currency.prepare_account(acct)
         d.add(acct)
         d.commit()
         due = _iso(-1)
         sub = Subscription(
             name="backup",
             price=7.5,
-            currency="$",
+            currency="CAD",
             cycle="monthly",
             active=True,
             next_due=due,
             account_id=acct.id,
         )
+        finance_currency.prepare_subscription(sub)
         d.add(sub)
         d.commit()
         sid, aid = sub.id, acct.id

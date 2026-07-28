@@ -15,6 +15,17 @@ class _Stop:
         return False
 
 
+class _WaitStop:
+    def __init__(self):
+        self.event = asyncio.Event()
+
+    def is_set(self):
+        return self.event.is_set()
+
+    async def wait(self):
+        await self.event.wait()
+
+
 def _make_fake(behaviors):
     """fake stream_chat that yields a scripted chunk list per successive call."""
     state = {"n": 0}
@@ -52,7 +63,9 @@ def _drive(behaviors, settings=None):
                     [],
                     [],
                     [],
-                    session_id="s",
+                    # This helper exercises the runtime without a database-backed
+                    # chat session. Keep the delegated-action scope unbound too.
+                    session_id="",
                 ):
                     chunks.append(ch)
                 return chunks
@@ -101,6 +114,124 @@ class KeepStreamedOutputTests(unittest.TestCase):
         self.assertEqual(r["output"], "")
 
 
+class AgentSystemNoteSecurityTests(unittest.TestCase):
+    def test_full_access_does_not_promise_shell_secret_confinement(self):
+        note = ar.agent_system_note(
+            {
+                "agent_context_files": False,
+                "agent_subagents": False,
+                "agent_permission_mode": "full_access",
+            }
+        )
+
+        self.assertIn("an unsandboxed shell has the same host access as Alles", note)
+        self.assertIn("never read credential stores unless the owner explicitly asked", note)
+
+    def test_detached_auto_reports_that_approval_actions_are_unavailable(self):
+        note = ar.agent_system_note(
+            {
+                "agent_context_files": False,
+                "agent_subagents": False,
+                "agent_permission_mode": "full_auto",
+                "agent_detached": True,
+            }
+        )
+
+        self.assertIn("DETACHED AUTO MODE", note)
+        self.assertIn("require owner approval are unavailable", note)
+
+    def test_detached_auto_rejects_approval_action_without_waiting(self):
+        shell_call = {
+            "call_id": "c1",
+            "name": "shell",
+            "args": {"command": "pwd"},
+        }
+        with mock.patch.object(ar, "_await_permission") as await_permission:
+            _, _, chunks = _drive(
+                [
+                    [{"tool_call": shell_call}, {"done": True, "usage": {}}],
+                    [{"done": True, "usage": {}}],
+                ],
+                {
+                    "agent_permission_mode": "full_auto",
+                    "agent_detached": True,
+                },
+            )
+
+        await_permission.assert_not_called()
+        self.assertFalse(any("tool_permission" in chunk for chunk in chunks))
+        outputs = [chunk["tool_result"]["output"] for chunk in chunks if "tool_result" in chunk]
+        self.assertTrue(any("approval unavailable in detached run" in output for output in outputs))
+
+
+class SelectableQuestionRuntimeTests(unittest.TestCase):
+    def test_question_pauses_then_returns_structured_answer_to_model(self):
+        call = {
+            "call_id": "q1",
+            "name": "ask_user",
+            "args": {
+                "questions": [
+                    {
+                        "id": "scope",
+                        "prompt": "Which surface?",
+                        "choices": [
+                            {"id": "files", "label": "Files"},
+                            {"id": "aide", "label": "Aide"},
+                        ],
+                    }
+                ]
+            },
+        }
+        fake, state = _make_fake(
+            [[{"tool_call": call}, {"done": True}], [{"delta": "continuing"}, {"done": True}]]
+        )
+        endpoint = SimpleNamespace(base_url="http://x/", api_key="k")
+
+        with tempfile.TemporaryDirectory() as directory:
+            with (
+                mock.patch.object(agent_state, "DATA_DIR", Path(directory)),
+                mock.patch.object(ar, "stream_chat", fake),
+            ):
+
+                async def go():
+                    chunks = []
+                    async for chunk in ar.run_agent(
+                        [{"role": "user", "content": "ask me"}],
+                        endpoint,
+                        "m",
+                        _WaitStop(),
+                        {"agent_context_files": False},
+                        [],
+                        [],
+                        [],
+                        session_id="session-1",
+                    ):
+                        chunks.append(chunk)
+                        if chunk.get("user_question"):
+                            request_id = chunk["user_question"]["id"]
+                            self.assertTrue(
+                                ar.resolve_user_question(
+                                    request_id,
+                                    {
+                                        "answers": {
+                                            "scope": {"selected": ["files"], "free_text": ""}
+                                        }
+                                    },
+                                )
+                            )
+                    return chunks
+
+                chunks = asyncio.run(go())
+
+        self.assertEqual(state["n"], 2)
+        resolved = next(chunk["user_question_resolved"] for chunk in chunks if chunk.get("user_question_resolved"))
+        self.assertEqual(resolved["answer"]["answers"]["scope"]["selected"], ["files"])
+        result = next(chunk["tool_result"] for chunk in chunks if chunk.get("tool_result"))
+        self.assertFalse(result["error"])
+        self.assertIn('"files"', result["output"])
+        self.assertTrue(any(chunk.get("delta") == "continuing" for chunk in chunks))
+
+
 class LlmResilienceTests(unittest.TestCase):
     def test_retryable_classification(self):
         self.assertTrue(ar._retryable(""))  # empty/transient
@@ -117,11 +248,7 @@ class LlmResilienceTests(unittest.TestCase):
         self.assertEqual(calls, 2)  # it retried instead of aborting
 
     def test_unrecoverable_after_work_is_stopped_not_error(self):
-        tc = {
-            "call_id": "c1",
-            "name": "todo_update",
-            "args": {"items": [{"step": "x", "status": "in_progress"}]},
-        }
+        tc = {"call_id": "c1", "name": "list_files", "args": {"path": ".", "depth": 1}}
         status, _, _ = _drive([[{"tool_call": tc}, {"done": True}], [{"error": "HTTP 400: bad"}]])
         self.assertEqual(status, "stopped")  # work landed → interrupted, not a clean failure
 
@@ -133,10 +260,12 @@ class LlmResilienceTests(unittest.TestCase):
     def test_transient_error_after_thinking_still_retries(self):
         # reasoning models stream thinking BEFORE any answer/tool-call; a transient blip
         # during the thinking phase must still retry — thinking is throwaway, not real output
-        status, calls, _ = _drive([
-            [{"thinking": "let me reason "}, {"error": ""}],  # blip mid-thought
-            [{"done": True, "usage": {}}],                    # retry succeeds
-        ])
+        status, calls, _ = _drive(
+            [
+                [{"thinking": "let me reason "}, {"error": ""}],  # blip mid-thought
+                [{"done": True, "usage": {}}],  # retry succeeds
+            ]
+        )
         self.assertEqual(status, "done")
         self.assertEqual(calls, 2)  # retried despite the earlier thinking chunk
 
@@ -212,6 +341,42 @@ class EffortTurnsTests(unittest.TestCase):
         self.assertEqual(ar._agent_max_turns({"agent_effort": "max", "_agent_turn_cap": 10}), 10)
         self.assertEqual(ar._agent_max_turns({"agent_effort": "high", "_agent_turn_cap": 4}), 4)
 
+    def test_deep_work_and_custom_turn_bounds(self):
+        self.assertEqual(ar._agent_max_turns({"agent_effort": "deep_work"}), 48)
+        self.assertEqual(
+            ar._agent_max_turns(
+                {"agent_effort": "custom", "agent_custom_effort": {"max_turns": 999}}
+            ),
+            64,
+        )
+        self.assertEqual(
+            ar._agent_max_turns(
+                {"agent_effort": "custom", "agent_custom_effort": {"max_turns": 0}}
+            ),
+            1,
+        )
+
+    def test_local_profiles_map_to_supported_provider_efforts(self):
+        self.assertEqual(ar.provider_effort({"agent_effort": "deep_work"}), "high")
+        self.assertEqual(
+            ar.provider_effort(
+                {
+                    "agent_effort": "custom",
+                    "agent_custom_effort": {"verification": "quick"},
+                }
+            ),
+            "low",
+        )
+        self.assertEqual(
+            ar.provider_effort(
+                {
+                    "agent_effort": "custom",
+                    "agent_custom_effort": {"verification": "thorough"},
+                }
+            ),
+            "high",
+        )
+
     def test_system_note_mentions_effort(self):
         note_low = ar.agent_system_note({"agent_effort": "low"})
         note_high = ar.agent_system_note({"agent_effort": "high"})
@@ -226,6 +391,22 @@ class EffortTurnsTests(unittest.TestCase):
     def test_note_has_file_creation_discipline(self):
         note = ar.agent_system_note({})
         self.assertIn("never create docs/README/boilerplate unless asked", note)
+
+    def test_custom_profile_controls_verification_and_delegation_copy(self):
+        note = ar.agent_system_note(
+            {
+                "agent_effort": "custom",
+                "agent_custom_effort": {
+                    "max_turns": 32,
+                    "verification": "thorough",
+                    "delegation": "off",
+                    "workflows": "auto",
+                },
+                "agent_subagents": False,
+            }
+        )
+        self.assertIn("VERIFICATION: thorough", note)
+        self.assertIn("Delegation is disabled", note)
 
 
 if __name__ == "__main__":

@@ -20,7 +20,6 @@ const SPECS = {
   ] },
   calendar: { title: 'calendar', apply: () => window._reloadCalendar?.(), fields: [
     { k: 'cal_default_view', type: 'choice', label: 'default view', opts: [['month', 'month'], ['week', 'week']] },
-    { k: 'cal_week_start', type: 'choice', label: 'week starts on', opts: [['sun', 'sunday'], ['mon', 'monday']] },
     { k: 'cal_default_duration_min', type: 'choice', num: true, label: 'default duration', opts: [['30', '30 min'], ['60', '1 hour'], ['90', '90 min'], ['120', '2 hours']] },
     { k: 'cal_work_start', type: 'text', num: true, label: 'work hours start (0–23)', ph: '9' },
     { k: 'cal_work_end', type: 'text', num: true, label: 'work hours end (0–23)', ph: '18' },

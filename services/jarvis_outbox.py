@@ -2,6 +2,7 @@
 
 import hashlib
 import inspect
+import json
 from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import or_
@@ -20,6 +21,13 @@ from core.database import (
 PRIVACY_LEVELS = {"status", "title_status", "summary"}
 TERMINAL_STATES = {"delivered", "failed", "uncertain", "cancelled"}
 _PROVIDERS: dict[str, object] = {}
+_EVENT_CONTEXT_FIELDS = {
+    ("discord", "discord_notice_queued"): {
+        "channel_id": 64,
+        "owner_generation": 64,
+        "streamed_message_id": 256,
+    },
+}
 
 
 def utc_now() -> datetime:
@@ -150,6 +158,19 @@ def _payload(db: DbSession, delivery: JarvisDeliveryAttempt) -> dict:
     if delivery.privacy_level == "summary":
         event = db.get(JarvisRunEvent, delivery.event_id) if delivery.event_id else None
         payload["summary"] = ((event.summary if event else run.result_summary) or "")[:2000]
+        payload["context"] = {}
+        if event:
+            try:
+                context = json.loads(event.data or "{}")
+            except (TypeError, ValueError):
+                context = {}
+            if isinstance(context, dict):
+                fields = _EVENT_CONTEXT_FIELDS.get((delivery.channel, event.kind), {})
+                payload["context"] = {
+                    name: str(context[name])[:limit]
+                    for name, limit in fields.items()
+                    if context.get(name) not in (None, "")
+                }
     return payload
 
 

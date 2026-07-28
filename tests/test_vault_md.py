@@ -24,6 +24,15 @@ class VaultTests(unittest.TestCase):
         vault_md.write("notes/hello.md", "updated [[world]]")
         self.assertEqual(vault_md.read("notes/hello.md")["content"], "updated [[world]]")
 
+    def test_unique_create_allocates_without_replacing_an_existing_note(self):
+        vault_md.create("capture.md", "owner original")
+
+        created = vault_md.create_unique("capture", "new capture")
+
+        self.assertEqual(created["path"], "capture 2.md")
+        self.assertEqual(vault_md.read("capture.md")["content"], "owner original")
+        self.assertEqual(vault_md.read("capture 2.md")["content"], "new capture")
+
     def test_expected_hash_blocks_stale_write_and_atomic_temp_is_cleaned(self):
         first = vault_md.write("conflict.md", "first")
         self.assertEqual(vault_md.read("conflict.md")["hash"], first["hash"])

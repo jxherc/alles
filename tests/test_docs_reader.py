@@ -1,3 +1,6 @@
+import unittest
+from unittest.mock import patch
+
 from tests._client import VaultApiTest
 
 
@@ -27,8 +30,46 @@ class DocsReaderTest(VaultApiTest):
         )
         self.assertEqual(r.status_code, 200)
         self.assertGreaterEqual(r.json().get("links_rewritten", 0), 1)
+        self.assertRegex(r.json().get("transaction_id", ""), r"^[0-9a-f]{32}$")
         beta = self.client.get("/api/vault-md/file", params={"path": "beta.md"}).json()
         self.assertIn("[[gamma]]", beta["content"])
+
+    def test_rename_rejects_invalid_document_and_folder_destinations_as_client_errors(self):
+        from services import vault_md
+
+        self._new("document", "safe")
+        folder = vault_md.vault_dir() / "folder"
+        folder.mkdir()
+
+        for source in ("document.md", "folder"):
+            with self.subTest(source=source):
+                response = self.client.post(
+                    "/api/vault-md/rename",
+                    json={"path": source, "new_path": "../outside"},
+                )
+                self.assertEqual(response.status_code, 400, response.text)
+
+        self.assertTrue(vault_md._safe("document.md").is_file())
+        self.assertTrue(vault_md._safe("folder").is_dir())
+
+    def test_pending_rename_can_resume_after_a_restart_point(self):
+        from services import document_safety, vault_md
+
+        self._new("before", "# before")
+        self._new("reference", "see [[before]]")
+        manifest = document_safety.prepare_rename("before.md", "after.md")
+        vault_md._safe("before.md").rename(vault_md._safe("after.md"))
+
+        pending = self.client.get("/api/vault-md/rename/pending").json()["transactions"]
+        self.assertIn(manifest["id"], {item["id"] for item in pending})
+        recovered = self.client.post(
+            "/api/vault-md/rename/recover",
+            json={"id": manifest["id"], "action": "resume"},
+        )
+        self.assertEqual(recovered.status_code, 200)
+        self.assertEqual(recovered.json()["transaction"]["state"], "complete")
+        reference = self.client.get("/api/vault-md/file", params={"path": "reference.md"}).json()
+        self.assertIn("[[after]]", reference["content"])
 
     def test_delete(self):
         self._new("trash", "x")
@@ -77,7 +118,7 @@ class DocsReaderTest(VaultApiTest):
         self._new("watched", "v1")
         sig1 = _vault_sig()
         self.assertIn("watched.md", sig1)
-        vault_md.write("watched.md", "v2 — changed in obsidian")  # external edit
+        vault_md.write("watched.md", "v2")  # same-size external edit in the same second
         changed, removed = _sig_diff(sig1, _vault_sig())
         self.assertIn("watched.md", changed)
         sig2 = _vault_sig()
@@ -100,3 +141,30 @@ class DocsReaderTest(VaultApiTest):
         self.assertIn(
             self.client.get("/api/vault-md/revisions", params={"path": "x"}).status_code, (404, 405)
         )
+
+
+class DocsStreamOrderingTest(unittest.IsolatedAsyncioTestCase):
+    async def test_change_event_is_emitted_after_reindex(self):
+        from routes.vault_md import stream
+
+        indexed: list[str] = []
+
+        async def no_sleep(_seconds):
+            return None
+
+        with (
+            patch("asyncio.sleep", new=no_sleep),
+            patch("routes.vault_md._vault_sig", side_effect=[{}, {"fresh.md": "1:1"}]),
+            patch(
+                "routes.vault_md._observed_event",
+                return_value={"path": "fresh.md", "kind": "changed"},
+            ),
+            patch("routes.vault_md._sync_changed", side_effect=indexed.append),
+        ):
+            response = await stream()
+            iterator = response.body_iterator
+            self.assertIn("hello", await anext(iterator))
+            event = await anext(iterator)
+            self.assertIn('"changed": ["fresh.md"]', event)
+            self.assertEqual(indexed, ["fresh.md"])
+            await iterator.aclose()

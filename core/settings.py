@@ -1,5 +1,6 @@
 import json
 import os
+import tempfile
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -29,7 +30,8 @@ _defaults = {
     "default_endpoint_id": "",
     "model_roles": {
         "aide_chat": {},
-        "andromeda": {},
+        "andromeda_answer": {},
+        "andromeda_verifier": {},
         "jarvis": {},
     },
     # `system_prompt` remains as a compatibility mirror for older clients. New code keeps the
@@ -61,7 +63,7 @@ _defaults = {
     "tts_voice": "alloy",
     "openai_api_key": "",  # for TTS/STT
     "search_provider": "duckduckgo",
-    "search_result_count": 5,
+    "search_result_count": 8,
     "search_fallback_chain": ["duckduckgo"],
     "tavily_api_key": "",
     "brave_api_key": "",
@@ -75,6 +77,12 @@ _defaults = {
     "andromeda_model_band": "standard",
     "andromeda_model_bands": {},
     "andromeda_qualified_models": [],
+    "andromeda_answer_max_tokens": 450,
+    "andromeda_answer_timeout_seconds": 50,
+    "andromeda_verification_enabled": True,
+    "andromeda_verifier_mode": "freshness-sensitive",
+    "andromeda_verifier_max_tokens": 500,
+    "andromeda_verifier_timeout_seconds": 30,
     "memory_auto_inject": True,
     "memory_policy": "ask",  # off | ask | auto
     "tts_speed": 1.0,
@@ -83,6 +91,19 @@ _defaults = {
     "language": "en",  # translated UI catalogs; English only until a catalog is reviewed
     "region": "",  # ISO 3166-1 alpha-2 or UN M49; blank follows the browser
     "timezone": "",  # IANA name; blank follows the browser
+    "clock_format": "auto",  # auto | 12 | 24
+    "week_start": "auto",  # auto | mon | sun; separate from legacy cal_week_start
+    "currency": "",  # ISO 4217 code; blank follows the configured/browser region
+    "access_profile": "device",
+    "public_url": "",
+    "trusted_hosts": "",
+    "forwarded_allow_ips": "",
+    "keep_vault_inside_alles": True,
+    "automatic_backup_enabled": False,
+    "automatic_backup_dir": "",
+    "automatic_backup_last_success": "",
+    "automatic_backup_last_error": "",
+    "setup_state": {},
     "base_domain": "localhost",  # apex domain; each app lives on {app}.{base_domain}
     # on by default: when a plain chat message clearly asks aide to DO an app thing
     # (check mail, add to calendar, remind me, what's on my schedule…) it acts on it
@@ -143,7 +164,7 @@ _defaults = {
     # mail oauth ("sign in with google") - the user's own google cloud oauth client
     "mail_oauth_client_id": "",
     "mail_oauth_client_secret": "",
-    "mail_oauth_redirect_base": "",  # "" -> http://localhost:8000 ; set if you reach the app elsewhere
+    "mail_oauth_redirect_base": "",  # blank follows the local Alles port; override for another URL
 }
 
 _ARTIFACT_INSTRUCTIONS = (
@@ -291,7 +312,32 @@ def _save_settings_locked(patch: dict):
     _SETTINGS_FILE.parent.mkdir(parents=True, exist_ok=True)
     # allow_nan=False is a backstop in case a non-finite slips past the sanitizer
     stored = _encrypt_setting_secrets(s)
-    _SETTINGS_FILE.write_text(json.dumps(stored, indent=2, allow_nan=False), "utf-8")
+    raw = json.dumps(stored, indent=2, allow_nan=False).encode("utf-8")
+    descriptor, temporary_name = tempfile.mkstemp(
+        prefix=f".{_SETTINGS_FILE.name}.", suffix=".tmp", dir=_SETTINGS_FILE.parent
+    )
+    temporary = Path(temporary_name)
+    try:
+        with os.fdopen(descriptor, "wb") as handle:
+            handle.write(raw)
+            handle.flush()
+            os.fsync(handle.fileno())
+        try:
+            mode = _SETTINGS_FILE.stat().st_mode if _SETTINGS_FILE.exists() else 0o600
+            os.chmod(temporary, mode)
+        except OSError:
+            pass
+        os.replace(temporary, _SETTINGS_FILE)
+        try:
+            parent_descriptor = os.open(_SETTINGS_FILE.parent, os.O_RDONLY)
+            try:
+                os.fsync(parent_descriptor)
+            finally:
+                os.close(parent_descriptor)
+        except OSError:
+            pass
+    finally:
+        temporary.unlink(missing_ok=True)
     _SETTINGS_CACHE = dict(s)
     _SETTINGS_CACHE_SIG = _settings_sig()
     return s
@@ -364,7 +410,7 @@ def auth_enabled() -> bool:
 
 
 def get_port() -> int:
-    return int(os.getenv("PORT", "8000"))
+    return int(os.getenv("PORT", "6769"))
 
 
 def base_domain() -> str:

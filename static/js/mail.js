@@ -1,7 +1,8 @@
 import { toast } from './util.js';
 import { confirm as dlgConfirm, prompt as dlgPrompt } from './dialog.js';
-import { populateDropdown, getDropdownValue } from './dropdown.js?v=210';
+import { populateDropdown, getDropdownValue } from './dropdown.js?v=212';
 import { initDatePicker as _dpInit } from './datepick.js';
+import { formatDate } from './i18n.js';
 
 // monochrome ui icons (same global as files/etc) — keeps the row controls matching the app
 const _si = n => (window.icon ? window.icon(n) : '');
@@ -99,12 +100,28 @@ const threadKey = s => (String(s ?? '').replace(_subjPrefix, '').trim() || '(no 
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+const MAIL_BODY_CSP = "default-src 'none'; img-src data: cid:; style-src 'unsafe-inline'; font-src data:; base-uri 'none'; form-action 'none'";
+function stripAutomaticMailNavigation(html = '') {
+  const source = String(html);
+  if (typeof document === 'undefined' || typeof document.createElement !== 'function') {
+    return source.replace(/<meta\b[^>]*>/gi, '');
+  }
+  const template = document.createElement('template');
+  template.innerHTML = source;
+  template.content.querySelectorAll('meta[http-equiv]').forEach(meta => {
+    if (meta.getAttribute('http-equiv')?.trim().toLowerCase() === 'refresh') meta.remove();
+  });
+  return template.innerHTML;
+}
+export function mailBodySrcdoc(html = '') {
+  return `<meta http-equiv="Content-Security-Policy" content="${MAIL_BODY_CSP}"><style>body{font-family:system-ui,sans-serif;color:#111;background:#fff;font-size:14px;padding:8px;margin:0}</style>${stripAutomaticMailNavigation(html)}`;
+}
 const catchErr = msg => e => { console.error(msg || 'Error:', e); if (msg) toast(msg, 'error'); };
 const fromName = f => {
   const m = /^(.*?)\s*<([^>]+)>/.exec(f || '');
   return (m ? (m[1].replace(/"/g, '').trim() || m[2]) : f) || '(unknown)';
 };
-const shortDate = d => { try { return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); } catch (e) { console.error(e); return ''; } };
+const shortDate = d => { try { return formatDate(d, { month: 'short', day: 'numeric' }); } catch (e) { console.error(e); return ''; } };
 const acctName = id => {
   const a = _accounts.find(x => x.id === id);
   return a ? (a.name || a.email || 'mail') : 'mail';
@@ -230,10 +247,10 @@ async function _renderSavedBar() {
   });
 }
 
-export async function loadMail() {
+export async function loadMail(fetcher = fetch) {
   initMail();
-  startMailPoll();
-  _accounts = await fetch('/api/mail/accounts').then(r => r.json()).catch(e => { console.error(e); return []; });
+  startMailPoll(fetcher).catch(error => console.error(error));
+  _accounts = await fetcher('/api/mail/accounts').then(r => r.json()).catch(e => { console.error(e); return []; });
   if (_accounts.length > 1 && !localStorage.getItem('alles-mail-account-mode')) _active = 'all';
   syncAccountSelect();
   if (!_accounts.length) {
@@ -243,7 +260,7 @@ export async function loadMail() {
   }
   _renderSavedBar();
   _renderScheduled();
-  loadInbox();
+  return loadInbox(false, false, fetcher);
 }
 
 function syncAccountSelect() {
@@ -263,11 +280,11 @@ function syncAccountSelect() {
   populateDropdown(sel, opts, _active);
 }
 
-async function fetchInboxFor(account, limit = 35, folder = 'INBOX', quick = false) {
+async function fetchInboxFor(account, limit = 35, folder = 'INBOX', quick = false, fetcher = fetch) {
   // quick=1 lets the server skip the full header re-fetch when the mailbox tip
   // hasn't moved — keeps the 30s background poll cheap on slow connections
   const url = `/api/mail/inbox/${account.id}?folder=${encodeURIComponent(folder)}&limit=${limit}${quick ? '&quick=1' : ''}`;
-  const d = await fetch(url).then(r => r.json());
+  const d = await fetcher(url).then(r => r.json());
   const map = ms => ms.map(m => ({ ...m, account_id: account.id, account_name: account.name || account.email, folder }));
   // IMAP failed but the server handed back the cached copy → show it (offline-friendly) instead of erroring
   if (d.error) { if ((d.messages || []).length) return map(d.messages); throw new Error(d.error); }
@@ -275,9 +292,9 @@ async function fetchInboxFor(account, limit = 35, folder = 'INBOX', quick = fals
 }
 
 // providers don't agree on a sent-folder name; sniff it once per account
-async function sentFolderFor(account) {
+async function sentFolderFor(account, fetcher = fetch) {
   if (_sentFolders[account.id]) return _sentFolders[account.id];
-  const d = await fetch(`/api/mail/folders/${account.id}`).then(r => r.json()).catch(e => { console.error(e); return { folders: [] }; });
+  const d = await fetcher(`/api/mail/folders/${account.id}`).then(r => r.json()).catch(e => { console.error(e); return { folders: [] }; });
   const f = (d.folders || []).find(x => /sent/i.test(x)) || 'Sent';
   _sentFolders[account.id] = f;
   return f;
@@ -408,7 +425,7 @@ async function loadDrafts() {
   }));
 }
 
-async function loadInbox(force = false, silent = false) {
+async function loadInbox(force = false, silent = false, fetcher = fetch) {
   _searchView = '';
   _labelFilter = '';
   const list = $('mail-list');
@@ -423,8 +440,8 @@ async function loadInbox(force = false, silent = false) {
 
   const accts = _active === 'all' ? _accounts : _accounts.filter(a => a.id === _active);
   const results = await Promise.allSettled(accts.map(async a => {
-    const folder = _filter === 'sent' ? await sentFolderFor(a) : 'INBOX';
-    return fetchInboxFor(a, _active === 'all' ? 30 : 45, folder, silent);   // silent poll → cheap quick fetch
+    const folder = _filter === 'sent' ? await sentFolderFor(a, fetcher) : 'INBOX';
+    return fetchInboxFor(a, _active === 'all' ? 30 : 45, folder, silent, fetcher);   // silent poll → cheap quick fetch
   }));
   const messages = results.flatMap(r => r.status === 'fulfilled' ? r.value : []);
   const errors = results
@@ -452,11 +469,11 @@ const _newestKey = msgs => [...msgs].sort((a, b) => _msgTime(b) - _msgTime(a))
 
 let _pollWired = false;
 let _pollGen = 0;
-export async function startMailPoll() {
+export async function startMailPoll(fetcher = fetch) {
   const gen = ++_pollGen;   // newer call wins the await race so a stale one can't leak a 2nd interval
   if (_pollTimer) { clearInterval(_pollTimer); _pollTimer = null; }
   let ms = 30000;
-  try { ms = Math.max(10, Number((await fetch('/api/settings').then(r => r.json())).mail_poll_seconds) || 30) * 1000; } catch (e) { console.error(e); }
+  try { ms = Math.max(10, Number((await fetcher('/api/settings').then(r => r.json())).mail_poll_seconds) || 30) * 1000; } catch (e) { console.error(e); }
   if (gen !== _pollGen) return;   // superseded while awaiting
   _pollTimer = setInterval(() => {
     const view = $('mail-view');
@@ -643,7 +660,7 @@ async function openMessage(aid, uid, folder = 'INBOX') {
   fetch(`/api/mail/seen/${aid}?uid=${encodeURIComponent(uid)}&folder=${encodeURIComponent(folder)}`, { method: 'POST' }).catch(console.error);
   markSeenLocal(aid, uid);
   const bodyHtml = m.html
-    ? `<iframe class="mail-body-frame" sandbox></iframe>`
+    ? `<div class="mail-reader-meta">remote images are blocked for privacy</div><iframe class="mail-body-frame" sandbox></iframe>`
     : `<pre class="mail-body-text">${esc(m.text || '(no content)')}</pre>`;
   main.innerHTML = `<div class="mail-reader">
     <div class="mail-reader-head">
@@ -665,7 +682,7 @@ async function openMessage(aid, uid, folder = 'INBOX') {
   </div>`;
   if (m.html) {
     const f = main.querySelector('.mail-body-frame');
-    f.srcdoc = `<style>body{font-family:Inter,system-ui,sans-serif;color:#111;background:#fff;font-size:14px;padding:8px;margin:0}</style>${m.html}`;
+    f.srcdoc = mailBodySrcdoc(m.html);
   }
   // attachment chips — backend lists/serves them, the reader just never showed them
   loadAttachments(aid, uid, folder);
@@ -1243,7 +1260,7 @@ async function renderOauthBox(acct) {
       <code class="mail-redirect">${esc(st.redirect_uri || '')}</code>
       <input class="settings-input" id="ma-cid" placeholder="client id">
       <input class="settings-input" type="password" id="ma-csec" placeholder="client secret">
-      <input class="settings-input" id="ma-rbase" placeholder="redirect base (blank = http://localhost:8000)">
+      <input class="settings-input" id="ma-rbase" placeholder="redirect base (blank = http://localhost:6769)">
       <button class="btn primary" id="ma-oauth-save">save google keys</button>
     </div>
   </details>

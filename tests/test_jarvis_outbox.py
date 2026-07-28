@@ -16,6 +16,7 @@ from core.migrations import (
     m0029_jarvis_outbox,
 )
 from services.jarvis_outbox import (
+    _payload,
     claim_delivery,
     enqueue_delivery,
     process_outbox,
@@ -131,9 +132,40 @@ class JarvisOutboxTest(ApiTest):
         finally:
             unregister_provider("summary")
         self.assertEqual(payloads[0]["summary"], "owner-approved short summary")
+        self.assertEqual(payloads[0]["context"], {})
         db = self.db()
         self.assertEqual(db.get(JarvisDeliveryAttempt, delivery_id).state, "delivered")
         db.close()
+
+    def test_summary_context_exposes_only_channel_approved_fields(self):
+        db, run = self._run()
+        event_row = append_event(
+            db,
+            run,
+            "discord_notice_queued",
+            summary="owner-approved notice",
+            data={
+                "channel_id": "123",
+                "streamed_message_id": "456",
+                "notice_key": "internal-routing-key",
+                "private_prompt": "never send this",
+            },
+        )
+        delivery, _ = enqueue_delivery(
+            db,
+            run,
+            channel="discord",
+            privacy_level="summary",
+            event_id=event_row.id,
+        )
+        db.flush()
+        payload = _payload(db, delivery)
+        db.rollback()
+        db.close()
+        self.assertEqual(
+            payload["context"],
+            {"channel_id": "123", "streamed_message_id": "456"},
+        )
 
     def test_failure_classes_have_bounded_retry_rules(self):
         now = datetime(2026, 1, 2, 3)

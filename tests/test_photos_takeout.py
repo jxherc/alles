@@ -1,7 +1,7 @@
 import json
 import tempfile
 import unittest
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from unittest import mock
 
@@ -15,10 +15,14 @@ from tests._client import ApiTest
 class SidecarParseTests(unittest.TestCase):
     def test_photo_taken_time(self):
         m = photo_sync.parse_takeout_sidecar({"photoTakenTime": {"timestamp": "1718700000"}})
-        self.assertEqual(m["taken_at"], datetime.utcfromtimestamp(1718700000))
+        self.assertEqual(
+            m["taken_at"], datetime.fromtimestamp(1718700000, UTC).replace(tzinfo=None)
+        )
 
     def test_geo_data(self):
-        m = photo_sync.parse_takeout_sidecar({"geoData": {"latitude": 37.8083, "longitude": -122.4192}})
+        m = photo_sync.parse_takeout_sidecar(
+            {"geoData": {"latitude": 37.8083, "longitude": -122.4192}}
+        )
         self.assertEqual(m["lat"], 37.8083)
         self.assertEqual(m["lon"], -122.4192)
 
@@ -27,11 +31,15 @@ class SidecarParseTests(unittest.TestCase):
         self.assertNotIn("lat", m)
 
     def test_prefers_photo_taken_over_creation(self):
-        m = photo_sync.parse_takeout_sidecar({
-            "photoTakenTime": {"timestamp": "1718700000"},
-            "creationTime": {"timestamp": "1000000000"},
-        })
-        self.assertEqual(m["taken_at"], datetime.utcfromtimestamp(1718700000))
+        m = photo_sync.parse_takeout_sidecar(
+            {
+                "photoTakenTime": {"timestamp": "1718700000"},
+                "creationTime": {"timestamp": "1000000000"},
+            }
+        )
+        self.assertEqual(
+            m["taken_at"], datetime.fromtimestamp(1718700000, UTC).replace(tzinfo=None)
+        )
 
     def test_empty(self):
         self.assertEqual(photo_sync.parse_takeout_sidecar({}), {})
@@ -70,23 +78,31 @@ class TakeoutSyncTests(ApiTest):
 
     def test_sidecar_sets_taken_and_gps(self):
         self._img("IMG_1.jpg")
-        (Path(self.src.name) / "IMG_1.jpg.json").write_text(json.dumps({
-            "photoTakenTime": {"timestamp": "1718700000"},
-            "geoData": {"latitude": 37.8083, "longitude": -122.4192},
-        }))
+        (Path(self.src.name) / "IMG_1.jpg.json").write_text(
+            json.dumps(
+                {
+                    "photoTakenTime": {"timestamp": "1718700000"},
+                    "geoData": {"latitude": 37.8083, "longitude": -122.4192},
+                }
+            )
+        )
         photo_sync.sync_folder(self.src.name, self.db())
         p = self.db().query(Photo).first()
-        self.assertEqual(p.taken_at, datetime.utcfromtimestamp(1718700000))
+        self.assertEqual(p.taken_at, datetime.fromtimestamp(1718700000, UTC).replace(tzinfo=None))
         self.assertEqual(json.loads(p.exif)["lat"], 37.8083)
 
     def test_supplemental_metadata_variant(self):
         self._img("IMG_2.jpg")
-        (Path(self.src.name) / "IMG_2.jpg.supplemental-metadata.json").write_text(json.dumps({
-            "photoTakenTime": {"timestamp": "1700000000"},
-        }))
+        (Path(self.src.name) / "IMG_2.jpg.supplemental-metadata.json").write_text(
+            json.dumps(
+                {
+                    "photoTakenTime": {"timestamp": "1700000000"},
+                }
+            )
+        )
         photo_sync.sync_folder(self.src.name, self.db())
         p = self.db().query(Photo).first()
-        self.assertEqual(p.taken_at, datetime.utcfromtimestamp(1700000000))
+        self.assertEqual(p.taken_at, datetime.fromtimestamp(1700000000, UTC).replace(tzinfo=None))
 
     def test_no_sidecar_still_imports(self):
         self._img("plain.jpg")

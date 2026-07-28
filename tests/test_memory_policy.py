@@ -20,6 +20,7 @@ async def _fake_extract(messages, base_url, api_key, model, max_tokens=512):
 class MemoryPolicyMigrationTest(unittest.TestCase):
     def test_adds_review_scope_and_usage_fields(self):
         engine = create_engine("sqlite://")
+        self.addCleanup(engine.dispose)
         with engine.begin() as conn:
             conn.execute(
                 text(

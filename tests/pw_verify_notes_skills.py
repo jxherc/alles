@@ -2,7 +2,9 @@
 run against the isolated bughunt server (AUTH off) on :8137.
   ALLES_DATA=.tmp_bughunt_data AUTH_ENABLED=false PORT=8137 python app.py
 """
+
 import sys
+
 from playwright.sync_api import sync_playwright
 
 PORT = 8137
@@ -15,8 +17,14 @@ def main():
         b = p.chromium.launch()
         ctx = b.new_context(service_workers="block")  # SW would re-issue + serve stale
         pg = ctx.new_page()
-        pg.on("console", lambda m: errs.append(m.text)
-              if m.type == "error" and not any(x in m.text for x in IGN) else None)
+        pg.on(
+            "console",
+            lambda m: (
+                errs.append(m.text)
+                if m.type == "error" and not any(x in m.text for x in IGN)
+                else None
+            ),
+        )
 
         # ── docs → notes section ──────────────────────────────────────────────
         pg.goto(f"http://docs.localhost:{PORT}/", wait_until="domcontentloaded")
@@ -29,29 +37,37 @@ def main():
         pg.wait_for_timeout(700)
 
         notes_visible = pg.eval_on_selector(
-            "#wiki-notes", "el => !!el && el.offsetParent !== null && el.getBoundingClientRect().height > 0")
+            "#wiki-notes",
+            "el => !!el && el.offsetParent !== null && el.getBoundingClientRect().height > 0",
+        )
         r["notes_board_renders"] = bool(notes_visible)  # the showstopper
         r["notes_list_present"] = pg.eval_on_selector("#notes-list", "el => !!el")
         r["notes_switch_active"] = pg.eval_on_selector(
-            ".docs-sec-btn[data-section='notes']", "el => el.classList.contains('active')")
+            ".docs-sec-btn[data-section='notes']", "el => el.classList.contains('active')"
+        )
         # the editor toolbar / tabs must NOT bleed into the board
         r["toolbar_hidden_in_notes"] = pg.eval_on_selector(
-            "#docs-toolbar", "el => !el || el.offsetParent === null")
+            "#docs-toolbar", "el => !el || el.offsetParent === null"
+        )
         r["tabs_hidden_in_notes"] = pg.eval_on_selector(
-            "#wiki-tabs", "el => !el || el.offsetParent === null")
+            "#wiki-tabs", "el => !el || el.offsetParent === null"
+        )
         # new note works + board shows the editor
         pg.eval_on_selector("#note-new-btn", "el => el.click()")
         pg.wait_for_timeout(600)
         r["new_note_opens_editor"] = pg.eval_on_selector_all(
-            "#note-edit-title", "els => els.length === 1")
+            "#note-edit-title", "els => els.length === 1"
+        )
 
         # ── switch back to docs ───────────────────────────────────────────────
         pg.eval_on_selector(".docs-sec-btn[data-section='docs']", "el => el.click()")
         pg.wait_for_timeout(600)
         r["back_to_docs_clears_notes_mode"] = pg.eval_on_selector(
-            "#wiki-view", "el => !el.classList.contains('notes-mode')")
+            "#wiki-view", "el => !el.classList.contains('notes-mode')"
+        )
         r["notes_board_hidden_in_docs"] = pg.eval_on_selector(
-            "#wiki-notes", "el => el.offsetParent === null")
+            "#wiki-notes", "el => el.offsetParent === null"
+        )
 
         # ── skills grouping ───────────────────────────────────────────────────
         pg.goto(f"http://aide.localhost:{PORT}/", wait_until="domcontentloaded")
@@ -60,9 +76,12 @@ def main():
         pg.wait_for_selector(".skl-group", timeout=12000)
         pg.wait_for_timeout(500)
         groups = pg.eval_on_selector_all(
-            ".skl-group .skl-group-label", "els => els.map(e => e.textContent.trim())")
+            ".skl-group .skl-group-label", "els => els.map(e => e.textContent.trim())"
+        )
         r["skills_grouped"] = len(groups) >= 6
-        r["skills_has_real_cats"] = any("coding" in g for g in groups) and any("writing" in g for g in groups)
+        r["skills_has_real_cats"] = any("coding" in g for g in groups) and any(
+            "writing" in g for g in groups
+        )
         counts = pg.eval_on_selector_all(".skl-group-count", "els => els.map(e => +e.textContent)")
         r["skills_groups_have_counts"] = bool(counts) and all(c > 0 for c in counts)
         # collapse toggles

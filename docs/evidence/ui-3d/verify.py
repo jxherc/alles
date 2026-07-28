@@ -1,5 +1,6 @@
 """ui-3d verify — the docs image toolbar button opens an insert dialog (paste URL
 or upload a file) instead of dumping a raw ![](url) placeholder."""
+
 import sys
 
 from playwright.sync_api import sync_playwright
@@ -35,8 +36,11 @@ def run():
         ok("image dialog opens", pop is not None)
         urlbox = pg.query_selector("#wiki-img-url")
         ok("has a url field", urlbox is not None)
-        ok("has an upload option", pg.query_selector("#wiki-img-file") is not None
-           or pg.query_selector("#wiki-img-upload") is not None)
+        ok(
+            "has an upload option",
+            pg.query_selector("#wiki-img-file") is not None
+            or pg.query_selector("#wiki-img-upload") is not None,
+        )
         if urlbox:
             urlbox.fill("https://example.com/pic.png")
             pg.click("#wiki-img-insert")

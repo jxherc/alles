@@ -1,0 +1,939 @@
+<!doctype html>
+<html lang="en" dir="ltr" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Standalone KOKUEN Phase 10 localization and credits starter for Alles Settings.">
+  <title>Alles Phase 10 settings - KOKUEN starter</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --page: #090909;
+      --panel: #101010;
+      --raised: #171717;
+      --hover: #202020;
+      --text: #eceae6;
+      --soft: #c3bfba;
+      --muted: #918c86;
+      --quiet: #706b66;
+      --line: #302f2d;
+      --accent: #aaa8c3;
+      --danger: #d1847b;
+      --focus: #dedaf1;
+      --radius: 4px;
+    }
+
+    html[data-theme="light"] {
+      color-scheme: light;
+      --page: #f4f3f0;
+      --panel: #eeece8;
+      --raised: #e4e1dc;
+      --hover: #e8e5e0;
+      --text: #242321;
+      --soft: #514d48;
+      --muted: #68635e;
+      --quiet: #827b74;
+      --line: #d4cfc8;
+      --accent: #5d5a78;
+      --danger: #974e47;
+      --focus: #4f4b70;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { min-height: 100%; margin: 0; background: var(--page); color: var(--text); }
+    body {
+      min-height: 100dvh;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans Arabic", "Noto Sans CJK TC", sans-serif;
+      font-size: 14px;
+      -webkit-font-smoothing: antialiased;
+    }
+    button, input, a { font: inherit; }
+    button { appearance: none; color: inherit; }
+    [hidden] { display: none !important; }
+    [dir="ltr"] { direction: ltr; unicode-bidi: isolate; }
+    .visually-hidden {
+      position: fixed;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
+
+    .skip-link {
+      position: absolute;
+      inset-block-start: -100px;
+      inset-inline-start: 8px;
+      z-index: 30;
+      padding: 8px 10px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--raised);
+      color: var(--text);
+    }
+    .skip-link:focus { inset-block-start: 8px; }
+
+    .settings {
+      min-height: 100dvh;
+      display: grid;
+      grid-template-rows: 56px minmax(0, 1fr);
+    }
+    .settings-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding-inline: 20px;
+      border-bottom: 1px solid var(--line);
+    }
+    .settings-head-copy { min-width: 0; display: flex; align-items: baseline; gap: 12px; }
+    .settings-title { font-size: 15px; font-weight: 560; white-space: nowrap; }
+    .settings-context { color: var(--quiet); font-size: 12px; white-space: nowrap; }
+    .head-actions { display: flex; align-items: center; gap: 4px; }
+    .text-action,
+    .close {
+      min-width: 44px;
+      min-height: 44px;
+      border: 0;
+      border-radius: var(--radius);
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+    }
+    .text-action:hover,
+    .close:hover { background: var(--hover); color: var(--text); }
+    .close { display: grid; place-items: center; font-size: 20px; }
+
+    .settings-layout {
+      min-width: 0;
+      min-height: 0;
+      display: grid;
+      grid-template-columns: 214px minmax(0, 1fr);
+    }
+    .settings-nav {
+      min-height: 0;
+      overflow-y: auto;
+      padding: 8px;
+      border-inline-end: 1px solid var(--line);
+      background: var(--panel);
+    }
+    .nav-group {
+      padding: 18px 12px 6px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 520;
+    }
+    .nav-group:first-child { padding-block-start: 8px; }
+    .nav-item {
+      width: 100%;
+      min-height: 44px;
+      display: flex;
+      align-items: center;
+      padding-inline: 12px;
+      border: 0;
+      border-radius: var(--radius);
+      background: transparent;
+      color: var(--muted);
+      text-align: start;
+      cursor: pointer;
+    }
+    .nav-item[aria-current="page"] { background: var(--hover); color: var(--text); }
+    .nav-item:disabled { color: var(--quiet); cursor: default; opacity: 0.68; }
+
+    .settings-scroll { min-width: 0; min-height: 0; overflow-y: auto; }
+    .settings-content {
+      width: min(1040px, 100%);
+      margin-inline: auto;
+      padding: 34px clamp(20px, 4vw, 48px) 64px;
+    }
+    .content-head {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 24px;
+      margin-block-end: 28px;
+    }
+    .content-head h1 { margin: 0; font-size: 26px; font-weight: 540; letter-spacing: -0.025em; }
+    .content-head p { max-width: 650px; margin: 8px 0 0; color: var(--muted); line-height: 1.55; }
+    .preview-note { color: var(--quiet); font-size: 12px; white-space: nowrap; }
+
+    .locale-workbench,
+    .credits-workbench {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 290px;
+      align-items: start;
+      gap: 28px;
+    }
+    .control-column { min-width: 0; display: grid; gap: 28px; }
+    .setting-section { min-width: 0; }
+    .section-title { margin: 0 0 5px; font-size: 14px; font-weight: 560; }
+    .section-help { margin: 0 0 12px; color: var(--muted); font-size: 12px; line-height: 1.5; }
+
+    .language-list,
+    .format-list,
+    .credit-list {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--panel);
+      overflow: hidden;
+    }
+    .language-choice {
+      width: 100%;
+      min-height: 64px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 16px;
+      padding: 10px 14px;
+      border: 0;
+      border-bottom: 1px solid var(--line);
+      background: transparent;
+      text-align: start;
+      cursor: pointer;
+    }
+    .language-choice:last-child { border-bottom: 0; }
+    .language-choice:hover { background: var(--hover); }
+    .language-choice[aria-checked="true"] { background: var(--raised); color: var(--text); }
+    .language-copy { min-width: 0; }
+    .language-copy strong { display: block; font-weight: 560; }
+    .language-copy small { display: block; margin-block-start: 3px; color: var(--muted); font-size: 12px; }
+    .language-state { color: var(--muted); font-size: 12px; font-style: normal; white-space: nowrap; }
+    .language-choice[aria-checked="true"] .language-state { color: var(--soft); }
+
+    .format-row {
+      min-height: 62px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(180px, auto);
+      align-items: center;
+      gap: 18px;
+      padding: 9px 12px 9px 16px;
+      border-bottom: 1px solid var(--line);
+    }
+    .format-row:last-child { border-bottom: 0; }
+    .format-copy strong { display: block; font-weight: 540; }
+    .format-copy small { display: block; margin-block-start: 3px; color: var(--muted); font-size: 12px; line-height: 1.35; }
+
+    .choice-wrap { position: relative; min-width: 0; }
+    .choice-trigger {
+      width: 100%;
+      min-height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding-inline: 12px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--page);
+      color: var(--soft);
+      text-align: start;
+      cursor: pointer;
+    }
+    .choice-trigger:hover { border-color: var(--muted); color: var(--text); }
+    .choice-trigger::after { content: "⌄"; color: var(--muted); }
+    .choice-trigger[aria-expanded="true"]::after { content: "⌃"; }
+    .choice-menu {
+      position: absolute;
+      inset-block-start: calc(100% + 4px);
+      inset-inline: 0;
+      z-index: 20;
+      max-height: 250px;
+      overflow-y: auto;
+      padding: 4px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--raised);
+    }
+    .choice-option {
+      width: 100%;
+      min-height: 44px;
+      display: flex;
+      align-items: center;
+      padding-inline: 10px;
+      border: 0;
+      border-radius: 3px;
+      background: transparent;
+      color: var(--soft);
+      text-align: start;
+      cursor: pointer;
+    }
+    .choice-option:hover,
+    .choice-option[aria-selected="true"] { background: var(--hover); color: var(--text); }
+
+    .segmented {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .segmented button {
+      min-height: 44px;
+      border: 0;
+      border-inline-end: 1px solid var(--line);
+      background: var(--page);
+      color: var(--muted);
+      cursor: pointer;
+    }
+    .segmented button:last-child { border-inline-end: 0; }
+    .segmented button[aria-checked="true"] { background: var(--hover); color: var(--text); }
+
+    .save-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding-block-start: 4px;
+    }
+    .save-state { min-width: 0; color: var(--muted); font-size: 12px; }
+    .save-button {
+      min-width: 150px;
+      min-height: 44px;
+      padding-inline: 18px;
+      border: 1px solid var(--text);
+      border-radius: var(--radius);
+      background: var(--text);
+      color: var(--page);
+      cursor: pointer;
+    }
+    .save-button:hover { background: var(--soft); border-color: var(--soft); }
+
+    .preview-panel,
+    .credit-detail {
+      position: sticky;
+      inset-block-start: 0;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--panel);
+    }
+    .preview-panel { padding: 15px; }
+    .preview-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-block-end: 16px;
+    }
+    .preview-head strong { font-weight: 560; }
+    .preview-head span { color: var(--quiet); font-size: 11px; }
+    .preview-surface {
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 3px;
+      background: var(--page);
+    }
+    .sample-app { color: var(--muted); font-size: 12px; }
+    .sample-title { margin: 18px 0 4px; font-size: 22px; font-weight: 540; }
+    .sample-subtitle { margin: 0; color: var(--muted); font-size: 12px; }
+    .sample-row {
+      margin-block-start: 18px;
+      padding-block: 10px;
+      border-block: 1px solid var(--line);
+      color: var(--soft);
+    }
+    .sample-status { margin-block-start: 12px; color: var(--muted); font-size: 12px; }
+    .sample-path { margin-block-start: 16px; color: var(--quiet); font-size: 11px; overflow-wrap: anywhere; }
+    .preview-facts { display: grid; gap: 10px; margin: 14px 0 0; }
+    .preview-facts div { display: flex; justify-content: space-between; gap: 12px; color: var(--muted); font-size: 12px; }
+    .preview-facts dt, .preview-facts dd { margin: 0; }
+    .preview-facts dd { color: var(--soft); text-align: end; }
+
+    .credits-tools { display: grid; gap: 12px; }
+    .credit-search {
+      width: 100%;
+      min-height: 44px;
+      padding-inline: 12px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--panel);
+      color: var(--text);
+      outline: 0;
+    }
+    .credit-search::placeholder { color: var(--quiet); }
+    .credit-tabs {
+      display: flex;
+      gap: 4px;
+      overflow-x: auto;
+      scrollbar-width: thin;
+    }
+    .credit-tabs button {
+      min-height: 44px;
+      padding-inline: 12px;
+      border: 0;
+      border-radius: var(--radius);
+      background: transparent;
+      color: var(--muted);
+      white-space: nowrap;
+      cursor: pointer;
+    }
+    .credit-tabs button[aria-selected="true"] { background: var(--hover); color: var(--text); }
+    .credit-summary { color: var(--muted); font-size: 12px; }
+    .credit-row {
+      width: 100%;
+      min-height: 62px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 16px;
+      padding: 10px 14px;
+      border: 0;
+      border-bottom: 1px solid var(--line);
+      background: transparent;
+      text-align: start;
+      cursor: pointer;
+    }
+    .credit-row:last-child { border-bottom: 0; }
+    .credit-row:hover { background: var(--hover); }
+    .credit-row[aria-current="true"] { background: var(--raised); }
+    .credit-row strong { display: block; font-weight: 560; }
+    .credit-row small { display: block; margin-block-start: 3px; color: var(--muted); font-size: 12px; }
+    .credit-license { color: var(--soft); font-size: 12px; white-space: nowrap; }
+    .credit-empty { padding: 20px 14px; color: var(--muted); }
+
+    .credit-detail { padding: 16px; }
+    .credit-detail h2 { margin: 0; font-size: 17px; font-weight: 560; }
+    .credit-detail > p { margin: 8px 0 18px; color: var(--muted); font-size: 12px; line-height: 1.5; }
+    .credit-facts { display: grid; gap: 12px; margin: 0; }
+    .credit-facts div { display: grid; gap: 3px; }
+    .credit-facts dt { color: var(--muted); font-size: 11px; }
+    .credit-facts dd { margin: 0; color: var(--soft); overflow-wrap: anywhere; }
+    .credit-source {
+      min-height: 44px;
+      display: inline-flex;
+      align-items: center;
+      margin-block-start: 18px;
+      color: var(--soft);
+    }
+    .credit-source:hover { color: var(--text); }
+
+    .status-line {
+      min-height: 44px;
+      display: flex;
+      align-items: center;
+      margin-block-start: 24px;
+      padding-inline: 12px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .content-head p,
+    .section-help,
+    .format-copy small,
+    .save-state,
+    .credit-summary,
+    .credit-detail > p,
+    .status-line {
+      unicode-bidi: plaintext;
+    }
+
+    .closed-state {
+      min-height: 100dvh;
+      display: grid;
+      place-content: center;
+      justify-items: center;
+      gap: 14px;
+      padding: 24px;
+      text-align: center;
+    }
+    .closed-state p { margin: 0; color: var(--muted); }
+    .closed-state button {
+      min-height: 44px;
+      padding-inline: 16px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--panel);
+      cursor: pointer;
+    }
+    .closed-state button:hover { background: var(--hover); }
+
+    :where(button, input, a, [tabindex]):focus-visible {
+      outline: 2px solid var(--focus);
+      outline-offset: 2px;
+    }
+
+    @media (max-width: 860px) {
+      .locale-workbench,
+      .credits-workbench { grid-template-columns: minmax(0, 1fr); }
+      .preview-panel,
+      .credit-detail { position: static; }
+      .preview-panel { order: -1; }
+    }
+
+    @media (max-width: 700px) {
+      body { overflow: auto; }
+      .settings { min-height: 100dvh; grid-template-rows: 56px auto minmax(0, 1fr); }
+      .settings-layout { display: contents; }
+      .settings-nav {
+        display: flex;
+        min-width: 0;
+        overflow-x: auto;
+        overflow-y: hidden;
+        padding: 8px;
+        border-inline-end: 0;
+        border-bottom: 1px solid var(--line);
+      }
+      .nav-group { display: none; }
+      .nav-item { width: auto; flex: 0 0 auto; padding-inline: 12px; }
+      .nav-item:disabled { display: none; }
+      .settings-scroll { overflow: visible; }
+      .settings-content { padding: 24px 18px 48px; }
+      .content-head { align-items: flex-start; margin-block-end: 22px; }
+      .content-head h1 { font-size: 23px; }
+      .preview-note { display: none; }
+      .format-row { grid-template-columns: minmax(0, 1fr); gap: 10px; padding-block: 13px; }
+      .save-row { align-items: stretch; flex-direction: column; }
+      .save-button { width: 100%; }
+      .settings-context { display: none; }
+      .credit-tabs button { min-width: 56px; }
+    }
+
+    @media (max-width: 430px) {
+      .settings-head { padding-inline: 12px 8px; }
+      .text-action { padding-inline: 8px; }
+      .language-choice { gap: 10px; }
+      .language-state { max-width: 92px; white-space: normal; text-align: end; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0s !important; animation-duration: 0s !important; }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#settings-main">skip to settings</a>
+  <div class="settings" id="settings-preview">
+    <header class="settings-head">
+      <div class="settings-head-copy">
+        <span class="settings-title">alles settings</span>
+        <span class="settings-context">phase 10 starter · fake data only</span>
+      </div>
+      <div class="head-actions">
+        <button class="text-action" id="theme-toggle" type="button">light</button>
+        <button class="close" id="close-preview" type="button" aria-label="close preview">×</button>
+      </div>
+    </header>
+
+    <div class="settings-layout">
+      <nav class="settings-nav" aria-label="settings sections">
+        <div class="nav-group">general &amp; appearance</div>
+        <button class="nav-item" type="button" disabled>general</button>
+        <button class="nav-item" type="button" disabled>home</button>
+        <button class="nav-item" type="button" disabled>appearance</button>
+        <div class="nav-group">notifications &amp; language</div>
+        <button class="nav-item" type="button" data-pane-target="language" aria-current="page">language &amp; region</button>
+        <div class="nav-group">server, backups &amp; data</div>
+        <button class="nav-item" type="button" data-pane-target="credits">about &amp; credits</button>
+        <button class="nav-item" type="button" disabled>server &amp; backups</button>
+      </nav>
+
+      <main class="settings-scroll" id="settings-main" tabindex="-1">
+        <section class="settings-content" data-pane="language">
+          <header class="content-head">
+            <div>
+              <h1>language &amp; region</h1>
+              <p>Choose the words Alles uses. Region, timezone, clock, and week start stay independent.</p>
+            </div>
+            <span class="preview-note">preview only · nothing is saved</span>
+          </header>
+
+          <div class="locale-workbench">
+            <div class="control-column">
+              <section class="setting-section" aria-labelledby="language-title">
+                <h2 class="section-title" id="language-title">interface language</h2>
+                <p class="section-help">Preview rows stay selectable for layout checks. Real Settings enables a language only after its catalog, local input, and rendered layouts pass review.</p>
+                <div class="language-list" id="language-list" role="radiogroup" aria-label="interface language">
+                  <button class="language-choice" type="button" role="radio" aria-checked="true" tabindex="0" data-language="en" data-direction="ltr"><span class="language-copy"><strong>English</strong><small>English</small></span><em class="language-state">current · reviewed</em></button>
+                  <button class="language-choice" type="button" role="radio" aria-checked="false" tabindex="-1" data-language="fr" data-direction="ltr"><span class="language-copy"><strong>Français</strong><small>French</small></span><em class="language-state">review pending</em></button>
+                  <button class="language-choice" type="button" role="radio" aria-checked="false" tabindex="-1" data-language="es" data-direction="ltr"><span class="language-copy"><strong>Español</strong><small>Spanish</small></span><em class="language-state">review pending</em></button>
+                  <button class="language-choice" type="button" role="radio" aria-checked="false" tabindex="-1" data-language="zh-Hans" data-direction="ltr"><span class="language-copy"><strong>简体中文</strong><small>Simplified Chinese</small></span><em class="language-state">layout review</em></button>
+                  <button class="language-choice" type="button" role="radio" aria-checked="false" tabindex="-1" data-language="zh-Hant" data-direction="ltr"><span class="language-copy"><strong>繁體中文</strong><small>Traditional Chinese</small></span><em class="language-state">layout review</em></button>
+                  <button class="language-choice" type="button" role="radio" aria-checked="false" tabindex="-1" data-language="ja" data-direction="ltr"><span class="language-copy"><strong>日本語</strong><small>Japanese</small></span><em class="language-state">review pending</em></button>
+                  <button class="language-choice" type="button" role="radio" aria-checked="false" tabindex="-1" data-language="ko" data-direction="ltr"><span class="language-copy"><strong>한국어</strong><small>Korean</small></span><em class="language-state">review pending</em></button>
+                  <button class="language-choice" type="button" role="radio" aria-checked="false" tabindex="-1" data-language="ar" data-direction="rtl"><span class="language-copy"><strong>العربية</strong><small>Arabic</small></span><em class="language-state">RTL review</em></button>
+                </div>
+              </section>
+
+              <section class="setting-section" aria-labelledby="formats-title">
+                <h2 class="section-title" id="formats-title">formats</h2>
+                <p class="section-help">Automatic values follow this browser. An override changes formatting, not the interface language.</p>
+                <div class="format-list">
+                  <div class="format-row">
+                    <div class="format-copy"><strong>region</strong><small id="detected-region">detected from this browser</small></div>
+                    <div class="choice-wrap">
+                      <button class="choice-trigger" id="region-trigger" type="button" aria-haspopup="listbox" aria-expanded="false" data-choice-trigger="region">automatic</button>
+                      <div class="choice-menu" id="region-menu" role="listbox" aria-label="region" data-choice-menu="region" hidden>
+                        <button class="choice-option" type="button" role="option" aria-selected="true" data-value="auto">automatic</button>
+                        <button class="choice-option" type="button" role="option" aria-selected="false" data-value="TW">Taiwan</button>
+                        <button class="choice-option" type="button" role="option" aria-selected="false" data-value="US">United States</button>
+                        <button class="choice-option" type="button" role="option" aria-selected="false" data-value="FR">France</button>
+                        <button class="choice-option" type="button" role="option" aria-selected="false" data-value="ES">Spain</button>
+                        <button class="choice-option" type="button" role="option" aria-selected="false" data-value="CN">China</button>
+                        <button class="choice-option" type="button" role="option" aria-selected="false" data-value="JP">Japan</button>
+                        <button class="choice-option" type="button" role="option" aria-selected="false" data-value="KR">South Korea</button>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="format-row">
+                    <div class="format-copy"><strong>timezone</strong><small id="detected-timezone">detected from this browser</small></div>
+                    <div class="choice-wrap">
+                      <button class="choice-trigger" id="timezone-trigger" type="button" aria-haspopup="listbox" aria-expanded="false" data-choice-trigger="timezone">automatic</button>
+                      <div class="choice-menu" id="timezone-menu" role="listbox" aria-label="timezone" data-choice-menu="timezone" hidden>
+                        <button class="choice-option" type="button" role="option" aria-selected="true" data-value="auto">automatic</button>
+                        <button class="choice-option" type="button" role="option" aria-selected="false" data-value="Asia/Taipei">Asia/Taipei</button>
+                        <button class="choice-option" type="button" role="option" aria-selected="false" data-value="Europe/Paris">Europe/Paris</button>
+                        <button class="choice-option" type="button" role="option" aria-selected="false" data-value="America/New_York">America/New_York</button>
+                        <button class="choice-option" type="button" role="option" aria-selected="false" data-value="UTC">UTC</button>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="format-row">
+                    <div class="format-copy"><strong>clock</strong><small>Does not change stored event times.</small></div>
+                    <div class="segmented" role="radiogroup" aria-label="clock format">
+                      <button type="button" role="radio" aria-checked="true" tabindex="0" data-format-group="clock" data-format-value="auto">automatic</button>
+                      <button type="button" role="radio" aria-checked="false" tabindex="-1" data-format-group="clock" data-format-value="24">24 hour</button>
+                    </div>
+                  </div>
+                  <div class="format-row">
+                    <div class="format-copy"><strong>first day of week</strong><small>Calendar layout only.</small></div>
+                    <div class="segmented" role="radiogroup" aria-label="first day of week">
+                      <button type="button" role="radio" aria-checked="true" tabindex="0" data-format-group="week" data-format-value="auto">automatic</button>
+                      <button type="button" role="radio" aria-checked="false" tabindex="-1" data-format-group="week" data-format-value="monday">monday</button>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              <div class="save-row">
+                <span class="save-state" id="locale-save-state" role="status" aria-live="polite">preview changes stay in this file</span>
+                <button class="save-button" id="save-locale" type="button">save preview</button>
+              </div>
+            </div>
+
+            <aside class="preview-panel" aria-labelledby="locale-preview-title">
+              <div class="preview-head"><strong id="locale-preview-title">live preview</strong><span id="preview-locale">en-US</span></div>
+              <div class="preview-surface">
+                <span class="sample-app">alles</span>
+                <h2 class="sample-title" id="sample-title">home</h2>
+                <p class="sample-subtitle" id="sample-date">Tuesday, July 21</p>
+                <div class="sample-row" id="sample-row">needs your attention</div>
+                <div class="sample-status" id="sample-status">settings saved</div>
+                <div class="sample-path" dir="ltr">/Users/jxh/alles · 14:30</div>
+              </div>
+              <dl class="preview-facts">
+                <div><dt>direction</dt><dd id="preview-direction">left to right</dd></div>
+                <div><dt>region</dt><dd id="preview-region">automatic</dd></div>
+                <div><dt>timezone</dt><dd id="preview-timezone">automatic</dd></div>
+              </dl>
+            </aside>
+          </div>
+        </section>
+
+        <section class="settings-content" data-pane="credits" hidden>
+          <header class="content-head">
+            <div>
+              <h1>about &amp; credits</h1>
+              <p>Every bundled dependency, dataset, model source, and managed companion has one traceable notice.</p>
+            </div>
+            <span class="preview-note">manifest preview · fake release state</span>
+          </header>
+
+          <div class="credits-workbench">
+            <div class="control-column">
+              <section class="credits-tools" aria-labelledby="credits-list-title">
+                <h2 class="section-title" id="credits-list-title">release credits</h2>
+                <input class="credit-search" id="credit-search" type="search" placeholder="search names or licenses" aria-label="search credits">
+                <div class="credit-tabs" role="tablist" aria-label="credit categories">
+                  <button type="button" role="tab" aria-selected="true" tabindex="0" data-credit-category="all">all</button>
+                  <button type="button" role="tab" aria-selected="false" tabindex="-1" data-credit-category="code">code</button>
+                  <button type="button" role="tab" aria-selected="false" tabindex="-1" data-credit-category="data">data</button>
+                  <button type="button" role="tab" aria-selected="false" tabindex="-1" data-credit-category="service">companions</button>
+                </div>
+                <div class="credit-summary" id="credit-summary">8 entries shown · preview manifest complete</div>
+              </section>
+              <div class="credit-list" id="credit-list" aria-label="credit entries"></div>
+              <div class="status-line" role="status">Preview rule: a release fails if any shipped item lacks a source, license, or required local text.</div>
+            </div>
+
+            <aside class="credit-detail" id="credit-detail" aria-live="polite"></aside>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <div class="closed-state" id="closed-state" hidden>
+    <p>settings preview closed</p>
+    <button id="reopen-preview" type="button">open settings preview</button>
+  </div>
+
+  <div id="announcer" class="visually-hidden" role="status" aria-live="polite"></div>
+
+  <script>
+    const translations = {
+      en: { title: 'home', row: 'needs your attention', status: 'settings saved', date: 'Tuesday, July 21' },
+      fr: { title: 'accueil', row: 'nécessite votre attention', status: 'paramètres enregistrés', date: 'mardi 21 juillet' },
+      es: { title: 'inicio', row: 'necesita tu atención', status: 'ajustes guardados', date: 'martes, 21 de julio' },
+      'zh-Hans': { title: '首页', row: '需要你的关注', status: '设置已保存', date: '7月21日，星期二' },
+      'zh-Hant': { title: '首頁', row: '需要你的注意', status: '設定已儲存', date: '7月21日，星期二' },
+      ja: { title: 'ホーム', row: '確認が必要', status: '設定を保存しました', date: '7月21日 火曜日' },
+      ko: { title: '홈', row: '확인 필요', status: '설정이 저장되었습니다', date: '7월 21일 화요일' },
+      ar: { title: 'الرئيسية', row: 'يحتاج إلى انتباهك', status: 'تم حفظ الإعدادات', date: 'الثلاثاء، 21 يوليو' },
+    };
+
+    const credits = [
+      { id: 'codemirror', name: 'CodeMirror 6', kind: 'code', use: 'Docs editing', license: 'MIT', version: 'vendored bundle', source: 'https://codemirror.net', notice: 'local license text required' },
+      { id: 'leaflet', name: 'Leaflet', kind: 'code', use: 'Gallery places map', license: 'BSD-2-Clause', version: '1.9.4', source: 'https://leafletjs.com', notice: 'local license text required' },
+      { id: 'xterm', name: 'xterm.js', kind: 'code', use: 'Project terminal', license: 'MIT', version: '6.0.0', source: 'https://xtermjs.org', notice: 'local license text present' },
+      { id: 'geonames', name: 'GeoNames cities', kind: 'data', use: 'Offline place lookup', license: 'CC BY 4.0', version: 'cities15000 snapshot', source: 'https://www.geonames.org', notice: 'attribution required' },
+      { id: 'osm', name: 'OpenStreetMap data', kind: 'data', use: 'Gallery map tiles', license: 'ODbL', version: 'remote tile data', source: 'https://www.openstreetmap.org/copyright', notice: 'map attribution required' },
+      { id: 'searxng', name: 'SearXNG', kind: 'service', use: 'Managed Andromeda search', license: 'AGPL-3.0', version: 'pinned container', source: 'https://github.com/searxng/searxng', notice: 'managed companion source recorded' },
+      { id: 'actual', name: 'Actual Budget', kind: 'service', use: 'Canonical Finance ledger', license: 'MIT', version: '26.7.0', source: 'https://actualbudget.org', notice: 'managed companion notice present' },
+      { id: 'odysseus', name: 'Odysseus', kind: 'code', use: 'Original product inspiration', license: 'credit', version: 'concept credit', source: 'https://github.com/pewdiepie-archdaemon/odysseus', notice: 'prominent acknowledgment' },
+    ];
+
+    const state = { language: 'en', region: 'auto', timezone: 'auto', creditCategory: 'all', creditQuery: '', creditId: credits[0].id };
+    const $ = id => document.getElementById(id);
+
+    function announce(message) {
+      $('announcer').textContent = '';
+      requestAnimationFrame(() => { $('announcer').textContent = message; });
+    }
+
+    function updatePreview() {
+      const choice = document.querySelector(`[data-language="${CSS.escape(state.language)}"]`);
+      const direction = choice?.dataset.direction || 'ltr';
+      const copy = translations[state.language] || translations.en;
+      document.documentElement.lang = state.language;
+      document.documentElement.dir = direction;
+      $('sample-title').textContent = copy.title;
+      $('sample-row').textContent = copy.row;
+      $('sample-status').textContent = copy.status;
+      $('sample-date').textContent = copy.date;
+      $('preview-locale').textContent = `${state.language}${state.region !== 'auto' ? `-${state.region}` : ''}`;
+      $('preview-direction').textContent = direction === 'rtl' ? 'right to left' : 'left to right';
+      $('preview-region').textContent = state.region === 'auto' ? 'automatic' : state.region;
+      $('preview-timezone').textContent = state.timezone === 'auto' ? 'automatic' : state.timezone;
+    }
+
+    function selectRadio(button, selector) {
+      document.querySelectorAll(selector).forEach(item => {
+        const selected = item === button;
+        item.setAttribute('aria-checked', String(selected));
+        item.tabIndex = selected ? 0 : -1;
+      });
+      button.focus();
+    }
+
+    document.querySelectorAll('.language-choice').forEach(button => {
+      button.addEventListener('click', () => {
+        selectRadio(button, '.language-choice');
+        state.language = button.dataset.language;
+        updatePreview();
+        $('locale-save-state').textContent = 'unsaved preview changes';
+        announce(`${button.querySelector('strong').textContent} preview selected`);
+      });
+      button.addEventListener('keydown', event => {
+        const keys = ['ArrowDown', 'ArrowUp', 'ArrowLeft', 'ArrowRight', 'Home', 'End'];
+        if (!keys.includes(event.key)) return;
+        event.preventDefault();
+        const items = [...document.querySelectorAll('.language-choice')];
+        const index = items.indexOf(button);
+        const backwards = event.key === 'ArrowUp' || event.key === 'ArrowLeft';
+        let next = event.key === 'Home' ? 0 : event.key === 'End' ? items.length - 1 : (index + (backwards ? -1 : 1) + items.length) % items.length;
+        items[next].click();
+      });
+    });
+
+    document.querySelectorAll('[data-format-group]').forEach(button => {
+      button.addEventListener('click', () => {
+        const selector = `[data-format-group="${CSS.escape(button.dataset.formatGroup)}"]`;
+        selectRadio(button, selector);
+        $('locale-save-state').textContent = 'unsaved preview changes';
+      });
+      button.addEventListener('keydown', event => {
+        if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) return;
+        event.preventDefault();
+        const selector = `[data-format-group="${CSS.escape(button.dataset.formatGroup)}"]`;
+        const items = [...document.querySelectorAll(selector)];
+        const step = event.key === 'ArrowLeft' || event.key === 'ArrowUp' ? -1 : 1;
+        items[(items.indexOf(button) + step + items.length) % items.length].click();
+      });
+    });
+
+    function closeChoice(name, restore = false) {
+      const trigger = document.querySelector(`[data-choice-trigger="${name}"]`);
+      const menu = document.querySelector(`[data-choice-menu="${name}"]`);
+      if (!trigger || !menu || menu.hidden) return;
+      menu.hidden = true;
+      trigger.setAttribute('aria-expanded', 'false');
+      if (restore) trigger.focus();
+    }
+
+    function openChoice(name) {
+      document.querySelectorAll('[data-choice-menu]').forEach(menu => closeChoice(menu.dataset.choiceMenu));
+      const trigger = document.querySelector(`[data-choice-trigger="${name}"]`);
+      const menu = document.querySelector(`[data-choice-menu="${name}"]`);
+      menu.hidden = false;
+      trigger.setAttribute('aria-expanded', 'true');
+      const selected = menu.querySelector('[aria-selected="true"]') || menu.querySelector('[role="option"]');
+      selected?.focus();
+    }
+
+    document.querySelectorAll('[data-choice-trigger]').forEach(trigger => {
+      trigger.addEventListener('click', event => {
+        event.stopPropagation();
+        if (trigger.getAttribute('aria-expanded') === 'true') closeChoice(trigger.dataset.choiceTrigger, true);
+        else openChoice(trigger.dataset.choiceTrigger);
+      });
+      trigger.addEventListener('keydown', event => {
+        if (!['ArrowDown', 'ArrowUp', 'Enter', ' '].includes(event.key)) return;
+        event.preventDefault();
+        openChoice(trigger.dataset.choiceTrigger);
+      });
+    });
+
+    document.querySelectorAll('.choice-option').forEach(option => {
+      option.addEventListener('click', event => {
+        event.stopPropagation();
+        const menu = option.closest('[data-choice-menu]');
+        const name = menu.dataset.choiceMenu;
+        menu.querySelectorAll('[role="option"]').forEach(item => item.setAttribute('aria-selected', String(item === option)));
+        state[name] = option.dataset.value;
+        const trigger = document.querySelector(`[data-choice-trigger="${name}"]`);
+        trigger.textContent = option.textContent;
+        closeChoice(name, true);
+        updatePreview();
+        $('locale-save-state').textContent = 'unsaved preview changes';
+      });
+      option.addEventListener('keydown', event => {
+        const menu = option.closest('[data-choice-menu]');
+        const items = [...menu.querySelectorAll('[role="option"]')];
+        const index = items.indexOf(option);
+        if (event.key === 'Escape') { event.preventDefault(); closeChoice(menu.dataset.choiceMenu, true); }
+        else if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+          event.preventDefault();
+          const step = event.key === 'ArrowDown' ? 1 : -1;
+          items[(index + step + items.length) % items.length].focus();
+        } else if (event.key === 'Home' || event.key === 'End') {
+          event.preventDefault();
+          items[event.key === 'Home' ? 0 : items.length - 1].focus();
+        } else if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault(); option.click();
+        }
+      });
+    });
+
+    document.addEventListener('click', event => {
+      if (event.target.closest('.choice-wrap')) return;
+      document.querySelectorAll('[data-choice-menu]').forEach(menu => closeChoice(menu.dataset.choiceMenu));
+    });
+
+    function switchPane(name, focus = true) {
+      document.querySelectorAll('[data-pane]').forEach(panel => { panel.hidden = panel.dataset.pane !== name; });
+      document.querySelectorAll('[data-pane-target]').forEach(button => {
+        if (button.dataset.paneTarget === name) button.setAttribute('aria-current', 'page');
+        else button.removeAttribute('aria-current');
+      });
+      if (focus) document.querySelector(`[data-pane="${name}"] h1`)?.focus?.();
+      document.querySelector(`[data-pane="${name}"]`)?.scrollIntoView({ block: 'start' });
+    }
+
+    document.querySelectorAll('[data-pane-target]').forEach(button => button.addEventListener('click', () => switchPane(button.dataset.paneTarget, false)));
+
+    function visibleCredits() {
+      const query = state.creditQuery.trim().toLocaleLowerCase();
+      return credits.filter(item => {
+        const categoryMatch = state.creditCategory === 'all' || item.kind === state.creditCategory;
+        const queryMatch = !query || `${item.name} ${item.license} ${item.use}`.toLocaleLowerCase().includes(query);
+        return categoryMatch && queryMatch;
+      });
+    }
+
+    function renderCreditDetail() {
+      const item = credits.find(entry => entry.id === state.creditId) || visibleCredits()[0];
+      if (!item) {
+        $('credit-detail').innerHTML = '<h2>no matching entry</h2><p>Clear the search or choose another category.</p>';
+        return;
+      }
+      state.creditId = item.id;
+      $('credit-detail').innerHTML = `<h2>${item.name}</h2><p>${item.use}</p><dl class="credit-facts"><div><dt>category</dt><dd>${item.kind === 'service' ? 'managed companion' : item.kind}</dd></div><div><dt>version</dt><dd>${item.version}</dd></div><div><dt>license</dt><dd>${item.license}</dd></div><div><dt>notice</dt><dd>${item.notice}</dd></div></dl><a class="credit-source" href="${item.source}" target="_blank" rel="noreferrer">open official source</a>`;
+    }
+
+    function renderCredits() {
+      const items = visibleCredits();
+      if (!items.some(item => item.id === state.creditId)) state.creditId = items[0]?.id || '';
+      $('credit-list').innerHTML = items.length ? items.map(item => `<button class="credit-row" type="button" data-credit-id="${item.id}" aria-current="${item.id === state.creditId}"><span><strong>${item.name}</strong><small>${item.use}</small></span><span class="credit-license">${item.license}</span></button>`).join('') : '<p class="credit-empty">no matching credits</p>';
+      $('credit-summary').textContent = `${items.length} ${items.length === 1 ? 'entry' : 'entries'} shown · preview manifest complete`;
+      $('credit-list').querySelectorAll('[data-credit-id]').forEach(button => button.addEventListener('click', () => {
+        state.creditId = button.dataset.creditId;
+        renderCredits();
+        $('credit-list').querySelector(`[data-credit-id="${CSS.escape(state.creditId)}"]`)?.focus();
+      }));
+      renderCreditDetail();
+    }
+
+    document.querySelectorAll('[data-credit-category]').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('[data-credit-category]').forEach(item => {
+          const selected = item === tab;
+          item.setAttribute('aria-selected', String(selected));
+          item.tabIndex = selected ? 0 : -1;
+        });
+        state.creditCategory = tab.dataset.creditCategory;
+        renderCredits();
+        tab.focus();
+      });
+      tab.addEventListener('keydown', event => {
+        if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+        event.preventDefault();
+        const tabs = [...document.querySelectorAll('[data-credit-category]')];
+        const index = tabs.indexOf(tab);
+        let next = event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1 : (index + (event.key === 'ArrowLeft' ? -1 : 1) + tabs.length) % tabs.length;
+        tabs[next].click();
+      });
+    });
+
+    $('credit-search').addEventListener('input', event => {
+      state.creditQuery = event.target.value;
+      renderCredits();
+    });
+
+    $('theme-toggle').addEventListener('click', () => {
+      const light = document.documentElement.dataset.theme !== 'light';
+      document.documentElement.dataset.theme = light ? 'light' : 'dark';
+      $('theme-toggle').textContent = light ? 'dark' : 'light';
+      announce(`${light ? 'light' : 'dark'} theme preview`);
+    });
+
+    $('save-locale').addEventListener('click', () => {
+      $('locale-save-state').textContent = 'saved just now · preview only';
+      announce('localization preview saved');
+    });
+
+    $('close-preview').addEventListener('click', () => {
+      $('settings-preview').hidden = true;
+      $('closed-state').hidden = false;
+      $('reopen-preview').focus();
+    });
+
+    $('reopen-preview').addEventListener('click', () => {
+      $('closed-state').hidden = true;
+      $('settings-preview').hidden = false;
+      $('close-preview').focus();
+    });
+
+    let detectedRegion = '';
+    try { detectedRegion = new Intl.Locale(navigator.language || 'en').region || ''; } catch {}
+    let detectedTimezone = '';
+    try { detectedTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch {}
+    $('detected-region').textContent = detectedRegion ? `detected ${detectedRegion} from this browser` : 'browser region unavailable';
+    $('detected-timezone').textContent = detectedTimezone ? `detected ${detectedTimezone} from this browser` : 'browser timezone unavailable';
+
+    renderCredits();
+    updatePreview();
+  </script>
+</body>
+</html>

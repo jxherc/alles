@@ -1,15 +1,18 @@
 """drive the aide agent to build a real app, streaming the run. evidence kept."""
 
-import os, sys, json, time
+import json
+import os
+import sys
 
 os.environ["NO_PROXY"] = "localhost,127.0.0.1," + os.environ.get("NO_PROXY", "")
 try:
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 except Exception:
     pass
-import httpx
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
+
+import httpx
 
 BASE = "http://localhost:8099"
 WS = Path(r"C:/Users/jxh/agent-builds/termdeck")
@@ -78,7 +81,6 @@ def main():
             "model": model,
             "endpoint_id": ep["id"],
         }
-        status = "running"
         with httpx.stream("POST", f"{BASE}/api/chat", json=body, timeout=900) as r:
             for line in r.iter_lines():
                 if not line.startswith("data:"):
@@ -96,8 +98,6 @@ def main():
                     hint = a.get("path") or a.get("command") or a.get("pattern") or ""
                     print(f"  · {t['name']}  {str(hint)[:70]}", flush=True)
                     all_tools.append(t["name"])
-                if "done" in ch:
-                    status = "done"
         # check run status
         try:
             runs = httpx.get(f"{BASE}/api/agent/runs?limit=1&summary=1", timeout=20).json()

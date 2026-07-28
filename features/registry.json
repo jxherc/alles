@@ -1,0 +1,1428 @@
+{
+  "schema_version": 1,
+  "title": "Alles authoritative feature and test registry",
+  "categories": [
+    "setup-security",
+    "home",
+    "aide",
+    "andromeda",
+    "plan",
+    "inbox",
+    "docs",
+    "files-photos",
+    "library",
+    "health",
+    "finance",
+    "passwords",
+    "server",
+    "integrations",
+    "automation",
+    "localization",
+    "accessibility",
+    "extension-mobile",
+    "backup-recovery",
+    "developer-interfaces"
+  ],
+  "features": [
+    {
+      "id": "setup-security.owner-setup",
+      "category": "setup-security",
+      "app": "setup",
+      "behavior": "Install, initialize, authenticate, and safely configure one owner without exposing private data.",
+      "risk": "critical",
+      "dependencies": [],
+      "platforms": [
+        "macos",
+        "linux",
+        "web"
+      ],
+      "aide_tools": [],
+      "automated_tests": [
+        "tests/test_api_setup.py",
+        "tests/test_auth.py",
+        "tests/test_server_config.py"
+      ],
+      "computer_scenarios": [
+        "fresh owner setup",
+        "recent-owner reauthentication",
+        "resume interrupted setup"
+      ],
+      "implementation": "shipped",
+      "acceptance": "passed",
+      "notes": "Passed 2026-07-27: the fresh isolated Phase 9 setup/password browser gate completed first-run setup; setup, auth, server-config, recent-owner, and durable-resume backend regressions passed.",
+      "coverage": {
+        "route_modules": [
+          "routes.auth",
+          "routes.setup",
+          "routes.api_tokens",
+          "routes.status"
+        ],
+        "control_roots": [
+          "#setup-wizard"
+        ],
+        "cli_commands": [
+          "install",
+          "uninstall",
+          "doctor"
+        ],
+        "jobs": [],
+        "automation_actions": [],
+        "integrations": [],
+        "pwa_functions": [],
+        "extension_functions": []
+      }
+    },
+    {
+      "id": "home.capture-and-navigation",
+      "category": "home",
+      "app": "home",
+      "behavior": "Capture work, review current context, open the nine workbenches, and receive local notices.",
+      "risk": "medium",
+      "dependencies": [],
+      "platforms": [
+        "macos",
+        "linux",
+        "web"
+      ],
+      "aide_tools": [],
+      "automated_tests": [
+        "tests/test_home.py",
+        "tests/test_today_golden.py",
+        "tests/pw_afterlife_home_apps.py"
+      ],
+      "computer_scenarios": [
+        "capture from Home",
+        "open every workbench",
+        "use Home at phone width"
+      ],
+      "implementation": "shipped",
+      "acceptance": "passed",
+      "notes": "Passed 2026-07-27: the isolated Home/Apps gate captured one task, opened all nine workbenches, and passed desktop/phone layout, keyboard, retry, focus, overflow, and clean-console checks.",
+      "coverage": {
+        "route_modules": [
+          "app",
+          "routes.today",
+          "routes.briefing",
+          "routes.notify",
+          "routes.push",
+          "routes.timeline"
+        ],
+        "control_roots": [
+          "body",
+          "#app-drawer",
+          "#today-view",
+          "#home-view"
+        ],
+        "cli_commands": [],
+        "jobs": [
+          "day_events",
+          "reminders",
+          "calendar_reminders"
+        ],
+        "automation_actions": [],
+        "integrations": [],
+        "pwa_functions": [],
+        "extension_functions": []
+      }
+    },
+    {
+      "id": "aide.conversation-and-execution",
+      "category": "aide",
+      "app": "aide",
+      "behavior": "Run model conversations, projects, memory, research, delegated work, and owner-approved local execution.",
+      "risk": "critical",
+      "dependencies": [
+        "configured model provider"
+      ],
+      "platforms": [
+        "macos",
+        "linux",
+        "web"
+      ],
+      "aide_tools": [
+        "apply_patch",
+        "bash",
+        "browse_click",
+        "browse_open",
+        "browse_read",
+        "browse_screenshot",
+        "browse_type",
+        "code_symbols",
+        "computer_click",
+        "computer_key",
+        "computer_move",
+        "computer_scroll",
+        "computer_type",
+        "diagnostics",
+        "edit_file",
+        "find_definition",
+        "git_branch",
+        "git_commit",
+        "git_diff",
+        "git_status",
+        "github_create_issue",
+        "github_create_pr",
+        "github_get_file",
+        "github_get_repo",
+        "github_list_issues",
+        "github_list_prs",
+        "github_list_repos",
+        "github_me",
+        "github_search_code",
+        "github_search_repos",
+        "glob_files",
+        "grep_files",
+        "list_files",
+        "memory_add",
+        "memory_search",
+        "opencode_run",
+        "read_file",
+        "recall",
+        "revert_file",
+        "screenshot",
+        "search_code",
+        "shell",
+        "skill_list",
+        "skill_load",
+        "skill_match",
+        "spawn_agent",
+        "spawn_agents",
+        "todo_update",
+        "web_fetch",
+        "web_search",
+        "write_file"
+      ],
+      "automated_tests": [
+        "tests/test_agent_tools.py",
+        "tests/test_agent_runtime.py",
+        "tests/test_policy.py",
+        "tests/js/aide_afterlife_shell.test.mjs"
+      ],
+      "computer_scenarios": [
+        "complete an Auto task",
+        "arm Full Access",
+        "inspect a redacted audit"
+      ],
+      "implementation": "shipped",
+      "acceptance": "blocked",
+      "notes": "Blocked 2026-07-27: local runtime, policy, typed-tool, Full Access, shell, and redacted-audit coverage passes, but completing a real model-backed Auto task requires a disposable configured model provider; no provider credential was supplied.",
+      "coverage": {
+        "route_modules": [
+          "routes.agent",
+          "routes.chat",
+          "routes.sessions",
+          "routes.models",
+          "routes.local_models",
+          "routes.memory",
+          "routes.research",
+          "routes.rag",
+          "routes.textindex",
+          "routes.images",
+          "routes.skills",
+          "routes.delegation",
+          "routes.personas",
+          "routes.projects",
+          "routes.usage",
+          "routes.insights",
+          "routes.recall",
+          "routes.voice"
+        ],
+        "control_roots": [
+          "#chat",
+          "#project-view",
+          "#models-view",
+          "#model-modal",
+          "#brain-view",
+          "#reminders-view",
+          "#aide-scheduled-view",
+          "#skills-view",
+          "#usage-view",
+          "#aide-work-panel"
+        ],
+        "cli_commands": [],
+        "jobs": [
+          "user_model",
+          "insights",
+          "model_refresh",
+          "personal_reconcile"
+        ],
+        "automation_actions": [],
+        "integrations": [],
+        "pwa_functions": [],
+        "extension_functions": []
+      }
+    },
+    {
+      "id": "aide.selectable-questions",
+      "category": "aide",
+      "app": "aide",
+      "behavior": "Ask one to four durable questions with two to five choices, optional free text, reload/resume, cancellation, and Discord rendering.",
+      "risk": "medium",
+      "dependencies": [
+        "durable Aide runs"
+      ],
+      "platforms": [
+        "macos",
+        "linux",
+        "web"
+      ],
+      "aide_tools": [
+        "ask_user"
+      ],
+      "automated_tests": [
+        "tests/test_aide_questions.py",
+        "tests/test_agent_runtime.py",
+        "tests/test_jarvis_records.py",
+        "tests/test_jarvis_discord.py",
+        "tests/pw_aide_questions_real.py"
+      ],
+      "computer_scenarios": [
+        "answer by pointer",
+        "answer by keyboard",
+        "reload and resume",
+        "answer through Discord"
+      ],
+      "implementation": "shipped",
+      "acceptance": "blocked",
+      "coverage": {
+        "route_modules": [],
+        "control_roots": [],
+        "cli_commands": [],
+        "jobs": [],
+        "automation_actions": [],
+        "integrations": [],
+        "pwa_functions": [],
+        "extension_functions": []
+      },
+      "notes": "Blocked 2026-07-27: typed ask_user, durable agent/Jarvis state, cancellation, pointer, keyboard, free text, reload/reattach, model continuation, and Discord rendering pass focused tests and the real browser gate; answering through a live Discord bot requires disposable bot credentials not supplied."
+    },
+    {
+      "id": "andromeda.cited-search",
+      "category": "andromeda",
+      "app": "andromeda",
+      "behavior": "Return fast web results, a compact cited answer, and optional independent freshness-aware verification.",
+      "risk": "medium",
+      "dependencies": [
+        "search provider",
+        "answer model",
+        "optional verifier model"
+      ],
+      "platforms": [
+        "macos",
+        "linux",
+        "web"
+      ],
+      "aide_tools": [],
+      "automated_tests": [
+        "tests/test_andromeda_phase4.py",
+        "tests/js/andromeda_phase4.test.mjs",
+        "tests/pw_afterlife_andromeda.py"
+      ],
+      "computer_scenarios": [
+        "search and open citations",
+        "toggle verification",
+        "render failed checks honestly"
+      ],
+      "implementation": "shipped",
+      "acceptance": "blocked",
+      "notes": "Blocked 2026-07-27: live DuckDuckGo search, separated results, decisive snippet emphasis, citations, recovery controls, and honest model-unavailable state passed in Chromium, Safari, and Computer Use; compact answer and independent verifier execution require disposable model credentials.",
+      "coverage": {
+        "route_modules": [
+          "routes.andromeda",
+          "routes.search",
+          "routes.compare"
+        ],
+        "control_roots": [
+          "#andromeda-view",
+          "#compare-view",
+          "#search-modal"
+        ],
+        "cli_commands": [],
+        "jobs": [],
+        "automation_actions": [],
+        "integrations": [],
+        "pwa_functions": [],
+        "extension_functions": []
+      }
+    },
+    {
+      "id": "plan.tasks-calendar",
+      "category": "plan",
+      "app": "plan",
+      "behavior": "Manage tasks, Kanban, calendars, reminders, and countdowns through one workbench.",
+      "risk": "medium",
+      "dependencies": [],
+      "platforms": [
+        "macos",
+        "linux",
+        "web"
+      ],
+      "aide_tools": [
+        "calendar_create",
+        "calendar_delete",
+        "calendar_list",
+        "task_add",
+        "task_done",
+        "task_list"
+      ],
+      "automated_tests": [
+        "tests/test_task_reorder.py",
+        "tests/test_api_calendars.py",
+        "tests/js/plan_board.test.mjs"
+      ],
+      "computer_scenarios": [
+        "create and move a task",
+        "keyboard board navigation",
+        "create and delete an event"
+      ],
+      "implementation": "shipped",
+      "acceptance": "passed",
+      "notes": "Passed 2026-07-27: the rendered Plan gate created and moved tasks atomically, exercised keyboard board controls, details/history, desktop/phone/zoom reflow, and a clean console; calendar create/delete is covered by the isolated API and browser regressions.",
+      "coverage": {
+        "route_modules": [
+          "routes.tasks",
+          "routes.calendar",
+          "routes.calendars",
+          "routes.reminders",
+          "routes.days"
+        ],
+        "control_roots": [
+          "#plan-view",
+          "#tasks-view",
+          "#calendar-view",
+          "#days-view"
+        ],
+        "cli_commands": [],
+        "jobs": [],
+        "automation_actions": [],
+        "integrations": [],
+        "pwa_functions": [],
+        "extension_functions": []
+      }
+    },
+    {
+      "id": "inbox.mail-and-contacts",
+      "category": "inbox",
+      "app": "inbox",
+      "behavior": "Read and send mail and manage contacts through owner-configured connectors.",
+      "risk": "high",
+      "dependencies": [
+        "optional IMAP/SMTP",
+        "optional CardDAV/CalDAV"
+      ],
+      "platforms": [
+        "macos",
+        "linux",
+        "web"
+      ],
+      "aide_tools": [
+        "contact_add",
+        "contact_list",
+        "mail_list",
+        "mail_read",
+        "mail_send"
+      ],
+      "automated_tests": [
+        "tests/test_mail.py",
+        "tests/test_contact_events.py",
+        "tests/test_carddav.py",
+        "tests/test_caldav_sync.py"
+      ],
+      "computer_scenarios": [
+        "connect a disposable mailbox",
+        "send a test message",
+        "edit a test contact"
+      ],
+      "implementation": "shipped",
+      "acceptance": "blocked",
+      "notes": "Blocked 2026-07-27: mail, SMTP outbox, contacts, CardDAV, and CalDAV implementations and isolated failure paths pass, but the three real-computer scenarios require a disposable external mailbox and address-book account; none was supplied.",
+      "coverage": {
+        "route_modules": [
+          "routes.mail",
+          "routes.contacts",
+          "routes.caldav",
+          "routes.carddav"
+        ],
+        "control_roots": [
+          "#inbox-view",
+          "#mail-view",
+          "#contacts-view"
+        ],
+        "cli_commands": [],
+        "jobs": [
+          "mail_outbox",
+          "ics_subscriptions",
+          "carddav_auto"
+        ],
+        "automation_actions": [],
+        "integrations": [],
+        "pwa_functions": [],
+        "extension_functions": []
+      }
+    },
+    {
+      "id": "docs.documents-and-journal",
+      "category": "docs",
+      "app": "docs",
+      "behavior": "Create, edit, search, link, recover, and migrate documents and journal entries.",
+      "risk": "high",
+      "dependencies": [],
+      "platforms": [
+        "macos",
+        "linux",
+        "web"
+      ],
+      "aide_tools": [
+        "docs_read",
+        "docs_search",
+        "docs_write",
+        "note_append",
+        "note_backlinks",
+        "note_list",
+        "note_read",
+        "note_search",
+        "note_write"
+      ],
+      "automated_tests": [
+        "tests/test_notes_vault.py",
+        "tests/test_vault_md.py",
+        "tests/test_journal.py",
+        "tests/test_journal_migration.py"
+      ],
+      "computer_scenarios": [
+        "edit and recover a document",
+        "rename with backlink preservation",
+        "migrate and roll back a journal entry"
+      ],
+      "implementation": "shipped",
+      "acceptance": "passed",
+      "notes": "Passed 2026-07-27: the current Docs home and real Docs gates passed edit/draft/reload/recovery, backlink-safe rename, journal migration rollback, keyboard, responsive, focus, and clean-console checks on isolated data.",
+      "coverage": {
+        "route_modules": [
+          "routes.notes",
+          "routes.journal",
+          "routes.journal_migration",
+          "routes.vault_md"
+        ],
+        "control_roots": [
+          "#docs-workbench-view",
+          "#wiki-view",
+          "#docs-dialog"
+        ],
+        "cli_commands": [],
+        "jobs": [],
+        "automation_actions": [],
+        "integrations": [],
+        "pwa_functions": [],
+        "extension_functions": []
+      }
+    },
+    {
+      "id": "files-photos.locations-and-media",
+      "category": "files-photos",
+      "app": "files",
+      "behavior": "Browse managed and approved locations, operate safely on files, keep explicit offline copies, and organize photos.",
+      "risk": "critical",
+      "dependencies": [],
+      "platforms": [
+        "macos",
+        "linux",
+        "web"
+      ],
+      "aide_tools": [
+        "files_locations_list",
+        "files_operation_create",
+        "files_operation_undo",
+        "files_operations_list"
+      ],
+      "automated_tests": [
+        "tests/test_files_location_identity.py",
+        "tests/test_storage_locations.py",
+        "tests/test_file_operations.py",
+        "tests/test_vault_transfer.py",
+        "tests/test_vault_transfer_api.py",
+        "tests/js/files_phase7_real.test.mjs",
+        "tests/pw_phase7_files_real.py"
+      ],
+      "computer_scenarios": [
+        "browse Alles and Connected",
+        "copy move and roll back",
+        "open Gallery and return Home",
+        "resolve a vault conflict"
+      ],
+      "implementation": "shipped",
+      "acceptance": "passed",
+      "notes": "Passed 2026-07-27: the real isolated Files gate covered Alles/Connected scopes, local operations, copy/move/rollback, external-vault conflict recovery, offline states, Gallery return Home, keyboard, focus, themes, phone/zoom, and a clean console.",
+      "coverage": {
+        "route_modules": [
+          "routes.files",
+          "routes.file_operations",
+          "routes.offline_files",
+          "routes.storage_locations",
+          "routes.photos",
+          "routes.gallery",
+          "routes.uploads",
+          "routes.shared"
+        ],
+        "control_roots": [
+          "#files-workbench-view",
+          "#files-view",
+          "#gallery-view",
+          "#photos-view",
+          "#files-preview-modal",
+          "#files-location-dialog",
+          "#files-transfer-dialog"
+        ],
+        "cli_commands": [],
+        "jobs": [
+          "blob_gc",
+          "clip_index",
+          "faces_index",
+          "photo_watch"
+        ],
+        "automation_actions": [],
+        "integrations": [],
+        "pwa_functions": [],
+        "extension_functions": []
+      }
+    },
+    {
+      "id": "library.reading-and-news",
+      "category": "library",
+      "app": "library",
+      "behavior": "Save reading, manage books, collect cited news, and keep cookbook material.",
+      "risk": "medium",
+      "dependencies": [],
+      "platforms": [
+        "macos",
+        "linux",
+        "web"
+      ],
+      "aide_tools": [
+        "book_add",
+        "books_list",
+        "read_list",
+        "read_save"
+      ],
+      "automated_tests": [
+        "tests/test_books.py",
+        "tests/test_read.py",
+        "tests/test_news.py"
+      ],
+      "computer_scenarios": [
+        "save and open a page",
+        "add and update a book",
+        "deliver a cited news brief"
+      ],
+      "implementation": "shipped",
+      "acceptance": "passed",
+      "notes": "Passed 2026-07-27: the real isolated Library saved and opened example.com, archived it, added/rated/completed a book, and the News gate enabled, ran, cited, and explicitly saved a brief with desktop/phone/zoom and clean-console proof.",
+      "coverage": {
+        "route_modules": [
+          "routes.books",
+          "routes.read",
+          "routes.cookbook",
+          "routes.news"
+        ],
+        "control_roots": [
+          "#library-view",
+          "#books-view",
+          "#read-view",
+          "#cookbook-view"
+        ],
+        "cli_commands": [],
+        "jobs": [
+          "read_feeds",
+          "scheduled_news"
+        ],
+        "automation_actions": [],
+        "integrations": [],
+        "pwa_functions": [],
+        "extension_functions": []
+      }
+    },
+    {
+      "id": "health.logs-and-habits",
+      "category": "health",
+      "app": "health",
+      "behavior": "Record health observations and track habits without presenting the app as medical care.",
+      "risk": "high",
+      "dependencies": [],
+      "platforms": [
+        "macos",
+        "linux",
+        "web"
+      ],
+      "aide_tools": [
+        "habit_add",
+        "habit_log",
+        "habits_list",
+        "health_log",
+        "health_summary"
+      ],
+      "automated_tests": [
+        "tests/test_health.py",
+        "tests/test_habits.py"
+      ],
+      "computer_scenarios": [
+        "log a synthetic measurement",
+        "complete a habit",
+        "inspect empty and partial summaries"
+      ],
+      "implementation": "shipped",
+      "acceptance": "passed",
+      "notes": "Passed 2026-07-27: isolated Health and habit browser gates logged synthetic data, completed a habit, and checked baseline, anomaly, empty, and partial-summary states without medical claims.",
+      "coverage": {
+        "route_modules": [
+          "routes.health",
+          "routes.habits"
+        ],
+        "control_roots": [
+          "#health-group-view",
+          "#health-view",
+          "#habits-view"
+        ],
+        "cli_commands": [],
+        "jobs": [],
+        "automation_actions": [],
+        "integrations": [],
+        "pwa_functions": [],
+        "extension_functions": []
+      }
+    },
+    {
+      "id": "finance.actual-ledger",
+      "category": "finance",
+      "app": "finance",
+      "behavior": "Use Actual Budget as canonical ledger and import statements read-only with provenance and undo.",
+      "risk": "critical",
+      "dependencies": [
+        "managed or external Actual Budget"
+      ],
+      "platforms": [
+        "macos",
+        "linux",
+        "web"
+      ],
+      "aide_tools": [
+        "money_query"
+      ],
+      "automated_tests": [
+        "tests/test_actual_finance_canonical.py",
+        "tests/test_finance_imports_phase8.py",
+        "tests/test_money.py"
+      ],
+      "computer_scenarios": [
+        "reconcile a disposable ledger",
+        "import statement fixtures",
+        "undo an import"
+      ],
+      "implementation": "shipped",
+      "acceptance": "blocked",
+      "notes": "Blocked 2026-07-27: canonical-authority, statement preview/apply/provenance/conflict/undo, and migration regressions pass, but reconciling a live disposable Actual ledger requires an installed disposable Actual service not available in this acceptance environment.",
+      "coverage": {
+        "route_modules": [
+          "routes.money",
+          "routes.finance_actual",
+          "routes.finance_imports",
+          "routes.subscriptions"
+        ],
+        "control_roots": [
+          "#finance-view",
+          "#money-view",
+          "#subs-view"
+        ],
+        "cli_commands": [],
+        "jobs": [
+          "holdings_price",
+          "subscriptions"
+        ],
+        "automation_actions": [],
+        "integrations": [],
+        "pwa_functions": [],
+        "extension_functions": []
+      }
+    },
+    {
+      "id": "finance.bank-connectors",
+      "category": "finance",
+      "app": "finance",
+      "behavior": "Synchronize accounts read-only through SimpleFIN or Plaid with reconnect, revocation, deduplication, and reviewed bank import profiles.",
+      "risk": "critical",
+      "dependencies": [
+        "Actual Budget",
+        "SimpleFIN or Plaid"
+      ],
+      "platforms": [
+        "macos",
+        "linux",
+        "web"
+      ],
+      "aide_tools": [
+        "finance_accounts_list",
+        "finance_import_profiles",
+        "finance_transactions_list"
+      ],
+      "automated_tests": [
+        "tests/test_finance_connectors.py",
+        "tests/test_finance_imports_phase8.py",
+        "tests/test_money_csv.py"
+      ],
+      "computer_scenarios": [
+        "connect Plaid sandbox",
+        "deduplicate transactions",
+        "expire and reconnect consent",
+        "disconnect and revoke"
+      ],
+      "implementation": "shipped",
+      "acceptance": "blocked",
+      "coverage": {
+        "route_modules": [
+          "routes.finance_connections"
+        ],
+        "control_roots": [],
+        "cli_commands": [],
+        "jobs": [],
+        "automation_actions": [],
+        "integrations": [
+          "simplefin",
+          "plaid",
+          "actual-budget"
+        ],
+        "pwa_functions": [],
+        "extension_functions": []
+      },
+      "notes": "Blocked 2026-07-27: connector cursor/dedupe/consent/reconnect/revoke tests and reviewed Canadian/Chinese import profiles pass; live Plaid/SimpleFIN scenarios require disposable aggregator credentials not supplied. Chinese banks correctly remain statement and owner-authorized notification/email ingestion only."
+    },
+    {
+      "id": "passwords.vault-and-browser",
+      "category": "passwords",
+      "app": "passwords",
+      "behavior": "Store encrypted secrets and fill exact-site credentials through paired short-lived browser sessions without model plaintext.",
+      "risk": "critical",
+      "dependencies": [],
+      "platforms": [
+        "macos",
+        "linux",
+        "web"
+      ],
+      "aide_tools": [],
+      "automated_tests": [
+        "tests/test_vault_autofill.py",
+        "tests/test_browser_passwords.py",
+        "tests/js/browser_extension_phase9.test.mjs"
+      ],
+      "computer_scenarios": [
+        "pair the extension",
+        "fill an exact test site",
+        "reject a mismatched origin",
+        "revoke a browser"
+      ],
+      "implementation": "shipped",
+      "acceptance": "passed",
+      "notes": "Passed 2026-07-27: the real unpacked Chromium extension paired to a disposable vault, filled only the exact local fixture origin, never submitted, rejected broader authority, cleared its short session on restart, locked, and revoked cleanly.",
+      "coverage": {
+        "route_modules": [
+          "routes.vault",
+          "routes.browser_passwords"
+        ],
+        "control_roots": [
+          "#vault-workbench-view",
+          "#vault-view"
+        ],
+        "cli_commands": [],
+        "jobs": [],
+        "automation_actions": [],
+        "integrations": [
+          "browser-extension"
+        ],
+        "pwa_functions": [],
+        "extension_functions": []
+      }
+    },
+    {
+      "id": "server.management",
+      "category": "server",
+      "app": "server",
+      "behavior": "Inspect and control owned services, machine health, updates, logs, policy, and watched resources through fail-closed authority.",
+      "risk": "critical",
+      "dependencies": [],
+      "platforms": [
+        "macos",
+        "linux",
+        "web"
+      ],
+      "aide_tools": [
+        "server_companions_list",
+        "server_service_control",
+        "server_services_list",
+        "watch_add",
+        "watch_status"
+      ],
+      "automated_tests": [
+        "tests/test_api_system.py",
+        "tests/test_server_policy_phase12.py",
+        "tests/test_native_install.py"
+      ],
+      "computer_scenarios": [
+        "inspect neofetch and btop",
+        "restart a disposable service",
+        "reject an unsafe policy edit",
+        "perform update rollback"
+      ],
+      "implementation": "shipped",
+      "acceptance": "blocked",
+      "notes": "Blocked 2026-07-27: Neofetch/btop, process layout, fail-closed policy editor, unsafe-edit rejection, lifecycle rollback tests, Safari, and Computer Use inspection pass; no registered disposable owned service or disposable update release was available for live restart/rollback.",
+      "coverage": {
+        "route_modules": [
+          "routes.system",
+          "routes.macos",
+          "routes.watch"
+        ],
+        "control_roots": [
+          "#server-workbench-view",
+          "#system-view",
+          "#watch-view",
+          "#activity-view"
+        ],
+        "cli_commands": [
+          "start",
+          "stop",
+          "restart",
+          "status",
+          "logs",
+          "open"
+        ],
+        "jobs": [
+          "watch"
+        ],
+        "automation_actions": [],
+        "integrations": [],
+        "pwa_functions": [],
+        "extension_functions": []
+      }
+    },
+    {
+      "id": "server.adguard-home",
+      "category": "server",
+      "app": "server",
+      "behavior": "Prepare pinned AdGuard Home when supported and activate DNS only after preflight, backup, health checks, and rollback proof.",
+      "risk": "critical",
+      "dependencies": [
+        "supported host",
+        "available DNS ports",
+        "isolated activation network"
+      ],
+      "platforms": [
+        "macos",
+        "linux"
+      ],
+      "aide_tools": [
+        "adguard_dashboard",
+        "adguard_filtering_set",
+        "adguard_rewrite_change"
+      ],
+      "automated_tests": [
+        "tests/test_managed_companions.py",
+        "tests/test_managed_companion_clients.py",
+        "tests/test_managed_companion_api.py",
+        "tests/test_aide_managed_companion_tools.py",
+        "tests/js/server_workbench_phase12.test.mjs"
+      ],
+      "computer_scenarios": [
+        "prepare without activation",
+        "activate in isolation",
+        "inspect query statistics",
+        "roll back DNS"
+      ],
+      "implementation": "shipped",
+      "acceptance": "blocked",
+      "notes": "Blocked 2026-07-27: pinned metadata, prepare-without-start, exact listener preflight, encrypted client/API, ownership, typed Aide tools, unavailable-state UI, and rollback tests pass; DNS activation and statistics inspection require a disposable VM or isolated network not available here.",
+      "coverage": {
+        "route_modules": [],
+        "control_roots": [],
+        "cli_commands": [],
+        "jobs": [],
+        "automation_actions": [],
+        "integrations": [
+          "adguard-home"
+        ],
+        "pwa_functions": [],
+        "extension_functions": []
+      }
+    },
+    {
+      "id": "server.nginx-proxy-manager",
+      "category": "server",
+      "app": "server",
+      "behavior": "Prepare pinned Nginx Proxy Manager when Docker prerequisites pass and manage proxy hosts, certificates, access, updates, and rollback.",
+      "risk": "critical",
+      "dependencies": [
+        "Docker",
+        "available proxy ports",
+        "isolated activation network"
+      ],
+      "platforms": [
+        "macos",
+        "linux"
+      ],
+      "aide_tools": [
+        "npm_dashboard",
+        "npm_proxy_host_create"
+      ],
+      "automated_tests": [
+        "tests/test_managed_companions.py",
+        "tests/test_managed_companion_clients.py",
+        "tests/test_managed_companion_api.py",
+        "tests/test_aide_managed_companion_tools.py",
+        "tests/js/server_workbench_phase12.test.mjs"
+      ],
+      "computer_scenarios": [
+        "prepare without Docker",
+        "activate in isolation",
+        "create a proxy host",
+        "roll back service"
+      ],
+      "implementation": "shipped",
+      "acceptance": "blocked",
+      "notes": "Blocked 2026-07-27: pinned metadata, Docker prerequisite handling, prepare-without-start, encrypted client/API, proxy-host/certificate UI, typed Aide tools, ownership, and rollback tests pass; live proxy activation requires a disposable Docker VM or isolated network not available here.",
+      "coverage": {
+        "route_modules": [],
+        "control_roots": [],
+        "cli_commands": [],
+        "jobs": [],
+        "automation_actions": [],
+        "integrations": [
+          "nginx-proxy-manager"
+        ],
+        "pwa_functions": [],
+        "extension_functions": []
+      }
+    },
+    {
+      "id": "integrations.owner-connectors",
+      "category": "integrations",
+      "app": "settings",
+      "behavior": "Connect Discord, MCP, external endpoints, and signed webhooks with explicit health and revocation.",
+      "risk": "critical",
+      "dependencies": [
+        "owner-supplied connector credentials"
+      ],
+      "platforms": [
+        "macos",
+        "linux",
+        "web"
+      ],
+      "aide_tools": [
+        "mcp_call_tool",
+        "mcp_list_tools"
+      ],
+      "automated_tests": [
+        "tests/test_api_mcp.py",
+        "tests/test_jarvis_discord.py",
+        "tests/test_mcp_credentials_migration.py",
+        "tests/test_connections.py"
+      ],
+      "computer_scenarios": [
+        "pair a Discord owner",
+        "connect and revoke MCP",
+        "test a signed webhook",
+        "disconnect an endpoint"
+      ],
+      "implementation": "shipped",
+      "acceptance": "blocked",
+      "notes": "Blocked 2026-07-27: Discord, MCP, encrypted credential migration, signed webhook, health, and revocation regressions pass; real pairing and delivery require disposable external connector credentials and endpoints that were not supplied.",
+      "coverage": {
+        "route_modules": [
+          "routes.connections",
+          "routes.mcp",
+          "routes.jarvis",
+          "routes.webhooks"
+        ],
+        "control_roots": [],
+        "cli_commands": [],
+        "jobs": [
+          "jarvis_scheduler",
+          "jarvis_outbox",
+          "jarvis_events"
+        ],
+        "automation_actions": [],
+        "integrations": [
+          "discord-bot",
+          "mcp",
+          "webhooks",
+          "external-openai-compatible"
+        ],
+        "pwa_functions": [],
+        "extension_functions": []
+      }
+    },
+    {
+      "id": "integrations.model-authentication",
+      "category": "integrations",
+      "app": "settings",
+      "behavior": "Connect model providers through legitimate API keys, supported OAuth, or an owner-managed OpenAI-compatible proxy with exact auth type and revocation guidance.",
+      "risk": "critical",
+      "dependencies": [
+        "provider credentials or OAuth client registration"
+      ],
+      "platforms": [
+        "macos",
+        "linux",
+        "web"
+      ],
+      "aide_tools": [],
+      "automated_tests": [
+        "tests/test_model_auth.py",
+        "tests/test_model_catalog_migration.py",
+        "tests/test_model_providers.py",
+        "tests/test_llm.py",
+        "tests/pw_model_auth_real.py"
+      ],
+      "computer_scenarios": [
+        "connect Gemini OAuth",
+        "connect and revoke an API key",
+        "discover CLIProxyAPI models",
+        "show unsupported OAuth honestly"
+      ],
+      "implementation": "shipped",
+      "acceptance": "blocked",
+      "coverage": {
+        "route_modules": [],
+        "control_roots": [],
+        "cli_commands": [],
+        "jobs": [
+          "model_oauth_refresh"
+        ],
+        "automation_actions": [],
+        "integrations": [
+          "gemini-oauth",
+          "openai-api-key",
+          "claude-api-key",
+          "kimi-api-key",
+          "deepseek-api-key",
+          "cliproxyapi"
+        ],
+        "pwa_functions": [],
+        "extension_functions": []
+      },
+      "notes": "Blocked 2026-07-27: 64 focused provider/auth/routing tests and the real desktop/phone Settings gate pass API-key/proxy metadata, Kimi/DeepSeek guidance, Gemini PKCE start, encrypted secrets, refresh/revoke, keyboard, overflow, and clean console. Live provider OAuth/API-key connection requires disposable external credentials not supplied."
+    },
+    {
+      "id": "automation.schedules-and-actions",
+      "category": "automation",
+      "app": "aide",
+      "behavior": "Run durable schedules, chains, proactive work, and explicit automation actions with retry and audit state.",
+      "risk": "high",
+      "dependencies": [],
+      "platforms": [
+        "macos",
+        "linux",
+        "web"
+      ],
+      "aide_tools": [],
+      "automated_tests": [
+        "tests/test_automations.py",
+        "tests/test_chains.py",
+        "tests/test_proactive.py"
+      ],
+      "computer_scenarios": [
+        "create and pause a schedule",
+        "resume after restart",
+        "inspect a failed action",
+        "cancel a run"
+      ],
+      "implementation": "shipped",
+      "acceptance": "passed",
+      "notes": "Passed 2026-07-27: the rendered Scheduled screen created and edited schedules with custom controls; automation and Jarvis regressions cover pause/resume, restart recovery, honest failed/uncertain actions, cancellation, retries, and audit history. Direct scheduled navigation is now awaited and the News acceptance gate passes.",
+      "coverage": {
+        "route_modules": [
+          "routes.automations",
+          "routes.chains",
+          "routes.proactive"
+        ],
+        "control_roots": [],
+        "cli_commands": [],
+        "jobs": [
+          "automations",
+          "proactive"
+        ],
+        "automation_actions": [
+          "create_note",
+          "create_task",
+          "notify",
+          "notify_digest",
+          "push",
+          "push_digest"
+        ],
+        "integrations": [],
+        "pwa_functions": [],
+        "extension_functions": []
+      }
+    },
+    {
+      "id": "localization.regional-settings",
+      "category": "localization",
+      "app": "settings",
+      "behavior": "Apply reviewed language catalogs and independent automatic or explicit region, timezone, clock, week, and currency preferences.",
+      "risk": "medium",
+      "dependencies": [],
+      "platforms": [
+        "macos",
+        "linux",
+        "web"
+      ],
+      "aide_tools": [],
+      "automated_tests": [
+        "tests/test_localization_catalogs.py",
+        "tests/js/i18n.test.mjs"
+      ],
+      "computer_scenarios": [
+        "use automatic region",
+        "override formats",
+        "switch reviewed languages",
+        "restart and preserve choices"
+      ],
+      "implementation": "shipped",
+      "acceptance": "passed",
+      "notes": "Passed 2026-07-27: unified Settings detected region/timezone automatically, used custom region and format controls, loaded all reviewed catalogs, persisted overrides, and passed the desktop/phone localization gate.",
+      "coverage": {
+        "route_modules": [
+          "routes.settings",
+          "routes.appearance"
+        ],
+        "control_roots": [
+          "#settings-modal"
+        ],
+        "cli_commands": [],
+        "jobs": [],
+        "automation_actions": [],
+        "integrations": [],
+        "pwa_functions": [],
+        "extension_functions": []
+      }
+    },
+    {
+      "id": "localization.credits",
+      "category": "localization",
+      "app": "settings",
+      "behavior": "Show dependencies, adapted sources, inspirations, revisions, licenses, source links, and required notices.",
+      "risk": "high",
+      "dependencies": [],
+      "platforms": [
+        "macos",
+        "linux",
+        "web"
+      ],
+      "aide_tools": [],
+      "automated_tests": [
+        "tests/test_credits_manifest.py",
+        "scripts/generate_credits.py"
+      ],
+      "computer_scenarios": [
+        "search named inspirations",
+        "open a local notice",
+        "show unavailable notice honestly"
+      ],
+      "implementation": "shipped",
+      "acceptance": "passed",
+      "coverage": {
+        "route_modules": [],
+        "control_roots": [],
+        "cli_commands": [],
+        "jobs": [],
+        "automation_actions": [],
+        "integrations": [],
+        "pwa_functions": [],
+        "extension_functions": []
+      },
+      "notes": "Passed 2026-07-27: 497 generated records have complete category, revision, license, source, and notice evidence; all required inspirations are distinct, Settings search/detail was exercised with Obsidian, and rendered desktop/phone credits states pass."
+    },
+    {
+      "id": "accessibility.interface-contract",
+      "category": "accessibility",
+      "app": "all",
+      "behavior": "Keep controls custom, semantic, keyboard-operable, focus-visible, responsive, contrast-safe, and usable with reduced motion and 200 percent zoom.",
+      "risk": "high",
+      "dependencies": [],
+      "platforms": [
+        "macos",
+        "linux",
+        "web"
+      ],
+      "aide_tools": [],
+      "automated_tests": [
+        "tests/test_design_system_contract.py",
+        "tests/pw_kokuen_finished_surfaces.py"
+      ],
+      "computer_scenarios": [
+        "complete flows by keyboard",
+        "verify dialog focus return",
+        "test responsive and zoom states",
+        "test reduced motion and themes"
+      ],
+      "implementation": "shipped",
+      "acceptance": "passed",
+      "notes": "Passed 2026-07-27: all nine specialist workbenches plus Home, Apps, Aide, Andromeda, Docs, Files, Settings, setup, Passwords, News, and extension gates passed keyboard, focus return, desktop/phone/200-percent reflow, reduced motion, themes, custom-control, overflow, and clean-console checks.",
+      "coverage": {
+        "route_modules": [],
+        "control_roots": [],
+        "cli_commands": [],
+        "jobs": [],
+        "automation_actions": [],
+        "integrations": [],
+        "pwa_functions": [],
+        "extension_functions": []
+      }
+    },
+    {
+      "id": "extension-mobile.pwa-and-extension",
+      "category": "extension-mobile",
+      "app": "home",
+      "behavior": "Install and operate the PWA and paired extension with explicit offline, background, and permission boundaries.",
+      "risk": "high",
+      "dependencies": [
+        "supported browser"
+      ],
+      "platforms": [
+        "macos",
+        "linux",
+        "web"
+      ],
+      "aide_tools": [],
+      "automated_tests": [
+        "tests/test_capacitor_11b.py",
+        "tests/js/browser_extension_phase9.test.mjs",
+        "tests/test_manifest_11b.py"
+      ],
+      "computer_scenarios": [
+        "install PWA",
+        "exercise offline and reconnect",
+        "pair and revoke extension",
+        "test mobile package"
+      ],
+      "implementation": "shipped",
+      "acceptance": "blocked",
+      "notes": "Blocked 2026-07-27: manifest/offline/background contracts and the real unpacked extension pairing/fill/restart/revoke flow pass; final installed-PWA and packaged mobile-device acceptance requires an external install surface or physical/simulated mobile target unavailable here.",
+      "coverage": {
+        "route_modules": [],
+        "control_roots": [],
+        "cli_commands": [],
+        "jobs": [],
+        "automation_actions": [],
+        "integrations": [],
+        "pwa_functions": [
+          "install",
+          "offline-shell",
+          "background-sync",
+          "push"
+        ],
+        "extension_functions": [
+          "pair",
+          "unlock",
+          "match",
+          "fill",
+          "lock",
+          "revoke"
+        ]
+      }
+    },
+    {
+      "id": "backup-recovery.lifecycle",
+      "category": "backup-recovery",
+      "app": "server",
+      "behavior": "Create encrypted backups, restore safely, update with rollback, uninstall preserving data, and recover interrupted lifecycle work.",
+      "risk": "critical",
+      "dependencies": [],
+      "platforms": [
+        "macos",
+        "linux",
+        "web"
+      ],
+      "aide_tools": [],
+      "automated_tests": [
+        "tests/test_automatic_backup.py",
+        "tests/test_backup_recovery.py",
+        "tests/test_native_install.py"
+      ],
+      "computer_scenarios": [
+        "fresh macOS install",
+        "fresh Linux VM install",
+        "recover interrupted update",
+        "uninstall preserving data",
+        "restore and roll back"
+      ],
+      "implementation": "shipped",
+      "acceptance": "blocked",
+      "notes": "Blocked 2026-07-27: fresh macOS native install/uninstall, preserved-data, backup/restore, interrupted-update, and rollback regressions pass on disposable roots; the required fresh Linux VM lifecycle scenario has no disposable VM target in this environment.",
+      "coverage": {
+        "route_modules": [
+          "routes.backup",
+          "routes.export"
+        ],
+        "control_roots": [],
+        "cli_commands": [
+          "update",
+          "restore"
+        ],
+        "jobs": [
+          "automatic_backup"
+        ],
+        "automation_actions": [],
+        "integrations": [
+          "webdav-backup",
+          "s3-backup"
+        ],
+        "pwa_functions": [],
+        "extension_functions": []
+      }
+    },
+    {
+      "id": "developer-interfaces.api-cli",
+      "category": "developer-interfaces",
+      "app": "server",
+      "behavior": "Expose scoped API, OpenAI-compatible, shell, code, capability, and CLI interfaces without bypassing owner policy.",
+      "risk": "critical",
+      "dependencies": [],
+      "platforms": [
+        "macos",
+        "linux",
+        "web"
+      ],
+      "aide_tools": [],
+      "automated_tests": [
+        "tests/test_api_tokens.py",
+        "tests/test_api_openai_compat.py",
+        "tests/test_capabilities.py",
+        "tests/test_shell_pty.py",
+        "tests/test_cli_safety.py"
+      ],
+      "computer_scenarios": [
+        "issue and revoke API token",
+        "call OpenAI-compatible API",
+        "reject scope escalation",
+        "run CLI tests"
+      ],
+      "implementation": "shipped",
+      "acceptance": "passed",
+      "notes": "Passed 2026-07-27: scoped-token UI/API, issue/revoke, scope-escalation rejection, OpenAI-compatible route behavior, capability policy, real shell PTY, CLI safety, and native lifecycle command tests pass on isolated data.",
+      "coverage": {
+        "route_modules": [
+          "routes.capabilities",
+          "routes.code",
+          "routes.shell",
+          "routes.openai_compat"
+        ],
+        "control_roots": [],
+        "cli_commands": [
+          "test"
+        ],
+        "jobs": [],
+        "automation_actions": [],
+        "integrations": [],
+        "pwa_functions": [],
+        "extension_functions": []
+      }
+    }
+  ]
+}

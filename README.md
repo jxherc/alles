@@ -1,5 +1,9 @@
 # alles
 
+read this in: **english** · [français](docs/readme/README.fr.md) · [español](docs/readme/README.es.md) ·
+[简体中文](docs/readme/README.zh-Hans.md) · [繁體中文](docs/readme/README.zh-Hant.md) ·
+[日本語](docs/readme/README.ja.md) · [한국어](docs/readme/README.ko.md) · [العربية](docs/readme/README.ar.md)
+
 ```
 ─────────────────────────────────────────────
  ⊹ ࣪ ˖ ( ◕ ‿ ◕ )つ  alles — your everything
@@ -89,11 +93,11 @@ you need **python 3.11 or newer**. then:
 ```bash
 git clone https://github.com/jxherc/alles.git
 cd alles
-pip install -r requirements.txt
+pip install -r requirements.lock
 python app.py
 ```
 
-open **http://localhost:8000** and you're in.
+open **http://localhost:6769** and you're in.
 
 on `dev-afterlife`, the new shell and Andromeda are still behind explicit release flags. preview the
 delivered Phase 4 surfaces with:
@@ -102,21 +106,27 @@ delivered Phase 4 surfaces with:
 ALLES_AFTERLIFE_FEATURES=afterlife_shell,afterlife_today,afterlife_aide_projects,afterlife_andromeda,afterlife_jarvis,afterlife_storage_locations python app.py
 ```
 
-**want the `alles` command everywhere (mac/linux)?** run `./alles install` once — it
-drops a small launcher on your PATH pointing at the python you're using (venv and
-all), so from then on `alles start` / `alles stop` / `alles logs` work from any
-directory, no `cd`, no activating the venv. `./alles uninstall` removes it again.
-on a server with a venv that's just:
+**want a normal mac/linux install?** run `./alles install` once. it builds a private,
+versioned Python environment, adds the `alles` launcher, and registers a user-owned launchd or
+systemd service. program releases stay separate from private app data and the visible Vault/Files
+folders. `alles update` stages and health-checks a new release with encrypted rollback data;
+`alles update rollback` restores the paired code and data. `./alles uninstall` removes only verified
+program, launcher, and service files and keeps personal data.
+
+on a server with a venv:
 
 ```bash
 python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
+pip install -r requirements.lock
 ./alles install      # now `alles start` works anywhere
 ```
 
+if you only want the old checkout launcher without a managed runtime or service, use
+`./alles install --launcher-only` and remove it with `./alles uninstall --launcher-only`.
+
 **no api key is needed to boot.** mail, docs, files, calendar, tasks, subs, days, photos, contacts, secrets — all work out of the box. when you want aide to talk, add a model under **settings → models** (one click for openai / anthropic / deepseek / groq / gemini / ollama and ~10 more), or drop a key like `deepseek_api_key` into `.env`.
 
-**prefer docker?** `docker build -t alles . && docker run -p 127.0.0.1:8000:8000 -v alles-data:/app/data alles` — the `data/` volume keeps your db, vault, uploads, and keys across rebuilds. the loopback-only port keeps the fresh container on this device. native LAN access requires `ALLES_ACCESS_PROFILE=lan`, enabled authentication, and a real owner password. public access also requires an HTTPS public URL, matching base domain, trusted hosts, and exact proxy IPs; see `.env.example` for the setting names.
+**prefer docker?** `docker build -t alles . && docker run -p 127.0.0.1:6769:6769 -v alles-data:/app/data alles` — the `data/` volume keeps your db, vault, uploads, and keys across rebuilds. the loopback-only port keeps the fresh container on this device. native LAN access requires `ALLES_ACCESS_PROFILE=lan`, enabled authentication, and a real owner password. public access also requires an HTTPS public URL, matching base domain, trusted hosts, and exact proxy IPs; see `.env.example` for the setting names.
 
 **want it fully offline and free?** install [ollama](https://ollama.com), `ollama pull` a model, add an endpoint pointing at `http://localhost:11434` — no key or internet needed for the ai.
 
@@ -130,7 +140,11 @@ disabled in this build because its container runtime spike could not be run on t
 
 ## backups
 
-open **settings → backup** to download an encrypted `.alles-backup`, or send the same encrypted file to an existing https WebDAV folder or S3-compatible bucket. remote backup is manual right now; it is not Files sync or a scheduled backup service.
+open **settings → backup** to download an encrypted `.alles-backup`, or send the same encrypted file to an existing https WebDAV folder or S3-compatible bucket. remote backup is manual right now and is not Files sync.
+
+first-run Protection can also enable a daily encrypted local backup to a folder outside Alles data.
+Alles checks hourly, creates at most one artifact per day, keeps the newest seven artifacts it owns,
+and leaves unrelated files alone. remote WebDAV and S3 targets remain manual.
 
 before the first remote backup, download the recovery key. keep that key and your remote-storage login somewhere outside Alles. the recovery-key file is never uploaded separately or in plaintext.
 
@@ -139,6 +153,17 @@ a restore verifies and stages the data without changing the live install. stop A
 the WebDAV folder must support `PROPFIND`, `PUT`, `MOVE`, `GET`, and `DELETE`.
 
 S3 backup needs an existing bucket, an https endpoint, a region, and an access-key pair. path-style and virtual-hosted endpoints are supported. this first version uses one conditional server-side copy per backup, so each encrypted artifact must be 5 GB or smaller.
+
+## passwords in your browser
+
+unlock Passwords, open its settings, and download the Alles Passwords extension from **connected
+browsers**. unzip it, load it from `chrome://extensions` with developer mode enabled, then enter your
+exact Alles origin in the popup. verify and approve the pairing code inside Passwords.
+
+pairing does not unlock anything. each fill session needs a separate owner approval, lives for five
+minutes, matches the exact scheme/host/port, and releases only the login you select. the extension
+fills the current top-level login form but never submits it. browser/server restart, explicit lock,
+computer lock, or revoke removes fill authority.
 
 ---
 

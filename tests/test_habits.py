@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import UTC, date, datetime, timedelta
 
 from routes.habits import build_grid, completion_pct, daily_streak, week_done_count
 from tests._client import ApiTest
@@ -110,10 +110,18 @@ class HabitApiTests(ApiTest):
 
     def test_overview_rejects_junk_date_q(self):
         # bad date_q used to raise ValueError -> 500; now a clean 400
-        self.assertEqual(self.client.get("/api/habits/overview", params={"date_q": "garbage"}).status_code, 400)
-        self.assertEqual(self.client.get("/api/habits/overview", params={"date_q": "2026-13-40"}).status_code, 400)
+        self.assertEqual(
+            self.client.get("/api/habits/overview", params={"date_q": "garbage"}).status_code, 400
+        )
+        self.assertEqual(
+            self.client.get("/api/habits/overview", params={"date_q": "2026-13-40"}).status_code,
+            400,
+        )
         # a valid date_q still works
-        self.assertEqual(self.client.get("/api/habits/overview", params={"date_q": "2026-06-20"}).status_code, 200)
+        self.assertEqual(
+            self.client.get("/api/habits/overview", params={"date_q": "2026-06-20"}).status_code,
+            200,
+        )
 
     def test_toggle_idempotent_no_duplicate_logs(self):
         hid = self._create().json()["id"]
@@ -137,17 +145,17 @@ class HabitApiTests(ApiTest):
 
     # 4b slipping nudge
     def _age(self, hid, days):
-        from datetime import datetime, timedelta
-
         from core.database import Habit
 
         s = self.db()
-        s.get(Habit, hid).created_at = datetime.utcnow() - timedelta(days=days)
+        s.get(Habit, hid).created_at = datetime.now(UTC).replace(tzinfo=None) - timedelta(days=days)
         s.commit()
         s.close()
 
     def _overview_one(self, hid):
-        return next(x for x in self.client.get("/api/habits/overview").json()["habits"] if x["id"] == hid)
+        return next(
+            x for x in self.client.get("/api/habits/overview").json()["habits"] if x["id"] == hid
+        )
 
     def test_patch_color_persists(self):
         hid = self._create().json()["id"]
@@ -170,13 +178,13 @@ class HabitApiTests(ApiTest):
         self.assertTrue(self._overview_one(hid)["risk"]["slipping"])
 
     def test_active_habit_not_slipping(self):
-        from datetime import timedelta
-
         hid = self._create().json()["id"]
         self._age(hid, 30)
         today = date.today()
         for i in range(10):  # done most recent days -> high rate + a streak
-            self.client.post(f"/api/habits/{hid}/toggle", json={"date": (today - timedelta(days=i)).isoformat()})
+            self.client.post(
+                f"/api/habits/{hid}/toggle", json={"date": (today - timedelta(days=i)).isoformat()}
+            )
         self.assertFalse(self._overview_one(hid)["risk"]["slipping"])
 
     def test_patch_updates(self):

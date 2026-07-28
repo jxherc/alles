@@ -5,8 +5,8 @@ const { renderAgentSteps } = await import('../../static/js/agentview.js');
 
 test('successful steps reload collapsed with one clear control', () => {
   const html = renderAgentSteps([{ name: 'read_file', args: { path: 'a.md' }, output: 'ok' }]);
-  assert.match(html, /show steps/);
-  assert.match(html, /hide steps/);
+  assert.match(html, /run details/);
+  assert.doesNotMatch(html, /show steps|hide steps|turn \d+ \/ \d+/);
   assert.doesNotMatch(html, /<details class="agent-steps" open>/);
 });
 

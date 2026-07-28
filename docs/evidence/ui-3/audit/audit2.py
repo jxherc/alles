@@ -4,7 +4,9 @@ Covers: remaining toolbar btns, format toolbar, multiline selection, right-click
 history, export, split, tabs, backlinks, delete, visual checks.
 """
 
-import os, json
+import json
+import os
+
 from playwright.sync_api import sync_playwright
 
 AUDIT_DIR = r"C:\Users\jxh\alles\docs\evidence\ui-3\audit"
@@ -57,6 +59,7 @@ def hello():
 console_log = []
 findings = {}
 
+
 def ss(page, name, note=""):
     path = os.path.join(AUDIT_DIR, f"{name}.png")
     try:
@@ -64,6 +67,7 @@ def ss(page, name, note=""):
         print(f"  [ss] {name}.png — {note}")
     except Exception as e:
         print(f"  [ss-ERR] {name}: {e}")
+
 
 def dismiss_any_dialog(page):
     """Press Escape if a dialog overlay is open."""
@@ -73,9 +77,10 @@ def dismiss_any_dialog(page):
             page.keyboard.press("Escape")
             page.wait_for_timeout(300)
             return True
-    except:
+    except Exception:
         pass
     return False
+
 
 def safe_click(page, selector, wait_ms=700):
     """Click, dismiss any dialog that pops up, return status."""
@@ -93,20 +98,28 @@ def safe_click(page, selector, wait_ms=700):
     except Exception as e:
         return f"error:{e}"
 
+
 def elem_vis(page, sel):
     try:
         el = page.query_selector(sel)
         return el is not None and el.is_visible()
-    except:
+    except Exception:
         return False
+
 
 with sync_playwright() as p:
     browser = p.chromium.launch(headless=True, args=["--no-sandbox"])
     ctx = browser.new_context(service_workers="block", viewport={"width": 1400, "height": 900})
     page = ctx.new_page()
-    page.on("console", lambda m: console_log.append({"t": m.type, "m": m.text})
-            if m.type in ("error","warning") else None)
-    page.on("pageerror", lambda e: console_log.append({"t":"pageerror","m":str(e)}))
+    page.on(
+        "console",
+        lambda m: (
+            console_log.append({"t": m.type, "m": m.text})
+            if m.type in ("error", "warning")
+            else None
+        ),
+    )
+    page.on("pageerror", lambda e: console_log.append({"t": "pageerror", "m": str(e)}))
 
     # Load and create a doc (same as part 1)
     print("=== Setup ===")
@@ -138,17 +151,17 @@ with sync_playwright() as p:
     # ── TOOLBAR BUTTONS (canvas onward, with dialog dismiss) ─────────────────
     print("\n=== Toolbar buttons (canvas onward) ===")
     remaining_btns = [
-        ("wiki-canvas-btn",  "canvas — prompts for name"),
-        ("wiki-board-btn",   "kanban board"),
-        ("wiki-todos-btn",   "AI extract todos"),
-        ("wiki-taskroll-btn","all tasks"),
+        ("wiki-canvas-btn", "canvas — prompts for name"),
+        ("wiki-board-btn", "kanban board"),
+        ("wiki-todos-btn", "AI extract todos"),
+        ("wiki-taskroll-btn", "all tasks"),
         ("wiki-history-btn", "version history"),
-        ("wiki-bookmark-btn","bookmark star"),
-        ("wiki-comments-btn","comments panel"),
+        ("wiki-bookmark-btn", "bookmark star"),
+        ("wiki-comments-btn", "comments panel"),
         ("wiki-publish-btn", "publish link"),
-        ("wiki-split-btn",   "split view"),
-        ("wiki-theme-btn",   "custom CSS"),
-        ("wiki-export-btn",  "export dropdown"),
+        ("wiki-split-btn", "split view"),
+        ("wiki-theme-btn", "custom CSS"),
+        ("wiki-export-btn", "export dropdown"),
     ]
     tb2 = {}
     for idx, (bid, desc) in enumerate(remaining_btns):
@@ -179,8 +192,16 @@ with sync_playwright() as p:
     findings["toolbar_remaining"] = tb2
 
     # close open panels
-    for bid in ["wiki-ai-toggle","wiki-ask-btn","wiki-outline-btn","wiki-props-btn",
-                "wiki-query-btn","wiki-history-btn","wiki-split-btn","wiki-comments-btn"]:
+    for bid in [
+        "wiki-ai-toggle",
+        "wiki-ask-btn",
+        "wiki-outline-btn",
+        "wiki-props-btn",
+        "wiki-query-btn",
+        "wiki-history-btn",
+        "wiki-split-btn",
+        "wiki-comments-btn",
+    ]:
         b2 = page.query_selector(f"#{bid}")
         if b2 and b2.is_visible() and "active" in (b2.get_attribute("class") or ""):
             b2.click()
@@ -188,7 +209,7 @@ with sync_playwright() as p:
 
     # ── MUTUAL EXCLUSIVITY TEST ───────────────────────────────────────────────
     print("\n=== Mutual exclusivity: outline+props+query ===")
-    for bid in ["wiki-outline-btn","wiki-props-btn","wiki-query-btn"]:
+    for bid in ["wiki-outline-btn", "wiki-props-btn", "wiki-query-btn"]:
         b2 = page.query_selector(f"#{bid}")
         if b2 and b2.is_visible():
             if "active" not in (b2.get_attribute("class") or ""):
@@ -196,14 +217,14 @@ with sync_playwright() as p:
                 page.wait_for_timeout(350)
     ss(page, "p2-mutual-excl", "outline+props+query all triggered")
     mexcl = {}
-    for bid in ["wiki-outline-btn","wiki-props-btn","wiki-query-btn"]:
+    for bid in ["wiki-outline-btn", "wiki-props-btn", "wiki-query-btn"]:
         b2 = page.query_selector(f"#{bid}")
         mexcl[bid] = "active" in (b2.get_attribute("class") or "") if b2 else False
     findings["mutual_exclusivity"] = mexcl
     print(f"  Active states: {mexcl}")
 
     # close all
-    for bid in ["wiki-outline-btn","wiki-props-btn","wiki-query-btn"]:
+    for bid in ["wiki-outline-btn", "wiki-props-btn", "wiki-query-btn"]:
         b2 = page.query_selector(f"#{bid}")
         if b2 and b2.is_visible() and "active" in (b2.get_attribute("class") or ""):
             b2.click()
@@ -293,9 +314,29 @@ with sync_playwright() as p:
 
     # ── FORMAT TOOLBAR ────────────────────────────────────────────────────────
     print("\n=== Format toolbar ===")
-    fmts = ["h1","h2","h3","bold","italic","strike","highlight","code",
-            "bullet","olist","check","quote",
-            "link","image","wiki","table","codeblock","callout","toggle","columns","hr"]
+    fmts = [
+        "h1",
+        "h2",
+        "h3",
+        "bold",
+        "italic",
+        "strike",
+        "highlight",
+        "code",
+        "bullet",
+        "olist",
+        "check",
+        "quote",
+        "link",
+        "image",
+        "wiki",
+        "table",
+        "codeblock",
+        "callout",
+        "toggle",
+        "columns",
+        "hr",
+    ]
     fmt_res = {}
     for fmt in fmts:
         print(f"  fmt:{fmt}")
@@ -362,7 +403,9 @@ with sync_playwright() as p:
         cm.click(button="right")
         page.wait_for_timeout(600)
         ss(page, "p2-right-click", "right-click — custom or native?")
-        custom = page.query_selector(".context-menu, .ctx-menu, [class*='ctxmenu'], [class*='context-menu']")
+        custom = page.query_selector(
+            ".context-menu, .ctx-menu, [class*='ctxmenu'], [class*='context-menu']"
+        )
         findings["right_click"] = {"custom": custom is not None}
         page.keyboard.press("Escape")
         page.wait_for_timeout(200)
@@ -377,7 +420,10 @@ with sync_playwright() as p:
         dd = page.query_selector(".dropdown-menu, .docs-export-menu, [class*='export']")
         items = []
         if dd:
-            items = [el.text_content().strip() for el in dd.query_selector_all("button,a,[class*='item']")]
+            items = [
+                el.text_content().strip()
+                for el in dd.query_selector_all("button,a,[class*='item']")
+            ]
         findings["export"] = {"dropdown": dd is not None, "items": items}
         print(f"  Export items: {items}")
         page.keyboard.press("Escape")
@@ -424,13 +470,13 @@ with sync_playwright() as p:
             page.wait_for_timeout(500)
             di = page.query_selector("#_di")
             if di and di.is_visible():
-                di.fill(f"tab-test-{i+1}")
+                di.fill(f"tab-test-{i + 1}")
                 page.keyboard.press("Enter")
                 page.wait_for_timeout(1000)
                 cm2 = page.query_selector("#wiki-live .cm-content")
                 if cm2 and cm2.is_visible():
                     cm2.click()
-                    page.keyboard.type(f"# Tab {i+1}\n\nContent {i+1}.")
+                    page.keyboard.type(f"# Tab {i + 1}\n\nContent {i + 1}.")
                     page.wait_for_timeout(300)
 
     ss(page, "p2-tabs-bar", "tabs bar with multiple docs")
@@ -453,7 +499,9 @@ with sync_playwright() as p:
             page.evaluate("document.querySelector('#wiki-backlinks').scrollIntoView()")
             page.wait_for_timeout(300)
             ss(page, "p2-backlinks", "backlinks section")
-            bl_text = page.evaluate("document.querySelector('#wiki-backlinks').innerText.trim().substring(0,200)")
+            bl_text = page.evaluate(
+                "document.querySelector('#wiki-backlinks').innerText.trim().substring(0,200)"
+            )
             findings["backlinks"] = {"found": True, "text": bl_text}
         except Exception as e:
             findings["backlinks"] = {"found": True, "error": str(e)}

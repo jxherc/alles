@@ -1,6 +1,7 @@
 """ui-3e verify — rendered links in the live editor get custom (non-native) UI:
 theme colour, a hover tooltip showing the destination, and ⌘/ctrl-click to open
 (single click still enters edit mode)."""
+
 import sys
 
 from playwright.sync_api import sync_playwright
@@ -25,7 +26,9 @@ def run():
           if (el) el.click();
         }""")
         pg.wait_for_timeout(1200)
-        pg.evaluate("() => { const v = window._cmEditor?.view; if (v) v.dispatch({selection:{anchor:0}}); }")
+        pg.evaluate(
+            "() => { const v = window._cmEditor?.view; if (v) v.dispatch({selection:{anchor:0}}); }"
+        )
         pg.wait_for_timeout(500)
 
         def ok(name, cond):
@@ -36,16 +39,24 @@ def run():
         if a:
             col = pg.evaluate("(el) => getComputedStyle(el).color", a)
             # accent #818cf8 → rgb(129, 140, 248); the point is it is NOT native link blue
-            ok("link uses theme colour not native blue", col not in ("rgb(0, 0, 238)", "rgb(0, 0, 255)"))
+            ok(
+                "link uses theme colour not native blue",
+                col not in ("rgb(0, 0, 238)", "rgb(0, 0, 255)"),
+            )
             ok("link is the accent", "129, 140, 248" in col)
             # hover → url tooltip
             a.hover()
             pg.wait_for_timeout(500)
             tip = pg.query_selector("#wiki-url-tip")
             ok("hover shows a url tooltip", tip is not None)
-            ok("tooltip shows the destination", tip is not None and "example.com" in (tip.inner_text() or ""))
+            ok(
+                "tooltip shows the destination",
+                tip is not None and "example.com" in (tip.inner_text() or ""),
+            )
             # cmd-click → opens (stub window.open)
-            pg.evaluate("() => { window.__opened = []; window.open = (u) => { window.__opened.push(u); return null; }; }")
+            pg.evaluate(
+                "() => { window.__opened = []; window.open = (u) => { window.__opened.push(u); return null; }; }"
+            )
             a.click(modifiers=["Meta"])
             pg.wait_for_timeout(300)
             opened = pg.evaluate("() => window.__opened || []")

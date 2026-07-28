@@ -1,16 +1,19 @@
 import html as _html
 import json as _json
 import re as _re
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from fastapi.responses import Response
 from pydantic import BaseModel
 from sqlalchemy.orm import Session as DbSession
 
+from core.api_errors import ApiError
+from core.auth import require_recent_owner
 from core.database import Message, ModelEndpoint, Project, Session, get_db
 from services import incognito, lifecycle
-from services.project_environment import session_environment
+from services.project_environment import canonical_folder, session_environment
+from services.project_git import ProjectGitError, branch_state, switch_branch
 
 
 async def _fire(event: str, data: dict):
@@ -82,7 +85,7 @@ def list_sessions(db: DbSession = Depends(get_db)):
         .order_by(Session.last_message_at.desc())
         .all()
     )
-    now = datetime.utcnow()
+    now = datetime.now(UTC).replace(tzinfo=None)
     today = now.date()
     yesterday = (now - timedelta(days=1)).date()
 
@@ -128,6 +131,12 @@ async def create_session(
         project = db.get(Project, body.project_id)
         if not project:
             raise HTTPException(404, "project not found")
+    working_dir = ""
+    if not project and body.working_dir.strip():
+        try:
+            working_dir = canonical_folder(body.working_dir, must_exist=True)
+        except ValueError as exc:
+            raise ApiError(400, str(exc), str(exc).replace("_", " ")) from exc
     if body.incognito:
         response.headers["Cache-Control"] = "no-store"
         session = incognito.create_session(
@@ -136,7 +145,7 @@ async def create_session(
             endpoint_id=body.endpoint_id or None,
             mode=mode,
             chat_behavior=chat_behavior,
-            working_dir=body.working_dir,
+            working_dir=working_dir,
             persona_id=body.persona_id or None,
             project_id=body.project_id or None,
             project=project,
@@ -149,7 +158,7 @@ async def create_session(
         mode=mode,
         chat_behavior=chat_behavior,
         incognito=body.incognito,
-        working_dir=body.working_dir,
+        working_dir=working_dir,
         persona_id=body.persona_id or None,
         project_id=body.project_id or None,
     )
@@ -189,6 +198,7 @@ class PatchSession(BaseModel):
     starred: bool | None = None
     persona_id: str | None = None
     working_dir: str | None = None
+    project_id: str | None = None
 
 
 # PATCH /api/sessions/{id}
@@ -218,14 +228,65 @@ async def patch_session(
         s.starred = body.starred
     if body.persona_id is not None:
         s.persona_id = body.persona_id or None
+    if body.project_id is not None:
+        if body.project_id:
+            project = db.get(Project, body.project_id)
+            if not project:
+                raise HTTPException(404, "project not found")
+            s.project_id = project.id
+            s.project = project
+            s.working_dir = ""
+        else:
+            s.project_id = None
+            s.project = None
     if body.working_dir is not None:
-        s.working_dir = body.working_dir
+        if body.working_dir.strip():
+            try:
+                s.working_dir = canonical_folder(body.working_dir, must_exist=True)
+            except ValueError as exc:
+                raise ApiError(400, str(exc), str(exc).replace("_", " ")) from exc
+            s.project_id = None
+            s.project = None
+        else:
+            s.working_dir = ""
     ephemeral = incognito.get_session(session_id) is s
     if not ephemeral:
         db.commit()
     if renamed and not ephemeral:
         bg.add_task(_fire, "session_renamed", {"session_id": s.id, "name": s.name})
     return _fmt_session(s)
+
+
+class SwitchSessionBranch(BaseModel):
+    branch: str
+
+
+@router.get("/sessions/{session_id}/git/branches")
+def session_git_branches(session_id: str, db: DbSession = Depends(get_db)):
+    session = _session_or_404(session_id, db)
+    environment = session_environment(session)
+    cwd = environment.get("cwd") or ""
+    if not cwd:
+        return {"repository": False, "current": "", "branches": [], "dirty": False}
+    return branch_state(cwd)
+
+
+@router.post("/sessions/{session_id}/git/branches")
+def switch_session_branch(
+    session_id: str,
+    body: SwitchSessionBranch,
+    request: Request,
+    db: DbSession = Depends(get_db),
+):
+    require_recent_owner(request)
+    session = _session_or_404(session_id, db)
+    cwd = session_environment(session).get("cwd") or ""
+    if not cwd:
+        raise ApiError(409, "session_folder_unavailable", "choose a working folder first")
+    try:
+        return switch_branch(cwd, body.branch.strip())
+    except ProjectGitError as exc:
+        raise ApiError(409, "session_git_switch_failed", str(exc)) from exc
 
 
 # POST /api/sessions/{id}/archive

@@ -77,7 +77,12 @@ def verify_assertion(
         if require_user_verification and not (flags & 0x04):
             return False
         cnt = int.from_bytes(ad[33:37], "big")
-        if previous_sign_count is not None and previous_sign_count and cnt and cnt <= previous_sign_count:
+        if (
+            previous_sign_count is not None
+            and previous_sign_count
+            and cnt
+            and cnt <= previous_sign_count
+        ):
             return False
         pub = serialization.load_der_public_key(_b64d(public_key_der))
         signed = ad + hashlib.sha256(cd_bytes).digest()

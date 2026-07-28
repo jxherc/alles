@@ -1,3 +1,6 @@
+import tempfile
+from pathlib import Path
+
 from core.database import Session
 from tests._client import ApiTest
 
@@ -115,3 +118,15 @@ class ProjectsApiTest(ApiTest):
         self.assertEqual(len(lst), 2)
         self.assertEqual(lst[0]["name"], "alpha")
         self.assertEqual(lst[1]["name"], "beta")
+
+    def test_folder_browser_lists_directories_for_custom_project_picker(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "alpha").mkdir()
+            (root / "beta").mkdir()
+            (root / "not-a-folder.txt").write_text("x")
+            response = self.client.get("/api/project-folders", params={"path": str(root)})
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["path"], str(root.resolve()))
+        self.assertEqual([item["name"] for item in data["folders"]], ["alpha", "beta"])

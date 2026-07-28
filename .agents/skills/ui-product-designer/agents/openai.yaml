@@ -1,0 +1,4 @@
+interface:
+  display_name: "Alles UI Product Designer"
+  short_description: "Design coherent KOKUEN product interfaces"
+  default_prompt: "Use $ui-product-designer to design or review this Alles interface against the KOKUEN system."
