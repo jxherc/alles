@@ -38,7 +38,7 @@ Never rely on color alone. Text, position, icon shape, or state wording must car
 - code and terminal: local monospace stack only.
 
 Avoid fake hierarchy from accidental bold. Use weight 400 for body, 520 to 580 for emphasis, and 620 only for true headings.
-The app name appears once in the app-owned shell. Never enlarge and repeat it as a content title.
+The app name appears once in its local identity region. Never enlarge and repeat it as a content title.
 
 ## spacing
 
@@ -54,7 +54,9 @@ Use 0, 4, 8, 12, 16, 24, 32, 48, and 64px. These values express relationship:
 - 48px: section separation;
 - 64px: major page-block separation.
 
-Fixed structural sizes are separate tokens: 52px top bar, 36px dense row/control, 44px normal row and minimum mobile target. Do not invent a spacing value to repair a layout; fix the layout rule.
+Fixed structural sizes are separate tokens: 52px universal rail and app header, 44px product controls
+and interactive rows, and 36px only for noninteractive dense data. Do not invent a spacing value to
+repair a layout; fix the layout rule.
 
 The runtime numeric token names match their ordered KOKUEN step: `--k-space-1` through
 `--k-space-8` resolve to 4, 8, 12, 16, 24, 32, 48, and 64px. Portable components may use the
@@ -74,7 +76,8 @@ No card lift, all-around shadow, glow, or shape change on hover.
 
 ## layout
 
-- app-owned primary header: 52px;
+- universal navigation rail and app-owned primary header: 52px;
+- universal navigation target: 44px;
 - optional small-layout context or tab row: 44px;
 - content begins on the same top and side baselines inside its workspace shape;
 - page gutters: 16px small, 20px normal, 24px roomy;
@@ -91,4 +94,4 @@ Prefer surface tone and space. Use a 1px line only for a real pane, table, focus
 
 ## iconography
 
-Use bare local SVG marks on a consistent 16px grid, with a quiet 1.4 to 1.5px stroke when line icons are appropriate. Do not place icons in decorative tiles. A 32px desktop hit area or 44px mobile hit area may surround a bare mark without drawing a visible box at rest.
+Use bare local SVG marks on a consistent 16px grid, with a quiet 1.4 to 1.5px stroke when line icons are appropriate. Do not place icons in decorative tiles. A 44px hit area surrounds every actionable mark without drawing a visible box at rest.

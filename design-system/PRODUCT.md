@@ -26,9 +26,10 @@ The owner uses Alles often, usually alone, on a laptop and phone. They need fast
 - **Home** coordinates the day.
 - **Aide** chats and uses approved tools in one automatic assistant experience.
 - **Andromeda** gives a grounded overview and normal web results.
-- **Apps** opens specialist tools.
+- **Universal navigation** opens specialist tools from every space.
 
-Specialist destinations include Plan, Docs, Files, Finance, Inbox, Library, Health, Passwords, and Server. Compatibility routes may keep older app names while migrations are proven.
+The nine specialist destinations are Plan, Inbox, Docs, Files, Library, Health, Finance, Vault, and
+Server. Compatibility routes may keep older internal view names while migrations are proven.
 
 ## experience goals
 

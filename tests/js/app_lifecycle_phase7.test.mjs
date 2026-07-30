@@ -45,24 +45,27 @@ test('generic modal dismissal excludes the Files preview lifecycle', () => {
   assert.match(app, /\.modal-overlay:not\(#settings-modal\):not\(#files-preview-modal\)/);
 });
 
-test('the Apps home action returns to Home before closing the drawer', () => {
+test('the universal shell close action only dismisses navigation', () => {
   assert.match(
     app,
-    /app-drawer-close'\)\?\.addEventListener\('click', returnHomeFromAppDrawer\)/,
+    /app-drawer-close'\)\?\.addEventListener\('click', closeAppDrawer\)/,
   );
-  const action = app.match(/async function returnHomeFromAppDrawer\(\)[\s\S]*?\n}/)?.[0] || '';
-  assert.match(action, /navigateTo\(_afterlifeFlags\.afterlife_today \? 'today' : 'home'\)/);
-  assert.match(action, /if \(navigated\) closeAppDrawer\(\)/);
+  assert.doesNotMatch(app, /function returnHomeFromAppDrawer/);
+  assert.match(app, /_appDrawerFocusBoundary\?\.deactivate\(\)/);
 });
 
-test('Apps drawer destinations close only after guarded navigation succeeds', () => {
+test('universal shell destinations close only after guarded navigation succeeds', () => {
   const drawer = app.match(/function _renderAppDrawer\(\)[\s\S]*?\n}/)?.[0] || '';
-  assert.match(drawer, /\['everyday', \['plan', 'inbox', 'wiki'\]\]/);
-  assert.match(drawer, /\['personal', \['files', 'library', 'health'\]\]/);
-  assert.match(drawer, /\['manage', \['finance', 'vault', 'system'\]\]/);
-  assert.match(drawer, /\['system', \{ name: 'server', desc: 'services, backups, and updates' \}\]/);
+  assert.match(app, /\['primary spaces', \[/);
+  assert.match(app, /view: 'today', name: 'home'/);
+  assert.match(app, /view: 'chat', name: 'aide'/);
+  assert.match(app, /view: 'andromeda', name: 'andromeda'/);
+  assert.match(app, /\['everyday', \[/);
+  assert.match(app, /\['personal', \[/);
+  assert.match(app, /\['manage', \[/);
+  assert.match(app, /view: 'system', name: 'server', desc: 'services, backups, and updates'/);
   assert.match(drawer, /addEventListener\('click', async \(\) =>/);
-  assert.match(drawer, /const navigated = await navigateTo\(tile\.view\)/);
+  assert.match(drawer, /const navigated = await navigateTo\(destination\.view\)/);
   assert.match(drawer, /if \(staysOnPage && navigated\) closeAppDrawer\(\)/);
 });
 
