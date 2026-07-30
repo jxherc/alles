@@ -215,7 +215,10 @@ export function setNewestOnly(on) {
   _newestOnly = !!on;
   localStorage.setItem('aide-newest-only', _newestOnly ? '1' : '0');
   // keep every newest-only switch in the ui in sync (top picker modal + models page)
-  document.querySelectorAll('.newest-only-switch, #newest-only-switch').forEach(sw => sw.classList.toggle('on', _newestOnly));
+  document.querySelectorAll('.newest-only-switch, #newest-only-switch').forEach(sw => {
+    sw.classList.toggle('on', _newestOnly);
+    sw.setAttribute('aria-checked', String(_newestOnly));
+  });
   renderModelList(document.getElementById('model-search-input')?.value || '');
   renderSidebarModelList(document.getElementById('sidebar-model-search')?.value || '');
 }
@@ -304,8 +307,8 @@ export function renderModelList(filter = '') {
     const logoFor = m => providerLogo(providerKey(epCtx + ' ' + m), { size: 14 });
     html += `<div class="provider-label" style="color:${color}">${ep.name}</div>`;
     if (!models.length && !imgs.length) {
-      html += `<div style="padding:0.3rem 1rem;font-size:0.72rem;color:var(--muted)">
-        no models — <button style="background:none;border:none;cursor:pointer;color:var(--accent);font:inherit;font-size:0.72rem" onclick="probeEndpoint('${ep.id}')">probe</button>
+      html += `<div style="padding:0.3rem 1rem;font-size:0.75rem;color:var(--muted)">
+        no models — <button style="background:none;border:none;cursor:pointer;color:var(--accent);font:inherit;font-size:0.75rem" onclick="probeEndpoint('${ep.id}')">probe</button>
       </div>`;
       continue;
     }
@@ -313,25 +316,39 @@ export function renderModelList(filter = '') {
     for (const m of models) {
       const isActive = _selected?.endpointId === ep.id && _selected?.model === m;
       const eye = visionSet.has(m) ? '<span class="model-vision-badge" title="vision">👁</span>' : '';
-      html += `<div class="model-row${isActive ? ' active' : ''}" data-ep="${ep.id}" data-model="${escAttr(m)}">
+      html += `<button type="button" role="option" aria-selected="${isActive}" tabindex="${isActive ? '0' : '-1'}" class="model-row${isActive ? ' active' : ''}" data-ep="${ep.id}" data-model="${escAttr(m)}">
         ${logoFor(m)}
         <span class="model-name" title="${escAttr(m)}">${escHtml(prettyModel(m))}</span>${eye}
-      </div>`;
+      </button>`;
     }
     for (const m of imgs) {
       const isActive = (_imageSlot?.endpointId === ep.id && _imageSlot?.model === m) ||
         (_selected?.endpointId === ep.id && _selected?.model === m);
-      html += `<div class="model-row model-row-img${isActive ? ' active' : ''}" data-ep="${ep.id}" data-model="${escAttr(m)}">
+      html += `<button type="button" role="option" aria-selected="${isActive}" tabindex="${isActive ? '0' : '-1'}" class="model-row model-row-img${isActive ? ' active' : ''}" data-ep="${ep.id}" data-model="${escAttr(m)}">
         ${logoFor(m)}
         <span class="model-name" title="${escAttr(m)}">${escHtml(prettyModel(m))}</span><span class="model-img-badge" title="image generation">🎨</span>
-      </div>`;
+      </button>`;
     }
   }
   if (!html) html = '<div style="padding:1rem;font-size:0.75rem;color:var(--faint)">no endpoints — add one in the endpoints tab</div>';
   list.innerHTML = html;
-  list.querySelectorAll('.model-row').forEach(el => {
+  const rows = [...list.querySelectorAll('.model-row')];
+  if (rows.length && !rows.some(row => row.tabIndex === 0)) rows[0].tabIndex = 0;
+  rows.forEach(el => {
     el.addEventListener('click', () => selectModel(el.dataset.ep, el.dataset.model));
   });
+  list.onkeydown = event => {
+    const index = rows.indexOf(document.activeElement);
+    let next = -1;
+    if (event.key === 'ArrowDown') next = (index + 1 + rows.length) % rows.length;
+    else if (event.key === 'ArrowUp') next = (index - 1 + rows.length) % rows.length;
+    else if (event.key === 'Home') next = 0;
+    else if (event.key === 'End') next = rows.length - 1;
+    if (next < 0 || !rows.length) return;
+    event.preventDefault();
+    rows.forEach((row, rowIndex) => { row.tabIndex = rowIndex === next ? 0 : -1; });
+    rows[next].focus();
+  };
 }
 
 export function renderSidebarModelList(filter = '') {
@@ -356,7 +373,7 @@ export function renderSidebarModelList(filter = '') {
     const row = (m, img) => {
       const isActive = (_selected?.endpointId === ep.id && _selected?.model === m) ||
         (img && _imageSlot?.endpointId === ep.id && _imageSlot?.model === m);
-      return `<button class="sidebar-model-row${isActive ? ' active' : ''}${img ? ' sidebar-model-img' : ''}" data-ep="${ep.id}" data-model="${escAttr(m)}" title="${escAttr(m)}">
+      return `<button type="button" class="sidebar-model-row${isActive ? ' active' : ''}${img ? ' sidebar-model-img' : ''}" data-ep="${ep.id}" data-model="${escAttr(m)}" title="${escAttr(m)}">
         <span>${escHtml(prettyModel(m))}</span>${img ? '<span class="model-img-badge" title="image generation">🎨</span>' : ''}
       </button>`;
     };
@@ -378,8 +395,11 @@ export async function selectModel(endpointId, model) {
     if (!_selected) {
       _setSelection({ endpointId, model }, 'explicit', true);
     }
-    const modal = document.getElementById('model-modal');
-    if (modal) modal.style.display = 'none';
+    if (typeof window._closeModelModal === 'function') window._closeModelModal();
+    else {
+      const modal = document.getElementById('model-modal');
+      if (modal) modal.style.display = 'none';
+    }
     return;
   }
   const selection = _catalogSelection({ endpointId, model }, false);
@@ -423,8 +443,11 @@ export async function selectModel(endpointId, model) {
   if (session && window._currentSession?.id !== session.id) return;
   _setSelection(selection, 'explicit', true);
   // close modal + go back to models tab
-  const modal = document.getElementById('model-modal');
-  if (modal) modal.style.display = 'none';
+  if (typeof window._closeModelModal === 'function') window._closeModelModal();
+  else {
+    const modal = document.getElementById('model-modal');
+    if (modal) modal.style.display = 'none';
+  }
 }
 
 // ── endpoints tab ─────────────────────────────────────────────────────────────
@@ -442,23 +465,23 @@ export function renderEndpointList() {
       <div class="mm-ep-card-head">
         <span class="provider-dot" style="background:${color}"></span>
         <span class="mm-ep-name" style="font-weight:500">${escHtml(ep.name)}</span>
-        <span style="font-size:0.68rem;color:var(--muted)">${ep.models.length} models</span>
+        <span style="font-size:0.75rem;color:var(--muted)">${ep.models.length} models</span>
         <div class="mm-ep-actions" style="margin-left:auto;display:flex;gap:0.25rem">
-          <button class="btn mm-test-btn" data-id="${ep.id}" title="test completion" ${!ep.models.length ? 'disabled' : ''}>test</button>
-          <button class="btn mm-probe-btn" data-id="${ep.id}" title="probe models">probe</button>
-          <button class="act-btn mm-del-btn" data-id="${ep.id}">×</button>
+          <button class="btn mm-test-btn" type="button" data-id="${ep.id}" title="test completion" ${!ep.models.length ? 'disabled' : ''}>test</button>
+          <button class="btn mm-probe-btn" type="button" data-id="${ep.id}" title="probe models">probe</button>
+          <button class="act-btn mm-del-btn" type="button" data-id="${ep.id}" aria-label="remove ${escAttr(ep.name)} endpoint">×</button>
         </div>
       </div>
       <div class="mm-ep-edit" id="mm-ep-edit-${ep.id}" style="display:none">
         <input class="settings-input mm-edit-name" placeholder="name" value="${escAttr(ep.name)}" style="width:120px">
         <input class="settings-input mm-edit-url" placeholder="base url" value="${escAttr(ep.base_url || '')}" style="flex:1">
         <input class="settings-input mm-edit-key" type="password" placeholder="api key" value="" style="width:140px">
-        <button class="btn primary mm-save-btn" data-id="${ep.id}">save</button>
-        <button class="btn mm-cancel-btn" data-id="${ep.id}">cancel</button>
+        <button class="btn primary mm-save-btn" type="button" data-id="${ep.id}">save</button>
+        <button class="btn mm-cancel-btn" type="button" data-id="${ep.id}">cancel</button>
       </div>
       <div class="mm-ep-info">
-        <span style="font-size:0.68rem;color:var(--muted)">${escHtml(ep.base_url || '')}</span>
-        <button class="mm-edit-toggle" data-id="${ep.id}" style="font-size:0.68rem;color:var(--accent);background:none;border:none;cursor:pointer;padding:0 0.25rem">edit</button>
+        <span style="font-size:0.75rem;color:var(--muted)">${escHtml(ep.base_url || '')}</span>
+        <button class="mm-edit-toggle" type="button" data-id="${ep.id}" aria-expanded="false" aria-controls="mm-ep-edit-${ep.id}" style="font-size:0.75rem;color:var(--accent);background:none;border:none;cursor:pointer;padding:0 0.25rem">edit</button>
       </div>
     </div>`;
   }).join('');
@@ -469,6 +492,7 @@ export function renderEndpointList() {
       const editRow = card.querySelector('.mm-ep-edit');
       const isOpen = editRow.style.display !== 'none';
       editRow.style.display = isOpen ? 'none' : 'flex';
+      btn.setAttribute('aria-expanded', String(!isOpen));
     });
   });
 
@@ -540,9 +564,10 @@ export function renderEndpointList() {
 function _renderPresets() {
   const el = document.getElementById('mm-presets');
   if (!el) return;
-  el.innerHTML = '<span style="font-size:0.68rem;color:var(--muted);flex-shrink:0">quick add:</span>';
+  el.innerHTML = '<span style="font-size:0.75rem;color:var(--muted);flex-shrink:0">quick add:</span>';
   for (const p of PRESETS) {
     const btn = document.createElement('button');
+    btn.type = 'button';
     btn.className = 'mm-preset-btn';
     btn.textContent = p.name;
     btn.addEventListener('click', () => {
@@ -561,6 +586,7 @@ export function initModelModal() {
   // (.newest-only-switch) share the same state; setNewestOnly() re-syncs every switch.
   document.querySelectorAll('.newest-only-switch, #newest-only-switch').forEach(sw => {
     sw.classList.toggle('on', _newestOnly);
+    sw.setAttribute('aria-checked', String(_newestOnly));
     sw.addEventListener('click', () => setNewestOnly(!sw.classList.contains('on')));
   });
   // clicking the image-slot chip drops the companion image model
@@ -578,17 +604,41 @@ export function initModelModal() {
     b.textContent = 'refresh'; b.disabled = false;
   });
   // tab switching
-  document.querySelectorAll('.mm-tab').forEach(tab => {
+  const tabs = [...document.querySelectorAll('.mm-tab')];
+  const activateTab = tab => {
+    tabs.forEach(candidate => {
+      const active = candidate === tab;
+      candidate.classList.toggle('active', active);
+      candidate.setAttribute('aria-selected', String(active));
+      candidate.tabIndex = active ? 0 : -1;
+    });
+    const name = tab.dataset.tab;
+    const modelsPanel = document.getElementById('mm-panel-models');
+    const endpointsPanel = document.getElementById('mm-panel-endpoints');
+    modelsPanel.style.display = name === 'models' ? '' : 'none';
+    endpointsPanel.style.display = name === 'endpoints' ? '' : 'none';
+    modelsPanel.hidden = name !== 'models';
+    endpointsPanel.hidden = name !== 'endpoints';
+    if (name === 'endpoints') {
+      renderEndpointList();
+      _renderPresets();
+    }
+  };
+  tabs.forEach(tab => {
     tab.addEventListener('click', () => {
-      document.querySelectorAll('.mm-tab').forEach(t => t.classList.remove('active'));
-      tab.classList.add('active');
-      const name = tab.dataset.tab;
-      document.getElementById('mm-panel-models').style.display = name === 'models' ? '' : 'none';
-      document.getElementById('mm-panel-endpoints').style.display = name === 'endpoints' ? '' : 'none';
-      if (name === 'endpoints') {
-        renderEndpointList();
-        _renderPresets();
-      }
+      activateTab(tab);
+    });
+    tab.addEventListener('keydown', event => {
+      const index = tabs.indexOf(tab);
+      let next = -1;
+      if (event.key === 'ArrowRight') next = (index + 1) % tabs.length;
+      else if (event.key === 'ArrowLeft') next = (index - 1 + tabs.length) % tabs.length;
+      else if (event.key === 'Home') next = 0;
+      else if (event.key === 'End') next = tabs.length - 1;
+      if (next < 0) return;
+      event.preventDefault();
+      activateTab(tabs[next]);
+      tabs[next].focus();
     });
   });
 

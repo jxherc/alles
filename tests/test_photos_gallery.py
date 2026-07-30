@@ -26,7 +26,7 @@ class GalleryRebuild(unittest.TestCase):
         self.assertNotIn('style="font-size', head)
 
     def test_control_sizing_centralised(self):
-        self.assertRegex(CSS, r"\.photos-head \.btn[^{]*\{[^}]*font-size:\s*0\.72rem")
+        self.assertRegex(CSS, r"\.photos-head \.btn[^{]*\{[^}]*font-size:\s*0\.75rem")
         # search is pushed to the right edge of the slim top bar
         self.assertRegex(CSS, r"\.photos-head \.photos-search\s*\{[^}]*margin-left:\s*auto")
 

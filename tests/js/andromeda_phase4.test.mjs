@@ -487,18 +487,43 @@ test('persisted Andromeda toggles and model band share the ordered settings queu
     bindings.indexOf("el('andromeda-band')"),
     bindings.indexOf('for (const id of Object.keys(SEARCH_CREDENTIAL_FIELDS))'),
   );
-  for (const handler of [toggles, band]) {
+  for (const handler of [band]) {
     assert.match(handler, /queueSearchConfigurationWrite\(/);
     assert.match(handler, /\(\) => patchSearchSettings\(/);
   }
   assert.match(
     toggles,
-    /const next = !pressed\(id\)[\s\S]*\(\) => patchSearchSettings\(\{ \[setting\]: next \}\)/,
+    /persistAndromedaSwitch\(id, setting\)/,
   );
   assert.match(
     band,
     /const band = providerValue\('andromeda-band', 'standard'\)[\s\S]*andromeda_model_band: band/,
   );
+});
+
+test('Andromeda switches expose names and roll failed writes back from a busy state', () => {
+  const html = readFileSync(new URL('../../static/index.html', import.meta.url), 'utf8');
+  for (const [id, label] of [
+    ['andromeda-results-toggle', 'show normal results'],
+    ['andromeda-overview-toggle', 'show ai overview'],
+    ['andromeda-verification-toggle', 'independently fact-check answers'],
+  ]) {
+    assert.match(html, new RegExp(`id="${id}"[^>]+aria-label="${label}"`));
+  }
+  const source = readFileSync(new URL('../../static/js/andromeda.js', import.meta.url), 'utf8');
+  const helper = source.slice(
+    source.indexOf('async function persistAndromedaSwitch'),
+    source.indexOf('async function saveSearchConfiguration'),
+  );
+  assert.match(helper, /aria-busy[^\n]+true/);
+  assert.match(helper, /button\.disabled = true/);
+  assert.match(
+    helper,
+    /if \(!button \|\| button\.getAttribute\('aria-busy'\) === 'true'\) return false/,
+  );
+  assert.match(helper, /setPressed\(id, previous\)/);
+  assert.match(helper, /outcome = 'error'/);
+  assert.match(helper, /setting was not saved; try again/);
 });
 
 test('overview strength explains both speed and answer quality', () => {

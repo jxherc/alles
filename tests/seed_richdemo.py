@@ -19,12 +19,14 @@ from core.database import (  # noqa: E402
     CalendarEvent,
     Contact,
     DayEvent,
+    FinanceLedgerState,
     JournalEntry,
     SessionLocal,
     Subscription,
     Task,
     Transaction,
 )
+from services import finance_currency  # noqa: E402
 
 NOW = datetime.now()
 TODAY = NOW.date()
@@ -37,6 +39,16 @@ def iso(d):
 def main():
     d = SessionLocal()
     cnt = lambda m: d.query(m).count()  # noqa: E731
+
+    # The demo is an internally consistent USD ledger. Keep its explicit
+    # currency provenance current so populated Finance views exercise their
+    # success path instead of manufacturing review-conflict responses.
+    ledger = d.get(FinanceLedgerState, "primary")
+    if ledger is None:
+        ledger = FinanceLedgerState(id="primary", base_currency_code="USD")
+        d.add(ledger)
+    else:
+        ledger.base_currency_code = "USD"
 
     # ── tasks ────────────────────────────────────────────────────────────────
     if cnt(Task) < 6:
@@ -151,11 +163,24 @@ def main():
                 Subscription(
                     name=name,
                     price=price,
+                    currency="USD",
                     cycle="monthly",
                     category=cat,
                     next_due=iso(TODAY + timedelta(days=due_off)),
                 )
             )
+
+    # Seed scripts bypass the HTTP constructors that normally add reviewed
+    # same-currency evidence, so normalize every synthetic finance row here.
+    d.flush()
+    for account in d.query(Account).all():
+        account.currency = "USD"
+        finance_currency.prepare_account(account)
+    for transaction in d.query(Transaction).all():
+        finance_currency.prepare_transaction(d, transaction, source="demo_seed")
+    for subscription in d.query(Subscription).all():
+        subscription.currency = "USD"
+        finance_currency.prepare_subscription(subscription)
 
     # ── calendar: a month of events ──────────────────────────────────────────
     if not d.query(Calendar).count():

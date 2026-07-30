@@ -12,7 +12,11 @@ PORT = os.environ.get("PORT", "8895")
 BASE = f"http://127.0.0.1:{PORT}"
 DOCS = f"http://docs.localhost:{PORT}"
 DATA = Path(os.environ["ALLES_DATA"]).resolve()
-EVID = Path(os.environ.get("ALLES_BROWSER_EVIDENCE", str(Path(tempfile.gettempdir()) / "alles-docs-evidence")))
+EVID = Path(
+    os.environ.get(
+        "ALLES_BROWSER_EVIDENCE", str(Path(tempfile.gettempdir()) / "alles-docs-evidence")
+    )
+)
 IGNORE = ("Failed to load resource", "net::", "ERR_", "favicon", "401", "Load failed")
 
 
@@ -212,9 +216,19 @@ def main():
         pg.fill("#note-edit-title", "browser scratch")
         pg.fill("#note-edit-body", "plain body for the note")
         pg.fill("#note-edit-tags", "audit, scratch")
+        pg.evaluate("window._reloadNotes()")
+        r["notes_reload_preserves_active_editor"] = (
+            pg.input_value("#note-edit-title") == "browser scratch"
+            and pg.input_value("#note-edit-body") == "plain body for the note"
+            and pg.input_value("#note-edit-tags") == "audit, scratch"
+        )
         pg.click("#note-add-item")
         pg.fill("#note-checklist .note-cl-row:last-child .note-cl-text", "save this")
-        pg.check("#note-checklist .note-cl-row:last-child .note-cl-done")
+        pg.click("#note-checklist .note-cl-row:last-child .note-cl-done")
+        pg.wait_for_function(
+            "document.querySelector('#note-checklist .note-cl-row:last-child .note-cl-done')"
+            "?.getAttribute('aria-checked') === 'true'"
+        )
         pg.click("#note-save-btn")
         pg.wait_for_timeout(400)
         pg.click("#note-back-btn")

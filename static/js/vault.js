@@ -992,7 +992,7 @@ function openVaultForm(entry = null, returnFocus = document.activeElement) {
         ${editing ? `<div class="vform-divider"></div>
         <div class="vform-field"><label>attachments</label><div id="vf-attach"></div>
           <input type="file" id="vf-attach-input" hidden>
-          <button type="button" class="btn" id="vf-attach-btn" style="font-size:0.68rem">+ attach file</button></div>` : ''}
+          <button type="button" class="btn" id="vf-attach-btn" style="font-size:0.75rem">+ attach file</button></div>` : ''}
       </div>
       <div class="vault-form-actions">
         ${editing ? '<button type="button" class="btn danger" id="vf-del" style="margin-right:auto">delete</button>' : ''}

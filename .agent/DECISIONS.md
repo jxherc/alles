@@ -1,5 +1,32 @@
 # engineering decisions
 
+## Literal control census with explicit uncertainty
+
+Decision
+
+Choice: keep the feature-level interaction map as the product/function authority and add a generated
+literal census for every static control and every dynamic renderer template. Give each record a stable
+source identity, feature owner, trigger modalities, nearest discoverable handler and request paths,
+KOKUEN state vocabulary, outcome status, authority/recovery fields, accessibility metadata, and an
+evidence level. Use bounded source classifications and explicit cross-feature ownership instead of
+inventing runtime precision.
+
+Reason: the feature map proves all registered routes, jobs, tools, and app functions have an owner, but
+its 52 control roots cannot answer the owner's per-button question. Conversely, source parsing can prove
+that a control exists without proving that a real pointer, keyboard, provider, or device path passed.
+Layering the two keeps both inventories honest and allows runtime evidence to progressively replace
+source-only evidence.
+
+Alternatives considered: manually document hundreds of controls, replace the feature map with DOM
+output, count only controls visible in one browser state, or label source discovery as successful use.
+
+Consequences: the generated census currently reconciles 686 static controls and 926 dynamic templates
+with 2,730 activation paths. Literal handler, outcome, transition, and recovery placeholders are forbidden.
+Controls for which static extraction cannot match an authority remain explicitly classified as
+`no-matched-source-authority`, and source-only evidence remains source-only. Every real-use pass can attach
+one of the fixed evidence levels without changing product ownership; generated JSON and Markdown must
+remain fresh.
+
 ## Visible-before-motion runtime invariant
 
 Decision
@@ -375,8 +402,10 @@ Alternatives considered: a pasted vault token, permanent browser unlock, persist
 always-running content script.
 
 Consequences: pairing alone cannot decrypt anything. Browser/server restart, explicit/computer lock,
-or revoke removes fill authority; the extension asks for the Alles host and active tab only, injects
-frame 0, validates form shape, and never submits.
+or revoke removes fill authority; every asynchronous match and release result must re-prove that its
+captured session token still owns the popup before it can render or inject. Explicit lock waits for
+server acknowledgement. The extension asks for the Alles host and active tab only, injects frame 0,
+validates form shape, and never submits.
 
 ## Phase 10 localization and credits contracts
 
@@ -565,3 +594,42 @@ model and effort, or present official role guidance as if it were an empirical A
 Consequences: all 120 registered tasks resolve to an executable model and effort even after their
 acceptance status changes, routing stays in sync with the authoritative registry, and escalation requires
 a recorded repeated failure or unresolved safety/recovery ambiguity.
+
+## Isolated model-boundary acceptance
+
+Decision
+
+Choice: prove Aide model selection, streaming, effort mapping, errors, and retries against an owned
+loopback OpenAI-compatible fixture inside the throwaway browser environment. Keep real provider account
+acceptance separate and externally blocked unless an already configured app boundary is available.
+
+Reason: Alles supports API keys for OpenAI-compatible endpoints and OAuth only for Gemini. Reusing owner
+encrypted endpoints would require copying the private database and key into the test root, while creating
+a new Gemini grant requires an owner Google client/project and action-time consent.
+
+Alternatives considered: copy owner model credentials, scrape a consumer chat login, install Ollama,
+invoke the unsafe legacy live-usage helper, or call a paid provider without a test-specific grant.
+
+Consequences: the complete app/provider protocol and every local effort path receive deterministic real
+UI proof without spending quota or exposing secrets. The evidence is explicitly fixture-backed and never
+presented as external provider acceptance.
+
+## Canonical KOKUEN advisory acceptance
+
+Decision
+
+Choice: treat the canonical linter's hard rules and advisory rules separately. Require zero hard errors,
+then fingerprint every remaining advisory and assign it one of four declared jobs: secondary metadata,
+compact control label, interactive bezel, or independent subregion seam.
+
+Reason: the KOKUEN reference requires boundary warnings to be investigated and given a declared job,
+not mechanically rejected. The shipped workbenches intentionally retain dense 12-13px secondary copy
+and self-contained controls/subregions while preserving the 12px hard floor, 44px targets, visible focus,
+and one perceived same-level boundary.
+
+Alternatives considered: ignore raw warnings, suppress them inline without an audit, enlarge all compact
+metadata to 14px, or remove every descendant edge regardless of its semantic job.
+
+Consequences: the canonical overlay has zero hard errors and zero unexplained warnings. Any warning
+addition, removal, line/message drift, or new rule fails the local audit until it receives rendered review
+and an explicit resolution.

@@ -201,6 +201,7 @@ test('legacy app identifiers resolve to a group without losing their subsection'
 test('Aide reminders has a routable identifier while legacy reminders stay with Plan', () => {
   const app = readFileSync(new URL('../../static/js/app.js', import.meta.url), 'utf8');
   assert.match(app, /const grouped = groupRouteFor\(v\)/);
+  assert.match(app, /host: viewToSub\(groupedIdentifier\)/);
   assert.match(app, /const dest = groupedRoute\?\.host \?\? viewToSub\(v\)/);
   assert.match(app, /AIDE_TOOL_VIEWS = new Set\(\[[^]*?'aide-reminders'/);
   assert.match(app, /v === 'aide-reminders'\) showRemindersView\(\)/);
@@ -233,6 +234,7 @@ test('new group overview links do not collide with legacy app identifiers', () =
   assert.equal(groupIdentifierFor('files', 'gallery'), 'files-gallery');
   assert.equal(groupIdentifierFor('server', 'services'), 'server-services');
   assert.equal(groupIdentifierFor('server', 'activity'), 'activity');
+  assert.equal(groupIdentifierFor('vault', 'items'), 'vault');
 });
 
 test('invalid or unavailable group subsections safely return to overview', () => {

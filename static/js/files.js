@@ -456,9 +456,9 @@ async function openVersions(path, row) {
   pop.className = 'file-tagpop file-verpop';
   const body = vs.length
     ? vs.map(v => `<div class="file-ver-row" style="display:flex;justify-content:space-between;gap:0.5rem;align-items:center;padding:0.2rem 0">
-        <span style="font-size:0.66rem;color:var(--muted)">${esc(formatDateTime(v.created_at))} · ${fmtSize(v.size)}</span>
-        <button class="btn" data-restore="${esc(v.id)}" style="font-size:0.62rem">restore</button></div>`).join('')
-    : '<div style="font-size:0.72rem;color:var(--muted)">no earlier versions</div>';
+        <span style="font-size:0.75rem;color:var(--muted)">${esc(formatDateTime(v.created_at))} · ${fmtSize(v.size)}</span>
+        <button class="btn" data-restore="${esc(v.id)}" style="font-size:0.75rem">restore</button></div>`).join('')
+    : '<div style="font-size:0.75rem;color:var(--muted)">no earlier versions</div>';
   pop.innerHTML = body + '<div class="file-tagpop-actions"><button class="btn" data-cancel>close</button></div>';
   row.appendChild(pop);
   _armPopDismiss(pop);

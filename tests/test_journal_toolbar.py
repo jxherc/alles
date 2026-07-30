@@ -19,7 +19,7 @@ class JournalToolbarAlign(unittest.TestCase):
         )
         self.assertRegex(
             CSS,
-            r"\.jrnl-toolbar \.jrnl-search,\s*\.jrnl-toolbar \.btn\s*\{[^}]*font-size:\s*0\.74rem",
+            r"\.jrnl-toolbar \.jrnl-search,\s*\.jrnl-toolbar \.btn\s*\{[^}]*font-size:\s*0\.75rem",
         )
 
     def test_search_margin_zeroed(self):

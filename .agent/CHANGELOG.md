@@ -1,5 +1,20 @@
 # project changelog
 
+## 2026-07-31
+
+Change: added the literal KOKUEN control census and repaired the first regressions exposed by rendered
+per-control measurement.
+
+Files affected: source-derived control census, semantic overrides, generated JSON/Markdown, census
+tests; shared KOKUEN target and busy-state runtime; Andromeda switch names, persistence rollback, and
+focused source contracts; and current project state.
+
+Reason: the feature-level map did not identify every individual static or rendered control and activation
+path. The new 1,608-record census keeps owners, handlers, events, states, evidence, and uncertainty
+machine-verifiable. Real browser measurement found sub-44px controls and unnamed Andromeda switches;
+failed switch writes also left visible state inconsistent with persistence. Shared 44px hit geometry,
+busy repeat rejection, explicit names, rollback, and retry feedback now make those failures honest.
+
 ## 2026-07-30
 
 Change: completed the KOKUEN v5 whole-application interaction and anti-slop audit and repaired every
@@ -1243,3 +1258,75 @@ Python, and Playwright gates; and current task state.
 Reason: keep one universal workbench grammar without hiding owner data, mistaking request failures for
 empty collections, duplicating privileged writes, exposing pointer-only controls, or leaving rejected
 choices visible.
+
+Date: 2026-07-31
+
+Change: expanded the post-v5 literal interaction census and repaired defects exposed by populated,
+repeated real-application use.
+
+Files affected: control census generator, overrides, JSON and readable map; shared KOKUEN styling and
+state reflection; Plan task controls and dialog; specialist routing; rich-demo Finance provenance;
+localization; focused JavaScript, Python, and Playwright gates; and current task state.
+
+Reason: reconcile every discoverable control path without overclaiming tests, then make populated Plan,
+Calendar, Inbox, Finance, Vault, and Server behavior meet the same target, focus, repeat, error, and
+canonical-shell contract as their empty resting surfaces.
+
+Date: 2026-07-31
+
+Change: rebuilt and exercised the real Aide model-selection and effort path against an isolated local
+OpenAI-compatible provider boundary.
+
+Files affected: Aide model dialog markup, model picker and shell behavior, KOKUEN overlay, model-selection
+regressions, real model/effort browser gate, generated control census, and current task state.
+
+Reason: replace a pointer-only model list and incomplete modal semantics with a keyboard-complete focus
+boundary, then prove every effort, repeated selection, streaming, compatibility failure, automatic retry,
+manual recovery, and persisted reload without using owner credentials or paid provider quota.
+
+Date: 2026-07-31
+
+Change: completed the repeated literal control scan, audited every canonical KOKUEN advisory, and
+exercised Chrome-owned extension permission/pairing and standalone PWA installation through Computer Use.
+
+Files affected: canonical lint audit script, test, and documentation; current task and decision ledgers;
+real-app control evidence; owned Chrome testing profile and temporary application data only.
+
+Reason: make zero unexplained warnings a deterministic gate, distinguish automated web proof from native
+Chrome acceptance, and verify the universal shell in the actual installed delivery surface without using
+owner data or leaving the isolated PWA installed.
+
+Date: 2026-07-31
+
+Change: normalized every shipped inline product-text declaration below 12px to the KOKUEN hard floor and
+added a regression scan for static and dynamically rendered templates.
+
+Files affected: main browser markup; compact model, settings, calendar, contacts, Files, Photos, Vault,
+reminder, comparison, project, and application-settings renderers; KOKUEN lint regression and audit.
+
+Reason: the canonical overlay linter cannot see inline template styles, and the final point-by-point audit
+found legacy metadata and action labels that rendered below the non-negotiable 12px text floor.
+
+Date: 2026-07-31
+
+Change: closed the final real-use races exposed by repeated Docs, extension, schedule-send, and model-picker
+review, then reran the literal control census after the complete source corrections.
+
+Files affected: Notes editor refresh ownership; extension popup lock and stale-result ownership; Aide
+send-later busy/error behavior; model option button reset; focused JavaScript and Playwright evidence;
+literal census, generated logic map, and current task state.
+
+Reason: prevent background refresh from deleting live edits, prevent stale extension work from repainting
+or filling after lock, reject duplicate scheduled messages while retaining a useful retry surface, and
+ensure semantic option buttons never fall back to browser chrome or a sub-44px hit area.
+
+Date: 2026-07-31
+
+Change: completed the final KOKUEN v5 logic-map, automated, browser, Computer Use, visual, lint, and
+independent-regression acceptance program.
+
+Files affected: deterministic 1,612-control and 2,730-path census; KOKUEN warning audit; final real-app
+gates and captures; exhaustive Python and JavaScript suites; project task, decision, and change ledgers.
+
+Reason: finish from current rendered evidence rather than source confidence, preserve explicit external
+acceptance boundaries, and leave a reproducible local proof set before the no-push checkpoint commit.

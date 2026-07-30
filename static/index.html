@@ -107,7 +107,7 @@
   <main class="main">
     <div class="topbar">
       <div class="topbar-left">
-        <button class="icon-btn" id="sidebar-toggle-btn" title="toggle sidebar (Ctrl+B)" data-i18n-title="aide.toggle_sidebar">
+        <button class="icon-btn" id="sidebar-toggle-btn" type="button" title="toggle sidebar (Ctrl+B)" aria-label="toggle Aide sidebar" data-i18n-title="aide.toggle_sidebar">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="4" width="17" height="16" rx="2"/><path d="M9 4v16"/></svg>
         </button>
         <div class="app-crumb" id="app-crumb">alles</div>
@@ -118,18 +118,18 @@
           <small id="aide-project-name"></small>
         </div>
         <div class="ai-top-controls" id="ai-top-controls">
-          <button class="model-btn" id="model-btn">
+          <button class="model-btn" id="model-btn" type="button" aria-haspopup="dialog" aria-controls="model-modal" aria-expanded="false">
             <span class="live-dot" id="live-dot"></span>
             <span id="model-label" data-i18n="aide.no_model">no model</span>
             <span id="model-provider" class="model-provider"></span>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
           </button>
-          <button class="model-btn img-slot-btn" id="image-slot-btn" title="image model — click to remove" style="display:none">
+          <button class="model-btn img-slot-btn" id="image-slot-btn" type="button" title="image model — click to remove" aria-label="remove selected image model" style="display:none">
             <span class="img-slot-ic" id="image-slot-ic"></span>
             <span id="image-slot-label"></span>
             <span class="img-slot-x">×</span>
           </button>
-          <button class="model-btn" id="persona-btn" title="persona" style="display:none">
+          <button class="model-btn" id="persona-btn" type="button" title="persona" aria-haspopup="dialog" style="display:none">
             <span id="persona-label">persona</span>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
           </button>
@@ -146,13 +146,13 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="4" width="17" height="16" rx="2"/><path d="M15 4v16"/></svg>
         </button>
         <div class="topbar-right">
-          <button class="icon-btn" id="session-actions-btn" title="export / share" style="display:none">
+          <button class="icon-btn" id="session-actions-btn" type="button" title="export / share" aria-label="export or share session" aria-haspopup="menu" style="display:none">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
           </button>
-          <button class="icon-btn incognito-btn" id="incognito-btn" title="incognito mode" aria-pressed="false" aria-label="incognito mode" data-i18n-title="aide.incognito" data-i18n-aria-label="aide.incognito">
+          <button type="button" class="icon-btn incognito-btn" id="incognito-btn" title="incognito mode" aria-pressed="false" aria-label="incognito mode" data-i18n-title="aide.incognito" data-i18n-aria-label="aide.incognito">
             <svg class="incognito-ghost" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21v-9a7 7 0 0 1 14 0v9l-2.4-1.5L14.2 21l-2.2-1.5L9.8 21l-2.4-1.5L5 21z"/><circle cx="9.5" cy="11" r="0.5" fill="currentColor"/><circle cx="14.5" cy="11" r="0.5" fill="currentColor"/></svg>
           </button>
-          <button class="icon-btn" id="topbar-settings-btn" title="settings" data-i18n-title="common.settings">
+          <button type="button" class="icon-btn" id="topbar-settings-btn" title="settings" data-i18n-title="common.settings">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2a2 2 0 1 1-4 0V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1A2 2 0 1 1 4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H3a2 2 0 1 1 0-4h.2a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1A2 2 0 1 1 7.2 4.2l.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.6V3a2 2 0 1 1 4 0v.2a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1A2 2 0 1 1 20 7.2l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2a2 2 0 1 1 0 4h-.2a1.7 1.7 0 0 0-1.8 1z"/></svg>
           </button>
         </div>
@@ -165,7 +165,7 @@
         <svg class="incognito-ghost" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21v-9a7 7 0 0 1 14 0v9l-2.4-1.5L14.2 21l-2.2-1.5L9.8 21l-2.4-1.5L5 21z"/><circle cx="9.5" cy="11" r="0.5" fill="currentColor"/><circle cx="14.5" cy="11" r="0.5" fill="currentColor"/></svg>
         <span data-i18n="aide.incognito_chat">incognito chat</span>
       </span>
-      <button class="icon-btn" id="incognito-exit" title="leave incognito" data-i18n-title="aide.leave_incognito">
+      <button type="button" class="icon-btn" id="incognito-exit" title="leave incognito" data-i18n-title="aide.leave_incognito">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
     </div>
@@ -173,7 +173,7 @@
     <!-- connectivity warning — shows when a chat can't reach the endpoint -->
     <div class="conn-banner" id="conn-banner" style="display:none">
       <span class="conn-banner-msg" id="conn-banner-msg"></span>
-      <button class="conn-banner-x" id="conn-banner-x" title="dismiss">×</button>
+      <button type="button" class="conn-banner-x" id="conn-banner-x" title="dismiss">×</button>
     </div>
 
     <!-- Afterlife Home. Internal API and compatibility keys still use "today". -->
@@ -341,15 +341,15 @@
           <h3 id="andromeda-overview-settings-title">answer</h3>
         <div class="andromeda-setting-row">
           <span><strong>normal results</strong><small>links and media below the answer</small></span>
-          <button class="andromeda-switch" id="andromeda-results-toggle" type="button" role="switch" aria-checked="true" aria-pressed="true"><span></span></button>
+          <button class="andromeda-switch" id="andromeda-results-toggle" type="button" role="switch" aria-label="show normal results" aria-checked="true" aria-pressed="true"><span></span></button>
         </div>
         <div class="andromeda-setting-row">
           <span><strong>ai overview</strong><small>only appears in all</small></span>
-          <button class="andromeda-switch" id="andromeda-overview-toggle" type="button" role="switch" aria-checked="true" aria-pressed="true"><span></span></button>
+          <button class="andromeda-switch" id="andromeda-overview-toggle" type="button" role="switch" aria-label="show ai overview" aria-checked="true" aria-pressed="true"><span></span></button>
         </div>
         <div class="andromeda-setting-row">
           <span><strong>independent fact-check</strong><small>runs separately after freshness-sensitive answers</small></span>
-          <button class="andromeda-switch" id="andromeda-verification-toggle" type="button" role="switch" aria-checked="true" aria-pressed="true"><span></span></button>
+          <button class="andromeda-switch" id="andromeda-verification-toggle" type="button" role="switch" aria-label="independently fact-check answers" aria-checked="true" aria-pressed="true"><span></span></button>
         </div>
         <div class="andromeda-setting-row">
           <span><strong>when to check</strong><small>current dates and versions are checked by default</small></span>
@@ -386,8 +386,8 @@
           <div class="home-greeting" id="home-greeting"></div>
           <div id="home-tagline" class="home-tagline">your everything, in one place</div>
           <div class="home-head-actions">
-            <button class="btn" id="home-settings-btn" title="alles settings">settings</button>
-            <button class="btn home-edit-btn" id="home-edit-btn" title="rearrange & hide tiles">customize</button>
+            <button type="button" class="btn" id="home-settings-btn" title="alles settings">settings</button>
+            <button type="button" class="btn home-edit-btn" id="home-edit-btn" title="rearrange & hide tiles">customize</button>
           </div>
         </div>
         <div class="home-firstrun" id="home-firstrun" style="display:none"></div>
@@ -397,11 +397,11 @@
           <div class="home-today" id="home-today" style="display:none"></div>
           <div class="home-capture" id="home-capture">
             <div class="hc-modes">
-              <button class="hc-mode active" data-mode="note">note</button>
-              <button class="hc-mode" data-mode="task">task</button>
+              <button type="button" class="hc-mode active" data-mode="note">note</button>
+              <button type="button" class="hc-mode" data-mode="task">task</button>
             </div>
             <input type="text" id="hc-input" class="hc-input" placeholder="capture a note…" spellcheck="true" autocomplete="off">
-            <button class="btn primary hc-save" id="hc-save">save</button>
+            <button type="button" class="btn primary hc-save" id="hc-save">save</button>
           </div>
         </div>
 
@@ -410,15 +410,15 @@
           <div class="home-ask-reply" id="home-ask-reply" style="display:none"></div>
           <div class="home-ask-bar">
             <input type="file" id="ha-file" hidden>
-            <button class="ha-tool" id="ha-upload" title="attach a text file" aria-label="attach">
+            <button type="button" class="ha-tool" id="ha-upload" title="attach a text file" aria-label="attach">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
             </button>
             <input type="text" id="ha-input" class="home-ask-input" placeholder="quick message…" autocomplete="off">
-            <button class="ha-tool" id="ha-voice" title="voice input" aria-label="voice">
+            <button type="button" class="ha-tool" id="ha-voice" title="voice input" aria-label="voice">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
             </button>
             <div id="ha-model" class="home-ask-model custom-select" title="model"></div>
-            <button class="btn primary ha-send" id="ha-send">send</button>
+            <button type="button" class="btn primary ha-send" id="ha-send">send</button>
           </div>
         </div>
 
@@ -453,7 +453,7 @@
         <div style="display:flex;align-items:center;gap:0.55rem;margin-left:auto">
           <span class="newest-only-label">newest only</span>
           <div class="s-switch" id="newest-only-switch" title="show only the newest model of each family"></div>
-          <button class="btn" id="models-refresh-btn">refresh</button>
+          <button type="button" class="btn" id="models-refresh-btn">refresh</button>
         </div>
       </div>
       <div class="page-view-body">
@@ -465,7 +465,7 @@
     <div class="page-view aide-tool-view" id="brain-view" data-kokuen-surface="aide-tool" style="display:none">
       <div class="page-view-head aide-tool-head">
         <span class="page-view-title">brain</span>
-        <button class="btn" id="brain-refresh-btn">refresh</button>
+        <button type="button" class="btn" id="brain-refresh-btn">refresh</button>
       </div>
       <div class="page-view-body aide-tool-content">
         <div class="brain-grid" id="brain-stats"></div>
@@ -476,14 +476,14 @@
         <div class="brain-section">
           <div class="brain-section-title">recent memories</div>
           <div id="brain-memories"></div>
-          <button class="btn" id="brain-open-memory-btn" style="margin-top:0.65rem">open memory</button>
+          <button type="button" class="btn" id="brain-open-memory-btn" style="margin-top:0.65rem">open memory</button>
         </div>
         <div class="brain-section">
-          <div class="brain-section-title brain-sec-head">insights<button class="btn brain-sec-btn" id="brain-insights-run">generate</button></div>
+          <div class="brain-section-title brain-sec-head">insights<button type="button" class="btn brain-sec-btn" id="brain-insights-run">generate</button></div>
           <div id="brain-insights"></div>
         </div>
         <div class="brain-section">
-          <div class="brain-section-title brain-sec-head">what aide learned about you<button class="btn brain-sec-btn" id="brain-usermodel-run">refresh</button></div>
+          <div class="brain-section-title brain-sec-head">what aide learned about you<button type="button" class="btn brain-sec-btn" id="brain-usermodel-run">refresh</button></div>
           <div id="brain-usermodel"></div>
         </div>
       </div>
@@ -550,18 +550,18 @@
       <div class="page-view-head">
         <span class="page-view-title" data-i18n="tasks.title">tasks</span>
         <div class="tasks-tabs">
-          <button class="tasks-tab active" data-tab="active" data-i18n="common.all">all</button>
-          <button class="tasks-tab" data-tab="today" data-i18n="common.today">today</button>
-          <button class="tasks-tab" data-tab="upcoming" data-i18n="tasks.upcoming">upcoming</button>
-          <button class="tasks-tab" data-tab="someday" data-i18n="tasks.someday">someday</button>
-          <button class="tasks-tab" data-tab="done" data-i18n="tasks.history">history</button>
+          <button type="button" class="tasks-tab active" data-tab="active" aria-pressed="true" data-i18n="common.all">all</button>
+          <button type="button" class="tasks-tab" data-tab="today" aria-pressed="false" data-i18n="common.today">today</button>
+          <button type="button" class="tasks-tab" data-tab="upcoming" aria-pressed="false" data-i18n="tasks.upcoming">upcoming</button>
+          <button type="button" class="tasks-tab" data-tab="someday" aria-pressed="false" data-i18n="tasks.someday">someday</button>
+          <button type="button" class="tasks-tab" data-tab="done" aria-pressed="false" data-i18n="tasks.history">history</button>
         </div>
-        <input type="text" id="tasks-search" class="cal-quick tasks-search" placeholder="search tasks…" data-i18n-placeholder="tasks.search">
+        <input type="text" id="tasks-search" class="cal-quick tasks-search" aria-label="search tasks" placeholder="search tasks…" data-i18n-aria-label="tasks.search" data-i18n-placeholder="tasks.search">
       </div>
       <div class="page-view-body" id="tasks-list"></div>
       <div class="page-view-footer">
         <input type="text" id="task-add-input" placeholder="add a task… try 'pay rent every 1st !' or 'call mom tomorrow #home'" data-i18n-placeholder="tasks.quick_add_placeholder">
-        <button class="btn primary" id="task-add-btn" data-i18n="common.add">add</button>
+        <button type="button" class="btn primary" id="task-add-btn" data-i18n="common.add">add</button>
       </div>
     </div>
 
@@ -569,9 +569,9 @@
     <div class="page-view" id="calendar-view" data-specialist-app="calendar" style="display:none">
       <div class="page-view-head" style="gap:0.5rem">
         <div class="cal-nav">
-          <button class="btn" id="cal-prev" title="previous" data-i18n-title="common.previous">‹</button>
-          <button class="btn" id="cal-today" data-i18n="common.today">today</button>
-          <button class="btn" id="cal-next" title="next" data-i18n-title="common.next">›</button>
+          <button type="button" class="btn" id="cal-prev" title="previous" data-i18n-title="common.previous">‹</button>
+          <button type="button" class="btn" id="cal-today" data-i18n="common.today">today</button>
+          <button type="button" class="btn" id="cal-next" title="next" data-i18n-title="common.next">›</button>
         </div>
         <span id="cal-month-label" class="cal-month-title"></span>
         <div class="seg seg-cal" id="cal-view" style="margin-left:auto">
@@ -583,12 +583,12 @@
         </div>
         <a class="btn" id="cal-export" href="/api/calendar/export.ics" download title="export to .ics (Apple/Google/Outlook)" data-i18n="calendar.export" data-i18n-title="calendar.export_help">export</a>
         <input type="file" id="cal-import-file" accept=".ics,text/calendar" hidden>
-        <button class="btn" id="cal-import" title="import a .ics file" data-i18n="calendar.import" data-i18n-title="calendar.import_help">import</button>
+        <button type="button" class="btn" id="cal-import" title="import a .ics file" data-i18n="calendar.import" data-i18n-title="calendar.import_help">import</button>
         <input type="text" id="cal-quick" class="cal-quick" placeholder="quick add… 'lunch fri 1pm'" data-i18n-placeholder="calendar.quick_add_placeholder">
-        <button class="btn" id="cal-find" title="find a free time slot" data-i18n="calendar.find_time" data-i18n-title="calendar.find_time_help">find time</button>
-        <button class="btn" id="cal-sync-btn" title="CalDAV sync" data-i18n="calendar.sync" data-i18n-title="calendar.sync_help">sync</button>
-        <button class="btn primary" id="cal-new-btn" data-i18n="calendar.new_event">+ event</button>
-        <button class="icon-btn app-cog" data-app="calendar" title="calendar settings" data-i18n-title="calendar.settings"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2a2 2 0 1 1-4 0V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1A2 2 0 1 1 4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H3a2 2 0 1 1 0-4h.2a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1A2 2 0 1 1 7.2 4.2l.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.6V3a2 2 0 1 1 4 0v.2a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1A2 2 0 1 1 20 7.2l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2a2 2 0 1 1 0 4h-.2a1.7 1.7 0 0 0-1.8 1z"/></svg></button>
+        <button type="button" class="btn" id="cal-find" title="find a free time slot" data-i18n="calendar.find_time" data-i18n-title="calendar.find_time_help">find time</button>
+        <button type="button" class="btn" id="cal-sync-btn" title="CalDAV sync" data-i18n="calendar.sync" data-i18n-title="calendar.sync_help">sync</button>
+        <button type="button" class="btn primary" id="cal-new-btn" data-i18n="calendar.new_event">+ event</button>
+        <button type="button" class="icon-btn app-cog" data-app="calendar" title="calendar settings" data-i18n-title="calendar.settings"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2a2 2 0 1 1-4 0V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1A2 2 0 1 1 4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H3a2 2 0 1 1 0-4h.2a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1A2 2 0 1 1 7.2 4.2l.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.6V3a2 2 0 1 1 4 0v.2a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1A2 2 0 1 1 20 7.2l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2a2 2 0 1 1 0 4h-.2a1.7 1.7 0 0 0-1.8 1z"/></svg></button>
       </div>
       <div class="cal-layout">
         <div class="cal-sidebar" id="cal-sidebar"></div>
@@ -601,8 +601,8 @@
         <div class="page-view-head">
           <span class="page-view-title">gallery</span>
           <input type="file" id="gallery-file-input" accept="image/*" style="display:none">
-          <button class="btn" id="gallery-scan-btn">scan</button>
-          <button class="btn primary" id="gallery-upload-btn">+ upload</button>
+          <button type="button" class="btn" id="gallery-scan-btn">scan</button>
+          <button type="button" class="btn primary" id="gallery-upload-btn">+ upload</button>
         </div>
       <div class="page-view-body">
         <input type="text" id="gallery-prompt-input" placeholder="prompt / caption (optional)" class="gallery-prompt-input">
@@ -615,7 +615,7 @@
     <div class="page-view aide-tool-view" id="reminders-view" data-kokuen-surface="aide-tool" style="display:none">
       <div class="page-view-head aide-tool-head">
         <span class="page-view-title">reminders</span>
-        <button class="btn primary" id="push-enable-btn" style="margin-left:auto;font-size:0.72rem">enable notifications</button>
+        <button type="button" class="btn primary" id="push-enable-btn" style="margin-left:auto;font-size:0.75rem">enable notifications</button>
       </div>
       <div class="page-view-body aide-tool-content">
         <div id="reminder-list" style="margin-bottom:0.75rem"></div>
@@ -623,9 +623,9 @@
           <input type="text" id="reminder-text" class="settings-input" placeholder="what to remind / message to send..." style="flex:1">
           <div class="date-input" id="reminder-time" data-type="datetime" data-ph="when" style="width:200px"></div>
           <div id="reminder-type-select" class="settings-input custom-select" data-value="reminder" data-options="reminder|reminder;message|send message to AI" style="width:auto;min-width:150px"></div>
-          <button class="btn primary" id="reminder-add-btn">set</button>
+          <button type="button" class="btn primary" id="reminder-add-btn">set</button>
         </div>
-        <div style="font-size:0.7rem;color:var(--muted);margin-top:0.5rem">
+        <div style="font-size:0.75rem;color:var(--muted);margin-top:0.5rem">
           tip: use <code>/remind in 2h check deployment</code> or <code>/send at 3pm summarize my day</code> from chat
         </div>
       </div>
@@ -698,7 +698,7 @@
     <div class="page-view" id="cookbook-view" style="display:none">
       <div class="page-view-head">
         <span class="page-view-title">cookbook</span>
-        <span id="cookbook-hw" style="font-size:0.7rem;color:var(--muted);margin-left:auto"></span>
+        <span id="cookbook-hw" style="font-size:0.75rem;color:var(--muted);margin-left:auto"></span>
       </div>
       <div class="page-view-body" id="cookbook-body"></div>
     </div>
@@ -707,7 +707,7 @@
     <div class="page-view aide-tool-view" id="skills-view" data-kokuen-surface="aide-tool" style="display:none">
       <div class="page-view-head aide-tool-head">
         <span class="page-view-title">skills</span>
-        <span style="font-size:0.7rem;color:var(--muted);margin-left:auto">reusable procedures the agent can load</span>
+        <span style="font-size:0.75rem;color:var(--muted);margin-left:auto">reusable procedures the agent can load</span>
       </div>
       <div class="page-view-body aide-tool-content" id="skills-body"></div>
     </div>
@@ -716,7 +716,7 @@
     <div class="page-view" id="usage-view" style="display:none">
       <div class="page-view-head">
         <span class="page-view-title">usage</span>
-        <span id="usage-total" style="font-size:0.7rem;color:var(--muted);margin-left:auto"></span>
+        <span id="usage-total" style="font-size:0.75rem;color:var(--muted);margin-left:auto"></span>
       </div>
       <div class="page-view-body" id="usage-body"></div>
     </div>
@@ -735,8 +735,8 @@
     <div class="page-view" id="system-view" data-specialist-app="system" data-kokuen-surface="system" style="display:none">
       <div class="page-view-head">
         <span class="page-view-title">system</span>
-        <span id="system-host" style="font-size:0.7rem;color:var(--muted);margin-left:auto"></span>
-        <button class="icon-btn app-cog" data-app="system" title="system settings"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2a2 2 0 1 1-4 0V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1A2 2 0 1 1 4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H3a2 2 0 1 1 0-4h.2a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1A2 2 0 1 1 7.2 4.2l.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.6V3a2 2 0 1 1 4 0v.2a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1A2 2 0 1 1 20 7.2l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2a2 2 0 1 1 0 4h-.2a1.7 1.7 0 0 0-1.8 1z"/></svg></button>
+        <span id="system-host" style="font-size:0.75rem;color:var(--muted);margin-left:auto"></span>
+        <button type="button" class="icon-btn app-cog" data-app="system" title="system settings"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2a2 2 0 1 1-4 0V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1A2 2 0 1 1 4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H3a2 2 0 1 1 0-4h.2a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1A2 2 0 1 1 7.2 4.2l.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.6V3a2 2 0 1 1 4 0v.2a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1A2 2 0 1 1 20 7.2l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2a2 2 0 1 1 0 4h-.2a1.7 1.7 0 0 0-1.8 1z"/></svg></button>
       </div>
       <div class="page-view-body" id="system-body"></div>
     </div>
@@ -785,7 +785,7 @@
     <div class="page-view" id="subs-view" data-specialist-app="subs" style="display:none">
       <div class="page-view-head">
         <span class="page-view-title">subscriptions</span>
-        <span id="subs-summary" style="font-size:0.7rem;color:var(--muted);margin-left:auto"></span>
+        <span id="subs-summary" style="font-size:0.75rem;color:var(--muted);margin-left:auto"></span>
       </div>
       <div class="page-view-body" id="subs-list"></div>
       <div class="page-view-footer" style="flex-wrap:wrap;gap:0.4rem">
@@ -795,7 +795,7 @@
         <input type="text" id="sub-cycle-days" class="settings-input" placeholder="days" style="width:60px;display:none" inputmode="numeric">
         <div class="date-input" id="sub-due" data-type="date" data-ph="next due" style="width:135px"></div>
         <input type="text" id="sub-category" class="settings-input" placeholder="category" style="width:105px">
-        <button class="btn primary" id="sub-add-btn">add</button>
+        <button type="button" class="btn primary" id="sub-add-btn">add</button>
       </div>
     </div>
 
@@ -805,14 +805,14 @@
       <div class="page-view-head">
         <span class="page-view-title">money</span>
         <div class="money-monthnav">
-          <button class="icon-btn" id="money-prev" title="previous month">‹</button>
+          <button type="button" class="icon-btn" id="money-prev" title="previous month">‹</button>
           <span id="money-month-label">—</span>
-          <button class="icon-btn" id="money-next" title="next month">›</button>
+          <button type="button" class="icon-btn" id="money-next" title="next month">›</button>
         </div>
         <a class="btn" id="money-export" href="/api/money/transactions/export.csv" download title="export CSV" style="margin-left:auto">export</a>
         <input type="file" id="money-import-file" accept=".csv,text/csv" hidden>
-        <button class="btn" id="money-import" title="import a bank CSV">import</button>
-        <button class="btn" id="money-connect" title="manage read-only bank connections">banks</button>
+        <button type="button" class="btn" id="money-import" title="import a bank CSV">import</button>
+        <button type="button" class="btn" id="money-connect" title="manage read-only bank connections">banks</button>
       </div>
       <div class="page-view-body" id="money-body"></div>
     </div>
@@ -821,7 +821,7 @@
     <div class="page-view" id="days-view" data-specialist-app="days" style="display:none">
       <div class="page-view-head">
         <span class="page-view-title">days</span>
-        <span id="days-summary" style="font-size:0.7rem;color:var(--muted);margin-left:auto"></span>
+        <span id="days-summary" style="font-size:0.75rem;color:var(--muted);margin-left:auto"></span>
       </div>
       <div class="page-view-body">
         <div id="days-grid" class="days-grid"></div>
@@ -831,7 +831,7 @@
         <div class="date-input" id="day-date" data-type="date" data-ph="date" style="width:135px"></div>
         <div id="day-repeat" class="settings-input custom-select" data-value="none" data-options="none|one-time;yearly|every year;monthly|every month" style="width:auto;min-width:115px"></div>
         <input type="text" id="day-category" class="settings-input" placeholder="category" style="width:105px">
-        <button class="btn primary" id="day-add-btn">add</button>
+        <button type="button" class="btn primary" id="day-add-btn">add</button>
       </div>
     </div>
 
@@ -937,7 +937,7 @@
               <div class="docs-notes-actions">
                 <input id="note-search" placeholder="search notes…" aria-label="search notes">
                 <button type="button" id="note-new-btn">new note</button>
-                <button class="icon-btn app-cog" data-app="notes" title="notes and Docs settings" aria-label="notes and Docs settings"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2a2 2 0 1 1-4 0V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1A2 2 0 1 1 4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H3a2 2 0 1 1 0-4h.2a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1A2 2 0 1 1 7.2 4.2l.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.6V3a2 2 0 1 1 4 0v.2a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1A2 2 0 1 1 20 7.2l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2a2 2 0 1 1 0 4h-.2a1.7 1.7 0 0 0-1.8 1z"/></svg></button>
+                <button type="button" class="icon-btn app-cog" data-app="notes" title="notes and Docs settings" aria-label="notes and Docs settings"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2a2 2 0 1 1-4 0V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1A2 2 0 1 1 4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H3a2 2 0 1 1 0-4h.2a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1A2 2 0 1 1 7.2 4.2l.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.6V3a2 2 0 1 1 4 0v.2a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1A2 2 0 1 1 20 7.2l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2a2 2 0 1 1 0 4h-.2a1.7 1.7 0 0 0-1.8 1z"/></svg></button>
               </div>
             </div>
             <div id="note-tagbar" class="note-tagbar"></div>
@@ -969,7 +969,7 @@
           <div class="page-view-head docs-journal-head">
             <span class="page-view-title">journal</span>
             <span id="journal-stats" class="docs-journal-stats"></span>
-            <button class="icon-btn app-cog" data-app="journal" title="journal settings" aria-label="journal settings"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2a2 2 0 1 1-4 0V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1A2 2 0 1 1 4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H3a2 2 0 1 1 0-4h.2a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1A2 2 0 1 1 7.2 4.2l.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.6V3a2 2 0 1 1 4 0v.2a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1A2 2 0 1 1 20 7.2l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2a2 2 0 1 1 0 4h-.2a1.7 1.7 0 0 0-1.8 1z"/></svg></button>
+            <button type="button" class="icon-btn app-cog" data-app="journal" title="journal settings" aria-label="journal settings"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2a2 2 0 1 1-4 0V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1A2 2 0 1 1 4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H3a2 2 0 1 1 0-4h.2a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1A2 2 0 1 1 7.2 4.2l.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.6V3a2 2 0 1 1 4 0v.2a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1A2 2 0 1 1 20 7.2l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2a2 2 0 1 1 0 4h-.2a1.7 1.7 0 0 0-1.8 1z"/></svg></button>
           </div>
           <div class="page-view-body" id="journal-body"></div>
         </section>
@@ -1005,12 +1005,12 @@
         </div>
         <div style="padding:0 0.75rem;flex:1;overflow-y:auto">
           <div id="compare-leaderboard"></div>
-          <div style="font-size:0.68rem;color:var(--muted);margin-bottom:0.4rem;text-transform:lowercase;letter-spacing:0.04em">select models</div>
+          <div style="font-size:0.75rem;color:var(--muted);margin-bottom:0.4rem;text-transform:lowercase;letter-spacing:0.04em">select models</div>
           <div id="compare-model-picker"></div>
         </div>
         <div style="padding:0.5rem 0.75rem;border-top:1px solid var(--faint);flex-shrink:0">
           <textarea id="compare-input" class="settings-input" placeholder="enter prompt..." rows="3" style="width:100%;resize:vertical;margin-bottom:0.4rem"></textarea>
-          <button class="btn primary" id="compare-send-btn" style="width:100%">compare</button>
+          <button type="button" class="btn primary" id="compare-send-btn" style="width:100%">compare</button>
         </div>
       </div>
       <!-- right: output grid -->
@@ -1023,13 +1023,13 @@
         <span class="page-view-title">secrets</span>
         <span style="margin-left:auto;display:flex;gap:0.4rem;align-items:center">
           <div class="custom-select vault-switcher" id="vault-switcher" style="display:none;min-width:130px"></div>
-          <button class="btn" id="vault-add-btn" style="display:none" title="new vault">+ vault</button>
-          <button class="btn ic-btn-lbl" id="vault-travel-btn" style="display:none" title="Travel Mode — hide vaults not marked travel-safe">travel</button>
-          <button class="btn ic-btn-lbl" id="vault-bio-add-btn" style="display:none" title="enable biometric unlock for this vault">biometric</button>
-          <button class="btn primary" id="vault-new-btn" style="display:none">+ new</button>
-          <button class="btn ic-btn-lbl" id="vault-watchtower-btn" style="display:none" title="security check">watchtower</button>
-          <button class="btn" id="vault-lock-btn" style="display:none">lock</button>
-          <button class="btn ic-btn-lbl" id="vault-manage-btn" style="display:none" title="vault settings">settings</button>
+          <button type="button" class="btn" id="vault-add-btn" style="display:none" title="new vault">+ vault</button>
+          <button type="button" class="btn ic-btn-lbl" id="vault-travel-btn" style="display:none" title="Travel Mode — hide vaults not marked travel-safe">travel</button>
+          <button type="button" class="btn ic-btn-lbl" id="vault-bio-add-btn" style="display:none" title="enable biometric unlock for this vault">biometric</button>
+          <button type="button" class="btn primary" id="vault-new-btn" style="display:none">+ new</button>
+          <button type="button" class="btn ic-btn-lbl" id="vault-watchtower-btn" style="display:none" title="security check">watchtower</button>
+          <button type="button" class="btn" id="vault-lock-btn" style="display:none">lock</button>
+          <button type="button" class="btn ic-btn-lbl" id="vault-manage-btn" style="display:none" title="vault settings">settings</button>
         </span>
       </div>
       <div id="vault-locked" class="vault-lock-screen">
@@ -1039,8 +1039,8 @@
         </svg>
         <span>enter master password to unlock</span>
         <input type="password" id="vault-pw-input" class="settings-input" placeholder="master password" autocomplete="current-password" style="width:220px;text-align:center">
-        <button class="btn primary" id="vault-unlock-btn">unlock</button>
-        <button class="btn ic-btn-lbl" id="vault-bio-unlock-btn" style="display:none">unlock with biometric</button>
+        <button type="button" class="btn primary" id="vault-unlock-btn">unlock</button>
+        <button type="button" class="btn ic-btn-lbl" id="vault-bio-unlock-btn" style="display:none">unlock with biometric</button>
       </div>
       <div id="vault-unlocked" style="display:none;flex-direction:column;flex:1;overflow:hidden">
         <div class="page-view-body" id="vault-entry-list"></div>
@@ -1053,21 +1053,21 @@
       <div class="page-view-head contacts-head">
         <span class="page-view-title">contacts</span>
         <input type="text" id="contacts-search" class="settings-input contacts-search" placeholder="search...">
-        <button class="btn" id="contacts-fav-filter" title="show favorites only">favorites</button>
-        <button class="btn" id="contacts-bday-btn" title="upcoming birthdays">birthdays</button>
-        <button class="btn" id="contacts-groups-btn" title="groups">groups</button>
-        <button class="btn" id="contacts-dups-btn" title="find duplicates">duplicates</button>
+        <button type="button" class="btn" id="contacts-fav-filter" title="show favorites only">favorites</button>
+        <button type="button" class="btn" id="contacts-bday-btn" title="upcoming birthdays">birthdays</button>
+        <button type="button" class="btn" id="contacts-groups-btn" title="groups">groups</button>
+        <button type="button" class="btn" id="contacts-dups-btn" title="find duplicates">duplicates</button>
         <a class="btn" id="contacts-export-btn" href="/api/contacts/export" title="export vCard">export</a>
-        <button class="btn" id="contacts-import-btn" title="import vCard">import</button>
+        <button type="button" class="btn" id="contacts-import-btn" title="import vCard">import</button>
         <input type="file" id="contacts-import-input" accept=".vcf,text/vcard" hidden>
-        <button class="icon-btn app-cog" data-app="contacts" title="contacts settings"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2a2 2 0 1 1-4 0V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1A2 2 0 1 1 4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H3a2 2 0 1 1 0-4h.2a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1A2 2 0 1 1 7.2 4.2l.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.6V3a2 2 0 1 1 4 0v.2a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1A2 2 0 1 1 20 7.2l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2a2 2 0 1 1 0 4h-.2a1.7 1.7 0 0 0-1.8 1z"/></svg></button>
+        <button type="button" class="icon-btn app-cog" data-app="contacts" title="contacts settings"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2a2 2 0 1 1-4 0V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1A2 2 0 1 1 4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H3a2 2 0 1 1 0-4h.2a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1A2 2 0 1 1 7.2 4.2l.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.6V3a2 2 0 1 1 4 0v.2a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1A2 2 0 1 1 20 7.2l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2a2 2 0 1 1 0 4h-.2a1.7 1.7 0 0 0-1.8 1z"/></svg></button>
       </div>
       <div class="page-view-body" id="contacts-list"></div>
       <div class="page-view-footer">
         <input type="text" id="contact-name" class="settings-input" placeholder="name" style="flex:1;min-width:80px">
         <input type="text" id="contact-email" class="settings-input" placeholder="email" style="flex:1;min-width:100px">
         <input type="text" id="contact-phone" class="settings-input" placeholder="phone" style="width:90px">
-        <button class="btn primary" id="contact-add-btn">add</button>
+        <button type="button" class="btn primary" id="contact-add-btn">add</button>
       </div>
     </div>
 
@@ -1212,13 +1212,13 @@
     <!-- ── mail view ── -->
     <div class="page-view" id="mail-view" data-specialist-app="mail" style="display:none">
       <div class="page-view-head mail-head">
-        <button class="icon-btn mail-sidebar-toggle" id="mail-sidebar-toggle" title="toggle folders">☰</button>
+        <button type="button" class="icon-btn mail-sidebar-toggle" id="mail-sidebar-toggle" title="toggle folders">☰</button>
         <div id="mail-account" class="settings-input custom-select mail-account-select"></div>
         <input type="text" id="mail-search" class="cal-quick mail-search" placeholder="search mail…">
         <div class="mail-head-actions">
-          <button class="btn" id="mail-refresh-btn">refresh</button>
-          <button class="btn primary" id="mail-compose-btn">compose</button>
-          <button class="icon-btn app-cog" data-app="mail" title="mail settings"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2a2 2 0 1 1-4 0V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1A2 2 0 1 1 4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H3a2 2 0 1 1 0-4h.2a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1A2 2 0 1 1 7.2 4.2l.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.6V3a2 2 0 1 1 4 0v.2a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1A2 2 0 1 1 20 7.2l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2a2 2 0 1 1 0 4h-.2a1.7 1.7 0 0 0-1.8 1z"/></svg></button>
+          <button type="button" class="btn" id="mail-refresh-btn">refresh</button>
+          <button type="button" class="btn primary" id="mail-compose-btn">compose</button>
+          <button type="button" class="icon-btn app-cog" data-app="mail" title="mail settings"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2a2 2 0 1 1-4 0V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1A2 2 0 1 1 4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H3a2 2 0 1 1 0-4h.2a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1A2 2 0 1 1 7.2 4.2l.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.6V3a2 2 0 1 1 4 0v.2a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1A2 2 0 1 1 20 7.2l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2a2 2 0 1 1 0 4h-.2a1.7 1.7 0 0 0-1.8 1z"/></svg></button>
         </div>
       </div>
       <div class="mail-saved" id="mail-saved"></div>
@@ -1235,36 +1235,36 @@
       <div class="page-view-head photos-head">
         <span class="page-view-title" id="photos-head-title">photos</span>
         <input type="text" id="photos-search" class="cal-quick photos-search" placeholder="search photos…">
-        <button class="btn ic-btn-lbl" id="photos-smart-btn" title="smart search — find by content" hidden>smart</button>
-        <button class="btn ic-btn-lbl" id="photos-filter-btn" title="filter the timeline">filter</button>
-        <button class="btn ic-btn-lbl photos-share-album-btn" id="photos-share-album-btn" title="share the open album as a read-only link"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><line x1="8.2" y1="10.8" x2="15.8" y2="7.2"/><line x1="8.2" y1="13.2" x2="15.8" y2="16.8"/></svg> share</button>
+        <button type="button" class="btn ic-btn-lbl" id="photos-smart-btn" title="smart search — find by content" hidden>smart</button>
+        <button type="button" class="btn ic-btn-lbl" id="photos-filter-btn" title="filter the timeline">filter</button>
+        <button type="button" class="btn ic-btn-lbl photos-share-album-btn" id="photos-share-album-btn" title="share the open album as a read-only link"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><line x1="8.2" y1="10.8" x2="15.8" y2="7.2"/><line x1="8.2" y1="13.2" x2="15.8" y2="16.8"/></svg> share</button>
         <input type="file" id="photos-upload-input" accept="image/*,video/*" multiple hidden>
-        <button class="btn ic-btn-lbl" id="photos-macos-btn" title="import from Apple Photos" hidden>apple photos</button>
-        <button class="btn ic-btn-lbl" id="photos-rescan-btn" title="scan the photos folder">scan folder</button>
-        <button class="btn primary" id="photos-upload-btn">upload</button>
-        <button class="icon-btn app-cog" data-app="photos" title="gallery settings"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2a2 2 0 1 1-4 0V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1A2 2 0 1 1 4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H3a2 2 0 1 1 0-4h.2a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1A2 2 0 1 1 7.2 4.2l.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.6V3a2 2 0 1 1 4 0v.2a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1A2 2 0 1 1 20 7.2l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2a2 2 0 1 1 0 4h-.2a1.7 1.7 0 0 0-1.8 1z"/></svg></button>
+        <button type="button" class="btn ic-btn-lbl" id="photos-macos-btn" title="import from Apple Photos" hidden>apple photos</button>
+        <button type="button" class="btn ic-btn-lbl" id="photos-rescan-btn" title="scan the photos folder">scan folder</button>
+        <button type="button" class="btn primary" id="photos-upload-btn">upload</button>
+        <button type="button" class="icon-btn app-cog" data-app="photos" title="gallery settings"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2a2 2 0 1 1-4 0V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1A2 2 0 1 1 4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H3a2 2 0 1 1 0-4h.2a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1A2 2 0 1 1 7.2 4.2l.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.6V3a2 2 0 1 1 4 0v.2a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1A2 2 0 1 1 20 7.2l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2a2 2 0 1 1 0 4h-.2a1.7 1.7 0 0 0-1.8 1z"/></svg></button>
       </div>
       <div class="photos-selbar" id="photos-selbar">
-        <button class="icon-btn photos-sel-clear" id="photos-sel-clear" title="clear selection">×</button>
+        <button type="button" class="icon-btn photos-sel-clear" id="photos-sel-clear" title="clear selection">×</button>
         <span class="photos-sel-count" id="photos-sel-count">0 selected</span>
         <div class="photos-sel-actions">
-          <button class="btn ic-btn-lbl" id="photos-sel-fav">favorite</button>
-          <button class="btn ic-btn-lbl" id="photos-sel-archive">archive</button>
-          <button class="btn ic-btn-lbl" id="photos-sel-stack">stack</button>
-          <button class="btn ic-btn-lbl" id="photos-sel-album">add to album</button>
-          <button class="btn ic-btn-lbl danger" id="photos-sel-del">delete</button>
+          <button type="button" class="btn ic-btn-lbl" id="photos-sel-fav">favorite</button>
+          <button type="button" class="btn ic-btn-lbl" id="photos-sel-archive">archive</button>
+          <button type="button" class="btn ic-btn-lbl" id="photos-sel-stack">stack</button>
+          <button type="button" class="btn ic-btn-lbl" id="photos-sel-album">add to album</button>
+          <button type="button" class="btn ic-btn-lbl danger" id="photos-sel-del">delete</button>
         </div>
       </div>
       <div class="photos-filterbar" id="photos-filterbar" hidden>
         <div class="photos-filt-seg" id="photos-filt-type">
-          <button class="active" data-type="">all</button>
-          <button data-type="image">photos</button>
-          <button data-type="video">videos</button>
+          <button type="button" class="active" data-type="">all</button>
+          <button type="button" data-type="image">photos</button>
+          <button type="button" data-type="video">videos</button>
         </div>
         <div class="settings-input photos-filt-cam custom-select" id="photos-filt-camera" data-value="" data-options="|any camera" aria-label="camera"></div>
         <label class="photos-filt-date">from <input type="date" id="photos-filt-from" class="settings-input"></label>
         <label class="photos-filt-date">to <input type="date" id="photos-filt-to" class="settings-input"></label>
-        <button class="btn photos-filt-clear" id="photos-filt-clear">clear</button>
+        <button type="button" class="btn photos-filt-clear" id="photos-filt-clear">clear</button>
       </div>
       <div class="photos-layout">
         <nav class="photos-sidebar" id="photos-sidebar"></nav>
@@ -1301,14 +1301,14 @@
         <div class="shell-panel" id="shell-panel" hidden>
           <div class="shell-panel-head">
             <span data-i18n="aide.shell_command">shell command</span>
-            <button class="icon-btn" id="shell-panel-close" title="close shell input" data-i18n-title="aide.close_shell">
+            <button type="button" class="icon-btn" id="shell-panel-close" title="close shell input" data-i18n-title="aide.close_shell">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
           </div>
           <textarea class="shell-input" id="shell-input" rows="3" spellcheck="false" placeholder="enter shell command..." data-i18n-placeholder="aide.shell_placeholder"></textarea>
           <div class="shell-panel-foot">
             <span data-i18n="aide.shell_shortcut">Ctrl+Enter sends</span>
-            <button class="btn primary" id="shell-send-btn" data-i18n="aide.send_shell">send shell</button>
+            <button type="button" class="btn primary" id="shell-send-btn" data-i18n="aide.send_shell">send shell</button>
           </div>
         </div>
         <div id="attachment-chips" class="attachment-chips" style="display:none"></div>
@@ -1317,26 +1317,26 @@
         <canvas id="mic-wave" class="mic-wave" aria-hidden="true"></canvas>
         <div class="composer-bar">
           <div class="c-tools">
-            <button class="c-tool aide-direct-attach" id="attach-btn" title="attach files" aria-label="attach files" data-i18n-title="aide.attach_files" data-i18n-aria-label="aide.attach_files">
+            <button type="button" class="c-tool aide-direct-attach" id="attach-btn" title="attach files" aria-label="attach files" data-i18n-title="aide.attach_files" data-i18n-aria-label="aide.attach_files">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
             </button>
-            <button class="c-tool" id="more-tools-btn" title="add a file or app context" aria-label="add a file or app context" data-i18n-title="aide.add_context" data-i18n-aria-label="aide.add_context" aria-expanded="false">
+            <button type="button" class="c-tool" id="more-tools-btn" title="add a file or app context" aria-label="add a file or app context" data-i18n-title="aide.add_context" data-i18n-aria-label="aide.add_context" aria-expanded="false">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
             </button>
             <button class="perm-btn" id="perm-mode-btn" type="button" title="what aide can do without asking" data-i18n-title="aide.permission_help" aria-haspopup="menu" aria-expanded="false"><span class="perm-label">auto mode</span></button>
           </div>
           <div class="c-right">
-            <button class="perm-btn aide-model-choice" id="aide-model-choice" type="button" title="choose model" data-i18n-title="aide.choose_model"><span class="aide-model-choice-logo" id="aide-model-choice-logo" aria-hidden="true"></span><span id="aide-model-choice-label" data-i18n="aide.no_model">no model</span></button>
-            <button class="perm-btn" id="effort-btn" title="how hard aide works" data-i18n-title="aide.effort_help"><span class="effort-label" data-i18n="aide.effort_medium">medium</span></button>
-            <button class="c-tool mic-corner" id="mic-btn" title="voice input" aria-label="voice input" data-i18n-title="aide.voice_input" data-i18n-aria-label="aide.voice_input">
+            <button class="perm-btn aide-model-choice" id="aide-model-choice" type="button" title="choose model" data-i18n-title="aide.choose_model" aria-haspopup="dialog" aria-controls="model-modal" aria-expanded="false"><span class="aide-model-choice-logo" id="aide-model-choice-logo" aria-hidden="true"></span><span id="aide-model-choice-label" data-i18n="aide.no_model">no model</span></button>
+            <button type="button" class="perm-btn" id="effort-btn" title="how hard aide works" data-i18n-title="aide.effort_help"><span class="effort-label" data-i18n="aide.effort_medium">medium</span></button>
+            <button type="button" class="c-tool mic-corner" id="mic-btn" title="voice input" aria-label="voice input" data-i18n-title="aide.voice_input" data-i18n-aria-label="aide.voice_input">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
             </button>
             <!-- 10f — full-duplex live voice, shown only when a realtime provider is configured -->
-            <button class="c-tool" id="live-voice-btn" title="live voice (full-duplex)" aria-label="live voice" data-i18n-title="aide.live_voice_help" data-i18n-aria-label="aide.live_voice" style="display:none">
+            <button type="button" class="c-tool" id="live-voice-btn" title="live voice (full-duplex)" aria-label="live voice" data-i18n-title="aide.live_voice_help" data-i18n-aria-label="aide.live_voice" style="display:none">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M2 12h3l2-7 4 14 3-9 2 4h6"/></svg>
             </button>
-            <button class="stop-btn" id="stop-btn" aria-label="stop" data-i18n-aria-label="common.stop">■</button>
-            <button class="send-btn" id="send-btn" aria-label="send" data-i18n-aria-label="common.send">
+            <button type="button" class="stop-btn" id="stop-btn" aria-label="stop" data-i18n-aria-label="common.stop">■</button>
+            <button type="button" class="send-btn" id="send-btn" aria-label="send" data-i18n-aria-label="common.send">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>
             </button>
           </div>
@@ -1377,7 +1377,7 @@
         <span class="artifact-title"></span>
         <span class="artifact-type-badge"></span>
       </div>
-      <button class="icon-btn artifact-close" id="artifact-close-btn">×</button>
+      <button type="button" class="icon-btn artifact-close" id="artifact-close-btn">×</button>
     </div>
     <div class="artifact-body" id="artifact-body"></div>
   </div>
@@ -1389,7 +1389,7 @@
   <div class="login-inner">
     <div class="login-brand">alles <span class="login-sep">/ sign in</span></div>
     <input type="password" id="login-pw" class="login-input" placeholder="password" autocomplete="current-password">
-    <button class="login-btn" id="login-submit">enter</button>
+    <button type="button" class="login-btn" id="login-submit">enter</button>
   </div>
 </div>
 
@@ -1398,7 +1398,7 @@
   <div class="login-inner">
     <div class="login-brand">alles <span class="login-sep">/ not started</span></div>
     <div class="notrunning-msg">can't reach the server — alles isn't running. start it, then retry.</div>
-    <button class="login-btn" id="notrunning-retry">retry</button>
+    <button type="button" class="login-btn" id="notrunning-retry">retry</button>
   </div>
 </div>
 
@@ -1429,7 +1429,7 @@
       <span class="files-preview-name" id="files-preview-name"></span>
       <div class="files-preview-actions">
         <a class="btn" id="files-preview-dl" href="#" download>download</a>
-        <button class="btn" id="files-preview-close">close</button>
+        <button type="button" class="btn" id="files-preview-close">close</button>
       </div>
     </div>
     <div class="files-preview-body" id="files-preview-body"></div>
@@ -1439,31 +1439,31 @@
 <!-- photo lightbox -->
 <div class="modal-overlay" id="photos-lightbox" style="display:none">
   <div class="photos-lb-top">
-    <button class="btn photos-lb-close" id="photos-close-btn">close</button>
+    <button type="button" class="btn photos-lb-close" id="photos-close-btn">close</button>
     <div class="photos-lb-actions">
-      <button class="btn" id="photos-fav-btn">favorite</button>
-      <button class="btn" id="photos-archive-btn">archive</button>
-      <button class="btn" id="photos-hide-btn" title="move to the hidden album">hide</button>
-      <button class="btn" id="photos-edit-btn">edit</button>
+      <button type="button" class="btn" id="photos-fav-btn">favorite</button>
+      <button type="button" class="btn" id="photos-archive-btn">archive</button>
+      <button type="button" class="btn" id="photos-hide-btn" title="move to the hidden album">hide</button>
+      <button type="button" class="btn" id="photos-edit-btn">edit</button>
       <a class="btn" id="photos-dl-btn" href="#" download>download</a>
-      <button class="btn" id="photos-info-btn" title="info (i)">info</button>
-      <button class="btn danger" id="photos-del-btn">delete</button>
+      <button type="button" class="btn" id="photos-info-btn" title="info (i)">info</button>
+      <button type="button" class="btn danger" id="photos-del-btn">delete</button>
     </div>
   </div>
   <div class="photos-lb-body">
   <div class="photos-lb-stage" id="photos-lb-stage">
-    <button class="photos-lb-nav prev" id="photos-prev-btn" title="previous"></button>
+    <button type="button" class="photos-lb-nav prev" id="photos-prev-btn" title="previous"></button>
     <div class="photos-lb-media" id="photos-lb-media">
       <img class="photos-lightbox-img" id="photos-lightbox-img" src="" alt="">
       <video class="photos-lightbox-img" id="photos-lightbox-video" controls playsinline style="display:none"></video>
     </div>
-    <button class="photos-lb-nav next" id="photos-next-btn" title="next"></button>
+    <button type="button" class="photos-lb-nav next" id="photos-next-btn" title="next"></button>
   </div>
   <aside class="photos-lb-drawer" id="photos-lb-drawer">
     <div class="photos-meta">
       <input type="text" id="photos-caption" class="settings-input photos-meta-in" placeholder="add a caption…">
       <input type="text" id="photos-keywords" class="settings-input photos-meta-in" placeholder="keywords, comma separated">
-      <button class="btn primary" id="photos-meta-save" style="font-size:0.68rem">save caption & keywords</button>
+      <button type="button" class="btn primary" id="photos-meta-save" style="font-size:0.75rem">save caption & keywords</button>
     </div>
     <div class="photos-faces" id="photos-faces" style="display:none"></div>
     <div class="photos-exif" id="photos-exif"></div>
@@ -1502,39 +1502,39 @@
 </div>
 
 <!-- model picker modal -->
-<div class="modal-overlay" id="model-modal" style="display:none">
-  <div class="modal-card model-modal-card">
+<div class="modal-overlay" id="model-modal" role="dialog" aria-modal="true" aria-label="models and endpoints" style="display:none">
+  <div class="modal-card model-modal-card" tabindex="-1">
     <div class="modal-head">
-      <div class="mm-tabs">
-        <button class="mm-tab active" data-tab="models">models</button>
-        <button class="mm-tab" data-tab="endpoints">endpoints</button>
+      <div class="mm-tabs" role="tablist" aria-label="model configuration">
+        <button class="mm-tab active" type="button" data-tab="models" role="tab" aria-selected="true" aria-controls="mm-panel-models">models</button>
+        <button class="mm-tab" type="button" data-tab="endpoints" role="tab" aria-selected="false" aria-controls="mm-panel-endpoints">endpoints</button>
       </div>
-      <button class="modal-close" id="model-modal-close" style="margin-left:auto">×</button>
+      <button class="modal-close" id="model-modal-close" type="button" aria-label="close model picker" style="margin-left:auto">×</button>
     </div>
 
     <!-- models tab -->
-    <div class="mm-panel" id="mm-panel-models">
+    <div class="mm-panel" id="mm-panel-models" role="tabpanel">
       <div class="modal-search">
-        <input type="text" id="model-search-input" placeholder="search models...">
+        <input type="text" id="model-search-input" placeholder="search models..." aria-label="search models">
         <span class="newest-only-label">newest only</span>
-        <div class="s-switch newest-only-switch" id="mm-newest-switch" title="show only the newest model of each family"></div>
-        <button class="btn mm-refresh-all" id="mm-refresh-all" title="re-probe every endpoint for new models">refresh</button>
+        <div class="s-switch newest-only-switch" id="mm-newest-switch" role="switch" tabindex="0" aria-checked="false" aria-label="show only newest model of each family" title="show only the newest model of each family"></div>
+        <button class="btn mm-refresh-all" id="mm-refresh-all" type="button" title="re-probe every endpoint for new models">refresh</button>
       </div>
-      <div class="modal-body" id="model-list"></div>
+      <div class="modal-body" id="model-list" role="listbox" aria-label="available models"></div>
     </div>
 
     <!-- endpoints tab -->
-    <div class="mm-panel" id="mm-panel-endpoints" style="display:none">
+    <div class="mm-panel" id="mm-panel-endpoints" role="tabpanel" hidden style="display:none">
       <div class="mm-ep-list" id="mm-ep-list"></div>
       <div class="mm-add-section">
         <div class="mm-presets" id="mm-presets">
-          <span style="font-size:0.68rem;color:var(--muted);flex-shrink:0">quick add:</span>
+          <span style="font-size:0.75rem;color:var(--muted);flex-shrink:0">quick add:</span>
         </div>
         <div class="mm-add-form">
-          <input type="text" id="ep-name" placeholder="name" style="width:120px">
-          <input type="text" id="ep-url" placeholder="base url" style="flex:1">
-          <input type="password" id="ep-key" placeholder="api key">
-          <button class="btn primary" id="ep-add-btn">add + probe</button>
+          <input type="text" id="ep-name" placeholder="name" aria-label="endpoint name" style="width:120px">
+          <input type="text" id="ep-url" placeholder="base url" aria-label="endpoint base URL" style="flex:1">
+          <input type="password" id="ep-key" placeholder="api key" aria-label="endpoint API key">
+          <button class="btn primary" id="ep-add-btn" type="button">add + probe</button>
         </div>
       </div>
     </div>
@@ -1694,7 +1694,7 @@
               </div>
               <div class="s-role-actions">
                 <span id="s-role-save-state" class="s-role-save-state"></span>
-                <button class="btn primary" id="s-role-save-btn">save defaults</button>
+                <button type="button" class="btn primary" id="s-role-save-btn">save defaults</button>
               </div>
             </div>
           </div>
@@ -1702,7 +1702,7 @@
             <div class="s-card-head">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/></svg>
               model endpoints
-              <button class="btn" id="s-ep-refresh-all" type="button" style="margin-left:auto;font-size:0.68rem;padding:0.15rem 0.5rem">refresh all</button>
+              <button class="btn" id="s-ep-refresh-all" type="button" style="margin-left:auto;font-size:0.75rem;padding:0.15rem 0.5rem">refresh all</button>
             </div>
             <div class="s-card-body">
               <p class="s-card-hint s-provider-warning">Alles uses provider API keys, owner-managed compatible proxies, or the documented Gemini OAuth flow. It never imports consumer chat sessions. Requests may use provider quota or credits.</p>
@@ -1711,20 +1711,20 @@
                 <summary class="s-add-summary">+ add endpoint</summary>
                 <div class="s-ep-form">
                   <div class="s-ep-presets">
-                    <button class="s-preset-btn" data-url="https://api.openai.com" data-name="OpenAI" data-provider="openai">OpenAI</button>
-                    <button class="s-preset-btn" data-url="https://api.anthropic.com" data-name="Anthropic" data-provider="anthropic">Anthropic</button>
-                    <button class="s-preset-btn" data-url="https://api.deepseek.com" data-name="DeepSeek" data-provider="deepseek">DeepSeek</button>
-                    <button class="s-preset-btn" data-url="https://api.moonshot.ai/v1" data-name="Kimi" data-provider="kimi">Kimi</button>
-                    <button class="s-preset-btn" data-url="https://api.groq.com/openai" data-name="Groq" data-provider="custom">Groq</button>
-                    <button class="s-preset-btn" data-url="https://generativelanguage.googleapis.com/v1beta/openai" data-name="Gemini" data-provider="gemini">Gemini</button>
-                    <button class="s-preset-btn" data-url="https://api.x.ai" data-name="xAI (Grok)" data-provider="custom">xAI (Grok)</button>
-                    <button class="s-preset-btn" data-url="https://api.mistral.ai" data-name="Mistral" data-provider="custom">Mistral</button>
-                    <button class="s-preset-btn" data-url="https://api.perplexity.ai" data-name="Perplexity" data-provider="custom">Perplexity</button>
-                    <button class="s-preset-btn" data-url="https://openrouter.ai/api" data-name="OpenRouter" data-provider="custom">OpenRouter</button>
-                    <button class="s-preset-btn" data-url="https://api.together.xyz" data-name="Together" data-provider="custom">Together</button>
-                    <button class="s-preset-btn" data-url="https://api.fireworks.ai/inference" data-name="Fireworks" data-provider="custom">Fireworks</button>
-                    <button class="s-preset-btn" data-url="https://api.cohere.ai" data-name="Cohere" data-provider="custom">Cohere</button>
-                    <button class="s-preset-btn" data-url="http://localhost:11434" data-name="Ollama" data-provider="ollama">Ollama</button>
+                    <button type="button" class="s-preset-btn" data-url="https://api.openai.com" data-name="OpenAI" data-provider="openai">OpenAI</button>
+                    <button type="button" class="s-preset-btn" data-url="https://api.anthropic.com" data-name="Anthropic" data-provider="anthropic">Anthropic</button>
+                    <button type="button" class="s-preset-btn" data-url="https://api.deepseek.com" data-name="DeepSeek" data-provider="deepseek">DeepSeek</button>
+                    <button type="button" class="s-preset-btn" data-url="https://api.moonshot.ai/v1" data-name="Kimi" data-provider="kimi">Kimi</button>
+                    <button type="button" class="s-preset-btn" data-url="https://api.groq.com/openai" data-name="Groq" data-provider="custom">Groq</button>
+                    <button type="button" class="s-preset-btn" data-url="https://generativelanguage.googleapis.com/v1beta/openai" data-name="Gemini" data-provider="gemini">Gemini</button>
+                    <button type="button" class="s-preset-btn" data-url="https://api.x.ai" data-name="xAI (Grok)" data-provider="custom">xAI (Grok)</button>
+                    <button type="button" class="s-preset-btn" data-url="https://api.mistral.ai" data-name="Mistral" data-provider="custom">Mistral</button>
+                    <button type="button" class="s-preset-btn" data-url="https://api.perplexity.ai" data-name="Perplexity" data-provider="custom">Perplexity</button>
+                    <button type="button" class="s-preset-btn" data-url="https://openrouter.ai/api" data-name="OpenRouter" data-provider="custom">OpenRouter</button>
+                    <button type="button" class="s-preset-btn" data-url="https://api.together.xyz" data-name="Together" data-provider="custom">Together</button>
+                    <button type="button" class="s-preset-btn" data-url="https://api.fireworks.ai/inference" data-name="Fireworks" data-provider="custom">Fireworks</button>
+                    <button type="button" class="s-preset-btn" data-url="https://api.cohere.ai" data-name="Cohere" data-provider="custom">Cohere</button>
+                    <button type="button" class="s-preset-btn" data-url="http://localhost:11434" data-name="Ollama" data-provider="ollama">Ollama</button>
                   </div>
                   <div class="s-field">
                     <label>name</label>
@@ -1756,7 +1756,7 @@
                     <label>manual models <span class="s-field-note">comma-separated</span></label>
                     <input type="text" class="settings-input" id="s-ep-manual" placeholder="model-a, model-b">
                   </div>
-                  <button class="btn primary" id="s-ep-add-btn" style="width:100%;margin-top:0.2rem">add + probe models</button>
+                  <button type="button" class="btn primary" id="s-ep-add-btn" style="width:100%;margin-top:0.2rem">add + probe models</button>
                   <div class="s-field" style="margin-top:0.5rem"><label>vision-capable models <span style="color:var(--muted);font-weight:400">(comma-separated, optional)</span></label><input type="text" class="settings-input" id="s-ep-vision" placeholder="e.g. gpt-4o, claude-3-5-sonnet-20241022" style="width:100%"></div>
                 </div>
               </details>
@@ -1780,18 +1780,18 @@
               local serving
             </div>
             <div class="s-card-body">
-              <div id="s-local-ollama" style="font-size:0.72rem;color:var(--muted);margin-bottom:0.45rem">checking Ollama...</div>
-              <div id="s-local-hw" style="font-size:0.72rem;color:var(--muted);margin-bottom:0.65rem"></div>
+              <div id="s-local-ollama" style="font-size:0.75rem;color:var(--muted);margin-bottom:0.45rem">checking Ollama...</div>
+              <div id="s-local-hw" style="font-size:0.75rem;color:var(--muted);margin-bottom:0.65rem"></div>
               <div id="s-local-presets" class="settings-list"></div>
               <div class="s-field" style="margin-top:0.65rem"><label>pull any model</label>
                 <div style="display:flex;gap:0.4rem">
                   <input type="text" class="settings-input" id="s-local-custom" placeholder="e.g. qwen2.5:14b" style="flex:1">
-                  <button class="btn" id="s-local-pull-btn">pull</button>
+                  <button type="button" class="btn" id="s-local-pull-btn">pull</button>
                 </div>
               </div>
               <div style="display:flex;gap:0.4rem;margin-top:0.4rem;flex-wrap:wrap">
-                <button class="btn" id="s-local-refresh-btn">refresh</button>
-                <button class="btn" id="s-local-start-btn">start Ollama</button>
+                <button type="button" class="btn" id="s-local-refresh-btn">refresh</button>
+                <button type="button" class="btn" id="s-local-start-btn">start Ollama</button>
               </div>
             </div>
           </div>
@@ -1852,7 +1852,7 @@
             </div>
           </div>
           <div style="text-align:right;margin-top:0.4rem">
-            <button class="btn primary" id="settings-save-btn">save</button>
+            <button type="button" class="btn primary" id="settings-save-btn">save</button>
           </div>
         </div>
 
@@ -1870,7 +1870,7 @@
             <div class="s-card-head">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/></svg>
               memory
-              <button class="btn" id="mem-extract-btn" style="margin-left:auto;font-size:0.68rem;padding:0.15rem 0.5rem">extract from chat</button>
+              <button type="button" class="btn" id="mem-extract-btn" style="margin-left:auto;font-size:0.75rem;padding:0.15rem 0.5rem">extract from chat</button>
             </div>
             <div class="s-card-body">
               <p class="s-card-hint">incognito chats never read or save memory. owner instructions stay separate from the memories below.</p>
@@ -1880,9 +1880,9 @@
                   <div class="s-toggle-desc" id="mem-policy-desc">ask before saving suggested memories</div>
                 </div>
                 <div class="mem-policy-options" role="group" aria-label="memory policy choices">
-                  <button class="mem-policy-btn" data-memory-policy="off">off</button>
-                  <button class="mem-policy-btn" data-memory-policy="ask">ask</button>
-                  <button class="mem-policy-btn" data-memory-policy="auto">auto</button>
+                  <button type="button" class="mem-policy-btn" data-memory-policy="off">off</button>
+                  <button type="button" class="mem-policy-btn" data-memory-policy="ask">ask</button>
+                  <button type="button" class="mem-policy-btn" data-memory-policy="auto">auto</button>
                 </div>
               </div>
               <div class="s-toggle-row">
@@ -1894,14 +1894,14 @@
               <div class="mem-view-list" id="memory-list"></div>
               <div style="display:flex;gap:0.4rem;margin-top:0.6rem">
                 <input type="text" id="mem-add-input" class="settings-input" placeholder="add a memory..." style="flex:1">
-                <button class="btn mem-cat-cycle" id="mem-cat-cycle-btn" data-val="general">general</button>
-                <button class="btn primary" id="mem-add-btn">remember</button>
+                <button type="button" class="btn mem-cat-cycle" id="mem-cat-cycle-btn" data-val="general">general</button>
+                <button type="button" class="btn primary" id="mem-add-btn">remember</button>
               </div>
-              <div class="mem-undo" id="mem-undo" hidden>saved to memory <button class="act-btn">undo</button></div>
+              <div class="mem-undo" id="mem-undo" hidden>saved to memory <button type="button" class="act-btn">undo</button></div>
               <div class="mem-foot-actions">
                 <button class="btn" id="mem-pause-btn" type="button">pause</button>
                 <a class="btn" href="/api/memories/export" download>export</a>
-                <button class="btn danger" id="mem-clear-btn">clear all</button>
+                <button type="button" class="btn danger" id="mem-clear-btn">clear all</button>
               </div>
             </div>
           </div>
@@ -1919,7 +1919,7 @@
                 <label>primary provider</label>
                 <div style="display:flex;gap:0.4rem;align-items:center">
                   <div class="settings-input custom-select" id="s-search-provider" style="flex:1" data-value="duckduckgo" data-options="duckduckgo|DuckDuckGo (free);tavily|Tavily;brave|Brave Search;searxng|SearXNG (self-hosted);google_pse|Google PSE;serper|Serper;disabled|disabled"></div>
-                  <button class="btn" id="s-search-test-btn" style="flex-shrink:0">test</button>
+                  <button type="button" class="btn" id="s-search-test-btn" style="flex-shrink:0">test</button>
                 </div>
               </div>
               <div class="s-field" id="s-tavily-row" style="display:none">
@@ -1950,7 +1950,7 @@
                 <label>results per query</label>
                 <div class="settings-input custom-select" id="s-search-count" style="width:100px" data-value="8" data-options="3|3;5|5;8|8;10|10;20|20"></div>
               </div>
-              <div id="s-search-status" style="font-size:0.72rem;color:var(--muted);margin-top:0.3rem"></div>
+              <div id="s-search-status" style="font-size:0.75rem;color:var(--muted);margin-top:0.3rem"></div>
             </div>
           </div>
           <div class="s-card">
@@ -2013,7 +2013,7 @@
             <div class="s-card-head">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
               chat bar
-              <button class="btn" id="s-vis-reset-btn" style="margin-left:auto;font-size:0.68rem;padding:0.15rem 0.5rem">reset all</button>
+              <button type="button" class="btn" id="s-vis-reset-btn" style="margin-left:auto;font-size:0.75rem;padding:0.15rem 0.5rem">reset all</button>
             </div>
             <div class="s-card-body" style="padding-top:0.2rem;padding-bottom:0.2rem">
               <div class="s-toggle-row"><div><div class="s-toggle-label">welcome message</div><div class="s-toggle-desc">show the empty chat welcome screen</div></div><div class="s-switch" id="s-welcome-toggle"></div></div>
@@ -2063,7 +2063,7 @@
               <div class="s-field"><label>current password</label><input type="password" class="settings-input" id="s-pw-old" placeholder="leave blank if none set" style="width:100%"></div>
               <div class="s-field"><label>new password</label><input type="password" class="settings-input" id="s-pw-new" minlength="12" placeholder="at least 12 characters" style="width:100%"></div>
               <div class="s-field"><label>verify password <span style="color:var(--muted);font-weight:400">— enter it again</span></label><input type="password" class="settings-input" id="s-pw-new2" placeholder="re-enter new password" style="width:100%"></div>
-              <button class="btn primary" id="s-pw-save" style="width:100%;margin-top:0.3rem">change password</button>
+              <button type="button" class="btn primary" id="s-pw-save" style="width:100%;margin-top:0.3rem">change password</button>
             </div>
           </div>
         </div>
@@ -2080,8 +2080,8 @@
               <div class="s-field">
                 <label>mode</label>
                 <div class="theme-mode-row" id="s-theme-mode-row">
-                  <button class="theme-mode-btn" data-theme-mode="dark">dark</button>
-                  <button class="theme-mode-btn" data-theme-mode="light">light</button>
+                  <button type="button" class="theme-mode-btn" data-theme-mode="dark">dark</button>
+                  <button type="button" class="theme-mode-btn" data-theme-mode="light">light</button>
                 </div>
               </div>
               <div class="s-field" style="margin-top:0.6rem">
@@ -2089,7 +2089,7 @@
                 <div class="accent-swatches" id="s-accent-swatches"></div>
                 <div class="accent-custom">
                   <input type="text" id="s-accent-hex" class="settings-input" placeholder="type a #hex color" spellcheck="false" style="width:160px">
-                  <button class="btn" id="s-accent-reset" style="font-size:0.68rem;padding:0.2rem 0.55rem">reset</button>
+                  <button type="button" class="btn" id="s-accent-reset" style="font-size:0.75rem;padding:0.2rem 0.55rem">reset</button>
                 </div>
               </div>
             </div>
@@ -2158,7 +2158,7 @@
                 <label>required for whisper api and openai tts</label>
                 <input type="password" class="settings-input" id="settings-openai-key" placeholder="sk-..." style="width:100%">
               </div>
-              <button class="btn primary" id="s-voice-save-btn" style="width:100%;margin-top:0.2rem">save voice settings</button>
+              <button type="button" class="btn primary" id="s-voice-save-btn" style="width:100%;margin-top:0.2rem">save voice settings</button>
             </div>
           </div>
         </div>
@@ -2205,8 +2205,8 @@
                 <div class="s-switch" id="persona-default"></div>
               </div>
               <div style="display:flex;gap:.5rem">
-                <button class="btn primary" id="persona-add-btn" style="flex:1">add persona</button>
-                <button class="btn" id="persona-cancel-btn" hidden>cancel</button>
+                <button type="button" class="btn primary" id="persona-add-btn" style="flex:1">add persona</button>
+                <button type="button" class="btn" id="persona-cancel-btn" hidden>cancel</button>
               </div>
               <!-- 10d — knowledge files + share, only meaningful for a saved persona -->
               <div id="persona-extra" hidden style="margin-top:0.85rem;border-top:1px solid var(--faint);padding-top:0.85rem">
@@ -2215,10 +2215,10 @@
                   <div style="display:flex;gap:.4rem;margin-top:.4rem">
                     <input type="text" class="settings-input" id="persona-doc-title" placeholder="title" style="flex:0 0 30%">
                     <input type="text" class="settings-input" id="persona-doc-content" placeholder="paste knowledge text…" style="flex:1">
-                    <button class="btn" id="persona-doc-add">add</button>
+                    <button type="button" class="btn" id="persona-doc-add">add</button>
                   </div>
                 </div>
-                <button class="btn" id="persona-share-btn" style="margin-top:.5rem">🔗 share this assistant</button>
+                <button type="button" class="btn" id="persona-share-btn" style="margin-top:.5rem">🔗 share this assistant</button>
               </div>
             </div>
           </div>
@@ -2234,7 +2234,7 @@
                 <div class="s-field" style="flex:1;min-width:100px"><label>description</label><input type="text" class="settings-input" id="cookbook-desc"></div>
               </div>
               <div class="s-field"><label>prompt template</label><textarea class="settings-textarea" id="cookbook-prompt" rows="2" placeholder="use {args} for the user's input"></textarea></div>
-              <button class="btn primary" id="cookbook-add-btn" style="width:100%">add command</button>
+              <button type="button" class="btn primary" id="cookbook-add-btn" style="width:100%">add command</button>
             </div>
           </div>
         </div>
@@ -2291,7 +2291,7 @@
             <div class="s-card-head">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4"/><path d="M12 18v4"/><path d="M4.93 4.93l2.83 2.83"/><path d="M16.24 16.24l2.83 2.83"/><path d="M2 12h4"/><path d="M18 12h4"/><path d="M4.93 19.07l2.83-2.83"/><path d="M16.24 7.76l2.83-2.83"/></svg>
               agent stack
-              <button class="btn" id="agent-status-refresh-btn" style="margin-left:auto;font-size:0.68rem;padding:0.15rem 0.5rem">refresh</button>
+              <button type="button" class="btn" id="agent-status-refresh-btn" style="margin-left:auto;font-size:0.75rem;padding:0.15rem 0.5rem">refresh</button>
             </div>
             <div class="s-card-body">
               <div id="agent-status-grid" class="agent-status-grid"></div>
@@ -2301,7 +2301,7 @@
                 <div class="s-toggle-row"><div><div class="s-toggle-label">computer use</div><div class="s-toggle-desc">screenshot + click/type tools (needs pyautogui)</div></div><div class="s-switch" id="s-agent-computer-toggle"></div></div>
                 <div class="s-toggle-row"><div><div class="s-toggle-label">sub-agents</div><div class="s-toggle-desc">allow spawn_agent + parallel delegation</div></div><div class="s-switch" id="s-agent-subagents-toggle"></div></div>
                 <div class="s-field"><label>extra approved file roots <span class="s-field-note">read-only; one existing folder per line</span></label><textarea class="settings-textarea" id="s-agent-roots" rows="3" placeholder="/path/to/another/folder"></textarea></div>
-                <button class="btn" id="s-agent-roots-save">save approved roots</button>
+                <button type="button" class="btn" id="s-agent-roots-save">save approved roots</button>
               </div>
               <div id="agent-tool-list" class="agent-tool-list"></div>
               <div id="agent-run-list" class="agent-run-list"></div>
@@ -2320,7 +2320,7 @@
                 <input type="text" id="perm-rule-path" class="settings-input" placeholder="path or command match (optional)" style="flex:1.4;min-width:140px">
                 <div id="perm-rule-action" class="settings-input custom-select" data-value="ask" data-options="allow|allow;ask|ask;deny|deny" style="width:88px;flex-shrink:0"></div>
               </div>
-              <button class="btn primary" id="perm-rule-add-btn" style="width:100%">add rule</button>
+              <button type="button" class="btn primary" id="perm-rule-add-btn" style="width:100%">add rule</button>
             </div>
           </div>
           <div class="s-card">
@@ -2341,7 +2341,7 @@
                 <div class="s-field"><label>http headers</label><textarea class="settings-input" id="mcp-headers" rows="3" placeholder="Authorization=Bearer …" style="width:100%"></textarea></div>
                 <div class="s-card-hint">private values are encrypted on disk and never shown again.</div>
               </details>
-              <button class="btn primary" id="mcp-add-btn" style="width:100%">add server</button>
+              <button type="button" class="btn primary" id="mcp-add-btn" style="width:100%">add server</button>
             </div>
           </div>
           <!-- 11a — macOS native integration status (Mac mini only) -->
@@ -2366,10 +2366,10 @@
               </div>
               <div class="s-field" id="conn-custom-row" style="display:none"><label>name</label><input type="text" class="settings-input" id="conn-custom" placeholder="service id" style="width:100%"></div>
               <div class="s-field"><label>token</label><input type="password" class="settings-input" id="conn-token" placeholder="personal access token" style="width:100%"></div>
-              <button class="btn primary" id="conn-add-btn" style="width:100%">connect</button>
+              <button type="button" class="btn primary" id="conn-add-btn" style="width:100%">connect</button>
               <div class="s-card-hint">github: a fine-grained or classic PAT with repo scope. the agent gets github_* tools once connected.</div>
               <div class="s-card-hint">alles cannot show quota or credits for token connections. check limits with the service, and disconnect here when access is no longer needed.</div>
-              <button class="btn" id="conn-rotate-key" style="width:100%;margin-top:0.65rem">rotate credential key</button>
+              <button type="button" class="btn" id="conn-rotate-key" style="width:100%;margin-top:0.65rem">rotate credential key</button>
               <div class="s-card-hint">re-encrypts saved credentials, then safely retires the old key.</div>
             </div>
           </div>
@@ -2386,7 +2386,7 @@
               <div id="token-list" style="margin-bottom:0.75rem"></div>
               <div style="display:flex;gap:0.4rem">
                 <input type="text" class="settings-input" id="token-name" placeholder="token name" style="flex:1">
-                <button class="btn primary" id="token-add-btn">generate</button>
+                <button type="button" class="btn primary" id="token-add-btn">generate</button>
               </div>
               <div class="vault-schema-pick" id="token-scopes" style="margin-top:0.55rem" aria-label="token permissions">
                 <span class="vsp-label">access</span>
@@ -2399,7 +2399,7 @@
                 <button type="button" class="vsp-chip" data-token-scope="admin">admin</button>
               </div>
               <div class="s-card-hint">choose only what this token needs. admin includes every permission.</div>
-              <div id="token-reveal" style="display:none;margin-top:0.5rem;padding:0.5rem;border:1px solid var(--faint);border-radius:3px;font-family:monospace;font-size:0.72rem;word-break:break-all;color:var(--accent)"></div>
+              <div id="token-reveal" style="display:none;margin-top:0.5rem;padding:0.5rem;border:1px solid var(--faint);border-radius:3px;font-family:monospace;font-size:0.75rem;word-break:break-all;color:var(--accent)"></div>
             </div>
           </div>
           <div class="s-card">
@@ -2411,7 +2411,7 @@
               <div id="webhook-list" style="margin-bottom:0.75rem"></div>
               <div class="s-field"><label>name</label><input type="text" class="settings-input" id="wh-name" style="width:100%"></div>
               <div class="s-field"><label>url</label><input type="text" class="settings-input" id="wh-url" placeholder="https://..." style="width:100%"></div>
-              <button class="btn primary" id="wh-add-btn" style="width:100%">add webhook</button>
+              <button type="button" class="btn primary" id="wh-add-btn" style="width:100%">add webhook</button>
             </div>
           </div>
           <div class="s-card">
@@ -2596,8 +2596,8 @@
                 </div>
                 <div style="display:flex;gap:0.4rem">
                   <input type="text" id="rule-name" class="settings-input" placeholder="rule name (optional)" style="flex:1">
-                  <button class="btn" id="rule-cancel-btn" style="display:none">cancel</button>
-                  <button class="btn primary" id="rule-add-btn">add rule</button>
+                  <button type="button" class="btn" id="rule-cancel-btn" style="display:none">cancel</button>
+                  <button type="button" class="btn primary" id="rule-add-btn">add rule</button>
                 </div>
               </div>
             </div>
@@ -2605,7 +2605,7 @@
           <div class="s-card">
             <div class="s-card-head">delivery channels</div>
             <div class="s-card-body">
-              <p style="font-size:0.72rem;color:var(--muted);margin-bottom:0.6rem">the "send to discord / telegram" actions use these. paste a discord webhook url and/or a telegram bot token + chat id.</p>
+              <p style="font-size:0.75rem;color:var(--muted);margin-bottom:0.6rem">the "send to discord / telegram" actions use these. paste a discord webhook url and/or a telegram bot token + chat id.</p>
               <input type="text" id="s-notify-discord" class="settings-input" placeholder="discord webhook url" style="width:100%;margin-bottom:0.45rem">
               <input type="text" id="s-notify-tgtoken" class="settings-input" placeholder="telegram bot token" style="width:100%;margin-bottom:0.45rem">
               <input type="text" id="s-notify-tgchat" class="settings-input" placeholder="telegram chat id" style="width:100%">
@@ -2628,9 +2628,9 @@
             </div>
             <div class="s-card-body">
               <p style="font-size:0.75rem;color:var(--muted);margin-bottom:0.75rem">downloads an encrypted <code>.alles-backup</code> containing the selected local data and a verified manifest.</p>
-              <button class="btn primary" id="backup-export-btn" style="width:100%">download encrypted backup</button>
-              <button class="btn" id="backup-key-export-btn" style="width:100%;margin-top:0.5rem">download recovery key</button>
-              <p style="font-size:0.72rem;color:var(--muted);margin-top:0.6rem">save the recovery key somewhere separate. a backup cannot be opened without it if this installation is lost.</p>
+              <button type="button" class="btn primary" id="backup-export-btn" style="width:100%">download encrypted backup</button>
+              <button type="button" class="btn" id="backup-key-export-btn" style="width:100%;margin-top:0.5rem">download recovery key</button>
+              <p style="font-size:0.75rem;color:var(--muted);margin-top:0.6rem">save the recovery key somewhere separate. a backup cannot be opened without it if this installation is lost.</p>
             </div>
           </div>
           <div class="s-card">
@@ -2648,7 +2648,7 @@
                 choose separate recovery key (optional)
                 <input type="file" id="backup-recovery-key-input" accept=".txt,.key" style="display:none">
               </label>
-              <p id="backup-recovery-key-name" style="font-size:0.7rem;color:var(--muted);margin-top:0.4rem">no separate key selected</p>
+              <p id="backup-recovery-key-name" style="font-size:0.75rem;color:var(--muted);margin-top:0.4rem">no separate key selected</p>
               <p id="backup-restore-status" hidden aria-live="polite" style="font-size:0.75rem;color:var(--muted);margin-top:0.75rem;overflow-wrap:anywhere"></p>
             </div>
           </div>
@@ -2670,15 +2670,15 @@
               <div class="s-field">
                 <label for="webdav-backup-password">password</label>
                 <input type="password" class="settings-input" id="webdav-backup-password" placeholder="blank keeps the saved password" autocomplete="new-password" aria-describedby="webdav-backup-password-help" style="width:100%">
-                <span id="webdav-backup-password-help" style="font-size:0.68rem;color:var(--muted)">use an app password when your WebDAV service supports one.</span>
+                <span id="webdav-backup-password-help" style="font-size:0.75rem;color:var(--muted)">use an app password when your WebDAV service supports one.</span>
               </div>
               <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
                 <button class="btn primary" id="webdav-backup-save-btn" type="button" style="flex:1;min-width:150px">connect and save</button>
                 <button class="btn danger" id="webdav-backup-disconnect-btn" type="button" hidden>disconnect</button>
               </div>
               <p id="webdav-backup-status" role="status" aria-live="polite" style="font-size:0.75rem;color:var(--muted);margin-top:0.7rem">checking connection…</p>
-              <p style="font-size:0.7rem;color:var(--muted);margin-top:0.25rem">last successful backup: <span id="webdav-backup-last-success">never</span></p>
-              <p style="font-size:0.7rem;color:var(--muted);margin-top:0.15rem">last verified: <span id="webdav-backup-last-verified">never</span></p>
+              <p style="font-size:0.75rem;color:var(--muted);margin-top:0.25rem">last successful backup: <span id="webdav-backup-last-success">never</span></p>
+              <p style="font-size:0.75rem;color:var(--muted);margin-top:0.15rem">last verified: <span id="webdav-backup-last-verified">never</span></p>
 
               <div style="border-top:1px solid var(--faint);margin:0.85rem 0;padding-top:0.85rem">
                 <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
@@ -2689,10 +2689,10 @@
                   <label for="webdav-backup-list">remote backup</label>
                   <div class="settings-input custom-select" id="webdav-backup-list" data-value="" data-options="|no remote backups found" aria-disabled="true" style="width:100%"></div>
                 </div>
-                <p id="webdav-backup-selection" style="font-size:0.7rem;color:var(--muted);margin-top:-0.3rem" aria-live="polite">choose a backup to stage a restore.</p>
+                <p id="webdav-backup-selection" style="font-size:0.75rem;color:var(--muted);margin-top:-0.3rem" aria-live="polite">choose a backup to stage a restore.</p>
                 <button class="btn" id="webdav-backup-recovery-key-btn" type="button" style="width:100%;margin-top:0.65rem">choose separate recovery key (optional)</button>
                 <input type="file" id="webdav-backup-recovery-key" accept=".txt,.key" style="display:none">
-                <p id="webdav-backup-recovery-key-name" style="font-size:0.7rem;color:var(--muted);margin-top:0.4rem">no separate key selected</p>
+                <p id="webdav-backup-recovery-key-name" style="font-size:0.75rem;color:var(--muted);margin-top:0.4rem">no separate key selected</p>
                 <button class="btn" id="webdav-backup-restore-btn" type="button" disabled style="width:100%;margin-top:0.55rem">verify and stage selected restore</button>
                 <p id="webdav-backup-restore-status" hidden role="status" aria-live="polite" style="font-size:0.75rem;color:var(--muted);margin-top:0.75rem;overflow-wrap:anywhere"></p>
               </div>
@@ -2705,7 +2705,7 @@
             </div>
             <div class="s-card-body">
               <p style="font-size:0.75rem;color:var(--muted);margin-bottom:0.6rem">manually send the same encrypted backup to an existing S3 bucket. this is backup-only: Alles will not sync or manage other objects.</p>
-              <p style="font-size:0.7rem;color:var(--muted);margin-bottom:0.75rem">the connection check creates and removes tiny probe objects. each backup is one copy, and the copy is not atomic. the artifact must be 5 GB or smaller. for disaster recovery, keep your S3 credentials and recovery-key file somewhere outside Alles.</p>
+              <p style="font-size:0.75rem;color:var(--muted);margin-bottom:0.75rem">the connection check creates and removes tiny probe objects. each backup is one copy, and the copy is not atomic. the artifact must be 5 GB or smaller. for disaster recovery, keep your S3 credentials and recovery-key file somewhere outside Alles.</p>
               <div class="s-field">
                 <label for="s3-backup-endpoint">https endpoint</label>
                 <input type="url" class="settings-input" id="s3-backup-endpoint" placeholder="https://s3.example.com" autocomplete="url" inputmode="url" spellcheck="false" style="width:100%">
@@ -2733,15 +2733,15 @@
               <div class="s-field">
                 <label for="s3-backup-secret-access-key">secret-access key</label>
                 <input type="password" class="settings-input" id="s3-backup-secret-access-key" placeholder="blank keeps the saved credential pair" autocomplete="new-password" aria-describedby="s3-backup-credentials-help" style="width:100%">
-                <span id="s3-backup-credentials-help" style="font-size:0.68rem;color:var(--muted)">enter both credentials together. leaving both blank keeps the saved pair.</span>
+                <span id="s3-backup-credentials-help" style="font-size:0.75rem;color:var(--muted)">enter both credentials together. leaving both blank keeps the saved pair.</span>
               </div>
               <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
                 <button class="btn primary" id="s3-backup-save-btn" type="button" style="flex:1;min-width:150px">connect and save</button>
                 <button class="btn danger" id="s3-backup-disconnect-btn" type="button" hidden>disconnect</button>
               </div>
               <p id="s3-backup-status" role="status" aria-live="polite" style="font-size:0.75rem;color:var(--muted);margin-top:0.7rem">checking connection…</p>
-              <p style="font-size:0.7rem;color:var(--muted);margin-top:0.25rem">last successful backup: <span id="s3-backup-last-success">never</span></p>
-              <p style="font-size:0.7rem;color:var(--muted);margin-top:0.15rem">last verified upload read-back: <span id="s3-backup-last-verified">never</span></p>
+              <p style="font-size:0.75rem;color:var(--muted);margin-top:0.25rem">last successful backup: <span id="s3-backup-last-success">never</span></p>
+              <p style="font-size:0.75rem;color:var(--muted);margin-top:0.15rem">last verified upload read-back: <span id="s3-backup-last-verified">never</span></p>
 
               <div style="border-top:1px solid var(--faint);margin:0.85rem 0;padding-top:0.85rem">
                 <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
@@ -2752,10 +2752,10 @@
                   <label for="s3-backup-list">remote backup</label>
                   <div class="settings-input custom-select" id="s3-backup-list" data-value="" data-options="|no remote backups found" aria-disabled="true" style="width:100%"></div>
                 </div>
-                <p id="s3-backup-selection" style="font-size:0.7rem;color:var(--muted);margin-top:-0.3rem" aria-live="polite">choose a backup to stage a restore.</p>
+                <p id="s3-backup-selection" style="font-size:0.75rem;color:var(--muted);margin-top:-0.3rem" aria-live="polite">choose a backup to stage a restore.</p>
                 <button class="btn" id="s3-backup-recovery-key-btn" type="button" style="width:100%;margin-top:0.65rem">choose separate recovery key (optional)</button>
                 <input type="file" id="s3-backup-recovery-key" accept=".txt,.key" style="display:none">
-                <p id="s3-backup-recovery-key-name" style="font-size:0.7rem;color:var(--muted);margin-top:0.4rem">no separate key selected</p>
+                <p id="s3-backup-recovery-key-name" style="font-size:0.75rem;color:var(--muted);margin-top:0.4rem">no separate key selected</p>
                 <button class="btn" id="s3-backup-restore-btn" type="button" disabled style="width:100%;margin-top:0.55rem">verify and stage selected restore</button>
                 <p id="s3-backup-restore-status" hidden role="status" aria-live="polite" style="font-size:0.75rem;color:var(--muted);margin-top:0.75rem;overflow-wrap:anywhere"></p>
               </div>
@@ -2779,9 +2779,9 @@
               <div class="s-toggle-row"><div><div class="s-toggle-label">contacts</div></div><div class="s-switch" id="s-pidx-contact"></div></div>
               <div class="s-toggle-row"><div><div class="s-toggle-label">read-later</div></div><div class="s-switch" id="s-pidx-read"></div></div>
               <div class="s-toggle-row"><div><div class="s-toggle-label">books</div></div><div class="s-switch" id="s-pidx-book"></div></div>
-              <div id="s-pidx-stats" style="font-size:0.7rem;color:var(--muted);margin:0.6rem 0"></div>
-              <button class="btn" id="s-pidx-reindex">reindex now</button>
-              <button class="btn danger" id="s-pidx-clear">clear index</button>
+              <div id="s-pidx-stats" style="font-size:0.75rem;color:var(--muted);margin:0.6rem 0"></div>
+              <button type="button" class="btn" id="s-pidx-reindex">reindex now</button>
+              <button type="button" class="btn danger" id="s-pidx-clear">clear index</button>
             </div>
           </div>
         </div>
@@ -2816,9 +2816,9 @@
                 <input type="number" min="0" max="23" id="s-prox-qend" style="width:3.4rem;background:var(--panel);border:1px solid var(--faint);color:var(--text);border-radius:3px;padding:0.2rem 0.3rem;font-size:0.75rem">
               </div>
               <div class="s-toggle-row" style="margin-top:0.5rem"><div><div class="s-toggle-label">send push for urgent</div><div class="s-toggle-desc">web-push high-priority cards (needs notifications on)</div></div><div class="s-switch" id="s-prox-push"></div></div>
-              <div id="s-prox-status" style="font-size:0.7rem;color:var(--muted);margin:0.6rem 0"></div>
+              <div id="s-prox-status" style="font-size:0.75rem;color:var(--muted);margin:0.6rem 0"></div>
               <div id="s-prox-learning" class="s-prox-learning"></div>
-              <button class="btn" id="s-prox-run">run now</button>
+              <button type="button" class="btn" id="s-prox-run">run now</button>
             </div>
           </div>
         </div>
@@ -2839,10 +2839,10 @@
               <div class="s-toggle-row"><div><div class="s-toggle-label">inject what it learned into aide</div></div><div class="s-switch" id="s-intel-distill-inject"></div></div>
               <div class="s-toggle-row"><div><div class="s-toggle-label">composer suggestions</div><div class="s-toggle-desc">predicted next-step chips above the message box</div></div><div class="s-switch" id="s-intel-suggest"></div></div>
               <div class="s-toggle-row"><div><div class="s-toggle-label">session context</div><div class="s-toggle-desc">keep aide aware of the current topic across turns</div></div><div class="s-switch" id="s-intel-session"></div></div>
-              <div id="s-intel-status" style="font-size:0.7rem;color:var(--muted);margin:0.6rem 0"></div>
+              <div id="s-intel-status" style="font-size:0.75rem;color:var(--muted);margin:0.6rem 0"></div>
               <div style="display:flex;gap:0.4rem">
-                <button class="btn" id="s-intel-insights-run">generate insights</button>
-                <button class="btn" id="s-intel-distill-run">distill now</button>
+                <button type="button" class="btn" id="s-intel-insights-run">generate insights</button>
+                <button type="button" class="btn" id="s-intel-distill-run">distill now</button>
               </div>
             </div>
           </div>

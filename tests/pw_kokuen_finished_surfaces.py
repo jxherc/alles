@@ -140,12 +140,7 @@ def _files_desktop(browser: Browser, errors: list[str]) -> None:
         ).count()
         == 0
     )
-    assert (
-        page.locator("#files-search").evaluate(
-            "el => Math.round(el.getBoundingClientRect().height)"
-        )
-        == 36
-    )
+    assert page.locator("#files-search").evaluate("el => el.getBoundingClientRect().height >= 43.5")
     assert page.locator(".main > .topbar").evaluate("el => getComputedStyle(el).display === 'none'")
     assert (
         page.locator("#files-app-header").evaluate(

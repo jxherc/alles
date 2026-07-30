@@ -2,21 +2,20 @@
 
 ## goal
 
-Complete the approved KOKUEN v5 rebuild in the real Alles application. Preserve the graphite workbench
-identity, provide one universal shell control from every space, centralize reusable interaction
-primitives, migrate every shipped surface, publish an exhaustive interaction logic map, repeatedly
-exercise every available function through isolated real-application runs, and finish with verified local
-commits without pushing.
+Revalidate the complete real Alles application against KOKUEN from the verified v5 baseline, repair
+every fresh defect, expand the interaction map from feature reconciliation to a literal inventory of
+every rendered and dynamic control plus every activation path, and repeatedly exercise every locally
+available function through realistic isolated use. Include safe live-model use when an existing app
+boundary or confirmed OAuth grant makes it available, then finish with verified local commits without
+pushing.
 
 ## status
 
-The complete approved KOKUEN v5 rebuild is implemented in the real application and preserved through
-four verified local v5 milestone commits after the recovered v3 checkpoint. The shared runtime, one
-universal shell, Home, Aide, Andromeda, exactly nine specialist workbenches, Settings, setup, PWA, and
-browser extension all pass their focused and repeated isolated real-application gates. The exhaustive
-interaction map reconciles all 26 registered features and every declared function surface. The final
-stable-tree broad Python sweep passed all 5,560 tests with 15 environment-specific skips. The approved
-local objective is complete and no push has occurred.
+The complete approved KOKUEN v5 rebuild and post-v5 literal audit are implemented. The shared runtime,
+universal shell, shipped workbenches, Settings, setup, PWA, browser extension, per-control interaction
+map, realistic repeated-use gates, safe model/effort fixture, and native Chrome acceptance are complete.
+The independent final review reports PASS. Final repository-wide verification and the local checkpoint
+commit are in progress; no push has occurred.
 
 ## requirements
 
@@ -41,16 +40,21 @@ local objective is complete and no push has occurred.
 
 ## implementation plan
 
-1. Inventory every visible control, event authority, state transition, route, and shipped surface.
-2. Stabilize KOKUEN v5 tokens, shared primitives, the universal shell, and the interaction-map schema.
-3. Migrate Home, Aide, and Andromeda without changing their product authority or data model.
-4. Migrate all nine specialist apps after the shared runtime is stable.
-5. Migrate Settings, setup, the PWA, and the browser extension.
-6. Generate the exhaustive human-readable and machine-verifiable interaction logic map.
-7. Run repeated narrow and broad source, unit, integration, browser, keyboard, responsive, reduced-motion,
-   offline, stale, partial, failure, and recovery checks on isolated real application instances.
-8. Perform independent regression review, the full design-system and anti-slop audit, and verified local
-   checkpoint commits without pushing.
+1. Freeze and inspect the clean committed v5 baseline, prior evidence, map schema, and external gaps.
+2. Generate a literal census of static and dynamic buttons, links, choices, tabs, menus, row actions,
+   shortcuts, gestures, submissions, event authorities, API calls, state transitions, recovery, and focus.
+3. Re-audit shared primitives, shell, primary spaces, nine specialist apps, Settings/setup, PWA, and
+   extension against the complete KOKUEN and anti-slop contract; repair only confirmed deltas.
+4. Publish deterministic per-control JSON and readable logic-map documentation with reconciliation tests
+   and stable control identifiers.
+5. Build an owned realistic throwaway environment and use existing safe model access or pause at the
+   required action-time confirmation before creating a persistent OAuth grant.
+6. Run repeated pointer, keyboard, shortcut, context, mutation/recovery, responsive, zoom, theme,
+   reduced-motion, offline, and failure passes through every locally available control.
+7. Use the in-app browser for normal application behavior and Computer Use only for OS, packaged PWA,
+   extension, authentication, or other surfaces browser automation cannot reach.
+8. Run independent regression review, full JavaScript/Python/design-system checks, final anti-slop audit,
+   update the project ledger, and create verified local commits without pushing.
 
 ## completed
 
@@ -138,21 +142,91 @@ local objective is complete and no push has occurred.
 - Added the saved-session and project action structure to the repeatable finished-surface browser gate:
   native Enter/Space activation, Shift+F10, pointer context menu, menu arrow/Home/End/Escape, rename
   focus return, sibling action structure, project expansion, 44px geometry, and an inspected capture.
+- Expanded the literal census to 1,612 stable controls and 2,730 discoverable activation paths. Every
+  path now records modality and keys, handler provenance, outcome/state-transition bounds, source/test
+  evidence, recovery, external authority, the complete visual-state vocabulary, and a resolvable source
+  address. Three external boundaries remain explicitly blocked rather than counted as local proof.
+- Exercised 92 populated desktop/phone tab surfaces with 2,213 visible-control observations. The run
+  found and repaired Plan row semantics, task-editor focus/retry behavior, calendar and mail target sizes,
+  canonical Vault routing, and synthetic Finance currency provenance; both scan shards then passed.
+- Reworked the visible Aide model dialog as a labelled modal focus boundary with native named option
+  buttons, a keyboard listbox, keyboard-complete tabs, focus return, and synchronized switch state.
+- Passed the real loopback model boundary through the shipped UI: endpoint add/probe/test, all seven
+  effort profiles, repeated low/max/custom, exact provider-effort mapping, unsupported-reasoning error
+  and recovery, automatic transient retry, exhausted-retry error, manual retry, and reload persistence.
+  The fixture used no owner credentials or normal data.
+- Reduced the v5 overlay KOKUEN lint to zero hard errors and added a fail-closed audit for all 195
+  advisories. Every small-type or nested-boundary warning now has a declared typography or boundary
+  job; the exact count and digest fail if a warning changes without review. The audit reports zero
+  unexplained warnings.
+- Removed the remaining inline HTML/JavaScript text declarations below KOKUEN's 12px hard floor,
+  including legacy compact action labels, and added a shipped-template regression for the floor.
+- Repeated the complete literal real-app scan twice: 92 desktop/phone/tab surfaces and 2,198 visible
+  controls passed the target, name, state, native-choice, overflow, focus, and console assertions.
+- Used Computer Use on an owned Chrome for Testing profile to accept the real Chrome host-permission
+  prompt, pair the unpacked password extension through matching Alles codes, request and approve short
+  vault access, install Alles from Chrome's native install surface, launch it as a standalone PWA, open
+  the universal navigation sheet, move from Passwords to Aide, and uninstall the isolated PWA with its
+  temporary app data.
+- Closed the variable Docs editor reload race: background vault refreshes no longer replace an active
+  editor, and the exact real Notes journey passed twice on separate fresh roots with zero console errors.
+- Closed the extension's post-lock repaint race: lock waits for server acknowledgement and stale match
+  results cannot reclaim a view after their session token loses ownership. The complete unpacked-extension
+  lifecycle passed twice on separate fresh roots and profiles.
+- Added repeat rejection and retained-error recovery to send later. A real pointer/context gate proved
+  one held double activation creates only one request, while a failed request keeps the dialog, date,
+  draft, retry action, and focus available.
+- Reset model option buttons as full-width 44px KOKUEN rows so semantic button conversion cannot expose
+  browser button chrome. Focused source and rendered model/effort gates remain required in the final pass.
+- Repeated the final literal real-app census after the type-floor and explicit-button corrections: 92
+  desktop, phone, and tab surfaces with 2,208 visible-control observations passed twice.
 
 ## in progress
 
-- None.
+- Complete the pre-commit scope, secret, identity, and evidence audit, then create and verify the local
+  commit without pushing.
 
 ## remaining
 
-- No locally actionable implementation or verification work remains.
-- The 13 external acceptance gaps recorded in the interaction map require provider credentials, accounts,
-  installed targets, disposable virtual machines, or owner infrastructure that are not available in this
-  isolated local run.
+- Create and verify the final local checkpoint commit.
+- Preserve explicit external gaps that still require provider credentials, accounts, installed targets,
+  disposable virtual machines, or owner infrastructure.
+
+## post-v5 audit milestones
+
+- Generated a deterministic literal interaction census with 1,612 records: 686 static controls and 926
+  dynamic renderer templates across 41 listener event types and 2,730 activation paths.
+- Assigned every record to an existing feature or an explicit cross-feature owner; zero orphan owners
+  remain. Every record and activation path has a bounded source authority, outcome/transition,
+  recovery, provenance, and evidence classification without presenting source-only paths as runtime
+  proof.
+- Separated KOKUEN's 14 visual states from outcome status and fixed the evidence vocabulary to
+  pointer-real, keyboard-real, simulated-route, programmatic-dom, backend-only, external-blocked, and
+  not-applicable.
+- Used the real isolated application through the in-app browser to measure initial Home, Aide,
+  Andromeda, Plan, Inbox, Docs, Files, Library, Health, and Finance resting controls. The pass confirmed
+  no visible native choices or horizontal overflow and exposed sub-44px Home, Aide, Andromeda, and Files
+  controls that the prior generic source assertion missed.
+- Added a final shared 44px hit-geometry invariant for every decorated discrete control, while keeping
+  compactness inside the target rather than shrinking it.
+- Named the three Andromeda settings switches and made their writes busy/repeat-safe. Failed persistence
+  now restores the previous pressed state, exposes an error state, leaves the control enabled, and tells
+  the owner to retry.
+- Corrected shared state reflection so busy remains visible while a native control is disabled to reject
+  repeated mutation.
+- Confirmed OpenAI/ChatGPT consumer OAuth is not an Alles model boundary. Strict throwaway data cannot
+  reuse encrypted owner endpoints; Ollama is not installed. Gemini remains the only supported OAuth and
+  requires an owner-created Google client/project plus action-time consent. The unsafe legacy
+  `live_usage.py` is excluded from owner data.
 
 ## issues or blockers
 
-- No current implementation blocker.
+- No local implementation blocker. The independent final regression review reports PASS after the
+  extension fill/lock ownership, schedule-send repeat/recovery, model-row reset, and interaction-map
+  completeness corrections were rechecked.
+- Creating or materially expanding an OAuth grant requires confirmation at the exact authorization step,
+  even though the owner authorized broad testing. Existing app-managed access may be exercised without
+  exposing or copying the underlying credential.
 - Live provider credentials and accounts, real mailbox/connectors, physical PWA/mobile installation,
   disposable Docker/VM/native-companion acceptance, and owner host/network infrastructure are external
   acceptance gaps. They remain explicit in the interaction map and fail closed; none blocks the local
@@ -192,9 +266,17 @@ local objective is complete and no push has occurred.
   custom choices, completion, and Passwords management on isolated data.
 - KOKUEN v5 PWA gate: **passed** - installability, exact current precache manifest, fresh cold-offline
   Plan and Andromeda, Aide reconnect, shortcuts, phone tabs, and clean console checks.
-- KOKUEN v5 browser-extension gate: **passed twice** - forced missing-marker race, pairing
-  acknowledgement, narrow host permission, unlock, exact-site fill without submission, explicit lock,
-  restart session loss, persistent device identity, revoke, 44px targets, and clean console checks.
+- KOKUEN v5 PWA repeated delivery gate: **passed twice on fresh roots** - 19 manifest/precache tests per
+  run plus online Plan, cold-offline Andromeda, reconnected Aide, phone captures, and console checks.
+- KOKUEN v5 Chrome-owned PWA acceptance: **passed** - native install dialog, standalone launch,
+  universal navigation, cross-space Aide navigation, and isolated uninstall through Computer Use.
+- KOKUEN v5 browser-extension gate: **passed twice after repair** - fresh isolated profiles passed forced
+  inactivity pairing, unlock, exact-origin fill without submission, lock, lock-during-held-release stale
+  fill rejection, unlock, restart, revoke, target-size, native-choice, and console checks.
+- KOKUEN v5 Chrome-owned extension acceptance: **passed through short access** - native host permission,
+  exact matching pair code, locked device, matching access code, and active five-minute vault session
+  were exercised through Computer Use on an owned profile. Automated full-lifecycle fill remains the
+  exact-origin no-submit evidence.
 - KOKUEN v5 interaction map gate: **passed** - all 26 feature owners and every registry function surface
   reconcile with exact logic, evidence, external gaps, generated artifacts, and the shared 14 states.
 - Independent shipped-surface check: **passed** - the in-app browser and a separate desktop browser
@@ -216,6 +298,30 @@ local objective is complete and no push has occurred.
 - KOKUEN v5 final stable-tree broad Python sweep: **passed** - 5,560 tests, 0 failures, 15 skips, including
   all canonical-schema, photo-fork, destruction/recovery, crypto, rollback, update-safety, Vault, and
   Server matrices.
+- Post-v5 literal census gate: **passed** - 5 focused tests, generator freshness, source compilation,
+  1,608 unique records, zero orphan owners, three unresolved handler paths, and bounded unknown labels.
+- Post-v5 first control repair source gate: **passed** - JavaScript syntax, 55 focused KOKUEN/Andromeda
+  tests, census reconciliation, and diff integrity.
+- Post-v5 repeated literal gate: **passed** - two passes across 92 surfaces and 2,198 visible controls.
+- Post-v5 specialist journeys: **passed** - Plan, Files, Library, and Health passed twice on separate
+  fresh roots; Docs passed its exact editor journey twice after active-edit ownership prevented a
+  background vault refresh from replacing the editor.
+- KOKUEN v5 canonical overlay lint: **passed** - 0 errors, 195 reviewed warnings, 195 explained, and
+  0 unexplained; the exact warning digest and the inline 12px text floor are regression-tested.
+- Final-tree Python sweep: **passed** - 5,572 tests, 0 failures, 15 environment-specific skips, including
+  the complete historical-schema, recovery, rollback, WebDAV, Vault, Finance, Server, PWA, and security
+  matrices. The two initial failures were stale 0.72/0.74rem assertions corrected to the intended 12px
+  KOKUEN floor; the complete sweep then passed in 1,103.814 seconds.
+- Final-tree JavaScript sweep: **passed** - 579 tests, 0 failures.
+- Final literal rendered census: **passed** - 92 current desktop/phone/tab surfaces and 2,215 visible
+  control observations; pointer and keyboard universal-shell cycles repeated twice per surface with no
+  target, name, native-choice, overflow, focus, or console failure.
+- Final KOKUEN finished-surface gate: **passed** - current Home, Aide, Andromeda, Docs/Journal, Files,
+  Server, Settings, command, desktop, phone, light, reduced-motion, and 200% surfaces passed and 30 fresh
+  captures were inspected point by point for spacing, clipping, alignment, hierarchy, and anti-slop.
+- Final generated/source audit: **passed** - 1,612 controls, 2,730 activation paths, census freshness,
+  27 focused reconciliation/typography tests, zero KOKUEN hard errors, all 195 advisories explained,
+  changed-Python Ruff and format checks, diff integrity, and independent regression PASS.
 
 ## boundaries
 

@@ -64,6 +64,16 @@ assert.match(popup, /function clearUnlockRequest\(unlockRequest\)[\s\S]*?sameUnl
 assert.match(popup, /frameIds: \[0\]/);
 assert.match(popup, /location\.origin !== expectedOrigin/);
 assert.doesNotMatch(popup, /allFrames/);
+const fillSelection = popup.match(/async function fillSelected\(tab, entryId, button\)[\s\S]*?\n}\n\nfunction fillLogin/)?.[0] || '';
+const credentialReleasedAt = fillSelection.indexOf("await request(state.allesOrigin, '/api/auth/browser/release'");
+const ownershipRecheckedAt = fillSelection.indexOf('await ownsSessionToken(state.sessionToken)');
+const credentialInjectedAt = fillSelection.indexOf('await chrome.scripting.executeScript');
+assert.ok(
+  credentialReleasedAt >= 0
+    && credentialReleasedAt < ownershipRecheckedAt
+    && ownershipRecheckedAt < credentialInjectedAt,
+  'fill must recheck ownership after release and immediately before credential injection',
+);
 assert.match(popup, /passwordInputs\.length !== 1/);
 assert.match(popup, /new-password/);
 assert.doesNotMatch(popup, /\.submit\(/);

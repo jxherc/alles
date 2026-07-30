@@ -266,3 +266,17 @@ test('session wiring resets new chats, restores saved models, and avoids role pi
   assert.match(appSource, /session\?\.model\) restoreSessionModel\(session\)/);
   assert.match(appSource, /active\?\.model\) selectPersonaModel\(active\.model\)/);
 });
+
+test('model picker uses named buttons, listbox semantics, roving keys, and modal focus return', () => {
+  const source = readFileSync(new URL('../../static/js/models.js', import.meta.url), 'utf8');
+  const markup = readFileSync(new URL('../../static/index.html', import.meta.url), 'utf8');
+  const appSource = readFileSync(new URL('../../static/js/app.js', import.meta.url), 'utf8');
+  assert.match(source, /<button type="button" role="option" aria-selected=/);
+  assert.match(source, /event\.key === 'ArrowDown'/);
+  assert.match(source, /event\.key === 'ArrowRight'/);
+  assert.match(source, /setAttribute\('aria-checked', String\(_newestOnly\)\)/);
+  assert.match(markup, /id="model-modal" role="dialog" aria-modal="true"/);
+  assert.match(markup, /id="model-list" role="listbox" aria-label="available models"/);
+  assert.match(appSource, /createFocusBoundary\(modal,[\s\S]*onEscape: closeModelModal/);
+  assert.match(appSource, /_modelModalFocusBoundary\.activate/);
+});

@@ -144,13 +144,13 @@ export async function loadCompareModels() {
   if (!container) return;
   const eps = window._endpoints || [];
   if (!eps.length) {
-    container.innerHTML = '<div style="font-size:0.72rem;color:var(--muted)">no endpoints — add one via the model picker</div>';
+    container.innerHTML = '<div style="font-size:0.75rem;color:var(--muted)">no endpoints — add one via the model picker</div>';
     return;
   }
   let html = '';
   for (const ep of eps) {
     if (!ep.models.length) continue;
-    html += `<div style="font-size:0.68rem;color:var(--muted);margin:0.5rem 0 0.2rem;text-transform:lowercase">${_esc(ep.name)}</div>`;
+    html += `<div style="font-size:0.75rem;color:var(--muted);margin:0.5rem 0 0.2rem;text-transform:lowercase">${_esc(ep.name)}</div>`;
     for (const m of ep.models) {
       html += `<div class="compare-model-row">
         <span class="chk compare-model-check" data-ep="${ep.id}" data-model="${_esc(m)}" aria-checked="false"></span>
@@ -158,7 +158,7 @@ export async function loadCompareModels() {
       </div>`;
     }
   }
-  container.innerHTML = html || '<div style="font-size:0.72rem;color:var(--muted)">no models</div>';
+  container.innerHTML = html || '<div style="font-size:0.75rem;color:var(--muted)">no models</div>';
   container.querySelectorAll('.compare-model-row').forEach(row => row.addEventListener('click', () => {
     const c = row.querySelector('.chk');
     c.setAttribute('aria-checked', c.getAttribute('aria-checked') === 'true' ? 'false' : 'true');

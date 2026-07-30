@@ -342,7 +342,7 @@ async function loadDuplicates() {
   for (const g of d.groups) {
     const extras = g.items.slice(1).map(i => i.id).join(',');
     html += `<div class="photos-moment"><div class="photos-moment-label">${g.items.length} copies`
-      + ` <button class="btn photos-dup-resolve" data-ids="${extras}" style="font-size:0.62rem;margin-left:6px">${_si('trash')} trash the other ${g.items.length - 1}</button></div>`
+      + ` <button class="btn photos-dup-resolve" data-ids="${extras}" style="font-size:0.75rem;margin-left:6px">${_si('trash')} trash the other ${g.items.length - 1}</button></div>`
       + '<div class="photos-rows"><div class="photos-row">';
     g.items.forEach((p, i) => {
       _photos.push(p);
@@ -1088,7 +1088,7 @@ async function openPhotoTrash() {
     + '<div class="photos-moment-grid">';
   if (!items.length) html += '<div class="photos-empty" style="grid-column:1/-1">trash is empty</div>';
   for (const p of items) {
-    const restore = `<button class="btn photos-restore" data-id="${p.id}" style="position:absolute;bottom:4px;left:4px;font-size:0.62rem">${_si('undo')} restore</button>`;
+    const restore = `<button class="btn photos-restore" data-id="${p.id}" style="position:absolute;bottom:4px;left:4px;font-size:0.75rem">${_si('undo')} restore</button>`;
     html += _cellHtml(p, restore);
   }
   html += '</div></div>';
