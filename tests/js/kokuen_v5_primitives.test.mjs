@@ -10,6 +10,7 @@ const sessions = read('static/js/sessions.js');
 const projects = read('static/js/projects.js');
 const dropdown = read('static/js/dropdown.js');
 const css = read('static/kokuen.css');
+const legacyCss = read('static/style.css');
 const contracts = JSON.parse(read('design-system/components/contracts.json'));
 
 const requiredStates = [
@@ -150,8 +151,8 @@ test('the runtime reconciles asynchronous control state mutations', () => {
 });
 
 test('v5 enforces targets, stable motion, focus, and state affordances', () => {
-  assert.match(css, /min-height:\s*var\(--ui-control-height\)/);
-  assert.match(css, /min-width:\s*var\(--ui-control-height\)/);
+  assert.match(css, /min-height:\s*var\(--ui-control-height, 44px\) !important/);
+  assert.match(css, /min-width:\s*var\(--ui-control-height, 44px\) !important/);
   assert.match(css, /data-kokuen-state="busy"/);
   assert.match(css, /data-kokuen-state="invalid"/);
   assert.match(css, /data-state="offline"/);
@@ -159,6 +160,21 @@ test('v5 enforces targets, stable motion, focus, and state affordances', () => {
   assert.match(css, /prefers-reduced-motion:\s*reduce/);
   assert.match(css, /forced-colors:\s*active/);
   assert.doesNotMatch(css, /html\[data-kokuen-version="5"\][^}]*:hover[^}]*transform:\s*translate/);
+});
+
+test('busy state wins while a mutation disables its control to reject repeats', () => {
+  const reflected = runtime.slice(
+    runtime.indexOf('function syncControlState'),
+    runtime.indexOf('function decorateRoot'),
+  );
+  assert.ok(
+    reflected.indexOf("aria-busy') === 'true'")
+      < reflected.indexOf("[aria-disabled=\"true\"]"),
+  );
+  assert.ok(
+    reflected.indexOf("['error', 'offline', 'stale', 'partial', 'permission', 'empty']")
+      < reflected.indexOf("aria-checked') === 'true'"),
+  );
 });
 
 test('body-level dialogs clear the universal rail without clipping their content', () => {
@@ -171,4 +187,26 @@ test('the shipped document contains no forbidden native choice controls', () => 
   assert.doesNotMatch(html, /<select\b/i);
   assert.doesNotMatch(html, /<input\b[^>]*type=["'](?:checkbox|radio)["']/i);
   assert.match(app, /preventDefault\(\)[\s\S]*?openContextMenu|contextmenu/);
+});
+
+test('send-later context paths share a keyboard-complete custom dialog', () => {
+  assert.match(app, /_sendBtn\.addEventListener\('contextmenu'[\s\S]*?openSendSchedule\(\)/);
+  assert.match(app, /e\.key !== 'ContextMenu'[\s\S]*?e\.key === 'F10'[\s\S]*?openSendSchedule\(\)/);
+  assert.match(app, /pop\.setAttribute\('role', 'dialog'\)/);
+  assert.match(app, /createFocusBoundary\(pop, \{ trigger, onEscape: close \}\)/);
+  assert.match(app, /focusBoundary\.activate\(\{ focus: when, source: trigger \}\)/);
+  assert.match(app, /const finishBusy = beginBusy\(scheduleButton, 'scheduling'\)/);
+  assert.match(app, /if \(!finishBusy\) return/);
+  assert.match(app, /catch \(error\)[\s\S]*?finishBusy\(\{ state: 'error', text: 'retry schedule' \}\)/);
+  assert.match(app, /setControlState\(scheduleButton, 'error'/);
+});
+
+test('model option buttons reset native chrome and retain a full hit target', () => {
+  const modelRowRule = legacyCss.match(/\.model-row \{([\s\S]*?)\n\}/)?.[1] || '';
+  assert.match(modelRowRule, /width:\s*100%/);
+  assert.match(modelRowRule, /min-height:\s*44px/);
+  assert.match(modelRowRule, /border:\s*0/);
+  assert.match(modelRowRule, /appearance:\s*none/);
+  assert.match(modelRowRule, /background:\s*transparent/);
+  assert.match(modelRowRule, /font:\s*inherit/);
 });

@@ -1,10 +1,10 @@
 /*
  * KOKUEN runtime layer
  *
- * This file is deliberately scoped. It gives the finished/new surfaces one
- * shared workbench grammar, using the approved Aide UI as the reference.
- * Unfinished legacy specialist apps keep their existing CSS until the owner
- * explicitly approves their own rework.
+ * This file is the final owner layer for the complete real application. It
+ * gives every migrated surface one shared workbench grammar while preserving
+ * Alles's graphite identity and the proven Aide density. Legacy declarations
+ * remain below it only as historical fallbacks; this layer owns shipped state.
  */
 
 :where(
@@ -669,7 +669,6 @@ body:is(
   min-height: 30px;
   margin: 0;
   padding: var(--k-space-2, 8px) var(--k-space-4, 16px);
-  border-bottom: 1px solid var(--k-line, var(--faint));
   color: var(--k-ink-muted, var(--muted));
   background: var(--k-panel, var(--panel));
   font-size: 0.75rem;
@@ -730,7 +729,7 @@ body:is(
 .plan-board-column-head span {
   margin-left: auto;
   color: var(--k-quiet, var(--muted));
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   font-variant-numeric: tabular-nums;
 }
 
@@ -804,7 +803,7 @@ body:is(
   gap: var(--k-space-2, 8px);
   margin-top: var(--k-space-2, 8px);
   color: var(--k-quiet, var(--muted));
-  font-size: 0.72rem;
+  font-size: 0.75rem;
 }
 
 .plan-board-card-meta span {
@@ -837,8 +836,8 @@ body:is(
 }
 
 .plan-board-inline-add button {
-  min-width: 40px;
-  min-height: 40px;
+  min-width: 44px;
+  min-height: 44px;
   border-radius: var(--k-radius-control, 3px);
   color: var(--k-ink-muted, var(--muted));
 }
@@ -859,7 +858,7 @@ body:is(
 
 .plan-board-detail-stage {
   color: var(--k-quiet, var(--muted));
-  font-size: 0.72rem;
+  font-size: 0.75rem;
 }
 
 .plan-board-detail h2 {
@@ -953,7 +952,7 @@ body:is(
 .plan-board-completed span {
   margin-top: 4px;
   color: var(--k-quiet, var(--muted));
-  font-size: 0.72rem;
+  font-size: 0.75rem;
 }
 
 .plan-board-empty {
@@ -1000,7 +999,7 @@ body:is(
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: baseline;
   gap: var(--k-space-3, 12px);
-  min-height: 36px;
+  min-height: 44px;
   padding: 8px 0;
   border-bottom: 1px solid color-mix(in srgb, var(--k-line, var(--faint)) 75%, transparent);
 }
@@ -1763,7 +1762,7 @@ body:is(
   grid-template-columns: 7rem minmax(10rem, 1fr) minmax(7rem, auto) 6rem;
   align-items: baseline;
   gap: var(--k-space-3);
-  min-height: 42px;
+  min-height: 44px;
   padding: var(--k-space-2, 8px) 0;
   border-bottom: 1px solid color-mix(in srgb, var(--k-line, var(--faint)) 70%, transparent);
   font-size: 0.76rem;
@@ -2074,7 +2073,7 @@ html[data-theme="light"] :where(
 }
 
 [data-kokuen-surface] :where(button, input, textarea, [tabindex]):focus-visible {
-  outline: 1px solid var(--k-focus);
+  outline: 2px solid var(--k-focus);
   outline-offset: 2px;
 }
 
@@ -2514,6 +2513,7 @@ html[data-kokuen-version="5"] #app-drawer .app-drawer-footer {
    adjacent-target exception; discrete product controls never shrink below 44px. */
 html[data-kokuen-version="5"] :where(
   button,
+  a.btn,
   input:not([type="hidden"]):not([type="file"]),
   textarea,
   .custom-select,
@@ -2526,19 +2526,31 @@ html[data-kokuen-version="5"] :where(
   [role="switch"],
   [role="tab"]
 )[data-kokuen-primitive] {
-  min-height: var(--ui-control-height, 44px);
+  /* This is the final hit geometry, not only the visible bezel. Product-level
+     dense styles may tighten internal spacing, but may not shrink the target. */
+  min-height: var(--ui-control-height, 44px) !important;
 }
 
 html[data-kokuen-version="5"] :where(
+  button,
+  summary,
+  a[href],
+  [role="button"],
+  [role="checkbox"],
+  [role^="menuitem"],
+  [role="option"],
+  [role="radio"],
+  [role="switch"],
+  [role="tab"],
   [data-kokuen-primitive="icon-action"],
   [data-kokuen-primitive="switch"],
   [data-kokuen-primitive="choice"]
-) {
-  min-width: var(--ui-control-height, 44px);
+)[data-kokuen-primitive] {
+  min-width: var(--ui-control-height, 44px) !important;
 }
 
 html[data-kokuen-version="5"] [data-kokuen-primitive]:is(:hover, :active) {
-  transform: none !important;
+  transform: none;
 }
 
 html[data-kokuen-version="5"] [data-kokuen-primitive]:focus-visible {
@@ -2703,6 +2715,25 @@ html[data-kokuen-version="5"] .custom-dropdown-panel .custom-dropdown-option {
     width: auto;
     max-width: none;
     max-height: calc(100dvh - 24px);
+  }
+}
+
+@media (max-width: 320px) {
+  html[data-kokuen-version="5"] body.afterlife-shell #andromeda-view[data-kokuen-surface="andromeda"] .andromeda-settings-panel {
+    right: var(--k-space-1);
+    left: calc(52px + var(--k-space-1));
+  }
+
+  #andromeda-view[data-kokuen-surface="andromeda"] .andromeda-settings-head {
+    gap: var(--k-space-1);
+    padding-inline: var(--k-space-2);
+  }
+
+  #andromeda-view[data-kokuen-surface="andromeda"] .andromeda-settings-head h2 {
+    min-width: 0;
+    font-size: 14px;
+    overflow-wrap: anywhere;
+    white-space: nowrap;
   }
 }
 
@@ -3267,7 +3298,7 @@ html[data-kokuen-version="5"] .custom-dropdown-panel .custom-dropdown-option {
 
 #settings-modal[data-kokuen-surface="settings"] .locale-choice-option {
   width: 100%;
-  min-height: 38px;
+  min-height: 44px;
   padding: 0 var(--k-space-2);
   border: 0;
   border-radius: var(--k-radius-small);
@@ -3821,7 +3852,7 @@ html[dir="rtl"] :where(
 #settings-modal[data-kokuen-surface="settings"] .home-settings-copy small {
   margin-top: var(--k-space-1);
   color: var(--k-muted);
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.4;
 }
 
@@ -3943,7 +3974,7 @@ html[dir="rtl"] :where(
 
 #settings-modal[data-kokuen-surface="settings"] .home-settings-density small {
   color: var(--k-muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 #settings-modal[data-kokuen-surface="settings"] .home-settings-preview {
@@ -3973,7 +4004,7 @@ html[dir="rtl"] :where(
 #settings-modal[data-kokuen-surface="settings"] .home-settings-preview p,
 #settings-modal[data-kokuen-surface="settings"] .home-settings-preview small {
   color: var(--k-muted);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 #settings-modal[data-kokuen-surface="settings"] .home-settings-preview p {
@@ -3993,7 +4024,7 @@ html[dir="rtl"] :where(
 
 #settings-modal[data-kokuen-surface="settings"] #home-settings-preview-list strong {
   color: var(--k-soft);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
 }
 
@@ -4021,7 +4052,7 @@ html[dir="rtl"] :where(
 #settings-modal[data-kokuen-surface="settings"] .home-settings-save small {
   display: block;
   color: var(--k-muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 #settings-modal[data-kokuen-surface="settings"] .home-settings-save small {
@@ -4180,7 +4211,7 @@ body.afterlife-aide-projects[data-space="aide"] :where(
   input,
   textarea
 ):focus-visible {
-  outline: 1px solid var(--k-focus);
+  outline: 2px solid var(--k-focus);
   outline-offset: 2px;
 }
 
@@ -4707,7 +4738,8 @@ body.afterlife-aide-projects[data-space="aide"] .news-source-test {
 }
 
 body.afterlife-aide-projects[data-space="aide"] .news-digest-warning {
-  border-left: 3px solid var(--k-permission);
+  border: 1px solid color-mix(in srgb, var(--k-permission) 45%, var(--k-raised));
+  background: color-mix(in srgb, var(--k-permission) 10%, var(--k-raised));
 }
 
 body.afterlife-aide-projects[data-space="aide"] .news-editor-backdrop {
@@ -4915,7 +4947,7 @@ body[data-app="files"] #files-view :where(.btn, .icon-btn):focus-visible {
 }
 
 body[data-app="files"] #files-view :where(.btn, .icon-btn, input, [role="button"]):focus-visible {
-  outline: 1px solid var(--k-focus);
+  outline: 2px solid var(--k-focus);
   outline-offset: 2px;
 }
 
@@ -5460,7 +5492,7 @@ body[data-app="files"] #files-view .files-phase7-app-status {
   flex: 0 0 auto;
   margin-left: auto;
   color: var(--k-quiet);
-  font-size: 11px;
+  font-size: 12px;
   white-space: nowrap;
 }
 
@@ -5573,7 +5605,7 @@ body[data-app="files"] #files-view .files-location-copy strong {
 body[data-app="files"] #files-view .files-location-copy small,
 body[data-app="files"] #files-view .files-location-access {
   color: var(--k-quiet);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 400;
 }
 
@@ -5590,7 +5622,7 @@ body[data-app="files"] #files-view .files-phase7-location-foot {
   margin-top: auto;
   padding: var(--k-space-3) var(--k-space-2) 0;
   color: var(--k-quiet);
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.45;
 }
 
@@ -5747,7 +5779,7 @@ body[data-app="files"] #files-view .files-phase7-table-head {
   padding: 0 var(--k-space-4);
   border-bottom: 1px solid var(--k-line);
   color: var(--k-quiet);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 body[data-app="files"] #files-view .files-check {
@@ -5840,7 +5872,7 @@ body[data-app="files"] #files-view :where(.file-size, .file-changed) {
   text-overflow: ellipsis;
   white-space: nowrap;
   color: var(--k-quiet);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 body[data-app="files"] #files-view :where(.files-empty, .files-loading, .files-error) {
@@ -5926,7 +5958,7 @@ body[data-app="files"] #files-view .files-detail-meta {
   padding: var(--k-space-3) var(--k-space-2);
   border-top: 1px solid var(--k-line);
   color: var(--k-quiet);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 body[data-app="files"] #files-view .files-detail-meta dd,
@@ -5985,7 +6017,7 @@ body[data-app="files"] #files-view .files-operation-copy strong {
 body[data-app="files"] #files-view .files-operation-copy small {
   margin-top: var(--k-space-1);
   color: var(--k-quiet);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 body[data-app="files"] #files-view .files-operation-actions {

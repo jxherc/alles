@@ -95,9 +95,12 @@ function decorateControl(element) {
 function syncControlState(element) {
   const current = element.dataset.kokuenState || 'resting';
   let reflected = '';
-  if (element.matches('[aria-disabled="true"]') || element.matches(':disabled')) reflected = 'disabled';
-  else if (element.getAttribute('aria-busy') === 'true') reflected = current === 'loading' ? 'loading' : 'busy';
+  /* A pending mutation is still busy when the native button is disabled to
+     reject repeat activation. Busy is the useful owner-facing state. */
+  if (element.getAttribute('aria-busy') === 'true') reflected = current === 'loading' ? 'loading' : 'busy';
+  else if (element.matches('[aria-disabled="true"]') || element.matches(':disabled')) reflected = 'disabled';
   else if (element.getAttribute('aria-invalid') === 'true') reflected = 'invalid';
+  else if (['error', 'offline', 'stale', 'partial', 'permission', 'empty'].includes(current)) reflected = current;
   else if (
     element.getAttribute('aria-checked') === 'true'
     || element.getAttribute('aria-selected') === 'true'

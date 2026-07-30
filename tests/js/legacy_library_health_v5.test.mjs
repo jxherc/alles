@@ -36,7 +36,7 @@ test('the shared radio model supports roving focus and selected state', () => {
 });
 
 test('v5 preserves a 44px target for dynamically rendered discrete choices', () => {
-  assert.match(css, /\[role="radio"\],[\s\S]*?\)\[data-kokuen-primitive\] \{\s*min-height: var\(--ui-control-height, 44px\)/);
+  assert.match(css, /\[role="radio"\],[\s\S]*?\)\[data-kokuen-primitive\] \{[\s\S]*?min-height: var\(--ui-control-height, 44px\)/);
   assert.match(css, /\[data-kokuen-primitive="choice"\][\s\S]*?min-width: var\(--ui-control-height, 44px\)/);
 });
 

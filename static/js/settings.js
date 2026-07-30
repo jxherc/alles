@@ -2107,7 +2107,7 @@ function renderLocalPresets(presets) {
   const listEl = document.getElementById('s-local-presets');
   if (!listEl) return;
   if (!presets.length) {
-    listEl.innerHTML = '<div style="font-size:0.72rem;color:var(--muted)">no local presets available</div>';
+    listEl.innerHTML = '<div style="font-size:0.75rem;color:var(--muted)">no local presets available</div>';
     return;
   }
   listEl.innerHTML = presets.map(p => {
@@ -3923,7 +3923,7 @@ async function loadTokens() {
   if (!tokens.length) { el.innerHTML = '<div class="settings-row-empty">no tokens</div>'; return; }
   el.innerHTML = tokens.map(t => `
     <div class="settings-list-row">
-      <span class="row-name" style="font-family:monospace;font-size:0.72rem">${t.prefix}…</span>
+      <span class="row-name" style="font-family:monospace;font-size:0.75rem">${t.prefix}…</span>
       <span class="row-meta">${_esc(t.name)}</span>
       <span class="row-meta">${(t.scopes || []).map(_esc).join(', ') || 'no access'}</span>
       <span class="row-meta">${t.last_used_at ? 'used ' + formatDate(t.last_used_at) : 'never used'}</span>
@@ -3996,7 +3996,7 @@ async function loadWebhooks() {
       <span class="status-dot" style="background:${h.enabled ? 'var(--green)' : 'var(--faint)'}"></span>
       <span class="row-name">${_esc(h.name)}</span>
       <span class="row-meta">${h.events.join(', ')}${st}</span>
-      ${h.secret ? `<code class="wh-secret" title="HMAC-SHA256 signing key — verify the X-Alles-Signature header with this" onclick="navigator.clipboard.writeText('${_esc(h.secret)}');window._toastCopied&&window._toastCopied()" style="font-size:0.6rem;color:var(--muted);max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer">${_esc(h.secret)}</code>` : ''}
+      ${h.secret ? `<code class="wh-secret" title="HMAC-SHA256 signing key — verify the X-Alles-Signature header with this" onclick="navigator.clipboard.writeText('${_esc(h.secret)}');window._toastCopied&&window._toastCopied()" style="font-size:0.75rem;color:var(--muted);max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer">${_esc(h.secret)}</code>` : ''}
       <button class="act-btn" data-id="${h.id}" onclick="window._testWebhook(this)">test</button>
       <button class="act-btn" data-id="${h.id}" onclick="window._rmWebhook(this)">remove</button>
     </div>`;
@@ -4211,7 +4211,7 @@ async function loadPermRules() {
           ${r.path ? `<span class="perm-rule-path">${_esc(r.path)}</span>` : ''}
           <button class="perm-rule-del" data-i="${i}" title="remove">✕</button>
         </div>`).join('')
-      : '<div style="font-size:0.72rem;color:var(--muted)">no rules — the agent follows the mode for everything</div>';
+      : '<div style="font-size:0.75rem;color:var(--muted)">no rules — the agent follows the mode for everything</div>';
     el.querySelectorAll('.perm-rule-del').forEach(b => b.onclick = () => _delPermRule(+b.dataset.i));
   }
   if (!_permWired) {

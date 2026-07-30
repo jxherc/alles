@@ -2,6 +2,7 @@ import { initCustomDropdowns, populateDropdown, setDropdownValue } from './dropd
 import { urlForApp } from './subdomain.js?v=237';
 import { confirm as confirmDialog } from './dialog.js';
 import { formatDate, formatDateTime, t as tr, tp as trp } from './i18n.js';
+import { setControlState } from './kokuen.js?v=1';
 
 let _bound = false;
 let _overviewAbort = null;
@@ -1291,7 +1292,7 @@ async function patchSearchSettings(patch, message = 'saved') {
     setSearchSettingsStatus(message);
     return sanitizeSearchSettings(settings);
   } catch (error) {
-    setSearchSettingsStatus(error.message || 'settings could not be saved', true);
+    setSearchSettingsStatus(`${error.message || 'settings could not be saved'}; try again`, true);
     throw error;
   }
 }
@@ -1373,6 +1374,35 @@ export function queueSearchConfigurationWrite(operation) {
   const next = _searchConfigurationWrite.catch(() => {}).then(operation);
   _searchConfigurationWrite = next;
   return next;
+}
+
+async function persistAndromedaSwitch(id, setting) {
+  const button = el(id);
+  if (!button || button.getAttribute('aria-busy') === 'true') return false;
+  const previous = pressed(id);
+  const next = !previous;
+  button.disabled = true;
+  button.setAttribute('aria-disabled', 'true');
+  setControlState(button, 'busy', { message: 'saving setting' });
+  setPressed(id, next);
+  let outcome = next ? 'selected' : 'resting';
+  try {
+    await queueSearchConfigurationWrite(
+      () => patchSearchSettings({ [setting]: next }),
+    );
+    return true;
+  } catch {
+    setPressed(id, previous);
+    outcome = 'error';
+    return false;
+  } finally {
+    button.disabled = false;
+    button.removeAttribute('aria-disabled');
+    button.removeAttribute('aria-busy');
+    setControlState(button, outcome, {
+      message: outcome === 'error' ? 'setting was not saved; try again' : '',
+    });
+  }
 }
 
 async function saveSearchConfiguration() {
@@ -1610,21 +1640,16 @@ function bindOnce() {
   });
   for (const id of ['andromeda-results-toggle', 'andromeda-overview-toggle']) {
     el(id)?.addEventListener('click', () => {
-      const next = !pressed(id);
-      setPressed(id, next);
       const setting = id === 'andromeda-results-toggle'
         ? 'andromeda_normal_results' : 'andromeda_overview';
-      queueSearchConfigurationWrite(
-        () => patchSearchSettings({ [setting]: next }),
-      ).catch(() => {});
+      void persistAndromedaSwitch(id, setting);
     });
   }
   el('andromeda-verification-toggle')?.addEventListener('click', () => {
-    const next = !pressed('andromeda-verification-toggle');
-    setPressed('andromeda-verification-toggle', next);
-    queueSearchConfigurationWrite(
-      () => patchSearchSettings({ andromeda_verification_enabled: next }),
-    ).catch(() => {});
+    void persistAndromedaSwitch(
+      'andromeda-verification-toggle',
+      'andromeda_verification_enabled',
+    );
   });
   el('andromeda-verifier-mode')?.addEventListener('change', () => {
     queueSearchConfigurationWrite(

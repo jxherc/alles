@@ -184,6 +184,12 @@ test('Notes initial loading is awaited and uses the Docs scoped fetcher', () => 
   assert.match(notes, /await _fetcher\('\/api\/notes'/);
 });
 
+test('Notes keeps an active editor mounted across vault watcher refreshes', () => {
+  const render = notes.match(/function renderNotes\(\) \{[\s\S]*?\n}/)?.[0] || '';
+  assert.match(render, /if \(!list \|\| _editing\) return/);
+  assert.match(docs, /if \(_section === 'notes'\) \{ window\._reloadNotes\?\.\(\); return; \}/);
+});
+
 test('Docs home clears stale document hashes and delete resolves dirty work first', () => {
   const home = docs.match(/async function openDocsHome\(\)[\s\S]*?\n}\n\nexport function showSection/)?.[0] || '';
   const remove = docs.match(/async function deleteCurrent\(\)[\s\S]*?\n}\n\nasync function openTrash/)?.[0] || '';

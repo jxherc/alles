@@ -1354,7 +1354,7 @@ async function openCaldavPanel() {
   try { cfg = await fetch('/api/caldav/status').then(r => r.json()); } catch {}
   list.innerHTML = `<div class="cal-editor" style="max-width:520px">
     <div style="font-size:0.9rem;color:var(--text);margin-bottom:0.2rem">CalDAV sync</div>
-    <div style="font-size:0.72rem;color:var(--muted);line-height:1.5;margin-bottom:0.6rem">
+    <div style="font-size:0.75rem;color:var(--muted);line-height:1.5;margin-bottom:0.6rem">
       two-way sync with iCloud / Google / any CalDAV server. credentials are stored locally.
       ${cfg.available ? '' : '<br><b style="color:var(--warn)">needs the caldav library — run: pip install caldav</b>'}
       ${cfg.connected ? `<br>connected as <b>${esc(cfg.username || '')}</b>` : ''}
@@ -1370,7 +1370,7 @@ async function openCaldavPanel() {
       <button class="btn" id="cd-save">save</button>
       <button class="btn primary" id="cd-sync">sync now</button>
     </div>
-    <div id="cd-status" style="font-size:0.72rem;color:var(--muted);margin-top:0.5rem"></div>
+    <div id="cd-status" style="font-size:0.75rem;color:var(--muted);margin-top:0.5rem"></div>
   </div>`;
   document.getElementById('cd-back').addEventListener('click', () => loadCalendar());
   const save = async () => {

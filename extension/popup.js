@@ -74,6 +74,12 @@ async function clearUnlockRequest(unlockRequest) {
   }
 }
 
+async function ownsSessionToken(sessionToken) {
+  if (!sessionToken) return false;
+  const current = (await chrome.storage.session.get('sessionToken')).sessionToken;
+  return current === sessionToken;
+}
+
 function setBusy(button, busy, label = '') {
   if (!button) return false;
   if (busy && button.getAttribute('aria-busy') === 'true') return false;
@@ -311,14 +317,18 @@ function pageBody(state, tab) {
 
 async function loadMatches(button = null) {
   if (button && !setBusy(button, true, 'refreshing…')) return;
+  let sessionToken = '';
   try {
     const state = await stores();
+    sessionToken = state.sessionToken;
     const tab = await activeTab();
     const url = new URL(tab.url);
     if (!['http:', 'https:'].includes(url.protocol)) throw new Error('Open an HTTP or HTTPS login page first.');
     const result = await request(state.allesOrigin, '/api/auth/browser/match', pageBody(state, tab));
+    if (!await ownsSessionToken(sessionToken)) return;
     renderMatches(tab, result.matches || []);
   } catch (error) {
+    if (sessionToken && !await ownsSessionToken(sessionToken)) return;
     if (/locked|revoked|invalid/i.test(error.message)) {
       await chrome.storage.session.remove('sessionToken');
       renderLocked(error.message);
@@ -346,6 +356,7 @@ async function fillSelected(tab, entryId, button) {
   try {
     const state = await stores();
     const credential = await request(state.allesOrigin, '/api/auth/browser/release', { ...pageBody(state, tab), entry_id: entryId });
+    if (!await ownsSessionToken(state.sessionToken)) return;
     const [{ result }] = await chrome.scripting.executeScript({
       target: { tabId: tab.id, frameIds: [0] },
       func: fillLogin,
@@ -388,7 +399,7 @@ async function lockBrowser(button = null) {
     const state = await stores();
     await chrome.storage.session.remove(['sessionToken', 'unlockRequest']);
     if (state.allesOrigin && state.connectionId && state.deviceSecret) {
-      request(state.allesOrigin, '/api/auth/browser/lock', { connection_id: state.connectionId, device_secret: state.deviceSecret }).catch(() => {});
+      await request(state.allesOrigin, '/api/auth/browser/lock', { connection_id: state.connectionId, device_secret: state.deviceSecret });
     }
     renderLocked();
   } catch (error) {

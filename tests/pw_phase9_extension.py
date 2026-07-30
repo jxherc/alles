@@ -219,12 +219,123 @@ def run() -> None:
         expect(login.locator("#login-password")).to_have_value("phase9 selected secret")
         assert login.evaluate("window.submitCount") == 0
 
-        # The extension's own lock action removes local and server authority.
+        # Hold one already-successful credential release after Alles has returned
+        # the plaintext, then lock the browser before the popup can inject it.
+        # The old session must no longer own the fill and the locked view must
+        # remain authoritative.
         popup = _popup_page(context, extension_id)
         login.bring_to_front()
         popup.evaluate("loadMatches()")
         expect(popup.locator("h1")).to_have_text("choose one login", timeout=10_000)
+        login.locator("#login-email").fill("")
+        login.locator("#login-password").fill("")
+        popup.evaluate(
+            """() => {
+              const liveRequest = request;
+              const liveFillSelected = fillSelected;
+              let holdNextRelease = true;
+              window.__heldReleaseReady = false;
+              window.__heldReleaseDone = false;
+              request = async (origin, path, body) => {
+                const result = await liveRequest(origin, path, body);
+                if (path === '/api/auth/browser/release' && holdNextRelease) {
+                  holdNextRelease = false;
+                  window.__heldReleaseReady = true;
+                  document.body.dataset.heldReleaseReady = 'true';
+                  await new Promise(resolve => { window.__releaseHeldRelease = resolve; });
+                }
+                return result;
+              };
+              fillSelected = async (...args) => {
+                try {
+                  return await liveFillSelected(...args);
+                } finally {
+                  window.__heldReleaseDone = true;
+                  document.body.dataset.heldReleaseDone = 'true';
+                }
+              };
+            }"""
+        )
+        popup.locator(".credential").click()
+        expect(popup.locator("body")).to_have_attribute(
+            "data-held-release-ready", "true", timeout=10_000
+        )
         popup.locator("#lock").click()
+        expect(popup.locator("h1")).to_have_text("browser locked", timeout=10_000)
+        assert not worker.evaluate("chrome.storage.session.get('sessionToken')").get("sessionToken")
+        assert _owner_state(owner, owner_token)["connections"][0]["locked"] is True
+        popup.evaluate("window.__releaseHeldRelease()")
+        expect(popup.locator("body")).to_have_attribute(
+            "data-held-release-done", "true", timeout=10_000
+        )
+        expect(popup.locator("h1")).to_have_text("browser locked")
+        expect(popup.locator("#unlock")).to_be_visible()
+        expect(login.locator("#login-email")).to_have_value("")
+        expect(login.locator("#login-password")).to_have_value("")
+        assert login.evaluate("window.submitCount") == 0
+
+        # Restore a short session before racing a stale match render against
+        # the extension's own local and server lock boundary.
+        popup.locator("#unlock").click()
+        expect(popup.locator("h1")).to_have_text("approve short access", timeout=10_000)
+        login.bring_to_front()
+        _approve_unlock(owner, owner_token)
+        expect(popup.locator("h1")).to_have_text("choose one login", timeout=10_000)
+        popup = _popup_page(context, extension_id)
+        login.bring_to_front()
+        popup.evaluate("loadMatches()")
+        expect(popup.locator("h1")).to_have_text("choose one login", timeout=10_000)
+        # Hold one already-successful match response across explicit lock, and
+        # hold the lock response after the server has applied it. The locked
+        # transition must own the view and finish server authority before it
+        # exposes another unlock action.
+        popup.evaluate(
+            """() => {
+              const liveRequest = request;
+              let holdNextMatch = true;
+              window.__heldMatchReady = false;
+              window.__heldMatchDone = false;
+              window.__heldLockReady = false;
+              request = async (origin, path, body) => {
+                const result = await liveRequest(origin, path, body);
+                if (path === '/api/auth/browser/match' && holdNextMatch) {
+                  holdNextMatch = false;
+                  window.__heldMatchReady = true;
+                  document.body.dataset.heldMatchReady = 'true';
+                  await new Promise(resolve => { window.__releaseHeldMatch = resolve; });
+                }
+                if (path === '/api/auth/browser/lock') {
+                  window.__heldLockReady = true;
+                  document.body.dataset.heldLockReady = 'true';
+                  await new Promise(resolve => { window.__releaseHeldLock = resolve; });
+                }
+                return result;
+              };
+              loadMatches().finally(() => {
+                window.__heldMatchDone = true;
+                document.body.dataset.heldMatchDone = 'true';
+              });
+            }"""
+        )
+        expect(popup.locator("body")).to_have_attribute(
+            "data-held-match-ready", "true", timeout=10_000
+        )
+        lock = popup.locator("#lock")
+        lock.focus()
+        expect(lock).to_be_focused()
+        popup.keyboard.press("Enter")
+        expect(popup.locator("body")).to_have_attribute(
+            "data-held-lock-ready", "true", timeout=10_000
+        )
+        expect(popup.locator("#lock")).to_have_attribute("aria-busy", "true")
+        expect(popup.locator("#lock")).to_have_text("locking…")
+        expect(popup.locator("#unlock")).to_have_count(0)
+        popup.evaluate("window.__releaseHeldMatch()")
+        expect(popup.locator("body")).to_have_attribute(
+            "data-held-match-done", "true", timeout=10_000
+        )
+        expect(popup.locator("#lock")).to_have_attribute("aria-busy", "true")
+        popup.evaluate("window.__releaseHeldLock()")
         expect(popup.locator("h1")).to_have_text("browser locked")
         state = _owner_state(owner, owner_token)
         assert state["connections"][0]["locked"] is True

@@ -62,7 +62,7 @@ export function renderAppSettingField(f, val) {
   if (f.type === 'toggle') {
     return `<div class="aps-field aps-toggle" style="display:flex;align-items:center;justify-content:space-between;gap:10px"><label style="margin:0">${f.label}</label><div class="s-switch${val ? ' on' : ''}" data-tk="${f.k}"></div></div>`;
   }
-  if (f.type === 'note') return `<div class="aps-note" style="font-size:0.72rem;opacity:0.7;line-height:1.45;margin:2px 0 6px">${esc(f.text)}</div>`;
+  if (f.type === 'note') return `<div class="aps-note" style="font-size:0.75rem;opacity:0.7;line-height:1.45;margin:2px 0 6px">${esc(f.text)}</div>`;
   if (f.type === 'action') return `<button type="button" class="aps-action" data-act="${esc(f.act)}">${esc(f.label)}</button>`;
   if (f.type === 'textarea') return `<div class="aps-field"><label>${f.label}</label><textarea class="settings-textarea" data-k="${f.k}" rows="2" placeholder="${esc(f.ph || '')}">${esc(val || '')}</textarea></div>`;
   const num = f.num ? ' data-num="1" inputmode="numeric"' : '';
