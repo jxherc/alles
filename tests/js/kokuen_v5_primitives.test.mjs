@@ -6,6 +6,8 @@ const read = relative => readFileSync(new URL(`../../${relative}`, import.meta.u
 const html = read('static/index.html');
 const app = read('static/js/app.js');
 const runtime = read('static/js/kokuen.js');
+const sessions = read('static/js/sessions.js');
+const projects = read('static/js/projects.js');
 const dropdown = read('static/js/dropdown.js');
 const css = read('static/kokuen.css');
 const contracts = JSON.parse(read('design-system/components/contracts.json'));
@@ -114,6 +116,24 @@ test('shared choice groups expose selected state and the complete radio keyboard
     assert.match(source, /role="radio"/);
     assert.match(source, /aria-checked/);
   }
+});
+
+test('saved Aide sessions use the shared keyboard-complete context menu', () => {
+  assert.match(runtime, /export function createMenuController/);
+  assert.match(runtime, /matches\('\[role="button"\]'\)\) return 'action'/);
+  for (const key of ['ArrowDown', 'ArrowUp', 'Home', 'End', 'Escape']) {
+    assert.match(runtime, new RegExp(`'${key}'`), key);
+  }
+  assert.match(sessions, /createMenuController/);
+  assert.match(sessions, /<button type="button" class="session-open" aria-haspopup="menu"/);
+  assert.equal((projects.match(/<button type="button" class="session-open" aria-haspopup="menu"/g) || []).length, 2);
+  assert.doesNotMatch(sessions, /class="session-item[^\"]*"[^>]*role="button"/);
+  assert.doesNotMatch(projects, /class="session-item[^\"]*"[^>]*role="button"/);
+  assert.doesNotMatch(projects, /class="project-folder-head"[^>]*role="button"/);
+  assert.match(sessions, /event\.key === 'ContextMenu'/);
+  assert.match(sessions, /event\.shiftKey && event\.key === 'F10'/);
+  assert.doesNotMatch(sessions, /<div class="ctx-item"/);
+  assert.match(html, /id="ctx-menu" role="menu"[^>]*hidden/);
 });
 
 test('the runtime reconciles asynchronous control state mutations', () => {

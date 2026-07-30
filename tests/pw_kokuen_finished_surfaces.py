@@ -264,6 +264,83 @@ def _aide_smoke(browser: Browser, errors: list[str]) -> None:
         "el => getComputedStyle(el).fontWeight === '400'"
     )
     assert page.locator(".composer-box").evaluate("el => getComputedStyle(el).boxShadow === 'none'")
+
+    seeded = page.evaluate(
+        """async () => {
+          const request = async (path, body) => {
+            const response = await fetch(path, {
+              method: 'POST',
+              headers: { 'content-type': 'application/json' },
+              body: JSON.stringify(body),
+            });
+            if (!response.ok) throw new Error(`${path} returned ${response.status}`);
+            return response.json();
+          };
+          const project = await request('/api/projects', { name: 'browser audit' });
+          const task = await request('/api/sessions', { name: 'keyboard audit' });
+          const filed = await request('/api/sessions', {
+            name: 'filed audit',
+            project_id: project.id,
+          });
+          return { project: project.id, task: task.id, filed: filed.id };
+        }"""
+    )
+    page.reload(wait_until="domcontentloaded")
+    page.wait_for_selector("#composer-ta:visible")
+    session = page.locator(f'.session-item[data-id="{seeded["task"]}"]')
+    session_open = session.locator(":scope > .session-open")
+    session_open.wait_for(state="visible")
+    assert session_open.evaluate("el => el.getBoundingClientRect().height >= 44")
+    assert session.evaluate(
+        """el => {
+          const open = el.querySelector(':scope > .session-open');
+          const star = el.querySelector(':scope > .star');
+          return !!open && (!star || (!open.contains(star) && !star.contains(open)));
+        }"""
+    )
+    assert (
+        page.locator("#session-list button button, #session-list [role=button] button").count() == 0
+    )
+
+    session_open.focus()
+    page.keyboard.press("Enter")
+    page.wait_for_function(
+        "id => document.querySelector(`.session-item[data-id=\"${id}\"] > .session-open`)?.getAttribute('aria-current') === 'true'",
+        arg=seeded["task"],
+    )
+    session_open.press("Shift+F10")
+    menu = page.locator("#ctx-menu")
+    menu.wait_for(state="visible")
+    assert menu.locator('[role="menuitem"]').count() >= 5
+    page.keyboard.press("End")
+    assert page.locator(":focus").get_attribute("data-action") == "delete"
+    page.keyboard.press("Home")
+    assert page.locator(":focus").get_attribute("data-action") == "rename"
+    page.keyboard.press("Escape")
+    menu.wait_for(state="hidden")
+    assert page.locator(":focus").evaluate("el => el.classList.contains('session-open')")
+
+    session_open.click(button="right")
+    menu.wait_for(state="visible")
+    page.screenshot(path=str(OUTPUT / "aide-session-menu.png"), full_page=True)
+    menu.locator('[data-action="rename"]').click()
+    rename = session.locator(":scope > input")
+    rename.wait_for(state="visible")
+    rename.press("Escape")
+    rename.wait_for(state="detached")
+    assert page.locator(":focus").evaluate("el => el.classList.contains('session-open')")
+
+    project = page.locator(f'.project-folder[data-id="{seeded["project"]}"]')
+    project_toggle = project.locator(":scope > .project-folder-head > .project-folder-toggle")
+    project_delete = project.locator(":scope > .project-folder-head > .project-del")
+    assert project_toggle.count() == 1 and project_delete.count() == 1
+    assert project_toggle.evaluate("el => !el.contains(el.nextElementSibling)")
+    project_toggle.focus()
+    page.keyboard.press("Space")
+    assert project_toggle.get_attribute("aria-expanded") == "false"
+    page.keyboard.press("Enter")
+    assert project_toggle.get_attribute("aria-expanded") == "true"
+
     page.locator("#perm-mode-btn").click()
     page.locator('#perm-menu [data-v="full_access"]').click()
     permission_style = page.locator("#perm-mode-btn").evaluate(
@@ -512,12 +589,7 @@ def _universal_command(browser: Browser, errors: list[str]) -> None:
     )
     assert modal.evaluate("el => getComputedStyle(el).animationName === 'none'")
     assert modal.locator("select:visible").count() == 0
-    assert (
-        modal.locator(
-            'input[type="checkbox"]:visible, input[type="radio"]:visible'
-        ).count()
-        == 0
-    )
+    assert modal.locator('input[type="checkbox"]:visible, input[type="radio"]:visible').count() == 0
 
     search.fill("plan")
     page.wait_for_function(
@@ -851,9 +923,30 @@ def _docs_notes_journal(browser: Browser, errors: list[str]) -> None:
         page.locator('#docs-tabs [data-group-section="journal"]').click()
         page.wait_for_selector("#docs-journal-section:visible")
         page.wait_for_selector("#journal-body .jrnl-wrap")
+        page.wait_for_selector("#jrnl-heatmap .jrnl-hm")
         assert root.get_attribute("data-docs-section") == "journal"
         assert (
             page.evaluate("performance.getEntriesByType('navigation').length") == navigation_count
+        )
+        heatmap = page.locator("#jrnl-heatmap")
+        toolbar_controls = page.locator(
+            "#docs-journal-section .jrnl-toolbar .jrnl-search, #docs-journal-section .jrnl-toolbar .btn"
+        )
+        for control_index in range(toolbar_controls.count()):
+            control_box = toolbar_controls.nth(control_index).bounding_box()
+            assert control_box and control_box["height"] >= 44, control_box
+        if label == "mobile":
+            search_box = page.locator("#jrnl-search").bounding_box()
+            toolbar_box = page.locator(".jrnl-toolbar").bounding_box()
+            assert search_box and toolbar_box and search_box["width"] >= toolbar_box["width"] - 1
+        assert heatmap.evaluate("el => el.scrollWidth <= el.clientWidth"), heatmap.evaluate(
+            "el => ({scrollWidth: el.scrollWidth, clientWidth: el.clientWidth})"
+        )
+        assert heatmap.locator(".jrnl-hm").last.evaluate(
+            "el => el.textContent === 'Dec' && el.getBoundingClientRect().right <= el.parentElement.getBoundingClientRect().right + 0.5"
+        )
+        assert heatmap.locator(".jrnl-hm").evaluate_all(
+            "labels => labels.every((label, index) => index === 0 || label.getBoundingClientRect().left >= labels[index - 1].getBoundingClientRect().right - 0.5)"
         )
         _assert_no_overflow(page)
         page.screenshot(path=str(OUTPUT / f"docs-journal-{label}.png"), full_page=True)

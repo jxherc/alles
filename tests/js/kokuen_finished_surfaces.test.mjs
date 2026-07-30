@@ -138,6 +138,10 @@ test('the finished surfaces share the documented rhythm and safe motion', () => 
     css,
     /@media\s*\(max-width:\s*620px\)[\s\S]*?#reminders-view\s+\.reminder-add-form[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1fr\)\s+auto/,
   );
+  assert.doesNotMatch(
+    legacyCss,
+    /\.photos-person:hover\s+\.photos-person-av\s*\{[^}]*transform\s*:/,
+  );
   for (const match of css.matchAll(/box-shadow:\s*([^;]+);/g)) {
     assert.equal(match[1].trim(), 'none');
   }

@@ -89,7 +89,15 @@ def _books(page: Page) -> None:
     for index in range(ratings.count()):
         _assert_target(ratings.nth(index))
     ratings.first.focus()
-    page.keyboard.press("End")
+    with page.expect_response(
+        lambda response: (
+            response.url.endswith(f"/api/books/{card.get_attribute('data-id')}")
+            and response.request.method == "PATCH"
+            and response.request.post_data == '{"rating":5}'
+        )
+    ) as rating_update:
+        page.keyboard.press("End")
+    assert rating_update.value.ok, rating_update.value.text()
     page.wait_for_function(
         """() => [...document.querySelectorAll('.book-card')]
           .find(card => card.textContent.includes('KOKUEN field notes'))
@@ -102,7 +110,9 @@ def _books(page: Page) -> None:
     assert book_id
     with page.expect_response(
         lambda response: (
-            response.url.endswith(f"/api/books/{book_id}") and response.request.method == "PATCH"
+            response.url.endswith(f"/api/books/{book_id}")
+            and response.request.method == "PATCH"
+            and response.request.post_data == '{"notes":"edited through the real application"}'
         )
     ) as update:
         card.locator("[data-act='save-notes']").click()
