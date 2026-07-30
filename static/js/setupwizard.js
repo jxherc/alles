@@ -2,6 +2,7 @@
 import { toast } from './util.js';
 import { addEndpoint } from './models.js?v=212';
 import { resolvedTimeZone } from './i18n.js';
+import { wireChoiceGroup } from './kokuen.js?v=1';
 
 const MODEL_PRESETS = [
   { name: 'DeepSeek', url: 'https://api.deepseek.com', key: 'sk-…' },
@@ -141,6 +142,7 @@ function _bindModal() {
 function _close() {
   const modal = $('setup-wizard');
   _loadSequence += 1;
+  _busy($('setup-skip'), false);
   if (modal) {
     modal.style.display = 'none';
     modal.setAttribute('aria-busy', 'false');
@@ -153,7 +155,10 @@ function _close() {
 }
 
 async function _dismiss() {
+  const button = $('setup-skip');
+  if (button?.getAttribute('aria-busy') === 'true') return;
   _loadSequence += 1;
+  _busy(button, true, 'pausing setup…');
   try {
     const response = await _api('/api/setup/dismiss', { method: 'POST' });
     _state = response.setup;
@@ -161,6 +166,7 @@ async function _dismiss() {
     _close();
     toast('setup paused. resume it from settings anytime.', 'success');
   } catch (error) {
+    _busy(button, false, error.message);
     toast(error.message, 'error');
     openSetupWizard();
   }
@@ -206,7 +212,11 @@ function _bindActions(save) {
 }
 
 function _busy(button, on, message = '') {
-  if (button) button.disabled = on;
+  if (button) {
+    button.disabled = on;
+    if (on) button.setAttribute('aria-busy', 'true');
+    else button.removeAttribute('aria-busy');
+  }
   const status = $('sw-status');
   if (status) status.textContent = message;
 }
@@ -263,26 +273,10 @@ function _choiceGroup(id, choices, selected) {
 function _bindChoiceGroup(id, onChange) {
   const group = $(id);
   if (!group) return;
-  const choose = button => {
-    group.querySelectorAll('[role="radio"]').forEach(item => {
-      const active = item === button;
-      item.setAttribute('aria-checked', String(active));
-      item.tabIndex = active ? 0 : -1;
-    });
-    onChange?.(button.dataset.value);
-  };
+  wireChoiceGroup(group);
   group.addEventListener('click', event => {
     const button = event.target.closest('[role="radio"]');
-    if (button) choose(button);
-  });
-  group.addEventListener('keydown', event => {
-    if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) return;
-    event.preventDefault();
-    const items = [...group.querySelectorAll('[role="radio"]')];
-    const current = Math.max(0, items.indexOf(document.activeElement));
-    const direction = ['ArrowRight', 'ArrowDown'].includes(event.key) ? 1 : -1;
-    const next = items[(current + direction + items.length) % items.length];
-    choose(next); next.focus();
+    if (button && group.contains(button)) onChange?.(button.dataset.value);
   });
 }
 
@@ -397,11 +391,13 @@ function _renderObsidianChoice() {
     ${installed ? '' : '<button class="btn" type="button" id="sw-install-obsidian">install companion</button>'}
   </div>`;
   $('sw-install-obsidian')?.addEventListener('click', async () => {
-    const button = $('sw-install-obsidian'); button.disabled = true;
+    const button = $('sw-install-obsidian');
+    if (button?.getAttribute('aria-busy') === 'true') return;
+    _busy(button, true, 'installing companion…');
     try {
       _obsidian = await _api('/api/setup/obsidian', _json('POST', { approve: true }));
       _renderObsidianChoice(); toast('Obsidian companion installed', 'success');
-    } catch (error) { button.disabled = false; $('sw-status').textContent = error.message; }
+    } catch (error) { _busy(button, false, error.message); }
   });
 }
 

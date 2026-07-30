@@ -74,20 +74,37 @@ async function clearUnlockRequest(unlockRequest) {
   }
 }
 
+function setBusy(button, busy, label = '') {
+  if (!button) return false;
+  if (busy && button.getAttribute('aria-busy') === 'true') return false;
+  if (busy) {
+    button.dataset.restingLabel = button.textContent;
+    button.disabled = true;
+    button.setAttribute('aria-busy', 'true');
+    if (label) button.textContent = label;
+  } else {
+    button.disabled = false;
+    button.removeAttribute('aria-busy');
+    if (button.dataset.restingLabel) button.textContent = button.dataset.restingLabel;
+    delete button.dataset.restingLabel;
+  }
+  return true;
+}
+
 function renderSetup(message = '') {
   app.innerHTML = `
     <h1>connect this browser</h1>
     <p class="quiet">Enter the exact address of your Alles server. You will approve the browser inside Passwords.</p>
     <label>Alles origin<input id="origin" value="http://localhost:6769" spellcheck="false" autocomplete="off"></label>
     ${message ? `<p class="error">${escapeHtml(message)}</p>` : ''}
-    <div class="actions"><span></span><button class="primary" id="pair">pair browser</button></div>`;
+    <div class="actions"><button class="primary" id="pair">pair browser</button></div>`;
   document.getElementById('pair').addEventListener('click', beginPair);
 }
 
 async function beginPair() {
   const button = document.getElementById('pair');
+  if (!setBusy(button, true, 'pairing…')) return;
   try {
-    button.disabled = true;
     const origin = normalizeAllesOrigin(document.getElementById('origin').value);
     const granted = await chrome.permissions.request({ origins: [permissionPattern(origin)] });
     if (!granted) throw new Error('Alles host permission was not granted');
@@ -125,11 +142,16 @@ async function pollPairing(pairing) {
       const result = await request(pairing.origin, '/api/auth/browser/pair/poll', { pairing_id: pairing.id, pairing_secret: pairing.secret });
       if (result.status === 'approved') {
         const pendingBeforeWrite = (await chrome.storage.session.get('pairing')).pairing;
-        if (!samePairing(pendingBeforeWrite, pairing)) return;
+        // Inactivity clears session storage, but an explicitly approved pairing
+        // only installs a locked browser identity. Let this live popup finish its
+        // exact request while still rejecting a newer replacement pairing.
+        const pairingWasClearedBeforeDelivery = !pendingBeforeWrite;
+        if (pendingBeforeWrite && !samePairing(pendingBeforeWrite, pairing)) return;
         await chrome.storage.local.set({ allesOrigin: pairing.origin, connectionId: result.connection_id, deviceSecret: result.device_secret });
         credentialsDelivered = true;
         const pendingAfterWrite = (await chrome.storage.session.get('pairing')).pairing;
-        if (!samePairing(pendingAfterWrite, pairing)) {
+        const pairingStayedCleared = pairingWasClearedBeforeDelivery && !pendingAfterWrite;
+        if (!samePairing(pendingAfterWrite, pairing) && !pairingStayedCleared) {
           await request(pairing.origin, '/api/auth/browser/disconnect', {
             connection_id: result.connection_id,
             device_secret: result.device_secret,
@@ -190,26 +212,29 @@ function renderLocked(message = '') {
     <p class="quiet">Request a short Passwords session, then approve it inside Alles. Closing or locking the browser clears local access.</p>
     ${message ? `<p class="error">${escapeHtml(message)}</p>` : ''}
     <div class="actions"><button id="disconnect">disconnect browser</button><button class="primary" id="unlock">request access</button></div>`;
-  document.getElementById('disconnect').addEventListener('click', resetBrowser);
-  document.getElementById('unlock').addEventListener('click', beginUnlock);
+  const disconnect = document.getElementById('disconnect');
+  const unlock = document.getElementById('unlock');
+  disconnect.addEventListener('click', () => resetBrowser(disconnect));
+  unlock.addEventListener('click', () => beginUnlock(unlock));
 }
 
-async function resetBrowser() {
-  const state = await stores();
+async function resetBrowser(button = null) {
+  if (button && !setBusy(button, true, 'disconnecting…')) return;
   let warning = '';
   try {
-    if (state.allesOrigin && state.connectionId && state.deviceSecret) {
-      await request(state.allesOrigin, '/api/auth/browser/disconnect', {
-        connection_id: state.connectionId,
-        device_secret: state.deviceSecret,
-      });
+    try {
+      const state = await stores();
+      if (state.allesOrigin && state.connectionId && state.deviceSecret) {
+        await request(state.allesOrigin, '/api/auth/browser/disconnect', {
+          connection_id: state.connectionId,
+          device_secret: state.deviceSecret,
+        });
+      }
+    } catch (error) {
+      if (!/invalid|revoked|not connected/i.test(error.message)) {
+        warning = 'Disconnected here. If that Alles server comes back, revoke this browser there too.';
+      }
     }
-  } catch (error) {
-    if (!/invalid|revoked|not connected/i.test(error.message)) {
-      warning = 'Disconnected here. If that Alles server comes back, revoke this browser there too.';
-    }
-  }
-  try {
     await chrome.storage.local.remove(['allesOrigin', 'connectionId', 'deviceSecret']);
     await chrome.storage.session.remove(['sessionToken', 'pairing', 'unlockRequest']);
     renderSetup(warning);
@@ -218,9 +243,10 @@ async function resetBrowser() {
   }
 }
 
-async function beginUnlock() {
-  const state = await stores();
+async function beginUnlock(button = null) {
+  if (button && !setBusy(button, true, 'requesting…')) return;
   try {
+    const state = await stores();
     const result = await request(state.allesOrigin, '/api/auth/browser/unlock/start', { connection_id: state.connectionId, device_secret: state.deviceSecret });
     const unlockRequest = { id: result.request_id, code: result.code };
     await chrome.storage.session.set({ unlockRequest });
@@ -283,9 +309,10 @@ function pageBody(state, tab) {
   };
 }
 
-async function loadMatches() {
-  const state = await stores();
+async function loadMatches(button = null) {
+  if (button && !setBusy(button, true, 'refreshing…')) return;
   try {
+    const state = await stores();
     const tab = await activeTab();
     const url = new URL(tab.url);
     if (!['http:', 'https:'].includes(url.protocol)) throw new Error('Open an HTTP or HTTPS login page first.');
@@ -296,7 +323,8 @@ async function loadMatches() {
       await chrome.storage.session.remove('sessionToken');
       renderLocked(error.message);
     } else app.innerHTML = `<p class="error">${escapeHtml(error.message)}</p><div class="actions"><button id="lock">lock</button></div>`;
-    document.getElementById('lock')?.addEventListener('click', lockBrowser);
+    const lock = document.getElementById('lock');
+    lock?.addEventListener('click', () => lockBrowser(lock));
   }
 }
 
@@ -307,14 +335,16 @@ function renderMatches(tab, matches) {
     ${matches.length ? `<div class="credential-list">${matches.map(item => `<button class="credential" data-entry="${escapeHtml(item.id)}"><strong>${escapeHtml(item.name)}</strong><small>${escapeHtml(item.username || 'no username')}</small></button>`).join('')}</div>` : '<p class="quiet">No exact-site login matches this page.</p>'}
     <div class="actions"><button id="lock">lock</button><button id="refresh">refresh</button></div>`;
   document.querySelectorAll('[data-entry]').forEach(button => button.addEventListener('click', () => fillSelected(tab, button.dataset.entry, button)));
-  document.getElementById('lock').addEventListener('click', lockBrowser);
-  document.getElementById('refresh').addEventListener('click', loadMatches);
+  const lock = document.getElementById('lock');
+  const refresh = document.getElementById('refresh');
+  lock.addEventListener('click', () => lockBrowser(lock));
+  refresh.addEventListener('click', () => loadMatches(refresh));
 }
 
 async function fillSelected(tab, entryId, button) {
-  const state = await stores();
-  button.disabled = true;
+  if (!setBusy(button, true, 'filling…')) return;
   try {
+    const state = await stores();
     const credential = await request(state.allesOrigin, '/api/auth/browser/release', { ...pageBody(state, tab), entry_id: entryId });
     const [{ result }] = await chrome.scripting.executeScript({
       target: { tabId: tab.id, frameIds: [0] },
@@ -324,7 +354,7 @@ async function fillSelected(tab, entryId, button) {
     if (!result?.ok) throw new Error(result?.error || 'This page has no safe single-password login form.');
     window.close();
   } catch (error) {
-    button.disabled = false;
+    setBusy(button, false);
     const note = document.createElement('p'); note.className = 'error'; note.textContent = error.message;
     button.after(note);
   }
@@ -352,13 +382,22 @@ function fillLogin(username, password, expectedOrigin) {
   return { ok: true };
 }
 
-async function lockBrowser() {
-  const state = await stores();
-  await chrome.storage.session.remove(['sessionToken', 'unlockRequest']);
-  if (state.allesOrigin && state.connectionId && state.deviceSecret) {
-    request(state.allesOrigin, '/api/auth/browser/lock', { connection_id: state.connectionId, device_secret: state.deviceSecret }).catch(() => {});
+async function lockBrowser(button = null) {
+  if (button && !setBusy(button, true, 'locking…')) return;
+  try {
+    const state = await stores();
+    await chrome.storage.session.remove(['sessionToken', 'unlockRequest']);
+    if (state.allesOrigin && state.connectionId && state.deviceSecret) {
+      request(state.allesOrigin, '/api/auth/browser/lock', { connection_id: state.connectionId, device_secret: state.deviceSecret }).catch(() => {});
+    }
+    renderLocked();
+  } catch (error) {
+    if (button) setBusy(button, false);
+    const note = document.createElement('p');
+    note.className = 'error';
+    note.textContent = `Could not lock this browser: ${error.message}`;
+    app.prepend(note);
   }
-  renderLocked();
 }
 
 async function start() {

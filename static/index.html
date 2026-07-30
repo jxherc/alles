@@ -28,8 +28,8 @@
   })();
 </script>
 <link rel="stylesheet" href="/static/vendor/xterm/xterm.css?v=6.0.0">
-<link rel="stylesheet" href="/static/style.css?v=301">
-  <link rel="stylesheet" href="/static/kokuen.css?v=20">
+<link rel="stylesheet" href="/static/style.css?v=302">
+  <link rel="stylesheet" href="/static/kokuen.css?v=21">
 <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#0a0a0a">
@@ -522,7 +522,7 @@
     </section>
     <section class="page-view specialist-group" id="docs-workbench-view" data-specialist-app="docs" data-kokuen-surface="specialist" style="display:none" aria-labelledby="docs-workbench-title">
       <header class="specialist-app-head"><div class="specialist-app-brand"><button class="specialist-sidebar-toggle" type="button" data-specialist-sidebar-toggle aria-expanded="true" aria-controls="docs-tabs" aria-label="hide docs navigation"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3.5 4.5h13v11h-13zM7 4.5v11"/></svg></button><h1 class="specialist-app-name" id="docs-workbench-title">docs</h1></div><div class="specialist-group-tabs" id="docs-tabs" role="tablist" aria-label="docs sections">
-        <button type="button" role="tab" data-group-section="notes">notes</button><button type="button" role="tab" data-group-section="journal">journal</button>
+        <button type="button" role="tab" data-group-section="notes">documents</button><button type="button" role="tab" data-group-section="journal">journal</button>
       </div></header>
       <div class="specialist-group-overview" data-group-overview></div><div class="specialist-group-slot" data-group-slot hidden></div>
     </section>
@@ -839,10 +839,6 @@
     <!-- Docs: Obsidian-first reader with an explicit local Markdown editor. -->
     <div class="page-view docs-product-view no-note" id="wiki-view" data-specialist-app="docs" data-kokuen-surface="docs" style="display:none">
       <aside class="docs-nav-panel wiki-tree-panel" id="docs-nav-panel" aria-label="Docs library">
-        <div class="docs-nav-head">
-          <span class="docs-wordmark">docs</span>
-          <button class="docs-home-link" type="button" data-docs-route="home">home</button>
-        </div>
         <div class="docs-nav-create">
           <button type="button" id="wiki-new-btn">new document</button>
           <button type="button" id="wiki-folder-btn">new folder</button>
@@ -860,10 +856,6 @@
             <button class="docs-library-item docs-sec-btn" type="button" data-section="notes">
               <svg class="docs-nav-icon" viewBox="0 0 20 20" aria-hidden="true"><path d="M4.5 2.75h8l3 3v11.5h-11z"/><path d="M12.5 2.75v3h3M7 9h6M7 12h6"/></svg>
               <span>notes</span>
-            </button>
-            <button class="docs-library-item" type="button" data-docs-route="journal">
-              <svg class="docs-nav-icon" viewBox="0 0 20 20" aria-hidden="true"><path d="M4 5.5h12v11H4zM6.5 3v4M13.5 3v4M4 8.5h12"/><path d="M7 11h2M11 11h2M7 14h2"/></svg>
-              <span>journal</span>
             </button>
           </nav>
         </section>
@@ -1084,7 +1076,6 @@
       <header class="files-phase7-app-head" id="files-app-header">
         <div class="files-phase7-app-brand">
           <span class="files-phase7-wordmark">files</span>
-          <button class="files-text-button" id="files-home-btn" type="button">home</button>
         </div>
         <div class="files-phase7-app-context">
           <button class="files-bare-icon" id="files-up-btn" type="button" title="up one folder" aria-label="up one folder">←</button>
@@ -2863,7 +2854,7 @@
 </div>
 
 <script type="module">
-const _v = '301';
+const _v = '302';
 import(`/static/js/app.js?v=${_v}`);
 </script>
 </body>

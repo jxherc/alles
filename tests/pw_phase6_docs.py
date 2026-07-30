@@ -382,7 +382,7 @@ def run() -> None:
         page.evaluate(
             "document.getElementById('docs-nav-panel').dataset.identityProof = 'same-shell'"
         )
-        page.locator('#docs-nav-panel [data-docs-route="journal"]').click()
+        page.locator('#docs-tabs [data-group-section="journal"]').click()
         page.wait_for_selector("#docs-journal-section:visible", timeout=15_000)
         page.wait_for_selector("#jrnl-heatmap", timeout=15_000)
         assert page.locator("#wiki-view").is_visible()

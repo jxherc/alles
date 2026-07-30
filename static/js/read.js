@@ -3,6 +3,7 @@
 // list + reader views; mirrors the watch/habits panel conventions.
 import { toast } from './util.js';
 import { confirm as dlgConfirm } from './dialog.js';
+import { wireChoiceGroup } from './kokuen.js';
 const _si = n => (window.icon ? window.icon(n) : '');
 
 const $ = id => document.getElementById(id);
@@ -15,6 +16,10 @@ let _open = null;   // full item being read
 let _feeds = [];
 let _showFeeds = false;
 let _fetcher = fetch;
+let _hasItems = false;
+let _hasStats = false;
+let _itemsCurrent = false;
+let _loadState = { state: 'resting', message: '' };
 
 export function initRead(fetcher = fetch) {
   _fetcher = fetcher;
@@ -24,6 +29,36 @@ export function initRead(fetcher = fetch) {
 async function loadFeeds() {
   try { _feeds = (await _fetcher('/api/read/feeds').then(r => r.json())).feeds || []; }
   catch { _feeds = []; }
+}
+
+async function _json(fetcher, url) {
+  const response = await fetcher(url);
+  if (!response.ok) throw new Error(`request failed (${response.status || 'unknown'})`);
+  return response.json();
+}
+
+function _loadFailure(failures, successes) {
+  const offline = typeof navigator !== 'undefined' && navigator.onLine === false;
+  if (successes.length) {
+    const unavailable = failures.map(([name]) => name).join(' and ');
+    return {
+      state: 'partial',
+      message: `partial reading data: ${unavailable} unavailable.`,
+    };
+  }
+  const retained = _hasItems || _hasStats ? ' Showing the last loaded reading data.' : '';
+  return {
+    state: offline ? 'offline' : 'error',
+    message: `${offline ? 'You appear to be offline.' : 'Reading data could not be loaded.'}${retained}`,
+  };
+}
+
+function _loadNotice() {
+  if (_loadState.state === 'resting') return '';
+  const loading = _loadState.state === 'loading';
+  return `<div class="specialist-group-note legacy-load-note" role="${loading ? 'status' : 'alert'}" aria-live="${loading ? 'polite' : 'assertive'}" data-kokuen-state="${_loadState.state}">
+    <span>${esc(_loadState.message)}</span>${loading ? '' : '<button type="button" class="btn" data-act="retry-load">retry</button>'}
+  </div>`;
 }
 
 function _feedsPanel() {
@@ -49,14 +84,27 @@ export async function loadRead(fetcher = _fetcher) {
   // so remember if we were typing in it + the caret, and put focus back after.
   const wasSearching = document.activeElement?.id === 'read-q';
   const caret = wasSearching ? document.activeElement.selectionStart : null;
-  try {
-    const [items, stats] = await Promise.all([
-      fetcher('/api/read?' + params).then(r => r.json()),
-      fetcher('/api/read/stats').then(r => r.json()).catch(() => null),
-    ]);
-    _items = items.items || [];
-    _stats = stats;
-  } catch { _items = []; }
+  _loadState = { state: 'loading', message: 'loading saved reading…' };
+  _itemsCurrent = false;
+  _render();
+  const [itemsResult, statsResult] = await Promise.allSettled([
+    _json(fetcher, '/api/read?' + params),
+    _json(fetcher, '/api/read/stats'),
+  ]);
+  const failures = [];
+  const successes = [];
+  if (itemsResult.status === 'fulfilled') {
+    _items = itemsResult.value.items || [];
+    _hasItems = true;
+    _itemsCurrent = true;
+    successes.push('saved items');
+  } else failures.push(['saved items', itemsResult.reason]);
+  if (statsResult.status === 'fulfilled') {
+    _stats = statsResult.value;
+    _hasStats = true;
+    successes.push('reading statistics');
+  } else failures.push(['reading statistics', statsResult.reason]);
+  _loadState = failures.length ? _loadFailure(failures, successes) : { state: 'resting', message: '' };
   _render();
   if (wasSearching) {
     const q = $('read-q');
@@ -78,14 +126,15 @@ function _render() {
       <button class="btn primary" id="read-save">${_si('plus')} save</button>
     </div>
     <div class="read-toolbar">
-      <div class="read-filters">${FILTERS.map(([k, l]) => `<button class="read-chip${_filter === k ? ' active' : ''}" data-filter="${k}">${l}</button>`).join('')}<button class="read-chip${_showFeeds ? ' active' : ''}" id="read-feeds-btn" title="rss feeds">feeds</button></div>
+      <div class="read-filters"><span class="read-filter-choices" role="radiogroup" aria-label="saved reading filter">${FILTERS.map(([k, l]) => `<button type="button" role="radio" aria-checked="${_filter === k}" class="read-chip${_filter === k ? ' active' : ''}" data-filter="${k}">${l}</button>`).join('')}</span><button type="button" class="read-chip${_showFeeds ? ' active' : ''}" id="read-feeds-btn" aria-pressed="${_showFeeds}" title="rss feeds">feeds</button></div>
       <div class="read-search"><input type="text" id="read-q" class="settings-input" placeholder="search saved…" value="${esc(_q)}" spellcheck="false"></div>
     </div>
+    ${_loadNotice()}
     ${_showFeeds ? _feedsPanel() : ''}
     ${_tag ? `<div class="read-tagfilter">showing <span class="read-tag active">#${esc(_tag)}</span><button class="btn" id="read-tag-clear">clear</button></div>` : ''}
     ${_statsBar()}
     ${_items.length ? `<div class="read-list">${_items.map(_card).join('')}</div>`
-      : `<div class="read-empty">${_q ? 'nothing matches that search.' : 'nothing saved yet — paste a link above and alles will keep the article text here, searchable, forever.'}</div>`}`;
+      : (_itemsCurrent ? `<div class="read-empty">${_q ? 'nothing matches that search.' : 'nothing saved yet — paste a link above and alles will keep the article text here, searchable, forever.'}</div>` : '')}`;
   _wire(body);
 }
 
@@ -141,6 +190,8 @@ function _renderReader(body) {
 }
 
 function _wire(body) {
+  wireChoiceGroup(body.querySelector('.read-filter-choices'));
+  body.querySelector('[data-act="retry-load"]')?.addEventListener('click', () => loadRead());
   const save = () => _save();
   $('read-save')?.addEventListener('click', save);
   $('read-url')?.addEventListener('keydown', e => { if (e.key === 'Enter') save(); });
