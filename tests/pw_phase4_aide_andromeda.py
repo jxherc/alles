@@ -559,7 +559,8 @@ def check_andromeda(browser, viewport: dict, mobile: bool, results: dict) -> Non
         )
         raise
     results[f"{label}_andromeda_space"] = (
-        page.locator('.space-link[data-space="andromeda"]').get_attribute("aria-current") == "page"
+        page.locator("#app-drawer-btn").is_visible()
+        and page.locator("#app-drawer-btn").get_attribute("aria-expanded") == "false"
     )
     page.locator("#andromeda-query").fill("latest phase 4 docs")
     page.locator("#andromeda-query").press("Enter")

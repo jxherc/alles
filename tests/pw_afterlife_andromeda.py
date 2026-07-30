@@ -297,7 +297,8 @@ def run_case(browser, *, viewport: dict, mobile: bool, theme: str, screenshot: s
     page.goto(URL, wait_until="networkidle")
     page.wait_for_selector("#andromeda-view", state="visible")
     assert page.locator("#andromeda-view").get_attribute("data-state") == "idle"
-    assert page.locator("#andromeda-idle-home").is_visible()
+    assert page.locator("#andromeda-idle-home").count() == 0
+    assert page.locator("#app-drawer-btn").is_visible()
     assert page.locator("#andromeda-view select:visible").count() == 0
     assert page.locator('#andromeda-view input[type="checkbox"]:visible').count() == 0
     assert page.locator('#andromeda-view input[type="radio"]:visible').count() == 0
@@ -320,18 +321,13 @@ def run_case(browser, *, viewport: dict, mobile: bool, theme: str, screenshot: s
         page.locator(".andromeda-app-head").evaluate("el => getComputedStyle(el).borderBottomWidth")
         == "0px"
     )
-    assert page.locator("#andromeda-go-home").is_visible()
+    assert page.locator("#andromeda-go-home").count() == 0
     assert page.locator(".andromeda-brand").count() == 0
-    assert page.locator("#andromeda-go-home").inner_text().strip() == "home"
     search_box = page.locator("#andromeda-form").bounding_box()
     result_box = page.locator(".andromeda-result-column").bounding_box()
     assert search_box and result_box
     assert abs(search_box["x"] - result_box["x"]) <= 1
     assert abs(search_box["width"] - result_box["width"]) <= 1
-    home_box = page.locator("#andromeda-go-home").bounding_box()
-    page_box = page.locator(".andromeda-page").bounding_box()
-    assert home_box and page_box
-    assert page_box["x"] + page_box["width"] - (home_box["x"] + home_box["width"]) <= 36
     assert requests[-1]["category"] == "all"
     assert requests[-1]["provider"] == "searxng"
     assert page.locator("#andromeda-overview").is_visible()
@@ -472,7 +468,8 @@ def run_case(browser, *, viewport: dict, mobile: bool, theme: str, screenshot: s
     assert not errors, errors
     assert not server_errors, server_errors
     page.screenshot(path=screenshot, full_page=True)
-    page.locator("#andromeda-go-home").click()
+    page.locator("#app-drawer-btn").click()
+    page.locator('.app-drawer-item[data-view="today"]').click()
     page.wait_for_url(f"http://localhost:{PORT}/")
     context.close()
 

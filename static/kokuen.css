@@ -2325,6 +2325,23 @@ html[data-kokuen-version="5"] body.afterlife-shell[data-space="andromeda"] .main
   flex: 1 1 auto;
 }
 
+html[data-kokuen-version="5"] body.afterlife-shell[data-space="andromeda"] .andromeda-idle-footer {
+  left: calc(52px + var(--k-space-3));
+}
+
+html[data-kokuen-version="5"] .aide-mobile-name {
+  display: none;
+}
+
+@media (max-width: 700px) {
+  html[data-kokuen-version="5"] body[data-space="aide"] .aide-mobile-name {
+    display: inline;
+    flex: 0 0 auto;
+    color: var(--k-text);
+    font-weight: 520;
+  }
+}
+
 html[data-kokuen-version="5"] body.afterlife-shell #app-drawer-scrim:not([hidden]) {
   inset: 0 0 0 52px;
   display: block !important;
@@ -2649,8 +2666,12 @@ html[data-kokuen-version="5"] .custom-dropdown-panel .custom-dropdown-option {
 }
 
 @media (max-width: 760px) {
-  #andromeda-view[data-kokuen-surface="andromeda"] .andromeda-settings-panel {
+  html[data-kokuen-version="5"] body.afterlife-shell #andromeda-view[data-kokuen-surface="andromeda"] .andromeda-settings-panel {
     top: 12px;
+    right: var(--k-space-3);
+    left: calc(52px + var(--k-space-3));
+    width: auto;
+    max-width: none;
     max-height: calc(100dvh - 24px);
   }
 }

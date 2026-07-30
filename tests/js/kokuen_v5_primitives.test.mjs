@@ -32,6 +32,19 @@ test('the shell has exactly one global navigation trigger and no repeated home a
   assert.match(app, /document\.querySelector\('\.sidebar'\)\?\.setAttribute\('inert', ''\)/);
 });
 
+test('primary spaces keep one visible identity and clear the universal rail', () => {
+  assert.match(html, /class="aide-mobile-name">aide<\/span>/);
+  assert.match(css, /body\[data-space="aide"\] \.aide-mobile-name\s*\{[\s\S]*?display:\s*inline/);
+  assert.match(
+    css,
+    /andromeda-settings-panel\s*\{[\s\S]*?left:\s*calc\(52px \+ var\(--k-space-3\)\)/,
+  );
+  assert.match(
+    css,
+    /andromeda-idle-footer\s*\{[\s\S]*?left:\s*calc\(52px \+ var\(--k-space-3\)\)/,
+  );
+});
+
 test('the shell registry keeps three primary spaces and exactly nine specialist apps', () => {
   const block = app.match(/const SHELL_GROUPS = Object\.freeze\(\[[\s\S]*?\n\]\);/)?.[0] || '';
   assert.ok(block);
