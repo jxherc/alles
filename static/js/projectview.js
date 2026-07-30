@@ -47,7 +47,7 @@ export async function renderProject(pid) {
     <div class="page-view-head">
       <span class="project-dot"${dot}></span>
       <span class="page-view-title">${esc(proj.name)}</span>
-      <button class="btn primary" id="pj-newchat" style="margin-left:auto;font-size:0.72rem">+ new chat</button>
+      <button class="btn primary" id="pj-newchat" style="margin-left:auto;font-size:0.75rem">+ new chat</button>
     </div>
     <div class="page-view-body project-workspace">
       <div class="pj-col">

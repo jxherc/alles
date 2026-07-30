@@ -37,7 +37,7 @@ function _render() {
     <div class="settings-list-row" data-id="${r.id}">
       <div style="flex:1;min-width:0">
         <div class="row-name">${_esc(r.text)}</div>
-        <div style="font-size:0.68rem;color:var(--muted);margin-top:2px">
+        <div style="font-size:0.75rem;color:var(--muted);margin-top:2px">
           ${_fmtTime(r.trigger_at)} · ${r.type}
           ${r.session_id ? ' · in session' : ''}
         </div>

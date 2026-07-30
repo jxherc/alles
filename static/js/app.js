@@ -45,7 +45,7 @@ import {
 import { initPrivacyHandlers } from './privacy.js';
 import { initScrollFollow } from './scrollfollow.js';
 import { initAideWorkspace } from './aideworkspace.js?v=276';
-import { createFocusBoundary, initKokuenPrimitives } from './kokuen.js?v=1';
+import { beginBusy, createFocusBoundary, initKokuenPrimitives, setControlState } from './kokuen.js?v=1';
 import { validatedProjectId, withProjectContext } from './andromeda.js?v=247';
 import { loadShortcuts, matchesShortcut, matchesSettingsShortcut } from './shortcuts.js';
 import { startReminderPoll, initReminderPanel } from './reminders.js?v=243';
@@ -954,7 +954,10 @@ async function navigateTo(v) {
   const grouped = groupRouteFor(v);
   const groupedIdentifier = grouped ? groupIdentifierFor(grouped.group, grouped.section) : v;
   const groupedRoute = grouped ? {
-    host: grouped.group,
+    // Group names usually match their canonical host. Vault is intentionally
+    // served from passwords.*, so derive the destination from the canonical
+    // identifier instead of manufacturing a legacy vault.* navigation.
+    host: viewToSub(groupedIdentifier),
     view: grouped.group,
     ...(grouped.section !== 'overview' ? { section: grouped.section } : {}),
     hashOwner: v,
@@ -1727,13 +1730,21 @@ function bindEvents() {
     if (isRecording()) stopRecording();
     else doSend();
   });
-  // right-click send → schedule the message for later (delivered by the
-  // reminder loop as a type=message reminder bound to this session)
+  // Right-click, Shift+F10, or the Context Menu key schedules the message for
+  // later. All three paths open the same custom KOKUEN dialog.
+  const openSendSchedule = () => {
+    const text = ta.value.trim();
+    if (!text) { toast('type a message first — then open send later', ''); return; }
+    _openSchedulePop(text, ta);
+  };
   _sendBtn.addEventListener('contextmenu', e => {
     e.preventDefault();
-    const text = ta.value.trim();
-    if (!text) { toast('type a message first — then right-click to schedule it', ''); return; }
-    _openSchedulePop(text, ta);
+    openSendSchedule();
+  });
+  _sendBtn.addEventListener('keydown', e => {
+    if (e.key !== 'ContextMenu' && !(e.shiftKey && e.key === 'F10')) return;
+    e.preventDefault();
+    openSendSchedule();
   });
   document.getElementById('stop-btn').addEventListener('click', stopStream);
   document.getElementById('conn-banner-x')?.addEventListener('click', hideConnBanner);
@@ -1852,7 +1863,7 @@ function bindEvents() {
 
   // model picker
   document.getElementById('model-btn').addEventListener('click', openModelModal);
-  document.getElementById('model-modal-close').addEventListener('click', closeAllModals);
+  document.getElementById('model-modal-close').addEventListener('click', closeModelModal);
   document.getElementById('model-search-input').addEventListener('input', e => renderModelList(e.target.value));
 
   // export/share/print dropdown
@@ -1979,7 +1990,11 @@ function bindEvents() {
 
   // modal overlays close on backdrop click (except settings which manages itself)
   document.querySelectorAll('.modal-overlay:not(#settings-modal):not(#files-preview-modal)').forEach(o => {
-    o.addEventListener('click', e => { if (e.target === o) closeAllModals(); });
+    o.addEventListener('click', e => {
+      if (e.target !== o) return;
+      if (o.id === 'model-modal') closeModelModal();
+      else closeAllModals();
+    });
   });
 
   document.addEventListener('keydown', e => {
@@ -1990,7 +2005,7 @@ function bindEvents() {
       // if a reply is streaming, Esc stops it first; otherwise it closes overlays
       const stopBtn = document.getElementById('stop-btn');
       if (stopBtn?.classList.contains('visible')) { stopStream(); return; }
-      closeAllModals(); closeSettings(); closeSearch(); closeMoreTools(); closeShellPanel(); closeAppDrawer(); closePermMenu(); setAideSidebarSearch(false);
+      closeModelModal(); closeAllModals(); closeSettings(); closeSearch(); closeMoreTools(); closeShellPanel(); closeAppDrawer(); closePermMenu(); setAideSidebarSearch(false);
     }
     else if (matchesShortcut(e, shortcuts.focus_input)) {
       const ta = document.getElementById('composer-ta');
@@ -2185,48 +2200,73 @@ async function doSend() {
   sendMessage(text);
 }
 
-// schedule-send popup (right-click on the send button)
+// schedule-send dialog (pointer and keyboard context paths on the send button)
 async function _openSchedulePop(text, ta) {
   document.querySelector('.schedule-pop')?.remove();
   const pop = document.createElement('div');
   pop.className = 'schedule-pop';
+  pop.setAttribute('role', 'dialog');
+  pop.setAttribute('aria-labelledby', 'schedule-pop-title');
   pop.innerHTML = `
-    <div class="schedule-pop-title">send later</div>
+    <div class="schedule-pop-title" id="schedule-pop-title">send later</div>
     <div class="date-input" id="schedule-when" data-type="datetime" data-ph="when to send"></div>
     <div class="schedule-pop-actions">
-      <button class="btn primary" id="schedule-go">schedule</button>
-      <button class="btn" id="schedule-cancel">cancel</button>
+      <button class="btn primary" id="schedule-go" type="button">schedule</button>
+      <button class="btn" id="schedule-cancel" type="button">cancel</button>
     </div>`;
   document.body.appendChild(pop);
-  const btnRect = document.getElementById('send-btn').getBoundingClientRect();
+  const trigger = document.getElementById('send-btn');
+  const btnRect = trigger.getBoundingClientRect();
   pop.style.right = `${Math.max(8, window.innerWidth - btnRect.right)}px`;
   pop.style.bottom = `${Math.max(8, window.innerHeight - btnRect.top + 8)}px`;
   const { initDatePicker } = await import('./datepick.js');
   const when = pop.querySelector('#schedule-when');
   initDatePicker(when);
-  const close = () => { pop.remove(); document.removeEventListener('click', outside); };
-  const outside = e => { if (!pop.contains(e.target) && !document.querySelector('.date-panel')?.contains(e.target)) close(); };
+  let focusBoundary = null;
+  const close = ({ restoreFocus = true } = {}) => {
+    document.removeEventListener('click', outside);
+    focusBoundary?.deactivate({ restoreFocus });
+    pop.remove();
+  };
+  const outside = e => {
+    if (!pop.contains(e.target) && !document.querySelector('.date-panel')?.contains(e.target)) {
+      close({ restoreFocus: false });
+    }
+  };
+  focusBoundary = createFocusBoundary(pop, { trigger, onEscape: close });
+  focusBoundary.activate({ focus: when, source: trigger });
   setTimeout(() => document.addEventListener('click', outside), 0);
   pop.querySelector('#schedule-cancel').addEventListener('click', close);
-  pop.querySelector('#schedule-go').addEventListener('click', async () => {
+  const scheduleButton = pop.querySelector('#schedule-go');
+  scheduleButton.addEventListener('click', async () => {
     const at = when.value;
     if (!at) { toast('pick a time', 'error'); return; }
     if (new Date(at) <= new Date()) { toast('that time is in the past', 'error'); return; }
-    let sid = getActiveId();
-    if (!sid) {
-      const s = await createSession();
-      sid = s?.id;
+    const finishBusy = beginBusy(scheduleButton, 'scheduling');
+    if (!finishBusy) return;
+    try {
+      let sid = getActiveId();
+      if (!sid) {
+        const session = await createSession();
+        sid = session?.id;
+      }
+      if (!sid) throw new Error('no session to schedule into');
+      const response = await fetch('/api/reminders', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ text, trigger_at: at, type: 'message', session_id: sid }),
+      });
+      if (!response.ok) throw new Error('failed to schedule');
+      finishBusy({ state: 'resting', text: 'schedule' });
+      ta.value = ''; ta.style.height = 'auto'; ta.dispatchEvent(new Event('input'));
+      const whenText = formatDateTime(at, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).toLowerCase();
+      toast(t('schedule.confirmed', { when: whenText }), 'success');
+      close();
+    } catch (error) {
+      finishBusy({ state: 'error', text: 'retry schedule' });
+      setControlState(scheduleButton, 'error', { message: error?.message || 'failed to schedule' });
+      toast(error?.message || 'failed to schedule', 'error');
+      when.focus();
     }
-    if (!sid) { toast('no session to schedule into', 'error'); return; }
-    const r = await fetch('/api/reminders', {
-      method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ text, trigger_at: at, type: 'message', session_id: sid }),
-    });
-    if (!r.ok) { toast('failed to schedule', 'error'); return; }
-    ta.value = ''; ta.style.height = 'auto'; ta.dispatchEvent(new Event('input'));
-    const whenText = formatDateTime(at, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).toLowerCase();
-    toast(t('schedule.confirmed', { when: whenText }), 'success');
-    close();
   });
 }
 
@@ -2484,14 +2524,36 @@ window._updateFavicon = updateFavicon;
 
 // ── model picker ──────────────────────────────────────────────────────────────
 let _modelModalInited = false;
+let _modelModalFocusBoundary = null;
+function closeModelModal() {
+  const modal = document.getElementById('model-modal');
+  if (!modal || modal.style.display === 'none') return;
+  modal.style.display = 'none';
+  document.querySelectorAll('#model-btn, #aide-model-choice').forEach(button => {
+    button.setAttribute('aria-expanded', 'false');
+  });
+  _modelModalFocusBoundary?.deactivate();
+}
+window._closeModelModal = closeModelModal;
 function openModelModal() {
-  document.getElementById('model-modal').style.display = 'flex';
+  const modal = document.getElementById('model-modal');
+  modal.style.display = 'flex';
+  document.querySelectorAll('#model-btn, #aide-model-choice').forEach(button => {
+    button.setAttribute('aria-expanded', 'true');
+  });
   if (!_modelModalInited) { initModelModal(); _modelModalInited = true; }
   // make sure models tab is active
   document.querySelector('.mm-tab[data-tab="models"]')?.click();
   renderModelList();
   const inp = document.getElementById('model-search-input');
-  if (inp) { inp.value = ''; inp.focus(); }
+  if (inp) inp.value = '';
+  if (!_modelModalFocusBoundary) {
+    _modelModalFocusBoundary = createFocusBoundary(modal, {
+      trigger: document.getElementById('model-btn'),
+      onEscape: closeModelModal,
+    });
+  }
+  _modelModalFocusBoundary.activate({ focus: inp, source: document.activeElement });
 }
 
 // ── persona picker ────────────────────────────────────────────────────────────

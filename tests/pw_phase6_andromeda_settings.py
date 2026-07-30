@@ -18,6 +18,7 @@ def run() -> None:
         Path(screenshot_dir).mkdir(parents=True, exist_ok=True)
     managed_actions: list[str] = []
     settings_patches: list[dict] = []
+    fail_next_settings_patch = False
     service = {
         "support_verified": True,
         "available": True,
@@ -33,9 +34,18 @@ def run() -> None:
     fail_status = False
 
     def route_settings(route):
+        nonlocal fail_next_settings_patch
         if route.request.method == "PATCH":
             body = route.request.post_data_json
             settings_patches.append(body)
+            if fail_next_settings_patch:
+                fail_next_settings_patch = False
+                route.fulfill(
+                    status=503,
+                    content_type="application/json",
+                    body=json.dumps({"detail": "settings write failed"}),
+                )
+                return
         else:
             body = {}
         payload = {
@@ -120,6 +130,16 @@ def run() -> None:
             )
             for selector in required:
                 assert page.locator(selector).count() == 1, f"{label}: missing {selector}"
+            switch_names = {
+                "#andromeda-results-toggle": "show normal results",
+                "#andromeda-overview-toggle": "show ai overview",
+                "#andromeda-verification-toggle": "independently fact-check answers",
+            }
+            for selector, name in switch_names.items():
+                switch = page.locator(selector)
+                assert switch.get_attribute("aria-label") == name
+                box = switch.bounding_box()
+                assert box and box["width"] >= 44 and box["height"] >= 44, (label, selector, box)
             assert "searxng → brave" in page.locator("#andromeda-provider-order").inner_text()
             guide = page.locator(".andromeda-strength-guide").inner_text().lower()
             for phrase in (
@@ -152,7 +172,17 @@ def run() -> None:
             assert panel.evaluate("el => el.scrollWidth <= el.clientWidth"), (
                 label,
                 panel.evaluate(
-                    "el => ({scrollWidth: el.scrollWidth, clientWidth: el.clientWidth})"
+                    """el => ({
+                      scrollWidth: el.scrollWidth,
+                      clientWidth: el.clientWidth,
+                      overflow: [...el.querySelectorAll('*')].map(node => ({
+                        tag: node.tagName.toLowerCase(), id: node.id,
+                        className: typeof node.className === 'string' ? node.className : '',
+                        scrollWidth: node.scrollWidth, clientWidth: node.clientWidth,
+                        left: node.getBoundingClientRect().left,
+                        right: node.getBoundingClientRect().right,
+                      })).filter(row => row.scrollWidth > row.clientWidth || row.right > innerWidth),
+                    })"""
                 ),
             )
             if screenshot_dir:
@@ -162,6 +192,36 @@ def run() -> None:
                 )
 
             if label == "desktop":
+                results_switch = page.locator("#andromeda-results-toggle")
+                assert results_switch.get_attribute("aria-checked") == "true"
+                fail_next_settings_patch = True
+                results_switch.click()
+                page.wait_for_function(
+                    "() => document.querySelector('#andromeda-search-settings-status')?.textContent.includes('try again')"
+                )
+                assert results_switch.get_attribute("aria-checked") == "true"
+                assert results_switch.get_attribute("aria-busy") is None
+                assert results_switch.get_attribute("data-kokuen-state") == "error"
+                assert results_switch.is_enabled()
+                browser_errors[:] = [
+                    message
+                    for message in browser_errors
+                    if message
+                    != "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+                ]
+                results_switch.press("Enter")
+                page.wait_for_function(
+                    """() => {
+                      const node = document.querySelector('#andromeda-results-toggle');
+                      return node?.getAttribute('aria-checked') === 'false'
+                        && node.getAttribute('aria-busy') !== 'true'
+                        && !node.disabled;
+                    }"""
+                )
+                assert settings_patches[-1]["andromeda_normal_results"] is False
+                assert results_switch.get_attribute("aria-busy") is None
+                assert results_switch.is_enabled()
+
                 page.wait_for_selector('[data-searxng-action="install"]')
                 page.locator('[data-searxng-action="install"]').click()
                 page.wait_for_function(

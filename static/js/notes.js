@@ -57,7 +57,9 @@ async function _renderTagbar() {
 
 function renderNotes() {
   const list = document.getElementById('notes-list');
-  if (!list) return;
+  // Vault events refresh the backing list after note writes. Keep the active
+  // editor and its unsaved input mounted until the owner explicitly goes back.
+  if (!list || _editing) return;
 
   if (!_notes.length) {
     const filtered = _q || _tag;
