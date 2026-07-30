@@ -10,14 +10,13 @@ commits without pushing.
 
 ## status
 
-The prior KOKUEN v3 follow-up has been recovered, reviewed, freshly verified, and preserved in local
-commit `f22772491ba31d99d46f4ea9bfd64376a85a70f9`. The worktree was clean at the v5 start. The KOKUEN v5
-shared runtime, machine-readable component contracts, 14-state vocabulary, 44px target layer, and single
-universal shell are implemented and have passed their source, unit, and first real-application gate.
-The Home, Aide, and Andromeda migration is complete and has passed focused and repeated real-application
-gates. All nine specialist workbenches are now migrated and have passed focused source, security,
-recovery, keyboard, responsive, and isolated real-application gates. Settings, setup, the PWA, and the
-browser extension are in progress; no whole-rebuild completion has been claimed.
+The complete approved KOKUEN v5 rebuild is implemented in the real application and preserved through
+four verified local v5 milestone commits after the recovered v3 checkpoint. The shared runtime, one
+universal shell, Home, Aide, Andromeda, exactly nine specialist workbenches, Settings, setup, PWA, and
+browser extension all pass their focused and repeated isolated real-application gates. The exhaustive
+interaction map reconciles all 26 registered features and every declared function surface. The final
+stable-tree broad Python sweep passed all 5,560 tests with 15 environment-specific skips. The approved
+local objective is complete and no push has occurred.
 
 ## requirements
 
@@ -115,22 +114,49 @@ browser extension are in progress; no whole-rebuild completion has been claimed.
 - Exercised the shipped shell independently through the in-app browser and a desktop browser: the
   universal sheet exposed exactly three primary and nine specialist destinations, Escape restored
   focus, Plan rendered without overflow or native choices, and the temporary browser surface was closed.
+- Completed a first repository-wide 5,558-test Python sweep, traced its only two failures to stale
+  pre-v5 breadcrumb/localization expectations, repaired those contracts, and completed a second sweep
+  with all 5,558 tests passing and 15 environment-specific skips.
+- Repeated the final JavaScript sweep with all 571 tests passing and reran the design-system, manifest,
+  interaction-map, specialist, PWA, Finance/Vault/Server, setup, extension, and finished-surface gates.
+- Performed the complete anti-slop and design-system completion audit. Removed hidden-by-default Home
+  entrance content, hover lifts, and the decorative Home glow; made all entrance motion preserve visible
+  content, including streamed tokens, drawers, and settings popovers; and removed the remaining Docs
+  hover lift and photo-person hover jump.
+- Used fresh rendered desktop, phone, light, reduced-motion, and 200% views to find and repair the
+  Journal year-grid overflow, November/December overlap, clipped phone search placeholder, and 30px
+  toolbar targets. The latest real surface now has non-overlapping month labels, full-width mobile
+  search, and 44px Journal controls.
+- Corrected the Library/Health browser gate so rating and note-save PATCH responses cannot race, then
+  passed the complete real mutation, keyboard, target-size, deletion, error, retry, and partial-data
+  flow on a fresh owned server.
+- Migrated saved Aide session rows and their custom action menu onto the shared KOKUEN action/menu
+  semantics. Enter and Space select a session, Shift+F10 and the Context Menu key open the same custom
+  menu as a pointer, arrow/Home/End move focus, Escape returns focus, and every row/menu item keeps a
+  44px target. Session-open, star, project-toggle, and project-delete are sibling controls rather than
+  nested interactive elements.
+- Added the saved-session and project action structure to the repeatable finished-surface browser gate:
+  native Enter/Space activation, Shift+F10, pointer context menu, menu arrow/Home/End/Escape, rename
+  focus return, sibling action structure, project expansion, 44px geometry, and an inspected capture.
 
 ## in progress
 
-- Repeated whole-repository functional, real-application, and anti-slop regression verification.
+- None.
 
 ## remaining
 
-- Repeated real-application functional exercise and full regression verification.
-- Final anti-slop audit, design-system QA, local commits, and no-push handoff.
+- No locally actionable implementation or verification work remains.
+- The 13 external acceptance gaps recorded in the interaction map require provider credentials, accounts,
+  installed targets, disposable virtual machines, or owner infrastructure that are not available in this
+  isolated local run.
 
 ## issues or blockers
 
 - No current implementation blocker.
-- Live provider accounts, destructive host/network operations, and owner infrastructure remain outside
-  ordinary local verification. Those flows must stay fail-closed and be reported as externally blocked
-  unless an owned disposable environment is available.
+- Live provider credentials and accounts, real mailbox/connectors, physical PWA/mobile installation,
+  disposable Docker/VM/native-companion acceptance, and owner host/network infrastructure are external
+  acceptance gaps. They remain explicit in the interaction map and fail closed; none blocks the local
+  KOKUEN v5 implementation.
 
 ## verification ledger
 
@@ -173,7 +199,23 @@ browser extension are in progress; no whole-rebuild completion has been claimed.
   reconcile with exact logic, evidence, external gaps, generated artifacts, and the shared 14 states.
 - Independent shipped-surface check: **passed** - the in-app browser and a separate desktop browser
   exercised the owned local application without modifying owner data or external state.
-- KOKUEN v5 whole-application migration and verification: **in progress** - no completion claim yet.
+- KOKUEN v5 first broad Python sweep: **diagnostic pass** - 5,556 of 5,558 tests passed; the only two
+  failures were stale split-breadcrumb and shell-localization expectations, both corrected and covered.
+- KOKUEN v5 second broad Python sweep: **passed** - 5,558 tests, 0 failures, 15 skips.
+- KOKUEN v5 final JavaScript sweep: **passed** - 571 tests, 0 failures. The Node parent-package
+  module-type warning is tooling-only and does not occur in the browser runtime.
+- KOKUEN v5 final design and motion contracts: **passed** - visible-before-motion source regression,
+  no native visible choices, 44px targets, contrast, focus, keyboard, responsive, reduced-motion,
+  empty/error/partial states, and zero unexpected browser-console errors.
+- KOKUEN v5 final rendered completion audit: **passed** - latest real Home, Aide, Andromeda, Apps,
+  Docs/Journal, Files, System, Settings, command, desktop, phone, light, reduced-motion, and 200% captures
+  inspected after the final repairs; no clipped or overlapping live content remains.
+- KOKUEN v5 first final-tree broad Python sweep: **diagnostic pass** - 5,559 of 5,560 tests passed; its
+  only failure was the stale Journal toolbar contract expecting the pre-v5 30px control height. The real
+  browser gate had already proved the required 44px geometry; the source assertion was corrected.
+- KOKUEN v5 final stable-tree broad Python sweep: **passed** - 5,560 tests, 0 failures, 15 skips, including
+  all canonical-schema, photo-fork, destruction/recovery, crypto, rollback, update-safety, Vault, and
+  Server matrices.
 
 ## boundaries
 

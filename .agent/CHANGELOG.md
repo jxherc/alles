@@ -2,6 +2,22 @@
 
 ## 2026-07-30
 
+Change: completed the KOKUEN v5 whole-application interaction and anti-slop audit and repaired every
+confirmed final-surface regression before the completion checkpoint.
+
+Files affected: shared entrance motion and menu control; Home and Docs hover treatment; Aide saved-session
+rows and action menu; shell localization and cache identity; Journal year grid and mobile toolbar;
+finished-surface, Library/Health, Home, Docs,
+design-system, manifest, PWA, and source regressions; and current project state.
+
+Reason: keep Home, streamed text, drawers, and settings content visible before animation; remove
+template-like hover motion, the photo-person hover jump, and decorative glow;
+show one localized app identity, prevent mobile month labels and field copy from clipping or overlapping,
+enforce 44px Journal controls, make saved Aide sessions and their custom menu keyboard-complete,
+separate session, star, project-toggle, and project-delete actions so interactive controls never nest,
+distinguish concurrent browser mutations exactly, and require the latest real rendered application
+rather than stale source expectations as the completion authority.
+
 Change: completed the KOKUEN v5 migration through Settings, first-run setup, the installable PWA, and
 the browser Passwords extension, and added an executable exhaustive interaction logic map.
 

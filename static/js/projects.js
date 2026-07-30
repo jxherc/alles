@@ -52,23 +52,25 @@ export function renderProjectFolders(sessions, onSelect, onChange) {
   if (afterlife) {
     const taskSessions = sessions.filter(session => !session.project_id);
     html += `<section class="aide-session-section" data-session-drop="unassigned"><span class="section-label">tasks</span>${taskSessions.map(s => `<div class="session-item" data-id="${s.id}">
-      <span class="session-name">${_esc(s.name)}</span>
+      <button type="button" class="session-open" aria-haspopup="menu" aria-current="false" aria-label="open session ${_esc(s.name)}"><span class="session-name">${_esc(s.name)}</span></button>
     </div>`).join('') || '<span class="aide-session-empty">no tasks yet</span>'}</section><span class="section-label aide-projects-label">projects</span>`;
   }
   const groups = _projects;
   for (const p of groups) {
     const pSessions = sessions.filter(s => s.project_id === p.id);
     html += `<div class="project-folder${afterlife ? ' open' : ''}" data-id="${p.id}">
-  <div class="project-folder-head" role="button" tabindex="0" aria-expanded="${String(afterlife)}" aria-label="toggle project ${_esc(p.name)}">
-    <svg class="project-folder-icon project-folder-closed" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 6.5h6l2-2h9v14h-17z"/></svg>
-    <svg class="project-folder-icon project-folder-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 8V6.5h6l2-2h5l2 3H21"/><path d="M3 9h18l-2 10H5Z"/></svg>
-    <span class="project-name">${_esc(p.name)}</span>
-    <span class="project-count">${pSessions.length}</span>
-    <button class="project-del" data-id="${p.id}" title="delete project (chats are kept)">×</button>
+  <div class="project-folder-head">
+    <button type="button" class="project-folder-toggle" aria-expanded="${String(afterlife)}" aria-label="toggle project ${_esc(p.name)}">
+      <svg class="project-folder-icon project-folder-closed" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 6.5h6l2-2h9v14h-17z"/></svg>
+      <svg class="project-folder-icon project-folder-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 8V6.5h6l2-2h5l2 3H21"/><path d="M3 9h18l-2 10H5Z"/></svg>
+      <span class="project-name">${_esc(p.name)}</span>
+      <span class="project-count">${pSessions.length}</span>
+    </button>
+    <button type="button" class="project-del" data-id="${p.id}" aria-label="delete project ${_esc(p.name)}" title="delete project (chats are kept)">×</button>
   </div>
   <div class="project-sessions" id="proj-sessions-${p.id}" style="display:${afterlife ? 'flex' : 'none'}">
     ${pSessions.map(s => `<div class="session-item" data-id="${s.id}" data-project="${p.id}">
-      <span class="session-name">${_esc(s.name)}</span>
+      <button type="button" class="session-open" aria-haspopup="menu" aria-current="false" aria-label="open session ${_esc(s.name)}"><span class="session-name">${_esc(s.name)}</span></button>
     </div>`).join('')}
   </div>
 </div>`;
@@ -78,21 +80,15 @@ export function renderProjectFolders(sessions, onSelect, onChange) {
   list.insertAdjacentHTML('afterbegin', html);
 
   // Project rows expand and collapse in place; their conversations stay directly below.
-  list.querySelectorAll('.project-folder-head').forEach(head => {
+  list.querySelectorAll('.project-folder-toggle').forEach(toggleButton => {
     const toggle = () => {
-      const folder = head.closest('.project-folder');
+      const folder = toggleButton.closest('.project-folder');
       const open = folder.classList.toggle('open');
-      head.setAttribute('aria-expanded', String(open));
+      toggleButton.setAttribute('aria-expanded', String(open));
       const sessions = folder.querySelector('.project-sessions');
       if (sessions) sessions.style.display = open ? 'flex' : 'none';
     };
-    head.addEventListener('click', toggle);
-    head.addEventListener('keydown', e => {
-      if (e.target !== head) return;
-      if (e.key !== 'Enter' && e.key !== ' ') return;
-      e.preventDefault();
-      toggle();
-    });
+    toggleButton.addEventListener('click', toggle);
   });
 
   // drag a chat onto a project to file it there

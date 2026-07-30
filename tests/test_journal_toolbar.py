@@ -12,7 +12,10 @@ class JournalToolbarAlign(unittest.TestCase):
     def test_controls_share_a_height(self):
         # one rule sizes both the search input and the toolbar buttons
         self.assertRegex(
-            CSS, r"\.jrnl-toolbar \.jrnl-search,\s*\.jrnl-toolbar \.btn\s*\{[^}]*height:\s*30px"
+            CSS,
+            r"\.jrnl-toolbar \.jrnl-search,\s*\.jrnl-toolbar \.btn\s*\{[^}]*"
+            r"height:\s*var\(--ui-control-height,\s*44px\)[^}]*"
+            r"min-height:\s*var\(--ui-control-height,\s*44px\)",
         )
         self.assertRegex(
             CSS,

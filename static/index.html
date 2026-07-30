@@ -28,7 +28,7 @@
   })();
 </script>
 <link rel="stylesheet" href="/static/vendor/xterm/xterm.css?v=6.0.0">
-<link rel="stylesheet" href="/static/style.css?v=302">
+<link rel="stylesheet" href="/static/style.css?v=303">
   <link rel="stylesheet" href="/static/kokuen.css?v=21">
 <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
 <link rel="manifest" href="/manifest.json">
@@ -43,7 +43,7 @@
 
 <div class="app">
 
-  <nav class="space-rail" id="space-rail" aria-label="alles navigation" hidden>
+  <nav class="space-rail" id="space-rail" aria-label="alles navigation" data-i18n-aria-label="shell.main_spaces" hidden>
     <button class="shell-navigation-toggle" id="app-drawer-btn" type="button"
       aria-label="open alles navigation" aria-haspopup="dialog" aria-controls="app-drawer" aria-expanded="false">
       <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -1488,7 +1488,7 @@
 <div id="sync-indicator" class="sync-indicator" role="region" aria-label="offline changes" aria-live="polite" style="display:none"></div>
 
 <!-- context menu -->
-<div class="ctx-menu" id="ctx-menu" style="display:none"></div>
+<div class="ctx-menu" id="ctx-menu" role="menu" aria-label="session actions" hidden></div>
 
 <!-- first-run setup wizard (server-owned and skippable) -->
 <div class="modal-overlay" id="setup-wizard" style="display:none" role="dialog" aria-modal="true" aria-labelledby="setup-title">
@@ -2854,7 +2854,7 @@
 </div>
 
 <script type="module">
-const _v = '302';
+const _v = '303';
 import(`/static/js/app.js?v=${_v}`);
 </script>
 </body>

@@ -12,8 +12,9 @@ test('project folder states are clear and actionable', () => {
 
 test('project folders open from the keyboard', () => {
   const source = readFileSync(new URL('../../static/js/projects.js', import.meta.url), 'utf8');
-  assert.match(source, /class="project-folder-head" role="button" tabindex="0"/);
-  assert.match(source, /e\.key !== 'Enter' && e\.key !== ' '/);
+  assert.match(source, /<button type="button" class="project-folder-toggle" aria-expanded=/);
+  assert.match(source, /toggleButton\.addEventListener\('click', toggle\)/);
+  assert.doesNotMatch(source, /class="project-folder-head"[^>]*role="button"/);
 });
 
 test('switching views hides the project workspace', () => {

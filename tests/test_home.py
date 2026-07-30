@@ -11,12 +11,13 @@ INDEX = (ROOT / "static" / "index.html").read_text(encoding="utf-8")
 CSS = (ROOT / "static" / "style.css").read_text(encoding="utf-8")
 
 
-class BreadcrumbTests(unittest.TestCase):
-    def test_crumb_built_from_two_anchors(self):
+class ShellIdentityTests(unittest.TestCase):
+    def test_app_identity_is_one_anchor_without_a_home_breadcrumb(self):
         self.assertIn("crumb-app", APP)
-        self.assertIn("crumb-root", APP)
+        self.assertNotIn("crumb-root", APP)
+        self.assertNotIn("crumb-root", CSS)
         self.assertIn("urlForApp(appSub)", APP)
-        self.assertIn("urlForApp('')", APP)
+        self.assertNotIn("urlForApp('')", APP)
 
     def test_modified_clicks_allow_native_new_tab(self):
         # ctrl/cmd/shift click must NOT be hijacked (so middle/new-tab works)
@@ -25,9 +26,9 @@ class BreadcrumbTests(unittest.TestCase):
     def test_hub_crumb_is_plain_wordmark(self):
         self.assertIn("if (appName === 'alles')", APP)
 
-    def test_brand_home_uses_split_crumb(self):
+    def test_aide_brand_uses_one_local_identity_link(self):
         self.assertIn("_buildCrumb(brand, 'aide', 'aide')", APP)
-        self.assertIn(".crumb-app, .crumb-root", CSS)
+        self.assertIn(".crumb-app {", CSS)
 
     def test_app_name_navigates_via_href_not_intercepted(self):
         # clicking the app name (e.g. "docs") should follow its href to the app's own root
@@ -79,6 +80,26 @@ class HomeTilesTests(unittest.TestCase):
             r"@media\s*\(prefers-reduced-motion:\s*reduce\)\s*\{[^}]*"
             r"\.home-tile[^}]*animation:\s*none;[^}]*opacity:\s*1;[^}]*transform:\s*none;",
         )
+
+    def test_tiles_are_visible_without_an_entrance_or_hover_lift(self):
+        tile = re.search(r"\.home-tile\s*\{([^}]*)\}", CSS)
+        self.assertIsNotNone(tile)
+        self.assertIn("opacity: 1", tile.group(1))
+        self.assertIn("animation: none", tile.group(1))
+        self.assertNotIn("home-rise", CSS)
+        hover = re.search(r"\.home-tile:hover\s*\{([^}]*)\}", CSS)
+        self.assertIsNotNone(hover)
+        self.assertNotIn("translate", hover.group(1))
+        self.assertNotRegex(CSS, r"\.home-tile::after\s*\{[^}]*radial-gradient")
+
+    def test_entrance_motion_never_hides_content(self):
+        for name in ("rise", "fade-in", "runs-slide", "aps-in"):
+            with self.subTest(keyframes=name):
+                keyframes = re.search(rf"@keyframes {name}\s*\{{(.*?)\n\}}", CSS, re.DOTALL)
+                self.assertIsNotNone(keyframes)
+                self.assertNotRegex(keyframes.group(1), r"opacity:\s*0(?:\D|$)")
+        self.assertNotIn("@keyframes token-appear", CSS)
+        self.assertRegex(CSS, r"\.token-new\s*\{\s*animation:\s*none;")
 
 
 class QuickMessageTests(unittest.TestCase):

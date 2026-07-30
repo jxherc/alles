@@ -1,5 +1,24 @@
 # engineering decisions
 
+## Visible-before-motion runtime invariant
+
+Decision
+
+Choice: entrance motion may change position, but its first frame must keep content fully opaque.
+Dynamic overlays may still use explicit hidden/display lifecycle state, but no text, control, empty
+state, or workbench may depend on an opacity animation reaching its final frame to become readable.
+
+Reason: a paused, throttled, unsupported, or missed entrance animation must never turn a valid Alles
+surface into an empty region. The final rendered audit found legacy Home and shared `rise`/`fade-in`
+keyframes that violated the documented KOKUEN rule even though ordinary runs completed the animation.
+
+Alternatives considered: keep opacity-zero entrances with reduced-motion exceptions, rely on JavaScript
+to add a ready class, or treat successful screenshots as proof that the animation always completes.
+
+Consequences: entrance keyframes preserve opacity from their first frame; Home and streamed content are
+visible without animation; source contracts reject opacity-zero entrances; rendered gates remain the
+authority for clipping, overlap, and target geometry.
+
 ## Exact offline module generations
 
 Decision

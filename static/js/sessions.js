@@ -14,13 +14,20 @@ import {
 } from './models.js?v=212';
 import { t } from './i18n.js';
 import { contextProvenanceElement } from './memoryactions.js';
+import { createMenuController } from './kokuen.js';
 
 let _sessions = { today: [], yesterday: [], earlier: [] };
 let _activeId = null;
 let _allSessions = [];  // flat list for search
 const SESSION_ORDER_KEY = 'aide-session-order';
+let _contextMenuController = null;
 
 export function getActiveId() { return _activeId; }
+
+function syncSessionRowState(row, active) {
+  row.classList.toggle('active', active);
+  row.querySelector('.session-open')?.setAttribute('aria-current', active ? 'true' : 'false');
+}
 
 // just fetch + render the sidebar. no navigation — safe to call after any mutation.
 export async function loadSessions() {
@@ -98,7 +105,7 @@ export function newChat(options = {}) {
     history.replaceState(null, '', location.pathname + location.search);
   }
   document.getElementById('messages').innerHTML = '';
-  document.querySelectorAll('.session-item').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.session-item').forEach(el => syncSessionRowState(el, false));
   showWelcome();
   const ta = document.getElementById('composer-ta');
   if (ta) { ta.style.height = 'auto'; ta.focus(); }
@@ -112,7 +119,8 @@ export function markActive(id) {
   _activeId = id;
   if (id && !isIncognitoMode()) location.hash = id;
   document.querySelectorAll('.session-item').forEach(el => {
-    el.classList.toggle('active', el.dataset.id === id);
+    const active = el.dataset.id === id;
+    syncSessionRowState(el, active);
   });
   window._syncAideNewTaskContext?.(window._currentSession || (id ? { id } : null));
 }
@@ -152,9 +160,21 @@ export function renderSidebar(filter = '') {
 
   list.querySelectorAll('.session-item').forEach(el => {
     const sid = el.dataset.id;
-    if (sid === _activeId) el.classList.add('active');
-    el.addEventListener('click', () => selectSession(sid));
-    el.addEventListener('contextmenu', e => { e.preventDefault(); openCtxMenu(e, sid); });
+    const active = sid === _activeId;
+    const openButton = el.querySelector('.session-open');
+    syncSessionRowState(el, active);
+    openButton?.addEventListener('click', () => selectSession(sid));
+    openButton?.addEventListener('keydown', event => {
+      if (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10')) {
+        event.preventDefault();
+        const box = openButton.getBoundingClientRect();
+        openCtxMenu({ clientX: box.left + 16, clientY: box.top + box.height }, sid, openButton);
+      }
+    });
+    el.addEventListener('contextmenu', e => {
+      e.preventDefault();
+      openCtxMenu(e, sid, openButton);
+    });
     el.querySelector('.star')?.addEventListener('click', e => {
       e.preventDefault();
       e.stopPropagation();
@@ -178,9 +198,11 @@ function renderItem(s) {
   const incog    = s.incognito ? ' incognito' : '';
   const icon     = s.incognito ? '<span class="incognito-icon" title="incognito" aria-hidden="true"></span>' : '';
   return `<div class="session-item${starred}${incog}" data-id="${s.id}" draggable="true">
-  <div class="session-dot"></div>
-  ${icon}<span class="session-name">${escHtml(s.name)}</span>
-  <button class="star" title="${s.starred ? 'unstar' : 'star'}" aria-label="${s.starred ? 'unstar session' : 'star session'}"></button>
+  <button type="button" class="session-open" aria-haspopup="menu" aria-current="${s.id === _activeId ? 'true' : 'false'}" aria-label="open session ${escHtml(s.name)}">
+    <span class="session-dot"></span>
+    ${icon}<span class="session-name">${escHtml(s.name)}</span>
+  </button>
+  <button type="button" class="star" title="${s.starred ? 'unstar' : 'star'}" aria-label="${s.starred ? 'unstar session' : 'star session'}"></button>
 </div>`;
 }
 
@@ -271,7 +293,8 @@ export async function selectSession(id) {
 
   // update active class
   document.querySelectorAll('.session-item').forEach(el => {
-    el.classList.toggle('active', el.dataset.id === id);
+    const active = el.dataset.id === id;
+    syncSessionRowState(el, active);
   });
 
   try {
@@ -756,12 +779,15 @@ export function updateSessionName(id, name) {
 
 function startRename(el, id) {
   const nameEl = el.querySelector('.session-name');
+  const openButton = el.querySelector('.session-open');
   const current = nameEl.textContent;
   const inp = document.createElement('input');
   inp.value = current;
-  inp.style.cssText = 'background:none;border:none;border-bottom:1px solid var(--muted);color:var(--text);font:inherit;font-size:0.8rem;width:100%;outline:none;padding:0';
-  nameEl.replaceWith(inp);
+  inp.style.cssText = 'background:none;border:none;border-bottom:1px solid var(--muted);color:var(--text);font:inherit;font-size:0.8rem;min-width:0;flex:1;outline:none;padding:0';
+  openButton.hidden = true;
+  openButton.insertAdjacentElement('afterend', inp);
   inp.focus(); inp.select();
+  let restoreRowFocus = false;
 
   const commit = async () => {
     const name = inp.value.trim() || current;
@@ -769,44 +795,47 @@ function startRename(el, id) {
       method:'PATCH', headers:{'content-type':'application/json'},
       body: JSON.stringify({ name }),
     });
-    inp.replaceWith(Object.assign(document.createElement('span'), { className:'session-name', textContent:name }));
+    nameEl.textContent = name;
+    inp.remove();
+    openButton.hidden = false;
     updateSessionName(id, name);
+    if (restoreRowFocus && openButton.isConnected) openButton.focus();
   };
   inp.addEventListener('blur', commit);
   inp.addEventListener('keydown', e => {
-    if (e.key === 'Enter') { e.preventDefault(); inp.blur(); }
-    if (e.key === 'Escape') { inp.value = current; inp.blur(); }
+    if (e.key === 'Enter') { e.preventDefault(); restoreRowFocus = true; inp.blur(); }
+    if (e.key === 'Escape') { restoreRowFocus = true; inp.value = current; inp.blur(); }
   });
 }
 
 
-function openCtxMenu(e, id) {
+function openCtxMenu(e, id, source = null) {
   const menu = document.getElementById('ctx-menu');
   const s = _allSessions.find(x => x.id === id);
   if (!s) return;
 
   const projects = getProjects();
   const projectItems = projects.map(p =>
-    `<div class="ctx-item" data-action="move-project" data-pid="${p.id}">→ ${p.name}</div>`
+    `<button type="button" role="menuitem" class="ctx-item" data-action="move-project" data-pid="${p.id}">move to ${escHtml(p.name)}</button>`
   ).join('');
   menu.innerHTML = `
-    <div class="ctx-item" data-action="rename">rename</div>
-    <div class="ctx-item" data-action="star">${s.starred ? 'unstar' : 'star'}</div>
-    <div class="ctx-item" data-action="archive">archive</div>
+    <button type="button" role="menuitem" class="ctx-item" data-action="rename">rename</button>
+    <button type="button" role="menuitem" class="ctx-item" data-action="star">${s.starred ? 'unstar' : 'star'}</button>
+    <button type="button" role="menuitem" class="ctx-item" data-action="archive">archive</button>
     ${projectItems}
-    <div class="ctx-item" data-action="new-project">+ new project</div>
-    <div class="ctx-item danger" data-action="delete">delete</div>
+    <button type="button" role="menuitem" class="ctx-item" data-action="new-project">new project</button>
+    <button type="button" role="menuitem" class="ctx-item danger" data-action="delete">delete</button>
   `;
-  menu.style.display = 'block';
   menu.style.left = e.clientX + 'px';
   menu.style.top = e.clientY + 'px';
 
-  const hide = () => menu.style.display = 'none';
-  document.addEventListener('click', hide, { once: true });
+  _contextMenuController ||= createMenuController(menu);
+  _contextMenuController.open({ source: source || e.currentTarget });
 
   menu.querySelectorAll('.ctx-item').forEach(item => {
     item.addEventListener('click', async () => {
       const action = item.dataset.action;
+      _contextMenuController.close({ restoreFocus: action !== 'rename' });
       if (action === 'rename') {
         const el = document.querySelector(`.session-item[data-id="${id}"]`);
         if (el) startRename(el, id);

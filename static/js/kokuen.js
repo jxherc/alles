@@ -72,6 +72,7 @@ function primitiveFor(element) {
   if (element.matches('[role="checkbox"], [role="radio"]')) return 'choice';
   if (element.matches('textarea')) return 'textarea';
   if (element.matches('input')) return 'field';
+  if (element.matches('[role="button"]')) return 'action';
   if (element.matches('.icon-btn, [aria-label]:not([aria-label=""])')) return 'icon-action';
   if (element.matches('a[href]')) return 'link';
   return 'action';
@@ -281,6 +282,61 @@ export function wireMenu(trigger, menu, { onClose = null } = {}) {
     }
   });
   return { open, close };
+}
+
+export function createMenuController(menu, { onClose = null } = {}) {
+  if (!menu) return null;
+  let returnFocus = null;
+  let outsideListening = false;
+  const items = () => [...menu.querySelectorAll('[role^="menuitem"]')]
+    .filter(element => visible(element) && element.getAttribute('aria-disabled') !== 'true');
+  const stopOutsideListening = () => {
+    if (!outsideListening) return;
+    outsideListening = false;
+    document.removeEventListener('pointerdown', onOutsidePointer, true);
+  };
+  const close = ({ restoreFocus = true } = {}) => {
+    stopOutsideListening();
+    menu.hidden = true;
+    menu.style.display = 'none';
+    onClose?.();
+    if (restoreFocus && returnFocus?.isConnected) returnFocus.focus();
+  };
+  const onOutsidePointer = event => {
+    if (!menu.contains(event.target)) close();
+  };
+  const open = ({ source = null, focus = true } = {}) => {
+    stopOutsideListening();
+    returnFocus = source || document.activeElement;
+    menu.hidden = false;
+    menu.style.display = 'block';
+    if (focus) items()[0]?.focus();
+    outsideListening = true;
+    document.addEventListener('pointerdown', onOutsidePointer, true);
+  };
+  const onKeydown = event => {
+    const options = items();
+    const index = options.indexOf(document.activeElement);
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      close();
+    } else if (options.length && ['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
+      event.preventDefault();
+      const next = event.key === 'Home' ? 0
+        : event.key === 'End' ? options.length - 1
+          : (index + (event.key === 'ArrowDown' ? 1 : -1) + options.length) % options.length;
+      options[next].focus();
+    }
+  };
+  menu.addEventListener('keydown', onKeydown);
+  return {
+    open,
+    close,
+    destroy() {
+      stopOutsideListening();
+      menu.removeEventListener('keydown', onKeydown);
+    },
+  };
 }
 
 export function wireTabs(tablist, { activate = tab => tab.click() } = {}) {
