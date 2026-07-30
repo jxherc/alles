@@ -2,7 +2,9 @@
 
 KOKUEN is the shared interface language for Alles. It keeps every app coherent without forcing every app into the same layout.
 
-Status: the system contract is active for new design work. The universal app-shell starter is still waiting for owner approval, so these files do not authorize a real-app shell migration by themselves.
+Status: the system contract is active for design and implementation work. Standalone starters are
+optional reasoning tools; current source, shipped behavior, and rendered real-application proof remain
+authoritative.
 
 ## source order
 
@@ -10,7 +12,7 @@ Status: the system contract is active for new design work. The universal app-she
 2. safety, privacy, and accessibility requirements
 3. `specifications.md` for behavior that exists now
 4. these design-system rules and tokens
-5. approved KOKUEN starters and existing working components
+5. relevant KOKUEN starters and existing working components
 6. platform conventions
 7. a new documented decision
 
@@ -29,7 +31,7 @@ Call out conflicts. Do not silently pick one.
 - `RESPONSIVE.md`: reflow behavior
 - `MOTION.md`: purposeful motion and reduced motion
 - `OUTPUT-CONTRACT.md`: required design and handoff output
-- `QA-CHECKLIST.md`: approval gate
+- `QA-CHECKLIST.md`: completion gate
 - `UI-BRIEF.md`: the input template for material UI work
 - `tokens/`: machine-readable primitive, semantic, and component tokens
 - `decisions/`: reasons behind system-level choices

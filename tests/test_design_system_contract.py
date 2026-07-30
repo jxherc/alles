@@ -71,7 +71,50 @@ class DesignSystemContractTests(unittest.TestCase):
         with (SYSTEM / "tokens/primitives.tokens.json").open(encoding="utf-8") as handle:
             tokens = json.load(handle)
         values = [entry["$value"]["value"] for entry in tokens["space"].values()]
-        self.assertEqual([4, 8, 12, 16, 24, 32], values)
+        self.assertEqual([0, 4, 8, 12, 16, 24, 32, 48, 64], values)
+
+        with (SYSTEM / "tokens/semantic.tokens.json").open(encoding="utf-8") as handle:
+            semantic = json.load(handle)["space"]
+        self.assertEqual("{space.300}", semantic["card"]["$value"])
+        self.assertEqual("{space.400}", semantic["header"]["$value"])
+        self.assertEqual("{space.400}", semantic["region"]["$value"])
+        self.assertEqual("{space.600}", semantic["section"]["$value"])
+        self.assertEqual("{space.800}", semantic["major"]["$value"])
+
+    def test_runtime_exposes_portable_kokuen_v3_tokens(self):
+        css = (ROOT / "static" / "kokuen.css").read_text(encoding="utf-8")
+        expected = {
+            "--k-space-0": "0",
+            "--k-space-1": "4px",
+            "--k-space-2": "8px",
+            "--k-space-3": "12px",
+            "--k-space-4": "16px",
+            "--k-space-5": "24px",
+            "--k-space-6": "32px",
+            "--k-space-7": "48px",
+            "--k-space-8": "64px",
+        }
+        for token, value in expected.items():
+            with self.subTest(token=token):
+                self.assertRegex(css, rf"{re.escape(token)}:\s*{re.escape(value)};")
+                self.assertIn(f"--ui-space-{token.rsplit('-', 1)[1]}: var({token});", css)
+        for token in (
+            "canvas",
+            "surface",
+            "text",
+            "muted",
+            "border",
+            "border-strong",
+            "focus",
+            "error",
+            "success",
+            "control-height",
+            "page-gutter",
+            "content-max",
+            "radius-control",
+            "radius-container",
+        ):
+            self.assertIn(f"--ui-{token}:", css)
 
     def test_focus_is_neutral_and_active_state_keeps_the_accent(self):
         with (SYSTEM / "tokens/semantic.tokens.json").open(encoding="utf-8") as handle:
