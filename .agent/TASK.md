@@ -15,7 +15,9 @@ commit `f22772491ba31d99d46f4ea9bfd64376a85a70f9`. The worktree was clean at the
 shared runtime, machine-readable component contracts, 14-state vocabulary, 44px target layer, and single
 universal shell are implemented and have passed their source, unit, and first real-application gate.
 The Home, Aide, and Andromeda migration is complete and has passed focused and repeated real-application
-gates. The nine specialist workbenches are next; no whole-rebuild completion has been claimed.
+gates. All nine specialist workbenches are now migrated and have passed focused source, security,
+recovery, keyboard, responsive, and isolated real-application gates. Settings, setup, the PWA, and the
+browser extension are in progress; no whole-rebuild completion has been claimed.
 
 ## requirements
 
@@ -85,17 +87,41 @@ gates. The nine specialist workbenches are next; no whole-rebuild completion has
 - Passed 552 JavaScript tests, the Home/Apps desktop and mobile gate, Aide's complete desktop/mobile
   interaction gate, Andromeda's dark/light desktop/mobile gate, the finished-surface family gate, and
   the combined repeated Aide/Andromeda/settings gate. Fresh phone captures were inspected after repair.
+- Migrated Plan, Inbox, Docs, Files, Library, Health, Finance, Vault, and Server to the v5 shell and
+  removed the remaining nested Home/brand duplicates from the real Docs and Files delivery surfaces.
+- Added shared radio behavior for specialist choices, responsive tab orientation with owned panels,
+  semantic Finance and Vault row actions, exact recent-owner recovery, mutation busy/repeat guards,
+  destructive confirmations, and Server persistence rollback with restored selection and focus.
+- Replaced false empty fallbacks in Books, Read, Health, and Vault with persistent loading, error,
+  offline, or partial states that preserve independently successful or last-loaded owner data and offer
+  an explicit retry.
+- Passed the nine-workbench real gate, the real Files and Docs gates, the Library/Health degraded-state
+  gate, and the Finance/Vault/Server security and recovery gate with owned throwaway data. Focused
+  specialist verification also passed 173 JavaScript tests and 175 Python security/recovery tests.
+- Migrated Settings and first-run setup choices to the shared KOKUEN keyboard and busy-state contracts,
+  cleared the universal rail and phone gutters, and passed the isolated desktop/mobile setup and
+  Passwords management gate.
+- Rebuilt PWA precaching around the exact versioned ES-module graph after a cold-offline failure exposed
+  queryless-only caching; passed install, Plan and Andromeda offline, Aide reconnect, shortcut, phone,
+  and console checks on a fresh isolated application.
+- Completed the unpacked browser-extension migration, reproduced the inactivity marker race, and kept
+  acknowledgement safe when the exact in-memory pairing still owns the browser identity. Replacement,
+  lock, restart, and revoke remain fail-closed. The forced-race pair, unlock, exact-site fill without
+  submission, lock, restart, and revoke gate passed twice on fresh extension profiles.
+- Generated an exhaustive interaction map for all 26 registered features and every declared route,
+  command, job, action, Aide tool, and interactive control owner. Reconciliation tests require event
+  authority, the exact 14-state vocabulary, success, failure, recovery, busy/repeat, keyboard/focus,
+  verification evidence, and explicit external gaps.
+- Exercised the shipped shell independently through the in-app browser and a desktop browser: the
+  universal sheet exposed exactly three primary and nine specialist destinations, Escape restored
+  focus, Plan rendered without overflow or native choices, and the temporary browser surface was closed.
 
 ## in progress
 
-- Specialist migration and state reconciliation for the exact nine app workbenches.
-- Deterministic interaction and component inventory for the current application.
+- Repeated whole-repository functional, real-application, and anti-slop regression verification.
 
 ## remaining
 
-- Nine specialist-app migration.
-- Settings, setup, PWA, and browser-extension migration.
-- Exhaustive interaction logic map and reconciliation tests.
 - Repeated real-application functional exercise and full regression verification.
 - Final anti-slop audit, design-system QA, local commits, and no-push handoff.
 
@@ -127,6 +153,26 @@ gates. The nine specialist workbenches are next; no whole-rebuild completion has
   results, overview, provider settings, custom choices, partial data, managed search, and shell return.
 - KOKUEN v5 primary visual audit: **passed** - Home, Aide, shell, and repaired Andromeda phone/desktop
   captures inspected; no clipped panel or hidden primary identity remains.
+- KOKUEN v5 nine-specialist source gate: **passed** - 173 focused JavaScript tests, syntax checks, and
+  diff validation across Docs, Files, Library, Health, Finance, Vault, Server, shared tabs, and choices.
+- KOKUEN v5 nine-specialist real-app gate: **passed** - all nine workbenches at desktop/mobile widths,
+  keyboard navigation, 44px targets, reduced motion, native-choice exclusion, visible failures, and
+  clean unexpected-console checks.
+- KOKUEN v5 specialist recovery gate: **passed** - forced Books error, Read/Health partial data, Vault
+  persistent unlocked retry, Finance recent-owner retry, and Server rollback/focus restoration.
+- KOKUEN v5 privileged specialist backend gate: **passed** - 175 focused Finance, Server, backup, and
+  Vault Python tests with isolated private data.
+- KOKUEN v5 setup and Passwords gate: **passed** - first-run desktop/mobile setup, responsive gutters,
+  custom choices, completion, and Passwords management on isolated data.
+- KOKUEN v5 PWA gate: **passed** - installability, exact current precache manifest, fresh cold-offline
+  Plan and Andromeda, Aide reconnect, shortcuts, phone tabs, and clean console checks.
+- KOKUEN v5 browser-extension gate: **passed twice** - forced missing-marker race, pairing
+  acknowledgement, narrow host permission, unlock, exact-site fill without submission, explicit lock,
+  restart session loss, persistent device identity, revoke, 44px targets, and clean console checks.
+- KOKUEN v5 interaction map gate: **passed** - all 26 feature owners and every registry function surface
+  reconcile with exact logic, evidence, external gaps, generated artifacts, and the shared 14 states.
+- Independent shipped-surface check: **passed** - the in-app browser and a separate desktop browser
+  exercised the owned local application without modifying owner data or external state.
 - KOKUEN v5 whole-application migration and verification: **in progress** - no completion claim yet.
 
 ## boundaries

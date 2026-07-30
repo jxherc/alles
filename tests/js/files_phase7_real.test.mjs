@@ -261,7 +261,6 @@ test('Files owns the approved app header instead of the legacy app crumb', () =>
   const view = html.match(/id="files-view"[\s\S]*?<\/div>\s*\n\s*<!-- ── mail view/)[0];
   for (const id of [
     'files-app-header',
-    'files-home-btn',
     'files-breadcrumb',
     'files-app-status',
     'files-settings-btn',
@@ -269,7 +268,7 @@ test('Files owns the approved app header instead of the legacy app crumb', () =>
     assert.match(view, new RegExp(`id="${id}"`), id);
   }
   assert.match(css, /body\[data-app="files"\] \.main > \.topbar\s*\{\s*display:\s*none\s*!important;/);
-  assert.match(app, /getElementById\('files-home-btn'\)[\s\S]{0,260}(?:navigateTo|crossNav)/);
+  assert.doesNotMatch(view, /id="files-home-btn"/);
   assert.match(app, /getElementById\('files-settings-btn'\)[\s\S]{0,160}openSettings/);
 });
 

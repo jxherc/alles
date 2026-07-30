@@ -2,6 +2,7 @@
 // notes, and a keyless OpenLibrary lookup to autofill. mirrors the panel conventions.
 import { toast } from './util.js';
 import { confirm as dlgConfirm, prompt as dlgPrompt } from './dialog.js';
+import { wireChoiceGroup } from './kokuen.js';
 const _si = n => (window.icon ? window.icon(n) : '');
 
 const $ = id => document.getElementById(id);
@@ -9,29 +10,55 @@ let _data = { shelves: { want: [], reading: [], done: [] }, this_year: 0, total:
 let _adding = false;
 let _editingNotes = null;
 let _lookup = [];
+let _fetcher = fetch;
+let _hasOverview = false;
+let _loadState = { state: 'resting', message: '' };
 
 const SHELVES = [['reading', 'reading'], ['want', 'want to read'], ['done', 'read']];
 
-export function initBooks(fetcher = fetch) { return loadBooks(fetcher); }
+export function initBooks(fetcher = fetch) {
+  _fetcher = fetcher;
+  return loadBooks(fetcher);
+}
 
-const _EMPTY = () => ({ shelves: { want: [], reading: [], done: [] }, this_year: 0, total: 0 });
+function _loadFailure(error) {
+  const offline = typeof navigator !== 'undefined' && navigator.onLine === false;
+  const retained = _hasOverview ? ' Showing the last loaded books.' : '';
+  return {
+    state: offline ? 'offline' : 'error',
+    message: `${offline ? 'You appear to be offline.' : 'Books could not be loaded.'}${retained}`,
+  };
+}
 
-export async function loadBooks(fetcher = fetch) {
-  // check r.ok — a non-2xx (e.g. a 401 on a subdomain) still returns JSON, and a
-  // {detail:…} body with no `shelves` would crash _render and blank the page.
+function _loadNotice() {
+  if (_loadState.state === 'resting') return '';
+  const loading = _loadState.state === 'loading';
+  return `<div class="specialist-group-note legacy-load-note" role="${loading ? 'status' : 'alert'}" aria-live="${loading ? 'polite' : 'assertive'}" data-kokuen-state="${_loadState.state}">
+    <span>${esc(_loadState.message)}</span>${loading ? '' : '<button type="button" class="btn" data-act="retry-load">retry</button>'}
+  </div>`;
+}
+
+export async function loadBooks(fetcher = _fetcher) {
+  _fetcher = fetcher;
+  _loadState = { state: 'loading', message: 'loading books…' };
+  _render();
   try {
     const r = await fetcher('/api/books/overview');
-    _data = r.ok ? await r.json() : _EMPTY();
-  } catch { _data = _EMPTY(); }
-  if (!_data || !_data.shelves) _data = _EMPTY();
+    if (!r.ok) throw new Error(`request failed (${r.status || 'unknown'})`);
+    const data = await r.json();
+    if (!data || !data.shelves) throw new Error('invalid response');
+    _data = data;
+    _hasOverview = true;
+    _loadState = { state: 'resting', message: '' };
+  } catch (error) { _loadState = _loadFailure(error); }
   _render();
 }
 
 function esc(s) { return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
 
 function _stars(b) {
-  let out = '<span class="book-stars" data-id="' + b.id + '">';
-  for (let i = 1; i <= 5; i++) out += `<button class="book-star${i <= b.rating ? ' on' : ''}" data-rate="${i}" title="${i} star${i > 1 ? 's' : ''}">${_si(i <= b.rating ? 'star-fill' : 'star')}</button>`;
+  let out = `<span class="book-stars" data-id="${b.id}" role="radiogroup" aria-label="rating for ${esc(b.title)}">`;
+  for (let i = 1; i <= 5; i++) out += `<button type="button" role="radio" aria-checked="${i === b.rating}" aria-label="${i} star${i > 1 ? 's' : ''}" class="book-star${i <= b.rating ? ' on' : ''}" data-rate="${i}" title="${i} star${i > 1 ? 's' : ''}">${_si(i <= b.rating ? 'star-fill' : 'star')}</button>`;
   return out + '</span>';
 }
 
@@ -84,8 +111,9 @@ function _render() {
       <button class="btn" id="books-import" title="import a Goodreads export (.csv)">import</button>
       <button class="btn primary" id="books-add-toggle">${_si('plus')} book</button>
     </div>
+    ${_loadNotice()}
     ${_adding ? _addForm() : ''}
-    ${_data.total ? shelfHtml : (_adding ? '' : `
+    ${_data.total ? shelfHtml : (_adding || !_hasOverview || _loadState.state !== 'resting' ? '' : `
       <div class="empty-state">
         <div class="empty-state-icon">${_si('bookmark')}</div>
         <div class="empty-state-title">no books yet</div>
@@ -108,7 +136,7 @@ function _addForm() {
         <input type="text" id="book-author" class="settings-input" placeholder="author">
       </div>
       <div class="book-add-row">
-        <div class="te-seg" id="book-status">${SHELVES.map(([k], i) => `<button class="te-seg-opt${i === 0 ? ' active' : ''}" data-val="${k}">${k === 'done' ? 'read' : k === 'reading' ? 'reading' : 'want'}</button>`).join('')}</div>
+        <div class="te-seg" id="book-status" role="radiogroup" aria-label="book shelf">${SHELVES.map(([k], i) => `<button type="button" role="radio" aria-checked="${i === 0}" class="te-seg-opt${i === 0 ? ' active' : ''}" data-val="${k}">${k === 'done' ? 'read' : k === 'reading' ? 'reading' : 'want'}</button>`).join('')}</div>
         <button class="btn primary" id="book-create">add</button>
         <button class="btn" id="book-cancel">cancel</button>
       </div>
@@ -116,6 +144,8 @@ function _addForm() {
 }
 
 function _wire(body) {
+  body.querySelectorAll('.book-stars, #book-status').forEach(group => wireChoiceGroup(group));
+  body.querySelector('[data-act="retry-load"]')?.addEventListener('click', () => loadBooks());
   $('books-add-toggle')?.addEventListener('click', () => { _adding = !_adding; _lookup = []; _render(); });
   $('books-empty-add')?.addEventListener('click', () => { _adding = true; _lookup = []; _render(); });
   $('books-import')?.addEventListener('click', () => {
@@ -159,7 +189,7 @@ function _wire(body) {
       _lookup = []; _renderKeepForm(r);
     }));
     body.querySelectorAll('#book-status .te-seg-opt').forEach(o => o.addEventListener('click', () => {
-      body.querySelectorAll('#book-status .te-seg-opt').forEach(x => x.classList.remove('active')); o.classList.add('active');
+      body.querySelectorAll('#book-status .te-seg-opt').forEach(x => x.classList.toggle('active', x === o));
     }));
     $('book-create')?.addEventListener('click', _create);
     $('book-cancel')?.addEventListener('click', () => { _adding = false; _lookup = []; _render(); });

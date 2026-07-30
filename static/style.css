@@ -569,7 +569,8 @@ body.sidebar-hidden .sidebar { display: none; }
 .finance-bank-setup { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; margin-top: 20px; }
 .finance-bank-setup section { min-width: 0; }
 .finance-bank-setup label { display: block; margin: 12px 0 5px; color: var(--muted); font-size: 0.63rem; }
-.finance-bank-setup input, .finance-bank-setup textarea { box-sizing: border-box; width: 100%; padding: 9px 10px; color: var(--text); background: var(--panel); border: 1px solid var(--faint); border-radius: 4px; font: inherit; resize: vertical; }
+.finance-bank-setup input, .finance-bank-setup textarea { box-sizing: border-box; width: 100%; min-height: 44px; padding: 9px 10px; color: var(--text); background: var(--panel); border: 1px solid var(--faint); border-radius: 4px; font: inherit; resize: vertical; }
+.finance-bank-dialog button { min-width: 44px; min-height: 44px; }
 .finance-bank-setup input:focus, .finance-bank-setup textarea:focus { outline: 2px solid var(--focus); outline-offset: 1px; }
 .finance-bank-setup > section > .btn { margin-top: 10px; }
 .finance-bank-environments { margin-top: 10px; }
@@ -4760,6 +4761,10 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 .vform-pw { display: flex; align-items: center; gap: 0.35rem; }
 .vform-pw .vform-input { flex: 1; min-width: 0; }
 .vform-pw .act-btn, .vform-pw .btn { flex-shrink: 0; }
+.vform-secretarea { display: flex; align-items: flex-start; gap: 0.35rem; }
+.vform-secretarea .vform-input { flex: 1; min-width: 0; -webkit-text-security: disc; }
+.vform-secretarea .vform-input.is-revealed { -webkit-text-security: none; }
+.vform-secret-actions { display: flex; flex-direction: column; gap: 0.25rem; flex-shrink: 0; }
 .vault-form-actions { display: flex; align-items: center; gap: 0.5rem; padding: 0.75rem 1.1rem; border-top: 1px solid var(--faint); justify-content: flex-end; }
 
 /* ── image editor ── */
@@ -5095,6 +5100,15 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 .money-monthnav .icon-btn { font-size: 1.1rem; line-height: 1; padding: 0 0.3rem; }
 #money-month-label { min-width: 110px; text-align: center; }
 #money-body { padding-bottom: 2rem; }
+#money-view :where(button, a.btn) {
+  min-width: 44px;
+  min-height: 44px;
+  box-sizing: border-box;
+}
+#money-view :where(input:not([type="file"]), textarea, .custom-select, .date-input) {
+  min-height: 44px;
+  box-sizing: border-box;
+}
 .money-empty { text-align: center; padding: 3rem 1rem; color: var(--muted); }
 .money-empty-title { font-size: 1.1rem; color: var(--text); margin-bottom: 0.3rem; }
 .money-empty-sub { font-size: 0.8rem; margin-bottom: 1.2rem; }
@@ -5116,8 +5130,8 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 .money-acct.arch { opacity: 0.5; }
 .ma-top { display: flex; align-items: center; justify-content: space-between; }
 .ma-name { font-size: 0.78rem; color: var(--text); }
-.ma-del { background: none; border: none; color: var(--faint); cursor: pointer; font-size: 0.95rem; opacity: 0; transition: opacity 0.15s; }
-.money-acct:hover .ma-del { opacity: 1; }
+.ma-del { background: none; border: none; color: var(--faint); cursor: pointer; font-size: 0.95rem; opacity: 0.62; transition: opacity 0.15s; }
+.money-acct:hover .ma-del, .money-acct:focus-within .ma-del, .ma-del:focus-visible { opacity: 1; }
 .ma-del:hover { color: var(--error); }
 .ma-bal { font-size: 1.05rem; font-weight: 600; font-variant-numeric: tabular-nums; margin-top: 0.15rem; }
 .ma-bal.neg { color: #f87171; }
@@ -5176,16 +5190,17 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 .tx-amt { width: 100px; text-align: right; font-variant-numeric: tabular-nums; }
 .tx-amt.pos { color: #4ade80; } .tx-amt.neg { color: var(--text); }
 .tx-dim { color: var(--faint); }
-.tx-del { background: none; border: none; color: var(--faint); cursor: pointer; font-size: 0.95rem; opacity: 0; transition: opacity 0.15s; }
-.txn:hover .tx-del { opacity: 1; }
+.tx-del { background: none; border: none; color: var(--faint); cursor: pointer; font-size: 0.95rem; opacity: 0.62; transition: opacity 0.15s; }
+.txn:hover .tx-del, .txn:focus-within .tx-del, .tx-del:focus-visible { opacity: 1; }
 .tx-del:hover { color: var(--error); }
 
 /* 4a — tags, splits, receipts, cleared, reconcile */
 .tx-tags { display: flex; gap: 0.25rem; flex-wrap: wrap; max-width: 150px; overflow: hidden; }
-.tx-tag { font-size: 0.62rem; background: var(--bg); border: 1px solid var(--faint); border-radius: 8px; padding: 0 0.4rem; color: var(--accent); cursor: pointer; white-space: nowrap; }
+.tx-tag { font: inherit; font-size: 0.62rem; background: var(--bg); border: 1px solid var(--faint); border-radius: 8px; padding: 0 0.4rem; color: var(--accent); cursor: pointer; white-space: nowrap; }
 .tx-tag:hover { border-color: var(--accent); }
 .tx-actions { display: flex; gap: 0.25rem; align-items: center; }
-.tx-clear, .tx-split-btn, .tx-receipt-btn, .tx-receipt { background: none; border: none; cursor: pointer; color: var(--faint); font-size: 0.85rem; text-decoration: none; padding: 0 1px; }
+.tx-edit, .tx-clear, .tx-split-btn, .tx-receipt-btn, .tx-receipt { background: none; border: none; cursor: pointer; color: var(--faint); font-size: 0.85rem; text-decoration: none; padding: 0 1px; }
+.tx-edit { font: inherit; font-size: 0.68rem; }
 .tx-clear.on { color: var(--green); }
 .tx-split-btn.on { color: var(--accent); }
 .tx-clear:hover, .tx-split-btn:hover, .tx-receipt-btn:hover, .tx-receipt:hover { color: var(--accent); }
@@ -5230,8 +5245,8 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 .hold-total { font-size: 0.74rem; color: var(--muted); margin-top: 0.4rem; }
 .hold-total .pos { color: var(--green); } .hold-total .neg { color: var(--error); }
 .hold-form { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.5rem; }
-.card-hide { background: none; border: none; color: var(--faint); cursor: pointer; font-size: 0.9rem; float: right; opacity: 0; transition: opacity 0.15s; }
-.money-card:hover .card-hide { opacity: 1; }
+.card-hide { background: none; border: none; color: var(--faint); cursor: pointer; font-size: 0.9rem; float: right; opacity: 0.62; transition: opacity 0.15s; }
+.money-card:hover .card-hide, .money-card:focus-within .card-hide, .card-hide:focus-visible { opacity: 1; }
 .card-hide:hover { color: var(--error); }
 .money-restore-cards { align-self: start; }
 
@@ -7618,16 +7633,22 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
 #vf-gen .ic { width: 12px; height: 12px; }
 .vault-entry {
   display: flex; align-items: center; gap: 0.5rem;
-  padding: 0.5rem 1rem; border-bottom: 1px solid var(--faint);
-  font-size: 0.8rem; cursor: pointer;
+  padding: 0 1rem; border-bottom: 1px solid var(--faint);
+  font-size: 0.8rem;
 }
-.vault-entry:hover { background: var(--panel); }
+.vault-entry:hover, .vault-entry:focus-within { background: var(--panel); }
+.vault-entry-main {
+  display: flex; align-items: center; gap: 0.5rem; flex: 1; min-width: 0; min-height: 44px;
+  padding: 0.5rem 0; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer;
+}
 .vault-entry-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .vault-entry-grow { flex: 1; }
 .vault-entry-user { color: var(--muted); font-size: 0.72rem; }
 .vault-entry-user::before { content: '· '; color: var(--faint); }
 .vault-entry-cat { font-size: 0.65rem; color: var(--muted); border: 1px solid var(--faint); border-radius: 3px; padding: 0.1rem 0.3rem; flex-shrink: 0; }
 .vault-entry-value { font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; color: var(--muted); flex-shrink: 0; }
+.vault-load-error { display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem; padding: 1rem; }
+.vault-load-error p { flex: 1 1 18rem; margin: 0; color: var(--muted); }
 
 /* 9c — vaults manage modal + travel toggle */
 .btn.active { border-color: var(--accent); color: var(--accent); }

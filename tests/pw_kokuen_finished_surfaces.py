@@ -818,12 +818,8 @@ def _docs_notes_journal(browser: Browser, errors: list[str]) -> None:
                 )
                 == 244
             )
-            assert (
-                page.locator(".docs-nav-head").evaluate(
-                    "el => Math.round(el.getBoundingClientRect().height)"
-                )
-                == 52
-            )
+            assert page.locator("#docs-workbench-title").inner_text() == "docs"
+            assert page.locator(".docs-wordmark").count() == 0
         else:
             assert page.locator("#docs-nav-panel").is_hidden()
             assert (
@@ -833,6 +829,13 @@ def _docs_notes_journal(browser: Browser, errors: list[str]) -> None:
                 == 52
             )
         assert root.locator("select:visible").count() == 0
+        undersized = root.locator("button:visible").evaluate_all(
+            """elements => elements.map(element => {
+                const box = element.getBoundingClientRect();
+                return {label: element.textContent.trim(), width: box.width, height: box.height};
+            }).filter(item => item.width < 43.5 || item.height < 43.5)"""
+        )
+        assert not undersized, undersized
 
         if width <= 760:
             page.locator("#wiki-tree-toggle").click()
@@ -845,7 +848,7 @@ def _docs_notes_journal(browser: Browser, errors: list[str]) -> None:
             page.locator("#wiki-tree-toggle").click()
             page.wait_for_selector("#docs-nav-panel:visible")
         navigation_count = page.evaluate("performance.getEntriesByType('navigation').length")
-        root.locator('[data-docs-route="journal"]').click()
+        page.locator('#docs-tabs [data-group-section="journal"]').click()
         page.wait_for_selector("#docs-journal-section:visible")
         page.wait_for_selector("#journal-body .jrnl-wrap")
         assert root.get_attribute("data-docs-section") == "journal"

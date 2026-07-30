@@ -4,6 +4,7 @@
 import { confirm as confirmDialog } from './dialog.js';
 import { calendarDateKey, formatDateParts, formatDateTime } from './i18n.js';
 import { disposePlanBoard, renderPlanBoard } from './plan_board.js';
+import { requestWithRecentOwner } from './recent_owner.js';
 
 export function mailboxAddress(value) {
   const raw = String(value || '').trim();
@@ -144,7 +145,10 @@ function _asArray(value, key = '') {
 }
 
 async function _json(request, url, options) {
-  const response = await request(url, options);
+  const method = String(options?.method || 'GET').toUpperCase();
+  const response = method === 'GET' || method === 'HEAD'
+    ? await request(url, options)
+    : await requestWithRecentOwner(request, url, options);
   if (!response.ok) {
     let payload = null;
     try { payload = await response.json(); } catch { /* keep the bounded fallback */ }
@@ -152,6 +156,13 @@ async function _json(request, url, options) {
     throw new Error(typeof message === 'string' ? message : `request failed: ${response.status}`);
   }
   return response.json();
+}
+
+function _setAsyncControlBusy(control, busy) {
+  if (!control) return;
+  control.disabled = busy;
+  if (busy) control.setAttribute('aria-busy', 'true');
+  else control.removeAttribute('aria-busy');
 }
 
 function _list(title, rows, emptyCopy) {
@@ -882,7 +893,8 @@ function _renderActualStatus(value, request) {
   const actions = _el('div', 'finance-actual-actions');
 
   const setBusy = busy => {
-    actions.querySelectorAll('button').forEach(button => { button.disabled = busy; });
+    panel.setAttribute('aria-busy', busy ? 'true' : 'false');
+    actions.querySelectorAll('button').forEach(button => _setAsyncControlBusy(button, busy));
   };
   const runAction = async (action, returnFocus = null) => {
     setBusy(true);
@@ -928,11 +940,14 @@ function _renderActualStatus(value, request) {
     const button = _el('button', action === 'cutover' ? 'finance-actual-primary' : '', ACTUAL_ACTION_LABELS[action]);
     button.type = 'button';
     button.dataset.actualAction = action;
-    button.addEventListener('click', () => {
+    button.addEventListener('click', async () => {
       if (action === 'cutover' || action === 'rollback-ledger') {
         _actualConfirmation(panel, action, button, runAction);
+      } else if (action === 'stop') {
+        if (!await confirmDialog('stop Actual Budget? Finance stays authoritative in its current ledger mode, but the managed service will be unavailable until restarted.')) return;
+        runAction(action, button);
       } else {
-        runAction(action);
+        runAction(action, button);
       }
     });
     actions.append(button);
@@ -1061,7 +1076,7 @@ function _renderImportReceipt(target, receipt, request, refresh) {
       form.append(baseAmount, rate, rateDate, source, save);
       form.addEventListener('submit', async event => {
         event.preventDefault();
-        save.disabled = true;
+        _setAsyncControlBusy(save, true);
         message.textContent = '';
         try {
           const body = Object.fromEntries(new FormData(form));
@@ -1072,7 +1087,7 @@ function _renderImportReceipt(target, receipt, request, refresh) {
           ));
         } catch (error) {
           message.textContent = error?.message || 'conversion evidence could not be saved';
-        } finally { save.disabled = false; }
+        } finally { _setAsyncControlBusy(save, false); }
       });
       item.append(form);
     }
@@ -1084,7 +1099,7 @@ function _renderImportReceipt(target, receipt, request, refresh) {
       );
       confirm.type = 'button';
       confirm.addEventListener('click', async () => {
-        confirm.disabled = true;
+        _setAsyncControlBusy(confirm, true);
         message.textContent = '';
         try {
           await refresh(await _json(
@@ -1101,7 +1116,7 @@ function _renderImportReceipt(target, receipt, request, refresh) {
           ));
         } catch (error) {
           message.textContent = error?.message || 'account suffix could not be confirmed';
-        } finally { confirm.disabled = false; }
+        } finally { _setAsyncControlBusy(confirm, false); }
       });
       item.append(confirm);
     }
@@ -1112,7 +1127,7 @@ function _renderImportReceipt(target, receipt, request, refresh) {
       const resolve = async decision => {
         if (resolutionBusy) return;
         resolutionBusy = true;
-        resolutionButtons.forEach(button => { button.disabled = true; });
+        resolutionButtons.forEach(button => _setAsyncControlBusy(button, true));
         message.textContent = '';
         try {
           await refresh(await _json(
@@ -1128,7 +1143,7 @@ function _renderImportReceipt(target, receipt, request, refresh) {
           message.textContent = error?.message || 'match decision could not be saved';
         } finally {
           resolutionBusy = false;
-          resolutionButtons.forEach(button => { button.disabled = false; });
+          resolutionButtons.forEach(button => _setAsyncControlBusy(button, false));
         }
       };
       const duplicate = _el('button', '', 'treat as duplicate');
@@ -1148,7 +1163,7 @@ function _renderImportReceipt(target, receipt, request, refresh) {
       const resolve = async decision => {
         if (recoveryBusy) return;
         recoveryBusy = true;
-        recoveryButtons.forEach(button => { button.disabled = true; });
+        recoveryButtons.forEach(button => _setAsyncControlBusy(button, true));
         message.textContent = '';
         try {
           if (decision === 'delete'
@@ -1166,7 +1181,7 @@ function _renderImportReceipt(target, receipt, request, refresh) {
           message.textContent = error?.message || 'interrupted import could not be recovered';
         } finally {
           recoveryBusy = false;
-          recoveryButtons.forEach(button => { button.disabled = false; });
+          recoveryButtons.forEach(button => _setAsyncControlBusy(button, false));
         }
       };
       const keep = _el('button', '', 'accept edited Actual transaction as replacement');
@@ -1184,10 +1199,11 @@ function _renderImportReceipt(target, receipt, request, refresh) {
   const actions = _el('div', 'finance-import-actions');
   const receiptMutationButtons = [];
   let receiptMutationBusy = false;
-  const mutateReceipt = async (path, failureMessage) => {
+  const mutateReceipt = async (path, failureMessage, confirmation = '') => {
     if (receiptMutationBusy) return;
+    if (confirmation && !await confirmDialog(confirmation)) return;
     receiptMutationBusy = true;
-    receiptMutationButtons.forEach(button => { button.disabled = true; });
+    receiptMutationButtons.forEach(button => _setAsyncControlBusy(button, true));
     message.textContent = '';
     try {
       await refresh(await _json(request, path, { method: 'POST' }));
@@ -1195,7 +1211,7 @@ function _renderImportReceipt(target, receipt, request, refresh) {
       message.textContent = error?.message || failureMessage;
     } finally {
       receiptMutationBusy = false;
-      receiptMutationButtons.forEach(button => { button.disabled = false; });
+      receiptMutationButtons.forEach(button => _setAsyncControlBusy(button, false));
     }
   };
   const canFinishDuplicates = receipt.counts.rows > 0 && receipt.counts.duplicates === receipt.counts.rows;
@@ -1224,6 +1240,7 @@ function _renderImportReceipt(target, receipt, request, refresh) {
     undo.addEventListener('click', () => mutateReceipt(
       `/api/finance/imports/${encodeURIComponent(receipt.id)}/undo`,
       'import could not be undone',
+      'undo this import? only transactions created by this receipt will be removed.',
     ));
     receiptMutationButtons.push(undo);
     actions.append(undo);
@@ -1336,9 +1353,9 @@ async function _renderImports(target, request) {
     const capturedAccountId = accountId;
     const capturedProfileId = profileId;
     const choiceButtons = [...choices.querySelectorAll('button')];
-    preview.disabled = true;
-    choose.disabled = true;
-    choiceButtons.forEach(button => { button.disabled = true; });
+    _setAsyncControlBusy(preview, true);
+    _setAsyncControlBusy(choose, true);
+    choiceButtons.forEach(button => _setAsyncControlBusy(button, true));
     previewMessage.textContent = '';
     try {
       if (file.size > 5 * 1024 * 1024) {
@@ -1371,8 +1388,9 @@ async function _renderImports(target, request) {
     } finally {
       if (activePreviewGeneration === generation) {
         preview.disabled = !selectedFile;
-        choose.disabled = false;
-        choiceButtons.forEach(button => { button.disabled = false; });
+        preview.removeAttribute('aria-busy');
+        _setAsyncControlBusy(choose, false);
+        choiceButtons.forEach(button => _setAsyncControlBusy(button, false));
         activePreviewGeneration = 0;
       }
     }
@@ -1415,21 +1433,38 @@ function _setTabs(root, section) {
     button.classList.toggle('active', active);
     if (active) activeTab = button;
   });
+  const overview = root.querySelector('[data-group-overview]');
+  const slot = root.querySelector('[data-group-slot]');
+  const panel = slot?.hidden === false ? slot : overview;
+  panel?.setAttribute('aria-labelledby', activeTab?.id || '');
   activeTab?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
 }
 
 function _wire(group, root) {
   if (root.dataset.groupWired) return;
   root.dataset.groupWired = '1';
+  const definition = GROUP_DEFINITIONS[group];
+  const tablist = root.querySelector('[role="tablist"]');
+  const overview = root.querySelector('[data-group-overview]');
+  const slot = root.querySelector('[data-group-slot]');
+  if (overview) { overview.id = `${group}-overview-panel`; overview.setAttribute('role', 'tabpanel'); }
+  if (slot) { slot.id = `${group}-legacy-panel`; slot.setAttribute('role', 'tabpanel'); }
+  const narrow = window.matchMedia('(max-width: 760px)');
+  const syncOrientation = () => tablist?.setAttribute('aria-orientation', narrow.matches ? 'horizontal' : 'vertical');
+  syncOrientation();
+  narrow.addEventListener?.('change', syncOrientation);
   root.querySelectorAll('[data-group-section]').forEach(button => {
+    const section = button.dataset.groupSection;
+    button.id = `${group}-tab-${section}`;
+    button.setAttribute('aria-controls', definition.legacyRoots?.[section] ? slot.id : overview.id);
     button.addEventListener('click', () => window._navigateSpecialistSection?.(group, button.dataset.groupSection));
     button.addEventListener('keydown', event => {
-      if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+      if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key)) return;
       event.preventDefault();
       const tabs = [...root.querySelectorAll('[data-group-section]')];
       const current = tabs.indexOf(button);
       const next = event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1
-        : (current + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
+        : (current + (['ArrowRight', 'ArrowDown'].includes(event.key) ? 1 : -1) + tabs.length) % tabs.length;
       tabs[next].focus();
       tabs[next].click();
     });
@@ -1478,7 +1513,6 @@ export async function initSpecialistGroup(group, { section = 'overview', request
   const renderNonce = Symbol(`${group}:${selected}`);
   _states.set(group, { section: selected, request, loadLegacy, renderNonce });
   _wire(group, root);
-  _setTabs(root, selected);
   root.dataset.section = selected;
   const filesBack = root.querySelector('[data-files-back]');
   if (filesBack) filesBack.hidden = selected !== 'gallery';
@@ -1493,12 +1527,14 @@ export async function initSpecialistGroup(group, { section = 'overview', request
   if (!definition.legacyRoots[selected]) {
     slot.hidden = true;
     overview.hidden = false;
+    _setTabs(root, selected);
     overview.replaceChildren(_el('p', 'specialist-group-empty', 'loading current data…'));
     return _renderCurrentOverview(group, selected, overview, request, renderNonce);
   }
 
   overview.hidden = true;
   slot.hidden = false;
+  _setTabs(root, selected);
   const legacyRoot = document.getElementById(definition.legacyRoots[selected]);
   if (!legacyRoot) throw new Error(`missing legacy specialist view: ${selected}`);
   if (legacyRoot.parentElement !== slot) {

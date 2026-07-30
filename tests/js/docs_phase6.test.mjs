@@ -144,12 +144,12 @@ test('Docs refuses to delete a document while a saved draft is unresolved', () =
   assert.ok(deletion.indexOf('if (_draft && !_dirty)') < deletion.indexOf("method: 'DELETE'"));
 });
 
-test('Docs flushes a draft before switching to Notes or Journal', () => {
+test('Docs flushes a draft before switching its inner document section', () => {
   const switcher = docs.match(/async function switchDocsSection\(section\)[\s\S]*?\n}/)?.[0] || '';
   assert.match(switcher, /if \(!\(await flushDraft\(\)\)\) return false/);
   assert.match(switcher, /showSection\(section\)/);
-  assert.match(docs, /return switchDocsSection\('notes'\)/);
-  assert.match(docs, /return switchDocsSection\('journal'\)/);
+  assert.match(docs, /#docs-sections \[data-section\]/);
+  assert.match(docs, /await switchDocsSection\(button\.dataset\.section\)/);
 });
 
 test('Docs serializes draft and save writes so stale requests cannot win', () => {
@@ -192,13 +192,12 @@ test('Docs home clears stale document hashes and delete resolves dirty work firs
   assert.match(remove, /await openDocsHome\(\)/);
 });
 
-test('Docs preserves drafts before global Home and only edits a newly opened document', () => {
-  const route = docs.match(/async function navigateDocsRoute\(route\)[\s\S]*?\n}/)?.[0] || '';
+test('Docs has no duplicate global Home route and only edits a newly opened document', () => {
   const open = docs.match(/export async function openNote\([^)]*\)[\s\S]*?\n}\n\nfunction updateActiveRows/)?.[0] || '';
   const create = docs.match(/async function newDoc\(\)[\s\S]*?\n}\n\nasync function newFolder/)?.[0] || '';
-  assert.ok(route.indexOf('await flushDraft()') < route.indexOf('window._navigateHome?.()'));
-  assert.doesNotMatch(route, /window\._navigateTo\?\.\('home'\)/);
-  assert.match(route, /if \(!\(await flushDraft\(\)\)\) return false/);
+  assert.doesNotMatch(html, /data-docs-route="home"|docs-home-link/);
+  assert.doesNotMatch(docs, /navigateDocsRoute|_navigateHome/);
+  assert.match(html, /id="app-drawer-btn"/);
   assert.match(open, /return true/);
   assert.match(open, /catch \(error\)[\s\S]*?return false/);
   assert.ok(create.indexOf('await flushDraft()') < create.indexOf("'/api/vault-md/file'"));
@@ -327,7 +326,8 @@ test('Docs library groups are independently collapsible and remember their state
 test('Journal is a section of the shared Docs shell instead of a second page view', () => {
   assert.match(html, /id="docs-journal-section"/);
   assert.doesNotMatch(html, /id="journal-view"/);
-  assert.match(docs, /switchDocsSection\('journal'\)/);
+  assert.match(html, /id="docs-tabs"[\s\S]*?data-group-section="journal"/);
+  assert.doesNotMatch(html, /data-docs-route="journal"/);
   assert.match(app, /showJournalView\s*=\s*\(\)\s*=>\s*showWikiView\('journal'\)/);
 });
 

@@ -2,6 +2,19 @@
 
 ## 2026-07-30
 
+Change: completed the KOKUEN v5 migration through Settings, first-run setup, the installable PWA, and
+the browser Passwords extension, and added an executable exhaustive interaction logic map.
+
+Files affected: setup choices and busy behavior; PWA manifest, cache identity, exact import precache
+generation, and cold-offline gate; browser extension state, styling, forced inactivity-race recovery,
+and unpacked-extension gate; interaction logic source, resolver, generated JSON/Markdown, reconciliation
+tests; mobile specialist tabs; and current project state.
+
+Reason: preserve full keyboard and repeat-safe behavior outside the main shell, prove exact current
+modules work from a cold offline install, close the real pairing marker race without widening browser
+authority, prevent mobile tab labels from being sliced, and keep every registered interaction surface,
+state transition, recovery path, proof, and external gap machine-verifiable.
+
 Change: migrated and repeatedly verified Home, Aide, and Andromeda against the frozen KOKUEN v5 shell.
 
 Files affected: Aide mobile identity markup; primary-space rail-clearance styling; Home, Aide,
@@ -1201,3 +1214,16 @@ and current task state.
 Reason: use Terra for ordinary execution and deterministic proof, reserve Sol and deeper reasoning for
 quality-critical, security, recovery, and destructive work, and prevent unavailable models, unrouted
 scenarios, or max-effort defaults from silently entering the completion program.
+Date: 2026-07-30
+
+Change: migrated all nine specialist workbenches to KOKUEN v5 and closed the degraded-load,
+recent-owner, destructive-action, semantic-row, tab, focus, and failed-persistence gaps found by the
+real application audit.
+
+Files affected: specialist shell markup and routing; shared KOKUEN choices and tabs; Docs, Files,
+Books, Read, Health, Finance, Vault, and Server browser modules and styling; focused JavaScript,
+Python, and Playwright gates; and current task state.
+
+Reason: keep one universal workbench grammar without hiding owner data, mistaking request failures for
+empty collections, duplicating privileged writes, exposing pointer-only controls, or leaving rejected
+choices visible.

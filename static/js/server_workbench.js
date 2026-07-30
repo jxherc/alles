@@ -3,6 +3,8 @@
 // an existing typed API; this UI never accepts shell commands or arbitrary paths.
 
 import { formatNumber } from './i18n.js';
+import { confirm as confirmDialog } from './dialog.js';
+import { requestWithRecentOwner } from './recent_owner.js';
 
 function el(tag, className = '', text = '') {
   const node = document.createElement(tag);
@@ -16,7 +18,10 @@ function errorMessage(payload, fallback) {
 }
 
 async function json(request, url, options) {
-  const response = await request(url, options);
+  const method = String(options?.method || 'GET').toUpperCase();
+  const response = method === 'GET' || method === 'HEAD'
+    ? await request(url, options)
+    : await requestWithRecentOwner(request, url, options);
   let payload = null;
   try { payload = await response.json(); } catch { /* keep the bounded fallback */ }
   if (!response.ok) throw new Error(errorMessage(payload, `request failed: ${response.status}`));
@@ -49,15 +54,38 @@ function action(label, run, className = '') {
   button.addEventListener('click', async () => {
     if (button.disabled) return;
     button.disabled = true;
+    button.setAttribute('aria-busy', 'true');
     try { await run(button); }
     catch (error) {
       const parent = button.closest('.server-workbench-card');
       let region = parent?.querySelector('.server-workbench-status');
       if (!region && parent) { region = statusLine(); parent.append(region); }
       if (region) { region.textContent = error.message || 'action failed'; region.classList.add('is-error'); }
-    } finally { button.disabled = false; }
+    } finally {
+      button.disabled = false;
+      button.removeAttribute('aria-busy');
+    }
   });
   return button;
+}
+
+function destructiveAction(label, consequence, run) {
+  return action(label, async button => {
+    if (!await confirmDialog(consequence)) return;
+    await run(button);
+  }, 'is-destructive');
+}
+
+function serviceAction(subject, verb, run) {
+  if (!['stop', 'restart', 'update', 'rollback'].includes(verb)) return action(verb, run);
+  const consequence = verb === 'stop'
+    ? `stop ${subject}? it will be unavailable until it is started again.`
+    : verb === 'restart'
+      ? `restart ${subject}? active requests may be interrupted.`
+      : verb === 'update'
+        ? `update ${subject}? Alles will replace the managed release after verification.`
+        : `roll back ${subject}? the current managed release will be replaced by its verified predecessor.`;
+  return destructiveAction(verb, consequence, run);
 }
 
 function choice(label, options, selected, onChange) {
@@ -66,6 +94,20 @@ function choice(label, options, selected, onChange) {
   const list = el('div', 'server-workbench-choice-list');
   list.setAttribute('role', 'radiogroup');
   list.setAttribute('aria-label', label);
+  let choiceBusy = false;
+  const select = selectedButton => {
+    buttons.forEach(item => {
+      const chosen = item === selectedButton;
+      item.setAttribute('aria-checked', chosen ? 'true' : 'false');
+      item.tabIndex = chosen ? 0 : -1;
+    });
+  };
+  const reportFailure = error => {
+    const owner = field.closest('.server-workbench-card');
+    let region = owner?.querySelector('.server-workbench-status');
+    if (!region && owner) { region = statusLine(); owner.append(region); }
+    if (region) { region.textContent = error.message || 'setting failed'; region.classList.add('is-error'); }
+  };
   const buttons = options.map(option => {
     const button = el('button', '', option.label);
     button.type = 'button';
@@ -74,13 +116,25 @@ function choice(label, options, selected, onChange) {
     const active = option.value === selected;
     button.setAttribute('aria-checked', active ? 'true' : 'false');
     button.tabIndex = active ? 0 : -1;
-    button.addEventListener('click', () => {
-      buttons.forEach(item => {
-        const chosen = item === button;
-        item.setAttribute('aria-checked', chosen ? 'true' : 'false');
-        item.tabIndex = chosen ? 0 : -1;
-      });
-      void Promise.resolve(onChange(option.value)).catch(() => {});
+    button.addEventListener('click', async () => {
+      if (choiceBusy || button.getAttribute('aria-checked') === 'true') return;
+      const previous = buttons.find(item => item.getAttribute('aria-checked') === 'true');
+      let rollbackFocus = null;
+      choiceBusy = true;
+      list.setAttribute('aria-busy', 'true');
+      buttons.forEach(item => { item.disabled = true; });
+      select(button);
+      try { await onChange(option.value); }
+      catch (error) {
+        select(previous || button);
+        rollbackFocus = previous || button;
+        reportFailure(error);
+      } finally {
+        choiceBusy = false;
+        list.removeAttribute('aria-busy');
+        buttons.forEach(item => { item.disabled = false; });
+        rollbackFocus?.focus();
+      }
     });
     button.addEventListener('keydown', event => {
       if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key)) return;
@@ -110,6 +164,7 @@ function switchButton(label, pressed, onChange) {
   button.addEventListener('click', async () => {
     if (button.disabled) return;
     button.disabled = true;
+    button.setAttribute('aria-busy', 'true');
     const previous = button.getAttribute('aria-checked') === 'true';
     const next = button.getAttribute('aria-checked') !== 'true';
     button.setAttribute('aria-checked', next ? 'true' : 'false');
@@ -122,7 +177,10 @@ function switchButton(label, pressed, onChange) {
       let region = card?.querySelector('.server-workbench-status');
       if (!region && card) { region = statusLine(); card.append(region); }
       if (region) { region.textContent = error.message || 'setting failed'; region.classList.add('is-error'); }
-    } finally { button.disabled = false; }
+    } finally {
+      button.disabled = false;
+      button.removeAttribute('aria-busy');
+    }
   });
   return button;
 }
@@ -179,7 +237,7 @@ function adguardSurface(service, request, rerender) {
       const rewrites = managedList('DNS rewrites', dashboard.rewrites || [], rewrite => {
         const row = el('div', 'server-managed-row');
         row.append(el('span', '', `${rewrite.domain} → ${rewrite.answer}`));
-        row.append(action('remove', async () => {
+        row.append(destructiveAction('remove', `remove the DNS rewrite for ${rewrite.domain}?`, async () => {
           await json(request, '/api/system/companions/adguard-home/rewrites/delete', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ domain: rewrite.domain, answer: rewrite.answer }),
@@ -281,7 +339,7 @@ function npmSurface(service, request, rerender) {
         });
         await rerender();
       }, 'is-primary'),
-      action('disconnect API token', async () => {
+      destructiveAction('disconnect API token', 'disconnect the private Nginx Proxy Manager API token? managed proxy data will stay in place.', async () => {
         await json(request, '/api/system/companions/nginx-proxy-manager/disconnect', { method: 'POST' });
         await rerender();
       }),
@@ -322,13 +380,13 @@ function companionCard(service, request, rerender) {
   configure.setAttribute('aria-expanded', 'false');
   actions.append(configure);
   if (service.activated) {
-    actions.append(action('rollback activation', async () => {
+    actions.append(destructiveAction('rollback activation', `roll back ${service.name} activation? its network listeners will stop and the previous configuration will be restored.`, async () => {
       message.textContent = 'stopping and restoring the previous listener configuration…';
       await json(request, `/api/system/companions/${encodeURIComponent(service.service_id)}/rollback`, { method: 'POST' });
       await rerender();
     }));
   }
-  actions.append(action('remove ownership, keep data', async () => {
+  actions.append(destructiveAction('remove ownership, keep data', `remove Alles ownership of ${service.name}? its service will stop, but its private data will remain.`, async () => {
     message.textContent = 'stopping the companion and retaining its private data…';
     await json(request, `/api/system/companions/${encodeURIComponent(service.service_id)}/uninstall`, { method: 'POST' });
     await rerender();
@@ -447,7 +505,7 @@ async function renderServices(target, request) {
     copy.append(el('strong', '', service.name || service.service_id), el('span', '', `${service.manager} · ${service.running ? 'running' : service.available ? 'stopped' : 'unavailable'}${service.owned ? '' : ' · ownership unverified'}`));
     const actions = el('div', 'server-workbench-actions');
     for (const verb of service.actions || []) {
-      actions.append(action(verb, async () => {
+      actions.append(serviceAction(service.name || service.service_id, verb, async () => {
         message.textContent = `${verb} in progress…`;
         await json(request, `/api/system/services/${encodeURIComponent(service.service_id)}/${verb}`, { method: 'POST' });
         await rerender();
@@ -472,12 +530,15 @@ async function renderServices(target, request) {
       verbs.push(service.running ? 'stop' : 'start', 'restart', 'test', 'update', 'rollback');
     }
     for (const verb of verbs) {
-      actions.append(action(verb === 'test' ? 'test json search' : verb, async () => {
+      const run = async () => {
         message.textContent = `${verb} in progress…`;
         const result = await json(request, `/api/system/searxng/${verb}`, { method: 'POST' });
         if (verb === 'test') message.textContent = `json search passed · ${result.results ?? 0} results`;
         else await rerender();
-      }));
+      };
+      actions.append(['stop', 'restart', 'update', 'rollback'].includes(verb)
+        ? serviceAction('SearXNG', verb, run)
+        : action(verb === 'test' ? 'test json search' : verb, run));
     }
     search.append(actions);
   }
@@ -493,7 +554,7 @@ async function renderServices(target, request) {
       copy.append(el('strong', '', service.id), el('span', '', service.manager));
       const actions = el('div', 'server-workbench-actions');
       for (const verb of ['start', 'stop', 'restart']) {
-        actions.append(action(verb, async () => {
+        actions.append(serviceAction(service.id, verb, async () => {
           message.textContent = `${verb} in progress…`;
           await json(request, `/api/system/host-services/${service.manager}/${encodeURIComponent(service.id)}/${verb}`, { method: 'POST' });
           message.textContent = `${service.id} · ${verb} complete`;
@@ -520,7 +581,7 @@ async function renderServices(target, request) {
     if (service.available && !service.installed) verbs.push('install');
     if (service.available && service.installed) verbs.push(service.running ? 'stop' : 'start', 'restart', 'update', 'rollback', 'backup');
     for (const verb of verbs) {
-      actions.append(action(verb, async () => {
+      actions.append(serviceAction('Actual Budget', verb, async () => {
         message.textContent = `Actual ${verb} in progress…`;
         await json(request, `/api/finance/actual/service/${verb}`, { method: 'POST' });
         await rerender();

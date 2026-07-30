@@ -1,5 +1,65 @@
 # engineering decisions
 
+## Exact offline module generations
+
+Decision
+
+Choice: derive the PWA precache manifest from every exact versioned static import used by the delivered
+HTML and JavaScript graph, and advance the service-worker cache identity whenever that graph changes.
+Do not make cache lookup ignore URL search parameters.
+
+Reason: the real cold-offline gate proved that caching only queryless file paths leaves versioned ES
+module imports unavailable after installation. Ignoring search parameters would make mixed generations
+appear equivalent and could execute stale modules against current markup.
+
+Alternatives considered: cache only the entry module, use queryless cache matching, remove all module
+versions, or treat a warm browser session as offline proof.
+
+Consequences: `/api/pwa/precache` owns an exact dependency graph, the offline gate must start from a
+cold installed profile, and version drift or an uncached import fails visibly instead of silently mixing
+application generations.
+
+## Executable interaction logic map
+
+Decision
+
+Choice: keep `features/registry.json` authoritative for shipped function surfaces and annotate every
+registered feature with event authority, controls, state transitions, success, failure, recovery,
+keyboard, focus, repeat handling, evidence, and external acceptance gaps. Generate both JSON and
+readable Markdown from that source plus the shared 14-state KOKUEN contract.
+
+Reason: a prose-only inventory can drift from routes, jobs, commands, Aide tools, and browser controls;
+an implementation-only inventory cannot explain mutation authority or recovery. Reconciliation tests
+make missing functions, owners, evidence, or states a build failure.
+
+Alternatives considered: a hand-maintained document, browser controls only, route-list generation, or
+duplicating the feature registry in a second catalog.
+
+Consequences: all 26 registered features and their complete declared function surfaces must reconcile;
+generated artifacts are checked for freshness; real-computer cases that need credentials, devices, or
+owner infrastructure remain explicit gaps rather than being claimed from local substitutes.
+
+## Fail-visible specialist recovery
+
+Decision
+
+Choice: keep each specialist's last loaded or independently successful owner data visible when one
+read fails, label the workbench with the exact loading, offline, partial, or error state, and provide a
+bounded retry. For privileged Finance and Server mutations, retry only the backend's exact
+`recent_auth_required` challenge after an explicit owner-password confirmation. Roll optimistic Server
+choices back to the previous persisted value and focus when the write fails.
+
+Reason: a failed subrequest must not impersonate an honest empty collection, discard usable context,
+or leave a visible choice that the server rejected. Privileged retry must never turn an arbitrary 403
+into a password prompt or duplicate a mutation.
+
+Alternatives considered: clear each screen to an empty state, show transient toast-only failures, retry
+all 403 responses, or leave optimistic selections active after failed persistence.
+
+Consequences: specialist screens retain useful context and expose an explicit recovery path; exact
+recent-owner challenges perform at most one confirmed retry; failed choices restore both value and
+keyboard context; tests must distinguish intentional failure responses from unexpected console errors.
+
 ## KOKUEN v5 universal runtime
 
 Decision

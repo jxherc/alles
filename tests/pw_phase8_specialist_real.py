@@ -160,9 +160,13 @@ def _assert_owned_shell(page: Page, root_selector: str, label: str, width: int) 
         round(app_name.evaluate("element => parseFloat(getComputedStyle(element).fontSize)")) == 15
     )
     assert root.locator(":scope > .specialist-group-head").count() == 0
-    home = header.locator("[data-specialist-home]")
-    assert home.is_visible()
-    assert home.evaluate("element => element.getBoundingClientRect().height") >= 44
+    assert header.locator("[data-specialist-home]").count() == 0
+    assert page.locator("#space-rail").is_visible()
+    shell_trigger = page.locator("#app-drawer-btn")
+    assert shell_trigger.is_visible()
+    assert shell_trigger.evaluate(
+        "element => element.getBoundingClientRect().width >= 44 && element.getBoundingClientRect().height >= 44"
+    )
     toggle = header.locator("[data-specialist-sidebar-toggle]")
     assert toggle.is_visible()
     assert toggle.get_attribute("aria-expanded") == "true"
@@ -197,9 +201,18 @@ def _assert_owned_shell(page: Page, root_selector: str, label: str, width: int) 
     assert root.get_attribute("data-sidebar-collapsed") == "false"
     assert toggle.get_attribute("aria-expanded") == "true"
     if width <= 760:
-        assert round(root_box["width"]) == width, root_box
-        assert round(tabs_box["width"]) == width, tabs_box
-        assert round(tabs_box["height"]) == 44, tabs_box
+        assert round(root_box["x"]) == 52, root_box
+        assert round(root_box["width"]) == width - 52, root_box
+        assert round(tabs_box["width"]) == width - 52, tabs_box
+        assert round(tabs_box["height"]) >= 44, tabs_box
+        clipped_tabs = header.locator('.specialist-group-tabs [role="tab"]').evaluate_all(
+            """tabs => tabs.filter(tab => {
+              const tabBox = tab.getBoundingClientRect();
+              const listBox = tab.parentElement.getBoundingClientRect();
+              return tabBox.left < listBox.left - 1 || tabBox.right > listBox.right + 1;
+            }).map(tab => tab.textContent.trim())"""
+        )
+        assert not clipped_tabs, clipped_tabs
 
 
 def _assert_controls(page: Page) -> None:
@@ -384,9 +397,20 @@ def _exercise_case(
     _assert_no_overflow(page)
 
     selected = page.locator('#finance-view [role="tab"][aria-selected="true"]')
+    assert page.locator("#finance-tabs").get_attribute("aria-orientation") == (
+        "horizontal" if width <= 760 else "vertical"
+    )
+    assert selected.get_attribute("aria-controls")
+    assert page.locator(f"#{selected.get_attribute('aria-controls')}").get_attribute(
+        "aria-labelledby"
+    ) == selected.get_attribute("id")
     selected.focus()
-    page.keyboard.press("ArrowRight")
+    page.keyboard.press("ArrowDown")
     page.wait_for_function("document.querySelector('#finance-view').dataset.section === 'money'")
+    selected = page.locator('#finance-view [role="tab"][aria-selected="true"]')
+    assert page.locator(f"#{selected.get_attribute('aria-controls')}").get_attribute(
+        "aria-labelledby"
+    ) == selected.get_attribute("id")
     page.evaluate("window._navigateTo('finance')")
     page.locator(".finance-actual-ready").wait_for(state="visible")
     page.locator('#finance-view [data-group-section="money"]').click()
@@ -601,7 +625,8 @@ def _group_overviews(browser: Browser, errors: list[str], width: int) -> None:
     page.locator(".specialist-workbench-plan").wait_for(state="visible")
     _assert_owned_shell(page, "#plan-view", "plan", width)
     assert parse_qs(urlparse(page.url).query).get("view") == ["plan"]
-    page.locator("#plan-view [data-specialist-home]").click()
+    page.locator("#app-drawer-btn").click()
+    page.locator('.app-drawer-item[data-view="today"]').click()
     page.locator("#today-view:visible, #home-view:visible").wait_for(state="visible")
     page.evaluate("window._navigateTo('plan')")
     page.locator(".specialist-workbench-plan").wait_for(state="visible")

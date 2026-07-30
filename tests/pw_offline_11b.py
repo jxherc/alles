@@ -1,110 +1,182 @@
-"""11b-3 — offline app-shell pre-cache. Before this, the SW only cached as-you-go, so a
-reload after the cache was cold/evicted could fail to boot. Now the install handler precaches
-the shell (HTML/CSS/manifest/icons) and the cache survives, so the app boots offline.
+"""Rendered PWA install, offline-shell, shortcut, and reconnect gate.
 
-Drives aide.localhost:8879. ALLES_DATA=.tmp_11b3 PORT=8879 AUTH_ENABLED=false python app.py
+Run only against a server using an owned throwaway ``ALLES_DATA`` root.
 """
 
-import sys
+from __future__ import annotations
+
+import os
+import tempfile
 from pathlib import Path
 
-from playwright.sync_api import sync_playwright
+from browser_gate_safety import require_server_ownership
+from playwright.sync_api import Page, expect, sync_playwright
 
-BASE = "http://localhost:8879"
-EVID = Path(__file__).resolve().parent.parent / "docs" / "evidence" / "11b"
-# offline test: fetch failures to the (unreachable) server are expected and the app logs them
-IGNORE = (
+PORT = os.environ.get("PORT", "8879")
+BASE = f"http://127.0.0.1:{PORT}"
+DATA = Path(os.environ.get("ALLES_DATA", "")).expanduser().resolve()
+RUN_ID = os.environ.get("ALLES_TEST_RUN_ID", "")
+OUTPUT: Path
+EXPECTED_OFFLINE_ERRORS = (
     "Failed to load resource",
     "net::",
     "ERR_",
-    "favicon",
-    "401",
-    "403",
-    "Load failed",
     "Failed to fetch",
+    "Load failed",
 )
 
 
-def main():
-    EVID.mkdir(parents=True, exist_ok=True)
-    r = {}
-    errs = []
-    with sync_playwright() as p:
-        b = p.chromium.launch()
-        ctx = b.new_context()
-        pg = ctx.new_page()
-        pg.on(
-            "console",
-            lambda m: (
-                errs.append(m.text)
-                if m.type == "error" and not any(x in m.text for x in IGNORE)
-                else None
-            ),
+def _verify_test_root() -> None:
+    temp_root = Path(tempfile.gettempdir()).resolve()
+    if os.environ.get("ALLES_TEST_DATA") != "1" or not RUN_ID:
+        raise RuntimeError("set the isolated ALLES_TEST_DATA ownership proof")
+    if DATA == temp_root or temp_root not in DATA.parents:
+        raise RuntimeError("ALLES_DATA must be a system-temporary child")
+    if (DATA / ".alles-test-owner").read_text("utf-8").strip() != RUN_ID:
+        raise RuntimeError("the ALLES_DATA ownership sentinel does not match")
+    require_server_ownership(BASE, RUN_ID)
+
+
+def _capture_errors(
+    page: Page,
+    errors: list[str],
+    failed_requests: list[str],
+    offline: dict[str, bool],
+) -> None:
+    page.on("pageerror", lambda error: errors.append(f"page: {error}"))
+    page.on(
+        "requestfailed",
+        lambda request: failed_requests.append(
+            f"{request.method} {request.url}: {request.failure}"
+        ),
+    )
+
+    def on_console(message) -> None:
+        if message.type != "error":
+            return
+        if offline["active"] and any(token in message.text for token in EXPECTED_OFFLINE_ERRORS):
+            return
+        errors.append(f"console: {message.text}")
+
+    page.on("console", on_console)
+
+
+def _assert_shell(page: Page, space: str) -> None:
+    expect(page.locator("html")).to_have_attribute("data-kokuen-version", "5")
+    body_attribute = "data-space" if space in {"home", "aide", "andromeda"} else "data-app"
+    expect(page.locator("body")).to_have_attribute(body_attribute, space)
+    expect(page.locator("#app-drawer-btn")).to_be_visible()
+    assert page.locator('select:visible, input[type="checkbox"]:visible, input[type="radio"]:visible').count() == 0
+    overflow = page.evaluate(
+        "() => document.documentElement.scrollWidth - document.documentElement.clientWidth"
+    )
+    assert overflow <= 1, overflow
+
+
+def run() -> None:
+    global OUTPUT
+
+    _verify_test_root()
+    OUTPUT = Path(tempfile.mkdtemp(prefix="pwa-browser-artifacts-", dir=DATA))
+    errors: list[str] = []
+    failed_requests: list[str] = []
+    offline = {"active": False}
+
+    with sync_playwright() as playwright:
+        browser = playwright.chromium.launch(headless=True)
+        context = browser.new_context(
+            viewport={"width": 390, "height": 844},
+            reduced_motion="reduce",
+            locale="zh-Hant-TW",
         )
+        page = context.new_page()
+        _capture_errors(page, errors, failed_requests, offline)
 
-        # sw.js version bumped past v50
-        sw = pg.request.get(f"{BASE}/sw.js").text()
-        r["sw_version_bumped"] = "PRECACHE" in sw and "precache" in sw.lower()
-        r["precache_list_nonempty"] = "/static/style.css" in sw and "/manifest.json" in sw
-
-        # online visit → register SW, let it install + activate + precache
-        pg.goto(f"{BASE}/", wait_until="domcontentloaded")
-        pg.wait_for_function(
-            "() => navigator.serviceWorker && navigator.serviceWorker.controller", timeout=15000
+        page.goto(f"{BASE}/?app=plan", wait_until="domcontentloaded")
+        setup = page.locator("#setup-wizard")
+        if setup.is_visible():
+            page.locator("#setup-skip").click()
+            expect(setup).to_be_hidden()
+        page.wait_for_function(
+            "() => navigator.serviceWorker && navigator.serviceWorker.controller",
+            timeout=15_000,
         )
-        pg.wait_for_timeout(1500)
+        expect(page.locator("body")).not_to_have_class("preboot")
+        _assert_shell(page, "plan")
 
-        # the SW reports its precache happened (it posts a manifest of what it cached)
-        cached = pg.evaluate(
+        cached = page.evaluate(
             """async () => {
-                const names = await caches.keys();
-                let keys = [];
-                for (const n of names) {
-                    const c = await caches.open(n);
-                    keys = keys.concat((await c.keys()).map(req => new URL(req.url).pathname));
-                }
-                return keys;
+              const names = await caches.keys();
+              const urls = [];
+              for (const name of names) {
+                const cache = await caches.open(name);
+                urls.push(...(await cache.keys()).map(request => request.url));
+              }
+              return { names, urls };
             }"""
         )
-        r["shell_precached_on_install"] = any(k == "/" for k in cached)
-        r["static_assets_cached"] = any("/static/style.css" in k for k in cached)
-        r["manifest_cached"] = any("/manifest.json" in k for k in cached)
-        # the whole js module graph is precached (not just the entry) so boot survives offline
-        r["js_modules_precached"] = sum("/static/js/" in k for k in cached) >= 20
+        assert cached["names"] == ["alles-v257"], cached["names"]
+        assert any(url.endswith("/") for url in cached["urls"])
+        assert any("/static/style.css?v=302" in url for url in cached["urls"])
+        assert any("/static/kokuen.css?v=21" in url for url in cached["urls"])
+        assert sum("/static/js/" in url for url in cached["urls"]) >= 20
+        page.screenshot(path=str(OUTPUT / "pwa-plan-online-mobile.png"), full_page=True)
 
-        # cold offline boot: drop the network, hard-reload the shell, app must still render
-        ctx.set_offline(True)
-        pg.goto(f"{BASE}/", wait_until="domcontentloaded")
-        pg.wait_for_function("() => !document.body.classList.contains('preboot')", timeout=10000)
-        booted = pg.wait_for_selector(".app", state="visible", timeout=10000)
-        r["cold_offline_boots"] = booted is not None
-        # the real win: offline opens the app (the cached session), not a login wall
-        r["offline_not_login_wall"] = not pg.evaluate(
-            "() => document.body.classList.contains('login-mode')"
-        )
-        # localhost root is the chrome-less hub launcher — its tile grid renders offline
-        r["offline_hub_renders"] = pg.is_visible(".home-grid")
+        offline["active"] = True
+        context.set_offline(True)
+        page.goto(f"{BASE}/?app=andromeda", wait_until="domcontentloaded")
+        try:
+            page.wait_for_function(
+                "() => !document.body.classList.contains('preboot')", timeout=10_000
+            )
+        except Exception:
+            diagnostic = page.evaluate(
+                """async () => ({
+                  url: location.href,
+                  bodyClass: document.body.className,
+                  scripts: [...document.scripts].map(script => script.src).filter(Boolean),
+                  cacheNames: await caches.keys(),
+                  appModule: await (async () => {
+                    const match = await caches.match('/static/js/app.js?v=302');
+                    return match ? { status: match.status, size: (await match.clone().text()).length } : null;
+                  })(),
+                  appModuleKeys: await (async () => {
+                    const cache = await caches.open('alles-v257');
+                    return (await cache.keys())
+                      .map(request => request.url)
+                      .filter(url => url.includes('/static/js/app.js'));
+                  })(),
+                })"""
+            )
+            page.screenshot(
+                path=str(OUTPUT / "pwa-offline-boot-failure.png"), full_page=True
+            )
+            print(
+                {
+                    "offline_boot": diagnostic,
+                    "browser_errors": errors,
+                    "failed_requests": failed_requests,
+                }
+            )
+            raise
+        _assert_shell(page, "andromeda")
+        expect(page.locator("#andromeda-view")).to_be_visible()
+        expect(page.locator("#sync-indicator")).to_be_attached()
+        page.screenshot(path=str(OUTPUT / "pwa-andromeda-offline-mobile.png"), full_page=True)
 
-        # the sync indicator element exists for the pending-queue UI
-        pg.wait_for_timeout(500)
-        r["pending_indicator_present"] = pg.query_selector("#sync-indicator") is not None
+        context.set_offline(False)
+        offline["active"] = False
+        page.goto(f"{BASE}/?app=aide", wait_until="networkidle")
+        _assert_shell(page, "aide")
+        expect(page.locator("#chat")).to_be_visible()
+        page.screenshot(path=str(OUTPUT / "pwa-aide-reconnected-mobile.png"), full_page=True)
 
-        ctx.set_offline(False)
-        pg.screenshot(path=str(EVID / "offline-boot.png"))
+        browser.close()
 
-        r["zero_console_errors"] = len(errs) == 0
-        b.close()
-
-    ok = all(r.values())
-    lines = [f"{'PASS' if v else 'FAIL'}  {k}" for k, v in r.items()]
-    if errs:
-        lines.append(f"console_errors: {errs[:8]}")
-    out = "\n".join(lines)
-    (EVID / "pw_offline_11b.txt").write_text(out, encoding="utf-8")
-    print(out)
-    print(f"\n{sum(bool(v) for v in r.values())}/{len(r)} assertions passed")
-    return 0 if ok else 1
+    if errors:
+        raise AssertionError("PWA console errors:\n" + "\n".join(errors))
+    print(f"PWA install/offline/reconnect gate passed; captures: {OUTPUT}")
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    run()

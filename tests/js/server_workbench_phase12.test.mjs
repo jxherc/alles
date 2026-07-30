@@ -49,6 +49,25 @@ test('managed companions expose native service APIs without storing the Nginx pa
   assert.match(source, /certificates/);
 });
 
+test('Server mutations recover exact recent-owner challenges and reject repeated activation', () => {
+  assert.match(source, /requestWithRecentOwner\(request, url, options\)/);
+  assert.match(source, /button\.setAttribute\('aria-busy', 'true'\)/);
+  assert.match(source, /button\.removeAttribute\('aria-busy'\)/);
+  assert.match(source, /if \(button\.disabled\) return/);
+});
+
+test('Server choices roll back failed persistence and disruptive controls confirm consequence', () => {
+  assert.match(source, /const previous = buttons\.find/);
+  assert.match(source, /catch \(error\) \{\s*select\(previous \|\| button\)/);
+  assert.match(source, /rollbackFocus = previous \|\| button/);
+  assert.match(source, /rollbackFocus\?\.focus\(\)/);
+  assert.match(source, /list\.setAttribute\('aria-busy', 'true'\)/);
+  assert.match(source, /function destructiveAction/);
+  assert.match(source, /function serviceAction/);
+  assert.match(source, /remove Alles ownership of/);
+  assert.match(source, /roll back .* activation\?/);
+});
+
 test('legacy Docs, Files, Vault, System, Activity, and Watch render inside workbench shells', () => {
   assert.match(app, /group === 'docs'/);
   assert.match(app, /group === 'files' && section === 'gallery'/);

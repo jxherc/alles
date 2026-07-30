@@ -17,8 +17,8 @@
     { "src": "/static/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ],
   "shortcuts": [
-    { "name": "New chat", "short_name": "Chat", "url": "/?app=chat", "icons": [{ "src": "/static/icons/icon-192.png", "sizes": "192x192" }] },
-    { "name": "Tasks", "short_name": "Tasks", "url": "/?app=tasks", "icons": [{ "src": "/static/icons/icon-192.png", "sizes": "192x192" }] },
-    { "name": "Journal", "short_name": "Journal", "url": "/?app=journal", "icons": [{ "src": "/static/icons/icon-192.png", "sizes": "192x192" }] }
+    { "name": "Open Aide", "short_name": "Aide", "url": "/?app=aide", "icons": [{ "src": "/static/icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Open Andromeda", "short_name": "Andromeda", "url": "/?app=andromeda", "icons": [{ "src": "/static/icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Open Plan", "short_name": "Plan", "url": "/?app=plan", "icons": [{ "src": "/static/icons/icon-192.png", "sizes": "192x192" }] }
   ]
 }

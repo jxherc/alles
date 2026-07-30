@@ -121,6 +121,24 @@ test('all nine specialist workbenches share one persistent accessible sidebar to
   assert.match(kokuenCss, /\[data-sidebar-collapsed="true"\]/);
 });
 
+test('specialist tabs expose responsive orientation, panels, and every directional key', () => {
+  assert.match(specialistSource, /setAttribute\('aria-orientation', narrow\.matches \? 'horizontal' : 'vertical'\)/);
+  assert.match(specialistSource, /setAttribute\('role', 'tabpanel'\)/);
+  assert.match(specialistSource, /setAttribute\('aria-controls'/);
+  assert.match(specialistSource, /setAttribute\('aria-labelledby'/);
+  for (const key of ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End']) {
+    assert.match(specialistSource, new RegExp(`'${key}'`), key);
+  }
+});
+
+test('Finance privileged mutations recover recent-owner expiry and expose busy state', () => {
+  assert.match(specialistSource, /requestWithRecentOwner\(request, url, options\)/);
+  assert.match(specialistSource, /function _setAsyncControlBusy/);
+  assert.match(specialistSource, /control\.setAttribute\('aria-busy', 'true'\)/);
+  assert.match(specialistSource, /panel\.setAttribute\('aria-busy', busy \? 'true' : 'false'\)/);
+  assert.match(specialistSource, /undo this import\? only transactions created by this receipt will be removed/);
+});
+
 test('the shared sidebar state also collapses nested Docs and Files navigation rails', () => {
   assert.match(
     kokuenCss,
@@ -152,7 +170,11 @@ test('specialist workbenches collapse before their fixed tracks can overflow', (
   assert.match(specialistSource, /activeTab\?\.scrollIntoView\?\.\(\{ block: 'nearest', inline: 'nearest' \}\)/);
   assert.match(
     kokuenCss,
-    /@media \(max-width: 760px\) \{\s*#plan-view\[data-kokuen-surface="specialist"\][^]*?\.specialist-group \{\s*grid-template-columns: minmax\(0, 1fr\);\s*grid-template-rows: var\(--k-app-header\) var\(--k-control\) minmax\(0, 1fr\);/,
+    /@media \(max-width: 760px\) \{\s*#plan-view\[data-kokuen-surface="specialist"\][^]*?\.specialist-group \{\s*grid-template-columns: minmax\(0, 1fr\);\s*grid-template-rows: var\(--k-app-header\) auto minmax\(0, 1fr\);/,
+  );
+  assert.match(
+    kokuenCss,
+    /\.specialist-group-tabs \{[^}]*grid-template-columns: repeat\(4, minmax\(0, 1fr\)\);[^}]*overflow: visible;/,
   );
 });
 
@@ -333,7 +355,7 @@ test('ambiguous statement matches expose explicit duplicate and import-new decis
   assert.match(source, /import as new/);
   assert.match(source, /JSON\.stringify\(\{ decision \}\)/);
   assert.match(source, /if \(resolutionBusy\) return/);
-  assert.match(source, /resolutionButtons\.forEach\(button => \{ button\.disabled = true; \}\)/);
+  assert.match(source, /resolutionButtons\.forEach\(button => _setAsyncControlBusy\(button, true\)\)/);
 });
 
 test('interrupted Actual imports expose explicit keep, delete, and partial undo recovery', () => {
@@ -348,7 +370,7 @@ test('interrupted Actual imports expose explicit keep, delete, and partial undo 
   assert.match(source, /confirmDialog/);
   assert.match(source, /if \(recoveryBusy\) return/);
   assert.match(source, /if \(receiptMutationBusy\) return/);
-  assert.match(source, /receiptMutationButtons\.forEach\(button => \{ button\.disabled = true; \}\)/);
+  assert.match(source, /receiptMutationButtons\.forEach\(button => _setAsyncControlBusy\(button, true\)\)/);
 });
 
 test('foreign-currency import review uses an explicit accessible evidence form', () => {

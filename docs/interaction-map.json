@@ -1,0 +1,1589 @@
+{
+  "features": [
+    {
+      "acceptance": "passed",
+      "acceptance_evidence": "Passed 2026-07-27: the fresh isolated Phase 9 setup/password browser gate completed first-run setup; setup, auth, server-config, recent-owner, and durable-resume backend regressions passed.",
+      "app": "setup",
+      "authority_guards": [
+        "one-owner authentication and setup state",
+        "private data is not exposed"
+      ],
+      "automated_tests": [
+        "tests/test_api_setup.py",
+        "tests/test_auth.py",
+        "tests/test_server_config.py"
+      ],
+      "behavior": "Install, initialize, authenticate, and safely configure one owner without exposing private data.",
+      "busy_repeat": "Shared KOKUEN controls reject re-entry while aria-busy is true; feature-specific exceptions are recorded as gaps.",
+      "control_surfaces": [
+        "#setup-wizard"
+      ],
+      "external_blocks_or_gaps": [],
+      "failure": "Setup or authentication errors remain visible.",
+      "feature_id": "setup-security.owner-setup",
+      "function_surfaces": {
+        "automation_actions": [],
+        "cli_commands": [
+          "install",
+          "uninstall",
+          "doctor"
+        ],
+        "extension_functions": [],
+        "integrations": [],
+        "jobs": [],
+        "pwa_functions": [],
+        "route_modules": [
+          "routes.auth",
+          "routes.setup",
+          "routes.api_tokens",
+          "routes.status"
+        ]
+      },
+      "implementation": "shipped",
+      "keyboard_focus": "Wizard choices use the shared radio model; the dialog traps focus and returns it on exit.",
+      "mutations": "Creates or resumes owner configuration and authentication state.",
+      "recovery": "Resume interrupted setup or reauthenticate a recent owner.",
+      "risk": "critical",
+      "success": "The owner reaches authenticated, configured state.",
+      "triggers": [
+        "fresh owner setup",
+        "recent-owner reauthentication",
+        "resume interrupted setup"
+      ],
+      "visible_states": [
+        "loading",
+        "ready",
+        "busy",
+        "error",
+        "recovery"
+      ]
+    },
+    {
+      "acceptance": "passed",
+      "acceptance_evidence": "Passed 2026-07-27: the isolated Home/Apps gate captured one task, opened all nine workbenches, and passed desktop/phone layout, keyboard, retry, focus, overflow, and clean-console checks.",
+      "app": "home",
+      "authority_guards": [
+        "local Home state",
+        "destination registry"
+      ],
+      "automated_tests": [
+        "tests/test_home.py",
+        "tests/test_today_golden.py",
+        "tests/pw_afterlife_home_apps.py"
+      ],
+      "behavior": "Capture work, review current context, open the nine workbenches, and receive local notices.",
+      "busy_repeat": "Shared KOKUEN controls reject re-entry while aria-busy is true; feature-specific exceptions are recorded as gaps.",
+      "control_surfaces": [
+        "body",
+        "#app-drawer",
+        "#today-view",
+        "#home-view"
+      ],
+      "external_blocks_or_gaps": [],
+      "failure": "Local notices retain failure or offline state.",
+      "feature_id": "home.capture-and-navigation",
+      "function_surfaces": {
+        "automation_actions": [],
+        "cli_commands": [],
+        "extension_functions": [],
+        "integrations": [],
+        "jobs": [
+          "day_events",
+          "reminders",
+          "calendar_reminders"
+        ],
+        "pwa_functions": [],
+        "route_modules": [
+          "app",
+          "routes.today",
+          "routes.briefing",
+          "routes.notify",
+          "routes.push",
+          "routes.timeline"
+        ]
+      },
+      "implementation": "shipped",
+      "keyboard_focus": "Shell navigation and capture are keyboard-operable with focus return.",
+      "mutations": "Captures work and persists Home display preferences where enabled.",
+      "recovery": "Retry is explicit where a Home section fails.",
+      "risk": "medium",
+      "success": "Captured work is visible and registered workbenches open.",
+      "triggers": [
+        "capture from Home",
+        "open every workbench",
+        "use Home at phone width"
+      ],
+      "visible_states": [
+        "loading",
+        "ready",
+        "empty",
+        "partial",
+        "offline",
+        "error",
+        "busy"
+      ]
+    },
+    {
+      "acceptance": "blocked",
+      "acceptance_evidence": "Blocked 2026-07-27: local runtime, policy, typed-tool, Full Access, shell, and redacted-audit coverage passes, but completing a real model-backed Auto task requires a disposable configured model provider; no provider credential was supplied.",
+      "app": "aide",
+      "authority_guards": [
+        "configured model provider",
+        "owner-approved tool and Full Access boundaries",
+        "redacted audit boundary"
+      ],
+      "automated_tests": [
+        "tests/test_agent_tools.py",
+        "tests/test_agent_runtime.py",
+        "tests/test_policy.py",
+        "tests/js/aide_afterlife_shell.test.mjs"
+      ],
+      "behavior": "Run model conversations, projects, memory, research, delegated work, and owner-approved local execution.",
+      "busy_repeat": "Shared KOKUEN controls reject re-entry while aria-busy is true; feature-specific exceptions are recorded as gaps.",
+      "control_surfaces": [
+        "#chat",
+        "#project-view",
+        "#models-view",
+        "#model-modal",
+        "#brain-view",
+        "#reminders-view",
+        "#aide-scheduled-view",
+        "#skills-view",
+        "#usage-view",
+        "#aide-work-panel"
+      ],
+      "external_blocks_or_gaps": [
+        "Live model-backed Auto completion is externally blocked without disposable provider credentials."
+      ],
+      "failure": "Provider and policy failures remain visible without exposing secrets.",
+      "feature_id": "aide.conversation-and-execution",
+      "function_surfaces": {
+        "automation_actions": [],
+        "cli_commands": [],
+        "extension_functions": [],
+        "integrations": [],
+        "jobs": [
+          "user_model",
+          "insights",
+          "model_refresh",
+          "personal_reconcile"
+        ],
+        "pwa_functions": [],
+        "route_modules": [
+          "routes.agent",
+          "routes.chat",
+          "routes.sessions",
+          "routes.models",
+          "routes.local_models",
+          "routes.memory",
+          "routes.research",
+          "routes.rag",
+          "routes.textindex",
+          "routes.images",
+          "routes.skills",
+          "routes.delegation",
+          "routes.personas",
+          "routes.projects",
+          "routes.usage",
+          "routes.insights",
+          "routes.recall",
+          "routes.voice"
+        ]
+      },
+      "implementation": "shipped",
+      "keyboard_focus": "Chat, work panel, menus, and dialogs use the shared keyboard/focus contract.",
+      "mutations": "Creates conversations, projects, memories, delegated work, and approved local executions.",
+      "recovery": "Retry or continue only through the existing approval boundary.",
+      "risk": "critical",
+      "success": "A completed run exposes its conclusion and retained audit controls.",
+      "triggers": [
+        "complete an Auto task",
+        "arm Full Access",
+        "inspect a redacted audit"
+      ],
+      "visible_states": [
+        "loading",
+        "ready",
+        "busy",
+        "partial",
+        "error",
+        "blocked"
+      ]
+    },
+    {
+      "acceptance": "blocked",
+      "acceptance_evidence": "Blocked 2026-07-27: typed ask_user, durable agent/Jarvis state, cancellation, pointer, keyboard, free text, reload/reattach, model continuation, and Discord rendering pass focused tests and the real browser gate; answering through a live Discord bot requires disposable bot credentials not supplied.",
+      "app": "aide",
+      "authority_guards": [
+        "durable question record",
+        "two-to-five choices and optional free text"
+      ],
+      "automated_tests": [
+        "tests/test_aide_questions.py",
+        "tests/test_agent_runtime.py",
+        "tests/test_jarvis_records.py",
+        "tests/test_jarvis_discord.py",
+        "tests/pw_aide_questions_real.py"
+      ],
+      "behavior": "Ask one to four durable questions with two to five choices, optional free text, reload/resume, cancellation, and Discord rendering.",
+      "busy_repeat": "Shared KOKUEN controls reject re-entry while aria-busy is true; feature-specific exceptions are recorded as gaps.",
+      "control_surfaces": [],
+      "external_blocks_or_gaps": [
+        "Live Discord delivery is externally blocked without disposable bot credentials."
+      ],
+      "failure": "Invalid or unavailable delivery is shown without silently answering.",
+      "feature_id": "aide.selectable-questions",
+      "function_surfaces": {
+        "automation_actions": [],
+        "cli_commands": [],
+        "extension_functions": [],
+        "integrations": [],
+        "jobs": [],
+        "pwa_functions": [],
+        "route_modules": []
+      },
+      "implementation": "shipped",
+      "keyboard_focus": "Choices and free text are keyboard-operable.",
+      "mutations": "Persists an answer or cancellation for the durable question.",
+      "recovery": "Reload/reattach continues the same question; cancellation is durable.",
+      "risk": "medium",
+      "success": "Pointer or keyboard answer resumes the retained task after reload.",
+      "triggers": [
+        "answer by pointer",
+        "answer by keyboard",
+        "reload and resume",
+        "answer through Discord"
+      ],
+      "visible_states": [
+        "ready",
+        "busy",
+        "error",
+        "cancelled",
+        "blocked"
+      ]
+    },
+    {
+      "acceptance": "blocked",
+      "acceptance_evidence": "Blocked 2026-07-27: live DuckDuckGo search, separated results, decisive snippet emphasis, citations, recovery controls, and honest model-unavailable state passed in Chromium, Safari, and Computer Use; compact answer and independent verifier execution require disposable model credentials.",
+      "app": "andromeda",
+      "authority_guards": [
+        "search provider availability",
+        "separate model and verifier availability"
+      ],
+      "automated_tests": [
+        "tests/test_andromeda_phase4.py",
+        "tests/js/andromeda_phase4.test.mjs",
+        "tests/pw_afterlife_andromeda.py"
+      ],
+      "behavior": "Return fast web results, a compact cited answer, and optional independent freshness-aware verification.",
+      "busy_repeat": "Shared KOKUEN controls reject re-entry while aria-busy is true; feature-specific exceptions are recorded as gaps.",
+      "control_surfaces": [
+        "#andromeda-view",
+        "#compare-view",
+        "#search-modal"
+      ],
+      "external_blocks_or_gaps": [
+        "Compact answer and independent verifier need disposable model credentials."
+      ],
+      "failure": "Unavailable model or failed checks are rendered honestly.",
+      "feature_id": "andromeda.cited-search",
+      "function_surfaces": {
+        "automation_actions": [],
+        "cli_commands": [],
+        "extension_functions": [],
+        "integrations": [],
+        "jobs": [],
+        "pwa_functions": [],
+        "route_modules": [
+          "routes.andromeda",
+          "routes.search",
+          "routes.compare"
+        ]
+      },
+      "implementation": "shipped",
+      "keyboard_focus": "Search modal and result controls follow shared dialog/focus behavior.",
+      "mutations": "Searches and optionally records a verification request; opening citations leaves Alles.",
+      "recovery": "Retry preserves the query path where available.",
+      "risk": "medium",
+      "success": "Links-first results and citations render separately from an answer.",
+      "triggers": [
+        "search and open citations",
+        "toggle verification",
+        "render failed checks honestly"
+      ],
+      "visible_states": [
+        "loading",
+        "ready",
+        "partial",
+        "error",
+        "blocked"
+      ]
+    },
+    {
+      "acceptance": "passed",
+      "acceptance_evidence": "Passed 2026-07-27: the rendered Plan gate created and moved tasks atomically, exercised keyboard board controls, details/history, desktop/phone/zoom reflow, and a clean console; calendar create/delete is covered by the isolated API and browser regressions.",
+      "app": "plan",
+      "authority_guards": [
+        "task and calendar record validation"
+      ],
+      "automated_tests": [
+        "tests/test_task_reorder.py",
+        "tests/test_api_calendars.py",
+        "tests/js/plan_board.test.mjs"
+      ],
+      "behavior": "Manage tasks, Kanban, calendars, reminders, and countdowns through one workbench.",
+      "busy_repeat": "Shared KOKUEN controls reject re-entry while aria-busy is true; feature-specific exceptions are recorded as gaps.",
+      "control_surfaces": [
+        "#plan-view",
+        "#tasks-view",
+        "#calendar-view",
+        "#days-view"
+      ],
+      "external_blocks_or_gaps": [],
+      "failure": "Validation or persistence errors remain visible.",
+      "feature_id": "plan.tasks-calendar",
+      "function_surfaces": {
+        "automation_actions": [],
+        "cli_commands": [],
+        "extension_functions": [],
+        "integrations": [],
+        "jobs": [],
+        "pwa_functions": [],
+        "route_modules": [
+          "routes.tasks",
+          "routes.calendar",
+          "routes.calendars",
+          "routes.reminders",
+          "routes.days"
+        ]
+      },
+      "implementation": "shipped",
+      "keyboard_focus": "Board navigation is keyboard-operable.",
+      "mutations": "Creates, moves, edits, completes, and deletes task/calendar records.",
+      "recovery": "History/details preserve a route back from failed editing.",
+      "risk": "medium",
+      "success": "Atomic task moves and calendar changes are reflected in the workbench.",
+      "triggers": [
+        "create and move a task",
+        "keyboard board navigation",
+        "create and delete an event"
+      ],
+      "visible_states": [
+        "loading",
+        "ready",
+        "empty",
+        "busy",
+        "error",
+        "recovery"
+      ]
+    },
+    {
+      "acceptance": "blocked",
+      "acceptance_evidence": "Blocked 2026-07-27: mail, SMTP outbox, contacts, CardDAV, and CalDAV implementations and isolated failure paths pass, but the three real-computer scenarios require a disposable external mailbox and address-book account; none was supplied.",
+      "app": "inbox",
+      "authority_guards": [
+        "owner-configured mailbox and address-book connectors"
+      ],
+      "automated_tests": [
+        "tests/test_mail.py",
+        "tests/test_contact_events.py",
+        "tests/test_carddav.py",
+        "tests/test_caldav_sync.py"
+      ],
+      "behavior": "Read and send mail and manage contacts through owner-configured connectors.",
+      "busy_repeat": "Shared KOKUEN controls reject re-entry while aria-busy is true; feature-specific exceptions are recorded as gaps.",
+      "control_surfaces": [
+        "#inbox-view",
+        "#mail-view",
+        "#contacts-view"
+      ],
+      "external_blocks_or_gaps": [
+        "Live mailbox and address-book scenarios require disposable external accounts."
+      ],
+      "failure": "Connector failure is visible and does not claim delivery.",
+      "feature_id": "inbox.mail-and-contacts",
+      "function_surfaces": {
+        "automation_actions": [],
+        "cli_commands": [],
+        "extension_functions": [],
+        "integrations": [],
+        "jobs": [
+          "mail_outbox",
+          "ics_subscriptions",
+          "carddav_auto"
+        ],
+        "pwa_functions": [],
+        "route_modules": [
+          "routes.mail",
+          "routes.contacts",
+          "routes.caldav",
+          "routes.carddav"
+        ]
+      },
+      "implementation": "shipped",
+      "keyboard_focus": "Registered Inbox roots use the shared custom-control contract.",
+      "mutations": "Sends mail and edits contact records through configured connectors.",
+      "recovery": "Retry depends on restoring the configured external connector.",
+      "risk": "high",
+      "success": "Configured connector work updates cached mail or contacts.",
+      "triggers": [
+        "connect a disposable mailbox",
+        "send a test message",
+        "edit a test contact"
+      ],
+      "visible_states": [
+        "loading",
+        "ready",
+        "offline",
+        "error",
+        "blocked"
+      ]
+    },
+    {
+      "acceptance": "passed",
+      "acceptance_evidence": "Passed 2026-07-27: the current Docs home and real Docs gates passed edit/draft/reload/recovery, backlink-safe rename, journal migration rollback, keyboard, responsive, focus, and clean-console checks on isolated data.",
+      "app": "docs",
+      "authority_guards": [
+        "local document and journal authority",
+        "backlink-safe rename and migration controls"
+      ],
+      "automated_tests": [
+        "tests/test_notes_vault.py",
+        "tests/test_vault_md.py",
+        "tests/test_journal.py",
+        "tests/test_journal_migration.py"
+      ],
+      "behavior": "Create, edit, search, link, recover, and migrate documents and journal entries.",
+      "busy_repeat": "Shared KOKUEN controls reject re-entry while aria-busy is true; feature-specific exceptions are recorded as gaps.",
+      "control_surfaces": [
+        "#docs-workbench-view",
+        "#wiki-view",
+        "#docs-dialog"
+      ],
+      "external_blocks_or_gaps": [],
+      "failure": "Conflicts and failed edits remain explicit.",
+      "feature_id": "docs.documents-and-journal",
+      "function_surfaces": {
+        "automation_actions": [],
+        "cli_commands": [],
+        "extension_functions": [],
+        "integrations": [],
+        "jobs": [],
+        "pwa_functions": [],
+        "route_modules": [
+          "routes.notes",
+          "routes.journal",
+          "routes.journal_migration",
+          "routes.vault_md"
+        ]
+      },
+      "implementation": "shipped",
+      "keyboard_focus": "Editor and dialogs have focused keyboard coverage.",
+      "mutations": "Creates, edits, renames, restores, migrates, and rolls back documents and journal entries.",
+      "recovery": "Draft/reload recovery and rollback are available.",
+      "risk": "high",
+      "success": "Edits recover across reload; rename preserves backlinks; migration can roll back.",
+      "triggers": [
+        "edit and recover a document",
+        "rename with backlink preservation",
+        "migrate and roll back a journal entry"
+      ],
+      "visible_states": [
+        "loading",
+        "ready",
+        "busy",
+        "error",
+        "recovery"
+      ]
+    },
+    {
+      "acceptance": "passed",
+      "acceptance_evidence": "Passed 2026-07-27: the real isolated Files gate covered Alles/Connected scopes, local operations, copy/move/rollback, external-vault conflict recovery, offline states, Gallery return Home, keyboard, focus, themes, phone/zoom, and a clean console.",
+      "app": "files",
+      "authority_guards": [
+        "approved storage location identity",
+        "file-operation and vault-conflict safeguards"
+      ],
+      "automated_tests": [
+        "tests/test_files_location_identity.py",
+        "tests/test_storage_locations.py",
+        "tests/test_file_operations.py",
+        "tests/test_vault_transfer.py",
+        "tests/test_vault_transfer_api.py",
+        "tests/js/files_phase7_real.test.mjs",
+        "tests/pw_phase7_files_real.py"
+      ],
+      "behavior": "Browse managed and approved locations, operate safely on files, keep explicit offline copies, and organize photos.",
+      "busy_repeat": "Shared KOKUEN controls reject re-entry while aria-busy is true; feature-specific exceptions are recorded as gaps.",
+      "control_surfaces": [
+        "#files-workbench-view",
+        "#files-view",
+        "#gallery-view",
+        "#photos-view",
+        "#files-preview-modal",
+        "#files-location-dialog",
+        "#files-transfer-dialog"
+      ],
+      "external_blocks_or_gaps": [],
+      "failure": "Offline and conflict state is explicit.",
+      "feature_id": "files-photos.locations-and-media",
+      "function_surfaces": {
+        "automation_actions": [],
+        "cli_commands": [],
+        "extension_functions": [],
+        "integrations": [],
+        "jobs": [
+          "blob_gc",
+          "clip_index",
+          "faces_index",
+          "photo_watch"
+        ],
+        "pwa_functions": [],
+        "route_modules": [
+          "routes.files",
+          "routes.file_operations",
+          "routes.offline_files",
+          "routes.storage_locations",
+          "routes.photos",
+          "routes.gallery",
+          "routes.uploads",
+          "routes.shared"
+        ]
+      },
+      "implementation": "shipped",
+      "keyboard_focus": "Workbench dialogs and navigation return focus.",
+      "mutations": "Browses, copies, moves, rolls back, and organizes owner-approved files and media.",
+      "recovery": "Rollback and conflict recovery are offered for safe operations.",
+      "risk": "critical",
+      "success": "Selected location operations and Gallery return paths retain context.",
+      "triggers": [
+        "browse Alles and Connected",
+        "copy move and roll back",
+        "open Gallery and return Home",
+        "resolve a vault conflict"
+      ],
+      "visible_states": [
+        "loading",
+        "ready",
+        "offline",
+        "error",
+        "busy",
+        "recovery"
+      ]
+    },
+    {
+      "acceptance": "passed",
+      "acceptance_evidence": "Passed 2026-07-27: the real isolated Library saved and opened example.com, archived it, added/rated/completed a book, and the News gate enabled, ran, cited, and explicitly saved a brief with desktop/phone/zoom and clean-console proof.",
+      "app": "library",
+      "authority_guards": [
+        "owner-selected feeds and local reading/book records"
+      ],
+      "automated_tests": [
+        "tests/test_books.py",
+        "tests/test_read.py",
+        "tests/test_news.py"
+      ],
+      "behavior": "Save reading, manage books, collect cited news, and keep cookbook material.",
+      "busy_repeat": "Shared KOKUEN controls reject re-entry while aria-busy is true; feature-specific exceptions are recorded as gaps.",
+      "control_surfaces": [
+        "#library-view",
+        "#books-view",
+        "#read-view",
+        "#cookbook-view"
+      ],
+      "external_blocks_or_gaps": [],
+      "failure": "Independently successful data stays visible when a source fails.",
+      "feature_id": "library.reading-and-news",
+      "function_surfaces": {
+        "automation_actions": [],
+        "cli_commands": [],
+        "extension_functions": [],
+        "integrations": [],
+        "jobs": [
+          "read_feeds",
+          "scheduled_news"
+        ],
+        "pwa_functions": [],
+        "route_modules": [
+          "routes.books",
+          "routes.read",
+          "routes.cookbook",
+          "routes.news"
+        ]
+      },
+      "implementation": "shipped",
+      "keyboard_focus": "Library controls use the shared contract.",
+      "mutations": "Saves reading, updates books, runs and explicitly saves a news brief.",
+      "recovery": "Explicit retry is available for failed loading paths.",
+      "risk": "medium",
+      "success": "Saved content and cited briefs appear in their destination.",
+      "triggers": [
+        "save and open a page",
+        "add and update a book",
+        "deliver a cited news brief"
+      ],
+      "visible_states": [
+        "loading",
+        "ready",
+        "empty",
+        "partial",
+        "offline",
+        "error",
+        "busy"
+      ]
+    },
+    {
+      "acceptance": "passed",
+      "acceptance_evidence": "Passed 2026-07-27: isolated Health and habit browser gates logged synthetic data, completed a habit, and checked baseline, anomaly, empty, and partial-summary states without medical claims.",
+      "app": "health",
+      "authority_guards": [
+        "local sensitive health context",
+        "non-medical presentation boundary"
+      ],
+      "automated_tests": [
+        "tests/test_health.py",
+        "tests/test_habits.py"
+      ],
+      "behavior": "Record health observations and track habits without presenting the app as medical care.",
+      "busy_repeat": "Shared KOKUEN controls reject re-entry while aria-busy is true; feature-specific exceptions are recorded as gaps.",
+      "control_surfaces": [
+        "#health-group-view",
+        "#health-view",
+        "#habits-view"
+      ],
+      "external_blocks_or_gaps": [],
+      "failure": "Partial and empty summaries remain distinguishable.",
+      "feature_id": "health.logs-and-habits",
+      "function_surfaces": {
+        "automation_actions": [],
+        "cli_commands": [],
+        "extension_functions": [],
+        "integrations": [],
+        "jobs": [],
+        "pwa_functions": [],
+        "route_modules": [
+          "routes.health",
+          "routes.habits"
+        ]
+      },
+      "implementation": "shipped",
+      "keyboard_focus": "Health controls use the shared contract.",
+      "mutations": "Records synthetic or owner-entered observations and habit completion.",
+      "recovery": "Retry preserves independently loaded data.",
+      "risk": "high",
+      "success": "Observation and habit changes render without medical claims.",
+      "triggers": [
+        "log a synthetic measurement",
+        "complete a habit",
+        "inspect empty and partial summaries"
+      ],
+      "visible_states": [
+        "loading",
+        "ready",
+        "empty",
+        "partial",
+        "error"
+      ]
+    },
+    {
+      "acceptance": "blocked",
+      "acceptance_evidence": "Blocked 2026-07-27: canonical-authority, statement preview/apply/provenance/conflict/undo, and migration regressions pass, but reconciling a live disposable Actual ledger requires an installed disposable Actual service not available in this acceptance environment.",
+      "app": "finance",
+      "authority_guards": [
+        "Actual Budget canonical authority",
+        "read-only import provenance and conflict controls"
+      ],
+      "automated_tests": [
+        "tests/test_actual_finance_canonical.py",
+        "tests/test_finance_imports_phase8.py",
+        "tests/test_money.py"
+      ],
+      "behavior": "Use Actual Budget as canonical ledger and import statements read-only with provenance and undo.",
+      "busy_repeat": "Shared KOKUEN controls reject re-entry while aria-busy is true; feature-specific exceptions are recorded as gaps.",
+      "control_surfaces": [
+        "#finance-view",
+        "#money-view",
+        "#subs-view"
+      ],
+      "external_blocks_or_gaps": [
+        "Live disposable Actual service is unavailable for reconciliation acceptance."
+      ],
+      "failure": "Conflicts fail closed without silently changing canonical data.",
+      "feature_id": "finance.actual-ledger",
+      "function_surfaces": {
+        "automation_actions": [],
+        "cli_commands": [],
+        "extension_functions": [],
+        "integrations": [],
+        "jobs": [
+          "holdings_price",
+          "subscriptions"
+        ],
+        "pwa_functions": [],
+        "route_modules": [
+          "routes.money",
+          "routes.finance_actual",
+          "routes.finance_imports",
+          "routes.subscriptions"
+        ]
+      },
+      "implementation": "shipped",
+      "keyboard_focus": "Finance row actions and controls use shared semantics.",
+      "mutations": "Previews/applies statement imports and undoes imports with provenance.",
+      "recovery": "Undo/retry use the retained import identity.",
+      "risk": "critical",
+      "success": "Ledger/import authority and undo state remain visible.",
+      "triggers": [
+        "reconcile a disposable ledger",
+        "import statement fixtures",
+        "undo an import"
+      ],
+      "visible_states": [
+        "loading",
+        "ready",
+        "busy",
+        "error",
+        "blocked",
+        "recovery"
+      ]
+    },
+    {
+      "acceptance": "blocked",
+      "acceptance_evidence": "Blocked 2026-07-27: connector cursor/dedupe/consent/reconnect/revoke tests and reviewed Canadian/Chinese import profiles pass; live Plaid/SimpleFIN scenarios require disposable aggregator credentials not supplied. Chinese banks correctly remain statement and owner-authorized notification/email ingestion only.",
+      "app": "finance",
+      "authority_guards": [
+        "SimpleFIN or Plaid consent",
+        "read-only connector boundary",
+        "reviewed import profiles"
+      ],
+      "automated_tests": [
+        "tests/test_finance_connectors.py",
+        "tests/test_finance_imports_phase8.py",
+        "tests/test_money_csv.py"
+      ],
+      "behavior": "Synchronize accounts read-only through SimpleFIN or Plaid with reconnect, revocation, deduplication, and reviewed bank import profiles.",
+      "busy_repeat": "Shared KOKUEN controls reject re-entry while aria-busy is true; feature-specific exceptions are recorded as gaps.",
+      "control_surfaces": [],
+      "external_blocks_or_gaps": [
+        "Live aggregator credentials are unavailable."
+      ],
+      "failure": "Unsupported or unavailable connection is explicit.",
+      "feature_id": "finance.bank-connectors",
+      "function_surfaces": {
+        "automation_actions": [],
+        "cli_commands": [],
+        "extension_functions": [],
+        "integrations": [
+          "simplefin",
+          "plaid",
+          "actual-budget"
+        ],
+        "jobs": [],
+        "pwa_functions": [],
+        "route_modules": [
+          "routes.finance_connections"
+        ]
+      },
+      "implementation": "shipped",
+      "keyboard_focus": "No dedicated control root is registered; use the parent Finance surface.",
+      "mutations": "Connects, reconnects, disconnects, revokes, and deduplicates imported connector data.",
+      "recovery": "Reconnect or revoke requires the external provider boundary.",
+      "risk": "critical",
+      "success": "Consent and connector state are retained with provenance.",
+      "triggers": [
+        "connect Plaid sandbox",
+        "deduplicate transactions",
+        "expire and reconnect consent",
+        "disconnect and revoke"
+      ],
+      "visible_states": [
+        "loading",
+        "ready",
+        "error",
+        "blocked",
+        "recovery"
+      ]
+    },
+    {
+      "acceptance": "passed",
+      "acceptance_evidence": "Passed 2026-07-27: the real unpacked Chromium extension paired to a disposable vault, filled only the exact local fixture origin, never submitted, rejected broader authority, cleared its short session on restart, locked, and revoked cleanly.",
+      "app": "passwords",
+      "authority_guards": [
+        "encrypted unlocked vault",
+        "paired short-lived browser session",
+        "exact normalized origin"
+      ],
+      "automated_tests": [
+        "tests/test_vault_autofill.py",
+        "tests/test_browser_passwords.py",
+        "tests/js/browser_extension_phase9.test.mjs"
+      ],
+      "behavior": "Store encrypted secrets and fill exact-site credentials through paired short-lived browser sessions without model plaintext.",
+      "busy_repeat": "Shared KOKUEN controls reject re-entry while aria-busy is true; feature-specific exceptions are recorded as gaps.",
+      "control_surfaces": [
+        "#vault-workbench-view",
+        "#vault-view"
+      ],
+      "external_blocks_or_gaps": [],
+      "failure": "Mismatched/broader authority is rejected.",
+      "feature_id": "passwords.vault-and-browser",
+      "function_surfaces": {
+        "automation_actions": [],
+        "cli_commands": [],
+        "extension_functions": [],
+        "integrations": [
+          "browser-extension"
+        ],
+        "jobs": [],
+        "pwa_functions": [],
+        "route_modules": [
+          "routes.vault",
+          "routes.browser_passwords"
+        ]
+      },
+      "implementation": "shipped",
+      "keyboard_focus": "Vault controls use shared custom-control behavior.",
+      "mutations": "Pairs, fills selected credentials, locks, and revokes browser authority.",
+      "recovery": "Lock, restart, computer lock, or revoke removes fill authority.",
+      "risk": "critical",
+      "success": "Only the selected exact-site credential is released; it is never submitted.",
+      "triggers": [
+        "pair the extension",
+        "fill an exact test site",
+        "reject a mismatched origin",
+        "revoke a browser"
+      ],
+      "visible_states": [
+        "locked",
+        "ready",
+        "busy",
+        "error",
+        "recovery"
+      ]
+    },
+    {
+      "acceptance": "blocked",
+      "acceptance_evidence": "Blocked 2026-07-27: Neofetch/btop, process layout, fail-closed policy editor, unsafe-edit rejection, lifecycle rollback tests, Safari, and Computer Use inspection pass; no registered disposable owned service or disposable update release was available for live restart/rollback.",
+      "app": "server",
+      "authority_guards": [
+        "owned-service policy",
+        "fail-closed lifecycle authority"
+      ],
+      "automated_tests": [
+        "tests/test_api_system.py",
+        "tests/test_server_policy_phase12.py",
+        "tests/test_native_install.py"
+      ],
+      "behavior": "Inspect and control owned services, machine health, updates, logs, policy, and watched resources through fail-closed authority.",
+      "busy_repeat": "Shared KOKUEN controls reject re-entry while aria-busy is true; feature-specific exceptions are recorded as gaps.",
+      "control_surfaces": [
+        "#server-workbench-view",
+        "#system-view",
+        "#watch-view",
+        "#activity-view"
+      ],
+      "external_blocks_or_gaps": [
+        "Live owned disposable restart and rollback targets are unavailable."
+      ],
+      "failure": "Unsafe policy edits are rejected.",
+      "feature_id": "server.management",
+      "function_surfaces": {
+        "automation_actions": [],
+        "cli_commands": [
+          "start",
+          "stop",
+          "restart",
+          "status",
+          "logs",
+          "open"
+        ],
+        "extension_functions": [],
+        "integrations": [],
+        "jobs": [
+          "watch"
+        ],
+        "pwa_functions": [],
+        "route_modules": [
+          "routes.system",
+          "routes.macos",
+          "routes.watch"
+        ]
+      },
+      "implementation": "shipped",
+      "keyboard_focus": "Server controls and rollback flows preserve focus.",
+      "mutations": "Inspects owned resources and requests service, policy, watch, or update changes.",
+      "recovery": "Update rollback restores prior selection and focus.",
+      "risk": "critical",
+      "success": "Permitted inspection or lifecycle state is rendered with audit context.",
+      "triggers": [
+        "inspect neofetch and btop",
+        "restart a disposable service",
+        "reject an unsafe policy edit",
+        "perform update rollback"
+      ],
+      "visible_states": [
+        "loading",
+        "ready",
+        "busy",
+        "error",
+        "blocked",
+        "recovery"
+      ]
+    },
+    {
+      "acceptance": "blocked",
+      "acceptance_evidence": "Blocked 2026-07-27: pinned metadata, prepare-without-start, exact listener preflight, encrypted client/API, ownership, typed Aide tools, unavailable-state UI, and rollback tests pass; DNS activation and statistics inspection require a disposable VM or isolated network not available here.",
+      "app": "server",
+      "authority_guards": [
+        "supported pinned companion",
+        "listener preflight",
+        "backup, health-check, and rollback proof"
+      ],
+      "automated_tests": [
+        "tests/test_managed_companions.py",
+        "tests/test_managed_companion_clients.py",
+        "tests/test_managed_companion_api.py",
+        "tests/test_aide_managed_companion_tools.py",
+        "tests/js/server_workbench_phase12.test.mjs"
+      ],
+      "behavior": "Prepare pinned AdGuard Home when supported and activate DNS only after preflight, backup, health checks, and rollback proof.",
+      "busy_repeat": "Shared KOKUEN controls reject re-entry while aria-busy is true; feature-specific exceptions are recorded as gaps.",
+      "control_surfaces": [],
+      "external_blocks_or_gaps": [
+        "Activation and statistics require a disposable VM or isolated network."
+      ],
+      "failure": "Unsupported or unsafe activation remains unavailable.",
+      "feature_id": "server.adguard-home",
+      "function_surfaces": {
+        "automation_actions": [],
+        "cli_commands": [],
+        "extension_functions": [],
+        "integrations": [
+          "adguard-home"
+        ],
+        "jobs": [],
+        "pwa_functions": [],
+        "route_modules": []
+      },
+      "implementation": "shipped",
+      "keyboard_focus": "No dedicated control root is registered; use the parent Server surface.",
+      "mutations": "Prepares a companion and, only after preflight, can activate or roll back DNS.",
+      "recovery": "DNS rollback is required after activation.",
+      "risk": "critical",
+      "success": "Prepare does not activate the service.",
+      "triggers": [
+        "prepare without activation",
+        "activate in isolation",
+        "inspect query statistics",
+        "roll back DNS"
+      ],
+      "visible_states": [
+        "unavailable",
+        "ready",
+        "busy",
+        "error",
+        "blocked",
+        "recovery"
+      ]
+    },
+    {
+      "acceptance": "blocked",
+      "acceptance_evidence": "Blocked 2026-07-27: pinned metadata, Docker prerequisite handling, prepare-without-start, encrypted client/API, proxy-host/certificate UI, typed Aide tools, ownership, and rollback tests pass; live proxy activation requires a disposable Docker VM or isolated network not available here.",
+      "app": "server",
+      "authority_guards": [
+        "Docker prerequisites",
+        "pinned companion ownership and rollback controls"
+      ],
+      "automated_tests": [
+        "tests/test_managed_companions.py",
+        "tests/test_managed_companion_clients.py",
+        "tests/test_managed_companion_api.py",
+        "tests/test_aide_managed_companion_tools.py",
+        "tests/js/server_workbench_phase12.test.mjs"
+      ],
+      "behavior": "Prepare pinned Nginx Proxy Manager when Docker prerequisites pass and manage proxy hosts, certificates, access, updates, and rollback.",
+      "busy_repeat": "Shared KOKUEN controls reject re-entry while aria-busy is true; feature-specific exceptions are recorded as gaps.",
+      "control_surfaces": [],
+      "external_blocks_or_gaps": [
+        "Live proxy activation requires a disposable Docker VM or isolated network."
+      ],
+      "failure": "Missing Docker or unsafe activation is explicit.",
+      "feature_id": "server.nginx-proxy-manager",
+      "function_surfaces": {
+        "automation_actions": [],
+        "cli_commands": [],
+        "extension_functions": [],
+        "integrations": [
+          "nginx-proxy-manager"
+        ],
+        "jobs": [],
+        "pwa_functions": [],
+        "route_modules": []
+      },
+      "implementation": "shipped",
+      "keyboard_focus": "No dedicated control root is registered; use the parent Server surface.",
+      "mutations": "Prepares a companion and manages proxy/certificate/access lifecycle only when prerequisites pass.",
+      "recovery": "Service rollback is required after activation.",
+      "risk": "critical",
+      "success": "Prepare-without-start preserves the inactive boundary.",
+      "triggers": [
+        "prepare without Docker",
+        "activate in isolation",
+        "create a proxy host",
+        "roll back service"
+      ],
+      "visible_states": [
+        "unavailable",
+        "ready",
+        "busy",
+        "error",
+        "blocked",
+        "recovery"
+      ]
+    },
+    {
+      "acceptance": "blocked",
+      "acceptance_evidence": "Blocked 2026-07-27: Discord, MCP, encrypted credential migration, signed webhook, health, and revocation regressions pass; real pairing and delivery require disposable external connector credentials and endpoints that were not supplied.",
+      "app": "settings",
+      "authority_guards": [
+        "encrypted connector credentials",
+        "signed webhook and explicit health/revocation boundary"
+      ],
+      "automated_tests": [
+        "tests/test_api_mcp.py",
+        "tests/test_jarvis_discord.py",
+        "tests/test_mcp_credentials_migration.py",
+        "tests/test_connections.py"
+      ],
+      "behavior": "Connect Discord, MCP, external endpoints, and signed webhooks with explicit health and revocation.",
+      "busy_repeat": "Shared KOKUEN controls reject re-entry while aria-busy is true; feature-specific exceptions are recorded as gaps.",
+      "control_surfaces": [],
+      "external_blocks_or_gaps": [
+        "Real connector pairing and delivery need disposable credentials/endpoints."
+      ],
+      "failure": "External delivery failure does not claim success.",
+      "feature_id": "integrations.owner-connectors",
+      "function_surfaces": {
+        "automation_actions": [],
+        "cli_commands": [],
+        "extension_functions": [],
+        "integrations": [
+          "discord-bot",
+          "mcp",
+          "webhooks",
+          "external-openai-compatible"
+        ],
+        "jobs": [
+          "jarvis_scheduler",
+          "jarvis_outbox",
+          "jarvis_events"
+        ],
+        "pwa_functions": [],
+        "route_modules": [
+          "routes.connections",
+          "routes.mcp",
+          "routes.jarvis",
+          "routes.webhooks"
+        ]
+      },
+      "implementation": "shipped",
+      "keyboard_focus": "No dedicated control root is registered; Settings owns the visible controls.",
+      "mutations": "Pairs, connects, tests, disconnects, and revokes owner connectors.",
+      "recovery": "Reconnect/revoke remains owner-controlled.",
+      "risk": "critical",
+      "success": "Connector health and revocation state are explicit.",
+      "triggers": [
+        "pair a Discord owner",
+        "connect and revoke MCP",
+        "test a signed webhook",
+        "disconnect an endpoint"
+      ],
+      "visible_states": [
+        "loading",
+        "ready",
+        "busy",
+        "error",
+        "blocked",
+        "recovery"
+      ]
+    },
+    {
+      "acceptance": "blocked",
+      "acceptance_evidence": "Blocked 2026-07-27: 64 focused provider/auth/routing tests and the real desktop/phone Settings gate pass API-key/proxy metadata, Kimi/DeepSeek guidance, Gemini PKCE start, encrypted secrets, refresh/revoke, keyboard, overflow, and clean console. Live provider OAuth/API-key connection requires disposable external credentials not supplied.",
+      "app": "settings",
+      "authority_guards": [
+        "legitimate provider auth type",
+        "encrypted secret storage",
+        "revocation guidance"
+      ],
+      "automated_tests": [
+        "tests/test_model_auth.py",
+        "tests/test_model_catalog_migration.py",
+        "tests/test_model_providers.py",
+        "tests/test_llm.py",
+        "tests/pw_model_auth_real.py"
+      ],
+      "behavior": "Connect model providers through legitimate API keys, supported OAuth, or an owner-managed OpenAI-compatible proxy with exact auth type and revocation guidance.",
+      "busy_repeat": "Shared KOKUEN controls reject re-entry while aria-busy is true; feature-specific exceptions are recorded as gaps.",
+      "control_surfaces": [],
+      "external_blocks_or_gaps": [
+        "Live OAuth/API-key acceptance needs disposable credentials."
+      ],
+      "failure": "Unsupported OAuth is shown honestly.",
+      "feature_id": "integrations.model-authentication",
+      "function_surfaces": {
+        "automation_actions": [],
+        "cli_commands": [],
+        "extension_functions": [],
+        "integrations": [
+          "gemini-oauth",
+          "openai-api-key",
+          "claude-api-key",
+          "kimi-api-key",
+          "deepseek-api-key",
+          "cliproxyapi"
+        ],
+        "jobs": [
+          "model_oauth_refresh"
+        ],
+        "pwa_functions": [],
+        "route_modules": []
+      },
+      "implementation": "shipped",
+      "keyboard_focus": "Settings keyboard and overflow behavior has focused coverage.",
+      "mutations": "Connects, refreshes, discovers, or revokes provider credentials.",
+      "recovery": "Refresh/revoke uses provider-specific flow.",
+      "risk": "critical",
+      "success": "Supported auth type and provider state are shown accurately.",
+      "triggers": [
+        "connect Gemini OAuth",
+        "connect and revoke an API key",
+        "discover CLIProxyAPI models",
+        "show unsupported OAuth honestly"
+      ],
+      "visible_states": [
+        "loading",
+        "ready",
+        "busy",
+        "error",
+        "blocked",
+        "recovery"
+      ]
+    },
+    {
+      "acceptance": "passed",
+      "acceptance_evidence": "Passed 2026-07-27: the rendered Scheduled screen created and edited schedules with custom controls; automation and Jarvis regressions cover pause/resume, restart recovery, honest failed/uncertain actions, cancellation, retries, and audit history. Direct scheduled navigation is now awaited and the News acceptance gate passes.",
+      "app": "aide",
+      "authority_guards": [
+        "durable schedule/chain state",
+        "claimed occurrence and audit boundary"
+      ],
+      "automated_tests": [
+        "tests/test_automations.py",
+        "tests/test_chains.py",
+        "tests/test_proactive.py"
+      ],
+      "behavior": "Run durable schedules, chains, proactive work, and explicit automation actions with retry and audit state.",
+      "busy_repeat": "Shared KOKUEN controls reject re-entry while aria-busy is true; feature-specific exceptions are recorded as gaps.",
+      "control_surfaces": [],
+      "external_blocks_or_gaps": [],
+      "failure": "Failed or uncertain external action stays visible; uncertain work is not auto-retried.",
+      "feature_id": "automation.schedules-and-actions",
+      "function_surfaces": {
+        "automation_actions": [
+          "create_note",
+          "create_task",
+          "notify",
+          "notify_digest",
+          "push",
+          "push_digest"
+        ],
+        "cli_commands": [],
+        "extension_functions": [],
+        "integrations": [],
+        "jobs": [
+          "automations",
+          "proactive"
+        ],
+        "pwa_functions": [],
+        "route_modules": [
+          "routes.automations",
+          "routes.chains",
+          "routes.proactive"
+        ]
+      },
+      "implementation": "shipped",
+      "keyboard_focus": "Scheduled controls use custom controls.",
+      "mutations": "Creates, pauses, resumes, retries, cancels, and audits schedules and automation actions.",
+      "recovery": "Pause/resume, retry, and cancellation are explicit.",
+      "risk": "high",
+      "success": "Completed action state and audit history are retained.",
+      "triggers": [
+        "create and pause a schedule",
+        "resume after restart",
+        "inspect a failed action",
+        "cancel a run"
+      ],
+      "visible_states": [
+        "ready",
+        "busy",
+        "failed",
+        "uncertain",
+        "cancelled",
+        "recovery"
+      ]
+    },
+    {
+      "acceptance": "passed",
+      "acceptance_evidence": "Passed 2026-07-27: unified Settings detected region/timezone automatically, used custom region and format controls, loaded all reviewed catalogs, persisted overrides, and passed the desktop/phone localization gate.",
+      "app": "settings",
+      "authority_guards": [
+        "reviewed language catalog",
+        "independent regional preference persistence"
+      ],
+      "automated_tests": [
+        "tests/test_localization_catalogs.py",
+        "tests/js/i18n.test.mjs"
+      ],
+      "behavior": "Apply reviewed language catalogs and independent automatic or explicit region, timezone, clock, week, and currency preferences.",
+      "busy_repeat": "Shared KOKUEN controls reject re-entry while aria-busy is true; feature-specific exceptions are recorded as gaps.",
+      "control_surfaces": [
+        "#settings-modal"
+      ],
+      "external_blocks_or_gaps": [],
+      "failure": "Catalog failure is explicit without corrupting existing choices.",
+      "feature_id": "localization.regional-settings",
+      "function_surfaces": {
+        "automation_actions": [],
+        "cli_commands": [],
+        "extension_functions": [],
+        "integrations": [],
+        "jobs": [],
+        "pwa_functions": [],
+        "route_modules": [
+          "routes.settings",
+          "routes.appearance"
+        ]
+      },
+      "implementation": "shipped",
+      "keyboard_focus": "Settings custom controls are keyboard-operable.",
+      "mutations": "Selects automatic or explicit language, region, timezone, clock, week, and currency preferences.",
+      "recovery": "Reopen Settings and retain the last persisted choice.",
+      "risk": "medium",
+      "success": "Overrides survive restart.",
+      "triggers": [
+        "use automatic region",
+        "override formats",
+        "switch reviewed languages",
+        "restart and preserve choices"
+      ],
+      "visible_states": [
+        "loading",
+        "ready",
+        "error",
+        "recovery"
+      ]
+    },
+    {
+      "acceptance": "passed",
+      "acceptance_evidence": "Passed 2026-07-27: 497 generated records have complete category, revision, license, source, and notice evidence; all required inspirations are distinct, Settings search/detail was exercised with Obsidian, and rendered desktop/phone credits states pass.",
+      "app": "settings",
+      "authority_guards": [
+        "generated license and source manifest"
+      ],
+      "automated_tests": [
+        "tests/test_credits_manifest.py",
+        "scripts/generate_credits.py"
+      ],
+      "behavior": "Show dependencies, adapted sources, inspirations, revisions, licenses, source links, and required notices.",
+      "busy_repeat": "Shared KOKUEN controls reject re-entry while aria-busy is true; feature-specific exceptions are recorded as gaps.",
+      "control_surfaces": [],
+      "external_blocks_or_gaps": [],
+      "failure": "Unavailable notice is stated honestly.",
+      "feature_id": "localization.credits",
+      "function_surfaces": {
+        "automation_actions": [],
+        "cli_commands": [],
+        "extension_functions": [],
+        "integrations": [],
+        "jobs": [],
+        "pwa_functions": [],
+        "route_modules": []
+      },
+      "implementation": "shipped",
+      "keyboard_focus": "Settings search/detail uses the shared contract.",
+      "mutations": "Searches and opens attribution/notice detail; it does not mutate owner data.",
+      "recovery": "Search or reopen detail without side effects.",
+      "risk": "high",
+      "success": "Available local notices and evidence render.",
+      "triggers": [
+        "search named inspirations",
+        "open a local notice",
+        "show unavailable notice honestly"
+      ],
+      "visible_states": [
+        "ready",
+        "empty",
+        "error",
+        "unavailable"
+      ]
+    },
+    {
+      "acceptance": "passed",
+      "acceptance_evidence": "Passed 2026-07-27: all nine specialist workbenches plus Home, Apps, Aide, Andromeda, Docs, Files, Settings, setup, Passwords, News, and extension gates passed keyboard, focus return, desktop/phone/200-percent reflow, reduced motion, themes, custom-control, overflow, and clean-console checks.",
+      "app": "all",
+      "authority_guards": [
+        "semantic custom-control contract",
+        "reduced-motion and responsive preferences"
+      ],
+      "automated_tests": [
+        "tests/test_design_system_contract.py",
+        "tests/js/kokuen_command_contract.test.mjs",
+        "tests/pw_kokuen_finished_surfaces.py"
+      ],
+      "behavior": "Keep controls custom, semantic, keyboard-operable, focus-visible, responsive, contrast-safe, and usable with reduced motion and 200 percent zoom.",
+      "busy_repeat": "Shared KOKUEN controls reject re-entry while aria-busy is true; feature-specific exceptions are recorded as gaps.",
+      "control_surfaces": [],
+      "external_blocks_or_gaps": [],
+      "failure": "Contract violations must fail deterministic tests.",
+      "feature_id": "accessibility.interface-contract",
+      "function_surfaces": {
+        "automation_actions": [],
+        "cli_commands": [],
+        "extension_functions": [],
+        "integrations": [],
+        "jobs": [],
+        "pwa_functions": [],
+        "route_modules": []
+      },
+      "implementation": "shipped",
+      "keyboard_focus": "This feature is the cross-application keyboard/focus authority.",
+      "mutations": "No product record mutation; governs control behavior across surfaces.",
+      "recovery": "Restore focus, preserve visible content, and retry through the owning feature.",
+      "risk": "high",
+      "success": "Custom controls remain keyboard-operable with focus return and visible state.",
+      "triggers": [
+        "complete flows by keyboard",
+        "verify dialog focus return",
+        "test responsive and zoom states",
+        "test reduced motion and themes"
+      ],
+      "visible_states": [
+        "ready",
+        "disabled",
+        "busy",
+        "loading",
+        "error",
+        "offline",
+        "partial"
+      ]
+    },
+    {
+      "acceptance": "blocked",
+      "acceptance_evidence": "Blocked 2026-07-27: manifest/offline/background contracts and the real unpacked extension pairing/fill/restart/revoke flow pass; final installed-PWA and packaged mobile-device acceptance requires an external install surface or physical/simulated mobile target unavailable here.",
+      "app": "home",
+      "authority_guards": [
+        "install surface and permission boundary",
+        "paired extension session boundary"
+      ],
+      "automated_tests": [
+        "tests/test_capacitor_11b.py",
+        "tests/js/browser_extension_phase9.test.mjs",
+        "tests/test_manifest_11b.py"
+      ],
+      "behavior": "Install and operate the PWA and paired extension with explicit offline, background, and permission boundaries.",
+      "busy_repeat": "Shared KOKUEN controls reject re-entry while aria-busy is true; feature-specific exceptions are recorded as gaps.",
+      "control_surfaces": [],
+      "external_blocks_or_gaps": [
+        "Installed PWA and packaged mobile acceptance require an external install/device target."
+      ],
+      "failure": "Unavailable install/device capability remains visible.",
+      "feature_id": "extension-mobile.pwa-and-extension",
+      "function_surfaces": {
+        "automation_actions": [],
+        "cli_commands": [],
+        "extension_functions": [
+          "pair",
+          "unlock",
+          "match",
+          "fill",
+          "lock",
+          "revoke"
+        ],
+        "integrations": [],
+        "jobs": [],
+        "pwa_functions": [
+          "install",
+          "offline-shell",
+          "background-sync",
+          "push"
+        ],
+        "route_modules": []
+      },
+      "implementation": "shipped",
+      "keyboard_focus": "Extension controls retain keyboard coverage where rendered.",
+      "mutations": "Installs/caches the PWA and pairs, unlocks, matches, fills, locks, or revokes the extension.",
+      "recovery": "Reconnect, lock, or revoke removes stale authority.",
+      "risk": "high",
+      "success": "Offline shell and paired extension boundaries are explicit.",
+      "triggers": [
+        "install PWA",
+        "exercise offline and reconnect",
+        "pair and revoke extension",
+        "test mobile package"
+      ],
+      "visible_states": [
+        "ready",
+        "offline",
+        "busy",
+        "error",
+        "blocked",
+        "locked",
+        "recovery"
+      ]
+    },
+    {
+      "acceptance": "blocked",
+      "acceptance_evidence": "Blocked 2026-07-27: fresh macOS native install/uninstall, preserved-data, backup/restore, interrupted-update, and rollback regressions pass on disposable roots; the required fresh Linux VM lifecycle scenario has no disposable VM target in this environment.",
+      "app": "server",
+      "authority_guards": [
+        "encrypted backup and recovery key boundary",
+        "owned install/update targets",
+        "rollback preflight"
+      ],
+      "automated_tests": [
+        "tests/test_automatic_backup.py",
+        "tests/test_backup_recovery.py",
+        "tests/test_native_install.py"
+      ],
+      "behavior": "Create encrypted backups, restore safely, update with rollback, uninstall preserving data, and recover interrupted lifecycle work.",
+      "busy_repeat": "Shared KOKUEN controls reject re-entry while aria-busy is true; feature-specific exceptions are recorded as gaps.",
+      "control_surfaces": [],
+      "external_blocks_or_gaps": [
+        "Fresh Linux VM lifecycle acceptance needs a disposable VM."
+      ],
+      "failure": "Unknown process, dirty code, or unsafe restore fails closed.",
+      "feature_id": "backup-recovery.lifecycle",
+      "function_surfaces": {
+        "automation_actions": [],
+        "cli_commands": [
+          "update",
+          "restore"
+        ],
+        "extension_functions": [],
+        "integrations": [
+          "webdav-backup",
+          "s3-backup"
+        ],
+        "jobs": [
+          "automatic_backup"
+        ],
+        "pwa_functions": [],
+        "route_modules": [
+          "routes.backup",
+          "routes.export"
+        ]
+      },
+      "implementation": "shipped",
+      "keyboard_focus": "No dedicated control root is registered; Server owns visible lifecycle controls.",
+      "mutations": "Creates/restores backups and stages, accepts, rolls back, or uninstalls lifecycle state.",
+      "recovery": "Interrupted update and restore flows are resumable/rollback-aware.",
+      "risk": "critical",
+      "success": "Verified lifecycle work preserves owner data and records recovery state.",
+      "triggers": [
+        "fresh macOS install",
+        "fresh Linux VM install",
+        "recover interrupted update",
+        "uninstall preserving data",
+        "restore and roll back"
+      ],
+      "visible_states": [
+        "ready",
+        "busy",
+        "error",
+        "blocked",
+        "recovery"
+      ]
+    },
+    {
+      "acceptance": "passed",
+      "acceptance_evidence": "Passed 2026-07-27: scoped-token UI/API, issue/revoke, scope-escalation rejection, OpenAI-compatible route behavior, capability policy, real shell PTY, CLI safety, and native lifecycle command tests pass on isolated data.",
+      "app": "server",
+      "authority_guards": [
+        "scoped token and owner policy",
+        "CLI safety boundary"
+      ],
+      "automated_tests": [
+        "tests/test_api_tokens.py",
+        "tests/test_api_openai_compat.py",
+        "tests/test_capabilities.py",
+        "tests/test_shell_pty.py",
+        "tests/test_cli_safety.py"
+      ],
+      "behavior": "Expose scoped API, OpenAI-compatible, shell, code, capability, and CLI interfaces without bypassing owner policy.",
+      "busy_repeat": "Shared KOKUEN controls reject re-entry while aria-busy is true; feature-specific exceptions are recorded as gaps.",
+      "control_surfaces": [],
+      "external_blocks_or_gaps": [],
+      "failure": "Scope escalation is rejected.",
+      "feature_id": "developer-interfaces.api-cli",
+      "function_surfaces": {
+        "automation_actions": [],
+        "cli_commands": [
+          "test"
+        ],
+        "extension_functions": [],
+        "integrations": [],
+        "jobs": [],
+        "pwa_functions": [],
+        "route_modules": [
+          "routes.capabilities",
+          "routes.code",
+          "routes.shell",
+          "routes.openai_compat"
+        ]
+      },
+      "implementation": "shipped",
+      "keyboard_focus": "No dedicated control root is registered; Server/settings surfaces own visible controls.",
+      "mutations": "Issues/revokes scoped API tokens and executes permitted CLI/API/shell/code actions.",
+      "recovery": "Revoke or reissue through the scoped authority.",
+      "risk": "critical",
+      "success": "Permitted interface output respects the configured scope.",
+      "triggers": [
+        "issue and revoke API token",
+        "call OpenAI-compatible API",
+        "reject scope escalation",
+        "run CLI tests"
+      ],
+      "visible_states": [
+        "ready",
+        "busy",
+        "error",
+        "blocked",
+        "recovery"
+      ]
+    }
+  ],
+  "generated_from": [
+    "features/registry.json",
+    "features/interaction-logic.json"
+  ],
+  "schema_version": 1,
+  "shared_interaction_contract": "static/js/kokuen.js",
+  "shared_state_vocabulary": [
+    "resting",
+    "hover",
+    "pressed",
+    "selected",
+    "disabled",
+    "busy",
+    "invalid",
+    "loading",
+    "empty",
+    "permission",
+    "offline",
+    "stale",
+    "partial",
+    "error"
+  ],
+  "title": "Alles interaction logic map"
+}

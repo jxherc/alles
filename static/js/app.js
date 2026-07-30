@@ -1383,10 +1383,10 @@ async function _renderFirstRun() {
   catch { return; }   // never let this block the launcher
   if (st.setup?.completed || st.setup?.dismissed) return;
   if (document.getElementById('setup-wizard')?.style.display === 'flex') return;
-  (await import('./setupwizard.js?v=283')).openSetupWizard({ status: st });
+  (await import('./setupwizard.js?v=284')).openSetupWizard({ status: st });
 }
 // let anything (a settings link, the command palette) re-run the wizard on demand
-window._openSetupWizard = async () => (await import('./setupwizard.js?v=283')).openSetupWizard({ resume: true });
+window._openSetupWizard = async () => (await import('./setupwizard.js?v=284')).openSetupWizard({ resume: true });
 
 function _renderHomeTiles() {
   const grid = document.getElementById('home-grid');
@@ -1802,10 +1802,6 @@ function bindEvents() {
   }
   document.getElementById('aide-model-choice')?.addEventListener('click', openModelModal);
   document.getElementById('topbar-settings-btn')?.addEventListener('click', openSettings);
-  document.getElementById('files-home-btn')?.addEventListener('click', () => {
-    if (singleHost()) navigateTo(_afterlifeFlags.afterlife_today ? 'today' : 'home');
-    else crossNav('');
-  });
   document.getElementById('files-settings-btn')?.addEventListener('click', () => openSettings());
   const aideToolsButton = document.getElementById('aide-tools-link');
   const aideToolsMenu = document.getElementById('aide-sidebar-menu');

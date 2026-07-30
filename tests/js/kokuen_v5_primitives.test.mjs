@@ -100,6 +100,35 @@ test('custom select implements the complete single-select keyboard model', () =>
   assert.match(dropdown, /aria-selected/);
 });
 
+test('shared choice groups expose selected state and the complete radio keyboard model', () => {
+  assert.match(runtime, /export function wireChoiceGroup/);
+  assert.match(runtime, /role="radio"/);
+  assert.match(runtime, /aria-checked/);
+  for (const key of ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End']) {
+    assert.match(runtime, new RegExp(`'${key}'`), key);
+  }
+  for (const module of ['books.js', 'read.js', 'health.js']) {
+    const source = read(`static/js/${module}`);
+    assert.match(source, /wireChoiceGroup/);
+    assert.match(source, /role="radiogroup"/);
+    assert.match(source, /role="radio"/);
+    assert.match(source, /aria-checked/);
+  }
+});
+
+test('the runtime reconciles asynchronous control state mutations', () => {
+  assert.match(runtime, /function syncControlState/);
+  for (const attribute of [
+    'disabled', 'aria-disabled', 'aria-busy', 'aria-invalid',
+    'aria-checked', 'aria-selected', 'aria-pressed',
+  ]) {
+    assert.match(runtime, new RegExp(`'${attribute}'`), attribute);
+  }
+  assert.match(runtime, /record\.type === 'attributes'/);
+  assert.match(runtime, /attributes: true/);
+  assert.match(runtime, /attributeFilter:/);
+});
+
 test('v5 enforces targets, stable motion, focus, and state affordances', () => {
   assert.match(css, /min-height:\s*var\(--ui-control-height\)/);
   assert.match(css, /min-width:\s*var\(--ui-control-height\)/);
@@ -110,6 +139,12 @@ test('v5 enforces targets, stable motion, focus, and state affordances', () => {
   assert.match(css, /prefers-reduced-motion:\s*reduce/);
   assert.match(css, /forced-colors:\s*active/);
   assert.doesNotMatch(css, /html\[data-kokuen-version="5"\][^}]*:hover[^}]*transform:\s*translate/);
+});
+
+test('body-level dialogs clear the universal rail without clipping their content', () => {
+  assert.match(css, /body\.afterlife-shell > :is\(\.modal-overlay, \.dialog-overlay\) \{\s*left: 52px/);
+  assert.match(css, /body\.afterlife-shell > #setup-wizard \{[\s\S]*?padding-inline: var\(--k-space-4\)/);
+  assert.match(css, /body\.afterlife-shell > #setup-wizard \.setup-card \{\s*max-width: 100%/);
 });
 
 test('the shipped document contains no forbidden native choice controls', () => {

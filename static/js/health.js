@@ -3,6 +3,7 @@
 import { toast } from './util.js';
 import { initCustomDropdown } from './dropdown.js?v=212';
 import { confirm as dlgConfirm, prompt as dlgPrompt } from './dialog.js';
+import { wireChoiceGroup } from './kokuen.js';
 const _si = n => (window.icon ? window.icon(n) : '');
 
 const $ = id => document.getElementById(id);
@@ -10,23 +11,71 @@ let _data = { kinds: [], days: 30 };
 let _entries = [];
 let _days = 30;
 let _adding = false;
+let _fetcher = fetch;
+let _hasOverview = false;
+let _hasEntries = false;
+let _loadState = { state: 'resting', message: '' };
 
 const KIND_UNIT = { weight: 'kg', sleep: 'h', workout: 'min', med: '', custom: '' };
 const KIND_LABEL = { weight: 'weight', sleep: 'sleep', workout: 'workout', med: 'meds', custom: 'custom' };
 const RANGES = [[7, '7d'], [30, '30d'], [90, '90d'], [365, '1y']];
 
-export function initHealth(fetcher = fetch) { return loadHealth(fetcher); }
+export function initHealth(fetcher = fetch) {
+  _fetcher = fetcher;
+  return loadHealth(fetcher);
+}
 
-export async function loadHealth(fetcher = fetch) {
-  // check r.ok — a non-2xx (e.g. a 401 on a subdomain) still returns JSON, and a
-  // {detail:…} body with no `kinds` would crash _render and blank the page.
-  try {
-    const ro = await fetcher('/api/health/overview?days=' + _days);
-    _data = ro.ok ? await ro.json() : { kinds: [], days: _days };
-    const re = await fetcher('/api/health');
-    _entries = re.ok ? ((await re.json()).entries || []) : [];
-  } catch { _data = { kinds: [], days: _days }; _entries = []; }
-  if (!_data || !Array.isArray(_data.kinds)) _data = { kinds: [], days: _days };
+async function _json(fetcher, url) {
+  const response = await fetcher(url);
+  if (!response.ok) throw new Error(`request failed (${response.status || 'unknown'})`);
+  return response.json();
+}
+
+function _loadFailure(failures, successes) {
+  const offline = typeof navigator !== 'undefined' && navigator.onLine === false;
+  if (successes.length) {
+    const unavailable = failures.map(([name]) => name).join(' and ');
+    return {
+      state: 'partial',
+      message: `partial health data: ${unavailable} unavailable.`,
+    };
+  }
+  const retained = _hasOverview || _hasEntries ? ' Showing the last loaded health data.' : '';
+  return {
+    state: offline ? 'offline' : 'error',
+    message: `${offline ? 'You appear to be offline.' : 'Health data could not be loaded.'}${retained}`,
+  };
+}
+
+function _loadNotice() {
+  if (_loadState.state === 'resting') return '';
+  const loading = _loadState.state === 'loading';
+  return `<div class="specialist-group-note legacy-load-note" role="${loading ? 'status' : 'alert'}" aria-live="${loading ? 'polite' : 'assertive'}" data-kokuen-state="${_loadState.state}">
+    <span>${esc(_loadState.message)}</span>${loading ? '' : '<button type="button" class="btn" data-act="retry-load">retry</button>'}
+  </div>`;
+}
+
+export async function loadHealth(fetcher = _fetcher) {
+  _fetcher = fetcher;
+  _loadState = { state: 'loading', message: 'loading health data…' };
+  _render();
+  const [overviewResult, entriesResult] = await Promise.allSettled([
+    _json(fetcher, '/api/health/overview?days=' + _days),
+    _json(fetcher, '/api/health'),
+  ]);
+  const failures = [];
+  const successes = [];
+  if (overviewResult.status === 'fulfilled' && Array.isArray(overviewResult.value.kinds)) {
+    _data = overviewResult.value;
+    _hasOverview = true;
+    successes.push('health overview');
+  } else failures.push(['health overview', overviewResult.reason]);
+  if (entriesResult.status === 'fulfilled' && Array.isArray(entriesResult.value.entries)) {
+    _entries = entriesResult.value.entries;
+    _hasEntries = true;
+    successes.push('recent entries');
+  } else failures.push(['recent entries', entriesResult.reason]);
+  _loadState = failures.length ? _loadFailure(failures, successes) : { state: 'resting', message: '' };
   _render();
 }
 
@@ -76,15 +125,16 @@ function _render() {
   if (!body) return;
   body.innerHTML = `
     <div class="health-bar">
-      <div class="health-ranges">${RANGES.map(([d, l]) => `<button class="health-chip${_days === d ? ' active' : ''}" data-days="${d}">${l}</button>`).join('')}</div>
+      <div class="health-ranges" role="radiogroup" aria-label="health history range">${RANGES.map(([d, l]) => `<button type="button" role="radio" aria-checked="${_days === d}" class="health-chip${_days === d ? ' active' : ''}" data-days="${d}">${l}</button>`).join('')}</div>
       <div class="health-bar-actions">
         <button class="btn" id="health-import" title="import a date,kind,value,unit csv">import</button>
         <button class="btn primary" id="health-add-toggle">${_si('plus')} entry</button>
       </div>
     </div>
+    ${_loadNotice()}
     ${_adding ? _addForm() : ''}
     ${_data.kinds.length ? `<div class="health-grid">${_data.kinds.map(_kindCard).join('')}</div>`
-      : (_adding ? '' : `
+      : (_adding || !_hasOverview || _loadState.state !== 'resting' ? '' : `
         <div class="empty-state">
           <div class="empty-state-icon">${_si('heart')}</div>
           <div class="empty-state-title">no entries yet</div>
@@ -118,6 +168,8 @@ function _addForm() {
 }
 
 function _wire(body) {
+  wireChoiceGroup(body.querySelector('.health-ranges'));
+  body.querySelector('[data-act="retry-load"]')?.addEventListener('click', () => loadHealth());
   body.querySelectorAll('.health-chip').forEach(c => c.addEventListener('click', () => { _days = +c.dataset.days; loadHealth(); }));
   $('health-add-toggle')?.addEventListener('click', () => { _adding = !_adding; _render(); });
   $('health-empty-add')?.addEventListener('click', () => { _adding = true; _render(); });

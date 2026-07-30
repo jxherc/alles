@@ -103,9 +103,14 @@ def _desktop(browser: Browser, errors: list[str], second: Path, read_only: Path)
     page.wait_for_selector("#settings-modal:visible")
     page.locator("#settings-modal-close").click()
     assert page.evaluate("document.activeElement?.id") == "files-settings-btn"
-    workbench_home = page.locator("#files-workbench-view [data-specialist-home]")
-    assert workbench_home.is_visible()
-    workbench_home.click()
+    shell_trigger = page.locator("#app-drawer-btn")
+    shell_trigger.focus()
+    page.keyboard.press("Enter")
+    page.wait_for_selector("#app-drawer:not([hidden])")
+    page.keyboard.press("Escape")
+    assert page.evaluate("document.activeElement?.id") == "app-drawer-btn"
+    shell_trigger.click()
+    page.locator('.app-drawer-item[data-view="today"]').click()
     page.wait_for_url(f"http://localhost:{PORT}/", timeout=12_000)
     assert page.locator("#files-view").is_hidden()
     _open(page)
@@ -302,6 +307,12 @@ def _desktop(browser: Browser, errors: list[str], second: Path, read_only: Path)
     page.keyboard.press("Tab")
     assert page.evaluate("document.activeElement?.getAttribute('aria-label')") == "close"
     page.locator('#files-location-kind [data-value="local"]').focus()
+    page.keyboard.press("ArrowRight")
+    assert (
+        page.locator('#files-location-kind [data-value="obsidian"]').get_attribute("aria-checked")
+        == "true"
+    )
+    assert page.locator("#files-vault-workflow-field").is_visible()
     page.keyboard.press("ArrowRight")
     assert (
         page.locator('#files-location-kind [data-value="webdav"]').get_attribute("aria-checked")
@@ -576,17 +587,16 @@ def _mobile(browser: Browser, errors: list[str]) -> None:
     assert "on this server" in page.locator("#files-breadcrumb").inner_text()
     assert page.locator("#files-app-status").inner_text() == "local · managed"
     header_box = page.locator("#files-app-header").bounding_box()
-    home_selector = "#files-workbench-view [data-specialist-home]"
-    home_box = page.locator(home_selector).bounding_box()
+    shell_box = page.locator("#app-drawer-btn").bounding_box()
     sidebar_box = page.locator(
         "#files-workbench-view [data-specialist-sidebar-toggle]"
     ).bounding_box()
     settings_box = page.locator("#files-settings-btn").bounding_box()
     up_box = page.locator("#files-up-btn").bounding_box()
     assert header_box and header_box["height"] <= 100
-    assert home_box and sidebar_box and abs(home_box["y"] - sidebar_box["y"]) < 1
+    assert shell_box and sidebar_box
     assert settings_box and up_box and abs(settings_box["y"] - up_box["y"]) < 1
-    for selector in (home_selector, "#files-settings-btn", "#files-up-btn"):
+    for selector in ("#app-drawer-btn", "#files-settings-btn", "#files-up-btn"):
         box = page.locator(selector).bounding_box()
         assert box and box["height"] >= 44
     assert page.locator("#files-add-location").is_visible()

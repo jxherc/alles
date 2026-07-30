@@ -65,6 +65,24 @@ def _assert_targets(page: Page, selector: str) -> None:
     assert not failures, failures
 
 
+def _assert_setup_clears_shell(page: Page) -> None:
+    setup_box = page.locator("#setup-wizard").bounding_box()
+    card_box = page.locator("#setup-wizard .setup-card").bounding_box()
+    assert setup_box is not None and setup_box["x"] >= 51.5, setup_box
+    assert card_box is not None and card_box["x"] >= setup_box["x"], {
+        "setup": setup_box,
+        "card": card_box,
+    }
+    assert card_box["x"] + card_box["width"] <= setup_box["x"] + setup_box["width"] + 1
+    gutters = page.locator("#setup-wizard .setup-body").evaluate(
+        """element => {
+          const style = getComputedStyle(element);
+          return { left: parseFloat(style.paddingLeft), right: parseFloat(style.paddingRight) };
+        }"""
+    )
+    assert gutters["left"] >= 8 and gutters["right"] >= 8, gutters
+
+
 def _set_light_theme(page: Page) -> None:
     page.evaluate(
         """() => {
@@ -147,6 +165,7 @@ def run() -> None:
             >= 4.5
         )
         assert setup.locator('select, input[type="checkbox"], input[type="radio"]').count() == 0
+        _assert_setup_clears_shell(page)
         _assert_targets(page, "#setup-wizard button:visible, #setup-wizard input:visible")
         page.screenshot(path=str(OUTPUT / "setup-basics-desktop.png"), full_page=True)
         page.evaluate("document.documentElement.style.zoom = '2'")
@@ -184,6 +203,7 @@ def run() -> None:
             >= 4.5
         )
         _assert_no_page_overflow(basics_mobile_page)
+        _assert_setup_clears_shell(basics_mobile_page)
         _assert_targets(
             basics_mobile_page,
             "#setup-wizard button:visible, #setup-wizard input:visible",
@@ -225,7 +245,11 @@ def run() -> None:
         expect(page.locator('#sw-access [data-value="lan"]')).to_have_attribute(
             "aria-checked", "true"
         )
-        page.keyboard.press("ArrowLeft")
+        page.keyboard.press("End")
+        expect(page.locator('#sw-access [data-value="public"]')).to_have_attribute(
+            "aria-checked", "true"
+        )
+        page.keyboard.press("Home")
         expect(access).to_have_attribute("aria-checked", "true")
         page.locator("#sw-save").click()
         expect(page.locator("#setup-dots")).to_contain_text("3 / 5")
