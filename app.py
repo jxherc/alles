@@ -1265,28 +1265,49 @@ async def pwa_precache():
     m = re.search(r"/static/style\.css\?v=(\d+)", html)
     stamp = m.group(1) if m else "1"
     urls = ["/", "/manifest.json"]
+
+    def add_url(url: str) -> None:
+        if url not in urls:
+            urls.append(url)
+
     for tag in re.findall(r"<link\b[^>]*>", html, flags=re.IGNORECASE):
         if not re.search(r'\brel=["\']stylesheet["\']', tag, flags=re.IGNORECASE):
             continue
         href = re.search(r'\bhref=["\']([^"\']+)["\']', tag, flags=re.IGNORECASE)
-        if href and href.group(1).startswith("/static/") and href.group(1) not in urls:
-            urls.append(href.group(1))
+        if href and href.group(1).startswith("/static/"):
+            add_url(href.group(1))
     for ic in ("icon-192.png", "icon-512.png", "icon-maskable-512.png"):
         if (static_dir / "icons" / ic).exists():
-            urls.append(f"/static/icons/{ic}")
+            add_url(f"/static/icons/{ic}")
     for p in sorted((static_dir / "js").glob("*.js")):
-        urls.append(
+        add_url(
             f"/static/js/app.js?v={stamp}" if p.name == "app.js" else f"/static/js/{p.name}"
         )
+        # Cache the exact URLs in static and dynamic imports too. The worker intentionally
+        # matches versioned code without ignoreSearch so an offline boot cannot mix module
+        # generations; a queryless directory inventory alone therefore is not sufficient.
+        for specifier in re.findall(
+            r"(?:\bfrom\s+|\bimport\s*\(\s*|\bimport\s+)[\"']([^\"']+)[\"']",
+            p.read_text(encoding="utf-8"),
+        ):
+            if not specifier.startswith("."):
+                continue
+            relative_path, separator, query = specifier.partition("?")
+            try:
+                imported = (p.parent / relative_path).resolve().relative_to(static_dir.resolve())
+            except ValueError:
+                continue
+            if (static_dir / imported).is_file():
+                add_url(f"/static/{imported.as_posix()}{separator}{query}")
     for p in sorted((static_dir / "locales").glob("*.json")):
-        urls.append(f"/static/locales/{p.name}")
+        add_url(f"/static/locales/{p.name}")
     for path, version in (
         ("vendor/cm6.bundle.js", ""),
         ("vendor/xterm/xterm.mjs", "?v=6.0.0"),
         ("vendor/xterm/addon-fit.mjs", "?v=0.11.0"),
     ):
         if (static_dir / path).exists():
-            urls.append(f"/static/{path}{version}")
+            add_url(f"/static/{path}{version}")
     return {"urls": urls}
 
 

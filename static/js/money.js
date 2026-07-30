@@ -5,6 +5,8 @@ import { confirm as dlgConfirm, fields as dlgFields } from './dialog.js';
 import { initCustomDropdown, getDropdownValue } from './dropdown.js?v=212';
 import { initDatePicker } from './datepick.js';
 import { formatCalendarDate, formatDate, formatNumber } from './i18n.js';
+import { createFocusBoundary } from './kokuen.js?v=1';
+import { requestWithRecentOwner } from './recent_owner.js';
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -157,7 +159,7 @@ async function _ownerFetch(path, options = {}) {
     init.headers = { 'content-type': 'application/json', ...(init.headers || {}) };
     init.body = JSON.stringify(init.body);
   }
-  let response = await (window._fetchWithRecentOwner?.(path, init) || fetch(path, init));
+  const response = await requestWithRecentOwner(fetch, path, init);
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(payload.detail?.message || payload.detail || `request failed (${response.status})`);
   return payload;
@@ -217,11 +219,18 @@ async function openBankConnections() {
   document.body.append(overlay);
   const status = overlay.querySelector('.finance-bank-status');
   const setStatus = (message, error = false) => { status.textContent = message; status.dataset.error = error ? 'true' : 'false'; };
-  const close = () => { overlay.remove(); prior?.focus?.(); };
+  const dialog = overlay.querySelector('[role="dialog"]');
+  let focusBoundary = null;
+  const close = () => {
+    focusBoundary?.deactivate();
+    focusBoundary?.destroy();
+    focusBoundary = null;
+    overlay.remove();
+  };
   overlay.querySelector('[data-bank-close]').addEventListener('click', close);
-  overlay.addEventListener('keydown', event => { if (event.key === 'Escape') { event.preventDefault(); close(); } });
   overlay.addEventListener('click', event => { if (event.target === overlay) close(); });
-  overlay.querySelector('[data-bank-close]').focus();
+  focusBoundary = createFocusBoundary(dialog, { trigger: prior, onEscape: close });
+  focusBoundary.activate({ source: prior, focus: overlay.querySelector('[data-bank-close]') });
   let environment = 'sandbox';
   overlay.querySelectorAll('[data-plaid-env]').forEach(button => button.addEventListener('click', () => {
     environment = button.dataset.plaidEnv;
@@ -595,11 +604,11 @@ function _renderTxnMain(t, an) {
   // transfer legs aren't inline-editable (editing one would desync the pair) and
   // their × removes the whole transfer, not just this leg
   const xf = !!t.transfer_id;
-  const ed = xf ? '' : `data-edit-txn="${t.id}"`;
   const tags = (t.tags || '').split(',').filter(Boolean)
-    .map(tg => `<span class="tx-tag" data-tag="${esc(tg)}" title="filter by ${esc(tg)}">${esc(tg)}</span>`).join('');
+    .map(tg => `<button type="button" class="tx-tag" data-tag="${esc(tg)}" aria-label="filter by ${esc(tg)}">${esc(tg)}</button>`).join('');
   const canSplit = (t.amount || 0) < 0;  // only an expense divides across categories (matches the api)
   const actions = xf ? '' : `<span class="tx-actions">
+    <button type="button" class="tx-edit" data-edit-txn="${t.id}" aria-label="edit ${esc(t.payee || 'transaction')}">edit</button>
     <button class="tx-clear ${t.cleared ? 'on' : ''}" data-clear-txn="${t.id}" title="${t.cleared ? 'cleared' : 'mark cleared'}">${t.cleared ? '✓' : '○'}</button>
     ${canSplit ? `<button class="tx-split-btn ${t.split ? 'on' : ''}" data-split-txn="${t.id}" title="split across categories">${t.split ? '⊟' : '⊞'}</button>` : ''}
     ${t.receipt_id
@@ -609,11 +618,11 @@ function _renderTxnMain(t, an) {
   return `
     <div class="txn ${xf ? 'is-transfer' : ''}" data-id="${t.id}">
       <span class="tx-date">${(t.date || '').slice(5)}</span>
-      <span class="tx-payee" ${ed}>${esc(t.payee) || '<span class="tx-dim">—</span>'}</span>
-      <span class="tx-cat" ${ed}>${xf ? '⇄ transfer' : (t.category ? esc(t.category) : '')}</span>
+      <span class="tx-payee">${esc(t.payee) || '<span class="tx-dim">—</span>'}</span>
+      <span class="tx-cat">${xf ? '⇄ transfer' : (t.category ? esc(t.category) : '')}</span>
       ${xf ? '' : `<span class="tx-tags">${tags}</span>`}
       <span class="tx-acct">${esc(an[t.account_id] || '')}</span>
-      <span class="tx-amt ${t.amount >= 0 ? 'pos' : 'neg'}" ${ed}>${signed(t.amount)}</span>
+      <span class="tx-amt ${t.amount >= 0 ? 'pos' : 'neg'}">${signed(t.amount)}</span>
       ${actions}
       ${xf
         ? `<button class="tx-del" data-del-transfer="${t.transfer_id}" title="delete transfer (both legs)">×</button>`
@@ -818,6 +827,7 @@ async function addTxn() {
   }
 }
 async function delTxn(id) {
+  if (!await dlgConfirm('delete this transaction?')) return;
   try { await api(`/api/money/transactions/${id}`, { method: 'DELETE' }); await load(); }
   catch { toast('delete failed', 'error'); }
 }
@@ -957,6 +967,7 @@ async function addGoal() {
   } catch { toast('add failed', 'error'); }
 }
 async function delGoal(id) {
+  if (!await dlgConfirm('delete this goal?')) return;
   try { await api(`/api/money/goals/${id}`, { method: 'DELETE' }); await load(); }
   catch { toast('delete failed', 'error'); }
 }
@@ -992,6 +1003,7 @@ async function addHolding() {
   } catch { toast('add failed', 'error'); }
 }
 async function delHolding(id) {
+  if (!await dlgConfirm('delete this holding?')) return;
   try { await api(`/api/money/holdings/${id}`, { method: 'DELETE' }); await load(); }
   catch { toast('delete failed', 'error'); }
 }
@@ -1065,6 +1077,7 @@ async function addBudget() {
   catch { toast('couldn\'t set budget', 'error'); }
 }
 async function delBudget(id) {
+  if (!await dlgConfirm('delete this monthly budget?')) return;
   try { await api(`/api/money/budgets/${id}`, { method: 'DELETE' }); await load(); }
   catch { toast('delete failed', 'error'); }
 }
@@ -1102,6 +1115,7 @@ async function addRule() {
   } catch { toast('couldn\'t add rule', 'error'); }
 }
 async function delRule(id) {
+  if (!await dlgConfirm('delete this categorization rule?')) return;
   try { await api(`/api/money/rules/${id}`, { method: 'DELETE' }); await load(); }
   catch { toast('delete failed', 'error'); }
 }

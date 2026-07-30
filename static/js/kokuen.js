@@ -88,9 +88,22 @@ function decorateControl(element) {
     if (!element.hasAttribute('tabindex')) element.tabIndex = 0;
   }
 
-  if (element.matches('[aria-disabled="true"]') || element.matches(':disabled')) {
-    element.dataset.kokuenState = 'disabled';
-  }
+  syncControlState(element);
+}
+
+function syncControlState(element) {
+  const current = element.dataset.kokuenState || 'resting';
+  let reflected = '';
+  if (element.matches('[aria-disabled="true"]') || element.matches(':disabled')) reflected = 'disabled';
+  else if (element.getAttribute('aria-busy') === 'true') reflected = current === 'loading' ? 'loading' : 'busy';
+  else if (element.getAttribute('aria-invalid') === 'true') reflected = 'invalid';
+  else if (
+    element.getAttribute('aria-checked') === 'true'
+    || element.getAttribute('aria-selected') === 'true'
+    || element.getAttribute('aria-pressed') === 'true'
+  ) reflected = 'selected';
+  if (reflected) element.dataset.kokuenState = reflected;
+  else if (['disabled', 'busy', 'invalid', 'selected'].includes(current)) element.dataset.kokuenState = 'resting';
 }
 
 function decorateRoot(root) {
@@ -118,12 +131,21 @@ export function initKokuenPrimitives(root = document) {
   document.addEventListener('keydown', handleSyntheticControlKey);
   observer = new MutationObserver(records => {
     for (const record of records) {
+      if (record.type === 'attributes') {
+        decorateControl(record.target);
+        continue;
+      }
       for (const node of record.addedNodes) {
         if (node instanceof HTMLElement) decorateRoot(node);
       }
     }
   });
-  observer.observe(document.body, { childList: true, subtree: true });
+  observer.observe(document.body, {
+    childList: true,
+    subtree: true,
+    attributes: true,
+    attributeFilter: ['disabled', 'aria-disabled', 'aria-busy', 'aria-invalid', 'aria-checked', 'aria-selected', 'aria-pressed'],
+  });
 }
 
 export function setControlState(element, state, { message = '' } = {}) {
@@ -285,5 +307,46 @@ export function wireTabs(tablist, { activate = tab => tab.click() } = {}) {
   });
   const selected = tabs().find(tab => tab.getAttribute('aria-selected') === 'true') || tabs()[0];
   if (selected) sync(selected);
+  return { sync };
+}
+
+export function wireChoiceGroup(group, { activate = choice => choice.click() } = {}) {
+  if (!group || group.dataset.kokuenChoiceReady === '1') return null;
+  group.dataset.kokuenChoiceReady = '1';
+  if (!group.hasAttribute('role')) group.setAttribute('role', 'radiogroup');
+
+  const choices = () => [...group.querySelectorAll('[role="radio"]')]
+    .filter(choice => choice.getAttribute('aria-disabled') !== 'true' && !choice.disabled);
+  const sync = selected => {
+    for (const choice of choices()) {
+      const active = choice === selected;
+      choice.setAttribute('aria-checked', String(active));
+      choice.tabIndex = active ? 0 : -1;
+      setControlState(choice, active ? 'selected' : 'resting');
+    }
+  };
+
+  group.addEventListener('click', event => {
+    const choice = event.target.closest?.('[role="radio"]');
+    if (choice && group.contains(choice)) sync(choice);
+  });
+  group.addEventListener('keydown', event => {
+    if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key)) return;
+    const options = choices();
+    const current = event.target.closest?.('[role="radio"]');
+    const index = options.indexOf(current);
+    if (index < 0 || !options.length) return;
+    event.preventDefault();
+    const backwards = event.key === 'ArrowLeft' || event.key === 'ArrowUp';
+    const next = event.key === 'Home' ? 0
+      : event.key === 'End' ? options.length - 1
+        : (index + (backwards ? -1 : 1) + options.length) % options.length;
+    options[next].focus();
+    activate(options[next]);
+  });
+
+  const selected = choices().find(choice => choice.getAttribute('aria-checked') === 'true');
+  if (selected) sync(selected);
+  else if (choices()[0]) choices()[0].tabIndex = 0;
   return { sync };
 }

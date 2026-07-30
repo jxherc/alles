@@ -2,6 +2,7 @@ import { toast } from './util.js';
 import { confirm } from './dialog.js';
 import { getDropdownValue, populateDropdown } from './dropdown.js?v=212';
 import { formatDateTime, formatNumber } from './i18n.js';
+import { createFocusBoundary } from './kokuen.js?v=1';
 
 const _si = n => (window.icon ? window.icon(n) : '');   // central icon set, load-order safe
 
@@ -9,7 +10,7 @@ let _unlocked = false;
 let _token = null;     // the unlock token; sent back on every vault request
 let _entries = [];     // last loaded list, so a row click can open the editor
 let _modalEl = null;   // the open add/edit overlay, if any
-let _modalReturnFocus = null;
+let _modalFocusBoundary = null;
 let _totpTimer = null;  // live TOTP countdown interval
 let _vaultId = 'default';  // 9c — which vault is currently unlocked
 let _vaults = [];          // 9c — known vaults for the switcher
@@ -47,7 +48,7 @@ const FIELD_DEFS = {
   cardholder:     { label: 'cardholder name',   kind: 'text' },
   number:         { label: 'card number',       kind: 'secret', placeholder: '4242 4242 4242 4242' },
   expiry:         { label: 'expiry',            kind: 'text', placeholder: 'MM/YY', half: true },
-  cvv:            { label: 'cvv',               kind: 'text', placeholder: '123', half: true },
+  cvv:            { label: 'cvv',               kind: 'secret', placeholder: '123', half: true },
   address:        { label: 'billing address',   kind: 'textarea' },
   apikey:         { label: 'API key / token',   kind: 'secret', placeholder: 'sk-…' },
   endpoint:       { label: 'endpoint',          kind: 'text', placeholder: 'https://api.…' },
@@ -59,7 +60,7 @@ const FIELD_DEFS = {
   bank_name:      { label: 'bank',              kind: 'text' },
   account_number: { label: 'account number',    kind: 'secret' },
   routing:        { label: 'routing / sort code', kind: 'text' },
-  private_key:    { label: 'private key',       kind: 'textarea' },
+  private_key:    { label: 'private key',       kind: 'secretarea' },
   public_key:     { label: 'public key',        kind: 'textarea' },
   passphrase:     { label: 'passphrase',        kind: 'secret' },
   license_key:    { label: 'license key',       kind: 'text' },
@@ -118,6 +119,23 @@ function _vfetch(url, opts = {}, fetcher = fetch) {
   const headers = { ...(opts.headers || {}) };
   if (_token) headers['X-Vault-Token'] = _token;
   return fetcher(url, { ...opts, headers });
+}
+
+function _activateManagedModal(overlay, source, initialFocus) {
+  const dialog = overlay.querySelector('[role="dialog"], [role="alertdialog"]');
+  if (!dialog) return;
+  _modalFocusBoundary = createFocusBoundary(dialog, {
+    trigger: source,
+    onEscape: _closeModal,
+  });
+  _modalFocusBoundary.activate({ source, focus: initialFocus });
+}
+
+function _activateTemporaryModal(overlay, source, initialFocus, close) {
+  const dialog = overlay.querySelector('[role="dialog"], [role="alertdialog"]');
+  const boundary = createFocusBoundary(dialog, { trigger: source, onEscape: () => close(null) });
+  boundary.activate({ source, focus: initialFocus });
+  return boundary;
 }
 
 async function _confirmRecentOwner() {
@@ -252,22 +270,23 @@ async function _switchVault(id) {
 }
 
 function _createVaultForm() {
+  const returnFocus = document.activeElement;
   _closeModal();
   const ov = document.createElement('div');
   ov.className = 'modal-overlay vault-modal';
   ov.innerHTML = `
-    <div class="modal-card vault-modal-card" role="dialog" aria-modal="true">
-      <div class="modal-head"><span class="modal-title">new vault</span>
-        <button class="modal-close" id="nv-x" aria-label="close">✕</button></div>
+    <div class="modal-card vault-modal-card" role="dialog" aria-modal="true" aria-labelledby="nv-title">
+      <div class="modal-head"><span class="modal-title" id="nv-title">new vault</span>
+        <button type="button" class="modal-close" id="nv-x" aria-label="close">✕</button></div>
       <div class="vault-form">
-        <div class="vform-field"><label>name</label>
+        <div class="vform-field"><label for="nv-name">name</label>
           <input id="nv-name" class="settings-input vform-input" placeholder="e.g. Work"></div>
-        <div class="vform-field"><label>master password</label>
-          <input id="nv-pw" type="password" class="settings-input vform-input" minlength="12" placeholder="12 or more characters"></div>
+        <div class="vform-field"><label for="nv-pw">master password</label>
+          <input id="nv-pw" type="password" autocomplete="new-password" class="settings-input vform-input" minlength="12" placeholder="12 or more characters"></div>
       </div>
       <div class="vault-form-actions">
-        <button class="btn" id="nv-cancel">cancel</button>
-        <button class="btn primary" id="nv-create">create</button>
+        <button type="button" class="btn" id="nv-cancel">cancel</button>
+        <button type="button" class="btn primary" id="nv-create">create</button>
       </div>
     </div>`;
   document.body.appendChild(ov);
@@ -295,7 +314,7 @@ function _createVaultForm() {
     await _loadEntries(); await _loadVaults();
     toast('vault created', 'success');
   };
-  ov.querySelector('#nv-name').focus();
+  _activateManagedModal(ov, returnFocus, ov.querySelector('#nv-name'));
 }
 
 async function _toggleTravel() {
@@ -313,13 +332,12 @@ async function _toggleTravel() {
 async function _manageVaults() {
   const returnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
   _closeModal();
-  _modalReturnFocus = returnFocus;
   const ov = document.createElement('div');
   ov.className = 'modal-overlay vault-modal';
   ov.innerHTML = `
-    <div class="modal-card vault-modal-card" role="dialog" aria-modal="true">
-      <div class="modal-head"><span class="modal-title">vaults</span>
-        <button class="modal-close" id="mv-x" aria-label="close">✕</button></div>
+    <div class="modal-card vault-modal-card" role="dialog" aria-modal="true" aria-labelledby="mv-title">
+      <div class="modal-head"><span class="modal-title" id="mv-title">vaults</span>
+        <button type="button" class="modal-close" id="mv-x" aria-label="close">✕</button></div>
       <div class="mv-scroll">
         <div class="vault-form" id="mv-list"></div>
         <div class="vform-divider"></div>
@@ -327,38 +345,18 @@ async function _manageVaults() {
         <div class="vform-divider"></div>
         <div class="vault-form" id="mv-types"></div>
       </div>
-      <div class="vault-form-actions"><button class="btn" id="mv-close">done</button></div>
+      <div class="vault-form-actions"><button type="button" class="btn" id="mv-close">done</button></div>
     </div>`;
   document.body.appendChild(ov);
   _modalEl = ov;
   ov.querySelector('#mv-x').onclick = _closeModal;
   ov.querySelector('#mv-close').onclick = _closeModal;
   ov.addEventListener('mousedown', e => { if (e.target === ov) _closeModal(); });
-  ov.addEventListener('keydown', event => {
-    if (event.key === 'Escape') {
-      event.preventDefault();
-      event.stopPropagation();
-      _closeModal();
-      return;
-    }
-    if (event.key !== 'Tab') return;
-    const items = [...ov.querySelectorAll(
-      'button:not([disabled]), input:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
-    )].filter(element => !element.hidden && element.offsetParent !== null);
-    if (!items.length) return;
-    const first = items[0];
-    const last = items.at(-1);
-    if (event.shiftKey && document.activeElement === first) {
-      event.preventDefault(); last.focus();
-    } else if (!event.shiftKey && document.activeElement === last) {
-      event.preventDefault(); first.focus();
-    }
-  });
   _renderManage();
   await _renderManageExtra();
   await _loadCustomTypes();
   _renderTypeEditor();
-  ov.querySelector('#mv-x').focus();
+  _activateManagedModal(ov, returnFocus, ov.querySelector('#mv-x'));
 }
 
 // 8e — visual editor for user-defined entry types
@@ -663,10 +661,11 @@ async function _setupTotp() {
   try { d = await _vfetch('/api/vault/2fa/totp/setup', { method: 'POST' }).then(r => r.json()); }
   catch { toast('could not start setup', 'error'); return; }
   const ov = document.createElement('div');
+  const returnFocus = document.activeElement;
   ov.className = 'modal-overlay vault-modal';
   ov.innerHTML = `
-    <div class="modal-card vault-modal-card" role="dialog" aria-modal="true" style="max-width:380px">
-      <div class="modal-head"><span class="modal-title">add authenticator app</span></div>
+    <div class="modal-card vault-modal-card" role="dialog" aria-modal="true" aria-labelledby="totp-title" style="max-width:380px">
+      <div class="modal-head"><span class="modal-title" id="totp-title">add authenticator app</span></div>
       <div class="vault-form">
         <p class="mv-2fa-explain">scan this in Google Authenticator / Authy / 1Password, or type the secret manually, then enter the 6-digit code to confirm.</p>
         <div class="totp-secret" id="totp-secret">${_esc(d.secret)}</div>
@@ -678,7 +677,12 @@ async function _setupTotp() {
         <button class="btn primary" id="totp-ok">confirm</button></div>
     </div>`;
   document.body.appendChild(ov);
-  const close = () => ov.remove();
+  let focusBoundary = null;
+  const close = () => {
+    focusBoundary?.deactivate();
+    focusBoundary?.destroy();
+    ov.remove();
+  };
   ov.querySelector('#totp-cancel').onclick = close;
   ov.addEventListener('mousedown', e => { if (e.target === ov) close(); });
   const go = async () => {
@@ -694,7 +698,7 @@ async function _setupTotp() {
   };
   ov.querySelector('#totp-ok').onclick = go;
   ov.querySelector('#totp-code').addEventListener('keydown', e => { if (e.key === 'Enter') go(); });
-  ov.querySelector('#totp-code').focus();
+  focusBoundary = _activateTemporaryModal(ov, returnFocus, ov.querySelector('#totp-code'), close);
 }
 
 async function _registerSecurityKey() {
@@ -797,46 +801,61 @@ async function _changeVaultPw() {
 // a tiny password prompt that resolves to the entered string (or null on cancel)
 function _promptPw(title, { placeholder = 'master password', action = 'unlock' } = {}) {
   return new Promise(resolve => {
+    const returnFocus = document.activeElement;
     const ov = document.createElement('div');
     ov.className = 'modal-overlay vault-modal';
     ov.innerHTML = `
-      <div class="modal-card vault-modal-card" role="dialog" aria-modal="true" style="max-width:340px">
-        <div class="modal-head"><span class="modal-title">${_esc(title)}</span></div>
+      <div class="modal-card vault-modal-card" role="dialog" aria-modal="true" aria-labelledby="pp-title" style="max-width:340px">
+        <div class="modal-head"><span class="modal-title" id="pp-title">${_esc(title)}</span></div>
         <div class="vault-form"><div class="vform-field">
-          <input id="pp-pw" type="password" class="settings-input vform-input" placeholder="${_esc(placeholder)}"></div></div>
+          <label for="pp-pw">password</label>
+          <input id="pp-pw" type="password" autocomplete="current-password" class="settings-input vform-input" placeholder="${_esc(placeholder)}"></div></div>
         <div class="vault-form-actions">
-          <button class="btn" id="pp-cancel">cancel</button>
-          <button class="btn primary" id="pp-ok">${_esc(action)}</button></div>
+          <button type="button" class="btn" id="pp-cancel">cancel</button>
+          <button type="button" class="btn primary" id="pp-ok">${_esc(action)}</button></div>
       </div>`;
     document.body.appendChild(ov);
-    const done = val => { ov.remove(); resolve(val); };
+    let focusBoundary = null;
+    const done = val => {
+      focusBoundary?.deactivate();
+      focusBoundary?.destroy();
+      ov.remove();
+      resolve(val);
+    };
     ov.querySelector('#pp-cancel').onclick = () => done(null);
     ov.querySelector('#pp-ok').onclick = () => done(ov.querySelector('#pp-pw').value);
     ov.querySelector('#pp-pw').addEventListener('keydown', e => { if (e.key === 'Enter') done(ov.querySelector('#pp-pw').value); });
     ov.addEventListener('mousedown', e => { if (e.target === ov) done(null); });
-    ov.querySelector('#pp-pw').focus();
+    focusBoundary = _activateTemporaryModal(ov, returnFocus, ov.querySelector('#pp-pw'), done);
   });
 }
 
 // new-password prompt with confirm (8b change-password); resolves to the password or null
 function _promptNewPw() {
   return new Promise(resolve => {
+    const returnFocus = document.activeElement;
     const ov = document.createElement('div');
     ov.className = 'modal-overlay vault-modal';
     ov.innerHTML = `
-      <div class="modal-card vault-modal-card" role="dialog" aria-modal="true" style="max-width:340px">
-        <div class="modal-head"><span class="modal-title">change password</span></div>
+      <div class="modal-card vault-modal-card" role="dialog" aria-modal="true" aria-labelledby="np-title" style="max-width:340px">
+        <div class="modal-head"><span class="modal-title" id="np-title">change password</span></div>
         <div class="vault-form">
-          <div class="vform-field"><input id="np-1" type="password" class="settings-input vform-input" minlength="12" placeholder="new password, 12 or more characters"></div>
-          <div class="vform-field"><input id="np-2" type="password" class="settings-input vform-input" minlength="12" placeholder="confirm new password"></div>
+          <div class="vform-field"><label for="np-1">new password</label><input id="np-1" type="password" autocomplete="new-password" class="settings-input vform-input" minlength="12" placeholder="12 or more characters"></div>
+          <div class="vform-field"><label for="np-2">confirm new password</label><input id="np-2" type="password" autocomplete="new-password" class="settings-input vform-input" minlength="12" placeholder="repeat new password"></div>
           <div class="np-err" id="np-err"></div>
         </div>
         <div class="vault-form-actions">
-          <button class="btn" id="np-cancel">cancel</button>
-          <button class="btn primary" id="np-ok">change</button></div>
+          <button type="button" class="btn" id="np-cancel">cancel</button>
+          <button type="button" class="btn primary" id="np-ok">change</button></div>
       </div>`;
     document.body.appendChild(ov);
-    const done = val => { ov.remove(); resolve(val); };
+    let focusBoundary = null;
+    const done = val => {
+      focusBoundary?.deactivate();
+      focusBoundary?.destroy();
+      ov.remove();
+      resolve(val);
+    };
     const go = () => {
       const a = ov.querySelector('#np-1').value, b = ov.querySelector('#np-2').value;
       if (a.length < 12) { ov.querySelector('#np-err').textContent = 'use at least 12 characters'; return; }
@@ -847,7 +866,7 @@ function _promptNewPw() {
     ov.querySelector('#np-ok').onclick = go;
     ov.querySelectorAll('input').forEach(i => i.addEventListener('keydown', e => { if (e.key === 'Enter') go(); }));
     ov.addEventListener('mousedown', e => { if (e.target === ov) done(null); });
-    ov.querySelector('#np-1').focus();
+    focusBoundary = _activateTemporaryModal(ov, returnFocus, ov.querySelector('#np-1'), done);
   });
 }
 
@@ -952,21 +971,21 @@ async function showWatchtower() {
 
 // ── add / edit modal ───────────────────────────────────────────────────────
 
-function openVaultForm(entry = null) {
+function openVaultForm(entry = null, returnFocus = document.activeElement) {
   _closeModal();
   const editing = !!entry;
   const ov = document.createElement('div');
   ov.className = 'modal-overlay vault-modal';
   ov.innerHTML = `
-    <div class="modal-card vault-modal-card" role="dialog" aria-modal="true">
+    <div class="modal-card vault-modal-card" role="dialog" aria-modal="true" aria-labelledby="vf-title">
       <div class="modal-head">
-        <span class="modal-title">${editing ? 'edit secret' : 'new secret'}</span>
-        <button class="modal-close" id="vf-x" aria-label="close">✕</button>
+        <span class="modal-title" id="vf-title">${editing ? 'edit secret' : 'new secret'}</span>
+        <button type="button" class="modal-close" id="vf-x" aria-label="close">✕</button>
       </div>
       <div class="vault-form">
-        <div class="vform-field"><label>name</label>
+        <div class="vform-field"><label for="vf-name">name</label>
           <input id="vf-name" class="settings-input vform-input" placeholder="e.g. Chase Visa"></div>
-        <div class="vform-field"><label>type</label>
+        <div class="vform-field"><label id="vf-type-label">type</label>
           <div class="custom-select" id="vf-type" style="width:100%"></div></div>
         <div class="vform-divider"></div>
         <div id="vf-fields"></div>
@@ -976,10 +995,10 @@ function openVaultForm(entry = null) {
           <button type="button" class="btn" id="vf-attach-btn" style="font-size:0.68rem">+ attach file</button></div>` : ''}
       </div>
       <div class="vault-form-actions">
-        ${editing ? '<button class="btn danger" id="vf-del" style="margin-right:auto">delete</button>' : ''}
-        ${editing ? '<button class="btn" id="vf-share" title="share this item via a one-off link">🔗 share</button>' : ''}
-        <button class="btn" id="vf-cancel">cancel</button>
-        <button class="btn primary" id="vf-save">${editing ? 'save' : 'add'}</button>
+        ${editing ? '<button type="button" class="btn danger" id="vf-del" style="margin-right:auto">delete</button>' : ''}
+        ${editing ? '<button type="button" class="btn" id="vf-share" title="share this item via a one-off link">🔗 share</button>' : ''}
+        <button type="button" class="btn" id="vf-cancel">cancel</button>
+        <button type="button" class="btn primary" id="vf-save">${editing ? 'save' : 'add'}</button>
       </div>
     </div>`;
   document.body.appendChild(ov);
@@ -987,6 +1006,7 @@ function openVaultForm(entry = null) {
   ov._entry = entry;
 
   const typeSel = ov.querySelector('#vf-type');
+  typeSel.setAttribute('aria-labelledby', 'vf-type-label');
   const initial = editing ? _typeForEntry(entry) : 'login';
   populateDropdown(typeSel, _allTypes().map(t => ({ value: t.key, label: t.label })), initial);
   typeSel.addEventListener('change', () => _renderFields(_currentFields(), _editVals()));
@@ -1010,8 +1030,7 @@ function openVaultForm(entry = null) {
     ov.querySelector('#vf-share')?.addEventListener('click', () => _shareItem(entry.id));
   }
   ov.addEventListener('mousedown', e => { if (e.target === ov) _closeModal(); });
-  document.addEventListener('keydown', _escClose);
-  ov.querySelector('#vf-name').focus();
+  _activateManagedModal(ov, returnFocus, ov.querySelector('#vf-name'));
 }
 
 // 9b — encrypted attachments on an entry
@@ -1035,6 +1054,7 @@ async function _renderAttachments(eid) {
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   });
   box.querySelectorAll('[data-rm]').forEach(b => b.onclick = async () => {
+    if (!await confirm(`remove ${b.closest('.vf-attach-row')?.querySelector('.vf-attach-name')?.textContent?.replace(/^📎\s*/, '') || 'this attachment'}?`)) return;
     await _vfetch(`/api/vault/attachments/${b.dataset.rm}`, { method: 'DELETE' });
     _renderAttachments(eid);
   });
@@ -1049,15 +1069,12 @@ async function _shareItem(eid) {
   } catch { toast('share failed', 'error'); }
 }
 
-function _escClose(e) { if (e.key === 'Escape') _closeModal(); }
-
 function _closeModal() {
   if (_totpTimer) { clearInterval(_totpTimer); _totpTimer = null; }
+  _modalFocusBoundary?.deactivate();
+  _modalFocusBoundary?.destroy();
+  _modalFocusBoundary = null;
   if (_modalEl) { _modalEl.remove(); _modalEl = null; }
-  document.removeEventListener('keydown', _escClose);
-  const target = _modalReturnFocus;
-  _modalReturnFocus = null;
-  if (target?.isConnected) target.focus();
 }
 
 // 9a — live TOTP code + countdown for an entry that stores a totp secret
@@ -1113,23 +1130,32 @@ function _fieldHtml(def) {
   const id = 'vf-f-' + def.key;
   const ph = def.placeholder || '';
   if (def.kind === 'textarea')
-    return `<div class="vform-field"><label>${_esc(def.label)}</label>
+    return `<div class="vform-field"><label for="${id}">${_esc(def.label)}</label>
       <textarea id="${id}" class="settings-input vform-input" rows="2" placeholder="${_esc(ph)}"></textarea></div>`;
+  if (def.kind === 'secretarea')
+    return `<div class="vform-field"><label for="${id}">${_esc(def.label)}</label>
+      <div class="vform-secretarea">
+        <textarea id="${id}" class="settings-input vform-input" rows="5" autocomplete="off" spellcheck="false" placeholder="${_esc(ph)}"></textarea>
+        <div class="vform-secret-actions">
+          <button type="button" class="act-btn" data-reveal="${id}">show</button>
+          <button type="button" class="act-btn" data-copy="${id}">copy</button>
+        </div>
+      </div></div>`;
   if (def.kind === 'password' || def.kind === 'secret') {
     const gen = def.kind === 'password' ? `<button type="button" class="btn ic-btn-lbl" id="vf-gen">${_si('refresh')} gen</button>` : '';
     const strength = def.kind === 'password'
       ? `<div class="vault-strength" id="vf-strength" style="display:none">
           <span class="vault-strength-bar"><span class="vault-strength-fill"></span></span>
           <span class="vault-strength-label"></span></div>` : '';
-    return `<div class="vform-field"><label>${_esc(def.label)}</label>
+    return `<div class="vform-field${def.half ? ' half' : ''}"><label for="${id}">${_esc(def.label)}</label>
       <div class="vform-pw">
-        <input id="${id}" type="password" class="settings-input vform-input" placeholder="${_esc(ph)}">
+        <input id="${id}" type="password" autocomplete="off" class="settings-input vform-input" placeholder="${_esc(ph)}">
         <button type="button" class="act-btn" data-reveal="${id}">show</button>
         <button type="button" class="act-btn" data-copy="${id}">copy</button>
         ${gen}
       </div>${strength}</div>`;
   }
-  return `<div class="vform-field${def.half ? ' half' : ''}"><label>${_esc(def.label)}</label>
+  return `<div class="vform-field${def.half ? ' half' : ''}"><label for="${id}">${_esc(def.label)}</label>
     <input id="${id}" type="text" class="settings-input vform-input" placeholder="${_esc(ph)}"></div>`;
 }
 
@@ -1152,8 +1178,10 @@ function _renderFields(defs, values = {}) {
   box.querySelector('#vf-gen')?.addEventListener('click', _genFormPw);
   box.querySelectorAll('[data-reveal]').forEach(b => b.onclick = () => {
     const inp = box.querySelector('#' + b.dataset.reveal);
-    const show = inp.type === 'password';
-    inp.type = show ? 'text' : 'password';
+    const secretArea = inp.tagName === 'TEXTAREA';
+    const show = secretArea ? !inp.classList.contains('is-revealed') : inp.type === 'password';
+    if (secretArea) inp.classList.toggle('is-revealed', show);
+    else inp.type = show ? 'text' : 'password';
     b.textContent = show ? 'hide' : 'show';
   });
   box.querySelectorAll('[data-copy]').forEach(b => b.onclick = async () => {
@@ -1348,24 +1376,32 @@ async function _do2faPasskey(pw, j, vid) {
 // a tiny numeric-code prompt → resolves to the string or null
 function _promptCode(title) {
   return new Promise(resolve => {
+    const returnFocus = document.activeElement;
     const ov = document.createElement('div');
     ov.className = 'modal-overlay vault-modal';
     ov.innerHTML = `
-      <div class="modal-card vault-modal-card" role="dialog" aria-modal="true" style="max-width:320px">
-        <div class="modal-head"><span class="modal-title">${_esc(title)}</span></div>
+      <div class="modal-card vault-modal-card" role="dialog" aria-modal="true" aria-labelledby="cc-title" style="max-width:320px">
+        <div class="modal-head"><span class="modal-title" id="cc-title">${_esc(title)}</span></div>
         <div class="vault-form"><div class="vform-field">
-          <input id="cc-code" class="settings-input vform-input" inputmode="numeric" maxlength="6" placeholder="6-digit code"></div></div>
+          <label for="cc-code">verification code</label>
+          <input id="cc-code" class="settings-input vform-input" inputmode="numeric" maxlength="6" placeholder="6 digits"></div></div>
         <div class="vault-form-actions">
-          <button class="btn" id="cc-cancel">cancel</button>
-          <button class="btn primary" id="cc-ok">unlock</button></div>
+          <button type="button" class="btn" id="cc-cancel">cancel</button>
+          <button type="button" class="btn primary" id="cc-ok">unlock</button></div>
       </div>`;
     document.body.appendChild(ov);
-    const done = v => { ov.remove(); resolve(v); };
+    let focusBoundary = null;
+    const done = v => {
+      focusBoundary?.deactivate();
+      focusBoundary?.destroy();
+      ov.remove();
+      resolve(v);
+    };
     ov.querySelector('#cc-cancel').onclick = () => done(null);
     ov.querySelector('#cc-ok').onclick = () => done(ov.querySelector('#cc-code').value.trim());
     ov.querySelector('#cc-code').addEventListener('keydown', e => { if (e.key === 'Enter') done(ov.querySelector('#cc-code').value.trim()); });
     ov.addEventListener('mousedown', e => { if (e.target === ov) done(null); });
-    ov.querySelector('#cc-code').focus();
+    focusBoundary = _activateTemporaryModal(ov, returnFocus, ov.querySelector('#cc-code'), done);
   });
 }
 
@@ -1386,20 +1422,54 @@ async function _loadEntries(fetcher = fetch) {
   const list = $('vault-entry-list');
   if (!list) return;
   try {
-    _entries = await _vfetch('/api/vault', {}, fetcher).then(r => r.json());
+    const response = await _vfetch('/api/vault', {}, fetcher);
+    if (!response.ok) throw new Error(response.status === 403 ? 'vault access expired' : `request failed (${response.status})`);
+    _entries = await response.json();
     if (!_entries.length) { list.innerHTML = '<div class="page-empty">no entries — hit “+ new”</div>'; return; }
     list.innerHTML = _entries.map(e => `
-      <div class="vault-entry" data-id="${e.id}" onclick="window._vaultOpen('${e.id}')" title="open">
-        <span class="vault-entry-name">${_esc(e.name)}${e.username ? ` <span class="vault-entry-user">${_esc(e.username)}</span>` : ''}</span>
-        <span class="vault-entry-cat">${_esc(_typeLabel(e))}</span>
-        <span class="vault-entry-grow"></span>
-        <button class="act-btn" onclick="event.stopPropagation();window._vaultCopy('${e.id}')">copy</button>
-        <button class="act-btn danger" onclick="event.stopPropagation();window._vaultDel('${e.id}')">del</button>
+      <div class="vault-entry" data-id="${e.id}">
+        <button type="button" class="vault-entry-main" data-vault-open="${e.id}" aria-label="open ${_esc(e.name)}">
+          <span class="vault-entry-name">${_esc(e.name)}${e.username ? ` <span class="vault-entry-user">${_esc(e.username)}</span>` : ''}</span>
+          <span class="vault-entry-cat">${_esc(_typeLabel(e))}</span>
+          <span class="vault-entry-grow"></span>
+        </button>
+        <button type="button" class="act-btn" data-vault-copy="${e.id}" aria-label="copy ${_esc(e.name)} secret">copy</button>
+        <button type="button" class="act-btn danger" data-vault-delete="${e.id}" aria-label="delete ${_esc(e.name)}">del</button>
       </div>`).join('');
-  } catch {
-    toast('load failed — vault may be locked', 'error');
-    _unlocked = false;
-    loadVaultView();
+    list.querySelectorAll('[data-vault-open]').forEach(button => {
+      button.addEventListener('click', () => window._vaultOpen(button.dataset.vaultOpen));
+    });
+    list.querySelectorAll('[data-vault-copy]').forEach(button => {
+      button.addEventListener('click', () => window._vaultCopy(button.dataset.vaultCopy));
+    });
+    list.querySelectorAll('[data-vault-delete]').forEach(button => {
+      button.addEventListener('click', () => window._vaultDel(button.dataset.vaultDelete));
+    });
+  } catch (error) {
+    const state = document.createElement('div');
+    state.className = 'vault-load-error';
+    state.setAttribute('role', 'alert');
+    const copy = document.createElement('p');
+    copy.textContent = globalThis.navigator?.onLine === false
+      ? 'vault entries are unavailable while offline. Your unlocked session is unchanged.'
+      : `${error?.message || 'vault entries could not be loaded'}. Your unlocked session is unchanged.`;
+    const retry = document.createElement('button');
+    retry.type = 'button';
+    retry.className = 'btn';
+    retry.textContent = 'retry loading entries';
+    retry.addEventListener('click', async () => {
+      if (retry.disabled) return;
+      retry.disabled = true;
+      retry.setAttribute('aria-busy', 'true');
+      await _loadEntries(fetcher);
+    });
+    const lock = document.createElement('button');
+    lock.type = 'button';
+    lock.className = 'btn';
+    lock.textContent = 'lock vault';
+    lock.addEventListener('click', _doLock);
+    state.append(copy, retry, lock);
+    list.replaceChildren(state);
   }
 }
 
@@ -1421,9 +1491,10 @@ export const _vaultInternals = { _entryFields, _typeForEntry, _primarySecret };
 window._vaultOpen = async id => {
   const row = _entries.find(e => e.id === id);
   if (!row) return;
+  const returnFocus = document.activeElement;
   try {
     const d = await _vfetch(`/api/vault/${id}/reveal`).then(r => r.json());
-    openVaultForm({ id, name: row.name, category: row.category, username: row.username, type: row.type, fields: d.fields || {} });
+    openVaultForm({ id, name: row.name, category: row.category, username: row.username, type: row.type, fields: d.fields || {} }, returnFocus);
   } catch { toast('reveal failed — vault may be locked', 'error'); }
 };
 

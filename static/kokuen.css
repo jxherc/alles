@@ -1848,7 +1848,7 @@ body:is(
   #finance-view[data-kokuen-surface="specialist"],
   .specialist-group {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: var(--k-app-header) var(--k-control) minmax(0, 1fr);
+    grid-template-rows: var(--k-app-header) auto minmax(0, 1fr);
   }
   .specialist-app-head {
     display: contents;
@@ -1860,16 +1860,27 @@ body:is(
   .specialist-group-tabs {
     grid-column: 1;
     grid-row: 2;
-    flex-direction: row;
-    align-items: center;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    align-items: stretch;
     min-height: var(--k-control);
     padding: 0 var(--k-space-3, 12px);
-    overflow-x: auto;
-    overflow-y: hidden;
+    overflow: visible;
     border-right: 0;
     border-top: 1px solid var(--k-line, var(--faint));
   }
-  .specialist-group-tabs [role="tab"] { width: auto; min-width: max-content; min-height: 44px; }
+  .specialist-group-tabs [role="tab"] {
+    width: 100%;
+    min-width: 0;
+    min-height: 44px;
+    padding: var(--k-space-1, 4px);
+    line-height: 1.2;
+    text-align: center;
+    white-space: normal;
+  }
+  .specialist-group-tabs:has(> [role="tab"]:only-child) { grid-template-columns: minmax(0, 1fr); }
+  .specialist-group-tabs:has(> [role="tab"]:nth-child(2):last-child) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .specialist-group-tabs:has(> [role="tab"]:nth-child(3):last-child) { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .specialist-group-overview,
   .specialist-group-slot { grid-column: 1; grid-row: 3; }
   :is(
@@ -2319,6 +2330,25 @@ html[data-kokuen-version="5"] body.afterlife-shell :where(.app, .main) {
   min-width: 0;
 }
 
+html[data-kokuen-version="5"] body.afterlife-shell > :is(.modal-overlay, .dialog-overlay) {
+  left: 52px;
+}
+
+html[data-kokuen-version="5"] body.afterlife-shell > #setup-wizard {
+  box-sizing: border-box;
+  padding-inline: var(--k-space-4);
+}
+
+html[data-kokuen-version="5"] body.afterlife-shell > #setup-wizard .setup-card {
+  max-width: 100%;
+}
+
+@media (max-width: 620px) {
+  html[data-kokuen-version="5"] body.afterlife-shell > #setup-wizard {
+    padding-inline: var(--k-space-2);
+  }
+}
+
 html[data-kokuen-version="5"] body.afterlife-shell[data-space="today"] .main,
 html[data-kokuen-version="5"] body.afterlife-shell[data-space="andromeda"] .main {
   width: auto;
@@ -2732,19 +2762,12 @@ html[data-kokuen-version="5"] .custom-dropdown-panel .custom-dropdown-option {
   background: var(--k-panel);
 }
 
-#wiki-view[data-kokuen-surface="docs"] .docs-nav-head,
 #wiki-view[data-kokuen-surface="docs"] :where(.docs-reader-head, .docs-journal-head) {
   min-height: var(--k-app-header);
 }
 
-#wiki-view[data-kokuen-surface="docs"] .docs-wordmark {
-  color: var(--k-text);
-  font-size: 15px;
-  font-weight: 400;
-}
-
-#wiki-view[data-kokuen-surface="docs"] :where(.docs-home-link, .docs-nav-text-action) {
-  min-height: var(--k-control-dense);
+#wiki-view[data-kokuen-surface="docs"] .docs-nav-text-action {
+  min-height: var(--k-control);
   color: var(--k-muted);
   font-size: 12px;
 }
@@ -2763,7 +2786,7 @@ html[data-kokuen-version="5"] .custom-dropdown-panel .custom-dropdown-option {
   .docs-ask-panel button,
   .docs-inline-actions button
 ) {
-  min-height: var(--k-control-dense);
+  min-height: var(--k-control);
   border-color: var(--k-line);
   border-radius: var(--k-radius-control);
   color: var(--k-muted);
@@ -2772,7 +2795,8 @@ html[data-kokuen-version="5"] .custom-dropdown-panel .custom-dropdown-option {
 }
 
 #wiki-view[data-kokuen-surface="docs"] .docs-nav-search {
-  height: var(--k-control-dense);
+  height: var(--k-control);
+  min-height: var(--k-control);
   margin-bottom: var(--k-space-3);
   border-color: var(--k-line);
   color: var(--k-text);
@@ -2791,7 +2815,7 @@ html[data-kokuen-version="5"] .custom-dropdown-panel .custom-dropdown-option {
 }
 
 #wiki-view[data-kokuen-surface="docs"] :where(.docs-library-item, .docs-recent-item, .wiki-file, .wiki-dir-head) {
-  min-height: 40px;
+  min-height: var(--k-control);
   border-left: 0;
   border-radius: var(--k-radius-control);
   color: var(--k-muted);

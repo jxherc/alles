@@ -182,10 +182,6 @@ function _wire() {
       else await switchDocsSection(button.dataset.section);
     });
   });
-  document.querySelectorAll('#wiki-view [data-docs-route]').forEach(button => {
-    button.addEventListener('click', () => navigateDocsRoute(button.dataset.docsRoute));
-  });
-
   let searchTimer = 0;
   $('wiki-search')?.addEventListener('input', event => {
     clearTimeout(searchTimer);
@@ -272,22 +268,6 @@ function wireDocsNavGroups() {
   });
 }
 
-async function navigateDocsRoute(route) {
-  if (route === 'home') {
-    if (!(await flushDraft())) return false;
-    await window._navigateHome?.();
-    return true;
-  }
-  if (route === 'notes') {
-    return switchDocsSection('notes');
-  }
-  if (route === 'wiki') {
-    return openDocsHome();
-  }
-  if (route === 'journal') return switchDocsSection('journal');
-  return false;
-}
-
 export async function prepareDocsNavigation() {
   return flushDraft();
 }
@@ -338,11 +318,6 @@ export function showSection(section) {
     if (active) button.setAttribute('aria-current', 'page');
     else button.removeAttribute('aria-current');
   });
-  const journalButton = document.querySelector('#docs-nav-panel [data-docs-route="journal"]');
-  journalButton?.classList.toggle('active', _section === 'journal');
-  if (_section === 'journal') journalButton?.setAttribute('aria-current', 'page');
-  else journalButton?.removeAttribute('aria-current');
-
   const journal = _section === 'journal';
   setHidden($('docs-reader-main'), journal);
   setHidden($('docs-journal-section'), !journal);

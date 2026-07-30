@@ -77,9 +77,9 @@ class ManifestTests(ApiTest):
     def test_shortcuts_target_app_query(self):
         got = {sc["short_name"]: sc["url"] for sc in self._manifest()["shortcuts"]}
         want = {
-            "Chat": "/?app=chat",
-            "Tasks": "/?app=tasks",
-            "Journal": "/?app=journal",
+            "Aide": "/?app=aide",
+            "Andromeda": "/?app=andromeda",
+            "Plan": "/?app=plan",
         }
         for name, url in want.items():
             self.assertEqual(got.get(name), url)
@@ -120,17 +120,25 @@ class ManifestTests(ApiTest):
         self.assertIsNotNone(worker_stamp)
         self.assertEqual(
             {app_stamp.group(1), style_stamp.group(1), worker_stamp.group(1)},
-            {"301"},
+            {"302"},
         )
 
     def test_precache_uses_the_shell_stamp_and_every_linked_stylesheet(self):
         urls = self.client.get("/api/pwa/precache").json()["urls"]
-        self.assertIn("/static/style.css?v=301", urls)
+        self.assertIn("/static/style.css?v=302", urls)
         self.assertNotIn("/static/style.css?v=6", urls)
         self.assertIn("/static/vendor/xterm/xterm.css?v=6.0.0", urls)
         self.assertIn("/static/vendor/xterm/xterm.mjs?v=6.0.0", urls)
         self.assertIn("/static/vendor/xterm/addon-fit.mjs?v=0.11.0", urls)
-        self.assertIn("/static/kokuen.css?v=20", urls)
+        self.assertIn("/static/kokuen.css?v=21", urls)
+        for module in (
+            "models.js?v=212",
+            "dropdown.js?v=212",
+            "specialist_groups.js?v=5",
+            "kokuen.js?v=1",
+            "andromeda.js?v=247",
+        ):
+            self.assertIn(f"/static/js/{module}", urls)
         for language in ("en", "fr", "es", "zh-Hans", "zh-Hant", "ja", "ko", "ar"):
             self.assertIn(f"/static/locales/{language}.json", urls)
         self.assertIn("/static/locales/manifest.json", urls)

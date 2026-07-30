@@ -26,3 +26,29 @@ test('recent-owner retries are limited to bodyless browser-access requests', () 
   assert.match(helper, /hasOwnProperty\.call\(opts, 'body'\)/);
   assert.match(helper, /throw new TypeError\('recent-owner retry only supports bodyless requests'\)/);
 });
+
+test('Vault dialogs use the shared focus boundary and return to their invoking control', () => {
+  assert.match(vault, /import \{ createFocusBoundary \} from '\.\/kokuen\.js\?v=1'/);
+  assert.match(vault, /function _activateManagedModal/);
+  assert.match(vault, /function _activateTemporaryModal/);
+  assert.match(vault, /_modalFocusBoundary\?\.deactivate\(\)/);
+  assert.match(vault, /_modalFocusBoundary\?\.destroy\(\)/);
+  assert.doesNotMatch(vault, /document\.addEventListener\('keydown', _escClose\)/);
+});
+
+test('Vault rows use separate semantic keyboard actions and retain persistent load recovery', () => {
+  assert.match(vault, /<button type="button" class="vault-entry-main" data-vault-open=/);
+  assert.match(vault, /data-vault-copy=/);
+  assert.match(vault, /data-vault-delete=/);
+  assert.doesNotMatch(vault, /class="vault-entry"[^>]+onclick=/);
+  assert.match(vault, /className = 'vault-load-error'/);
+  assert.match(vault, /Your unlocked session is unchanged/);
+  assert.doesNotMatch(vault, /load failed — vault may be locked[\s\S]{0,100}_unlocked = false/);
+});
+
+test('card verification values and private keys are masked until explicitly revealed', () => {
+  assert.match(vault, /cvv:\s+\{[^\n]+kind: 'secret'/);
+  assert.match(vault, /private_key:\s+\{[^\n]+kind: 'secretarea'/);
+  assert.match(vault, /def\.kind === 'secretarea'/);
+  assert.match(vault, /classList\.toggle\('is-revealed', show\)/);
+});

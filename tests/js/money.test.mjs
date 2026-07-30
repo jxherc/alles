@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 
 const moneySource = readFileSync(new URL('../../static/js/money.js', import.meta.url), 'utf8');
+const styleSource = readFileSync(new URL('../../static/style.css', import.meta.url), 'utf8');
 
 test('manual Finance creates reuse an identity only for the exact same payload', () => {
   for (const [kind, payload] of [
@@ -31,6 +32,23 @@ test('manual Finance creates reuse an identity only for the exact same payload',
 test('finance month headings format calendar months without local Date conversion', () => {
   assert.match(moneySource, /formatCalendarDate\(`\$\{m\}-01`/);
   assert.doesNotMatch(moneySource, /formatDate\(new Date\(y, mo - 1, 1\)/);
+});
+
+test('finance dialogs, rows, and destructive actions expose complete interaction boundaries', () => {
+  assert.match(moneySource, /createFocusBoundary\(dialog/);
+  assert.match(moneySource, /requestWithRecentOwner\(fetch, path, init\)/);
+  assert.match(moneySource, /class="tx-edit" data-edit-txn=/);
+  assert.match(moneySource, /<button type="button" class="tx-tag"/);
+  assert.doesNotMatch(moneySource, /<span class="tx-tag" data-tag=/);
+  for (const consequence of [
+    'delete this transaction',
+    'delete this goal',
+    'delete this holding',
+    'delete this monthly budget',
+    'delete this categorization rule',
+  ]) assert.match(moneySource, new RegExp(consequence));
+  assert.match(styleSource, /#money-view :where\(button, a\.btn\)[\s\S]*?min-width: 44px;[\s\S]*?min-height: 44px;/);
+  assert.match(styleSource, /#money-view :where\(input:not\(\[type="file"\]\), textarea, \.custom-select, \.date-input\)[\s\S]*?min-height: 44px;/);
 });
 
 function fakeEl(value = '') {

@@ -24,6 +24,7 @@ DATA = Path(os.environ.get("ALLES_DATA", "")).expanduser().resolve()
 RUN_ID = os.environ.get("ALLES_TEST_RUN_ID", "")
 ROOT = Path(__file__).resolve().parents[1]
 EXTENSION = ROOT / "extension"
+OUTPUT: Path
 
 
 def _verify_test_root() -> None:
@@ -87,6 +88,20 @@ def _owner_state(owner, token: str) -> dict:
     return response.json()
 
 
+def _assert_targets(page: Page) -> None:
+    failures = page.locator("button:visible, input:visible").evaluate_all(
+        """elements => elements.filter(element => {
+          if (element.disabled) return false;
+          const box = element.getBoundingClientRect();
+          return box.width < 43.5 || box.height < 43.5;
+        }).map(element => ({
+          label: element.textContent.trim() || element.getAttribute('aria-label'),
+          box: element.getBoundingClientRect().toJSON(),
+        }))"""
+    )
+    assert not failures, failures
+
+
 def _approve_pair(owner, token: str) -> None:
     state = _owner_state(owner, token)
     assert len(state["pairings"]) == 1, state
@@ -108,7 +123,10 @@ def _approve_unlock(owner, token: str) -> None:
 
 
 def run() -> None:
+    global OUTPUT
+
     _verify_test_root()
+    OUTPUT = Path(tempfile.mkdtemp(prefix="phase9-extension-artifacts-", dir=DATA))
     profile = Path(tempfile.mkdtemp(prefix="alles-phase9-extension-profile-"))
     runtime_extension = _headless_extension_copy()
     if Path(tempfile.gettempdir()).resolve() not in profile.resolve().parents:
@@ -158,11 +176,19 @@ def run() -> None:
             ),
         )
         expect(popup.locator("h1")).to_have_text("connect this browser")
+        assert popup.locator('select, input[type="checkbox"], input[type="radio"]').count() == 0
+        _assert_targets(popup)
+        popup.screenshot(path=str(OUTPUT / "extension-connect.png"), full_page=True)
         popup.locator("#origin").fill(BASE)
         popup.locator("#pair").click()
         expect(popup.locator("h1")).to_have_text("approve in Passwords", timeout=10_000)
         pair_code = popup.locator(".code").inner_text()
+        popup.screenshot(path=str(OUTPUT / "extension-pairing.png"), full_page=True)
         assert _owner_state(owner, owner_token)["pairings"][0]["code"] == pair_code
+        # The background inactivity boundary can clear extension session
+        # storage while the owner is approving an otherwise valid request.
+        worker.evaluate("chrome.storage.session.remove('pairing')")
+        assert not worker.evaluate("chrome.storage.session.get('pairing')").get("pairing")
         _approve_pair(owner, owner_token)
         expect(popup.locator("h1")).to_have_text("browser locked", timeout=10_000)
 
@@ -186,6 +212,8 @@ def run() -> None:
         expect(popup.locator(".credential")).to_have_count(1)
         expect(popup.locator(".credential")).to_contain_text("fixture account")
         expect(popup.locator(".credential")).to_contain_text("owner@example.test")
+        _assert_targets(popup)
+        popup.screenshot(path=str(OUTPUT / "extension-matches.png"), full_page=True)
         popup.locator(".credential").click()
         expect(login.locator("#login-email")).to_have_value("owner@example.test")
         expect(login.locator("#login-password")).to_have_value("phase9 selected secret")
@@ -226,6 +254,7 @@ def run() -> None:
         assert not session_after.get("sessionToken")
         popup = _popup_page(context, extension_id)
         expect(popup.locator("h1")).to_have_text("browser locked", timeout=10_000)
+        popup.screenshot(path=str(OUTPUT / "extension-locked-after-restart.png"), full_page=True)
 
         connection_id = _owner_state(owner, owner_token)["connections"][0]["id"]
         revoked = owner.delete(
@@ -235,13 +264,14 @@ def run() -> None:
         assert revoked.ok, revoked.text()
         popup.locator("#unlock").click()
         expect(popup.locator(".error")).to_contain_text("invalid or revoked", timeout=10_000)
+        popup.screenshot(path=str(OUTPUT / "extension-revoked.png"), full_page=True)
 
         context.close()
         owner.dispose()
 
     if errors:
         raise AssertionError("extension console errors:\n" + "\n".join(errors))
-    print(f"Phase 9 unpacked extension gate passed for {extension_origin}")
+    print(f"Phase 9 unpacked extension gate passed for {extension_origin}; captures: {OUTPUT}")
 
 
 if __name__ == "__main__":
