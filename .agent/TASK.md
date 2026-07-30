@@ -11,11 +11,11 @@ pushing.
 
 ## status
 
-The complete approved KOKUEN v5 rebuild and post-v5 literal audit are implemented. The shared runtime,
+The complete approved KOKUEN v5 rebuild and post-v5 literal audit are complete. The shared runtime,
 universal shell, shipped workbenches, Settings, setup, PWA, browser extension, per-control interaction
-map, realistic repeated-use gates, safe model/effort fixture, and native Chrome acceptance are complete.
-The independent final review reports PASS. Final repository-wide verification and the local checkpoint
-commit are in progress; no push has occurred.
+map, realistic repeated-use gates, safe model/effort fixture, and native Chrome acceptance all passed.
+The independent final review reports PASS. Implementation checkpoint `2d42e1df2fa90a8ef908d1ee325516660c52de26`
+uses the required identity, the branch is six commits ahead of `origin/dev-afterlife`, and no push occurred.
 
 ## requirements
 
@@ -183,14 +183,13 @@ commit are in progress; no push has occurred.
 
 ## in progress
 
-- Complete the pre-commit scope, secret, identity, and evidence audit, then create and verify the local
-  commit without pushing.
+- None. The local implementation and acceptance objective is complete.
 
 ## remaining
 
-- Create and verify the final local checkpoint commit.
-- Preserve explicit external gaps that still require provider credentials, accounts, installed targets,
-  disposable virtual machines, or owner infrastructure.
+- No local implementation or verification work remains.
+- External provider/account and owner-infrastructure acceptance remains intentionally unclaimed where it
+  requires credentials, installed targets, disposable virtual machines, or owner-controlled services.
 
 ## post-v5 audit milestones
 
@@ -322,6 +321,9 @@ commit are in progress; no push has occurred.
 - Final generated/source audit: **passed** - 1,612 controls, 2,730 activation paths, census freshness,
   27 focused reconciliation/typography tests, zero KOKUEN hard errors, all 195 advisories explained,
   changed-Python Ruff and format checks, diff integrity, and independent regression PASS.
+- Final implementation checkpoint: **passed** - local commit
+  `2d42e1df2fa90a8ef908d1ee325516660c52de26` has the required title/body and exact author/committer
+  identity; no push occurred.
 
 ## boundaries
 
