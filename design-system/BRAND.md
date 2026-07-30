@@ -17,10 +17,11 @@ Alles should feel calm, precise, connected, private, and capable. It is a daily 
 
 ## signature
 
-The signature is structural: every finished app owns its identity and Home path, aligns local context
-with its work surface, and uses the same terse status language and precise control geometry. The shared
-grammar must not become a repeated `<app> / alles` breadcrumb above otherwise app-owned interfaces.
-Specialist data remains the visual focus.
+The signature is structural: one quiet universal launcher remains reachable beside every workbench,
+while each app owns one local identity and aligns useful context with its work surface. Every surface
+uses the same terse status language and precise control geometry. The shared grammar never becomes a
+repeated `<app> / alles` breadcrumb or a conventional wide global sidebar. Specialist data remains the
+visual focus.
 The app name is never repeated as a giant landing title beneath that shell.
 
 ## palette

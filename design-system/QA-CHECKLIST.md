@@ -15,8 +15,11 @@ Do not mark a design or implementation complete until every applicable item pass
 - [ ] the screen uses the correct list, timeline, workspace, or dashboard shape
 - [ ] existing components were checked before a new component was added
 - [ ] colors, type, spacing, radii, rows, and motion use documented tokens
+- [ ] one universal shell trigger reaches all 3 primary spaces and exactly 9 specialist apps
+- [ ] the shell sheet traps focus, supports Escape, makes the workbench inert, and restores focus
+- [ ] local headers contain no duplicate Home or app-picker action
 - [ ] header, route, local context, and settings placement match KOKUEN
-- [ ] a finished app owns its header or rail identity and does not show the legacy `<app> / alles` crumb
+- [ ] a finished app owns its local identity and does not show the legacy `<app> / alles` crumb
 - [ ] the app name appears once and is not repeated as an oversized landing or workbench title
 - [ ] there is no old global sidebar, accidental bold, decorative line, nested box clutter, or dead space
 - [ ] no visible native select, dropdown, checkbox, radio, or context menu exists
@@ -36,7 +39,7 @@ Do not mark a design or implementation complete until every applicable item pass
 - [ ] meaning does not depend on color alone
 - [ ] text and controls meet WCAG 2.2 AA contrast requirements
 - [ ] 200% zoom and text resizing do not hide content or actions
-- [ ] mobile targets are at least 44px when space allows and no smaller than the documented exception
+- [ ] every discrete product control and interactive row has at least a 44px target
 - [ ] reduced motion keeps every control and piece of content usable
 
 ## responsive and visual quality
@@ -45,7 +48,8 @@ Do not mark a design or implementation complete until every applicable item pass
 - [ ] no horizontal page overflow, clipped text, overlap, or cut-off control exists
 - [ ] parallel rows and columns align across variable content
 - [ ] the hierarchy reads at a glance and secondary information stays readable
-- [ ] hover, focus, pressed, selected, disabled, and loading states do not shift layout
+- [ ] resting, hover, pressed, selected, disabled, busy, invalid, loading, empty, permission, offline,
+      stale, partial, and error states do not shift layout
 - [ ] light and dark themes preserve hierarchy and contrast
 
 ## technical proof

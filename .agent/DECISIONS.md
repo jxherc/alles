@@ -1,5 +1,26 @@
 # engineering decisions
 
+## KOKUEN v5 universal runtime
+
+Decision
+
+Choice: rebuild the real application around one shared vanilla JavaScript KOKUEN runtime and one
+universal shell control, then migrate existing surfaces in the approved order without moving data
+authority or changing the nine-app product model. The shell and universal command consume one registry;
+the runtime and `design-system/components/contracts.json` share one 14-state vocabulary; every discrete
+product control and interactive row has a 44px target.
+
+Reason: Alles already has mature product behavior and a consolidated information architecture, but its
+controls and shell conventions are spread across app-specific implementations. One governed runtime can
+make interaction, state, focus, keyboard, and visual contracts consistent without a framework migration.
+
+Alternatives considered: build isolated mockups first, migrate to a frontend framework, let every app
+retain private control implementations, or change the product model while restyling it.
+
+Consequences: shared tokens, primitives, shell, and interaction schema must stabilize before independent
+app migration. Existing APIs and mutation authorities remain the source of truth. Every migrated surface
+must reconcile with the exhaustive interaction map and pass the real rendered application gate.
+
 ## KOKUEN v3 runtime migration
 
 Decision

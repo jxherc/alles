@@ -2,15 +2,21 @@
 
 Components carry behavior, not decoration. Each contract applies in both themes and every supported viewport.
 
-## app-owned shell
+## universal shell
 
-**Purpose:** keep route, app identity, context, primary action, and Settings predictable.
+**Purpose:** make every space reachable without duplicating global navigation inside app headers.
 
-- The shared contract is one interaction grammar, not one global breadcrumb component.
-- Every finished app owns its visible shell. Put the app name in its local rail or app header and keep
-  `home` directly reachable in that same identity region.
-- Never put the legacy `<app> / alles` crumb above a finished app-owned header. It duplicates identity
-  and makes the app look embedded in an older shell.
+- One persistent 52px structural rail contains one 44px navigation trigger on every authenticated
+  product surface. The trigger opens the same modal navigation sheet from Home, Aide, Andromeda,
+  every specialist app, and Settings.
+- The sheet lists Home, Aide, and Andromeda first, followed by exactly Plan, Inbox, Docs, Files,
+  Library, Health, Finance, Vault, and Server. The universal command uses this same registry.
+- Opening the sheet makes the underlying workbench inert, moves focus to Close, traps Tab and
+  Shift+Tab, supports Escape and scrim dismissal, and restores focus to the trigger.
+- Local app headers never repeat Home or a second app picker. They contain app-local context and
+  actions only.
+- Never show the legacy `<app> / alles` crumb. It duplicates identity and makes the app look embedded
+  in an older shell.
 - Show the app identity once. Do not repeat the app name as a giant landing or workbench title below
   the shell. A content heading must name the actual section, document, date, selection, or task.
 - The primary app-header row is 52px. The main context sits on the same baseline when useful; actions
@@ -19,9 +25,8 @@ Components carry behavior, not decoration. Each contract applies in both themes 
   identity with their local rail. These are variants of the same contract, not exceptions.
 - On small layouts, preserve the 52px identity row and use one additional 44px context or tab row only
   when the context cannot fit safely beside the identity.
-- no theme control or old global sidebar;
-- keep the app picker or Home path reachable with correct focus return;
-- legacy apps may keep legacy chrome only until their own approved redesign moves them to this shell.
+- Theme stays in Settings. The shell is navigation, not a profile or appearance rail.
+- Product modules retain local data and mutation authority. The shell owns only cross-app movement.
 
 ## text action
 
@@ -29,7 +34,7 @@ Use when the label is clearer than an icon. It has no visible container at rest.
 
 ## icon action
 
-Use only for a widely understood action. Keep the SVG bare. The invisible hit area is 32px on desktop and 44px on touch layouts. Add an accessible name and tooltip only when it adds meaning. No hover box, lift, or glow.
+Use only for a widely understood action. Keep the SVG bare. The invisible hit area is 44px at every viewport. Add an accessible name and tooltip only when it adds meaning. No hover box, lift, or glow.
 
 ## primary action
 
@@ -40,7 +45,7 @@ One per screen. Use text and stronger tonal contrast, not a saturated filled pil
 - `role="menu"` with `menuitem` children;
 - Up/Down moves, Home/End jumps, Enter/Space activates, Escape closes;
 - focus moves into the menu and returns to its trigger;
-- 4px outer radius, 2px row radius, 38px minimum desktop row;
+- 4px outer radius, 2px row radius, 44px minimum row;
 - disabled rows stay discoverable and cannot activate;
 - never use a visible native select or context menu.
 
@@ -75,15 +80,15 @@ their destination and effect before invocation.
 
 ## toolbar
 
-Height: 48px. Align the title, filters, context, and one primary action on one baseline. Move low-priority actions into a custom overflow menu when space runs out. Never leave an unexplained blank toolbar region.
+Height: 52px. Align the title, filters, context, and one primary action on one baseline. Move low-priority actions into a custom overflow menu when space runs out. Never leave an unexplained blank toolbar region.
 
 ## data row
 
-Dense: 36px. Normal: 44px. Use a stable grid so titles, metadata, status, and values align across long and missing content. Hover changes surface tone only. Selected state uses raised surface plus semantic state.
+Interactive rows are at least 44px. A 36px visual row is allowed only for noninteractive dense data. Use a stable grid so titles, metadata, status, and values align across long and missing content. Hover changes surface tone only. Selected state uses raised surface plus semantic state.
 
 ## local panel
 
-App-specific navigation or context only. It is not global navigation. It shares the app shell baseline, owns its scroll, and collapses to an inline strip, one active pane, or a drawer according to the workspace pattern.
+App-specific navigation or context only. It never repeats the universal launcher. It shares the app shell baseline, owns its scroll, and collapses to an inline strip, one active pane, or a drawer according to the workspace pattern.
 
 ## dialog and side panel
 
@@ -105,3 +110,6 @@ Use short states such as `saving`, `saved`, `offline`, `partial results`, or `ne
 ## new component contract
 
 Document purpose, when to use, when not to use, anatomy, properties, variants, all states, pointer and keyboard behavior, content, sizing, overflow, responsive behavior, accessibility, approved/rejected examples, code mapping, and tests before adoption.
+
+The machine-readable source for stable v5 contracts is `components/contracts.json`. Runtime behavior
+lives in `static/js/kokuen.js`, with the custom single-select contract in `static/js/dropdown.js`.

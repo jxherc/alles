@@ -25,6 +25,7 @@ Call out conflicts. Do not silently pick one.
 - `BRAND.md`: visual character and forbidden directions
 - `FOUNDATIONS.md`: tokens, type, color, spacing, shape, and layout
 - `COMPONENTS.md`: reusable control contracts
+- `components/contracts.json`: machine-readable KOKUEN v5 component and state contracts
 - `PATTERNS.md`: shells, workspace shapes, and complete states
 - `CONTENT.md`: interface writing
 - `ACCESSIBILITY.md`: WCAG and interaction requirements

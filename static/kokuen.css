@@ -61,7 +61,7 @@
   --k-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
   --k-mono: ui-monospace, "SFMono-Regular", Menlo, Monaco, Consolas, monospace;
 
-  /* Portable KOKUEN v3 aliases. Product CSS may keep --k-* while shared
+  /* Portable KOKUEN v5 aliases. Product CSS may keep --k-* while shared
      primitives consume the stable --ui-* contract. */
   --ui-canvas: var(--k-page);
   --ui-surface: var(--k-panel);
@@ -2263,6 +2263,316 @@ html[data-theme="light"] :where(
 
   #app-drawer[data-kokuen-surface="apps"] {
     padding-inline: var(--k-space-4);
+  }
+}
+
+/* KOKUEN v5 universal runtime ------------------------------------------------
+   One structural rail and one navigation control remain available in every
+   space. Product headers keep only local identity and local tools. */
+html[data-kokuen-version="5"] body.afterlife-shell .space-rail:not([hidden]) {
+  width: 52px;
+  flex: 0 0 52px;
+  min-height: 100dvh;
+  display: flex !important;
+  align-items: center;
+  justify-content: flex-start;
+  padding: var(--k-space-1, 4px);
+  border-right: 1px solid var(--k-line, var(--faint));
+  background: var(--k-page, var(--bg));
+  z-index: 310;
+}
+
+html[data-kokuen-version="5"] .shell-navigation-toggle {
+  width: var(--k-control, 44px);
+  height: var(--k-control, 44px);
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: var(--k-radius-control, 3px);
+  color: var(--k-muted, var(--muted));
+  background: transparent;
+  cursor: pointer;
+}
+
+html[data-kokuen-version="5"] .shell-navigation-toggle svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.45;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+html[data-kokuen-version="5"] .shell-navigation-toggle:is(:hover, [aria-expanded="true"]) {
+  color: var(--k-text, var(--text));
+  background: var(--k-hover, var(--panel));
+}
+
+html[data-kokuen-version="5"] .shell-navigation-toggle:focus-visible {
+  outline: 2px solid var(--k-focus, var(--focus));
+  outline-offset: -2px;
+}
+
+html[data-kokuen-version="5"] body.afterlife-shell :where(.app, .main) {
+  min-width: 0;
+}
+
+html[data-kokuen-version="5"] body.afterlife-shell[data-space="today"] .main,
+html[data-kokuen-version="5"] body.afterlife-shell[data-space="andromeda"] .main {
+  width: auto;
+  flex: 1 1 auto;
+}
+
+html[data-kokuen-version="5"] body.afterlife-shell #app-drawer-scrim:not([hidden]) {
+  inset: 0 0 0 52px;
+  display: block !important;
+  background: rgb(0 0 0 / 0.58);
+}
+
+html[data-kokuen-version="5"] #app-drawer[data-kokuen-surface="apps"] {
+  inset: 0 auto 0 52px;
+  width: min(420px, calc(100vw - 52px));
+  min-height: 100dvh;
+  padding: var(--k-space-4) var(--k-space-4) var(--k-space-5);
+  overflow-y: auto;
+  border: 0;
+  border-right: 1px solid var(--k-line-strong);
+  background: var(--k-page);
+  box-shadow: none;
+}
+
+html[data-kokuen-version="5"] #app-drawer .app-drawer-head,
+html[data-kokuen-version="5"] #app-drawer .app-drawer-content,
+html[data-kokuen-version="5"] #app-drawer .app-drawer-footer {
+  width: 100%;
+  margin: 0;
+}
+
+html[data-kokuen-version="5"] #app-drawer .app-drawer-head {
+  min-height: var(--k-control);
+  align-items: center;
+}
+
+html[data-kokuen-version="5"] #app-drawer .app-drawer-kicker {
+  color: var(--k-text);
+  font-size: 15px;
+  font-weight: 560;
+  letter-spacing: -0.015em;
+  text-transform: none;
+}
+
+html[data-kokuen-version="5"] #app-drawer .app-drawer-home,
+html[data-kokuen-version="5"] #app-drawer .app-drawer-footer button {
+  min-width: var(--k-control);
+  min-height: var(--k-control);
+  padding: 0 var(--k-space-2);
+  border: 0;
+  border-radius: var(--k-radius-control);
+  color: var(--k-muted);
+  background: transparent;
+  font: 500 14px/1 var(--k-font);
+}
+
+html[data-kokuen-version="5"] #app-drawer .app-drawer-home:is(:hover, :focus-visible),
+html[data-kokuen-version="5"] #app-drawer .app-drawer-footer button:is(:hover, :focus-visible) {
+  color: var(--k-text);
+  background: var(--k-hover);
+}
+
+html[data-kokuen-version="5"] #app-drawer .app-drawer-content {
+  padding-top: var(--k-space-5);
+}
+
+html[data-kokuen-version="5"] #app-drawer .app-drawer-content h2 {
+  max-width: 22ch;
+  margin: 0;
+  color: var(--k-text);
+  font-size: 20px;
+  font-weight: 540;
+  letter-spacing: -0.02em;
+  line-height: 1.3;
+}
+
+html[data-kokuen-version="5"] #app-drawer .app-drawer-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--k-space-5);
+  margin-top: var(--k-space-5);
+}
+
+html[data-kokuen-version="5"] #app-drawer .app-drawer-group h3 {
+  margin: 0 0 var(--k-space-2);
+  color: var(--k-muted);
+  font-size: 14px;
+  font-weight: 520;
+}
+
+html[data-kokuen-version="5"] #app-drawer .app-drawer-list {
+  display: grid;
+  gap: var(--k-space-1);
+}
+
+html[data-kokuen-version="5"] #app-drawer .app-drawer-item {
+  width: 100%;
+  min-height: 52px;
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  align-items: center;
+  gap: var(--k-space-3);
+  margin: 0;
+  padding: var(--k-space-1) var(--k-space-2);
+  border: 0;
+  border-radius: var(--k-radius-control);
+  color: var(--k-soft);
+  background: transparent;
+  text-align: left;
+}
+
+html[data-kokuen-version="5"] #app-drawer .app-drawer-item:is(:hover, :focus-visible) {
+  color: var(--k-text);
+  background: var(--k-hover);
+}
+
+html[data-kokuen-version="5"] #app-drawer .app-drawer-icon,
+html[data-kokuen-version="5"] #app-drawer .app-drawer-item:hover .app-drawer-icon {
+  color: currentColor;
+}
+
+html[data-kokuen-version="5"] #app-drawer .app-drawer-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+html[data-kokuen-version="5"] #app-drawer .app-drawer-item b {
+  color: currentColor;
+  font-size: 14px;
+  font-weight: 540;
+}
+
+html[data-kokuen-version="5"] #app-drawer .app-drawer-item small {
+  margin-top: var(--k-space-1);
+  color: var(--k-muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+html[data-kokuen-version="5"] #app-drawer .app-drawer-footer {
+  justify-content: flex-start;
+  margin-top: var(--k-space-5);
+}
+
+/* Shared hit area and state geometry. Inline text links retain the documented
+   adjacent-target exception; discrete product controls never shrink below 44px. */
+html[data-kokuen-version="5"] :where(
+  button,
+  input:not([type="hidden"]):not([type="file"]),
+  textarea,
+  .custom-select,
+  [role="button"],
+  [role="checkbox"],
+  [role="combobox"],
+  [role^="menuitem"],
+  [role="option"],
+  [role="radio"],
+  [role="switch"],
+  [role="tab"]
+)[data-kokuen-primitive] {
+  min-height: var(--ui-control-height, 44px);
+}
+
+html[data-kokuen-version="5"] :where(
+  [data-kokuen-primitive="icon-action"],
+  [data-kokuen-primitive="switch"],
+  [data-kokuen-primitive="choice"]
+) {
+  min-width: var(--ui-control-height, 44px);
+}
+
+html[data-kokuen-version="5"] [data-kokuen-primitive]:is(:hover, :active) {
+  transform: none !important;
+}
+
+html[data-kokuen-version="5"] [data-kokuen-primitive]:focus-visible {
+  outline: 2px solid var(--k-focus, var(--focus));
+  outline-offset: 2px;
+}
+
+html[data-kokuen-version="5"] [data-kokuen-state="disabled"],
+html[data-kokuen-version="5"] [data-kokuen-primitive][aria-disabled="true"] {
+  cursor: not-allowed;
+  opacity: 0.52;
+}
+
+html[data-kokuen-version="5"] [data-kokuen-state="busy"],
+html[data-kokuen-version="5"] [data-kokuen-state="loading"] {
+  cursor: progress;
+}
+
+html[data-kokuen-version="5"] [data-kokuen-state="selected"] {
+  color: var(--k-text);
+  background: var(--k-raised);
+}
+
+html[data-kokuen-version="5"] [data-kokuen-state="permission"] {
+  color: var(--k-permission);
+}
+
+html[data-kokuen-version="5"] :is(
+  [data-kokuen-state="offline"],
+  [data-kokuen-state="stale"],
+  [data-kokuen-state="partial"]
+) {
+  color: var(--k-muted);
+}
+
+html[data-kokuen-version="5"] :is(
+  [data-kokuen-state="error"],
+  [data-state="error"],
+  [data-state="offline"]
+) {
+  color: var(--k-danger);
+}
+
+html[data-kokuen-version="5"] :is(
+  [data-kokuen-state="empty"],
+  [data-state="empty"]
+) {
+  color: var(--k-muted);
+}
+
+html[data-kokuen-version="5"] [data-kokuen-state="invalid"],
+html[data-kokuen-version="5"] [data-kokuen-primitive][aria-invalid="true"] {
+  outline-color: var(--k-danger);
+}
+
+html[data-kokuen-version="5"] .custom-dropdown-panel .custom-dropdown-option {
+  min-height: var(--ui-control-height);
+}
+
+@media (max-width: 540px) {
+  html[data-kokuen-version="5"] #app-drawer[data-kokuen-surface="apps"] {
+    padding: var(--k-space-3) var(--k-space-3) var(--k-space-5);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-kokuen-version="5"] [data-kokuen-primitive] {
+    scroll-behavior: auto;
+    transition-duration: 0ms !important;
+    animation-duration: 0ms !important;
+  }
+}
+
+@media (forced-colors: active) {
+  html[data-kokuen-version="5"] .space-rail,
+  html[data-kokuen-version="5"] #app-drawer[data-kokuen-surface="apps"] {
+    border-color: CanvasText;
+  }
+
+  html[data-kokuen-version="5"] [data-kokuen-primitive]:focus-visible {
+    outline-color: Highlight;
   }
 }
 

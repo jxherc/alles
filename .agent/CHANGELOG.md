@@ -1,5 +1,27 @@
 # project changelog
 
+## 2026-07-30
+
+Change: established the KOKUEN v5 universal runtime and shell foundation in the real application.
+
+Files affected: shared JavaScript control runtime and custom select; universal rail, sheet, destination
+registry, app identity markup and styling; component tokens and machine-readable contracts; design-system
+sources and decisions; focused JavaScript/Python regressions; and current project state.
+
+Reason: give every space one predictable cross-app path, remove duplicated Home/profile/breadcrumb
+chrome, enforce the 44px and 14-state contracts without a framework migration, and freeze the shared
+foundation before primary and specialist migrations. The isolated real app passed shell navigation,
+focus return, and fresh rendered inspection; no push occurred.
+
+Change: recovered, reviewed, freshly verified, and locally checkpointed the KOKUEN v3 baseline before
+starting the approved KOKUEN v5 rebuild.
+
+Files affected: KOKUEN v3 tokens and design records; universal command and setup behavior; registry,
+source, JavaScript, Python, and real-browser regressions; and current task state.
+
+Reason: preserve the proven baseline with the required local commit identity, begin v5 from a clean
+worktree, and keep the new mission, migration order, proof gates, and no-push boundary explicit.
+
 ## 2026-07-29
 
 Change: aligned the tracked Alles design system with KOKUEN v3, rebuilt universal command as a complete

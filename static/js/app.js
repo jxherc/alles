@@ -45,6 +45,7 @@ import {
 import { initPrivacyHandlers } from './privacy.js';
 import { initScrollFollow } from './scrollfollow.js';
 import { initAideWorkspace } from './aideworkspace.js?v=276';
+import { createFocusBoundary, initKokuenPrimitives } from './kokuen.js?v=1';
 import { validatedProjectId, withProjectContext } from './andromeda.js?v=247';
 import { loadShortcuts, matchesShortcut, matchesSettingsShortcut } from './shortcuts.js';
 import { startReminderPoll, initReminderPanel } from './reminders.js?v=243';
@@ -54,6 +55,7 @@ import { cachedLocalizationSettings, configureLocalization, formatDate, formatDa
 import { cancelRecording as cancelVoiceRecording, isRecording as isVoiceRecording } from './voice.js';
 
 window._mdToHtml = mdToHtml;
+initKokuenPrimitives(document);
 
 // ── init ──────────────────────────────────────────────────────────────────────
 // single sign-on: log in once at alles and every app subdomain unlocks. cookies
@@ -525,18 +527,13 @@ function renderAppCrumb(appName, sub) {
   _buildCrumb(crumb, appName, sub || appName);
 }
 
-// two real anchors so middle-click / ctrl-click opens the target in a new tab natively.
-// left-click is intercepted for in-session SPA nav (see _wireCrumbNav).
+// A compact local identity link. Global navigation belongs to the universal
+// shell control, so the old "app / alles" breadcrumb is intentionally gone.
 function _buildCrumb(el, appName, appSub) {
   const appA = document.createElement('a');
   appA.className = 'crumb-app'; appA.textContent = appName;
   appA.href = urlForApp(appSub); appA.title = `open ${appName}`;
-  const sep = document.createElement('span');
-  sep.className = 'crumb-sep'; sep.textContent = ' / ';
-  const rootA = document.createElement('a');
-  rootA.className = 'crumb-root'; rootA.textContent = 'alles';
-  rootA.href = urlForApp(''); rootA.title = 'alles home';
-  el.replaceChildren(appA, sep, rootA);
+  el.replaceChildren(appA);
 }
 
 function _wireCrumbNav(el) {
@@ -544,13 +541,8 @@ function _wireCrumbNav(el) {
   el.dataset.crumbWired = '1';
   el.addEventListener('click', e => {
     if (e.metaKey || e.ctrlKey || e.shiftKey) return;   // let the browser open a new tab
-    const root = e.target.closest('.crumb-root');
-    if (root) {                                  // "alles" → back to Home
-      e.preventDefault();
-      if (singleHost()) navigateTo(_afterlifeFlags.afterlife_today ? 'today' : 'home');
-      else if (currentSub()) crossNav(''); else showHomeView();
-    }
-    // the app-name part: let its href (the app's own root) load → that app's home page
+    // The app-name part keeps native link behavior. Home and cross-app movement
+    // live in the shell navigation sheet.
   });
 }
 
@@ -1067,6 +1059,8 @@ function renderLocalView(v, route = {}) {
 
 // ── launcher tiles ──────────────────────────────────────────────────────────
 const _ICON = {
+  home: '<path d="M4 10.5 12 4l8 6.5V20h-6v-6h-4v6H4Z"/>',
+  andromeda: '<circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 4 4"/><path d="M8 10.5h5M10.5 8v5"/>',
   chat: '<path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8z"/>',
   notes: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/>',
   calendar: '<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>',
@@ -1127,8 +1121,30 @@ const HOME_PINNABLE_APPS = [
   { view: 'system', name: 'server', desc: 'services, backups, and updates' },
 ];
 
-let _appDrawerReturnFocus = null;
-let _profileReturnFocus = null;
+const SHELL_GROUPS = Object.freeze([
+  ['primary spaces', [
+    { view: 'today', name: 'home', desc: 'current work and quick capture', icon: 'home' },
+    { view: 'chat', name: 'aide', desc: 'conversation and local execution', icon: 'chat' },
+    { view: 'andromeda', name: 'andromeda', desc: 'search and grounded answers', icon: 'andromeda' },
+  ]],
+  ['everyday', [
+    { view: 'plan', name: 'plan', desc: 'calendar, tasks, and reminders', icon: 'calendar' },
+    { view: 'inbox', name: 'inbox', desc: 'mail and contacts', icon: 'mail' },
+    { view: 'wiki', name: 'docs', desc: 'notes and journal', icon: 'notes' },
+  ]],
+  ['personal', [
+    { view: 'files', name: 'files', desc: 'storage and gallery', icon: 'files' },
+    { view: 'library', name: 'library', desc: 'books and saved reading', icon: 'books' },
+    { view: 'health', name: 'health', desc: 'history and habits', icon: 'health' },
+  ]],
+  ['manage', [
+    { view: 'finance', name: 'finance', desc: 'accounts and subscriptions', icon: 'money' },
+    { view: 'vault', name: 'vault', desc: 'passwords and passkeys', icon: 'secrets' },
+    { view: 'system', name: 'server', desc: 'services, backups, and updates', icon: 'system' },
+  ]],
+]);
+
+let _appDrawerFocusBoundary = null;
 
 function initAfterlifeShell(flags) {
   const spaces = activeAfterlifeSpaces(flags);
@@ -1141,85 +1157,38 @@ function initAfterlifeShell(flags) {
     return;
   }
   rail.hidden = false;
-  rail.querySelectorAll('[data-space]').forEach(button => {
-    button.hidden = !spaces.includes(button.dataset.space);
-  });
   _setAfterlifeSpace(document.body.classList.contains('is-aide') ? 'aide' : '');
   _renderAppDrawer();
 
-  rail.querySelectorAll('[data-view]').forEach(button => {
-    button.addEventListener('click', () => navigateTo(button.dataset.view));
+  const drawer = document.getElementById('app-drawer');
+  const trigger = document.getElementById('app-drawer-btn');
+  if (drawer && trigger) {
+    _appDrawerFocusBoundary = createFocusBoundary(drawer, {
+      trigger,
+      onEscape: closeAppDrawer,
+    });
+  }
+  trigger?.addEventListener('click', () => {
+    if (drawer?.hidden === false) closeAppDrawer();
+    else openAppDrawer();
   });
-  document.getElementById('app-drawer-btn')?.addEventListener('click', openAppDrawer);
-  document.getElementById('app-drawer-close')?.addEventListener('click', returnHomeFromAppDrawer);
+  document.getElementById('app-drawer-close')?.addEventListener('click', closeAppDrawer);
   document.getElementById('app-drawer-scrim')?.addEventListener('click', closeAppDrawer);
   document.getElementById('app-drawer-settings')?.addEventListener('click', () => {
     closeAppDrawer();
     openSettings();
   });
-  document.getElementById('space-profile-btn')?.addEventListener('click', event => {
-    event.stopPropagation();
-    toggleProfileMenu();
-  });
-  document.getElementById('space-profile-menu')?.addEventListener('click', event => event.stopPropagation());
-  document.getElementById('space-settings-btn')?.addEventListener('click', () => {
-    closeProfileMenu();
-    openSettings();
-  });
-  document.addEventListener('click', () => closeProfileMenu(false));
-}
-
-function toggleProfileMenu() {
-  const menu = document.getElementById('space-profile-menu');
-  const button = document.getElementById('space-profile-btn');
-  if (!menu || !button) return;
-  if (!menu.hidden) { closeProfileMenu(); return; }
-  _profileReturnFocus = document.activeElement;
-  menu.hidden = false;
-  button.setAttribute('aria-expanded', 'true');
-  menu.querySelector('[role="menuitem"]')?.focus();
-}
-
-function closeProfileMenu(restoreFocus = true) {
-  const menu = document.getElementById('space-profile-menu');
-  if (!menu || menu.hidden) return;
-  menu.hidden = true;
-  document.getElementById('space-profile-btn')?.setAttribute('aria-expanded', 'false');
-  if (restoreFocus && _profileReturnFocus?.isConnected) _profileReturnFocus.focus();
-  _profileReturnFocus = null;
 }
 
 function _setAfterlifeSpace(space) {
   document.body.dataset.space = space || '';
   window._syncAideNewTaskContext?.(window._currentSession || null);
-  document.querySelectorAll('.space-link').forEach(button => {
-    const active = !!space && button.dataset.space === space;
-    button.classList.toggle('active', active);
-    button.setAttribute('aria-current', active ? 'page' : 'false');
-  });
 }
 
 function _renderAppDrawer() {
   const grid = document.getElementById('app-drawer-grid');
   if (!grid || grid.childElementCount) return;
-  const groups = [
-    ['everyday', ['plan', 'inbox', 'wiki']],
-    ['personal', ['files', 'library', 'health']],
-    ['manage', ['finance', 'vault', 'system']],
-  ];
-  const tiles = new Map(HOME_TILES.map(tile => [tile.view, tile]));
-  const presentations = new Map([
-    ['plan', { name: 'plan', desc: 'calendar, tasks, reminders' }],
-    ['inbox', { name: 'inbox', desc: 'mail and contacts' }],
-    ['wiki', { name: 'docs', desc: 'notes and journal' }],
-    ['files', { name: 'files', desc: 'storage and gallery' }],
-    ['library', { name: 'library', desc: 'books and saved reading' }],
-    ['health', { name: 'health', desc: 'history and habits' }],
-    ['finance', { name: 'finance', desc: 'accounts and subscriptions' }],
-    ['vault', { name: 'vault', desc: 'passwords and passkeys' }],
-    ['system', { name: 'server', desc: 'services, backups, and updates' }],
-  ]);
-  for (const [label, views] of groups) {
+  for (const [label, destinations] of SHELL_GROUPS) {
     const section = document.createElement('section');
     section.className = 'app-drawer-group';
     const heading = document.createElement('h3');
@@ -1227,20 +1196,18 @@ function _renderAppDrawer() {
     section.appendChild(heading);
     const list = document.createElement('div');
     list.className = 'app-drawer-list';
-    for (const view of views) {
-      const sourceTile = tiles.get(view);
-      if (!sourceTile) continue;
-      const tile = { ...sourceTile, ...presentations.get(view) };
+    for (const destination of destinations) {
       const button = document.createElement('button');
       button.type = 'button';
       button.className = 'app-drawer-item';
-      button.dataset.view = tile.view;
-      button.innerHTML = `<span class="app-drawer-icon" aria-hidden="true">${_svg(tile.icon)}</span><span><b>${tile.name}</b><small>${tile.desc}</small></span><i aria-hidden="true">→</i>`;
+      button.dataset.view = destination.view;
+      button.innerHTML = `<span class="app-drawer-icon" aria-hidden="true">${_svg(destination.icon)}</span><span><b>${destination.name}</b><small>${destination.desc}</small></span>`;
       button.addEventListener('click', async () => {
-        const staysOnPage = singleHost() || viewToSub(tile.view) === currentSub();
-        const navigated = await navigateTo(tile.view);
+        const staysOnPage = singleHost() || viewToSub(destination.view) === currentSub();
+        const navigated = await navigateTo(destination.view);
         // For in-page routes, paint the destination before uncovering it. For a
-        // subdomain handoff, keep Apps covering Home until the new page replaces it.
+        // subdomain handoff, keep navigation covering the old surface until the
+        // new page replaces it.
         if (staysOnPage && navigated) closeAppDrawer();
       });
       list.appendChild(button);
@@ -1254,17 +1221,16 @@ function openAppDrawer() {
   const drawer = document.getElementById('app-drawer');
   const scrim = document.getElementById('app-drawer-scrim');
   if (!drawer || !scrim) return;
-  _appDrawerReturnFocus = document.activeElement;
   drawer.hidden = false;
   scrim.hidden = false;
   document.body.classList.add('app-drawer-open');
   document.getElementById('app-drawer-btn')?.setAttribute('aria-expanded', 'true');
-  document.getElementById('app-drawer-close')?.focus();
-}
-
-async function returnHomeFromAppDrawer() {
-  const navigated = await navigateTo(_afterlifeFlags.afterlife_today ? 'today' : 'home');
-  if (navigated) closeAppDrawer();
+  document.querySelector('.main')?.setAttribute('inert', '');
+  document.querySelector('.sidebar')?.setAttribute('inert', '');
+  _appDrawerFocusBoundary?.activate({
+    source: document.getElementById('app-drawer-btn'),
+    focus: document.getElementById('app-drawer-close'),
+  });
 }
 
 function closeAppDrawer() {
@@ -1275,31 +1241,14 @@ function closeAppDrawer() {
   if (scrim) scrim.hidden = true;
   document.body.classList.remove('app-drawer-open');
   document.getElementById('app-drawer-btn')?.setAttribute('aria-expanded', 'false');
-  if (_appDrawerReturnFocus?.isConnected) _appDrawerReturnFocus.focus();
-}
-
-function _trapAppDrawerFocus(event) {
-  const drawer = document.getElementById('app-drawer');
-  if (event.key !== 'Tab' || !drawer || drawer.hidden) return false;
-  const focusable = [...drawer.querySelectorAll('button:not([disabled]), a[href], input:not([disabled])')]
-    .filter(element => element.offsetParent !== null);
-  if (!focusable.length) return false;
-  const first = focusable[0], last = focusable[focusable.length - 1];
-  if (event.shiftKey && document.activeElement === first) {
-    event.preventDefault();
-    last.focus();
-    return true;
-  }
-  if (!event.shiftKey && document.activeElement === last) {
-    event.preventDefault();
-    first.focus();
-    return true;
-  }
-  return false;
+  document.querySelector('.main')?.removeAttribute('inert');
+  document.querySelector('.sidebar')?.removeAttribute('inert');
+  _appDrawerFocusBoundary?.deactivate();
 }
 
 // command-palette nav source (the ⌘K search renders a "go to" group from this)
-window._navCommands = HOME_TILES.map(t => ({ view: t.view, label: t.name, hint: t.desc }));
+window._navCommands = SHELL_GROUPS.flatMap(([, destinations]) => destinations)
+  .map(destination => ({ view: destination.view, label: destination.name, hint: destination.desc }));
 
 // ── home tiles: drag-reorder + hide/show (persisted) + quick capture ─────────
 const HOME_ORDER_KEY = 'alles-home-order';
@@ -1857,12 +1806,6 @@ function bindEvents() {
     if (singleHost()) navigateTo(_afterlifeFlags.afterlife_today ? 'today' : 'home');
     else crossNav('');
   });
-  document.querySelectorAll('[data-specialist-home]').forEach(button => {
-    button.addEventListener('click', () => {
-      if (singleHost()) navigateTo(_afterlifeFlags.afterlife_today ? 'today' : 'home');
-      else crossNav('');
-    });
-  });
   document.getElementById('files-settings-btn')?.addEventListener('click', () => openSettings());
   const aideToolsButton = document.getElementById('aide-tools-link');
   const aideToolsMenu = document.getElementById('aide-sidebar-menu');
@@ -1897,10 +1840,6 @@ function bindEvents() {
   document.getElementById('aide-scheduled-link')?.addEventListener('click', () => {
     navigateTo('scheduled');
     closeCompactAideSidebar();
-  });
-  document.getElementById('aide-home-button')?.addEventListener('click', () => {
-    if (singleHost()) navigateTo(_afterlifeFlags.afterlife_today ? 'today' : 'home');
-    else crossNav('');
   });
   document.getElementById('today-settings')?.addEventListener('click', () => openSettings('home', true));
 
@@ -2048,7 +1987,6 @@ function bindEvents() {
   });
 
   document.addEventListener('keydown', e => {
-    if (_trapAppDrawerFocus(e)) return;
     const shortcuts = loadShortcuts();
     if (e.key === 'Escape') {
       const filesPreview = document.getElementById('files-preview-modal');
@@ -2056,7 +1994,7 @@ function bindEvents() {
       // if a reply is streaming, Esc stops it first; otherwise it closes overlays
       const stopBtn = document.getElementById('stop-btn');
       if (stopBtn?.classList.contains('visible')) { stopStream(); return; }
-      closeAllModals(); closeSettings(); closeSearch(); closeMoreTools(); closeShellPanel(); closeAppDrawer(); closeProfileMenu(); closePermMenu(); setAideSidebarSearch(false);
+      closeAllModals(); closeSettings(); closeSearch(); closeMoreTools(); closeShellPanel(); closeAppDrawer(); closePermMenu(); setAideSidebarSearch(false);
     }
     else if (matchesShortcut(e, shortcuts.focus_input)) {
       const ta = document.getElementById('composer-ta');

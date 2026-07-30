@@ -12,11 +12,15 @@ These are defaults, not permission to keep a broken layout until the exact pixel
 
 ## shell
 
-- preserve the 52px app-owned identity row;
+- preserve the 52px universal rail and its 44px trigger at every supported width;
+- the navigation sheet fills the remaining phone width and never obscures its own close action;
+- opening the sheet preserves the current app state, makes the workbench inert, and restores trigger
+  focus on every close path;
+- preserve the 52px app-owned identity row where the app needs one;
 - keep app identity in that row; never add a second oversized app-name title at any width;
 - never reintroduce the legacy `<app> / alles` crumb as a mobile fallback;
 - hide optional middle context before identity or actions become cramped;
-- keep `home`, the current app identity, the primary action, and Settings reachable;
+- keep cross-app destinations in the universal sheet and local actions in the app surface;
 - when local tabs need their own small-layout row, make it 44px and horizontally contained rather than
   shrinking labels or causing page overflow;
 - move low-priority actions into a custom overflow menu;

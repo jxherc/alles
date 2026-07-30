@@ -15,7 +15,7 @@ test('settings always opens with ctrl or cmd comma', () => {
   assert.equal(matchesSettingsShortcut(keyEvent({ key: 's', altKey: true }), 'Alt+S'), true);
 });
 
-test('settings is one accessible home with the eight phase three groups', () => {
+test('settings is one accessible home reached from the universal shell', () => {
   const html = readFileSync(new URL('../../static/index.html', import.meta.url), 'utf8');
   for (const label of [
     'general &amp; appearance',
@@ -27,8 +27,8 @@ test('settings is one accessible home with the eight phase three groups', () => 
     'notifications &amp; language',
     'server, backups &amp; data',
   ]) assert.equal(html.includes(label), true, `missing settings group: ${label}`);
-  assert.match(html, /id="space-profile-btn"[^>]*aria-haspopup="menu"/);
-  assert.match(html, /id="space-settings-btn"[^>]*role="menuitem"/);
+  assert.doesNotMatch(html, /id="space-profile-btn"/);
+  assert.match(html, /id="app-drawer-settings"[^>]*type="button"/);
   const modal = html.match(/<[^>]+id="settings-modal"[^>]*>/)?.[0] || '';
   assert.match(modal, /role="dialog"/);
   assert.match(modal, /aria-modal="true"/);

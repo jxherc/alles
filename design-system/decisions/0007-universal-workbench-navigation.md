@@ -2,9 +2,10 @@
 
 Decision
 
-Choice: Every canonical specialist workbench uses the same accessible sidebar toggle and one shared
-persisted expanded or collapsed preference. The app identity and Home action remain available in the
-full-width header when the navigation rail is hidden.
+Choice: Every canonical specialist workbench uses the same accessible local-sidebar toggle and one
+shared persisted expanded or collapsed preference. The app identity remains in the full-width header
+when local navigation is hidden. The Home path belongs to the universal sheet defined by decision
+0009, not to the local header.
 
 Reason: A fixed rail without a toggle wastes working space and makes the nine consolidated apps behave
 like unrelated products. One setting makes navigation predictable across Plan, Inbox, Docs, Files,

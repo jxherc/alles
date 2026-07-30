@@ -81,7 +81,7 @@ class DesignSystemContractTests(unittest.TestCase):
         self.assertEqual("{space.600}", semantic["section"]["$value"])
         self.assertEqual("{space.800}", semantic["major"]["$value"])
 
-    def test_runtime_exposes_portable_kokuen_v3_tokens(self):
+    def test_runtime_exposes_portable_kokuen_v5_tokens(self):
         css = (ROOT / "static" / "kokuen.css").read_text(encoding="utf-8")
         expected = {
             "--k-space-0": "0",
@@ -115,6 +115,47 @@ class DesignSystemContractTests(unittest.TestCase):
             "radius-container",
         ):
             self.assertIn(f"--ui-{token}:", css)
+
+        runtime = (ROOT / "static/js/kokuen.js").read_text(encoding="utf-8")
+        app = (ROOT / "static/js/app.js").read_text(encoding="utf-8")
+        self.assertIn("dataset.kokuenVersion = '5'", runtime)
+        self.assertIn("initKokuenPrimitives(document)", app)
+
+    def test_kokuen_v5_component_contracts_are_complete(self):
+        with (SYSTEM / "components/contracts.json").open(encoding="utf-8") as handle:
+            contracts = json.load(handle)
+
+        required_states = [
+            "resting", "hover", "pressed", "selected", "disabled", "busy",
+            "invalid", "loading", "empty", "permission", "offline", "stale",
+            "partial", "error",
+        ]
+        required_ids = {
+            "kokuen.action", "kokuen.icon-action", "kokuen.field", "kokuen.switch",
+            "kokuen.select-listbox", "kokuen.tabs", "kokuen.menu", "kokuen.dialog",
+            "kokuen.sheet", "kokuen.command", "kokuen.data-view", "kokuen.feedback",
+        }
+        self.assertEqual(required_states, contracts["state_vocabulary"])
+        self.assertEqual(required_ids, {item["id"] for item in contracts["contracts"]})
+        for item in contracts["contracts"]:
+            with self.subTest(contract=item["id"]):
+                self.assertEqual("stable", item["status"])
+                self.assertTrue(item["boundary_rationale"])
+                self.assertTrue(item["keyboard"]["keys"])
+                self.assertTrue(item["accessibility"]["role"])
+                self.assertTrue(item["fixtures"])
+
+    def test_kokuen_v5_targets_use_the_44px_control_token(self):
+        with (SYSTEM / "tokens/components.tokens.json").open(encoding="utf-8") as handle:
+            components = json.load(handle)
+        expected = "{size.controlNormal}"
+        self.assertEqual(expected, components["row"]["denseHeight"]["$value"])
+        self.assertEqual(expected, components["row"]["normalHeight"]["$value"])
+        self.assertEqual(expected, components["iconAction"]["desktopTarget"]["$value"])
+        self.assertEqual(expected, components["iconAction"]["touchTarget"]["$value"])
+        self.assertEqual(expected, components["menu"]["itemMinHeight"]["$value"])
+        self.assertEqual(expected, components["field"]["minHeight"]["$value"])
+        self.assertEqual(expected, components["shell"]["navigationTarget"]["$value"])
 
     def test_focus_is_neutral_and_active_state_keeps_the_accent(self):
         with (SYSTEM / "tokens/semantic.tokens.json").open(encoding="utf-8") as handle:
