@@ -14,7 +14,8 @@ The prior KOKUEN v3 follow-up has been recovered, reviewed, freshly verified, an
 commit `f22772491ba31d99d46f4ea9bfd64376a85a70f9`. The worktree was clean at the v5 start. The KOKUEN v5
 shared runtime, machine-readable component contracts, 14-state vocabulary, 44px target layer, and single
 universal shell are implemented and have passed their source, unit, and first real-application gate.
-Primary-space migration is next; no whole-rebuild completion has been claimed.
+The Home, Aide, and Andromeda migration is complete and has passed focused and repeated real-application
+gates. The nine specialist workbenches are next; no whole-rebuild completion has been claimed.
 
 ## requirements
 
@@ -76,15 +77,22 @@ Primary-space migration is next; no whole-rebuild completion has been claimed.
   system decisions for the v5 universal contract.
 - Passed 551 JavaScript tests, 9 design-system Python contracts, syntax and diff checks, and a live
   isolated Andromeda-to-Home shell, focus-return, navigation, and rendered graphite inspection.
+- Migrated Home, Aide, and Andromeda to the frozen v5 shell: the global rail remains reachable, Aide
+  exposes one explicit mobile identity when its local sidebar is closed, and Andromeda's idle footer and
+  settings sheet clear the rail at every checked width.
+- Updated the Home, Aide, Andromeda, combined Phase 4, and finished-surface browser gates to exercise
+  the universal registry instead of removed local Home and Apps controls.
+- Passed 552 JavaScript tests, the Home/Apps desktop and mobile gate, Aide's complete desktop/mobile
+  interaction gate, Andromeda's dark/light desktop/mobile gate, the finished-surface family gate, and
+  the combined repeated Aide/Andromeda/settings gate. Fresh phone captures were inspected after repair.
 
 ## in progress
 
-- Primary-space migration and state reconciliation for Home, Aide, and Andromeda.
+- Specialist migration and state reconciliation for the exact nine app workbenches.
 - Deterministic interaction and component inventory for the current application.
 
 ## remaining
 
-- Primary-space migration.
 - Nine specialist-app migration.
 - Settings, setup, PWA, and browser-extension migration.
 - Exhaustive interaction logic map and reconciliation tests.
@@ -110,6 +118,15 @@ Primary-space migration is next; no whole-rebuild completion has been claimed.
   contracts, and diff validation.
 - KOKUEN v5 shared real-app gate: **passed** - one shell from Andromeda, exact destination registry,
   modal focus/Escape/restore behavior, authenticated navigation to Home, and fresh rendered inspection.
+- KOKUEN v5 primary-space source gate: **passed** - 552 JavaScript tests and diff validation.
+- KOKUEN v5 Home gate: **passed** - desktop/mobile loading, capture repeat rejection and retry, pinned
+  navigation, shell registry, cross-host return, and single-host paint order.
+- KOKUEN v5 Aide gate: **passed twice** - desktop/mobile tasks, projects, context, composer, attachments,
+  permission, effort, model, message rail, work panel, terminal, keyboard, and shell behavior.
+- KOKUEN v5 Andromeda gate: **passed repeatedly** - desktop/mobile, dark/light, search, normal/media
+  results, overview, provider settings, custom choices, partial data, managed search, and shell return.
+- KOKUEN v5 primary visual audit: **passed** - Home, Aide, shell, and repaired Andromeda phone/desktop
+  captures inspected; no clipped panel or hidden primary identity remains.
 - KOKUEN v5 whole-application migration and verification: **in progress** - no completion claim yet.
 
 ## boundaries

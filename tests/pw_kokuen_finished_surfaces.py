@@ -436,26 +436,32 @@ def _home_and_apps(browser: Browser, errors: list[str]) -> None:
         _assert_no_overflow(page)
         page.screenshot(path=str(OUTPUT / f"home-{label}.png"), full_page=True)
 
-        page.locator('[data-today-destination="apps"]').click()
+        shell_trigger = page.locator("#app-drawer-btn")
+        assert shell_trigger.is_visible()
+        assert shell_trigger.get_attribute("aria-expanded") == "false"
+        shell_trigger.click()
         drawer = page.locator("#app-drawer")
         drawer.wait_for(state="visible")
         assert drawer.get_attribute("data-kokuen-surface") == "apps"
-        assert (
-            page.locator(".app-drawer-head").evaluate(
-                "el => Math.round(el.getBoundingClientRect().height)"
-            )
-            == 52
+        assert shell_trigger.get_attribute("aria-expanded") == "true"
+        assert page.locator("#app-drawer-close").evaluate("el => document.activeElement === el")
+        assert page.locator(".main").get_attribute("inert") is not None
+        assert page.locator("#app-drawer-close").evaluate(
+            "el => el.getBoundingClientRect().height >= 44"
         )
         assert page.locator(".app-drawer-item").first.evaluate(
-            "el => el.getBoundingClientRect().height >= 52"
+            "el => el.getBoundingClientRect().height >= 44"
         )
-        assert page.locator(".app-drawer-group").count() == 3
-        assert page.locator(".app-drawer-item").count() == 9
+        assert page.locator(".app-drawer-group").count() == 4
+        assert page.locator(".app-drawer-item").count() == 12
+        assert page.locator(".app-drawer-group").first.locator(".app-drawer-item").count() == 3
         assert page.locator("#app-drawer select:visible").count() == 0
         _assert_no_overflow(page)
         page.screenshot(path=str(OUTPUT / f"apps-{label}.png"), full_page=True)
         page.locator("#app-drawer-close").click()
         assert drawer.is_hidden()
+        assert shell_trigger.evaluate("el => document.activeElement === el")
+        assert page.locator(".main").get_attribute("inert") is None
         context.close()
 
 
@@ -684,7 +690,7 @@ def _andromeda(browser: Browser, errors: list[str]) -> None:
         assert result_count_row.locator("strong").inner_text().strip() == "result count"
         assert page.locator("#andromeda-provider-summary").count() == 0
         panel_box = panel.bounding_box()
-        assert panel_box and panel_box["x"] >= 0
+        assert panel_box and panel_box["x"] >= 52
         assert panel_box["x"] + panel_box["width"] <= width + 0.5
         assert panel.evaluate("el => getComputedStyle(el).boxShadow === 'none'")
         assert panel.locator("select:visible").count() == 0
@@ -728,7 +734,7 @@ def _light_theme_family(browser: Browser, errors: list[str]) -> None:
 
     page.goto(f"http://127.0.0.1:{PORT}/", wait_until="domcontentloaded")
     page.wait_for_selector("#today-view:visible")
-    page.locator('[data-today-destination="apps"]').click()
+    page.locator("#app-drawer-btn").click()
     page.wait_for_selector("#app-drawer:visible")
     assert page.locator("#app-drawer").evaluate(
         "el => getComputedStyle(el).getPropertyValue('--k-default-page').trim() === '#f4f3f0'"

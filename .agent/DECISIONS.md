@@ -19,7 +19,9 @@ retain private control implementations, or change the product model while restyl
 
 Consequences: shared tokens, primitives, shell, and interaction schema must stabilize before independent
 app migration. Existing APIs and mutation authorities remain the source of truth. Every migrated surface
-must reconcile with the exhaustive interaction map and pass the real rendered application gate.
+must reconcile with the exhaustive interaction map and pass the real rendered application gate. Fixed
+or modal primary-space surfaces reserve the 52px universal rail before calculating their left edge, and
+a mobile app whose local identity rail is closed exposes one compact identity in its local top bar.
 
 ## KOKUEN v3 runtime migration
 

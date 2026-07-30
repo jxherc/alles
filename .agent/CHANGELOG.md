@@ -2,6 +2,16 @@
 
 ## 2026-07-30
 
+Change: migrated and repeatedly verified Home, Aide, and Andromeda against the frozen KOKUEN v5 shell.
+
+Files affected: Aide mobile identity markup; primary-space rail-clearance styling; Home, Aide,
+Andromeda, combined Phase 4, finished-surface, and v5 source regressions; and current project state.
+
+Reason: keep one visible identity and one universal launcher in each primary space, prevent the rail
+from clipping Andromeda's phone settings and footer controls, and replace stale test paths that depended
+on removed local Home and Apps buttons. Focused and combined gates passed repeatedly on isolated data;
+no push occurred.
+
 Change: established the KOKUEN v5 universal runtime and shell foundation in the real application.
 
 Files affected: shared JavaScript control runtime and custom select; universal rail, sheet, destination

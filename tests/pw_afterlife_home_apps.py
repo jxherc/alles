@@ -152,8 +152,9 @@ def run() -> None:
             assert "*" not in brief_text
             assert len(brief_text) <= 181
             assert brief.evaluate("el => el.getBoundingClientRect().height < 56")
-            assert (
-                page.locator("#space-rail").evaluate("el => getComputedStyle(el).display") == "none"
+            assert page.locator("#space-rail").is_visible()
+            assert page.locator("#app-drawer-btn").evaluate(
+                "el => el.getBoundingClientRect().width >= 44 && el.getBoundingClientRect().height >= 44"
             )
             home_frame = page.locator(".today-topbar").bounding_box()
             assert home_frame is not None
@@ -175,21 +176,26 @@ def run() -> None:
                 ).get_attribute("aria-selected")
                 == "true"
             )
-            page.locator("#plan-view [data-specialist-home]").click()
+            page.locator("#app-drawer-btn").click()
+            page.locator('.app-drawer-item[data-view="today"]').click()
             page.wait_for_url(f"http://localhost:{PORT}/")
             page.wait_for_load_state("networkidle")
             page.wait_for_selector("#today-view:visible")
 
-            page.locator('[data-today-destination="apps"]').click()
+            page.locator("#app-drawer-btn").click()
             page.wait_for_selector("#app-drawer:not([hidden])")
-            assert page.locator(".app-drawer-group").count() == 3
-            assert page.locator(".app-drawer-item").count() == 9
+            assert page.locator(".app-drawer-group").count() == 4
+            assert page.locator(".app-drawer-item").count() == 12
             assert page.locator(".app-drawer-group h3").all_inner_texts() == [
+                "primary spaces",
                 "everyday",
                 "personal",
                 "manage",
             ]
             assert page.locator(".app-drawer-item b").all_inner_texts() == [
+                "home",
+                "aide",
+                "andromeda",
                 "plan",
                 "inbox",
                 "docs",
@@ -204,22 +210,16 @@ def run() -> None:
                 page.locator("#app-drawer").evaluate(
                     "el => Math.round(el.getBoundingClientRect().width)"
                 )
-                == width
+                == min(420, width - 52)
             )
             assert (
                 page.locator("#app-drawer").evaluate("el => getComputedStyle(el).position")
                 == "fixed"
             )
-            apps_frame = page.locator(".app-drawer-head").bounding_box()
+            apps_frame = page.locator("#app-drawer").bounding_box()
             assert apps_frame is not None
-            assert abs(home_frame["x"] - apps_frame["x"]) <= 1
-            assert (
-                abs(
-                    (home_frame["x"] + home_frame["width"])
-                    - (apps_frame["x"] + apps_frame["width"])
-                )
-                <= 1
-            )
+            assert abs(apps_frame["x"] - 52) <= 1
+            assert apps_frame["x"] + apps_frame["width"] <= width + 1
             assert page.evaluate(
                 "document.documentElement.scrollWidth <= document.documentElement.clientWidth"
             )
@@ -229,14 +229,13 @@ def run() -> None:
             assert page.locator("#app-drawer").is_hidden()
             assert page.locator("#today-view").is_visible()
 
-            page.locator('[data-today-destination="apps"]').click()
+            page.locator("#app-drawer-btn").click()
             page.locator('.app-drawer-item[data-view="plan"]').click()
             page.wait_for_selector("#plan-view:visible")
             assert page.locator("#app-drawer").is_hidden()
-            assert (
-                page.locator("#space-rail").evaluate("el => getComputedStyle(el).display") == "none"
-            )
-            page.locator("#plan-view [data-specialist-home]").click()
+            assert page.locator("#space-rail").is_visible()
+            page.locator("#app-drawer-btn").click()
+            page.locator('.app-drawer-item[data-view="today"]').click()
             page.wait_for_url(f"http://localhost:{PORT}/")
             page.wait_for_load_state("networkidle")
             page.wait_for_selector("#today-view:visible")
@@ -250,7 +249,7 @@ def run() -> None:
         single_page = single_context.new_page()
         single_page.route("**/api/today**", mock_home)
         single_page.goto(f"http://127.0.0.1:{PORT}", wait_until="networkidle")
-        single_page.locator('[data-today-destination="apps"]').click()
+        single_page.locator("#app-drawer-btn").click()
         single_page.wait_for_selector("#app-drawer:not([hidden])")
         single_page.evaluate(
             """() => {
