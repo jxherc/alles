@@ -2,14 +2,13 @@
 
 ## shared shell
 
-Every finished app owns its shell. Its app name and Home path live in the app header or the head of its
-local rail; useful current context and actions align beside that identity. Do not stack the legacy
-`<app> / alles` breadcrumb above an app-owned header. The interaction grammar stays stable while the
-workbench below chooses one of four shapes. Theme belongs in Settings. The app picker is the cross-app
-path; local panels never become a second global launcher. Legacy apps migrate only with their approved
-redesign.
+Every authenticated surface exposes one persistent universal navigation trigger. It opens one modal
+sheet backed by the same 12-destination registry as the universal command: three primary spaces and
+nine specialist apps. The trigger is never repeated in an app header. Local rails contain only useful
+current context and app-specific actions. Do not show the legacy `<app> / alles` breadcrumb. Theme
+belongs in Settings, and local panels never become a second global launcher.
 
-Show app identity once in the app-owned shell. The workbench starts with real task content; it never
+Show app identity once in the local app shell. The workbench starts with real task content; it never
 repeats the app name as an oversized landing title. Any content heading names the active section,
 document, date, selection, or task instead.
 

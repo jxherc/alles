@@ -7,17 +7,17 @@
     "borderWidth": { "$type": "dimension", "$value": "{border.width}" }
   },
   "toolbar": {
-    "height": { "$type": "dimension", "$value": { "value": 48, "unit": "px" } },
+    "height": { "$type": "dimension", "$value": "{size.appHeader}" },
     "paddingInline": { "$type": "dimension", "$value": "{space.gutter}" },
     "gap": { "$type": "dimension", "$value": "{space.control}" }
   },
   "row": {
-    "denseHeight": { "$type": "dimension", "$value": "{size.controlDense}" },
+    "denseHeight": { "$type": "dimension", "$value": "{size.controlNormal}" },
     "normalHeight": { "$type": "dimension", "$value": "{size.controlNormal}" },
     "contentGap": { "$type": "dimension", "$value": "{space.row}" }
   },
   "iconAction": {
-    "desktopTarget": { "$type": "dimension", "$value": { "value": 32, "unit": "px" } },
+    "desktopTarget": { "$type": "dimension", "$value": "{size.controlNormal}" },
     "touchTarget": { "$type": "dimension", "$value": "{size.controlNormal}" },
     "iconSize": { "$type": "dimension", "$value": { "value": 16, "unit": "px" } },
     "radius": { "$type": "dimension", "$value": "{radius.control}" }
@@ -25,14 +25,19 @@
   "menu": {
     "radius": { "$type": "dimension", "$value": "{radius.surface}" },
     "itemRadius": { "$type": "dimension", "$value": "{radius.small}" },
-    "itemMinHeight": { "$type": "dimension", "$value": { "value": 38, "unit": "px" } },
+    "itemMinHeight": { "$type": "dimension", "$value": "{size.controlNormal}" },
     "padding": { "$type": "dimension", "$value": "{space.related}" }
   },
   "field": {
-    "minHeight": { "$type": "dimension", "$value": "{size.controlDense}" },
+    "minHeight": { "$type": "dimension", "$value": "{size.controlNormal}" },
     "radius": { "$type": "dimension", "$value": "{radius.control}" },
     "borderWidth": { "$type": "dimension", "$value": "{border.width}" },
     "paddingInline": { "$type": "dimension", "$value": "{space.control}" }
+  },
+  "shell": {
+    "railWidth": { "$type": "dimension", "$value": { "value": 52, "unit": "px" } },
+    "navigationTarget": { "$type": "dimension", "$value": "{size.controlNormal}" },
+    "sheetWidth": { "$type": "dimension", "$value": { "value": 420, "unit": "px" } }
   },
   "layout": {
     "localPanelWidth": { "$type": "dimension", "$value": "{size.localPanel}" },

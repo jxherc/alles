@@ -1,6 +1,6 @@
 # 0003: app-owned shell
 
-Status: accepted for KOKUEN design work
+Status: superseded by decision 0009
 
 ## decision
 
@@ -25,3 +25,6 @@ navigation, sizing, and behavior, not forcing every app through one stale piece 
 New and redesigned apps hide the legacy global topbar, provide their own app identity and reachable
 Home path, and test that boundary on desktop and small layouts. Older apps may retain the legacy crumb
 until their own approved redesign; this decision does not authorize a mechanical rewrite of them.
+
+Decision 0009 preserves one local app identity but moves the direct Home path into the persistent
+universal navigation sheet. Local headers no longer repeat Home or an app picker.

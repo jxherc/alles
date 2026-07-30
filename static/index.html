@@ -43,34 +43,23 @@
 
 <div class="app">
 
-  <nav class="space-rail" id="space-rail" aria-label="main spaces" data-i18n-aria-label="shell.main_spaces" hidden>
-    <div class="space-route" id="space-route">
-      <button class="space-link" type="button" data-space="today" data-view="today" aria-label="Home" title="Home" data-i18n-aria-label="common.home" data-i18n-title="common.home" hidden>H</button>
-      <button class="space-link" type="button" data-space="aide" data-view="chat" aria-label="Aide" title="Aide" data-i18n-aria-label="common.aide" data-i18n-title="common.aide" hidden>A</button>
-      <button class="space-link" type="button" data-space="andromeda" data-view="andromeda" aria-label="Andromeda" title="Andromeda" data-i18n-aria-label="common.andromeda" data-i18n-title="common.andromeda" hidden>Ø</button>
-    </div>
-    <div class="space-rail-bottom">
-      <button class="space-rail-action" id="app-drawer-btn" type="button" aria-haspopup="dialog" aria-expanded="false" data-i18n="common.apps">apps</button>
-      <button class="space-rail-action" id="space-profile-btn" type="button" aria-haspopup="menu" aria-expanded="false" data-i18n="shell.profile">profile</button>
-    </div>
+  <nav class="space-rail" id="space-rail" aria-label="alles navigation" hidden>
+    <button class="shell-navigation-toggle" id="app-drawer-btn" type="button"
+      aria-label="open alles navigation" aria-haspopup="dialog" aria-controls="app-drawer" aria-expanded="false">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M5 9V5h4M15 5h4v4M19 15v4h-4M9 19H5v-4M9 12h6"/>
+      </svg>
+    </button>
   </nav>
-
-  <div class="space-profile-menu" id="space-profile-menu" role="menu" aria-label="alles profile" hidden>
-    <div class="space-profile-copy">
-      <strong>alles</strong>
-      <span data-i18n="shell.private_workspace">your private workspace</span>
-    </div>
-    <button class="space-profile-item" id="space-settings-btn" type="button" role="menuitem"><span data-i18n="common.settings">settings</span> <kbd>⌘/ctrl ,</kbd></button>
-  </div>
 
   <div class="app-drawer-scrim" id="app-drawer-scrim" hidden></div>
   <aside class="app-drawer" id="app-drawer" data-kokuen-surface="apps" role="dialog" aria-modal="true" aria-labelledby="app-drawer-title" hidden>
     <div class="app-drawer-head">
       <div class="app-drawer-kicker">alles</div>
-      <button class="app-drawer-home" id="app-drawer-close" type="button" aria-label="close apps and return home" data-i18n="common.home" data-i18n-aria-label="shell.close_apps">home</button>
+      <button class="app-drawer-home" id="app-drawer-close" type="button" aria-label="close alles navigation">close</button>
     </div>
     <div class="app-drawer-content">
-      <h2 id="app-drawer-title" data-i18n="common.apps">apps</h2>
+      <h2 id="app-drawer-title">move through alles</h2>
       <div class="app-drawer-grid" id="app-drawer-grid"></div>
     </div>
     <footer class="app-drawer-footer">
@@ -85,7 +74,6 @@
   <aside class="sidebar">
     <div class="sidebar-head">
       <span class="brand sidebar-brand" id="brand-home">aide</span>
-      <button class="aide-home-button" id="aide-home-button" type="button" data-i18n="common.home">home</button>
     </div>
 
     <div class="search-wrap">
@@ -210,11 +198,6 @@
           <input id="today-capture-input" type="text" aria-label="capture a task" placeholder="capture something…" data-i18n-aria-label="home.capture_task" data-i18n-placeholder="home.capture_placeholder" autocomplete="off">
           <button class="today-capture-send" type="submit" aria-label="save capture" data-i18n-aria-label="home.save_capture">↑</button>
         </form>
-        <nav class="today-destinations" aria-label="main destinations" data-i18n-aria-label="home.destinations">
-          <button type="button" data-today-destination="chat" data-i18n="common.aide">aide</button>
-          <button type="button" data-today-destination="andromeda" data-i18n="common.andromeda">andromeda</button>
-          <button type="button" data-today-destination="apps" data-i18n="common.apps">apps</button>
-        </nav>
       </div>
     </div>
 
@@ -234,7 +217,6 @@
             <button class="andromeda-icon-button" id="andromeda-settings-button" type="button" aria-label="andromeda settings" data-i18n-aria-label="andromeda.settings" aria-expanded="false" aria-controls="andromeda-settings-panel">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M19 12a7 7 0 0 0-.08-1l2-1.55-2-3.46-2.45 1A7 7 0 0 0 14.75 6L14.4 3h-4.8l-.35 3a7 7 0 0 0-1.72.99l-2.45-1-2 3.46L5.08 11A7 7 0 0 0 5 12c0 .34.03.67.08 1l-2 1.55 2 3.46 2.45-1a7 7 0 0 0 1.72.99l.35 3h4.8l.35-3a7 7 0 0 0 1.72-.99l2.45 1 2 3.46-2-1.55c.05-.33.08-.66.08-1Z"></path></svg>
             </button>
-            <button class="andromeda-icon-button andromeda-home-button" id="andromeda-go-home" type="button" data-i18n="common.home">home</button>
           </div>
         </header>
 
@@ -309,7 +291,7 @@
         </main>
       </div>
 
-      <div class="andromeda-idle-footer"><button id="andromeda-idle-home" type="button" data-i18n="common.home">home</button><span>andromeda</span><button id="andromeda-idle-settings" type="button" data-i18n="common.settings">settings</button></div>
+      <div class="andromeda-idle-footer"><span>andromeda</span><button id="andromeda-idle-settings" type="button" data-i18n="common.settings">settings</button></div>
       <aside class="andromeda-settings-panel" id="andromeda-settings-panel" aria-label="andromeda settings" hidden>
         <div class="andromeda-settings-head"><h2>settings</h2><button class="andromeda-icon-button" id="andromeda-settings-close" type="button" aria-label="close settings">×</button></div>
         <section class="andromeda-settings-section" aria-labelledby="andromeda-search-settings-title">
@@ -508,55 +490,55 @@
 
     <!-- ── Stage 8 specialist groups; proven legacy screens are mounted into their slots ── -->
     <section class="page-view specialist-group" id="plan-view" data-specialist-app="plan" data-kokuen-surface="specialist" style="display:none" aria-labelledby="plan-title">
-      <header class="specialist-app-head"><div class="specialist-app-brand"><button class="specialist-sidebar-toggle" type="button" data-specialist-sidebar-toggle aria-expanded="true" aria-controls="plan-tabs" aria-label="hide plan navigation"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3.5 4.5h13v11h-13zM7 4.5v11"/></svg></button><h1 class="specialist-app-name" id="plan-title" data-i18n="plan.title">plan</h1><button class="specialist-home-action" type="button" data-specialist-home data-i18n="common.home">home</button></div><div class="specialist-group-tabs" id="plan-tabs" role="tablist" aria-label="plan sections" data-i18n-aria-label="plan.sections">
+      <header class="specialist-app-head"><div class="specialist-app-brand"><button class="specialist-sidebar-toggle" type="button" data-specialist-sidebar-toggle aria-expanded="true" aria-controls="plan-tabs" aria-label="hide plan navigation"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3.5 4.5h13v11h-13zM7 4.5v11"/></svg></button><h1 class="specialist-app-name" id="plan-title" data-i18n="plan.title">plan</h1></div><div class="specialist-group-tabs" id="plan-tabs" role="tablist" aria-label="plan sections" data-i18n-aria-label="plan.sections">
         <button type="button" role="tab" data-group-section="overview" data-i18n="plan.agenda">agenda</button><button type="button" role="tab" data-group-section="week" data-i18n="plan.week">week</button><button type="button" role="tab" data-group-section="board" data-i18n="plan.board">task board</button><button type="button" role="tab" data-group-section="calendar" data-i18n="calendar.title">calendar</button><button type="button" role="tab" data-group-section="tasks" data-i18n="tasks.title">tasks</button><button type="button" role="tab" data-group-section="reminders" data-i18n="aide.reminders">reminders</button><button type="button" role="tab" data-group-section="days">countdowns</button>
       </div></header>
       <div class="specialist-group-overview" data-group-overview></div><div class="specialist-group-slot" data-group-slot hidden></div>
     </section>
     <section class="page-view specialist-group" id="inbox-view" data-specialist-app="inbox" data-kokuen-surface="specialist" style="display:none" aria-labelledby="inbox-title">
-      <header class="specialist-app-head"><div class="specialist-app-brand"><button class="specialist-sidebar-toggle" type="button" data-specialist-sidebar-toggle aria-expanded="true" aria-controls="inbox-tabs" aria-label="hide inbox navigation"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3.5 4.5h13v11h-13zM7 4.5v11"/></svg></button><h1 class="specialist-app-name" id="inbox-title">inbox</h1><button class="specialist-home-action" type="button" data-specialist-home>home</button></div><div class="specialist-group-tabs" id="inbox-tabs" role="tablist" aria-label="inbox sections">
+      <header class="specialist-app-head"><div class="specialist-app-brand"><button class="specialist-sidebar-toggle" type="button" data-specialist-sidebar-toggle aria-expanded="true" aria-controls="inbox-tabs" aria-label="hide inbox navigation"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3.5 4.5h13v11h-13zM7 4.5v11"/></svg></button><h1 class="specialist-app-name" id="inbox-title">inbox</h1></div><div class="specialist-group-tabs" id="inbox-tabs" role="tablist" aria-label="inbox sections">
         <button type="button" role="tab" data-group-section="overview">overview</button><button type="button" role="tab" data-group-section="mail">mail</button><button type="button" role="tab" data-group-section="contacts">contacts</button>
       </div></header>
       <div class="specialist-group-overview" data-group-overview></div><div class="specialist-group-slot" data-group-slot hidden></div>
     </section>
     <section class="page-view specialist-group" id="library-view" data-specialist-app="library" data-kokuen-surface="specialist" style="display:none" aria-labelledby="library-title">
-      <header class="specialist-app-head"><div class="specialist-app-brand"><button class="specialist-sidebar-toggle" type="button" data-specialist-sidebar-toggle aria-expanded="true" aria-controls="library-tabs" aria-label="hide library navigation"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3.5 4.5h13v11h-13zM7 4.5v11"/></svg></button><h1 class="specialist-app-name" id="library-title">library</h1><button class="specialist-home-action" type="button" data-specialist-home>home</button></div><div class="specialist-group-tabs" id="library-tabs" role="tablist" aria-label="library sections">
+      <header class="specialist-app-head"><div class="specialist-app-brand"><button class="specialist-sidebar-toggle" type="button" data-specialist-sidebar-toggle aria-expanded="true" aria-controls="library-tabs" aria-label="hide library navigation"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3.5 4.5h13v11h-13zM7 4.5v11"/></svg></button><h1 class="specialist-app-name" id="library-title">library</h1></div><div class="specialist-group-tabs" id="library-tabs" role="tablist" aria-label="library sections">
         <button type="button" role="tab" data-group-section="overview">overview</button><button type="button" role="tab" data-group-section="books">books</button><button type="button" role="tab" data-group-section="read">saved</button>
       </div></header>
       <div class="specialist-group-overview" data-group-overview></div><div class="specialist-group-slot" data-group-slot hidden></div>
     </section>
     <section class="page-view specialist-group" id="health-group-view" data-specialist-app="health" data-kokuen-surface="specialist" style="display:none" aria-labelledby="health-group-title">
-      <header class="specialist-app-head"><div class="specialist-app-brand"><button class="specialist-sidebar-toggle" type="button" data-specialist-sidebar-toggle aria-expanded="true" aria-controls="health-tabs" aria-label="hide health navigation"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3.5 4.5h13v11h-13zM7 4.5v11"/></svg></button><h1 class="specialist-app-name" id="health-group-title">health</h1><button class="specialist-home-action" type="button" data-specialist-home>home</button></div><div class="specialist-group-tabs" id="health-tabs" role="tablist" aria-label="health sections">
+      <header class="specialist-app-head"><div class="specialist-app-brand"><button class="specialist-sidebar-toggle" type="button" data-specialist-sidebar-toggle aria-expanded="true" aria-controls="health-tabs" aria-label="hide health navigation"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3.5 4.5h13v11h-13zM7 4.5v11"/></svg></button><h1 class="specialist-app-name" id="health-group-title">health</h1></div><div class="specialist-group-tabs" id="health-tabs" role="tablist" aria-label="health sections">
         <button type="button" role="tab" data-group-section="overview">overview</button><button type="button" role="tab" data-group-section="health">logs</button><button type="button" role="tab" data-group-section="habits">habits</button>
       </div></header>
       <div class="specialist-group-overview" data-group-overview></div><div class="specialist-group-slot" data-group-slot hidden></div>
     </section>
     <section class="page-view specialist-group" id="finance-view" data-specialist-app="finance" data-kokuen-surface="specialist" style="display:none" aria-labelledby="finance-title">
-      <header class="specialist-app-head"><div class="specialist-app-brand"><button class="specialist-sidebar-toggle" type="button" data-specialist-sidebar-toggle aria-expanded="true" aria-controls="finance-tabs" aria-label="hide finance navigation"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3.5 4.5h13v11h-13zM7 4.5v11"/></svg></button><h1 class="specialist-app-name" id="finance-title">finance</h1><button class="specialist-home-action" type="button" data-specialist-home>home</button></div><div class="specialist-group-tabs" id="finance-tabs" role="tablist" aria-label="finance sections">
+      <header class="specialist-app-head"><div class="specialist-app-brand"><button class="specialist-sidebar-toggle" type="button" data-specialist-sidebar-toggle aria-expanded="true" aria-controls="finance-tabs" aria-label="hide finance navigation"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3.5 4.5h13v11h-13zM7 4.5v11"/></svg></button><h1 class="specialist-app-name" id="finance-title">finance</h1></div><div class="specialist-group-tabs" id="finance-tabs" role="tablist" aria-label="finance sections">
         <button type="button" role="tab" data-group-section="overview">overview</button><button type="button" role="tab" data-group-section="money">money</button><button type="button" role="tab" data-group-section="subs">subscriptions</button><button type="button" role="tab" data-group-section="imports">imports</button>
       </div></header>
       <div class="specialist-group-overview" data-group-overview></div><div class="specialist-group-slot" data-group-slot hidden></div>
     </section>
     <section class="page-view specialist-group" id="docs-workbench-view" data-specialist-app="docs" data-kokuen-surface="specialist" style="display:none" aria-labelledby="docs-workbench-title">
-      <header class="specialist-app-head"><div class="specialist-app-brand"><button class="specialist-sidebar-toggle" type="button" data-specialist-sidebar-toggle aria-expanded="true" aria-controls="docs-tabs" aria-label="hide docs navigation"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3.5 4.5h13v11h-13zM7 4.5v11"/></svg></button><h1 class="specialist-app-name" id="docs-workbench-title">docs</h1><button class="specialist-home-action" type="button" data-specialist-home>home</button></div><div class="specialist-group-tabs" id="docs-tabs" role="tablist" aria-label="docs sections">
+      <header class="specialist-app-head"><div class="specialist-app-brand"><button class="specialist-sidebar-toggle" type="button" data-specialist-sidebar-toggle aria-expanded="true" aria-controls="docs-tabs" aria-label="hide docs navigation"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3.5 4.5h13v11h-13zM7 4.5v11"/></svg></button><h1 class="specialist-app-name" id="docs-workbench-title">docs</h1></div><div class="specialist-group-tabs" id="docs-tabs" role="tablist" aria-label="docs sections">
         <button type="button" role="tab" data-group-section="notes">notes</button><button type="button" role="tab" data-group-section="journal">journal</button>
       </div></header>
       <div class="specialist-group-overview" data-group-overview></div><div class="specialist-group-slot" data-group-slot hidden></div>
     </section>
     <section class="page-view specialist-group" id="files-workbench-view" data-specialist-app="files" data-kokuen-surface="specialist" style="display:none" aria-labelledby="files-workbench-title">
-      <header class="specialist-app-head"><div class="specialist-app-brand"><button class="specialist-sidebar-toggle" type="button" data-specialist-sidebar-toggle aria-expanded="true" aria-controls="files-tabs" aria-label="hide files navigation"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3.5 4.5h13v11h-13zM7 4.5v11"/></svg></button><h1 class="specialist-app-name" id="files-workbench-title">files</h1><button class="specialist-mobile-back" type="button" data-files-back hidden>← files</button><button class="specialist-home-action" type="button" data-specialist-home>home</button></div><div class="specialist-group-tabs" id="files-tabs" role="tablist" aria-label="files sections">
+      <header class="specialist-app-head"><div class="specialist-app-brand"><button class="specialist-sidebar-toggle" type="button" data-specialist-sidebar-toggle aria-expanded="true" aria-controls="files-tabs" aria-label="hide files navigation"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3.5 4.5h13v11h-13zM7 4.5v11"/></svg></button><h1 class="specialist-app-name" id="files-workbench-title">files</h1><button class="specialist-mobile-back" type="button" data-files-back hidden>← files</button></div><div class="specialist-group-tabs" id="files-tabs" role="tablist" aria-label="files sections">
         <button type="button" role="tab" data-group-section="files">files</button><button type="button" role="tab" data-group-section="gallery">gallery</button>
       </div></header>
       <div class="specialist-group-overview" data-group-overview></div><div class="specialist-group-slot" data-group-slot hidden></div>
     </section>
     <section class="page-view specialist-group" id="vault-workbench-view" data-specialist-app="vault" data-kokuen-surface="specialist" style="display:none" aria-labelledby="vault-workbench-title">
-      <header class="specialist-app-head"><div class="specialist-app-brand"><button class="specialist-sidebar-toggle" type="button" data-specialist-sidebar-toggle aria-expanded="true" aria-controls="vault-tabs" aria-label="hide vault navigation"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3.5 4.5h13v11h-13zM7 4.5v11"/></svg></button><h1 class="specialist-app-name" id="vault-workbench-title">vault</h1><button class="specialist-home-action" type="button" data-specialist-home>home</button></div><div class="specialist-group-tabs" id="vault-tabs" role="tablist" aria-label="vault sections">
+      <header class="specialist-app-head"><div class="specialist-app-brand"><button class="specialist-sidebar-toggle" type="button" data-specialist-sidebar-toggle aria-expanded="true" aria-controls="vault-tabs" aria-label="hide vault navigation"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3.5 4.5h13v11h-13zM7 4.5v11"/></svg></button><h1 class="specialist-app-name" id="vault-workbench-title">vault</h1></div><div class="specialist-group-tabs" id="vault-tabs" role="tablist" aria-label="vault sections">
         <button type="button" role="tab" data-group-section="items">items, passkeys, and watchtower</button>
       </div></header>
       <div class="specialist-group-overview" data-group-overview></div><div class="specialist-group-slot" data-group-slot hidden></div>
     </section>
     <section class="page-view specialist-group" id="server-workbench-view" data-specialist-app="server" data-kokuen-surface="specialist" style="display:none" aria-labelledby="server-workbench-title">
-      <header class="specialist-app-head"><div class="specialist-app-brand"><button class="specialist-sidebar-toggle" type="button" data-specialist-sidebar-toggle aria-expanded="true" aria-controls="server-tabs" aria-label="hide server navigation"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3.5 4.5h13v11h-13zM7 4.5v11"/></svg></button><h1 class="specialist-app-name" id="server-workbench-title">server</h1><button class="specialist-home-action" type="button" data-specialist-home>home</button></div><div class="specialist-group-tabs" id="server-tabs" role="tablist" aria-label="server sections">
+      <header class="specialist-app-head"><div class="specialist-app-brand"><button class="specialist-sidebar-toggle" type="button" data-specialist-sidebar-toggle aria-expanded="true" aria-controls="server-tabs" aria-label="hide server navigation"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3.5 4.5h13v11h-13zM7 4.5v11"/></svg></button><h1 class="specialist-app-name" id="server-workbench-title">server</h1></div><div class="specialist-group-tabs" id="server-tabs" role="tablist" aria-label="server sections">
         <button type="button" role="tab" data-group-section="overview">overview</button><button type="button" role="tab" data-group-section="services">services</button><button type="button" role="tab" data-group-section="search">search and models</button><button type="button" role="tab" data-group-section="backups">backups and storage</button><button type="button" role="tab" data-group-section="updates">updates</button><button type="button" role="tab" data-group-section="logs">logs</button><button type="button" role="tab" data-group-section="activity">activity</button><button type="button" role="tab" data-group-section="watch">watch</button><button type="button" role="tab" data-group-section="policy">access policy</button>
       </div></header>
       <div class="specialist-group-overview" data-group-overview></div><div class="specialist-group-slot" data-group-slot hidden></div>

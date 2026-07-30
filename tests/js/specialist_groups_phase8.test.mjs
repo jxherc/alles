@@ -75,7 +75,7 @@ test('Plan preserves timezone-less commitment wall dates and times', () => {
   }
 });
 
-test('new specialist workbenches own their app header instead of using the legacy route crumb', () => {
+test('specialist workbenches show one app name and use the universal shell', () => {
   const headings = {
     'plan-title': 'plan',
     'inbox-title': 'inbox',
@@ -97,10 +97,11 @@ test('new specialist workbenches own their app header instead of using the legac
   assert.equal((specialistHtml.match(/class="specialist-app-head"/g) || []).length, 9);
   assert.equal((specialistHtml.match(/class="specialist-app-name"/g) || []).length, 9);
   assert.doesNotMatch(specialistHtml, /specialist-group-head/);
-  assert.equal((specialistHtml.match(/data-specialist-home/g) || []).length, 9);
+  assert.equal((specialistHtml.match(/data-specialist-home/g) || []).length, 0);
   assert.equal((specialistHtml.match(/data-kokuen-surface="specialist"/g) || []).length, 9);
   assert.match(kokuenCss, /body:is\(\s*\[data-app="plan"\][^]*?\.main > \.topbar[^]*?display: none !important/);
-  assert.match(appSource, /querySelectorAll\('\[data-specialist-home\]'\)/);
+  assert.doesNotMatch(appSource, /querySelectorAll\('\[data-specialist-home\]'\)/);
+  assert.match(appSource, /const SHELL_GROUPS = Object\.freeze/);
 });
 
 test('all nine specialist workbenches share one persistent accessible sidebar toggle', () => {

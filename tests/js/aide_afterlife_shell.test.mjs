@@ -210,12 +210,13 @@ test('the task terminal is a vendored xterm PTY instead of a fake command form',
   assert.doesNotMatch(rail, /\/api\/shell\/exec/);
 });
 
-test('Aide keeps Home in the identity row and task search directly below it', () => {
+test('Aide keeps one identity and leaves global movement to the universal shell', () => {
   const head = html.indexOf('class="sidebar-head"');
   const search = html.indexOf('class="search-wrap"');
   const nav = html.indexOf('class="sidebar-nav"');
   assert.ok(head >= 0 && search > head && nav > search);
-  assert.match(html, /id="aide-home-button"[^>]*>home<\/button>/);
+  assert.doesNotMatch(html, /id="aide-home-button"/);
+  assert.match(html, /id="app-drawer-btn"[^>]*aria-controls="app-drawer"/);
   assert.match(html, /class="search-wrap">\s*<svg[^>]*aria-hidden="true"[^>]*>[\s\S]*?id="session-search"/);
   assert.doesNotMatch(html, /id="aide-search-btn"/);
   assert.doesNotMatch(html, /id="aide-home-link"/);
