@@ -351,11 +351,12 @@ async function loadHeatmap() {
     let months = '';
     for (let m = 0; m < 12; m++) {
       const wk = Math.floor((Date.UTC(d.year, m, 1) - start.getTime()) / (7 * 86400000));
-      months += `<span class="jrnl-hm" style="grid-column:${wk + 1}">${M[m]}</span>`;
+      const column = m === 11 ? `${wk + 1} / -1` : wk + 1;
+      months += `<span class="jrnl-hm" style="grid-column:${column}">${M[m]}</span>`;
     }
     el.innerHTML =
-      `<div class="jrnl-heatmonths" style="grid-template-columns:repeat(${weeks},1fr)">${months}</div>` +
-      `<div class="jrnl-heatgrid">${cells}</div>`;
+      `<div class="jrnl-heatmonths" style="grid-template-columns:repeat(${weeks},minmax(0,1fr))">${months}</div>` +
+      `<div class="jrnl-heatgrid" style="grid-template-columns:repeat(${weeks},minmax(0,1fr))">${cells}</div>`;
     el.querySelectorAll('.jrnl-hc[data-d]:not([data-d=""])').forEach(c => {
       if (c.dataset.d) c.onclick = () => navigateDay(c.dataset.d);
     });

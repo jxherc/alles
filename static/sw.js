@@ -1,7 +1,7 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v257';   // KOKUEN v5 shell plus exact versioned module precache
+const VERSION = 'v258';   // KOKUEN v5 shell plus exact versioned module precache
 const CACHE = `alles-${VERSION}`;
-const STAMP = '302';   // keep in sync with index.html ?v= / const _v
+const STAMP = '303';   // keep in sync with index.html ?v= / const _v
 const NETWORK_FIRST_STATIC = ['.js', '.mjs', '.css'];
 
 // 1b: mutating writes that should be queued when offline

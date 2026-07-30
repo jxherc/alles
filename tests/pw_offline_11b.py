@@ -66,7 +66,12 @@ def _assert_shell(page: Page, space: str) -> None:
     body_attribute = "data-space" if space in {"home", "aide", "andromeda"} else "data-app"
     expect(page.locator("body")).to_have_attribute(body_attribute, space)
     expect(page.locator("#app-drawer-btn")).to_be_visible()
-    assert page.locator('select:visible, input[type="checkbox"]:visible, input[type="radio"]:visible').count() == 0
+    assert (
+        page.locator(
+            'select:visible, input[type="checkbox"]:visible, input[type="radio"]:visible'
+        ).count()
+        == 0
+    )
     overflow = page.evaluate(
         "() => document.documentElement.scrollWidth - document.documentElement.clientWidth"
     )
@@ -115,9 +120,9 @@ def run() -> None:
               return { names, urls };
             }"""
         )
-        assert cached["names"] == ["alles-v257"], cached["names"]
+        assert cached["names"] == ["alles-v258"], cached["names"]
         assert any(url.endswith("/") for url in cached["urls"])
-        assert any("/static/style.css?v=302" in url for url in cached["urls"])
+        assert any("/static/style.css?v=303" in url for url in cached["urls"])
         assert any("/static/kokuen.css?v=21" in url for url in cached["urls"])
         assert sum("/static/js/" in url for url in cached["urls"]) >= 20
         page.screenshot(path=str(OUTPUT / "pwa-plan-online-mobile.png"), full_page=True)
@@ -137,20 +142,18 @@ def run() -> None:
                   scripts: [...document.scripts].map(script => script.src).filter(Boolean),
                   cacheNames: await caches.keys(),
                   appModule: await (async () => {
-                    const match = await caches.match('/static/js/app.js?v=302');
+                    const match = await caches.match('/static/js/app.js?v=303');
                     return match ? { status: match.status, size: (await match.clone().text()).length } : null;
                   })(),
                   appModuleKeys: await (async () => {
-                    const cache = await caches.open('alles-v257');
+                    const cache = await caches.open('alles-v258');
                     return (await cache.keys())
                       .map(request => request.url)
                       .filter(url => url.includes('/static/js/app.js'));
                   })(),
                 })"""
             )
-            page.screenshot(
-                path=str(OUTPUT / "pwa-offline-boot-failure.png"), full_page=True
-            )
+            page.screenshot(path=str(OUTPUT / "pwa-offline-boot-failure.png"), full_page=True)
             print(
                 {
                     "offline_boot": diagnostic,

@@ -300,6 +300,15 @@ test('Docs and Journal use semantic svg icons, not generic rectangle marks', () 
   assert.doesNotMatch(html, /class="(?:file|folder)-mark"/);
   assert.match(html, /id="jrnl-heatmap"|id="journal-body"/);
   assert.match(css, /grid-template-columns:\s*16px\s+minmax\(0,\s*1fr\)/);
+  assert.match(journal, /grid-template-columns:repeat\(\$\{weeks\},minmax\(0,1fr\)\)/);
+  assert.equal(
+    (journal.match(/grid-template-columns:repeat\(\$\{weeks\},minmax\(0,1fr\)\)/g) || []).length,
+    2,
+  );
+  assert.match(journal, /m === 11 \? `\$\{wk \+ 1\} \/ -1` : wk \+ 1/);
+  assert.match(css, /\.jrnl-hm:last-child\s*\{\s*justify-self:\s*end;/);
+  assert.match(css, /\.jrnl-toolbar \.btn \{ height: var\(--ui-control-height, 44px\); min-height: var\(--ui-control-height, 44px\);/);
+  assert.match(css, /\.jrnl-toolbar \.jrnl-search \{ flex: 1 0 100%; \}/);
 });
 
 test('Docs home hides document-only chrome and editor controls share an aligned action group', () => {
