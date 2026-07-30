@@ -28,8 +28,8 @@
   })();
 </script>
 <link rel="stylesheet" href="/static/vendor/xterm/xterm.css?v=6.0.0">
-<link rel="stylesheet" href="/static/style.css?v=300">
-  <link rel="stylesheet" href="/static/kokuen.css?v=19">
+<link rel="stylesheet" href="/static/style.css?v=301">
+  <link rel="stylesheet" href="/static/kokuen.css?v=20">
 <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#0a0a0a">
@@ -1434,12 +1434,17 @@
 </div>
 
 <!-- search modal -->
-<div class="modal-overlay" id="search-modal" style="display:none">
+<div class="modal-overlay" id="search-modal" data-kokuen-surface="command" role="dialog" aria-modal="true" aria-labelledby="search-dialog-title" style="display:none">
   <div class="modal-card search-card">
-    <div class="modal-search" style="padding:0.75rem 1rem">
-      <input type="text" id="search-input" placeholder="search everything..." class="search-prompt-input">
+    <h2 class="sr-only" id="search-dialog-title">search everything</h2>
+    <div class="modal-search search-command-head">
+      <label class="sr-only" for="search-input">search apps and your data</label>
+      <input type="text" id="search-input" inputmode="search" enterkeyhint="search" placeholder="search everything…" class="search-prompt-input"
+        autocomplete="off" role="combobox" aria-autocomplete="list" aria-haspopup="listbox"
+        aria-controls="search-results" aria-expanded="false">
+      <button class="search-command-close" id="search-close" type="button" aria-label="close search">close</button>
     </div>
-    <div class="modal-body" id="search-results" style="max-height:420px;overflow-y:auto"></div>
+    <div class="modal-body" id="search-results" role="listbox" aria-label="search results" aria-busy="false"></div>
   </div>
 </div>
 
@@ -2875,7 +2880,7 @@
 </div>
 
 <script type="module">
-const _v = '300';
+const _v = '301';
 import(`/static/js/app.js?v=${_v}`);
 </script>
 </body>

@@ -37,12 +37,15 @@
     }
   },
   "space": {
+    "000": { "$type": "dimension", "$value": { "value": 0, "unit": "px" } },
     "050": { "$type": "dimension", "$value": { "value": 4, "unit": "px" } },
     "100": { "$type": "dimension", "$value": { "value": 8, "unit": "px" } },
     "150": { "$type": "dimension", "$value": { "value": 12, "unit": "px" } },
     "200": { "$type": "dimension", "$value": { "value": 16, "unit": "px" } },
     "300": { "$type": "dimension", "$value": { "value": 24, "unit": "px" } },
-    "400": { "$type": "dimension", "$value": { "value": 32, "unit": "px" } }
+    "400": { "$type": "dimension", "$value": { "value": 32, "unit": "px" } },
+    "600": { "$type": "dimension", "$value": { "value": 48, "unit": "px" } },
+    "800": { "$type": "dimension", "$value": { "value": 64, "unit": "px" } }
   },
   "size": {
     "controlDense": { "$type": "dimension", "$value": { "value": 36, "unit": "px" } },

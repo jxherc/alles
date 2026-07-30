@@ -555,7 +555,7 @@ Keep controls custom, semantic, keyboard-operable, focus-visible, responsive, co
 - platforms: `macos`, `linux`, `web`
 - dependencies: none
 - Aide tools: none
-- automated tests: `tests/test_design_system_contract.py`, `tests/pw_kokuen_finished_surfaces.py`
+- automated tests: `tests/test_design_system_contract.py`, `tests/js/kokuen_command_contract.test.mjs`, `tests/pw_kokuen_finished_surfaces.py`
 - real-computer scenarios: `complete flows by keyboard`, `verify dialog focus return`, `test responsive and zoom states`, `test reduced motion and themes`
 - route owners: none
 - control roots: none

@@ -64,6 +64,15 @@ Visible label first, then control, helper or error below. Placeholder text is an
 
 Use a real search input with a visible or accessible label. Search may expand only with transform or width behavior that does not repaint the surrounding layout. Escape restores the previous state and focus.
 
+## universal command
+
+Use one labelled modal dialog, one focused search input, and one listbox. The input owns
+`aria-activedescendant`; group labels are presentational; every actionable result is a semantic button
+with `role="option"`; and exactly one available result is active. Arrow keys move through results,
+Home and End jump, Enter invokes, and Escape closes and restores focus. Keep idle, loading, no-match,
+error, unavailable, and permission states inside the same surface. Ask-Aide and Andromeda actions name
+their destination and effect before invocation.
+
 ## toolbar
 
 Height: 48px. Align the title, filters, context, and one primary action on one baseline. Move low-priority actions into a custom overflow menu when space runs out. Never leave an unexplained blank toolbar region.

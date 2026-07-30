@@ -1253,6 +1253,7 @@
       "aide_tools": [],
       "automated_tests": [
         "tests/test_design_system_contract.py",
+        "tests/js/kokuen_command_contract.test.mjs",
         "tests/pw_kokuen_finished_surfaces.py"
       ],
       "computer_scenarios": [
