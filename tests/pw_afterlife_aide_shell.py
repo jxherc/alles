@@ -299,8 +299,11 @@ def run() -> None:
             )
             page.route("**/api/project-folders*", route_project_folders)
             page.goto(HOME, wait_until="networkidle")
-            page.locator('[data-today-destination="chat"]').click()
+            page.locator("#app-drawer-btn").click()
+            page.locator('.app-drawer-item[data-view="chat"]').click()
             page.wait_for_selector("#chat:visible")
+
+            assert page.locator(".aide-mobile-name").is_visible() is (width < 700)
 
             page.wait_for_function("document.documentElement.dataset.theme === 'light'")
             assert (
@@ -315,9 +318,7 @@ def run() -> None:
                 "el => el.getBoundingClientRect().height <= 160"
             )
 
-            assert (
-                page.locator("#space-rail").evaluate("el => getComputedStyle(el).display") == "none"
-            )
+            assert page.locator("#space-rail").is_visible()
             if width >= 700:
                 assert page.locator(".sidebar").is_visible()
             else:
@@ -413,7 +414,7 @@ def run() -> None:
             page.locator("#new-chat-btn").click()
             page.wait_for_selector("#chat:visible")
             assert page.locator("body").get_attribute("data-space") == "aide"
-            assert page.locator("#aide-current-context").inner_text().strip() == "new task"
+            assert page.locator("#aide-conversation-name").inner_text().strip() == "new task"
             assert (
                 page.locator(".aide-context-folder").evaluate("el => getComputedStyle(el).display")
                 == "none"
@@ -614,7 +615,7 @@ def run() -> None:
             if width < 700:
                 page.locator("#sidebar-toggle-btn").click()
                 page.wait_for_selector("body:not(.sidebar-hidden)")
-            expected_icon_size = 44 if width < 700 else 32
+            expected_icon_size = 44
             for selector in ("#sidebar-toggle-btn", "#aide-work-panel-toggle"):
                 assert page.locator(selector).evaluate(
                     "(el, size) => el.getBoundingClientRect().width === size && el.getBoundingClientRect().height === size",
@@ -626,7 +627,8 @@ def run() -> None:
             nav_top = page.locator(".sidebar-nav").evaluate("el => el.getBoundingClientRect().top")
             assert search_box["top"] >= head_bottom
             assert nav_top >= search_box["bottom"]
-            assert page.locator("#aide-home-button").is_visible()
+            assert page.locator("#aide-home-button").count() == 0
+            assert page.locator("#app-drawer-btn").is_visible()
             page.locator("#session-search").click()
             assert page.locator("#session-search").evaluate("el => el === document.activeElement")
             page.locator("#session-search").fill("saved")
@@ -896,6 +898,8 @@ def run() -> None:
                 assert rail_ticks.evaluate_all("els => els.map(el => el._railProbe)") == list(
                     range(1, message_count + 1)
                 )
+                page.mouse.move(width - 10, 10)
+                page.wait_for_timeout(140)
                 idle_transforms = rail_ticks.evaluate_all(
                     "els => els.map(el => getComputedStyle(el, '::before').transform)"
                 )
@@ -909,8 +913,7 @@ def run() -> None:
                 "el => Math.abs((el.getBoundingClientRect().top + el.getBoundingClientRect().height / 2) - innerHeight / 2) < 3"
             )
             target_tick = rail_ticks.last
-            box = target_tick.bounding_box()
-            page.mouse.move(box["x"] + 2, box["y"] + box["height"] / 2)
+            target_tick.hover()
             page.wait_for_timeout(140)
             assert (
                 target_tick.evaluate("el => getComputedStyle(el, '::before').transform")
@@ -983,7 +986,8 @@ def run() -> None:
             page.locator('#perm-menu [data-v="plan"]').click()
             page.reload(wait_until="networkidle")
             if not page.locator("#chat").is_visible():
-                page.locator('[data-today-destination="chat"]').click()
+                page.locator("#app-drawer-btn").click()
+                page.locator('.app-drawer-item[data-view="chat"]').click()
             page.wait_for_selector("#chat:visible")
             assert page.locator("#perm-mode-btn").inner_text().strip() == "plan"
             assert page.locator("#effort-btn").inner_text().strip() == "high"
