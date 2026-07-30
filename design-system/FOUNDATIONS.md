@@ -42,16 +42,24 @@ The app name appears once in the app-owned shell. Never enlarge and repeat it as
 
 ## spacing
 
-Use 4, 8, 12, 16, 24, and 32px. These values express relationship:
+Use 0, 4, 8, 12, 16, 24, 32, 48, and 64px. These values express relationship:
 
+- 0px: intentionally no relationship gap;
 - 4px: tightly related metadata;
 - 8px: control internals and small groups;
 - 12px: row internals;
-- 16px: normal page gutter or control group;
-- 24px: section separation;
-- 32px: major region separation.
+- 16px: normal stack gap, form-field separation, or compact page gutter;
+- 24px: card padding and related content groups;
+- 32px: page header to first work block;
+- 48px: section separation;
+- 64px: major page-block separation.
 
 Fixed structural sizes are separate tokens: 52px top bar, 36px dense row/control, 44px normal row and minimum mobile target. Do not invent a spacing value to repair a layout; fix the layout rule.
+
+The runtime numeric token names match their ordered KOKUEN step: `--k-space-1` through
+`--k-space-8` resolve to 4, 8, 12, 16, 24, 32, 48, and 64px. Portable components may use the
+equivalent `--ui-space-*` aliases. Page gutters remain a semantic product token because Alles uses
+16px on small layouts and 24px on roomy layouts.
 
 ## shape
 

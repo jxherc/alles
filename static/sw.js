@@ -1,7 +1,7 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v254';   // scheduled navigation completion and final specialist polish
+const VERSION = 'v255';   // KOKUEN v3 tokens and universal command contract
 const CACHE = `alles-${VERSION}`;
-const STAMP = '300';   // keep in sync with index.html ?v= / const _v
+const STAMP = '301';   // keep in sync with index.html ?v= / const _v
 const NETWORK_FIRST_STATIC = ['.js', '.mjs', '.css'];
 
 // 1b: mutating writes that should be queued when offline

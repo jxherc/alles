@@ -602,7 +602,7 @@ test('the service worker cannot mix old and new JavaScript modules', () => {
   const worker = readFileSync(new URL('../../static/sw.js', import.meta.url), 'utf8');
   const app = readFileSync(new URL('../../static/js/app.js', import.meta.url), 'utf8');
   const compatibility = readFileSync(new URL('../../static/js/routecompat.js', import.meta.url), 'utf8');
-  assert.match(worker, /const STAMP = '300'/);
+  assert.match(worker, /const STAMP = '301'/);
   assert.match(worker, /NETWORK_FIRST_STATIC = \['\.js', '\.mjs', '\.css'\]/);
   assert.match(worker, /NETWORK_FIRST_STATIC\.some\(ext => url\.pathname\.endsWith\(ext\)\)/);
   assert.match(worker, /Network-first code and styles/);

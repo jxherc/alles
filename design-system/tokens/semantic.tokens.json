@@ -63,12 +63,16 @@
     }
   },
   "space": {
+    "none": { "$type": "dimension", "$value": "{space.000}" },
     "related": { "$type": "dimension", "$value": "{space.050}" },
     "control": { "$type": "dimension", "$value": "{space.100}" },
     "row": { "$type": "dimension", "$value": "{space.150}" },
     "gutter": { "$type": "dimension", "$value": "{space.200}" },
-    "section": { "$type": "dimension", "$value": "{space.300}" },
-    "region": { "$type": "dimension", "$value": "{space.400}" }
+    "card": { "$type": "dimension", "$value": "{space.300}" },
+    "header": { "$type": "dimension", "$value": "{space.400}" },
+    "region": { "$type": "dimension", "$value": "{space.400}" },
+    "section": { "$type": "dimension", "$value": "{space.600}" },
+    "major": { "$type": "dimension", "$value": "{space.800}" }
   },
   "type": {
     "helper": { "$type": "dimension", "$value": "{font.size.helper}" },

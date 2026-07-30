@@ -47,7 +47,8 @@ Specialist destinations include Plan, Docs, Files, Finance, Inbox, Library, Heal
 - no remote font, image, or cloud dependency is required;
 - no visible browser- or OS-native choice controls;
 - owner data, credentials, vaults, databases, and normal `ALLES_DATA` never become test fixtures;
-- a material app rework needs its own standalone KOKUEN HTML starter and explicit approval;
+- standalone KOKUEN HTML starters are optional design tools, not approval gates; when one helps, keep
+  it local, fake-data-only, and subordinate to real-application verification;
 - specialist behavior and compatibility routes survive visual migration.
 
 ## success

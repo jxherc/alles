@@ -70,11 +70,12 @@ Show accepted, running, waiting, needs approval, failed, stopped, and completed 
 
 Render usable local or successful-provider data first. Name a quiet partial state without breaking the whole app. Retry only the failed region. Never replace good data with a full-page error.
 
-## material rework gate
+## material rework sequence
 
 1. audit real behavior and existing components;
-2. create a standalone KOKUEN HTML starter under `docs/mockups/`;
-3. include realistic fake data, desktop/mobile reflow, interaction, and important states;
-4. let the owner try that exact file;
-5. wait for explicit approval;
-6. migrate the real app in small, tested slices while preserving behavior.
+2. write the compact KOKUEN design map and state matrix;
+3. use a standalone fake-data HTML starter under `docs/mockups/` only when it materially improves
+   design reasoning or lets the owner compare a risky direction;
+4. migrate the real app in small, tested slices while preserving behavior;
+5. open and exercise the exact real application after the final change. A starter never substitutes
+   for rendered production proof and is never an approval gate by itself.

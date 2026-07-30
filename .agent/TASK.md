@@ -2,17 +2,17 @@
 
 ## goal
 
-Implement the approved Alles completion and exhaustive verification program. Establish one authoritative
-feature/test registry, repair the current Files browser regression, implement every mapped missing
-capability, and record automated and real-computer evidence for every feature without staging,
-then preserve the completed snapshot in one owner-authorized local commit without pushing it.
+Align the shipped Alles interface and its repository design contract with KOKUEN v3. Preserve the
+existing visual identity and geometry, upgrade the real universal command surface to the new interaction
+contract, repair any defects exposed by rendered verification, and finish with fresh regression and
+real-browser evidence. Do not commit or push this follow-up unless separately requested.
 
 ## status
 
-Every locally actionable registry row is now implemented and exercised. The final matrix contains
-thirteen passed rows and thirteen explicitly blocked external-environment rows, with no unchecked,
-partial, failed, or falsely passed row. The completed delivery is captured in one owner-authorized local
-commit and remains unpushed.
+The KOKUEN v3 token/document migration, universal command implementation, setup-dialog race repair, and
+rendered verification are complete. The full JavaScript suite, focused Python suites, and isolated
+finished-surface browser gate pass. The final source/diff and anti-slop review is complete. These
+follow-up changes are uncommitted and unpushed.
 
 ## locked product decisions
 
@@ -28,23 +28,39 @@ commit and remains unpushed.
 - Keep Actual Budget canonical and use aggregator-first read-only bank synchronization with import
   fallbacks. Never scrape bank applications or store bank passwords.
 - Use disposable data, accounts, and networks for destructive or sensitive verification.
-- Create one local commit only after final proof. Do not push it.
+- Treat standalone KOKUEN starters as optional reasoning tools, never approval gates.
+- Use the KOKUEN v3 spacing sequence `0, 4, 8, 12, 16, 24, 32, 48, 64` while preserving the shipped
+  geometry of existing surfaces during token-name migration.
+- Keep universal command visually quiet and keyboard-first: one labelled dialog, one combobox, one
+  listbox, honest states, deterministic focus, and no native choice controls.
+- Do not commit or push the current follow-up without a separate owner request.
 
 ## implementation plan
 
-1. Build the authoritative machine-readable feature/test registry, generated catalog, acceptance matrix,
-   and reconciliation gate for runtime routes, controls, commands, jobs, integrations, and Aide tools.
-2. Reproduce, trace, repair, and regression-test the current Files browser failure.
-3. Use standalone KOKUEN starters when they materially improve design reasoning, without treating them
-   as approval gates; apply the established direction autonomously and verify the real runtime surface.
-4. Implement complete Aide tool coverage and durable selectable questions; legitimate provider
-   connections; bank connectors/import profiles; managed AdGuard/NPM companions; Files locations/scopes;
-   and expanded credits.
-5. Run automated, responsive browser, integration, lifecycle, and real-computer verification. Mark every
-   registry row passed, failed, blocked, or unavailable with evidence.
+1. Reconcile the new KOKUEN skill with the tracked design system and existing runtime aliases.
+2. Upgrade the real universal command surface without changing Alles's established product identity.
+3. Add source, registry, and browser regressions for semantics, keyboard, states, themes, phone, zoom,
+   reduced motion, native-control exclusion, overflow, focus return, and console state.
+4. Exercise the finished surfaces on a fresh isolated server and inspect the rendered captures.
+5. Recheck the affected diff against KOKUEN, the repository QA contract, and the complete anti-slop law.
 
 ## current progress
 
+- Migrated the tracked primitive and semantic spacing contracts to KOKUEN v3, added stable `--ui-*`
+  aliases, and mechanically remapped old `--k-space-6`/`--k-space-8` consumers so existing 24px/32px
+  geometry did not inflate to 32px/64px.
+- Updated the product, component, pattern, output, QA, and project-skill documents so standalone starters
+  are optional and the rendered application is the completion gate.
+- Rebuilt universal command as an accessible dialog/combobox/listbox with deterministic option identity,
+  pointer and full keyboard navigation, focus trap/return, request sequencing, and distinct idle,
+  loading, empty, permission, unavailable, and error states.
+- Removed the browser-native cancel glyph from universal command while keeping mobile search input hints.
+- Repaired first-run setup so stale asynchronous loads and duplicate automatic openings cannot steal
+  focus from another dialog or reopen after a successful dismissal.
+- Added the command contract to the authoritative feature registry and regenerated the catalog and
+  acceptance matrix.
+- Passed the complete isolated finished-surface browser gate and inspected the resulting desktop, phone,
+  light/dark, reduced-motion, and 200%-zoom captures.
 - Recovered the real `dev-afterlife` worktree and confirmed it contains extensive owner-owned changes.
 - Reconciled the approved program with the original owner-authored Obsidian roadmap and current code.
 - Confirmed the existing Discord bot integration is the desired integration; OpenClaw is out of scope.
@@ -110,8 +126,8 @@ commit and remains unpushed.
 
 ## work in progress
 
-- None. The local implementation, repository-wide regression, rendered verification, evidence
-  reconciliation, and completion audit are complete.
+- None. The scoped KOKUEN v3 migration, implementation, rendered verification, and final audit are
+  complete.
 
 ## remaining
 
@@ -125,6 +141,24 @@ commit and remains unpushed.
 
 ## verification ledger
 
+- KOKUEN v3 source contracts: **passed** - exact spacing/token alias, design-document, component, and
+  generated registry checks are green.
+- Universal command: **passed** - real pointer and keyboard use at desktop and phone widths; Home/End,
+  arrow navigation, Enter, Escape, Tab trap, active descendant, focus return, error state, action/result
+  layout, light/dark, reduced motion, 200% zoom, overflow, native-control exclusion, and clean console.
+- Setup modal arbitration: **passed** - focused source/API tests plus the real fresh-install dismissal flow;
+  stale setup work no longer steals focus from universal command.
+- Full JavaScript suite: **passed** - 544 tests in 3.705 seconds with no skips or failures.
+- Focused Python suites: **passed** - 80 setup, Obsidian, credits, design-system, registry, and manifest
+  tests in 2.208 seconds.
+- Finished-surface browser gate: **passed** - the current real application across Files, Home, Apps,
+  command, specialists, Aide, Andromeda, Docs, Server, Settings, themes, phone widths, and 200% zoom in
+  18.195 seconds.
+- Final affected-surface anti-slop audit: **passed** - no decorative gradient, glow, shadow, pill, icon
+  tile, entrance-hidden content, native search glyph, native choice control, clipped text, moving hover,
+  dead action, or unexplained oversized heading remains in universal command. Its functional boundary,
+  gutters, type, states, focus treatment, selected row, and responsive reflow were checked in the final
+  captures.
 - Current Files real-browser scenario: **passed** - full `tests/pw_phase7_files_real.py` on a fresh
   throwaway server after correcting its stale pre-consolidation Home selector.
 - Registry reconciliation: **passed** - four focused tests cover runtime owners, commands, jobs, actions,
@@ -178,4 +212,5 @@ commit and remains unpushed.
 - All server, browser, migration, backup, and integration work uses a throwaway `ALLES_DATA` with an
   ownership sentinel.
 - Preserve every unrelated worktree change. Never clean, reset, or overwrite the dirty tree.
-- The owner separately authorized one local delivery commit on 2026-07-28. Do not push it.
+- The prior completed delivery commit remains intact. The current KOKUEN v3 follow-up is not staged,
+  committed, or pushed.

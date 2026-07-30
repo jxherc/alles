@@ -1,5 +1,19 @@
 # project changelog
 
+## 2026-07-29
+
+Change: aligned the tracked Alles design system with KOKUEN v3, rebuilt universal command as a complete
+accessible command surface, and fixed first-run setup arbitration discovered during real-browser testing.
+
+Files affected: design-system tokens, foundations, components, patterns, QA and decisions; the project UI
+skill; universal command markup, behavior, styling and cache identity; setup wizard; feature registry and
+generated catalogs; focused JavaScript/Python contracts; and the finished-surface Playwright gate.
+
+Reason: adopt the new portable spacing/component contract without inflating existing geometry, make
+command search deterministic for pointer and keyboard users, prevent asynchronous setup from stealing
+focus, and require current rendered proof rather than a standalone mockup. No files were staged,
+committed, or pushed.
+
 ## 2026-07-28
 
 Change: made the Ubuntu CI contracts deterministic by declaring the intended launchd, lsof, Unicode

@@ -1,6 +1,6 @@
 # 0001: six-step spacing system
 
-Status: accepted for KOKUEN design work
+Status: superseded by 0008
 
 ## decision
 

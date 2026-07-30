@@ -1,5 +1,24 @@
 # engineering decisions
 
+## KOKUEN v3 runtime migration
+
+Decision
+
+Choice: adopt the KOKUEN v3 spacing sequence and portable `--ui-*` aliases in the tracked design system,
+while remapping existing runtime token consumers by physical value so the established Alles layouts keep
+their 24px and 32px geometry. Make the real application, not a standalone starter, the approval gate.
+
+Reason: KOKUEN v3 adds portable aliases and 48px/64px spacing, but directly renumbering the old runtime
+would silently enlarge every existing `--k-space-6` and `--k-space-8` use. The product needs a source-of-
+truth migration without an unrelated visual redesign.
+
+Alternatives considered: replace every finished surface with a new theme; retain the stale spacing
+numbers; or require a mockup approval before applying the already-established direction.
+
+Consequences: new work may target the portable aliases, old layouts retain their reviewed proportions,
+the universal command demonstrates the v3 component contract in production, and rendered interaction
+proof remains mandatory before handoff.
+
 ## Legitimate model-provider authentication only
 
 Decision

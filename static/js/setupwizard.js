@@ -21,6 +21,8 @@ let _filesSaved = false;
 let _savedFilesSignature = '';
 let _obsidian = null;
 let _returnFocus = null;
+let _loadSequence = 0;
+let _dismissedThisSession = false;
 
 const $ = id => document.getElementById(id);
 const esc = value => String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -37,9 +39,19 @@ function _json(method, body) {
   return { method, headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) };
 }
 
+function _anotherDialogOpen(modal) {
+  return [...document.querySelectorAll('[role="dialog"]')]
+    .some(dialog => dialog !== modal && dialog.offsetParent !== null);
+}
+
 export async function openSetupWizard({ resume = false, status = null } = {}) {
   const modal = $('setup-wizard');
   if (!modal) return;
+  if (!resume && _anotherDialogOpen(modal)) return;
+  if (!resume && (_dismissedThisSession || status?.setup?.dismissed || status?.setup?.completed)) return;
+  if (resume) _dismissedThisSession = false;
+  const loadId = ++_loadSequence;
+  const stillOpen = () => loadId === _loadSequence && modal.style.display === 'flex';
   if (modal.style.display !== 'flex' && document.activeElement instanceof HTMLElement) {
     _returnFocus = document.activeElement;
   }
@@ -50,13 +62,22 @@ export async function openSetupWizard({ resume = false, status = null } = {}) {
   _bindModal();
   try {
     if (resume) await _api('/api/setup/resume', { method: 'POST' });
+    if (!stillOpen()) return;
     const response = status || await _api('/api/setup/status');
+    if (!stillOpen()) return;
+    if (!resume && (response.setup?.dismissed || response.setup?.completed)) {
+      modal.style.display = 'none';
+      modal.setAttribute('aria-busy', 'false');
+      return;
+    }
     _state = response.setup;
     if (_state.next_step === 'done' && !_state.completed) {
       const completed = await _api('/api/setup/complete', { method: 'POST' });
+      if (!stillOpen()) return;
       _state = completed.setup;
     }
     _auth = await _api('/api/auth/me');
+    if (!stillOpen()) return;
     _step = Math.max(0, STEPS.indexOf(_state.next_step));
     if (_state.next_step === 'done') _step = STEPS.length;
     _pickedModel = null;
@@ -65,8 +86,14 @@ export async function openSetupWizard({ resume = false, status = null } = {}) {
       ? `${_state.vault_preview}\n${_state.files_preview}\n${Boolean(_state.keep_vault_inside_alles)}`
       : '';
     _obsidian = null;
+    if (!resume && _anotherDialogOpen(modal)) {
+      modal.style.display = 'none';
+      modal.setAttribute('aria-busy', 'false');
+      return;
+    }
     _render();
   } catch (error) {
+    if (!stillOpen()) return;
     modal.dataset.loadFailed = '1';
     $('setup-wizard-body').innerHTML = `<div class="setup-error" role="alert">
       <p>${esc(error.message || 'setup could not load')}</p>
@@ -78,7 +105,7 @@ export async function openSetupWizard({ resume = false, status = null } = {}) {
     $('sw-load-close')?.addEventListener('click', _close);
     $('sw-load-retry')?.addEventListener('click', () => openSetupWizard());
   } finally {
-    modal.setAttribute('aria-busy', 'false');
+    if (loadId === _loadSequence) modal.setAttribute('aria-busy', 'false');
   }
 }
 
@@ -113,7 +140,11 @@ function _bindModal() {
 
 function _close() {
   const modal = $('setup-wizard');
-  if (modal) modal.style.display = 'none';
+  _loadSequence += 1;
+  if (modal) {
+    modal.style.display = 'none';
+    modal.setAttribute('aria-busy', 'false');
+  }
   const firstRun = $('home-firstrun');
   if (firstRun) firstRun.style.display = 'none';
   const target = _returnFocus;
@@ -122,12 +153,17 @@ function _close() {
 }
 
 async function _dismiss() {
+  _loadSequence += 1;
   try {
     const response = await _api('/api/setup/dismiss', { method: 'POST' });
     _state = response.setup;
+    _dismissedThisSession = true;
     _close();
     toast('setup paused. resume it from settings anytime.', 'success');
-  } catch (error) { toast(error.message, 'error'); }
+  } catch (error) {
+    toast(error.message, 'error');
+    openSetupWizard();
+  }
 }
 
 function _progress() {

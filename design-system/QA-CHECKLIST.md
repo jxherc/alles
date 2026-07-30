@@ -56,7 +56,9 @@ Do not mark a design or implementation complete until every applicable item pass
 - [ ] focused regression tests pass
 - [ ] broader checks were run in proportion to risk
 - [ ] browser and integration tests used throwaway data, never the owner's normal data
-- [ ] the exact HTML starter was approved before any material real-app rework
+- [ ] any optional HTML starter uses fake data and the exact real app was verified separately
+- [ ] raw layout spacing was checked against 0, 4, 8, 12, 16, 24, 32, 48, and 64px; documented
+      semantic or structural exceptions remain explicit
 
 ## final anti-slop pass
 

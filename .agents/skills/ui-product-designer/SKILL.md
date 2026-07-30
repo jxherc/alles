@@ -61,9 +61,11 @@ For each control define trigger, feedback, state change, validation, recovery, k
 
 Say what stays, grows, wraps, stacks, collapses, becomes scrollable, changes component, moves to overflow, or is removed. Do not describe mobile as a smaller desktop.
 
-### 8. Build the approval artifact
+### 8. Use a starter only when it earns its cost
 
-Before a new app interface or material rework, create a standalone KOKUEN HTML starter under `docs/mockups/` with fake data and local-only interactions. Do not change the real UI or backend until the owner clearly approves that exact starter. Targeted fixes inside an approved direction may proceed without a new starter.
+A standalone KOKUEN HTML starter under `docs/mockups/` is optional. Use one when it materially improves
+design reasoning or lets the owner compare a risky direction. Keep it fake-data-only and local. It is
+not an approval gate and never substitutes for the real UI, real behavior, or rendered verification.
 
 ### 9. Verify the rendered result
 

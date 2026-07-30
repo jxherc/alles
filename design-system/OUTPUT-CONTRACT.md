@@ -19,7 +19,10 @@ Use the full package for a new feature or material rework. Scale it down only fo
 
 ## Alles implementation artifact
 
-For a new app interface or material rework, also provide a standalone KOKUEN HTML starter under `docs/mockups/`. Use fake data, local-only interactions, no owner data, no backend changes, and no remote assets. Wait for explicit owner approval before modifying the real app.
+For a new app interface or material rework, use a standalone KOKUEN HTML starter under
+`docs/mockups/` only when it improves design reasoning or de-risks a material choice. It must use fake
+data, local-only interactions, no owner data, no backend changes, and no remote assets. It is optional,
+not an approval gate, and never replaces verification of the real app.
 
 ## handoff quality
 

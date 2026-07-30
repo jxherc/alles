@@ -83,6 +83,20 @@ def _record_errors(page: Page, errors: list[str], label: str) -> None:
     )
 
 
+def _dismiss_setup_if_needed(page: Page) -> None:
+    setup = page.evaluate(
+        "fetch('/api/setup/status').then(response => response.json()).then(data => data.setup)"
+    )
+    if setup.get("completed") or setup.get("dismissed"):
+        return
+    page.locator("#setup-wizard").wait_for(state="visible")
+    page.locator("#setup-skip").click()
+    page.locator("#setup-wizard").wait_for(state="hidden")
+    page.wait_for_function(
+        "fetch('/api/setup/status').then(response => response.json()).then(data => data.setup.dismissed)"
+    )
+
+
 def _new_context(
     browser: Browser,
     width: int,
@@ -312,7 +326,7 @@ def _aide_smoke(browser: Browser, errors: list[str]) -> None:
             })"""
         )
         assert metrics["paddingTop"] == 48, (view, metrics)
-        assert metrics["paddingBottom"] == 28, (view, metrics)
+        assert metrics["paddingBottom"] == 32, (view, metrics)
         title = header.locator(".page-view-title, h1").first
         title_weight = title.evaluate("el => getComputedStyle(el).fontWeight")
         assert title_weight == "500", (view, title_weight)
@@ -408,9 +422,7 @@ def _home_and_apps(browser: Browser, errors: list[str]) -> None:
         _record_errors(page, errors, f"home/apps {label}")
         page.goto(f"http://127.0.0.1:{PORT}/", wait_until="domcontentloaded")
         page.wait_for_selector("#today-view:visible")
-        if page.locator("#setup-wizard").is_visible():
-            page.locator("#setup-skip").click()
-            page.locator("#setup-wizard").wait_for(state="hidden")
+        _dismiss_setup_if_needed(page)
         home = page.locator("#today-view")
         assert home.get_attribute("data-kokuen-surface") == "home"
         assert (
@@ -445,6 +457,143 @@ def _home_and_apps(browser: Browser, errors: list[str]) -> None:
         page.locator("#app-drawer-close").click()
         assert drawer.is_hidden()
         context.close()
+
+
+def _universal_command(browser: Browser, errors: list[str]) -> None:
+    def search_fixture(route) -> None:
+        if "q=offline" in route.request.url:
+            route.fulfill(
+                status=200,
+                content_type="application/json",
+                body="",
+            )
+            return
+        route.fulfill(
+            status=200,
+            content_type="application/json",
+            body=(
+                '{"notes":[{"name":"project plan.md","path":"project plan.md",'
+                '"snippet":"release checklist"}],"tasks":[{"title":"plan review",'
+                '"done":false}]}'
+            ),
+        )
+
+    context = _new_context(browser, 1440, 1000, reduced_motion="reduce")
+    page = context.new_page()
+    page.set_default_timeout(10_000)
+    _record_errors(page, errors, "universal command desktop")
+    page.route("**/api/search?*", search_fixture)
+    page.goto(f"http://127.0.0.1:{PORT}/", wait_until="domcontentloaded")
+    page.wait_for_selector("#today-view:visible")
+    _dismiss_setup_if_needed(page)
+
+    opener = page.locator("#today-settings")
+    opener.focus()
+    page.keyboard.press("Control+K")
+    modal = page.locator("#search-modal")
+    search = page.locator("#search-input")
+    results = page.locator("#search-results")
+    modal.wait_for(state="visible")
+    assert modal.get_attribute("role") == "dialog"
+    assert modal.get_attribute("aria-modal") == "true"
+    assert modal.get_attribute("aria-labelledby") == "search-dialog-title"
+    assert search.get_attribute("role") == "combobox"
+    assert search.get_attribute("aria-controls") == "search-results"
+    assert results.get_attribute("role") == "listbox"
+    assert search.evaluate("el => document.activeElement === el")
+    assert modal.evaluate(
+        "el => getComputedStyle(el).getPropertyValue('--ui-space-8').trim() === '64px'"
+    )
+    assert modal.evaluate("el => getComputedStyle(el).animationName === 'none'")
+    assert modal.locator("select:visible").count() == 0
+    assert (
+        modal.locator(
+            'input[type="checkbox"]:visible, input[type="radio"]:visible'
+        ).count()
+        == 0
+    )
+
+    search.fill("plan")
+    page.wait_for_function(
+        "document.querySelectorAll('#search-results [role=\"option\"]').length >= 4"
+    )
+    options = results.locator('[role="option"]')
+    assert options.count() >= 4
+    assert results.locator('[role="option"][aria-selected="true"]').count() == 1
+    initial_id = search.get_attribute("aria-activedescendant")
+    assert initial_id == options.first.get_attribute("id")
+    options.nth(1).hover()
+    assert search.get_attribute("aria-activedescendant") == options.nth(1).get_attribute("id")
+    page.keyboard.press("Home")
+    page.keyboard.press("ArrowDown")
+    assert search.get_attribute("aria-activedescendant") != initial_id
+    page.keyboard.press("End")
+    assert search.get_attribute("aria-activedescendant") == options.last.get_attribute("id")
+    page.keyboard.press("Home")
+    assert search.get_attribute("aria-activedescendant") == options.first.get_attribute("id")
+    page.screenshot(path=str(OUTPUT / "universal-command-desktop.png"), full_page=True)
+
+    page.keyboard.press("Shift+Tab")
+    assert page.locator("#search-close").evaluate("el => document.activeElement === el")
+    page.keyboard.press("Tab")
+    assert search.evaluate("el => document.activeElement === el")
+    page.keyboard.press("Escape")
+    modal.wait_for(state="hidden")
+    focus_state = page.evaluate(
+        "() => ({ active: document.activeElement?.id, openerVisible: !!document.querySelector('#today-settings')?.offsetParent })"
+    )
+    assert focus_state["active"] == "today-settings", focus_state
+
+    page.keyboard.press("Control+K")
+    search.fill("offline")
+    page.wait_for_selector("#search-results .search-state--error")
+    assert "failed" in results.locator(".search-state--error").inner_text()
+    assert results.locator('[role="option"]').count() == 2
+    page.locator("#search-close").click()
+    focus_state = page.evaluate(
+        "() => ({ active: document.activeElement?.id, openerVisible: !!document.querySelector('#today-settings')?.offsetParent })"
+    )
+    assert focus_state["active"] == "today-settings", focus_state
+
+    page.keyboard.press("Control+K")
+    search.fill("plan")
+    page.wait_for_function(
+        "document.querySelectorAll('#search-results [role=\"option\"]').length >= 4"
+    )
+    page.keyboard.press("Home")
+    page.keyboard.press("ArrowDown")
+    page.keyboard.press("ArrowDown")
+    active = search.get_attribute("aria-activedescendant")
+    assert page.locator(f"#{active}").get_attribute("data-view") == "plan"
+    page.keyboard.press("Enter")
+    page.wait_for_selector("#plan-view:visible")
+    _assert_no_overflow(page)
+    context.close()
+
+    context = _new_context(browser, 390, 844, light=True, reduced_motion="reduce")
+    page = context.new_page()
+    page.set_default_timeout(10_000)
+    _record_errors(page, errors, "universal command mobile")
+    page.route("**/api/search?*", search_fixture)
+    page.goto(f"http://127.0.0.1:{PORT}/", wait_until="domcontentloaded")
+    page.wait_for_selector("#today-view:visible")
+    _dismiss_setup_if_needed(page)
+    page.keyboard.press("Control+K")
+    search = page.locator("#search-input")
+    search.fill("plan")
+    page.wait_for_function(
+        "document.querySelectorAll('#search-results [role=\"option\"]').length >= 4"
+    )
+    box = page.locator("#search-modal .search-card").bounding_box()
+    assert box and box["x"] >= 0 and box["x"] + box["width"] <= 390.5, box
+    assert page.locator("#search-results .search-actions").evaluate(
+        "el => getComputedStyle(el).gridTemplateColumns.split(' ').length === 1"
+    )
+    assert search.evaluate("el => parseFloat(getComputedStyle(el).fontSize) >= 15")
+    _assert_no_overflow(page)
+    page.screenshot(path=str(OUTPUT / "universal-command-mobile.png"), full_page=True)
+    page.locator("#search-close").click()
+    context.close()
 
 
 def _specialist_partial_states(browser: Browser, errors: list[str]) -> None:
@@ -500,8 +649,26 @@ def _andromeda(browser: Browser, errors: list[str]) -> None:
         page = context.new_page()
         page.set_default_timeout(10_000)
         _record_errors(page, errors, f"andromeda {label}")
-        page.goto(f"http://andromeda.localhost:{PORT}/", wait_until="domcontentloaded")
-        page.wait_for_selector("#andromeda-view:visible")
+        response = page.goto(f"http://andromeda.localhost:{PORT}/", wait_until="domcontentloaded")
+        try:
+            page.wait_for_selector("#andromeda-view:visible")
+        except PlaywrightTimeoutError as error:
+            diagnostic = page.evaluate(
+                """() => ({
+                  url: location.href,
+                  readyState: document.readyState,
+                  bodyApp: document.body?.dataset.app || '',
+                  activeElement: document.activeElement?.id || '',
+                  andromedaStyle: document.getElementById('andromeda-view')?.getAttribute('style') || '',
+                  visibleRoots: [...document.querySelectorAll('[id$="-view"]')]
+                    .filter(element => element.offsetParent !== null)
+                    .map(element => element.id),
+                  bodyText: document.body?.innerText.slice(0, 500) || '',
+                })"""
+            )
+            diagnostic["status"] = response.status if response else None
+            diagnostic["browserErrors"] = errors[-10:]
+            raise AssertionError(f"Andromeda did not become visible: {diagnostic}") from error
         root = page.locator("#andromeda-view")
         assert root.get_attribute("data-kokuen-surface") == "andromeda"
         assert page.locator(".andromeda-brand").count() == 0
@@ -605,6 +772,17 @@ def _zoom_reflow_family(browser: Browser, errors: list[str]) -> None:
         _assert_no_overflow(page)
 
     page.goto(f"http://127.0.0.1:{PORT}/", wait_until="domcontentloaded")
+    page.wait_for_selector("#today-view:visible")
+    _dismiss_setup_if_needed(page)
+    page.locator("#today-settings").focus()
+    page.keyboard.press("Control+K")
+    page.wait_for_selector("#search-modal:visible")
+    command_box = page.locator("#search-modal .search-card").bounding_box()
+    assert command_box, command_box
+    assert command_box["x"] >= 0 and command_box["x"] + command_box["width"] <= 360.5
+    assert command_box["y"] >= 0 and command_box["y"] + command_box["height"] <= 250.5
+    _assert_no_overflow(page)
+    page.locator("#search-close").click()
     page.wait_for_function("typeof window._openSettings === 'function'")
     page.evaluate("window._openSettings('general')")
     page.wait_for_selector("#settings-modal:visible")
@@ -756,6 +934,7 @@ def run() -> None:
         _files_mobile(browser, errors)
         _files_reduced_motion(browser, errors)
         _home_and_apps(browser, errors)
+        _universal_command(browser, errors)
         _specialist_partial_states(browser, errors)
         _aide_smoke(browser, errors)
         _aide_mobile(browser, errors)

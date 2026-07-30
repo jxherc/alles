@@ -120,17 +120,17 @@ class ManifestTests(ApiTest):
         self.assertIsNotNone(worker_stamp)
         self.assertEqual(
             {app_stamp.group(1), style_stamp.group(1), worker_stamp.group(1)},
-            {"300"},
+            {"301"},
         )
 
     def test_precache_uses_the_shell_stamp_and_every_linked_stylesheet(self):
         urls = self.client.get("/api/pwa/precache").json()["urls"]
-        self.assertIn("/static/style.css?v=300", urls)
+        self.assertIn("/static/style.css?v=301", urls)
         self.assertNotIn("/static/style.css?v=6", urls)
         self.assertIn("/static/vendor/xterm/xterm.css?v=6.0.0", urls)
         self.assertIn("/static/vendor/xterm/xterm.mjs?v=6.0.0", urls)
         self.assertIn("/static/vendor/xterm/addon-fit.mjs?v=0.11.0", urls)
-        self.assertIn("/static/kokuen.css?v=19", urls)
+        self.assertIn("/static/kokuen.css?v=20", urls)
         for language in ("en", "fr", "es", "zh-Hans", "zh-Hant", "ja", "ko", "ar"):
             self.assertIn(f"/static/locales/{language}.json", urls)
         self.assertIn("/static/locales/manifest.json", urls)
