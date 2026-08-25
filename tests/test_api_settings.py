@@ -6,7 +6,6 @@ from pathlib import Path
 from unittest import mock
 
 import core.settings
-
 import core.settings as cs
 import services.secretstore as secretstore
 from tests._client import ApiTest

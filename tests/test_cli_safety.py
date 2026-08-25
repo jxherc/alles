@@ -1,5 +1,5 @@
-import io
 import inspect
+import io
 import json
 import sys
 import tempfile

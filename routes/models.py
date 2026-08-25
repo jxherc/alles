@@ -12,8 +12,7 @@ from core.api_errors import ApiError
 from core.auth import require_recent_owner
 from core.database import ModelEndpoint, SessionLocal, get_db
 from core.settings import load_settings
-from services import model_catalog
-from services import model_auth
+from services import model_auth, model_catalog
 from services.imagegen import is_image_model
 from services.llm import detect_provider, simple_complete
 from services.model_resolver import MODEL_ROLES, ModelResolutionError, resolve_model

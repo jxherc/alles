@@ -6,7 +6,6 @@ from pathlib import Path
 from services.feature_registry import load_registry
 from services.task_routing import load_task_routing, resolved_tasks
 
-
 ROOT = Path(__file__).parents[1]
 
 

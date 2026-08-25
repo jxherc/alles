@@ -16,7 +16,7 @@ from urllib.parse import unquote, urlsplit, urlunsplit
 
 import httpx
 
-from core.database import Account, FinanceConnection, SessionLocal, Transaction
+from core.database import Account, FinanceConnection, Transaction
 from services import actual_finance, finance_currency, net_guard
 
 PLAID_BASES = {

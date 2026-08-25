@@ -21,9 +21,18 @@ class ReleaseNoticePackagingTests(unittest.TestCase):
         actual = {
             path.relative_to(ROOT).as_posix()
             for path in (ROOT / "licenses").rglob("*")
-            if path.is_file()
+            if path.is_file() and not path.name.startswith(".")
         }
         self.assertEqual(actual, expected)
+
+    def test_stray_dotfiles_do_not_break_verification(self):
+        junk = ROOT / "licenses" / ".review-test-junk"
+        try:
+            junk.write_text("junk", "utf-8")
+            result = verify_release_notice_set()
+            self.assertGreater(result["file_count"], 400)
+        finally:
+            junk.unlink(missing_ok=True)
 
     def test_explicit_license_sources_ship_complete_terms_not_source_code(self):
         manifest = json.loads((ROOT / "credits" / "manifest.json").read_text("utf-8"))
