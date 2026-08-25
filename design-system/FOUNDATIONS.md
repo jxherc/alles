@@ -22,6 +22,10 @@ Machine-readable values live in `tokens/`. This document explains how to use the
 | danger | `#df7474` | `#b54d4d` | failure or destructive action |
 | success | `#7ea98b` | `#437650` | confirmed success only |
 
+The server system monitor holds a scoped palette exception for its meter and glyph colors; see `decisions/0010-server-monitor-aesthetic.md`.
+
+At runtime the focus ring renders brighter than the strong-line value above (a faint/text mix): at the documented values the ring falls under the 3:1 non-text contrast that WCAG 2.4.11 asks of focus indicators, so visibility wins over token purity.
+
 Never rely on color alone. Text, position, icon shape, or state wording must carry the same meaning.
 
 ## typography
@@ -35,6 +39,7 @@ Never rely on color alone. Text, position, icon shape, or state wording must car
 - action and label: 13px or 14px;
 - helper and metadata: 12px or 13px, never lower;
 - display data: 22px to 30px with tabular figures;
+- greeting and specialist empty-state voice type may exceed this cap only as bounded in `decisions/0011-display-type-voice.md`;
 - code and terminal: local monospace stack only.
 
 Avoid fake hierarchy from accidental bold. Use weight 400 for body, 520 to 580 for emphasis, and 620 only for true headings.
