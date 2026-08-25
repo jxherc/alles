@@ -44,7 +44,7 @@ function _render() {
       <button class="btn primary" id="habits-add-toggle">${_si('plus')} habit</button>
     </div>
     ${_adding ? _addForm() : ''}
-    ${_habits.length ? `<div class="habits-list">${cards}</div>` : (_adding ? '' : `<div class="habits-empty">no habits yet — track something daily (read, water, walk) or a few times a week. add one above.</div>`)}`;
+    ${_habits.length ? `<div class="habits-list">${cards}</div>` : (_adding ? '' : `<div class="habits-empty">no habits yet: track something daily (read, water, walk) or a few times a week. add one above.</div>`)}`;
   _wire(body);
 }
 

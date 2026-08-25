@@ -124,7 +124,7 @@
             <span id="model-provider" class="model-provider"></span>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
           </button>
-          <button class="model-btn img-slot-btn" id="image-slot-btn" type="button" title="image model — click to remove" aria-label="remove selected image model" style="display:none">
+          <button class="model-btn img-slot-btn" id="image-slot-btn" type="button" title="image model: click to remove" aria-label="remove selected image model" style="display:none">
             <span class="img-slot-ic" id="image-slot-ic"></span>
             <span id="image-slot-label"></span>
             <span class="img-slot-x">×</span>
@@ -360,10 +360,10 @@
           <div id="andromeda-band" class="custom-select" data-value="standard" data-options="light|light;standard|standard;strong|strong;auto|automatic" aria-label="overview model strength"></div>
         </div>
         <div class="andromeda-strength-guide" aria-label="overview strength guide">
-          <p>light — fastest, shortest answer, least checking</p>
-          <p>standard — balanced speed and checking</p>
-          <p>strong — slower, longer answer, more checking</p>
-          <p>automatic — chooses from the query and available model</p>
+          <p>light: fastest, shortest answer, least checking</p>
+          <p>standard: balanced speed and checking</p>
+          <p>strong: slower, longer answer, more checking</p>
+          <p>automatic: chooses from the query and available model</p>
         </div>
         <div class="andromeda-setting-row">
           <span><strong>exact model</strong><small>optional for this search</small></span>
@@ -1024,7 +1024,7 @@
         <span style="margin-left:auto;display:flex;gap:0.4rem;align-items:center">
           <div class="custom-select vault-switcher" id="vault-switcher" style="display:none;min-width:130px"></div>
           <button type="button" class="btn" id="vault-add-btn" style="display:none" title="new vault">+ vault</button>
-          <button type="button" class="btn ic-btn-lbl" id="vault-travel-btn" style="display:none" title="Travel Mode — hide vaults not marked travel-safe">travel</button>
+          <button type="button" class="btn ic-btn-lbl" id="vault-travel-btn" style="display:none" title="Travel Mode: hide vaults not marked travel-safe">travel</button>
           <button type="button" class="btn ic-btn-lbl" id="vault-bio-add-btn" style="display:none" title="enable biometric unlock for this vault">biometric</button>
           <button type="button" class="btn primary" id="vault-new-btn" style="display:none">+ new</button>
           <button type="button" class="btn ic-btn-lbl" id="vault-watchtower-btn" style="display:none" title="security check">watchtower</button>
@@ -1235,7 +1235,7 @@
       <div class="page-view-head photos-head">
         <span class="page-view-title" id="photos-head-title">photos</span>
         <input type="text" id="photos-search" class="cal-quick photos-search" placeholder="search photos…">
-        <button type="button" class="btn ic-btn-lbl" id="photos-smart-btn" title="smart search — find by content" hidden>smart</button>
+        <button type="button" class="btn ic-btn-lbl" id="photos-smart-btn" title="smart search: find by content" hidden>smart</button>
         <button type="button" class="btn ic-btn-lbl" id="photos-filter-btn" title="filter the timeline">filter</button>
         <button type="button" class="btn ic-btn-lbl photos-share-album-btn" id="photos-share-album-btn" title="share the open album as a read-only link"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><line x1="8.2" y1="10.8" x2="15.8" y2="7.2"/><line x1="8.2" y1="13.2" x2="15.8" y2="16.8"/></svg> share</button>
         <input type="file" id="photos-upload-input" accept="image/*,video/*" multiple hidden>
@@ -1397,7 +1397,7 @@
 <div class="login-screen" id="notrunning-screen" style="display:none">
   <div class="login-inner">
     <div class="login-brand">alles <span class="login-sep">/ not started</span></div>
-    <div class="notrunning-msg">can't reach the server — alles isn't running. start it, then retry.</div>
+    <div class="notrunning-msg">can't reach the server. alles isn't running. start it, then retry.</div>
     <button type="button" class="login-btn" id="notrunning-retry">retry</button>
   </div>
 </div>
@@ -2000,11 +2000,11 @@
             </div>
             <div class="s-card-body">
               <div class="s-field">
-                <label>your name <span style="color:var(--muted);font-weight:400">— aide greets you by it</span></label>
+                <label>your name <span style="color:var(--muted);font-weight:400">: aide greets you by it</span></label>
                 <input type="text" class="settings-input" id="s-user-name" placeholder="e.g. eric" style="width:100%">
               </div>
               <div class="s-field">
-                <label>username <span style="color:var(--muted);font-weight:400">— synced across your apps</span></label>
+                <label>username <span style="color:var(--muted);font-weight:400">: synced across your apps</span></label>
                 <input type="text" class="settings-input" id="s-username" placeholder="e.g. jxh" style="width:100%">
               </div>
             </div>
@@ -2062,7 +2062,7 @@
               <div class="s-toggle-row"><div><div class="s-toggle-label">require password</div><div class="s-toggle-desc">lock alles behind your password</div></div><div class="s-switch" id="s-auth-enable"></div></div>
               <div class="s-field"><label>current password</label><input type="password" class="settings-input" id="s-pw-old" placeholder="leave blank if none set" style="width:100%"></div>
               <div class="s-field"><label>new password</label><input type="password" class="settings-input" id="s-pw-new" minlength="12" placeholder="at least 12 characters" style="width:100%"></div>
-              <div class="s-field"><label>verify password <span style="color:var(--muted);font-weight:400">— enter it again</span></label><input type="password" class="settings-input" id="s-pw-new2" placeholder="re-enter new password" style="width:100%"></div>
+              <div class="s-field"><label>verify password <span style="color:var(--muted);font-weight:400">: enter it again</span></label><input type="password" class="settings-input" id="s-pw-new2" placeholder="re-enter new password" style="width:100%"></div>
               <button type="button" class="btn primary" id="s-pw-save" style="width:100%;margin-top:0.3rem">change password</button>
             </div>
           </div>
@@ -2085,7 +2085,7 @@
                 </div>
               </div>
               <div class="s-field" style="margin-top:0.6rem">
-                <label>accent color <span style="color:var(--muted);font-weight:400">— the highlight used everywhere</span></label>
+                <label>accent color <span style="color:var(--muted);font-weight:400">: the highlight used everywhere</span></label>
                 <div class="accent-swatches" id="s-accent-swatches"></div>
                 <div class="accent-custom">
                   <input type="text" id="s-accent-hex" class="settings-input" placeholder="type a #hex color" spellcheck="false" style="width:160px">
@@ -2175,7 +2175,7 @@
               <div id="persona-form-title" class="s-form-title" hidden></div>
               <div class="s-field"><label>name</label><input type="text" class="settings-input" id="persona-name" placeholder="name" style="width:100%"></div>
               <div class="s-field"><label>system prompt</label><textarea class="settings-textarea" id="persona-prompt" rows="6" placeholder="You are..." style="width:100%;resize:vertical"></textarea></div>
-              <div class="s-field"><label>starter message <span style="color:var(--muted);font-weight:400">— prefilled into the composer when you pick this persona (optional)</span></label><textarea class="settings-textarea" id="persona-initial" rows="2" placeholder="e.g. Please review this code:" style="width:100%;resize:vertical"></textarea></div>
+              <div class="s-field"><label>starter message <span style="color:var(--muted);font-weight:400">: prefilled into the composer when you pick this persona (optional)</span></label><textarea class="settings-textarea" id="persona-initial" rows="2" placeholder="e.g. Please review this code:" style="width:100%;resize:vertical"></textarea></div>
               <div class="s-field"><label>pinned model</label><div class="settings-input custom-select" id="persona-model" style="width:100%"></div></div>
               <div class="s-field persona-temp-field">
                 <div class="persona-temp-head">
@@ -2210,7 +2210,7 @@
               </div>
               <!-- 10d — knowledge files + share, only meaningful for a saved persona -->
               <div id="persona-extra" hidden style="margin-top:0.85rem;border-top:1px solid var(--faint);padding-top:0.85rem">
-                <div class="s-field"><label>knowledge files <span style="color:var(--muted);font-weight:400">— this assistant answers from these</span></label>
+                <div class="s-field"><label>knowledge files <span style="color:var(--muted);font-weight:400">: this assistant answers from these</span></label>
                   <div id="persona-docs" class="persona-docs"></div>
                   <div style="display:flex;gap:.4rem;margin-top:.4rem">
                     <input type="text" class="settings-input" id="persona-doc-title" placeholder="title" style="flex:0 0 30%">
@@ -2313,7 +2313,7 @@
               permission rules
             </div>
             <div class="s-card-body">
-              <p style="font-size:0.75rem;color:var(--muted);margin-bottom:0.6rem">fine-grained control over what the agent does without asking — layered over the mode, last matching rule wins. tool + path accept globs (<code>*</code> <code>?</code>); a plain path is a "contains" match. e.g. allow <code>git_status</code>, ask on <code>git_commit</code>, deny <code>write_file</code> on <code>.env</code>.</p>
+              <p style="font-size:0.75rem;color:var(--muted);margin-bottom:0.6rem">fine-grained control over what the agent does without asking. layered over the mode, last matching rule wins. tool + path accept globs (<code>*</code> <code>?</code>); a plain path is a "contains" match. e.g. allow <code>git_status</code>, ask on <code>git_commit</code>, deny <code>write_file</code> on <code>.env</code>.</p>
               <div id="perm-rules-list" style="margin-bottom:0.7rem"></div>
               <div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-bottom:0.45rem">
                 <input type="text" id="perm-rule-tool" class="settings-input" placeholder="tool (git_* / shell / *)" style="flex:1;min-width:120px">
@@ -2582,7 +2582,7 @@
               automation rules
             </div>
             <div class="s-card-body">
-              <p style="font-size:0.75rem;color:var(--muted);margin-bottom:0.75rem">when this happens, do that. rules run in the background — everything is checked within ~30 seconds.</p>
+              <p style="font-size:0.75rem;color:var(--muted);margin-bottom:0.75rem">when this happens, do that. rules run in the background. everything is checked within ~30 seconds.</p>
               <div id="rules-list" style="margin-bottom:0.85rem"></div>
               <div class="rule-presets" id="rule-presets"></div>
               <div class="rules-form">

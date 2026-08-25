@@ -672,7 +672,7 @@ async function loadRecent() {
         <span class="jrnl-recent-date">${e.date}</span>
         <span class="jrnl-recent-snip">${esc((e.content || '').slice(0, 60))}</span>
       </div>`
-    ).join('') || '<div class="jrnl-empty">no entries yet — write one</div>';
+    ).join('') || '<div class="jrnl-empty">no entries yet: write one</div>';
     el.querySelectorAll('.jrnl-recent-row').forEach(r => r.onclick = () => navigateDay(r.dataset.d));
   } catch {}
 }

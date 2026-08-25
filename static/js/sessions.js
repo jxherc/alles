@@ -757,7 +757,7 @@ export async function ensureSession(options = {}) {
   const existing = getActiveId();
   if (existing) return existing;
   const ep = getCurrentEndpoint();
-  if (!ep) { toast('no endpoint configured — add one via the model picker', 'error'); return null; }
+  if (!ep) { toast('no endpoint configured: add one via the model picker', 'error'); return null; }
   const model = getSelected()?.model || ep.models?.[0] || '';
   const s = await createSession(model, ep.id, options);
   if (!s) { toast('failed to create session', 'error'); return null; }

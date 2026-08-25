@@ -619,7 +619,7 @@ function _renderEditor() {
         ${BASE_LABELS.map(([k, label]) => `<label class="te-color"><input type="color" data-color="${k}" value="${esc(c[k])}"><span>${label}</span></label>`).join('')}
       </div></div>
 
-      <div class="te-sec"><div class="te-sec-h">harmony — generate a palette from one color</div><div class="te-harmony">
+      <div class="te-sec"><div class="te-sec-h">harmony: generate a palette from one color</div><div class="te-harmony">
         <input type="color" id="te-harmony-accent" value="${esc(c.accent)}">
         <div class="te-seg" data-seg="harmony-type">${['complementary', 'analogous', 'triadic', 'monochromatic'].map((o, i) => `<button class="te-seg-opt${i === 0 ? ' active' : ''}" data-val="${o}">${o.slice(0, 4)}</button>`).join('')}</div>
         <div class="te-seg" data-seg="harmony-mode">${['dark', 'light'].map((o, i) => `<button class="te-seg-opt${i === 0 ? ' active' : ''}" data-val="${o}">${o}</button>`).join('')}</div>
@@ -727,7 +727,7 @@ function _wireEditor(m) {
     const name = m.querySelector('#te-custom-name').value.trim();
     if (!name) { toast('name it first', 'error'); return; }
     if (!_draft.customThemes) _draft.customThemes = {};
-    if (Object.keys(_draft.customThemes).length >= 12 && !_draft.customThemes[name]) { toast('12 custom themes max — delete one', 'error'); return; }
+    if (Object.keys(_draft.customThemes).length >= 12 && !_draft.customThemes[name]) { toast('12 custom themes max: delete one', 'error'); return; }
     _draft.customThemes[name] = { colors: { ..._draft.colors }, font: _draft.font, density: _draft.density, bgPattern: _draft.bgPattern, frosted: _draft.frosted, effect: { ..._draft.effect } };
     save(_draft); toast(`saved "${name}"`, 'success'); _renderEditor();
   };
