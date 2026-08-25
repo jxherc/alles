@@ -957,7 +957,9 @@ async function navigateTo(v) {
     // Group names usually match their canonical host. Vault is intentionally
     // served from passwords.*, so derive the destination from the canonical
     // identifier instead of manufacturing a legacy vault.* navigation.
-    host: viewToSub(groupedIdentifier),
+    // synthetic overview identifiers (health-overview, finance-overview) are not
+    // canonical views, so the host falls back to the group name.
+    host: viewToSub(groupedIdentifier) || viewToSub(grouped.group),
     view: grouped.group,
     ...(grouped.section !== 'overview' ? { section: grouped.section } : {}),
     hashOwner: v,

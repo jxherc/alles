@@ -13,6 +13,7 @@ import {
   planCommitments,
   releaseSpecialistLegacyView,
 } from '../../static/js/specialist_groups.js';
+import { viewToSub } from '../../static/js/subdomain.js';
 import { configureLocalization } from '../../static/js/i18n.js';
 
 const specialistSource = readFileSync(
@@ -201,7 +202,7 @@ test('legacy app identifiers resolve to a group without losing their subsection'
 test('Aide reminders has a routable identifier while legacy reminders stay with Plan', () => {
   const app = readFileSync(new URL('../../static/js/app.js', import.meta.url), 'utf8');
   assert.match(app, /const grouped = groupRouteFor\(v\)/);
-  assert.match(app, /host: viewToSub\(groupedIdentifier\)/);
+  assert.match(app, /host: viewToSub\(groupedIdentifier\) \|\| viewToSub\(grouped\.group\)/);
   assert.match(app, /const dest = groupedRoute\?\.host \?\? viewToSub\(v\)/);
   assert.match(app, /AIDE_TOOL_VIEWS = new Set\(\[[^]*?'aide-reminders'/);
   assert.match(app, /v === 'aide-reminders'\) showRemindersView\(\)/);
@@ -220,6 +221,13 @@ test('combined inbox account IDs use one stable string identity', () => {
   );
   assert.match(source, /account_id: String\(accounts\[index\]\?\.id \?\? ''\)/);
   assert.match(source, /value: String\(account\.id \?\? ''\)/);
+});
+
+test('grouped overview identifiers resolve to a non-empty canonical host', () => {
+  for (const [group, host] of [['health', 'health'], ['finance', 'finance'], ['vault', 'passwords']]) {
+    const identifier = groupIdentifierFor(group, 'overview');
+    assert.equal(viewToSub(identifier) || viewToSub(group), host, identifier);
+  }
 });
 
 test('new group overview links do not collide with legacy app identifiers', () => {
