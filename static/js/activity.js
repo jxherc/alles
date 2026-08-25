@@ -88,7 +88,7 @@ async function load(fetcher = fetch) {
   if (!body) return;
   body.innerHTML = '<div class="activity-empty">loading…</div>';
   const want = TYPES.map(t => t.key).filter(k => !_off.has(k));
-  if (!want.length) { body.innerHTML = '<div class="activity-empty">all sources hidden — turn some back on above</div>'; return; }
+  if (!want.length) { body.innerHTML = '<div class="activity-empty">all sources hidden: turn some back on above</div>'; return; }
   let d;
   try {
     const qp = _q ? `&q=${encodeURIComponent(_q)}` : '';

@@ -110,7 +110,7 @@ function _render() {
   const cards = _mons.map(m => m.id === _editing ? _editCard(m) : _card(m)).join('');
   const grid = _mons.length
     ? `<div class="watch-grid">${cards}</div>`
-    : (_adding ? '' : `<div class="watch-empty">nothing watched yet — add a site, a <code>/health</code> endpoint, or a cert to keep an eye on. add one below.</div>`);
+    : (_adding ? '' : `<div class="watch-empty">nothing watched yet: add a site, a <code>/health</code> endpoint, or a cert to keep an eye on. add one below.</div>`);
 
   body.innerHTML = `
     <div class="watch-bar">

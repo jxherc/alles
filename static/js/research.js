@@ -164,7 +164,7 @@ export async function runResearch(query) {
           const finalReport = (ev.report || reportAccum).trim();
           reportEl.innerHTML = finalReport
             ? mdToHtml(finalReport)
-            : '<div class="research-step">no results — try rephrasing your question.</div>';
+            : '<div class="research-step">no results: try rephrasing your question.</div>';
 
           if (ev.stats && Object.keys(ev.stats).length) {
             statsEl.style.display = 'block';

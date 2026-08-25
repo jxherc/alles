@@ -39,7 +39,7 @@ export async function openRuns() {
   try { runs = await fetch('/api/agent/runs?summary=1&limit=40').then(r => r.json()); }
   catch { body.innerHTML = '<div class="runs-empty">couldn’t load runs</div>'; return; }
   if (!Array.isArray(runs) || !runs.length) {
-    body.innerHTML = '<div class="runs-empty">no agent runs yet — they show up here once the agent does something</div>';
+    body.innerHTML = '<div class="runs-empty">no agent runs yet: they show up here once the agent does something</div>';
     return;
   }
   body.innerHTML = runs.map(rowHtml).join('');
@@ -55,7 +55,7 @@ function rowHtml(r) {
       <span class="run-model">${esc(r.model || 'agent')}</span>
       <span class="run-time">${esc(ago(r.updated_at || r.started_at))}</span>
     </div>
-    <div class="run-row-sub">${r.steps} step${r.steps === 1 ? '' : 's'}${prog}${edits}${r.todo ? ` — ${esc(r.todo)}` : ''}</div>
+    <div class="run-row-sub">${r.steps} step${r.steps === 1 ? '' : 's'}${prog}${edits}${r.todo ? `: ${esc(r.todo)}` : ''}</div>
     <div class="run-detail" hidden></div>
   </div>`;
 }

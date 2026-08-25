@@ -138,7 +138,7 @@ function _render() {
         <div class="empty-state">
           <div class="empty-state-icon">${_si('heart')}</div>
           <div class="empty-state-title">no entries yet</div>
-          <div class="empty-state-desc">log your weight, sleep, a workout — or any number you want to watch trend over time. each metric gets its own card and sparkline.</div>
+          <div class="empty-state-desc">log your weight, sleep, a workout. or any number you want to watch trend over time. each metric gets its own card and sparkline.</div>
           <button class="btn primary" id="health-empty-add">${_si('plus')} log your first entry</button>
         </div>`)}
     ${_entries.length ? `<div class="health-recent"><div class="health-recent-h">recent</div>${_entries.slice(0, 30).map(_row).join('')}</div>` : ''}`;

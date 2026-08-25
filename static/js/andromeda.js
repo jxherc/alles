@@ -1317,7 +1317,7 @@ function updateProviderSettingsSummary() {
 
 function configuredPlaceholder(id, configured, emptyText = 'not configured') {
   const input = el(id);
-  if (input) input.placeholder = configured ? 'configured — enter a replacement' : emptyText;
+  if (input) input.placeholder = configured ? 'configured: enter a replacement' : emptyText;
 }
 
 function setCredentialClearState(inputId, configured) {
@@ -1472,7 +1472,7 @@ async function saveSearchCredential(input) {
     setCredentialClearState(input.id, true);
     if (input.type === 'password') {
       input.value = '';
-      input.placeholder = 'configured — enter a replacement';
+      input.placeholder = 'configured: enter a replacement';
     }
     await loadProviderChoices();
   } catch {} finally {

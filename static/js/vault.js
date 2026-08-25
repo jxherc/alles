@@ -325,7 +325,7 @@ async function _toggleTravel() {
     }).then(x => x.json());
     _travel = !!r.on;
     await _loadVaults();
-    toast(_travel ? 'travel mode on — only travel-safe vaults shown' : 'travel mode off', 'success');
+    toast(_travel ? 'travel mode on: only travel-safe vaults shown' : 'travel mode off', 'success');
   } catch { toast('could not toggle travel mode', 'error'); }
 }
 
@@ -368,7 +368,7 @@ function _renderTypeEditor() {
   const types = Object.entries(_customTypes);
   box.innerHTML = `
     <div class="mv-2fa-head">custom entry types</div>
-    <p class="mv-2fa-explain">define your own item types — name them, add fields, and set each field's width. they appear in the type picker when you add a secret.</p>
+    <p class="mv-2fa-explain">define your own item types: name them, add fields, and set each field's width. they appear in the type picker when you add a secret.</p>
     <div class="vt-list">
       ${types.length ? types.map(([k, t]) => `
         <div class="vt-row" data-k="${k}">
@@ -691,7 +691,7 @@ async function _setupTotp() {
       method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ secret: d.secret, code }),
     });
-    if (!r.ok) { ov.querySelector('#totp-err').textContent = "code didn't match — try the current one"; return; }
+    if (!r.ok) { ov.querySelector('#totp-err').textContent = "code didn't match: try the current one"; return; }
     close();
     await _renderManageExtra();
     toast('authenticator app enrolled', 'success');
@@ -738,7 +738,7 @@ function _renderManage() {
       <button class="chip ic-btn-lbl ${v.travel_safe ? 'on' : ''}" data-travel="${v.id}" title="reachable while travelling">${_si('plane')} safe</button>
       ${v.id === 'default' ? '' : `<button class="act-btn danger" data-del="${v.id}">delete</button>`}
     </div>`).join('')
-    + `<div class="mv-help">the <b>main</b> vault opens with your master password. other vaults each have their own password — change a vault's password from its row while it's unlocked.</div>`;
+    + `<div class="mv-help">the <b>main</b> vault opens with your master password. other vaults each have their own password. change a vault's password from its row while it's unlocked.</div>`;
   box.querySelectorAll('[data-rename]').forEach(s => s.onclick = () => _inlineRename(s));
   box.querySelectorAll('[data-chpw]').forEach(b => b.onclick = () => _changeVaultPw());
   box.querySelectorAll('[data-travel]').forEach(b => b.onclick = async () => {
@@ -960,7 +960,7 @@ async function showWatchtower() {
     <div class="vault-wt" id="vault-wt">
       <div class="wt-bar">
         <button class="btn ic-btn-lbl" id="wt-back">${_si('chevron-left')} back to vault</button>
-        <span class="wt-intro">Watchtower scans your saved passwords for problems — known data-breach exposure, the same password reused across logins, and weak/short passwords.</span>
+        <span class="wt-intro">Watchtower scans your saved passwords for problems: known data-breach exposure, the same password reused across logins, and weak/short passwords.</span>
       </div>
       ${sec('breached', 'passwords found in known data breaches - change these first.', (d.breached || []).map(x => `${_esc(x.name)} <span class="wt-meta">seen ${formatNumber(x.count)}×</span>`), 'bad')}
       ${sec('reused', 'the same password used on more than one login.', (d.reused || []).map(g => _esc(g.names.join(', '))), 'warn')}
@@ -1200,7 +1200,7 @@ async function _genFormPw() {
     const showBtn = _modalEl.querySelector('[data-reveal="vf-f-password"]');
     if (showBtn) showBtn.textContent = 'hide';
     _showStrength(d.strength);
-  } catch { toast("couldn't generate a password — try again", 'error'); }
+  } catch { toast("couldn't generate a password: try again", 'error'); }
 }
 
 let _stTimer;
@@ -1228,7 +1228,7 @@ function _showStrength(s) {
   const colors = ['var(--error)', 'var(--error)', '#d8a24a', 'var(--green)', 'var(--green)'];
   box.querySelector('.vault-strength-fill').style.width = ((s.score + 1) * 20) + '%';
   box.querySelector('.vault-strength-fill').style.background = colors[s.score] || 'var(--muted)';
-  box.querySelector('.vault-strength-label').textContent = s.label + (s.warning ? ' — ' + s.warning : '');
+  box.querySelector('.vault-strength-label').textContent = s.label + (s.warning ? ': ' + s.warning : '');
 }
 
 async function _saveForm(editing) {
@@ -1245,7 +1245,7 @@ async function _saveForm(editing) {
       method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ rp_id: rp, username: user }),
     });
-    if (!r.ok) { toast('passkey create failed — is the vault unlocked?', 'error'); return; }
+    if (!r.ok) { toast('passkey create failed: is the vault unlocked?', 'error'); return; }
     toast('passkey created', 'success');
     _closeModal();
     await _loadEntries();
@@ -1279,7 +1279,7 @@ async function _saveForm(editing) {
     method: editing ? 'PATCH' : 'POST',
     headers: { 'content-type': 'application/json' }, body,
   });
-  if (!r.ok) { toast('save failed — is the vault still unlocked?', 'error'); return; }
+  if (!r.ok) { toast('save failed: is the vault still unlocked?', 'error'); return; }
   toast(editing ? 'saved' : 'entry added', 'success');
   _closeModal();
   await _loadEntries();
@@ -1425,7 +1425,7 @@ async function _loadEntries(fetcher = fetch) {
     const response = await _vfetch('/api/vault', {}, fetcher);
     if (!response.ok) throw new Error(response.status === 403 ? 'vault access expired' : `request failed (${response.status})`);
     _entries = await response.json();
-    if (!_entries.length) { list.innerHTML = '<div class="page-empty">no entries — hit “+ new”</div>'; return; }
+    if (!_entries.length) { list.innerHTML = '<div class="page-empty">no entries: hit “+ new”</div>'; return; }
     list.innerHTML = _entries.map(e => `
       <div class="vault-entry" data-id="${e.id}">
         <button type="button" class="vault-entry-main" data-vault-open="${e.id}" aria-label="open ${_esc(e.name)}">
@@ -1495,7 +1495,7 @@ window._vaultOpen = async id => {
   try {
     const d = await _vfetch(`/api/vault/${id}/reveal`).then(r => r.json());
     openVaultForm({ id, name: row.name, category: row.category, username: row.username, type: row.type, fields: d.fields || {} }, returnFocus);
-  } catch { toast('reveal failed — vault may be locked', 'error'); }
+  } catch { toast('reveal failed: vault may be locked', 'error'); }
 };
 
 window._vaultCopy = async id => {

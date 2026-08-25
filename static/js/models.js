@@ -308,7 +308,7 @@ export function renderModelList(filter = '') {
     html += `<div class="provider-label" style="color:${color}">${ep.name}</div>`;
     if (!models.length && !imgs.length) {
       html += `<div style="padding:0.3rem 1rem;font-size:0.75rem;color:var(--muted)">
-        no models — <button style="background:none;border:none;cursor:pointer;color:var(--accent);font:inherit;font-size:0.75rem" onclick="probeEndpoint('${ep.id}')">probe</button>
+        no models: <button style="background:none;border:none;cursor:pointer;color:var(--accent);font:inherit;font-size:0.75rem" onclick="probeEndpoint('${ep.id}')">probe</button>
       </div>`;
       continue;
     }
@@ -330,7 +330,7 @@ export function renderModelList(filter = '') {
       </button>`;
     }
   }
-  if (!html) html = '<div style="padding:1rem;font-size:0.75rem;color:var(--faint)">no endpoints — add one in the endpoints tab</div>';
+  if (!html) html = '<div style="padding:1rem;font-size:0.75rem;color:var(--faint)">no endpoints: add one in the endpoints tab</div>';
   list.innerHTML = html;
   const rows = [...list.querySelectorAll('.model-row')];
   if (rows.length && !rows.some(row => row.tabIndex === 0)) rows[0].tabIndex = 0;
@@ -455,7 +455,7 @@ export function renderEndpointList() {
   const el = document.getElementById('mm-ep-list');
   if (!el) return;
   if (!_endpoints.length) {
-    el.innerHTML = '<div style="padding:0.65rem 0.75rem;font-size:0.75rem;color:var(--muted)">no endpoints yet — use presets below</div>';
+    el.innerHTML = '<div style="padding:0.65rem 0.75rem;font-size:0.75rem;color:var(--muted)">no endpoints yet: use presets below</div>';
     return;
   }
   el.innerHTML = _endpoints.map(ep => {

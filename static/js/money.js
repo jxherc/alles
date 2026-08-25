@@ -300,7 +300,7 @@ function render() {
       <section class="money-card" data-card="category"><h3>spending by category</h3>${catChart()}</section>
       <section class="money-card" data-card="trend"><h3>last 6 months</h3>${trendChart()}</section>
       <section class="money-card" data-card="networth"><h3>net worth over time</h3>${networthCard()}</section>
-      <section class="money-card money-envelope" data-card="envelope"><h3>envelope budgeting${_aom && _aom.age != null ? ` <span class="aom" title="age of money — days between income arriving and being spent">age of money: ${_aom.age}d</span>` : ''}</h3>${envelopeCard()}</section>
+      <section class="money-card money-envelope" data-card="envelope"><h3>envelope budgeting${_aom && _aom.age != null ? ` <span class="aom" title="age of money: days between income arriving and being spent">age of money: ${_aom.age}d</span>` : ''}</h3>${envelopeCard()}</section>
       <section class="money-card" data-card="holdings"><h3>investments</h3>${holdingsCard()}</section>
       <section class="money-card" data-card="goals"><h3>goals</h3>${goalsCard()}</section>
       <section class="money-card" data-card="reports"><h3>reports</h3>${reportsCard()}</section>
@@ -371,7 +371,7 @@ function goalsCard() {
       <div class="goal-eta">${pct}% · ${eta}</div>
     </div>`;
   }).join('');
-  return `<div class="goals">${rows || '<div class="money-empty-sm">no goals — set a savings or debt-payoff goal</div>'}</div>
+  return `<div class="goals">${rows || '<div class="money-empty-sm">no goals: set a savings or debt-payoff goal</div>'}</div>
     <div class="goal-form">
       <input type="text" id="gl-name" class="settings-input" placeholder="goal name" style="flex:1;min-width:100px">
       <div class="settings-input custom-select" id="gl-kind" data-value="savings" data-options="savings|savings;debt|debt payoff" style="width:120px"></div>
@@ -405,7 +405,7 @@ function holdingsCard() {
   const tot = d?.totals || {};
   const totRow = (d?.holdings || []).length
     ? `<div class="hold-total">total ${fmt(tot.value || 0)} · <span class="${(tot.gain || 0) >= 0 ? 'pos' : 'neg'}">${signed(tot.gain || 0)}</span></div>`
-    : '<div class="money-empty-sm">no holdings — add a stock/fund below</div>';
+    : '<div class="money-empty-sm">no holdings: add a stock/fund below</div>';
   return `<div class="holds">${rows}</div>${totRow}
     <div class="hold-form">
       <input type="text" id="hd-sym" class="settings-input" placeholder="symbol" style="width:80px">
@@ -489,7 +489,7 @@ function envelopeCard() {
 }
 
 function budgetsList() {
-  if (!_budgets.length) return '<div class="money-empty-sm">no budgets — cap a category\'s monthly spend</div>';
+  if (!_budgets.length) return '<div class="money-empty-sm">no budgets: cap a category\'s monthly spend</div>';
   const byCat = {}; (_sum?.budgets || []).forEach(b => byCat[b.category] = b);
   return `<div class="budgets">` + _budgets.map(b => {
     const spent = byCat[b.category]?.spent || 0;
@@ -505,7 +505,7 @@ function budgetsList() {
 }
 
 function rulesList() {
-  if (!_rules.length) return '<div class="money-empty-sm">no rules — auto-tag a payee to a category</div>';
+  if (!_rules.length) return '<div class="money-empty-sm">no rules: auto-tag a payee to a category</div>';
   return `<div class="rules">` + _rules.map(r => `
     <div class="rule" data-id="${r.id}">
       <span class="rl-match">${esc(r.match)}</span>
@@ -527,7 +527,7 @@ function _ruleForm() {
 const _cycleShort = { weekly: '/wk', monthly: '/mo', quarterly: '/qtr', yearly: '/yr', custom: '·custom' };
 
 function recurringList() {
-  if (!_recurring.length) return '<div class="money-empty-sm">nothing recurring — add rent, salary, a loan…</div>';
+  if (!_recurring.length) return '<div class="money-empty-sm">nothing recurring: add rent, salary, a loan…</div>';
   const an = {}; _accounts.forEach(a => an[a.id] = a.name);
   return `<div class="recurs">` + _recurring.map(r => `
     <div class="recur ${r.active ? '' : 'paused'}" data-id="${r.id}">
@@ -908,7 +908,7 @@ async function runReconcile(aid) {
     const d = await api(`/api/money/accounts/${aid}/reconcile?statement=${v}`);
     out.className = 'rc-out ' + (d.reconciled ? 'ok' : 'bad');
     out.textContent = d.reconciled
-      ? `✓ reconciled — cleared ${fmt(d.cleared_balance)}`
+      ? `✓ reconciled: cleared ${fmt(d.cleared_balance)}`
       : `cleared ${fmt(d.cleared_balance)} · off by ${fmt(Math.abs(d.difference))}`;
   } catch { out.textContent = 'failed'; }
 }
