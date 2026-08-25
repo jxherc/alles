@@ -418,7 +418,7 @@ body:is(
   min-height: 44px;
   padding: var(--k-space-2, 8px) var(--k-space-3, 12px);
   border: 0;
-  border-radius: var(--k-radius-1, 4px);
+  border-radius: var(--k-radius-surface, 4px);
   color: var(--k-ink-muted, var(--muted));
   background: transparent;
   font: inherit;
@@ -978,7 +978,7 @@ body:is(
 .specialist-group-card {
   min-width: 0;
   padding: var(--k-space-4, 16px);
-  border-radius: var(--k-radius-2, 8px);
+  border-radius: var(--k-radius-surface, 4px);
   background: var(--k-panel, var(--panel));
 }
 
@@ -1022,7 +1022,7 @@ body:is(
 .specialist-group-capture :where(input, button) {
   min-height: 44px;
   border: 0;
-  border-radius: var(--k-radius-1, 4px);
+  border-radius: var(--k-radius-surface, 4px);
   font: inherit;
   font-size: 0.8rem;
 }
@@ -1333,7 +1333,7 @@ body:is(
 .specialist-workbench > :where(.specialist-workbench-rail, .specialist-workbench-main, .specialist-workbench-detail) {
   min-width: 0;
   padding: var(--k-space-4, 16px);
-  border-radius: var(--k-radius-2, 8px);
+  border-radius: var(--k-radius-surface, 4px);
   background: var(--k-panel, var(--panel));
 }
 
@@ -1365,7 +1365,7 @@ body:is(
   min-width: 0;
   min-height: 44px;
   border: 0;
-  border-radius: var(--k-radius-1, 4px);
+  border-radius: var(--k-radius-surface, 4px);
   color: var(--k-ink-muted, var(--muted));
   background: transparent;
   font: inherit;
@@ -1531,7 +1531,7 @@ body:is(
   max-width: 72rem;
   margin: 0 0 var(--k-space-4, 16px);
   padding: var(--k-space-4, 16px);
-  border-radius: var(--k-radius-2, 8px);
+  border-radius: var(--k-radius-surface, 4px);
   background: var(--k-panel, var(--panel));
 }
 
@@ -1601,7 +1601,7 @@ body:is(
   min-height: 44px;
   padding: 8px 12px;
   border: 1px solid var(--k-line, var(--faint));
-  border-radius: var(--k-radius-1, 4px);
+  border-radius: var(--k-radius-surface, 4px);
   color: var(--k-ink, var(--text));
   background: var(--k-panel-raised, var(--panel2));
   font: inherit;
@@ -1640,7 +1640,7 @@ body:is(
   gap: var(--k-space-3, 12px);
   padding: var(--k-space-3, 12px);
   border-left: 3px solid var(--k-permission, var(--signal));
-  border-radius: var(--k-radius-1, 4px);
+  border-radius: var(--k-radius-surface, 4px);
   background: var(--k-panel-raised, var(--panel2));
 }
 
@@ -1661,7 +1661,7 @@ body:is(
   margin: 0;
   padding: var(--k-space-3);
   border: 1px solid var(--k-line, var(--faint));
-  border-radius: var(--k-radius-1, 4px);
+  border-radius: var(--k-radius-surface, 4px);
 }
 
 .finance-import-choice legend {
@@ -1687,7 +1687,7 @@ body:is(
   min-height: 44px;
   padding: 8px 12px;
   border: 1px solid var(--k-line, var(--faint));
-  border-radius: var(--k-radius-1, 4px);
+  border-radius: var(--k-radius-surface, 4px);
   color: var(--k-ink, var(--text));
   background: var(--k-panel, var(--panel));
   font: inherit;
@@ -1735,7 +1735,7 @@ body:is(
   gap: var(--k-space-3);
   min-height: 4rem;
   padding: var(--k-space-4);
-  border-radius: var(--k-radius-2, 8px);
+  border-radius: var(--k-radius-surface, 4px);
   background: var(--k-panel, var(--panel));
 }
 
@@ -1789,7 +1789,7 @@ body:is(
 .finance-import-conversion input {
   min-width: 0;
   border: 1px solid color-mix(in srgb, var(--k-line, var(--faint)) 72%, transparent);
-  border-radius: var(--k-radius-2, 8px);
+  border-radius: var(--k-radius-surface, 4px);
   padding: 0 var(--k-space-3);
   color: var(--k-ink, var(--text));
   background: var(--k-surface, var(--bg));
@@ -1806,7 +1806,7 @@ body:is(
   min-height: 44px;
   padding: 8px 12px;
   border: 1px solid var(--k-line, var(--faint));
-  border-radius: var(--k-radius-1, 4px);
+  border-radius: var(--k-radius-surface, 4px);
   color: var(--k-ink, var(--text));
   background: var(--k-panel-raised, var(--panel2));
   font: inherit;
