@@ -7,7 +7,7 @@ const BUILTINS = [
   // chats
   { name: 'new',       cat: 'chats',    help: 'start a new chat' },
   { name: 'clear',     cat: 'chats',    help: 'clear chat display' },
-  { name: 'rename',    cat: 'chats',    help: 'rename — or auto-name if blank', args: '[name]' },
+  { name: 'rename',    cat: 'chats',    help: 'rename: or auto-name if blank', args: '[name]' },
   { name: 'archive',   cat: 'chats',    help: 'archive this chat' },
   { name: 'export',    cat: 'chats',    help: 'export chat as markdown' },
   { name: 'incognito', cat: 'chats',    help: 'start a new incognito chat' },
@@ -273,7 +273,7 @@ export async function tryExecuteSlashCommand(text) {
           updateSessionName(sid, name);
           toast(`renamed to "${name}"`, 'success');
         } else {
-          toast('auto-name failed — add some messages first', 'error');
+          toast('auto-name failed: add some messages first', 'error');
         }
       }
       return true;
@@ -369,7 +369,7 @@ export async function tryExecuteSlashCommand(text) {
         const { loadSessions, selectSession } = await import('./sessions.js');
         await loadSessions();
         await selectSession(s.id);
-        toast('incognito session — nothing will be saved');
+        toast('incognito session: nothing will be saved');
       }
       return true;
     }
@@ -453,7 +453,7 @@ export async function tryExecuteSlashCommand(text) {
       return true;
 
     case 'compact':
-      toast('context compaction is automatic — happens when context exceeds threshold');
+      toast('context compaction is automatic: happens when context exceeds threshold');
       return true;
 
     case 'remind':
@@ -500,7 +500,7 @@ export async function tryExecuteSlashCommand(text) {
       let md = '**slash commands**\n\n';
       for (const [cat, entries] of Object.entries(cats)) {
         md += `*${cat}*\n`;
-        md += entries.map(e => `- \`/${e.name}${e.args ? ' ' + e.args : ''}\` — ${e.description}`).join('\n');
+        md += entries.map(e => `- \`/${e.name}${e.args ? ' ' + e.args : ''}\`: ${e.description}`).join('\n');
         md += '\n\n';
       }
       const content = document.createElement('div');

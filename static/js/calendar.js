@@ -1356,7 +1356,7 @@ async function openCaldavPanel() {
     <div style="font-size:0.9rem;color:var(--text);margin-bottom:0.2rem">CalDAV sync</div>
     <div style="font-size:0.75rem;color:var(--muted);line-height:1.5;margin-bottom:0.6rem">
       two-way sync with iCloud / Google / any CalDAV server. credentials are stored locally.
-      ${cfg.available ? '' : '<br><b style="color:var(--warn)">needs the caldav library — run: pip install caldav</b>'}
+      ${cfg.available ? '' : '<br><b style="color:var(--warn)">needs the caldav library. run: pip install caldav</b>'}
       ${cfg.connected ? `<br>connected as <b>${esc(cfg.username || '')}</b>` : ''}
     </div>
     <div class="cal-flabel">server url</div>
@@ -1384,7 +1384,7 @@ async function openCaldavPanel() {
     try {
       const r = await fetch('/api/caldav/sync', { method: 'POST' }).then(x => x.json());
       if (r.error) { st.textContent = 'error: ' + r.error; return; }
-      st.textContent = `synced — pulled ${r.pulled || 0}, pushed ${r.pushed || 0}`;
+      st.textContent = `synced: pulled ${r.pulled || 0}, pushed ${r.pushed || 0}`;
       await loadCalendar();
     } catch (e) { st.textContent = 'sync failed'; }
   });

@@ -99,7 +99,7 @@ function _render() {
   }).join('');
   const goal = _data.goal || 0, yr = _data.this_year || 0;
   const goalHtml = goal > 0
-    ? `<div class="books-goal" data-act="set-goal" title="reading goal — click to change">
+    ? `<div class="books-goal" data-act="set-goal" title="reading goal: click to change">
          <span>${yr} / ${goal} this year${yr >= goal ? ' ✓' : ''}</span>
          <div class="books-goal-bar"><i style="width:${Math.min(100, Math.round(yr / goal * 100))}%"></i></div>
        </div>`

@@ -62,7 +62,7 @@ async function _enable() {
     body: JSON.stringify({ endpoint: j.endpoint, keys: j.keys }),
   });
   if (!r.ok) { await sub.unsubscribe(); throw new Error('server rejected subscription'); }
-  toast('notifications enabled — reminders will reach you even with the tab closed', 'success');
+  toast('notifications enabled: reminders will reach you even with the tab closed', 'success');
 }
 
 async function _disable(sub) {

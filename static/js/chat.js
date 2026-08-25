@@ -157,7 +157,7 @@ export async function sendMessage(text) {
   // no active session — create one lazily now (first message)
   if (!sessionId) {
     const ep = getCurrentEndpoint();
-    if (!ep) { toast('no endpoint configured — add one via the model picker', 'error'); return; }
+    if (!ep) { toast('no endpoint configured: add one via the model picker', 'error'); return; }
     const model = getSelected()?.model || ep.models[0] || '';
     const s = await createSession(model, ep.id, {
       incognito: isIncognitoMode(),
@@ -623,7 +623,7 @@ export async function sendMessage(text) {
       const k = 'stream-buffer-warned';
       if (Date.now() - (+localStorage.getItem(k) || 0) > 86400000) {
         localStorage.setItem(k, Date.now());
-        toast('reply arrived all at once — a proxy is buffering the stream. using clash? add *.localhost to its system-proxy bypass list', 'error');
+        toast('reply arrived all at once: a proxy is buffering the stream. using clash? add *.localhost to its system-proxy bypass list', 'error');
       }
     }
 
@@ -821,10 +821,10 @@ function showConnBanner(detail = '') {
   const b = document.getElementById('conn-banner');
   const m = document.getElementById('conn-banner-msg');
   if (!b || !m) return;
-  m.innerHTML = `<b>can't reach the model endpoint.</b> the request couldn't connect outbound — `
+  m.innerHTML = `<b>can't reach the model endpoint.</b> the request couldn't connect outbound. `
     + `if you launched aide from a sandboxed shell, restart it from your own terminal `
     + `(<code>python cli.py restart</code>) so it has network.`
-    + (detail ? ` <span style="opacity:.7">— ${escHtml(String(detail).slice(0, 160))}</span>` : '');
+    + (detail ? ` <span style="opacity:.7">${escHtml(String(detail).slice(0, 160))}</span>` : '');
   b.style.display = 'flex';
 }
 
@@ -896,7 +896,7 @@ async function _sendImage(prompt, sessionId, fresh, target) {
     body.innerHTML = '';
     const err = document.createElement('div');
     err.className = 'ai-content';
-    err.textContent = 'image generation failed — ' + (e.message || '');
+    err.textContent = 'image generation failed: ' + (e.message || '');
     body.appendChild(err);
     toast(e.message || 'generation failed', 'error');
   } finally {

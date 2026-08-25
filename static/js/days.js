@@ -106,7 +106,7 @@ function _ord(n) {
 }
 
 function _unitLabel(e) {
-  if (e.mode === 'today') return e.repeat !== 'none' && e.nth > 1 ? `${e.nth}${_ord(e.nth)} — today!` : 'today!';
+  if (e.mode === 'today') return e.repeat !== 'none' && e.nth > 1 ? `${e.nth}${_ord(e.nth)}: today!` : 'today!';
   if (e.mode === 'since') return e.count === 1 ? 'day since' : 'days since';
   return e.count === 1 ? 'day left' : 'days left';
 }
@@ -145,7 +145,7 @@ function _render() {
   }
 
   if (!derived.length) {
-    grid.innerHTML = '<div style="padding:1rem 0;font-size:0.75rem;color:var(--muted)">nothing counted yet — a trip, a birthday, a streak. add one below.</div>';
+    grid.innerHTML = '<div style="padding:1rem 0;font-size:0.75rem;color:var(--muted)">nothing counted yet: a trip, a birthday, a streak. add one below.</div>';
     return;
   }
 
@@ -171,7 +171,7 @@ function _byPinThenSoonest(a, b) {
 }
 
 function _card(e) {
-  const tip = e.breakdown ? `${esc(e.breakdown)}${e.notes ? ' — ' + esc(e.notes) : ''}` : esc(e.notes || '');
+  const tip = e.breakdown ? `${esc(e.breakdown)}${e.notes ? ': ' + esc(e.notes) : ''}` : esc(e.notes || '');
   return `
     <div class="day-card${e.mode === 'today' ? ' today' : ''}${e.mode === 'since' ? ' since' : ''}${e.days >= 1 && e.days <= 3 ? ' soon' : ''}" data-id="${e.id}"${tip ? ` title="${tip}"` : ''}>
       <button class="day-pin${e.pinned ? ' on' : ''}" data-act="pin" title="${e.pinned ? 'unpin' : 'pin to top'}">${_si(e.pinned ? 'star-fill' : 'star')}</button>

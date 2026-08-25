@@ -592,7 +592,7 @@ async function openPreview(path, isImg) {
           ? `<table class="files-preview-table"><tbody>${rows.map(r => `<tr>${r.map(c => `<td>${esc(c)}</td>`).join('')}</tr>`).join('')}</tbody></table>`
           : '<div class="files-empty">empty sheet</div>';
       } else {
-        body.innerHTML = '<div class="files-empty">no preview — download to open</div>';
+        body.innerHTML = '<div class="files-empty">no preview: download to open</div>';
       }
     } catch { body.innerHTML = '<div class="files-empty">failed to read</div>'; }
     return;
@@ -603,7 +603,7 @@ async function openPreview(path, isImg) {
       body.innerHTML = `<pre class="files-preview-pre">${esc(d.content)}</pre>` +
         (d.truncated ? '<div class="files-empty">… truncated</div>' : '');
     } else {
-      body.innerHTML = '<div class="files-empty">no text preview — download to open</div>';
+      body.innerHTML = '<div class="files-empty">no text preview: download to open</div>';
     }
   } catch { body.innerHTML = '<div class="files-empty">failed to read</div>'; }
 }

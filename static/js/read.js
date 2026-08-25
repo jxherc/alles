@@ -70,7 +70,7 @@ function _feedsPanel() {
     </div>
     ${_feeds.length ? `<div class="read-feeds-list">${_feeds.map(f => `
       <div class="read-feed-row"><span class="read-feed-title">${esc(f.title || f.url)}</span><span class="read-feed-url">${esc(f.url)}</span><button class="icon-btn danger" data-feed-del="${f.id}" title="remove feed">${_si('trash')}</button></div>`).join('')}</div>`
-      : '<div class="read-feeds-empty">no feeds yet — add an rss/atom url and new posts auto-save into your list.</div>'}
+      : '<div class="read-feeds-empty">no feeds yet: add an rss/atom url and new posts auto-save into your list.</div>'}
   </div>`;
 }
 
@@ -134,7 +134,7 @@ function _render() {
     ${_tag ? `<div class="read-tagfilter">showing <span class="read-tag active">#${esc(_tag)}</span><button class="btn" id="read-tag-clear">clear</button></div>` : ''}
     ${_statsBar()}
     ${_items.length ? `<div class="read-list">${_items.map(_card).join('')}</div>`
-      : (_itemsCurrent ? `<div class="read-empty">${_q ? 'nothing matches that search.' : 'nothing saved yet — paste a link above and alles will keep the article text here, searchable, forever.'}</div>` : '')}`;
+      : (_itemsCurrent ? `<div class="read-empty">${_q ? 'nothing matches that search.' : 'nothing saved yet: paste a link above and alles will keep the article text here, searchable, forever.'}</div>` : '')}`;
   _wire(body);
 }
 
@@ -183,7 +183,7 @@ function _renderReader(body) {
       <article class="read-article">
         <h1>${esc(it.title)}</h1>
         <div class="read-article-meta">${esc(it.site)} · ${it.read_minutes} min read</div>
-        ${paras.length ? paras.map(p => `<p>${esc(p)}</p>`).join('') : `<p class="read-empty">no readable text was extracted for this page — <a href="${_safeUrl(it.url)}" target="_blank" rel="noopener">open the original</a>.</p>`}
+        ${paras.length ? paras.map(p => `<p>${esc(p)}</p>`).join('') : `<p class="read-empty">no readable text was extracted for this page. <a href="${_safeUrl(it.url)}" target="_blank" rel="noopener">open the original</a>.</p>`}
       </article>
     </div>`;
   $('read-back').addEventListener('click', () => { _open = null; loadRead(); });

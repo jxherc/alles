@@ -452,7 +452,7 @@ async function loadInbox(force = false, silent = false, fetcher = fetch) {
     if (silent && _lastNewest && newest === _lastNewest) return;   // nothing new — leave the UI alone
     if (silent && _lastNewest && newest !== _lastNewest) {
       const top = [...messages].sort((a, b) => _msgTime(b) - _msgTime(a))[0];
-      if (top && !top.seen) toast(`new mail: ${fromName(top.from)} — ${(top.subject || '').slice(0, 60)}`, 'success');
+      if (top && !top.seen) toast(`new mail: ${fromName(top.from)}: ${(top.subject || '').slice(0, 60)}`, 'success');
     }
     _lastNewest = newest;
     renderInbox(applyFilter(messages), errors);
@@ -748,7 +748,7 @@ async function openMessage(aid, uid, folder = 'INBOX') {
       else if (!d.found) { toast('no event found in this mail', ''); }
       else {
         const when = d.all_day ? d.start.slice(0, 10) : d.start.replace('T', ' ');
-        toast(`added to calendar: ${d.title} — ${when}`, 'success');
+        toast(`added to calendar: ${d.title}: ${when}`, 'success');
       }
     } catch (e) { console.error(e); toast('extraction failed', 'error'); }
     btn.disabled = false; btn.textContent = '→ calendar';
@@ -999,7 +999,7 @@ async function _renderScheduled() {
   if (!items.length) { bar.innerHTML = ''; return; }
   bar.innerHTML = `<span class="mail-sched-lbl">outbox</span>` + items.map(s => {
     const uncertain = s.status === 'uncertain' || s.status === 'sending';
-    const state = uncertain ? 'delivery uncertain — check Sent before trying again' : (s.send_at || '').slice(0, 16);
+    const state = uncertain ? 'delivery uncertain: check Sent before trying again' : (s.send_at || '').slice(0, 16);
     return `<span class="mail-sched-chip" title="${uncertain ? esc(state) : `to ${esc(s.to)}`}">${uncertain ? '⚠' : '🕒'} ${esc(s.subject || '(no subject)')} · ${esc(state)}<button class="mail-sched-cancel" data-cancel="${esc(s.id)}" title="remove from outbox">×</button></span>`;
   }).join('');
   bar.querySelectorAll('.mail-sched-cancel').forEach(b => b.addEventListener('click', async () => {

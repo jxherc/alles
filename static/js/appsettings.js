@@ -5,10 +5,10 @@ const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').re
 const SPECS = {
   notes: { title: 'notes & docs', apply: () => window._reloadNotes?.(), fields: [
     { k: 'vault_dir', type: 'text', label: 'vault folder (Obsidian)', ph: 'data/vault' },
-    { type: 'note', text: 'Your notes & docs live here as plain markdown. Point this at an Obsidian vault folder — or copy the path and "Open folder as vault" in Obsidian.' },
+    { type: 'note', text: 'Your notes & docs live here as plain markdown. Point this at an Obsidian vault folder, or copy the path and "Open folder as vault" in Obsidian.' },
     { type: 'action', label: 'open in Obsidian', act: '_openInObsidian' },
     { type: 'action', label: 'copy vault path', act: '_copyVaultPath' },
-    { type: 'note', text: 'Sync across devices: install Syncthing here and on your phone/laptop, add this vault folder on each, and link them — Obsidian then opens the same notes everywhere.' },
+    { type: 'note', text: 'Sync across devices: install Syncthing here and on your phone/laptop, add this vault folder on each, and link them. Obsidian then opens the same notes everywhere.' },
     { type: 'action', label: 'download Obsidian plugin', act: '_downloadPlugin' },
   ] },
   files: { title: 'files', apply: () => window._reloadFiles?.(), fields: [
@@ -31,7 +31,7 @@ const SPECS = {
   mail: { title: 'mail', apply: () => window._reloadMail?.(), fields: [
     { k: 'mail_poll_seconds', type: 'choice', num: true, label: 'check every', opts: [['30', '30s'], ['60', '1m'], ['300', '5m']] },
     { k: 'mail_threads', type: 'choice', label: 'message grouping', opts: [['flat', 'flat list'], ['group', 'group by conversation']] },
-    { k: 'mail_signature', type: 'textarea', label: 'signature', ph: '— sent from alles' },
+    { k: 'mail_signature', type: 'textarea', label: 'signature', ph: '-- sent from alles' },
     { type: 'action', label: 'accounts', act: '_mailAccounts' },
     { type: 'action', label: 'rules & vacation responder', act: '_mailRules' },
   ] },

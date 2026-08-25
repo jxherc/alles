@@ -1332,7 +1332,7 @@ async function _wireHomeAsk() {
         if (d.tasks?.overdue?.length) bits.push('overdue: ' + d.tasks.overdue.map(t => t.title).join('; '));
         if (d.tasks?.due_today?.length) bits.push('due today: ' + d.tasks.due_today.map(t => t.title).join('; '));
         if (d.reminders?.length) bits.push('reminders: ' + d.reminders.map(r => r.text).join('; '));
-        if (bits.length) ctx = `(my day so far — ${bits.join(' | ')})\n\n`;
+        if (bits.length) ctx = `(my day so far: ${bits.join(' | ')})\n\n`;
       } catch {}
       if (!q) q = 'how is my day looking? give me a quick rundown.';
     }
@@ -1371,7 +1371,7 @@ async function _wireHomeAsk() {
         }
       }
       rep.innerHTML = mdToHtml(text);
-    } catch { rep.textContent = 'failed — try again'; }
+    } catch { rep.textContent = 'failed: try again'; }
     send.disabled = false; inp.value = ''; _haAttach = '';
   };
   send.addEventListener('click', () => ask(false));
@@ -1545,15 +1545,15 @@ async function _renderToday() {
   for (const t of d.tasks.overdue.slice(0, 3))
     row('tasks', '!', `<span class="ht-warn">overdue</span> ${_escT(t.title)}`);
   for (const t of d.tasks.due_today.slice(0, 3))
-    row('tasks', '☐', `due today — ${_escT(t.title)}`);
+    row('tasks', '☐', `due today: ${_escT(t.title)}`);
   for (const r of d.reminders.slice(0, 3))
     row('reminders', '◔', `<b>${r.at}</b> ${_escT(r.text)}`);
   for (const s of d.renewing.slice(0, 3))
-    row('subs', '↻', `${_escT(s.name)} renews ${s.in_days === 0 ? 'today' : s.in_days === 1 ? 'tomorrow' : `in ${s.in_days}d`}${s.price ? ` — ${_escT(s.currency)}${s.price}` : ''}`);
+    row('subs', '↻', `${_escT(s.name)} renews ${s.in_days === 0 ? 'today' : s.in_days === 1 ? 'tomorrow' : `in ${s.in_days}d`}${s.price ? `: ${_escT(s.currency)}${s.price}` : ''}`);
   for (const e of d.day_events.slice(0, 2))
     row('days', '⧗', `${_escT(e.name)} ${e.in_days === 0 ? 'is today' : `in ${e.in_days}d`}`);
   if (unread.length)
-    row('mail', '✉', `${unread.length} unread — ${_escT((unread[0].subject || '').slice(0, 50))}`);
+    row('mail', '✉', `${unread.length} unread: ${_escT((unread[0].subject || '').slice(0, 50))}`);
 
   // proactive cards — advisory suggestions aide surfaced on its own
   let cards = [];
@@ -1567,7 +1567,7 @@ async function _renderToday() {
   for (const doc of (d.recent_docs || []).slice(0, 2))
     row('wiki', '≡', `recent: ${_escT(doc.name)}`);
 
-  const empty = scheduled ? '' : '<div class="ht-empty">nothing scheduled — clear day ✨</div>';
+  const empty = scheduled ? '' : '<div class="ht-empty">nothing scheduled. clear day ✨</div>';
   el.innerHTML = `${empty}${rows.length ? `<div class="ht-rows">${rows.join('')}</div>` : ''}
     <button class="btn" id="ht-ask">ask aide about my day</button>`;
   el.style.display = 'flex';
@@ -1596,7 +1596,7 @@ function _askAideAboutToday(d, unread) {
   const ctx = bits.length ? `here's my day:\n${bits.join('\n')}` : 'my schedule is empty today.';
   showChatView();
   newChat();
-  sendMessage(`${ctx}\n\ngive me a short, friendly rundown of my day — what to do first, what can wait, anything i'm about to miss.`);
+  sendMessage(`${ctx}\n\ngive me a short, friendly rundown of my day: what to do first, what can wait, anything i'm about to miss.`);
 }
 
 // a different one every visit — picked by time of day
@@ -1736,7 +1736,7 @@ function bindEvents() {
   // later. All three paths open the same custom KOKUEN dialog.
   const openSendSchedule = () => {
     const text = ta.value.trim();
-    if (!text) { toast('type a message first — then open send later', ''); return; }
+    if (!text) { toast('type a message first: then open send later', ''); return; }
     _openSchedulePop(text, ta);
   };
   _sendBtn.addEventListener('contextmenu', e => {
@@ -2301,7 +2301,7 @@ function _openPermMenu(anchor) {
     ['full_access', permLabel('full_access'), 'no approval; host shell is unrestricted unless sandboxed'],
     ['full_auto', permLabel('full_auto'), 'handle safe work; ask at real risk'],
     ['approve', permLabel('approve'), 'ask before each change'],
-    ['plan', permLabel('plan'), 'read-only — just make a plan, change nothing'],
+    ['plan', permLabel('plan'), 'read-only: just make a plan, change nothing'],
   ];
   const menu = document.createElement('div');
   menu.id = 'perm-menu';
@@ -2365,9 +2365,9 @@ function _openEffortMenu(anchor) {
   const reasoning = getReasoningMode(mk);
   const custom = getCustomEffort(mk);
   const opts = [
-    ['low', effortLabel('low'), 'quick & minimal — fewest turns'],
+    ['low', effortLabel('low'), 'quick & minimal: fewest turns'],
     ['medium', effortLabel('medium'), 'balanced (default)'],
-    ['high', effortLabel('high'), 'thorough — more turns'],
+    ['high', effortLabel('high'), 'thorough: more turns'],
     ['xhigh', effortLabel('xhigh'), 'very thorough'],
     ['max', effortLabel('max'), 'maximum turns'],
     ['deep_work', effortLabel('deep_work'), '48 turns · thorough checks · bounded helpers'],
@@ -2625,7 +2625,7 @@ async function openPersonaPicker() {
   const rect = btn.getBoundingClientRect();
   picker.style.cssText = `display:block;left:${rect.left}px;top:${rect.bottom + 4}px;min-width:160px`;
   const none = document.createElement('div');
-  none.className = 'ctx-item'; none.textContent = '— none';
+  none.className = 'ctx-item'; none.textContent = 'none';
   none.addEventListener('click', async () => { await setPersona(''); picker.remove(); });
   picker.appendChild(none);
   for (const p of _personas) {

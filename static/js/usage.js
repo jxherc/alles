@@ -18,7 +18,7 @@ export async function initUsage() {
   if (totEl) totEl.textContent = `${fmt(d.total_tokens)} tokens · ${d.total_messages} messages`;
 
   if (!d.total_messages) {
-    body.innerHTML = '<div class="jrnl-empty">no usage recorded yet — chat with a model and it shows up here</div>';
+    body.innerHTML = '<div class="jrnl-empty">no usage recorded yet: chat with a model and it shows up here</div>';
     return;
   }
 

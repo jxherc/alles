@@ -152,7 +152,7 @@ function _render() {
   if (!list) return;
   const detected = _detectedHtml();
   if (!_subs.length) {
-    list.innerHTML = detected + '<div style="padding:1rem 0;font-size:0.75rem;color:var(--faint)">nothing tracked yet — add your first subscription below</div>';
+    list.innerHTML = detected + '<div style="padding:1rem 0;font-size:0.75rem;color:var(--faint)">nothing tracked yet: add your first subscription below</div>';
     _wireDetected(list);
     return;
   }
@@ -194,8 +194,8 @@ function _row(s) {
         ${s.notes ? `<span class="sub-notes" title="${esc(s.notes)}">…</span>` : ''}
         ${s.trial_days_left != null && s.trial_days_left >= 0 ? `<span class="sub-trial" title="free trial / cancel by ${esc(s.trial_end)}">trial: ${s.trial_days_left === 0 ? 'ends today' : s.trial_days_left + 'd left'}</span>` : ''}
         ${s.price_increased ? `<span class="sub-hike" title="price went up${s.last_price_change ? ` (${esc(s.currency)}${s.last_price_change.old} → ${esc(s.currency)}${s.last_price_change.new} on ${esc(s.last_price_change.date)})` : ''}">↑ price up</span>` : ''}
-        ${_dupIds.has(s.id) ? `<span class="sub-dup" title="possible duplicate — another tracked subscription matches this name or site">⚠ dup?</span>` : ''}
-        ${_unusedIds.has(s.id) ? `<button class="sub-unused" data-act="edit" title="no matching charge in the last 2 cycles — click to review / cancel">💤 unused?</button>` : ''}
+        ${_dupIds.has(s.id) ? `<span class="sub-dup" title="possible duplicate: another tracked subscription matches this name or site">⚠ dup?</span>` : ''}
+        ${_unusedIds.has(s.id) ? `<button class="sub-unused" data-act="edit" title="no matching charge in the last 2 cycles. click to review / cancel">💤 unused?</button>` : ''}
         ${s.cancel_url ? `<a class="sub-cancel-link" href="${esc(s.cancel_url)}" target="_blank" rel="noreferrer" title="how to cancel ${esc(s.name)}">✕ cancel</a>` : ''}
       </div>
       <span class="sub-price">${esc(s.currency)}${s.price ? s.price.toFixed(2) : '—'}<span class="sub-cycle">${_cycleLabel(s)}</span></span>

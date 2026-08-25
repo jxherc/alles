@@ -144,7 +144,7 @@ export async function loadCompareModels() {
   if (!container) return;
   const eps = window._endpoints || [];
   if (!eps.length) {
-    container.innerHTML = '<div style="font-size:0.75rem;color:var(--muted)">no endpoints — add one via the model picker</div>';
+    container.innerHTML = '<div style="font-size:0.75rem;color:var(--muted)">no endpoints: add one via the model picker</div>';
     return;
   }
   let html = '';

@@ -1402,7 +1402,7 @@ function _initSettings() {
       }
       const combo = eventToShortcut(e);
       if (!combo) return;
-      if (isReservedShortcut(combo)) { toast(`${combo} is a system/browser shortcut — pick another`, 'error'); return; }
+      if (isReservedShortcut(combo)) { toast(`${combo} is a system/browser shortcut: pick another`, 'error'); return; }
       inp.value = combo;
       saveShortcuts({ [inp.dataset.shortcut]: combo });
       toast('shortcut saved', 'success');
@@ -2940,7 +2940,7 @@ function _refreshThemeLock() {
   if (dt) dt.classList.toggle('locked', locked);
   if (note) {
     note.style.display = locked ? '' : 'none';
-    note.textContent = locked ? `mode + accent are set by the "${preset}" theme — pick "default" below to customize them` : '';
+    note.textContent = locked ? `mode + accent are set by the "${preset}" theme: pick "default" below to customize them` : '';
   }
   _markAccent();
   _markMode();
@@ -3240,7 +3240,7 @@ function _buildPersonaAccents() {
   if (!box || box.dataset.built) return;
   box.dataset.built = '1';
   box.innerHTML =
-    '<button type="button" class="pa-swatch pa-none" data-hex="" title="no override — use your theme accent">default</button>' +
+    '<button type="button" class="pa-swatch pa-none" data-hex="" title="no override: use your theme accent">default</button>' +
     PERSONA_ACCENTS.map(([hex, name]) =>
       `<button type="button" class="pa-swatch" data-hex="${hex}" title="${name}" style="background:${hex}"></button>`).join('');
   box.querySelectorAll('.pa-swatch').forEach(s => s.addEventListener('click', () => {
@@ -3266,7 +3266,7 @@ function _fillPersonaModels(selected = '') {
   const sel = document.getElementById('persona-model');
   if (!sel) return;
   const eps = window._endpoints || [];
-  const opts = [{ value: '', label: "— use chat's model" }];
+  const opts = [{ value: '', label: "use chat's model (default)" }];
   for (const ep of eps) {
     for (const m of (ep.models || [])) opts.push({ value: m, label: m });
   }
@@ -3417,7 +3417,7 @@ export async function loadCookbook() {
   const el = document.getElementById('cookbook-list');
   if (!el) return;
   const entries = await fetch('/api/cookbook').then(r => r.json()).catch(() => []);
-  if (!entries.length) { el.innerHTML = '<div class="settings-row-empty">no commands — type / in chat to use</div>'; return; }
+  if (!entries.length) { el.innerHTML = '<div class="settings-row-empty">no commands: type / in chat to use</div>'; return; }
   el.innerHTML = entries.map(e => `
     <div class="settings-list-row">
       <span class="row-name" style="color:var(--accent)">/${_esc(e.name)}</span>
@@ -3542,14 +3542,14 @@ async function loadMacosStatus() {
   const dot = ok => `<span class="status-dot" style="background:${ok ? 'var(--green)' : 'var(--faint)'}"></span>`;
   const row = (label, ok) => `<div class="macos-row">${dot(ok)}<span>${label}</span></div>`;
   if (!cap.available) {
-    box.innerHTML = `<div class="settings-row-empty">unavailable on ${_esc(cap.platform)} — `
+    box.innerHTML = `<div class="settings-row-empty">unavailable on ${_esc(cap.platform)}. `
       + 'macOS native integration runs on the Mac mini.</div>';
     return;
   }
   box.innerHTML = '<div class="macos-avail">✓ available</div>'
     + row('Keychain', cap.keychain)
     + row('Calendar / Reminders (EventKit)', cap.eventkit)
-    + row(`Photos (PhotoKit)${cap.photokit_authorization && !cap.photokit_ready ? ` — ${_esc(cap.photokit_authorization.replace('_', ' '))}` : ''}`, cap.photokit_ready)
+    + row(`Photos (PhotoKit)${cap.photokit_authorization && !cap.photokit_ready ? `: ${_esc(cap.photokit_authorization.replace('_', ' '))}` : ''}`, cap.photokit_ready)
     + row('iCloud Drive', cap.icloud);
 }
 
@@ -3573,7 +3573,7 @@ async function _addMcpPreset(id) {
       method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ params: {} }),
     });
     if (!r.ok) throw new Error(r.status);
-    toast('connector added — edit its args if it needs a path/key', 'success');
+    toast('connector added: edit its args if it needs a path/key', 'success');
     loadMcpServers();
   } catch { toast('could not add connector', 'error'); }
 }
@@ -3634,7 +3634,7 @@ window._testConn = async btn => {
   btn.textContent = '…';
   try {
     const r = await fetch(`/api/connections/${btn.dataset.svc}/test`).then(x => x.json());
-    if (r.ok) toast(`${btn.dataset.svc} ok${r.user ? ' — ' + r.user : ''}`, 'success');
+    if (r.ok) toast(`${btn.dataset.svc} ok${r.user ? ': ' + r.user : ''}`, 'success');
     else toast(r.error || 'test failed', 'error');
   } catch { toast('test failed', 'error'); }
   btn.textContent = 'test';
@@ -3978,7 +3978,7 @@ async function generateToken() {
   reveal.onclick = () => {
     navigator.clipboard.writeText(data.token).then(() => toast('token copied', 'success'));
   };
-  toast('token generated — copy it now, shown once', 'success');
+  toast('token generated: copy it now, shown once', 'success');
   loadTokens();
 }
 
@@ -3996,7 +3996,7 @@ async function loadWebhooks() {
       <span class="status-dot" style="background:${h.enabled ? 'var(--green)' : 'var(--faint)'}"></span>
       <span class="row-name">${_esc(h.name)}</span>
       <span class="row-meta">${h.events.join(', ')}${st}</span>
-      ${h.secret ? `<code class="wh-secret" title="HMAC-SHA256 signing key — verify the X-Alles-Signature header with this" onclick="navigator.clipboard.writeText('${_esc(h.secret)}');window._toastCopied&&window._toastCopied()" style="font-size:0.75rem;color:var(--muted);max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer">${_esc(h.secret)}</code>` : ''}
+      ${h.secret ? `<code class="wh-secret" title="HMAC-SHA256 signing key: verify the X-Alles-Signature header with this" onclick="navigator.clipboard.writeText('${_esc(h.secret)}');window._toastCopied&&window._toastCopied()" style="font-size:0.75rem;color:var(--muted);max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer">${_esc(h.secret)}</code>` : ''}
       <button class="act-btn" data-id="${h.id}" onclick="window._testWebhook(this)">test</button>
       <button class="act-btn" data-id="${h.id}" onclick="window._rmWebhook(this)">remove</button>
     </div>`;
@@ -4211,7 +4211,7 @@ async function loadPermRules() {
           ${r.path ? `<span class="perm-rule-path">${_esc(r.path)}</span>` : ''}
           <button class="perm-rule-del" data-i="${i}" title="remove">✕</button>
         </div>`).join('')
-      : '<div style="font-size:0.75rem;color:var(--muted)">no rules — the agent follows the mode for everything</div>';
+      : '<div style="font-size:0.75rem;color:var(--muted)">no rules: the agent follows the mode for everything</div>';
     el.querySelectorAll('.perm-rule-del').forEach(b => b.onclick = () => _delPermRule(+b.dataset.i));
   }
   if (!_permWired) {
@@ -4246,7 +4246,7 @@ let _editingRule = null;   // rule id being edited (null = adding a new one)
 const _RULE_PRESETS = [
   { label: '☀ morning digest', trigger: 'daily_at', trigger_arg: '08:00', action: 'push_digest', action_arg: '', name: 'morning digest' },
   { label: '✈ briefing → discord/telegram', trigger: 'daily_at', trigger_arg: '08:00', action: 'notify_digest', action_arg: '', name: 'morning briefing' },
-  { label: '📥 important email → task', trigger: 'mail_from', trigger_arg: '', action: 'create_task', action_arg: '{subject} — from {from}', name: '' },
+  { label: '📥 important email → task', trigger: 'mail_from', trigger_arg: '', action: 'create_task', action_arg: '{subject}: from {from}', name: '' },
   { label: '💳 renewal heads-up', trigger: 'sub_renewing', trigger_arg: '3', action: 'push', action_arg: '{name} renews in 3 days', name: 'renewal reminder' },
   { label: '📅 upcoming day', trigger: 'day_event_near', trigger_arg: '7', action: 'push', action_arg: '{name} is in a week', name: '' },
 ];
@@ -4333,7 +4333,7 @@ async function _renderRules() {
   let rules = [];
   try { rules = await fetch('/api/automations').then(r => r.json()); } catch {}
   if (!rules.length) {
-    el.innerHTML = '<div class="settings-row-empty">no rules yet — your first automation is one form away</div>';
+    el.innerHTML = '<div class="settings-row-empty">no rules yet: your first automation is one form away</div>';
     return;
   }
   const label = (list, v) => list.find(x => x.value === v)?.label || v;
@@ -4370,7 +4370,7 @@ async function _renderRules() {
       if (b.dataset.act === 'test') {
         b.disabled = true;
         const r = await fetch(`/api/automations/${id}/test`, { method: 'POST' });
-        toast(r.ok ? 'rule fired with sample data — check the result' : 'test failed', r.ok ? 'success' : 'error');
+        toast(r.ok ? 'rule fired with sample data: check the result' : 'test failed', r.ok ? 'success' : 'error');
         b.disabled = false;
       }
     }));
@@ -4392,6 +4392,6 @@ async function _addRule() {
   });
   if (!r.ok) { toast((await r.json().catch(() => ({}))).detail || 'failed to save rule', 'error'); return; }
   _resetRuleForm();
-  toast(editing ? 'rule updated' : 'rule added — it runs automatically from now on', 'success');
+  toast(editing ? 'rule updated' : 'rule added: it runs automatically from now on', 'success');
   _renderRules();
 }

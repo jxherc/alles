@@ -475,7 +475,7 @@ function render(s, fetcher = fetch) {
       <span class="p-user">${esc(p.user || '')}</span>
       <span class="p-mem">${memMB(p.rss)}</span>
       <span class="p-cpu"><span class="p-cpubar">${cpuBar(p.cpu)}</span><b style="color:${heat(p.cpu)}">${procCpuLabel(p.cpu)}</b></span>
-    </div>`).join('') || '<span class="g-dim">no process data — needs psutil</span>');
+    </div>`).join('') || '<span class="g-dim">no process data: needs psutil</span>');
 }
 
 function push(arr, v) { arr.push(v); if (arr.length > HIST) arr.shift(); }
@@ -498,7 +498,7 @@ async function tick(fetcher = _systemFetcher) {
       const restart = /missing|404|unexpected/.test(e.message)
         ? ' if you just updated alles, restart the server so it picks up the new route: <code>python cli.py restart</code>'
         : '';
-      b.innerHTML = `<div class="sys-note">couldn’t read system stats — ${esc(e.message)}.${restart}</div>`;
+      b.innerHTML = `<div class="sys-note">couldn’t read system stats: ${esc(e.message)}.${restart}</div>`;
     }
   }
 }

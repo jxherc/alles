@@ -64,7 +64,7 @@ function renderNotes() {
   if (!_notes.length) {
     const filtered = _q || _tag;
     const title = filtered ? 'no notes match that' : 'no notes yet';
-    const sub = filtered ? 'try a different search or tag.' : 'jot a thought, a list, anything — hit + new note.';
+    const sub = filtered ? 'try a different search or tag.' : 'jot a thought, a list, anything. hit + new note.';
     list.innerHTML = `<div class="notes-empty"><div class="notes-empty-title">${title}</div><div class="notes-empty-sub">${sub}</div></div>`;
     return;
   }
@@ -225,7 +225,7 @@ export async function saveCurrentNote() {
     if (!r.ok) {
       const data = await r.json().catch(() => ({}));
       if (data.code === 'document_conflict') {
-        toast('this note changed outside Alles — reload it before saving', 'error');
+        toast('this note changed outside Alles. reload it before saving', 'error');
         return null;
       }
       throw new Error(data.detail || 'note could not be saved');

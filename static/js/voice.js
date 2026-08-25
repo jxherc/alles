@@ -34,7 +34,7 @@ export async function initLiveVoice() {
       if (!r.ok) { toast('live voice unavailable', 'error'); return; }
       const d = await r.json();
       // a realtime provider is configured → negotiate the full-duplex session with it here
-      toast(`live voice ready — ${d.model}`, 'success');
+      toast(`live voice ready: ${d.model}`, 'success');
     } catch { toast('live voice failed', 'error'); }
   };
 }
@@ -119,7 +119,7 @@ export async function startRecording() {
 function _startBrowserSR(s, take) {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SR) {
-    toast('speech recognition needs Chrome/Edge — or switch STT to Whisper in settings', 'error');
+    toast('speech recognition needs Chrome/Edge. or switch STT to Whisper in settings', 'error');
     _recording = false; _setMicRecording(false);
     _stream?.getTracks().forEach(t => t.stop());
     return;
@@ -419,7 +419,7 @@ export async function speak(text, voiceOverride) {
         });
       });
     } catch (e) {
-      toast('TTS failed — falling back to browser', 'error');
+      toast('TTS failed: falling back to browser', 'error');
       await _browserSpeak(text);
     }
   } else {

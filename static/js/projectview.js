@@ -55,10 +55,10 @@ export async function renderProject(pid) {
           <div class="s-card-head">chats · ${mine.length}</div>
           <div class="s-card-body" id="pj-chats">${mine.length
             ? mine.map(s => `<div class="pj-chat" data-id="${s.id}"><span class="session-dot"></span>${esc(s.name || 'untitled')}</div>`).join('')
-            : '<div class="settings-row-empty">no chats yet — start one, or drag a chat onto this project</div>'}</div>
+            : '<div class="settings-row-empty">no chats yet: start one, or drag a chat onto this project</div>'}</div>
         </div>
         <div class="s-card">
-          <div class="s-card-head">files <span class="pj-hint">— the Project's server folder</span></div>
+          <div class="s-card-head">files<span class="pj-hint">: the Project's server folder</span></div>
           <div class="s-card-body">
             <div class="settings-row-empty" id="pj-folder-state">${esc(projectFolderMessage(proj.folder_state))}</div>
             <div style="display:flex;gap:0.45rem;margin-bottom:0.55rem">
@@ -71,11 +71,11 @@ export async function renderProject(pid) {
       </div>
       <div class="pj-col">
         <div class="s-card">
-          <div class="s-card-head">instructions <span class="pj-hint">— context for this project's chats</span></div>
+          <div class="s-card-head">instructions<span class="pj-hint">: context for this project's chats</span></div>
           <div class="s-card-body"><textarea class="settings-textarea" id="pj-sys" rows="7" placeholder="e.g. You're helping me build X. Prefer Y. Always…">${esc(proj.system_prompt || '')}</textarea></div>
         </div>
         <div class="s-card">
-          <div class="s-card-head">scratchpad <span class="pj-hint">— links, commands, and working notes</span></div>
+          <div class="s-card-head">scratchpad<span class="pj-hint">: links, commands, and working notes</span></div>
           <div class="s-card-body"><textarea class="settings-textarea" id="pj-scratch" rows="6" placeholder="anything you want to keep with this Project…">${esc(proj.scratchpad || '')}</textarea></div>
         </div>
       </div>
@@ -124,7 +124,7 @@ async function _loadFiles(pid) {
   const box = document.getElementById('pj-files');
   if (!box) return;
   const d = await fetch(`/api/projects/${pid}/files`).then(r => r.json()).catch(() => ({ files: [] }));
-  if (d.folder_state === 'missing') { box.innerHTML = '<div class="settings-row-empty">folder missing — relink it above</div>'; return; }
+  if (d.folder_state === 'missing') { box.innerHTML = '<div class="settings-row-empty">folder missing: relink it above</div>'; return; }
   if (!d.working_dir) { box.innerHTML = '<div class="settings-row-empty">choose a server folder to list its files</div>'; return; }
   const files = d.files || [];
   if (!files.length) { box.innerHTML = '<div class="settings-row-empty">no files found in that directory</div>'; return; }

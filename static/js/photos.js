@@ -277,7 +277,7 @@ function _listUrl() {
 
 function _listEmpty() {
   return _view === '__fav__' ? 'no favorites yet'
-    : (_filtersActive() ? 'no photos match these filters' : 'gallery empty — upload something');
+    : (_filtersActive() ? 'no photos match these filters' : 'gallery empty: upload something');
 }
 
 // append a page's date buckets, merging into the last group when the date matches
@@ -325,7 +325,7 @@ async function loadHidden() {
 // the archive — assets kept but pushed out of the main timeline
 async function loadArchive() {
   const d = await fetch('/api/photos/archive').then(r => r.json()).catch(() => ({ moments: [] }));
-  _renderMoments(d, 'nothing archived — select photos and hit archive to tuck them away');
+  _renderMoments(d, 'nothing archived: select photos and hit archive to tuck them away');
 }
 
 // duplicate review — byte-identical sets; keep the oldest, trash the rest (phase 6)
@@ -335,10 +335,10 @@ async function loadDuplicates() {
   const grid = $('photos-grid');
   _photos = [];
   const d = await fetch('/api/photos/duplicates').then(r => r.json()).catch(() => ({ groups: [] }));
-  if (!d.groups?.length) { grid.innerHTML = '<div class="photos-empty">no duplicates — your library is clean</div>'; return; }
+  if (!d.groups?.length) { grid.innerHTML = '<div class="photos-empty">no duplicates: your library is clean</div>'; return; }
   const total = d.groups.reduce((n, g) => n + g.items.length - 1, 0);
   let html = `<div class="photos-dupbar"><span>${d.groups.length} duplicate set${d.groups.length > 1 ? 's' : ''} · ${total} extra cop${total === 1 ? 'y' : 'ies'}</span>`
-    + `<button class="btn primary" id="photos-dupes-all">resolve all — keep oldest</button></div>`;
+    + `<button class="btn primary" id="photos-dupes-all">resolve all: keep oldest</button></div>`;
   for (const g of d.groups) {
     const extras = g.items.slice(1).map(i => i.id).join(',');
     html += `<div class="photos-moment"><div class="photos-moment-label">${g.items.length} copies`
@@ -399,7 +399,7 @@ async function loadPlaces() {
   const grid = $('photos-grid');
   _photos = [];
   const d = await fetch('/api/photos/places').then(r => r.json()).catch(() => ({ places: [] }));
-  if (!d.places?.length) { grid.innerHTML = '<div class="photos-empty">no places yet — geotagged photos group by city here</div>'; return; }
+  if (!d.places?.length) { grid.innerHTML = '<div class="photos-empty">no places yet: geotagged photos group by city here</div>'; return; }
   let html = '<div class="photos-places">';
   for (const pl of d.places) {
     html += `<button class="photos-place" data-cc="${esc(pl.cc)}" data-city="${esc(pl.city)}">`
@@ -430,7 +430,7 @@ async function loadPeople() {
   _photos = [];
   const d = await fetch('/api/photos/people').then(r => r.json()).catch(() => ({ people: [] }));
   if (!d.people?.length) {
-    grid.innerHTML = '<div class="photos-empty">no people yet — faces are still being scanned, check back in a bit</div>';
+    grid.innerHTML = '<div class="photos-empty">no people yet: faces are still being scanned, check back in a bit</div>';
     return;
   }
   let html = '<div class="photos-people">';
@@ -579,7 +579,7 @@ async function loadMemories() {
   _killMap(); _repaint = null;
   const d = await fetch('/api/photos/memories').then(r => r.json()).catch(() => ({ groups: [] }));
   if (!d.groups?.length) {
-    $('photos-grid').innerHTML = '<div class="photos-empty">no memories for today — check back another day</div>';
+    $('photos-grid').innerHTML = '<div class="photos-empty">no memories for today: check back another day</div>';
     _photos = []; return;
   }
   const groups = d.groups.map(g => ({
@@ -611,7 +611,7 @@ async function _initClip() {
     const b = $('photos-smart-btn');
     if (b) {
       b.hidden = !_clipAvail;
-      b.title = _clipAvail ? `smart search — ${d.indexed}/${d.total} indexed` : 'smart search';
+      b.title = _clipAvail ? `smart search: ${d.indexed}/${d.total} indexed` : 'smart search';
     }
   } catch { /* feature just stays hidden */ }
 }

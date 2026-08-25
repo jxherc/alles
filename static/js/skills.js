@@ -449,7 +449,7 @@ function _drawerHtml() {
       </div>
       <div class="skl-drawer-body">
         <div class="s-field"><label>name</label><input id="skl-d-name" class="settings-input" placeholder="e.g. PDF form filler"></div>
-        <div class="s-field"><label>description</label><input id="skl-d-desc" class="settings-input" placeholder="one line — what it does"></div>
+        <div class="s-field"><label>description</label><input id="skl-d-desc" class="settings-input" placeholder="one line: what it does"></div>
         <div class="s-field"><label>when to use</label><input id="skl-d-when" class="settings-input" placeholder="the trigger"></div>
         <div class="s-field"><label>procedure (markdown)</label><textarea id="skl-d-body" class="settings-textarea" rows="14"></textarea></div>
         <div class="skl-drawer-acts">
