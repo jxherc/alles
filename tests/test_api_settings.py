@@ -1,7 +1,11 @@
 import json
+import os
 import tempfile
+import unittest
 from pathlib import Path
 from unittest import mock
+
+import core.settings
 
 import core.settings as cs
 import services.secretstore as secretstore
@@ -412,3 +416,22 @@ class SettingsApiTest(ApiTest):
         self.assertIn("triggers", d)
         self.assertIn("actions", d)
         self.assertGreater(len(d["triggers"]), 0)
+
+
+class SecretKeyTests(unittest.TestCase):
+    def test_raises_when_auth_enabled_and_unset(self):
+        with mock.patch.dict(os.environ, {}, clear=False):
+            os.environ.pop("SECRET_KEY", None)
+            with mock.patch("core.settings.auth_enabled", return_value=True):
+                with self.assertRaises(RuntimeError):
+                    core.settings.get_secret_key()
+
+    def test_placeholder_when_local_no_auth(self):
+        with mock.patch.dict(os.environ, {}, clear=False):
+            os.environ.pop("SECRET_KEY", None)
+            with mock.patch("core.settings.auth_enabled", return_value=False):
+                self.assertEqual(core.settings.get_secret_key(), "dev-secret-change-me")
+
+    def test_env_wins(self):
+        with mock.patch.dict(os.environ, {"SECRET_KEY": "real-secret"}):
+            self.assertEqual(core.settings.get_secret_key(), "real-secret")
