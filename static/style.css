@@ -2356,9 +2356,11 @@ body.is-incognito .incognito-bar {
   .s-nav {
     width: auto; display: flex; flex-shrink: 0; overflow-x: auto; overflow-y: hidden;
     padding: 0.35rem; border-right: none; border-bottom: 1px solid var(--faint);
-    scrollbar-width: none;
+    scrollbar-width: thin; scrollbar-color: var(--faint) transparent;
   }
-  .s-nav::-webkit-scrollbar { display: none; }
+  .s-nav::-webkit-scrollbar { height: 4px; }
+  .s-nav::-webkit-scrollbar-thumb { background: var(--faint); border-radius: 2px; }
+  .s-nav::-webkit-scrollbar-track { background: transparent; }
   .s-nav-group { display: none; }
   .s-nav-item { flex: 0 0 auto; width: auto; margin: 0 0.12rem 0 0; padding: 0.4rem 0.62rem; }
   .s-content { padding: 0.75rem; }
@@ -4406,7 +4408,10 @@ body.afterlife-aide-projects[data-space="aide"] .aide-terminal .xterm-viewport {
 /* narrow screens: the rail becomes a horizontal scroll strip above the timeline */
 @media (max-width: 700px) {
   .photos-layout { flex-direction: column; }
-  .photos-sidebar { width: 100%; flex-flow: row nowrap; overflow-x: auto; overflow-y: hidden; border-right: none; border-bottom: 1px solid var(--faint); gap: 0.25rem; padding: 0.45rem 0.6rem; }
+  .photos-sidebar { width: 100%; flex-flow: row nowrap; overflow-x: auto; overflow-y: hidden; border-right: none; border-bottom: 1px solid var(--faint); gap: 0.25rem; padding: 0.45rem 0.6rem; scrollbar-width: thin; scrollbar-color: var(--faint) transparent; }
+  .photos-sidebar::-webkit-scrollbar { height: 4px; }
+  .photos-sidebar::-webkit-scrollbar-thumb { background: var(--faint); border-radius: 2px; }
+  .photos-sidebar::-webkit-scrollbar-track { background: transparent; }
   .photos-nav-group { display: none; }
   .photos-nav-item { flex-shrink: 0; }
   .photos-nav-count { margin-left: 0.35rem; }
