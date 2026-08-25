@@ -12,7 +12,7 @@ read this in: **english** · [français](docs/readme/README.fr.md) · [español]
 
 **alles** is a self-hosted everything-app. one single python program that runs on your machine and gives you ai chat, search, email, linked docs, a journal, files, a calendar, tasks, money & budgets, photos, contacts, a secrets vault, subscription tracking, and countdowns. all behind one login, with local data in a folder you control. there is no telemetry; model, search, mail, and sync providers receive only the requests you choose to send through them.
 
-think of **alles** as the whole house, and **aide** as the assistant who lives in it — like what gemini is to google, except it's yours and it can actually open the other rooms: read your mail, edit your docs, add to your calendar, file your tasks.
+think of **alles** as the whole house, and **aide** as the assistant who lives in it: like what gemini is to google, except it's yours and it can actually open the other rooms (read your mail, edit your docs, add to your calendar, file your tasks).
 
 it's *one python process*. no build step, no bundler, no `node_modules`, no account, no analytics. you clone it, run `python app.py`, and open a browser. that's the entire setup.
 
@@ -32,13 +32,13 @@ it's *one python process*. no build step, no bundler, no `node_modules`, no acco
 
 - **everything in one place, one login.** stop bouncing between fifteen tabs and ten companies.
 - **it's yours.** all your data is plain files + one database in a folder called `data/`. copy that folder = you've copied your whole life. delete the app = you still have your files.
-- **the ai isn't a gimmick.** it talks to *any* model (claude, gpt, deepseek, gemini, a local model — switchable mid-chat), remembers things on your terms, and can use approved tools in Chat or hand longer work to Jarvis.
+- **the ai isn't a gimmick.** it talks to *any* model (claude, gpt, deepseek, gemini, a local model, all switchable mid-chat), remembers things on your terms, and can use approved tools in Chat or hand longer work to Jarvis.
 - **local by default.** there is no telemetry, your main data stays on your machine, and Aide can run offline with a local model. connected providers see the requests you send to them.
 - **single user, on purpose.** this is *your* workspace, not a service you host for a hundred people. it's your personal un-siloed digital brain.
 
 ## is this for me?
 
-if you've ever wished you could mash together **notion + gmail + obsidian + google photos + google calendar + a password manager + a chatgpt that can actually open your files** — and own the whole thing on hardware you control — yes.
+if you've ever wished you could mash together **notion + gmail + obsidian + google photos + google calendar + a password manager + a chatgpt that can actually open your files**, and own the whole thing on hardware you control: yes.
 
 if you want a multi-user team product with billing and admin roles: no, that's not what this is. alles is deliberately one person, one machine.
 
@@ -59,24 +59,24 @@ app links and subdomains keep working during the transition.
 | **home** | the compatibility launcher, still available as **All apps** |
 | **today** | the default daily home: Needs you, Today, In progress, Briefs, and Shortcuts. it works without an ai model and can be reordered or simplified. |
 | **activity** | a timeline of everything you actually did, across every app |
-| **docs** | obsidian-style linked markdown notes (`[[wikilinks]]`, backlinks, graph, live editor) — your notes are plain files you own |
+| **docs** | obsidian-style linked markdown notes (`[[wikilinks]]`, backlinks, graph, live editor). your notes are plain files you own |
 | **mail** | a real imap/smtp email client with threads, attachments, and ai help |
 | **calendar** | month / week / day views, recurring events, `.ics` + optional caldav sync, natural-language quick-add |
 | **tasks** | natural-language to-dos with recurring, priorities, tags, subtasks, smart views |
 | **notes** | lightweight scratch notes for zero-ceremony jotting |
 | **journal** | a daily diary with mood, prompts, a streak, and a year heatmap |
-| **habits** | a habit tracker — a grid of days you toggle done, with streaks and completion stats |
-| **health** | a simple health log — weight, sleep, workouts, meds or any custom metric, with trends |
-| **subs** | subscription tracker — renewals, forecast, price-change tracking, auto-post to money |
+| **habits** | a habit tracker: a grid of days you toggle done, with streaks and completion stats |
+| **health** | a simple health log: weight, sleep, workouts, meds or any custom metric, with trends |
+| **subs** | subscription tracker: renewals, forecast, price-change tracking, auto-post to money |
 | **money** | accounts, transactions, budgets, csv import, charts |
 | **days** | countdowns and day-counts (birthdays, anniversaries) |
 | **files** | a file browser with inline preview (pdf/video/audio/images) and search |
 | **gallery** | a local photo library with moments, albums, exif search |
-| **read** | a read-later archive — save a url, it fetches and stores the readable page text so it survives the original going away |
-| **books** | a reading list — want / reading / done shelves, ratings, and notes |
+| **read** | a read-later archive: save a url, it fetches and stores the readable page text so it survives the original going away |
+| **books** | a reading list: want / reading / done shelves, ratings, and notes |
 | **contacts** | an address book the ai can read (e.g. when drafting mail), with vcard import/export |
 | **system** | a built-in live system monitor (cpu/ram/disk/gpu) |
-| **watch** | uptime monitoring for *external* things — sites, `/health` endpoints, tls certs — with an optional public status page |
+| **watch** | uptime monitoring for *external* things (sites, `/health` endpoints, tls certs) with an optional public status page |
 | **secrets** | an encrypted vault with typed entries (logins, cards, api keys, notes…) |
 | **automations** | legacy rule editor; saved rules become paused Jarvis workflows and need owner review before they can run |
 
@@ -124,11 +124,11 @@ pip install -r requirements.lock
 if you only want the old checkout launcher without a managed runtime or service, use
 `./alles install --launcher-only` and remove it with `./alles uninstall --launcher-only`.
 
-**no api key is needed to boot.** mail, docs, files, calendar, tasks, subs, days, photos, contacts, secrets — all work out of the box. when you want aide to talk, add a model under **settings → models** (one click for openai / anthropic / deepseek / groq / gemini / ollama and ~10 more), or drop a key like `deepseek_api_key` into `.env`.
+**no api key is needed to boot.** mail, docs, files, calendar, tasks, subs, days, photos, contacts, secrets: all work out of the box. when you want aide to talk, add a model under **settings → models** (one click for openai / anthropic / deepseek / groq / gemini / ollama and ~10 more), or drop a key like `deepseek_api_key` into `.env`.
 
-**prefer docker?** `docker build -t alles . && docker run -p 127.0.0.1:6769:6769 -v alles-data:/app/data alles` — the `data/` volume keeps your db, vault, uploads, and keys across rebuilds. the loopback-only port keeps the fresh container on this device. native LAN access requires `ALLES_ACCESS_PROFILE=lan`, enabled authentication, and a real owner password. public access also requires an HTTPS public URL, matching base domain, trusted hosts, and exact proxy IPs; see `.env.example` for the setting names.
+**prefer docker?** `docker build -t alles . && docker run -p 127.0.0.1:6769:6769 -v alles-data:/app/data alles`. the `data/` volume keeps your db, vault, uploads, and keys across rebuilds. the loopback-only port keeps the fresh container on this device. native LAN access requires `ALLES_ACCESS_PROFILE=lan`, enabled authentication, and a real owner password. public access also requires an HTTPS public URL, matching base domain, trusted hosts, and exact proxy IPs; see `.env.example` for the setting names.
 
-**want it fully offline and free?** install [ollama](https://ollama.com), `ollama pull` a model, add an endpoint pointing at `http://localhost:11434` — no key or internet needed for the ai.
+**want it fully offline and free?** install [ollama](https://ollama.com), `ollama pull` a model, add an endpoint pointing at `http://localhost:11434`. no key or internet needed for the ai.
 
 Andromeda can use DuckDuckGo or another configured provider, including an external HTTPS SearXNG
 instance. the bundled SearXNG service definition is pinned and loopback-only, but installation stays
@@ -169,7 +169,7 @@ computer lock, or revoke removes fill authority.
 
 ## what it's based on
 
-aide was inspired by **[odysseus](https://github.com/pewdiepie-archdaemon/odysseus)** by pewdiepie-archdaemon. the concept — a self-hosted personal ai with memory, research mode, shell access, mcp, a multi-provider model backend, and a suite of apps around it — comes from that project. alles is an independent reimplementation written from scratch, but odysseus is where the idea came from and it deserves the credit. go give that repo a star. full note in [acknowledgments.md](./acknowledgments.md).
+aide was inspired by **[odysseus](https://github.com/pewdiepie-archdaemon/odysseus)** by pewdiepie-archdaemon. the concept (a self-hosted personal ai with memory, research mode, shell access, mcp, a multi-provider model backend, and a suite of apps around it) comes from that project. alles is an independent reimplementation written from scratch, but odysseus is where the idea came from and it deserves the credit. go give that repo a star. full note in [acknowledgments.md](./acknowledgments.md).
 
 it stands on the shoulders of some great open-source work: [fastapi](https://fastapi.tiangolo.com) + [uvicorn](https://www.uvicorn.org), [sqlalchemy](https://www.sqlalchemy.org), [httpx](https://www.python-httpx.org), [fastembed](https://github.com/qdrant/fastembed), [codemirror](https://codemirror.net), [leaflet](https://leafletjs.com) with map tiles from [openstreetmap](https://www.openstreetmap.org/copyright), [katex](https://katex.org), [mermaid](https://mermaid.js.org), [pillow](https://python-pillow.org), [python-docx](https://python-docx.readthedocs.io), [pypdf](https://pypdf.readthedocs.io), [cryptography](https://cryptography.io), and python's own `imaplib`/`smtplib`. models come from whichever provider you point it at; local ones via [ollama](https://ollama.com).
 
