@@ -495,6 +495,12 @@ test('persisted Andromeda toggles and model band share the ordered settings queu
     toggles,
     /persistAndromedaSwitch\(id, setting\)/,
   );
+  const persist = source.slice(
+    source.indexOf('async function persistAndromedaSwitch'),
+    source.indexOf('async function saveSearchConfiguration'),
+  );
+  assert.match(persist, /queueSearchConfigurationWrite\(/);
+  assert.match(persist, /\(\) => patchSearchSettings\(\{ \[setting\]: next \}\)/);
   assert.match(
     band,
     /const band = providerValue\('andromeda-band', 'standard'\)[\s\S]*andromeda_model_band: band/,
