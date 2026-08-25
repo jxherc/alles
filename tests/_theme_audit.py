@@ -20,11 +20,11 @@ THRESH = 3.0  # below this, UI text is effectively unreadable
 
 # subset of presets (the light-bg risky ones + 2 dark baselines to catch false positives)
 THEMES = {
-    "dark": dict(bg="#0a0a0a", text="#e8e6e3", panel="#0e0e0e", faint="#2e2e2e", accent="#818cf8"),
+    "dark": dict(bg="#090909", text="#eceae6", panel="#0d0d0d", faint="#292929", accent="#9298ff"),
     "midnight": dict(
         bg="#0d1117", text="#c9d1d9", panel="#161b22", faint="#30363d", accent="#58a6ff"
     ),
-    "light": dict(bg="#f5f4f1", text="#111111", panel="#efede9", faint="#d4d2ce", accent="#818cf8"),
+    "light": dict(bg="#f4f3f0", text="#242321", panel="#eeece8", faint="#d5d0c9", accent="#5960c7"),
     "blossom": dict(
         bg="#faf4f6", text="#4a2c34", panel="#ffffff", faint="#e8ccd4", accent="#d6537a"
     ),

@@ -25,17 +25,17 @@
   /* semantic runtime tokens follow the owner's active Alles theme */
   --k-page: var(--bg, var(--k-default-page));
   --k-panel: var(--panel, var(--k-default-panel));
-  --k-raised: color-mix(in srgb, var(--panel, var(--k-default-raised)) 88%, var(--text, var(--k-default-text)) 12%);
-  --k-hover: color-mix(in srgb, var(--panel, var(--k-default-hover)) 94%, var(--text, var(--k-default-text)) 6%);
+  --k-raised: var(--raised, var(--k-default-raised));
+  --k-hover: var(--hover, var(--k-default-hover));
   --k-text: var(--text, var(--k-default-text));
-  --k-soft: color-mix(in srgb, var(--text, var(--k-default-text)) 76%, var(--bg, var(--k-default-page)));
+  --k-soft: var(--soft, color-mix(in srgb, var(--text, var(--k-default-text)) 76%, var(--bg, var(--k-default-page))));
   --k-muted: var(--muted, var(--k-default-muted));
-  --k-quiet: color-mix(in srgb, var(--muted, var(--k-default-muted)) 82%, var(--bg, var(--k-default-page)));
+  --k-quiet: var(--quiet, color-mix(in srgb, var(--muted, var(--k-default-muted)) 82%, var(--bg, var(--k-default-page))));
   --k-line: var(--faint, var(--k-default-line));
-  --k-line-strong: color-mix(in srgb, var(--faint, var(--k-default-line-strong)) 72%, var(--text, var(--k-default-text)) 28%);
+  --k-line-strong: var(--line-strong, color-mix(in srgb, var(--faint, var(--k-default-line-strong)) 72%, var(--text, var(--k-default-text)) 28%));
   --k-focus: var(--k-line-strong);
   --k-accent: var(--accent, #9298ff);
-  --k-permission: var(--signal, #e0a458);
+  --k-permission: var(--signal, #d5a265);
   --k-danger: var(--error, #df7474);
   --k-success: var(--green, #7ea98b);
 
@@ -1769,13 +1769,13 @@ body:is(
 }
 
 .finance-import-row:last-child { border-bottom: 0; }
-.finance-import-row > small { grid-column: 2 / -1; color: var(--k-danger, #b1463c); }
+.finance-import-row > small { grid-column: 2 / -1; color: var(--k-danger, #df7474); }
 .finance-import-row-date,
 .finance-import-row-status { color: var(--k-ink-muted, var(--muted)); }
 .finance-import-row-amount { text-align: right; font-family: var(--k-mono); font-variant-numeric: tabular-nums; }
 .finance-import-row-status { text-align: right; }
 .finance-import-row-conflict .finance-import-row-status,
-.finance-import-row-needs_review .finance-import-row-status { color: var(--k-danger, #b1463c); }
+.finance-import-row-needs_review .finance-import-row-status { color: var(--k-danger, #df7474); }
 
 .finance-import-conversion {
   grid-column: 2 / -1;

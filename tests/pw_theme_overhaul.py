@@ -119,7 +119,7 @@ def main():
         acc_default = pg.evaluate(
             "()=>(JSON.parse(localStorage.getItem('alles-appearance')||'{}').colors||{}).accent"
         )
-        check("default_is_purple", (acc_default or "").lower() == "#818cf8")
+        check("default_is_purple", (acc_default or "").lower() == "#9298ff")
 
         # ── #34: accent survives reload (the core bug) ──
         pg.eval_on_selector(
