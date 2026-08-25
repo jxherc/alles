@@ -27,7 +27,7 @@ THEMES = {
             "text": "#f0f0f0",
             "panel": "#121212",
             "faint": "#777777",
-            "accent": "#818cf8",
+            "accent": "#9298ff",
         },
         "font": "sans",
         "density": "comfortable",
