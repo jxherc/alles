@@ -4,7 +4,6 @@ from types import SimpleNamespace
 from unittest import mock
 from urllib.parse import parse_qs, urlsplit
 
-from core.database import ModelEndpoint
 from services import model_auth
 from tests._client import ApiTest
 

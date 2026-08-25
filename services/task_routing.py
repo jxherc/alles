@@ -8,7 +8,6 @@ from typing import Any
 
 from services.feature_registry import REGISTRY_PATH, feature_rows, load_registry
 
-
 ROOT = Path(__file__).parents[1]
 TASK_ROUTING_PATH = ROOT / "features" / "task-routing.json"
 

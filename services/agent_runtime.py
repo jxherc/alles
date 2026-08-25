@@ -12,7 +12,6 @@ from typing import AsyncGenerator
 from core.database import DelegatedAction, ModelEndpoint, SessionLocal
 from services import policy
 from services.agent_state import finish_run, record_event, start_run, update_run
-from services.aide_questions import normalize_answer, normalize_request
 from services.agent_tools import (
     MUTATING_TOOLS,
     UNTRUSTED_TOOLS,
@@ -25,6 +24,7 @@ from services.agent_tools import (
     set_agent_ctx,
     stream_execute,
 )
+from services.aide_questions import normalize_answer, normalize_request
 from services.llm import clear_cooldown, stream_chat
 
 # a single flaky model/network call shouldn't kill a whole agent run. retry

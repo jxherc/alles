@@ -214,7 +214,8 @@ def verify_release_notice_set(root: Path | None = None) -> dict:
     actual_license_paths = {
         path.relative_to(release_root).as_posix()
         for path in (release_root / "licenses").rglob("*")
-        if path.is_file() and path.name != "index.json"
+        # dotfiles are environment junk (e.g. macOS .DS_Store), not notice content
+        if path.is_file() and path.name != "index.json" and not path.name.startswith(".")
     }
     if actual_license_paths != indexed_paths:
         raise ValueError("release license directory does not exactly match its index")

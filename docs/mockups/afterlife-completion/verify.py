@@ -5,7 +5,6 @@ from pathlib import Path
 
 from playwright.sync_api import Page, sync_playwright
 
-
 BASE = os.environ.get("STARTER_URL", "http://127.0.0.1:8988/index.html")
 SHOT_DIR = Path(os.environ.get("STARTER_SHOTS", "/tmp/alles-completion-starter"))
 
