@@ -11,7 +11,6 @@ from app import app
 from services import automations, capabilities
 from services.feature_registry import load_registry, ownership_map
 
-
 ROOT = Path(__file__).parents[1]
 
 

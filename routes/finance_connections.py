@@ -4,9 +4,9 @@ from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel
 from sqlalchemy.orm import Session as DbSession
 
+from core.api_errors import ApiError
 from core.auth import require_auth, require_recent_owner
 from core.database import get_db
-from core.api_errors import ApiError
 from services import finance_connectors
 
 router = APIRouter(prefix="/api/finance/connections", dependencies=[Depends(require_auth)])

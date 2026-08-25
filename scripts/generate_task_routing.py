@@ -15,7 +15,6 @@ if str(ROOT) not in sys.path:
 from services.feature_registry import load_registry  # noqa: E402
 from services.task_routing import load_task_routing, resolved_tasks  # noqa: E402
 
-
 OUTPUT_PATH = ROOT / "docs" / "plans" / "afterlife" / "task-model-routing.md"
 
 

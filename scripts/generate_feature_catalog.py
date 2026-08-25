@@ -13,7 +13,6 @@ if str(ROOT) not in sys.path:
 
 from services.feature_registry import REGISTRY_PATH, feature_rows, load_registry  # noqa: E402
 
-
 CATALOG_PATH = ROOT / "docs" / "feature-catalog.md"
 MATRIX_PATH = ROOT / "docs" / "feature-acceptance-matrix.md"
 

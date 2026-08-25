@@ -11,7 +11,6 @@ from collections import Counter
 from pathlib import Path
 from typing import Any, Iterable
 
-
 ROOT = Path(__file__).parents[1]
 REGISTRY_PATH = ROOT / "features" / "registry.json"
 
