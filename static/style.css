@@ -103,7 +103,7 @@ body.login-mode .app {
   border-radius: 3px;
   background: var(--bg);
   color: var(--muted);
-  font: 500 0.72rem/1 var(--font-family, 'Inter', sans-serif);
+  font: 500 0.75rem/1 var(--font-family, sans-serif);
   cursor: pointer;
   position: relative;
   z-index: 1;
@@ -126,7 +126,7 @@ body.login-mode .app {
   border: 0;
   background: transparent;
   color: var(--muted);
-  font: 500 0.58rem/1.1 var(--font-family, 'Inter', sans-serif);
+  font: 500 0.58rem/1.1 var(--font-family, sans-serif);
   cursor: pointer;
   padding: 0.35rem 0.1rem;
 }
@@ -158,13 +158,13 @@ body.login-mode .app {
   border-radius: 3px;
   background: transparent;
   color: var(--text);
-  font: 500 0.72rem/1 var(--font-family, 'Inter', sans-serif);
+  font: 500 0.75rem/1 var(--font-family, sans-serif);
   text-align: left;
   padding: 0.45rem 0.5rem;
   cursor: pointer;
 }
 .space-profile-item:hover { background: var(--panel); }
-.space-profile-item kbd { color: var(--muted); font: 0.58rem/1 var(--font-family, 'Inter', sans-serif); }
+.space-profile-item kbd { color: var(--muted); font: 0.58rem/1 var(--font-family, sans-serif); }
 .app-drawer-scrim { position: fixed; inset: 0; z-index: 300; background: rgba(0, 0, 0, 0.5); }
 .app-drawer-scrim[hidden], .app-drawer[hidden] { display: none; }
 .app-drawer {
@@ -937,7 +937,7 @@ body:not(.is-aide) .aide-only { display: none !important; }
   border: 0;
   background: transparent;
   color: var(--muted);
-  font: 400 0.72rem/1 var(--font-family, sans-serif);
+  font: 400 0.75rem/1 var(--font-family, sans-serif);
   cursor: pointer;
 }
 .aide-background-actions button:hover,
@@ -2880,7 +2880,7 @@ body[data-space="today"] .today-view { min-height: 100dvh; }
   border: 0;
   background: transparent;
   color: var(--muted);
-  font: 400 0.76rem/1 var(--font-family, 'Inter', sans-serif);
+  font: 400 0.76rem/1 var(--font-family, sans-serif);
   cursor: pointer;
 }
 .today-settings:hover, .today-settings:focus-visible { color: var(--text); outline: 0; }
@@ -2901,7 +2901,7 @@ body[data-space="today"] .today-view { min-height: 100dvh; }
   border: 0;
   background: transparent;
   color: color-mix(in srgb, var(--text) 72%, var(--muted));
-  font: 500 0.82rem/1 var(--font-family, 'Inter', sans-serif);
+  font: 500 0.82rem/1 var(--font-family, sans-serif);
   cursor: pointer;
 }
 .today-ask:hover { color: var(--text); }
@@ -2950,7 +2950,7 @@ body[data-space="today"] .today-view { min-height: 100dvh; }
   border: 0;
   background: transparent;
   color: var(--muted);
-  font: 0.8rem/1.55 var(--font-family, 'Inter', sans-serif);
+  font: 0.8rem/1.55 var(--font-family, sans-serif);
   text-align: left;
   cursor: pointer;
 }
@@ -2966,13 +2966,13 @@ body[data-space="today"] .today-view { min-height: 100dvh; }
 .today-brief:hover p { color: color-mix(in srgb, var(--text) 72%, var(--muted)); }
 .today-capture { min-height: 48px; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px; margin-top: clamp(36px, 6vh, 52px); border-bottom: 1px solid var(--faint); }
 .today-capture:focus-within { border-bottom-color: var(--muted); }
-.today-capture-mode, .today-capture-send { min-width: 34px; min-height: 34px; border: 0; background: transparent; color: var(--muted); font: 500 0.72rem/1 var(--font-family, 'Inter', sans-serif); cursor: pointer; }
+.today-capture-mode, .today-capture-send { min-width: 34px; min-height: 34px; border: 0; background: transparent; color: var(--muted); font: 500 0.75rem/1 var(--font-family, sans-serif); cursor: pointer; }
 .today-capture-send { font-size: 1rem; }
 .today-capture-mode:hover, .today-capture-send:hover { color: var(--text); }
-.today-capture input { min-width: 0; height: 47px; border: 0; outline: 0; background: transparent; color: var(--text); font: 0.9rem/1 var(--font-family, 'Inter', sans-serif); }
+.today-capture input { min-width: 0; height: 47px; border: 0; outline: 0; background: transparent; color: var(--text); font: 0.9rem/1 var(--font-family, sans-serif); }
 .today-capture input::placeholder { color: color-mix(in srgb, var(--muted) 68%, transparent); }
 .today-destinations { display: flex; justify-content: center; gap: clamp(28px, 7vw, 84px); margin-top: 28px; }
-.today-destinations button { min-height: 36px; border: 0; background: transparent; color: var(--muted); font: 500 0.78rem/1 var(--font-family, 'Inter', sans-serif); cursor: pointer; }
+.today-destinations button { min-height: 36px; border: 0; background: transparent; color: var(--muted); font: 500 0.78rem/1 var(--font-family, sans-serif); cursor: pointer; }
 .today-destinations button:hover { color: var(--text); }
 
 .app-drawer-scrim { display: none !important; }
@@ -2991,7 +2991,7 @@ body[data-space="today"] .today-view { min-height: 100dvh; }
 .app-drawer-head { min-height: 58px; align-items: center; }
 .app-drawer-kicker { color: var(--text); font-size: 0.84rem; font-weight: 600; letter-spacing: -0.02em; text-transform: none; }
 .app-drawer-home,
-.app-drawer-footer button { min-height: 34px; padding: 0; border: 0; background: transparent; color: var(--muted); font: 500 0.76rem/1 var(--font-family, 'Inter', sans-serif); cursor: pointer; }
+.app-drawer-footer button { min-height: 34px; padding: 0; border: 0; background: transparent; color: var(--muted); font: 500 0.76rem/1 var(--font-family, sans-serif); cursor: pointer; }
 .app-drawer-home:hover,
 .app-drawer-footer button:hover { color: var(--text); }
 .app-drawer-content { padding-top: clamp(48px, 8vh, 76px); }
@@ -3120,7 +3120,7 @@ body.afterlife-aide-projects[data-space="aide"] .aide-tool-link {
   border-radius: 3px;
   background: transparent;
   color: var(--muted);
-  font: 400 0.82rem/1 var(--font-family, 'Inter', sans-serif);
+  font: 400 0.82rem/1 var(--font-family, sans-serif);
   text-align: left;
   cursor: pointer;
   -webkit-appearance: none;
@@ -3220,7 +3220,7 @@ body.afterlife-aide-projects[data-space="aide"] .aide-tools-link {
   border-radius: 3px;
   background: transparent;
   color: var(--muted);
-  font: 400 0.76rem/1 var(--font-family, 'Inter', sans-serif);
+  font: 400 0.76rem/1 var(--font-family, sans-serif);
   cursor: pointer;
 }
 body.afterlife-aide-projects[data-space="aide"] .aide-tools-link span:last-child { margin-left: auto; }
@@ -3248,7 +3248,7 @@ body.afterlife-aide-projects[data-space="aide"] .aide-settings-link {
   border-radius: 2px;
   background: transparent;
   color: var(--muted);
-  font: 400 0.76rem/1 var(--font-family, 'Inter', sans-serif);
+  font: 400 0.76rem/1 var(--font-family, sans-serif);
   text-align: left;
   cursor: pointer;
 }
@@ -3336,7 +3336,7 @@ body.afterlife-aide-projects[data-space="aide"] .aide-new-context-item {
   border-radius: 3px;
   background: transparent;
   color: inherit;
-  font: 450 0.76rem/1 var(--font-family, 'Inter', sans-serif);
+  font: 450 0.76rem/1 var(--font-family, sans-serif);
   white-space: nowrap;
 }
 body.afterlife-aide-projects[data-space="aide"] .aide-new-context-item[hidden] { display: none; }
@@ -3387,7 +3387,7 @@ body.afterlife-aide-projects[data-space="aide"] .aide-project-context-menu butto
   border-radius: 2px;
   background: transparent;
   color: var(--muted);
-  font: 450 0.78rem/1 var(--font-family, 'Inter', sans-serif);
+  font: 450 0.78rem/1 var(--font-family, sans-serif);
   text-align: left;
   cursor: pointer;
 }
@@ -3443,7 +3443,7 @@ body.afterlife-aide-projects[data-space="aide"] .aide-folder-path input {
   border-radius: 2px;
   background: var(--bg);
   color: var(--text);
-  font: 0.72rem/1 var(--mono, ui-monospace, 'SFMono-Regular', Menlo, Monaco, Consolas, monospace);
+  font: 0.75rem/1 var(--mono, ui-monospace, 'SFMono-Regular', Menlo, Monaco, Consolas, monospace);
 }
 body.afterlife-aide-projects[data-space="aide"] .aide-folder-path input:focus {
   border-color: var(--muted);
@@ -3543,7 +3543,7 @@ body.afterlife-aide-projects[data-space="aide"] .attach-retry {
   border: 0;
   background: transparent;
   color: var(--accent);
-  font: 0.68rem/1 var(--font-family, 'Inter', sans-serif);
+  font: 0.68rem/1 var(--font-family, sans-serif);
   padding: 0 4px;
   cursor: pointer;
 }
@@ -3680,7 +3680,7 @@ body.afterlife-aide-projects[data-space="aide"] .aide-task-tools button {
   border-radius: 3px;
   background: transparent;
   color: var(--muted);
-  font: 400 0.82rem/1 var(--font-family, 'Inter', sans-serif);
+  font: 400 0.82rem/1 var(--font-family, sans-serif);
   text-align: left;
   cursor: pointer;
 }
@@ -4154,7 +4154,7 @@ body.afterlife-aide-projects[data-space="aide"] .aide-terminal .xterm-viewport {
 #mail-vip.on { color: var(--accent); border-color: var(--accent); }
 
 .mail-reader { display: flex; flex-direction: column; height: 100%; }
-.mail-body-text { font-family: 'Inter', sans-serif; font-size: 0.85rem; color: var(--text); white-space: pre-wrap; word-break: break-word; margin: 0; }
+.mail-body-text { font-family: sans-serif; font-size: 0.85rem; color: var(--text); white-space: pre-wrap; word-break: break-word; margin: 0; }
 
 /* attachment chips in the reader */
 .mail-attach-row { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.6rem; }
@@ -4175,7 +4175,7 @@ body.afterlife-aide-projects[data-space="aide"] .aide-terminal .xterm-viewport {
 
 .mail-compose, .mail-accounts { max-width: 680px; padding: 1rem 1.2rem; display: flex; flex-direction: column; gap: 0.5rem; }
 .mail-compose-head { font-size: 0.95rem; color: var(--text); margin-bottom: 0.2rem; }
-.mail-compose-body { min-height: 300px; resize: vertical; font-family: 'Inter', sans-serif; line-height: 1.5; }
+.mail-compose-body { min-height: 300px; resize: vertical; font-family: sans-serif; line-height: 1.5; }
 .mail-compose .mail-rich-body { min-height: 300px; max-height: 50vh; }
 
 /* recipient chip (token) fields (4d) */
@@ -8035,7 +8035,7 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
   margin: 0;
   max-width: 78ch;
   color: var(--text);
-  font: 0.86rem/1.7 'Inter', sans-serif;
+  font: 0.86rem/1.7 sans-serif;
   white-space: pre-wrap;
   word-break: break-word;
 }
@@ -8082,7 +8082,7 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
 .mail-compose-body {
   min-height: 260px;
   resize: vertical;
-  font: 0.84rem/1.55 'Inter', sans-serif;
+  font: 0.84rem/1.55 sans-serif;
 }
 .mail-status {
   min-height: 1rem;
@@ -8980,7 +8980,7 @@ body.afterlife-shell[data-space="andromeda"] .main { flex: 1 1 auto; }
 .andromeda-settings-status[data-error="true"] { color: var(--error); }
 .andromeda-text-action,
 .andromeda-searxng-actions button {
-  min-height: 30px; padding: 0; border: 0; background: transparent; color: var(--muted); font: 0.72rem/1 var(--font-family, sans-serif); cursor: pointer;
+  min-height: 30px; padding: 0; border: 0; background: transparent; color: var(--muted); font: 0.75rem/1 var(--font-family, sans-serif); cursor: pointer;
 }
 .andromeda-text-action:hover,
 .andromeda-text-action:focus-visible,
