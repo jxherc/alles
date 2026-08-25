@@ -1,4 +1,4 @@
-import { mdToHtml } from './util.js';
+import { mdToHtml, _safeUrl } from './util.js';
 import { ensureSession, showMessages, scrollDown } from './sessions.js';
 
 let _active = false;
@@ -85,7 +85,7 @@ export async function runResearch(query) {
       sourcesEl.innerHTML = '<div class="sources-label">sources</div>';
     const a = document.createElement('a');
     a.className = 'source-link';
-    a.href = url; a.target = '_blank'; a.rel = 'noopener';
+    a.href = _safeUrl(url); a.target = '_blank'; a.rel = 'noopener';
     a.textContent = title || url;
     sourcesEl.appendChild(a);
   };
@@ -180,7 +180,7 @@ export async function runResearch(query) {
             for (const s of ev.sources) {
               const a = document.createElement('a');
               a.className = 'source-link';
-              a.href = s.url; a.target = '_blank'; a.rel = 'noopener';
+              a.href = _safeUrl(s.url); a.target = '_blank'; a.rel = 'noopener';
               a.textContent = s.title || s.url;
               sourcesEl.appendChild(a);
             }

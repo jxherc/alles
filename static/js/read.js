@@ -1,7 +1,7 @@
 // read — a read-later archive. paste a URL, alles fetches + stores the readable text
 // (reusing the research extractor) so it's searchable offline and the link can't rot.
 // list + reader views; mirrors the watch/habits panel conventions.
-import { toast } from './util.js';
+import { toast, _safeUrl } from './util.js';
 import { confirm as dlgConfirm } from './dialog.js';
 import { wireChoiceGroup } from './kokuen.js';
 const _si = n => (window.icon ? window.icon(n) : '');
@@ -178,12 +178,12 @@ function _renderReader(body) {
     <div class="read-reader">
       <div class="read-reader-bar">
         <button class="btn" id="read-back">${_si('chevron-left') || '←'} back</button>
-        <a class="btn" href="${esc(it.url)}" target="_blank" rel="noopener">open original ${_si('link')}</a>
+        <a class="btn" href="${_safeUrl(it.url)}" target="_blank" rel="noopener">open original ${_si('link')}</a>
       </div>
       <article class="read-article">
         <h1>${esc(it.title)}</h1>
         <div class="read-article-meta">${esc(it.site)} · ${it.read_minutes} min read</div>
-        ${paras.length ? paras.map(p => `<p>${esc(p)}</p>`).join('') : `<p class="read-empty">no readable text was extracted for this page — <a href="${esc(it.url)}" target="_blank" rel="noopener">open the original</a>.</p>`}
+        ${paras.length ? paras.map(p => `<p>${esc(p)}</p>`).join('') : `<p class="read-empty">no readable text was extracted for this page — <a href="${_safeUrl(it.url)}" target="_blank" rel="noopener">open the original</a>.</p>`}
       </article>
     </div>`;
   $('read-back').addEventListener('click', () => { _open = null; loadRead(); });

@@ -923,10 +923,13 @@ def download_attachment(aid: str, db: DbSession = Depends(get_db), ctx: tuple = 
     import mimetypes
 
     mt = mimetypes.guess_type(a.filename)[0] or "application/octet-stream"
+    # the stored name is user-controlled: strip header-hostile chars so the
+    # content-disposition value can't be malformed or split the response.
+    safe_name = re.sub(r'[\r\n";\\]+', "_", a.filename or "download").strip() or "download"
     return Response(
         content=data,
         media_type=mt,
-        headers={"content-disposition": f'attachment; filename="{a.filename}"'},
+        headers={"content-disposition": f'attachment; filename="{safe_name}"'},
     )
 
 

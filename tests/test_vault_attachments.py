@@ -92,3 +92,14 @@ class VaultAttachmentTests(ApiTest):
         aid = self._upload(data=data).json()["id"]
         lst = self.client.get(f"/api/vault/{self.eid}/attachments", headers=self.h).json()
         self.assertEqual(next(a for a in lst if a["id"] == aid)["size"], 1234)
+
+    def test_download_sanitizes_content_disposition_filename(self):
+        # quotes reach the server percent-encoded through multipart; semicolons and
+        # backslashes do not, so they exercise the sanitizer for real.
+        aid = self._upload(name='evil;\\x.txt').json()["id"]
+        r = self.client.get(f"/api/vault/attachments/{aid}", headers=self.h)
+        cd = r.headers["content-disposition"]
+        self.assertNotIn("\r", cd)
+        self.assertNotIn("\n", cd)
+        self.assertNotIn("\\", cd)
+        self.assertEqual(cd, 'attachment; filename="evil_x.txt"')

@@ -396,7 +396,14 @@ def migrate_setting_secrets() -> int:
 
 # env helpers
 def get_secret_key() -> str:
-    return os.getenv("SECRET_KEY", "dev-secret-change-me")
+    # no silent weak default when the app is locked: if auth is on, a real
+    # secret must exist. local no-auth use keeps the harmless placeholder.
+    key = os.getenv("SECRET_KEY")
+    if key:
+        return key
+    if auth_enabled():
+        raise RuntimeError("SECRET_KEY env var must be set when auth is enabled")
+    return "dev-secret-change-me"
 
 
 def auth_enabled() -> bool:
