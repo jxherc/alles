@@ -380,6 +380,7 @@ async function _renderPlan(target, request, section = 'overview') {
   input.name = 'title';
   input.maxLength = 500;
   input.placeholder = 'capture a task';
+  input.setAttribute('aria-label', 'capture a task');
   input.autocomplete = 'off';
   const button = _el('button', '', 'add task');
   button.type = 'submit';
