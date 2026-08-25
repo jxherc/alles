@@ -11,19 +11,39 @@ import re
 _HEX = re.compile(r"^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$")
 
 DARK_BASE = {
-    "bg": "#0a0a0a",
-    "text": "#e8e6e3",
-    "panel": "#0e0e0e",
-    "faint": "#2e2e2e",
-    "accent": "#818cf8",
+    "bg": "#090909",
+    "text": "#eceae6",
+    "panel": "#0d0d0d",
+    "raised": "#171717",
+    "hover": "#141414",
+    "soft": "#b9b5b0",
+    "muted": "#85817c",
+    "quiet": "#7d7974",
+    "faint": "#292929",
+    "lineStrong": "#3a3a3a",
+    "accent": "#9298ff",
 }
 LIGHT_BASE = {
-    "bg": "#f5f4f1",
-    "text": "#111111",
-    "panel": "#efede9",
-    "faint": "#d4d2ce",
-    "accent": "#818cf8",
+    "bg": "#f4f3f0",
+    "text": "#242321",
+    "panel": "#eeece8",
+    "raised": "#e4e1dc",
+    "hover": "#e9e7e2",
+    "soft": "#55514c",
+    "muted": "#68635e",
+    "quiet": "#746e68",
+    "faint": "#d5d0c9",
+    "lineStrong": "#bbb4ac",
+    "accent": "#5960c7",
 }
+
+# pre-kokuen-remap default palettes. a stored appearance whose colors still match
+# these exactly was never customized, so it upgrades to the new palette instead of
+# pinning the old drifted values forever.
+_OLD_BASES = (
+    ("dark", {"bg": "#0a0a0a", "text": "#e8e6e3", "panel": "#0e0e0e", "faint": "#2e2e2e", "accent": "#818cf8"}, DARK_BASE),
+    ("light", {"bg": "#f5f4f1", "text": "#111111", "panel": "#efede9", "faint": "#d4d2ce", "accent": "#818cf8"}, LIGHT_BASE),
+)
 
 FONTS = ("sans", "mono", "serif")
 DENSITIES = ("comfortable", "compact", "spacious")
@@ -47,7 +67,7 @@ PATTERNS = (
     "aurora",
     "waves",
 )
-COLOR_KEYS = ("bg", "text", "panel", "faint", "accent")
+COLOR_KEYS = ("bg", "text", "panel", "raised", "hover", "soft", "muted", "quiet", "faint", "lineStrong", "accent")
 
 
 def _is_hex(v) -> bool:
@@ -143,15 +163,31 @@ def to_legacy(appearance: dict) -> tuple[str, str]:
         theme = ""
     else:  # custom — decide by background brightness
         theme = (
-            "light" if _luminance(appearance.get("colors", {}).get("bg", "#0a0a0a")) > 0.5 else ""
+            "light" if _luminance(appearance.get("colors", {}).get("bg", "#090909")) > 0.5 else ""
         )
     accent = appearance.get("colors", {}).get("accent", "")
     return theme, accent
+
+
+def _upgrade_legacy_default(a: dict) -> dict:
+    """stored colors that still equal a pre-remap default preset were never a real
+    choice — swap them for the current palette. anything else is user customization."""
+    colors = a.get("colors")
+    if not isinstance(colors, dict):
+        return a
+    for preset, old, new in _OLD_BASES:
+        if a.get("preset") == preset and all(colors.get(k) == v for k, v in old.items()):
+            a = dict(a)
+            merged = dict(new)
+            merged.update({k: v for k, v in colors.items() if k not in old})
+            a["colors"] = merged
+            return a
+    return a
 
 
 def effective(settings: dict) -> dict:
     """the appearance to serve: the stored object, or one synthesized from legacy fields."""
     obj = settings.get("appearance")
     if isinstance(obj, dict) and obj:
-        return normalize(obj)
+        return _upgrade_legacy_default(normalize(obj))
     return from_legacy(settings.get("theme", ""), settings.get("accent", ""))

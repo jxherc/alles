@@ -10,9 +10,11 @@ export { generateHarmony };
 const LS_KEY = 'alles-appearance';
 
 // presets: {bg,text,panel,faint,accent} (+ optional default pattern)
+// dark/light also pin the full KOKUEN role set so the default product matches
+// design-system/FOUNDATIONS.md exactly; other presets compute the rest at runtime.
 export const PRESETS = {
-  dark:      { colors: { bg:'#0a0a0a', text:'#e8e6e3', panel:'#0e0e0e', faint:'#2e2e2e', accent:'#818cf8' } },
-  light:     { colors: { bg:'#f5f4f1', text:'#111111', panel:'#efede9', faint:'#d4d2ce', accent:'#818cf8' } },
+  dark:      { colors: { bg:'#090909', text:'#eceae6', panel:'#0d0d0d', raised:'#171717', hover:'#141414', soft:'#b9b5b0', muted:'#85817c', quiet:'#7d7974', faint:'#292929', lineStrong:'#3a3a3a', accent:'#9298ff' } },
+  light:     { colors: { bg:'#f4f3f0', text:'#242321', panel:'#eeece8', raised:'#e4e1dc', hover:'#e9e7e2', soft:'#55514c', muted:'#68635e', quiet:'#746e68', faint:'#d5d0c9', lineStrong:'#bbb4ac', accent:'#5960c7' } },
   midnight:  { colors: { bg:'#0d1117', text:'#c9d1d9', panel:'#161b22', faint:'#30363d', accent:'#58a6ff' }, pattern:'rain' },
   paper:     { colors: { bg:'#faf8f5', text:'#3b3836', panel:'#ffffff', faint:'#d5d0c8', accent:'#b07d3a' }, pattern:'dots' },
   cyberpunk: { colors: { bg:'#0a0a0f', text:'#0ff0fc', panel:'#12101a', faint:'#9b30ff', accent:'#e040fb' }, pattern:'synapse' },
@@ -68,8 +70,8 @@ export const PRESETS = {
 };
 
 const FONT_MAP = {
-  sans: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
-  mono: "'JetBrains Mono', ui-monospace, 'SF Mono', monospace",
+  sans: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif",
+  mono: "ui-monospace, 'SFMono-Regular', Menlo, Monaco, Consolas, monospace",
   serif: "Georgia, 'Times New Roman', serif",
 };
 
@@ -89,7 +91,14 @@ export function applyAppearance(a) {
   const root = document.documentElement;
   const set = (k, v) => { if (v) root.style.setProperty(k, v); };
   set('--bg', c.bg); set('--text', c.text); set('--panel', c.panel); set('--faint', c.faint); set('--accent', c.accent);
-  if (c.text && c.bg) root.style.setProperty('--muted', _mutedFor(c.text, c.bg, c.panel || c.bg));
+  const derive = (fracText, base) => (c.text && base) ? _mix(base, c.text, fracText) : null;
+  set('--raised', c.raised || derive(0.12, c.panel));
+  set('--hover', c.hover || derive(0.06, c.panel));
+  set('--soft', c.soft || derive(0.76, c.bg));
+  set('--quiet', c.quiet || derive(0.5, c.bg));
+  set('--line-strong', c.lineStrong || derive(0.28, c.faint));
+  if (c.muted) root.style.setProperty('--muted', c.muted);
+  else if (c.text && c.bg) root.style.setProperty('--muted', _mutedFor(c.text, c.bg, c.panel || c.bg));
   if (c.bg) (_lum(c.bg) > 0.5) ? (root.dataset.theme = 'light') : delete root.dataset.theme;
   root.style.setProperty('--font-family', FONT_MAP[a.font] || FONT_MAP.sans);
   root.classList.remove('density-compact', 'density-spacious');
@@ -106,8 +115,29 @@ export function applyAppearance(a) {
 }
 
 // ── storage ─────────────────────────────────────────────────────────────────────
+// pre-remap default palettes. a cached theme that still matches one exactly was
+// never customized, so it upgrades to the current palette (mirrors the server).
+const _OLD_BASES = {
+  dark:  { bg:'#0a0a0a', text:'#e8e6e3', panel:'#0e0e0e', faint:'#2e2e2e', accent:'#818cf8' },
+  light: { bg:'#f5f4f1', text:'#111111', panel:'#efede9', faint:'#d4d2ce', accent:'#818cf8' },
+};
+function _upgradeLegacyDefault(o) {
+  const old = _OLD_BASES[o.preset];
+  if (!old || !o.colors) return o;
+  if (!Object.entries(old).every(([k, v]) => o.colors[k] === v)) return o;
+  const extra = Object.fromEntries(Object.entries(o.colors).filter(([k]) => !(k in old)));
+  return { ...o, colors: { ...PRESETS[o.preset].colors, ...extra } };
+}
 export function loadLocal() {
-  try { const o = JSON.parse(localStorage.getItem(LS_KEY) || 'null'); if (o && o.colors) return { ...DEFAULT(), ...o }; } catch { /* bad json */ }
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    const o = JSON.parse(raw || 'null');
+    if (o && o.colors) {
+      const up = _upgradeLegacyDefault(o);
+      if (up !== o) saveLocal(up);   // persist so raw localStorage readers see the new palette too
+      return { ...DEFAULT(), ...up };
+    }
+  } catch { /* bad json */ }
   return DEFAULT();
 }
 function saveLocal(a) { try { localStorage.setItem(LS_KEY, JSON.stringify(a)); } catch { /* quota */ } }
@@ -416,7 +446,7 @@ function _initMatrix() {
     const bg = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim() || '#000';
     ctx.globalAlpha = 0.08; ctx.fillStyle = bg; ctx.fillRect(0, 0, st.W, st.H); ctx.globalAlpha = 1;
     if ((frame++ % Math.max(1, Math.round(2 / (0.4 + inten)))) !== 0) return;
-    const c = _effColor(); ctx.font = FS + "px 'JetBrains Mono', monospace";
+    const c = _effColor(); ctx.font = FS + 'px ui-monospace, Menlo, monospace';
     for (let i = 0; i < cols; i++) {
       const x = i * FS, y = drops[i] * FS;
       ctx.globalAlpha = 0.9; ctx.fillStyle = c; ctx.fillText(glyph(), x, y);

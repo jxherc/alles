@@ -2515,7 +2515,7 @@ async function _syncAppearance() {
 function updateFavicon() {
   const root = document.documentElement;
   const accent = (getComputedStyle(root).getPropertyValue('--accent') || '').trim() || '#818cf8';
-  const box = root.dataset.theme === 'light' ? '#f4f4f5' : '#0a0a0a';
+  const box = root.dataset.theme === 'light' ? '#f4f3f0' : '#090909';
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" fill="${box}"/><circle cx="16" cy="16" r="7" fill="${accent}"/></svg>`;
   let link = document.querySelector('link[rel="icon"]');
   if (!link) { link = document.createElement('link'); link.rel = 'icon'; document.head.appendChild(link); }

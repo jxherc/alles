@@ -23,7 +23,7 @@ ALLOW = {
 }
 
 THEMES = {
-    "light": dict(bg="#f5f4f1", text="#111111", panel="#efede9", faint="#d4d2ce", accent="#818cf8"),
+    "light": dict(bg="#f4f3f0", text="#242321", panel="#eeece8", faint="#d5d0c9", accent="#5960c7"),
     "blossom": dict(
         bg="#faf4f6", text="#4a2c34", panel="#ffffff", faint="#e8ccd4", accent="#d6537a"
     ),

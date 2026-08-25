@@ -561,7 +561,7 @@ async function ensureTerminal() {
       allowProposedApi: false,
       convertEol: false,
       cursorBlink: true,
-      fontFamily: "'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace",
+      fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
       fontSize: 13,
       lineHeight: 1.22,
       minimumContrastRatio: 4.5,
