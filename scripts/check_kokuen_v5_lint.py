@@ -16,7 +16,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 TARGET = REPO_ROOT / "static" / "kokuen.css"
 DEFAULT_LINTER = Path("/Users/jxh/kokuen/scripts/lint_ui_rules.py")
 EXPECTED_COUNTS = {"nested-boundary": 72, "small-type": 123}
-EXPECTED_DIGEST = "ff0f22198a888ca151313ae8a8261f6c963cb000e64740b0d1eb73398870dac1"
+EXPECTED_DIGEST = "6f2ffd6b9ce1f9886d4a1c5844397dc3ed4ca8d1b71e875668691a50a3ce217c"
 CONTROL_WORDS = re.compile(
     r"(?:button|input|textarea|search|choice|switch|option|trigger|select|tab|action)",
     re.IGNORECASE,

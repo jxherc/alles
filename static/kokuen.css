@@ -5375,11 +5375,21 @@ body[data-app="files"] :where(.files-preview-pre, .files-preview-table) {
     padding: var(--k-space-2);
     border-right: 0;
     border-bottom: 1px solid var(--k-line);
-    scrollbar-width: none;
+    scrollbar-width: thin;
+    scrollbar-color: var(--k-line) transparent;
   }
 
   #settings-modal[data-kokuen-surface="settings"] .s-nav::-webkit-scrollbar {
-    display: none;
+    height: 4px;
+  }
+
+  #settings-modal[data-kokuen-surface="settings"] .s-nav::-webkit-scrollbar-thumb {
+    background: var(--k-line);
+    border-radius: 2px;
+  }
+
+  #settings-modal[data-kokuen-surface="settings"] .s-nav::-webkit-scrollbar-track {
+    background: transparent;
   }
 
   #settings-modal[data-kokuen-surface="settings"] .s-nav-group {
@@ -6230,11 +6240,21 @@ body[data-app="files"] #files-view .files-vault-review strong { color: var(--k-t
     padding: var(--k-space-2);
     overflow-x: auto;
     white-space: nowrap;
-    scrollbar-width: none;
+    scrollbar-width: thin;
+    scrollbar-color: var(--k-line) transparent;
   }
 
   body[data-app="files"] #files-view .files-phase7-location-panel::-webkit-scrollbar {
-    display: none;
+    height: 4px;
+  }
+
+  body[data-app="files"] #files-view .files-phase7-location-panel::-webkit-scrollbar-thumb {
+    background: var(--k-line);
+    border-radius: 2px;
+  }
+
+  body[data-app="files"] #files-view .files-phase7-location-panel::-webkit-scrollbar-track {
+    background: transparent;
   }
 
   body[data-app="files"] #files-view .files-phase7-panel-head {
