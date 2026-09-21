@@ -33,9 +33,13 @@ Recover the previous conversation, repair confirmed broken or stale Alles UI, ve
   PWA offline/reconnect browser journeys pass on owned isolated data.
 - Final Settings, Andromeda and Files screenshots inspected after fixes. See docs/repair-2026-09-21.md.
 
-## in progress and remaining
-- Commit the reviewed repairs and publish the authorized dev-afterlife branch; verify the remote hash.
-- Hand off verified repairs, external limitations and the separate rework proposal.
+## publication and handoff
+- Repairs committed as b1d4c2f; formatting checkpoint ece2cf9.
+- Authorized push to origin/dev-afterlife succeeded. The remote hash was verified as
+  b1d4c2ff0170bcbd16574aa6964fb0a2be5d4933 after publication, including the ten previously local commits.
+- Implementation and isolated verification are complete for the confirmed defects in this repair.
+  External limitations below remain; a future product rework is proposed separately and is not implemented.
+- The pre-existing untracked alles-full-review.md was preserved and excluded from publication.
 
 ## limitations
 - Live provider, mail, bank and owner infrastructure integrations are not yet exercised in this run.
