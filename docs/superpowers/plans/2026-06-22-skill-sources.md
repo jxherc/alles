@@ -50,8 +50,10 @@ Create `tests/test_skill_sources.py`:
 
 ```python
 """unit-ish checks for skill_sources that need no network."""
+
 import sys
 from services import skill_sources as ss
+
 
 def main():
     r = {}
@@ -62,18 +64,26 @@ def main():
     r["builtin_has_count"] = srcs[0]["count"] > 0
     # builtin browse needs no network
     b = ss.browse("builtin")
-    r["builtin_browse"] = b["kind"] == "builtin" and len(b["skills"]) > 0 and "body" in b["skills"][0]
+    r["builtin_browse"] = (
+        b["kind"] == "builtin" and len(b["skills"]) > 0 and "body" in b["skills"][0]
+    )
     # pure url builder
-    r["blob_url"] = ss._blob_url("o", "r", "main", "a/b/SKILL.md") == "https://github.com/o/r/blob/main/a/b/SKILL.md"
+    r["blob_url"] = (
+        ss._blob_url("o", "r", "main", "a/b/SKILL.md")
+        == "https://github.com/o/r/blob/main/a/b/SKILL.md"
+    )
     # unknown source
     try:
-        ss.browse("nope"); r["unknown_raises"] = False
+        ss.browse("nope")
+        r["unknown_raises"] = False
     except ValueError:
         r["unknown_raises"] = True
     ok = all(r.values())
-    for k, v in r.items(): print(f"{'PASS' if v else 'FAIL'}  {k}")
+    for k, v in r.items():
+        print(f"{'PASS' if v else 'FAIL'}  {k}")
     print(f"\n{sum(bool(v) for v in r.values())}/{len(r)} passed")
     return 0 if ok else 1
+
 
 if __name__ == "__main__":
     sys.exit(main())
@@ -106,6 +116,7 @@ Create `services/skill_sources.py`:
 first source ('builtin', local, always available); the rest are public github repos scanned
 for SKILL.md (reusing skills_github). browse results cache briefly so an 800-skill repo is
 one tree fetch, not 800."""
+
 import json
 import time
 from pathlib import Path
@@ -114,7 +125,7 @@ from . import skills_github, skills_store
 
 _FILE = Path(__file__).parent / "skill_sources.json"
 _TTL = 600
-_cache = {}   # id -> (ts, browse dict)
+_cache = {}  # id -> (ts, browse dict)
 
 
 def _registry() -> list[dict]:
@@ -127,11 +138,26 @@ def _registry() -> list[dict]:
 
 def list_sources() -> list[dict]:
     from . import skills_catalog
-    out = [{"id": "builtin", "name": "built-in", "kind": "builtin",
-            "description": "the bundled skill library", "count": len(skills_catalog.items())}]
+
+    out = [
+        {
+            "id": "builtin",
+            "name": "built-in",
+            "kind": "builtin",
+            "description": "the bundled skill library",
+            "count": len(skills_catalog.items()),
+        }
+    ]
     for s in _registry():
-        out.append({"id": s["id"], "name": s["name"], "kind": "github",
-                    "description": s.get("description", ""), "count": s.get("count", 0)})
+        out.append(
+            {
+                "id": s["id"],
+                "name": s["name"],
+                "kind": "github",
+                "description": s.get("description", ""),
+                "count": s.get("count", 0),
+            }
+        )
     return out
 
 
@@ -165,14 +191,17 @@ def browse(sid) -> dict:
         raise ValueError("unknown source")
     if src["kind"] == "builtin":
         from . import skills_catalog
+
         return {"kind": "builtin", "skills": skills_catalog.items()}
     hit = _cache.get(sid)
     if hit and (time.time() - hit[0]) < _TTL:
         return hit[1]
     owner, repo, branch = _owner_repo_branch(src)
     paths = skills_github._skill_paths(owner, repo, branch)
-    skills = [{"name": _pretty(p), "path": p, "import_url": _blob_url(owner, repo, branch, p)}
-              for p in sorted(paths)]
+    skills = [
+        {"name": _pretty(p), "path": p, "import_url": _blob_url(owner, repo, branch, p)}
+        for p in sorted(paths)
+    ]
     data = {"kind": "github", "repo_url": src["url"], "skills": skills}
     _cache[sid] = (time.time(), data)
     return data
@@ -186,9 +215,13 @@ def preview(sid, path) -> dict:
     text = skills_github._fetch(owner, repo, branch, path)
     parsed = skills_store._parse(text)
     m = parsed["meta"]
-    return {"name": m.get("name", _pretty(path)), "description": m.get("description", ""),
-            "when_to_use": m.get("when_to_use", ""), "body": parsed["body"],
-            "source_url": _blob_url(owner, repo, branch, path)}
+    return {
+        "name": m.get("name", _pretty(path)),
+        "description": m.get("description", ""),
+        "when_to_use": m.get("when_to_use", ""),
+        "body": parsed["body"],
+        "source_url": _blob_url(owner, repo, branch, path),
+    }
 ```
 
 - [ ] **Step 5: Add the routes**
@@ -199,12 +232,14 @@ In `routes/skills.py`, immediately AFTER the `catalog()` function (line ~29) and
 @router.get("/sources")
 def sources():
     from services import skill_sources
+
     return skill_sources.list_sources()
 
 
 @router.get("/sources/{sid}/browse")
 def browse_source(sid: str):
     from services import skill_sources
+
     try:
         data = skill_sources.browse(sid)
     except ValueError as e:
@@ -220,6 +255,7 @@ def browse_source(sid: str):
 @router.get("/sources/{sid}/preview")
 def preview_source(sid: str, path: str):
     from services import skill_sources
+
     try:
         return skill_sources.preview(sid, path)
     except ValueError as e:
@@ -263,6 +299,7 @@ Create `tests/pw_skills_sources.py`:
 ```python
 """behavioral verify for library skill sources. data/skills is the real shared dir,
 so this is read-mostly. github sources are network-live (best-effort)."""
+
 import sys
 from playwright.sync_api import sync_playwright
 
@@ -275,8 +312,14 @@ def main():
     with sync_playwright() as p:
         b = p.chromium.launch()
         pg = b.new_context(service_workers="block").new_page()
-        pg.on("console", lambda m: errs.append(m.text)
-              if m.type == "error" and not any(x in m.text for x in IGN) else None)
+        pg.on(
+            "console",
+            lambda m: (
+                errs.append(m.text)
+                if m.type == "error" and not any(x in m.text for x in IGN)
+                else None
+            ),
+        )
         pg.goto(f"http://aide.localhost:{port}/", wait_until="domcontentloaded")
         pg.wait_for_timeout(400)
         pg.eval_on_selector("body", "() => window._navigateTo('skills')")
@@ -286,7 +329,9 @@ def main():
         # enter library -> rail lists sources incl built-in
         pg.eval_on_selector(".skl-rail-act[data-act='library']", "el => el.click()")
         pg.wait_for_timeout(700)
-        src_ids = pg.eval_on_selector_all(".skl-rail-cat", "els => els.map(e => e.dataset.src).filter(Boolean)")
+        src_ids = pg.eval_on_selector_all(
+            ".skl-rail-cat", "els => els.map(e => e.dataset.src).filter(Boolean)"
+        )
         r["rail_lists_sources"] = "builtin" in src_ids and len(src_ids) >= 3
         # built-in grid renders catalog cards
         r["builtin_cards"] = pg.eval_on_selector_all("#skl-grid .skl-card", "els => els.length") > 5
@@ -297,17 +342,22 @@ def main():
             pg.eval_on_selector(f".skl-rail-cat[data-src='{gh[0]}']", "el => el.click()")
             pg.wait_for_timeout(2500)
             r["github_browse_resolves"] = pg.eval_on_selector(
-                "#skl-grid", "el => el.querySelectorAll('.skl-card').length > 0 || el.querySelector('.skl-empty') !== null")
+                "#skl-grid",
+                "el => el.querySelectorAll('.skl-card').length > 0 || el.querySelector('.skl-empty') !== null",
+            )
         else:
             r["github_browse_resolves"] = False
 
         r["no_console_errors"] = len(errs) == 0
         b.close()
     ok = all(r.values())
-    for k, v in r.items(): print(f"{'PASS' if v else 'FAIL'}  {k}")
-    if errs: print("errors:", errs[:6])
+    for k, v in r.items():
+        print(f"{'PASS' if v else 'FAIL'}  {k}")
+    if errs:
+        print("errors:", errs[:6])
     print(f"\n{sum(bool(v) for v in r.values())}/{len(r)} passed")
     return 0 if ok else 1
+
 
 if __name__ == "__main__":
     sys.exit(main())
@@ -544,16 +594,22 @@ Implements `_previewLibrary` and a read-only preview drawer, fixing "can't click
 Append inside `main()` of `tests/pw_skills_sources.py`, before `no_console_errors`:
 
 ```python
-        # back to built-in, click a card -> preview drawer with a body
-        pg.eval_on_selector(".skl-rail-cat[data-src='builtin']", "el => el.click()")
-        pg.wait_for_timeout(500)
-        pg.eval_on_selector("#skl-grid .skl-card .skl-card-name", "el => el.click()")
-        pg.wait_for_timeout(400)
-        r["preview_opens"] = pg.eval_on_selector("#skl-drawer", "el => !!el && el.classList.contains('open')")
-        r["preview_has_body"] = pg.eval_on_selector("#skl-drawer .skl-pv-body", "el => !!el && el.textContent.trim().length > 0")
-        pg.keyboard.press("Escape")
-        pg.wait_for_timeout(300)
-        r["preview_esc_closes"] = pg.eval_on_selector("#skl-drawer", "el => !el || !el.classList.contains('open')")
+# back to built-in, click a card -> preview drawer with a body
+pg.eval_on_selector(".skl-rail-cat[data-src='builtin']", "el => el.click()")
+pg.wait_for_timeout(500)
+pg.eval_on_selector("#skl-grid .skl-card .skl-card-name", "el => el.click()")
+pg.wait_for_timeout(400)
+r["preview_opens"] = pg.eval_on_selector(
+    "#skl-drawer", "el => !!el && el.classList.contains('open')"
+)
+r["preview_has_body"] = pg.eval_on_selector(
+    "#skl-drawer .skl-pv-body", "el => !!el && el.textContent.trim().length > 0"
+)
+pg.keyboard.press("Escape")
+pg.wait_for_timeout(300)
+r["preview_esc_closes"] = pg.eval_on_selector(
+    "#skl-drawer", "el => !el || !el.classList.contains('open')"
+)
 ```
 
 - [ ] **Step 2: Run it, verify the new rows fail**

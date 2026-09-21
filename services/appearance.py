@@ -41,8 +41,28 @@ LIGHT_BASE = {
 # these exactly was never customized, so it upgrades to the new palette instead of
 # pinning the old drifted values forever.
 _OLD_BASES = (
-    ("dark", {"bg": "#0a0a0a", "text": "#e8e6e3", "panel": "#0e0e0e", "faint": "#2e2e2e", "accent": "#818cf8"}, DARK_BASE),
-    ("light", {"bg": "#f5f4f1", "text": "#111111", "panel": "#efede9", "faint": "#d4d2ce", "accent": "#818cf8"}, LIGHT_BASE),
+    (
+        "dark",
+        {
+            "bg": "#0a0a0a",
+            "text": "#e8e6e3",
+            "panel": "#0e0e0e",
+            "faint": "#2e2e2e",
+            "accent": "#818cf8",
+        },
+        DARK_BASE,
+    ),
+    (
+        "light",
+        {
+            "bg": "#f5f4f1",
+            "text": "#111111",
+            "panel": "#efede9",
+            "faint": "#d4d2ce",
+            "accent": "#818cf8",
+        },
+        LIGHT_BASE,
+    ),
 )
 
 FONTS = ("sans", "mono", "serif")
@@ -67,7 +87,19 @@ PATTERNS = (
     "aurora",
     "waves",
 )
-COLOR_KEYS = ("bg", "text", "panel", "raised", "hover", "soft", "muted", "quiet", "faint", "lineStrong", "accent")
+COLOR_KEYS = (
+    "bg",
+    "text",
+    "panel",
+    "raised",
+    "hover",
+    "soft",
+    "muted",
+    "quiet",
+    "faint",
+    "lineStrong",
+    "accent",
+)
 
 
 def _is_hex(v) -> bool:

@@ -30,9 +30,7 @@ class ManagedCompanionApiTests(ApiTest):
             json={"domain": "home.example", "answer": "127.0.0.1"},
         )
         self.assertEqual(response.status_code, 200)
-        rewrite.assert_called_once_with(
-            "add", "home.example", "127.0.0.1", enabled=True
-        )
+        rewrite.assert_called_once_with("add", "home.example", "127.0.0.1", enabled=True)
         invalid = self.client.post(
             "/api/system/companions/adguard-home/rewrites/update",
             json={"domain": "home.example", "answer": "127.0.0.1"},
@@ -79,8 +77,6 @@ class ManagedCompanionApiTests(ApiTest):
     @mock.patch("routes.system.managed_companion_clients.npm_dashboard")
     def test_companion_errors_are_explicit(self, dashboard):
         dashboard.side_effect = CompanionClientError("Nginx Proxy Manager is not connected")
-        response = self.client.get(
-            "/api/system/companions/nginx-proxy-manager/dashboard"
-        )
+        response = self.client.get("/api/system/companions/nginx-proxy-manager/dashboard")
         self.assertEqual(response.status_code, 409)
         self.assertEqual(response.json()["code"], "managed_companion_api_failed")

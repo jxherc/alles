@@ -389,22 +389,14 @@ def run() -> None:
         assert page.locator("#docs-reader-main").is_hidden()
         assert page.locator("#docs-nav-panel").get_attribute("data-identity-proof") == "same-shell"
         journal_workbench = page.locator("#docs-workbench-view").bounding_box()
-        journal_identity = page.locator(
-            "#docs-workbench-view .specialist-app-brand"
-        ).bounding_box()
+        journal_identity = page.locator("#docs-workbench-view .specialist-app-brand").bounding_box()
         journal_view = page.locator("#wiki-view").bounding_box()
         assert journal_workbench and journal_identity and journal_view
         assert abs(journal_workbench["y"]) <= 1
         assert abs(journal_workbench["height"] - page.viewport_size["height"]) <= 1
+        assert abs(journal_view["y"] - (journal_identity["y"] + journal_identity["height"])) <= 1
         assert (
-            abs(journal_view["y"] - (journal_identity["y"] + journal_identity["height"]))
-            <= 1
-        )
-        assert (
-            abs(
-                journal_view["height"]
-                - (journal_workbench["height"] - journal_identity["height"])
-            )
+            abs(journal_view["height"] - (journal_workbench["height"] - journal_identity["height"]))
             <= 1
         )
         assert page.locator(".topbar").is_hidden()

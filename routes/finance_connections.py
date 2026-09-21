@@ -32,7 +32,10 @@ def _error(exc: Exception):
 
 @router.get("")
 def connections(db: DbSession = Depends(get_db)):
-    return {"providers": list(finance_connectors.PROVIDERS), "connections": finance_connectors.list_connections(db)}
+    return {
+        "providers": list(finance_connectors.PROVIDERS),
+        "connections": finance_connectors.list_connections(db),
+    }
 
 
 @router.post("/simplefin", dependencies=[Depends(require_recent_owner)])

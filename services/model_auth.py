@@ -173,7 +173,8 @@ def public_auth(endpoint) -> dict:
         "provider_id": provider_id,
         "provider_label": profile.label,
         "auth_type": auth_type,
-        "auth_status": getattr(endpoint, "auth_status", "") or (
+        "auth_status": getattr(endpoint, "auth_status", "")
+        or (
             "connected" if getattr(endpoint, "api_key", "") or auth_type == "none" else "incomplete"
         ),
         "account_identity": getattr(endpoint, "account_identity", "") or "",

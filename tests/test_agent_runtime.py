@@ -224,7 +224,11 @@ class SelectableQuestionRuntimeTests(unittest.TestCase):
                 chunks = asyncio.run(go())
 
         self.assertEqual(state["n"], 2)
-        resolved = next(chunk["user_question_resolved"] for chunk in chunks if chunk.get("user_question_resolved"))
+        resolved = next(
+            chunk["user_question_resolved"]
+            for chunk in chunks
+            if chunk.get("user_question_resolved")
+        )
         self.assertEqual(resolved["answer"]["answers"]["scope"]["selected"], ["files"])
         result = next(chunk["tool_result"] for chunk in chunks if chunk.get("tool_result"))
         self.assertFalse(result["error"])

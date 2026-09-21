@@ -469,9 +469,7 @@ class JarvisRunStateTest(ApiTest):
                 ]
             }
         )
-        prompt_id = agent_runtime._create_jarvis_question(
-            {"_jarvis_run_id": run_id}, request
-        )
+        prompt_id = agent_runtime._create_jarvis_question({"_jarvis_run_id": run_id}, request)
         agent_runtime._register_user_question(
             "request-1", "agent-run-1", request, jarvis_prompt_id=prompt_id
         )

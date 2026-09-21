@@ -413,21 +413,35 @@ aide does **not** hardcode a provider. you register **endpoints** under settings
 
 ```python
 def detect_provider(base_url):
-    if "anthropic.com"   in url: return "anthropic"
-    if "deepseek.com"    in url: return "deepseek"
-    if "openrouter.ai"   in url: return "openrouter"
-    if "groq.com"        in url: return "groq"
-    if "moonshot.cn"     in url: return "moonshot"
-    if "api.x.ai"        in url: return "xai"
-    if "googleapis.com"  in url: return "gemini"
-    if "mistral.ai"      in url: return "mistral"
-    if "perplexity.ai"   in url: return "perplexity"
-    if "together.xyz"    in url: return "together"
-    if "fireworks.ai"    in url: return "fireworks"
-    if "cohere"          in url: return "cohere"
-    if "openai.com"      in url: return "openai"
-    if ":11434" in url or "ollama" in url: return "ollama"
-    return "openai"   # anything else: treat as openai-compatible
+    if "anthropic.com" in url:
+        return "anthropic"
+    if "deepseek.com" in url:
+        return "deepseek"
+    if "openrouter.ai" in url:
+        return "openrouter"
+    if "groq.com" in url:
+        return "groq"
+    if "moonshot.cn" in url:
+        return "moonshot"
+    if "api.x.ai" in url:
+        return "xai"
+    if "googleapis.com" in url:
+        return "gemini"
+    if "mistral.ai" in url:
+        return "mistral"
+    if "perplexity.ai" in url:
+        return "perplexity"
+    if "together.xyz" in url:
+        return "together"
+    if "fireworks.ai" in url:
+        return "fireworks"
+    if "cohere" in url:
+        return "cohere"
+    if "openai.com" in url:
+        return "openai"
+    if ":11434" in url or "ollama" in url:
+        return "ollama"
+    return "openai"  # anything else: treat as openai-compatible
 ```
 
 **plain version:** there are really only three "languages" ai providers speak. aide speaks all three and translates, so you never have to care which one answered.

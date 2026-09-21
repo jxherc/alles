@@ -67,7 +67,9 @@ def public_dict(row: FinanceConnection) -> dict:
         "status": row.status,
         "item_id": row.item_id,
         "account_count": len(mapping),
-        "consent_expires_at": row.consent_expires_at.isoformat() if row.consent_expires_at else None,
+        "consent_expires_at": row.consent_expires_at.isoformat()
+        if row.consent_expires_at
+        else None,
         "last_synced_at": row.last_synced_at.isoformat() if row.last_synced_at else None,
         "last_error": row.last_error,
         "can_reconnect": row.provider == "plaid",
@@ -76,7 +78,10 @@ def public_dict(row: FinanceConnection) -> dict:
 
 
 def list_connections(db) -> list[dict]:
-    return [public_dict(row) for row in db.query(FinanceConnection).order_by(FinanceConnection.created_at).all()]
+    return [
+        public_dict(row)
+        for row in db.query(FinanceConnection).order_by(FinanceConnection.created_at).all()
+    ]
 
 
 def _decoded_claim_url(setup_token: str, *, url_validator=net_guard.is_public_url) -> str:
@@ -89,7 +94,13 @@ def _decoded_claim_url(setup_token: str, *, url_validator=net_guard.is_public_ur
     except (UnicodeError, ValueError) as exc:
         raise FinanceConnectorError("SimpleFIN setup token is invalid") from exc
     parsed = urlsplit(value)
-    if parsed.scheme != "https" or not parsed.hostname or parsed.username or parsed.password or parsed.fragment:
+    if (
+        parsed.scheme != "https"
+        or not parsed.hostname
+        or parsed.username
+        or parsed.password
+        or parsed.fragment
+    ):
         raise FinanceConnectorError("SimpleFIN claim URL must be a credential-free HTTPS URL")
     if not url_validator(value):
         raise FinanceConnectorError("SimpleFIN claim URL must resolve to a public HTTPS host")
@@ -118,10 +129,14 @@ def _validated_access_url(value: str, *, url_validator=net_guard.is_public_url) 
     return raw
 
 
-def connect_simplefin(db, setup_token: str, *, client=httpx, url_validator=net_guard.is_public_url) -> dict:
+def connect_simplefin(
+    db, setup_token: str, *, client=httpx, url_validator=net_guard.is_public_url
+) -> dict:
     claim_url = _decoded_claim_url(setup_token, url_validator=url_validator)
     try:
-        response = client.post(claim_url, headers={"Content-Length": "0"}, timeout=30, follow_redirects=False)
+        response = client.post(
+            claim_url, headers={"Content-Length": "0"}, timeout=30, follow_redirects=False
+        )
         response.raise_for_status()
     except Exception as exc:
         raise FinanceConnectorError("SimpleFIN setup token exchange failed") from exc
@@ -197,7 +212,11 @@ def plaid_link_token(db, connection_id: str, *, redirect_uri: str = "", client=h
     token = str(data.get("link_token") or "")
     if not token:
         raise FinanceConnectorError("Plaid did not return a Link token")
-    return {"link_token": token, "expiration": data.get("expiration"), "environment": row.environment}
+    return {
+        "link_token": token,
+        "expiration": data.get("expiration"),
+        "environment": row.environment,
+    }
 
 
 def exchange_plaid_public_token(db, connection_id: str, public_token: str, *, client=httpx) -> dict:
@@ -256,7 +275,9 @@ def _simplefin_snapshot(row: FinanceConnection, *, client=httpx) -> dict:
                     raise ValueError
                 posted_date = datetime.fromtimestamp(posted, UTC).date().isoformat()
             except (OSError, OverflowError, TypeError, ValueError) as exc:
-                raise FinanceConnectorError("SimpleFIN returned an invalid transaction date") from exc
+                raise FinanceConnectorError(
+                    "SimpleFIN returned an invalid transaction date"
+                ) from exc
             transactions.append(
                 {
                     "external_id": str(tx.get("id") or ""),
@@ -299,7 +320,11 @@ def _plaid_snapshot(row: FinanceConnection, *, client=httpx) -> dict:
                 accounts_by_id[str(account["account_id"])] = account
         added.extend(item for item in data.get("added") or [] if isinstance(item, dict))
         modified.extend(item for item in data.get("modified") or [] if isinstance(item, dict))
-        removed.extend(str(item.get("transaction_id") or "") for item in data.get("removed") or [] if isinstance(item, dict))
+        removed.extend(
+            str(item.get("transaction_id") or "")
+            for item in data.get("removed") or []
+            if isinstance(item, dict)
+        )
         cursor = str(data.get("next_cursor") or cursor)
         if not data.get("has_more"):
             break
@@ -342,12 +367,19 @@ def _account_for_snapshot(db, connection: FinanceConnection, account: dict, mapp
     if mapping.get(external_id):
         return str(mapping[external_id])
     request_id = str(uuid.uuid5(uuid.NAMESPACE_URL, f"alles:{connection.id}:account:{external_id}"))
-    values = {"name": account["name"], "kind": account["kind"], "currency": account["currency"], "opening": 0}
+    values = {
+        "name": account["name"],
+        "kind": account["kind"],
+        "currency": account["currency"],
+        "opening": 0,
+    }
     if actual_finance.is_canonical(db):
         created = actual_finance.create_account(db, values, request_id=request_id)
         account_id = str(created["id"])
     else:
-        row = Account(name=values["name"], kind=values["kind"], currency=values["currency"], opening=0)
+        row = Account(
+            name=values["name"], kind=values["kind"], currency=values["currency"], opening=0
+        )
         finance_currency.prepare_account(row)
         db.add(row)
         db.flush()
@@ -423,7 +455,11 @@ def sync(db, connection_id: str, *, client=httpx) -> dict:
     if not row:
         raise FinanceConnectorError("Finance connection not found")
     try:
-        snapshot = _simplefin_snapshot(row, client=client) if row.provider == "simplefin" else _plaid_snapshot(row, client=client)
+        snapshot = (
+            _simplefin_snapshot(row, client=client)
+            if row.provider == "simplefin"
+            else _plaid_snapshot(row, client=client)
+        )
         mapping = _json(row.account_map_json, {})
         created = updated = removed = 0
         for external_id in snapshot.get("removed") or []:

@@ -141,7 +141,13 @@ class LegacyDefaultUpgradeTests(unittest.TestCase):
     def test_stored_old_dark_default_upgrades(self):
         old = {
             "preset": "dark",
-            "colors": {"bg": "#0a0a0a", "text": "#e8e6e3", "panel": "#0e0e0e", "faint": "#2e2e2e", "accent": "#818cf8"},
+            "colors": {
+                "bg": "#0a0a0a",
+                "text": "#e8e6e3",
+                "panel": "#0e0e0e",
+                "faint": "#2e2e2e",
+                "accent": "#818cf8",
+            },
         }
         a = appearance.effective({"appearance": old})
         self.assertEqual(a["colors"]["bg"], DARK_BASE["bg"])
@@ -150,7 +156,13 @@ class LegacyDefaultUpgradeTests(unittest.TestCase):
     def test_stored_old_light_default_upgrades(self):
         old = {
             "preset": "light",
-            "colors": {"bg": "#f5f4f1", "text": "#111111", "panel": "#efede9", "faint": "#d4d2ce", "accent": "#818cf8"},
+            "colors": {
+                "bg": "#f5f4f1",
+                "text": "#111111",
+                "panel": "#efede9",
+                "faint": "#d4d2ce",
+                "accent": "#818cf8",
+            },
         }
         a = appearance.effective({"appearance": old})
         self.assertEqual(a["colors"]["bg"], LIGHT_BASE["bg"])
@@ -159,7 +171,13 @@ class LegacyDefaultUpgradeTests(unittest.TestCase):
     def test_customized_colors_are_not_touched(self):
         custom = {
             "preset": "dark",
-            "colors": {"bg": "#0a0a0a", "text": "#e8e6e3", "panel": "#0e0e0e", "faint": "#2e2e2e", "accent": "#ff0000"},
+            "colors": {
+                "bg": "#0a0a0a",
+                "text": "#e8e6e3",
+                "panel": "#0e0e0e",
+                "faint": "#2e2e2e",
+                "accent": "#ff0000",
+            },
         }
         a = appearance.effective({"appearance": custom})
         self.assertEqual(a["colors"]["bg"], "#0a0a0a")
@@ -168,7 +186,14 @@ class LegacyDefaultUpgradeTests(unittest.TestCase):
     def test_extra_custom_color_keys_survive_upgrade(self):
         old = {
             "preset": "dark",
-            "colors": {"bg": "#0a0a0a", "text": "#e8e6e3", "panel": "#0e0e0e", "faint": "#2e2e2e", "accent": "#818cf8", "lineStrong": "#123456"},
+            "colors": {
+                "bg": "#0a0a0a",
+                "text": "#e8e6e3",
+                "panel": "#0e0e0e",
+                "faint": "#2e2e2e",
+                "accent": "#818cf8",
+                "lineStrong": "#123456",
+            },
         }
         a = appearance.effective({"appearance": old})
         self.assertEqual(a["colors"]["lineStrong"], "#123456")

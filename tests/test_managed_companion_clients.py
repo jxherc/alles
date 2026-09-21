@@ -64,12 +64,8 @@ class ManagedCompanionClientTests(unittest.TestCase):
         clients.save_adguard_credentials("owner", "private password")
         requester = Requester([Response(payload={}), Response(payload={})])
         clients.set_adguard_filtering(True, 24, requester=requester)
-        clients.change_adguard_rewrite(
-            "add", "Home.Example", "127.0.0.1", requester=requester
-        )
-        self.assertEqual(
-            requester.calls[0][2]["json"], {"enabled": True, "interval": 24}
-        )
+        clients.change_adguard_rewrite("add", "Home.Example", "127.0.0.1", requester=requester)
+        self.assertEqual(requester.calls[0][2]["json"], {"enabled": True, "interval": 24})
         self.assertEqual(
             requester.calls[1][2]["json"],
             {"domain": "home.example", "answer": "127.0.0.1", "enabled": True},

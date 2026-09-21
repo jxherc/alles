@@ -239,9 +239,7 @@ def resolve_model(
         return selection
 
     endpoints = _enabled_endpoints(db)
-    if role in {"andromeda_answer", "andromeda_verifier"} or settings.get(
-        "prefer_local_models"
-    ):
+    if role in {"andromeda_answer", "andromeda_verifier"} or settings.get("prefer_local_models"):
         endpoints.sort(key=lambda item: not is_local_endpoint(item))
     for endpoint in endpoints:
         available = _available_models(endpoint)

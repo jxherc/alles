@@ -245,9 +245,7 @@ def _oauth_result_page(ok: bool, detail: str) -> HTMLResponse:
     "/models/oauth/gemini/start",
     dependencies=[Depends(require_recent_owner)],
 )
-def start_gemini_oauth(
-    body: GeminiOAuthStart, request: Request, db: DbSession = Depends(get_db)
-):
+def start_gemini_oauth(body: GeminiOAuthStart, request: Request, db: DbSession = Depends(get_db)):
     callback = str(request.url_for("gemini_oauth_callback"))
     if not model_auth.is_loopback_url(callback):
         raise ApiError(

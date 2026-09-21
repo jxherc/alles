@@ -114,7 +114,9 @@ class ManagedCompanionTests(unittest.TestCase):
         )
         self.assertTrue(result["activated"])
         self.assertNotIn("correct horse", config.read_text("utf-8"))
-        manifest = (managed_companions.root_dir("adguard-home") / "manifest.json").read_text("utf-8")
+        manifest = (managed_companions.root_dir("adguard-home") / "manifest.json").read_text(
+            "utf-8"
+        )
         self.assertNotIn("correct horse", manifest)
         managed_companions.rollback("adguard-home", runner=self.runner)
         self.assertEqual(config.read_text("utf-8"), "old: config\n")
@@ -163,7 +165,9 @@ class ManagedCompanionTests(unittest.TestCase):
         payload = json.loads(marker.read_text("utf-8"))
         payload["owner_id"] = "tampered"
         marker.write_text(json.dumps(payload), "utf-8")
-        with self.assertRaisesRegex(managed_companions.ManagedCompanionError, "markers do not match"):
+        with self.assertRaisesRegex(
+            managed_companions.ManagedCompanionError, "markers do not match"
+        ):
             managed_companions.preflight(
                 "adguard-home",
                 bind="127.0.0.1",

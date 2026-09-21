@@ -206,12 +206,9 @@ def run() -> None:
                 "vault",
                 "server",
             ]
-            assert (
-                page.locator("#app-drawer").evaluate(
-                    "el => Math.round(el.getBoundingClientRect().width)"
-                )
-                == min(420, width - 52)
-            )
+            assert page.locator("#app-drawer").evaluate(
+                "el => Math.round(el.getBoundingClientRect().width)"
+            ) == min(420, width - 52)
             assert (
                 page.locator("#app-drawer").evaluate("el => getComputedStyle(el).position")
                 == "fixed"

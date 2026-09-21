@@ -57,25 +57,30 @@ from sqlalchemy.orm import sessionmaker
 from core.database import Base, Note
 from services import personal_index as pix
 
+
 def _db():
     eng = create_engine("sqlite:///:memory:")
     Base.metadata.create_all(eng)
     return sessionmaker(bind=eng)()
 
+
 def test_note_indexed_and_searchable():
     db = _db()
     n = Note(id="n1", title="apartment hunt", content="viewed a 2br near the park", tags="home")
-    db.add(n); db.commit()
+    db.add(n)
+    db.commit()
     assert pix.index_record(db, "note", n) > 0
     hits = pix.search(db, "apartment park", k=5)
     assert any(h["ref"] == "n1" and h["kind"] == "note" for h in hits)
     assert hits[0]["label"] == "apartment hunt"
     assert hits[0]["link"] == "/?app=notes#n1"
 
+
 def test_remove_record():
     db = _db()
     n = Note(id="n2", title="temp", content="throwaway")
-    db.add(n); db.commit()
+    db.add(n)
+    db.commit()
     pix.index_record(db, "note", n)
     assert pix.remove_record(db, "note", "n2") >= 1
     assert not pix.search(db, "throwaway", k=5)
@@ -108,8 +113,10 @@ WRITE_KINDS = ("note", "journal", "mail", "contact", "read", "book")  # the kind
 def _indexing_enabled():
     return load_settings().get("pidx_enabled", True)
 
+
 def _source_enabled(kind):
     return _indexing_enabled() and load_settings().get(f"pidx_{kind}", True)
+
 
 def _journal_locked():
     return bool(load_settings().get("journal_passcode"))
@@ -124,9 +131,12 @@ def _note_text(db, n):
         items = ""
     return " ".join(x for x in (n.title, n.content, items, n.tags) if x)
 
+
 def _get_note(db, ref):
     from core.database import Note
+
     return db.query(Note).filter_by(id=ref).first()
+
 
 _ADAPTERS = {
     "note": {
@@ -152,8 +162,10 @@ def index_record(db, kind, obj) -> int:
         return textindex.remove(db, kind, ref)
     return textindex.index(db, kind, ref, text)
 
+
 def remove_record(db, kind, ref) -> int:
     return textindex.remove(db, kind, ref)
+
 
 def _label(db, kind, ref):
     ad = _ADAPTERS.get(kind)
@@ -162,9 +174,11 @@ def _label(db, kind, ref):
     obj = ad["get"](db, ref)
     return ad["label"](obj) if obj else ref
 
+
 def _link(kind, ref):
     ad = _ADAPTERS.get(kind)
     return ad["link"](ref) if ad else ""
+
 
 def search(db, query, kinds=None, k=8) -> list[dict]:
     wanted = set(kinds or [x for x in PERSONAL_KINDS if x == "doc" or _source_enabled(x)])
@@ -173,7 +187,9 @@ def search(db, query, kinds=None, k=8) -> list[dict]:
     for h in raw:
         if h["kind"] not in wanted:
             continue
-        out.append({**h, "label": _label(db, h["kind"], h["ref"]), "link": _link(h["kind"], h["ref"])})
+        out.append(
+            {**h, "label": _label(db, h["kind"], h["ref"]), "link": _link(h["kind"], h["ref"])}
+        )
         if len(out) >= k:
             break
     return out
@@ -209,20 +225,34 @@ git commit -m "personal index: module + note adapter + index/remove/search"
 # tests/test_personal_index.py (append)
 from core.database import JournalEntry, Contact, ContactField, ReadItem, Book
 
+
 def test_journal_contact_read_book():
     db = _db()
-    db.add(JournalEntry(id="j1", date="2026-03-04", content="felt good about the move", mood="happy")); db.commit()
-    db.add(Contact(id="c1", name="Sam Rivera", company="Acme", notes="met at the trip")); db.commit()
-    db.add(ContactField(id="cf1", contact_id="c1", kind="email", label="work", value="sam@acme.com")); db.commit()
-    db.add(ReadItem(id="r1", url="http://x", title="rust tips", text="ownership and borrowing")); db.commit()
-    db.add(Book(id="b1", title="Dune", author="Herbert", notes="reread the desert parts")); db.commit()
+    db.add(
+        JournalEntry(id="j1", date="2026-03-04", content="felt good about the move", mood="happy")
+    )
+    db.commit()
+    db.add(Contact(id="c1", name="Sam Rivera", company="Acme", notes="met at the trip"))
+    db.commit()
+    db.add(
+        ContactField(id="cf1", contact_id="c1", kind="email", label="work", value="sam@acme.com")
+    )
+    db.commit()
+    db.add(ReadItem(id="r1", url="http://x", title="rust tips", text="ownership and borrowing"))
+    db.commit()
+    db.add(Book(id="b1", title="Dune", author="Herbert", notes="reread the desert parts"))
+    db.commit()
     for kind, ref, obj_q, q, want in [
         ("journal", "2026-03-04", JournalEntry, "felt good move", "journal 2026-03-04"),
         ("contact", "c1", Contact, "sam acme trip", "Sam Rivera"),
         ("read", "r1", ReadItem, "ownership borrowing", "rust tips"),
         ("book", "b1", Book, "desert reread", "Dune"),
     ]:
-        obj = db.query(obj_q).filter_by(id=ref).first() if kind != "journal" else db.query(JournalEntry).filter_by(date=ref).first()
+        obj = (
+            db.query(obj_q).filter_by(id=ref).first()
+            if kind != "journal"
+            else db.query(JournalEntry).filter_by(date=ref).first()
+        )
         assert pix.index_record(db, kind, obj) > 0
         hits = pix.search(db, q, kinds=[kind], k=5)
         assert hits and hits[0]["label"] == want
@@ -243,31 +273,47 @@ Add these helpers above `_ADAPTERS` and the four entries inside it in `services/
 def _journal_text(db, e):
     return " ".join(x for x in (e.content, e.mood, e.tags) if x)
 
+
 def _get_journal(db, ref):
     from core.database import JournalEntry
+
     return db.query(JournalEntry).filter_by(date=ref).first()
+
 
 def _contact_text(db, c):
     from core.database import ContactField
-    fv = " ".join(f.value for f in db.query(ContactField).filter_by(contact_id=c.id).all() if f.value)
-    return " ".join(x for x in (c.name, c.company, c.title, c.notes, c.email, c.phone, c.address, fv) if x)
+
+    fv = " ".join(
+        f.value for f in db.query(ContactField).filter_by(contact_id=c.id).all() if f.value
+    )
+    return " ".join(
+        x for x in (c.name, c.company, c.title, c.notes, c.email, c.phone, c.address, fv) if x
+    )
+
 
 def _get_contact(db, ref):
     from core.database import Contact
+
     return db.query(Contact).filter_by(id=ref).first()
+
 
 def _read_text(db, r):
     return " ".join(x for x in (r.title, r.excerpt, r.text, r.tags) if x)
 
+
 def _get_read(db, ref):
     from core.database import ReadItem
+
     return db.query(ReadItem).filter_by(id=ref).first()
+
 
 def _book_text(db, b):
     return " ".join(x for x in (b.title, b.author, b.notes) if x)
 
+
 def _get_book(db, ref):
     from core.database import Book
+
     return db.query(Book).filter_by(id=ref).first()
 ```
 
@@ -321,10 +367,12 @@ git commit -m "personal index: journal/contact/read/book adapters"
 # tests/test_personal_index.py (append)
 import services.personal_index as pixmod
 
+
 def test_journal_lock_blocks_and_drops(monkeypatch):
     db = _db()
     e = JournalEntry(id="j9", date="2026-01-01", content="secret thoughts")
-    db.add(e); db.commit()
+    db.add(e)
+    db.commit()
     pix.index_record(db, "journal", e)
     assert pix.search(db, "secret thoughts", kinds=["journal"], k=5)
     monkeypatch.setattr(pixmod, "_journal_locked", lambda: True)
@@ -332,13 +380,16 @@ def test_journal_lock_blocks_and_drops(monkeypatch):
     pix.index_record(db, "journal", e)
     assert not pix.search(db, "secret thoughts", kinds=["journal"], k=5)
 
+
 def test_disabled_source_not_indexed(monkeypatch):
     db = _db()
     n = Note(id="nz", title="hidden", content="should not index")
-    db.add(n); db.commit()
+    db.add(n)
+    db.commit()
     monkeypatch.setattr(pixmod, "_source_enabled", lambda k: k != "note")
     assert pix.index_record(db, "note", n) == 0
     assert not pix.search(db, "hidden", kinds=["note"], k=5)
+
 
 def test_no_vault_adapter():
     assert "vault" not in pix._ADAPTERS
@@ -390,13 +441,16 @@ from sqlalchemy.orm import sessionmaker
 from core.database import Base
 from services import personal_index as pix
 
+
 def _db():
     eng = create_engine("sqlite:///:memory:")
     Base.metadata.create_all(eng)
     return sessionmaker(bind=eng)()
 
+
 def test_note_route_hooks():
     import routes.notes as R
+
     db = _db()
     created = R.create_note(R.NoteBody(title="ski trip", content="booked the cabin"), db=db)
     nid = created["id"] if isinstance(created, dict) else created.id
@@ -417,21 +471,23 @@ Expected: FAIL - after delete the note is still found (no hook yet). (Adjust the
 Add a tiny best-effort helper call after each commit. In `routes/notes.py`, after `db.commit()` in `create_note` and `update_note`:
 
 ```python
-    try:
-        from services import personal_index
-        personal_index.index_record(db, "note", n)
-    except Exception:
-        pass
+try:
+    from services import personal_index
+
+    personal_index.index_record(db, "note", n)
+except Exception:
+    pass
 ```
 
 In `delete_note`, capture the id before delete and after `db.commit()`:
 
 ```python
-    try:
-        from services import personal_index
-        personal_index.remove_record(db, "note", nid)
-    except Exception:
-        pass
+try:
+    from services import personal_index
+
+    personal_index.remove_record(db, "note", nid)
+except Exception:
+    pass
 ```
 
 Repeat the same pattern in the other routes, using the right kind/object/ref:
@@ -473,21 +529,27 @@ git commit -m "personal index: best-effort on-write hooks in note/journal/contac
 # tests/test_personal_index.py (append)
 from core.database import IndexChunk
 
+
 def test_backfill_and_reconcile_orphans():
     db = _db()
-    db.add(Note(id="a", title="alpha note", content="keep me")); db.commit()
-    db.add(Note(id="b", title="beta note", content="delete me")); db.commit()
+    db.add(Note(id="a", title="alpha note", content="keep me"))
+    db.commit()
+    db.add(Note(id="b", title="beta note", content="delete me"))
+    db.commit()
     assert pix.reindex_source(db, "note") == 2 or pix.reindex_source(db, "note") > 0
     # delete row b at the table level WITHOUT a hook -> index now has an orphan
-    db.query(Note).filter_by(id="b").delete(); db.commit()
+    db.query(Note).filter_by(id="b").delete()
+    db.commit()
     res = pix.reconcile(db)
     assert res["orphans"] >= 1
     refs = {c.ref for c in db.query(IndexChunk).filter_by(kind="note").all()}
     assert "b" not in refs and "a" in refs
 
+
 def test_stats_and_clear():
     db = _db()
-    db.add(Note(id="s1", title="x", content="hello world")); db.commit()
+    db.add(Note(id="s1", title="x", content="hello world"))
+    db.commit()
     pix.reindex_source(db, "note")
     st = pix.stats(db)
     assert st["by_kind"].get("note", 0) >= 1
@@ -509,10 +571,12 @@ import time as _time
 
 _last_reconcile = ""  # iso, for stats
 
+
 def reindex_source(db, kind) -> int:
     ad = _ADAPTERS.get(kind)
     if not ad or not _source_enabled(kind) or (kind == "journal" and _journal_locked()):
         from services import textindex as _ti
+
         _ti.reindex_kind(db, kind, [])  # wipe it
         return 0
     items = []
@@ -522,12 +586,17 @@ def reindex_source(db, kind) -> int:
             items.append((ad["ref"](o), text))
     return textindex.reindex_kind(db, kind, items)
 
+
 def reindex_all(db) -> dict:
-    return {k: reindex_source(db, k) for k in WRITE_KINDS if k != "mail"}  # mail bodies fill in via reconcile
+    return {
+        k: reindex_source(db, k) for k in WRITE_KINDS if k != "mail"
+    }  # mail bodies fill in via reconcile
+
 
 def reconcile(db) -> dict:
     global _last_reconcile
     from core.database import IndexChunk
+
     orphans = 0
     for kind in WRITE_KINDS:
         ad = _ADAPTERS.get(kind)
@@ -539,23 +608,28 @@ def reconcile(db) -> dict:
                 orphans += textindex.remove(db, kind, ref)
     mailed = _index_mail_batch(db)  # defined in A6; returns 0 until then
     from datetime import datetime
+
     _last_reconcile = datetime.utcnow().isoformat(timespec="seconds")
     return {"orphans": orphans, "mail_indexed": mailed}
+
 
 def stats(db) -> dict:
     by = {k: v for k, v in textindex.stats(db).items() if k in PERSONAL_KINDS}
     pending = 0
     try:
         from core.database import CachedMessage
+
         pending = db.query(CachedMessage).filter_by(body_indexed=False).count()
     except Exception:
         pending = 0
     return {"by_kind": by, "mail_pending": pending, "last_reconcile": _last_reconcile}
 
+
 def clear(db) -> int:
     n = 0
     for kind in PERSONAL_KINDS:
         from core.database import IndexChunk
+
         n += db.query(IndexChunk).filter_by(kind=kind).delete()
     db.commit()
     return n
@@ -571,16 +645,18 @@ def _index_mail_batch(db, limit=20) -> int:
 Register the job in `app.py` inside `_register_jobs()` (mirror `jobs.register("subscriptions", _subs, 30)`):
 
 ```python
-    async def _reconcile():
-        from core.database import SessionLocal
-        from services import personal_index
-        db = SessionLocal()
-        try:
-            personal_index.reconcile(db)
-        finally:
-            db.close()
+async def _reconcile():
+    from core.database import SessionLocal
+    from services import personal_index
 
-    jobs.register("personal_reconcile", _reconcile, 120, run_at_start=False)
+    db = SessionLocal()
+    try:
+        personal_index.reconcile(db)
+    finally:
+        db.close()
+
+
+jobs.register("personal_reconcile", _reconcile, 120, run_at_start=False)
 ```
 
 - [ ] **Step 4: Run it, expect PASS**
@@ -614,15 +690,21 @@ git commit -m "personal index: backfill, reconcile (orphan-drop), stats, clear +
 # tests/test_personal_index.py (append)
 from core.database import CachedMessage
 
+
 def test_mail_subject_indexed_and_body_batch(monkeypatch):
     db = _db()
-    m = CachedMessage(id="m1", account_id="acc", uid="42", sender="sam@acme.com", subject="trip plans")
-    db.add(m); db.commit()
+    m = CachedMessage(
+        id="m1", account_id="acc", uid="42", sender="sam@acme.com", subject="trip plans"
+    )
+    db.add(m)
+    db.commit()
     # subject/sender searchable immediately via the adapter
     pix.index_record(db, "mail", m)
     assert pix.search(db, "trip plans sam", kinds=["mail"], k=5)
     # body indexer pulls the body and re-indexes, flips body_indexed
-    monkeypatch.setattr(pix, "_fetch_mail_body", lambda db, msg: "we leave friday from the north station")
+    monkeypatch.setattr(
+        pix, "_fetch_mail_body", lambda db, msg: "we leave friday from the north station"
+    )
     n = pix._index_mail_batch(db, limit=10)
     assert n == 1
     assert db.query(CachedMessage).filter_by(id="m1").first().body_indexed is True
@@ -741,15 +823,18 @@ from core.database import Base, Note
 from services import personal_index as pix
 from services import agent_tools
 
+
 def _bind_memory_db():
     eng = create_engine("sqlite:///:memory:")
     Base.metadata.create_all(eng)
     DB.SessionLocal = sessionmaker(bind=eng)  # tools open their own SessionLocal
     return DB.SessionLocal()
 
+
 def test_recall_tool_finds_note():
     db = _bind_memory_db()
-    db.add(Note(id="n1", title="garage code", content="the side door code is 4417")); db.commit()
+    db.add(Note(id="n1", title="garage code", content="the side door code is 4417"))
+    db.commit()
     pix.index_record(db, "note", db.query(Note).filter_by(id="n1").first())
     out = asyncio.run(agent_tools.execute("recall", {"query": "garage door code"}))
     assert not out.get("error")
@@ -768,6 +853,7 @@ In `services/agent_tools.py`:
 Add to `APP_TOOL_DEFS`:
 
 ```python
+(
     _tool(
         "recall",
         "Semantically recall the user's own saved text - their notes, journal, mail, contacts, "
@@ -780,6 +866,7 @@ Add to `APP_TOOL_DEFS`:
         },
         ["query"],
     ),
+)
 ```
 
 Add to `TOOL_PERMISSION`: `"recall": "read",`. Add `"recall"` to the `UNTRUSTED_TOOLS` set (its output is the user's own text but may contain pasted/forwarded content). Do NOT add it to `MUTATING_TOOLS`.
@@ -797,6 +884,7 @@ Add the handler:
 async def _recall(query, top_k):
     from core.database import SessionLocal
     from services import personal_index
+
     db = SessionLocal()
     try:
         hits = personal_index.search(db, query, k=int(top_k or 8))
@@ -842,12 +930,34 @@ git commit -m "agent: recall tool over the personal index"
 from core.database import Account, Transaction
 from datetime import date
 
+
 def test_money_query_totals():
     db = _bind_memory_db()
-    db.add(Account(id="ac", name="Checking", kind="checking", currency="$", opening=100.0)); db.commit()
+    db.add(Account(id="ac", name="Checking", kind="checking", currency="$", opening=100.0))
+    db.commit()
     mo = date.today().strftime("%Y-%m")
-    db.add(Transaction(id="t1", account_id="ac", date=f"{mo}-05", amount=-12.5, category="coffee", payee="Blue Bottle")); db.commit()
-    db.add(Transaction(id="t2", account_id="ac", date=f"{mo}-06", amount=-7.5, category="coffee", payee="Local Cafe")); db.commit()
+    db.add(
+        Transaction(
+            id="t1",
+            account_id="ac",
+            date=f"{mo}-05",
+            amount=-12.5,
+            category="coffee",
+            payee="Blue Bottle",
+        )
+    )
+    db.commit()
+    db.add(
+        Transaction(
+            id="t2",
+            account_id="ac",
+            date=f"{mo}-06",
+            amount=-7.5,
+            category="coffee",
+            payee="Local Cafe",
+        )
+    )
+    db.commit()
     out = asyncio.run(agent_tools.execute("money_query", {"query": "coffee"}))
     assert not out.get("error")
     assert "Checking" in out["output"]
@@ -865,14 +975,21 @@ Expected: FAIL - `unknown tool: money_query`.
 Add the schema to `APP_TOOL_DEFS`:
 
 ```python
+(
     _tool(
         "money_query",
         "Read-only money analytics: account balances, net worth, this-month income/spend, spend by "
         "category, and the total matching a payee/category term. Use for 'how much did I spend / "
         "what's my balance' questions.",
-        {"query": {"type": "string", "description": "optional payee/category to total, e.g. 'coffee'"}},
+        {
+            "query": {
+                "type": "string",
+                "description": "optional payee/category to total, e.g. 'coffee'",
+            }
+        },
         [],
     ),
+)
 ```
 
 Add `"money_query": "read"` to `TOOL_PERMISSION` (not mutating, not untrusted - it's our own structured data). Add dispatch before the final return in `execute`:
@@ -888,6 +1005,7 @@ Add the handler:
 async def _money_query(query):
     from core.database import SessionLocal, Account, Transaction
     from datetime import date
+
     db = SessionLocal()
     try:
         accts = db.query(Account).filter_by(archived=False).all()
@@ -895,7 +1013,7 @@ async def _money_query(query):
         bal = {a.id: (a.opening or 0.0) for a in accts}
         for t in txns:
             if t.account_id in bal:
-                bal[t.account_id] += (t.amount or 0.0)
+                bal[t.account_id] += t.amount or 0.0
         lines = [f"{a.name} ({a.kind}): {a.currency}{bal[a.id]:.2f}" for a in accts]
         net = sum(bal.values())
         mo = date.today().strftime("%Y-%m")
@@ -911,13 +1029,19 @@ async def _money_query(query):
                     cats[c] = cats.get(c, 0.0) + (-amt)
         top = sorted(cats.items(), key=lambda x: -x[1])[:8]
         out = (
-            "accounts:\n" + "\n".join(lines) +
-            f"\nnet worth: {net:.2f}\n\nthis month ({mo}): income {inc:.2f}, spent {exp:.2f}\n" +
-            "by category:\n" + "\n".join(f"  {c}: {v:.2f}" for c, v in top)
+            "accounts:\n"
+            + "\n".join(lines)
+            + f"\nnet worth: {net:.2f}\n\nthis month ({mo}): income {inc:.2f}, spent {exp:.2f}\n"
+            + "by category:\n"
+            + "\n".join(f"  {c}: {v:.2f}" for c, v in top)
         )
         q = (query or "").lower().strip()
         if q:
-            match = [t for t in txns if q in ((t.payee or "") + " " + (t.category or "") + " " + (t.notes or "")).lower()]
+            match = [
+                t
+                for t in txns
+                if q in ((t.payee or "") + " " + (t.category or "") + " " + (t.notes or "")).lower()
+            ]
             spent = sum(-(t.amount or 0.0) for t in match if (t.amount or 0.0) < 0)
             out += f"\n\nmatching '{query}': {len(match)} txns, spent {spent:.2f}"
         return {"output": out, "error": False}
@@ -958,9 +1082,18 @@ git commit -m "agent: money_query read-only analytics tool"
 # tests/test_api_recall.py
 from core.settings import load_settings, save_settings
 
+
 def test_pidx_settings_defaults_and_patch():
     s = load_settings()
-    for k in ("pidx_enabled", "pidx_mail", "pidx_note", "pidx_journal", "pidx_contact", "pidx_read", "pidx_book"):
+    for k in (
+        "pidx_enabled",
+        "pidx_mail",
+        "pidx_note",
+        "pidx_journal",
+        "pidx_contact",
+        "pidx_read",
+        "pidx_book",
+    ):
         assert s.get(k) is True
     save_settings({"pidx_mail": False})
     assert load_settings().get("pidx_mail") is False
@@ -1029,8 +1162,10 @@ git commit -m "recall settings: pidx_* keys + patch fields"
 # tests/test_api_recall.py (append)
 from fastapi.testclient import TestClient
 
+
 def test_recall_endpoints():
     from app import app
+
     c = TestClient(app)
     r = c.get("/api/recall/stats")
     assert r.status_code == 200
@@ -1097,6 +1232,7 @@ Register it in `app.py` next to the other `app.include_router(...)` calls:
 
 ```python
 from routes import recall as recall_routes
+
 app.include_router(recall_routes.router)
 ```
 
@@ -1135,6 +1271,7 @@ git commit -m "recall api: reindex / stats / clear endpoints"
 import sys
 from playwright.sync_api import sync_playwright
 
+
 def main():
     port = sys.argv[1] if len(sys.argv) > 1 else "8155"
     r, errs = {}, []
@@ -1153,6 +1290,7 @@ def main():
     for k, v in r.items():
         print(f"{'PASS' if v else 'FAIL'}  {k}")
     return 0 if all(r.values()) else 1
+
 
 if __name__ == "__main__":
     sys.exit(main())

@@ -48,7 +48,10 @@ def render() -> str:
         "",
         f"- registered feature groups: {len(routing['routes'])}",
         f"- routed delivery and verification tasks: {len(tasks)}",
-        *[f"- `{model}` / `{effort}`: {count}" for (model, effort), count in sorted(counts.items())],
+        *[
+            f"- `{model}` / `{effort}`: {count}"
+            for (model, effort), count in sorted(counts.items())
+        ],
         "",
         "`max` is not a starting route. Escalate to `gpt-5.6-sol` / `max` only when one of these",
         "conditions is recorded:",

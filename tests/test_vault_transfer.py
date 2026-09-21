@@ -598,8 +598,12 @@ class VaultTransferTests(unittest.TestCase):
             result = vault_transfer.import_external_vault(str(external), "imported copy")
         destination = Path(result["destination"])
         self.assertEqual(self.active, destination)
-        self.assertTrue(vault_transfer._same_inventory(expected, vault_transfer._inventory(external)))
-        self.assertTrue(vault_transfer._same_inventory(expected, vault_transfer._inventory(destination)))
+        self.assertTrue(
+            vault_transfer._same_inventory(expected, vault_transfer._inventory(external))
+        )
+        self.assertTrue(
+            vault_transfer._same_inventory(expected, vault_transfer._inventory(destination))
+        )
         rolled_back = vault_transfer.rollback_vault_transfer(result["id"])
         self.assertEqual(rolled_back["state"], "rolled_back")
         self.assertEqual(self.active, self.source)
@@ -613,10 +617,16 @@ class VaultTransferTests(unittest.TestCase):
             result = vault_transfer.import_external_vault(str(external), "imported move", move=True)
         self.assertTrue(result["old_deleted"])
         self.assertFalse(external.exists())
-        self.assertTrue(vault_transfer._same_inventory(expected, vault_transfer._inventory(Path(result["destination"]))))
+        self.assertTrue(
+            vault_transfer._same_inventory(
+                expected, vault_transfer._inventory(Path(result["destination"]))
+            )
+        )
         vault_transfer.rollback_vault_transfer(result["id"])
         self.assertEqual(self.active, self.source)
-        self.assertTrue(vault_transfer._same_inventory(expected, vault_transfer._inventory(external)))
+        self.assertTrue(
+            vault_transfer._same_inventory(expected, vault_transfer._inventory(external))
+        )
 
     def test_external_preview_reports_destination_conflict_and_space(self):
         external = self.destination_parent / "external-conflict"

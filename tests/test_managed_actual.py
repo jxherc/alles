@@ -55,9 +55,7 @@ class ManagedActualTests(unittest.TestCase):
         owned = mock.Mock(returncode=0, stdout="p123\nn127.0.0.1:5007\n")
         spoofed = mock.Mock(returncode=0, stdout="p999\nn127.0.0.1:5007\n")
         with mock.patch.object(managed_actual.sys, "platform", "darwin"):
-            self.assertTrue(
-                managed_actual._listener_owned_by(123, runner=lambda *_a, **_k: owned)
-            )
+            self.assertTrue(managed_actual._listener_owned_by(123, runner=lambda *_a, **_k: owned))
             self.assertFalse(
                 managed_actual._listener_owned_by(123, runner=lambda *_a, **_k: spoofed)
             )
@@ -73,9 +71,7 @@ class ManagedActualTests(unittest.TestCase):
             self.assertEqual(
                 managed_actual._listener_pids(runner=lambda *_a, **_k: listener), {321}
             )
-            self.assertIsNone(
-                managed_actual._listener_pids(runner=lambda *_a, **_k: scan_failed)
-            )
+            self.assertIsNone(managed_actual._listener_pids(runner=lambda *_a, **_k: scan_failed))
 
         script = (
             managed_actual.app_dir()

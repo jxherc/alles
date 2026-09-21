@@ -10,12 +10,19 @@ SHOT_DIR = Path(os.environ.get("STARTER_SHOTS", "/tmp/alles-completion-starter")
 
 
 def no_overflow(page: Page) -> None:
-    assert page.evaluate("document.documentElement.scrollWidth <= document.documentElement.clientWidth")
+    assert page.evaluate(
+        "document.documentElement.scrollWidth <= document.documentElement.clientWidth"
+    )
 
 
 def errors(page: Page, bucket: list[str]) -> None:
     page.on("pageerror", lambda error: bucket.append(f"page: {error}"))
-    page.on("console", lambda message: bucket.append(f"console: {message.text}") if message.type == "error" else None)
+    page.on(
+        "console",
+        lambda message: (
+            bucket.append(f"console: {message.text}") if message.type == "error" else None
+        ),
+    )
 
 
 def open_surface(page: Page, name: str) -> None:
@@ -59,7 +66,9 @@ def desktop(page: Page) -> None:
     first = page.locator('#question-form [role="radio"]').first
     first.focus()
     page.keyboard.press("ArrowDown")
-    assert page.locator('#question-form [role="radio"]').nth(1).get_attribute("aria-checked") == "true"
+    assert (
+        page.locator('#question-form [role="radio"]').nth(1).get_attribute("aria-checked") == "true"
+    )
     history = page.locator('#question-form [role="checkbox"][data-value="history"]')
     history.focus()
     page.keyboard.press("Space")
@@ -119,7 +128,11 @@ def run() -> None:
     found: list[str] = []
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(headless=True)
-        context = browser.new_context(viewport={"width": 1440, "height": 920}, reduced_motion="reduce", service_workers="block")
+        context = browser.new_context(
+            viewport={"width": 1440, "height": 920},
+            reduced_motion="reduce",
+            service_workers="block",
+        )
         page = context.new_page()
         page.set_default_timeout(10_000)
         errors(page, found)

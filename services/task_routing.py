@@ -76,15 +76,25 @@ def validate_task_routing(document: dict[str, Any], registry: dict[str, Any]) ->
         value = benchmark[field]
         if (field == "summary" and (not isinstance(value, str) or not value.strip())) or (
             field != "summary"
-            and (not isinstance(value, list) or not value or any(not isinstance(item, str) or not item for item in value))
+            and (
+                not isinstance(value, list)
+                or not value
+                or any(not isinstance(item, str) or not item for item in value)
+            )
         ):
             raise TaskRoutingError(f"benchmark_basis.{field} is invalid")
 
     escalation = document["escalation"]
     if not isinstance(escalation, dict) or set(escalation) != {"model", "effort", "triggers"}:
         raise TaskRoutingError("escalation is incomplete")
-    _validate_choice({"model": escalation["model"], "effort": escalation["effort"]}, "escalation", allow_max=True)
-    if escalation["effort"] != "max" or not isinstance(escalation["triggers"], list) or not escalation["triggers"]:
+    _validate_choice(
+        {"model": escalation["model"], "effort": escalation["effort"]}, "escalation", allow_max=True
+    )
+    if (
+        escalation["effort"] != "max"
+        or not isinstance(escalation["triggers"], list)
+        or not escalation["triggers"]
+    ):
         raise TaskRoutingError("max effort must remain a trigger-only escalation")
 
     features = {row["id"]: row for row in feature_rows(registry)}
@@ -130,7 +140,11 @@ def resolved_tasks(
     tasks: list[dict[str, str]] = []
     for route in routing["routes"]:
         feature = features[route["feature_id"]]
-        delivery_label = "finish implementation" if feature["implementation"] == "partial" else "re-audit and repair implementation"
+        delivery_label = (
+            "finish implementation"
+            if feature["implementation"] == "partial"
+            else "re-audit and repair implementation"
+        )
         tasks.append(
             {
                 "feature_id": feature["id"],
