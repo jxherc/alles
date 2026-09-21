@@ -41,6 +41,8 @@ const P = {
   image: '<rect x="3.5" y="4.5" width="17" height="15" rx="2"/><circle cx="8.5" cy="9.5" r="1.6"/><polyline points="5 17 10 12 13 15 16 12 20 16"/>',
   file: '<path d="M7 3.5h7L19 8v12a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4.5a1 1 0 0 1 1-1z"/><polyline points="13.5 3.5 13.5 8.5 18.5 8.5"/>',
   folder: '<path d="M4 7a2 2 0 0 1 2-2h3l2 2.5h7a2 2 0 0 1 2 2V18a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/>',
+  cloud: '<path d="M7 18a5 5 0 0 1-1-9.9A6 6 0 0 1 17.7 9H18a4.5 4.5 0 0 1 0 9z"/>',
+  database: '<ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/>',
   tag: '<path d="M4 4h7l9 9-7 7-9-9z"/><circle cx="8" cy="8" r="1.4"/>',
   bell: '<path d="M7 17V11a5 5 0 0 1 10 0v6l1.5 2H5.5z"/><path d="M10 19a2 2 0 0 0 4 0"/>',
   play: '<polygon points="7 5 19 12 7 19"/>',

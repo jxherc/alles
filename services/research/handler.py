@@ -63,7 +63,7 @@ def cancel_task(session_id: str):
             r.cancel()
 
 
-# phase → human step line for the existing research.js UI
+# phase → human step line for streaming research clients
 def _map_event(ev: dict) -> dict | None:
     phase = ev.get("phase")
     if phase == "planning":

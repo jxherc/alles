@@ -105,7 +105,7 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
                 "bootParams.get('web')",
             ),
             "docs.js": ("location.hash.slice(1)",),
-            "files.js": ("get('p')", "sp.get('sort')", "sp.get('order')"),
+            "filesphase7.js": ("params.get('p')", "params.get('sort')", "params.get('order')"),
             "money.js": ("get('m')",),
             "journal.js": ("get('d')",),
             "activity.js": ("p.get('days')", "p.get('hide')", "p.get('q')"),

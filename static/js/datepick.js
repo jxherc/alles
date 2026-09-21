@@ -32,7 +32,6 @@ export function initDatePicker(el) {
   });
 }
 
-export const getDateValue = el => el?.dataset?.value || '';
 
 const _isDate = el => el.dataset.type === 'date';
 const _z = n => String(n).padStart(2, '0');

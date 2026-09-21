@@ -170,7 +170,10 @@ class ControlCensusTest(unittest.TestCase):
             for row in self.document["controls"]
             if row["handler"]["discoverability"] == "nearest-enclosing-function"
         ]
-        self.assertGreaterEqual(len(inferred), 890)
+        dynamic = self.document["summary"]["dynamic_templates"]
+        self.assertGreater(dynamic, 0)
+        # Keep inference coverage strong without requiring retired controls to remain.
+        self.assertGreaterEqual(len(inferred) / dynamic, 0.95)
 
     def test_generator_output_is_current_and_reconciles(self):
         result = subprocess.run(

@@ -953,28 +953,6 @@ class RenameBody(BaseModel):
     location_id: str | None = None
 
 
-def _meta_models():
-    from core.database import FileVersion
-
-    return (FileTag, FileComment, FileVersion)
-
-
-def _path_filter(Model, path, location_id):
-    normalized = _identity_path(path)
-    pre = normalized.rstrip("/") + "/"
-    return and_(
-        Model.location_id == location_id,
-        or_(
-            Model.normalized_path == normalized,
-            Model.normalized_path.startswith(pre),
-            and_(
-                or_(Model.normalized_path.is_(None), Model.normalized_path == ""),
-                or_(Model.path == path, Model.path.startswith(pre)),
-            ),
-        ),
-    )
-
-
 @router.post("/rename")
 def rename(body: RenameBody, db: DbSession = Depends(get_db)):
     location = _location(db, body.location_id)

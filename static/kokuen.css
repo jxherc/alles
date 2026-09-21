@@ -5005,71 +5005,6 @@ body[data-app="files"] #files-view .crumb-sep {
   color: var(--k-quiet);
 }
 
-body[data-app="files"] #files-view .files-sortbar {
-  gap: var(--k-space-1);
-}
-
-body[data-app="files"] #files-view .files-sortbar::before {
-  margin-right: var(--k-space-1);
-  color: var(--k-quiet);
-  font-size: 12px;
-  letter-spacing: 0;
-  text-transform: lowercase;
-}
-
-body[data-app="files"] #files-view .files-sort {
-  min-height: 32px;
-  padding: 0 var(--k-space-2);
-  border: 0;
-  border-radius: var(--k-radius-control);
-  color: var(--k-muted);
-  font: 400 13px/1 var(--k-font);
-}
-
-body[data-app="files"] #files-view .files-sort:hover,
-body[data-app="files"] #files-view .files-sort:focus-visible {
-  background: var(--k-hover);
-  color: var(--k-text);
-}
-
-body[data-app="files"] #files-view .files-sort.on {
-  border: 0;
-  background: var(--k-raised);
-  color: var(--k-text);
-}
-
-body[data-app="files"] #files-view .files-quota {
-  min-width: 0;
-  gap: var(--k-space-2);
-}
-
-body[data-app="files"] #files-view .files-quota-bar {
-  width: 96px;
-  flex-basis: 96px;
-  height: 4px;
-  border: 0;
-  border-radius: var(--k-radius-small);
-  background: var(--k-raised);
-}
-
-body[data-app="files"] #files-view .files-quota-fill {
-  border-radius: var(--k-radius-small);
-  background: var(--k-accent);
-}
-
-body[data-app="files"] #files-view .files-quota-lbl {
-  overflow: hidden;
-  color: var(--k-muted);
-  font-size: 12px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-body[data-app="files"] #files-view .files-quota-free {
-  color: var(--k-success);
-  font-weight: 540;
-}
-
 body[data-app="files"] #files-view > .page-view-body {
   padding: 0 var(--k-space-4) var(--k-space-6);
   background: var(--k-page);
@@ -5078,30 +5013,6 @@ body[data-app="files"] #files-view > .page-view-body {
 body[data-app="files"] #files-view .files-list {
   width: min(100%, 1040px);
   margin-inline: auto;
-}
-
-body[data-app="files"] #files-view .files-smart-bar {
-  gap: var(--k-space-1);
-  padding: var(--k-space-3) 0;
-  border-color: var(--k-line);
-}
-
-body[data-app="files"] #files-view .files-smart {
-  min-height: var(--k-control-dense);
-  padding: 0 var(--k-space-3);
-  gap: var(--k-space-2);
-  border: 0;
-  border-radius: var(--k-radius-control);
-  background: transparent;
-  color: var(--k-muted);
-  font: 400 13px/1 var(--k-font);
-}
-
-body[data-app="files"] #files-view .files-smart:hover,
-body[data-app="files"] #files-view .files-smart:focus-visible {
-  border: 0;
-  background: var(--k-hover);
-  color: var(--k-text);
 }
 
 body[data-app="files"] #files-view .file-row {
@@ -5119,74 +5030,9 @@ body[data-app="files"] #files-view .file-row:focus-within {
   background: var(--k-hover);
 }
 
-body[data-app="files"] #files-view .file-icon {
-  color: var(--k-muted);
-}
-
-body[data-app="files"] #files-view .file-icon svg {
-  width: 18px;
-  height: 18px;
-}
-
 body[data-app="files"] #files-view .file-name {
   color: var(--k-text);
   font: 400 14px/1.4 var(--k-font);
-}
-
-body[data-app="files"] #files-view .file-meta {
-  color: var(--k-muted);
-  font: 400 12px/1.3 var(--k-font);
-}
-
-body[data-app="files"] #files-view .file-row-actions {
-  gap: var(--k-space-1);
-  transition: opacity var(--k-motion-fast) var(--k-ease);
-}
-
-body[data-app="files"] #files-view .file-row:focus-within .file-row-actions {
-  opacity: 1;
-}
-
-body[data-app="files"] #files-view .file-act {
-  min-width: 32px;
-  min-height: 32px;
-  padding: 0 var(--k-space-1);
-  border: 0;
-  border-radius: var(--k-radius-control);
-  background: transparent;
-  color: var(--k-muted);
-  font: 400 13px/1 var(--k-font);
-}
-
-body[data-app="files"] #files-view .file-act:hover,
-body[data-app="files"] #files-view .file-act:focus-visible {
-  background: var(--k-raised);
-  color: var(--k-text);
-}
-
-body[data-app="files"] #files-view .file-tag {
-  margin-left: var(--k-space-2);
-  padding: var(--k-space-1) var(--k-space-2);
-  border-color: var(--k-line);
-  border-radius: var(--k-radius-small);
-  color: var(--k-muted);
-  font-size: 12px;
-}
-
-body[data-app="files"] #files-view :where(.file-tagpop, .file-commentpop) {
-  border-color: var(--k-line-strong);
-  border-radius: var(--k-radius-surface);
-  background: var(--k-panel);
-  box-shadow: none;
-}
-
-body[data-app="files"] #files-view :where(.file-tagin, .file-creplyin, .file-caddin) {
-  min-height: var(--k-control-dense);
-  border-color: var(--k-line);
-  border-radius: var(--k-radius-control);
-  background: var(--k-page);
-  color: var(--k-text);
-  font-family: var(--k-font);
 }
 
 body[data-app="files"] #files-view .files-empty {
@@ -5197,32 +5043,6 @@ body[data-app="files"] #files-view .files-empty {
   color: var(--k-muted);
   font-size: 14px;
   text-align: center;
-}
-
-body[data-app="files"] #files-view .files-grid {
-  grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
-  gap: var(--k-space-3);
-  padding: var(--k-space-4) 0;
-}
-
-body[data-app="files"] #files-view .files-grid .file-row {
-  min-height: 184px;
-  gap: var(--k-space-2);
-  padding: var(--k-space-2);
-  border-color: var(--k-line);
-  border-radius: var(--k-radius-surface);
-  background: var(--k-panel);
-}
-
-body[data-app="files"] #files-view .files-grid .file-row:hover,
-body[data-app="files"] #files-view .files-grid .file-row:focus-within {
-  border-color: var(--k-line-strong);
-  background: var(--k-hover);
-}
-
-body[data-app="files"] #files-view .files-grid .file-thumb {
-  border-radius: var(--k-radius-small);
-  background: var(--k-page);
 }
 
 body[data-app="files"] .files-preview-card {
@@ -5242,14 +5062,8 @@ body[data-app="files"] .files-preview-name {
   font-size: 14px;
 }
 
-body[data-app="files"] :where(.files-preview-pre, .files-preview-table) {
+body[data-app="files"] :where(.files-preview-pre) {
   font-family: var(--k-mono);
-}
-
-@media (hover: none), (pointer: coarse) {
-  body[data-app="files"] #files-view .file-row-actions {
-    opacity: 1;
-  }
 }
 
 @media (max-width: 760px) {
@@ -5282,13 +5096,9 @@ body[data-app="files"] :where(.files-preview-pre, .files-preview-table) {
     padding: var(--k-space-2) var(--k-space-3);
   }
 
-  body[data-app="files"] #files-view :where(.files-breadcrumb, .files-sortbar, .files-quota) {
+  body[data-app="files"] #files-view :where(.files-breadcrumb) {
     width: 100%;
     margin-left: 0;
-  }
-
-  body[data-app="files"] #files-view .files-sortbar {
-    overflow-x: auto;
   }
 
   body[data-app="files"] #files-view > .page-view-body {
@@ -5303,33 +5113,6 @@ body[data-app="files"] :where(.files-preview-pre, .files-preview-table) {
     min-width: 60px;
   }
 
-  body[data-app="files"] #files-view .file-row-actions {
-    min-width: 0;
-    max-width: 42%;
-    flex: 0 1 42%;
-    overflow-x: auto;
-    scrollbar-width: none;
-  }
-
-  body[data-app="files"] #files-view .file-row-actions::-webkit-scrollbar {
-    display: none;
-  }
-
-  body[data-app="files"] #files-view .file-act {
-    min-width: var(--k-control);
-    min-height: var(--k-control);
-  }
-}
-
-@media (max-width: 520px) {
-  body[data-app="files"] #files-view .files-quota-bar,
-  body[data-app="files"] #files-view .file-meta {
-    display: none;
-  }
-
-  body[data-app="files"] #files-view .files-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
 }
 
 @media (max-width: 620px) {
@@ -5436,10 +5219,9 @@ body[data-app="files"] :where(.files-preview-pre, .files-preview-table) {
   body.afterlife-aide-projects[data-space="aide"] :where(
     .sidebar-brand,
     .search-wrap,
-    .file-row,
-    .file-row-actions
+    .file-row
   ),
-  body[data-app="files"] :where(.file-row, .file-row-actions) {
+  body[data-app="files"] :where(.file-row) {
     animation: none !important;
     transition-duration: 0.001ms !important;
   }
@@ -5670,6 +5452,7 @@ body[data-app="files"] #files-view :where(.files-phase7-app-context, .files-phas
 body[data-app="files"] #files-view .files-breadcrumb {
   display: flex;
   align-items: center;
+  flex-wrap: nowrap;
   min-width: 0;
   overflow-x: auto;
   scrollbar-width: none;
@@ -5681,6 +5464,7 @@ body[data-app="files"] #files-view .files-breadcrumb::-webkit-scrollbar {
 
 body[data-app="files"] #files-view .crumb {
   min-height: var(--k-control-dense);
+  flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
   border: 0;
@@ -6397,6 +6181,7 @@ body[data-app="files"] #files-view .files-vault-review strong { color: var(--k-t
     right: var(--k-space-2);
     bottom: var(--k-space-2);
     width: calc(100% - 16px);
+    max-width: calc(100vw - 52px - 16px);
   }
 
   body[data-app="files"]:has(#files-operation-dock:not([hidden])) .toast-container {

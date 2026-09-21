@@ -1922,8 +1922,6 @@ function bindEvents() {
   document.getElementById('attach-btn')?.addEventListener('click', () => {
     document.getElementById('file-input-hidden')?.click();
   });
-  // 10f — reveal live voice if a realtime provider is configured (gated otherwise)
-  import('./voice.js').then(m => m.initLiveVoice?.()).catch(() => {});
   document.getElementById('file-input-hidden')?.addEventListener('change', async e => {
     for (const f of e.target.files) await attachFile(f);
     e.target.value = '';

@@ -13,6 +13,8 @@ const state = {
   locations: [],
   locationId: '',
   cwd: '',
+  sort: 'name',
+  order: '',
   view: 'all',
   items: [],
   viewItems: [],
@@ -351,6 +353,8 @@ export async function loadFiles(path = state.cwd, fetcher = fetch) {
       '/api/files/list' + query({
         path,
         location_id: locationId,
+        sort: state.sort,
+        order: state.order,
       }),
       {},
       fetcher,
@@ -1648,6 +1652,9 @@ export function initFiles(fetcher = fetch) {
   const params = new URLSearchParams(location.search);
   state.cwd = params.get('p') || '';
   state.locationId = params.get('location') || '';
+  state.sort = ['name', 'size', 'mtime', 'type'].includes(params.get('sort'))
+    ? params.get('sort') : 'name';
+  state.order = ['asc', 'desc'].includes(params.get('order')) ? params.get('order') : '';
   bindEvents();
   const initialOperations = loadOperations(fetcher);
   operationPoll = window.setInterval(pollOperations, 4000);

@@ -139,8 +139,3 @@ export function setIncognitoMode(on) {
       : 'enable incognito mode';
   }
 }
-
-export function toggleIncognitoMode() {
-  setIncognitoMode(!_incognitoMode);
-  return _incognitoMode;
-}

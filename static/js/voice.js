@@ -6,7 +6,6 @@ let _recording = false;
 let _starting = false;
 let _settling = false;
 let _micIdleHtml = '';
-let _sendIdleHtml = '';
 let _audioCtx = null;
 let _analyser = null;
 let _waveRaf = 0;
@@ -19,25 +18,6 @@ let _mode = 'browser';
 let _take = 0;           // invalidates late callbacks after cancel or a newer recording
 let _transcriptionAbort = null;
 
-// 10f — reveal the full-duplex live-voice button only when a realtime provider is configured
-export async function initLiveVoice() {
-  const btn = document.getElementById('live-voice-btn');
-  if (!btn) return;
-  try {
-    const st = await fetch('/api/voice/realtime/status').then(r => r.json());
-    btn.style.display = st.available ? '' : 'none';
-    if (st.available) btn.title = `live voice (${st.model})`;
-  } catch { btn.style.display = 'none'; }
-  btn.onclick = async () => {
-    try {
-      const r = await fetch('/api/voice/realtime/session', { method: 'POST' });
-      if (!r.ok) { toast('live voice unavailable', 'error'); return; }
-      const d = await r.json();
-      // a realtime provider is configured → negotiate the full-duplex session with it here
-      toast(`live voice ready: ${d.model}`, 'success');
-    } catch { toast('live voice failed', 'error'); }
-  };
-}
 
 export function isRecording() { return _recording || _starting || _settling; }
 

@@ -2,6 +2,18 @@
 
 ## 2026-09-21
 
+Change: removed four disconnected frontend modules, their obsolete Files/research styles and tests,
+unused shared helpers, and seven uncalled private Python helpers. Removed the live-voice placeholder
+that reported success without opening a connection. Restored saved Files sorting, missing storage
+icons, mobile breadcrumb containment, and transfer-panel clipping under reduced motion; refreshed the offline cache and generated inventories.
+
+Files affected: static assets, chat/files route helpers, file/Discord/secret services, current Files
+and frontend inventory tests, browser gates, census, design warning audit, and cleanup evidence.
+
+Reason: keep one active implementation for each shipped flow and stop stale tests from certifying
+retired UI. Owner data, public APIs, migrations, active specialist modules and recovery logic remain.
+See docs/cleanup-2026-09-21.md for the removal boundaries and verification.
+
 Change: aligned the legacy Python switch contracts with the repaired track and target separation,
 including a new check that the 44px target stays transparent.
 
