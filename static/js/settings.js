@@ -2677,7 +2677,6 @@ async function saveDefaultChatBehavior(value) {
     const data = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(data.detail || 'chat behavior could not be saved');
     _renderChatBehavior(data.default_chat_behavior || value);
-    window._setDefaultChatBehavior?.(data.default_chat_behavior || value);
     toast('default chat behavior saved', 'success');
   } catch (error) {
     _renderChatBehavior(previous);

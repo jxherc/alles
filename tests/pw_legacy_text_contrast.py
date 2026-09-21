@@ -89,6 +89,18 @@ def run() -> None:
                     )
                     + "));"
                 )
+                # A previous browser gate may have saved a server theme. Set the
+                # owned fixture too, because boot correctly reconciles with it.
+                response = context.request.put(
+                    f"{BASE}/api/appearance",
+                    data={
+                        "preset": theme,
+                        "colors": colors,
+                        "font": "sans",
+                        "density": "comfortable",
+                    },
+                )
+                assert response.ok, response.text()
                 page = context.new_page()
                 page.on("pageerror", lambda error: errors.append(str(error)))
                 page.on(

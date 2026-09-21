@@ -7,6 +7,7 @@ const css = readFileSync(new URL('../../static/kokuen.css', import.meta.url), 'u
 const legacyCss = readFileSync(new URL('../../static/style.css', import.meta.url), 'utf8');
 const dropdownJs = readFileSync(new URL('../../static/js/dropdown.js', import.meta.url), 'utf8');
 const appJs = readFileSync(new URL('../../static/js/app.js', import.meta.url), 'utf8');
+const filesJs = readFileSync(new URL('../../static/js/filesphase7.js', import.meta.url), 'utf8');
 const universalLanguageStarter = readFileSync(
   new URL('../../docs/mockups/afterlife-navigation/kokuen-universal-language.html', import.meta.url),
   'utf8',
@@ -117,7 +118,7 @@ test('the finished surfaces share the documented rhythm and safe motion', () => 
   assert.match(css, /\.main\s*>\s*\.topbar[\s\S]*height:\s*var\(--k-app-header\)/);
   assert.match(css, /@media\s*\(max-width:\s*760px\)[\s\S]*min-height:\s*var\(--k-control\)/);
   assert.match(css, /\.file-name\s*\{[\s\S]*min-width:\s*60px/);
-  assert.match(css, /\.file-row-actions\s*\{[\s\S]*max-width:\s*42%/);
+  assert.match(css, /\.file-name-button\s*\{[^}]*min-width:\s*0[^}]*text-overflow:\s*ellipsis/);
   assert.match(css, /#settings-modal\[data-kokuen-surface="settings"\][\s\S]*\.s-nav[\s\S]*width:\s*204px/);
   assert.match(css, /#wiki-view\[data-kokuen-surface="docs"\][\s\S]*width:\s*244px/);
   assert.match(css, /#andromeda-view\[data-kokuen-surface="andromeda"\][\s\S]*box-shadow:\s*none/);
@@ -156,9 +157,12 @@ test('a fresh phone session keeps Aide to one usable pane', () => {
   assert.doesNotMatch(appJs, /sidebar starts open at every width/);
 });
 
-test('file row actions stay visible for keyboard and touch operation', () => {
-  assert.match(legacyCss, /\.file-row:focus-within \.file-row-actions\s*\{\s*opacity:\s*1/);
-  assert.match(legacyCss, /@media\s*\(hover:\s*none\),\s*\(pointer:\s*coarse\)[\s\S]*?\.file-row-actions\s*\{\s*opacity:\s*1/);
+test('current file controls use buttons and selection state rather than hover-only actions', () => {
+  assert.match(filesJs, /<button class="file-name-button" type="button" data-file-open/);
+  assert.match(filesJs, /<button class="files-check" type="button" role="checkbox"/);
+  assert.match(filesJs, /bar\.hidden = count === 0/);
+  assert.match(html, /<button[^>]+data-files-bulk="copy"[^>]+type="button"/);
+  assert.doesNotMatch(filesJs, /file-row-actions/);
 });
 
 test('universal-language file options activate from the keyboard', () => {

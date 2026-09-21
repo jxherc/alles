@@ -618,7 +618,26 @@ def _mobile(browser: Browser, errors: list[str]) -> None:
     assert page.locator("#files-detail-panel").is_visible()
     page.locator("#files-detail-close").click()
     assert page.locator("#files-detail-panel").is_hidden()
-    page.screenshot(path="/tmp/alles-phase7-files-real-mobile.png", full_page=True)
+    for theme in ("dark", "light"):
+        page.evaluate(
+            "theme => import('/static/js/theme.js').then(m => m.resetToDefault(theme))", theme
+        )
+        page.wait_for_timeout(100)
+        dock = page.locator("#files-operation-dock").bounding_box()
+        workbench = page.locator("#files-view").bounding_box()
+        assert dock and workbench
+        assert dock["x"] >= workbench["x"], "transfer panel must stay clear of the shell rail"
+        assert dock["x"] + dock["width"] <= 390
+        page.screenshot(path=f"/tmp/alles-phase7-files-real-mobile-{theme}.png", full_page=True)
+    operations = page.request.get(f"{BASE}api/files/operations?limit=40").json()["operations"]
+    completed = [row["id"] for row in operations if row["state"] == "completed"]
+    assert completed
+    page.locator("#files-operations-clear").click()
+    for operation_id in completed:
+        assert page.locator(f'[data-operation-id="{operation_id}"]').count() == 0
+    page.locator("#files-operations-clear").click()
+    for operation_id in completed:
+        page.wait_for_selector(f'[data-operation-id="{operation_id}"]', state="attached")
     context.close()
 
 

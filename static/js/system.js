@@ -19,46 +19,6 @@ export function graphCols(w, bw = 2) {
 const cpuHist = [], ramHist = [], netDownHist = [], netUpHist = [], dioHist = [];
 const coreHist = [];   // per-core %, coreHist[i] = that core's history
 
-// how many monospace columns fit a graph element — so graphs FILL their box
-// (btop sizes the graph to the box width and scrolls data in from the right).
-const _cw = {};
-function charW(small) {
-  const k = small ? 'sm' : 'lg';
-  if (_cw[k]) return _cw[k];
-  const p = document.createElement('span');
-  p.className = 'graph' + (small ? ' graph-sm' : '');
-  p.style.cssText = 'position:absolute;visibility:hidden;white-space:pre;padding:0;margin:0;border:0';
-  p.textContent = '█'.repeat(40);
-  document.body.appendChild(p);
-  const w = p.getBoundingClientRect().width / 40;
-  p.remove();
-  if (w > 0) _cw[k] = w;
-  return w || 8;
-}
-function colsFor(el, small) {
-  if (!el || !el.clientWidth) return 60;
-  return Math.max(8, Math.floor((el.clientWidth - 9) / charW(small)));
-}
-// how many text rows fit a graph box's height — so braille graphs FILL vertically too
-const _chh = {};
-function charH(small) {
-  const k = small ? 'sm' : 'lg';
-  if (_chh[k]) return _chh[k];
-  const p = document.createElement('pre');
-  p.className = 'graph' + (small ? ' graph-sm' : '');
-  p.style.cssText = 'position:absolute;visibility:hidden;margin:0;padding:0;border:0;white-space:pre';
-  p.textContent = ('⣿\n').repeat(10) + '⣿';   // 11 lines
-  document.body.appendChild(p);
-  const h = p.getBoundingClientRect().height / 11;
-  p.remove();
-  if (h > 0) _chh[k] = h;
-  return h || 12;
-}
-function rowsFor(el, small, fallback) {
-  if (!el || !el.clientHeight) return fallback || (small ? 4 : 9);
-  return Math.max(2, Math.floor((el.clientHeight - 7) / charH(small)));   // 7 = vertical padding
-}
-
 // ── os logos (neofetch-style, picked by the detected platform) ───────────────
 const LOGOS = {
   // the real neofetch windows-10 logo

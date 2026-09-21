@@ -494,5 +494,3 @@ function _renderDone(body) {
   $('sw-start').addEventListener('click', _close);
   $('sw-start').focus();
 }
-
-export const _setupInternals = { _choiceGroup, STEPS };

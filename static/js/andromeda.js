@@ -1,5 +1,4 @@
 import { initCustomDropdowns, populateDropdown, setDropdownValue } from './dropdown.js?v=212';
-import { urlForApp } from './subdomain.js?v=237';
 import { confirm as confirmDialog } from './dialog.js';
 import { formatDate, formatDateTime, t as tr, tp as trp } from './i18n.js';
 import { setControlState } from './kokuen.js?v=1';

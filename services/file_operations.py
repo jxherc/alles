@@ -299,16 +299,6 @@ def _file_descriptor_hash(descriptor: int) -> tuple[int, str]:
     return size, digest.hexdigest()
 
 
-def _file_hash(path: Path) -> tuple[int, str]:
-    descriptor = _open_exact(path, os.O_RDONLY)
-    try:
-        if not stat.S_ISREG(os.fstat(descriptor).st_mode):
-            raise FileOperationError("unsupported file type")
-        return _file_descriptor_hash(descriptor)
-    finally:
-        os.close(descriptor)
-
-
 def fingerprint(path: Path) -> dict:
     """Return a stable content fingerprint without following external links."""
     try:
@@ -4534,12 +4524,6 @@ def _verified_snapshot(location, path: str, target: Path, expected: dict) -> Pat
     if fingerprint(target) != expected:
         raise FileOperationError("file changed; undo stopped")
     return target
-
-
-def _require_absent(location, path: str, target: Path) -> None:
-    existing = _destination_snapshot(location, path, target)
-    if existing is not None:
-        raise FileOperationError("undo destination already exists")
 
 
 def _delete_owned_s3_destination(
