@@ -17,20 +17,30 @@ def _block(selector):
 
 
 class ToggleSwitchTests(unittest.TestCase):
-    def test_switch_track_is_pill(self):
+    def test_switch_target_is_separate_from_visible_track(self):
         body = _block(".s-switch")
+        self.assertIn("width: 44px", body)
+        self.assertIn("height: 44px", body)
+        self.assertIn("background: transparent", body)
+        self.assertIn("border: 0", body)
+
+    def test_switch_track_is_pill(self):
+        body = _block(".s-switch::before")
+        self.assertIn("width: 42px", body)
+        self.assertIn("height: 24px", body)
         m = re.search(r"border-radius:\s*(\d+)px", body)
-        self.assertTrue(m, "no border-radius on .s-switch")
-        self.assertGreaterEqual(int(m.group(1)), 10, "track radius too small to read as a pill")
+        self.assertTrue(m, "no border-radius on the visible switch track")
+        self.assertGreaterEqual(int(m.group(1)), 12, "track radius too small to read as a pill")
 
     def test_switch_knob_is_round(self):
         self.assertIn("border-radius: 50%", _block(".s-switch::after"))
 
     def test_switch_on_moves_knob(self):
-        self.assertIn("left: 16px", _block(".s-switch.on::after"))
+        self.assertIn("left: 5px", _block(".s-switch::after"))
+        self.assertIn("left: 23px", _block(".s-switch.on::after"))
 
-    def test_switch_on_changes_background(self):
-        self.assertIn("var(--accent)", _block(".s-switch.on"))
+    def test_switch_on_changes_track_background(self):
+        self.assertRegex(_block(".s-switch.on::before"), r"background:[^;]+var\(--accent\)")
 
 
 class SegmentedControlTests(unittest.TestCase):

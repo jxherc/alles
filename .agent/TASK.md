@@ -1,7 +1,21 @@
 # current mission
 
 ## goal
-Recover the previous conversation, repair confirmed broken or stale Alles UI, verify the real app, publish to the existing `dev-afterlife` branch, and propose a useful direction alongside DeepSeek Harness.
+Repair the failed GitHub Actions run on dev-afterlife and continue until the full remote run succeeds.
+The preceding UI repair and product proposal remain below as context.
+
+## current follow-up
+- GitHub run 35584846959 failed three source contracts in tests/test_ui_controls.py. They still
+  expect the old switch target to be its track and the knob to move to 16px.
+- The earlier full Python run preceded the final switch edits; focused coverage missed this module.
+- Plan: reproduce all three failures locally, align the contracts with the approved separated
+  44px target / 42px track, verify focused and real-browser behavior, push and await the full CI result.
+- Reproduced all three failures locally. Repaired the track selector, active-track background and
+  knob endpoint assertions, and added an explicit transparent 44px target contract.
+- Verification: all 24 focused UI/design/lint tests pass; Ruff lint/format and the real-browser
+  pointer/Space/focus/reduced-motion switch gate pass on owned desktop/phone fixtures.
+- Full remote acceptance is the GitHub `tests` check attached to this follow-up commit on dev-afterlife.
+  Its completed result is authoritative; the earlier full-suite evidence below predates the switch fix.
 
 ## requirements and boundaries
 - Work in `/Users/jxh/Projects/alles`; preserve private owner data and existing edits.

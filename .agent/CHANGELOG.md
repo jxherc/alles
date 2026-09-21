@@ -2,6 +2,15 @@
 
 ## 2026-09-21
 
+Change: aligned the legacy Python switch contracts with the repaired track and target separation,
+including a new check that the 44px target stays transparent.
+
+Files affected: tests/test_ui_controls.py and repair evidence/task notes.
+
+Reason: GitHub run 35584846959 found three stale assertions after the final switch changes. They were
+reproduced locally; focused checks and actual pointer/keyboard switch verification now pass. Full
+remote acceptance remains the tests check on the follow-up commit.
+
 Change: recovered July's conversation and August's unpublished repairs; corrected invisible legacy
 text, light inline-code backgrounds, placeholder contrast, Files metadata, and light Server numbers.
 Restored rounded switch tracks within 44px targets, preserved Andromeda keyboard focus during saves,
