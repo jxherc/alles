@@ -61,6 +61,11 @@ Use for sibling views of the same data, not navigation to unrelated apps. Follow
 
 Use only for an immediate binary setting. Use a custom button with `role="switch"` and `aria-checked`. Put the label and effect beside it. Do not use a native checkbox or a sun/moon theme switch.
 
+Keep the 44px interaction target separate from its visible 42px by 24px rounded track.
+Center the 16px circular knob vertically and move it horizontally between states. The
+hit-area rule must never stretch the track into a circle or square. Settings, Home,
+setup, and Andromeda use this same geometry; reduced motion removes the knob transition.
+
 ## field
 
 Visible label first, then control, helper or error below. Placeholder text is an example, never the label. Validation occurs at a useful time, preserves input, connects the error with `aria-describedby`, and says how to recover.

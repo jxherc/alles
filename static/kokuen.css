@@ -2570,7 +2570,7 @@ html[data-kokuen-version="5"] [data-kokuen-state="loading"] {
   cursor: progress;
 }
 
-html[data-kokuen-version="5"] [data-kokuen-state="selected"] {
+html[data-kokuen-version="5"] [data-kokuen-state="selected"]:not(:where(.s-switch, .andromeda-switch)) {
   color: var(--k-text);
   background: var(--k-raised);
 }
@@ -5615,7 +5615,7 @@ body[data-app="files"] #files-view .files-location-copy strong {
 
 body[data-app="files"] #files-view .files-location-copy small,
 body[data-app="files"] #files-view .files-location-access {
-  color: var(--k-quiet);
+  color: var(--k-muted);
   font-size: 12px;
   font-weight: 400;
 }
@@ -5631,6 +5631,8 @@ body[data-app="files"] #files-view .files-phase7-views {
 
 body[data-app="files"] #files-view .files-phase7-location-foot {
   margin-top: auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
   padding: var(--k-space-3) var(--k-space-2) 0;
   color: var(--k-quiet);
   font-size: 12px;
@@ -5749,7 +5751,7 @@ body[data-app="files"] #files-view #files-search {
 }
 
 body[data-app="files"] #files-view #files-search::placeholder {
-  color: var(--k-quiet);
+  color: var(--k-muted);
 }
 
 body[data-app="files"] #files-view .files-phase7-selection {
@@ -6027,7 +6029,7 @@ body[data-app="files"] #files-view .files-operation-copy strong {
 
 body[data-app="files"] #files-view .files-operation-copy small {
   margin-top: var(--k-space-1);
-  color: var(--k-quiet);
+  color: var(--k-muted);
   font-size: 12px;
 }
 

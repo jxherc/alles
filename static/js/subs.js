@@ -152,7 +152,7 @@ function _render() {
   if (!list) return;
   const detected = _detectedHtml();
   if (!_subs.length) {
-    list.innerHTML = detected + '<div style="padding:1rem 0;font-size:0.75rem;color:var(--faint)">nothing tracked yet: add your first subscription below</div>';
+    list.innerHTML = detected + '<div style="padding:1rem 0;font-size:0.75rem;color:var(--muted)">nothing tracked yet: add your first subscription below</div>';
     _wireDetected(list);
     return;
   }
