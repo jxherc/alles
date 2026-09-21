@@ -2348,9 +2348,16 @@ async def _files_locations_list():
     db = SessionLocal()
     try:
         storage_locations.ensure_default_local(db)
-        rows = db.query(StorageLocation).order_by(StorageLocation.is_default.desc(), StorageLocation.name).all()
+        rows = (
+            db.query(StorageLocation)
+            .order_by(StorageLocation.is_default.desc(), StorageLocation.name)
+            .all()
+        )
         public = [storage_locations.public_dict(row) for row in rows]
-        return {"output": json.dumps({"locations": public}, ensure_ascii=False), "locations": public}
+        return {
+            "output": json.dumps({"locations": public}, ensure_ascii=False),
+            "locations": public,
+        }
     finally:
         db.close()
 
@@ -2363,12 +2370,17 @@ async def _files_operations_list(args):
     limit = max(1, min(int(args.get("limit") or 50), 100))
     db = SessionLocal()
     try:
-        query = db.query(FileOperation).filter(FileOperation.action != file_operations.DIRECT_MUTATION_ACTION)
+        query = db.query(FileOperation).filter(
+            FileOperation.action != file_operations.DIRECT_MUTATION_ACTION
+        )
         if state:
             query = query.filter(FileOperation.state == state)
         rows = query.order_by(FileOperation.created_at.desc()).limit(limit).all()
         public = [file_operations.public_dict(row) for row in rows]
-        return {"output": json.dumps({"operations": public}, ensure_ascii=False), "operations": public}
+        return {
+            "output": json.dumps({"operations": public}, ensure_ascii=False),
+            "operations": public,
+        }
     finally:
         db.close()
 
@@ -2382,7 +2394,9 @@ async def _files_operation_create(args):
         row = file_operations.enqueue(
             db,
             action=str(args.get("action") or ""),
-            source_location_id=str(args.get("source_location_id") or DEFAULT_LOCAL_STORAGE_LOCATION_ID),
+            source_location_id=str(
+                args.get("source_location_id") or DEFAULT_LOCAL_STORAGE_LOCATION_ID
+            ),
             source_path=str(args.get("source_path") or ""),
             destination_location_id=(str(args.get("destination_location_id") or "") or None),
             destination_path=str(args.get("destination_path") or ""),
@@ -2424,9 +2438,19 @@ async def _finance_accounts_list():
         for account in accounts:
             balance = float(account.opening or 0) + sum(
                 float(value or 0)
-                for (value,) in db.query(Transaction.amount).filter(Transaction.account_id == account.id).all()
+                for (value,) in db.query(Transaction.amount)
+                .filter(Transaction.account_id == account.id)
+                .all()
             )
-            rows.append({"id": account.id, "name": account.name, "kind": account.kind, "currency": account.currency, "balance": round(balance, 2)})
+            rows.append(
+                {
+                    "id": account.id,
+                    "name": account.name,
+                    "kind": account.kind,
+                    "currency": account.currency,
+                    "balance": round(balance, 2),
+                }
+            )
         return {"output": json.dumps({"accounts": rows}, ensure_ascii=False), "accounts": rows}
     finally:
         db.close()
@@ -2445,10 +2469,29 @@ async def _finance_transactions_list(args):
             query = query.filter(Transaction.account_id == account_id)
         if query_text:
             like = f"%{query_text}%"
-            query = query.filter((Transaction.payee.ilike(like)) | (Transaction.category.ilike(like)) | (Transaction.note.ilike(like)))
+            query = query.filter(
+                (Transaction.payee.ilike(like))
+                | (Transaction.category.ilike(like))
+                | (Transaction.note.ilike(like))
+            )
         txns = query.order_by(Transaction.date.desc(), Transaction.id.desc()).limit(limit).all()
-        rows = [{"id": txn.id, "account_id": txn.account_id, "date": txn.date, "payee": txn.payee, "category": txn.category, "amount": txn.amount, "currency_code": txn.original_currency_code or txn.base_currency_code, "note": txn.notes} for txn in txns]
-        return {"output": json.dumps({"transactions": rows}, ensure_ascii=False), "transactions": rows}
+        rows = [
+            {
+                "id": txn.id,
+                "account_id": txn.account_id,
+                "date": txn.date,
+                "payee": txn.payee,
+                "category": txn.category,
+                "amount": txn.amount,
+                "currency_code": txn.original_currency_code or txn.base_currency_code,
+                "note": txn.notes,
+            }
+            for txn in txns
+        ]
+        return {
+            "output": json.dumps({"transactions": rows}, ensure_ascii=False),
+            "transactions": rows,
+        }
     finally:
         db.close()
 
@@ -3462,7 +3505,11 @@ APP_TOOL_DEFS = [
             "limit": {"type": "integer", "default": 50, "minimum": 1, "maximum": 100},
         },
     ),
-    _tool("finance_import_profiles", "List reviewed bank statement and notification import profiles.", {}),
+    _tool(
+        "finance_import_profiles",
+        "List reviewed bank statement and notification import profiles.",
+        {},
+    ),
     _tool("server_services_list", "List only services whose Alles ownership markers verify.", {}),
     _tool(
         "server_service_control",
@@ -3473,8 +3520,16 @@ APP_TOOL_DEFS = [
         },
         ["service_id", "action"],
     ),
-    _tool("server_companions_list", "List pinned managed companions and their verified lifecycle state.", {}),
-    _tool("adguard_dashboard", "Read the connected AdGuard DNS status, daily statistics, filtering state, rewrites, and bounded recent activity.", {}),
+    _tool(
+        "server_companions_list",
+        "List pinned managed companions and their verified lifecycle state.",
+        {},
+    ),
+    _tool(
+        "adguard_dashboard",
+        "Read the connected AdGuard DNS status, daily statistics, filtering state, rewrites, and bounded recent activity.",
+        {},
+    ),
     _tool(
         "adguard_filtering_set",
         "Enable or disable AdGuard filtering with a bounded refresh interval.",
@@ -3495,12 +3550,19 @@ APP_TOOL_DEFS = [
         },
         ["action", "domain", "answer"],
     ),
-    _tool("npm_dashboard", "Read connected Nginx Proxy Manager proxy-host and certificate state.", {}),
+    _tool(
+        "npm_dashboard", "Read connected Nginx Proxy Manager proxy-host and certificate state.", {}
+    ),
     _tool(
         "npm_proxy_host_create",
         "Create one typed Nginx Proxy Manager host. Credentials stay in the local broker and never enter model context.",
         {
-            "domain_names": {"type": "array", "items": {"type": "string"}, "minItems": 1, "maxItems": 20},
+            "domain_names": {
+                "type": "array",
+                "items": {"type": "string"},
+                "minItems": 1,
+                "maxItems": 20,
+            },
             "forward_scheme": {"type": "string", "enum": ["http", "https"], "default": "http"},
             "forward_host": {"type": "string"},
             "forward_port": {"type": "integer", "minimum": 1, "maximum": 65535},
@@ -3647,7 +3709,7 @@ def decide_permission(name, args, mode, rules):
             "git_branch",
             "git_commit",
             "git_push",
-    "revert_file",
+            "revert_file",
             "delete_file",
             "calendar_delete",
             "mail_send",

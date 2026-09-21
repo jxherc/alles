@@ -135,8 +135,8 @@ def _compose(service_id: str) -> str:
         )
         volumes = "      - ./data:/data\n      - ./letsencrypt:/etc/letsencrypt"
     return f"""services:
-  {d['compose_service']}:
-    image: {d['image']}
+  {d["compose_service"]}:
+    image: {d["image"]}
     restart: unless-stopped
     env_file:
       - .env
@@ -162,7 +162,7 @@ def prepare(service_id: str, *, runner=_runner) -> dict:
         raise ManagedCompanionError("Docker Compose is required to prepare this companion")
     root = root_dir(service_id)
     root.mkdir(parents=True, exist_ok=True, mode=0o700)
-    for folder in (("work", "conf") if service_id == "adguard-home" else ("data", "letsencrypt")):
+    for folder in ("work", "conf") if service_id == "adguard-home" else ("data", "letsencrypt"):
         (root / folder).mkdir(mode=0o700, exist_ok=True)
     compose = root / "compose.yaml"
     env = _env_path(service_id)
@@ -250,7 +250,9 @@ def _verify_prepared(service_id: str, *, runner=_runner) -> dict:
     return manifest
 
 
-def preflight(service_id: str, *, bind: str, ports: dict | None = None, runner=_runner, port_free=_port_free) -> dict:
+def preflight(
+    service_id: str, *, bind: str, ports: dict | None = None, runner=_runner, port_free=_port_free
+) -> dict:
     d = _definition(service_id)
     _verify_prepared(service_id, runner=runner)
     clean_bind = str(bind or "").strip()
@@ -261,13 +263,15 @@ def preflight(service_id: str, *, bind: str, ports: dict | None = None, runner=_
     except OSError as exc:
         raise ManagedCompanionError("interface address is invalid") from exc
     requested = {str(key): int(value) for key, value in (ports or {}).items()}
-    expected = ({"dns": 53} if service_id == "adguard-home" else {"http": 80, "https": 443})
+    expected = {"dns": 53} if service_id == "adguard-home" else {"http": 80, "https": 443}
     resolved = {key: requested.get(key, default) for key, default in expected.items()}
     checks = []
     for key, port in resolved.items():
         if not 1 <= port <= 65535:
             raise ManagedCompanionError(f"{key} port is invalid")
-        protocols = (socket.SOCK_STREAM, socket.SOCK_DGRAM) if key == "dns" else (socket.SOCK_STREAM,)
+        protocols = (
+            (socket.SOCK_STREAM, socket.SOCK_DGRAM) if key == "dns" else (socket.SOCK_STREAM,)
+        )
         free = all(port_free(clean_bind, port, protocol) for protocol in protocols)
         checks.append({"name": f"{key} {clean_bind}:{port}", "ok": free})
     docker = docker_status(runner=runner)
@@ -283,7 +287,9 @@ def preflight(service_id: str, *, bind: str, ports: dict | None = None, runner=_
     }
 
 
-def _activation_env(service_id: str, *, bind: str, ports: dict, username: str, password: str) -> str:
+def _activation_env(
+    service_id: str, *, bind: str, ports: dict, username: str, password: str
+) -> str:
     if service_id == "adguard-home":
         if len(password) < 12:
             raise ManagedCompanionError("admin password must be at least 12 characters")
@@ -291,7 +297,9 @@ def _activation_env(service_id: str, *, bind: str, ports: dict, username: str, p
         config = root_dir(service_id) / "conf" / "AdGuardHome.yaml"
         yaml = f"http:\n  address: 0.0.0.0:3000\nusers:\n  - name: {json.dumps(username or 'admin')}\n    password: {json.dumps(digest)}\ndns:\n  bind_hosts:\n    - 0.0.0.0\n  port: 53\n"
         _atomic(config, yaml)
-        return f"ADGUARD_ADMIN_PORT=3000\nADGUARD_DNS_BIND={bind}\nADGUARD_DNS_PORT={ports['dns']}\n"
+        return (
+            f"ADGUARD_ADMIN_PORT=3000\nADGUARD_DNS_BIND={bind}\nADGUARD_DNS_PORT={ports['dns']}\n"
+        )
     # NPM 2.15.1 prints INITIAL_ADMIN_PASSWORD during its legacy automated setup.
     # Keep credentials out of Docker environment and logs; its private loopback UI owns setup.
     return f"NPM_ADMIN_PORT=8181\nNPM_HTTP_BIND={bind}\nNPM_HTTP_PORT={ports['http']}\nNPM_HTTPS_BIND={bind}\nNPM_HTTPS_PORT={ports['https']}\n"
@@ -299,7 +307,15 @@ def _activation_env(service_id: str, *, bind: str, ports: dict, username: str, p
 
 def _compose_command(service_id: str, *args: str) -> list[str]:
     d = _definition(service_id)
-    return ["docker", "compose", "--project-directory", str(root_dir(service_id)), "--project-name", d["project"], *args]
+    return [
+        "docker",
+        "compose",
+        "--project-directory",
+        str(root_dir(service_id)),
+        "--project-name",
+        d["project"],
+        *args,
+    ]
 
 
 def activate(
@@ -333,7 +349,16 @@ def activate(
     elif config_backup.exists():
         config_backup.unlink()
     try:
-        _atomic(env_path, _activation_env(service_id, bind=check["bind"], ports=check["ports"], username=admin_username, password=admin_password))
+        _atomic(
+            env_path,
+            _activation_env(
+                service_id,
+                bind=check["bind"],
+                ports=check["ports"],
+                username=admin_username,
+                password=admin_password,
+            ),
+        )
         result = runner(_compose_command(service_id, "up", "-d"), timeout=180)
         if result.returncode != 0:
             raise ManagedCompanionError("companion did not start")
@@ -359,7 +384,9 @@ def activate(
     }
     if service_id == "adguard-home":
         try:
-            managed_companion_clients.save_adguard_credentials(admin_username or "admin", admin_password)
+            managed_companion_clients.save_adguard_credentials(
+                admin_username or "admin", admin_password
+            )
         except managed_companion_clients.CompanionClientError as exc:
             runner(_compose_command(service_id, "down"), timeout=90)
             _atomic(env_path, previous_env)

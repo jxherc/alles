@@ -38,9 +38,7 @@ def save_adguard_credentials(username: str, password: str) -> None:
 
 
 def _adguard_credentials() -> tuple[str, str]:
-    value = load_secret_config(
-        _credentials_path("adguard-home"), _ADGUARD_PURPOSE
-    )
+    value = load_secret_config(_credentials_path("adguard-home"), _ADGUARD_PURPOSE)
     username, password = str(value.get("username") or ""), str(value.get("password") or "")
     if not username or not password:
         raise CompanionClientError("AdGuard credentials are not connected")
@@ -112,12 +110,8 @@ def adguard_dashboard(*, requester: Callable[..., Any] = httpx.request) -> dict:
         auth=auth,
         params={"recent": 86_400_000},
     )
-    filtering = _call(
-        "GET", f"{ADGUARD_URL}/filtering/status", requester=requester, auth=auth
-    )
-    rewrites = _call(
-        "GET", f"{ADGUARD_URL}/rewrite/list", requester=requester, auth=auth
-    )
+    filtering = _call("GET", f"{ADGUARD_URL}/filtering/status", requester=requester, auth=auth)
+    rewrites = _call("GET", f"{ADGUARD_URL}/rewrite/list", requester=requester, auth=auth)
     querylog = _call(
         "GET",
         f"{ADGUARD_URL}/querylog",
@@ -180,7 +174,9 @@ def change_adguard_rewrite(
     return {"ok": True, **payload}
 
 
-def connect_npm(identity: str, secret: str, *, requester: Callable[..., Any] = httpx.request) -> dict:
+def connect_npm(
+    identity: str, secret: str, *, requester: Callable[..., Any] = httpx.request
+) -> dict:
     clean_identity = identity.strip()
     if not clean_identity or not secret:
         raise CompanionClientError("Nginx Proxy Manager credentials are incomplete")
@@ -205,17 +201,17 @@ def connect_npm(identity: str, secret: str, *, requester: Callable[..., Any] = h
         _NPM_PURPOSE,
         field="token",
     )
-    return {"connected": True, "identity": clean_identity, "expires": str(result.get("expires") or "")}
+    return {
+        "connected": True,
+        "identity": clean_identity,
+        "expires": str(result.get("expires") or ""),
+    }
 
 
 def npm_dashboard(*, requester: Callable[..., Any] = httpx.request) -> dict:
     token = _npm_token()
-    hosts = _call(
-        "GET", f"{NPM_URL}/nginx/proxy-hosts", requester=requester, token=token
-    )
-    certificates = _call(
-        "GET", f"{NPM_URL}/nginx/certificates", requester=requester, token=token
-    )
+    hosts = _call("GET", f"{NPM_URL}/nginx/proxy-hosts", requester=requester, token=token)
+    certificates = _call("GET", f"{NPM_URL}/nginx/certificates", requester=requester, token=token)
     return {
         "connected": True,
         "proxy_hosts": hosts if isinstance(hosts, list) else [],

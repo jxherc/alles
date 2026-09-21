@@ -100,7 +100,9 @@ def validate_registry(document: dict[str, Any]) -> None:
         raise FeatureRegistryError("feature registry schema_version must be 1")
     categories = document.get("categories")
     if categories != list(REQUIRED_CATEGORIES):
-        raise FeatureRegistryError("feature registry categories do not match the required product order")
+        raise FeatureRegistryError(
+            "feature registry categories do not match the required product order"
+        )
     features = document.get("features")
     if not isinstance(features, list) or not features:
         raise FeatureRegistryError("feature registry must contain features")
@@ -134,13 +136,23 @@ def validate_registry(document: dict[str, Any]) -> None:
         if notes is not None and (not isinstance(notes, str) or not notes.strip()):
             raise FeatureRegistryError(f"{feature_id}.notes must be a non-empty string")
         if feature["acceptance"] != "unchecked" and not notes:
-            raise FeatureRegistryError(f"{feature_id} needs evidence notes for its acceptance state")
-        for field in ("dependencies", "platforms", "aide_tools", "automated_tests", "computer_scenarios"):
+            raise FeatureRegistryError(
+                f"{feature_id} needs evidence notes for its acceptance state"
+            )
+        for field in (
+            "dependencies",
+            "platforms",
+            "aide_tools",
+            "automated_tests",
+            "computer_scenarios",
+        ):
             _require_string_list(feature[field], f"{feature_id}.{field}")
         all_tools.extend(feature["aide_tools"])
         coverage = feature["coverage"]
         if not isinstance(coverage, dict) or set(coverage) != VALID_COVERAGE_KEYS:
-            raise FeatureRegistryError(f"{feature_id}.coverage must contain every supported coverage key")
+            raise FeatureRegistryError(
+                f"{feature_id}.coverage must contain every supported coverage key"
+            )
         for key in VALID_COVERAGE_KEYS:
             _require_string_list(coverage[key], f"{feature_id}.coverage.{key}")
             all_coverage[key].extend(coverage[key])
@@ -150,7 +162,9 @@ def validate_registry(document: dict[str, Any]) -> None:
         raise FeatureRegistryError(f"duplicate feature ids: {', '.join(duplicate_ids)}")
     duplicate_tools = _duplicates(all_tools)
     if duplicate_tools:
-        raise FeatureRegistryError(f"Aide tools map to multiple features: {', '.join(duplicate_tools)}")
+        raise FeatureRegistryError(
+            f"Aide tools map to multiple features: {', '.join(duplicate_tools)}"
+        )
     for key, values in all_coverage.items():
         duplicates = _duplicates(values)
         if duplicates:

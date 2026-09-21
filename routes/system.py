@@ -123,7 +123,10 @@ def companion_activate(service_id: str, body: CompanionActivationBody, request: 
         outcome="success",
         actor=observability.actor_kind(dict(request.scope.get("headers") or [])),
         target=service_id,
-        details={"bind": result.get("activation", {}).get("bind"), "ports": result.get("activation", {}).get("ports", {})},
+        details={
+            "bind": result.get("activation", {}).get("bind"),
+            "ports": result.get("activation", {}).get("ports", {}),
+        },
     )
     return result
 
@@ -193,9 +196,7 @@ def companion_adguard_dashboard():
         raise _companion_client_error(exc) from exc
 
 
-@router.put(
-    "/companions/adguard-home/filtering", dependencies=[Depends(require_recent_owner)]
-)
+@router.put("/companions/adguard-home/filtering", dependencies=[Depends(require_recent_owner)])
 def companion_adguard_filtering(body: AdGuardFilteringBody, request: Request):
     try:
         result = managed_companion_clients.set_adguard_filtering(body.enabled, body.interval)
@@ -234,9 +235,7 @@ def companion_adguard_rewrite(
     return result
 
 
-@router.get(
-    "/companions/nginx-proxy-manager/dashboard", dependencies=[Depends(require_auth)]
-)
+@router.get("/companions/nginx-proxy-manager/dashboard", dependencies=[Depends(require_auth)])
 def companion_npm_dashboard():
     try:
         return managed_companion_clients.npm_dashboard()

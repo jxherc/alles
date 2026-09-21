@@ -1280,9 +1280,7 @@ async def pwa_precache():
         if (static_dir / "icons" / ic).exists():
             add_url(f"/static/icons/{ic}")
     for p in sorted((static_dir / "js").glob("*.js")):
-        add_url(
-            f"/static/js/app.js?v={stamp}" if p.name == "app.js" else f"/static/js/{p.name}"
-        )
+        add_url(f"/static/js/app.js?v={stamp}" if p.name == "app.js" else f"/static/js/{p.name}")
         # Cache the exact URLs in static and dynamic imports too. The worker intentionally
         # matches versioned code without ignoreSearch so an offline boot cannot mix module
         # generations; a queryless directory inventory alone therefore is not sufficient.

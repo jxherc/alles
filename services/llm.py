@@ -72,7 +72,9 @@ def clear_cooldown(url: str):
 def _openai_chat_url(base_url: str) -> str:
     parsed = urlsplit((base_url or "").rstrip("/"))
     path = parsed.path.rstrip("/")
-    suffix = "/chat/completions" if path.endswith(("/v1", "/v1beta/openai")) else "/v1/chat/completions"
+    suffix = (
+        "/chat/completions" if path.endswith(("/v1", "/v1beta/openai")) else "/v1/chat/completions"
+    )
     return urlunsplit((parsed.scheme, parsed.netloc, path + suffix, "", ""))
 
 

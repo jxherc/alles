@@ -39,7 +39,9 @@ class FinanceImportsPhase8Tests(ApiTest):
         payload = self.client.get("/api/finance/imports/profiles").json()
         ids = {item["id"] for item in payload["profiles"]}
         self.assertTrue({"cibc-csv", "rbc-csv", "td-csv", "bmo-csv", "scotiabank-csv"} <= ids)
-        self.assertTrue({"cmb-csv", "icbc-csv", "ccb-csv", "abc-csv", "boc-csv", "bocom-csv"} <= ids)
+        self.assertTrue(
+            {"cmb-csv", "icbc-csv", "ccb-csv", "abc-csv", "boc-csv", "bocom-csv"} <= ids
+        )
         self.assertEqual({item["id"] for item in payload["providers"]}, {"simplefin", "plaid"})
         self.assertTrue(payload["direct_sync_supported"])
 

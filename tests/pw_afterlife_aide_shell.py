@@ -622,8 +622,12 @@ def run() -> None:
                     expected_icon_size,
                 )
 
-            head_bottom = page.locator(".sidebar-head").evaluate("el => el.getBoundingClientRect().bottom")
-            search_box = page.locator(".search-wrap").evaluate("el => el.getBoundingClientRect().toJSON()")
+            head_bottom = page.locator(".sidebar-head").evaluate(
+                "el => el.getBoundingClientRect().bottom"
+            )
+            search_box = page.locator(".search-wrap").evaluate(
+                "el => el.getBoundingClientRect().toJSON()"
+            )
             nav_top = page.locator(".sidebar-nav").evaluate("el => el.getBoundingClientRect().top")
             assert search_box["top"] >= head_bottom
             assert nav_top >= search_box["bottom"]

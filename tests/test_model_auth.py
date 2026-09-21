@@ -101,7 +101,9 @@ class ModelAuthContractTest(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(changed)
         self.assertEqual(ep.api_key, "new-token")
         self.assertEqual(ep.oauth_refresh_token, "refresh-token")
-        self.assertEqual(model_auth.runtime_headers("new-token"), {"x-goog-user-project": "owner-project"})
+        self.assertEqual(
+            model_auth.runtime_headers("new-token"), {"x-goog-user-project": "owner-project"}
+        )
         self.assertEqual(client.calls[0][1]["grant_type"], "refresh_token")
 
     async def test_revoke_clears_only_after_provider_confirmation(self):

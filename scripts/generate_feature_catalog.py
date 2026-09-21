@@ -104,7 +104,11 @@ def main() -> int:
         MATRIX_PATH: render_matrix(document),
     }
     if args.check:
-        stale = [str(path.relative_to(ROOT)) for path, text in outputs.items() if not path.exists() or path.read_text("utf-8") != text]
+        stale = [
+            str(path.relative_to(ROOT))
+            for path, text in outputs.items()
+            if not path.exists() or path.read_text("utf-8") != text
+        ]
         if stale:
             parser.error("generated feature documents are stale: " + ", ".join(stale))
         return 0

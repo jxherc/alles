@@ -67,9 +67,10 @@ Create `tests/pw_skills_redesign.py`:
 
 ```python
 """behavioral verify for the skills ui redesign. run against a fresh seeded server:
-  ALLES_DATA=.tmp_skl_redesign AUTH_ENABLED=false PORT=8151 python app.py
-  python tests/pw_skills_redesign.py 8151
+ALLES_DATA=.tmp_skl_redesign AUTH_ENABLED=false PORT=8151 python app.py
+python tests/pw_skills_redesign.py 8151
 """
+
 import sys
 from playwright.sync_api import sync_playwright
 
@@ -81,8 +82,12 @@ def _skills_page(p, port):
     ctx = b.new_context(service_workers="block")
     pg = ctx.new_page()
     errs = []
-    pg.on("console", lambda m: errs.append(m.text)
-          if m.type == "error" and not any(x in m.text for x in IGN) else None)
+    pg.on(
+        "console",
+        lambda m: (
+            errs.append(m.text) if m.type == "error" and not any(x in m.text for x in IGN) else None
+        ),
+    )
     pg.goto(f"http://aide.localhost:{port}/", wait_until="domcontentloaded")
     pg.wait_for_timeout(400)
     pg.eval_on_selector("body", "() => window._navigateTo('skills')")
@@ -98,17 +103,20 @@ def main():
         b, ctx, pg, errs = _skills_page(p, port)
 
         # rail: 'all' + >=6 category rows with counts
-        rail_rows = pg.eval_on_selector_all(
-            ".skl-rail-cat", "els => els.map(e => e.dataset.cat)")
+        rail_rows = pg.eval_on_selector_all(".skl-rail-cat", "els => els.map(e => e.dataset.cat)")
         r["rail_has_all"] = "all" in rail_rows
-        r["rail_has_cats"] = len([x for x in rail_rows if x not in ('all',)]) >= 6
+        r["rail_has_cats"] = len([x for x in rail_rows if x not in ("all",)]) >= 6
         counts = pg.eval_on_selector_all(
-            ".skl-rail-cat .skl-rail-count", "els => els.map(e => +e.textContent)")
-        r["rail_counts_positive"] = bool(counts) and all(c >= 0 for c in counts) and any(c > 0 for c in counts)
+            ".skl-rail-cat .skl-rail-count", "els => els.map(e => +e.textContent)"
+        )
+        r["rail_counts_positive"] = (
+            bool(counts) and all(c >= 0 for c in counts) and any(c > 0 for c in counts)
+        )
 
         # grid is multi-column: at least two cards share the same row (same offsetTop)
         tops = pg.eval_on_selector_all(
-            "#skl-grid .skl-card", "els => els.slice(0, 8).map(e => e.offsetTop)")
+            "#skl-grid .skl-card", "els => els.slice(0, 8).map(e => e.offsetTop)"
+        )
         r["grid_multicol"] = len(tops) >= 2 and len(set(tops)) < len(tops)
 
         # clicking a category filters: card count changes and matches the rail count
@@ -117,19 +125,23 @@ def main():
         pg.wait_for_timeout(300)
         coding_n = pg.eval_on_selector_all("#skl-grid .skl-card", "els => els.length")
         coding_badge = pg.eval_on_selector(
-            ".skl-rail-cat[data-cat='coding'] .skl-rail-count", "el => +el.textContent")
+            ".skl-rail-cat[data-cat='coding'] .skl-rail-count", "el => +el.textContent"
+        )
         r["filter_changes_count"] = coding_n != total and coding_n == coding_badge
         r["filter_active_marked"] = pg.eval_on_selector(
-            ".skl-rail-cat[data-cat='coding']", "el => el.classList.contains('active')")
+            ".skl-rail-cat[data-cat='coding']", "el => el.classList.contains('active')"
+        )
 
         r["no_console_errors"] = len(errs) == 0
-        pg.close(); ctx.close(); b.close()
+        pg.close()
+        ctx.close()
+        b.close()
 
     ok = all(r.values())
     for k, v in r.items():
         print(f"{'PASS' if v else 'FAIL'}  {k}")
     if not ok:
-        print("errors:", errs[:6] if 'errs' in dir() else [])
+        print("errors:", errs[:6] if "errs" in dir() else [])
     print(f"\n{sum(bool(v) for v in r.values())}/{len(r)} passed")
     return 0 if ok else 1
 
@@ -375,19 +387,21 @@ cards float to the `pinned` rail group and to the top of the grid.
 Append inside `main()` before the `no_console_errors` line:
 
 ```python
-        # back to all, then pin the first card -> it gets the 'pinned' state and a pinned rail row appears
-        pg.eval_on_selector(".skl-rail-cat[data-cat='all']", "el => el.click()")
-        pg.wait_for_timeout(200)
-        first = pg.eval_on_selector("#skl-grid .skl-card .skl-card-name", "el => el.textContent")
-        pg.eval_on_selector("#skl-grid .skl-card .skl-pin", "el => el.click()")
-        pg.wait_for_timeout(400)
-        r["pin_adds_rail_group"] = pg.eval_on_selector(
-            ".skl-rail-cat[data-cat='pinned']", "el => !!el") or False
-        r["pin_floats_top"] = pg.eval_on_selector(
-            "#skl-grid .skl-card:first-child .skl-pin", "el => el.classList.contains('on')")
-        # unpin to restore state for re-runnable tests
-        pg.eval_on_selector("#skl-grid .skl-card:first-child .skl-pin", "el => el.click()")
-        pg.wait_for_timeout(300)
+# back to all, then pin the first card -> it gets the 'pinned' state and a pinned rail row appears
+pg.eval_on_selector(".skl-rail-cat[data-cat='all']", "el => el.click()")
+pg.wait_for_timeout(200)
+first = pg.eval_on_selector("#skl-grid .skl-card .skl-card-name", "el => el.textContent")
+pg.eval_on_selector("#skl-grid .skl-card .skl-pin", "el => el.click()")
+pg.wait_for_timeout(400)
+r["pin_adds_rail_group"] = (
+    pg.eval_on_selector(".skl-rail-cat[data-cat='pinned']", "el => !!el") or False
+)
+r["pin_floats_top"] = pg.eval_on_selector(
+    "#skl-grid .skl-card:first-child .skl-pin", "el => el.classList.contains('on')"
+)
+# unpin to restore state for re-runnable tests
+pg.eval_on_selector("#skl-grid .skl-card:first-child .skl-pin", "el => el.click()")
+pg.wait_for_timeout(300)
 ```
 
 - [ ] **Step 2: Run the test, verify the new rows fail**
@@ -502,21 +516,25 @@ by clicking a card or `+ new`. Replaces the old `_editNew`/`_open`/`_save`/`_del
 Append in `main()`:
 
 ```python
-        # open the first card -> drawer slides in, populated
-        pg.eval_on_selector("#skl-grid .skl-card .skl-card-name", "el => el.click()")
-        pg.wait_for_timeout(350)
-        r["drawer_opens"] = pg.eval_on_selector("#skl-drawer", "el => !!el && el.classList.contains('open')")
-        r["drawer_name_filled"] = pg.eval_on_selector("#skl-d-name", "el => el.value.length > 0")
-        # esc closes
-        pg.keyboard.press("Escape")
-        pg.wait_for_timeout(300)
-        r["drawer_esc_closes"] = pg.eval_on_selector("#skl-drawer", "el => !el || !el.classList.contains('open')")
-        # + new opens an empty drawer
-        pg.eval_on_selector("#skl-new", "el => el.click()")
-        pg.wait_for_timeout(300)
-        r["new_drawer_empty"] = pg.eval_on_selector("#skl-d-name", "el => el.value === ''")
-        pg.keyboard.press("Escape")
-        pg.wait_for_timeout(200)
+# open the first card -> drawer slides in, populated
+pg.eval_on_selector("#skl-grid .skl-card .skl-card-name", "el => el.click()")
+pg.wait_for_timeout(350)
+r["drawer_opens"] = pg.eval_on_selector(
+    "#skl-drawer", "el => !!el && el.classList.contains('open')"
+)
+r["drawer_name_filled"] = pg.eval_on_selector("#skl-d-name", "el => el.value.length > 0")
+# esc closes
+pg.keyboard.press("Escape")
+pg.wait_for_timeout(300)
+r["drawer_esc_closes"] = pg.eval_on_selector(
+    "#skl-drawer", "el => !el || !el.classList.contains('open')"
+)
+# + new opens an empty drawer
+pg.eval_on_selector("#skl-new", "el => el.click()")
+pg.wait_for_timeout(300)
+r["new_drawer_empty"] = pg.eval_on_selector("#skl-d-name", "el => el.value === ''")
+pg.keyboard.press("Escape")
+pg.wait_for_timeout(200)
 ```
 
 - [ ] **Step 2: Run the test, verify the new rows fail**
@@ -700,25 +718,31 @@ explicit toggle of `⊕ library` returns to installed.
 - [ ] **Step 1: Add failing assertions**
 
 ```python
-        # enter library: cards show +add buttons, rail label flips to 'library'
-        pg.eval_on_selector(".skl-rail-act[data-act='library']", "el => el.click()")
-        pg.wait_for_timeout(500)
-        r["library_active"] = pg.eval_on_selector(".skl-rail-act[data-act='library']", "el => el.classList.contains('active')")
-        r["library_has_add"] = pg.eval_on_selector_all("#skl-grid .skl-add", "els => els.length") > 0 \
-            or pg.eval_on_selector_all("#skl-grid .skl-added", "els => els.length") > 0
-        # adding a not-installed skill flips it to added
-        add_before = pg.eval_on_selector_all("#skl-grid .skl-add", "els => els.length")
-        if add_before:
-            pg.eval_on_selector("#skl-grid .skl-add", "el => el.click()")
-            pg.wait_for_timeout(700)
-            add_after = pg.eval_on_selector_all("#skl-grid .skl-add", "els => els.length")
-            r["add_installs"] = add_after == add_before - 1
-        else:
-            r["add_installs"] = True  # everything already installed in this seed
-        # back to installed
-        pg.eval_on_selector(".skl-rail-act[data-act='library']", "el => el.click()")
-        pg.wait_for_timeout(400)
-        r["library_toggle_back"] = not pg.eval_on_selector(".skl-rail-act[data-act='library']", "el => el.classList.contains('active')")
+# enter library: cards show +add buttons, rail label flips to 'library'
+pg.eval_on_selector(".skl-rail-act[data-act='library']", "el => el.click()")
+pg.wait_for_timeout(500)
+r["library_active"] = pg.eval_on_selector(
+    ".skl-rail-act[data-act='library']", "el => el.classList.contains('active')"
+)
+r["library_has_add"] = (
+    pg.eval_on_selector_all("#skl-grid .skl-add", "els => els.length") > 0
+    or pg.eval_on_selector_all("#skl-grid .skl-added", "els => els.length") > 0
+)
+# adding a not-installed skill flips it to added
+add_before = pg.eval_on_selector_all("#skl-grid .skl-add", "els => els.length")
+if add_before:
+    pg.eval_on_selector("#skl-grid .skl-add", "el => el.click()")
+    pg.wait_for_timeout(700)
+    add_after = pg.eval_on_selector_all("#skl-grid .skl-add", "els => els.length")
+    r["add_installs"] = add_after == add_before - 1
+else:
+    r["add_installs"] = True  # everything already installed in this seed
+# back to installed
+pg.eval_on_selector(".skl-rail-act[data-act='library']", "el => el.click()")
+pg.wait_for_timeout(400)
+r["library_toggle_back"] = not pg.eval_on_selector(
+    ".skl-rail-act[data-act='library']", "el => el.classList.contains('active')"
+)
 ```
 
 - [ ] **Step 2: Run the test, verify it fails**
@@ -926,12 +950,13 @@ removes the now-unused old skills CSS, bumps the cache version, and runs the who
 - [ ] **Step 1: Add a narrow-viewport assertion**
 
 ```python
-        # narrow viewport: rail becomes a horizontal chip bar (cards still render)
-        pg.set_viewport_size({"width": 560, "height": 900})
-        pg.wait_for_timeout(300)
-        r["mobile_rail_is_row"] = pg.eval_on_selector(
-            "#skl-rail", "el => getComputedStyle(el).flexDirection === 'row'")
-        r["mobile_cards_render"] = pg.eval_on_selector_all("#skl-grid .skl-card", "els => els.length") > 0
+# narrow viewport: rail becomes a horizontal chip bar (cards still render)
+pg.set_viewport_size({"width": 560, "height": 900})
+pg.wait_for_timeout(300)
+r["mobile_rail_is_row"] = pg.eval_on_selector(
+    "#skl-rail", "el => getComputedStyle(el).flexDirection === 'row'"
+)
+r["mobile_cards_render"] = pg.eval_on_selector_all("#skl-grid .skl-card", "els => els.length") > 0
 ```
 
 - [ ] **Step 2: Run the test, verify the new rows fail**

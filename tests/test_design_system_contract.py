@@ -126,14 +126,34 @@ class DesignSystemContractTests(unittest.TestCase):
             contracts = json.load(handle)
 
         required_states = [
-            "resting", "hover", "pressed", "selected", "disabled", "busy",
-            "invalid", "loading", "empty", "permission", "offline", "stale",
-            "partial", "error",
+            "resting",
+            "hover",
+            "pressed",
+            "selected",
+            "disabled",
+            "busy",
+            "invalid",
+            "loading",
+            "empty",
+            "permission",
+            "offline",
+            "stale",
+            "partial",
+            "error",
         ]
         required_ids = {
-            "kokuen.action", "kokuen.icon-action", "kokuen.field", "kokuen.switch",
-            "kokuen.select-listbox", "kokuen.tabs", "kokuen.menu", "kokuen.dialog",
-            "kokuen.sheet", "kokuen.command", "kokuen.data-view", "kokuen.feedback",
+            "kokuen.action",
+            "kokuen.icon-action",
+            "kokuen.field",
+            "kokuen.switch",
+            "kokuen.select-listbox",
+            "kokuen.tabs",
+            "kokuen.menu",
+            "kokuen.dialog",
+            "kokuen.sheet",
+            "kokuen.command",
+            "kokuen.data-view",
+            "kokuen.feedback",
         }
         self.assertEqual(required_states, contracts["state_vocabulary"])
         self.assertEqual(required_ids, {item["id"] for item in contracts["contracts"]})

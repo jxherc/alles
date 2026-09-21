@@ -96,7 +96,7 @@ class VaultAttachmentTests(ApiTest):
     def test_download_sanitizes_content_disposition_filename(self):
         # quotes reach the server percent-encoded through multipart; semicolons and
         # backslashes do not, so they exercise the sanitizer for real.
-        aid = self._upload(name='evil;\\x.txt').json()["id"]
+        aid = self._upload(name="evil;\\x.txt").json()["id"]
         r = self.client.get(f"/api/vault/attachments/{aid}", headers=self.h)
         cd = r.headers["content-disposition"]
         self.assertNotIn("\r", cd)

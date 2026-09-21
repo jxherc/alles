@@ -163,12 +163,21 @@ def run() -> None:
         session = api(
             "POST",
             "/api/sessions",
-            {"name": "question browser gate", "mode": "jarvis", "endpoint_id": endpoint_id, "model": "question-model"},
+            {
+                "name": "question browser gate",
+                "mode": "jarvis",
+                "endpoint_id": endpoint_id,
+                "model": "question-model",
+            },
         )
         api(
             "POST",
             "/api/agent/background",
-            {"session_id": session["id"], "message": "ask me for the verification scope", "mode": "agent"},
+            {
+                "session_id": session["id"],
+                "message": "ask me for the verification scope",
+                "mode": "agent",
+            },
         )
 
         errors = []
@@ -200,7 +209,9 @@ def run() -> None:
             first = card.locator('[data-aide-question-id="surface"] [data-choice-id]').first
             first.focus()
             page.keyboard.press("ArrowDown")
-            assert card.locator('[data-choice-id="aide"]').evaluate("el => el === document.activeElement")
+            assert card.locator('[data-choice-id="aide"]').evaluate(
+                "el => el === document.activeElement"
+            )
             page.keyboard.press("Enter")
             assert card.locator('[data-choice-id="aide"]').get_attribute("aria-checked") == "true"
             card.locator("[data-question-free-text]").fill("include reload and focus")
@@ -211,7 +222,9 @@ def run() -> None:
             assert phone.get_attribute("aria-checked") == "true"
 
             page.set_viewport_size({"width": 390, "height": 844})
-            assert page.evaluate("document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1")
+            assert page.evaluate(
+                "document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1"
+            )
             assert card.evaluate("el => el.scrollWidth <= el.clientWidth + 1")
             page.screenshot(path="/tmp/alles-aide-question-phone.png", full_page=True)
             card.locator(".aide-question-submit").click()

@@ -121,9 +121,7 @@ class ServerPolicyServiceTest(ApiTest):
                 mock.patch("routes.system.server_policy.is_loopback_client", return_value=True),
                 mock.patch("routes.system.access_profile", return_value="device"),
             ):
-                wrong = self.client.put(
-                    "/api/system/policy", json={**body, "confirmation": "yes"}
-                )
+                wrong = self.client.put("/api/system/policy", json={**body, "confirmation": "yes"})
                 accepted = self.client.put("/api/system/policy", json=body)
         finally:
             self.client.cookies.clear()
@@ -140,9 +138,7 @@ class ServerPolicyServiceTest(ApiTest):
             mock.patch("services.server_policy.platform.system", return_value="Darwin"),
             mock.patch("services.server_policy.subprocess.run", return_value=completed) as run,
         ):
-            result = server_policy.control_host_service(
-                "launchd", "com.example.indexer", "restart"
-            )
+            result = server_policy.control_host_service("launchd", "com.example.indexer", "restart")
         self.assertTrue(result["accepted"])
         run.assert_called_once_with(
             ["launchctl", "kickstart", "-k", f"gui/{os.getuid()}/com.example.indexer"],
