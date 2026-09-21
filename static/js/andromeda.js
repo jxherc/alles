@@ -1381,7 +1381,7 @@ async function persistAndromedaSwitch(id, setting) {
   if (!button || button.getAttribute('aria-busy') === 'true') return false;
   const previous = pressed(id);
   const next = !previous;
-  button.disabled = true;
+  // Keep keyboard focus while the busy guard rejects repeated activation.
   button.setAttribute('aria-disabled', 'true');
   setControlState(button, 'busy', { message: 'saving setting' });
   setPressed(id, next);
@@ -1396,7 +1396,6 @@ async function persistAndromedaSwitch(id, setting) {
     outcome = 'error';
     return false;
   } finally {
-    button.disabled = false;
     button.removeAttribute('aria-disabled');
     button.removeAttribute('aria-busy');
     setControlState(button, outcome, {

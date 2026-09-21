@@ -182,6 +182,9 @@ def _files_light(browser: Browser, errors: list[str]) -> None:
     page.set_default_timeout(8_000)
     _record_errors(page, errors, "files light")
     _open_files(page)
+    assert page.locator(".files-phase7-location-foot").evaluate(
+        "el => el.scrollWidth <= el.clientWidth"
+    )
     assert page.locator("html").get_attribute("data-theme") == "light"
     assert page.locator("body").evaluate(
         "el => getComputedStyle(el).backgroundColor !== 'rgb(9, 9, 9)'"

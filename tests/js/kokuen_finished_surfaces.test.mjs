@@ -85,7 +85,7 @@ test('semantic tokens preserve themes while keeping KOKUEN defaults', () => {
   assert.match(css, /--k-accent:\s*var\(--accent/);
   assert.match(css, /\[data-kokuen-surface\][\s\S]*?:focus-visible\s*\{[\s\S]*?outline:\s*2px solid var\(--k-focus\)/);
   assert.match(css, /html\[data-theme="light"\]/);
-  assert.match(css, /--k-permission:\s*var\(--signal,\s*#e0a458\)/);
+  assert.match(css, /--k-permission:\s*var\(--signal,\s*#d5a265\)/);
   for (const stylesheet of [css, legacyCss]) {
     for (const match of stylesheet.matchAll(/([^{}]*focus(?:-visible|-within)?[^{}]*)\{([^{}]*)\}/g)) {
       assert.doesNotMatch(

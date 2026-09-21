@@ -28,6 +28,12 @@ At runtime the focus ring renders brighter than the strong-line value above (a f
 
 Never rely on color alone. Text, position, icon shape, or state wording must carry the same meaning.
 
+`--faint` is a structural line token, never a text or placeholder color. Use `--muted`
+for secondary text and full-opacity input hints. Quiet text needs a contrast check against
+its actual surface; on raised selections and Files operation rows use muted instead.
+Inline code uses a raised background, not the text color as its background. Server meter
+colors may remain categorical, but numeric labels must remain readable in both themes.
+
 ## typography
 
 - family: local system UI stack;

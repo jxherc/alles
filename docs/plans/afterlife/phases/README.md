@@ -1,9 +1,8 @@
 # Afterlife implementation phases
 
 - **Stage:** Afterlife
-- **Current focus:** Phase 12 product consolidation, search verification, and Server redesign
-- **Implementation status:** Phases 0 through 11 are delivered; Phase 12 direction is approved and its
-  exact HTML starters remain before real-interface work
+- **Current focus:** verify current repairs and evaluate the next product direction
+- **Implementation status:** Phases 0 through 12 are implemented. See the [current repair evidence](../../../repair-2026-09-21.md); external acceptance remains separate.
 
 These are dependency gates, not release dates. Each phase must be split into small, testable plans before
 implementation.
@@ -22,7 +21,7 @@ implementation.
 | 9 | [Distribution and browser access](phase-09-distribution-browser-access.md) | **Delivered; verified 2026-07-20** | Native installer, safe updates, uninstall, and paired exact-site Passwords browser access |
 | 10 | [Localization and release hardening](phase-10-localization-release-hardening.md) | **Delivered; verified 2026-07-21** | Eight reviewed core-flow languages, locale input/formatting, complete credits/licenses, and separated release-hardening proof |
 | 11 | [Post-development review and handoff](phase-11-post-development-review-handoff.md) | **Delivered; verified 2026-07-21** | 41-row reconciliation, detailed review, lifecycle/browser proof, and honest final handoff |
-| 12 | [Product consolidation and interface rebuild](phase-12-product-consolidation-ui-rebuild.md) | **In progress; starter gate open** | Eight workbenches, universal shell/focus, fast plus verified Andromeda, and secure Server management |
+| 12 | [Product consolidation and interface rebuild](phase-12-product-consolidation-ui-rebuild.md) | **Implemented; current repair audit** | Nine workbenches, universal shell/focus, fast plus verified Andromeda, and secure Server management |
 
 ## Gate rule
 

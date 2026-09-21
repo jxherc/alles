@@ -11,6 +11,10 @@
 - Treat offline files as cache, not backup.
 - Verify a transfer destination before deleting its source.
 - Use custom KOKUEN controls. Do not ship native product menus, checkboxes, or radios.
+- Reserve structural border tokens for edges, not foreground text. Check secondary text and
+  placeholders on the actual surface in both themes; run `tests/pw_legacy_text_contrast.py`.
+- Keep a switch's visible track inside its 44px target. Saving a switch must preserve keyboard focus;
+  `tests/pw_shared_switch_geometry.py` exercises pointer and Space activation on the real app.
 - Keep unreviewed interface catalogs unavailable and visible as incomplete; never label English
   fallback as translation.
 - Treat the Credits coverage result as authoritative. A readable partial manifest is not a complete
