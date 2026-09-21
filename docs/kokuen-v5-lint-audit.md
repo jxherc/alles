@@ -6,9 +6,9 @@ shipped shell and workbench presentation.
 Current acceptance:
 
 - hard errors: 0
-- reviewed warnings: 195
+- reviewed warnings: 192
 - unexplained warnings: 0
-- `small-type`: 123 reviewed 12-13px secondary metadata or compact workbench labels. The hard 12px
+- `small-type`: 120 reviewed 12-13px secondary metadata or compact workbench labels. The hard 12px
   floor is preserved; interactive silhouettes remain at least 44px and primary text keeps the essential
   hierarchy.
 - `nested-boundary`: 72 reviewed control bezels or independent scroll/select/dialog/rail subregions.
@@ -26,8 +26,9 @@ python3 scripts/check_kokuen_v5_lint.py --report
 
 The checker discovers an installed canonical linter beside the repository or in the user's skill
 directories. Set `KOKUEN_LINTER` to its `lint_ui_rules.py` path to override discovery.
-The September 21 repair retained all 195 reviewed warning messages and refreshed their source
-positions after the Files readability changes. The real-app contrast and switch gates supplement
+The September 21 cleanup removed three warnings belonging to the retired Files sort, quota, and tag
+styles; the remaining warning messages are unchanged, with refreshed source positions.
+The real-app contrast and switch gates supplement
 the unchanged source-level acceptance; warning reconciliation alone is not visual proof.
 
 This is a source-level advisory audit. It supplements, and does not replace, real rendered checks for

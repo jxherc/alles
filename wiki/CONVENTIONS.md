@@ -23,3 +23,10 @@
   mutate their data.
 - After Actual cutover, do not read frozen legacy transaction calculations or dual-write the ledger.
   Adapt a view to Actual or fail it closed until that work exists.
+- Trace frontend cleanup from `static/js/app.js`, including lazy-loader references. The frontend
+  inventory test rejects disconnected shipped modules; do not preserve an obsolete implementation
+  just to satisfy a source assertion. Move retained behavior checks to its current runtime owner.
+- Files breadcrumbs must remain on one scrollable row. Verify a nested path at phone width so old
+  wrapping rules cannot escape the fixed header and overlap storage-location controls.
+- Check fixed overlays with reduced motion enabled: removing ancestor animation/transforms can change
+  their containing block. Mobile Files overlays must stay inside the workspace beside the 52px shell rail.

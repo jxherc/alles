@@ -752,10 +752,6 @@ async def deliver_news_brief(content: str, *, idempotency_key: str = "") -> str:
         return "failed"
 
 
-async def _api_edit_message(token: str, channel_id: str, message_id: str, content: str) -> bool:
-    return await _api_edit_message_result(token, channel_id, message_id, content) == "delivered"
-
-
 async def _api_edit_message_result(
     token: str,
     channel_id: str,

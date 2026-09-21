@@ -164,14 +164,6 @@ export function setControlState(element, state, { message = '' } = {}) {
   return true;
 }
 
-export function setSurfaceState(surface, state, { message = '' } = {}) {
-  if (!surface || !KOKUEN_STATES.includes(state)) return false;
-  surface.dataset.state = state;
-  surface.setAttribute('aria-busy', String(state === 'busy' || state === 'loading'));
-  if (message) surface.dataset.stateMessage = message;
-  else delete surface.dataset.stateMessage;
-  return true;
-}
 
 export function beginBusy(element, label = 'working') {
   if (!element || element.getAttribute('aria-busy') === 'true') return null;
@@ -250,42 +242,6 @@ export function createFocusBoundary(dialog, { trigger = null, onEscape = null } 
   };
 }
 
-export function wireMenu(trigger, menu, { onClose = null } = {}) {
-  if (!trigger || !menu) return null;
-  const items = () => [...menu.querySelectorAll('[role^="menuitem"]')]
-    .filter(element => visible(element) && element.getAttribute('aria-disabled') !== 'true');
-  const close = ({ restoreFocus = true } = {}) => {
-    menu.hidden = true;
-    trigger.setAttribute('aria-expanded', 'false');
-    onClose?.();
-    if (restoreFocus) trigger.focus();
-  };
-  const open = () => {
-    menu.hidden = false;
-    trigger.setAttribute('aria-expanded', 'true');
-    items()[0]?.focus();
-  };
-  trigger.addEventListener('click', event => {
-    event.stopPropagation();
-    if (menu.hidden) open();
-    else close();
-  });
-  menu.addEventListener('keydown', event => {
-    const options = items();
-    const index = options.indexOf(document.activeElement);
-    if (event.key === 'Escape') {
-      event.preventDefault();
-      close();
-    } else if (options.length && ['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
-      event.preventDefault();
-      const next = event.key === 'Home' ? 0
-        : event.key === 'End' ? options.length - 1
-          : (index + (event.key === 'ArrowDown' ? 1 : -1) + options.length) % options.length;
-      options[next].focus();
-    }
-  });
-  return { open, close };
-}
 
 export function createMenuController(menu, { onClose = null } = {}) {
   if (!menu) return null;
@@ -342,32 +298,6 @@ export function createMenuController(menu, { onClose = null } = {}) {
   };
 }
 
-export function wireTabs(tablist, { activate = tab => tab.click() } = {}) {
-  if (!tablist || tablist.dataset.kokuenTabsReady === '1') return null;
-  tablist.dataset.kokuenTabsReady = '1';
-  const tabs = () => [...tablist.querySelectorAll('[role="tab"]')]
-    .filter(tab => tab.getAttribute('aria-disabled') !== 'true');
-  const sync = selected => {
-    for (const tab of tabs()) tab.tabIndex = tab === selected ? 0 : -1;
-  };
-  tablist.addEventListener('keydown', event => {
-    if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key)) return;
-    const options = tabs();
-    const index = options.indexOf(event.target.closest('[role="tab"]'));
-    if (index < 0 || !options.length) return;
-    event.preventDefault();
-    const backwards = event.key === 'ArrowLeft' || event.key === 'ArrowUp';
-    const next = event.key === 'Home' ? 0
-      : event.key === 'End' ? options.length - 1
-        : (index + (backwards ? -1 : 1) + options.length) % options.length;
-    sync(options[next]);
-    options[next].focus();
-    activate(options[next]);
-  });
-  const selected = tabs().find(tab => tab.getAttribute('aria-selected') === 'true') || tabs()[0];
-  if (selected) sync(selected);
-  return { sync };
-}
 
 export function wireChoiceGroup(group, { activate = choice => choice.click() } = {}) {
   if (!group || group.dataset.kokuenChoiceReady === '1') return null;

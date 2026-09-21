@@ -1424,9 +1424,6 @@ function closeDialog(result) {
   _dialogFocus = null;
 }
 
-function setDialogError(message) {
-  if ($('docs-dialog-error')) $('docs-dialog-error').textContent = message;
-}
 
 function trapDialogFocus(event) {
   if (event.key !== 'Tab') return;

@@ -38,7 +38,7 @@ class KokuenV5LintAuditTests(unittest.TestCase):
             text=True,
         )
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        self.assertIn("0 errors, 195 warnings, 195 explained, 0 unexplained", result.stdout)
+        self.assertIn("0 errors, 192 warnings, 192 explained, 0 unexplained", result.stdout)
 
     def test_inline_product_text_respects_the_twelve_pixel_floor(self):
         rem_pattern = re.compile(r"font-size\s*:\s*(0?\.[0-9]+)rem")

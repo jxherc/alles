@@ -6,8 +6,6 @@ import { renderAgentSteps, wireAgentRunControls } from './agentview.js';
 import { isIncognitoMode } from './modes.js?v=256';
 import { scrollToLatest } from './scrollfollow.js';
 import {
-  getCurrentEndpoint,
-  getSelected,
   modelOverrideForNewSession,
   restoreSessionModel,
   selectAideDefault,
@@ -99,7 +97,6 @@ export function newChat(options = {}) {
   window._pendingPersona = null;       // fresh chat starts with no persona pre-picked
   window._pendingChatBehavior = '';
   window._refreshPersonaBtn?.();        // keep the persona button visible + pickable pre-send
-  window._refreshChatBehaviorBtn?.();
   selectAideDefault();                  // new chats follow the effective Aide Chat role
   if (!options.preserveHash && location.hash) {
     history.replaceState(null, '', location.pathname + location.search);
@@ -307,7 +304,6 @@ export async function selectSession(id) {
     restoreSessionModel(data.session);
     updateSessionHeader(data.session);
     window._setMode?.(data.session.mode || 'chat');   // restore this convo's last mode
-    window._refreshChatBehaviorBtn?.(data.session);
     // refresh persona button
     try {
       window._refreshPersonaBtn?.();
@@ -751,19 +747,6 @@ export async function createSession(model = '', endpointId = '', options = {}) {
 }
 
 
-// return the active session id, or lazily create one (so research/docs-ask work on a
-// fresh chat exactly like a normal first message does).
-export async function ensureSession(options = {}) {
-  const existing = getActiveId();
-  if (existing) return existing;
-  const ep = getCurrentEndpoint();
-  if (!ep) { toast('no endpoint configured: add one via the model picker', 'error'); return null; }
-  const model = getSelected()?.model || ep.models?.[0] || '';
-  const s = await createSession(model, ep.id, options);
-  if (!s) { toast('failed to create session', 'error'); return null; }
-  markActive(s.id);
-  return s.id;
-}
 
 export function updateSessionName(id, name) {
   _allSessions.forEach(s => { if (s.id === id) s.name = name; });

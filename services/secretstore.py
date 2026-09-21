@@ -126,11 +126,6 @@ def _load_keyring() -> tuple[dict[str, bytes], str]:
     return dict(keys), active
 
 
-def _load_key() -> bytes:
-    keys, active = _load_keyring()
-    return keys[active]
-
-
 def is_sealed(value: str) -> bool:
     return bool(value) and value.startswith((LEGACY_PREFIX, PREFIX))
 
